@@ -981,8 +981,8 @@ CONTAINS
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER :: gfn_type, handle, ikind, ispin, iw, lmax_sphere, maxl, maxlgto, maxlgto_lri, &
          maxlgto_nuc, maxlppl, maxlppnl, method_id, multiplicity, my_ival, n_ao, n_mo_add, natom, &
-         nelectron, ngauss, nkind, nlumo_dos, nlumo_molden, nlumo_pdos, nlumo_required, &
-         output_unit, sort_basis, tnadd_method
+         nelectron, ngauss, nkind, nlumo_dos, nlumo_molden, nlumo_required, output_unit, &
+         sort_basis, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(:), POINTER                     :: mo_index_range
@@ -2119,10 +2119,9 @@ CONTAINS
       END IF
 
       nlumo_dos = section_get_ival(dft_section, "PRINT%DOS%NLUMO")
-      nlumo_pdos = section_get_ival(dft_section, "PRINT%PDOS%NLUMO")
       nlumo_molden = section_get_ival(dft_section, "PRINT%MO_MOLDEN%NLUMO")
-      nlumo_required = MAX(nlumo_dos, nlumo_pdos, nlumo_molden)
-      IF (nlumo_dos == -1 .OR. nlumo_pdos == -1 .OR. nlumo_molden == -1) nlumo_required = -1
+      nlumo_required = MAX(nlumo_dos, nlumo_molden)
+      IF (nlumo_dos == -1 .OR. nlumo_molden == -1) nlumo_required = -1
       IF (.NOT. scf_control%use_ot .AND. nlumo_required /= 0) THEN
          IF (nlumo_required == -1) THEN
             IF (scf_control%added_mos(1) /= -1 .OR. &

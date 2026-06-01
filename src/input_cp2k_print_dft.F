@@ -164,8 +164,7 @@ MODULE input_cp2k_print_dft
    USE qs_density_mixing_types, ONLY: create_mixing_section
    USE qs_fb_input, ONLY: create_filtermatrix_section
    USE qs_mom_types, ONLY: create_mom_section
-   USE string_utilities, ONLY: newline, &
-                               s2a
+   USE string_utilities, ONLY: s2a
 
    USE cp_output_handling_openpmd, ONLY: cp_openpmd_get_default_extension
 
@@ -176,7 +175,7 @@ MODULE input_cp2k_print_dft
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_print_dft'
 
-   PUBLIC :: create_print_dft_section, create_pdos_section
+   PUBLIC :: add_dos_keywords, create_print_dft_section
 
 CONTAINS
 
@@ -1179,11 +1178,21 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL create_dos_section(print_key)
-      CALL section_add_subsection(section, print_key)
-      CALL section_release(print_key)
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DOS", &
+                                       description="Print density of states (DOS). "// &
+                                       "Projected DOS output can be enabled with PDOS.", &
+                                       print_level=debug_print_level, common_iter_levels=1, filename="")
 
-      CALL create_pdos_section(print_key)
+      CALL add_dos_keywords(print_key, xas_mode=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MP_GRID", &
+                          description="Specify a Monkhorst-Pack grid with which to compute the density of states. "// &
+                          "Works only for a k-point calculation", &
+                          usage="MP_GRID {integer} {integer} {integer}", default_i_vals=[-1], &
+                          n_var=3, type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
@@ -2662,37 +2671,63 @@ CONTAINS
    END SUBROUTINE create_elf_print_section
 
 ! **************************************************************************************************
-!> \brief Add keywords shared by DOS and PDOS print sections.
+!> \brief Add projected-DOS related keywords to a DOS or XAS PDOS print section.
 !> \param print_key print key section to add keywords to
-!> \param label spectrum label used in keyword descriptions
-!> \param width_desc extra description for BROADEN_WIDTH
-!> \param ndigits_desc description for NDIGITS
+!> \param xas_mode if true, add keywords for the XAS-specific standalone PDOS section
 ! **************************************************************************************************
-   SUBROUTINE add_dos_pdos_common_keywords(print_key, label, width_desc, ndigits_desc)
+   SUBROUTINE add_dos_keywords(print_key, xas_mode)
 
       TYPE(section_type), POINTER                        :: print_key
-      CHARACTER(LEN=*), INTENT(IN)                       :: label, width_desc, ndigits_desc
+      LOGICAL, INTENT(IN)                                :: xas_mode
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
+      NULLIFY (subsection)
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
-                          description="Append the "//TRIM(label)//" obtained at different iterations to the "// &
-                          TRIM(label)//" output file. By default the file is overwritten", &
-                          usage="APPEND", default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
+                          description="Append the DOS/PDOS obtained at different iterations to the output file. "// &
+                          "By default the file is overwritten", &
+                          usage="APPEND", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DELTA_E", &
-                          description="Energy spacing of the broadened "//TRIM(label)//" output grid.", &
+                          description="Energy spacing of the broadened DOS/PDOS output grid.", &
                           usage="DELTA_E 0.0005", type_of_var=real_t, default_r_val=0.001_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_UNIT", &
+                          description="Energy unit used for the printed DOS/PDOS energy axis. "// &
+                          "For broadened spectra, intensities are converted consistently to the selected energy unit.", &
+                          usage="ENERGY_UNIT HARTREE", type_of_var=enum_t, &
+                          enum_c_vals=s2a("HARTREE", "EV"), &
+                          enum_i_vals=[1, 2], &
+                          enum_desc=s2a("Print energies in Hartree (a.u.).", &
+                                        "Print energies in electronvolt."), &
+                          default_i_val=1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_ZERO", &
+                          description="Reference energy used for the printed DOS/PDOS energy axis. "// &
+                          "With AUTO, the Fermi energy is used if smearing is enabled or fractional "// &
+                          "occupations are found; otherwise the highest occupied crystal orbital is used.", &
+                          usage="ENERGY_ZERO AUTO", type_of_var=enum_t, &
+                          enum_c_vals=s2a("AUTO", "ABSOLUTE", "FERMI", "HOCO"), &
+                          enum_i_vals=[1, 2, 3, 4], &
+                          enum_desc=s2a("Choose FERMI for smeared or fractionally occupied systems, otherwise HOCO.", &
+                                        "Print absolute orbital energies.", &
+                                        "Shift orbital energies by the Fermi energy.", &
+                                        "Shift orbital energies by the highest occupied crystal orbital."), &
+                          default_i_val=1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="BROADEN_TYPE", &
-                          description="Type of broadening function used to produce the "//TRIM(label)//" curve.", &
+                          description="Type of broadening function used to produce the DOS/PDOS curve.", &
                           usage="BROADEN_TYPE GAUSSIAN", type_of_var=enum_t, &
                           enum_c_vals=s2a("GAUSSIAN", "LORENTZIAN", "PSEUDO_VOIGT"), &
                           enum_i_vals=[1, 2, 3], &
@@ -2704,8 +2739,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BROADEN_WIDTH", &
-                          description="Full width at half maximum (FWHM) of the "//TRIM(label)// &
-                          " broadening function. "//TRIM(width_desc), &
+                          description="Full width at half maximum (FWHM) of the DOS/PDOS broadening function.", &
                           usage="BROADEN_WIDTH [eV] 0.1", type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=0.1_dp, unit_str="eV"), unit_str="eV")
       CALL section_add_keyword(print_key, keyword)
@@ -2718,82 +2752,41 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
-                          description=ndigits_desc, &
+                          description="Specify the number of digits used to print DOS/PDOS values.", &
                           default_i_val=6)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NLUMO", &
-                          description="Number of unoccupied orbitals to include in the "//TRIM(label)// &
-                          " (-1=all)."//newline// &
-                          "For OT calculations, the requested virtual orbitals are generated after "// &
-                          "SCF using the OT eigensolver. For diagonalization calculations, "// &
-                          "SCF%ADDED_MOS is increased if needed to make the requested unoccupied "// &
-                          "orbitals available.", &
+                          description="Number of unoccupied orbitals to include in the DOS/PDOS (-1=all). "// &
+                          "For OT calculations, the requested virtual orbitals are generated after SCF using the "// &
+                          "OT eigensolver. For diagonalization calculations, SCF%ADDED_MOS is increased if needed "// &
+                          "to make the requested unoccupied orbitals available.", &
                           usage="NLUMO integer", default_i_val=0)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-   END SUBROUTINE add_dos_pdos_common_keywords
+      IF (.NOT. xas_mode) THEN
+         CALL keyword_create(keyword, __LOCATION__, name="PDOS", &
+                             description="Print projected DOS in addition to the total DOS.", &
+                             usage="PDOS", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+         CALL section_add_keyword(print_key, keyword)
+         CALL keyword_release(keyword)
 
-! **************************************************************************************************
-!> \brief ...
-!> \param print_key ...
-! **************************************************************************************************
-   SUBROUTINE create_dos_section(print_key)
+         CALL keyword_create(keyword, __LOCATION__, name="PDOS_RAW", &
+                             description="Print MO-resolved projected DOS weights to *.pdos_raw. "// &
+                             "If PDOS is not enabled, PDOS will be enabled automatically.", &
+                             usage="PDOS_RAW", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+         CALL section_add_keyword(print_key, keyword)
+         CALL keyword_release(keyword)
+      END IF
 
-      TYPE(section_type), POINTER                        :: print_key
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      NULLIFY (keyword)
-
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "DOS", &
-                                       description="Print Density of States (DOS) (only available states from SCF)", &
-                                       print_level=debug_print_level, common_iter_levels=1, filename="")
-
-      CALL add_dos_pdos_common_keywords(print_key, "DOS", &
-                                        "Set to zero to recover the unbroadened histogram output.", &
-                                        "Specify the number of digits used to print density and occupation.")
-
-      CALL keyword_create(keyword, __LOCATION__, name="MP_GRID", &
-                          description="Specify a Monkhorst-Pack grid with which to compute the density of states. "// &
-                          "Works only for a k-point calculation", &
-                          usage="MP_GRID {integer} {integer} {integer}", default_i_vals=[-1], &
-                          n_var=3, type_of_var=integer_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_dos_section
-
-! **************************************************************************************************
-!> \brief ...
-!> \param print_key ...
-! **************************************************************************************************
-   SUBROUTINE create_pdos_section(print_key)
-
-      TYPE(section_type), POINTER                        :: print_key
-
-      TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection
-
-      NULLIFY (subsection)
-      NULLIFY (keyword)
-
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "PDOS", &
-                                       description="Print out the DOS projected per kind and angular momentum  ", &
-                                       print_level=debug_print_level, common_iter_levels=1, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="COMPONENTS", &
                           description="Print out PDOS distinguishing all angular momentum components.", &
-                          usage="COMPONENTS", default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
+                          usage="COMPONENTS", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL add_dos_pdos_common_keywords(print_key, "PDOS", &
-                                        "The broadened PDOS curve is written to *.pdos, while the "// &
-                                        "MO-resolved projected weights are written to *.pdos_raw. "// &
-                                        "Set to zero to skip the broadened PDOS curve.", &
-                                        "Specify the number of digits used to print broadened PDOS values.")
+
       CALL keyword_create(keyword, __LOCATION__, name="OUT_EACH_STATE", &
                           variants=["OUT_EACH_MO"], &
                           description="Output on the status of the calculation every OUT_EACH_MO states. If -1 no output", &
@@ -2807,33 +2800,28 @@ CONTAINS
                           n_keywords=4, n_subsections=0, repeats=.TRUE.)
       CALL keyword_create(keyword, __LOCATION__, name="COMPONENTS", &
                           description="Print out PDOS distinguishing all angular momentum components.", &
-                          usage="COMPONENTS", default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
+                          usage="COMPONENTS", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="LIST", &
-                          description="Specifies a list of indexes of atoms where to project the DOS  ", &
-                          usage="LIST {integer}  {integer} ..  {integer} ", type_of_var=integer_t, &
+                          description="Specifies a list of indexes of atoms where to project the DOS", &
+                          usage="LIST {integer} {integer} .. {integer}", type_of_var=integer_t, &
                           n_var=-1, repeats=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-
       CALL section_add_subsection(print_key, subsection)
       CALL section_release(subsection)
 
       CALL section_create(subsection, __LOCATION__, name="R_LDOS", &
-                          description="Controls the printing of local PDOS, projected on 3D volume in real space,"// &
-                          " the volume is defined in terms of position with respect to atoms in the lists", &
+                          description="Controls the printing of local PDOS, projected on 3D volume in real space, "// &
+                          "the volume is defined in terms of position with respect to atoms in the lists", &
                           n_keywords=4, n_subsections=0, repeats=.TRUE.)
-
       CALL keyword_create(keyword, __LOCATION__, name="LIST", &
-                          description="Specifies a list of indexes of atoms used to define the real space volume  ", &
-                          usage="LIST {integer}  {integer} ..  {integer} ", type_of_var=integer_t, &
+                          description="Specifies a list of indexes of atoms used to define the real space volume", &
+                          usage="LIST {integer} {integer} .. {integer}", type_of_var=integer_t, &
                           n_var=-1, repeats=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="XRANGE", &
                           description="range of positions in Cartesian direction x: all grid points within "// &
                           "this range from at least one atom of the list are considered", &
@@ -2852,22 +2840,20 @@ CONTAINS
                           usage="ZRANGE -10.0 10.0", unit_str="angstrom", n_var=2, type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="ERANGE", &
                           description="Only project states with the energy values in the given interval. "// &
                           "Default is all states.", &
                           usage="ERANGE -1.0 1.0", unit_str="hartree", n_var=2, type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-
       CALL section_add_subsection(print_key, subsection)
       CALL section_release(subsection)
 
-   END SUBROUTINE create_pdos_section
+   END SUBROUTINE add_dos_keywords
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param print_key ...
+!> \brief Create WANNIER90 print section.
+!> \param print_key print key section to create
 ! **************************************************************************************************
    SUBROUTINE create_wannier_section(print_key)
 

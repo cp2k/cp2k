@@ -104,6 +104,7 @@ MODULE qs_scf_post_tb
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
    USE qs_dos,                          ONLY: calculate_dos,&
                                               calculate_dos_kp
+   USE qs_dos_utils,                    ONLY: get_dos_pdos_flags
    USE qs_elf_methods,                  ONLY: qs_elf_calc
    USE qs_energy_window,                ONLY: energy_windows
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -177,9 +178,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: aname
       INTEGER :: after, gfn_type, handle, homo, iat, iatom, ikind, img, ispin, iw, nat, natom, &
          nkind, nlumo_stm, nlumos, nspins, print_level, unit_nr
-      LOGICAL                                            :: do_cube, do_kpoints, explicit, gfn0, &
-                                                            has_homo, omit_headers, print_it, &
-                                                            rebuild, vdip
+      LOGICAL                                            :: do_cube, do_dos, do_kpoints, do_pdos, &
+                                                            do_pdos_raw, explicit, gfn0, has_homo, &
+                                                            omit_headers, print_it, rebuild, vdip
       REAL(KIND=dp)                                      :: zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge, zcharge
       REAL(KIND=dp), DIMENSION(2, 2)                     :: homo_lumo
@@ -444,20 +445,19 @@ CONTAINS
 
       IF (.NOT. no_mos) THEN
          print_key => section_vals_get_subs_vals(print_section, "DOS")
-         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         do_dos = BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
+         CALL get_dos_pdos_flags(print_key, do_dos, do_pdos, do_pdos_raw)
+         IF (do_dos) THEN
             IF (do_kpoints) THEN
                CALL calculate_dos_kp(qs_env, dft_section)
             ELSE
                CALL get_qs_env(qs_env, mos=mos)
-               CALL calculate_dos(mos, dft_section)
+               CALL calculate_dos(mos, dft_section, smearing_enabled=dft_control%smear)
             END IF
          END IF
-      END IF
 
-      ! PDOS
-      IF (.NOT. no_mos) THEN
-         print_key => section_vals_get_subs_vals(print_section, "PDOS")
-         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         ! PDOS
+         IF (do_pdos) THEN
             IF (do_kpoints) THEN
                CPWARN("Projected density of states not implemented for k-points.")
             ELSE
@@ -478,10 +478,12 @@ CONTAINS
                   END IF
                   IF (dft_control%nspins == 2) THEN
                      CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
-                                                  qs_kind_set, particle_set, qs_env, dft_section, ispin=ispin)
+                                                  qs_kind_set, particle_set, qs_env, dft_section, ispin=ispin, &
+                                                  pdos_print_key="PRINT%DOS", write_pdos_raw=do_pdos_raw)
                   ELSE
                      CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
-                                                  qs_kind_set, particle_set, qs_env, dft_section)
+                                                  qs_kind_set, particle_set, qs_env, dft_section, &
+                                                  pdos_print_key="PRINT%DOS", write_pdos_raw=do_pdos_raw)
                   END IF
                END DO
             END IF

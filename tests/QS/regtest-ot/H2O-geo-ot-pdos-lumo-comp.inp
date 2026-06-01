@@ -20,15 +20,16 @@
       CUTOFF 200
     &END MGRID
     &PRINT
-      &PDOS
+      &DOS
         ADD_LAST NUMERIC
         APPEND
         COMPONENTS
         NLUMO 5
+        PDOS T
         &EACH
           GEO_OPT 0
         &END EACH
-      &END PDOS
+      &END DOS
     &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12
