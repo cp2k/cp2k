@@ -151,7 +151,7 @@ if(NOT TARGET cp2k::cp2k)
 
   if(@CP2K_USE_ACE@)
     set(CP2K_USE_ACE @CP2K_USE_ACE@)
-    find_dependency(ACE REQUIRED)
+    find_dependency(pace REQUIRED)
   endif()
 
   if(@CP2K_USE_LIBSMEAGOL@)
