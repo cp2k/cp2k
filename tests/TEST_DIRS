@@ -4,9 +4,9 @@
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
 QS/regtest-dft-d4-auto-ref                                  libdftd4
-QS/regtest-dft-d2-auto-ref                                  
-QS/regtest-dft-d3-auto-ref                                  
-QS/regtest-dft-d3-bj-auto-ref                               
+QS/regtest-dft-d2-auto-ref                                  libint
+QS/regtest-dft-d3-auto-ref                                  libint
+QS/regtest-dft-d3-bj-auto-ref                               libint
 QS/regtest-pcc
 QS/regtest-kubo-transport
 QS/regtest-gw-realspace                                     libint !ifx
