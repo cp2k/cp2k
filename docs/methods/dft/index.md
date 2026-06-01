@@ -16,7 +16,6 @@ k-points
 basis_sets
 pseudopotentials
 cutoff
-band_dos/index
 ```
 
 Density functional theory in CP2K is primarily provided by the Quickstep module. Most production
