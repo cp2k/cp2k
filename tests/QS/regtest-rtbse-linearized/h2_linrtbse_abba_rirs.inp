@@ -3,10 +3,12 @@
   RUN_TYPE RT_PROPAGATION
 &END GLOBAL
 
+! ABBA with RI-RS: Liouvillian-diagnostic peaks + propagated alpha(0) in one job.
+
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 5
+    STEPS 100
     TEMPERATURE [K] 0.0
     TIMESTEP [fs] 1e-3
   &END MD
@@ -52,6 +54,9 @@
       APPLY_DELTA_PULSE
       DELTA_PULSE_DIRECTION 1 0 0
       DELTA_PULSE_SCALE 1.0E-5
+      &FT
+        DAMPING 5.0
+      &END FT
       &PRINT
         &RESTART OFF
         &END RESTART

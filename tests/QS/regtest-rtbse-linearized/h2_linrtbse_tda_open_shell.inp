@@ -1,11 +1,9 @@
 &GLOBAL
-  PROJECT_NAME H2_LINRTBSE_TDA_STATIC_POL_CUTOFF
+  PROJECT_NAME H2_LINRTBSE_TDA_OPEN_SHELL
   RUN_TYPE RT_PROPAGATION
 &END GLOBAL
 
-! TDA propagation + FT alpha(0) under ENERGY_CUTOFF truncation. Gates the
-! cutoff bookkeeping on the TDA propagator path (independent of the
-! Liouvillian-diagnostic gate in h2_linrtbse_tda_cutoff.inp).
+! Open-shell (LSD) TDA: Liouvillian peaks + propagated alpha(0) + spin-total identity.
 
 &MOTION
   &MD
@@ -20,42 +18,28 @@
   METHOD QS
   &DFT
     BASIS_SET_FILE_NAME BASIS_MINIMAL
+    ! Forced open shell: spin-polarized singlet H2 (n_alpha = n_beta = 1).
+    ! Must reproduce the closed-shell result -> spin-factor identity test.
+    LSD .TRUE.
+    MULTIPLICITY 1
     POTENTIAL_FILE_NAME ALL_POTENTIALS
     &MGRID
       CUTOFF 300
       REL_CUTOFF 40
     &END MGRID
-    &QS
-      EPS_DEFAULT 1.0E-10
-      METHOD GAPW
-    &END QS
     &POISSON
       PERIODIC NONE
       POISSON_SOLVER WAVELET
     &END POISSON
-    &SCF
-      SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-8
-      MAX_SCF 200
-      ADDED_MOS -1
-      &DIAGONALIZATION ON
-        ALGORITHM STANDARD
-      &END DIAGONALIZATION
-      &MIXING
-        METHOD BROYDEN_MIXING
-        ALPHA 0.4
-        NBROYDEN 4
-      &END MIXING
-    &END SCF
-    &XC
-      &XC_FUNCTIONAL PBE0
-      &END XC_FUNCTIONAL
-    &END XC
+    &QS
+      EPS_DEFAULT 1.0E-10
+      METHOD GAPW
+    &END QS
     &REAL_TIME_PROPAGATION
-      INITIAL_WFN SCF_WFN
       APPLY_DELTA_PULSE
       DELTA_PULSE_DIRECTION 1 0 0
       DELTA_PULSE_SCALE 1.0E-5
+      INITIAL_WFN SCF_WFN
       &FT
         DAMPING 5.0
       &END FT
@@ -64,13 +48,29 @@
         &END RESTART
       &END PRINT
       &RTBSE
+        DIAGNOSE_LIOUVILLIAN_EIG T
         LRRTBSE T
         TDA T
-        DIAGNOSE_LIOUVILLIAN_EIG F
-        ENERGY_CUTOFF_OCC 20
-        ENERGY_CUTOFF_EMPTY 40
       &END RTBSE
     &END REAL_TIME_PROPAGATION
+    &SCF
+      ADDED_MOS -1 -1
+      EPS_SCF 1.0E-8
+      MAX_SCF 200
+      SCF_GUESS ATOMIC
+      &DIAGONALIZATION ON
+        ALGORITHM STANDARD
+      &END DIAGONALIZATION
+      &MIXING
+        ALPHA 0.4
+        METHOD BROYDEN_MIXING
+        NBROYDEN 4
+      &END MIXING
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE0
+      &END XC_FUNCTIONAL
+    &END XC
   &END DFT
   &PROPERTIES
     &BANDSTRUCTURE
@@ -88,10 +88,6 @@
       ABC 10.0 10.0 10.0
       PERIODIC NONE
     &END CELL
-    &TOPOLOGY
-      &CENTER_COORDINATES
-      &END CENTER_COORDINATES
-    &END TOPOLOGY
     &COORD
       H 0.0 0.0 0.0
       H 0.74 0.0 0.0
@@ -101,5 +97,9 @@
       BASIS_SET RI_AUX def2-SVP-RIFIT-custom
       POTENTIAL ALL
     &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

@@ -1,10 +1,9 @@
 &GLOBAL
-  PROJECT_NAME H2_LINRTBSE_ABBA_STATIC_POL_CUTOFF
+  PROJECT_NAME H2_LINRTBSE_ABBA
   RUN_TYPE RT_PROPAGATION
 &END GLOBAL
 
-! ABBA propagation + FT alpha(0) under ENERGY_CUTOFF truncation. Gates the
-! cutoff bookkeeping on the ABBA propagator path.
+! ABBA linRTBSE: Liouvillian-diagnostic peaks + propagated alpha(0) in one job.
 
 &MOTION
   &MD
@@ -65,9 +64,7 @@
       &RTBSE
         LRRTBSE T
         TDA F
-        DIAGNOSE_LIOUVILLIAN_EIG F
-        ENERGY_CUTOFF_OCC 20
-        ENERGY_CUTOFF_EMPTY 40
+        DIAGNOSE_LIOUVILLIAN_EIG T
       &END RTBSE
     &END REAL_TIME_PROPAGATION
   &END DFT

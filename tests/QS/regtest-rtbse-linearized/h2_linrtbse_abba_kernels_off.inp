@@ -3,15 +3,13 @@
   RUN_TYPE RT_PROPAGATION
 &END GLOBAL
 
-! With Hartree + SX kernels disabled the ABBA Liouvillian reduces to TDA
-! with bare diag(eps_ai) (A=diag(eps_ai), B=0; Furche C = A^2 -> Omega_n =
-! eps_ai). Lowest eigenvalue must equal h2_linrtbse_tda_kernels_off.inp ref
-! AND must equal the G0W0 direct band gap. DEBUG_DISABLE_COH irrelevant
-! (see dev_notes/rt_bse_open_questions.md Q6).
+! ABBA, all kernels disabled: B=0 reduces ABBA to TDA-bare-diag; peaks +
+! alpha(0) must match the TDA kernels-off counterpart.
+
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 5
+    STEPS 100
     TEMPERATURE [K] 0.0
     TIMESTEP [fs] 1e-3
   &END MD
@@ -39,6 +37,9 @@
       DELTA_PULSE_DIRECTION 1 0 0
       DELTA_PULSE_SCALE 1.0E-5
       INITIAL_WFN SCF_WFN
+      &FT
+        DAMPING 5.0
+      &END FT
       &PRINT
         &RESTART OFF
         &END RESTART

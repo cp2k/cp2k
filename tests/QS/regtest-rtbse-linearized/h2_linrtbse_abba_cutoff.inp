@@ -3,14 +3,12 @@
   RUN_TYPE RT_PROPAGATION
 &END GLOBAL
 
-! ABBA Liouvillian diagnostic with energy-cutoff truncation. Pinned via
-! peak1+peak2+peak3 matchers to gate the cutoff bookkeeping on the
-! Furche-reduction code path.
+! ABBA under ENERGY_CUTOFF truncation: Liouvillian peaks + propagated alpha(0).
 
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 5
+    STEPS 100
     TEMPERATURE [K] 0.0
     TIMESTEP [fs] 1e-3
   &END MD
@@ -56,6 +54,9 @@
       APPLY_DELTA_PULSE
       DELTA_PULSE_DIRECTION 1 0 0
       DELTA_PULSE_SCALE 1.0E-5
+      &FT
+        DAMPING 5.0
+      &END FT
       &PRINT
         &RESTART OFF
         &END RESTART
