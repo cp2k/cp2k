@@ -163,6 +163,8 @@ MODULE qs_environment_types
    USE wannier_states_types,            ONLY: wannier_centres_type
    USE xas_env_types,                   ONLY: xas_env_release,&
                                               xas_environment_type
+   USE xc_gauxc_interface,              ONLY: cp_gauxc_cache_type,&
+                                              gauxc_cache_release
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -320,8 +322,9 @@ MODULE qs_environment_types
       REAL(KIND=dp)                                         :: total_zeff_corr = -1.0_dp, surface_dipole_moment = -1.0_dp
       LOGICAL                                               :: surface_dipole_switch_off = .FALSE.
       TYPE(mo_set_type), DIMENSION(:), POINTER              :: mos_last_converged => NULL()
-      ! tblite
+! tblite
       TYPE(tblite_type), POINTER                            :: tb_tblite => Null()
+      TYPE(cp_gauxc_cache_type)                             :: gauxc_cache
    END TYPE qs_environment_type
 
 CONTAINS
@@ -1680,6 +1683,10 @@ CONTAINS
          CALL deallocate_tblite_type(qs_env%tb_tblite)
       END IF
 
+#if defined(__GAUXC)
+      CALL gauxc_cache_release(qs_env%gauxc_cache)
+#endif
+
    END SUBROUTINE qs_env_release
 
 ! **************************************************************************************************
@@ -1903,6 +1910,10 @@ CONTAINS
       IF (ASSOCIATED(qs_env%tb_tblite)) THEN
          CALL deallocate_tblite_type(qs_env%tb_tblite)
       END IF
+
+#if defined(__GAUXC)
+      CALL gauxc_cache_release(qs_env%gauxc_cache)
+#endif
 
    END SUBROUTINE qs_env_part_release
 
