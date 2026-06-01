@@ -137,7 +137,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: ngpts
       INTEGER, DIMENSION(3)                              :: lb, ub
       LOGICAL                                            :: append_cube, calculate_stress_tensor, &
-                                                            mpi_io, should_output
+                                                            do_kpoints, mpi_io, should_output
       REAL(KIND=dp) :: cavity_surface, cavity_volume, cell_volume, dphi2, dvol, e_tot, &
          epsilon_solvent, f, polarisation_charge, rho_delta, rho_delta_avg, rho_delta_max, &
          rho_iter_new, tot_rho_elec, tot_rho_solute
@@ -182,6 +182,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, &
                       cp_subsys=cp_subsys, &
                       dft_control=dft_control, &
+                      do_kpoints=do_kpoints, &
                       energy=energy, &
                       input=input, &
                       para_env=para_env, &
@@ -193,6 +194,10 @@ CONTAINS
       sccs_control => dft_control%sccs_control
 
       CPASSERT(ASSOCIATED(qs_env))
+
+      IF (do_kpoints) THEN
+         CPWARN("SCCS with k-points has not yet been fully validated")
+      END IF
 
       IF (PRESENT(h_stress)) THEN
          calculate_stress_tensor = .TRUE.
