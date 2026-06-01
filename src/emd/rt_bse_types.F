@@ -197,8 +197,8 @@ MODULE rt_bse_types
       TYPE(cp_fm_struct_type), POINTER                          :: fm_struct_mo_active => NULL()
       ! n_ao x mo_active fm struct used for C_active and AO<->MO rectangular intermediates.
       TYPE(cp_fm_struct_type), POINTER                          :: fm_struct_ao_mo_active => NULL()
-      ! Liouvillian-diagnostic struct: (N_OV x N_OV) on the same BLACS context as
-      ! fm_struct_mo_active. Allocated only when diagnose_liouvillian_eig=.TRUE..
+      ! Liouvillian-diagnostic struct: (N_OV_joint x N_OV_joint), spin blocks stacked, on the
+      ! same BLACS context as fm_struct_mo_active. Allocated only when diagnose_liouvillian_eig=.TRUE..
       TYPE(cp_fm_struct_type), POINTER                          :: fm_struct_ov_pairs => NULL()
       ! Truncated MO coefficient slabs C_active(:,:) of size n_ao x mo_active for each spin
       ! (only allocated for the linearized path).
@@ -258,19 +258,23 @@ MODULE rt_bse_types
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: sigma_SEX_ao => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: sigma_COH_ao => NULL(), &
                                                                    hartree_curr_ao => NULL()
+      ! Open-shell cross-spin Hartree (TDA AO-RI), single shared AO buffers built once per
+      ! RK4 stage: rho_total_ao_scratch (fm_s struct, matches rho_ao_lrrtbse for the spin sum);
+      ! hartree_total_ao = V_H[sum] (fm_ks struct, matches sigma_SEX_ao as the Hartree output).
+      TYPE(cp_cfm_type)                                         :: rho_total_ao_scratch = cp_cfm_type(), &
+                                                                   hartree_total_ao = cp_cfm_type()
       ! mo_active x mo_active real workspace pair used in MO-side transforms (linearized only).
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: real_workspace_mo => NULL()
       ! Liouvillian-diagnostic scratch (allocated only when diagnose_liouvillian_eig=.TRUE.).
-      ! drho_probe / L_drho live on fm_struct_mo_active (mo_active x mo_active).
-      ! L_pairs / eigvecs_pairs live on fm_struct_ov_pairs (N_OV x N_OV).
-      ! A_mat / B_mat / AmB_scratch / ApB_scratch are ABBA-only N_OV x N_OV blocks holding
+      ! drho_probe(:) / L_drho(:) are per-spin arrays on fm_struct_mo_active: the joint TDA
+      ! diagnostic probes one spin and reads the Liouvillian response on every spin block.
+      ! L_pairs / eigvecs_pairs live on fm_struct_ov_pairs (N_OV_joint x N_OV_joint, the spin
+      ! blocks stacked). A_mat / B_mat / AmB_scratch / ApB_scratch are ABBA-only blocks holding
       ! A, B, (A-B) -> (A-B)^{1/2}, and (A+B) for the Furche reduction; allocated only
-      ! when .NOT. tda_active (TDA path uses L_pairs alone).
-      ! eigenvalues_liouvillian holds the N_OV real eigenvalues from cp_cfm_heevd.
-      ! [INTERNAL] dev_notes/rt_bse_equations.md §8.5
-      TYPE(cp_cfm_type)                                         :: drho_probe = cp_cfm_type(), &
-                                                                   L_drho = cp_cfm_type(), &
-                                                                   L_pairs = cp_cfm_type(), &
+      ! when .NOT. tda_active (n_spin=1; TDA path uses L_pairs alone).
+      ! eigenvalues_liouvillian holds the N_OV_joint real eigenvalues from cp_cfm_heevd.
+      ! [INTERNAL] dev_notes/rt_bse_equations.md §8.5, §9.6
+      TYPE(cp_cfm_type)                                         :: L_pairs = cp_cfm_type(), &
                                                                    eigvecs_pairs = cp_cfm_type(), &
                                                                    A_mat = cp_cfm_type(), &
                                                                    B_mat = cp_cfm_type(), &
@@ -284,7 +288,9 @@ MODULE rt_bse_types
                                                                    rho_M => NULL(), &
                                                                    rho_orig => NULL(), &
                                                                    rho_ao_lrrtbse => NULL(), &
-                                                                   rho_delta_mo => NULL()
+                                                                   rho_delta_mo => NULL(), &
+                                                                   drho_probe => NULL(), &
+                                                                   L_drho => NULL()
       ! Workspace for rk4 in linearized RTBSE
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: rk4_coefficients => NULL()
 
@@ -470,12 +476,22 @@ CONTAINS
       IF (rtbse_env%tda_active .AND. .NOT. rtbse_env%linearized) THEN
          CPABORT("RTBSE TDA keyword requires LINEARIZED_BSE_PROPAGATION=.TRUE.")
       END IF
-      ! Liouvillian-eigenvalue diagnostic: n_spin=1 only. TDA and ABBA paths both supported;
-      ! the dispatcher in diagnose_liouvillian_eigenvalues routes on tda_active.
-      IF (rtbse_env%diagnose_liouvillian_eig) THEN
-         IF (rtbse_env%n_spin > 1) THEN
-            CPABORT("DIAGNOSE_LIOUVILLIAN_EIG currently restricted to n_spin=1.")
-         END IF
+      ! Liouvillian-eigenvalue diagnostic: TDA supports n_spin=1 and n_spin=2 (joint spin-block
+      ! matrix); ABBA is n_spin=1 only. The open-shell ABBA case (diagnostic or propagation) is
+      ! blocked by the TDA-only guard just below, so no separate n_spin>1 diagnostic abort.
+      ! Open-shell scope: TDA only this iteration. Cross-spin Hartree is implemented in the
+      ! TDA branch of update_effective_ham_MO; the non-TDA (ABBA) branch is still per-spin
+      ! and would be silently wrong for n_spin=2. This guard also blocks the ABBA diagnostic.
+      IF (rtbse_env%n_spin > 1 .AND. .NOT. rtbse_env%tda_active) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Open-shell linRTBSE (n_spin=2) is TDA-only in this iteration; "// &
+                       "set TDA=.TRUE. (ABBA open shell is not yet implemented).")
+      END IF
+      ! Open-shell scope: RIRS Hartree/SEX not yet audited for n_spin=2 (TDA + AO-RI only).
+      IF (rtbse_env%n_spin > 1 .AND. (rtbse_env%rirs_hartree .OR. rtbse_env%rirs_sex)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "RIRS Hartree/SEX is not yet supported for open shell (n_spin=2); "// &
+                       "set RIRS_HARTREE=.FALSE. and RIRS_SEX=.FALSE. to use the AO-RI path.")
       END IF
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C12
       IF ((rtbse_env%rirs_hartree .OR. rtbse_env%rirs_sex) .AND. bs_env%ri_rs%grid_select == 1) THEN
@@ -762,25 +778,40 @@ CONTAINS
                CALL cp_cfm_create(rtbse_env%rho_delta_mo(i), rtbse_env%fm_struct_mo_active)
                CALL cp_cfm_set_all(rtbse_env%rho_delta_mo(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
             END DO
+            ! Cross-spin Hartree scratch: single shared AO buffers (not per-spin). Structs
+            ! mirror the proven get_hartree_complex(rho_ao_lrrtbse, sigma_SEX_ao) call.
+            CALL cp_cfm_create(rtbse_env%rho_total_ao_scratch, bs_env%fm_s_Gamma%matrix_struct)
+            CALL cp_cfm_create(rtbse_env%hartree_total_ao, bs_env%fm_ks_Gamma(1)%matrix_struct)
+            CALL cp_cfm_set_all(rtbse_env%rho_total_ao_scratch, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+            CALL cp_cfm_set_all(rtbse_env%hartree_total_ao, CMPLX(0.0_dp, 0.0_dp, kind=dp))
          END IF
          ! Liouvillian-eigenvalue diagnostic state. n_spin=1 enforced upstream.
          ! Shared scratch (TDA + ABBA) allocated on diagnose_liouvillian_eig=T;
          ! ABBA-only A/B/A±B blocks added below under .NOT. tda_active. Mirror of the
          ! existing shared-scratch pattern, with the extra tda_active gate as the deviation.
          IF (rtbse_env%diagnose_liouvillian_eig) THEN
-            n_ov = (rtbse_env%n_occ(1) - rtbse_env%first_active_mo + 1)* &
-                   (rtbse_env%last_active_mo - rtbse_env%n_occ(1))
+            ! Joint OV dimension: the spin blocks are stacked (n_spin=1 -> the old single-spin
+            ! size). drho_probe/L_drho stay mo_active-sized per spin; L_pairs is N_OV_joint.
+            n_ov = 0
+            DO i = 1, rtbse_env%n_spin
+               n_ov = n_ov + (rtbse_env%n_occ(i) - rtbse_env%first_active_mo + 1)* &
+                      (rtbse_env%last_active_mo - rtbse_env%n_occ(i))
+            END DO
             NULLIFY (rtbse_env%fm_struct_ov_pairs)
             CALL cp_fm_struct_create(rtbse_env%fm_struct_ov_pairs, &
                                      bs_env%fm_ks_Gamma(1)%matrix_struct%para_env, &
                                      bs_env%fm_ks_Gamma(1)%matrix_struct%context, &
                                      n_ov, n_ov)
-            CALL cp_cfm_create(rtbse_env%drho_probe, rtbse_env%fm_struct_mo_active)
-            CALL cp_cfm_create(rtbse_env%L_drho, rtbse_env%fm_struct_mo_active)
+            ALLOCATE (rtbse_env%drho_probe(rtbse_env%n_spin))
+            ALLOCATE (rtbse_env%L_drho(rtbse_env%n_spin))
+            DO i = 1, rtbse_env%n_spin
+               CALL cp_cfm_create(rtbse_env%drho_probe(i), rtbse_env%fm_struct_mo_active)
+               CALL cp_cfm_create(rtbse_env%L_drho(i), rtbse_env%fm_struct_mo_active)
+               CALL cp_cfm_set_all(rtbse_env%drho_probe(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
+               CALL cp_cfm_set_all(rtbse_env%L_drho(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
+            END DO
             CALL cp_cfm_create(rtbse_env%L_pairs, rtbse_env%fm_struct_ov_pairs)
             CALL cp_cfm_create(rtbse_env%eigvecs_pairs, rtbse_env%fm_struct_ov_pairs)
-            CALL cp_cfm_set_all(rtbse_env%drho_probe, CMPLX(0.0_dp, 0.0_dp, kind=dp))
-            CALL cp_cfm_set_all(rtbse_env%L_drho, CMPLX(0.0_dp, 0.0_dp, kind=dp))
             CALL cp_cfm_set_all(rtbse_env%L_pairs, CMPLX(0.0_dp, 0.0_dp, kind=dp))
             CALL cp_cfm_set_all(rtbse_env%eigvecs_pairs, CMPLX(0.0_dp, 0.0_dp, kind=dp))
             NULLIFY (rtbse_env%eigenvalues_liouvillian)
@@ -884,10 +915,15 @@ CONTAINS
       IF (ASSOCIATED(rtbse_env%ao_mo_workspace)) CALL cp_fm_release(rtbse_env%ao_mo_workspace)
       IF (ASSOCIATED(rtbse_env%C_active)) CALL cp_fm_release(rtbse_env%C_active)
       IF (ASSOCIATED(rtbse_env%rho_delta_mo)) CALL cp_cfm_release_pa1(rtbse_env%rho_delta_mo)
+      ! Release cross-spin Hartree scratch (created only for linearized TDA).
+      IF (rtbse_env%linearized .AND. rtbse_env%tda_active) THEN
+         CALL cp_cfm_release(rtbse_env%rho_total_ao_scratch)
+         CALL cp_cfm_release(rtbse_env%hartree_total_ao)
+      END IF
       ! Release Liouvillian-diagnostic scratch (only when the diagnostic was requested).
       IF (rtbse_env%diagnose_liouvillian_eig) THEN
-         CALL cp_cfm_release(rtbse_env%drho_probe)
-         CALL cp_cfm_release(rtbse_env%L_drho)
+         IF (ASSOCIATED(rtbse_env%drho_probe)) CALL cp_cfm_release_pa1(rtbse_env%drho_probe)
+         IF (ASSOCIATED(rtbse_env%L_drho)) CALL cp_cfm_release_pa1(rtbse_env%L_drho)
          CALL cp_cfm_release(rtbse_env%L_pairs)
          CALL cp_cfm_release(rtbse_env%eigvecs_pairs)
          IF (ASSOCIATED(rtbse_env%eigenvalues_liouvillian)) DEALLOCATE (rtbse_env%eigenvalues_liouvillian)
