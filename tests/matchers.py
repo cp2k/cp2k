@@ -300,6 +300,11 @@ registry["LinRTBSE_static_pol_xx"] = GenericMatcher(
     r" STATIC_POL\|\s+1\s+1,\s*1\s+", col=5, regex=True
 )
 
+# Spin-summed total static polarizability alpha(0), Re part, xx element (open shell).
+registry["LinRTBSE_static_pol_xx_total"] = GenericMatcher(
+    r" STATIC_POL\|\s+TOT\s+1,\s*1\s+", col=5, regex=True
+)
+
 registry["M126"] = GenericMatcher(r" # Total charge ", col=5)
 
 registry["M127"] = GenericMatcher(r"Checksum (Acoustic Sum Rule):", col=5)

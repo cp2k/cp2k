@@ -1296,9 +1296,9 @@ CONTAINS
       CHARACTER(len=21)                                  :: prefix
       CHARACTER(len=5)                                   :: prefix_format
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: omegas_complex, omegas_pade
-      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :)     :: field_results, field_results_pade, &
-                                                            pol_results, pol_results_pade, &
-                                                            results, results_pade, value_series
+      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :) :: field_results, field_results_pade, &
+         pol_results, pol_results_pade, pol_results_pade_spin_total, pol_results_spin_total, &
+         results, results_pade, results_pade_spin_total, results_spin_total, value_series
       INTEGER                                            :: ft_unit, handle, i, idx_omega_zero, &
                                                             info_unit, k, k_static, n, n_elems, &
                                                             n_pade, nspin
@@ -1404,6 +1404,40 @@ CONTAINS
             END IF
             CALL cp_print_key_finished_output(ft_unit, logger, moment_ft_section)
          END DO
+         ! Spin-summed total moments FT (open shell only; inert for nspin=1)
+         IF (nspin > 1) THEN
+            ALLOCATE (results_spin_total(3, n))
+            results_spin_total(:, :) = (0.0_dp, 0.0_dp)
+            DO i = 1, nspin
+               DO k = 1, 3
+                  results_spin_total(k, :) = results_spin_total(k, :) + results(3*(i - 1) + k, :)
+               END DO
+            END DO
+            ft_unit = cp_print_key_unit_nr(logger, moment_ft_section, extension="_SPIN_TOTAL.dat", &
+                                           file_form="FORMATTED", file_position="REWIND")
+            IF (ft_unit > 0) THEN
+               ALLOCATE (headers(7))
+               headers(2) = "      x,real [at.u.]"
+               headers(3) = "      x,imag [at.u.]"
+               headers(4) = "      y,real [at.u.]"
+               headers(5) = "      y,imag [at.u.]"
+               headers(6) = "      z,real [at.u.]"
+               headers(7) = "      z,imag [at.u.]"
+               IF (info_unit == ft_unit) THEN
+                  headers(1) = "#        Energy [eV]"
+                  prefix = " MOMENTS_FT|"
+                  prefix_format = "(A12)"
+                  CALL print_rt_file(ft_unit, headers, omegas, results_spin_total, &
+                                     prefix, prefix_format, evolt)
+               ELSE
+                  headers(1) = "#      omega [at.u.]"
+                  CALL print_rt_file(ft_unit, headers, omegas, results_spin_total)
+               END IF
+               DEALLOCATE (headers)
+            END IF
+            CALL cp_print_key_finished_output(ft_unit, logger, moment_ft_section)
+            DEALLOCATE (results_spin_total)
+         END IF
       END IF
 
       IF (rtc%pade_requested .AND. (do_moments_ft .OR. do_polarizability)) THEN
@@ -1447,6 +1481,39 @@ CONTAINS
                DEALLOCATE (headers)
             END IF
          END DO
+         ! Spin-summed total moments-FT Padé (open shell only; inert for nspin=1)
+         IF (nspin > 1) THEN
+            ALLOCATE (results_pade_spin_total(3, n_pade))
+            results_pade_spin_total(:, :) = (0.0_dp, 0.0_dp)
+            DO i = 1, nspin
+               DO k = 1, 3
+                  results_pade_spin_total(k, :) = results_pade_spin_total(k, :) + results_pade(3*(i - 1) + k, :)
+               END DO
+            END DO
+            ft_unit = cp_print_key_unit_nr(logger, moment_ft_section, extension="_PADE_SPIN_TOTAL.dat", &
+                                           file_form="FORMATTED", file_position="REWIND")
+            IF (ft_unit > 0) THEN
+               ALLOCATE (headers(7))
+               headers(2) = " x,real,pade [at.u.]"
+               headers(3) = " x,imag,pade [at.u.]"
+               headers(4) = " y,real,pade [at.u.]"
+               headers(5) = " y,imag,pade [at.u.]"
+               headers(6) = " z,real,pade [at.u.]"
+               headers(7) = " z,imag,pade [at.u.]"
+               IF (info_unit == ft_unit) THEN
+                  headers(1) = "#        Energy [eV]"
+                  prefix = " MOMENTS_FT_PADE|"
+                  prefix_format = "(A17)"
+                  CALL print_rt_file(ft_unit, headers, omegas_pade_real, results_pade_spin_total, &
+                                     prefix, prefix_format, evolt)
+               ELSE
+                  headers(1) = "#      omega [at.u.]"
+                  CALL print_rt_file(ft_unit, headers, omegas_pade_real, results_pade_spin_total)
+               END IF
+               DEALLOCATE (headers)
+            END IF
+            DEALLOCATE (results_pade_spin_total)
+         END IF
       END IF
 
       IF (do_polarizability) THEN
@@ -1505,6 +1572,59 @@ CONTAINS
                END DO
             END IF
          END DO
+         ! Spin-summed total polarizability (open shell only; inert for nspin=1).
+         ! Field is spin-independent, so (sum_s moments_s)/field == sum_s (moments_s/field).
+         IF (nspin > 1) THEN
+            ALLOCATE (pol_results_spin_total(n_elems, n))
+            pol_results_spin_total(:, :) = (0.0_dp, 0.0_dp)
+            DO k = 1, n_elems
+               DO i = 1, nspin
+                  pol_results_spin_total(k, :) = pol_results_spin_total(k, :) + &
+                                                 results(3*(i - 1) + rtc%print_pol_elements(k, 1), :)
+               END DO
+               pol_results_spin_total(k, :) = pol_results_spin_total(k, :)/ &
+                                              (field_results(rtc%print_pol_elements(k, 2), :) + &
+                                               1.0e-10*field_results(rtc%print_pol_elements(k, 2), 2))
+            END DO
+            ft_unit = cp_print_key_unit_nr(logger, pol_section, extension="_SPIN_TOTAL.dat", &
+                                           file_form="FORMATTED", file_position="REWIND")
+            IF (ft_unit > 0) THEN
+               ALLOCATE (headers(2*n_elems + 1))
+               DO k = 1, n_elems
+                  WRITE (headers(2*k), "(A16,I2,I2)") "real pol. elem.", &
+                     rtc%print_pol_elements(k, 1), &
+                     rtc%print_pol_elements(k, 2)
+                  WRITE (headers(2*k + 1), "(A16,I2,I2)") "imag pol. elem.", &
+                     rtc%print_pol_elements(k, 1), &
+                     rtc%print_pol_elements(k, 2)
+               END DO
+               IF (info_unit == ft_unit) THEN
+                  headers(1) = "#        Energy [eV]"
+                  prefix = " POLARIZABILITY|"
+                  prefix_format = "(A16)"
+                  CALL print_rt_file(ft_unit, headers, omegas, pol_results_spin_total, &
+                                     prefix, prefix_format, evolt)
+               ELSE
+                  headers(1) = "#      omega [at.u.]"
+                  CALL print_rt_file(ft_unit, headers, omegas, pol_results_spin_total)
+               END IF
+               DEALLOCATE (headers)
+            END IF
+            CALL cp_print_key_finished_output(ft_unit, logger, pol_section)
+            ! Static polarizability total (header row already emitted by the per-spin block)
+            IF (info_unit > 0) THEN
+               idx_omega_zero = MINLOC(ABS(omegas), DIM=1)
+               DO k_static = 1, n_elems
+                  WRITE (info_unit, '(A,T22,A,T28,I3,",",I3,T36,ES22.10E3,T59,ES22.10E3)') &
+                     " STATIC_POL|", "TOT", &
+                     rtc%print_pol_elements(k_static, 1), &
+                     rtc%print_pol_elements(k_static, 2), &
+                     REAL(pol_results_spin_total(k_static, idx_omega_zero), kind=dp), &
+                     AIMAG(pol_results_spin_total(k_static, idx_omega_zero))
+               END DO
+            END IF
+            DEALLOCATE (pol_results_spin_total)
+         END IF
       END IF
 
       ! Padé polarizability
@@ -1560,6 +1680,46 @@ CONTAINS
             END IF
             CALL cp_print_key_finished_output(ft_unit, logger, pol_section)
          END DO
+         ! Spin-summed total Padé polarizability (open shell only; inert for nspin=1)
+         IF (nspin > 1) THEN
+            ALLOCATE (pol_results_pade_spin_total(n_elems, n_pade))
+            pol_results_pade_spin_total(:, :) = (0.0_dp, 0.0_dp)
+            DO k = 1, n_elems
+               DO i = 1, nspin
+                  pol_results_pade_spin_total(k, :) = pol_results_pade_spin_total(k, :) + &
+                                                      results_pade(3*(i - 1) + rtc%print_pol_elements(k, 1), :)
+               END DO
+               pol_results_pade_spin_total(k, :) = pol_results_pade_spin_total(k, :)/( &
+                                                   field_results_pade(rtc%print_pol_elements(k, 2), :) + &
+                                                   field_results_pade(rtc%print_pol_elements(k, 2), 2)*1.0e-10_dp)
+            END DO
+            ft_unit = cp_print_key_unit_nr(logger, pol_section, extension="_PADE_SPIN_TOTAL.dat", &
+                                           file_form="FORMATTED", file_position="REWIND")
+            IF (ft_unit > 0) THEN
+               ALLOCATE (headers(2*n_elems + 1))
+               DO k = 1, n_elems
+                  WRITE (headers(2*k), "(A16,I2,I2)") "re,pade,pol.", &
+                     rtc%print_pol_elements(k, 1), &
+                     rtc%print_pol_elements(k, 2)
+                  WRITE (headers(2*k + 1), "(A16,I2,I2)") "im,pade,pol.", &
+                     rtc%print_pol_elements(k, 1), &
+                     rtc%print_pol_elements(k, 2)
+               END DO
+               IF (info_unit == ft_unit) THEN
+                  headers(1) = "#        Energy [eV]"
+                  prefix = " POLARIZABILITY_PADE|"
+                  prefix_format = "(A21)"
+                  CALL print_rt_file(ft_unit, headers, omegas_pade_real, pol_results_pade_spin_total, &
+                                     prefix, prefix_format, evolt)
+               ELSE
+                  headers(1) = "#      omega [at.u.]"
+                  CALL print_rt_file(ft_unit, headers, omegas_pade_real, pol_results_pade_spin_total)
+               END IF
+               DEALLOCATE (headers)
+            END IF
+            CALL cp_print_key_finished_output(ft_unit, logger, pol_section)
+            DEALLOCATE (pol_results_pade_spin_total)
+         END IF
          DEALLOCATE (field_results_pade)
          DEALLOCATE (pol_results_pade)
       END IF
