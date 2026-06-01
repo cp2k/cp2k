@@ -789,6 +789,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: length
       CHARACTER(:), ALLOCATABLE, INTENT(OUT)             :: res
 
+#if defined(__LIBTORCH)
       CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), &
          POINTER                                         :: content_f
       INTEGER                                            :: i
@@ -816,6 +817,12 @@ CONTAINS
       CALL torch_c_free_string(content_c)
       content_c = C_NULL_PTR
 
+#else
+      res = ""
+      MARK_USED(content_c)
+      MARK_USED(length)
+      CPABORT("CP2K was compiled without Torch library.")
+#endif
    END SUBROUTINE c_string_to_allocatable
 
 ! **************************************************************************************************
