@@ -23,6 +23,7 @@ class Gauxc(CMakePackage, CudaPackage):
     license("BSD-3-Clause")
 
     version("master", branch="master")
+    version("dev20260522", branch="skala", commit="69ee054054c642bce0d9b5e8c9c0c13afa97b774")
     version(
         "1.2.dev2",
         sha256="6659d00522b443f2557a960a9ba0217449d2ee25df809634d6becca23eb0f1ff",
@@ -54,11 +55,12 @@ class Gauxc(CMakePackage, CudaPackage):
     variant("mpi", default=False, description="Build with MPI support")
     variant("cuda", default=False, description="Build with CUDA support")
     variant("hdf5", default=False, description="Build with HDF5 support")
-    variant("c", default=False, description="Build with C support", when="@1.2.dev2")
-    variant("fortran", default=False, description="Build with Fortran support", when="@1.2.dev2")
-    variant("skala", default=False, description="Build with Skala support", when="@1.2.dev2")
+    variant("c", default=False, description="Build with C support")
+    variant("fortran", default=False, description="Build with Fortran support")
+    variant("skala", default=False, description="Build with Skala support")
     variant("host", default=True, description="Build with host integrators")
     variant("tests", default=False, description="Build with testing framework (Catch2)")
+    variant("pic", default=True, description="Build position independent code")
 
     def cmake_args(self):
         args = [
@@ -71,5 +73,6 @@ class Gauxc(CMakePackage, CudaPackage):
             self.define("GAUXC_ENABLE_ONEDFT", self.spec.satisfies("+skala")),
             self.define("GAUXC_ENABLE_HOST", self.spec.satisfies("+host")),
             self.define("GAUXC_ENABLE_TESTS", self.spec.satisfies("+tests")),
+            self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
         ]
         return args

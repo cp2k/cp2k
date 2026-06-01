@@ -27,3 +27,9 @@ class Integratorxx(CMakePackage):
     depends_on("ninja@1.10:", type="build")
 
     generator("ninja")
+
+    variant("pic", default=True, description="Build position independent code")
+
+    def cmake_args(self):
+        args = [self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic")]
+        return args

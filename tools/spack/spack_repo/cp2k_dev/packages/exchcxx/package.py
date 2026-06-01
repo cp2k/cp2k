@@ -34,9 +34,10 @@ class Exchcxx(CMakePackage, CudaPackage):
     generator("ninja")
 
     variant("cuda", default=False, description="Build with CUDA support")
+    variant("pic", default=True, description="Build position independent code")
 
     def cmake_args(self):
-        args = []
+        args = [self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic")]
         if "+cuda" in self.spec:
             args.append(self.define("EXCHCXX_ENABLE_CUDA", True))
         return args
