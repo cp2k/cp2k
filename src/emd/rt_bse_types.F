@@ -770,11 +770,8 @@ CONTAINS
             CALL cp_fm_create(rtbse_env%C_active(i), rtbse_env%fm_struct_ao_mo_active)
             CALL cp_fm_set_all(rtbse_env%C_active(i), 0.0_dp)
          END DO
-         ! TDA scratch, and also open-shell ABBA diagnostic (n_spin>1 + .NOT. tda_active +
-         ! diagnose_liouvillian_eig): rho_delta_mo is a per-spin MO workspace used by
-         ! build_shared_hartree_ao (called from apply_liouvillian_to_drho in both paths).
-         IF (rtbse_env%tda_active .OR. &
-             (rtbse_env%n_spin > 1 .AND. rtbse_env%diagnose_liouvillian_eig)) THEN
+         ! TDA scratch, and the open-shell ABBA path (n_spin>1 + .NOT. tda_active — diagnostic AND propagation):
+         IF (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) THEN
             NULLIFY (rtbse_env%rho_delta_mo)
             ALLOCATE (rtbse_env%rho_delta_mo(rtbse_env%n_spin))
             DO i = 1, rtbse_env%n_spin
@@ -918,10 +915,9 @@ CONTAINS
       IF (ASSOCIATED(rtbse_env%ao_mo_workspace)) CALL cp_fm_release(rtbse_env%ao_mo_workspace)
       IF (ASSOCIATED(rtbse_env%C_active)) CALL cp_fm_release(rtbse_env%C_active)
       IF (ASSOCIATED(rtbse_env%rho_delta_mo)) CALL cp_cfm_release_pa1(rtbse_env%rho_delta_mo)
-      ! Release cross-spin Hartree scratch (created for TDA or open-shell ABBA diagnostic).
+      ! Release cross-spin Hartree scratch (TDA or open-shell ABBA).
       IF (rtbse_env%linearized .AND. &
-          (rtbse_env%tda_active .OR. &
-           (rtbse_env%n_spin > 1 .AND. rtbse_env%diagnose_liouvillian_eig))) THEN
+          (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1)) THEN
          CALL cp_cfm_release(rtbse_env%rho_total_ao_scratch)
          CALL cp_cfm_release(rtbse_env%hartree_total_ao)
       END IF
