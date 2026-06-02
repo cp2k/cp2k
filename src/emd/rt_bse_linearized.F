@@ -1002,10 +1002,13 @@ CONTAINS
       LOGICAL                                            :: do_shared_hartree
 
       CALL timeset(routineN, handle)
-      ! Cross-spin Hartree (AO-RI TDA): build the spin-summed V_H once per stage,
-      ! consumed by every spin in update_effective_ham_MO. RIRS keeps its per-spin path.
+      ! Cross-spin Hartree: build the spin-summed V_H once per stage, consumed by every spin in
+      ! update_effective_ham_MO. Open shell (n_spin>1) uses the shared builder for BOTH backends
+      ! (AO-RI and RI-RS, via the kernel branch in build_shared_hartree_ao). Only n_spin=1 RIRS
+      ! keeps its per-spin path (bit-identical).
       do_shared_hartree = (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) .AND. &
-                          (.NOT. rtbse_env%debug_disable_hartree) .AND. (.NOT. rtbse_env%rirs_hartree)
+                          (.NOT. rtbse_env%debug_disable_hartree) .AND. &
+                          (rtbse_env%n_spin > 1 .OR. (.NOT. rtbse_env%rirs_hartree))
       ! RK4 follows the typical scheme
       ! d/dt ρ = f(t, ρ)
       ! f(t,ρ) = -i( Δε Δρ + (f_n-f_m) V_Hartree(Δρ) + ΔΣ(Δρ) )
@@ -1093,7 +1096,7 @@ CONTAINS
    END SUBROUTINE solve_rk4_timestep
 
 ! **************************************************************************************************
-!> \brief Builds the spin-summed complex Hartree potential in AO, once per RK4 stage (TDA AO-RI).
+!> \brief Builds the spin-summed complex Hartree potential in AO, once per RK4 stage (AO-RI or RI-RS).
 !>        rho_total = spin_degeneracy * sum_sigma (OV-masked rho^sigma -> AO); hartree_total_ao =
 !>        V_H[rho_total]. update_effective_ham_MO back-transforms it with each spin's C, so this
 !>        single call feeds every spin block - the cross-spin Hartree coupling of open shell.
@@ -1129,9 +1132,16 @@ CONTAINS
                                    CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), &
                                    rtbse_env%rho_ao_lrrtbse(isp))
       END DO
-      ! One complex Hartree contraction on the summed density (ispin arg unused by the routine).
-      CALL get_hartree_complex(rtbse_env, rtbse_env%rho_total_ao_scratch, &
-                               rtbse_env%hartree_total_ao, 1)
+      ! One complex Hartree contraction on the summed density. RI backend = kernel choice: both
+      ! get_hartree_complex and compute_hartree_ri_rs_complex take AO x AO in/out and are spin-blind,
+      ! so the spin-summed cross-spin density feeds whichever kernel is active (P-C21).
+      IF (rtbse_env%rirs_hartree) THEN
+         CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_total_ao_scratch, &
+                                            rtbse_env%hartree_total_ao)
+      ELSE
+         CALL get_hartree_complex(rtbse_env, rtbse_env%rho_total_ao_scratch, &
+                                  rtbse_env%hartree_total_ao, 1)
+      END IF
       CALL timestop(handle)
    END SUBROUTINE build_shared_hartree_ao
 
