@@ -1819,15 +1819,18 @@ CONTAINS
    END SUBROUTINE diagnose_TDA_liouvillian
 
 ! **************************************************************************************************
-!> \brief ABBA branch of the Liouvillian eigenvalue diagnostic. Probes apply_liouvillian_to_drho
-!>        with canonical OV unit vectors, reads OV -> A and VO -> -B^* (one probe pass), recovers
-!>        B by sign-flip + complex conjugation, forms (A+/-B), enforces (A-B) > 0 via an
-!>        independent cp_cfm_heevd pre-check, builds (A-B)^{1/2} via cp_cfm_power, forms
-!>        C = (A-B)^{1/2}(A+B)(A-B)^{1/2}, diagonalizes via cp_cfm_heevd, takes Omega_n = sqrt(C).
-!>        Per-spin loop; n_spin=1 enforced at env creation. Output mirrors the TDA branch:
-!>        stdout table prefixed RTBSE| plus a .dat section per spin in the LIOUVILLIAN_EIG file.
-!>        Residual + lambda_min(A-B) diagnostics go to stdout only (matches TDA pattern).
-!> [INTERNAL] dev_notes/rt_bse_equations.md §8.5
+!> \brief ABBA branch of the Liouvillian eigenvalue diagnostic. Assembles the joint spin-block
+!>        A and B by probing apply_liouvillian_to_drho with canonical OV unit vectors: a probe on
+!>        spin sigma_probe fills joint column off(sigma_probe)+k_local; each output spin's OV
+!>        response -> A, VO response -> -B^* (recovered by sign-flip + conjugation). One joint
+!>        Furche reduction follows: (A-B)>0 gate (independent cp_cfm_heevd), (A-B)^{1/2} via
+!>        cp_cfm_power, C = (A-B)^{1/2}(A+B)(A-B)^{1/2}, cp_cfm_heevd, Omega_n = sqrt(C). The
+!>        matvec is dispatched on n_spin: n_spin=1 -> apply_liouvillian_to_drho_spin (RIRS-capable,
+!>        bit-identical to the closed-shell baseline); n_spin=2 -> the AO-RI cross-spin array
+!>        apply_liouvillian_to_drho. For n_spin=1 the routine reduces to the single-block path.
+!>        Output: a single joint spectrum (stdout RTBSE| + LIOUVILLIAN_EIG .dat). All eigenvalues
+!>        are retained, including optically dark triplet modes (the kernel-correctness gate).
+!> [INTERNAL] dev_notes/rt_bse_equations.md §8.5, §9.8
 !> \param rtbse_env RT-BSE environment with ABBA diagnostic scratch allocated.
 !> \author Maximilian Graml (05/26)
 ! **************************************************************************************************
@@ -1838,16 +1841,35 @@ CONTAINS
 
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :)     :: ov_block, vo_block
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: B_local
-      INTEGER                                            :: b, eig_unit, handle, ispin, j, k_col, n, &
-                                                            n_act_occ, n_act_virt, n_ov
+      INTEGER                                            :: b, eig_unit, handle, j, k_col, k_local, &
+                                                            n, n_ov_joint, sigma_out, sigma_probe
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_act_occ, n_act_virt, n_ov, off
       REAL(kind=dp)                                      :: lambda_min_AmB, residual_A, residual_B
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
 
+      ! Per-spin OV counts + offsets into the stacked joint A/B (same layout as the TDA
+      ! diagnostic). off(1)=0, off(2)=n_ov(1); n_ov_joint = sum_sigma n_ov(sigma). For
+      ! n_spin=1 this is the single block, bit-identical to the closed-shell ABBA path.
+      ! [INTERNAL] dev_notes/rt_bse_equations.md §9.8
+      ALLOCATE (n_act_occ(rtbse_env%n_spin), n_act_virt(rtbse_env%n_spin), &
+                n_ov(rtbse_env%n_spin), off(rtbse_env%n_spin))
+      n_ov_joint = 0
+      DO sigma_probe = 1, rtbse_env%n_spin
+         n_act_occ(sigma_probe) = rtbse_env%n_occ(sigma_probe) - rtbse_env%first_active_mo + 1
+         n_act_virt(sigma_probe) = rtbse_env%last_active_mo - rtbse_env%n_occ(sigma_probe)
+         n_ov(sigma_probe) = n_act_occ(sigma_probe)*n_act_virt(sigma_probe)
+         off(sigma_probe) = n_ov_joint
+         n_ov_joint = n_ov_joint + n_ov(sigma_probe)
+      END DO
+
       IF (rtbse_env%unit_nr > 0) THEN
          WRITE (rtbse_env%unit_nr, '(A)') ' RTBSE| ----- ABBA Liouvillian diagnostic -----'
+         WRITE (rtbse_env%unit_nr, '(A,I0,A,I0)') &
+            ' RTBSE| n_spin = ', rtbse_env%n_spin, ', joint N_OV = ', n_ov_joint
+         WRITE (rtbse_env%unit_nr, '(A)') ' RTBSE|'
       END IF
 
       eig_unit = cp_print_key_unit_nr(logger, rtbse_env%eig_section, &
@@ -1856,163 +1878,169 @@ CONTAINS
                                       file_position="REWIND", &
                                       ignore_should_output=.TRUE.)
       IF (eig_unit > 0) THEN
-         WRITE (eig_unit, '(A)') '# ABBA Liouvillian eigenvalues (one section per spin)'
+         WRITE (eig_unit, '(A)') '# Joint spin-block ABBA Liouvillian eigenvalues'
+         IF (rtbse_env%n_spin == 1) THEN
+            WRITE (eig_unit, '(A,I0,A,I0)') '# n_spin = ', rtbse_env%n_spin, ', N_OV = ', n_ov(1)
+         ELSE
+            WRITE (eig_unit, '(A,I0,A,I0,A,I0)') '# n_spin = ', rtbse_env%n_spin, &
+               ', N_OV(1) = ', n_ov(1), ', N_OV(2) = ', n_ov(2)
+         END IF
       END IF
 
-      DO ispin = 1, rtbse_env%n_spin
-         n_act_occ = rtbse_env%n_occ(ispin) - rtbse_env%first_active_mo + 1
-         n_act_virt = rtbse_env%last_active_mo - rtbse_env%n_occ(ispin)
-         n_ov = n_act_occ*n_act_virt
-         ALLOCATE (ov_block(n_act_occ, n_act_virt))
-         ALLOCATE (vo_block(n_act_virt, n_act_occ))
+      ! Assemble joint A and B. Probe on spin sigma_probe, OV pair (j,b) -> joint column
+      ! k_col = off(sigma_probe)+k_local (column-major k_local, as TDA). Each output spin's
+      ! OV response -> A rows [off(sigma_out)+1 ..]; VO response -> B rows (TRANSPOSE to OV
+      ! layout), recovered as -B^* below. The n_spin=2 array matvec produces the full OV+VO
+      ! readout (add_K_MO_to_L_drho .NOT.tda_active branch); one cross-spin Hartree fills
+      ! both A^{s,s'} and B^{s,s'} Coulomb (P-C17); SX stays spin-diagonal.
+      DO sigma_probe = 1, rtbse_env%n_spin
+         DO b = rtbse_env%n_occ(sigma_probe) + 1, rtbse_env%last_active_mo
+            DO j = rtbse_env%first_active_mo, rtbse_env%n_occ(sigma_probe)
+               k_local = (b - rtbse_env%n_occ(sigma_probe) - 1)*n_act_occ(sigma_probe) + &
+                         (j - rtbse_env%first_active_mo + 1)
+               k_col = off(sigma_probe) + k_local
 
-         IF (rtbse_env%unit_nr > 0) THEN
-            WRITE (rtbse_env%unit_nr, '(A,I0)') ' RTBSE| Spin channel ', ispin
-            WRITE (rtbse_env%unit_nr, '(A,I0,A,I0,A,I0)') &
-               ' RTBSE| n_act_occ = ', n_act_occ, &
-               ', n_act_virt = ', n_act_virt, &
-               ', N_OV = ', n_ov
-            WRITE (rtbse_env%unit_nr, '(A)') ' RTBSE|'
-         END IF
-
-         ! Probe with e_{ia}^OV; OV block of output -> column k_col of A; VO block -> column k_col
-         ! of -B^* (recovery one line below). Column-major OV index matches the TDA probe.
-         DO b = rtbse_env%n_occ(ispin) + 1, rtbse_env%last_active_mo
-            DO j = rtbse_env%first_active_mo, rtbse_env%n_occ(ispin)
-               k_col = (b - rtbse_env%n_occ(ispin) - 1)*n_act_occ + (j - rtbse_env%first_active_mo + 1)
-
-               CALL cp_cfm_set_all(rtbse_env%drho_probe(ispin), CMPLX(0.0_dp, 0.0_dp, kind=dp))
-               CALL cp_cfm_set_element(rtbse_env%drho_probe(ispin), &
+               DO sigma_out = 1, rtbse_env%n_spin
+                  CALL cp_cfm_set_all(rtbse_env%drho_probe(sigma_out), CMPLX(0.0_dp, 0.0_dp, kind=dp))
+               END DO
+               CALL cp_cfm_set_element(rtbse_env%drho_probe(sigma_probe), &
                                        j - rtbse_env%first_active_mo + 1, &
                                        b - rtbse_env%first_active_mo + 1, &
                                        CMPLX(1.0_dp, 0.0_dp, kind=dp))
 
-               CALL apply_liouvillian_to_drho_spin(rtbse_env, rtbse_env%drho_probe(ispin), &
-                                                   rtbse_env%L_drho(ispin), ispin)
+               IF (rtbse_env%n_spin == 1) THEN
+                  CALL apply_liouvillian_to_drho_spin(rtbse_env, rtbse_env%drho_probe(1), &
+                                                      rtbse_env%L_drho(1), 1)
+               ELSE
+                  CALL apply_liouvillian_to_drho(rtbse_env, rtbse_env%drho_probe, rtbse_env%L_drho)
+               END IF
 
-               CALL cp_cfm_get_submatrix(rtbse_env%L_drho(ispin), ov_block, &
-                                         start_row=1, start_col=n_act_occ + 1, &
-                                         n_rows=n_act_occ, n_cols=n_act_virt)
-               CALL cp_cfm_set_submatrix(rtbse_env%A_mat, &
-                                         RESHAPE(ov_block, [n_ov, 1]), &
-                                         start_row=1, start_col=k_col, &
-                                         n_rows=n_ov, n_cols=1)
-
-               ! TRANSPOSE puts vo_block in (n_act_occ, n_act_virt) layout, matching the OV pack.
-               CALL cp_cfm_get_submatrix(rtbse_env%L_drho(ispin), vo_block, &
-                                         start_row=n_act_occ + 1, start_col=1, &
-                                         n_rows=n_act_virt, n_cols=n_act_occ)
-               CALL cp_cfm_set_submatrix(rtbse_env%B_mat, &
-                                         RESHAPE(TRANSPOSE(vo_block), [n_ov, 1]), &
-                                         start_row=1, start_col=k_col, &
-                                         n_rows=n_ov, n_cols=1)
+               DO sigma_out = 1, rtbse_env%n_spin
+                  ALLOCATE (ov_block(n_act_occ(sigma_out), n_act_virt(sigma_out)))
+                  ALLOCATE (vo_block(n_act_virt(sigma_out), n_act_occ(sigma_out)))
+                  CALL cp_cfm_get_submatrix(rtbse_env%L_drho(sigma_out), ov_block, &
+                                            start_row=1, start_col=n_act_occ(sigma_out) + 1, &
+                                            n_rows=n_act_occ(sigma_out), n_cols=n_act_virt(sigma_out))
+                  CALL cp_cfm_set_submatrix(rtbse_env%A_mat, &
+                                            RESHAPE(ov_block, [n_ov(sigma_out), 1]), &
+                                            start_row=off(sigma_out) + 1, start_col=k_col, &
+                                            n_rows=n_ov(sigma_out), n_cols=1)
+                  ! TRANSPOSE puts vo_block in (n_act_occ, n_act_virt) layout, matching the OV pack.
+                  CALL cp_cfm_get_submatrix(rtbse_env%L_drho(sigma_out), vo_block, &
+                                            start_row=n_act_occ(sigma_out) + 1, start_col=1, &
+                                            n_rows=n_act_virt(sigma_out), n_cols=n_act_occ(sigma_out))
+                  CALL cp_cfm_set_submatrix(rtbse_env%B_mat, &
+                                            RESHAPE(TRANSPOSE(vo_block), [n_ov(sigma_out), 1]), &
+                                            start_row=off(sigma_out) + 1, start_col=k_col, &
+                                            n_rows=n_ov(sigma_out), n_cols=1)
+                  DEALLOCATE (ov_block, vo_block)
+               END DO
             END DO
          END DO
-
-         ! Recover B from -B^* via rank-local pass on the cfm's MPI-local data (documented
-         ! exception to the fm/cfm-routines-only rule); B_recovered = -CONJG(stored).
-         B_local => rtbse_env%B_mat%local_data
-         B_local = -CONJG(B_local)
-
-         ! Block-symmetry residuals: A Hermitian, B real-symmetric (B = B^T under real orbitals).
-         CALL cp_cfm_transpose(rtbse_env%A_mat, 'C', rtbse_env%eigvecs_pairs)
-         CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%eigvecs_pairs, &
-                                   CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%A_mat)
-         residual_A = cp_cfm_norm(rtbse_env%eigvecs_pairs, 'M')
-
-         CALL cp_cfm_transpose(rtbse_env%B_mat, 'T', rtbse_env%eigvecs_pairs)
-         CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%eigvecs_pairs, &
-                                   CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%B_mat)
-         residual_B = cp_cfm_norm(rtbse_env%eigvecs_pairs, 'M')
-
-         IF (rtbse_env%unit_nr > 0) THEN
-            WRITE (rtbse_env%unit_nr, '(A,ES16.6)') &
-               ' RTBSE| Hermitian residual ||A - A^H||_max = ', residual_A
-            WRITE (rtbse_env%unit_nr, '(A,ES16.6)') &
-               ' RTBSE| Symmetry residual  ||B - B^T||_max = ', residual_B
-         END IF
-         IF (residual_A > 1.0E-6_dp) THEN
-            CPABORT("A is not Hermitian within 1e-6 - check kernel signs / symmetry.")
-         END IF
-         IF (residual_B > 1.0E-6_dp) THEN
-            CPABORT("B is not symmetric within 1e-6 - check kernel signs / symmetry.")
-         END IF
-
-         ! A +/- B in scratches (both Hermitian).
-         CALL cp_cfm_to_cfm(rtbse_env%A_mat, rtbse_env%AmB_scratch)
-         CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%AmB_scratch, &
-                                   CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%B_mat)
-         CALL cp_cfm_to_cfm(rtbse_env%A_mat, rtbse_env%ApB_scratch)
-         CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%ApB_scratch, &
-                                   CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%B_mat)
-
-         ! (A-B) positivity gate: heevd on a copy (heevd destroys input); abort if lambda_min < 0.
-         CALL cp_cfm_to_cfm(rtbse_env%AmB_scratch, rtbse_env%L_pairs)
-         CALL cp_cfm_heevd(rtbse_env%L_pairs, rtbse_env%eigvecs_pairs, rtbse_env%eigenvalues_liouvillian)
-         lambda_min_AmB = rtbse_env%eigenvalues_liouvillian(1)
-         IF (rtbse_env%unit_nr > 0) THEN
-            WRITE (rtbse_env%unit_nr, '(A,ES16.6,A,F12.6,A)') &
-               ' RTBSE| lambda_min(A - B)                       = ', &
-               lambda_min_AmB, '  a.u.  (', lambda_min_AmB*evolt, ' eV)'
-         END IF
-         IF (lambda_min_AmB < 0.0_dp) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "(A - B) not positive definite. Likely causes: "// &
-                          "(1) B-readout sign error (see dev_notes/rt_bse_equations.md §8.5.4), "// &
-                          "(2) wrong sign on a Coulomb/SX contribution to B, "// &
-                          "(3) genuine triplet/charge-transfer instability.")
-         END IF
-
-         ! In-place AmB_scratch -> (A-B)^{1/2} via cp_cfm_power. threshold=0 substitution
-         ! codepath is unreachable here (lambda_min_AmB > 0 already enforced above).
-         CALL cp_cfm_power(rtbse_env%AmB_scratch, threshold=0.0_dp, exponent=0.5_dp)
-
-         ! C = (A-B)^{1/2}(A+B)(A-B)^{1/2}. B_mat free after step "A+/-B" -> reuse as T scratch.
-         CALL cp_cfm_gemm('N', 'N', n_ov, n_ov, n_ov, &
-                          CMPLX(1.0_dp, 0.0_dp, kind=dp), &
-                          rtbse_env%AmB_scratch, rtbse_env%ApB_scratch, &
-                          CMPLX(0.0_dp, 0.0_dp, kind=dp), &
-                          rtbse_env%B_mat)
-         CALL cp_cfm_gemm('N', 'N', n_ov, n_ov, n_ov, &
-                          CMPLX(1.0_dp, 0.0_dp, kind=dp), &
-                          rtbse_env%B_mat, rtbse_env%AmB_scratch, &
-                          CMPLX(0.0_dp, 0.0_dp, kind=dp), &
-                          rtbse_env%L_pairs)
-
-         ! Diagonalize C -> Omega_n^2; take +sqrt. Safety clamp on tiny-negative noise.
-         CALL cp_cfm_heevd(rtbse_env%L_pairs, rtbse_env%eigvecs_pairs, rtbse_env%eigenvalues_liouvillian)
-         DO n = 1, n_ov
-            IF (rtbse_env%eigenvalues_liouvillian(n) < 0.0_dp) THEN
-               rtbse_env%eigenvalues_liouvillian(n) = 0.0_dp
-            ELSE
-               rtbse_env%eigenvalues_liouvillian(n) = SQRT(rtbse_env%eigenvalues_liouvillian(n))
-            END IF
-         END DO
-
-         IF (rtbse_env%unit_nr > 0) THEN
-            WRITE (rtbse_env%unit_nr, '(A)') ' RTBSE|'
-            WRITE (rtbse_env%unit_nr, '(A,T26,A,T59,A)') &
-               ' RTBSE|', "Excitation index n", "Excitation energy (eV)"
-            DO n = 1, n_ov
-               WRITE (rtbse_env%unit_nr, '(A,T40,I4,T69,F12.4)') &
-                  ' RTBSE|', n, rtbse_env%eigenvalues_liouvillian(n)*evolt
-            END DO
-            WRITE (rtbse_env%unit_nr, '(A)') ' RTBSE|'
-         END IF
-         IF (eig_unit > 0) THEN
-            WRITE (eig_unit, '(/,A,I0)') '# Spin channel ', ispin
-            WRITE (eig_unit, '(A)') '#   n          Omega [a.u.]               Omega [eV]'
-            DO n = 1, n_ov
-               WRITE (eig_unit, '(I5,4X,ES24.14E3,4X,ES24.14E3)') n, &
-                  rtbse_env%eigenvalues_liouvillian(n), &
-                  rtbse_env%eigenvalues_liouvillian(n)*evolt
-            END DO
-         END IF
-
-         DEALLOCATE (ov_block, vo_block)
       END DO
 
+      ! Recover B from -B^* via rank-local pass on the cfm's MPI-local data (documented
+      ! exception to the fm/cfm-routines-only rule); B_recovered = -CONJG(stored).
+      B_local => rtbse_env%B_mat%local_data
+      B_local = -CONJG(B_local)
+
+      ! Block-symmetry residuals on the JOINT matrices: A Hermitian, B real-symmetric.
+      CALL cp_cfm_transpose(rtbse_env%A_mat, 'C', rtbse_env%eigvecs_pairs)
+      CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%eigvecs_pairs, &
+                                CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%A_mat)
+      residual_A = cp_cfm_norm(rtbse_env%eigvecs_pairs, 'M')
+
+      CALL cp_cfm_transpose(rtbse_env%B_mat, 'T', rtbse_env%eigvecs_pairs)
+      CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%eigvecs_pairs, &
+                                CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%B_mat)
+      residual_B = cp_cfm_norm(rtbse_env%eigvecs_pairs, 'M')
+
+      IF (rtbse_env%unit_nr > 0) THEN
+         WRITE (rtbse_env%unit_nr, '(A,ES16.6)') &
+            ' RTBSE| Hermitian residual ||A - A^H||_max = ', residual_A
+         WRITE (rtbse_env%unit_nr, '(A,ES16.6)') &
+            ' RTBSE| Symmetry residual  ||B - B^T||_max = ', residual_B
+      END IF
+      IF (residual_A > 1.0E-6_dp) THEN
+         CPABORT("A is not Hermitian within 1e-6 - check kernel signs / symmetry.")
+      END IF
+      IF (residual_B > 1.0E-6_dp) THEN
+         CPABORT("B is not symmetric within 1e-6 - check kernel signs / symmetry.")
+      END IF
+
+      ! A +/- B in scratches (both Hermitian).
+      CALL cp_cfm_to_cfm(rtbse_env%A_mat, rtbse_env%AmB_scratch)
+      CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%AmB_scratch, &
+                                CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%B_mat)
+      CALL cp_cfm_to_cfm(rtbse_env%A_mat, rtbse_env%ApB_scratch)
+      CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%ApB_scratch, &
+                                CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%B_mat)
+
+      ! (A-B) positivity gate on the joint matrix: heevd on a copy; abort if lambda_min < 0.
+      CALL cp_cfm_to_cfm(rtbse_env%AmB_scratch, rtbse_env%L_pairs)
+      CALL cp_cfm_heevd(rtbse_env%L_pairs, rtbse_env%eigvecs_pairs, rtbse_env%eigenvalues_liouvillian)
+      lambda_min_AmB = rtbse_env%eigenvalues_liouvillian(1)
+      IF (rtbse_env%unit_nr > 0) THEN
+         WRITE (rtbse_env%unit_nr, '(A,ES16.6,A,F12.6,A)') &
+            ' RTBSE| lambda_min(A - B)                       = ', &
+            lambda_min_AmB, '  a.u.  (', lambda_min_AmB*evolt, ' eV)'
+      END IF
+      IF (lambda_min_AmB < 0.0_dp) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "(A - B) not positive definite. Likely causes: "// &
+                       "(1) B-readout sign error (see dev_notes/rt_bse_equations.md §8.5.4), "// &
+                       "(2) wrong sign on a Coulomb/SX contribution to B, "// &
+                       "(3) genuine triplet/charge-transfer instability.")
+      END IF
+
+      ! In-place AmB_scratch -> (A-B)^{1/2} via cp_cfm_power. threshold=0 substitution
+      ! codepath is unreachable here (lambda_min_AmB > 0 already enforced above).
+      CALL cp_cfm_power(rtbse_env%AmB_scratch, threshold=0.0_dp, exponent=0.5_dp)
+
+      ! C = (A-B)^{1/2}(A+B)(A-B)^{1/2}. B_mat free after step "A+/-B" -> reuse as T scratch.
+      CALL cp_cfm_gemm('N', 'N', n_ov_joint, n_ov_joint, n_ov_joint, &
+                       CMPLX(1.0_dp, 0.0_dp, kind=dp), &
+                       rtbse_env%AmB_scratch, rtbse_env%ApB_scratch, &
+                       CMPLX(0.0_dp, 0.0_dp, kind=dp), &
+                       rtbse_env%B_mat)
+      CALL cp_cfm_gemm('N', 'N', n_ov_joint, n_ov_joint, n_ov_joint, &
+                       CMPLX(1.0_dp, 0.0_dp, kind=dp), &
+                       rtbse_env%B_mat, rtbse_env%AmB_scratch, &
+                       CMPLX(0.0_dp, 0.0_dp, kind=dp), &
+                       rtbse_env%L_pairs)
+
+      ! Diagonalize C -> Omega_n^2; take +sqrt. Safety clamp on tiny-negative noise.
+      CALL cp_cfm_heevd(rtbse_env%L_pairs, rtbse_env%eigvecs_pairs, rtbse_env%eigenvalues_liouvillian)
+      DO n = 1, n_ov_joint
+         IF (rtbse_env%eigenvalues_liouvillian(n) < 0.0_dp) THEN
+            rtbse_env%eigenvalues_liouvillian(n) = 0.0_dp
+         ELSE
+            rtbse_env%eigenvalues_liouvillian(n) = SQRT(rtbse_env%eigenvalues_liouvillian(n))
+         END IF
+      END DO
+
+      IF (rtbse_env%unit_nr > 0) THEN
+         WRITE (rtbse_env%unit_nr, '(A)') ' RTBSE|'
+         WRITE (rtbse_env%unit_nr, '(A,T26,A,T59,A)') &
+            ' RTBSE|', "Excitation index n", "Excitation energy (eV)"
+         DO n = 1, n_ov_joint
+            WRITE (rtbse_env%unit_nr, '(A,T40,I4,T69,F12.4)') &
+               ' RTBSE|', n, rtbse_env%eigenvalues_liouvillian(n)*evolt
+         END DO
+         WRITE (rtbse_env%unit_nr, '(A)') ' RTBSE|'
+      END IF
+      IF (eig_unit > 0) THEN
+         WRITE (eig_unit, '(A)') '#   n          Omega [a.u.]               Omega [eV]'
+         DO n = 1, n_ov_joint
+            WRITE (eig_unit, '(I5,4X,ES24.14E3,4X,ES24.14E3)') n, &
+               rtbse_env%eigenvalues_liouvillian(n), &
+               rtbse_env%eigenvalues_liouvillian(n)*evolt
+         END DO
+      END IF
+
       CALL cp_print_key_finished_output(eig_unit, logger, rtbse_env%eig_section)
+
+      DEALLOCATE (n_act_occ, n_act_virt, n_ov, off)
 
       CALL timestop(handle)
    END SUBROUTINE diagnose_ABBA_liouvillian
