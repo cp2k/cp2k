@@ -577,7 +577,8 @@ CONTAINS
                             unit_nr, diag_est, mp2_env, qs_env, mo_coeff)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C
-      INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      INTEGER, INTENT(IN)                                :: homo_irred
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
@@ -587,13 +588,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_C'
 
-      INTEGER                                            :: diag_info, handle
+      INTEGER                                            :: diag_info, handle, n_ov_joint, nspins
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
-      TYPE(cp_fm_type)                                   :: fm_eigvec_X, fm_eigvec_Y, fm_eigvec_Z, &
-                                                            fm_mat_eigvec_transform_diff, &
-                                                            fm_mat_eigvec_transform_sum
+      TYPE(cp_fm_type) :: fm_eigvec_X, fm_eigvec_Y, fm_eigvec_Z, fm_mat_eigvec_transform_diff, &
+         fm_mat_eigvec_transform_sum, fm_XplusY
 
       CALL timeset(routineN, handle)
+
+      nspins = SIZE(homo)
+      n_ov_joint = SUM(homo*virtual)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4,T7,A17,A22,ES6.0,A3)') 'BSE|', 'Diagonalizing C. ', &
@@ -604,7 +607,7 @@ CONTAINS
       !Now: Diagonalize it
       CALL cp_fm_create(fm_eigvec_Z, fm_C%matrix_struct)
 
-      ALLOCATE (Exc_ens(homo*virtual))
+      ALLOCATE (Exc_ens(n_ov_joint))
 
       CALL choose_eigv_solver(fm_C, fm_eigvec_Z, Exc_ens, diag_info)
 
@@ -636,7 +639,7 @@ CONTAINS
       ! First, Eq. I from (A10) from Furche: (X+Y)_n = (Ω_n)^-0.5 (A-B)^0.5 T_n
       CALL cp_fm_create(fm_mat_eigvec_transform_sum, fm_C%matrix_struct)
       CALL cp_fm_set_all(fm_mat_eigvec_transform_sum, 0.0_dp)
-      CALL parallel_gemm(transa="N", transb="N", m=homo*virtual, n=homo*virtual, k=homo*virtual, alpha=1.0_dp, &
+      CALL parallel_gemm(transa="N", transb="N", m=n_ov_joint, n=n_ov_joint, k=n_ov_joint, alpha=1.0_dp, &
                          matrix_a=fm_sqrt_A_minus_B, matrix_b=fm_eigvec_Z, beta=0.0_dp, &
                          matrix_c=fm_mat_eigvec_transform_sum)
       CALL cp_fm_release(fm_sqrt_A_minus_B)
@@ -646,7 +649,7 @@ CONTAINS
       ! Second, Eq. II from (A10) from Furche: (X-Y)_n = (Ω_n)^0.5 (A-B)^-0.5 T_n
       CALL cp_fm_create(fm_mat_eigvec_transform_diff, fm_C%matrix_struct)
       CALL cp_fm_set_all(fm_mat_eigvec_transform_diff, 0.0_dp)
-      CALL parallel_gemm(transa="N", transb="N", m=homo*virtual, n=homo*virtual, k=homo*virtual, alpha=1.0_dp, &
+      CALL parallel_gemm(transa="N", transb="N", m=n_ov_joint, n=n_ov_joint, k=n_ov_joint, alpha=1.0_dp, &
                          matrix_a=fm_inv_sqrt_A_minus_B, matrix_b=fm_eigvec_Z, beta=0.0_dp, &
                          matrix_c=fm_mat_eigvec_transform_diff)
       CALL cp_fm_release(fm_inv_sqrt_A_minus_B)
@@ -671,9 +674,19 @@ CONTAINS
       CALL cp_fm_release(fm_mat_eigvec_transform_diff)
       CALL cp_fm_release(fm_mat_eigvec_transform_sum)
 
-      CALL postprocess_bse(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
-                           homo, virtual, homo_irred, unit_nr, &
-                           .FALSE., fm_eigvec_Y)
+      IF (nspins == 1) THEN
+         CALL postprocess_bse(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
+                              homo(1), virtual(1), homo_irred, unit_nr, &
+                              .FALSE., fm_eigvec_Y)
+      ELSE
+         ! Open-shell ABBA transition moment uses X+Y; reuse the joint optical helper.
+         CALL cp_fm_create(fm_XplusY, fm_C%matrix_struct)
+         CALL cp_fm_to_fm(fm_eigvec_X, fm_XplusY)
+         CALL cp_fm_scale_and_add(1.0_dp, fm_XplusY, 1.0_dp, fm_eigvec_Y)
+         CALL bse_open_shell_optical(Exc_ens, fm_XplusY, homo, virtual, homo_irred, &
+                                     .FALSE., qs_env, mo_coeff, mp2_env, unit_nr)
+         CALL cp_fm_release(fm_XplusY)
+      END IF
 
       DEALLOCATE (Exc_ens)
       CALL cp_fm_release(fm_eigvec_X)

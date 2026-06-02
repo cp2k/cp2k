@@ -313,7 +313,7 @@ CONTAINS
             END IF
             CALL cp_fm_release(fm_A_BSE)
             IF (my_do_abba) THEN
-               CALL diagonalize_C(fm_C_BSE, homo_red_arr(1), virt_red_arr(1), homo(1), &
+               CALL diagonalize_C(fm_C_BSE, homo_red_arr, virt_red_arr, homo(1), &
                                   fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
                                   unit_nr, diag_runtime_est, mp2_env, qs_env, mo_coeff)
             END IF
