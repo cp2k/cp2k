@@ -171,12 +171,7 @@ CONTAINS
       ALLOCATE (fm_mat_S_bar_ia_bse_arr(nspins), fm_mat_S_bar_ij_bse_arr(nspins))
 
       IF (nspins > 1) THEN
-         ! === Open-shell path: combined-window cutoff, per-spin truncation, joint A ===
-         IF (my_do_abba) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "BSE: ABBA (full BSE without TDA) for open-shell not yet implemented; "// &
-                          "set FLAG_TDA TDA")
-         END IF
+         ! === Open-shell path: combined-window cutoff, per-spin truncation, joint A (+B for ABBA) ===
          ! Determine union of per-spin active MO windows
          CALL determine_bse_combined_window(Eigenval(:, 1, :), Eigenval_scf(:, 1, :), homo, virtual, &
                                             mp2_env%bse%use_ks_energies, mp2_env%bse%bse_cutoff_occ, &
@@ -234,6 +229,20 @@ CONTAINS
                              fm_A_BSE, Eigenval_reduced_joint, unit_nr, &
                              homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
             END IF
+            IF (my_do_abba) THEN
+               IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
+                   mp2_env%bse%screening_method == bse_screening_alpha) THEN
+                  CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ia_trunc_arr, fm_B_BSE, &
+                                homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
+               ELSE
+                  CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ia_bse_arr, fm_B_BSE, &
+                                homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
+               END IF
+               CALL create_hermitian_form_of_ABBA(fm_A_BSE, fm_B_BSE, fm_C_BSE, &
+                                                  fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
+                                                  unit_nr, mp2_env, diag_runtime_est)
+               CALL cp_fm_release(fm_B_BSE)
+            END IF
             NULLIFY (dft_control, tddfpt_control)
             CALL get_qs_env(qs_env, dft_control=dft_control)
             tddfpt_control => dft_control%tddfpt2_control
@@ -242,6 +251,12 @@ CONTAINS
                                   unit_nr, diag_runtime_est, mp2_env, qs_env, mo_coeff)
             END IF
             CALL cp_fm_release(fm_A_BSE)
+            IF (my_do_abba) THEN
+               CALL diagonalize_C(fm_C_BSE, homo_red_arr, virt_red_arr, homo(1), &
+                                  fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
+                                  unit_nr, diag_runtime_est, mp2_env, qs_env, mo_coeff)
+               CALL cp_fm_release(fm_C_BSE)
+            END IF
          END IF
 
          DO ispin = 1, nspins
