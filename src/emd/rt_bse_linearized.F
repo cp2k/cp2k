@@ -1335,10 +1335,11 @@ CONTAINS
          ! Hartree. AO-RI consumes the shared cross-spin hartree_total_ao (built once per RK4
          ! stage by build_shared_hartree_ao on the spin-summed OV density), back-transformed
          ! with this spin's C: one V_H feeds every spin block. Coeff 1 - spin_degeneracy lives
-         ! in the sum. RIRS stays per-spin (open shell CPABORT-guarded), carrying spin_degeneracy
-         ! here as before. VO = (OV)^C; rho_delta_mo(ispin) is idle scratch after the projection.
+         ! in the sum. RIRS: n_spin=1 stays per-spin here; n_spin>1 consumes the shared
+         ! hartree_total_ao (built by build_shared_hartree_ao with the RI-RS kernel).
+         ! VO = (OV)^C; rho_delta_mo(ispin) is idle scratch after the projection.
          IF (use_hartree) THEN
-            IF (use_rirs_hartree) THEN
+            IF (use_rirs_hartree .AND. rtbse_env%n_spin == 1) THEN
                CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_ao_lrrtbse(ispin), &
                                                   rtbse_env%sigma_SEX_ao(ispin))
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
