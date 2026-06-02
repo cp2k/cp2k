@@ -860,16 +860,19 @@ CONTAINS
 !> \param idx_prim ...
 !> \param idx_sec ...
 !> \param eigvec_entries ...
+!> \param idx_spin ...
 ! **************************************************************************************************
-   SUBROUTINE sort_excitations(idx_prim, idx_sec, eigvec_entries)
+   SUBROUTINE sort_excitations(idx_prim, idx_sec, eigvec_entries, idx_spin)
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_prim, idx_sec
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries
+      INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL       :: idx_spin
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'sort_excitations'
 
       INTEGER                                            :: handle, ii, kk, num_entries, num_mults
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_prim_work, idx_sec_work, tmp_index
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_prim_work, idx_sec_work, &
+                                                            idx_spin_work, tmp_index
       LOGICAL                                            :: unique_entries
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries_work
 
@@ -883,10 +886,12 @@ CONTAINS
 
       ALLOCATE (idx_sec_work(num_entries))
       ALLOCATE (eigvec_entries_work(num_entries))
+      IF (PRESENT(idx_spin)) ALLOCATE (idx_spin_work(num_entries))
 
       DO ii = 1, num_entries
          idx_sec_work(ii) = idx_sec(tmp_index(ii))
          eigvec_entries_work(ii) = eigvec_entries(tmp_index(ii))
+         IF (PRESENT(idx_spin)) idx_spin_work(ii) = idx_spin(tmp_index(ii))
       END DO
 
       DEALLOCATE (tmp_index)
@@ -895,6 +900,10 @@ CONTAINS
 
       CALL MOVE_ALLOC(idx_sec_work, idx_sec)
       CALL MOVE_ALLOC(eigvec_entries_work, eigvec_entries)
+      IF (PRESENT(idx_spin)) THEN
+         DEALLOCATE (idx_spin)
+         CALL MOVE_ALLOC(idx_spin_work, idx_spin)
+      END IF
 
       !Now check for multiple entries in first idx to check necessity of sorting in second idx
       CALL sort_unique(idx_prim, unique_entries)
@@ -913,6 +922,10 @@ CONTAINS
                ALLOCATE (eigvec_entries_work(num_mults))
                idx_sec_work(:) = idx_sec(ii:ii + num_mults - 1)
                eigvec_entries_work(:) = eigvec_entries(ii:ii + num_mults - 1)
+               IF (PRESENT(idx_spin)) THEN
+                  ALLOCATE (idx_spin_work(num_mults))
+                  idx_spin_work(:) = idx_spin(ii:ii + num_mults - 1)
+               END IF
                ALLOCATE (tmp_index(num_mults))
                CALL sort(idx_sec_work, num_mults, tmp_index)
 
@@ -920,11 +933,13 @@ CONTAINS
                DO kk = ii, ii + num_mults - 1
                   idx_sec(kk) = idx_sec_work(kk - ii + 1)
                   eigvec_entries(kk) = eigvec_entries_work(tmp_index(kk - ii + 1))
+                  IF (PRESENT(idx_spin)) idx_spin(kk) = idx_spin_work(tmp_index(kk - ii + 1))
                END DO
                !Deallocate work arrays
                DEALLOCATE (tmp_index)
                DEALLOCATE (idx_sec_work)
                DEALLOCATE (eigvec_entries_work)
+               IF (PRESENT(idx_spin)) DEALLOCATE (idx_spin_work)
             END IF
             idx_prim_work(ii) = idx_prim(ii)
          END DO
@@ -1000,21 +1015,27 @@ CONTAINS
 !> \param virtual ...
 !> \param num_entries ...
 !> \param mp2_env ...
+!> \param offsets ...
+!> \param virtual_per_spin ...
+!> \param idx_spin ...
 ! **************************************************************************************************
    SUBROUTINE filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
-                                    i_exc, virtual, num_entries, mp2_env)
+                                    i_exc, virtual, num_entries, mp2_env, &
+                                    offsets, virtual_per_spin, idx_spin)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_homo, idx_virt
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries
       INTEGER                                            :: i_exc, virtual, num_entries
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: offsets, virtual_per_spin
+      INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL       :: idx_spin
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'filter_eigvec_contrib'
 
-      INTEGER                                            :: eigvec_idx, handle, ii, iproc, jj, kk, &
-                                                            ncol_local, nrow_local, &
-                                                            num_entries_local
+      INTEGER                                            :: eigvec_idx, handle, ii, iproc, isp, jj, &
+                                                            kk, ksp, ncol_local, nrow_local, &
+                                                            num_entries_local, r_local, v_local
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_entries_to_comm
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: eigvec_entry
@@ -1058,7 +1079,7 @@ CONTAINS
 
       DO iproc = 0, para_env%num_pe - 1
          ALLOCATE (buffer_entries(iproc)%msg(num_entries_to_comm(iproc)))
-         ALLOCATE (buffer_entries(iproc)%indx(num_entries_to_comm(iproc), 2))
+         ALLOCATE (buffer_entries(iproc)%indx(num_entries_to_comm(iproc), 3))
          buffer_entries(iproc)%msg = 0.0_dp
          buffer_entries(iproc)%indx = 0
       END DO
@@ -1073,8 +1094,24 @@ CONTAINS
             eigvec_idx = row_indices(ii)
             eigvec_entry = fm_eigvec%local_data(ii, jj)
             IF (ABS(eigvec_entry) > mp2_env%bse%eps_x) THEN
-               buffer_entries(para_env%mepos)%indx(kk, 1) = (eigvec_idx - 1)/virtual + 1
-               buffer_entries(para_env%mepos)%indx(kk, 2) = MOD(eigvec_idx - 1, virtual) + 1
+               ! Decode spin block from the joint row index (blocks are contiguous; sigma is the
+               ! largest offset strictly below eigvec_idx). offsets absent -> closed shell, sigma=1.
+               isp = 1
+               r_local = eigvec_idx
+               v_local = virtual
+               IF (PRESENT(offsets)) THEN
+                  DO ksp = SIZE(offsets), 1, -1
+                     IF (eigvec_idx > offsets(ksp)) THEN
+                        isp = ksp
+                        EXIT
+                     END IF
+                  END DO
+                  r_local = eigvec_idx - offsets(isp)
+                  v_local = virtual_per_spin(isp)
+               END IF
+               buffer_entries(para_env%mepos)%indx(kk, 1) = (r_local - 1)/v_local + 1
+               buffer_entries(para_env%mepos)%indx(kk, 2) = MOD(r_local - 1, v_local) + 1
+               buffer_entries(para_env%mepos)%indx(kk, 3) = isp
                buffer_entries(para_env%mepos)%msg(kk) = eigvec_entry
                kk = kk + 1
             END IF
@@ -1091,6 +1128,7 @@ CONTAINS
       ALLOCATE (idx_homo(num_entries))
       ALLOCATE (idx_virt(num_entries))
       ALLOCATE (eigvec_entries(num_entries))
+      IF (PRESENT(idx_spin)) ALLOCATE (idx_spin(num_entries))
 
       kk = 1
       DO iproc = 0, para_env%num_pe - 1
@@ -1098,6 +1136,7 @@ CONTAINS
             DO ii = 1, num_entries_to_comm(iproc)
                idx_homo(kk) = buffer_entries(iproc)%indx(ii, 1)
                idx_virt(kk) = buffer_entries(iproc)%indx(ii, 2)
+               IF (PRESENT(idx_spin)) idx_spin(kk) = buffer_entries(iproc)%indx(ii, 3)
                eigvec_entries(kk) = buffer_entries(iproc)%msg(ii)
                kk = kk + 1
             END DO
@@ -1115,8 +1154,12 @@ CONTAINS
       NULLIFY (col_indices)
 
       !Now sort the results according to the involved singleparticle orbitals
-      ! (homo first, then virtual)
-      CALL sort_excitations(idx_homo, idx_virt, eigvec_entries)
+      ! (homo first, then virtual). idx_spin is payload, permuted alongside the entries.
+      IF (PRESENT(idx_spin)) THEN
+         CALL sort_excitations(idx_homo, idx_virt, eigvec_entries, idx_spin)
+      ELSE
+         CALL sort_excitations(idx_homo, idx_virt, eigvec_entries)
+      END IF
 
       CALL timestop(handle)
 
