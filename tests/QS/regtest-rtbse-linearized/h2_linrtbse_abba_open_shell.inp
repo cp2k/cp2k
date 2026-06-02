@@ -3,13 +3,13 @@
   RUN_TYPE RT_PROPAGATION
 &END GLOBAL
 
-! Open-shell (LSD) ABBA: joint spin-block Liouvillian eigenvalues (Furche reduction).
-! Propagation is skipped (ABBA open-shell propagation NYI); only the diagnostic runs.
+! Open-shell (LSD) ABBA: joint spin-block Liouvillian eigenvalues (diagnostic) AND propagated
+! alpha(0). STATIC_POL| TOT must equal the closed-shell ABBA value (forced-LSD identity).
 
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 1
+    STEPS 100
     TEMPERATURE [K] 0.0
     TIMESTEP [fs] 1e-3
   &END MD
