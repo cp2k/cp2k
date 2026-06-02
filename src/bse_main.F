@@ -292,11 +292,11 @@ CONTAINS
             IF (my_do_abba) THEN
                IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
                    mp2_env%bse%screening_method == bse_screening_alpha) THEN
-                  CALL create_B(fm_mat_S_ia_trunc_arr(1), fm_mat_S_ia_trunc_arr(1), fm_B_BSE, &
-                                homo_red_arr(1), virt_red_arr(1), dimen_RI, unit_nr, mp2_env)
+                  CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ia_trunc_arr, fm_B_BSE, &
+                                homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
                ELSE
-                  CALL create_B(fm_mat_S_ia_trunc_arr(1), fm_mat_S_bar_ia_bse_arr(1), fm_B_BSE, &
-                                homo_red_arr(1), virt_red_arr(1), dimen_RI, unit_nr, mp2_env)
+                  CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ia_bse_arr, fm_B_BSE, &
+                                homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
                END IF
                CALL create_hermitian_form_of_ABBA(fm_A_BSE, fm_B_BSE, fm_C_BSE, &
                                                   fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &

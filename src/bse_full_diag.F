@@ -331,32 +331,41 @@ CONTAINS
    SUBROUTINE create_B(fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse, fm_B, &
                        homo, virtual, dimen_RI, unit_nr, mp2_env)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_B
-      INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      INTEGER, INTENT(IN)                                :: dimen_RI, unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_B'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, isp, n_ov_joint, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_ov, offsets
       INTEGER, DIMENSION(4)                              :: reordering
       REAL(KIND=dp)                                      :: alpha, alpha_screening
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_v
-      TYPE(cp_fm_type)                                   :: fm_W
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_B, fm_struct_S_joint, &
+                                                            fm_struct_W
+      TYPE(cp_fm_type)                                   :: fm_S_joint, fm_W
 
       CALL timeset(routineN, handle)
+
+      nspins = SIZE(homo)
+      ALLOCATE (n_ov(nspins), offsets(nspins))
+      CALL get_bse_spin_block_layout(homo, virtual, n_ov, offsets, n_ov_joint)
 
       IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A10)') 'BSE|DEBUG|', 'Creating B'
       END IF
 
-      ! Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
+      ! Coulomb prefactor: SPIN_CONFIG sector for closed shell; for open shell each spin block
+      ! contributes once (alpha=1). create_A already emits the SPIN_CONFIG-ignored warning.
       SELECT CASE (mp2_env%bse%bse_spin_config)
       CASE (bse_singlet)
          alpha = 2.0_dp
       CASE (bse_triplet)
          alpha = 0.0_dp
       END SELECT
+      IF (nspins > 1) alpha = 1.0_dp
 
       IF (mp2_env%bse%screening_method == bse_screening_alpha) THEN
          alpha_screening = mp2_env%bse%screening_factor
@@ -364,40 +373,68 @@ CONTAINS
          alpha_screening = 1.0_dp
       END IF
 
-      CALL cp_fm_struct_create(fm_struct_v, context=fm_mat_S_ia_bse%matrix_struct%context, nrow_global=homo*virtual, &
-                               ncol_global=homo*virtual, para_env=fm_mat_S_ia_bse%matrix_struct%para_env)
-      CALL cp_fm_create(fm_B, fm_struct_v, name="fm_B_iajb")
+      ! Joint B over all spin blocks: B_ia,jb = alpha*(ia|bj) - W^sigma_ib,aj (W spin-diagonal)
+      NULLIFY (fm_struct_B)
+      CALL cp_fm_struct_create(fm_struct_B, context=fm_mat_S_ia_bse(1)%matrix_struct%context, &
+                               nrow_global=n_ov_joint, ncol_global=n_ov_joint, &
+                               para_env=fm_mat_S_ia_bse(1)%matrix_struct%para_env)
+      CALL cp_fm_create(fm_B, fm_struct_B, name="fm_B_iajb")
       CALL cp_fm_set_all(fm_B, 0.0_dp)
 
-      CALL cp_fm_create(fm_W, fm_struct_v, name="fm_W_ibaj")
-      CALL cp_fm_set_all(fm_W, 0.0_dp)
+      ! Coulomb v_ia,jb = sum_P B^P_ia B^P_jb (= (ia|bj)); cross-spin blocks filled automatically.
+      IF (nspins > 1) THEN
+         NULLIFY (fm_struct_S_joint)
+         CALL cp_fm_struct_create(fm_struct_S_joint, &
+                                  context=fm_mat_S_ia_bse(1)%matrix_struct%context, &
+                                  nrow_global=dimen_RI, ncol_global=n_ov_joint, &
+                                  para_env=fm_mat_S_ia_bse(1)%matrix_struct%para_env)
+         CALL cp_fm_create(fm_S_joint, fm_struct_S_joint, name="fm_S_ia_joint")
+         CALL cp_fm_set_all(fm_S_joint, 0.0_dp)
+         CALL assemble_joint_ov_slab(fm_mat_S_ia_bse, offsets, n_ov, dimen_RI, fm_S_joint)
+         CALL parallel_gemm(transa="T", transb="N", m=n_ov_joint, n=n_ov_joint, k=dimen_RI, &
+                            alpha=alpha, matrix_a=fm_S_joint, matrix_b=fm_S_joint, beta=0.0_dp, &
+                            matrix_c=fm_B)
+         CALL cp_fm_release(fm_S_joint)
+         CALL cp_fm_struct_release(fm_struct_S_joint)
+      ELSE
+         CALL parallel_gemm(transa="T", transb="N", m=homo(1)*virtual(1), n=homo(1)*virtual(1), &
+                            k=dimen_RI, alpha=alpha, &
+                            matrix_a=fm_mat_S_ia_bse(1), matrix_b=fm_mat_S_ia_bse(1), &
+                            beta=0.0_dp, matrix_c=fm_B)
+      END IF
 
       IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated B_iajb'
       END IF
-      ! v_ia,jb = \sum_P B^P_ia B^P_jb
-      CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
-                         matrix_a=fm_mat_S_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
-                         matrix_c=fm_B)
 
-      ! If infinite screening is applied, fm_W is simply 0 - Otherwise it needs to be computed from 3c integrals
+      ! W^sigma_ib,aj = sum_P barB^P_ib B^P_aj on sigma-diagonal blocks only (offsets place them).
+      ! reordering [1,4,3,2] maps W_ib,ja -> B_ia,jb. For nspins=1: offsets(1)=0 (original code).
       IF (mp2_env%bse%screening_method /= bse_screening_rpa) THEN
-         ! W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj
-         CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha_screening, &
-                            matrix_a=fm_mat_S_bar_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
-                            matrix_c=fm_W)
-
-         ! from W_ib,ja to A_ia,jb (formally: W_ib,aj, but our internal indexorder is different)
-         ! Writing -1.0_dp * W_ib,ja to A_ia,jb, i.e. beta = -1.0_dp,
-         ! W_ib,ja: nrow_secidx_in  = virtual,    ncol_secidx_in  = virtual
-         ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
-         reordering = [1, 4, 3, 2]
-         CALL fm_general_add_bse(fm_B, fm_W, -1.0_dp, virtual, virtual, &
-                                 virtual, virtual, unit_nr, reordering, mp2_env)
+         DO isp = 1, nspins
+            NULLIFY (fm_struct_W)
+            CALL cp_fm_struct_create(fm_struct_W, &
+                                     context=fm_mat_S_ia_bse(isp)%matrix_struct%context, &
+                                     nrow_global=homo(isp)*virtual(isp), &
+                                     ncol_global=homo(isp)*virtual(isp), &
+                                     para_env=fm_mat_S_ia_bse(isp)%matrix_struct%para_env)
+            CALL cp_fm_create(fm_W, fm_struct_W, name="fm_W_ibaj")
+            CALL cp_fm_set_all(fm_W, 0.0_dp)
+            CALL parallel_gemm(transa="T", transb="N", m=homo(isp)*virtual(isp), &
+                               n=homo(isp)*virtual(isp), k=dimen_RI, alpha=alpha_screening, &
+                               matrix_a=fm_mat_S_bar_ia_bse(isp), matrix_b=fm_mat_S_ia_bse(isp), &
+                               beta=0.0_dp, matrix_c=fm_W)
+            reordering = [1, 4, 3, 2]
+            CALL fm_general_add_bse(fm_B, fm_W, -1.0_dp, virtual(isp), virtual(isp), &
+                                    virtual(isp), virtual(isp), unit_nr, reordering, mp2_env, &
+                                    row_offset=offsets(isp), col_offset=offsets(isp))
+            CALL cp_fm_release(fm_W)
+            CALL cp_fm_struct_release(fm_struct_W)
+         END DO
       END IF
 
-      CALL cp_fm_release(fm_W)
-      CALL cp_fm_struct_release(fm_struct_v)
+      CALL cp_fm_struct_release(fm_struct_B)
+      DEALLOCATE (n_ov, offsets)
+
       CALL timestop(handle)
 
    END SUBROUTINE create_B
