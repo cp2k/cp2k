@@ -1265,7 +1265,7 @@ CONTAINS
             ! ===== Option A (open-shell ABBA): OV+VO-masked Delta rho, per-spin SEX, cross-spin
             ! Hartree, occupation-factor readout. Keeps B-coupling; no reference (mask removes
             ! it - rho_orig is OO-diagonal). Mirrors the TDA branch but OV+VO + occ-factor instead
-            ! of OV + conjugate-transpose. AO-RI only (RIRS guarded off for open shell). =====
+            ! of OV + conjugate-transpose. AO-RI or RI-RS (RIRS: per-spin SEX + shared cross-spin H). =====
             ! Delta rho_OV+VO in MO -> AO (overrides the full-rho image set at the routine top).
             CALL cp_cfm_to_cfm(rho, rtbse_env%rho_delta_mo(ispin))
             CALL mask_mo_block_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), ispin, &
@@ -1275,8 +1275,13 @@ CONTAINS
             ! SEX: per-spin (W spin-diagonal). get_sigma builds -W*Delta rho; (f_n - f_m) zeros
             ! OO/VV and sets the OV/VO signs; coeff +1.
             IF (use_sex) THEN
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, &
-                              rtbse_env%rho_ao_lrrtbse(ispin))
+               IF (use_rirs_sex) THEN
+                  CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(ispin), &
+                                                   -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+               ELSE
+                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, &
+                                 rtbse_env%rho_ao_lrrtbse(ispin))
+               END IF
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                      rtbse_env%sigma_SEX(ispin), ispin)
                CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin)
@@ -1675,7 +1680,12 @@ CONTAINS
       ! -W; add raw +1 (no occupation-factor flip), giving K^SX = -W.
       IF (use_sex) THEN
          DO isp = 1, rtbse_env%n_spin
-            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(isp), -1.0_dp, rtbse_env%rho_ao_lrrtbse(isp))
+            IF (rtbse_env%rirs_sex) THEN
+               CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(isp), &
+                                                -1.0_dp, rtbse_env%rho_ao_lrrtbse(isp))
+            ELSE
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(isp), -1.0_dp, rtbse_env%rho_ao_lrrtbse(isp))
+            END IF
             CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(isp), &
                                                   rtbse_env%sigma_SEX(isp), isp)
             CALL add_K_MO_to_L_drho(rtbse_env, rtbse_env%sigma_SEX(isp), L_drho_out(isp), &
