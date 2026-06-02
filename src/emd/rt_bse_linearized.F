@@ -2257,12 +2257,15 @@ CONTAINS
 !> \param cfm MO-active cfm to mask in place
 !> \param i_spin Spin index
 !> \param keep_OV .TRUE. keeps the (occ row, virt col) block; .FALSE. keeps (virt row, occ col)
+!> \param keep_ovvo if present and .TRUE., keep BOTH off-diagonal blocks (OV and VO) and zero
+!>        OO/VV; overrides keep_OV. Absent/false reproduces the keep_OV behaviour.
 ! **************************************************************************************************
-   SUBROUTINE mask_mo_block_cfm(rtbse_env, cfm, i_spin, keep_OV)
+   SUBROUTINE mask_mo_block_cfm(rtbse_env, cfm, i_spin, keep_OV, keep_ovvo)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_cfm_type)                                  :: cfm
       INTEGER, INTENT(IN)                                :: i_spin
       LOGICAL, INTENT(IN)                                :: keep_OV
+      LOGICAL, INTENT(IN), OPTIONAL                      :: keep_ovvo
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mask_mo_block_cfm'
 
@@ -2271,9 +2274,12 @@ CONTAINS
                                                             j_global, j_global_mo, j_local, n_occ, &
                                                             ncol_local, nrow_local, shift
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: keep
+      LOGICAL                                            :: keep, l_keep_ovvo
 
       CALL timeset(routineN, handle)
+
+      l_keep_ovvo = .FALSE.
+      IF (PRESENT(keep_ovvo)) l_keep_ovvo = keep_ovvo
 
       n_occ = rtbse_env%n_occ(i_spin)
       shift = rtbse_env%first_active_mo - 1
@@ -2290,7 +2296,10 @@ CONTAINS
          DO j_local = 1, ncol_local
             j_global = col_indices(j_local)
             j_global_mo = j_global + shift
-            IF (keep_OV) THEN
+            IF (l_keep_ovvo) THEN
+               ! keep both off-diagonal blocks (OV and VO); drop OO/VV
+               keep = ((i_global_mo <= n_occ) .NEQV. (j_global_mo <= n_occ))
+            ELSE IF (keep_OV) THEN
                keep = (i_global_mo <= n_occ .AND. j_global_mo > n_occ)
             ELSE
                keep = (i_global_mo > n_occ .AND. j_global_mo <= n_occ)
