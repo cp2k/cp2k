@@ -41,9 +41,11 @@ MODULE bse_full_diag
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
+                                              cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE exstates_types,                  ONLY: excited_energy_type
    USE input_constants,                 ONLY: bse_screening_alpha,&
@@ -671,9 +673,16 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_A'
 
-      INTEGER                                            :: diag_info, handle, n_ov_joint, nspins
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
-      TYPE(cp_fm_type)                                   :: fm_eigvec
+      INTEGER                                            :: diag_info, handle, idir, isp, jdir, n, &
+                                                            n_ov_joint, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_ov_sp, offsets_sp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens, oscill_str_joint, ref_pt
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: pol_res_joint, trans_mom_joint
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_dip_reord, fm_struct_sp, &
+                                                            fm_struct_tmom
+      TYPE(cp_fm_type)                                   :: fm_dip_reord_sp, fm_eigvec, fm_eigvec_sp
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_dip_ab_sp, fm_dip_ai_sp, fm_dip_ij_sp
+      TYPE(cp_fm_type), DIMENSION(3)                     :: fm_trans_mom_joint
 
       CALL timeset(routineN, handle)
 
@@ -700,12 +709,75 @@ CONTAINS
          CALL postprocess_bse(Exc_ens, fm_eigvec, mp2_env, qs_env, mo_coeff, &
                               homo(1), virtual(1), homo_irred, unit_nr, .TRUE.)
       ELSE
-         ! Phase 1b: print joint energies only; oscillator strengths are Phase 1c.
+         ALLOCATE (n_ov_sp(nspins), offsets_sp(nspins))
+         CALL get_bse_spin_block_layout(homo, virtual, n_ov_sp, offsets_sp, n_ov_joint)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4,T7,A43)') 'BSE|', 'Joint open-shell TDA excitation energies:'
          END IF
          CALL print_excitation_energies(Exc_ens, n_ov_joint, 1, .TRUE., "Open-Shell", &
                                         " -TDA-", mp2_env, unit_nr)
+
+         ! Spin-summed transition moments: D^n_dir = sum_σ sum_{ia,σ} D^{dir,σ}_{ai} X_{ia,σ,n}
+         ALLOCATE (fm_dip_ai_sp(3), fm_dip_ij_sp(3), fm_dip_ab_sp(3), ref_pt(3))
+         ALLOCATE (oscill_str_joint(n_ov_joint), trans_mom_joint(3, 1, n_ov_joint))
+         ALLOCATE (pol_res_joint(3, 3, n_ov_joint))
+         trans_mom_joint(:, :, :) = 0.0_dp
+         NULLIFY (fm_struct_dip_reord, fm_struct_sp, fm_struct_tmom)
+         CALL cp_fm_struct_create(fm_struct_tmom, fm_A%matrix_struct%para_env, &
+                                  fm_A%matrix_struct%context, 1, n_ov_joint)
+         DO idir = 1, 3
+            CALL cp_fm_create(fm_trans_mom_joint(idir), fm_struct_tmom)
+            CALL cp_fm_set_all(fm_trans_mom_joint(idir), 0.0_dp)
+         END DO
+         DO isp = 1, nspins
+            CALL get_multipoles_mo(fm_dip_ai_sp, fm_dip_ij_sp, fm_dip_ab_sp, &
+                                   qs_env, mo_coeff(isp:isp), ref_pt, 1, &
+                                   homo(isp), virtual(isp), fm_A%matrix_struct%context)
+            NULLIFY (fm_struct_sp, fm_struct_dip_reord)
+            CALL cp_fm_struct_create(fm_struct_sp, fm_A%matrix_struct%para_env, &
+                                     fm_A%matrix_struct%context, n_ov_sp(isp), n_ov_joint)
+            CALL cp_fm_create(fm_eigvec_sp, fm_struct_sp)
+            CALL cp_fm_set_all(fm_eigvec_sp, 0.0_dp)
+            CALL cp_fm_to_fm_submat(fm_eigvec, fm_eigvec_sp, n_ov_sp(isp), n_ov_joint, &
+                                    offsets_sp(isp) + 1, 1, 1, 1)
+            CALL cp_fm_struct_create(fm_struct_dip_reord, fm_A%matrix_struct%para_env, &
+                                     fm_A%matrix_struct%context, 1, n_ov_sp(isp))
+            DO idir = 1, 3
+               CALL cp_fm_create(fm_dip_reord_sp, fm_struct_dip_reord, name="bse_dip_reord")
+               CALL cp_fm_set_all(fm_dip_reord_sp, 0.0_dp)
+               CALL fm_general_add_bse(fm_dip_reord_sp, fm_dip_ai_sp(idir), 1.0_dp, &
+                                       1, 1, 1, virtual(isp), unit_nr, [2, 4, 3, 1], mp2_env)
+               CALL parallel_gemm('N', 'N', 1, n_ov_joint, n_ov_sp(isp), 1.0_dp, &
+                                  fm_dip_reord_sp, fm_eigvec_sp, 1.0_dp, fm_trans_mom_joint(idir))
+               CALL cp_fm_release(fm_dip_reord_sp)
+               CALL cp_fm_release(fm_dip_ai_sp(idir))
+               CALL cp_fm_release(fm_dip_ij_sp(idir))
+               CALL cp_fm_release(fm_dip_ab_sp(idir))
+            END DO
+            CALL cp_fm_release(fm_eigvec_sp)
+            CALL cp_fm_struct_release(fm_struct_sp)
+            NULLIFY (fm_struct_sp)
+            CALL cp_fm_struct_release(fm_struct_dip_reord)
+            NULLIFY (fm_struct_dip_reord)
+         END DO
+         DO idir = 1, 3
+            CALL cp_fm_get_submatrix(fm_trans_mom_joint(idir), trans_mom_joint(idir, :, :))
+            CALL cp_fm_release(fm_trans_mom_joint(idir))
+         END DO
+         CALL cp_fm_struct_release(fm_struct_tmom)
+         DO n = 1, n_ov_joint
+            DO idir = 1, 3
+               DO jdir = 1, 3
+                  pol_res_joint(idir, jdir, n) = 2.0_dp*Exc_ens(n)*trans_mom_joint(idir, 1, n) &
+                                                 *trans_mom_joint(jdir, 1, n)
+               END DO
+            END DO
+            oscill_str_joint(n) = 2.0_dp/3.0_dp*Exc_ens(n)*SUM(ABS(trans_mom_joint(:, 1, n))**2)
+         END DO
+         CALL print_optical_properties(Exc_ens, oscill_str_joint, trans_mom_joint, pol_res_joint, &
+                                       n_ov_joint, 1, homo_irred, .TRUE., " -TDA- ", mp2_env, unit_nr)
+         DEALLOCATE (fm_dip_ai_sp, fm_dip_ij_sp, fm_dip_ab_sp, ref_pt)
+         DEALLOCATE (n_ov_sp, offsets_sp, oscill_str_joint, trans_mom_joint, pol_res_joint)
       END IF
 
       CALL cp_fm_release(fm_eigvec)
