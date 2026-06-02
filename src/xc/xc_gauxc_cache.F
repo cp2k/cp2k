@@ -95,13 +95,7 @@ CONTAINS
    SUBROUTINE gauxc_cache_init( &
       ! inout params
       cache, &
-      cache_params, &
-      gauxc_mol, & ! param
-      gauxc_basis, & ! param
-      gauxc_grid_result, & ! param
-      gauxc_integrator_result, & ! param
-      gauxc_gradient_grid_result, & ! param
-      gauxc_gradient_integrator_result, & ! param
+      params, &
       use_fd_gradient, &
       ! input data
       para_env, &
@@ -116,13 +110,7 @@ CONTAINS
       use_self_runtime)
 
       TYPE(cp_gauxc_cache_type), INTENT(inout)           :: cache
-      TYPE(cp_gauxc_cache_params), INTENT(in)            :: cache_params
-      TYPE(cp_gauxc_molecule_type), INTENT(inout)        :: gauxc_mol
-      TYPE(cp_gauxc_basisset_type), INTENT(inout)        :: gauxc_basis
-      TYPE(cp_gauxc_grid_type), INTENT(inout)            :: gauxc_grid_result
-      TYPE(cp_gauxc_integrator_type), INTENT(inout)      :: gauxc_integrator_result
-      TYPE(cp_gauxc_grid_type), INTENT(inout)            :: gauxc_gradient_grid_result
-      TYPE(cp_gauxc_integrator_type), INTENT(inout) :: gauxc_gradient_integrator_result
+      TYPE(cp_gauxc_cache_params), INTENT(in)            :: params
       LOGICAL, INTENT(inout)                             :: use_fd_gradient
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -135,47 +123,38 @@ CONTAINS
       IF (gauxc_cache_is_valid( &
           cache, &
           particle_set, &
-          cache_params%natom, &
-          cache_params%nspins, &
-          cache_params%batch_size, &
-          cache_params%device_runtime_fill_fraction, &
-          cache_params%xc_fun_name, &
-          cache_params%grid_type, &
-          cache_params%radial_quadrature, &
-          cache_params%pruning_scheme, &
-          cache_params%lb_exec_space, &
-          cache_params%int_exec_space, &
-          cache_params%model_name, &
+          params%natom, &
+          params%nspins, &
+          params%batch_size, &
+          params%device_runtime_fill_fraction, &
+          params%xc_fun_name, &
+          params%grid_type, &
+          params%radial_quadrature, &
+          params%pruning_scheme, &
+          params%lb_exec_space, &
+          params%int_exec_space, &
+          params%model_name, &
           use_gradient_self_runtime)) THEN
-
-         gauxc_mol = cache%molecule
-         gauxc_basis = cache%basisset
-         gauxc_grid_result = cache%grid
-         gauxc_integrator_result = cache%integrator
-         IF (use_gradient_self_runtime) THEN
-            gauxc_gradient_grid_result = cache%gradient_grid
-            gauxc_gradient_integrator_result = cache%gradient_integrator
-         END IF
 
          ! TODO remove duplication
          use_fd_gradient = gapw .AND. calculate_forces .AND. &
-                           (use_skala_model .OR. gauxc_basis%max_l > 3)
+                           (use_skala_model .OR. cache%basisset%max_l > 3)
          RETURN
       END IF
 
       CALL gauxc_cache_release(cache)
 
-      gauxc_mol = gauxc_create_molecule( &
+      cache%molecule = gauxc_create_molecule( &
                   particle_set, &
                   gauxc_status)
       CALL gauxc_check_status(gauxc_status)
-      gauxc_basis = gauxc_create_basisset( &
+      cache%basisset = gauxc_create_basisset( &
                     qs_kind_set, &
                     particle_set, &
                     gauxc_status)
       CALL gauxc_check_status(gauxc_status)
       use_fd_gradient = gapw .AND. calculate_forces .AND. &
-                        (use_skala_model .OR. gauxc_basis%max_l > 3)
+                        (use_skala_model .OR. cache%basisset%max_l > 3)
       IF (use_gradient_mpi_runtime) THEN
          use_gradient_self_runtime = .FALSE.
       END IF
@@ -189,15 +168,15 @@ CONTAINS
       IF (use_self_runtime) THEN
          ! SKALA currently needs a replicated molecular runtime for reproducible
          ! open-shell densities across CP2K MPI ranks.
-         gauxc_grid_result = gauxc_create_grid( &
-                             gauxc_mol, &
-                             gauxc_basis, &
-                             cache_params%grid_type, &
-                             cache_params%radial_quadrature, &
-                             cache_params%pruning_scheme, &
-                             cache_params%lb_exec_space, &
-                             cache_params%batch_size, &
-                             cache_params%device_runtime_fill_fraction, &
+         cache%grid = gauxc_create_grid( &
+                             cache%molecule, &
+                             cache%basisset, &
+                             params%grid_type, &
+                             params%radial_quadrature, &
+                             params%pruning_scheme, &
+                             params%lb_exec_space, &
+                             params%batch_size, &
+                             params%device_runtime_fill_fraction, &
                              gauxc_status, &
                              mpi_comm=mp_comm_self%get_handle())
       ELSE
@@ -205,24 +184,24 @@ CONTAINS
          ! runtime.  In mixed CDFT the diabatic states can be built on disjoint
          ! MPI subgroups; using the global communicator would make GauXC wait
          ! for ranks that are working on another state.
-         gauxc_grid_result = gauxc_create_grid( &
-                             gauxc_mol, &
-                             gauxc_basis, &
-                             cache_params%grid_type, &
-                             cache_params%radial_quadrature, &
-                             cache_params%pruning_scheme, &
-                             cache_params%lb_exec_space, &
-                             cache_params%batch_size, &
-                             cache_params%device_runtime_fill_fraction, &
+         cache%grid = gauxc_create_grid( &
+                             cache%molecule, &
+                             cache%basisset, &
+                             params%grid_type, &
+                             params%radial_quadrature, &
+                             params%pruning_scheme, &
+                             params%lb_exec_space, &
+                             params%batch_size, &
+                             params%device_runtime_fill_fraction, &
                              gauxc_status, &
                              mpi_comm=para_env%get_handle())
       END IF
       CALL gauxc_check_status(gauxc_status)
-      gauxc_integrator_result = gauxc_create_integrator( &
-                                TRIM(cache_params%xc_fun_name), &
-                                gauxc_grid_result, &
-                                cache_params%int_exec_space, &
-                                cache_params%nspins, &
+      cache%integrator = gauxc_create_integrator( &
+                                TRIM(params%xc_fun_name), &
+                                cache%grid, &
+                                params%int_exec_space, &
+                                params%nspins, &
                                 gauxc_status)
       CALL gauxc_check_status(gauxc_status)
 
@@ -230,54 +209,46 @@ CONTAINS
          ! Upstream GauXC does not yet support OneDFT/SKALA nuclear gradients
          ! on an MPI runtime.  Keep the energy/VXC path on the normal MPI
          ! runtime and use an isolated runtime only for the replicated gradient.
-         gauxc_gradient_grid_result = gauxc_create_grid( &
-                                      gauxc_mol, &
-                                      gauxc_basis, &
-                                      cache_params%grid_type, &
-                                      cache_params%radial_quadrature, &
-                                      cache_params%pruning_scheme, &
-                                      cache_params%lb_exec_space, &
-                                      cache_params%batch_size, &
-                                      cache_params%device_runtime_fill_fraction, &
+         cache%gradient_grid = gauxc_create_grid( &
+                                      cache%molecule, &
+                                      cache%basisset, &
+                                      params%grid_type, &
+                                      params%radial_quadrature, &
+                                      params%pruning_scheme, &
+                                      params%lb_exec_space, &
+                                      params%batch_size, &
+                                      params%device_runtime_fill_fraction, &
                                       gauxc_status, &
                                       mpi_comm=mp_comm_self%get_handle())
          CALL gauxc_check_status(gauxc_status)
-         gauxc_gradient_integrator_result = gauxc_create_integrator( &
-                                            TRIM(cache_params%xc_fun_name), &
-                                            gauxc_gradient_grid_result, &
-                                            cache_params%int_exec_space, &
-                                            cache_params%nspins, &
+         cache%gradient_integrator = gauxc_create_integrator( &
+                                            TRIM(params%xc_fun_name), &
+                                            cache%gradient_grid, &
+                                            params%int_exec_space, &
+                                            params%nspins, &
                                             gauxc_status)
          CALL gauxc_check_status(gauxc_status)
       END IF
 
-      cache%molecule = gauxc_mol
-      cache%basisset = gauxc_basis
-      cache%grid = gauxc_grid_result
-      cache%integrator = gauxc_integrator_result
-      IF (use_gradient_self_runtime) THEN
-         cache%gradient_grid = gauxc_gradient_grid_result
-         cache%gradient_integrator = gauxc_gradient_integrator_result
-      END IF
-      cache%natom = cache_params%natom
-      cache%nspins = cache_params%nspins
-      cache%batch_size = cache_params%batch_size
-      cache%device_runtime_fill_fraction = REAL(cache_params%device_runtime_fill_fraction, c_double)
-      cache%xc_fun_name = TRIM(cache_params%xc_fun_name)
-      cache%grid_type = TRIM(cache_params%grid_type)
-      cache%radial_quadrature = TRIM(cache_params%radial_quadrature)
-      cache%pruning_scheme = TRIM(cache_params%pruning_scheme)
-      cache%lb_exec_space = TRIM(cache_params%lb_exec_space)
-      cache%int_exec_space = TRIM(cache_params%int_exec_space)
-      cache%model_name = TRIM(cache_params%model_name)
+      cache%natom = params%natom
+      cache%nspins = params%nspins
+      cache%batch_size = params%batch_size
+      cache%device_runtime_fill_fraction = REAL(params%device_runtime_fill_fraction, c_double)
+      cache%xc_fun_name = TRIM(params%xc_fun_name)
+      cache%grid_type = TRIM(params%grid_type)
+      cache%radial_quadrature = TRIM(params%radial_quadrature)
+      cache%pruning_scheme = TRIM(params%pruning_scheme)
+      cache%lb_exec_space = TRIM(params%lb_exec_space)
+      cache%int_exec_space = TRIM(params%int_exec_space)
+      cache%model_name = TRIM(params%model_name)
       cache%gradient_self_runtime = use_gradient_self_runtime
       IF (ALLOCATED(cache%last_positions)) &
          DEALLOCATE (cache%last_positions)
-      ALLOCATE (cache%last_positions(3, cache_params%natom))
+      ALLOCATE (cache%last_positions(3, params%natom))
 
       BLOCK
          INTEGER :: iatom
-         DO iatom = 1, cache_params%natom
+         DO iatom = 1, params%natom
             cache%last_positions(:, iatom) = REAL(particle_set(iatom)%r(:), c_double)
          END DO
       END BLOCK
