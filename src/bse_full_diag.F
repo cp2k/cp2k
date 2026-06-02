@@ -577,8 +577,7 @@ CONTAINS
                             unit_nr, diag_est, mp2_env, qs_env, mo_coeff)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
-      INTEGER, INTENT(IN)                                :: homo_irred
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual, homo_irred
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
@@ -590,8 +589,9 @@ CONTAINS
 
       INTEGER                                            :: diag_info, handle, n_ov_joint, nspins
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
-      TYPE(cp_fm_type) :: fm_eigvec_X, fm_eigvec_Y, fm_eigvec_Z, fm_mat_eigvec_transform_diff, &
-         fm_mat_eigvec_transform_sum, fm_XplusY
+      TYPE(cp_fm_type)                                   :: fm_eigvec_X, fm_eigvec_Y, fm_eigvec_Z, &
+                                                            fm_mat_eigvec_transform_diff, &
+                                                            fm_mat_eigvec_transform_sum
 
       CALL timeset(routineN, handle)
 
@@ -676,16 +676,12 @@ CONTAINS
 
       IF (nspins == 1) THEN
          CALL postprocess_bse(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
-                              homo(1), virtual(1), homo_irred, unit_nr, &
+                              homo(1), virtual(1), homo_irred(1), unit_nr, &
                               .FALSE., fm_eigvec_Y)
       ELSE
-         ! Open-shell ABBA transition moment uses X+Y; reuse the joint optical helper.
-         CALL cp_fm_create(fm_XplusY, fm_C%matrix_struct)
-         CALL cp_fm_to_fm(fm_eigvec_X, fm_XplusY)
-         CALL cp_fm_scale_and_add(1.0_dp, fm_XplusY, 1.0_dp, fm_eigvec_Y)
-         CALL bse_open_shell_optical(Exc_ens, fm_XplusY, homo, virtual, homo_irred, &
-                                     .FALSE., qs_env, mo_coeff, mp2_env, unit_nr)
-         CALL cp_fm_release(fm_XplusY)
+         ! Open-shell ABBA: helper forms X+Y internally and prints amplitudes (X and Y).
+         CALL bse_open_shell_optical(Exc_ens, fm_eigvec_X, homo, virtual, homo_irred, &
+                                     .FALSE., qs_env, mo_coeff, mp2_env, unit_nr, fm_eigvec_Y)
       END IF
 
       DEALLOCATE (Exc_ens)
@@ -712,8 +708,8 @@ CONTAINS
                             unit_nr, diag_est, mp2_env, qs_env, mo_coeff)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
-      INTEGER, INTENT(IN)                                :: homo_irred, unit_nr
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual, homo_irred
+      INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -748,7 +744,7 @@ CONTAINS
 
       IF (nspins == 1) THEN
          CALL postprocess_bse(Exc_ens, fm_eigvec, mp2_env, qs_env, mo_coeff, &
-                              homo(1), virtual(1), homo_irred, unit_nr, .TRUE.)
+                              homo(1), virtual(1), homo_irred(1), unit_nr, .TRUE.)
       ELSE
          CALL bse_open_shell_optical(Exc_ens, fm_eigvec, homo, virtual, homo_irred, &
                                      .TRUE., qs_env, mo_coeff, mp2_env, unit_nr)
@@ -762,33 +758,33 @@ CONTAINS
    END SUBROUTINE diagonalize_A
 
 ! **************************************************************************************************
-!> \brief Open-shell (UKS) spin-summed optical properties for the joint spin-block space:
-!>   joint excitation energies + oscillator strengths from a transition-coefficient matrix
-!>   (X for TDA, X+Y for ABBA). Mirrors postprocess_bse but spin-summed; the amplitude table,
-!>   exciton descriptors and NTOs are not yet implemented for open shell (CPWARN).
+!> \brief Open-shell (UKS) spin-summed post-processing for the joint spin-block space: joint
+!>   excitation energies, per-spin transition amplitudes, and oscillator strengths. Mirrors
+!>   postprocess_bse but spin-summed; exciton descriptors and NTOs are not yet implemented (CPWARN).
 !> \param Exc_ens joint excitation energies
-!> \param fm_trans_coeff joint transition coefficients (X for TDA, X+Y for ABBA)
-!> \param homo per-spin occupied counts
-!> \param virtual per-spin virtual counts
-!> \param homo_irred number of irreducible occupied orbitals (for printing)
+!> \param fm_eigvec_X joint X eigenvectors (excitations)
+!> \param homo per-spin reduced/active occupied counts
+!> \param virtual per-spin reduced/active virtual counts
+!> \param homo_irred per-spin full occupied counts (absolute-MO labels; N_e = sum)
 !> \param flag_tda .TRUE. -> TDA (coeff=X), .FALSE. -> ABBA (coeff=X+Y)
 !> \param qs_env ...
 !> \param mo_coeff per-spin MO coefficients
 !> \param mp2_env ...
 !> \param unit_nr ...
+!> \param fm_eigvec_Y joint Y eigenvectors (deexcitations; ABBA only)
 ! **************************************************************************************************
-   SUBROUTINE bse_open_shell_optical(Exc_ens, fm_trans_coeff, homo, virtual, homo_irred, &
-                                     flag_tda, qs_env, mo_coeff, mp2_env, unit_nr)
+   SUBROUTINE bse_open_shell_optical(Exc_ens, fm_eigvec_X, homo, virtual, homo_irred, &
+                                     flag_tda, qs_env, mo_coeff, mp2_env, unit_nr, fm_eigvec_Y)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_trans_coeff
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
-      INTEGER, INTENT(IN)                                :: homo_irred
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec_X
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual, homo_irred
       LOGICAL, INTENT(IN)                                :: flag_tda
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_eigvec_Y
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_open_shell_optical'
 
@@ -800,7 +796,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: pol_res_joint, trans_mom_joint
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_dip_reord, fm_struct_sp, &
                                                             fm_struct_tmom
-      TYPE(cp_fm_type)                                   :: fm_dip_reord_sp, fm_eigvec_sp
+      TYPE(cp_fm_type)                                   :: fm_dip_reord_sp, fm_eigvec_sp, &
+                                                            fm_trans_coeff
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_dip_ab_sp, fm_dip_ai_sp, fm_dip_ij_sp
       TYPE(cp_fm_type), DIMENSION(3)                     :: fm_trans_mom_joint
 
@@ -824,6 +821,15 @@ CONTAINS
       END IF
       CALL print_excitation_energies(Exc_ens, n_ov_joint, 1, flag_tda, multiplet, &
                                      info_approximation, mp2_env, unit_nr)
+
+      ! Per-spin single-particle transition amplitudes (X via =>, Y via <=).
+      CALL print_transition_amplitudes(fm_eigvec_X, homo, virtual, homo_irred, &
+                                       info_approximation, mp2_env, unit_nr, fm_eigvec_Y)
+
+      ! Transition coefficient for the spin-summed moment: X (TDA) or X+Y (ABBA).
+      CALL cp_fm_create(fm_trans_coeff, fm_eigvec_X%matrix_struct)
+      CALL cp_fm_to_fm(fm_eigvec_X, fm_trans_coeff)
+      IF (PRESENT(fm_eigvec_Y)) CALL cp_fm_scale_and_add(1.0_dp, fm_trans_coeff, 1.0_dp, fm_eigvec_Y)
 
       ! Spin-summed transition moments: D^n_dir = sum_σ sum_{ia,σ} D^{dir,σ}_{ai} C_{ia,σ,n}
       ! with C = X (TDA) or X+Y (ABBA); explicit spin sum, factor 1.0.
@@ -885,12 +891,13 @@ CONTAINS
          oscill_str_joint(n) = 2.0_dp/3.0_dp*Exc_ens(n)*SUM(ABS(trans_mom_joint(:, 1, n))**2)
       END DO
       CALL print_optical_properties(Exc_ens, oscill_str_joint, trans_mom_joint, pol_res_joint, &
-                                    n_ov_joint, 1, homo_irred, flag_tda, info_approximation, &
+                                    n_ov_joint, 1, SUM(homo_irred), flag_tda, info_approximation, &
                                     mp2_env, unit_nr, open_shell=.TRUE.)
-      ! Open-shell post-processing is partial: only energies + spin-summed oscillator strengths.
+      ! Open-shell post-processing is partial: energies, amplitudes, spin-summed oscillator strengths.
       CALL cp_warn(__LOCATION__, &
-                   "Open-shell (UKS) BSE: transition-amplitude table, exciton descriptors "// &
-                   "and NTO analysis are not yet implemented and have been skipped.")
+                   "Open-shell (UKS) BSE: exciton descriptors and NTO analysis are not yet "// &
+                   "implemented and have been skipped.")
+      CALL cp_fm_release(fm_trans_coeff)
       DEALLOCATE (fm_dip_ai_sp, fm_dip_ij_sp, fm_dip_ab_sp, ref_pt)
       DEALLOCATE (n_ov_sp, offsets_sp, oscill_str_joint, trans_mom_joint, pol_res_joint)
 
