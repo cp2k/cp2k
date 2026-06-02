@@ -476,17 +476,6 @@ CONTAINS
       IF (rtbse_env%tda_active .AND. .NOT. rtbse_env%linearized) THEN
          CPABORT("RTBSE TDA keyword requires LINEARIZED_BSE_PROPAGATION=.TRUE.")
       END IF
-      ! Liouvillian-eigenvalue diagnostic: TDA supports n_spin=1 and n_spin=2 (joint spin-block
-      ! matrix); ABBA now also supports n_spin=2 for the DIAGNOSTIC (joint A/B Furche reduction).
-      ! Open-shell ABBA PROPAGATION is still NYI (the non-TDA branch of update_effective_ham_MO
-      ! is per-spin and would be silently wrong for n_spin=2), so block it here; the open-shell
-      ! ABBA diagnostic run skips propagation and returns after diagnose_liouvillian_eigenvalues.
-      IF (rtbse_env%n_spin > 1 .AND. .NOT. rtbse_env%tda_active .AND. &
-          .NOT. rtbse_env%diagnose_liouvillian_eig) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "Open-shell linRTBSE ABBA propagation is NYI; only the Liouvillian "// &
-                       "diagnostic is supported (set DIAGNOSE_LIOUVILLIAN_EIG=.TRUE.).")
-      END IF
       ! Open-shell scope: RIRS Hartree/SEX not yet audited for n_spin=2 (TDA + AO-RI only).
       IF (rtbse_env%n_spin > 1 .AND. (rtbse_env%rirs_hartree .OR. rtbse_env%rirs_sex)) THEN
          CALL cp_abort(__LOCATION__, &

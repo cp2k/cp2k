@@ -232,18 +232,6 @@ CONTAINS
          CALL diagnose_liouvillian_eigenvalues(rtbse_env)
       END IF
 
-      ! Open-shell ABBA propagation is NYI (the non-TDA branch is per-spin). The diagnostic is
-      ! the deliverable; finish cleanly here so the run never enters the cross-spin propagator.
-      ! Mirrors the normal teardown (cp_rm_iter_level "MD" -> release_rtbse_env -> timestop).
-      ! [INTERNAL] dev_notes/rt_bse_open_shell_handoff.md Part C
-      IF (rtbse_env%diagnose_liouvillian_eig .AND. rtbse_env%n_spin > 1 .AND. &
-          .NOT. rtbse_env%tda_active) THEN
-         CALL cp_rm_iter_level(logger%iter_info, "MD")
-         CALL release_rtbse_env(rtbse_env)
-         CALL timestop(handle)
-         RETURN
-      END IF
-
       ! Setup the time based on the starting step
       ! Assumes identical dt between two runs
       rtbse_env%sim_time = REAL(rtbse_env%sim_start, dp)*rtbse_env%sim_dt
