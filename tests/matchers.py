@@ -265,6 +265,15 @@ registry["BSE_2nd_excit_ener_UKS"] = GenericMatcher(
     r"BSE|                2       UKS              -TDA-", col=5
 )
 registry["BSE_osc_str_n2_UKS"] = GenericMatcher(r"BSE|             2     -TDA-", col=7)
+registry["BSE_1st_excit_ener_UKS_ABBA"] = GenericMatcher(
+    r"BSE|                1       UKS             -ABBA-", col=5
+)
+registry["BSE_2nd_excit_ener_UKS_ABBA"] = GenericMatcher(
+    r"BSE|                2       UKS             -ABBA-", col=5
+)
+registry["BSE_osc_str_n2_UKS_ABBA"] = GenericMatcher(
+    r"BSE|             2    -ABBA-", col=7
+)
 registry["M115"] = GenericMatcher(r"MOMENTS_TRACE_RE|     0.10000000E+000", col=3)
 registry["M116"] = GenericMatcher(r"MOMENTS_TRACE_IM|     0.10000000E+000", col=3)
 registry["M117"] = GenericMatcher(r"MOMENTS_TRACE_RE|     0.20000000E+000", col=3)
