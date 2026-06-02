@@ -25,8 +25,8 @@ MODULE floquet_utils
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE kinds,                           ONLY: dp,&
-                                              default_string_length
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE kpoint_k_r_trafo_simple,         ONLY: replicate_rs_matrices,&
                                               rs_to_kp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
@@ -41,9 +41,7 @@ MODULE floquet_utils
    USE mathlib,                         ONLY: geeig_right,&
                                               gemm_square
    USE message_passing,                 ONLY: mp_para_env_type
-   USE physcon,                         ONLY: angstrom,&
-                                              evolt,&
-                                              hertz
+   USE physcon,                         ONLY: evolt
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -278,7 +276,7 @@ CONTAINS
          DIMENSION(:, :, :, :)                           :: momentum
       COMPLEX(KIND=dp), DIMENSION(3)                     :: efactor
       INTEGER                                            :: handle, i, i_dir, j, n_spin, nao
-      REAL(KIND=dp)                                      :: omega, amplitude
+      REAL(KIND=dp)                                      :: amplitude, omega
       REAL(KIND=dp), DIMENSION(3)                        :: e_vec, phi, polarisation
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
@@ -527,7 +525,7 @@ CONTAINS
 !> \param qs_env ...
 !> \param bs_env ...
 !> \param ispin ...
-!> \param ikp ...
+!> \param ikp_for_file ...
 !> \param xkp ...
 !> \param eigenvalues ...
 ! **************************************************************************************************
@@ -581,9 +579,11 @@ CONTAINS
                            file_action="WRITE", file_position="APPEND")
          END IF
 
+         WRITE (qunit, "(A)") "# Quasi-energies obtained by diagonalising the Floquet Hamiltonian"
+         WRITE (qunit, "(A)") "# (in units of eV, folded to Floquet Brillouin zone)"
          WRITE (qunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
             "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
-         WRITE (qunit, "(A)") "#  Floquet band  Quasi energy [eV]"
+         WRITE (qunit, "(A)") "#  Floquet band  Quasi-energy [eV]"
          DO i = 1, nao
             qe = quasi_energies(i)
             WRITE (qunit, "(I8,F21.8)") i, qe*evolt
@@ -600,7 +600,7 @@ CONTAINS
 !> \param qs_env ...
 !> \param bs_env ...
 !> \param ispin ...
-!> \param ikp ...
+!> \param ikp_for_file ...
 !> \param xkp ...
 !> \param a_k ...
 ! **************************************************************************************************
@@ -627,7 +627,7 @@ CONTAINS
       energy_step = bs_env%energy_step_floquet
       E_min = mu - bs_env%energy_window_floquet
       n_E = SIZE(a_k)
-      fname = "FLOQUET_SPECTRAL_FUNCTION.out"
+      fname = "FLOQUET_DOS.out"
       nkp_start = bs_env%nkp_only_DOS
 
       IF (bs_env%para_env%is_source()) THEN
@@ -639,6 +639,7 @@ CONTAINS
                            file_action="WRITE", file_position="APPEND")
          END IF
 
+         WRITE (wunit, "(A)") "# Floquet Density of States: D(ω,k) = -1/π*Im[Tr_KS(G^R(ω,k))]"
          WRITE (wunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
             "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
          WRITE (wunit, "(A)") "#Energy-E_F (eV)  A(ω,k) = DOS (1/eV)"

@@ -385,4 +385,8 @@ registry["RIRS_CUTOFF"] = GenericMatcher(
 )
 registry["E_RIRS_HOMO"] = GenericMatcher(r"G0W0 valence band maximum", col=6)
 registry["E_RIRS_LUMO"] = GenericMatcher(r"G0W0 conduction band minimum", col=6)
+
+# Floquet Calculations
+registry["Quasienergy"] = GenericMatcher(r"  4", col=2)
+registry["Floquet_DOS"] = GenericMatcher(r"-1.690", col=2)
 # EOF

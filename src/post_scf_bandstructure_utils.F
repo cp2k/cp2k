@@ -81,8 +81,7 @@ MODULE post_scf_bandstructure_utils
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: a_bohr,&
                                               angstrom,&
-                                              evolt,&
-                                              hertz
+                                              evolt
    USE post_scf_bandstructure_types,    ONLY: band_edges_type,&
                                               post_scf_bandstructure_type
    USE pw_env_types,                    ONLY: pw_env_get,&

@@ -2951,7 +2951,7 @@ CONTAINS
                           description="Phase offset of the electric field in the "// &
                           "x, y, and z directions given in multiples of π. For "// &
                           "linearly polarized light, use 0 0 0 and for left-circularly "// &
-                          "polarized light travelling in the +z direction use "// & 
+                          "polarized light travelling in the +z direction use "// &
                           "PHASE_OFFSET 0.0 0.5 0 ", &
                           usage="PHASE_OFFSETS  0.5 0 0", &
                           default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp])
@@ -2962,7 +2962,7 @@ CONTAINS
                           description="Largest absolute Floquet index up to which "// &
                           "Floquet Hamiltonian is truncated. Use a larger value to "// &
                           "ensure convergence at higher computational cost and a "// &
-                          "smaller value for faster computation. EPS_FLOQUET checks"// &
+                          "smaller value for faster computation. EPS_FLOQUET checks "// &
                           "to ensure that the error due to truncation is small.", &
                           usage="MAX_FLOQUET_INDEX 50", &
                           default_i_val=50)
@@ -2971,7 +2971,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FLOQUET", &
                           description="Threshold on the error due to truncation of "// &
-                          "the Floquet Hamiltonian. Used to verify that MAX_FLOQUET_INDEX"// &
+                          "the Floquet Hamiltonian. Used to verify that MAX_FLOQUET_INDEX "// &
                           "is large enough that truncation errors are small. "// &
                           "If negative, the check is removed (not recommended).", &
                           usage="EPS_FLOQUET 1.e-10", default_r_val=1.0e-10_dp)

@@ -26,8 +26,11 @@ MODULE floquet_main
                                               write_floquet_spectral_function,&
                                               write_quasi_energy
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: z_zero
+   USE mathconstants,                   ONLY: pi,&
+                                              z_zero
    USE message_passing,                 ONLY: mp_para_env_type
+   USE physcon,                         ONLY: a_bohr,&
+                                              evolt
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -57,9 +60,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'floquet'
 
-      INTEGER                                            :: handle, ikp, ispin, max_f_index, n_E, &
-                                                            n_f_size, n_fbands, n_spin, nao, nkp, &
-                                                            nkp_start, ikp_for_file
+      INTEGER                                            :: handle, ikp, ikp_for_file, ispin, &
+                                                            max_f_index, n_E, n_f_size, n_fbands, &
+                                                            n_spin, nao, nkp, nkp_start, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices
       REAL(KIND=dp)                                      :: energy_step, energy_window
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a_k, eigenvalues
@@ -79,6 +82,7 @@ CONTAINS
                       mos=mos)
       CALL get_mo_set(mo_set=mos(1), nao=nao)
 
+      unit_nr = bs_env%unit_nr
       nkp = bs_env%nkp_bs_and_DOS
       nkp_start = bs_env%nkp_only_DOS
       n_spin = bs_env%n_spin
@@ -90,6 +94,56 @@ CONTAINS
       energy_window = 2*bs_env%energy_window_floquet
 
       n_E = INT(energy_window/energy_step)
+
+      IF (unit_nr > 0) THEN
+
+         WRITE (unit_nr, '(T2,A)') ' '
+         WRITE (unit_nr, '(T2,A)') REPEAT('-', 79)
+         WRITE (unit_nr, '(T2,A,A78)') '-', '-'
+         WRITE (unit_nr, '(T2,A,A51,A27)') '-', 'FLOQUET BANDSTRUCTURE CALCULATION', '-'
+         WRITE (unit_nr, '(T2,A,A78)') '-', '-'
+         WRITE (unit_nr, '(T2,A)') REPEAT('-', 79)
+         WRITE (unit_nr, '(T2,A)') ' '
+
+         WRITE (unit_nr, '(T2,A,T56,ES12.2E2)') &
+            "FLOQUET PARAMETERS      Amplitude [V/m]:", bs_env%floquet_amplitude*evolt/a_bohr
+         WRITE (unit_nr, '(T2,A,T56,F12.4)') &
+            "                        Frequency [eV]:", bs_env%floquet_omega*evolt
+         WRITE (unit_nr, '(T2,A)') "                        "//REPEAT("-", 44)
+         WRITE (unit_nr, '(T2,A,T56,3F8.4)') &
+            "                        Polarisation:", bs_env%floquet_polarisation(1:3)
+         WRITE (unit_nr, '(T2,A,T56,3F8.4)') &
+            "                        Phase offsets:", pi*bs_env%floquet_phi(1:3)
+         WRITE (unit_nr, '(T2,A)') "                        "//REPEAT("-", 44)
+         WRITE (unit_nr, '(T2,A,T56,I12)') &
+            "                        Max Floquet index:", bs_env%max_floquet_index
+         WRITE (unit_nr, '(T2,A,T56,I12)') &
+            "                        Floquet Hamiltonian Size:", n_f_size
+         WRITE (unit_nr, '(T2,A)') "                        "//REPEAT("-", 44)
+         WRITE (unit_nr, '(T2,A,T56,F12.4)') &
+            "                        Energy window [eV]:", bs_env%energy_window_floquet*evolt
+         WRITE (unit_nr, '(T2,A,T56,F12.4)') &
+            "                        Energy step [eV]:", bs_env%energy_step_floquet*evolt
+         WRITE (unit_nr, '(T2,A,T56,F12.4)') &
+            "                        Broadening [eV]:", bs_env%broadening_floquet*evolt
+         WRITE (unit_nr, '(T2,A)') "                        "//REPEAT("-", 44)
+         WRITE (unit_nr, '(A)') ""
+
+         WRITE (unit_nr, '(T2,A)') &
+            "We construct the Floquet-Bloch Hamiltonian and diagonalise to obtain the"
+         WRITE (unit_nr, '(T2,A)') &
+            "eigenvalues which give us the quasi-energies stored in QUASI_ENERGIES.bs"
+         WRITE (unit_nr, '(A)') ""
+         WRITE (unit_nr, '(T2,A)') &
+            "The k-resolved density of states is obtained by computing the trace of"
+         WRITE (unit_nr, '(T2,A)') &
+            "the retarded Green's function and stored in FLOQUET_DOS.out"
+         WRITE (unit_nr, '(T2,A)') &
+            "DOS(ω,k) = -1/π*Im[Tr_KS(G^R(ω,k))]"
+         WRITE (unit_nr, '(A)') ""
+         WRITE (unit_nr, '(T2,A)') "Calculations completed for:"
+         WRITE (unit_nr, '(2X,A,T12,A,T22,A)') "KPoint", "Spin", "Coordinate"
+      END IF
 
       CALL cp_fm_struct_create(floquet_struct, &
                                nrow_global=n_f_size, &
@@ -139,8 +193,14 @@ CONTAINS
             ! Write A_phys(k,ω) (or f(ω,μ)·A_phys for the occupied spectral weight)
             ! to output for this k-point and spin channel
             CALL write_floquet_spectral_function(qs_env, bs_env, ispin, ikp_for_file, xkp, a_k)
+
+            ! Write progress in the main output file
+            IF (unit_nr > 0) WRITE (unit_nr, '(2X,I6,T12,I4,T18,3F12.6)') ikp_for_file, ispin, xkp(1:3)
+
          END DO
       END DO
+
+      IF (unit_nr > 0) WRITE (unit_nr, '(A)') ""
       DEALLOCATE (eigenvalues)
       CALL cp_cfm_release(floquet_matrix)
       CALL cp_cfm_release(floquet_copy)
