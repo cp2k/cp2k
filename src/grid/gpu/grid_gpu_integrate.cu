@@ -31,71 +31,27 @@
 
 namespace rocm_backend {
 
-// do a warp reduction and return the final sum to thread_id = 0
+// do a block reduction for a block of size 64 and return the final sum to
+// thread_id = 0
 template <typename T>
-__device__ __inline__ T warp_reduce(T *table, const int tid) {
+__device__ __inline__ T block_reduce_64(T *table, const int tid) {
   // AMD GPU have warp size of 64 while nvidia GPUs have warpSize of 32 so the
   // first step is common to both platforms.
+
+  T val = 0.0;
   if (tid < 32) {
-    table[tid] += table[tid + 32];
-  }
-  __syncthreads();
-  if (tid < 16) {
-    table[tid] += table[tid + 16];
-  }
-  __syncthreads();
-  if (tid < 8) {
-    table[tid] += table[tid + 8];
-  }
-  __syncthreads();
-  if (tid < 4) {
-    table[tid] += table[tid + 4];
-  }
-  __syncthreads();
-  if (tid < 2) {
-    table[tid] += table[tid + 2];
-  }
-  __syncthreads();
-  return (table[0] + table[1]);
-}
-// #endif
+    val = table[tid] + table[tid + 32];
 
-template <typename T>
-__device__ __inline__ T reduce_two_warps(const T in, const int tid) {
-  int lane = tid & 31; // lane within warp
-  int warp = tid >> 5; // warp index (0 or 1)
-
-  T x = in;
-  __shared__ T sdata[2];
-  // Step 1: per‑warp reduction via shuffles
+    for (int offset = 16; offset > 0; offset >>= 1) {
 #if defined(__CUDACC__)
-  unsigned mask = 0xffffffff;
-  for (int offset = 16; offset > 0; offset >>= 1)
-    x += __shfl_down_sync(mask, x, offset);
+      val += __shfl_down_sync(0xffffffff, val, offset);
 #else
-  for (int offset = warpSize / 2; offset > 0; offset >>= 1)
-    x += __shfl_down(x, offset);
+      val += __shfl_down(val, offset);
 #endif
-  // Step 2: each warp writes its partial sum to shared memory
-  if (lane == 0)
-    sdata[warp] = x;
-
-  __syncthreads(); // ensures both partial sums are visible
-
-  // Step 3: first warp loads the partials and finishes reduction
-  if (warp == 0) {
-    T v = (lane < 2) ? sdata[lane] : 0; // 2 warps → 2 partials
-
-#if defined(__CUDACC__)
-    // reduce across first warp only
-    for (int offset = 16; offset > 0; offset >>= 1)
-      v += __shfl_down_sync(0xFFFFFFFF, v, offset);
-#else
-    for (int offset = warpSize / 2; offset > 0; offset >>= 1)
-      v += __shfl_down_sync(0xFFFFFFFFFFFFFFFF, v, offset);
-#endif
-    return v;
+    }
   }
+
+  return val;
 }
 
 template <typename T, bool COMPUTE_TAU>
@@ -288,32 +244,28 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
       for (int i = 0; i < 9; i++) {
         sum[tid] = virial[i];
         __syncthreads();
-
-        virial[i] = warp_reduce<T>(sum, tid);
-        __syncthreads();
+        virial[i] = block_reduce_64<T>(sum, tid);
 
         if (tid == 0)
           atomicAdd(dev_.ptr_dev[5] + i, virial[i]);
-        __syncthreads();
       }
     }
 
     for (int i = 0; i < 3; i++) {
+      // store each thread local value of the force in shared memory
       sum[tid] = fa[i];
       __syncthreads();
-      fa[i] = warp_reduce<T>(sum, tid);
-      __syncthreads();
+      fa[i] = block_reduce_64<T>(sum, tid);
+
       if (tid == 0)
         atomicAdd(forces_a + i, fa[i]);
-      __syncthreads();
 
       sum[tid] = fb[i];
       __syncthreads();
-      fb[i] = warp_reduce<T>(sum, tid);
-      __syncthreads();
+      fb[i] = block_reduce_64<T>(sum, tid);
+
       if (tid == 0)
         atomicAdd(forces_b + i, fb[i]);
-      __syncthreads();
     }
   }
 }
@@ -683,8 +635,12 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
         // Warp-level reduction (32 lanes)
         // After this loop, lane 0 of warp 0 holds the result
         for (int offset = 16; offset > 0; offset >>= 1) {
-          val += __shfl_down_sync(__activemask(), val, offset);
-        }
+#if defined(__CUDACC__)
+      	val += __shfl_down_sync(0xffffffff, val, offset);
+#else
+        val += __shfl_down(val, offset);
+#endif
+	}
 
         if (tid == 0)
           sum[i] = val;
@@ -692,43 +648,9 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
     }
     __syncthreads();
 
-    // if (tid < 16) {
-    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
-    //     accumulator[i][tid] += accumulator[i][tid + 16];
-    //   }
-    // }
-    // __syncthreads();
-    // if (tid < 8) {
-    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
-    //     accumulator[i][tid] += accumulator[i][tid + 8];
-    //   }
-    // }
-    // __syncthreads();
-    // if (tid < 4) {
-    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
-    //     accumulator[i][tid] += accumulator[i][tid + 4];
-    //   }
-    // }
-    // __syncthreads();
-    // if (tid < 2) {
-    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
-    //     accumulator[i][tid] += accumulator[i][tid + 2];
-    //   }
-    // }
-    // __syncthreads();
-
-    // if (tid == 0) {
-    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
-    //     sum[i] = accumulator[i][0] + accumulator[i][1];
-    //   }
-    // }
-
-    // __syncthreads();
-
     if (tid < min(length - ico, lbatch))
       dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset +
                       tid + ico] = sum[tid];
-    __syncthreads();
   }
 }
 
