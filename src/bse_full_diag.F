@@ -412,20 +412,18 @@ CONTAINS
 !> \param fm_C ...
 !> \param fm_sqrt_A_minus_B ...
 !> \param fm_inv_sqrt_A_minus_B ...
-!> \param homo ...
-!> \param virtual ...
 !> \param unit_nr ...
 !> \param mp2_env ...
 !> \param diag_est ...
 ! **************************************************************************************************
    SUBROUTINE create_hermitian_form_of_ABBA(fm_A, fm_B, fm_C, &
                                             fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                                            homo, virtual, unit_nr, mp2_env, diag_est)
+                                            unit_nr, mp2_env, diag_est)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_A, fm_B
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C, fm_sqrt_A_minus_B, &
                                                             fm_inv_sqrt_A_minus_B
-      INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
+      INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
 
@@ -494,7 +492,7 @@ CONTAINS
       ! We keep fm_inv_sqrt_A_minus_B for print of singleparticle transitions of ABBA
       ! We further create (A-B)^0.5 for the singleparticle transitions of ABBA
       ! Create (A-B)^0.5= (A-B)^-0.5 * (A-B) (EQ.Ia)
-      dim_mat = homo*virtual
+      CALL cp_fm_get_info(fm_A, nrow_global=dim_mat)
       CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_inv_sqrt_A_minus_B, fm_A_minus_B, 0.0_dp, &
                          fm_sqrt_A_minus_B)
 

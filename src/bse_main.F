@@ -300,8 +300,7 @@ CONTAINS
                END IF
                CALL create_hermitian_form_of_ABBA(fm_A_BSE, fm_B_BSE, fm_C_BSE, &
                                                   fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                                                  homo_red_arr(1), virt_red_arr(1), unit_nr, &
-                                                  mp2_env, diag_runtime_est)
+                                                  unit_nr, mp2_env, diag_runtime_est)
             END IF
             CALL cp_fm_release(fm_B_BSE)
 
