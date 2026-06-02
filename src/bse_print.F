@@ -239,8 +239,8 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A57)') 'BSE|', 'Excitation energies from solving the BSE without the TDA:'
          END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T11,A12,T26,A11,T44,A8,T55,A27)') 'BSE|', &
-            'Excitation n', "Spin Config", 'TDA/ABBA', 'Excitation energy Ω^n (eV)'
+         WRITE (unit_nr, '(T2,A4,T11,A12,T30,A7,T44,A8,T55,A27)') 'BSE|', &
+            'Excitation n', multiplet, 'TDA/ABBA', 'Excitation energy Ω^n (eV)'
       END IF
       !prints actual energies values
       IF (unit_nr > 0) THEN

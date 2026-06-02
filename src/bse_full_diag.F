@@ -714,7 +714,7 @@ CONTAINS
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4,T7,A43)') 'BSE|', 'Joint open-shell TDA excitation energies:'
          END IF
-         CALL print_excitation_energies(Exc_ens, n_ov_joint, 1, .TRUE., "Open-Shell", &
+         CALL print_excitation_energies(Exc_ens, n_ov_joint, 1, .TRUE., "UKS       ", &
                                         " -TDA-", mp2_env, unit_nr)
 
          ! Spin-summed transition moments: D^n_dir = sum_σ sum_{ia,σ} D^{dir,σ}_{ai} X_{ia,σ,n}
