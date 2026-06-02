@@ -121,18 +121,8 @@ CONTAINS
 
       IF (gauxc_cache_is_valid( &
           cache, &
+          params, &
           particle_set, &
-          params%natom, &
-          params%nspins, &
-          params%batch_size, &
-          params%device_runtime_fill_fraction, &
-          params%xc_fun_name, &
-          params%grid_type, &
-          params%radial_quadrature, &
-          params%pruning_scheme, &
-          params%lb_exec_space, &
-          params%int_exec_space, &
-          params%model_name, &
           use_gradient_self_runtime)) THEN
 
          RETURN
@@ -301,29 +291,14 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION gauxc_cache_is_valid( &
       cache, &
+      params, &
       particle_set, &
-      natom, &
-      nspins, &
-      batch_size, &
-      device_runtime_fill_fraction, &
-      xc_fun_name, &
-      grid_type, &
-      radial_quadrature, &
-      pruning_scheme, &
-      lb_exec_space, &
-      int_exec_space, &
-      model_name, &
       use_gradient_self_runtime) &
       RESULT(cache_valid)
 
       TYPE(cp_gauxc_cache_type), INTENT(IN)                :: cache
+      type(cp_gauxc_cache_params), intent(in) :: params
       TYPE(particle_type), DIMENSION(:), POINTER           :: particle_set
-      INTEGER, INTENT(IN)                                  :: natom, nspins, batch_size
-      REAL(KIND=dp), INTENT(IN)                            :: device_runtime_fill_fraction
-      CHARACTER(LEN=*), INTENT(IN)                         :: xc_fun_name, grid_type, &
-                                                              radial_quadrature, pruning_scheme, &
-                                                              lb_exec_space, int_exec_space, &
-                                                              model_name
       LOGICAL, INTENT(IN)                                  :: use_gradient_self_runtime
       LOGICAL                                              :: cache_valid
 
@@ -333,22 +308,22 @@ CONTAINS
 
       cache_valid = .FALSE.
       IF (.NOT. cache%is_init) RETURN
-      IF (cache%natom /= natom) RETURN
-      IF (cache%nspins /= nspins) RETURN
-      IF (cache%batch_size /= batch_size) RETURN
-      IF (ABS(cache%device_runtime_fill_fraction - REAL(device_runtime_fill_fraction, c_double)) > &
+      IF (cache%natom /= params%natom) RETURN
+      IF (cache%nspins /= params%nspins) RETURN
+      IF (cache%batch_size /= params%batch_size) RETURN
+      IF (ABS(cache%device_runtime_fill_fraction - REAL(params%device_runtime_fill_fraction, c_double)) > &
           1.0E-10_c_double) RETURN
-      IF (TRIM(cache%xc_fun_name) /= TRIM(xc_fun_name)) RETURN
-      IF (TRIM(cache%grid_type) /= TRIM(grid_type)) RETURN
-      IF (TRIM(cache%radial_quadrature) /= TRIM(radial_quadrature)) RETURN
-      IF (TRIM(cache%pruning_scheme) /= TRIM(pruning_scheme)) RETURN
-      IF (TRIM(cache%lb_exec_space) /= TRIM(lb_exec_space)) RETURN
-      IF (TRIM(cache%int_exec_space) /= TRIM(int_exec_space)) RETURN
-      IF (TRIM(cache%model_name) /= TRIM(model_name)) RETURN
+      IF (TRIM(cache%xc_fun_name) /= TRIM(params%xc_fun_name)) RETURN
+      IF (TRIM(cache%grid_type) /= TRIM(params%grid_type)) RETURN
+      IF (TRIM(cache%radial_quadrature) /= TRIM(params%radial_quadrature)) RETURN
+      IF (TRIM(cache%pruning_scheme) /= TRIM(params%pruning_scheme)) RETURN
+      IF (TRIM(cache%lb_exec_space) /= TRIM(params%lb_exec_space)) RETURN
+      IF (TRIM(cache%int_exec_space) /= TRIM(params%int_exec_space)) RETURN
+      IF (TRIM(cache%model_name) /= TRIM(params%model_name)) RETURN
       IF (cache%gradient_self_runtime .NEQV. use_gradient_self_runtime) RETURN
       IF (.NOT. ALLOCATED(cache%last_positions)) RETURN
-      IF (SIZE(cache%last_positions, 2) /= natom) RETURN
-      DO iatom = 1, natom
+      IF (SIZE(cache%last_positions, 2) /= params%natom) RETURN
+      DO iatom = 1, params%natom
          IF (ANY(ABS(cache%last_positions(:, iatom) - &
                      REAL(particle_set(iatom)%r(:), c_double)) > pos_tol)) RETURN
       END DO
@@ -356,17 +331,7 @@ CONTAINS
 #else
       MARK_USED(cache)
       MARK_USED(particle_set)
-      MARK_USED(natom)
-      MARK_USED(nspins)
-      MARK_USED(batch_size)
-      MARK_USED(device_runtime_fill_fraction)
-      MARK_USED(xc_fun_name)
-      MARK_USED(grid_type)
-      MARK_USED(radial_quadrature)
-      MARK_USED(pruning_scheme)
-      MARK_USED(lb_exec_space)
-      MARK_USED(int_exec_space)
-      MARK_USED(model_name)
+      MARK_USED(params)
       MARK_USED(use_gradient_self_runtime)
       cache_valid = .FALSE.
 #endif
