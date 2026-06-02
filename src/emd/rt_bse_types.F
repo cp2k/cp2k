@@ -476,12 +476,6 @@ CONTAINS
       IF (rtbse_env%tda_active .AND. .NOT. rtbse_env%linearized) THEN
          CPABORT("RTBSE TDA keyword requires LINEARIZED_BSE_PROPAGATION=.TRUE.")
       END IF
-      ! Open-shell scope: RIRS Hartree/SEX not yet audited for n_spin=2 (TDA + AO-RI only).
-      IF (rtbse_env%n_spin > 1 .AND. (rtbse_env%rirs_hartree .OR. rtbse_env%rirs_sex)) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "RIRS Hartree/SEX is not yet supported for open shell (n_spin=2); "// &
-                       "set RIRS_HARTREE=.FALSE. and RIRS_SEX=.FALSE. to use the AO-RI path.")
-      END IF
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C12
       IF ((rtbse_env%rirs_hartree .OR. rtbse_env%rirs_sex) .AND. bs_env%ri_rs%grid_select == 1) THEN
          CPWARN("linRTBSE RIRS: use GRID_SELECT=2 for accuracy")
