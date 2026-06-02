@@ -84,7 +84,7 @@ CONTAINS
                                     homo, virtual, dimen_RI, dimen_RI_red, bse_lev_virt, &
                                     gd_array, color_sub, mp2_env, qs_env, mo_coeff, unit_nr)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q_static_bse_gemm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
@@ -117,7 +117,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      para_env => fm_mat_S_ia_bse%matrix_struct%para_env
+      ! Increment 2: per-spin slabs are plumbed in, but the matrix build still consumes spin 1
+      ! (joint spin-block construction lands in Phase 1b). n_spin=1 is therefore bit-identical.
+      para_env => fm_mat_S_ia_bse(1)%matrix_struct%para_env
 
       my_do_fulldiag = .FALSE.
       my_do_iterat_diag = .FALSE.
@@ -151,10 +153,10 @@ CONTAINS
          mp2_env%bse%bse_debug_print = .TRUE.
       END IF
 
-      CALL fm_mat_S_ia_bse%matrix_struct%para_env%sync()
+      CALL fm_mat_S_ia_bse(1)%matrix_struct%para_env%sync()
       ! We apply the BSE cutoffs using the DFT Eigenenergies
       ! Reduce matrices in case of energy cutoff for occupied and unoccupied in A/B-BSE-matrices
-      CALL truncate_BSE_matrices(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+      CALL truncate_BSE_matrices(fm_mat_S_ia_bse(1), fm_mat_S_ij_bse(1), fm_mat_S_ab_bse(1), &
                                  fm_mat_S_ia_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
                                  Eigenval_scf(:, 1, 1), Eigenval(:, 1, 1), Eigenval_reduced, &
                                  homo(1), virtual(1), dimen_RI, unit_nr, &

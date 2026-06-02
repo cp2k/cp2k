@@ -151,7 +151,6 @@ CONTAINS
                                                             Emp2_EX_BB, eps_gvg_rspace_old, &
                                                             eps_pgf_orb_old, eps_rho_rspace_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Eigenval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_bse_ab, BIb_C_bse_ij
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(block_ind_type), ALLOCATABLE, &
@@ -174,10 +173,9 @@ CONTAINS
       TYPE(dbt_type)                                     :: t_3c_M
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_O
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(group_dist_d1_type)                           :: gd_array, gd_B_all, gd_B_occ_bse, &
-                                                            gd_B_virt_bse
+      TYPE(group_dist_d1_type)                           :: gd_array, gd_B_all, gd_B_virt_bse
       TYPE(group_dist_d1_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: gd_B_virtual
+         DIMENSION(:)                                    :: gd_B_occ_bse, gd_B_virtual
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: t_3c_O_compressed
       TYPE(kpoint_type), POINTER                         :: kpoints, kpoints_from_DFT
@@ -189,7 +187,8 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(three_dim_real_array), ALLOCATABLE, &
-         DIMENSION(:)                                    :: BIb_C, BIb_C_gw
+         DIMENSION(:)                                    :: BIb_C, BIb_C_bse_ab, BIb_C_bse_ij, &
+                                                            BIb_C_gw
 
       CALL timeset(routineN, handle)
 
@@ -350,12 +349,10 @@ CONTAINS
       END IF
 
       IF (do_bse) THEN
-         IF (nspins > 1) THEN
-            CPABORT("BSE not implemented for open shell calculations")
-         END IF
          !Keep default behavior for occupied
          ! We do not implement an explicit bse_lev_occ here, because the small number of occupied levels
          ! does not critically influence the memory
+         ! bse_lev_virt is shared across spins; the per-spin occupied count is homo(ispin)
          bse_lev_virt = gw_corr_lev_virt(1)
       END IF
 
@@ -363,7 +360,7 @@ CONTAINS
       ALLOCATE (mo_coeff_o(nspins), mo_coeff_v(nspins), mo_coeff_all(nspins), mo_coeff_gw(nspins))
 
       ! Always allocate for usage in call of replicate_mat_to_subgroup
-      ALLOCATE (mo_coeff_o_bse(1), mo_coeff_v_bse(1))
+      ALLOCATE (mo_coeff_o_bse(nspins), mo_coeff_v_bse(nspins))
 
       ! for imag. time, we do not need this
       IF (.NOT. do_im_time) THEN
@@ -377,7 +374,7 @@ CONTAINS
                                            mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, &
                                            mo_coeff_all(ispin)%matrix, mo_coeff_gw(ispin)%matrix, &
                                            my_do_gw, gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin), do_bse, &
-                                           bse_lev_virt, mo_coeff_o_bse(1)%matrix, mo_coeff_v_bse(1)%matrix, &
+                                           bse_lev_virt, mo_coeff_o_bse(ispin)%matrix, mo_coeff_v_bse(ispin)%matrix, &
                                            mp2_env%mp2_gpw%eps_filter)
 
          END DO
@@ -519,10 +516,12 @@ CONTAINS
 
       END IF
       IF (do_bse) THEN
-         CALL dbcsr_release(mo_coeff_o_bse(1)%matrix)
-         CALL dbcsr_release(mo_coeff_v_bse(1)%matrix)
-         DEALLOCATE (mo_coeff_o_bse(1)%matrix)
-         DEALLOCATE (mo_coeff_v_bse(1)%matrix)
+         DO ispin = 1, nspins
+            CALL dbcsr_release(mo_coeff_o_bse(ispin)%matrix)
+            CALL dbcsr_release(mo_coeff_v_bse(ispin)%matrix)
+            DEALLOCATE (mo_coeff_o_bse(ispin)%matrix)
+            DEALLOCATE (mo_coeff_v_bse(ispin)%matrix)
+         END DO
       END IF
       DEALLOCATE (mo_coeff_o_bse, mo_coeff_v_bse)
 
