@@ -30,7 +30,21 @@ MODULE xc_gauxc_cache
    IMPLICIT NONE
    PRIVATE
 
-   TYPE cp_gauxc_cache_type
+   TYPE cp_gauxc_cache_params
+      INTEGER                             :: natom = -1
+      INTEGER                             :: nspins = -1
+      INTEGER                             :: batch_size = -1
+      REAL(c_double)                      :: device_runtime_fill_fraction = 0.0_c_double
+      CHARACTER(LEN=default_string_length) :: xc_fun_name = ""
+      CHARACTER(LEN=default_string_length) :: grid_type = ""
+      CHARACTER(LEN=default_string_length) :: radial_quadrature = ""
+      CHARACTER(LEN=default_string_length) :: pruning_scheme = ""
+      CHARACTER(LEN=default_string_length) :: lb_exec_space = ""
+      CHARACTER(LEN=default_string_length) :: int_exec_space = ""
+      CHARACTER(LEN=default_string_length) :: model_name = ""
+   END TYPE
+
+   TYPE, extends(cp_gauxc_cache_params) ::  cp_gauxc_cache_type
 #ifdef __GAUXC
       TYPE(cp_gauxc_molecule_type)       :: molecule
       TYPE(cp_gauxc_basisset_type)       :: basisset
@@ -38,19 +52,8 @@ MODULE xc_gauxc_cache
       TYPE(cp_gauxc_grid_type)           :: gradient_grid
       TYPE(cp_gauxc_integrator_type)     :: integrator
       TYPE(cp_gauxc_integrator_type)     :: gradient_integrator
-      INTEGER                             :: natom = -1
-      INTEGER                             :: nspins = -1
-      INTEGER                             :: batch_size = -1
-      REAL(c_double)                      :: device_runtime_ff = 0.0_c_double
-      CHARACTER(LEN=default_string_length) :: xc_fun_name = ""
-      CHARACTER(LEN=default_string_length) :: grid_type = ""
-      CHARACTER(LEN=default_string_length) :: radial_quad = ""
-      CHARACTER(LEN=default_string_length) :: pruning_scheme = ""
-      CHARACTER(LEN=default_string_length) :: lb_exec_space = ""
-      CHARACTER(LEN=default_string_length) :: int_exec_space = ""
-      CHARACTER(LEN=default_string_length) :: model_name = ""
-      LOGICAL                             :: gradient_self_runtime = .FALSE.
       LOGICAL                             :: is_init = .FALSE. ! param
+      LOGICAL                             :: gradient_self_runtime = .FALSE.
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: last_positions ! param
       TYPE(cp_gauxc_status_type)         :: status
    CONTAINS
@@ -63,7 +66,7 @@ MODULE xc_gauxc_cache
       cp_gauxc_cache_type, &
       gauxc_cache_init, &
       gauxc_cache_is_valid, &
-      gauxc_cache_release
+      gauxc_cache_release, cp_gauxc_cache_params
 
 CONTAINS
 
@@ -92,6 +95,7 @@ CONTAINS
    SUBROUTINE gauxc_cache_init( &
       ! inout params
       cache, &
+      cache_params, &
       gauxc_mol, & ! param
       gauxc_basis, & ! param
       gauxc_grid_result, & ! param
@@ -106,23 +110,13 @@ CONTAINS
       ! params
       gapw, &
       calculate_forces, &
-      natom, & ! param
-      nspins, & ! param
-      grid_type, & ! param
-      xc_fun_name, & ! param
-      int_exec_space, & ! param
-      lb_exec_space, & ! param
-      model_name, & ! param
-      pruning_scheme, & ! param
-      radial_quadrature, & ! param
-      device_runtime_fill_fraction, & ! param
       use_skala_model, &
       use_gradient_mpi_runtime, &
-      use_gradient_self_runtime, & ! param
-      use_self_runtime, &
-      batch_size)
+      use_gradient_self_runtime, &
+      use_self_runtime)
 
       TYPE(cp_gauxc_cache_type), INTENT(inout)           :: cache
+      TYPE(cp_gauxc_cache_params), INTENT(in)            :: cache_params
       TYPE(cp_gauxc_molecule_type), INTENT(inout)        :: gauxc_mol
       TYPE(cp_gauxc_basisset_type), INTENT(inout)        :: gauxc_basis
       TYPE(cp_gauxc_grid_type), INTENT(inout)            :: gauxc_grid_result
@@ -135,27 +129,25 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       LOGICAL:: gapw, use_skala_model, calculate_forces, use_gradient_mpi_runtime, use_self_runtime, use_gradient_self_runtime
-      CHARACTER(len=*) :: grid_type, int_exec_space, lb_exec_space, model_name, pruning_scheme, radial_quadrature, xc_fun_name
-      REAL(KIND=dp)                                      :: device_runtime_fill_fraction
-      INTEGER :: batch_size, natom, nspins
 
       TYPE(cp_gauxc_status_type)                         :: gauxc_status
 
       IF (gauxc_cache_is_valid( &
           cache, &
           particle_set, &
-          natom, &
-          nspins, &
-          batch_size, &
-          device_runtime_fill_fraction, &
-          xc_fun_name, &
-          grid_type, &
-          radial_quadrature, &
-          pruning_scheme, &
-          lb_exec_space, &
-          int_exec_space, &
-          model_name, &
+          cache_params%natom, &
+          cache_params%nspins, &
+          cache_params%batch_size, &
+          cache_params%device_runtime_fill_fraction, &
+          cache_params%xc_fun_name, &
+          cache_params%grid_type, &
+          cache_params%radial_quadrature, &
+          cache_params%pruning_scheme, &
+          cache_params%lb_exec_space, &
+          cache_params%int_exec_space, &
+          cache_params%model_name, &
           use_gradient_self_runtime)) THEN
+
          gauxc_mol = cache%molecule
          gauxc_basis = cache%basisset
          gauxc_grid_result = cache%grid
@@ -200,12 +192,12 @@ CONTAINS
          gauxc_grid_result = gauxc_create_grid( &
                              gauxc_mol, &
                              gauxc_basis, &
-                             grid_type, &
-                             radial_quadrature, &
-                             pruning_scheme, &
-                             lb_exec_space, &
-                             batch_size, &
-                             device_runtime_fill_fraction, &
+                             cache_params%grid_type, &
+                             cache_params%radial_quadrature, &
+                             cache_params%pruning_scheme, &
+                             cache_params%lb_exec_space, &
+                             cache_params%batch_size, &
+                             cache_params%device_runtime_fill_fraction, &
                              gauxc_status, &
                              mpi_comm=mp_comm_self%get_handle())
       ELSE
@@ -216,21 +208,21 @@ CONTAINS
          gauxc_grid_result = gauxc_create_grid( &
                              gauxc_mol, &
                              gauxc_basis, &
-                             grid_type, &
-                             radial_quadrature, &
-                             pruning_scheme, &
-                             lb_exec_space, &
-                             batch_size, &
-                             device_runtime_fill_fraction, &
+                             cache_params%grid_type, &
+                             cache_params%radial_quadrature, &
+                             cache_params%pruning_scheme, &
+                             cache_params%lb_exec_space, &
+                             cache_params%batch_size, &
+                             cache_params%device_runtime_fill_fraction, &
                              gauxc_status, &
                              mpi_comm=para_env%get_handle())
       END IF
       CALL gauxc_check_status(gauxc_status)
       gauxc_integrator_result = gauxc_create_integrator( &
-                                TRIM(xc_fun_name), &
+                                TRIM(cache_params%xc_fun_name), &
                                 gauxc_grid_result, &
-                                int_exec_space, &
-                                nspins, &
+                                cache_params%int_exec_space, &
+                                cache_params%nspins, &
                                 gauxc_status)
       CALL gauxc_check_status(gauxc_status)
 
@@ -241,20 +233,20 @@ CONTAINS
          gauxc_gradient_grid_result = gauxc_create_grid( &
                                       gauxc_mol, &
                                       gauxc_basis, &
-                                      grid_type, &
-                                      radial_quadrature, &
-                                      pruning_scheme, &
-                                      lb_exec_space, &
-                                      batch_size, &
-                                      device_runtime_fill_fraction, &
+                                      cache_params%grid_type, &
+                                      cache_params%radial_quadrature, &
+                                      cache_params%pruning_scheme, &
+                                      cache_params%lb_exec_space, &
+                                      cache_params%batch_size, &
+                                      cache_params%device_runtime_fill_fraction, &
                                       gauxc_status, &
                                       mpi_comm=mp_comm_self%get_handle())
          CALL gauxc_check_status(gauxc_status)
          gauxc_gradient_integrator_result = gauxc_create_integrator( &
-                                            TRIM(xc_fun_name), &
+                                            TRIM(cache_params%xc_fun_name), &
                                             gauxc_gradient_grid_result, &
-                                            int_exec_space, &
-                                            nspins, &
+                                            cache_params%int_exec_space, &
+                                            cache_params%nspins, &
                                             gauxc_status)
          CALL gauxc_check_status(gauxc_status)
       END IF
@@ -267,25 +259,25 @@ CONTAINS
          cache%gradient_grid = gauxc_gradient_grid_result
          cache%gradient_integrator = gauxc_gradient_integrator_result
       END IF
-      cache%natom = natom
-      cache%nspins = nspins
-      cache%batch_size = batch_size
-      cache%device_runtime_ff = REAL(device_runtime_fill_fraction, c_double)
-      cache%xc_fun_name = TRIM(xc_fun_name)
-      cache%grid_type = TRIM(grid_type)
-      cache%radial_quad = TRIM(radial_quadrature)
-      cache%pruning_scheme = TRIM(pruning_scheme)
-      cache%lb_exec_space = TRIM(lb_exec_space)
-      cache%int_exec_space = TRIM(int_exec_space)
-      cache%model_name = TRIM(model_name)
+      cache%natom = cache_params%natom
+      cache%nspins = cache_params%nspins
+      cache%batch_size = cache_params%batch_size
+      cache%device_runtime_fill_fraction = REAL(cache_params%device_runtime_fill_fraction, c_double)
+      cache%xc_fun_name = TRIM(cache_params%xc_fun_name)
+      cache%grid_type = TRIM(cache_params%grid_type)
+      cache%radial_quadrature = TRIM(cache_params%radial_quadrature)
+      cache%pruning_scheme = TRIM(cache_params%pruning_scheme)
+      cache%lb_exec_space = TRIM(cache_params%lb_exec_space)
+      cache%int_exec_space = TRIM(cache_params%int_exec_space)
+      cache%model_name = TRIM(cache_params%model_name)
       cache%gradient_self_runtime = use_gradient_self_runtime
       IF (ALLOCATED(cache%last_positions)) &
          DEALLOCATE (cache%last_positions)
-      ALLOCATE (cache%last_positions(3, natom))
+      ALLOCATE (cache%last_positions(3, cache_params%natom))
 
       BLOCK
          INTEGER :: iatom
-         DO iatom = 1, natom
+         DO iatom = 1, cache_params%natom
             cache%last_positions(:, iatom) = REAL(particle_set(iatom)%r(:), c_double)
          END DO
       END BLOCK
@@ -377,11 +369,11 @@ CONTAINS
       IF (cache%natom /= natom) RETURN
       IF (cache%nspins /= nspins) RETURN
       IF (cache%batch_size /= batch_size) RETURN
-      IF (ABS(cache%device_runtime_ff - REAL(device_runtime_fill_fraction, c_double)) > &
+      IF (ABS(cache%device_runtime_fill_fraction - REAL(device_runtime_fill_fraction, c_double)) > &
           1.0E-10_c_double) RETURN
       IF (TRIM(cache%xc_fun_name) /= TRIM(xc_fun_name)) RETURN
       IF (TRIM(cache%grid_type) /= TRIM(grid_type)) RETURN
-      IF (TRIM(cache%radial_quad) /= TRIM(radial_quadrature)) RETURN
+      IF (TRIM(cache%radial_quadrature) /= TRIM(radial_quadrature)) RETURN
       IF (TRIM(cache%pruning_scheme) /= TRIM(pruning_scheme)) RETURN
       IF (TRIM(cache%lb_exec_space) /= TRIM(lb_exec_space)) RETURN
       IF (TRIM(cache%int_exec_space) /= TRIM(int_exec_space)) RETURN

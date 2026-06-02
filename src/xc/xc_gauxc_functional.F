@@ -49,7 +49,8 @@ MODULE xc_gauxc_functional
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE string_utilities,                ONLY: uppercase
-   USE xc_gauxc_cache,                  ONLY: gauxc_cache_init
+   USE xc_gauxc_cache,                  ONLY: cp_gauxc_cache_params,&
+                                              gauxc_cache_init
    USE xc_gauxc_interface,              ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
         cp_gauxc_molecule_type, cp_gauxc_status_type, cp_gauxc_xc_gradient_type, cp_gauxc_xc_type, &
@@ -928,23 +929,21 @@ CONTAINS
       REAL(KIND=dp), PARAMETER :: gapw_fd_gradient_dx = 1.0E-4_dp
 
       CHARACTER(len=32)                                  :: gradient_mpi_runtime_env
-      CHARACTER(len=default_path_length)                 :: model_key, model_name, output_path
-      CHARACTER(len=default_string_length) :: grid_key, grid_type, int_exec_space, lb_exec_space, &
-         pruning_key, pruning_scheme, radial_quadrature, skala_runtime, skala_runtime_key, &
-         xc_fun_name
+      CHARACTER(len=default_path_length)                 :: model_key, output_path
+      CHARACTER(len=default_string_length)               :: grid_key, pruning_key, skala_runtime, &
+                                                            skala_runtime_key
       INTEGER                                            :: batch_size, env_status, img, ispin, &
-                                                            natom, nimages, nspins, &
-                                                            onedft_atom_chunk_size
+                                                            nimages, onedft_atom_chunk_size
       LOGICAL :: do_kpoints, grid_explicit, hdf5_output, is_periodic, molecular_virial, &
          molecular_virial_debug, onedft_atom_chunk_size_explicit, periodic_reference, &
          pruning_explicit, use_fd_gradient, use_gradient_mpi_runtime, use_gradient_self_runtime, &
          use_onedft, use_self_runtime, use_skala_model, write_hdf5_output
-      REAL(KIND=dp)                                      :: device_runtime_fill_fraction, &
-                                                            molecular_virial_debug_dx
+      REAL(KIND=dp)                                      :: molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_gauxc_basisset_type)                       :: gauxc_basis
+      TYPE(cp_gauxc_cache_params)                        :: gauxc_params
       TYPE(cp_gauxc_grid_type)                           :: gauxc_gradient_grid_result, &
                                                             gauxc_grid_result
       TYPE(cp_gauxc_integrator_type) :: gauxc_gradient_integrator_result, gauxc_integrator_result
@@ -991,7 +990,7 @@ CONTAINS
          energy=energy, &
          ks_env=ks_env, &
          matrix_vxc=matrix_vxc, &
-         natom=natom, &
+         natom=gauxc_params%natom, &
          atomic_kind_set=atomic_kind_set, &
          force=force, &
          para_env=para_env, &
@@ -1014,7 +1013,7 @@ CONTAINS
          rho_ao_kp=rho_ao)
 
       nimages = dft_control%nimages
-      nspins = dft_control%nspins
+      gauxc_params%nspins = dft_control%nspins
       is_periodic = .FALSE.
       IF (ASSOCIATED(cell)) is_periodic = ANY(cell%perd /= 0)
 
@@ -1029,24 +1028,24 @@ CONTAINS
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "FUNCTIONAL", &
-         c_val=xc_fun_name)
+         c_val=gauxc_params%xc_fun_name)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "MODEL", &
-         c_val=model_name)
+         c_val=gauxc_params%model_name)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "GRID", &
-         c_val=grid_type, &
+         c_val=gauxc_params%grid_type, &
          explicit=grid_explicit)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "RADIAL_QUADRATURE", &
-         c_val=radial_quadrature)
+         c_val=gauxc_params%radial_quadrature)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "PRUNING_SCHEME", &
-         c_val=pruning_scheme, &
+         c_val=gauxc_params%pruning_scheme, &
          explicit=pruning_explicit)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
@@ -1055,7 +1054,7 @@ CONTAINS
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "DEVICE_RUNTIME_FILL_FRACTION", &
-         r_val=device_runtime_fill_fraction)
+         r_val=gauxc_params%device_runtime_fill_fraction)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "ONEDFT_ATOM_CHUNK_SIZE", &
@@ -1080,11 +1079,11 @@ CONTAINS
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "LB_EXECUTION_SPACE", &
-         c_val=lb_exec_space)
+         c_val=gauxc_params%lb_exec_space)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "INT_EXECUTION_SPACE", &
-         c_val=int_exec_space)
+         c_val=gauxc_params%int_exec_space)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "SKALA_RUNTIME", &
@@ -1094,13 +1093,13 @@ CONTAINS
          "OUTPUT_PATH", &
          c_val=output_path)
 
-      model_key = ADJUSTL(model_name)
+      model_key = ADJUSTL(gauxc_params%model_name)
       CALL uppercase(model_key)
       skala_runtime_key = ADJUSTL(skala_runtime)
       CALL uppercase(skala_runtime_key)
       use_onedft = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
       use_skala_model = (INDEX(TRIM(model_key), "SKALA") > 0)
-      IF (device_runtime_fill_fraction <= 0.0_dp .OR. device_runtime_fill_fraction > 1.0_dp) THEN
+      IF (gauxc_params%device_runtime_fill_fraction <= 0.0_dp .OR. gauxc_params%device_runtime_fill_fraction > 1.0_dp) THEN
          CALL cp_abort(__LOCATION__, &
                        "GAUXC%DEVICE_RUNTIME_FILL_FRACTION must be > 0 and <= 1.")
       END IF
@@ -1142,11 +1141,11 @@ CONTAINS
       IF (use_onedft) THEN
          CALL set_gauxc_onedft_atom_chunk_env( &
             onedft_atom_chunk_size, onedft_atom_chunk_size_explicit)
-         IF (.NOT. grid_explicit) grid_type = "SUPERFINE"
-         IF (.NOT. pruning_explicit) pruning_scheme = "UNPRUNED"
+         IF (.NOT. grid_explicit) gauxc_params%grid_type = "SUPERFINE"
+         IF (.NOT. pruning_explicit) gauxc_params%pruning_scheme = "UNPRUNED"
 
-         grid_key = ADJUSTL(grid_type)
-         pruning_key = ADJUSTL(pruning_scheme)
+         grid_key = ADJUSTL(gauxc_params%grid_type)
+         pruning_key = ADJUSTL(gauxc_params%pruning_scheme)
          CALL uppercase(grid_key)
          CALL uppercase(pruning_key)
          IF (use_skala_model .AND. (calculate_forces .OR. molecular_virial) .AND. &
@@ -1154,18 +1153,18 @@ CONTAINS
             CALL cp_warn( &
                __LOCATION__, &
                "GauXC OneDFT/SKALA nuclear gradients are sensitive to the GauXC molecular grid. "// &
-               "Use GRID SUPERFINE and PRUNING_SCHEME UNPRUNED for quantitative force checks.")
+               "Use GRID SUPERFINE and gauxc_params%PRUNING_SCHEME UNPRUNED for quantitative force checks.")
          END IF
          IF (TRIM(model_key) == "SKALA") THEN
-            CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_MODEL", model_name, STATUS=env_status)
-            IF (env_status /= 0 .OR. LEN_TRIM(model_name) == 0) THEN
+            CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_MODEL", gauxc_params%model_name, STATUS=env_status)
+            IF (env_status /= 0 .OR. LEN_TRIM(gauxc_params%model_name) == 0) THEN
                CPABORT("MODEL SKALA requires the GAUXC_SKALA_MODEL environment variable")
             END IF
          END IF
       END IF
       SELECT CASE (TRIM(skala_runtime_key))
       CASE ("AUTO")
-         use_self_runtime = use_skala_model .AND. para_env%num_pe > 1 .AND. nspins > 1
+         use_self_runtime = use_skala_model .AND. para_env%num_pe > 1 .AND. gauxc_params%nspins > 1
       CASE ("MPI")
          use_self_runtime = .FALSE.
       CASE ("SELF")
@@ -1204,6 +1203,7 @@ CONTAINS
 
       CALL gauxc_cache_init( &
          qs_env%gauxc_cache, &
+         gauxc_params, &
          gauxc_mol, &
          gauxc_basis, &
          gauxc_grid_result, &
@@ -1216,21 +1216,10 @@ CONTAINS
          qs_kind_set, &
          dft_control%qs_control%gapw, &
          calculate_forces, &
-         natom, &
-         nspins, &
-         grid_type, &
-         xc_fun_name, &
-         int_exec_space, &
-         lb_exec_space, &
-         model_name, &
-         pruning_scheme, &
-         radial_quadrature, &
-         device_runtime_fill_fraction, &
          use_skala_model, &
          use_gradient_mpi_runtime, &
          use_gradient_self_runtime, &
-         use_self_runtime, &
-         batch_size)
+         use_self_runtime)
 
       hdf5_output = (TRIM(output_path) /= "")
       write_hdf5_output = hdf5_output .AND. para_env%mepos == 0
@@ -1282,7 +1271,7 @@ CONTAINS
       energy%exc = 0
 
       IF (ASSOCIATED(matrix_vxc)) CALL dbcsr_deallocate_matrix_set(matrix_vxc)
-      CALL dbcsr_allocate_matrix_set(matrix_vxc, nspins)
+      CALL dbcsr_allocate_matrix_set(matrix_vxc, gauxc_params%nspins)
 
       DO img = 1, nimages
          IF (img > 1) THEN
@@ -1290,38 +1279,38 @@ CONTAINS
          END IF
          CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
          CALL para_env%sum(density_scalar)
-         IF (nspins == 1) THEN
+         IF (gauxc_params%nspins == 1) THEN
             gauxc_xc_result = gauxc_compute_xc( &
                               gauxc_integrator_result, &
                               density_scalar, &
-                              nspins=nspins, &
+                              nspins=gauxc_params%nspins, &
                               status=gauxc_status, &
-                              model=TRIM(model_name))
+                              model=TRIM(gauxc_params%model_name))
             CALL gauxc_check_status(gauxc_status)
             IF (calculate_forces) THEN
                IF (use_fd_gradient) THEN
                   CALL gauxc_xc_gradient_fd( &
-                     particle_set, qs_kind_set, density_scalar, nspins, model_name, &
-                     xc_fun_name, grid_type, radial_quadrature, pruning_scheme, &
-                     lb_exec_space, int_exec_space, batch_size, &
-                     device_runtime_fill_fraction, gapw_fd_gradient_dx, para_env, &
+                     particle_set, qs_kind_set, density_scalar, gauxc_params%nspins, gauxc_params%model_name, &
+                    gauxc_params%xc_fun_name, gauxc_params%grid_type, gauxc_params%radial_quadrature, gauxc_params%pruning_scheme, &
+                     gauxc_params%lb_exec_space, gauxc_params%int_exec_space, batch_size, &
+                     gauxc_params%device_runtime_fill_fraction, gapw_fd_gradient_dx, para_env, &
                      exc_grad%exc_grad)
                ELSE IF (use_gradient_self_runtime) THEN
                   exc_grad = gauxc_compute_xc_gradient( &
                              gauxc_gradient_integrator_result, &
                              density_scalar, &
-                             nspins=nspins, &
-                             natom=natom, &
+                             nspins=gauxc_params%nspins, &
+                             natom=gauxc_params%natom, &
                              status=gauxc_status, &
-                             model=TRIM(model_name))
+                             model=TRIM(gauxc_params%model_name))
                ELSE
                   exc_grad = gauxc_compute_xc_gradient( &
                              gauxc_integrator_result, &
                              density_scalar, &
-                             nspins=nspins, &
-                             natom=natom, &
+                             nspins=gauxc_params%nspins, &
+                             natom=gauxc_params%natom, &
                              status=gauxc_status, &
-                             model=TRIM(model_name))
+                             model=TRIM(gauxc_params%model_name))
                END IF
                CALL gauxc_check_status(gauxc_status)
                CALL add_gauxc_gradient_to_force( &
@@ -1334,15 +1323,15 @@ CONTAINS
                END IF
                IF (molecular_virial_debug) THEN
                   CALL debug_gauxc_molecular_virial( &
-                     exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, nspins, &
-                     model_name, xc_fun_name, grid_type, radial_quadrature, pruning_scheme, &
-                     lb_exec_space, int_exec_space, batch_size, device_runtime_fill_fraction, &
+                     exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, gauxc_params%nspins, &
+                     gauxc_params%model_name, gauxc_params%xc_fun_name, gauxc_params%grid_type, gauxc_params%radial_quadrature, gauxc_params%pruning_scheme, &
+                   gauxc_params%lb_exec_space, gauxc_params%int_exec_space, batch_size, gauxc_params%device_runtime_fill_fraction, &
                      molecular_virial_debug_dx, para_env)
                END IF
                DEALLOCATE (exc_grad%exc_grad)
             END IF
          ELSE
-            CPASSERT(nspins == 2)
+            CPASSERT(gauxc_params%nspins == 2)
             ! In here:
             ! scalar <- rho_ao(1, :) + rho_ao(2, :)
             ! zeta   <- rho_ao(1, :) - rho_ao(2, :)
@@ -1359,36 +1348,36 @@ CONTAINS
                               gauxc_integrator_result, &
                               density_scalar, &
                               density_zeta, &
-                              nspins, &
+                              gauxc_params%nspins, &
                               gauxc_status, &
-                              model=TRIM(model_name))
+                              model=TRIM(gauxc_params%model_name))
             CALL gauxc_check_status(gauxc_status)
             IF (calculate_forces) THEN
                IF (use_fd_gradient) THEN
                   CALL gauxc_xc_gradient_fd( &
-                     particle_set, qs_kind_set, density_scalar, nspins, model_name, &
-                     xc_fun_name, grid_type, radial_quadrature, pruning_scheme, &
-                     lb_exec_space, int_exec_space, batch_size, &
-                     device_runtime_fill_fraction, gapw_fd_gradient_dx, para_env, &
+                     particle_set, qs_kind_set, density_scalar, gauxc_params%nspins, gauxc_params%model_name, &
+                    gauxc_params%xc_fun_name, gauxc_params%grid_type, gauxc_params%radial_quadrature, gauxc_params%pruning_scheme, &
+                     gauxc_params%lb_exec_space, gauxc_params%int_exec_space, batch_size, &
+                     gauxc_params%device_runtime_fill_fraction, gapw_fd_gradient_dx, para_env, &
                      exc_grad%exc_grad, density_zeta=density_zeta)
                ELSE IF (use_gradient_self_runtime) THEN
                   exc_grad = gauxc_compute_xc_gradient( &
                              gauxc_gradient_integrator_result, &
                              density_scalar, &
                              density_zeta, &
-                             nspins, &
-                             natom, &
+                             gauxc_params%nspins, &
+                             gauxc_params%natom, &
                              gauxc_status, &
-                             model=TRIM(model_name))
+                             model=TRIM(gauxc_params%model_name))
                ELSE
                   exc_grad = gauxc_compute_xc_gradient( &
                              gauxc_integrator_result, &
                              density_scalar, &
                              density_zeta, &
-                             nspins, &
-                             natom, &
+                             gauxc_params%nspins, &
+                             gauxc_params%natom, &
                              gauxc_status, &
-                             model=TRIM(model_name))
+                             model=TRIM(gauxc_params%model_name))
                END IF
                CALL gauxc_check_status(gauxc_status)
                CALL add_gauxc_gradient_to_force( &
@@ -1401,9 +1390,9 @@ CONTAINS
                END IF
                IF (molecular_virial_debug) THEN
                   CALL debug_gauxc_molecular_virial( &
-                     exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, nspins, &
-                     model_name, xc_fun_name, grid_type, radial_quadrature, pruning_scheme, &
-                     lb_exec_space, int_exec_space, batch_size, device_runtime_fill_fraction, &
+                     exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, gauxc_params%nspins, &
+                     gauxc_params%model_name, gauxc_params%xc_fun_name, gauxc_params%grid_type, gauxc_params%radial_quadrature, gauxc_params%pruning_scheme, &
+                   gauxc_params%lb_exec_space, gauxc_params%int_exec_space, batch_size, gauxc_params%device_runtime_fill_fraction, &
                      molecular_virial_debug_dx, para_env, density_zeta=density_zeta)
                END IF
                DEALLOCATE (exc_grad%exc_grad)
@@ -1412,14 +1401,14 @@ CONTAINS
 
          energy%exc = energy%exc + gauxc_xc_result%exc
 
-         IF (nspins == 1) THEN
+         IF (gauxc_params%nspins == 1) THEN
             IF (img == 1) THEN
                matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
             ELSE
                CPABORT("UNIMPLEMENTED: Handling multiple result matrices in k-point integration")
             END IF
          ELSE
-            CPASSERT(nspins == 2)
+            CPASSERT(gauxc_params%nspins == 2)
             ! Transform derivatives from total/spin density back to alpha/beta channels.
             vxc_zeta_tmp = dense_to_dbcsr(gauxc_xc_result%vxc_zeta, rho_ao(1, img))
             IF (img == 1) THEN
@@ -1446,7 +1435,7 @@ CONTAINS
       IF (ALLOCATED(gauxc_xc_result%vxc_zeta)) DEALLOCATE (gauxc_xc_result%vxc_zeta)
 
       CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
-      DO ispin = 1, nspins
+      DO ispin = 1, gauxc_params%nspins
          CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
       END DO
 
