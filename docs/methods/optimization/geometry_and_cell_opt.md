@@ -37,7 +37,7 @@ relaxed in-plane lattice constants, and structures prepared for fixed-cell molec
 ```{note}
 An optimization is not a replacement for finite-temperature pressure sampling; if the desired
 quantity is a thermal average at finite temperature, use a molecular-dynamics workflow with
-appropriate ensemble instead.
+appropriate ensemble instead. For more on this topic, see [](../sampling/molecular_dynamics.md).
 
 For the usual electronic-structure methods based on the Born-Oppenheimer approximation
 (which, by neglecting nuclear motion, provides the concept of "potential-energy surface"
@@ -146,7 +146,12 @@ vaporized or molten conditions with lots of broken chemical bonds.
 
 For `CELL_OPT`, the initial cell matters as much as the initial coordinates. The starting volume and
 shape should be close enough to the expected structure and density, such that the pressure and
-stress are not dominated by preparation artefacts.
+stress are not dominated by preparation artefacts. The directions where the cell is relaxed are
+dependent of the external pressure. For surface slabs, two- or one-dimensional materials, or systems
+with vacuum, the anisotropic nature means that the vacuum direction is not to be relaxed unless
+physically intended; it is better to constrain the appropriate cell components or use a fixed-cell
+optimization after choosing the desired cell. A rigorous test for the convergence of target
+properties with respect to different size of vacuum may be necessary.
 
 A visualization of the structure and cell in modelling programs, with the box and the neighboring
 periodic images displayed, will be very helpful; neither large vacuous gaps nor crowded cluster of
@@ -154,9 +159,11 @@ atoms should occur near the boundary of the box on the directions consistent wit
 and conversely, sufficient vacuum space on the non-periodic directions is crucial for eliminating
 unwanted interactions across the boundary.
 
-For surface slabs, two- or one-dimensional materials, or systems with vacuum, do not relax the
-vacuum direction unless physically intended; it is better to constrain the appropriate cell
-components or use a fixed-cell optimization after choosing the desired cell.
+As a reserved extreme measure, the [MAX_FORCE](#CP2K_INPUT.FORCE_EVAL.RESCALE_FORCES.MAX_FORCE)
+keyword triggers a mechanism where very large forces on atoms are artificially rescaled in
+magnitude. This setting is only meant for crude initial structure; once the geometry becomes more
+reasonable and the forces are closer to the convergence criteria, it shall not be used in the
+production run towards the final result.
 
 ```{warning}
 **Do not use experimental structure blindly.**

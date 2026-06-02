@@ -46,12 +46,131 @@ A minimal fixed-energy MD block is:
 
 The force method is defined independently in [FORCE_EVAL](#CP2K_INPUT.FORCE_EVAL).
 
-## Initial structure and velocities
+## Preliminary considerations
 
-Start from a physically reasonable structure with sensible bond lengths, intermolecular distances,
-density, and cell parameters. MD is not a reliable way to fix severe close contacts, unrealistic
-densities, or badly prepared cells, because such problems can cause unstable forces, SCF failures,
-or immediate heating and atom ejection. A geometry optimisation before MD can be helpful.
+Universal to every atomistic simulation and every program, a number of crucial points must be
+carefully considered before setting up a molecular dynamics task and investing copious amounts of
+computational resources. As a starter, this section discusses preliminary factors in the choice of
+the spatiotemporal scale of the trajectory, periodic boundary condition. force method, and the
+initial structure.
+
+```{note}
+Apprehending the science and acquiring the skills of molecular dynamics simulation will require
+extensive academic training. The guidelines and instructions in this document should not be taken
+as a substitute of comprehensive literatures. Please kindly understand that, despite the program
+developers having knowledge about basic algorithms and implementations, they may not be suitable
+for answering all of the questions arising from practice, especially those pertaining to particular
+research fields and chemistry systems. The best party to consult for assistance would be the tutor,
+advisor, experienced colleagues or collaborators in real life, and when attempting to reproduce
+reported findings, the original authors; the developers may be contacted only for program issues
+such as bug reports and feature requests.
+```
+
+### Space and time scale
+
+In spite of ever-growing sceintific computing power, most of the time it is not affordable to have
+an exact 1:1 computational model of the real-life phenomena of interest. The usual practice is to
+use a much scaled-down model with limited number of atoms and finite length of trajectory for the
+simulation, which should achieve the delicate balance between representativeness and feasibility.
+
+Even when taking the ergodic hypothesis as granted, statistical analysis on target properties at
+thermodynamic equilibrium has to be performed on top of sufficient sampling. The (auto)correlation
+length and (auto)correlation time provide estimates for the space and time scale where measurements
+of some property retain a memory of past states and are not fully statistically independent. It is
+important to learn about their typical values in the same or similar systems, and take adequate
+multiples as the size of the system and the length of the trajectory.
+
+On the other hand, non-equilibrium irreversible processes such as phase transitions and chemical
+reactions are also observable at some time and space resolution. Experimentally it is determined by
+the sensitivity of instrumental characterization and analysis methods, with certain precise
+definitions of the states before and after the process. Unfortunately, many experiments take place
+in real life in a macroscopic time interval that exceeds the capability of simulation; for instance,
+a chemical reaction taking days, hours, or even just seconds to happen may not be replicatable in
+AIMD simulations with trajectory on the picosecond or nanosecond scale starting with only a bunch of
+reactants randomly packed together, however thermodynamically favorable it is. Again, it is better
+to survey literatures with relevant kinetic data and have a clear understanding of the typical free
+energy barriers and reaction rates before proceeding to simulations. Even static thermochemistry
+calculations for the profile of energy landscape via optimization of minima and transition states,
+vibrational analysis and evaluation of single-point energy would be helpful. To simulate difficult
+reactions by molecular dynamics in a short trajectory, advanced _enhanced sampling_ methods such as
+[](./metadynamics.md) may be necessary.
+
+### Periodic boundary condition
+
+**Periodic boundary condition** ({term}`PBC`) may or may not be used in the molecular dynamics
+simulation. If the system involves condensed-phase matter, such as liquid solution, solid crystal,
+surface slab and other one- and two-dimensional structures, then generally PBC is used. This is also
+applicable to systems with no actual well-defined repeating units (translational symmetry) like the
+bulk solutions. A huge liquid droplet in the gaseous phase, where the diameter is so large that the
+gas-liquid interface is almost flat and surface tension is negligible, may just as well be modelled
+as a combination of a bulk solution system and a thin layer of solution near the interface, both of
+which make use of PBC even though the liquid droplet itself is isolated.
+
+However, very small periodic cells for production MD should be avoided unless the finite-size
+effects are known to be acceptable. Small cells produce artificial correlations through periodic
+images, exaggerate statistical temperature and pressure fluctuations, and can make NPT cell dynamics
+unstable or unphysical. Sometimes using a supercell of a crystalline structure is preferred if its
+primitive cell is too small.
+
+For molecular systems in the gaseous phase or vacuum where external pressure is irrelevant, a
+molecular dynamics simulation without PBC is viable. It comes with a common risk that strong
+repulsion or very weak attraction causes the system to expand and effectively diminishes desired
+interactions between molecules. A possible remedy is to define an external potential or a constraint
+that act as a soft wall to reflect or push stray molecules back to the center, but this is
+artificial and arbitrary.
+
+In certain cases the same process can be simulated both with and without PBC. For example, the
+reaction between hydroxyl and hydrogen may be modelled as a single $\mathrm{H_2}$ molecule colliding
+with a single $\mathrm{OH}$ molecule with different relative orientations, distances and velocities,
+which does not need PBC, or modelled as a mixture of numerous $\mathrm{H_2}$ and $\mathrm{OH}$
+molecules, which needs PBC. Their behavior regarding responses to external conditions including
+temperature, pressure, and any form of energy input may be different, but they provide insights from
+distinct perspectives.
+
+### Force method
+
+To propagate the trajectory in a molecular dynamics simulation, the energy and force is evaluated on
+each timestep to provide acceleration via Newton's second law. The choice of the force method
+determines the description of chemical bonding and/or weak interactions, the configuration space
+that can be sampled, and the eventual computational cost. Careful selection of function forms and
+parameters as well as thorough validation against the target property is vital to any application;
+in particular, the part of "cross" interactions between two or more components described with more
+than one unified force method requires very well-founded justification.
+
+The strength and limitation of each force method is decided by design and parametrization. For
+instance, classical force fields in molecular mechanics usually model chemical bonds by harmonic
+potentials on the stretching, bending and rigid dihedral terms (and periodic torsion potentials on
+the flexible dihedral terms). The simplicity of function forms allows for speedy evaluation and the
+conformational fluctuation or conversion can be captured well, but the bonding pattern is fixed to
+near equilibrium and bond breaking and forming in chemical reactions cannot be captured. To describe
+the bond rearrangement and the underlying electronic structure, AIMD based on quantum chemical
+methods becomes requisite even though it is slower and more costly. The middle grounds have recently
+becoming filled with emerging methods like the machine-learning potentials.
+
+### Initial structure
+
+Because most of the points apply here as well, please first refer to the documentation about the
+[starting structure and cell](../optimization/geometry_and_cell_opt.md#starting-structure-and-cell)
+of a geometry optimization.
+
+In general, start from a physically reasonable structure with sensible bond lengths, intermolecular
+distances, density, and cell parameters. A majority of the force methods demonstrate extremely
+strong repulsion at very small nuclei distances, and thus molecular dynamics simulation employing
+these methods is not a reliable way to fix severe close contacts, unrealistic densities, or badly
+prepared cells, because such problems can cause unstable forces, SCF failures, or immediate heating
+and atom ejection.
+
+In fact, when starting from scratch, a geometry optimization preceding molecular dynamics simulation
+is highly recommended. During geometry optimization, the structure is relaxed and the maximum force
+on atoms is significantly lowered, which puts an upper limit to the initial acceleration in the
+subsequent molecular dynamics simulation and prevents rapid atomic motion and extreme temperature
+rise. With electronic-structure methods, the geometry optimization also offers a chance to confirm
+SCF convergence and estimate the time consumption on each step. The only "downside" is that the
+temperature may start from or drop to a relatively low value at early simulation due to the small
+forces and slow motion, and may take a little longer to heat up to the desired temperature; see the
+section on equilibration below for how to address this.
+
+## Initial velocities
 
 If velocities are not provided by a restart file or an external trajectory, CP2K can initialise
 atomic velocities from [TEMPERATURE](#CP2K_INPUT.MOTION.MD.TEMPERATURE). The
@@ -64,11 +183,6 @@ meaningful, overall angular motion; see [COMVEL_TOL](#CP2K_INPUT.MOTION.MD.COMVE
 [ANGVEL_TOL](#CP2K_INPUT.MOTION.MD.ANGVEL_TOL), [ANGVEL_ZERO](#CP2K_INPUT.MOTION.MD.ANGVEL_ZERO),
 and related keywords. For periodic bulk systems, small total-momentum drift is usually less
 important.
-
-**Avoid very small periodic cells for production MD unless the finite-size effects are known to be
-acceptable.** Small cells produce artificial correlations through periodic images, exaggerate
-statistical temperature and pressure fluctuations, and can make NPT cell dynamics unstable or
-unphysical.
 
 ## Choosing an ensemble
 
@@ -269,11 +383,12 @@ trajectory can be continued without losing significant sampling time.
 
 ## Validation checklist
 
-Before running a long production trajectory, it's suggested to check that:
+Before running a long production trajectory, it is suggested to check that:
 
-- The affordable length of trajectory is sufficient for observing phenomena, for instance chemical
-  reactions need to be kinetically favorable so as to happen on a picosecond timescale that AIMD
-  usually manages to cover.
+- The planned length of trajectory and reserved computational time is long enough to overcome
+  (auto)correlations and/or observe phenomena;
+- The force method and key parameters is validated on the particular system and is suitable for
+  describing the target property;
 - The structure is physically reasonable and the shortest interatomic distances are sensible;
 - The periodic cell is large enough for the target property;
 - The SCF procedure converges reliably on representative snapshots;
