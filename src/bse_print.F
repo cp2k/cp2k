@@ -431,8 +431,10 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T35,A15)') 'BSE|', &
                'N_e = Σ_n f^n'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            ! Open shell: caller passes homo_irred = n_alpha + n_beta (total electrons).
+            ! Closed shell: homo_irred = n_occ, i.e. 2 electrons per occupied orbital.
             WRITE (unit_nr, '(T2,A4,T7,A24,T65,I16)') 'BSE|', &
-               'Number of electrons N_e:', homo_irred*2
+               'Number of electrons N_e:', MERGE(homo_irred, homo_irred*2, my_open_shell)
             WRITE (unit_nr, '(T2,A4,T7,A40,T66,F16.3)') 'BSE|', &
                'Sum over oscillator strengths Σ_n f^n :', SUM(oscill_str)
             WRITE (unit_nr, '(T2,A4)') 'BSE|'

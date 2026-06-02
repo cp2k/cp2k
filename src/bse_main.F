@@ -246,13 +246,15 @@ CONTAINS
             NULLIFY (dft_control, tddfpt_control)
             CALL get_qs_env(qs_env, dft_control=dft_control)
             tddfpt_control => dft_control%tddfpt2_control
+            ! 4th arg (homo_irred) is the N_e basis for the TRK print; for open shell pass the
+            ! total electron count n_alpha+n_beta = SUM(homo) (print_optical_properties skips the *2).
             IF (my_do_tda .AND. (.NOT. tddfpt_control%do_bse)) THEN
-               CALL diagonalize_A(fm_A_BSE, homo_red_arr, virt_red_arr, homo(1), &
+               CALL diagonalize_A(fm_A_BSE, homo_red_arr, virt_red_arr, SUM(homo), &
                                   unit_nr, diag_runtime_est, mp2_env, qs_env, mo_coeff)
             END IF
             CALL cp_fm_release(fm_A_BSE)
             IF (my_do_abba) THEN
-               CALL diagonalize_C(fm_C_BSE, homo_red_arr, virt_red_arr, homo(1), &
+               CALL diagonalize_C(fm_C_BSE, homo_red_arr, virt_red_arr, SUM(homo), &
                                   fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
                                   unit_nr, diag_runtime_est, mp2_env, qs_env, mo_coeff)
                CALL cp_fm_release(fm_C_BSE)
