@@ -1830,10 +1830,11 @@ CONTAINS
 !> \param homo_red ...
 !> \param virtual_red ...
 !> \param context_BSE ...
+!> \param ispin spin channel whose mo_set supplies homo/nao (default 1); open-shell beta needs 2
 ! **************************************************************************************************
    SUBROUTINE get_multipoles_mo(fm_multipole_ai_trunc, fm_multipole_ij_trunc, fm_multipole_ab_trunc, &
                                 qs_env, mo_coeff, rpoint, n_moments, &
-                                homo_red, virtual_red, context_BSE)
+                                homo_red, virtual_red, context_BSE, ispin)
 
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: fm_multipole_ai_trunc, &
@@ -1844,11 +1845,12 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: rpoint
       INTEGER, INTENT(IN)                                :: n_moments, homo_red, virtual_red
       TYPE(cp_blacs_env_type), POINTER                   :: context_BSE
+      INTEGER, INTENT(IN), OPTIONAL                      :: ispin
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_multipoles_mo'
 
-      INTEGER                                            :: handle, idir, n_multipole, n_occ, &
-                                                            n_virt, nao, nmo_mp2
+      INTEGER                                            :: handle, idir, my_ispin, n_multipole, &
+                                                            n_occ, n_virt, nao, nmo_mp2
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(cp_fm_struct_type), POINTER :: fm_struct_mp_ab_trunc, fm_struct_mp_ai_trunc, &
          fm_struct_mp_ij_trunc, fm_struct_multipoles_ao, fm_struct_nao_nmo, fm_struct_nmo_nmo
@@ -1862,6 +1864,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      my_ispin = 1
+      IF (PRESENT(ispin)) my_ispin = ispin
+
       !First, we calculate the AO dipoles
       NULLIFY (sab_orb, matrix_s)
       CALL get_qs_env(qs_env, &
@@ -1870,7 +1875,7 @@ CONTAINS
                       sab_orb=sab_orb)
 
       ! Use the same blacs environment as for the MO coefficients to ensure correct multiplication dbcsr x fm later on
-      fm_struct_multipoles_ao => mos(1)%mo_coeff%matrix_struct
+      fm_struct_multipoles_ao => mos(my_ispin)%mo_coeff%matrix_struct
       ! BSE has different contexts and blacsenvs
       para_env_BSE => context_BSE%para_env
       ! Get size of multipole tensor
@@ -1896,7 +1901,7 @@ CONTAINS
       ! n_occ is the number of occupied MOs, nao the number of all AOs
       ! Writing homo to n_occ instead if nmo,
       ! takes care of ADDED_MOS, which would overwrite nmo of qs_env-mos, if invoked
-      CALL get_mo_set(mo_set=mos(1), homo=n_occ, nao=nao)
+      CALL get_mo_set(mo_set=mos(my_ispin), homo=n_occ, nao=nao)
       ! Takes into account removed nullspace values from SVD
       nmo_mp2 = mo_coeff(1)%matrix_struct%ncol_global
       n_virt = nmo_mp2 - n_occ

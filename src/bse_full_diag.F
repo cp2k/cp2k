@@ -732,7 +732,7 @@ CONTAINS
          DO isp = 1, nspins
             CALL get_multipoles_mo(fm_dip_ai_sp, fm_dip_ij_sp, fm_dip_ab_sp, &
                                    qs_env, mo_coeff(isp:isp), ref_pt, 1, &
-                                   homo(isp), virtual(isp), fm_A%matrix_struct%context)
+                                   homo(isp), virtual(isp), fm_A%matrix_struct%context, ispin=isp)
             NULLIFY (fm_struct_sp, fm_struct_dip_reord)
             CALL cp_fm_struct_create(fm_struct_sp, fm_A%matrix_struct%para_env, &
                                      fm_A%matrix_struct%context, n_ov_sp(isp), n_ov_joint)
@@ -775,7 +775,12 @@ CONTAINS
             oscill_str_joint(n) = 2.0_dp/3.0_dp*Exc_ens(n)*SUM(ABS(trans_mom_joint(:, 1, n))**2)
          END DO
          CALL print_optical_properties(Exc_ens, oscill_str_joint, trans_mom_joint, pol_res_joint, &
-                                       n_ov_joint, 1, homo_irred, .TRUE., " -TDA- ", mp2_env, unit_nr)
+                                       n_ov_joint, 1, homo_irred, .TRUE., " -TDA- ", mp2_env, unit_nr, &
+                                       open_shell=.TRUE.)
+         ! Open-shell post-processing is partial: only energies + spin-summed oscillator strengths.
+         CALL cp_warn(__LOCATION__, &
+                      "Open-shell (UKS) BSE: transition-amplitude table, exciton descriptors "// &
+                      "and NTO analysis are not yet implemented and have been skipped.")
          DEALLOCATE (fm_dip_ai_sp, fm_dip_ij_sp, fm_dip_ab_sp, ref_pt)
          DEALLOCATE (n_ov_sp, offsets_sp, oscill_str_joint, trans_mom_joint, pol_res_joint)
       END IF

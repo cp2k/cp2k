@@ -338,10 +338,11 @@ CONTAINS
 !> \param info_approximation ...
 !> \param mp2_env ...
 !> \param unit_nr ...
+!> \param open_shell if .TRUE., print spin-summed (UKS) dipole formula instead of the sqrt(2) one
 ! **************************************************************************************************
    SUBROUTINE print_optical_properties(Exc_ens, oscill_str, trans_mom_bse, polarizability_residues, &
                                        homo, virtual, homo_irred, flag_TDA, &
-                                       info_approximation, mp2_env, unit_nr)
+                                       info_approximation, mp2_env, unit_nr, open_shell)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens, oscill_str
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: trans_mom_bse, polarizability_residues
@@ -350,12 +351,17 @@ CONTAINS
       CHARACTER(LEN=10), INTENT(IN)                      :: info_approximation
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
+      LOGICAL, INTENT(IN), OPTIONAL                      :: open_shell
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_optical_properties'
 
       INTEGER                                            :: handle, i_exc
+      LOGICAL                                            :: my_open_shell
 
       CALL timeset(routineN, handle)
+
+      my_open_shell = .FALSE.
+      IF (PRESENT(open_shell)) my_open_shell = open_shell
 
       ! Discriminate between singlet and triplet, since triplet state can't couple to light
       ! and therefore calculations of dipoles etc are not necessary
@@ -367,12 +373,22 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A67)') &
                'BSE|', "and oscillator strength f^n of excitation level n are obtained from"
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            IF (flag_TDA) THEN
-               WRITE (unit_nr, '(T2,A4,T10,A)') &
-                  'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a >  X_ia^n"
+            IF (my_open_shell) THEN
+               IF (flag_TDA) THEN
+                  WRITE (unit_nr, '(T2,A4,T10,A)') &
+                     'BSE|', "d_r^n = sum_σ sum_ia < ψ_iσ | r | ψ_aσ >  X_iaσ^n"
+               ELSE
+                  WRITE (unit_nr, '(T2,A4,T10,A)') &
+                     'BSE|', "d_r^n = sum_σ sum_ia < ψ_iσ | r | ψ_aσ > ( X_iaσ^n + Y_iaσ^n )"
+               END IF
             ELSE
-               WRITE (unit_nr, '(T2,A4,T10,A)') &
-                  'BSE|', "d_r^n = sum_ia sqrt(2) < ψ_i | r | ψ_a > ( X_ia^n + Y_ia^n )"
+               IF (flag_TDA) THEN
+                  WRITE (unit_nr, '(T2,A4,T10,A)') &
+                     'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a >  X_ia^n"
+               ELSE
+                  WRITE (unit_nr, '(T2,A4,T10,A)') &
+                     'BSE|', "d_r^n = sum_ia sqrt(2) < ψ_i | r | ψ_a > ( X_ia^n + Y_ia^n )"
+               END IF
             END IF
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T14,A)') &
