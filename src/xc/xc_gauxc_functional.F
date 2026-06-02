@@ -1150,7 +1150,7 @@ CONTAINS
             CALL cp_warn( &
                __LOCATION__, &
                "GauXC OneDFT/SKALA nuclear gradients are sensitive to the GauXC molecular grid. "// &
-               "Use GRID SUPERFINE and params%PRUNING_SCHEME UNPRUNED for quantitative force checks.")
+               "Use GRID SUPERFINE and PRUNING_SCHEME UNPRUNED for quantitative force checks.")
          END IF
          IF (TRIM(model_key) == "SKALA") THEN
             CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_MODEL", params%model_name, STATUS=env_status)
@@ -1213,7 +1213,9 @@ CONTAINS
          use_skala_model, &
          use_gradient_mpi_runtime, &
          use_gradient_self_runtime, &
-         use_self_runtime)
+         use_self_runtime, &
+         gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
 
       hdf5_output = (TRIM(output_path) /= "")
       write_hdf5_output = hdf5_output .AND. para_env%mepos == 0
@@ -1411,24 +1413,6 @@ CONTAINS
       DO ispin = 1, params%nspins
          CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
       END DO
-
-      IF (.NOT. qs_env%gauxc_cache%is_init) THEN
-         IF (use_gradient_self_runtime) THEN
-            CALL gauxc_destroy_integrator(cache%gradient_integrator, gauxc_status)
-            CALL gauxc_check_status(gauxc_status)
-            CALL gauxc_destroy_grid(cache%gradient_grid, gauxc_status)
-            CALL gauxc_check_status(gauxc_status)
-         END IF
-         CALL gauxc_destroy_integrator(cache%integrator, gauxc_status)
-         CALL gauxc_check_status(gauxc_status)
-         CALL gauxc_destroy_grid(cache%grid, gauxc_status)
-         CALL gauxc_check_status(gauxc_status)
-         CALL gauxc_destroy_basisset(cache%basisset, gauxc_status)
-         CALL gauxc_check_status(gauxc_status)
-         CALL gauxc_destroy_molecule(cache%molecule, gauxc_status)
-         CALL gauxc_check_status(gauxc_status)
-      END IF
-
    END SUBROUTINE apply_gauxc
 
 END MODULE xc_gauxc_functional

@@ -54,7 +54,6 @@ MODULE xc_gauxc_cache
       LOGICAL                                      :: gradient_self_runtime = .FALSE.
       LOGICAL                                      :: use_fd_gradient = .FALSE.
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: last_positions
-      TYPE(cp_gauxc_status_type)                   :: status
 
    CONTAINS
 
@@ -119,7 +118,8 @@ CONTAINS
       use_skala_model, &
       use_gradient_mpi_runtime, &
       use_gradient_self_runtime, &
-      use_self_runtime)
+      use_self_runtime, &
+      status)
 
       TYPE(cp_gauxc_cache_type), INTENT(inout)           :: cache
       TYPE(cp_gauxc_cache_params), INTENT(in)            :: params
@@ -129,7 +129,7 @@ CONTAINS
 
       LOGICAL:: gapw, use_skala_model, calculate_forces, use_gradient_mpi_runtime, use_self_runtime, use_gradient_self_runtime
 
-      TYPE(cp_gauxc_status_type)                         :: gauxc_status
+      TYPE(cp_gauxc_status_type)                         :: status
 
       IF (gauxc_cache_is_valid( &
           cache, &
@@ -144,13 +144,13 @@ CONTAINS
 
       cache%molecule = gauxc_create_molecule( &
                        particle_set, &
-                       gauxc_status)
-      CALL gauxc_check_status(gauxc_status)
+                       status)
+      GAUXC_RETURN_IF_ERROR(status)
       cache%basisset = gauxc_create_basisset( &
                        qs_kind_set, &
                        particle_set, &
-                       gauxc_status)
-      CALL gauxc_check_status(gauxc_status)
+                       status)
+      GAUXC_RETURN_IF_ERROR(status)
       cache%use_fd_gradient = gapw .AND. calculate_forces .AND. &
                               (use_skala_model .OR. cache%basisset%max_l > 3)
       IF (cache%use_fd_gradient .AND. para_env%mepos == 0) THEN
@@ -172,7 +172,7 @@ CONTAINS
                       params%lb_exec_space, &
                       params%batch_size, &
                       params%device_runtime_fill_fraction, &
-                      gauxc_status, &
+                      status, &
                       mpi_comm=mp_comm_self%get_handle())
       ELSE
          ! Use the QS force-evaluation communicator rather than GauXC's global
@@ -188,17 +188,17 @@ CONTAINS
                       params%lb_exec_space, &
                       params%batch_size, &
                       params%device_runtime_fill_fraction, &
-                      gauxc_status, &
+                      status, &
                       mpi_comm=para_env%get_handle())
       END IF
-      CALL gauxc_check_status(gauxc_status)
+      GAUXC_RETURN_IF_ERROR(status)
       cache%integrator = gauxc_create_integrator( &
                          TRIM(params%xc_fun_name), &
                          cache%grid, &
                          params%int_exec_space, &
                          params%nspins, &
-                         gauxc_status)
-      CALL gauxc_check_status(gauxc_status)
+                         status)
+      GAUXC_RETURN_IF_ERROR(status)
 
       IF (use_gradient_self_runtime) THEN
          ! Upstream GauXC does not yet support OneDFT/SKALA nuclear gradients
@@ -213,16 +213,16 @@ CONTAINS
                                params%lb_exec_space, &
                                params%batch_size, &
                                params%device_runtime_fill_fraction, &
-                               gauxc_status, &
+                               status, &
                                mpi_comm=mp_comm_self%get_handle())
-         CALL gauxc_check_status(gauxc_status)
+         GAUXC_RETURN_IF_ERROR(status)
          cache%gradient_integrator = gauxc_create_integrator( &
                                      TRIM(params%xc_fun_name), &
                                      cache%gradient_grid, &
                                      params%int_exec_space, &
                                      params%nspins, &
-                                     gauxc_status)
-         CALL gauxc_check_status(gauxc_status)
+                                     status)
+         GAUXC_RETURN_IF_ERROR(status)
       END IF
 
       cache%natom = params%natom
@@ -265,12 +265,18 @@ CONTAINS
       IF (cache%is_init) THEN
          IF (cache%needs_gradient_grid()) THEN
             CALL gauxc_destroy_integrator(cache%gradient_integrator, status)
+            CALL gauxc_check_status(status)
             CALL gauxc_destroy_grid(cache%gradient_grid, status)
+            CALL gauxc_check_status(status)
          END IF
          CALL gauxc_destroy_integrator(cache%integrator, status)
+         CALL gauxc_check_status(status)
          CALL gauxc_destroy_grid(cache%grid, status)
+         CALL gauxc_check_status(status)
          CALL gauxc_destroy_basisset(cache%basisset, status)
+         CALL gauxc_check_status(status)
          CALL gauxc_destroy_molecule(cache%molecule, status)
+         CALL gauxc_check_status(status)
       END IF
       IF (ALLOCATED(cache%last_positions)) DEALLOCATE (cache%last_positions)
       cache%is_init = .FALSE.
