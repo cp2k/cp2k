@@ -618,11 +618,12 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_subsys_type), POINTER                      :: subsys
-      TYPE(section_vals_type), POINTER                   :: dft_section, input, print_key
+      TYPE(section_vals_type), POINTER                   :: dft_section, input, pdos_section, &
+                                                            print_key
 
       CALL timeset(routineN, handle)
       NULLIFY (dft_control, particle_set, rho, ks_rmpv, dft_section, input, &
-               particles, subsys, para_env, rho_ao, print_key)
+               particles, subsys, para_env, rho_ao, pdos_section, print_key)
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
 
@@ -647,7 +648,8 @@ CONTAINS
       print_key => section_vals_get_subs_vals(dft_section, "PRINT%DOS")
       requested_pdos = .FALSE.
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CALL section_vals_val_get(print_key, "PDOS", l_val=requested_pdos)
+         pdos_section => section_vals_get_subs_vals(print_key, "PDOS")
+         CALL section_vals_get(pdos_section, explicit=requested_pdos)
       END IF
       IF (requested_pdos) THEN
          CPWARN("PDOS not implemented for Semi-Empirical calculations!")

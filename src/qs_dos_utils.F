@@ -141,31 +141,33 @@ CONTAINS
    END FUNCTION dos_resolve_energy_zero
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Resolve projected-DOS requests from a DOS print section.
 !> \param dos_section DOS print section
 !> \param do_dos_output whether the DOS print key is active
-!> \param do_pdos whether projected DOS output is requested or implied
-!> \param do_pdos_raw whether raw projected DOS output is requested
-!> rief Resolve projected-DOS requests from a DOS print section.
+!> \param do_projected_dos whether any projected DOS output is requested
+!> \param do_pdos whether kind-resolved PDOS output is requested
+!> \param do_pdos_raw whether raw kind-resolved PDOS output is requested
 ! **************************************************************************************************
-   SUBROUTINE get_dos_pdos_flags(dos_section, do_dos_output, do_pdos, do_pdos_raw)
+   SUBROUTINE get_dos_pdos_flags(dos_section, do_dos_output, do_projected_dos, do_pdos, do_pdos_raw)
 
       TYPE(section_vals_type), POINTER                   :: dos_section
       LOGICAL, INTENT(IN)                                :: do_dos_output
-      LOGICAL, INTENT(OUT)                               :: do_pdos, do_pdos_raw
+      LOGICAL, INTENT(OUT)                               :: do_projected_dos, do_pdos, do_pdos_raw
 
       INTEGER                                            :: nrep
-      LOGICAL                                            :: has_ldos, has_r_ldos, requested_pdos
-      TYPE(section_vals_type), POINTER                   :: ldos_section
+      LOGICAL                                            :: has_ldos, has_r_ldos
+      TYPE(section_vals_type), POINTER                   :: ldos_section, pdos_section
 
-      requested_pdos = .FALSE.
+      do_projected_dos = .FALSE.
+      do_pdos = .FALSE.
       do_pdos_raw = .FALSE.
       has_ldos = .FALSE.
       has_r_ldos = .FALSE.
 
       IF (do_dos_output) THEN
-         CALL section_vals_val_get(dos_section, "PDOS", l_val=requested_pdos)
-         CALL section_vals_val_get(dos_section, "PDOS_RAW", l_val=do_pdos_raw)
+         pdos_section => section_vals_get_subs_vals(dos_section, "PDOS")
+         CALL section_vals_get(pdos_section, explicit=do_pdos)
+         IF (do_pdos) CALL section_vals_val_get(pdos_section, "RAW", l_val=do_pdos_raw)
          ldos_section => section_vals_get_subs_vals(dos_section, "LDOS")
          CALL section_vals_get(ldos_section, n_repetition=nrep)
          has_ldos = (nrep > 0)
@@ -174,11 +176,7 @@ CONTAINS
          has_r_ldos = (nrep > 0)
       END IF
 
-      do_pdos = requested_pdos .OR. do_pdos_raw .OR. has_ldos .OR. has_r_ldos
-      IF (do_pdos .AND. .NOT. requested_pdos) THEN
-         IF (do_pdos_raw) CPWARN("PRINT%DOS%PDOS_RAW requires PDOS; enabling PDOS output.")
-         IF (has_ldos .OR. has_r_ldos) CPWARN("PRINT%DOS%LDOS/R_LDOS require PDOS; enabling PDOS output.")
-      END IF
+      do_projected_dos = do_pdos .OR. has_ldos .OR. has_r_ldos
 
    END SUBROUTINE get_dos_pdos_flags
 

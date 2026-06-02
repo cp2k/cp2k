@@ -20,7 +20,8 @@
       &DOS
         DELTA_E 0.01
         NLUMO -1
-        PDOS T
+        &PDOS
+        &END PDOS
       &END DOS
       &MULLIKEN
         COMMON_ITERATION_LEVELS 10

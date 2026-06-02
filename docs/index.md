@@ -36,6 +36,7 @@ methods/embedding/index
 methods/qm_mm/index
 methods/sampling/index
 methods/optimization/index
+methods/electronic_structure/index
 methods/properties/index
 ```
 

@@ -19,9 +19,10 @@
     &END MGRID
     &PRINT
       &DOS
-        COMPONENTS T
         NLUMO 5
-        PDOS T
+        &PDOS
+          COMPONENTS T
+        &END PDOS
       &END DOS
     &END PRINT
     &QS

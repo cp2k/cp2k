@@ -155,9 +155,10 @@
     &END POISSON
     &PRINT
       &DOS
-        COMPONENTS
         NLUMO -1
-        PDOS T
+        &PDOS
+          COMPONENTS T
+        &END PDOS
       &END DOS
     &END PRINT
     &SCF

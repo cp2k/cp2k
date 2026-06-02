@@ -138,6 +138,7 @@ CONTAINS
 !> \param unoccupied_orbs ...
 !> \param unoccupied_evals ...
 !> \param pdos_print_key ...
+!> \param write_pdos ...
 !> \param write_pdos_raw ...
 !> \date    26.02.2008
 !> \par History:
@@ -150,7 +151,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_projected_dos(mo_set, atomic_kind_set, qs_kind_set, particle_set, qs_env, &
                                       dft_section, ispin, xas_mittle, external_matrix_shalf, &
-                                      unoccupied_orbs, unoccupied_evals, pdos_print_key, write_pdos_raw)
+                                      unoccupied_orbs, unoccupied_evals, pdos_print_key, write_pdos, write_pdos_raw)
 
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -164,7 +165,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL, TARGET     :: external_matrix_shalf, unoccupied_orbs
       TYPE(cp_1d_r_p_type), INTENT(IN), OPTIONAL, TARGET :: unoccupied_evals
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: pdos_print_key
-      LOGICAL, INTENT(IN), OPTIONAL                      :: write_pdos_raw
+      LOGICAL, INTENT(IN), OPTIONAL                      :: write_pdos, write_pdos_raw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_projected_dos'
 
@@ -185,7 +186,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: list, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: bo, l
       LOGICAL :: append, calc_matsh, do_broaden, do_ldos, do_r_ldos, do_virt, &
-         fractional_occupation, ionode, separate_components, should_output, write_raw
+         fractional_occupation, ionode, separate_components, should_output, write_raw, &
+         write_standard
       LOGICAL, DIMENSION(:, :), POINTER                  :: read_r
       REAL(KIND=dp) :: broaden_width, de, dh(3, 3), dvol, e_fermi, energy_factor, energy_ref, &
          ev_factor, hoco, r(3), r_vec(3), ratom(3), voigt_mixing
@@ -217,8 +219,11 @@ CONTAINS
       ionode = logger%para_env%is_source()
       my_print_key = "PRINT%PDOS"
       IF (PRESENT(pdos_print_key)) my_print_key = TRIM(pdos_print_key)
+      write_standard = .TRUE.
+      IF (PRESENT(write_pdos)) write_standard = write_pdos
       write_raw = .TRUE.
       IF (PRESENT(write_pdos_raw)) write_raw = write_pdos_raw
+      write_raw = write_raw .AND. write_standard
       should_output = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
                                                        TRIM(my_print_key)), cp_p_file)
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -526,7 +531,11 @@ CONTAINS
          END DO
       END IF
 
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%COMPONENTS", l_val=separate_components)
+      IF (TRIM(my_print_key) == "PRINT%DOS") THEN
+         CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%PDOS%COMPONENTS", l_val=separate_components)
+      ELSE
+         CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%COMPONENTS", l_val=separate_components)
+      END IF
       IF (separate_components) THEN
          ALLOCATE (pdos_array(nsoset(maxlgto), nkind, nmo + nvirt))
       ELSE
@@ -723,6 +732,7 @@ CONTAINS
          my_pos = "REWIND"
       END IF
       my_act = "WRITE"
+      IF (write_standard .OR. write_raw) THEN
       DO ikind = 1, nkind
 
          NULLIFY (orb_basis_set)
@@ -745,7 +755,7 @@ CONTAINS
             my_spin = 1
          END IF
 
-         IF (do_broaden) THEN
+         IF (write_standard .AND. do_broaden) THEN
             IF (separate_components) THEN
                CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle), my_pos, my_act, iterstep, &
                                          e_fermi, hoco, energy_ref, TRIM(zero_label), &
@@ -820,6 +830,7 @@ CONTAINS
          END IF
 
       END DO ! ikind
+      END IF
 
       ! write the pdos for the lists, each ona different file,
       ! the filenames are indexed with the list number
@@ -1022,14 +1033,15 @@ CONTAINS
 !> \param qs_env ...
 !> \param dft_section ...
 !> \param pdos_print_key ...
+!> \param write_pdos ...
 !> \param write_pdos_raw ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_projected_dos_kp(qs_env, dft_section, pdos_print_key, write_pdos_raw)
+   SUBROUTINE calculate_projected_dos_kp(qs_env, dft_section, pdos_print_key, write_pdos, write_pdos_raw)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: dft_section
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: pdos_print_key
-      LOGICAL, INTENT(IN), OPTIONAL                      :: write_pdos_raw
+      LOGICAL, INTENT(IN), OPTIONAL                      :: write_pdos, write_pdos_raw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_projected_dos_kp'
 
@@ -1043,7 +1055,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_comp, ao_kind, ao_l, kind_maxl
       LOGICAL                                            :: append, fractional_occupation, &
                                                             separate_components, should_output, &
-                                                            write_raw
+                                                            write_raw, write_standard
       REAL(KIND=dp)                                      :: broaden_cutoff, broaden_width, de, e1, &
                                                             e2, e_fermi(2), emax, emin, &
                                                             energy_ref(2), hoco(2), voigt_mixing, &
@@ -1075,8 +1087,11 @@ CONTAINS
       logger => cp_get_default_logger()
       my_print_key = "PRINT%PDOS"
       IF (PRESENT(pdos_print_key)) my_print_key = TRIM(pdos_print_key)
+      write_standard = .TRUE.
+      IF (PRESENT(write_pdos)) write_standard = write_pdos
       write_raw = .FALSE.
       IF (PRESENT(write_pdos_raw)) write_raw = write_pdos_raw
+      write_raw = write_raw .AND. write_standard
       should_output = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
                                                        TRIM(my_print_key)), cp_p_file)
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -1113,7 +1128,11 @@ CONTAINS
 
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%DELTA_E", r_val=de)
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%APPEND", l_val=append)
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%COMPONENTS", l_val=separate_components)
+      IF (TRIM(my_print_key) == "PRINT%DOS") THEN
+         CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%PDOS%COMPONENTS", l_val=separate_components)
+      ELSE
+         CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%COMPONENTS", l_val=separate_components)
+      END IF
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%NDIGITS", i_val=ndigits)
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%BROADEN_TYPE", i_val=broaden_type)
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%BROADEN_WIDTH", r_val=broaden_width)
@@ -1283,6 +1302,7 @@ CONTAINS
       my_act = "WRITE"
       spin(1) = "ALPHA"
       spin(2) = "BETA"
+      IF (write_standard) THEN
       DO ikind = 1, nkind
          IF (kind_maxl(ikind) < 0) CYCLE
          CALL get_atomic_kind(atomic_kind_set(ikind), name=kind_name)
@@ -1301,6 +1321,7 @@ CONTAINS
                                             broaden_type, broaden_width, voigt_mixing, ndigits, pdos_print_key=TRIM(my_print_key))
          END DO
       END DO
+      END IF
 
       DEALLOCATE (ao_comp, ao_kind, ao_l, ao_weight, kind_maxl, pdos_curve, proj_weight, &
                   vecbuffer, zvecbuffer)

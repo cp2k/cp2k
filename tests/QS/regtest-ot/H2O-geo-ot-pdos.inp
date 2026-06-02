@@ -21,7 +21,6 @@
     &END MGRID
     &PRINT
       &DOS
-        PDOS T
         &EACH
           GEO_OPT 2
         &END EACH
@@ -31,6 +30,8 @@
         &LDOS
           LIST 3 2 1
         &END LDOS
+        &PDOS
+        &END PDOS
       &END DOS
     &END PRINT
     &QS
