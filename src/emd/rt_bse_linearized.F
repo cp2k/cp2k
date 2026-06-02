@@ -847,7 +847,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       ! Get pointers to parameters from qs_env
       CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
-      use_hartree_reference = (.NOT. rtbse_env%tda_active) .AND. &
+      use_hartree_reference = (.NOT. rtbse_env%tda_active) .AND. (rtbse_env%n_spin == 1) .AND. &
                               (.NOT. rtbse_env%debug_disable_hartree)
       use_rirs_hartree = rtbse_env%rirs_hartree
       use_rirs_sex = rtbse_env%rirs_sex
@@ -916,7 +916,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       use_coh_reference = .NOT. rtbse_env%debug_disable_coh
-      use_sex_reference = (.NOT. rtbse_env%tda_active) .AND. &
+      use_sex_reference = (.NOT. rtbse_env%tda_active) .AND. (rtbse_env%n_spin == 1) .AND. &
                           (.NOT. rtbse_env%debug_disable_sex)
       use_rirs_sex = rtbse_env%rirs_sex
 
