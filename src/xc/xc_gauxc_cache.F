@@ -70,7 +70,6 @@ MODULE xc_gauxc_cache
 
 CONTAINS
 
-#ifdef __GAUXC
 ! **************************************************************************************************
 !> \brief ...
 !> \param this ...
@@ -94,7 +93,6 @@ CONTAINS
 
       res = this%basisset%max_l
    END FUNCTION gauxc_cache_type_max_l
-#endif
 
 ! **************************************************************************************************
 !> \brief ...
@@ -155,9 +153,6 @@ CONTAINS
       CALL gauxc_check_status(gauxc_status)
       cache%use_fd_gradient = gapw .AND. calculate_forces .AND. &
                               (use_skala_model .OR. cache%basisset%max_l > 3)
-      IF (use_gradient_mpi_runtime) THEN
-         use_gradient_self_runtime = .FALSE.
-      END IF
       IF (cache%use_fd_gradient .AND. para_env%mepos == 0) THEN
          CALL cp_warn( &
             __LOCATION__, &

@@ -1159,29 +1159,7 @@ CONTAINS
             END IF
          END IF
       END IF
-      SELECT CASE (TRIM(skala_runtime_key))
-      CASE ("AUTO")
-         use_self_runtime = use_skala_model .AND. para_env%num_pe > 1 .AND. params%nspins > 1
-      CASE ("MPI")
-         use_self_runtime = .FALSE.
-      CASE ("SELF")
-         use_self_runtime = use_skala_model .AND. para_env%num_pe > 1
-      CASE DEFAULT
-         CALL cp_abort(__LOCATION__, "Unknown GAUXC%SKALA_RUNTIME value.")
-      END SELECT
-      IF (.NOT. use_skala_model) use_self_runtime = .FALSE.
-      use_gradient_self_runtime = calculate_forces .AND. use_onedft .AND. &
-                                  para_env%num_pe > 1 .AND. .NOT. use_self_runtime
-      IF (use_skala_model .AND. para_env%num_pe > 1 .AND. .NOT. use_self_runtime .AND. &
-          para_env%mepos == 0 .AND. ASSOCIATED(scf_env)) THEN
-         IF (scf_env%iter_count == 1) THEN
-            CALL cp_warn( &
-               __LOCATION__, &
-               "GAUXC%SKALA_RUNTIME uses the MPI communicator for energy/VXC. "// &
-               "SKALA Torch atom chunks can be distributed across MPI ranks; "// &
-               "set GAUXC_ONEDFT_DISTRIBUTED_TORCH=0 to force rank-0 Torch inference.")
-         END IF
-      END IF
+
       use_gradient_mpi_runtime = .FALSE.
       CALL GET_ENVIRONMENT_VARIABLE("GAUXC_GRADIENT_MPI_RUNTIME", gradient_mpi_runtime_env, &
                                     STATUS=env_status)
@@ -1198,6 +1176,31 @@ CONTAINS
          END SELECT
       END IF
 
+      SELECT CASE (TRIM(skala_runtime_key))
+      CASE ("AUTO")
+         use_self_runtime = use_skala_model .AND. para_env%num_pe > 1 .AND. params%nspins > 1
+      CASE ("MPI")
+         use_self_runtime = .FALSE.
+      CASE ("SELF")
+         use_self_runtime = use_skala_model .AND. para_env%num_pe > 1
+      CASE DEFAULT
+         CALL cp_abort(__LOCATION__, "Unknown GAUXC%SKALA_RUNTIME value.")
+      END SELECT
+      IF (.NOT. use_skala_model) use_self_runtime = .FALSE.
+      use_gradient_self_runtime = calculate_forces .AND. use_onedft .AND. &
+                                  para_env%num_pe > 1 .AND. .NOT. use_self_runtime &
+                                  .AND. .NOT. use_gradient_mpi_runtime
+      IF (use_skala_model .AND. para_env%num_pe > 1 .AND. .NOT. use_self_runtime .AND. &
+          para_env%mepos == 0 .AND. ASSOCIATED(scf_env)) THEN
+         IF (scf_env%iter_count == 1) THEN
+            CALL cp_warn( &
+               __LOCATION__, &
+               "GAUXC%SKALA_RUNTIME uses the MPI communicator for energy/VXC. "// &
+               "SKALA Torch atom chunks can be distributed across MPI ranks; "// &
+               "set GAUXC_ONEDFT_DISTRIBUTED_TORCH=0 to force rank-0 Torch inference.")
+         END IF
+      END IF
+
       cache => qs_env%gauxc_cache
       CALL gauxc_cache_init( &
          cache, &
@@ -1212,27 +1215,6 @@ CONTAINS
          use_gradient_self_runtime, &
          use_self_runtime)
 
-      hdf5_output = (TRIM(output_path) /= "")
-      write_hdf5_output = hdf5_output .AND. para_env%mepos == 0
-      IF (write_hdf5_output .AND. ASSOCIATED(scf_env)) THEN
-         write_hdf5_output = scf_env%iter_count == 1
-      END IF
-      IF (write_hdf5_output) THEN
-         CALL gauxc_write_molecule_hdf5( &
-            cache%molecule, &
-            output_path, &
-            "molecule.h5", &
-            "molecule", &
-            gauxc_status)
-         CALL gauxc_check_status(gauxc_status)
-         CALL gauxc_write_basisset_hdf5( &
-            cache%basisset, &
-            output_path, &
-            "basisset.h5", &
-            "basisset", &
-            gauxc_status)
-         CALL gauxc_check_status(gauxc_status)
-      END IF
       hdf5_output = (TRIM(output_path) /= "")
       write_hdf5_output = hdf5_output .AND. para_env%mepos == 0
       IF (write_hdf5_output .AND. ASSOCIATED(scf_env)) THEN

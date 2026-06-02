@@ -37,13 +37,13 @@ MODULE xc_gauxc_interface
       dbcsr_p_type
    USE cp_log_handling, ONLY: &
       cp_logger_get_default_io_unit
+
+#ifdef __GAUXC
+
    USE kinds, ONLY: &
       default_path_length, &
       default_string_length, &
       dp
-
-#ifdef __GAUXC
-
    USE physcon, ONLY: &
       bohr
    USE atomic_kind_types, ONLY: &
@@ -140,7 +140,7 @@ MODULE xc_gauxc_interface
 
 #ifndef __GAUXC
 
-   INTEGER, PARAMETER :: pos_tol = 1.0E-8_dp
+   ! The module still exists as an empty shell when compiling without GauXC.
 
    TYPE cp_gauxc_molecule_type
    END TYPE cp_gauxc_molecule_type
