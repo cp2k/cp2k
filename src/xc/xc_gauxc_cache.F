@@ -56,7 +56,7 @@ MODULE xc_gauxc_cache
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: last_positions
       TYPE(cp_gauxc_status_type)         :: status
 #endif
-   END TYPE
+   END TYPE cp_gauxc_cache_type
 
    PUBLIC :: &
       cp_gauxc_cache_type, &
@@ -66,6 +66,12 @@ MODULE xc_gauxc_cache
 
 CONTAINS
 
+! **************************************************************************************************
+!> \brief ...
+!> \param ! ...
+!> \param inout ...
+!> \param params ...
+! **************************************************************************************************
    SUBROUTINE gauxc_cache_init( &
       ! inout params
       cache, &
@@ -316,6 +322,7 @@ CONTAINS
 !> \param int_exec_space ...
 !> \param model_name ...
 !> \param use_gradient_self_runtime ...
+!> \return ...
 !> \retval cache_valid ...
 ! **************************************************************************************************
    FUNCTION gauxc_cache_is_valid( &
