@@ -2144,7 +2144,7 @@ CONTAINS
                                                             nmo, output_unit
       LOGICAL                                            :: all_equal, defer_molden, do_dos, &
                                                             do_kpoints, do_pdos, do_pdos_raw, &
-                                                            explicit
+                                                            do_projected_dos, explicit
       REAL(KIND=dp)                                      :: maxocc, s_square, s_square_ideal, &
                                                             total_abs_spin_dens, total_spin_dens
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, occupation_numbers
@@ -2264,7 +2264,7 @@ CONTAINS
 
          dos_section => section_vals_get_subs_vals(dft_section, "PRINT%DOS")
          do_dos = BTEST(cp_print_key_should_output(logger%iter_info, dos_section), cp_p_file)
-         CALL get_dos_pdos_flags(dos_section, do_dos, do_pdos, do_pdos_raw)
+         CALL get_dos_pdos_flags(dos_section, do_dos, do_projected_dos, do_pdos, do_pdos_raw)
 
          ! For OT calculations, collect the largest request for additional unoccupied
          ! orbitals among DOS, PDOS, and Molden, and generate them only once.
@@ -2294,7 +2294,7 @@ CONTAINS
                                      nlumo_required, nlumos)
                END IF
 
-               IF (do_dos .OR. do_pdos) THEN
+               IF (do_dos .OR. do_projected_dos) THEN
                   DO ispin = 1, dft_control%nspins
                      ! With ADMM, temporarily modify the Kohn-Sham matrix while updating the
                      ! eigenvalues and rotating the occupied OT subspace.
@@ -2348,11 +2348,11 @@ CONTAINS
             END IF
          END IF
 
-         ! Print the projected density of states (pDOS) for each atomic kind
-         IF (do_pdos) THEN
+         ! Print projected density-of-states outputs
+         IF (do_projected_dos) THEN
             IF (do_kpoints) THEN
                CALL calculate_projected_dos_kp(qs_env, dft_section, pdos_print_key="PRINT%DOS", &
-                                               write_pdos_raw=do_pdos_raw)
+                                               write_pdos=do_pdos, write_pdos_raw=do_pdos_raw)
             ELSE
                CALL get_qs_env(qs_env, &
                                mos=mos, &
@@ -2364,11 +2364,11 @@ CONTAINS
                                                      qs_kind_set, particle_set, qs_env, dft_section, ispin=ispin, &
                                                      unoccupied_orbs=unoccupied_orbs(ispin), &
                                                      unoccupied_evals=unoccupied_evals(ispin), &
-                                                     pdos_print_key="PRINT%DOS", write_pdos_raw=do_pdos_raw)
+                                                     pdos_print_key="PRINT%DOS", write_pdos=do_pdos, write_pdos_raw=do_pdos_raw)
                      ELSE
                         CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
                                                      qs_kind_set, particle_set, qs_env, dft_section, ispin=ispin, &
-                                                     pdos_print_key="PRINT%DOS", write_pdos_raw=do_pdos_raw)
+                                                     pdos_print_key="PRINT%DOS", write_pdos=do_pdos, write_pdos_raw=do_pdos_raw)
                      END IF
                   ELSE
                      IF (ASSOCIATED(unoccupied_orbs)) THEN
@@ -2376,11 +2376,11 @@ CONTAINS
                                                      qs_kind_set, particle_set, qs_env, dft_section, &
                                                      unoccupied_orbs=unoccupied_orbs(ispin), &
                                                      unoccupied_evals=unoccupied_evals(ispin), &
-                                                     pdos_print_key="PRINT%DOS", write_pdos_raw=do_pdos_raw)
+                                                     pdos_print_key="PRINT%DOS", write_pdos=do_pdos, write_pdos_raw=do_pdos_raw)
                      ELSE
                         CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
                                                      qs_kind_set, particle_set, qs_env, dft_section, &
-                                                     pdos_print_key="PRINT%DOS", write_pdos_raw=do_pdos_raw)
+                                                     pdos_print_key="PRINT%DOS", write_pdos=do_pdos, write_pdos_raw=do_pdos_raw)
                      END IF
                   END IF
                END DO

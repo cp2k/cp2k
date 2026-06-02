@@ -31,15 +31,14 @@ Most of the DOS/PDOS functionality described below, including the unified
 `&DFT%PRINT%DOS` interface and the broadened, directly plottable `.dos` and `.pdos` files, is only
 available in CP2K 2026.2 and later versions. In earlier CP2K versions, `.dos` and `.pdos` referred
 to state-resolved raw outputs rather than broadened DOS/PDOS curves. The raw output of PDOS is
-preserved and now written as `.pdos_raw` (see
-[Raw and local projected DOS](#raw-and-local-projected-dos).).
+preserved and now written as `.pdos_raw` through `&DFT%PRINT%DOS%PDOS%RAW` keyword.
 ```
 
 ## Basic CP2K input
 
 For DFT calculations, DOS output is controlled by
 [&DFT%PRINT%DOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS). Requesting this print section writes the
-total DOS. Set [`PDOS T`](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.PDOS) in the same section to
+total DOS. Set [&PDOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.PDOS) under the same section to
 additionally write projected DOS files.
 
 ```text
@@ -51,7 +50,9 @@ additionally write projected DOS files.
         ENERGY_ZERO AUTO
         BROADEN_WIDTH [eV] 0.1
         DELTA_E [eV] 0.01
-        PDOS T
+        &PDOS
+          COMPONENTS F
+        &END PDOS
       &END DOS
     &END PRINT
   &END DFT
@@ -68,13 +69,16 @@ Useful input keywords are documented in the input reference:
 - [DELTA_E](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.DELTA_E): choose the energy-grid spacing.
 - [NLUMO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.NLUMO): requested number of unoccupied states for
   DOS/PDOS.
-- [PDOS_RAW](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.PDOS_RAW): print raw state-resolved projected
-  weights.
-- [COMPONENTS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.COMPONENTS): split angular-momentum channels
-  into individual components.
+- [&PDOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.LDOS): request projected DOS on each element.
 - [&LDOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.LDOS) and
   [&R_LDOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.R_LDOS): request atom-list or real-space local
   projected DOS.
+
+For PDOS, there are some additional controls:
+
+- [COMPONENTS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.PDOS.COMPONENTS): split angular-momentum
+  channels into individual components. This keyword also applies to `&LDOS` and `&R_LDOS`.
+- [RAW](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.PDOS.RAW): print raw state-resolved projected weights.
 
 ```{note}
 For diagonalization-based SCF calculations, the unoccupied states used for DOS/PDOS are those
@@ -134,7 +138,7 @@ widths are chosen mainly for visualization rather than for Brillouin-zone integr
 
 ## Interpreting PDOS
 
-With `PDOS T`, CP2K writes projected DOS, usually one file per atomic kind and spin channel. A
+With `&PDOS`, CP2K writes projected DOS, usually one file per atomic kind and spin channel. A
 `.pdos` file contains a projected `total` column followed by angular-momentum or component-resolved
 columns:
 
@@ -142,8 +146,8 @@ columns:
 # Energy[eV]  total  s  p  d
 ```
 
-With [`COMPONENTS T`](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.COMPONENTS), the channels are split into
-individual components:
+With [`COMPONENTS T`](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.PDOS.COMPONENTS), the channels are split
+into individual components:
 
 ```text
 # Energy[eV]  total  s  py  pz  px  ...
@@ -173,6 +177,19 @@ contributions:
 
 For quantitative orbital populations, integrated PDOS values should be used with care because they
 depend on the projection scheme, basis set, and chosen energy window.
+
+[`RAW T`](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.PDOS.RAW) prints state-resolved projected weights in
+addition to the broadened `.pdos` files:
+
+```text
+&DOS
+  &PDOS
+    RAW T
+  &END PDOS
+&END DOS
+```
+
+The `RAW` option is currently not available with k-points calculations.
 
 ### Projection used for PDOS
 
@@ -229,24 +246,13 @@ plot [-5:5] "project-k1-1.pdos" using 1:2 with lines title "total", \
 When comparing DOS/PDOS with band structures, use the same energy zero, for example `FERMI` for
 metals or `HOCO` for many insulating and molecular systems.
 
-## Raw and local projected DOS
-
-[`PDOS_RAW T`](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.PDOS_RAW) prints state-resolved projected
-weights in addition to the broadened `.pdos` files:
-
-```text
-&DOS
-  PDOS T
-  PDOS_RAW T
-&END DOS
-```
+## Local projected DOS
 
 [&LDOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.LDOS) projects onto explicitly listed atoms.
 [&R_LDOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.R_LDOS) projects onto a real-space volume defined
 relative to listed atoms. These outputs are useful for checking whether a DOS feature is localized
-in a defect region, adsorbate, surface layer, or selected fragment.
-
-Raw k-point PDOS output and local projected DOS are currently not implemented for k-points.
+in a defect region, adsorbate, surface layer, or selected fragment.They are currently not
+implemented for k-points.
 
 ```{caution}
 The definition of `LDOS` in CP2K is different from the real-space local density of states
@@ -255,12 +261,6 @@ section, `LDOS` denotes a projected DOS for user-defined lists of atoms, i.e. a 
 selected atoms. `R_LDOS` further restricts the analysis to a user-defined spatial region around
 selected atoms. These outputs are integrated projected quantities, not three-dimensional
 real-space LDOS maps.
-```
-
-```{note}
-Using `PDOS_RAW`, `&LDOS`, or `&R_LDOS` automatically enables the standard broadened PDOS output
-even if `PDOS T` is not set explicitly, because all of these options require projected DOS
-weights to be calculated first.
 ```
 
 ## XAS and XAS_TDP projected DOS

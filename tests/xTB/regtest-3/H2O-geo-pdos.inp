@@ -16,10 +16,11 @@
   &DFT
     &PRINT
       &DOS
-        PDOS T
         &EACH
           GEO_OPT 2
         &END EACH
+        &PDOS
+        &END PDOS
       &END DOS
     &END PRINT
     &QS

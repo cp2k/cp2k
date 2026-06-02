@@ -2767,25 +2767,29 @@ CONTAINS
       CALL keyword_release(keyword)
 
       IF (.NOT. xas_mode) THEN
-         CALL keyword_create(keyword, __LOCATION__, name="PDOS", &
-                             description="Print projected DOS in addition to the total DOS.", &
-                             usage="PDOS", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-         CALL section_add_keyword(print_key, keyword)
+         CALL section_create(subsection, __LOCATION__, name="PDOS", &
+                             description="Controls the printing of kind-resolved projected DOS.", &
+                             n_keywords=2, n_subsections=0)
+         CALL keyword_create(keyword, __LOCATION__, name="COMPONENTS", &
+                             description="Print out PDOS distinguishing all angular momentum components.", &
+                             usage="COMPONENTS", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+         CALL section_add_keyword(subsection, keyword)
          CALL keyword_release(keyword)
 
-         CALL keyword_create(keyword, __LOCATION__, name="PDOS_RAW", &
-                             description="Print MO-resolved projected DOS weights to *.pdos_raw. "// &
-                             "If PDOS is not enabled, PDOS will be enabled automatically.", &
-                             usage="PDOS_RAW", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+         CALL keyword_create(keyword, __LOCATION__, name="RAW", &
+                             description="Print MO-resolved projected DOS weights to *.pdos_raw.", &
+                             usage="RAW", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+         CALL section_add_keyword(subsection, keyword)
+         CALL keyword_release(keyword)
+         CALL section_add_subsection(print_key, subsection)
+         CALL section_release(subsection)
+      ELSE
+         CALL keyword_create(keyword, __LOCATION__, name="COMPONENTS", &
+                             description="Print out PDOS distinguishing all angular momentum components.", &
+                             usage="COMPONENTS", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
          CALL section_add_keyword(print_key, keyword)
          CALL keyword_release(keyword)
       END IF
-
-      CALL keyword_create(keyword, __LOCATION__, name="COMPONENTS", &
-                          description="Print out PDOS distinguishing all angular momentum components.", &
-                          usage="COMPONENTS", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OUT_EACH_STATE", &
                           variants=["OUT_EACH_MO"], &
