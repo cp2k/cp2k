@@ -50,7 +50,8 @@ MODULE xc_gauxc_functional
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE string_utilities,                ONLY: uppercase
    USE xc_gauxc_cache,                  ONLY: cp_gauxc_cache_params,&
-                                              gauxc_cache_init, cp_gauxc_cache_type
+                                              cp_gauxc_cache_type,&
+                                              gauxc_cache_init
    USE xc_gauxc_interface,              ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
         cp_gauxc_molecule_type, cp_gauxc_status_type, cp_gauxc_xc_gradient_type, cp_gauxc_xc_type, &
@@ -936,13 +937,14 @@ CONTAINS
                                                             nimages, onedft_atom_chunk_size
       LOGICAL :: do_kpoints, grid_explicit, hdf5_output, is_periodic, molecular_virial, &
          molecular_virial_debug, onedft_atom_chunk_size_explicit, periodic_reference, &
-         pruning_explicit, use_fd_gradient, use_gradient_mpi_runtime, use_gradient_self_runtime, &
-         use_onedft, use_self_runtime, use_skala_model, write_hdf5_output
+         pruning_explicit, use_gradient_mpi_runtime, use_gradient_self_runtime, use_onedft, &
+         use_self_runtime, use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_gauxc_cache_params)                        :: params
+      TYPE(cp_gauxc_cache_type), POINTER                 :: cache
       TYPE(cp_gauxc_status_type)                         :: gauxc_status
       TYPE(cp_gauxc_xc_gradient_type)                    :: exc_grad
       TYPE(cp_gauxc_xc_type)                             :: gauxc_xc_result
@@ -959,7 +961,6 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho_use, rho_xc
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: gauxc_functional_section
-      type(cp_gauxc_cache_type), pointer :: cache
 
       NULLIFY ( &
          atomic_kind_set, &
@@ -1201,7 +1202,6 @@ CONTAINS
       CALL gauxc_cache_init( &
          cache, &
          params, &
-         use_fd_gradient, &
          para_env, &
          particle_set, &
          qs_kind_set, &
@@ -1279,10 +1279,10 @@ CONTAINS
                               model=TRIM(params%model_name))
             CALL gauxc_check_status(gauxc_status)
             IF (calculate_forces) THEN
-               IF (use_fd_gradient) THEN
+               IF (cache%use_fd_gradient) THEN
                   CALL gauxc_xc_gradient_fd( &
                      particle_set, qs_kind_set, density_scalar, params%nspins, params%model_name, &
-                    params%xc_fun_name, params%grid_type, params%radial_quadrature, params%pruning_scheme, &
+                     params%xc_fun_name, params%grid_type, params%radial_quadrature, params%pruning_scheme, &
                      params%lb_exec_space, params%int_exec_space, batch_size, &
                      params%device_runtime_fill_fraction, gapw_fd_gradient_dx, para_env, &
                      exc_grad%exc_grad)
@@ -1316,7 +1316,7 @@ CONTAINS
                   CALL debug_gauxc_molecular_virial( &
                      exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, params%nspins, &
                      params%model_name, params%xc_fun_name, params%grid_type, params%radial_quadrature, params%pruning_scheme, &
-                   params%lb_exec_space, params%int_exec_space, batch_size, params%device_runtime_fill_fraction, &
+                     params%lb_exec_space, params%int_exec_space, batch_size, params%device_runtime_fill_fraction, &
                      molecular_virial_debug_dx, para_env)
                END IF
                DEALLOCATE (exc_grad%exc_grad)
@@ -1344,10 +1344,10 @@ CONTAINS
                               model=TRIM(params%model_name))
             CALL gauxc_check_status(gauxc_status)
             IF (calculate_forces) THEN
-               IF (use_fd_gradient) THEN
+               IF (cache%use_fd_gradient) THEN
                   CALL gauxc_xc_gradient_fd( &
                      particle_set, qs_kind_set, density_scalar, params%nspins, params%model_name, &
-                    params%xc_fun_name, params%grid_type, params%radial_quadrature, params%pruning_scheme, &
+                     params%xc_fun_name, params%grid_type, params%radial_quadrature, params%pruning_scheme, &
                      params%lb_exec_space, params%int_exec_space, batch_size, &
                      params%device_runtime_fill_fraction, gapw_fd_gradient_dx, para_env, &
                      exc_grad%exc_grad, density_zeta=density_zeta)
@@ -1383,7 +1383,7 @@ CONTAINS
                   CALL debug_gauxc_molecular_virial( &
                      exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, params%nspins, &
                      params%model_name, params%xc_fun_name, params%grid_type, params%radial_quadrature, params%pruning_scheme, &
-                   params%lb_exec_space, params%int_exec_space, batch_size, params%device_runtime_fill_fraction, &
+                     params%lb_exec_space, params%int_exec_space, batch_size, params%device_runtime_fill_fraction, &
                      molecular_virial_debug_dx, para_env, density_zeta=density_zeta)
                END IF
                DEALLOCATE (exc_grad%exc_grad)
