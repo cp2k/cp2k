@@ -1016,8 +1016,8 @@ CONTAINS
       CALL timeset(routineN, handle)
       ! Cross-spin Hartree (AO-RI TDA): build the spin-summed V_H once per stage,
       ! consumed by every spin in update_effective_ham_MO. RIRS keeps its per-spin path.
-      do_shared_hartree = rtbse_env%tda_active .AND. (.NOT. rtbse_env%debug_disable_hartree) &
-                          .AND. (.NOT. rtbse_env%rirs_hartree)
+      do_shared_hartree = (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) .AND. &
+                          (.NOT. rtbse_env%debug_disable_hartree) .AND. (.NOT. rtbse_env%rirs_hartree)
       ! RK4 follows the typical scheme
       ! d/dt ρ = f(t, ρ)
       ! f(t,ρ) = -i( Δε Δρ + (f_n-f_m) V_Hartree(Δρ) + ΔΣ(Δρ) )
@@ -1044,7 +1044,7 @@ CONTAINS
                                                           keep_ovvo=(.NOT. rtbse_env%tda_active))
       DO i = 1, rtbse_env%n_spin
          CALL update_effective_ham_MO(rtbse_env, rho_start(i), rtbse_env%rk4_coefficients(i), i)
-         IF (rtbse_env%tda_active) &
+         IF (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) &
             CALL project_drho_to_ov(rtbse_env, rtbse_env%rk4_coefficients(i), i)
       END DO
       DO i = 1, rtbse_env%n_spin
@@ -1059,7 +1059,7 @@ CONTAINS
                                                           keep_ovvo=(.NOT. rtbse_env%tda_active))
       DO i = 1, rtbse_env%n_spin
          CALL update_effective_ham_MO(rtbse_env, rtbse_env%rho_workspace(i), rtbse_env%rk4_coefficients(i), i)
-         IF (rtbse_env%tda_active) &
+         IF (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) &
             CALL project_drho_to_ov(rtbse_env, rtbse_env%rk4_coefficients(i), i)
       END DO
       DO i = 1, rtbse_env%n_spin
@@ -1074,7 +1074,7 @@ CONTAINS
                                                           keep_ovvo=(.NOT. rtbse_env%tda_active))
       DO i = 1, rtbse_env%n_spin
          CALL update_effective_ham_MO(rtbse_env, rtbse_env%rho_workspace(i), rtbse_env%rk4_coefficients(i), i)
-         IF (rtbse_env%tda_active) &
+         IF (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) &
             CALL project_drho_to_ov(rtbse_env, rtbse_env%rk4_coefficients(i), i)
       END DO
       DO i = 1, rtbse_env%n_spin
@@ -1089,7 +1089,7 @@ CONTAINS
                                                           keep_ovvo=(.NOT. rtbse_env%tda_active))
       DO i = 1, rtbse_env%n_spin
          CALL update_effective_ham_MO(rtbse_env, rtbse_env%rho_workspace(i), rtbse_env%rk4_coefficients(i), i)
-         IF (rtbse_env%tda_active) &
+         IF (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) &
             CALL project_drho_to_ov(rtbse_env, rtbse_env%rk4_coefficients(i), i)
       END DO
       DO i = 1, rtbse_env%n_spin
