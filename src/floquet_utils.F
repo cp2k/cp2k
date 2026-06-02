@@ -25,7 +25,8 @@ MODULE floquet_utils
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              default_string_length
    USE kpoint_k_r_trafo_simple,         ONLY: replicate_rs_matrices,&
                                               rs_to_kp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
@@ -40,6 +41,9 @@ MODULE floquet_utils
    USE mathlib,                         ONLY: geeig_right,&
                                               gemm_square
    USE message_passing,                 ONLY: mp_para_env_type
+   USE physcon,                         ONLY: angstrom,&
+                                              evolt,&
+                                              hertz
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -274,7 +278,7 @@ CONTAINS
          DIMENSION(:, :, :, :)                           :: momentum
       COMPLEX(KIND=dp), DIMENSION(3)                     :: efactor
       INTEGER                                            :: handle, i, i_dir, j, n_spin, nao
-      REAL(KIND=dp)                                      :: omega, strength
+      REAL(KIND=dp)                                      :: omega, amplitude
       REAL(KIND=dp), DIMENSION(3)                        :: e_vec, phi, polarisation
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
@@ -286,9 +290,10 @@ CONTAINS
       IF (SQRT(SUM(polarisation**2.0_dp)) < EPSILON(0.0_dp)) THEN
          CPABORT("Invalid (too small) polarisation vector specified for POLARISATION_PUMP")
       END IF
-      strength = SQRT(bs_env%floquet_intensity/(3.50944_dp*10.0_dp**16))
-      e_vec(:) = strength*polarisation
-      phi(:) = bs_env%floquet_phi(:)
+
+      amplitude = bs_env%floquet_amplitude
+      e_vec(:) = amplitude*polarisation
+      phi(:) = pi*bs_env%floquet_phi(:)
       omega = bs_env%floquet_omega
       n_spin = bs_env%n_spin
 
@@ -297,9 +302,11 @@ CONTAINS
       ALLOCATE (momentum(n_spin, 3, nao, nao), source=z_zero)
       CALL build_momentum_matrix(qs_env, xkp, momentum)
 
+      ! E_factor(α) = (i E(α) exp(i·φ(α)))/(2ω) where α = x,y,z
       DO i_dir = 1, 3
          efactor(i_dir) = gaussi*e_vec(i_dir)*CMPLX(DCOS(phi(i_dir)), DSIN(phi(i_dir)))/(2*omega)
       END DO
+
       DO i_dir = 1, 3
          DO i = 1, nao
             DO j = 1, nao
@@ -457,22 +464,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE check_floquet_conversion
-! **************************************************************************************************
-!> \brief ...
-!> \param energy ...
-!> \param mu ...
-!> \param sigma ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION simple_smear(energy, mu, sigma) RESULT(f)
-      REAL(KIND=dp), INTENT(IN)                          :: energy, mu, sigma
-      REAL(KIND=dp)                                      :: f
-
-      REAL(KIND=dp)                                      :: tmp
-
-      tmp = EXP((energy - mu)/sigma)
-      f = 1.0_dp/(1.0_dp + tmp)
-   END FUNCTION simple_smear
 
 ! **************************************************************************************************
 !> \brief ...
@@ -493,8 +484,7 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: g00
       INTEGER                                            :: handle, i, i_E, max_f_index, n_E, nao, &
                                                             start_row_g00
-      REAL(KIND=dp)                                      :: broad, E_min, energy, energy_step, mu, &
-                                                            sigma
+      REAL(KIND=dp)                                      :: broad, E_min, energy, energy_step, mu
       TYPE(cp_cfm_type)                                  :: g_r
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
@@ -510,7 +500,6 @@ CONTAINS
       max_f_index = bs_env%max_floquet_index
       n_E = SIZE(a_k)
       start_row_g00 = 1 + nao*max_f_index
-      sigma = bs_env%floquet_electronic_temperature
 
       ALLOCATE (g00(nao, nao))
       CALL cp_cfm_create(g_r, floquet_matrix%matrix_struct, set_zero=.TRUE.)
@@ -524,7 +513,6 @@ CONTAINS
          g00(:, :) = 0.0_dp
          CALL cp_cfm_get_submatrix(g_r, g00, start_row_g00, start_row_g00)
          a_k(i_E) = -AIMAG(SUM([(g00(i, i), i=1, nao)]))/pi
-         IF (sigma > 0) a_k(i_E) = a_k(i_E)*simple_smear(energy, mu, sigma)
       END DO
 
       DEALLOCATE (g00)
@@ -543,15 +531,16 @@ CONTAINS
 !> \param xkp ...
 !> \param eigenvalues ...
 ! **************************************************************************************************
-   SUBROUTINE write_quasi_energy(qs_env, bs_env, ispin, ikp, xkp, eigenvalues)
+   SUBROUTINE write_quasi_energy(qs_env, bs_env, ispin, ikp_for_file, xkp, eigenvalues)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER                                            :: ispin, ikp
+      INTEGER                                            :: ispin, ikp_for_file
       REAL(KIND=dp), DIMENSION(3)                        :: xkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_quasi_energy'
 
+      CHARACTER(LEN=default_string_length)               :: fname
       INTEGER                                            :: handle, i, j, n, nao, nkp_start, qunit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices, work
       REAL(KIND=dp)                                      :: fbz_max, fbz_min, omega, qe
@@ -562,6 +551,9 @@ CONTAINS
 
       CALL get_qs_env(qs_env, mos=mos)
       CALL get_mo_set(mo_set=mos(1), nao=nao)
+
+      fname = "QUASI_ENERGIES.bs"
+
       nkp_start = bs_env%nkp_only_DOS
       omega = bs_env%floquet_omega
       fbz_max = omega/2.0_dp
@@ -581,17 +573,22 @@ CONTAINS
       quasi_energies = eigenvalues(indices(:))
 
       IF (bs_env%para_env%is_source()) THEN
-         CALL open_file("QUASI_ENERGIES.out", unit_number=bs_env%floquet_qunit, &
-                        file_status="UNKNOWN", file_action="WRITE", file_position="APPEND")
-         qunit = bs_env%floquet_qunit
-         WRITE (UNIT=qunit, FMT="(A,I0,T15,A,I0,A,T24,3(1X,F14.8))") &
-            "#  Point ", ikp - nkp_start, "  Spin ", ispin, ":", xkp(1:3)
-         WRITE (UNIT=qunit, FMT="(A)") "#  Floquet band  Quasi energy [eV]"
+         IF (ikp_for_file == 1) THEN
+            CALL open_file(TRIM(fname), unit_number=qunit, file_status="REPLACE", &
+                           file_action="WRITE")
+         ELSE
+            CALL open_file(TRIM(fname), unit_number=qunit, file_status="OLD", &
+                           file_action="WRITE", file_position="APPEND")
+         END IF
+
+         WRITE (qunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
+            "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
+         WRITE (qunit, "(A)") "#  Floquet band  Quasi energy [eV]"
          DO i = 1, nao
             qe = quasi_energies(i)
-            WRITE (qunit, "(I8,F18.8)") i, qe
+            WRITE (qunit, "(I8,F21.8)") i, qe*evolt
          END DO
-         CALL close_file(bs_env%floquet_qunit)
+         CALL close_file(qunit)
       END IF
       DEALLOCATE (indices, work, quasi_energies)
 
@@ -607,15 +604,16 @@ CONTAINS
 !> \param xkp ...
 !> \param a_k ...
 ! **************************************************************************************************
-   SUBROUTINE write_floquet_spectral_function(qs_env, bs_env, ispin, ikp, xkp, a_k)
+   SUBROUTINE write_floquet_spectral_function(qs_env, bs_env, ispin, ikp_for_file, xkp, a_k)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER                                            :: ispin, ikp
+      INTEGER                                            :: ispin, ikp_for_file
       REAL(KIND=dp), DIMENSION(3)                        :: xkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a_k
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_floquet_spectral_function'
 
+      CHARACTER(LEN=default_string_length)               :: fname
       INTEGER                                            :: handle, i_E, n_E, nkp_start, wunit
       REAL(KIND=dp)                                      :: E_min, energy, energy_step, mu
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
@@ -629,20 +627,26 @@ CONTAINS
       energy_step = bs_env%energy_step_floquet
       E_min = mu - bs_env%energy_window_floquet
       n_E = SIZE(a_k)
-
+      fname = "FLOQUET_SPECTRAL_FUNCTION.out"
       nkp_start = bs_env%nkp_only_DOS
+
       IF (bs_env%para_env%is_source()) THEN
-         CALL open_file("FLOQUET_SPECTRAL_FUNCTION.out", unit_number=bs_env%floquet_wunit, &
-                        file_status="UNKNOWN", file_action="WRITE", file_position="APPEND")
-         wunit = bs_env%floquet_wunit
-         WRITE (UNIT=wunit, FMT="(A,I0,T15,A,I0,A,T24,3(1X,F14.8))") &
-            "#  Point ", ikp - nkp_start, "  Spin ", ispin, ":", xkp(1:3)
-         WRITE (UNIT=wunit, FMT="(A)") "#    ENERGY       A(ω,k)"
+         IF (ikp_for_file == 1) THEN
+            CALL open_file(TRIM(fname), unit_number=wunit, file_status="REPLACE", &
+                           file_action="WRITE")
+         ELSE
+            CALL open_file(TRIM(fname), unit_number=wunit, file_status="OLD", &
+                           file_action="WRITE", file_position="APPEND")
+         END IF
+
+         WRITE (wunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
+            "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
+         WRITE (wunit, "(A)") "#Energy-E_F (eV)  A(ω,k) = DOS (1/eV)"
          DO i_E = 1, n_E
             energy = E_min + i_E*energy_step
-            WRITE (wunit, "(2X,2G13.4)") energy, a_k(i_E)
+            WRITE (wunit, "(2X,2G13.4)") energy*evolt, a_k(i_E)/evolt
          END DO
-         CALL close_file(bs_env%floquet_wunit)
+         CALL close_file(wunit)
       END IF
 
       CALL timestop(handle)

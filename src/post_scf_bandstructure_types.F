@@ -311,14 +311,11 @@ MODULE post_scf_bandstructure_types
       INTEGER                                      :: n_bins_max_for_printing = -1
       REAL(KIND=dp)                                :: unit_ldos_int_z_inv_Ang2_eV = -1.0_dp
 
-      INTEGER                                      :: max_floquet_index = -1, &
-                                                      floquet_qunit = -1, &
-                                                      floquet_wunit = -1
+      INTEGER                                      :: max_floquet_index = -1
       REAL(KIND=dp), DIMENSION(:), POINTER         :: floquet_polarisation => NULL(), &
                                                       floquet_phi => NULL()
       REAL(KIND=dp)                                :: floquet_omega = -1.0_dp, &
-                                                      floquet_intensity = -1.0_dp, &
-                                                      floquet_electronic_temperature = -1.0_dp, &
+                                                      floquet_amplitude = -1.0_dp, &
                                                       eps_floquet = -1.0_dp, &
                                                       broadening_floquet = -1.0_dp, &
                                                       energy_step_floquet = -1.0_dp, &

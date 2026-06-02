@@ -2915,37 +2915,44 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CALL section_create(section, __LOCATION__, name="FLOQUET", &
-                          description="Parameters controlling Floquet-theory calculations "// &
-                          "of a system driven by a periodic monochromatic electric field.", &
+                          description="Parameters controlling the calculation of the "// &
+                          "Floquet band structure and Quasi-energies of a system driven "// &
+                          "by a periodic monochromatic electric field with any arbitrary "// &
+                          "polarisation state.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="INTENSITY", &
-                          description="Intensity of the electric field. Units are "// &
-                          "in W*cm-2 which corresponds "// &
-                          "to an amplitude in a.u. of sqrt(I/(3.50944*10^16)).", &
-                          usage="INTENSITY  0.001", n_var=1, type_of_var=real_t)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="POLARISATION", &
-                          description="Polarisation vector of electric field", &
-                          usage="POLARISATION  0.0 0.0 1.0", &
-                          repeats=.FALSE., n_var=3, &
-                          type_of_var=real_t, default_r_vals=[0.0_dp, 0.0_dp, 1.0_dp])
+      CALL keyword_create(keyword, __LOCATION__, name="AMPLITUDE", &
+                          description="Electric field amplitude of the monochromatic light [V/m].", &
+                          usage="AMPLITUDE  0.001", n_var=1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY", &
-                          description="Frequency of electric field for Floquet calculations [Hz]", &
-                          usage="FREQUENCY 750.E12", &
-                          n_var=1, type_of_var=real_t)
+                          description="Frequency of the electric field for Floquet calculations "// &
+                          "expressed in terms of the energy of a photon in eV.", &
+                          usage="FREQUENCY 1.5", unit_str="eV", n_var=1, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="POLARISATION", &
+                          description="Polarisation vector of the input light. The "// &
+                          "amplitude in each direction is the product of the AMPLITUDE "// &
+                          "and the POLARISATION vector component. Eg. for light polarized "// &
+                          "in the x direction, use 1 0 0. For left-circularly polarized "// &
+                          "light travelling in the +z direction use 1 1 0 and set "// &
+                          "PHASE_OFFSET 0 0.5 0 for a +π/2 offset", &
+                          usage="POLARISATION  0.0 0.0 1.0", &
+                          default_r_vals=[0.0_dp, 0.0_dp, 1.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PHASE_OFFSETS", &
                           description="Phase offset of the electric field in the "// &
-                          "x, y, and z directions given in multiples of pi. ", &
+                          "x, y, and z directions given in multiples of π. For "// &
+                          "linearly polarized light, use 0 0 0 and for left-circularly "// &
+                          "polarized light travelling in the +z direction use "// & 
+                          "PHASE_OFFSET 0.0 0.5 0 ", &
                           usage="PHASE_OFFSETS  0.5 0 0", &
                           default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp])
       CALL section_add_keyword(section, keyword)
@@ -2953,27 +2960,21 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_FLOQUET_INDEX", &
                           description="Largest absolute Floquet index up to which "// &
-                          "Floquet Hamiltonian is truncated. Larger values increase "// &
-                          "accuracy at the cost of a bigger Floquet Hamiltonian.", &
+                          "Floquet Hamiltonian is truncated. Use a larger value to "// &
+                          "ensure convergence at higher computational cost and a "// &
+                          "smaller value for faster computation. EPS_FLOQUET checks"// &
+                          "to ensure that the error due to truncation is small.", &
                           usage="MAX_FLOQUET_INDEX 50", &
                           default_i_val=50)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="ELECTRONIC_TEMPERATURE", &
-                          description="Electronic temperature used to evaluate the fermi-dirac "// &
-                          "occupation for the spectral function. If not used or negative, "// &
-                          "infinite electronic temperature is used.", &
-                          usage="ELECTRONIC_TEMPERATURE 1000", &
-                          default_r_val=-1.0_dp, unit_str="K")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FLOQUET", &
-                          description="Threshold on the errors due to truncation. Used to "// &
-                          "verify that MAX_FLOQUET_INDEX is large enough that truncation "// &
-                          "errors are negligible. If negative, check is removed.", &
-                          usage="EPS_FLOQUET 1.e-6", default_r_val=1.0e-6_dp)
+                          description="Threshold on the error due to truncation of "// &
+                          "the Floquet Hamiltonian. Used to verify that MAX_FLOQUET_INDEX"// &
+                          "is large enough that truncation errors are small. "// &
+                          "If negative, the check is removed (not recommended).", &
+                          usage="EPS_FLOQUET 1.e-10", default_r_val=1.0e-10_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -59,7 +59,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ikp, ispin, max_f_index, n_E, &
                                                             n_f_size, n_fbands, n_spin, nao, nkp, &
-                                                            nkp_start
+                                                            nkp_start, ikp_for_file
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices
       REAL(KIND=dp)                                      :: energy_step, energy_window
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a_k, eigenvalues
@@ -103,10 +103,11 @@ CONTAINS
       ALLOCATE (eigenvalues(n_f_size), indices(nao))
       ALLOCATE (a_k(n_E))
       DO ikp = nkp_start + 1, nkp
+
+         xkp(1:3) = bs_env%kpoints_DOS%xkp(1:3, ikp)
+         ikp_for_file = ikp - nkp_start
+
          DO ispin = 1, n_spin
-
-            xkp(1:3) = bs_env%kpoints_DOS%xkp(1:3, ikp)
-
             ! Build the Floquet-Bloch Hamiltonian matrix H_F(k), with the equilibrium
             ! band energies ε_{nk} on the diagonal (shifted by mħΩ per sector) and
             ! the light-matter coupling blocks A . p_uv on the off-diagonals
@@ -122,12 +123,13 @@ CONTAINS
             CALL cp_cfm_set_all(cfm_eigenvectors, z_zero)
             CALL cp_cfm_heevd(floquet_copy, cfm_eigenvectors, eigenvalues)
 
-            ! TODO make a conversion check with cfm_eigenvectors.
+            ! Run a conversion check to ensure that MAX_FLOQUET_INDEX,
+            ! the size of the truncated matrix H_F(k), is sufficiently large.
             CALL check_floquet_conversion(qs_env, bs_env, cfm_eigenvectors)
 
             ! Write the quasi-energies ε_α folded into the first Floquet Brillouin
             ! zone -ħΩ/2 < ε_α ≤ ħΩ/2 for this k-point and spin channel
-            CALL write_quasi_energy(qs_env, bs_env, ispin, ikp, xkp, eigenvalues)
+            CALL write_quasi_energy(qs_env, bs_env, ispin, ikp_for_file, xkp, eigenvalues)
 
             ! Compute the physical spectral function
             ! A_phys(k,ω) = -(1/π) Im[ Tr_KS G^R_{00}(k,ω) ]
@@ -136,7 +138,7 @@ CONTAINS
 
             ! Write A_phys(k,ω) (or f(ω,μ)·A_phys for the occupied spectral weight)
             ! to output for this k-point and spin channel
-            CALL write_floquet_spectral_function(qs_env, bs_env, ispin, ikp, xkp, a_k)
+            CALL write_floquet_spectral_function(qs_env, bs_env, ispin, ikp_for_file, xkp, a_k)
          END DO
       END DO
       DEALLOCATE (eigenvalues)
