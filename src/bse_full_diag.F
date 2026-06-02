@@ -1022,7 +1022,7 @@ CONTAINS
                                      info_approximation, mp2_env, unit_nr)
 
       ! Print single particle transition amplitudes, i.e. components of eigenvectors X and Y
-      CALL print_transition_amplitudes(fm_eigvec_X, homo, virtual, homo_irred, &
+      CALL print_transition_amplitudes(fm_eigvec_X, [homo], [virtual], [homo_irred], &
                                        info_approximation, mp2_env, unit_nr, fm_eigvec_Y)
 
       ! Prints optical properties, if state is a singlet

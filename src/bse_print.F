@@ -17,7 +17,8 @@ MODULE bse_print
                                               cite_reference
    USE bse_properties,                  ONLY: compute_and_print_absorption_spectrum,&
                                               exciton_descr_type
-   USE bse_util,                        ONLY: filter_eigvec_contrib
+   USE bse_util,                        ONLY: filter_eigvec_contrib,&
+                                              get_bse_spin_block_layout
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE input_constants,                 ONLY: bse_screening_alpha,&
@@ -269,7 +270,7 @@ CONTAINS
                                           info_approximation, mp2_env, unit_nr, fm_eigvec_Y)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec_X
-      INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual, homo_irred
       CHARACTER(LEN=10), INTENT(IN)                      :: info_approximation
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -277,9 +278,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_transition_amplitudes'
 
-      INTEGER                                            :: handle, i_exc
+      INTEGER                                            :: handle, i_exc, isp, n_ov_joint, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_ov, offsets
 
       CALL timeset(routineN, handle)
+
+      nspins = SIZE(homo)
+      ALLOCATE (n_ov(nspins), offsets(nspins))
+      CALL get_bse_spin_block_layout(homo, virtual, n_ov, offsets, n_ov_joint)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -300,27 +306,41 @@ CONTAINS
             'BSE|', "i.e. |X_ia^n| > ", mp2_env%bse%eps_x, " or |Y_ia^n| > ", &
             mp2_env%bse%eps_x, ", respectively :"
 
-         WRITE (unit_nr, '(T2,A4,T15,A27,I5,A13,I5,A3)') 'BSE|', '-- Quick reminder: HOMO i =', &
-            homo_irred, ' and LUMO a =', homo_irred + 1, " --"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A12,T30,A1,T32,A5,T42,A1,T49,A8,T64,A17)') &
-            "BSE|", "Excitation n", "i", "=>/<=", "a", 'TDA/ABBA', "|X_ia^n|/|Y_ia^n|"
+         IF (nspins == 1) THEN
+            WRITE (unit_nr, '(T2,A4,T15,A27,I5,A13,I5,A3)') 'BSE|', '-- Quick reminder: HOMO i =', &
+               homo_irred(1), ' and LUMO a =', homo_irred(1) + 1, " --"
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A12,T30,A1,T32,A5,T42,A1,T49,A8,T64,A17)') &
+               "BSE|", "Excitation n", "i", "=>/<=", "a", 'TDA/ABBA', "|X_ia^n|/|Y_ia^n|"
+         ELSE
+            ! bare A (no width) for sigma-bearing literals: explicit widths count bytes, and the
+            ! 2-byte UTF-8 sigma would otherwise truncate.
+            DO isp = 1, nspins
+               WRITE (unit_nr, '(T2,A4,T15,A,I2,A,I5,A,I5,A)') 'BSE|', &
+                  '-- Quick reminder: σ =', isp, ', HOMO i =', homo_irred(isp), &
+                  ' and LUMO a =', homo_irred(isp) + 1, " --"
+            END DO
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A12,T22,A,T30,A1,T32,A5,T42,A1,T49,A8,T64,A)') &
+               "BSE|", "Excitation n", "σ", "i", "=>/<=", "a", 'TDA/ABBA', "|X_iaσ^n|/|Y_iaσ^n|"
+         END IF
       END IF
-      DO i_exc = 1, MIN(homo*virtual, mp2_env%bse%num_print_exc)
+      DO i_exc = 1, MIN(n_ov_joint, mp2_env%bse%num_print_exc)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
          !Iterate through eigenvector and print values above threshold
          CALL print_transition_amplitudes_core(fm_eigvec_X, "=>", info_approximation, &
                                                i_exc, virtual, homo, homo_irred, &
-                                               unit_nr, mp2_env)
+                                               unit_nr, mp2_env, offsets)
          IF (PRESENT(fm_eigvec_Y)) THEN
             CALL print_transition_amplitudes_core(fm_eigvec_Y, "<=", info_approximation, &
                                                   i_exc, virtual, homo, homo_irred, &
-                                                  unit_nr, mp2_env)
+                                                  unit_nr, mp2_env, offsets)
          END IF
       END DO
 
+      DEALLOCATE (n_ov, offsets)
       CALL timestop(handle)
 
    END SUBROUTINE print_transition_amplitudes
@@ -476,36 +496,58 @@ CONTAINS
 !> \param homo_irred ...
 !> \param unit_nr ...
 !> \param mp2_env ...
+!> \param offsets ...
 ! **************************************************************************************************
    SUBROUTINE print_transition_amplitudes_core(fm_eigvec, direction_excitation, info_approximation, &
                                                i_exc, virtual, homo, homo_irred, &
-                                               unit_nr, mp2_env)
+                                               unit_nr, mp2_env, offsets)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
       CHARACTER(LEN=2), INTENT(IN)                       :: direction_excitation
       CHARACTER(LEN=10), INTENT(IN)                      :: info_approximation
-      INTEGER                                            :: i_exc, virtual, homo, homo_irred
+      INTEGER, INTENT(IN)                                :: i_exc
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: virtual, homo, homo_irred
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: offsets
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_transition_amplitudes_core'
+      CHARACTER(LEN=2), DIMENSION(2), PARAMETER          :: spin_label = ["α", "β"]
 
-      INTEGER                                            :: handle, k, num_entries
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_homo, idx_virt
+      INTEGER                                            :: handle, isp, k, num_entries
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_homo, idx_spin, idx_virt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries
+
+! 2-byte UTF-8 glyphs (LEN=1 would truncate both alpha/beta to the shared 0xCE byte)
 
       CALL timeset(routineN, handle)
 
-      CALL filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
-                                 i_exc, virtual, num_entries, mp2_env)
       ! direction_excitation can be either => (means excitation; from fm_eigvec_X)
       ! or <= (means deexcitation; from fm_eigvec_Y)
-      IF (unit_nr > 0) THEN
-         DO k = 1, num_entries
-            WRITE (unit_nr, '(T2,A4,T14,I5,T26,I5,T35,A2,T38,I5,T51,A6,T65,F16.4)') &
-               "BSE|", i_exc, homo_irred - homo + idx_homo(k), direction_excitation, &
-               homo_irred + idx_virt(k), info_approximation, ABS(eigvec_entries(k))
-         END DO
+      IF (SIZE(homo) == 1) THEN
+         CALL filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
+                                    i_exc, virtual(1), num_entries, mp2_env)
+         IF (unit_nr > 0) THEN
+            DO k = 1, num_entries
+               WRITE (unit_nr, '(T2,A4,T14,I5,T26,I5,T35,A2,T38,I5,T51,A6,T65,F16.4)') &
+                  "BSE|", i_exc, homo_irred(1) - homo(1) + idx_homo(k), direction_excitation, &
+                  homo_irred(1) + idx_virt(k), info_approximation, ABS(eigvec_entries(k))
+            END DO
+         END IF
+      ELSE
+         CALL filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
+                                    i_exc, virtual(1), num_entries, mp2_env, &
+                                    offsets=offsets, virtual_per_spin=virtual, idx_spin=idx_spin)
+         IF (unit_nr > 0) THEN
+            DO k = 1, num_entries
+               isp = idx_spin(k)
+               WRITE (unit_nr, '(T2,A4,T14,I5,T22,A2,T26,I5,T35,A2,T38,I5,T51,A6,T65,F16.4)') &
+                  "BSE|", i_exc, spin_label(isp), &
+                  homo_irred(isp) - homo(isp) + idx_homo(k), direction_excitation, &
+                  homo_irred(isp) + idx_virt(k), info_approximation, ABS(eigvec_entries(k))
+            END DO
+         END IF
+         DEALLOCATE (idx_spin)
       END IF
       DEALLOCATE (idx_homo)
       DEALLOCATE (idx_virt)
