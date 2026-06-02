@@ -93,7 +93,7 @@ MODULE bse_util
              estimate_BSE_resources, filter_eigvec_contrib, truncate_BSE_matrices, &
              determine_cutoff_indices, adapt_BSE_input_params, get_multipoles_mo, &
              reshuffle_eigvec, print_bse_nto_cubes, trace_exciton_descr, &
-             get_bse_spin_block_layout, determine_bse_combined_window
+             get_bse_spin_block_layout, determine_bse_combined_window, assemble_joint_ov_slab
 
 CONTAINS
 
@@ -937,17 +937,16 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Roughly estimates the needed runtime and memory during the BSE run
-!> \param homo_red ...
-!> \param virtual_red ...
+!> \param n_ov_joint ...
 !> \param unit_nr ...
 !> \param bse_abba ...
 !> \param para_env ...
 !> \param diag_runtime_est ...
 ! **************************************************************************************************
-   SUBROUTINE estimate_BSE_resources(homo_red, virtual_red, unit_nr, bse_abba, &
+   SUBROUTINE estimate_BSE_resources(n_ov_joint, unit_nr, bse_abba, &
                                      para_env, diag_runtime_est)
 
-      INTEGER                                            :: homo_red, virtual_red, unit_nr
+      INTEGER, INTENT(IN)                                :: n_ov_joint, unit_nr
       LOGICAL                                            :: bse_abba
       TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp)                                      :: diag_runtime_est
@@ -968,7 +967,7 @@ CONTAINS
          num_BSE_matrices = 10
       END IF
 
-      full_dim = (INT(homo_red, KIND=int_8)**2*INT(virtual_red, KIND=int_8)**2)*INT(num_BSE_matrices, KIND=int_8)
+      full_dim = INT(n_ov_joint, KIND=int_8)**2*INT(num_BSE_matrices, KIND=int_8)
       mem_est = REAL(8*full_dim, KIND=dp)/REAL(1024**3, KIND=dp)
       mem_est_per_rank = REAL(mem_est/para_env%num_pe, KIND=dp)
 
@@ -983,7 +982,7 @@ CONTAINS
       END IF
       ! Rough estimation of diagonalization runtimes. Baseline was a full BSE Naphthalene
       ! run with 11000x11000 entries in A/B/C, which took 10s on 32 ranks
-      diag_runtime_est = REAL(INT(homo_red, KIND=int_8)*INT(virtual_red, KIND=int_8)/11000_int_8, KIND=dp)**3* &
+      diag_runtime_est = REAL(INT(n_ov_joint, KIND=int_8)/11000_int_8, KIND=dp)**3* &
                          10*32/REAL(para_env%num_pe, KIND=dp)
 
       CALL timestop(handle)
@@ -1306,6 +1305,8 @@ CONTAINS
 !> \param homo_red ...
 !> \param virt_red ...
 !> \param mp2_env ...
+!> \param homo_incl_in ...
+!> \param virt_incl_in ...
 ! **************************************************************************************************
    SUBROUTINE truncate_BSE_matrices(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                     fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
@@ -1313,7 +1314,8 @@ CONTAINS
                                     homo, virtual, dimen_RI, unit_nr, &
                                     bse_lev_virt, &
                                     homo_red, virt_red, &
-                                    mp2_env)
+                                    mp2_env, &
+                                    homo_incl_in, virt_incl_in)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
@@ -1325,6 +1327,7 @@ CONTAINS
                                                             bse_lev_virt
       INTEGER, INTENT(OUT)                               :: homo_red, virt_red
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      INTEGER, INTENT(IN), OPTIONAL                      :: homo_incl_in, virt_incl_in
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'truncate_BSE_matrices'
 
@@ -1335,39 +1338,52 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! Determine index in homo and virtual for truncation
-      ! Uses indices of outermost orbitals within energy range (-mp2_env%bse%bse_cutoff_occ,mp2_env%bse%bse_cutoff_empty)
+      ! Determine index in homo and virtual for truncation.
+      ! When homo_incl_in/virt_incl_in are provided (combined-window path), skip per-spin
+      ! determine_cutoff_indices and the print; caller already printed via determine_bse_combined_window.
+      IF (PRESENT(homo_incl_in)) THEN
+         homo_incl = homo_incl_in
+         virt_incl = virt_incl_in
+         homo_red = homo - homo_incl + 1
+         virt_red = virt_incl
+      ELSE
+         CALL determine_cutoff_indices(Eigenval_scf, &
+                                       homo, virtual, &
+                                       homo_red, virt_red, &
+                                       homo_incl, virt_incl, &
+                                       mp2_env%bse%bse_cutoff_occ, mp2_env%bse%bse_cutoff_empty)
 
-      CALL determine_cutoff_indices(Eigenval_scf, &
-                                    homo, virtual, &
-                                    homo_red, virt_red, &
-                                    homo_incl, virt_incl, &
-                                    mp2_env%bse%bse_cutoff_occ, mp2_env%bse%bse_cutoff_empty)
-
-      IF (unit_nr > 0) THEN
-         IF (mp2_env%bse%bse_cutoff_occ > 0) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A29,T71,F10.3)') 'BSE|', 'Cutoff occupied orbitals [eV]', &
-               mp2_env%bse%bse_cutoff_occ*evolt
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No cutoff given for occupied orbitals'
+         IF (unit_nr > 0) THEN
+            IF (mp2_env%bse%bse_cutoff_occ > 0) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A29,T71,F10.3)') 'BSE|', 'Cutoff occupied orbitals [eV]', &
+                  mp2_env%bse%bse_cutoff_occ*evolt
+            ELSE
+               WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No cutoff given for occupied orbitals'
+            END IF
+            IF (mp2_env%bse%bse_cutoff_empty > 0) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A26,T71,F10.3)') 'BSE|', 'Cutoff empty orbitals [eV]', &
+                  mp2_env%bse%bse_cutoff_empty*evolt
+            ELSE
+               WRITE (unit_nr, '(T2,A4,T7,A34)') 'BSE|', 'No cutoff given for empty orbitals'
+            END IF
+            WRITE (unit_nr, '(T2,A4,T7,A20,T71,I10)') 'BSE|', 'First occupied index', homo_incl
+            WRITE (unit_nr, '(T2,A4,T7,A32,T71,I10)') 'BSE|', 'Last empty index (not MO index!)', virt_incl
+            WRITE (unit_nr, '(T2,A4,T7,A35,T71,F10.3)') 'BSE|', 'Energy of first occupied index [eV]', &
+               Eigenval(homo_incl)*evolt
+            WRITE (unit_nr, '(T2,A4,T7,A31,T71,F10.3)') 'BSE|', 'Energy of last empty index [eV]', &
+               Eigenval(homo + virt_incl)*evolt
+            WRITE (unit_nr, '(T2,A4,T7,A54,T71,F10.3)') 'BSE|', &
+               'Energy difference of first occupied index to HOMO [eV]', &
+               -(Eigenval(homo_incl) - Eigenval(homo))*evolt
+            WRITE (unit_nr, '(T2,A4,T7,A50,T71,F10.3)') 'BSE|', &
+               'Energy difference of last empty index to LUMO [eV]', &
+               (Eigenval(homo + virt_incl) - Eigenval(homo + 1))*evolt
+            WRITE (unit_nr, '(T2,A4,T7,A35,T71,I10)') 'BSE|', 'Number of GW-corrected occupied MOs', &
+               mp2_env%ri_g0w0%corr_mos_occ
+            WRITE (unit_nr, '(T2,A4,T7,A32,T71,I10)') 'BSE|', 'Number of GW-corrected empty MOs', &
+               mp2_env%ri_g0w0%corr_mos_virt
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
-         IF (mp2_env%bse%bse_cutoff_empty > 0) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A26,T71,F10.3)') 'BSE|', 'Cutoff empty orbitals [eV]', &
-               mp2_env%bse%bse_cutoff_empty*evolt
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A34)') 'BSE|', 'No cutoff given for empty orbitals'
-         END IF
-         WRITE (unit_nr, '(T2,A4,T7,A20,T71,I10)') 'BSE|', 'First occupied index', homo_incl
-         WRITE (unit_nr, '(T2,A4,T7,A32,T71,I10)') 'BSE|', 'Last empty index (not MO index!)', virt_incl
-         WRITE (unit_nr, '(T2,A4,T7,A35,T71,F10.3)') 'BSE|', 'Energy of first occupied index [eV]', Eigenval(homo_incl)*evolt
-         WRITE (unit_nr, '(T2,A4,T7,A31,T71,F10.3)') 'BSE|', 'Energy of last empty index [eV]', Eigenval(homo + virt_incl)*evolt
-         WRITE (unit_nr, '(T2,A4,T7,A54,T71,F10.3)') 'BSE|', 'Energy difference of first occupied index to HOMO [eV]', &
-            -(Eigenval(homo_incl) - Eigenval(homo))*evolt
-         WRITE (unit_nr, '(T2,A4,T7,A50,T71,F10.3)') 'BSE|', 'Energy difference of last empty index to LUMO [eV]', &
-            (Eigenval(homo + virt_incl) - Eigenval(homo + 1))*evolt
-         WRITE (unit_nr, '(T2,A4,T7,A35,T71,I10)') 'BSE|', 'Number of GW-corrected occupied MOs', mp2_env%ri_g0w0%corr_mos_occ
-         WRITE (unit_nr, '(T2,A4,T7,A32,T71,I10)') 'BSE|', 'Number of GW-corrected empty MOs', mp2_env%ri_g0w0%corr_mos_virt
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
       IF (unit_nr > 0) THEN
          IF (homo - homo_incl + 1 > mp2_env%ri_g0w0%corr_mos_occ) THEN
@@ -2028,5 +2044,33 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE trace_exciton_descr
+
+! **************************************************************************************************
+!> \brief Column-concatenate per-spin ia-slabs into the joint dimen_RI x n_ov_joint slab.
+!>   Sigma-block of spin isp occupies columns offsets(isp)+1 .. offsets(isp)+n_ov(isp).
+!>   fm_S_joint must be pre-created and zeroed by the caller.
+!> \param fm_S_ia per-spin ia-slabs, shape (dimen_RI, n_ov(isp)) per spin
+!> \param offsets per-spin column offsets into fm_S_joint (0-based)
+!> \param n_ov per-spin OV-pair counts
+!> \param dimen_RI RI auxiliary basis dimension (row count)
+!> \param fm_S_joint pre-created output slab (dimen_RI x n_ov_joint)
+! **************************************************************************************************
+   SUBROUTINE assemble_joint_ov_slab(fm_S_ia, offsets, n_ov, dimen_RI, fm_S_joint)
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_S_ia
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: offsets, n_ov
+      INTEGER, INTENT(IN)                                :: dimen_RI
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_S_joint
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'assemble_joint_ov_slab'
+
+      INTEGER                                            :: handle, isp
+
+      CALL timeset(routineN, handle)
+      DO isp = 1, SIZE(fm_S_ia)
+         CALL cp_fm_to_fm_submat(fm_S_ia(isp), fm_S_joint, dimen_RI, n_ov(isp), 1, 1, 1, offsets(isp) + 1)
+      END DO
+      CALL timestop(handle)
+
+   END SUBROUTINE assemble_joint_ov_slab
 
 END MODULE bse_util

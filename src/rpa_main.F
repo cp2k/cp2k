@@ -1520,6 +1520,17 @@ CONTAINS
                                   fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
                                   num_integ_points, count_ev_sc_GW)
                END DO
+               ! For open-shell BSE: the static screened-Coulomb polarizability is the
+               ! sum over both spin channels. calc_mat_Q overwrites fm_mat_Q_static_bse_gemm
+               ! per spin, so rebuild it here as the explicit spin sum at omega=0.
+               IF (do_bse .AND. nspins > 1 .AND. jquad == num_integ_points .AND. &
+                   count_ev_sc_GW == 1) THEN
+                  CALL cp_fm_set_all(fm_mat_Q_static_bse_gemm, 0.0_dp)
+                  DO ispin = 1, nspins
+                     CALL cp_fm_scale_and_add(1.0_dp, fm_mat_Q_static_bse_gemm, &
+                                              1.0_dp, fm_mat_Q_gemm(ispin))
+                  END DO
+               END IF
 
                ! For SOS-MP2 we need both matrices separately
                IF (.NOT. do_ri_sos_laplace_mp2) THEN

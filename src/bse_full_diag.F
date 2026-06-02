@@ -22,8 +22,10 @@ MODULE bse_full_diag
                                               exciton_descr_type,&
                                               get_exciton_descriptors,&
                                               get_oscillator_strengths
-   USE bse_util,                        ONLY: comp_eigvec_coeff_BSE,&
+   USE bse_util,                        ONLY: assemble_joint_ov_slab,&
+                                              comp_eigvec_coeff_BSE,&
                                               fm_general_add_bse,&
+                                              get_bse_spin_block_layout,&
                                               get_multipoles_mo,&
                                               reshuffle_eigvec
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -92,31 +94,43 @@ CONTAINS
                        homo, virtual, dimen_RI, mp2_env, &
                        para_env, qs_env)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ia_bse, fm_mat_S_bar_ij_bse, &
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ia_bse, fm_mat_S_bar_ij_bse, &
                                                             fm_mat_S_ab_bse
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      INTEGER, INTENT(IN)                                :: unit_nr, homo, virtual, dimen_RI
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(mp_para_env_type), INTENT(INOUT)              :: para_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_A'
 
-      INTEGER                                            :: a_virt_row, handle, i_occ_row, &
-                                                            i_row_global, ii, j_col_global, jj, &
-                                                            ncol_local_A, nrow_local_A, sizeeigen
+      INTEGER :: a_virt_row, handle, i_occ_row, i_row_global, ii, isp, j_col_global, jj, k_isp, &
+         k_ov, n_ov_joint, ncol_local_A, nrow_local_A, nspins, sizeeigen
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: eig_offsets, n_ov, offsets
       INTEGER, DIMENSION(4)                              :: reordering
       INTEGER, DIMENSION(:), POINTER                     :: col_indices_A, row_indices_A
       REAL(KIND=dp)                                      :: alpha, alpha_screening, eigen_diff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_A, fm_struct_W
-      TYPE(cp_fm_type)                                   :: fm_A_copy, fm_W
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_A, fm_struct_S_joint, &
+                                                            fm_struct_W
+      TYPE(cp_fm_type)                                   :: fm_A_copy, fm_S_joint, fm_W
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
       CALL timeset(routineN, handle)
+
+      nspins = SIZE(homo)
+      ALLOCATE (n_ov(nspins), offsets(nspins), eig_offsets(nspins))
+      CALL get_bse_spin_block_layout(homo, virtual, n_ov, offsets, n_ov_joint)
+      ! Flat Eigenval layout: sigma-block isp at eig_offsets(isp)+1 .. eig_offsets(isp)+homo(isp)+virtual(isp)
+      eig_offsets(1) = 0
+      DO isp = 2, nspins
+         eig_offsets(isp) = eig_offsets(isp - 1) + homo(isp - 1) + virtual(isp - 1)
+      END DO
 
       NULLIFY (dft_control, tddfpt_control)
       CALL get_qs_env(qs_env, dft_control=dft_control)
@@ -133,6 +147,12 @@ CONTAINS
       CASE (bse_triplet)
          alpha = 0.0_dp
       END SELECT
+      ! For open-shell (nspins>1): each spin block contributes once; SPIN_CONFIG is ignored.
+      IF (nspins > 1) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "BSE: SPIN_CONFIG ignored for open-shell reference; using alpha=1.")
+         alpha = 1.0_dp
+      END IF
 
       IF (mp2_env%bse%screening_method == bse_screening_alpha) THEN
          alpha_screening = mp2_env%bse%screening_factor
@@ -149,115 +169,141 @@ CONTAINS
       ! We create v_ia,jb and W_ij,ab, then we communicate entries from local W_ij,ab
       ! to the full matrix v_ia,jb. By adding these and the energy diffenences: v_ia,jb -> A_ia,jb
       ! We use the A matrix already from the start instead of v
-      CALL cp_fm_struct_create(fm_struct_A, context=fm_mat_S_ia_bse%matrix_struct%context, nrow_global=homo*virtual, &
-                               ncol_global=homo*virtual, para_env=fm_mat_S_ia_bse%matrix_struct%para_env)
+      CALL cp_fm_struct_create(fm_struct_A, context=fm_mat_S_ia_bse(1)%matrix_struct%context, &
+                               nrow_global=n_ov_joint, ncol_global=n_ov_joint, &
+                               para_env=fm_mat_S_ia_bse(1)%matrix_struct%para_env)
       CALL cp_fm_create(fm_A, fm_struct_A, name="fm_A_iajb")
       CALL cp_fm_set_all(fm_A, 0.0_dp)
-      IF (tddfpt_control%do_bse_w_only) THEN
+      ! fm_A_copy only used in the TDDFPT do_bse_w_only path (closed-shell only)
+      IF (tddfpt_control%do_bse_w_only .AND. nspins == 1) THEN
          CALL cp_fm_create(fm_A_copy, fm_struct_A, name="fm_A_iajb")
          CALL cp_fm_set_all(fm_A_copy, 0.0_dp)
       END IF
 
-      CALL cp_fm_struct_create(fm_struct_W, context=fm_mat_S_ab_bse%matrix_struct%context, nrow_global=homo**2, &
-                               ncol_global=virtual**2, para_env=fm_mat_S_ab_bse%matrix_struct%para_env)
-      CALL cp_fm_create(fm_W, fm_struct_W, name="fm_W_ijab")
-      CALL cp_fm_set_all(fm_W, 0.0_dp)
-
-      ! Create A matrix from GW Energies, v_ia,jb and W_ij,ab (different blacs_env!)
-      ! v_ia,jb, which is directly initialized in A (with a factor of alpha)
-      ! v_ia,jb = \sum_P B^P_ia B^P_jb
+      ! Create A matrix from GW Energies, v_ia,jb and W_ij,ab
+      ! v_ia,jb = \sum_P B^P_ia B^P_jb  (Coulomb)
       IF ((.NOT. tddfpt_control%do_bse) .AND. (.NOT. tddfpt_control%do_bse_w_only)) THEN
-         CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
-                            matrix_a=fm_mat_S_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
-                            matrix_c=fm_A)
+         IF (nspins > 1) THEN
+            ! Assemble joint ia-slab for a single Coulomb gemm across all spin blocks
+            CALL cp_fm_struct_create(fm_struct_S_joint, &
+                                     context=fm_mat_S_ia_bse(1)%matrix_struct%context, &
+                                     nrow_global=dimen_RI, ncol_global=n_ov_joint, &
+                                     para_env=fm_mat_S_ia_bse(1)%matrix_struct%para_env)
+            CALL cp_fm_create(fm_S_joint, fm_struct_S_joint, name="fm_S_ia_joint")
+            CALL cp_fm_set_all(fm_S_joint, 0.0_dp)
+            CALL assemble_joint_ov_slab(fm_mat_S_ia_bse, offsets, n_ov, dimen_RI, fm_S_joint)
+            CALL parallel_gemm(transa="T", transb="N", m=n_ov_joint, n=n_ov_joint, k=dimen_RI, &
+                               alpha=alpha, matrix_a=fm_S_joint, matrix_b=fm_S_joint, beta=0.0_dp, &
+                               matrix_c=fm_A)
+            CALL cp_fm_release(fm_S_joint)
+            CALL cp_fm_struct_release(fm_struct_S_joint)
+         ELSE
+            CALL parallel_gemm(transa="T", transb="N", m=homo(1)*virtual(1), n=homo(1)*virtual(1), &
+                               k=dimen_RI, alpha=alpha, &
+                               matrix_a=fm_mat_S_ia_bse(1), matrix_b=fm_mat_S_ia_bse(1), &
+                               beta=0.0_dp, matrix_c=fm_A)
+         END IF
       END IF
 
       IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated A_iajb'
       END IF
 
-      ! If infinite screening is applied, fm_W is simply 0 - Otherwise it needs to be computed from 3c integrals
-      IF (mp2_env%bse%screening_method /= bse_screening_rpa) THEN
-         !W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab
-         CALL parallel_gemm(transa="T", transb="N", m=homo**2, n=virtual**2, k=dimen_RI, alpha=alpha_screening, &
-                            matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
-                            matrix_c=fm_W)
-      END IF
+      ! W term on sigma-diagonal blocks only: W^sigma_ij,ab = sum_P barB^P_ij B^P_ab
+      ! offsets(isp) places each block at the correct position in joint A.
+      ! For nspins=1: offsets(1)=0, equivalent to the original code.
+      DO isp = 1, nspins
+         IF (mp2_env%bse%screening_method /= bse_screening_rpa) THEN
+            CALL cp_fm_struct_create(fm_struct_W, context=fm_mat_S_ab_bse(isp)%matrix_struct%context, &
+                                     nrow_global=homo(isp)**2, ncol_global=virtual(isp)**2, &
+                                     para_env=fm_mat_S_ab_bse(isp)%matrix_struct%para_env)
+            CALL cp_fm_create(fm_W, fm_struct_W, name="fm_W_ijab")
+            CALL cp_fm_set_all(fm_W, 0.0_dp)
+            !W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab
+            CALL parallel_gemm(transa="T", transb="N", m=homo(isp)**2, n=virtual(isp)**2, &
+                               k=dimen_RI, alpha=alpha_screening, &
+                               matrix_a=fm_mat_S_bar_ij_bse(isp), matrix_b=fm_mat_S_ab_bse(isp), &
+                               beta=0.0_dp, matrix_c=fm_W)
+            reordering = [1, 3, 2, 4]
+            CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo(isp), virtual(isp), &
+                                    virtual(isp), virtual(isp), unit_nr, reordering, mp2_env, &
+                                    row_offset=offsets(isp), col_offset=offsets(isp))
+            IF (nspins == 1 .AND. tddfpt_control%do_bse_w_only) THEN
+               CALL fm_general_add_bse(fm_A_copy, fm_W, -1.0_dp, homo(1), virtual(1), &
+                                       virtual(1), virtual(1), unit_nr, reordering, mp2_env)
+            END IF
+            ! W and A stash for TDDFPT path (closed-shell only; open-shell deferred)
+            IF (nspins == 1) THEN
+               IF (tddfpt_control%do_bse .OR. tddfpt_control%do_bse_w_only .OR. &
+                   tddfpt_control%do_bse_gw_only) THEN
+                  NULLIFY (ex_env)
+                  CALL get_qs_env(qs_env, exstate_env=ex_env)
+                  IF (.NOT. tddfpt_control%do_bse_gw_only) THEN
+                     ALLOCATE (ex_env%bse_w_matrix_MO(1, 1))
+                     ALLOCATE (ex_env%bse_a_matrix_MO(1, 1))
+                     CALL cp_fm_create(ex_env%bse_w_matrix_MO(1, 1), fm_struct_W)
+                     CALL cp_fm_create(ex_env%bse_a_matrix_MO(1, 1), fm_struct_A)
+                     CALL cp_fm_to_fm(fm_W, ex_env%bse_w_matrix_MO(1, 1))
+                     IF (tddfpt_control%do_bse_w_only) THEN
+                        CALL cp_fm_to_fm(fm_A_copy, ex_env%bse_a_matrix_MO(1, 1))
+                     ELSE
+                        CALL cp_fm_to_fm(fm_A, ex_env%bse_a_matrix_MO(1, 1))
+                     END IF
+                  END IF
+               END IF
+            END IF
+            CALL cp_fm_release(fm_W)
+            CALL cp_fm_struct_release(fm_struct_W)
+         END IF
+      END DO
 
       IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated W_ijab'
       END IF
+      IF (nspins == 1 .AND. tddfpt_control%do_bse_w_only) CALL cp_fm_release(fm_A_copy)
 
-      ! We start by moving data from local parts of W_ij,ab to the full matrix A_ia,jb using buffers
-      CALL cp_fm_get_info(matrix=fm_A, &
-                          nrow_local=nrow_local_A, &
-                          ncol_local=ncol_local_A, &
-                          row_indices=row_indices_A, &
-                          col_indices=col_indices_A)
-      ! Writing -1.0_dp * W_ij,ab to A_ia,jb, i.e. beta = -1.0_dp,
-      ! W_ij,ab: nrow_secidx_in  = homo,    ncol_secidx_in  = virtual
-      ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
+      ! Get local row/col indices for direct diagonal access
+      CALL cp_fm_get_info(matrix=fm_A, nrow_local=nrow_local_A, ncol_local=ncol_local_A, &
+                          row_indices=row_indices_A, col_indices=col_indices_A)
 
-      ! If infinite screening is applied, fm_W is simply 0 - Otherwise it needs to be computed from 3c integrals
-      IF (mp2_env%bse%screening_method /= bse_screening_rpa) THEN
-         reordering = [1, 3, 2, 4]
-         CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo, virtual, &
-                                 virtual, virtual, unit_nr, reordering, mp2_env)
-         IF (tddfpt_control%do_bse_w_only) THEN
-            CALL fm_general_add_bse(fm_A_copy, fm_W, -1.0_dp, homo, virtual, &
-                                    virtual, virtual, unit_nr, reordering, mp2_env)
-         END IF
-      END IF
-      !full matrix W is not needed anymore, release it to save memory
-      IF (tddfpt_control%do_bse .OR. tddfpt_control%do_bse_w_only .OR. &
-          tddfpt_control%do_bse_gw_only) THEN
-         NULLIFY (ex_env)
-         CALL get_qs_env(qs_env, exstate_env=ex_env)
-         IF (.NOT. tddfpt_control%do_bse_gw_only) THEN
-            ALLOCATE (ex_env%bse_w_matrix_MO(1, 1)) ! for now only closed-shell
-            ALLOCATE (ex_env%bse_a_matrix_MO(1, 1)) ! for now only closed-shell
-            CALL cp_fm_create(ex_env%bse_w_matrix_MO(1, 1), fm_struct_W)
-            CALL cp_fm_create(ex_env%bse_a_matrix_MO(1, 1), fm_struct_A)
-            CALL cp_fm_to_fm(fm_W, ex_env%bse_w_matrix_MO(1, 1))
-            IF (tddfpt_control%do_bse_w_only) THEN
-               CALL cp_fm_to_fm(fm_A_copy, ex_env%bse_a_matrix_MO(1, 1))
-            ELSE
-               CALL cp_fm_to_fm(fm_A, ex_env%bse_a_matrix_MO(1, 1))
-            END IF
-         END IF
-      END IF
-      CALL cp_fm_release(fm_W)
-      IF (tddfpt_control%do_bse_w_only) CALL cp_fm_release(fm_A_copy)
-
-      !Now add the energy differences (ε_a-ε_i) on the diagonal (i.e. δ_ij δ_ab) of A_ia,jb
+      !Add (ε_a-ε_i) on the diagonal of each sigma-block; cross-spin blocks have no ε contribution.
       IF (.NOT. tddfpt_control%do_bse) THEN
-      DO ii = 1, nrow_local_A
-
-         i_row_global = row_indices_A(ii)
-
-         DO jj = 1, ncol_local_A
-
-            j_col_global = col_indices_A(jj)
-
-            IF (i_row_global == j_col_global) THEN
-               i_occ_row = (i_row_global - 1)/virtual + 1
-               a_virt_row = MOD(i_row_global - 1, virtual) + 1
-               eigen_diff = Eigenval(a_virt_row + homo) - Eigenval(i_occ_row)
-               fm_A%local_data(ii, jj) = fm_A%local_data(ii, jj) + eigen_diff
-
-            END IF
+         DO ii = 1, nrow_local_A
+            i_row_global = row_indices_A(ii)
+            DO jj = 1, ncol_local_A
+               j_col_global = col_indices_A(jj)
+               IF (i_row_global == j_col_global) THEN
+                  ! Decode spin: isp such that i_row_global in [offsets(isp)+1, offsets(isp)+n_ov(isp)]
+                  isp = nspins
+                  DO k_isp = 1, nspins - 1
+                     IF (i_row_global <= offsets(k_isp) + n_ov(k_isp)) THEN
+                        isp = k_isp
+                        EXIT
+                     END IF
+                  END DO
+                  k_ov = i_row_global - offsets(isp)
+                  i_occ_row = (k_ov - 1)/virtual(isp) + 1
+                  a_virt_row = MOD(k_ov - 1, virtual(isp)) + 1
+                  eigen_diff = Eigenval(eig_offsets(isp) + a_virt_row + homo(isp)) - &
+                               Eigenval(eig_offsets(isp) + i_occ_row)
+                  fm_A%local_data(ii, jj) = fm_A%local_data(ii, jj) + eigen_diff
+               END IF
+            END DO
          END DO
-      END DO
       END IF
 
-      IF (tddfpt_control%do_bse .OR. tddfpt_control%do_bse_w_only .OR. tddfpt_control%do_bse_gw_only) THEN
-         sizeeigen = SIZE(Eigenval)
-         ALLOCATE (ex_env%gw_eigen(sizeeigen)) ! for now only closed-shell
-         ex_env%gw_eigen(:) = Eigenval(:)
+      ! GW eigenvalue stash for TDDFPT path (closed-shell only)
+      IF (nspins == 1) THEN
+         IF (tddfpt_control%do_bse .OR. tddfpt_control%do_bse_w_only .OR. &
+             tddfpt_control%do_bse_gw_only) THEN
+            sizeeigen = SIZE(Eigenval)
+            ALLOCATE (ex_env%gw_eigen(sizeeigen))
+            ex_env%gw_eigen(:) = Eigenval(:)
+         END IF
       END IF
 
       CALL cp_fm_struct_release(fm_struct_A)
-      CALL cp_fm_struct_release(fm_struct_W)
+      DEALLOCATE (n_ov, offsets, eig_offsets)
 
       CALL cp_blacs_env_release(blacs_env)
 
@@ -616,7 +662,8 @@ CONTAINS
                             unit_nr, diag_est, mp2_env, qs_env, mo_coeff)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A
-      INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, unit_nr
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      INTEGER, INTENT(IN)                                :: homo_irred, unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -624,23 +671,23 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_A'
 
-      INTEGER                                            :: diag_info, handle
+      INTEGER                                            :: diag_info, handle, n_ov_joint, nspins
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
       TYPE(cp_fm_type)                                   :: fm_eigvec
 
       CALL timeset(routineN, handle)
 
-      !Continue with formatting of subroutine create_A
+      nspins = SIZE(homo)
+      n_ov_joint = SUM(homo*virtual)
+
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4,T7,A17,A22,ES6.0,A3)') 'BSE|', 'Diagonalizing A. ', &
             'This will take around ', diag_est, ' s.'
       END IF
 
-      !We have now the full matrix A_iajb, distributed over all ranks
-      !Now: Diagonalize it
       CALL cp_fm_create(fm_eigvec, fm_A%matrix_struct)
 
-      ALLOCATE (Exc_ens(homo*virtual))
+      ALLOCATE (Exc_ens(n_ov_joint))
 
       CALL choose_eigv_solver(fm_A, fm_eigvec, Exc_ens, diag_info)
 
@@ -649,8 +696,17 @@ CONTAINS
                        "Diagonalization of A failed in TDA-BSE")
       END IF
 
-      CALL postprocess_bse(Exc_ens, fm_eigvec, mp2_env, qs_env, mo_coeff, &
-                           homo, virtual, homo_irred, unit_nr, .TRUE.)
+      IF (nspins == 1) THEN
+         CALL postprocess_bse(Exc_ens, fm_eigvec, mp2_env, qs_env, mo_coeff, &
+                              homo(1), virtual(1), homo_irred, unit_nr, .TRUE.)
+      ELSE
+         ! Phase 1b: print joint energies only; oscillator strengths are Phase 1c.
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A43)') 'BSE|', 'Joint open-shell TDA excitation energies:'
+         END IF
+         CALL print_excitation_energies(Exc_ens, n_ov_joint, 1, .TRUE., "Open-Shell", &
+                                        " -TDA-", mp2_env, unit_nr)
+      END IF
 
       CALL cp_fm_release(fm_eigvec)
       DEALLOCATE (Exc_ens)
