@@ -92,7 +92,8 @@ MODULE bse_util
              deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations, &
              estimate_BSE_resources, filter_eigvec_contrib, truncate_BSE_matrices, &
              determine_cutoff_indices, adapt_BSE_input_params, get_multipoles_mo, &
-             reshuffle_eigvec, print_bse_nto_cubes, trace_exciton_descr
+             reshuffle_eigvec, print_bse_nto_cubes, trace_exciton_descr, &
+             get_bse_spin_block_layout, determine_bse_combined_window
 
 CONTAINS
 
@@ -193,9 +194,12 @@ CONTAINS
 !> \param unit_nr ...
 !> \param reordering ...
 !> \param mp2_env ...
+!> \param row_offset ...
+!> \param col_offset ...
 ! **************************************************************************************************
    SUBROUTINE fm_general_add_bse(fm_out, fm_in, beta, nrow_secidx_in, ncol_secidx_in, &
-                                 nrow_secidx_out, ncol_secidx_out, unit_nr, reordering, mp2_env)
+                                 nrow_secidx_out, ncol_secidx_out, unit_nr, reordering, mp2_env, &
+                                 row_offset, col_offset)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_out
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_in
@@ -205,13 +209,14 @@ CONTAINS
       INTEGER                                            :: unit_nr
       INTEGER, DIMENSION(4)                              :: reordering
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      INTEGER, INTENT(IN), OPTIONAL                      :: row_offset, col_offset
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_general_add_bse'
 
       INTEGER :: col_idx_loc, dummy, handle, handle2, i_entry_rec, idx_col_out, idx_row_out, ii, &
-         iproc, jj, ncol_block_in, ncol_block_out, ncol_local_in, ncol_local_out, nprocs, &
-         nrow_block_in, nrow_block_out, nrow_local_in, nrow_local_out, proc_send, row_idx_loc, &
-         send_pcol, send_prow
+         iproc, jj, my_col_offset, my_row_offset, ncol_block_in, ncol_block_out, ncol_local_in, &
+         ncol_local_out, nprocs, nrow_block_in, nrow_block_out, nrow_local_in, nrow_local_out, &
+         proc_send, row_idx_loc, send_pcol, send_prow
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
                                                             num_entries_send
       INTEGER, DIMENSION(4)                              :: indices_in
@@ -221,6 +226,14 @@ CONTAINS
          DIMENSION(:)                                    :: buffer_rec, buffer_send
       TYPE(mp_para_env_type), POINTER                    :: para_env_out
       TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_array
+
+! Offsets place the reshuffled block into a sub-block of fm_out (open-shell joint matrix);
+! both default 0, recovering the closed-shell single-block placement bit-identically.
+
+      my_row_offset = 0
+      my_col_offset = 0
+      IF (PRESENT(row_offset)) my_row_offset = row_offset
+      IF (PRESENT(col_offset)) my_col_offset = col_offset
 
       CALL timeset(routineN, handle)
       CALL timeset(routineN//"_1_setup", handle2)
@@ -280,8 +293,8 @@ CONTAINS
             indices_in(3) = (col_indices_in(col_idx_loc) - 1)/ncol_secidx_in + 1
             indices_in(4) = MOD(col_indices_in(col_idx_loc) - 1, ncol_secidx_in) + 1
 
-            idx_row_out = indices_in(reordering(2)) + (indices_in(reordering(1)) - 1)*nrow_secidx_out
-            idx_col_out = indices_in(reordering(4)) + (indices_in(reordering(3)) - 1)*ncol_secidx_out
+            idx_row_out = my_row_offset + indices_in(reordering(2)) + (indices_in(reordering(1)) - 1)*nrow_secidx_out
+            idx_col_out = my_col_offset + indices_in(reordering(4)) + (indices_in(reordering(3)) - 1)*ncol_secidx_out
 
             send_prow = fm_out%matrix_struct%g2p_row(idx_row_out)
             send_pcol = fm_out%matrix_struct%g2p_col(idx_col_out)
@@ -360,8 +373,8 @@ CONTAINS
             indices_in(3) = (col_indices_in(col_idx_loc) - 1)/ncol_secidx_in + 1
             indices_in(4) = MOD(col_indices_in(col_idx_loc) - 1, ncol_secidx_in) + 1
 
-            idx_row_out = indices_in(reordering(2)) + (indices_in(reordering(1)) - 1)*nrow_secidx_out
-            idx_col_out = indices_in(reordering(4)) + (indices_in(reordering(3)) - 1)*ncol_secidx_out
+            idx_row_out = my_row_offset + indices_in(reordering(2)) + (indices_in(reordering(1)) - 1)*nrow_secidx_out
+            idx_col_out = my_col_offset + indices_in(reordering(4)) + (indices_in(reordering(3)) - 1)*ncol_secidx_out
 
             send_prow = fm_out%matrix_struct%g2p_row(idx_row_out)
             send_pcol = fm_out%matrix_struct%g2p_col(idx_col_out)
@@ -1181,6 +1194,98 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE determine_cutoff_indices
+
+! **************************************************************************************************
+!> \brief Spin-block layout for the open-shell (joint) BSE matrix: per-spin OV-pair counts and the
+!>        block offsets into the joint matrix of dimension n_ov_joint = sum_sigma homo*virtual.
+!> \param homo_red per-spin (reduced) number of occupied levels
+!> \param virt_red per-spin (reduced) number of virtual levels
+!> \param n_ov per-spin OV-pair count (OUT)
+!> \param offsets per-spin block offset into the joint matrix (OUT)
+!> \param n_ov_joint total joint dimension (OUT)
+! **************************************************************************************************
+   SUBROUTINE get_bse_spin_block_layout(homo_red, virt_red, n_ov, offsets, n_ov_joint)
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo_red, virt_red
+      INTEGER, DIMENSION(:), INTENT(OUT)                 :: n_ov, offsets
+      INTEGER, INTENT(OUT)                               :: n_ov_joint
+
+      INTEGER                                            :: isp
+
+      n_ov_joint = 0
+      DO isp = 1, SIZE(homo_red)
+         offsets(isp) = n_ov_joint
+         n_ov(isp) = homo_red(isp)*virt_red(isp)
+         n_ov_joint = n_ov_joint + n_ov(isp)
+      END DO
+
+   END SUBROUTINE get_bse_spin_block_layout
+
+! **************************************************************************************************
+!> \brief Determine a single combined active-MO window covering all spin channels for open-shell
+!>        BSE truncation. Mirrors the linRTBSE determine_active_mo_window logic (per-spin
+!>        determine_cutoff_indices, then union of bounds), so the two pipelines truncate to the
+!>        same active space. CPWARN if the per-spin cutoff candidates differ.
+!> \param Eigenval per-spin GW eigenvalues, shape (level, spin)
+!> \param Eigenval_scf per-spin SCF eigenvalues, shape (level, spin)
+!> \param homo per-spin number of occupied levels
+!> \param virtual per-spin number of virtual levels
+!> \param use_ks_energies select SCF (.TRUE.) vs GW (.FALSE.) eigenvalues for the cutoff
+!> \param cutoff_occ occupied-orbital energy cutoff
+!> \param cutoff_empty empty-orbital energy cutoff
+!> \param first_active_mo combined first occupied MO index (OUT)
+!> \param last_active_mo combined last MO index (OUT)
+! **************************************************************************************************
+   SUBROUTINE determine_bse_combined_window(Eigenval, Eigenval_scf, homo, virtual, &
+                                            use_ks_energies, cutoff_occ, cutoff_empty, &
+                                            first_active_mo, last_active_mo)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, Eigenval_scf
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      LOGICAL, INTENT(IN)                                :: use_ks_energies
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff_occ, cutoff_empty
+      INTEGER, INTENT(OUT)                               :: first_active_mo, last_active_mo
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'determine_bse_combined_window'
+
+      INTEGER                                            :: first_occ_prev, handle, homo_incl, &
+                                                            homo_red, isp, last_virt_prev, &
+                                                            virt_incl, virt_red
+      LOGICAL                                            :: spins_differ
+
+      CALL timeset(routineN, handle)
+
+      first_active_mo = HUGE(0)
+      last_active_mo = 0
+      first_occ_prev = -1
+      last_virt_prev = -1
+      spins_differ = .FALSE.
+
+      DO isp = 1, SIZE(homo)
+         IF (use_ks_energies) THEN
+            CALL determine_cutoff_indices(Eigenval_scf(:, isp), homo(isp), virtual(isp), &
+                                          homo_red, virt_red, homo_incl, virt_incl, &
+                                          cutoff_occ, cutoff_empty)
+         ELSE
+            CALL determine_cutoff_indices(Eigenval(:, isp), homo(isp), virtual(isp), &
+                                          homo_red, virt_red, homo_incl, virt_incl, &
+                                          cutoff_occ, cutoff_empty)
+         END IF
+         IF (isp > 1) THEN
+            IF (homo_incl /= first_occ_prev .OR. homo(isp) + virt_incl /= last_virt_prev) &
+               spins_differ = .TRUE.
+         END IF
+         first_occ_prev = homo_incl
+         last_virt_prev = homo(isp) + virt_incl
+         first_active_mo = MIN(first_active_mo, homo_incl)
+         last_active_mo = MAX(last_active_mo, homo(isp) + virt_incl)
+      END DO
+
+      IF (spins_differ) THEN
+         CPWARN("BSE: spin-resolved active MO cutoff candidates differ; using combined window.")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE determine_bse_combined_window
 
 ! **************************************************************************************************
 !> \brief Determines indices within the given energy cutoffs and truncates Eigenvalues and matrices
