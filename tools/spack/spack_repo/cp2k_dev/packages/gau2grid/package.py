@@ -16,11 +16,12 @@ class Gau2grid(CMakePackage):
     git = "https://github.com/psi4/gau2grid.git"
     url = "https://github.com/psi4/gau2grid/archive/refs/tags/v2.0.8.tar.gz"
 
-    maintainers("awvwgk")
+    maintainers("awvwgk", "mkrack")
 
     license("BSD-3-Clause")
 
     version("master", branch="master")
+    version("2.0.9", sha256="7879bdddf3a52cd2a051086215977822bbe8d1af927fcf5b4fb0256a38b8a76c")
     version("2.0.8", sha256="c5f445344a465c1d9afc6516544dc4a2fba588af7ba0f1ac1a6b538260f0cd96")
 
     depends_on("cmake@3.12:", type="build")
