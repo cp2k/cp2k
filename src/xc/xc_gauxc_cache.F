@@ -39,7 +39,6 @@ MODULE xc_gauxc_cache
       TYPE(cp_gauxc_integrator_type)     :: integrator
       TYPE(cp_gauxc_integrator_type)     :: gradient_integrator
       INTEGER                             :: natom = -1
-      INTEGER                             :: max_l = -1
       INTEGER                             :: nspins = -1
       INTEGER                             :: batch_size = -1
       REAL(c_double)                      :: device_runtime_ff = 0.0_c_double
@@ -51,10 +50,12 @@ MODULE xc_gauxc_cache
       CHARACTER(LEN=default_string_length) :: int_exec_space = ""
       CHARACTER(LEN=default_string_length) :: model_name = ""
       LOGICAL                             :: gradient_self_runtime = .FALSE.
-      LOGICAL                             :: is_init = .FALSE.
-      LOGICAL                             :: needs_gradient_grid = .FALSE.
-      REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: last_positions
+      LOGICAL                             :: is_init = .FALSE. ! param
+      REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: last_positions ! param
       TYPE(cp_gauxc_status_type)         :: status
+   CONTAINS
+      PROCEDURE, PUBLIC :: needs_gradient_grid => gauxc_cache_type_needs_gradient_grid
+      PROCEDURE, PUBLIC :: max_l => gauxc_cache_type_max_l
 #endif
    END TYPE cp_gauxc_cache_type
 
@@ -66,6 +67,22 @@ MODULE xc_gauxc_cache
 
 CONTAINS
 
+#ifdef __GAUXC
+   FUNCTION gauxc_cache_type_needs_gradient_grid(this) RESULT(res)
+      class(cp_gauxc_cache_type) :: this
+      LOGICAL :: res
+
+      res = this%gradient_self_runtime
+   END FUNCTION
+
+   FUNCTION gauxc_cache_type_max_l(this) RESULT(res)
+      class(cp_gauxc_cache_type) :: this
+      INTEGER :: res
+
+      res = this%basisset%max_l
+   END FUNCTION
+#endif
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param ! ...
@@ -75,12 +92,12 @@ CONTAINS
    SUBROUTINE gauxc_cache_init( &
       ! inout params
       cache, &
-      gauxc_mol, &
-      gauxc_basis, &
-      gauxc_grid_result, &
-      gauxc_integrator_result, &
-      gauxc_gradient_grid_result, &
-      gauxc_gradient_integrator_result, &
+      gauxc_mol, & ! param
+      gauxc_basis, & ! param
+      gauxc_grid_result, & ! param
+      gauxc_integrator_result, & ! param
+      gauxc_gradient_grid_result, & ! param
+      gauxc_gradient_integrator_result, & ! param
       use_fd_gradient, &
       ! input data
       para_env, &
@@ -89,19 +106,19 @@ CONTAINS
       ! params
       gapw, &
       calculate_forces, &
-      natom, &
-      nspins, &
-      grid_type, &
-      xc_fun_name, &
-      int_exec_space, &
-      lb_exec_space, &
-      model_name, &
-      pruning_scheme, &
-      radial_quadrature, &
-      device_runtime_fill_fraction, &
+      natom, & ! param
+      nspins, & ! param
+      grid_type, & ! param
+      xc_fun_name, & ! param
+      int_exec_space, & ! param
+      lb_exec_space, & ! param
+      model_name, & ! param
+      pruning_scheme, & ! param
+      radial_quadrature, & ! param
+      device_runtime_fill_fraction, & ! param
       use_skala_model, &
       use_gradient_mpi_runtime, &
-      use_gradient_self_runtime, &
+      use_gradient_self_runtime, & ! param
       use_self_runtime, &
       batch_size)
 
@@ -251,7 +268,6 @@ CONTAINS
          cache%gradient_integrator = gauxc_gradient_integrator_result
       END IF
       cache%natom = natom
-      cache%max_l = gauxc_basis%max_l
       cache%nspins = nspins
       cache%batch_size = batch_size
       cache%device_runtime_ff = REAL(device_runtime_fill_fraction, c_double)
@@ -263,7 +279,6 @@ CONTAINS
       cache%int_exec_space = TRIM(int_exec_space)
       cache%model_name = TRIM(model_name)
       cache%gradient_self_runtime = use_gradient_self_runtime
-      cache%needs_gradient_grid = use_gradient_self_runtime
       IF (ALLOCATED(cache%last_positions)) &
          DEALLOCATE (cache%last_positions)
       ALLOCATE (cache%last_positions(3, natom))
@@ -290,7 +305,7 @@ CONTAINS
       TYPE(cp_gauxc_status_type)                            :: status
 
       IF (cache%is_init) THEN
-         IF (cache%needs_gradient_grid) THEN
+         IF (cache%needs_gradient_grid()) THEN
             CALL gauxc_destroy_integrator(cache%gradient_integrator, status)
             CALL gauxc_destroy_grid(cache%gradient_grid, status)
          END IF
@@ -372,7 +387,6 @@ CONTAINS
       IF (TRIM(cache%int_exec_space) /= TRIM(int_exec_space)) RETURN
       IF (TRIM(cache%model_name) /= TRIM(model_name)) RETURN
       IF (cache%gradient_self_runtime .NEQV. use_gradient_self_runtime) RETURN
-      IF (cache%needs_gradient_grid .NEQV. use_gradient_self_runtime) RETURN
       IF (.NOT. ALLOCATED(cache%last_positions)) RETURN
       IF (SIZE(cache%last_positions, 2) /= natom) RETURN
       DO iatom = 1, natom
