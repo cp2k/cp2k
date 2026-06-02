@@ -1222,45 +1222,83 @@ CONTAINS
                                    CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
       END IF
       IF (.NOT. rtbse_env%tda_active) THEN
-         ! ----- Standard (non-TDA) kernel: single AO density built once at routine entry -----
-         ! Calculate the (S)EX part - based on provided rho
-         ! iGW = - rho W
-         IF (use_sex) THEN
-            IF (use_rirs_sex) THEN
-               CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, &
-                                                rtbse_env%rho_ao_lrrtbse(ispin))
-            ELSE
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+         IF (rtbse_env%n_spin == 1) THEN
+            ! ===== Option B (closed-shell, legacy): full rho + init reference; RIRS-capable. =====
+            ! Calculate the (S)EX part - based on provided rho
+            ! iGW = - rho W
+            IF (use_sex) THEN
+               IF (use_rirs_sex) THEN
+                  CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, &
+                                                   rtbse_env%rho_ao_lrrtbse(ispin))
+               ELSE
+                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+               END IF
+               ! Transform to MO basis (AO scratch -> MO-active result)
+               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
+                                                     rtbse_env%sigma_SEX(ispin), ispin)
+               ! Apply occupation factor f_n-f_m
+               CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin)
+               CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
+                                         CMPLX(1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(ispin))
             END IF
-            ! Transform to MO basis (AO scratch -> MO-active result)
-            CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
-                                                  rtbse_env%sigma_SEX(ispin), ispin)
-            ! Apply occupation factor f_n-f_m
-            CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin)
-            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
-                                      CMPLX(1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(ispin))
-         END IF
-         ! Calculate Hartree potential
-         ! Hartree potential is scaled by number of electrons in each MO - spin degeneracy
-         IF (use_hartree) THEN
-            IF (use_rirs_hartree) THEN
-               ! AO-RI get_hartree uses only Re(rho); mirror that on the RI-RS path.
-               CALL cp_cfm_to_fm(msource=rtbse_env%rho_ao_lrrtbse(ispin), &
-                                 mtargetr=rtbse_env%real_workspace(1))
-               CALL compute_hartree_ri_rs(rtbse_env%bs_env, rtbse_env%real_workspace(1), &
-                                          rtbse_env%hartree_curr_ao(ispin))
-            ELSE
-               CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
-                                rtbse_env%hartree_curr_ao(ispin))
+            ! Calculate Hartree potential
+            ! Hartree potential is scaled by number of electrons in each MO - spin degeneracy
+            IF (use_hartree) THEN
+               IF (use_rirs_hartree) THEN
+                  ! AO-RI get_hartree uses only Re(rho); mirror that on the RI-RS path.
+                  CALL cp_cfm_to_fm(msource=rtbse_env%rho_ao_lrrtbse(ispin), &
+                                    mtargetr=rtbse_env%real_workspace(1))
+                  CALL compute_hartree_ri_rs(rtbse_env%bs_env, rtbse_env%real_workspace(1), &
+                                             rtbse_env%hartree_curr_ao(ispin))
+               ELSE
+                  CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
+                                   rtbse_env%hartree_curr_ao(ispin))
+               END IF
+               ! Transform to MO basis (AO scratch -> MO-active result)
+               CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%hartree_curr_ao(ispin), &
+                                                    rtbse_env%hartree_curr(ispin), ispin)
+               ! Apply occupation factor f_n-f_m
+               CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%hartree_curr(ispin), ispin)
+               CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(ispin), mtarget=rtbse_env%ham_workspace(1))
+               CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
+                                         CMPLX(rtbse_env%spin_degeneracy, 0.0, kind=dp), rtbse_env%ham_workspace(1))
             END IF
-            ! Transform to MO basis (AO scratch -> MO-active result)
-            CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%hartree_curr_ao(ispin), &
-                                                 rtbse_env%hartree_curr(ispin), ispin)
-            ! Apply occupation factor f_n-f_m
-            CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%hartree_curr(ispin), ispin)
-            CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(ispin), mtarget=rtbse_env%ham_workspace(1))
-            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
-                                      CMPLX(rtbse_env%spin_degeneracy, 0.0, kind=dp), rtbse_env%ham_workspace(1))
+         ELSE
+            ! ===== Option A (open-shell ABBA): OV+VO-masked Delta rho, per-spin SEX, cross-spin
+            ! Hartree, occupation-factor readout. Keeps B-coupling; no reference (mask removes
+            ! it - rho_orig is OO-diagonal). Mirrors the TDA branch but OV+VO + occ-factor instead
+            ! of OV + conjugate-transpose. AO-RI only (RIRS guarded off for open shell). =====
+            ! Delta rho_OV+VO in MO -> AO (overrides the full-rho image set at the routine top).
+            CALL cp_cfm_to_cfm(rho, rtbse_env%rho_delta_mo(ispin))
+            CALL mask_mo_block_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), ispin, &
+                                   keep_OV=.TRUE., keep_ovvo=.TRUE.)
+            CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), &
+                                                      rtbse_env%rho_ao_lrrtbse(ispin), ispin)
+            ! SEX: per-spin (W spin-diagonal). get_sigma builds -W*Delta rho; (f_n - f_m) zeros
+            ! OO/VV and sets the OV/VO signs; coeff +1.
+            IF (use_sex) THEN
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, &
+                              rtbse_env%rho_ao_lrrtbse(ispin))
+               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
+                                                     rtbse_env%sigma_SEX(ispin), ispin)
+               CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin)
+               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
+                                         CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%sigma_SEX(ispin))
+            END IF
+            ! Hartree: consume the shared cross-spin V_H[spin_degeneracy * sum_sigma Delta rho_OV+VO]
+            ! built once per RK4 stage by build_shared_hartree_ao. Coeff +1 (spin_degeneracy is in
+            ! the summed density - no factor of 2, P9).
+            IF (use_hartree) THEN
+               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%hartree_total_ao, &
+                                                     rtbse_env%ham_workspace(1), ispin)
+               CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%ham_workspace(1), ispin)
+               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
+                                         CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
+            END IF
+            ! Restore rho_ao_lrrtbse to the full-rho AO image for post-routine consumers (COH
+            ! refresh, output) - same invariant the TDA branch restores at its tail.
+            CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rho, &
+                                                      rtbse_env%rho_ao_lrrtbse(ispin), ispin)
          END IF
       ELSE
          ! ----- Tamm-Dancoff approximation: drop B-coupling between OV and VO
