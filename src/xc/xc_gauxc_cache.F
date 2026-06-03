@@ -135,7 +135,7 @@ CONTAINS
           params, &
           particle_set, &
           use_gradient_self_runtime)) THEN
-
+         status%status%code = 0
          RETURN
       END IF
 
