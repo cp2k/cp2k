@@ -42,6 +42,7 @@ MODULE xc_gauxc_cache
       CHARACTER(LEN=default_string_length)         :: int_exec_space = ""
       CHARACTER(LEN=default_string_length)         :: model_name = ""
       LOGICAL                                      :: use_self_runtime = .FALSE.
+      LOGICAL                                      :: use_gradient_self_runtime = .FALSE.
    END TYPE cp_gauxc_cache_params
 
    TYPE, extends(cp_gauxc_cache_params)            :: cp_gauxc_cache_type
@@ -52,7 +53,6 @@ MODULE xc_gauxc_cache
       TYPE(cp_gauxc_integrator_type)               :: integrator
       TYPE(cp_gauxc_integrator_type)               :: gradient_integrator
       LOGICAL                                      :: is_init = .FALSE.
-      LOGICAL                                      :: gradient_self_runtime = .FALSE.
       LOGICAL                                      :: use_fd_gradient = .FALSE.
       INTEGER                                      :: mpi_comm = -1
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: last_positions
@@ -80,7 +80,7 @@ CONTAINS
       class(cp_gauxc_cache_type) :: this
       LOGICAL :: res
 
-      res = this%gradient_self_runtime
+      res = this%use_gradient_self_runtime
    END FUNCTION gauxc_cache_type_needs_gradient_grid
 
 ! **************************************************************************************************
@@ -105,8 +105,6 @@ CONTAINS
 !> \param gapw ...
 !> \param calculate_forces ...
 !> \param use_skala_model ...
-!> \param use_gradient_self_runtime ...
-!> \param use_self_runtime ...
 !> \param status ...
 ! **************************************************************************************************
    SUBROUTINE gauxc_cache_init( &
@@ -118,8 +116,6 @@ CONTAINS
       gapw, &
       calculate_forces, &
       use_skala_model, &
-      use_gradient_self_runtime, &
-      use_self_runtime, &
       status)
 
       TYPE(cp_gauxc_cache_type), INTENT(inout)           :: cache
@@ -128,7 +124,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      LOGICAL:: gapw, use_skala_model, calculate_forces, use_self_runtime, use_gradient_self_runtime
+      LOGICAL:: gapw, use_skala_model, calculate_forces
 
       TYPE(cp_gauxc_status_type)                         :: status
 
@@ -136,11 +132,9 @@ CONTAINS
           cache, &
           params, &
           particle_set, &
-          use_gradient_self_runtime, &
           gapw, &
           calculate_forces, &
           use_skala_model, &
-          use_self_runtime, &
           para_env)) THEN
          status%status%code = 0
          RETURN
@@ -166,7 +160,7 @@ CONTAINS
             "all-electron basis functions beyond f shells.  The upstream analytical GauXC "// &
             "gradient path is not yet reliable for this case.")
       END IF
-      IF (use_self_runtime) THEN
+      IF (params%use_self_runtime) THEN
          ! SKALA currently needs a replicated molecular runtime for reproducible
          ! open-shell densities across CP2K MPI ranks.
          cache%grid = gauxc_create_grid( &
@@ -206,7 +200,7 @@ CONTAINS
                          status)
       GAUXC_RETURN_IF_ERROR(status)
 
-      IF (use_gradient_self_runtime) THEN
+      IF (params%use_gradient_self_runtime) THEN
          ! Upstream GauXC does not yet support OneDFT/SKALA nuclear gradients
          ! on an MPI runtime.  Keep the energy/VXC path on the normal MPI
          ! runtime and use an isolated runtime only for the replicated gradient.
@@ -242,9 +236,9 @@ CONTAINS
       cache%lb_exec_space = TRIM(params%lb_exec_space)
       cache%int_exec_space = TRIM(params%int_exec_space)
       cache%model_name = TRIM(params%model_name)
-      cache%gradient_self_runtime = use_gradient_self_runtime
-      cache%use_self_runtime = use_self_runtime
-      IF (use_self_runtime) THEN
+      cache%use_gradient_self_runtime = params%use_gradient_self_runtime
+      cache%use_self_runtime = params%use_self_runtime
+      IF (params%use_self_runtime) THEN
          cache%mpi_comm = mp_comm_self%get_handle()
       ELSE
          cache%mpi_comm = para_env%get_handle()
@@ -304,11 +298,9 @@ CONTAINS
 !> \param cache ...
 !> \param params ...
 !> \param particle_set ...
-!> \param use_gradient_self_runtime ...
 !> \param gapw ...
 !> \param calculate_forces ...
 !> \param use_skala_model ...
-!> \param use_self_runtime ...
 !> \param para_env ...
 !> \return ...
 !> \retval cache_valid ...
@@ -317,20 +309,16 @@ CONTAINS
       cache, &
       params, &
       particle_set, &
-      use_gradient_self_runtime, &
       gapw, &
       calculate_forces, &
       use_skala_model, &
-      use_self_runtime, &
       para_env) &
       RESULT(cache_valid)
 
       TYPE(cp_gauxc_cache_type), INTENT(IN)                :: cache
       TYPE(cp_gauxc_cache_params), INTENT(in) :: params
       TYPE(particle_type), DIMENSION(:), POINTER           :: particle_set
-      LOGICAL, INTENT(IN)                                  :: use_gradient_self_runtime
       LOGICAL, INTENT(IN)                                  :: gapw, calculate_forces, use_skala_model
-      LOGICAL, INTENT(IN)                                  :: use_self_runtime
       TYPE(mp_para_env_type), POINTER                      :: para_env
       LOGICAL                                              :: cache_valid
 
@@ -352,11 +340,11 @@ CONTAINS
       IF (TRIM(cache%lb_exec_space) /= TRIM(params%lb_exec_space)) RETURN
       IF (TRIM(cache%int_exec_space) /= TRIM(params%int_exec_space)) RETURN
       IF (TRIM(cache%model_name) /= TRIM(params%model_name)) RETURN
-      IF (cache%gradient_self_runtime .NEQV. use_gradient_self_runtime) RETURN
-      IF (cache%use_self_runtime .NEQV. use_self_runtime) RETURN
+      IF (cache%use_gradient_self_runtime .NEQV. params%use_gradient_self_runtime) RETURN
+      IF (cache%use_self_runtime .NEQV. params%use_self_runtime) RETURN
       IF (cache%use_fd_gradient .NEQV. (gapw .AND. calculate_forces .AND. &
                                         (use_skala_model .OR. cache%basisset%max_l > 3))) RETURN
-      IF (use_self_runtime) THEN
+      IF (params%use_self_runtime) THEN
          current_mpi_comm = mp_comm_self%get_handle()
       ELSE
          current_mpi_comm = para_env%get_handle()

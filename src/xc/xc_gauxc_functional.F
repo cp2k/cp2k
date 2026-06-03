@@ -937,8 +937,8 @@ CONTAINS
                                                             nimages, onedft_atom_chunk_size
       LOGICAL :: do_kpoints, grid_explicit, hdf5_output, is_periodic, molecular_virial, &
          molecular_virial_debug, onedft_atom_chunk_size_explicit, periodic_reference, &
-         pruning_explicit, use_gradient_mpi_runtime, use_gradient_self_runtime, use_onedft, &
-         use_self_runtime, use_skala_model, write_hdf5_output
+         pruning_explicit, use_gradient_mpi_runtime, use_onedft, &
+         use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1178,19 +1178,19 @@ CONTAINS
 
       SELECT CASE (TRIM(skala_runtime_key))
       CASE ("AUTO")
-         use_self_runtime = use_skala_model .AND. para_env%num_pe > 1 .AND. params%nspins > 1
+         params%use_self_runtime = use_skala_model .AND. para_env%num_pe > 1 .AND. params%nspins > 1
       CASE ("MPI")
-         use_self_runtime = .FALSE.
+         params%use_self_runtime = .FALSE.
       CASE ("SELF")
-         use_self_runtime = use_skala_model .AND. para_env%num_pe > 1
+         params%use_self_runtime = use_skala_model .AND. para_env%num_pe > 1
       CASE DEFAULT
          CALL cp_abort(__LOCATION__, "Unknown GAUXC%SKALA_RUNTIME value.")
       END SELECT
-      IF (.NOT. use_skala_model) use_self_runtime = .FALSE.
-      use_gradient_self_runtime = calculate_forces .AND. use_onedft .AND. &
-                                  para_env%num_pe > 1 .AND. .NOT. use_self_runtime &
+      IF (.NOT. use_skala_model) params%use_self_runtime = .FALSE.
+      params%use_gradient_self_runtime = calculate_forces .AND. use_onedft .AND. &
+                                  para_env%num_pe > 1 .AND. .NOT. params%use_self_runtime &
                                   .AND. .NOT. use_gradient_mpi_runtime
-      IF (use_skala_model .AND. para_env%num_pe > 1 .AND. .NOT. use_self_runtime .AND. &
+      IF (use_skala_model .AND. para_env%num_pe > 1 .AND. .NOT. params%use_self_runtime .AND. &
           para_env%mepos == 0 .AND. ASSOCIATED(scf_env)) THEN
          IF (scf_env%iter_count == 1) THEN
             CALL cp_warn( &
@@ -1211,8 +1211,6 @@ CONTAINS
          dft_control%qs_control%gapw, &
          calculate_forces, &
          use_skala_model, &
-         use_gradient_self_runtime, &
-         use_self_runtime, &
          gauxc_status)
       CALL gauxc_check_status(gauxc_status)
 
@@ -1269,7 +1267,7 @@ CONTAINS
                      params%lb_exec_space, params%int_exec_space, batch_size, &
                      params%device_runtime_fill_fraction, gapw_fd_gradient_dx, para_env, &
                      exc_grad%exc_grad)
-               ELSE IF (use_gradient_self_runtime) THEN
+               ELSE IF (params%use_gradient_self_runtime) THEN
                   exc_grad = gauxc_compute_xc_gradient( &
                              cache%gradient_integrator, &
                              density_scalar, &
@@ -1334,7 +1332,7 @@ CONTAINS
                      params%lb_exec_space, params%int_exec_space, batch_size, &
                      params%device_runtime_fill_fraction, gapw_fd_gradient_dx, para_env, &
                      exc_grad%exc_grad, density_zeta=density_zeta)
-               ELSE IF (use_gradient_self_runtime) THEN
+               ELSE IF (params%use_gradient_self_runtime) THEN
                   exc_grad = gauxc_compute_xc_gradient( &
                              cache%gradient_integrator, &
                              density_scalar, &
