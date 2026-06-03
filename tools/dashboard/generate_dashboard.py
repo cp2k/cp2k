@@ -169,7 +169,7 @@ def gen_frontpage(
 
     now = datetime.utcnow().replace(microsecond=0)
 
-    for s in sorted(config.sections(), key=lambda s: config.getint(s, "sortkey")):
+    for s in config.sections():
         print("Working on summary entry of: " + s)
         name = config.get(s, "name")
         host = config.get(s, "host")
