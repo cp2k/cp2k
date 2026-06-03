@@ -197,8 +197,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: kpptr
       REAL(KIND=dp), DIMENSION(3, 3)                     :: cart_hmat
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(section_vals_type), POINTER                   :: gw_ri_rs_sec, gw_sec, kp_bs_sec, &
-                                                            ldos_sec, soc_sec
+      TYPE(section_vals_type), POINTER                   :: dos_pdos_sec, gw_ri_rs_sec, gw_sec, &
+                                                            kp_bs_sec, ldos_sec, soc_sec
 
       CALL timeset(routineN, handle)
       NULLIFY (cell)
@@ -223,6 +223,10 @@ CONTAINS
       CALL section_vals_get(soc_sec, explicit=bs_env%do_soc)
 
       CALL section_vals_val_get(soc_sec, "ENERGY_WINDOW", r_val=bs_env%energy_window_soc)
+
+      NULLIFY (dos_pdos_sec)
+      dos_pdos_sec => section_vals_get_subs_vals(bs_sec, "DOS")
+      CALL section_vals_get(dos_pdos_sec, explicit=bs_env%do_dos_pdos_ldos)
 
       CALL section_vals_val_get(bs_sec, "DOS%KPOINTS", i_vals=bs_env%nkp_grid_DOS_input)
       CALL section_vals_val_get(bs_sec, "DOS%ENERGY_WINDOW", r_val=bs_env%energy_window_DOS)

@@ -56,7 +56,9 @@ CONTAINS
       END IF
 
       ! density of states (DOS), projected DOS, local DOS for DFT, DFT+SOC, G0W0, G0W0+SOC
-      CALL dos_pdos_ldos(qs_env, qs_env%bs_env)
+      IF (qs_env%bs_env%do_dos_pdos_ldos) THEN
+         CALL dos_pdos_ldos(qs_env, qs_env%bs_env)
+      END IF
 
       CALL timestop(handle)
 
