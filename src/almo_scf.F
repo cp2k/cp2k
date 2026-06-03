@@ -275,6 +275,7 @@ CONTAINS
       END IF
 
       IF (almo_scf_env%activate(1) == 1) THEN
+              CALL cite_reference(Rullan2026)
               ndomains = SIZE(almo_scf_env%multiplicity_of_domain)
               nspins = SIZE(almo_scf_env%multiplicity_of_domain)
       ELSE
