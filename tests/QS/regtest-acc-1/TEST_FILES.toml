@@ -36,4 +36,10 @@
 "h2o-gapw_xc-stress-debug-1.inp"        = []
 "h2o-gapw_xc-full-stress-1.inp"         = [{matcher="M011", tol=1e-08, ref=-17.256333793570239},
                                            {matcher="M031", tol=1e-08, ref=3.91898639036E+03}]
+"h2o-uzh-gapw-force-1.inp"              = []
+"h2o-uzh-gapw-stress-debug-1.inp"       = []
+"h2o-uzh-gth-gapw-force-1.inp"          = []
+"h2o-uzh-gth-gapw-stress-debug-1.inp"   = []
+"h2o-uzh-gth-gapw_xc-force-1.inp"       = []
+"h2o-uzh-gth-gapw_xc-stress-debug-1.inp" = []
 #EOF
