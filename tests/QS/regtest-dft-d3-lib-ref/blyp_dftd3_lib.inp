@@ -37,8 +37,8 @@
       &VDW_POTENTIAL
         DISPERSION_FUNCTIONAL PAIR_POTENTIAL
         &PAIR_POTENTIAL
-          TYPE DFTD3
           D3_REFERENCE_CODE
+          TYPE DFTD3
           &PRINT_DFTD
           &END PRINT_DFTD
         &END PAIR_POTENTIAL
@@ -52,6 +52,13 @@
       ABC 7.0 7.0 7.0
       PERIODIC NONE
     &END CELL
+    &COORD
+      C         0.000000        0.000000        0.000000
+      H         0.629118        0.629118        0.629118
+      H        -0.629118       -0.629118        0.629118
+      H        -0.629118        0.629118       -0.629118
+      H         0.629118       -0.629118       -0.629118
+    &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-q1
       POTENTIAL GTH-BLYP-q1
@@ -60,12 +67,5 @@
       BASIS_SET DZVP-GTH-q4
       POTENTIAL GTH-BLYP-q4
     &END KIND
-    &COORD
-      C         0.000000        0.000000        0.000000
-      H         0.629118        0.629118        0.629118
-      H        -0.629118       -0.629118        0.629118
-      H        -0.629118        0.629118       -0.629118
-      H         0.629118       -0.629118       -0.629118
-    &END COORD
   &END SUBSYS
 &END FORCE_EVAL

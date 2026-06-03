@@ -53,11 +53,10 @@ MODULE qs_dispersion_pairpot
                                               setrcov
    USE qs_dispersion_d2,                ONLY: calculate_dispersion_d2_pairpot,&
                                               dftd2_param
-   USE qs_dispersion_d3,                ONLY: calculate_dispersion_d3_pairpot, &
-                                             dftd3_c6_param
+   USE qs_dispersion_d3,                ONLY: calculate_dispersion_d3_pairpot,&
+                                              dftd3_c6_param
    USE qs_dispersion_d4,                ONLY: calculate_dispersion_d4_pairpot
    USE qs_dispersion_s_dftd3,           ONLY: dftd3_param_from_library
-   USE qs_dispersion_utils,             ONLY: qs_scaling_dftd3, qs_scaling_dftd3bj
    USE qs_dispersion_types,             ONLY: dftd2_pp,&
                                               dftd3_pp,&
                                               dftd4_pp,&
@@ -103,7 +102,7 @@ CONTAINS
 
       CHARACTER(LEN=2)                                   :: symbol
       CHARACTER(LEN=default_path_length)                 :: filename
-      CHARACTER(LEN=default_string_length)               :: aname
+      CHARACTER(LEN=default_string_length)               :: aname, error_msg
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
       INTEGER                                            :: elem, handle, i, ikind, j, max_elem, &
@@ -111,7 +110,6 @@ CONTAINS
                                                             vdw_type
       INTEGER, DIMENSION(:), POINTER                     :: exlist
       LOGICAL                                            :: at_end, explicit, found, is_available
-      CHARACTER(LEN=default_string_length)                :: error_msg
       REAL(KIND=dp)                                      :: dum
       TYPE(qs_atom_dispersion_type), POINTER             :: disp
       TYPE(section_vals_type), POINTER                   :: eeq_section

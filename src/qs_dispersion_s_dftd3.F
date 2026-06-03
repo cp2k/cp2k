@@ -7,8 +7,8 @@
 
 MODULE qs_dispersion_s_dftd3
 
-USE kinds, ONLY: default_string_length, &
-                     dp
+   USE kinds, ONLY: default_string_length, &
+                    dp
    USE message_passing, ONLY: mp_para_env_type
    USE qs_dispersion_cnum, ONLY: setr0ab
 
@@ -88,6 +88,7 @@ CONTAINS
 !> \param sr6 ...
 !> \param para_env ...
 !> \param error ...
+!> \param calc_scaling ...
 ! **************************************************************************************************
    SUBROUTINE dftd3_param_from_library(c6ab, maxci, r0ab, rcov, r2r4, &
                                        pp_type, ref_functional, &
@@ -109,10 +110,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dftd3_param_from_library'
 
       CHARACTER(LEN=default_string_length)               :: func_name
-      INTEGER                                            :: handle, i, islice, iz, jref, jz, nelem, &
-                                                            nref
-      REAL(KIND=dp)                                      :: c6_val, r4r2, rcov_val, r0_pair
+      INTEGER                                            :: handle, i, iz, jref, jz, nelem, nref
       LOGICAL                                            :: do_calc_scaling
+      REAL(KIND=dp)                                      :: c6_val, r4r2, rcov_val
       REAL(KIND=dp), DIMENSION(94)                       :: r2r4_tmp, rcov_tmp
       TYPE(d3_param)                                     :: d3params
       TYPE(error_type), ALLOCATABLE                      :: lib_error
@@ -147,40 +147,40 @@ CONTAINS
             END DO
          END DO
 
-c6ab = 0.0_dp
-          DO jref = 1, nref
-             DO jz = 1, nelem
-                DO i = 1, nref
-                   DO iz = 1, nelem
-                      c6_val = get_c6(i, jref, iz, jz)
-                      c6ab(iz, jz, i, jref, 1) = c6_val
-                      c6ab(iz, jz, i, jref, 2) = reference_cn(i, iz)
-                      c6ab(iz, jz, i, jref, 3) = reference_cn(jref, jz)
-                   END DO
-                END DO
-             END DO
-          END DO
-       END IF
-
-       CALL para_env%bcast(r2r4_tmp)
-       CALL para_env%bcast(r0ab)
-       CALL para_env%bcast(rcov_tmp)
-
-IF (.NOT. para_env%is_source()) THEN
-            c6ab = 0.0_dp
-            DO jref = 1, nref
-               DO jz = 1, nelem
-                  DO i = 1, nref
-                     DO iz = 1, nelem
-                        c6_val = get_c6(i, jref, iz, jz)
-                        c6ab(iz, jz, i, jref, 1) = c6_val
-                        c6ab(iz, jz, i, jref, 2) = reference_cn(i, iz)
-                        c6ab(iz, jz, i, jref, 3) = reference_cn(jref, jz)
-                     END DO
+         c6ab = 0.0_dp
+         DO jref = 1, nref
+            DO jz = 1, nelem
+               DO i = 1, nref
+                  DO iz = 1, nelem
+                     c6_val = get_c6(i, jref, iz, jz)
+                     c6ab(iz, jz, i, jref, 1) = c6_val
+                     c6ab(iz, jz, i, jref, 2) = reference_cn(i, iz)
+                     c6ab(iz, jz, i, jref, 3) = reference_cn(jref, jz)
                   END DO
                END DO
             END DO
-         END IF
+         END DO
+      END IF
+
+      CALL para_env%bcast(r2r4_tmp)
+      CALL para_env%bcast(r0ab)
+      CALL para_env%bcast(rcov_tmp)
+
+      IF (.NOT. para_env%is_source()) THEN
+         c6ab = 0.0_dp
+         DO jref = 1, nref
+            DO jz = 1, nelem
+               DO i = 1, nref
+                  DO iz = 1, nelem
+                     c6_val = get_c6(i, jref, iz, jz)
+                     c6ab(iz, jz, i, jref, 1) = c6_val
+                     c6ab(iz, jz, i, jref, 2) = reference_cn(i, iz)
+                     c6ab(iz, jz, i, jref, 3) = reference_cn(jref, jz)
+                  END DO
+               END DO
+            END DO
+         END DO
+      END IF
 
       r2r4(:nelem) = r2r4_tmp(:nelem)
       rcov(:nelem) = rcov_tmp(:nelem)
@@ -247,6 +247,7 @@ IF (.NOT. para_env%is_source()) THEN
 !> \param sr6 ...
 !> \param para_env ...
 !> \param error ...
+!> \param calc_scaling ...
 ! **************************************************************************************************
    SUBROUTINE dftd3_param_from_library(c6ab, maxci, r0ab, rcov, r2r4, &
                                        pp_type, ref_functional, &
