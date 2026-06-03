@@ -1922,6 +1922,15 @@ CONTAINS
          E_max = MAX(E_max, E_max_ispin)
       END DO
 
+      ! Open-shell uses ONE minimax grid for the combined [min gap, max span] over both spins (the
+      ! superset covers each channel, so it is accurate; per-spin grids would only be more efficient).
+      IF (bs_env%n_spin > 1) THEN
+         CALL cp_hint(__LOCATION__, &
+                      "Open-shell GW uses one minimax grid spanning [min gap, max span] across both "// &
+                      "spin channels; raise NUM_TIME_FREQ_POINTS if QP convergence is marginal for "// &
+                      "strongly spin-asymmetric systems.")
+      END IF
+
       E_range = E_max/E_min
 
       ALLOCATE (points_and_weights(2*num_time_freq_points))
