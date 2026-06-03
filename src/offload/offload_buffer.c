@@ -24,11 +24,21 @@
 static void offload_free_buffer_internal(offload_buffer *buffer) {
   assert(NULL != buffer);
 #if defined(OFFLOAD_BUFFER_MEMPOOL)
-  offload_mempool_host_free(buffer->host_buffer);
-  offload_mempool_device_free(buffer->device_buffer);
+  if (NULL != buffer->host_buffer &&
+      buffer->host_buffer != buffer->device_buffer) {
+    offload_mempool_host_free(buffer->host_buffer);
+  }
+  if (NULL != buffer->device_buffer) {
+    offload_mempool_device_free(buffer->device_buffer);
+  }
 #elif defined(__OFFLOAD)
-  offloadFreeHost(buffer->host_buffer);
-  offloadFree(buffer->device_buffer);
+  if (NULL != buffer->host_buffer &&
+      buffer->host_buffer != buffer->device_buffer) {
+    offloadFreeHost(buffer->host_buffer);
+  }
+  if (NULL != buffer->device_buffer) {
+    offloadFree(buffer->device_buffer);
+  }
 #else
   free(buffer->host_buffer);
   assert(NULL == buffer->device_buffer);
@@ -43,7 +53,13 @@ void offload_create_buffer(const int length, offload_buffer **buffer) {
   const size_t requested_size = sizeof(double) * length;
 
   if (*buffer != NULL) {
-    if (requested_size <= (*buffer)->size) {
+    if (0 == requested_size) {
+      offload_free_buffer_internal(*buffer);
+      (*buffer)->size = 0;
+      (*buffer)->host_buffer = NULL;
+      (*buffer)->device_buffer = NULL;
+      return;
+    } else if (requested_size <= (*buffer)->size) {
       return; // reuse existing buffer
     } else {
       offload_free_buffer_internal(*buffer);
@@ -56,6 +72,9 @@ void offload_create_buffer(const int length, offload_buffer **buffer) {
   (*buffer)->size = requested_size;
   (*buffer)->host_buffer = NULL;
   (*buffer)->device_buffer = NULL;
+  if (0 == requested_size) {
+    return;
+  }
 #if defined(OFFLOAD_BUFFER_MEMPOOL)
 #if !defined(__OFFLOAD_UNIFIED_MEMORY)
   (*buffer)->host_buffer = offload_mempool_host_malloc(requested_size);

@@ -24,11 +24,17 @@ endif
 # Optimization flag derived from OPT flag
 OPTFLAG ?= -O$(patsubst O%,%,$(OPT))
 
-CFLAGS := -fPIC -g $(OPTFLAG) -march=native -Wall -Wextra -Wcast-qual
+# Common compiler flags
+CFLAGS := -fPIC -g $(OPTFLAG) -march=native -Wall -Wextra
 
-VALIDATE ?= 0
-ifneq ($(VALIDATE),0)
-CFLAGS += -DDBM_VALIDATE_AGAINST_LIBXSMM
+PEDANTIC ?= 0
+ifneq ($(PEDANTIC),0)
+CFLAGS += -Wcast-qual -pedantic -Wno-overlength-strings
+endif
+
+USM ?= 0
+ifneq ($(USM),0)
+CFLAGS += -D__OFFLOAD_UNIFIED_MEMORY
 endif
 
 # Intel Compiler
@@ -57,16 +63,51 @@ CC := $(MPICC)
 endif
 endif
 
+# Make LIBXS available (auto-detect as sibling of CP2KHOME).
+ifneq ($(LIBXS),0)
+LIBXSROOT ?= $(wildcard $(CP2KHOME)/../libxs)
+ifneq ($(LIBXSROOT),)
+CFLAGS += -D__LIBXS -D__BLAS -I$(LIBXSROOT)/include
+LIBS += $(LIBXSROOT)/lib/libxs.a
+# LIBXSMM headers enable JIT kernel dispatch inside LIBXS.
+LIBXSMMROOT ?= $(wildcard $(LIBXSROOT)/../libxsmm)
+ifneq ($(LIBXSMMROOT),)
+ifneq ($(wildcard $(LIBXSMMROOT)/lib/libxsmm.a),)
+CFLAGS += -D__LIBXSMM -I$(LIBXSMMROOT)/include
+LIBS += $(LIBXSMMROOT)/lib/libxsmm.a
+endif
+endif
+else
+OPENCL := 0
+endif
+endif
+
+# Make LIBXSTREAM available (auto-detect as sibling of CP2KHOME).
+ifneq ($(LIBXSTREAM),0)
+ifneq ($(OPENCL),0)
+ifneq ($(LIBXS),0)
+LIBXSTREAMROOT ?= $(wildcard $(CP2KHOME)/../libxstream)
+ifneq ($(LIBXSTREAMROOT),)
+CFLAGS += -D__LIBXSTREAM -I$(LIBXSTREAMROOT)/include
+LIBS += $(LIBXSTREAMROOT)/lib/libxstream.a
+else
+OPENCL := 0
+endif
+endif
+endif
+endif
+
 ifeq ($(filter-out 0,$(OPENCL)),)
 NVCC := $(shell which nvcc 2>/dev/null)
 NVARCH := sm_70
-NVFLAGS := -g $(OPTFLAG) -lineinfo -arch $(NVARCH) -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD_CUDA
+NVARCHX := $(if $(NVARCH),-arch $(NVARCH))
+NVFLAGS := -g $(OPTFLAG) -lineinfo $(NVARCHX) -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD_CUDA
 
 HIPCC := $(shell which hipcc 2>/dev/null)
 HIPARCH := gfx90a
 ROCM_PATH_ENV := $(shell echo "$${ROCM_PATH}")
 ROCM_PATH := $(if $(ROCM_PATH_ENV),$(ROCM_PATH_ENV),/opt/rocm)
-HIPFLAGS := -fPIE -g $(OPTFLAG) --offload-arch=$(HIPARCH) -Wall -Wextra -Werror -I${ROCM_PATH}/include -D__OFFLOAD_HIP -D__HIP_PLATFORM_AMD__ -D__HIP_PLATFORM_AMD__
+HIPFLAGS := -fPIE -g $(OPTFLAG) --offload-arch=$(HIPARCH) -Wall -Wextra -Werror -I${ROCM_PATH}/include -D__OFFLOAD_HIP -D__HIP_PLATFORM_AMD__
 endif
 
 # prefer NVCC or HIPCC over OpenCL
@@ -78,16 +119,11 @@ CUDA_LIBS := $(if $(wildcard $(CUDA_PATH)/lib64),lib64,lib)
 OPENCL := 0
 endif
 ifneq ($(OPENCL),0)
-OPENCL_OFFLOAD := $(firstword $(wildcard $(CP2KHOME)/lib/*/*/exts/dbcsr/libdbcsr.a))
 OPENCL_GENKRNL := $(PROJHOME)/dbm_multiply_opencl.cl.h
 ifneq ($(ICX),)
 LIBS += -lifcoremt -limf
 endif
 endif
-
-# Make foundational runtimes available
-LIBS += -ldl -lstdc++ -lc -lm
-
 
 # Make BLAS/LAPACK available
 ifneq ($(MKLROOT),)
@@ -97,11 +133,17 @@ LIBS += -L$(MKLROOT)/lib/intel64 \
         -lmkl_core \
         -lmkl_sequential \
         -Wl,--end-group
+ifneq ($(MKL),0)
+CFLAGS += -D__MKL -I$(MKLROOT)/include
+endif
 else ifneq ($(OPENBLAS),0)
 LIBS += -lopenblas
 else
 LIBS += -lblas
 endif
+
+# Make foundational runtimes available
+LIBS += -ldl -lstdc++ -lc -lm
 
 .PHONY : all clean
 
@@ -118,17 +160,21 @@ realclean: clean
 	rm -fv dbm_miniapp.x
 
 
-# Enable OpenCL when DBCSR library was prebuilt (assume __DBCSR_ACC).
-ifneq ($(OPENCL_OFFLOAD),)
+# Enable OpenCL offload backend.
+ifneq ($(OPENCL),0)
 OPENCL_SRC := $(PROJHOME)/dbm_multiply_opencl.cl
-OPENCL_CMN := $(wildcard $(CP2KHOME)/exts/dbcsr/src/acc/opencl/common/*.h)
-OPENCL_GEN := $(CP2KHOME)/exts/dbcsr/src/acc/opencl/acc_opencl.sh
-ALL_HEADERS += $(OPENCL_GENKRNL)
+OPENCL_CMN := $(wildcard $(LIBXSTREAMROOT)/include/opencl/*.h)
+OPENCL_GEN := $(LIBXSTREAMROOT)/scripts/tool_opencl.sh
+OPENCL_ARG := -b 6 -p "" -I $(LIBXSTREAMROOT)/include
 
+ifneq (,$(filter-out 0,$(DBG)))
+OPENCL_ARG += -d
+endif
+
+ALL_HEADERS += $(OPENCL_GENKRNL)
 ALL_OBJECTS += dbm_multiply_gpu.o dbm_multiply_opencl.o
-CFLAGS += -I$(CP2KHOME)/exts/dbcsr/src/acc/opencl -I$(CP2KHOME)/exts/dbcsr
-CFLAGS += -D__OFFLOAD_OPENCL -D__DBCSR_ACC
-LIBS += $(OPENCL_OFFLOAD) -lgfortran
+CFLAGS += -D__OFFLOAD_OPENCL -I$(CP2KHOME)/exts/dbcsr
+LIBS += -lgfortran
 
 ifneq (Darwin,$(shell uname))
 OPENCL_LIB := $(shell ldconfig -p 2>/dev/null | grep -m1 OpenCL | rev | cut -d' ' -f1 | rev)
@@ -175,7 +221,7 @@ endif
 
 dbm_miniapp.x: $(OPENCL_OFFLOAD)
 $(OPENCL_GENKRNL): $(OPENCL_GEN) $(OPENCL_SRC) $(OPENCL_CMN)
-	$(OPENCL_GEN) -b 6 -p "" $(OPENCL_SRC) $@
+	$(OPENCL_GEN) $(OPENCL_ARG) $(OPENCL_SRC) $@
 
 
 # Enable Cuda when nvcc compiler is present.
@@ -201,12 +247,9 @@ LIBS += -L${ROCM_PATH}/lib -lamdhip64 -lhipfft -lhipblas -lrocblas
 	cd $(dir $<); $(HIPCC) -c $(HIPFLAGS) $(notdir $<)
 endif
 
-# Make LIBXSMM available
-ifneq ($(LIBXSMMROOT),)
-CFLAGS += -D__LIBXSMM -I$(LIBXSMMROOT)/include
-LIBS += $(LIBXSMMROOT)/lib/libxsmm.a \
-        $(LIBXSMMROOT)/lib/libxsmmext.a \
-        -lpthread -lrt
+# LIBXS must be linked last (depended upon by LIBXSTREAM)
+ifneq ($(LIBXSROOT),)
+LIBS += $(LIBXSROOT)/lib/libxs.a
 endif
 
 %.o: %.c $(OMP_TRACE) $(ALL_HEADERS)

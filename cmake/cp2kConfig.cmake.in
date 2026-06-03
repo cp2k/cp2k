@@ -38,9 +38,9 @@ if(NOT TARGET cp2k::cp2k)
 
   find_dependency(DBCSR 2.8 REQUIRED)
 
-  if(@CP2K_USE_LIBXSMM@)
-    set(CP2K_USE_LIBXSMM @CP2K_USE_LIBXSMM@)
-    find_dependency(LibXSMM REQUIRED)
+  if(@CP2K_USE_LIBXS@)
+    set(CP2K_USE_LIBXS @CP2K_USE_LIBXS@)
+    find_dependency(LIBXS REQUIRED)
   endif()
 
   if(@CP2K_USE_HIP@)

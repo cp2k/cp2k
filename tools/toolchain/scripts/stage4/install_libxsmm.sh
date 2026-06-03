@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxsmm_ver="e0c4a2389afba36c453233ad7de07bd92c715bec"
-libxsmm_sha256="7140650d7ce58be08af2af3f49d27641f35a131e0f712c033e5c787ac9916c9d"
+libxsmm_ver="0cea22fdc34ec54bc59ffb47a43cb3e28b26d3e0"
+libxsmm_sha256="9404da8173009677d7814b51442250eee95d41773cae55b802f75fb40aece73d"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -34,7 +34,15 @@ EOF
     if verify_checksums "${install_lock_file}"; then
       echo "libxsmm-${libxsmm_ver} is already installed, skipping it."
     else
-      retrieve_package "${libxsmm_sha256}" "libxsmm-${libxsmm_ver}.tar.gz"
+      if [ -f libxsmm-${libxsmm_ver}.tar.gz ]; then
+        echo "libxsmm-${libxsmm_ver}.tar.gz is found"
+      else
+        if ! download_pkg_from_cp2k_org "${libxsmm_sha256}" "libxsmm-${libxsmm_ver}.tar.gz" 2> /dev/null; then
+          download_pkg_from_urlpath "${libxsmm_sha256}" "${libxsmm_ver}.tar.gz" \
+            https://github.com/libxsmm/libxsmm/archive \
+            "libxsmm-${libxsmm_ver}.tar.gz"
+        fi
+      fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d libxsmm-${libxsmm_ver} ] && rm -rf libxsmm-${libxsmm_ver}
       tar -xzf libxsmm-${libxsmm_ver}.tar.gz
@@ -100,6 +108,7 @@ if [ "$with_libxsmm" != "__DONTUSE__" ]; then
   LIBXSMM_LIBS="-lxsmmf -lxsmmext -lxsmm -ldl -lpthread"
   cat << EOF > "${BUILDDIR}/setup_libxsmm"
 export LIBXSMM_VER="${libxsmm_ver}"
+export LIBXSMMROOT="${pkg_install_dir:-}"
 EOF
   if [ "$with_libxsmm" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_libxsmm"

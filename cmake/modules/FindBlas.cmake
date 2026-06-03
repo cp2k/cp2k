@@ -37,8 +37,16 @@ if(NOT CP2K_CONFIG_PACKAGE)
       # cmake-format: sortable
       "sequential" "thread" "gnu-thread" "intel-thread" "tbb-thread" "openmp")
 
+  if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL
+                                                 "GNU")
+    set(_cp2k_blas_threading_default "gnu-thread")
+  elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel|IntelLLVM")
+    set(_cp2k_blas_threading_default "intel-thread")
+  else()
+    set(_cp2k_blas_threading_default "openmp")
+  endif()
   set(CP2K_BLAS_THREADING
-      "sequential"
+      "${_cp2k_blas_threading_default}"
       CACHE STRING "threaded blas library")
   set_property(CACHE CP2K_BLAS_THREADING PROPERTY STRINGS
                                                   ${CP2K_BLAS_THREAD_LIST})
