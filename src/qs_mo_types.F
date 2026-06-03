@@ -257,7 +257,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(mo_set%eigenvalues))
       CPASSERT(.NOT. ASSOCIATED(mo_set%occupation_numbers))
       CPASSERT(.NOT. ASSOCIATED(mo_set%mo_coeff))
-
+      IF (PRESENT(counter)) CONTINUE
       CPASSERT(PRESENT(fm_pool) .NEQV. (PRESENT(fm_ref) .NEQV. PRESENT(fm_struct)))
       NULLIFY (mo_set%mo_coeff)
       IF (PRESENT(fm_pool)) THEN
