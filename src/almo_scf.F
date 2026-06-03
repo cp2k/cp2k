@@ -44,6 +44,7 @@ MODULE almo_scf
                                               Kuhne2007,&
                                               Scheiber2018,&
                                               Staub2019,&
+                                              Rullan2026,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release
    USE cp_control_types,                ONLY: dft_control_type
