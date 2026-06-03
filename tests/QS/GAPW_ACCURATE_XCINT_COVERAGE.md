@@ -20,6 +20,8 @@ used to move towards making accurate XC integration the GAPW default in a future
 | DC-DFT/Energy Correction  | `regtest-acc-2/HF-ec1.inp`, `HF-ec2.inp`, `HF-ec3.inp`                        | `HF-ec4.inp`, `HF-ec5.inp`, `HF-ec6.inp`, and `HF-ec7.inp` now also use explicit accurate integration                                                         |
 | TDDFPT forces             | `regtest-acc-5/h2o_f01.inp`                                                   | `regtest-acc-5/h2o_f01_fine.inp`                                                                                                                              |
 | ADMM-GAPW TDDFPT response | `regtest-acc-5/ft3.inp`                                                       | `regtest-acc-5/ft3_fine.inp`                                                                                                                                  |
+| UZH basis/potential data  | all-electron UZH HF force-debug tests in `regtest-acc-1`                      | GAPW all-electron and GAPW/GAPW_XC GTH finite-difference force and stress checks with `BASIS_MOLOPT_UZH` and `POTENTIAL_UZH`                                  |
+| def2-ECP data             | def2-SVP ECP GAPW energy checks in `regtest-ecp` and `regtest-ecp-2`          | GAPW mixed all-electron/ECP and GAPW_XC ECP-only finite-difference force and stress checks                                                                     |
 | XAS/RT response           | XAS_TDP and RTBSE coverage in `regtest-xastdp` and `regtest-rtbse`            | open-shell GAPW XAS_TDP and GAPW RTBSE smoke tests in `regtest-acc-3`                                                                                         |
 | KG embedding              | existing `regtest-kg` GPW cases                                               | GAPW/GAPW_XC energy and stress checks for libxc KG, meta-GGA/tau KG, and RI embedding                                                                         |
 | KG atomic potential       | `regtest-kg/H2_KG-1.inp`                                                      | GAPW/GAPW_XC energy and stress checks for `TNADD_METHOD ATOMIC`                                                                                               |
@@ -55,6 +57,17 @@ Finite-difference checks with `STOP_ON_MISMATCH` are included for:
   is kept diagonal in the targeted debug tests above.
 - GAPW_XC forces and diagonal stress: `regtest-acc-1/h2o-gapw_xc-force-1.inp`,
   `regtest-acc-1/h2o-gapw_xc-stress-debug-1.inp`.
+- UZH all-electron GAPW forces and full stress:
+  `regtest-acc-1/h2o-uzh-gapw-force-1.inp`,
+  `regtest-acc-1/h2o-uzh-gapw-stress-debug-1.inp`.
+- UZH GTH GAPW/GAPW_XC forces and full stress:
+  `regtest-acc-1/h2o-uzh-gth-gapw-force-1.inp`,
+  `regtest-acc-1/h2o-uzh-gth-gapw-stress-debug-1.inp`,
+  `regtest-acc-1/h2o-uzh-gth-gapw_xc-force-1.inp`, and
+  `regtest-acc-1/h2o-uzh-gth-gapw_xc-stress-debug-1.inp`.
+- def2-ECP GAPW/GAPW_XC force and stress checks:
+  `regtest-ecp/SbH3_def2_gapw_force.inp`, `SbH3_def2_gapw_stress_debug.inp`,
+  `Sb2_def2_gapw_xc_force.inp`, and `Sb2_def2_gapw_xc_stress_debug.inp`.
 - ADMM-GAPW forces: `regtest-acc-1/HF-d5.inp`, `regtest-acc-5/ft3_fine.inp`.
 - ADMM-GAPW diagonal stress: `regtest-acc-2/h2o-admm-gapw-stress-debug-1.inp`,
   `regtest-acc-2/h2o-admm-gapw-pbe-stress-debug-1.inp`.
