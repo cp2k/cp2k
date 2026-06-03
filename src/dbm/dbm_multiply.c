@@ -77,7 +77,7 @@ typedef struct {
  ******************************************************************************/
 static backend_context_t *backend_start(const dbm_matrix_t *matrix_c) {
   backend_context_t *const ctx = calloc(1, sizeof(backend_context_t));
-  // BLAS and LIBXSMM benefit in general from DBM_MULTIPLY_TASK_REORDER.
+  // BLAS and LIBXS benefit in general from DBM_MULTIPLY_TASK_REORDER.
   ctx->cpu_options = DBM_MULTIPLY_TASK_REORDER;
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
@@ -163,7 +163,7 @@ static void multiply_packs(const bool transa, const bool transb,
                            int64_t *flop, backend_context_t *ctx) {
   // For validation, FLOPS do not count, and relying on ctx is not necessary.
   backend_context_t *const context = (NULL != flop ? ctx : NULL);
-  const float alpha2 = alpha * alpha;
+  const float alpha2 = (float)(alpha * alpha);
   int64_t flop_sum = 0;
 
   const int nshard_rows = matrix_c->dist->rows.nshards;
@@ -214,32 +214,69 @@ static void multiply_packs(const bool transa, const bool transb,
         dbm_shard_t *const shard_c = &matrix_c->shards[ishard];
         int ntasks = 0;
 
+        // Determine contiguous block ranges for this shard in A and B.
         // Use a merge-join to find pairs of blocks with matching sum indices.
         // This utilizes that blocks within a shard are ordered by sum_index.
         const int iblock_start = shard_row_start[shard_row];
-        int jblock_start = shard_col_start[shard_col];
-        for (int iblock = iblock_start; iblock < pack_a->nblocks; iblock++) {
-          const dbm_pack_block_t *blk_a = &pack_a->blocks[iblock];
-          if (blk_a->free_index % nshard_rows != shard_row) {
+        int iblock_end = pack_a->nblocks;
+        for (int t = iblock_start; t < pack_a->nblocks; ++t) {
+          if (pack_a->blocks[t].free_index % nshard_rows != shard_row) {
+            iblock_end = t;
             break;
           }
-          for (int jblock = jblock_start; jblock < pack_b->nblocks; jblock++) {
-            const dbm_pack_block_t *blk_b = &pack_b->blocks[jblock];
-            if (blk_b->free_index % nshard_cols != shard_col) {
-              jblock = pack_b->nblocks; // break
-              continue;
-            }
-            if (blk_a->sum_index < blk_b->sum_index) {
-              jblock = pack_b->nblocks; // break
-              continue;
-            }
-            if (blk_a->sum_index > blk_b->sum_index) {
-              jblock_start++;
-              continue;
-            }
-            // Found block pair with blk_a->sum_index == blk_b->sum_index.
+        }
+        const int jblock_start = shard_col_start[shard_col];
+        int jblock_end = pack_b->nblocks;
+        for (int t = jblock_start; t < pack_b->nblocks; ++t) {
+          if (pack_b->blocks[t].free_index % nshard_cols != shard_col) {
+            jblock_end = t;
+            break;
+          }
+        }
+        if (iblock_start >= iblock_end || jblock_start >= jblock_end) {
+          backend_process_batch(ntasks, batch, alpha, pack_a, pack_b, ishard,
+                                shard_c, true, force_cpu, context);
+          continue;
+        }
 
-            // Check norms.
+        // Merge over sum_index (both ranges sorted by sum_index).
+        int i = iblock_start, j = jblock_start, last_sum_index = -1;
+        int b_range_start = -1, b_range_end = -1;
+
+        while (i < iblock_end) {
+          const dbm_pack_block_t *blk_a = &pack_a->blocks[i];
+          const int sum_a = blk_a->sum_index;
+
+          // Advance j until sum_b >= sum_a.
+          while (j < jblock_end && pack_b->blocks[j].sum_index < sum_a) {
+            ++j;
+          }
+          if (j >= jblock_end) {
+            break; // No more matches possible.
+          }
+
+          const int sum_b = pack_b->blocks[j].sum_index;
+          if (sum_b > sum_a) {
+            ++i;
+            continue; // Need next A block with higher sum_index.
+          }
+
+          // sum_a == sum_b: establish (or reuse) B range with this sum_index.
+          if (sum_a != last_sum_index) {
+            b_range_start = j;
+            int t = j + 1;
+            while (t < jblock_end && pack_b->blocks[t].sum_index == sum_a) {
+              ++t;
+            }
+            b_range_end = t;
+            last_sum_index = sum_a;
+          }
+
+          // Iterate over B blocks in current sum_index range.
+          for (int jb = b_range_start; jb < b_range_end; ++jb) {
+            const dbm_pack_block_t *const blk_b = &pack_b->blocks[jb];
+
+            // Norm filter first (early reject).
             const float result_norm = alpha2 * blk_a->norm * blk_b->norm;
             if (result_norm < rows_max_eps[blk_a->free_index]) {
               continue;
@@ -248,17 +285,22 @@ static void multiply_packs(const bool transa, const bool transb,
             // Check block sizes.
             const int m = free_index_sizes_a[blk_a->free_index];
             const int n = free_index_sizes_b[blk_b->free_index];
-            const int k = sum_index_sizes_a[blk_a->sum_index];
+            const int k = sum_index_sizes_a[sum_a];
             assert(m == matrix_c->row_sizes[blk_a->free_index]);
             assert(n == matrix_c->col_sizes[blk_b->free_index]);
             assert(k == sum_index_sizes_b[blk_b->sum_index]);
 
+            if (m == 0 || n == 0 || k == 0) {
+              continue;
+            }
+
             // Get C block.
             const int row = blk_a->free_index, col = blk_b->free_index;
             dbm_block_t *blk_c = dbm_shard_lookup(shard_c, row, col);
-            if (blk_c == NULL && retain_sparsity) {
-              continue;
-            } else if (blk_c == NULL) {
+            if (blk_c == NULL) {
+              if (retain_sparsity) {
+                continue;
+              }
               assert(dbm_get_shard_index(matrix_c, row, col) == ishard);
               assert(dbm_get_stored_coordinates(matrix_c, row, col) ==
                      matrix_c->dist->my_rank);
@@ -267,19 +309,17 @@ static void multiply_packs(const bool transa, const bool transb,
 
             // Count flops.
             const int64_t task_flops = 2LL * m * n * k;
-            if (task_flops == 0) {
-              continue;
-            }
             flop_sum += task_flops;
             dbm_library_counter_increment(m, n, k);
 
             // Add block multiplication to batch.
-            batch[ntasks].m = m;
-            batch[ntasks].n = n;
-            batch[ntasks].k = k;
-            batch[ntasks].offset_a = blk_a->offset;
-            batch[ntasks].offset_b = blk_b->offset;
-            batch[ntasks].offset_c = blk_c->offset;
+            dbm_task_t *const tptr = &batch[ntasks];
+            tptr->offset_a = blk_a->offset;
+            tptr->offset_b = blk_b->offset;
+            tptr->offset_c = blk_c->offset;
+            tptr->m = m;
+            tptr->n = n;
+            tptr->k = k;
             ++ntasks;
 
             if (ntasks == DBM_MAX_BATCH_SIZE) {
@@ -288,6 +328,9 @@ static void multiply_packs(const bool transa, const bool transb,
               ntasks = 0;
             }
           }
+
+          // Advance i; if next A block has same sum_index, B range is reused.
+          ++i;
         }
         backend_process_batch(ntasks, batch, alpha, pack_a, pack_b, ishard,
                               shard_c, true, force_cpu, context);

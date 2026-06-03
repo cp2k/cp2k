@@ -18,10 +18,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(__LIBXSMM)
-#include <libxsmm.h>
-#endif
-
 /*******************************************************************************
  * \brief Wrapper for printf, passed to dbm_library_print_stats.
  * \author Ole Schuett
@@ -274,11 +270,6 @@ int main(int argc, char *argv[]) {
   if (my_rank == 0) {
     printf("OpenMP-threads: %i  GPUs: %i", omp_get_max_threads(),
            imin(offload_get_device_count(), nranks));
-#if defined(__LIBXSMM)
-    printf("  Libxsmm: %s", LIBXSMM_VERSION);
-#else
-    printf("  Libxsmm: n/a");
-#endif
 #if defined(__parallel)
     printf("  MPI-ranks: %i  MPI-cart: %i x %i", nranks, dims[0], dims[1]);
 #else

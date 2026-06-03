@@ -51,7 +51,6 @@ __device__ static void process_task(const int m, const int n, const int k,
                                     const double alpha, const double *block_a,
                                     const double *block_b, double *block_c,
                                     double *shared_mem) {
-
   constexpr int MAXEXTENT = (M > N ? M : N);
   constexpr int K = NUM_THREADS / MAXEXTENT;
 
@@ -72,8 +71,8 @@ __device__ static void process_task(const int m, const int n, const int k,
   for (int i_tile = 0; i_tile < m; i_tile += M) {
     for (int j_tile = 0; j_tile < n; j_tile += N) {
       double result = 0.0;
-      for (int l_tile = 0; l_tile < k; l_tile += K) {
 
+      for (int l_tile = 0; l_tile < k; l_tile += K) {
         // Load tile_a from global into shared memory.
         if (x < M && y < K) {
           const int i = i_tile + x;
@@ -127,7 +126,6 @@ __global__ static void process_batch_kernel(const double alpha,
                                             const double *pack_a_data,
                                             const double *pack_b_data,
                                             double *shard_c_data) {
-
   __shared__ double shared_mem[2 * NUM_THREADS];
 
   const dbm_task_t task = batch[blockIdx.x];
