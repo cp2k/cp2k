@@ -596,18 +596,32 @@ CONTAINS
 
       ! allocate and init mo_set
       DO ispin = 1, almo_scf_env%nspins
+      CALL dbcsr_get_info(almo_scf_env%matrix_t(ispin), nfullrows_total=nrow_fm, nfullcols_total=ncol_fm)
 
          ! Currently only fm version of mo_set is usable.
          ! First transform the matrix_t to fm version
          ! Empty the containers to prevent memory leaks
          CALL deallocate_mo_set(mos(ispin))
-         CALL allocate_mo_set(mo_set=mos(ispin), &
+
+         IF (almo_scf_env%nspins .EQ. 1) THEN
+                 CALL allocate_mo_set(mo_set=mos(ispin), &
                               nao=nrow_fm, &
                               nmo=ncol_fm, &
                               nelectron=almo_scf_env%nelectrons_total, &
                               n_el_f=REAL(almo_scf_env%nelectrons_total, dp), &
                               maxocc=2.0_dp, &
                               flexible_electron_count=dft_control%relax_multiplicity)
+         ELSEIF (almo_scf_env%nspins .EQ. 2) THEN 
+                 CALL allocate_mo_set(mo_set=mos(ispin), &
+                              nao=nrow_fm, &
+                              nmo=ncol_fm, &
+                              nelectron=SUM(almo_scf_env%nocc_of_domain(:,ispin)), &
+                              n_el_f=REAL(SUM(almo_scf_env%nocc_of_domain(:,ispin)), dp), &
+                              maxocc=1.0_dp, &
+                              flexible_electron_count=dft_control%relax_multiplicity)
+         ENDIF
+
+
 
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nrow_fm, ncol_global=ncol_fm, &
                                   context=almo_scf_env%blacs_env, &
@@ -920,8 +934,8 @@ CONTAINS
       ALLOCATE (almo_scf_env%quench_t(almo_scf_env%nspins))
       ALLOCATE (almo_scf_env%domain_map(almo_scf_env%nspins))
 
-      !DO ispin=1,almo_scf_env%nspins
-      ispin = 1
+      DO ispin=1,almo_scf_env%nspins
+      !ispin = 1
 
       ! create the sparsity template for the occupied orbitals
       CALL matrix_almo_create(matrix_new=almo_scf_env%quench_t(ispin), &
@@ -1483,7 +1497,7 @@ CONTAINS
       END DO
       DEALLOCATE (domain_grid)
 
-      !ENDDO ! ispin
+      ENDDO ! ispin
       IF (almo_scf_env%nspins == 2) THEN
          CALL dbcsr_copy(almo_scf_env%quench_t(2), &
                          almo_scf_env%quench_t(1))
