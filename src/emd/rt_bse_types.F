@@ -178,6 +178,11 @@ MODULE rt_bse_types
       ! checked against rtbse_env%mo_active; mismatch aborts.
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
       LOGICAL                                                   :: debug_force_hacked_gw_h2_eigenvalues = .FALSE.
+      ! Open-shell counterpart of the above: replaces the H_qp diagonal / H_eps source with the
+      ! module-level (28,2) parameter array hacked_GW_O2_eigenvalues in rt_bse_linearized.F. Strictly
+      ! for the O2 triplet with def2-SVP (n_spin=2, 28 active MOs/spin; checked at startup).
+      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
+      LOGICAL                                                   :: debug_force_hacked_gw_o2_eigenvalues = .FALSE.
       ! Per-kernel RI-RS dispatch. Independent toggles: rirs_hartree controls Hartree only,
       ! rirs_sex controls both COH and SEX (they share W = V + W^c). The required grid and
       ! V_grid/W0_grid kernels are built on demand and reused across steps.
@@ -455,6 +460,8 @@ CONTAINS
                                 l_val=rtbse_env%diagnose_liouvillian_eig)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_FORCE_HACKED_GW_H2_EIGENVALUES", &
                                 l_val=rtbse_env%debug_force_hacked_gw_h2_eigenvalues)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_FORCE_HACKED_GW_O2_EIGENVALUES", &
+                                l_val=rtbse_env%debug_force_hacked_gw_o2_eigenvalues)
 
       IF (.NOT. rtbse_env%dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) THEN
          rtbse_env%rtbse_energy_cutoff_occ = -1.0_dp
@@ -468,6 +475,7 @@ CONTAINS
          rtbse_env%rirs_sex = .FALSE.
          rtbse_env%diagnose_liouvillian_eig = .FALSE.
          rtbse_env%debug_force_hacked_gw_h2_eigenvalues = .FALSE.
+         rtbse_env%debug_force_hacked_gw_o2_eigenvalues = .FALSE.
       END IF
       ! First-peak shift only makes sense within TDA; force-disable otherwise.
       IF (.NOT. rtbse_env%tda_active) rtbse_env%tda_shift_to_first_peak = .FALSE.

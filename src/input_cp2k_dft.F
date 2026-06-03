@@ -2228,6 +2228,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      ! Debug-only QP override: open-shell O2 / def2-SVP hardcoded Turbomole GW eigenvalues
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_FORCE_HACKED_GW_O2_EIGENVALUES", &
+                          description="Debug-only open-shell counterpart of "// &
+                          "DEBUG_FORCE_HACKED_GW_H2_EIGENVALUES: overrides the linearized RT-BSE "// &
+                          "H_qp diagonal and Liouvillian diagnostic H_eps source with a hardcoded, "// &
+                          "spin-resolved Turbomole G0W0@PBE0 reference array. Strictly for the O2 "// &
+                          "triplet with def2-SVP (n_spin=2, 28 active MOs/spin; checked at startup, "// &
+                          "abort on mismatch). Used to feed Turbomole's QP into linRTBSE and isolate "// &
+                          "the W-kernel from the QP gap. Do NOT enable for any other system or basis.", &
+                          usage="DEBUG_FORCE_HACKED_GW_O2_EIGENVALUES", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_rtbse_section
 ! **************************************************************************************************
 !> \brief Creates the subsection for Fourier transform options applicable to RTP output
