@@ -164,8 +164,17 @@ CONTAINS
                           description="Intensity of the electric field. For real-time propagation (RTP) units are "// &
                           "in W*cm-2 which corresponds "// &
                           "to a maximal amplitude in a.u. of sqrt(I/(3.50944*10^16)). "// &
+                          "($E_H/a_B \approx 82.4$ V/nm) since in SI, $I_0=cE_H^2/8\pi$ "// &
                           "For a constant local field in isolated system calclulations, units are in a.u..", &
                           usage="INTENSITY  0.001", &
+                          default_r_val=0._dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="AMPLITUDE", &
+                          description="Amplitude of the electric field of the light wave. "// &
+                          "To be provided in place of INTENSITY.", &
+                          usage="AMPLITUDE 1.E9", unit_str="VOLT_PER_M", &
                           default_r_val=0._dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

@@ -372,6 +372,9 @@ CONTAINS
          CASE ("AU_EFIELD")
             unit_id(i_unit) = cp_units_au
             kind_id(i_unit) = cp_ukind_efield
+         CASE ("EFIELD")
+            unit_id(i_unit) = cp_units_none
+            kind_id(i_unit) = cp_ukind_efield
          CASE ("AU")
             CALL cp_abort(__LOCATION__, &
                           "au unit without specifying its kind not accepted, use "// &
@@ -642,7 +645,7 @@ CONTAINS
       CASE (cp_ukind_efield)
          SELECT CASE (basic_unit)
          CASE (cp_units_volt_per_m, cp_units_volt_per_nm, &
-               cp_units_volt_per_angstrom, cp_units_au)
+               cp_units_volt_per_angstrom, cp_units_au, cp_units_none)
          CASE default
             CPABORT("unknown electric field unit:"//TRIM(cp_to_string(basic_unit)))
          END SELECT

@@ -133,6 +133,8 @@ CONTAINS
          efield => dft_control%efield_fields(i)%efield
          IF (.NOT. efield%envelop_id == custom_env .AND. efield%wavelength > EPSILON(0.0_dp)) nu = c/(efield%wavelength) !in case of a custom efield we do not need nu
          strength = SQRT(efield%strength/(3.50944_dp*10.0_dp**16))
+         IF (strength == 0) strength = efield%amplitude
+
          IF (DOT_PRODUCT(efield%polarisation, efield%polarisation) == 0) THEN
             pol(:) = 1.0_dp/3.0_dp
          ELSE
