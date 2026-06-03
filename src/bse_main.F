@@ -94,7 +94,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: Eigenval, Eigenval_scf
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
-      INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red, bse_lev_virt
+      INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: bse_lev_virt
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub
       TYPE(mp2_type)                                     :: mp2_env
@@ -184,7 +185,7 @@ CONTAINS
                                        fm_mat_S_ab_trunc_arr(ispin), &
                                        Eigenval_scf(:, 1, ispin), Eigenval(:, 1, ispin), &
                                        Eigenval_reduced, homo(ispin), virtual(ispin), dimen_RI, &
-                                       unit_nr, bse_lev_virt, homo_red_arr(ispin), &
+                                       unit_nr, bse_lev_virt(ispin), homo_red_arr(ispin), &
                                        virt_red_arr(ispin), mp2_env, &
                                        homo_incl_in=first_active_mo, &
                                        virt_incl_in=last_active_mo - homo(ispin))
@@ -278,7 +279,7 @@ CONTAINS
                                     fm_mat_S_ab_trunc_arr(1), &
                                     Eigenval_scf(:, 1, 1), Eigenval(:, 1, 1), Eigenval_reduced, &
                                     homo(1), virtual(1), dimen_RI, unit_nr, &
-                                    bse_lev_virt, homo_red_arr(1), virt_red_arr(1), mp2_env)
+                                    bse_lev_virt(1), homo_red_arr(1), virt_red_arr(1), mp2_env)
          CALL mult_B_with_W(fm_mat_S_ij_trunc_arr(1), fm_mat_S_ia_trunc_arr(1), &
                             fm_mat_S_bar_ia_bse_arr(1), fm_mat_S_bar_ij_bse_arr(1), &
                             fm_mat_Q_static_bse_gemm, dimen_RI_red, homo_red_arr(1), virt_red_arr(1))

@@ -1424,7 +1424,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A35,T71,I10)') 'BSE|', 'Number of GW-corrected occupied MOs', &
                mp2_env%ri_g0w0%corr_mos_occ
             WRITE (unit_nr, '(T2,A4,T7,A32,T71,I10)') 'BSE|', 'Number of GW-corrected empty MOs', &
-               mp2_env%ri_g0w0%corr_mos_virt
+               bse_lev_virt
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
       END IF
@@ -1432,7 +1432,7 @@ CONTAINS
          IF (homo - homo_incl + 1 > mp2_env%ri_g0w0%corr_mos_occ) THEN
             CPABORT("Number of GW-corrected occupied MOs too small for chosen BSE cutoff")
          END IF
-         IF (virt_incl > mp2_env%ri_g0w0%corr_mos_virt) THEN
+         IF (virt_incl > bse_lev_virt) THEN
             CPABORT("Number of GW-corrected virtual MOs too small for chosen BSE cutoff")
          END IF
       END IF

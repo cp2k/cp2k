@@ -201,8 +201,7 @@ CONTAINS
          INTENT(INOUT)                                   :: gd_B_virtual
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_all
       TYPE(group_dist_d1_type), DIMENSION(:), &
-         INTENT(INOUT)                                   :: gd_B_occ_bse
-      TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_virt_bse
+         INTENT(INOUT)                                   :: gd_B_occ_bse, gd_B_virt_bse
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints, &
@@ -215,8 +214,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt
-      INTEGER, INTENT(IN)                                :: bse_lev_virt, unit_nr
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt, &
+                                                            bse_lev_virt
+      INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, my_do_gw, &
                                                             do_im_time, do_bse
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -547,16 +547,16 @@ CONTAINS
 
          CALL timeset(routineN//"_reorder_bse2", handle3)
 
-         ! bse_lev_virt (hence dimen_virt_square) and gd_B_virt_bse are shared across spins
-         dimen_virt_square = bse_lev_virt**2
+         ! bse_lev_virt(ispin) (hence dimen_virt_square) and gd_B_virt_bse(ispin) are per-spin
          DO ispin = 1, nspins
+            dimen_virt_square = bse_lev_virt(ispin)**2
             CALL calculate_BIb_C_2D(BIb_C_2D_bse_ab(ispin)%array, BIb_C_bse_ab(ispin)%array, para_env_sub, &
-                                    dimen_virt_square, bse_lev_virt, bse_lev_virt, gd_B_virt_bse, &
+                                    dimen_virt_square, bse_lev_virt(ispin), bse_lev_virt(ispin), gd_B_virt_bse(ispin), &
                                     my_ab_comb_bse_size(ispin), my_ab_comb_bse_start(ispin), &
                                     my_ab_comb_bse_end(ispin), my_group_L_size)
             DEALLOCATE (BIb_C_bse_ab(ispin)%array)
+            CALL release_group_dist(gd_B_virt_bse(ispin))
          END DO
-         CALL release_group_dist(gd_B_virt_bse)
 
          CALL timestop(handle3)
 
@@ -619,7 +619,7 @@ CONTAINS
                                fm_mat_Q(1)%matrix_struct%context, fm_mat_Q(1)%matrix_struct%context)
 
          CALL create_integ_mat(BIb_C_2D_bse_ab, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, [(dimen_virt_square, ispin=1, nspins)], color_rpa_group, &
+                               dimen_RI_red, [(bse_lev_virt(ispin)**2, ispin=1, nspins)], color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
@@ -1097,8 +1097,8 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_R_gw
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ij_bse, fm_mat_S_ab_bse
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt
-      INTEGER, INTENT(IN)                                :: bse_lev_virt
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt, &
+                                                            bse_lev_virt
       LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_im_time
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints, &

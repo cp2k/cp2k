@@ -139,11 +139,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_gpw_main'
 
-      INTEGER :: blacs_grid_layout, bse_lev_virt, color_sub, dimen_RI, dimen_RI_red, eri_method, &
-         handle, ispin, local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, nmo, &
-         nspins, potential_type, ri_metric_type
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array_mc, ends_array_mc_block, gw_corr_lev_occ, &
-         gw_corr_lev_virt, homo, starts_array_mc, starts_array_mc_block
+      INTEGER :: blacs_grid_layout, color_sub, dimen_RI, dimen_RI_red, eri_method, handle, ispin, &
+         local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, nmo, nspins, &
+         potential_type, ri_metric_type
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: bse_lev_virt, ends_array_mc, ends_array_mc_block, &
+         gw_corr_lev_occ, gw_corr_lev_virt, homo, starts_array_mc, starts_array_mc_block
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL :: blacs_repeatable, do_bse, do_im_time, do_kpoints_cubic_RPA, my_do_gw, &
          my_do_ri_mp2, my_do_ri_rpa, my_do_ri_sos_laplace_mp2
@@ -173,9 +173,9 @@ CONTAINS
       TYPE(dbt_type)                                     :: t_3c_M
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_O
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(group_dist_d1_type)                           :: gd_array, gd_B_all, gd_B_virt_bse
+      TYPE(group_dist_d1_type)                           :: gd_array, gd_B_all
       TYPE(group_dist_d1_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: gd_B_occ_bse, gd_B_virtual
+         DIMENSION(:)                                    :: gd_B_occ_bse, gd_B_virt_bse, gd_B_virtual
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: t_3c_O_compressed
       TYPE(kpoint_type), POINTER                         :: kpoints, kpoints_from_DFT
@@ -340,7 +340,7 @@ CONTAINS
 
       ! check if we want to do ri-g0w0 on top of ri-rpa
       my_do_gw = mp2_env%ri_rpa%do_ri_g0w0
-      ALLOCATE (gw_corr_lev_occ(nspins), gw_corr_lev_virt(nspins))
+      ALLOCATE (gw_corr_lev_occ(nspins), gw_corr_lev_virt(nspins), bse_lev_virt(nspins))
       gw_corr_lev_occ(1) = mp2_env%ri_g0w0%corr_mos_occ
       gw_corr_lev_virt(1) = mp2_env%ri_g0w0%corr_mos_virt
       IF (nspins == 2) THEN
@@ -352,8 +352,8 @@ CONTAINS
          !Keep default behavior for occupied
          ! We do not implement an explicit bse_lev_occ here, because the small number of occupied levels
          ! does not critically influence the memory
-         ! bse_lev_virt is shared across spins; the per-spin occupied count is homo(ispin)
-         bse_lev_virt = gw_corr_lev_virt(1)
+         ! bse_lev_virt is per-spin (= the per-spin GW-corrected virtual count): the (ab|K) block is sized per spin
+         bse_lev_virt(:) = gw_corr_lev_virt(:)
       END IF
 
       ! After the components are inside of the routines, we can move this line insight the branch
@@ -374,7 +374,7 @@ CONTAINS
                                            mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, &
                                            mo_coeff_all(ispin)%matrix, mo_coeff_gw(ispin)%matrix, &
                                            my_do_gw, gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin), do_bse, &
-                                           bse_lev_virt, mo_coeff_o_bse(ispin)%matrix, mo_coeff_v_bse(ispin)%matrix, &
+                                           bse_lev_virt(ispin), mo_coeff_o_bse(ispin)%matrix, mo_coeff_v_bse(ispin)%matrix, &
                                            mp2_env%mp2_gpw%eps_filter)
 
          END DO

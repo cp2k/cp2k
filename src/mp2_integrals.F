@@ -236,8 +236,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
-      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, &
-                                                            bse_lev_virt
+      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: bse_lev_virt
       LOGICAL, INTENT(IN)                                :: do_im_time, do_kpoints_cubic_RPA
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(dbt_type), INTENT(OUT)                        :: t_3c_M
@@ -249,22 +249,21 @@ CONTAINS
          DIMENSION(:, :, :)                              :: t_3c_O_ind
       TYPE(libint_potential_type), INTENT(IN)            :: ri_metric
       TYPE(group_dist_d1_type), ALLOCATABLE, &
-         DIMENSION(:), INTENT(OUT)                       :: gd_B_occ_bse
-      TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_B_virt_bse
+         DIMENSION(:), INTENT(OUT)                       :: gd_B_occ_bse, gd_B_virt_bse
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in'
 
       INTEGER :: cm, cut_memory, cut_memory_int, eri_method, gw_corr_lev_total, handle, handle2, &
          handle4, i, i_counter, i_mem, ibasis, ispin, itmp(2), j, jcell, kcell, LLL, min_bsize, &
-         my_B_all_end, my_B_all_size, my_B_all_start, my_B_virt_bse_end, my_B_virt_bse_size, &
-         my_B_virt_bse_start, my_group_L_end, my_group_L_size, my_group_L_start, n_rep, natom, &
-         ngroup, nimg, nkind, nspins, potential_type, ri_metric_type
+         my_B_all_end, my_B_all_size, my_B_all_start, my_group_L_end, my_group_L_size, &
+         my_group_L_start, n_rep, natom, ngroup, nimg, nkind, nspins, potential_type, &
+         ri_metric_type
       INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, &
          ends_array_mc_block_int, ends_array_mc_int, my_B_occ_bse_end, my_B_occ_bse_size, &
-         my_B_occ_bse_start, my_B_size, my_B_virtual_end, my_B_virtual_start, sizes_AO, &
-         sizes_AO_split, sizes_RI, sizes_RI_split, starts_array_mc_block_int, starts_array_mc_int, &
-         virtual
+         my_B_occ_bse_start, my_B_size, my_B_virt_bse_end, my_B_virt_bse_size, &
+         my_B_virt_bse_start, my_B_virtual_end, my_B_virtual_start, sizes_AO, sizes_AO_split, &
+         sizes_RI, sizes_RI_split, starts_array_mc_block_int, starts_array_mc_int, virtual
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(3)                              :: bounds_3c, pcoord, pdims, pdims_t3c, &
                                                             periodic
@@ -436,7 +435,7 @@ CONTAINS
 
          mem_for_iaK = dimen_RI*REAL(SUM(homo*virtual), KIND=dp)*8.0_dp/(1024_dp**2)
          mem_for_ijK = dimen_RI*REAL(SUM(homo(1:nspins)**2), KIND=dp)*8.0_dp/(1024_dp**2)
-         mem_for_abK = dimen_RI*REAL(nspins*bse_lev_virt**2, KIND=dp)*8.0_dp/(1024_dp**2)
+         mem_for_abK = dimen_RI*REAL(SUM(bse_lev_virt(1:nspins)**2), KIND=dp)*8.0_dp/(1024_dp**2)
 
          IF (.NOT. do_im_time) THEN
             WRITE (unit_nr, '(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for (ia|K) integrals:', &
@@ -491,17 +490,18 @@ CONTAINS
             CALL get_group_dist(gd_B_all, para_env_sub%mepos, my_B_all_start, my_B_all_end, my_B_all_size)
 
             IF (do_bse) THEN
-               ! virt x virt slab size (bse_lev_virt) is spin-independent, so gd_B_virt_bse stays scalar;
+               ! virt x virt slab size bse_lev_virt(ispin) is per-spin, so gd_B_virt_bse is an array;
                ! the occupied count homo(ispin) is per-spin, so gd_B_occ_bse and the bse intermediates are arrays
-               CALL create_group_dist(gd_B_virt_bse, para_env_sub%num_pe, bse_lev_virt)
-               CALL get_group_dist(gd_B_virt_bse, para_env_sub%mepos, my_B_virt_bse_start, my_B_virt_bse_end, my_B_virt_bse_size)
-
-               ALLOCATE (intermed_mat_bse_ab(nspins), intermed_mat_bse_ij(nspins), gd_B_occ_bse(nspins))
+               ALLOCATE (intermed_mat_bse_ab(nspins), intermed_mat_bse_ij(nspins), gd_B_occ_bse(nspins), gd_B_virt_bse(nspins))
                ALLOCATE (my_B_occ_bse_start(nspins), my_B_occ_bse_end(nspins), my_B_occ_bse_size(nspins))
+               ALLOCATE (my_B_virt_bse_start(nspins), my_B_virt_bse_end(nspins), my_B_virt_bse_size(nspins))
                DO ispin = 1, nspins
+                  CALL create_group_dist(gd_B_virt_bse(ispin), para_env_sub%num_pe, bse_lev_virt(ispin))
+                  CALL get_group_dist(gd_B_virt_bse(ispin), para_env_sub%mepos, my_B_virt_bse_start(ispin), &
+                                      my_B_virt_bse_end(ispin), my_B_virt_bse_size(ispin))
                   ! virt x virt matrices
                   CALL create_intermediate_matrices(intermed_mat_bse_ab(ispin), mo_coeff_v_bse(ispin)%matrix, &
-                                                    bse_lev_virt, bse_lev_virt, &
+                                                    bse_lev_virt(ispin), bse_lev_virt(ispin), &
                                                     "bse_ab_"//TRIM(ADJUSTL(cp_to_string(ispin))), blacs_env_sub, para_env_sub)
 
                   ! occ x occ matrices
@@ -544,7 +544,7 @@ CONTAINS
                ALLOCATE (BIb_C_bse_ij(ispin)%array(my_group_L_size, my_B_occ_bse_size(ispin), homo(ispin)))
                BIb_C_bse_ij(ispin)%array = 0.0_dp
 
-               ALLOCATE (BIb_C_bse_ab(ispin)%array(my_group_L_size, my_B_virt_bse_size, bse_lev_virt))
+               ALLOCATE (BIb_C_bse_ab(ispin)%array(my_group_L_size, my_B_virt_bse_size(ispin), bse_lev_virt(ispin)))
                BIb_C_bse_ab(ispin)%array = 0.0_dp
             END DO
 
@@ -617,7 +617,7 @@ CONTAINS
                                                mo_coeff_v_bse(ispin)%matrix, mo_coeff_v_bse(ispin)%matrix, eps_filter, &
                                                my_B_all_end, my_B_all_start)
                   END DO
-                  CALL contract_B_L(BIb_C_bse_ab(ispin)%array, my_Lrows, gd_B_virt_bse%sizes, gd_array%sizes, &
+                  CALL contract_B_L(BIb_C_bse_ab(ispin)%array, my_Lrows, gd_B_virt_bse(ispin)%sizes, gd_array%sizes, &
                                     qs_env%mp2_env%eri_blksize, ngroup, color_sub, para_env, para_env_sub)
 
                   ! B^ij_P matrix elements for BSE
