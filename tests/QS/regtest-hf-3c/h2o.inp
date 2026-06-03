@@ -56,6 +56,7 @@
         &PAIR_POTENTIAL
           D3BJ_SCALING 1.0000 0.4171 0.8777 2.9149
           PARAMETER_FILE_NAME dftd3.dat
+          REFERENCE_FUNCTIONAL PBE  ! will be ignored since parameters are set explicitly
           SHORT_RANGE_CORRECTION TRUE
           SHORT_RANGE_CORRECTION_PARAMETERS 0.03 0.70 1.50 0.75
           TYPE DFTD3(BJ)
