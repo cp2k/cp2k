@@ -15,7 +15,7 @@ class Integratorxx(CMakePackage):
     git = "https://github.com/wavefunction91/IntegratorXX.git"
     url = "https://github.com/wavefunction91/IntegratorXX/archive/refs/tags/v1.0.0.tar.gz"
 
-    maintainers("awvwgk")
+    maintainers("awvwgk", "mkrack")
 
     license("BSD-3-Clause")
 

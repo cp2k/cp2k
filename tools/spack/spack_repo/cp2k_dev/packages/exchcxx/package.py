@@ -17,7 +17,7 @@ class Exchcxx(CMakePackage, CudaPackage):
     git = "https://github.com/wavefunction91/ExchCXX.git"
     url = "https://github.com/wavefunction91/ExchCXX/archive/refs/tags/v1.0.0.tar.gz"
 
-    maintainers("awvwgk")
+    maintainers("awvwgk", "mkrack")
 
     license("BSD-3-Clause")
 

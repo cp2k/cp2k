@@ -18,7 +18,7 @@ class Gauxc(CMakePackage, CudaPackage):
     git = "https://github.com/wavefunction91/GauXC.git"
     url = "https://github.com/wavefunction91/GauXC/archive/refs/tags/v1.1.tar.gz"
 
-    maintainers("awvwgk")
+    maintainers("awvwgk", "mkrack")
 
     license("BSD-3-Clause")
 
@@ -30,6 +30,18 @@ class Gauxc(CMakePackage, CudaPackage):
         url="https://github.com/microsoft/skala/releases/download/v1.1.1/gauxc-skala-r2.tar.gz",
     )
     version("1.1", sha256="17de077fb23e44d03b0ed14dcd8117c01e5b3431fbefa2352d751639ada7f91c")
+
+    # Skala resource file
+    skala_version = "1.1"
+    skala_file = f"skala-{skala_version}.fun"
+    resource(
+        name="skala_fun",
+        url=f"https://huggingface.co/microsoft/skala-{skala_version}/resolve/main/{skala_file}",
+        sha256="0c8432ac3f03c8f1276372df9aca5b7ee7f8939d47a8789eb158976e89aa0606",
+        expand=False,
+        placement=skala_file,
+        when="+skala",
+    )
 
     depends_on("c", type="build")
     depends_on("cxx", type="build")
@@ -76,3 +88,11 @@ class Gauxc(CMakePackage, CudaPackage):
             self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
         ]
         return args
+
+    def install(self, spec, prefix):
+        super().install(spec, prefix)
+        if self.spec.satisfies("+skala"):
+            target_dir = self.prefix.share.gauxc.join("onedft_models")
+            mkdirp(target_dir)
+            print(target_dir)
+            install(join_path(self.skala_file, self.skala_file), target_dir)
