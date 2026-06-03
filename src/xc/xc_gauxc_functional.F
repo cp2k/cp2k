@@ -348,11 +348,13 @@ CONTAINS
    END FUNCTION xc_section_uses_gauxc
 
 ! **************************************************************************************************
-!> \brief Reject unsupported pseudopotential variants in GauXC GAPW mode
+!> \brief Return whether GauXC GAPW mode sees pseudopotential kinds.
 !> \param qs_kind_set ...
+!> \return ...
 ! **************************************************************************************************
-   SUBROUTINE ensure_gauxc_gapw_all_electron(qs_kind_set)
+   FUNCTION gauxc_gapw_has_pseudopotentials(qs_kind_set) RESULT(has_pseudopotentials)
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      LOGICAL                                            :: has_pseudopotentials
 
       INTEGER                                            :: ikind
       TYPE(gth_potential_type), POINTER                  :: gth_potential
@@ -360,19 +362,19 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(qs_kind_set))
 
+      has_pseudopotentials = .FALSE.
       DO ikind = 1, SIZE(qs_kind_set)
          NULLIFY (gth_potential, sgp_potential)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           gth_potential=gth_potential, &
                           sgp_potential=sgp_potential)
          IF (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "GauXC with METHOD GAPW currently supports all-electron potentials only. "// &
-                          "Use POTENTIAL ALL for GAPW validation or METHOD GPW with pseudopotentials.")
+            has_pseudopotentials = .TRUE.
+            EXIT
          END IF
       END DO
 
-   END SUBROUTINE ensure_gauxc_gapw_all_electron
+   END FUNCTION gauxc_gapw_has_pseudopotentials
 
 ! **************************************************************************************************
 !> \brief Check the current periodic scope of the CP2K-GauXC bridge
@@ -934,10 +936,11 @@ CONTAINS
       INTEGER                                            :: batch_size, env_status, img, ispin, &
                                                             natom, nimages, nspins, &
                                                             onedft_atom_chunk_size
-      LOGICAL :: do_kpoints, grid_explicit, hdf5_output, is_periodic, molecular_virial, &
-         molecular_virial_debug, onedft_atom_chunk_size_explicit, periodic_reference, &
-         pruning_explicit, use_fd_gradient, use_gradient_mpi_runtime, use_gradient_self_runtime, &
-         use_onedft, use_self_runtime, use_skala_model, write_hdf5_output
+      LOGICAL :: do_kpoints, gapw_pseudopotentials, grid_explicit, hdf5_output, is_periodic, &
+         molecular_virial, molecular_virial_debug, onedft_atom_chunk_size_explicit, &
+         periodic_reference, pruning_explicit, use_fd_gradient, use_gradient_mpi_runtime, &
+         use_gradient_self_runtime, use_onedft, use_self_runtime, use_skala_model, &
+         write_hdf5_output
       REAL(KIND=dp)                                      :: device_runtime_fill_fraction, &
                                                             molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
@@ -1003,9 +1006,8 @@ CONTAINS
       IF (dft_control%qs_control%gapw_xc) THEN
          CPABORT(gapw_xc_abort_message)
       END IF
-      IF (dft_control%qs_control%gapw) THEN
-         CALL ensure_gauxc_gapw_all_electron(qs_kind_set)
-      END IF
+      gapw_pseudopotentials = dft_control%qs_control%gapw .AND. &
+                              gauxc_gapw_has_pseudopotentials(qs_kind_set)
       CPASSERT(ASSOCIATED(rho))
       rho_use => rho
       CALL qs_rho_get( &
@@ -1099,6 +1101,23 @@ CONTAINS
       CALL uppercase(skala_runtime_key)
       use_onedft = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
       use_skala_model = (INDEX(TRIM(model_key), "SKALA") > 0)
+      IF (gapw_pseudopotentials .AND. .NOT. use_onedft) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "GauXC with METHOD GAPW and pseudopotentials is supported only for "// &
+                       "OneDFT/SKALA-style models that replace the molecular XC term. "// &
+                       "Use POTENTIAL ALL for local/semi-local GauXC GAPW validation or METHOD GPW "// &
+                       "with pseudopotentials.")
+      END IF
+      IF (gapw_pseudopotentials .AND. use_onedft .AND. para_env%mepos == 0 .AND. &
+          ASSOCIATED(scf_env)) THEN
+         IF (scf_env%iter_count == 1) THEN
+            CALL cp_warn( &
+               __LOCATION__, &
+               "GauXC OneDFT/SKALA with METHOD GAPW and pseudopotentials evaluates the XC term "// &
+               "directly on the molecular AO/valence density. CP2K's GAPW one-center XC "// &
+               "correction is not used; METHOD GAPW_XC with GauXC remains unsupported.")
+         END IF
+      END IF
       IF (device_runtime_fill_fraction <= 0.0_dp .OR. device_runtime_fill_fraction > 1.0_dp) THEN
          CALL cp_abort(__LOCATION__, &
                        "GAUXC%DEVICE_RUNTIME_FILL_FRACTION must be > 0 and <= 1.")

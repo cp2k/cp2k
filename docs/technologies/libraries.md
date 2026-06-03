@@ -122,10 +122,11 @@ integrator.
   single-rank gradient runtime for MPI calculations.
 - `CP2K_GAUXC_STATUS_STDERR=1` mirrors GauXC status messages to standard error. This is useful when
   launcher or CI logs hide the CP2K output file after an external-library failure.
-- `METHOD GAPW` with OneDFT/SKALA is limited to all-electron molecular inputs. In this mode GauXC
-  evaluates the full XC term directly on its molecular quadrature from the all-electron AO density;
-  CP2K's local/semi-local GAPW XC correction is not used for OneDFT/SKALA. Validation inputs should
-  use `GAPW_ACCURATE_XCINT T` to keep the GAPW setup explicit.
+- `METHOD GAPW` with OneDFT/SKALA is a molecular GauXC matrix path. GauXC evaluates the full XC term
+  directly on its molecular quadrature from the AO density. For pseudopotential inputs this is the
+  smooth valence density, so CP2K's local/semi-local GAPW one-center XC correction is not used for
+  OneDFT/SKALA. NLCC pseudopotentials remain unsupported because the frozen core density would need
+  a SKALA-consistent feature definition.
 - `METHOD GAPW_XC` with GauXC remains disabled pending a dedicated design for the smooth-density and
   one-center XC terms. It must not be used for non-local OneDFT/SKALA models.
 - A true compact-cell periodic GauXC path needs a new GauXC interface rather than only a CP2K input
