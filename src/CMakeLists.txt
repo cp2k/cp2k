@@ -560,6 +560,7 @@ list(
   qs_dispersion_nonloc.F
   qs_dispersion_d2.F
   qs_dispersion_d3.F
+  qs_dispersion_s_dftd3.F
   qs_dispersion_d4.F
   qs_dispersion_pairpot.F
   qs_dispersion_types.F
@@ -1752,6 +1753,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_PEXSI}>:PEXSI::PEXSI>
     $<$<BOOL:${CP2K_USE_ACE}>:pace::pace>
     $<$<BOOL:${CP2K_USE_TBLITE}>:cp2k::tblite>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:s-dftd3::s-dftd3>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
@@ -1805,6 +1807,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:__SMEAGOL>
     $<$<BOOL:${CP2K_USE_TBLITE}>:__TBLITE>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:__S_DFTD3>
     # Developer-only manual flag: __TBLITE_DEBUG_DIAGNOSTICS
     $<$<BOOL:${CP2K_USE_TBLITE}>:__DFTD4>
     $<$<BOOL:${CP2K_USE_DFTD4}>:__DFTD4>

@@ -58,8 +58,10 @@ MODULE qs_dispersion_types
       REAL(KIND=dp)                          :: s6 = -1.0_dp, s8 = -1.0_dp, sr6 = -1.0_dp !scaling parameters
       REAL(KIND=dp)                          :: a1 = -1.0_dp, a2 = -1.0_dp !BJ scaling parameters
       REAL(KIND=dp)                          :: eps_cn = -1.0_dp
-      LOGICAL                                :: d4_reference_code = .FALSE. !Use D4 calculation from ext. library
-      LOGICAL                                :: d4_debug = .FALSE. !Output debug information for D4
+LOGICAL                                :: d4_reference_code = .FALSE. !Use D4 calculation from ext. library
+       LOGICAL                                :: d4_debug = .FALSE. !Output debug information for D4
+       LOGICAL                                :: d3_reference_code = .FALSE. !Use D3 parameters from s-dftd3 library
+       LOGICAL                                :: d3_scaling_explicit = .FALSE. !Scaling parameters were explicitly set
       LOGICAL                                :: doabc = .FALSE. !neglect C9 terms
       LOGICAL                                :: c9cnst = .FALSE. !use constant c9 terms
       LOGICAL                                :: lrc = .FALSE. !calculate a long range correction

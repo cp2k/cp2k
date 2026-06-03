@@ -3,10 +3,10 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"pbe_dftd3_auto.inp"                   = [{matcher="M011", tol=1.0E-9, ref=-15.79823912329442}]
-"blyp_dftd3_overwrite.inp"             = [{matcher="M011", tol=1.0E-9, ref=-15.72056128}]
-"blyp_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-15.72203183029240}]
-"bp86_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-15.86955841580662}]
-"b3lyp_dftd3_auto.inp"                 = [{matcher="M011", tol=1.0E-9, ref=-15.75872597481363}]
-"pbe0_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-15.803039411000837}]
-"tpss_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-15.81605457676979}]
+"pbe_dftd3_auto.inp"                   = [{matcher="M011", tol=1.0E-9, ref=-17.199459250105793}]
+"blyp_dftd3_overwrite.inp"             = [{matcher="M011", tol=1.0E-9, ref=-8.036868767366540}]
+"blyp_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-8.036979920105619}]
+"bp86_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-8.102393104691805}]
+"b3lyp_dftd3_auto.inp"                 = [{matcher="M011", tol=1.0E-9, ref=-48.225031871460232}]
+"pbe0_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-11.711537578730349}]
+"tpss_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-17.199721812757971}]

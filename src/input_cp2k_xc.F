@@ -1019,10 +1019,17 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="D4_DEBUG", &
-                          description="Debug output for D4 method using reference code.", &
-                          usage="D4_DEBUG", default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
+CALL keyword_create(keyword, __LOCATION__, name="D4_DEBUG", &
+                           description="Debug output for D4 method using reference code.", &
+                           usage="D4_DEBUG", default_l_val=.FALSE., &
+                           lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="D3_REFERENCE_CODE", &
+                           description="Use D3 damping parameters from s-dftd3 library instead of built-in values. "// &
+                           "Requires s-dftd3 library to be compiled in.", &
+                           usage="D3_REFERENCE_CODE", default_l_val=.FALSE., &
+                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="D2_SCALING", &

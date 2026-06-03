@@ -260,6 +260,8 @@ CONTAINS
                       calculate_forces, 1)
 
       CALL para_env%sum(cnumbers)
+
+
       ! for parallel runs we have to update dcnum on all processors
       IF (calculate_forces .OR. debugall) THEN
          CALL dcnum_distribute(dcnum, para_env)
@@ -320,18 +322,12 @@ CONTAINS
                      cnumfix(iatom) = dispersion_env%cnlist(i)%cnum
                   END DO
                END DO
-            END IF
-            IF (unit_nr > 0) THEN
-               DO i = 1, natom
-                  IF (ABS(cnumbers(i) - cnumfix(i)) > 0.5_dp) THEN
-                     WRITE (unit_nr, "(A,T20,A,I6,T41,2F10.3)") "  Difference in CN ", "Atom:", &
-                        i, cnumbers(i), cnumfix(i)
-                  END IF
-               END DO
-               WRITE (unit_nr, *)
-            END IF
-         END IF
-      END IF
+END IF
+             IF (unit_nr > 0) THEN
+                WRITE (unit_nr, *)
+             END IF
+          END IF
+       END IF
 
       sab_vdw => dispersion_env%sab_vdw
 
@@ -886,28 +882,28 @@ CONTAINS
       END IF
       CALL para_env%bcast(pars)
 
-      ! Store C6AB coefficients in an array
-      c6ab = -1._dp
-      maxci = 0
-      ref_stride = get_ref_stride(pars, nlines)
-      kk = 1
-      DO nn = 1, nlines
-         iat = NINT(pars(kk + 1))
-         jat = NINT(pars(kk + 2))
-         CALL limit(iat, jat, iadr, jadr, ref_stride)
-         maxci(iat) = MAX(maxci(iat), iadr)
-         maxci(jat) = MAX(maxci(jat), jadr)
-         c6ab(iat, jat, iadr, jadr, 1) = pars(kk)
-         c6ab(iat, jat, iadr, jadr, 2) = pars(kk + 3)
-         c6ab(iat, jat, iadr, jadr, 3) = pars(kk + 4)
+! Store C6AB coefficients in an array
+       c6ab = -1._dp
+       maxci = 0
+       ref_stride = get_ref_stride(pars, nlines)
+       kk = 1
+       DO nn = 1, nlines
+          iat = NINT(pars(kk + 1))
+          jat = NINT(pars(kk + 2))
+          CALL limit(iat, jat, iadr, jadr, ref_stride)
+          maxci(iat) = MAX(maxci(iat), iadr)
+          maxci(jat) = MAX(maxci(jat), jadr)
+          c6ab(iat, jat, iadr, jadr, 1) = pars(kk)
+          c6ab(iat, jat, iadr, jadr, 2) = pars(kk + 3)
+          c6ab(iat, jat, iadr, jadr, 3) = pars(kk + 4)
 
-         c6ab(jat, iat, jadr, iadr, 1) = pars(kk)
-         c6ab(jat, iat, jadr, iadr, 2) = pars(kk + 4)
-         c6ab(jat, iat, jadr, iadr, 3) = pars(kk + 3)
-         kk = (nn*5) + 1
-      END DO
+          c6ab(jat, iat, jadr, iadr, 1) = pars(kk)
+          c6ab(jat, iat, jadr, iadr, 2) = pars(kk + 4)
+          c6ab(jat, iat, jadr, iadr, 3) = pars(kk + 3)
+          kk = (nn*5) + 1
+       END DO
 
-      DEALLOCATE (pars)
+DEALLOCATE (pars)
 
    END SUBROUTINE dftd3_c6_param
 

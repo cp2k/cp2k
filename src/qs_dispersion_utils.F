@@ -45,7 +45,8 @@ MODULE qs_dispersion_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_utils'
 
-   PUBLIC :: qs_dispersion_env_set, qs_write_dispersion
+   PUBLIC :: qs_dispersion_env_set, qs_write_dispersion, &
+              qs_scaling_dftd3, qs_scaling_dftd3bj
    PUBLIC :: cellhash, xc_functional_to_d_name, xc_functional_to_d4_name_int, xc_functional_detect_expanded
 
 ! **************************************************************************************************
@@ -258,7 +259,7 @@ CONTAINS
             ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
                CALL section_vals_val_get(pp_section, "D3BJ_SCALING", explicit=explicit)
             END IF
-            IF (.NOT. explicit) THEN
+IF (.NOT. explicit) THEN
                CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
                IF (.NOT. exfun) THEN
                   CALL xc_functional_to_d_name(xc_functional_name, dispersion_env%ref_functional)
@@ -266,50 +267,107 @@ CONTAINS
                      CALL cp_abort(__LOCATION__, &
                                    "D3 vdW: XC_FUNCTIONAL not supported. "// &
                                    "Set REFERENCE_FUNCTIONAL explicitly. "// &
-                                   "Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ for a full "// &
-                                   "list of supported functionals")
-                  END IF
-               ELSE
-                  CALL section_vals_val_get(vdw_section, &
-                                            "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
-                                            c_val=dispersion_env%ref_functional)
-               END IF
-               IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
-                  CALL qs_scaling_dftd3(dispersion_env%s6, dispersion_env%sr6, &
-                                        dispersion_env%s8, dispersion_env%ref_functional)
-               ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
-                  CALL qs_scaling_dftd3bj(dispersion_env%s6, dispersion_env%a1, dispersion_env%s8, &
-                                          dispersion_env%a2, dispersion_env%ref_functional)
-               END IF
-            ELSE
-               IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
-                  ! zero damping
-                  CALL section_vals_val_get(pp_section, "D3_SCALING", r_vals=scal)
-                  dispersion_env%s6 = scal(1)
-                  dispersion_env%sr6 = scal(2)
-                  dispersion_env%s8 = scal(3)
-                  dispersion_env%a1 = 0.0_dp
-                  dispersion_env%a2 = 0.0_dp
-               ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
-                  ! BJ damping
-                  CALL section_vals_val_get(pp_section, "D3BJ_SCALING", r_vals=scal)
-                  dispersion_env%s6 = scal(1)
-                  dispersion_env%a1 = scal(2)
-                  dispersion_env%s8 = scal(3)
-                  dispersion_env%a2 = scal(4)
-                  dispersion_env%sr6 = 0.0_dp
-               END IF
-            END IF
-         ELSE
-            dispersion_env%s6 = 0._dp
-            dispersion_env%sr6 = 0._dp
-            dispersion_env%s8 = 0._dp
-            dispersion_env%s9 = 0._dp
-            dispersion_env%a1 = 0._dp
-            dispersion_env%a2 = 0._dp
-            dispersion_env%eps_cn = 0._dp
-         END IF
-         IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
+"Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ for a full "// &
+                                    "list of supported functionals")
+                   END IF
+                ELSE
+                   CALL section_vals_val_get(vdw_section, &
+                                             "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
+                                             c_val=dispersion_env%ref_functional)
+                END IF
+                CALL section_vals_val_get(pp_section, "D3_REFERENCE_CODE", &
+                                          l_val=dispersion_env%d3_reference_code)
+                IF (.NOT. dispersion_env%d3_reference_code) THEN
+                   IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
+                      CALL qs_scaling_dftd3(dispersion_env%s6, dispersion_env%sr6, dispersion_env%s8, &
+                                            dispersion_env%ref_functional)
+                      IF (dispersion_env%s6 == 0.0_dp .AND. dispersion_env%sr6 == 0.0_dp .AND. &
+                          dispersion_env%s8 == 0.0_dp) THEN
+                         CALL cp_abort(__LOCATION__, &
+                                       "D3 vdW: REFERENCE_FUNCTIONAL '"//TRIM(dispersion_env%ref_functional)// &
+                                       "' not supported. "// &
+                                       "Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ for a full "// &
+                                       "list of supported functionals")
+                      END IF
+                   ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
+                      CALL qs_scaling_dftd3bj(dispersion_env%s6, dispersion_env%a1, dispersion_env%s8, &
+                                              dispersion_env%a2, dispersion_env%ref_functional)
+                      IF (dispersion_env%s6 == 0.0_dp .AND. dispersion_env%a1 == 0.0_dp .AND. &
+                          dispersion_env%s8 == 0.0_dp .AND. dispersion_env%a2 == 0.0_dp) THEN
+                         CALL cp_abort(__LOCATION__, &
+                                       "D3 vdW: REFERENCE_FUNCTIONAL '"//TRIM(dispersion_env%ref_functional)// &
+                                       "' not supported. "// &
+                                       "Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ for a full "// &
+                                       "list of supported functionals")
+                      END IF
+                   END IF
+                END IF
+             ELSE
+                dispersion_env%d3_scaling_explicit = .TRUE.
+                CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
+                IF (.NOT. exfun) THEN
+                   CALL xc_functional_to_d_name(xc_functional_name, dispersion_env%ref_functional)
+                   IF (dispersion_env%ref_functional == "none") THEN
+                      dispersion_env%ref_functional = ""
+                   END IF
+                ELSE
+                   CALL section_vals_val_get(vdw_section, &
+                                             "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
+                                             c_val=dispersion_env%ref_functional)
+                END IF
+                CALL section_vals_val_get(pp_section, "D3_REFERENCE_CODE", &
+                                          l_val=dispersion_env%d3_reference_code)
+                IF (.NOT. dispersion_env%d3_reference_code) THEN
+                   IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
+                      CALL qs_scaling_dftd3(dispersion_env%s6, dispersion_env%sr6, dispersion_env%s8, &
+                                            dispersion_env%ref_functional)
+                      IF (dispersion_env%s6 == 0.0_dp .AND. dispersion_env%sr6 == 0.0_dp .AND. &
+                          dispersion_env%s8 == 0.0_dp) THEN
+                         CALL cp_abort(__LOCATION__, &
+                                       "D3 vdW: REFERENCE_FUNCTIONAL '"//TRIM(dispersion_env%ref_functional)// &
+                                       "' not supported. "// &
+                                       "Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ for a full "// &
+                                       "list of supported functionals")
+                      END IF
+                   ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
+                      CALL qs_scaling_dftd3bj(dispersion_env%s6, dispersion_env%a1, dispersion_env%s8, &
+                                              dispersion_env%a2, dispersion_env%ref_functional)
+                      IF (dispersion_env%s6 == 0.0_dp .AND. dispersion_env%a1 == 0.0_dp .AND. &
+                          dispersion_env%s8 == 0.0_dp .AND. dispersion_env%a2 == 0.0_dp) THEN
+                         CALL cp_abort(__LOCATION__, &
+                                       "D3 vdW: REFERENCE_FUNCTIONAL '"//TRIM(dispersion_env%ref_functional)// &
+                                       "' not supported. "// &
+                                       "Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ for a full "// &
+                                       "list of supported functionals")
+                      END IF
+                   END IF
+                END IF
+                IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
+                   CALL section_vals_val_get(pp_section, "D3_SCALING", r_vals=scal)
+                   dispersion_env%s6 = scal(1)
+                   dispersion_env%sr6 = scal(2)
+                   dispersion_env%s8 = scal(3)
+                   dispersion_env%a1 = 0.0_dp
+                   dispersion_env%a2 = 0.0_dp
+                ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
+                   CALL section_vals_val_get(pp_section, "D3BJ_SCALING", r_vals=scal)
+                   dispersion_env%s6 = scal(1)
+                   dispersion_env%a1 = scal(2)
+                   dispersion_env%s8 = scal(3)
+                   dispersion_env%a2 = scal(4)
+                   dispersion_env%sr6 = 0.0_dp
+                END IF
+             END IF
+           ELSE
+             dispersion_env%s6 = 0._dp
+             dispersion_env%sr6 = 0._dp
+             dispersion_env%s8 = 0._dp
+             dispersion_env%s9 = 0._dp
+             dispersion_env%a1 = 0._dp
+             dispersion_env%a2 = 0._dp
+             dispersion_env%eps_cn = 0._dp
+          END IF
+          IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
             CALL section_vals_val_get(pp_section, "D4_SCALING", explicit=explicit)
             IF (.NOT. explicit) THEN
                CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
@@ -336,6 +394,8 @@ CONTAINS
             CALL section_vals_val_get(pp_section, "D4_REFERENCE_CODE", &
                                       l_val=dispersion_env%d4_reference_code)
             CALL section_vals_val_get(pp_section, "D4_DEBUG", l_val=dispersion_env%d4_debug)
+            CALL section_vals_val_get(pp_section, "D3_REFERENCE_CODE", &
+                                      l_val=dispersion_env%d3_reference_code)
             CALL section_vals_val_get(pp_section, "D4_CUTOFF", r_val=dispersion_env%rc_d4)
             CALL section_vals_val_get(pp_section, "D4_CN_CUTOFF", r_val=dispersion_env%rc_cn)
             CALL section_vals_val_get(pp_section, "FACTOR_S9_TERM", r_val=dispersion_env%s9)
@@ -550,24 +610,29 @@ CONTAINS
 !> \param sr6 ...
 !> \param s8 ...
 !> \param ref_functional ...
+!> \param found ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scaling_dftd3(s6, sr6, s8, ref_functional)
+   SUBROUTINE qs_scaling_dftd3(s6, sr6, s8, ref_functional, found)
 
       REAL(KIND=dp), INTENT(inout)                       :: s6, sr6, s8
       CHARACTER(LEN=default_string_length), INTENT(in)   :: ref_functional
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: found
 
       CHARACTER(LEN=default_string_length)               :: functional
 
       functional = ref_functional
       CALL uppercase(functional)
+      IF (PRESENT(found)) found = .FALSE.
       ! values for different functionals from:
       ! https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3
       ! L. Goerigk et al. PCCP 2017, 32147-32744, SI
       SELECT CASE (TRIM(functional))
       CASE DEFAULT
-         ! unknown functional
-         CPABORT("No DFT-D3 values available for this functional:"//TRIM(ref_functional))
+         s6 = 0.0_dp; sr6 = 0.0_dp; s8 = 0.0_dp
+         IF (PRESENT(found)) found = .FALSE.
+         RETURN
       CASE ("B1B95")
+         IF (PRESENT(found)) found = .TRUE.
          s6 = 1.000_dp
          sr6 = 1.613_dp
          s8 = 1.868_dp
@@ -924,24 +989,29 @@ CONTAINS
 !> \param s8 ...
 !> \param a2 ...
 !> \param ref_functional ...
+!> \param found ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scaling_dftd3bj(s6, a1, s8, a2, ref_functional)
+   SUBROUTINE qs_scaling_dftd3bj(s6, a1, s8, a2, ref_functional, found)
       REAL(KIND=dp), INTENT(inout)                       :: s6, a1, s8, a2
       CHARACTER(LEN=default_string_length), INTENT(in)   :: ref_functional
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: found
 
       CHARACTER(LEN=default_string_length)               :: functional
 
       functional = ref_functional
       CALL uppercase(functional)
+      IF (PRESENT(found)) found = .FALSE.
 
       ! values for different functionals from:
       ! http://www.thch.uni-bonn.de/tc/downloads/DFT-D3/functionalsbj.html
       ! L. Goerigk et al. PCCP 2017, 32147-32744, SI
       SELECT CASE (TRIM(functional))
       CASE DEFAULT
-         ! unknown functional
-         CPABORT("No DFT-D3(BJ) values available for this functional:"//TRIM(functional))
+         s6 = 0.0_dp; a1 = 0.0_dp; s8 = 0.0_dp; a2 = 0.0_dp
+         IF (PRESENT(found)) found = .FALSE.
+         RETURN
       CASE ("B1B95")
+         IF (PRESENT(found)) found = .TRUE.
          s6 = 1.0000_dp
          a1 = 0.2092_dp
          s8 = 1.4507_dp
@@ -1332,6 +1402,7 @@ CONTAINS
          s8 = 1.5744_dp
          a2 = 5.4184_dp
       END SELECT
+      IF (PRESENT(found)) found = .TRUE.
 
    END SUBROUTINE qs_scaling_dftd3bj
 
