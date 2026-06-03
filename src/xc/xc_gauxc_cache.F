@@ -281,6 +281,8 @@ CONTAINS
       cache%is_init = .FALSE.
 #else
       MARK_USED(cache)
+      IF (ALLOCATED(cache%last_positions)) DEALLOCATE (cache%last_positions)
+      cache%is_init = .FALSE.
 #endif
    END SUBROUTINE gauxc_cache_release
 
