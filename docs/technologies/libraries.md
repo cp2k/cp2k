@@ -124,9 +124,9 @@ integrator.
   single-rank gradient runtime for MPI calculations.
 - `CP2K_GAUXC_STATUS_STDERR=1` mirrors GauXC status messages to standard error. This is useful when
   launcher or CI logs hide the CP2K output file after an external-library failure.
-- OpenBLAS builds that also link libtorch must keep libtorch's CPU symbols ahead of OpenBLAS for
-  TorchScript models using batched matrix products. If a SKALA run crashes in `cblas_sgemm_batch`,
-  use a compatible BLAS setup or ensure `libtorch_cpu.so` is loaded before `libopenblas.so`.
+- Some OpenBLAS/libtorch combinations can be sensitive to BLAS symbol resolution for TorchScript
+  models using batched matrix products. If a SKALA run crashes in `cblas_sgemm_batch`, use a
+  compatible BLAS setup or ensure `libtorch_cpu.so` is loaded before `libopenblas.so`.
 - `METHOD GAPW` with OneDFT/SKALA is a molecular GauXC matrix path. GauXC evaluates the full XC term
   directly on its molecular quadrature from the AO density. For pseudopotential inputs this is the
   smooth valence density, so CP2K's local/semi-local GAPW one-center XC correction is not used for

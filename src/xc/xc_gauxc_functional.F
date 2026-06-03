@@ -49,7 +49,6 @@ MODULE xc_gauxc_functional
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE string_utilities,                ONLY: uppercase
-   USE torch_api,                       ONLY: torch_openblas_precedes_libtorch_cpu_blas
    USE xc_gauxc_interface,              ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
         cp_gauxc_molecule_type, cp_gauxc_status_type, cp_gauxc_xc_gradient_type, cp_gauxc_xc_type, &
@@ -1164,12 +1163,6 @@ CONTAINS
                           "GauXC OneDFT/SKALA with NLCC pseudopotentials is not implemented. "// &
                           "The frozen core density would need a SKALA-consistent feature definition.")
          END IF
-      END IF
-      IF (use_skala_model .AND. torch_openblas_precedes_libtorch_cpu_blas()) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "This OpenBLAS/libtorch link order routes TorchScript batched GEMM through "// &
-                       "OpenBLAS and is known to crash SKALA models. Use a compatible BLAS setup or "// &
-                       "load libtorch_cpu.so before libopenblas.so, for example with LD_PRELOAD.")
       END IF
       IF (use_onedft) THEN
          CALL set_gauxc_onedft_atom_chunk_env( &
