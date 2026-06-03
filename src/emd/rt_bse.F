@@ -87,6 +87,7 @@ MODULE rt_bse
                            create_rtbse_env, &
                            release_rtbse_env, &
                            multiply_fm_cfm
+   USE rt_bse_ri_rs, ONLY: compute_sigma_ri_rs_complex
    USE rt_bse_io, ONLY: output_moments, &
                         read_field, &
                         output_field, &
@@ -1057,6 +1058,14 @@ CONTAINS
 
       prefactor = 1.0_dp
       IF (PRESENT(prefactor_opt)) prefactor = prefactor_opt
+
+      ! RI-RS screened-exchange backend (linRTBSE only; rirs_sex is forced .FALSE. for full RTBSE,
+      ! so this is inert there). The RI-RS routine does its own Re/Im split, replacing the AO-RI body.
+      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C22
+      IF (rtbse_env%rirs_sex) THEN
+         CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, sigma_cfm, prefactor, greens_cfm)
+         RETURN
+      END IF
 
       ! Carry out the sigma part twice
       ! Real part

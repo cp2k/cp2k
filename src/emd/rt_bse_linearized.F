@@ -78,7 +78,6 @@ MODULE rt_bse_linearized
    USE rt_bse_ri_rs,                    ONLY: compute_hartree_ri_rs,&
                                               compute_hartree_ri_rs_complex,&
                                               compute_sigma_ri_rs,&
-                                              compute_sigma_ri_rs_complex,&
                                               rt_bse_ri_rs_ensure_V_grid,&
                                               rt_bse_ri_rs_ensure_W0_grid
    USE rt_bse_types,                    ONLY: create_rtbse_env,&
@@ -1003,12 +1002,7 @@ CONTAINS
          ! rho_orig is OO-diagonal in the MO basis, so its OV/VO projections
          ! vanish and the SEX reference must remain zero in TDA.
          IF (use_sex_reference) THEN
-            IF (use_rirs_sex) THEN
-               CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, &
-                                                rtbse_env%rho_ao_lrrtbse(i))
-            ELSE
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
-            END IF
+            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
             ! Transform to MO basis (AO scratch -> MO-active result)
             CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(i), rtbse_env%sigma_SEX(i), i)
             ! Apply occupation factor f_n-f_m
@@ -1268,12 +1262,7 @@ CONTAINS
             ! Calculate the (S)EX part - based on provided rho
             ! iGW = - rho W
             IF (use_sex) THEN
-               IF (use_rirs_sex) THEN
-                  CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, &
-                                                   rtbse_env%rho_ao_lrrtbse(ispin))
-               ELSE
-                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
-               END IF
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
                ! Transform to MO basis (AO scratch -> MO-active result)
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                      rtbse_env%sigma_SEX(ispin), ispin)
@@ -1318,13 +1307,7 @@ CONTAINS
             ! SEX: per-spin (W spin-diagonal). get_sigma builds -W*Delta rho; (f_n - f_m) zeros
             ! OO/VV and sets the OV/VO signs; coeff +1.
             IF (use_sex) THEN
-               IF (use_rirs_sex) THEN
-                  CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(ispin), &
-                                                   -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
-               ELSE
-                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, &
-                                 rtbse_env%rho_ao_lrrtbse(ispin))
-               END IF
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                      rtbse_env%sigma_SEX(ispin), ispin)
                CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin)
@@ -1414,12 +1397,7 @@ CONTAINS
             END IF
          END IF
          IF (use_sex) THEN
-            IF (use_rirs_sex) THEN
-               CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(ispin), &
-                                                -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
-            ELSE
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
-            END IF
+            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
             CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                   rtbse_env%sigma_SEX(ispin), ispin)
             CALL mask_mo_block_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin, keep_OV=.TRUE.)
@@ -1461,9 +1439,9 @@ CONTAINS
 !>        Matrix elements correspond to the Casida-A matrix:
 !>            L_{ia,jb} = (eps_a - eps_i) delta_{ij} delta_{ab} + (ia|jb) - W_{ij,ab}
 !>        with no (f_n - f_m) factor (the propagator path applies -1 on OV; we want raw +K).
-!>        Honors rtbse_env%rirs_hartree / rirs_sex to dispatch Hartree / SX to the RI-RS
-!>        grid kernels (compute_hartree_ri_rs_complex / compute_sigma_ri_rs_complex),
-!>        otherwise uses the AO-RI kernels (get_hartree_complex / get_sigma).
+!>        Honors rtbse_env%rirs_hartree to dispatch Hartree to the RI-RS grid kernel
+!>        (compute_hartree_ri_rs_complex); the SX RI-RS dispatch (rirs_sex) lives inside get_sigma.
+!>        AO-RI path: get_hartree_complex / get_sigma.
 !> [INTERNAL] dev_notes/rt_bse_equations.md §8 (derivation of L_TDA = A_Casida)
 !>
 !> \param rtbse_env RT-BSE environment (TDA, n_spin=1).
@@ -1580,12 +1558,7 @@ CONTAINS
       !    +1.0 here (no occupation-factor flip), giving raw K^SX = -W as required by
       !    K = (ia|jb) - W_{ij,ab} (Casida convention with +K).
       IF (use_sex) THEN
-         IF (rtbse_env%rirs_sex) THEN
-            CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(ispin), &
-                                             -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
-         ELSE
-            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
-         END IF
+         CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
          CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                rtbse_env%sigma_SEX(ispin), ispin)
          CALL add_K_MO_to_L_drho(rtbse_env, rtbse_env%sigma_SEX(ispin), L_drho_out, &
@@ -1732,12 +1705,7 @@ CONTAINS
       ! -W; add raw +1 (no occupation-factor flip), giving K^SX = -W.
       IF (use_sex) THEN
          DO isp = 1, rtbse_env%n_spin
-            IF (rtbse_env%rirs_sex) THEN
-               CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(isp), &
-                                                -1.0_dp, rtbse_env%rho_ao_lrrtbse(isp))
-            ELSE
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(isp), -1.0_dp, rtbse_env%rho_ao_lrrtbse(isp))
-            END IF
+            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(isp), -1.0_dp, rtbse_env%rho_ao_lrrtbse(isp))
             CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(isp), &
                                                   rtbse_env%sigma_SEX(isp), isp)
             CALL add_K_MO_to_L_drho(rtbse_env, rtbse_env%sigma_SEX(isp), L_drho_out(isp), &
