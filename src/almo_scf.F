@@ -42,9 +42,9 @@ MODULE almo_scf
    USE bibliography,                    ONLY: Khaliullin2013,&
                                               Kolafa2004,&
                                               Kuhne2007,&
+                                              Rullan2026,&
                                               Scheiber2018,&
                                               Staub2019,&
-                                              Rullan2026,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release
    USE cp_control_types,                ONLY: dft_control_type
@@ -186,7 +186,7 @@ CONTAINS
       INTEGER                                            :: ao, handle, i, iao, idomain, ispin, &
                                                             multip, naos, natoms, ndomains, nelec, &
                                                             nelec_a, nelec_b, nmols, nspins, &
-                                                            unit_nr, counter 
+                                                            unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -264,33 +264,31 @@ CONTAINS
       ELSE
          almo_scf_env%ndomains = almo_scf_env%natoms
       END IF
-      
-      IF ( allocated(almo_scf_env%activate) .and. almo_scf_env%activate(1) > 1) then
-          deallocate(almo_scf_env%activate)
+
+      IF (ALLOCATED(almo_scf_env%activate) .AND. almo_scf_env%activate(1) > 1) THEN
+         DEALLOCATE (almo_scf_env%activate)
       END IF
 
-      IF (.NOT. allocated(almo_scf_env%activate)) then
-          allocate(almo_scf_env%activate(1))
-          almo_scf_env%activate=0 
+      IF (.NOT. ALLOCATED(almo_scf_env%activate)) THEN
+         ALLOCATE (almo_scf_env%activate(1))
+         almo_scf_env%activate = 0
       END IF
 
       IF (almo_scf_env%activate(1) == 1) THEN
-              CALL cite_reference(Rullan2026)
-              ndomains = SIZE(almo_scf_env%multiplicity_of_domain)
-              nspins = SIZE(almo_scf_env%multiplicity_of_domain)
+         CALL cite_reference(Rullan2026)
+         ndomains = SIZE(almo_scf_env%multiplicity_of_domain)
+         nspins = SIZE(almo_scf_env%multiplicity_of_domain)
       ELSE
-              nspins = almo_scf_env%nspins
-              ndomains = almo_scf_env%ndomains 
+         nspins = almo_scf_env%nspins
+         ndomains = almo_scf_env%ndomains
       END IF
-     
-      IF (almo_scf_env%activate(1)==0) THEN
-         
-          
-              ALLOCATE (almo_scf_env%charge_of_domain(ndomains))
-              ALLOCATE (almo_scf_env%multiplicity_of_domain(ndomains))
+
+      IF (almo_scf_env%activate(1) == 0) THEN
+
+         ALLOCATE (almo_scf_env%charge_of_domain(ndomains))
+         ALLOCATE (almo_scf_env%multiplicity_of_domain(ndomains))
       END IF
-    
-   
+
       ! allocate domain descriptors
       !ndomains = almo_scf_env%ndomains
       ALLOCATE (almo_scf_env%domain_index_of_atom(natoms))
@@ -305,30 +303,28 @@ CONTAINS
       ALLOCATE (almo_scf_env%nvirt_disc_of_domain(ndomains, nspins))
       ALLOCATE (almo_scf_env%mu_of_domain(ndomains, nspins))
       ALLOCATE (almo_scf_env%cpu_of_domain(ndomains))
-      
-     
 
       ! fill out domain descriptors and group descriptors
       IF (almo_scf_env%domain_layout_mos == almo_domain_layout_molecular) THEN
          ! get domain info from molecule_set
-         IF (almo_scf_env%activate(1) == 1) THEN 
-                 CALL get_molecule_set_info(molecule_set, &
-                                    atom_to_mol=almo_scf_env%domain_index_of_atom, &
-                                    mol_to_first_atom=almo_scf_env%first_atom_of_domain, &
-                                    mol_to_last_atom=almo_scf_env%last_atom_of_domain, &
-                                    mol_to_nelectrons=almo_scf_env%nocc_of_domain(1:ndomains, 1), &
-                                    mol_to_nbasis=almo_scf_env%nbasis_of_domain)
-                                  !  mol_to_charge=almo_scf_env%charge_of_domain, &
-                                  !  mol_to_multiplicity=almo_scf_env%multiplicity_of_domain)
-         ELSE 
-                 CALL get_molecule_set_info(molecule_set, &
-                                    atom_to_mol=almo_scf_env%domain_index_of_atom, &
-                                    mol_to_first_atom=almo_scf_env%first_atom_of_domain, &
-                                    mol_to_last_atom=almo_scf_env%last_atom_of_domain, &
-                                    mol_to_nelectrons=almo_scf_env%nocc_of_domain(1:ndomains, 1), &
-                                    mol_to_nbasis=almo_scf_env%nbasis_of_domain,&
-                                    mol_to_charge=almo_scf_env%charge_of_domain, &
-                                    mol_to_multiplicity=almo_scf_env%multiplicity_of_domain)
+         IF (almo_scf_env%activate(1) == 1) THEN
+            CALL get_molecule_set_info(molecule_set, &
+                                       atom_to_mol=almo_scf_env%domain_index_of_atom, &
+                                       mol_to_first_atom=almo_scf_env%first_atom_of_domain, &
+                                       mol_to_last_atom=almo_scf_env%last_atom_of_domain, &
+                                       mol_to_nelectrons=almo_scf_env%nocc_of_domain(1:ndomains, 1), &
+                                       mol_to_nbasis=almo_scf_env%nbasis_of_domain)
+            !  mol_to_charge=almo_scf_env%charge_of_domain, &
+            !  mol_to_multiplicity=almo_scf_env%multiplicity_of_domain)
+         ELSE
+            CALL get_molecule_set_info(molecule_set, &
+                                       atom_to_mol=almo_scf_env%domain_index_of_atom, &
+                                       mol_to_first_atom=almo_scf_env%first_atom_of_domain, &
+                                       mol_to_last_atom=almo_scf_env%last_atom_of_domain, &
+                                       mol_to_nelectrons=almo_scf_env%nocc_of_domain(1:ndomains, 1), &
+                                       mol_to_nbasis=almo_scf_env%nbasis_of_domain, &
+                                       mol_to_charge=almo_scf_env%charge_of_domain, &
+                                       mol_to_multiplicity=almo_scf_env%multiplicity_of_domain)
          END IF
          ! calculate number of alpha and beta occupied orbitals from
          ! the number of electrons and multiplicity of each molecule
@@ -336,14 +332,14 @@ CONTAINS
          ! Na - Nb = Mult - 1 (assume Na > Nb as we do not have more info from get_molecule_set_info)
          DO idomain = 1, ndomains
             IF (almo_scf_env%activate(1) == 1) THEN
-                nelec = almo_scf_env%nocc_of_domain(idomain, 1) - almo_scf_env%charge_of_domain(idomain)
+               nelec = almo_scf_env%nocc_of_domain(idomain, 1) - almo_scf_env%charge_of_domain(idomain)
             ELSE
-                 nelec = almo_scf_env%nocc_of_domain(idomain, 1)
+               nelec = almo_scf_env%nocc_of_domain(idomain, 1)
             END IF
 
-           ! IF (.NOT. allocated(almo_scf_env%multiplicity_of_domain)) then
-           !   ALLOCATE (almo_scf_env%multiplicity_of_domain(ndomains)) 
-           ! END IF
+            ! IF (.NOT. allocated(almo_scf_env%multiplicity_of_domain)) then
+            !   ALLOCATE (almo_scf_env%multiplicity_of_domain(ndomains))
+            ! END IF
             multip = almo_scf_env%multiplicity_of_domain(idomain)
             nelec_a = (nelec + multip - 1)/2
             !nelec_b = nelec - nelec_a
@@ -362,12 +358,12 @@ CONTAINS
                almo_scf_env%nocc_of_domain(idomain, 1) = nelec_a
                nelec_b = nelec - nelec_a
                IF (almo_scf_env%activate(1) == 1) THEN
-               almo_scf_env%nocc_of_domain(idomain, 2) = nelec_b
+                  almo_scf_env%nocc_of_domain(idomain, 2) = nelec_b
                END IF
-             
+
                IF (nelec_a /= nelec_b) THEN
                   IF (nspins == 1) THEN
-                    
+
                      CPABORT("odd e- -- use unrestricted methods")
                   END IF
                   !almo_scf_env%nocc_of_domain(idomain, 2) = nelec_b
@@ -547,7 +543,6 @@ CONTAINS
       ALLOCATE (almo_scf_env%domain_r_down_up(ndomains, nspins))
       CALL init_submatrices(almo_scf_env%domain_r_down_up)
 
-
       ! initialization of the KS matrix
       CALL init_almo_ks_matrix_via_qs(qs_env, &
                                       almo_scf_env%matrix_ks, &
@@ -630,7 +625,7 @@ CONTAINS
       END IF
 
       nspins = almo_scf_env%nspins
-     
+
       ! create an initial guess
       IF (.NOT. aspc_guess) THEN
 
@@ -638,7 +633,7 @@ CONTAINS
          CASE (molecular_guess)
 
             DO ispin = 1, nspins
-              
+
                ! the calculations on "isolated" molecules has already been done
                ! all we need to do is convert the MOs of molecules into
                ! the ALMO matrix taking into account different distributions
@@ -1450,7 +1445,7 @@ CONTAINS
                            template=almo_scf_env%matrix_t(1), &
                            matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_reserve_all_blocks(no_quench(1))
-         CALL dbcsr_set(no_quench(1), 1.0_dp) 
+         CALL dbcsr_set(no_quench(1), 1.0_dp)
          IF (almo_scf_env%nspins > 1) THEN
             DO ispin = 2, almo_scf_env%nspins
                CALL dbcsr_create(no_quench(ispin), &
@@ -2143,7 +2138,7 @@ CONTAINS
       !ALLOCATE (matrix_v_processed(almo_scf_env%nspins))
 
       DO ispin = 1, almo_scf_env%nspins
-          
+
          CALL dbcsr_create(matrix_t_processed(ispin), &
                            template=almo_scf_env%matrix_t(ispin), &
                            matrix_type=dbcsr_type_no_symmetry)
@@ -2191,7 +2186,7 @@ CONTAINS
       CALL get_qs_env(qs_env, mos=mos, scf_env=scf_env)
 
       DO ispin = 1, almo_scf_env%nspins
-         !WRITE(*,*) 'ispin', ispin 
+         !WRITE(*,*) 'ispin', ispin
          ! Currently only fm version of mo_set is usable.
          ! First transform the matrix_t to fm version
          CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
@@ -2845,17 +2840,17 @@ CONTAINS
       DEALLOCATE (almo_scf_env%domain_r_down_up)
       DO ispin = 1, almo_scf_env%nspins
          DEALLOCATE (almo_scf_env%domain_map(ispin)%pairs)
-         DEALLOCATE (almo_scf_env%domain_map(ispin)%index1) 
+         DEALLOCATE (almo_scf_env%domain_map(ispin)%index1)
       END DO
       DEALLOCATE (almo_scf_env%domain_map)
       DEALLOCATE (almo_scf_env%domain_index_of_ao)
       DEALLOCATE (almo_scf_env%domain_index_of_atom)
       DEALLOCATE (almo_scf_env%first_atom_of_domain)
       DEALLOCATE (almo_scf_env%last_atom_of_domain)
-      DEALLOCATE (almo_scf_env%nbasis_of_domain) 
+      DEALLOCATE (almo_scf_env%nbasis_of_domain)
       IF (ALLOCATED(almo_scf_env%nocc_of_domain)) THEN
-         DEALLOCATE(almo_scf_env%nocc_of_domain)
-      END IF 
+         DEALLOCATE (almo_scf_env%nocc_of_domain)
+      END IF
       DEALLOCATE (almo_scf_env%real_ne_of_domain)
       DEALLOCATE (almo_scf_env%nvirt_full_of_domain)
       DEALLOCATE (almo_scf_env%nvirt_of_domain)
@@ -2864,7 +2859,7 @@ CONTAINS
       DEALLOCATE (almo_scf_env%cpu_of_domain)
       DEALLOCATE (almo_scf_env%charge_of_domain)
       DEALLOCATE (almo_scf_env%multiplicity_of_domain)
-      DEALLOCATE (almo_scf_env%activate)  
+      DEALLOCATE (almo_scf_env%activate)
       IF (almo_scf_env%smear) THEN
          DEALLOCATE (almo_scf_env%mo_energies)
          DEALLOCATE (almo_scf_env%kTS)

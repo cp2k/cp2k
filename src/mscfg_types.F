@@ -12,13 +12,12 @@
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
 MODULE mscfg_types
-   USE  cp_dbcsr_api,                    ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
         dbcsr_finalize, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_readonly_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_put_block, &
-        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry,dbcsr_work_create
-  
+        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -142,13 +141,13 @@ CONTAINS
                         matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_set(matrix_out, 0.0_dp)
       CALL dbcsr_get_info(matrix_out, nfullrows_total=matrix_size(1), nfullcols_total=matrix_size(2))
- 
+
       !matrix_size(1) = dbcsr_nfullrows_total(matrix_out)
       !matrix_size(2) = dbcsr_nfullcols_total(matrix_out)
-     ! CALL dbcsr_get_info(matrix_out, &
-     ! nfullrows_total = matrix_size(1), &
-     ! nfullcols_total = matrix_size(2))
-     
+      ! CALL dbcsr_get_info(matrix_out, &
+      ! nfullrows_total = matrix_size(1), &
+      ! nfullcols_total = matrix_size(2))
+
       ! assume that the initial offset is zero
       offset(1) = 0
       offset(2) = 0
@@ -156,32 +155,27 @@ CONTAINS
       DO ifrag = 1, mscfg_env%nfrags
 
          CPASSERT(iset <= mscfg_env%nmosets_of_frag(ifrag))
-        
-       
+
          CALL dbcsr_get_info(mscfg_env%mos_of_frag(ifrag, iset), &
-         nfullrows_total = submatrix_size(1), &
-         nfullcols_total = submatrix_size(2))
-       
-      
-     
+                             nfullrows_total=submatrix_size(1), &
+                             nfullcols_total=submatrix_size(2))
+
          CALL copy_submatrix_into_matrix(mscfg_env%mos_of_frag(ifrag, iset), &
                                          matrix_temp, offset, submatrix_size, matrix_size)
 
          CALL dbcsr_add(matrix_out, matrix_temp, 1.0_dp, 1.0_dp)
-        
+
          offset(1) = offset(1) + submatrix_size(1)
-    
+
          offset(2) = offset(2) + submatrix_size(2)
 
       END DO
-   
-  
+
       ! Check that the accumulated size of submatrices
       ! is exactly the same as the size of the big matrix
       ! This is to prevent unexpected conversion errors
       ! If however such conversion is intended - remove these safeguards
-     
-    
+
       CPASSERT(offset(1) == matrix_size(1))
       CPASSERT(offset(2) == matrix_size(2))
 

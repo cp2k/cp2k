@@ -238,6 +238,7 @@ CONTAINS
 !> \param fm_ref  a reference  matrix from which you initialize the mo_set
 !> \param fm_struct ...
 !> \param name ...
+!> \param counter ...
 !> \par History
 !>      11.2002 revamped [fawzi]
 !> \author Fawzi Mohamed
@@ -249,9 +250,9 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_ref
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: fm_struct
       CHARACTER(LEN=*), INTENT(in)                       :: name
-      INTEGER, INTENT(INOUT), OPTIONAL                   :: counter 
+      INTEGER, INTENT(INOUT), OPTIONAL                   :: counter
 
-      INTEGER                                            :: nao, nmo, nomo, na,nb 
+      INTEGER                                            :: na, nao, nb, nmo, nomo
 
       CPASSERT(.NOT. ASSOCIATED(mo_set%eigenvalues))
       CPASSERT(.NOT. ASSOCIATED(mo_set%occupation_numbers))
@@ -295,8 +296,8 @@ CONTAINS
          ! Initialize MO occupations
          mo_set%occupation_numbers(1:nomo - 1) = mo_set%maxocc
          !mo_set%occupation_numbers(nomo) = mo_set%nelectron - (nomo - 1)*mo_set%maxocc
-         mo_set%occupation_numbers(nomo-((na - nb)/2):nomo) = 1
-      END IF  
+         mo_set%occupation_numbers(nomo - ((na - nb)/2):nomo) = 1
+      END IF
 
       CPASSERT(nmo >= nomo)
       CPASSERT((SIZE(mo_set%occupation_numbers) == nmo))

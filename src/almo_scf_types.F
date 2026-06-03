@@ -58,10 +58,9 @@ MODULE almo_scf_types
 
    TYPE fragment_type
 
-      INTEGER         :: fragment_parameters=0, charge=0, multiplicity=1
+      INTEGER         :: fragment_parameters = 0, charge = 0, multiplicity = 1
 
    END TYPE fragment_type
-
 
    ! almo-based electronic structure analysis
    TYPE almo_analysis_type

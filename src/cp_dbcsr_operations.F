@@ -234,8 +234,6 @@ CONTAINS
                           nfullrows_total=nfullrows_total, &
                           nfullcols_total=nfullcols_total)
 
-     
-   
       CPASSERT(fm%matrix_struct%nrow_global == nfullrows_total)
       CPASSERT(fm%matrix_struct%ncol_global == nfullcols_total)
 

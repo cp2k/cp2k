@@ -1002,7 +1002,7 @@ CONTAINS
       NULLIFY (section)
 
       CALL section_create(section, __LOCATION__, name="FRAGMENT", &
-                          description="Specify the caracteristics of"//&
+                          description="Specify the caracteristics of "// &
                           "each fragments.", &
                           n_keywords=3, n_subsections=0, repeats=.TRUE.)
       NULLIFY (keyword)
@@ -1020,7 +1020,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="MULTIPLICITY", &
-                          variants=(/"MULTIP"/), &
+                          variants=["MULTIP"], &
                           description="Specify for each fragment the multiplicity. Two times the total spin plus one. "// &
                           "Specify 3 for a triplet, 4 for a quartet,and so on. Default is 1 (singlet) for an "// &
                           "even number and 2 (doublet) for an odd number of electrons.", &
@@ -1028,7 +1028,6 @@ CONTAINS
                           default_i_val=1) ! this default value is just a flag to get the above
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-
 
    END SUBROUTINE create_almo_fragment_section
 
