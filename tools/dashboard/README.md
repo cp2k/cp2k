@@ -52,7 +52,6 @@ typical entry looks like this:
 
 ```
 [mkrack-pdbg]
-sortkey:     100
 name:        Linux-x86-64-gfortran.pdbg
 host:        PSI, merlinl03
 notify:      off
@@ -65,7 +64,6 @@ The fields have the following meaning:
 | Field        | Meaning                                                                                   |
 | ------------ | ----------------------------------------------------------------------------------------- |
 | `[foo_bar]`  | internal name of the tester, it shows up e.g. in the archive-url                          |
-| `sortkey`    | used to order the entries in the dashboard, low means high up                             |
 | `name`       | displayed in the first column of the dashboard                                            |
 | `host`       | displayed in the second column of the dashboard                                           |
 | `info_url`   | optional, if provided it is shows up as the "more information"-link on the archive-page   |
