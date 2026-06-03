@@ -232,6 +232,21 @@ CONTAINS
 #else
 
 ! **************************************************************************************************
+!> \brief Check if a functional is supported by the s-dftd3 library
+!> \param pp_type ...
+!> \param ref_functional ...
+!> \param found ...
+! **************************************************************************************************
+   SUBROUTINE dftd3_functional_supported(pp_type, ref_functional, found)
+      INTEGER, INTENT(IN)                                :: pp_type
+      CHARACTER(LEN=*), INTENT(IN)                       :: ref_functional
+      LOGICAL, INTENT(OUT)                               :: found
+
+      found = .FALSE.
+
+   END SUBROUTINE dftd3_functional_supported
+
+! **************************************************************************************************
 !> \brief ...
 !> \param c6ab ...
 !> \param maxci ...
