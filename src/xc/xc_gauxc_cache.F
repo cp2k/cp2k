@@ -54,7 +54,6 @@ MODULE xc_gauxc_cache
       TYPE(cp_gauxc_integrator_type)               :: gradient_integrator
       LOGICAL                                      :: is_init = .FALSE.
       LOGICAL                                      :: use_fd_gradient = .FALSE.
-      INTEGER                                      :: mpi_comm = -1
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: last_positions
 
    CONTAINS
@@ -131,11 +130,7 @@ CONTAINS
       IF (gauxc_cache_is_valid( &
           cache, &
           params, &
-          particle_set, &
-          gapw, &
-          calculate_forces, &
-          use_skala_model, &
-          para_env)) THEN
+          particle_set)) THEN
          status%status%code = 0
          RETURN
       END IF
@@ -238,11 +233,6 @@ CONTAINS
       cache%model_name = TRIM(params%model_name)
       cache%use_gradient_self_runtime = params%use_gradient_self_runtime
       cache%use_self_runtime = params%use_self_runtime
-      IF (params%use_self_runtime) THEN
-         cache%mpi_comm = mp_comm_self%get_handle()
-      ELSE
-         cache%mpi_comm = para_env%get_handle()
-      END IF
       IF (ALLOCATED(cache%last_positions)) &
          DEALLOCATE (cache%last_positions)
       ALLOCATE (cache%last_positions(3, params%natom))
@@ -298,28 +288,18 @@ CONTAINS
 !> \param cache ...
 !> \param params ...
 !> \param particle_set ...
-!> \param gapw ...
-!> \param calculate_forces ...
-!> \param use_skala_model ...
-!> \param para_env ...
 !> \return ...
 !> \retval cache_valid ...
 ! **************************************************************************************************
    FUNCTION gauxc_cache_is_valid( &
       cache, &
       params, &
-      particle_set, &
-      gapw, &
-      calculate_forces, &
-      use_skala_model, &
-      para_env) &
+      particle_set) &
       RESULT(cache_valid)
 
       TYPE(cp_gauxc_cache_type), INTENT(IN)                :: cache
       TYPE(cp_gauxc_cache_params), INTENT(in) :: params
       TYPE(particle_type), DIMENSION(:), POINTER           :: particle_set
-      LOGICAL, INTENT(IN)                                  :: gapw, calculate_forces, use_skala_model
-      TYPE(mp_para_env_type), POINTER                      :: para_env
       LOGICAL                                              :: cache_valid
 
 #ifdef __GAUXC
@@ -342,14 +322,6 @@ CONTAINS
       IF (TRIM(cache%model_name) /= TRIM(params%model_name)) RETURN
       IF (cache%use_gradient_self_runtime .NEQV. params%use_gradient_self_runtime) RETURN
       IF (cache%use_self_runtime .NEQV. params%use_self_runtime) RETURN
-      IF (cache%use_fd_gradient .NEQV. (gapw .AND. calculate_forces .AND. &
-                                        (use_skala_model .OR. cache%basisset%max_l > 3))) RETURN
-      IF (params%use_self_runtime) THEN
-         current_mpi_comm = mp_comm_self%get_handle()
-      ELSE
-         current_mpi_comm = para_env%get_handle()
-      END IF
-      IF (cache%mpi_comm /= current_mpi_comm) RETURN
       IF (.NOT. ALLOCATED(cache%last_positions)) RETURN
       IF (SIZE(cache%last_positions, 2) /= params%natom) RETURN
       DO iatom = 1, params%natom
