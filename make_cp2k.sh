@@ -234,7 +234,7 @@ while [[ $# -gt 0 ]]; do
                 for package in libfci libint2 libxc libxsmm spglib vori tblite; do
                   CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=ON"
                 done
-                for package in ace deepmd greenx hdf5 libtorch pexsi trexio; do
+                for package in ace deepmd gauxc greenx hdf5 libtorch pexsi trexio; do
                   CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=OFF"
                 done
                 ;;
@@ -268,7 +268,7 @@ while [[ $# -gt 0 ]]; do
             # Enable or disable all features
             CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=${ON_OFF}"
             for package in adios2 cosma deepmdkit dla-future dla-future-fortran elpa \
-              greenx hdf5 libfci libfabric libint libvdwxc libsmeagol libvori libxc \
+              gauxc greenx hdf5 libfci libfabric libint libvdwxc libsmeagol libvori libxc \
               libxsmm mimic-mcl openpmd-api pace pexsi plumed py-torch sirius spfft \
               spglib spla tblite trexio; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"${package}@/ ${SUBST}"
@@ -278,7 +278,7 @@ while [[ $# -gt 0 ]]; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"smm=libxsmm\"/ s/libxsmm/blas/'"
             fi
             ;;
-          ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | libfci | libint2 | \
+          ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | hdf5 | libfci | libint2 | \
             libsmeagol | libtorch | libxc | libxsmm | mimic | openpmd | pexsi | plumed | spglib | \
             tblite | trexio | vori)
             CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${2^^}=${ON_OFF}"
@@ -312,15 +312,25 @@ while [[ $# -gt 0 ]]; do
               fftw3)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"fftw@/ ${SUBST}"
                 ;;
+              gauxc)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
+                if [[ "${ON_OFF}" == "ON" ]]; then
+                  # GauXC requires libtorch
+                  CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_LIBTORCH=${ON_OFF}"
+                  SED_PATTERN_LIST+=" -e '/\s*-\s+\"py-torch@/ ${SUBST}"
+                fi
+                ;;
               libint2)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"libint@/ ${SUBST}"
                 ;;
               libtorch)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"py-torch@/ ${SUBST}"
                 if [[ "${ON_OFF}" == "OFF" ]]; then
-                  # DeePMD-kit requires libtorch
+                  # DeePMD-kit and GauXC require libtorch
                   CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_DEEPMD=${ON_OFF}"
                   SED_PATTERN_LIST+=" -e '/\s*-\s+\"deepmdkit@/ ${SUBST}"
+                  CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_GAUXC=${ON_OFF}"
+                  SED_PATTERN_LIST+=" -e '/\s*-\s+\"gauxc@/ ${SUBST}"
                 fi
                 ;;
               libxsmm)
@@ -583,7 +593,7 @@ NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
 [[ -f /.dockerenv || -f /run/.containerenv ]] && IN_CONTAINER="yes" || IN_CONTAINER="no"
 
 # Assemble CMake feature flag list
-CMAKE_FEATURE_FLAGS="${CMAKE_FEATURE_FLAG_ALL} ${CMAKE_FEATURE_FLAG_MPI} ${CMAKE_FEATURE_FLAGS} -DCP2K_USE_GAUXC=OFF"
+CMAKE_FEATURE_FLAGS="${CMAKE_FEATURE_FLAG_ALL} ${CMAKE_FEATURE_FLAG_MPI} ${CMAKE_FEATURE_FLAGS}"
 
 # Clean CMake feature flag list from repeated entries and keep only the last definition
 declare -A last=()
@@ -667,9 +677,9 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "   (see also --build_deps flag)"
   echo " - The folder ${CP2K_ROOT}/install is updated after each successful run"
   echo ""
-  echo "Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | libfci | libint2 |"
-  echo "          libsmeagol | libtorch | libvdwxc | libxsmm | mimic | openpmd | pexsi | plumed | sirius |"
-  echo "          spfft | spglib | spla | tblite | trexio | vori "
+  echo "Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | hdf5 | libfci |"
+  echo "          libint | libsmeagol | libtorch | libvdwxc | libxsmm | mimic | openpmd | pexsi | plumed |"
+  echo "          sirius | spfft | spglib | spla | tblite | trexio | vori "
   echo ""
   echo "Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | pw_gpu |"
   echo "          spla_gemm_offloading | unified_memory"
@@ -1363,6 +1373,32 @@ if ((EXIT_CODE != 0)); then
   ${EXIT_CMD} "${EXIT_CODE}"
 fi
 
+# Install Skala resource files if needed
+export GAUXC_SKALA_MODEL="(not available)"
+GAUXC_PATH="share/gauxc/onedft_models"
+GAUXC_PREFIX="$(spack location -i gauxc)"
+GAUXC_MODEL_SOURCE_PATH="${GAUXC_PREFIX%/}/${GAUXC_PATH}"
+if [[ -d "${GAUXC_MODEL_SOURCE_PATH}" ]]; then
+  GAUXC_MODEL_TARGET_PATH="${INSTALL_PREFIX%/}/${GAUXC_PATH}"
+  mkdir -p "${GAUXC_MODEL_TARGET_PATH}"
+  if compgen -G "${GAUXC_MODEL_SOURCE_PATH}/*.fun" > /dev/null; then
+    cp "${GAUXC_MODEL_SOURCE_PATH}"/*.fun "${GAUXC_MODEL_TARGET_PATH}/"
+  else
+    echo -e "\nERROR: No GauXC model files found in source folder ${GAUXC_MODEL_SOURCE_PATH}"
+    ${EXIT_CMD} 1
+  fi
+  shopt -s nullglob
+  MATCHES=("${GAUXC_MODEL_TARGET_PATH}"/skala*)
+  shopt -u nullglob
+  if ((${#MATCHES[@]} > 0)); then
+    export GAUXC_SKALA_MODEL="${MATCHES[${#MATCHES[@]} - 1]}"
+  else
+    echo -e "\nERROR: Failed to resolve GAUXC_SKALA_MODEL in target path ${GAUXC_MODEL_TARGET_PATH}"
+    ${EXIT_CMD} 1
+  fi
+fi
+echo -e "\nGAUXC_SKALA_MODEL = ${GAUXC_SKALA_MODEL}"
+
 # Collect and compress all log files when building within a container
 if [[ "${IN_CONTAINER}" == "yes" ]]; then
   if ! cat "${CMAKE_BUILD_PATH}"/cmake.log \
@@ -1474,6 +1510,7 @@ export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-2}
 export OMP_STACKSIZE=256M
 ${OMPI_VARS}
+export GAUXC_SKALA_MODEL=${GAUXC_SKALA_MODEL}
 exec "\$@"
 ***
 chmod 750 "${LAUNCH_SCRIPT}"
@@ -1486,6 +1523,7 @@ if [[ "${VERSION}" =~ ^(s|p)dbg$ ]]; then
   echo "LSAN_OPTIONS = \${LSAN_OPTIONS}"
 fi
 ldd -- ${INSTALL_PREFIX}/bin/cp2k.${VERSION} 2>&1 | grep -E 'not ' | sort | uniq
+export GAUXC_SKALA_MODEL=${GAUXC_SKALA_MODEL}
 ${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${VERSION}
 ***
 chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
