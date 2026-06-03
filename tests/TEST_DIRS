@@ -5,10 +5,10 @@
 # the order will be regularly checked and modified...
 QS/regtest-dft-d4-auto-ref                                  libdftd4
 QS/regtest-dft-d2-auto-ref                                  
-QS/regtest-dft-d3-auto-ref                                  
-QS/regtest-dft-d3-bj-auto-ref                                
-QS/regtest-dft-d3-lib-ref                                    s_dftd3
-QS/regtest-dft-d3bj-lib-ref                                  s_dftd3
+QS/regtest-dft-d3-auto-ref                                  libint
+QS/regtest-dft-d3-bj-auto-ref                               libint
+QS/regtest-dft-d3-lib-ref                                    libint s_dftd3
+QS/regtest-dft-d3bj-lib-ref                                  libint s_dftd3
 QS/regtest-pcc
 QS/regtest-kubo-transport
 QS/regtest-gw-realspace                                     libint !ifx
