@@ -255,7 +255,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_init(qs_env, para_env, root_section, globenv, cp_subsys, kpoint_env, &
                       qmmm, qmmm_env_qm, force_env_section, subsys_section, &
-                      use_motion_section, silent)
+                      use_motion_section, silent,  multip, charge)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -268,6 +268,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: silent
+      INTEGER, INTENT(IN), OPTIONAL                      :: multip,charge 
 
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: ikind, method_id, nelectron_total, &
@@ -485,7 +486,7 @@ CONTAINS
       END IF
 
       CALL qs_init_subsys(qs_env, para_env, subsys, my_cell, my_cell_ref, use_ref_cell, &
-                          subsys_section, silent=silent)
+                          subsys_section, silent=silent, multip=multip,charge=charge)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
       IF (owned_kpoints) THEN
@@ -966,7 +967,7 @@ CONTAINS
 !> \author Creation (22.05.2000,MK)
 ! **************************************************************************************************
    SUBROUTINE qs_init_subsys(qs_env, para_env, subsys, cell, cell_ref, use_ref_cell, subsys_section, &
-                             silent)
+                             silent, multip, charge)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -975,6 +976,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: use_ref_cell
       TYPE(section_vals_type), POINTER                   :: subsys_section
       LOGICAL, INTENT(in), OPTIONAL                      :: silent
+      INTEGER, INTENT(IN), OPTIONAL                      ::multip,charge       
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_init_subsys'
 
@@ -1980,7 +1982,12 @@ CONTAINS
       CALL get_qs_kind_set(qs_kind_set, nsgf=n_ao, nelectron=nelectron)
 
       ! The total number of electrons
-      nelectron = nelectron - dft_control%charge
+ IF (PRESENT(charge)) THEN                          
+         dft_control%charge = charge                
+         nelectron = nelectron - dft_control%charge 
+ ELSE                                               
+         nelectron = nelectron - dft_control%charge 
+ END IF                                              
 
       IF (dft_control%multiplicity == 0) THEN
          IF (MODULO(nelectron, 2) == 0) THEN
@@ -1992,13 +1999,17 @@ CONTAINS
 
       multiplicity = dft_control%multiplicity
 
+      IF (PRESENT(multip)) THEN     
+      multiplicity=multip    
+      END IF                        
+
       IF ((dft_control%nspins < 1) .OR. (dft_control%nspins > 2)) THEN
          CPABORT("nspins should be 1 or 2 for the time being ...")
       END IF
 
       IF ((MODULO(nelectron, 2) /= 0) .AND. (dft_control%nspins == 1)) THEN
          IF (.NOT. dft_control%qs_control%ofgpw .AND. .NOT. dft_control%smear) THEN
-            CPABORT("Use the LSD option for an odd number of electrons")
+           CPABORT("Use the LSD option for an odd number of electrons")
          END IF
       END IF
 
@@ -2025,7 +2036,7 @@ CONTAINS
             n_mo(2) = 0
          ELSE
             IF (MODULO(nelectron + multiplicity - 1, 2) /= 0) THEN
-               CPABORT("LSD: try to use a different multiplicity")
+               !CPABORT("LSD: try to use a different multiplicity")
             END IF
             nelectron_spin(1) = (nelectron + multiplicity - 1)/2
             nelectron_spin(2) = (nelectron - multiplicity + 1)/2
@@ -2302,6 +2313,9 @@ CONTAINS
 
       IF (.NOT. be_silent) THEN
          ! Print the DFT control parameters
+         IF (PRESENT(multip)) THEN                            
+        dft_control%multiplicity = multiplicity      
+        END IF                                               
          CALL write_dft_control(dft_control, dft_section)
 
          ! Print the vdW control parameters
@@ -2556,4 +2570,4 @@ CONTAINS
 
    END SUBROUTINE write_total_numbers
 
-END MODULE qs_environment
+   END MODULE qs_environment
