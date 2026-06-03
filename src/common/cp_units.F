@@ -34,8 +34,8 @@ MODULE cp_units
    USE mathconstants,                   ONLY: radians,&
                                               twopi
    USE physcon,                         ONLY: &
-        a_bohr, atm, bar, bohr, e_mass, evolt, femtoseconds, joule, kcalmol, kelvin, kjmol, &
-        massunit, newton, pascal, picoseconds, seconds, wavenumbers
+        a_bohr, angstrom, atm, bar, bohr, e_mass, evolt, femtoseconds, joule, kcalmol, kelvin, &
+        kjmol, massunit, newton, pascal, picoseconds, seconds, wavenumbers
    USE string_utilities,                ONLY: compress,&
                                               s2a,&
                                               uppercase
@@ -360,14 +360,14 @@ CONTAINS
          CASE ("FORCE")
             unit_id(i_unit) = cp_units_none
             kind_id(i_unit) = cp_ukind_force
-         CASE ("VM-1", "VOLT_PER_M", "V/M")
+         CASE ("VM-1", "VOLT_PER_M")
             unit_id(i_unit) = cp_units_volt_per_m
             kind_id(i_unit) = cp_ukind_efield
-         CASE ("VNM-1", "VOLT_PER_NM", "V/NM")
+         CASE ("VNM-1", "VOLT_PER_NM")
             unit_id(i_unit) = cp_units_volt_per_nm
             kind_id(i_unit) = cp_ukind_efield
-         CASE ("VA-1", "VOLT_PER_ANGSTROM", "V/A", "V/ANGSTROM")
-            unit_id(i_unit) = cp_units_volt_per_nm
+         CASE ("VA-1", "VOLT_PER_ANGSTROM")
+            unit_id(i_unit) = cp_units_volt_per_angstrom
             kind_id(i_unit) = cp_ukind_efield
          CASE ("AU_EFIELD")
             unit_id(i_unit) = cp_units_au
@@ -820,9 +820,9 @@ CONTAINS
          CASE (cp_units_volt_per_m)
             res = (evolt/a_bohr)**(-my_power)*value
          CASE (cp_units_volt_per_nm)
-            res = (10.0_dp*evolt/bohr)**(-my_power)*value
+            res = (10.0_dp*evolt/angstrom)**(-my_power)*value
          CASE (cp_units_volt_per_angstrom)
-            res = (evolt/bohr)**(-my_power)*value
+            res = (evolt/angstrom)**(-my_power)*value
          CASE (cp_units_au)
             res = value
          CASE default
@@ -1055,7 +1055,7 @@ CONTAINS
          CASE (cp_units_volt_per_nm)
             res = "Vnm-1"
          CASE (cp_units_volt_per_angstrom)
-            res = "V/angstrom"
+            res = "Vangstrom-1"
          CASE (cp_units_au)
             res = "au_efield"
          CASE (cp_units_none)
@@ -1388,8 +1388,8 @@ CONTAINS
       CALL format_units_as_xml("mass", s2a("kg", "amu", "m_e"), iw)
       CALL format_units_as_xml("potential", s2a("volt", "au_pot"), iw)
       CALL format_units_as_xml("force", s2a("N", "Newton", "mN", "mNewton", "au_f"), iw)
-      CALL format_units_as_xml("efield", s2a("Vm-1", "V/m", "Vnm-1", "V/nm", "VA-1", "V/A", &
-                                             "au_efield"), iw)
+      CALL format_units_as_xml("efield", s2a("Vm-1", "Vnm-1", "VA-1", "volt_per_m", "volt_per_nm", &
+                                             "volt_per_angstrom", "au_efield"), iw)
 
    END SUBROUTINE export_units_as_xml
 
