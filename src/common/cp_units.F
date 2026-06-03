@@ -1059,7 +1059,7 @@ CONTAINS
          CASE (cp_units_au)
             res = "au_efield"
          CASE (cp_units_none)
-            res = "electric field strength"
+            res = "electric field"
             IF (.NOT. my_accept_undefined) &
                CALL cp_abort(__LOCATION__, &
                              "unit not yet fully specified, unit of kind "// &
