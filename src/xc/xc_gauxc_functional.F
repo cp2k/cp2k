@@ -1211,7 +1211,6 @@ CONTAINS
          dft_control%qs_control%gapw, &
          calculate_forces, &
          use_skala_model, &
-         use_gradient_mpi_runtime, &
          use_gradient_self_runtime, &
          use_self_runtime, &
          gauxc_status)

@@ -103,9 +103,9 @@ CONTAINS
 !> \param gapw ...
 !> \param calculate_forces ...
 !> \param use_skala_model ...
-!> \param use_gradient_mpi_runtime ...
 !> \param use_gradient_self_runtime ...
 !> \param use_self_runtime ...
+!> \param status ...
 ! **************************************************************************************************
    SUBROUTINE gauxc_cache_init( &
       cache, &
@@ -116,7 +116,6 @@ CONTAINS
       gapw, &
       calculate_forces, &
       use_skala_model, &
-      use_gradient_mpi_runtime, &
       use_gradient_self_runtime, &
       use_self_runtime, &
       status)
@@ -127,7 +126,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      LOGICAL:: gapw, use_skala_model, calculate_forces, use_gradient_mpi_runtime, use_self_runtime, use_gradient_self_runtime
+      LOGICAL:: gapw, use_skala_model, calculate_forces, use_self_runtime, use_gradient_self_runtime
 
       TYPE(cp_gauxc_status_type)                         :: status
 
