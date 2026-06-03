@@ -1,4 +1,4 @@
-# Electronic band structure from *GW*
+# Band structure from *GW*
 
 *GW* is a method for computing the electronic band structure of solids and molecular orbital
 energies of molecules. In this tutorial, we describe the band gap problem of DFT to motivate the
