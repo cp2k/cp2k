@@ -236,7 +236,7 @@ NEB
     Nudged Elastic Band [→ more](methods/optimization/nudged_elastic_band)
 
 NEGF
-    Non-Equilibrium Green's Function [→ more](methods/properties/bandstructure_gw)
+    Non-Equilibrium Green's Function [→ more](methods/electronic_structure/band/gw)
 
 NMR
     Nuclear Magnetic Resonance [→ more](methods/properties/nmr)
@@ -308,7 +308,7 @@ QS
     Quick Step (cp2k's quantum methods implementation) [→ more](methods/dft/gpw)
 
 RESP
-    Restrained ElectroStatic Potential [→ more](methods/properties/resp_charges)
+    Restrained ElectroStatic Potential [→ more](methods/electronic_structure/population/resp)
 
 RESPA
     REversible reference System Propagator Algorithm

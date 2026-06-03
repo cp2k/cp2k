@@ -11,5 +11,7 @@ electronic-structure features.
 titlesonly:
 maxdepth: 2
 ---
+band/index
 dos
+population/index
 ```
