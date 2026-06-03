@@ -87,6 +87,7 @@ MODULE torch_api
    PUBLIC :: torch_model_get_attr, torch_model_read_metadata
    PUBLIC :: torch_cuda_is_available
    PUBLIC :: torch_allow_tf32, torch_model_freeze, torch_use_cuda
+   PUBLIC :: torch_openblas_precedes_libtorch_cpu_blas
 
 CONTAINS
 
@@ -197,6 +198,27 @@ CONTAINS
 
       #:endfor
    #:endfor
+
+! **************************************************************************************************
+!> \brief Returns whether OpenBLAS is loaded before libtorch_cpu.
+!> \return TRUE if OpenBLAS precedes libtorch_cpu in the loaded library order.
+! **************************************************************************************************
+   FUNCTION torch_openblas_precedes_libtorch_cpu_blas() RESULT(openblas_precedes)
+      LOGICAL                                            :: openblas_precedes
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         LOGICAL(C_BOOL) FUNCTION torch_c_openblas_precedes_libtorch_cpu_blas() &
+            BIND(C, name="torch_c_openblas_precedes_libtorch_cpu_blas")
+            IMPORT :: C_BOOL
+         END FUNCTION torch_c_openblas_precedes_libtorch_cpu_blas
+      END INTERFACE
+
+      openblas_precedes = LOGICAL(torch_c_openblas_precedes_libtorch_cpu_blas())
+#else
+      openblas_precedes = .FALSE.
+#endif
+   END FUNCTION torch_openblas_precedes_libtorch_cpu_blas
 
    #:for ndims in range(1, max_dim+1)
 

@@ -111,8 +111,10 @@ integrator.
   compact-cell quadrature, GAPW/GAPW_XC, and periodic stress tensors require a dedicated periodic
   GauXC design. OneDFT/SKALA gradients under MPI are evaluated with a replicated single-rank GauXC
   runtime on each CP2K rank because GauXC does not yet provide distributed OneDFT gradients.
-- OneDFT/SKALA is selected in the `&GAUXC` subsection with a conventional base `FUNCTIONAL` and a
-  non-`NONE` `MODEL`, for example a `.fun` model file or a GauXC-installed model name.
+- OneDFT/SKALA is selected in the `&GAUXC` subsection with a non-`NONE` `MODEL`, for example a
+  `.fun` model file or a GauXC-installed model name. The `FUNCTIONAL` keyword is optional for
+  OneDFT/SKALA inputs and defaults to `PBE`; `MODEL SKALA` inputs do not need an explicit
+  `FUNCTIONAL PBE` line.
 - `ONEDFT_ATOM_CHUNK_SIZE` can be used to control the GauXC OneDFT/SKALA Torch atom blocking from
   CP2K. A positive value requests atom-by-atom chunks of that size, zero disables atom chunking, and
   the default leaves GauXC's model policy or `GAUXC_ONEDFT_ATOM_CHUNK_SIZE` environment setting in
@@ -122,11 +124,16 @@ integrator.
   single-rank gradient runtime for MPI calculations.
 - `CP2K_GAUXC_STATUS_STDERR=1` mirrors GauXC status messages to standard error. This is useful when
   launcher or CI logs hide the CP2K output file after an external-library failure.
+- OpenBLAS builds that also link libtorch must keep libtorch's CPU symbols ahead of OpenBLAS for
+  TorchScript models using batched matrix products. If a SKALA run crashes in `cblas_sgemm_batch`,
+  use a compatible BLAS setup or ensure `libtorch_cpu.so` is loaded before `libopenblas.so`.
 - `METHOD GAPW` with OneDFT/SKALA is a molecular GauXC matrix path. GauXC evaluates the full XC term
   directly on its molecular quadrature from the AO density. For pseudopotential inputs this is the
   smooth valence density, so CP2K's local/semi-local GAPW one-center XC correction is not used for
-  OneDFT/SKALA. NLCC pseudopotentials remain unsupported because the frozen core density would need
-  a SKALA-consistent feature definition.
+  OneDFT/SKALA. GAPW pseudopotential inputs currently support energies only in this path; nuclear
+  gradients and molecular virials require a dedicated derivative of the molecular AO/valence-density
+  XC path. NLCC pseudopotentials remain unsupported because the frozen core density would need a
+  SKALA-consistent feature definition.
 - `METHOD GAPW_XC` with GauXC remains disabled pending a dedicated design for the smooth-density and
   one-center XC terms. It must not be used for non-local OneDFT/SKALA models.
 - A true compact-cell periodic GauXC path needs a new GauXC interface rather than only a CP2K input
@@ -180,8 +187,8 @@ integrator.
   CDFT coverage is currently limited to smoke tests of the energy and constraint-potential path.
 - Response/kernel properties requiring higher XC derivatives are not supported by the GauXC path and
   abort explicitly.
-- OneDFT/SKALA force checks use `GRID SUPERFINE` and `PRUNING_SCHEME UNPRUNED` by default. Coarser
-  explicit GauXC grids are allowed, but should be treated as accuracy settings.
+- Supported OneDFT/SKALA force checks use `GRID SUPERFINE` and `PRUNING_SCHEME UNPRUNED` by default.
+  Coarser explicit GauXC grids are allowed, but should be treated as accuracy settings.
 - `MOLECULAR_VIRIAL` is a finite-system force diagnostic from GauXC nuclear gradients, not a
   periodic stress tensor.
 - SKALA regression tests are technical smoke and force-consistency checks. They do not constitute

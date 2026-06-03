@@ -93,7 +93,6 @@
     &XC
       &XC_FUNCTIONAL
         &GAUXC
-          FUNCTIONAL PBE
           GRID FINE
           MODEL PBE
           PERIODIC_REFERENCE T
@@ -156,7 +155,6 @@
     &XC
       &XC_FUNCTIONAL
         &GAUXC
-          FUNCTIONAL PBE
           GRID FINE
           MODEL PBE
           PERIODIC_REFERENCE T

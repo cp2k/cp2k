@@ -15,8 +15,15 @@
 
 #include <cassert>
 
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
+#if defined(__linux__)
+#include <link.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -67,6 +74,48 @@ static void copy_string_to_c_buffer(const std::string &source, char **content,
   *content = (char *)malloc(source.length() + 1); // +1 for null terminator
   strcpy(*content, source.c_str());
 }
+
+static bool path_contains(const char *path, const std::string &needle) {
+  if (path == nullptr) {
+    return false;
+  }
+  std::string lower_path(path);
+  std::transform(lower_path.begin(), lower_path.end(), lower_path.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+  return lower_path.find(needle) != std::string::npos;
+}
+
+#if defined(__linux__)
+struct LibraryOrder {
+  int index = 0;
+  int openblas = -1;
+  int libtorch_cpu = -1;
+};
+
+static int inspect_library_order(struct dl_phdr_info *info, size_t,
+                                 void *data) {
+  LibraryOrder *order = static_cast<LibraryOrder *>(data);
+  if (path_contains(info->dlpi_name, "openblas") && order->openblas < 0) {
+    order->openblas = order->index;
+  }
+  if (path_contains(info->dlpi_name, "libtorch_cpu") &&
+      order->libtorch_cpu < 0) {
+    order->libtorch_cpu = order->index;
+  }
+  order->index++;
+  return (order->openblas >= 0 && order->libtorch_cpu >= 0) ? 1 : 0;
+}
+#elif defined(__APPLE__)
+static int loaded_library_index(const std::string &needle) {
+  const uint32_t image_count = _dyld_image_count();
+  for (uint32_t i = 0; i < image_count; i++) {
+    if (path_contains(_dyld_get_image_name(i), needle)) {
+      return static_cast<int>(i);
+    }
+  }
+  return -1;
+}
+#endif
 
 static bool can_load_directly_to_device(const torch::Device &device) {
   return !device.is_cuda() || device.index() == 0 ||
@@ -199,6 +248,24 @@ void torch_c_tensor_from_array_double(torch_c_tensor_t **tensor,
                                       const bool req_grad, const int ndims,
                                       const int64_t sizes[], double source[]) {
   *tensor = tensor_from_array(torch::kFloat64, req_grad, ndims, sizes, source);
+}
+
+/*******************************************************************************
+ * \brief Returns whether OpenBLAS is loaded before libtorch_cpu.
+ ******************************************************************************/
+bool torch_c_openblas_precedes_libtorch_cpu_blas() {
+#if defined(__linux__)
+  LibraryOrder order;
+  dl_iterate_phdr(inspect_library_order, &order);
+  return order.openblas >= 0 && order.libtorch_cpu >= 0 &&
+         order.openblas < order.libtorch_cpu;
+#elif defined(__APPLE__)
+  const int openblas = loaded_library_index("openblas");
+  const int libtorch_cpu = loaded_library_index("libtorch_cpu");
+  return openblas >= 0 && libtorch_cpu >= 0 && openblas < libtorch_cpu;
+#else
+  return false;
+#endif
 }
 
 /*******************************************************************************

@@ -94,7 +94,6 @@
     &XC
       &XC_FUNCTIONAL
         &GAUXC
-          FUNCTIONAL PBE
           GRID FINE
           MODEL SKALA
           PERIODIC_REFERENCE T
@@ -159,7 +158,6 @@
     &XC
       &XC_FUNCTIONAL
         &GAUXC
-          FUNCTIONAL PBE
           GRID FINE
           MODEL SKALA
           PERIODIC_REFERENCE T

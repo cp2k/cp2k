@@ -43,7 +43,6 @@
     &XC
       &XC_FUNCTIONAL
         &GAUXC
-          FUNCTIONAL PBE
           MODEL SKALA
           NATIVE_GRID T
           NATIVE_GRID_DIAGNOSTICS F

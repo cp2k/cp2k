@@ -35,7 +35,6 @@
     &XC
       &XC_FUNCTIONAL
         &GAUXC
-          FUNCTIONAL PBE
           GRID FINE
           MODEL SKALA
           PRUNING_SCHEME ROBUST
