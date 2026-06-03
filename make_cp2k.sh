@@ -287,7 +287,7 @@ while [[ $# -gt 0 ]]; do
               ace)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"p${2,,}@/ ${SUBST}"
                 ;;
-              cosma | elpa | gauxc | greenx | hdf5 | libfci | libsmeagol | libxc | pexsi | plumed | spglib | trexio)
+              cosma | elpa | greenx | hdf5 | libfci | libsmeagol | libxc | pexsi | plumed | spglib | trexio)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
                 ;;
               deepmd)
@@ -312,15 +312,25 @@ while [[ $# -gt 0 ]]; do
               fftw3)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"fftw@/ ${SUBST}"
                 ;;
+              gauxc)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
+                if [[ "${ON_OFF}" == "ON" ]]; then
+                  # GauXC requires libtorch
+                  CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_LIBTORCH=${ON_OFF}"
+                  SED_PATTERN_LIST+=" -e '/\s*-\s+\"py-torch@/ ${SUBST}"
+                fi
+                ;;
               libint2)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"libint@/ ${SUBST}"
                 ;;
               libtorch)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"py-torch@/ ${SUBST}"
                 if [[ "${ON_OFF}" == "OFF" ]]; then
-                  # DeePMD-kit requires libtorch
+                  # DeePMD-kit and GauXC require libtorch
                   CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_DEEPMD=${ON_OFF}"
                   SED_PATTERN_LIST+=" -e '/\s*-\s+\"deepmdkit@/ ${SUBST}"
+                  CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_GAUXC=${ON_OFF}"
+                  SED_PATTERN_LIST+=" -e '/\s*-\s+\"gauxc@/ ${SUBST}"
                 fi
                 ;;
               libxsmm)
@@ -1363,6 +1373,35 @@ if ((EXIT_CODE != 0)); then
   ${EXIT_CMD} "${EXIT_CODE}"
 fi
 
+# Install Skala resource files if needed
+export GAUXC_SKALA_MODEL="GauXC Skala model not available"
+if [[ "${CMAKE_FEATURE_FLAGS}" == *" -DCP2K_USE_GAUXC=ON"* ]]; then
+  GAUXC_PREFIX="$(spack location -i gauxc)"
+  GAUXC_PATH="share/gauxc/onedft_models"
+  GAUXC_MODEL_SOURCE_PATH="${GAUXC_PREFIX%/}/${GAUXC_PATH}"
+  GAUXC_MODEL_TARGET_PATH="${INSTALL_PREFIX%/}/${GAUXC_PATH}"
+  if [[ -d "${GAUXC_MODEL_SOURCE_PATH}" ]]; then
+    mkdir -p "${GAUXC_MODEL_TARGET_PATH}"
+    if compgen -G "${GAUXC_MODEL_SOURCE_PATH}/*.fun" > /dev/null; then
+      cp "${GAUXC_MODEL_SOURCE_PATH}"/*.fun "${GAUXC_MODEL_TARGET_PATH}/"
+    else
+      echo -e "\nERROR: No GauXC model files found in source folder ${GAUXC_MODEL_SOURCE_PATH}"
+      ${EXIT_CMD} 1
+    fi
+  else
+    echo -e "\nERROR: The GauXC model source folder ${GAUXC_MODEL_SOURCE_PATH} does not exist"
+    ${EXIT_CMD} 1
+  fi
+  MATCHES=("${GAUXC_MODEL_TARGET_PATH}"/skala*)
+  if [[ -e "${MATCHES[0]}" ]]; then
+    export GAUXC_SKALA_MODEL="${MATCHES[-1]}"
+    echo -e "\nGAUXC_SKALA_MODEL = ${GAUXC_SKALA_MODEL}"
+  else
+    echo -e "\nERROR: Failed to resolve GAUXC_SKALA_MODEL in target path ${GAUXC_MODEL_TARGET_PATH}"
+    ${EXIT_CMD} 1
+  fi
+fi
+
 # Collect and compress all log files when building within a container
 if [[ "${IN_CONTAINER}" == "yes" ]]; then
   if ! cat "${CMAKE_BUILD_PATH}"/cmake.log \
@@ -1474,6 +1513,7 @@ export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-2}
 export OMP_STACKSIZE=256M
 ${OMPI_VARS}
+export GAUXC_SKALA_MODEL=${GAUXC_SKALA_MODEL}
 exec "\$@"
 ***
 chmod 750 "${LAUNCH_SCRIPT}"
@@ -1486,6 +1526,7 @@ if [[ "${VERSION}" =~ ^(s|p)dbg$ ]]; then
   echo "LSAN_OPTIONS = \${LSAN_OPTIONS}"
 fi
 ldd -- ${INSTALL_PREFIX}/bin/cp2k.${VERSION} 2>&1 | grep -E 'not ' | sort | uniq
+export GAUXC_SKALA_MODEL=${GAUXC_SKALA_MODEL}
 ${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${VERSION}
 ***
 chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
