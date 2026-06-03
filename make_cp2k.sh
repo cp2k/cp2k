@@ -1374,33 +1374,30 @@ if ((EXIT_CODE != 0)); then
 fi
 
 # Install Skala resource files if needed
-export GAUXC_SKALA_MODEL="GauXC Skala model not available"
-if [[ "${CMAKE_FEATURE_FLAGS}" == *" -DCP2K_USE_GAUXC=ON"* ]]; then
-  GAUXC_PREFIX="$(spack location -i gauxc)"
-  GAUXC_PATH="share/gauxc/onedft_models"
-  GAUXC_MODEL_SOURCE_PATH="${GAUXC_PREFIX%/}/${GAUXC_PATH}"
+export GAUXC_SKALA_MODEL="(not available)"
+GAUXC_PATH="share/gauxc/onedft_models"
+GAUXC_PREFIX="$(spack location -i gauxc)"
+GAUXC_MODEL_SOURCE_PATH="${GAUXC_PREFIX%/}/${GAUXC_PATH}"
+if [[ -d "${GAUXC_MODEL_SOURCE_PATH}" ]]; then
   GAUXC_MODEL_TARGET_PATH="${INSTALL_PREFIX%/}/${GAUXC_PATH}"
-  if [[ -d "${GAUXC_MODEL_SOURCE_PATH}" ]]; then
-    mkdir -p "${GAUXC_MODEL_TARGET_PATH}"
-    if compgen -G "${GAUXC_MODEL_SOURCE_PATH}/*.fun" > /dev/null; then
-      cp "${GAUXC_MODEL_SOURCE_PATH}"/*.fun "${GAUXC_MODEL_TARGET_PATH}/"
-    else
-      echo -e "\nERROR: No GauXC model files found in source folder ${GAUXC_MODEL_SOURCE_PATH}"
-      ${EXIT_CMD} 1
-    fi
+  mkdir -p "${GAUXC_MODEL_TARGET_PATH}"
+  if compgen -G "${GAUXC_MODEL_SOURCE_PATH}/*.fun" > /dev/null; then
+    cp "${GAUXC_MODEL_SOURCE_PATH}"/*.fun "${GAUXC_MODEL_TARGET_PATH}/"
   else
-    echo -e "\nERROR: The GauXC model source folder ${GAUXC_MODEL_SOURCE_PATH} does not exist"
+    echo -e "\nERROR: No GauXC model files found in source folder ${GAUXC_MODEL_SOURCE_PATH}"
     ${EXIT_CMD} 1
   fi
+  shopt -s nullglob
   MATCHES=("${GAUXC_MODEL_TARGET_PATH}"/skala*)
-  if [[ -e "${MATCHES[0]}" ]]; then
-    export GAUXC_SKALA_MODEL="${MATCHES[-1]}"
-    echo -e "\nGAUXC_SKALA_MODEL = ${GAUXC_SKALA_MODEL}"
+  shopt -u nullglob
+  if ((${#MATCHES[@]} > 0)); then
+    export GAUXC_SKALA_MODEL="${MATCHES[${#MATCHES[@]} - 1]}"
   else
     echo -e "\nERROR: Failed to resolve GAUXC_SKALA_MODEL in target path ${GAUXC_MODEL_TARGET_PATH}"
     ${EXIT_CMD} 1
   fi
 fi
+echo -e "\nGAUXC_SKALA_MODEL = ${GAUXC_SKALA_MODEL}"
 
 # Collect and compress all log files when building within a container
 if [[ "${IN_CONTAINER}" == "yes" ]]; then
