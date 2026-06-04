@@ -303,7 +303,7 @@ CONTAINS
       LOGICAL                                              :: cache_valid
 
 #ifdef __GAUXC
-      INTEGER                                              :: iatom, current_mpi_comm
+      INTEGER                                              :: iatom
       REAL(c_double), PARAMETER                            :: pos_tol = 1.0E-8_c_double
 
       cache_valid = .FALSE.

@@ -937,8 +937,7 @@ CONTAINS
                                                             nimages, onedft_atom_chunk_size
       LOGICAL :: do_kpoints, grid_explicit, hdf5_output, is_periodic, molecular_virial, &
          molecular_virial_debug, onedft_atom_chunk_size_explicit, periodic_reference, &
-         pruning_explicit, use_gradient_mpi_runtime, use_onedft, &
-         use_skala_model, write_hdf5_output
+         pruning_explicit, use_gradient_mpi_runtime, use_onedft, use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1188,8 +1187,8 @@ CONTAINS
       END SELECT
       IF (.NOT. use_skala_model) params%use_self_runtime = .FALSE.
       params%use_gradient_self_runtime = calculate_forces .AND. use_onedft .AND. &
-                                  para_env%num_pe > 1 .AND. .NOT. params%use_self_runtime &
-                                  .AND. .NOT. use_gradient_mpi_runtime
+                                         para_env%num_pe > 1 .AND. .NOT. params%use_self_runtime &
+                                         .AND. .NOT. use_gradient_mpi_runtime
       IF (use_skala_model .AND. para_env%num_pe > 1 .AND. .NOT. params%use_self_runtime .AND. &
           para_env%mepos == 0 .AND. ASSOCIATED(scf_env)) THEN
          IF (scf_env%iter_count == 1) THEN
