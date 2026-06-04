@@ -1002,18 +1002,18 @@ CONTAINS
       NULLIFY (section)
 
       CALL section_create(section, __LOCATION__, name="FRAGMENT", &
-                          description="FRAGMENT Specify the caracteristics of "// &
+                          description="Specifies the caracteristics of "// &
                           "each fragments.", &
                           n_keywords=3, n_subsections=0, repeats=.TRUE.)
       NULLIFY (keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="FRAGMENT_PARAMETERS", &
-                          description="FRAGMENT_PARAMETERS Defines the index of the fragment defined", &
+      CALL keyword_create(keyword, __LOCATION__, name="_FRAGMENT_PARAMETERS_", &
+                          description="Defines the index of the fragment defined", &
                           usage="<INTEGER>", n_var=1, default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CHARGE", &
-                          description=" CHARGE Specifies the charge of a fragment.", &
+                          description="Specifies the charge of a fragment.", &
                           usage="CHARGE 1", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1021,7 +1021,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="MULTIPLICITY", &
                           variants=["MULTIP"], &
-                          description="MULTIPLICITY Specify for each fragment the multiplicity. Two times the total spin plus one. "// &
+                          description="Specifies for each fragment the multiplicity. Two times the total spin plus one. "// &
                           "Specify 3 for a triplet, 4 for a quartet,and so on. Default is 1 (singlet) for an "// &
                           "even number and 2 (doublet) for an odd number of electrons.", &
                           usage="MULTIPLICITY 3", &
