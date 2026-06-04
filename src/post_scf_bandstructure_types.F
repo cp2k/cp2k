@@ -88,7 +88,7 @@ MODULE post_scf_bandstructure_types
                                                          do_soc = .FALSE., &
                                                          do_ldos = .FALSE., &
                                                          do_gw_ri_rs = .FALSE., &
-                                                         do_dos_pdos_ldos = .FALSE.
+                                                         do_dos_pdos = .FALSE.
 
       ! various eigenvalues computed in GW code, some depend on k-points
       ! and have therefore three dimensions (band index, k-point, spin)

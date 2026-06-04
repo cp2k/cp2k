@@ -226,7 +226,7 @@ CONTAINS
 
       NULLIFY (dos_pdos_sec)
       dos_pdos_sec => section_vals_get_subs_vals(bs_sec, "DOS")
-      CALL section_vals_get(dos_pdos_sec, explicit=bs_env%do_dos_pdos_ldos)
+      CALL section_vals_get(dos_pdos_sec, explicit=bs_env%do_dos_pdos)
 
       CALL section_vals_val_get(bs_sec, "DOS%KPOINTS", i_vals=bs_env%nkp_grid_DOS_input)
       CALL section_vals_val_get(bs_sec, "DOS%ENERGY_WINDOW", r_val=bs_env%energy_window_DOS)
@@ -1111,17 +1111,21 @@ CONTAINS
 
       n_E = INT(E_total_window/energy_step_DOS)
 
-      ALLOCATE (DOS_scf(n_E))
-      DOS_scf(:) = 0.0_dp
-      ALLOCATE (DOS_scf_SOC(n_E))
-      DOS_scf_SOC(:) = 0.0_dp
-
       CALL get_qs_env(qs_env, nkind=nkind)
 
-      ALLOCATE (PDOS_scf(n_E, nkind))
-      PDOS_scf(:, :) = 0.0_dp
-      ALLOCATE (PDOS_scf_SOC(n_E, nkind))
-      PDOS_scf_SOC(:, :) = 0.0_dp
+      IF (bs_env%do_dos_pdos) THEN
+
+         ALLOCATE (DOS_scf(n_E))
+         DOS_scf(:) = 0.0_dp
+         ALLOCATE (DOS_scf_SOC(n_E))
+         DOS_scf_SOC(:) = 0.0_dp
+
+         ALLOCATE (PDOS_scf(n_E, nkind))
+         PDOS_scf(:, :) = 0.0_dp
+         ALLOCATE (PDOS_scf_SOC(n_E, nkind))
+         PDOS_scf_SOC(:, :) = 0.0_dp
+
+      END IF
 
       ALLOCATE (proj_mo_on_kind(n_ao, nkind))
       proj_mo_on_kind(:, :) = 0.0_dp
@@ -1234,8 +1238,11 @@ CONTAINS
             CALL compute_proj_mo_on_kind(proj_mo_on_kind, qs_env, cfm_mos_ikp(ispin), cfm_s_ikp)
 
             ! 5. DOS and PDOS
-            CALL add_to_DOS_PDOS(DOS_scf, PDOS_scf, eigenval, ikp, bs_env, n_E, E_min, &
-                                 proj_mo_on_kind)
+            IF (bs_env%do_dos_pdos) THEN
+               CALL add_to_DOS_PDOS(DOS_scf, PDOS_scf, eigenval, ikp, bs_env, n_E, E_min, &
+                                    proj_mo_on_kind)
+            END IF
+
             IF (bs_env%do_gw) THEN
                CALL add_to_DOS_PDOS(DOS_G0W0, PDOS_G0W0, bs_env%eigenval_G0W0(:, ikp, ispin), &
                                     ikp, bs_env, n_E, E_min, proj_mo_on_kind)
@@ -1326,7 +1333,9 @@ CONTAINS
       END IF
 
       CALL write_band_edges(band_edges_scf, "SCF", bs_env)
-      CALL write_dos_pdos(DOS_scf, PDOS_scf, bs_env, qs_env, "SCF", E_min, band_edges_scf%VBM)
+      IF (bs_env%do_dos_pdos) THEN
+         CALL write_dos_pdos(DOS_scf, PDOS_scf, bs_env, qs_env, "SCF", E_min, band_edges_scf%VBM)
+      END IF
       IF (bs_env%do_ldos) THEN
          CALL print_LDOS_main(LDOS_scf_2d, bs_env, band_edges_scf, "SCF")
       END IF
