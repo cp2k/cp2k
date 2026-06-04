@@ -20,7 +20,7 @@ typedef struct {
 } offload_buffer;
 
 /*******************************************************************************
- * \brief Allocates a buffer of given length, ie., number of elements.
+ * \brief Allocate a buffer (NULL or valid) with the given number of elements.
  * \author Ole Schuett
  ******************************************************************************/
 void offload_create_buffer(const int length, offload_buffer **buffer);
@@ -32,7 +32,7 @@ void offload_create_buffer(const int length, offload_buffer **buffer);
 void offload_free_buffer(offload_buffer *buffer);
 
 /*******************************************************************************
- * \brief Returns a pointer to the host buffer.
+ * \brief Return a pointer to the host buffer (Fortran API).
  * \author Ole Schuett
  ******************************************************************************/
 double *offload_get_buffer_host_pointer(offload_buffer *buffer);
