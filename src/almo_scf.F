@@ -252,11 +252,10 @@ CONTAINS
          END IF
       END IF
 
-      ! convenient local varibales
-      !nspins = almo_scf_env%nspins
+      ! convenient local varibales 
       nmols = almo_scf_env%nmolecules
       natoms = almo_scf_env%natoms
-      !naos = almo_scf_env%naos
+     
 
       ! Define groups: either atomic or molecular
       IF (almo_scf_env%domain_layout_mos == almo_domain_layout_molecular) THEN
@@ -290,7 +289,7 @@ CONTAINS
       END IF
 
       ! allocate domain descriptors
-      !ndomains = almo_scf_env%ndomains
+     
       ALLOCATE (almo_scf_env%domain_index_of_atom(natoms))
       ALLOCATE (almo_scf_env%domain_index_of_ao(naos))
       ALLOCATE (almo_scf_env%first_atom_of_domain(ndomains))
@@ -314,8 +313,8 @@ CONTAINS
                                        mol_to_last_atom=almo_scf_env%last_atom_of_domain, &
                                        mol_to_nelectrons=almo_scf_env%nocc_of_domain(1:ndomains, 1), &
                                        mol_to_nbasis=almo_scf_env%nbasis_of_domain)
-            !  mol_to_charge=almo_scf_env%charge_of_domain, &
-            !  mol_to_multiplicity=almo_scf_env%multiplicity_of_domain)
+         
+          
          ELSE
             CALL get_molecule_set_info(molecule_set, &
                                        atom_to_mol=almo_scf_env%domain_index_of_atom, &
@@ -336,13 +335,10 @@ CONTAINS
             ELSE
                nelec = almo_scf_env%nocc_of_domain(idomain, 1)
             END IF
-
-            ! IF (.NOT. allocated(almo_scf_env%multiplicity_of_domain)) then
-            !   ALLOCATE (almo_scf_env%multiplicity_of_domain(ndomains))
-            ! END IF
+ 
             multip = almo_scf_env%multiplicity_of_domain(idomain)
             nelec_a = (nelec + multip - 1)/2
-            !nelec_b = nelec - nelec_a
+         
             !! Initializing an occupation-rescaling trick if smearing is on
             IF (almo_scf_env%smear) THEN
                CPWARN_IF(multip > 1, "BEWARE: Non singlet state detected, treating it as closed-shell")
@@ -366,10 +362,7 @@ CONTAINS
 
                      CPABORT("odd e- -- use unrestricted methods")
                   END IF
-                  !almo_scf_env%nocc_of_domain(idomain, 2) = nelec_b
-                  ! RZK-warning: open-shell procedures have not been tested yet
-                  ! Stop the program now
-                  !CPABORT("Unrestricted ALMO methods are NYI")
+                  
                END IF
             END IF
          END DO
@@ -2146,12 +2139,12 @@ CONTAINS
          CALL dbcsr_copy(matrix_t_processed(ispin), &
                          almo_scf_env%matrix_t(ispin))
 
-         !CALL dbcsr_create(matrix_v_processed(ispin), &
-         !                  template=almo_scf_env%matrix_v(ispin), &
-         !                  matrix_type=dbcsr_type_no_symmetry)
+        
+       
+      
 
-         !CALL dbcsr_copy(matrix_v_processed(ispin), &
-         !                almo_scf_env%matrix_v(ispin))
+
+
 
          IF (almo_scf_env%return_orthogonalized_mos) THEN
 
@@ -2186,7 +2179,7 @@ CONTAINS
       CALL get_qs_env(qs_env, mos=mos, scf_env=scf_env)
 
       DO ispin = 1, almo_scf_env%nspins
-         !WRITE(*,*) 'ispin', ispin
+
          ! Currently only fm version of mo_set is usable.
          ! First transform the matrix_t to fm version
          CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
@@ -2199,7 +2192,7 @@ CONTAINS
       DEALLOCATE (matrix_t_processed)
 
       ! calculate post scf properties
-      ! CALL almo_post_scf_compute_properties(qs_env, almo_scf_env)
+
       CALL almo_post_scf_compute_properties(qs_env)
 
       ! compute the W matrix if associated

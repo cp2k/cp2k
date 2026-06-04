@@ -591,23 +591,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: charge
       TYPE(molecule_kind_type), POINTER                  :: imol_kind
 
-      !   TYPE(cp_logger_type), POINTER                      :: logger
-      !   TYPE(force_env_type), POINTER                      :: force_env
-      !   TYPE(dft_type), POINTER                            :: dft
-      !   TYPE(almo_scf_type), POINTER                       :: almo_scf
-      !   TYPE(section_vals_type), POINTER                   :: almo_section, fragment_section, &
-      !                                                         n_frag,root_section,charge_frag, &
-      !                                                         multip_frag
-
-      !  NULLIFY (almo_section, n_frag, charge_frag, multip_frag)
-      ! logger => cp_get_default_logger()
-      ! root_section => almo_scf%dft%force_env%root_section
-      ! almo_section =>section_vals_get_subs_vals(root_section,"ALMO_SCF")
-
       DO imol = 1, SIZE(molecule_set)
-         !   n_frag => section_vals_get_subs_vals(almo_section, "_FRAGMENT_PARAMETERS_",i_rep_section=imol)
-         !   charge_frag => section_vals_get_subs_vals(almo_section,"CHARGE",i_rep_section=imol)
-         !   multip_frag=>section_vals_get_subs_vals(almo_section,"MULTIPLICITY",i_rep_section=imol)
 
          CALL get_molecule(molecule=molecule_set(imol), molecule_kind=imol_kind, &
                            first_atom=first_atom, last_atom=last_atom)
