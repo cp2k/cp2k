@@ -656,7 +656,11 @@ CONTAINS
                   EXIT
                END IF
             END DO
-            is_large = ABS(MAXVAL(mo_set%occupation_numbers) - mo_set%maxocc) > smear%eps_fermi_dirac
+            IF (i_first <= nmo) THEN
+               is_large = ABS(mo_set%occupation_numbers(i_first) - mo_set%maxocc) > smear%eps_fermi_dirac
+            ELSE
+               is_large = .FALSE.
+            END IF
             ! this is not a real problem, but the temperature might be a bit large
             CPWARN_IF(is_large, "Fermi-Dirac smearing includes the first MO")
 
@@ -709,7 +713,11 @@ CONTAINS
                   EXIT
                END IF
             END DO
-            is_large = ABS(mo_set%occupation_numbers(1) - mo_set%maxocc) > smear%eps_fermi_dirac
+            IF (i_first <= nmo) THEN
+               is_large = ABS(mo_set%occupation_numbers(i_first) - mo_set%maxocc) > smear%eps_fermi_dirac
+            ELSE
+               is_large = .FALSE.
+            END IF
             CPWARN_IF(is_large, TRIM(method_label)//" smearing includes the first MO")
 
             ! Find the highest (fractional) occupied MO which will be now the HOMO
