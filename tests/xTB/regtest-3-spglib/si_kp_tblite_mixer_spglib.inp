@@ -1,14 +1,12 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT si_uks_kp_tblite_mixer_spglib
+  PROJECT si_kp_tblite_mixer_spglib
   RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
   METHOD QS
   &DFT
-    LSD
-    MULTIPLICITY 1
     &KPOINTS
       EPS_SYMMETRY 1.e-8
       FULL_GRID OFF
