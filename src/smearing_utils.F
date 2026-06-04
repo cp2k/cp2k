@@ -343,11 +343,11 @@ CONTAINS
          DO
             iter = iter + 1
             CALL SmearOcc(f, N_tmp, kTS, e, mu_min, sigma, maxocc, smear_gaussian, my_estate, my_festate)
-            IF (N_tmp > N .OR. iter > 20) THEN
-               mu_min = mu_min - sigma
-            ELSE
-               EXIT
+            IF (N_tmp <= N) EXIT
+            IF (iter > 20) THEN
+               CPABORT("SmearFixed: failed to bracket lower chemical potential")
             END IF
+            mu_min = mu_min - sigma
          END DO
 
          mu_max = MAXVAL(e)
@@ -355,11 +355,11 @@ CONTAINS
          DO
             iter = iter + 1
             CALL SmearOcc(f, N_tmp, kTS, e, mu_max, sigma, maxocc, smear_gaussian, my_estate, my_festate)
-            IF (N_tmp < N .OR. iter > 20) THEN
-               mu_max = mu_max + sigma
-            ELSE
-               EXIT
+            IF (N_tmp >= N) EXIT
+            IF (iter > 20) THEN
+               CPABORT("SmearFixed: failed to bracket upper chemical potential")
             END IF
+            mu_max = mu_max + sigma
          END DO
 
          iter = 0
@@ -390,6 +390,9 @@ CONTAINS
 
          ! Final evaluation
          CALL SmearOcc(f, N_now, kTS, e, mu, sigma, maxocc, method, my_estate, my_festate)
+         IF (ABS(N_now - N) >= N*1.0e-12_dp) THEN
+            CPWARN("SmearFixed: MP/MV smearing did not reach the requested electron count")
+         END IF
 
          ! Monotonic methods (FD, Gaussian): pure bisection
       CASE DEFAULT
@@ -398,11 +401,11 @@ CONTAINS
          DO
             iter = iter + 1
             CALL SmearOcc(f, N_tmp, kTS, e, mu_min, sigma, maxocc, method, my_estate, my_festate)
-            IF (N_tmp > N .OR. iter > 20) THEN
-               mu_min = mu_min - sigma
-            ELSE
-               EXIT
+            IF (N_tmp <= N) EXIT
+            IF (iter > 20) THEN
+               CPABORT("SmearFixed: failed to bracket lower chemical potential")
             END IF
+            mu_min = mu_min - sigma
          END DO
 
          mu_max = MAXVAL(e)
@@ -410,11 +413,11 @@ CONTAINS
          DO
             iter = iter + 1
             CALL SmearOcc(f, N_tmp, kTS, e, mu_max, sigma, maxocc, method, my_estate, my_festate)
-            IF (N_tmp < N .OR. iter > 20) THEN
-               mu_max = mu_max + sigma
-            ELSE
-               EXIT
+            IF (N_tmp >= N) EXIT
+            IF (iter > 20) THEN
+               CPABORT("SmearFixed: failed to bracket upper chemical potential")
             END IF
+            mu_max = mu_max + sigma
          END DO
 
          iter = 0
@@ -553,6 +556,12 @@ CONTAINS
 
       ! Final evaluation with the actual method
       CALL Smear2(f, N_now, kTS, e, mu, wk, sigma, maxocc, method)
+      SELECT CASE (method)
+      CASE (smear_mp, smear_mv)
+         IF (ABS(N_now - nel) >= nel*epsocc) THEN
+            CPWARN("Smearkp: MP/MV smearing did not reach the requested electron count")
+         END IF
+      END SELECT
 
    END SUBROUTINE Smearkp
 
@@ -673,7 +682,14 @@ CONTAINS
       ! Final evaluation with the actual method
       CALL Smear2(f(:, :, 1), na, kTSa, e(:, :, 1), mu, wk, sigma, 1.0_dp, method)
       CALL Smear2(f(:, :, 2), nb, kTSb, e(:, :, 2), mu, wk, sigma, 1.0_dp, method)
+      N_now = na + nb
       kTS = kTSa + kTSb
+      SELECT CASE (method)
+      CASE (smear_mp, smear_mv)
+         IF (ABS(N_now - nel) >= nel*epsocc) THEN
+            CPWARN("Smearkp2: MP/MV smearing did not reach the requested electron count")
+         END IF
+      END SELECT
 
    END SUBROUTINE Smearkp2
 
@@ -689,8 +705,8 @@ CONTAINS
 !>          MV:           g_i = occ * (2 + sqrt(2)*x) / (sigma*sqrt(pi)) * exp(-u^2)
 !>
 !>          Note: g_i can be negative for MP-1 (|x| > sqrt(3/2)) and MV
-!>          (x < -sqrt(2)).  This does not break bisection (N(mu) is still
-!>          monotone) but the Jacobian routines must guard against G = sum(g_i)
+!>          (x < -sqrt(2)).  Consequently, N(mu) is not guaranteed to be
+!>          monotone and the Jacobian routines must guard against G = sum(g_i)
 !>          being near zero.
 !>
 !> \param gvec    weight vector (Nstate, output)
