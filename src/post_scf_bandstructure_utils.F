@@ -1117,11 +1117,17 @@ CONTAINS
 
          ALLOCATE (DOS_scf(n_E))
          DOS_scf(:) = 0.0_dp
-         ALLOCATE (DOS_scf_SOC(n_E))
-         DOS_scf_SOC(:) = 0.0_dp
 
          ALLOCATE (PDOS_scf(n_E, nkind))
          PDOS_scf(:, :) = 0.0_dp
+
+      END IF
+
+      IF (bs_env%do_soc) THEN
+
+         ALLOCATE (DOS_scf_SOC(n_E))
+         DOS_scf_SOC(:) = 0.0_dp
+
          ALLOCATE (PDOS_scf_SOC(n_E, nkind))
          PDOS_scf_SOC(:, :) = 0.0_dp
 
