@@ -34,8 +34,8 @@ MODULE cp_units
    USE mathconstants,                   ONLY: radians,&
                                               twopi
    USE physcon,                         ONLY: &
-        a_bohr, angstrom, atm, bar, bohr, e_mass, evolt, femtoseconds, joule, kcalmol, kelvin, &
-        kjmol, massunit, newton, pascal, picoseconds, seconds, wavenumbers
+        atm, bar, bohr, e_mass, evolt, femtoseconds, joule, kcalmol, kelvin, kjmol, massunit, &
+        newton, pascal, picoseconds, seconds, wavenumbers
    USE string_utilities,                ONLY: compress,&
                                               s2a,&
                                               uppercase
@@ -818,11 +818,11 @@ CONTAINS
       CASE (cp_ukind_efield)
          SELECT CASE (basic_unit)
          CASE (cp_units_volt_per_m)
-            res = (evolt/a_bohr)**(-my_power)*value
+            res = (1.0E+10_dp*evolt*bohr)**(-my_power)*value
          CASE (cp_units_volt_per_nm)
-            res = (10.0_dp*evolt/angstrom)**(-my_power)*value
+            res = (10.0_dp*evolt*bohr)**(-my_power)*value
          CASE (cp_units_volt_per_angstrom)
-            res = (evolt/angstrom)**(-my_power)*value
+            res = (evolt*bohr)**(-my_power)*value
          CASE (cp_units_au)
             res = value
          CASE default
