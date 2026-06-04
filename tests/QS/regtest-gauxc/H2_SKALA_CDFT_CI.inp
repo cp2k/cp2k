@@ -17,6 +17,7 @@
     &MIXED_CDFT
       CI TRUE
       COUPLING 1
+      EPS_SVD 1.0E-12
       LAMBDA 1.0
     &END MIXED_CDFT
     &PRINT
