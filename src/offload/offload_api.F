@@ -261,7 +261,6 @@ CONTAINS
          END SUBROUTINE offload_create_buffer_c
       END INTERFACE
       INTERFACE
-
          FUNCTION offload_get_buffer_host_pointer_c(buffer) &
             BIND(C, name="offload_get_buffer_host_pointer")
             IMPORT :: C_PTR
