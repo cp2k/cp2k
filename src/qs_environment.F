@@ -2038,7 +2038,7 @@ CONTAINS
             nelectron_spin(2) = 0
             n_mo(1) = 1
             n_mo(2) = 0
-         ELSE 
+         ELSE
             nelectron_spin(1) = (nelectron + multiplicity - 1)/2
             nelectron_spin(2) = (nelectron - multiplicity + 1)/2
             IF (nelectron_spin(1) < 0) THEN

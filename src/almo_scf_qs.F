@@ -932,7 +932,7 @@ CONTAINS
       ALLOCATE (almo_scf_env%quench_t(almo_scf_env%nspins))
       ALLOCATE (almo_scf_env%domain_map(almo_scf_env%nspins))
 
-      DO ispin = 1, almo_scf_env%nspins 
+      DO ispin = 1, almo_scf_env%nspins
 
          ! create the sparsity template for the occupied orbitals
          CALL matrix_almo_create(matrix_new=almo_scf_env%quench_t(ispin), &
@@ -959,7 +959,7 @@ CONTAINS
             ! nnode - total number of neighbors for iatom
             ! inode - current neighbor count
             CALL get_iterator_info(nl_iterator, &
-                                   iatom=iatom2, jatom=jatom2, inode=inode2, nnode=nnode2) 
+                                   iatom=iatom2, jatom=jatom2, inode=inode2, nnode=nnode2)
             IF (inode2 == 1) THEN
                local_list_length = local_list_length + nnode2
             END IF
@@ -1151,7 +1151,7 @@ CONTAINS
 
                            ! compute the maximum overlap between the atoms of the two molecules
                            CALL dbcsr_get_block_p(matrix_s_sym, iblock_row, iblock_col, p_old_block, found)
-                           IF (found) THEN 
+                           IF (found) THEN
                               overlap = MAXVAL(ABS(p_old_block))
                            ELSE
                               overlap = 0.0_dp
@@ -1179,7 +1179,7 @@ CONTAINS
                            ! ao domains are atomic / electron groups are atomic
                            ! compute max overlap between atoms: domain_row and domain_col
                            CALL dbcsr_get_block_p(matrix_s_sym, iblock_row, iblock_col, p_old_block, found)
-                           IF (found) THEN 
+                           IF (found) THEN
                               overlap = MAXVAL(ABS(p_old_block))
                            ELSE
                               overlap = 0.0_dp
@@ -1213,7 +1213,7 @@ CONTAINS
                            new_block(:, :) = 1.0_dp
                            !WRITE(*,'(A15,2I7,3F8.3,E11.3)') "INTRA-BLOCKS: ",&
                            !   iblock_col, iblock_row, s0, s1, overlap, new_block(1,1)
-                   ELSE
+                        ELSE
                            new_block(:, :) = 1.0_dp/(1.0_dp + EXP(-(s0 - s1)/(s0 - overlap) - (s0 - s1)/(overlap - s1)))
                            !WRITE(*,'(A15,2I7,3F8.3,E11.3)') "INTER-BLOCKS: ",&
                            !   iblock_col, iblock_row, s0, s1, overlap, new_block(1,1)
@@ -1379,7 +1379,7 @@ CONTAINS
          DEALLOCATE (current_number_neighbors)
 
          CALL dbcsr_finalize(almo_scf_env%quench_t(ispin))
-        
+
          CALL dbcsr_filter(almo_scf_env%quench_t(ispin), &
                            almo_scf_env%eps_filter)
 

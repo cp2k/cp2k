@@ -142,7 +142,6 @@ CONTAINS
       CALL dbcsr_set(matrix_out, 0.0_dp)
       CALL dbcsr_get_info(matrix_out, nfullrows_total=matrix_size(1), nfullcols_total=matrix_size(2))
 
-
       ! assume that the initial offset is zero
       offset(1) = 0
       offset(2) = 0

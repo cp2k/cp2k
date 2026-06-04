@@ -294,7 +294,7 @@ CONTAINS
       ELSE
          nomo = INT(mo_set%nelectron/mo_set%maxocc) + 1
          ! Initialize MO occupations
-         mo_set%occupation_numbers(1:nomo - 1) = mo_set%maxocc 
+         mo_set%occupation_numbers(1:nomo - 1) = mo_set%maxocc
          mo_set%occupation_numbers(nomo - ((na - nb)/2):nomo) = 1
       END IF
 

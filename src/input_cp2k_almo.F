@@ -1007,11 +1007,11 @@ CONTAINS
                           n_keywords=3, n_subsections=0, repeats=.TRUE.)
       NULLIFY (keyword)
 
-     CALL keyword_create(keyword, __LOCATION__, name="_FRAGMENT_PARAMETERS_", &
-                    description="Defines the index of the fragment.", &
-                    usage="_FRAGMENT_PARAMETERS_ <INTEGER>", n_var=1, default_i_val=0)
-     CALL section_add_keyword(section, keyword)
-     CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="_FRAGMENT_PARAMETERS_", &
+                          description="Defines the index of the fragment.", &
+                          usage="_FRAGMENT_PARAMETERS_ <INTEGER>", n_var=1, default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CHARGE", &
                           description="Specifies the charge of a fragment.", &
