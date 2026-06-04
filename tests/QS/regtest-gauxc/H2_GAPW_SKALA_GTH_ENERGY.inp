@@ -52,6 +52,7 @@
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH
+      GPW_TYPE
       POTENTIAL GTH-PBE-q1
     &END KIND
   &END SUBSYS

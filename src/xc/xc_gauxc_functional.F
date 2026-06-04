@@ -377,6 +377,37 @@ CONTAINS
    END FUNCTION gauxc_gapw_has_pseudopotentials
 
 ! **************************************************************************************************
+!> \brief Return whether GauXC GAPW mode sees pseudopotential one-center GAPW kinds.
+!> \param qs_kind_set ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION gauxc_gapw_has_paw_pseudopotentials(qs_kind_set) RESULT(has_paw_pseudopotentials)
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      LOGICAL                                            :: has_paw_pseudopotentials
+
+      INTEGER                                            :: ikind
+      LOGICAL                                            :: paw_atom
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+
+      CPASSERT(ASSOCIATED(qs_kind_set))
+
+      has_paw_pseudopotentials = .FALSE.
+      DO ikind = 1, SIZE(qs_kind_set)
+         NULLIFY (gth_potential, sgp_potential)
+         CALL get_qs_kind(qs_kind_set(ikind), &
+                          gth_potential=gth_potential, &
+                          paw_atom=paw_atom, &
+                          sgp_potential=sgp_potential)
+         IF ((ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. paw_atom) THEN
+            has_paw_pseudopotentials = .TRUE.
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION gauxc_gapw_has_paw_pseudopotentials
+
+! **************************************************************************************************
 !> \brief Check the current periodic scope of the CP2K-GauXC bridge
 !> \param dft_control ...
 !> \param cell ...
@@ -936,11 +967,11 @@ CONTAINS
       INTEGER                                            :: batch_size, env_status, img, ispin, &
                                                             natom, nimages, nspins, &
                                                             onedft_atom_chunk_size
-      LOGICAL :: do_kpoints, gapw_pseudopotentials, grid_explicit, hdf5_output, is_periodic, &
-         molecular_virial, molecular_virial_debug, onedft_atom_chunk_size_explicit, &
-         periodic_reference, pruning_explicit, use_fd_gradient, use_gradient_mpi_runtime, &
-         use_gradient_self_runtime, use_onedft, use_self_runtime, use_skala_model, &
-         write_hdf5_output
+      LOGICAL :: do_kpoints, gapw_paw_pseudopotentials, gapw_pseudopotentials, grid_explicit, &
+         hdf5_output, is_periodic, molecular_virial, molecular_virial_debug, &
+         onedft_atom_chunk_size_explicit, periodic_reference, pruning_explicit, use_fd_gradient, &
+         use_gradient_mpi_runtime, use_gradient_self_runtime, use_onedft, use_self_runtime, &
+         use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: device_runtime_fill_fraction, &
                                                             molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
@@ -1008,6 +1039,8 @@ CONTAINS
       END IF
       gapw_pseudopotentials = dft_control%qs_control%gapw .AND. &
                               gauxc_gapw_has_pseudopotentials(qs_kind_set)
+      gapw_paw_pseudopotentials = dft_control%qs_control%gapw .AND. &
+                                  gauxc_gapw_has_paw_pseudopotentials(qs_kind_set)
       CPASSERT(ASSOCIATED(rho))
       rho_use => rho
       CALL qs_rho_get( &
@@ -1107,6 +1140,13 @@ CONTAINS
                        "OneDFT/SKALA-style models that replace the molecular XC term. "// &
                        "Use POTENTIAL ALL for local/semi-local GauXC GAPW validation or METHOD GPW "// &
                        "with pseudopotentials.")
+      END IF
+      IF (gapw_paw_pseudopotentials .AND. use_onedft) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "GauXC OneDFT/SKALA with METHOD GAPW and GTH/ECP pseudopotentials supports "// &
+                       "only non-PAW regular-grid kinds, for example kinds treated through GPW_TYPE. "// &
+                       "PAW/one-center GAPW pseudopotential kinds need a dedicated SKALA-consistent "// &
+                       "one-center density design.")
       END IF
       IF (gapw_pseudopotentials .AND. use_onedft .AND. para_env%mepos == 0 .AND. &
           ASSOCIATED(scf_env)) THEN
