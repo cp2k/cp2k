@@ -6,6 +6,7 @@
 /*----------------------------------------------------------------------------*/
 #include "dbm_library.h"
 #include "../mpiwrap/cp_mpi.h"
+#include "../offload/offload_library.h"
 #include "../offload/offload_mempool.h"
 
 #include <assert.h>
@@ -38,6 +39,8 @@ void dbm_library_init(void) {
     fprintf(stderr, "DBM library was already initialized.\n");
     abort();
   }
+
+  offload_init();
 
   max_threads = omp_get_max_threads();
   per_thread_counters = malloc(max_threads * sizeof(int64_t *));
@@ -84,16 +87,7 @@ void dbm_library_finalize(void) {
  * \author Ole Schuett
  ******************************************************************************/
 static int floorlog10(const int x) {
-  if (x >= 1000) {
-    return 3;
-  }
-  if (x >= 100) {
-    return 2;
-  }
-  if (x >= 10) {
-    return 1;
-  }
-  return 0;
+  return (100 <= x ? (1000 <= x ? 3 : 2) : (10 <= x ? 1 : 0));
 }
 
 /*******************************************************************************

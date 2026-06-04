@@ -9,6 +9,7 @@
 #include "../offload/offload_mempool.h"
 
 #include <assert.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -34,6 +35,17 @@ static int gcd(const int a, const int b) {
 static int lcm(const int a, const int b) { return (a * b) / gcd(a, b); }
 
 /*******************************************************************************
+ * \brief Private routine for converting element counts to byte counts.
+ * \author Hans Pabst
+ ******************************************************************************/
+static int checked_byte_count(const int nelements, const size_t element_size) {
+  assert(0 <= nelements);
+  assert(element_size <= INT_MAX);
+  assert(nelements <= INT_MAX / (int)element_size);
+  return nelements * (int)element_size;
+}
+
+/*******************************************************************************
  * \brief Private routine for computing the sum of the given integers.
  * \author Ole Schuett
  ******************************************************************************/
@@ -47,12 +59,38 @@ static inline int isum(const int n, const int input[n]) {
 
 /*******************************************************************************
  * \brief Private routine for computing the cumulative sums of given numbers.
- * \author Ole Schuett
+ * \author Ole Schuett and Hans Pabst
  ******************************************************************************/
 static inline void icumsum(const int n, const int input[n], int output[n]) {
-  output[0] = 0;
+  int oval = output[0] = 0, ival = input[0];
   for (int i = 1; i < n; i++) {
-    output[i] = output[i - 1] + input[i - 1];
+    output[i] = (oval += ival);
+    ival = input[i];
+  }
+}
+
+/*******************************************************************************
+ * \brief Private routine computing received data counts from block metadata.
+ * \author Hans Pabst
+ ******************************************************************************/
+static void compute_data_recv_count(const int nranks,
+                                    const int blks_recv_count[nranks],
+                                    const int blks_recv_displ[nranks],
+                                    const int free_index_sizes[],
+                                    const int sum_index_sizes[],
+                                    const dbm_pack_block_t blks_recv[],
+                                    int data_recv_count[nranks]) {
+  memset(data_recv_count, 0, nranks * sizeof(int));
+  for (int irank = 0; irank < nranks; irank++) {
+    for (int i = 0; i < blks_recv_count[irank]; i++) {
+      const dbm_pack_block_t *const blk =
+          &blks_recv[blks_recv_displ[irank] + i];
+      const int block_size =
+          free_index_sizes[blk->free_index] * sum_index_sizes[blk->sum_index];
+      assert(block_size >= 0);
+      assert(data_recv_count[irank] <= INT_MAX - block_size);
+      data_recv_count[irank] += block_size;
+    }
   }
 }
 
@@ -89,7 +127,6 @@ static void create_pack_plans(const bool trans_matrix, const bool trans_dist,
                               const int npacks, plan_t *plans_per_pack[npacks],
                               int nblks_per_pack[npacks],
                               int ndata_per_pack[npacks]) {
-
   memset(nblks_per_pack, 0, npacks * sizeof(int));
   memset(ndata_per_pack, 0, npacks * sizeof(int));
 
@@ -170,7 +207,6 @@ static void fill_send_buffers(
     int blks_send_count[nranks], int data_send_count[nranks],
     int blks_send_displ[nranks], int data_send_displ[nranks],
     dbm_pack_block_t blks_send[nblks_send], double data_send[ndata_send]) {
-
   memset(blks_send_count, 0, nranks * sizeof(int));
   memset(data_send_count, 0, nranks * sizeof(int));
 
@@ -198,7 +234,7 @@ static void fill_send_buffers(
 #pragma omp barrier
 
     // Compute send displacements.
-#pragma omp master
+#pragma omp single
     {
       icumsum(nranks, blks_send_count, blks_send_displ);
       icumsum(nranks, data_send_count, data_send_displ);
@@ -211,10 +247,10 @@ static void fill_send_buffers(
     // 4th pass: Fill blks_send and data_send arrays.
 #pragma omp for schedule(static) // Need static to match previous loop.
     for (int iblock = 0; iblock < nblks_send; iblock++) {
-      const plan_t *plan = &plans[iblock];
-      const dbm_block_t *blk = plan->blk;
+      const plan_t *const plan = &plans[iblock];
+      const dbm_block_t *const blk = plan->blk;
       const int ishard = dbm_get_shard_index(matrix, blk->row, blk->col);
-      const dbm_shard_t *shard = &matrix->shards[ishard];
+      const dbm_shard_t *const shard = &matrix->shards[ishard];
       const double *blk_data = &shard->data[blk->offset];
       const int row_size = plan->row_size, col_size = plan->col_size;
       const int plan_size = row_size * col_size;
@@ -276,7 +312,6 @@ static void postprocess_received_blocks(
     const int blks_recv_count[nranks], const int blks_recv_displ[nranks],
     const int data_recv_displ[nranks],
     dbm_pack_block_t blks_recv[nblocks_recv]) {
-
   int nblocks_per_shard[nshards], shard_start[nshards];
   memset(nblocks_per_shard, 0, nshards * sizeof(int));
   dbm_pack_block_t *blocks_tmp =
@@ -308,7 +343,7 @@ static void postprocess_received_blocks(
       nblocks_mythread[ishard] = nblocks_per_shard[ishard];
     }
 #pragma omp barrier
-#pragma omp master
+#pragma omp single
     icumsum(nshards, nblocks_per_shard, shard_start);
 #pragma omp barrier
 #pragma omp for schedule(static) // Need static to match previous loop.
@@ -337,16 +372,19 @@ static void postprocess_received_blocks(
  ******************************************************************************/
 static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
                                        const bool trans_dist,
-                                       const dbm_matrix_t *matrix,
-                                       const dbm_distribution_t *dist,
+                                       const dbm_matrix_t *restrict matrix,
+                                       const dbm_distribution_t *restrict dist,
                                        const int nticks) {
-
   assert(cp_mpi_comms_are_similar(matrix->dist->comm, dist->comm));
 
   // The row/col indicies are distributed along one cart dimension and the
   // ticks are distributed along the other cart dimension.
   const dbm_dist_1d_t *dist_indices = (trans_dist) ? &dist->cols : &dist->rows;
   const dbm_dist_1d_t *dist_ticks = (trans_dist) ? &dist->rows : &dist->cols;
+  const int *free_index_sizes =
+      (trans_matrix) ? matrix->col_sizes : matrix->row_sizes;
+  const int *sum_index_sizes =
+      (trans_matrix) ? matrix->row_sizes : matrix->col_sizes;
 
   // Allocate packed matrix.
   const int nsend_packs = nticks / dist_ticks->nranks;
@@ -399,19 +437,24 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
     int blks_send_count_byte[nranks], blks_send_displ_byte[nranks];
     int blks_recv_count_byte[nranks], blks_recv_displ_byte[nranks];
     for (int i = 0; i < nranks; i++) { // TODO: this is ugly!
-      blks_send_count_byte[i] = blks_send_count[i] * sizeof(dbm_pack_block_t);
-      blks_send_displ_byte[i] = blks_send_displ[i] * sizeof(dbm_pack_block_t);
-      blks_recv_count_byte[i] = blks_recv_count[i] * sizeof(dbm_pack_block_t);
-      blks_recv_displ_byte[i] = blks_recv_displ[i] * sizeof(dbm_pack_block_t);
+      blks_send_count_byte[i] =
+          checked_byte_count(blks_send_count[i], sizeof(dbm_pack_block_t));
+      blks_send_displ_byte[i] =
+          checked_byte_count(blks_send_displ[i], sizeof(dbm_pack_block_t));
+      blks_recv_count_byte[i] =
+          checked_byte_count(blks_recv_count[i], sizeof(dbm_pack_block_t));
+      blks_recv_displ_byte[i] =
+          checked_byte_count(blks_recv_displ[i], sizeof(dbm_pack_block_t));
     }
     cp_mpi_alltoallv_byte(blks_send, blks_send_count_byte, blks_send_displ_byte,
                           blks_recv, blks_recv_count_byte, blks_recv_displ_byte,
                           dist->comm);
 
-    // 3rd communication: Exchange data counts.
-    // TODO: could be computed from blks_recv.
+    // Compute data counts from the received block metadata.
     int data_recv_count[nranks], data_recv_displ[nranks];
-    cp_mpi_alltoall_int(data_send_count, 1, data_recv_count, 1, dist->comm);
+    compute_data_recv_count(nranks, blks_recv_count, blks_recv_displ,
+                            free_index_sizes, sum_index_sizes, blks_recv,
+                            data_recv_count);
     icumsum(nranks, data_recv_count, data_recv_displ);
     const int ndata_recv = isum(nranks, data_recv_count);
 
@@ -491,11 +534,13 @@ static dbm_pack_t *sendrecv_pack(const int itick, const int nticks,
     // Exchange blocks.
     const int nblocks_in_bytes = cp_mpi_sendrecv_byte(
         /*sendbuf=*/send_pack->blocks,
-        /*sendcound=*/send_pack->nblocks * sizeof(dbm_pack_block_t),
+        /*sendcound=*/
+        checked_byte_count(send_pack->nblocks, sizeof(dbm_pack_block_t)),
         /*dest=*/send_rank,
         /*sendtag=*/send_ipack,
         /*recvbuf=*/packed->recv_pack.blocks,
-        /*recvcount=*/packed->max_nblocks * sizeof(dbm_pack_block_t),
+        /*recvcount=*/
+        checked_byte_count(packed->max_nblocks, sizeof(dbm_pack_block_t)),
         /*source=*/recv_rank,
         /*recvtag=*/recv_ipack,
         /*comm=*/packed->dist_ticks->comm);
@@ -550,7 +595,6 @@ dbm_comm_iterator_t *dbm_comm_iterator_start(const bool transa,
                                              const dbm_matrix_t *matrix_a,
                                              const dbm_matrix_t *matrix_b,
                                              const dbm_matrix_t *matrix_c) {
-
   dbm_comm_iterator_t *iter = malloc(sizeof(dbm_comm_iterator_t));
   assert(iter != NULL);
   iter->dist = matrix_c->dist;
@@ -571,7 +615,7 @@ dbm_comm_iterator_t *dbm_comm_iterator_start(const bool transa,
 }
 
 /*******************************************************************************
- * \brief Internal routine for retriving next pair of packs from given iterator.
+ * \brief Internal routine for retrieving next pair of packs of given iterator.
  * \author Ole Schuett
  ******************************************************************************/
 bool dbm_comm_iterator_next(dbm_comm_iterator_t *iter, dbm_pack_t **pack_a,
@@ -582,11 +626,11 @@ bool dbm_comm_iterator_next(dbm_comm_iterator_t *iter, dbm_pack_t **pack_a,
 
   // Start each rank at a different tick to spread the load on the sources.
   const int shift = iter->dist->rows.my_rank + iter->dist->cols.my_rank;
-  const int shifted_itick = (iter->itick + shift) % iter->nticks;
-  *pack_a = sendrecv_pack(shifted_itick, iter->nticks, &iter->packed_a);
-  *pack_b = sendrecv_pack(shifted_itick, iter->nticks, &iter->packed_b);
+  const int itick = (iter->itick + shift) % iter->nticks;
+  *pack_a = sendrecv_pack(itick, iter->nticks, &iter->packed_a);
+  *pack_b = sendrecv_pack(itick, iter->nticks, &iter->packed_b);
 
-  iter->itick++;
+  ++iter->itick;
   return true;
 }
 

@@ -161,14 +161,14 @@ static void hashtable_insert(dbm_shard_t *shard, const int block_idx) {
   const dbm_block_t *blk = &shard->blocks[block_idx];
   const unsigned int h = hash(blk->row, blk->col);
   int slot = (shard->hashtable_prime * h) & hashtable_mask(shard);
-  for (;; slot = (slot + 1) & hashtable_mask(shard)) { // linear probing
-    for (int i = slot; i < shard->hashtable_size; ++i) {
-      if (shard->hashtable[i] == 0) {        // 0 means empty
-        shard->hashtable[i] = block_idx + 1; // 1-based
-        return;
-      }
+  for (int i = 0; i < shard->hashtable_size; ++i) { // linear probing
+    if (shard->hashtable[slot] == 0) {              // 0 means empty
+      shard->hashtable[slot] = block_idx + 1;       // 1-based
+      return;
     }
+    slot = (slot + 1) & hashtable_mask(shard);
   }
+  assert(false);
 }
 
 /*******************************************************************************
@@ -178,19 +178,19 @@ static void hashtable_insert(dbm_shard_t *shard, const int block_idx) {
 dbm_block_t *dbm_shard_lookup(const dbm_shard_t *shard, const int row,
                               const int col) {
   int slot = (shard->hashtable_prime * hash(row, col)) & hashtable_mask(shard);
-  for (;; slot = (slot + 1) & hashtable_mask(shard)) { // linear probing
-    for (int i = slot; i < shard->hashtable_size; ++i) {
-      const int block_idx = shard->hashtable[i];
-      if (block_idx == 0) { // 1-based, 0 means empty
-        return NULL;        // block not found
-      }
-      assert(0 < block_idx && block_idx <= shard->nblocks);
-      dbm_block_t *blk = &shard->blocks[block_idx - 1];
-      if (blk->row == row && blk->col == col) {
-        return blk;
-      }
+  for (int i = 0; i < shard->hashtable_size; ++i) { // linear probing
+    const int block_idx = shard->hashtable[slot];
+    if (block_idx == 0) { // 1-based, 0 means empty
+      return NULL;        // block not found
     }
+    assert(0 < block_idx && block_idx <= shard->nblocks);
+    dbm_block_t *blk = &shard->blocks[block_idx - 1];
+    if (blk->row == row && blk->col == col) {
+      return blk;
+    }
+    slot = (slot + 1) & hashtable_mask(shard);
   }
+  return NULL;
 }
 
 /*******************************************************************************
@@ -232,9 +232,8 @@ dbm_block_t *dbm_shard_promise_new_block(dbm_shard_t *shard, const int row,
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_shard_allocate_promised_blocks(dbm_shard_t *shard) {
-
   // Reallocate data array if necessary.
-  if (shard->data_promised > shard->data_allocated) {
+  if (shard->data_allocated < shard->data_promised) {
     const double *data = shard->data;
     shard->data_allocated = DBM_ALLOCATION_FACTOR * shard->data_promised;
     assert(shard->data_promised <= shard->data_allocated);
@@ -250,7 +249,7 @@ void dbm_shard_allocate_promised_blocks(dbm_shard_t *shard) {
   // Zero new blocks.
   // The following memset is usually the first touch of the memory, which leads
   // to frequent page faults. The executing thread determines the NUMA location
-  if (shard->data_promised > shard->data_size) {
+  if (shard->data_size < shard->data_promised) {
     const int tail = shard->data_promised - shard->data_size;
     memset(shard->data + shard->data_size, 0, tail * sizeof(double));
     shard->data_size = shard->data_promised;
