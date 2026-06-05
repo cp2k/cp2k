@@ -68,13 +68,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_3'
 
+      CHARACTER(LEN=32)                                  :: method_label
       INTEGER                                            :: all_nmo, handle, homo_a, homo_b, i, &
                                                             lfomo_a, lfomo_b, nmo_a, nmo_b, &
                                                             xas_estate
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: all_index
       LOGICAL                                            :: is_large
       REAL(KIND=dp)                                      :: all_nelec, kTS, mu, nelec_a, nelec_b, &
-                                                            occ_estate
+                                                            occ_estate, smear_width
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: all_eigval, all_occ
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigval_a, eigval_b, occ_a, occ_b
 
@@ -113,17 +114,34 @@ CONTAINS
          END IF
       END DO
 
+      SELECT CASE (smear%method)
+      CASE (smear_fermi_dirac)
+         smear_width = smear%electronic_temperature
+         method_label = "Fermi-Dirac"
+      CASE (smear_gaussian)
+         smear_width = smear%smearing_width
+         method_label = "Gaussian"
+      CASE (smear_mp)
+         smear_width = smear%smearing_width
+         method_label = "Methfessel-Paxton"
+      CASE (smear_mv)
+         smear_width = smear%smearing_width
+         method_label = "Marzari-Vanderbilt"
+      CASE DEFAULT
+         CPABORT("set_mo_occupation_3: unsupported smearing method")
+      END SELECT
+
       CALL SmearFixed(all_occ, mu, kTS, all_eigval, all_nelec, &
-                      smear%electronic_temperature, 1._dp, smear%method, xas_estate, occ_estate)
+                      smear_width, 1._dp, smear%method, xas_estate, occ_estate)
 
-      is_large = ABS(MAXVAL(all_occ) - 1.0_dp) > smear%eps_fermi_dirac
-      ! this is not a real problem, but the temperature might be a bit large
-      CPWARN_IF(is_large, "Fermi-Dirac smearing includes the first MO")
+      is_large = ABS(all_occ(1) - 1.0_dp) > smear%eps_fermi_dirac
+      ! this is not a real problem, but the smearing width might be a bit large
+      CPWARN_IF(is_large, TRIM(method_label)//" smearing includes the first MO")
 
-      is_large = ABS(MINVAL(all_occ)) > smear%eps_fermi_dirac
+      is_large = ABS(all_occ(all_nmo)) > smear%eps_fermi_dirac
       IF (is_large) &
          CALL cp_warn(__LOCATION__, &
-                      "Fermi-Dirac smearing includes the last MO => "// &
+                      TRIM(method_label)//" smearing includes the last MO => "// &
                       "Add more MOs for proper smearing.")
 
       ! check that the total electron count is accurate
@@ -638,7 +656,11 @@ CONTAINS
                   EXIT
                END IF
             END DO
-            is_large = ABS(MAXVAL(mo_set%occupation_numbers) - mo_set%maxocc) > smear%eps_fermi_dirac
+            IF (i_first <= nmo) THEN
+               is_large = ABS(mo_set%occupation_numbers(i_first) - mo_set%maxocc) > smear%eps_fermi_dirac
+            ELSE
+               is_large = .FALSE.
+            END IF
             ! this is not a real problem, but the temperature might be a bit large
             CPWARN_IF(is_large, "Fermi-Dirac smearing includes the first MO")
 
@@ -691,7 +713,11 @@ CONTAINS
                   EXIT
                END IF
             END DO
-            is_large = ABS(mo_set%occupation_numbers(1) - mo_set%maxocc) > smear%eps_fermi_dirac
+            IF (i_first <= nmo) THEN
+               is_large = ABS(mo_set%occupation_numbers(i_first) - mo_set%maxocc) > smear%eps_fermi_dirac
+            ELSE
+               is_large = .FALSE.
+            END IF
             CPWARN_IF(is_large, TRIM(method_label)//" smearing includes the first MO")
 
             ! Find the highest (fractional) occupied MO which will be now the HOMO
