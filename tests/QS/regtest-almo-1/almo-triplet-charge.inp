@@ -84,7 +84,7 @@
     &END CELL
     &COORD
       O          3.18223        0.45270        0.23748 cluster 1
-      O          2.80230        0.83406        1.25476 cluster 1     
+      O          2.80230        0.83406        1.25476 cluster 1
       O         -0.56844        5.44418        4.62944 environment 2
       H         -1.23780        4.94395        4.09818 environment 2
     &END COORD
