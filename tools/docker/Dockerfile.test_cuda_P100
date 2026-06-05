@@ -37,6 +37,7 @@ RUN ./install_cp2k_toolchain.sh \
     --with-mpich=install \
     --mpi-mode=mpich \
     --enable-cuda=yes \
+    --with-sirius=install \
     --gpu-ver=P100 \
     --dry-run
 
