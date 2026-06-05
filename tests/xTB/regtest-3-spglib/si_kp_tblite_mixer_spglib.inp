@@ -30,22 +30,16 @@
       &END XTB
     &END QS
     &SCF
-      ADDED_MOS -1 -1
       EPS_SCF 1.e-6
       MAX_SCF 120
-      SCF_GUESS MOPAC
       &MIXING
-        ALPHA 0.2
-        METHOD DIRECT_P_MIXING
+        ALPHA 0.4
+        METHOD BROYDEN_MIXING
       &END MIXING
       &PRINT
         &RESTART OFF
         &END RESTART
       &END PRINT
-      &SMEAR ON
-        ELECTRONIC_TEMPERATURE 300
-        METHOD FERMI_DIRAC
-      &END SMEAR
     &END SCF
   &END DFT
   &SUBSYS
