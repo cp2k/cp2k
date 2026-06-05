@@ -52,6 +52,8 @@ MODULE smearing_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'smearing_utils'
    INTEGER, PARAMETER, PRIVATE                           :: BISECT_MAX_ITER = 400
    INTEGER, PARAMETER, PRIVATE                           :: NEWTON_MAX_ITER = 50
+   INTEGER, PARAMETER, PRIVATE                           :: NEWTON_MAX_BACKTRACK = 20
+   REAL(KIND=dp), PARAMETER, PRIVATE                     :: MPMV_MAX_NEWTON_STEP = 2.0_dp
 
 CONTAINS
 ! **************************************************************************************************
@@ -316,9 +318,9 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: estate
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: festate
 
-      INTEGER                                            :: iter, my_estate, Nstate
-      REAL(KIND=dp)                                      :: Gsum, mu_max, mu_min, mu_now, &
-                                                            my_festate, N_now, N_tmp
+      INTEGER                                            :: iback, iter, my_estate, Nstate
+      REAL(KIND=dp) :: Gsum, mu_best, mu_max, mu_min, mu_now, mu_trial, my_festate, N_now, N_tmp, &
+         N_trial, res_best, res_now, res_trial, step, step_try
       REAL(KIND=dp), ALLOCATABLE                         :: gvec(:)
 
       IF (PRESENT(estate) .AND. PRESENT(festate)) THEN
@@ -376,17 +378,45 @@ CONTAINS
          END DO
          mu = (mu_max + mu_min)/2.0_dp
 
-         ! Step 2: Newton refinement with the actual method
+         ! Step 2: damped Newton refinement with the actual method.  MP/MV
+         ! occupations are not monotonic functions of mu, therefore an
+         ! unrestricted Newton step can jump to a remote root or increase the
+         ! electron-count residual.  Keep the root closest to the Gaussian
+         ! solution by accepting only residual-reducing, size-limited steps.
          ALLOCATE (gvec(Nstate))
+         CALL SmearOcc(f, N_now, kTS, e, mu, sigma, maxocc, method, my_estate, my_festate)
+         res_best = ABS(N_now - N)
+         mu_best = mu
          DO iter = 1, NEWTON_MAX_ITER
-            CALL SmearOcc(f, N_now, kTS, e, mu, sigma, maxocc, method, my_estate, my_festate)
-            IF (ABS(N_now - N) < N*1.0e-12_dp) EXIT
+            res_now = ABS(N_now - N)
+            IF (res_now < N*1.0e-12_dp) EXIT
             CALL compute_gvec(gvec, f, e, mu, sigma, maxocc, Nstate, method, my_estate, my_festate)
             Gsum = accurate_sum(gvec)
             IF (ABS(Gsum) < EPSILON(Gsum)) EXIT
-            mu = mu + (N - N_now)/Gsum
+
+            step = (N - N_now)/Gsum
+            step = SIGN(MIN(ABS(step), MPMV_MAX_NEWTON_STEP*sigma), step)
+            step_try = step
+            DO iback = 1, NEWTON_MAX_BACKTRACK
+               mu_trial = mu + step_try
+               CALL SmearOcc(f, N_trial, kTS, e, mu_trial, sigma, maxocc, method, &
+                             my_estate, my_festate)
+               res_trial = ABS(N_trial - N)
+               IF (res_trial < res_now) THEN
+                  mu = mu_trial
+                  N_now = N_trial
+                  IF (res_trial < res_best) THEN
+                     res_best = res_trial
+                     mu_best = mu
+                  END IF
+                  EXIT
+               END IF
+               step_try = 0.5_dp*step_try
+            END DO
+            IF (iback > NEWTON_MAX_BACKTRACK) EXIT
          END DO
          DEALLOCATE (gvec)
+         mu = mu_best
 
          ! Final evaluation
          CALL SmearOcc(f, N_now, kTS, e, mu, sigma, maxocc, method, my_estate, my_festate)
@@ -475,9 +505,12 @@ CONTAINS
 
       REAL(KIND=dp), PARAMETER                           :: epsocc = 1.0e-12_dp
 
-      INTEGER                                            :: bisect_method, ik, is, iter, nkp, nmo
-      REAL(KIND=dp)                                      :: de, dNdmu, expu2, expx2, mu_max, mu_min, &
-                                                            N_now, u, x
+      INTEGER                                            :: bisect_method, iback, ik, is, iter, nkp, &
+                                                            nmo
+      REAL(KIND=dp)                                      :: de, dNdmu, expu2, expx2, mu_best, &
+                                                            mu_max, mu_min, N_now, N_trial, &
+                                                            res_best, res_now, res_trial, step, &
+                                                            step_try, u, x
 
       nmo = SIZE(e, 1)
       nkp = SIZE(e, 2)
@@ -525,12 +558,17 @@ CONTAINS
       END DO
       mu = (mu_max + mu_min)/2.0_dp
 
-      ! Newton refinement for non-monotonic methods
+      ! Damped Newton refinement for non-monotonic methods.  Accept only
+      ! residual-reducing steps and limit the displacement from the local
+      ! Gaussian solution to avoid jumping to a remote MP/MV root.
       SELECT CASE (method)
       CASE (smear_mp, smear_mv)
+         CALL Smear2(f, N_now, kTS, e, mu, wk, sigma, maxocc, method)
+         res_best = ABS(N_now - nel)
+         mu_best = mu
          DO iter = 1, NEWTON_MAX_ITER
-            CALL Smear2(f, N_now, kTS, e, mu, wk, sigma, maxocc, method)
-            IF (ABS(N_now - nel) < nel*epsocc) EXIT
+            res_now = ABS(N_now - nel)
+            IF (res_now < nel*epsocc) EXIT
 
             ! Compute dN/dmu = sum_{ik} wk * g_i(k)  inline
             dNdmu = 0.0_dp
@@ -550,8 +588,26 @@ CONTAINS
             END DO
 
             IF (ABS(dNdmu) < EPSILON(dNdmu)) EXIT
-            mu = mu + (nel - N_now)/dNdmu
+            step = (nel - N_now)/dNdmu
+            step = SIGN(MIN(ABS(step), MPMV_MAX_NEWTON_STEP*sigma), step)
+            step_try = step
+            DO iback = 1, NEWTON_MAX_BACKTRACK
+               CALL Smear2(f, N_trial, kTS, e, mu + step_try, wk, sigma, maxocc, method)
+               res_trial = ABS(N_trial - nel)
+               IF (res_trial < res_now) THEN
+                  mu = mu + step_try
+                  N_now = N_trial
+                  IF (res_trial < res_best) THEN
+                     res_best = res_trial
+                     mu_best = mu
+                  END IF
+                  EXIT
+               END IF
+               step_try = 0.5_dp*step_try
+            END DO
+            IF (iback > NEWTON_MAX_BACKTRACK) EXIT
          END DO
+         mu = mu_best
       END SELECT
 
       ! Final evaluation with the actual method
@@ -593,10 +649,10 @@ CONTAINS
 
       REAL(KIND=dp), PARAMETER                           :: epsocc = 1.0e-12_dp
 
-      INTEGER                                            :: bisect_method, ik, is, ispin, iter, nkp, &
-                                                            nmo
-      REAL(KIND=dp)                                      :: de, dNdmu, expu2, expx2, kTSa, kTSb, &
-                                                            mu_max, mu_min, N_now, na, nb, u, x
+      INTEGER                                            :: bisect_method, iback, ik, is, ispin, &
+                                                            iter, nkp, nmo
+      REAL(KIND=dp) :: de, dNdmu, expu2, expx2, kTSa, kTSb, mu_best, mu_max, mu_min, N_now, &
+         N_trial, na, nb, res_best, res_now, res_trial, step, step_try, u, x
 
       CPASSERT(SIZE(f, 3) == 2 .AND. SIZE(e, 3) == 2)
 
@@ -646,14 +702,19 @@ CONTAINS
       END DO
       mu = (mu_max + mu_min)/2.0_dp
 
-      ! Newton refinement for non-monotonic methods
+      ! Damped Newton refinement for non-monotonic methods.  Accept only
+      ! residual-reducing steps and limit the displacement from the local
+      ! Gaussian solution to avoid jumping to a remote MP/MV root.
       SELECT CASE (method)
       CASE (smear_mp, smear_mv)
+         CALL Smear2(f(:, :, 1), na, kTSa, e(:, :, 1), mu, wk, sigma, 1.0_dp, method)
+         CALL Smear2(f(:, :, 2), nb, kTSb, e(:, :, 2), mu, wk, sigma, 1.0_dp, method)
+         N_now = na + nb
+         res_best = ABS(N_now - nel)
+         mu_best = mu
          DO iter = 1, NEWTON_MAX_ITER
-            CALL Smear2(f(:, :, 1), na, kTSa, e(:, :, 1), mu, wk, sigma, 1.0_dp, method)
-            CALL Smear2(f(:, :, 2), nb, kTSb, e(:, :, 2), mu, wk, sigma, 1.0_dp, method)
-            N_now = na + nb
-            IF (ABS(N_now - nel) < nel*epsocc) EXIT
+            res_now = ABS(N_now - nel)
+            IF (res_now < nel*epsocc) EXIT
 
             ! dN/dmu across both spin channels (maxocc=1 per spin)
             dNdmu = 0.0_dp
@@ -675,8 +736,28 @@ CONTAINS
             END DO
 
             IF (ABS(dNdmu) < EPSILON(dNdmu)) EXIT
-            mu = mu + (nel - N_now)/dNdmu
+            step = (nel - N_now)/dNdmu
+            step = SIGN(MIN(ABS(step), MPMV_MAX_NEWTON_STEP*sigma), step)
+            step_try = step
+            DO iback = 1, NEWTON_MAX_BACKTRACK
+               CALL Smear2(f(:, :, 1), na, kTSa, e(:, :, 1), mu + step_try, wk, sigma, 1.0_dp, method)
+               CALL Smear2(f(:, :, 2), nb, kTSb, e(:, :, 2), mu + step_try, wk, sigma, 1.0_dp, method)
+               N_trial = na + nb
+               res_trial = ABS(N_trial - nel)
+               IF (res_trial < res_now) THEN
+                  mu = mu + step_try
+                  N_now = N_trial
+                  IF (res_trial < res_best) THEN
+                     res_best = res_trial
+                     mu_best = mu
+                  END IF
+                  EXIT
+               END IF
+               step_try = 0.5_dp*step_try
+            END DO
+            IF (iback > NEWTON_MAX_BACKTRACK) EXIT
          END DO
+         mu = mu_best
       END SELECT
 
       ! Final evaluation with the actual method
