@@ -3,6 +3,6 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "si_kp_spglib_backend.inp"              = [{matcher="E_total", tol=1.0E-11, ref=-14.74208554419625},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
-"si_kp_tblite_mixer_spglib.inp"         = [{matcher="E_total", tol=1.0E-6, ref=-14.73197266272724},
+"si_kp_tblite_mixer_spglib.inp"         = [{matcher="E_total", tol=6.0E-7, ref=-14.73197235360055},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
 #EOF

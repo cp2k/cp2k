@@ -21,7 +21,6 @@
     &SCF
       EPS_SCF 1.e-8
       MAX_SCF 80
-      SCF_GUESS MOPAC
       &OT
         MINIMIZER DIIS
         PRECONDITIONER FULL_SINGLE_INVERSE
