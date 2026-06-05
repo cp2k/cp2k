@@ -1,6 +1,6 @@
 &GLOBAL
-  PRINT_LEVEL HIGH
-  PROJECT almo-triplet-no-charge
+  PRINT_LEVEL LOW
+  PROJECT almo-singlet-charge
   RUN_TYPE ENERGY
 &END GLOBAL
 
