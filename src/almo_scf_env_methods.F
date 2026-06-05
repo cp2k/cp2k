@@ -22,7 +22,8 @@ MODULE almo_scf_env_methods
         almo_mat_distr_molecular, almo_scf_diag, almo_scf_skip, almo_scf_trustr, cg_hager_zhang, &
         do_bondparm_vdw, molecular_guess, tensor_orthogonal, virt_full, virt_minimal, virt_number, &
         xalmo_trial_r0_out
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -96,6 +97,7 @@ CONTAINS
 !> \param almo_scf_env ...
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
+!>       2024.02 modified [Raphael Rullan]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE almo_scf_init_read_write_input(input, almo_scf_env)
@@ -104,11 +106,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_init_read_write_input'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, i, ndomain
+      LOGICAL                                            :: explicit
       TYPE(section_vals_type), POINTER :: almo_analysis_section, almo_opt_diis_section, &
-         almo_opt_pcg_section, almo_opt_trustr_section, almo_scf_section, matrix_iterate_section, &
-         nlmo_opt_pcg_section, penalty_section, xalmo_opt_newton_pcg_section, &
-         xalmo_opt_pcg_section, xalmo_opt_trustr_section
+         almo_opt_pcg_section, almo_opt_trustr_section, almo_scf_section, fragment_section, &
+         matrix_iterate_section, nlmo_opt_pcg_section, penalty_section, &
+         xalmo_opt_newton_pcg_section, xalmo_opt_pcg_section, xalmo_opt_trustr_section
 
       CALL timeset(routineN, handle)
 
@@ -333,6 +336,33 @@ CONTAINS
                                 l_val=almo_scf_env%almo_analysis%do_analysis)
       CALL section_vals_val_get(almo_analysis_section, "FROZEN_MO_ENERGY_TERM", &
                                 i_val=almo_scf_env%almo_analysis%frozen_mo_energy_term)
+
+      fragment_section => section_vals_get_subs_vals(almo_scf_section, &
+                                                     "FRAGMENT")
+      CALL section_vals_get(fragment_section, &
+                            explicit=explicit, n_repetition=ndomain)
+
+      IF (explicit) THEN
+         ALLOCATE (almo_scf_env%charge_of_domain(ndomain))
+         ALLOCATE (almo_scf_env%multiplicity_of_domain(ndomain))
+         ALLOCATE (almo_scf_env%activate(1))
+         almo_scf_env%multiplicity_of_domain = 0
+         almo_scf_env%charge_of_domain = 0
+         almo_scf_env%activate = 1
+         DO i = 1, ndomain
+
+            CALL section_vals_val_get(fragment_section, "CHARGE", &
+                                      i_rep_section=i, i_val=almo_scf_env%fragment%charge)
+            almo_scf_env%charge_of_domain(i) = almo_scf_env%fragment%charge
+
+            CALL section_vals_val_get(fragment_section, "MULTIPLICITY", &
+                                      i_rep_section=i, i_val=almo_scf_env%fragment%multiplicity)
+            almo_scf_env%multiplicity_of_domain(i) = almo_scf_env%fragment%multiplicity
+         END DO
+      ELSE
+         ALLOCATE (almo_scf_env%activate(1))
+         almo_scf_env%activate = 0
+      END IF
 
       !CALL section_vals_val_get(almo_scf_section,"DOMAIN_LAYOUT_AOS",&
       !                          i_val=almo_scf_env%domain_layout_aos)

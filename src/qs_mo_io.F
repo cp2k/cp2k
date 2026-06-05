@@ -828,7 +828,7 @@ CONTAINS
 
             mos(ispin)%homo = homo_read
             mos(ispin)%lfomo = lfomo_read
-            IF (homo_read > nmo) THEN
+            IF (MIN(homo_read, homo) > nmo) THEN
                IF (nelectron_read == mos(ispin)%nelectron) THEN
                   CALL cp_warn(__LOCATION__, &
                                "The number of occupied MOs on the restart unit is larger than "// &

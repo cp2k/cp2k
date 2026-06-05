@@ -136,7 +136,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_environment_type), POINTER             :: globenv
       INTEGER, INTENT(IN)                                :: nfrags
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: first_atom_of_frag, last_atom_of_frag, &
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: first_atom_of_frag, last_atom_of_frag, &
                                                             charge_of_frag, multip_of_frag
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calcs_on_isolated_molecules'
@@ -244,8 +244,15 @@ CONTAINS
          !
          ! Setup the charge and multiplicity of the molecule
          !
-         CALL section_vals_val_set(dft_section, "CHARGE", i_val=charge_of_frag(ifrag))
-         CALL section_vals_val_set(dft_section, "MULTIPLICITY", i_val=multip_of_frag(ifrag))
+
+         IF (almo_scf_env%activate(1) == 1) THEN
+            multip_of_frag(ifrag) = almo_scf_env%multiplicity_of_domain(ifrag)
+            charge_of_frag(ifrag) = almo_scf_env%charge_of_domain(ifrag)
+         ELSE
+            CALL section_vals_val_set(dft_section, "CHARGE", i_val=charge_of_frag(ifrag))
+            CALL section_vals_val_set(dft_section, "MULTIPLICITY", i_val=multip_of_frag(ifrag))
+         END IF
+
          !
          ! Create a list of atoms in the current molecule
          !
@@ -285,7 +292,7 @@ CONTAINS
          CALL qs_env_create(qs_env_loc, globenv)
          CALL qs_init(qs_env_loc, para_env, root_section, globenv=globenv, cp_subsys=subsys_loc, &
                       force_env_section=force_env_section, subsys_section=subsys_section, &
-                      use_motion_section=.FALSE.)
+                      use_motion_section=.FALSE., multip=multip_of_frag(ifrag), charge=charge_of_frag(ifrag))
          CALL cp_subsys_release(subsys_loc)
 
          !
