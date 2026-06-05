@@ -513,7 +513,7 @@ CONTAINS
       !     usage="OPT_K_PREC_ITER_START 2",default_i_val=0)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
- 
+
       NULLIFY (subsection)
       CALL create_almo_fragment_section(subsection)
       CALL section_add_subsection(section, subsection)

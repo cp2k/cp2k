@@ -1210,9 +1210,9 @@ CONTAINS
                      IF (overlap < s1) THEN
                         ALLOCATE (new_block(row_blk_size(iblock_row), col_blk_size(iblock_col)))
                         IF (overlap <= s0) THEN
-                           new_block(:, :) = 1.0_dp 
+                           new_block(:, :) = 1.0_dp
                         ELSE
-                           new_block(:, :) = 1.0_dp/(1.0_dp + EXP(-(s0 - s1)/(s0 - overlap) - (s0 - s1)/(overlap - s1))) 
+                           new_block(:, :) = 1.0_dp/(1.0_dp + EXP(-(s0 - s1)/(s0 - overlap) - (s0 - s1)/(overlap - s1)))
                         END IF
 
                         IF (ABS(new_block(1, 1)) > ABS(almo_scf_env%eps_filter)) THEN
@@ -1340,7 +1340,7 @@ CONTAINS
                         ELSE
                            ! remove the intermediate values from the quencher temporarily
                            CPABORT("")
-                           new_block(:, :) = 1.0_dp/(1.0_dp + EXP((r1 - r0)/(r0 - distance) + (r1 - r0)/(r1 - distance))) 
+                           new_block(:, :) = 1.0_dp/(1.0_dp + EXP((r1 - r0)/(r0 - distance) + (r1 - r0)/(r1 - distance)))
                         END IF
 
                         IF (ABS(new_block(1, 1)) > ABS(almo_scf_env%eps_filter)) THEN
