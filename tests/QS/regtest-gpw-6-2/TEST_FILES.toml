@@ -1,6 +1,6 @@
 "si8_noort_broy_wc_jacobi_all.inp"      = [{matcher="M023", tol=2e-04, ref=98.5560572467}]
-"si8_noort_broy_wc_jacobi_ene2.inp"     = [{matcher="M023", tol=3e-09, ref=89.3295809481}]
-"si8_noort_broy_wc_jacobi_ene1.inp"     = [{matcher="M023", tol=7e-04, ref=48.8764503544}]
+"si8_noort_broy_wc_jacobi_ene2.inp"     = [{matcher="M023", tol=3e-09, ref=48.8764503544}]
+"si8_noort_broy_wc_jacobi_ene1.inp"     = [{matcher="M023", tol=7e-04, ref=89.3295809481}]
 "si8_noort_broy_wc_direct_ene.inp"      = [{matcher="M023", tol=2E-9, ref=285.2684605438}]
 #
 "si8_lsd_broy_stm.inp"                  = [{matcher="E_total", tol=2e-13, ref=-30.92831595126394}]

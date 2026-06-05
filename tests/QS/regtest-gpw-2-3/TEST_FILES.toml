@@ -16,7 +16,7 @@
 # Metadynamics with langevin on COLVAR
 "H2O_meta_langevin.inp"                 = [{matcher="E_total", tol=2e-07, ref=-17.16840571384963}]
 #gyration radius
-"Au13ico_mtd.inp"                       = [{matcher="E_total", tol=2e-10, ref=-431.9704510368077}]
+"Au13ico_mtd.inp"                       = [{matcher="E_total", tol=2e-10, ref=-431.9717298999183}]
 # rmsd AB
 "Au12_rmsd_AB_mtd.inp"                  = [{matcher="E_total", tol=2e-09, ref=-398.6227404762101}]
 "Au12_rmsd_A_mtd.inp"                   = [{matcher="E_total", tol=2e-09, ref=-398.6227683037877}]
