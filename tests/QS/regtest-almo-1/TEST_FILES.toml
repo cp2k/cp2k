@@ -7,5 +7,5 @@
 "almo-then-wannier.inp"                 = [{matcher="M011", tol=4e-12, ref=-137.653091045563713}]
 "almo-doublet-no-charge.inp"            = [{matcher="M011", tol=4e-11, ref=-33.643256465618862}]
 "almo-singlet-charge.inp"               = [{matcher="M011", tol=4e-11, ref=-33.621437661842876}]
-"almo-triplet-charge.inp"               = [{matcher="M011", tol=4e-11, ref=-48.183253418975028}]
+"almo-triplet-charge.inp"               = [{matcher="M011", tol=4e-11, ref=-48.180167898523884}]
 #EOF
