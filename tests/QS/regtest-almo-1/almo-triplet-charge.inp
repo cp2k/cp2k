@@ -59,7 +59,7 @@
     &END QS
     &SCF
       MAX_SCF 300
-      SCF_GUESS RESTART
+      SCF_GUESS ATOMIC
       &OT
         MINIMIZER CG
         PRECONDITIONER FULL_ALL
