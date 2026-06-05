@@ -1307,8 +1307,12 @@ CONTAINS
       END IF
       use_fd_gradient = dft_control%qs_control%gapw .AND. calculate_forces .AND. &
                         (use_skala_model .OR. gauxc_basis%max_l > 3)
-      IF (use_gradient_mpi_runtime) THEN
-         use_gradient_self_runtime = .FALSE.
+      IF (use_fd_gradient) use_gradient_mpi_runtime = .FALSE.
+      IF (use_gradient_mpi_runtime .AND. use_self_runtime) THEN
+         CALL cp_abort( &
+            __LOCATION__, &
+            "GAUXC%ONEDFT_GRADIENT_RUNTIME MPI requires a GauXC MPI runtime. "// &
+            "Use GAUXC%SKALA_RUNTIME MPI or a closed-shell AUTO runtime.")
       END IF
       IF (use_fd_gradient .AND. para_env%mepos == 0) THEN
          CALL cp_warn( &

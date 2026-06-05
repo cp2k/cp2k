@@ -10,6 +10,7 @@
 ! **************************************************************************************************
 MODULE skala_gpw_functional
    USE cell_types,                      ONLY: cell_type
+   USE cp_array_utils,                  ONLY: cp_3d_r_cp_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE input_section_types,             ONLY: section_get_rval,&
                                               section_vals_get_subs_vals,&
@@ -17,7 +18,6 @@ MODULE skala_gpw_functional
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_comm_type
    USE offload_api,                     ONLY: offload_set_chosen_device
@@ -47,6 +47,7 @@ MODULE skala_gpw_functional
                                               torch_use_cuda
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
+                                              xc_rho_set_get,&
                                               xc_rho_set_release,&
                                               xc_rho_set_type,&
                                               xc_rho_set_update
@@ -64,7 +65,8 @@ MODULE skala_gpw_functional
                                            atom_chunk_auto_row_quantum = 100000, &
                                            ncollapsed_grad_per_point = 5, ngrad_per_point = 10
 
-   PUBLIC :: ensure_native_skala_grid_scope, skala_gpw_eval, xc_section_uses_native_skala_grid
+   PUBLIC :: ensure_native_skala_grid_scope, get_gauxc_section, skala_gpw_eval, &
+             xc_section_uses_native_skala_grid
 
    TYPE(skala_torch_model_type), SAVE                  :: cached_model
    CHARACTER(len=default_path_length), SAVE            :: cached_model_path = ""
@@ -104,7 +106,6 @@ CONTAINS
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name
-      CHARACTER(len=default_string_length)               :: functional_key, functional_name
       INTEGER                                            :: ifun, nfun
       LOGICAL                                            :: native_grid
       TYPE(section_vals_type), POINTER                   :: functionals, gauxc_section, xc_fun
@@ -138,13 +139,6 @@ CONTAINS
 
       CALL section_vals_val_get(gauxc_section, "NATIVE_GRID", l_val=native_grid)
       IF (.NOT. native_grid) RETURN
-
-      CALL section_vals_val_get(gauxc_section, "FUNCTIONAL", c_val=functional_name)
-      functional_key = ADJUSTL(functional_name)
-      CALL uppercase(functional_key)
-      IF (TRIM(functional_key) /= "PBE") THEN
-         CPABORT("Native SKALA GPW currently requires GAUXC%FUNCTIONAL PBE")
-      END IF
 
       CALL section_vals_val_get(gauxc_section, "MODEL", c_val=model_name)
       model_key = ADJUSTL(model_name)
@@ -196,13 +190,17 @@ CONTAINS
       INTEGER :: iw, native_grid_atom_chunk_max_rows, native_grid_atom_subchunks, &
          native_grid_cuda_device, nspins, phase_handle, selected_cuda_device, xc_deriv_method_id, &
          xc_rho_smooth_id
-      LOGICAL :: lsd, my_just_energy, native_grid_atom_chunk_routing, native_grid_atom_chunks, &
-         native_grid_diagnostics, native_grid_use_cuda, needs_atom_force, use_atom_subchunks
+      LOGICAL :: have_atom_coord_grad, lsd, my_just_energy, native_grid_atom_chunk_routing, &
+         native_grid_atom_chunks, native_grid_diagnostics, native_grid_use_cuda, needs_atom_force, &
+         use_atom_subchunks
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_grad, kin_grad
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: grad_grad
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_before
       TYPE(section_vals_type), POINTER                   :: gauxc_section
       TYPE(skala_gpw_feature_type)                       :: features
-      TYPE(torch_tensor_type)                            :: atom_coord_grad_t, exc_tensor
+      TYPE(torch_tensor_type)                            :: atom_coord_grad_t, &
+                                                            atomic_grid_weight_grad_t, exc_tensor, &
+                                                            grid_coord_grad_t, grid_weight_grad_t
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type)                              :: rho_set
 
@@ -212,10 +210,11 @@ CONTAINS
       IF (PRESENT(just_energy)) my_just_energy = just_energy
       needs_atom_force = PRESENT(atom_force)
       IF (needs_atom_force) atom_force = 0.0_dp
+      have_atom_coord_grad = .FALSE.
 
-      IF (compute_virial) THEN
+      IF (compute_virial .AND. my_just_energy) THEN
          CALL cp_abort(__LOCATION__, &
-                       "Native SKALA GPW stress/virial is not implemented yet.")
+                       "Native SKALA GPW stress/virial requires feature gradients.")
       END IF
       IF (.NOT. ASSOCIATED(rho_g)) THEN
          CALL cp_abort(__LOCATION__, &
@@ -278,7 +277,8 @@ CONTAINS
 
       CALL skala_gpw_feature_build(features, rho_set, rho_r, particle_set, cell, &
                                    requires_grad=(.NOT. my_just_energy), weights=weights, &
-                                   requires_coordinate_grad=needs_atom_force, &
+                                   requires_coordinate_grad=(needs_atom_force .OR. compute_virial), &
+                                   requires_stress_grad=compute_virial, &
                                    use_atom_chunks=native_grid_atom_chunks, &
                                    route_atom_chunks=native_grid_atom_chunk_routing)
       CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_DIAGNOSTICS", l_val=native_grid_diagnostics)
@@ -337,9 +337,40 @@ CONTAINS
          IF (needs_atom_force) THEN
             CALL add_explicit_coordinate_force(atom_force, features, atom_coord_grad_t, &
                                                rho_r(1)%pw_grid%para%group%mepos == 0)
+            have_atom_coord_grad = .TRUE.
          END IF
 
          CALL timeset("skala_gpw_vxc_unpack", phase_handle)
+         IF (compute_virial) THEN
+            IF (native_grid_diagnostics) virial_before = virial_xc
+            CALL build_virial_from_feature_grads(virial_xc, rho_set, rho_r, grad_grad)
+            IF (native_grid_diagnostics) THEN
+               CALL print_virial_delta("feature-gradient", virial_xc - virial_before, &
+                                       rho_r(1)%pw_grid%para%group%mepos == 0)
+               virial_before = virial_xc
+            END IF
+            IF (.NOT. have_atom_coord_grad) THEN
+               CALL torch_tensor_grad(features%coarse_0_atomic_coords_t, atom_coord_grad_t)
+               have_atom_coord_grad = .TRUE.
+            END IF
+            CALL build_static_coordinate_virial(virial_xc, features, atom_coord_grad_t, &
+                                                grid_coord_grad_t, &
+                                                rho_r(1)%pw_grid%para%group%mepos == 0, &
+                                                native_grid_diagnostics)
+            IF (native_grid_diagnostics) THEN
+               CALL print_virial_delta("static-coordinates", virial_xc - virial_before, &
+                                       rho_r(1)%pw_grid%para%group%mepos == 0)
+               virial_before = virial_xc
+            END IF
+            CALL build_weight_virial(virial_xc, features, exc, grid_weight_grad_t, &
+                                     atomic_grid_weight_grad_t, &
+                                     rho_r(1)%pw_grid%para%group%mepos == 0, &
+                                     native_grid_diagnostics)
+            IF (native_grid_diagnostics) THEN
+               CALL print_virial_delta("weight-residual", virial_xc - virial_before, &
+                                       rho_r(1)%pw_grid%para%group%mepos == 0)
+            END IF
+         END IF
          CALL build_vxc_from_feature_grads(vxc_rho, vxc_tau, rho_r, pw_pool, &
                                            density_grad, grad_grad, kin_grad, &
                                            xc_deriv_method_id)
@@ -347,7 +378,7 @@ CONTAINS
 
          CALL timeset("skala_gpw_grad_release", phase_handle)
          DEALLOCATE (density_grad, grad_grad, kin_grad)
-         IF (needs_atom_force) CALL torch_tensor_release(atom_coord_grad_t)
+         IF (have_atom_coord_grad) CALL torch_tensor_release(atom_coord_grad_t)
          CALL timestop(phase_handle)
       END IF
 
@@ -868,6 +899,239 @@ CONTAINS
    END SUBROUTINE fetch_and_gather_atom_chunk_grads
 
 ! **************************************************************************************************
+!> \brief Build the native SKALA XC virial from feature gradients.
+!> \param virial_xc ...
+!> \param rho_set ...
+!> \param rho_r ...
+!> \param grad_grad ...
+! **************************************************************************************************
+   SUBROUTINE build_virial_from_feature_grads(virial_xc, rho_set, rho_r, grad_grad)
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: virial_xc
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: grad_grad
+
+      INTEGER                                            :: i, idir, ipt, ispin, j, jdir, k, nspins
+      INTEGER, DIMENSION(2, 3)                           :: bo
+      REAL(KIND=dp)                                      :: grad_i, tmp
+      TYPE(cp_3d_r_cp_type), DIMENSION(3)                :: drho, drhoa, drhob
+
+      nspins = SIZE(rho_r)
+      bo = rho_r(1)%pw_grid%bounds_local
+      ipt = 0
+
+      IF (nspins == 1) THEN
+         CALL xc_rho_set_get(rho_set, drho=drho)
+         DO k = bo(1, 3), bo(2, 3)
+            DO j = bo(1, 2), bo(2, 2)
+               DO i = bo(1, 1), bo(2, 1)
+                  ipt = ipt + 1
+                  DO idir = 1, 3
+                     grad_i = 0.5_dp*(grad_grad(ipt, idir, 1) + grad_grad(ipt, idir, 2))
+                     DO jdir = 1, idir
+                        tmp = -grad_i*drho(jdir)%array(i, j, k)
+                        virial_xc(jdir, idir) = virial_xc(jdir, idir) + tmp
+                        virial_xc(idir, jdir) = virial_xc(jdir, idir)
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+      ELSE
+         CALL xc_rho_set_get(rho_set, drhoa=drhoa, drhob=drhob)
+         DO k = bo(1, 3), bo(2, 3)
+            DO j = bo(1, 2), bo(2, 2)
+               DO i = bo(1, 1), bo(2, 1)
+                  ipt = ipt + 1
+                  DO idir = 1, 3
+                     DO jdir = 1, idir
+                        tmp = 0.0_dp
+                        DO ispin = 1, 2
+                           IF (ispin == 1) THEN
+                              tmp = tmp - grad_grad(ipt, idir, ispin)*drhoa(jdir)%array(i, j, k)
+                           ELSE
+                              tmp = tmp - grad_grad(ipt, idir, ispin)*drhob(jdir)%array(i, j, k)
+                           END IF
+                        END DO
+                        virial_xc(jdir, idir) = virial_xc(jdir, idir) + tmp
+                        virial_xc(idir, jdir) = virial_xc(jdir, idir)
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END IF
+
+   END SUBROUTINE build_virial_from_feature_grads
+
+! **************************************************************************************************
+!> \brief Print a native SKALA XC virial contribution for diagnostics.
+!> \param label ...
+!> \param delta ...
+!> \param root_rank ...
+! **************************************************************************************************
+   SUBROUTINE print_virial_delta(label, delta, root_rank)
+      CHARACTER(LEN=*), INTENT(IN)                       :: label
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: delta
+      LOGICAL, INTENT(IN)                                :: root_rank
+
+      INTEGER                                            :: i, iw
+
+      IF (.NOT. root_rank) RETURN
+      iw = cp_logger_get_default_io_unit()
+      IF (iw <= 0) RETURN
+      WRITE (iw, "(T2,A,1X,A)") "SKALA_GPW| XC virial contribution", TRIM(label)
+      DO i = 1, 3
+         WRITE (iw, "(T2,A,1X,3ES20.10)") "SKALA_GPW|", delta(i, 1:3)
+      END DO
+
+   END SUBROUTINE print_virial_delta
+
+! **************************************************************************************************
+!> \brief Add explicit SKALA coordinate-feature contributions to the XC virial.
+!> \param virial_xc ...
+!> \param features ...
+!> \param atom_coord_grad_t ...
+!> \param grid_coord_grad_t ...
+!> \param root_rank ...
+!> \param print_components ...
+! **************************************************************************************************
+   SUBROUTINE build_static_coordinate_virial(virial_xc, features, atom_coord_grad_t, &
+                                             grid_coord_grad_t, root_rank, print_components)
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: virial_xc
+      TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: atom_coord_grad_t, grid_coord_grad_t
+      LOGICAL, INTENT(IN)                                :: root_rank
+      LOGICAL, INTENT(IN), OPTIONAL                      :: print_components
+
+      INTEGER                                            :: i, iatom, idir, iw, j, jdir, k, row
+      LOGICAL                                            :: my_print_components
+      REAL(KIND=dp)                                      :: tmp
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: atom_virial, grid_virial
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: atom_coord_grad, grid_coord_grad
+
+      my_print_components = .FALSE.
+      IF (PRESENT(print_components)) my_print_components = print_components
+
+      NULLIFY (atom_coord_grad, grid_coord_grad)
+      CALL torch_tensor_grad(features%grid_coords_t, grid_coord_grad_t)
+      CALL torch_tensor_data_ptr(grid_coord_grad_t, grid_coord_grad)
+      CALL torch_tensor_data_ptr(atom_coord_grad_t, atom_coord_grad)
+
+      grid_virial = 0.0_dp
+      atom_virial = 0.0_dp
+      DO k = LBOUND(features%feature_index, 3), UBOUND(features%feature_index, 3)
+         DO j = LBOUND(features%feature_index, 2), UBOUND(features%feature_index, 2)
+            DO i = LBOUND(features%feature_index, 1), UBOUND(features%feature_index, 1)
+               row = features%feature_index(i, j, k)
+               DO idir = 1, 3
+                  DO jdir = 1, idir
+                     tmp = grid_coord_grad(idir, row)*features%grid_coords(jdir, row)
+                     grid_virial(jdir, idir) = grid_virial(jdir, idir) + tmp
+                     grid_virial(idir, jdir) = grid_virial(jdir, idir)
+                     virial_xc(jdir, idir) = virial_xc(jdir, idir) + tmp
+                     virial_xc(idir, jdir) = virial_xc(jdir, idir)
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
+
+      IF (root_rank) THEN
+         DO iatom = 1, SIZE(features%coarse_0_atomic_coords, 2)
+            DO idir = 1, 3
+               DO jdir = 1, idir
+                  tmp = atom_coord_grad(idir, iatom)*features%coarse_0_atomic_coords(jdir, iatom)
+                  atom_virial(jdir, idir) = atom_virial(jdir, idir) + tmp
+                  atom_virial(idir, jdir) = atom_virial(jdir, idir)
+                  virial_xc(jdir, idir) = virial_xc(jdir, idir) + tmp
+                  virial_xc(idir, jdir) = virial_xc(jdir, idir)
+               END DO
+            END DO
+         END DO
+      END IF
+
+      IF (my_print_components .AND. root_rank) THEN
+         iw = cp_logger_get_default_io_unit()
+         IF (iw > 0) THEN
+            CALL print_virial_delta("static-grid", grid_virial, .TRUE.)
+            CALL print_virial_delta("static-atom", atom_virial, .TRUE.)
+         END IF
+      END IF
+
+      CALL torch_tensor_release(grid_coord_grad_t)
+
+   END SUBROUTINE build_static_coordinate_virial
+
+! **************************************************************************************************
+!> \brief Add residual SKALA weight-feature contributions to the XC virial.
+!> \param virial_xc ...
+!> \param features ...
+!> \param exc ...
+!> \param grid_weight_grad_t ...
+!> \param atomic_grid_weight_grad_t ...
+!> \param root_rank ...
+!> \param print_components ...
+! **************************************************************************************************
+   SUBROUTINE build_weight_virial(virial_xc, features, exc, grid_weight_grad_t, &
+                                  atomic_grid_weight_grad_t, root_rank, print_components)
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: virial_xc
+      TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
+      REAL(KIND=dp), INTENT(IN)                          :: exc
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: grid_weight_grad_t, &
+                                                            atomic_grid_weight_grad_t
+      LOGICAL, INTENT(IN)                                :: root_rank
+      LOGICAL, INTENT(IN), OPTIONAL                      :: print_components
+
+      INTEGER                                            :: i, idir, iw, j, k, row
+      LOGICAL                                            :: my_print_components
+      REAL(KIND=dp)                                      :: atomic_tmp, exc_tmp, grid_tmp, tmp
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: atomic_grid_weight_grad, grid_weight_grad
+
+      my_print_components = .FALSE.
+      IF (PRESENT(print_components)) my_print_components = print_components
+
+      NULLIFY (atomic_grid_weight_grad, grid_weight_grad)
+      CALL torch_tensor_grad(features%grid_weights_t, grid_weight_grad_t)
+      CALL torch_tensor_grad(features%atomic_grid_weights_t, atomic_grid_weight_grad_t)
+      CALL torch_tensor_data_ptr(grid_weight_grad_t, grid_weight_grad)
+      CALL torch_tensor_data_ptr(atomic_grid_weight_grad_t, atomic_grid_weight_grad)
+
+      grid_tmp = 0.0_dp
+      atomic_tmp = 0.0_dp
+      DO k = LBOUND(features%feature_index, 3), UBOUND(features%feature_index, 3)
+         DO j = LBOUND(features%feature_index, 2), UBOUND(features%feature_index, 2)
+            DO i = LBOUND(features%feature_index, 1), UBOUND(features%feature_index, 1)
+               row = features%feature_index(i, j, k)
+               grid_tmp = grid_tmp + grid_weight_grad(row)*features%grid_weights(row)
+               atomic_tmp = atomic_tmp + atomic_grid_weight_grad(row)*features%atomic_grid_weights(row)
+            END DO
+         END DO
+      END DO
+      exc_tmp = 0.0_dp
+      IF (root_rank) exc_tmp = -exc
+      tmp = grid_tmp + atomic_tmp + exc_tmp
+
+      IF (my_print_components .AND. root_rank) THEN
+         iw = cp_logger_get_default_io_unit()
+         IF (iw > 0) THEN
+            WRITE (iw, "(T2,A,1X,ES20.10)") "SKALA_GPW| XC virial weight grid", grid_tmp
+            WRITE (iw, "(T2,A,1X,ES20.10)") "SKALA_GPW| XC virial weight atomic", atomic_tmp
+            WRITE (iw, "(T2,A,1X,ES20.10)") "SKALA_GPW| XC virial weight final", exc_tmp
+            WRITE (iw, "(T2,A,1X,ES20.10)") "SKALA_GPW| XC virial weight residual", tmp
+         END IF
+      END IF
+
+      DO idir = 1, 3
+         virial_xc(idir, idir) = virial_xc(idir, idir) + tmp
+      END DO
+
+      CALL torch_tensor_release(grid_weight_grad_t)
+      CALL torch_tensor_release(atomic_grid_weight_grad_t)
+
+   END SUBROUTINE build_weight_virial
+
+! **************************************************************************************************
 !> \brief Fill CP2K VXC real-space arrays from Torch feature gradients.
 !> \param vxc_rho ...
 !> \param vxc_tau ...
@@ -968,7 +1232,8 @@ CONTAINS
       TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
       LOGICAL, INTENT(IN)                                :: print_active
 
-      INTEGER                                            :: chunk_rows_max, chunk_rows_min, iw
+      INTEGER                                            :: atom_rows_max, atom_rows_min, &
+                                                            chunk_rows_max, chunk_rows_min, iw
       REAL(KIND=dp)                                      :: chunk_imbalance
 
       IF (.NOT. print_active) RETURN
@@ -981,6 +1246,13 @@ CONTAINS
          "SKALA_GPW| Native grid feature spin moment", features%spin_moment
       WRITE (UNIT=iw, FMT="(T2,A,1X,ES19.11)") &
          "SKALA_GPW| Native grid feature weight sum", features%grid_weight_sum
+      IF (ALLOCATED(features%atomic_grid_sizes)) THEN
+         atom_rows_min = INT(MINVAL(features%atomic_grid_sizes))
+         atom_rows_max = INT(MAXVAL(features%atomic_grid_sizes))
+         WRITE (UNIT=iw, FMT="(T2,A,1X,I0,1X,A,1X,I0,1X,A,1X,I0)") &
+            "SKALA_GPW| Native grid atom row range", atom_rows_min, "to", &
+            atom_rows_max, "sum", INT(SUM(features%atomic_grid_sizes))
+      END IF
       IF (features%uses_atom_chunks) THEN
          WRITE (UNIT=iw, FMT="(T2,A,1X,I0,1X,A,1X,I0)") &
             "SKALA_GPW| Native grid atom chunk rows", features%chunk_feature_count, &
@@ -1103,6 +1375,7 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_key
       INTEGER                                            :: env_status
+      LOGICAL                                            :: native_grid_use_cuda
       TYPE(section_vals_type), POINTER                   :: gauxc_section
 
       gauxc_section => get_gauxc_section(xc_section)
@@ -1116,9 +1389,20 @@ CONTAINS
       IF (TRIM(model_key) == "NONE" .OR. TRIM(model_key) == "") THEN
          CPABORT("Native SKALA GPW requires GAUXC%MODEL SKALA or a TorchScript model path")
       ELSE IF (TRIM(model_key) == "SKALA") THEN
+         CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_USE_CUDA", l_val=native_grid_use_cuda)
+         IF (native_grid_use_cuda) THEN
+            CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_CUDA_MODEL", model_path, STATUS=env_status)
+            IF (env_status == 0 .AND. LEN_TRIM(model_path) > 0) RETURN
+         END IF
          CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_MODEL", model_path, STATUS=env_status)
          IF (env_status /= 0 .OR. LEN_TRIM(model_path) == 0) THEN
-            CPABORT("MODEL SKALA requires the GAUXC_SKALA_MODEL environment variable")
+            IF (native_grid_use_cuda) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "MODEL SKALA CUDA path requires GAUXC_SKALA_CUDA_MODEL or GAUXC_SKALA_MODEL")
+            ELSE
+               CALL cp_abort(__LOCATION__, &
+                             "MODEL SKALA requires the GAUXC_SKALA_MODEL environment variable")
+            END IF
          END IF
       END IF
 
