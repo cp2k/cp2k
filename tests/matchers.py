@@ -79,6 +79,54 @@ class GenericMatcher(Matcher):
 
 
 # ======================================================================================
+class ComplexAbsMatcher(Matcher):
+    def __init__(self, pattern: str, re_col: int, im_col: int, regex: bool = False):
+        self.pattern = pattern
+        self.regex_mode = regex
+        if not regex:
+            for c in r"[]()|+*?":
+                pattern = pattern.replace(c, f"\\{c}")  # escape special chars
+        self.regex = re.compile(pattern)
+        self.re_col = re_col
+        self.im_col = im_col
+
+    def run(self, output: str, **kwargs: Any) -> MatchResult:
+        tol, ref = kwargs["tol"], kwargs["ref"]
+        assert isinstance(tol, (float, int))
+        assert isinstance(ref, (float, int))
+
+        for line in reversed(output.split("\n")):
+            match = self.regex.search(line)
+            if match:
+                if self.regex_mode and len(match.groups()) >= 2:
+                    re_str, im_str = match.group(1), match.group(2)
+                else:
+                    fields = line.split()
+                    re_str = fields[self.re_col - 1]
+                    im_str = fields[self.im_col - 1]
+                break
+        else:
+            error = f"Result not found: '{self.pattern}'.\n"
+            return MatchResult("WRONG RESULT", error, value=None)
+
+        try:
+            re_val = float(re_str.replace("D", "E"))
+            im_val = float(im_str.replace("D", "E"))
+            value = (re_val * re_val + im_val * im_val) ** 0.5
+        except:
+            error = f"Could not parse result as complex float: '{re_str} {im_str}'.\n"
+            return MatchResult("WRONG RESULT", error, value=None)
+
+        diff = value - ref
+        rel_error = abs(diff / ref if ref != 0.0 else diff)
+        if rel_error > tol:
+            error = f"Difference too large: {rel_error:.2e} > {tol}, value: {value}.\n"
+            return MatchResult("WRONG RESULT", error, value)
+
+        return MatchResult("OK", error=None, value=value)
+
+
+# ======================================================================================
 class TextPresenceMatcher(Matcher):
     def __init__(self, text: str):
         self.text = text
@@ -364,8 +412,16 @@ registry["M127"] = GenericMatcher(r"Checksum (Acoustic Sum Rule):", col=5)
 # Dipole moment calculated at a specific k-point (-0.375,-0.375, 0.00)
 registry["Dipole_at_kp_1"] = GenericMatcher(r"  1   1   2", col=4)
 
+# Phase-independent |dx_nm| for the same matrix element.
+registry["Dipole_abs_dx_at_kp_1"] = ComplexAbsMatcher(
+    r"  1   1   2", re_col=4, im_col=5
+)
+
 # Dipole moment calculated at a specific k-point (-0.375,-0.375, 0.00)
-registry["Dipole_for_CrSBr"] = GenericMatcher(r"  1  31  32", col=4)
+# registry["Dipole_for_CrSBr"] = GenericMatcher(r"  1  31  32", col=4)
+registry["Dipole_abs_dx_for_CrSBr"] = ComplexAbsMatcher(
+    r"  1  31  32", re_col=4, im_col=5
+)
 
 # Berry curvature calculated from dipoles near K point in graphene BZ
 registry["BC_near_K_point"] = GenericMatcher(r"   1    4", col=5)
