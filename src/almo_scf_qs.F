@@ -1210,13 +1210,9 @@ CONTAINS
                      IF (overlap < s1) THEN
                         ALLOCATE (new_block(row_blk_size(iblock_row), col_blk_size(iblock_col)))
                         IF (overlap <= s0) THEN
-                           new_block(:, :) = 1.0_dp
-                           !WRITE(*,'(A15,2I7,3F8.3,E11.3)') "INTRA-BLOCKS: ",&
-                           !   iblock_col, iblock_row, s0, s1, overlap, new_block(1,1)
+                           new_block(:, :) = 1.0_dp 
                         ELSE
-                           new_block(:, :) = 1.0_dp/(1.0_dp + EXP(-(s0 - s1)/(s0 - overlap) - (s0 - s1)/(overlap - s1)))
-                           !WRITE(*,'(A15,2I7,3F8.3,E11.3)') "INTER-BLOCKS: ",&
-                           !   iblock_col, iblock_row, s0, s1, overlap, new_block(1,1)
+                           new_block(:, :) = 1.0_dp/(1.0_dp + EXP(-(s0 - s1)/(s0 - overlap) - (s0 - s1)/(overlap - s1))) 
                         END IF
 
                         IF (ABS(new_block(1, 1)) > ABS(almo_scf_env%eps_filter)) THEN
@@ -1341,16 +1337,10 @@ CONTAINS
                         ALLOCATE (new_block(row_blk_size(iblock_row), col_blk_size(iblock_col)))
                         IF (distance <= r0) THEN
                            new_block(:, :) = 1.0_dp
-                           !WRITE(*,'(A15,2I7,5F8.3,E11.3)') "INTRA-BLOCKS: ",&
-                           !   iblock_col, iblock_row, contact1_radius,&
-                           !   contact2_radius, r0, r1, distance, new_block(1,1)
                         ELSE
                            ! remove the intermediate values from the quencher temporarily
                            CPABORT("")
-                           new_block(:, :) = 1.0_dp/(1.0_dp + EXP((r1 - r0)/(r0 - distance) + (r1 - r0)/(r1 - distance)))
-                           !WRITE(*,'(A15,2I7,5F8.3,E11.3)') "INTER-BLOCKS: ",&
-                           !   iblock_col, iblock_row, contact1_radius,&
-                           !   contact2_radius, r0, r1, distance, new_block(1,1)
+                           new_block(:, :) = 1.0_dp/(1.0_dp + EXP((r1 - r0)/(r0 - distance) + (r1 - r0)/(r1 - distance))) 
                         END IF
 
                         IF (ABS(new_block(1, 1)) > ABS(almo_scf_env%eps_filter)) THEN
