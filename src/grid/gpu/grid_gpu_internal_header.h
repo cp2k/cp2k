@@ -436,8 +436,8 @@ __inline__ T compute_cube_properties(
 
     const T disr_radius =
         std::min(norm1, std::min(norm2, norm3)) *
-        std::max(1,
-                 (int)ceil(radius / std::min(norm1, std::min(norm2, norm3))));
+        (std::max(1,
+                  (int)ceil(radius / std::min(norm1, std::min(norm2, norm3)))));
 
     rp2.x = cubecenter->x;
     rp2.y = cubecenter->y;

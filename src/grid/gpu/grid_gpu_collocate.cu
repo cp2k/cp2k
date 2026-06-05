@@ -217,9 +217,13 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
     if (orthorhombic_ && !task.apply_border_mask) {
       ymin = (2 * (z + task.lb_cube.z) - 1) / 2;
       ymin *= ymin;
-      kremain = task.discrete_radius * task.discrete_radius -
-                ((T)ymin) * dh_[8] * dh_[8];
-      ymin = ceil(-1.0e-8 - sqrt(fmax(0.0, kremain)) * dh_inv_[4]);
+      kremain =
+          task.discrete_radius * task.discrete_radius -
+          ((T)ymin) * (dh_[6] * dh_[6] + dh_[7] * dh_[7] + dh_[8] * dh_[8]);
+      ymin = ceil(-1.0e-8 -
+                  sqrt(fmax(0.0, kremain)) *
+                      sqrt(dh_inv_[3] * dh_inv_[3] + dh_inv_[4] * dh_inv_[4] +
+                           dh_inv_[5] * dh_inv_[5]));
       ymax = 1 - ymin - task.lb_cube.y;
       ymin = ymin - task.lb_cube.y;
     }
@@ -243,9 +247,12 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
       if (orthorhombic_ && !task.apply_border_mask) {
         xmin = (2 * (y + task.lb_cube.y) - 1) / 2;
         xmin *= xmin;
-        xmin =
-            ceil(-1.0e-8 - sqrt(fmax(0.0, kremain - xmin * dh_[4] * dh_[4])) *
-                               dh_inv_[0]);
+        xmin = ceil(
+            -1.0e-8 -
+            sqrt(fmax(0.0, kremain - xmin * (dh_[4] * dh_[4] + dh_[3] * dh_[3] +
+                                             dh_[5] * dh_[5]))) *
+                sqrt(dh_inv_[0] * dh_inv_[0] + dh_inv_[1] * dh_inv_[1] +
+                     dh_inv_[2] * dh_inv_[2]));
         xmax = 1 - xmin - task.lb_cube.x;
         xmin = xmin - task.lb_cube.x;
       }
@@ -270,15 +277,9 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
         // cases
 
         T3 r3;
-        if (orthorhombic_) {
-          r3.x = (x + task.lb_cube.x + task.roffset.x) * dh_[0];
-          r3.y = (y + task.lb_cube.y + task.roffset.y) * dh_[4];
-          r3.z = (z + task.lb_cube.z + task.roffset.z) * dh_[8];
-        } else {
-          r3 = compute_coordinates(dh_, (x + task.lb_cube.x + task.roffset.x),
-                                   (y + task.lb_cube.y + task.roffset.y),
-                                   (z + task.lb_cube.z + task.roffset.z));
-        }
+        r3 = compute_coordinates(dh_, (x + task.lb_cube.x + task.roffset.x),
+                                 (y + task.lb_cube.y + task.roffset.y),
+                                 (z + task.lb_cube.z + task.roffset.z));
 
         const T r3x2 = r3.x * r3.x;
         const T r3y2 = r3.y * r3.y;
