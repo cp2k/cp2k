@@ -12,12 +12,15 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef __LIBXSMM
-#include <libxsmm.h>
-#endif
-
 #ifdef __MKL
 #include <mkl.h>
+#endif
+
+#if defined(__LIBXSMM)
+#include <libxsmm.h>
+#endif
+#if defined(__LIBXS)
+#include <libxs_gemm.h>
 #endif
 
 #include "../common/grid_common.h"
@@ -35,40 +38,25 @@ void convert_to_lattice_coordinates(const double dh_inv_[3][3],
       dh_inv_[0][2] * rp[0] + dh_inv_[1][2] * rp[1] + dh_inv_[2][2] * rp[2];
 }
 
-/* DO NOT CHANGE THIS. */
-
 void dgemm_simplified(dgemm_params *const m) {
   if (m == NULL)
     abort();
 
-#if defined(__LIBXSMM)
-#if LIBXSMM_VERSION2(1, 17) >=                                                 \
-        LIBXSMM_VERSION2(LIBXSMM_VERSION_MAJOR, LIBXSMM_VERSION_MINOR) &&      \
-    (2079 > LIBXSMM_VERSION_PATCH)
-  if (m->use_libxsmm && m->op2 == 'N') {
-    /* we are in row major but xsmm is in column major */
-    m->prefetch = LIBXSMM_PREFETCH_AUTO;
-    /* in the future, more flags can be or'd together (like NONE | TRANS_B,
-     * etc.)*/
-    m->flags =
-        (m->op1 != 'T' ? LIBXSMM_GEMM_FLAG_NONE : LIBXSMM_GEMM_FLAG_TRANS_B);
-
-    if (m->kernel == NULL) {
-      m->kernel =
-          libxsmm_dmmdispatch(m->n, m->m, m->k, &m->ldb, &m->lda, &m->ldc,
-                              &m->alpha, &m->beta, &m->flags, &m->prefetch);
-    }
-
-    if (m->kernel) {
-      m->kernel(m->b, m->a, m->c, m->b, m->a, m->c);
+#if defined(__LIBXS)
+  {
+    const char col_transa = (m->op2 == 'N') ? 'N' : 'T';
+    const char col_transb = (m->op1 == 'N') ? 'N' : 'T';
+    const libxs_gemm_config_t *cfg = libxs_gemm_dispatch(
+        LIBXS_DATATYPE_F64, col_transa, col_transb, m->n, m->m, m->k, m->ldb,
+        m->lda, m->ldc, &m->alpha, &m->beta, NULL);
+    if (NULL != cfg) {
+      libxs_gemm_call(cfg, m->b, m->a, m->c);
       return;
     }
   }
 #endif
-#endif
 
 #if defined(__MKL)
-  // fall back to mkl
   if ((m->op1 == 'N') && (m->op2 == 'N'))
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m->m, m->n, m->k,
                 m->alpha, m->a, m->lda, m->b, m->ldb, m->beta, m->c, m->ldc);
@@ -106,84 +94,6 @@ void dgemm_simplified(dgemm_params *const m) {
 #endif
 }
 
-void batched_dgemm_simplified(dgemm_params *const m, const int batch_size) {
-  assert(m != NULL);
-  assert(batch_size > 0);
-
-#if defined(__LIBXSMM)
-#if LIBXSMM_VERSION2(1, 17) >=                                                 \
-        LIBXSMM_VERSION2(LIBXSMM_VERSION_MAJOR, LIBXSMM_VERSION_MINOR) &&      \
-    (2079 > LIBXSMM_VERSION_PATCH)
-  if (m->use_libxsmm && m->op2 == 'N') {
-    /* we are in row major but xsmm is in column major */
-    m->prefetch = LIBXSMM_PREFETCH_AUTO;
-    /* in the future, more flags can be or'd together (like NONE | TRANS_B,
-     * etc.)*/
-    m->flags =
-        (m->op1 != 'T' ? LIBXSMM_GEMM_FLAG_NONE : LIBXSMM_GEMM_FLAG_TRANS_B);
-
-    if (m->kernel == NULL) {
-      m->kernel =
-          libxsmm_dmmdispatch(m->n, m->m, m->k, &m->ldb, &m->lda, &m->ldc,
-                              &m->alpha, &m->beta, &m->flags, &m->prefetch);
-    }
-
-    if (m->kernel) {
-      for (int s = 0; s < batch_size - 1; s++) {
-        m->kernel(m[s].b, m[s].a, m[s].c, m[s + 1].b, m[s + 1].a, m[s + 1].c);
-      }
-      m->kernel(m[batch_size - 1].b, m[batch_size - 1].a, m[batch_size - 1].c,
-                m[batch_size - 1].b, m[batch_size - 1].a, m[batch_size - 1].c);
-      return;
-    }
-  }
-#endif
-#endif
-
-#if defined(__MKL)
-  // fall back to mkl
-  for (int s = 0; s < batch_size; s++) {
-    if ((m[s].op1 == 'N') && (m[s].op2 == 'N'))
-      cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m[s].m, m[s].n,
-                  m[s].k, m[s].alpha, m[s].a, m[s].lda, m[s].b, m[s].ldb,
-                  m[s].beta, m[s].c, m[s].ldc);
-
-    if ((m[s].op1 == 'T') && (m[s].op2 == 'N'))
-      cblas_dgemm(CblasRowMajor, CblasTrans, CblasNoTrans, m[s].m, m[s].n,
-                  m[s].k, m[s].alpha, m[s].a, m[s].lda, m[s].b, m[s].ldb,
-                  m[s].beta, m[s].c, m[s].ldc);
-
-    if ((m[s].op1 == 'N') && (m[s].op2 == 'T'))
-      cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, m[s].m, m[s].n,
-                  m[s].k, m[s].alpha, m[s].a, m[s].lda, m[s].b, m[s].ldb,
-                  m[s].beta, m[s].c, m[s].ldc);
-
-    if ((m[s].op1 == 'T') && (m[s].op2 == 'T'))
-      cblas_dgemm(CblasRowMajor, CblasTrans, CblasTrans, m[s].m, m[s].n, m[s].k,
-                  m[s].alpha, m[s].a, m[s].lda, m[s].b, m[s].ldb, m[s].beta,
-                  m[s].c, m[s].ldc);
-  }
-#else
-  for (int s = 0; s < batch_size; s++) {
-    if ((m[s].op1 == 'N') && (m[s].op2 == 'N'))
-      dgemm_("N", "N", &m[s].n, &m[s].m, &m[s].k, &m[s].alpha, m[s].b,
-             &m[s].ldb, m[s].a, &m[s].lda, &m[s].beta, m[s].c, &m[s].ldc);
-
-    if ((m[s].op1 == 'T') && (m[s].op2 == 'N'))
-      dgemm_("N", "T", &m[s].n, &m[s].m, &m[s].k, &m[s].alpha, m[s].b,
-             &m[s].ldb, m[s].a, &m[s].lda, &m[s].beta, m[s].c, &m[s].ldc);
-
-    if ((m[s].op1 == 'T') && (m[s].op2 == 'T'))
-      dgemm_("T", "T", &m[s].n, &m[s].m, &m[s].k, &m[s].alpha, m[s].b,
-             &m[s].ldb, m[s].a, &m[s].lda, &m[s].beta, m[s].c, &m[s].ldc);
-
-    if ((m[s].op1 == 'N') && (m[s].op2 == 'T'))
-      dgemm_("T", "N", &m[s].n, &m[s].m, &m[s].k, &m[s].alpha, m[s].b,
-             &m[s].ldb, m[s].a, &m[s].lda, &m[s].beta, m[s].c, &m[s].ldc);
-  }
-#endif
-}
-
 void extract_sub_grid(const int *lower_corner, const int *upper_corner,
                       const int *position, const tensor *const grid,
                       tensor *const subgrid) {
@@ -200,7 +110,6 @@ void extract_sub_grid(const int *lower_corner, const int *upper_corner,
   const int sizez = upper_corner[0] - lower_corner[0];
 
   for (int z = 0; z < sizez; z++) {
-    /* maybe use matcopy from libxsmm if possible */
     for (int y = 0; y < sizey; y++) {
       double *restrict src =
           &idx3(grid[0], lower_corner[0] + z - grid->window_shift[0],
@@ -208,12 +117,7 @@ void extract_sub_grid(const int *lower_corner, const int *upper_corner,
                 lower_corner[2] - grid->window_shift[2]);
       double *restrict dst =
           &idx3(subgrid[0], position1[0] + z, position1[1] + y, position1[2]);
-#ifdef __LIBXSMM
-      LIBXSMM_PRAGMA_SIMD
-#else
-      // #pragma omp simd linear(dst, src) simdlen(8)
       GRID_PRAGMA_SIMD((dst, src), 8)
-#endif
       for (int x = 0; x < sizex; x++) {
         dst[x] = src[x];
       }
@@ -243,13 +147,7 @@ void add_sub_grid(const int *lower_corner, const int *upper_corner,
     double *restrict src =
         &idx3(subgrid[0], position1[0] + z, position1[1], position1[2]);
     for (int y = 0; y < sizey - 1; y++) {
-      //__builtin_prefetch(dst + grid->ld_);
-#ifdef __LIBXSMM
-      LIBXSMM_PRAGMA_SIMD
-#else
-      // #pragma omp simd linear(dst, src) simdlen(8)
       GRID_PRAGMA_SIMD((dst, src), 8)
-#endif
       for (int x = 0; x < sizex; x++) {
         dst[x] += src[x];
       }

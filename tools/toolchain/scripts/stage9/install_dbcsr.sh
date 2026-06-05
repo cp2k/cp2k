@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_NAME}")/.." && pwd -P)"
 
-dbcsr_ver="2.9.1"
-dbcsr_sha256="fa5a4aeba0a07761511af2c26c779bd811b5ea0ef06a5d94535b6dd7b2e0ce59"
+dbcsr_ver="0df59460c6cb1e8069080f1ce9caf0d382b8d0ef"
+dbcsr_sha256="e87fc029197f7d139429e4961f79cba52797dbd8b35fee6c1f1ed9bc81484a9e"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -27,27 +27,48 @@ case "${with_dbcsr}" in
     if verify_checksums "${install_lock_file}"; then
       echo "dbcsr-${dbcsr_ver} is already installed, skipping it."
     else
-      retrieve_package "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz"
+      if [ -f dbcsr-${dbcsr_ver}.tar.gz ]; then
+        echo "dbcsr-${dbcsr_ver}.tar.gz is found"
+      else
+        if ! download_pkg_from_cp2k_org "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz" 2> /dev/null; then
+          download_pkg_from_urlpath "${dbcsr_sha256}" "${dbcsr_ver}.tar.gz" \
+            https://github.com/cp2k/dbcsr/archive \
+            "dbcsr-${dbcsr_ver}.tar.gz"
+        fi
+      fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d dbcsr-${dbcsr_ver} ] && rm -rf dbcsr-${dbcsr_ver}
       tar -xzf dbcsr-${dbcsr_ver}.tar.gz
       cd dbcsr-${dbcsr_ver}
+      # DBCSR may predate GB10. Build native sm_121 code while
+      # reusing the closest available libsmm_acc parameters.
       if [ "${ENABLE_CUDA}" == "__TRUE__" ] && [ "${GPUVER}" == "GB10" ]; then
-        # DBCSR 2.9.1 predates GB10. Build native sm_121 code while
-        # reusing the closest available libsmm_acc parameters.
-        sed -i "s/    H100)/    H100\\n    GB10)/" CMakeLists.txt
-        sed -i "/  set(GPU_ARCH_NUMBER_H100 90)/a\\  set(GPU_ARCH_NUMBER_GB10 121)" CMakeLists.txt
-        cp src/acc/libsmm_acc/parameters/parameters_H100.json \
-          src/acc/libsmm_acc/parameters/parameters_GB10.json
+        if ! grep -q "GB10" CMakeLists.txt; then
+          sed -i "s/    H100)/    H100\\n    GB10)/" CMakeLists.txt
+          sed -i "/  set(GPU_ARCH_NUMBER_H100 90)/a\\  set(GPU_ARCH_NUMBER_GB10 121)" CMakeLists.txt
+          cp src/acc/libsmm_acc/parameters/parameters_H100.json \
+            src/acc/libsmm_acc/parameters/parameters_GB10.json 2> /dev/null || true
+        fi
+      fi
+      # Locate fypp (GitHub tarballs lack submodules).
+      FYPP_EXE=""
+      if [ -x "${ROOTDIR}/../../tools/build_utils/fypp" ]; then
+        FYPP_EXE="${ROOTDIR}/../../tools/build_utils/fypp"
+      elif [ -x "${SCRIPT_DIR}/fypp" ]; then
+        FYPP_EXE="${SCRIPT_DIR}/fypp"
+      elif command -v fypp > /dev/null 2>&1; then
+        FYPP_EXE="$(command -v fypp)"
+      else
+        report_error $LINENO "Failed to find the FYPP preprocessor."
+        exit 1
       fi
       mkdir build-cpu
       cd build-cpu
       CMAKE_OPTIONS="-DBUILD_TESTING=NO -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON"
       CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DUSE_OPENMP=ON -DWITH_EXAMPLES=NO"
+      CMAKE_OPTIONS="${CMAKE_OPTIONS} -DFYPP_EXECUTABLE=${FYPP_EXE}"
       if [ "${with_libxsmm}" == "__DONTUSE__" ]; then
-        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_SMM=blas"
-      else
-        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_SMM=libxsmm"
+        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_LIBXSMM=OFF"
       fi
       if [ "${MPI_MODE}" == "no" ]; then
         CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_MPI=OFF"
@@ -65,13 +86,7 @@ case "${with_dbcsr}" in
         mkdir build-cuda
         cd build-cuda
         CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_ACCEL=cuda"
-        # CUDA 13 deprecates APIs still used by DBCSR 2.9.1 under -Werror.
-        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_CXX_FLAGS=-Wno-error=deprecated-declarations"
-        if [ "${GPUVER}" == "GB10" ]; then
-          CMAKE_OPTIONS="${CMAKE_OPTIONS} -DWITH_GPU=GB10 -DWITH_GPU_PARAMS=GB10"
-        else
-          CMAKE_OPTIONS="${CMAKE_OPTIONS} -DWITH_GPU=P100"
-        fi
+        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DWITH_GPU=${GPUVER:-P100}"
         cmake \
           -DCMAKE_INSTALL_PREFIX=${pkg_install_dir}-cuda \
           ${CMAKE_OPTIONS} .. \

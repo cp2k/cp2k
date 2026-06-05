@@ -170,9 +170,7 @@ cmake_dependent_option(CP2K_USE_SPLA "Enable SpLA support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 cmake_dependent_option(CP2K_USE_MIMIC "Enable MIMIC support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
-cmake_dependent_option(
-  CP2K_USE_LIBXSMM "Enable libxsmm support" ${CP2K_USE_EVERYTHING}
-  "NOT CP2K_USE_ACCEL MATCHES \"OPENCL\"" ON)
+option(CP2K_USE_LIBXS "Enable libxs support" ON)
 cmake_dependent_option(CP2K_USE_LIBVDWXC "Enable libvdwxc support with SIRIUS"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_SIRIUS" OFF)
 
@@ -329,6 +327,7 @@ set_property(
 set(CP2K_USE_ACCEL
     "NONE"
     CACHE STRING "Set hardware acceleration support: CUDA, HIP, OPENCL")
+string(TOUPPER "${CP2K_USE_ACCEL}" CP2K_USE_ACCEL)
 
 set_property(CACHE CP2K_USE_ACCEL
              PROPERTY STRINGS ${CP2K_SUPPORTED_ACCELERATION_TARGETS})
@@ -454,10 +453,31 @@ endif()
 # BLAS & LAPACK, PkgConfig
 find_package(Lapack REQUIRED) # also calls find_package(BLAS)
 
+message("\n------------------------------------------------------------")
+message("-                          DBCSR                           -")
+message("------------------------------------------------------------\n")
+
+if(CP2K_USE_DBCSR_CONFIG)
+  find_package(DBCSR 2.9 REQUIRED CONFIG)
+  if(CP2K_USE_MPI AND NOT DBCSR_USE_MPI)
+    message(
+      FATAL_ERROR
+        "DBCSR needs to be compiled with MPI support when CP2K MPI support is enabled"
+    )
+  endif()
+else()
+  find_package(DBCSR 2.6 REQUIRED)
+endif()
+
 # SMM (Small Matrix-Matrix multiplication)
-if(CP2K_USE_LIBXSMM)
-  find_package(LibXSMM REQUIRED)
-  message(STATUS "Using LIBXSMM for Small Matrix Multiplication")
+if(CP2K_USE_LIBXS)
+  find_package(LIBXS REQUIRED)
+  find_package(LIBXSMM)
+  if(LIBXSMM_FOUND)
+    message(STATUS "Using LIBXS + LIBXSMM for Small Matrix Multiplication")
+  else()
+    message(STATUS "Using LIBXS for Small Matrix Multiplication")
+  endif()
 endif()
 
 # in practice it is always for any decent configuration. But I add a flags to
@@ -630,46 +650,81 @@ message("------------------------------------------------------------\n")
 # PACKAGE DISCOVERY (compiler configuration can impact package discovery)
 find_package(OpenMP REQUIRED COMPONENTS Fortran C CXX)
 
-message("\n------------------------------------------------------------")
-message("-                          DBCSR                           -")
-message("------------------------------------------------------------\n")
-
-if(CP2K_USE_DBCSR_CONFIG)
-  find_package(DBCSR 2.9 REQUIRED CONFIG)
-  if(CP2K_USE_MPI AND NOT DBCSR_USE_MPI)
-    message(
-      FATAL_ERROR
-        "DBCSR needs to be compiled with MPI support when CP2K MPI support is enabled"
-    )
-  endif()
-else()
-  find_package(DBCSR 2.6 REQUIRED)
-endif()
-
-# Discover CP2K_OPENCL_BACKEND. DBCSR must be discovered prior (DBCSR_DIR).
+# Discover OpenCL backend via LIBXSTREAM.
 if(CP2K_USE_ACCEL MATCHES "OPENCL")
+  if(NOT CP2K_USE_LIBXS)
+    message(FATAL_ERROR "OpenCL backend requires LIBXS (CP2K_USE_LIBXS=ON).")
+  endif()
   message("\n------------------------------------------------------------")
   message("-                          OPENCL                          -")
   message("------------------------------------------------------------\n")
+  # Hint additional OpenCL locations (Intel oneAPI, CUDA toolkit)
+  if(DEFINED ENV{CMPLR_ROOT})
+    list(APPEND CMAKE_PREFIX_PATH "$ENV{CMPLR_ROOT}")
+  endif()
+  if(DEFINED ENV{CUDA_PATH})
+    list(APPEND CMAKE_PREFIX_PATH "$ENV{CUDA_PATH}")
+  endif()
   find_package(OpenCL REQUIRED)
 
-  set(CP2K_OPENCL_BACKEND "${DBCSR_DIR}/../../../include/acc/opencl")
-  if(NOT EXISTS ${CP2K_OPENCL_BACKEND})
-    get_target_property(CP2K_DBCSR_INCLUDE_DIRS DBCSR::dbcsr
-                        INTERFACE_INCLUDE_DIRECTORIES)
-    list(GET CP2K_DBCSR_INCLUDE_DIRS 0 CP2K_DBCSR_INCLUDE_DIR)
-    set(CP2K_OPENCL_BACKEND "${CP2K_DBCSR_INCLUDE_DIR}/acc/opencl")
+  # Locate LIBXSTREAM: user override > DBCSR hint > pkg-config > path probing
+  set(LIBXSTREAMROOT
+      ""
+      CACHE PATH "Root directory of LIBXSTREAM")
+  if(NOT LIBXSTREAMROOT AND DBCSR_LIBXSTREAMROOT)
+    set(LIBXSTREAMROOT "${DBCSR_LIBXSTREAMROOT}")
+  endif()
+  if(NOT LIBXSTREAMROOT AND PkgConfig_FOUND)
+    pkg_check_modules(_LIBXSTREAM QUIET libxstream)
+    if(_LIBXSTREAM_FOUND)
+      pkg_get_variable(LIBXSTREAMROOT libxstream prefix)
+    endif()
+  endif()
+  if(NOT LIBXSTREAMROOT)
+    foreach(_dir "${CMAKE_SOURCE_DIR}/../libxstream" "$ENV{HOME}/libxstream")
+      if(EXISTS "${_dir}/include/libxstream.h")
+        set(LIBXSTREAMROOT "${_dir}")
+        break()
+      endif()
+    endforeach()
+  endif()
+  if(NOT LIBXSTREAMROOT OR NOT EXISTS "${LIBXSTREAMROOT}/include/libxstream.h")
+    message(
+      FATAL_ERROR
+        "LIBXSTREAMROOT not found. Set -DLIBXSTREAMROOT=/path/to/libxstream")
+  endif()
+  message(STATUS "Using LIBXSTREAM from ${LIBXSTREAMROOT}")
+  set(_libxstream_suffixes_save ${CMAKE_FIND_LIBRARY_SUFFIXES})
+  if(BUILD_SHARED_LIBS)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES .so .dylib)
+  else()
+    set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
+  endif()
+  find_library(
+    CP2K_LIBXSTREAM_LIBRARY xstream
+    PATHS "${LIBXSTREAMROOT}/lib"
+    NO_DEFAULT_PATH)
+  if(NOT CP2K_LIBXSTREAM_LIBRARY)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ${_libxstream_suffixes_save})
+    find_library(
+      CP2K_LIBXSTREAM_LIBRARY xstream
+      PATHS "${LIBXSTREAMROOT}/lib"
+      NO_DEFAULT_PATH)
+  endif()
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ${_libxstream_suffixes_save})
+  if(NOT CP2K_LIBXSTREAM_LIBRARY)
+    message(FATAL_ERROR "libxstream library not found in ${LIBXSTREAMROOT}/lib")
   endif()
 
-  set(CP2K_OPENCL_SCRIPT
-      "${CP2K_OPENCL_BACKEND}/../../../share/opencl/acc_opencl.sh")
+  set(CP2K_OPENCL_BACKEND "${LIBXSTREAMROOT}/include")
+  set(CP2K_OPENCL_SCRIPT "${LIBXSTREAMROOT}/scripts/tool_opencl.sh")
   if(EXISTS ${CP2K_OPENCL_SCRIPT})
-    set(CP2K_OPENCL_COMMON common/opencl_atomics.h common/opencl_common.h)
-    list(TRANSFORM CP2K_OPENCL_COMMON PREPEND ${CP2K_OPENCL_BACKEND}/)
+    set(CP2K_OPENCL_COMMON
+        "${LIBXSTREAMROOT}/include/opencl/libxstream_atomics.h")
     set(CP2K_USE_OPENCL ON)
     message(STATUS "OpenCL backend found")
   else()
-    message(FATAL_ERROR "OpenCL backend not found")
+    message(FATAL_ERROR "OpenCL backend not found (${CP2K_OPENCL_SCRIPT})")
   endif()
 endif()
 
@@ -682,7 +737,24 @@ if(CP2K_USE_ELPA)
 endif()
 
 if(CP2K_USE_LIBXC)
-  find_package(Libxc 7 REQUIRED CONFIG)
+  find_package(Libxc 7 QUIET CONFIG)
+  if(NOT Libxc_FOUND AND PkgConfig_FOUND)
+    pkg_check_modules(CP2K_LIBXCF03 QUIET IMPORTED_TARGET GLOBAL libxcf03>=7)
+    if(NOT CP2K_LIBXCF03_FOUND)
+      pkg_check_modules(CP2K_LIBXCF03 REQUIRED IMPORTED_TARGET GLOBAL libxc>=7)
+    endif()
+    pkg_check_modules(CP2K_LIBXC QUIET IMPORTED_TARGET GLOBAL libxc>=7)
+    if(NOT TARGET Libxc::xcf03)
+      add_library(Libxc::xcf03 INTERFACE IMPORTED)
+      target_link_libraries(
+        Libxc::xcf03
+        INTERFACE PkgConfig::CP2K_LIBXCF03
+                  $<$<BOOL:${CP2K_LIBXC_FOUND}>:PkgConfig::CP2K_LIBXC>)
+    endif()
+  elseif(NOT Libxc_FOUND)
+    message(
+      FATAL_ERROR "LibXC >= 7 not found (tried CMake config and pkg-config)")
+  endif()
 endif()
 
 if(CP2K_USE_GAUXC)
@@ -1127,12 +1199,10 @@ if(CP2K_USE_PLUMED)
           "    - libraries: ${CP2K_PLUMED_LINK_LIBRARIES}\n\n")
 endif()
 
-if(CP2K_USE_LIBXSMM)
-  message(
-    "  - LIBXSMM\n"
-    "    - include directories: ${CP2K_LIBXSMM_INCLUDE_DIRS}\n"
-    "    - libraries: ${CP2K_LIBXSMMEXT_LINK_LIBRARIES};${CP2K_LIBXSMMF_LINK_LIBRARIES};${CP2K_LIBXSMM_LINK_LIBRARIES}\n\n"
-  )
+if(CP2K_USE_LIBXS)
+  message("  - LIBXS\n"
+          "    - include directories: ${CP2K_LIBXS_INCLUDE_DIRS}\n"
+          "    - libraries: ${CP2K_LIBXS_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_SPLA)
@@ -1316,8 +1386,8 @@ if(NOT CP2K_USE_PLUMED)
   message("   - PLUMED")
 endif()
 
-if(NOT CP2K_USE_LIBXSMM)
-  message("   - LIBXSMM")
+if(NOT CP2K_USE_LIBXS)
+  message("   - LIBXS")
 endif()
 
 if(NOT CP2K_USE_LIBINT2)

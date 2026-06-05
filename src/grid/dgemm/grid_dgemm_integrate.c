@@ -16,10 +16,6 @@
 
 #include <omp.h>
 
-#ifdef __LIBXSMM
-#include <libxsmm.h>
-#endif
-
 #include "../common/grid_common.h"
 #include "grid_dgemm_coefficients.h"
 #include "grid_dgemm_collocate.h"
@@ -335,9 +331,6 @@ static void rotate_and_store_coefficients(grid_context *const ctx,
       m2.alpha = 1.0;
       m2.beta = 1.0;
     }
-
-    m1.use_libxsmm = true;
-    m2.use_libxsmm = true;
 
     /* these dgemm are *row* major */
     dgemm_simplified(&m1);

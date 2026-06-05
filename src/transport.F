@@ -83,7 +83,6 @@ MODULE transport
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
-
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'transport'
@@ -104,7 +103,6 @@ MODULE transport
 ! **************************************************************************************************
       SUBROUTINE c_scf_routine(cp2k_transport_params, s_mat, ks_mat, p_mat, imagp_mat) BIND(C)
          IMPORT :: C_INT, C_PTR, cp2k_csr_interop_type, cp2k_transport_parameters
-         IMPLICIT NONE
          TYPE(cp2k_transport_parameters), VALUE, INTENT(IN) :: cp2k_transport_params
          TYPE(cp2k_csr_interop_type), VALUE, INTENT(IN)     :: s_mat
          TYPE(cp2k_csr_interop_type), VALUE, INTENT(IN)     :: ks_mat

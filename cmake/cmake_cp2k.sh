@@ -261,7 +261,6 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_SPGLIB=OFF \
     -DCP2K_USE_VORI=OFF \
     -DCP2K_USE_TREXIO=OFF \
-    -DCP2K_USE_LIBXSMM=OFF \
     -DCP2K_USE_LIBFCI=OFF \
     -DCP2K_USE_GAUXC=OFF \
     -Werror=dev \

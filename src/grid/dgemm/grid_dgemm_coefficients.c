@@ -5,17 +5,14 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
+#include "grid_dgemm_coefficients.h"
+#include "../common/grid_common.h"
+#include "grid_dgemm_private_header.h"
+#include "grid_dgemm_tensor_local.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(__LIBXSMM)
-#include <libxsmm.h>
-#endif
-#include "../common/grid_common.h"
-#include "grid_dgemm_coefficients.h"
-#include "grid_dgemm_private_header.h"
-#include "grid_dgemm_tensor_local.h"
 
 void transform_xyz_to_triangular(const tensor *const coef,
                                  double *const coef_xyz) {
