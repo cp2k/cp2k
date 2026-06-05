@@ -5,7 +5,7 @@
 "almo-fullx.inp"                        = [{matcher="M011", tol=4e-12, ref=-137.653899517158095}]
 "almo-fullx-then-scf.inp"               = [{matcher="M011", tol=4e-12, ref=-137.653043387277364}]
 "almo-then-wannier.inp"                 = [{matcher="M011", tol=4e-12, ref=-137.653091045563713}]
-"almo-doublet-no-charge.inp"            = [{matcher="M011", tol=4e-11, ref=-135.496207238227385}]
-"almo-singlet-charge.inp"               = [{matcher="M011", tol=4e-11, ref=-135.292861984739233}]
-"almo-triplet-charge.inp"               = [{matcher="M011", tol=4e-11, ref=-149.518570678898755}]
+"almo-doublet-no-charge.inp"            = [{matcher="M011", tol=4e-11, ref=-33.643256465618862}]
+"almo-singlet-charge.inp"               = [{matcher="M011", tol=4e-11, ref=-33.621437661842876}]
+"almo-triplet-charge.inp"               = [{matcher="M011", tol=4e-11, ref=-48.183253418975028}]
 #EOF

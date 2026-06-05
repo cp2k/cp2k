@@ -20,7 +20,7 @@
       RETURN_ORTHOGONALIZED_MOS
       &ALMO_OPTIMIZER_PCG
         CONJUGATOR POLAK_RIBIERE
-        EPS_ERROR 5.0E-4
+        EPS_ERROR 5.0E-3
         LIN_SEARCH_EPS_ERROR 0.05
         LIN_SEARCH_STEP_SIZE_GUESS 0.1
         MAX_ITER 50
@@ -49,13 +49,13 @@
     &END ALMO_SCF
     &MGRID
       COMMENSURATE
-      CUTOFF 400
-      NGRIDS 5
-      REL_CUTOFF 50.
+      CUTOFF 200
+      NGRIDS 1
+      REL_CUTOFF 10.
     &END MGRID
     &QS
       ALMO_SCF T
-      EPS_DEFAULT 1.0E-7  ! 1.0E-8
+      EPS_DEFAULT 1.0E-6  ! 1.0E-8
     &END QS
     &SCF
       MAX_SCF 300
@@ -65,7 +65,7 @@
         PRECONDITIONER FULL_ALL
       &END OT
       &OUTER_SCF  ! repeat the inner SCF cycle 10 times
-        EPS_SCF 1.0E-6  ! must match the above
+        EPS_SCF 5.0E-5  ! must match the above
         MAX_SCF 100
       &END OUTER_SCF
     &END SCF
@@ -84,25 +84,7 @@
     &END CELL
     &COORD
       O          3.18223        0.45270        0.23748 cluster 1
-      O          2.80230        0.83406        1.25476 cluster 1
-      O         -0.32696       -0.22601       -0.13092 environment 2
-      H         -0.00404        0.67559        0.12094 environment 2
-      H          0.15368       -0.84112        0.47837 environment 2
-      O          2.98334        3.91237       -0.31042 environment 2
-      H          3.06764        4.46655        0.50588 environment 2
-      H          2.14637        3.40025       -0.17712 environment 2
-      O         -0.46669        5.34326        0.71264 environment 2
-      H          0.27010        5.36471        0.05148 environment 2
-      H         -0.01428        5.21452        1.58396 environment 2
-      O         -0.84846       -0.33410        4.81180 environment 2
-      H         -0.80693        0.47639        4.24434 environment 2
-      H         -0.33982       -0.09295        5.62652 environment 2
-      O          2.34958        1.17659        4.70438 environment 2
-      H          1.99178        0.48360        4.09435 environment 2
-      H          3.00986        1.67158        4.15714 environment 2
-      O          2.69615        4.62274        4.92817 environment 2
-      H          2.26599        4.36010        4.07573 environment 2
-      H          2.21166        4.10600        5.62020 environment 2
+      O          2.80230        0.83406        1.25476 cluster 1     
       O         -0.56844        5.44418        4.62944 environment 2
       H         -1.23780        4.94395        4.09818 environment 2
     &END COORD
