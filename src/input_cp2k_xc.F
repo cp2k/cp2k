@@ -1316,7 +1316,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="FUNCTIONAL", &
                           description="Functional name used to create the GauXC integrator. "// &
-                          "If MODEL is set, this is the base functional used by the OneDFT path.", &
+                          "If MODEL is set, this optional base functional defaults to PBE and "// &
+                          "does not need to be specified for MODEL SKALA inputs.", &
                           default_c_val="PBE")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

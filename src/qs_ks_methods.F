@@ -694,7 +694,9 @@ CONTAINS
                END IF
             ELSE
                IF (gapw_xc) THEN
-                  CPABORT("GauXC with METHOD GAPW_XC is not supported yet.")
+                  CALL cp_abort(__LOCATION__, &
+                                "GauXC with METHOD GAPW_XC is unsupported. The "// &
+                                "GAPW_XC one-center XC correction needs a dedicated GauXC design.")
                END IF
                use_gauxc_matrix = .TRUE.
                CALL apply_gauxc(qs_env, xc_section, calculate_forces)
