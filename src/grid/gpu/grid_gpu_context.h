@@ -280,34 +280,10 @@ public:
   }
 
   void check_orthorhombicity(const bool ortho) {
-    if (ortho) {
-      orthorhombic_ = true;
-      return;
-    }
-    T norm1, norm2, norm3;
-    bool orthogonal[3] = {false, false, false};
-    norm1 = dh_[0] * dh_[0] + dh_[1] * dh_[1] + dh_[2] * dh_[2];
-    norm2 = dh_[3] * dh_[3] + dh_[4] * dh_[4] + dh_[5] * dh_[5];
-    norm3 = dh_[6] * dh_[6] + dh_[7] * dh_[7] + dh_[8] * dh_[8];
-
-    norm1 = 1.0 / sqrt(norm1);
-    norm2 = 1.0 / sqrt(norm2);
-    norm3 = 1.0 / sqrt(norm3);
-
-    /* x z */
-    orthogonal[0] =
-        ((fabs(dh_[0] * dh_[6] + dh_[1] * dh_[7] + dh_[2] * dh_[8]) * norm1 *
-          norm3) < 1e-12);
-    /* y z */
-    orthogonal[1] =
-        ((fabs(dh_[3] * dh_[6] + dh_[4] * dh_[7] + dh_[5] * dh_[8]) * norm2 *
-          norm3) < 1e-12);
-    /* x y */
-    orthogonal[2] =
-        ((fabs(dh_[0] * dh_[3] + dh_[1] * dh_[4] + dh_[2] * dh_[5]) * norm1 *
-          norm2) < 1e-12);
-
-    orthorhombic_ = orthogonal[0] && orthogonal[1] && orthogonal[2];
+    // Keep the PW grid classification. The GPU orthorhombic kernels assume the
+    // axis-aligned grid layout selected by cell2grid; mutually orthogonal
+    // lattice vectors alone are not enough.
+    orthorhombic_ = ortho;
   }
 
   inline void copy_to_host(T *data__, offloadStream_t &stream) {
