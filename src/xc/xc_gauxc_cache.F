@@ -9,8 +9,6 @@
 #include "gauxc/gauxc_config.f"
 #endif
 
-#define GAUXC_RETURN_IF_ERROR(status) IF (status%status%code /= 0) RETURN
-
 MODULE xc_gauxc_cache
 
    USE iso_c_binding,                   ONLY: c_double
@@ -119,13 +117,13 @@ CONTAINS
 
       TYPE(cp_gauxc_cache_type), INTENT(inout)           :: cache
       TYPE(cp_gauxc_cache_params), INTENT(in)            :: params
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      LOGICAL:: gapw, use_skala_model, calculate_forces
-
-      TYPE(cp_gauxc_status_type)                         :: status
+      TYPE(mp_para_env_type), INTENT(in), POINTER        :: para_env
+      TYPE(particle_type), DIMENSION(:), INTENT(in), &
+         POINTER                                         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), INTENT(in), &
+         POINTER                                         :: qs_kind_set
+      LOGICAL, INTENT(in)                                :: gapw, calculate_forces, use_skala_model
+      TYPE(cp_gauxc_status_type), INTENT(inout)          :: status
 
       IF (gauxc_cache_is_valid( &
           cache, &
@@ -140,12 +138,14 @@ CONTAINS
       cache%molecule = gauxc_create_molecule( &
                        particle_set, &
                        status)
-      GAUXC_RETURN_IF_ERROR(status)
+      IF (status%status%code /= 0) GO TO 100
+
       cache%basisset = gauxc_create_basisset( &
                        qs_kind_set, &
                        particle_set, &
                        status)
-      GAUXC_RETURN_IF_ERROR(status)
+      IF (status%status%code /= 0) GO TO 200
+
       cache%use_fd_gradient = gapw .AND. calculate_forces .AND. &
                               (use_skala_model .OR. cache%basisset%max_l > 3)
       IF (cache%use_fd_gradient .AND. para_env%mepos == 0) THEN
@@ -155,9 +155,8 @@ CONTAINS
             "all-electron basis functions beyond f shells.  The upstream analytical GauXC "// &
             "gradient path is not yet reliable for this case.")
       END IF
+
       IF (params%use_self_runtime) THEN
-         ! SKALA currently needs a replicated molecular runtime for reproducible
-         ! open-shell densities across CP2K MPI ranks.
          cache%grid = gauxc_create_grid( &
                       cache%molecule, &
                       cache%basisset, &
@@ -170,10 +169,6 @@ CONTAINS
                       status, &
                       mpi_comm=mp_comm_self%get_handle())
       ELSE
-         ! Use the QS force-evaluation communicator rather than GauXC's global
-         ! runtime.  In mixed CDFT the diabatic states can be built on disjoint
-         ! MPI subgroups; using the global communicator would make GauXC wait
-         ! for ranks that are working on another state.
          cache%grid = gauxc_create_grid( &
                       cache%molecule, &
                       cache%basisset, &
@@ -186,19 +181,17 @@ CONTAINS
                       status, &
                       mpi_comm=para_env%get_handle())
       END IF
-      GAUXC_RETURN_IF_ERROR(status)
+      IF (status%status%code /= 0) GO TO 300
+
       cache%integrator = gauxc_create_integrator( &
                          TRIM(params%xc_fun_name), &
                          cache%grid, &
                          params%int_exec_space, &
                          params%nspins, &
                          status)
-      GAUXC_RETURN_IF_ERROR(status)
+      IF (status%status%code /= 0) GO TO 400
 
       IF (params%use_gradient_self_runtime) THEN
-         ! Upstream GauXC does not yet support OneDFT/SKALA nuclear gradients
-         ! on an MPI runtime.  Keep the energy/VXC path on the normal MPI
-         ! runtime and use an isolated runtime only for the replicated gradient.
          cache%gradient_grid = gauxc_create_grid( &
                                cache%molecule, &
                                cache%basisset, &
@@ -210,14 +203,14 @@ CONTAINS
                                params%device_runtime_fill_fraction, &
                                status, &
                                mpi_comm=mp_comm_self%get_handle())
-         GAUXC_RETURN_IF_ERROR(status)
+         IF (status%status%code /= 0) GO TO 500
          cache%gradient_integrator = gauxc_create_integrator( &
                                      TRIM(params%xc_fun_name), &
                                      cache%gradient_grid, &
                                      params%int_exec_space, &
                                      params%nspins, &
                                      status)
-         GAUXC_RETURN_IF_ERROR(status)
+         IF (status%status%code /= 0) GO TO 600
       END IF
 
       cache%natom = params%natom
@@ -245,6 +238,43 @@ CONTAINS
       END BLOCK
 
       cache%is_init = .TRUE.
+
+      RETURN
+
+      ! Cleanup section in the error case.
+
+100   CONTINUE
+      CALL gauxc_destroy_molecule(cache%molecule, status)
+      CALL gauxc_check_status(status)
+      GO TO 999
+
+200   CONTINUE
+      CALL gauxc_destroy_basisset(cache%basisset, status)
+      CALL gauxc_check_status(status)
+      GO TO 100
+
+300   CONTINUE
+      CALL gauxc_destroy_grid(cache%grid, status)
+      CALL gauxc_check_status(status)
+      GO TO 200
+
+400   CONTINUE
+      CALL gauxc_destroy_integrator(cache%integrator, status)
+      CALL gauxc_check_status(status)
+      GO TO 300
+
+500   CONTINUE
+      CALL gauxc_destroy_grid(cache%gradient_grid, status)
+      CALL gauxc_check_status(status)
+      GO TO 400
+
+600   CONTINUE
+      CALL gauxc_destroy_integrator(cache%gradient_integrator, status)
+      CALL gauxc_check_status(status)
+
+999   CONTINUE
+      IF (ALLOCATED(cache%last_positions)) DEALLOCATE (cache%last_positions)
+      cache%is_init = .FALSE.
 
    END SUBROUTINE gauxc_cache_init
 
