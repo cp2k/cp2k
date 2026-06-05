@@ -644,6 +644,7 @@ CONTAINS
 !> \param xc_functional_name ...
 !> \param grid ...
 !> \param int_exec_space ...
+!> \param lwd_kernel ...
 !> \param nspins ...
 !> \param status ...
 !> \return ...
@@ -652,10 +653,12 @@ CONTAINS
       xc_functional_name, &
       grid, &
       int_exec_space, &
+      lwd_kernel, &
       nspins, &
       status) RESULT(res)
 
-      CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name, int_exec_space
+      CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name, int_exec_space, &
+                                                            lwd_kernel
       TYPE(cp_gauxc_grid_type), INTENT(IN)               :: grid
       INTEGER, INTENT(IN)                                :: nspins
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
@@ -677,12 +680,14 @@ CONTAINS
                        status%status, &
                        res%func, &
                        grid%lb, &
-                       int_exec_space_local)
+                       int_exec_space_local, &
+                       local_work_kernel_name=TRIM(lwd_kernel))
       GAUXC_RETURN_IF_ERROR(status)
 
 #else
       MARK_USED(grid)
       MARK_USED(int_exec_space)
+      MARK_USED(lwd_kernel)
       MARK_USED(nspins)
       MARK_USED(res)
       MARK_USED(status)

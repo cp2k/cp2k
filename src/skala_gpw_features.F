@@ -154,6 +154,8 @@ MODULE skala_gpw_features
                                                             grid_weight_sum = 0.0_dp, &
                                                             spin_moment = 0.0_dp
       LOGICAL                                            :: active = .FALSE., owns_coordinate_tensor = .FALSE., &
+                                                            owns_grid_coordinate_tensor = .FALSE., &
+                                                            owns_weight_tensors = .FALSE., &
                                                             owns_dynamic_tensors = .TRUE., &
                                                             owns_inputs = .TRUE., &
                                                             owns_static_tensors = .TRUE., &
@@ -176,12 +178,13 @@ CONTAINS
 !> \param requires_grad ...
 !> \param weights ...
 !> \param requires_coordinate_grad ...
+!> \param requires_stress_grad ...
 !> \param use_atom_chunks ...
 !> \param route_atom_chunks ...
 ! **************************************************************************************************
    SUBROUTINE skala_gpw_feature_build(features, rho_set, rho_r, particle_set, cell, &
                                       requires_grad, weights, requires_coordinate_grad, &
-                                      use_atom_chunks, route_atom_chunks)
+                                      requires_stress_grad, use_atom_chunks, route_atom_chunks)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
       TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)     :: rho_r
@@ -190,7 +193,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: requires_grad
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
       LOGICAL, INTENT(IN), OPTIONAL                      :: requires_coordinate_grad, &
-                                                            use_atom_chunks, route_atom_chunks
+                                                            requires_stress_grad, use_atom_chunks, &
+                                                            route_atom_chunks
 
       INTEGER                                            :: handle, i, ipt, ispin, j, k, local_row, &
                                                             ndynamic_local_per_point, nflat, &
@@ -198,7 +202,7 @@ CONTAINS
                                                             real_base, row
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL :: can_use_atom_chunks, collapse_spin_dynamics, my_requires_coordinate_grad, &
-         my_requires_grad, my_route_atom_chunks, my_use_atom_chunks
+         my_requires_grad, my_requires_stress_grad, my_route_atom_chunks, my_use_atom_chunks
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: global_dynamic, local_dynamic
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho, rhoa, rhob, tau_a, tau_b, tau_total
       TYPE(cp_3d_r_cp_type), DIMENSION(3)                :: drho, drhoa, drhob
@@ -211,6 +215,8 @@ CONTAINS
       my_requires_coordinate_grad = .FALSE.
       IF (PRESENT(requires_coordinate_grad)) &
          my_requires_coordinate_grad = requires_coordinate_grad
+      my_requires_stress_grad = .FALSE.
+      IF (PRESENT(requires_stress_grad)) my_requires_stress_grad = requires_stress_grad
       my_use_atom_chunks = .FALSE.
       IF (PRESENT(use_atom_chunks)) my_use_atom_chunks = use_atom_chunks
       my_route_atom_chunks = .FALSE.
@@ -235,6 +241,10 @@ CONTAINS
       CALL timestop(phase_handle)
       nflat = cached_layout%nflat
       can_use_atom_chunks = my_use_atom_chunks .AND. cached_layout%chunk_feature_count > 0
+      IF (my_requires_stress_grad .AND. can_use_atom_chunks) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Native SKALA analytical stress is not implemented with atom-chunk routing yet.")
+      END IF
       collapse_spin_dynamics = (nspins == 1 .AND. can_use_atom_chunks .AND. &
                                 my_route_atom_chunks)
       ndynamic_local_per_point = ndynamic_per_point
@@ -295,7 +305,8 @@ CONTAINS
       CALL timestop(phase_handle)
 
       CALL timeset("skala_gpw_copy_layout", phase_handle)
-      CALL copy_cached_layout(features, my_requires_coordinate_grad)
+      CALL copy_cached_layout(features, my_requires_coordinate_grad .OR. my_requires_stress_grad, &
+                              my_requires_stress_grad)
       CALL timestop(phase_handle)
 
       IF (can_use_atom_chunks .AND. my_route_atom_chunks) THEN
@@ -366,6 +377,7 @@ CONTAINS
          features%uses_atom_chunks = .TRUE.
       END IF
       CALL add_feature_tensors(features, my_requires_grad, my_requires_coordinate_grad, &
+                               my_requires_stress_grad, &
                                features%uses_atom_chunks)
       CALL timestop(phase_handle)
       features%active = .TRUE.
@@ -784,10 +796,12 @@ CONTAINS
 !> \brief Copy static cached layout arrays into a feature bundle.
 !> \param features ...
 !> \param needs_coordinate_array ...
+!> \param needs_grid_coordinate_array ...
 ! **************************************************************************************************
-   SUBROUTINE copy_cached_layout(features, needs_coordinate_array)
+   SUBROUTINE copy_cached_layout(features, needs_coordinate_array, needs_grid_coordinate_array)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
-      LOGICAL, INTENT(IN)                                :: needs_coordinate_array
+      LOGICAL, INTENT(IN)                                :: needs_coordinate_array, &
+                                                            needs_grid_coordinate_array
 
       CPASSERT(cached_layout%active)
 
@@ -804,6 +818,14 @@ CONTAINS
       features%nflat = cached_layout%nflat
       features%nflat_local = cached_layout%nflat_local
       features%chunk_feature_count = cached_layout%chunk_feature_count
+      ALLOCATE (features%atomic_grid_sizes(cached_layout%natom))
+      features%atomic_grid_sizes(:) = cached_layout%atomic_grid_sizes
+      IF (needs_grid_coordinate_array) THEN
+         ALLOCATE (features%grid_coords(3, cached_layout%nflat))
+         ALLOCATE (features%atomic_grid_weights(cached_layout%nflat))
+         features%grid_coords(:, :) = cached_layout%grid_coords
+         features%atomic_grid_weights(:) = cached_layout%atomic_grid_weights
+      END IF
       ALLOCATE (features%chunk_grad_counts(cached_layout%nproc), &
                 features%chunk_grad_displs(cached_layout%nproc), &
                 features%route_grad_return_recv_counts(cached_layout%nproc), &
@@ -1395,12 +1417,21 @@ CONTAINS
             CALL torch_tensor_release(features%atomic_grid_sizes_t)
             CALL torch_tensor_release(features%atomic_grid_size_bound_shape_t)
          END IF
+         IF (features%owns_grid_coordinate_tensor) THEN
+            CALL torch_tensor_release(features%grid_coords_t)
+         END IF
+         IF (features%owns_weight_tensors) THEN
+            CALL torch_tensor_release(features%grid_weights_t)
+            CALL torch_tensor_release(features%atomic_grid_weights_t)
+         END IF
          IF (features%owns_static_tensors .OR. features%owns_coordinate_tensor) THEN
             CALL torch_tensor_release(features%coarse_0_atomic_coords_t)
          END IF
          IF (features%owns_inputs) CALL torch_dict_release(features%inputs)
          features%active = .FALSE.
          features%owns_coordinate_tensor = .FALSE.
+         features%owns_grid_coordinate_tensor = .FALSE.
+         features%owns_weight_tensors = .FALSE.
          features%owns_dynamic_tensors = .TRUE.
          features%owns_inputs = .TRUE.
          features%owns_static_tensors = .TRUE.
@@ -1721,20 +1752,27 @@ CONTAINS
 !> \param features ...
 !> \param requires_grad ...
 !> \param requires_coordinate_grad ...
+!> \param requires_stress_grad ...
 !> \param use_atom_chunks ...
 ! **************************************************************************************************
    SUBROUTINE add_feature_tensors(features, requires_grad, requires_coordinate_grad, &
-                                  use_atom_chunks)
+                                  requires_stress_grad, use_atom_chunks)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
       LOGICAL, INTENT(IN)                                :: requires_grad, requires_coordinate_grad, &
-                                                            use_atom_chunks
+                                                            requires_stress_grad, use_atom_chunks
 
       CPASSERT(cached_layout%static_tensors_active)
       features%owns_static_tensors = .FALSE.
       features%owns_coordinate_tensor = .FALSE.
+      features%owns_grid_coordinate_tensor = .FALSE.
+      features%owns_weight_tensors = .FALSE.
       features%owns_dynamic_tensors = .FALSE.
       features%owns_inputs = .TRUE.
       IF (use_atom_chunks) THEN
+         IF (requires_stress_grad) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Native SKALA analytical stress is not implemented with atom-chunk tensors yet.")
+         END IF
          CPASSERT(cached_layout%chunk_static_tensors_active)
          features%grid_coords_t = cached_layout%chunk_grid_coords_t
          features%grid_weights_t = cached_layout%chunk_grid_weights_t
@@ -1811,9 +1849,11 @@ CONTAINS
          features%owns_inputs = .FALSE.
          features%coarse_0_atomic_coords_t = cached_layout%chunk_coarse_0_atomic_coords_t
       ELSE
-         features%grid_coords_t = cached_layout%grid_coords_t
-         features%grid_weights_t = cached_layout%grid_weights_t
-         features%atomic_grid_weights_t = cached_layout%atomic_grid_weights_t
+         IF (.NOT. requires_stress_grad) THEN
+            features%grid_coords_t = cached_layout%grid_coords_t
+            features%grid_weights_t = cached_layout%grid_weights_t
+            features%atomic_grid_weights_t = cached_layout%atomic_grid_weights_t
+         END IF
          features%atomic_grid_sizes_t = cached_layout%atomic_grid_sizes_t
          features%atomic_grid_size_bound_shape_t = cached_layout%atomic_grid_size_bound_shape_t
          features%local_feature_indices_t = cached_layout%local_feature_indices_t
@@ -1829,8 +1869,29 @@ CONTAINS
          features%kin_t = cached_layout%kin_t
          cached_layout%dynamic_tensors_active = .TRUE.
 
-         IF (requires_coordinate_grad) THEN
-            CALL torch_dict_clone(cached_layout%static_inputs, features%inputs)
+         IF (requires_coordinate_grad .OR. requires_stress_grad) THEN
+            IF (requires_stress_grad) THEN
+               CALL torch_dict_create(features%inputs)
+               CALL torch_tensor_from_array(features%grid_coords_t, features%grid_coords)
+               CALL torch_tensor_to_device_leaf(features%grid_coords_t, .TRUE.)
+               CALL torch_tensor_from_array(features%grid_weights_t, features%grid_weights)
+               CALL torch_tensor_to_device_leaf(features%grid_weights_t, .TRUE.)
+               CALL torch_tensor_from_array(features%atomic_grid_weights_t, &
+                                            features%atomic_grid_weights)
+               CALL torch_tensor_to_device_leaf(features%atomic_grid_weights_t, .TRUE.)
+               CALL torch_dict_insert(features%inputs, "grid_coords", features%grid_coords_t)
+               CALL torch_dict_insert(features%inputs, "grid_weights", features%grid_weights_t)
+               CALL torch_dict_insert(features%inputs, "atomic_grid_weights", &
+                                      features%atomic_grid_weights_t)
+               CALL torch_dict_insert(features%inputs, "atomic_grid_sizes", &
+                                      features%atomic_grid_sizes_t)
+               CALL torch_dict_insert(features%inputs, "atomic_grid_size_bound_shape", &
+                                      features%atomic_grid_size_bound_shape_t)
+               features%owns_grid_coordinate_tensor = .TRUE.
+               features%owns_weight_tensors = .TRUE.
+            ELSE
+               CALL torch_dict_clone(cached_layout%static_inputs, features%inputs)
+            END IF
             CALL torch_dict_insert(features%inputs, "density", features%density_t)
             CALL torch_dict_insert(features%inputs, "grad", features%grad_t)
             CALL torch_dict_insert(features%inputs, "kin", features%kin_t)
@@ -1850,7 +1911,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (requires_coordinate_grad) THEN
+      IF (requires_coordinate_grad .OR. requires_stress_grad) THEN
          CPASSERT(.NOT. use_atom_chunks)
          CALL torch_tensor_from_array(features%coarse_0_atomic_coords_t, &
                                       features%coarse_0_atomic_coords)

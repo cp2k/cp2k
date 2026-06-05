@@ -1304,7 +1304,7 @@ CONTAINS
                           "The current CP2K bridge uses GauXC's molecular quadrature. Periodic inputs "// &
                           "are limited to isolated validation cells and are not compact periodic "// &
                           "material calculations.", &
-                          n_keywords=20, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=26, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1324,7 +1324,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MODEL", &
                           description="GauXC OneDFT model name or path. Use NONE for conventional GauXC. "// &
-                          "MODEL SKALA selects the installed Skala-1.1 model when available; "// &
+                          "MODEL SKALA uses GAUXC_SKALA_MODEL, or GAUXC_SKALA_CUDA_MODEL when "// &
+                          "NATIVE_GRID_USE_CUDA is enabled and that override is set; "// &
                           "other OneDFT models are supplied as .fun files or model names.", &
                           usage="MODEL SKALA", &
                           default_c_val="NONE")
@@ -1411,12 +1412,24 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID", &
                           description="Experimental CP2K-native GPW real-space-grid path for SKALA "// &
-                          "TorchScript models. This bypasses GauXC molecular quadrature and is limited "// &
-                          "to energy/VXC evaluations with FUNCTIONAL PBE and a single GAUXC functional. "// &
+                          "TorchScript models. This bypasses GauXC molecular quadrature and supports "// &
+                          "isolated, partially periodic, and fully periodic METHOD GPW/GTH and METHOD "// &
+                          "GAPW cells, including Gamma-only and k-point density matrices. GAPW with "// &
+                          "GTH/ECP pseudopotentials is limited to KIND%GPW_TYPE regular-grid features; "// &
+                          "GAPW all-electron uses the all-electron regular-grid density. "// &
+                          "The current implementation "// &
+                          "is limited to energy, VXC, and experimental nuclear-gradient/stress "// &
+                          "evaluations with a single GAUXC functional. Full-grid, inversion-only, "// &
+                          "and symmetry-reduced k-point runs are supported. "// &
+                          "K-point runs currently require NATIVE_GRID_USE_CUDA T; the CPU "// &
+                          "TorchScript path is limited to non-k-point runs. CUDA k-point runs "// &
+                          "should not preload CPU-only Torch libraries such as libtorch_cpu.so. "// &
                           "MPI runs collect a global atom-partitioned feature block by default; "// &
                           "NATIVE_GRID_ATOM_CHUNKS can split the Torch evaluation by atom block. "// &
-                          "Nuclear gradients, stress, GAPW, ROKS, ADMM, "// &
-                          "NLCC pseudopotentials, multiple images, and k-points are not implemented.", &
+                          "Analytical stress is supported for the regular-grid path. "// &
+                          "METHOD GAPW_XC, PAW/one-center GAPW+GTH/ECP, ROKS, ADMM, "// &
+                          "NLCC pseudopotentials, and non-k-point multiple-image "// &
+                          "calculations are not implemented.", &
                           usage="NATIVE_GRID T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1425,7 +1438,9 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_USE_CUDA", &
                           description="Evaluate the experimental CP2K-native SKALA GPW TorchScript "// &
                           "model on CUDA when libtorch CUDA support is available. This requires a "// &
-                          "CUDA-compatible SKALA model export; the portable default uses CPU tensors.", &
+                          "CUDA-compatible SKALA model export; MODEL SKALA first checks "// &
+                          "GAUXC_SKALA_CUDA_MODEL in this mode and otherwise falls back to "// &
+                          "GAUXC_SKALA_MODEL. The portable default uses CPU tensors.", &
                           usage="NATIVE_GRID_USE_CUDA T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1526,6 +1541,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="LWD_KERNEL", &
+                          description="Local work driver kernel used by the GauXC integrator. "// &
+                          "DEFAULT uses GauXC's default for the selected execution space. "// &
+                          "Device builds with CUTLASS support can use SCHEME1-CUTLASS to run "// &
+                          "the grouped local potential update through CUTLASS.", &
+                          usage="LWD_KERNEL DEFAULT", &
+                          default_c_val="DEFAULT")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="SKALA_RUNTIME", &
                           description="MPI communicator policy for GauXC OneDFT/SKALA. AUTO uses "// &
                           "the force-evaluation communicator for closed-shell calculations and a "// &
@@ -1537,6 +1562,22 @@ CONTAINS
                           enum_desc=s2a("Closed-shell MPI, open-shell replicated (default)", &
                                         "Use the force-evaluation MPI communicator", &
                                         "Use rank-local replicated GauXC runtimes"), &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ONEDFT_GRADIENT_RUNTIME", &
+                          description="MPI communicator policy for GauXC OneDFT/SKALA nuclear gradients. "// &
+                          "AUTO keeps the conservative rank-local gradient runtime when energy/VXC uses "// &
+                          "the MPI communicator. MPI uses the force-evaluation communicator for gradients "// &
+                          "and can distribute OneDFT/SKALA Torch gradient work across MPI ranks. SELF "// &
+                          "forces rank-local replicated gradient runtimes.", &
+                          usage="ONEDFT_GRADIENT_RUNTIME AUTO", &
+                          enum_c_vals=s2a("AUTO", "MPI", "SELF"), &
+                          enum_i_vals=[1, 2, 3], &
+                          enum_desc=s2a("Conservative replicated gradient runtime (default)", &
+                                        "Use the force-evaluation MPI communicator", &
+                                        "Use rank-local replicated gradient runtimes"), &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
