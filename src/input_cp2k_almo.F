@@ -513,12 +513,7 @@ CONTAINS
       !     usage="OPT_K_PREC_ITER_START 2",default_i_val=0)
       !CALL section_add_keyword(section,keyword)
       !CALL keyword_release(keyword)
-
-      !CALL keyword_create(keyword, __LOCATION__, name="OPT_K_PREC_ITER_FREQ_UPDATE",&
-      !     description="Frequency for updating the preconditioner",&
-      !     usage="OPT_K_PREC_ITER_FREQ_UPDATE 10",default_i_val=1)
-      !CALL section_add_keyword(section,keyword)
-      !CALL keyword_release(keyword)
+ 
       NULLIFY (subsection)
       CALL create_almo_fragment_section(subsection)
       CALL section_add_subsection(section, subsection)
