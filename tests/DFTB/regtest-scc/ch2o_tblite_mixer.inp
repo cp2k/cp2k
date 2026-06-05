@@ -39,6 +39,11 @@
       EPS_SCF 1.0E-9
       MAX_SCF 500
       SCF_GUESS CORE
+      &MIXING
+        ALPHA 0.4
+        METHOD BROYDEN_MIXING
+        NBUFFER 8
+      &END MIXING
     &END SCF
   &END DFT
   &SUBSYS
