@@ -130,11 +130,6 @@ MODULE xc_gauxc_interface
    USE OMP_LIB, ONLY: &
       omp_get_max_threads, &
       omp_set_num_threads
-#if !defined(__parallel)
-   USE torch_api, ONLY: &
-      torch_get_num_threads, &
-      torch_set_num_threads
-#endif
 #endif
 #ifdef GAUXC_HAS_HDF5
    USE gauxc_external_hdf5_write, ONLY: &
@@ -740,9 +735,6 @@ CONTAINS
       LOGICAL, DIMENSION(5)                              :: ieee_halt
 #endif
       INTEGER                                            :: omp_max_threads_restore
-#if !defined(__parallel)
-      INTEGER                                            :: torch_num_threads_restore
-#endif
 #endif
 
       use_onedft = .FALSE.
@@ -763,14 +755,9 @@ CONTAINS
 #ifndef GAUXC_HAS_ONEDFT
          CPABORT("GauXC lacks OneDFT support")
 #else
-         ! OneDFT may change thread settings for later parallel regions.
-         ! In replicated serial builds, avoid thread-dependent SKALA results.
+         ! OneDFT may change the OpenMP team size for later parallel regions.
+         ! Restore max threads only; omp_get_num_threads() is 1 here.
          omp_max_threads_restore = omp_get_max_threads()
-#if !defined(__parallel)
-         torch_num_threads_restore = torch_get_num_threads()
-         CALL omp_set_num_threads(1)
-         CALL torch_set_num_threads(1)
-#endif
 #if defined (__HAS_IEEE_EXCEPTIONS)
          CALL ieee_get_halting_mode(IEEE_ALL, ieee_halt)
          CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
@@ -809,9 +796,6 @@ CONTAINS
          END IF
 #if defined (__HAS_IEEE_EXCEPTIONS)
          CALL ieee_set_halting_mode(IEEE_ALL, ieee_halt)
-#endif
-#if !defined(__parallel)
-         CALL torch_set_num_threads(torch_num_threads_restore)
 #endif
          CALL omp_set_num_threads(omp_max_threads_restore)
          GAUXC_RETURN_IF_ERROR(status)
@@ -900,9 +884,6 @@ CONTAINS
       LOGICAL, DIMENSION(5)                              :: ieee_halt
 #endif
       INTEGER                                            :: omp_max_threads_restore
-#if !defined(__parallel)
-      INTEGER                                            :: torch_num_threads_restore
-#endif
 #endif
 
       ALLOCATE (res%exc_grad(3*natom))
@@ -919,14 +900,9 @@ CONTAINS
 #ifndef GAUXC_HAS_ONEDFT
          CPABORT("GauXC lacks OneDFT support")
 #else
-         ! OneDFT may change thread settings for later parallel regions.
-         ! In replicated serial builds, avoid thread-dependent SKALA results.
+         ! OneDFT may change the OpenMP team size for later parallel regions.
+         ! Restore max threads only; omp_get_num_threads() is 1 here.
          omp_max_threads_restore = omp_get_max_threads()
-#if !defined(__parallel)
-         torch_num_threads_restore = torch_get_num_threads()
-         CALL omp_set_num_threads(1)
-         CALL torch_set_num_threads(1)
-#endif
 #if defined (__HAS_IEEE_EXCEPTIONS)
          CALL ieee_get_halting_mode(IEEE_ALL, ieee_halt)
          CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
@@ -954,9 +930,6 @@ CONTAINS
          END IF
 #if defined (__HAS_IEEE_EXCEPTIONS)
          CALL ieee_set_halting_mode(IEEE_ALL, ieee_halt)
-#endif
-#if !defined(__parallel)
-         CALL torch_set_num_threads(torch_num_threads_restore)
 #endif
          CALL omp_set_num_threads(omp_max_threads_restore)
          GAUXC_RETURN_IF_ERROR(status)

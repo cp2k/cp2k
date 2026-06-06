@@ -7,7 +7,6 @@
 
 #if defined(__LIBTORCH)
 
-#include <ATen/Parallel.h>
 #include <c10/core/DeviceGuard.h>
 #include <torch/csrc/api/include/torch/cuda.h>
 #include <torch/script.h>
@@ -299,19 +298,6 @@ void torch_c_tensor_to_device_leaf(torch_c_tensor_t **tensor,
  * \brief Select whether Torch wrappers should use CUDA when available.
  ******************************************************************************/
 void torch_c_use_cuda(const bool use_cuda) { use_cuda_if_available = use_cuda; }
-
-/*******************************************************************************
- * \brief Returns the Torch intra-op thread count.
- ******************************************************************************/
-int torch_c_get_num_threads() { return at::get_num_threads(); }
-
-/*******************************************************************************
- * \brief Sets the Torch intra-op thread count.
- ******************************************************************************/
-void torch_c_set_num_threads(const int num_threads) {
-  assert(num_threads > 0);
-  at::set_num_threads(num_threads);
-}
 
 /*******************************************************************************
  * \brief Returns the gradient of a Torch tensor which was computed by autograd.
