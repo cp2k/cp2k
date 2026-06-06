@@ -3144,8 +3144,17 @@ CONTAINS
                                    r_val=efield%strength, explicit=intensity_explicit)
          CALL section_vals_val_get(efield_section, "AMPLITUDE", i_rep_section=i, &
                                    r_val=efield%amplitude, explicit=amplitude_explicit)
+
          IF (intensity_explicit .AND. amplitude_explicit) THEN
             CPABORT("Both INTENSITY and AMPLITUDE provided in EFIELD section.")
+         END IF
+
+         IF (intensity_explicit) THEN
+            efield%amplitude = SQRT(efield%strength/(3.50944_dp*10.0_dp**16))
+         END IF
+
+         IF (amplitude_explicit) THEN
+            efield%strength = (3.50944_dp*10.0_dp**16)*(efield%amplitude)**2
          END IF
 
          CALL section_vals_val_get(efield_section, "POLARISATION", i_rep_section=i, &

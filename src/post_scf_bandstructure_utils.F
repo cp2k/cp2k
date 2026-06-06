@@ -1113,26 +1113,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env, nkind=nkind)
 
-      IF (bs_env%do_dos_pdos) THEN
-
-         ALLOCATE (DOS_scf(n_E))
-         DOS_scf(:) = 0.0_dp
-
-         ALLOCATE (PDOS_scf(n_E, nkind))
-         PDOS_scf(:, :) = 0.0_dp
-
-      END IF
-
-      IF (bs_env%do_soc) THEN
-
-         ALLOCATE (DOS_scf_SOC(n_E))
-         DOS_scf_SOC(:) = 0.0_dp
-
-         ALLOCATE (PDOS_scf_SOC(n_E, nkind))
-         PDOS_scf_SOC(:, :) = 0.0_dp
-
-      END IF
-
       ALLOCATE (proj_mo_on_kind(n_ao, nkind))
       proj_mo_on_kind(:, :) = 0.0_dp
 
@@ -1141,18 +1121,38 @@ CONTAINS
       ALLOCATE (eigenval_spinor_no_SOC(2*n_ao))
       ALLOCATE (eigenval_spinor_G0W0(2*n_ao))
 
-      IF (bs_env%do_gw) THEN
+      IF (bs_env%do_dos_pdos) THEN
 
-         ALLOCATE (DOS_G0W0(n_E))
-         DOS_G0W0(:) = 0.0_dp
-         ALLOCATE (DOS_G0W0_SOC(n_E))
-         DOS_G0W0_SOC(:) = 0.0_dp
+         ALLOCATE (DOS_scf(n_E))
+         DOS_scf(:) = 0.0_dp
+         ALLOCATE (PDOS_scf(n_E, nkind))
+         PDOS_scf(:, :) = 0.0_dp
 
-         ALLOCATE (PDOS_G0W0(n_E, nkind))
-         PDOS_G0W0(:, :) = 0.0_dp
-         ALLOCATE (PDOS_G0W0_SOC(n_E, nkind))
-         PDOS_G0W0_SOC(:, :) = 0.0_dp
+         IF (bs_env%do_soc) THEN
 
+            ALLOCATE (DOS_scf_SOC(n_E))
+            DOS_scf_SOC(:) = 0.0_dp
+            ALLOCATE (PDOS_scf_SOC(n_E, nkind))
+            PDOS_scf_SOC(:, :) = 0.0_dp
+
+         END IF
+
+         IF (bs_env%do_gw) THEN
+
+            ALLOCATE (DOS_G0W0(n_E))
+            DOS_G0W0(:) = 0.0_dp
+            ALLOCATE (PDOS_G0W0(n_E, nkind))
+            PDOS_G0W0(:, :) = 0.0_dp
+
+            IF (bs_env%do_soc) THEN
+
+               ALLOCATE (DOS_G0W0_SOC(n_E))
+               DOS_G0W0_SOC(:) = 0.0_dp
+               ALLOCATE (PDOS_G0W0_SOC(n_E, nkind))
+               PDOS_G0W0_SOC(:, :) = 0.0_dp
+
+            END IF
+         END IF
       END IF
 
       CALL cp_cfm_create(cfm_mos_ikp(1), bs_env%fm_ks_Gamma(1)%matrix_struct)
@@ -1247,11 +1247,11 @@ CONTAINS
             IF (bs_env%do_dos_pdos) THEN
                CALL add_to_DOS_PDOS(DOS_scf, PDOS_scf, eigenval, ikp, bs_env, n_E, E_min, &
                                     proj_mo_on_kind)
-            END IF
 
-            IF (bs_env%do_gw) THEN
-               CALL add_to_DOS_PDOS(DOS_G0W0, PDOS_G0W0, bs_env%eigenval_G0W0(:, ikp, ispin), &
-                                    ikp, bs_env, n_E, E_min, proj_mo_on_kind)
+               IF (bs_env%do_gw) THEN
+                  CALL add_to_DOS_PDOS(DOS_G0W0, PDOS_G0W0, bs_env%eigenval_G0W0(:, ikp, ispin), &
+                                       ikp, bs_env, n_E, E_min, proj_mo_on_kind)
+               END IF
             END IF
 
             IF (bs_env%do_ldos) THEN
@@ -1348,8 +1348,10 @@ CONTAINS
 
       IF (bs_env%do_soc) THEN
          CALL write_band_edges(band_edges_scf_SOC, "SCF+SOC", bs_env)
-         CALL write_dos_pdos(DOS_scf_SOC, PDOS_scf_SOC, bs_env, qs_env, "SCF_SOC", &
-                             E_min, band_edges_scf_SOC%VBM)
+         IF (bs_env%do_dos_pdos) THEN
+            CALL write_dos_pdos(DOS_scf_SOC, PDOS_scf_SOC, bs_env, qs_env, "SCF_SOC", &
+                                E_min, band_edges_scf_SOC%VBM)
+         END IF
          IF (bs_env%do_ldos) THEN
             ! argument band_edges_scf is actually correct because the non-SOC band edges
             ! have been used as reference in add_to_LDOS_2d
@@ -1361,8 +1363,10 @@ CONTAINS
       IF (bs_env%do_gw) THEN
          CALL write_band_edges(band_edges_G0W0, "G0W0", bs_env)
          CALL write_band_edges(bs_env%band_edges_HF, "Hartree-Fock with SCF orbitals", bs_env)
-         CALL write_dos_pdos(DOS_G0W0, PDOS_G0W0, bs_env, qs_env, "G0W0", E_min, &
-                             band_edges_G0W0%VBM)
+         IF (bs_env%do_dos_pdos) THEN
+            CALL write_dos_pdos(DOS_G0W0, PDOS_G0W0, bs_env, qs_env, "G0W0", E_min, &
+                                band_edges_G0W0%VBM)
+         END IF
          IF (bs_env%do_ldos) THEN
             CALL print_LDOS_main(LDOS_G0W0_2d, bs_env, band_edges_G0W0, "G0W0")
          END IF
@@ -1370,8 +1374,10 @@ CONTAINS
 
       IF (bs_env%do_soc .AND. bs_env%do_gw) THEN
          CALL write_band_edges(band_edges_G0W0_SOC, "G0W0+SOC", bs_env)
-         CALL write_dos_pdos(DOS_G0W0_SOC, PDOS_G0W0_SOC, bs_env, qs_env, "G0W0_SOC", E_min, &
-                             band_edges_G0W0_SOC%VBM)
+         IF (bs_env%do_dos_pdos) THEN
+            CALL write_dos_pdos(DOS_G0W0_SOC, PDOS_G0W0_SOC, bs_env, qs_env, "G0W0_SOC", E_min, &
+                                band_edges_G0W0_SOC%VBM)
+         END IF
       END IF
 
       CALL cp_cfm_release(cfm_s_ikp)
@@ -1664,6 +1670,7 @@ CONTAINS
       homo_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
       n_E = SIZE(DOS)
       nkind = SIZE(PDOS, 2)
+      CALL get_qs_env(qs_env, nkind=nkind)
 
       CALL cp_cfm_create(cfm_ks_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
       CALL cp_cfm_create(cfm_SOC_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
@@ -1731,8 +1738,10 @@ CONTAINS
       CALL cp_cfm_heevd(cfm_ks_ikp_spinor, cfm_eigenvec_ikp_spinor, eigenval_spinor)
 
       ! 6. DOS from spinors, no PDOS
-      CALL add_to_DOS_PDOS(DOS, PDOS, eigenval_spinor, &
-                           ikp, bs_env, n_E, E_min, proj_mo_on_kind_spinor)
+      IF (bs_env%do_dos_pdos) THEN
+         CALL add_to_DOS_PDOS(DOS, PDOS, eigenval_spinor, &
+                              ikp, bs_env, n_E, E_min, proj_mo_on_kind_spinor)
+      END IF
 
       ! 7. valence band max. (VBM), conduction band min. (CBM) and direct bandgap (DBG)
       band_edges%VBM = MAX(band_edges%VBM, eigenval_spinor(homo_spinor))
