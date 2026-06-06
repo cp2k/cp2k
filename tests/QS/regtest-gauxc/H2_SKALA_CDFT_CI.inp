@@ -81,13 +81,14 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-5
-      MAX_SCF 40
+      IGNORE_CONVERGENCE_FAILURE T
+      MAX_SCF 1
       SCF_GUESS ATOMIC
       &DIAGONALIZATION
       &END DIAGONALIZATION
       &OUTER_SCF
         EPS_SCF 1.0E-5
-        MAX_SCF 2
+        MAX_SCF 1
       &END OUTER_SCF
     &END SCF
     &XC
@@ -143,13 +144,14 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-5
-      MAX_SCF 40
+      IGNORE_CONVERGENCE_FAILURE T
+      MAX_SCF 1
       SCF_GUESS ATOMIC
       &DIAGONALIZATION
       &END DIAGONALIZATION
       &OUTER_SCF
         EPS_SCF 1.0E-5
-        MAX_SCF 2
+        MAX_SCF 1
       &END OUTER_SCF
     &END SCF
     &XC
