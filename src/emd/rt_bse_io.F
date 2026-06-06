@@ -420,7 +420,7 @@ CONTAINS
          CALL cp_cfm_to_fm(msource=rho(j), mtargetr=ws(2))
          DO i = 1, 3
             ! Moments should be symmetric, test without transopose?
-            CALL cp_fm_transpose(rtbse_env%moments(i), ws(1))
+            CALL cp_fm_transpose(rtbse_env%moments(i, j), ws(1))
             CALL cp_fm_trace(ws(1), ws(2), moments_re(i))
             ! Scale by spin degeneracy and electron charge
             moments_re(i) = -moments_re(i)*rtbse_env%spin_degeneracy
@@ -429,7 +429,7 @@ CONTAINS
          ! Same for imaginary part
          CALL cp_cfm_to_fm(msource=rho(j), mtargeti=ws(2))
          DO i = 1, 3
-            CALL cp_fm_transpose(rtbse_env%moments(i), ws(1))
+            CALL cp_fm_transpose(rtbse_env%moments(i, j), ws(1))
             CALL cp_fm_trace(ws(1), ws(2), moments_re(i))
             ! Scale by spin degeneracy and electron charge
             moments_re(i) = -moments_re(i)*rtbse_env%spin_degeneracy

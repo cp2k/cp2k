@@ -672,7 +672,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'initialize_moments'
 
-      INTEGER                                            :: handle, k
+      INTEGER                                            :: handle, i_spin, k
       REAL(kind=dp), DIMENSION(3)                        :: rpoint
       TYPE(cp_fm_type)                                   :: tmp_ao
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments_dbcsr_p
@@ -706,7 +706,9 @@ CONTAINS
       ! Copy to AO scratch then transform to MO-active
       DO k = 1, 3
          CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, tmp_ao)
-         CALL transform_ao_to_mo_covariant_fm(rtbse_env, tmp_ao, rtbse_env%moments(k), 1)
+         DO i_spin = 1, rtbse_env%n_spin
+            CALL transform_ao_to_mo_covariant_fm(rtbse_env, tmp_ao, rtbse_env%moments(k, i_spin), i_spin)
+         END DO
       END DO
       ! MG to do: remove moments_field; only needed for TDDFT comparison
       ! Now, repeat without reference point to get the moments for field
@@ -715,7 +717,9 @@ CONTAINS
       CALL build_local_moment_matrix(rtbse_env%qs_env, moments_dbcsr_p, 1, rpoint)
       DO k = 1, 3
          CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, tmp_ao)
-         CALL transform_ao_to_mo_covariant_fm(rtbse_env, tmp_ao, rtbse_env%moments_field(k), 1)
+         DO i_spin = 1, rtbse_env%n_spin
+            CALL transform_ao_to_mo_covariant_fm(rtbse_env, tmp_ao, rtbse_env%moments_field(k, i_spin), i_spin)
+         END DO
       END DO
 
       ! Now can deallocate dbcsr matrices
@@ -2616,23 +2620,19 @@ CONTAINS
       kvec(:) = rtbse_env%dft_control%rtp_control%delta_pulse_direction(:)
       IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A38,E14.4E3,E14.4E3,E14.4E3)') &
          " RTBSE| Delta pulse elements (a.u.) : ", intensity*kvec(:)
-      ! So far no spin dependence, but can be added by different structure of delta pulse
-      CALL cp_fm_set_all(rtbse_env%real_workspace_mo(1), 0.0_dp)
-      DO k = 1, 3
-         CALL cp_fm_scale_and_add(1.0_dp, rtbse_env%real_workspace_mo(1), &
-                                  kvec(k), rtbse_env%moments_field(k))
-      END DO
-      ! enforce hermiticity of the effective Hamiltonian
-      CALL cp_fm_transpose(rtbse_env%real_workspace_mo(1), rtbse_env%real_workspace_mo(2))
-      CALL cp_fm_scale_and_add(0.5_dp, rtbse_env%real_workspace_mo(1), &
-                               0.5_dp, rtbse_env%real_workspace_mo(2))
-      ! Prepare the exponential/exponent for propagation
-      ! MG: For now only use BCH, where Overlap matrix can easily be removed
-      ! multiply by intensity
-      ! MG to do: linearize delta pulse
-      CALL cp_fm_scale(intensity, rtbse_env%real_workspace_mo(1))
+      ! Per-spin kick: each spin uses its own MO-active dipole operator (C_active(i_spin) basis)
       DO i = 1, rtbse_env%n_spin
-         ! Sets real part to zero
+         CALL cp_fm_set_all(rtbse_env%real_workspace_mo(1), 0.0_dp)
+         DO k = 1, 3
+            CALL cp_fm_scale_and_add(1.0_dp, rtbse_env%real_workspace_mo(1), &
+                                     kvec(k), rtbse_env%moments_field(k, i))
+         END DO
+         ! enforce hermiticity of the effective Hamiltonian
+         CALL cp_fm_transpose(rtbse_env%real_workspace_mo(1), rtbse_env%real_workspace_mo(2))
+         CALL cp_fm_scale_and_add(0.5_dp, rtbse_env%real_workspace_mo(1), &
+                                  0.5_dp, rtbse_env%real_workspace_mo(2))
+         ! multiply by intensity, set as the imaginary exponent for this spin
+         CALL cp_fm_scale(intensity, rtbse_env%real_workspace_mo(1))
          CALL cp_fm_to_cfm(msourcei=rtbse_env%real_workspace_mo(1), mtarget=rtbse_env%ham_workspace(i))
       END DO
       ! Propagate the density by the effect of the delta pulse

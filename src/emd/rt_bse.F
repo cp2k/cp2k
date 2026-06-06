@@ -338,16 +338,20 @@ CONTAINS
                                reference=rtbse_env%moment_ref_type, ref_point=rtbse_env%user_moment_ref_point)
       CALL build_local_moment_matrix(rtbse_env%qs_env, moments_dbcsr_p, 1, rpoint)
       ! Copy to full matrix
-      DO k = 1, 3
-         ! Again, matrices are created from overlap template
-         CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, rtbse_env%moments(k))
+      DO i = 1, rtbse_env%n_spin
+         DO k = 1, 3
+            ! AO dipole is spin-independent; replicate into each spin slot
+            CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, rtbse_env%moments(k, i))
+         END DO
       END DO
       ! Now, repeat without reference point to get the moments for field
       CALL get_reference_point(rpoint, qs_env=rtbse_env%qs_env, &
                                reference=use_mom_ref_zero)
       CALL build_local_moment_matrix(rtbse_env%qs_env, moments_dbcsr_p, 1, rpoint)
-      DO k = 1, 3
-         CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, rtbse_env%moments_field(k))
+      DO i = 1, rtbse_env%n_spin
+         DO k = 1, 3
+            CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, rtbse_env%moments_field(k, i))
+         END DO
       END DO
 
       ! Now can deallocate dbcsr matrices
@@ -567,7 +571,7 @@ CONTAINS
       CALL cp_fm_set_all(rtbse_env%real_workspace(1), 0.0_dp)
       DO k = 1, 3
          CALL cp_fm_scale_and_add(1.0_dp, rtbse_env%real_workspace(1), &
-                                  kvec(k), rtbse_env%moments_field(k))
+                                  kvec(k), rtbse_env%moments_field(k, 1))
       END DO
       ! enforce hermiticity of the effective Hamiltonian
       CALL cp_fm_transpose(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2))
@@ -739,7 +743,7 @@ CONTAINS
       DO j = 1, nspin
          DO k = 1, 3
             ! Minus sign due to charge of electrons
-            CALL cp_fm_to_cfm(msourcer=rtbse_env%moments_field(k), mtarget=rtbse_env%ham_workspace(1))
+            CALL cp_fm_to_cfm(msourcer=rtbse_env%moments_field(k, 1), mtarget=rtbse_env%ham_workspace(1))
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_effective(j), &
                                       CMPLX(rtbse_env%field(k), 0.0, kind=dp), rtbse_env%ham_workspace(1))
          END DO

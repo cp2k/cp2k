@@ -92,8 +92,8 @@ MODULE rt_bse_types
 !> \param n_occ Number of occupied orbitals, spin dependent
 !> \param spin_degeneracy Number of electrons per orbital
 !> \param field Electric field calculated at the given timestep
-!> \param moments Moment operators along cartesian directions - centered at zero charge - used for plotting
-!> \param moments_field Moment operators along cartesian directions - used to coupling to the field -
+!> \param moments Moment operators (2nd index = spin) along cartesian directions - centered at zero charge - used for plotting
+!> \param moments_field Moment operators (2nd index = spin) along cartesian directions - used to coupling to the field -
 !>                origin bound to unit cell
 !> \param sim_step Current step of the simulation
 !> \param sim_start Starting step of the simulation
@@ -212,7 +212,7 @@ MODULE rt_bse_types
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: ao_mo_workspace => NULL()
       REAL(kind=dp)                                             :: spin_degeneracy = 2
       REAL(kind=dp), DIMENSION(3)                               :: field = 0.0_dp
-      TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: moments => NULL(), &
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER                :: moments => NULL(), &
                                                                    moments_field => NULL()
       INTEGER                                                   :: sim_step = 0, &
                                                                    sim_start = 0, &
@@ -372,7 +372,7 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                               :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: matrix_s
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
-      INTEGER                                                   :: i, k, n_ov
+      INTEGER                                                   :: i, k, n_ov, i_spin
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
       TYPE(cp_fm_struct_type), POINTER                          :: mo_struct => NULL()
       LOGICAL :: explicit_rirs_hartree, explicit_rirs_sex
@@ -571,12 +571,14 @@ CONTAINS
       ! In linearized RT-BSE these store the MO-active transformed dipole moments;
       ! in full RT-BSE they remain AO-sized (initialized from overlap template).
       NULLIFY (rtbse_env%moments)
-      ALLOCATE (rtbse_env%moments(3))
+      ALLOCATE (rtbse_env%moments(3, rtbse_env%n_spin))
       NULLIFY (rtbse_env%moments_field)
-      ALLOCATE (rtbse_env%moments_field(3))
-      DO k = 1, 3
-         CALL cp_fm_create(rtbse_env%moments(k), mo_struct)
-         CALL cp_fm_create(rtbse_env%moments_field(k), mo_struct)
+      ALLOCATE (rtbse_env%moments_field(3, rtbse_env%n_spin))
+      DO i_spin = 1, rtbse_env%n_spin
+         DO k = 1, 3
+            CALL cp_fm_create(rtbse_env%moments(k, i_spin), mo_struct)
+            CALL cp_fm_create(rtbse_env%moments_field(k, i_spin), mo_struct)
+         END DO
       END DO
 
       ! Allocate space for density propagation and other operations.
