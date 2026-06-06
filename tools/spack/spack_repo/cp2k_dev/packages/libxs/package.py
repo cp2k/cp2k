@@ -27,14 +27,14 @@ class Libxs(CMakePackage):
     version("main", branch="main")
     version("20260605", commit="ab416130f8c9f7edb8c1bf3d3abaf402f61d0fe0")
 
-    variant("fortran", default=True, description="Build Fortran module interface")
+    variant("fortran", default=False, description="Build Fortran module interface")
     variant("pic", default=True, description="Build position independent code")
-    variant("shared", default=True, description="Build shared libraries (otherwise static)")
+    variant("shared", default=False, description="Build shared libraries (otherwise static)")
 
     depends_on("cmake@3.13:", type="build")
     depends_on("c", type="build")
     depends_on("cxx", type="build")
-    depends_on("fortran", type="build")
+    depends_on("fortran", type="build", when="+fortran")
 
     depends_on("libxsmm")
 

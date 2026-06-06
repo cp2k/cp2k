@@ -50,6 +50,10 @@ spack:
       require:
         - openblas
 
+    libxs:
+      require:
+        - "+fortran"
+
     libxsmm:
       require:
         - "blas=default"

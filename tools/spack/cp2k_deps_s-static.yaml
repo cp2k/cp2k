@@ -44,6 +44,11 @@ spack:
       require:
         - openblas
 
+    libxs:
+      require:
+        - "+fortran"
+        - "~shared"
+
     libxsmm:
       require:
         - "blas=default"
