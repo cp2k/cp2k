@@ -650,14 +650,10 @@ CONTAINS
                IF (gapw_xc) THEN
                   CPABORT(native_skala_gapw_xc_msg)
                END IF
-               IF (ASSOCIATED(rho_nlcc)) THEN
-                  CALL cp_abort(__LOCATION__, &
-                                "Native SKALA grid evaluation with NLCC pseudopotentials is not implemented. "// &
-                                "The frozen core density would need a SKALA-consistent feature definition.")
-               END IF
                IF (gapw) THEN
                   DO ikind = 1, SIZE(qs_kind_set)
-                     IF (qs_kind_set(ikind)%paw_atom .AND. &
+                     IF (qs_kind_set(ikind)%paw_atom .AND. .NOT. &
+                         qs_kind_set(ikind)%gpw_type_forced .AND. &
                          (ASSOCIATED(qs_kind_set(ikind)%gth_potential) .OR. &
                           ASSOCIATED(qs_kind_set(ikind)%sgp_potential))) THEN
                         CALL cp_abort(__LOCATION__, &
