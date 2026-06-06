@@ -59,7 +59,7 @@
       EPS_DEFAULT 1.0E-8
       EXTRAPOLATION USE_PREV_WF
       &CDFT
-        STRENGTH -0.110488603068
+        STRENGTH -0.058519779875
         TARGET 0.2
         TYPE_OF_CONSTRAINT BECKE
         &ATOM_GROUP
@@ -73,7 +73,7 @@
         &END BECKE_CONSTRAINT
         &OUTER_SCF
           EPS_SCF 5.0E-3
-          MAX_SCF 10
+          MAX_SCF 1
           OPTIMIZER DIIS
           TYPE CDFT_CONSTRAINT
         &END OUTER_SCF
@@ -121,7 +121,7 @@
       EPS_DEFAULT 1.0E-8
       EXTRAPOLATION USE_PREV_WF
       &CDFT
-        STRENGTH 0.110488603068
+        STRENGTH 0.058519779627
         TARGET -0.2
         TYPE_OF_CONSTRAINT BECKE
         &ATOM_GROUP
@@ -135,7 +135,7 @@
         &END BECKE_CONSTRAINT
         &OUTER_SCF
           EPS_SCF 5.0E-3
-          MAX_SCF 10
+          MAX_SCF 1
           OPTIMIZER DIIS
           TYPE CDFT_CONSTRAINT
         &END OUTER_SCF
