@@ -28,6 +28,7 @@ class Libxsmm(MakefilePackage):
     # after 2.0 release.
     version("main-2023-11", commit="0d9be905527ba575c14ca5d3b4c9673916c868b2")
     version("main", branch="main")
+    version("20260526-cp2k", commit="0cea22fdc34ec54bc59ffb47a43cb3e28b26d3e0")
     version("1.17-cp2k", commit="e0c4a2389afba36c453233ad7de07bd92c715bec")
     version(
         "1.17",
