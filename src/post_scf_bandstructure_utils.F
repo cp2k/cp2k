@@ -1668,8 +1668,6 @@ CONTAINS
 
       n_ao = bs_env%n_ao
       homo_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
-      n_E = SIZE(DOS)
-      nkind = SIZE(PDOS, 2)
       CALL get_qs_env(qs_env, nkind=nkind)
 
       CALL cp_cfm_create(cfm_ks_ikp_spinor, bs_env%cfm_SOC_spinor_ao(1)%matrix_struct)
@@ -1739,6 +1737,7 @@ CONTAINS
 
       ! 6. DOS from spinors, no PDOS
       IF (bs_env%do_dos_pdos) THEN
+         n_E = SIZE(DOS)
          CALL add_to_DOS_PDOS(DOS, PDOS, eigenval_spinor, &
                               ikp, bs_env, n_E, E_min, proj_mo_on_kind_spinor)
       END IF
