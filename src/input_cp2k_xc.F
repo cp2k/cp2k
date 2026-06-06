@@ -1542,13 +1542,13 @@ CONTAINS
                           description="MPI communicator policy for GauXC OneDFT/SKALA nuclear gradients. "// &
                           "AUTO keeps the conservative rank-local gradient runtime when energy/VXC uses "// &
                           "the MPI communicator. MPI uses the force-evaluation communicator for gradients "// &
-                          "and can distribute OneDFT/SKALA Torch gradient work across MPI ranks. SELF "// &
-                          "forces rank-local replicated gradient runtimes.", &
+                          "and requires GauXC support for distributed OneDFT/SKALA gradients. SELF forces "// &
+                          "rank-local replicated gradient runtimes.", &
                           usage="ONEDFT_GRADIENT_RUNTIME AUTO", &
                           enum_c_vals=s2a("AUTO", "MPI", "SELF"), &
                           enum_i_vals=[1, 2, 3], &
                           enum_desc=s2a("Conservative replicated gradient runtime (default)", &
-                                        "Use the force-evaluation MPI communicator", &
+                                        "Use the force-evaluation MPI communicator when supported", &
                                         "Use rank-local replicated gradient runtimes"), &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
