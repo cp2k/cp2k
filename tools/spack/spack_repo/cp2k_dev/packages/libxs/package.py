@@ -14,7 +14,7 @@ class Libxs(CMakePackage):
     requires only a C89 compiler. Originally developed as part of LIBXSMM.
     """
 
-    maintainers("hfp", "mkrack")
+    maintainers("hfp", "mkrack", "mtaillefumier")
 
     homepage = "hhttps://libxs.readthedocs.io/en/latest"
     url = (
