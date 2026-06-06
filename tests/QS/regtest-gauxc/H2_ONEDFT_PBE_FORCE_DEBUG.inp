@@ -43,6 +43,7 @@
         &GAUXC
           GRID FINE
           MODEL PBE
+          ONEDFT_GRADIENT_RUNTIME MPI
           PERIODIC_REFERENCE T
           PRUNING_SCHEME ROBUST
         &END GAUXC

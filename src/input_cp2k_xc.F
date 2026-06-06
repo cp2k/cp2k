@@ -1304,7 +1304,7 @@ CONTAINS
                           "The current CP2K bridge uses GauXC's molecular quadrature. Periodic inputs "// &
                           "are limited to isolated validation cells and are not compact periodic "// &
                           "material calculations.", &
-                          n_keywords=20, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=25, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1513,6 +1513,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="LWD_KERNEL", &
+                          description="Local work driver kernel used by the GauXC integrator. "// &
+                          "DEFAULT uses GauXC's default for the selected execution space. "// &
+                          "Device builds with CUTLASS support can use SCHEME1-CUTLASS to run "// &
+                          "the grouped local potential update through CUTLASS.", &
+                          usage="LWD_KERNEL DEFAULT", &
+                          default_c_val="DEFAULT")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="SKALA_RUNTIME", &
                           description="MPI communicator policy for GauXC OneDFT/SKALA. AUTO uses "// &
                           "the force-evaluation communicator for closed-shell calculations and a "// &
@@ -1524,6 +1534,22 @@ CONTAINS
                           enum_desc=s2a("Closed-shell MPI, open-shell replicated (default)", &
                                         "Use the force-evaluation MPI communicator", &
                                         "Use rank-local replicated GauXC runtimes"), &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ONEDFT_GRADIENT_RUNTIME", &
+                          description="MPI communicator policy for GauXC OneDFT/SKALA nuclear gradients. "// &
+                          "AUTO keeps the conservative rank-local gradient runtime when energy/VXC uses "// &
+                          "the MPI communicator. MPI uses the force-evaluation communicator for gradients "// &
+                          "and can distribute OneDFT/SKALA Torch gradient work across MPI ranks. SELF "// &
+                          "forces rank-local replicated gradient runtimes.", &
+                          usage="ONEDFT_GRADIENT_RUNTIME AUTO", &
+                          enum_c_vals=s2a("AUTO", "MPI", "SELF"), &
+                          enum_i_vals=[1, 2, 3], &
+                          enum_desc=s2a("Conservative replicated gradient runtime (default)", &
+                                        "Use the force-evaluation MPI communicator", &
+                                        "Use rank-local replicated gradient runtimes"), &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
