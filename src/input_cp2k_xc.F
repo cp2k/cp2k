@@ -1426,10 +1426,11 @@ CONTAINS
                           "should not preload CPU-only Torch libraries such as libtorch_cpu.so. "// &
                           "MPI runs collect a global atom-partitioned feature block by default; "// &
                           "NATIVE_GRID_ATOM_CHUNKS can split the Torch evaluation by atom block. "// &
-                          "Analytical stress is supported for the regular-grid path. "// &
+                          "Analytical stress is supported for the regular-grid path. NLCC "// &
+                          "pseudopotentials use CP2K's standard frozen-core density contribution "// &
+                          "on the XC grid. "// &
                           "METHOD GAPW_XC, PAW/one-center GAPW+GTH/ECP, ROKS, ADMM, "// &
-                          "NLCC pseudopotentials, and non-k-point multiple-image "// &
-                          "calculations are not implemented.", &
+                          "and non-k-point multiple-image calculations are not implemented.", &
                           usage="NATIVE_GRID T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)

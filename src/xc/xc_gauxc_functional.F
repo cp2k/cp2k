@@ -386,7 +386,7 @@ CONTAINS
       LOGICAL                                            :: has_paw_pseudopotentials
 
       INTEGER                                            :: ikind
-      LOGICAL                                            :: paw_atom
+      LOGICAL                                            :: gpw_type_forced, paw_atom
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
@@ -397,9 +397,11 @@ CONTAINS
          NULLIFY (gth_potential, sgp_potential)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           gth_potential=gth_potential, &
+                          gpw_type_forced=gpw_type_forced, &
                           paw_atom=paw_atom, &
                           sgp_potential=sgp_potential)
-         IF ((ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. paw_atom) THEN
+         IF ((ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. &
+             paw_atom .AND. .NOT. gpw_type_forced) THEN
             has_paw_pseudopotentials = .TRUE.
             EXIT
          END IF

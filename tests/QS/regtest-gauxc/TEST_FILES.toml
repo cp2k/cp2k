@@ -8,6 +8,9 @@
 "H2_NATIVE_SKALA_GPW_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.963819771363320},
                                     {matcher="M072", tol=1e-5, ref=3.03110658E-04},
                                     {matcher="M031", tol=1e-5, ref=-1.67988358588E+05}]
+"H2O_NATIVE_SKALA_GPW_NLCC_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-18.116097365992886},
+                                          {matcher="M072", tol=1e-5, ref=1.70927481E-02},
+                                          {matcher="M031", tol=1e-5, ref=-6.29395423311E+04}]
 "H2_NATIVE_SKALA_GAPW_AE_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.967785239290550},
                                         {matcher="M072", tol=1e-5, ref=9.50003206E-04},
                                         {matcher="M031", tol=1e-5, ref=-9.13910039743E+04}]
