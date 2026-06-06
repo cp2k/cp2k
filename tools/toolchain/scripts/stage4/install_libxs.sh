@@ -89,6 +89,7 @@ if [ "$with_libxs" != "__DONTUSE__" ]; then
   LIBXS_LIBS="-lxs -ldl -lpthread"
   cat << EOF > "${BUILDDIR}/setup_libxs"
 export LIBXS_VER="${libxs_ver}"
+export LIBXSROOT="${pkg_install_dir}"
 EOF
   if [ "$with_libxs" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_libxs"

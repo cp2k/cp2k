@@ -48,10 +48,20 @@ case "$with_libxstream" in
 
       echo "Installing from scratch into ${pkg_install_dir}"
       cd libxstream-${libxstream_ver}
-      # Determine LIBXS install location
-      local libxs_prefix="${INSTALLDIR}/libxs-${LIBXS_VER:-${libxs_ver:-unknown}}"
-      if [ -z "${LIBXSROOT}" ] && [ -d "${libxs_prefix}" ]; then
+      # Determine LIBXS install location.
+      libxs_prefix="${LIBXSROOT:-}"
+      if [ -z "${libxs_prefix}" ] && command -v pkg-config > /dev/null 2>&1 && pkg-config --exists libxs; then
+        libxs_prefix="$(pkg-config --variable=prefix libxs)"
+      fi
+      if [ -z "${libxs_prefix}" ] && [ -d "${INSTALLDIR}/libxs-${LIBXS_VER:-${libxs_ver:-unknown}}" ]; then
+        libxs_prefix="${INSTALLDIR}/libxs-${LIBXS_VER:-${libxs_ver:-unknown}}"
+      fi
+      if [ -z "${LIBXSROOT}" ] && [ -n "${libxs_prefix}" ]; then
         LIBXSROOT="${libxs_prefix}"
+      fi
+      if [ -z "${LIBXSROOT}" ]; then
+        report_error $LINENO "LIBXSTREAM requires LIBXSROOT. Install LIBXS first or set LIBXSROOT."
+        exit 1
       fi
       make -j $(get_nprocs) \
         CXX=$CXX \
@@ -99,6 +109,7 @@ if [ "$with_libxstream" != "__DONTUSE__" ]; then
   LIBXSTREAM_LIBS="-lxstream"
   cat << EOF > "${BUILDDIR}/setup_libxstream"
 export LIBXSTREAM_VER="${libxstream_ver}"
+export LIBXSTREAMROOT="${pkg_install_dir}"
 EOF
   if [ "$with_libxstream" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_libxstream"

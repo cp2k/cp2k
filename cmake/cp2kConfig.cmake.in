@@ -43,6 +43,12 @@ if(NOT TARGET cp2k::cp2k)
     find_dependency(LIBXS REQUIRED)
   endif()
 
+  if(@CP2K_USE_OPENCL@)
+    set(CP2K_USE_OPENCL @CP2K_USE_OPENCL@)
+    find_dependency(OpenCL REQUIRED)
+    find_dependency(LIBXSTREAM REQUIRED)
+  endif()
+
   if(@CP2K_USE_HIP@)
     set(CP2K_USE_HIP @CP2K_USE_HIP@)
     # Find HIP
