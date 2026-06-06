@@ -526,6 +526,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION auto_atom_chunk_max_rows(features, group) RESULT(max_rows)
       TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
+
       CLASS(mp_comm_type), INTENT(IN)                    :: group
       INTEGER                                            :: max_rows
 
