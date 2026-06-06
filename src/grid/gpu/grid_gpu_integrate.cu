@@ -59,15 +59,14 @@ __global__ __launch_bounds__(64) void compute_hab_v4(const kernel_params dev_) {
   // Copy task from global to shared memory and precompute some stuff.
   extern __shared__ T shared_memory[];
   // T *smem_cab = &shared_memory[dev_.smem_cab_offset];
-  const int number_of_tasks = dev_.num_tasks_per_block_dev[blockIdx.x];
+  const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
 
   if (number_of_tasks == 0)
     return;
 
   T *smem_alpha = &shared_memory[0];
-  const int tid =
-      threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
-  const int offset = dev_.sorted_blocks_offset_dev[blockIdx.x];
+  const int tid = thread_global_index();
+  const int offset = dev_.sorted_blocks_offset_dev[block_index()];
   T *smem_cab = allocate_workspace<T>(dev_);
 
   for (int tk = 0; tk < number_of_tasks; tk++) {
@@ -114,15 +113,14 @@ template <typename T, typename T3, bool COMPUTE_TAU, bool CALCULATE_FORCES>
 __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
   // Copy task from global to shared memory and precompute some stuff.
   extern __shared__ T shared_memory[];
-  const int number_of_tasks = dev_.num_tasks_per_block_dev[blockIdx.x];
+  const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
 
   if (number_of_tasks == 0)
     return;
 
   T *smem_alpha = &shared_memory[0];
-  const int tid =
-      threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
-  const int offset = dev_.sorted_blocks_offset_dev[blockIdx.x];
+  const int tid = thread_global_index();
+  const int offset = dev_.sorted_blocks_offset_dev[block_index()];
 
   T fa[3], fb[3];
   T virial[9];
@@ -153,7 +151,6 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
     fill_smem_task_coef(dev_, task_id, task);
 
     T *coef_ = &dev_.ptr_dev[2][dev_.tasks[task_id].coef_offset];
-
     compute_alpha(task, smem_alpha);
     __syncthreads();
     cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
@@ -296,15 +293,14 @@ So most of the code is the same except the core of the routine that is
 specialized to the integration.
 
 ******************************************************************************/
-template <typename T, typename T3, bool distributed__, bool orthorhombic_,
+template <typename T, typename T3, bool distributed__, bool orthogonal_,
           int lbatch = 10>
 __global__
 __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
-  if (dev_.tasks[dev_.first_task + blockIdx.x].skip_task)
+  if (dev_.tasks[dev_.first_task + block_index()].skip_task)
     return;
 
-  const int tid =
-      threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
+  const int tid = thread_global_index();
 
   __shared__ T dh_inv_[9];
   __shared__ T dh_[9];
@@ -316,19 +312,19 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
     dh_[d] = dev_.dh_[d];
 
   __shared__ smem_task_reduced<T, T3> task;
-  fill_smem_task_reduced(dev_, dev_.first_task + blockIdx.x, task);
+  fill_smem_task_reduced(dev_, dev_.first_task + block_index(), task);
 
   if (tid == 0) {
-    task.cube_center.z += task.lb_cube.z - dev_.grid_lower_corner_[0];
-    task.cube_center.y += task.lb_cube.y - dev_.grid_lower_corner_[1];
-    task.cube_center.x += task.lb_cube.x - dev_.grid_lower_corner_[2];
+    task.cube_center.x += task.lb_cube.x - dev_.grid_lower_corner_.y;
+    task.cube_center.y += task.lb_cube.y - dev_.grid_lower_corner_.y;
+    task.cube_center.z += task.lb_cube.z - dev_.grid_lower_corner_.z;
 
     if (distributed__) {
       if (task.apply_border_mask) {
         compute_window_size(
             dev_.grid_local_size_,
-            dev_.tasks[dev_.first_task + blockIdx.x].border_mask,
-            dev_.grid_border_width_, &task.window_size, &task.window_shift);
+            dev_.tasks[dev_.first_task + block_index()].border_mask,
+            dev_.grid_border_width_, task.window_size, task.window_shift);
       }
     }
   }
@@ -351,10 +347,10 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
     __syncthreads();
 
     for (int z = threadIdx.z; z < task.cube_size.z; z += blockDim.z) {
-      int z2 = (z + task.cube_center.z) % dev_.grid_full_size_[0];
+      int z2 = (z + task.cube_center.z) % dev_.grid_full_size_.z;
 
       if (z2 < 0)
-        z2 += dev_.grid_full_size_[0];
+        z2 += dev_.grid_full_size_.z;
 
       if (distributed__) {
         // known at compile time. Will be stripped away
@@ -371,25 +367,15 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
       int ymax = task.cube_size.y - 1;
       T kremain = 0.0;
 
-      if (orthorhombic_ && !task.apply_border_mask) {
-        ymin = (2 * (z + task.lb_cube.z) - 1) / 2;
-        ymin *= ymin;
-        kremain =
-            task.discrete_radius * task.discrete_radius -
-            ((T)ymin) * (dh_[6] * dh_[6] + dh_[7] * dh_[7] + dh_[8] * dh_[8]);
-        ymin = ceil(-1.0e-8 -
-                    sqrt(fmax(0.0, kremain)) *
-                        sqrt(dh_inv_[3] * dh_inv_[3] + dh_inv_[4] * dh_inv_[4] +
-                             dh_inv_[5] * dh_inv_[5]));
-        ymax = 1 - ymin - task.lb_cube.y;
-        ymin = ymin - task.lb_cube.y;
+      if (orthogonal_ && !task.apply_border_mask) {
+        kremain = calculate_ymix_ymax_boundaries(task, z, ymin, ymax);
       }
 
       for (int y = ymin + threadIdx.y; y <= ymax; y += blockDim.y) {
-        int y2 = (y + task.cube_center.y) % dev_.grid_full_size_[1];
+        int y2 = (y + task.cube_center.y) % dev_.grid_full_size_.y;
 
         if (y2 < 0)
-          y2 += dev_.grid_full_size_[1];
+          y2 += dev_.grid_full_size_.y;
 
         if (distributed__) {
           /* check if the point is within the window */
@@ -403,25 +389,15 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
         int xmin = 0;
         int xmax = task.cube_size.x - 1;
 
-        if (orthorhombic_ && !task.apply_border_mask) {
-          xmin = (2 * (y + task.lb_cube.y) - 1) / 2;
-          xmin *= xmin;
-          xmin =
-              ceil(-1.0e-8 -
-                   sqrt(fmax(0.0, kremain - xmin * (dh_[4] * dh_[4] +
-                                                    dh_[3] * dh_[3] +
-                                                    dh_[5] * dh_[5]))) *
-                       sqrt(dh_inv_[0] * dh_inv_[0] + dh_inv_[1] * dh_inv_[1] +
-                            dh_inv_[2] * dh_inv_[2]));
-          xmax = 1 - xmin - task.lb_cube.x;
-          xmin -= task.lb_cube.x;
+        if (orthogonal_ && !task.apply_border_mask) {
+          calculate_xmin_xmax_boundaries<T, T3>(task, y, kremain, xmin, xmax);
         }
 
         for (int x = xmin + threadIdx.x; x <= xmax; x += blockDim.x) {
-          int x2 = (x + task.cube_center.x) % dev_.grid_full_size_[2];
+          int x2 = (x + task.cube_center.x) % dev_.grid_full_size_.x;
 
           if (x2 < 0)
-            x2 += dev_.grid_full_size_[2];
+            x2 += dev_.grid_full_size_.x;
 
           if (distributed__) {
             /* check if the point is within the window */
@@ -432,7 +408,7 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
             }
           }
 
-          // I make no distinction between orthorhombic and non orthorhombic
+          // I make no distinction between orthogonal and non orthogonal
           // cases
           T3 r3;
 
@@ -440,20 +416,25 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
                                    (y + task.lb_cube.y + task.roffset.y),
                                    (z + task.lb_cube.z + task.roffset.z));
           // check if the point is inside the sphere or not. Note that it does
-          // not apply for the orthorhombic case when the full sphere is inside
+          // not apply for the orthogonal case when the full sphere is inside
           // the region of interest.
+          const T r3x2 = r3.x * r3.x;
+          const T r3y2 = r3.y * r3.y;
+          const T r3z2 = r3.z * r3.z;
 
           if (distributed__) {
-            if (((task.radius * task.radius) <=
-                 (r3.x * r3.x + r3.y * r3.y + r3.z * r3.z)) &&
-                (!orthorhombic_ || task.apply_border_mask))
+            // check if the point is inside the sphere or not. Note that it does
+            // not apply for the orthorhombic case when the full sphere is
+            // inside the region of interest.
+
+            if (((task.radius * task.radius) <= (r3x2 + r3y2 + r3z2)) &&
+                (!orthogonal_ || task.apply_border_mask))
               continue;
           } else {
-            if (!orthorhombic_) {
-              if ((task.radius * task.radius) <=
-                  (r3.x * r3.x + r3.y * r3.y + r3.z * r3.z))
-                continue;
-            }
+            // we do not need to do this test for the orthorhombic case
+            if ((!orthogonal_) &&
+                ((task.radius * task.radius) <= (r3x2 + r3y2 + r3z2)))
+              continue;
           }
 
           // read the next point assuming that reading is non blocking untill
@@ -461,13 +442,9 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
           // NVIDIA hardware
 
           T grid_value =
-              __ldg(&dev_.ptr_dev[1][(z2 * dev_.grid_local_size_[1] + y2) *
-                                         dev_.grid_local_size_[2] +
+              __ldg(&dev_.ptr_dev[1][(z2 * dev_.grid_local_size_.y + y2) *
+                                         dev_.grid_local_size_.x +
                                      x2]);
-
-          const T r3x2 = r3.x * r3.x;
-          const T r3y2 = r3.y * r3.y;
-          const T r3z2 = r3.z * r3.z;
 
           const T r3xy = r3.x * r3.y;
           const T r3xz = r3.x * r3.z;
@@ -651,7 +628,7 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
     __syncthreads();
 
     if (tid < min(length - ico, lbatch))
-      dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset +
+      dev_.ptr_dev[2][dev_.tasks[dev_.first_task + block_index()].coef_offset +
                       tid + ico] = sum[tid];
   }
 }
@@ -683,7 +660,7 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
 
   const dim3 threads_per_block(4, 4, 4);
   if (grid_[level].is_distributed()) {
-    if (grid_[level].is_orthorhombic()) {
+    if (grid_[level].is_orthogonal()) {
       integrate_kernel<double, double3, true, true, 10>
           <<<number_of_tasks_per_level_[level], threads_per_block, 0,
              level_streams[level]>>>(params);
@@ -693,7 +670,7 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
              level_streams[level]>>>(params);
     }
   } else {
-    if (grid_[level].is_orthorhombic()) {
+    if (grid_[level].is_orthogonal()) {
       integrate_kernel<double, double3, false, true, 10>
           <<<number_of_tasks_per_level_[level], threads_per_block, 0,
              level_streams[level]>>>(params);

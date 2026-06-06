@@ -123,7 +123,9 @@ template <typename T> struct smem_task {
  * \brief data needed for collocate and integrate kernels
  ******************************************************************************/
 template <typename T, typename T3> struct smem_task_reduced {
-  T radius, discrete_radius;
+  T radius;
+  T norm_lattice_vector_z_2, norm_lattice_vector_y_2;
+  T norm_inverse_lattice_vector_y, norm_inverse_lattice_vector_x;
   int3 cube_center, lb_cube, cube_size, window_size, window_shift;
   T3 roffset;
   T zetp;
@@ -283,7 +285,7 @@ __inline__ __device__ unsigned int block_index() {
   return blockIdx.x + gridDim.x * (blockIdx.y + gridDim.y * blockIdx.z);
 }
 
-// Calculating the global index of any given device thread
+// Calculating the global index in the grid of any given device thread
 __inline__ __device__ unsigned int thread_global_index() {
   return threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
 }
@@ -450,6 +452,10 @@ __inline__ T compute_cube_properties(
     roffset->y -= rp->y;
     roffset->z -= rp->z;
 
+    /* This potentially makes the cube bigger than necessary because disc_radius
+       is derived with the smallest lattice parameter. It is not an issue when
+       the lattice is cubic but could lead to more calculations than necessary
+       when the lattice is orthorhombic */
     rp2.x = disr_radius;
     rp2.y = disr_radius;
     rp2.z = disr_radius;
@@ -527,31 +533,31 @@ __inline__ T compute_cube_properties(
   }
 }
 
-__inline__ __device__ void compute_window_size(const int *const grid_size,
+__inline__ __device__ void compute_window_size(const int3 grid_size,
                                                const int border_mask,
-                                               const int *border_width,
-                                               int3 *const window_size,
-                                               int3 *const window_shift) {
-  window_shift->x = 0;
-  window_shift->y = 0;
-  window_shift->z = 0;
+                                               const int3 &border_width,
+                                               int3 &window_size,
+                                               int3 &window_shift) {
+  window_shift.x = 0;
+  window_shift.y = 0;
+  window_shift.z = 0;
 
-  window_size->x = grid_size[2] - 1;
-  window_size->y = grid_size[1] - 1;
-  window_size->z = grid_size[0] - 1;
+  window_size.x = grid_size.x - 1;
+  window_size.y = grid_size.y - 1;
+  window_size.z = grid_size.z - 1;
 
   if (border_mask & (1 << 0))
-    window_shift->x += border_width[2];
+    window_shift.x += border_width.x;
   if (border_mask & (1 << 1))
-    window_size->x -= border_width[2];
+    window_size.x -= border_width.x;
   if (border_mask & (1 << 2))
-    window_shift->y += border_width[1];
+    window_shift.y += border_width.y;
   if (border_mask & (1 << 3))
-    window_size->y -= border_width[1];
+    window_size.y -= border_width.y;
   if (border_mask & (1 << 4))
-    window_shift->z += border_width[0];
+    window_shift.z += border_width.z;
   if (border_mask & (1 << 5))
-    window_size->z -= border_width[0];
+    window_size.z -= border_width.z;
 }
 
 /*******************************************************************************
@@ -592,15 +598,14 @@ cab_to_cxyz(const smem_task<T> &task, const T *__restrict__ alpha,
       const auto &b = coset_inv[jco];
       for (int ico = 0; ico < ncoset(task.la_max); ico++) {
         const auto &a = coset_inv[ico];
-        const T p = task.prefactor *
-                    alpha[0 * s1 + b.l[0] * s2 + a.l[0] * s3 + co.l[0]] *
+        const T p = alpha[0 * s1 + b.l[0] * s2 + a.l[0] * s3 + co.l[0]] *
                     alpha[1 * s1 + b.l[1] * s2 + a.l[1] * s3 + co.l[1]] *
                     alpha[2 * s1 + b.l[2] * s2 + a.l[2] * s3 + co.l[2]];
         reg += p * cab[jco * task.n1 + ico]; // collocate
       }
     }
 
-    cxyz[i] = reg;
+    cxyz[i] = task.prefactor * reg;
   }
   __syncthreads(); // because of concurrent writes to cxyz / cab
 }
@@ -640,14 +645,14 @@ cxyz_to_cab(const smem_task<T> &task, const T *__restrict__ alpha,
       T reg = 0.0; // accumulate into a register
       for (int ic = 0; ic < ncoset(task.lp); ic++) {
         const auto &co = coset_inv[ic];
-        const T p = task.prefactor *
-                    alpha[b.l[0] * s2 + a.l[0] * s3 + co.l[0]] *
+        const T p = alpha[b.l[0] * s2 + a.l[0] * s3 + co.l[0]] *
                     alpha[s1 + b.l[1] * s2 + a.l[1] * s3 + co.l[1]] *
                     alpha[2 * s1 + b.l[2] * s2 + a.l[2] * s3 + co.l[2]];
 
         reg += p * cxyz[ic]; // integrate
       }
-      cab[jco * task.n1 + ico] = reg; // partial loop coverage -> zero it
+      cab[jco * task.n1 + ico] =
+          task.prefactor * reg; // partial loop coverage -> zero it
     }
   }
 }
@@ -667,8 +672,8 @@ fill_smem_task_reduced(const kernel_params &dev, const int task_id,
   if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
     const auto &glb_task = dev.tasks[task_id];
     task.zetp = glb_task.zeta + glb_task.zetb;
-    task.radius = glb_task.radius;
-    task.discrete_radius = glb_task.discrete_radius;
+    // task.radius = glb_task.radius;
+    task.radius = glb_task.discrete_radius;
 
     // angular momentum range for the actual collocate/integrate operation.
     task.lp =
@@ -689,6 +694,20 @@ fill_smem_task_reduced(const kernel_params &dev, const int task_id,
     task.lb_cube.x = glb_task.lb_cube.x;
     task.lb_cube.y = glb_task.lb_cube.y;
     task.lb_cube.z = glb_task.lb_cube.z;
+
+    task.norm_lattice_vector_z_2 = dev.dh_[6] * dev.dh_[6] +
+                                   dev.dh_[7] * dev.dh_[7] +
+                                   dev.dh_[8] * dev.dh_[8];
+    task.norm_lattice_vector_y_2 = dev.dh_[3] * dev.dh_[3] +
+                                   dev.dh_[4] * dev.dh_[4] +
+                                   dev.dh_[5] * dev.dh_[5];
+
+    task.norm_inverse_lattice_vector_y =
+        sqrt(dev.dh_inv_[3] * dev.dh_inv_[3] + dev.dh_inv_[4] * dev.dh_inv_[4] +
+             dev.dh_inv_[5] * dev.dh_inv_[5]);
+    task.norm_inverse_lattice_vector_x =
+        sqrt(dev.dh_inv_[0] * dev.dh_inv_[0] + dev.dh_inv_[1] * dev.dh_inv_[1] +
+             dev.dh_inv_[2] * dev.dh_inv_[2]);
 
     task.apply_border_mask = glb_task.apply_border_mask;
   }
@@ -842,6 +861,35 @@ template <typename T>
 __inline__ __device__ T *allocate_workspace(const kernel_params &dev_) {
   unsigned int offset = dev_.cab_block_offset_dev[block_index()];
   return (T *)(dev_.ptr_dev[6] + offset);
+}
+
+template <typename T, typename T3>
+__device__ __inline__ T
+calculate_ymix_ymax_boundaries(smem_task_reduced<T, T3> &task, const int z,
+                               int &ymin, int &ymax) {
+  T kremain = 0.0;
+  ymin = (2 * (z + task.lb_cube.z) - 1) / 2;
+  ymin *= ymin;
+  kremain =
+      task.radius * task.radius - ((T)ymin) * task.norm_lattice_vector_z_2;
+  ymin = ceil(-1.0e-8 -
+              sqrt(fmax(0.0, kremain)) * task.norm_inverse_lattice_vector_y);
+  ymax = 1 - ymin - task.lb_cube.y;
+  ymin = ymin - task.lb_cube.y;
+  return kremain;
+}
+
+template <typename T, typename T3>
+__device__ __inline__ void
+calculate_xmin_xmax_boundaries(smem_task_reduced<T, T3> &task, const int y,
+                               const T kremain, int &xmin, int &xmax) {
+  xmin = (2 * (y + task.lb_cube.y) - 1) / 2;
+  xmin *= xmin;
+  xmin = ceil(-1.0e-8 -
+              sqrt(fmax(0.0, kremain - xmin * task.norm_lattice_vector_y_2)) *
+                  task.norm_inverse_lattice_vector_x);
+  xmax = 1 - xmin - task.lb_cube.x;
+  xmin -= task.lb_cube.x;
 }
 
 } // namespace rocm_backend
