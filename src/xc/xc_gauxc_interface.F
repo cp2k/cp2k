@@ -756,8 +756,11 @@ CONTAINS
          CPABORT("GauXC lacks OneDFT support")
 #else
          ! OneDFT may change the OpenMP team size for later parallel regions.
-         ! Restore max threads only; omp_get_num_threads() is 1 here.
+         ! In replicated serial builds, avoid thread-dependent SKALA results.
          omp_max_threads_restore = omp_get_max_threads()
+#if !defined(__parallel)
+         CALL omp_set_num_threads(1)
+#endif
 #if defined (__HAS_IEEE_EXCEPTIONS)
          CALL ieee_get_halting_mode(IEEE_ALL, ieee_halt)
          CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
@@ -901,8 +904,11 @@ CONTAINS
          CPABORT("GauXC lacks OneDFT support")
 #else
          ! OneDFT may change the OpenMP team size for later parallel regions.
-         ! Restore max threads only; omp_get_num_threads() is 1 here.
+         ! In replicated serial builds, avoid thread-dependent SKALA results.
          omp_max_threads_restore = omp_get_max_threads()
+#if !defined(__parallel)
+         CALL omp_set_num_threads(1)
+#endif
 #if defined (__HAS_IEEE_EXCEPTIONS)
          CALL ieee_get_halting_mode(IEEE_ALL, ieee_halt)
          CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
