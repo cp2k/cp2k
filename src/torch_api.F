@@ -87,6 +87,7 @@ MODULE torch_api
    PUBLIC :: torch_model_get_attr, torch_model_read_metadata
    PUBLIC :: torch_cuda_is_available
    PUBLIC :: torch_allow_tf32, torch_model_freeze, torch_use_cuda
+   PUBLIC :: torch_get_num_threads, torch_set_num_threads
 
 CONTAINS
 
@@ -352,6 +353,46 @@ CONTAINS
       MARK_USED(use_cuda)
 #endif
    END SUBROUTINE torch_use_cuda
+
+! **************************************************************************************************
+!> \brief Return the Torch intra-op thread count.
+! **************************************************************************************************
+   FUNCTION torch_get_num_threads() RESULT(num_threads)
+      INTEGER                                            :: num_threads
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         FUNCTION torch_c_get_num_threads() RESULT(num_threads) BIND(C, name="torch_c_get_num_threads")
+            IMPORT :: C_INT
+            INTEGER(kind=C_INT)                          :: num_threads
+         END FUNCTION torch_c_get_num_threads
+      END INTERFACE
+
+      num_threads = INT(torch_c_get_num_threads())
+#else
+      num_threads = 1
+#endif
+   END FUNCTION torch_get_num_threads
+
+! **************************************************************************************************
+!> \brief Set the Torch intra-op thread count.
+! **************************************************************************************************
+   SUBROUTINE torch_set_num_threads(num_threads)
+      INTEGER, INTENT(IN)                                :: num_threads
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_set_num_threads(num_threads) BIND(C, name="torch_c_set_num_threads")
+            IMPORT :: C_INT
+            INTEGER(kind=C_INT), VALUE                   :: num_threads
+         END SUBROUTINE torch_c_set_num_threads
+      END INTERFACE
+
+      CALL torch_c_set_num_threads(INT(num_threads, C_INT))
+#else
+      MARK_USED(num_threads)
+#endif
+   END SUBROUTINE torch_set_num_threads
 
 ! **************************************************************************************************
 !> \brief Returns the gradient of a Torch tensor which was computed by autograd.
