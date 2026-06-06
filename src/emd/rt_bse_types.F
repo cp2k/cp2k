@@ -395,6 +395,14 @@ CONTAINS
       END IF
       ! Number of spins
       rtbse_env%n_spin = bs_env%n_spin
+      ! Open shell (n_spin>1) is only implemented and tested for the linearized
+      ! propagation; the full RT-BSE open-shell path is untested.
+      IF (rtbse_env%n_spin > 1 .AND. .NOT. rtbse_env%linearized) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Open-shell (n_spin>1) RT-BSE is only implemented and tested for the "// &
+                       "linearized propagation. Set DFT%REAL_TIME_PROPAGATION%RTBSE%LRRTBSE "// &
+                       ".TRUE.; the full (non-linearized) open-shell RT-BSE path is untested.")
+      END IF
       ! Number of atomic orbitals
       rtbse_env%n_ao = bs_env%n_ao
       ! Number of auxiliary basis orbitals
