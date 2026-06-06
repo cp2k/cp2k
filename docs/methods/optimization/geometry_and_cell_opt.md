@@ -37,7 +37,7 @@ relaxed in-plane lattice constants, and structures prepared for fixed-cell molec
 ```{note}
 An optimization is not a replacement for finite-temperature pressure sampling; if the desired
 quantity is a thermal average at finite temperature, use a molecular-dynamics workflow with
-appropriate ensemble instead. For more on this topic, see [](../sampling/molecular_dynamics.md).
+appropriate ensemble instead. For more on this topic, see [](../sampling/molecular_dynamics).
 
 For the usual electronic-structure methods based on the Born-Oppenheimer approximation
 (which, by neglecting nuclear motion, provides the concept of "potential-energy surface"
@@ -164,30 +164,6 @@ keyword triggers a mechanism where very large forces on atoms are artificially r
 magnitude. This setting is only meant for crude initial structure; once the geometry becomes more
 reasonable and the forces are closer to the convergence criteria, it shall not be used in the
 production run towards the final result.
-
-```{warning}
-**Do not use experimental structure blindly.**
-
-If available, **computational** materials databases are the most recommended avenue
-to obtain structures that are "computation-ready", or even better, already optimized
-with some electronic-structure methods. On the other hand, structures that are from
-**experimental** characterization are frequently not "computation-ready", and thus
-should not be subject to optimization without careful validation in pre-processing.
-This can be prominent for `cif` and `pdb` structures determined by powder or single-
-crystal XRD which can be affected by sample quality and thermal motion.
-
-- Watch out for crystallographic disorder and atoms with low resolution or fractional
-  occupation: using the superposition of all atoms as if every occupancy is 1.00 is
-  highly likely to introduce contacting or even overlapping atoms.
-- Beware of composition: the atomic structure may not match the intended macroscopic,
-  charge-neutral chemical formula, owing to missing or duplicated hydrogen atoms,
-  small counter ions, solvent or ligand molecules.
-
-Possible resolutions vary from simple manual editing in the modelling stage, to
-utilization of supercells and enumeration of special quasirandom structures (common
-for materials with dopants), and to more rigorous XRD refinement and application of
-quantum crystallography methods.
-```
 
 ```{note}
 For variable-cell optimizations, the [CELL_OPT](#CP2K_INPUT.MOTION.CELL_OPT) section
@@ -414,7 +390,7 @@ and linked to the CP2K build in order to detect and preserve the space group. Us
 
 Density functional theory (DFT) is an electronic-structure (wavefunction) method routinely used for
 optimization. This section elaborate on the relevant aspects, assuming basic knowledge about the
-method which can be found at [](../dft/index.md).
+method which can be found at [](../dft/index).
 
 ### SCF quality
 

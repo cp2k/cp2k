@@ -54,24 +54,7 @@ computational resources. As a starter, this section discusses preliminary factor
 the spatiotemporal scale of the trajectory, periodic boundary condition. force method, and the
 initial structure.
 
-```{note}
-Apprehending the science and acquiring the skills of molecular dynamics simulation will require
-extensive academic training. The guidelines and instructions in this document should not be taken
-as a substitute of comprehensive literatures. Please kindly understand that, despite the program
-developers having knowledge about basic algorithms and implementations, they may not be suitable
-for answering all of the questions arising from practice, especially those pertaining to particular
-research fields and chemistry systems. The best party to consult for assistance would be the tutor,
-advisor, experienced colleagues or collaborators in real life, and when attempting to reproduce
-reported findings, the original authors; the developers may be contacted only for program issues
-such as bug reports and feature requests.
-```
-
 ### Space and time scale
-
-In spite of ever-growing sceintific computing power, most of the time it is not affordable to have
-an exact 1:1 computational model of the real-life phenomena of interest. The usual practice is to
-use a much scaled-down model with limited number of atoms and finite length of trajectory for the
-simulation, which should achieve the delicate balance between representativeness and feasibility.
 
 Even when taking the ergodic hypothesis as granted, statistical analysis on target properties at
 thermodynamic equilibrium has to be performed on top of sufficient sampling. The (auto)correlation
@@ -93,39 +76,23 @@ energy barriers and reaction rates before proceeding to simulations. Even static
 calculations for the profile of energy landscape via optimization of minima and transition states,
 vibrational analysis and evaluation of single-point energy would be helpful. To simulate difficult
 reactions by molecular dynamics in a short trajectory, advanced _enhanced sampling_ methods such as
-[](./metadynamics.md) may be necessary.
+[](./metadynamics) may be necessary.
 
 ### Periodic boundary condition
 
 **Periodic boundary condition** ({term}`PBC`) may or may not be used in the molecular dynamics
-simulation. If the system involves condensed-phase matter, such as liquid solution, solid crystal,
-surface slab and other one- and two-dimensional structures, then generally PBC is used. This is also
-applicable to systems with no actual well-defined repeating units (translational symmetry) like the
-bulk solutions. A huge liquid droplet in the gaseous phase, where the diameter is so large that the
-gas-liquid interface is almost flat and surface tension is negligible, may just as well be modelled
-as a combination of a bulk solution system and a thin layer of solution near the interface, both of
-which make use of PBC even though the liquid droplet itself is isolated.
+simulation, and there are caveats for both ends.
 
-However, very small periodic cells for production MD should be avoided unless the finite-size
+On one hand, very small periodic cells for production MD should be avoided unless the finite-size
 effects are known to be acceptable. Small cells produce artificial correlations through periodic
 images, exaggerate statistical temperature and pressure fluctuations, and can make NPT cell dynamics
 unstable or unphysical. Sometimes using a supercell of a crystalline structure is preferred if its
 primitive cell is too small.
 
-For molecular systems in the gaseous phase or vacuum where external pressure is irrelevant, a
-molecular dynamics simulation without PBC is viable. It comes with a common risk that strong
-repulsion or very weak attraction causes the system to expand and effectively diminishes desired
-interactions between molecules. A possible remedy is to define an external potential or a constraint
-that act as a soft wall to reflect or push stray molecules back to the center, but this is
-artificial and arbitrary.
-
-In certain cases the same process can be simulated both with and without PBC. For example, the
-reaction between hydroxyl and hydrogen may be modelled as a single $\mathrm{H_2}$ molecule colliding
-with a single $\mathrm{OH}$ molecule with different relative orientations, distances and velocities,
-which does not need PBC, or modelled as a mixture of numerous $\mathrm{H_2}$ and $\mathrm{OH}$
-molecules, which needs PBC. Their behavior regarding responses to external conditions including
-temperature, pressure, and any form of energy input may be different, but they provide insights from
-distinct perspectives.
+On the other hand, without PBC in MD, a common risk is that strong repulsion or very weak attraction
+causes the system to expand and effectively diminishes desired interactions between molecules. A
+possible remedy is to define an external potential or a constraint that act as a soft wall to
+reflect or push stray molecules back to the center, but this is artificial and arbitrary.
 
 ### Force method
 
