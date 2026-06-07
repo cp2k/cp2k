@@ -226,6 +226,8 @@ if(CMAKE_C_COMPILER_ID STREQUAL "Cray" AND CMAKE_C_COMPILER_VERSION
 endif()
 
 # Suppress GFortran runtime warnings when LIBXS provides the wrapper
-if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU" AND CP2K_USE_LIBXS)
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"
+   AND CP2K_USE_LIBXS
+   AND NOT APPLE)
   add_link_options("-Wl,--wrap=_gfortran_runtime_warning_at")
 endif()
