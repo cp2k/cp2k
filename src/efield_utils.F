@@ -27,8 +27,10 @@ MODULE efield_utils
                                               gaussian_env,&
                                               ramp_env
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: pi
+   USE mathconstants,                   ONLY: pi,&
+                                              twopi
    USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: c_light_au
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -121,54 +123,60 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: sim_time
 
       INTEGER                                            :: i, lower, nfield, upper
-      REAL(dp)                                           :: c, env, nu, pol(3), strength
+      REAL(dp)                                           :: E_0, env, nu, pol(3), strength
       REAL(KIND=dp)                                      :: dt
       TYPE(efield_type), POINTER                         :: efield
 
-      c = 137.03599962875_dp
       field = 0._dp
-      nu = 0.0_dp
       nfield = SIZE(dft_control%efield_fields)
       DO i = 1, nfield
          efield => dft_control%efield_fields(i)%efield
-         IF (.NOT. efield%envelop_id == custom_env .AND. efield%wavelength > EPSILON(0.0_dp)) nu = c/(efield%wavelength) !in case of a custom efield we do not need nu
-         strength = SQRT(efield%strength/(3.50944_dp*10.0_dp**16))
+         nu = 0.0_dp
+         IF (.NOT. efield%envelop_id == custom_env .AND. efield%wavelength > EPSILON(0.0_dp)) THEN
+            nu = c_light_au/(efield%wavelength) !in case of a custom efield we do not need nu
+         END IF
+         E_0 = efield%amplitude
+
          IF (DOT_PRODUCT(efield%polarisation, efield%polarisation) == 0) THEN
             pol(:) = 1.0_dp/3.0_dp
          ELSE
             pol(:) = efield%polarisation(:)/(SQRT(DOT_PRODUCT(efield%polarisation, efield%polarisation)))
          END IF
-         IF (efield%envelop_id == constant_env) THEN
+
+         SELECT CASE (efield%envelop_id)
+         CASE (constant_env)
             IF (sim_step >= efield%envelop_i_vars(1) .AND. &
                 (sim_step <= efield%envelop_i_vars(2) .OR. efield%envelop_i_vars(2) < 0)) THEN
-               field = field + strength*COS(sim_time*nu*2.0_dp*pi + &
-                                            efield%phase_offset*pi)*pol(:)
+               field = field + E_0*COS(sim_time*nu*twopi + &
+                                       efield%phase_offset*pi)*pol(:)
             END IF
-         ELSE IF (efield%envelop_id == ramp_env) THEN
+         CASE (ramp_env)
             IF (sim_step >= efield%envelop_i_vars(1) .AND. sim_step <= efield%envelop_i_vars(2)) &
-               strength = strength*(sim_step - efield%envelop_i_vars(1))/(efield%envelop_i_vars(2) - efield%envelop_i_vars(1))
+               strength = E_0*(sim_step - efield%envelop_i_vars(1))/(efield%envelop_i_vars(2) - efield%envelop_i_vars(1))
             IF (sim_step >= efield%envelop_i_vars(3) .AND. sim_step <= efield%envelop_i_vars(4)) &
-               strength = strength*(efield%envelop_i_vars(4) - sim_step)/(efield%envelop_i_vars(4) - efield%envelop_i_vars(3))
+               strength = E_0*(efield%envelop_i_vars(4) - sim_step)/(efield%envelop_i_vars(4) - efield%envelop_i_vars(3))
             IF (sim_step > efield%envelop_i_vars(4) .AND. efield%envelop_i_vars(4) > 0) strength = 0.0_dp
             IF (sim_step <= efield%envelop_i_vars(1)) strength = 0.0_dp
-            field = field + strength*COS(sim_time*nu*2.0_dp*pi + &
+            field = field + strength*COS(sim_time*nu*twopi + &
                                          efield%phase_offset*pi)*pol(:)
-         ELSE IF (efield%envelop_id == gaussian_env) THEN
+         CASE (gaussian_env)
             env = EXP(-0.5_dp*((sim_time - efield%envelop_r_vars(1))/efield%envelop_r_vars(2))**2.0_dp)
-            field = field + strength*env*COS(sim_time*nu*2.0_dp*pi + &
-                                             efield%phase_offset*pi)*pol(:)
-         ELSE IF (efield%envelop_id == custom_env) THEN
+            field = field + E_0*env*COS(sim_time*nu*twopi + &
+                                        efield%phase_offset*pi)*pol(:)
+         CASE (custom_env)
             dt = efield%envelop_r_vars(1)
             IF (sim_time < (SIZE(efield%envelop_r_vars) - 2)*dt) THEN
                !make a linear interpolation between the two next points
                lower = FLOOR(sim_time/dt)
                upper = lower + 1
-     strength = (efield%envelop_r_vars(lower + 2)*(upper*dt - sim_time) + efield%envelop_r_vars(upper + 2)*(sim_time - lower*dt))/dt
+               strength = (efield%envelop_r_vars(lower + 2)*(upper*dt - sim_time) &
+                           + efield%envelop_r_vars(upper + 2)*(sim_time - lower*dt))/dt
             ELSE
                strength = 0.0_dp
             END IF
             field = field + strength*pol(:)
-         END IF
+         CASE default
+         END SELECT
       END DO
 
    END SUBROUTINE make_field

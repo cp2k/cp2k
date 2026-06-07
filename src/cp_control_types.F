@@ -387,6 +387,7 @@ MODULE cp_control_types
       REAL(KIND=dp), DIMENSION(:), POINTER :: envelop_r_vars => NULL()
       INTEGER, DIMENSION(:), POINTER       :: envelop_i_vars => NULL()
       REAL(KIND=dp)                        :: strength = 0.0_dp
+      REAL(KIND=dp)                        :: amplitude = 0.0_dp
       REAL(KIND=dp)                        :: phase_offset = 0.0_dp
       REAL(KIND=dp)                        :: wavelength = 0.0_dp
       REAL(KIND=dp), DIMENSION(3)          :: vec_pot_initial = 0.0_dp

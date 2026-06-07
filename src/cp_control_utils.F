@@ -3130,6 +3130,7 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: file_name
       INTEGER                                            :: i, io, j, n, unit_nr
+      LOGICAL                                            :: amplitude_explicit, intensity_explicit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tmp_vals
       TYPE(efield_type), POINTER                         :: efield
       TYPE(section_vals_type), POINTER                   :: tmp_section
@@ -3140,7 +3141,21 @@ CONTAINS
          efield => dft_control%efield_fields(i)%efield
          NULLIFY (efield%envelop_i_vars, efield%envelop_r_vars)
          CALL section_vals_val_get(efield_section, "INTENSITY", i_rep_section=i, &
-                                   r_val=efield%strength)
+                                   r_val=efield%strength, explicit=intensity_explicit)
+         CALL section_vals_val_get(efield_section, "AMPLITUDE", i_rep_section=i, &
+                                   r_val=efield%amplitude, explicit=amplitude_explicit)
+
+         IF (intensity_explicit .AND. amplitude_explicit) THEN
+            CPABORT("Both INTENSITY and AMPLITUDE provided in EFIELD section.")
+         END IF
+
+         IF (intensity_explicit) THEN
+            efield%amplitude = SQRT(efield%strength/(3.50944_dp*10.0_dp**16))
+         END IF
+
+         IF (amplitude_explicit) THEN
+            efield%strength = (3.50944_dp*10.0_dp**16)*(efield%amplitude)**2
+         END IF
 
          CALL section_vals_val_get(efield_section, "POLARISATION", i_rep_section=i, &
                                    r_vals=tmp_vals)
