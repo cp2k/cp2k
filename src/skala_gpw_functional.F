@@ -193,7 +193,7 @@ CONTAINS
          OPTIONAL                                        :: atom_force
 
       CHARACTER(len=default_path_length)                 :: model_path
-      INTEGER :: native_grid_atom_chunk_max_rows, native_grid_atom_subchunks, &
+      INTEGER :: iw, native_grid_atom_chunk_max_rows, native_grid_atom_subchunks, &
          native_grid_cuda_device, nspins, phase_handle, selected_cuda_device, xc_deriv_method_id, &
          xc_rho_smooth_id
       LOGICAL :: lsd, my_just_energy, native_grid_atom_chunk_routing, native_grid_atom_chunks, &
@@ -296,8 +296,11 @@ CONTAINS
       END IF
       IF (native_grid_diagnostics .AND. features%uses_atom_chunks .AND. &
           rho_r(1)%pw_grid%para%group%mepos == 0) THEN
-         WRITE (UNIT=cp_logger_get_default_io_unit(), FMT="(T2,A,1X,I0)") &
-            "SKALA_GPW| Native grid atom chunk max rows", native_grid_atom_chunk_max_rows
+         iw = cp_logger_get_default_io_unit()
+         IF (iw > 0) THEN
+            WRITE (UNIT=iw, FMT="(T2,A,1X,I0)") &
+               "SKALA_GPW| Native grid atom chunk max rows", native_grid_atom_chunk_max_rows
+         END IF
       END IF
       native_grid_atom_subchunks = 1
       IF (features%uses_atom_chunks .AND. native_grid_atom_chunk_max_rows > 0) THEN
@@ -971,6 +974,7 @@ CONTAINS
       IF (.NOT. print_active) RETURN
 
       iw = cp_logger_get_default_io_unit()
+      IF (iw <= 0) RETURN
       WRITE (UNIT=iw, FMT="(/,T2,A,1X,ES19.11)") &
          "SKALA_GPW| Native grid feature electrons", features%electron_count
       WRITE (UNIT=iw, FMT="(T2,A,1X,ES19.11)") &
@@ -1042,6 +1046,7 @@ CONTAINS
           requested_device == logged_cuda_request) RETURN
 
       iw = cp_logger_get_default_io_unit()
+      IF (iw <= 0) RETURN
       IF (selected_device >= 0) THEN
          WRITE (UNIT=iw, FMT="(/,T2,A,1X,I0,1X,A,1X,I0,1X,A,1X,I0)") &
             "SKALA_GPW| Native grid Torch CUDA device", selected_device, &
