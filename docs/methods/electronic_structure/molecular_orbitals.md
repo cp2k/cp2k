@@ -1,4 +1,4 @@
-# Molecular orbital output
+# Molecular orbitals output
 
 CP2K can write Kohn--Sham molecular orbital (MO) information in several formats. These outputs serve
 different purposes: some are convenient for quick inspection in the standard output, some are
@@ -39,7 +39,7 @@ occupations, and optionally their AO coefficients.
 
 Useful controls include:
 
-- [EIGENVALUES](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO.EIGENVALUES),
+- [EIGENVALUES](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO.ENERGIES),
   [OCCUPATION_NUMBERS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO.OCCUPATION_NUMBERS), and
   [COEFFICIENTS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO.COEFFICIENTS): choose which parts of the MO
   information are printed.
