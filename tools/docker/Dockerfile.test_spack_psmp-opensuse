@@ -15,7 +15,7 @@ RUN zypper --non-interactive --quiet ref && \
     cmake \
     diffutils \
     findutils \
-    gcc gcc15 gcc-c++ gcc15-c++ gcc-fortran gcc15-fortran \
+    gcc gcc13 gcc-c++ gcc13-c++ gcc-fortran gcc13-fortran \
     git \
     gzip \
     libssh-devel \
@@ -45,13 +45,13 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 15 -mpi mpich -ue -ef openpmd
+RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 13 -mpi mpich -ue -ef openpmd
 
 ###### Stage 2: Build CP2K ######
 
 FROM build_deps AS build_cp2k
 
-RUN ./make_cp2k.sh -cv psmp -gv 15 -gpu none -mpi mpich -ef openpmd
+RUN ./make_cp2k.sh -cv psmp -gv 13 -gpu none -mpi mpich -ef openpmd
 
 ###### Stage 3: Install CP2K ######
 
@@ -59,12 +59,9 @@ FROM "${BASE_IMAGE}" AS install_cp2k
 
 RUN zypper --non-interactive --quiet ref && \
     zypper --non-interactive --quiet in --no-recommends \
-    gcc gcc15 gcc-c++ gcc15-c++ gcc-fortran gcc15-fortran \
+    gcc gcc13 gcc-c++ gcc13-c++ gcc-fortran gcc13-fortran \
     python313 \
     && zypper --non-interactive --quiet clean --all
-
-RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
-    ln -sf /usr/bin/python3.11 /usr/local/bin/python
 
 WORKDIR /opt/cp2k
 

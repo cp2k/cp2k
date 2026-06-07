@@ -133,7 +133,7 @@ def main() -> None:
                 version="psmp",
                 mpi_mode="mpich",
                 base_image="opensuse/leap:16.0",
-                gcc_version=15,
+                gcc_version=13,
                 feature_flags="-ef openpmd",
                 testopts=testopts,
                 image_tag=f.image_tag,
@@ -932,9 +932,6 @@ RUN zypper --non-interactive --quiet ref && \
     {gcc_compilers} \
     python313 \
     && zypper --non-interactive --quiet clean --all
-
-RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
-    ln -sf /usr/bin/python3.11 /usr/local/bin/python
 """
         elif "rockylinux" in base_image:
             output += rf"""
