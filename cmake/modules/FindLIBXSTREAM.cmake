@@ -6,6 +6,7 @@
 #!-------------------------------------------------------------------------------------------------!
 
 include(FindPackageHandleStandardArgs)
+include(CheckIncludeFiles)
 include(cp2k_utils)
 find_package(PkgConfig QUIET)
 
@@ -13,74 +14,89 @@ cp2k_set_default_paths(LIBXSTREAM "LIBXSTREAM")
 
 if(PKG_CONFIG_FOUND)
   pkg_check_modules(CP2K_LIBXSTREAM QUIET IMPORTED_TARGET GLOBAL libxstream)
-  if(CP2K_LIBXSTREAM_PREFIX)
-    set(CP2K_LIBXSTREAM_ROOT "${CP2K_LIBXSTREAM_PREFIX}")
-  endif()
 endif()
 
-set(_cp2k_libxstream_hints
-    "${CP2K_LIBXSTREAM_ROOT}" "${DBCSR_LIBXSTREAMROOT}" "$ENV{LIBXSTREAMROOT}"
-    "${CMAKE_SOURCE_DIR}/../libxstream" "$ENV{HOME}/libxstream")
+set(_cp2k_libxstream_hints)
+if(CP2K_LIBXSTREAM_ROOT)
+  list(APPEND _cp2k_libxstream_hints "${CP2K_LIBXSTREAM_ROOT}")
+endif()
+if(DEFINED ENV{LIBXSTREAMROOT})
+  list(APPEND _cp2k_libxstream_hints "$ENV{LIBXSTREAMROOT}")
+endif()
 
-if(NOT CP2K_LIBXSTREAM_INCLUDE_DIRS)
+if(NOT CP2K_LIBXSTREAM_INCLUDE_DIR)
   find_path(
-    CP2K_LIBXSTREAM_INCLUDE_DIRS
+    CP2K_LIBXSTREAM_INCLUDE_DIR
     NAMES libxstream.h
     HINTS ${_cp2k_libxstream_hints}
     PATH_SUFFIXES include)
 endif()
 
-if(NOT CP2K_LIBXSTREAM_LINK_LIBRARIES)
-  set(_libxstream_suffixes_save ${CMAKE_FIND_LIBRARY_SUFFIXES})
-  if(BUILD_SHARED_LIBS)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES .so .dylib ${CMAKE_FIND_LIBRARY_SUFFIXES})
-  else()
-    set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
-  endif()
+if(NOT CP2K_LIBXSTREAM_LIBRARY)
   find_library(
-    CP2K_LIBXSTREAM_LINK_LIBRARIES
+    CP2K_LIBXSTREAM_LIBRARY
     NAMES xstream
     HINTS ${_cp2k_libxstream_hints}
     PATH_SUFFIXES lib lib64)
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ${_libxstream_suffixes_save})
 endif()
 
-find_file(
-  CP2K_LIBXSTREAM_OPENCL_SCRIPT
-  NAMES tool_opencl.sh
-  HINTS ${_cp2k_libxstream_hints}
-  PATH_SUFFIXES scripts)
+if(NOT CP2K_LIBXSTREAM_OPENCL_SCRIPT)
+  find_file(
+    CP2K_LIBXSTREAM_OPENCL_SCRIPT
+    NAMES tool_opencl.sh
+    HINTS ${_cp2k_libxstream_hints}
+    PATH_SUFFIXES scripts)
+endif()
 
-find_file(
-  CP2K_LIBXSTREAM_OPENCL_COMMON
-  NAMES libxstream_atomics.h
-  HINTS ${_cp2k_libxstream_hints} "${CP2K_LIBXSTREAM_INCLUDE_DIRS}"
-  PATH_SUFFIXES include/opencl opencl)
+if(NOT CP2K_LIBXSTREAM_OPENCL_COMMON)
+  find_file(
+    CP2K_LIBXSTREAM_OPENCL_COMMON
+    NAMES libxstream_atomics.h
+    HINTS ${_cp2k_libxstream_hints}
+    PATH_SUFFIXES include/opencl opencl)
+endif()
 
-foreach(_root IN LISTS _cp2k_libxstream_hints)
-  if(NOT CP2K_LIBXSTREAM_SAMPLES_DIR AND EXISTS "${_root}/samples")
-    set(CP2K_LIBXSTREAM_SAMPLES_DIR "${_root}/samples")
-  endif()
-endforeach()
+if(NOT CP2K_LIBXSTREAM_SAMPLES_DIR)
+  foreach(_root IN LISTS _cp2k_libxstream_hints)
+    if(EXISTS "${_root}/samples")
+      set(CP2K_LIBXSTREAM_SAMPLES_DIR "${_root}/samples")
+      break()
+    endif()
+  endforeach()
+endif()
+
+# Reconcile pkg-config variables with local naming.
+if(NOT CP2K_LIBXSTREAM_INCLUDE_DIR AND CP2K_LIBXSTREAM_INCLUDE_DIRS)
+  list(GET CP2K_LIBXSTREAM_INCLUDE_DIRS 0 CP2K_LIBXSTREAM_INCLUDE_DIR)
+endif()
+
+if(NOT CP2K_LIBXSTREAM_LIBRARY AND CP2K_LIBXSTREAM_LINK_LIBRARIES)
+  list(GET CP2K_LIBXSTREAM_LINK_LIBRARIES 0 CP2K_LIBXSTREAM_LIBRARY)
+endif()
+
+if(NOT CP2K_LIBXSTREAM_ROOT AND CP2K_LIBXSTREAM_PREFIX)
+  set(CP2K_LIBXSTREAM_ROOT "${CP2K_LIBXSTREAM_PREFIX}")
+endif()
 
 find_package_handle_standard_args(
-  LIBXSTREAM DEFAULT_MSG CP2K_LIBXSTREAM_INCLUDE_DIRS
-  CP2K_LIBXSTREAM_LINK_LIBRARIES CP2K_LIBXSTREAM_OPENCL_SCRIPT
-  CP2K_LIBXSTREAM_OPENCL_COMMON)
+  LIBXSTREAM
+  REQUIRED_VARS CP2K_LIBXSTREAM_INCLUDE_DIR CP2K_LIBXSTREAM_LIBRARY
+                CP2K_LIBXSTREAM_OPENCL_SCRIPT CP2K_LIBXSTREAM_OPENCL_COMMON)
 
-if(LIBXSTREAM_FOUND AND NOT TARGET cp2k::LIBXSTREAM)
-  add_library(cp2k::LIBXSTREAM INTERFACE IMPORTED)
+if(LIBXSTREAM_FOUND AND NOT TARGET cp2k::libxstream)
+  add_library(cp2k::libxstream INTERFACE IMPORTED)
+
   if(TARGET PkgConfig::CP2K_LIBXSTREAM)
-    target_link_libraries(cp2k::LIBXSTREAM INTERFACE PkgConfig::CP2K_LIBXSTREAM)
+    target_link_libraries(cp2k::libxstream INTERFACE PkgConfig::CP2K_LIBXSTREAM)
   else()
     set_target_properties(
-      cp2k::LIBXSTREAM
-      PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_LIBXSTREAM_INCLUDE_DIRS}"
-                 INTERFACE_LINK_LIBRARIES "${CP2K_LIBXSTREAM_LINK_LIBRARIES}")
+      cp2k::libxstream
+      PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_LIBXSTREAM_INCLUDE_DIR}"
+                 INTERFACE_LINK_LIBRARIES "${CP2K_LIBXSTREAM_LIBRARY}")
   endif()
 endif()
 
 mark_as_advanced(
-  CP2K_LIBXSTREAM_INCLUDE_DIRS CP2K_LIBXSTREAM_LINK_LIBRARIES
+  CP2K_LIBXSTREAM_INCLUDE_DIR CP2K_LIBXSTREAM_LIBRARY
   CP2K_LIBXSTREAM_OPENCL_SCRIPT CP2K_LIBXSTREAM_OPENCL_COMMON
   CP2K_LIBXSTREAM_SAMPLES_DIR)

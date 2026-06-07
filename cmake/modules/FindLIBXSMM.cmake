@@ -6,54 +6,62 @@
 #!-------------------------------------------------------------------------------------------------!
 
 include(FindPackageHandleStandardArgs)
+include(cp2k_utils)
+find_package(PkgConfig QUIET)
 
-# Probe: user override > DBCSR hint > sibling of LIBXS > environment > common
-# paths
-if(NOT LIBXSMMROOT)
-  foreach(_dir
-          "${DBCSR_LIBXSMMROOT}" "$ENV{LIBXSMMROOT}" "${LIBXSROOT}/../libxsmm"
-          "${CMAKE_SOURCE_DIR}/../libxsmm" "$ENV{HOME}/libxsmm")
-    if(EXISTS "${_dir}/include/libxsmm.h")
-      set(LIBXSMMROOT "${_dir}")
-      break()
-    endif()
-  endforeach()
+cp2k_set_default_paths(LIBXSMM "LIBXSMM")
+
+# Prefer pkg-config when available.
+if(PKG_CONFIG_FOUND)
+  pkg_check_modules(CP2K_LIBXSMM QUIET IMPORTED_TARGET GLOBAL libxsmm)
 endif()
 
-if(LIBXSMMROOT)
+# Optional explicit prefix hint.
+set(_cp2k_libxsmm_hints)
+if(CP2K_LIBXSMM_ROOT)
+  list(APPEND _cp2k_libxsmm_hints "${CP2K_LIBXSMM_ROOT}")
+endif()
+
+# Fallback discovery when pkg-config did not populate usable values.
+if(NOT CP2K_LIBXSMM_INCLUDE_DIR)
   find_path(
-    CP2K_LIBXSMM_INCLUDE_DIR libxsmm.h
-    PATHS "${LIBXSMMROOT}/include"
-    NO_DEFAULT_PATH)
-  set(_libxsmm_suffixes_save ${CMAKE_FIND_LIBRARY_SUFFIXES})
-  if(BUILD_SHARED_LIBS)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES .so .dylib)
-  else()
-    set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
-  endif()
-  find_library(
-    CP2K_LIBXSMM_LIBRARY xsmm
-    PATHS "${LIBXSMMROOT}/lib"
-    NO_DEFAULT_PATH)
-  if(NOT CP2K_LIBXSMM_LIBRARY)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES ${_libxsmm_suffixes_save})
-    find_library(
-      CP2K_LIBXSMM_LIBRARY xsmm
-      PATHS "${LIBXSMMROOT}/lib"
-      NO_DEFAULT_PATH)
-  endif()
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ${_libxsmm_suffixes_save})
+    CP2K_LIBXSMM_INCLUDE_DIR
+    NAMES libxsmm.h
+    HINTS ${_cp2k_libxsmm_hints}
+    PATH_SUFFIXES include)
 endif()
 
-find_package_handle_standard_args(LIBXSMM DEFAULT_MSG CP2K_LIBXSMM_INCLUDE_DIR
-                                  CP2K_LIBXSMM_LIBRARY)
+if(NOT CP2K_LIBXSMM_LIBRARY)
+  find_library(
+    CP2K_LIBXSMM_LIBRARY
+    NAMES xsmm
+    HINTS ${_cp2k_libxsmm_hints}
+    PATH_SUFFIXES lib lib64)
+endif()
 
-if(LIBXSMM_FOUND AND NOT TARGET cp2k::LIBXSMM)
-  add_library(cp2k::LIBXSMM UNKNOWN IMPORTED)
-  set_target_properties(
-    cp2k::LIBXSMM
-    PROPERTIES IMPORTED_LOCATION "${CP2K_LIBXSMM_LIBRARY}"
-               INTERFACE_INCLUDE_DIRECTORIES "${CP2K_LIBXSMM_INCLUDE_DIR}")
+# Reconcile pkg-config variables with the fallback naming used below.
+if(NOT CP2K_LIBXSMM_INCLUDE_DIR AND CP2K_LIBXSMM_INCLUDE_DIRS)
+  list(GET CP2K_LIBXSMM_INCLUDE_DIRS 0 CP2K_LIBXSMM_INCLUDE_DIR)
+endif()
+
+if(NOT CP2K_LIBXSMM_LIBRARY AND CP2K_LIBXSMM_LINK_LIBRARIES)
+  list(GET CP2K_LIBXSMM_LINK_LIBRARIES 0 CP2K_LIBXSMM_LIBRARY)
+endif()
+
+find_package_handle_standard_args(LIBXSMM REQUIRED_VARS CP2K_LIBXSMM_INCLUDE_DIR
+                                                        CP2K_LIBXSMM_LIBRARY)
+
+if(LIBXSMM_FOUND AND NOT TARGET cp2k::libxsmm)
+  add_library(cp2k::libxsmm INTERFACE IMPORTED)
+
+  if(TARGET PkgConfig::CP2K_LIBXSMM)
+    target_link_libraries(cp2k::libxsmm INTERFACE PkgConfig::CP2K_LIBXSMM)
+  else()
+    set_target_properties(
+      cp2k::libxsmm
+      PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_LIBXSMM_INCLUDE_DIR}"
+                 INTERFACE_LINK_LIBRARIES "${CP2K_LIBXSMM_LIBRARY}")
+  endif()
 endif()
 
 mark_as_advanced(CP2K_LIBXSMM_INCLUDE_DIR CP2K_LIBXSMM_LIBRARY)

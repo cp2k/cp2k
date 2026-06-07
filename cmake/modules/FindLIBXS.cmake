@@ -6,6 +6,7 @@
 #!-------------------------------------------------------------------------------------------------!
 
 include(FindPackageHandleStandardArgs)
+include(CheckIncludeFiles)
 include(cp2k_utils)
 find_package(PkgConfig QUIET)
 
@@ -22,9 +23,6 @@ if(PKG_CONFIG_FOUND)
   if(NOT CP2K_LIBXS_FOUND)
     pkg_check_modules(CP2K_LIBXS QUIET IMPORTED_TARGET GLOBAL libxs)
   endif()
-  if(CP2K_LIBXS_PREFIX)
-    set(CP2K_LIBXS_ROOT "${CP2K_LIBXS_PREFIX}")
-  endif()
 endif()
 
 # Fallback to regular CMake search paths plus explicit hints.  Do not restrict
@@ -39,46 +37,37 @@ if(NOT CP2K_LIBXS_INCLUDE_DIRS)
     PATH_SUFFIXES include)
 endif()
 
-set(_cp2k_libxs_required_headers libxs.h libxs_gemm.h libxs_malloc.h
-                                 libxs_timer.h)
-set(_cp2k_libxs_headers_found TRUE)
-foreach(_header IN LISTS _cp2k_libxs_required_headers)
-  if(NOT CP2K_LIBXS_INCLUDE_DIRS OR NOT EXISTS
-                                    "${CP2K_LIBXS_INCLUDE_DIRS}/${_header}")
-    set(_cp2k_libxs_headers_found FALSE)
-  endif()
-endforeach()
-
-if(NOT _cp2k_libxs_headers_found)
-  set(CP2K_LIBXS_INCLUDE_DIRS "CP2K_LIBXS_INCLUDE_DIRS-NOTFOUND")
-endif()
+# Multiple headers in one shot. Sanity check of their existence
+check_include_files(
+  "libxs/libxs_gemm.h;libxs/libxs_malloc.h;libxs/libxs_timer.h"
+  HAVE_LIBXS_HEADERS)
 
 if(NOT CP2K_LIBXS_LINK_LIBRARIES)
-  set(_libxs_suffixes_save ${CMAKE_FIND_LIBRARY_SUFFIXES})
-  if(BUILD_SHARED_LIBS)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES .so .dylib ${CMAKE_FIND_LIBRARY_SUFFIXES})
-  else()
-    set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
+  # Assume CP2K_LIBXS_ROOT is an optional explicit prefix; otherwise rely on
+  # CMAKE_PREFIX_PATH.
+  set(_libxs_hints)
+  if(CP2K_LIBXS_ROOT)
+    list(APPEND _libxs_hints "${CP2K_LIBXS_ROOT}")
   endif()
+
   find_library(
-    CP2K_LIBXS_LINK_LIBRARIES
+    CP2K_LIBXS_LIBRARY
     NAMES xs
-    HINTS "${CP2K_LIBXS_ROOT}" "${DBCSR_LIBXSROOT}"
-          "${CMAKE_SOURCE_DIR}/../libxs" "$ENV{HOME}/libxs" "/opt/libxs"
+    HINTS ${_libxs_hints}
     PATH_SUFFIXES lib lib64)
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ${_libxs_suffixes_save})
 endif()
 
+# check that all requirements are met
 find_package_handle_standard_args(LIBXS DEFAULT_MSG CP2K_LIBXS_INCLUDE_DIRS
-                                  CP2K_LIBXS_LINK_LIBRARIES)
+                                  CP2K_LIBXS_LINK_LIBRARIES HAVE_LIBXS_HEADERS)
 
-if(LIBXS_FOUND AND NOT TARGET cp2k::LIBXS)
-  add_library(cp2k::LIBXS INTERFACE IMPORTED)
+if(LIBXS_FOUND AND NOT TARGET cp2k::libxs)
   if(TARGET PkgConfig::CP2K_LIBXS)
-    target_link_libraries(cp2k::LIBXS INTERFACE PkgConfig::CP2K_LIBXS)
+    add_library(cp2k::libxs ALIAS PkgConfig::CP2K_LIBXS)
   else()
+    add_library(cp2k::libxs INTERFACE IMPORTED)
     set_target_properties(
-      cp2k::LIBXS
+      cp2k::libxs
       PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_LIBXS_INCLUDE_DIRS}"
                  INTERFACE_LINK_LIBRARIES "${CP2K_LIBXS_LINK_LIBRARIES}")
   endif()

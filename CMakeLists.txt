@@ -170,18 +170,10 @@ cmake_dependent_option(CP2K_USE_SPLA "Enable SpLA support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 cmake_dependent_option(CP2K_USE_MIMIC "Enable MIMIC support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+
 option(CP2K_USE_LIBXS "Enable LIBXS support" ${CP2K_USE_EVERYTHING})
-if(DEFINED CP2K_USE_LIBXSMM)
-  message(
-    DEPRECATION
-      "CP2K_USE_LIBXSMM is deprecated. LIBXSMM kernels are now selected through LIBXS; use CP2K_USE_LIBXS instead."
-  )
-  if(CP2K_USE_LIBXSMM AND NOT CP2K_USE_LIBXS)
-    set(CP2K_USE_LIBXS
-        ON
-        CACHE BOOL "Enable LIBXS support" FORCE)
-  endif()
-endif()
+option(CP2K_USE_LIBXSMM "Enable LIBXSMM support" ${CP2K_USE_EVERYTHING})
+
 cmake_dependent_option(CP2K_USE_LIBVDWXC "Enable libvdwxc support with SIRIUS"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_SIRIUS" OFF)
 
@@ -483,10 +475,15 @@ endif()
 # SMM (Small Matrix-Matrix multiplication)
 if(CP2K_USE_LIBXS)
   find_package(LIBXS REQUIRED)
-  find_package(LIBXSMM)
-  if(LIBXSMM_FOUND)
+endif()
+
+if(CP2K_USE_LIBXSMM)
+  find_package(LIBXSMM REQUIRED)
+  if(CP2K_USE_LIBXS)
     message(STATUS "Using LIBXS + LIBXSMM for Small Matrix Multiplication")
-  else()
+  endif()
+else()
+  if(CP2K_USE_LIBXS)
     message(STATUS "Using LIBXS for Small Matrix Multiplication")
   endif()
 endif()
@@ -677,7 +674,6 @@ if(CP2K_USE_ACCEL MATCHES "OPENCL")
     list(APPEND CMAKE_PREFIX_PATH "$ENV{CUDA_PATH}")
   endif()
   find_package(OpenCL REQUIRED)
-
   find_package(LIBXSTREAM REQUIRED)
   message(STATUS "Using LIBXSTREAM for the OpenCL backend")
 
@@ -700,23 +696,6 @@ endif()
 
 if(CP2K_USE_LIBXC)
   find_package(Libxc 7 QUIET CONFIG)
-  if(NOT Libxc_FOUND AND PkgConfig_FOUND)
-    pkg_check_modules(CP2K_LIBXCF03 QUIET IMPORTED_TARGET GLOBAL libxcf03>=7)
-    if(NOT CP2K_LIBXCF03_FOUND)
-      pkg_check_modules(CP2K_LIBXCF03 REQUIRED IMPORTED_TARGET GLOBAL libxc>=7)
-    endif()
-    pkg_check_modules(CP2K_LIBXC QUIET IMPORTED_TARGET GLOBAL libxc>=7)
-    if(NOT TARGET Libxc::xcf03)
-      add_library(Libxc::xcf03 INTERFACE IMPORTED)
-      target_link_libraries(
-        Libxc::xcf03
-        INTERFACE PkgConfig::CP2K_LIBXCF03
-                  $<$<BOOL:${CP2K_LIBXC_FOUND}>:PkgConfig::CP2K_LIBXC>)
-    endif()
-  elseif(NOT Libxc_FOUND)
-    message(
-      FATAL_ERROR "LibXC >= 7 not found (tried CMake config and pkg-config)")
-  endif()
 endif()
 
 if(CP2K_USE_GAUXC)
@@ -788,6 +767,8 @@ if(CP2K_USE_DLAF)
                              "${CP2K_DLAF_FORTRAN_LIBRARY}" DIRECTORY)
       get_filename_component(CP2K_DLAF_FORTRAN_PREFIX
                              "${CP2K_DLAF_FORTRAN_PREFIX}" DIRECTORY)
+      # we will need to fix this issue later because it requires small
+      # modifications of the dlaf build system. It should not be hardcoded.
       if(EXISTS "${CP2K_DLAF_FORTRAN_PREFIX}/include/dlaf_fortran.mod")
         list(APPEND CP2K_DLAF_INCLUDE_DIRS
              "${CP2K_DLAF_FORTRAN_PREFIX}/include")
@@ -917,6 +898,7 @@ if(CP2K_USE_ACE)
 endif()
 
 if(CP2K_USE_TBLITE)
+  # This should be fixed mainstream. TBLITE Config.cmake should do this for us
   find_package(mctc-lib REQUIRED)
   find_package(toml-f REQUIRED)
   find_package(dftd4 REQUIRED)
@@ -1350,6 +1332,10 @@ endif()
 
 if(NOT CP2K_USE_LIBXS)
   message("   - LIBXS")
+endif()
+
+if(NOT CP2K_USE_LIBXSMM)
+  message("   - LIBXSMM")
 endif()
 
 if(NOT CP2K_USE_LIBINT2)
