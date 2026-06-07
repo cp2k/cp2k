@@ -227,8 +227,17 @@ CONTAINS
                    optimizer%dsave(29), optimizer%work_array(lenwa))
          optimizer%x = x0
          optimizer%task = 'START'
-         optimizer%wanted_relative_f_delta = wanted_relative_f_delta
-         optimizer%wanted_projected_gradient = wanted_projected_gradient
+         optimizer%i_work_array = 0
+         optimizer%isave = 0
+         optimizer%lower_bound = 0.0_dp
+         optimizer%upper_bound = 0.0_dp
+         optimizer%gradient = 0.0_dp
+         optimizer%dsave = 0.0_dp
+         optimizer%work_array = 0.0_dp
+         IF (PRESENT(wanted_relative_f_delta)) &
+            optimizer%wanted_relative_f_delta = wanted_relative_f_delta
+         IF (PRESENT(wanted_projected_gradient)) &
+            optimizer%wanted_projected_gradient = wanted_projected_gradient
          optimizer%kind_of_bound = 0
          IF (PRESENT(kind_of_bound)) optimizer%kind_of_bound = kind_of_bound
          IF (PRESENT(lower_bound)) optimizer%lower_bound = lower_bound

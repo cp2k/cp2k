@@ -1123,11 +1123,25 @@ CONTAINS
       INTEGER                                            :: in_offset, my_id, num_rows, out_offset, &
                                                             scal_offset
       TYPE(C_PTR)                                        :: fftw_plan
+#if defined(__FFTW3)
+      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: zin_slice, zout_slice
+#endif
 
 !------------------------------------------------------------------------------
 
       my_id = 0
       num_rows = plan%m
+
+#if defined(__FFTW3)
+      IF (plan%m <= 1) THEN
+         stat = 1
+         CALL C_F_POINTER(C_LOC(zin(1)), zin_slice, [plan%n*plan%m])
+         CALL C_F_POINTER(C_LOC(zout(1)), zout_slice, [plan%n*plan%m])
+         CALL dfftw_execute_dft(plan%fftw_plan, zin_slice, zout_slice)
+         IF (scale /= 1.0_dp) CALL zdscal(plan%n*plan%m, scale, zout, 1)
+         RETURN
+      END IF
+#endif
 
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          PRIVATE(my_id,num_rows,in_offset,out_offset,scal_offset,fftw_plan), &

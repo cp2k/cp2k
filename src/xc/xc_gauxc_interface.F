@@ -15,6 +15,12 @@ MODULE xc_gauxc_interface
 
    USE iso_fortran_env, ONLY: &
       error_unit
+#if defined (__HAS_IEEE_EXCEPTIONS)
+   USE ieee_exceptions, ONLY: &
+      ieee_all, &
+      ieee_get_halting_mode, &
+      ieee_set_halting_mode
+#endif
    USE iso_c_binding, ONLY: &
       c_associated, &
       c_bool, &
@@ -243,11 +249,12 @@ CONTAINS
 #ifdef __GAUXC
       CHARACTER(kind=c_char), POINTER                    :: s(:)
       CHARACTER(len=32)                                  :: stderr_env
-      INTEGER                                            :: i, iw
+      INTEGER                                            :: i, ierr, iw
       LOGICAL                                            :: print_to_stderr
       INTEGER, PARAMETER                                 :: status_message_length = 4096
 
       iw = cp_logger_get_default_io_unit()
+      ierr = error_unit
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_GAUXC_STATUS_STDERR", stderr_env)
       CALL uppercase(stderr_env)
       SELECT CASE (TRIM(stderr_env))
@@ -259,35 +266,35 @@ CONTAINS
          print_to_stderr = .TRUE.
       END SELECT
       IF (iw > 0) THEN
-         WRITE (iw, '(a,1x,i0)') "GauXC returned with status code", status%status%code
+         WRITE (UNIT=iw, FMT='(a,1x,i0)') "GauXC returned with status code", status%status%code
          IF (c_associated(status%status%message)) THEN
-            WRITE (iw, '(a)', ADVANCE='no') "GauXC status message: ["
+            WRITE (UNIT=iw, FMT='(a)', ADVANCE='no') "GauXC status message: ["
 
             CALL c_f_pointer(status%status%message, s, [status_message_length])
             DO i = 1, SIZE(s)
                IF (s(i) == c_null_char) EXIT
-               WRITE (iw, '(A)', advance='no') s(i)
+               WRITE (UNIT=iw, FMT='(A)', ADVANCE='no') s(i)
             END DO
 
-            WRITE (iw, '(a)') "]"
+            WRITE (UNIT=iw, FMT='(a)') "]"
          ELSE
-            WRITE (iw, '(a)') "GauXC status message: [null]"
+            WRITE (UNIT=iw, FMT='(a)') "GauXC status message: [null]"
          END IF
       END IF
       IF (print_to_stderr) THEN
-         WRITE (error_unit, '(a,1x,i0)') "GauXC returned with status code", status%status%code
+         WRITE (UNIT=ierr, FMT='(a,1x,i0)') "GauXC returned with status code", status%status%code
          IF (c_associated(status%status%message)) THEN
-            WRITE (error_unit, '(a)', ADVANCE='no') "GauXC status message: ["
+            WRITE (UNIT=ierr, FMT='(a)', ADVANCE='no') "GauXC status message: ["
 
             CALL c_f_pointer(status%status%message, s, [status_message_length])
             DO i = 1, SIZE(s)
                IF (s(i) == c_null_char) EXIT
-               WRITE (error_unit, '(A)', advance='no') s(i)
+               WRITE (UNIT=ierr, FMT='(A)', ADVANCE='no') s(i)
             END DO
 
-            WRITE (error_unit, '(a)') "]"
+            WRITE (UNIT=ierr, FMT='(a)') "]"
          ELSE
-            WRITE (error_unit, '(a)') "GauXC status message: [null]"
+            WRITE (UNIT=ierr, FMT='(a)') "GauXC status message: [null]"
          END IF
       END IF
 #else
@@ -724,6 +731,9 @@ CONTAINS
       LOGICAL                                            :: use_onedft
 #ifdef GAUXC_HAS_ONEDFT
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      LOGICAL, DIMENSION(5)                              :: ieee_halt
+#endif
       INTEGER                                            :: omp_max_threads_restore
 #endif
 
@@ -748,6 +758,10 @@ CONTAINS
          ! OneDFT may change the OpenMP team size for later parallel regions.
          ! Restore max threads only; omp_get_num_threads() is 1 here.
          omp_max_threads_restore = omp_get_max_threads()
+#if defined (__HAS_IEEE_EXCEPTIONS)
+         CALL ieee_get_halting_mode(IEEE_ALL, ieee_halt)
+         CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
          IF (.NOT. ALLOCATED(res%vxc_zeta)) THEN
             ALLOCATE (res%vxc_zeta, mold=density_scalar)
          ELSE
@@ -780,6 +794,9 @@ CONTAINS
                res%vxc_scalar, &
                res%vxc_zeta)
          END IF
+#if defined (__HAS_IEEE_EXCEPTIONS)
+         CALL ieee_set_halting_mode(IEEE_ALL, ieee_halt)
+#endif
          CALL omp_set_num_threads(omp_max_threads_restore)
          GAUXC_RETURN_IF_ERROR(status)
          RETURN
@@ -863,6 +880,9 @@ CONTAINS
       LOGICAL                                            :: use_onedft
 #ifdef GAUXC_HAS_ONEDFT
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      LOGICAL, DIMENSION(5)                              :: ieee_halt
+#endif
       INTEGER                                            :: omp_max_threads_restore
 #endif
 
@@ -883,6 +903,10 @@ CONTAINS
          ! OneDFT may change the OpenMP team size for later parallel regions.
          ! Restore max threads only; omp_get_num_threads() is 1 here.
          omp_max_threads_restore = omp_get_max_threads()
+#if defined (__HAS_IEEE_EXCEPTIONS)
+         CALL ieee_get_halting_mode(IEEE_ALL, ieee_halt)
+         CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
          IF (nspins == 1) THEN
             ALLOCATE (density_zeta_zero, mold=density_scalar)
             density_zeta_zero = 0._dp
@@ -904,6 +928,9 @@ CONTAINS
                TRIM(model), &
                res%exc_grad)
          END IF
+#if defined (__HAS_IEEE_EXCEPTIONS)
+         CALL ieee_set_halting_mode(IEEE_ALL, ieee_halt)
+#endif
          CALL omp_set_num_threads(omp_max_threads_restore)
          GAUXC_RETURN_IF_ERROR(status)
          RETURN
