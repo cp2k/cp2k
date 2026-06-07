@@ -561,8 +561,10 @@ CONTAINS
       functional = ref_functional
       CALL uppercase(functional)
       ! values for different functionals from:
-      ! https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3
+      ! https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/zero_damping
       ! L. Goerigk et al. PCCP 2017, 32147-32744, SI
+      ! alternatively see the parameter file for the s-dftd3 program:
+      ! https://github.com/dftd3/simple-dftd3/blob/main/assets/parameters.toml
       SELECT CASE (TRIM(functional))
       CASE DEFAULT
          ! unknown functional
@@ -877,7 +879,7 @@ CONTAINS
          s6 = 1.000_dp
          sr6 = 1.021_dp
          s8 = 0.862_dp
-      CASE ("REVTPSSh")
+      CASE ("REVTPSSH")
          s6 = 1.000_dp
          sr6 = 1.3224_dp
          s8 = 1.2504_dp
@@ -935,8 +937,10 @@ CONTAINS
       CALL uppercase(functional)
 
       ! values for different functionals from:
-      ! http://www.thch.uni-bonn.de/tc/downloads/DFT-D3/functionalsbj.html
+      ! https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/bj_damping
       ! L. Goerigk et al. PCCP 2017, 32147-32744, SI
+      ! alternatively see the parameter file for the s-dftd3 program:
+      ! https://github.com/dftd3/simple-dftd3/blob/main/assets/parameters.toml
       SELECT CASE (TRIM(functional))
       CASE DEFAULT
          ! unknown functional
@@ -1006,7 +1010,7 @@ CONTAINS
          a1 = 0.3919_dp
          s8 = 1.8541_dp
          a2 = 5.0897_dp
-      CASE ("LCWhPBE")
+      CASE ("LCWHPBE")
          s6 = 1.0000_dp
          a1 = 0.2746_dp
          s8 = 1.1908_dp
@@ -1051,7 +1055,7 @@ CONTAINS
          a1 = 0.3995_dp
          s8 = 1.4623_dp
          a2 = 5.1405_dp
-      CASE ("PBEsol")
+      CASE ("PBESOL")
          s6 = 1.0000_dp
          a1 = 0.4466_dp
          s8 = 2.9491_dp
@@ -1066,7 +1070,7 @@ CONTAINS
          a1 = 0.1805_dp
          s8 = 0.9383_dp
          a2 = 7.7627_dp
-      CASE ("revSSB")
+      CASE ("REVSSB")
          s6 = 1.0000_dp
          a1 = 0.4720_dp
          s8 = 0.4389_dp
@@ -1076,7 +1080,7 @@ CONTAINS
          a1 = -0.0952_dp
          s8 = -0.1744_dp
          a2 = 5.2170_dp
-      CASE ("TPSSh")
+      CASE ("TPSSH")
          s6 = 1.0000_dp
          a1 = 0.4529_dp
          s8 = 2.2382_dp
@@ -1181,7 +1185,7 @@ CONTAINS
          a1 = 2.0971_dp
          s8 = 0.7862_dp
          a2 = 7.5923_dp
-      CASE ("mPWPW91")
+      CASE ("MPWPW91")
          s6 = 1.0000_dp
          a1 = 0.3168_dp
          s8 = 1.7974_dp
@@ -1221,12 +1225,12 @@ CONTAINS
          a1 = 0.4289_dp
          s8 = 0.7875_dp
          a2 = 4.4407_dp
-      CASE ("PBEhPBE")
+      CASE ("PBEHPBE")
          s6 = 1.0000_dp
          a1 = 0.0000_dp
          s8 = 1.1152_dp
          a2 = 6.7184_dp
-      CASE ("PBEh1PBE")
+      CASE ("PBEH1PBE")
          s6 = 1.0000_dp
          a1 = 0.0000_dp
          s8 = 1.4877_dp
@@ -1236,6 +1240,11 @@ CONTAINS
          a1 = 0.0000_dp
          s8 = 0.7688_dp
          a2 = 6.2794_dp
+      CASE ("PW1PW")
+         s6 = 1.0000_dp
+         a1 = 0.3807_dp
+         s8 = 2.3363_dp
+         a2 = 5.8844_dp
       CASE ("PW6B95")
          s6 = 1.0000_dp
          a1 = 0.2076_dp
@@ -1246,32 +1255,56 @@ CONTAINS
          a1 = 0.0000_dp
          s8 = 0.2904_dp
          a2 = 7.3141_dp
-      CASE ("revPBE0")
+      CASE ("R2SCAN")
+         ! J. Chem. Phys. 154, 061101 (2021), doi: 10.1063/5.0041008
+         s6 = 1.00000000_dp
+         a1 = 0.49484001_dp
+         s8 = 0.78981345_dp
+         a2 = 5.73083694_dp
+      CASE ("R2SCAN0")
+         ! J. Chem. Phys. 156, 134105 (2022), doi: 10.1063/5.0086040
+         s6 = 1.0000_dp
+         a1 = 0.4534_dp
+         s8 = 1.1846_dp
+         a2 = 5.8972_dp
+      CASE ("R2SCAN50")
+         ! J. Chem. Phys. 156, 134105 (2022), doi: 10.1063/5.0086040
+         s6 = 1.0000_dp
+         a1 = 0.4311_dp
+         s8 = 1.3294_dp
+         a2 = 5.9240_dp
+      CASE ("R2SCANH")
+         ! J. Chem. Phys. 156, 134105 (2022), doi: 10.1063/5.0086040
+         s6 = 1.0000_dp
+         a1 = 0.4709_dp
+         s8 = 1.1236_dp
+         a2 = 5.9157_dp
+      CASE ("REVPBE0")
          s6 = 1.0000_dp
          a1 = 0.4679_dp
          s8 = 1.7588_dp
          a2 = 3.7619_dp
-      CASE ("revPBE38")
+      CASE ("REVPBE38")
          s6 = 1.0000_dp
          a1 = 0.4309_dp
          s8 = 1.4760_dp
          a2 = 3.9446_dp
-      CASE ("revPBE")
+      CASE ("REVPBE")
          s6 = 1.0000_dp
          a1 = 0.5238_dp
          s8 = 2.3550_dp
          a2 = 3.5016_dp
-      CASE ("revTPSS")
+      CASE ("REVTPSS")
          s6 = 1.0000_dp
          a1 = 0.4426_dp
          s8 = 1.4023_dp
          a2 = 4.4723_dp
-      CASE ("revTPSS0")
+      CASE ("REVTPSS0")
          s6 = 1.0000_dp
          a1 = 0.2218_dp
          s8 = 1.6151_dp
          a2 = 5.7985_dp
-      CASE ("revTPSSh")
+      CASE ("REVTPSSH")
          s6 = 1.0000_dp
          a1 = 0.2660_dp
          s8 = 1.4076_dp
@@ -1286,6 +1319,12 @@ CONTAINS
          a1 = 0.4613_dp
          s8 = 1.3845_dp
          a2 = 4.5062_dp
+      CASE ("RSCAN")
+         ! J. Chem. Phys. 154, 061101 (2021), doi: 10.1063/5.0041008
+         s6 = 1.00000000_dp
+         a1 = 0.47023427_dp
+         s8 = 1.08859014_dp
+         a2 = 5.73408312_dp
       CASE ("SCAN")
          s6 = 1.0000_dp
          a1 = 0.538_dp
@@ -1311,12 +1350,12 @@ CONTAINS
          a1 = 0.4535_dp
          s8 = 1.9435_dp
          a2 = 4.4752_dp
-      CASE ("tHCTH")
+      CASE ("THCTH")
          s6 = 1.0000_dp
          a1 = 0.0000_dp
          s8 = 1.2626_dp
          a2 = 5.6162_dp
-      CASE ("tHCTHhyb")
+      CASE ("THCTHHYB")
          s6 = 1.0000_dp
          a1 = 0.0000_dp
          s8 = 0.9585_dp
