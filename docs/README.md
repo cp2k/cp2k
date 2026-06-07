@@ -82,7 +82,8 @@ For a all typography options see the
 
 - Acronym: `` {term}`ADMM` ``
 - Publication: `[](#Wilhelm2018)`
-- Other page: `[](../properties/optical/tddft)`
+- Another page: `[](../optical/tddft)`
+- Subsection in another page: `[](../optical/tddft.md#periodic-systems)` ⚠️ with file extension
 - Input section: `[FORCE_EVAL](#CP2K_INPUT.FORCE_EVAL)`
 - Input keyword: `[STRESS_TENSOR](#CP2K_INPUT.FORCE_EVAL.STRESS_TENSOR)`
 - External URL: `<https://www.gromacs.org>`
