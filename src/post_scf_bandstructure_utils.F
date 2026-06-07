@@ -113,9 +113,9 @@ MODULE post_scf_bandstructure_utils
    PRIVATE
 
    PUBLIC :: create_and_init_bs_env, &
-             dos_pdos_ldos, cfm_ikp_from_fm_Gamma, MIC_contribution_from_ikp, &
-             compute_xkp, kpoint_init_cell_index_simple, rsmat_to_kp, soc, &
-             get_VBM_CBM_bandgaps, get_all_VBM_CBM_bandgaps
+             eval_bandstructure_properties, cfm_ikp_from_fm_Gamma, &
+             MIC_contribution_from_ikp, compute_xkp, kpoint_init_cell_index_simple, &
+             rsmat_to_kp, soc, get_VBM_CBM_bandgaps, get_all_VBM_CBM_bandgaps
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'post_scf_bandstructure_utils'
 
@@ -1034,11 +1034,11 @@ CONTAINS
 !> \param qs_env ...
 !> \param bs_env ...
 ! **************************************************************************************************
-   SUBROUTINE dos_pdos_ldos(qs_env, bs_env)
+   SUBROUTINE eval_bandstructure_properties(qs_env, bs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dos_pdos_ldos'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_bandstructure_properties'
 
       INTEGER                                            :: handle, homo, homo_1, homo_2, &
                                                             homo_spinor, ikp, ikp_for_file, ispin, &
@@ -1397,7 +1397,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE dos_pdos_ldos
+   END SUBROUTINE eval_bandstructure_properties
 
 ! **************************************************************************************************
 !> \brief ...
