@@ -81,13 +81,20 @@ For a all typography options see the
 ## Links
 
 - Acronym: `` {term}`ADMM` ``
-- Publication: `[](#Wilhelm2018)`
-- Other page: `[](../properties/optical/tddft)`
+- Publication: `[](#Wilhelm2018)` ⚠️ see note below
+- Another page: `[](../optical/tddft)`
+- Subsection in another page: `[](../optical/tddft.md#periodic-systems)` ⚠️ with file extension
 - Input section: `[FORCE_EVAL](#CP2K_INPUT.FORCE_EVAL)`
 - Input keyword: `[STRESS_TENSOR](#CP2K_INPUT.FORCE_EVAL.STRESS_TENSOR)`
 - External URL: `<https://www.gromacs.org>`
 - External URL with label:
   `[click here](https://github.com/cp2k/cp2k-examples/blob/master/qm_mm/Protein.pdb)`
+
+> [!NOTE]
+>
+> The variable names in [bibliography.F](../src/common/bibliography.F) only _mostly coincide_ with
+> the citation keys in the docs. The best place to look up citation keys is the
+> [bibliography page](https://manual.cp2k.org/trunk/bibliography.html).
 
 ## Lists
 
