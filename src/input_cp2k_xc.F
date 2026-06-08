@@ -1435,18 +1435,20 @@ CONTAINS
                           description="CUDA device used by the experimental CP2K-native SKALA GPW "// &
                           "TorchScript path when NATIVE_GRID_USE_CUDA is enabled. A negative value "// &
                           "maps the MPI-local rank to one of the CUDA devices visible to the process; "// &
-                          "a non-negative value selects that visible CUDA device explicitly.", &
+                          "CUDA exports with device-specific TorchScript constants may require a "// &
+                          "rank-local CUDA_VISIBLE_DEVICES list. A non-negative value selects that "// &
+                          "visible CUDA device explicitly.", &
                           usage="NATIVE_GRID_CUDA_DEVICE -1", &
-                          default_i_val=0)
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_ATOM_CHUNKS", &
                           description="Split the experimental CP2K-native SKALA GPW TorchScript "// &
-                          "evaluation into contiguous atom blocks across MPI ranks. Each rank evaluates "// &
-                          "only its atom block. Dynamic feature rows and VXC gradients are routed "// &
-                          "between their local grid and atom-block owner ranks. This is intended for "// &
-                          "multi-GPU experiments.", &
+                          "evaluation into contiguous atom blocks. MPI runs evaluate one atom block per "// &
+                          "rank, while single-rank runs can still use atom subchunks to reduce peak CUDA "// &
+                          "memory. Dynamic feature rows and VXC gradients are routed between their "// &
+                          "local grid and atom-block owner ranks.", &
                           usage="NATIVE_GRID_ATOM_CHUNKS T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1457,6 +1459,17 @@ CONTAINS
                           "SKALA GPW atom chunks. This implies NATIVE_GRID_ATOM_CHUNKS.", &
                           usage="NATIVE_GRID_ATOM_CHUNK_ROUTING T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_ATOM_CHUNK_MAX_ROWS", &
+                          description="Maximum number of atom-grid rows evaluated by one TorchScript "// &
+                          "call in the experimental CP2K-native SKALA GPW atom-chunk path. A positive "// &
+                          "value splits each rank-local atom chunk into contiguous atom subchunks to "// &
+                          "reduce peak CUDA memory use; zero disables subchunking; -1 selects an "// &
+                          "automatic CUDA-oriented row cap.", &
+                          usage="NATIVE_GRID_ATOM_CHUNK_MAX_ROWS 250000", &
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -218,6 +218,41 @@ void torch_c_tensor_reset_from_array_double(torch_c_tensor_t **tensor,
 }
 
 /*******************************************************************************
+ * \brief Creates an expanded tensor view along one singleton dimension.
+ ******************************************************************************/
+void torch_c_tensor_expand_dim(const torch_c_tensor_t *tensor,
+                               const int64_t dim, const int64_t size,
+                               torch_c_tensor_t **result) {
+  c10::OptionalDeviceGuard guard;
+  get_device_with_guard(guard);
+  assert(*result == NULL);
+  assert(dim >= 0);
+  assert(dim < tensor->dim());
+  std::vector<int64_t> sizes(tensor->sizes().begin(), tensor->sizes().end());
+  assert(sizes[dim] == 1);
+  sizes[dim] = size;
+  *result = new torch_c_tensor_t(tensor->expand(sizes));
+}
+
+/*******************************************************************************
+ * \brief Creates a tensor view narrowed along one dimension.
+ ******************************************************************************/
+void torch_c_tensor_narrow(const torch_c_tensor_t *tensor, const int64_t dim,
+                           const int64_t start_index, const int64_t length,
+                           torch_c_tensor_t **result) {
+  c10::OptionalDeviceGuard guard;
+  const auto device = get_device_with_guard(guard);
+  assert(*result == NULL);
+  assert(dim >= 0);
+  assert(start_index >= 0);
+  assert(length >= 0);
+  assert(dim < tensor->ndimension());
+  assert(start_index + length <= tensor->size(dim));
+  *result =
+      new torch_c_tensor_t(tensor->narrow(dim, start_index, length).to(device));
+}
+
+/*******************************************************************************
  * \brief Returns the data_ptr and sizes of a Torch tensor of int32s.
  *        The returned pointer is only valide during the tensor's live time!
  * \author Ole Schuett
@@ -399,7 +434,7 @@ void torch_c_model_forward(torch_c_model_t *model, const torch_c_dict_t *inputs,
 }
 
 /*******************************************************************************
- * \brief Evaluates a TorchScript model method expecting keyword argument "mol".
+ * \brief Evaluates a TorchScript model method expecting argument "mol".
  ******************************************************************************/
 void torch_c_model_forward_mol_tensor(torch_c_model_t *model,
                                       const char *method_name,
@@ -408,11 +443,9 @@ void torch_c_model_forward_mol_tensor(torch_c_model_t *model,
 
   c10::OptionalDeviceGuard guard;
   get_device_with_guard(guard);
-  std::vector<c10::IValue> args;
-  std::unordered_map<std::string, c10::IValue> kwargs;
-  kwargs["mol"] = *inputs;
+  assert(*output == NULL);
   *output = new torch_c_tensor_t(
-      model->get_method(method_name)(args, kwargs).toTensor());
+      model->get_method(method_name)({*inputs}).toTensor());
 }
 
 /*******************************************************************************
@@ -462,6 +495,13 @@ void torch_c_model_read_metadata(const char *filename, const char *key,
  * \author Ole Schuett
  ******************************************************************************/
 bool torch_c_cuda_is_available() { return torch::cuda::is_available(); }
+
+/*******************************************************************************
+ * \brief Return the number of CUDA devices visible to Torch.
+ ******************************************************************************/
+int torch_c_cuda_device_count() {
+  return torch::cuda::is_available() ? torch::cuda::device_count() : 0;
+}
 
 /*******************************************************************************
  * \brief Set whether to allow TF32.

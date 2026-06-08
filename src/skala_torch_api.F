@@ -167,10 +167,10 @@ CONTAINS
 
       TYPE(torch_tensor_type)                            :: exc_density
 
-      CALL skala_torch_model_get_exc_density(model, inputs, exc_density)
+      CALL torch_model_forward_mol_tensor(model%torch_model, "get_exc_density", inputs, exc_density)
       CALL torch_tensor_weighted_sum(exc_density, grid_weights, exc_tensor)
-      exc = torch_tensor_item_double(exc_tensor)
       CALL torch_tensor_release(exc_density)
+      exc = torch_tensor_item_double(exc_tensor)
 
    END SUBROUTINE skala_torch_model_get_exc
 
