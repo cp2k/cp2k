@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxstream_ver="8015f5461e5d1fee08024ddf20b38ea4400fbc24"
-libxstream_sha256="f2c41d2c0cbe1fd6d8001d78834caf1e978acdec61e4d873373684be6e98d981"
+libxstream_ver="711aee9"
+libxstream_sha256="9d5a4c3515e7704f6a021fef77843c1a6acb63a1d45fd36a62f546e94ea65eef"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -38,8 +38,8 @@ case "$with_libxstream" in
         echo "libxstream-${libxstream_ver}.tar.gz is found"
       else
         if ! download_pkg_from_cp2k_org "${libxstream_sha256}" "libxstream-${libxstream_ver}.tar.gz" 2> /dev/null; then
-          download_pkg_from_urlpath "${libxstream_sha256}" "${libxstream_ver}.tar.gz" \
-            https://github.com/hfp/libxstream/archive \
+          download_pkg_from_urlpath "${libxstream_sha256}" "${libxstream_ver}" \
+            https://codeload.github.com/hfp/libxstream/tar.gz \
             "libxstream-${libxstream_ver}.tar.gz"
         fi
       fi
