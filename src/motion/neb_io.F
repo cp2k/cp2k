@@ -178,17 +178,20 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'dump_neb_info'
 
       CHARACTER(LEN=20)                                  :: mytype
+      CHARACTER(LEN=4)                                   :: l_ener
       CHARACTER(LEN=default_string_length)               :: line, title, unit_str
-      INTEGER                                            :: crd, ener, frc, handle, i, irep, ndig, &
-                                                            ndigl, ttst, vel
-      LOGICAL                                            :: explicit, lval, print_kind
-      REAL(KIND=dp)                                      :: f_ann, tmp_r1, unit_conv
+      INTEGER                                            :: crd, ener, frc, handle, i, irep, n_max, &
+                                                            n_min, ndig, ndigl, plt, ttst, vel
+      LOGICAL                                            :: explicit, lval, plot_rel_energy, &
+                                                            print_kind
+      REAL(KIND=dp)                                      :: ener_min, ener_range, f_ann, tmp_r1, &
+                                                            unit_conv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ekin, temperatures
       TYPE(cell_type), POINTER                           :: cell
       TYPE(enumeration_type), POINTER                    :: enum
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: section
-      TYPE(section_vals_type), POINTER                   :: tc_section, vc_section
+      TYPE(section_vals_type), POINTER                   :: run_info_section, tc_section, vc_section
 
       CALL timeset(routineN, handle)
       ndig = CEILING(LOG10(REAL(neb_env%number_of_replica + 1, KIND=dp)))
@@ -264,6 +267,8 @@ CONTAINS
       IF (output_unit > 0) THEN
          tc_section => section_vals_get_subs_vals(neb_env%neb_section, "OPTIMIZE_BAND%MD%TEMP_CONTROL")
          vc_section => section_vals_get_subs_vals(neb_env%neb_section, "OPTIMIZE_BAND%MD%VEL_CONTROL")
+         run_info_section => section_vals_get_subs_vals(neb_env%neb_section, "PROGRAM_RUN_INFO")
+         CALL section_vals_val_get(run_info_section, "PLOT_REL_ENERGY", l_val=plot_rel_energy)
          ALLOCATE (temperatures(neb_env%number_of_replica))
          ALLOCATE (ekin(neb_env%number_of_replica))
          CALL get_temperatures(vels, particle_set, temperatures, ekin=ekin)
@@ -312,23 +317,81 @@ CONTAINS
          END IF
          WRITE (output_unit, '( A,T71,I10 )') &
             ' NUMBER OF NEB REPLICA         =', neb_env%number_of_replica
-         WRITE (output_unit, '( A,T17,4F16.6)') &
-            ' DISTANCES REP =', distances(1:MIN(4, SIZE(distances)))
-         IF (SIZE(distances) > 4) THEN
-            WRITE (output_unit, '( T17,4F16.6)') distances(5:SIZE(distances))
-         END IF
-         WRITE (output_unit, '( A,T17,4F16.6)') &
-            ' ENERGIES [au] =', energies(1:MIN(4, SIZE(energies)))
-         IF (SIZE(energies) > 4) THEN
-            WRITE (output_unit, '( T17,4F16.6)') energies(5:SIZE(energies))
-         END IF
-         IF (neb_env%opt_type == band_md_opt) THEN
-            WRITE (output_unit, '( A,T33,4(1X,F11.5))') &
-               ' REPLICA TEMPERATURES (K)      =', temperatures(1:MIN(4, SIZE(temperatures)))
-            DO i = 5, SIZE(temperatures), 4
-               WRITE (output_unit, '( T33,4(1X,F11.5))') &
-                  temperatures(i:MIN(i + 3, SIZE(temperatures)))
+         ! switch between a longer visual format and a compact data-only print format
+         IF (plot_rel_energy) THEN
+            CPASSERT(SIZE(distances) == neb_env%number_of_replica - 1)
+            CPASSERT(SIZE(energies) == neb_env%number_of_replica)
+            CPASSERT(SIZE(temperatures) == neb_env%number_of_replica)
+            ener_min = MINVAL(energies(:))
+            ener_range = MAXVAL(energies(:)) - ener_min
+            n_max = 0
+            n_min = 0
+            WRITE (output_unit, '(T2,A,T22,A,T35,A,T52,A)') &
+               'REPLICA', 'ENERGY [au]', 'TEMPERATURE [K]', 'o-------------------------> E'
+            DO i = 1, SIZE(distances)
+               plt = FLOOR((energies(i) - ener_min)/ener_range*25)
+               l_ener = "(**)"
+               IF (i > 1) THEN
+                  IF (energies(i) - energies(i - 1) > 0) THEN
+                     l_ener(2:2) = "+"
+                  ELSE
+                     l_ener(2:2) = "-"
+                  END IF
+               END IF
+               IF (energies(i + 1) - energies(i) < 0) THEN
+                  l_ener(3:3) = "+"
+               ELSE
+                  l_ener(3:3) = "-"
+               END IF
+               SELECT CASE (l_ener)
+               CASE ("(++)") ! local maximum
+                  n_max = n_max + 1
+                  WRITE (line, '(A,A,A)') "|", REPEAT(" ", plt), "X"
+               CASE ("(--)") ! local minimum
+                  n_min = n_min + 1
+                  WRITE (line, '(A,A,A)') "|", REPEAT(" ", plt), "x"
+               CASE DEFAULT
+                  WRITE (line, '(A,A,A)') "|", REPEAT(" ", plt), "O"
+               END SELECT
+               WRITE (output_unit, '(T2,I7,T10,F18.8,1X,A,T34,F16.6,T52,A)') &
+                  i, energies(i), l_ener, temperatures(i), TRIM(line)
+               WRITE (output_unit, '(T2,A,1X,F16.6,T52,A)') &
+                  "DISTANCE = ", distances(i), "|"
             END DO
+            plt = FLOOR((energies(neb_env%number_of_replica) - ener_min)/ener_range*25)
+            l_ener = "(**)"
+            IF (energies(neb_env%number_of_replica) - energies(neb_env%number_of_replica - 1) > 0) THEN
+               l_ener(2:2) = "+"
+            ELSE
+               l_ener(2:2) = "-"
+            END IF
+            ! The last point would not be local maximum or minimum, as is the first
+            WRITE (line, '(A,A,A)') "|", REPEAT(" ", plt), "O"
+            WRITE (output_unit, '(T2,I7,T10,F18.8,1X,A,T34,F16.6,T52,A)') &
+               neb_env%number_of_replica, energies(neb_env%number_of_replica), &
+               l_ener, temperatures(neb_env%number_of_replica), TRIM(line)
+            WRITE (output_unit, '(T52,A)') "v Nr."
+            WRITE (output_unit, '(T2,A,T44,2(1X,I4))') &
+               "NUMBER OF LOCAL MAXIMA (X) and MINIMA (x):", n_max, n_min
+         ELSE
+            WRITE (output_unit, '( A,T17,4F16.6)') &
+               ' DISTANCES REP =', distances(1:MIN(4, SIZE(distances)))
+            IF (SIZE(distances) > 4) THEN
+               WRITE (output_unit, '( T17,4F16.6)') distances(5:SIZE(distances))
+            END IF
+            WRITE (output_unit, '( A,T17,4F16.6)') &
+               ' ENERGIES [au] =', energies(1:MIN(4, SIZE(energies)))
+            IF (SIZE(energies) > 4) THEN
+               WRITE (output_unit, '( T17,4F16.6)') energies(5:SIZE(energies))
+            END IF
+            IF (neb_env%opt_type == band_md_opt) THEN
+               WRITE (output_unit, '( A,T33,4(1X,F11.5))') &
+                  ' REPLICA TEMPERATURES (K)      =', temperatures(1:MIN(4, SIZE(temperatures)))
+               DO i = 5, SIZE(temperatures), 4
+                  WRITE (output_unit, '( T33,4(1X,F11.5))') &
+                     temperatures(i:MIN(i + 3, SIZE(temperatures)))
+               END DO
+            END IF
          END IF
          WRITE (output_unit, '( A,T56,F25.14)') &
             ' BAND TOTAL ENERGY [au]        =', SUM(energies(:) + ekin(:)) + &

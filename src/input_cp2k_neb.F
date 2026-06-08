@@ -263,9 +263,9 @@ CONTAINS
       CALL section_release(subsection)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "program_run_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing basic info about the BAND run", &
-                                       print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
 
       CALL keyword_create(keyword, __LOCATION__, name="INITIAL_CONFIGURATION_INFO", &
                           description="Print information for the setup of the initial configuration.", &
@@ -274,16 +274,26 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="PLOT_REL_ENERGY", &
+                          description="If a simple plot of relative energy of each replica is shown "// &
+                          "alongside data vertically. This makes the output format less compact than "// &
+                          "default, but creates a visual aid for ease of monitoring with some special "// &
+                          "marks for the local maxima (X) or minima (x) in the plot.", &
+                          usage="PLOT_REL_ENERGY <LOGICAL>", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "convergence_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CONVERGENCE_INFO", &
                                        description="Controls the printing of the convergence criteria during a BAND run", &
                                        print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "replica_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "REPLICA_INFO", &
                                        description="Controls the printing of each replica info during a BAND run", &
                                        print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
