@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_NAME}")/.." && pwd -P)"
 
-dbcsr_ver="0df59460c6cb1e8069080f1ce9caf0d382b8d0ef"
-dbcsr_sha256="e87fc029197f7d139429e4961f79cba52797dbd8b35fee6c1f1ed9bc81484a9e"
+dbcsr_ver="b72b8d5"
+dbcsr_sha256="2f13e8a1a1ac5717e5ab159684b882d10a648f71da730a80a505f7b97e76f26b"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -31,8 +31,8 @@ case "${with_dbcsr}" in
         echo "dbcsr-${dbcsr_ver}.tar.gz is found"
       else
         if ! download_pkg_from_cp2k_org "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz" 2> /dev/null; then
-          download_pkg_from_urlpath "${dbcsr_sha256}" "${dbcsr_ver}.tar.gz" \
-            https://github.com/cp2k/dbcsr/archive \
+          download_pkg_from_urlpath "${dbcsr_sha256}" "${dbcsr_ver}" \
+            https://codeload.github.com/Growl1234/dbcsr/tar.gz \
             "dbcsr-${dbcsr_ver}.tar.gz"
         fi
       fi
@@ -64,11 +64,14 @@ case "${with_dbcsr}" in
       fi
       mkdir build-cpu
       cd build-cpu
-      CMAKE_OPTIONS="-DBUILD_TESTING=NO -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON"
-      CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DUSE_OPENMP=ON -DWITH_EXAMPLES=NO"
-      CMAKE_OPTIONS="${CMAKE_OPTIONS} -DFYPP_EXECUTABLE=${FYPP_EXE}"
-      if [ "${with_libxsmm}" == "__DONTUSE__" ]; then
-        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_LIBXSMM=OFF"
+      CMAKE_OPTIONS="-DBUILD_TESTING=NO -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+      CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DUSE_OPENMP=ON"
+      CMAKE_OPTIONS="${CMAKE_OPTIONS} -DWITH_EXAMPLES=NO -DFYPP_EXECUTABLE=${FYPP_EXE}"
+      if [ "${with_libxsmm}" != "__DONTUSE__" ]; then
+        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_LIBXSMM=ON"
+      fi
+      if [ "${with_libxs}" != "__DONTUSE__" ]; then
+        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_LIBXS=ON"
       fi
       if [ "${MPI_MODE}" == "no" ]; then
         CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_MPI=OFF"

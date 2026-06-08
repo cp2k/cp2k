@@ -695,7 +695,7 @@ if(CP2K_USE_ELPA)
 endif()
 
 if(CP2K_USE_LIBXC)
-  find_package(Libxc 7 QUIET CONFIG)
+  find_package(Libxc 7 REQUIRED)
 endif()
 
 if(CP2K_USE_GAUXC)
