@@ -48,3 +48,90 @@ index a9e60fd8..29b0949d 100644
 +    nlohmann_json::nlohmann_json INTERFACE_INCLUDE_DIRECTORIES)
 +  target_include_directories(gauxc PRIVATE ${GAUXC_NLOHMANN_JSON_INCLUDE_DIRS})
 +  target_link_libraries( gauxc PUBLIC "${TORCH_LIBRARIES}")
+diff --git a/cmake/gauxc-exchcxx.cmake b/cmake/gauxc-exchcxx.cmake
+index 412df9b3..011ae844 100644
+--- a/cmake/gauxc-exchcxx.cmake
++++ b/cmake/gauxc-exchcxx.cmake
+@@ -1,5 +1,5 @@
+ find_package( ExchCXX QUIET )
+-if( NOT ${ExchCXX_FOUND} )
++if( NOT ExchCXX_FOUND )
+
+   include( gauxc-dep-versions )
+
+@@ -19,6 +19,10 @@ if( NOT ${ExchCXX_FOUND} )
+
+   FetchContent_MakeAvailable( exchcxx )
+
++  if( CMAKE_POSITION_INDEPENDENT_CODE AND TARGET exchcxx )
++    set_target_properties( exchcxx PROPERTIES POSITION_INDEPENDENT_CODE ON )
++  endif()
++
+
+ else()
+
+@@ -31,5 +35,3 @@ else()
+   endif()
+
+ endif()
+-
+-
+diff --git a/cmake/gauxc-integratorxx.cmake b/cmake/gauxc-integratorxx.cmake
+index b6bbbf0e..502067d2 100644
+--- a/cmake/gauxc-integratorxx.cmake
++++ b/cmake/gauxc-integratorxx.cmake
+@@ -1,5 +1,5 @@
+ find_package( IntegratorXX QUIET )
+-if( NOT ${IntegratorXX_FOUND} )
++if( NOT IntegratorXX_FOUND )
+
+   include( gauxc-dep-versions )
+
+@@ -16,6 +16,8 @@ if( NOT ${IntegratorXX_FOUND} )
+
+   FetchContent_MakeAvailable( integratorxx )
+
+-endif()
+-
++  if( CMAKE_POSITION_INDEPENDENT_CODE AND TARGET integratorxx )
++    set_target_properties( integratorxx PROPERTIES POSITION_INDEPENDENT_CODE ON )
++  endif()
+
++endif()
+diff --git a/src/xc_integrator/local_work_driver/factory.cxx b/src/xc_integrator/local_work_driver/factory.cxx
+index fd6b86ad..3547e1d3 100644
+--- a/src/xc_integrator/local_work_driver/factory.cxx
++++ b/src/xc_integrator/local_work_driver/factory.cxx
+@@ -11,18 +11,31 @@
+  */
+ #include <gauxc/xc_integrator/local_work_driver.hpp>
+ #include "host/reference_local_host_work_driver.hpp"
++#include <algorithm>
++#include <cctype>
+ #ifdef GAUXC_HAS_DEVICE
+ #include "device/cuda/cuda_aos_scheme1.hpp"
+ #include "device/hip/hip_aos_scheme1.hpp"
+ #endif
+
+ namespace GauXC {
++namespace {
++
++void trim_and_uppercase(std::string& name) {
++  auto not_space = [](unsigned char c) { return !std::isspace(c); };
++  name.erase(name.begin(), std::find_if(name.begin(), name.end(), not_space));
++  name.erase(std::find_if(name.rbegin(), name.rend(), not_space).base(), name.end());
++  std::transform(name.begin(), name.end(), name.begin(),
++                 [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
++}
++
++}
+
+ LocalWorkDriverFactory::ptr_return_t
+   LocalWorkDriverFactory::make_local_work_driver( ExecutionSpace ex,
+     std::string name, LocalWorkSettings settings ) {
+
+-  std::transform( name.begin(), name.end(), name.begin(), ::toupper );
++  trim_and_uppercase(name);
+   (void)(settings);
+
+   switch(ex) {

@@ -174,6 +174,10 @@ Specific options of --enable-FEATURE:
   --enable-cuda           Turn on GPU (CUDA) support.
                           Can be combined with --enable-opencl.
                           Default = no
+  --enable-gauxc-cutlass  Turn on CUTLASS local work driver support when
+                          installing GauXC. Requires --with-gauxc=install,
+                          --enable-cuda=yes, and CUDA compute capability >= 8.0.
+                          Default = no
   --enable-hip            Turn on GPU (HIP) support.
                           Default = no
   --enable-opencl         Turn on OpenCL (GPU) support. Requires the OpenCL
@@ -577,6 +581,7 @@ dry_run="__FALSE__"
 enable_tsan="__FALSE__"
 enable_opencl="__FALSE__"
 enable_cuda="__FALSE__"
+enable_gauxc_cutlass="__FALSE__"
 enable_hip="__FALSE__"
 export with_ifx="no"
 export GPUVER="no"
@@ -760,6 +765,13 @@ Otherwise use option no."
       enable_cuda=$(read_enable "${1}")
       if [ "${enable_cuda}" = "__INVALID__" ]; then
         report_error "invalid value for --enable-cuda, please use yes or no"
+        exit 1
+      fi
+      ;;
+    --enable-gauxc-cutlass*)
+      enable_gauxc_cutlass=$(read_enable "${1}")
+      if [ "${enable_gauxc_cutlass}" = "__INVALID__" ]; then
+        report_error "invalid value for --enable-gauxc-cutlass, please use yes or no"
         exit 1
       fi
       ;;
@@ -969,6 +981,7 @@ done
 # consolidate settings after user input
 export ENABLE_TSAN="${enable_tsan}"
 export ENABLE_CUDA="${enable_cuda}"
+export ENABLE_GAUXC_CUTLASS="${enable_gauxc_cutlass}"
 export ENABLE_HIP="${enable_hip}"
 export ENABLE_OPENCL="${enable_opencl}"
 export ENABLE_CRAY="${enable_cray}"
@@ -1087,6 +1100,27 @@ if [ "${ENABLE_CUDA}" = "__TRUE__" ] || [ "${ENABLE_HIP}" = "__TRUE__" ]; then
     report_error ${LINENO} "Either CUDA or HIP is enabled, but --gpu-ver is not
 set to one of the known architectures. See help message of this script produced
 by --help option for supported ones."
+    exit 1
+  fi
+fi
+
+if [ "${ENABLE_GAUXC_CUTLASS}" = "__TRUE__" ]; then
+  if [ "${ENABLE_CUDA}" != "__TRUE__" ]; then
+    report_error ${LINENO} "--enable-gauxc-cutlass requires --enable-cuda=yes."
+    exit 1
+  fi
+  case "${GPUVER}" in
+    A100 | A40 | H100 | GB10) ;;
+    *)
+      report_error ${LINENO} "--enable-gauxc-cutlass requires CUDA compute capability >= 8.0."
+      exit 1
+      ;;
+  esac
+  if [ "${with_gauxc}" = "__DONTUSE__" ]; then
+    report_warning ${LINENO} "--enable-gauxc-cutlass requires GauXC, enabling --with-gauxc=install."
+    with_gauxc="__INSTALL__"
+  elif [ "${with_gauxc}" != "__INSTALL__" ]; then
+    report_error ${LINENO} "--enable-gauxc-cutlass is only supported with --with-gauxc=install."
     exit 1
   fi
 fi
@@ -1357,6 +1391,7 @@ write_toolchain_env "${INSTALLDIR}"
 echo "tool_list=\"${tool_list}\"" > "${INSTALLDIR}"/toolchain.conf
 echo "mpi_mode=\"${MPI_MODE}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "ENABLE_CUDA=\"${ENABLE_CUDA}\"" >> "${INSTALLDIR}"/toolchain.conf
+echo "ENABLE_GAUXC_CUTLASS=\"${ENABLE_GAUXC_CUTLASS}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "ENABLE_HIP=\"${ENABLE_HIP}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "ENABLE_OPENCL=\"${ENABLE_OPENCL}\"" >> "${INSTALLDIR}"/toolchain.conf
 if [ "${ENABLE_CUDA}" == "__TRUE__" ] || [ "${ENABLE_HIP}" == "__TRUE__" ]; then
@@ -1381,6 +1416,7 @@ if [ "${dry_run}" = "__TRUE__" ]; then
   printf '  --%-20s = %s\n' "math-mode" "${MATH_MODE}"
   printf '  --%-20s = %s\n' "enable-tsan" "${enable_tsan}"
   printf '  --%-20s = %s\n' "enable-cuda" "${enable_cuda}"
+  printf '  --%-20s = %s\n' "enable-gauxc-cutlass" "${enable_gauxc_cutlass}"
   printf '  --%-20s = %s\n' "enable-hip" "${enable_hip}"
   printf '  --%-20s = %s\n' "enable-opencl" "${enable_opencl}"
   printf '  --%-20s = %s\n' "enable-cray" "${enable_cray}"
