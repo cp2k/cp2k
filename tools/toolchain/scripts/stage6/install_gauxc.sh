@@ -98,6 +98,15 @@ case "${with_gauxc}" in
       else
         gauxc_enable_openmp="OFF"
       fi
+      gauxc_cuda_architectures_option=""
+      if [ "${ENABLE_GAUXC_CUTLASS}" = "__TRUE__" ]; then
+        gauxc_enable_cuda="ON"
+        gauxc_enable_cutlass="ON"
+        gauxc_cuda_architectures_option="-DCMAKE_CUDA_ARCHITECTURES=${ARCH_NUM}"
+      else
+        gauxc_enable_cuda="OFF"
+        gauxc_enable_cutlass="OFF"
+      fi
 
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
@@ -113,14 +122,15 @@ case "${with_gauxc}" in
         -DGAUXC_ENABLE_MPI="${gauxc_enable_mpi}" \
         -DGAUXC_ENABLE_OPENMP="${gauxc_enable_openmp}" \
         -DGAUXC_ENABLE_TESTS=OFF \
-        -DGAUXC_ENABLE_CUDA=OFF \
+        -DGAUXC_ENABLE_CUDA="${gauxc_enable_cuda}" \
         -DGAUXC_ENABLE_HIP=OFF \
         -DGAUXC_ENABLE_HDF5=OFF \
         -DGAUXC_ENABLE_ONEDFT=ON \
         -DGAUXC_NLOHMANN_JSON_URL="${BUILDDIR}/${nlohmann_json_pkg}" \
         -DGAUXC_ENABLE_MAGMA=OFF \
         -DGAUXC_ENABLE_NCCL=OFF \
-        -DGAUXC_ENABLE_CUTLASS=OFF \
+        -DGAUXC_ENABLE_CUTLASS="${gauxc_enable_cutlass}" \
+        ${gauxc_cuda_architectures_option} \
         .. > configure.log 2>&1 || {
         tail_excerpt configure.log
         exit 1
