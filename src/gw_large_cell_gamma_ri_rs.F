@@ -207,7 +207,7 @@ CONTAINS
        !!========================================================================
       CALL compute_QP_energies(bs_env, qs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time)
 
-      CALL de_init_bs_env(bs_env)
+      CALL de_init_bs_env(qs_env, bs_env)
 
       CALL timestop(handle)
 

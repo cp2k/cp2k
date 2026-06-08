@@ -46,6 +46,7 @@ MODULE rt_bse_types
    USE rt_propagation_utils, ONLY: warn_section_unused
    USE gw_integrals, ONLY: build_3c_integral_block
    USE gw_large_cell_Gamma, ONLY: compute_3c_integrals
+   USE gw_utils, ONLY: rtbse_resolve_rirs_flags
    USE qs_tensors, ONLY: neighbor_list_3c_destroy
    USE libint_2c_3c, ONLY: libint_potential_type
    USE input_constants, ONLY: use_mom_ref_coac, &
@@ -375,7 +376,6 @@ CONTAINS
       INTEGER                                                   :: i, k, n_ov, i_spin
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
       TYPE(cp_fm_struct_type), POINTER                          :: mo_struct => NULL()
-      LOGICAL :: explicit_rirs_hartree, explicit_rirs_sex
 
       ! Allocate the storage for the gwbse environment
       NULLIFY (rtbse_env)
@@ -446,24 +446,10 @@ CONTAINS
                                 l_val=rtbse_env%debug_disable_sex)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_DISABLE_COH", &
                                 l_val=rtbse_env%debug_disable_coh)
-      ! Per-kernel RI-RS dispatch: default to bs_env%do_gw_ri_rs so that running with a
-      ! GW_RI_RS section automatically routes the RT-BSE kernels through the same RI-RS
-      ! grid (and CUTOFF_RADIUS_RI_RS) as GW. Explicit RIRS_HARTREE/RIRS_SEX overrides apply.
-      rtbse_env%rirs_hartree = bs_env%do_gw_ri_rs
-      rtbse_env%rirs_sex = bs_env%do_gw_ri_rs
-
-      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_HARTREE", &
-                                explicit=explicit_rirs_hartree)
-      IF (explicit_rirs_hartree) THEN
-         CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_HARTREE", &
-                                   l_val=rtbse_env%rirs_hartree)
-      END IF
-      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_SEX", &
-                                explicit=explicit_rirs_sex)
-      IF (explicit_rirs_sex) THEN
-         CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_SEX", &
-                                   l_val=rtbse_env%rirs_sex)
-      END IF
+      ! Per-kernel RI-RS dispatch (default do_gw_ri_rs, explicit RIRS_* override, full-RTBSE
+      ! force-off) is resolved by the shared helper so de_init_bs_env reaches the same verdict
+      ! when deciding whether to retain nl_3c. [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
+      CALL rtbse_resolve_rirs_flags(force_env%qs_env, bs_env, rtbse_env%rirs_hartree, rtbse_env%rirs_sex)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DIAGNOSE_LIOUVILLIAN_EIG", &
                                 l_val=rtbse_env%diagnose_liouvillian_eig)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_FORCE_HACKED_GW_H2_EIGENVALUES", &
@@ -479,8 +465,7 @@ CONTAINS
          rtbse_env%debug_disable_sex = .FALSE.
          rtbse_env%debug_disable_coh = .FALSE.
          rtbse_env%tda_shift_to_first_peak = .FALSE.
-         rtbse_env%rirs_hartree = .FALSE.
-         rtbse_env%rirs_sex = .FALSE.
+         ! rirs_hartree/rirs_sex are already forced .FALSE. here by rtbse_resolve_rirs_flags.
          rtbse_env%diagnose_liouvillian_eig = .FALSE.
          rtbse_env%debug_force_hacked_gw_h2_eigenvalues = .FALSE.
          rtbse_env%debug_force_hacked_gw_o2_eigenvalues = .FALSE.

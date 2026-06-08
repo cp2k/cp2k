@@ -140,7 +140,8 @@ MODULE gw_utils
 
    PUBLIC :: create_and_init_bs_env_for_gw, de_init_bs_env, get_i_j_atoms, &
              compute_xkp, time_to_freq, analyt_conti_and_print, &
-             add_R, is_cell_in_index_to_cell, get_V_tr_R, power
+             add_R, is_cell_in_index_to_cell, get_V_tr_R, power, &
+             rtbse_resolve_rirs_flags
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils'
 
@@ -236,14 +237,17 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param qs_env ...
 !> \param bs_env ...
 ! **************************************************************************************************
-   SUBROUTINE de_init_bs_env(bs_env)
+   SUBROUTINE de_init_bs_env(qs_env, bs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'de_init_bs_env'
 
       INTEGER                                            :: handle
+      LOGICAL                                            :: retain_nl_3c, rirs_sex
 
       CALL timeset(routineN, handle)
       ! deallocate quantities here which:
@@ -251,8 +255,17 @@ CONTAINS
       ! 2. consume a lot of memory and should not be kept until the quantity is
       !    deallocated in bs_env_release
 
+      ! nl_3c feeds only the AO-RI SEX self-energy (compute_3c_integrals); the RI-RS SEX
+      ! path never reads it, and AO-RI Hartree builds its own blocks. Retain iff AO-RI SEX.
+      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
+      retain_nl_3c = .FALSE.
       IF (ASSOCIATED(bs_env%nl_3c%ij_list) .AND. (bs_env%rtp_method == rtp_method_bse)) THEN
-         IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, *) "Retaining nl_3c for RTBSE"
+         CALL rtbse_resolve_rirs_flags(qs_env, bs_env, rirs_sex=rirs_sex)
+         retain_nl_3c = .NOT. rirs_sex
+      END IF
+
+      IF (retain_nl_3c) THEN
+         IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, *) "Retaining nl_3c for AO-RI RT-BSE self-energy"
       ELSE
          CALL neighbor_list_3c_destroy(bs_env%nl_3c)
       END IF
@@ -262,6 +275,54 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE de_init_bs_env
+
+! **************************************************************************************************
+!> \brief Resolve the linRTBSE RI-RS kernel flags (Hartree, SEX) from input and the GW default.
+!> \param qs_env Quickstep environment - source of the input section and the RTP method
+!> \param bs_env Bandstructure environment - provides the do_gw_ri_rs default
+!> \param rirs_hartree (optional) .TRUE. if the Hartree kernel uses the RI-RS grid
+!> \param rirs_sex (optional) .TRUE. if the SEX/COH kernel uses the RI-RS grid
+!> \author Maximilian Graml
+!> \note Single source of truth shared by create_rtbse_env (sets the flags) and de_init_bs_env
+!>       (decides whether to retain nl_3c). Default follows bs_env%do_gw_ri_rs; explicit
+!>       RIRS_HARTREE/RIRS_SEX override; both forced .FALSE. for non-linearized (full) RT-BSE.
+! **************************************************************************************************
+   SUBROUTINE rtbse_resolve_rirs_flags(qs_env, bs_env, rirs_hartree, rirs_sex)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: rirs_hartree, rirs_sex
+
+      LOGICAL                                            :: explicit_hartree, explicit_sex, &
+                                                            my_rirs_hartree, my_rirs_sex
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(section_vals_type), POINTER                   :: input
+
+      NULLIFY (dft_control, input)
+      CALL get_qs_env(qs_env, dft_control=dft_control, input=input)
+
+      my_rirs_hartree = bs_env%do_gw_ri_rs
+      my_rirs_sex = bs_env%do_gw_ri_rs
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_HARTREE", &
+                                explicit=explicit_hartree)
+      IF (explicit_hartree) THEN
+         CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_HARTREE", l_val=my_rirs_hartree)
+      END IF
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_SEX", &
+                                explicit=explicit_sex)
+      IF (explicit_sex) THEN
+         CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_SEX", l_val=my_rirs_sex)
+      END IF
+
+      ! RI-RS kernels are implemented for linearized RT-BSE only; full RT-BSE always uses AO-RI.
+      IF (dft_control%rtp_control%rtp_method /= rtp_method_bse_linearized) THEN
+         my_rirs_hartree = .FALSE.
+         my_rirs_sex = .FALSE.
+      END IF
+
+      IF (PRESENT(rirs_hartree)) rirs_hartree = my_rirs_hartree
+      IF (PRESENT(rirs_sex)) rirs_sex = my_rirs_sex
+
+   END SUBROUTINE rtbse_resolve_rirs_flags
 
 ! **************************************************************************************************
 !> \brief ...
