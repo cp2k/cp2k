@@ -899,11 +899,6 @@ if(CP2K_USE_ACE)
 endif()
 
 if(CP2K_USE_TBLITE)
-  # This should be fixed mainstream. TBLITE Config.cmake should do this for us
-  find_package(mctc-lib REQUIRED)
-  find_package(toml-f REQUIRED)
-  find_package(dftd4 REQUIRED)
-  find_package(s-dftd3 REQUIRED)
   find_package(tblite REQUIRED)
   add_library(cp2k::tblite INTERFACE IMPORTED)
   target_link_libraries(
