@@ -933,8 +933,8 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: model_key, output_path
       CHARACTER(len=default_string_length)               :: grid_key, pruning_key, skala_runtime, &
                                                             skala_runtime_key
-      INTEGER                                            :: batch_size, env_status, img, ispin, &
-                                                            nimages, onedft_atom_chunk_size
+      INTEGER                                            :: env_status, img, ispin, nimages, &
+                                                            onedft_atom_chunk_size
       LOGICAL :: do_kpoints, grid_explicit, hdf5_output, is_periodic, molecular_virial, &
          molecular_virial_debug, onedft_atom_chunk_size_explicit, periodic_reference, &
          pruning_explicit, use_gradient_mpi_runtime, use_onedft, use_skala_model, write_hdf5_output
@@ -1046,7 +1046,7 @@ CONTAINS
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "BATCH_SIZE", &
-         i_val=batch_size)
+         i_val=params%batch_size)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "DEVICE_RUNTIME_FILL_FRACTION", &
@@ -1263,7 +1263,7 @@ CONTAINS
                   CALL gauxc_xc_gradient_fd( &
                      particle_set, qs_kind_set, density_scalar, params%nspins, params%model_name, &
                      params%xc_fun_name, params%grid_type, params%radial_quadrature, params%pruning_scheme, &
-                     params%lb_exec_space, params%int_exec_space, batch_size, &
+                     params%lb_exec_space, params%int_exec_space, params%batch_size, &
                      params%device_runtime_fill_fraction, gapw_fd_gradient_dx, para_env, &
                      exc_grad%exc_grad)
                ELSE IF (params%use_gradient_self_runtime) THEN
@@ -1296,7 +1296,7 @@ CONTAINS
                   CALL debug_gauxc_molecular_virial( &
                      exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, params%nspins, &
                      params%model_name, params%xc_fun_name, params%grid_type, params%radial_quadrature, params%pruning_scheme, &
-                     params%lb_exec_space, params%int_exec_space, batch_size, params%device_runtime_fill_fraction, &
+                     params%lb_exec_space, params%int_exec_space, params%batch_size, params%device_runtime_fill_fraction, &
                      molecular_virial_debug_dx, para_env)
                END IF
                DEALLOCATE (exc_grad%exc_grad)
@@ -1328,7 +1328,7 @@ CONTAINS
                   CALL gauxc_xc_gradient_fd( &
                      particle_set, qs_kind_set, density_scalar, params%nspins, params%model_name, &
                      params%xc_fun_name, params%grid_type, params%radial_quadrature, params%pruning_scheme, &
-                     params%lb_exec_space, params%int_exec_space, batch_size, &
+                     params%lb_exec_space, params%int_exec_space, params%batch_size, &
                      params%device_runtime_fill_fraction, gapw_fd_gradient_dx, para_env, &
                      exc_grad%exc_grad, density_zeta=density_zeta)
                ELSE IF (params%use_gradient_self_runtime) THEN
@@ -1363,7 +1363,7 @@ CONTAINS
                   CALL debug_gauxc_molecular_virial( &
                      exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, params%nspins, &
                      params%model_name, params%xc_fun_name, params%grid_type, params%radial_quadrature, params%pruning_scheme, &
-                     params%lb_exec_space, params%int_exec_space, batch_size, params%device_runtime_fill_fraction, &
+                     params%lb_exec_space, params%int_exec_space, params%batch_size, params%device_runtime_fill_fraction, &
                      molecular_virial_debug_dx, para_env, density_zeta=density_zeta)
                END IF
                DEALLOCATE (exc_grad%exc_grad)
