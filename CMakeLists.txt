@@ -137,6 +137,7 @@ option(CP2K_USE_OPENPMD "Enable support for I/O via openPMD" OFF)
 option(CP2K_USE_LIBXC "Enable LibXC support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GAUXC "Enable GauXC support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_MPI "Enable MPI support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_LIBXS "Enable LIBXS support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_PEXSI "Enable PEXSI support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_SPGLIB "Enable Spglib support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
@@ -171,8 +172,8 @@ cmake_dependent_option(CP2K_USE_SPLA "Enable SpLA support"
 cmake_dependent_option(CP2K_USE_MIMIC "Enable MIMIC support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 
-option(CP2K_USE_LIBXS "Enable LIBXS support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_LIBXSMM "Enable LIBXSMM support" ${CP2K_USE_EVERYTHING})
+cmake_dependent_option(CP2K_USE_LIBXSMM "Enable LIBXSMM JIT-kernel for LIBXS"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_LIBXS" OFF)
 
 cmake_dependent_option(CP2K_USE_LIBVDWXC "Enable libvdwxc support with SIRIUS"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_SIRIUS" OFF)
