@@ -895,7 +895,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cell_extxyz'
 
-      INTEGER                                            :: handle, i, id1, id2, j
+      CHARACTER(len=default_path_length)                 :: raw_cell_str
+      INTEGER                                            :: handle, i, id1, id2, ios, j
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       TYPE(cp_parser_type)                               :: parser
 
@@ -908,7 +909,13 @@ CONTAINS
       id1 = INDEX(parser%input_line, "LATTICE=")
       IF (id1 > 0) THEN
          id2 = INDEX(parser%input_line(id1 + 9:), '"')
-         READ (parser%input_line(id1 + 9:id1 + id2 + 7), *) hmat(:, 1), hmat(:, 2), hmat(:, 3)
+         READ (parser%input_line(id1 + 9:id1 + id2 + 7), '(A)') raw_cell_str
+         READ (raw_cell_str, *, IOSTAT=ios) hmat(:, 1), hmat(:, 2), hmat(:, 3)
+         IF (ios /= 0) THEN
+            CALL cp_abort(__LOCATION__, "Error while parsing extended XYZ file "// &
+                          "<"//TRIM(extxyz_file_name)//"> for cell vectors: "// &
+                          "found <lattice=> field as <"//TRIM(raw_cell_str)//">")
+         END IF
          DO i = 1, 3
             DO j = 1, 3
                cell%hmat(j, i) = cp_unit_to_cp2k(hmat(j, i), "angstrom")
@@ -917,7 +924,7 @@ CONTAINS
 
       ELSE
          CALL cp_abort(__LOCATION__, &
-                       "The field (lattice=) was not found on comment line "// &
+                       "The field <lattice=> was not found on comment line "// &
                        "of XYZ file, so cell information cannot be set via "// &
                        "extended XYZ specification! ")
       END IF
@@ -955,7 +962,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cell_pdb'
 
       CHARACTER(LEN=default_string_length)               :: cryst
-      INTEGER                                            :: handle, i
+      INTEGER                                            :: handle, i, ios
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(3)                        :: cell_angles, cell_lengths
@@ -969,10 +976,15 @@ CONTAINS
       CALL parser_search_string(parser, "CRYST1", ignore_case=.FALSE., found=found, &
                                 begin_line=.TRUE., search_from_begin_of_file=.TRUE.)
       IF (.NOT. found) &
-         CPABORT("The field (CRYST1) was not found in PDB file! ")
+         CPABORT("The line <CRYST1> was not found in PDB file! ")
 
       periodic = 1
-      READ (parser%input_line, *) cryst, cell_lengths(:), cell_angles(:)
+      READ (parser%input_line, *, IOSTAT=ios) cryst, cell_lengths(:), cell_angles(:)
+      IF (ios /= 0) THEN
+         CALL cp_abort(__LOCATION__, "Error while parsing PDB file "// &
+                       "<"//TRIM(pdb_file_name)//"> for cell lengths and angles: "// &
+                       "found CRYST1 line as <"//TRIM(parser%input_line)//">")
+      END IF
       DO i = 1, 3
          cell_lengths(i) = cp_unit_to_cp2k(cell_lengths(i), "angstrom")
          cell_angles(i) = cp_unit_to_cp2k(cell_angles(i), "deg")
