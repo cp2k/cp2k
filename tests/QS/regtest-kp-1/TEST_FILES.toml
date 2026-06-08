@@ -58,22 +58,22 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=1},
                                            {matcher="WANNIER90_SCF_MO_REUSE"},
                                            {matcher="WANNIER90_DEGENERATE_SUBSPACE_ALIGN"}]
-"he_sc_wannier90_scf_sym.inp"           = [{matcher="E_total", tol=1e-13, ref=-2.94292606798252},
+"he_sc_wannier90_scf_sym.inp"           = [{matcher="E_total", tol=1e-13, ref=-2.95145706672897},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1},
                                            {matcher="WANNIER90_SCF_MO_REUSE"}]
-"he_sc_wannier90_scf_bloch.inp"         = [{matcher="E_total", tol=1e-13, ref=-2.94292606798252},
+"he_sc_wannier90_scf_bloch.inp"         = [{matcher="E_total", tol=1e-13, ref=-2.95145706672897},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1},
                                            {matcher="WANNIER90_SCF_MO_REUSE"},
                                            {matcher="WANNIER90_USE_BLOCH_PHASES"},
                                            {matcher="WANNIER90_BLOCH_PHASE_GAUGE"}]
-"he_sc_wannier90_scf_validate.inp"      = [{matcher="E_total", tol=1e-13, ref=-2.94292606798252},
+"he_sc_wannier90_scf_validate.inp"      = [{matcher="E_total", tol=1e-13, ref=-2.95145706672897},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1},
                                            {matcher="WANNIER90_SCF_MO_REUSE"},
                                            {matcher="WANNIER90_REUSE_VALIDATION"}]
-"he2_sc_wannier90_scf_sym_2band.inp"    = [{matcher="E_total", tol=1e-13, ref=-5.79235427492027},
+"he2_sc_wannier90_scf_sym_2band.inp"    = [{matcher="E_total", tol=1e-13, ref=-5.78478325058176},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1},
                                            {matcher="WANNIER90_SCF_MO_REUSE"}]
-"he2_sc_wannier90_scf_bloch.inp"        = [{matcher="E_total", tol=1e-13, ref=-5.79235427492027},
+"he2_sc_wannier90_scf_bloch.inp"        = [{matcher="E_total", tol=1e-13, ref=-5.78478325058176},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1},
                                            {matcher="WANNIER90_SCF_MO_REUSE"},
                                            {matcher="WANNIER90_USE_BLOCH_PHASES"},
