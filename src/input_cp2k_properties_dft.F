@@ -2925,14 +2925,15 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="AMPLITUDE", &
                           description="Electric field amplitude of the monochromatic light.", &
                           usage="AMPLITUDE [Vnm-1] 1.0", n_var=1, type_of_var=real_t, &
-                          unit_str="Vnm-1")
+                          unit_str="Vnm-1", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY", &
                           description="Frequency of the electric field for Floquet calculations "// &
                           "expressed in terms of the energy of a photon in eV.", &
-                          usage="FREQUENCY 1.5", unit_str="eV", n_var=1, type_of_var=real_t)
+                          usage="FREQUENCY 1.5", unit_str="eV", n_var=1, type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=1.0_dp, unit_str="eV"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
