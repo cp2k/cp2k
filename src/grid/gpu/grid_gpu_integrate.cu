@@ -683,11 +683,7 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
         // Warp-level reduction (32 lanes)
         // After this loop, lane 0 of warp 0 holds the result
         for (int offset = 16; offset > 0; offset >>= 1) {
-#if defined(__CUDA_CC__)
-          val += __shfl_down_sync(0xffffffff, val, offset);
-#else
-          val += __shfl_down_sync(0xffffffffffffffff, val, offset);
-#endif
+          val += __shfl_down_sync(__activemask(), val, offset);
         }
 
         if (tid == 0)
