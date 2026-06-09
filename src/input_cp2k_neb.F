@@ -289,7 +289,7 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "CONVERGENCE_INFO", &
                                        description="Controls the printing of the convergence criteria during a BAND run", &
-                                       print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

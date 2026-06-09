@@ -987,12 +987,14 @@ CONTAINS
 !> \param neb_env ...
 !> \param Dcoords ...
 !> \param forces ...
+!> \param logger ...
 !> \return ...
 !> \author Teodoro Laino 10.2006
 ! **************************************************************************************************
-   FUNCTION check_convergence(neb_env, Dcoords, forces) RESULT(converged)
+   FUNCTION check_convergence(neb_env, Dcoords, forces, logger) RESULT(converged)
       TYPE(neb_type), POINTER                            :: neb_env
       TYPE(neb_var_type), POINTER                        :: Dcoords, forces
+      TYPE(cp_logger_type), POINTER                      :: logger
       LOGICAL                                            :: converged
 
       CHARACTER(LEN=3), DIMENSION(4)                     :: labels
@@ -1000,11 +1002,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: max_dr, max_force, my_max_dr, &
                                                             my_max_force, my_rms_dr, my_rms_force, &
                                                             rms_dr, rms_force
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: cc_section
 
-      NULLIFY (logger, cc_section)
-      logger => cp_get_default_logger()
+      NULLIFY (cc_section)
       cc_section => section_vals_get_subs_vals(neb_env%neb_section, "CONVERGENCE_CONTROL")
       CALL section_vals_val_get(cc_section, "MAX_DR", r_val=max_dr)
       CALL section_vals_val_get(cc_section, "MAX_FORCE", r_val=max_force)
@@ -1028,11 +1028,11 @@ CONTAINS
          ! Print convergence info
          WRITE (iw, FMT='(A,A)') ' **************************************', &
             '*****************************************'
-         WRITE (iw, FMT='(1X,A,2X,F8.5,5X,"[",F8.5,"]",1X,T76,"(",A,")")') &
-            'RMS DISPLACEMENT =', my_rms_dr, rms_dr, labels(3), &
-            'MAX DISPLACEMENT =', my_max_dr, max_dr, labels(1), &
-            'RMS FORCE        =', my_rms_force, rms_force, labels(4), &
-            'MAX FORCE        =', my_max_force, max_force, labels(2)
+         WRITE (iw, FMT='(1X,A,2X,F16.10,5X,"[",F16.10,1X,"]",T76,"(",A,")")') &
+            'RMS DISPLACEMENT              =', my_rms_dr, rms_dr, labels(3), &
+            'MAX DISPLACEMENT              =', my_max_dr, max_dr, labels(1), &
+            'RMS FORCE                     =', my_rms_force, rms_force, labels(4), &
+            'MAX FORCE                     =', my_max_force, max_force, labels(2)
          WRITE (iw, FMT='(A,A)') ' **************************************', &
             '*****************************************'
       END IF

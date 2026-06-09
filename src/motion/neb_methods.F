@@ -334,7 +334,7 @@ CONTAINS
                             energies=energies, &
                             distances=distances, &
                             output_unit=output_unit)
-         converged = check_convergence(neb_env, Dcoords, forces)
+         converged = check_convergence(neb_env, Dcoords, forces, logger)
          IF (converged) EXIT md_opt_loop
       END DO md_opt_loop
 
@@ -494,7 +494,7 @@ CONTAINS
                             vels=vels, &
                             output_unit=output_unit)
 
-         converged = check_convergence(neb_env, sline, forces)
+         converged = check_convergence(neb_env, sline, forces, logger)
          IF (converged) EXIT
       END DO
       DEALLOCATE (energies)
@@ -503,6 +503,8 @@ CONTAINS
       DEALLOCATE (crr)
       DEALLOCATE (set_err)
       CALL neb_var_release(sline)
+      CALL cp_print_key_finished_output(iw, logger, neb_env%neb_section, &
+                                        "REPLICA_INFO")
       CALL timestop(handle)
    END SUBROUTINE neb_diis
 
