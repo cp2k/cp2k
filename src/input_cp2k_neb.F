@@ -306,6 +306,24 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FINAL_BAND", &
+                                       description="Controls the printing of the final structures as an "// &
+                                       "XYZ trajectory file after a BAND run, regardless of convergence "// &
+                                       "status. The unit is angstrom for coordinates and cell vectors.", &
+                                       print_level=low_print_level, common_iter_levels=1, &
+                                       filename="FINAL")
+
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_ATOM_KIND", &
+                          description="Write the atom kind given in the subsys section instead "// &
+                          "of the element symbol in the XYZ trajectory file.", &
+                          usage="PRINT_ATOM_KIND {LOGICAL}", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
       CALL cp_print_key_section_create(print_key, __LOCATION__, "BANNER", &
                                        description="Controls the printing of the BAND banner", &
                                        print_level=low_print_level, common_iter_levels=1, &

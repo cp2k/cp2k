@@ -48,7 +48,8 @@ MODULE neb_methods
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE neb_io,                          ONLY: dump_neb_info,&
+   USE neb_io,                          ONLY: dump_neb_final,&
+                                              dump_neb_info,&
                                               neb_rep_env_map_info,&
                                               read_neb_section
    USE neb_md_utils,                    ONLY: control_vels_a,&
@@ -345,7 +346,7 @@ CONTAINS
             EXIT md_opt_loop
          END IF
       END DO md_opt_loop
-
+      CALL dump_neb_final(neb_env, energies, coords, particle_set, logger, output_unit, converged)
       DEALLOCATE (mass)
       DEALLOCATE (energies)
       DEALLOCATE (distances)
@@ -513,6 +514,7 @@ CONTAINS
             EXIT
          END IF
       END DO
+      CALL dump_neb_final(neb_env, energies, coords, particle_set, logger, output_unit, converged)
       DEALLOCATE (energies)
       DEALLOCATE (distances)
       DEALLOCATE (err)
