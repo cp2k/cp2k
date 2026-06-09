@@ -404,7 +404,7 @@ CONTAINS
       ALLOCATE (conj_off_diag_m(nao, nao), source=z_zero)
       xkp1(:, 1) = xkp(:)
       CALL build_off_diagonal_matrix(qs_env, bs_env, xkp, ispin, off_diag_m)
-      conj_off_diag_m(:) = CONJG(TRANSPOSE(off_diag_m(:, :)))
+      conj_off_diag_m(:, :) = CONJG(TRANSPOSE(off_diag_m(:, :)))
 
       floquet_matrix%local_data(:, :) = z_zero
       DO i = 1, n_fbands
