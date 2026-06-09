@@ -611,8 +611,14 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
         // Load local value
         T val = accumulator[i][tid];
 
-        // Warp-level reduction (32 lanes)
-        // After this loop, lane 0 of warp 0 holds the result
+        // Warp-level reduction (32 lanes) After this loop, lane 0 of warp 0
+        // holds the result All threads should execute this operation so
+        // __activemask() is incorrect here.
+
+        // The ifdef statement is needed because hip does not necessarily
+        // support the instruction either. Reverting back to __shfl_down is
+        // required.
+        //
         for (int offset = 16; offset > 0; offset >>= 1) {
 #if defined(__CUDACC__)
           val += __shfl_down_sync(0xffffffff, val, offset);
