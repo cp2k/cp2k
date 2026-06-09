@@ -1407,11 +1407,10 @@ CONTAINS
                "_atom_site_symmetry_multiplicity", "_atom_site_fract_x", &
                "_atom_site_fract_y", "_atom_site_fract_z", "_atom_site_occupancy"
             DO iatom = 1, natom
-               r(1:3) = pbc(particle_set(iatom)%r(1:3), cell)
+               ! positive_range=.TRUE. makes r(1:3) in [0, cell%hmat(i,i)] and
+               ! s(1:3) in [0, 1], so there is no need to MODULO s(1:3) by 1.0
+               r(1:3) = pbc(particle_set(iatom)%r(1:3), cell, positive_range=.TRUE.)
                CALL real_to_scaled(s, r, cell)
-               DO i = 1, 3
-                  s(i) = MODULO(s(i), 1.0_dp)
-               END DO
                WRITE (UNIT=file_unit, FMT=TRIM(f_cif)) &
                   cif_type_symbol(iatom), cif_label(iatom), 1, s(1:3), 1.0_dp
             END DO
