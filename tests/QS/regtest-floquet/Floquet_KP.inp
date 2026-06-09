@@ -51,10 +51,6 @@
         NPOINTS 1
         SPECIAL_POINT K 1/3 2/3 0.0
       &END BANDSTRUCTURE_PATH
-      &DOS
-        ENERGY_STEP 2.0
-        ENERGY_WINDOW 1.0
-      &END DOS
       &FLOQUET
         AMPLITUDE 1.06E9
         BROADENING 0.02

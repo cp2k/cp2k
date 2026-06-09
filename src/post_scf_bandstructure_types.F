@@ -311,6 +311,7 @@ MODULE post_scf_bandstructure_types
       INTEGER                                      :: n_bins_max_for_printing = -1
       REAL(KIND=dp)                                :: unit_ldos_int_z_inv_Ang2_eV = -1.0_dp
 
+      ! parameters for Floquet band structure calculations
       INTEGER                                      :: max_floquet_index = -1
       REAL(KIND=dp), DIMENSION(:), POINTER         :: floquet_polarisation => NULL(), &
                                                       floquet_phi => NULL()

@@ -79,8 +79,7 @@ MODULE post_scf_bandstructure_utils
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: a_bohr,&
-                                              angstrom,&
+   USE physcon,                         ONLY: angstrom,&
                                               evolt
    USE post_scf_bandstructure_types,    ONLY: band_edges_type,&
                                               post_scf_bandstructure_type
@@ -198,8 +197,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: kpptr
       REAL(KIND=dp), DIMENSION(3, 3)                     :: cart_hmat
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(section_vals_type), POINTER                   :: dos_pdos_sec, gw_ri_rs_sec, gw_sec, &
-                                                            kp_bs_sec, ldos_sec, soc_sec, floquet_sec
+      TYPE(section_vals_type), POINTER                   :: dos_pdos_sec, floquet_sec, gw_ri_rs_sec, &
+                                                            gw_sec, kp_bs_sec, ldos_sec, soc_sec
 
       CALL timeset(routineN, handle)
       NULLIFY (cell)
@@ -252,7 +251,6 @@ CONTAINS
       floquet_sec => section_vals_get_subs_vals(bs_sec, "FLOQUET")
       CALL section_vals_get(floquet_sec, explicit=bs_env%do_floquet)
       CALL section_vals_val_get(floquet_sec, "AMPLITUDE", r_val=bs_env%floquet_amplitude)
-      bs_env%floquet_amplitude = bs_env%floquet_amplitude*a_bohr/evolt
       CALL section_vals_val_get(floquet_sec, "FREQUENCY", r_val=bs_env%floquet_omega)
       CALL section_vals_val_get(floquet_sec, "POLARISATION", r_vals=bs_env%floquet_polarisation)
       CALL section_vals_val_get(floquet_sec, "PHASE_OFFSETS", r_vals=bs_env%floquet_phi)

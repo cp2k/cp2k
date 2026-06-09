@@ -2923,8 +2923,9 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="AMPLITUDE", &
-                          description="Electric field amplitude of the monochromatic light [V/m].", &
-                          usage="AMPLITUDE  0.001", n_var=1, type_of_var=real_t)
+                          description="Electric field amplitude of the monochromatic light.", &
+                          usage="AMPLITUDE [Vnm-1] 1.0", n_var=1, type_of_var=real_t, &
+                          unit_str="Vnm-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

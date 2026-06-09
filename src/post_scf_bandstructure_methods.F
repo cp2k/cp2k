@@ -59,6 +59,7 @@ CONTAINS
       ! density of states (DOS), projected DOS, local DOS for DFT, DFT+SOC, G0W0, G0W0+SOC
       CALL eval_bandstructure_properties(qs_env, qs_env%bs_env)
 
+      ! Floquet Hamiltonian Diagonalization and calculation of Floquet Density of States
       IF (qs_env%bs_env%do_floquet) THEN
          CALL floquet(qs_env, qs_env%bs_env)
       END IF
