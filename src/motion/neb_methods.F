@@ -335,7 +335,15 @@ CONTAINS
                             distances=distances, &
                             output_unit=output_unit)
          converged = check_convergence(neb_env, Dcoords, forces, logger)
-         IF (converged) EXIT md_opt_loop
+         IF (converged) THEN
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T2,A)") REPEAT("*", 79)
+               WRITE (UNIT=output_unit, FMT="(T2,A,T32,A,T78,A)") &
+                  "***", "BAND TASK COMPLETED", "***"
+               WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", 79)
+            END IF
+            EXIT md_opt_loop
+         END IF
       END DO md_opt_loop
 
       DEALLOCATE (mass)
@@ -495,7 +503,15 @@ CONTAINS
                             output_unit=output_unit)
 
          converged = check_convergence(neb_env, sline, forces, logger)
-         IF (converged) EXIT
+         IF (converged) THEN
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T2,A)") REPEAT("*", 79)
+               WRITE (UNIT=output_unit, FMT="(T2,A,T32,A,T78,A)") &
+                  "***", "BAND TASK COMPLETED", "***"
+               WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", 79)
+            END IF
+            EXIT
+         END IF
       END DO
       DEALLOCATE (energies)
       DEALLOCATE (distances)
