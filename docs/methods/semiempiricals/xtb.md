@@ -1,30 +1,62 @@
-# eXtended Tight Binding
+# Extended Tight Binding
 
-This is a short tutorial on how to run GFN1-xTB computations. The details on the theory and the
-original implementation by Grimme can be found in [](#Grimme2017). Please cite this paper if you
-were to use the GFN1-xTB module.
+This is a short tutorial on how to run GFN-xTB simulations with CP2K. 
+The details on the theory and the original implementation can be found
+in [](#Grimme2017) for GFN1-xTB and in [](#Bannwarth2019) for GFN2-xTB. 
+
+The GFN-xTB methods are implemented either natively in CP2K or available
+in through the tblite library as descr in [](#Katbashev2025) and
+[Alizadeh2026](https://chemrxiv.org/doi/full/10.26434/chemrxiv.15003939).
+The natively available methods are GFN1-xTB, while the tblite library
+provides GFN1-xTB, IPEA1-xTB and GFN2-xTB.
+
+In this tutorial after a brief theory recap, there is an example on how
+to run GFN1-xTB with the native implementation and later there are examples
+on how to run GFN2-xTB simulation with tblite. 
 
 ## Brief theory recap
 
-The semi-empirical GFN1-xTB energy expression comprises contributions due to electronic (EL),
-atom-pairwise repulsion (REP), dispersion (DISP), and halogen-bonding (XB) terms,
+The semi-empirical GFN1-xTB energy expression comprises contributions due
+to electronic (EL), isotropic electrostatic (IES), atom-pairwise repulsion (REP),
+dispersion (DISP), and halogen-bonding (XB) terms,
 
 $$
-E_{\rm{\tiny{GFN1-xTB}}} = E_{\rm{\tiny{EL}}} + E_{\rm{\tiny{REP}}} + E_{\rm{\tiny{DISP}}} + E_{\rm{\tiny{XB}}} \, .
+E_{\rm{\tiny{GFN1-xTB}}} = E_{\rm{\tiny{EL}}} + E_{\rm{\tiny{IES}}} + E_{\rm{\tiny{REP}}} + E_{\rm{\tiny{DISP}}} + E_{\rm{\tiny{XB}}} \, .
 $$
+
+The GFN2-xTB is defined similarly using anisotropic electrostatic (AES) instead
+of isotropic contributions,
+
+$$
+E_{\rm{\tiny{GFN2-xTB}}} = E_{\rm{\tiny{EL}}} + E_{\rm{\tiny{AES}}} + E_{\rm{\tiny{REP}}} + E_{\rm{\tiny{DISP}}} \, .
+$$
+
+
 
 ### 1. Electronic energy
 
 The electronic energy contribution,
 
 $$
-E_{\rm{\tiny{EL}}} =  \sum_i^{\rm{\tiny{occ}}} n_i \langle \Psi_i | h_0 | \Psi_i \rangle + \frac{1}{2} \sum_{A,B} \sum_{{l}^A}\sum_{{l'}^B} p_l^A p_{{l'}}^B \gamma_{AB,ll'} + \frac{1}{3}\sum_{A} \Gamma_A q_A^3 - T_{\rm{\tiny{el}}} S_{\rm{\tiny{el}}} \, ,
+E_{\rm{\tiny{EL}}} =  \sum_i^{\rm{\tiny{occ}}} n_i \langle \Psi_i | h_0 | \Psi_i \rangle - T_{\rm{\tiny{el}}} S_{\rm{\tiny{el}}} \, ,
 $$
 
+
 contains zeroth-order contributions based on a zeroth-order Hamiltonian $h_0$, the valence molecular
-orbitals $\Psi_i$, occupation numbers $n_i$ as well as second-order contributions which are
-optimized self-consistently as well as third-order diagonal contributions. The second order
-contributions are described using the semi-empirical electron repulsion operator $\gamma_{AB,ll'}$
+orbitals $\Psi_i$, occupation numbers $n_i$ as well as the electronic temperature times
+entropy term $T_{\rm{\tiny{el}}}S_{\rm{\tiny{el}}}$ from fractional orbital occupations.
+
+
+### 2. Electrostatic energy
+
+The isotropic electrostatic energy contains a second-order contributions which are
+optimized self-consistently as well as third-order diagonal contributions,
+
+$$
+E_{\rm{\tiny{IES}}} = \frac{1}{2} \sum_{A,B} \sum_{{l}^A}\sum_{{l'}^B} p_l^A p_{{l'}}^B \gamma_{AB,ll'} + \frac{1}{3}\sum_{A} \Gamma_A q_A^3 \, .
+$$
+
+The second order contributions are described using the semi-empirical electron repulsion operator $\gamma_{AB,ll'}$
 which depends on the interatomic distance of atoms $A$ and $B$ as well as further empirical
 parameters that are specific for different angular momenta $l$ and $l'$. The monopole charges of the
 second-order expression are optimized self-consistently,
@@ -37,10 +69,37 @@ referring to the atomic orbital overlap matrix $\mathbf{S}$ and the density matr
 
 The remaining diagonal terms represent a cubic charge correction based on the Mulliken charge $q_A$
 of atom $A$ and the charge derivative $\Gamma_A$ of the atomic Hubbard parameter $\eta_A$.
-Furthermore, the electronic temperature times entropy term $T_{\rm{\tiny{el}}}S_{\rm{\tiny{el}}}$
-enables fractional orbital occupations.
 
-### 2. Repulsion
+In GFN2-xTB the electrostatic energy is extended to anisotropic electrostatic contributions,
+
+$$
+E_{\rm{\tiny{AES}}} = E_{\rm{\tiny{IES}}}
++ \sum_{A,B}\sum_{i} \mu_i q_B T_{AB,i}
++ \frac12\sum_{A,B}\sum_{ij} \mu_{A,i} \mu_{B,j} T_{AB,ij}
++ \sum_{A,B}\sum_{ij} \theta_{A,ij} q_B T_{AB,ij}
+\, ,
+$$
+
+including the atomic dipole moments $\mu_A$ and atomic quadrupole moments $\theta_A$.
+The interaction tensors $T_{AB}$ are defined by
+
+$$
+T_{AB,i} = -f(R_{AB})\frac{R_{AB,i}}{R^3_{AB}}
+\, ,
+$$
+
+for the charge-dipole interaction and
+
+$$
+T_{AB,ij} = f(R_{AB})\frac{3R_{AB,i}R_{AB,j} - R^2_{AB}}{R^5_{AB}}
+\, ,
+$$
+
+for the dipole-dipole and charge-dipole interaction, both interaction tensors include
+a short-ranged damping function $f$.
+
+
+### 3. Repulsion
 
 Repulsion is described via an atom-pairwise potential,
 
@@ -51,11 +110,11 @@ $$
 with the effective nuclear charge $\mathbf{Z}^{\rm{\tiny{eff}}}$ as well as the global or
 element-specific parameters $k_f$ and $\alpha$.
 
-### 3. Dispersion
+### 4. Dispersion
 
-Dispersion is included by the well-established D3 method in the BJ-damping scheme [](#Grimme2010).
+Dispersion is included by the well-established D3 method in the BJ-damping scheme [](#Grimme2010) for GFN1-xTB and using the D4 method with self-consistent charges for GFN2-xTB.
 
-### 4. Corrections
+### 5. Corrections
 
 Corrections for element-specific interactions are possible using either a halogen-bonding correction
 term (XB) or a generic nonbonding potential correction (NONBOND). Note that the generic nonbonding
@@ -66,17 +125,17 @@ $$
 E_{\rm{\tiny{GFN1-xTB+NONBOND}}} = E_{\rm{\tiny{GFN1-xTB}}} + E_{\rm{\tiny{NONBOND}}} \, .
 $$
 
-## The GFN1-xTB input section
+
+## The GFN-xTB input section
 
 The most important keywords and subsections of section [XTB](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB) are:
+- [CHECK_ATOMIC_CHARGES](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.CHECK_ATOMIC_CHARGES): the cubic charge
+  diagonal contribution is checked to be numerically stable by switching the keyword to true.
 
-- [DO_EWALD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.DO_EWALD): keyword to activate Ewald summation for
-  periodic boundary conditions (PBC); has to be switched to true in case of PBC
 - [USE_HALOGEN_CORRECTION](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.USE_HALOGEN_CORRECTION): keyword to
   switch off contribution $E_{\rm{\tiny{XB}}}$ to correct halogen interactions, default is to
   include this correction
-- [CHECK_ATOMIC_CHARGES](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.CHECK_ATOMIC_CHARGES): the cubic charge
-  diagonal contribution is checked to be numerically stable by switching the keyword to true.
+
 - [DO_NONBONDED](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.DO_NONBONDED): add a generic correction potential
   to correct bond- or atomic-specific interactions
 - [PARAMETER](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.PARAMETER): it is possible to add this section with
@@ -88,11 +147,137 @@ The additional keywords
 [TB3_INTERACTION](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TB3_INTERACTION) are for debugging purposes only
 and it is recommended to use the default options here.
 
+## Input section for tblite
+
+For enabling GFN-xTB methods via the tblite library set the [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.METHOD) keyword to xTB and the [GFN_TYPE](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.GFN_TYPE) in the [XTB](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB) block to tblite.
+The [TBLITE](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE) section allows to configure the input for the library, like selecting the actual GFN-xTB method via the [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.METHOD) keyword.
+
+```
+&QS
+  METHOD xTB
+  &XTB
+    GFN_TYPE TBLITE
+    SCC_MIXER AUTO
+    &TBLITE
+      METHOD GFN2
+      ACCURACY 1.0
+    &END TBLITE
+  &END XTB
+&END QS
+```
+
+Available methods in the [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.METHOD) keyword are
+
+- GFN1: for GFN1-xTB method
+- GFN2: for GFN2-xTB method
+- IPEA1: for IPEA1-xTB version of GFN1-xTB
+- PARAM: read parameter file from filename provided via [PARAM](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.PARAM) keyword
+
+The [ACCURACY](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.ACCURACY) keyword controls the convergence thresholds of the electronic mixer in the tblite library.
+Lower values correspond to tighter convergence.
+
+In case of open-shell calculations a spin-polarization term will be enabled automatically via CP2K in tblite, allowing usage of spGFN2-xTB for calculations as described in [Neugebauer2023](https://onlinelibrary.wiley.com/doi/full/10.1002/jcc.27185).
+
 ## Simple examples
 
-### GFN1-xTB ground-state energy for
+### GFN-xTB ground-state energy based on Tblite
 
-The following input is an examplary standard input for calculating GFN1-xTB ground-state energies.
+The following input is an example for calculating a single poit calculation of ice-Ih crystal with GFN2-xTB method. Please note that k-points are fully supported for tblite in CP2K.
+
+```
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ice_Ih_GFN2_k333
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      EPS_DEFAULT 1.0E-12
+      METHOD xTB
+      &XTB
+        GFN_TYPE TBLITE
+        &TBLITE
+          METHOD GFN2
+          ACCURACY 0.1
+        &END TBLITE
+      &END XTB
+    &END QS
+    &KPOINTS
+      SCHEME MACDONALD 3 3 3 0.0 0.0 0.0
+      FULL_GRID T
+    &END KPOINTS
+    &SCF
+      EPS_SCF 1.0E-9
+      MAX_SCF 300
+      SCF_GUESS MOPAC
+      &MIXING
+        METHOD DIRECT_P_MIXING
+        ALPHA 0.2
+      &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      PERIODIC XYZ
+      A 7.678093000000 0.000000000000 0.000000000000
+      B 3.839046000000 6.649423000000 0.000000000000
+      C 0.000000000000 0.000000000000 7.234567000000
+    &END CELL
+    &COORD
+      SCALED
+      H   0.000007000000  0.334718000000  0.199799000000
+      H   0.665252000000  0.000010000000  0.199780000000
+      H   0.334714000000  0.665261000000  0.199791000000
+      H   0.334760000000  0.999976000000  0.699786000000
+      H   0.999980000000  0.665239000000  0.699800000000
+      H   0.665240000000  0.334755000000  0.699799000000
+      H   0.544461000000  0.000006000000  0.019584000000
+      H  -0.000011000000  0.455520000000  0.019605000000
+      H   0.455505000000  0.544480000000  0.019594000000
+      H   0.455543000000  0.999980000000  0.519584000000
+      H   0.999998000000  0.544446000000  0.519600000000
+      H   0.544461000000  0.455524000000  0.519592000000
+      H   0.332240000000  0.879481000000  0.984486000000
+      H   0.211731000000  1.120507000000  0.984481000000
+      H   0.879462000000  0.788265000000  0.984489000000
+      H   0.788248000000  0.332255000000  0.984498000000
+      H   0.667731000000  0.211748000000  0.984486000000
+      H   0.120526000000  0.211703000000  0.484497000000
+      H   0.667762000000  1.120506000000  0.484488000000
+      H   0.788272000000  0.879477000000  0.484480000000
+      H   0.211722000000  0.667743000000  0.484495000000
+      H   0.332240000000  0.788252000000  0.484486000000
+      H  -0.120503000000  0.332222000000  0.484499000000
+      H   1.120486000000  0.667750000000  0.984491000000
+      O   0.000009000000  0.331330000000  0.061616000000
+      O   0.668637000000  0.000012000000  0.061595000000
+      O   0.331326000000  0.668660000000  0.061608000000
+      O   0.331370000000  0.999972000000  0.561601000000
+      O   0.668637000000  0.331348000000  0.561616000000
+      O   0.335676000000  0.999992000000  0.936746000000
+      O   0.664294000000  0.335703000000  0.936768000000
+      O   0.000012000000  0.335655000000  0.436771000000
+      O   0.664333000000  0.999995000000  0.436740000000
+      O   0.335670000000  0.664304000000  0.436760000000
+      O   0.999979000000  0.668634000000  0.561617000000
+      O   0.999974000000  0.664306000000  0.942299010000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+```
+
+
+
+### GFN1-xTB ground-state energy based on native Quickstep
+
+The following input is an examplary standard input for calculating GFN1-xTB ground-state energies using the native quickstep implementation [](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB).
 
 ```none
 &GLOBAL
@@ -299,3 +484,7 @@ potentials. The implementation also features analytic gradients for this option.
   &END SUBSYS
 &END FORCE_EVAL
 ```
+
+
+
+
