@@ -404,7 +404,7 @@ CONTAINS
       ALLOCATE (conj_off_diag_m(nao, nao), source=z_zero)
       xkp1(:, 1) = xkp(:)
       CALL build_off_diagonal_matrix(qs_env, bs_env, xkp, ispin, off_diag_m)
-      conj_off_diag_m = CONJG(TRANSPOSE(off_diag_m(:, :)))
+      conj_off_diag_m(:) = CONJG(TRANSPOSE(off_diag_m(:, :)))
 
       floquet_matrix%local_data(:, :) = z_zero
       DO i = 1, n_fbands
@@ -559,7 +559,7 @@ CONTAINS
 
       n = SIZE(eigenvalues)
       ALLOCATE (indices(nao), work(nao), quasi_energies(nao))
-      indices = [(i, i=1, nao)]
+      indices(:) = [(i, i=1, nao)]
       DO i = 1, nao
          DO j = 1, n
             IF (ANY(indices == j)) CYCLE
@@ -568,7 +568,7 @@ CONTAINS
       END DO
       CALL sort(indices, nao, work)
 
-      quasi_energies = eigenvalues(indices(:))
+      quasi_energies(:) = eigenvalues(indices(:))
 
       IF (bs_env%para_env%is_source()) THEN
          IF (ikp_for_file == 1) THEN
