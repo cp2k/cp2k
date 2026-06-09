@@ -1,37 +1,33 @@
 # Extended Tight Binding
 
-This is a short tutorial on how to run GFN-xTB simulations with CP2K. 
-The details on the theory and the original implementation can be found
-in [](#Grimme2017) for GFN1-xTB and in [](#Bannwarth2019) for GFN2-xTB. 
+This is a short tutorial on how to run GFN-xTB simulations with CP2K. The details on the theory and
+the original implementation can be found in [](#Grimme2017) for GFN1-xTB and in [](#Bannwarth2019)
+for GFN2-xTB.
 
-The GFN-xTB methods are implemented either natively in CP2K or available
-in through the tblite library as descr in [](#Katbashev2025) and
-[Alizadeh2026](https://chemrxiv.org/doi/full/10.26434/chemrxiv.15003939).
-The natively available methods are GFN1-xTB, while the tblite library
-provides GFN1-xTB, IPEA1-xTB and GFN2-xTB.
+The GFN-xTB methods are implemented either natively in CP2K or available in through the tblite
+library as descr in [](#Katbashev2025) and
+[Alizadeh2026](https://chemrxiv.org/doi/full/10.26434/chemrxiv.15003939). The natively available
+methods are GFN1-xTB, while the tblite library provides GFN1-xTB, IPEA1-xTB and GFN2-xTB.
 
-In this tutorial after a brief theory recap, there is an example on how
-to run GFN1-xTB with the native implementation and later there are examples
-on how to run GFN2-xTB simulation with tblite. 
+In this tutorial after a brief theory recap, there is an example on how to run GFN1-xTB with the
+native implementation and later there are examples on how to run GFN2-xTB simulation with tblite.
 
 ## Brief theory recap
 
-The semi-empirical GFN1-xTB energy expression comprises contributions due
-to electronic (EL), isotropic electrostatic (IES), atom-pairwise repulsion (REP),
-dispersion (DISP), and halogen-bonding (XB) terms,
+The semi-empirical GFN1-xTB energy expression comprises contributions due to electronic (EL),
+isotropic electrostatic (IES), atom-pairwise repulsion (REP), dispersion (DISP), and halogen-bonding
+(XB) terms,
 
 $$
 E_{\rm{\tiny{GFN1-xTB}}} = E_{\rm{\tiny{EL}}} + E_{\rm{\tiny{IES}}} + E_{\rm{\tiny{REP}}} + E_{\rm{\tiny{DISP}}} + E_{\rm{\tiny{XB}}} \, .
 $$
 
-The GFN2-xTB is defined similarly using anisotropic electrostatic (AES) instead
-of isotropic contributions,
+The GFN2-xTB is defined similarly using anisotropic electrostatic (AES) instead of isotropic
+contributions,
 
 $$
 E_{\rm{\tiny{GFN2-xTB}}} = E_{\rm{\tiny{EL}}} + E_{\rm{\tiny{AES}}} + E_{\rm{\tiny{REP}}} + E_{\rm{\tiny{DISP}}} \, .
 $$
-
-
 
 ### 1. Electronic energy
 
@@ -41,25 +37,23 @@ $$
 E_{\rm{\tiny{EL}}} =  \sum_i^{\rm{\tiny{occ}}} n_i \langle \Psi_i | h_0 | \Psi_i \rangle - T_{\rm{\tiny{el}}} S_{\rm{\tiny{el}}} \, ,
 $$
 
-
 contains zeroth-order contributions based on a zeroth-order Hamiltonian $h_0$, the valence molecular
-orbitals $\Psi_i$, occupation numbers $n_i$ as well as the electronic temperature times
-entropy term $T_{\rm{\tiny{el}}}S_{\rm{\tiny{el}}}$ from fractional orbital occupations.
-
+orbitals $\Psi_i$, occupation numbers $n_i$ as well as the electronic temperature times entropy term
+$T_{\rm{\tiny{el}}}S_{\rm{\tiny{el}}}$ from fractional orbital occupations.
 
 ### 2. Electrostatic energy
 
-The isotropic electrostatic energy contains a second-order contributions which are
-optimized self-consistently as well as third-order diagonal contributions,
+The isotropic electrostatic energy contains a second-order contributions which are optimized
+self-consistently as well as third-order diagonal contributions,
 
 $$
 E_{\rm{\tiny{IES}}} = \frac{1}{2} \sum_{A,B} \sum_{{l}^A}\sum_{{l'}^B} p_l^A p_{{l'}}^B \gamma_{AB,ll'} + \frac{1}{3}\sum_{A} \Gamma_A q_A^3 \, .
 $$
 
-The second order contributions are described using the semi-empirical electron repulsion operator $\gamma_{AB,ll'}$
-which depends on the interatomic distance of atoms $A$ and $B$ as well as further empirical
-parameters that are specific for different angular momenta $l$ and $l'$. The monopole charges of the
-second-order expression are optimized self-consistently,
+The second order contributions are described using the semi-empirical electron repulsion operator
+$\gamma_{AB,ll'}$ which depends on the interatomic distance of atoms $A$ and $B$ as well as further
+empirical parameters that are specific for different angular momenta $l$ and $l'$. The monopole
+charges of the second-order expression are optimized self-consistently,
 
 $$
 p_l^A = p_l^{A_0} - \sum_{\nu}^{N_{\rm{\tiny{AO}}}} \sum_{\mu \in A, \mu \in l} S_{\mu \nu } P_{\mu \nu} \, ,
@@ -80,8 +74,8 @@ E_{\rm{\tiny{AES}}} = E_{\rm{\tiny{IES}}}
 \, ,
 $$
 
-including the atomic dipole moments $\mu_A$ and atomic quadrupole moments $\theta_A$.
-The interaction tensors $T_{AB}$ are defined by
+including the atomic dipole moments $\mu_A$ and atomic quadrupole moments $\theta_A$. The
+interaction tensors $T_{AB}$ are defined by
 
 $$
 T_{AB,i} = -f(R_{AB})\frac{R_{AB,i}}{R^3_{AB}}
@@ -95,9 +89,8 @@ T_{AB,ij} = f(R_{AB})\frac{3R_{AB,i}R_{AB,j} - R^2_{AB}}{R^5_{AB}}
 \, ,
 $$
 
-for the dipole-dipole and charge-dipole interaction, both interaction tensors include
-a short-ranged damping function $f$.
-
+for the dipole-dipole and charge-dipole interaction, both interaction tensors include a short-ranged
+damping function $f$.
 
 ### 3. Repulsion
 
@@ -112,7 +105,8 @@ element-specific parameters $k_f$ and $\alpha$.
 
 ### 4. Dispersion
 
-Dispersion is included by the well-established D3 method in the BJ-damping scheme [](#Grimme2010) for GFN1-xTB and using the D4 method with self-consistent charges for GFN2-xTB.
+Dispersion is included by the well-established D3 method in the BJ-damping scheme [](#Grimme2010)
+for GFN1-xTB and using the D4 method with self-consistent charges for GFN2-xTB.
 
 ### 5. Corrections
 
@@ -125,10 +119,10 @@ $$
 E_{\rm{\tiny{GFN1-xTB+NONBOND}}} = E_{\rm{\tiny{GFN1-xTB}}} + E_{\rm{\tiny{NONBOND}}} \, .
 $$
 
-
 ## The GFN-xTB input section
 
 The most important keywords and subsections of section [XTB](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB) are:
+
 - [CHECK_ATOMIC_CHARGES](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.CHECK_ATOMIC_CHARGES): the cubic charge
   diagonal contribution is checked to be numerically stable by switching the keyword to true.
 
@@ -138,6 +132,7 @@ The most important keywords and subsections of section [XTB](#CP2K_INPUT.FORCE_E
 
 - [DO_NONBONDED](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.DO_NONBONDED): add a generic correction potential
   to correct bond- or atomic-specific interactions
+
 - [PARAMETER](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.PARAMETER): it is possible to add this section with
   corresponding keywords to modify xTB parameters
 
@@ -149,8 +144,13 @@ and it is recommended to use the default options here.
 
 ## Input section for tblite
 
-For enabling GFN-xTB methods via the tblite library set the [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.METHOD) keyword to xTB and the [GFN_TYPE](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.GFN_TYPE) in the [XTB](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB) block to tblite.
-The [TBLITE](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE) section allows to configure the input for the library, like selecting the actual GFN-xTB method via the [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.METHOD) keyword.
+For enabling GFN-xTB methods via the tblite library set the
+[METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.METHOD) keyword to xTB and the
+[GFN_TYPE](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.GFN_TYPE) in the
+[XTB](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB) block to tblite. The
+[TBLITE](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE) section allows to configure the input for the
+library, like selecting the actual GFN-xTB method via the
+[METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.METHOD) keyword.
 
 ```
 &QS
@@ -171,18 +171,23 @@ Available methods in the [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.METHO
 - GFN1: for GFN1-xTB method
 - GFN2: for GFN2-xTB method
 - IPEA1: for IPEA1-xTB version of GFN1-xTB
-- PARAM: read parameter file from filename provided via [PARAM](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.PARAM) keyword
+- PARAM: read parameter file from filename provided via
+  [PARAM](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.PARAM) keyword
 
-The [ACCURACY](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.ACCURACY) keyword controls the convergence thresholds of the electronic mixer in the tblite library.
-Lower values correspond to tighter convergence.
+The [ACCURACY](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.ACCURACY) keyword controls the convergence
+thresholds of the electronic mixer in the tblite library. Lower values correspond to tighter
+convergence.
 
-In case of open-shell calculations a spin-polarization term will be enabled automatically via CP2K in tblite, allowing usage of spGFN2-xTB for calculations as described in [Neugebauer2023](https://onlinelibrary.wiley.com/doi/full/10.1002/jcc.27185).
+In case of open-shell calculations a spin-polarization term will be enabled automatically via CP2K
+in tblite, allowing usage of spGFN2-xTB for calculations as described in
+[Neugebauer2023](https://onlinelibrary.wiley.com/doi/full/10.1002/jcc.27185).
 
 ## Simple examples
 
 ### GFN-xTB ground-state energy based on Tblite
 
-The following input is an example for calculating a single poit calculation of ice-Ih crystal with GFN2-xTB method. Please note that k-points are fully supported for tblite in CP2K.
+The following input is an example for calculating a single poit calculation of ice-Ih crystal with
+GFN2-xTB method. Please note that k-points are fully supported for tblite in CP2K.
 
 ```
 &GLOBAL
@@ -273,11 +278,10 @@ The following input is an example for calculating a single poit calculation of i
 &END FORCE_EVAL
 ```
 
-
-
 ### GFN1-xTB ground-state energy based on native Quickstep
 
-The following input is an examplary standard input for calculating GFN1-xTB ground-state energies using the native quickstep implementation [](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB).
+The following input is an examplary standard input for calculating GFN1-xTB ground-state energies
+using the native quickstep implementation [](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB).
 
 ```none
 &GLOBAL
@@ -484,7 +488,3 @@ potentials. The implementation also features analytic gradients for this option.
   &END SUBSYS
 &END FORCE_EVAL
 ```
-
-
-
-
