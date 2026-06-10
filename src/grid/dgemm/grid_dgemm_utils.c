@@ -20,7 +20,7 @@
 #include <libxsmm.h>
 #endif
 #if defined(__LIBXS)
-#include <libxs_gemm.h>
+#include <libxs/libxs_gemm.h>
 #endif
 
 #include "../common/grid_common.h"

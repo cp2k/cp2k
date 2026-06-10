@@ -67,7 +67,7 @@ endif
 ifneq ($(LIBXS),0)
 LIBXSROOT ?= $(wildcard $(CP2KHOME)/../libxs)
 ifneq ($(LIBXSROOT),)
-CFLAGS += -D__LIBXS -D__BLAS -I$(LIBXSROOT)/include
+CFLAGS += -D__LIBXS -D__BLAS -I$(LIBXSROOT)
 LIBS += $(LIBXSROOT)/lib/libxs.a
 # LIBXSMM headers enable JIT kernel dispatch inside LIBXS.
 LIBXSMMROOT ?= $(wildcard $(LIBXSROOT)/../libxsmm)
@@ -88,7 +88,7 @@ ifneq ($(OPENCL),0)
 ifneq ($(LIBXS),0)
 LIBXSTREAMROOT ?= $(wildcard $(CP2KHOME)/../libxstream)
 ifneq ($(LIBXSTREAMROOT),)
-CFLAGS += -D__LIBXSTREAM -I$(LIBXSTREAMROOT)/include
+CFLAGS += -D__LIBXSTREAM -I$(LIBXSTREAMROOT)
 LIBS += $(LIBXSTREAMROOT)/lib/libxstream.a
 else
 OPENCL := 0
@@ -163,9 +163,9 @@ realclean: clean
 # Enable OpenCL offload backend.
 ifneq ($(OPENCL),0)
 OPENCL_SRC := $(PROJHOME)/dbm_multiply_opencl.cl
-OPENCL_CMN := $(wildcard $(LIBXSTREAMROOT)/include/opencl/*.h)
+OPENCL_CMN := $(wildcard $(LIBXSTREAMROOT)/libxstream/opencl/*.h)
 OPENCL_GEN := $(LIBXSTREAMROOT)/scripts/tool_opencl.sh
-OPENCL_ARG := -b 6 -p "" -I $(LIBXSTREAMROOT)/include
+OPENCL_ARG := -b 6 -p "" -I $(LIBXSTREAMROOT)/libxstream
 
 ifneq (,$(filter-out 0,$(DBG)))
 OPENCL_ARG += -d

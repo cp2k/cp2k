@@ -18,7 +18,7 @@
 #elif defined(__OFFLOAD_HIP)
 #include <hip/hip_runtime_api.h>
 #elif defined(__OFFLOAD_OPENCL)
-#include <libxstream.h>
+#include <libxstream/libxstream.h>
 #endif
 
 #if defined(__OFFLOAD_PROFILING)

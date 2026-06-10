@@ -39,7 +39,7 @@
 #include <hip/hip_version.h>
 #elif defined(__OFFLOAD_OPENCL)
 /* Types, macros, and functions provided by libxstream_cp2k.h. */
-#include <libxstream_cp2k.h>
+#include <libxstream/libxstream_cp2k.h>
 #endif
 
 #ifdef __cplusplus
