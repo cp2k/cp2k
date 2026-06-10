@@ -69,8 +69,6 @@ EOF
   __SYSTEM__)
     echo "==================== Finding Libxsmm from system paths ===================="
     check_lib -lxsmm "libxsmm"
-    check_lib -lxsmmf "libxsmm"
-    check_lib -lxsmmext "libxsmm"
     add_include_from_paths LIBXSMM_CFLAGS "libxsmm.h" $INCLUDE_PATHS
     add_lib_from_paths LIBXSMM_LDFLAGS "libxsmm.*" $LIB_PATHS
     ;;
@@ -79,7 +77,6 @@ EOF
   *)
     echo "==================== Linking Libxsmm to user paths ===================="
     pkg_install_dir="$with_libxsmm"
-    check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/include"
     check_dir "${pkg_install_dir}/lib"
     LIBXSMM_CFLAGS="-I'${pkg_install_dir}/include'"
@@ -87,14 +84,13 @@ EOF
     ;;
 esac
 if [ "$with_libxsmm" != "__DONTUSE__" ]; then
-  LIBXSMM_LIBS="-lxsmmf -lxsmmext -lxsmm -ldl -lpthread"
+  LIBXSMM_LIBS="-lxsmm -ldl -lpthread"
   cat << EOF > "${BUILDDIR}/setup_libxsmm"
 export LIBXSMM_VER="${libxsmm_ver}"
 export LIBXSMM_ROOT="${pkg_install_dir:-}"
 EOF
   if [ "$with_libxsmm" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_libxsmm"
-prepend_path PATH "${pkg_install_dir}/bin"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"

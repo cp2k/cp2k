@@ -1886,6 +1886,16 @@ endif()
 
 add_library(cp2k::cp2k ALIAS cp2k)
 
+if(CP2K_USE_LIBXS)
+  message(STATUS "Adding libxs_jit.F from dependency libxs for compilation")
+  get_target_property(_libxs_incdirs libxs::libxs INTERFACE_INCLUDE_DIRECTORIES)
+  find_path(CP2K_LIBXS_JIT_DIR "libxs_jit.F" HINTS ${_libxs_incdirs})
+  if(CP2K_LIBXS_JIT_DIR)
+    target_sources(cp2k PRIVATE "${CP2K_LIBXS_JIT_DIR}/libxs_jit.F")
+  endif()
+  unset(_libxs_incdirs)
+endif()
+
 # ##############################################################################
 # applications
 # ##############################################################################
