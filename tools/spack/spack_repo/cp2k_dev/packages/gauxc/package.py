@@ -115,8 +115,8 @@ class Gauxc(CMakePackage, CudaPackage):
             self.define("GAUXC_ENABLE_CUTLASS", spec.satisfies("+cutlass")),
             self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
         ]
-        if "+cuda" in spec:
-            args.append(self.define_cuda_architectures(self))
+        if spec.satisfies("+cuda"):
+            args.append(CMakeBuilder.define_cuda_architectures(self))
         return args
 
     def install(self, spec, prefix):
