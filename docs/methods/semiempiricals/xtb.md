@@ -9,8 +9,8 @@ library as descr in [](#Katbashev2025) and
 [Alizadeh2026](https://chemrxiv.org/doi/full/10.26434/chemrxiv.15003939). The natively available
 methods are GFN1-xTB, while the tblite library provides GFN1-xTB, IPEA1-xTB and GFN2-xTB.
 
-In this tutorial after a brief theory recap, there is an example on how to run GFN1-xTB with the
-native implementation and later there are examples on how to run GFN2-xTB simulation with tblite.
+In this tutorial after a brief theory recap, there is an example on how to run GFN2-xTB simulation
+with tblite and later there is an example on how to run GFN1-xTB with the native implementation.
 
 ## Brief theory recap
 
@@ -172,15 +172,13 @@ Available methods in the [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.METHO
 - GFN2: for GFN2-xTB method
 - IPEA1: for IPEA1-xTB version of GFN1-xTB
 - PARAM: read parameter file from filename provided via
-  [PARAM](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.PARAM) keyword
+  [PARAM](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.PARAM) keyword, the format for the parameter file
+  is following tblite structure as described in the
+  [documentation](https://tblite.readthedocs.io/en/latest/spec/parameter.html).
 
 The [ACCURACY](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.ACCURACY) keyword controls the convergence
 thresholds of the electronic mixer in the tblite library. Lower values correspond to tighter
 convergence.
-
-In case of open-shell calculations a spin-polarization term will be enabled automatically via CP2K
-in tblite, allowing usage of spGFN2-xTB for calculations as described in
-[Neugebauer2023](https://onlinelibrary.wiley.com/doi/full/10.1002/jcc.27185).
 
 ## Simple examples
 
@@ -273,6 +271,54 @@ GFN2-xTB method. Please note that k-points are fully supported for tblite in CP2
       O   0.335670000000  0.664304000000  0.436760000000
       O   0.999979000000  0.668634000000  0.561617000000
       O   0.999974000000  0.664306000000  0.942299010000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+```
+
+### Unrestricted calculation with spGFN2-xTB
+
+In case of open-shell calculations a spin-polarization term can be enabled with the
+[LSD](#CP2K_INPUT.FORCE_EVAL.DFT.UKS) keyword in CP2K. In this case, tblite automatically allows the
+usage of spGFN2-xTB for calculations as described in
+[Neugebauer2023](https://onlinelibrary.wiley.com/doi/full/10.1002/jcc.27185). An example for triplet
+oxygen is shown here.
+
+```
+&FORCE_EVAL
+  &DFT
+    LSD
+    MULTIPLICITY 3
+    &QS
+      EPS_DEFAULT 1.00E-12
+      METHOD xTB
+      &XTB
+        GFN_TYPE TBLITE
+        SCC_MIXER TBLITE
+        &TBLITE
+          METHOD GFN2
+        &END TBLITE
+      &END XTB
+    &END QS
+    &SCF
+      ADDED_MOS 1 3
+      EPS_SCF 1.e-10
+      MAX_SCF 200
+      SCF_GUESS MOPAC
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O     0.000000    0.000000    0.000000
+      O     1.208000    0.000000    0.000000
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
