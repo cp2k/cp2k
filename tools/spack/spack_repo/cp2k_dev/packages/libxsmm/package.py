@@ -23,7 +23,7 @@ class Libxsmm(CMakePackage):
 
     license("BSD-3-Clause")
 
-    version("cmake-test", commit="b35d767abffc7bca845a81f7e408fec68300821c")
+    version("cmake-test", commit="bb9ba99a294b0729c0cfca9f53ef55a1ae6c1156")
     version("20260526-cp2k", commit="0cea22fdc34ec54bc59ffb47a43cb3e28b26d3e0")
     version("1.17-cp2k", commit="e0c4a2389afba36c453233ad7de07bd92c715bec")
 
