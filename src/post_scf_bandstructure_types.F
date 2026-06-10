@@ -98,9 +98,10 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp), ALLOCATABLE                       :: radius_ri_per_atom(:)
 
       ! Precomputed grid-basis kernels for RT-BSE
-      ! mat_V_grid_rtbse(l, l')  = sum_PQ  Z_lP V_PQ  Z_l'Q
+      ! mat_V_aux_rtbse(P, Q) = truncated-Coulomb V_PQ with M^-1 sandwich (RI x RI);
+      ! the Hartree grid kernel Z V Z^T is applied factorized, never materialized
       ! mat_W0_grid_rtbse(l, l') = sum_PQ  Z_lP W^{w=0}_PQ Z_l'Q
-      TYPE(dbcsr_type)                                 :: mat_V_grid_rtbse
+      TYPE(dbcsr_type)                                 :: mat_V_aux_rtbse
       TYPE(dbcsr_type)                                 :: mat_W0_grid_rtbse
       LOGICAL                                          :: rtbse_kernels_ready = .FALSE.
       ! Set TRUE once mat_phi_mu_l and mat_Z_lP have been populated in memory (by GW RI-RS
@@ -540,7 +541,7 @@ CONTAINS
       ! Deallocate RI-RS matrices
       IF (bs_env%ri_rs%grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_phi_mu_l)
       IF (bs_env%ri_rs%grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_Z_lP)
-      IF (bs_env%ri_rs%V_grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_V_grid_rtbse)
+      IF (bs_env%ri_rs%V_grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_V_aux_rtbse)
       IF (bs_env%ri_rs%W0_grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_W0_grid_rtbse)
       IF (ALLOCATED(bs_env%ri_rs%grid_points)) DEALLOCATE (bs_env%ri_rs%grid_points)
       IF (ALLOCATED(bs_env%ri_rs%grid_cache)) DEALLOCATE (bs_env%ri_rs%grid_cache)

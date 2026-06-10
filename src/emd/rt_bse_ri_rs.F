@@ -109,8 +109,8 @@ CONTAINS
    END SUBROUTINE rt_bse_ri_rs_ensure_grid
 
 ! **************************************************************************************************
-!> \brief Build V_grid(l,l') = sum_PQ Z_lP V_PQ Z_l'Q (RI Coulomb projected on the grid).
-!>        Needed by RT-BSE RI-RS Hartree.
+!> \brief Build V_aux(P,Q) (M^-1-sandwiched truncated Coulomb in the RI basis); the grid kernel
+!>        Z V Z^T is applied factorized per call. Needed by RT-BSE RI-RS Hartree.
 !> \param bs_env ...
 !> \param qs_env ...
 ! **************************************************************************************************
@@ -122,12 +122,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_bse_ri_rs_ensure_V_grid'
 
       INTEGER                                            :: handle
-      INTEGER, DIMENSION(:), POINTER                     :: blk_aux, blk_grid, dist_col_grid, &
-                                                            dist_row_aux
+      INTEGER, DIMENSION(:), POINTER                     :: blk_aux, dist_row_aux
       REAL(KIND=dp)                                      :: t1
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_Vtr_Gamma
-      TYPE(dbcsr_distribution_type)                      :: dist_aux_aux, dist_grid_grid
-      TYPE(dbcsr_type)                                   :: matrix_V_aux
+      TYPE(dbcsr_distribution_type)                      :: dist_aux_aux
 
       CALL timeset(routineN, handle)
 
@@ -139,8 +137,6 @@ CONTAINS
       CALL rt_bse_ri_rs_ensure_grid(bs_env, qs_env)
       t1 = m_walltime()
 
-      CALL setup_square_topology(bs_env%ri_rs%mat_phi_mu_l, 'ROW', dist_grid_grid, blk_grid, &
-                                 dist_col_grid)
       CALL setup_square_topology(bs_env%ri_rs%mat_Z_lP, 'COL', dist_aux_aux, blk_aux, dist_row_aux)
 
       CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI, bs_env%n_RI, &
@@ -148,27 +144,22 @@ CONTAINS
       ! Apply M^-1 sandwich to match the W^MIC convention; same scale as W^c when both used.
       CALL multiply_fm_W_MIC_time_with_Minv_Gamma(bs_env, qs_env, fm_Vtr_Gamma(:, 1))
 
-      CALL dbcsr_create(matrix_V_aux, "V_aux_rtbse", dist_aux_aux, dbcsr_type_no_symmetry, &
-                        blk_aux, blk_aux)
-      CALL copy_fm_to_dbcsr(fm_Vtr_Gamma(1, 1), matrix_V_aux, keep_sparsity=.FALSE.)
-
-      CALL dbcsr_create(bs_env%ri_rs%mat_V_grid_rtbse, "V_grid_rtbse", dist_grid_grid, &
-                        dbcsr_type_no_symmetry, blk_grid, blk_grid)
-      CALL contract_A_B_A("N", "T", bs_env%ri_rs%mat_Z_lP, matrix_V_aux, &
-                          bs_env%ri_rs%mat_V_grid_rtbse, bs_env%eps_filter)
+      ! Store the M^-1-sandwiched RI-basis Coulomb; the grid kernel Z V Z^T is applied factorized.
+      CALL dbcsr_create(bs_env%ri_rs%mat_V_aux_rtbse, "V_aux_rtbse", dist_aux_aux, &
+                        dbcsr_type_no_symmetry, blk_aux, blk_aux)
+      CALL copy_fm_to_dbcsr(fm_Vtr_Gamma(1, 1), bs_env%ri_rs%mat_V_aux_rtbse, &
+                            keep_sparsity=.FALSE.)
 
       bs_env%ri_rs%V_grid_built = .TRUE.
 
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A,T57,A,F7.1,A)') &
-            'Precomputed RT-BSE RI-RS V_grid kernel,', ' Execution time', &
+            'Precomputed RT-BSE RI-RS V_aux kernel,', ' Execution time', &
             m_walltime() - t1, ' s'
          WRITE (bs_env%unit_nr, '(A)') ' '
       END IF
 
-      CALL release_dbcsr_topology_and_matrices(dist=dist_grid_grid, mapped_dist=dist_col_grid)
-      CALL release_dbcsr_topology_and_matrices(dist=dist_aux_aux, mapped_dist=dist_row_aux, &
-                                               m1=matrix_V_aux)
+      CALL release_dbcsr_topology_and_matrices(dist=dist_aux_aux, mapped_dist=dist_row_aux)
       CALL cp_fm_release(fm_Vtr_Gamma)
 
       CALL timestop(handle)
@@ -377,7 +368,7 @@ CONTAINS
 
       INTEGER                                            :: handle, n_grid
       INTEGER, DIMENSION(:), POINTER                     :: blk_ao, dist_row_ao
-      REAL(KIND=dp), ALLOCATABLE                         :: n_vec(:), v_vec(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: n_vec(:), u_ri(:), v_vec(:), w_ri(:)
       TYPE(dbcsr_distribution_type)                      :: dist_ao_ao
       TYPE(dbcsr_type)                                   :: matrix_Phi, matrix_rho_AO, matrix_T, &
                                                             matrix_V_H_AO
@@ -402,8 +393,13 @@ CONTAINS
       CALL grid_row_dot(matrix_T, bs_env%ri_rs%mat_phi_mu_l, n_vec, bs_env%para_env)
       CALL dbcsr_release(matrix_T)
 
-      v_vec = 0.0_dp
-      CALL dbcsr_matvec_replicated(bs_env%ri_rs%mat_V_grid_rtbse, n_vec, v_vec, bs_env%para_env)
+      ! v = Z * (V_aux * (Z^T * n)) -- grid Coulomb applied factorized (helper zeroes each output)
+      ALLOCATE (w_ri(bs_env%n_RI), u_ri(bs_env%n_RI))
+      CALL dbcsr_matvec_replicated(bs_env%ri_rs%mat_Z_lP, n_vec, w_ri, bs_env%para_env, &
+                                   transposed=.TRUE.)
+      CALL dbcsr_matvec_replicated(bs_env%ri_rs%mat_V_aux_rtbse, w_ri, u_ri, bs_env%para_env)
+      CALL dbcsr_matvec_replicated(bs_env%ri_rs%mat_Z_lP, u_ri, v_vec, bs_env%para_env)
+      DEALLOCATE (w_ri, u_ri)
 
       ! Phi = rowscale(phi, v); V_H = phi^T * Phi
       CALL dbcsr_create(matrix_Phi, template=bs_env%ri_rs%mat_phi_mu_l)
@@ -565,27 +561,34 @@ CONTAINS
    END SUBROUTINE dbcsr_scale_rows_replicated
 
 ! **************************************************************************************************
-!> \brief Replicated matvec: vec_out(i) = sum_j matrix(i,j) vec_in(j) for a distributed dbcsr
-!>        matrix and replicated full-length vectors. Iterates over local blocks and reduces.
-!> \param matrix square distributed dbcsr matrix
-!> \param vec_in full input vector, replicated on all ranks
+!> \brief Replicated matvec: vec_out = matrix * vec_in (or matrix^T * vec_in if transposed) for a
+!>        possibly rectangular distributed dbcsr matrix and replicated full-length vectors.
+!>        Iterates over local blocks and reduces.
+!> \param matrix distributed dbcsr matrix (may be rectangular)
+!> \param vec_in full input vector, replicated on all ranks (column length, or row length if transposed)
 !> \param vec_out full output vector, replicated on all ranks (zeroed on entry; sum-reduced on exit)
 !> \param para_env ...
+!> \param transposed if .TRUE. compute vec_out = matrix^T * vec_in
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_matvec_replicated(matrix, vec_in, vec_out, para_env)
+   SUBROUTINE dbcsr_matvec_replicated(matrix, vec_in, vec_out, para_env, transposed)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       REAL(KIND=dp), INTENT(IN)                          :: vec_in(:)
       REAL(KIND=dp), INTENT(INOUT)                       :: vec_out(:)
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: transposed
 
       INTEGER                                            :: col_blk, col_off, ic, ir, &
                                                             nblkcols_total, nblkrows_total, &
                                                             row_blk, row_off
       INTEGER, ALLOCATABLE                               :: col_offset(:), row_offset(:)
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
+      LOGICAL                                            :: my_trans
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
       TYPE(dbcsr_iterator_type)                          :: iter
+
+      my_trans = .FALSE.
+      IF (PRESENT(transposed)) my_trans = transposed
 
       CALL dbcsr_get_info(matrix, nblkrows_total=nblkrows_total, &
                           nblkcols_total=nblkcols_total, &
@@ -608,12 +611,21 @@ CONTAINS
          CALL dbcsr_iterator_next_block(iter, row_blk, col_blk, block)
          row_off = row_offset(row_blk)
          col_off = col_offset(col_blk)
-         DO ic = 1, SIZE(block, 2)
-            DO ir = 1, SIZE(block, 1)
-               vec_out(row_off + ir) = vec_out(row_off + ir) + &
-                                       block(ir, ic)*vec_in(col_off + ic)
+         IF (my_trans) THEN
+            DO ic = 1, SIZE(block, 2)
+               DO ir = 1, SIZE(block, 1)
+                  vec_out(col_off + ic) = vec_out(col_off + ic) + &
+                                          block(ir, ic)*vec_in(row_off + ir)
+               END DO
             END DO
-         END DO
+         ELSE
+            DO ic = 1, SIZE(block, 2)
+               DO ir = 1, SIZE(block, 1)
+                  vec_out(row_off + ir) = vec_out(row_off + ir) + &
+                                          block(ir, ic)*vec_in(col_off + ic)
+               END DO
+            END DO
+         END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
 
