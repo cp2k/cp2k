@@ -22,12 +22,10 @@ MODULE rt_bse_ri_rs
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_create, dbcsr_distribution_type, dbcsr_get_info, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_scale, dbcsr_type, dbcsr_type_no_symmetry
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
-                                              dbcsr_get_diag,&
-                                              dbcsr_set_diag
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_release, dbcsr_scale, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -360,9 +358,10 @@ CONTAINS
    END SUBROUTINE compute_sigma_ri_rs_complex
 
 ! **************************************************************************************************
-!> \brief Hartree potential via RI-RS grid kernel:
+!> \brief Hartree potential via RI-RS grid kernel, evaluated diagonal-only (no grid x grid):
 !>        V_H_AO(la,si) = sum_l phi(l,la) v_l phi(l,si),  v_l = sum_l' V_grid(l,l') n_l',
-!>        n_l = (phi * rho_AO * phi^T)_{ll} = density on grid point l.
+!>        n_l = (phi * rho_AO * phi^T)_{ll}, built as the row-dot n_l = sum_n (phi*rho)(l,n) phi(l,n).
+!> [INTERNAL] dev_notes/rt_bse_equations.md Eq. VHt_rirs_fact
 !>        Real input, real output. Used as building block for the complex variant.
 !> \param bs_env ...
 !> \param rho_AO_fm input AO x AO density matrix
@@ -377,47 +376,45 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_hartree_ri_rs'
 
       INTEGER                                            :: handle, n_grid
-      INTEGER, DIMENSION(:), POINTER                     :: blk_ao, blk_grid, dist_col_grid, &
-                                                            dist_row_ao
+      INTEGER, DIMENSION(:), POINTER                     :: blk_ao, dist_row_ao
       REAL(KIND=dp), ALLOCATABLE                         :: n_vec(:), v_vec(:)
-      TYPE(dbcsr_distribution_type)                      :: dist_ao_ao, dist_grid_grid
-      TYPE(dbcsr_type)                                   :: matrix_D_grid, matrix_rho_AO, &
-                                                            matrix_rho_grid, matrix_V_H_AO
+      TYPE(dbcsr_distribution_type)                      :: dist_ao_ao
+      TYPE(dbcsr_type)                                   :: matrix_Phi, matrix_rho_AO, matrix_T, &
+                                                            matrix_V_H_AO
 
       CALL timeset(routineN, handle)
 
       CPASSERT(bs_env%ri_rs%V_grid_built)
 
       CALL setup_square_topology(bs_env%ri_rs%mat_phi_mu_l, 'COL', dist_ao_ao, blk_ao, dist_row_ao)
-      CALL setup_square_topology(bs_env%ri_rs%mat_phi_mu_l, 'ROW', dist_grid_grid, blk_grid, &
-                                 dist_col_grid)
 
       CALL dbcsr_create(matrix_rho_AO, "rho_AO_hartree", dist_ao_ao, dbcsr_type_no_symmetry, &
                         blk_ao, blk_ao)
       CALL copy_fm_to_dbcsr(rho_AO_fm, matrix_rho_AO, keep_sparsity=.FALSE.)
 
-      CALL dbcsr_create(matrix_rho_grid, "rho_grid_hartree", dist_grid_grid, &
-                        dbcsr_type_no_symmetry, blk_grid, blk_grid)
-      CALL contract_A_B_A("N", "T", bs_env%ri_rs%mat_phi_mu_l, matrix_rho_AO, &
-                          matrix_rho_grid, bs_env%eps_filter)
-
-      n_grid = SUM(blk_grid)
+      CALL dbcsr_get_info(bs_env%ri_rs%mat_phi_mu_l, nfullrows_total=n_grid)
       ALLOCATE (n_vec(n_grid), v_vec(n_grid))
-      n_vec = 0.0_dp
-      CALL dbcsr_get_diag(matrix_rho_grid, n_vec)
-      CALL bs_env%para_env%sum(n_vec)
+
+      ! diagonal-only density on the grid: T = phi*rho, n_l = sum_n T(l,n)*phi(l,n)
+      CALL dbcsr_create(matrix_T, template=bs_env%ri_rs%mat_phi_mu_l)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, bs_env%ri_rs%mat_phi_mu_l, matrix_rho_AO, &
+                          0.0_dp, matrix_T, filter_eps=bs_env%eps_filter)
+      CALL grid_row_dot(matrix_T, bs_env%ri_rs%mat_phi_mu_l, n_vec, bs_env%para_env)
+      CALL dbcsr_release(matrix_T)
 
       v_vec = 0.0_dp
       CALL dbcsr_matvec_replicated(bs_env%ri_rs%mat_V_grid_rtbse, n_vec, v_vec, bs_env%para_env)
 
-      CALL dbcsr_create(matrix_D_grid, "D_grid_hartree", dist_grid_grid, &
-                        dbcsr_type_no_symmetry, blk_grid, blk_grid)
-      CALL dbcsr_add_on_diag(matrix_D_grid, 1.0_dp)
-      CALL dbcsr_set_diag(matrix_D_grid, v_vec)
+      ! Phi = rowscale(phi, v); V_H = phi^T * Phi
+      CALL dbcsr_create(matrix_Phi, template=bs_env%ri_rs%mat_phi_mu_l)
+      CALL dbcsr_copy(matrix_Phi, bs_env%ri_rs%mat_phi_mu_l)
+      CALL dbcsr_scale_rows_replicated(matrix_Phi, v_vec)
 
-      CALL dbcsr_create(matrix_V_H_AO, template=matrix_rho_AO)
-      CALL contract_A_B_A("T", "N", bs_env%ri_rs%mat_phi_mu_l, matrix_D_grid, &
-                          matrix_V_H_AO, bs_env%eps_filter)
+      CALL dbcsr_create(matrix_V_H_AO, "V_H_AO_hartree", dist_ao_ao, dbcsr_type_no_symmetry, &
+                        blk_ao, blk_ao)
+      CALL dbcsr_multiply("T", "N", 1.0_dp, bs_env%ri_rs%mat_phi_mu_l, matrix_Phi, &
+                          0.0_dp, matrix_V_H_AO, filter_eps=bs_env%eps_filter)
+      CALL dbcsr_release(matrix_Phi)
 
       CALL copy_dbcsr_to_fm(matrix_V_H_AO, V_H_AO_fm)
 
@@ -425,8 +422,6 @@ CONTAINS
 
       CALL release_dbcsr_topology_and_matrices(dist=dist_ao_ao, mapped_dist=dist_row_ao, &
                                                m1=matrix_rho_AO, m2=matrix_V_H_AO)
-      CALL release_dbcsr_topology_and_matrices(dist=dist_grid_grid, mapped_dist=dist_col_grid, &
-                                               m1=matrix_rho_grid, m2=matrix_D_grid)
 
       CALL timestop(handle)
 
@@ -476,6 +471,98 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_hartree_ri_rs_complex
+
+! **************************************************************************************************
+!> \brief Replicated row-wise dot: vec_out(l) = sum_n A(l,n)*B(l,n) for two dbcsr matrices on
+!>        the same block structure/distribution. A-blocks without a B partner contribute zero.
+!> \param matrix_A first factor (iterated)
+!> \param matrix_B second factor (looked up locally; same distribution as A required)
+!> \param vec_out full-length replicated result (zeroed on entry; sum-reduced on exit)
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE grid_row_dot(matrix_A, matrix_B, vec_out, para_env)
+
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_A, matrix_B
+      REAL(KIND=dp), INTENT(INOUT)                       :: vec_out(:)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      INTEGER                                            :: col_blk, ic, ir, nblkrows_total, &
+                                                            row_blk, row_off
+      INTEGER, ALLOCATABLE                               :: row_offset(:)
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: blk_A, blk_B
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL dbcsr_get_info(matrix_A, nblkrows_total=nblkrows_total, row_blk_size=row_blk_size)
+      ALLOCATE (row_offset(nblkrows_total + 1))
+      row_offset(1) = 0
+      DO ir = 1, nblkrows_total
+         row_offset(ir + 1) = row_offset(ir) + row_blk_size(ir)
+      END DO
+
+      vec_out(:) = 0.0_dp
+
+      CALL dbcsr_iterator_start(iter, matrix_A)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row_blk, col_blk, blk_A)
+         CALL dbcsr_get_block_p(matrix_B, row_blk, col_blk, blk_B, found)
+         IF (.NOT. found) CYCLE
+         row_off = row_offset(row_blk)
+         DO ic = 1, SIZE(blk_A, 2)
+            DO ir = 1, SIZE(blk_A, 1)
+               vec_out(row_off + ir) = vec_out(row_off + ir) + blk_A(ir, ic)*blk_B(ir, ic)
+            END DO
+         END DO
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+      DEALLOCATE (row_offset)
+
+      CALL para_env%sum(vec_out)
+
+   END SUBROUTINE grid_row_dot
+
+! **************************************************************************************************
+!> \brief Scale each row of a dbcsr matrix by a replicated full-length vector:
+!>        block(ir,ic) <- vec(global_row(ir)) * block(ir,ic). Value mutation only.
+!> \param matrix ...
+!> \param vec full-length replicated row-scaling vector
+! **************************************************************************************************
+   SUBROUTINE dbcsr_scale_rows_replicated(matrix, vec)
+
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      REAL(KIND=dp), INTENT(IN)                          :: vec(:)
+
+      INTEGER                                            :: col_blk, ic, ir, nblkrows_total, &
+                                                            row_blk, row_off
+      INTEGER, ALLOCATABLE                               :: row_offset(:)
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: blk
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL dbcsr_get_info(matrix, nblkrows_total=nblkrows_total, row_blk_size=row_blk_size)
+      ALLOCATE (row_offset(nblkrows_total + 1))
+      row_offset(1) = 0
+      DO ir = 1, nblkrows_total
+         row_offset(ir + 1) = row_offset(ir) + row_blk_size(ir)
+      END DO
+
+      CALL dbcsr_iterator_start(iter, matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row_blk, col_blk, blk)
+         row_off = row_offset(row_blk)
+         DO ic = 1, SIZE(blk, 2)
+            DO ir = 1, SIZE(blk, 1)
+               blk(ir, ic) = vec(row_off + ir)*blk(ir, ic)
+            END DO
+         END DO
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+      DEALLOCATE (row_offset)
+
+   END SUBROUTINE dbcsr_scale_rows_replicated
 
 ! **************************************************************************************************
 !> \brief Replicated matvec: vec_out(i) = sum_j matrix(i,j) vec_in(j) for a distributed dbcsr
