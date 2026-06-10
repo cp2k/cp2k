@@ -212,7 +212,7 @@ spack:
     - "libvori@220621"
     - "libxc@7.0.0"
     - "libxs@20260609"
-    - "libxsmm@cmake-test"
+    - "libxsmm@20260610-cp2k"
     - "mimic-mcl@3.0.0"
     - "netlib-scalapack@2.2.3"
     - "openblas@0.3.33"

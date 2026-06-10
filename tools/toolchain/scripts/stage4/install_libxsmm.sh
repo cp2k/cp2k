@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxsmm_ver="bb9ba99"
-libxsmm_sha256="30c354d49c62c293e570a0a0e9b50926b865c1e0ce5bef727f0c744506d38c49"
+libxsmm_ver="cdeedf7"
+libxsmm_sha256="4190ce3c3ede3721b3b23e0985a618805131befe42b8deace6ed479e4fe21004"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -39,7 +39,7 @@ EOF
       else
         if ! download_pkg_from_cp2k_org "${libxsmm_sha256}" "libxsmm-${libxsmm_ver}.tar.gz" 2> /dev/null; then
           download_pkg_from_urlpath "${libxsmm_sha256}" "${libxsmm_ver}" \
-            https://codeload.github.com/Growl1234/libxsmm/tar.gz \
+            https://codeload.github.com/libxsmm/libxsmm/tar.gz \
             "libxsmm-${libxsmm_ver}.tar.gz"
         fi
       fi

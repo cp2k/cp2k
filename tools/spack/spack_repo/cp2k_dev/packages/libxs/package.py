@@ -25,7 +25,7 @@ class Libxs(CMakePackage):
     license("BSD-3-Clause", checked_by="mkrack")
 
     version("main", branch="main")
-    version("20260609", commit="ccfb2b6069ba9bad033a550905cb032b9a7346f1")
+    version("20260609", commit="166f48e0172475f4db59950d1447525994bbf293")
     version("20260605", commit="ab416130f8c9f7edb8c1bf3d3abaf402f61d0fe0")
 
     variant("fortran", default=False, description="Build Fortran module interface")
@@ -44,6 +44,6 @@ class Libxs(CMakePackage):
         args = [
             self.define_from_variant("LIBXS_FORTRAN", "fortran"),
             self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
-            self.define_from_variant("LIBXS_SHARED", "shared"),
+            self.define_from_variant("BUILD_SHARED_LIBS", "shared"),
         ]
         return args

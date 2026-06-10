@@ -12,18 +12,15 @@ class Libxsmm(CMakePackage):
     and sparse matrix operations,
     and deep learning primitives."""
 
-    # homepage = "https://github.com/libxsmm/libxsmm"
-    # url = "https://github.com/libxsmm/libxsmm/archive/1.17.tar.gz"
-    # git = "https://github.com/libxsmm/libxsmm.git"
-    homepage = "https://github.com/Growl1234/libxsmm"
-    url = "https://github.com/Growl1234/libxsmm/archive/1.17.tar.gz"
-    git = "https://github.com/Growl1234/libxsmm.git"
+    homepage = "https://github.com/libxsmm/libxsmm"
+    url = "https://github.com/libxsmm/libxsmm/archive/1.17.tar.gz"
+    git = "https://github.com/libxsmm/libxsmm.git"
 
     maintainers("hfp")
 
     license("BSD-3-Clause")
 
-    version("cmake-test", commit="b35d767abffc7bca845a81f7e408fec68300821c")
+    version("20260610-cp2k", commit="cdeedf76ddd30e0dfb2527f6e1537d2c35a07596")
     version("20260526-cp2k", commit="0cea22fdc34ec54bc59ffb47a43cb3e28b26d3e0")
     version("1.17-cp2k", commit="e0c4a2389afba36c453233ad7de07bd92c715bec")
 
