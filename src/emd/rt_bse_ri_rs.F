@@ -36,7 +36,7 @@ MODULE rt_bse_ri_rs
    USE gw_large_cell_Gamma_ri_rs,       ONLY: atomic_basis_at_grid_point,&
                                               compute_coeff_Z_lP,&
                                               contract_A_B_A,&
-                                              hadamard_product,&
+                                              hadamard_product_inplace,&
                                               release_dbcsr_topology_and_matrices,&
                                               ri_rs_grid_assembler,&
                                               setup_square_topology
@@ -274,7 +274,7 @@ CONTAINS
                                                             dist_row_ao
       TYPE(dbcsr_distribution_type)                      :: dist_ao_ao, dist_grid_grid
       TYPE(dbcsr_type)                                   :: matrix_rho_AO, matrix_rho_grid, &
-                                                            matrix_Sigma_AO, matrix_Sigma_grid
+                                                            matrix_Sigma_AO
 
       CALL timeset(routineN, handle)
 
@@ -293,12 +293,11 @@ CONTAINS
       CALL contract_A_B_A("N", "T", bs_env%ri_rs%mat_phi_mu_l, matrix_rho_AO, &
                           matrix_rho_grid, bs_env%eps_filter)
 
-      CALL dbcsr_create(matrix_Sigma_grid, template=matrix_rho_grid)
-      CALL hadamard_product(matrix_rho_grid, bs_env%ri_rs%mat_W0_grid_rtbse, &
-                            matrix_Sigma_grid, 1.0_dp)
+      CALL hadamard_product_inplace(matrix_rho_grid, bs_env%ri_rs%mat_W0_grid_rtbse, &
+                                    1.0_dp)
 
       CALL dbcsr_create(matrix_Sigma_AO, template=matrix_rho_AO)
-      CALL contract_A_B_A("T", "N", bs_env%ri_rs%mat_phi_mu_l, matrix_Sigma_grid, &
+      CALL contract_A_B_A("T", "N", bs_env%ri_rs%mat_phi_mu_l, matrix_rho_grid, &
                           matrix_Sigma_AO, bs_env%eps_filter)
 
       CALL dbcsr_scale(matrix_Sigma_AO, prefactor)
@@ -307,7 +306,7 @@ CONTAINS
       CALL release_dbcsr_topology_and_matrices(dist=dist_ao_ao, mapped_dist=dist_row_ao, &
                                                m1=matrix_rho_AO, m2=matrix_Sigma_AO)
       CALL release_dbcsr_topology_and_matrices(dist=dist_grid_grid, mapped_dist=dist_col_grid, &
-                                               m1=matrix_rho_grid, m2=matrix_Sigma_grid)
+                                               m1=matrix_rho_grid)
 
       CALL timestop(handle)
 

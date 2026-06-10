@@ -95,6 +95,7 @@ MODULE gw_large_cell_Gamma_ri_rs
              compute_coeff_Z_lP, &
              contract_A_B_A, &
              hadamard_product, &
+             hadamard_product_inplace, &
              setup_square_topology, &
              release_dbcsr_topology_and_matrices
 
@@ -1364,6 +1365,46 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE hadamard_product
+
+! **************************************************************************************************
+!> \brief In-place Hadamard A <- fac * (A ◦ B). Value mutation only (no block insert/delete),
+!>        so iterating A while writing through the block pointer is safe.
+!> \param matrix_A in/out factor (overwritten by the product)
+!> \param matrix_B second factor (looked up; blocks absent in B zero the A block)
+!> \param fac (Scaling factor applied to the product)
+! **************************************************************************************************
+   SUBROUTINE hadamard_product_inplace(matrix_A, matrix_B, fac)
+
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_A, matrix_B
+      REAL(KIND=dp), INTENT(IN)                          :: fac
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hadamard_product_inplace'
+
+      INTEGER                                            :: col, handle, row
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: blk_A, blk_B
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_iterator_start(iter, matrix_A)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, blk_A)
+
+         CALL dbcsr_get_block_p(matrix_B, row, col, blk_B, found)
+
+         IF (found) THEN
+            blk_A(:, :) = fac*blk_A(:, :)*blk_B(:, :)
+         ELSE
+            ! If B is sparse here, the product is zero
+            blk_A(:, :) = 0.0_dp
+         END IF
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE hadamard_product_inplace
 
 ! **************************************************************************************************
 !> \brief Compute screened Coulomb interaction matrix
