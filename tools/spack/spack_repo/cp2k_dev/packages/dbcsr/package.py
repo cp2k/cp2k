@@ -26,7 +26,7 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
     license("GPL-2.0-or-later")
 
     version("develop", branch="develop")
-    version("cmake-test", commit="f3e65a31115eb89a55152470bf5131da821bdbf5")
+    version("2.9.1-cmake-test", commit="f3e65a31115eb89a55152470bf5131da821bdbf5")
 
     variant("tests", default=False, description="Build DBCSR unit tests")
     variant("tests", default=True, description="Build DBCSR unit tests", when="@2.1:2.2")
@@ -53,9 +53,6 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
     variant("opencl", default=False, description="Enable OpenCL backend")
     variant("mpi_f08", default=False, when="@2.6:", description="Use mpi F08 module")
 
-    variant("g2g", default=False, when="@:2.8", description="GPU-aware MPI with CUDA/HIP")
-    conflicts("+g2g", when="~cuda ~rocm", msg="GPU-aware MPI requires +cuda or +rocm")
-
     depends_on("c", type="build")  # generated
     depends_on("cxx", type="build")  # generated
     depends_on("fortran", type="build")  # generated
@@ -65,6 +62,7 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
     depends_on("mpi", when="+mpi")
 
     with when("smm=libxsmm"):
+        depends_on("libxs")
         depends_on("libxsmm")
 
     depends_on("cmake@3.10:", type="build")
@@ -81,6 +79,8 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
 
     # Several packages provide "opencl" (incl. ICD/loader), e.g., "cuda"
     depends_on("opencl", when="+opencl")
+    depends_on("libxs", when="+opencl")
+    depends_on("libxstream", when="+opencl")
     opencl_loader_header_version = "2022.10.24"
     depends_on(f"opencl-c-headers@{opencl_loader_header_version}:", when="+opencl")
     requires(f"%opencl=opencl-icd-loader@{opencl_loader_header_version}:", when="+opencl")
@@ -103,7 +103,7 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
 
     dbcsr_amdgpu_targets = (
         "gfx906",
-        "gfx910",
+        "gfx908",
         "gfx90a",
         "gfx90a:xnack-",
         "gfx90a:xnack+",
@@ -129,7 +129,7 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
     conflicts("^openblas threads=pthreads", when="+openmp")
     conflicts("^openblas threads=none", when="+openmp")
 
-    # OpenCL backend implementation relies on LIBXSMM
+    # OpenCL backend requires LIBXS, which is selected through the libxsmm SMM path.
     requires("smm=libxsmm", when="+opencl")
 
     with when("+mpi"):
@@ -165,14 +165,14 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
             raise InstallError("DBCSR supports only one amdgpu_arch at a time")
 
         args = [
-            "-DUSE_SMM=%s" % ("libxsmm" if "smm=libxsmm" in spec else "blas"),
+            self.define("USE_LIBXS", "smm=libxsmm" in spec),
+            self.define("USE_LIBXSMM", "smm=libxsmm" in spec),
             self.define_from_variant("USE_MPI", "mpi"),
             self.define_from_variant("USE_OPENMP", "openmp"),
             # C API needs MPI
             self.define_from_variant("WITH_C_API", "mpi"),
             self.define_from_variant("BUILD_SHARED_LIBS", "shared"),
             self.define_from_variant("WITH_EXAMPLES", "examples"),
-            self.define_from_variant("WITH_G2G", "g2g"),
             self.define_from_variant("BUILD_TESTING", "tests"),
         ]
 

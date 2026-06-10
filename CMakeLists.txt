@@ -489,7 +489,9 @@ if(CP2K_USE_LIBXSMM)
   if(libxsmm_FOUND AND CP2K_USE_LIBXS)
     message(STATUS "Using LIBXS + LIBXSMM for Small Matrix Multiplication")
   elseif(NOT libxsmm_FOUND)
-    message(WARNING "LIBXS found but LIBXSMM not found; switching off CP2K_USE_LIBXSMM.")
+    message(
+      WARNING
+        "LIBXS found but LIBXSMM not found; switching off CP2K_USE_LIBXSMM.")
     set(CP2K_USE_LIBXSMM OFF)
   endif()
 else()
