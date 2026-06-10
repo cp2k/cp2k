@@ -32,6 +32,7 @@ spack:
         - "+openmp"
         - "+pic"
         - "~rocm"
+        - "~tests"
         - "build_system=cmake"
         - "build_type=Release"
 
@@ -67,6 +68,7 @@ spack:
     dbcsr:
       require:
         - "~examples"
+        - "+fortran"
         - "+openmp"
         - "smm=libxsmm"
 
@@ -81,6 +83,7 @@ spack:
     gauxc:
       require:
         - "+c"
+        - "~cutlass"
         - "+fortran"
         - "+openmp"
         - "+skala"
@@ -100,9 +103,9 @@ spack:
 
     py-torch:
       require:
-        - "~cuda"
         - "~distributed"
         - "~kineto"
+        - "~magma"
         - "~mkldnn"
         - "~rocm"
         - "~valgrind"

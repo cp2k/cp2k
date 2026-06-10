@@ -58,5 +58,5 @@ class Exchcxx(CMakePackage, CudaPackage):
             self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
         ]
         if self.spec.satisfies("+cuda"):
-            args.append(CMakeBuilder.define_cuda_architectures(self))
+            args.append(self.define_cuda_architectures(self))
         return args
