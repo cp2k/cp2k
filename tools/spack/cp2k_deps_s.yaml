@@ -68,7 +68,6 @@ spack:
     dbcsr:
       require:
         - "~examples"
-        - "+fortran"
         - "+openmp"
         - "smm=libxsmm"
 
