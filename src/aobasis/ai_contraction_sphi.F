@@ -17,7 +17,7 @@ MODULE ai_contraction_sphi
    USE kinds, ONLY: dp, int_8
 #if defined(__LIBXS)
    USE LIBXS_JIT, ONLY: libxs_gemm_config_t, libxs_gemm_dispatch, &
-                    libxs_gemm_call, LIBXS_DATATYPE_F64, C_LOC
+                        libxs_gemm_call, LIBXS_DATATYPE_F64, C_LOC
 #endif
 
 #include "../base/base_uses.f90"
