@@ -147,7 +147,7 @@ def main() -> None:
                 mpi_mode="mpich",
                 base_image="docker.io/rockylinux/rockylinux:10",
                 gcc_version=14,
-                feature_flags="-df libxsmm -ef openpmd",
+                feature_flags="-ef openpmd",
                 testopts=testopts,
                 image_tag=f.image_tag,
             )
@@ -767,6 +767,7 @@ COPY --from=build_cp2k /opt/cp2k/spack/spack/opt/spack ./spack/spack/opt/spack
 
 # Install CP2K
 COPY --from=build_cp2k /opt/cp2k/install ./install
+RUN ldd ./install/cp2k
 
 # Install CP2K regression tests
 COPY --from=build_cp2k /opt/cp2k/tests ./tests
