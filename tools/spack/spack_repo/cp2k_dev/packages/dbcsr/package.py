@@ -14,19 +14,17 @@ from spack.package import *
 class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
     """Distributed Block Compressed Sparse Row matrix library."""
 
-    # homepage = "https://github.com/cp2k/dbcsr"
-    # git = "https://github.com/cp2k/dbcsr.git"
-    # url = "https://github.com/cp2k/dbcsr/releases/download/v2.2.0/dbcsr-2.2.0.tar.gz"
-    # list_url = "https://github.com/cp2k/dbcsr/releases"
-    homepage = "https://github.com/Growl1234/dbcsr"
-    git = "https://github.com/Growl1234/dbcsr.git"
+    homepage = "https://github.com/cp2k/dbcsr"
+    git = "https://github.com/cp2k/dbcsr.git"
+    url = "https://github.com/cp2k/dbcsr/releases/download/v2.2.0/dbcsr-2.2.0.tar.gz"
+    list_url = "https://github.com/cp2k/dbcsr/releases"
 
     maintainers("dev-zero", "mtaillefumier", "RMeli", "hfp")
 
     license("GPL-2.0-or-later")
 
     version("develop", branch="develop")
-    version("2.9.1-cmake-test", commit="f3e65a31115eb89a55152470bf5131da821bdbf5")
+    version("2.9.1-cmake-test", commit="4d85b72e3427ec7f595ad0cf38a4d00f72f9ff60")
 
     variant("tests", default=False, description="Build DBCSR unit tests")
     variant("tests", default=True, description="Build DBCSR unit tests", when="@2.1:2.2")

@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_NAME}")/.." && pwd -P)"
 
-dbcsr_ver="f3e65a3"
-dbcsr_sha256="5d055195bc35c2d21e2175ab1ab899d02b432e5ea1b910515811c262696f750d"
+dbcsr_ver="4d85b72"
+dbcsr_sha256="33461c7313e432b8902c9484ec327550d01b32b1b487020d3372d0ddd19265dc"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -32,7 +32,7 @@ case "${with_dbcsr}" in
       else
         if ! download_pkg_from_cp2k_org "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz" 2> /dev/null; then
           download_pkg_from_urlpath "${dbcsr_sha256}" "${dbcsr_ver}" \
-            https://codeload.github.com/Growl1234/dbcsr/tar.gz \
+            https://codeload.github.com/cp2k/dbcsr/tar.gz \
             "dbcsr-${dbcsr_ver}.tar.gz"
         fi
       fi

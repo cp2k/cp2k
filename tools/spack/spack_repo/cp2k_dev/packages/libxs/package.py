@@ -25,7 +25,7 @@ class Libxs(CMakePackage):
     license("BSD-3-Clause", checked_by="mkrack")
 
     version("main", branch="main")
-    version("20260609", commit="166f48e0172475f4db59950d1447525994bbf293")
+    version("20260611", commit="81914e78a9dc440a7bf4514a6312240b68d114e9")
     version("20260605", commit="ab416130f8c9f7edb8c1bf3d3abaf402f61d0fe0")
 
     variant("fortran", default=False, description="Build Fortran module interface")

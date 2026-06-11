@@ -211,7 +211,7 @@ spack:
     - "libvdwxc@0.5.0"
     - "libvori@220621"
     - "libxc@7.0.0"
-    - "libxs@20260609"
+    - "libxs@20260611"
     - "libxsmm@20260610-cp2k"
     - "mimic-mcl@3.0.0"
     - "netlib-scalapack@2.2.3"
