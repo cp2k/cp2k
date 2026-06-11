@@ -3005,6 +3005,8 @@ CONTAINS
                           usage="BROADENING 0.02", &
                           default_r_val=cp_unit_to_cp2k(value=0.02_dp, unit_str="eV"), &
                           unit_str="eV")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FLOQUET_DOS_FILE_NAME", &
                           description="File name used for the Floquet spectral function.", &
@@ -3017,9 +3019,6 @@ CONTAINS
                           description="File name used for the Floquet quasi-energies.", &
                           usage="QUASI_ENERGIES_FILE_NAME QUASI_ENERGIES", &
                           default_lc_val="QUASI_ENERGIES")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
