@@ -55,6 +55,26 @@ For diagonalization calculations, unoccupied orbitals must be available through
 [ADDED_MOS](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.ADDED_MOS). For OT calculations, CP2K can generate the
 requested virtual orbitals for printing through the OT eigensolver.
 
+### Interpreting MO energies and energy gaps
+
+The MO energies printed by CP2K are one-particle eigenvalues of the chosen electronic-structure
+method. They are useful for comparing orbital orderings, occupations, frontier orbitals, and
+k-point-resolved band structures. However, they should not in general be interpreted as directly
+measurable quantities. Experimental observables such as ionization potentials, electron affinities,
+redox potentials, optical excitation energies, and quasiparticle gaps involve total-energy
+differences, many-body effects, structural or environmental relaxation, or other physical
+contributions that are not captured by a simple one-particle eigenvalue alone.
+
+For finite systems, the HOMO--LUMO gap is the difference between the lowest unoccupied and highest
+occupied MO eigenvalues. For periodic k-point calculations, the relevant band gap is obtained by
+comparing the valence-band maximum and conduction-band minimum over all k-points and spin channels;
+the minimum gap may be indirect. In metallic or smeared calculations, occupations around the Fermi
+level can make a HOMO--LUMO or band-gap interpretation ambiguous.
+
+The numerical value of an eigenvalue gap depends on the exchange-correlation functional, basis set,
+pseudopotential, spin treatment, k-point sampling, and the number and quality of available
+unoccupied states.
+
 ## Molden file for Gamma-only calculations
 
 [&MO_MOLDEN](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_MOLDEN) writes the orbitals in Molden format. This
@@ -158,6 +178,13 @@ them.
 &END FORCE_EVAL
 ```
 
+The two AO export modes target different post-processing workflows:
+
+- `AO_EXPORT_TYPE GTO_BASIS` writes a compact GTO basis definition. The post-processing code
+  reconstructs the overlap matrix, including its k-point dependence.
+- `AO_EXPORT_TYPE OVERLAP_MATRIX` writes the explicit overlap matrix $S(k)$ for each k-point. This
+  produces larger files but avoids reconstructing the AO overlap externally.
+
 A `.mokp` file contains:
 
 - cell vectors, atomic positions, nuclear charges, effective nuclear charges, and AO ranges;
@@ -209,13 +236,6 @@ s      5    1.00
 ...
 ```
 
-The two AO export modes target different post-processing workflows:
-
-- `AO_EXPORT_TYPE GTO_BASIS` writes a compact GTO basis definition. The post-processing code
-  reconstructs the overlap matrix, including its k-point dependence.
-- `AO_EXPORT_TYPE OVERLAP_MATRIX` writes the explicit overlap matrix $S(k)$ for each k-point. This
-  produces larger files but avoids reconstructing the AO overlap externally.
-
 ```{note}
 `&MO_KP` is only active for k-point calculations. For Gamma-only calculations, use `&MO_MOLDEN`,
 `&MO`, or `&MO_CUBES` depending on the intended use.
@@ -225,7 +245,8 @@ The two AO export modes target different post-processing workflows:
 
 ```{important}
 Printing TREXIO file requires CP2K to be built with
-[TREXIO](../../technologies/libraries.md#trexio-unified-computational-chemistry-format) support.
+[TREXIO](../../technologies/libraries.md#trexio-unified-computational-chemistry-format) and
+[HDF5](../../technologies/libraries.md#hdf5) support.
 ```
 
 [&TREXIO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.TREXIO) writes orbital information in the
@@ -246,6 +267,19 @@ is named `<PROJECT>-TREXIO.h5`.
   &END DFT
 &END FORCE_EVAL
 ```
+
+Useful controls include:
+
+- [FILENAME](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.TREXIO.FILENAME): choose the body of the `.h5` output
+  filename.
+- [CARTESIAN](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.TREXIO.CARTESIAN): store the MOs in the Cartesian
+  basis instead of the default spherical basis.
+- [FULL_KPOINT_GRID](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.TREXIO.FULL_KPOINT_GRID): for symmetry-reduced
+  k-point calculations, export MOs on the full unreduced k-point grid instead of only the
+  irreducible grid.
+- [REUSE_SCF_MOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.TREXIO.REUSE_SCF_MOS): when `FULL_KPOINT_GRID` is
+  active, try to reconstruct the full-grid MO coefficients from the symmetry-reduced SCF orbitals
+  before falling back to a full-grid diagonalization.
 
 The resulting file, here `orbitals.h5`, stores the information in a structured binary format rather
 than as a plain text file. It contains system metadata, nuclear coordinates and effective charges,
@@ -279,19 +313,6 @@ type                     Dataset {...}
 ...
 ```
 
-Useful controls include:
-
-- [FILENAME](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.TREXIO.FILENAME): choose the body of the `.h5` output
-  filename.
-- [CARTESIAN](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.TREXIO.CARTESIAN): store the MOs in the Cartesian
-  basis instead of the default spherical basis.
-- [FULL_KPOINT_GRID](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.TREXIO.FULL_KPOINT_GRID): for symmetry-reduced
-  k-point calculations, export MOs on the full unreduced k-point grid instead of only the
-  irreducible grid.
-- [REUSE_SCF_MOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.TREXIO.REUSE_SCF_MOS): when `FULL_KPOINT_GRID` is
-  active, try to reconstruct the full-grid MO coefficients from the symmetry-reduced SCF orbitals
-  before falling back to a full-grid diagonalization.
-
 ## MO cube files
 
 [&MO_CUBES](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES) writes selected orbitals on a real-space grid
@@ -311,6 +332,20 @@ states, or localized molecular orbitals.
   &END DFT
 &END FORCE_EVAL
 ```
+
+Useful controls include:
+
+- [NHOMO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.NHOMO) and
+  [NLUMO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.NLUMO): choose how many occupied and unoccupied
+  orbitals are written.
+- [HOMO_LIST](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.HOMO_LIST): request specific occupied
+  orbitals and override `NHOMO`.
+- [STRIDE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.STRIDE): reduce the grid resolution to make
+  files smaller.
+- [MAX_FILE_SIZE_MB](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.MAX_FILE_SIZE_MB): let CP2K choose a
+  suitable stride to limit cube-file size.
+- [WRITE_CUBE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.WRITE_CUBE): compute eigenvalues while
+  suppressing cube-file writing when set to false.
 
 Each selected orbital is written to a separate cube file. The file name contains the MO index and
 spin channel, for example `PROJECT-WFN_00016_1-1_0.cube` for MO 16, spin 1. A shortened cube file
@@ -333,19 +368,12 @@ looks like:
 The first two lines are comments. The following lines define the grid origin, grid dimensions, and
 grid vectors, followed by the atom list and then the real-space values of the selected orbital.
 
-Useful controls include:
-
-- [NHOMO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.NHOMO) and
-  [NLUMO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.NLUMO): choose how many occupied and unoccupied
-  orbitals are written.
-- [HOMO_LIST](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.HOMO_LIST): request specific occupied
-  orbitals and override `NHOMO`.
-- [STRIDE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.STRIDE): reduce the grid resolution to make
-  files smaller.
-- [MAX_FILE_SIZE_MB](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.MAX_FILE_SIZE_MB): let CP2K choose a
-  suitable stride to limit cube-file size.
-- [WRITE_CUBE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.WRITE_CUBE): compute eigenvalues while
-  suppressing cube-file writing when set to false.
+```{note}
+CP2K writes the real-space orbital values in fixed-width `E13.5` fields following the
+[Gaussian cube file convention](https://gaussian.com/cubegen/). Some downstream cube-file parsers
+assume this fixed-width layout rather than only whitespace-separated floating-point values, so the
+formatting should be preserved when cube files are post-processed or rewritten.
+```
 
 Cube files can become very large, especially for large cells or when many orbitals are requested.
 For large grid-based orbital data, [&MO_OPENPMD](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_OPENPMD) may be
