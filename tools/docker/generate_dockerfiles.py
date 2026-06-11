@@ -532,7 +532,7 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
 """ + install_toolchain(
         base_image=base_image,
         mpi_mode="no",
-        with_dbcsr="",
+        with_dbcsr="install",
         with_gcc="system",
         with_cmake="system",
         with_ninja="system",
@@ -540,9 +540,11 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
         with_libxc="no",
         with_libint="no",
         with_fftw="no",
-        with_libxsmm="no",
+        with_libxsmm="install",
+        with_libxs="install",
         with_spglib="no",
         with_libvori="no",
+        with_tblite="no",
     )
 
     return output

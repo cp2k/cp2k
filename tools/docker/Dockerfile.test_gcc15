@@ -56,7 +56,7 @@ COPY ./tools/toolchain/scripts/VERSION \
 COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
     --mpi-mode=no \
-    --with-dbcsr \
+    --with-dbcsr=install \
     --with-gcc=system \
     --with-cmake=system \
     --with-ninja=system \
@@ -64,9 +64,11 @@ RUN ./install_cp2k_toolchain.sh \
     --with-libxc=no \
     --with-libint=no \
     --with-fftw=no \
-    --with-libxsmm=no \
+    --with-libxsmm=install \
+    --with-libxs=install \
     --with-spglib=no \
     --with-libvori=no \
+    --with-tblite=no \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
