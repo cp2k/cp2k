@@ -17,10 +17,6 @@
 #include <mkl_cblas.h>
 #endif
 
-#if defined(__LIBXSMM)
-#include <libxsmm.h>
-#endif
-
 #include "../common/grid_common.h"
 #include "grid_dgemm_private_header.h"
 #include "grid_dgemm_tensor_local.h"
@@ -77,17 +73,9 @@ typedef struct dgemm_params_ {
   int m, n, k, lda, ldb, ldc;
   int x, y, z;
   int x1, y1, z1;
-  bool use_libxsmm;
-#if defined(__LIBXSMM)
-  libxsmm_dmmfunction kernel;
-  int prefetch;
-  int flags;
-#endif
 } dgemm_params;
 
 extern void dgemm_simplified(dgemm_params *const m);
-extern void batched_dgemm_simplified(dgemm_params *const m,
-                                     const int batch_size);
 
 /*******************************************************************************
  * \brief Prototype for BLAS dgemm.
@@ -130,21 +118,9 @@ inline int return_linear_index_from_exponents(const int alpha, const int beta,
   return return_offset_l(l) + (l - alpha) * (l - alpha + 1) / 2 + gamma;
 }
 
-static inline void *grid_allocate_scratch(size_t size) {
-#ifdef __LIBXSMM
-  return libxsmm_aligned_scratch(size, 0 /*auto-alignment*/);
-#else
-  return malloc(size);
-#endif
-}
+static inline void *grid_allocate_scratch(size_t size) { return malloc(size); }
 
-static inline void grid_free_scratch(void *ptr) {
-#ifdef __LIBXSMM
-  libxsmm_free(ptr);
-#else
-  free(ptr);
-#endif
-}
+static inline void grid_free_scratch(void *ptr) { free(ptr); }
 
 /* even openblas and lapack has cblas versions of lapack and blas. */
 #ifndef __MKL

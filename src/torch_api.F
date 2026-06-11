@@ -74,7 +74,8 @@ MODULE torch_api
       MODULE PROCEDURE torch_model_get_attr_strlist
    END INTERFACE torch_model_get_attr
 
-   PUBLIC :: torch_tensor_type, torch_tensor_from_array, torch_tensor_release
+   PUBLIC :: torch_tensor_type, torch_tensor_expand_dim, torch_tensor_from_array, &
+             torch_tensor_narrow, torch_tensor_release
    PUBLIC :: torch_tensor_reset_from_array
    PUBLIC :: torch_tensor_data_ptr, torch_tensor_backward, torch_tensor_backward_scalar
    PUBLIC :: torch_tensor_grad
@@ -85,7 +86,7 @@ MODULE torch_api
    PUBLIC :: torch_model_type, torch_model_load, torch_model_forward, torch_model_release
    PUBLIC :: torch_model_forward_mol_tensor
    PUBLIC :: torch_model_get_attr, torch_model_read_metadata
-   PUBLIC :: torch_cuda_is_available
+   PUBLIC :: torch_cuda_device_count, torch_cuda_is_available
    PUBLIC :: torch_allow_tf32, torch_model_freeze, torch_use_cuda
 
 CONTAINS
@@ -248,6 +249,83 @@ CONTAINS
       END SUBROUTINE torch_tensor_reset_from_array_double_${ndims}$d
 
    #:endfor
+
+! **************************************************************************************************
+!> \brief Creates an expanded tensor view along one singleton dimension.
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_expand_dim(tensor, dim, extent, result)
+      TYPE(torch_tensor_type), INTENT(IN)                :: tensor
+      INTEGER, INTENT(IN)                                :: dim, extent
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: result
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_tensor_expand_dim(tensor, dim, extent, result) &
+            BIND(C, name="torch_c_tensor_expand_dim")
+            IMPORT :: C_INT64_T, C_PTR
+            TYPE(C_PTR), VALUE                           :: tensor
+            INTEGER(kind=C_INT64_T), VALUE               :: dim, extent
+            TYPE(C_PTR)                                  :: result
+         END SUBROUTINE torch_c_tensor_expand_dim
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+      CPASSERT(.NOT. C_ASSOCIATED(result%c_ptr))
+      CPASSERT(dim >= 0)
+      CPASSERT(extent >= 0)
+      CALL torch_c_tensor_expand_dim(tensor=tensor%c_ptr, &
+                                     dim=INT(dim, C_INT64_T), &
+                                     extent=INT(extent, C_INT64_T), &
+                                     result=result%c_ptr)
+      CPASSERT(C_ASSOCIATED(result%c_ptr))
+#else
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(tensor)
+      MARK_USED(dim)
+      MARK_USED(extent)
+      MARK_USED(result)
+#endif
+   END SUBROUTINE torch_tensor_expand_dim
+
+! **************************************************************************************************
+!> \brief Creates a view of a contiguous tensor slice.
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_narrow(tensor, dim, start_index, length, result)
+      TYPE(torch_tensor_type), INTENT(IN)                :: tensor
+      INTEGER, INTENT(IN)                                :: dim, start_index, length
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: result
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_tensor_narrow(tensor, dim, start_index, length, result) &
+            BIND(C, name="torch_c_tensor_narrow")
+            IMPORT :: C_INT64_T, C_PTR
+            TYPE(C_PTR), VALUE                           :: tensor
+            INTEGER(kind=C_INT64_T), VALUE               :: dim, start_index, length
+            TYPE(C_PTR)                                  :: result
+         END SUBROUTINE torch_c_tensor_narrow
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+      CPASSERT(.NOT. C_ASSOCIATED(result%c_ptr))
+      CPASSERT(dim >= 0)
+      CPASSERT(start_index >= 0)
+      CPASSERT(length >= 0)
+      CALL torch_c_tensor_narrow(tensor=tensor%c_ptr, &
+                                 dim=INT(dim, C_INT64_T), &
+                                 start_index=INT(start_index, C_INT64_T), &
+                                 length=INT(length, C_INT64_T), &
+                                 result=result%c_ptr)
+      CPASSERT(C_ASSOCIATED(result%c_ptr))
+#else
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(tensor)
+      MARK_USED(dim)
+      MARK_USED(start_index)
+      MARK_USED(length)
+      MARK_USED(result)
+#endif
+   END SUBROUTINE torch_tensor_narrow
 
 ! **************************************************************************************************
 !> \brief Runs autograd on a Torch tensor.
@@ -846,6 +924,27 @@ CONTAINS
       res = .FALSE.
 #endif
    END FUNCTION torch_cuda_is_available
+
+! **************************************************************************************************
+!> \brief Return the number of CUDA devices visible to Torch.
+! **************************************************************************************************
+   FUNCTION torch_cuda_device_count() RESULT(count)
+      INTEGER                                            :: count
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         FUNCTION torch_c_cuda_device_count() BIND(C, name="torch_c_cuda_device_count")
+            IMPORT :: C_INT
+            INTEGER(C_INT)                            :: torch_c_cuda_device_count
+         END FUNCTION torch_c_cuda_device_count
+      END INTERFACE
+
+      count = torch_c_cuda_device_count()
+#else
+      CPABORT("CP2K was compiled without Torch library.")
+      count = 0
+#endif
+   END FUNCTION torch_cuda_device_count
 
 ! **************************************************************************************************
 !> \brief Set whether to allow the use of TF32.

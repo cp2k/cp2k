@@ -38,13 +38,13 @@ COPY ./tools/toolchain/scripts/VERSION \
      ./tools/toolchain/scripts/common_vars.sh \
      ./tools/toolchain/scripts/signal_trap.sh \
      ./tools/toolchain/scripts/get_openblas_arch.sh \
+     ./tools/build_utils/fypp \
      ./scripts/
 COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
     --mpi-mode=mpich \
     --enable-hip=yes \
     --gpu-ver=Mi100 \
-    --with-dbcsr \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.

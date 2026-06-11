@@ -174,6 +174,10 @@ Specific options of --enable-FEATURE:
   --enable-cuda           Turn on GPU (CUDA) support.
                           Can be combined with --enable-opencl.
                           Default = no
+  --enable-gauxc-cutlass  Turn on CUTLASS local work driver support when
+                          installing GauXC. Requires --with-gauxc=install,
+                          --enable-cuda=yes, and CUDA compute capability >= 8.0.
+                          Default = no
   --enable-hip            Turn on GPU (HIP) support.
                           Default = no
   --enable-opencl         Turn on OpenCL (GPU) support. Requires the OpenCL
@@ -268,9 +272,14 @@ Specific options of --with-PKG:
                           will also be installed; if CUDA and/or HIP support is
                           enabled too, respective versions will all be built.
                           Default = install
-  --with-libxsmm          Enable libxsmm as a small matrix multiplication
-                          library. Installing is only supported on arch
-                          x86_64 or arm64.
+  --with-libxsmm          Enable LIBXSMM to provide kernels for LIBXS.
+                          Installing is supported on arch x86_64 or arm64.
+                          Default = install
+  --with-libxs            Enable LIBXS as a small matrix multiplication
+                          library and for other low-level operations.
+                          Default = install
+  --with-libxstream       Enable LIBXSTREAM as an OpenCL-based accelerator
+                          backend (requires LIBXS).
                           Default = install
   --with-scalapack        Enable ScaLAPACK for parallel linear algebra
                           calculations.
@@ -289,6 +298,7 @@ Specific options of --with-PKG:
                           Default = install
   --with-fmt              Enable the formatting C/C++ library.
                           This package is required for SIRIUS.
+                          Default = no
   --with-libtorch         Enable libtorch as a machine learning framework.
                           This package is required for NequIP and Allegro, and
                           also for installing DeePMD-kit.
@@ -299,7 +309,7 @@ Specific options of --with-PKG:
                           Default = no
   --with-hdf5             Enable the hdf5 library for file format support.
                           This package is used by sirius and trexio.
-                          Default = install
+                          Default = no
   --with-libsmeagol       Enable interface to SMEAGOL NEGF library.
                           This package requires MPI.
                           Default = no
@@ -323,11 +333,11 @@ Specific options of --with-PKG:
                           If tblite is used, standalone DFTD4 package specified
                           by --with-dftd4 will not be used.
                           This package requires CMake.
-                          Default = no
-  --with-sirius           Enable interface to the plane wave SIRIUS library.
-                          This package requires GSL, libspg, ELPA, ScaLAPACK,
-                          HDF5, Libxc and pugixml, and libvdwxc is optinal.
                           Default = install
+  --with-sirius           Enable interface to the plane wave SIRIUS library.
+                          This package requires Libxc, ScaLAPACK, ELPA, GSL,
+                          libspg, HDF5, pugixml, and libvdwxc.
+                          Default = no
   --with-pugixml          Enable pugixml library for XML parsing.
                           This library is required by SIRIUS.
                           Default = no
@@ -465,7 +475,7 @@ EOF
 tool_list="gcc intel amd cmake ninja"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
-lib_list="fftw libint libxc gauxc libxsmm cosma scalapack elpa dbcsr
+lib_list="fftw libint libxc gauxc libxsmm libxs libxstream cosma scalapack elpa dbcsr
           cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
           libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol
           fmt trexio libfci greenx gmp mcl"
@@ -489,10 +499,12 @@ with_dbcsr="__INSTALL__"
 with_fftw="__INSTALL__"
 with_libint="__INSTALL__"
 with_libxsmm="__INSTALL__"
+with_libxs="__INSTALL__"
+with_libxstream="__DONTUSE__"
 with_libxc="__INSTALL__"
 with_gauxc="__DONTUSE__"
 with_scalapack="__INSTALL__"
-with_sirius="__INSTALL__"
+with_sirius="__DONTUSE__"
 with_gsl="__DONTUSE__"
 with_fmt="__DONTUSE__"
 with_spglib="__INSTALL__"
@@ -509,7 +521,7 @@ with_libvori="__INSTALL__"
 with_libtorch="__DONTUSE__"
 with_ninja="__DONTUSE__"
 with_dftd4="__DONTUSE__"
-with_tblite="__DONTUSE__"
+with_tblite="__INSTALL__"
 with_libsmeagol="__DONTUSE__"
 with_mcl="__DONTUSE__"
 
@@ -569,6 +581,7 @@ dry_run="__FALSE__"
 enable_tsan="__FALSE__"
 enable_opencl="__FALSE__"
 enable_cuda="__FALSE__"
+enable_gauxc_cutlass="__FALSE__"
 enable_hip="__FALSE__"
 export with_ifx="no"
 export GPUVER="no"
@@ -755,6 +768,13 @@ Otherwise use option no."
         exit 1
       fi
       ;;
+    --enable-gauxc-cutlass*)
+      enable_gauxc_cutlass=$(read_enable "${1}")
+      if [ "${enable_gauxc_cutlass}" = "__INVALID__" ]; then
+        report_error "invalid value for --enable-gauxc-cutlass, please use yes or no"
+        exit 1
+      fi
+      ;;
     --enable-hip*)
       enable_hip=$(read_enable "${1}")
       if [ "${enable_hip}" = "__INVALID__" ]; then
@@ -852,6 +872,12 @@ Otherwise use option no."
       ;;
     --with-libxsmm*)
       with_libxsmm=$(read_with "${1}")
+      ;;
+    --with-libxstream*)
+      with_libxstream=$(read_with "${1}")
+      ;;
+    --with-libxs*)
+      with_libxs=$(read_with "${1}")
       ;;
     --with-elpa*)
       with_elpa=$(read_with "${1}")
@@ -955,6 +981,7 @@ done
 # consolidate settings after user input
 export ENABLE_TSAN="${enable_tsan}"
 export ENABLE_CUDA="${enable_cuda}"
+export ENABLE_GAUXC_CUTLASS="${enable_gauxc_cutlass}"
 export ENABLE_HIP="${enable_hip}"
 export ENABLE_OPENCL="${enable_opencl}"
 export ENABLE_CRAY="${enable_cray}"
@@ -1077,12 +1104,55 @@ by --help option for supported ones."
   fi
 fi
 
-# If OpenCL is enabled, make sure LIBXSMM is enabled as well.
-if [ "${ENABLE_OPENCL}" = "__TRUE__" ]; then
-  if [ "${with_libxsmm}" = "__DONTUSE__" ]; then
-    report_warning ${LINENO} "When enabling OpenCL, libxsmm is needed."
-    with_libxsmm="__INSTALL__"
+if [ "${ENABLE_GAUXC_CUTLASS}" = "__TRUE__" ]; then
+  if [ "${ENABLE_CUDA}" != "__TRUE__" ]; then
+    report_error ${LINENO} "--enable-gauxc-cutlass requires --enable-cuda=yes."
+    exit 1
   fi
+  case "${GPUVER}" in
+    A100 | A40 | H100 | GB10) ;;
+    *)
+      report_error ${LINENO} "--enable-gauxc-cutlass requires CUDA compute capability >= 8.0."
+      exit 1
+      ;;
+  esac
+  if [ "${with_gauxc}" = "__DONTUSE__" ]; then
+    report_warning ${LINENO} "--enable-gauxc-cutlass requires GauXC, enabling --with-gauxc=install."
+    with_gauxc="__INSTALL__"
+  elif [ "${with_gauxc}" != "__INSTALL__" ]; then
+    report_error ${LINENO} "--enable-gauxc-cutlass is only supported with --with-gauxc=install."
+    exit 1
+  fi
+fi
+
+# If OpenCL is enabled, ensure LIBXS and LIBXSTREAM are available.
+if [ "${ENABLE_OPENCL}" = "__TRUE__" ]; then
+  if [ "${with_libxs}" = "__DONTUSE__" ]; then
+    report_warning ${LINENO} "When enabling OpenCL, LIBXS is needed."
+    with_libxs="__INSTALL__"
+  fi
+  if [ "${with_libxstream}" = "__DONTUSE__" ]; then
+    report_warning ${LINENO} "When enabling OpenCL, LIBXSTREAM is needed."
+    with_libxstream="__INSTALL__"
+  fi
+else
+  if [ "${with_libxstream}" != "__DONTUSE__" ]; then
+    with_libxstream="__DONTUSE__"
+  fi
+fi
+
+# LIBXSTREAM depends on LIBXS
+if [ "${with_libxstream}" != "__DONTUSE__" ]; then
+  if [ "${with_libxs}" = "__DONTUSE__" ]; then
+    report_warning ${LINENO} "LIBXSTREAM requires LIBXS, enabling LIBXS."
+    with_libxs="__INSTALL__"
+  fi
+fi
+
+# LIBXSMM kernels are delivered through LIBXS
+if [ "${with_libxsmm}" != "__DONTUSE__" ] && [ "${with_libxs}" = "__DONTUSE__" ]; then
+  report_warning ${LINENO} "LIBXSMM requires LIBXS, disabling LIBXSMM."
+  with_libxsmm="__DONTUSE__"
 fi
 
 if [ "${with_gauxc}" != "__DONTUSE__" ] &&
@@ -1321,6 +1391,7 @@ write_toolchain_env "${INSTALLDIR}"
 echo "tool_list=\"${tool_list}\"" > "${INSTALLDIR}"/toolchain.conf
 echo "mpi_mode=\"${MPI_MODE}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "ENABLE_CUDA=\"${ENABLE_CUDA}\"" >> "${INSTALLDIR}"/toolchain.conf
+echo "ENABLE_GAUXC_CUTLASS=\"${ENABLE_GAUXC_CUTLASS}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "ENABLE_HIP=\"${ENABLE_HIP}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "ENABLE_OPENCL=\"${ENABLE_OPENCL}\"" >> "${INSTALLDIR}"/toolchain.conf
 if [ "${ENABLE_CUDA}" == "__TRUE__" ] || [ "${ENABLE_HIP}" == "__TRUE__" ]; then
@@ -1345,6 +1416,7 @@ if [ "${dry_run}" = "__TRUE__" ]; then
   printf '  --%-20s = %s\n' "math-mode" "${MATH_MODE}"
   printf '  --%-20s = %s\n' "enable-tsan" "${enable_tsan}"
   printf '  --%-20s = %s\n' "enable-cuda" "${enable_cuda}"
+  printf '  --%-20s = %s\n' "enable-gauxc-cutlass" "${enable_gauxc_cutlass}"
   printf '  --%-20s = %s\n' "enable-hip" "${enable_hip}"
   printf '  --%-20s = %s\n' "enable-opencl" "${enable_opencl}"
   printf '  --%-20s = %s\n' "enable-cray" "${enable_cray}"

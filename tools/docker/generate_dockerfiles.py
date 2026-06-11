@@ -133,7 +133,7 @@ def main() -> None:
                 version="psmp",
                 mpi_mode="mpich",
                 base_image="opensuse/leap:16.0",
-                gcc_version=15,
+                gcc_version=13,
                 feature_flags="-ef openpmd",
                 testopts=testopts,
                 image_tag=f.image_tag,
@@ -588,6 +588,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
         with_mpich="install",
         mpi_mode="mpich",
         enable_cuda="yes",
+        with_sirius="install",
         gpu_ver=gpu_ver,
         **kwargs,
     )
@@ -624,7 +625,6 @@ RUN hipconfig
         mpi_mode="mpich",
         enable_hip="yes",
         gpu_ver=gpu_ver,
-        with_dbcsr="",
     )
 
 
@@ -653,6 +653,7 @@ COPY ./tools/toolchain/scripts/VERSION \
      ./tools/toolchain/scripts/common_vars.sh \
      ./tools/toolchain/scripts/signal_trap.sh \
      ./tools/toolchain/scripts/get_openblas_arch.sh \
+     ./tools/build_utils/fypp \
      ./scripts/
 COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
@@ -931,9 +932,6 @@ RUN zypper --non-interactive --quiet ref && \
     {gcc_compilers} \
     python313 \
     && zypper --non-interactive --quiet clean --all
-
-RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
-    ln -sf /usr/bin/python3.11 /usr/local/bin/python
 """
         elif "rockylinux" in base_image:
             output += rf"""

@@ -185,7 +185,8 @@ MODULE molecule_types
              set_molecule, &
              set_molecule_set, &
              molecule_of_atom, &
-             get_molecule_set_info
+             get_molecule_set_info, &
+             get_domain_set_info
 
 CONTAINS
 
@@ -565,5 +566,85 @@ CONTAINS
       END DO ! imol
 
    END SUBROUTINE get_molecule_set_info
+
+! **************************************************************************************************
+!> \brief ...
+!> \param molecule_set ...
+!> \param atom_to_mol ...
+!> \param mol_to_first_atom ...
+!> \param mol_to_last_atom ...
+!> \param mol_to_nelectrons ...
+!> \param mol_to_nbasis ...
+!> \param mol_to_charge ...
+!> \param mol_to_multiplicity ...
+! **************************************************************************************************
+   SUBROUTINE get_domain_set_info(molecule_set, atom_to_mol, mol_to_first_atom, &
+                                  mol_to_last_atom, mol_to_nelectrons, mol_to_nbasis, mol_to_charge, &
+                                  mol_to_multiplicity)
+
+      TYPE(molecule_type), DIMENSION(:), INTENT(IN)      :: molecule_set
+      INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL :: atom_to_mol, mol_to_first_atom, &
+         mol_to_last_atom, mol_to_nelectrons, mol_to_nbasis, mol_to_charge, mol_to_multiplicity
+
+      INTEGER                                            :: first_atom, iatom, imol, last_atom, &
+                                                            nbasis, nelec
+      REAL(KIND=dp)                                      :: charge
+      TYPE(molecule_kind_type), POINTER                  :: imol_kind
+
+      DO imol = 1, SIZE(molecule_set)
+
+         CALL get_molecule(molecule=molecule_set(imol), molecule_kind=imol_kind, &
+                           first_atom=first_atom, last_atom=last_atom)
+
+         IF (PRESENT(mol_to_nelectrons)) THEN
+            CALL get_molecule_kind(imol_kind, nelectron=nelec)
+            mol_to_nelectrons(imol) = nelec
+         END IF
+
+         IF (PRESENT(mol_to_multiplicity)) THEN
+            ! RZK-warning: At the moment we can only get the total number
+            !  of electrons (alpha+beta) and we do not have a way to get the multiplicity of mols.
+            !  Therefore, the best we can do is to assume the singlet state for even number of electrons
+            !  and doublet state for odd number of electrons (assume ne_alpha > ne_beta).
+            !  The best way to implement a correct multiplicity subroutine in the future is to get
+            !  the number of alpha and beta e- for each atom from init_atom_electronic_state. This way (as opposed to
+            !  reading the multiplicities from file) the number of occupied and virtual orbitals
+            !  will be consistent with atomic guess. A guess with broken symmetry will be easy to
+            !  implement as well.
+            CALL get_molecule_kind(imol_kind, nelectron=nelec)
+            IF (MOD(nelec, 2) == 0) THEN
+               mol_to_multiplicity(imol) = 1
+            ELSE
+               mol_to_multiplicity(imol) = 2
+            END IF
+         END IF
+
+         IF (PRESENT(mol_to_charge)) THEN
+            CALL get_molecule_kind(imol_kind, charge=charge)
+            mol_to_charge(imol) = NINT(charge)
+         END IF
+
+         IF (PRESENT(mol_to_nbasis)) THEN
+            CALL get_molecule_kind(imol_kind, nsgf=nbasis)
+            mol_to_nbasis(imol) = nbasis
+         END IF
+
+         IF (PRESENT(mol_to_first_atom)) THEN
+            mol_to_first_atom(imol) = first_atom
+         END IF
+
+         IF (PRESENT(mol_to_last_atom)) THEN
+            mol_to_last_atom(imol) = last_atom
+         END IF
+
+         IF (PRESENT(atom_to_mol)) THEN
+            DO iatom = first_atom, last_atom
+               atom_to_mol(iatom) = imol
+            END DO ! iatom
+         END IF
+
+      END DO ! imol
+
+   END SUBROUTINE get_domain_set_info
 
 END MODULE molecule_types

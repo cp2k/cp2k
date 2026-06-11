@@ -1763,7 +1763,6 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    FUNCTION cost_model(nsa, nsb, nsc, nsd, npgfa, npgfb, npgfc, npgfd, ratio, p1, p2, p3) RESULT(res)
-      IMPLICIT NONE
       REAL(KIND=dp) :: estimate1, estimate2, estimate, ratio, switch, mu, sigma
       INTEGER(KIND=int_8) :: res
       REAL(KIND=dp), INTENT(IN) :: p1(12), p2(12), p3(2)

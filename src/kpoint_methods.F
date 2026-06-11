@@ -1223,7 +1223,7 @@ CONTAINS
                                                             nb, ncol_global, ne_a, ne_b, &
                                                             nelectron, nkp, nmo, nrow_global, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
-      REAL(KIND=dp)                                      :: kTS, mu, mus(2), nel
+      REAL(KIND=dp)                                      :: kTS, kTS_spin(2), mu, mus(2), nel
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: smatrix
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: weig, wocc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: icoeff, rcoeff
@@ -1301,6 +1301,7 @@ CONTAINS
       END IF
 
       CALL get_kpoint_info(kpoint, wkp=wkp)
+      kTS_spin = 0.0_dp
 
 !calling of HP module HERE, before smear
       IF (PRESENT(probe)) THEN
@@ -1371,18 +1372,22 @@ CONTAINS
                   nel = REAL(nelectron, KIND=dp)
                   CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
                                smear%electronic_temperature, 2.0_dp, smear_fermi_dirac)
+                  kTS_spin(1) = kTS
                ELSE IF (smear%fixed_mag_mom > 0.0_dp) THEN
                   nel = REAL(ne_a, KIND=dp)
                   CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
                                smear%electronic_temperature, 1.0_dp, smear_fermi_dirac)
+                  kTS_spin(1) = kTS
                   nel = REAL(ne_b, KIND=dp)
                   CALL Smearkp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, &
                                smear%electronic_temperature, 1.0_dp, smear_fermi_dirac)
+                  kTS_spin(2) = kTS
                ELSE
                   nel = REAL(ne_a, KIND=dp) + REAL(ne_b, KIND=dp)
                   CALL Smearkp2(wocc(:, :, :), mu, kTS, weig(:, :, :), nel, wkp, &
                                 smear%electronic_temperature, smear_fermi_dirac)
                   kTS = kTS/2._dp
+                  kTS_spin(1:2) = kTS
                   mus(1:2) = mu
                END IF
             CASE (smear_gaussian, smear_mp, smear_mv)
@@ -1390,18 +1395,22 @@ CONTAINS
                   nel = REAL(nelectron, KIND=dp)
                   CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
                                smear%smearing_width, 2.0_dp, smear%method)
+                  kTS_spin(1) = kTS
                ELSE IF (smear%fixed_mag_mom > 0.0_dp) THEN
                   nel = REAL(ne_a, KIND=dp)
                   CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
                                smear%smearing_width, 1.0_dp, smear%method)
+                  kTS_spin(1) = kTS
                   nel = REAL(ne_b, KIND=dp)
                   CALL Smearkp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, &
                                smear%smearing_width, 1.0_dp, smear%method)
+                  kTS_spin(2) = kTS
                ELSE
                   nel = REAL(ne_a, KIND=dp) + REAL(ne_b, KIND=dp)
                   CALL Smearkp2(wocc(:, :, :), mu, kTS, weig(:, :, :), nel, wkp, &
                                 smear%smearing_width, smear%method)
                   kTS = kTS/2._dp
+                  kTS_spin(1:2) = kTS
                   mus(1:2) = mu
                END IF
             CASE DEFAULT
@@ -1413,13 +1422,16 @@ CONTAINS
                nel = REAL(nelectron, KIND=dp)
                CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
                             0.0_dp, 2.0_dp, smear_gaussian)
+               kTS_spin(1) = kTS
             ELSE
                nel = REAL(ne_a, KIND=dp)
                CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
                             0.0_dp, 1.0_dp, smear_gaussian)
+               kTS_spin(1) = kTS
                nel = REAL(ne_b, KIND=dp)
                CALL Smearkp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, &
                             0.0_dp, 1.0_dp, smear_gaussian)
+               kTS_spin(2) = kTS
             END IF
          END IF
          DO ikpgr = 1, kplocal
@@ -1430,7 +1442,7 @@ CONTAINS
                CALL get_mo_set(mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation)
                eigenvalues(1:nmo) = weig(1:nmo, ik, ispin)
                occupation(1:nmo) = wocc(1:nmo, ik, ispin)
-               mo_set%kTS = kTS
+               mo_set%kTS = kTS_spin(ispin)
                mo_set%mu = mus(ispin)
             END DO
          END DO

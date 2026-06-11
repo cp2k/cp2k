@@ -9,14 +9,19 @@
 !> \brief Small CP2K wrapper around the SKALA TorchScript functional protocol.
 ! **************************************************************************************************
 MODULE skala_torch_api
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
-   USE string_utilities,                ONLY: uppercase
-   USE torch_api,                       ONLY: &
-        torch_dict_type, torch_model_forward_mol_tensor, torch_model_load, &
-        torch_model_read_metadata, torch_model_release, torch_model_type, &
-        torch_tensor_item_double, torch_tensor_release, torch_tensor_type, &
-        torch_tensor_weighted_sum
+#if defined (__HAS_IEEE_EXCEPTIONS)
+   USE ieee_exceptions, ONLY: ieee_all, &
+                              ieee_get_halting_mode, &
+                              ieee_set_halting_mode
+#endif
+   USE kinds, ONLY: default_string_length, &
+                    dp
+   USE string_utilities, ONLY: uppercase
+   USE torch_api, ONLY: &
+      torch_dict_type, torch_model_forward_mol_tensor, torch_model_load, &
+      torch_model_read_metadata, torch_model_release, torch_model_type, &
+      torch_tensor_item_double, torch_tensor_release, torch_tensor_type, &
+      torch_tensor_weighted_sum
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -132,7 +137,16 @@ CONTAINS
       TYPE(torch_dict_type), INTENT(IN)                  :: inputs
       TYPE(torch_tensor_type), INTENT(INOUT)             :: exc_density
 
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      LOGICAL, DIMENSION(5)                              :: ieee_halt
+
+      CALL ieee_get_halting_mode(IEEE_ALL, ieee_halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
       CALL torch_model_forward_mol_tensor(model%torch_model, "get_exc_density", inputs, exc_density)
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, ieee_halt)
+#endif
 
    END SUBROUTINE skala_torch_model_get_exc_density
 
@@ -153,10 +167,19 @@ CONTAINS
 
       TYPE(torch_tensor_type)                            :: exc_density
 
-      CALL skala_torch_model_get_exc_density(model, inputs, exc_density)
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      LOGICAL, DIMENSION(5)                              :: ieee_halt
+
+      CALL ieee_get_halting_mode(IEEE_ALL, ieee_halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+      CALL torch_model_forward_mol_tensor(model%torch_model, "get_exc_density", inputs, exc_density)
       CALL torch_tensor_weighted_sum(exc_density, grid_weights, exc_tensor)
-      exc = torch_tensor_item_double(exc_tensor)
       CALL torch_tensor_release(exc_density)
+      exc = torch_tensor_item_double(exc_tensor)
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, ieee_halt)
+#endif
 
    END SUBROUTINE skala_torch_model_get_exc
 

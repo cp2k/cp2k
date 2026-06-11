@@ -96,7 +96,7 @@ MODULE bibliography
                             Hanasaki2025, Tan2025, Broyden1965, Johnson1988, Kerker1981, &
                             FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
-                            Shiga2022, Lindh1995, Chai2024a
+                            Shiga2022, Lindh1995, Chai2024a, Rullan2026
 
 CONTAINS
 
@@ -2183,6 +2183,12 @@ CONTAINS
                          "Electrode Potentials", &
                          source="J. Chem. Theory Comput.", volume="20", pages="8214-8228", &
                          year=2024, doi="10.1021/acs.jctc.4c00671")
+
+      CALL add_reference(key=Rullan2026, &
+                         authors=s2a("R. Rullan", "C. Demangeat", "A. D'Aléo", "A-J. Attias", "S. N. Steinmann", "T. Le Bahers"), &
+                         title=" Revisiting the mechanism of long-lived luminescence in host/guest organic crystals ", &
+                         source="J. Mater. Chem. C", volume="", pages="", &
+                         year=2026, doi="10.1039/D6TC00367B")
 
    END SUBROUTINE add_all_references
 

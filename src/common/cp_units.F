@@ -58,7 +58,8 @@ MODULE cp_units
                                  cp_ukind_undef = 8, &
                                  cp_ukind_potential = 9, &
                                  cp_ukind_force = 10, &
-                                 cp_ukind_max = 10
+                                 cp_ukind_efield = 11, &
+                                 cp_ukind_max = 11
 
    ! General
    INTEGER, PARAMETER, PUBLIC :: cp_units_none = 100, &
@@ -112,6 +113,11 @@ MODULE cp_units
    ! Force
    INTEGER, PARAMETER, PUBLIC :: cp_units_Newton = 200, &
                                  cp_units_mNewton = 201
+
+   ! Electric Field
+   INTEGER, PARAMETER, PUBLIC :: cp_units_volt_per_m = 202, &
+                                 cp_units_volt_per_nm = 203, &
+                                 cp_units_volt_per_angstrom = 204
 
    INTEGER, PARAMETER, PUBLIC :: cp_unit_max_kinds = 8, cp_unit_basic_desc_length = 15, &
                                  cp_unit_desc_length = cp_unit_max_kinds*cp_unit_basic_desc_length
@@ -354,10 +360,26 @@ CONTAINS
          CASE ("FORCE")
             unit_id(i_unit) = cp_units_none
             kind_id(i_unit) = cp_ukind_force
+         CASE ("VM-1", "VOLT_PER_M")
+            unit_id(i_unit) = cp_units_volt_per_m
+            kind_id(i_unit) = cp_ukind_efield
+         CASE ("VNM-1", "VOLT_PER_NM")
+            unit_id(i_unit) = cp_units_volt_per_nm
+            kind_id(i_unit) = cp_ukind_efield
+         CASE ("VA-1", "VOLT_PER_ANGSTROM")
+            unit_id(i_unit) = cp_units_volt_per_angstrom
+            kind_id(i_unit) = cp_ukind_efield
+         CASE ("AU_EFIELD")
+            unit_id(i_unit) = cp_units_au
+            kind_id(i_unit) = cp_ukind_efield
+         CASE ("EFIELD")
+            unit_id(i_unit) = cp_units_none
+            kind_id(i_unit) = cp_ukind_efield
          CASE ("AU")
             CALL cp_abort(__LOCATION__, &
                           "au unit without specifying its kind not accepted, use "// &
-                          "(au_e, au_f, au_t, au_temp, au_l, au_m, au_p, au_pot)")
+                          "(au_e, au_f, au_t, au_temp, au_l, au_m, au_p, au_pot, "// &
+                          "au_efield)")
          CASE default
             CPABORT("Unknown unit: "//string(i_low:i_high - 1))
          END SELECT
@@ -620,6 +642,13 @@ CONTAINS
          CASE default
             CPABORT("unknown force unit:"//TRIM(cp_to_string(basic_unit)))
          END SELECT
+      CASE (cp_ukind_efield)
+         SELECT CASE (basic_unit)
+         CASE (cp_units_volt_per_m, cp_units_volt_per_nm, &
+               cp_units_volt_per_angstrom, cp_units_au, cp_units_none)
+         CASE default
+            CPABORT("unknown electric field unit:"//TRIM(cp_to_string(basic_unit)))
+         END SELECT
       CASE (cp_ukind_none)
          IF (basic_unit /= cp_units_none) &
             CALL cp_abort(__LOCATION__, &
@@ -785,6 +814,19 @@ CONTAINS
             res = value
          CASE default
             CPABORT("unknown force unit:"//TRIM(cp_to_string(basic_unit)))
+         END SELECT
+      CASE (cp_ukind_efield)
+         SELECT CASE (basic_unit)
+         CASE (cp_units_volt_per_m)
+            res = (1.0E+10_dp*evolt*bohr)**(-my_power)*value
+         CASE (cp_units_volt_per_nm)
+            res = (10.0_dp*evolt*bohr)**(-my_power)*value
+         CASE (cp_units_volt_per_angstrom)
+            res = (evolt*bohr)**(-my_power)*value
+         CASE (cp_units_au)
+            res = value
+         CASE default
+            CPABORT("unknown electric field unit:"//TRIM(cp_to_string(basic_unit)))
          END SELECT
       CASE (cp_ukind_none)
          CALL cp_abort(__LOCATION__, &
@@ -1005,6 +1047,25 @@ CONTAINS
                              TRIM(res))
          CASE default
             CPABORT("unknown potential unit:"//TRIM(cp_to_string(basic_unit)))
+         END SELECT
+      CASE (cp_ukind_efield)
+         SELECT CASE (basic_unit)
+         CASE (cp_units_volt_per_m)
+            res = "Vm-1"
+         CASE (cp_units_volt_per_nm)
+            res = "Vnm-1"
+         CASE (cp_units_volt_per_angstrom)
+            res = "Vangstrom-1"
+         CASE (cp_units_au)
+            res = "au_efield"
+         CASE (cp_units_none)
+            res = "electric field"
+            IF (.NOT. my_accept_undefined) &
+               CALL cp_abort(__LOCATION__, &
+                             "unit not yet fully specified, unit of kind "// &
+                             TRIM(res))
+         CASE default
+            CPABORT("unknown efield unit:"//TRIM(cp_to_string(basic_unit)))
          END SELECT
       CASE (cp_ukind_none)
          CALL cp_abort(__LOCATION__, &
@@ -1279,6 +1340,9 @@ CONTAINS
             CASE (cp_ukind_force)
                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=[i], unit_id=[cp_units_newton], &
                                     power=[1])
+            CASE (cp_ukind_efield)
+               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=[i], unit_id=[cp_units_volt_per_m], &
+                                    power=[1])
             CASE default
                CPABORT("unhandled unit type "//TRIM(cp_to_string(i)))
                EXIT
@@ -1324,6 +1388,8 @@ CONTAINS
       CALL format_units_as_xml("mass", s2a("kg", "amu", "m_e"), iw)
       CALL format_units_as_xml("potential", s2a("volt", "au_pot"), iw)
       CALL format_units_as_xml("force", s2a("N", "Newton", "mN", "mNewton", "au_f"), iw)
+      CALL format_units_as_xml("efield", s2a("Vm-1", "Vnm-1", "VA-1", "volt_per_m", "volt_per_nm", &
+                                             "volt_per_angstrom", "au_efield"), iw)
 
    END SUBROUTINE export_units_as_xml
 

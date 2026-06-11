@@ -151,13 +151,16 @@ CONTAINS
          CPASSERT(iset <= mscfg_env%nmosets_of_frag(ifrag))
 
          CALL dbcsr_get_info(mscfg_env%mos_of_frag(ifrag, iset), &
-                             nfullrows_total=submatrix_size(1), nfullcols_total=submatrix_size(2))
+                             nfullrows_total=submatrix_size(1), &
+                             nfullcols_total=submatrix_size(2))
+
          CALL copy_submatrix_into_matrix(mscfg_env%mos_of_frag(ifrag, iset), &
                                          matrix_temp, offset, submatrix_size, matrix_size)
 
          CALL dbcsr_add(matrix_out, matrix_temp, 1.0_dp, 1.0_dp)
 
          offset(1) = offset(1) + submatrix_size(1)
+
          offset(2) = offset(2) + submatrix_size(2)
 
       END DO
@@ -166,6 +169,7 @@ CONTAINS
       ! is exactly the same as the size of the big matrix
       ! This is to prevent unexpected conversion errors
       ! If however such conversion is intended - remove these safeguards
+
       CPASSERT(offset(1) == matrix_size(1))
       CPASSERT(offset(2) == matrix_size(2))
 

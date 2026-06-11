@@ -12,26 +12,26 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_field
-   USE bibliography,                    ONLY: Souza2002,&
-                                              Stengel2009,&
-                                              Umari2002
-   USE input_constants,                 ONLY: constant_env,&
-                                              custom_env,&
-                                              gaussian,&
-                                              gaussian_env,&
-                                              ramp_env
-   USE input_keyword_types,             ONLY: keyword_create,&
-                                              keyword_release,&
-                                              keyword_type
-   USE input_section_types,             ONLY: section_add_keyword,&
-                                              section_add_subsection,&
-                                              section_create,&
-                                              section_release,&
-                                              section_type
-   USE input_val_types,                 ONLY: char_t,&
-                                              real_t
-   USE kinds,                           ONLY: dp
-   USE string_utilities,                ONLY: s2a
+   USE bibliography, ONLY: Souza2002, &
+                           Stengel2009, &
+                           Umari2002
+   USE input_constants, ONLY: constant_env, &
+                              custom_env, &
+                              gaussian, &
+                              gaussian_env, &
+                              ramp_env
+   USE input_keyword_types, ONLY: keyword_create, &
+                                  keyword_release, &
+                                  keyword_type
+   USE input_section_types, ONLY: section_add_keyword, &
+                                  section_add_subsection, &
+                                  section_create, &
+                                  section_release, &
+                                  section_type
+   USE input_val_types, ONLY: char_t, &
+                              real_t
+   USE kinds, ONLY: dp
+   USE string_utilities, ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -161,11 +161,26 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="INTENSITY", &
-                          description="Intensity of the electric field. For real-time propagation (RTP) units are "// &
-                          "in W*cm-2 which corresponds "// &
-                          "to a maximal amplitude in a.u. of sqrt(I/(3.50944*10^16)). "// &
-                          "For a constant local field in isolated system calclulations, units are in a.u..", &
+                          description="Intensity of the electric field. "// &
+                          "For real-time propagation (RTP) calculations, the intensity is in "// &
+                          "$\mathrm{W/cm^2}$. The corresponding peak electric field amplitude "// &
+                          "$E_0$ in atomic units ($E_H/a_B \approx 82.4\,\mathrm{V/nm}$) is "// &
+                          "$E_0 = \sqrt{I\,[\mathrm{W/cm^2}]\;/\;(3.5094410 \cdot 10^{16})} "// &
+                          "\cdot E_H/a_B$, "// &
+                          "derived from the atomic unit of energy flux $I_0 = cE_H^2/(8\pi)$ "// &
+                          "and the relation $I = E_0^2$ in atomic units. "// &
+                          "For a constant local field in an isolated-system calculation, "// &
+                          "units are in a.u. In place of intensity, AMPLITUDE can be provided.", &
                           usage="INTENSITY  0.001", &
+                          default_r_val=0._dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="AMPLITUDE", &
+                          description="Amplitude of the electric field of the light wave. "// &
+                          "One can specify either INTENSITY or AMPLITUDE. An error will be "// &
+                          "raised if both are specified.", &
+                          usage="AMPLITUDE [Vnm-1] 1.06", unit_str="Vm-1", &
                           default_r_val=0._dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

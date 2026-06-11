@@ -415,7 +415,7 @@ CONTAINS
                                                             rac(3), rc(3), sto_state_overlap, &
                                                             uno_eps
       REAL(KIND=dp), DIMENSION(:), POINTER               :: all_evals, eigenvalues, uno_evals
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer, vecbuffer2
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: stogto_overlap
@@ -437,7 +437,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (atomic_kind, dft_control, matrix_s, matrix_ks, qs_kind_set, kinetic)
-      NULLIFY (cell, particle_set, local_preconditioner, vecbuffer, vecbuffer2)
+      NULLIFY (cell, particle_set, local_preconditioner, vecbuffer)
       NULLIFY (dft_control, loc_section, mos, mo_coeff, eigenvalues)
       NULLIFY (centers_wfn, mykind_of_kind, qs_loc_env, localized_wfn_control, stogto_overlap)
       NULLIFY (all_evals, all_vectors, excvec_coeff, excvec_overlap, uno_evals, para_env, blacs_env)
@@ -470,8 +470,6 @@ CONTAINS
 
       ALLOCATE (vecbuffer(1, nao))
       vecbuffer = 0.0_dp
-      ALLOCATE (vecbuffer2(1, nao))
-      vecbuffer2 = 0.0_dp
       natom = SIZE(particle_set, 1)
       ALLOCATE (first_sgf(natom))
       CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf)
@@ -503,8 +501,6 @@ CONTAINS
          my_kind = mykind_of_kind(ikind)
 
          my_state = 0
-         CALL cp_fm_get_submatrix(mo_coeff, vecbuffer2, 1, my_state, &
-                                  nao, 1, transpose=.TRUE.)
 
          ! Rotate the wfn to get the eigenstate of the KS hamiltonian
          ! Only ispin=1 should be needed
@@ -546,13 +542,15 @@ CONTAINS
                   my_state = istate
                END IF
             END IF
-            xas_estate = my_state
          END DO !  istate
 
+         IF (my_state == 0) &
+            CPABORT("Could not identify the core state to be excited")
+         xas_estate = my_state
          CALL get_mo_set(mos(my_spin), mo_coeff=mo_coeff)
          CALL cp_fm_get_submatrix(mo_coeff, vecbuffer, 1, xas_estate, &
                                   nao, 1, transpose=.TRUE.)
-         CALL cp_fm_set_submatrix(excvec_coeff, vecbuffer2, 1, 1, &
+         CALL cp_fm_set_submatrix(excvec_coeff, vecbuffer, 1, 1, &
                                   nao, 1, transpose=.TRUE.)
          !
       END IF
@@ -623,7 +621,6 @@ CONTAINS
       END IF
 
       DEALLOCATE (vecbuffer)
-      DEALLOCATE (vecbuffer2)
       DEALLOCATE (centers_wfn, first_sgf)
 
       CALL timestop(handle)

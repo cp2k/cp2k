@@ -41,9 +41,9 @@
     &XC
       &XC_FUNCTIONAL
         &GAUXC
-          FUNCTIONAL PBE
           GRID FINE
           MODEL PBE
+          ONEDFT_GRADIENT_RUNTIME SELF
           PERIODIC_REFERENCE T
           PRUNING_SCHEME ROBUST
         &END GAUXC

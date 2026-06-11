@@ -163,8 +163,6 @@ elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; t
     -DCP2K_USE_PLUMED=OFF \
     -DCP2K_USE_LIBSMEAGOL=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
-    -DCP2K_USE_DFTD4=OFF \
-    -DCP2K_USE_TBLITE=OFF \
     -DCP2K_USE_GREENX=OFF \
     -DCP2K_USE_SPGLIB=OFF \
     -DCP2K_USE_VORI=OFF \
@@ -263,7 +261,6 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_SPGLIB=OFF \
     -DCP2K_USE_VORI=OFF \
     -DCP2K_USE_TREXIO=OFF \
-    -DCP2K_USE_LIBXSMM=OFF \
     -DCP2K_USE_LIBFCI=OFF \
     -DCP2K_USE_GAUXC=OFF \
     -Werror=dev \

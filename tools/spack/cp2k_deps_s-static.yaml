@@ -44,6 +44,11 @@ spack:
       require:
         - openblas
 
+    libxs:
+      require:
+        - "+fortran"
+        - "~shared"
+
     libxsmm:
       require:
         - "blas=default"
@@ -105,6 +110,7 @@ spack:
     - "libint@2.13.1-cp2k-lmax-5"
     - "libvori@220621"
     - "libxc@7.0.0"
+    - "libxs@20260605"
     - "libxsmm@1.17-cp2k"
     - "openblas@0.3.33"
     - "pace@2025.12.4.1"

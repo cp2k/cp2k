@@ -1,0 +1,117 @@
+#!/bin/bash -e
+
+# TODO: Review and if possible fix shellcheck errors.
+# shellcheck disable=all
+
+[ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
+
+libxs_ver="ab416130f8c9f7edb8c1bf3d3abaf402f61d0fe0"
+libxs_sha256="e264e2cb1cc4fdf2d426ebb95b98e745022b8193bc8e4abfa761c4af9d6f1c54"
+source "${SCRIPT_DIR}"/common_vars.sh
+source "${SCRIPT_DIR}"/tool_kit.sh
+source "${SCRIPT_DIR}"/signal_trap.sh
+source "${INSTALLDIR}"/toolchain.conf
+source "${INSTALLDIR}"/toolchain.env
+
+[ -f "${BUILDDIR}/setup_libxs" ] && rm "${BUILDDIR}/setup_libxs"
+
+! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
+cd "${BUILDDIR}"
+
+case "$with_libxs" in
+  __INSTALL__)
+    echo "==================== Installing LIBXS ===================="
+    pkg_install_dir="${INSTALLDIR}/libxs-${libxs_ver}"
+    install_lock_file="$pkg_install_dir/install_successful"
+    if verify_checksums "${install_lock_file}"; then
+      echo "libxs-${libxs_ver} is already installed, skipping it."
+    else
+      if [ -f libxs-${libxs_ver}.tar.gz ]; then
+        echo "libxs-${libxs_ver}.tar.gz is found"
+      else
+        if ! download_pkg_from_cp2k_org "${libxs_sha256}" "libxs-${libxs_ver}.tar.gz" 2> /dev/null; then
+          download_pkg_from_urlpath "${libxs_sha256}" "${libxs_ver}.tar.gz" \
+            https://github.com/hfp/libxs/archive \
+            "libxs-${libxs_ver}.tar.gz"
+        fi
+      fi
+      [ -d libxs-${libxs_ver} ] && rm -rf libxs-${libxs_ver}
+      tar -xzf libxs-${libxs_ver}.tar.gz
+
+      echo "Installing from scratch into ${pkg_install_dir}"
+      cd libxs-${libxs_ver}
+      make -j $(get_nprocs) \
+        CXX=$CXX \
+        CC=$CC \
+        FC=$FC \
+        FORTRAN=1 \
+        PREFIX=${pkg_install_dir} \
+        > make.log 2>&1 || tail_excerpt make.log
+      make -j $(get_nprocs) \
+        CXX=$CXX \
+        CC=$CC \
+        FC=$FC \
+        FORTRAN=1 \
+        PREFIX=${pkg_install_dir} \
+        install > install.log 2>&1 || tail_excerpt install.log
+      cd ..
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"
+
+      # ---- macOS: pkg-config files must not use GNU ld's "-l:libfoo.a" syntax ----
+      if [[ "$(uname -s)" == "Darwin" ]]; then
+        perl -pi.bak -e 's/-l:lib([A-Za-z0-9_]+)\.a\b/-l$1/g' \
+          $(find "${pkg_install_dir}/lib" -name '*.pc' -type f)
+      fi
+
+    fi
+    LIBXS_CFLAGS="-I'${pkg_install_dir}/include'"
+    LIBXS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
+    ;;
+  __SYSTEM__)
+    echo "==================== Finding LIBXS from system paths ===================="
+    check_lib -lxs "libxs"
+    add_include_from_paths LIBXS_CFLAGS "libxs.h" $INCLUDE_PATHS
+    add_lib_from_paths LIBXS_LDFLAGS "libxs.*" $LIB_PATHS
+    ;;
+  __DONTUSE__) ;;
+
+  *)
+    echo "==================== Linking LIBXS to user paths ===================="
+    pkg_install_dir="$with_libxs"
+    check_dir "${pkg_install_dir}/include"
+    check_dir "${pkg_install_dir}/lib"
+    LIBXS_CFLAGS="-I'${pkg_install_dir}/include'"
+    LIBXS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
+    ;;
+esac
+if [ "$with_libxs" != "__DONTUSE__" ]; then
+  LIBXS_LIBS="-lxs -ldl -lpthread"
+  cat << EOF > "${BUILDDIR}/setup_libxs"
+export LIBXS_VER="${libxs_ver}"
+EOF
+  if [ "$with_libxs" != "__SYSTEM__" ]; then
+    cat << EOF >> "${BUILDDIR}/setup_libxs"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
+EOF
+  fi
+  cat << EOF >> "${BUILDDIR}/setup_libxs"
+export LIBXS_CFLAGS="${LIBXS_CFLAGS}"
+export LIBXS_LDFLAGS="${LIBXS_LDFLAGS}"
+export LIBXS_LIBS="${LIBXS_LIBS}"
+export CP_DFLAGS="-D__LIBXS \${CP_DFLAGS}"
+export CP_CFLAGS="\${CP_CFLAGS} ${LIBXS_CFLAGS}"
+export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBXS_LDFLAGS}"
+export CP_LIBS="\${LIBXS_LIBS} \${CP_LIBS}"
+EOF
+  filter_setup "${BUILDDIR}/setup_libxs" "${SETUPFILE}"
+fi
+cd "${ROOTDIR}"
+
+load "${BUILDDIR}/setup_libxs"
+write_toolchain_env "${INSTALLDIR}"
+
+report_timing "libxs"

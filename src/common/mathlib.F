@@ -24,7 +24,6 @@ MODULE mathlib
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
-
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mathlib'
@@ -1691,8 +1690,6 @@ CONTAINS
 !> \author Hossein Banihashemian
 ! **************************************************************************************************
    SUBROUTINE erfc_cutoff(eps, omg, r_cutoff)
-      IMPLICIT NONE
-
       REAL(dp), INTENT(in)  :: eps, omg
       REAL(dp), INTENT(out) :: r_cutoff
 

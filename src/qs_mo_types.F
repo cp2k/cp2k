@@ -238,24 +238,26 @@ CONTAINS
 !> \param fm_ref  a reference  matrix from which you initialize the mo_set
 !> \param fm_struct ...
 !> \param name ...
+!> \param counter ...
 !> \par History
 !>      11.2002 revamped [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE init_mo_set(mo_set, fm_pool, fm_ref, fm_struct, name)
+   SUBROUTINE init_mo_set(mo_set, fm_pool, fm_ref, fm_struct, name, counter)
 
       TYPE(mo_set_type), INTENT(INOUT)                   :: mo_set
       TYPE(cp_fm_pool_type), INTENT(IN), OPTIONAL        :: fm_pool
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_ref
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: fm_struct
       CHARACTER(LEN=*), INTENT(in)                       :: name
+      INTEGER, INTENT(INOUT), OPTIONAL                   :: counter
 
-      INTEGER                                            :: nao, nmo, nomo
+      INTEGER                                            :: na, nao, nb, nmo, nomo
 
       CPASSERT(.NOT. ASSOCIATED(mo_set%eigenvalues))
       CPASSERT(.NOT. ASSOCIATED(mo_set%occupation_numbers))
       CPASSERT(.NOT. ASSOCIATED(mo_set%mo_coeff))
-
+      MARK_USED(counter)
       CPASSERT(PRESENT(fm_pool) .NEQV. (PRESENT(fm_ref) .NEQV. PRESENT(fm_struct)))
       NULLIFY (mo_set%mo_coeff)
       IF (PRESENT(fm_pool)) THEN
@@ -293,7 +295,7 @@ CONTAINS
          nomo = INT(mo_set%nelectron/mo_set%maxocc) + 1
          ! Initialize MO occupations
          mo_set%occupation_numbers(1:nomo - 1) = mo_set%maxocc
-         mo_set%occupation_numbers(nomo) = mo_set%nelectron - (nomo - 1)*mo_set%maxocc
+         mo_set%occupation_numbers(nomo - ((na - nb)/2):nomo) = 1
       END IF
 
       CPASSERT(nmo >= nomo)

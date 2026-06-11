@@ -39,6 +39,7 @@ MODULE xc_gauxc_cache
       CHARACTER(LEN=default_string_length)         :: lb_exec_space = ""
       CHARACTER(LEN=default_string_length)         :: int_exec_space = ""
       CHARACTER(LEN=default_string_length)         :: model_name = ""
+      character(len=default_string_length)         :: lwd_kernel = ""
       LOGICAL                                      :: use_self_runtime = .FALSE.
       LOGICAL                                      :: use_gradient_self_runtime = .FALSE.
    END TYPE cp_gauxc_cache_params
@@ -187,6 +188,7 @@ CONTAINS
                          TRIM(params%xc_fun_name), &
                          cache%grid, &
                          params%int_exec_space, &
+                         params%lwd_kernel, &
                          params%nspins, &
                          status)
       IF (status%status%code /= 0) GO TO 400
@@ -208,6 +210,7 @@ CONTAINS
                                      TRIM(params%xc_fun_name), &
                                      cache%gradient_grid, &
                                      params%int_exec_space, &
+                                     params%lwd_kernel, &
                                      params%nspins, &
                                      status)
          IF (status%status%code /= 0) GO TO 600
@@ -224,6 +227,7 @@ CONTAINS
       cache%lb_exec_space = TRIM(params%lb_exec_space)
       cache%int_exec_space = TRIM(params%int_exec_space)
       cache%model_name = TRIM(params%model_name)
+      cache%lwd_kernel = TRIM(params%lwd_kernel)
       cache%use_gradient_self_runtime = params%use_gradient_self_runtime
       cache%use_self_runtime = params%use_self_runtime
       IF (ALLOCATED(cache%last_positions)) &
@@ -350,6 +354,7 @@ CONTAINS
       IF (TRIM(cache%lb_exec_space) /= TRIM(params%lb_exec_space)) RETURN
       IF (TRIM(cache%int_exec_space) /= TRIM(params%int_exec_space)) RETURN
       IF (TRIM(cache%model_name) /= TRIM(params%model_name)) RETURN
+      if (trim(cache%lwd_kernel) /= trim(params%lwd_kernel)) return
       IF (cache%use_gradient_self_runtime .NEQV. params%use_gradient_self_runtime) RETURN
       IF (cache%use_self_runtime .NEQV. params%use_self_runtime) RETURN
       IF (.NOT. ALLOCATED(cache%last_positions)) RETURN

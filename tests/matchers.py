@@ -35,12 +35,15 @@ class Matcher(Protocol):
 
 # ======================================================================================
 class GenericMatcher(Matcher):
-    def __init__(self, pattern: str, col: int, regex: bool = False):
+    def __init__(
+        self, pattern: str, col: int, regex: bool = False, abs_value: bool = False
+    ):
         self.pattern = pattern
         self.regex_mode = regex
+        self.abs_value = abs_value
         if not regex:
             for c in r"[]()|+*?":
-                pattern = pattern.replace(c, f"\\{c}")  # escape special chars
+                pattern = pattern.replace(c, f"\\{c}")
         self.regex = re.compile(pattern)
         self.col = col
 
@@ -64,6 +67,8 @@ class GenericMatcher(Matcher):
         # parse result
         try:
             value = float(value_str.replace("D", "E"))
+            if self.abs_value:
+                value = abs(value)
         except:
             error = f"Could not parse result as float: '{value_str}'.\n"
             return MatchResult("WRONG RESULT", error, value=None)
@@ -362,10 +367,10 @@ registry["M126"] = GenericMatcher(r" # Total charge ", col=5)
 registry["M127"] = GenericMatcher(r"Checksum (Acoustic Sum Rule):", col=5)
 
 # Dipole moment calculated at a specific k-point (-0.375,-0.375, 0.00)
-registry["Dipole_at_kp_1"] = GenericMatcher(r"  1   1   2", col=4)
+registry["Dipole_at_kp_1"] = GenericMatcher(r"  1   1   2", col=4, abs_value=True)
 
 # Dipole moment calculated at a specific k-point (-0.375,-0.375, 0.00)
-registry["Dipole_for_CrSBr"] = GenericMatcher(r"  1  31  32", col=4)
+registry["Dipole_for_CrSBr"] = GenericMatcher(r"  1  31  32", col=4, abs_value=True)
 
 # Berry curvature calculated from dipoles near K point in graphene BZ
 registry["BC_near_K_point"] = GenericMatcher(r"   1    4", col=5)
