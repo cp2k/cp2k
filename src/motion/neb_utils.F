@@ -148,8 +148,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_replica_coords'
 
       CHARACTER(LEN=default_path_length)                 :: filename
-      INTEGER :: handle, i_rep, iatom, ic, input_nr_replica, is, ivar, j, jtarg, n_rep, natom, &
+      INTEGER :: handle, i_rep, iatom, ic, input_nr_replica, is, ivar, j, jtarg, k, n_rep, natom, &
          neb_nr_replica, nr_replica_to_interpolate, nval, nvar, shell_index
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rep_map
       LOGICAL                                            :: check, explicit, skip_vel_section
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distance
       REAL(KIND=dp), DIMENSION(3)                        :: r
@@ -181,10 +182,14 @@ CONTAINS
       END DO
       ! Setup cartesian coordinates and COLVAR (if requested)
       coords%xyz(:, :) = 0.0_dp
+      ! Mapping between input replica and actual replica
+      ALLOCATE (rep_map(neb_nr_replica))
+      rep_map(:) = 0
       DO i_rep = 1, input_nr_replica
          coord_section => section_vals_get_subs_vals(replica_section, "COORD", &
                                                      i_rep_section=i_rep)
          CALL section_vals_get(coord_section, explicit=explicit)
+         rep_map(i_rep) = i_rep
          ! Cartesian Coordinates
          IF (explicit) THEN
             CALL section_vals_val_get(coord_section, "_DEFAULT_KEYWORD_", &
@@ -293,12 +298,23 @@ CONTAINS
          END IF
       END DO ! i_rep
       ALLOCATE (distance(neb_nr_replica - 1))
+      IF (iw > 0) THEN
+         WRITE (iw, '(T2,A)') 'NEB| Mapping between input and requested replica so far'
+         WRITE (iw, '(T2,A)') 'NEB|  1,  2, ... = input replica in sections order,'
+         WRITE (iw, '(T2,A)') 'NEB| -1, -2, ... = added replica in insertion order (if any),'
+         WRITE (iw, '(T2,A)') 'NEB|           0 = yet to be completed replica (if any)'
+         DO j = 1, neb_nr_replica, 8
+            WRITE (iw, '(T2,A,T9,8(1X,I8))') 'NEB|', rep_map(j:MIN(j + 7, neb_nr_replica))
+         END DO
+      END IF
       IF (input_nr_replica < neb_nr_replica) THEN
          ! Interpolate missing replicas
          nr_replica_to_interpolate = neb_nr_replica - input_nr_replica
+         k = 0
          distance = 0.0_dp
          IF (iw > 0) THEN
-            WRITE (iw, '(T2,A,I0,A)') 'NEB| Interpolating ', nr_replica_to_interpolate, ' missing Replica.'
+            WRITE (iw, '(T2,A,I0,A)') 'NEB| Interpolating ', nr_replica_to_interpolate, ' missing replica '// &
+               'by stepwise bisection of distance.'
          END IF
          DO WHILE (nr_replica_to_interpolate > 0)
             ! Compute distances between known images to find the interval
@@ -309,12 +325,15 @@ CONTAINS
             END DO
             jtarg = MAXLOC(distance(1:input_nr_replica), 1)
             IF (iw > 0) THEN
-               WRITE (iw, '(T2,3(A,I0),A)') 'NEB| Interpolating Nr. ', &
-                  nr_replica_to_interpolate, ' missing Replica between Replica Nr. ', &
+               WRITE (iw, '(/,T2,3(A,I0),A)') 'NEB| Interpolating Nr. ', &
+                  nr_replica_to_interpolate, ' missing Replica; next between Replica Nr. ', &
                   jtarg, ' and ', jtarg + 1, '.'
             END IF
             input_nr_replica = input_nr_replica + 1
             nr_replica_to_interpolate = nr_replica_to_interpolate - 1
+            k = k + 1
+            rep_map(jtarg + 2:input_nr_replica) = rep_map(jtarg + 1:input_nr_replica - 1)
+            IF (jtarg + 1 <= neb_nr_replica .AND. jtarg + 1 >= 1) rep_map(jtarg + 1) = -k
             ! Interpolation is a simple bisection in XYZ
             coords%xyz(:, jtarg + 2:input_nr_replica) = coords%xyz(:, jtarg + 1:input_nr_replica - 1)
             coords%xyz(:, jtarg + 1) = (coords%xyz(:, jtarg) + coords%xyz(:, jtarg + 2))/2.0_dp
@@ -332,6 +351,12 @@ CONTAINS
                                           input_nr_replica, iw, neb_env%use_colvar)
             CALL neb_initialize_velocity(vels%wrk, neb_section, particle_set, &
                                          jtarg + 1, iw, globenv, neb_env)
+            IF (iw > 0) THEN
+               WRITE (iw, '(T2,A)') 'NEB| Mapping between input and requested replica so far'
+               DO j = 1, neb_nr_replica, 8
+                  WRITE (iw, '(T2,A,T9,8(1X,I8))') 'NEB|', rep_map(j:MIN(j + 7, neb_nr_replica))
+               END DO
+            END IF
          END DO
       END IF
       vels%wrk(:, 1) = 0.0_dp
@@ -344,7 +369,17 @@ CONTAINS
          CALL neb_replica_distance(particle_set, coords, j, j + 1, distance(j), iw, &
                                    rotate=neb_env%align_frames)
       END DO
+      ! If there are still large distances, hint that more replica may be requested
+      IF (MAXVAL(distance)/MINVAL(distance) > 1.5_dp) THEN
+         IF (iw > 0) THEN
+            WRITE (iw, '(/,T2,A)') 'NEB| After interpolating replica, the maximum distance between adjacent replica'
+            WRITE (iw, '(T2,A)') 'NEB| is still larger than 1.5 times the minimum distance. In order to make the'
+            WRITE (iw, '(T2,A)') 'NEB| distribution of replica more uniform, consider providing more structures'
+            WRITE (iw, '(T2,A)') 'NEB| with &BAND/&REPLICA sections or increasing &BAND/NUMBER_OF_REPLICA value.'
+         END IF
+      END IF
       DEALLOCATE (distance)
+      DEALLOCATE (rep_map)
 
       CALL timestop(handle)
 

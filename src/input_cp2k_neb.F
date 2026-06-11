@@ -109,7 +109,13 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NUMBER_OF_REPLICA", &
-                          description="Specify the number of Replica to use in the BAND", &
+                          description="Specify the number of Replica to use in the BAND. This may "// &
+                          "be equal to or larger than the number of defined &REPLICA sections. If "// &
+                          "larger, the rest of missing replica will automatically be interpolated "// &
+                          "in an iterative bisection procedure: on each step, the largest distance "// &
+                          "between adjacent replica is found and a new replica is inserted there by "// &
+                          "taking the average of adjacent replica; this is repeated until getting "// &
+                          "requested number of replica.", &
                           default_i_val=10)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
