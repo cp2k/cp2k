@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT dftd3_tpss_auto
+  PROJECT dftd3_tpss_lib
   RUN_TYPE ENERGY
 &END GLOBAL
 
@@ -37,7 +37,7 @@
       &VDW_POTENTIAL
         DISPERSION_FUNCTIONAL PAIR_POTENTIAL
         &PAIR_POTENTIAL
-          PARAMETER_FILE_NAME dftd3.dat
+          D3_REFERENCE_CODE
           TYPE DFTD3
           &PRINT_DFTD
           &END PRINT_DFTD

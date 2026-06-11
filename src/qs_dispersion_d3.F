@@ -260,6 +260,7 @@ CONTAINS
                       calculate_forces, 1)
 
       CALL para_env%sum(cnumbers)
+
       ! for parallel runs we have to update dcnum on all processors
       IF (calculate_forces .OR. debugall) THEN
          CALL dcnum_distribute(dcnum, para_env)
@@ -886,7 +887,7 @@ CONTAINS
       END IF
       CALL para_env%bcast(pars)
 
-      ! Store C6AB coefficients in an array
+! Store C6AB coefficients in an array
       c6ab = -1._dp
       maxci = 0
       ref_stride = get_ref_stride(pars, nlines)

@@ -45,7 +45,8 @@ MODULE qs_dispersion_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_utils'
 
-   PUBLIC :: qs_dispersion_env_set, qs_write_dispersion
+   PUBLIC :: qs_dispersion_env_set, qs_write_dispersion, &
+             qs_scaling_dftd3, qs_scaling_dftd3bj
    PUBLIC :: cellhash, xc_functional_to_d_name, xc_functional_to_d4_name_int, xc_functional_detect_expanded
 
 ! **************************************************************************************************
@@ -274,16 +275,42 @@ CONTAINS
                                             "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
                                             c_val=dispersion_env%ref_functional)
                END IF
-               IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
-                  CALL qs_scaling_dftd3(dispersion_env%s6, dispersion_env%sr6, &
-                                        dispersion_env%s8, dispersion_env%ref_functional)
-               ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
-                  CALL qs_scaling_dftd3bj(dispersion_env%s6, dispersion_env%a1, dispersion_env%s8, &
-                                          dispersion_env%a2, dispersion_env%ref_functional)
+               CALL section_vals_val_get(pp_section, "D3_REFERENCE_CODE", &
+                                         l_val=dispersion_env%d3_reference_code)
+               IF (.NOT. dispersion_env%d3_reference_code) THEN
+                  IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
+                     CALL qs_scaling_dftd3(dispersion_env%s6, dispersion_env%sr6, dispersion_env%s8, &
+                                           dispersion_env%ref_functional)
+                  ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
+                     CALL qs_scaling_dftd3bj(dispersion_env%s6, dispersion_env%a1, dispersion_env%s8, &
+                                             dispersion_env%a2, dispersion_env%ref_functional)
+                  END IF
                END IF
             ELSE
+               dispersion_env%d3_scaling_explicit = .TRUE.
+               CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
+               IF (.NOT. exfun) THEN
+                  CALL xc_functional_to_d_name(xc_functional_name, dispersion_env%ref_functional)
+                  IF (dispersion_env%ref_functional == "none") THEN
+                     dispersion_env%ref_functional = ""
+                  END IF
+               ELSE
+                  CALL section_vals_val_get(vdw_section, &
+                                            "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
+                                            c_val=dispersion_env%ref_functional)
+               END IF
+               CALL section_vals_val_get(pp_section, "D3_REFERENCE_CODE", &
+                                         l_val=dispersion_env%d3_reference_code)
+               IF (.NOT. dispersion_env%d3_reference_code) THEN
+                  IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
+                     CALL qs_scaling_dftd3(dispersion_env%s6, dispersion_env%sr6, dispersion_env%s8, &
+                                           dispersion_env%ref_functional)
+                  ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
+                     CALL qs_scaling_dftd3bj(dispersion_env%s6, dispersion_env%a1, dispersion_env%s8, &
+                                             dispersion_env%a2, dispersion_env%ref_functional)
+                  END IF
+               END IF
                IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
-                  ! zero damping
                   CALL section_vals_val_get(pp_section, "D3_SCALING", r_vals=scal)
                   dispersion_env%s6 = scal(1)
                   dispersion_env%sr6 = scal(2)
@@ -291,7 +318,6 @@ CONTAINS
                   dispersion_env%a1 = 0.0_dp
                   dispersion_env%a2 = 0.0_dp
                ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
-                  ! BJ damping
                   CALL section_vals_val_get(pp_section, "D3BJ_SCALING", r_vals=scal)
                   dispersion_env%s6 = scal(1)
                   dispersion_env%a1 = scal(2)
@@ -336,6 +362,8 @@ CONTAINS
             CALL section_vals_val_get(pp_section, "D4_REFERENCE_CODE", &
                                       l_val=dispersion_env%d4_reference_code)
             CALL section_vals_val_get(pp_section, "D4_DEBUG", l_val=dispersion_env%d4_debug)
+            CALL section_vals_val_get(pp_section, "D3_REFERENCE_CODE", &
+                                      l_val=dispersion_env%d3_reference_code)
             CALL section_vals_val_get(pp_section, "D4_CUTOFF", r_val=dispersion_env%rc_d4)
             CALL section_vals_val_get(pp_section, "D4_CN_CUTOFF", r_val=dispersion_env%rc_cn)
             CALL section_vals_val_get(pp_section, "FACTOR_S9_TERM", r_val=dispersion_env%s9)
@@ -567,7 +595,6 @@ CONTAINS
       ! https://github.com/dftd3/simple-dftd3/blob/main/assets/parameters.toml
       SELECT CASE (TRIM(functional))
       CASE DEFAULT
-         ! unknown functional
          CPABORT("No DFT-D3 values available for this functional:"//TRIM(ref_functional))
       CASE ("B1B95")
          s6 = 1.000_dp
@@ -943,7 +970,6 @@ CONTAINS
       ! https://github.com/dftd3/simple-dftd3/blob/main/assets/parameters.toml
       SELECT CASE (TRIM(functional))
       CASE DEFAULT
-         ! unknown functional
          CPABORT("No DFT-D3(BJ) values available for this functional:"//TRIM(functional))
       CASE ("B1B95")
          s6 = 1.0000_dp

@@ -1,0 +1,8 @@
+# Library-based tests (s-dftd3) for comparison with file-based
+"pbe_dftd3bj_lib.inp"                 = [{matcher="M011", tol=1.0E-10, ref=-15.80031350912787}]
+"blyp_dftd3bj_lib.inp"                = [{matcher="M011", tol=1.0E-10, ref=-15.72599184966717}]
+"bp86_dftd3bj_lib.inp"                = [{matcher="M011", tol=1.0E-10, ref=-15.87172922805780}]
+"b3lyp_dftd3bj_lib.inp"               = [{matcher="M011", tol=1.0E-10, ref=-15.76212963632861}]
+"pbe0_dftd3bj_lib.inp"                = [{matcher="M011", tol=1.0E-10, ref=-15.80458919491490}]
+"tpss_dftd3bj_lib.inp"                = [{matcher="M011", tol=1.0E-10, ref=-15.81827490371247}]
+"o2_dftd3bj_hf3c.inp"                 = [{matcher="E_total", tol=1.0E-09, ref=-147.62476019079045}]

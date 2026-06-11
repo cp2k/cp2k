@@ -1025,6 +1025,13 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="D3_REFERENCE_CODE", &
+                          description="Use D3 damping parameters from s-dftd3 library instead of built-in values. "// &
+                          "Requires s-dftd3 library to be compiled in.", &
+                          usage="D3_REFERENCE_CODE", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="D2_SCALING", &
                           variants=["SCALING"], &
                           description="XC Functional dependent scaling parameter. If omitted, CP2K attempts"// &

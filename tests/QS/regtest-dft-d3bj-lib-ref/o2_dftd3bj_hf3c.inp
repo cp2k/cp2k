@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT o2
+  PROJECT o2_hf3c
   RUN_TYPE ENERGY
 &END GLOBAL
 
@@ -35,19 +35,6 @@
         DELTA_ENERGY N 0.35791
         GLOBAL_PARAMETERS 0.1290 1.1549 1.1763 1.1526
         VERBOSE T
-        #        elem   emiss   nbas    elem   emiss   nbas    elem   emiss   nbas
-        #          h    0.04240    1      he   0.02832    1      li   0.17787    5
-        #          be   0.17160    5      b    0.22424    5      c    0.27995    5
-        #          n    0.35791    5      o    0.47901    5      f    0.63852    5
-        #          ne   0.83235    5      na   1.11411    9      mg   1.27115    9
-        #          al   1.44695   14      si   1.61098   14      p    1.76661   14
-        #          s    1.98823   14      cl   2.22845   14      ar   2.48796   14
-        #          k    0.37425   11      ca   0.46097   11      sc   0.44489   21
-        #          ti   0.40499   21      v    0.37841   21      cr   0.37344   21
-        #          mn   0.36125   21      fe   0.36001   21      co   0.36293   21
-        #          ni   0.24380   21      cu   0.40530   21      zn   0.39651   21
-        #          ga   0.35002   32      ge   0.34578   32      as   0.34953   32
-        #          se   0.36731   32      br   0.38201   32      kr   0.39971   32
       &END GCP_POTENTIAL
       &HF
         &SCREENING
@@ -57,9 +44,8 @@
       &VDW_POTENTIAL
         DISPERSION_FUNCTIONAL PAIR_POTENTIAL
         &PAIR_POTENTIAL
-          D3BJ_SCALING 1.0000 0.4171 0.8777 2.9149
-          PARAMETER_FILE_NAME dftd3.dat
-          REFERENCE_FUNCTIONAL PBE  ! will be ignored since parameters are set explicitly
+          D3_REFERENCE_CODE
+          REFERENCE_FUNCTIONAL HF3C
           SHORT_RANGE_CORRECTION TRUE
           SHORT_RANGE_CORRECTION_PARAMETERS 0.03 0.70 1.50 0.75
           TYPE DFTD3(BJ)
