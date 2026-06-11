@@ -285,7 +285,7 @@ CONTAINS
       ! Builds the matrix that occupies the off diagonal blocks in the Floquet Matrix H_F
 
       polarisation(:) = bs_env%floquet_polarisation(:)
-      IF (SQRT(SUM(polarisation**2.0_dp)) < EPSILON(0.0_dp)) THEN
+      IF (SQRT(SUM(polarisation**2)) < EPSILON(0.0_dp)) THEN
          CPABORT("Invalid (too small) polarisation vector specified for POLARISATION_PUMP")
       END IF
 
@@ -550,7 +550,7 @@ CONTAINS
       CALL get_qs_env(qs_env, mos=mos)
       CALL get_mo_set(mo_set=mos(1), nao=nao)
 
-      fname = "QUASI_ENERGIES.bs"
+      WRITE (fname, "(2A)") bs_env%floquet_qe_file, ".bs"
 
       nkp_start = bs_env%nkp_only_DOS
       omega = bs_env%floquet_omega
@@ -627,8 +627,9 @@ CONTAINS
       energy_step = bs_env%energy_step_floquet
       E_min = mu - bs_env%energy_window_floquet
       n_E = SIZE(a_k)
-      fname = "FLOQUET_DOS.out"
       nkp_start = bs_env%nkp_only_DOS
+
+      WRITE (fname, "(2A)") bs_env%floquet_dos_file, ".out"
 
       IF (bs_env%para_env%is_source()) THEN
          IF (ikp_for_file == 1) THEN
