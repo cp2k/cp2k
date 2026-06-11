@@ -963,20 +963,16 @@ CONTAINS
          "Use an additive PAIR_POTENTIAL dispersion correction or disable GauXC."
       REAL(KIND=dp), PARAMETER :: gapw_fd_gradient_dx = 1.0E-4_dp
 
-      CHARACTER(len=default_path_length)                 :: model_key, model_name, output_path
-      CHARACTER(len=default_string_length) :: grid_key, &
-         onedft_gradient_runtime, onedft_gradient_runtime_key, pruning_key, &
-         skala_runtime, skala_runtime_key, xc_fun_name
-      INTEGER                                            :: batch_size, env_status, img, ispin, &
-                                                            natom, nimages, nspins, &
+      CHARACTER(len=default_path_length)                 :: model_key, output_path
+      CHARACTER(len=default_string_length) :: grid_key, onedft_gradient_runtime, &
+         onedft_gradient_runtime_key, pruning_key, skala_runtime, skala_runtime_key
+      INTEGER                                            :: env_status, img, ispin, nimages, &
                                                             onedft_atom_chunk_size
       LOGICAL :: do_kpoints, gapw_paw_pseudopotentials, gapw_pseudopotentials, grid_explicit, &
          hdf5_output, is_periodic, molecular_virial, molecular_virial_debug, &
-         onedft_atom_chunk_size_explicit, periodic_reference, pruning_explicit, use_fd_gradient, &
-         use_gradient_mpi_runtime, use_gradient_self_runtime, use_onedft, use_self_runtime, &
-         use_skala_model, write_hdf5_output
-      REAL(KIND=dp)                                      :: device_runtime_fill_fraction, &
-                                                            molecular_virial_debug_dx
+         onedft_atom_chunk_size_explicit, periodic_reference, pruning_explicit, &
+         use_gradient_mpi_runtime, use_onedft, use_skala_model, write_hdf5_output
+      REAL(KIND=dp)                                      :: molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -1241,31 +1237,31 @@ CONTAINS
 
       SELECT CASE (TRIM(skala_runtime_key))
       CASE ("AUTO")
-         use_self_runtime = use_skala_model .AND. para_env%num_pe > 1 .AND. nspins > 1
+         params%use_self_runtime = use_skala_model .AND. para_env%num_pe > 1 .AND. params%nspins > 1
       CASE ("MPI")
-         use_self_runtime = .FALSE.
+         params%use_self_runtime = .FALSE.
       CASE ("SELF")
-         use_self_runtime = use_skala_model .AND. para_env%num_pe > 1
+         params%use_self_runtime = use_skala_model .AND. para_env%num_pe > 1
       CASE DEFAULT
          CALL cp_abort(__LOCATION__, "Unknown GAUXC%SKALA_RUNTIME value.")
       END SELECT
-      IF (.NOT. use_skala_model) use_self_runtime = .FALSE.
+      IF (.NOT. use_skala_model) params%use_self_runtime = .FALSE.
       SELECT CASE (TRIM(onedft_gradient_runtime_key))
       CASE ("AUTO", "SELF")
          use_gradient_mpi_runtime = .FALSE.
-         use_gradient_self_runtime = calculate_forces .AND. use_onedft .AND. &
-                                     para_env%num_pe > 1 .AND. .NOT. use_self_runtime
+         params%use_gradient_self_runtime = calculate_forces .AND. use_onedft .AND. &
+                                            para_env%num_pe > 1 .AND. .NOT. params%use_self_runtime
       CASE ("MPI")
          use_gradient_mpi_runtime = calculate_forces .AND. use_onedft .AND. para_env%num_pe > 1
-         use_gradient_self_runtime = .FALSE.
+         params%use_gradient_self_runtime = .FALSE.
       CASE DEFAULT
          CALL cp_abort(__LOCATION__, "Unknown GAUXC%ONEDFT_GRADIENT_RUNTIME value.")
       END SELECT
       IF (.NOT. use_onedft) THEN
          use_gradient_mpi_runtime = .FALSE.
-         use_gradient_self_runtime = .FALSE.
+         params%use_gradient_self_runtime = .FALSE.
       END IF
-      IF (use_skala_model .AND. para_env%num_pe > 1 .AND. .NOT. use_self_runtime .AND. &
+      IF (use_skala_model .AND. para_env%num_pe > 1 .AND. .NOT. params%use_self_runtime .AND. &
           para_env%mepos == 0 .AND. ASSOCIATED(scf_env)) THEN
          IF (scf_env%iter_count == 1) THEN
             CALL cp_warn( &
@@ -1397,7 +1393,7 @@ CONTAINS
                   CALL debug_gauxc_molecular_virial( &
                      exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, params%nspins, &
                      params%model_name, params%xc_fun_name, params%grid_type, params%radial_quadrature, params%pruning_scheme, &
-                     params%lb_exec_space, params%int_exec_space, params%lwd_kernel, params%batch_size, params%device_runtime_fill_fraction, &
+           params%lb_exec_space, params%int_exec_space, params%lwd_kernel, params%batch_size, params%device_runtime_fill_fraction, &
                      molecular_virial_debug_dx, para_env)
                END IF
                DEALLOCATE (exc_grad%exc_grad)
@@ -1464,7 +1460,7 @@ CONTAINS
                   CALL debug_gauxc_molecular_virial( &
                      exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, params%nspins, &
                      params%model_name, params%xc_fun_name, params%grid_type, params%radial_quadrature, params%pruning_scheme, &
-                     params%lb_exec_space, params%int_exec_space, params%lwd_kernel, params%batch_size, params%device_runtime_fill_fraction, &
+           params%lb_exec_space, params%int_exec_space, params%lwd_kernel, params%batch_size, params%device_runtime_fill_fraction, &
                      molecular_virial_debug_dx, para_env, density_zeta=density_zeta)
                END IF
                DEALLOCATE (exc_grad%exc_grad)
