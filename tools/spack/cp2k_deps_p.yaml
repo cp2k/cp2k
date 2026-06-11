@@ -120,6 +120,7 @@ spack:
         - "~cutlass"
         - "+fortran"
         - "+openmp"
+        - "+onedft"
         - "+skala"
 
     hdf5:
@@ -156,7 +157,6 @@ spack:
       require:
         - "~distributed"
         - "~kineto"
-        - "~magma"
         - "~mkldnn"
         - "~rocm"
         - "~valgrind"
