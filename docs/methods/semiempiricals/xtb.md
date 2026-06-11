@@ -4,10 +4,11 @@ This is a short tutorial on how to run GFN-xTB simulations with CP2K. The detail
 the original implementation can be found in [](#Grimme2017) for GFN1-xTB and in [](#Bannwarth2019)
 for GFN2-xTB.
 
-The GFN-xTB methods are implemented either natively in CP2K or available in through the tblite
-library as descr in [](#Katbashev2025) and
+The GFN-xTB methods are implemented either natively in CP2K or through the tblite library as
+described in [](#Katbashev2025) and
 [Alizadeh2026](https://chemrxiv.org/doi/full/10.26434/chemrxiv.15003939). The natively available
-methods are GFN1-xTB, while the tblite library provides GFN1-xTB, IPEA1-xTB and GFN2-xTB.
+methods are GFN0-xTB and GFN1-xTB, while the tblite library provides GFN1-xTB, IPEA1-xTB and
+GFN2-xTB.
 
 In this tutorial after a brief theory recap, there is an example on how to run GFN2-xTB simulation
 with tblite and later there is an example on how to run GFN1-xTB with the native implementation.
@@ -22,7 +23,7 @@ $$
 E_{\rm{\tiny{GFN1-xTB}}} = E_{\rm{\tiny{EL}}} + E_{\rm{\tiny{IES}}} + E_{\rm{\tiny{REP}}} + E_{\rm{\tiny{DISP}}} + E_{\rm{\tiny{XB}}} \, .
 $$
 
-The GFN2-xTB is defined similarly using anisotropic electrostatic (AES) instead of isotropic
+The GFN2-xTB, is defined similarly using anisotropic electrostatic (AES) in addition to isotropic
 contributions,
 
 $$
@@ -121,7 +122,8 @@ $$
 
 ## The GFN-xTB input section
 
-The most important keywords and subsections of section [XTB](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB) are:
+In this section the keywords for the native GFN-xTB implementation are described. The most important
+keywords and subsections of section [XTB](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB) are:
 
 - [CHECK_ATOMIC_CHARGES](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.CHECK_ATOMIC_CHARGES): the cubic charge
   diagonal contribution is checked to be numerically stable by switching the keyword to true.
@@ -136,6 +138,11 @@ The most important keywords and subsections of section [XTB](#CP2K_INPUT.FORCE_E
 - [PARAMETER](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.PARAMETER): it is possible to add this section with
   corresponding keywords to modify xTB parameters
 
+- [DO_EWALD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.DO_EWALD): keyword to activate Ewald summation for
+  periodic boundary conditions (PBC); has to be switched to true in case of PBC. Starting from CP2K
+  2026.2 the periodicity is directly taken from the cell definition, which makes this keyword
+  obsolete.
+
 The additional keywords
 [COULOMB_INTERACTION](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.COULOMB_INTERACTION),
 [COULOMB_LR](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.COULOMB_LR) and
@@ -144,7 +151,17 @@ and it is recommended to use the default options here.
 
 ## Input section for tblite
 
-For enabling GFN-xTB methods via the tblite library set the
+Available methods in the [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.METHOD) keyword are
+
+- GFN1: for GFN1-xTB method
+- GFN2: for GFN2-xTB method
+- IPEA1: for IPEA1-xTB version of GFN1-xTB
+- PARAM: read parameter file from filename provided via
+  [PARAM](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.PARAM) keyword, the format for the parameter file
+  is following tblite structure as described in the
+  [documentation](https://tblite.readthedocs.io/en/latest/spec/parameter.html).
+
+For enabling GFN-xTB methods via the tblite library, set the
 [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.METHOD) keyword to xTB and the
 [GFN_TYPE](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.GFN_TYPE) in the
 [XTB](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB) block to tblite. The
@@ -166,16 +183,6 @@ library, like selecting the actual GFN-xTB method via the
 &END QS
 ```
 
-Available methods in the [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.METHOD) keyword are
-
-- GFN1: for GFN1-xTB method
-- GFN2: for GFN2-xTB method
-- IPEA1: for IPEA1-xTB version of GFN1-xTB
-- PARAM: read parameter file from filename provided via
-  [PARAM](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.PARAM) keyword, the format for the parameter file
-  is following tblite structure as described in the
-  [documentation](https://tblite.readthedocs.io/en/latest/spec/parameter.html).
-
 The [ACCURACY](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB.TBLITE.ACCURACY) keyword controls the convergence
 thresholds of the electronic mixer in the tblite library. Lower values correspond to tighter
 convergence.
@@ -184,7 +191,7 @@ convergence.
 
 ### GFN-xTB ground-state energy based on Tblite
 
-The following input is an example for calculating a single poit calculation of ice-Ih crystal with
+The following input is an example for calculating a single point calculation of ice-Ih crystal with
 GFN2-xTB method. Please note that k-points are fully supported for tblite in CP2K.
 
 ```
@@ -278,7 +285,7 @@ GFN2-xTB method. Please note that k-points are fully supported for tblite in CP2
 
 ### Unrestricted calculation with spGFN2-xTB
 
-In case of open-shell calculations a spin-polarization term can be enabled with the
+In case of open-shell calculations, a spin-polarization term can be enabled with the
 [LSD](#CP2K_INPUT.FORCE_EVAL.DFT.UKS) keyword in CP2K. In this case, tblite automatically allows the
 usage of spGFN2-xTB for calculations as described in
 [Neugebauer2023](https://onlinelibrary.wiley.com/doi/full/10.1002/jcc.27185). An example for triplet
@@ -326,8 +333,8 @@ oxygen is shown here.
 
 ### GFN1-xTB ground-state energy based on native Quickstep
 
-The following input is an examplary standard input for calculating GFN1-xTB ground-state energies
-using the native quickstep implementation [](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB).
+The following input is a standard example for calculating GFN1-xTB ground-state energies using the
+native quickstep implementation [XTB](#CP2K_INPUT.FORCE_EVAL.DFT.QS.XTB).
 
 ```none
 &GLOBAL
