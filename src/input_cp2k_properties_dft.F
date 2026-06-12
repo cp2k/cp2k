@@ -2924,8 +2924,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="AMPLITUDE", &
                           description="Electric field amplitude of the monochromatic light.", &
-                          usage="AMPLITUDE [Vnm-1] 1.0", n_var=1, type_of_var=real_t, &
-                          unit_str="Vnm-1", default_r_val=0.0_dp)
+                          usage="AMPLITUDE [Vm-1] 1.0E9", n_var=1, type_of_var=real_t, &
+                          unit_str="Vm-1", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
