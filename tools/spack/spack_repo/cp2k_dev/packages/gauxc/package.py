@@ -116,7 +116,7 @@ class Gauxc(CMakePackage, CudaPackage):
             self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
         ]
         if spec.satisfies("+cuda"):
-            args.append(CMakeBuilder.define_cuda_architectures(self))
+            args.append(self.define_cuda_architectures(self))
         return args
 
     def install(self, spec, prefix):

@@ -32,6 +32,7 @@ spack:
         - "+openmp"
         - "+pic"
         - "~rocm"
+        - "~tests"
         - "build_system=cmake"
         - "build_type=Release"
 
@@ -116,8 +117,10 @@ spack:
     gauxc:
       require:
         - "+c"
+        - "~cutlass"
         - "+fortran"
         - "+openmp"
+        - "+onedft"
         - "+skala"
 
     hdf5:
@@ -152,7 +155,6 @@ spack:
 
     py-torch:
       require:
-        - "~cuda"
         - "~distributed"
         - "~kineto"
         - "~mkldnn"
