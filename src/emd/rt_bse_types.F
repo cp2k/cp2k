@@ -477,6 +477,15 @@ CONTAINS
       IF (rtbse_env%tda_active .AND. .NOT. rtbse_env%linearized) THEN
          CPABORT("RTBSE TDA keyword requires LINEARIZED_BSE_PROPAGATION=.TRUE.")
       END IF
+      ! Open shell: omega_shift would be referenced to a non-physical cross-spin
+      ! pseudo-gap (global MIN/MAX over both spins); abort until made per-spin.
+      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C24 (latent open-shell shift)
+      IF (rtbse_env%tda_shift_to_first_peak .AND. rtbse_env%n_spin > 1) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "TDA_SHIFT_TO_FIRST_PEAK is not implemented for open-shell (n_spin>1) "// &
+                       "systems - the first-peak gap estimate would mix spin channels. "// &
+                       "Set TDA_SHIFT_TO_FIRST_PEAK=.FALSE. for open-shell runs.")
+      END IF
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C12
       IF ((rtbse_env%rirs_hartree .OR. rtbse_env%rirs_sex) .AND. bs_env%ri_rs%grid_select == 1) THEN
          CPWARN("linRTBSE RIRS: use GRID_SELECT=2 for accuracy")
