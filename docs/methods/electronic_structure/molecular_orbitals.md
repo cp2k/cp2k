@@ -7,14 +7,24 @@ post-processing.
 
 The most useful choices are:
 
-| Output              | Print section                                              | Main use                                                                 | Notes                                                                                                                           |
-| ------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| Text MO information | [&MO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO)                 | Inspect MO energies, occupations, and AO coefficients in the output file | Good for small systems or debugging; files can become large if eigenvectors are printed.                                        |
-| Molden file         | [&MO_MOLDEN](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_MOLDEN)   | Visualize Gamma-only orbitals with external tools                        | Not available for k-point calculations. CP2K can optionally write cell and pseudopotential metadata.                            |
-| K-point MO dump     | [&MO_KP](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_KP)           | Export MO information for k-point calculations                           | CP2K-specific `.mokp` text format. It includes k-points, eigenvalues, occupations, complex MO coefficients, and AO information. |
-| TREXIO file         | [&TREXIO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.TREXIO)         | Export orbital information in TREXIO HDF5 format                         | Useful for interoperability with quantum-chemistry post-processing tools. Requires TREXIO support in the CP2K build.            |
-| MO cube files       | [&MO_CUBES](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES)     | Visualize selected orbitals on a real-space grid                         | Useful for frontier-orbital plots; may produce many large files.                                                                |
-| MO openPMD files    | [&MO_OPENPMD](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_OPENPMD) | Grid-based orbital output in openPMD format                              | More suitable for structured, possibly large, grid data than plain cube files.                                                  |
+- **Text MO information** ([&MO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO)): inspect MO energies,
+  occupations, and AO coefficients in the output file. This is useful for small systems or
+  debugging, but files can become large if eigenvectors are printed.
+- **Molden file** ([&MO_MOLDEN](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_MOLDEN)): visualize Gamma-only
+  orbitals with external tools. Molden output is not available for k-point calculations, but CP2K
+  can optionally write cell and pseudopotential metadata.
+- **K-point MO dump** ([&MO_KP](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_KP)): export MO information for
+  k-point calculations in the CP2K-specific `.mokp` text format, including k-points, eigenvalues,
+  occupations, complex MO coefficients, and AO information.
+- **TREXIO file** ([&TREXIO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.TREXIO)): export orbital information
+  in TREXIO HDF5 format for interoperability with quantum-chemistry post-processing tools. This
+  requires TREXIO support in the CP2K build.
+- **MO cube files** ([&MO_CUBES](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES)): visualize selected
+  orbitals on a real-space grid. This is useful for frontier-orbital plots, but may produce many
+  large files.
+- **MO openPMD files** ([&MO_OPENPMD](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_OPENPMD)): write
+  grid-based orbital data in openPMD format. This is more suitable for structured, possibly large
+  grid data than plain cube files.
 
 ## Text MO information
 
@@ -74,6 +84,13 @@ level can make a HOMO--LUMO or band-gap interpretation ambiguous.
 The numerical value of an eigenvalue gap depends on the exchange-correlation functional, basis set,
 pseudopotential, spin treatment, k-point sampling, and the number and quality of available
 unoccupied states.
+
+```{tip}
+The overall phase of an individual molecular orbital is arbitrary. Therefore, a sign flip of a
+single MO, or a phase rotation in a complex k-point calculation, is not by itself a physical
+difference. Post-processing tools and regression tests should compare phase-invariant quantities
+when appropriate.
+```
 
 ## Molden file for Gamma-only calculations
 
@@ -291,7 +308,7 @@ MO coefficients.
 A TREXIO file is binary, so the useful "file output example" is its HDF5 layout rather than raw text
 content. For example, inspecting the file with an HDF5 tool shows groups and datasets such as:
 
-```text
+```shell
 $ h5ls orbitals.h5
 metadata                 Group
 nucleus                  Group
@@ -316,8 +333,8 @@ type                     Dataset {...}
 ## MO cube files
 
 [&MO_CUBES](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES) writes selected orbitals on a real-space grid
-in cube format. This is mainly useful for visualizing frontier orbitals, defect states, adsorbate
-states, or localized molecular orbitals.
+in [cube format](https://paulbourke.net/dataformats/cube/). This is mainly useful for visualizing
+frontier orbitals, defect states, adsorbate states, or localized molecular orbitals.
 
 ```text
 &FORCE_EVAL
@@ -341,7 +358,8 @@ Useful controls include:
 - [HOMO_LIST](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.HOMO_LIST): request specific occupied
   orbitals and override `NHOMO`.
 - [STRIDE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.STRIDE): reduce the grid resolution to make
-  files smaller.
+  files smaller. The default value is `2 2 2`, so only every second grid point is written along each
+  direction, corresponding to about one eighth of the native grid points.
 - [MAX_FILE_SIZE_MB](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.MAX_FILE_SIZE_MB): let CP2K choose a
   suitable stride to limit cube-file size.
 - [WRITE_CUBE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_CUBES.WRITE_CUBE): compute eigenvalues while
@@ -428,10 +446,3 @@ and therefore the output size. More advanced openPMD runtime options can be pass
   [&MO_OPENPMD](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO_OPENPMD) for real-space visualization of a small
   number of selected orbitals.
 - Use [&MO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO) for compact textual inspection and debugging.
-
-```{note}
-The overall phase of an individual molecular orbital is arbitrary. Therefore, a sign flip of a
-single MO, or a phase rotation in a complex k-point calculation, is not by itself a physical
-difference. Post-processing tools and regression tests should compare phase-invariant quantities
-when appropriate.
-```
