@@ -864,31 +864,31 @@ CONTAINS
          to = MIN(from + 2, nvib)
          WRITE (UNIT=iw, FMT="(T2,'VIB|',13X,3(8X,I5,8X))") &
             (icol, icol=from, to)
-         WRITE (UNIT=iw, FMT="(T2,'VIB|Frequency (cm^-1)',3(1X,ES18.10E3,2X))") &
+         WRITE (UNIT=iw, FMT="(T2,'VIB|Frequency (cm^-1)',3(1X,ES17.10E2,2X))") &
             (freq(icol), icol=from, to)
          IF (ASSOCIATED(intensities_d)) THEN
-            WRITE (UNIT=iw, FMT="(T2,'VIB|IR int (KM/Mole) ',3(1X,ES18.10E3,2X))") &
+            WRITE (UNIT=iw, FMT="(T2,'VIB|IR int (KM/Mole) ',3(1X,ES17.10E2,2X))") &
                (fint*intensities_d(icol)**2, icol=from, to)
          END IF
          IF (ASSOCIATED(intensities_p)) THEN
-            WRITE (UNIT=iw, FMT="(T2,'VIB|Raman (A^4/amu)  ',3(1X,ES18.10E3,2X))") &
+            WRITE (UNIT=iw, FMT="(T2,'VIB|Raman (A^4/amu)  ',3(1X,ES17.10E2,2X))") &
                (pint*intensities_p(icol), icol=from, to)
-            WRITE (UNIT=iw, FMT="(T2,'VIB|Depol Ratio (P)  ',3(1X,ES18.10E3,2X))") &
+            WRITE (UNIT=iw, FMT="(T2,'VIB|Depol Ratio (P)  ',3(1X,ES17.10E2,2X))") &
                (depol_p(icol), icol=from, to)
-            WRITE (UNIT=iw, FMT="(T2,'VIB|Depol Ratio (U)  ',3(1X,ES18.10E3,2X))") &
+            WRITE (UNIT=iw, FMT="(T2,'VIB|Depol Ratio (U)  ',3(1X,ES17.10E2,2X))") &
                (depol_u(icol), icol=from, to)
          END IF
-         WRITE (UNIT=iw, FMT="(T2,'VIB|Red.Masses (a.u.)',3(1X,ES18.10E3,2X))") &
+         WRITE (UNIT=iw, FMT="(T2,'VIB|Red.Masses (a.u.)',3(1X,ES17.10E2,2X))") &
             (m(icol), icol=from, to)
-         WRITE (UNIT=iw, FMT="(T2,'VIB|Frc consts (a.u.)',3(1X,ES18.10E3,2X))") &
+         WRITE (UNIT=iw, FMT="(T2,'VIB|Frc consts (a.u.)',3(1X,ES17.10E2,2X))") &
             (k(icol), icol=from, to)
-         WRITE (UNIT=iw, FMT="(T2,' ATOM',2X,'EL',7X,3(4X,'  X  ',1X,'  Y  ',1X,'  Z  '))")
+         WRITE (UNIT=iw, FMT="(T2,' ATOM',2X,'EL',10X,3(3X,'  X  ',1X,'  Y  ',1X,'  Z  '))")
          DO iatom = 1, natom, 3
             katom = iatom/3
             IF (MOD(iatom, 3) /= 0) katom = katom + 1
             CALL get_atomic_kind(atomic_kind=particles(Mlist(katom))%atomic_kind, &
                                  element_symbol=element_symbol)
-            WRITE (UNIT=iw, FMT="(T2,I5,2X,A2,7X,3(4X,2(F5.2,1X),F5.2))") &
+            WRITE (UNIT=iw, FMT="(T2,I5,2X,A2,10X,3(3X,2(F5.2,1X),F5.2))") &
                Mlist(katom), element_symbol, &
                ((D(iatom + j, icol), j=0, 2), icol=from, to)
          END DO
