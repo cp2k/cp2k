@@ -422,10 +422,10 @@ struct kernel_params {
   int first_task{0};
   // max size of cab.
   int cab_size_{0};
-  int3 grid_full_size_ = {.x = 0, .y = 0, .z = 0};
-  int3 grid_local_size_ = {.x = 0, .y = 0, .z = 0};
-  int3 grid_lower_corner_ = {.x = 0, .y = 0, .z = 0};
-  int3 grid_border_width_ = {.x = 0, .y = 0, .z = 0};
+  int3 grid_full_size_ = make_int3(0, 0, 0);
+  int3 grid_local_size_ = make_int3(0, 0, 0);
+  int3 grid_lower_corner_ = make_int3(0, 0, 0);
+  int3 grid_border_width_ = make_int3(0, 0, 0);
   double dh_[9];
   double dh_inv_[9];
   task_info *tasks;
