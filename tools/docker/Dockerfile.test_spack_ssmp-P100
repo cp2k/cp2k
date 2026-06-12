@@ -87,7 +87,6 @@ COPY --from=build_cp2k /opt/cp2k/spack/spack/opt/spack ./spack/spack/opt/spack
 
 # Install CP2K
 COPY --from=build_cp2k /opt/cp2k/install ./install
-RUN ldd ./install/bin/cp2k || true
 
 # Install CP2K regression tests
 COPY --from=build_cp2k /opt/cp2k/tests ./tests
