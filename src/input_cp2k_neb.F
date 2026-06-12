@@ -109,7 +109,13 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NUMBER_OF_REPLICA", &
-                          description="Specify the number of Replica to use in the BAND", &
+                          description="Specify the number of Replica to use in the BAND. This may "// &
+                          "be equal to or larger than the number of defined &REPLICA sections. If "// &
+                          "larger, the rest of missing replica will automatically be interpolated "// &
+                          "in an iterative bisection procedure: on each step, the largest distance "// &
+                          "between adjacent replica is found and a new replica is inserted there by "// &
+                          "taking the average of adjacent replica; this is repeated until getting "// &
+                          "requested number of replica.", &
                           default_i_val=10)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -263,9 +269,9 @@ CONTAINS
       CALL section_release(subsection)
 
       ! Print key section
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "program_run_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
                                        description="Controls the printing basic info about the BAND run", &
-                                       print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
 
       CALL keyword_create(keyword, __LOCATION__, name="INITIAL_CONFIGURATION_INFO", &
                           description="Print information for the setup of the initial configuration.", &
@@ -274,16 +280,26 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="PLOT_REL_ENERGY", &
+                          description="If a simple plot of relative energy of each replica is shown "// &
+                          "alongside data vertically. This makes the output format less compact than "// &
+                          "default, but creates a visual aid for ease of monitoring with some special "// &
+                          "marks for the local maxima (X) or minima (x) in the plot.", &
+                          usage="PLOT_REL_ENERGY <LOGICAL>", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "convergence_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CONVERGENCE_INFO", &
                                        description="Controls the printing of the convergence criteria during a BAND run", &
-                                       print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "replica_info", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "REPLICA_INFO", &
                                        description="Controls the printing of each replica info during a BAND run", &
                                        print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
@@ -293,6 +309,24 @@ CONTAINS
                                        description="Controls the printing of the ENER file in a BAND run", &
                                        print_level=low_print_level, common_iter_levels=1, &
                                        filename="")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FINAL_BAND", &
+                                       description="Controls the printing of the final structures as an "// &
+                                       "XYZ trajectory file after a BAND run, regardless of convergence "// &
+                                       "status. The unit is angstrom for coordinates and cell vectors.", &
+                                       print_level=low_print_level, common_iter_levels=1, &
+                                       filename="FINAL")
+
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_ATOM_KIND", &
+                          description="Write the atom kind given in the subsys section instead "// &
+                          "of the element symbol in the XYZ trajectory file.", &
+                          usage="PRINT_ATOM_KIND {LOGICAL}", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

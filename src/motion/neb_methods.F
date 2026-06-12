@@ -48,7 +48,8 @@ MODULE neb_methods
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE neb_io,                          ONLY: dump_neb_info,&
+   USE neb_io,                          ONLY: dump_neb_final,&
+                                              dump_neb_info,&
                                               neb_rep_env_map_info,&
                                               read_neb_section
    USE neb_md_utils,                    ONLY: control_vels_a,&
@@ -334,10 +335,18 @@ CONTAINS
                             energies=energies, &
                             distances=distances, &
                             output_unit=output_unit)
-         converged = check_convergence(neb_env, Dcoords, forces)
-         IF (converged) EXIT md_opt_loop
+         converged = check_convergence(neb_env, Dcoords, forces, logger)
+         IF (converged) THEN
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T2,A)") REPEAT("*", 79)
+               WRITE (UNIT=output_unit, FMT="(T2,A,T32,A,T78,A)") &
+                  "***", "BAND TASK COMPLETED", "***"
+               WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", 79)
+            END IF
+            EXIT md_opt_loop
+         END IF
       END DO md_opt_loop
-
+      CALL dump_neb_final(neb_env, energies, coords, particle_set, logger, output_unit, converged)
       DEALLOCATE (mass)
       DEALLOCATE (energies)
       DEALLOCATE (distances)
@@ -494,15 +503,26 @@ CONTAINS
                             vels=vels, &
                             output_unit=output_unit)
 
-         converged = check_convergence(neb_env, sline, forces)
-         IF (converged) EXIT
+         converged = check_convergence(neb_env, sline, forces, logger)
+         IF (converged) THEN
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T2,A)") REPEAT("*", 79)
+               WRITE (UNIT=output_unit, FMT="(T2,A,T32,A,T78,A)") &
+                  "***", "BAND TASK COMPLETED", "***"
+               WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", 79)
+            END IF
+            EXIT
+         END IF
       END DO
+      CALL dump_neb_final(neb_env, energies, coords, particle_set, logger, output_unit, converged)
       DEALLOCATE (energies)
       DEALLOCATE (distances)
       DEALLOCATE (err)
       DEALLOCATE (crr)
       DEALLOCATE (set_err)
       CALL neb_var_release(sline)
+      CALL cp_print_key_finished_output(iw, logger, neb_env%neb_section, &
+                                        "REPLICA_INFO")
       CALL timestop(handle)
    END SUBROUTINE neb_diis
 

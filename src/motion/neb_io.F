@@ -28,6 +28,7 @@ MODULE neb_io
                                               cp_rm_default_logger,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_generate_filename,&
                                               cp_print_key_unit_nr
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE f77_interface,                   ONLY: f_env_add_defaults,&
@@ -38,6 +39,7 @@ MODULE neb_io
    USE header,                          ONLY: cp2k_footer
    USE input_constants,                 ONLY: band_md_opt,&
                                               do_sm,&
+                                              dump_extxyz,&
                                               dump_xmol,&
                                               pot_neb_fe,&
                                               pot_neb_full,&
@@ -75,6 +77,7 @@ MODULE neb_io
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_io'
 
    PUBLIC :: read_neb_section, &
+             dump_neb_final, &
              dump_neb_info, &
              dump_replica_coordinates, &
              handle_band_file_names, &
@@ -151,6 +154,124 @@ CONTAINS
    END SUBROUTINE read_neb_section
 
 ! **************************************************************************************************
+!> \brief dump final structures after a NEB run
+!> \param neb_env ...
+!> \param energies ...
+!> \param coords ...
+!> \param particle_set ...
+!> \param logger ...
+!> \param output_unit ...
+!> \param converged ...
+!> \par
+!>          History
+!>          06.2026 - Created
+!> \author  HE Zilong
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE dump_neb_final(neb_env, energies, coords, particle_set, logger, output_unit, converged)
+      TYPE(neb_type), POINTER                            :: neb_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: energies
+      TYPE(neb_var_type), POINTER                        :: coords
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(cp_logger_type), POINTER                      :: logger
+      INTEGER, INTENT(IN)                                :: output_unit
+      LOGICAL                                            :: converged
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dump_neb_final'
+
+      CHARACTER(LEN=1024)                                :: cell_str, ener_str, lm_str, record, &
+                                                            replica_str, title
+      CHARACTER(LEN=4)                                   :: l_ener
+      CHARACTER(LEN=5)                                   :: pbc_str
+      INTEGER                                            :: irep, iw
+      LOGICAL                                            :: print_kind
+      REAL(KIND=dp)                                      :: unit_conv
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(section_vals_type), POINTER                   :: final_band_section
+
+      NULLIFY (final_band_section)
+      final_band_section => section_vals_get_subs_vals(neb_env%neb_section, "FINAL_BAND")
+      CALL force_env_get(neb_env%force_env, cell=cell) ! For now NEB has constant cell
+      pbc_str = "F F F"
+      IF (cell%perd(1) == 1) pbc_str(1:1) = "T"
+      IF (cell%perd(2) == 1) pbc_str(3:3) = "T"
+      IF (cell%perd(3) == 1) pbc_str(5:5) = "T"
+      WRITE (UNIT=cell_str, FMT="(9(1X,F19.10))") &
+         cell%hmat(:, 1)*angstrom, cell%hmat(:, 2)*angstrom, cell%hmat(:, 3)*angstrom
+      unit_conv = cp_unit_from_cp2k(1.0_dp, "angstrom")
+
+      ! Print a message to log
+      record = cp_print_key_generate_filename(logger, final_band_section, &
+                                              extension=".xyz", &
+                                              my_local=.FALSE.)
+      IF (output_unit > 0) THEN
+         IF (converged) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+               routineN//": Band task converged, writing XYZ trajectory gladly:"
+         ELSE
+            WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+               routineN//": Band task not yet converged, writing XYZ trajectory anyway:"
+         END IF
+         WRITE (UNIT=output_unit, FMT="(T3,A)") TRIM(record)
+      END IF
+
+      ! Write actual trajectory file
+      iw = cp_print_key_unit_nr(logger, neb_env%neb_section, "FINAL_BAND", &
+                                extension=".xyz", file_form="FORMATTED", file_status="REPLACE")
+      CALL section_vals_val_get(neb_env%neb_section, "FINAL_BAND%PRINT_ATOM_KIND", &
+                                l_val=print_kind)
+      DO irep = 1, neb_env%number_of_replica
+         l_ener = "(**)"
+         IF (irep > 1) THEN
+            IF (energies(irep) - energies(irep - 1) > 0) THEN
+               l_ener(2:2) = "+"
+            ELSE
+               l_ener(2:2) = "-"
+            END IF
+         END IF
+         IF (irep < neb_env%number_of_replica) THEN
+            IF (energies(irep + 1) - energies(irep) < 0) THEN
+               l_ener(3:3) = "+"
+            ELSE
+               l_ener(3:3) = "-"
+            END IF
+         END IF
+         SELECT CASE (l_ener)
+         CASE ("(++)") ! local maximum
+            WRITE (lm_str, '(A)') "Ener_loc_max=T Ener_loc_min=F"
+         CASE ("(--)") ! local minimum
+            WRITE (lm_str, '(A)') "Ener_loc_max=F Ener_loc_min=T"
+         CASE DEFAULT
+            WRITE (lm_str, '(A)') "Ener_loc_max=F Ener_loc_min=F"
+         END SELECT
+         WRITE (UNIT=replica_str, FMT="(I8)") irep
+         WRITE (UNIT=ener_str, FMT="(F20.10)") energies(irep)
+         WRITE (UNIT=title, FMT="(A)") &
+            'Lattice="'//TRIM(ADJUSTL(cell_str))//'" '// &
+            'Properties=species:S:1:pos:R:3 '// &
+            'pbc="'//pbc_str//'" '// &
+            'Replica='//TRIM(ADJUSTL(replica_str))//' '// &
+            'Energy='//TRIM(ADJUSTL(ener_str))//' '// &
+            TRIM(ADJUSTL(lm_str))
+         IF (iw > 0) THEN
+            ! The iw condition does not hold for certain ranks/processes
+            ! that write to <proj>-BAND<n>.out where n > neb_env%number_of_replica
+            CALL write_particle_coordinates(particle_set, iw, dump_extxyz, "POS", title, &
+                                            cell=cell, array=coords%xyz(:, irep), unit_conv=unit_conv, &
+                                            print_kind=print_kind)
+            CALL m_flush(iw)
+         END IF
+      END DO
+
+      IF (output_unit > 0) &
+         WRITE (UNIT=output_unit, FMT='(/,T2,A)') &
+         routineN//": Done!"
+
+      CALL cp_print_key_finished_output(iw, logger, neb_env%neb_section, "FINAL_BAND")
+
+   END SUBROUTINE dump_neb_final
+
+! **************************************************************************************************
 !> \brief dump print info of a NEB run
 !> \param neb_env ...
 !> \param coords ...
@@ -178,17 +299,20 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'dump_neb_info'
 
       CHARACTER(LEN=20)                                  :: mytype
+      CHARACTER(LEN=4)                                   :: l_ener
       CHARACTER(LEN=default_string_length)               :: line, title, unit_str
-      INTEGER                                            :: crd, ener, frc, handle, i, irep, ndig, &
-                                                            ndigl, ttst, vel
-      LOGICAL                                            :: explicit, lval, print_kind
-      REAL(KIND=dp)                                      :: f_ann, tmp_r1, unit_conv
+      INTEGER                                            :: crd, ener, frc, handle, i, irep, n_max, &
+                                                            n_min, ndig, ndigl, plt, ttst, vel
+      LOGICAL                                            :: explicit, lval, plot_rel_energy, &
+                                                            print_kind
+      REAL(KIND=dp)                                      :: ener_min, ener_range, f_ann, tmp_r1, &
+                                                            unit_conv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ekin, temperatures
       TYPE(cell_type), POINTER                           :: cell
       TYPE(enumeration_type), POINTER                    :: enum
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: section
-      TYPE(section_vals_type), POINTER                   :: tc_section, vc_section
+      TYPE(section_vals_type), POINTER                   :: run_info_section, tc_section, vc_section
 
       CALL timeset(routineN, handle)
       ndig = CEILING(LOG10(REAL(neb_env%number_of_replica + 1, KIND=dp)))
@@ -264,6 +388,8 @@ CONTAINS
       IF (output_unit > 0) THEN
          tc_section => section_vals_get_subs_vals(neb_env%neb_section, "OPTIMIZE_BAND%MD%TEMP_CONTROL")
          vc_section => section_vals_get_subs_vals(neb_env%neb_section, "OPTIMIZE_BAND%MD%VEL_CONTROL")
+         run_info_section => section_vals_get_subs_vals(neb_env%neb_section, "PROGRAM_RUN_INFO")
+         CALL section_vals_val_get(run_info_section, "PLOT_REL_ENERGY", l_val=plot_rel_energy)
          ALLOCATE (temperatures(neb_env%number_of_replica))
          ALLOCATE (ekin(neb_env%number_of_replica))
          CALL get_temperatures(vels, particle_set, temperatures, ekin=ekin)
@@ -312,23 +438,81 @@ CONTAINS
          END IF
          WRITE (output_unit, '( A,T71,I10 )') &
             ' NUMBER OF NEB REPLICA         =', neb_env%number_of_replica
-         WRITE (output_unit, '( A,T17,4F16.6)') &
-            ' DISTANCES REP =', distances(1:MIN(4, SIZE(distances)))
-         IF (SIZE(distances) > 4) THEN
-            WRITE (output_unit, '( T17,4F16.6)') distances(5:SIZE(distances))
-         END IF
-         WRITE (output_unit, '( A,T17,4F16.6)') &
-            ' ENERGIES [au] =', energies(1:MIN(4, SIZE(energies)))
-         IF (SIZE(energies) > 4) THEN
-            WRITE (output_unit, '( T17,4F16.6)') energies(5:SIZE(energies))
-         END IF
-         IF (neb_env%opt_type == band_md_opt) THEN
-            WRITE (output_unit, '( A,T33,4(1X,F11.5))') &
-               ' REPLICA TEMPERATURES (K)      =', temperatures(1:MIN(4, SIZE(temperatures)))
-            DO i = 5, SIZE(temperatures), 4
-               WRITE (output_unit, '( T33,4(1X,F11.5))') &
-                  temperatures(i:MIN(i + 3, SIZE(temperatures)))
+         ! switch between a longer visual format and a compact data-only print format
+         IF (plot_rel_energy) THEN
+            CPASSERT(SIZE(distances) == neb_env%number_of_replica - 1)
+            CPASSERT(SIZE(energies) == neb_env%number_of_replica)
+            CPASSERT(SIZE(temperatures) == neb_env%number_of_replica)
+            ener_min = MINVAL(energies(:))
+            ener_range = MAXVAL(energies(:)) - ener_min
+            n_max = 0
+            n_min = 0
+            WRITE (output_unit, '(T2,A,T22,A,T35,A,T52,A)') &
+               'REPLICA', 'ENERGY [au]', 'TEMPERATURE [K]', 'o-------------------------> E'
+            DO i = 1, SIZE(distances)
+               plt = FLOOR((energies(i) - ener_min)/ener_range*25)
+               l_ener = "(**)"
+               IF (i > 1) THEN
+                  IF (energies(i) - energies(i - 1) > 0) THEN
+                     l_ener(2:2) = "+"
+                  ELSE
+                     l_ener(2:2) = "-"
+                  END IF
+               END IF
+               IF (energies(i + 1) - energies(i) < 0) THEN
+                  l_ener(3:3) = "+"
+               ELSE
+                  l_ener(3:3) = "-"
+               END IF
+               SELECT CASE (l_ener)
+               CASE ("(++)") ! local maximum
+                  n_max = n_max + 1
+                  WRITE (line, '(A,A,A)') "|", REPEAT(" ", plt), "X"
+               CASE ("(--)") ! local minimum
+                  n_min = n_min + 1
+                  WRITE (line, '(A,A,A)') "|", REPEAT(" ", plt), "x"
+               CASE DEFAULT
+                  WRITE (line, '(A,A,A)') "|", REPEAT(" ", plt), "O"
+               END SELECT
+               WRITE (output_unit, '(T2,I7,T10,F18.8,1X,A,T34,F16.6,T52,A)') &
+                  i, energies(i), l_ener, temperatures(i), TRIM(line)
+               WRITE (output_unit, '(T2,A,1X,F16.6,T52,A)') &
+                  "DISTANCE = ", distances(i), "|"
             END DO
+            plt = FLOOR((energies(neb_env%number_of_replica) - ener_min)/ener_range*25)
+            l_ener = "(**)"
+            IF (energies(neb_env%number_of_replica) - energies(neb_env%number_of_replica - 1) > 0) THEN
+               l_ener(2:2) = "+"
+            ELSE
+               l_ener(2:2) = "-"
+            END IF
+            ! The last point would not be local maximum or minimum, as is the first
+            WRITE (line, '(A,A,A)') "|", REPEAT(" ", plt), "O"
+            WRITE (output_unit, '(T2,I7,T10,F18.8,1X,A,T34,F16.6,T52,A)') &
+               neb_env%number_of_replica, energies(neb_env%number_of_replica), &
+               l_ener, temperatures(neb_env%number_of_replica), TRIM(line)
+            WRITE (output_unit, '(T52,A)') "v Nr."
+            WRITE (output_unit, '(T2,A,T44,2(1X,I4))') &
+               "NUMBER OF LOCAL MAXIMA (X) and MINIMA (x):", n_max, n_min
+         ELSE
+            WRITE (output_unit, '( A,T17,4F16.6)') &
+               ' DISTANCES REP =', distances(1:MIN(4, SIZE(distances)))
+            IF (SIZE(distances) > 4) THEN
+               WRITE (output_unit, '( T17,4F16.6)') distances(5:SIZE(distances))
+            END IF
+            WRITE (output_unit, '( A,T17,4F16.6)') &
+               ' ENERGIES [au] =', energies(1:MIN(4, SIZE(energies)))
+            IF (SIZE(energies) > 4) THEN
+               WRITE (output_unit, '( T17,4F16.6)') energies(5:SIZE(energies))
+            END IF
+            IF (neb_env%opt_type == band_md_opt) THEN
+               WRITE (output_unit, '( A,T33,4(1X,F11.5))') &
+                  ' REPLICA TEMPERATURES (K)      =', temperatures(1:MIN(4, SIZE(temperatures)))
+               DO i = 5, SIZE(temperatures), 4
+                  WRITE (output_unit, '( T33,4(1X,F11.5))') &
+                     temperatures(i:MIN(i + 3, SIZE(temperatures)))
+               END DO
+            END IF
          END IF
          WRITE (output_unit, '( A,T56,F25.14)') &
             ' BAND TOTAL ENERGY [au]        =', SUM(energies(:) + ekin(:)) + &
