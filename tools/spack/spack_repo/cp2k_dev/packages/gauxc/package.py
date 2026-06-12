@@ -85,7 +85,7 @@ class Gauxc(CMakePackage, CudaPackage):
     depends_on("hip", when="+hip")
     depends_on("gau2grid", when="+gau2grid")
     depends_on("nlohmann-json", when="+skala")
-    depends_on("py-torch@2:", when="+skala")
+    depends_on("py-torch@2:~cuda", when="+skala~cuda")
     depends_on("py-torch@2:+cuda", when="+skala+cuda")
     depends_on("magma", when="+magma")
     depends_on("nccl", when="+nccl")
