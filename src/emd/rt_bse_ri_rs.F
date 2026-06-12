@@ -162,7 +162,7 @@ CONTAINS
       bs_env%ri_rs%V_grid_built = .TRUE.
 
       IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,T58,A,F7.1,A)') &
+         WRITE (bs_env%unit_nr, '(T2,A,T57,A,F7.1,A)') &
             'Precomputed RT-BSE RI-RS V_grid kernel,', ' Execution time', &
             m_walltime() - t1, ' s'
          WRITE (bs_env%unit_nr, '(A)') ' '
@@ -235,7 +235,7 @@ CONTAINS
       bs_env%ri_rs%rtbse_kernels_ready = .TRUE.
 
       IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,T58,A,F7.1,A)') &
+         WRITE (bs_env%unit_nr, '(T2,A,T57,A,F7.1,A)') &
             'Precomputed RT-BSE RI-RS W0_grid kernel,', ' Execution time', &
             m_walltime() - t1, ' s'
          WRITE (bs_env%unit_nr, '(A)') ' '
