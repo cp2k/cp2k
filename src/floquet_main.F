@@ -19,6 +19,7 @@ MODULE floquet_main
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE floquet_utils,                   ONLY: build_floquet_matrix,&
                                               calculate_floquet_spectral_function,&
@@ -205,6 +206,7 @@ CONTAINS
       CALL cp_cfm_release(floquet_matrix)
       CALL cp_cfm_release(floquet_copy)
       CALL cp_cfm_release(cfm_eigenvectors)
+      CALL cp_fm_struct_release(floquet_struct)
 
       CALL timestop(handle)
 
