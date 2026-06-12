@@ -11,6 +11,7 @@ electronic-structure features.
 titlesonly:
 maxdepth: 2
 ---
+molecular_orbitals
 band/index
 dos
 population/index
