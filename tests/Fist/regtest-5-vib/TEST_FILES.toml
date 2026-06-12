@@ -1,8 +1,8 @@
 #vibrational analysis
-"wat_freq.inp"                          = [{matcher="Vib_freq", tol=1.0E-14, ref=1736.71017},
+"wat_freq.inp"                          = [{matcher="Vib_freq", tol=1.0E-14, ref=1736.7101734},
                                            {matcher="Vib_frc_const", tol=1.0E-04, ref=0.122443}]
-"wat_freq_norot.inp"                    = [{matcher="Vib_freq", tol=1.0E-14, ref=1736.71017}]
-"wat_freq_freeze.inp"                   = [{matcher="Vib_freq", tol=1.0E-14, ref=-37.5932835}]
+"wat_freq_norot.inp"                    = [{matcher="Vib_freq", tol=1.0E-14, ref=1736.7101734}]
+"wat_freq_freeze.inp"                   = [{matcher="Vib_freq", tol=1.0E-14, ref=-37.593283504}]
 "wat_mode_sel.inp"                      = []
 "wat_mode_sel_range.inp"                = []
 # MD inititalization with velocities from vibrational analysis
@@ -18,6 +18,6 @@
 "N3dye_vib_restart_vec.inp"             = [{matcher="M018", tol=1.0E-14, ref=1720.504999}]
 "N3dye_vib_restart_vec4.inp"            = [{matcher="M018", tol=1.0E-14, ref=1720.506967}]
 # write vibrational normal modes to molden, then re-read as initial dimer vector
-"argon_vib_molden_write.inp"            = [{matcher="Vib_freq", tol=1.0E-14, ref=33.2454171}]
+"argon_vib_molden_write.inp"            = [{matcher="Vib_freq", tol=1.0E-14, ref=33.245417079}]
 "argon_dimer_molden_read.inp"           = [{matcher="M007", tol=1.0E-7, ref=0.0000033386}]
 #EOF
