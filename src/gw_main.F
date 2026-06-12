@@ -13,11 +13,13 @@
 MODULE gw_main
    USE gw_large_cell_Gamma,             ONLY: gw_calc_large_cell_Gamma
    USE gw_large_cell_Gamma_ri_rs,       ONLY: gw_calc_large_cell_Gamma_ri_rs
+   USE gw_non_periodic_ri_rs,           ONLY: gw_calc_non_periodic_ri_rs
    USE gw_small_cell_full_kp,           ONLY: gw_calc_small_cell_full_kp
    USE gw_utils,                        ONLY: create_and_init_bs_env_for_gw
    USE input_constants,                 ONLY: large_cell_Gamma,&
                                               large_cell_Gamma_ri_rs,&
-                                              small_cell_full_kp
+                                              small_cell_full_kp, &
+                                              non_periodic_ri_rs
    USE input_section_types,             ONLY: section_vals_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: qs_environment_type
@@ -68,6 +70,10 @@ CONTAINS
       CASE (large_cell_Gamma_ri_rs)
 
          CALL gw_calc_large_cell_Gamma_ri_rs(qs_env, bs_env)
+
+      CASE (non_periodic_ri_rs)
+
+         CALL gw_calc_non_periodic_ri_rs(qs_env, bs_env)
 
       END SELECT
 

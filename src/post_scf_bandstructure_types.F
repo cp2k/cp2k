@@ -67,7 +67,6 @@ MODULE post_scf_bandstructure_types
 
       ! Input parameters for RI-RS
       INTEGER                                          :: grid_select = 1
-      INTEGER                                          :: chunk_size_dbcsr = 256
       REAL(KIND=dp)                                    :: tikhonov = 1.0E-08_dp
       REAL(KIND=dp)                                    :: cutoff_radius_ri_rs = 30.0_dp
 

@@ -43,10 +43,9 @@
     &BANDSTRUCTURE
       &GW
         NUM_TIME_FREQ_POINTS 10
-      &END GW
-      &GW_RI_RS
+        RI_RS
         GRID_SELECT 1
-      &END GW_RI_RS
+      &END GW
     &END BANDSTRUCTURE
   &END PROPERTIES
   &SUBSYS

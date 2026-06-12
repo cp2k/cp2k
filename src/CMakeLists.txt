@@ -226,6 +226,7 @@ list(
   gw_main.F
   gw_large_cell_gamma.F
   gw_small_cell_full_kp.F
+  gw_non_periodic_ri_rs.F
   gw_large_cell_gamma_ri_rs.F
   post_scf_bandstructure_types.F
   post_scf_bandstructure_utils.F
