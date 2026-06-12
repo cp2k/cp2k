@@ -1,4 +1,3 @@
-ai_contraction_sphi.F: Module "libxsmm" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init" https://cp2k.org/conv#c012
 al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel" https://cp2k.org/conv#c012
 base_hooks.F: Found CALL m_abort in procedure "cp_abort" https://cp2k.org/conv#c102
@@ -33,8 +32,6 @@ cp_output_handling_openpmd.F: Found type cp_openpmd_per_call_value_type without 
 cp_parser_inpp_methods.F: Found READ with unchecked STAT in "inpp_process_directive" https://cp2k.org/conv#c001
 cube_utils.F: Found WRITE statement with hardcoded unit in "return_cube_nonortho" https://cp2k.org/conv#c012
 d3_poly.F: Found CALL RANDOM_NUMBER in procedure "poly_random" https://cp2k.org/conv#c104
-dbt_array_list_methods.F: Module "libxsmm" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
-dbt_tas_util.F: Module "libxsmm" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral_a" https://cp2k.org/conv#c012
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral" https://cp2k.org/conv#c012
 domain_submatrix_methods.F: Found WRITE statement with hardcoded unit in "print_submatrices" https://cp2k.org/conv#c012
@@ -106,6 +103,11 @@ library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test" https://cp2k.
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test" https://cp2k.org/conv#c104
+libxs_jit.F: Found type libxs_cpuid_t without initializer https://cp2k.org/conv#c016
+libxs_jit.F: Found type libxs_fprint_t without initializer https://cp2k.org/conv#c016
+libxs_jit.F: Found type libxs_matdiff_t without initializer https://cp2k.org/conv#c016
+libxs_jit.F: Found type libxs_registry_info_t without initializer https://cp2k.org/conv#c016
+libxs_jit.F: Found type libxs_timer_info_t without initializer https://cp2k.org/conv#c016
 machine.F: Found CALL m_abort in procedure "m_getcwd" https://cp2k.org/conv#c102
 machine.F: Found CALL m_abort in procedure "m_hostnm" https://cp2k.org/conv#c102
 machine.F: Found CALL m_abort in procedure "m_mov" https://cp2k.org/conv#c102
@@ -116,7 +118,6 @@ machine.F: Found OPEN statement in procedure "m_memory" https://cp2k.org/conv#c2
 machine.F: Found WRITE statement with hardcoded unit in "m_getcwd" https://cp2k.org/conv#c012
 machine.F: Found WRITE statement with hardcoded unit in "m_hostnm" https://cp2k.org/conv#c012
 machine.F: Found WRITE statement with hardcoded unit in "m_mov" https://cp2k.org/conv#c012
-machine.F: Module "libxsmm" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 mathlib.F: Found WRITE statement with hardcoded unit in "diag" https://cp2k.org/conv#c012
 mc_coordinates.F: Found WRITE statement with hardcoded unit in "generate_cbmc_swap_config" https://cp2k.org/conv#c012
 mcl_api.F: Module "mcl" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
@@ -187,6 +188,8 @@ qs_charge_mixing.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE ht
 qs_dispersion_d4.F: Module "dftd4" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_dispersion_d4.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_dispersion_d4.F: Module "multicharge" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+qs_dispersion_s_dftd3.F: Module "dftd3_param" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+qs_dispersion_s_dftd3.F: Module "mctc_data" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_density" https://cp2k.org/conv#c012
 qs_fb_env_methods.F: Found CALL cp_fm_gemm in procedure "fb_env_do_diag" https://cp2k.org/conv#c101
 qs_fb_filter_matrix_methods.F: Found WRITE statement with hardcoded unit in "fb_fltrmat_build_atomic_fltrmat" https://cp2k.org/conv#c012
