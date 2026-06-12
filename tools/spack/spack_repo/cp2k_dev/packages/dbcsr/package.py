@@ -24,7 +24,12 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
     license("GPL-2.0-or-later")
 
     version("develop", branch="develop")
-    version("2.9.1-cmake-test", commit="4d85b72e3427ec7f595ad0cf38a4d00f72f9ff60")
+    version("2.9.2-preview", commit="4d85b72e3427ec7f595ad0cf38a4d00f72f9ff60")
+    version("2.9.1", sha256="fa5a4aeba0a07761511af2c26c779bd811b5ea0ef06a5d94535b6dd7b2e0ce59")
+    version("2.9.0", sha256="a04cacd2203bd97a31ac993f9ab84237a48191140bba29efadbc27db544bbcd6")
+    version("2.8.0", sha256="d55e4f052f28d1ed0faeaa07557241439243287a184d1fd27f875c8b9ca6bd96")
+
+    new_smm_versions = "@2.9.2-preview,2.9.2:,develop"
 
     variant("tests", default=False, description="Build DBCSR unit tests")
     variant("tests", default=True, description="Build DBCSR unit tests", when="@2.1:2.2")
@@ -34,7 +39,7 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
     variant(
         "smm",
         default="libxsmm",
-        values=("libxsmm", "blas"),
+        values=("libxsmm", "libxs", "blas"),
         description="Library for small matrix multiplications",
     )
     variant(
@@ -59,7 +64,16 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
     depends_on("lapack")
     depends_on("mpi", when="+mpi")
 
-    with when("smm=libxsmm"):
+    conflicts(
+        "smm=libxs", when="@:2.9.1", msg="smm=libxs is only supported by DBCSR 2.9.2 or newer"
+    )
+
+    depends_on("libxsmm@1.11:", when="@:2.9.1 smm=libxsmm")
+
+    with when(f"{new_smm_versions} smm=libxs"):
+        depends_on("libxs")
+
+    with when(f"{new_smm_versions} smm=libxsmm"):
         depends_on("libxs")
         depends_on("libxsmm")
 
@@ -77,7 +91,6 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
 
     # Several packages provide "opencl" (incl. ICD/loader), e.g., "cuda"
     depends_on("opencl", when="+opencl")
-    depends_on("libxs", when="+opencl")
     depends_on("libxstream", when="+opencl")
     opencl_loader_header_version = "2022.10.24"
     depends_on(f"opencl-c-headers@{opencl_loader_header_version}:", when="+opencl")
@@ -127,8 +140,11 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
     conflicts("^openblas threads=pthreads", when="+openmp")
     conflicts("^openblas threads=none", when="+openmp")
 
-    # OpenCL backend requires LIBXS, which is selected through the libxsmm SMM path.
-    requires("smm=libxsmm", when="+opencl")
+    # OpenCL follows the legacy LIBXSMM SMM path up to DBCSR 2.9.1.
+    requires("smm=libxsmm", when="+opencl @:2.9.1")
+
+    # Starting with the 2.9.2 interface, LIBXS is an explicit SMM backend.
+    requires("smm=libxs", when=f"+opencl {new_smm_versions}")
 
     with when("+mpi"):
         # When using mpich 4.1 or higher, mpi_f08 has to be used, otherwise:
@@ -162,9 +178,14 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
         if "+rocm" in spec and len(spec.variants["amdgpu_target"].value) > 1:
             raise InstallError("DBCSR supports only one amdgpu_arch at a time")
 
+        smm = spec.variants["smm"].value
+        has_libxs_smm = (
+            spec.satisfies("@2.9.2-preview")
+            or spec.satisfies("@2.9.2:")
+            or spec.satisfies("@develop")
+        )
+
         args = [
-            self.define("USE_LIBXS", "smm=libxsmm" in spec),
-            self.define("USE_LIBXSMM", "smm=libxsmm" in spec),
             self.define_from_variant("USE_MPI", "mpi"),
             self.define_from_variant("USE_OPENMP", "openmp"),
             # C API needs MPI
@@ -173,6 +194,14 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
             self.define_from_variant("WITH_EXAMPLES", "examples"),
             self.define_from_variant("BUILD_TESTING", "tests"),
         ]
+
+        if has_libxs_smm:
+            args += [
+                self.define("USE_LIBXS", smm in ("libxs", "libxsmm")),
+                self.define("USE_LIBXSMM", smm == "libxsmm"),
+            ]
+        else:
+            args.append("-DUSE_SMM=%s" % ("libxsmm" if smm == "libxsmm" else "blas"))
 
         lapack, blas = spec["lapack"], spec["blas"]
         if blas.name != "intel-oneapi-mkl":
