@@ -367,8 +367,11 @@ CONTAINS
    END SUBROUTINE run_propagation_linearized_bse
 
 ! **************************************************************************************************
-!> \brief Writes the header and basic info (incl maximum timestep inside stability region)
-!>        to the standard output
+!> \brief Computes the analytic RK4 stability bound t* = 2√2 / Ω_max (a.u.) from the largest active
+!>        GW/KS gap, and (TDA + first-peak) the rotating-frame shift Ω_0 = ε^ai_min.
+!>        Writes the timestep diagnostics to stdout; optionally rewrites TIMESTEP/STEPS under
+!>        ENFORCE_MAX_DT.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §7 Eq. t*
 !> \param rtbse_env Entry point - rtbse environment
 ! **************************************************************************************************
    SUBROUTINE initialize_maximum_timestep(rtbse_env)
@@ -395,7 +398,7 @@ CONTAINS
                      MINVAL(rtbse_env%bs_env%eigenval_scf_Gamma(i_first:i_last, :))
       END IF
 
-      ! First-peak shift (TDA only): set Omega_0 = eps_min_ai so the lowest
+      ! First-peak shift (TDA only): set Ω_0 = eps_min_ai so the lowest
       ! active OV mode oscillates at zero frequency in the rotating frame
       ! (RK4-exact for peak 1). omega_max is the full active OV width
       ! Delta = eps_max_ai - eps_min_ai, where eps_ai = eps_a - eps_i runs
@@ -472,6 +475,7 @@ CONTAINS
       rtbse_env%omega_max = omega_max
 
       IF (omega_max > 0.0_dp) THEN
+         ! t* = 2√2 / Ω_max  (a.u.; imaginary-axis RK4 bound |R(iy)| ≤ 1 at y = 2√2)
          rtbse_env%maximum_timestep = 2.0_dp*SQRT(2.0_dp)/omega_max
       ELSE
          CALL cp_abort(__LOCATION__, &
@@ -539,14 +543,10 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE reallocate_ft_traces
 
-   ! **************************************************************************************************
-   !> \brief Writes the header and basic info (incl maximum timestep inside stability region)
-   !>        to the standard output
-   !> \param rtbse_env Entry point - rtbse environment
-   ! **************************************************************************************************
 ! **************************************************************************************************
-!> \brief ...
-!> \param rtbse_env ...
+!> \brief Prints the linRTBSE run header to stdout: active-MO window (first/last/count) and the
+!>        occupied/virtual energy cutoffs.
+!> \param rtbse_env Entry point - rtbse environment
 ! **************************************************************************************************
    SUBROUTINE print_linrtbse_header_info(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
@@ -636,6 +636,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Populates rtbse_env%C_active(i_spin) (n_ao x mo_active) by extracting columns
 !>        first_active_mo..last_active_mo from bs_env%fm_mo_coeff_Gamma(i_spin).
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §6 (C_µp active-MO coefficients)
 !> \param rtbse_env RT-BSE environment
 !> \author Maximilian Graml (05/26)
 ! **************************************************************************************************
@@ -662,7 +663,9 @@ CONTAINS
    END SUBROUTINE populate_C_active
 
 ! **************************************************************************************************
-!> \brief Calculates the single particle Hamiltonian
+!> \brief Builds the dipole moment operators r_mn in the active-MO basis (per axis, per spin) from
+!>        the AO moment matrices: moments(k,σ) at the reference point, moments_field(k,σ) at origin.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §2 (r_mn dipole matrix elements)
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
 !> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
@@ -735,7 +738,9 @@ CONTAINS
    END SUBROUTINE initialize_moments
 
 ! **************************************************************************************************
-!> \brief Calculates the initial density matrix, based on the SCF density
+!> \brief Initial MO density ρ^0_mn = f_m δ_mn (f_m = 1 on active occupied, 0 on virtual), copied to
+!>        rho_orig as the reference for the δ-kick. Imaginary part zero.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §3 Eq. rho0_diag
 !> \param rtbse_env RT-BSE environment
 !> \author Maximilian Graml (03/26)
 ! **************************************************************************************************
@@ -783,7 +788,9 @@ CONTAINS
    END SUBROUTINE initialize_density_matrix
 
 ! **************************************************************************************************
-!> \brief Calculates the single particle Hamiltonian in the MO basis
+!> \brief Single-particle reference Hamiltonian in the active-MO basis: H^0_mn = ε^GW_m δ_mn (or KS
+!>        ε^scf), diagonal. TDA first-peak adds +Ω_0/2 on occupied, -Ω_0/2 on virtual diagonals.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §2 Eq. H^0 / §7 (rotating frame)
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
 !> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
@@ -828,9 +835,9 @@ CONTAINS
                   END IF
                   ! First-peak shift (TDA only): rotate the single-particle Hamiltonian
                   ! into a frame where the lowest active OV mode oscillates at zero, with
-                  ! Omega_0 = eps_min_ai. Adds +Omega_0/2 on active occupied diagonals and
-                  ! -Omega_0/2 on active virtual diagonals so that [h', rho]_OV picks up an
-                  ! overall (- eps_ai + Omega_0) and OO/VV blocks remain commutator-free.
+                  ! Ω_0 = eps_min_ai. Adds +Ω_0/2 on active occupied diagonals and
+                  ! -Ω_0/2 on active virtual diagonals so that [h', rho]_OV picks up an
+                  ! overall (- eps_ai + Ω_0) and OO/VV blocks remain commutator-free.
                   IF (rtbse_env%tda_active .AND. rtbse_env%tda_shift_to_first_peak) THEN
                      IF (abs_mo_idx <= rtbse_env%n_occ(i)) THEN
                         rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = &
@@ -863,7 +870,10 @@ CONTAINS
    END SUBROUTINE initialize_singleparticle_hamiltonian
 
 ! **************************************************************************************************
-!> \brief Calculates the Hartree potential
+!> \brief Reference Hartree subtraction: builds V^H[ρ^0] (AO-RI or RI-RS) and subtracts it into
+!>        ham_reference, realizing H_eff = ... + V_H[ρ] - V_H[ρ^0]. Only for non-TDA n_spin=1 (in
+!>        TDA the OV/VO projection of the OO-diagonal ρ^0 vanishes, so the reference is zero).
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §1 / §6 Eq. VHt
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
 !> \author Maximilian Graml (03/26) - add transform to MO
@@ -907,12 +917,14 @@ CONTAINS
       IF (use_hartree_reference) THEN
          DO i = 1, rtbse_env%n_spin
             IF (use_rirs_hartree) THEN
+               ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'  (RI-RS)
                ! AO-RI get_hartree uses only Re(rho); mirror that on the RI-RS path.
                CALL cp_cfm_to_fm(msource=rtbse_env%rho_ao_lrrtbse(i), &
                                  mtargetr=rtbse_env%real_workspace(1))
                CALL compute_hartree_ri_rs(bs_env, rtbse_env%real_workspace(1), &
                                           rtbse_env%hartree_curr_ao(i))
             ELSE
+               ! V^H_λσ = sum_PQ (λσ|P) V_PQ [sum_µν (µν|Q) ρ^0_µν]  (AO-RI; reference density)
                CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(i), rtbse_env%hartree_curr_ao(i))
             END IF
             ! Scaling by spin degeneracy
@@ -934,7 +946,10 @@ CONTAINS
    END SUBROUTINE initialize_hartree_potential
 
 ! **************************************************************************************************
-!> \brief Calculates the single particle Hamiltonian
+!> \brief Reference COHSEX self-energy subtraction into ham_reference (non-TDA n_spin=1 for SEX; COH
+!>        is a static no-op exactly cancelled per step). Assembles W = V + W^c, then Σ^COH (static
+!>        Coulomb-hole, scale -1/2 on S^-1) and Σ^SX = -W ρ^0, each (f_n - f_m)-weighted, subtracted.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §1 / §6 (Σ^SX, COH) ; open_questions Q6 (COH no-op)
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
 !> \author Maximilian Graml (03/26) - add transform to MO
@@ -984,9 +999,11 @@ CONTAINS
             ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
             ! TODO : Allow no COH calculation for static screening
             IF (use_rirs_sex) THEN
+               ! Σ^COH (static Coulomb-hole) via RI-RS grid kernel; scale -1/2, contracted on S^-1
                CALL compute_sigma_ri_rs(rtbse_env%bs_env, rtbse_env%sigma_COH_ao(i), -0.5_dp, &
                                         rtbse_env%S_inv_fm)
             ELSE
+               ! Σ^COH (static Coulomb-hole) via AO-RI get_sigma; scale -1/2, contracted on S^-1
                CALL get_sigma(rtbse_env, rtbse_env%sigma_COH_ao(i), -0.5_dp, rtbse_env%S_inv_fm)
             END IF
             ! Transform to MO basis (AO scratch -> MO-active result)
@@ -1006,6 +1023,7 @@ CONTAINS
          ! rho_orig is OO-diagonal in the MO basis, so its OV/VO projections
          ! vanish and the SEX reference must remain zero in TDA.
          IF (use_sex_reference) THEN
+            ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) ρ^0_µν][sum_P (νσ|P) W_PQ]  (reference)
             CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
             ! Transform to MO basis (AO scratch -> MO-active result)
             CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(i), rtbse_env%sigma_SEX(i), i)
@@ -1022,8 +1040,11 @@ CONTAINS
    END SUBROUTINE initialize_cohsex_selfenergy
 
 ! **************************************************************************************************
-!> \brief Propagates the density to the next timestep using Runge-Kutta 4th order (RK4) method
-!> \param rtbse_env ...
+!> \brief Propagates the density one timestep by RK4 for ∂_t ρ = f(t,ρ) =
+!>        -i( Δε Δρ + (f_n - f_m) V_Hartree(Δρ) + ΔΣ(Δρ) ); see body for the 4-stage scheme.
+!>        Spin loop is inner to each stage (cross-spin Hartree coupling).
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §7 (RK4) / §4 Eq. drho_MO_linear_diag
+!> \param rtbse_env Entry point - rtbse environment
 !> \param rho_start Initial density matrix
 !> \param rho_end Final density matrix
 !> \param converged Whether the resulting rho_end is self-consistent
@@ -1143,6 +1164,7 @@ CONTAINS
 !>        single call feeds every spin block - the cross-spin Hartree coupling of open shell.
 !>        Side effect: leaves rho_ao_lrrtbse(sigma) = OV-masked AO density (recomputed per spin in
 !>        update_effective_ham_MO; built here only to form the sum).
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §9.4 (single shared Hartree call)
 !> \param rtbse_env RT-BSE environment
 !> \param rho_stage Per-spin MO density at the current RK4 stage
 !> \param keep_ovvo .FALSE. = OV source mask (TDA); .TRUE. = OV+VO (open-shell ABBA).
@@ -1177,9 +1199,11 @@ CONTAINS
       ! get_hartree_complex and compute_hartree_ri_rs_complex take AO x AO in/out and are spin-blind,
       ! so the spin-summed cross-spin density feeds whichever kernel is active (P-C21).
       IF (rtbse_env%rirs_hartree) THEN
+         ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'[ρ^total]  (RI-RS)
          CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_total_ao_scratch, &
                                             rtbse_env%hartree_total_ao)
       ELSE
+         ! V^H_λσ = sum_PQ (λσ|P) V_PQ [sum_µν (µν|Q) ρ^total_µν]  (AO-RI)
          CALL get_hartree_complex(rtbse_env, rtbse_env%rho_total_ao_scratch, &
                                   rtbse_env%hartree_total_ao, 1)
       END IF
@@ -1187,11 +1211,18 @@ CONTAINS
    END SUBROUTINE build_shared_hartree_ao
 
    ! **************************************************************************************************
-!> \brief Updates the effective Hamiltonian in the MO basis, given a density matrix rho
+!> \brief Assembles the linearized RT-BSE right-hand side in the MO basis and returns it scaled by -i:
+!>        ham_effective <- -i( [H^0, ρ] + (f_n - f_m)(ΔΣ^COH + ΔΣ^SX[Δρ] + ΔV^H[Δρ]) ), i.e. the
+!>        f(t,ρ) of ∂_t Δρ_mn = -i( (ε_m - ε_n)Δρ_mn + (f_n - f_m)(V^H_mn + Σ^SX_mn) ).
+!>        ham_reference already carries KS+G0W0 minus the reference COHSEX/Hartree, so the kernels
+!>        enter as differences vs the reference. Forks: tda_active (drop B-coupling: one OV kernel
+!>        pass + VO conjugate) vs full ABBA (OV+VO); n_spin and the rirs_hartree/rirs_sex flags
+!>        select the AO-RI or RI-RS backend per term.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §4 Eq. drho_MO_linear_diag (open shell §9.2/§9.4)
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
 !> \param rho Real and imaginary parts ( + spin) of the density at current time
 !> \param ham_effective Effective Hamiltonian in the MO basis that is updated in this routine
-!> \param ispin ...
+!> \param ispin Spin channel σ being assembled
 ! **************************************************************************************************
    SUBROUTINE update_effective_ham_MO(rtbse_env, rho, ham_effective, ispin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -1218,7 +1249,7 @@ CONTAINS
       !DO j = 1, nspin
       ! Sets the imaginary part to zero
       CALL cp_cfm_to_cfm(rtbse_env%ham_reference(ispin), ham_effective)
-      ! Multiply energy differences by delta rho and add to effective Hamiltonian
+      ! [H^0, ρ]_mn = (ε_m - ε_n) ρ_mn  (= (ε_m - ε_n)Δρ_mn since ρ^0 is MO-diagonal): two gemms below
       ! MG TODO: Code that in local_data chunks later on
       CALL cp_cfm_gemm('N', 'N', rtbse_env%mo_active, rtbse_env%mo_active, rtbse_env%mo_active, &
                        CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference_singleparticle(ispin), &
@@ -1247,9 +1278,11 @@ CONTAINS
       IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0 .AND. use_coh) THEN
          ! Add the COH part - so far static but can be dynamic in principle through the W updates
          IF (use_rirs_sex) THEN
+            ! COH (static Coulomb-hole) via RI-RS grid kernel; scale -1/2, contracted on S^-1
             CALL compute_sigma_ri_rs(rtbse_env%bs_env, rtbse_env%sigma_COH_ao(ispin), -0.5_dp, &
                                      rtbse_env%S_inv_fm)
          ELSE
+            ! COH (static Coulomb-hole) via AO-RI get_sigma; scale -1/2, contracted on S^-1
             CALL get_sigma(rtbse_env, rtbse_env%sigma_COH_ao(ispin), -0.5_dp, rtbse_env%S_inv_fm)
          END IF
          ! Transform to MO basis (AO scratch -> MO-active result)
@@ -1264,7 +1297,7 @@ CONTAINS
          IF (rtbse_env%n_spin == 1) THEN
             ! ===== Option B (closed-shell, legacy): full rho + init reference; RIRS-capable. =====
             ! Calculate the (S)EX part - based on provided rho
-            ! iGW = - rho W
+            ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]
             IF (use_sex) THEN
                CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
                ! Transform to MO basis (AO scratch -> MO-active result)
@@ -1279,12 +1312,14 @@ CONTAINS
             ! Hartree potential is scaled by number of electrons in each MO - spin degeneracy
             IF (use_hartree) THEN
                IF (use_rirs_hartree) THEN
+                  ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'  (RI-RS)
                   ! AO-RI get_hartree uses only Re(rho); mirror that on the RI-RS path.
                   CALL cp_cfm_to_fm(msource=rtbse_env%rho_ao_lrrtbse(ispin), &
                                     mtargetr=rtbse_env%real_workspace(1))
                   CALL compute_hartree_ri_rs(rtbse_env%bs_env, rtbse_env%real_workspace(1), &
                                              rtbse_env%hartree_curr_ao(ispin))
                ELSE
+                  ! V^H_λσ = sum_PQ (λσ|P) V_PQ [sum_µν (µν|Q) Δρ_µν]  (AO-RI)
                   CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
                                    rtbse_env%hartree_curr_ao(ispin))
                END IF
@@ -1311,6 +1346,7 @@ CONTAINS
             ! SEX: per-spin (W spin-diagonal). get_sigma builds -W*Delta rho; (f_n - f_m) zeros
             ! OO/VV and sets the OV/VO signs; coeff +1.
             IF (use_sex) THEN
+               ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]
                CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                      rtbse_env%sigma_SEX(ispin), ispin)
@@ -1375,6 +1411,7 @@ CONTAINS
          ! VO = (OV)^C; rho_delta_mo(ispin) is idle scratch after the projection.
          IF (use_hartree) THEN
             IF (use_rirs_hartree .AND. rtbse_env%n_spin == 1) THEN
+               ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'  (RI-RS)
                CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_ao_lrrtbse(ispin), &
                                                   rtbse_env%sigma_SEX_ao(ispin))
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
@@ -1401,6 +1438,7 @@ CONTAINS
             END IF
          END IF
          IF (use_sex) THEN
+            ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]
             CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
             CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                   rtbse_env%sigma_SEX(ispin), ispin)
@@ -1545,9 +1583,11 @@ CONTAINS
       !    K_MO[Delta rho_VO] = (K_MO[Delta rho_OV])^C.
       IF (use_hartree) THEN
          IF (rtbse_env%rirs_hartree) THEN
+            ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'  (RI-RS)
             CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_ao_lrrtbse(ispin), &
                                                rtbse_env%sigma_SEX_ao(ispin))
          ELSE
+            ! V^H_λσ = sum_PQ (λσ|P) V_PQ [sum_µν (µν|Q) Δρ_µν]  (AO-RI)
             CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
                                      rtbse_env%sigma_SEX_ao(ispin), ispin)
          END IF
@@ -1562,6 +1602,7 @@ CONTAINS
       !    +1.0 here (no occupation-factor flip), giving raw K^SX = -W as required by
       !    K = (ia|jb) - W_{ij,ab} (Casida convention with +K).
       IF (use_sex) THEN
+         ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]
          CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
          CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                rtbse_env%sigma_SEX(ispin), ispin)
@@ -1709,6 +1750,7 @@ CONTAINS
       ! -W; add raw +1 (no occupation-factor flip), giving K^SX = -W.
       IF (use_sex) THEN
          DO isp = 1, rtbse_env%n_spin
+            ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]  (per spin)
             CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(isp), -1.0_dp, rtbse_env%rho_ao_lrrtbse(isp))
             CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(isp), &
                                                   rtbse_env%sigma_SEX(isp), isp)
@@ -1914,7 +1956,7 @@ CONTAINS
 !>        spin sigma_probe fills joint column off(sigma_probe)+k_local; each output spin's OV
 !>        response -> A, VO response -> -B^* (recovered by sign-flip + conjugation). One joint
 !>        Furche reduction follows: (A-B)>0 gate (independent cp_cfm_heevd), (A-B)^{1/2} via
-!>        cp_cfm_power, C = (A-B)^{1/2}(A+B)(A-B)^{1/2}, cp_cfm_heevd, Omega_n = sqrt(C). The
+!>        cp_cfm_power, C = (A-B)^{1/2}(A+B)(A-B)^{1/2}, cp_cfm_heevd, Ω_n = √(C). The
 !>        matvec is dispatched on n_spin: n_spin=1 -> apply_liouvillian_to_drho_spin (RIRS-capable,
 !>        bit-identical to the closed-shell baseline); n_spin=2 -> the AO-RI cross-spin array
 !>        apply_liouvillian_to_drho. For n_spin=1 the routine reduces to the single-block path.
@@ -2099,7 +2141,7 @@ CONTAINS
                        CMPLX(0.0_dp, 0.0_dp, kind=dp), &
                        rtbse_env%L_pairs)
 
-      ! Diagonalize C -> Omega_n^2; take +sqrt. Safety clamp on tiny-negative noise.
+      ! Diagonalize C -> Ω_n^2; take +√. Safety clamp on tiny-negative noise.
       CALL cp_cfm_heevd(rtbse_env%L_pairs, rtbse_env%eigvecs_pairs, rtbse_env%eigenvalues_liouvillian)
       DO n = 1, n_ov_joint
          IF (rtbse_env%eigenvalues_liouvillian(n) < 0.0_dp) THEN
@@ -2136,11 +2178,13 @@ CONTAINS
    END SUBROUTINE diagnose_ABBA_liouvillian
 
 ! **************************************************************************************************
-!> \brief Transforms from AO to MO basis
+!> \brief Covariant AO->MO transform of an operator (real): M^MO_mn = sum_µν C_µm M^AO_µν C_νn.
+!>        For operator-like kernels (Σ^SX, COH, V^H); the density uses the contravariant routine.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §6
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
-!> \param fm_ao ...
-!> \param fm_mo ...
-!> \param i_spin ...
+!> \param fm_ao operator in the AO basis (n_ao x n_ao), input
+!> \param fm_mo operator in the active-MO basis (mo_active x mo_active), output
+!> \param i_spin spin channel σ; selects C_active(σ)
 ! **************************************************************************************************
    SUBROUTINE transform_ao_to_mo_covariant_fm(rtbse_env, fm_ao, fm_mo, i_spin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -2153,11 +2197,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! M_uv * C_active_vn  -> (n_ao x mo_active)
+      ! step 1: T_µn = sum_ν M^AO_µν C_νn  (n_ao x mo_active)
       CALL parallel_gemm("N", "N", rtbse_env%n_ao, rtbse_env%mo_active, rtbse_env%n_ao, &
                          1.0_dp, fm_ao, rtbse_env%C_active(i_spin), &
                          0.0_dp, rtbse_env%ao_mo_workspace(1))
-      ! (C_active_um)^T * (n_ao x mo_active) -> (mo_active x mo_active)
+      ! step 2: M^MO_mn = sum_µ C_µm T_µn  (mo_active x mo_active)
       CALL parallel_gemm("T", "N", rtbse_env%mo_active, rtbse_env%mo_active, rtbse_env%n_ao, &
                          1.0_dp, rtbse_env%C_active(i_spin), rtbse_env%ao_mo_workspace(1), &
                          0.0_dp, fm_mo)
@@ -2166,11 +2210,13 @@ CONTAINS
    END SUBROUTINE transform_ao_to_mo_covariant_fm
 
 ! **************************************************************************************************
-!> \brief Transforms from AO to MO basis for complex matrices
+!> \brief Covariant AO->MO transform (complex): M^MO_mn = sum_µν C_µm M^AO_µν C_νn, applied to the
+!>        real and imaginary AO parts separately (2x the real cost).
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §6
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
-!> \param fm_ao ...
-!> \param fm_mo ...
-!> \param i_spin ...! **************************************************************************************************
+!> \param fm_ao operator in the AO basis (n_ao x n_ao) cfm, input
+!> \param fm_mo operator in the active-MO basis (mo_active x mo_active) cfm, output
+!> \param i_spin spin channel σ; selects C_active(σ)
 ! **************************************************************************************************
    SUBROUTINE transform_ao_to_mo_covariant_cfm(rtbse_env, fm_ao, fm_mo, i_spin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -2186,14 +2232,14 @@ CONTAINS
       ! Decompose into real/imag AO-sized parts
       CALL cp_cfm_to_fm(msource=fm_ao, mtargetr=rtbse_env%real_workspace(1), &
                         mtargeti=rtbse_env%real_workspace(2))
-      ! REAL : C_active^T * (real_workspace(1) * C_active) -> mo_active x mo_active
+      ! Re(M^MO)_mn = sum_µν C_µm Re(M^AO)_µν C_νn  (two gemms via ao_mo_workspace)
       CALL parallel_gemm("N", "N", rtbse_env%n_ao, rtbse_env%mo_active, rtbse_env%n_ao, &
                          1.0_dp, rtbse_env%real_workspace(1), rtbse_env%C_active(i_spin), &
                          0.0_dp, rtbse_env%ao_mo_workspace(1))
       CALL parallel_gemm("T", "N", rtbse_env%mo_active, rtbse_env%mo_active, rtbse_env%n_ao, &
                          1.0_dp, rtbse_env%C_active(i_spin), rtbse_env%ao_mo_workspace(1), &
                          0.0_dp, rtbse_env%real_workspace_mo(1))
-      ! IMAG
+      ! Im(M^MO)_mn = sum_µν C_µm Im(M^AO)_µν C_νn
       CALL parallel_gemm("N", "N", rtbse_env%n_ao, rtbse_env%mo_active, rtbse_env%n_ao, &
                          1.0_dp, rtbse_env%real_workspace(2), rtbse_env%C_active(i_spin), &
                          0.0_dp, rtbse_env%ao_mo_workspace(1))
@@ -2209,11 +2255,13 @@ CONTAINS
    END SUBROUTINE transform_ao_to_mo_covariant_cfm
 
 ! **************************************************************************************************
-!> \brief Transforms from MO to AO basis for contravariant complex matrices (e.g. density matrix)
+!> \brief Contravariant MO->AO transform of the density (complex): Δρ^AO_µν = sum_mn C_µm Δρ^MO_mn C_νn.
+!>        Density-like (expands MO indices), unlike the covariant operator transform.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §6 Eq. densmat
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
-!> \param fm_mo ...
-!> \param fm_ao ...
-!> \param i_spin ...
+!> \param fm_mo density in the active-MO basis (mo_active x mo_active) cfm, input
+!> \param fm_ao density in the AO basis (n_ao x n_ao) cfm, output
+!> \param i_spin spin channel σ; selects C_active(σ)
 ! **************************************************************************************************
    SUBROUTINE transform_mo_to_ao_contravariant_cfm(rtbse_env, fm_mo, fm_ao, i_spin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -2230,11 +2278,11 @@ CONTAINS
       ! Rectangular n_ao x mo_active complex intermediate
       CALL cp_cfm_create(tmp_ao_mo, rtbse_env%fm_struct_ao_mo_active)
 
-      ! C_active * fm_mo  -> (n_ao x mo_active)
+      ! step 1: T_µn = sum_m C_µm Δρ^MO_mn  (n_ao x mo_active)
       CALL multiply_fm_cfm("N", "N", rtbse_env%n_ao, rtbse_env%mo_active, rtbse_env%mo_active, &
                            1.0_dp, rtbse_env%C_active(i_spin), fm_mo, &
                            0.0_dp, tmp_ao_mo)
-      ! (n_ao x mo_active) * C_active^T -> (n_ao x n_ao)
+      ! step 2: Δρ^AO_µν = sum_n T_µn C_νn  (n_ao x n_ao)
       CALL multiply_cfm_fm("N", "T", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%mo_active, &
                            1.0_dp, tmp_ao_mo, rtbse_env%C_active(i_spin), &
                            0.0_dp, fm_ao)
@@ -2245,10 +2293,13 @@ CONTAINS
    END SUBROUTINE transform_mo_to_ao_contravariant_cfm
 
 ! **************************************************************************************************
-!> \brief Applies the occupation factor difference f_n - f_m
+!> \brief Scales each MO-active element (m,n) by the occupation prefactor (f_n - f_m), f in {0,1}
+!>        (complex): OV -> -1, VO -> +1, OO/VV -> 0. The only trace of "ρ^0 diagonal in MO".
+!>        Applied to whatever kernel the caller passes (Σ^SX, COH, V^H in MO) - bound by the caller.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §3 / §4 Eq. drho_MO_linear_diag
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
-!> \param cfm ...
-!> \param i_spin ...
+!> \param cfm MO-active kernel matrix (mo_active x mo_active) cfm, scaled in place
+!> \param i_spin spin channel σ; OV/VO boundary set by n_occ(σ)
 ! **************************************************************************************************
    SUBROUTINE transform_mo_occupation_factor_diff_cfm(rtbse_env, cfm, i_spin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -2263,9 +2314,9 @@ CONTAINS
 
       CALL cp_cfm_to_fm(msource=cfm, mtargetr=rtbse_env%real_workspace_mo(1), &
                         mtargeti=rtbse_env%real_workspace_mo(2))
-      ! REAL
+      ! (f_n - f_m) applied to the real part
       CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%real_workspace_mo(1), i_spin)
-      ! IMAGINARY
+      ! (f_n - f_m) applied to the imaginary part
       CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%real_workspace_mo(2), i_spin)
       ! Copy back to cfm
       CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace_mo(1), &
@@ -2276,10 +2327,13 @@ CONTAINS
    END SUBROUTINE transform_mo_occupation_factor_diff_cfm
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param rtbse_env ...
-!> \param fm ...
-!> \param i_spin ...
+!> \brief Scales each MO-active element (m,n) by the occupation prefactor (f_n - f_m), f in {0,1}
+!>        (real): OV -> -1, VO -> +1, OO/VV -> 0. Real-input worker for the cfm variant; the only
+!>        trace of "ρ^0 diagonal in MO". Bound by the caller to the kernel being scaled.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §3 / §4 Eq. drho_MO_linear_diag
+!> \param rtbse_env Entry point of the calculation - contains current state of variables
+!> \param fm MO-active kernel matrix (mo_active x mo_active) fm, scaled in place
+!> \param i_spin spin channel σ; OV/VO boundary set by n_occ(σ)
 ! **************************************************************************************************
    SUBROUTINE transform_mo_occupation_factor_diff_fm(rtbse_env, fm, i_spin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -2331,6 +2385,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Mask an MO-active cfm: keep either OV or VO block, zero everything else.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §5
 !> \param rtbse_env RT-BSE environment
 !> \param cfm MO-active cfm to mask in place
 !> \param i_spin Spin index
@@ -2391,6 +2446,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Mask an MO-active fm: keep either OV or VO block, zero everything else.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §5
 !> \param rtbse_env RT-BSE environment
 !> \param fm MO-active fm to mask in place
 !> \param i_spin Spin index
@@ -2443,13 +2499,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Multiply a MO-active cfm rho by the TDA symmetric-shift rotation:
 !>        rho_OV *= exp(i * phase),  rho_VO *= exp(-i * phase).
-!>        OO/VV blocks are left untouched. For direction='to_lab' pass phase = -Omega_0*t;
-!>        for direction='to_rotating' pass phase = +Omega_0*t. No-op when omega_shift = 0.
+!>        OO/VV blocks are left untouched. For direction='to_lab' pass phase = -Ω_0*t;
+!>        for direction='to_rotating' pass phase = +Ω_0*t. No-op when omega_shift = 0.
 !>        Preserves Hermiticity since the two phases are complex conjugates of each other.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §7
 !> \param rtbse_env RT-BSE environment
 !> \param rho MO-active cfm rotated in place
 !> \param i_spin Spin index
-!> \param phase Real phase argument (radians); typically +/- Omega_0 * t
+!> \param phase Real phase argument (radians); typically +/- Ω_0 * t
 ! **************************************************************************************************
    SUBROUTINE rotate_rho_phase(rtbse_env, rho, i_spin, phase)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -2487,10 +2544,10 @@ CONTAINS
             j_global = col_indices(j_local)
             j_global_mo = j_global + shift
             IF (i_global_mo <= n_occ .AND. j_global_mo > n_occ) THEN
-               ! OV block
+               ! ρ_OV *= e^{+iφ}
                local_data(i_local, j_local) = phase_ov*local_data(i_local, j_local)
             ELSE IF (i_global_mo > n_occ .AND. j_global_mo <= n_occ) THEN
-               ! VO block
+               ! ρ_VO *= e^{-iφ}
                local_data(i_local, j_local) = phase_vo*local_data(i_local, j_local)
             END IF
          END DO
@@ -2502,9 +2559,10 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Build a lab-frame copy of the (possibly rotating-frame) density rho for I/O.
 !>        On the TDA + symmetric-shift path returns rho_lab(t) by multiplying OV/VO by
-!>        exp(-/+ i Omega_0 t). Otherwise returns a plain copy. Writes into rho_new_last
+!>        exp(-/+ i Ω_0 t). Otherwise returns a plain copy. Writes into rho_new_last
 !>        (mo_struct-sized, idle outside ETRS) and returns a pointer to it; falls back to
 !>        the input rho when no scratch is available.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §7
 !> \param rtbse_env RT-BSE environment
 !> \param rho_in Rotating-frame density (per spin)
 !> \param t_phys Physical time associated with rho_in
@@ -2529,8 +2587,8 @@ CONTAINS
 
       DO i = 1, rtbse_env%n_spin
          CALL cp_cfm_to_cfm(rho_in(i), rtbse_env%rho_new_last(i))
-         ! Lab-frame rho_OV(t) = exp(+i*Omega_0*t) * rho_tilde_OV(t)
-         ! (sign derived from [h_shifted, rho_tilde]_OV = (-eps_ai + Omega_0) rho_tilde_OV).
+         ! Lab-frame rho_OV(t) = exp(+i*Ω_0*t) * rho_tilde_OV(t)
+         ! (sign derived from [h_shifted, rho_tilde]_OV = (-eps_ai + Ω_0) rho_tilde_OV).
          CALL rotate_rho_phase(rtbse_env, rtbse_env%rho_new_last(i), i, rtbse_env%omega_shift*t_phys)
       END DO
       rho_lab => rtbse_env%rho_new_last
@@ -2544,6 +2602,8 @@ CONTAINS
 !>           v_AO = V_H[Re(rho_AO)] + i * V_H[Im(rho_AO)] .
 !>        Required by the TDA propagator where the per-pass input Delta rho_OV (or
 !>        Delta rho_VO) is non-Hermitian, so the imaginary part must be carried.
+!>        The real kernel get_hartree realises V^H_λσ = sum_PQ (λσ|P) V_PQ [sum_µν (µν|Q) Δρ_µν].
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §6 Eq. VHt
 !> \param rtbse_env RT-BSE environment
 !> \param rho_cfm AO complex input density
 !> \param v_cfm AO complex Hartree output (overwritten)
@@ -2571,7 +2631,7 @@ CONTAINS
       !   real_workspace(2) - holds Im(rho) then V_H[Im]
       !   sigma_complex_workspace(1) - cfm wrapper feeding the real-input slot of get_hartree
 
-      ! Real part
+      ! V^H[Re(Δρ^AO)] -> real_workspace(1)
       CALL cp_cfm_to_fm(msource=rho_cfm, mtargetr=rtbse_env%real_workspace(1))
       CALL cp_cfm_set_all(rtbse_env%sigma_complex_workspace(1), CMPLX(0.0_dp, 0.0_dp, kind=dp))
       CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(1), &
@@ -2596,7 +2656,10 @@ CONTAINS
    END SUBROUTINE get_hartree_complex
 
 ! **************************************************************************************************
-!> \brief Custom reimplementation of the delta pulse routines
+!> \brief δ-kick (Marek2025) seeding the linearized EOM: builds the MO-active dipole operator
+!>        A = intensity * sum_k kvec_k r_k (MO basis), Hermitizes it, and propagates ρ by exp(-iA),
+!>        so Δρ^+_nm = i(f_n - f_m) A_nm excites only the OV/VO blocks.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §5
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
 !> \author Maximilian Graml - trafo to MO and linearized version following 10.1021/acs.jctc.2c00644 (03.26)
@@ -2722,6 +2785,7 @@ CONTAINS
 !>        strict linear response on the RK4 derivatives so that the linearized propagator
 !>        only carries the OV/VO branches and the OO/VV orbital-energy spreads do not enter
 !>        the RK4 stability bound.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §5
 !> \param rtbse_env Entry point - rtbse environment
 !> \param cfm Derivative-like cfm in MO basis for one spin channel (modified in place)
 !> \param i_spin Spin index
@@ -2745,6 +2809,7 @@ CONTAINS
                            row_indices=row_indices, col_indices=col_indices)
       local_data => cfm%local_data
 
+      ! keep OV/VO, zero OO/VV: project Δρ onto the δ-kick sectors (§5)
       DO j_local = 1, ncol_local
          j_global = col_indices(j_local)
          j_global_mo = j_global + shift
@@ -2760,7 +2825,9 @@ CONTAINS
    END SUBROUTINE project_drho_to_ov
 
 ! **************************************************************************************************
-!> \brief Outputs the number of electrons in the system from the density matrix
+!> \brief Number of electrons from the MO density: N_e = spin_degeneracy * sum_σ Re Tr[ρ^σ].
+!>        Diagonal sum over active MOs per spin; the imaginary trace is a non-Hermiticity diagnostic.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §9.7
 !> \param rtbse_env Entry point - rtbse environment
 !> \param rho Density matrix in MO basis
 !> \param electron_n_re Real number of electrons
@@ -2787,7 +2854,7 @@ CONTAINS
                               row_indices=row_indices, &
                               col_indices=col_indices)
          local_data => rho(j)%local_data
-         ! Extract and sum diagonal elements
+         ! accumulate Tr[ρ^σ] = sum_m ρ^σ_mm (real and imaginary parts separately)
          DO i_local = 1, nrow_local
             i_global = row_indices(i_local)
             ! Search column indices for the diagonal position
@@ -2802,7 +2869,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      ! Scale by spin degeneracy
+      ! N_e = spin_degeneracy * Tr (g=2 closed shell; 1 per channel open shell)
       electron_n_re = electron_n_re*rtbse_env%spin_degeneracy
       electron_n_im = electron_n_im*rtbse_env%spin_degeneracy
    END SUBROUTINE get_electron_number_MO
@@ -2811,7 +2878,8 @@ CONTAINS
 !> \brief Add +/- delta_omega/2 to the diagonal of ham_reference_singleparticle:
 !>        +delta/2 on active occupied diagonals, -delta/2 on active virtual diagonals.
 !>        Used to move between lab frame (omega_shift = 0) and rotating frame
-!>        (omega_shift = Omega_0). Per spin. No-op when delta_omega = 0.
+!>        (omega_shift = Ω_0). Per spin. No-op when delta_omega = 0.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §7
 !> \param rtbse_env RT-BSE environment
 !> \param delta_omega Frequency-shift increment to add (subtract: pass negative)
 ! **************************************************************************************************
@@ -2901,15 +2969,15 @@ CONTAINS
 !> \brief Two-sweep Krylov estimator of the TDA excitation-spectrum extremes in lab frame.
 !>
 !>        The linearized RT-BSE Liouvillian L (returned by update_effective_ham_MO,
-!>        with the affine constant k0 = L*0 subtracted) has eigenvalues +/- i*Omega_n
-!>        for the BSE-A excitation energies Omega_n. Therefore L^2 has real negative
-!>        eigenvalues -Omega_n^2.
+!>        with the affine constant k0 = L*0 subtracted) has eigenvalues +/- i*Ω_n
+!>        for the BSE-A excitation energies Ω_n. Therefore L^2 has real negative
+!>        eigenvalues -Ω_n^2.
 !>
 !>        Sweep 1: power iteration on -L^2 (matvec = -L*(L*v)) converges to the
-!>          largest eigenvalue Omega_max^2.
-!>        Sweep 2: spectral folding on M = Omega_max^2 * I + L^2. Eigenvalues are
-!>          Omega_max^2 - Omega_n^2 (>=0); the largest gives Omega_max^2 - Omega_min^2.
-!>          Hence Omega_min = sqrt(Omega_max^2 - dominant fold eigenvalue).
+!>          largest eigenvalue Ω_max^2.
+!>        Sweep 2: spectral folding on M = Ω_max^2 * I + L^2. Eigenvalues are
+!>          Ω_max^2 - Ω_n^2 (>=0); the largest gives Ω_max^2 - Ω_min^2.
+!>          Hence Ω_min = √(Ω_max^2 - dominant fold eigenvalue).
 !>
 !>        Caller MUST have placed ham_reference_singleparticle in the desired (typically
 !>        lab) frame; this routine does not shift. Each iteration costs two
@@ -2962,7 +3030,7 @@ CONTAINS
             ' RTBSE|', 'iter', 'Omega_max [eV]', 'rel.change'
       END IF
 
-      ! ----- Sweep 1: power iteration on -L^2 -> Omega_max^2 -----
+      ! ----- Sweep 1: power iteration on -L^2 -> Ω_max^2 -----
       CALL init_random_hermitian_seed(seed, work_h, 20260507, nrow_local, ncol_local, &
                                       norm_seed)
       CALL project_drho_to_ov(rtbse_env, seed, ispin)
@@ -2983,7 +3051,7 @@ CONTAINS
             CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), l_v, &
                                       CMPLX(-1.0_dp, 0.0_dp, kind=dp), k0)
             CALL project_drho_to_ov(rtbse_env, l_v, ispin)
-            ! Operate with -L^2 to expose positive eigenvalues +Omega_n^2
+            ! Operate with -L^2 to expose positive eigenvalues +Ω_n^2
             CALL cp_cfm_scale(CMPLX(-1.0_dp, 0.0_dp, kind=dp), l_v)
 
             lam = cp_cfm_norm(l_v, 'F')
@@ -3013,10 +3081,10 @@ CONTAINS
          omega_max = SQRT(omega_max_sq)
       END IF
 
-      ! Sweep 2 (folded power iteration on Omega_max^2 I + L^2 -> Omega_min) intentionally
-      ! skipped: it relies on catastrophic cancellation Omega_max^2 - lam, which gave a
-      ! noisy/under-estimated Omega_min and pushed RK4 past its stability disk. The
-      ! conservative choice Omega_min = 0 gives the symmetric worst-case shift around zero.
+      ! Sweep 2 (folded power iteration on Ω_max^2 I + L^2 -> Ω_min) intentionally
+      ! skipped: it relies on catastrophic cancellation Ω_max^2 - lam, which gave a
+      ! noisy/under-estimated Ω_min and pushed RK4 past its stability disk. The
+      ! conservative choice Ω_min = 0 gives the symmetric worst-case shift around zero.
       omega_min = 0.0_dp
 
       IF (rtbse_env%unit_nr > 0) THEN
@@ -3043,9 +3111,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Refine the TDA symmetric frequency shift using the two-step Krylov
 !>        spectral-extremes estimator. Undoes the bare-gap-based shift on
-!>        ham_reference_singleparticle, measures Omega_min/Omega_max of the full
-!>        (kernel-inclusive) TDA spectrum, sets Omega_0 = (Omega_min+Omega_max)/2
-!>        and omega_max = (Omega_max-Omega_min)/2, reapplies the optimal shift,
+!>        ham_reference_singleparticle, measures Ω_min/Ω_max of the full
+!>        (kernel-inclusive) TDA spectrum, sets Ω_0 = (Ω_min+Ω_max)/2
+!>        and omega_max = (Ω_max-Ω_min)/2, reapplies the optimal shift,
 !>        and updates maximum_timestep. If ENFORCE_MAX_DT is on, rewrites
 !>        sim_dt and sim_nsteps accordingly.
 !> \param rtbse_env RT-BSE environment
@@ -3068,7 +3136,7 @@ CONTAINS
       ! 1) Undo the bare-gap shift -> lab frame
       CALL shift_href_diagonal(rtbse_env, -omega_shift_old)
 
-      ! 2) Measure Omega_min, Omega_max with the kernel included
+      ! 2) Measure Ω_min, Ω_max with the kernel included
       CALL compute_spectral_extremes_krylov(rtbse_env, n_iter=30, rel_tol=1.0E-5_dp, &
                                             omega_min=omega_min, omega_max=omega_max)
 
@@ -3121,7 +3189,7 @@ CONTAINS
 !>        Reuses update_effective_ham_MO as the matvec; subtracts the constant
 !>        offset f(rho=0) to expose the purely linear action L*delta_rho.
 !>        For the BSE Liouvillian the eigenvalues sit on (or near) the imaginary
-!>        axis, so RK4 stability is governed by rho(L) directly: dt < 2*sqrt(2)/rho(L).
+!>        axis, so RK4 stability is governed by rho(L) directly: dt < 2*√(2)/rho(L).
 !>        Note: the operator 2-norm sigma_max(L) cannot be obtained from
 !>        L-only matvecs without a true adjoint (which is not available here).
 !>        The empirical safety factor needed in practice (~4) reflects
