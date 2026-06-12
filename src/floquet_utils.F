@@ -550,8 +550,6 @@ CONTAINS
       CALL get_qs_env(qs_env, mos=mos)
       CALL get_mo_set(mo_set=mos(1), nao=nao)
 
-      WRITE (fname, "(2A)") TRIM(bs_env%floquet_qe_file), ".bs"
-
       nkp_start = bs_env%nkp_only_DOS
       omega = bs_env%floquet_omega
       fbz_max = omega/2.0_dp
@@ -571,6 +569,7 @@ CONTAINS
       quasi_energies(:) = eigenvalues(indices(:))
 
       IF (bs_env%para_env%is_source()) THEN
+         WRITE (fname, "(2A)") TRIM(bs_env%floquet_qe_file), ".bs"
          IF (ikp_for_file == 1) THEN
             CALL open_file(TRIM(fname), unit_number=qunit, file_status="REPLACE", &
                            file_action="WRITE")
@@ -629,9 +628,8 @@ CONTAINS
       n_E = SIZE(a_k)
       nkp_start = bs_env%nkp_only_DOS
 
-      WRITE (fname, "(2A)") TRIM(bs_env%floquet_dos_file), ".out"
-
       IF (bs_env%para_env%is_source()) THEN
+         WRITE (fname, "(2A)") TRIM(bs_env%floquet_dos_file), ".out"
          IF (ikp_for_file == 1) THEN
             CALL open_file(TRIM(fname), unit_number=wunit, file_status="REPLACE", &
                            file_action="WRITE")
