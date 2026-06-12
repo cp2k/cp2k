@@ -478,20 +478,12 @@ endif()
 # SMM (Small Matrix-Matrix multiplication)
 if(CP2K_USE_LIBXS)
   find_package(libxs REQUIRED)
-endif()
-
-if(CP2K_USE_LIBXSMM)
-  find_package(libxsmm CONFIG QUIET)
-  if(libxsmm_FOUND AND CP2K_USE_LIBXS)
+  if(CP2K_USE_LIBXSMM)
+    find_package(libxsmm CONFIG REQUIRED)
     message(STATUS "Using LIBXS + LIBXSMM for Small Matrix Multiplication")
-  elseif(NOT libxsmm_FOUND)
-    message(
-      WARNING
-        "LIBXS found but LIBXSMM not found; switching off CP2K_USE_LIBXSMM.")
-    set(CP2K_USE_LIBXSMM OFF)
+  else()
+    message(STATUS "Using LIBXS for Small Matrix Multiplication")
   endif()
-elseif(CP2K_USE_LIBXS)
-  message(STATUS "Using LIBXS for Small Matrix Multiplication")
 endif()
 
 # in practice it is always for any decent configuration. But I add a flags to
