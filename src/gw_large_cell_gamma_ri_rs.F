@@ -962,6 +962,7 @@ CONTAINS
       INTEGER                                            :: atom_j, atom_k, c, handle, j, jk_idx, &
                                                             jsize, jstart, k, ksize, kstart, l, &
                                                             l0, ri
+      LOGICAL                                            :: screened
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_prv, int_2d_prv, rho_chunk
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: int_3c_prv
       TYPE(gw_3c_ws_type)                                :: ws
@@ -971,7 +972,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED(bs_env, ctx, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size) &
 !$OMP PRIVATE(atom_j, atom_k, c, j, jk_idx, jsize, jstart, k, ksize, kstart, l, l0, ri, &
-!$OMP         d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, ws)
+!$OMP         screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, ws)
 
       CALL gw_3c_ws_create(ws, ctx)
       ALLOCATE (int_3c_prv(max_ao_size, max_ao_size, n_loc_ri))
@@ -992,7 +993,11 @@ CONTAINS
 
             ! Compute B_{μν,P} = (μν|P)
             CALL build_3c_integral_block_ctx(int_3c_prv(1:jsize, 1:ksize, 1:n_loc_ri), &
-                                             ctx, ws, atom_j=atom_j, atom_k=atom_k, atom_i=atom_P)
+                                             ctx, ws, atom_j=atom_j, atom_k=atom_k, atom_i=atom_P, &
+                                             screened=screened)
+
+            ! screened pair => 3c block is identically zero, nothing to contract
+            IF (screened) CYCLE
 
             ! Flatten 3D B_{μν, P} tensor to 2D B_{(μν), P} matrix for BLAS
             DO ri = 1, n_loc_ri
