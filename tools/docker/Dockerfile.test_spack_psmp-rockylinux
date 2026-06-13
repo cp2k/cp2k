@@ -40,13 +40,13 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 14 -mpi mpich -ue -df libxsmm -ef openpmd
+RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 14 -mpi mpich -ue -ef openpmd
 
 ###### Stage 2: Build CP2K ######
 
 FROM build_deps AS build_cp2k
 
-RUN ./make_cp2k.sh -cv psmp -gv 14 -gpu none -mpi mpich -df libxsmm -ef openpmd
+RUN ./make_cp2k.sh -cv psmp -gv 14 -gpu none -mpi mpich -ef openpmd
 
 ###### Stage 3: Install CP2K ######
 

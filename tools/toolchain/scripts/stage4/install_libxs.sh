@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxs_ver="ab416130f8c9f7edb8c1bf3d3abaf402f61d0fe0"
-libxs_sha256="e264e2cb1cc4fdf2d426ebb95b98e745022b8193bc8e4abfa761c4af9d6f1c54"
+libxs_ver="81914e7"
+libxs_sha256="afa98ef4f3fab9c5500fb3a5a3179aabf1ff29013da8b201f164afd2215ff996"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -31,8 +31,8 @@ case "$with_libxs" in
         echo "libxs-${libxs_ver}.tar.gz is found"
       else
         if ! download_pkg_from_cp2k_org "${libxs_sha256}" "libxs-${libxs_ver}.tar.gz" 2> /dev/null; then
-          download_pkg_from_urlpath "${libxs_sha256}" "${libxs_ver}.tar.gz" \
-            https://github.com/hfp/libxs/archive \
+          download_pkg_from_urlpath "${libxs_sha256}" "${libxs_ver}" \
+            https://codeload.github.com/hfp/libxs/tar.gz \
             "libxs-${libxs_ver}.tar.gz"
         fi
       fi
@@ -41,20 +41,13 @@ case "$with_libxs" in
 
       echo "Installing from scratch into ${pkg_install_dir}"
       cd libxs-${libxs_ver}
-      make -j $(get_nprocs) \
-        CXX=$CXX \
-        CC=$CC \
-        FC=$FC \
-        FORTRAN=1 \
-        PREFIX=${pkg_install_dir} \
-        > make.log 2>&1 || tail_excerpt make.log
-      make -j $(get_nprocs) \
-        CXX=$CXX \
-        CC=$CC \
-        FC=$FC \
-        FORTRAN=1 \
-        PREFIX=${pkg_install_dir} \
-        install > install.log 2>&1 || tail_excerpt install.log
+      mkdir build && cd build
+      cmake \
+        -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+        -DCMAKE_INSTALL_LIBDIR="lib" \
+        -DLIBXS_FORTRAN=ON \
+        .. > configure.log 2>&1 || tail_excerpt configure.log
+      make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"
 
@@ -89,24 +82,17 @@ if [ "$with_libxs" != "__DONTUSE__" ]; then
   LIBXS_LIBS="-lxs -ldl -lpthread"
   cat << EOF > "${BUILDDIR}/setup_libxs"
 export LIBXS_VER="${libxs_ver}"
+export LIBXS_ROOT="${pkg_install_dir}"
 EOF
   if [ "$with_libxs" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_libxs"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
-  cat << EOF >> "${BUILDDIR}/setup_libxs"
-export LIBXS_CFLAGS="${LIBXS_CFLAGS}"
-export LIBXS_LDFLAGS="${LIBXS_LDFLAGS}"
-export LIBXS_LIBS="${LIBXS_LIBS}"
-export CP_DFLAGS="-D__LIBXS \${CP_DFLAGS}"
-export CP_CFLAGS="\${CP_CFLAGS} ${LIBXS_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBXS_LDFLAGS}"
-export CP_LIBS="\${LIBXS_LIBS} \${CP_LIBS}"
-EOF
   filter_setup "${BUILDDIR}/setup_libxs" "${SETUPFILE}"
 fi
 cd "${ROOTDIR}"

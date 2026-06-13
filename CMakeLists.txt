@@ -137,6 +137,9 @@ option(CP2K_USE_OPENPMD "Enable support for I/O via openPMD" OFF)
 option(CP2K_USE_LIBXC "Enable LibXC support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GAUXC "Enable GauXC support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_MPI "Enable MPI support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_LIBXS
+       "Enable LIBXS support; required if OpenCL backend enabled"
+       ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_PEXSI "Enable PEXSI support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_SPGLIB "Enable Spglib support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
@@ -170,7 +173,10 @@ cmake_dependent_option(CP2K_USE_SPLA "Enable SpLA support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 cmake_dependent_option(CP2K_USE_MIMIC "Enable MIMIC support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
-option(CP2K_USE_LIBXS "Enable libxs support" ON)
+
+cmake_dependent_option(CP2K_USE_LIBXSMM "Enable LIBXSMM JIT-kernel for LIBXS"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_LIBXS" OFF)
+
 cmake_dependent_option(CP2K_USE_LIBVDWXC "Enable libvdwxc support with SIRIUS"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_SIRIUS" OFF)
 
@@ -466,14 +472,14 @@ if(CP2K_USE_DBCSR_CONFIG)
     )
   endif()
 else()
-  find_package(DBCSR 2.6 REQUIRED)
+  find_package(DBCSR 2.8 REQUIRED)
 endif()
 
 # SMM (Small Matrix-Matrix multiplication)
 if(CP2K_USE_LIBXS)
-  find_package(LIBXS REQUIRED)
-  find_package(LIBXSMM)
-  if(LIBXSMM_FOUND)
+  find_package(libxs REQUIRED)
+  if(CP2K_USE_LIBXSMM)
+    find_package(libxsmm CONFIG REQUIRED)
     message(STATUS "Using LIBXS + LIBXSMM for Small Matrix Multiplication")
   else()
     message(STATUS "Using LIBXS for Small Matrix Multiplication")
@@ -653,7 +659,9 @@ find_package(OpenMP REQUIRED COMPONENTS Fortran C CXX)
 # Discover OpenCL backend via LIBXSTREAM.
 if(CP2K_USE_ACCEL MATCHES "OPENCL")
   if(NOT CP2K_USE_LIBXS)
-    message(FATAL_ERROR "OpenCL backend requires LIBXS (CP2K_USE_LIBXS=ON).")
+    message(
+      FATAL_ERROR
+        "CP2K_USE_LIBXS is not set but LIBXS is required for OpenCL backend.")
   endif()
   message("\n------------------------------------------------------------")
   message("-                          OPENCL                          -")
@@ -666,66 +674,20 @@ if(CP2K_USE_ACCEL MATCHES "OPENCL")
     list(APPEND CMAKE_PREFIX_PATH "$ENV{CUDA_PATH}")
   endif()
   find_package(OpenCL REQUIRED)
+  find_package(libxstream REQUIRED)
+  message(STATUS "Using LIBXSTREAM for the OpenCL backend")
 
-  # Locate LIBXSTREAM: user override > DBCSR hint > pkg-config > path probing
-  set(LIBXSTREAMROOT
-      ""
-      CACHE PATH "Root directory of LIBXSTREAM")
-  if(NOT LIBXSTREAMROOT AND DBCSR_LIBXSTREAMROOT)
-    set(LIBXSTREAMROOT "${DBCSR_LIBXSTREAMROOT}")
-  endif()
-  if(NOT LIBXSTREAMROOT AND PkgConfig_FOUND)
-    pkg_check_modules(_LIBXSTREAM QUIET libxstream)
-    if(_LIBXSTREAM_FOUND)
-      pkg_get_variable(LIBXSTREAMROOT libxstream prefix)
-    endif()
-  endif()
-  if(NOT LIBXSTREAMROOT)
-    foreach(_dir "${CMAKE_SOURCE_DIR}/../libxstream" "$ENV{HOME}/libxstream")
-      if(EXISTS "${_dir}/include/libxstream.h")
-        set(LIBXSTREAMROOT "${_dir}")
-        break()
-      endif()
-    endforeach()
-  endif()
-  if(NOT LIBXSTREAMROOT OR NOT EXISTS "${LIBXSTREAMROOT}/include/libxstream.h")
-    message(
-      FATAL_ERROR
-        "LIBXSTREAMROOT not found. Set -DLIBXSTREAMROOT=/path/to/libxstream")
-  endif()
-  message(STATUS "Using LIBXSTREAM from ${LIBXSTREAMROOT}")
-  set(_libxstream_suffixes_save ${CMAKE_FIND_LIBRARY_SUFFIXES})
-  if(BUILD_SHARED_LIBS)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES .so .dylib)
+  unset(CP2K_OPENCL_BACKEND CACHE)
+  if(EXISTS "${LIBXSTREAM_INCLUDE_DIRS}/libxstream/opencl")
+    set(CP2K_OPENCL_BACKEND "${LIBXSTREAM_INCLUDE_DIRS}/libxstream")
   else()
-    set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
+    set(CP2K_OPENCL_BACKEND "${LIBXSTREAM_INCLUDE_DIRS}")
   endif()
-  find_library(
-    CP2K_LIBXSTREAM_LIBRARY xstream
-    PATHS "${LIBXSTREAMROOT}/lib"
-    NO_DEFAULT_PATH)
-  if(NOT CP2K_LIBXSTREAM_LIBRARY)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES ${_libxstream_suffixes_save})
-    find_library(
-      CP2K_LIBXSTREAM_LIBRARY xstream
-      PATHS "${LIBXSTREAMROOT}/lib"
-      NO_DEFAULT_PATH)
-  endif()
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ${_libxstream_suffixes_save})
-  if(NOT CP2K_LIBXSTREAM_LIBRARY)
-    message(FATAL_ERROR "libxstream library not found in ${LIBXSTREAMROOT}/lib")
-  endif()
-
-  set(CP2K_OPENCL_BACKEND "${LIBXSTREAMROOT}/include")
-  set(CP2K_OPENCL_SCRIPT "${LIBXSTREAMROOT}/scripts/tool_opencl.sh")
-  if(EXISTS ${CP2K_OPENCL_SCRIPT})
-    set(CP2K_OPENCL_COMMON
-        "${LIBXSTREAMROOT}/include/opencl/libxstream_atomics.h")
-    set(CP2K_USE_OPENCL ON)
-    message(STATUS "OpenCL backend found")
-  else()
-    message(FATAL_ERROR "OpenCL backend not found (${CP2K_OPENCL_SCRIPT})")
-  endif()
+  set(CP2K_OPENCL_SAMPLES "${LIBXSTREAM_SMM_DIR}")
+  set(CP2K_OPENCL_SCRIPT "${LIBXSTREAM_OPENCL_SCRIPT}")
+  set(CP2K_OPENCL_COMMON "${LIBXSTREAM_OPENCL_SCRIPT}")
+  set(CP2K_USE_OPENCL ON)
+  message(STATUS "OpenCL backend found")
 endif()
 
 message("\n------------------------------------------------------------")
@@ -737,24 +699,7 @@ if(CP2K_USE_ELPA)
 endif()
 
 if(CP2K_USE_LIBXC)
-  find_package(Libxc 7 QUIET CONFIG)
-  if(NOT Libxc_FOUND AND PkgConfig_FOUND)
-    pkg_check_modules(CP2K_LIBXCF03 QUIET IMPORTED_TARGET GLOBAL libxcf03>=7)
-    if(NOT CP2K_LIBXCF03_FOUND)
-      pkg_check_modules(CP2K_LIBXCF03 REQUIRED IMPORTED_TARGET GLOBAL libxc>=7)
-    endif()
-    pkg_check_modules(CP2K_LIBXC QUIET IMPORTED_TARGET GLOBAL libxc>=7)
-    if(NOT TARGET Libxc::xcf03)
-      add_library(Libxc::xcf03 INTERFACE IMPORTED)
-      target_link_libraries(
-        Libxc::xcf03
-        INTERFACE PkgConfig::CP2K_LIBXCF03
-                  $<$<BOOL:${CP2K_LIBXC_FOUND}>:PkgConfig::CP2K_LIBXC>)
-    endif()
-  elseif(NOT Libxc_FOUND)
-    message(
-      FATAL_ERROR "LibXC >= 7 not found (tried CMake config and pkg-config)")
-  endif()
+  find_package(Libxc 7 REQUIRED)
 endif()
 
 if(CP2K_USE_GAUXC)
@@ -826,6 +771,8 @@ if(CP2K_USE_DLAF)
                              "${CP2K_DLAF_FORTRAN_LIBRARY}" DIRECTORY)
       get_filename_component(CP2K_DLAF_FORTRAN_PREFIX
                              "${CP2K_DLAF_FORTRAN_PREFIX}" DIRECTORY)
+      # we will need to fix this issue later because it requires small
+      # modifications of the dlaf build system. It should not be hardcoded.
       if(EXISTS "${CP2K_DLAF_FORTRAN_PREFIX}/include/dlaf_fortran.mod")
         list(APPEND CP2K_DLAF_INCLUDE_DIRS
              "${CP2K_DLAF_FORTRAN_PREFIX}/include")
@@ -955,10 +902,6 @@ if(CP2K_USE_ACE)
 endif()
 
 if(CP2K_USE_TBLITE)
-  find_package(mctc-lib REQUIRED)
-  find_package(toml-f REQUIRED)
-  find_package(dftd4 REQUIRED)
-  find_package(s-dftd3 REQUIRED)
   find_package(tblite REQUIRED)
   add_library(cp2k::tblite INTERFACE IMPORTED)
   target_link_libraries(
@@ -1388,6 +1331,10 @@ endif()
 
 if(NOT CP2K_USE_LIBXS)
   message("   - LIBXS")
+endif()
+
+if(NOT CP2K_USE_LIBXSMM)
+  message("   - LIBXSMM")
 endif()
 
 if(NOT CP2K_USE_LIBINT2)

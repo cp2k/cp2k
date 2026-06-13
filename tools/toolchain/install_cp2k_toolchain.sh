@@ -1137,6 +1137,7 @@ if [ "${ENABLE_OPENCL}" = "__TRUE__" ]; then
   fi
 else
   if [ "${with_libxstream}" != "__DONTUSE__" ]; then
+    report_warning ${LINENO} "LIBXSTREAM is only used by the OpenCL backend; disabling it because OpenCL is not enabled."
     with_libxstream="__DONTUSE__"
   fi
 fi

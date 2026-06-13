@@ -1551,7 +1551,7 @@ if(CP2K_USE_CUDA
           "${CMAKE_CURRENT_BINARY_DIR}/${CP2K_DBM_OPENCL_KERNEL}.h")
       add_custom_command(
         COMMAND
-          ${CP2K_OPENCL_SCRIPT} -b 6 -p \"\" -I "${LIBXSTREAMROOT}/include"
+          ${CP2K_OPENCL_SCRIPT} -b 6 -p \"\" -I "${CP2K_OPENCL_BACKEND}"
           ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_OPENCL_KERNEL}
           "${CP2K_DBM_OPENCL_GENHDR}"
         DEPENDS ${CP2K_OPENCL_SCRIPT} ${CP2K_OPENCL_COMMON}
@@ -1561,8 +1561,10 @@ if(CP2K_USE_CUDA
       add_custom_target(cp2k_dbm_opencl_kernel
                         DEPENDS "${CP2K_DBM_OPENCL_GENHDR}")
       include_directories(${CMAKE_CURRENT_BINARY_DIR}/dbm)
-      include_directories(${LIBXSTREAMROOT}/include)
-      include_directories(${LIBXSTREAMROOT}/samples)
+      include_directories(${CP2K_OPENCL_BACKEND})
+      if(CP2K_OPENCL_SAMPLES)
+        include_directories(${CP2K_OPENCL_SAMPLES})
+      endif()
       list(APPEND CP2K_DBM_SRCS_C dbm/dbm_multiply_opencl.c)
     else()
       list(APPEND CP2K_SRCS_GPU ${CP2K_DBM_SRCS_GPU})
@@ -1634,10 +1636,10 @@ add_library(cp2k_linalg_libs INTERFACE)
 target_link_libraries(
   cp2k_linalg_libs
   INTERFACE cp2k::LAPACK::lapack
-            $<$<BOOL:${CP2K_USE_LIBXS}>:cp2k::LIBXS::libxs>
-            $<$<BOOL:${LIBXSMM_FOUND}>:cp2k::LIBXSMM>
-            $<$<BOOL:${CP2K_USE_OPENCL}>:${CP2K_LIBXSTREAM_LIBRARY}>
             $<$<BOOL:${CP2K_USE_OPENCL}>:OpenCL::OpenCL>
+            $<$<BOOL:${CP2K_USE_OPENCL}>:libxstream::libxstream>
+            $<$<BOOL:${CP2K_USE_LIBXS}>:libxs::libxs>
+            $<$<BOOL:${CP2K_USE_LIBXSMM}>:libxsmm::libxsmm>
             cp2k::BLAS::blas
             $<$<BOOL:${CP2K_USE_CUDA}>:cp2k_cuda_libs>
             $<$<BOOL:${CP2K_USE_HIP}>:cp2k_hip_libs>
@@ -1729,7 +1731,9 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
                                     "${CMAKE_HIP_ARCHITECTURES}")
 elseif(CP2K_USE_ACCEL MATCHES "OPENCL")
   include_directories(${CP2K_OPENCL_BACKEND})
-  include_directories(${LIBXSTREAMROOT}/samples)
+  if(CP2K_OPENCL_SAMPLES)
+    include_directories(${CP2K_OPENCL_SAMPLES})
+  endif()
   include_directories(${OpenCL_INCLUDE_DIR})
 endif()
 
@@ -1849,7 +1853,6 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>
     $<$<BOOL:${CP2K_USE_LIBXS}>:__LIBXS>
     $<$<BOOL:${CP2K_USE_LIBXS}>:__BLAS>
-    $<$<BOOL:${LIBXSMM_FOUND}>:__LIBXSMM>
     $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
     $<$<BOOL:${CP2K_USE_OPENCL}>:__LIBXSTREAM>
     $<$<BOOL:${CP2K_USE_SIRIUS_DFTD3}>:__SIRIUS_DFTD3>
@@ -1882,6 +1885,16 @@ endif()
 # have this alias available.
 
 add_library(cp2k::cp2k ALIAS cp2k)
+
+if(CP2K_USE_LIBXS)
+  message(STATUS "Adding libxs_jit.F from dependency libxs for compilation")
+  get_target_property(_libxs_incdirs libxs::libxs INTERFACE_INCLUDE_DIRECTORIES)
+  find_path(CP2K_LIBXS_JIT_DIR "libxs_jit.F" HINTS ${_libxs_incdirs})
+  if(CP2K_LIBXS_JIT_DIR)
+    target_sources(cp2k PRIVATE "${CP2K_LIBXS_JIT_DIR}/libxs_jit.F")
+  endif()
+  unset(_libxs_incdirs)
+endif()
 
 # ##############################################################################
 # applications
@@ -1973,7 +1986,7 @@ target_compile_definitions(
   dbm_miniapp
   PRIVATE $<$<BOOL:${CP2K_USE_LIBXS}>:__LIBXS>
           $<$<BOOL:${CP2K_USE_LIBXS}>:__BLAS>
-          $<$<BOOL:${LIBXSMM_FOUND}>:__LIBXSMM>
+          $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
           $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
 
 if(CP2K_DISABLE_DBM_GPU)
@@ -1995,7 +2008,7 @@ foreach(__app grid_miniapp grid_unittest)
     ${__app}
     PRIVATE $<$<BOOL:${CP2K_USE_LIBXS}>:__LIBXS>
             $<$<BOOL:${CP2K_USE_LIBXS}>:__BLAS>
-            $<$<BOOL:${LIBXSMM_FOUND}>:__LIBXSMM>
+            $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
             $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
 
   if(CP2K_DISABLE_GRID_GPU)

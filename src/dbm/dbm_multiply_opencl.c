@@ -9,9 +9,9 @@
 
 #include "dbm_multiply_gpu_kernel.h"
 #include "dbm_multiply_opencl.cl.h"
-#include <libxs_reg.h>
-#include <libxs_timer.h>
-#include <libxstream_opencl.h>
+#include <libxs/libxs_reg.h>
+#include <libxs/libxs_timer.h>
+#include <libxstream/libxstream_opencl.h>
 
 #if !defined(OPENCL_DBM_SOURCE_MULTIPLY)
 #error "OpenCL kernel source code not found!"

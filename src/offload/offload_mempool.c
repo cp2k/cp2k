@@ -22,10 +22,10 @@
 #endif
 
 #if defined(__LIBXSTREAM)
-#include <libxstream.h>
-#include <libxstream_opencl.h>
+#include <libxstream/libxstream.h>
+#include <libxstream/libxstream_opencl.h>
 #elif defined(__LIBXS)
-#include <libxs_malloc.h>
+#include <libxs/libxs_malloc.h>
 #endif
 
 #define OFFLOAD_MEMPOOL_PRINT(FN, MSG, OUTPUT_UNIT)                            \

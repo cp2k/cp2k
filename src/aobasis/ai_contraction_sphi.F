@@ -16,9 +16,8 @@ MODULE ai_contraction_sphi
 
    USE kinds, ONLY: dp, int_8
 #if defined(__LIBXS)
-   USE LIBXS, ONLY: libxs_gemm_config_t, libxs_gemm_dispatch, &
-                    libxs_gemm_call, LIBXS_DATATYPE_F64
-   USE, INTRINSIC :: ISO_C_BINDING, ONLY: C_LOC, C_FUNLOC
+   USE LIBXS_JIT, ONLY: libxs_gemm_config_t, libxs_gemm_dispatch, &
+                        libxs_gemm_call, LIBXS_DATATYPE_F64, C_LOC
 #endif
 
 #include "../base/base_uses.f90"
@@ -265,47 +264,6 @@ CONTAINS
 #if defined(__LIBXS)
       TYPE(libxs_gemm_config_t) :: cfg1, cfg2
       INTEGER :: rc1, rc2
-#if defined(__MKL)
-      INTERFACE
-         FUNCTION mkl_cblas_jit_create_dgemm(jitter, &
-                                             layout, transa, transb, m, n, k, &
-                                             alpha, lda, ldb, beta, ldc) &
-            RESULT(status) BIND(C)
-            USE, INTRINSIC :: ISO_C_BINDING, ONLY: C_PTR, C_INT, C_DOUBLE
-            INTEGER(C_INT) :: status
-            TYPE(C_PTR) :: jitter
-            INTEGER(C_INT), VALUE :: layout, transa, transb
-            INTEGER(C_INT), VALUE :: m, n, k, lda, ldb, ldc
-            REAL(C_DOUBLE), VALUE :: alpha, beta
-         END FUNCTION
-         FUNCTION mkl_jit_get_dgemm_ptr(jitter) RESULT(ptr) BIND(C)
-            USE, INTRINSIC :: ISO_C_BINDING, ONLY: C_FUNPTR, C_PTR
-            TYPE(C_FUNPTR) :: ptr
-            TYPE(C_PTR), INTENT(IN), VALUE :: jitter
-         END FUNCTION
-      END INTERFACE
-#endif
-#if defined(__LIBXSMM)
-      INTERFACE
-         FUNCTION libxsmm_dispatch_gemm(shape, flags, prefetch) &
-            RESULT(fn) BIND(C)
-            USE, INTRINSIC :: ISO_C_BINDING, ONLY: C_FUNPTR, C_INT
-            INTEGER(C_INT), INTENT(IN) :: shape(10)
-            INTEGER(C_INT), INTENT(IN), VALUE :: flags, prefetch
-            TYPE(C_FUNPTR) :: fn
-         END FUNCTION
-      END INTERFACE
-#endif
-      INTERFACE
-         SUBROUTINE dgemm_blas(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc) &
-            BIND(C, NAME="dgemm_")
-            USE, INTRINSIC :: ISO_C_BINDING, ONLY: C_INT, C_CHAR, C_DOUBLE
-            CHARACTER(1, C_CHAR), INTENT(IN) :: transa, transb
-            INTEGER(C_INT), INTENT(IN) :: m, n, k, lda, ldb, ldc
-            REAL(C_DOUBLE), INTENT(IN) :: alpha, beta, a(*), b(*)
-            REAL(C_DOUBLE), INTENT(INOUT) :: c(*)
-         END SUBROUTINE
-      END INTERFACE
 #endif
 
       CALL timeset(routineN, handle)
@@ -343,46 +301,14 @@ CONTAINS
 #if defined(__LIBXS)
       IF (ab_first) THEN
          rc1 = libxs_gemm_dispatch(cfg1, LIBXS_DATATYPE_F64, 'N', 'N', &
-                                   nsgfa, ncob, ncoa, nsgfa, ncoa, nsgfa, 1.0D0, 0.0D0 &
-#if defined(__MKL)
-                                   , jit_create_dgemm=C_FUNLOC(mkl_cblas_jit_create_dgemm) &
-                                   , jit_get_dgemm=C_FUNLOC(mkl_jit_get_dgemm_ptr) &
-#endif
-#if defined(__LIBXSMM)
-                                   , xgemm_dispatch=C_FUNLOC(libxsmm_dispatch_gemm) &
-#endif
-                                   , dgemm_blas=C_FUNLOC(dgemm_blas))
+                                   nsgfa, ncob, ncoa, nsgfa, ncoa, nsgfa, 1.0D0, 0.0D0)
          rc2 = libxs_gemm_dispatch(cfg2, LIBXS_DATATYPE_F64, 'N', 'N', &
-                                   nsgfa, nsgfb, ncob, nsgfa, ncob, nsgfa, 1.0D0, 0.0D0 &
-#if defined(__MKL)
-                                   , jit_create_dgemm=C_FUNLOC(mkl_cblas_jit_create_dgemm) &
-                                   , jit_get_dgemm=C_FUNLOC(mkl_jit_get_dgemm_ptr) &
-#endif
-#if defined(__LIBXSMM)
-                                   , xgemm_dispatch=C_FUNLOC(libxsmm_dispatch_gemm) &
-#endif
-                                   , dgemm_blas=C_FUNLOC(dgemm_blas))
+                                   nsgfa, nsgfb, ncob, nsgfa, ncob, nsgfa, 1.0D0, 0.0D0)
       ELSE
          rc1 = libxs_gemm_dispatch(cfg1, LIBXS_DATATYPE_F64, 'N', 'N', &
-                                   ncoa, nsgfb, ncob, ncoa, ncob, ncoa, 1.0D0, 0.0D0 &
-#if defined(__MKL)
-                                   , jit_create_dgemm=C_FUNLOC(mkl_cblas_jit_create_dgemm) &
-                                   , jit_get_dgemm=C_FUNLOC(mkl_jit_get_dgemm_ptr) &
-#endif
-#if defined(__LIBXSMM)
-                                   , xgemm_dispatch=C_FUNLOC(libxsmm_dispatch_gemm) &
-#endif
-                                   , dgemm_blas=C_FUNLOC(dgemm_blas))
+                                   ncoa, nsgfb, ncob, ncoa, ncob, ncoa, 1.0D0, 0.0D0)
          rc2 = libxs_gemm_dispatch(cfg2, LIBXS_DATATYPE_F64, 'N', 'N', &
-                                   nsgfa, nsgfb, ncoa, nsgfa, ncoa, nsgfa, 1.0D0, 0.0D0 &
-#if defined(__MKL)
-                                   , jit_create_dgemm=C_FUNLOC(mkl_cblas_jit_create_dgemm) &
-                                   , jit_get_dgemm=C_FUNLOC(mkl_jit_get_dgemm_ptr) &
-#endif
-#if defined(__LIBXSMM)
-                                   , xgemm_dispatch=C_FUNLOC(libxsmm_dispatch_gemm) &
-#endif
-                                   , dgemm_blas=C_FUNLOC(dgemm_blas))
+                                   nsgfa, nsgfb, ncoa, nsgfa, ncoa, nsgfa, 1.0D0, 0.0D0)
       END IF
       IF (0 /= rc1 .AND. 0 /= rc2) THEN
          IF (ab_first) THEN

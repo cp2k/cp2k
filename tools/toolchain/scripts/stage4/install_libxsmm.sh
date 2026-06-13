@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxsmm_ver="0cea22fdc34ec54bc59ffb47a43cb3e28b26d3e0"
-libxsmm_sha256="9404da8173009677d7814b51442250eee95d41773cae55b802f75fb40aece73d"
+libxsmm_ver="79033a7"
+libxsmm_sha256="b268dafa1c27ee9a3b194ebc0726a9488d13a59f0d789df348b902bfb073c519"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -38,41 +38,23 @@ EOF
         echo "libxsmm-${libxsmm_ver}.tar.gz is found"
       else
         if ! download_pkg_from_cp2k_org "${libxsmm_sha256}" "libxsmm-${libxsmm_ver}.tar.gz" 2> /dev/null; then
-          download_pkg_from_urlpath "${libxsmm_sha256}" "${libxsmm_ver}.tar.gz" \
-            https://github.com/libxsmm/libxsmm/archive \
+          download_pkg_from_urlpath "${libxsmm_sha256}" "${libxsmm_ver}" \
+            https://codeload.github.com/libxsmm/libxsmm/tar.gz \
             "libxsmm-${libxsmm_ver}.tar.gz"
         fi
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d libxsmm-${libxsmm_ver} ] && rm -rf libxsmm-${libxsmm_ver}
       tar -xzf libxsmm-${libxsmm_ver}.tar.gz
-      # note that we do not have to set -L flags to ld for the
-      # linked math libraries for the libxsmm build, as for a
-      # library this is not required, you just have to provide
-      # the appropriate -L flags (LDFLAGS) during the linking
-      # stage of building an executable that uses the libxsmm
-      # library
       cd libxsmm-${libxsmm_ver}
-      # Avoid an unintended (incompatible) setting of FORTRAN
-      unset FORTRAN
-      make -j $(get_nprocs) \
-        CXX=$CXX \
-        CC=$CC \
-        FC=$FC \
-        WRAP=0 \
-        PREFIX=${pkg_install_dir} \
-        > make.log 2>&1 || tail_excerpt make.log
-      make -j $(get_nprocs) \
-        CXX=$CXX \
-        CC=$CC \
-        FC=$FC \
-        WRAP=0 \
-        PREFIX=${pkg_install_dir} \
-        install > install.log 2>&1 || tail_excerpt install.log
+      mkdir build && cd build
+      cmake \
+        -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+        -DCMAKE_INSTALL_LIBDIR="lib" \
+        .. > configure.log 2>&1 || tail_excerpt configure.log
+      make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"
-      mkdir ${pkg_install_dir}/lib/pkgconfig
-      cp ${pkg_install_dir}/lib/*.pc ${pkg_install_dir}/lib/pkgconfig
 
       # ---- macOS: pkg-config files must not use GNU ld's "-l:libfoo.a" syntax ----
       if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -87,8 +69,6 @@ EOF
   __SYSTEM__)
     echo "==================== Finding Libxsmm from system paths ===================="
     check_lib -lxsmm "libxsmm"
-    check_lib -lxsmmf "libxsmm"
-    check_lib -lxsmmext "libxsmm"
     add_include_from_paths LIBXSMM_CFLAGS "libxsmm.h" $INCLUDE_PATHS
     add_lib_from_paths LIBXSMM_LDFLAGS "libxsmm.*" $LIB_PATHS
     ;;
@@ -97,7 +77,6 @@ EOF
   *)
     echo "==================== Linking Libxsmm to user paths ===================="
     pkg_install_dir="$with_libxsmm"
-    check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/include"
     check_dir "${pkg_install_dir}/lib"
     LIBXSMM_CFLAGS="-I'${pkg_install_dir}/include'"
@@ -105,29 +84,20 @@ EOF
     ;;
 esac
 if [ "$with_libxsmm" != "__DONTUSE__" ]; then
-  LIBXSMM_LIBS="-lxsmmf -lxsmmext -lxsmm -ldl -lpthread"
+  LIBXSMM_LIBS="-lxsmm -ldl -lpthread"
   cat << EOF > "${BUILDDIR}/setup_libxsmm"
 export LIBXSMM_VER="${libxsmm_ver}"
-export LIBXSMMROOT="${pkg_install_dir:-}"
+export LIBXSMM_ROOT="${pkg_install_dir:-}"
 EOF
   if [ "$with_libxsmm" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_libxsmm"
-prepend_path PATH "${pkg_install_dir}/bin"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
-  cat << EOF >> "${BUILDDIR}/setup_libxsmm"
-export LIBXSMM_CFLAGS="${LIBXSMM_CFLAGS}"
-export LIBXSMM_LDFLAGS="${LIBXSMM_LDFLAGS}"
-export LIBXSMM_LIBS="${LIBXSMM_LIBS}"
-export CP_DFLAGS="-D__LIBXSMM \${CP_DFLAGS}"
-export CP_CFLAGS="\${CP_CFLAGS} ${LIBXSMM_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBXSMM_LDFLAGS}"
-export CP_LIBS="\${LIBXSMM_LIBS} \${CP_LIBS}"
-EOF
   filter_setup "${BUILDDIR}/setup_libxsmm" "${SETUPFILE}"
 fi
 cd "${ROOTDIR}"
