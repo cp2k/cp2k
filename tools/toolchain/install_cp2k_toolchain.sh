@@ -1514,23 +1514,28 @@ EOF
   [ "${cols}" -gt "${n}" ] && cols="${n}"
 
   rows=$(((n + cols - 1) / cols))
-  for ((row = 0; row < rows; row++)); do
+  row=0
+  while [ "${row}" -lt "${rows}" ]; do
     line="${indent}"
-    for ((col = 0; col < cols; col++)); do
+    col=0
+    while [ "${col}" -lt "${cols}" ]; do
       idx=$((row * cols + col))
-      [ "${idx}" -ge "${n}" ] && continue
-      item="${items[idx]}"
-      if [ "${col}" -lt $((cols - 1)) ]; then
-        printf -v padded '%-*s' "${col_width}" "${item}"
-        line="${line}${padded}"
-      else
-        line="${line}${item}"
+      if [ "${idx}" -lt "${n}" ]; then
+        item="${items[idx]}"
+        if [ "${col}" -lt $((cols - 1)) ]; then
+          printf -v padded '%-*s' "${col_width}" "${item}"
+          line="${line}${padded}"
+        else
+          line="${line}${item}"
+        fi
       fi
+      col=$((col + 1))
     done
     while [ "${line% }" != "${line}" ]; do
       line="${line% }"
     done
     printf '%s\n' "${line}"
+    row=$((row + 1))
   done
 }
 
@@ -1605,9 +1610,9 @@ print_toolchain_summary() {
 # Build packages unless dry-run mode is enabled.
 # ------------------------------------------------------------------------
 if [ "${dry_run}" = "__TRUE__" ]; then
-  printf "With --dry-run option, this script concludes with a report.\n"
-  printf "The setup, toolchain env and conf files are written to ./install.\n"
   print_toolchain_summary
+  printf "With --dry-run option, this script concludes with above report.\n"
+  printf "The setup, toolchain env and conf files are written to ./install.\n"
 else
   echo "Options have been parsed successfully."
   print_toolchain_summary
