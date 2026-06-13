@@ -1234,6 +1234,28 @@ if [ "${with_gauxc}" = "__INSTALL__" ]; then
   [ "${with_libtorch}" = "__DONTUSE__" ] && with_libtorch="__INSTALL__"
 fi
 
+# MKL may provide the FFTW3 interface and ScaLAPACK/BLACS. Resolve these
+# choices here so the package plan, toolchain.conf and summary stay in sync.
+if [ "${MATH_MODE}" = "mkl" ]; then
+  # Use standalone FFTW when FFTW-MPI wrappers are needed. Otherwise, use
+  # MKL's FFTW3 interface and do not install a separate FFTW package.
+  if [ "${with_libvdwxc}" != "__DONTUSE__" ] && [ "${MPI_MODE}" != "no" ]; then
+    if [ "${with_fftw}" = "__DONTUSE__" ]; then
+      report_warning ${LINENO} "libvdwxc with MPI needs FFTW-MPI wrappers; enabling FFTW."
+      with_fftw="__INSTALL__"
+    fi
+    export MKL_FFTW="no"
+  else
+    with_fftw="__DONTUSE__"
+    export MKL_FFTW="yes"
+  fi
+  # Use MKL-provided ScaLAPACK/BLACS for MPI builds.
+  if [ "${MPI_MODE}" != "no" ]; then
+    with_scalapack="__DONTUSE__"
+    export MKL_SCALAPACK="yes"
+  fi
+fi
+
 # ------------------------------------------------------------------------
 # Preliminaries
 # ------------------------------------------------------------------------
@@ -1393,6 +1415,10 @@ write_toolchain_env "${INSTALLDIR}"
 # Write toolchain config
 echo "tool_list=\"${tool_list}\"" > "${INSTALLDIR}"/toolchain.conf
 echo "mpi_mode=\"${MPI_MODE}\"" >> "${INSTALLDIR}"/toolchain.conf
+if [ "${MATH_MODE}" = "mkl" ]; then
+  echo "MKL_FFTW=\"${MKL_FFTW}\"" >> "${INSTALLDIR}"/toolchain.conf
+  echo "MKL_SCALAPACK=\"${MKL_SCALAPACK}\"" >> "${INSTALLDIR}"/toolchain.conf
+fi
 echo "ENABLE_CUDA=\"${ENABLE_CUDA}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "ENABLE_GAUXC_CUTLASS=\"${ENABLE_GAUXC_CUTLASS}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "ENABLE_HIP=\"${ENABLE_HIP}\"" >> "${INSTALLDIR}"/toolchain.conf
@@ -1407,8 +1433,8 @@ done
 
 # ------------------------------------------------------------------------
 # Print the resolved toolchain configuration in a user-friendly form. The
-# raw with_* variables are still written to toolchain.conf below, but the
-# report groups packages by what the toolchain will actually do with them.
+# raw with_* variables are written to toolchain.conf, while this report
+# groups packages by what the toolchain will actually do with them.
 # ------------------------------------------------------------------------
 
 get_effective_package_mode() {
