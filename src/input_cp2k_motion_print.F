@@ -170,6 +170,14 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_ATOM_KIND", &
+                          description="Write the atom kind given in the subsys section instead "// &
+                          "of the element symbol in the extended XYZ file.", &
+                          usage="PRINT_ATOM_KIND {LOGICAL}", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

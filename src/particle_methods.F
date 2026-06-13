@@ -1073,7 +1073,9 @@ CONTAINS
 !>          the fixed atoms from MOTION/CONSTRAINT/FIXED_ATOMS for all.
 !>
 !>          History
-!>          04.2026 - Created
+!>          04.2026 - Created as write_final_cif
+!>          05.2026 - Generalized to write_final_structure and enable extxyz
+!>          06.2026 - Adopted write_particle_coordinates for handling kind in extxyz
 !> \author  HE Zilong
 !> \version 1.0
 ! **************************************************************************************************
@@ -1090,24 +1092,23 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_final_structure'
 
+      CHARACTER(LEN=1)                                   :: conv_str
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=2), ALLOCATABLE                      :: element_list(:)
-      CHARACTER(LEN=5)                                   :: perd_str
+      CHARACTER(LEN=5)                                   :: pbc_str
       CHARACTER(LEN=:), ALLOCATABLE                      :: formula_structural, formula_sum
-      CHARACTER(LEN=default_path_length)                 :: cell_str, record
+      CHARACTER(LEN=default_path_length)                 :: cell_str, record, title
       CHARACTER(LEN=default_string_length)               :: atm_name, f_cif, f_cif_label, &
-                                                            f_cif_type_symbol, f_xyz
-      CHARACTER(LEN=default_string_length), ALLOCATABLE  :: cif_label(:), cif_type_symbol(:), &
-                                                            xyz_label(:)
+                                                            f_cif_type_symbol
+      CHARACTER(LEN=default_string_length), ALLOCATABLE  :: cif_label(:), cif_type_symbol(:)
       CHARACTER(LEN=timestamp_length)                    :: timestamp
       INTEGER :: elem_seen, file_unit, gcd_all, handle, i, iatom, ielem, natom, output_unit, &
-         symmetry_id, w_cif_label, w_cif_type_symbol, w_xyz_label
+         symmetry_id, w_cif_label, w_cif_type_symbol
       INTEGER, ALLOCATABLE                               :: count_list(:)
-      INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: dummy, elem_in_list, orthorhombic, &
-                                                            write_cif, write_xyz
+                                                            print_kind, write_cif, write_xyz
       REAL(KIND=dp)                                      :: angle_alpha, angle_beta, angle_gamma, &
-                                                            deth
+                                                            deth, unit_conv
       REAL(KIND=dp), DIMENSION(3)                        :: abc, r, s
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1122,15 +1123,17 @@ CONTAINS
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
       print_key => section_vals_get_subs_vals(input_section, "PRINT%FINAL_STRUCTURE")
+      conv_str = "F"
+      IF (conv) conv_str(1:1) = "T"
 
       ! Collect cell information
-      perd_str = "F F F"
+      pbc_str = "F F F"
       CALL get_cell(cell, alpha=angle_alpha, beta=angle_beta, gamma=angle_gamma, &
-                    deth=deth, orthorhombic=orthorhombic, abc=abc, periodic=periodic, &
-                    h=hmat, symmetry_id=symmetry_id)
-      IF (periodic(1) == 1) perd_str(1:1) = "T"
-      IF (periodic(2) == 1) perd_str(3:3) = "T"
-      IF (periodic(3) == 1) perd_str(5:5) = "T"
+                    deth=deth, orthorhombic=orthorhombic, abc=abc, h=hmat, &
+                    symmetry_id=symmetry_id)
+      IF (cell%perd(1) == 1) pbc_str(1:1) = "T"
+      IF (cell%perd(2) == 1) pbc_str(3:3) = "T"
+      IF (cell%perd(3) == 1) pbc_str(5:5) = "T"
       CALL create_cell_section(tmp_cell_section)
       symmetry_keyword => section_get_keyword(tmp_cell_section, "SYMMETRY")
       CALL keyword_get(symmetry_keyword, enum=enum)
@@ -1151,11 +1154,10 @@ CONTAINS
       natom = SIZE(particle_set)
       ALLOCATE (element_list(nelem + 1), count_list(nelem + 1))
       count_list(:) = 0
-      ALLOCATE (cif_label(natom), cif_type_symbol(natom), xyz_label(natom))
+      ALLOCATE (cif_label(natom), cif_type_symbol(natom))
       elem_seen = 0
       w_cif_type_symbol = 0
       w_cif_label = 0
-      w_xyz_label = 0
       atom_loop: DO iatom = 1, natom
          elem_in_list = .FALSE.
          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
@@ -1167,10 +1169,8 @@ CONTAINS
          IF (LEN_TRIM(element_symbol) == 0) THEN
             dummy = qmmm_ff_precond_only_qm(id1=atm_name)
             cif_label(iatom) = TRIM(atm_name)//TRIM(ADJUSTL(cp_to_string(iatom)))
-            xyz_label(iatom) = TRIM(atm_name)
          ELSE
             cif_label(iatom) = TRIM(element_symbol)//TRIM(ADJUSTL(cp_to_string(iatom)))
-            xyz_label(iatom) = TRIM(element_symbol)
             elem_loop: DO ielem = 1, elem_seen
                IF (element_list(ielem) == element_symbol) THEN
                   elem_in_list = .TRUE.
@@ -1188,8 +1188,6 @@ CONTAINS
             w_cif_type_symbol = LEN_TRIM(cif_type_symbol(iatom))
          IF (LEN_TRIM(cif_label(iatom)) > w_cif_label) &
             w_cif_label = LEN_TRIM(cif_label(iatom))
-         IF (LEN_TRIM(xyz_label(iatom)) > w_xyz_label) &
-            w_xyz_label = LEN_TRIM(xyz_label(iatom))
       END DO atom_loop
 
       ! Determine the format of each line in cif considering width of cif_type_symbol and cif_label
@@ -1203,9 +1201,6 @@ CONTAINS
       f_cif_type_symbol = "A"//TRIM(ADJUSTL(cp_to_string(w_cif_type_symbol + 4)))
       f_cif_label = "A"//TRIM(ADJUSTL(cp_to_string(w_cif_label + 4)))
       f_cif = "(T3,"//TRIM(f_cif_type_symbol)//","//TRIM(f_cif_label)//",I4,3F14.8,F8.2)"
-
-      ! Determine the format of each line in xyz
-      f_xyz = "(T2,A"//TRIM(ADJUSTL(cp_to_string(w_xyz_label + 4)))//",1X,3F20.10)"
 
       ! Determine formula_sum
       CPASSERT(elem_seen > 0)
@@ -1236,6 +1231,7 @@ CONTAINS
 
       ! Write XYZ
       CALL section_vals_val_get(print_key, "PRINT_XYZ", l_val=write_xyz)
+      CALL section_vals_val_get(print_key, "PRINT_ATOM_KIND", l_val=print_kind)
       IF (write_xyz) THEN
          ! Print a message to log
          record = cp_print_key_generate_filename(logger, print_key, &
@@ -1252,27 +1248,21 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T3,A)") TRIM(record)
          END IF
 
-         ! Make timestamp for the file
-         CALL m_timestamp(timestamp)
-
+         ! Prepare title
+         WRITE (UNIT=title, FMT="(A)") &
+            'Lattice="'//TRIM(ADJUSTL(cell_str))//'" '// &
+            'Properties=species:S:1:pos:R:3 '// &
+            'pbc="'//pbc_str//'" '// &
+            'Converged='//conv_str
+         ! Extended XYZ uses angstrom for positions
+         unit_conv = cp_unit_from_cp2k(1.0_dp, "angstrom")
          ! Prepare file unit and write to it
          file_unit = cp_print_key_unit_nr(logger, input_section, "PRINT%FINAL_STRUCTURE", &
-                                          file_status="REPLACE", extension=".xyz")
-         IF (file_unit > 0) THEN
-            WRITE (UNIT=file_unit, FMT="(I8)") &
-               natom
-            WRITE (UNIT=file_unit, FMT="(A)") &
-               'Lattice="'//TRIM(ADJUSTL(cell_str))// &
-               '" Properties=species:S:1:pos:R:3 pbc="'// &
-               TRIM(perd_str)//'"'
-            DO iatom = 1, natom
-               DO i = 1, 3
-                  r(i) = cp_unit_from_cp2k(particle_set(iatom)%r(i), "angstrom")
-               END DO
-               WRITE (UNIT=file_unit, FMT=TRIM(f_xyz)) &
-                  xyz_label(iatom), r(1:3)
-            END DO
-         END IF
+                                          file_status="REPLACE", file_form="FORMATTED", &
+                                          extension=".xyz")
+         IF (file_unit > 0) &
+            CALL write_particle_coordinates(particle_set, file_unit, dump_extxyz, "POS", title, &
+                                            cell=cell, unit_conv=unit_conv, print_kind=print_kind)
       END IF
 
       ! Write CIF
@@ -1298,7 +1288,8 @@ CONTAINS
 
          ! Prepare file unit and write to it
          file_unit = cp_print_key_unit_nr(logger, input_section, "PRINT%FINAL_STRUCTURE", &
-                                          file_status="REPLACE", extension=".cif")
+                                          file_status="REPLACE", file_form="FORMATTED", &
+                                          extension=".cif")
          IF (file_unit > 0) THEN
             ! Generic information
             WRITE (UNIT=file_unit, FMT="(A)") &
@@ -1334,7 +1325,7 @@ CONTAINS
                   "- Cell is numerically orthorhombic: FALSE"
             END IF
             WRITE (UNIT=file_unit, FMT="(T2,A)") &
-               "- Periodicity of cell: "//TRIM(perd_str)
+               "- Periodicity of cell: "//TRIM(pbc_str)
             IF (gopt_env_label == "CELL_OPT") THEN
                WRITE (UNIT=file_unit, FMT="(T2,A)") &
                   "- Cell is subject to optimization: TRUE"
@@ -1419,8 +1410,7 @@ CONTAINS
 
       ! Finish
       DEALLOCATE (element_list, count_list, formula_structural, &
-                  formula_sum, cif_label, cif_type_symbol, &
-                  xyz_label)
+                  formula_sum, cif_label, cif_type_symbol)
       CALL section_release(tmp_cell_section)
       CALL cp_print_key_finished_output(file_unit, logger, input_section, &
                                         "PRINT%FINAL_STRUCTURE")
