@@ -1067,6 +1067,10 @@ CONTAINS
          one_min_exp = 1.0_dp - EXP(-freq_arg)
 !dbg
 !  write(*,*) 'freq ', i, freqs(i), exp_min_one , one_min_exp
+!  note: this is based on the rigid-rotor harmonic oscillator (RRHO) model, which
+!  behaves badly with very low frequencies that make exp_min_one and one_min_exp
+!  numerically close to 0 and cause divergence of the vib_entropy term; perhaps
+!  implementing the quasi-RRHO methods (Grimme/Minenkov) can address this problem.
 !      vib_part_func = vib_part_func*(1.0_dp/(1.0_dp - exp(-fact*freqs(i))))
          vib_part_func = vib_part_func*(1.0_dp/one_min_exp)
 !      vib_energy = vib_energy + fact2*freqs(i)*0.5_dp+fact2*freqs(i)/(exp(fact*freqs(i))-1.0_dp)
@@ -1103,20 +1107,18 @@ CONTAINS
 
       IF (iw > 0) THEN
          WRITE (UNIT=iw, FMT="(/,T2,'VIB|',T30,'NORMAL MODES - THERMOCHEMICAL DATA')")
-         WRITE (UNIT=iw, FMT="(T2,'VIB|')")
+         WRITE (UNIT=iw, FMT="(T2,'VIB|',T16,'[q = gamma only, rigid-rotor harmonic oscillator (RRHO) model]')")
 
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Symmetry number:',T70,I16)") sym_num
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Temperature [K]:',T70,F16.2)") temp
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Pressure [Pa]:',T70,F16.2)") pressure
+         WRITE (UNIT=iw, FMT="(/,T2,'VIB|', T10, 'Symmetry number:',T65,I16)") sym_num
+         WRITE (UNIT=iw, FMT="(T2,'VIB|', T10, 'Temperature [K]:',T65,F16.2)") temp
+         WRITE (UNIT=iw, FMT="(T2,'VIB|', T10, 'Pressure [Pa]:',T65,F16.2)") pressure
 
-         WRITE (UNIT=iw, FMT="(/)")
-
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Electronic energy (U) [kJ/mol]:',T60,F26.8)") totene*kjmol
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Zero-point correction [kJ/mol]:',T60,F26.8)") zpe/1000.0_dp
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Entropy [kJ/(mol K)]:',T60,F26.8)") entropy/1000.0_dp
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Enthalpy correction (H-U) [kJ/mol]:',T60,F26.8)") rotvibtra/1000.0_dp
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Gibbs energy correction [kJ/mol]:',T60,F26.8)") Gibbs/1000.0_dp
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Heat capacity [kJ/(mol*K)]:',T70,F16.8)") heat_capacity/1000.0_dp
+         WRITE (UNIT=iw, FMT="(/,T2,'VIB|', T10, 'Electronic energy (U) [kJ/mol]:',T55,F26.8)") totene*kjmol
+         WRITE (UNIT=iw, FMT="(T2,'VIB|', T10, 'Zero-point correction [kJ/mol]:',T55,F26.8)") zpe/1000.0_dp
+         WRITE (UNIT=iw, FMT="(T2,'VIB|', T10, 'Entropy [kJ/(mol K)]:',T55,F26.8)") entropy/1000.0_dp
+         WRITE (UNIT=iw, FMT="(T2,'VIB|', T10, 'Enthalpy correction (H-U) [kJ/mol]:',T55,F26.8)") rotvibtra/1000.0_dp
+         WRITE (UNIT=iw, FMT="(T2,'VIB|', T10, 'Gibbs energy correction [kJ/mol]:',T55,F26.8)") Gibbs/1000.0_dp
+         WRITE (UNIT=iw, FMT="(T2,'VIB|', T10, 'Heat capacity [kJ/(mol*K)]:',T65,F16.8)") heat_capacity/1000.0_dp
          WRITE (UNIT=iw, FMT="(/)")
       END IF
 
