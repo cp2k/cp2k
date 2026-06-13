@@ -26,7 +26,7 @@ cd "${BUILDDIR}"
 case "${with_mkl}" in
   __INSTALL__)
     echo "==================== Installing MKL ===================="
-    report_error ${LINENO} "__INSTALL__ is not supported; please manually install Intel MKL."
+    report_error ${LINENO} "Installation of Intel MKL is not supported; please install manually."
     exit 1
     ;;
   __SYSTEM__)

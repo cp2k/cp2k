@@ -20,7 +20,7 @@ cd "${BUILDDIR}"
 case "$with_acml" in
   __INSTALL__)
     echo "==================== Installing ACML ===================="
-    report_error $LINENO "__INSTALL__ is not supported; please manually install ACML"
+    report_error $LINENO "Installation of ACML is not supported; please install manually"
     exit 1
     ;;
   __SYSTEM__)

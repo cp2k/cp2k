@@ -20,7 +20,7 @@ cd "${BUILDDIR}"
 case "${with_intel}" in
   __INSTALL__)
     echo "==================== Installing the Intel compiler ===================="
-    echo "__INSTALL__ is not supported; please install the Intel compiler manually"
+    echo "Installation of Intel compilers is not supported; please install manually"
     exit 1
     ;;
   __SYSTEM__)

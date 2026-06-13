@@ -662,6 +662,8 @@ while [ $# -ge 1 ]; do
         if [ "${ii}" != "intel" ] &&
           [ "${ii}" != "intelmpi" ] &&
           [ "${ii}" != "amd" ] &&
+          [ "${ii}" != "mkl" ] &&
+          [ "${ii}" != "acml" ] &&
           [ "${ii}" != "cusolvermp" ]; then
           eval "with_${ii}=__INSTALL__"
         fi
@@ -1404,30 +1406,185 @@ for ii in ${package_list}; do
 done
 
 # ------------------------------------------------------------------------
-# Build packages unless dry-run mode is enabled.
+# Print the resolved toolchain configuration in a user-friendly form. The
+# raw with_* variables are still written to toolchain.conf below, but the
+# report groups packages by what the toolchain will actually do with them.
 # ------------------------------------------------------------------------
-if [ "${dry_run}" = "__TRUE__" ]; then
-  printf "With --dry-run option, this script concludes with a report.\n"
-  printf "The setup, toolchain env and conf files are written to ./install.\n"
-  printf "System specifications:\n"
+
+get_effective_package_mode() {
+  local pkg="$1"
+  local var_name="with_${pkg}"
+  local mode="${!var_name}"
+
+  # Only the selected math backend is active. Some non-selected math
+  # variables may keep their default value, but they are not used by
+  # stage2/install_mathlibs.sh.
+  case "${pkg}" in
+    mkl | acml | openblas)
+      if [ "${MATH_MODE}" != "${pkg}" ]; then
+        mode="__DONTUSE__"
+      fi
+      ;;
+  esac
+
+  # Likewise, only the selected MPI implementation is active.
+  case "${pkg}" in
+    mpich | openmpi | intelmpi)
+      if [ "${MPI_MODE}" = "no" ] || [ "${MPI_MODE}" != "${pkg}" ]; then
+        mode="__DONTUSE__"
+      fi
+      ;;
+  esac
+
+  printf '%s' "${mode}"
+}
+
+append_report_line() {
+  local var_name="$1"
+  local line="$2"
+  local current="${!var_name}"
+  if [ -z "${current}" ]; then
+    printf -v "${var_name}" '%s' "${line}"
+  else
+    printf -v "${var_name}" '%s\n%s' "${current}" "${line}"
+  fi
+}
+
+print_report_group() {
+  local title="$1"
+  local body="$2"
+  local width="${TOOLCHAIN_REPORT_WIDTH:-80}"
+  local indent="  "
+  local max_cols=5
+  local min_col_width=15
+  local item line padded
+  local n=0 max_len=0 col_width cols rows row col idx
+  local items=()
+
+  printf '%s\n' "${title}"
+  if [ -z "${body}" ]; then
+    printf '  (none)\n'
+    return
+  fi
+
+  while IFS= read -r item; do
+    [ -z "${item}" ] && continue
+    item="${item#  }"
+    items[n]="${item}"
+    [ "${#item}" -gt "${max_len}" ] && max_len="${#item}"
+    n=$((n + 1))
+  done << EOF
+${body}
+EOF
+
+  [ "${n}" -eq 0 ] && printf '  (none)\n' && return
+
+  col_width=$((max_len + 2))
+  [ "${col_width}" -lt "${min_col_width}" ] && col_width="${min_col_width}"
+
+  cols=$(((width - ${#indent}) / col_width))
+  [ "${cols}" -gt "${max_cols}" ] && cols="${max_cols}"
+  [ "${cols}" -lt 1 ] && cols=1
+  [ "${cols}" -gt "${n}" ] && cols="${n}"
+
+  rows=$(((n + cols - 1) / cols))
+  for ((row = 0; row < rows; row++)); do
+    line="${indent}"
+    for ((col = 0; col < cols; col++)); do
+      idx=$((row * cols + col))
+      [ "${idx}" -ge "${n}" ] && continue
+      item="${items[idx]}"
+      if [ "${col}" -lt $((cols - 1)) ]; then
+        printf -v padded '%-*s' "${col_width}" "${item}"
+        line="${line}${padded}"
+      else
+        line="${line}${item}"
+      fi
+    done
+    while [ "${line% }" != "${line}" ]; do
+      line="${line% }"
+    done
+    printf '%s\n' "${line}"
+  done
+}
+
+format_bool() {
+  case "$1" in
+    __TRUE__)
+      printf 'yes'
+      ;;
+    __FALSE__)
+      printf 'no'
+      ;;
+    *)
+      printf '%s' "$1"
+      ;;
+  esac
+}
+
+print_toolchain_summary() {
+  local pkg mode
+  local install_packages=""
+  local system_packages=""
+  local path_packages=""
+  local disabled_packages=""
+
+  for pkg in ${package_list}; do
+    mode=$(get_effective_package_mode "${pkg}")
+    case "${mode}" in
+      __INSTALL__)
+        append_report_line install_packages "  - ${pkg}"
+        ;;
+      __SYSTEM__)
+        append_report_line system_packages "  - ${pkg}"
+        ;;
+      __DONTUSE__)
+        append_report_line disabled_packages "  - ${pkg}"
+        ;;
+      *)
+        append_report_line path_packages "  - ${pkg}: ${mode}"
+        ;;
+    esac
+  done
+
+  printf '\nToolchain configuration summary\n'
+  printf '%s\n' '-------------------------------'
+  printf 'System specifications:\n'
   printf '   -%-20s = %s\n' "j" "${NPROCS_OVERWRITE}"
   printf '  --%-20s = %s\n' "target-cpu" "${TARGET_CPU}"
   printf '  --%-20s = %s\n' "gpu-ver" "${GPUVER}"
   printf '  --%-20s = %s\n' "mpi-mode" "${MPI_MODE}"
   printf '  --%-20s = %s\n' "math-mode" "${MATH_MODE}"
-  printf '  --%-20s = %s\n' "enable-tsan" "${enable_tsan}"
-  printf '  --%-20s = %s\n' "enable-cuda" "${enable_cuda}"
-  printf '  --%-20s = %s\n' "enable-gauxc-cutlass" "${enable_gauxc_cutlass}"
-  printf '  --%-20s = %s\n' "enable-hip" "${enable_hip}"
-  printf '  --%-20s = %s\n' "enable-opencl" "${enable_opencl}"
-  printf '  --%-20s = %s\n' "enable-cray" "${enable_cray}"
-  printf "List of effective settings after resolving package conflicts:\n"
-  for ii in ${package_list}; do
-    install_mode=$(eval "echo \${with_${ii}}")
-    printf '  --with-%-15s = %s\n' "${ii}" "${install_mode}"
-  done
+  printf '\nEnabled features:\n'
+  printf '  --%-20s = %s\n' "enable-tsan" "$(format_bool "${enable_tsan}")"
+  printf '  --%-20s = %s\n' "enable-cuda" "$(format_bool "${enable_cuda}")"
+  printf '  --%-20s = %s\n' "enable-gauxc-cutlass" "$(format_bool "${enable_gauxc_cutlass}")"
+  printf '  --%-20s = %s\n' "enable-hip" "$(format_bool "${enable_hip}")"
+  printf '  --%-20s = %s\n' "enable-opencl" "$(format_bool "${enable_opencl}")"
+  printf '  --%-20s = %s\n' "enable-cray" "$(format_bool "${enable_cray}")"
+  printf '\n'
+  print_report_group "Packages to be installed:" "${install_packages}"
+  printf '\n'
+  print_report_group "Packages to be detected from system:" "${system_packages}"
+  if [ -n "${path_packages}" ]; then
+    printf '\n'
+    print_report_group "Packages linked from user paths:" "${path_packages}"
+  fi
+  printf '\n'
+  print_report_group "Packages not used:" "${disabled_packages}"
+  printf '\n'
+}
+
+# ------------------------------------------------------------------------
+# Build packages unless dry-run mode is enabled.
+# ------------------------------------------------------------------------
+if [ "${dry_run}" = "__TRUE__" ]; then
+  printf "With --dry-run option, this script concludes with a report.\n"
+  printf "The setup, toolchain env and conf files are written to ./install.\n"
+  print_toolchain_summary
 else
   echo "Options have been parsed successfully."
+  print_toolchain_summary
   echo "Compiling with ${NPROCS_OVERWRITE} processes for target ${TARGET_CPU}."
   echo "# Leak suppressions" > "${INSTALLDIR}"/lsan.supp
   "${SCRIPTDIR}"/stage0/install_stage0.sh
