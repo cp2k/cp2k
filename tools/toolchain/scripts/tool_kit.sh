@@ -55,7 +55,7 @@ load() {
 }
 
 # Take excerpt of ${LOG_LINES} lines from tail of a file, always reporting
-# its absolute path at the top
+# its absolute path at the top, and then exit with non-zero code
 tail_excerpt() {
   local __filename=$(real_path "$1")
   if [ -n "${LOG_LINES}" ]; then
@@ -64,6 +64,7 @@ tail_excerpt() {
     local __lines="$2"
   fi
   tail -v -n "${__lines}" "${__filename}"
+  exit 1
 }
 
 # A more portable command that will give the full path, removing

@@ -65,7 +65,9 @@ case "${with_openblas}" in
           FC="${FC}" \
           PREFIX="${pkg_install_dir}" \
           > make.${OPENBLAS_LIBCORE}.log 2>&1; then
-          tail_excerpt make.${OPENBLAS_LIBCORE}.log
+          # If failed, fallback to the dynamic-arch build
+          # Not using tail_excerpt because it exits with 1
+          tail -v -n "${LOG_LINES}" make.${OPENBLAS_LIBCORE}.log
           BUILD_DYNAMIC=1
         fi
       fi
