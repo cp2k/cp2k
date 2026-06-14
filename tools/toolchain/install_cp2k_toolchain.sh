@@ -32,7 +32,6 @@ export ROOTDIR="${PWD}"
 export SCRIPTDIR="${ROOTDIR}/scripts"
 export BUILDDIR="${ROOTDIR}/build"
 export INSTALLDIR="${ROOTDIR}/install"
-export SETUPFILE="${INSTALLDIR}/setup"
 export TOOLKIT_SCRIPT="${SCRIPTDIR}/tool_kit.sh"
 
 # ------------------------------------------------------------------------
@@ -649,9 +648,6 @@ while [ $# -ge 1 ]; do
         exit 1
       fi
       export INSTALLDIR="${1#--install-dir=}"
-      export SETUPFILE="${INSTALLDIR}/setup"
-      cp "${SCRIPTDIR}"/tool_kit.sh "${INSTALLDIR}"/
-      export TOOLKIT_SCRIPT="${INSTALLDIR}/tool_kit.sh"
       ;;
     --no-check-certificate)
       export DOWNLOADER_FLAGS="--no-check-certificate"
@@ -1261,6 +1257,12 @@ fi
 # ------------------------------------------------------------------------
 
 mkdir -p "${INSTALLDIR}"
+export SETUPFILE="${INSTALLDIR}/setup"
+
+if [ "${INSTALLDIR}" != "${ROOTDIR}/install" ]; then
+  cp "${SCRIPTDIR}"/tool_kit.sh "${INSTALLDIR}"/
+  export TOOLKIT_SCRIPT="${INSTALLDIR}/tool_kit.sh"
+fi
 
 # Select the correct compute number based on the GPU architecture
 case ${GPUVER} in
