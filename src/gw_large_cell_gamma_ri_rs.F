@@ -242,7 +242,9 @@ CONTAINS
          atomic_center(:) = particle_set(atom_idx)%r(:)
 
          start_idx = ri_rs_grid_offsets(atom_idx)
-         end_idx = ri_rs_grid_offsets(atom_idx + 1) - 1
+         ! offsets are filled in kind-grouped order, so offsets(atom_idx+1) belongs to an
+         ! unrelated atom when elements are interleaved in the geometry; span from own kind
+         end_idx = start_idx + bs_env%ri_rs%grid_cache(ikind)%npts - 1
 
           !! Shift the cached origin grid by the atom's center
          ri_rs_grid_points(1, start_idx:end_idx) = bs_env%ri_rs%grid_cache(ikind)%raw_points(1, :) + atomic_center(1)
