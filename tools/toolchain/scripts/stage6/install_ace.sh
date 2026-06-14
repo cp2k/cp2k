@@ -73,7 +73,6 @@ case "$with_ace" in
     # add_include_from_paths ACE_CFLAGS "ace" $INCLUDE_PATHS
     # ACE_DFLAGS="-D__ACE"
     report_error "The system detection of Ace is not supported; please use \"--with-ace=install\"."
-    exit 1
     ;;
   __DONTUSE__) ;;
   *)

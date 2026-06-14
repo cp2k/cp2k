@@ -38,7 +38,6 @@ case "${with_cmake}" in
     else
       report_error ${LINENO} \
         "cmake installation for ARCH=${OPENBLAS_ARCH} under $(uname -s) is not supported. You can try to use the system installation using the flag --with-cmake=system instead."
-      exit 1
     fi
     pkg_install_dir="${INSTALLDIR}/cmake-${cmake_ver}"
     install_lock_file="$pkg_install_dir/install_successful"

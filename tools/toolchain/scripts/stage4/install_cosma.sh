@@ -24,6 +24,11 @@ source "${INSTALLDIR}"/toolchain.env
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
+# HIP-build of Tiled-MM and COSMA requires rocblas
+if [ "$with_cosma" != "__DONTUSE__" ] && [ "$ENABLE_HIP" = "__TRUE__" ]; then
+  check_lib -lrocblas "rocm"
+fi
+
 case "$with_cosma" in
   __INSTALL__)
     require_env OPENBLAS_ROOT
@@ -183,7 +188,7 @@ case "$with_cosma" in
       fi
 
       # Build HIP version.
-      if [ "$ENABLE_HIP" = "__TRUE__" ] && $(check_lib -lrocblas "rocm" &> /dev/null); then
+      if [ "$ENABLE_HIP" = "__TRUE__" ]; then
         [ -d build-hip ] && rm -rf "build-hip"
         mkdir build-hip
         cd build-hip
@@ -242,7 +247,7 @@ case "$with_cosma" in
 esac
 if [ "$with_cosma" != "__DONTUSE__" ]; then
   COSMA_LIBS="-lcosma_prefixed_pxgemm -lcosma -lcosta IF_CUDA(-lTiled-MM|)"
-  if [ "$ENABLE_HIP" = "__TRUE__" ] && $(check_lib -lrocblas "rocm" &> /dev/null); then
+  if [ "$ENABLE_HIP" = "__TRUE__" ]; then
     COSMA_LIBS+=" IF_HIP(-lTiled-MM|)"
   fi
   if [ "$with_cosma" != "__SYSTEM__" ]; then

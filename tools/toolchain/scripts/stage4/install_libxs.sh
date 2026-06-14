@@ -30,11 +30,9 @@ case "$with_libxs" in
       if [ -f libxs-${libxs_ver}.tar.gz ]; then
         echo "libxs-${libxs_ver}.tar.gz is found"
       else
-        if ! download_pkg_from_cp2k_org "${libxs_sha256}" "libxs-${libxs_ver}.tar.gz" 2> /dev/null; then
-          download_pkg_from_urlpath "${libxs_sha256}" "${libxs_ver}" \
-            https://codeload.github.com/hfp/libxs/tar.gz \
-            "libxs-${libxs_ver}.tar.gz"
-        fi
+        download_pkg_from_urlpath "${libxs_sha256}" "${libxs_ver}" \
+          https://codeload.github.com/hfp/libxs/tar.gz \
+          "libxs-${libxs_ver}.tar.gz"
       fi
       [ -d libxs-${libxs_ver} ] && rm -rf libxs-${libxs_ver}
       tar -xzf libxs-${libxs_ver}.tar.gz

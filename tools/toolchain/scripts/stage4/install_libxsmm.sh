@@ -37,11 +37,9 @@ EOF
       if [ -f libxsmm-${libxsmm_ver}.tar.gz ]; then
         echo "libxsmm-${libxsmm_ver}.tar.gz is found"
       else
-        if ! download_pkg_from_cp2k_org "${libxsmm_sha256}" "libxsmm-${libxsmm_ver}.tar.gz" 2> /dev/null; then
-          download_pkg_from_urlpath "${libxsmm_sha256}" "${libxsmm_ver}" \
-            https://codeload.github.com/libxsmm/libxsmm/tar.gz \
-            "libxsmm-${libxsmm_ver}.tar.gz"
-        fi
+        download_pkg_from_urlpath "${libxsmm_sha256}" "${libxsmm_ver}" \
+          https://codeload.github.com/libxsmm/libxsmm/tar.gz \
+          "libxsmm-${libxsmm_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d libxsmm-${libxsmm_ver} ] && rm -rf libxsmm-${libxsmm_ver}

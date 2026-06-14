@@ -635,7 +635,6 @@ while [ $# -ge 1 ]; do
           ;;
         *)
           report_error ${LINENO} "Non-integer argument ${2} for -j flag found."
-          exit 1
           ;;
       esac
       ;;
@@ -645,7 +644,6 @@ while [ $# -ge 1 ]; do
     --install-dir=*)
       if [[ "${1#--install-dir=}" != /* ]]; then
         report_error "The path for --install-dir must be an absolute path."
-        exit 1
       fi
       export INSTALLDIR="${1#--install-dir=}"
       ;;
@@ -683,7 +681,7 @@ while [ $# -ge 1 ]; do
           export MPI_MODE="no"
           ;;
         *)
-          report_error ${LINENO} "Invalid value for --mpi-mode found."
+          echo "ERROR: Invalid value for --mpi-mode found."
           echo "Currently only one of the following options is supported:
             openmpi, mpich, intelmpi.
 Otherwise use option no."
@@ -707,7 +705,7 @@ Otherwise use option no."
           export MATH_MODE="openblas"
           ;;
         *)
-          report_error ${LINENO} "Invalid value for --math-mode found."
+          echo "ERROR: Invalid value for --math-mode found."
           echo "Currently only one of the following options is supported:
             mkl, acml, openblas, cray."
           exit 1
@@ -721,7 +719,7 @@ Otherwise use option no."
           export GPUVER="${user_input}"
           ;;
         *)
-          report_error ${LINENO} "Invalid value for --gpu-ver found."
+          echo "ERROR: Invalid value for --gpu-ver found."
           echo "Currently only one of the following options is supported:
             K20X, K40, K80, P100, V100, A100, H100, GB10, A40, Mi50, Mi100, Mi250.
 Otherwise use option no."
@@ -741,7 +739,6 @@ Otherwise use option no."
           ;;
         *)
           report_error ${LINENO} "Non-integer ${user_input} for --log-lines."
-          exit 1
           ;;
       esac
       ;;
@@ -756,42 +753,36 @@ Otherwise use option no."
       enable_tsan=$(read_enable "${1}")
       if [ "${enable_tsan}" = "__INVALID__" ]; then
         report_error "invalid value for --enable-tsan, please use yes or no"
-        exit 1
       fi
       ;;
     --enable-cuda*)
       enable_cuda=$(read_enable "${1}")
       if [ "${enable_cuda}" = "__INVALID__" ]; then
         report_error "invalid value for --enable-cuda, please use yes or no"
-        exit 1
       fi
       ;;
     --enable-gauxc-cutlass*)
       enable_gauxc_cutlass=$(read_enable "${1}")
       if [ "${enable_gauxc_cutlass}" = "__INVALID__" ]; then
         report_error "invalid value for --enable-gauxc-cutlass, please use yes or no"
-        exit 1
       fi
       ;;
     --enable-hip*)
       enable_hip=$(read_enable "${1}")
       if [ "${enable_hip}" = "__INVALID__" ]; then
         report_error "invalid value for --enable-hip, please use yes or no"
-        exit 1
       fi
       ;;
     --enable-opencl*)
       enable_opencl=$(read_enable "${1}")
       if [ "${enable_opencl}" = "__INVALID__" ]; then
         report_error "invalid value for --enable-opencl, please use yes or no"
-        exit 1
       fi
       ;;
     --enable-cray*)
       enable_cray=$(read_enable "${1}")
       if [ "${enable_cray}" = "__INVALID__" ]; then
         report_error "invalid value for --enable-cray, please use yes or no"
-        exit 1
       fi
       ;;
     --with-gcc*)
@@ -970,7 +961,6 @@ Otherwise use option no."
     *)
       report_error ${LINENO} "Unknown flag: ${1}
 See help message of this script produced by --help option for supported ones."
-      exit 1
       ;;
   esac
   shift
@@ -1000,7 +990,6 @@ fi
 if [ "${with_amd}" != "__DONTUSE__" ]; then
   if [ "${with_intel}" != "__DONTUSE__" ]; then
     report_error ${LINENO} "The AMD and Intel compilers can't be used together."
-    exit 1
   fi
 fi
 # MPI library conflicts
@@ -1059,7 +1048,6 @@ else
         ;;
       intelmpi)
         report_error ${LINENO} "Incompatible --mpi-mode=intelmpi found."
-        exit 1
         ;;
     esac
   fi
@@ -1086,7 +1074,6 @@ else
         report_error ${LINENO} "While --mpi-mode=intelmpi is set, no Intel MPI
 could be found or linked in the system, and installation by toolchain is not
 supported. Please install manually and check executable path before rerunning."
-        exit 1
       fi
       ;;
   esac
@@ -1098,20 +1085,17 @@ if [ "${ENABLE_CUDA}" = "__TRUE__" ] || [ "${ENABLE_HIP}" = "__TRUE__" ]; then
     report_error ${LINENO} "Either CUDA or HIP is enabled, but --gpu-ver is not
 set to one of the known architectures. See help message of this script produced
 by --help option for supported ones."
-    exit 1
   fi
 fi
 
 if [ "${ENABLE_GAUXC_CUTLASS}" = "__TRUE__" ]; then
   if [ "${ENABLE_CUDA}" != "__TRUE__" ]; then
     report_error ${LINENO} "--enable-gauxc-cutlass requires --enable-cuda=yes."
-    exit 1
   fi
   case "${GPUVER}" in
     A100 | A40 | H100 | GB10) ;;
     *)
       report_error ${LINENO} "--enable-gauxc-cutlass requires CUDA compute capability >= 8.0."
-      exit 1
       ;;
   esac
   if [ "${with_gauxc}" = "__DONTUSE__" ]; then
@@ -1119,7 +1103,6 @@ if [ "${ENABLE_GAUXC_CUTLASS}" = "__TRUE__" ]; then
     with_gauxc="__INSTALL__"
   elif [ "${with_gauxc}" != "__INSTALL__" ]; then
     report_error ${LINENO} "--enable-gauxc-cutlass is only supported with --with-gauxc=install."
-    exit 1
   fi
 fi
 
@@ -1306,7 +1289,7 @@ case ${GPUVER} in
     export ARCH_NUM="no"
     ;;
   *)
-    report_error ${LINENO} "Invalid value for --gpu-ver found."
+    echo "ERROR: Invalid value for --gpu-ver found."
     echo "Currently only one of the following options is supported:
       K20X, K40, K80, P100, V100, A100, H100, A40, Mi50, Mi100, Mi250.
 Otherwise use option no."
@@ -1614,7 +1597,7 @@ print_toolchain_summary() {
 if [ "${dry_run}" = "__TRUE__" ]; then
   print_toolchain_summary
   printf "With --dry-run option, this script concludes with above report.\n"
-  printf "The setup, toolchain env and conf files are written to ./install.\n"
+  printf "The setup, toolchain env and conf files are written to %s.\n" "${INSTALLDIR}"
 else
   echo "Options have been parsed successfully."
   print_toolchain_summary
