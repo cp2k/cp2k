@@ -719,6 +719,9 @@ CONTAINS
                                      just_energy=just_energy_xc)
                END IF
                IF (native_skala_restore_exc) energy%exc = native_skala_exc_scf
+               IF (gapw) THEN
+                  CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section)
+               END IF
                IF (edisp /= 0.0_dp) energy%dispersion = edisp
                IF (qs_env%requires_matrix_vxc .AND. ASSOCIATED(v_rspace_new)) THEN
                   IF (do_kpoints) THEN

@@ -24,6 +24,7 @@ MODULE qs_vxc_atom
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: indso,&
                                               nsoset
+   USE particle_types,                  ONLY: particle_type
    USE paw_basis_types,                 ONLY: get_paw_basis_info
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -37,6 +38,8 @@ MODULE qs_vxc_atom
    USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                               rho_atom_coeff,&
                                               rho_atom_type
+   USE skala_gpw_functional,            ONLY: skala_gapw_atom_vxc_of_r,&
+                                              xc_section_uses_native_skala_grid
    USE util,                            ONLY: get_limit
    USE xc_atom,                         ONLY: fill_rho_set,&
                                               vxc_of_r_epr,&
@@ -110,8 +113,9 @@ CONTAINS
                                                             myfun, na, natom, nr, nspins, num_pe
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: accint, donlcc, gradient_f, lsd, nlcc, &
-                                                            paw_atom, tau_f
+      LOGICAL                                            :: accint, donlcc, gradient_f, lsd, &
+                                                            native_skala_grid, nlcc, paw_atom, &
+                                                            tau_f
       REAL(dp)                                           :: agr, alpha, density_cut, exc_h, exc_s, &
                                                             gradient_cut, &
                                                             my_adiabatic_rescale_factor, tau_cut
@@ -127,6 +131,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: my_kind_set
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: dr_h, dr_s, int_hh, int_ss, r_h, r_s
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: r_h_d, r_s_d
@@ -149,6 +154,7 @@ CONTAINS
       NULLIFY (harmonics)
       NULLIFY (input)
       NULLIFY (para_env)
+      NULLIFY (particle_set)
       NULLIFY (rho_atom)
       NULLIFY (my_rho_atom_set)
       NULLIFY (rho_nlcc)
@@ -165,6 +171,7 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=my_kind_set, &
                       input=input, &
+                      particle_set=particle_set, &
                       rho_atom_set=my_rho_atom_set)
 
       IF (PRESENT(kind_set_external)) my_kind_set => kind_set_external
@@ -180,6 +187,7 @@ CONTAINS
       xc_fun_section => section_vals_get_subs_vals(my_xc_section, "XC_FUNCTIONAL")
       CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", &
                                 i_val=myfun)
+      native_skala_grid = xc_section_uses_native_skala_grid(my_xc_section)
 
       IF (myfun == xc_none) THEN
          exc1 = 0.0_dp
@@ -355,18 +363,32 @@ CONTAINS
                ! hard atom density !
                !-------------------!
                CALL xc_dset_zero_all(deriv_set)
-               CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight_h, &
-                                 lsd, na, nr, exc_h, vxc_h, vxg_h, vtau_h, energy_only=energy_only, &
-                                 adiabatic_rescale_factor=my_adiabatic_rescale_factor)
+               IF (native_skala_grid) THEN
+                  CALL skala_gapw_atom_vxc_of_r( &
+                     my_xc_section, grid_atom, para_env, particle_set(iatom)%r, &
+                     rho_h, drho_h, tau_h, weight_h, lsd, nspins, na, nr, &
+                     exc_h, vxc_h, vxg_h, vtau_h, energy_only=energy_only)
+               ELSE
+                  CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight_h, &
+                                    lsd, na, nr, exc_h, vxc_h, vxg_h, vtau_h, energy_only=energy_only, &
+                                    adiabatic_rescale_factor=my_adiabatic_rescale_factor)
+               END IF
                rho_atom%exc_h = rho_atom%exc_h + exc_h
 
                !-------------------!
                ! soft atom density !
                !-------------------!
                CALL xc_dset_zero_all(deriv_set)
-               CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight_s, &
-                                 lsd, na, nr, exc_s, vxc_s, vxg_s, vtau_s, energy_only=energy_only, &
-                                 adiabatic_rescale_factor=my_adiabatic_rescale_factor)
+               IF (native_skala_grid) THEN
+                  CALL skala_gapw_atom_vxc_of_r( &
+                     my_xc_section, grid_atom, para_env, particle_set(iatom)%r, &
+                     rho_s, drho_s, tau_s, weight_s, lsd, nspins, na, nr, &
+                     exc_s, vxc_s, vxg_s, vtau_s, energy_only=energy_only)
+               ELSE
+                  CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight_s, &
+                                    lsd, na, nr, exc_s, vxc_s, vxg_s, vtau_s, energy_only=energy_only, &
+                                    adiabatic_rescale_factor=my_adiabatic_rescale_factor)
+               END IF
                rho_atom%exc_s = rho_atom%exc_s + exc_s
 
                ! Add contributions to the exc energy

@@ -1311,7 +1311,7 @@ CONTAINS
                           "The current CP2K bridge uses GauXC's molecular quadrature. Periodic inputs "// &
                           "are limited to isolated validation cells and are not compact periodic "// &
                           "material calculations.", &
-                          n_keywords=26, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=27, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1463,6 +1463,22 @@ CONTAINS
                           "visible CUDA device explicitly.", &
                           usage="NATIVE_GRID_CUDA_DEVICE -1", &
                           default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_ATOM_PARTITION", &
+                          description="Atom partition used to build the experimental CP2K-native "// &
+                          "SKALA regular-grid feature block. HARD assigns each native grid point to "// &
+                          "the nearest periodic atom and is the default. SMOOTH uses a Becke-like "// &
+                          "fuzzy-cell partition on the native grid and creates weighted atom rows; "// &
+                          "analytical force and stress contributions include the corresponding "// &
+                          "partition-weight derivatives.", &
+                          usage="NATIVE_GRID_ATOM_PARTITION HARD", &
+                          enum_c_vals=s2a("HARD", "SMOOTH"), &
+                          enum_i_vals=[1, 2], &
+                          enum_desc=s2a("Assign each grid point to the nearest atom", &
+                                        "Use a smooth Becke-like native-grid atom partition"), &
+                          default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
