@@ -2374,6 +2374,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_floquet_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_bandstructure_section
 
 ! **************************************************************************************************
@@ -2898,5 +2902,126 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_tipscan_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param section_name ...
+!> \author Shridhar Shanbhag
+! **************************************************************************************************
+   SUBROUTINE create_floquet_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CALL section_create(section, __LOCATION__, name="FLOQUET", &
+                          description="Parameters controlling the calculation of the "// &
+                          "Floquet band structure and Quasi-energies of a system driven "// &
+                          "by a periodic monochromatic electric field with any arbitrary "// &
+                          "polarisation state.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="AMPLITUDE", &
+                          description="Electric field amplitude of the monochromatic light.", &
+                          usage="AMPLITUDE [Vm-1] 1.0E9", n_var=1, type_of_var=real_t, &
+                          unit_str="Vm-1", default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY", &
+                          description="Frequency of the electric field for Floquet calculations "// &
+                          "expressed in terms of the energy of a photon in eV.", &
+                          usage="FREQUENCY 1.5", unit_str="eV", n_var=1, type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=1.0_dp, unit_str="eV"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="POLARISATION", &
+                          description="Polarisation vector of the input light. The "// &
+                          "amplitude in each direction is the product of the AMPLITUDE "// &
+                          "and the POLARISATION vector component. Eg. for light polarized "// &
+                          "in the x direction, use 1 0 0. For left-circularly polarized "// &
+                          "light travelling in the +z direction use 1 1 0 and set "// &
+                          "PHASE_OFFSET 0 0.5 0 for a +π/2 offset", &
+                          usage="POLARISATION  0.0 0.0 1.0", &
+                          default_r_vals=[0.0_dp, 0.0_dp, 1.0_dp])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PHASE_OFFSETS", &
+                          description="Phase offset of the electric field in the "// &
+                          "x, y, and z directions given in multiples of π. For "// &
+                          "linearly polarized light, use 0 0 0 and for left-circularly "// &
+                          "polarized light travelling in the +z direction use "// &
+                          "PHASE_OFFSET 0.0 0.5 0 ", &
+                          usage="PHASE_OFFSETS  0.5 0 0", &
+                          default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FLOQUET_INDEX", &
+                          description="Largest absolute Floquet index up to which "// &
+                          "Floquet Hamiltonian is truncated. Use a larger value to "// &
+                          "ensure convergence at higher computational cost and a "// &
+                          "smaller value for faster computation. EPS_FLOQUET checks "// &
+                          "to ensure that the error due to truncation is small.", &
+                          usage="MAX_FLOQUET_INDEX 50", &
+                          default_i_val=50)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FLOQUET", &
+                          description="Threshold on the error due to truncation of "// &
+                          "the Floquet Hamiltonian. Used to verify that MAX_FLOQUET_INDEX "// &
+                          "is large enough that truncation errors are small. "// &
+                          "If negative, the check is removed (not recommended).", &
+                          usage="EPS_FLOQUET 1.e-10", default_r_val=1.0e-10_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
+                          description="Half-width of the energy range, in eV, centred "// &
+                          "on the Fermi level, over which the Floquet spectral "// &
+                          "function is evaluated.", &
+                          usage="ENERGY_WINDOW 5.0", &
+                          default_r_val=cp_unit_to_cp2k(value=10.0_dp, unit_str="eV"), &
+                          unit_str="eV")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_STEP", &
+                          description="Resolution of the energy E used to compute the "// &
+                          "spectral function within the energy window.", &
+                          usage="ENERGY_STEP 0.01", &
+                          default_r_val=cp_unit_to_cp2k(value=0.01_dp, unit_str="eV"), &
+                          unit_str="eV")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BROADENING", &
+                          description="Lorentzian broadening applied to the peaks of the "// &
+                          "Floquet spectral function.", &
+                          usage="BROADENING 0.02", &
+                          default_r_val=cp_unit_to_cp2k(value=0.02_dp, unit_str="eV"), &
+                          unit_str="eV")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FLOQUET_DOS_FILE_NAME", &
+                          description="File name used for the Floquet spectral function.", &
+                          usage="FLOQUET_DOS_FILE_NAME FLOQUET_DOS", &
+                          default_lc_val="FLOQUET_DOS")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="QUASI_ENERGIES_FILE_NAME", &
+                          description="File name used for the Floquet quasi-energies.", &
+                          usage="QUASI_ENERGIES_FILE_NAME QUASI_ENERGIES", &
+                          default_lc_val="QUASI_ENERGIES")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_floquet_section
 
 END MODULE input_cp2k_properties_dft

@@ -25,6 +25,7 @@ MODULE post_scf_bandstructure_types
    USE input_constants,                 ONLY: rtp_method_bse,&
                                               small_cell_full_kp
    USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: kpoint_release,&
                                               kpoint_type
@@ -88,7 +89,8 @@ MODULE post_scf_bandstructure_types
                                                          do_soc = .FALSE., &
                                                          do_ldos = .FALSE., &
                                                          do_gw_ri_rs = .FALSE., &
-                                                         do_dos_pdos = .FALSE.
+                                                         do_dos_pdos = .FALSE., &
+                                                         do_floquet = .FALSE.
 
       ! various eigenvalues computed in GW code, some depend on k-points
       ! and have therefore three dimensions (band index, k-point, spin)
@@ -309,6 +311,19 @@ MODULE post_scf_bandstructure_types
       INTEGER, DIMENSION(:), POINTER               :: bin_mesh => NULL()
       INTEGER                                      :: n_bins_max_for_printing = -1
       REAL(KIND=dp)                                :: unit_ldos_int_z_inv_Ang2_eV = -1.0_dp
+
+      ! parameters for Floquet band structure calculations
+      INTEGER                                      :: max_floquet_index = -1
+      REAL(KIND=dp), DIMENSION(:), POINTER         :: floquet_polarisation => NULL(), &
+                                                      floquet_phi => NULL()
+      REAL(KIND=dp)                                :: floquet_omega = -1.0_dp, &
+                                                      floquet_amplitude = -1.0_dp, &
+                                                      eps_floquet = -1.0_dp, &
+                                                      broadening_floquet = -1.0_dp, &
+                                                      energy_step_floquet = -1.0_dp, &
+                                                      energy_window_floquet = -1.0_dp
+      CHARACTER(LEN=default_string_length)         :: floquet_dos_file = "", &
+                                                      floquet_qe_file = ""
 
       ! quantities only needed for small cells and k-point sampling in DFT (small_cell_full_kp)
       INTEGER                                      :: nkp_scf_desymm = -1, &

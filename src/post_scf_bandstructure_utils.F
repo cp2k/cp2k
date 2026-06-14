@@ -197,8 +197,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: kpptr
       REAL(KIND=dp), DIMENSION(3, 3)                     :: cart_hmat
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(section_vals_type), POINTER                   :: dos_pdos_sec, gw_ri_rs_sec, gw_sec, &
-                                                            kp_bs_sec, ldos_sec, soc_sec
+      TYPE(section_vals_type), POINTER                   :: dos_pdos_sec, floquet_sec, gw_ri_rs_sec, &
+                                                            gw_sec, kp_bs_sec, ldos_sec, soc_sec
 
       CALL timeset(routineN, handle)
       NULLIFY (cell)
@@ -246,6 +246,21 @@ CONTAINS
       CALL section_vals_val_get(kp_bs_sec, "UNITS", c_val=ustr)
       CALL uppercase(ustr)
       CALL section_vals_val_get(kp_bs_sec, "SPECIAL_POINT", n_rep_val=bs_env%input_kp_bs_n_sp_pts)
+
+      NULLIFY (floquet_sec)
+      floquet_sec => section_vals_get_subs_vals(bs_sec, "FLOQUET")
+      CALL section_vals_get(floquet_sec, explicit=bs_env%do_floquet)
+      CALL section_vals_val_get(floquet_sec, "AMPLITUDE", r_val=bs_env%floquet_amplitude)
+      CALL section_vals_val_get(floquet_sec, "FREQUENCY", r_val=bs_env%floquet_omega)
+      CALL section_vals_val_get(floquet_sec, "POLARISATION", r_vals=bs_env%floquet_polarisation)
+      CALL section_vals_val_get(floquet_sec, "PHASE_OFFSETS", r_vals=bs_env%floquet_phi)
+      CALL section_vals_val_get(floquet_sec, "MAX_FLOQUET_INDEX", i_val=bs_env%max_floquet_index)
+      CALL section_vals_val_get(floquet_sec, "EPS_FLOQUET", r_val=bs_env%eps_floquet)
+      CALL section_vals_val_get(floquet_sec, "ENERGY_WINDOW", r_val=bs_env%energy_window_floquet)
+      CALL section_vals_val_get(floquet_sec, "ENERGY_STEP", r_val=bs_env%energy_step_floquet)
+      CALL section_vals_val_get(floquet_sec, "BROADENING", r_val=bs_env%broadening_floquet)
+      CALL section_vals_val_get(floquet_sec, "FLOQUET_DOS_FILE_NAME", c_val=bs_env%floquet_dos_file)
+      CALL section_vals_val_get(floquet_sec, "QUASI_ENERGIES_FILE_NAME", c_val=bs_env%floquet_qe_file)
 
       ! read special points for band structure
       ALLOCATE (bs_env%xkp_special(3, bs_env%input_kp_bs_n_sp_pts))
