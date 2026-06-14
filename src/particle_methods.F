@@ -775,9 +775,9 @@ CONTAINS
       my_parts_per_line = 5
       IF (PRESENT(parts_per_line)) my_parts_per_line = MAX(parts_per_line, 1)
       WRITE (fmt_string1, FMT='(A,I0,A)') &
-         "(/,T2,11X,", my_parts_per_line, "(4X,I5,4X))"
+         "(/,T2,9X,", my_parts_per_line, "(4X,I6,4X))"
       WRITE (fmt_string2, FMT='(A,I0,A)') &
-         "(T2,I5,2X,A2,2X,", my_parts_per_line, "(1X,F12.6))"
+         "(T2,I5,1X,A2,1X,", my_parts_per_line, "(1X,ES13.6E2))"
       IF (PRESENT(Ilist)) THEN
          natom = SIZE(Ilist)
       ELSE

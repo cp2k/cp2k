@@ -119,7 +119,8 @@ CONTAINS
                                                             tc_press, tc_temp, tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: H_eigval1, H_eigval2, HeigvalDfull, &
                                                             konst, mass, pos0, rmass
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Hessian, Hint1, Hint2, Hint2Dfull, MatM
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Hessian, Hessian_umw, Hint1, Hint2, &
+                                                            Hint2Dfull, MatM
       REAL(KIND=dp), DIMENSION(3)                        :: D_deriv, d_print
       REAL(KIND=dp), DIMENSION(3, 3)                     :: P_deriv, p_print
       REAL(KIND=dp), DIMENSION(:), POINTER               :: depol_p, depol_u, depp, depu, din, &
@@ -204,6 +205,7 @@ CONTAINS
             ALLOCATE (mass(natoms))
             ALLOCATE (pos0(ncoord))
             ALLOCATE (Hessian(ncoord, ncoord))
+            ALLOCATE (Hessian_umw(ncoord, ncoord))
             IF (calc_intens) THEN
                description_d = '[DIPOLE]'
                ALLOCATE (tmp_dip(ncoord, 3, 2))
@@ -250,6 +252,7 @@ CONTAINS
             ! Loop on atoms and coordinates
             !
             Hessian = HUGE(0.0_dp)
+            Hessian_umw = HUGE(0.0_dp)
             IF (output_unit > 0) WRITE (output_unit, '(/,T2,A)') "VIB| Vibrational Analysis Info"
             DO icoordp = 1, ncoord, nrep
                icoord = icoordp - 1
@@ -428,9 +431,10 @@ CONTAINS
                         ip2 = iseq/3
                         IF (MOD(iseq, 3) /= 0) ip2 = ip2 + 1
                         tmp = Hessian(iseq, icoord + j) - rep_env%f(imap, j)
-                        tmp = -tmp/(2.0_dp*Dx*mass(ip1)*mass(ip2))*1E6_dp
-                        ! Mass weighted Hessian
-                        Hessian(iseq, icoord + j) = tmp
+                        ! Un-mass-weighted Hessian_umw and mass-weighted Hessian
+                        ! are both stored to make isotope post-processing easier
+                        Hessian_umw(iseq, icoord + j) = -tmp/(2.0_dp*Dx)
+                        Hessian(iseq, icoord + j) = Hessian_umw(iseq, icoord + j)*1E6_dp/(mass(ip1)*mass(ip2))
                      END DO
                   END IF
                END DO
@@ -466,7 +470,12 @@ CONTAINS
 
             ! Dump Info
             IF (output_unit > 0) THEN
-               WRITE (output_unit, '(T2,A)') "VIB| Hessian in cartesian coordinates"
+               WRITE (output_unit, '(/,T2,A)') &
+                  "VIB| Hessian (before multiplying by 1E6/(sqrt(mass_i)*sqrt(mass_j)))"
+               CALL write_particle_matrix(Hessian_umw, particles, output_unit, el_per_part=3, &
+                                          Ilist=Mlist)
+               WRITE (output_unit, '(/,T2,A)') &
+                  "VIB| Hessian in cartesian coordinates (mass weighted)"
                CALL write_particle_matrix(Hessian, particles, output_unit, el_per_part=3, &
                                           Ilist=Mlist)
             END IF
@@ -590,9 +599,12 @@ CONTAINS
             Hint1(:, :) = Hessian
             CALL diamat_all(Hint1, H_eigval1)
             IF (output_unit > 0) THEN
-               WRITE (output_unit, '(T2,"VIB| Cartesian Low frequencies ---",4G12.5)') &
-                  (H_eigval1(i), i=1, MIN(9, ncoord))
-               WRITE (output_unit, '(T2,A)') "VIB| Eigenvectors before removal of rotations and translations"
+               WRITE (output_unit, '(/,T2,A)') "VIB| Cartesian Low frequencies ---"
+               DO i = 1, ncoord, 5
+                  WRITE (output_unit, '(T2,A,T6,5(1X,ES14.7E2))') &
+                     "VIB|", H_eigval1(i:MIN(i + 4, ncoord))
+               END DO
+               WRITE (output_unit, '(/,T2,A)') "VIB| Eigenvectors before removal of rotations and translations"
                CALL write_particle_matrix(Hint1, particles, output_unit, el_per_part=3, &
                                           Ilist=Mlist)
             END IF
@@ -614,9 +626,13 @@ CONTAINS
                END IF
                CALL diamat_all(Hint2, H_eigval2)
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(T2,"VIB| Frequencies after removal of the rotations and translations")')
-                  ! Frequency at the moment are in a.u.
-                  WRITE (output_unit, '(T2,"VIB| Internal  Low frequencies ---",4G12.5)') H_eigval2
+                  WRITE (output_unit, '(/,T2,"VIB| Frequencies after removal of the rotations and translations")')
+                  ! Frequency at the moment are in a.u. and the last 6 are meaningless
+                  WRITE (output_unit, '(/,T2,A)') "VIB| Internal  Low frequencies ---"
+                  DO i = 1, ncoord - 6, 5
+                     WRITE (output_unit, '(T2,A,T6,5(1X,ES14.7E2))') &
+                        "VIB|", H_eigval2(i:MIN(i + 4, ncoord - 6))
+                  END DO
                END IF
                Hessian = 0.0_dp
                DO i = 1, natoms
@@ -716,6 +732,7 @@ CONTAINS
             DEALLOCATE (pos0)
             DEALLOCATE (D)
             DEALLOCATE (Hessian)
+            DEALLOCATE (Hessian_umw)
             IF (calc_intens) THEN
                DEALLOCATE (dip_deriv)
                DEALLOCATE (polar_deriv)
