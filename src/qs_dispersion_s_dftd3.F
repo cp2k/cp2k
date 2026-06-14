@@ -17,13 +17,13 @@ MODULE qs_dispersion_s_dftd3
    USE dftd3_data_vdwrad, ONLY: get_vdw_rad
    USE dftd3_param, ONLY: d3_param, &
                           get_rational_damping, &
-                          get_zero_damping, &
-                          error_type
+                          get_zero_damping
    USE dftd3_reference, ONLY: init_reference_c6, &
                               get_c6, &
                               reference_cn, &
                               number_of_references
    USE mctc_data, ONLY: get_covalent_rad
+   USE mctc_env, ONLY: error_type
 #endif
 
 #include "./base/base_uses.f90"
