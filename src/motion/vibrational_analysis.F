@@ -119,7 +119,8 @@ CONTAINS
                                                             tc_press, tc_temp, tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: H_eigval1, H_eigval2, HeigvalDfull, &
                                                             konst, mass, pos0, rmass
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Hessian, Hint1, Hint2, Hint2Dfull, MatM
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Hessian, Hessian_umw, Hint1, Hint2, &
+                                                            Hint2Dfull, MatM
       REAL(KIND=dp), DIMENSION(3)                        :: D_deriv, d_print
       REAL(KIND=dp), DIMENSION(3, 3)                     :: P_deriv, p_print
       REAL(KIND=dp), DIMENSION(:), POINTER               :: depol_p, depol_u, depp, depu, din, &
@@ -204,6 +205,7 @@ CONTAINS
             ALLOCATE (mass(natoms))
             ALLOCATE (pos0(ncoord))
             ALLOCATE (Hessian(ncoord, ncoord))
+            ALLOCATE (Hessian_umw(ncoord, ncoord))
             IF (calc_intens) THEN
                description_d = '[DIPOLE]'
                ALLOCATE (tmp_dip(ncoord, 3, 2))
@@ -250,6 +252,7 @@ CONTAINS
             ! Loop on atoms and coordinates
             !
             Hessian = HUGE(0.0_dp)
+            Hessian_umw = HUGE(0.0_dp)
             IF (output_unit > 0) WRITE (output_unit, '(/,T2,A)') "VIB| Vibrational Analysis Info"
             DO icoordp = 1, ncoord, nrep
                icoord = icoordp - 1
@@ -428,9 +431,10 @@ CONTAINS
                         ip2 = iseq/3
                         IF (MOD(iseq, 3) /= 0) ip2 = ip2 + 1
                         tmp = Hessian(iseq, icoord + j) - rep_env%f(imap, j)
-                        tmp = -tmp/(2.0_dp*Dx*mass(ip1)*mass(ip2))*1E6_dp
-                        ! Mass weighted Hessian
-                        Hessian(iseq, icoord + j) = tmp
+                        ! Un-mass-weighted Hessian_umw and mass-weighted Hessian
+                        ! are both stored to make isotope post-processing easier
+                        Hessian_umw(iseq, icoord + j) = -tmp/(2.0_dp*Dx)
+                        Hessian(iseq, icoord + j) = Hessian_umw(iseq, icoord + j)*1E6_dp/(mass(ip1)*mass(ip2))
                      END DO
                   END IF
                END DO
@@ -466,7 +470,12 @@ CONTAINS
 
             ! Dump Info
             IF (output_unit > 0) THEN
-               WRITE (output_unit, '(T2,A)') "VIB| Hessian in cartesian coordinates"
+               WRITE (output_unit, '(/,T2,A)') &
+                  "VIB| Hessian (before multiplying by 1E6/(sqrt(mass_i)*sqrt(mass_j)))"
+               CALL write_particle_matrix(Hessian_umw, particles, output_unit, el_per_part=3, &
+                                          Ilist=Mlist)
+               WRITE (output_unit, '(/,T2,A)') &
+                  "VIB| Hessian in cartesian coordinates (mass weighted)"
                CALL write_particle_matrix(Hessian, particles, output_unit, el_per_part=3, &
                                           Ilist=Mlist)
             END IF
@@ -590,9 +599,12 @@ CONTAINS
             Hint1(:, :) = Hessian
             CALL diamat_all(Hint1, H_eigval1)
             IF (output_unit > 0) THEN
-               WRITE (output_unit, '(T2,"VIB| Cartesian Low frequencies ---",4G12.5)') &
-                  (H_eigval1(i), i=1, MIN(9, ncoord))
-               WRITE (output_unit, '(T2,A)') "VIB| Eigenvectors before removal of rotations and translations"
+               WRITE (output_unit, '(/,T2,A)') "VIB| Cartesian Low frequencies ---"
+               DO i = 1, ncoord, 5
+                  WRITE (output_unit, '(T2,A,T6,5(1X,ES14.7E2))') &
+                     "VIB|", H_eigval1(i:MIN(i + 4, ncoord))
+               END DO
+               WRITE (output_unit, '(/,T2,A)') "VIB| Eigenvectors before removal of rotations and translations"
                CALL write_particle_matrix(Hint1, particles, output_unit, el_per_part=3, &
                                           Ilist=Mlist)
             END IF
@@ -614,9 +626,13 @@ CONTAINS
                END IF
                CALL diamat_all(Hint2, H_eigval2)
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(T2,"VIB| Frequencies after removal of the rotations and translations")')
-                  ! Frequency at the moment are in a.u.
-                  WRITE (output_unit, '(T2,"VIB| Internal  Low frequencies ---",4G12.5)') H_eigval2
+                  WRITE (output_unit, '(/,T2,"VIB| Frequencies after removal of the rotations and translations")')
+                  ! Frequency at the moment are in a.u. and the last 6 are meaningless
+                  WRITE (output_unit, '(/,T2,A)') "VIB| Internal  Low frequencies ---"
+                  DO i = 1, ncoord - 6, 5
+                     WRITE (output_unit, '(T2,A,T6,5(1X,ES14.7E2))') &
+                        "VIB|", H_eigval2(i:MIN(i + 4, ncoord - 6))
+                  END DO
                END IF
                Hessian = 0.0_dp
                DO i = 1, natoms
@@ -716,6 +732,7 @@ CONTAINS
             DEALLOCATE (pos0)
             DEALLOCATE (D)
             DEALLOCATE (Hessian)
+            DEALLOCATE (Hessian_umw)
             IF (calc_intens) THEN
                DEALLOCATE (dip_deriv)
                DEALLOCATE (polar_deriv)
@@ -1067,6 +1084,10 @@ CONTAINS
          one_min_exp = 1.0_dp - EXP(-freq_arg)
 !dbg
 !  write(*,*) 'freq ', i, freqs(i), exp_min_one , one_min_exp
+!  note: this is based on the rigid-rotor harmonic oscillator (RRHO) model, which
+!  behaves badly with very low frequencies that make exp_min_one and one_min_exp
+!  numerically close to 0 and cause divergence of the vib_entropy term; perhaps
+!  implementing the quasi-RRHO methods (Grimme/Minenkov) can address this problem.
 !      vib_part_func = vib_part_func*(1.0_dp/(1.0_dp - exp(-fact*freqs(i))))
          vib_part_func = vib_part_func*(1.0_dp/one_min_exp)
 !      vib_energy = vib_energy + fact2*freqs(i)*0.5_dp+fact2*freqs(i)/(exp(fact*freqs(i))-1.0_dp)
@@ -1103,20 +1124,18 @@ CONTAINS
 
       IF (iw > 0) THEN
          WRITE (UNIT=iw, FMT="(/,T2,'VIB|',T30,'NORMAL MODES - THERMOCHEMICAL DATA')")
-         WRITE (UNIT=iw, FMT="(T2,'VIB|')")
+         WRITE (UNIT=iw, FMT="(T2,'VIB|',T16,'[q = gamma only, rigid-rotor harmonic oscillator (RRHO) model]')")
 
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Symmetry number:',T70,I16)") sym_num
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Temperature [K]:',T70,F16.2)") temp
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Pressure [Pa]:',T70,F16.2)") pressure
+         WRITE (UNIT=iw, FMT="(/,T2,'VIB|', T10, 'Symmetry number:',T65,I16)") sym_num
+         WRITE (UNIT=iw, FMT="(T2,'VIB|', T10, 'Temperature [K]:',T65,F16.2)") temp
+         WRITE (UNIT=iw, FMT="(T2,'VIB|', T10, 'Pressure [Pa]:',T65,F16.2)") pressure
 
-         WRITE (UNIT=iw, FMT="(/)")
-
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Electronic energy (U) [kJ/mol]:',T60,F26.8)") totene*kjmol
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Zero-point correction [kJ/mol]:',T60,F26.8)") zpe/1000.0_dp
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Entropy [kJ/(mol K)]:',T60,F26.8)") entropy/1000.0_dp
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Enthalpy correction (H-U) [kJ/mol]:',T60,F26.8)") rotvibtra/1000.0_dp
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Gibbs energy correction [kJ/mol]:',T60,F26.8)") Gibbs/1000.0_dp
-         WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Heat capacity [kJ/(mol*K)]:',T70,F16.8)") heat_capacity/1000.0_dp
+         WRITE (UNIT=iw, FMT="(/,T2,'VIB|', T10, 'Electronic energy (U) [kJ/mol]:',T55,F26.8)") totene*kjmol
+         WRITE (UNIT=iw, FMT="(T2,'VIB|', T10, 'Zero-point correction [kJ/mol]:',T55,F26.8)") zpe/1000.0_dp
+         WRITE (UNIT=iw, FMT="(T2,'VIB|', T10, 'Entropy [kJ/(mol K)]:',T55,F26.8)") entropy/1000.0_dp
+         WRITE (UNIT=iw, FMT="(T2,'VIB|', T10, 'Enthalpy correction (H-U) [kJ/mol]:',T55,F26.8)") rotvibtra/1000.0_dp
+         WRITE (UNIT=iw, FMT="(T2,'VIB|', T10, 'Gibbs energy correction [kJ/mol]:',T55,F26.8)") Gibbs/1000.0_dp
+         WRITE (UNIT=iw, FMT="(T2,'VIB|', T10, 'Heat capacity [kJ/(mol*K)]:',T65,F16.8)") heat_capacity/1000.0_dp
          WRITE (UNIT=iw, FMT="(/)")
       END IF
 

@@ -116,7 +116,11 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="THERMOCHEMISTRY", &
-                          description="Calculation of the thermochemical data. Valid for molecules in the gas phase. ", &
+                          description="Calculation of the thermochemical data. Valid for molecules in "// &
+                          "the gas phase, not supporting phonon frequencies at general **q**-points "// &
+                          "beyond wave vector **q** at gamma point. Based on the rigid-rotor harmonic "// &
+                          "oscillator (RRHO) model, which is known to break down if very low vibrational "// &
+                          "frequencies are present in a flexible system.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
