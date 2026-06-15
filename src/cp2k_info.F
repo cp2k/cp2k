@@ -9,6 +9,8 @@
 #include "gauxc/gauxc_config.f"
 #endif
 
+#include "cp2k_build_info.h"
+
 ! **************************************************************************************************
 !> \brief some minimal info about CP2K, including its version and license
 !> \par History
@@ -56,9 +58,9 @@ MODULE cp2k_info
 #endif
 
 #if defined(__COMPILE_DATE)
-   CHARACTER(LEN=*), PARAMETER :: compile_date = __COMPILE_DATE
+   CHARACTER(LEN=default_string_length), SAVE :: compile_date = __COMPILE_DATE
 #else
-   CHARACTER(LEN=*), PARAMETER :: compile_date = "unknown: -D__COMPILE_DATE=?"
+   CHARACTER(LEN=default_string_length), SAVE :: compile_date = "unknown: -D__COMPILE_DATE=?"
 #endif
 
 #if defined(__COMPILE_HOST)

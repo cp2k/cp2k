@@ -282,14 +282,14 @@ CONTAINS
       END DO
 
       IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A)') 'Per-atom RI-RS basis radii (Bohr):'
-         WRITE (bs_env%unit_nr, '(T4,A6,2X,A4,2A14)') 'Atom', 'Elem', 'r_AO', 'r_RI'
-         DO iatom = 1, natom
+         WRITE (bs_env%unit_nr, '(T2,A)') 'Per-kind RI-RS basis radii (Bohr):'
+         WRITE (bs_env%unit_nr, '(T4,A6,2X,A4,2A14)') 'Kind', 'Elem', 'r_AO', 'r_RI'
+         DO ikind = 1, nkind
             WRITE (bs_env%unit_nr, '(T4,I6,2X,A4,2F14.4)') &
-               iatom, &
-               atomic_kind_set(kind_of(iatom))%element_symbol, &
-               bs_env%ri_rs%radius_ao_per_atom(iatom), &
-               bs_env%ri_rs%radius_ri_per_atom(iatom)
+               ikind, &
+               atomic_kind_set(ikind)%element_symbol, &
+               SQRT(-LOG(eps)/alpha_min_ao_kind(ikind)), &
+               SQRT(-LOG(eps)/alpha_min_ri_kind(ikind))
          END DO
          WRITE (bs_env%unit_nr, '(A)') ' '
       END IF

@@ -1702,6 +1702,8 @@ CONTAINS
                WRITE (u, FMT="(T2,A,F31.1,A)") "INPUT: Cutoff radius for grid points in RI-RS ", &
                bs_env%ri_rs%cutoff_radius_ri_rs*angstrom, " Å"
             ENDIF
+            WRITE (u, FMT="(T2,A,I35)") "INPUT: Number of MPI ranks per atom in Z_lP solve ", &
+               bs_env%ri_rs%n_procs_per_atom_z_lp
             WRITE (u, FMT="(T2,A,ES44.1)") " "
          END IF
       END IF
