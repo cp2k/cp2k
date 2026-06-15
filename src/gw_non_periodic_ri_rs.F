@@ -754,18 +754,18 @@ CONTAINS
       INTEGER :: atom_j_mepos, atom_j_stride, atom_P, atom_P_start, atom_P_stride, col_end, &
          col_start, current_chunk_size, g, group_handle, handle, i, i_blk, info, j, j_ri, l, &
          loc_idx, loc_ptr, max_ao_size, max_loc_ri, my_group, n_ao_total, n_grid_total, &
-         n_groups, n_loc_ri, n_local_grid, n_procs_per_atom, natom, num_grid_chunks, r_end, &
-         r_start, source_atom
+         n_groups, n_loc_ri, n_local_grid, n_procs_per_atom, natom, num_grid_chunks, P_loop_atom, &
+         r_end, r_start, source_atom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_grid_idx, row_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_phi, col_dist_ri, r_blk_sizes, &
                                                             ri_blk_sizes, row_dist_grid
       LOGICAL                                            :: use_uniform_cutoff
       REAL(KIND=dp)                                      :: cutoff_ri, d_sP, dist, r2_threshold, t1, &
                                                             user_cutoff
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: d_vec_local
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_atom, d_vec_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: D_local, d_lp_local, phi_local, &
                                                             sphere_grid, Z_blk
-      REAL(KIND=dp), DIMENSION(3)                        :: pos_P
+      REAL(KIND=dp), DIMENSION(3)                        :: pos_P, pos_PP
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_b, fm_struct_D
@@ -869,6 +869,40 @@ CONTAINS
          END DO
          max_loc_ri = MAXVAL(ri_blk_sizes)
 
+         ! Precompute the dynamic per-atom RI-RS sphere radius. The correct cutoff is
+         ! bounded by the spatial support of the AO pair density Φ_µ(r_l) Φ_ν(r_l) —
+         ! not by the extent of the RI basis P itself. For grid point r_l to contribute
+         ! to d[l,P], some Φ_µ on some atom j must be non-negligible at r_l, i.e.
+         ! d(r_l, j) ≲ r_AO(j). The conservative bound is
+         !     cutoff_ri(P) = max_j [d(P,j) + r_AO(j)]
+         ! taken over atoms j; this captures every pair-density support reachable from
+         ! atom_P regardless of which (µ,ν) pair contributes. Using r_RI(P) instead
+         ! (the basis P's own extent) is wrong and produces a catastrophically bad
+         ! LS fit when r_AO > r_RI (the common case with augmented basis sets).
+         ALLOCATE (cutoff_ri_per_atom(natom))
+         DO P_loop_atom = 1, natom
+            cutoff_ri_per_atom(P_loop_atom) = 0.0_dp
+            pos_PP(:) = particle_set(P_loop_atom)%r(:)
+            DO source_atom = 1, natom
+               d_sP = NORM2(particle_set(source_atom)%r(:) - pos_PP(:))
+               cutoff_ri_per_atom(P_loop_atom) = &
+                  MAX(cutoff_ri_per_atom(P_loop_atom), &
+                      d_sP + bs_env%ri_rs%radius_ao_per_atom(source_atom))
+            END DO
+         END DO
+
+         IF (bs_env%unit_nr > 0) THEN
+            WRITE (bs_env%unit_nr, '(T2,A)') 'Per-atom RI-RS sphere cutoff (Bohr):'
+            WRITE (bs_env%unit_nr, '(T4,A6,2X,A4,A14)') 'Atom', 'Elem', 'cutoff_ri'
+            DO P_loop_atom = 1, natom
+               WRITE (bs_env%unit_nr, '(T4,I6,2X,A4,F14.4)') &
+                  P_loop_atom, &
+                  particle_set(P_loop_atom)%atomic_kind%element_symbol, &
+                  cutoff_ri_per_atom(P_loop_atom)
+            END DO
+            WRITE (bs_env%unit_nr, '(A)') ' '
+         END IF
+
          ! Build the shared 3c-integral context once, before the atom_P loop and outside
          ! any OMP region. This hoists out the libint / t_c_g0 / md_ftable inits and the
          ! contracted sphi tables, which would otherwise re-run on every per-block call.
@@ -891,7 +925,7 @@ CONTAINS
             IF (use_uniform_cutoff) THEN
                cutoff_ri = user_cutoff
             ELSE
-               cutoff_ri = bs_env%ri_rs%radius_ri_per_atom(atom_P)
+               cutoff_ri = cutoff_ri_per_atom(atom_P)
             END IF
 
             ! ---------------------------------------------------------------------
@@ -1103,6 +1137,8 @@ CONTAINS
             DEALLOCATE (local_grid_idx, phi_local)
 
          END DO
+
+         DEALLOCATE (cutoff_ri_per_atom)
 
          CALL gw_3c_ctx_release(ctx_3c)
 
