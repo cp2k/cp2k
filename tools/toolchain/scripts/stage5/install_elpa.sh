@@ -58,6 +58,9 @@ case "${with_elpa}" in
       # with long lines, and that a bunch of libs can be found
       cd elpa-${elpa_ver}
 
+      patch -l -p1 < "${SCRIPT_DIR}/stage5/elpa-${elpa_ver}-library-only.patch" \
+        > elpa_library_only.patch.log 2>&1 || tail_excerpt elpa_library_only.patch.log
+
       # Ensure a successful installation of nVidia version built with "-std=c++14" flag
       sed -i 's/creal(/__real__(/g' src/GPU/CUDA/cudaFunctions_template.h
       sed -i 's/cimag(/__imag__(/g' src/GPU/CUDA/cudaFunctions_template.h
@@ -101,7 +104,8 @@ case "${with_elpa}" in
           --libdir="${pkg_install_dir}/${TARGET}/lib" \
           --enable-openmp=${enable_openmp} \
           --enable-shared=yes \
-          --enable-static=yes \
+          --disable-static \
+          --with-test-programs=no \
           --disable-c-tests \
           --disable-cpp-tests \
           ${config_flags} \
@@ -126,7 +130,8 @@ case "${with_elpa}" in
         cd ..
       done
       cd ..
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage5/$(basename ${SCRIPT_NAME})"
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage5/$(basename ${SCRIPT_NAME})" \
+        "${SCRIPT_DIR}/stage5/elpa-${elpa_ver}-library-only.patch"
     fi
     [ "$enable_openmp" != "yes" ] && elpa_dir_openmp=""
     elpa_include="${pkg_install_dir}/IF_CUDA(nvidia|cpu)/include/elpa${elpa_dir_openmp}-${elpa_ver}"
