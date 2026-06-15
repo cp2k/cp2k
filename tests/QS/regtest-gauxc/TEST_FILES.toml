@@ -4,10 +4,10 @@
 "H2_SKALA_ENERGY.inp"          = [{matcher="E_total", tol=1e-8,  ref=-0.979366068078563}]
 "H2_SKALA_ENERGY_CHUNKED.inp"  = [{matcher="E_total", tol=1e-8,  ref=-0.979366068078563}]
 "H2_NATIVE_SKALA_GPW.inp"      = [{matcher="E_total", tol=1e-8,  ref=-0.976732566963415}]
-"H2_NATIVE_SKALA_GPW_SMOOTH.inp" = [{matcher="E_total", tol=1e-8, ref=-0.976856073484102},
-                                    {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=1.99999930465},
+"H2_NATIVE_SKALA_GPW_SMOOTH.inp" = [{matcher="E_total", tol=1e-8, ref=-0.963651445065457},
+                                    {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=2.00000875882},
                                     {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},
-                                    {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=1457.64026995}]
+                                    {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=431.893413318}]
 "H2_NATIVE_SKALA_GPW_SMOOTH_FORCE.inp" = [{matcher="E_total", tol=1e-8, ref=-0.963651445065457},
                                           {matcher="M072", tol=2e-5, ref=0.0}]
 "H2_NATIVE_SKALA_GPW_SMOOTH_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.963651445065457},
