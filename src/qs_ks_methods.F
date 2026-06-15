@@ -123,7 +123,7 @@ MODULE qs_ks_methods
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
    USE qs_ks_utils,                     ONLY: &
-        calc_v_sic_rspace, calculate_zmp_potential, compute_matrix_vxc, &
+        calc_v_sic_rspace, calculate_zmp_potential, compute_matrix_vxc, compute_matrix_vxc_kp, &
         get_embed_potential_energy, low_spin_roks, print_densities, print_detailed_energy, &
         sic_explicit_orbitals, sum_up_and_integrate
    USE qs_local_rho_types,              ONLY: local_rho_type
@@ -140,6 +140,7 @@ MODULE qs_ks_methods
                                               rtp_admm_merge_ks_matrix
    USE se_fock_matrix,                  ONLY: build_se_fock_matrix
    USE skala_gpw_functional,            ONLY: ensure_native_skala_grid_scope,&
+                                              get_gauxc_section,&
                                               xc_section_uses_native_skala_grid
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
@@ -201,16 +202,17 @@ CONTAINS
                                                             iatom, ikind, img, ispin, natom, &
                                                             nimages, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
-      LOGICAL :: ace_active, do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, dokp, gapw, &
-         gapw_xc, just_energy_xc, lrigpw, my_print, rigpw, use_gauxc_matrix, use_virial
+      LOGICAL :: ace_active, do_adiabatic_rescaling, do_ddapc, do_hfx, do_kpoints, do_ppl, dokp, &
+         gapw, gapw_xc, just_energy_xc, lrigpw, my_print, native_grid_use_cuda, &
+         native_skala_restore_exc, rigpw, use_gauxc_matrix, use_virial
       CHARACTER(LEN=*), PARAMETER :: native_skala_gapw_xc_msg = &
          "Native SKALA grid does not support METHOD GAPW_XC; "// &
-         "the GAPW_XC one-center XC correction needs a dedicated SKALA design.", &
-         native_skala_gapw_msg = "Native SKALA grid does not support METHOD GAPW yet; "// &
-         "a GAPW grid path needs all-electron density, gradient, and tau."
+         "the GAPW_XC one-center XC correction needs a dedicated SKALA design."
 
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
-                                                            mulliken_order_p, vscale
+                                                            mulliken_order_p, &
+                                                            native_skala_exc_scf, &
+                                                            native_skala_total_scf, vscale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: native_skala_atom_force
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
       TYPE(admm_type), POINTER                           :: admm_env
@@ -220,10 +222,12 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_vxc, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, ks_matrix_im, matrix_h, &
-                                                            matrix_h_im, matrix_s, my_rho, rho_ao
+                                                            matrix_h_im, matrix_s, matrix_vxc_kp, &
+                                                            my_rho, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
       TYPE(harris_type), POINTER                         :: harris_env
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
@@ -247,8 +251,8 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
       TYPE(section_vals_type), POINTER                   :: ace_section, &
                                                             adiabatic_rescaling_section, &
-                                                            hfx_sections, input, scf_section, &
-                                                            xc_section
+                                                            gauxc_section, hfx_sections, input, &
+                                                            scf_section, xc_section
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -256,10 +260,11 @@ CONTAINS
                rho_struct, para_env, pw_env, virial, vppl_rspace, &
                ace_section, &
                adiabatic_rescaling_section, hfx_sections, input, scf_section, &
-               xc_section, matrix_h, matrix_h_im, matrix_s, auxbas_pw_pool, poisson_env, &
+               xc_section, gauxc_section, matrix_h, matrix_h_im, matrix_s, auxbas_pw_pool, poisson_env, &
                v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, matrix_vxc, &
+               matrix_vxc_kp, &
                vee, rho_nlcc, ks_env, ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, &
-               rho_core, particle_set, qs_kind_set)
+               rho_core, particle_set, qs_kind_set, kpoints)
 
       CPASSERT(ASSOCIATED(qs_env))
 
@@ -267,6 +272,7 @@ CONTAINS
       my_print = .TRUE.
       IF (PRESENT(print_active)) my_print = print_active
       use_gauxc_matrix = .FALSE.
+      native_skala_restore_exc = .FALSE.
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -277,6 +283,7 @@ CONTAINS
                       matrix_ks_kp=ks_matrix, &
                       matrix_ks_im_kp=ks_matrix_im, &
                       matrix_vxc=matrix_vxc, &
+                      matrix_vxc_kp=matrix_vxc_kp, &
                       pw_env=pw_env, &
                       cell=cell, &
                       atomic_kind_set=atomic_kind_set, &
@@ -291,6 +298,8 @@ CONTAINS
                       rho_xc=rho_xc, &
                       energy=energy, &
                       force=force, &
+                      kpoints=kpoints, &
+                      do_kpoints=do_kpoints, &
                       particle_set=particle_set, &
                       qs_kind_set=qs_kind_set, &
                       natom=natom)
@@ -642,15 +651,36 @@ CONTAINS
                   CPABORT(native_skala_gapw_xc_msg)
                END IF
                IF (gapw) THEN
-                  CPABORT(native_skala_gapw_msg)
+                  DO ikind = 1, SIZE(qs_kind_set)
+                     IF (qs_kind_set(ikind)%paw_atom .AND. .NOT. &
+                         qs_kind_set(ikind)%gpw_type_forced .AND. &
+                         (ASSOCIATED(qs_kind_set(ikind)%gth_potential) .OR. &
+                          ASSOCIATED(qs_kind_set(ikind)%sgp_potential))) THEN
+                        CALL cp_abort(__LOCATION__, &
+                                      "Native SKALA grid evaluation with METHOD GAPW and "// &
+                                      "pseudopotentials requires KIND%GPW_TYPE. PAW/one-center "// &
+                                      "GAPW+GTH/ECP is not implemented.")
+                     END IF
+                  END DO
                END IF
-               IF (ASSOCIATED(rho_nlcc)) THEN
+               IF ((.NOT. do_kpoints) .AND. nimages /= 1) THEN
                   CALL cp_abort(__LOCATION__, &
-                                "Native SKALA grid evaluation with NLCC pseudopotentials is not implemented. "// &
-                                "The frozen core density would need a SKALA-consistent feature definition.")
+                                "Native SKALA grid evaluation supports multiple images only "// &
+                                "for k-point calculations.")
                END IF
-               IF (nimages /= 1) THEN
-                  CPABORT("Native SKALA grid evaluation supports single-image calculations only.")
+               IF (do_kpoints) THEN
+                  CPASSERT(ASSOCIATED(kpoints))
+                  gauxc_section => get_gauxc_section(xc_section)
+                  CPASSERT(ASSOCIATED(gauxc_section))
+                  CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_USE_CUDA", l_val=native_grid_use_cuda)
+                  IF (.NOT. native_grid_use_cuda) THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "Native SKALA grid evaluation with k-points currently requires "// &
+                                   "GAUXC%NATIVE_GRID_USE_CUDA T. The CPU TorchScript path can "// &
+                                   "destabilize the k-point diagonalization through "// &
+                                   "libtorch_cpu/OpenBLAS library interactions; use the CUDA SKALA model/path for "// &
+                                   "k-point runs.")
+                  END IF
                END IF
                IF (dft_control%roks) THEN
                   CPABORT("Native SKALA grid evaluation does not support ROKS.")
@@ -658,11 +688,12 @@ CONTAINS
                IF (dft_control%do_admm) THEN
                   CPABORT("Native SKALA grid evaluation does not support ADMM.")
                END IF
-               IF (dokp) THEN
-                  CPABORT("Native SKALA grid evaluation currently supports Gamma-only calculations only.")
-               END IF
-               IF (use_virial .AND. calculate_forces) THEN
-                  CPABORT("Native SKALA grid evaluation stress tensors are not implemented yet.")
+               ! Force/stress rebuilds re-enter this path for derivatives and VXC only;
+               ! keep the already evaluated SCF energy contribution.
+               native_skala_restore_exc = calculate_forces
+               IF (native_skala_restore_exc) THEN
+                  native_skala_exc_scf = energy%exc
+                  native_skala_total_scf = energy%total
                END IF
                IF (calculate_forces) THEN
                   ALLOCATE (native_skala_atom_force(3, natom))
@@ -687,10 +718,19 @@ CONTAINS
                                      edisp=edisp, dispersion_env=qs_env%dispersion_env, &
                                      just_energy=just_energy_xc)
                END IF
+               IF (native_skala_restore_exc) energy%exc = native_skala_exc_scf
+               IF (gapw) THEN
+                  CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section)
+               END IF
                IF (edisp /= 0.0_dp) energy%dispersion = edisp
                IF (qs_env%requires_matrix_vxc .AND. ASSOCIATED(v_rspace_new)) THEN
-                  CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace_new, matrix_vxc=matrix_vxc)
-                  CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
+                  IF (do_kpoints) THEN
+                     CALL compute_matrix_vxc_kp(qs_env=qs_env, v_rspace=v_rspace_new, matrix_vxc_kp=matrix_vxc_kp)
+                     CALL set_ks_env(ks_env, matrix_vxc_kp=matrix_vxc_kp)
+                  ELSE
+                     CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace_new, matrix_vxc=matrix_vxc)
+                     CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
+                  END IF
                END IF
             ELSE
                IF (gapw_xc) THEN
@@ -848,12 +888,23 @@ CONTAINS
                                    cdft_control, calculate_forces)
 
          IF (use_gauxc_matrix) THEN
-            CALL get_qs_env(qs_env=qs_env, matrix_vxc=matrix_vxc)
-            CPASSERT(ASSOCIATED(matrix_vxc))
-            CPASSERT(nimages == 1)
-            DO ispin = 1, nspins
-               CALL dbcsr_add(ks_matrix(ispin, 1)%matrix, matrix_vxc(ispin)%matrix, 1.0_dp, 1.0_dp)
-            END DO
+            IF (dokp) THEN
+               CALL get_qs_env(qs_env=qs_env, matrix_vxc_kp=matrix_vxc_kp)
+               CPASSERT(ASSOCIATED(matrix_vxc_kp))
+               DO ispin = 1, nspins
+                  DO img = 1, nimages
+                     CALL dbcsr_add(ks_matrix(ispin, img)%matrix, matrix_vxc_kp(ispin, img)%matrix, &
+                                    1.0_dp, 1.0_dp)
+                  END DO
+               END DO
+            ELSE
+               CALL get_qs_env(qs_env=qs_env, matrix_vxc=matrix_vxc)
+               CPASSERT(ASSOCIATED(matrix_vxc))
+               CPASSERT(nimages == 1)
+               DO ispin = 1, nspins
+                  CALL dbcsr_add(ks_matrix(ispin, 1)%matrix, matrix_vxc(ispin)%matrix, 1.0_dp, 1.0_dp)
+               END DO
+            END IF
          END IF
 
          IF (gapw .OR. gapw_xc) THEN
@@ -1101,6 +1152,8 @@ CONTAINS
                      energy%sccs_pol + energy%cdft + energy%exc1_aux_fit
 
       IF (dft_control%apply_embed_pot) energy%total = energy%total + energy%embed_corr
+
+      IF (native_skala_restore_exc) energy%total = native_skala_total_scf
 
       IF (abnormal_value(energy%total)) &
          CPABORT("KS energy is an abnormal value (NaN/Inf).")

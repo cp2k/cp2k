@@ -1311,7 +1311,7 @@ CONTAINS
                           "The current CP2K bridge uses GauXC's molecular quadrature. Periodic inputs "// &
                           "are limited to isolated validation cells and are not compact periodic "// &
                           "material calculations.", &
-                          n_keywords=25, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=27, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1331,7 +1331,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MODEL", &
                           description="GauXC OneDFT model name or path. Use NONE for conventional GauXC. "// &
-                          "MODEL SKALA selects the installed Skala-1.1 model when available; "// &
+                          "MODEL SKALA uses GAUXC_SKALA_MODEL, or GAUXC_SKALA_CUDA_MODEL when "// &
+                          "NATIVE_GRID_USE_CUDA is enabled and that override is set; "// &
                           "other OneDFT models are supplied as .fun files or model names.", &
                           usage="MODEL SKALA", &
                           default_c_val="NONE")
@@ -1418,12 +1419,25 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID", &
                           description="Experimental CP2K-native GPW real-space-grid path for SKALA "// &
-                          "TorchScript models. This bypasses GauXC molecular quadrature and is limited "// &
-                          "to energy/VXC evaluations with FUNCTIONAL PBE and a single GAUXC functional. "// &
+                          "TorchScript models. This bypasses GauXC molecular quadrature and supports "// &
+                          "isolated, partially periodic, and fully periodic METHOD GPW/GTH and METHOD "// &
+                          "GAPW cells, including Gamma-only and k-point density matrices. GAPW with "// &
+                          "GTH/ECP pseudopotentials is limited to KIND%GPW_TYPE regular-grid features; "// &
+                          "GAPW all-electron uses the all-electron regular-grid density. "// &
+                          "The current implementation "// &
+                          "is limited to energy, VXC, and experimental nuclear-gradient/stress "// &
+                          "evaluations with a single GAUXC functional. Full-grid, inversion-only, "// &
+                          "and symmetry-reduced k-point runs are supported. "// &
+                          "K-point runs currently require NATIVE_GRID_USE_CUDA T; the CPU "// &
+                          "TorchScript path is limited to non-k-point runs. CUDA k-point runs "// &
+                          "should not preload CPU-only Torch libraries such as libtorch_cpu.so. "// &
                           "MPI runs collect a global atom-partitioned feature block by default; "// &
                           "NATIVE_GRID_ATOM_CHUNKS can split the Torch evaluation by atom block. "// &
-                          "Nuclear gradients, stress, GAPW, ROKS, ADMM, "// &
-                          "NLCC pseudopotentials, multiple images, and k-points are not implemented.", &
+                          "Analytical stress is supported for the regular-grid path. NLCC "// &
+                          "pseudopotentials use CP2K's standard frozen-core density contribution "// &
+                          "on the XC grid. "// &
+                          "METHOD GAPW_XC, PAW/one-center GAPW+GTH/ECP, ROKS, ADMM, "// &
+                          "and non-k-point multiple-image calculations are not implemented.", &
                           usage="NATIVE_GRID T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1432,7 +1446,9 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_USE_CUDA", &
                           description="Evaluate the experimental CP2K-native SKALA GPW TorchScript "// &
                           "model on CUDA when libtorch CUDA support is available. This requires a "// &
-                          "CUDA-compatible SKALA model export; the portable default uses CPU tensors.", &
+                          "CUDA-compatible SKALA model export; MODEL SKALA first checks "// &
+                          "GAUXC_SKALA_CUDA_MODEL in this mode and otherwise falls back to "// &
+                          "GAUXC_SKALA_MODEL. The portable default uses CPU tensors.", &
                           usage="NATIVE_GRID_USE_CUDA T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1447,6 +1463,22 @@ CONTAINS
                           "visible CUDA device explicitly.", &
                           usage="NATIVE_GRID_CUDA_DEVICE -1", &
                           default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_ATOM_PARTITION", &
+                          description="Atom partition used to build the experimental CP2K-native "// &
+                          "SKALA regular-grid feature block. HARD assigns each native grid point to "// &
+                          "the nearest periodic atom and is the default. SMOOTH uses a Becke-like "// &
+                          "fuzzy-cell partition on the native grid and creates weighted atom rows; "// &
+                          "analytical force and stress contributions include the corresponding "// &
+                          "partition-weight derivatives.", &
+                          usage="NATIVE_GRID_ATOM_PARTITION HARD", &
+                          enum_c_vals=s2a("HARD", "SMOOTH"), &
+                          enum_i_vals=[1, 2], &
+                          enum_desc=s2a("Assign each grid point to the nearest atom", &
+                                        "Use a smooth Becke-like native-grid atom partition"), &
+                          default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

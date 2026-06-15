@@ -201,11 +201,6 @@ CONTAINS
       END IF
       IF (PRESENT(edisp)) edisp = 0.0_dp
       native_skala_grid = xc_section_uses_native_skala_grid(xc_section)
-      IF (native_skala_grid .AND. ASSOCIATED(rho_nlcc_use)) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "Native SKALA grid evaluation with NLCC pseudopotentials is not implemented. "// &
-                       "The frozen core density would need a SKALA-consistent feature definition.")
-      END IF
 
       IF (myfun /= xc_none .OR. vdW_nl) THEN
 

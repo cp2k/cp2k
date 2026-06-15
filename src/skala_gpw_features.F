@@ -35,24 +35,31 @@ MODULE skala_gpw_features
    REAL(KIND=dp), PARAMETER, PRIVATE    :: layout_tol = 1.0E-12_dp
    INTEGER, PARAMETER, PRIVATE          :: ndynamic_per_point = 10, nrks_dynamic_per_point = 5, &
                                            nstatic_per_point = 4, ngrad_per_point = 10
+   INTEGER, PARAMETER, PUBLIC           :: skala_gpw_atom_partition_hard = 1, &
+                                           skala_gpw_atom_partition_smooth = 2
+   REAL(KIND=dp), PARAMETER, PRIVATE    :: smooth_partition_eps = 1.0E-12_dp
 
    PUBLIC :: skala_gpw_atom_subchunk_count, skala_gpw_feature_build, &
              skala_gpw_feature_build_atom_subchunk, skala_gpw_feature_release, &
-             skala_gpw_feature_type
+             skala_gpw_feature_type, skala_gpw_smooth_partition_derivatives
 
    TYPE skala_gpw_layout_cache_type
       INTEGER                                            :: chunk_atom_begin = 1, chunk_atom_end = 0, &
                                                             chunk_feature_begin = 1, &
                                                             chunk_feature_count = 0, chunk_natom = 0, &
                                                             natom = 0, nflat = 0, nflat_local = 0, &
-                                                            nproc = 0
+                                                            npoint = 0, nproc = 0, &
+                                                            atom_partition = skala_gpw_atom_partition_hard
       INTEGER, DIMENSION(2, 3)                           :: bo = 0, bounds = 0
       INTEGER, DIMENSION(3)                              :: npts = 0
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dynamic_counts, dynamic_displs, &
                                                             chunk_feature_counts, chunk_feature_displs, &
                                                             chunk_grad_counts, chunk_grad_displs, &
                                                             feature_counts, feature_displs, &
-                                                            global_to_feature, route_grad_return_recv_counts, &
+                                                            feature_source_points, global_to_feature, &
+                                                            local_feature_counts, local_feature_offsets, &
+                                                            local_feature_points, local_feature_rows, &
+                                                            route_grad_return_recv_counts, &
                                                             route_grad_return_recv_displs, &
                                                             route_grad_return_send_counts, &
                                                             route_grad_return_send_displs, &
@@ -116,7 +123,8 @@ MODULE skala_gpw_features
 
    TYPE skala_gpw_feature_type
       INTEGER                                            :: chunk_feature_count = 0, nflat = 0, &
-                                                            nflat_local = 0
+                                                            nflat_local = 0, &
+                                                            atom_partition = skala_gpw_atom_partition_hard
       TYPE(torch_dict_type)                             :: inputs
       TYPE(torch_tensor_type)                           :: atomic_grid_size_bound_shape_t
       TYPE(torch_tensor_type)                           :: atomic_grid_sizes_t
@@ -132,6 +140,8 @@ MODULE skala_gpw_features
       TYPE(torch_tensor_type)                           :: kin_t
       TYPE(torch_tensor_type)                           :: local_feature_indices_t
       INTEGER, ALLOCATABLE, DIMENSION(:)                :: chunk_grad_counts, chunk_grad_displs, &
+                                                           local_feature_counts, local_feature_offsets, &
+                                                           local_feature_rows, &
                                                            chunk_return_positions, &
                                                            route_grad_return_recv_counts, &
                                                            route_grad_return_recv_displs, &
@@ -154,6 +164,8 @@ MODULE skala_gpw_features
                                                             grid_weight_sum = 0.0_dp, &
                                                             spin_moment = 0.0_dp
       LOGICAL                                            :: active = .FALSE., owns_coordinate_tensor = .FALSE., &
+                                                            owns_grid_coordinate_tensor = .FALSE., &
+                                                            owns_weight_tensors = .FALSE., &
                                                             owns_dynamic_tensors = .TRUE., &
                                                             owns_inputs = .TRUE., &
                                                             owns_static_tensors = .TRUE., &
@@ -176,12 +188,15 @@ CONTAINS
 !> \param requires_grad ...
 !> \param weights ...
 !> \param requires_coordinate_grad ...
+!> \param requires_stress_grad ...
 !> \param use_atom_chunks ...
 !> \param route_atom_chunks ...
+!> \param atom_partition ...
 ! **************************************************************************************************
    SUBROUTINE skala_gpw_feature_build(features, rho_set, rho_r, particle_set, cell, &
                                       requires_grad, weights, requires_coordinate_grad, &
-                                      use_atom_chunks, route_atom_chunks)
+                                      requires_stress_grad, use_atom_chunks, route_atom_chunks, &
+                                      atom_partition)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
       TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)     :: rho_r
@@ -190,15 +205,15 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: requires_grad
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
       LOGICAL, INTENT(IN), OPTIONAL                      :: requires_coordinate_grad, &
-                                                            use_atom_chunks, route_atom_chunks
+                                                            requires_stress_grad, use_atom_chunks, &
+                                                            route_atom_chunks
+      INTEGER, INTENT(IN), OPTIONAL                      :: atom_partition
 
-      INTEGER                                            :: handle, i, ipt, ispin, j, k, local_row, &
-                                                            ndynamic_local_per_point, nflat, &
-                                                            nflat_local, nspins, phase_handle, &
-                                                            real_base, row
+      INTEGER :: handle, i, ipt, ispin, j, k, local_row, my_atom_partition, &
+         ndynamic_local_per_point, nflat, nflat_local, nspins, phase_handle, real_base, row
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL :: can_use_atom_chunks, collapse_spin_dynamics, my_requires_coordinate_grad, &
-         my_requires_grad, my_route_atom_chunks, my_use_atom_chunks
+         my_requires_grad, my_requires_stress_grad, my_route_atom_chunks, my_use_atom_chunks
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: global_dynamic, local_dynamic
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho, rhoa, rhob, tau_a, tau_b, tau_total
       TYPE(cp_3d_r_cp_type), DIMENSION(3)                :: drho, drhoa, drhob
@@ -211,11 +226,18 @@ CONTAINS
       my_requires_coordinate_grad = .FALSE.
       IF (PRESENT(requires_coordinate_grad)) &
          my_requires_coordinate_grad = requires_coordinate_grad
+      my_requires_stress_grad = .FALSE.
+      IF (PRESENT(requires_stress_grad)) my_requires_stress_grad = requires_stress_grad
       my_use_atom_chunks = .FALSE.
       IF (PRESENT(use_atom_chunks)) my_use_atom_chunks = use_atom_chunks
       my_route_atom_chunks = .FALSE.
       IF (PRESENT(route_atom_chunks)) my_route_atom_chunks = route_atom_chunks
-
+      my_atom_partition = skala_gpw_atom_partition_hard
+      IF (PRESENT(atom_partition)) my_atom_partition = atom_partition
+      IF (my_atom_partition /= skala_gpw_atom_partition_hard .AND. &
+          my_atom_partition /= skala_gpw_atom_partition_smooth) THEN
+         CALL cp_abort(__LOCATION__, "Unknown native SKALA atom-partition mode.")
+      END IF
       CPASSERT(ASSOCIATED(cell))
       CPASSERT(ASSOCIATED(particle_set))
       CPASSERT(SIZE(rho_r) == 1 .OR. SIZE(rho_r) == 2)
@@ -231,10 +253,14 @@ CONTAINS
       CALL timestop(phase_handle)
 
       CALL timeset("skala_gpw_layout_cache", phase_handle)
-      CALL ensure_layout_cache(pw_grid, particle_set, cell, weights)
+      CALL ensure_layout_cache(pw_grid, particle_set, cell, weights, my_atom_partition)
       CALL timestop(phase_handle)
       nflat = cached_layout%nflat
       can_use_atom_chunks = my_use_atom_chunks .AND. cached_layout%chunk_feature_count > 0
+      IF (my_requires_stress_grad .AND. can_use_atom_chunks) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Native SKALA analytical stress is not implemented with atom-chunk routing yet.")
+      END IF
       collapse_spin_dynamics = (nspins == 1 .AND. can_use_atom_chunks .AND. &
                                 my_route_atom_chunks)
       ndynamic_local_per_point = ndynamic_per_point
@@ -295,7 +321,10 @@ CONTAINS
       CALL timestop(phase_handle)
 
       CALL timeset("skala_gpw_copy_layout", phase_handle)
-      CALL copy_cached_layout(features, my_requires_coordinate_grad)
+      CALL copy_cached_layout(features, my_requires_coordinate_grad .OR. my_requires_stress_grad, &
+                              my_requires_stress_grad .OR. &
+                              (my_atom_partition == skala_gpw_atom_partition_smooth .AND. &
+                               (my_requires_coordinate_grad .OR. my_requires_stress_grad)))
       CALL timestop(phase_handle)
 
       IF (can_use_atom_chunks .AND. my_route_atom_chunks) THEN
@@ -306,7 +335,7 @@ CONTAINS
          features%uses_atom_chunks = .TRUE.
          CALL timestop(phase_handle)
       ELSE
-         ALLOCATE (global_dynamic(ndynamic_per_point*nflat))
+         ALLOCATE (global_dynamic(ndynamic_per_point*cached_layout%npoint))
          CALL timeset("skala_gpw_allgatherv", phase_handle)
          CALL pw_grid%para%group%allgatherv(local_dynamic, global_dynamic, &
                                             cached_layout%dynamic_counts, &
@@ -320,8 +349,8 @@ CONTAINS
          features%grad = 0.0_dp
          features%kin = 0.0_dp
 
-         DO ipt = 1, nflat
-            row = cached_layout%global_to_feature(ipt)
+         DO row = 1, nflat
+            ipt = cached_layout%feature_source_points(row)
             real_base = ndynamic_per_point*(ipt - 1)
             features%density(row, :) = global_dynamic(real_base + 1:real_base + 2)
             features%grad(row, 1, 1) = global_dynamic(real_base + 3)
@@ -366,7 +395,11 @@ CONTAINS
          features%uses_atom_chunks = .TRUE.
       END IF
       CALL add_feature_tensors(features, my_requires_grad, my_requires_coordinate_grad, &
-                               features%uses_atom_chunks)
+                               my_requires_stress_grad, &
+                               features%uses_atom_chunks, &
+                               requires_weight_grad= &
+                               (my_atom_partition == skala_gpw_atom_partition_smooth .AND. &
+                                (my_requires_coordinate_grad .OR. my_requires_stress_grad)))
       CALL timestop(phase_handle)
       features%active = .TRUE.
 
@@ -382,31 +415,38 @@ CONTAINS
 !> \param particle_set ...
 !> \param cell ...
 !> \param weights ...
+!> \param atom_partition ...
 ! **************************************************************************************************
-   SUBROUTINE ensure_layout_cache(pw_grid, particle_set, cell, weights)
+   SUBROUTINE ensure_layout_cache(pw_grid, particle_set, cell, weights, atom_partition)
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
+      INTEGER, INTENT(IN), OPTIONAL                      :: atom_partition
 
-      INTEGER                                            :: phase_handle
+      INTEGER                                            :: my_atom_partition, phase_handle
       LOGICAL                                            :: cache_matches
 
+      my_atom_partition = skala_gpw_atom_partition_hard
+      IF (PRESENT(atom_partition)) my_atom_partition = atom_partition
       IF (PRESENT(weights)) THEN
          CALL timeset("skala_gpw_layout_match", phase_handle)
-         cache_matches = layout_cache_matches(pw_grid, particle_set, cell, weights)
+         cache_matches = layout_cache_matches(pw_grid, particle_set, cell, weights, &
+                                              my_atom_partition)
          CALL timestop(phase_handle)
          IF (cache_matches) RETURN
          CALL timeset("skala_gpw_layout_rebuild", phase_handle)
-         CALL rebuild_layout_cache(pw_grid, particle_set, cell, weights)
+         CALL rebuild_layout_cache(pw_grid, particle_set, cell, weights, my_atom_partition)
          CALL timestop(phase_handle)
       ELSE
          CALL timeset("skala_gpw_layout_match", phase_handle)
-         cache_matches = layout_cache_matches(pw_grid, particle_set, cell)
+         cache_matches = layout_cache_matches(pw_grid, particle_set, cell, &
+                                              atom_partition=my_atom_partition)
          CALL timestop(phase_handle)
          IF (cache_matches) RETURN
          CALL timeset("skala_gpw_layout_rebuild", phase_handle)
-         CALL rebuild_layout_cache(pw_grid, particle_set, cell)
+         CALL rebuild_layout_cache(pw_grid, particle_set, cell, &
+                                   atom_partition=my_atom_partition)
          CALL timestop(phase_handle)
       END IF
 
@@ -418,20 +458,25 @@ CONTAINS
 !> \param particle_set ...
 !> \param cell ...
 !> \param weights ...
+!> \param atom_partition ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION layout_cache_matches(pw_grid, particle_set, cell, weights) RESULT(matches)
+   FUNCTION layout_cache_matches(pw_grid, particle_set, cell, weights, atom_partition) RESULT(matches)
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
+      INTEGER, INTENT(IN), OPTIONAL                      :: atom_partition
       LOGICAL                                            :: matches
 
-      INTEGER                                            :: iatom
+      INTEGER                                            :: iatom, my_atom_partition
       LOGICAL                                            :: weights_match
 
+      my_atom_partition = skala_gpw_atom_partition_hard
+      IF (PRESENT(atom_partition)) my_atom_partition = atom_partition
       matches = .FALSE.
       IF (.NOT. cached_layout%active) RETURN
+      IF (cached_layout%atom_partition /= my_atom_partition) RETURN
       IF (cached_layout%natom /= SIZE(particle_set)) RETURN
       IF (cached_layout%nflat_local /= pw_grid%ngpts_local) RETURN
       IF (cached_layout%nproc /= pw_grid%para%group%num_pe) RETURN
@@ -495,27 +540,36 @@ CONTAINS
 !> \param particle_set ...
 !> \param cell ...
 !> \param weights ...
+!> \param atom_partition ...
 ! **************************************************************************************************
-   SUBROUTINE rebuild_layout_cache(pw_grid, particle_set, cell, weights)
+   SUBROUTINE rebuild_layout_cache(pw_grid, particle_set, cell, weights, atom_partition)
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
+      INTEGER, INTENT(IN), OPTIONAL                      :: atom_partition
 
-      INTEGER :: i, iatom, ipt, j, k, local_row, max_grid_size, natom, nflat, nflat_local, nproc, &
-         owner, pe, pe_index, phase_handle, row, static_base
+      INTEGER :: feature_local, i, iatom, ipt, j, k, local_row, max_grid_size, max_local_features, &
+         my_atom_partition, natom, nfeature_local, nflat, nflat_local, npoint, nproc, owner, pe, &
+         pe_index, phase_handle, row, source_global, source_local, static_base
       INTEGER, ALLOCATABLE, DIMENSION(:) :: atom_offset, atom_position, chunk_atom_begin, &
-         chunk_atom_end, feature_counts, feature_displs, global_owner, local_owner, &
-         local_to_global, static_counts, static_displs
+         chunk_atom_end, cursor, feature_counts, feature_displs, global_owner, &
+         global_source_points, local_feature_counts_tmp, local_owner, local_source_global, &
+         local_source_points, point_counts, point_displs, static_counts, static_displs
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: has_weights
-      REAL(KIND=dp)                                      :: weight_sum, weight_sumsq
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: global_static, local_static
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc
+      REAL(KIND=dp)                                      :: base_weight, included_sum, &
+                                                            partition_weight, weight_sum, &
+                                                            weight_sumsq
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distances, global_static, local_static, &
+                                                            partition_weights
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc, atom_image_coords
       REAL(KIND=dp), DIMENSION(3)                        :: grid_point, owner_coord
 
       CALL release_layout_cache(cached_layout)
 
+      my_atom_partition = skala_gpw_atom_partition_hard
+      IF (PRESENT(atom_partition)) my_atom_partition = atom_partition
       natom = SIZE(particle_set)
       bo = pw_grid%bounds_local
       nflat_local = pw_grid%ngpts_local
@@ -529,37 +583,74 @@ CONTAINS
                                 weight_sumsq=weight_sumsq)
       END IF
 
-      ALLOCATE (local_owner(nflat_local), local_static(nstatic_per_point*nflat_local), &
-                feature_counts(nproc), feature_displs(nproc), static_counts(nproc), &
-                static_displs(nproc), atom_coords_pbc(3, natom))
+      max_local_features = nflat_local
+      IF (my_atom_partition == skala_gpw_atom_partition_smooth) &
+         max_local_features = nflat_local*natom
+      ALLOCATE (local_owner(max_local_features), &
+                local_source_points(max_local_features), &
+                local_static(nstatic_per_point*max_local_features), &
+                local_feature_counts_tmp(nflat_local), feature_counts(nproc), &
+                feature_displs(nproc), point_counts(nproc), point_displs(nproc), &
+                static_counts(nproc), static_displs(nproc), atom_coords_pbc(3, natom), &
+                atom_image_coords(3, natom), distances(natom), partition_weights(natom))
       ALLOCATE (cached_layout%feature_index(bo(1, 1):bo(2, 1), &
                                             bo(1, 2):bo(2, 2), &
                                             bo(1, 3):bo(2, 3)))
       cached_layout%feature_index = 0
       local_static = 0.0_dp
+      local_feature_counts_tmp = 0
       DO iatom = 1, natom
          atom_coords_pbc(:, iatom) = pbc(particle_set(iatom)%r, cell, positive_range=.TRUE.)
       END DO
 
       CALL timeset("skala_gpw_layout_local", phase_handle)
       local_row = 0
+      nfeature_local = 0
       DO k = bo(1, 3), bo(2, 3)
          DO j = bo(1, 2), bo(2, 2)
             DO i = bo(1, 1), bo(2, 1)
                local_row = local_row + 1
-               static_base = nstatic_per_point*(local_row - 1)
                grid_point = grid_coordinate(pw_grid, [i, j, k])
-               owner = nearest_atom(grid_point, atom_coords_pbc, cell)
-               local_owner(local_row) = owner
+               base_weight = pw_grid%dvol
+               IF (PRESENT(weights)) THEN
+                  IF (ASSOCIATED(weights)) base_weight = base_weight*weights%array(i, j, k)
+               END IF
                cached_layout%feature_index(i, j, k) = local_row
 
-               owner_coord = atom_coords_pbc(:, owner)
-               local_static(static_base + 1:static_base + 3) = &
-                  nearest_image_coordinate(owner_coord, grid_point, cell)
-               local_static(static_base + 4) = pw_grid%dvol
-               IF (PRESENT(weights)) THEN
-                  IF (ASSOCIATED(weights)) local_static(static_base + 4) = &
-                     pw_grid%dvol*weights%array(i, j, k)
+               IF (my_atom_partition == skala_gpw_atom_partition_hard) THEN
+                  owner = nearest_atom(grid_point, atom_coords_pbc, cell)
+                  owner_coord = atom_coords_pbc(:, owner)
+                  nfeature_local = nfeature_local + 1
+                  local_feature_counts_tmp(local_row) = 1
+                  local_owner(nfeature_local) = owner
+                  local_source_points(nfeature_local) = local_row
+                  static_base = nstatic_per_point*(nfeature_local - 1)
+                  local_static(static_base + 1:static_base + 3) = &
+                     nearest_image_coordinate(owner_coord, grid_point, cell)
+                  local_static(static_base + 4) = base_weight
+               ELSE
+                  CALL smooth_atom_partition(grid_point, atom_coords_pbc, cell, &
+                                             partition_weights, atom_image_coords, distances)
+                  included_sum = SUM(partition_weights, MASK=partition_weights > smooth_partition_eps)
+                  IF (included_sum <= 0.0_dp) THEN
+                     owner = nearest_atom(grid_point, atom_coords_pbc, cell)
+                     partition_weights = 0.0_dp
+                     partition_weights(owner) = 1.0_dp
+                     included_sum = 1.0_dp
+                  END IF
+                  DO iatom = 1, natom
+                     IF (partition_weights(iatom) <= smooth_partition_eps) CYCLE
+                     partition_weight = partition_weights(iatom)/included_sum
+                     nfeature_local = nfeature_local + 1
+                     local_feature_counts_tmp(local_row) = &
+                        local_feature_counts_tmp(local_row) + 1
+                     local_owner(nfeature_local) = iatom
+                     local_source_points(nfeature_local) = local_row
+                     static_base = nstatic_per_point*(nfeature_local - 1)
+                     local_static(static_base + 1:static_base + 3) = &
+                        atom_image_coords(:, iatom)
+                     local_static(static_base + 4) = base_weight*partition_weight
+                  END DO
                END IF
             END DO
          END DO
@@ -569,20 +660,27 @@ CONTAINS
       ! SKALA groups all grid points by atom. This ordering is static while the
       ! grid, cell, atom positions, and optional integration weights are unchanged.
       CALL timeset("skala_gpw_layout_gather", phase_handle)
-      CALL pw_grid%para%group%allgather(nflat_local, feature_counts)
-      feature_displs(1) = 0
-      DO pe = 2, nproc
-         feature_displs(pe) = feature_displs(pe - 1) + feature_counts(pe - 1)
-      END DO
+      CALL pw_grid%para%group%allgather(nflat_local, point_counts)
+      CALL counts_to_displs(point_counts, point_displs)
+      npoint = SUM(point_counts)
+      CALL pw_grid%para%group%allgather(nfeature_local, feature_counts)
+      CALL counts_to_displs(feature_counts, feature_displs)
       DO pe = 1, nproc
          static_counts(pe) = nstatic_per_point*feature_counts(pe)
          static_displs(pe) = nstatic_per_point*feature_displs(pe)
       END DO
       nflat = SUM(feature_counts)
-      ALLOCATE (global_owner(nflat), global_static(nstatic_per_point*nflat))
-      CALL pw_grid%para%group%allgatherv(local_owner, global_owner, feature_counts, &
+      ALLOCATE (global_owner(nflat), global_source_points(nflat), &
+                global_static(nstatic_per_point*nflat), local_source_global(nfeature_local))
+      DO feature_local = 1, nfeature_local
+         local_source_global(feature_local) = point_displs(pe_index) + local_source_points(feature_local)
+      END DO
+      CALL pw_grid%para%group%allgatherv(local_owner(1:nfeature_local), global_owner, feature_counts, &
                                          feature_displs)
-      CALL pw_grid%para%group%allgatherv(local_static, global_static, static_counts, &
+      CALL pw_grid%para%group%allgatherv(local_source_global, global_source_points, feature_counts, &
+                                         feature_displs)
+      CALL pw_grid%para%group%allgatherv(local_static(1:nstatic_per_point*nfeature_local), &
+                                         global_static, static_counts, &
                                          static_displs)
       CALL timestop(phase_handle)
 
@@ -599,15 +697,29 @@ CONTAINS
                 cached_layout%route_point_recv_displs(nproc), &
                 cached_layout%route_point_send_counts(nproc), &
                 cached_layout%route_point_send_displs(nproc), &
-                cached_layout%global_to_feature(nflat), cached_layout%atomic_grid_sizes(natom), &
-                cached_layout%local_feature_indices(nflat_local), atom_offset(natom + 1), &
+                cached_layout%feature_source_points(nflat), &
+                cached_layout%global_to_feature(npoint), cached_layout%atomic_grid_sizes(natom), &
+                cached_layout%local_feature_counts(nflat_local), &
+                cached_layout%local_feature_offsets(nflat_local + 1), &
+                cached_layout%local_feature_rows(nfeature_local), &
+                cached_layout%local_feature_points(nfeature_local), &
+                cached_layout%local_feature_indices(nfeature_local), atom_offset(natom + 1), &
                 atom_position(natom), chunk_atom_begin(nproc), chunk_atom_end(nproc), &
-                local_to_global(nflat_local))
+                cursor(nflat_local))
       cached_layout%feature_counts(:) = feature_counts
       cached_layout%feature_displs(:) = feature_displs
-      cached_layout%dynamic_counts(:) = ndynamic_per_point*feature_counts
-      cached_layout%dynamic_displs(:) = ndynamic_per_point*feature_displs
+      cached_layout%dynamic_counts(:) = ndynamic_per_point*point_counts
+      cached_layout%dynamic_displs(:) = ndynamic_per_point*point_displs
       cached_layout%atomic_grid_sizes = 0_int_8
+      cached_layout%global_to_feature = 0
+      cached_layout%local_feature_counts(:) = local_feature_counts_tmp
+      cached_layout%local_feature_offsets(1) = 1
+      DO local_row = 1, nflat_local
+         cached_layout%local_feature_offsets(local_row + 1) = &
+            cached_layout%local_feature_offsets(local_row) + &
+            cached_layout%local_feature_counts(local_row)
+      END DO
+      cursor(:) = cached_layout%local_feature_offsets(1:nflat_local)
 
       CALL timeset("skala_gpw_layout_atom_sort", phase_handle)
       DO ipt = 1, nflat
@@ -654,39 +766,52 @@ CONTAINS
          owner = global_owner(ipt)
          row = atom_position(owner)
          atom_position(owner) = atom_position(owner) + 1
-         cached_layout%global_to_feature(ipt) = row
+         source_global = global_source_points(ipt)
+         cached_layout%feature_source_points(row) = source_global
+         IF (cached_layout%global_to_feature(source_global) == 0) &
+            cached_layout%global_to_feature(source_global) = row
          static_base = nstatic_per_point*(ipt - 1)
          cached_layout%grid_coords(:, row) = global_static(static_base + 1:static_base + 3)
          cached_layout%grid_weights(row) = global_static(static_base + 4)
          cached_layout%atomic_grid_weights(row) = cached_layout%grid_weights(row)
-         IF (ipt > feature_displs(pe_index) .AND. &
-             ipt <= feature_displs(pe_index) + nflat_local) THEN
-            local_to_global(ipt - feature_displs(pe_index)) = row
+         source_local = source_global - point_displs(pe_index)
+         IF (source_local >= 1 .AND. source_local <= nflat_local) THEN
+            feature_local = cursor(source_local)
+            cursor(source_local) = cursor(source_local) + 1
+            cached_layout%local_feature_rows(feature_local) = row
+            cached_layout%local_feature_points(feature_local) = source_local
          END IF
       END DO
 
+      CPASSERT(ALL(cached_layout%global_to_feature > 0))
+      CPASSERT(ALL(cached_layout%local_feature_rows > 0))
+      CPASSERT(ALL(cached_layout%local_feature_points > 0))
       DO k = bo(1, 3), bo(2, 3)
          DO j = bo(1, 2), bo(2, 2)
             DO i = bo(1, 1), bo(2, 1)
+               local_row = cached_layout%feature_index(i, j, k)
                cached_layout%feature_index(i, j, k) = &
-                  local_to_global(cached_layout%feature_index(i, j, k))
+                  cached_layout%local_feature_rows(cached_layout%local_feature_offsets(local_row))
             END DO
          END DO
       END DO
-      DO local_row = 1, nflat_local
-         cached_layout%local_feature_indices(local_row) = &
-            INT(local_to_global(local_row) - 1, KIND=int_8)
+      DO feature_local = 1, nfeature_local
+         cached_layout%local_feature_indices(feature_local) = &
+            INT(cached_layout%local_feature_rows(feature_local) - 1, KIND=int_8)
       END DO
       CALL timestop(phase_handle)
       CALL timeset("skala_gpw_layout_chunk_routes", phase_handle)
-      CALL build_atom_chunk_routes(cached_layout, local_to_global, pw_grid%para%group)
+      CALL build_atom_chunk_routes(cached_layout, cached_layout%local_feature_rows, &
+                                   pw_grid%para%group)
       CALL build_atom_chunk_layout(cached_layout)
       CALL timestop(phase_handle)
 
       cached_layout%natom = natom
       cached_layout%nflat = nflat
       cached_layout%nflat_local = nflat_local
+      cached_layout%npoint = npoint
       cached_layout%nproc = nproc
+      cached_layout%atom_partition = my_atom_partition
       cached_layout%bo = bo
       cached_layout%bounds = pw_grid%bounds
       cached_layout%npts = pw_grid%npts
@@ -701,9 +826,12 @@ CONTAINS
       CALL timestop(phase_handle)
       cached_layout%active = .TRUE.
 
-      DEALLOCATE (atom_coords_pbc, atom_offset, atom_position, chunk_atom_begin, chunk_atom_end, &
-                  feature_counts, feature_displs, global_owner, global_static, local_owner, &
-                  local_static, local_to_global, static_counts, static_displs)
+      DEALLOCATE (atom_coords_pbc, atom_image_coords, atom_offset, atom_position, &
+                  chunk_atom_begin, chunk_atom_end, cursor, feature_counts, feature_displs, &
+                  global_owner, global_source_points, global_static, local_feature_counts_tmp, &
+                  distances, local_owner, local_source_global, local_source_points, &
+                  local_static, partition_weights, point_counts, point_displs, static_counts, &
+                  static_displs)
 
    END SUBROUTINE rebuild_layout_cache
 
@@ -784,10 +912,12 @@ CONTAINS
 !> \brief Copy static cached layout arrays into a feature bundle.
 !> \param features ...
 !> \param needs_coordinate_array ...
+!> \param needs_grid_coordinate_array ...
 ! **************************************************************************************************
-   SUBROUTINE copy_cached_layout(features, needs_coordinate_array)
+   SUBROUTINE copy_cached_layout(features, needs_coordinate_array, needs_grid_coordinate_array)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
-      LOGICAL, INTENT(IN)                                :: needs_coordinate_array
+      LOGICAL, INTENT(IN)                                :: needs_coordinate_array, &
+                                                            needs_grid_coordinate_array
 
       CPASSERT(cached_layout%active)
 
@@ -798,12 +928,27 @@ CONTAINS
                                        LBOUND(cached_layout%feature_index, 3): &
                                        UBOUND(cached_layout%feature_index, 3)))
       ALLOCATE (features%grid_weights(cached_layout%nflat))
+      ALLOCATE (features%local_feature_counts(cached_layout%nflat_local), &
+                features%local_feature_offsets(cached_layout%nflat_local + 1), &
+                features%local_feature_rows(SIZE(cached_layout%local_feature_rows)))
 
       features%feature_index(:, :, :) = cached_layout%feature_index
       features%grid_weights(:) = cached_layout%grid_weights
+      features%local_feature_counts(:) = cached_layout%local_feature_counts
+      features%local_feature_offsets(:) = cached_layout%local_feature_offsets
+      features%local_feature_rows(:) = cached_layout%local_feature_rows
       features%nflat = cached_layout%nflat
       features%nflat_local = cached_layout%nflat_local
       features%chunk_feature_count = cached_layout%chunk_feature_count
+      features%atom_partition = cached_layout%atom_partition
+      ALLOCATE (features%atomic_grid_sizes(cached_layout%natom))
+      features%atomic_grid_sizes(:) = cached_layout%atomic_grid_sizes
+      IF (needs_grid_coordinate_array) THEN
+         ALLOCATE (features%grid_coords(3, cached_layout%nflat))
+         ALLOCATE (features%atomic_grid_weights(cached_layout%nflat))
+         features%grid_coords(:, :) = cached_layout%grid_coords
+         features%atomic_grid_weights(:) = cached_layout%atomic_grid_weights
+      END IF
       ALLOCATE (features%chunk_grad_counts(cached_layout%nproc), &
                 features%chunk_grad_displs(cached_layout%nproc), &
                 features%route_grad_return_recv_counts(cached_layout%nproc), &
@@ -814,7 +959,7 @@ CONTAINS
                 features%route_point_recv_displs(cached_layout%nproc), &
                 features%route_point_send_counts(cached_layout%nproc), &
                 features%route_point_send_displs(cached_layout%nproc), &
-                features%route_send_local_rows(cached_layout%nflat_local))
+                features%route_send_local_rows(SIZE(cached_layout%route_send_local_rows)))
       features%chunk_grad_counts(:) = cached_layout%chunk_grad_counts
       features%chunk_grad_displs(:) = cached_layout%chunk_grad_displs
       features%route_grad_return_recv_counts(:) = cached_layout%route_grad_return_recv_counts
@@ -997,7 +1142,7 @@ CONTAINS
 
       CLASS(mp_comm_type), INTENT(IN)                    :: group
 
-      INTEGER                                            :: chunk_row, dest, local_row, point_pos, row
+      INTEGER                                            :: chunk_row, dest, local_feature, point_pos, row
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cursor, recv_meta, send_meta
 
       ALLOCATE (cache%route_local_dest(SIZE(local_to_global)), &
@@ -1007,32 +1152,32 @@ CONTAINS
       cache%route_point_send_counts = 0
       cache%route_send_local_rows = 0
       cache%chunk_return_positions = 0
-      DO local_row = 1, SIZE(local_to_global)
-         dest = feature_row_chunk_owner(local_to_global(local_row), &
+      DO local_feature = 1, SIZE(local_to_global)
+         dest = feature_row_chunk_owner(local_to_global(local_feature), &
                                         cache%chunk_feature_counts, &
                                         cache%chunk_feature_displs)
          CPASSERT(dest > 0)
-         cache%route_local_dest(local_row) = dest
+         cache%route_local_dest(local_feature) = dest
          cache%route_point_send_counts(dest) = cache%route_point_send_counts(dest) + 1
       END DO
       CALL counts_to_displs(cache%route_point_send_counts, cache%route_point_send_displs)
       cursor(:) = cache%route_point_send_displs + 1
-      DO local_row = 1, SIZE(local_to_global)
-         dest = cache%route_local_dest(local_row)
+      DO local_feature = 1, SIZE(local_to_global)
+         dest = cache%route_local_dest(local_feature)
          point_pos = cursor(dest)
          cursor(dest) = cursor(dest) + 1
-         cache%route_send_local_rows(point_pos) = local_row
+         cache%route_send_local_rows(point_pos) = cache%local_feature_points(local_feature)
       END DO
       CALL group%alltoall(cache%route_point_send_counts, cache%route_point_recv_counts, 1)
       CALL counts_to_displs(cache%route_point_recv_counts, cache%route_point_recv_displs)
 
       ALLOCATE (send_meta(SIZE(local_to_global)), recv_meta(cache%chunk_feature_count))
       cursor(:) = cache%route_point_send_displs + 1
-      DO local_row = 1, SIZE(local_to_global)
-         dest = cache%route_local_dest(local_row)
+      DO local_feature = 1, SIZE(local_to_global)
+         dest = cache%route_local_dest(local_feature)
          point_pos = cursor(dest)
          cursor(dest) = cursor(dest) + 1
-         send_meta(point_pos) = local_to_global(local_row)
+         send_meta(point_pos) = local_to_global(local_feature)
       END DO
       CALL group%alltoall(send_meta, cache%route_point_send_counts, &
                           cache%route_point_send_displs, recv_meta, &
@@ -1109,7 +1254,7 @@ CONTAINS
       CLASS(mp_comm_type), INTENT(IN)                    :: group
       LOGICAL, INTENT(IN)                                :: collapse_spin_dynamics
 
-      INTEGER                                            :: chunk_row, dest, dyn_base, local_row, &
+      INTEGER                                            :: chunk_row, dest, dyn_base, local_feature, local_row, &
                                                             ndynamic_route_per_point, nrecv, nsend, &
                                                             point_pos, src_base
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cursor, recv_counts, recv_displs, &
@@ -1119,7 +1264,7 @@ CONTAINS
       CPASSERT(cached_layout%chunk_feature_count > 0)
       nsend = SIZE(cached_layout%route_local_dest)
       nrecv = SUM(cached_layout%route_point_recv_counts)
-      CPASSERT(nsend == cached_layout%nflat_local)
+      CPASSERT(nsend == SIZE(cached_layout%local_feature_rows))
       CPASSERT(nrecv == cached_layout%chunk_feature_count)
       ndynamic_route_per_point = ndynamic_per_point
       IF (collapse_spin_dynamics) ndynamic_route_per_point = nrks_dynamic_per_point
@@ -1134,11 +1279,12 @@ CONTAINS
       recv_counts(:) = ndynamic_route_per_point*cached_layout%route_point_recv_counts
       recv_displs(:) = ndynamic_route_per_point*cached_layout%route_point_recv_displs
       cursor(:) = cached_layout%route_point_send_displs + 1
-      DO local_row = 1, nsend
-         dest = cached_layout%route_local_dest(local_row)
+      DO local_feature = 1, nsend
+         dest = cached_layout%route_local_dest(local_feature)
          point_pos = cursor(dest)
          cursor(dest) = cursor(dest) + 1
          dyn_base = ndynamic_route_per_point*(point_pos - 1)
+         local_row = cached_layout%local_feature_points(local_feature)
          src_base = ndynamic_route_per_point*(local_row - 1)
          send_dynamic(dyn_base + 1:dyn_base + ndynamic_route_per_point) = &
             local_dynamic(src_base + 1:src_base + ndynamic_route_per_point)
@@ -1319,12 +1465,17 @@ CONTAINS
       IF (ALLOCATED(cache%dynamic_displs)) DEALLOCATE (cache%dynamic_displs)
       IF (ALLOCATED(cache%feature_counts)) DEALLOCATE (cache%feature_counts)
       IF (ALLOCATED(cache%feature_displs)) DEALLOCATE (cache%feature_displs)
+      IF (ALLOCATED(cache%feature_source_points)) DEALLOCATE (cache%feature_source_points)
       IF (ALLOCATED(cache%global_to_feature)) DEALLOCATE (cache%global_to_feature)
       IF (ALLOCATED(cache%feature_index)) DEALLOCATE (cache%feature_index)
       IF (ALLOCATED(cache%atomic_grid_sizes)) DEALLOCATE (cache%atomic_grid_sizes)
       IF (ALLOCATED(cache%chunk_atomic_grid_sizes)) DEALLOCATE (cache%chunk_atomic_grid_sizes)
       IF (ALLOCATED(cache%chunk_feature_indices)) DEALLOCATE (cache%chunk_feature_indices)
+      IF (ALLOCATED(cache%local_feature_counts)) DEALLOCATE (cache%local_feature_counts)
       IF (ALLOCATED(cache%local_feature_indices)) DEALLOCATE (cache%local_feature_indices)
+      IF (ALLOCATED(cache%local_feature_offsets)) DEALLOCATE (cache%local_feature_offsets)
+      IF (ALLOCATED(cache%local_feature_points)) DEALLOCATE (cache%local_feature_points)
+      IF (ALLOCATED(cache%local_feature_rows)) DEALLOCATE (cache%local_feature_rows)
       IF (ALLOCATED(cache%atomic_grid_size_bound_shape)) &
          DEALLOCATE (cache%atomic_grid_size_bound_shape)
       IF (ALLOCATED(cache%chunk_atomic_grid_size_bound_shape)) &
@@ -1348,7 +1499,9 @@ CONTAINS
       cache%natom = 0
       cache%nflat = 0
       cache%nflat_local = 0
+      cache%npoint = 0
       cache%nproc = 0
+      cache%atom_partition = skala_gpw_atom_partition_hard
       cache%bo = 0
       cache%bounds = 0
       cache%npts = 0
@@ -1395,12 +1548,21 @@ CONTAINS
             CALL torch_tensor_release(features%atomic_grid_sizes_t)
             CALL torch_tensor_release(features%atomic_grid_size_bound_shape_t)
          END IF
+         IF (features%owns_grid_coordinate_tensor) THEN
+            CALL torch_tensor_release(features%grid_coords_t)
+         END IF
+         IF (features%owns_weight_tensors) THEN
+            CALL torch_tensor_release(features%grid_weights_t)
+            CALL torch_tensor_release(features%atomic_grid_weights_t)
+         END IF
          IF (features%owns_static_tensors .OR. features%owns_coordinate_tensor) THEN
             CALL torch_tensor_release(features%coarse_0_atomic_coords_t)
          END IF
          IF (features%owns_inputs) CALL torch_dict_release(features%inputs)
          features%active = .FALSE.
          features%owns_coordinate_tensor = .FALSE.
+         features%owns_grid_coordinate_tensor = .FALSE.
+         features%owns_weight_tensors = .FALSE.
          features%owns_dynamic_tensors = .TRUE.
          features%owns_inputs = .TRUE.
          features%owns_static_tensors = .TRUE.
@@ -1436,6 +1598,9 @@ CONTAINS
          DEALLOCATE (features%route_point_send_displs)
       IF (ALLOCATED(features%route_send_local_rows)) DEALLOCATE (features%route_send_local_rows)
       IF (ALLOCATED(features%feature_index)) DEALLOCATE (features%feature_index)
+      IF (ALLOCATED(features%local_feature_counts)) DEALLOCATE (features%local_feature_counts)
+      IF (ALLOCATED(features%local_feature_offsets)) DEALLOCATE (features%local_feature_offsets)
+      IF (ALLOCATED(features%local_feature_rows)) DEALLOCATE (features%local_feature_rows)
       IF (ALLOCATED(features%grid_coords)) DEALLOCATE (features%grid_coords)
       IF (ALLOCATED(features%grid_weights)) DEALLOCATE (features%grid_weights)
       IF (ALLOCATED(features%atomic_grid_weights)) DEALLOCATE (features%atomic_grid_weights)
@@ -1446,6 +1611,7 @@ CONTAINS
       features%chunk_feature_count = 0
       features%nflat = 0
       features%nflat_local = 0
+      features%atom_partition = skala_gpw_atom_partition_hard
       features%uses_atom_chunk_routing = .FALSE.
       features%uses_collapsed_rks_dynamic = .FALSE.
 
@@ -1721,20 +1887,35 @@ CONTAINS
 !> \param features ...
 !> \param requires_grad ...
 !> \param requires_coordinate_grad ...
+!> \param requires_stress_grad ...
 !> \param use_atom_chunks ...
+!> \param requires_weight_grad ...
 ! **************************************************************************************************
    SUBROUTINE add_feature_tensors(features, requires_grad, requires_coordinate_grad, &
-                                  use_atom_chunks)
+                                  requires_stress_grad, use_atom_chunks, requires_weight_grad)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
       LOGICAL, INTENT(IN)                                :: requires_grad, requires_coordinate_grad, &
-                                                            use_atom_chunks
+                                                            requires_stress_grad, use_atom_chunks
+      LOGICAL, INTENT(IN), OPTIONAL                      :: requires_weight_grad
+
+      LOGICAL                                            :: my_requires_weight_grad
+
+      my_requires_weight_grad = .FALSE.
+      IF (PRESENT(requires_weight_grad)) my_requires_weight_grad = requires_weight_grad
 
       CPASSERT(cached_layout%static_tensors_active)
       features%owns_static_tensors = .FALSE.
       features%owns_coordinate_tensor = .FALSE.
+      features%owns_grid_coordinate_tensor = .FALSE.
+      features%owns_weight_tensors = .FALSE.
       features%owns_dynamic_tensors = .FALSE.
       features%owns_inputs = .TRUE.
       IF (use_atom_chunks) THEN
+         IF (requires_stress_grad .OR. my_requires_weight_grad) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Native SKALA analytical stress/SMOOTH derivatives are not implemented "// &
+                          "with atom-chunk tensors yet.")
+         END IF
          CPASSERT(cached_layout%chunk_static_tensors_active)
          features%grid_coords_t = cached_layout%chunk_grid_coords_t
          features%grid_weights_t = cached_layout%chunk_grid_weights_t
@@ -1811,9 +1992,11 @@ CONTAINS
          features%owns_inputs = .FALSE.
          features%coarse_0_atomic_coords_t = cached_layout%chunk_coarse_0_atomic_coords_t
       ELSE
-         features%grid_coords_t = cached_layout%grid_coords_t
-         features%grid_weights_t = cached_layout%grid_weights_t
-         features%atomic_grid_weights_t = cached_layout%atomic_grid_weights_t
+         IF (.NOT. requires_stress_grad .AND. .NOT. my_requires_weight_grad) THEN
+            features%grid_coords_t = cached_layout%grid_coords_t
+            features%grid_weights_t = cached_layout%grid_weights_t
+            features%atomic_grid_weights_t = cached_layout%atomic_grid_weights_t
+         END IF
          features%atomic_grid_sizes_t = cached_layout%atomic_grid_sizes_t
          features%atomic_grid_size_bound_shape_t = cached_layout%atomic_grid_size_bound_shape_t
          features%local_feature_indices_t = cached_layout%local_feature_indices_t
@@ -1829,8 +2012,34 @@ CONTAINS
          features%kin_t = cached_layout%kin_t
          cached_layout%dynamic_tensors_active = .TRUE.
 
-         IF (requires_coordinate_grad) THEN
-            CALL torch_dict_clone(cached_layout%static_inputs, features%inputs)
+         IF (requires_coordinate_grad .OR. requires_stress_grad .OR. my_requires_weight_grad) THEN
+            IF (requires_stress_grad .OR. my_requires_weight_grad) THEN
+               CALL torch_dict_create(features%inputs)
+               IF (requires_stress_grad) THEN
+                  CALL torch_tensor_from_array(features%grid_coords_t, features%grid_coords)
+                  CALL torch_tensor_to_device_leaf(features%grid_coords_t, .TRUE.)
+                  CALL torch_dict_insert(features%inputs, "grid_coords", features%grid_coords_t)
+                  features%owns_grid_coordinate_tensor = .TRUE.
+               ELSE
+                  features%grid_coords_t = cached_layout%grid_coords_t
+                  CALL torch_dict_insert(features%inputs, "grid_coords", features%grid_coords_t)
+               END IF
+               CALL torch_tensor_from_array(features%grid_weights_t, features%grid_weights)
+               CALL torch_tensor_to_device_leaf(features%grid_weights_t, .TRUE.)
+               CALL torch_tensor_from_array(features%atomic_grid_weights_t, &
+                                            features%atomic_grid_weights)
+               CALL torch_tensor_to_device_leaf(features%atomic_grid_weights_t, .TRUE.)
+               CALL torch_dict_insert(features%inputs, "grid_weights", features%grid_weights_t)
+               CALL torch_dict_insert(features%inputs, "atomic_grid_weights", &
+                                      features%atomic_grid_weights_t)
+               CALL torch_dict_insert(features%inputs, "atomic_grid_sizes", &
+                                      features%atomic_grid_sizes_t)
+               CALL torch_dict_insert(features%inputs, "atomic_grid_size_bound_shape", &
+                                      features%atomic_grid_size_bound_shape_t)
+               features%owns_weight_tensors = .TRUE.
+            ELSE
+               CALL torch_dict_clone(cached_layout%static_inputs, features%inputs)
+            END IF
             CALL torch_dict_insert(features%inputs, "density", features%density_t)
             CALL torch_dict_insert(features%inputs, "grad", features%grad_t)
             CALL torch_dict_insert(features%inputs, "kin", features%kin_t)
@@ -1850,7 +2059,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (requires_coordinate_grad) THEN
+      IF (requires_coordinate_grad .OR. requires_stress_grad) THEN
          CPASSERT(.NOT. use_atom_chunks)
          CALL torch_tensor_from_array(features%coarse_0_atomic_coords_t, &
                                       features%coarse_0_atomic_coords)
@@ -1881,6 +2090,323 @@ CONTAINS
               REAL(relative_index(3), KIND=dp)*pw_grid%dh(:, 3)
 
    END FUNCTION grid_coordinate
+
+! **************************************************************************************************
+!> \brief Build Becke-like smooth atom weights for one native-grid point.
+!> \param grid_point ...
+!> \param atom_coords ...
+!> \param cell ...
+!> \param weights ...
+!> \param atom_image_coords ...
+!> \param distances ...
+! **************************************************************************************************
+   SUBROUTINE smooth_atom_partition(grid_point, atom_coords, cell, weights, atom_image_coords, &
+                                    distances)
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: weights
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: atom_image_coords
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: distances
+
+      INTEGER                                            :: iatom, jatom, natom
+      REAL(KIND=dp)                                      :: mu, rab, rsum, switch, total
+      REAL(KIND=dp), DIMENSION(3)                        :: rij
+      REAL(KIND=dp), DIMENSION(3, SIZE(atom_coords, 2))  :: partition_atom_coords
+
+      natom = SIZE(atom_coords, 2)
+      CPASSERT(SIZE(weights) == natom)
+      CPASSERT(SIZE(atom_image_coords, 1) == 3)
+      CPASSERT(SIZE(atom_image_coords, 2) == natom)
+      CPASSERT(SIZE(distances) == natom)
+
+      DO iatom = 1, natom
+         atom_image_coords(:, iatom) = &
+            nearest_image_coordinate(atom_coords(:, iatom), grid_point, cell)
+         partition_atom_coords(:, iatom) = &
+            nearest_atom_image_coordinate(atom_coords(:, iatom), grid_point, cell)
+         rij = grid_point - partition_atom_coords(:, iatom)
+         distances(iatom) = SQRT(SUM(rij**2))
+      END DO
+
+      weights = 1.0_dp
+      DO iatom = 1, natom - 1
+         DO jatom = iatom + 1, natom
+            rij = partition_atom_coords(:, iatom) - partition_atom_coords(:, jatom)
+            rab = SQRT(SUM(rij**2))
+            IF (rab <= layout_tol) CYCLE
+            mu = (distances(iatom) - distances(jatom))/rab
+            mu = MAX(-1.0_dp, MIN(1.0_dp, mu))
+            switch = 0.5_dp*(1.0_dp - becke_shape(mu))
+            weights(iatom) = weights(iatom)*switch
+            weights(jatom) = weights(jatom)*(1.0_dp - switch)
+         END DO
+      END DO
+
+      total = SUM(weights)
+      IF (total > 0.0_dp) THEN
+         weights = weights/total
+      ELSE
+         rsum = HUGE(1.0_dp)
+         jatom = 1
+         DO iatom = 1, natom
+            IF (distances(iatom) < rsum) THEN
+               rsum = distances(iatom)
+               jatom = iatom
+            END IF
+         END DO
+         weights = 0.0_dp
+         weights(jatom) = 1.0_dp
+      END IF
+
+   END SUBROUTINE smooth_atom_partition
+
+! **************************************************************************************************
+!> \brief Build smooth atom weights and their atom/cell deformation derivatives.
+!> \param grid_point ...
+!> \param atom_coords ...
+!> \param cell ...
+!> \param weights ...
+!> \param included ...
+!> \param dweights_datom ...
+!> \param dweights_dstrain ...
+! **************************************************************************************************
+   SUBROUTINE skala_gpw_smooth_partition_derivatives(grid_point, atom_coords, cell, &
+                                                     weights, included, dweights_datom, &
+                                                     dweights_dstrain)
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: weights
+      LOGICAL, DIMENSION(:), INTENT(OUT)                 :: included
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: dweights_datom, dweights_dstrain
+
+      INTEGER                                            :: iatom, idir, jatom, jdir, natom
+      REAL(KIND=dp)                                      :: dist_diff, ds_dmu, included_sum, mu, &
+                                                            mu_raw, one_minus_switch, rab, rsum, &
+                                                            switch, total
+      REAL(KIND=dp), DIMENSION(3)                        :: dmu_atom_i, dmu_atom_j, ds_atom_i, &
+                                                            ds_atom_j, pair, unit_pair
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: dmu_strain, ds_strain, mean_strain
+      REAL(KIND=dp), DIMENSION(3, SIZE(atom_coords, 2), &
+         SIZE(atom_coords, 2))                           :: log_weight_atom
+      REAL(KIND=dp), DIMENSION(3, SIZE(atom_coords, 2))  :: mean_atom, partition_atom_coords, rvecs, &
+                                                            unit_rvecs
+      REAL(KIND=dp), &
+         DIMENSION(3, 3, SIZE(atom_coords, 2))           :: log_weight_strain
+      REAL(KIND=dp), DIMENSION(SIZE(atom_coords, 2))     :: distances, normalized_weights, &
+                                                            raw_weights
+
+      natom = SIZE(atom_coords, 2)
+      CPASSERT(SIZE(weights) == natom)
+      CPASSERT(SIZE(included) == natom)
+      CPASSERT(SIZE(dweights_datom, 1) == 3)
+      CPASSERT(SIZE(dweights_datom, 2) == natom)
+      CPASSERT(SIZE(dweights_datom, 3) == natom)
+      CPASSERT(SIZE(dweights_dstrain, 1) == 3)
+      CPASSERT(SIZE(dweights_dstrain, 2) == 3)
+      CPASSERT(SIZE(dweights_dstrain, 3) == natom)
+
+      weights = 0.0_dp
+      included = .FALSE.
+      dweights_datom = 0.0_dp
+      dweights_dstrain = 0.0_dp
+      raw_weights = 1.0_dp
+      log_weight_atom = 0.0_dp
+      log_weight_strain = 0.0_dp
+
+      DO iatom = 1, natom
+         partition_atom_coords(:, iatom) = &
+            nearest_atom_image_coordinate(atom_coords(:, iatom), grid_point, cell)
+         rvecs(:, iatom) = grid_point - partition_atom_coords(:, iatom)
+         distances(iatom) = SQRT(SUM(rvecs(:, iatom)**2))
+         IF (distances(iatom) > layout_tol) THEN
+            unit_rvecs(:, iatom) = rvecs(:, iatom)/distances(iatom)
+         ELSE
+            unit_rvecs(:, iatom) = 0.0_dp
+         END IF
+      END DO
+
+      DO iatom = 1, natom - 1
+         DO jatom = iatom + 1, natom
+            pair = partition_atom_coords(:, iatom) - partition_atom_coords(:, jatom)
+            rab = SQRT(SUM(pair**2))
+            IF (rab <= layout_tol) CYCLE
+            unit_pair = pair/rab
+            dist_diff = distances(iatom) - distances(jatom)
+            mu_raw = dist_diff/rab
+            mu = MAX(-1.0_dp, MIN(1.0_dp, mu_raw))
+            switch = 0.5_dp*(1.0_dp - becke_shape(mu))
+            one_minus_switch = 1.0_dp - switch
+
+            IF (ABS(mu_raw) < 1.0_dp) THEN
+               ds_dmu = -0.5_dp*becke_shape_derivative(mu)
+            ELSE
+               ds_dmu = 0.0_dp
+            END IF
+            IF (ABS(ds_dmu) > 0.0_dp .AND. switch > TINY(1.0_dp) .AND. &
+                one_minus_switch > TINY(1.0_dp)) THEN
+               dmu_atom_i = (-unit_rvecs(:, iatom)*rab - dist_diff*unit_pair)/rab**2
+               dmu_atom_j = (unit_rvecs(:, jatom)*rab + dist_diff*unit_pair)/rab**2
+               ds_atom_i = ds_dmu*dmu_atom_i
+               ds_atom_j = ds_dmu*dmu_atom_j
+               log_weight_atom(:, iatom, iatom) = &
+                  log_weight_atom(:, iatom, iatom) + ds_atom_i/switch
+               log_weight_atom(:, iatom, jatom) = &
+                  log_weight_atom(:, iatom, jatom) - ds_atom_i/one_minus_switch
+               log_weight_atom(:, jatom, iatom) = &
+                  log_weight_atom(:, jatom, iatom) + ds_atom_j/switch
+               log_weight_atom(:, jatom, jatom) = &
+                  log_weight_atom(:, jatom, jatom) - ds_atom_j/one_minus_switch
+
+               DO idir = 1, 3
+                  DO jdir = 1, 3
+                     dmu_strain(idir, jdir) = &
+                        ((unit_rvecs(idir, iatom)*rvecs(jdir, iatom) - &
+                          unit_rvecs(idir, jatom)*rvecs(jdir, jatom))*rab - &
+                         dist_diff*unit_pair(idir)*pair(jdir))/rab**2
+                  END DO
+               END DO
+               ds_strain = ds_dmu*dmu_strain
+               log_weight_strain(:, :, iatom) = &
+                  log_weight_strain(:, :, iatom) + ds_strain/switch
+               log_weight_strain(:, :, jatom) = &
+                  log_weight_strain(:, :, jatom) - ds_strain/one_minus_switch
+            END IF
+
+            raw_weights(iatom) = raw_weights(iatom)*switch
+            raw_weights(jatom) = raw_weights(jatom)*one_minus_switch
+         END DO
+      END DO
+
+      total = SUM(raw_weights)
+      IF (total > 0.0_dp) THEN
+         normalized_weights = raw_weights/total
+         included = normalized_weights > smooth_partition_eps
+      ELSE
+         rsum = HUGE(1.0_dp)
+         jatom = 1
+         DO iatom = 1, natom
+            IF (distances(iatom) < rsum) THEN
+               rsum = distances(iatom)
+               jatom = iatom
+            END IF
+         END DO
+         included(jatom) = .TRUE.
+         weights(jatom) = 1.0_dp
+         RETURN
+      END IF
+
+      included_sum = SUM(raw_weights, MASK=included)
+      IF (included_sum <= 0.0_dp) THEN
+         rsum = HUGE(1.0_dp)
+         jatom = 1
+         DO iatom = 1, natom
+            IF (distances(iatom) < rsum) THEN
+               rsum = distances(iatom)
+               jatom = iatom
+            END IF
+         END DO
+         included = .FALSE.
+         included(jatom) = .TRUE.
+         weights = 0.0_dp
+         weights(jatom) = 1.0_dp
+         RETURN
+      END IF
+
+      DO iatom = 1, natom
+         IF (included(iatom)) weights(iatom) = raw_weights(iatom)/included_sum
+      END DO
+
+      mean_atom = 0.0_dp
+      mean_strain = 0.0_dp
+      DO iatom = 1, natom
+         IF (.NOT. included(iatom)) CYCLE
+         mean_strain = mean_strain + weights(iatom)*log_weight_strain(:, :, iatom)
+         DO jatom = 1, natom
+            mean_atom(:, jatom) = mean_atom(:, jatom) + &
+                                  weights(iatom)*log_weight_atom(:, jatom, iatom)
+         END DO
+      END DO
+
+      DO iatom = 1, natom
+         IF (.NOT. included(iatom)) CYCLE
+         dweights_dstrain(:, :, iatom) = &
+            weights(iatom)*(log_weight_strain(:, :, iatom) - mean_strain)
+         DO jatom = 1, natom
+            dweights_datom(:, jatom, iatom) = &
+               weights(iatom)*(log_weight_atom(:, jatom, iatom) - mean_atom(:, jatom))
+         END DO
+      END DO
+
+   END SUBROUTINE skala_gpw_smooth_partition_derivatives
+
+! **************************************************************************************************
+!> \brief Becke fuzzy-cell shape function.
+!> \param mu ...
+!> \return ...
+! **************************************************************************************************
+   PURE FUNCTION becke_shape(mu) RESULT(val)
+      REAL(KIND=dp), INTENT(IN)                          :: mu
+      REAL(KIND=dp)                                      :: val
+
+      INTEGER                                            :: iter
+
+      val = mu
+      DO iter = 1, 3
+         val = 0.5_dp*val*(3.0_dp - val*val)
+      END DO
+
+   END FUNCTION becke_shape
+
+! **************************************************************************************************
+!> \brief Derivative of the Becke fuzzy-cell shape function.
+!> \param mu ...
+!> \return ...
+! **************************************************************************************************
+   PURE FUNCTION becke_shape_derivative(mu) RESULT(val)
+      REAL(KIND=dp), INTENT(IN)                          :: mu
+      REAL(KIND=dp)                                      :: val
+
+      INTEGER                                            :: iter
+      REAL(KIND=dp)                                      :: x
+
+      x = mu
+      val = 1.0_dp
+      DO iter = 1, 3
+         val = val*1.5_dp*(1.0_dp - x*x)
+         x = 0.5_dp*x*(3.0_dp - x*x)
+      END DO
+
+   END FUNCTION becke_shape_derivative
+
+! **************************************************************************************************
+!> \brief Return the atom image nearest to a regular-grid point.
+!> \param atom_coord ...
+!> \param grid_point ...
+!> \param cell ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION nearest_atom_image_coordinate(atom_coord, grid_point, cell) RESULT(coord)
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: atom_coord, grid_point
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(3)                        :: coord
+
+      REAL(KIND=dp)                                      :: dx, dy, dz
+
+      IF (cell%orthorhombic) THEN
+         dx = atom_coord(1) - grid_point(1)
+         dy = atom_coord(2) - grid_point(2)
+         dz = atom_coord(3) - grid_point(3)
+         dx = dx - cell%hmat(1, 1)*cell%perd(1)*ANINT(cell%h_inv(1, 1)*dx)
+         dy = dy - cell%hmat(2, 2)*cell%perd(2)*ANINT(cell%h_inv(2, 2)*dy)
+         dz = dz - cell%hmat(3, 3)*cell%perd(3)*ANINT(cell%h_inv(3, 3)*dz)
+         coord = grid_point + [dx, dy, dz]
+      ELSE
+         coord = grid_point + pbc(grid_point, atom_coord, cell)
+      END IF
+
+   END FUNCTION nearest_atom_image_coordinate
 
 ! **************************************************************************************************
 !> \brief Return the grid-point image nearest to the owning atom coordinate.

@@ -386,7 +386,7 @@ CONTAINS
       LOGICAL                                            :: has_paw_pseudopotentials
 
       INTEGER                                            :: ikind
-      LOGICAL                                            :: paw_atom
+      LOGICAL                                            :: gpw_type_forced, paw_atom
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
@@ -397,9 +397,11 @@ CONTAINS
          NULLIFY (gth_potential, sgp_potential)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           gth_potential=gth_potential, &
+                          gpw_type_forced=gpw_type_forced, &
                           paw_atom=paw_atom, &
                           sgp_potential=sgp_potential)
-         IF ((ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. paw_atom) THEN
+         IF ((ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. &
+             paw_atom .AND. .NOT. gpw_type_forced) THEN
             has_paw_pseudopotentials = .TRUE.
             EXIT
          END IF
@@ -1307,8 +1309,12 @@ CONTAINS
       END IF
       use_fd_gradient = dft_control%qs_control%gapw .AND. calculate_forces .AND. &
                         (use_skala_model .OR. gauxc_basis%max_l > 3)
-      IF (use_gradient_mpi_runtime) THEN
-         use_gradient_self_runtime = .FALSE.
+      IF (use_fd_gradient) use_gradient_mpi_runtime = .FALSE.
+      IF (use_gradient_mpi_runtime .AND. use_self_runtime) THEN
+         CALL cp_abort( &
+            __LOCATION__, &
+            "GAUXC%ONEDFT_GRADIENT_RUNTIME MPI requires a GauXC MPI runtime. "// &
+            "Use GAUXC%SKALA_RUNTIME MPI or a closed-shell AUTO runtime.")
       END IF
       IF (use_fd_gradient .AND. para_env%mepos == 0) THEN
          CALL cp_warn( &
