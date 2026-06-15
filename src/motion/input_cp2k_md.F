@@ -566,20 +566,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="eval_energy_forces", &
-                          description="Evaluate energy and forces for each retrieved snapshot during a REFTRAJ run", &
-                          repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
-                          deprecation_notice="Please use MOTION / MD / REFTRAJ / EVAL instead.")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="eval_forces", &
-                          description="Evaluate the forces for each retrieved snapshot during a REFTRAJ run", &
-                          repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
-                          deprecation_notice="Please use MOTION / MD / REFTRAJ / EVAL instead.")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL create_msd_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
