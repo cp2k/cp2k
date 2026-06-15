@@ -39,12 +39,12 @@ report_error() {
     local __message="$1"
   fi
   echo "ERROR: (${SCRIPT_NAME}${__lineno}) $__message" >&2
+  exit 1
 }
 
 # error handler for line trap from set -e
 error_handler() {
   report_error "$1" "Non-zero exit code detected."
-  exit 1
 }
 
 # source a file if it exists, otherwise do nothing
@@ -55,7 +55,7 @@ load() {
 }
 
 # Take excerpt of ${LOG_LINES} lines from tail of a file, always reporting
-# its absolute path at the top
+# its absolute path at the top, and then exit with non-zero code
 tail_excerpt() {
   local __filename=$(real_path "$1")
   if [ -n "${LOG_LINES}" ]; then
@@ -64,6 +64,7 @@ tail_excerpt() {
     local __lines="$2"
   fi
   tail -v -n "${__lines}" "${__filename}"
+  exit 1
 }
 
 # A more portable command that will give the full path, removing
@@ -332,7 +333,6 @@ require_env() {
   local __env_var="$(eval echo \"\$$__env_var_name\")"
   if [ -z "${__env_var+set}" ]; then
     report_error "requires environment variable $__env_var_name to work"
-    return 1
   fi
 }
 
@@ -356,7 +356,6 @@ check_command() {
     echo "path to ${__command} is $(real_path $(command -v ${__command}))"
   else
     report_error "Cannot find ${__command}, please check if the package ${__package} is installed or in system search path"
-    return 1
   fi
 }
 
@@ -367,7 +366,6 @@ check_dir() {
     echo "Found directory $__dir"
   else
     report_error "Cannot find $__dir"
-    return 1
   fi
 }
 
@@ -383,7 +381,6 @@ check_install() {
     echo "$(basename ${__command}) is installed as $(command -v ${__command})"
   else
     report_error "cannot find ${__command}, please check if the package ${__package} has been installed correctly"
-    return 1
   fi
 }
 
@@ -419,7 +416,6 @@ check_lib() {
     # containing the library name
     report_error \
       "ld cannot find -l$__libname, please check if $__package is installed or in system search path"
-    return 1
   else
     # if library is found, then ld will return error message about
     # not able to find _start or _main symbol
@@ -657,7 +653,6 @@ download_pkg_from_urlpath() {
   # download
   if ! eval "${__command}"; then
     report_error "failed to download ${__url}"
-    return 1
   fi
   # checksum
   if checksum "${__sha256}" "${__outfile}"; then
@@ -665,7 +660,6 @@ download_pkg_from_urlpath() {
   else
     rm -vf "${__outfile}"
     report_error "Checksum of $__filename could not be verified, abort."
-    return 1
   fi
 }
 
@@ -744,7 +738,6 @@ filter_setup() {
   # Check if setup_xxx file exists
   if [[ ! -f "$source_file" ]]; then
     report_error "File '$source_file' does not exist."
-    return 1
   fi
 
   local filename=$(basename "$source_file")

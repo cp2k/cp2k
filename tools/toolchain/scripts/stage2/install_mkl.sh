@@ -14,11 +14,8 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_mkl" ] && rm "${BUILDDIR}/setup_mkl"
 
-MKL_FFTW="yes"
-if [ "${with_libvdwxc}" != "__DONTUSE__" ] && [ "${MPI_MODE}" != "no" ]; then
-  report_warning ${LINENO} "MKL FFTW3 interface is present, but FFTW library is needed for FFTW-MPI wrappers."
-  MKL_FFTW="no"
-fi
+MKL_FFTW="${MKL_FFTW}"
+MKL_SCALAPACK="${MKL_SCALAPACK}"
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
@@ -26,7 +23,7 @@ cd "${BUILDDIR}"
 case "${with_mkl}" in
   __INSTALL__)
     echo "==================== Installing MKL ===================="
-    report_error ${LINENO} "__INSTALL__ is not supported; please manually install Intel MKL."
+    report_error ${LINENO} "Installation of Intel MKL is not supported; please install manually."
     exit 1
     ;;
   __SYSTEM__)
@@ -79,23 +76,23 @@ if [ "${with_mkl}" != "__DONTUSE__" ]; then
     fi
   done
 
-  case ${MPI_MODE} in
-    intelmpi | mpich)
-      mkl_scalapack_lib="IF_MPI(-lmkl_scalapack_lp64|)"
-      mkl_blacs_lib="IF_MPI(-lmkl_blacs_intelmpi_lp64|)"
-      ;;
-    openmpi)
-      mkl_scalapack_lib="IF_MPI(-lmkl_scalapack_lp64|)"
-      mkl_blacs_lib="IF_MPI(-lmkl_blacs_openmpi_lp64|)"
-      ;;
-    *)
-      echo "Not using MKL provided ScaLAPACK and BLACS"
-      mkl_scalapack_lib=""
-      mkl_blacs_lib=""
-      ;;
-  esac
+  if [ "${MKL_SCALAPACK}" = "yes" ]; then
+    mkl_scalapack_lib="IF_MPI(-lmkl_scalapack_lp64|)"
+    case ${MPI_MODE} in
+      intelmpi | mpich)
+        mkl_blacs_lib="IF_MPI(-lmkl_blacs_intelmpi_lp64|)"
+        ;;
+      openmpi)
+        mkl_blacs_lib="IF_MPI(-lmkl_blacs_openmpi_lp64|)"
+        ;;
+    esac
+  else
+    echo "Not using MKL provided ScaLAPACK and BLACS"
+    mkl_scalapack_lib=""
+    mkl_blacs_lib=""
+  fi
 
-  # set the correct lib flags from MLK link adviser
+  # set the correct lib flags from MKL link adviser
   MKL_LIBS="-L${mkl_lib_dir} -Wl,-rpath,${mkl_lib_dir} ${mkl_scalapack_lib}"
   MKL_LIBS+=" -Wl,--start-group -l${mkl_interface_lib} -lmkl_sequential -lmkl_core"
   MKL_LIBS+=" ${mkl_blacs_lib} -Wl,--end-group -lpthread -lm -ldl"
@@ -112,21 +109,16 @@ export MKL_CFLAGS="${MKL_CFLAGS}"
 export MKL_LIBS="${MKL_LIBS}"
 export MATH_CFLAGS="\${MATH_CFLAGS} ${MKL_CFLAGS}"
 export MATH_LIBS="\${MATH_LIBS} ${MKL_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} -D__MKL -D__FFTW3 IF_COVERAGE(IF_MPI(|-U__FFTW3)|)"
+export CP_DFLAGS="\${CP_DFLAGS} -D__MKL"
 EOF
-  if [ -n "${mkl_scalapack_lib}" ]; then
+  if [ "${MKL_FFTW}" = "yes" ]; then
     cat << EOF >> "${BUILDDIR}/setup_mkl"
-export with_scalapack="__DONTUSE__"
-EOF
-  fi
-  if [ "${MKL_FFTW}" != "no" ]; then
-    cat << EOF >> "${BUILDDIR}/setup_mkl"
-export with_fftw="__DONTUSE__"
 export FFTW3_INCLUDES="${MKL_CFLAGS}"
 export FFTW3_LIBS="${MKL_LIBS}"
 export FFTW_CFLAGS="${MKL_CFLAGS}"
 export FFTW_LDFLAGS="${MKL_LDFLAGS}"
 export FFTW_LIBS="${MKL_LIBS}"
+export CP_DFLAGS="\${CP_DFLAGS} -D__FFTW3 IF_COVERAGE(IF_MPI(|-U__FFTW3)|)"
 EOF
   fi
   filter_setup "${BUILDDIR}/setup_mkl" "${SETUPFILE}"

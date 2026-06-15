@@ -21,7 +21,7 @@ cd "${BUILDDIR}"
 case "${with_intelmpi}" in
   __INSTALL__)
     echo "==================== Installing Intel MPI ===================="
-    echo '__INSTALL__ is not supported; please manually install Intel MPI'
+    echo "Installation of Intel MPI is not supported; please install manually"
     exit 1
     ;;
   __SYSTEM__)

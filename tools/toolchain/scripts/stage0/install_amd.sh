@@ -20,7 +20,7 @@ cd "${BUILDDIR}"
 case "${with_amd}" in
   __INSTALL__)
     echo "==================== Installing the AMD compiler ======================"
-    echo "__INSTALL__ is not supported; please install the AMD compiler manually"
+    echo "Installation of AMD compilers is not supported; please install manually"
     exit 1
     ;;
   __SYSTEM__)

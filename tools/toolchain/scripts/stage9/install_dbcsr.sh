@@ -30,11 +30,9 @@ case "${with_dbcsr}" in
       if [ -f dbcsr-${dbcsr_ver}.tar.gz ]; then
         echo "dbcsr-${dbcsr_ver}.tar.gz is found"
       else
-        if ! download_pkg_from_cp2k_org "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz" 2> /dev/null; then
-          download_pkg_from_urlpath "${dbcsr_sha256}" "${dbcsr_ver}" \
-            https://codeload.github.com/cp2k/dbcsr/tar.gz \
-            "dbcsr-${dbcsr_ver}.tar.gz"
-        fi
+        download_pkg_from_urlpath "${dbcsr_sha256}" "${dbcsr_ver}" \
+          https://codeload.github.com/cp2k/dbcsr/tar.gz \
+          "dbcsr-${dbcsr_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d dbcsr-${dbcsr_ver} ] && rm -rf dbcsr-${dbcsr_ver}
@@ -60,7 +58,6 @@ case "${with_dbcsr}" in
         FYPP_EXE="$(command -v fypp)"
       else
         report_error $LINENO "Failed to find the FYPP preprocessor."
-        exit 1
       fi
       mkdir build-cpu
       cd build-cpu

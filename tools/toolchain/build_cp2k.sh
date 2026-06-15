@@ -80,7 +80,6 @@ while [ $# -ge 1 ]; do
       PREFIX_SET="__TRUE__"
       if [[ "${2}" != /* ]]; then
         report_error "The path for --prefix must be an absolute path."
-        exit 1
       fi
       CMAKE_INSTALL_PREFIX="${2}"
       shift
@@ -146,19 +145,16 @@ if [ -d "${CP2K_ROOT}/src" ]; then
   echo "(path is exported to variable \${CP2K_ROOT})."
 else
   report_error ${LINENO} "\${CP2K_ROOT} does not have subdirectory src."
-  exit 1
 fi
 if [ -f "${CP2K_ROOT}/CMakeLists.txt" ] && [ -r "${CP2K_ROOT}/CMakeLists.txt" ]; then
   echo "\${CP2K_ROOT}/CMakeLists.txt exists; will be parsed for CMake options."
 else
   report_error ${LINENO} "\${CP2K_ROOT}/CMakeLists.txt cannot be found or read."
-  exit 1
 fi
 if [ -d "${CP2K_ROOT}/data" ]; then
   echo "Data directory ${CP2K_ROOT}/data is found."
 else
   report_error ${LINENO} "Data directory \${CP2K_ROOT}/data cannot be found."
-  exit 1
 fi
 
 # Require finished toolchain
