@@ -2632,11 +2632,28 @@ CONTAINS
                           description="The cutoff radius Rc (in Angstrom) for the Resolution of Identity" // &
                           "Real-Space (RI-RS) approximation. It explicitly defines the integration domain sphere "// &
                           "B^P = {r : |r - R_P| < Rc + r_P} around each atom P. "// &
-                          "By default it is determined from spatial extent of the "// & 
+                          "By default it is determined from spatial extent of the "// &
                           "most diffuse Gaussian basis function of the atom.", &
                           usage="CUTOFF_RADIUS_RI_RS 15.0", &
                           default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="angstrom"), &
                           type_of_var=real_t, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="N_PROCS_PER_ATOM_Z_LP", &
+                          description="Number of MPI ranks that cooperate on one atom's "// &
+                          "Cholesky factorisation in compute_coeff_Z_lP. Default 1 keeps "// &
+                          "the single-rank LAPACK dpotrf path (BLAS, fastest when "// &
+                          "D_local fits per rank). Setting > 1 enables a ScaLAPACK "// &
+                          "pdpotrf path: ranks are split into atom-groups of this size, "// &
+                          "D_local is block-cyclic distributed across each group (per-rank "// &
+                          "memory ~1/G), the compute_d_lp build is also distributed across "// &
+                          "the subgroup, and multiple groups process different atoms in "// &
+                          "parallel. Use for systems where n_local_grid is large enough "// &
+                          "that the dense (n_local_grid)^2 D_local does not fit in a "// &
+                          "single rank's memory.", &
+                          usage="N_PROCS_PER_ATOM_Z_LP 16", &
+                          default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

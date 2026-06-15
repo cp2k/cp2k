@@ -34,12 +34,20 @@ MODULE gw_non_periodic_ri_rs
                                               dbcsr_reserve_all_blocks
    USE cp_files,                        ONLY: close_file,&
                                               open_file
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_release,&
+                                              cp_blacs_env_type
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
                                               cp_fm_release,&
-                                              cp_fm_type,&
+                                              cp_fm_set_all,&
+                                              cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
-                                              cp_fm_set_all, &
-                                              cp_fm_get_info
+                                              cp_fm_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale,&
                                               cp_fm_scale_and_add,&
@@ -743,9 +751,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: key = 'PROPERTIES%BANDSTRUCTURE%GW%PRINT%RESTART', &
          routineN = 'compute_coeff_Z_lP'
 
-      INTEGER :: atom_P, col_end, col_start, current_chunk_size, g, group_handle, handle, i, &
-         i_blk, info, j, j_ri, l, loc_idx, loc_ptr, max_ao_size, max_loc_ri, n_ao_total, &
-         n_grid_total, n_loc_ri, n_local_grid, natom, num_grid_chunks, r_end, r_start, source_atom
+      INTEGER :: atom_j_mepos, atom_j_stride, atom_P, atom_P_start, atom_P_stride, col_end, &
+         col_start, current_chunk_size, g, group_handle, handle, i, i_blk, info, j, j_ri, l, &
+         loc_idx, loc_ptr, max_ao_size, max_loc_ri, my_group, n_ao_total, n_grid_total, &
+         n_groups, n_loc_ri, n_local_grid, n_procs_per_atom, natom, num_grid_chunks, r_end, &
+         r_start, source_atom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_grid_idx, row_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_phi, col_dist_ri, r_blk_sizes, &
                                                             ri_blk_sizes, row_dist_grid
@@ -757,10 +767,13 @@ CONTAINS
                                                             sphere_grid, Z_blk
       REAL(KIND=dp), DIMENSION(3)                        :: pos_P
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_b, fm_struct_D
+      TYPE(cp_fm_type)                                   :: fm_b, fm_D
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type)                      :: dist_phi, dist_Z
       TYPE(gw_3c_ctx_type)                               :: ctx_3c
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: input
@@ -779,6 +792,35 @@ CONTAINS
 
       CALL get_qs_env(qs_env, para_env=para_env, particle_set=particle_set, input=input, &
                       qs_kind_set=qs_kind_set, cell=cell)
+
+      ! ---------------------------------------------------------------------
+      ! Subgroup setup. Default G=1 keeps the single-rank BLAS path; G>1 splits
+      ! ranks into atom-groups so the Cholesky on D_local distributes across G
+      ! ranks (memory ~1/G) and the compute_d_lp build also splits across the
+      ! subgroup. G=1 leaves para_env_sub / blacs_env_sub NULL — no subgroup
+      ! comms created, atom_P loop uses per-rank round-robin, compute_d_lp runs
+      ! its full atom_j range on each rank, no allreduce.
+      ! ---------------------------------------------------------------------
+      n_procs_per_atom = MIN(bs_env%ri_rs%n_procs_per_atom_z_lp, para_env%num_pe)
+      IF (n_procs_per_atom < 1) n_procs_per_atom = 1
+
+      NULLIFY (para_env_sub, blacs_env_sub)
+      IF (n_procs_per_atom > 1) THEN
+         n_groups = para_env%num_pe/n_procs_per_atom
+         my_group = MIN(para_env%mepos/n_procs_per_atom, n_groups - 1)
+         ALLOCATE (para_env_sub)
+         CALL para_env_sub%from_split(para_env, my_group)
+         CALL cp_blacs_env_create(blacs_env=blacs_env_sub, para_env=para_env_sub)
+         atom_P_start = my_group + 1
+         atom_P_stride = n_groups
+         atom_j_mepos = para_env_sub%mepos
+         atom_j_stride = para_env_sub%num_pe
+      ELSE
+         atom_P_start = para_env%mepos + 1
+         atom_P_stride = para_env%num_pe
+         atom_j_mepos = 0
+         atom_j_stride = 1
+      END IF
 
       natom = SIZE(bs_env%i_RI_start_from_atom)
       n_ao_total = bs_env%i_ao_end_from_atom(natom)
@@ -841,7 +883,7 @@ CONTAINS
          ! phi_local for each atom_P's cutoff sphere is built on the fly via
          ! fill_phi_for_atom — no dense replicated phi_global, no allreduce.
          ! =========================================================================
-         DO atom_P = para_env%mepos + 1, natom, para_env%num_pe
+         DO atom_P = atom_P_start, natom, atom_P_stride
 
             n_loc_ri = ri_blk_sizes(atom_P)
             pos_P(:) = particle_set(atom_P)%r(:)
@@ -904,46 +946,82 @@ CONTAINS
             DEALLOCATE (sphere_grid)
 
             ! ---------------------------------------------------------------------
-            ! C. Build and Balance Local LHS Matrix (D_local)
-            ! ---------------------------------------------------------------------
-            ALLOCATE (D_local(n_local_grid, n_local_grid), d_vec_local(n_local_grid))
-            D_local = 0.0_dp
-
-            CALL dsyrk("L", "N", n_local_grid, n_ao_total, 1.0_dp, phi_local, n_local_grid, 0.0_dp, D_local, n_local_grid)
-
-            !$OMP PARALLEL DO DEFAULT(NONE) &
-            !$OMP SHARED(n_local_grid, D_local, d_vec_local, bs_env) &
-            !$OMP PRIVATE(i) &
-            !$OMP SCHEDULE(STATIC)
-            DO i = 1, n_local_grid
-               D_local(i, i) = D_local(i, i)**2
-               d_vec_local(i) = 1.0_dp/SQRT(MAX(D_local(i, i), 1.0E-16_dp))
-               D_local(i, i) = (D_local(i, i)*d_vec_local(i)**2) + bs_env%ri_rs%tikhonov
-            END DO
-            !$OMP END PARALLEL DO
-
-            !$OMP PARALLEL DO DEFAULT(NONE) &
-            !$OMP SHARED(n_local_grid, D_local, d_vec_local) &
-            !$OMP PRIVATE(j, i) &
-            !$OMP SCHEDULE(DYNAMIC)
-            DO j = 1, n_local_grid
-               DO i = j + 1, n_local_grid
-                  D_local(i, j) = D_local(i, j)**2
-                  D_local(i, j) = D_local(i, j)*d_vec_local(i)*d_vec_local(j)
-                  D_local(j, i) = D_local(i, j)
-               END DO
-            END DO
-            !$OMP END PARALLEL DO
-
-            ! ---------------------------------------------------------------------
-            ! D. Build Local RHS Matrix (d_lp_local)
+            ! C. Build Local RHS Matrix (d_lp_local)
+            !    Done first so the subgroup-distributed compute_d_lp + allreduce
+            !    is not entangled with the LHS build. compute_d_lp does not
+            !    depend on D_local or d_vec_local.
             ! ---------------------------------------------------------------------
             ALLOCATE (d_lp_local(n_local_grid, n_loc_ri))
             d_lp_local = 0.0_dp
 
             CALL compute_d_lp(bs_env, ctx_3c, phi_local, d_lp_local, n_local_grid, &
-                              n_loc_ri, atom_P, max_ao_size)
+                              n_loc_ri, atom_P, max_ao_size, atom_j_mepos, atom_j_stride)
 
+            ! Reduce per-subgroup-rank partials into the replicated d_lp_local.
+            ! Skipped for G=1 (BLAS path): each rank has the full sum locally.
+            IF (n_procs_per_atom > 1) THEN
+               CALL para_env_sub%sum(d_lp_local)
+            END IF
+
+            ! ---------------------------------------------------------------------
+            ! D. Build d_vec_local (Jacobi diagonal) + LHS — BLAS or ScaLAPACK
+            ! ---------------------------------------------------------------------
+            ALLOCATE (d_vec_local(n_local_grid))
+
+            IF (n_procs_per_atom == 1) THEN
+               ! BLAS path: build D_local densely, compute d_vec as side-effect
+               ! of the Jacobi step (preserves bit-identical arithmetic with the
+               ! previous branch).
+               ALLOCATE (D_local(n_local_grid, n_local_grid))
+               D_local = 0.0_dp
+
+               CALL dsyrk("L", "N", n_local_grid, n_ao_total, 1.0_dp, phi_local, &
+                          n_local_grid, 0.0_dp, D_local, n_local_grid)
+
+               !$OMP PARALLEL DO DEFAULT(NONE) &
+               !$OMP SHARED(n_local_grid, D_local, d_vec_local, bs_env) &
+               !$OMP PRIVATE(i) &
+               !$OMP SCHEDULE(STATIC)
+               DO i = 1, n_local_grid
+                  D_local(i, i) = D_local(i, i)**2
+                  d_vec_local(i) = 1.0_dp/SQRT(MAX(D_local(i, i), 1.0E-16_dp))
+                  D_local(i, i) = (D_local(i, i)*d_vec_local(i)**2) + bs_env%ri_rs%tikhonov
+               END DO
+               !$OMP END PARALLEL DO
+
+               !$OMP PARALLEL DO DEFAULT(NONE) &
+               !$OMP SHARED(n_local_grid, D_local, d_vec_local) &
+               !$OMP PRIVATE(j, i) &
+               !$OMP SCHEDULE(DYNAMIC)
+               DO j = 1, n_local_grid
+                  DO i = j + 1, n_local_grid
+                     D_local(i, j) = D_local(i, j)**2
+                     D_local(i, j) = D_local(i, j)*d_vec_local(i)*d_vec_local(j)
+                     D_local(j, i) = D_local(i, j)
+                  END DO
+               END DO
+               !$OMP END PARALLEL DO
+            ELSE
+               ! ScaLAPACK path: d_vec computed directly from phi (= 1/||phi_i||^2);
+               ! solve_D_lp_distributed builds D block-cyclic internally with
+               ! the squared+scaled values, so no dense D_local on this rank.
+               !$OMP PARALLEL DO DEFAULT(NONE) &
+               !$OMP SHARED(n_local_grid, n_ao_total, phi_local, d_vec_local) &
+               !$OMP PRIVATE(i, j) &
+               !$OMP SCHEDULE(STATIC)
+               DO i = 1, n_local_grid
+                  d_vec_local(i) = 0.0_dp
+                  DO j = 1, n_ao_total
+                     d_vec_local(i) = d_vec_local(i) + phi_local(i, j)*phi_local(i, j)
+                  END DO
+                  d_vec_local(i) = 1.0_dp/MAX(d_vec_local(i), 1.0E-16_dp)
+               END DO
+               !$OMP END PARALLEL DO
+            END IF
+
+            ! ---------------------------------------------------------------------
+            ! E. Pre-scale d_lp by d_vec (common to both paths)
+            ! ---------------------------------------------------------------------
             !$OMP PARALLEL DO DEFAULT(NONE) &
             !$OMP SHARED(n_loc_ri, n_local_grid, d_lp_local, d_vec_local) &
             !$OMP PRIVATE(j_ri, i) &
@@ -956,13 +1034,24 @@ CONTAINS
             !$OMP END PARALLEL DO
 
             ! ---------------------------------------------------------------------
-            ! E. Fast Local LAPACK Solve
+            ! F. Solve — BLAS dpotrf/dpotrs or ScaLAPACK pdpotrf/pdpotrs
             ! ---------------------------------------------------------------------
+            IF (n_procs_per_atom == 1) THEN
+               CALL dpotrf('L', n_local_grid, D_local, n_local_grid, info)
+               CALL dpotrs('L', n_local_grid, n_loc_ri, D_local, n_local_grid, &
+                           d_lp_local, n_local_grid, info)
+               DEALLOCATE (D_local)
+            ELSE
+               CALL solve_D_lp_distributed(phi_local, d_vec_local, d_lp_local, &
+                                           n_local_grid, n_ao_total, n_loc_ri, &
+                                           bs_env%ri_rs%tikhonov, &
+                                           para_env_sub, blacs_env_sub, &
+                                           fm_struct_D, fm_struct_b, fm_D, fm_b, info)
+            END IF
 
-            CALL dpotrf('L', n_local_grid, D_local, n_local_grid, info)
-
-            CALL dpotrs('L', n_local_grid, n_loc_ri, D_local, n_local_grid, d_lp_local, n_local_grid, info)
-
+            ! ---------------------------------------------------------------------
+            ! G. Post-scale solution by d_vec (common to both paths)
+            ! ---------------------------------------------------------------------
             !$OMP PARALLEL DO DEFAULT(NONE) &
             !$OMP SHARED(n_loc_ri, n_local_grid, d_lp_local, d_vec_local) &
             !$OMP PRIVATE(j_ri, i) &
@@ -975,37 +1064,42 @@ CONTAINS
             !$OMP END PARALLEL DO
 
             ! ---------------------------------------------------------------------
-            ! F. Scatter Local Solution Back to Global DBCSR Matrix
+            ! H. Scatter Local Solution Back to Global DBCSR Matrix
             ! local_grid_idx is ascending (built by the ordered scan above), so a
-            ! single walking pointer over it sweeps the chunks in one pass. This
-            ! avoids the previous full-height Z_global_temp(n_grid_total, n_loc_ri).
+            ! single walking pointer over it sweeps the chunks in one pass.
+            ! Under ScaLAPACK (G>1) the d_lp_local solution is identical on all
+            ! G subgroup ranks (gathered via cp_fm_get_submatrix); only the
+            ! subgroup root writes to mat_Z_lP so each atom column is emitted
+            ! exactly once. DBCSR routes blocks to their global owner on finalize.
             ! ---------------------------------------------------------------------
-            ALLOCATE (Z_blk(MAXVAL(r_blk_sizes), n_loc_ri))
-            loc_ptr = 1
+            IF (n_procs_per_atom == 1 .OR. para_env_sub%mepos == 0) THEN
+               ALLOCATE (Z_blk(MAXVAL(r_blk_sizes), n_loc_ri))
+               loc_ptr = 1
 
-            DO i_blk = 1, num_grid_chunks
-               r_start = row_offset(i_blk) + 1
-               r_end = row_offset(i_blk) + r_blk_sizes(i_blk)
-               current_chunk_size = r_blk_sizes(i_blk)
+               DO i_blk = 1, num_grid_chunks
+                  r_start = row_offset(i_blk) + 1
+                  r_end = row_offset(i_blk) + r_blk_sizes(i_blk)
+                  current_chunk_size = r_blk_sizes(i_blk)
 
-               Z_blk = 0.0_dp
+                  Z_blk = 0.0_dp
 
-               DO WHILE (loc_ptr <= n_local_grid)
-                  g = local_grid_idx(loc_ptr)
-                  IF (g > r_end) EXIT
-                  Z_blk(g - r_start + 1, 1:n_loc_ri) = d_lp_local(loc_ptr, 1:n_loc_ri)
-                  loc_ptr = loc_ptr + 1
+                  DO WHILE (loc_ptr <= n_local_grid)
+                     g = local_grid_idx(loc_ptr)
+                     IF (g > r_end) EXIT
+                     Z_blk(g - r_start + 1, 1:n_loc_ri) = d_lp_local(loc_ptr, 1:n_loc_ri)
+                     loc_ptr = loc_ptr + 1
+                  END DO
+
+                  IF (MAXVAL(ABS(Z_blk(1:current_chunk_size, 1:n_loc_ri))) > bs_env%eps_filter) THEN
+                     CALL dbcsr_put_block(mat_Z_lP, row=i_blk, col=atom_P, &
+                                          block=Z_blk(1:current_chunk_size, 1:n_loc_ri))
+                  END IF
                END DO
 
-               IF (MAXVAL(ABS(Z_blk(1:current_chunk_size, 1:n_loc_ri))) > bs_env%eps_filter) THEN
-                  CALL dbcsr_put_block(mat_Z_lP, row=i_blk, col=atom_P, &
-                                       block=Z_blk(1:current_chunk_size, 1:n_loc_ri))
-               END IF
-            END DO
+               DEALLOCATE (Z_blk)
+            END IF
 
-            DEALLOCATE (Z_blk)
-            DEALLOCATE (D_local, d_vec_local, d_lp_local)
-
+            DEALLOCATE (d_vec_local, d_lp_local)
             DEALLOCATE (local_grid_idx, phi_local)
 
          END DO
@@ -1031,6 +1125,12 @@ CONTAINS
       DEALLOCATE (row_offset, ri_blk_sizes, col_dist_ri)
       CALL dbcsr_distribution_release(dist_Z)
 
+      IF (n_procs_per_atom > 1) THEN
+         CALL cp_blacs_env_release(blacs_env_sub)
+         CALL para_env_sub%free()
+         DEALLOCATE (para_env_sub)
+      END IF
+
       DEALLOCATE (ri_rs_grid_points)
 
       CALL timestop(handle)
@@ -1055,14 +1155,15 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE compute_d_lp(bs_env, ctx, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, &
-                           max_ao_size)
+                           max_ao_size, atom_j_mepos, atom_j_stride)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(gw_3c_ctx_type), INTENT(IN)                   :: ctx
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_val
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: d_lp
       INTEGER, INTENT(IN)                                :: n_grid_total, n_loc_ri, atom_P, &
-                                                            max_ao_size
+                                                            max_ao_size, atom_j_mepos, &
+                                                            atom_j_stride
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_d_lp'
       INTEGER, PARAMETER                                 :: grid_chunk = 1024
@@ -1078,7 +1179,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(bs_env, ctx, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size) &
+!$OMP SHARED(bs_env, ctx, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size, &
+!$OMP        atom_j_mepos, atom_j_stride) &
 !$OMP PRIVATE(atom_j, atom_k, c, j, jk_idx, jsize, jstart, k, ksize, kstart, l, l0, ri, &
 !$OMP         screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, ws)
 
@@ -1089,8 +1191,13 @@ CONTAINS
       ALLOCATE (d_lp_prv(n_grid_total, n_loc_ri))
       d_lp_prv(:, :) = 0.0_dp
 
-!$OMP DO COLLAPSE(2) SCHEDULE(DYNAMIC)
-      DO atom_j = 1, SIZE(bs_env%i_ao_start_from_atom)
+      ! MPI-stride atom_j over the subgroup (atom_j_stride = 1 for the BLAS
+      ! path, > 1 for the ScaLAPACK path). The OMP DO parallelizes the inner
+      ! atom_k while the outer atom_j carries the MPI stride. COLLAPSE(2) is
+      ! dropped because the outer stride is non-unit under ScaLAPACK; for
+      ! typical natom the inner loop has plenty of work for DYNAMIC.
+!$OMP DO SCHEDULE(DYNAMIC)
+      DO atom_j = atom_j_mepos + 1, SIZE(bs_env%i_ao_start_from_atom), atom_j_stride
          DO atom_k = 1, SIZE(bs_env%i_ao_start_from_atom)
             jstart = bs_env%i_ao_start_from_atom(atom_j)
             jsize = bs_env%i_ao_end_from_atom(atom_j) - jstart + 1
@@ -2113,5 +2220,172 @@ CONTAINS
       IF (PRESENT(m4)) CALL dbcsr_release(m4)
 
    END SUBROUTINE release_dbcsr_topology_and_matrices
+
+! **************************************************************************************************
+!> \brief Distributed pdpotrf/pdpotrs solve of D x = b for one atom of the
+!>        RI-RS Z_lP build. Called when N_PROCS_PER_ATOM_Z_LP > 1, with a
+!>        subgroup of cooperating ranks and an associated BLACS context.
+!>        Each rank in the subgroup holds the (replicated) phi_local and the
+!>        (replicated) RHS d_lp; it builds its own block-cyclic slice of the
+!>        squared+Jacobi-scaled Gram matrix D via tiled DGEMM, factorizes via
+!>        pdpotrf (cp_fm_cholesky_decompose, UPLO='U'), and solves with a
+!>        direct pdpotrs call. The replicated d_lp is updated in place via
+!>        cp_fm_get_submatrix.
+!> \param phi_local   replicated (n_loc x n_ao) AO values on the sphere grid
+!> \param d_vec       replicated Jacobi diagonal = 1 / ||phi_i||^2
+!> \param d_lp        replicated RHS in/out (n_loc x n_rhs); on input pre-scaled
+!>                    by d_vec, on output also pre-scaled (caller post-scales)
+!> \param n_loc       number of sphere-local grid points
+!> \param n_ao        number of AO basis functions
+!> \param n_rhs       number of RI functions of this atom_P (RHS columns)
+!> \param tikhonov    regularisation added to the diagonal
+!> \param para_env_sub  sub-communicator of the atom-group
+!> \param blacs_env_sub BLACS context on the sub-communicator
+!> \param fm_struct_D, fm_struct_b  scratch FM struct handles (created+released here)
+!> \param fm_D, fm_b                scratch FM matrices (created+released here)
+!> \param info        0 on success, non-zero if pdpotrf or pdpotrs failed
+! **************************************************************************************************
+   SUBROUTINE solve_D_lp_distributed(phi_local, d_vec, d_lp, n_loc, n_ao, n_rhs, &
+                                     tikhonov, para_env_sub, blacs_env_sub, &
+                                     fm_struct_D, fm_struct_b, fm_D, fm_b, info)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_local
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: d_vec
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: d_lp
+      INTEGER, INTENT(IN)                                :: n_loc, n_ao, n_rhs
+      REAL(KIND=dp), INTENT(IN)                          :: tikhonov
+      TYPE(mp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_D, fm_struct_b
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_D, fm_b
+      INTEGER, INTENT(OUT)                               :: info
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_D_lp_distributed'
+
+      INTEGER                                            :: handle, i_loc, ig, j_loc, jg, &
+                                                            ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
+#if defined(__parallel)
+      INTEGER                                            :: scalapack_info
+      INTEGER, DIMENSION(9)                              :: desc_b, desc_D
+#endif
+
+      CALL timeset(routineN, handle)
+      info = 0
+
+      NULLIFY (fm_struct_D, fm_struct_b)
+      CALL cp_fm_struct_create(fm_struct_D, para_env=para_env_sub, &
+                               context=blacs_env_sub, &
+                               nrow_global=n_loc, ncol_global=n_loc)
+      CALL cp_fm_struct_create(fm_struct_b, para_env=para_env_sub, &
+                               context=blacs_env_sub, &
+                               nrow_global=n_loc, ncol_global=n_rhs)
+      CALL cp_fm_create(fm_D, fm_struct_D)
+      CALL cp_fm_create(fm_b, fm_struct_b)
+
+      ! ---- Build the local block-cyclic slice of fm_D --------------------
+      ! Tiled DGEMM build: for each (row_tile x col_tile) sub-block we
+      ! gather small phi strips, DGEMM into a small gram tile, then write
+      ! the squared & d_vec-scaled result directly into fm_D%local_data.
+      ! This avoids materialising the full (nrow_local x n_ao),
+      ! (n_ao x ncol_local), and (nrow_local x ncol_local) buffers.
+      CALL cp_fm_get_info(fm_D, nrow_local=nrow_local, ncol_local=ncol_local, &
+                          row_indices=row_indices, col_indices=col_indices, &
+                          local_data=local_data)
+
+      IF (nrow_local > 0 .AND. ncol_local > 0) THEN
+         BLOCK
+            INTEGER, PARAMETER :: ntile = 1024
+            INTEGER :: ib, ie, jb, je, mb, kb, ti, tj
+            REAL(KIND=dp), ALLOCATABLE :: gram_t(:, :), phi_cols_t(:, :), phi_rows_t(:, :)
+            ALLOCATE (phi_rows_t(ntile, n_ao), phi_cols_t(n_ao, ntile), gram_t(ntile, ntile))
+            DO ib = 1, nrow_local, ntile
+               ie = MIN(ib + ntile - 1, nrow_local)
+               mb = ie - ib + 1
+               !$OMP PARALLEL DO DEFAULT(NONE) &
+               !$OMP SHARED(mb, n_ao, phi_rows_t, phi_local, row_indices, ib) &
+               !$OMP PRIVATE(ti, j_loc) SCHEDULE(STATIC)
+               DO j_loc = 1, n_ao
+                  DO ti = 1, mb
+                     phi_rows_t(ti, j_loc) = phi_local(row_indices(ib + ti - 1), j_loc)
+                  END DO
+               END DO
+               !$OMP END PARALLEL DO
+               DO jb = 1, ncol_local, ntile
+                  je = MIN(jb + ntile - 1, ncol_local)
+                  kb = je - jb + 1
+                  !$OMP PARALLEL DO DEFAULT(NONE) &
+                  !$OMP SHARED(kb, n_ao, phi_cols_t, phi_local, col_indices, jb) &
+                  !$OMP PRIVATE(tj, i_loc) SCHEDULE(STATIC)
+                  DO tj = 1, kb
+                     DO i_loc = 1, n_ao
+                        phi_cols_t(i_loc, tj) = phi_local(col_indices(jb + tj - 1), i_loc)
+                     END DO
+                  END DO
+                  !$OMP END PARALLEL DO
+                  CALL dgemm('N', 'N', mb, kb, n_ao, &
+                             1.0_dp, phi_rows_t, ntile, phi_cols_t, n_ao, &
+                             0.0_dp, gram_t, ntile)
+                  !$OMP PARALLEL DO DEFAULT(NONE) &
+                  !$OMP SHARED(mb, kb, gram_t, d_vec, row_indices, col_indices, ib, jb) &
+                  !$OMP SHARED(local_data, tikhonov) &
+                  !$OMP PRIVATE(ti, tj, ig, jg) SCHEDULE(STATIC)
+                  DO tj = 1, kb
+                     jg = col_indices(jb + tj - 1)
+                     DO ti = 1, mb
+                        ig = row_indices(ib + ti - 1)
+                        local_data(ib + ti - 1, jb + tj - 1) = &
+                           gram_t(ti, tj)*gram_t(ti, tj)*d_vec(ig)*d_vec(jg)
+                        IF (ig == jg) THEN
+                           local_data(ib + ti - 1, jb + tj - 1) = &
+                              local_data(ib + ti - 1, jb + tj - 1) + tikhonov
+                        END IF
+                     END DO
+                  END DO
+                  !$OMP END PARALLEL DO
+               END DO
+            END DO
+            DEALLOCATE (phi_rows_t, phi_cols_t, gram_t)
+         END BLOCK
+      END IF
+
+      ! ---- Load the replicated d_lp into the block-cyclic fm_b -----------
+      CALL cp_fm_set_submatrix(fm_b, d_lp)
+
+      ! ---- pdpotrf (Cholesky factorisation; cp_fm_cholesky_decompose
+      !      factors with UPLO='U', so pdpotrs must match)
+      CALL cp_fm_cholesky_decompose(fm_D, n=n_loc, info_out=info)
+      IF (info /= 0) THEN
+         CPABORT("pdpotrf failed in solve_D_lp_distributed")
+      END IF
+
+      ! ---- pdpotrs (solve in place on fm_b) ------------------------------
+#if defined(__parallel)
+      desc_D(:) = fm_D%matrix_struct%descriptor(:)
+      desc_b(:) = fm_b%matrix_struct%descriptor(:)
+      CALL pdpotrs('U', n_loc, n_rhs, fm_D%local_data, 1, 1, desc_D, &
+                   fm_b%local_data, 1, 1, desc_b, scalapack_info)
+      info = scalapack_info
+#else
+      CALL dpotrs('U', n_loc, n_rhs, fm_D%local_data, n_loc, &
+                  fm_b%local_data, n_loc, info)
+#endif
+      IF (info /= 0) THEN
+         CPABORT("pdpotrs failed in solve_D_lp_distributed")
+      END IF
+
+      ! ---- Gather distributed solution back into the replicated d_lp ----
+      CALL cp_fm_get_submatrix(fm_b, d_lp)
+
+      CALL cp_fm_release(fm_D)
+      CALL cp_fm_release(fm_b)
+      CALL cp_fm_struct_release(fm_struct_D)
+      CALL cp_fm_struct_release(fm_struct_b)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE solve_D_lp_distributed
 
 END MODULE gw_non_periodic_ri_rs
