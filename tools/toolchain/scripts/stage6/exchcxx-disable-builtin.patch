@@ -1,0 +1,55 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0d604c3..95140eb 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -13,0 +14 @@ option( BUILD_SHARED_LIBS        "Build Shared Libs"            OFF )
++option( EXCHCXX_ENABLE_BUILTIN   "Enable Builtin Backend"       ON  )
+diff --git a/cmake/ExchCXXConfig.cmake.in b/cmake/ExchCXXConfig.cmake.in
+index 8897548..b7122db 100644
+--- a/cmake/ExchCXXConfig.cmake.in
++++ b/cmake/ExchCXXConfig.cmake.in
+@@ -12,0 +13 @@ set( EXCHCXX_ENABLE_DEVICE @EXCHCXX_ENABLE_DEVICE@ )
++set( EXCHCXX_ENABLE_BUILTIN @EXCHCXX_ENABLE_BUILTIN@ )
+diff --git a/include/exchcxx/exchcxx_config.hpp.in b/include/exchcxx/exchcxx_config.hpp.in
+index 37e4383..cb96182 100644
+--- a/include/exchcxx/exchcxx_config.hpp.in
++++ b/include/exchcxx/exchcxx_config.hpp.in
+@@ -51,0 +52 @@
++#cmakedefine EXCHCXX_ENABLE_BUILTIN
+diff --git a/include/exchcxx/factory/xc_kernel.hpp b/include/exchcxx/factory/xc_kernel.hpp
+index dafb2e7..5863de7 100644
+--- a/include/exchcxx/factory/xc_kernel.hpp
++++ b/include/exchcxx/factory/xc_kernel.hpp
+@@ -54,0 +55,2 @@
++#include <stdexcept>
++
+@@ -61,0 +64 @@ XCKernel libxc_kernel_factory(const std::string xc_name, const Spin polar );
++#ifdef EXCHCXX_ENABLE_BUILTIN
+@@ -62,0 +66 @@ XCKernel builtin_kernel_factory( Kernel, Spin );
++#endif
+@@ -71 +74,0 @@ static inline XCKernel kernel_factory(
+-  else
+@@ -73 +76,6 @@ static inline XCKernel kernel_factory(
+-    return builtin_kernel_factory( kern, polar );
++#ifdef EXCHCXX_ENABLE_BUILTIN
++  return builtin_kernel_factory( kern, polar );
++#else
++  (void)backend;
++  throw std::runtime_error("Builtin backend disabled");
++#endif
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index ec0adad..e12c1c4 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -5,3 +4,0 @@ set( EXCHCXX_SOURCES
+-     builtin.cxx
+-     builtin_interface.cxx
+-     builtin_kernel.cxx
+@@ -8,0 +6,7 @@ set( EXCHCXX_SOURCES
++if(EXCHCXX_ENABLE_BUILTIN)
++  list(APPEND EXCHCXX_SOURCES
++       builtin.cxx
++       builtin_interface.cxx
++       builtin_kernel.cxx
++  )
++endif()
