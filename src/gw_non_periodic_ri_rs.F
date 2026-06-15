@@ -11,7 +11,8 @@
 !>      04.2026 created [Ritaj Tyagi]
 ! **************************************************************************************************
 MODULE gw_non_periodic_ri_rs
-   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
@@ -117,6 +118,8 @@ CONTAINS
        !!    Generate flattened 1D array of grid points for RI-RS.
        !!    Equation: r_g(k) = R_A + r_g(A)
        !!========================================================================
+      CALL precompute_ri_rs_radii(qs_env, bs_env)
+
       CALL ri_rs_grid_assembler(qs_env, bs_env, bs_env%ri_rs%grid_points)
 
        !!========================================================================
@@ -194,6 +197,94 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE gw_calc_non_periodic_ri_rs
+
+! **************************************************************************************************
+!> \brief Compute per-atom RI-RS basis radii from the most diffuse Gaussian
+!>        primitive in the AO ("ORB") and RI auxiliary ("RI_AUX") basis sets.
+!>        Stores results in bs_env%ri_rs%radius_ao_per_atom(:) and
+!>        bs_env%ri_rs%radius_ri_per_atom(:) and prints a per-atom table.
+!>        Radius:  r_kind = sqrt(-log(eps) / alpha_min_kind)
+!>        with eps = eps_filter * heuristic_filter_factor, matching the
+!>        convention in gw_utils.F:2042-2065.
+!> \param qs_env ...
+!> \param bs_env ...
+! **************************************************************************************************
+
+   SUBROUTINE precompute_ri_rs_radii(qs_env, bs_env)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'precompute_ri_rs_radii'
+
+      INTEGER                                            :: handle, i, iatom, ikind, j, natom, nkind
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      REAL(KIND=dp)                                      :: eps
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha_min_ao_kind, alpha_min_ri_kind
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet_ao, zet_ri
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, nkind=nkind, atomic_kind_set=atomic_kind_set, &
+                      particle_set=particle_set)
+      natom = SIZE(particle_set)
+
+      eps = bs_env%eps_filter*bs_env%heuristic_filter_factor
+
+      ALLOCATE (alpha_min_ao_kind(nkind), alpha_min_ri_kind(nkind))
+      alpha_min_ao_kind = HUGE(1.0_dp)
+      alpha_min_ri_kind = HUGE(1.0_dp)
+
+      DO ikind = 1, nkind
+         zet_ao => bs_env%basis_set_AO(ikind)%gto_basis_set%zet
+         zet_ri => bs_env%basis_set_RI(ikind)%gto_basis_set%zet
+
+         ! Skip padding zeros / spurious tiny exponents in contracted basis sets
+         ! (same 1E-3 floor as gw_utils.F:2051).
+         DO i = 1, SIZE(zet_ao, 1)
+            DO j = 1, SIZE(zet_ao, 2)
+               IF (zet_ao(i, j) > 1.0E-3_dp) &
+                  alpha_min_ao_kind(ikind) = MIN(alpha_min_ao_kind(ikind), zet_ao(i, j))
+            END DO
+         END DO
+         DO i = 1, SIZE(zet_ri, 1)
+            DO j = 1, SIZE(zet_ri, 2)
+               IF (zet_ri(i, j) > 1.0E-3_dp) &
+                  alpha_min_ri_kind(ikind) = MIN(alpha_min_ri_kind(ikind), zet_ri(i, j))
+            END DO
+         END DO
+      END DO
+
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
+
+      ALLOCATE (bs_env%ri_rs%radius_ao_per_atom(natom))
+      ALLOCATE (bs_env%ri_rs%radius_ri_per_atom(natom))
+      DO iatom = 1, natom
+         ikind = kind_of(iatom)
+         bs_env%ri_rs%radius_ao_per_atom(iatom) = SQRT(-LOG(eps)/alpha_min_ao_kind(ikind))
+         bs_env%ri_rs%radius_ri_per_atom(iatom) = SQRT(-LOG(eps)/alpha_min_ri_kind(ikind))
+      END DO
+
+      IF (bs_env%unit_nr > 0) THEN
+         WRITE (bs_env%unit_nr, '(T2,A)') 'Per-atom RI-RS basis radii (Bohr):'
+         WRITE (bs_env%unit_nr, '(T4,A6,2X,A4,2A14)') 'Atom', 'Elem', 'r_AO', 'r_RI'
+         DO iatom = 1, natom
+            WRITE (bs_env%unit_nr, '(T4,I6,2X,A4,2F14.4)') &
+               iatom, &
+               atomic_kind_set(kind_of(iatom))%element_symbol, &
+               bs_env%ri_rs%radius_ao_per_atom(iatom), &
+               bs_env%ri_rs%radius_ri_per_atom(iatom)
+         END DO
+         WRITE (bs_env%unit_nr, '(A)') ' '
+      END IF
+
+      DEALLOCATE (alpha_min_ao_kind, alpha_min_ri_kind, kind_of)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE precompute_ri_rs_radii
 
 ! **************************************************************************************************
 !> \brief Compute grid points for RI-RS
@@ -470,9 +561,12 @@ CONTAINS
          ALLOCATE (atom_col_buffer(total_grid_npts, c_size))
          atom_col_buffer = 0.0_dp
 
-         ! Evaluate the basis functions on the grid
+         ! Evaluate the basis functions on the grid. Skip grid points outside
+         ! the spatial extent of the most diffuse AO Gaussian on iatom; beyond
+         ! that radius the contribution is guaranteed below eps_filter.
          CALL fill_phi_for_atom(atom_col_buffer, ri_rs_grid_points, total_grid_npts, &
-                                iatom, particle_set, qs_kind_set, cell)
+                                iatom, particle_set, qs_kind_set, cell, &
+                                bs_env%ri_rs%radius_ao_per_atom(iatom)**2)
 
          ! Slice the dense column into chunks and insert into DBCSR
          DO i_blk = 1, num_grid_chunks
@@ -515,7 +609,7 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE fill_phi_for_atom(phi_val, ri_rs_grid, npts, iatom, &
-                                particle_set, qs_kind_set, cell)
+                                particle_set, qs_kind_set, cell, r2_threshold)
 
       REAL(KIND=dp), INTENT(INOUT)                       :: phi_val(:, :)
       INTEGER, INTENT(IN)                                :: npts
@@ -524,6 +618,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), INTENT(IN)                          :: r2_threshold
 
       INTEGER                                            :: first_sgf, i_pt, ico, iend_co, ikind, &
                                                             ipgf, iset, isgf, ishell, istart_co, &
@@ -541,7 +636,8 @@ CONTAINS
       r_atom = particle_set(iatom)%r
 
       !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(phi_val, ri_rs_grid, npts, orb_basis_set, r_atom, cell, ncoset, indco) &
+      !$OMP SHARED(phi_val, ri_rs_grid, npts, orb_basis_set, r_atom, cell, ncoset, indco, &
+      !$OMP        r2_threshold) &
       !$OMP PRIVATE(i_pt, dist_vec, r2, iset, n_cart_total, ishell, l, istart_co, iend_co, &
       !$OMP         first_sgf, last_sgf, ipgf, alpha, exp_val, isgf, ico, row_idx, weight, &
       !$OMP         lx, ly, lz, poly) &
@@ -549,6 +645,7 @@ CONTAINS
       DO i_pt = 1, npts
          dist_vec = pbc(ri_rs_grid(:, i_pt) - r_atom, cell)
          r2 = DOT_PRODUCT(dist_vec, dist_vec)
+         IF (r2 > r2_threshold) CYCLE
 
          DO iset = 1, orb_basis_set%nset
             n_cart_total = ncoset(orb_basis_set%lmax(iset))
@@ -648,7 +745,8 @@ CONTAINS
                                                             row_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_phi, col_dist_ri, r_blk_sizes, &
                                                             ri_blk_sizes, row_dist_grid
-      REAL(KIND=dp)                                      :: cutoff_ri, dist, t1
+      LOGICAL                                            :: use_uniform_cutoff
+      REAL(KIND=dp)                                      :: cutoff_ri, dist, t1, user_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: d_vec_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: D_local, d_lp_local, int_2d_local, &
                                                             phi_global, phi_local, rho_pair_local, &
@@ -665,9 +763,13 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! Restrict integration domain to a localized sphere around the atom
-      cutoff_ri = bs_env%ri_rs%cutoff_radius_ri_rs
-      cutoff_ri = 15.0_dp
+      ! Restrict integration domain to a localized sphere around each atom P.
+      ! Default (CUTOFF_RADIUS_RI_RS = -1.0): per-atom cutoff = spatial extent of
+      ! the most diffuse RI-aux Gaussian on atom P.
+      ! User override (CUTOFF_RADIUS_RI_RS > 0): uniform sphere of that radius
+      ! across every atom P, intended for convergence sweeps.
+      user_cutoff = bs_env%ri_rs%cutoff_radius_ri_rs
+      use_uniform_cutoff = (user_cutoff > 0.0_dp)
 
       t1 = m_walltime()
 
@@ -762,6 +864,12 @@ CONTAINS
 
             n_loc_ri = ri_blk_sizes(atom_P)
             pos_P(:) = particle_set(atom_P)%r(:)
+
+            IF (use_uniform_cutoff) THEN
+               cutoff_ri = user_cutoff
+            ELSE
+               cutoff_ri = bs_env%ri_rs%radius_ri_per_atom(atom_P)
+            END IF
 
             ! ---------------------------------------------------------------------
             ! A. Determine Local Grid Domain based on cutoff_ri
@@ -979,14 +1087,34 @@ CONTAINS
 
       INTEGER                                            :: atom_j, atom_k, handle, j, jk_idx, &
                                                             jsize, jstart, k, ksize, kstart, l, ri
+      REAL(KIND=dp)                                      :: d_jk, d_jP, d_kP, r_AO_j, r_AO_k, r_RI_P
+      REAL(KIND=dp), DIMENSION(3)                        :: pos_j, pos_k, pos_P
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
 
+      CALL get_qs_env(qs_env, particle_set=particle_set, cell=cell)
+      pos_P(:) = particle_set(atom_P)%r(:)
+      r_RI_P = bs_env%ri_rs%radius_ri_per_atom(atom_P)
+
       DO atom_j = 1, SIZE(bs_env%i_ao_start_from_atom)
+         pos_j(:) = particle_set(atom_j)%r(:)
+         r_AO_j = bs_env%ri_rs%radius_ao_per_atom(atom_j)
+         d_jP = NORM2(pbc(pos_j - pos_P, cell))
+         IF (d_jP > r_AO_j + r_RI_P) CYCLE
+
          jstart = bs_env%i_ao_start_from_atom(atom_j)
          jsize = bs_env%i_ao_end_from_atom(atom_j) - jstart + 1
 
          DO atom_k = 1, SIZE(bs_env%i_ao_start_from_atom)
+            pos_k(:) = particle_set(atom_k)%r(:)
+            r_AO_k = bs_env%ri_rs%radius_ao_per_atom(atom_k)
+            d_kP = NORM2(pbc(pos_k - pos_P, cell))
+            IF (d_kP > r_AO_k + r_RI_P) CYCLE
+            d_jk = NORM2(pbc(pos_j - pos_k, cell))
+            IF (d_jk > r_AO_j + r_AO_k) CYCLE
+
             kstart = bs_env%i_ao_start_from_atom(atom_k)
             ksize = bs_env%i_ao_end_from_atom(atom_k) - kstart + 1
 

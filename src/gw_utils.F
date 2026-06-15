@@ -1697,7 +1697,7 @@ CONTAINS
          IF (bs_env%do_gw_ri_rs) THEN
             WRITE (u, FMT="(T2,A,ES44.1)") " "
             WRITE (u, FMT="(T2,A,ES37.1)") "INPUT: Regularization parameter for RI-RS ", bs_env%ri_rs%tikhonov
-            IF (bs_env%ri_rs%cutoff_radius_ri_rs .neq. -1.0_dp) THEN
+            IF (bs_env%ri_rs%cutoff_radius_ri_rs .ne. -1.0_dp) THEN
                WRITE (u, FMT="(T2,A,F31.1,A)") "INPUT: Cutoff radius for grid points in RI-RS ", &
                bs_env%ri_rs%cutoff_radius_ri_rs*angstrom, " Å"
             ENDIF

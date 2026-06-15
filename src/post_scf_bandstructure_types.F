@@ -79,6 +79,10 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp), ALLOCATABLE                       :: grid_points(:, :)
       LOGICAL                                          :: Z_lP_exists = .FALSE.
 
+      ! Per-atom spatial extent of the most diffuse Gaussian primitive in each basis
+      REAL(KIND=dp), ALLOCATABLE                       :: radius_ao_per_atom(:)
+      REAL(KIND=dp), ALLOCATABLE                       :: radius_ri_per_atom(:)
+
    END TYPE ri_rs_env
 
    TYPE post_scf_bandstructure_type
@@ -507,6 +511,8 @@ CONTAINS
       IF (bs_env%do_gw_ri_rs) CALL dbcsr_release(bs_env%ri_rs%mat_Z_lP)
       IF (ALLOCATED(bs_env%ri_rs%grid_points)) DEALLOCATE (bs_env%ri_rs%grid_points)
       IF (ALLOCATED(bs_env%ri_rs%grid_cache)) DEALLOCATE (bs_env%ri_rs%grid_cache)
+      IF (ALLOCATED(bs_env%ri_rs%radius_ao_per_atom)) DEALLOCATE (bs_env%ri_rs%radius_ao_per_atom)
+      IF (ALLOCATED(bs_env%ri_rs%radius_ri_per_atom)) DEALLOCATE (bs_env%ri_rs%radius_ri_per_atom)
 
       DEALLOCATE (bs_env)
 
