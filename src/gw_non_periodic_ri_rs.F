@@ -245,7 +245,7 @@ CONTAINS
                       particle_set=particle_set)
       natom = SIZE(particle_set)
 
-      eps = bs_env%eps_filter*bs_env%heuristic_filter_factor
+      eps = bs_env%eps_filter
 
       ALLOCATE (alpha_min_ao_kind(nkind), alpha_min_ri_kind(nkind))
       alpha_min_ao_kind = HUGE(1.0_dp)
