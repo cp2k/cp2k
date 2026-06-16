@@ -1,0 +1,11 @@
+--- a/Makefile.in	2026-03-04 17:57:56.000000000 +0000
++++ b/Makefile.in	2026-06-15 16:37:06.464630054 +0000
+@@ -43753,7 +43753,7 @@
+
+ # library with shared sources for the test files
+ noinst_LTLIBRARIES = libelpa@SUFFIX@_public.la \
+-	libelpa@SUFFIX@_private.la libelpatest@SUFFIX@.la
++	libelpa@SUFFIX@_private.la
+ libelpa@SUFFIX@_public_la_FCFLAGS = $(AM_FCFLAGS) $(FC_MODOUT)modules $(FC_MODINC)private_modules
+ libelpa@SUFFIX@_public_la_SOURCES = \
+   src/elpa.F90 \

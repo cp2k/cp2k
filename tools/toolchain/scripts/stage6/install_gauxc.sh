@@ -78,13 +78,33 @@ case "${with_gauxc}" in
       rm -rf "GauXC-${gauxc_rev}" "${pkg_install_dir}"
       tar -xzf "${gauxc_pkg}"
       cd "GauXC-${gauxc_rev}"
+
+      # CMake configuration modification
       if ! patch -l -p1 < "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" \
         > gauxc_cp2k_rks_density_fix.patch.log 2>&1; then
         tail_excerpt gauxc_cp2k_rks_density_fix.patch.log
-        exit 1
       fi
+      install -m 0644 "${SCRIPT_DIR}/stage6/exchcxx-disable-builtin.patch" \
+        cmake/exchcxx-disable-builtin.patch
+      if ! patch -l -p1 < "${SCRIPT_DIR}/stage6/gauxc-libxc-only-exchcxx.patch" \
+        > gauxc_libxc_only_exchcxx.patch.log 2>&1; then
+        tail_excerpt gauxc_libxc_only_exchcxx.patch.log
+      fi
+
       sed -i.bak '/find_dependency.*nlohmann_json/d' cmake/gauxc-config.cmake.in
       rm -f cmake/gauxc-config.cmake.in.bak
+
+      # Regenerate Obara-Saika kernels with lower unroll threshold
+      cd src/xc_integrator/local_work_driver/host/obara_saika/generator
+      make > make.log 2>&1 || tail_excerpt make.log
+      cd ../src
+      ../generator/generate_cpu_code.x 4 4
+      perl -pi -e 's#\.\./include/#../include/cpu/#g' \
+        integral_*.cxx \
+        integral_*.hpp \
+        obara_saika_integrals.cxx
+      cd "${BUILDDIR}/GauXC-${gauxc_rev}"
+
       mkdir -p build
       cd build
 
@@ -126,28 +146,21 @@ case "${with_gauxc}" in
         -DGAUXC_ENABLE_HIP=OFF \
         -DGAUXC_ENABLE_HDF5=OFF \
         -DGAUXC_ENABLE_ONEDFT=ON \
+        -DGAUXC_ENABLE_EXCHCXX_BUILTIN=OFF \
         -DGAUXC_NLOHMANN_JSON_URL="${BUILDDIR}/${nlohmann_json_pkg}" \
         -DGAUXC_ENABLE_MAGMA=OFF \
         -DGAUXC_ENABLE_NCCL=OFF \
         -DGAUXC_ENABLE_CUTLASS="${gauxc_enable_cutlass}" \
         ${gauxc_cuda_architectures_option} \
-        .. > configure.log 2>&1 || {
-        tail_excerpt configure.log
-        exit 1
-      }
-      make -j $(get_nprocs) > make.log 2>&1 || {
-        tail_excerpt make.log
-        exit 1
-      }
-      make install > install.log 2>&1 || {
-        tail_excerpt install.log
-        exit 1
-      }
+        .. > configure.log 2>&1 || tail_excerpt configure.log
+      make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       mkdir -p "${pkg_install_dir}/share/gauxc/onedft_models"
       install -m 0644 "${BUILDDIR}/${skala_model_pkg}" \
         "${pkg_install_dir}/share/gauxc/onedft_models/${skala_model_pkg}"
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})" \
-        "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" "${BUILDDIR}/${gauxc_pkg}" \
+        "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" \
+        "${SCRIPT_DIR}/stage6/gauxc-libxc-only-exchcxx.patch" \
+        "${SCRIPT_DIR}/stage6/exchcxx-disable-builtin.patch" "${BUILDDIR}/${gauxc_pkg}" \
         "${BUILDDIR}/${nlohmann_json_pkg}" "${BUILDDIR}/${skala_model_pkg}"
     fi
     GAUXC_CFLAGS="-I'${pkg_install_dir}/include' -I'${pkg_install_dir}/include/gauxc/modules'"

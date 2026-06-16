@@ -39,7 +39,7 @@ report_error() {
     local __message="$1"
   fi
   echo "ERROR: (${SCRIPT_NAME}${__lineno}) $__message" >&2
-  exit 1
+  return 1
 }
 
 # error handler for line trap from set -e
