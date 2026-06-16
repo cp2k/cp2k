@@ -372,7 +372,7 @@ CONTAINS
          atomic_center(:) = particle_set(atom_idx)%r(:)
 
          start_idx = ri_rs_grid_offsets(atom_idx)
-         end_idx = ri_rs_grid_offsets(atom_idx + 1) - 1
+         end_idx = start_idx + bs_env%ri_rs%grid_cache(ikind)%npts - 1
 
           !! Shift the cached origin grid by the atom's center
          ri_rs_grid_points(1, start_idx:end_idx) = bs_env%ri_rs%grid_cache(ikind)%raw_points(1, :) + atomic_center(1)
@@ -760,7 +760,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_phi, col_dist_ri, r_blk_sizes, &
                                                             ri_blk_sizes, row_dist_grid
       LOGICAL                                            :: use_uniform_cutoff
-      REAL(KIND=dp)                                      :: cutoff_ri, d_sP, dist, r2_threshold, t1, &
+      REAL(KIND=dp)                                      :: cutoff_ri, d_sP, dist, inv_sqrt2, &
+                                                            max_r_AO_pair, r2_threshold, t1, &
                                                             user_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_atom, d_vec_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: D_local, d_lp_local, phi_local, &
@@ -873,13 +874,20 @@ CONTAINS
          ! bounded by the spatial support of the AO pair density Φ_µ(r_l) Φ_ν(r_l) —
          ! not by the extent of the RI basis P itself. For grid point r_l to contribute
          ! to d[l,P], some Φ_µ on some atom j must be non-negligible at r_l, i.e.
-         ! d(r_l, j) ≲ r_AO(j). The conservative bound is
-         !     cutoff_ri(P) = max_j [d(P,j) + r_AO(j)]
-         ! taken over atoms j; this captures every pair-density support reachable from
-         ! atom_P regardless of which (µ,ν) pair contributes. Using r_RI(P) instead
-         ! (the basis P's own extent) is wrong and produces a catastrophically bad
-         ! LS fit when r_AO > r_RI (the common case with augmented basis sets).
+         ! d(r_l, j) ≲ r_AO_pair(j) where the *pair* density decays as exp(−2 α r²)
+         ! (twice as fast as a single Gaussian), giving r_AO_pair = r_AO / √2 at the
+         ! same eps threshold.
+         !
+         ! Two competing bounds, take the MIN:
+         !   (1) Geometry-limited:  max_j [d(P,j) + r_AO(j)/√2]
+         !       grows with molecule extent; tight for small molecules.
+         !   (2) Basis+metric-limited:  r_RI(P) + 2*max_j r_AO/√2 + cutoff_metric
+         !       independent of N — kicks in for very large molecules and gives the
+         !       O(N²) scaling RI-RS is meant to deliver. Comes from the (µν|P)
+         !       screening constraint d(j,P) ≤ r_AO + r_RI(P) + cutoff_metric.
          ALLOCATE (cutoff_ri_per_atom(natom))
+         inv_sqrt2 = 1.0_dp/SQRT(2.0_dp)
+         max_r_AO_pair = MAXVAL(bs_env%ri_rs%radius_ao_per_atom(:))*inv_sqrt2
          DO P_loop_atom = 1, natom
             cutoff_ri_per_atom(P_loop_atom) = 0.0_dp
             pos_PP(:) = particle_set(P_loop_atom)%r(:)
@@ -887,8 +895,12 @@ CONTAINS
                d_sP = NORM2(particle_set(source_atom)%r(:) - pos_PP(:))
                cutoff_ri_per_atom(P_loop_atom) = &
                   MAX(cutoff_ri_per_atom(P_loop_atom), &
-                      d_sP + bs_env%ri_rs%radius_ao_per_atom(source_atom))
+                      d_sP + bs_env%ri_rs%radius_ao_per_atom(source_atom)*inv_sqrt2)
             END DO
+            cutoff_ri_per_atom(P_loop_atom) = MIN( &
+               cutoff_ri_per_atom(P_loop_atom), &
+               bs_env%ri_rs%radius_ri_per_atom(P_loop_atom) + 2.0_dp*max_r_AO_pair + &
+               bs_env%ri_metric%cutoff_radius)
          END DO
 
          IF (bs_env%unit_nr > 0) THEN
