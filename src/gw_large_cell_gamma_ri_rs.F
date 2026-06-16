@@ -35,12 +35,12 @@ MODULE gw_large_cell_Gamma_ri_rs
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
    USE gw_integrals,                    ONLY: build_3c_integral_block_ctx,&
-                                              gw_3c_ctx_create,&
-                                              gw_3c_ctx_release,&
-                                              gw_3c_ctx_type,&
-                                              gw_3c_ws_create,&
-                                              gw_3c_ws_release,&
-                                              gw_3c_ws_type
+                                              gw_3c_context_create,&
+                                              gw_3c_context_release,&
+                                              gw_3c_context_type,&
+                                              gw_3c_workspace_create,&
+                                              gw_3c_workspace_release,&
+                                              gw_3c_workspace_type
    USE gw_large_cell_gamma,             ONLY: G_occ_vir,&
                                               compute_QP_energies,&
                                               delete_unnecessary_files,&
@@ -640,7 +640,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type)                      :: dist_phi, dist_Z
       TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(gw_3c_ctx_type)                               :: ctx_3c
+      TYPE(gw_3c_context_type)                           :: ctx_3c
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: input
@@ -703,9 +703,9 @@ CONTAINS
          max_loc_ri = MAXVAL(ri_blk_sizes)
 
          ! shared 3c-integral context for all atoms of this rank (collective: t_c_g0 init)
-         CALL gw_3c_ctx_create(ctx_3c, qs_env, bs_env%ri_metric, &
-                               basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, &
-                               basis_i=bs_env%basis_set_RI)
+         CALL gw_3c_context_create(ctx_3c, qs_env, bs_env%ri_metric, &
+                                   basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, &
+                                   basis_i=bs_env%basis_set_RI)
 
          ! Global mapping array: 4 bytes * N_grid_total (~4MB per million grid points)
          ALLOCATE (map_global_to_local(n_grid_total))
@@ -902,7 +902,7 @@ CONTAINS
          ! Clean up the massive global array once the loop finishes
          DEALLOCATE (phi_global)
 
-         CALL gw_3c_ctx_release(ctx_3c)
+         CALL gw_3c_context_release(ctx_3c)
 
          CALL dbcsr_finalize(mat_Z_lP)
 
@@ -937,7 +937,7 @@ CONTAINS
 !>        block, then contract grid-chunked pair densities into a private d_lp partial; partials
 !>        are reduced into d_lp at the end (accumulation order differs from serial at eps level).
 !> \param bs_env ...
-!> \param ctx shared 3c-integral context (gw_3c_ctx_create)
+!> \param ctx shared 3c-integral context (gw_3c_context_create)
 !> \param phi_val Φ_μ(r_l) on the local-sphere grid (n_grid_total × n_ao)
 !> \param d_lp output (n_grid_total × n_loc_ri), zeroed by the caller, accumulated here
 !> \param n_grid_total number of local-sphere grid rows
@@ -950,7 +950,7 @@ CONTAINS
                            max_ao_size)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(gw_3c_ctx_type), INTENT(IN)                   :: ctx
+      TYPE(gw_3c_context_type), INTENT(IN)               :: ctx
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_val
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: d_lp
       INTEGER, INTENT(IN)                                :: n_grid_total, n_loc_ri, atom_P, &
@@ -965,7 +965,7 @@ CONTAINS
       LOGICAL                                            :: screened
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_prv, int_2d_prv, rho_chunk
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: int_3c_prv
-      TYPE(gw_3c_ws_type)                                :: ws
+      TYPE(gw_3c_workspace_type)                         :: ws
 
       CALL timeset(routineN, handle)
 
@@ -974,7 +974,7 @@ CONTAINS
 !$OMP PRIVATE(atom_j, atom_k, c, j, jk_idx, jsize, jstart, k, ksize, kstart, l, l0, ri, &
 !$OMP         screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, ws)
 
-      CALL gw_3c_ws_create(ws, ctx)
+      CALL gw_3c_workspace_create(ws, ctx)
       ALLOCATE (int_3c_prv(max_ao_size, max_ao_size, n_loc_ri))
       ALLOCATE (int_2d_prv(max_ao_size*max_ao_size, n_loc_ri))
       ALLOCATE (rho_chunk(grid_chunk, max_ao_size*max_ao_size))
@@ -1037,7 +1037,7 @@ CONTAINS
 !$OMP END CRITICAL (compute_d_lp_reduce)
 
       DEALLOCATE (int_3c_prv, int_2d_prv, rho_chunk, d_lp_prv)
-      CALL gw_3c_ws_release(ws)
+      CALL gw_3c_workspace_release(ws)
 
 !$OMP END PARALLEL
 
