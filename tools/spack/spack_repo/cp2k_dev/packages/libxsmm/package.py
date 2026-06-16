@@ -20,28 +20,20 @@ class Libxsmm(CMakePackage):
 
     license("BSD-3-Clause")
 
+    version("20260617", commit="db07b74b2ffcf9f303bc0ad0b14740512c5341d1")
     version("20260610-cp2k", commit="79033a7a1da039681cfa3b5ed2fe662a401fa4f3")
     version("20260526-cp2k", commit="0cea22fdc34ec54bc59ffb47a43cb3e28b26d3e0")
     version("1.17-cp2k", commit="e0c4a2389afba36c453233ad7de07bd92c715bec")
 
-    variant("shared", default=False, description="With shared libraries (and static libraries).")
-    variant("debug", default=False, description="With call-trace (LIBXSMM_TRACE); unoptimized.")
-    variant(
-        "blas",
-        default="default",
-        multi=False,
-        description="Control behavior of BLAS calls",
-        values=("default", "0", "1", "2"),
-    )
+    variant("shared", default=False, description="With shared libraries.")
+    variant("fortran", default=True, description="With Fortran support.")
 
     depends_on("c", type="build")  # generated
     depends_on("cxx", type="build")  # generated
-    depends_on("fortran", type="build")  # generated
+    depends_on("fortran", type="build", when="+fortran")  # generated
 
     depends_on("python", type="build")
     depends_on("cmake@3.13:", type="build")
-    depends_on("blas", when="blas=1")
-    depends_on("blas", when="blas=2")
 
     # A recent `as` is needed to compile libxmss until version 1.17
     # (<https://github.com/spack/spack/issues/28404>), but not afterwards
@@ -63,9 +55,7 @@ class Libxsmm(CMakePackage):
 
     def cmake_args(self):
         spec = self.spec
-        blas_val = spec.variants["blas"].value
-
         return [
-            self.define("XSMM_STATIC", not spec.satisfies("+shared")),
-            self.define("XSMM_BLAS", blas_val in ("1", "2")),
+            self.define("BUILD_SHARED_LIBS", spec.satisfies("+shared")),
+            self.define("LIBXSMM_FORTRAN", spec.satisfies("+fortran")),
         ]
