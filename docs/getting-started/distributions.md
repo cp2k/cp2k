@@ -36,7 +36,7 @@ Activate the new conda environment
 
 ```shell
 $ conda activate cp2k_env
-$ cp2k -h -v
+$ cp2k -h
 ```
 
 and run either OpenMP parallel (e.g. with 4 OpenMP threads)
