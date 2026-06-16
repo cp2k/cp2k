@@ -8,6 +8,7 @@
 ! **************************************************************************************************
 !> \brief  Methods dealing with Neural Network potentials
 !> \author Christoph Schran (christoph.schran@rub.de)
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
 !> \date   2020-10-10
 ! **************************************************************************************************
 MODULE nnp_environment
@@ -63,7 +64,7 @@ MODULE nnp_environment
 
    PRIVATE
 
-   LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .TRUE.
+   LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'nnp_environment'
 
    PUBLIC :: nnp_init
@@ -231,20 +232,16 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: printtag
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_init_model'
-      INTEGER, PARAMETER                                 :: def_str_len = 256, &
-                                                            default_path_length = 256
+      INTEGER, PARAMETER                                 :: def_str_len = 256
 
       CHARACTER(len=1), ALLOCATABLE, DIMENSION(:)        :: cactfnct
       CHARACTER(len=2)                                   :: ele
       CHARACTER(len=def_str_len)                         :: dummy, line
-      CHARACTER(len=default_path_length)                 :: base_name, file_name
-      INTEGER                                            :: handle, i, i_com, io, iweight, j, k, l, &
-                                                            n_weight, nele, nuc_ele, symfnct_type, &
-                                                            unit_nr
-      LOGICAL                                            :: at_end, atom_e_found, explicit, first, &
-                                                            found
+      CHARACTER(len=default_path_length)                 :: file_name
+      INTEGER                                            :: handle, i, io, j, k, nele, nuc_ele, &
+                                                            symfnct_type, unit_nr
+      LOGICAL                                            :: atom_e_found, explicit, first, found
       REAL(KIND=dp)                                      :: energy
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weights
       REAL(KIND=dp), DIMENSION(7)                        :: test_array
       REAL(KIND=dp), DIMENSION(:), POINTER               :: work
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -272,6 +269,11 @@ CONTAINS
       ALLOCATE (nnp_env%committee_stress(3, 3, nnp_env%n_committee))
 
       CALL section_vals_val_get(nnp_env%nnp_input, "NNP_INPUT_FILE_NAME", c_val=file_name)
+      CALL section_vals_val_get(nnp_env%nnp_input, "RAD_SPLINE_N", i_val=nnp_env%rad_spline_n)
+      IF (nnp_env%rad_spline_n < 2) THEN
+         CPABORT("NNP| RAD_SPLINE_N must be >= 2.")
+      END IF
+      CALL section_vals_val_get(nnp_env%nnp_input, "VERLET_SKIN", r_val=nnp_env%verlet_skin)
       CALL parser_create(parser, file_name, para_env=logger%para_env)
 
       ! read number of elements and cut_type and check for scale and center
@@ -306,10 +308,12 @@ CONTAINS
                                 search_from_begin_of_file=.TRUE.)
       nnp_env%scale_acsf = found
 
-      ! Test if there are two keywords of this:
+      ! parser_search_string matches substrings, so a search for
+      ! "scale_symmetry_functions" also fires on "..._sigma". Re-search from the
+      ! current parser position to confirm the bare keyword appears on its own line.
       CALL parser_search_string(parser, "scale_symmetry_functions", .TRUE., found)
       IF (found .AND. nnp_env%scale_sigma_acsf) THEN
-         CPWARN('Two scaling keywords in the input, we will ignore sigma scaling in this case')
+         CPWARN("Ignoring sigma ACSF scaling; both keywords were set.")
          nnp_env%scale_sigma_acsf = .FALSE.
       ELSE IF (.NOT. found .AND. nnp_env%scale_sigma_acsf) THEN
          nnp_env%scale_acsf = .FALSE.
@@ -689,11 +693,59 @@ CONTAINS
             END DO
          END DO
          CALL parser_release(parser)
+
+         ! Reject degenerate scaling.data at load time. The (loc_max - loc_min)
+         ! and sigma denominators are used unguarded inside nnp_scale_acsf;
+         ! a zero range or zero sigma there produces silent NaN forces.
+         IF (nnp_env%scale_acsf) THEN
+            DO i = 1, nnp_env%n_ele
+               DO j = 1, nnp_env%n_rad(i)
+                  IF (nnp_env%rad(i)%loc_max(j) <= nnp_env%rad(i)%loc_min(j)) THEN
+                     WRITE (line, '(A,I0,A,I0,A,2(1X,ES13.6))') &
+                        "scaling.data: radial sf range non-positive for element ", i, &
+                        " sf ", j, " (loc_min, loc_max) =", &
+                        nnp_env%rad(i)%loc_min(j), nnp_env%rad(i)%loc_max(j)
+                     CPABORT(TRIM(line))
+                  END IF
+               END DO
+               DO j = 1, nnp_env%n_ang(i)
+                  IF (nnp_env%ang(i)%loc_max(j) <= nnp_env%ang(i)%loc_min(j)) THEN
+                     WRITE (line, '(A,I0,A,I0,A,2(1X,ES13.6))') &
+                        "scaling.data: angular sf range non-positive for element ", i, &
+                        " sf ", j, " (loc_min, loc_max) =", &
+                        nnp_env%ang(i)%loc_min(j), nnp_env%ang(i)%loc_max(j)
+                     CPABORT(TRIM(line))
+                  END IF
+               END DO
+            END DO
+         END IF
+         IF (nnp_env%scale_sigma_acsf) THEN
+            DO i = 1, nnp_env%n_ele
+               DO j = 1, nnp_env%n_rad(i)
+                  IF (nnp_env%rad(i)%sigma(j) <= 0.0_dp) THEN
+                     WRITE (line, '(A,I0,A,I0,A,1X,ES13.6)') &
+                        "scaling.data: radial sf sigma non-positive for element ", i, &
+                        " sf ", j, " sigma =", nnp_env%rad(i)%sigma(j)
+                     CPABORT(TRIM(line))
+                  END IF
+               END DO
+               DO j = 1, nnp_env%n_ang(i)
+                  IF (nnp_env%ang(i)%sigma(j) <= 0.0_dp) THEN
+                     WRITE (line, '(A,I0,A,I0,A,1X,ES13.6)') &
+                        "scaling.data: angular sf sigma non-positive for element ", i, &
+                        " sf ", j, " sigma =", nnp_env%ang(i)%sigma(j)
+                     CPABORT(TRIM(line))
+                  END IF
+               END DO
+            END DO
+         END IF
       END IF
 
       CALL nnp_init_acsf_groups(nnp_env)
 
-      ! read weights from file
+      ! Allocate per-layer weight tables, then load each committee member
+      ! from disk. Allocation lives at the call site because n_committee /
+      ! n_layer / n_nodes are owned here; the loader only fills them.
       DO i = 1, nnp_env%n_ele
          DO j = 2, nnp_env%n_layer
             ALLOCATE (nnp_env%arc(i)%layer(j)%weights(nnp_env%arc(i)%n_nodes(j - 1), &
@@ -701,6 +753,84 @@ CONTAINS
             ALLOCATE (nnp_env%arc(i)%layer(j)%bweights(nnp_env%arc(i)%n_nodes(j), nnp_env%n_committee))
          END DO
       END DO
+      CALL nnp_read_committee_weights(nnp_env, model_section, printtag)
+
+      nnp_env%expol = 0
+
+      ! Bias the standard deviation of committee disagreement
+      NULLIFY (bias_section)
+      explicit = .FALSE.
+      !HELIUM NNP does not currently define a bias term
+      bias_section => section_vals_get_subs_vals(nnp_env%nnp_input, "BIAS", can_return_null=.TRUE.)
+      IF (ASSOCIATED(bias_section)) CALL section_vals_get(bias_section, explicit=explicit)
+      nnp_env%bias = .FALSE.
+      IF (explicit) THEN
+         IF (nnp_env%n_committee > 1) THEN
+            IF (logger%para_env%is_source()) THEN
+               WRITE (unit_nr, *) "NNP| Biasing of committee disagreement enabled"
+            END IF
+            nnp_env%bias = .TRUE.
+            ALLOCATE (nnp_env%bias_forces(3, nnp_env%num_atoms))
+            ALLOCATE (nnp_env%bias_e_avrg(nnp_env%n_committee))
+            CALL section_vals_val_get(bias_section, "SIGMA_0", r_val=nnp_env%bias_sigma0)
+            CALL section_vals_val_get(bias_section, "K_B", r_val=nnp_env%bias_kb)
+            nnp_env%bias_e_avrg(:) = 0.0_dp
+            CALL section_vals_val_get(bias_section, "ALIGN_NNP_ENERGIES", explicit=explicit)
+            nnp_env%bias_align = explicit
+            IF (explicit) THEN
+               NULLIFY (work)
+               CALL section_vals_val_get(bias_section, "ALIGN_NNP_ENERGIES", r_vals=work)
+               IF (SIZE(work) /= nnp_env%n_committee) THEN
+                  CPABORT("ALIGN_NNP_ENERGIES size mismatch wrt committee size.")
+               END IF
+               nnp_env%bias_e_avrg(:) = work
+               IF (logger%para_env%is_source()) THEN
+                  WRITE (unit_nr, *) TRIM(printtag)//"| Biasing is aligned by shifting the energy prediction of the C-NNP members"
+               END IF
+            END IF
+         ELSE
+            CPWARN("NNP committee size is 1, BIAS section is ignored.")
+         END IF
+      END IF
+
+      IF (logger%para_env%is_source()) THEN
+         WRITE (unit_nr, *) TRIM(printtag)//"| NNP force environment initialized"
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE nnp_init_model
+
+! **************************************************************************************************
+!> \brief Read committee weights from disk into pre-allocated arc layer tables.
+!>
+!> One file per (committee member, element), named <base>.<nuc>.data. The file
+!> is a flat list of doubles; the order on disk is layer-major over (i->j weights
+!> then biases) so a single counter walks every value into its slot.
+!>
+!> \param nnp_env       NNP environment with arc()%layer()%weights/bweights already allocated.
+!> \param model_section &MODEL section block; supplies the per-member WEIGHTS base path.
+!> \param printtag      Log-line prefix.
+! **************************************************************************************************
+   SUBROUTINE nnp_read_committee_weights(nnp_env, model_section, printtag)
+      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
+      TYPE(section_vals_type), POINTER                   :: model_section
+      CHARACTER(LEN=*), INTENT(IN)                       :: printtag
+
+      CHARACTER(len=default_path_length)                 :: base_name, file_name
+      INTEGER                                            :: i, i_com, iweight, j, k, l, n_weight, &
+                                                            unit_nr
+      LOGICAL                                            :: at_end
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weights
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_parser_type)                               :: parser
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      IF (logger%para_env%is_source()) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger)
+      END IF
+
       DO i_com = 1, nnp_env%n_committee
          CALL section_vals_val_get(model_section, "WEIGHTS", c_val=base_name, i_rep_section=i_com)
          IF (logger%para_env%is_source()) THEN
@@ -748,51 +878,6 @@ CONTAINS
          END DO
       END DO
 
-      !Initialize extrapolation counter
-      nnp_env%expol = 0
-
-      ! Bias the standard deviation of committee disagreement
-      NULLIFY (bias_section)
-      explicit = .FALSE.
-      !HELIUM NNP does atm not allow for bias (not even defined)
-      bias_section => section_vals_get_subs_vals(nnp_env%nnp_input, "BIAS", can_return_null=.TRUE.)
-      IF (ASSOCIATED(bias_section)) CALL section_vals_get(bias_section, explicit=explicit)
-      nnp_env%bias = .FALSE.
-      IF (explicit) THEN
-         IF (nnp_env%n_committee > 1) THEN
-            IF (logger%para_env%is_source()) THEN
-               WRITE (unit_nr, *) "NNP| Biasing of committee disagreement enabled"
-            END IF
-            nnp_env%bias = .TRUE.
-            ALLOCATE (nnp_env%bias_forces(3, nnp_env%num_atoms))
-            ALLOCATE (nnp_env%bias_e_avrg(nnp_env%n_committee))
-            CALL section_vals_val_get(bias_section, "SIGMA_0", r_val=nnp_env%bias_sigma0)
-            CALL section_vals_val_get(bias_section, "K_B", r_val=nnp_env%bias_kb)
-            nnp_env%bias_e_avrg(:) = 0.0_dp
-            CALL section_vals_val_get(bias_section, "ALIGN_NNP_ENERGIES", explicit=explicit)
-            nnp_env%bias_align = explicit
-            IF (explicit) THEN
-               NULLIFY (work)
-               CALL section_vals_val_get(bias_section, "ALIGN_NNP_ENERGIES", r_vals=work)
-               IF (SIZE(work) /= nnp_env%n_committee) THEN
-                  CPABORT("ALIGN_NNP_ENERGIES size mismatch wrt committee size.")
-               END IF
-               nnp_env%bias_e_avrg(:) = work
-               IF (logger%para_env%is_source()) THEN
-                  WRITE (unit_nr, *) TRIM(printtag)//"| Biasing is aligned by shifting the energy prediction of the C-NNP members"
-               END IF
-            END IF
-         ELSE
-            CPWARN("NNP committee size is 1, BIAS section is ignored.")
-         END IF
-      END IF
-
-      IF (logger%para_env%is_source()) THEN
-         WRITE (unit_nr, *) TRIM(printtag)//"| NNP force environment initialized"
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE nnp_init_model
+   END SUBROUTINE nnp_read_committee_weights
 
 END MODULE nnp_environment
