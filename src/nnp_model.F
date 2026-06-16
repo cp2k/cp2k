@@ -28,7 +28,7 @@ MODULE nnp_model
 
    PRIVATE
 
-   LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .TRUE.
+   LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'nnp_model'
 
    PUBLIC :: nnp_write_arc, &
@@ -169,7 +169,7 @@ CONTAINS
       TYPE(nnp_arc_type), INTENT(INOUT)                  :: arc
       TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       INTEGER, INTENT(IN)                                :: i_com
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: denergydsym
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: denergydsym
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_gradients'
 
