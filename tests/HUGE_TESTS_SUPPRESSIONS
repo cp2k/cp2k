@@ -167,4 +167,8 @@ QS/regtest-smeagol-2/au-h2-au-1x1x1-1V-forces.inp
 # Tests produced 11.69 MiB of output.
 QS/regtest-openpmd/H2O-geo-ot-lumo-all-openpmd.inp
 
+# Test produced 9.87 MiB of output (per-step &FORCES print x 8 committee
+# models x finite-difference stress perturbations).
+NNP/regtest-1/H2O-64_C-NNP_MD-NpT-numeric.inp
+
 #EOF

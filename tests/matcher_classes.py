@@ -25,11 +25,17 @@ class Matcher(Protocol):
 # ======================================================================================
 class GenericMatcher(Matcher):
     def __init__(
-        self, pattern: str, col: int, regex: bool = False, abs_value: bool = False
+        self,
+        pattern: str,
+        col: int,
+        regex: bool = False,
+        abs_value: bool = False,
+        first: bool = False,
     ):
         self.pattern = pattern
         self.regex_mode = regex
         self.abs_value = abs_value
+        self.first = first
         if not regex:
             for c in r"[]()|+*?":
                 pattern = pattern.replace(c, f"\\{c}")
@@ -41,7 +47,8 @@ class GenericMatcher(Matcher):
         assert isinstance(tol, float) or isinstance(ref, int)
         assert isinstance(ref, float) or isinstance(ref, int)
         # grep result
-        for line in reversed(output.split("\n")):
+        lines = output.split("\n")
+        for line in lines if self.first else reversed(lines):
             match = self.regex.search(line)
             if match:
                 if self.regex_mode and match.groups():
