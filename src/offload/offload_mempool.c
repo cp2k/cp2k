@@ -55,27 +55,19 @@ typedef struct offload_mempool {
  * \brief Private pools for host and device memory.
  * \author Ole Schuett
  ******************************************************************************/
-#if !defined(__LIBXS)
 static offload_mempool_t mempool_host = {0};
-#endif
-#if !defined(__LIBXSTREAM)
 static offload_mempool_t mempool_device = {0};
-#endif
 
 /*******************************************************************************
  * \brief Private counters for statistics.
  * \author Hans Pabst
  ******************************************************************************/
-#if !defined(__LIBXS)
 static struct {
   uint64_t mallocs, mempeak;
 } host_stats = {0, 0};
-#endif
-#if !defined(__LIBXSTREAM)
 static struct {
   uint64_t mallocs, mempeak;
 } device_stats = {0, 0};
-#endif
 
 /*******************************************************************************
  * \brief Private routine for actually allocating system memory.
@@ -111,13 +103,10 @@ static void *actual_malloc(const size_t size, const bool on_device) {
   if (on_device) {
 #pragma omp atomic
     ++device_stats.mallocs;
-  }
-#if !defined(__LIBXS)
-  else {
+  } else {
 #pragma omp atomic
     ++host_stats.mallocs;
   }
-#endif
 
   assert(memory != NULL);
   return memory;
@@ -285,8 +274,6 @@ void *offload_mempool_host_malloc(const size_t size) {
 #if defined(__LIBXSTREAM)
   return libxs_malloc(libxstream_opencl_config.pool_hst, size,
                       LIBXS_MALLOC_AUTO);
-#elif defined(__LIBXS)
-  return libxs_malloc(libxs_default_pool(), size, LIBXS_MALLOC_AUTO);
 #else
   return internal_mempool_malloc(&mempool_host, size, false);
 #endif
@@ -312,7 +299,7 @@ void *offload_mempool_device_malloc(const size_t size) {
  * \author Ole Schuett
  ******************************************************************************/
 void offload_mempool_host_free(const void *memory) {
-#if defined(__LIBXSTREAM) || defined(__LIBXS)
+#if defined(__LIBXSTREAM)
   libxs_free((void *)memory);
 #else
   internal_mempool_free(&mempool_host, memory);
@@ -339,16 +326,6 @@ void offload_mempool_device_free(const void *memory) {
 void offload_mempool_clear(void) {
 #if defined(__LIBXSTREAM)
   (void)0;
-#elif defined(__LIBXS)
-  {
-    const uint64_t size = sum_chunks_size(mempool_device.available_head,
-                                          offsetof(offload_memchunk_t, size)) +
-                          sum_chunks_size(mempool_device.allocated_head,
-                                          offsetof(offload_memchunk_t, size));
-    if (device_stats.mempeak < size)
-      device_stats.mempeak = size;
-  }
-  internal_mempool_clear(&mempool_device, true);
 #else
   {
     const uint64_t hsize = sum_chunks_size(mempool_host.available_head,
@@ -404,36 +381,6 @@ void offload_mempool_stats_get(offload_mempool_stats_t *memstats) {
       memstats->device_size = 0;
       memstats->device_peak = 0;
     }
-#elif defined(__LIBXS)
-    {
-      libxs_malloc_pool_info_t info;
-      if (NULL != libxs_default_pool() &&
-          EXIT_SUCCESS == libxs_malloc_pool_info(libxs_default_pool(), &info)) {
-        memstats->host_mallocs = info.nmallocs;
-        memstats->host_used = info.used;
-        memstats->host_size = info.size;
-        memstats->host_peak = info.peak;
-      } else {
-        memstats->host_mallocs = 0;
-        memstats->host_used = 0;
-        memstats->host_size = 0;
-        memstats->host_peak = 0;
-      }
-    }
-    memstats->device_mallocs = device_stats.mallocs;
-    memstats->device_used =
-        sum_chunks_size(mempool_device.available_head,
-                        offsetof(offload_memchunk_t, used)) +
-        sum_chunks_size(mempool_device.allocated_head,
-                        offsetof(offload_memchunk_t, used));
-    memstats->device_size =
-        sum_chunks_size(mempool_device.available_head,
-                        offsetof(offload_memchunk_t, size)) +
-        sum_chunks_size(mempool_device.allocated_head,
-                        offsetof(offload_memchunk_t, size));
-    memstats->device_peak = memstats->device_size < device_stats.mempeak
-                                ? device_stats.mempeak
-                                : memstats->device_size;
 #else
     memstats->host_mallocs = host_stats.mallocs;
     memstats->host_used = sum_chunks_size(mempool_host.available_head,
