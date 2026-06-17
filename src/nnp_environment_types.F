@@ -447,11 +447,10 @@ CONTAINS
       IF (ASSOCIATED(nnp_env%rad)) THEN
          DO i = 1, nnp_env%n_ele
             DO j = 1, nnp_env%rad(i)%n_symfgrp
-               DEALLOCATE (nnp_env%rad(i)%symfgrp(j)%symf, &
-                           nnp_env%rad(i)%symfgrp(j)%ele, &
-                           nnp_env%rad(i)%symfgrp(j)%ele_ind)
-               IF (ALLOCATED(nnp_env%rad(i)%symfgrp(j)%pack_eta)) &
-                  DEALLOCATE (nnp_env%rad(i)%symfgrp(j)%pack_eta)
+               IF (ALLOCATED(nnp_env%rad(i)%symfgrp(j)%symf)) &
+                  DEALLOCATE (nnp_env%rad(i)%symfgrp(j)%symf, &
+                              nnp_env%rad(i)%symfgrp(j)%ele, &
+                              nnp_env%rad(i)%symfgrp(j)%ele_ind)
                IF (ALLOCATED(nnp_env%rad(i)%symfgrp(j)%spline_y)) &
                   DEALLOCATE (nnp_env%rad(i)%symfgrp(j)%spline_y)
                IF (ALLOCATED(nnp_env%rad(i)%symfgrp(j)%spline_dy)) &
@@ -476,9 +475,10 @@ CONTAINS
       IF (ASSOCIATED(nnp_env%ang)) THEN
          DO i = 1, nnp_env%n_ele
             DO j = 1, nnp_env%ang(i)%n_symfgrp
-               DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%symf, &
-                           nnp_env%ang(i)%symfgrp(j)%ele, &
-                           nnp_env%ang(i)%symfgrp(j)%ele_ind)
+               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%symf)) &
+                  DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%symf, &
+                              nnp_env%ang(i)%symfgrp(j)%ele, &
+                              nnp_env%ang(i)%symfgrp(j)%ele_ind)
                IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_eta)) &
                   DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%pack_eta)
                IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_zeta)) &
