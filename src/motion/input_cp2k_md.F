@@ -505,16 +505,30 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
 
       CALL section_create(section, __LOCATION__, name="REFTRAJ", &
-                          description="Loads an external trajectory file and performs analysis on the"// &
-                          " loaded snapshots.", &
+                          description="Loads an external trajectory file and performs analysis on "// &
+                          "the loaded snapshots; optionally, calculates per-frame energy, forces "// &
+                          "and other properties as requested by the EVAL keyword and specified in "// &
+                          "the `&FORCE_EVAL` section."//newline//newline// &
+                          "The trajectory should be a multi-frame XYZ file where each frame has the "// &
+                          "same number of atoms and kind specification as the `&FORCE_EVAL/&SUBSYS`. "// &
+                          "The comment line of each frame is parsed for additional information such "// &
+                          "as cell, step, time and energy; currently the parser supports the same "// &
+                          "formats as the XYZ option of `&FORCE_EVAL/&SUBSYS/&CELL/CELL_FILE_FORMAT`, "// &
+                          "corresponding to trajectory files printed from `&MOTION/&MD/&TRAJECTORY` "// &
+                          "as XYZ and EXTXYZ and from the external `dumpdcd` tool."//newline//newline// &
+                          "A minimal working example trajectory in the extended XYZ format should have "// &
+                          '`Lattice="<Ax> <Ay> <Az> <Bx> <By> <Bz> <Cx> <Cy> <Cz>"` for the components '// &
+                          "of cell vectors A, B, C, and `Step=<integer>` for the integer timestep. "// &
+                          "`Time=<real>` and `Energy=<real>` for simulation time and potential energy "// &
+                          "respectively are also parsed; if omitted, the default value will be 0.0 . "// &
+                          "Note that the parser is case insensitive, but whitespaces are only used "// &
+                          "between key-value pairs as delimiters and not around the = signs.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword, print_key, subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="TRAJ_FILE_NAME", &
-                          description="Specify the filename where the trajectory is stored. "// &
-                          "If you built your own trajectory file make sure it has the trajectory format. "// &
-                          'In particular, each structure has to be enumerated using " i = ..."', &
+                          description="Specify the filename where the trajectory is stored.", &
                           repeats=.FALSE., &
                           usage="TRAJ_FILE_NAME <CHARACTER>", default_lc_val="reftraj.xyz")
       CALL section_add_keyword(section, keyword)
@@ -522,15 +536,19 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CELL_FILE_NAME", &
                           description="Specify the filename where the cell is stored "// &
-                          "(for trajectories generated within variable cell ensembles).", repeats=.FALSE., &
+                          "(for trajectories generated within variable cell ensembles). "// &
+                          "This file will be parsed only when no cell information is found "// &
+                          "in the trajectory file and VARIABLE_VOLUME is set to .TRUE.", &
+                          repeats=.FALSE., &
                           usage="CELL_FILE_NAME <CHARACTER>", default_lc_val="reftraj.cell")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="VARIABLE_VOLUME", &
-         description="Enables the possibility to read a CELL file with information on the CELL size during the MD.", &
-         repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create(keyword, __LOCATION__, name="VARIABLE_VOLUME", &
+                          description="Enables the possibility to read a CELL file with "// &
+                          "information on the CELL size during the MD. This keyword will be "// &
+                          "ignored if cell information is already available in the trajectory file.", &
+                          repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
