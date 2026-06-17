@@ -30,7 +30,7 @@ MODULE integrator
                                               get_atomic_kind_set
    USE barostat_types,                  ONLY: barostat_type
    USE cell_methods,                    ONLY: init_cell,&
-                                              set_cell_param
+                                              read_xyz_comment
    USE cell_types,                      ONLY: cell_type,&
                                               parse_cell_line
    USE constraint,                      ONLY: rattle_control,&
@@ -1510,10 +1510,9 @@ CONTAINS
       INTEGER                                            :: cell_itimes, i, nparticle, Nread, &
                                                             trj_itimes
       INTEGER, POINTER                                   :: itimes
-      LOGICAL                                            :: init, my_end, test_ok, traj_has_cell_info
+      LOGICAL                                            :: init, my_end, traj_has_cell_info
       REAL(KIND=dp)                                      :: cell_time, h(3, 3), trj_epot, trj_time, &
                                                             vol
-      REAL(KIND=dp), DIMENSION(3)                        :: abc, albega
       REAL(KIND=dp), POINTER                             :: time
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -1536,38 +1535,56 @@ CONTAINS
       CALL cp_subsys_get(subsys=subsys, particles=particles)
       nparticle = particles%n_els
       particle_set => particles%els
-      abc(:) = 0.0_dp
-      albega(:) = 0.0_dp
 
       ! SnapShots read from an external file (parsers calls are buffered! please
       ! don't put any additional MPI call!) [tlaino]
       CALL parser_read_line(reftraj_env%info%traj_parser, 1)
       READ (reftraj_env%info%traj_parser%input_line, FMT="(I8)") nread
       CALL parser_read_line(reftraj_env%info%traj_parser, 1)
-      test_ok = .FALSE.
-      IF (INDEX(reftraj_env%info%traj_parser%input_line, ", a = ") > 60) THEN
-         traj_has_cell_info = .TRUE.
-         READ (reftraj_env%info%traj_parser%input_line, &
-               FMT="(T6,I8,T23,F12.3,T41,F20.10,T67,F14.6,T87,F14.6,T107,F14.6,T131,F8.3,T149,F8.3,T167,F8.3)", &
-               ERR=999) trj_itimes, trj_time, trj_epot, abc(1:3), albega(1:3)
-         ! Convert cell parameters from angstrom and degree to the internal CP2K units
-         DO i = 1, 3
-            abc(i) = cp_unit_to_cp2k(abc(i), "angstrom")
-            albega(i) = cp_unit_to_cp2k(albega(i), "deg")
-         END DO
-      ELSE
-         traj_has_cell_info = .FALSE.
-         READ (reftraj_env%info%traj_parser%input_line, FMT="(T6,I8,T23,F12.3,T41,F20.10)", ERR=999) &
-            trj_itimes, trj_time, trj_epot
-      END IF
-      test_ok = .TRUE.
-999   IF (.NOT. test_ok) THEN
-         ! Handling properly the error when reading the title of an XYZ
+      ! Use the same parser for FORCE_EVAL/SUBSYS/CELL which allows for extxyz
+      ! Escape values for undetected cases is HUGE(0)
+      CALL read_xyz_comment(reftraj_env%info%traj_parser%input_line, cell, &
+                            traj_has_cell_info, trj_itimes, trj_time, trj_epot)
+      IF (trj_itimes == HUGE(0)) THEN
          CALL get_md_env(md_env, itimes=itimes)
          trj_itimes = itimes
-         trj_time = 0.0_dp
-         trj_epot = 0.0_dp
       END IF
+      IF (trj_time == HUGE(0.0_dp)) trj_time = 0.0_dp
+      IF (trj_epot == HUGE(0.0_dp)) trj_epot = 0.0_dp
+
+      ! The following parser for XYZ comment line with strict field widths from
+      ! the dumpdcd format is preserved for historical reference only
+      ! --------------------
+      !       LOGICAL                                            :: test_ok
+      !       REAL(KIND=dp), DIMENSION(3)                        :: abc, albega
+      ! abc(:) = 0.0_dp
+      ! albega(:) = 0.0_dp
+      ! test_ok = .FALSE.
+      ! IF (INDEX(reftraj_env%info%traj_parser%input_line, ", a = ") > 60) THEN
+      !    traj_has_cell_info = .TRUE.
+      !    READ (reftraj_env%info%traj_parser%input_line, &
+      !          FMT="(T6,I8,T23,F12.3,T41,F20.10,T67,F14.6,T87,F14.6,T107,F14.6,T131,F8.3,T149,F8.3,T167,F8.3)", &
+      !          ERR=999) trj_itimes, trj_time, trj_epot, abc(1:3), albega(1:3)
+      !    ! Convert cell parameters from angstrom and degree to the internal CP2K units
+      !    DO i = 1, 3
+      !       abc(i) = cp_unit_to_cp2k(abc(i), "angstrom")
+      !       albega(i) = cp_unit_to_cp2k(albega(i), "deg")
+      !    END DO
+      ! ELSE
+      !    traj_has_cell_info = .FALSE.
+      !    READ (reftraj_env%info%traj_parser%input_line, FMT="(T6,I8,T23,F12.3,T41,F20.10)", ERR=999) &
+      !       trj_itimes, trj_time, trj_epot
+      ! END IF
+      ! test_ok = .TRUE.
+      ! 999 IF (.NOT. test_ok) THEN
+      !    ! Handling properly the error when reading the title of an XYZ
+      !    CALL get_md_env(md_env, itimes=itimes)
+      !    trj_itimes = itimes
+      !    trj_time = 0.0_dp
+      !    trj_epot = 0.0_dp
+      ! END IF
+      ! --------------------
+
       ! Delayed print of error message until the step number is known
       IF (nread /= nparticle) THEN
          errmsg = "Number of atoms for step "//TRIM(ADJUSTL(cp_to_string(trj_itimes)))// &
@@ -1665,7 +1682,7 @@ CONTAINS
       time = reftraj_env%time
 
       IF (traj_has_cell_info) THEN
-         CALL set_cell_param(cell, cell_length=abc, cell_angle=albega, do_init_cell=.TRUE.)
+         CALL init_cell(cell)
       ELSE IF (reftraj_env%info%variable_volume) THEN
          cell%hmat = h
          CALL init_cell(cell)
