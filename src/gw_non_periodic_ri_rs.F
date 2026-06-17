@@ -127,13 +127,23 @@ CONTAINS
       CALL timeset(routineN, handle)
 
        !!========================================================================
+       !! 0. Precompute AO and RI Radii
+       !!    Determine per-atom cutoff radii from the most diffuse Gaussian
+       !!    primitives in the AO and RI auxiliary basis sets.
+       !!    Equations:
+       !!    a. α_min,ao = min_{i,j} { ζ_ao(i,j) | ζ_ao(i,j) > 10⁻³ }
+       !!    b. α_min,ri = min_{i,j} { ζ_ri(i,j) | ζ_ri(i,j) > 10⁻³ }
+       !!    c. r_ao     = sqrt( -ln(ε) / α_min,ao )  (radius_ao_per_atom)
+       !!    d. r_ri     = sqrt( -ln(ε) / α_min,ri )  (radius_ri_per_atom)
+       !!======================================================================== 
+      CALL precompute_ri_rs_radii(qs_env, bs_env)
+
+       !!========================================================================
        !! 1. Grid Generation for RI-RS
        !!    (Modified Lebedev grids from Ivan Duchemin and Xavier Blase)
        !!    Generate flattened 1D array of grid points for RI-RS.
        !!    Equation: r_g(k) = R_A + r_g(A)
        !!========================================================================
-      CALL precompute_ri_rs_radii(qs_env, bs_env)
-
       CALL ri_rs_grid_assembler(qs_env, bs_env, bs_env%ri_rs%grid_points)
 
        !!========================================================================
@@ -213,13 +223,12 @@ CONTAINS
    END SUBROUTINE gw_calc_non_periodic_ri_rs
 
 ! **************************************************************************************************
-!> \brief Compute per-atom RI-RS basis radii from the most diffuse Gaussian
+!> \brief Compute per-atom AO and RI basis radii from the most diffuse Gaussian
 !>        primitive in the AO ("ORB") and RI auxiliary ("RI_AUX") basis sets.
 !>        Stores results in bs_env%ri_rs%radius_ao_per_atom(:) and
 !>        bs_env%ri_rs%radius_ri_per_atom(:) and prints a per-atom table.
 !>        Radius:  r_kind = sqrt(-log(eps) / alpha_min_kind)
-!>        with eps = eps_filter * heuristic_filter_factor, matching the
-!>        convention in gw_utils.F:2042-2065.
+!>        with eps = eps_filter.
 !> \param qs_env ...
 !> \param bs_env ...
 ! **************************************************************************************************
@@ -255,8 +264,6 @@ CONTAINS
          zet_ao => bs_env%basis_set_AO(ikind)%gto_basis_set%zet
          zet_ri => bs_env%basis_set_RI(ikind)%gto_basis_set%zet
 
-         ! Skip padding zeros / spurious tiny exponents in contracted basis sets
-         ! (same 1E-3 floor as gw_utils.F:2051).
          DO i = 1, SIZE(zet_ao, 1)
             DO j = 1, SIZE(zet_ao, 2)
                IF (zet_ao(i, j) > 1.0E-3_dp) &
@@ -447,7 +454,6 @@ CONTAINS
          ! Allocate the cache array for this specific element
          ALLOCATE (bs_env%ri_rs%grid_cache(ikind)%raw_points(3, bs_env%ri_rs%grid_cache(ikind)%npts))
 
-         ! Fast-forward to the <grid_points> tag
          REWIND (iunit)
          DO
             READ (iunit, '(A)', IOSTAT=ierr) line
@@ -502,8 +508,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! Setup Grid Blocking
-      ! Right now using 256
       chunk_size = max_elements_per_block
 
       ! Extract environment variables
@@ -759,15 +763,13 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_grid_idx, row_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_phi, col_dist_ri, r_blk_sizes, &
                                                             ri_blk_sizes, row_dist_grid
-      LOGICAL                                            :: use_uniform_cutoff
-      REAL(KIND=dp)                                      :: cutoff_ri, d_sP, dist, inv_sqrt2, &
-                                                            r_AO_pair, r2_threshold, t1, &
-                                                            user_cutoff, r_RI_P
-      REAL(KIND=dp), ALLOCATABLE                         :: cutoff_ri_per_kind(:)                                                      
+      REAL(KIND=dp)                                      :: cutoff_ri, d_sP, dist, r_c, &
+                                                            r2_threshold, t1
+      REAL(KIND=dp), ALLOCATABLE                         :: cutoff_ri_per_kind(:)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_atom, d_vec_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: D_local, d_lp_local, phi_local, &
                                                             sphere_grid, Z_blk
-      REAL(KIND=dp), DIMENSION(3)                        :: pos_P, pos_PP
+      REAL(KIND=dp), DIMENSION(3)                        :: pos_P
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_b, fm_struct_D
@@ -782,14 +784,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
-
-      ! Restrict integration domain to a localized sphere around each atom P.
-      ! Default (CUTOFF_RADIUS_RI_RS = -1.0): per-atom cutoff = spatial extent of
-      ! the most diffuse RI-aux Gaussian on atom P.
-      ! User override (CUTOFF_RADIUS_RI_RS > 0): uniform sphere of that radius
-      ! across every atom P, intended for convergence sweeps.
-      user_cutoff = bs_env%ri_rs%cutoff_radius_ri_rs
-      use_uniform_cutoff = (user_cutoff > 0.0_dp)
 
       t1 = m_walltime()
 
@@ -872,40 +866,24 @@ CONTAINS
          END DO
          max_loc_ri = MAXVAL(ri_blk_sizes)
 
-         ! Precompute the dynamic per-atom RI-RS sphere radius. The correct cutoff is
-         !
-         ! A grid point r_l contributes to d[l,P] only if two conditions hold
-         ! simultaneously:
-         !   (a) some AO pair Φ_µ Φ_ν on atom j is non-negligible at r_l:
-         !       d(r_l, j) ≲ r_AO(j)/√2
-         !       (pair density exp(−2α r²) decays √2 faster than a single Gaussian,
-         !       so its radius at the same eps threshold is r_AO/√2)
-         !   (b) the RI function on P overlaps that pair density 
-         !       d(P, j) ≤ r_AO(j)/√2 + r_RI(P)
-         !
-         ! Condition (b) lets us CYCLE over atoms j that cannot possibly contribute.
-         ! The cutoff for atom P is then:
-         !
-         !   cutoff_ri(P) = max over reachable j of [ d(P,j) + r_AO(j)/√2 ]
-         !
-         ! where "reachable" means condition (b) is satisfied.
+         ! Per-atom RI-RS integration sphere:
+         !   cutoff_ri(P) = r_c + r_AO(P)
+         ! where r_c is the truncated-Coulomb cutoff of the RI metric. The
+         ! CUTOFF_RADIUS_RI_RS keyword (when > 0) overrides r_c for convergence
+         ! sweeps; otherwise we fall back to CUTOFF_RADIUS_RI from the GW section
+         ! (the same r_c used to build the RI metric integrals).
+         IF (bs_env%ri_rs%cutoff_radius_ri_rs > 0.0_dp) THEN
+            r_c = bs_env%ri_rs%cutoff_radius_ri_rs
+         ELSE
+            r_c = bs_env%ri_metric%cutoff_radius
+         END IF
          nkind = SIZE(atomic_kind_set)
          ALLOCATE (cutoff_ri_per_kind(nkind))
          cutoff_ri_per_kind(:) = 0.0_dp
          ALLOCATE (cutoff_ri_per_atom(natom))
-         inv_sqrt2 = 1.0_dp/SQRT(2.0_dp)
          DO P_loop_atom = 1, natom
-            cutoff_ri_per_atom(P_loop_atom) = 0.0_dp
-            pos_PP(:) = particle_set(P_loop_atom)%r(:)
-            r_RI_P = bs_env%ri_rs%radius_ri_per_atom(P_loop_atom)
-            DO source_atom = 1, natom
-               d_sP = NORM2(particle_set(source_atom)%r(:) - pos_PP(:))
-               r_AO_pair = bs_env%ri_rs%radius_ao_per_atom(source_atom)*inv_sqrt2
-               ! Skip j whose pair density cannot overlap the RI function on P
-               IF (d_sP > r_AO_pair + r_RI_P) CYCLE
-               cutoff_ri_per_atom(P_loop_atom) = &
-                  MAX(cutoff_ri_per_atom(P_loop_atom), d_sP + r_AO_pair)
-            END DO
+            cutoff_ri_per_atom(P_loop_atom) = &
+               r_c + bs_env%ri_rs%radius_ao_per_atom(P_loop_atom)
          END DO
 
          IF (bs_env%unit_nr > 0) THEN
@@ -945,11 +923,7 @@ CONTAINS
             n_loc_ri = ri_blk_sizes(atom_P)
             pos_P(:) = particle_set(atom_P)%r(:)
 
-            IF (use_uniform_cutoff) THEN
-               cutoff_ri = user_cutoff
-            ELSE
-               cutoff_ri = cutoff_ri_per_atom(atom_P)
-            END IF
+            cutoff_ri = cutoff_ri_per_atom(atom_P)
 
             ! ---------------------------------------------------------------------
             ! A. Determine Local Grid Domain based on cutoff_ri
@@ -976,9 +950,8 @@ CONTAINS
             ! ---------------------------------------------------------------------
             ! Copy the local sphere coordinates into a contiguous buffer for
             ! fill_phi_for_atom. Only source atoms whose AO basis can reach the
-            ! sphere of atom_P contribute; the others are pruned by the triangle
-            ! inequality using the per-atom radii precomputed in
-            ! precompute_ri_rs_radii.
+            ! sphere of atom_P contribute; the others are pruned by the inequality 
+            ! using the per-atom radii precomputed in precompute_ri_rs_radii.
             ALLOCATE (sphere_grid(3, n_local_grid))
             DO loc_idx = 1, n_local_grid
                sphere_grid(:, loc_idx) = ri_rs_grid_points(:, local_grid_idx(loc_idx))
@@ -1077,7 +1050,7 @@ CONTAINS
             END IF
 
             ! ---------------------------------------------------------------------
-            ! E. Pre-scale d_lp by d_vec (common to both paths)
+            ! E. Pre-scale d_lp by d_vec
             ! ---------------------------------------------------------------------
             !$OMP PARALLEL DO DEFAULT(NONE) &
             !$OMP SHARED(n_loc_ri, n_local_grid, d_lp_local, d_vec_local) &
@@ -1200,9 +1173,8 @@ CONTAINS
 !> \brief Computes the dense localized RHS d_lp(l,P) = Σ_{μν} Φ_μ(r_l)·Φ_ν(r_l)·(μν|P) for one
 !>        RI atom P, OMP-threaded over (atom_j, atom_k) AO-pair blocks: per thread, build the 3c
 !>        block, then contract grid-chunked pair densities into a private d_lp partial; partials
-!>        are reduced into d_lp at the end (accumulation order differs from serial at eps level).
+!>        are reduced into d_lp at the end.
 !>        Pair screening is handled inside build_3c_integral_block_ctx via the `screened` output,
-!>        which uses CP2K's canonical basis kind_radius — no outer (j,P)/(k,P)/(j,k) guards needed.
 !> \param bs_env ...
 !> \param ctx shared 3c-integral context (gw_3c_ctx_create)
 !> \param phi_val Φ_μ(r_l) on the local-sphere grid (n_grid_total × n_ao)
@@ -1237,11 +1209,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-!$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(bs_env, ctx, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size, &
-!$OMP        atom_j_mepos, atom_j_stride) &
-!$OMP PRIVATE(atom_j, atom_k, c, j, jk_idx, jsize, jstart, k, ksize, kstart, l, l0, ri, &
-!$OMP         screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, ws)
+      !$OMP PARALLEL DEFAULT(NONE) &
+      !$OMP SHARED(bs_env, ctx, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size, &
+      !$OMP        atom_j_mepos, atom_j_stride) &
+      !$OMP PRIVATE(atom_j, atom_k, c, j, jk_idx, jsize, jstart, k, ksize, kstart, l, l0, ri, &
+      !$OMP         screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, ws)
 
       CALL gw_3c_ws_create(ws, ctx)
       ALLOCATE (int_3c_prv(max_ao_size, max_ao_size, n_loc_ri))
@@ -1255,7 +1227,7 @@ CONTAINS
       ! atom_k while the outer atom_j carries the MPI stride. COLLAPSE(2) is
       ! dropped because the outer stride is non-unit under ScaLAPACK; for
       ! typical natom the inner loop has plenty of work for DYNAMIC.
-!$OMP DO SCHEDULE(DYNAMIC)
+      !$OMP DO SCHEDULE(DYNAMIC)
       DO atom_j = atom_j_mepos + 1, SIZE(bs_env%i_ao_start_from_atom), atom_j_stride
          DO atom_k = 1, SIZE(bs_env%i_ao_start_from_atom)
             jstart = bs_env%i_ao_start_from_atom(atom_j)
@@ -1303,24 +1275,191 @@ CONTAINS
             END DO
          END DO
       END DO
-!$OMP END DO
+      !$OMP END DO
 
-!$OMP CRITICAL (compute_d_lp_reduce)
+      !$OMP CRITICAL (compute_d_lp_reduce)
       d_lp(1:n_grid_total, 1:n_loc_ri) = d_lp(1:n_grid_total, 1:n_loc_ri) + &
                                          d_lp_prv(1:n_grid_total, 1:n_loc_ri)
-!$OMP END CRITICAL (compute_d_lp_reduce)
+      !$OMP END CRITICAL (compute_d_lp_reduce)
 
       DEALLOCATE (int_3c_prv, int_2d_prv, rho_chunk, d_lp_prv)
       CALL gw_3c_ws_release(ws)
 
-!$OMP END PARALLEL
+      !$OMP END PARALLEL
 
       CALL timestop(handle)
 
    END SUBROUTINE compute_d_lp
 
 ! **************************************************************************************************
-!> \brief Computes the χ(iτ, k=0) matrix
+!> \brief Distributed pdpotrf/pdpotrs solve of D x = b for one atom of the
+!>        RI-RS Z_lP build. Called when N_PROCS_PER_ATOM_Z_LP > 1, with a
+!>        subgroup of cooperating ranks and an associated BLACS context.
+!>        Each rank in the subgroup holds the (replicated) phi_local and the
+!>        (replicated) RHS d_lp; it builds its own block-cyclic slice of the
+!>        squared+Jacobi-scaled Gram matrix D via tiled DGEMM, factorizes via
+!>        pdpotrf (cp_fm_cholesky_decompose, UPLO='U'), and solves with a
+!>        direct pdpotrs call. The replicated d_lp is updated in place via
+!>        cp_fm_get_submatrix.
+!> \param phi_local   replicated (n_loc x n_ao) AO values on the sphere grid
+!> \param d_vec       replicated Jacobi diagonal = 1 / ||phi_i||^2
+!> \param d_lp        replicated RHS in/out (n_loc x n_rhs); on input pre-scaled
+!>                    by d_vec, on output also pre-scaled (caller post-scales)
+!> \param n_loc       number of sphere-local grid points
+!> \param n_ao        number of AO basis functions
+!> \param n_rhs       number of RI functions of this atom_P (RHS columns)
+!> \param tikhonov    regularisation added to the diagonal
+!> \param para_env_sub  sub-communicator of the atom-group
+!> \param blacs_env_sub BLACS context on the sub-communicator
+!> \param fm_struct_D, fm_struct_b  scratch FM struct handles (created+released here)
+!> \param fm_D, fm_b                scratch FM matrices (created+released here)
+!> \param info        0 on success, non-zero if pdpotrf or pdpotrs failed
+! **************************************************************************************************
+   SUBROUTINE solve_D_lp_distributed(phi_local, d_vec, d_lp, n_loc, n_ao, n_rhs, &
+                                     tikhonov, para_env_sub, blacs_env_sub, &
+                                     fm_struct_D, fm_struct_b, fm_D, fm_b, info)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_local
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: d_vec
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: d_lp
+      INTEGER, INTENT(IN)                                :: n_loc, n_ao, n_rhs
+      REAL(KIND=dp), INTENT(IN)                          :: tikhonov
+      TYPE(mp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_D, fm_struct_b
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_D, fm_b
+      INTEGER, INTENT(OUT)                               :: info
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_D_lp_distributed'
+
+      INTEGER                                            :: handle, i_loc, ig, j_loc, jg, &
+                                                            ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
+#if defined(__parallel)
+      INTEGER                                            :: scalapack_info
+      INTEGER, DIMENSION(9)                              :: desc_b, desc_D
+#endif
+
+      CALL timeset(routineN, handle)
+      info = 0
+
+      NULLIFY (fm_struct_D, fm_struct_b)
+      CALL cp_fm_struct_create(fm_struct_D, para_env=para_env_sub, &
+                               context=blacs_env_sub, &
+                               nrow_global=n_loc, ncol_global=n_loc)
+      CALL cp_fm_struct_create(fm_struct_b, para_env=para_env_sub, &
+                               context=blacs_env_sub, &
+                               nrow_global=n_loc, ncol_global=n_rhs)
+      CALL cp_fm_create(fm_D, fm_struct_D)
+      CALL cp_fm_create(fm_b, fm_struct_b)
+
+      ! ---- Build the local block-cyclic slice of fm_D --------------------
+      ! Tiled DGEMM build: for each (row_tile x col_tile) sub-block we
+      ! gather small phi strips, DGEMM into a small gram tile, then write
+      ! the squared & d_vec-scaled result directly into fm_D%local_data.
+      ! This avoids materialising the full (nrow_local x n_ao),
+      ! (n_ao x ncol_local), and (nrow_local x ncol_local) buffers.
+      CALL cp_fm_get_info(fm_D, nrow_local=nrow_local, ncol_local=ncol_local, &
+                          row_indices=row_indices, col_indices=col_indices, &
+                          local_data=local_data)
+
+      IF (nrow_local > 0 .AND. ncol_local > 0) THEN
+         BLOCK
+            INTEGER, PARAMETER :: ntile = 1024
+            INTEGER :: ib, ie, jb, je, mb, kb, ti, tj
+            REAL(KIND=dp), ALLOCATABLE :: gram_t(:, :), phi_cols_t(:, :), phi_rows_t(:, :)
+            ALLOCATE (phi_rows_t(ntile, n_ao), phi_cols_t(n_ao, ntile), gram_t(ntile, ntile))
+            DO ib = 1, nrow_local, ntile
+               ie = MIN(ib + ntile - 1, nrow_local)
+               mb = ie - ib + 1
+               !$OMP PARALLEL DO DEFAULT(NONE) &
+               !$OMP SHARED(mb, n_ao, phi_rows_t, phi_local, row_indices, ib) &
+               !$OMP PRIVATE(ti, j_loc) SCHEDULE(STATIC)
+               DO j_loc = 1, n_ao
+                  DO ti = 1, mb
+                     phi_rows_t(ti, j_loc) = phi_local(row_indices(ib + ti - 1), j_loc)
+                  END DO
+               END DO
+               !$OMP END PARALLEL DO
+               DO jb = 1, ncol_local, ntile
+                  je = MIN(jb + ntile - 1, ncol_local)
+                  kb = je - jb + 1
+                  !$OMP PARALLEL DO DEFAULT(NONE) &
+                  !$OMP SHARED(kb, n_ao, phi_cols_t, phi_local, col_indices, jb) &
+                  !$OMP PRIVATE(tj, i_loc) SCHEDULE(STATIC)
+                  DO tj = 1, kb
+                     DO i_loc = 1, n_ao
+                        phi_cols_t(i_loc, tj) = phi_local(col_indices(jb + tj - 1), i_loc)
+                     END DO
+                  END DO
+                  !$OMP END PARALLEL DO
+                  CALL dgemm('N', 'N', mb, kb, n_ao, &
+                             1.0_dp, phi_rows_t, ntile, phi_cols_t, n_ao, &
+                             0.0_dp, gram_t, ntile)
+                  !$OMP PARALLEL DO DEFAULT(NONE) &
+                  !$OMP SHARED(mb, kb, gram_t, d_vec, row_indices, col_indices, ib, jb) &
+                  !$OMP SHARED(local_data, tikhonov) &
+                  !$OMP PRIVATE(ti, tj, ig, jg) SCHEDULE(STATIC)
+                  DO tj = 1, kb
+                     jg = col_indices(jb + tj - 1)
+                     DO ti = 1, mb
+                        ig = row_indices(ib + ti - 1)
+                        local_data(ib + ti - 1, jb + tj - 1) = &
+                           gram_t(ti, tj)*gram_t(ti, tj)*d_vec(ig)*d_vec(jg)
+                        IF (ig == jg) THEN
+                           local_data(ib + ti - 1, jb + tj - 1) = &
+                              local_data(ib + ti - 1, jb + tj - 1) + tikhonov
+                        END IF
+                     END DO
+                  END DO
+                  !$OMP END PARALLEL DO
+               END DO
+            END DO
+            DEALLOCATE (phi_rows_t, phi_cols_t, gram_t)
+         END BLOCK
+      END IF
+
+      ! ---- Load the replicated d_lp into the block-cyclic fm_b -----------
+      CALL cp_fm_set_submatrix(fm_b, d_lp)
+
+      ! ---- pdpotrf (Cholesky factorisation; cp_fm_cholesky_decompose
+      !      factors with UPLO='U', so pdpotrs must match)
+      CALL cp_fm_cholesky_decompose(fm_D, n=n_loc, info_out=info)
+      IF (info /= 0) THEN
+         CPABORT("pdpotrf failed in solve_D_lp_distributed")
+      END IF
+
+      ! ---- pdpotrs (solve in place on fm_b) ------------------------------
+#if defined(__parallel)
+      desc_D(:) = fm_D%matrix_struct%descriptor(:)
+      desc_b(:) = fm_b%matrix_struct%descriptor(:)
+      CALL pdpotrs('U', n_loc, n_rhs, fm_D%local_data, 1, 1, desc_D, &
+                   fm_b%local_data, 1, 1, desc_b, scalapack_info)
+      info = scalapack_info
+#else
+      CALL dpotrs('U', n_loc, n_rhs, fm_D%local_data, n_loc, &
+                  fm_b%local_data, n_loc, info)
+#endif
+      IF (info /= 0) THEN
+         CPABORT("pdpotrs failed in solve_D_lp_distributed")
+      END IF
+
+      ! ---- Gather distributed solution back into the replicated d_lp ----
+      CALL cp_fm_get_submatrix(fm_b, d_lp)
+
+      CALL cp_fm_release(fm_D)
+      CALL cp_fm_release(fm_b)
+      CALL cp_fm_struct_release(fm_struct_D)
+      CALL cp_fm_struct_release(fm_struct_b)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE solve_D_lp_distributed   
+
+! **************************************************************************************************
+!> \brief Computes the χ(iτ) matrix
 !> \param bs_env ...
 !> \param mat_chi_Gamma_tau ...
 !> \param mat_phi_mu_l ...
@@ -1382,20 +1521,20 @@ CONTAINS
          ! ----------------------------------------------------------------------
          DO ispin = 1, bs_env%n_spin
 
-            ! G^occ_µλ(i|τ|,k=0) = sum_n^occ C_µn(k=0) e^(-|(ϵ_nk=0-ϵ_F)τ|) C_λn(k=0)
-            ! G^occ_ll'(i|τ|,k=0) = sum_µν Φ_µ(r_l) G^occ_µν Φ_ν(r_l')
+            ! G^occ_µλ(i|τ|) = sum_n^occ C_µn e^(-|(ϵ_n-ϵ_F)τ|) C_λn
+            ! G^occ_ll'(i|τ|) = sum_µν Φ_µ(r_l) G^occ_µν Φ_ν(r_l')
             CALL build_G_grid(bs_env, tau, ispin, .TRUE., .FALSE., mat_phi_mu_l, &
                               matrix_G_occ_grid, bs_env%eps_filter)
 
-            ! G^vir_µλ(i|τ|,k=0) = sum_n^vir C_µn(k=0) e^(-|(ϵ_nk=0-ϵ_F)τ|) C_λn(k=0)
-            ! G^vir_ll'(i|τ|,k=0) = sum_µν Φ_µ(r_l) G^vir_µν Φ_ν(r_l')
+            ! G^vir_µλ(i|τ|) = sum_n^vir C_µn e^(-|(ϵ_n-ϵ_F)τ|) C_λn
+            ! G^vir_ll'(i|τ|) = sum_µν Φ_µ(r_l) G^vir_µν Φ_ν(r_l')
             CALL build_G_grid(bs_env, tau, ispin, .FALSE., .TRUE., mat_phi_mu_l, &
                               matrix_G_vir_grid, bs_env%eps_filter)
 
             ! -------------------------------------------------------------------
             ! B. ELEMENT-WISE HADAMARD PRODUCT
             ! -------------------------------------------------------------------
-            ! χ_ll'(iτ,k=0) = G^occ_ll'(i|τ|,k=0) * G^vir_ll'(i|τ|,k=0)
+            ! χ_ll'(iτ) = G^occ_ll'(i|τ|) * G^vir_ll'(i|τ|)
             CALL hadamard_product(matrix_G_occ_grid, matrix_G_vir_grid, matrix_chi_grid_spin, bs_env%spin_degeneracy)
 
             ! Accumulate spin contributions
@@ -1406,8 +1545,8 @@ CONTAINS
          ! ----------------------------------------------------------------------
          ! C. TRANSFORM TO AUXILIARY BASIS & EXPORT DIRECTLY
          ! χ_aux        = Z^T * χ_grid * Z
-         ! χ_PQ(iτ,k=0) = sum_ll' Z_lP χ_ll'(iτ,k=0) Z_l'Q
-         ! Result is dumped directly into the final array mat_chi_Gamma_tau!
+         ! χ_PQ(iτ) = sum_ll' Z_lP χ_ll'(iτ) Z_l'Q
+         ! Result is dumped into the final array mat_chi_Gamma_tau!
          ! ----------------------------------------------------------------------
          CALL contract_A_B_A("T", "N", mat_Z_lP, matrix_chi_grid, &
                              mat_chi_Gamma_tau(i_t)%matrix, bs_env%eps_filter)
@@ -1467,7 +1606,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! 1. Select the correct FM matrix based on occ/vir flags
+      ! 1. Select the FM matrix based on occ/vir flags
       IF (occ) THEN
          fm_G => bs_env%fm_Gocc
       ELSE
@@ -1475,7 +1614,7 @@ CONTAINS
       END IF
 
       ! 2. Compute Dense FM Green's Function
-      ! G^occ/vir_µλ(i|τ|,k=0) = sum_G^occ/vir_µλn^occ/vir C_µn(k=0) e^(-|(ϵ_nk=0-ϵ_F)τ|) C_λn(k=0)
+      ! G^occ/vir_µλ(i|τ|) = sum_G^occ/vir_µλn^occ/vir C_µn e^(-|(ϵ_n-ϵ_F)τ|) C_λn
       CALL G_occ_vir(bs_env, tau, fm_G, ispin, occ=occ, vir=vir)
 
       ! 3. Setup AO DBCSR Topology and Create Matrix dynamically
@@ -1489,7 +1628,7 @@ CONTAINS
       CALL copy_fm_to_dbcsr(fm_G, matrix_G_ao, keep_sparsity=.FALSE.)
 
       ! 5. Transform to Grid Basis: G_grid = phi * G_ao * phi^T
-      ! G^occ/vir_ll'(i|τ|,k=0) = sum_µν Φ_µ(r_l) G^occ/vir_µν Φ_ν(r_l')
+      ! G^occ/vir_ll'(i|τ|) = sum_µν Φ_µ(r_l) G^occ/vir_µν Φ_ν(r_l')
       CALL contract_A_B_A("N", "T", mat_phi_mu_l, matrix_G_ao, matrix_G_grid, eps_filter)
 
       ! 6. Release AO matrix and topology
@@ -2001,7 +2140,7 @@ CONTAINS
       DO ispin = 1, bs_env%n_spin
 
          ! Density matrix on grid is essentially G_occ at tau = 0.0
-         ! D_µν  = sum_n^occ C_µn(k=0) C_νn(k=0)
+         ! D_µν  = sum_n^occ C_µn C_νn
          ! D_ll' = sum_µν Φ_µ(r_l) D_µν Φ_ν(r_l')
          CALL dbcsr_create(matrix_D_grid, "D_grid", dist_grid_grid, dbcsr_type_no_symmetry, blk_grid, blk_grid)
          CALL build_G_grid(bs_env, 0.0_dp, ispin, .TRUE., .FALSE., mat_phi_mu_l, matrix_D_grid, bs_env%eps_filter)
@@ -2014,7 +2153,7 @@ CONTAINS
          CALL dbcsr_release(matrix_D_grid)
 
          ! Transform back to AO basis: Σ^x_ao = -1.0 * phi^T * Σ^x_grid * phi
-         ! Σ^x_λσ(k=0)   = -sum_ll' Φ_λ(r_l) Σ^x_ll' Φ_σ(r_l')
+         ! Σ^x_λσ   = -sum_ll' Φ_λ(r_l) Σ^x_ll' Φ_σ(r_l')
          CALL contract_A_B_A("T", "N", mat_phi_mu_l, matrix_Sigma_x_grid, mat_Sigma_x_Gamma, bs_env%eps_filter)
          CALL dbcsr_scale(mat_Sigma_x_Gamma, -1.0_dp)
 
@@ -2121,12 +2260,12 @@ CONTAINS
             CALL dbcsr_create(matrix_G_occ_grid, "G_occ_grid", dist_grid_grid, dbcsr_type_no_symmetry, blk_grid, blk_grid)
             CALL dbcsr_create(matrix_G_vir_grid, "G_vir_grid", dist_grid_grid, dbcsr_type_no_symmetry, blk_grid, blk_grid)
 
-            ! G^occ_µλ(i|τ|,k=0) = sum_G^occ_µλn^occ C_µn(k=0) e^(-|(ϵ_nk=0-ϵ_F)τ|) C_λn(k=0)
-            ! G^occ_ll'(i|τ|,k=0) = sum_µν Φ_µ(r_l) G^occ_µν Φ_ν(r_l')
+            ! G^occ_µλ(i|τ|) = sum_G^occ_µλn^occ C_µn e^(-|(ϵ_n-ϵ_F)τ|) C_λn
+            ! G^occ_ll'(i|τ|) = sum_µν Φ_µ(r_l) G^occ_µν Φ_ν(r_l')
             CALL build_G_grid(bs_env, tau, ispin, .TRUE., .FALSE., mat_phi_mu_l, matrix_G_occ_grid, bs_env%eps_filter)
 
-            ! G^vir_µλ(i|τ|,k=0) = sum_n^vir C_µn(k=0) e^(-|(ϵ_nk=0-ϵ_F)τ|) C_λn(k=0)
-            ! G^vir_ll'(i|τ|,k=0) = sum_µν Φ_µ(r_l) G^vir_µν Φ_ν(r_l')
+            ! G^vir_µλ(i|τ|) = sum_n^vir C_µn e^(-|(ϵ_n-ϵ_F)τ|) C_λn
+            ! G^vir_ll'(i|τ|) = sum_µν Φ_µ(r_l) G^vir_µν Φ_ν(r_l')
             CALL build_G_grid(bs_env, tau, ispin, .FALSE., .TRUE., mat_phi_mu_l, matrix_G_vir_grid, bs_env%eps_filter)
 
             ! -------------------------------------------------------------------
@@ -2137,10 +2276,10 @@ CONTAINS
             CALL dbcsr_create(matrix_Sigma_neg_grid, template=matrix_W_grid)
             CALL dbcsr_create(matrix_Sigma_pos_grid, template=matrix_W_grid)
 
-            ! Σ^c_ll'(iτ,k=0)   = -G^occ_ll'(i|τ|,k=0) * W^MIC_ll'(iτ,k=0), for τ < 0
+            ! Σ^c_ll'(iτ)   = -G^occ_ll'(i|τ|) * W^MIC_ll'(iτ), for τ < 0
             CALL hadamard_product(matrix_G_occ_grid, matrix_W_grid, matrix_Sigma_neg_grid, 1.0_dp)
 
-            ! Σ^c_ll'(iτ,k=0)   =  G^vir_ll'(i|τ|,k=0) * W^MIC_ll'(iτ,k=0), for τ > 0
+            ! Σ^c_ll'(iτ)   =  G^vir_ll'(i|τ|) * W^MIC_ll'(iτ), for τ > 0
             CALL hadamard_product(matrix_G_vir_grid, matrix_W_grid, matrix_Sigma_pos_grid, 1.0_dp)
 
             ! Instantly purge massive G_grid arrays to save memory
@@ -2152,12 +2291,12 @@ CONTAINS
             ! Σ_AO = phi^T * Σ_grid * phi
             ! -------------------------------------------------------------------
 
-            ! Σ^c_λσ(iτ,k=0)    = sum_ll' Φ_λ(r_l) Σ^c_ll'(iτ,k=0) Φ_σ(r_l'), for τ < 0
+            ! Σ^c_λσ(iτ)    = sum_ll' Φ_λ(r_l) Σ^c_ll'(iτ) Φ_σ(r_l'), for τ < 0
             CALL contract_A_B_A("T", "N", mat_phi_mu_l, matrix_Sigma_neg_grid, &
                                 mat_Sigma_neg_tau(i_t, ispin)%matrix, bs_env%eps_filter)
             CALL dbcsr_scale(mat_Sigma_neg_tau(i_t, ispin)%matrix, -1.0_dp)
 
-            ! Σ^c_λσ(iτ,k=0)    = sum_ll' Φ_λ(r_l) Σ^c_ll'(iτ,k=0) Φ_σ(r_l'), for τ > 0
+            ! Σ^c_λσ(iτ)    = sum_ll' Φ_λ(r_l) Σ^c_ll'(iτ) Φ_σ(r_l'), for τ > 0
             CALL contract_A_B_A("T", "N", mat_phi_mu_l, matrix_Sigma_pos_grid, &
                                 mat_Sigma_pos_tau(i_t, ispin)%matrix, bs_env%eps_filter)
 
@@ -2167,7 +2306,7 @@ CONTAINS
 
             IF (bs_env%unit_nr > 0) THEN
                WRITE (bs_env%unit_nr, '(T2,A,I10,A,I3,A,F7.1,A)') &
-                  'Computed Σ^c(iτ,k=0) for time point ', i_t, ' /', bs_env%num_time_freq_points, &
+                  'Computed Σ^c(iτ) for time point ', i_t, ' /', bs_env%num_time_freq_points, &
                   ',    Execution time', m_walltime() - t1, ' s'
             END IF
 
@@ -2279,172 +2418,5 @@ CONTAINS
       IF (PRESENT(m4)) CALL dbcsr_release(m4)
 
    END SUBROUTINE release_dbcsr_topology_and_matrices
-
-! **************************************************************************************************
-!> \brief Distributed pdpotrf/pdpotrs solve of D x = b for one atom of the
-!>        RI-RS Z_lP build. Called when N_PROCS_PER_ATOM_Z_LP > 1, with a
-!>        subgroup of cooperating ranks and an associated BLACS context.
-!>        Each rank in the subgroup holds the (replicated) phi_local and the
-!>        (replicated) RHS d_lp; it builds its own block-cyclic slice of the
-!>        squared+Jacobi-scaled Gram matrix D via tiled DGEMM, factorizes via
-!>        pdpotrf (cp_fm_cholesky_decompose, UPLO='U'), and solves with a
-!>        direct pdpotrs call. The replicated d_lp is updated in place via
-!>        cp_fm_get_submatrix.
-!> \param phi_local   replicated (n_loc x n_ao) AO values on the sphere grid
-!> \param d_vec       replicated Jacobi diagonal = 1 / ||phi_i||^2
-!> \param d_lp        replicated RHS in/out (n_loc x n_rhs); on input pre-scaled
-!>                    by d_vec, on output also pre-scaled (caller post-scales)
-!> \param n_loc       number of sphere-local grid points
-!> \param n_ao        number of AO basis functions
-!> \param n_rhs       number of RI functions of this atom_P (RHS columns)
-!> \param tikhonov    regularisation added to the diagonal
-!> \param para_env_sub  sub-communicator of the atom-group
-!> \param blacs_env_sub BLACS context on the sub-communicator
-!> \param fm_struct_D, fm_struct_b  scratch FM struct handles (created+released here)
-!> \param fm_D, fm_b                scratch FM matrices (created+released here)
-!> \param info        0 on success, non-zero if pdpotrf or pdpotrs failed
-! **************************************************************************************************
-   SUBROUTINE solve_D_lp_distributed(phi_local, d_vec, d_lp, n_loc, n_ao, n_rhs, &
-                                     tikhonov, para_env_sub, blacs_env_sub, &
-                                     fm_struct_D, fm_struct_b, fm_D, fm_b, info)
-
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_local
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: d_vec
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: d_lp
-      INTEGER, INTENT(IN)                                :: n_loc, n_ao, n_rhs
-      REAL(KIND=dp), INTENT(IN)                          :: tikhonov
-      TYPE(mp_para_env_type), POINTER                    :: para_env_sub
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_D, fm_struct_b
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_D, fm_b
-      INTEGER, INTENT(OUT)                               :: info
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_D_lp_distributed'
-
-      INTEGER                                            :: handle, i_loc, ig, j_loc, jg, &
-                                                            ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: local_data
-#if defined(__parallel)
-      INTEGER                                            :: scalapack_info
-      INTEGER, DIMENSION(9)                              :: desc_b, desc_D
-#endif
-
-      CALL timeset(routineN, handle)
-      info = 0
-
-      NULLIFY (fm_struct_D, fm_struct_b)
-      CALL cp_fm_struct_create(fm_struct_D, para_env=para_env_sub, &
-                               context=blacs_env_sub, &
-                               nrow_global=n_loc, ncol_global=n_loc)
-      CALL cp_fm_struct_create(fm_struct_b, para_env=para_env_sub, &
-                               context=blacs_env_sub, &
-                               nrow_global=n_loc, ncol_global=n_rhs)
-      CALL cp_fm_create(fm_D, fm_struct_D)
-      CALL cp_fm_create(fm_b, fm_struct_b)
-
-      ! ---- Build the local block-cyclic slice of fm_D --------------------
-      ! Tiled DGEMM build: for each (row_tile x col_tile) sub-block we
-      ! gather small phi strips, DGEMM into a small gram tile, then write
-      ! the squared & d_vec-scaled result directly into fm_D%local_data.
-      ! This avoids materialising the full (nrow_local x n_ao),
-      ! (n_ao x ncol_local), and (nrow_local x ncol_local) buffers.
-      CALL cp_fm_get_info(fm_D, nrow_local=nrow_local, ncol_local=ncol_local, &
-                          row_indices=row_indices, col_indices=col_indices, &
-                          local_data=local_data)
-
-      IF (nrow_local > 0 .AND. ncol_local > 0) THEN
-         BLOCK
-            INTEGER, PARAMETER :: ntile = 1024
-            INTEGER :: ib, ie, jb, je, mb, kb, ti, tj
-            REAL(KIND=dp), ALLOCATABLE :: gram_t(:, :), phi_cols_t(:, :), phi_rows_t(:, :)
-            ALLOCATE (phi_rows_t(ntile, n_ao), phi_cols_t(n_ao, ntile), gram_t(ntile, ntile))
-            DO ib = 1, nrow_local, ntile
-               ie = MIN(ib + ntile - 1, nrow_local)
-               mb = ie - ib + 1
-               !$OMP PARALLEL DO DEFAULT(NONE) &
-               !$OMP SHARED(mb, n_ao, phi_rows_t, phi_local, row_indices, ib) &
-               !$OMP PRIVATE(ti, j_loc) SCHEDULE(STATIC)
-               DO j_loc = 1, n_ao
-                  DO ti = 1, mb
-                     phi_rows_t(ti, j_loc) = phi_local(row_indices(ib + ti - 1), j_loc)
-                  END DO
-               END DO
-               !$OMP END PARALLEL DO
-               DO jb = 1, ncol_local, ntile
-                  je = MIN(jb + ntile - 1, ncol_local)
-                  kb = je - jb + 1
-                  !$OMP PARALLEL DO DEFAULT(NONE) &
-                  !$OMP SHARED(kb, n_ao, phi_cols_t, phi_local, col_indices, jb) &
-                  !$OMP PRIVATE(tj, i_loc) SCHEDULE(STATIC)
-                  DO tj = 1, kb
-                     DO i_loc = 1, n_ao
-                        phi_cols_t(i_loc, tj) = phi_local(col_indices(jb + tj - 1), i_loc)
-                     END DO
-                  END DO
-                  !$OMP END PARALLEL DO
-                  CALL dgemm('N', 'N', mb, kb, n_ao, &
-                             1.0_dp, phi_rows_t, ntile, phi_cols_t, n_ao, &
-                             0.0_dp, gram_t, ntile)
-                  !$OMP PARALLEL DO DEFAULT(NONE) &
-                  !$OMP SHARED(mb, kb, gram_t, d_vec, row_indices, col_indices, ib, jb) &
-                  !$OMP SHARED(local_data, tikhonov) &
-                  !$OMP PRIVATE(ti, tj, ig, jg) SCHEDULE(STATIC)
-                  DO tj = 1, kb
-                     jg = col_indices(jb + tj - 1)
-                     DO ti = 1, mb
-                        ig = row_indices(ib + ti - 1)
-                        local_data(ib + ti - 1, jb + tj - 1) = &
-                           gram_t(ti, tj)*gram_t(ti, tj)*d_vec(ig)*d_vec(jg)
-                        IF (ig == jg) THEN
-                           local_data(ib + ti - 1, jb + tj - 1) = &
-                              local_data(ib + ti - 1, jb + tj - 1) + tikhonov
-                        END IF
-                     END DO
-                  END DO
-                  !$OMP END PARALLEL DO
-               END DO
-            END DO
-            DEALLOCATE (phi_rows_t, phi_cols_t, gram_t)
-         END BLOCK
-      END IF
-
-      ! ---- Load the replicated d_lp into the block-cyclic fm_b -----------
-      CALL cp_fm_set_submatrix(fm_b, d_lp)
-
-      ! ---- pdpotrf (Cholesky factorisation; cp_fm_cholesky_decompose
-      !      factors with UPLO='U', so pdpotrs must match)
-      CALL cp_fm_cholesky_decompose(fm_D, n=n_loc, info_out=info)
-      IF (info /= 0) THEN
-         CPABORT("pdpotrf failed in solve_D_lp_distributed")
-      END IF
-
-      ! ---- pdpotrs (solve in place on fm_b) ------------------------------
-#if defined(__parallel)
-      desc_D(:) = fm_D%matrix_struct%descriptor(:)
-      desc_b(:) = fm_b%matrix_struct%descriptor(:)
-      CALL pdpotrs('U', n_loc, n_rhs, fm_D%local_data, 1, 1, desc_D, &
-                   fm_b%local_data, 1, 1, desc_b, scalapack_info)
-      info = scalapack_info
-#else
-      CALL dpotrs('U', n_loc, n_rhs, fm_D%local_data, n_loc, &
-                  fm_b%local_data, n_loc, info)
-#endif
-      IF (info /= 0) THEN
-         CPABORT("pdpotrs failed in solve_D_lp_distributed")
-      END IF
-
-      ! ---- Gather distributed solution back into the replicated d_lp ----
-      CALL cp_fm_get_submatrix(fm_b, d_lp)
-
-      CALL cp_fm_release(fm_D)
-      CALL cp_fm_release(fm_b)
-      CALL cp_fm_struct_release(fm_struct_D)
-      CALL cp_fm_struct_release(fm_struct_b)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE solve_D_lp_distributed
 
 END MODULE gw_non_periodic_ri_rs
