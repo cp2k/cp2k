@@ -44,13 +44,6 @@ MODULE nnp_acsf
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'nnp_acsf'
 
-   ! Persistent radial sym-function spline tables, built once on the first
-   ! nnp_calc_acsf call from the per-(group, sf) eta/rs/cutoff and reused after.
-   ! Each radial group s holds dense tables spline_y(sf, i)/spline_dy(sf, i) of
-   !   y(r)  = EXP(-eta_sf*(r-rs_sf)^2)*fcut(r)  and  y'(r).
-   ! All SFs in a group share the cutoff, so nnp_calc_rad forms the Hermite basis
-   ! once and streams the sf-first tables. The knot count is set by RAD_SPLINE_N.
-
    ! Cutoff-equality tolerance for grouping symmetry functions in
    ! nnp_init_acsf_groups: SFs whose cutoffs agree to within this absolute
    ! tolerance share a group (and a spline grid).
@@ -257,7 +250,8 @@ CONTAINS
                      ! Inlined angular kernel: compute + scatter fused. The (j,k)
                      ! geometry is computed once, then the SF loop scatters sym
                      ! values and forces directly into self_dGdr / jj_buf / kk_buf,
-                     ! keeping per-triple scalars in registers. Identical to nnp_calc_ang.
+                     ! keeping per-triple scalars in registers. Inlined equivalent
+                     ! of nnp_calc_ang; the OMP path calls it directly.
                      IF (homo_grp) THEN
                         ASSOCIATE (jj_buf => workspace%dGdr_ang_jj(s)%data, &
                                    kk_buf => workspace%dGdr_ang_kk(s)%data, &
@@ -743,9 +737,14 @@ CONTAINS
          ! Each thread allocates its own PRIVATE scratch inside the parallel
          ! region: an ALLOCATABLE listed as PRIVATE enters unallocated per
          ! thread, so the ALLOCATE below gives each thread an independent slab.
-         ! DEFAULT(SHARED) (not NONE) keeps the OPTIONAL `stress` dummy out of
-         ! the data-sharing clauses; the PRESENT() guard alone gates its use.
-!$OMP PARALLEL DEFAULT(SHARED) &
+         ! Angular groups partition the SF index disjointly, so the shared
+         ! accumulators (self_dGdr, stress, nnp%ang%y, workspace dGdr) are written
+         ! race-free. workspace/neighbor are ASSOCIATE names that inherit the
+         ! data-sharing of their nnp selector; the OPTIONAL stress is SHARED and
+         ! gated by PRESENT().
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP          SHARED(nnp, ind, self_dGdr, off, stress, &
+!$OMP                 cache_cap_loc, max_ang_symf_loc) &
 !$OMP          PRIVATE(s, j, k, sf, m, l, n_symf_s, n_ang1_s, n_ang2_s, &
 !$OMP                  r1, r2, r3, r3_sqr, cutoff_s, cutoff_sqr, homo_grp, &
 !$OMP                  rvect1, rvect2, rvect3, &
@@ -770,8 +769,6 @@ CONTAINS
                                        nnp%cut_type, cutoff_s, fc_c1_loc, dfc_c1_loc)
 
             IF (homo_grp) THEN
-               ASSOCIATE (jj_buf => workspace%dGdr_ang_jj(s)%data, &
-                          kk_buf => workspace%dGdr_ang_kk(s)%data)
                DO j = 1, n_ang1_s
                   rvect1 = neighbor%ang1(s)%dist(1:3, j)
                   r1 = neighbor%ang1(s)%dist(4, j)
@@ -795,12 +792,12 @@ CONTAINS
                            self_dGdr(1, m) = self_dGdr(1, m) + force_loc(1, 1, sf)
                            self_dGdr(2, m) = self_dGdr(2, m) + force_loc(2, 1, sf)
                            self_dGdr(3, m) = self_dGdr(3, m) + force_loc(3, 1, sf)
-                           jj_buf(1, sf, j) = jj_buf(1, sf, j) + force_loc(1, 2, sf)
-                           jj_buf(2, sf, j) = jj_buf(2, sf, j) + force_loc(2, 2, sf)
-                           jj_buf(3, sf, j) = jj_buf(3, sf, j) + force_loc(3, 2, sf)
-                           kk_buf(1, sf, k) = kk_buf(1, sf, k) + force_loc(1, 3, sf)
-                           kk_buf(2, sf, k) = kk_buf(2, sf, k) + force_loc(2, 3, sf)
-                           kk_buf(3, sf, k) = kk_buf(3, sf, k) + force_loc(3, 3, sf)
+                           workspace%dGdr_ang_jj(s)%data(1, sf, j) = workspace%dGdr_ang_jj(s)%data(1, sf, j) + force_loc(1, 2, sf)
+                           workspace%dGdr_ang_jj(s)%data(2, sf, j) = workspace%dGdr_ang_jj(s)%data(2, sf, j) + force_loc(2, 2, sf)
+                           workspace%dGdr_ang_jj(s)%data(3, sf, j) = workspace%dGdr_ang_jj(s)%data(3, sf, j) + force_loc(3, 2, sf)
+                           workspace%dGdr_ang_kk(s)%data(1, sf, k) = workspace%dGdr_ang_kk(s)%data(1, sf, k) + force_loc(1, 3, sf)
+                           workspace%dGdr_ang_kk(s)%data(2, sf, k) = workspace%dGdr_ang_kk(s)%data(2, sf, k) + force_loc(2, 3, sf)
+                           workspace%dGdr_ang_kk(s)%data(3, sf, k) = workspace%dGdr_ang_kk(s)%data(3, sf, k) + force_loc(3, 3, sf)
                            IF (PRESENT(stress)) THEN
                               DO l = 1, 3
                                  stress(:, l, m) = stress(:, l, m) - rvect1(:)*force_loc(l, 2, sf)
@@ -812,14 +809,11 @@ CONTAINS
                      END IF
                   END DO
                END DO
-               END ASSOCIATE
             ELSE
                n_ang2_s = neighbor%n_ang2(s)
                CALL nnp_fill_fc_dfc_cache(neighbor%ang2(s)%dist, n_ang2_s, &
                                           nnp%cut_type, cutoff_s, fc_c2_loc, dfc_c2_loc)
 
-               ASSOCIATE (jj_buf => workspace%dGdr_ang_jj(s)%data, &
-                          kk_buf => workspace%dGdr_ang_kk(s)%data)
                DO j = 1, n_ang1_s
                   rvect1 = neighbor%ang1(s)%dist(1:3, j)
                   r1 = neighbor%ang1(s)%dist(4, j)
@@ -843,12 +837,12 @@ CONTAINS
                            self_dGdr(1, m) = self_dGdr(1, m) + force_loc(1, 1, sf)
                            self_dGdr(2, m) = self_dGdr(2, m) + force_loc(2, 1, sf)
                            self_dGdr(3, m) = self_dGdr(3, m) + force_loc(3, 1, sf)
-                           jj_buf(1, sf, j) = jj_buf(1, sf, j) + force_loc(1, 2, sf)
-                           jj_buf(2, sf, j) = jj_buf(2, sf, j) + force_loc(2, 2, sf)
-                           jj_buf(3, sf, j) = jj_buf(3, sf, j) + force_loc(3, 2, sf)
-                           kk_buf(1, sf, k) = kk_buf(1, sf, k) + force_loc(1, 3, sf)
-                           kk_buf(2, sf, k) = kk_buf(2, sf, k) + force_loc(2, 3, sf)
-                           kk_buf(3, sf, k) = kk_buf(3, sf, k) + force_loc(3, 3, sf)
+                           workspace%dGdr_ang_jj(s)%data(1, sf, j) = workspace%dGdr_ang_jj(s)%data(1, sf, j) + force_loc(1, 2, sf)
+                           workspace%dGdr_ang_jj(s)%data(2, sf, j) = workspace%dGdr_ang_jj(s)%data(2, sf, j) + force_loc(2, 2, sf)
+                           workspace%dGdr_ang_jj(s)%data(3, sf, j) = workspace%dGdr_ang_jj(s)%data(3, sf, j) + force_loc(3, 2, sf)
+                           workspace%dGdr_ang_kk(s)%data(1, sf, k) = workspace%dGdr_ang_kk(s)%data(1, sf, k) + force_loc(1, 3, sf)
+                           workspace%dGdr_ang_kk(s)%data(2, sf, k) = workspace%dGdr_ang_kk(s)%data(2, sf, k) + force_loc(2, 3, sf)
+                           workspace%dGdr_ang_kk(s)%data(3, sf, k) = workspace%dGdr_ang_kk(s)%data(3, sf, k) + force_loc(3, 3, sf)
                            IF (PRESENT(stress)) THEN
                               DO l = 1, 3
                                  stress(:, l, m) = stress(:, l, m) - rvect1(:)*force_loc(l, 2, sf)
@@ -860,7 +854,6 @@ CONTAINS
                      END IF
                   END DO
                END DO
-               END ASSOCIATE
             END IF
          END DO
 !$OMP END DO
@@ -1219,26 +1212,22 @@ CONTAINS
    END SUBROUTINE nnp_calc_rad
 
 ! **************************************************************************************************
-!> \brief Build per-radial-group Hermite cubic spline tables.
-!>        Each radial group s carries its own dense (n_symf, n_grid) tables
-!>        spline_y and spline_dy. Within a group all SFs share the cutoff
-!>        => same uniform grid, so the inner SF loop in nnp_calc_rad can
-!>        compute the Hermite basis params ONCE and stream the per-SF y/dy
-!>        values contiguously (sf-first layout).
-!>
-!>        Each table stores y(r) = EXP(-eta_sf*(r-rs_sf)^2)*fcut(r) and its
-!>        analytic derivative y'(r). Memory cost: 2*n_symf*n_grid doubles
-!>        per group, ~128 KB for n_symf=8, n_grid=8192. Built once per
-!>        force eval; lives until nnp_env_release.
+!> \brief Build sf-first (n_symf, n_grid) Hermite cubic spline tables for radial SFs.
+!>        Uses a custom sf-first layout (not splines_methods) so nnp_calc_rad can
+!>        stream contiguous SF values under !$OMP SIMD without indirect addressing.
 !> \param nnp ...
 ! **************************************************************************************************
    SUBROUTINE nnp_build_radial_splines(nnp)
 
       TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp
 
-      INTEGER                                            :: ind, k, n_symf, p, s, sf
+      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_build_radial_splines'
+
+      INTEGER                                            :: handle, ind, k, n_symf, p, s, sf
       REAL(KIND=dp)                                      :: arg, cutoff, dfcutdr, dr, eta, exp_term, &
                                                             fcut, r, rs, tanh_tmp
+
+      CALL timeset(routineN, handle)
 
       DO ind = 1, nnp%n_ele
          DO s = 1, nnp%rad(ind)%n_symfgrp
@@ -1298,6 +1287,8 @@ CONTAINS
             END ASSOCIATE
          END DO
       END DO
+
+      CALL timestop(handle)
 
    END SUBROUTINE nnp_build_radial_splines
 
@@ -1428,10 +1419,7 @@ CONTAINS
          inv_g2 = 0.0_dp
       END IF
 
-      ! ---- Pass 1: angular base + tmpzeta (scalar tight loop) ----
-      ! Branchless cusp handling: when tmp <= 0 we set tmpzeta_arr = 0, which
-      ! propagates to both angular_arr and pref_lam in pass 3, giving
-      ! sym = 0 and force = 0 without an explicit CYCLE branch.
+      ! Pass 1: branchless cusp clamp -- zero tmpzeta propagates to sym and pref_lam.
       DO sf = 1, n_symf
          tmp = 1.0_dp + grp%pack_lam(sf)*costheta
          IF (tmp <= 0.0_dp) THEN
