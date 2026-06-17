@@ -2629,11 +2629,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_RI_RS", &
-                          description="The cutoff radius Rc (in Angstrom) for the Resolution of Identity" // &
-                          "Real-Space (RI-RS) approximation. It explicitly defines the integration domain sphere "// &
-                          "B^P = {r : |r - R_P| < Rc + r_P} around each atom P. "// &
-                          "By default it is determined from spatial extent of the "// &
-                          "most diffuse Gaussian basis function of the atom.", &
+                          description="Override (in Angstrom) of the truncated-Coulomb cutoff radius Rc used "// &
+                          "to size the per-atom RI-RS integration domain "// &
+                          "B^P = {r : |r - R_P| < Rc + r_AO(P)}, where r_AO(P) is the spatial extent of the "// &
+                          "most diffuse AO Gaussian on atom P. By default (-1.0) Rc falls back to "// &
+                          "CUTOFF_RADIUS_RI from the GW section (the same Rc used to build the RI metric "// &
+                          "integrals). Useful for convergence sweeps.", &
                           usage="CUTOFF_RADIUS_RI_RS 15.0", &
                           default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="angstrom"), &
                           type_of_var=real_t, unit_str="angstrom")
