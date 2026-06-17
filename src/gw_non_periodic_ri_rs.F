@@ -755,7 +755,7 @@ CONTAINS
          col_start, current_chunk_size, g, group_handle, handle, i, i_blk, info, j, j_ri, l, &
          loc_idx, loc_ptr, max_ao_size, max_loc_ri, my_group, n_ao_total, n_grid_total, &
          n_groups, n_loc_ri, n_local_grid, n_procs_per_atom, natom, num_grid_chunks, P_loop_atom, &
-         r_end, r_start, source_atom
+         r_end, r_start, source_atom, ikind, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_grid_idx, row_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_phi, col_dist_ri, r_blk_sizes, &
                                                             ri_blk_sizes, row_dist_grid
@@ -778,6 +778,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
@@ -793,7 +794,7 @@ CONTAINS
       t1 = m_walltime()
 
       CALL get_qs_env(qs_env, para_env=para_env, particle_set=particle_set, input=input, &
-                      qs_kind_set=qs_kind_set, cell=cell)
+                      qs_kind_set=qs_kind_set, cell=cell, atomic_kind_set=atomic_kind_set)
 
       ! ---------------------------------------------------------------------
       ! Subgroup setup. Default G=1 keeps the single-rank BLAS path; G>1 splits
@@ -888,6 +889,7 @@ CONTAINS
          !   cutoff_ri(P) = max over reachable j of [ d(P,j) + r_AO(j)/√2 ]
          !
          ! where "reachable" means condition (b) is satisfied.
+         nkind = SIZE(atomic_kind_set)
          ALLOCATE (cutoff_ri_per_kind(nkind))
          cutoff_ri_per_kind(:) = 0.0_dp
          ALLOCATE (cutoff_ri_per_atom(natom))
