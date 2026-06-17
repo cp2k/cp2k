@@ -761,8 +761,9 @@ CONTAINS
                                                             ri_blk_sizes, row_dist_grid
       LOGICAL                                            :: use_uniform_cutoff
       REAL(KIND=dp)                                      :: cutoff_ri, d_sP, dist, inv_sqrt2, &
-                                                            max_r_AO_pair, r2_threshold, t1, &
-                                                            user_cutoff
+                                                            r_AO_pair, r2_threshold, t1, &
+                                                            user_cutoff, r_RI_P
+      REAL(KIND=dp), ALLOCATABLE                         :: cutoff_ri_per_kind(:)                                                      
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_atom, d_vec_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: D_local, d_lp_local, phi_local, &
                                                             sphere_grid, Z_blk
@@ -871,49 +872,57 @@ CONTAINS
          max_loc_ri = MAXVAL(ri_blk_sizes)
 
          ! Precompute the dynamic per-atom RI-RS sphere radius. The correct cutoff is
-         ! bounded by the spatial support of the AO pair density Φ_µ(r_l) Φ_ν(r_l) —
-         ! not by the extent of the RI basis P itself. For grid point r_l to contribute
-         ! to d[l,P], some Φ_µ on some atom j must be non-negligible at r_l, i.e.
-         ! d(r_l, j) ≲ r_AO_pair(j) where the *pair* density decays as exp(−2 α r²)
-         ! (twice as fast as a single Gaussian), giving r_AO_pair = r_AO / √2 at the
-         ! same eps threshold.
          !
-         ! Two competing bounds, take the MIN:
-         !   (1) Geometry-limited:  max_j [d(P,j) + r_AO(j)/√2]
-         !       grows with molecule extent; tight for small molecules.
-         !   (2) Basis+metric-limited:  r_RI(P) + 2*max_j r_AO/√2 + cutoff_metric
-         !       independent of N — kicks in for very large molecules and gives the
-         !       O(N²) scaling RI-RS is meant to deliver. Comes from the (µν|P)
-         !       screening constraint d(j,P) ≤ r_AO + r_RI(P) + cutoff_metric.
+         ! A grid point r_l contributes to d[l,P] only if two conditions hold
+         ! simultaneously:
+         !   (a) some AO pair Φ_µ Φ_ν on atom j is non-negligible at r_l:
+         !       d(r_l, j) ≲ r_AO(j)/√2
+         !       (pair density exp(−2α r²) decays √2 faster than a single Gaussian,
+         !       so its radius at the same eps threshold is r_AO/√2)
+         !   (b) the RI function on P overlaps that pair density 
+         !       d(P, j) ≤ r_AO(j)/√2 + r_RI(P)
+         !
+         ! Condition (b) lets us CYCLE over atoms j that cannot possibly contribute.
+         ! The cutoff for atom P is then:
+         !
+         !   cutoff_ri(P) = max over reachable j of [ d(P,j) + r_AO(j)/√2 ]
+         !
+         ! where "reachable" means condition (b) is satisfied.
+         ALLOCATE (cutoff_ri_per_kind(nkind))
+         cutoff_ri_per_kind(:) = 0.0_dp
          ALLOCATE (cutoff_ri_per_atom(natom))
          inv_sqrt2 = 1.0_dp/SQRT(2.0_dp)
-         max_r_AO_pair = MAXVAL(bs_env%ri_rs%radius_ao_per_atom(:))*inv_sqrt2
          DO P_loop_atom = 1, natom
             cutoff_ri_per_atom(P_loop_atom) = 0.0_dp
             pos_PP(:) = particle_set(P_loop_atom)%r(:)
+            r_RI_P = bs_env%ri_rs%radius_ri_per_atom(P_loop_atom)
             DO source_atom = 1, natom
                d_sP = NORM2(particle_set(source_atom)%r(:) - pos_PP(:))
+               r_AO_pair = bs_env%ri_rs%radius_ao_per_atom(source_atom)*inv_sqrt2
+               ! Skip j whose pair density cannot overlap the RI function on P
+               IF (d_sP > r_AO_pair + r_RI_P) CYCLE
                cutoff_ri_per_atom(P_loop_atom) = &
-                  MAX(cutoff_ri_per_atom(P_loop_atom), &
-                      d_sP + bs_env%ri_rs%radius_ao_per_atom(source_atom)*inv_sqrt2)
+                  MAX(cutoff_ri_per_atom(P_loop_atom), d_sP + r_AO_pair)
             END DO
-            cutoff_ri_per_atom(P_loop_atom) = MIN( &
-               cutoff_ri_per_atom(P_loop_atom), &
-               bs_env%ri_rs%radius_ri_per_atom(P_loop_atom) + 2.0_dp*max_r_AO_pair + &
-               bs_env%ri_metric%cutoff_radius)
          END DO
 
          IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A)') 'Per-atom RI-RS sphere cutoff (Bohr):'
-            WRITE (bs_env%unit_nr, '(T4,A6,2X,A4,A14)') 'Atom', 'Elem', 'cutoff_ri'
+            WRITE (bs_env%unit_nr, '(T2,A)') 'Per-kind maximum RI-RS sphere cutoff (Bohr):'
+            WRITE (bs_env%unit_nr, '(T4,A4,A14)') 'Kind', 'max cutoff_ri'
+            ! Walk atoms once; accumulate per-kind max using atomic_kind index
             DO P_loop_atom = 1, natom
-               WRITE (bs_env%unit_nr, '(T4,I6,2X,A4,F14.4)') &
-                  P_loop_atom, &
-                  particle_set(P_loop_atom)%atomic_kind%element_symbol, &
-                  cutoff_ri_per_atom(P_loop_atom)
+               ikind = particle_set(P_loop_atom)%atomic_kind%kind_number
+               cutoff_ri_per_kind(ikind) = MAX(cutoff_ri_per_kind(ikind), &
+                                               cutoff_ri_per_atom(P_loop_atom))
+            END DO
+            DO ikind = 1, nkind
+               WRITE (bs_env%unit_nr, '(T4,A4,F14.4)') &
+                  atomic_kind_set(ikind)%element_symbol, &
+                  cutoff_ri_per_kind(ikind)
             END DO
             WRITE (bs_env%unit_nr, '(A)') ' '
          END IF
+         DEALLOCATE (cutoff_ri_per_kind)
 
          ! Build the shared 3c-integral context once, before the atom_P loop and outside
          ! any OMP region. This hoists out the libint / t_c_g0 / md_ftable inits and the
