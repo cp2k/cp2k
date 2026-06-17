@@ -818,6 +818,7 @@ CONTAINS
 
       !Ensure that workspace is set to 0
       CALL cp_fm_set_all(rtbse_env%real_workspace_mo(1), 0.0_dp)
+      rtbse_env%eps_active(:, :) = 0.0_dp
       ! ****** START SINGLE PARTICLE HAMILTONIAN CALCULATION
       DO i = 1, rtbse_env%n_spin
          DO ii = 1, nrow_local
@@ -859,11 +860,15 @@ CONTAINS
                   ELSE IF (rtbse_env%debug_force_hacked_gw_o2_eigenvalues) THEN
                      rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = hacked_GW_O2_eigenvalues(i_row_global, i)/evolt
                   END IF
+                  ! Mirror the finalized diagonal into the replicated active-energy array
+                  rtbse_env%eps_active(i_row_global, i) = rtbse_env%real_workspace_mo(1)%local_data(ii, jj)
                END IF
             END DO
          END DO
          CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace_mo(1), mtarget=rtbse_env%ham_reference_singleparticle(i))
       END DO
+      ! Each diagonal element was set on its single owner rank; sum to replicate eps_active.
+      CALL rtbse_env%real_workspace_mo(1)%matrix_struct%para_env%sum(rtbse_env%eps_active)
       ! ****** END SINGLE PARTICLE HAMILTONIAN CALCULATION
 
       CALL timestop(handle)
@@ -1234,7 +1239,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'update_effective_ham_MO'
 
-      INTEGER                                            :: handle, k
+      INTEGER                                            :: handle, i_global, i_loc, j_global, &
+                                                            j_loc, k, ncl, nrl
+      INTEGER, DIMENSION(:), POINTER                     :: c_idx, r_idx
       LOGICAL                                            :: use_coh, use_hartree, use_rirs_hartree, &
                                                             use_rirs_sex, use_sex
 
@@ -1252,14 +1259,20 @@ CONTAINS
       !DO j = 1, nspin
       ! Sets the imaginary part to zero
       CALL cp_cfm_to_cfm(rtbse_env%ham_reference(ispin), ham_effective)
-      ! [H^0, ρ]_mn = (ε_m - ε_n) ρ_mn  (= (ε_m - ε_n)Δρ_mn since ρ^0 is MO-diagonal): two gemms below
-      ! MG TODO: Code that in local_data chunks later on
-      CALL cp_cfm_gemm('N', 'N', rtbse_env%mo_active, rtbse_env%mo_active, rtbse_env%mo_active, &
-                       CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference_singleparticle(ispin), &
-                       rho, CMPLX(1.0, 0.0, kind=dp), ham_effective)
-      CALL cp_cfm_gemm('N', 'N', rtbse_env%mo_active, rtbse_env%mo_active, rtbse_env%mo_active, &
-                       CMPLX(-1.0, 0.0, kind=dp), rho, rtbse_env%ham_reference_singleparticle(ispin), &
-                       CMPLX(1.0, 0.0, kind=dp), ham_effective)
+      ! [H^0, ρ]_mn = (ε_m - ε_n) ρ_mn exactly (H^0 diagonal in active-MO basis). Element-wise
+      ! local pass replacing the two gemms; ham_effective and rho share fm_struct_mo_active so
+      ! their local layouts coincide. Covers all (m,n) (OO/VV retained for closed-shell ABBA).
+      CALL cp_cfm_get_info(matrix=ham_effective, nrow_local=nrl, ncol_local=ncl, &
+                           row_indices=r_idx, col_indices=c_idx)
+      DO j_loc = 1, ncl
+         j_global = c_idx(j_loc)
+         DO i_loc = 1, nrl
+            i_global = r_idx(i_loc)
+            ham_effective%local_data(i_loc, j_loc) = ham_effective%local_data(i_loc, j_loc) &
+                                            + CMPLX(rtbse_env%eps_active(i_global, ispin) - rtbse_env%eps_active(j_global, ispin), &
+                                                             0.0_dp, kind=dp)*rho%local_data(i_loc, j_loc)
+         END DO
+      END DO
       !END DO
       ! Determine the field at current time
       IF (rtbse_env%dft_control%apply_efield_field) THEN

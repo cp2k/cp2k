@@ -260,6 +260,9 @@ MODULE rt_bse_types
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_reference => NULL()
       !Only for linearised RTBSE
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_reference_singleparticle => NULL()
+      ! Active single-particle energies = diag(ham_reference_singleparticle), replicated over all
+      ! ranks. Drives the [H^0,rho]_mn = (eps_m - eps_n) rho_mn element-wise commutator (mo_active x n_spin).
+      REAL(kind=dp), DIMENSION(:, :), POINTER                  :: eps_active => NULL()
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_workspace => NULL()
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: sigma_SEX => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: sigma_COH => NULL(), &
@@ -667,6 +670,9 @@ CONTAINS
          DO i = 1, rtbse_env%n_spin
             CALL cp_cfm_create(rtbse_env%ham_reference_singleparticle(i), mo_struct)
          END DO
+         NULLIFY (rtbse_env%eps_active)
+         ALLOCATE (rtbse_env%eps_active(rtbse_env%mo_active, rtbse_env%n_spin))
+         rtbse_env%eps_active(:, :) = 0.0_dp
       END IF
 
       ! Create the matrices and workspaces for ETRS propagation
@@ -875,6 +881,7 @@ CONTAINS
       IF (ASSOCIATED(rtbse_env%ham_reference_singleparticle)) THEN
          CALL cp_cfm_release_pa1(rtbse_env%ham_reference_singleparticle)
       END IF
+      IF (ASSOCIATED(rtbse_env%eps_active)) DEALLOCATE (rtbse_env%eps_active)
       CALL cp_cfm_release_pa1(rtbse_env%rho)
       CALL cp_cfm_release_pa1(rtbse_env%rho_workspace)
       CALL cp_cfm_release_pa1(rtbse_env%rho_new)
