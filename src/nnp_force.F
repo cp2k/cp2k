@@ -145,9 +145,7 @@ CONTAINS
          DO i = 1, nnp%n_ele
             max_input_nodes = MAX(max_input_nodes, nnp%arc(i)%n_nodes(1))
          END DO
-         ! Per-neighbour dGdr lives in the per-element workspace; the force scatter
-         ! walks the per-(ind) neighbour lists directly, with no global
-         ! (3, n_sf, num_atoms) slab.
+         ! dGdr lives in per-element workspace; no global (3, n_sf, num_atoms) slab.
          IF (calc_stress) THEN
             ALLOCATE (stress(3, 3, max_input_nodes))
             stress(:, :, :) = 0.0_dp

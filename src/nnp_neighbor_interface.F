@@ -47,7 +47,12 @@ CONTAINS
 
       TYPE(nnp_type), INTENT(INOUT)                      :: nnp
 
+      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_neighbor_interface_prepare'
+
+      INTEGER                                            :: handle
       LOGICAL                                            :: rebuild
+
+      CALL timeset(routineN, handle)
 
       rebuild = .NOT. nnp%neighbor_interface_state%initialized
       IF (.NOT. rebuild) CALL nnp_neighbor_interface_needs_rebuild(nnp, rebuild)
@@ -56,6 +61,8 @@ CONTAINS
          CALL nnp_neighbor_interface_state_release(nnp%neighbor_interface_state)
          CALL nnp_neighbor_interface_build_pair_maps(nnp)
       END IF
+
+      CALL timestop(handle)
 
    END SUBROUTINE nnp_neighbor_interface_prepare
 
@@ -442,6 +449,7 @@ CONTAINS
       IF (workspace%cache_cap >= n_needed) RETURN
 
       new_cap = MAX(MAX(8, n_needed), INT(workspace%cache_cap*1.5_dp) + 8)
+      ! Contents not preserved: nnp_fill_fc_dfc_cache overwrites fully before any read.
       IF (ALLOCATED(workspace%fc_cache1)) DEALLOCATE (workspace%fc_cache1)
       IF (ALLOCATED(workspace%dfc_cache1)) DEALLOCATE (workspace%dfc_cache1)
       IF (ALLOCATED(workspace%fc_cache2)) DEALLOCATE (workspace%fc_cache2)
