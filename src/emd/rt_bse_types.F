@@ -171,6 +171,12 @@ MODULE rt_bse_types
       LOGICAL                                                   :: debug_disable_hartree = .FALSE., &
                                                                    debug_disable_sex = .FALSE., &
                                                                    debug_disable_coh = .FALSE.
+      ! Physics gate (distinct from the debug-disable flags): .TRUE. only when the
+      ! screened interaction W is time-dependent, so Sigma^COH must be rebuilt every
+      ! RK4 stage. With static W (always, today) Sigma^COH is a self-cancelling no-op
+      ! (reference subtraction == per-step addition), so both halves are skipped.
+      ! Hardwired .FALSE.; promote to an input keyword only when a dynamic-W path lands.
+      LOGICAL                                                   :: coh_is_dynamic = .FALSE.
       ! Debug-only QP override. When .TRUE., the propagator's H_qp diagonal and the
       ! Liouvillian diagnostic's H_eps source are replaced by the module-level
       ! parameter array hacked_GW_H2_eigenvalues in rt_bse_linearized.F. Strictly

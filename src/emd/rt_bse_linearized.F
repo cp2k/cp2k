@@ -990,7 +990,10 @@ CONTAINS
       ! Calculate the COHSEX starting energies
       DO i = 1, rtbse_env%n_spin
          ! COH is only meaningful with screening (g0w0 path); KS reference has W^c = 0.
-         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0 .AND. use_coh_reference) THEN
+         ! Skipped entirely for static W (coh_is_dynamic=.FALSE.): the subtraction here is
+         ! exactly cancelled by the per-step addition in update_effective_ham_MO.
+         IF (rtbse_env%coh_is_dynamic .AND. &
+             rtbse_env%ham_reference_type == rtp_bse_ham_g0w0 .AND. use_coh_reference) THEN
             ! COH is currently a static no-op: this reference subtraction is cancelled
             ! exactly by the per-step addition in update_effective_ham_MO (both build
             ! Sigma_COH from S_inv_fm, no rho dependence). DEBUG_DISABLE_COH is inert.
@@ -1275,7 +1278,8 @@ CONTAINS
          ! CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
          !                           CMPLX(rtbse_env%field(k), 0.0, kind=dp), rtbse_env%ham_workspace(1))
       END DO
-      IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0 .AND. use_coh) THEN
+      IF (rtbse_env%coh_is_dynamic .AND. &
+          rtbse_env%ham_reference_type == rtp_bse_ham_g0w0 .AND. use_coh) THEN
          ! Add the COH part - so far static but can be dynamic in principle through the W updates
          IF (use_rirs_sex) THEN
             ! COH (static Coulomb-hole) via RI-RS grid kernel; scale -1/2, contracted on S^-1
