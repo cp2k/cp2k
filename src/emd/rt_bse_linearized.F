@@ -81,8 +81,6 @@ MODULE rt_bse_linearized
                                               rt_bse_ri_rs_ensure_V_grid,&
                                               rt_bse_ri_rs_ensure_W0_grid
    USE rt_bse_types,                    ONLY: create_rtbse_env,&
-                                              multiply_cfm_fm,&
-                                              multiply_fm_cfm,&
                                               release_rtbse_env,&
                                               rtbse_env_type
    USE rt_propagation_output,           ONLY: print_ft
@@ -2288,23 +2286,29 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'transform_mo_to_ao_contravariant_cfm'
 
       INTEGER                                            :: handle
-      TYPE(cp_cfm_type)                                  :: tmp_ao_mo
 
       CALL timeset(routineN, handle)
 
-      ! Rectangular n_ao x mo_active complex intermediate
-      CALL cp_cfm_create(tmp_ao_mo, rtbse_env%fm_struct_ao_mo_active)
-
-      ! step 1: T_µn = sum_m C_µm Δρ^MO_mn  (n_ao x mo_active)
-      CALL multiply_fm_cfm("N", "N", rtbse_env%n_ao, rtbse_env%mo_active, rtbse_env%mo_active, &
-                           1.0_dp, rtbse_env%C_active(i_spin), fm_mo, &
-                           0.0_dp, tmp_ao_mo)
-      ! step 2: Δρ^AO_µν = sum_n T_µn C_νn  (n_ao x n_ao)
-      CALL multiply_cfm_fm("N", "T", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%mo_active, &
-                           1.0_dp, tmp_ao_mo, rtbse_env%C_active(i_spin), &
-                           0.0_dp, fm_ao)
-
-      CALL cp_cfm_release(tmp_ao_mo)
+      ! Re/Im split of Δρ^MO (mo_active x mo_active) into persistent MO-sized scratch
+      CALL cp_cfm_to_fm(msource=fm_mo, mtargetr=rtbse_env%real_workspace_mo(1), &
+                        mtargeti=rtbse_env%real_workspace_mo(2))
+      ! Re(Δρ^AO)_µν = sum_mn C_µm Re(Δρ^MO)_mn C_νn  (C·ρ via ao_mo_workspace, then ·C^T)
+      CALL parallel_gemm("N", "N", rtbse_env%n_ao, rtbse_env%mo_active, rtbse_env%mo_active, &
+                         1.0_dp, rtbse_env%C_active(i_spin), rtbse_env%real_workspace_mo(1), &
+                         0.0_dp, rtbse_env%ao_mo_workspace(1))
+      CALL parallel_gemm("N", "T", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%mo_active, &
+                         1.0_dp, rtbse_env%ao_mo_workspace(1), rtbse_env%C_active(i_spin), &
+                         0.0_dp, rtbse_env%real_workspace(1))
+      ! Im(Δρ^AO)_µν = sum_mn C_µm Im(Δρ^MO)_mn C_νn
+      CALL parallel_gemm("N", "N", rtbse_env%n_ao, rtbse_env%mo_active, rtbse_env%mo_active, &
+                         1.0_dp, rtbse_env%C_active(i_spin), rtbse_env%real_workspace_mo(2), &
+                         0.0_dp, rtbse_env%ao_mo_workspace(1))
+      CALL parallel_gemm("N", "T", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%mo_active, &
+                         1.0_dp, rtbse_env%ao_mo_workspace(1), rtbse_env%C_active(i_spin), &
+                         0.0_dp, rtbse_env%real_workspace(2))
+      ! Reassemble into AO-sized cfm
+      CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(1), &
+                        msourcei=rtbse_env%real_workspace(2), mtarget=fm_ao)
 
       CALL timestop(handle)
    END SUBROUTINE transform_mo_to_ao_contravariant_cfm
