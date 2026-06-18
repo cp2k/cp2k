@@ -30,6 +30,7 @@ MODULE qs_charge_mixing
                                       mixing_storage_type, &
                                       modified_broyden_mixing_nr, &
                                       multisecant_mixing_nr, &
+                                      new_pulay_mixing_nr, &
                                       pulay_mixing_nr
 #include "./base/base_uses.f90"
 
@@ -196,6 +197,8 @@ CONTAINS
             CPABORT("Modified Broyden mixing is only available for DFT density mixing")
          ELSEIF (mixing_method == multisecant_mixing_nr) THEN
             CPABORT("Multisecant_mixing method not available for Charge Mixing")
+         ELSEIF (mixing_method == new_pulay_mixing_nr) THEN
+            CPABORT("New Pulay method not available for Charge Mixing")
          END IF
 
          ! store new 'input' charges

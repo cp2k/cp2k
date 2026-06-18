@@ -96,7 +96,7 @@ MODULE bibliography
                             Hanasaki2025, Tan2025, Broyden1965, Johnson1988, Kerker1981, &
                             FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
-                            Shiga2022, Lindh1995, Chai2024a, Rullan2026
+                            Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017
 
 CONTAINS
 
@@ -2189,6 +2189,13 @@ CONTAINS
                          title=" Revisiting the mechanism of long-lived luminescence in host/guest organic crystals ", &
                          source="J. Mater. Chem. C", volume="", pages="", &
                          year=2026, doi="10.1039/D6TC00367B")
+
+      CALL add_reference(key=Sundararaman2017, &
+                         authors=s2a("R. Sundararaman", "W. A. Goddard III", "T. A. Arias"), &
+                         title="Grand canonical electronic density-functional theory: "// &
+                         "Algorithms and applications to electrochemistry", &
+                         source="J. Chem. Phys.", volume="146", pages="114104", &
+                         year=2017, doi="10.1063/1.4978411")
 
    END SUBROUTINE add_all_references
 

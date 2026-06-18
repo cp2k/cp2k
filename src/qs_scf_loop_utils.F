@@ -27,6 +27,7 @@ MODULE qs_scf_loop_utils
                                               gspace_mixing_nr,&
                                               modified_broyden_mixing_nr,&
                                               multisecant_mixing_nr,&
+                                              new_pulay_mixing_nr,&
                                               no_mixing_nr,&
                                               pulay_mixing_nr
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -516,7 +517,7 @@ CONTAINS
                                      scf_env%mixing_store, rho_ao_kp, para_env, scf_env%iter_delta, scf_env%iter_count, &
                                      diis=diis_step)
       CASE (gspace_mixing_nr, pulay_mixing_nr, broyden_mixing_nr, modified_broyden_mixing_nr, &
-            multisecant_mixing_nr)
+            multisecant_mixing_nr, new_pulay_mixing_nr)
          ! Compute the difference p_out-p_in
          CALL self_consistency_check(rho_ao_kp, scf_env%p_delta, para_env, scf_env%p_mix_new, &
                                      delta=scf_env%iter_delta)
@@ -650,7 +651,7 @@ CONTAINS
                END DO
             END DO
          CASE (gspace_mixing_nr, pulay_mixing_nr, broyden_mixing_nr, modified_broyden_mixing_nr, &
-               multisecant_mixing_nr)
+               multisecant_mixing_nr, new_pulay_mixing_nr)
             DO ic = 1, nc
                DO ispin = 1, dft_control%nspins
                   CALL dbcsr_get_info(rho_ao_kp(ispin, ic)%matrix, name=name) ! keep the name
