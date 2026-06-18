@@ -13,6 +13,7 @@ RUN dnf -qy install \
     cmake \
     g++ gcc gfortran \
     git \
+    libffi-devel \
     libtool \
     make \
     patch \

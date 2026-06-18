@@ -815,6 +815,7 @@ RUN dnf -qy install \
     cmake \
     {gcc_compilers} \
     git \
+    libffi-devel \
     libtool \
     make \
     patch \
