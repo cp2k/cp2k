@@ -145,15 +145,20 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "FINAL_STRUCTURE", &
-                                       description="Controls the dumping of the final "// &
-                                       "geometry and cell for optimization tasks. ", &
+                                       description="Controls the dumping of the final geometry "// &
+                                       "and cell for optimization tasks. Currently CIF and XYZ "// &
+                                       "formats are available, as controlled independently by "// &
+                                       "PRINT_CIF and PRINT_XYZ respectively, with the same "// &
+                                       "file name except for extension suffix.", &
                                        print_level=low_print_level, filename="FINAL")
 
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_CIF", &
-                          description="Print the final structure as CIF. Currently the "// &
-                          "structure will always be dumped with the space "// &
-                          "group `P 1` and a single symmetry-equivalent "// &
-                          "position `x, y, z` for all of the atoms.", &
+                          description="Print the final structure as CIF. Currently "// &
+                          "the structure will always be dumped with the asymmetric "// &
+                          "space group `P 1` as a triclinic system with a single "// &
+                          "symmetry-equivalent position `x, y, z` for all atoms. "// &
+                          "All fractional coordinates are in the range [0,1] and "// &
+                          "all occupancies are unity.", &
                           usage="PRINT_CIF T", default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)

@@ -115,7 +115,10 @@ CONTAINS
                           "in an iterative bisection procedure: on each step, the largest distance "// &
                           "between adjacent replica is found and a new replica is inserted there by "// &
                           "taking the average of adjacent replica; this is repeated until getting "// &
-                          "requested number of replica.", &
+                          "requested number of replica. Please note that the number of replica is "// &
+                          "always including both end points regardless of the setting of keyword "// &
+                          "OPTIMIZE_END_POINTS, which should be taken into account when adjusting "// &
+                          "the NPROC_REP value based on processors available on the machine.", &
                           default_i_val=10)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -282,9 +285,13 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="PLOT_REL_ENERGY", &
                           description="If a simple plot of relative energy of each replica is shown "// &
-                          "alongside data vertically. This makes the output format less compact than "// &
-                          "default, but creates a visual aid for ease of monitoring with some special "// &
-                          "marks for the local maxima (X) or minima (x) in the plot.", &
+                          "alongside data vertically on each step. This makes the output format less "// &
+                          "compact than default but creates a visual aid for ease of monitoring, with "// &
+                          "some special marks for the local maxima `(X)` or minima `(x)` in the plot "// &
+                          "and adjacent to the energy values in the form of `(++)` or `(--)`. Please "// &
+                          "note that this plot does not represent optimization history where absolute "// &
+                          "energy values vary between steps, because it shows *relative* energy that "// &
+                          "is calculated by (E_rep-E_min)/(E_max-E_min) for each replica on one step.", &
                           usage="PLOT_REL_ENERGY <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
@@ -365,7 +372,13 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OPTIMIZE_END_POINTS", &
-                          description="Performs also an optimization of the end points of the band.", &
+                          description="If both end points of the band are also optimized alongside "// &
+                          "the rest of replica. This may be set to .TRUE. if both end points have "// &
+                          "already been optimized with the same FORCE_EVAL, in which case the force "// &
+                          "on both end points will be reset to 0 on each step. Please note that both "// &
+                          "end points will always be included in NUMBER_OF_REPLICA and get NPROC_REP "// &
+                          "processors allocated each for calculation in the same way as the rest of "// &
+                          "replica, regardless of this setting.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
