@@ -633,8 +633,6 @@ CONTAINS
          ALLOCATE (cutoff_ri_per_kind(nkind))
          cutoff_ri_per_kind(:) = 0.0_dp
          IF (bs_env%unit_nr > 0) THEN
-            ALLOCATE (cutoff_ri_per_kind(nkind))
-            cutoff_ri_per_kind(:) = 0.0_dp
             DO P_loop_atom = 1, natom
                ikind = particle_set(P_loop_atom)%atomic_kind%kind_number
                cutoff_ri_per_kind(ikind) = MAX(cutoff_ri_per_kind(ikind), &
