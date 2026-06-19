@@ -731,10 +731,6 @@ CONTAINS
             ALLOCATE (d_lp_local(n_local_grid, n_loc_ri))
             d_lp_local = 0.0_dp
 
-            IF (bs_env%unit_nr > 0) THEN
-               WRITE (bs_env%unit_nr, *) "Done with pre-evaluation for atom ", atom_P, m_walltime() - t1
-            END IF
-
             t2 = m_walltime()
 
             CALL compute_d_lp(bs_env, ctx_3c, cell, phi_local, d_lp_local, n_local_grid, &
@@ -744,10 +740,6 @@ CONTAINS
             ! Skipped for G=1 (BLAS path): each rank has the full sum locally.
             IF (n_procs_per_atom > 1) THEN
                CALL para_env_sub%sum(d_lp_local)
-            END IF
-
-            IF (bs_env%unit_nr > 0) THEN
-               WRITE (bs_env%unit_nr, *) "Done with compute_d_lp for atom ", atom_P, m_walltime() - t2
             END IF
 
             t3 = m_walltime()
@@ -890,10 +882,6 @@ CONTAINS
 
             DEALLOCATE (d_vec_local, d_lp_local)
             DEALLOCATE (local_grid_idx, phi_local)
-
-            IF (bs_env%unit_nr > 0) THEN
-               WRITE (bs_env%unit_nr, *) "Done with evaluation of atom ", atom_P, m_walltime() - t3
-            END IF
 
          END DO
 
