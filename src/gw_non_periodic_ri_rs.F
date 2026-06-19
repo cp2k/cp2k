@@ -869,23 +869,22 @@ CONTAINS
          ! Per-atom RI-RS integration sphere:
          !   cutoff_ri(P) = r_c + r_AO(P)
          ! where r_c is the truncated-Coulomb cutoff of the RI metric. The
-         ! CUTOFF_RADIUS_RI_RS keyword (when > 0) overrides r_c for convergence
-         ! sweeps; otherwise we fall back to CUTOFF_RADIUS_RI from the GW section
-         ! (the same r_c used to build the RI metric integrals).
+         ! CUTOFF_RADIUS_RI_RS keyword (when > 0) overrides the entire cutoff calculation.
+         nkind = SIZE(atomic_kind_set)
+         ALLOCATE (cutoff_ri_per_atom(natom))
+
          IF (bs_env%ri_rs%cutoff_radius_ri_rs > 0.0_dp) THEN
-            r_c = bs_env%ri_rs%cutoff_radius_ri_rs
+            cutoff_ri_per_atom(:) = bs_env%ri_rs%cutoff_radius_ri_rs
          ELSE
             r_c = bs_env%ri_metric%cutoff_radius
-         END IF
-         nkind = SIZE(atomic_kind_set)
-         ALLOCATE (cutoff_ri_per_kind(nkind))
-         cutoff_ri_per_kind(:) = 0.0_dp
-         ALLOCATE (cutoff_ri_per_atom(natom))
-         DO P_loop_atom = 1, natom
+            DO P_loop_atom = 1, natom
             cutoff_ri_per_atom(P_loop_atom) = &
                r_c + bs_env%ri_rs%radius_ao_per_atom(P_loop_atom)
-         END DO
+            END DO
+         END IF
 
+         ALLOCATE (cutoff_ri_per_kind(nkind))
+         cutoff_ri_per_kind(:) = 0.0_dp
          IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(T2,A)') 'Per-kind maximum RI-RS sphere cutoff (Bohr):'
             WRITE (bs_env%unit_nr, '(T4,A4,A14)') 'Kind', 'max cutoff_ri'

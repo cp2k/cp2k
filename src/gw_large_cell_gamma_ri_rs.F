@@ -616,20 +616,22 @@ CONTAINS
          ! Per-atom RI-RS integration sphere:
          !   cutoff_ri(P) = r_c + r_AO(P)
          ! where r_c is the truncated-Coulomb cutoff of the RI metric. The
-         ! CUTOFF_RADIUS_RI_RS keyword (when > 0) overrides r_c for convergence
-         ! sweeps; otherwise we fall back to the RI metric cutoff.
-         IF (bs_env%ri_rs%cutoff_radius_ri_rs > 0.0_dp) THEN
-            r_c = bs_env%ri_rs%cutoff_radius_ri_rs
-         ELSE
-            r_c = bs_env%ri_metric%cutoff_radius
-         END IF
+         ! CUTOFF_RADIUS_RI_RS keyword (when > 0) overrides the entire cutoff calculation.
          nkind = SIZE(atomic_kind_set)
          ALLOCATE (cutoff_ri_per_atom(natom))
-         DO P_loop_atom = 1, natom
+
+         IF (bs_env%ri_rs%cutoff_radius_ri_rs > 0.0_dp) THEN
+            cutoff_ri_per_atom(:) = bs_env%ri_rs%cutoff_radius_ri_rs
+         ELSE
+            r_c = bs_env%ri_metric%cutoff_radius
+            DO P_loop_atom = 1, natom
             cutoff_ri_per_atom(P_loop_atom) = &
                r_c + bs_env%ri_rs%radius_ao_per_atom(P_loop_atom)
-         END DO
+            END DO
+         END IF
 
+         ALLOCATE (cutoff_ri_per_kind(nkind))
+         cutoff_ri_per_kind(:) = 0.0_dp
          IF (bs_env%unit_nr > 0) THEN
             ALLOCATE (cutoff_ri_per_kind(nkind))
             cutoff_ri_per_kind(:) = 0.0_dp
