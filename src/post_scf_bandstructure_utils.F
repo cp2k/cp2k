@@ -1648,6 +1648,7 @@ CONTAINS
 !> \param eigenval_spinor ...
 !> \param cfm_spinor_wf_ikp ...
 ! **************************************************************************************************
+   !changed for molecules now
    SUBROUTINE SOC_ev(bs_env, qs_env, ikp, eigenval_no_SOC, band_edges_no_SOC, E_min, cfm_mos_ikp, &
                      DOS, PDOS, band_edges, eigenval_spinor, cfm_spinor_wf_ikp)
 
