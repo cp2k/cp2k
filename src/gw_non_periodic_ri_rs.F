@@ -103,7 +103,7 @@ MODULE gw_non_periodic_ri_rs
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_non_periodic_ri_rs'
 
    PUBLIC :: gw_calc_non_periodic_ri_rs, ri_rs_grid_assembler, &
-             get_basis_offsets, precompute_ri_rs_radii
+             get_basis_offsets, precompute_ri_rs_radii, solve_D_lp_distributed
 
 CONTAINS
 
