@@ -886,8 +886,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'initialize_hartree_potential'
 
       INTEGER                                            :: handle, i
-      LOGICAL                                            :: use_hartree_reference, use_rirs_hartree, &
-                                                            use_rirs_sex
+      LOGICAL                                            :: use_hartree_reference, use_rirs_kernel
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
       CALL timeset(routineN, handle)
@@ -895,15 +894,14 @@ CONTAINS
       CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
       use_hartree_reference = (.NOT. rtbse_env%tda_active) .AND. (rtbse_env%n_spin == 1) .AND. &
                               (.NOT. rtbse_env%debug_disable_hartree)
-      use_rirs_hartree = rtbse_env%rirs_hartree
-      use_rirs_sex = rtbse_env%rirs_sex
+      use_rirs_kernel = rtbse_env%rirs_kernel
 
       ! Make sure the RI-RS V_grid kernel is available if we need it for Hartree.
-      IF (use_rirs_hartree) CALL rt_bse_ri_rs_ensure_V_grid(bs_env, rtbse_env%qs_env)
+      IF (use_rirs_kernel) CALL rt_bse_ri_rs_ensure_V_grid(bs_env, rtbse_env%qs_env)
 
       ! ****** START HARTREE POTENTIAL REFERENCE CALCULATION
       ! v_dbcsr is needed by either AO-RI Hartree (here) or by AO-RI SEX (W = V + W^c assembly).
-      IF ((.NOT. use_rirs_hartree) .OR. (.NOT. use_rirs_sex)) THEN
+      IF (.NOT. use_rirs_kernel) THEN
          CALL init_hartree(rtbse_env, rtbse_env%v_dbcsr)
       END IF
       ! Always zero ham_reference here (this routine is the first to touch it).
@@ -918,7 +916,7 @@ CONTAINS
       ! and the corresponding Hartree reference is identically zero.
       IF (use_hartree_reference) THEN
          DO i = 1, rtbse_env%n_spin
-            IF (use_rirs_hartree) THEN
+            IF (use_rirs_kernel) THEN
                ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'  (RI-RS)
                ! AO-RI get_hartree uses only Re(rho); mirror that on the RI-RS path.
                CALL cp_cfm_to_fm(msource=rtbse_env%rho_ao_lrrtbse(i), &
@@ -961,20 +959,20 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'initialize_sex_selfenergy'
 
       INTEGER                                            :: handle, i
-      LOGICAL                                            :: use_rirs_sex, use_sex_reference
+      LOGICAL                                            :: use_rirs_kernel, use_sex_reference
 
       CALL timeset(routineN, handle)
       use_sex_reference = (.NOT. rtbse_env%tda_active) .AND. (rtbse_env%n_spin == 1) .AND. &
                           (.NOT. rtbse_env%debug_disable_sex)
-      use_rirs_sex = rtbse_env%rirs_sex
+      use_rirs_kernel = rtbse_env%rirs_kernel
 
       ! Make sure the RI-RS W0_grid kernel is available if we need it for SEX.
-      IF (use_rirs_sex) CALL rt_bse_ri_rs_ensure_W0_grid(rtbse_env%bs_env, rtbse_env%qs_env)
+      IF (use_rirs_kernel) CALL rt_bse_ri_rs_ensure_W0_grid(rtbse_env%bs_env, rtbse_env%qs_env)
 
       ! ****** START SEX REFERENCE CALCULATION
       ! w_dbcsr and screened_dbt are needed for get_sigma routines (AO-RI path only).
       ! For RI-RS the W = V + W^c kernel is on the real-space grid in mat_W0_grid_rtbse.
-      IF (.NOT. use_rirs_sex) THEN
+      IF (.NOT. use_rirs_kernel) THEN
          IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
             ! In a non-HF calculation, copy the actual correlation part of the interaction
             CALL copy_fm_to_dbcsr(rtbse_env%bs_env%fm_W_MIC_freq_zero, rtbse_env%w_dbcsr)
@@ -1043,7 +1041,7 @@ CONTAINS
       ! keeps its per-spin path (bit-identical).
       do_shared_hartree = (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) .AND. &
                           (.NOT. rtbse_env%debug_disable_hartree) .AND. &
-                          (rtbse_env%n_spin > 1 .OR. (.NOT. rtbse_env%rirs_hartree))
+                          (rtbse_env%n_spin > 1 .OR. (.NOT. rtbse_env%rirs_kernel))
       ! RK4 follows the typical scheme
       ! d/dt ρ = f(t, ρ)
       ! f(t,ρ) = -i( Δε Δρ + (f_n-f_m) V_Hartree(Δρ) + ΔΣ(Δρ) )
@@ -1171,7 +1169,7 @@ CONTAINS
       ! One complex Hartree contraction on the summed density. RI backend = kernel choice: both
       ! get_hartree_complex and compute_hartree_ri_rs_complex take AO x AO in/out and are spin-blind,
       ! so the spin-summed cross-spin density feeds whichever kernel is active (P-C21).
-      IF (rtbse_env%rirs_hartree) THEN
+      IF (rtbse_env%rirs_kernel) THEN
          ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'[ρ^total]  (RI-RS)
          CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_total_ao_scratch, &
                                             rtbse_env%hartree_total_ao)
@@ -1189,7 +1187,7 @@ CONTAINS
 !>        f(t,ρ) of ∂_t Δρ_mn = -i( (ε_m - ε_n)Δρ_mn + (f_n - f_m)(V^H_mn + Σ^SX_mn) ).
 !>        ham_reference already carries KS+G0W0 minus the reference SEX/Hartree, so the kernels
 !>        enter as differences vs the reference. Forks: tda_active (drop B-coupling: one OV kernel
-!>        pass + VO conjugate) vs full ABBA (OV+VO); n_spin and the rirs_hartree/rirs_sex flags
+!>        pass + VO conjugate) vs full ABBA (OV+VO); n_spin and the KERNEL_RI (rirs_kernel) flag
 !>        select the AO-RI or RI-RS backend per term.
 !>        [INTERNAL] dev_notes/rt_bse_equations.md §4 Eq. drho_MO_linear_diag (open shell §9.2/§9.4)
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
@@ -1207,14 +1205,12 @@ CONTAINS
       INTEGER                                            :: handle, i_global, i_loc, j_global, &
                                                             j_loc, k, ncl, nrl
       INTEGER, DIMENSION(:), POINTER                     :: c_idx, r_idx
-      LOGICAL                                            :: use_hartree, use_rirs_hartree, &
-                                                            use_rirs_sex, use_sex
+      LOGICAL                                            :: use_hartree, use_rirs_kernel, use_sex
 
       CALL timeset(routineN, handle)
       use_hartree = .NOT. rtbse_env%debug_disable_hartree
       use_sex = .NOT. rtbse_env%debug_disable_sex
-      use_rirs_hartree = rtbse_env%rirs_hartree
-      use_rirs_sex = rtbse_env%rirs_sex
+      use_rirs_kernel = rtbse_env%rirs_kernel
 
       ! Update density matrix in AO from latest rho as it is needed for Hartree and SEX contributions
       CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rho, rtbse_env%rho_ao_lrrtbse(ispin), ispin)
@@ -1273,7 +1269,7 @@ CONTAINS
             ! Calculate Hartree potential
             ! Hartree potential is scaled by number of electrons in each MO - spin degeneracy
             IF (use_hartree) THEN
-               IF (use_rirs_hartree) THEN
+               IF (use_rirs_kernel) THEN
                   ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'  (RI-RS)
                   ! AO-RI get_hartree uses only Re(rho); mirror that on the RI-RS path.
                   CALL cp_cfm_to_fm(msource=rtbse_env%rho_ao_lrrtbse(ispin), &
@@ -1372,7 +1368,7 @@ CONTAINS
          ! hartree_total_ao (built by build_shared_hartree_ao with the RI-RS kernel).
          ! VO = (OV)^C; rho_delta_mo(ispin) is idle scratch after the projection.
          IF (use_hartree) THEN
-            IF (use_rirs_hartree .AND. rtbse_env%n_spin == 1) THEN
+            IF (use_rirs_kernel .AND. rtbse_env%n_spin == 1) THEN
                ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'  (RI-RS)
                CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_ao_lrrtbse(ispin), &
                                                   rtbse_env%sigma_SEX_ao(ispin))
@@ -1443,8 +1439,8 @@ CONTAINS
 !>        Matrix elements correspond to the Casida-A matrix:
 !>            L_{ia,jb} = (eps_a - eps_i) delta_{ij} delta_{ab} + (ia|jb) - W_{ij,ab}
 !>        with no (f_n - f_m) factor (the propagator path applies -1 on OV; we want raw +K).
-!>        Honors rtbse_env%rirs_hartree to dispatch Hartree to the RI-RS grid kernel
-!>        (compute_hartree_ri_rs_complex); the SX RI-RS dispatch (rirs_sex) lives inside get_sigma.
+!>        Honors rtbse_env%rirs_kernel to dispatch Hartree to the RI-RS grid kernel
+!>        (compute_hartree_ri_rs_complex); the SX RI-RS dispatch also reads rirs_kernel inside get_sigma.
 !>        AO-RI path: get_hartree_complex / get_sigma.
 !> [INTERNAL] dev_notes/rt_bse_equations.md §8 (derivation of L_TDA = A_Casida)
 !>
@@ -1475,7 +1471,7 @@ CONTAINS
       ! [INTERNAL] dev_notes/rt_bse_open_questions.md Q5
       use_hartree = .NOT. rtbse_env%debug_disable_hartree
       use_sex = .NOT. rtbse_env%debug_disable_sex
-      ! RI-RS dispatch reads rtbse_env%rirs_hartree / %rirs_sex directly below.
+      ! RI-RS dispatch reads rtbse_env%rirs_kernel directly below.
       ! V_grid / W0_grid are populated by initialize_hartree_potential /
       ! initialize_sex_selfenergy, which run before this diagnostic.
 
@@ -1544,7 +1540,7 @@ CONTAINS
       !    rt_bse_pitfalls_physics.md): for real C_active + AO-pair-symmetric kernel,
       !    K_MO[Delta rho_VO] = (K_MO[Delta rho_OV])^C.
       IF (use_hartree) THEN
-         IF (rtbse_env%rirs_hartree) THEN
+         IF (rtbse_env%rirs_kernel) THEN
             ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'  (RI-RS)
             CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_ao_lrrtbse(ispin), &
                                                rtbse_env%sigma_SEX_ao(ispin))

@@ -46,7 +46,7 @@ MODULE rt_bse_types
    USE rt_propagation_utils, ONLY: warn_section_unused
    USE gw_integrals, ONLY: build_3c_integral_block
    USE gw_large_cell_Gamma, ONLY: compute_3c_integrals
-   USE gw_utils, ONLY: rtbse_resolve_rirs_flags
+   USE gw_utils, ONLY: rtbse_resolve_rirs_flag
    USE qs_tensors, ONLY: neighbor_list_3c_destroy
    USE libint_2c_3c, ONLY: libint_potential_type
    USE input_constants, ONLY: use_mom_ref_coac, &
@@ -183,11 +183,11 @@ MODULE rt_bse_types
       ! for the O2 triplet with def2-SVP (n_spin=2, 28 active MOs/spin; checked at startup).
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
       LOGICAL                                                   :: debug_force_hacked_gw_o2_eigenvalues = .FALSE.
-      ! Per-kernel RI-RS dispatch. Independent toggles: rirs_hartree controls Hartree only,
-      ! rirs_sex controls SEX (uses W = V + W^c). The required grid and
-      ! V_grid/W0_grid kernels are built on demand and reused across steps.
-      LOGICAL                                                   :: rirs_hartree = .FALSE., &
-                                                                   rirs_sex = .FALSE.
+      ! RI framework for the linRTBSE Hartree + screened-exchange kernels, set by the KERNEL_RI
+      ! input keyword (DEFAULT inherits bs_env%do_gw_ri_rs; RS/AO force; full RT-BSE forced AO).
+      ! .TRUE. = RI-RS grid kernels, .FALSE. = AO-RI. The required grid and V_grid/W0_grid
+      ! kernels are built on demand and reused across steps.
+      LOGICAL                                                   :: rirs_kernel = .FALSE.
       ! Liouvillian eigenvalue diagnostic (TDA + n_spin=1 only). When .TRUE., at job
       ! init the linearized RT-BSE assembles the OV-subspace Liouvillian by probing
       ! apply_liouvillian_to_drho with canonical OV basis vectors and diagonalizes
@@ -445,10 +445,10 @@ CONTAINS
                                 l_val=rtbse_env%debug_disable_hartree)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_DISABLE_SEX", &
                                 l_val=rtbse_env%debug_disable_sex)
-      ! Per-kernel RI-RS dispatch (default do_gw_ri_rs, explicit RIRS_* override, full-RTBSE
-      ! force-off) is resolved by the shared helper so de_init_bs_env reaches the same verdict
-      ! when deciding whether to retain nl_3c. [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
-      CALL rtbse_resolve_rirs_flags(force_env%qs_env, bs_env, rtbse_env%rirs_hartree, rtbse_env%rirs_sex)
+      ! RI-RS kernel switch (KERNEL_RI: DEFAULT=do_gw_ri_rs, RS/AO force, full-RTBSE force-off)
+      ! is resolved by the shared helper so de_init_bs_env reaches the same verdict when
+      ! deciding whether to retain nl_3c. [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
+      CALL rtbse_resolve_rirs_flag(force_env%qs_env, bs_env, rirs_kernel=rtbse_env%rirs_kernel)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DIAGNOSE_LIOUVILLIAN_EIG", &
                                 l_val=rtbse_env%diagnose_liouvillian_eig)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_FORCE_HACKED_GW_H2_EIGENVALUES", &
@@ -463,7 +463,7 @@ CONTAINS
          rtbse_env%debug_disable_hartree = .FALSE.
          rtbse_env%debug_disable_sex = .FALSE.
          rtbse_env%tda_shift_to_first_peak = .FALSE.
-         ! rirs_hartree/rirs_sex are already forced .FALSE. here by rtbse_resolve_rirs_flags.
+         ! rirs_kernel is already forced .FALSE. here by rtbse_resolve_rirs_flag.
          rtbse_env%diagnose_liouvillian_eig = .FALSE.
          rtbse_env%debug_force_hacked_gw_h2_eigenvalues = .FALSE.
          rtbse_env%debug_force_hacked_gw_o2_eigenvalues = .FALSE.
@@ -485,7 +485,7 @@ CONTAINS
                        "Set TDA_SHIFT_TO_FIRST_PEAK=.FALSE. for open-shell runs.")
       END IF
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C12
-      IF ((rtbse_env%rirs_hartree .OR. rtbse_env%rirs_sex) .AND. bs_env%ri_rs%grid_select == 1) THEN
+      IF (rtbse_env%rirs_kernel .AND. bs_env%ri_rs%grid_select == 1) THEN
          CPWARN("linRTBSE RIRS: use GRID_SELECT=2 for accuracy")
       END IF
       CALL determine_active_mo_window(rtbse_env, bs_env)
@@ -1048,7 +1048,7 @@ CONTAINS
       ! dbcsr scratch (see rt_bse.F::get_sigma_real). rho_dbcsr is now AO-RI
       ! Hartree only, as its name suggests.
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
-      IF (rtbse_env%rirs_hartree) RETURN
+      IF (rtbse_env%rirs_kernel) RETURN
 
       CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
 
@@ -1160,16 +1160,13 @@ CONTAINS
       TYPE(rtbse_env_type)                              :: rtbse_env
 
       ! Mirror the gate in create_hartree_ri_workspace and the v_dbcsr gate in
-      ! initialize_hartree_potential (rt_bse_linearized.F:819-821). v_dbcsr is
-      ! created by init_hartree iff `(.NOT. rirs_hartree) .OR. (.NOT. rirs_sex)`;
-      ! the rest of the scratch is created iff `.NOT. rirs_hartree`.
+      ! initialize_hartree_potential. With one KERNEL_RI switch the AO-RI Hartree
+      ! scratch (3c integrals + dbcsr work + v_dbcsr) is created iff `.NOT. rirs_kernel`.
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
-      IF (.NOT. rtbse_env%rirs_hartree) THEN
+      IF (.NOT. rtbse_env%rirs_kernel) THEN
          DEALLOCATE (rtbse_env%int_3c_array)
          CALL dbcsr_release(rtbse_env%rho_dbcsr)
          CALL dbcsr_release(rtbse_env%v_ao_dbcsr)
-      END IF
-      IF ((.NOT. rtbse_env%rirs_hartree) .OR. (.NOT. rtbse_env%rirs_sex)) THEN
          CALL dbcsr_release(rtbse_env%v_dbcsr)
       END IF
    END SUBROUTINE release_hartree_ri_workspace
@@ -1185,9 +1182,9 @@ CONTAINS
 
       ! Skip the AO-RI sigma scratch (W matrix + 3c integrals + work tensors)
       ! when the RT-BSE SEX path is fully RI-RS — these workspaces are read
-      ! only by get_sigma in the `.NOT. use_rirs_sex` branches.
+      ! only by get_sigma in the `.NOT. rirs_kernel` branches.
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
-      IF (rtbse_env%rirs_sex) RETURN
+      IF (rtbse_env%rirs_kernel) RETURN
 
       CALL create_sigma_workspace_qs_only(rtbse_env%qs_env, rtbse_env%screened_dbt, rtbse_env%w_dbcsr, &
                                           rtbse_env%t_3c_w, rtbse_env%t_3c_work_RI_AO__AO, &
@@ -1241,7 +1238,7 @@ CONTAINS
 
       ! Mirror the gate in create_sigma_workspace.
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
-      IF (rtbse_env%rirs_sex) RETURN
+      IF (rtbse_env%rirs_kernel) RETURN
 
       CALL dbt_destroy(rtbse_env%t_3c_w)
       CALL dbt_destroy(rtbse_env%t_3c_work_RI_AO__AO)

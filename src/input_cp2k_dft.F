@@ -44,7 +44,8 @@ MODULE input_cp2k_dft
         numerical, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, real_time_propagation, &
         rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, &
         rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, &
-        rtp_bse_ham_g0w0, rtp_bse_ham_ks, rtp_method_bse, rtp_method_tddft, sccs_andreussi, &
+        rtp_bse_ham_g0w0, rtp_bse_ham_ks, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_default, &
+        rtp_bse_kernel_ri_rs, rtp_method_bse, rtp_method_tddft, sccs_andreussi, &
         sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
         sccs_fattebert_gygi, sccs_saa_andreussi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
         sic_mauri_spz, sic_mauri_us, sic_none, slater, use_mom_ref_coac, use_mom_ref_com, &
@@ -2155,27 +2156,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="RIRS_HARTREE", &
-                          description="Use the RI-RS grid kernel for the Hartree contribution in linRTBSE "// &
-                          "(propagation and reference). The V_grid kernel is built on demand; the RI-RS grid "// &
-                          "(mat_phi_mu_l, mat_Z_lP) is built here too if GW was not run with GW_RI_RS. "// &
-                          "Default: inherits from whether the GW_RI_RS section is active (so running with "// &
-                          "GW_RI_RS implicitly enables this); set explicitly to override.", &
-                          usage="RIRS_HARTREE", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="RIRS_SEX", &
-                          description="Use the RI-RS grid kernel for the screened-exchange and Coulomb-hole "// &
-                          "self-energy contributions in linRTBSE (propagation and reference). The W0_grid "// &
-                          "kernel (V + W^c at omega=0) is built on demand from bs_env%fm_W_MIC_freq_zero. "// &
-                          "Default: inherits from whether the GW_RI_RS section is active (so running with "// &
-                          "GW_RI_RS implicitly enables this); set explicitly to override.", &
-                          usage="RIRS_SEX", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
+      CALL keyword_create(keyword, __LOCATION__, name="KERNEL_RI", &
+                          description="Select the RI framework used to evaluate the linearized RT-BSE "// &
+                          "Hartree and screened-exchange kernels (propagation and reference). "// &
+                          "DEFAULT infers from the GW flavor: RI-RS if the GW_RI_RS section was active, "// &
+                          "AO-RI otherwise. RS/AO force that framework regardless of how GW was run. The "// &
+                          "RI-RS grid (mat_phi_mu_l, mat_Z_lP) and the V_grid/W0_grid kernels are built on "// &
+                          "demand. RI-RS is implemented for linearized RT-BSE only; for full RT-BSE an "// &
+                          "explicit RS is overridden to AO with a warning.", &
+                          usage="KERNEL_RI RS", &
+                          enum_c_vals=s2a("DEFAULT", "RS", "AO"), &
+                          enum_i_vals=[rtp_bse_kernel_ri_default, rtp_bse_kernel_ri_rs, rtp_bse_kernel_ri_ao], &
+                          enum_desc=s2a("Infer from the GW flavor (GW_RI_RS active -> RS, else AO).", &
+                                        "Real-space RI grid kernels (linearized RT-BSE only).", &
+                                        "AO-RI kernels."), &
+                          default_i_val=rtp_bse_kernel_ri_default, n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -986,6 +986,10 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: rtp_bse_ham_ks = 1, &
                                                rtp_bse_ham_g0w0 = 2
 
+   INTEGER, PARAMETER, PUBLIC               :: rtp_bse_kernel_ri_default = 0, &
+                                               rtp_bse_kernel_ri_rs = 1, &
+                                               rtp_bse_kernel_ri_ao = 2
+
    ! how to solve polarizable force fields
    INTEGER, PARAMETER, PUBLIC               :: do_fist_pol_none = 1, &
                                                do_fist_pol_sc = 2, &

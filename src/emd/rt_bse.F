@@ -1063,10 +1063,10 @@ CONTAINS
       prefactor = 1.0_dp
       IF (PRESENT(prefactor_opt)) prefactor = prefactor_opt
 
-      ! RI-RS screened-exchange backend (linRTBSE only; rirs_sex is forced .FALSE. for full RTBSE,
+      ! RI-RS screened-exchange backend (linRTBSE only; rirs_kernel is forced .FALSE. for full RTBSE,
       ! so this is inert there). The RI-RS routine does its own Re/Im split, replacing the AO-RI body.
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C22
-      IF (rtbse_env%rirs_sex) THEN
+      IF (rtbse_env%rirs_kernel) THEN
          CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, sigma_cfm, prefactor, greens_cfm)
          RETURN
       END IF
@@ -1108,8 +1108,9 @@ CONTAINS
 
       ! Local AO-AO dbcsr scratch for the FM->DBCSR conversion. Previously this
       ! routine used rtbse_env%rho_dbcsr as the workspace, which coupled AO-RI SX
-      ! to the AO-RI Hartree allocation path - the (RIRS-H + AO-RI-SX) cross-combo
-      ! then segfaulted because rho_dbcsr is skipped when rirs_hartree=T.
+      ! to the AO-RI Hartree allocation path - the historical (RIRS-H + AO-RI-SX)
+      ! cross-combo (no longer expressible under the single KERNEL_RI switch)
+      ! then segfaulted because rho_dbcsr is skipped when rirs_kernel=T.
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
       CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
       CALL dbcsr_create(greens_dbcsr_scratch, name="get_sigma greens scratch", &

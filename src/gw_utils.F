@@ -65,6 +65,8 @@ MODULE gw_utils
                                               large_cell_Gamma_ri_rs,&
                                               non_periodic_ri_rs,&
                                               ri_rpa_g0w0_crossing_newton,&
+                                              rtp_bse_kernel_ri_ao,&
+                                              rtp_bse_kernel_ri_rs,&
                                               rtp_method_bse,&
                                               rtp_method_bse_linearized,&
                                               small_cell_full_kp,&
@@ -141,7 +143,7 @@ MODULE gw_utils
    PUBLIC :: create_and_init_bs_env_for_gw, de_init_bs_env, get_i_j_atoms, &
              compute_xkp, time_to_freq, analyt_conti_and_print, &
              add_R, is_cell_in_index_to_cell, get_V_tr_R, power, &
-             rtbse_resolve_rirs_flags
+             rtbse_resolve_rirs_flag
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils'
 
@@ -247,7 +249,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'de_init_bs_env'
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: retain_nl_3c, rirs_sex
+      LOGICAL                                            :: retain_nl_3c, rirs_kernel
 
       CALL timeset(routineN, handle)
       ! deallocate quantities here which:
@@ -260,8 +262,8 @@ CONTAINS
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
       retain_nl_3c = .FALSE.
       IF (ASSOCIATED(bs_env%nl_3c%ij_list) .AND. (bs_env%rtp_method == rtp_method_bse)) THEN
-         CALL rtbse_resolve_rirs_flags(qs_env, bs_env, rirs_sex=rirs_sex)
-         retain_nl_3c = .NOT. rirs_sex
+         CALL rtbse_resolve_rirs_flag(qs_env, bs_env, rirs_kernel=rirs_kernel)
+         retain_nl_3c = .NOT. rirs_kernel
       END IF
 
       IF (retain_nl_3c) THEN
@@ -277,52 +279,49 @@ CONTAINS
    END SUBROUTINE de_init_bs_env
 
 ! **************************************************************************************************
-!> \brief Resolve the linRTBSE RI-RS kernel flags (Hartree, SEX) from input and the GW default.
+!> \brief Resolve the linRTBSE RI-RS kernel switch from the KERNEL_RI input and the GW default.
 !> \param qs_env Quickstep environment - source of the input section and the RTP method
 !> \param bs_env Bandstructure environment - provides the do_gw_ri_rs default
-!> \param rirs_hartree (optional) .TRUE. if the Hartree kernel uses the RI-RS grid
-!> \param rirs_sex (optional) .TRUE. if the SEX/COH kernel uses the RI-RS grid
+!> \param rirs_kernel (optional) .TRUE. if the Hartree + SEX kernels use the RI-RS grid backend
 !> \author Maximilian Graml
-!> \note Single source of truth shared by create_rtbse_env (sets the flags) and de_init_bs_env
-!>       (decides whether to retain nl_3c). Default follows bs_env%do_gw_ri_rs; explicit
-!>       RIRS_HARTREE/RIRS_SEX override; both forced .FALSE. for non-linearized (full) RT-BSE.
+!> \note Single source of truth shared by create_rtbse_env (sets the flag) and de_init_bs_env
+!>       (decides whether to retain nl_3c). KERNEL_RI=DEFAULT follows bs_env%do_gw_ri_rs;
+!>       RS/AO force; forced .FALSE. for non-linearized (full) RT-BSE (warn on explicit RS).
 ! **************************************************************************************************
-   SUBROUTINE rtbse_resolve_rirs_flags(qs_env, bs_env, rirs_hartree, rirs_sex)
+   SUBROUTINE rtbse_resolve_rirs_flag(qs_env, bs_env, rirs_kernel)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: rirs_hartree, rirs_sex
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: rirs_kernel
 
-      LOGICAL                                            :: explicit_hartree, explicit_sex, &
-                                                            my_rirs_hartree, my_rirs_sex
+      INTEGER                                            :: kernel_ri
+      LOGICAL                                            :: my_rirs_kernel
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: input
 
       NULLIFY (dft_control, input)
       CALL get_qs_env(qs_env, dft_control=dft_control, input=input)
 
-      my_rirs_hartree = bs_env%do_gw_ri_rs
-      my_rirs_sex = bs_env%do_gw_ri_rs
-      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_HARTREE", &
-                                explicit=explicit_hartree)
-      IF (explicit_hartree) THEN
-         CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_HARTREE", l_val=my_rirs_hartree)
-      END IF
-      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_SEX", &
-                                explicit=explicit_sex)
-      IF (explicit_sex) THEN
-         CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_SEX", l_val=my_rirs_sex)
-      END IF
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%KERNEL_RI", &
+                                i_val=kernel_ri)
+      SELECT CASE (kernel_ri)
+      CASE (rtp_bse_kernel_ri_rs)
+         my_rirs_kernel = .TRUE.
+      CASE (rtp_bse_kernel_ri_ao)
+         my_rirs_kernel = .FALSE.
+      CASE DEFAULT  ! rtp_bse_kernel_ri_default
+         my_rirs_kernel = bs_env%do_gw_ri_rs
+      END SELECT
 
       ! RI-RS kernels are implemented for linearized RT-BSE only; full RT-BSE always uses AO-RI.
       IF (dft_control%rtp_control%rtp_method /= rtp_method_bse_linearized) THEN
-         my_rirs_hartree = .FALSE.
-         my_rirs_sex = .FALSE.
+         IF (kernel_ri == rtp_bse_kernel_ri_rs) &
+            CPWARN("RI-RS kernels are implemented for linearized RT-BSE only; forcing AO")
+         my_rirs_kernel = .FALSE.
       END IF
 
-      IF (PRESENT(rirs_hartree)) rirs_hartree = my_rirs_hartree
-      IF (PRESENT(rirs_sex)) rirs_sex = my_rirs_sex
+      IF (PRESENT(rirs_kernel)) rirs_kernel = my_rirs_kernel
 
-   END SUBROUTINE rtbse_resolve_rirs_flags
+   END SUBROUTINE rtbse_resolve_rirs_flag
 
 ! **************************************************************************************************
 !> \brief ...
