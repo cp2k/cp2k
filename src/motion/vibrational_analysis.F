@@ -627,11 +627,11 @@ CONTAINS
                CALL diamat_all(Hint2, H_eigval2)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(/,T2,"VIB| Frequencies after removal of the rotations and translations")')
-                  ! Frequency at the moment are in a.u. and the last 6 are meaningless
+                  ! Frequency at the moment are in a.u
                   WRITE (output_unit, '(/,T2,A)') "VIB| Internal  Low frequencies ---"
-                  DO i = 1, ncoord - 6, 5
+                  DO i = 1, SIZE(D, 2), 5
                      WRITE (output_unit, '(T2,A,T6,5(1X,ES14.7E2))') &
-                        "VIB|", H_eigval2(i:MIN(i + 4, ncoord - 6))
+                        "VIB|", H_eigval2(i:MIN(i + 4, SIZE(D, 2)))
                   END DO
                END IF
                Hessian = 0.0_dp
