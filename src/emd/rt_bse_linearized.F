@@ -77,7 +77,6 @@ MODULE rt_bse_linearized
                                               print_timestep_info
    USE rt_bse_ri_rs,                    ONLY: compute_hartree_ri_rs,&
                                               compute_hartree_ri_rs_complex,&
-                                              compute_sigma_ri_rs,&
                                               rt_bse_ri_rs_ensure_V_grid,&
                                               rt_bse_ri_rs_ensure_W0_grid
    USE rt_bse_types,                    ONLY: create_rtbse_env,&
@@ -240,8 +239,8 @@ CONTAINS
          CALL cp_cfm_set_all(rtbse_env%ham_reference(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
       END DO
       CALL initialize_hartree_potential(rtbse_env)
-      !  - calculates the COHSEX reference self-energy
-      CALL initialize_cohsex_selfenergy(rtbse_env)
+      !  - calculates the SEX reference self-energy
+      CALL initialize_sex_selfenergy(rtbse_env)
 
       ! Krylov rho(L) diagnostics: print the kernel-inclusive spectral radius
       ! of the linearized propagator alongside the bare-gap omega_max so the
@@ -949,33 +948,30 @@ CONTAINS
    END SUBROUTINE initialize_hartree_potential
 
 ! **************************************************************************************************
-!> \brief Reference COHSEX self-energy subtraction into ham_reference (non-TDA n_spin=1 for SEX; COH
-!>        is a static no-op exactly cancelled per step). Assembles W = V + W^c, then Σ^COH (static
-!>        Coulomb-hole, scale -1/2 on S^-1) and Σ^SX = -W ρ^0, each (f_n - f_m)-weighted, subtracted.
-!>        [INTERNAL] dev_notes/rt_bse_equations.md §1 / §6 (Σ^SX, COH) ; open_questions Q6 (COH no-op)
+!> \brief Reference SEX self-energy subtraction into ham_reference (non-TDA, n_spin=1). Assembles
+!>        W = V + W^c, then Σ^SX = -W ρ^0, (f_n - f_m)-weighted, subtracted.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §1 (Σ^SX)
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
 !> \author Maximilian Graml (03/26) - add transform to MO
 ! **************************************************************************************************
-   SUBROUTINE initialize_cohsex_selfenergy(rtbse_env)
+   SUBROUTINE initialize_sex_selfenergy(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_cohsex_selfenergy'
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_sex_selfenergy'
 
       INTEGER                                            :: handle, i
-      LOGICAL                                            :: use_coh_reference, use_rirs_sex, &
-                                                            use_sex_reference
+      LOGICAL                                            :: use_rirs_sex, use_sex_reference
 
       CALL timeset(routineN, handle)
-      use_coh_reference = .NOT. rtbse_env%debug_disable_coh
       use_sex_reference = (.NOT. rtbse_env%tda_active) .AND. (rtbse_env%n_spin == 1) .AND. &
                           (.NOT. rtbse_env%debug_disable_sex)
       use_rirs_sex = rtbse_env%rirs_sex
 
-      ! Make sure the RI-RS W0_grid kernel is available if we need it for COH/SEX.
+      ! Make sure the RI-RS W0_grid kernel is available if we need it for SEX.
       IF (use_rirs_sex) CALL rt_bse_ri_rs_ensure_W0_grid(rtbse_env%bs_env, rtbse_env%qs_env)
 
-      ! ****** START COHSEX REFERENCE CALCULATION
+      ! ****** START SEX REFERENCE CALCULATION
       ! w_dbcsr and screened_dbt are needed for get_sigma routines (AO-RI path only).
       ! For RI-RS the W = V + W^c kernel is on the real-space grid in mat_W0_grid_rtbse.
       IF (.NOT. use_rirs_sex) THEN
@@ -990,37 +986,8 @@ CONTAINS
          CALL dbcsr_add(rtbse_env%w_dbcsr, rtbse_env%v_dbcsr, 1.0_dp, 1.0_dp)
          CALL dbt_copy_matrix_to_tensor(rtbse_env%w_dbcsr, rtbse_env%screened_dbt)
       END IF
-      ! Calculate the COHSEX starting energies
+      ! Calculate the SEX starting energies
       DO i = 1, rtbse_env%n_spin
-         ! COH is only meaningful with screening (g0w0 path); KS reference has W^c = 0.
-         ! Skipped entirely for static W (coh_is_dynamic=.FALSE.): the subtraction here is
-         ! exactly cancelled by the per-step addition in update_effective_ham_MO.
-         IF (rtbse_env%coh_is_dynamic .AND. &
-             rtbse_env%ham_reference_type == rtp_bse_ham_g0w0 .AND. use_coh_reference) THEN
-            ! COH is currently a static no-op: this reference subtraction is cancelled
-            ! exactly by the per-step addition in update_effective_ham_MO (both build
-            ! Sigma_COH from S_inv_fm, no rho dependence). DEBUG_DISABLE_COH is inert.
-            ! [INTERNAL] dev_notes/rt_bse_open_questions.md Q6
-            CPWARN("linRTBSE COH is currently a static no-op")
-            ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
-            ! TODO : Allow no COH calculation for static screening
-            IF (use_rirs_sex) THEN
-               ! Σ^COH (static Coulomb-hole) via RI-RS grid kernel; scale -1/2, contracted on S^-1
-               CALL compute_sigma_ri_rs(rtbse_env%bs_env, rtbse_env%sigma_COH_ao(i), -0.5_dp, &
-                                        rtbse_env%S_inv_fm)
-            ELSE
-               ! Σ^COH (static Coulomb-hole) via AO-RI get_sigma; scale -1/2, contracted on S^-1
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_COH_ao(i), -0.5_dp, rtbse_env%S_inv_fm)
-            END IF
-            ! Transform to MO basis (AO scratch -> MO-active result)
-            CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%sigma_COH_ao(i), rtbse_env%sigma_COH(i), i)
-            ! Apply occupation factor f_n-f_m
-            CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%sigma_COH(i), i)
-            ! Copy and subtract from the complex reference hamiltonian
-            CALL cp_fm_to_cfm(msourcer=rtbse_env%sigma_COH(i), mtarget=rtbse_env%ham_workspace(1))
-            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
-                                      CMPLX(-1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
-         END IF
          ! Calculate exchange part - TODO : should this be applied for different spins? - TEST with O2 HF propagation?
          ! So far only closed shell tested
          ! Uses rho_orig - same as rho for initial run but different for continued run
@@ -1040,10 +1007,10 @@ CONTAINS
                                       CMPLX(-1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(i))
          END IF
       END DO
-      ! ****** END COHSEX REFERENCE CALCULATION
+      ! ****** END SEX REFERENCE CALCULATION
 
       CALL timestop(handle)
-   END SUBROUTINE initialize_cohsex_selfenergy
+   END SUBROUTINE initialize_sex_selfenergy
 
 ! **************************************************************************************************
 !> \brief Propagates the density one timestep by RK4 for ∂_t ρ = f(t,ρ) =
@@ -1218,9 +1185,9 @@ CONTAINS
 
    ! **************************************************************************************************
 !> \brief Assembles the linearized RT-BSE right-hand side in the MO basis and returns it scaled by -i:
-!>        ham_effective <- -i( [H^0, ρ] + (f_n - f_m)(ΔΣ^COH + ΔΣ^SX[Δρ] + ΔV^H[Δρ]) ), i.e. the
+!>        ham_effective <- -i( [H^0, ρ] + (f_n - f_m)(ΔΣ^SX[Δρ] + ΔV^H[Δρ]) ), i.e. the
 !>        f(t,ρ) of ∂_t Δρ_mn = -i( (ε_m - ε_n)Δρ_mn + (f_n - f_m)(V^H_mn + Σ^SX_mn) ).
-!>        ham_reference already carries KS+G0W0 minus the reference COHSEX/Hartree, so the kernels
+!>        ham_reference already carries KS+G0W0 minus the reference SEX/Hartree, so the kernels
 !>        enter as differences vs the reference. Forks: tda_active (drop B-coupling: one OV kernel
 !>        pass + VO conjugate) vs full ABBA (OV+VO); n_spin and the rirs_hartree/rirs_sex flags
 !>        select the AO-RI or RI-RS backend per term.
@@ -1240,11 +1207,10 @@ CONTAINS
       INTEGER                                            :: handle, i_global, i_loc, j_global, &
                                                             j_loc, k, ncl, nrl
       INTEGER, DIMENSION(:), POINTER                     :: c_idx, r_idx
-      LOGICAL                                            :: use_coh, use_hartree, use_rirs_hartree, &
+      LOGICAL                                            :: use_hartree, use_rirs_hartree, &
                                                             use_rirs_sex, use_sex
 
       CALL timeset(routineN, handle)
-      use_coh = .NOT. rtbse_env%debug_disable_coh
       use_hartree = .NOT. rtbse_env%debug_disable_hartree
       use_sex = .NOT. rtbse_env%debug_disable_sex
       use_rirs_hartree = rtbse_env%rirs_hartree
@@ -1253,7 +1219,7 @@ CONTAINS
       ! Update density matrix in AO from latest rho as it is needed for Hartree and SEX contributions
       CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rho, rtbse_env%rho_ao_lrrtbse(ispin), ispin)
 
-      ! Reset the effective Hamiltonian to KS Hamiltonian + G0W0 - reference COHSEX - reference Hartree
+      ! Reset the effective Hamiltonian to KS Hamiltonian + G0W0 - reference SEX - reference Hartree
       !DO j = 1, nspin
       ! Sets the imaginary part to zero
       CALL cp_cfm_to_cfm(rtbse_env%ham_reference(ispin), ham_effective)
@@ -1289,25 +1255,6 @@ CONTAINS
          ! CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
          !                           CMPLX(rtbse_env%field(k), 0.0, kind=dp), rtbse_env%ham_workspace(1))
       END DO
-      IF (rtbse_env%coh_is_dynamic .AND. &
-          rtbse_env%ham_reference_type == rtp_bse_ham_g0w0 .AND. use_coh) THEN
-         ! Add the COH part - so far static but can be dynamic in principle through the W updates
-         IF (use_rirs_sex) THEN
-            ! COH (static Coulomb-hole) via RI-RS grid kernel; scale -1/2, contracted on S^-1
-            CALL compute_sigma_ri_rs(rtbse_env%bs_env, rtbse_env%sigma_COH_ao(ispin), -0.5_dp, &
-                                     rtbse_env%S_inv_fm)
-         ELSE
-            ! COH (static Coulomb-hole) via AO-RI get_sigma; scale -1/2, contracted on S^-1
-            CALL get_sigma(rtbse_env, rtbse_env%sigma_COH_ao(ispin), -0.5_dp, rtbse_env%S_inv_fm)
-         END IF
-         ! Transform to MO basis (AO scratch -> MO-active result)
-         CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%sigma_COH_ao(ispin), rtbse_env%sigma_COH(ispin), ispin)
-         ! Apply occupation factor f_n-f_m
-         CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%sigma_COH(ispin), ispin)
-         CALL cp_fm_to_cfm(msourcer=rtbse_env%sigma_COH(ispin), mtarget=rtbse_env%ham_workspace(1))
-         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
-                                   CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
-      END IF
       IF (.NOT. rtbse_env%tda_active) THEN
          IF (rtbse_env%n_spin == 1) THEN
             ! ===== Option B (closed-shell, legacy): full rho + init reference; RIRS-capable. =====
@@ -1379,8 +1326,8 @@ CONTAINS
                CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
                                          CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
             END IF
-            ! Restore rho_ao_lrrtbse to the full-rho AO image for post-routine consumers (COH
-            ! refresh, output) - same invariant the TDA branch restores at its tail.
+            ! Restore rho_ao_lrrtbse to the full-rho AO image for post-routine consumers (output)
+            ! - same invariant the TDA branch restores at its tail.
             CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rho, &
                                                       rtbse_env%rho_ao_lrrtbse(ispin), ispin)
          END IF
@@ -1468,7 +1415,7 @@ CONTAINS
          END IF
 
          ! Restore rho_ao_lrrtbse to the AO image of the current full rho, so any
-         ! post-routine consumer (output_mos, COH refresh) sees the same invariant
+         ! post-routine consumer (output_mos) sees the same invariant
          ! as on the non-TDA path.
          CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rho, &
                                                    rtbse_env%rho_ao_lrrtbse(ispin), ispin)
@@ -1523,14 +1470,14 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! Mirror update_effective_ham_MO:1048-1050. No use_coh: COH has no LR action
-      ! (Q6) and is not applied in this routine; only Hartree + SX are gated.
+      ! Mirror update_effective_ham_MO kernel gating: only Hartree + SX are gated
+      ! (no COH kernel in linRTBSE).
       ! [INTERNAL] dev_notes/rt_bse_open_questions.md Q5
       use_hartree = .NOT. rtbse_env%debug_disable_hartree
       use_sex = .NOT. rtbse_env%debug_disable_sex
       ! RI-RS dispatch reads rtbse_env%rirs_hartree / %rirs_sex directly below.
       ! V_grid / W0_grid are populated by initialize_hartree_potential /
-      ! initialize_cohsex_selfenergy, which run before this diagnostic.
+      ! initialize_sex_selfenergy, which run before this diagnostic.
 
       ! 1. Stage drho_in into drho_probe. TDA: mask to OV (propagator carries only OV
       !    and the VO contribution is recovered later via the (.)^C shortcut). ABBA: keep
@@ -2194,7 +2141,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Covariant AO->MO transform of an operator (real): M^MO_mn = sum_µν C_µm M^AO_µν C_νn.
-!>        For operator-like kernels (Σ^SX, COH, V^H); the density uses the contravariant routine.
+!>        For operator-like kernels (Σ^SX, V^H); the density uses the contravariant routine.
 !>        [INTERNAL] dev_notes/rt_bse_equations.md §6
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
 !> \param fm_ao operator in the AO basis (n_ao x n_ao), input
@@ -2316,7 +2263,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Scales each MO-active element (m,n) by the occupation prefactor (f_n - f_m), f in {0,1}
 !>        (complex): OV -> -1, VO -> +1, OO/VV -> 0. The only trace of "ρ^0 diagonal in MO".
-!>        Applied to whatever kernel the caller passes (Σ^SX, COH, V^H in MO) - bound by the caller.
+!>        Applied to whatever kernel the caller passes (Σ^SX, V^H in MO) - bound by the caller.
 !>        [INTERNAL] dev_notes/rt_bse_equations.md §3 / §4 Eq. drho_MO_linear_diag
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
 !> \param cfm MO-active kernel matrix (mo_active x mo_active) cfm, scaled in place

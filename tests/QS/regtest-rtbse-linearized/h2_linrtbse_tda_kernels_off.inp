@@ -5,7 +5,6 @@
 
 ! TDA, all kernels disabled: Liouvillian collapses to diag(eps_ai); peaks +
 ! alpha(0) must match the ABBA kernels-off counterpart (B=0 -> ABBA = TDA-bare).
-
 &MOTION
   &MD
     ENSEMBLE NVE
@@ -45,7 +44,6 @@
         &END RESTART
       &END PRINT
       &RTBSE
-        DEBUG_DISABLE_COH T
         DEBUG_DISABLE_HARTREE T
         DEBUG_DISABLE_SEX T
         DIAGNOSE_LIOUVILLIAN_EIG T

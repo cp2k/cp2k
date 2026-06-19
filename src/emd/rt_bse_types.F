@@ -169,14 +169,7 @@ MODULE rt_bse_types
       REAL(kind=dp)                                             :: omega_shift = 0.0_dp
       ! Debug-only kernel switches shared by initialization and propagation.
       LOGICAL                                                   :: debug_disable_hartree = .FALSE., &
-                                                                   debug_disable_sex = .FALSE., &
-                                                                   debug_disable_coh = .FALSE.
-      ! Physics gate (distinct from the debug-disable flags): .TRUE. only when the
-      ! screened interaction W is time-dependent, so Sigma^COH must be rebuilt every
-      ! RK4 stage. With static W (always, today) Sigma^COH is a self-cancelling no-op
-      ! (reference subtraction == per-step addition), so both halves are skipped.
-      ! Hardwired .FALSE.; promote to an input keyword only when a dynamic-W path lands.
-      LOGICAL                                                   :: coh_is_dynamic = .FALSE.
+                                                                   debug_disable_sex = .FALSE.
       ! Debug-only QP override. When .TRUE., the propagator's H_qp diagonal and the
       ! Liouvillian diagnostic's H_eps source are replaced by the module-level
       ! parameter array hacked_GW_H2_eigenvalues in rt_bse_linearized.F. Strictly
@@ -191,7 +184,7 @@ MODULE rt_bse_types
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
       LOGICAL                                                   :: debug_force_hacked_gw_o2_eigenvalues = .FALSE.
       ! Per-kernel RI-RS dispatch. Independent toggles: rirs_hartree controls Hartree only,
-      ! rirs_sex controls both COH and SEX (they share W = V + W^c). The required grid and
+      ! rirs_sex controls SEX (uses W = V + W^c). The required grid and
       ! V_grid/W0_grid kernels are built on demand and reused across steps.
       LOGICAL                                                   :: rirs_hartree = .FALSE., &
                                                                    rirs_sex = .FALSE.
@@ -271,8 +264,7 @@ MODULE rt_bse_types
       ! sigma_COH/sigma_SEX/hartree_curr matrices above can be allocated on
       ! fm_struct_mo_active. Only allocated when linearized=.TRUE..
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: sigma_SEX_ao => NULL()
-      TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: sigma_COH_ao => NULL(), &
-                                                                   hartree_curr_ao => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: hartree_curr_ao => NULL()
       ! Open-shell cross-spin Hartree (TDA AO-RI), single shared AO buffers built once per
       ! RK4 stage: rho_total_ao_scratch (fm_s struct, matches rho_ao_lrrtbse for the spin sum);
       ! hartree_total_ao = V_H[sum] (fm_ks struct, matches sigma_SEX_ao as the Hartree output).
@@ -453,8 +445,6 @@ CONTAINS
                                 l_val=rtbse_env%debug_disable_hartree)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_DISABLE_SEX", &
                                 l_val=rtbse_env%debug_disable_sex)
-      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_DISABLE_COH", &
-                                l_val=rtbse_env%debug_disable_coh)
       ! Per-kernel RI-RS dispatch (default do_gw_ri_rs, explicit RIRS_* override, full-RTBSE
       ! force-off) is resolved by the shared helper so de_init_bs_env reaches the same verdict
       ! when deciding whether to retain nl_3c. [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
@@ -472,7 +462,6 @@ CONTAINS
          rtbse_env%enforce_max_dt = .FALSE.
          rtbse_env%debug_disable_hartree = .FALSE.
          rtbse_env%debug_disable_sex = .FALSE.
-         rtbse_env%debug_disable_coh = .FALSE.
          rtbse_env%tda_shift_to_first_peak = .FALSE.
          ! rirs_hartree/rirs_sex are already forced .FALSE. here by rtbse_resolve_rirs_flags.
          rtbse_env%diagnose_liouvillian_eig = .FALSE.
@@ -657,7 +646,7 @@ CONTAINS
       END DO
       ! Now onto the Hamiltonian itself
       ! full RTBSE: Contains energy differences and Hartree/COHSEX ρ_0 parts
-      ! linearised RTBSE: Contains only the Hartree/COHSEX ρ_0 parts as Δε * Δρ(t) need to be updated
+      ! linearised RTBSE: Contains only the Hartree/SEX ρ_0 parts as Δε * Δρ(t) need to be updated
       NULLIFY (rtbse_env%ham_reference)
       ALLOCATE (rtbse_env%ham_reference(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
@@ -746,15 +735,11 @@ CONTAINS
       IF (rtbse_env%linearized) THEN
          NULLIFY (rtbse_env%hartree_curr_ao)
          NULLIFY (rtbse_env%sigma_SEX_ao)
-         NULLIFY (rtbse_env%sigma_COH_ao)
          ALLOCATE (rtbse_env%hartree_curr_ao(rtbse_env%n_spin))
          ALLOCATE (rtbse_env%sigma_SEX_ao(rtbse_env%n_spin))
-         ALLOCATE (rtbse_env%sigma_COH_ao(rtbse_env%n_spin))
          DO i = 1, rtbse_env%n_spin
-            CALL cp_fm_create(rtbse_env%sigma_COH_ao(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
             CALL cp_cfm_create(rtbse_env%sigma_SEX_ao(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
             CALL cp_fm_create(rtbse_env%hartree_curr_ao(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
-            CALL cp_fm_set_all(rtbse_env%sigma_COH_ao(i), 0.0_dp)
             CALL cp_cfm_set_all(rtbse_env%sigma_SEX_ao(i), CMPLX(0.0, 0.0, kind=dp))
             CALL cp_fm_set_all(rtbse_env%hartree_curr_ao(i), 0.0_dp)
          END DO
@@ -916,7 +901,6 @@ CONTAINS
       ! Deallocate the neighbour list that is not deallocated in gw anymore
       IF (ASSOCIATED(rtbse_env%bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(rtbse_env%bs_env%nl_3c)
       ! Release linearized-only AO scratches and MO-side workspaces
-      IF (ASSOCIATED(rtbse_env%sigma_COH_ao)) CALL cp_fm_release(rtbse_env%sigma_COH_ao)
       IF (ASSOCIATED(rtbse_env%sigma_SEX_ao)) CALL cp_cfm_release_pa1(rtbse_env%sigma_SEX_ao)
       IF (ASSOCIATED(rtbse_env%hartree_curr_ao)) CALL cp_fm_release(rtbse_env%hartree_curr_ao)
       IF (ASSOCIATED(rtbse_env%real_workspace_mo)) CALL cp_fm_release(rtbse_env%real_workspace_mo)

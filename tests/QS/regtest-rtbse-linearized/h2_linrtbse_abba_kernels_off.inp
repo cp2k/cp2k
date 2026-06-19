@@ -5,7 +5,6 @@
 
 ! ABBA, all kernels disabled: B=0 reduces ABBA to TDA-bare-diag; peaks +
 ! alpha(0) must match the TDA kernels-off counterpart.
-
 &MOTION
   &MD
     ENSEMBLE NVE
@@ -45,7 +44,6 @@
         &END RESTART
       &END PRINT
       &RTBSE
-        DEBUG_DISABLE_COH T
         DEBUG_DISABLE_HARTREE T
         DEBUG_DISABLE_SEX T
         DIAGNOSE_LIOUVILLIAN_EIG T

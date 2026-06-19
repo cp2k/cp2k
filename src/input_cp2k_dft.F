@@ -2188,15 +2188,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_DISABLE_COH", &
-                          description="Debug option for linearized RT-BSE: disables the Coulomb-hole contribution "// &
-                          "in both the static reference initialization and the propagation.", &
-                          usage="DEBUG_DISABLE_COH", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       ! Liouvillian eigenvalue diagnostic (TDA only; matrix-free probe at init)
       CALL keyword_create(keyword, __LOCATION__, name="DIAGNOSE_LIOUVILLIAN_EIG", &
                           description="Diagnostic for linearized RT-BSE: at job initialization, build the "// &
