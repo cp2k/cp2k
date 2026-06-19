@@ -25,6 +25,7 @@ class Libxs(CMakePackage):
     license("BSD-3-Clause", checked_by="mkrack")
 
     version("main", branch="main")
+    version("20260618", commit="ee1e6ab40e019c858fe6023b194ac95f007bb36b")
     version("20260611", commit="81914e78a9dc440a7bf4514a6312240b68d114e9")
     version("20260605", commit="ab416130f8c9f7edb8c1bf3d3abaf402f61d0fe0")
 

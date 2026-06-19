@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxstream_ver="a1e21a1"
-libxstream_sha256="22ee6e00533957ebd8ecdac9e89e0585afe1bb097567b379080bffff64faad54"
+libxstream_ver="9b5d4ed"
+libxstream_sha256="77bd005aaf1d03556c32ea30b3f239d2ac09270c9adb219a82d585a82f1b6fea"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -34,57 +34,27 @@ case "$with_libxstream" in
     if verify_checksums "${install_lock_file}"; then
       echo "libxstream-${libxstream_ver} is already installed, skipping it."
     else
-      if [ -f libxstream-${libxstream_ver}.tar.gz ]; then
-        echo "libxstream-${libxstream_ver}.tar.gz is found"
-      else
-        download_pkg_from_urlpath "${libxstream_sha256}" "${libxstream_ver}" \
-          https://codeload.github.com/hfp/libxstream/tar.gz \
-          "libxstream-${libxstream_ver}.tar.gz"
-      fi
+      retrieve_package "${libxstream_sha256}" "libxstream-${libxstream_ver}.tar.gz"
       [ -d libxstream-${libxstream_ver} ] && rm -rf libxstream-${libxstream_ver}
       tar -xzf libxstream-${libxstream_ver}.tar.gz
 
       echo "Installing from scratch into ${pkg_install_dir}"
       cd libxstream-${libxstream_ver}
-      # Determine LIBXS install location.
-      libxs_prefix="${LIBXSROOT:-}"
-      if [ -z "${libxs_prefix}" ] && command -v pkg-config > /dev/null 2>&1 && pkg-config --exists libxs; then
-        libxs_prefix="$(pkg-config --variable=prefix libxs)"
-      fi
-      if [ -z "${libxs_prefix}" ] && [ -d "${INSTALLDIR}/libxs-${LIBXS_VER:-${libxs_ver:-unknown}}" ]; then
-        libxs_prefix="${INSTALLDIR}/libxs-${LIBXS_VER:-${libxs_ver:-unknown}}"
-      fi
-      if [ -z "${LIBXSROOT}" ] && [ -n "${libxs_prefix}" ]; then
-        LIBXSROOT="${libxs_prefix}"
-      fi
-      if [ -z "${LIBXSROOT}" ]; then
-        report_error $LINENO "LIBXSTREAM requires LIBXSROOT. Install LIBXS first or set LIBXSROOT."
-        exit 1
-      fi
       mkdir build && cd build
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
         .. > configure.log 2>&1 || tail_excerpt configure.log
       make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"
-
-      # ---- macOS: pkg-config files must not use GNU ld's "-l:libfoo.a" syntax ----
-      if [[ "$(uname -s)" == "Darwin" ]]; then
-        perl -pi.bak -e 's/-l:lib([A-Za-z0-9_]+)\.a\b/-l$1/g' \
-          $(find "${pkg_install_dir}/lib" -name '*.pc' -type f)
-      fi
-
     fi
-    LIBXSTREAM_CFLAGS="-I'${pkg_install_dir}/include'"
-    LIBXSTREAM_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding LIBXStream from system paths ===================="
     check_lib -lxstream "libxstream"
-    add_include_from_paths LIBXSTREAM_CFLAGS "libxstream.h" $INCLUDE_PATHS
-    add_lib_from_paths LIBXSTREAM_LDFLAGS "libxstream.*" $LIB_PATHS
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libxstream.*" $LIB_PATHS)))"
     ;;
   __DONTUSE__) ;;
 
@@ -93,12 +63,9 @@ case "$with_libxstream" in
     pkg_install_dir="$with_libxstream"
     check_dir "${pkg_install_dir}/include"
     check_dir "${pkg_install_dir}/lib"
-    LIBXSTREAM_CFLAGS="-I'${pkg_install_dir}/include'"
-    LIBXSTREAM_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "$with_libxstream" != "__DONTUSE__" ]; then
-  LIBXSTREAM_LIBS="-lxstream"
   cat << EOF > "${BUILDDIR}/setup_libxstream"
 export LIBXSTREAM_VER="${libxstream_ver}"
 export LIBXSTREAM_ROOT="${pkg_install_dir}"

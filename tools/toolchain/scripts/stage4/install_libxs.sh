@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxs_ver="81914e7"
-libxs_sha256="afa98ef4f3fab9c5500fb3a5a3179aabf1ff29013da8b201f164afd2215ff996"
+libxs_ver="ee1e6ab"
+libxs_sha256="c5b64701d5c1d01b0307c9ae438d3e12408b04cf8b0f4a11e8139107b3bd82fa"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -27,6 +27,7 @@ case "$with_libxs" in
     if verify_checksums "${install_lock_file}"; then
       echo "libxs-${libxs_ver} is already installed, skipping it."
     else
+      # retrieve_package "${libxs_sha256}" "libxs-${libxs_ver}.tar.gz"
       if [ -f libxs-${libxs_ver}.tar.gz ]; then
         echo "libxs-${libxs_ver}.tar.gz is found"
       else
@@ -43,27 +44,18 @@ case "$with_libxs" in
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DLIBXS_FORTRAN=ON \
         .. > configure.log 2>&1 || tail_excerpt configure.log
       make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"
-
-      # ---- macOS: pkg-config files must not use GNU ld's "-l:libfoo.a" syntax ----
-      if [[ "$(uname -s)" == "Darwin" ]]; then
-        perl -pi.bak -e 's/-l:lib([A-Za-z0-9_]+)\.a\b/-l$1/g' \
-          $(find "${pkg_install_dir}/lib" -name '*.pc' -type f)
-      fi
-
     fi
-    LIBXS_CFLAGS="-I'${pkg_install_dir}/include'"
-    LIBXS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding LIBXS from system paths ===================="
     check_lib -lxs "libxs"
-    add_include_from_paths LIBXS_CFLAGS "libxs.h" $INCLUDE_PATHS
-    add_lib_from_paths LIBXS_LDFLAGS "libxs.*" $LIB_PATHS
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libxs.*" $LIB_PATHS)))"
     ;;
   __DONTUSE__) ;;
 
@@ -72,12 +64,9 @@ case "$with_libxs" in
     pkg_install_dir="$with_libxs"
     check_dir "${pkg_install_dir}/include"
     check_dir "${pkg_install_dir}/lib"
-    LIBXS_CFLAGS="-I'${pkg_install_dir}/include'"
-    LIBXS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "$with_libxs" != "__DONTUSE__" ]; then
-  LIBXS_LIBS="-lxs -ldl -lpthread"
   cat << EOF > "${BUILDDIR}/setup_libxs"
 export LIBXS_VER="${libxs_ver}"
 export LIBXS_ROOT="${pkg_install_dir}"

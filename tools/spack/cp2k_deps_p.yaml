@@ -71,7 +71,7 @@ spack:
 
     libxsmm:
       require:
-        - "blas=default"
+        - "+fortran"
 
     openblas:
       require:
@@ -213,8 +213,8 @@ spack:
     - "libvdwxc@0.5.0"
     - "libvori@220621"
     - "libxc@7.0.0"
-    - "libxs@20260611"
-    - "libxsmm@20260610-cp2k"
+    - "libxs@20260618"
+    - "libxsmm@20260617"
     - "mimic-mcl@3.0.0"
     - "netlib-scalapack@2.2.3"
     - "openblas@0.3.33"
