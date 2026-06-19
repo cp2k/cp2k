@@ -5,7 +5,7 @@
 # the order will be regularly checked and modified...
 QS/regtest-floquet
 QS/regtest-dft-d4-auto-ref                                  libdftd4
-QS/regtest-dft-d2-auto-ref                                  
+QS/regtest-dft-d2-auto-ref                                  libint
 QS/regtest-dft-d3-auto-ref                                  libint
 QS/regtest-dft-d3-bj-auto-ref                               libint
 QS/regtest-dft-d3-lib-ref                                    libint s_dftd3
