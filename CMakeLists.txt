@@ -180,17 +180,6 @@ cmake_dependent_option(CP2K_USE_LIBXSMM "Enable LIBXSMM JIT-kernel for LIBXS"
 cmake_dependent_option(CP2K_USE_LIBVDWXC "Enable libvdwxc support with SIRIUS"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_SIRIUS" OFF)
 
-# do not turn it on if sirius is built with the toolchain
-cmake_dependent_option(CP2K_USE_SIRIUS_DFTD3 "Enable dftd3 sirius support" OFF
-                       "CP2K_USE_SIRIUS" OFF)
-cmake_dependent_option(CP2K_USE_SIRIUS_DFTD4 "Enable dftd4 sirius support" OFF
-                       "CP2K_USE_SIRIUS" OFF)
-cmake_dependent_option(
-  CP2K_USE_SIRIUS_VCSQNM "Enable variable cell shape relaxation in SIRIUS" OFF
-  "CP2K_USE_SIRIUS" OFF)
-cmake_dependent_option(CP2K_USE_SIRIUS_NLCG "Enable nlcg method in SIRIUS" OFF
-                       "CP2K_USE_SIRIUS" OFF)
-
 cmake_dependent_option(
   CP2K_DBCSR_USE_CPU_ONLY "Disable the DBCSR accelerated backend" OFF
   "NOT CP2K_USE_ACCEL MATCHES \"OPENCL|HIP|CUDA\"" OFF)
@@ -929,18 +918,11 @@ endif()
 
 # SIRIUS
 if(CP2K_USE_SIRIUS)
-  find_package(sirius 7.7.0 REQUIRED)
-  add_library(cp2k::sirius INTERFACE IMPORTED)
-  target_link_libraries(cp2k::sirius INTERFACE sirius::sirius)
-
-  get_target_property(CP2K_SIRIUS_LIBRARY_TYPE sirius::sirius TYPE)
-  if(CP2K_SIRIUS_LIBRARY_TYPE STREQUAL "SHARED_LIBRARY")
-    # Shared SIRIUS does not export the private C++ library's link interface.
-    find_package(sirius_cxx CONFIG REQUIRED)
-    target_link_libraries(cp2k::sirius
-                          INTERFACE "$<LINK_ONLY:sirius::sirius_cxx>")
-  endif()
-  unset(CP2K_SIRIUS_LIBRARY_TYPE)
+  find_package(sirius 7.12 REQUIRED CONFIG)
+  set(CP2K_USE_SIRIUS_DFTD3 ${SIRIUS_USE_DFTD3})
+  set(CP2K_USE_SIRIUS_DFTD4 ${SIRIUS_USE_DFTD4})
+  set(CP2K_USE_SIRIUS_VCSQNM ${SIRIUS_USE_VCSQNM})
+  set(CP2K_USE_SIRIUS_NLCG ${SIRIUS_USE_NLCGLIB})
 endif()
 
 if(CP2K_USE_PLUMED)
