@@ -32,7 +32,7 @@ extern "C" {
 
 namespace rocm_backend {
 
-#if defined(__HIP_PLATFORM_NVIDIA__)
+#if defined(__OFFLOAD_CUDA) || defined(__HIP_PLATFORM_NVIDIA__)
 #if __CUDA_ARCH__ < 600
 __device__ __inline__ double atomicAdd(double *address, double val) {
   unsigned long long int *address_as_ull = (unsigned long long int *)address;
