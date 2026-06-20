@@ -113,7 +113,7 @@ COPY ./CMakeLists.txt .
 
 # Compile CP2K.
 COPY ./tools/docker/scripts/build_cp2k.sh .
-RUN ./build_cp2k.sh minimal ssmp
+RUN ./build_cp2k.sh minimal sdbg
 
 # Run regression tests.
 ARG TESTOPTS=""
@@ -121,7 +121,7 @@ COPY ./tests ./tests
 COPY ./tools/docker/scripts/test_regtest.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \
-    ./test_regtest.sh minimal ssmp |& tee report.log && \
+    ./test_regtest.sh minimal sdbg |& tee report.log && \
     rm -rf regtesting"
 
 # Output the report if the image is old and was therefore pulled from the build cache.
