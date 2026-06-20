@@ -175,26 +175,12 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
     // the cube center is initialy expressed in lattice coordinates but we
     // always do something like this. x = x + lower_corner + cube_center (+
     // roffset) - grid_lower_corner so shift the cube center already
-    task.cube_center.x += task.lb_cube.x - dev_.grid_lower_corner_.x;
-    task.cube_center.y += task.lb_cube.y - dev_.grid_lower_corner_.y;
-    task.cube_center.z += task.lb_cube.z - dev_.grid_lower_corner_.z;
-
-    if (distributed__) {
-      if (task.apply_border_mask) {
-        compute_window_size(
-            dev_.grid_local_size_,
-            dev_.tasks[dev_.first_task + block_index()].border_mask,
-            dev_.grid_border_width_, task.window_size, task.window_shift);
-      }
-    }
+    setup_task_cube_center<T, T3, distributed__>(dev_, task);
   }
   __syncthreads();
 
   for (int z = threadIdx.z; z < task.cube_size.z; z += blockDim.z) {
-    int z2 = (z + task.cube_center.z) % dev_.grid_full_size_.z;
-
-    if (z2 < 0)
-      z2 += dev_.grid_full_size_.z;
+    int z2 = wrap_grid_index(z + task.cube_center.z, dev_.grid_full_size_.z);
 
     if (distributed__) {
       // check if the point is within the window
@@ -218,9 +204,7 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
     }
 
     for (int y = ymin + threadIdx.y; y <= ymax; y += blockDim.y) {
-      int y2 = (y + task.cube_center.y) % dev_.grid_full_size_.y;
-      if (y2 < 0)
-        y2 += dev_.grid_full_size_.y;
+      int y2 = wrap_grid_index(y + task.cube_center.y, dev_.grid_full_size_.y);
 
       if (distributed__) {
         if (task.apply_border_mask) {
@@ -238,10 +222,8 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
       }
 
       for (int x = xmin + threadIdx.x; x <= xmax; x += blockDim.x) {
-        int x2 = (x + task.cube_center.x) % dev_.grid_full_size_.x;
-
-        if (x2 < 0)
-          x2 += dev_.grid_full_size_.x;
+        int x2 =
+            wrap_grid_index(x + task.cube_center.x, dev_.grid_full_size_.x);
 
         if (distributed__) {
           if (task.apply_border_mask) {

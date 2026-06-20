@@ -123,7 +123,10 @@ template <typename T> struct smem_task {
  * \brief data needed for collocate and integrate kernels
  ******************************************************************************/
 template <typename T, typename T3> struct smem_task_reduced {
-  T radius;
+  // radius: true cutoff used for the sphere-membership test.
+  // discrete_radius: box-aligned cutoff (always >= radius) used only for
+  // sizing the cube / trimming box boundaries.
+  T radius, discrete_radius;
   T norm_lattice_vector_z_2, norm_lattice_vector_y_2;
   T norm_inverse_lattice_vector_y, norm_inverse_lattice_vector_x;
   int3 cube_center, lb_cube, cube_size, window_size, window_shift;
@@ -561,6 +564,42 @@ __inline__ __device__ void compute_window_size(const int3 grid_size,
 }
 
 /*******************************************************************************
+ * \brief Wraps a cube-local coordinate into the periodic full grid along one
+ *        axis. Single point of entry shared by collocate_kernel and
+ *        integrate_kernel.
+ ******************************************************************************/
+__inline__ __device__ int wrap_grid_index(const int idx, const int full_size) {
+  int idx2 = idx % full_size;
+  if (idx2 < 0)
+    idx2 += full_size;
+  return idx2;
+}
+
+/*******************************************************************************
+ * \brief Shifts task.cube_center into the local grid's coordinate system and,
+ *        for distributed grids, derives the border window. Single point of
+ *        entry shared by collocate_kernel and integrate_kernel so the two
+ *        cannot drift apart on which axis maps to which.
+ ******************************************************************************/
+template <typename T, typename T3, bool distributed__>
+__device__ __inline__ void
+setup_task_cube_center(const kernel_params &dev_,
+                       smem_task_reduced<T, T3> &task) {
+  task.cube_center.x += task.lb_cube.x - dev_.grid_lower_corner_.x;
+  task.cube_center.y += task.lb_cube.y - dev_.grid_lower_corner_.y;
+  task.cube_center.z += task.lb_cube.z - dev_.grid_lower_corner_.z;
+
+  if (distributed__) {
+    if (task.apply_border_mask) {
+      compute_window_size(
+          dev_.grid_local_size_,
+          dev_.tasks[dev_.first_task + block_index()].border_mask,
+          dev_.grid_border_width_, task.window_size, task.window_shift);
+    }
+  }
+}
+
+/*******************************************************************************
  * \brief Transforms coefficients C_ab into C_xyz.
  ******************************************************************************/
 template <typename T>
@@ -672,8 +711,8 @@ fill_smem_task_reduced(const kernel_params &dev, const int task_id,
   if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
     const auto &glb_task = dev.tasks[task_id];
     task.zetp = glb_task.zeta + glb_task.zetb;
-    // task.radius = glb_task.radius;
-    task.radius = glb_task.discrete_radius;
+    task.radius = glb_task.radius;
+    task.discrete_radius = glb_task.discrete_radius;
 
     // angular momentum range for the actual collocate/integrate operation.
     task.lp =
@@ -740,8 +779,6 @@ __device__ __inline__ void fill_smem_task_coef(const kernel_params &dev,
     }
 
     task.prefactor = glb_task.prefactor;
-
-    // task.radius = glb_task.radius;
     task.off_diag_twice = glb_task.off_diag_twice;
 
     // angular momentum range of basis set
@@ -870,8 +907,8 @@ calculate_ymix_ymax_boundaries(smem_task_reduced<T, T3> &task, const int z,
   T kremain = 0.0;
   ymin = (2 * (z + task.lb_cube.z) - 1) / 2;
   ymin *= ymin;
-  kremain =
-      task.radius * task.radius - ((T)ymin) * task.norm_lattice_vector_z_2;
+  kremain = task.discrete_radius * task.discrete_radius -
+            ((T)ymin) * task.norm_lattice_vector_z_2;
   ymin = ceil(-1.0e-8 -
               sqrt(fmax(0.0, kremain)) * task.norm_inverse_lattice_vector_y);
   ymax = 1 - ymin - task.lb_cube.y;

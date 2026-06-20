@@ -34,11 +34,14 @@ namespace rocm_backend {
 // do a block reduction for a block of size 64 and return the final sum to
 // thread_id = 0
 template <typename T>
-__device__ __inline__ T block_reduce_64(T *table, const int tid) {
+__device__ __inline__ T block_reduce_64(T *table, const T val_, const int tid) {
   // AMD GPU have warp size of 64 while nvidia GPUs have warpSize of 32 so the
   // first step is common to both platforms.
+  table[tid] = val_;
+  __syncthreads();
 
   T val = 0.0;
+
   if (tid < 32) {
     val = table[tid] + table[tid + 32];
 
@@ -51,6 +54,9 @@ __device__ __inline__ T block_reduce_64(T *table, const int tid) {
     }
   }
 
+  // prevents threads >= 32 (which never touch table[]) from racing ahead and
+  // overwriting it for the next call before the reduction above has read it.
+  __syncthreads();
   return val;
 }
 
@@ -239,9 +245,7 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
     if (dev_.ptr_dev[5] != nullptr) {
 
       for (int i = 0; i < 9; i++) {
-        sum[tid] = virial[i];
-        __syncthreads();
-        virial[i] = block_reduce_64<T>(sum, tid);
+        virial[i] = block_reduce_64<T>(sum, virial[i], tid);
 
         if (tid == 0)
           atomicAdd(dev_.ptr_dev[5] + i, virial[i]);
@@ -249,17 +253,12 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
     }
 
     for (int i = 0; i < 3; i++) {
-      // store each thread local value of the force in shared memory
-      sum[tid] = fa[i];
-      __syncthreads();
-      fa[i] = block_reduce_64<T>(sum, tid);
+      fa[i] = block_reduce_64<T>(sum, fa[i], tid);
 
       if (tid == 0)
         atomicAdd(forces_a + i, fa[i]);
 
-      sum[tid] = fb[i];
-      __syncthreads();
-      fb[i] = block_reduce_64<T>(sum, tid);
+      fb[i] = block_reduce_64<T>(sum, fb[i], tid);
 
       if (tid == 0)
         atomicAdd(forces_b + i, fb[i]);
@@ -315,18 +314,7 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
   fill_smem_task_reduced(dev_, dev_.first_task + block_index(), task);
 
   if (tid == 0) {
-    task.cube_center.x += task.lb_cube.x - dev_.grid_lower_corner_.y;
-    task.cube_center.y += task.lb_cube.y - dev_.grid_lower_corner_.y;
-    task.cube_center.z += task.lb_cube.z - dev_.grid_lower_corner_.z;
-
-    if (distributed__) {
-      if (task.apply_border_mask) {
-        compute_window_size(
-            dev_.grid_local_size_,
-            dev_.tasks[dev_.first_task + block_index()].border_mask,
-            dev_.grid_border_width_, task.window_size, task.window_shift);
-      }
-    }
+    setup_task_cube_center<T, T3, distributed__>(dev_, task);
   }
   __syncthreads();
 
@@ -347,10 +335,7 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
     __syncthreads();
 
     for (int z = threadIdx.z; z < task.cube_size.z; z += blockDim.z) {
-      int z2 = (z + task.cube_center.z) % dev_.grid_full_size_.z;
-
-      if (z2 < 0)
-        z2 += dev_.grid_full_size_.z;
+      int z2 = wrap_grid_index(z + task.cube_center.z, dev_.grid_full_size_.z);
 
       if (distributed__) {
         // known at compile time. Will be stripped away
@@ -372,10 +357,8 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
       }
 
       for (int y = ymin + threadIdx.y; y <= ymax; y += blockDim.y) {
-        int y2 = (y + task.cube_center.y) % dev_.grid_full_size_.y;
-
-        if (y2 < 0)
-          y2 += dev_.grid_full_size_.y;
+        int y2 =
+            wrap_grid_index(y + task.cube_center.y, dev_.grid_full_size_.y);
 
         if (distributed__) {
           /* check if the point is within the window */
@@ -394,10 +377,8 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
         }
 
         for (int x = xmin + threadIdx.x; x <= xmax; x += blockDim.x) {
-          int x2 = (x + task.cube_center.x) % dev_.grid_full_size_.x;
-
-          if (x2 < 0)
-            x2 += dev_.grid_full_size_.x;
+          int x2 =
+              wrap_grid_index(x + task.cube_center.x, dev_.grid_full_size_.x);
 
           if (distributed__) {
             /* check if the point is within the window */
