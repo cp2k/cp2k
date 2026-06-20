@@ -40,8 +40,8 @@ build deps eiger:
     NUM_PROCS: 32
     KUBERNETES_CPU_REQUEST: 32
     KUBERNETES_CPU_LIMIT: 32
-    KUBERNETES_MEMORY_REQUEST: 128
-    KUBERNETES_MEMORY_LIMIT: 128
+    KUBERNETES_MEMORY_REQUEST: 64Gi
+    KUBERNETES_MEMORY_LIMIT: 64Gi
 
 build cp2k eiger:
   extends: .container-builder-cscs-zen2
