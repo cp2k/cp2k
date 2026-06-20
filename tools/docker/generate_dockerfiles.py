@@ -95,7 +95,6 @@ def main() -> None:
                 version="ssmp",
                 mpi_mode="no",
                 base_image="fedora:rawhide",
-                gcc_version=None,
                 testopts=testopts,
                 image_tag=f.image_tag,
             )
@@ -107,7 +106,6 @@ def main() -> None:
                 version="psmp",
                 mpi_mode="mpich",
                 base_image="fedora:rawhide",
-                gcc_version=None,
                 feature_flags="-ef openpmd",
                 testopts=testopts,
                 image_tag=f.image_tag,
@@ -120,7 +118,6 @@ def main() -> None:
                 version="psmp",
                 mpi_mode="mpich",
                 base_image="fedora:latest",
-                gcc_version=None,
                 feature_flags="-ef openpmd",
                 testopts=testopts,
                 image_tag=f.image_tag,
@@ -701,13 +698,13 @@ def install_cp2k_spack(
     version: str,
     mpi_mode: str,
     base_image: str = "ubuntu:26.04",
-    gcc_version: int | None = 14,
+    gcc_version: int | None = None,
     gpu_model: str = "none",
     feature_flags: str = "",
     testopts: str = "",
     image_tag: str = "",
 ) -> str:
-    if "fedora" in base_image:
+    if gcc_version is None or "fedora" in base_image:
         gcc_compilers = "g++ gcc gfortran"
     elif "opensuse/leap" in base_image:
         gcc_compilers = f"gcc gcc{gcc_version} gcc-c++ gcc{gcc_version}-c++ gcc-fortran gcc{gcc_version}-fortran"
