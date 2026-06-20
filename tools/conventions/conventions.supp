@@ -188,6 +188,7 @@ qs_charge_mixing.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE ht
 qs_dispersion_d4.F: Module "dftd4" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_dispersion_d4.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_dispersion_d4.F: Module "multicharge" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+qs_dispersion_s_dftd3.F: Module "dftd3_param" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_dispersion_s_dftd3.F: Module "mctc_data" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_dispersion_s_dftd3.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_density" https://cp2k.org/conv#c012
@@ -238,8 +239,6 @@ tblite_interface.F: Found CLOSE statement in procedure "tb_grad2force" https://c
 tblite_interface.F: Found CLOSE statement in procedure "tb_read_reference_grad" https://cp2k.org/conv#c204
 tblite_interface.F: Found CLOSE statement in procedure "tb_update_charges" https://cp2k.org/conv#c204
 tblite_interface.F: Found CLOSE statement in procedure "tb_write_reference_gen" https://cp2k.org/conv#c204
-tblite_interface.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
-tblite_interface.F: Module "tblite_container" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 tblite_interface.F: Found OPEN statement in procedure "tb_add_stress" https://cp2k.org/conv#c203
 tblite_interface.F: Found OPEN statement in procedure "tb_delete_file" https://cp2k.org/conv#c203
 tblite_interface.F: Found OPEN statement in procedure "tb_dump_sigma_component" https://cp2k.org/conv#c203
@@ -247,6 +246,8 @@ tblite_interface.F: Found OPEN statement in procedure "tb_grad2force" https://cp
 tblite_interface.F: Found OPEN statement in procedure "tb_read_reference_grad" https://cp2k.org/conv#c203
 tblite_interface.F: Found OPEN statement in procedure "tb_update_charges" https://cp2k.org/conv#c203
 tblite_interface.F: Found OPEN statement in procedure "tb_write_reference_gen" https://cp2k.org/conv#c203
+tblite_interface.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+tblite_interface.F: Module "tblite_container" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 tblite_scc_mixer.F: Found type cp2k_tblite_broyden_mixer_type without initializer https://cp2k.org/conv#c016
 tblite_scc_mixer.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 tblite_scc_mixer.F: Module "tblite_lapack" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002

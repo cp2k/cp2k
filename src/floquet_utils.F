@@ -142,8 +142,8 @@ CONTAINS
       IF (present_dedk) ALLOCATE (de_dk(n_spin, nkp, 3, nao), source=0.0_dp)
       IF (present_ek) ALLOCATE (e_k(n_spin, nkp, nao), source=0.0_dp)
 
-!$OMP PARALLEL PRIVATE(ikp, ispin, S_k, H_k, &
-!$OMP eigenvals, C_k, dS_dk_i, dH_dk_i, C_dS_C, C_dH_C) &
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP PRIVATE(ikp, ispin, S_k, H_k, eigenvals, C_k, dS_dk_i, dH_dk_i, C_dS_C, C_dH_C) &
 !$OMP SHARED(nao, n_spin, de_dk, e_k, present_ek, present_dedk, &
 !$OMP nkp, xkp, S_rs, H_rs, index_to_cell_all, hmat)
       IF (present_dedk) ALLOCATE (dS_dk_i(nao, nao), C_dS_C(nao, nao), &
@@ -231,7 +231,8 @@ CONTAINS
       n_spin = dft_control%nspins
       CALL qs_moment_kpoints_deep(qs_env, xkp1, dipole)
 
-!$OMP PARALLEL PRIVATE(ispin, i_dir, i, j) &
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP PRIVATE(ispin, i_dir, i, j) &
 !$OMP SHARED(nao, n_spin, momentum, dipole, e_k, de_dk)
 !$OMP DO COLLAPSE(4)
       DO ispin = 1, n_spin
