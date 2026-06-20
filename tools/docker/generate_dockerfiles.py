@@ -55,7 +55,7 @@ def main() -> None:
 
     with OutputFile(f"Dockerfile.test_minimal", args.check) as f:
         f.write(install_deps_ubuntu())
-        f.write(regtest("minimal", "ssmp"))
+        f.write(regtest("minimal", "sdbg"))
 
     # Spack/CMake based testers
 

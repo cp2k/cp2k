@@ -267,9 +267,10 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
-elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
+elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "sdbg" ]]; then
   cmake \
     -GNinja \
+    -DCMAKE_BUILD_TYPE="Debug" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -Werror=dev \
     .. |& tee ./cmake.log

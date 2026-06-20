@@ -38,7 +38,6 @@ MODULE qs_dispersion_s_dftd3
 
 CONTAINS
 
-#if defined(__S_DFTD3)
 ! **************************************************************************************************
 !> \brief Check if a functional is supported by the s-dftd3 library
 !> \param pp_type ...
@@ -49,6 +48,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: pp_type
       CHARACTER(LEN=*), INTENT(IN)                       :: ref_functional
       LOGICAL, INTENT(OUT)                               :: found
+
+#if defined(__S_DFTD3)
 
       CHARACTER(LEN=default_string_length)               :: func_name
       TYPE(d3_param)                                     :: d3params
@@ -69,6 +70,12 @@ CONTAINS
       END SELECT
 
       found = .NOT. ALLOCATED(lib_error)
+
+#else
+      MARK_USED(pp_type)
+      MARK_USED(ref_functional)
+      found = .FALSE.
+#endif
 
    END SUBROUTINE dftd3_functional_supported
 
@@ -106,6 +113,8 @@ CONTAINS
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: error
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_scaling
+
+#if defined(__S_DFTD3)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dftd3_param_from_library'
 
@@ -227,64 +236,25 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE dftd3_param_from_library
-
 #else
-
-! **************************************************************************************************
-!> \brief Check if a functional is supported by the s-dftd3 library
-!> \param pp_type ...
-!> \param ref_functional ...
-!> \param found ...
-! **************************************************************************************************
-   SUBROUTINE dftd3_functional_supported(pp_type, ref_functional, found)
-      INTEGER, INTENT(IN)                                :: pp_type
-      CHARACTER(LEN=*), INTENT(IN)                       :: ref_functional
-      LOGICAL, INTENT(OUT)                               :: found
-
-      found = .FALSE.
-
-   END SUBROUTINE dftd3_functional_supported
-
-! **************************************************************************************************
-!> \brief ...
-!> \param c6ab ...
-!> \param maxci ...
-!> \param r0ab ...
-!> \param rcov ...
-!> \param r2r4 ...
-!> \param pp_type ...
-!> \param ref_functional ...
-!> \param s6 ...
-!> \param s8 ...
-!> \param a1 ...
-!> \param a2 ...
-!> \param sr6 ...
-!> \param para_env ...
-!> \param error ...
-!> \param calc_scaling ...
-! **************************************************************************************************
-   SUBROUTINE dftd3_param_from_library(c6ab, maxci, r0ab, rcov, r2r4, &
-                                       pp_type, ref_functional, &
-                                       s6, s8, a1, a2, sr6, &
-                                       para_env, error, calc_scaling)
-
-      REAL(KIND=dp), DIMENSION(:, :, :, :, :), &
-         INTENT(INOUT)                                   :: c6ab
-      INTEGER, DIMENSION(:), INTENT(INOUT)               :: maxci
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: r0ab
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: rcov, r2r4
-      INTEGER, INTENT(IN)                                :: pp_type
-      CHARACTER(LEN=*), INTENT(IN)                       :: ref_functional
-      REAL(KIND=dp), INTENT(INOUT)                       :: s6, s8, a1, a2, sr6
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
-      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: error
-      LOGICAL, INTENT(IN), OPTIONAL                      :: calc_scaling
-
+      MARK_USED(c6ab)
+      MARK_USED(maxci)
+      MARK_USED(r0ab)
+      MARK_USED(rcov)
+      MARK_USED(r2r4)
+      MARK_USED(pp_type)
+      MARK_USED(ref_functional)
+      MARK_USED(s6)
+      MARK_USED(s8)
+      MARK_USED(a1)
+      MARK_USED(a2)
+      MARK_USED(sr6)
+      MARK_USED(para_env)
+      MARK_USED(error)
+      MARK_USED(calc_scaling)
       CPABORT("s-dftd3 library not compiled in")
+#endif
 
    END SUBROUTINE dftd3_param_from_library
-
-#endif
 
 END MODULE qs_dispersion_s_dftd3
