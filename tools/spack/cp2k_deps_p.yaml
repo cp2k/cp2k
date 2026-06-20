@@ -160,6 +160,7 @@ spack:
         - "~mkldnn"
         - "~rocm"
         - "~valgrind"
+        - "~xnnpack"
 
     sirius:
       require:
