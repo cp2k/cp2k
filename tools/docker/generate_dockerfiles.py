@@ -95,7 +95,6 @@ def main() -> None:
                 version="ssmp",
                 mpi_mode="no",
                 base_image="fedora:rawhide",
-                gcc_version=16,
                 testopts=testopts,
                 image_tag=f.image_tag,
             )
@@ -107,7 +106,6 @@ def main() -> None:
                 version="psmp",
                 mpi_mode="mpich",
                 base_image="fedora:rawhide",
-                gcc_version=16,
                 feature_flags="-ef openpmd",
                 testopts=testopts,
                 image_tag=f.image_tag,
@@ -120,7 +118,6 @@ def main() -> None:
                 version="psmp",
                 mpi_mode="mpich",
                 base_image="fedora:latest",
-                gcc_version=15,
                 feature_flags="-ef openpmd",
                 testopts=testopts,
                 image_tag=f.image_tag,
@@ -701,13 +698,13 @@ def install_cp2k_spack(
     version: str,
     mpi_mode: str,
     base_image: str = "ubuntu:26.04",
-    gcc_version: int = 14,
+    gcc_version: int | None = None,
     gpu_model: str = "none",
     feature_flags: str = "",
     testopts: str = "",
     image_tag: str = "",
 ) -> str:
-    if "fedora" in base_image:
+    if gcc_version is None or "fedora" in base_image:
         gcc_compilers = "g++ gcc gfortran"
     elif "opensuse/leap" in base_image:
         gcc_compilers = f"gcc gcc{gcc_version} gcc-c++ gcc{gcc_version}-c++ gcc-fortran gcc{gcc_version}-fortran"
@@ -715,6 +712,8 @@ def install_cp2k_spack(
         gcc_compilers = f"gcc gcc-c++ gcc-fortran"
     else:
         gcc_compilers = f"g++ g++-{gcc_version} gcc gcc-{gcc_version} gfortran gfortran-{gcc_version}"
+    # Use the system GCC when no version is specified.
+    gcc_version_flag = "" if gcc_version is None else f"-gv {gcc_version}"
     # Use external packages if possible
     use_externals = "-ue"
     # Static CP2K builds use the GCC compiler built with spack
@@ -748,13 +747,13 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} -gv {gcc_version} -mpi {mpi_mode} {use_externals} {feature_flags}
+RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} {gcc_version_flag} -mpi {mpi_mode} {use_externals} {feature_flags}
 
 ###### Stage 2: Build CP2K ######
 
 FROM build_deps AS build_cp2k
 
-RUN ./make_cp2k.sh -cv {version} -gv {gcc_version} -gpu {gpu_model} -mpi {mpi_mode} {feature_flags}
+RUN ./make_cp2k.sh -cv {version} {gcc_version_flag} -gpu {gpu_model} -mpi {mpi_mode} {feature_flags}
 """
     )
     output += (
@@ -813,6 +812,7 @@ RUN dnf -qy install \
     cmake \
     {gcc_compilers} \
     git \
+    libffi-devel \
     libtool \
     make \
     patch \

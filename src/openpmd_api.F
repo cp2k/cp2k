@@ -519,44 +519,41 @@ MODULE openpmd_api
       FUNCTION openpmd_get_default_extension() RESULT(extension)
          CHARACTER(len=default_string_length)               :: extension
 
-         CHARACTER(kind=C_CHAR), POINTER                    :: c_extension
-         INTEGER(C_SIZE_T)                                  :: length_of_c_string, i
+         CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), &
+            POINTER                                          :: c_extension_f
+         INTEGER(C_SIZE_T)                                  :: c_extension_length, extension_length
+         INTEGER                                            :: i
+         TYPE(C_PTR)                                        :: c_extension
          INTERFACE
             FUNCTION openpmd_c_get_default_extension() RESULT(extension) &
                BIND(c, name="openPMD_get_default_extension")
-               IMPORT :: C_CHAR
-               CHARACTER(kind=C_CHAR), POINTER :: extension
+               IMPORT :: C_PTR
+               TYPE(C_PTR) :: extension
             END FUNCTION openpmd_c_get_default_extension
          END INTERFACE
          INTERFACE
             FUNCTION get_strlen(c_string) RESULT(strlen) &
                BIND(C, NAME="CP2K_strlen")
-               IMPORT :: C_CHAR, C_SIZE_T
-               CHARACTER(kind=C_CHAR), DIMENSION(*), INTENT(IN) :: c_string
+               IMPORT :: C_PTR, C_SIZE_T
+               TYPE(C_PTR), VALUE :: c_string
                INTEGER(C_SIZE_T) :: strlen
             END FUNCTION get_strlen
          END INTERFACE
 
-         c_extension => openpmd_c_get_default_extension()
+         extension = ""
+         c_extension = openpmd_c_get_default_extension()
+         IF (.NOT. C_ASSOCIATED(c_extension)) RETURN
 
-         ! Find the length of the C string
-         IF (ASSOCIATED(c_extension)) THEN
-            !c_string_array => c_extension
-            length_of_c_string = get_strlen(c_extension)
-         ELSE
-            RETURN
-         END IF
+         ! Map the C string to a Fortran character array.
+         c_extension_length = get_strlen(c_extension)
+         CALL C_F_POINTER(c_extension, c_extension_f, &
+                          shape=[INT(c_extension_length) + 1])
+         CPASSERT(c_extension_f(INT(c_extension_length) + 1) == C_NULL_CHAR)
 
-         ! Ensure we do not exceed the length of extension
-         IF (length_of_c_string > default_string_length) THEN
-            length_of_c_string = default_string_length
-         END IF
-
-         ! Copy the contents from c_extension to extension
-         extension = TRIM(ADJUSTL(TRANSFER(c_extension(1:length_of_c_string), extension)))
-
-         DO i = length_of_c_string + 1, LEN(extension)
-            extension(i:i) = ' '
+         ! Copy the contents, truncating overly long extensions.
+         extension_length = MIN(c_extension_length, INT(default_string_length, C_SIZE_T))
+         DO i = 1, INT(extension_length)
+            extension(i:i) = c_extension_f(i)
          END DO
 
       END FUNCTION openpmd_get_default_extension
@@ -644,9 +641,11 @@ MODULE openpmd_api
          CHARACTER(len=*), INTENT(IN)                       :: into, from
          CLASS(mp_comm_type), INTENT(in), OPTIONAL          :: mpi_comm
          CHARACTER(:), ALLOCATABLE                          :: merged
-         CHARACTER(kind=C_CHAR), POINTER                    :: c_merged
+         CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), &
+            POINTER                                          :: c_merged_f
          INTEGER(C_SIZE_T)                                  :: length_of_c_string
-         TYPE(c_ptr), SAVE                                  :: comm_c = C_NULL_PTR
+         INTEGER                                            :: i
+         TYPE(C_PTR)                                        :: c_merged, comm_c
 
          INTERFACE
 ! **************************************************************************************************
@@ -665,35 +664,47 @@ MODULE openpmd_api
          INTERFACE
             FUNCTION openpmd_c_json_merge(into, from, mpi_comm) RESULT(merged) &
                BIND(C, NAME="openPMD_json_merge")
-               IMPORT :: C_CHAR, C_INT, C_PTR
+               IMPORT :: C_CHAR, C_PTR
                CHARACTER(kind=C_CHAR), DIMENSION(*) :: into, from
-               TYPE(C_PTR), value                   :: mpi_comm
-               CHARACTER(kind=C_CHAR), POINTER      :: merged
+               TYPE(C_PTR), VALUE                   :: mpi_comm
+               TYPE(C_PTR)                          :: merged
             END FUNCTION openpmd_c_json_merge
          END INTERFACE
          INTERFACE
             FUNCTION get_strlen(c_string) RESULT(strlen) &
                BIND(C, NAME="CP2K_strlen")
-               IMPORT :: C_CHAR, C_SIZE_T
-               CHARACTER(kind=C_CHAR), DIMENSION(*), INTENT(IN) :: c_string
+               IMPORT :: C_PTR, C_SIZE_T
+               TYPE(C_PTR), VALUE :: c_string
                INTEGER(C_SIZE_T) :: strlen
             END FUNCTION get_strlen
          END INTERFACE
          INTERFACE
             SUBROUTINE free(c_string) &
                BIND(C, NAME="CP2K_free")
-               IMPORT :: C_CHAR
-               CHARACTER(kind=C_CHAR), DIMENSION(*) :: c_string
+               IMPORT :: C_PTR
+               TYPE(C_PTR), VALUE :: c_string
             END SUBROUTINE free
          END INTERFACE
 
+         comm_c = C_NULL_PTR
          IF (PRESENT(mpi_comm)) THEN
             CALL cp2k_c_mpi_comm_f2c(mpi_comm%get_handle(), comm_c)
          END IF
-         c_merged => openpmd_c_json_merge(into//C_NULL_CHAR, from//C_NULL_CHAR, comm_c)
+
+         c_merged = openpmd_c_json_merge( &
+                    into//C_NULL_CHAR, from//C_NULL_CHAR, comm_c)
+         CPASSERT(C_ASSOCIATED(c_merged))
+
          length_of_c_string = get_strlen(c_merged)
-         ALLOCATE (character(length_of_c_string) :: merged)
-         merged = TRIM(ADJUSTL(TRANSFER(c_merged(1:length_of_c_string), MERGED)))
+         CALL C_F_POINTER(c_merged, c_merged_f, &
+                          shape=[INT(length_of_c_string) + 1])
+         CPASSERT(c_merged_f(INT(length_of_c_string) + 1) == C_NULL_CHAR)
+
+         ALLOCATE (CHARACTER(LEN=INT(length_of_c_string)) :: merged)
+         DO i = 1, INT(length_of_c_string)
+            merged(i:i) = c_merged_f(i)
+         END DO
+
          CALL free(c_merged)
       END FUNCTION openpmd_json_merge
 

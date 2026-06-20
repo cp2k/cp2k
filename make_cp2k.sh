@@ -961,7 +961,11 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     if command -v python3 -m pip --version &> /dev/null; then
       python3 -m pip install "${VERBOSE_FLAG}" --upgrade pip
       echo "Installing boto3 module"
-      python3 -m pip install "${VERBOSE_FLAG}" boto3==1.38.11 google-cloud-storage==3.1.0
+      if ! python3 -m pip install "${VERBOSE_FLAG}" \
+        boto3==1.38.11 google-cloud-storage==3.1.0; then
+        echo "ERROR: The installation of Python packages for the Spack cache failed"
+        ${EXIT_CMD} 1
+      fi
     else
       echo "ERROR: python3 -m pip was not found"
       ${EXIT_CMD} 1
