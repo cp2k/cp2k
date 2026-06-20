@@ -154,8 +154,10 @@ PROGRAM cp2k
 
    ! Check if binary was invoked as sopt or popt alias
    l = LEN_TRIM(command)
-   IF (command(l - 4:l) == ".sopt" .OR. command(l - 4:l) == ".popt") THEN
-      CALL omp_set_num_threads(1)
+   IF (l >= 5) THEN
+      IF (command(l - 4:l) == ".sopt" .OR. command(l - 4:l) == ".popt") THEN
+         CALL omp_set_num_threads(1)
+      END IF
    END IF
 
 #ifdef __ACCELERATE
