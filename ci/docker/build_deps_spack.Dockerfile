@@ -58,4 +58,4 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN ./make_cp2k.sh -bd_only -cray -cv ${CP2K_VERSION} -uc no -ue -j${NUM_PROCS} ${FEATURE_FLAGS}
+RUN ./make_cp2k.sh -bd_only -cv ${CP2K_VERSION} -uc no -ue -j${NUM_PROCS} ${FEATURE_FLAGS}
