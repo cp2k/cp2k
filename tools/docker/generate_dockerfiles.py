@@ -37,9 +37,9 @@ def main() -> None:
         f.write(install_deps_toolchain(base_image="fedora:44"))
         f.write(regtest("toolchain", "psmp"))
 
-    with OutputFile(f"Dockerfile.test_rawhide-psmp", args.check) as f:
+    with OutputFile(f"Dockerfile.test_rawhide-pdbg", args.check) as f:
         f.write(install_deps_toolchain(base_image="fedora:rawhide"))
-        f.write(regtest("toolchain", "psmp"))
+        f.write(regtest("toolchain", "pdbg"))
 
     for version in "ssmp", "psmp":
         mpi_mode = "intelmpi" if version.startswith("p") else "no"
@@ -89,21 +89,10 @@ def main() -> None:
                 )
             )
 
-    with OutputFile(f"Dockerfile.test_spack_ssmp-rawhide", args.check) as f:
+    with OutputFile(f"Dockerfile.test_spack_pdbg-rawhide", args.check) as f:
         f.write(
             install_cp2k_spack(
-                version="ssmp",
-                mpi_mode="no",
-                base_image="fedora:rawhide",
-                testopts=testopts,
-                image_tag=f.image_tag,
-            )
-        )
-
-    with OutputFile(f"Dockerfile.test_spack_psmp-rawhide", args.check) as f:
-        f.write(
-            install_cp2k_spack(
-                version="psmp",
+                version="pdbg",
                 mpi_mode="mpich",
                 base_image="fedora:rawhide",
                 feature_flags="-ef openpmd",

@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_psmp-rawhide -f ./Dockerfile.test_spack_psmp-rawhide ../../
+# Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_pdbg-rawhide -f ./Dockerfile.test_spack_pdbg-rawhide ../../
 #
 
 ARG BASE_IMAGE="fedora:rawhide"
@@ -28,7 +28,7 @@ RUN dnf -qy install \
     && dnf clean -q all
 
 ARG IMAGE_TAG
-ENV IMAGE_TAG=${IMAGE_TAG:-spack_psmp-rawhide}
+ENV IMAGE_TAG=${IMAGE_TAG:-spack_pdbg-rawhide}
 
 ARG SPACK_CACHE
 ENV SPACK_CACHE="${SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://host.containers.internal:9000}"
@@ -39,13 +39,13 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none  -mpi mpich -ue -ef openpmd
+RUN ./make_cp2k.sh -bd_only -cv pdbg -gpu none  -mpi mpich -ue -ef openpmd
 
 ###### Stage 2: Build CP2K ######
 
 FROM build_deps AS build_cp2k
 
-RUN ./make_cp2k.sh -cv psmp  -gpu none -mpi mpich -ef openpmd
+RUN ./make_cp2k.sh -cv pdbg  -gpu none -mpi mpich -ef openpmd
 
 ###### Stage 3: Install CP2K ######
 
