@@ -14,6 +14,7 @@ RUN dnf -qy install \
     g++ gcc gfortran \
     git \
     libffi-devel \
+    liblsan \
     libtool \
     make \
     patch \
@@ -54,6 +55,7 @@ FROM "${BASE_IMAGE}" AS install_cp2k
 RUN dnf -qy install \
     g++ gcc gfortran \
     python3 \
+    liblsan \
     && dnf clean -q all
 
 WORKDIR /opt/cp2k

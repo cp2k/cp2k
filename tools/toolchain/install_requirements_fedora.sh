@@ -18,6 +18,7 @@ dnf -qy install \
   gfortran \
   git \
   less \
+  liblsan \
   libtool \
   make \
   nano \

@@ -802,6 +802,7 @@ RUN dnf -qy install \
     {gcc_compilers} \
     git \
     libffi-devel \
+    liblsan \
     libtool \
     make \
     patch \
@@ -914,6 +915,7 @@ FROM "${{BASE_IMAGE}}" AS install_cp2k
 RUN dnf -qy install \
     {gcc_compilers} \
     python3 \
+    liblsan \
     && dnf clean -q all
 """
         elif "opensuse/leap" in base_image:
