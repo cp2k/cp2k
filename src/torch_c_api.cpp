@@ -15,6 +15,7 @@
 
 #include <cassert>
 
+#include <cfenv>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -24,6 +25,21 @@
 typedef torch::Tensor torch_c_tensor_t;
 typedef c10::Dict<std::string, torch::Tensor> torch_c_dict_t;
 typedef torch::jit::Module torch_c_model_t;
+
+class TorchFloatingPointMaskGuard {
+public:
+  TorchFloatingPointMaskGuard() : active_(std::feholdexcept(&env_) == 0) {}
+  ~TorchFloatingPointMaskGuard() {
+    if (active_) {
+      std::feclearexcept(FE_ALL_EXCEPT);
+      std::fesetenv(&env_);
+    }
+  }
+
+private:
+  std::fenv_t env_;
+  bool active_;
+};
 
 /*******************************************************************************
  * \brief Internal helper for selecting the CUDA device when available.
@@ -302,6 +318,7 @@ void torch_c_tensor_data_ptr_double(const torch_c_tensor_t *tensor,
  ******************************************************************************/
 void torch_c_tensor_backward(const torch_c_tensor_t *tensor,
                              const torch_c_tensor_t *outer_grad) {
+  TorchFloatingPointMaskGuard fpe_guard;
   c10::OptionalDeviceGuard guard;
   get_device_with_guard(guard);
   tensor->backward(*outer_grad);
@@ -311,6 +328,7 @@ void torch_c_tensor_backward(const torch_c_tensor_t *tensor,
  * \brief Runs autograd on a scalar Torch tensor.
  ******************************************************************************/
 void torch_c_tensor_backward_scalar(const torch_c_tensor_t *tensor) {
+  TorchFloatingPointMaskGuard fpe_guard;
   c10::OptionalDeviceGuard guard;
   get_device_with_guard(guard);
   tensor->backward();
@@ -424,6 +442,7 @@ void torch_c_model_load(torch_c_model_t **model_out, const char *filename) {
 void torch_c_model_forward(torch_c_model_t *model, const torch_c_dict_t *inputs,
                            torch_c_dict_t *outputs) {
 
+  TorchFloatingPointMaskGuard fpe_guard;
   c10::OptionalDeviceGuard guard;
   get_device_with_guard(guard);
   auto untyped_output = model->forward({*inputs}).toGenericDict();

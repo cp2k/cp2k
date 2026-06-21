@@ -28,6 +28,7 @@ MODULE qs_vxc_atom
    USE paw_basis_types,                 ONLY: get_paw_basis_info
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_force_types,                  ONLY: qs_force_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                               harmonics_atom_type
@@ -38,9 +39,15 @@ MODULE qs_vxc_atom
    USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                               rho_atom_coeff,&
                                               rho_atom_type
-   USE skala_gpw_functional,            ONLY: skala_gapw_atom_vxc_of_r,&
-                                              xc_section_uses_native_skala_grid
+   USE skala_gpw_functional,            ONLY: native_skala_gapw_density_partition,&
+                                              skala_gapw_atom_vxc_of_r,&
+                                              skala_gapw_density_partition_hard_minus_soft,&
+                                              skala_gapw_density_partition_hard_only,&
+                                              skala_gapw_density_partition_none,&
+                                              skala_gapw_density_partition_soft_only,&
+                                              xc_section_uses_onedft_model
    USE util,                            ONLY: get_limit
+   USE virial_types,                    ONLY: virial_type
    USE xc_atom,                         ONLY: fill_rho_set,&
                                               vxc_of_r_epr,&
                                               vxc_of_r_new,&
@@ -92,10 +99,11 @@ CONTAINS
 !> \param kind_set_external provides a non-default kind_set to use
 !> \param rho_atom_set_external provides a non-default atomic density set to use
 !> \param xc_section_external provides an external non-default XC
+!> \param calculate_forces ...
 ! **************************************************************************************************
    SUBROUTINE calculate_vxc_atom(qs_env, energy_only, exc1, &
                                  adiabatic_rescale_factor, kind_set_external, &
-                                 rho_atom_set_external, xc_section_external)
+                                 rho_atom_set_external, xc_section_external, calculate_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: energy_only
@@ -106,21 +114,25 @@ CONTAINS
       TYPE(rho_atom_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_atom_set_external
       TYPE(section_vals_type), OPTIONAL, POINTER         :: xc_section_external
+      LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom'
 
-      INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ir, &
+      INTEGER                                            :: bo(2), gapw_density_partition, handle, &
+                                                            iat, iatom, idir, ikind, ir, jdir, &
                                                             myfun, na, natom, nr, nspins, num_pe
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: accint, donlcc, gradient_f, lsd, &
-                                                            native_skala_grid, nlcc, paw_atom, &
-                                                            tau_f
+      LOGICAL :: accint, donlcc, evaluate_hard, evaluate_soft, gradient_f, lsd, &
+         my_calculate_forces, nlcc, paw_atom, skala_atom_grid, tau_f, use_virial
       REAL(dp)                                           :: agr, alpha, density_cut, exc_h, exc_s, &
                                                             gradient_cut, &
                                                             my_adiabatic_rescale_factor, tau_cut
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
+      REAL(dp), DIMENSION(3)                             :: skala_atom_force_h, skala_atom_force_s
+      REAL(dp), DIMENSION(3, 3)                          :: skala_atom_virial, skala_atom_virial_h, &
+                                                            skala_atom_virial_s
       REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight_h, weight_s
       REAL(dp), DIMENSION(:, :, :), POINTER              :: rho_h, rho_s, tau_h, tau_s, vtau_h, &
                                                             vtau_s, vxc_h, vxc_s
@@ -132,6 +144,7 @@ CONTAINS
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: my_kind_set
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: dr_h, dr_s, int_hh, int_ss, r_h, r_s
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: r_h_d, r_s_d
@@ -139,6 +152,7 @@ CONTAINS
       TYPE(rho_atom_type), POINTER                       :: rho_atom
       TYPE(section_vals_type), POINTER                   :: input, my_xc_section, xc_fun_section
       TYPE(tau_basis_cache_type)                         :: tau_basis_cache
+      TYPE(virial_type), POINTER                         :: virial
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type)                              :: rho_set_h, rho_set_s
@@ -151,6 +165,7 @@ CONTAINS
       NULLIFY (my_kind_set)
       NULLIFY (atomic_kind_set)
       NULLIFY (grid_atom)
+      NULLIFY (force)
       NULLIFY (harmonics)
       NULLIFY (input)
       NULLIFY (para_env)
@@ -158,6 +173,9 @@ CONTAINS
       NULLIFY (rho_atom)
       NULLIFY (my_rho_atom_set)
       NULLIFY (rho_nlcc)
+      NULLIFY (virial)
+      my_calculate_forces = .FALSE.
+      IF (PRESENT(calculate_forces)) my_calculate_forces = calculate_forces
 
       IF (PRESENT(adiabatic_rescale_factor)) THEN
          my_adiabatic_rescale_factor = adiabatic_rescale_factor
@@ -172,7 +190,9 @@ CONTAINS
                       qs_kind_set=my_kind_set, &
                       input=input, &
                       particle_set=particle_set, &
-                      rho_atom_set=my_rho_atom_set)
+                      virial=virial, &
+                      rho_atom_set=my_rho_atom_set, &
+                      force=force)
 
       IF (PRESENT(kind_set_external)) my_kind_set => kind_set_external
       IF (PRESENT(rho_atom_set_external)) my_rho_atom_set => rho_atom_set_external
@@ -187,7 +207,14 @@ CONTAINS
       xc_fun_section => section_vals_get_subs_vals(my_xc_section, "XC_FUNCTIONAL")
       CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", &
                                 i_val=myfun)
-      native_skala_grid = xc_section_uses_native_skala_grid(my_xc_section)
+      skala_atom_grid = xc_section_uses_onedft_model(my_xc_section)
+      gapw_density_partition = skala_gapw_density_partition_hard_minus_soft
+      IF (skala_atom_grid) THEN
+         gapw_density_partition = native_skala_gapw_density_partition(my_xc_section)
+      END IF
+      use_virial = ASSOCIATED(virial)
+      IF (use_virial) use_virial = my_calculate_forces .AND. &
+                                   virial%pv_calculate .AND. (.NOT. virial%pv_numer)
 
       IF (myfun == xc_none) THEN
          exc1 = 0.0_dp
@@ -207,8 +234,8 @@ CONTAINS
                                           lsd=lsd, &
                                           calc_potential=.TRUE.)
 
-         gradient_f = (needs%drho .OR. needs%drho_spin)
-         tau_f = (needs%tau .OR. needs%tau_spin)
+         gradient_f = (needs%drho .OR. needs%drho_spin) .OR. skala_atom_grid
+         tau_f = (needs%tau .OR. needs%tau_spin) .OR. skala_atom_grid
 
          ! Initialize energy contribution from the one center XC terms to zero
          exc1 = 0.0_dp
@@ -359,15 +386,46 @@ CONTAINS
                   END IF
                END DO
 
+               evaluate_hard = .TRUE.
+               evaluate_soft = .TRUE.
+               skala_atom_force_h = 0.0_dp
+               skala_atom_force_s = 0.0_dp
+               skala_atom_virial_h = 0.0_dp
+               skala_atom_virial_s = 0.0_dp
+               IF (skala_atom_grid) THEN
+                  SELECT CASE (gapw_density_partition)
+                  CASE (skala_gapw_density_partition_hard_minus_soft)
+                     CONTINUE
+                  CASE (skala_gapw_density_partition_hard_only)
+                     evaluate_soft = .FALSE.
+                  CASE (skala_gapw_density_partition_soft_only)
+                     evaluate_hard = .FALSE.
+                  CASE (skala_gapw_density_partition_none)
+                     evaluate_hard = .FALSE.
+                     evaluate_soft = .FALSE.
+                  CASE DEFAULT
+                     CALL cp_abort(__LOCATION__, &
+                                   "Unknown GAUXC%NATIVE_GRID_GAPW_DENSITY_PARTITION value.")
+                  END SELECT
+               END IF
+
                !-------------------!
                ! hard atom density !
                !-------------------!
                CALL xc_dset_zero_all(deriv_set)
-               IF (native_skala_grid) THEN
+               IF (.NOT. evaluate_hard) THEN
+                  exc_h = 0.0_dp
+                  IF (.NOT. energy_only) THEN
+                     vxc_h = 0.0_dp
+                     IF (ASSOCIATED(vxg_h)) vxg_h = 0.0_dp
+                     IF (ASSOCIATED(vtau_h)) vtau_h = 0.0_dp
+                  END IF
+               ELSE IF (skala_atom_grid) THEN
                   CALL skala_gapw_atom_vxc_of_r( &
                      my_xc_section, grid_atom, para_env, particle_set(iatom)%r, &
                      rho_h, drho_h, tau_h, weight_h, lsd, nspins, na, nr, &
-                     exc_h, vxc_h, vxg_h, vtau_h, energy_only=energy_only)
+                     exc_h, vxc_h, vxg_h, vtau_h, energy_only=energy_only, &
+                     atom_force=skala_atom_force_h, atom_virial=skala_atom_virial_h)
                ELSE
                   CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight_h, &
                                     lsd, na, nr, exc_h, vxc_h, vxg_h, vtau_h, energy_only=energy_only, &
@@ -379,11 +437,19 @@ CONTAINS
                ! soft atom density !
                !-------------------!
                CALL xc_dset_zero_all(deriv_set)
-               IF (native_skala_grid) THEN
+               IF (.NOT. evaluate_soft) THEN
+                  exc_s = 0.0_dp
+                  IF (.NOT. energy_only) THEN
+                     vxc_s = 0.0_dp
+                     IF (ASSOCIATED(vxg_s)) vxg_s = 0.0_dp
+                     IF (ASSOCIATED(vtau_s)) vtau_s = 0.0_dp
+                  END IF
+               ELSE IF (skala_atom_grid) THEN
                   CALL skala_gapw_atom_vxc_of_r( &
                      my_xc_section, grid_atom, para_env, particle_set(iatom)%r, &
                      rho_s, drho_s, tau_s, weight_s, lsd, nspins, na, nr, &
-                     exc_s, vxc_s, vxg_s, vtau_s, energy_only=energy_only)
+                     exc_s, vxc_s, vxg_s, vtau_s, energy_only=energy_only, &
+                     atom_force=skala_atom_force_s, atom_virial=skala_atom_virial_s)
                ELSE
                   CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight_s, &
                                     lsd, na, nr, exc_s, vxc_s, vxg_s, vtau_s, energy_only=energy_only, &
@@ -394,6 +460,21 @@ CONTAINS
                ! Add contributions to the exc energy
 
                exc1 = exc1 + rho_atom%exc_h - rho_atom%exc_s
+               IF (skala_atom_grid .AND. my_calculate_forces .AND. ASSOCIATED(force)) THEN
+                  force(ikind)%rho_elec(:, iat) = force(ikind)%rho_elec(:, iat) + &
+                                                  skala_atom_force_h - skala_atom_force_s
+               END IF
+               IF (skala_atom_grid .AND. use_virial) THEN
+                  skala_atom_virial = skala_atom_virial_h - skala_atom_virial_s
+                  DO idir = 1, 3
+                     DO jdir = 1, 3
+                        virial%pv_gapw(idir, jdir) = virial%pv_gapw(idir, jdir) + &
+                                                     skala_atom_virial(idir, jdir)
+                        virial%pv_virial(idir, jdir) = virial%pv_virial(idir, jdir) + &
+                                                       skala_atom_virial(idir, jdir)
+                     END DO
+                  END DO
+               END IF
 
                ! Integration to get the matrix elements relative to the vxc_atom
                ! here the products with the primitives is done: gaVxcgb

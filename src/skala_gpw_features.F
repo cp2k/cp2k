@@ -34,7 +34,7 @@ MODULE skala_gpw_features
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'skala_gpw_features'
    REAL(KIND=dp), PARAMETER, PRIVATE    :: layout_tol = 1.0E-12_dp
    INTEGER, PARAMETER, PRIVATE          :: ndynamic_per_point = 10, nrks_dynamic_per_point = 5, &
-                                           nstatic_per_point = 4, ngrad_per_point = 10
+                                           nstatic_per_point = 5, ngrad_per_point = 10
    INTEGER, PARAMETER, PUBLIC           :: skala_gpw_atom_partition_hard = 1, &
                                            skala_gpw_atom_partition_smooth = 2
    REAL(KIND=dp), PARAMETER, PRIVATE    :: smooth_partition_eps = 1.0E-12_dp
@@ -256,11 +256,8 @@ CONTAINS
       CALL ensure_layout_cache(pw_grid, particle_set, cell, weights, my_atom_partition)
       CALL timestop(phase_handle)
       nflat = cached_layout%nflat
-      can_use_atom_chunks = my_use_atom_chunks .AND. cached_layout%chunk_feature_count > 0
-      IF (my_requires_stress_grad .AND. can_use_atom_chunks) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "Native SKALA analytical stress is not implemented with atom-chunk routing yet.")
-      END IF
+      can_use_atom_chunks = my_use_atom_chunks .AND. cached_layout%chunk_feature_count > 0 .AND. &
+                            .NOT. (my_requires_coordinate_grad .OR. my_requires_stress_grad)
       collapse_spin_dynamics = (nspins == 1 .AND. can_use_atom_chunks .AND. &
                                 my_route_atom_chunks)
       ndynamic_local_per_point = ndynamic_per_point
@@ -625,9 +622,9 @@ CONTAINS
                   local_owner(nfeature_local) = owner
                   local_source_points(nfeature_local) = local_row
                   static_base = nstatic_per_point*(nfeature_local - 1)
-                  local_static(static_base + 1:static_base + 3) = &
-                     nearest_image_coordinate(owner_coord, grid_point, cell)
+                  local_static(static_base + 1:static_base + 3) = grid_point
                   local_static(static_base + 4) = base_weight
+                  local_static(static_base + 5) = base_weight
                ELSE
                   CALL smooth_atom_partition(grid_point, atom_coords_pbc, cell, &
                                              partition_weights, atom_image_coords, distances)
@@ -647,9 +644,9 @@ CONTAINS
                      local_owner(nfeature_local) = iatom
                      local_source_points(nfeature_local) = local_row
                      static_base = nstatic_per_point*(nfeature_local - 1)
-                     local_static(static_base + 1:static_base + 3) = &
-                        atom_image_coords(:, iatom)
+                     local_static(static_base + 1:static_base + 3) = grid_point
                      local_static(static_base + 4) = base_weight*partition_weight
+                     local_static(static_base + 5) = base_weight
                   END DO
                END IF
             END DO
@@ -773,7 +770,7 @@ CONTAINS
          static_base = nstatic_per_point*(ipt - 1)
          cached_layout%grid_coords(:, row) = global_static(static_base + 1:static_base + 3)
          cached_layout%grid_weights(row) = global_static(static_base + 4)
-         cached_layout%atomic_grid_weights(row) = cached_layout%grid_weights(row)
+         cached_layout%atomic_grid_weights(row) = global_static(static_base + 5)
          source_local = source_global - point_displs(pe_index)
          IF (source_local >= 1 .AND. source_local <= nflat_local) THEN
             feature_local = cursor(source_local)
@@ -1911,11 +1908,9 @@ CONTAINS
       features%owns_dynamic_tensors = .FALSE.
       features%owns_inputs = .TRUE.
       IF (use_atom_chunks) THEN
-         IF (requires_stress_grad .OR. my_requires_weight_grad) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "Native SKALA analytical stress/SMOOTH derivatives are not implemented "// &
-                          "with atom-chunk tensors yet.")
-         END IF
+         CPASSERT(.NOT. requires_coordinate_grad)
+         CPASSERT(.NOT. requires_stress_grad)
+         CPASSERT(.NOT. my_requires_weight_grad)
          CPASSERT(cached_layout%chunk_static_tensors_active)
          features%grid_coords_t = cached_layout%chunk_grid_coords_t
          features%grid_weights_t = cached_layout%chunk_grid_weights_t

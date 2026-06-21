@@ -1331,9 +1331,10 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MODEL", &
                           description="GauXC OneDFT model name or path. Use NONE for conventional GauXC. "// &
-                          "MODEL SKALA uses GAUXC_SKALA_MODEL, or GAUXC_SKALA_CUDA_MODEL when "// &
-                          "NATIVE_GRID_USE_CUDA is enabled and that override is set; "// &
-                          "other OneDFT models are supplied as .fun files or model names.", &
+                          "MODEL SKALA selects the installed Skala-1.1 model when available; "// &
+                          "other OneDFT models are supplied as .fun files or model names. "// &
+                          "NLCC pseudopotentials are rejected in the molecular GauXC OneDFT/SKALA "// &
+                          "path; use the CP2K-native SKALA grid path for NLCC calculations.", &
                           usage="MODEL SKALA", &
                           default_c_val="NONE")
       CALL section_add_keyword(section, keyword)
@@ -1420,24 +1421,22 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID", &
                           description="Experimental CP2K-native GPW real-space-grid path for SKALA "// &
                           "TorchScript models. This bypasses GauXC molecular quadrature and supports "// &
-                          "isolated, partially periodic, and fully periodic METHOD GPW/GTH and METHOD "// &
-                          "GAPW cells, including Gamma-only and k-point density matrices. GAPW with "// &
-                          "GTH/ECP pseudopotentials is limited to KIND%GPW_TYPE regular-grid features; "// &
-                          "GAPW all-electron uses the all-electron regular-grid density. "// &
-                          "The current implementation "// &
-                          "is limited to energy, VXC, and experimental nuclear-gradient/stress "// &
-                          "evaluations with a single GAUXC functional. Full-grid, inversion-only, "// &
-                          "and symmetry-reduced k-point runs are supported. "// &
-                          "K-point runs currently require NATIVE_GRID_USE_CUDA T; the CPU "// &
-                          "TorchScript path is limited to non-k-point runs. CUDA k-point runs "// &
-                          "should not preload CPU-only Torch libraries such as libtorch_cpu.so. "// &
+                          "isolated, partially periodic, and fully periodic METHOD GPW cells with "// &
+                          "GTH/ECP pseudopotentials and METHOD GAPW/GAPW_XC cells. GAPW with "// &
+                          "GTH/ECP pseudopotentials can use KIND%GPW_TYPE regular-grid features or "// &
+                          "the GAPW one-center XC correction; GAPW all-electron uses the "// &
+                          "all-electron regular-grid density. The current implementation is limited "// &
+                          "to a single GAUXC functional and provides energy, VXC, and experimental "// &
+                          "analytical nuclear-gradient/stress evaluations. K-point runs use CP2K's "// &
+                          "standard k-point and symmetry-reduction infrastructure; the CPU "// &
+                          "TorchScript path may require preloading libtorch_cpu.so before OpenBLAS, "// &
+                          "whereas CUDA k-point runs should not preload CPU-only Torch libraries. "// &
                           "MPI runs collect a global atom-partitioned feature block by default; "// &
                           "NATIVE_GRID_ATOM_CHUNKS can split the Torch evaluation by atom block. "// &
-                          "Analytical stress is supported for the regular-grid path. NLCC "// &
-                          "pseudopotentials use CP2K's standard frozen-core density contribution "// &
-                          "on the XC grid. "// &
-                          "METHOD GAPW_XC, PAW/one-center GAPW+GTH/ECP, ROKS, ADMM, "// &
-                          "and non-k-point multiple-image calculations are not implemented.", &
+                          "PAW/one-center GAPW+GTH/ECP and METHOD GAPW_XC use CP2K's GAPW hard/soft "// &
+                          "one-center XC correction with a selectable "// &
+                          "NATIVE_GRID_GAPW_DENSITY_PARTITION. ROKS, ADMM, and non-k-point "// &
+                          "multiple-image calculations are not implemented.", &
                           usage="NATIVE_GRID T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1469,15 +1468,36 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_ATOM_PARTITION", &
                           description="Atom partition used to build the experimental CP2K-native "// &
                           "SKALA regular-grid feature block. HARD assigns each native grid point to "// &
-                          "the nearest periodic atom and is the default. SMOOTH uses a Becke-like "// &
-                          "fuzzy-cell partition on the native grid and creates weighted atom rows; "// &
-                          "analytical force and stress contributions include the corresponding "// &
-                          "partition-weight derivatives.", &
-                          usage="NATIVE_GRID_ATOM_PARTITION HARD", &
+                          "the nearest periodic atom and is intended for legacy energy/VXC-only runs. "// &
+                          "SMOOTH uses a Becke-like fuzzy-cell partition on the native grid and creates "// &
+                          "weighted atom rows. Analytical atom forces and stress use the differentiable "// &
+                          "SMOOTH partition internally because the corresponding partition-weight "// &
+                          "derivatives enter the SKALA feature response.", &
+                          usage="NATIVE_GRID_ATOM_PARTITION SMOOTH", &
                           enum_c_vals=s2a("HARD", "SMOOTH"), &
                           enum_i_vals=[1, 2], &
                           enum_desc=s2a("Assign each grid point to the nearest atom", &
                                         "Use a smooth Becke-like native-grid atom partition"), &
+                          default_i_val=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_GAPW_DENSITY_PARTITION", &
+                          description="Hard/soft one-center density contribution used by METHOD "// &
+                          "GAPW and METHOD GAPW_XC in OneDFT/SKALA atomic-grid corrections. "// &
+                          "HARD_MINUS_SOFT evaluates the SKALA model on hard and soft atomic "// &
+                          "densities separately and adds the GAPW hard-minus-soft correction; this "// &
+                          "is the default because it follows CP2K's GAPW XC expression. For "// &
+                          "pseudopotential PAW/one-center GAPW this is distinct from KIND%GPW_TYPE, "// &
+                          "which uses the regular-grid valence-density approximation. "// &
+                          "HARD_ONLY, SOFT_ONLY, and NONE are diagnostic variants.", &
+                          usage="NATIVE_GRID_GAPW_DENSITY_PARTITION HARD_MINUS_SOFT", &
+                          enum_c_vals=s2a("HARD_MINUS_SOFT", "HARD_ONLY", "SOFT_ONLY", "NONE"), &
+                          enum_i_vals=[1, 2, 3, 4], &
+                          enum_desc=s2a("Use the hard-minus-soft GAPW one-center correction", &
+                                        "Use only the hard one-center density", &
+                                        "Use only the soft one-center density with the GAPW sign", &
+                                        "Disable the GAPW one-center SKALA correction"), &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1487,7 +1507,8 @@ CONTAINS
                           "evaluation into contiguous atom blocks. MPI runs evaluate one atom block per "// &
                           "rank, while single-rank runs can still use atom subchunks to reduce peak CUDA "// &
                           "memory. Dynamic feature rows and VXC gradients are routed between their "// &
-                          "local grid and atom-block owner ranks.", &
+                          "local grid and atom-block owner ranks. Analytical force and stress runs use "// &
+                          "the full differentiable tensor graph instead of routed atom chunks.", &
                           usage="NATIVE_GRID_ATOM_CHUNKS T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)

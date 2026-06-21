@@ -146,7 +146,8 @@ MODULE qs_ks_methods
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE virial_types,                    ONLY: virial_type
-   USE xc_gauxc_functional,             ONLY: apply_gauxc
+   USE xc_gauxc_functional,             ONLY: apply_gauxc,&
+                                              gauxc_gapw_has_paw_pseudopotentials
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
@@ -197,18 +198,16 @@ CONTAINS
       TYPE(section_vals_type), OPTIONAL, POINTER         :: ext_xc_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
+
       CHARACTER(len=default_string_length)               :: name
       INTEGER                                            :: ace_rebuild_frequency, atom_a, handle, &
                                                             iatom, ikind, img, ispin, natom, &
-                                                            nimages, nspins
+                                                            nimages, nspins, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL :: ace_active, do_adiabatic_rescaling, do_ddapc, do_hfx, do_kpoints, do_ppl, dokp, &
-         gapw, gapw_xc, just_energy_xc, lrigpw, my_print, native_grid_use_cuda, &
-         native_skala_restore_exc, rigpw, use_gauxc_matrix, use_virial
-      CHARACTER(LEN=*), PARAMETER :: native_skala_gapw_xc_msg = &
-         "Native SKALA grid does not support METHOD GAPW_XC; "// &
-         "the GAPW_XC one-center XC correction needs a dedicated SKALA design."
-
+         gapw, gapw_xc, just_energy_xc, lrigpw, my_print, native_grid_diagnostics, &
+         native_grid_use_cuda, native_skala_restore_exc, rigpw, use_gauxc_matrix, use_virial
+      LOGICAL, SAVE :: native_grid_cpu_kpoints_warned = .FALSE.
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p, &
                                                             native_skala_exc_scf, &
@@ -602,7 +601,8 @@ CONTAINS
             CALL calculate_vxc_atom(qs_env, energy_only=just_energy_xc, exc1=energy%exc1_aux_fit, &
                                     kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
                                     xc_section_external=xc_section, &
-                                    rho_atom_set_external=admm_env%admm_gapw_env%local_rho_set%rho_atom_set)
+                                    rho_atom_set_external=admm_env%admm_gapw_env%local_rho_set%rho_atom_set, &
+                                    calculate_forces=calculate_forces)
 
          END IF
 
@@ -647,22 +647,6 @@ CONTAINS
          IF (dft_control%use_gauxc) THEN
             IF (xc_section_uses_native_skala_grid(xc_section)) THEN
                CALL ensure_native_skala_grid_scope(xc_section)
-               IF (gapw_xc) THEN
-                  CPABORT(native_skala_gapw_xc_msg)
-               END IF
-               IF (gapw) THEN
-                  DO ikind = 1, SIZE(qs_kind_set)
-                     IF (qs_kind_set(ikind)%paw_atom .AND. .NOT. &
-                         qs_kind_set(ikind)%gpw_type_forced .AND. &
-                         (ASSOCIATED(qs_kind_set(ikind)%gth_potential) .OR. &
-                          ASSOCIATED(qs_kind_set(ikind)%sgp_potential))) THEN
-                        CALL cp_abort(__LOCATION__, &
-                                      "Native SKALA grid evaluation with METHOD GAPW and "// &
-                                      "pseudopotentials requires KIND%GPW_TYPE. PAW/one-center "// &
-                                      "GAPW+GTH/ECP is not implemented.")
-                     END IF
-                  END DO
-               END IF
                IF ((.NOT. do_kpoints) .AND. nimages /= 1) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "Native SKALA grid evaluation supports multiple images only "// &
@@ -674,12 +658,13 @@ CONTAINS
                   CPASSERT(ASSOCIATED(gauxc_section))
                   CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_USE_CUDA", l_val=native_grid_use_cuda)
                   IF (.NOT. native_grid_use_cuda) THEN
-                     CALL cp_abort(__LOCATION__, &
-                                   "Native SKALA grid evaluation with k-points currently requires "// &
-                                   "GAUXC%NATIVE_GRID_USE_CUDA T. The CPU TorchScript path can "// &
-                                   "destabilize the k-point diagonalization through "// &
-                                   "libtorch_cpu/OpenBLAS library interactions; use the CUDA SKALA model/path for "// &
-                                   "k-point runs.")
+                     IF (para_env%mepos == 0 .AND. .NOT. native_grid_cpu_kpoints_warned) THEN
+                        CALL cp_warn(__LOCATION__, &
+                                     "Native SKALA grid evaluation with k-points is using the CPU TorchScript "// &
+                                     "path. For CPU runs, preload libtorch_cpu.so before OpenBLAS if the "// &
+                                     "runtime library order is unstable; otherwise use NATIVE_GRID_USE_CUDA T.")
+                        native_grid_cpu_kpoints_warned = .TRUE.
+                     END IF
                   END IF
                END IF
                IF (dft_control%roks) THEN
@@ -688,9 +673,10 @@ CONTAINS
                IF (dft_control%do_admm) THEN
                   CPABORT("Native SKALA grid evaluation does not support ADMM.")
                END IF
-               ! Force/stress rebuilds re-enter this path for derivatives and VXC only;
-               ! keep the already evaluated SCF energy contribution.
-               native_skala_restore_exc = calculate_forces
+               ! Force-only rebuilds re-enter this path for derivatives and VXC only.
+               ! For analytical stress the XC volume term must stay consistent with
+               ! the rebuilt SKALA energy used by the autograd virial.
+               native_skala_restore_exc = calculate_forces .AND. .NOT. use_virial
                IF (native_skala_restore_exc) THEN
                   native_skala_exc_scf = energy%exc
                   native_skala_total_scf = energy%total
@@ -702,6 +688,21 @@ CONTAINS
                                      edisp=edisp, dispersion_env=qs_env%dispersion_env, &
                                      just_energy=just_energy_xc, &
                                      native_skala_atom_force=native_skala_atom_force)
+                  native_grid_diagnostics = .FALSE.
+                  gauxc_section => get_gauxc_section(xc_section)
+                  IF (ASSOCIATED(gauxc_section)) THEN
+                     CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_DIAGNOSTICS", &
+                                               l_val=native_grid_diagnostics)
+                  END IF
+                  IF (native_grid_diagnostics .AND. para_env%mepos == 0) THEN
+                     output_unit = cp_logger_get_default_io_unit()
+                     IF (output_unit > 0) THEN
+                        DO iatom = 1, natom
+                           WRITE (UNIT=output_unit, FMT="(T2,A,1X,I0,3(1X,ES20.12))") &
+                              "SKALA_GPW| Native atom force", iatom, native_skala_atom_force(:, iatom)
+                        END DO
+                     END IF
+                  END IF
                   CPASSERT(ASSOCIATED(force))
                   CPASSERT(ASSOCIATED(atomic_kind_set))
                   CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
@@ -719,8 +720,10 @@ CONTAINS
                                      just_energy=just_energy_xc)
                END IF
                IF (native_skala_restore_exc) energy%exc = native_skala_exc_scf
-               IF (gapw) THEN
-                  CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section)
+               IF (gapw .OR. gapw_xc) THEN
+                  CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, &
+                                          xc_section_external=xc_section, &
+                                          calculate_forces=calculate_forces)
                END IF
                IF (edisp /= 0.0_dp) energy%dispersion = edisp
                IF (qs_env%requires_matrix_vxc .AND. ASSOCIATED(v_rspace_new)) THEN
@@ -733,13 +736,13 @@ CONTAINS
                   END IF
                END IF
             ELSE
-               IF (gapw_xc) THEN
-                  CALL cp_abort(__LOCATION__, &
-                                "GauXC with METHOD GAPW_XC is unsupported. The "// &
-                                "GAPW_XC one-center XC correction needs a dedicated GauXC design.")
-               END IF
                use_gauxc_matrix = .TRUE.
                CALL apply_gauxc(qs_env, xc_section, calculate_forces)
+               IF (gapw_xc .OR. (gapw .AND. gauxc_gapw_has_paw_pseudopotentials(qs_kind_set))) THEN
+                  CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, &
+                                          xc_section_external=xc_section, &
+                                          calculate_forces=calculate_forces)
+               END IF
             END IF
          ELSE
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
@@ -753,7 +756,9 @@ CONTAINS
             END IF
 
             IF (gapw .OR. gapw_xc) THEN
-               CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section)
+               CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, &
+                                       xc_section_external=xc_section, &
+                                       calculate_forces=calculate_forces)
             END IF
          END IF
       END IF
@@ -915,11 +920,13 @@ CONTAINS
                   CALL get_qs_env(qs_env=qs_env, rho=rho_struct)
                END IF
                NULLIFY (rho1)
-               IF (dft_control%use_gauxc .AND. gapw) THEN
-                  ! GauXC evaluates GAPW XC directly on its molecular quadrature
-                  ! grid.  The native accurate-XCINT force correction applies to
-                  ! CP2K's regular-grid XC density and would otherwise try to
-                  ! evaluate the GAUXC section through xc_derivatives.
+               IF (dft_control%use_gauxc .AND. (gapw .OR. gapw_xc) .AND. &
+                   .NOT. xc_section_uses_native_skala_grid(xc_section)) THEN
+                  ! Molecular GauXC evaluates the XC term outside xc_derivatives.
+                  ! The accurate-XCINT force correction would otherwise try to
+                  ! evaluate the GAUXC section through CP2K's local functional path.
+                  ! Native-grid SKALA can provide this correction through the
+                  ! CP2K grid path and needs it for GAPW_XC force consistency.
                   CONTINUE
                ELSE
                   CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section)
