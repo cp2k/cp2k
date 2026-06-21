@@ -156,10 +156,12 @@ spack:
     py-torch:
       require:
         - "~distributed"
+        - "~fbgemm"
         - "~kineto"
         - "~mkldnn"
         - "~rocm"
         - "~valgrind"
+        - "~xnnpack"
 
     sirius:
       require:

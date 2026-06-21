@@ -104,10 +104,12 @@ spack:
     py-torch:
       require:
         - "~distributed"
+        - "~fbgemm"
         - "~kineto"
         - "~mkldnn"
         - "~rocm"
         - "~valgrind"
+        - "~xnnpack"
 
     trexio:
       require:

@@ -7,7 +7,7 @@
 #
 # Stage 1: Create a base image providing the dependencies for building a CP2K binary
 
-ARG BASE_IMAGE=${BASE_IMAGE:-ubuntu:24.04}
+ARG BASE_IMAGE=${BASE_IMAGE:-ubuntu:26.04}
 
 FROM "${BASE_IMAGE}" AS build_deps
 
@@ -58,4 +58,4 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN ./make_cp2k.sh -bd_only -cray -cv ${CP2K_VERSION} -uc no -j${NUM_PROCS} ${FEATURE_FLAGS}
+RUN ./make_cp2k.sh -bd_only -cray -cv ${CP2K_VERSION} -uc no -ue -j${NUM_PROCS} ${FEATURE_FLAGS}
