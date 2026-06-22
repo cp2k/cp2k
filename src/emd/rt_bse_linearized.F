@@ -1078,21 +1078,21 @@ CONTAINS
          CALL cp_cfm_to_cfm(rho_start(i), rho_end(i))
       END DO
       ! Each stage: do_rk4_stage evaluates k = f(stage density) for all spins, accumulates
-      ! rho_end += result_scale*k (result_scale = b*dt, Butcher b = 1/6, 1/3, 1/3, 1/6) and forms the next
-      ! stage density rho_workspace = rho_start + advance_scale*k (advance_scale = c*dt, c = 1/2, 1/2, 1;
-      ! omitted on k_4, which only accumulates).
+      ! rho_end += result_weight*dt*k (Butcher b = 1/6, 1/3, 1/3, 1/6) and forms the next stage density
+      ! rho_workspace = rho_start + advance_weight*dt*k (node c = 1/2, 1/2, 1; omitted on k_4, which only
+      ! accumulates). The dt factor is applied inside do_rk4_stage, so the calls show the bare weights.
       ! k_1 = f(t, rho_start)
       CALL do_rk4_stage(rtbse_env, rho_start, rho_start, rho_end, &
-                        result_scale=rtbse_env%sim_dt/6.0_dp, advance_scale=0.5_dp*rtbse_env%sim_dt)
+                        result_weight=1.0_dp/6.0_dp, advance_weight=0.5_dp)
       ! k_2 = f(t + dt/2, rho_start + dt/2 * k_1)
       CALL do_rk4_stage(rtbse_env, rtbse_env%rho_workspace, rho_start, rho_end, &
-                        result_scale=rtbse_env%sim_dt/3.0_dp, advance_scale=0.5_dp*rtbse_env%sim_dt)
+                        result_weight=1.0_dp/3.0_dp, advance_weight=0.5_dp)
       ! k_3 = f(t + dt/2, rho_start + dt/2 * k_2)
       CALL do_rk4_stage(rtbse_env, rtbse_env%rho_workspace, rho_start, rho_end, &
-                        result_scale=rtbse_env%sim_dt/3.0_dp, advance_scale=rtbse_env%sim_dt)
+                        result_weight=1.0_dp/3.0_dp, advance_weight=1.0_dp)
       ! k_4 = f(t + dt, rho_start + dt * k_3)
       CALL do_rk4_stage(rtbse_env, rtbse_env%rho_workspace, rho_start, rho_end, &
-                        result_scale=rtbse_env%sim_dt/6.0_dp)
+                        result_weight=1.0_dp/6.0_dp)
 
       ! Update bookkeeping to the next timestep similar to logic of etrs_scf_loop
       rtbse_env%sim_step = rtbse_env%sim_step + 1
@@ -1103,9 +1103,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Takes one RK4 stage. Evaluates k = f(t, rho_eval) for every spin into
-!>        rtbse_env%rk4_coefficients, accumulates it into the running result (rho_end += result_scale*k)
+!>        rtbse_env%rk4_coefficients, accumulates it into the running result (rho_end += result_weight*dt*k)
 !>        and - unless this is the last stage - forms the next stage density
-!>        (rho_workspace = rho_base + advance_scale*k). Builds the stage's shared kernels first: the
+!>        (rho_workspace = rho_base + advance_weight*dt*k). Builds the stage's shared kernels first: the
 !>        cross-spin Hartree is built once per stage and consumed by every spin in update_effective_ham_MO.
 !>        Open shell (n_spin>1) runs build_shared_sex_and_hartree (per-spin SEX + RI-RS grid-diagonal
 !>        harvest + the shared Hartree), consumed per spin via kernels_prebuilt=.TRUE.; n_spin=1 TDA AO-RI
@@ -1116,15 +1116,15 @@ CONTAINS
 !> \param rho_eval Per-spin MO density f is evaluated at (rho_start for k_1, rho_workspace otherwise)
 !> \param rho_base Per-spin MO density the next stage advances from (the step's rho_start)
 !> \param rho_end Per-spin RK4 result accumulator (= rho_start + dt/6*(k1+2k2+2k3+k4) after all 4 stages)
-!> \param result_scale RK4 weight b*dt for accumulating this stage's k into rho_end
-!> \param advance_scale RK4 weight c*dt for the next stage density; ABSENT on the last stage (no advance)
+!> \param result_weight RK4 Butcher weight b (dt factor applied inside) for accumulating k into rho_end
+!> \param advance_weight RK4 node c (dt factor applied inside) for the next stage density; ABSENT on the last stage
 !> \author Maximilian Graml
 ! **************************************************************************************************
-   SUBROUTINE do_rk4_stage(rtbse_env, rho_eval, rho_base, rho_end, result_scale, advance_scale)
+   SUBROUTINE do_rk4_stage(rtbse_env, rho_eval, rho_base, rho_end, result_weight, advance_weight)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho_eval, rho_base, rho_end
-      REAL(kind=dp), INTENT(IN)                          :: result_scale
-      REAL(kind=dp), INTENT(IN), OPTIONAL                :: advance_scale
+      REAL(kind=dp), INTENT(IN)                          :: result_weight
+      REAL(kind=dp), INTENT(IN), OPTIONAL                :: advance_weight
 
       INTEGER                                            :: i
       LOGICAL                                            :: do_precomputed_sex, do_shared_hartree
@@ -1147,13 +1147,14 @@ CONTAINS
          END IF
       END DO
       ! Fold each spin's k into the RK4 result and (unless last stage) form the next stage density.
+      ! The dt factor lives here so the call sites carry the bare RK4 weights.
       DO i = 1, rtbse_env%n_spin
          CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rho_end(i), &
-                                   CMPLX(result_scale, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(i))
-         IF (PRESENT(advance_scale)) THEN
+                                   CMPLX(result_weight*rtbse_env%sim_dt, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(i))
+         IF (PRESENT(advance_weight)) THEN
             CALL cp_cfm_to_cfm(rho_base(i), rtbse_env%rho_workspace(i))
             CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_workspace(i), &
-                                      CMPLX(advance_scale, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(i))
+                                      CMPLX(advance_weight*rtbse_env%sim_dt, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(i))
          END IF
       END DO
    END SUBROUTINE do_rk4_stage
