@@ -4,6 +4,7 @@
 # shellcheck disable=all
 
 ./scripts/stage3/install_fftw.sh
+./scripts/stage3/install_eigen.sh
 ./scripts/stage3/install_libint.sh
 ./scripts/stage3/install_libxc.sh
 ./scripts/stage3/install_greenx.sh

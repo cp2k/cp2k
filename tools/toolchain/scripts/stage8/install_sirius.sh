@@ -65,8 +65,8 @@ case "$with_sirius" in
       tar -xzf SIRIUS-${sirius_ver}.tar.gz
       cd SIRIUS-${sirius_ver}
 
-      patch -l -p1 < "${SCRIPT_DIR}/stage8/sirius-dftd4-static-link.patch" \
-        > sirius-dftd4-static-link.patch.log 2>&1 || tail_excerpt sirius-dftd4-static-link.patch.log
+      patch -l -p1 < "${SCRIPT_DIR}/stage8/sirius-linking.patch" \
+        > sirius-linking.patch.log 2>&1 || tail_excerpt sirius-linking.patch.log
 
       rm -Rf build
       mkdir build
@@ -74,8 +74,8 @@ case "$with_sirius" in
       if [ "${with_elpa}" != "__DONTUSE__" ]; then
         EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_ELPA=ON ${EXTRA_CMAKE_FLAGS}"
       fi
-      if [ "${MATH_MODE}" == "mkl" ]; then
-        EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_MKL=ON -DSIRIUS_USE_SCALAPACK=ON ${EXTRA_CMAKE_FLAGS}"
+      if [ "${math_mode}" == "mkl" ]; then
+        EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_MKL=ON ${EXTRA_CMAKE_FLAGS}"
       fi
       if [ "${with_tblite}" != "__DONTUSE__" ]; then
         # tblite includes s-dftd3
@@ -94,6 +94,8 @@ case "$with_sirius" in
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DBUILD_SHARED_LIBS=OFF \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DSIRIUS_USE_SCALAPACK=ON \
+        -DSIRIUS_USE_VCSQNM=ON \
         -DSIRIUS_USE_VDWXC=ON \
         -DSIRIUS_USE_PUGIXML=ON \
         -DSIRIUS_USE_MEMORY_POOL=OFF \
@@ -120,6 +122,8 @@ case "$with_sirius" in
           -DSIRIUS_USE_MEMORY_POOL=OFF \
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+          -DSIRIUS_USE_SCALAPACK=ON \
+          -DSIRIUS_USE_VCSQNM=ON \
           -DSIRIUS_USE_PUGIXML=ON \
           -DSIRIUS_USE_VDWXC=ON \
           -DCMAKE_CXX_COMPILER="${MPICXX}" \
@@ -133,7 +137,8 @@ case "$with_sirius" in
       fi
       SIRIUS_CFLAGS="-I'${pkg_install_dir}/include/sirius'"
       SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib"
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})" \
+        "${SCRIPT_DIR}/stage8/sirius-linking.patch"
     fi
     ;;
   __SYSTEM__)
@@ -161,16 +166,22 @@ export SIRIUS_VER="${sirius_ver}"
 EOF
   if [ "$with_sirius" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_sirius"
+prepend_path PATH "${pkg_install_dir}/bin"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/cuda/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
-prepend_path LD_RUN_PATH "${pkg_install_dir}/cuda/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path LIBRARY_PATH "${pkg_install_dir}/cuda/lib"
 prepend_path CPATH "${pkg_install_dir}/include/sirius"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
+    if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
+      cat << EOF >> "${BUILDDIR}/setup_sirius"
+prepend_path PATH "${pkg_install_dir}/cuda/bin"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/cuda/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/cuda/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/cuda/lib"
+EOF
+    fi
   fi
   cat << EOF >> "${BUILDDIR}/setup_sirius"
 export SIRIUS_CFLAGS="IF_CUDA(-I${pkg_install_dir}/cuda/include/sirius|-I${pkg_install_dir}/include/sirius)"

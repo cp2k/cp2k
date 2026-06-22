@@ -259,6 +259,8 @@ Specific options of --with-PKG:
                           integration. Installing GauXC with OneDFT/SKALA
                           support also enables libtorch and installs Skala-1.1.
                           Default = no
+  --with-eigen            Enable Eigen3; required by libint and SIRIUS.
+                          Default = no
   --with-libint           Enable libint for two-body molecular integrals in
                           Hartree-Fock and hybrid functional calculations.
                           Default = install
@@ -474,10 +476,10 @@ EOF
 tool_list="gcc intel amd cmake ninja"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
-lib_list="fftw libint libxc gauxc libxsmm libxs libxstream cosma scalapack elpa dbcsr
-          cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
-          libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol
-          fmt trexio libfci greenx gmp mcl"
+lib_list="fftw eigen libint libxc gauxc libxsmm libxs libxstream cosma scalapack
+          elpa dbcsr cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
+          libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol fmt trexio
+          libfci greenx gmp mcl"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -496,6 +498,7 @@ with_gcc="__SYSTEM__"
 # libs to turn on by default:
 with_dbcsr="__INSTALL__"
 with_fftw="__INSTALL__"
+with_eigen="__DONTUSE__"
 with_libint="__INSTALL__"
 with_libxsmm="__INSTALL__"
 with_libxs="__INSTALL__"
@@ -838,6 +841,9 @@ Otherwise use option no."
     --with-fftw*)
       with_fftw=$(read_with "${1}")
       ;;
+    --with-eigen*)
+      with_eigen=$(read_with "${1}")
+      ;;
     --with-mkl*)
       with_mkl=$(read_with "${1}" "__SYSTEM__")
       if [ "${with_mkl}" != "__DONTUSE__" ]; then
@@ -1152,27 +1158,11 @@ package will not be used separately."
   fi
 fi
 
-# Several packages require cmake.
-if [ "${with_spglib}" = "__INSTALL__" ] ||
-  [ "${with_libvori}" = "__INSTALL__" ] ||
-  [ "${with_scalapack}" = "__INSTALL__" ] ||
-  [ "${with_sirius}" = "__INSTALL__" ] ||
-  [ "${with_pugixml}" = "__INSTALL__" ] ||
-  [ "${with_cosma}" = "__INSTALL__" ] ||
-  [ "${with_spfft}" = "__INSTALL__" ] ||
-  [ "${with_spla}" = "__INSTALL__" ] ||
-  [ "${with_ninja}" = "__INSTALL__" ] ||
-  [ "${with_gauxc}" = "__INSTALL__" ] ||
-  [ "${with_greenx}" = "__INSTALL__" ] ||
-  [ "${with_libfci}" = "__INSTALL__" ] ||
-  [ "${with_dftd4}" = "__INSTALL__" ] ||
-  [ "${with_mcl}" = "__INSTALL__" ] ||
-  [ "${with_tblite}" = "__INSTALL__" ]; then
-  if [ "${with_cmake}" = "__DONTUSE__" ]; then
-    report_warning ${LINENO} "Installing one of the packages requires CMake but
-CMake is not found in system, so a new copy of CMake will be installed first."
-    with_cmake="__INSTALL__"
-  fi
+# Require cmake as hard dependency.
+if [ "${with_cmake}" = "__DONTUSE__" ]; then
+  report_warning ${LINENO} "Installing dependencies and CP2K requires CMake but
+CMake is not enabled, so a new copy of CMake will be installed first."
+  with_cmake="__INSTALL__"
 fi
 
 # SIRIUS dependencies
@@ -1180,9 +1170,11 @@ if [ "${with_sirius}" = "__INSTALL__" ]; then
   [ "${with_spfft}" = "__DONTUSE__" ] && with_spfft="__INSTALL__"
   [ "${with_spla}" = "__DONTUSE__" ] && with_spla="__INSTALL__"
   [ "${with_gsl}" = "__DONTUSE__" ] && with_gsl="__INSTALL__"
+  [ "${with_eigen}" = "__DONTUSE__" ] && with_eigen="__INSTALL__"
   [ "${with_fmt}" = "__DONTUSE__" ] && with_fmt="__INSTALL__"
   [ "${with_libxc}" = "__DONTUSE__" ] && with_libxc="__INSTALL__"
   [ "${with_fftw}" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
+  [ "${with_scalapack}" = "__DONTUSE__" ] && with_scalapack="__INSTALL__"
   [ "${with_spglib}" = "__DONTUSE__" ] && with_spglib="__INSTALL__"
   [ "${with_hdf5}" = "__DONTUSE__" ] && with_hdf5="__INSTALL__"
   [ "${with_libvdwxc}" = "__DONTUSE__" ] && with_libvdwxc="__INSTALL__"
@@ -1194,6 +1186,10 @@ elif [ "${with_sirius}" = "__DONTUSE__" ]; then
   with_libvdwxc="__DONTUSE__"
   with_fmt="__DONTUSE__"
   [ "${GPUVER}" = "no" ] && with_spla="__DONTUSE__"
+fi
+
+if [ "${with_libint}" = "__INSTALL__" ]; then
+  [ "${with_eigen}" = "__DONTUSE__" ] && with_eigen="__INSTALL__"
 fi
 
 if [ "${with_trexio}" = "__INSTALL__" ]; then
@@ -1219,17 +1215,19 @@ if [ "${MATH_MODE}" = "mkl" ]; then
   # Use standalone FFTW when FFTW-MPI wrappers are needed. Otherwise, use
   # MKL's FFTW3 interface and do not install a separate FFTW package.
   if [ "${with_libvdwxc}" != "__DONTUSE__" ] && [ "${MPI_MODE}" != "no" ]; then
+    report_warning ${LINENO} "libvdwxc with MPI needs FFTW-MPI wrappers; enabling standalone FFTW."
     if [ "${with_fftw}" = "__DONTUSE__" ]; then
-      report_warning ${LINENO} "libvdwxc with MPI needs FFTW-MPI wrappers; enabling FFTW."
       with_fftw="__INSTALL__"
     fi
     export MKL_FFTW="no"
   else
+    echo "Using MKL-vendored FFTW"
     with_fftw="__DONTUSE__"
     export MKL_FFTW="yes"
   fi
   # Use MKL-provided ScaLAPACK/BLACS for MPI builds.
   if [ "${MPI_MODE}" != "no" ]; then
+    echo "Using MKL-vendored ScaLAPACK"
     with_scalapack="__DONTUSE__"
     export MKL_SCALAPACK="yes"
   fi
