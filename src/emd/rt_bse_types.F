@@ -270,6 +270,12 @@ MODULE rt_bse_types
       ! hartree_total_ao = V_H[sum] (fm_ks struct, matches sigma_SEX_ao as the Hartree output).
       TYPE(cp_cfm_type)                                         :: rho_total_ao_scratch = cp_cfm_type(), &
                                                                    hartree_total_ao = cp_cfm_type()
+      ! RI-RS Hartree diagonal reuse: spin-summed grid density n_l = diag(phi.rho.phi^T), harvested
+      ! from the SEX rho_grid (before its Hadamard, scaled by spin_degeneracy) and consumed by
+      ! compute_hartree_ri_rs_from_diag so Hartree never rebuilds the grid product. Re/Im; sized
+      ! n_grid; allocated in initialize_hartree_potential when rirs_kernel. rtbse_env-owned (not
+      ! bs_env%ri_rs) to avoid aliasing bs_env when passed through get_sigma_complex.
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)                 :: hartree_diag_re, hartree_diag_im
       ! mo_active x mo_active real workspace pair used in MO-side transforms (linearized only).
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: real_workspace_mo => NULL()
       ! Liouvillian-diagnostic scratch (allocated only when diagnose_liouvillian_eig=.TRUE.).
@@ -913,6 +919,9 @@ CONTAINS
          CALL cp_cfm_release(rtbse_env%rho_total_ao_scratch)
          CALL cp_cfm_release(rtbse_env%hartree_total_ao)
       END IF
+      ! Release the RI-RS Hartree diagonal-reuse accumulators (allocated in initialize_hartree_potential).
+      IF (ALLOCATED(rtbse_env%hartree_diag_re)) DEALLOCATE (rtbse_env%hartree_diag_re)
+      IF (ALLOCATED(rtbse_env%hartree_diag_im)) DEALLOCATE (rtbse_env%hartree_diag_im)
       ! Release Liouvillian-diagnostic scratch (only when the diagnostic was requested).
       IF (rtbse_env%diagnose_liouvillian_eig) THEN
          IF (ASSOCIATED(rtbse_env%drho_probe)) CALL cp_cfm_release_pa1(rtbse_env%drho_probe)

@@ -1053,11 +1053,13 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 09.2024
 ! **************************************************************************************************
-   SUBROUTINE get_sigma_complex(rtbse_env, sigma_cfm, prefactor_opt, greens_cfm)
+   SUBROUTINE get_sigma_complex(rtbse_env, sigma_cfm, prefactor_opt, greens_cfm, &
+                                grid_diag_re_accum, grid_diag_im_accum)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_cfm_type)                                  :: sigma_cfm ! resulting self energy
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
       TYPE(cp_cfm_type), INTENT(IN)                      :: greens_cfm ! matrix to contract with RI_W
+      REAL(kind=dp), INTENT(INOUT), OPTIONAL             :: grid_diag_re_accum(:), grid_diag_im_accum(:)
       REAL(kind=dp)                                      :: prefactor
 
       prefactor = 1.0_dp
@@ -1065,9 +1067,12 @@ CONTAINS
 
       ! RI-RS screened-exchange backend (linRTBSE only; rirs_kernel is forced .FALSE. for full RTBSE,
       ! so this is inert there). The RI-RS routine does its own Re/Im split, replacing the AO-RI body.
-      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C22
+      ! The optional grid_diag_* accumulators harvest diag(φρφ^T) for the Hartree reuse (RI-RS only;
+      ! absent on AO-RI calls, which build no grid). [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C22
       IF (rtbse_env%rirs_kernel) THEN
-         CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, sigma_cfm, prefactor, greens_cfm)
+         CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, sigma_cfm, prefactor, greens_cfm, &
+                                          grid_diag_re_accum=grid_diag_re_accum, &
+                                          grid_diag_im_accum=grid_diag_im_accum)
          RETURN
       END IF
 

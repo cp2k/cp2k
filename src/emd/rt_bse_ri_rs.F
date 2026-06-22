@@ -67,7 +67,9 @@ MODULE rt_bse_ri_rs
              compute_sigma_ri_rs, &
              compute_sigma_ri_rs_complex, &
              compute_hartree_ri_rs, &
-             compute_hartree_ri_rs_complex
+             compute_hartree_ri_rs_complex, &
+             compute_hartree_ri_rs_from_diag, &
+             hartree_potential_from_diag_ri_rs
 
 CONTAINS
 
@@ -265,19 +267,23 @@ CONTAINS
 !> \param sigma_AO_fm result, AO x AO
 !> \param prefactor scaling applied to the final result
 !> \param rho_AO_fm input density-like matrix, AO x AO
+!> \param grid_diag_accum ...
 ! **************************************************************************************************
-   SUBROUTINE compute_sigma_ri_rs(bs_env, sigma_AO_fm, prefactor, rho_AO_fm)
+   SUBROUTINE compute_sigma_ri_rs(bs_env, sigma_AO_fm, prefactor, rho_AO_fm, &
+                                  grid_diag_accum)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(cp_fm_type), INTENT(INOUT)                    :: sigma_AO_fm
       REAL(KIND=dp), INTENT(IN)                          :: prefactor
       TYPE(cp_fm_type), INTENT(IN)                       :: rho_AO_fm
+      REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: grid_diag_accum(:)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_sigma_ri_rs'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, n_grid
       INTEGER, DIMENSION(:), POINTER                     :: blk_ao, blk_grid, dist_col_grid, &
                                                             dist_row_ao
+      REAL(KIND=dp), ALLOCATABLE                         :: diag_local(:)
       TYPE(dbcsr_distribution_type)                      :: dist_ao_ao, dist_grid_grid
       TYPE(dbcsr_type)                                   :: matrix_rho_AO, matrix_rho_grid, &
                                                             matrix_Sigma_AO
@@ -299,6 +305,21 @@ CONTAINS
                         dbcsr_type_no_symmetry, blk_grid, blk_grid)
       CALL contract_A_B_A("N", "T", bs_env%ri_rs%mat_phi_mu_l, matrix_rho_AO, &
                           matrix_rho_grid, bs_env%eps_filter)
+
+      ! Harvest n_l = diag(ρ^grid) BEFORE the in-place Hadamard destroys it; the Hartree reuses it
+      ! (compute_hartree_ri_rs_from_diag) instead of rebuilding φρφ^T. Bare accumulate (caller
+      ! pre-zeroes): the cross-spin Hartree density is the spin SUM of these, and spin_degeneracy is
+      ! applied to the V_H OUTPUT (post-filter, bit-identical) -- never to the diagonal, which would
+      ! shift the stage-3 eps_filter cut (P-C12 coarse-filter sensitivity).
+      IF (PRESENT(grid_diag_accum)) THEN
+         n_grid = SIZE(grid_diag_accum)
+         ALLOCATE (diag_local(n_grid))
+         diag_local = 0.0_dp
+         CALL dbcsr_get_diag(matrix_rho_grid, diag_local)
+         CALL bs_env%para_env%sum(diag_local)
+         grid_diag_accum(:) = grid_diag_accum(:) + diag_local(:)
+         DEALLOCATE (diag_local)
+      END IF
 
       ! ρ^grid_ll' <- ρ^grid_ll' * W^0_ll'   (in place; blocks without a W^0 partner zeroed)
       CALL hadamard_product_inplace(matrix_rho_grid, bs_env%ri_rs%mat_W0_grid_rtbse, &
@@ -329,13 +350,18 @@ CONTAINS
 !> \param sigma_AO_cfm result, AO x AO (complex)
 !> \param prefactor scaling applied to the final result
 !> \param rho_AO_cfm input AO x AO complex matrix
+!> \param grid_diag_re_accum optional: accumulate diag(φ.Re(ρ).φ^T) (bare; for the Hartree reuse)
+!> \param grid_diag_im_accum optional: accumulate diag(φ.Im(ρ).φ^T) (bare; for the Hartree reuse)
 ! **************************************************************************************************
-   SUBROUTINE compute_sigma_ri_rs_complex(bs_env, sigma_AO_cfm, prefactor, rho_AO_cfm)
+   SUBROUTINE compute_sigma_ri_rs_complex(bs_env, sigma_AO_cfm, prefactor, rho_AO_cfm, &
+                                          grid_diag_re_accum, grid_diag_im_accum)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: sigma_AO_cfm
       REAL(KIND=dp), INTENT(IN)                          :: prefactor
       TYPE(cp_cfm_type), INTENT(IN)                      :: rho_AO_cfm
+      REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: grid_diag_re_accum(:), &
+                                                            grid_diag_im_accum(:)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_sigma_ri_rs_complex'
 
@@ -349,12 +375,15 @@ CONTAINS
       CALL cp_fm_create(fm_sigma, bs_env%fm_s_Gamma%matrix_struct)
       CALL cp_cfm_create(cfm_real_part, bs_env%fm_s_Gamma%matrix_struct)
 
+      ! Re/Im each harvest into their own accumulator; absent optionals propagate as absent.
       CALL cp_cfm_to_fm(msource=rho_AO_cfm, mtargetr=fm_rho)
-      CALL compute_sigma_ri_rs(bs_env, fm_sigma, prefactor, fm_rho)
+      CALL compute_sigma_ri_rs(bs_env, fm_sigma, prefactor, fm_rho, &
+                               grid_diag_accum=grid_diag_re_accum)
       CALL cp_fm_to_cfm(msourcer=fm_sigma, mtarget=cfm_real_part)
 
       CALL cp_cfm_to_fm(msource=rho_AO_cfm, mtargeti=fm_rho)
-      CALL compute_sigma_ri_rs(bs_env, fm_sigma, prefactor, fm_rho)
+      CALL compute_sigma_ri_rs(bs_env, fm_sigma, prefactor, fm_rho, &
+                               grid_diag_accum=grid_diag_im_accum)
       CALL cp_fm_to_cfm(msourcei=fm_sigma, mtarget=sigma_AO_cfm)
 
       CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), sigma_AO_cfm, &
@@ -390,10 +419,9 @@ CONTAINS
       INTEGER                                            :: handle, n_grid
       INTEGER, DIMENSION(:), POINTER                     :: blk_ao, blk_grid, dist_col_grid, &
                                                             dist_row_ao
-      REAL(KIND=dp), ALLOCATABLE                         :: n_vec(:), u_ri(:), v_vec(:), w_ri(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: n_vec(:)
       TYPE(dbcsr_distribution_type)                      :: dist_ao_ao, dist_grid_grid
-      TYPE(dbcsr_type)                                   :: matrix_Phi, matrix_rho_AO, &
-                                                            matrix_rho_grid, matrix_V_H_AO
+      TYPE(dbcsr_type)                                   :: matrix_rho_AO, matrix_rho_grid
 
       CALL timeset(routineN, handle)
 
@@ -408,7 +436,7 @@ CONTAINS
       CALL copy_fm_to_dbcsr(rho_AO_fm, matrix_rho_AO, keep_sparsity=.FALSE.)
 
       n_grid = SUM(blk_grid)
-      ALLOCATE (n_vec(n_grid), v_vec(n_grid))
+      ALLOCATE (n_vec(n_grid))
 
       ! stage 1: n_l = (φ ρ φ^T)_ll. A grid×AO row-dot (iterate φρ, look up φ) silently drops
       ! off-rank pairs at ≥2 ranks — φ is sparse and the product is not co-located with φ — so
@@ -423,6 +451,49 @@ CONTAINS
       CALL bs_env%para_env%sum(n_vec)
       CALL release_dbcsr_topology_and_matrices(dist=dist_grid_grid, mapped_dist=dist_col_grid, &
                                                m1=matrix_rho_grid)
+      CALL release_dbcsr_topology_and_matrices(dist=dist_ao_ao, mapped_dist=dist_row_ao, &
+                                               m1=matrix_rho_AO)
+
+      ! stages 2-3: factorized Coulomb v = Z V^aux Z^T n, then V^H = φ^T diag(v) φ.
+      CALL hartree_potential_from_diag_ri_rs(bs_env, n_vec, V_H_AO_fm)
+
+      DEALLOCATE (n_vec)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_hartree_ri_rs
+
+! **************************************************************************************************
+!> \brief Hartree stages 2-3 from a precomputed grid density n_l (skips the stage-1 φρφ^T build):
+!>          v_l = sum_PQl' Z_lP V^aux_PQ Z_l'Q n_l'   (factorized Coulomb) ;
+!>          V^H_µν = sum_l φ_lµ v_l φ_lν   (Φ_lν = v_l φ_lν rowscale, then V^H = φ^T Φ).
+!>        n_l is harvested as diag(φρφ^T) inside compute_sigma_ri_rs (the SEX grid kernel), so the
+!>        Hartree never rebuilds the grid×grid product. Real in/out.
+!> [INTERNAL] dev_notes/rt_bse_equations.md §6.1 Eq. VHt_rirs_fact
+!> \param bs_env ...
+!> \param n_vec grid density n_l (length n_grid, replicated)
+!> \param V_H_AO_fm output AO x AO Hartree potential
+! **************************************************************************************************
+   SUBROUTINE hartree_potential_from_diag_ri_rs(bs_env, n_vec, V_H_AO_fm)
+
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp), INTENT(IN)                          :: n_vec(:)
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: V_H_AO_fm
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hartree_potential_from_diag_ri_rs'
+
+      INTEGER                                            :: handle
+      INTEGER, DIMENSION(:), POINTER                     :: blk_ao, dist_row_ao
+      REAL(KIND=dp), ALLOCATABLE                         :: u_ri(:), v_vec(:), w_ri(:)
+      TYPE(dbcsr_distribution_type)                      :: dist_ao_ao
+      TYPE(dbcsr_type)                                   :: matrix_Phi, matrix_V_H_AO
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(bs_env%ri_rs%V_grid_built)
+
+      CALL setup_square_topology(bs_env%ri_rs%mat_phi_mu_l, 'COL', dist_ao_ao, blk_ao, dist_row_ao)
+      ALLOCATE (v_vec(SIZE(n_vec)))
 
       ! stage 2: v_l = sum_PQl' Z_lP V^aux_PQ Z_l'Q n_l'  (factorized; helper zeroes each output)
       ALLOCATE (w_ri(bs_env%n_RI), u_ri(bs_env%n_RI))
@@ -448,14 +519,62 @@ CONTAINS
 
       CALL copy_dbcsr_to_fm(matrix_V_H_AO, V_H_AO_fm)
 
-      DEALLOCATE (n_vec, v_vec)
+      DEALLOCATE (v_vec)
 
       CALL release_dbcsr_topology_and_matrices(dist=dist_ao_ao, mapped_dist=dist_row_ao, &
-                                               m1=matrix_rho_AO, m2=matrix_V_H_AO)
+                                               m1=matrix_V_H_AO)
 
       CALL timestop(handle)
 
-   END SUBROUTINE compute_hartree_ri_rs
+   END SUBROUTINE hartree_potential_from_diag_ri_rs
+
+! **************************************************************************************************
+!> \brief Complex Hartree from precomputed grid diagonals: V^H = V^H[n_re] + i V^H[n_im], each via
+!>        hartree_potential_from_diag_ri_rs (stages 2-3 only). n_re/n_im are the spin-summed grid
+!>        densities harvested in the SEX kernel; this is the cross-spin / TDA complex consumer that
+!>        replaces compute_hartree_ri_rs_complex when SEX already built the grid. n_im optional: when
+!>        absent the result is purely real (matches the Re-only real-input Hartree).
+!> [INTERNAL] dev_notes/rt_bse_equations.md §6.1 Eq. VHt_rirs_fact
+!> \param bs_env ...
+!> \param n_re grid density Re part (length n_grid, replicated)
+!> \param V_H_AO_cfm output AO x AO complex Hartree potential
+!> \param n_im optional grid density Im part (length n_grid, replicated)
+! **************************************************************************************************
+   SUBROUTINE compute_hartree_ri_rs_from_diag(bs_env, n_re, V_H_AO_cfm, n_im)
+
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp), INTENT(IN)                          :: n_re(:)
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: V_H_AO_cfm
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: n_im(:)
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_hartree_ri_rs_from_diag'
+
+      INTEGER                                            :: handle
+      TYPE(cp_cfm_type)                                  :: cfm_real_part
+      TYPE(cp_fm_type)                                   :: fm_v
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_create(fm_v, bs_env%fm_s_Gamma%matrix_struct)
+
+      CALL hartree_potential_from_diag_ri_rs(bs_env, n_re, fm_v)
+      IF (PRESENT(n_im)) THEN
+         CALL cp_cfm_create(cfm_real_part, bs_env%fm_s_Gamma%matrix_struct)
+         CALL cp_fm_to_cfm(msourcer=fm_v, mtarget=cfm_real_part)
+         CALL hartree_potential_from_diag_ri_rs(bs_env, n_im, fm_v)
+         CALL cp_fm_to_cfm(msourcei=fm_v, mtarget=V_H_AO_cfm)
+         CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), V_H_AO_cfm, &
+                                   CMPLX(1.0_dp, 0.0_dp, kind=dp), cfm_real_part)
+         CALL cp_cfm_release(cfm_real_part)
+      ELSE
+         CALL cp_fm_to_cfm(msourcer=fm_v, mtarget=V_H_AO_cfm)
+      END IF
+
+      CALL cp_fm_release(fm_v)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_hartree_ri_rs_from_diag
 
 ! **************************************************************************************************
 !> \brief Complex-input Hartree potential via RI-RS. Re/Im split: feed each part to the real
