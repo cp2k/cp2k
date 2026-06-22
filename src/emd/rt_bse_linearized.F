@@ -902,10 +902,11 @@ CONTAINS
       ! Make sure the RI-RS V_grid kernel is available if we need it for Hartree.
       IF (use_rirs_kernel) CALL rt_bse_ri_rs_ensure_V_grid(bs_env, rtbse_env%qs_env)
 
-      ! Allocate the spin-summed grid-density accumulators reused by the RI-RS Hartree (harvested as
-      ! diag(φρφ^T) in SEX). mat_phi_mu_l is grid x AO, so its row count is n_grid. This routine is
-      ! the sole allocator and runs once per propagation, so no allocated-guard is needed.
-      IF (use_rirs_kernel) THEN
+      ! Spin-summed grid-density accumulators for the RI-RS Hartree reuse (diag(φρφ^T) harvested in SEX;
+      ! mat_phi_mu_l is grid x AO, so its row count is n_grid). Allocated ONLY for RI-RS + Hartree, so the
+      ! get_sigma harvest calls (passed unconditionally below) see an absent optional and self-disable on
+      ! AO-RI / Hartree-off (F2008 unallocated-allocatable -> absent optional). Sole allocator, runs once.
+      IF (use_rirs_kernel .AND. (.NOT. rtbse_env%debug_disable_hartree)) THEN
          CALL dbcsr_get_info(bs_env%ri_rs%mat_phi_mu_l, nfullrows_total=n_grid)
          ALLOCATE (rtbse_env%hartree_diag_re(n_grid), rtbse_env%hartree_diag_im(n_grid))
       END IF
@@ -1257,8 +1258,9 @@ CONTAINS
       use_sex = .NOT. rtbse_env%debug_disable_sex
       use_rirs_kernel = rtbse_env%rirs_kernel
 
-      ! Pre-zero the RI-RS spin-summed grid-diagonal accumulators (the SEX harvest target).
-      IF (use_rirs_kernel .AND. use_sex .AND. use_hartree) THEN
+      ! Pre-zero the RI-RS spin-summed grid-diagonal accumulators (the SEX harvest target). ALLOCATED is
+      ! exactly RI-RS + Hartree, the case where the per-spin get_sigma below harvests into them.
+      IF (ALLOCATED(rtbse_env%hartree_diag_re)) THEN
          rtbse_env%hartree_diag_re(:) = 0.0_dp
          rtbse_env%hartree_diag_im(:) = 0.0_dp
       END IF
@@ -1270,14 +1272,12 @@ CONTAINS
          CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_delta_mo(isp), &
                                                    rtbse_env%rho_ao_lrrtbse(isp), isp)
          IF (use_sex) THEN
-            ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]
-            IF (use_rirs_kernel .AND. use_hartree) THEN
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(isp), -1.0_dp, rtbse_env%rho_ao_lrrtbse(isp), &
-                              grid_diag_re_accum=rtbse_env%hartree_diag_re, &
-                              grid_diag_im_accum=rtbse_env%hartree_diag_im)
-            ELSE
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(isp), -1.0_dp, rtbse_env%rho_ao_lrrtbse(isp))
-            END IF
+            ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]. grid_diag accumulators passed
+            ! unconditionally: unallocated (hence absent) on AO-RI / Hartree-off, so the harvest
+            ! self-disables there (F2008 unallocated-allocatable -> absent optional).
+            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(isp), -1.0_dp, rtbse_env%rho_ao_lrrtbse(isp), &
+                           grid_diag_re_accum=rtbse_env%hartree_diag_re, &
+                           grid_diag_im_accum=rtbse_env%hartree_diag_im)
          END IF
       END DO
       ! Shared cross-spin Hartree. RI-RS reuses the spin-summed grid diagonal (no extra grid build);
@@ -1392,14 +1392,12 @@ CONTAINS
             ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]
             IF (use_sex) THEN
                ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]
-               ! Harvest the bare n_l = diag(φ Re(ρ) φ^T) for the RI-RS Hartree reuse below.
-               IF (use_rirs_kernel .AND. use_hartree) THEN
-                  rtbse_env%hartree_diag_re(:) = 0.0_dp
-                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin), &
-                                 grid_diag_re_accum=rtbse_env%hartree_diag_re)
-               ELSE
-                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
-               END IF
+               ! Harvest the bare n_l = diag(φ Re(ρ) φ^T) for the RI-RS Hartree reuse below (closed shell:
+               ! Re only). Accumulator passed unconditionally; unallocated -> absent -> harvest self-disables
+               ! on AO-RI / Hartree-off (F2008). Pre-zero ALLOCATED-guarded.
+               IF (ALLOCATED(rtbse_env%hartree_diag_re)) rtbse_env%hartree_diag_re(:) = 0.0_dp
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin), &
+                              grid_diag_re_accum=rtbse_env%hartree_diag_re)
                ! Transform to MO basis (AO scratch -> MO-active result)
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                      rtbse_env%sigma_SEX(ispin), ispin)
@@ -1530,16 +1528,17 @@ CONTAINS
          ! (open shell) sigma_SEX_ao(σ) is the build_shared_sex_and_hartree stash.
          IF (use_sex) THEN
             IF (.NOT. l_sex_precomputed) THEN
-               ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]
-               IF (use_rirs_kernel .AND. rtbse_env%n_spin == 1 .AND. use_hartree) THEN
+               ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]. grid_diag accumulators passed
+               ! unconditionally: unallocated (hence absent) on AO-RI / Hartree-off -> harvest self-disables
+               ! (F2008). Reached only for n_spin=1; open shell sets l_sex_precomputed and harvests in
+               ! build_shared_sex_and_hartree instead.
+               IF (ALLOCATED(rtbse_env%hartree_diag_re)) THEN
                   rtbse_env%hartree_diag_re(:) = 0.0_dp
                   rtbse_env%hartree_diag_im(:) = 0.0_dp
-                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin), &
-                                 grid_diag_re_accum=rtbse_env%hartree_diag_re, &
-                                 grid_diag_im_accum=rtbse_env%hartree_diag_im)
-               ELSE
-                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
                END IF
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin), &
+                              grid_diag_re_accum=rtbse_env%hartree_diag_re, &
+                              grid_diag_im_accum=rtbse_env%hartree_diag_im)
             END IF
             CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                   rtbse_env%sigma_SEX(ispin), ispin)
