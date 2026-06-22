@@ -1233,6 +1233,10 @@ if [ "${MATH_MODE}" = "mkl" ]; then
     with_scalapack="__DONTUSE__"
     export MKL_SCALAPACK="yes"
   fi
+  # Block libtorch installation bacause of compatibility issue
+  if [ "${with_libtorch}" = "__INSTALL__" ]; then
+    report_error "Installing prebuilt libtorch is disabled for oneMKL builds because it is incompatible with CP2K's external oneMKL stack."
+  fi
 fi
 
 # ------------------------------------------------------------------------

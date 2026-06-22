@@ -262,6 +262,12 @@ SIRIUS is a domain specific library for electronic structure calculations with p
 - The C++ API of PyTorch can be downloaded from https://pytorch.org/get-started/locally/.
 - Pass `-DCP2K_USE_LIBTORCH=ON` to CMake to enable support for libtorch.
 
+```{caution}
+Note that currently pre-built libtorch bundle (up to 2.12.1) is not compatible with CP2K's external
+oneMKL linking stack. If you build CP2K with MKL and want to enable libtorch, you may need to build
+it by yourself.
+```
+
 ## SPLA (Matrix-matrix multiplication offloading on GPU)
 
 The SPLA library is a hard dependency of SIRIUS but can also be used as a standalone library. It
