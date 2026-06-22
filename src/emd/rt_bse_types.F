@@ -266,7 +266,7 @@ MODULE rt_bse_types
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: sigma_SEX_ao => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: hartree_curr_ao => NULL()
       ! Open-shell cross-spin Hartree (TDA AO-RI), single shared AO buffers built once per
-      ! RK4 stage: rho_total_ao_scratch (fm_s struct, matches rho_ao_lrrtbse for the spin sum);
+      ! RK4 stage: rho_total_ao_scratch (fm_s struct, matches rho_ao_scratch for the spin sum);
       ! hartree_total_ao = V_H[sum] (fm_ks struct, matches sigma_SEX_ao as the Hartree output).
       TYPE(cp_cfm_type)                                         :: rho_total_ao_scratch = cp_cfm_type(), &
                                                                    hartree_total_ao = cp_cfm_type()
@@ -300,7 +300,7 @@ MODULE rt_bse_types
                                                                    rho_new_last => NULL(), &
                                                                    rho_M => NULL(), &
                                                                    rho_orig => NULL(), &
-                                                                   rho_ao_lrrtbse => NULL(), &
+                                                                   rho_ao_scratch => NULL(), &
                                                                    rho_delta_mo => NULL(), &
                                                                    drho_probe => NULL(), &
                                                                    L_drho => NULL()
@@ -630,10 +630,10 @@ CONTAINS
       ! Allocate additional space for AO density matrix
       ! in linearised RTBSE, where default is MO
       IF (rtbse_env%linearized) THEN
-         NULLIFY (rtbse_env%rho_ao_lrrtbse)
-         ALLOCATE (rtbse_env%rho_ao_lrrtbse(rtbse_env%n_spin))
+         NULLIFY (rtbse_env%rho_ao_scratch)
+         ALLOCATE (rtbse_env%rho_ao_scratch(rtbse_env%n_spin))
          DO i = 1, rtbse_env%n_spin
-            CALL cp_cfm_create(rtbse_env%rho_ao_lrrtbse(i), matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
+            CALL cp_cfm_create(rtbse_env%rho_ao_scratch(i), matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
          END DO
       END IF
       ! Create the inverse overlap matrix, for use in density propagation
@@ -780,7 +780,7 @@ CONTAINS
                CALL cp_cfm_set_all(rtbse_env%rho_delta_mo(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
             END DO
             ! Cross-spin Hartree scratch: single shared AO buffers (not per-spin). Structs
-            ! mirror the proven get_hartree_complex(rho_ao_lrrtbse, sigma_SEX_ao) call.
+            ! mirror the proven get_hartree_complex(rho_ao_scratch, sigma_SEX_ao) call.
             CALL cp_cfm_create(rtbse_env%rho_total_ao_scratch, bs_env%fm_s_Gamma%matrix_struct)
             CALL cp_cfm_create(rtbse_env%hartree_total_ao, bs_env%fm_ks_Gamma(1)%matrix_struct)
             CALL cp_cfm_set_all(rtbse_env%rho_total_ao_scratch, CMPLX(0.0_dp, 0.0_dp, kind=dp))
