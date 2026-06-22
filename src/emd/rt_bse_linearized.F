@@ -1069,48 +1069,30 @@ CONTAINS
       ! Note that the effective Hamiltonian needs to be updated for each evaluation of f,
       ! as it depends on the density matrix at the respective time
 
-      ! Spin loop is INNER to each RK4 stage: cross-spin-coupled kernels (Hartree
-      ! in open shell) need every spin's stage density before any spin advances.
-      ! rk4_coefficients(i) holds spin i's CURRENT-stage k (was indexed per stage),
-      ! reused across stages with incremental accumulation into rho_end; rho_workspace(i)
-      ! holds spin i's stage density. Both sized 4 >= n_spin. Bit-identical for n_spin=1.
+      ! Spin loop is INNER to each RK4 stage (inside do_rk4_stage): cross-spin-coupled kernels (Hartree in
+      ! open shell) need every spin's stage density before any spin advances. rk4_coefficients(i) holds
+      ! spin i's CURRENT-stage k (indexed by spin, not stage - see its allocation in create_rtbse_env),
+      ! reused across stages; rho_workspace(i) holds spin i's stage density. Bit-identical for n_spin=1.
       ! [INTERNAL] dev_notes/rt_bse_open_shell_audit.md R0
       DO i = 1, rtbse_env%n_spin
          CALL cp_cfm_to_cfm(rho_start(i), rho_end(i))
       END DO
+      ! Each stage: do_rk4_stage evaluates k = f(stage density) for all spins, accumulates
+      ! rho_end += result_scale*k (result_scale = b*dt, Butcher b = 1/6, 1/3, 1/3, 1/6) and forms the next
+      ! stage density rho_workspace = rho_start + advance_scale*k (advance_scale = c*dt, c = 1/2, 1/2, 1;
+      ! omitted on k_4, which only accumulates).
       ! k_1 = f(t, rho_start)
-      CALL evaluate_rk4_stage(rtbse_env, rho_start)
-      DO i = 1, rtbse_env%n_spin
-         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rho_end(i), &
-                                   CMPLX(rtbse_env%sim_dt/6.0_dp, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(i))
-         CALL cp_cfm_to_cfm(rho_start(i), rtbse_env%rho_workspace(i))
-         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%rho_workspace(i), &
-                                   CMPLX(0.5_dp*rtbse_env%sim_dt, 0.0, kind=dp), rtbse_env%rk4_coefficients(i))
-      END DO
+      CALL do_rk4_stage(rtbse_env, rho_start, rho_start, rho_end, &
+                        result_scale=rtbse_env%sim_dt/6.0_dp, advance_scale=0.5_dp*rtbse_env%sim_dt)
       ! k_2 = f(t + dt/2, rho_start + dt/2 * k_1)
-      CALL evaluate_rk4_stage(rtbse_env, rtbse_env%rho_workspace)
-      DO i = 1, rtbse_env%n_spin
-         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rho_end(i), &
-                                   CMPLX(rtbse_env%sim_dt/3.0_dp, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(i))
-         CALL cp_cfm_to_cfm(rho_start(i), rtbse_env%rho_workspace(i))
-         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%rho_workspace(i), &
-                                   CMPLX(0.5_dp*rtbse_env%sim_dt, 0.0, kind=dp), rtbse_env%rk4_coefficients(i))
-      END DO
+      CALL do_rk4_stage(rtbse_env, rtbse_env%rho_workspace, rho_start, rho_end, &
+                        result_scale=rtbse_env%sim_dt/3.0_dp, advance_scale=0.5_dp*rtbse_env%sim_dt)
       ! k_3 = f(t + dt/2, rho_start + dt/2 * k_2)
-      CALL evaluate_rk4_stage(rtbse_env, rtbse_env%rho_workspace)
-      DO i = 1, rtbse_env%n_spin
-         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rho_end(i), &
-                                   CMPLX(rtbse_env%sim_dt/3.0_dp, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(i))
-         CALL cp_cfm_to_cfm(rho_start(i), rtbse_env%rho_workspace(i))
-         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%rho_workspace(i), &
-                                   CMPLX(rtbse_env%sim_dt, 0.0, kind=dp), rtbse_env%rk4_coefficients(i))
-      END DO
+      CALL do_rk4_stage(rtbse_env, rtbse_env%rho_workspace, rho_start, rho_end, &
+                        result_scale=rtbse_env%sim_dt/3.0_dp, advance_scale=rtbse_env%sim_dt)
       ! k_4 = f(t + dt, rho_start + dt * k_3)
-      CALL evaluate_rk4_stage(rtbse_env, rtbse_env%rho_workspace)
-      DO i = 1, rtbse_env%n_spin
-         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rho_end(i), &
-                                   CMPLX(rtbse_env%sim_dt/6.0_dp, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(i))
-      END DO
+      CALL do_rk4_stage(rtbse_env, rtbse_env%rho_workspace, rho_start, rho_end, &
+                        result_scale=rtbse_env%sim_dt/6.0_dp)
 
       ! Update bookkeeping to the next timestep similar to logic of etrs_scf_loop
       rtbse_env%sim_step = rtbse_env%sim_step + 1
@@ -1120,22 +1102,29 @@ CONTAINS
    END SUBROUTINE solve_rk4_timestep
 
 ! **************************************************************************************************
-!> \brief Evaluates one RK4 stage: k = f(t, rho_stage) for every spin, returned in
-!>        rtbse_env%rk4_coefficients. Builds the stage's shared kernels first, then assembles f per spin
-!>        and projects to OV(+VO). The cross-spin Hartree is built once per stage and consumed by every
-!>        spin in update_effective_ham_MO. Open shell (n_spin>1) runs build_shared_sex_and_hartree
-!>        (per-spin SEX + RI-RS grid-diagonal harvest + the shared Hartree) and consumes it per spin via
-!>        update_effective_ham_MO(sex_precomputed=.TRUE.); n_spin=1 TDA AO-RI uses build_shared_hartree_ao
-!>        (Hartree only); n_spin=1 RI-RS keeps its per-spin SEX+Hartree path (bit-identical). No
-!>        timeset/timestop: the callees are individually timed and this is invoked 4x per RK4 timestep.
-!>        [INTERNAL] dev_notes/rt_bse_rirs_kernel.md (open-shell Hartree diagonal reuse)
+!> \brief Takes one RK4 stage. Evaluates k = f(t, rho_eval) for every spin into
+!>        rtbse_env%rk4_coefficients, accumulates it into the running result (rho_end += result_scale*k)
+!>        and - unless this is the last stage - forms the next stage density
+!>        (rho_workspace = rho_base + advance_scale*k). Builds the stage's shared kernels first: the
+!>        cross-spin Hartree is built once per stage and consumed by every spin in update_effective_ham_MO.
+!>        Open shell (n_spin>1) runs build_shared_sex_and_hartree (per-spin SEX + RI-RS grid-diagonal
+!>        harvest + the shared Hartree), consumed per spin via sex_precomputed=.TRUE.; n_spin=1 TDA AO-RI
+!>        uses build_shared_hartree_ao (Hartree only); n_spin=1 RI-RS keeps its per-spin SEX+Hartree path.
+!>        No timeset/timestop: the callees are individually timed and this runs 4x per RK4 timestep.
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §7 (RK4) / rt_bse_rirs_kernel.md (open-shell Hartree)
 !> \param rtbse_env RT-BSE environment
-!> \param rho_stage Per-spin MO density at this RK4 stage (rho_start for k_1, rho_workspace otherwise)
+!> \param rho_eval Per-spin MO density f is evaluated at (rho_start for k_1, rho_workspace otherwise)
+!> \param rho_base Per-spin MO density the next stage advances from (the step's rho_start)
+!> \param rho_end Per-spin RK4 result accumulator (= rho_start + dt/6*(k1+2k2+2k3+k4) after all 4 stages)
+!> \param result_scale RK4 weight b*dt for accumulating this stage's k into rho_end
+!> \param advance_scale RK4 weight c*dt for the next stage density; ABSENT on the last stage (no advance)
 !> \author Maximilian Graml
 ! **************************************************************************************************
-   SUBROUTINE evaluate_rk4_stage(rtbse_env, rho_stage)
+   SUBROUTINE do_rk4_stage(rtbse_env, rho_eval, rho_base, rho_end, result_scale, advance_scale)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho_stage
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho_eval, rho_base, rho_end
+      REAL(kind=dp), INTENT(IN)                          :: result_scale
+      REAL(kind=dp), INTENT(IN), OPTIONAL                :: advance_scale
 
       INTEGER                                            :: i
       LOGICAL                                            :: do_precomputed_sex, do_shared_hartree
@@ -1144,19 +1133,30 @@ CONTAINS
       do_shared_hartree = (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) .AND. &
                           (.NOT. rtbse_env%debug_disable_hartree) .AND. &
                           (rtbse_env%n_spin > 1 .OR. (.NOT. rtbse_env%rirs_kernel))
+      ! Build this stage's shared kernels (see brief), then evaluate f for every spin.
       IF (do_precomputed_sex) THEN
-         CALL build_shared_sex_and_hartree(rtbse_env, rho_stage, keep_ovvo=(.NOT. rtbse_env%tda_active))
+         CALL build_shared_sex_and_hartree(rtbse_env, rho_eval, keep_ovvo=(.NOT. rtbse_env%tda_active))
       ELSE IF (do_shared_hartree) THEN
-         CALL build_shared_hartree_ao(rtbse_env, rho_stage, keep_ovvo=(.NOT. rtbse_env%tda_active))
+         CALL build_shared_hartree_ao(rtbse_env, rho_eval, keep_ovvo=(.NOT. rtbse_env%tda_active))
       END IF
       DO i = 1, rtbse_env%n_spin
-         CALL update_effective_ham_MO(rtbse_env, rho_stage(i), rtbse_env%rk4_coefficients(i), i, &
+         CALL update_effective_ham_MO(rtbse_env, rho_eval(i), rtbse_env%rk4_coefficients(i), i, &
                                       sex_precomputed=do_precomputed_sex)
          IF (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) THEN
             CALL project_drho_to_ov(rtbse_env, rtbse_env%rk4_coefficients(i), i)
          END IF
       END DO
-   END SUBROUTINE evaluate_rk4_stage
+      ! Fold each spin's k into the RK4 result and (unless last stage) form the next stage density.
+      DO i = 1, rtbse_env%n_spin
+         CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rho_end(i), &
+                                   CMPLX(result_scale, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(i))
+         IF (PRESENT(advance_scale)) THEN
+            CALL cp_cfm_to_cfm(rho_base(i), rtbse_env%rho_workspace(i))
+            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_workspace(i), &
+                                      CMPLX(advance_scale, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(i))
+         END IF
+      END DO
+   END SUBROUTINE do_rk4_stage
 
 ! **************************************************************************************************
 !> \brief Builds the spin-summed complex Hartree potential in AO, once per RK4 stage (AO-RI or RI-RS).

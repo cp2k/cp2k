@@ -695,9 +695,12 @@ CONTAINS
 
       !For LR-RTBSE we need RK4 coefficients - create new workspace
       IF (rtbse_env%linearized) THEN
+         ! Indexed by SPIN, not by RK4 stage: the spin loop is inner to each stage (do_rk4_stage), so every
+         ! spin's current-stage k must be live at once, but only one stage's k per spin - each is folded
+         ! into rho_end and the next stage density before the next stage overwrites it. Hence size n_spin.
          NULLIFY (rtbse_env%rk4_coefficients)
-         ALLOCATE (rtbse_env%rk4_coefficients(4))
-         DO i = 1, 4
+         ALLOCATE (rtbse_env%rk4_coefficients(rtbse_env%n_spin))
+         DO i = 1, rtbse_env%n_spin
             CALL cp_cfm_create(rtbse_env%rk4_coefficients(i), mo_struct)
             CALL cp_cfm_set_all(rtbse_env%rk4_coefficients(i), CMPLX(0.0, 0.0, kind=dp))
          END DO
