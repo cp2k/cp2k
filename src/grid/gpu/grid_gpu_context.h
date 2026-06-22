@@ -215,14 +215,14 @@ public:
 
 template <typename T> class grid_info {
 private:
-  std::array<int, 3> full_size_;
-  std::array<int, 3> local_size_;
+  int3 full_size_;
+  int3 local_size_;
   // origin of the local part of the grid in grid point
-  std::array<int, 3> lower_corner_;
-  std::array<int, 3> border_width_;
+  int3 lower_corner_;
+  int3 border_width_;
   std::array<T, 9> dh_;
   std::array<T, 9> dh_inv_;
-  bool orthorhombic_{false};
+  bool orthogonal_{false};
   bool is_distributed_{false};
   gpu_vector<T> grid_;
 
@@ -279,9 +279,10 @@ public:
     is_distributed_ = distributed__;
   }
 
-  void check_orthorhombicity(const bool ortho) {
+  /// Check if the lattice vectors form a orthogonal basis
+  void check_orthogonality(const bool ortho) {
     if (ortho) {
-      orthorhombic_ = true;
+      orthogonal_ = true;
       return;
     }
     T norm1, norm2, norm3;
@@ -307,7 +308,7 @@ public:
         ((fabs(dh_[0] * dh_[3] + dh_[1] * dh_[4] + dh_[2] * dh_[5]) * norm1 *
           norm2) < 1e-12);
 
-    orthorhombic_ = orthogonal[0] && orthogonal[1] && orthogonal[2];
+    orthogonal_ = orthogonal[0] && orthogonal[1] && orthogonal[2];
   }
 
   inline void copy_to_host(T *data__, offloadStream_t &stream) {
@@ -327,25 +328,13 @@ public:
   }
   inline bool is_distributed() { return is_distributed_; }
 
-  inline int full_size(const int i) {
-    assert(i < 3);
-    return full_size_[i];
-  }
+  inline int3 &full_size() { return full_size_; }
 
-  inline int local_size(const int i) {
-    assert(i < 3);
-    return local_size_[i];
-  }
+  inline int3 &local_size() { return local_size_; }
 
-  inline int lower_corner(const int i) {
-    assert(i < 3);
-    return lower_corner_[i];
-  }
+  inline int3 &lower_corner() { return lower_corner_; }
 
-  inline int border_width(const int i) {
-    assert(i < 3);
-    return border_width_[i];
-  }
+  inline int3 &border_width() { return border_width_; }
 
   inline T *data() { return grid_.data(); }
   inline const T *data() const { return grid_.data(); }
@@ -359,35 +348,34 @@ public:
   inline T *dh_inv() { return dh_inv_.data(); }
   inline const T *dh_inv() const { return dh_inv_.data(); }
 
-  inline bool is_orthorhombic() const { return orthorhombic_; }
+  inline bool is_orthogonal() const { return orthogonal_; }
   inline bool is_distributed() const { return is_distributed_; }
 
 private:
   void initialize(const int *const full_size__, const int *const local_size__,
                   const int *const roffset__, const int *const border_width__) {
     // the calling code store things like this cube[z][y][x] (in fortran
-    // cube(x,y,z)) so all sizes are [x,y,z] while we are working in C/C++ so we
-    // have to permute the indices to get this right.
+    // cube(x,y,z)).
 
-    full_size_[2] = full_size__[0];
-    full_size_[1] = full_size__[1];
-    full_size_[0] = full_size__[2];
+    full_size_.x = full_size__[0];
+    full_size_.y = full_size__[1];
+    full_size_.z = full_size__[2];
 
-    local_size_[2] = local_size__[0];
-    local_size_[1] = local_size__[1];
-    local_size_[0] = local_size__[2];
+    local_size_.x = local_size__[0];
+    local_size_.y = local_size__[1];
+    local_size_.z = local_size__[2];
 
-    lower_corner_[0] = roffset__[2];
-    lower_corner_[1] = roffset__[1];
-    lower_corner_[2] = roffset__[0];
+    lower_corner_.x = roffset__[0];
+    lower_corner_.y = roffset__[1];
+    lower_corner_.z = roffset__[2];
 
-    is_distributed_ = (full_size_[2] != local_size_[2]) ||
-                      (full_size_[1] != local_size_[1]) ||
-                      (full_size_[0] != local_size_[0]);
+    is_distributed_ = (full_size_.x != local_size_.x) ||
+                      (full_size_.y != local_size_.y) ||
+                      (full_size_.z != local_size_.z);
 
-    border_width_[2] = border_width__[0];
-    border_width_[1] = border_width__[1];
-    border_width_[0] = border_width__[2];
+    border_width_.x = border_width__[0];
+    border_width_.y = border_width__[1];
+    border_width_.z = border_width__[2];
   }
 };
 
@@ -434,10 +422,10 @@ struct kernel_params {
   int first_task{0};
   // max size of cab.
   int cab_size_{0};
-  int grid_full_size_[3] = {0, 0, 0};
-  int grid_local_size_[3] = {0, 0, 0};
-  int grid_lower_corner_[3] = {0, 0, 0};
-  int grid_border_width_[3] = {0, 0, 0};
+  int3 grid_full_size_ = make_int3(0, 0, 0);
+  int3 grid_local_size_ = make_int3(0, 0, 0);
+  int3 grid_lower_corner_ = make_int3(0, 0, 0);
+  int3 grid_border_width_ = make_int3(0, 0, 0);
   double dh_[9];
   double dh_inv_[9];
   task_info *tasks;

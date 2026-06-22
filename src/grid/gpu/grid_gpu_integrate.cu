@@ -31,71 +31,33 @@
 
 namespace rocm_backend {
 
-// do a warp reduction and return the final sum to thread_id = 0
+// do a block reduction for a block of size 64 and return the final sum to
+// thread_id = 0
 template <typename T>
-__device__ __inline__ T warp_reduce(T *table, const int tid) {
+__device__ __inline__ T block_reduce_64(T *table, const T val_, const int tid) {
   // AMD GPU have warp size of 64 while nvidia GPUs have warpSize of 32 so the
   // first step is common to both platforms.
+  table[tid] = val_;
+  __syncthreads();
+
+  T val = 0.0;
+
   if (tid < 32) {
-    table[tid] += table[tid + 32];
-  }
-  __syncthreads();
-  if (tid < 16) {
-    table[tid] += table[tid + 16];
-  }
-  __syncthreads();
-  if (tid < 8) {
-    table[tid] += table[tid + 8];
-  }
-  __syncthreads();
-  if (tid < 4) {
-    table[tid] += table[tid + 4];
-  }
-  __syncthreads();
-  if (tid < 2) {
-    table[tid] += table[tid + 2];
-  }
-  __syncthreads();
-  return (table[0] + table[1]);
-}
-// #endif
+    val = table[tid] + table[tid + 32];
 
-template <typename T>
-__device__ __inline__ T reduce_two_warps(const T in, const int tid) {
-  int lane = tid & 31; // lane within warp
-  int warp = tid >> 5; // warp index (0 or 1)
-
-  T x = in;
-  __shared__ T sdata[2];
-  // Step 1: per‑warp reduction via shuffles
+    for (int offset = 16; offset > 0; offset >>= 1) {
 #if defined(__CUDACC__)
-  unsigned mask = 0xffffffff;
-  for (int offset = 16; offset > 0; offset >>= 1)
-    x += __shfl_down_sync(mask, x, offset);
+      val += __shfl_down_sync(0xffffffff, val, offset);
 #else
-  for (int offset = warpSize / 2; offset > 0; offset >>= 1)
-    x += __shfl_down(x, offset);
+      val += __shfl_down(val, offset);
 #endif
-  // Step 2: each warp writes its partial sum to shared memory
-  if (lane == 0)
-    sdata[warp] = x;
-
-  __syncthreads(); // ensures both partial sums are visible
-
-  // Step 3: first warp loads the partials and finishes reduction
-  if (warp == 0) {
-    T v = (lane < 2) ? sdata[lane] : 0; // 2 warps → 2 partials
-
-#if defined(__CUDACC__)
-    // reduce across first warp only
-    for (int offset = 16; offset > 0; offset >>= 1)
-      v += __shfl_down_sync(0xFFFFFFFF, v, offset);
-#else
-    for (int offset = warpSize / 2; offset > 0; offset >>= 1)
-      v += __shfl_down_sync(0xFFFFFFFFFFFFFFFF, v, offset);
-#endif
-    return v;
+    }
   }
+
+  // prevents threads >= 32 (which never touch table[]) from racing ahead and
+  // overwriting it for the next call before the reduction above has read it.
+  __syncthreads();
+  return val;
 }
 
 template <typename T, bool COMPUTE_TAU>
@@ -103,15 +65,14 @@ __global__ __launch_bounds__(64) void compute_hab_v4(const kernel_params dev_) {
   // Copy task from global to shared memory and precompute some stuff.
   extern __shared__ T shared_memory[];
   // T *smem_cab = &shared_memory[dev_.smem_cab_offset];
-  const int number_of_tasks = dev_.num_tasks_per_block_dev[blockIdx.x];
+  const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
 
   if (number_of_tasks == 0)
     return;
 
   T *smem_alpha = &shared_memory[0];
-  const int tid =
-      threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
-  const int offset = dev_.sorted_blocks_offset_dev[blockIdx.x];
+  const int tid = thread_global_index();
+  const int offset = dev_.sorted_blocks_offset_dev[block_index()];
   T *smem_cab = allocate_workspace<T>(dev_);
 
   for (int tk = 0; tk < number_of_tasks; tk++) {
@@ -158,15 +119,14 @@ template <typename T, typename T3, bool COMPUTE_TAU, bool CALCULATE_FORCES>
 __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
   // Copy task from global to shared memory and precompute some stuff.
   extern __shared__ T shared_memory[];
-  const int number_of_tasks = dev_.num_tasks_per_block_dev[blockIdx.x];
+  const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
 
   if (number_of_tasks == 0)
     return;
 
   T *smem_alpha = &shared_memory[0];
-  const int tid =
-      threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
-  const int offset = dev_.sorted_blocks_offset_dev[blockIdx.x];
+  const int tid = thread_global_index();
+  const int offset = dev_.sorted_blocks_offset_dev[block_index()];
 
   T fa[3], fb[3];
   T virial[9];
@@ -197,7 +157,6 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
     fill_smem_task_coef(dev_, task_id, task);
 
     T *coef_ = &dev_.ptr_dev[2][dev_.tasks[task_id].coef_offset];
-
     compute_alpha(task, smem_alpha);
     __syncthreads();
     cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
@@ -286,34 +245,23 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
     if (dev_.ptr_dev[5] != nullptr) {
 
       for (int i = 0; i < 9; i++) {
-        sum[tid] = virial[i];
-        __syncthreads();
-
-        virial[i] = warp_reduce<T>(sum, tid);
-        __syncthreads();
+        virial[i] = block_reduce_64<T>(sum, virial[i], tid);
 
         if (tid == 0)
           atomicAdd(dev_.ptr_dev[5] + i, virial[i]);
-        __syncthreads();
       }
     }
 
     for (int i = 0; i < 3; i++) {
-      sum[tid] = fa[i];
-      __syncthreads();
-      fa[i] = warp_reduce<T>(sum, tid);
-      __syncthreads();
+      fa[i] = block_reduce_64<T>(sum, fa[i], tid);
+
       if (tid == 0)
         atomicAdd(forces_a + i, fa[i]);
-      __syncthreads();
 
-      sum[tid] = fb[i];
-      __syncthreads();
-      fb[i] = warp_reduce<T>(sum, tid);
-      __syncthreads();
+      fb[i] = block_reduce_64<T>(sum, fb[i], tid);
+
       if (tid == 0)
         atomicAdd(forces_b + i, fb[i]);
-      __syncthreads();
     }
   }
 }
@@ -344,15 +292,14 @@ So most of the code is the same except the core of the routine that is
 specialized to the integration.
 
 ******************************************************************************/
-template <typename T, typename T3, bool distributed__, bool orthorhombic_,
+template <typename T, typename T3, bool distributed__, bool orthogonal_,
           int lbatch = 10>
 __global__
 __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
-  if (dev_.tasks[dev_.first_task + blockIdx.x].skip_task)
+  if (dev_.tasks[dev_.first_task + block_index()].skip_task)
     return;
 
-  const int tid =
-      threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
+  const int tid = thread_global_index();
 
   __shared__ T dh_inv_[9];
   __shared__ T dh_[9];
@@ -364,21 +311,10 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
     dh_[d] = dev_.dh_[d];
 
   __shared__ smem_task_reduced<T, T3> task;
-  fill_smem_task_reduced(dev_, dev_.first_task + blockIdx.x, task);
+  fill_smem_task_reduced(dev_, dev_.first_task + block_index(), task);
 
   if (tid == 0) {
-    task.cube_center.z += task.lb_cube.z - dev_.grid_lower_corner_[0];
-    task.cube_center.y += task.lb_cube.y - dev_.grid_lower_corner_[1];
-    task.cube_center.x += task.lb_cube.x - dev_.grid_lower_corner_[2];
-
-    if (distributed__) {
-      if (task.apply_border_mask) {
-        compute_window_size(
-            dev_.grid_local_size_,
-            dev_.tasks[dev_.first_task + blockIdx.x].border_mask,
-            dev_.grid_border_width_, &task.window_size, &task.window_shift);
-      }
-    }
+    setup_task_cube_center<T, T3, distributed__>(dev_, task);
   }
   __syncthreads();
 
@@ -399,10 +335,7 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
     __syncthreads();
 
     for (int z = threadIdx.z; z < task.cube_size.z; z += blockDim.z) {
-      int z2 = (z + task.cube_center.z) % dev_.grid_full_size_[0];
-
-      if (z2 < 0)
-        z2 += dev_.grid_full_size_[0];
+      int z2 = wrap_grid_index(z + task.cube_center.z, dev_.grid_full_size_.z);
 
       if (distributed__) {
         // known at compile time. Will be stripped away
@@ -419,21 +352,13 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
       int ymax = task.cube_size.y - 1;
       T kremain = 0.0;
 
-      if (orthorhombic_ && !task.apply_border_mask) {
-        ymin = (2 * (z + task.lb_cube.z) - 1) / 2;
-        ymin *= ymin;
-        kremain = task.discrete_radius * task.discrete_radius -
-                  ymin * dh_[8] * dh_[8];
-        ymin = ceil(-1.0e-8 - sqrt(fmax(0.0, kremain)) * dh_inv_[4]);
-        ymax = 1 - ymin - task.lb_cube.y;
-        ymin = ymin - task.lb_cube.y;
+      if (orthogonal_ && !task.apply_border_mask) {
+        kremain = calculate_ymix_ymax_boundaries(task, z, ymin, ymax);
       }
 
       for (int y = ymin + threadIdx.y; y <= ymax; y += blockDim.y) {
-        int y2 = (y + task.cube_center.y) % dev_.grid_full_size_[1];
-
-        if (y2 < 0)
-          y2 += dev_.grid_full_size_[1];
+        int y2 =
+            wrap_grid_index(y + task.cube_center.y, dev_.grid_full_size_.y);
 
         if (distributed__) {
           /* check if the point is within the window */
@@ -447,21 +372,13 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
         int xmin = 0;
         int xmax = task.cube_size.x - 1;
 
-        if (orthorhombic_ && !task.apply_border_mask) {
-          xmin = (2 * (y + task.lb_cube.y) - 1) / 2;
-          xmin *= xmin;
-          xmin =
-              ceil(-1.0e-8 - sqrt(fmax(0.0, kremain - xmin * dh_[4] * dh_[4])) *
-                                 dh_inv_[0]);
-          xmax = 1 - xmin - task.lb_cube.x;
-          xmin -= task.lb_cube.x;
+        if (orthogonal_ && !task.apply_border_mask) {
+          calculate_xmin_xmax_boundaries<T, T3>(task, y, kremain, xmin, xmax);
         }
 
         for (int x = xmin + threadIdx.x; x <= xmax; x += blockDim.x) {
-          int x2 = (x + task.cube_center.x) % dev_.grid_full_size_[2];
-
-          if (x2 < 0)
-            x2 += dev_.grid_full_size_[2];
+          int x2 =
+              wrap_grid_index(x + task.cube_center.x, dev_.grid_full_size_.x);
 
           if (distributed__) {
             /* check if the point is within the window */
@@ -472,34 +389,33 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
             }
           }
 
-          // I make no distinction between orthorhombic and non orthorhombic
+          // I make no distinction between orthogonal and non orthogonal
           // cases
           T3 r3;
 
-          if (orthorhombic_) {
-            r3.x = (x + task.lb_cube.x + task.roffset.x) * dh_[0];
-            r3.y = (y + task.lb_cube.y + task.roffset.y) * dh_[4];
-            r3.z = (z + task.lb_cube.z + task.roffset.z) * dh_[8];
-          } else {
-            r3 = compute_coordinates(dh_, (x + task.lb_cube.x + task.roffset.x),
-                                     (y + task.lb_cube.y + task.roffset.y),
-                                     (z + task.lb_cube.z + task.roffset.z));
-          }
+          r3 = compute_coordinates(dh_, (x + task.lb_cube.x + task.roffset.x),
+                                   (y + task.lb_cube.y + task.roffset.y),
+                                   (z + task.lb_cube.z + task.roffset.z));
           // check if the point is inside the sphere or not. Note that it does
-          // not apply for the orthorhombic case when the full sphere is inside
+          // not apply for the orthogonal case when the full sphere is inside
           // the region of interest.
+          const T r3x2 = r3.x * r3.x;
+          const T r3y2 = r3.y * r3.y;
+          const T r3z2 = r3.z * r3.z;
 
           if (distributed__) {
-            if (((task.radius * task.radius) <=
-                 (r3.x * r3.x + r3.y * r3.y + r3.z * r3.z)) &&
-                (!orthorhombic_ || task.apply_border_mask))
+            // check if the point is inside the sphere or not. Note that it does
+            // not apply for the orthorhombic case when the full sphere is
+            // inside the region of interest.
+
+            if (((task.radius * task.radius) <= (r3x2 + r3y2 + r3z2)) &&
+                (!orthogonal_ || task.apply_border_mask))
               continue;
           } else {
-            if (!orthorhombic_) {
-              if ((task.radius * task.radius) <=
-                  (r3.x * r3.x + r3.y * r3.y + r3.z * r3.z))
-                continue;
-            }
+            // we do not need to do this test for the orthorhombic case
+            if ((!orthogonal_) &&
+                ((task.radius * task.radius) <= (r3x2 + r3y2 + r3z2)))
+              continue;
           }
 
           // read the next point assuming that reading is non blocking untill
@@ -507,13 +423,9 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
           // NVIDIA hardware
 
           T grid_value =
-              __ldg(&dev_.ptr_dev[1][(z2 * dev_.grid_local_size_[1] + y2) *
-                                         dev_.grid_local_size_[2] +
+              __ldg(&dev_.ptr_dev[1][(z2 * dev_.grid_local_size_.y + y2) *
+                                         dev_.grid_local_size_.x +
                                      x2]);
-
-          const T r3x2 = r3.x * r3.x;
-          const T r3y2 = r3.y * r3.y;
-          const T r3z2 = r3.z * r3.z;
 
           const T r3xy = r3.x * r3.y;
           const T r3xz = r3.x * r3.z;
@@ -680,10 +592,20 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
         // Load local value
         T val = accumulator[i][tid];
 
-        // Warp-level reduction (32 lanes)
-        // After this loop, lane 0 of warp 0 holds the result
+        // Warp-level reduction (32 lanes) After this loop, lane 0 of warp 0
+        // holds the result All threads should execute this operation so
+        // __activemask() is incorrect here.
+
+        // The ifdef statement is needed because hip does not necessarily
+        // support the instruction either. Reverting back to __shfl_down is
+        // required.
+        //
         for (int offset = 16; offset > 0; offset >>= 1) {
-          val += __shfl_down_sync(__activemask(), val, offset);
+#if defined(__CUDACC__)
+          val += __shfl_down_sync(0xffffffff, val, offset);
+#else
+          val += __shfl_down(val, offset);
+#endif
         }
 
         if (tid == 0)
@@ -692,43 +614,9 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
     }
     __syncthreads();
 
-    // if (tid < 16) {
-    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
-    //     accumulator[i][tid] += accumulator[i][tid + 16];
-    //   }
-    // }
-    // __syncthreads();
-    // if (tid < 8) {
-    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
-    //     accumulator[i][tid] += accumulator[i][tid + 8];
-    //   }
-    // }
-    // __syncthreads();
-    // if (tid < 4) {
-    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
-    //     accumulator[i][tid] += accumulator[i][tid + 4];
-    //   }
-    // }
-    // __syncthreads();
-    // if (tid < 2) {
-    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
-    //     accumulator[i][tid] += accumulator[i][tid + 2];
-    //   }
-    // }
-    // __syncthreads();
-
-    // if (tid == 0) {
-    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
-    //     sum[i] = accumulator[i][0] + accumulator[i][1];
-    //   }
-    // }
-
-    // __syncthreads();
-
     if (tid < min(length - ico, lbatch))
-      dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset +
+      dev_.ptr_dev[2][dev_.tasks[dev_.first_task + block_index()].coef_offset +
                       tid + ico] = sum[tid];
-    __syncthreads();
   }
 }
 
@@ -759,7 +647,7 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
 
   const dim3 threads_per_block(4, 4, 4);
   if (grid_[level].is_distributed()) {
-    if (grid_[level].is_orthorhombic()) {
+    if (grid_[level].is_orthogonal()) {
       integrate_kernel<double, double3, true, true, 10>
           <<<number_of_tasks_per_level_[level], threads_per_block, 0,
              level_streams[level]>>>(params);
@@ -769,7 +657,7 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
              level_streams[level]>>>(params);
     }
   } else {
-    if (grid_[level].is_orthorhombic()) {
+    if (grid_[level].is_orthogonal()) {
       integrate_kernel<double, double3, false, true, 10>
           <<<number_of_tasks_per_level_[level], threads_per_block, 0,
              level_streams[level]>>>(params);

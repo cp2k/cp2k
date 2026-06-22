@@ -61,16 +61,16 @@ context_info::set_kernel_parameters(const int level,
 
   if (level >= 0) {
     params.ptr_dev[1] = grid_[level].data();
-    for (int i = 0; i < 3; i++) {
-      memcpy(params.dh_, grid_[level].dh(), 9 * sizeof(double));
-      memcpy(params.dh_inv_, grid_[level].dh_inv(), 9 * sizeof(double));
-      params.grid_full_size_[i] = grid_[level].full_size(i);
-      params.grid_local_size_[i] = grid_[level].local_size(i);
-      params.grid_lower_corner_[i] = grid_[level].lower_corner(i);
-      params.grid_border_width_[i] = grid_[level].border_width(i);
-    }
+    memcpy(params.dh_, grid_[level].dh(), 9 * sizeof(double));
+    memcpy(params.dh_inv_, grid_[level].dh_inv(), 9 * sizeof(double));
     params.first_task = first_task_per_level_[level];
+
+    params.grid_full_size_ = grid_[level].full_size();
+    params.grid_local_size_ = grid_[level].local_size();
+    params.grid_lower_corner_ = grid_[level].lower_corner();
+    params.grid_border_width_ = grid_[level].border_width();
   }
+
   params.ptr_dev[2] = this->coef_dev_.data();
   params.ptr_dev[3] = hab_block_.data();
   params.ptr_dev[4] = forces_.data();
@@ -132,7 +132,7 @@ extern "C" void grid_gpu_create_task_list(
                              shift_local + 3 * level, border_width + 3 * level);
     ctx->grid_[level].is_distributed(false);
     ctx->grid_[level].set_lattice_vectors(&dh[9 * level], &dh_inv[9 * level]);
-    ctx->grid_[level].check_orthorhombicity(ortho);
+    ctx->grid_[level].check_orthogonality(ortho);
     for (int i = 0; i < 9; i++)
       dh_max[level] = std::max(dh_max[level], std::abs(dh[9 * level + i]));
   }
@@ -283,7 +283,7 @@ extern "C" void grid_gpu_create_task_list(
 
     tasks_host[i].apply_border_mask = (tasks_host[i].border_mask != 0);
 
-    if (grid.is_orthorhombic() && (tasks_host[i].border_mask == 0)) {
+    if (grid.is_orthogonal() && (tasks_host[i].border_mask == 0)) {
       tasks_host[i].discrete_radius =
           rocm_backend::compute_cube_properties<double, double3, true>(
               tasks_host[i].radius, grid.dh(), grid.dh_inv(),
@@ -527,7 +527,7 @@ extern "C" void grid_gpu_collocate_task_list(const grid_gpu_task_list *ptr,
     for (int has_border_mask = 0; has_border_mask <= 1; has_border_mask++) {
       for (int lp = 0; lp < 20; lp++) {
         const int count = ctx->stats[has_border_mask][lp];
-        if (ctx->grid_[0].is_orthorhombic() && !has_border_mask) {
+        if (ctx->grid_[0].is_orthogonal() && !has_border_mask) {
           grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
                                    GRID_COLLOCATE_ORTHO, count);
         } else {
@@ -613,7 +613,7 @@ extern "C" void grid_gpu_integrate_task_list(
     for (int has_border_mask = 0; has_border_mask <= 1; has_border_mask++) {
       for (int lp = 0; lp < 20; lp++) {
         const int count = ctx->stats[has_border_mask][lp];
-        if (ctx->grid_[0].is_orthorhombic() && !has_border_mask) {
+        if (ctx->grid_[0].is_orthogonal() && !has_border_mask) {
           grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
                                    GRID_INTEGRATE_ORTHO, count);
         } else {
