@@ -16,7 +16,7 @@ class Libxs(CMakePackage):
 
     maintainers("hfp", "mkrack", "mtaillefumier")
 
-    homepage = "hhttps://libxs.readthedocs.io/en/latest"
+    homepage = "https://libxs.readthedocs.io/en/latest"
     url = (
         "https://github.com/hfp/libxs/archiv/libxs-ab416130f8c9f7edb8c1bf3d3abaf402f61d0fe0.tar.gz"
     )
