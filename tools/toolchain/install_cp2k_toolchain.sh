@@ -1233,6 +1233,10 @@ if [ "${MATH_MODE}" = "mkl" ]; then
     with_scalapack="__DONTUSE__"
     export MKL_SCALAPACK="yes"
   fi
+  # Block libtorch installation bacause of compatibility issue
+  if [ "${with_libtorch}" = "__INSTALL__" ]; then
+    report_error "Installing prebuilt libtorch is disabled for oneMKL builds because it is incompatible with CP2K's external oneMKL stack."
+  fi
 fi
 
 # ------------------------------------------------------------------------
@@ -1400,6 +1404,7 @@ write_toolchain_env "${INSTALLDIR}"
 # Write toolchain config
 echo "tool_list=\"${tool_list}\"" > "${INSTALLDIR}"/toolchain.conf
 echo "mpi_mode=\"${MPI_MODE}\"" >> "${INSTALLDIR}"/toolchain.conf
+echo "math_mode=\"${MATH_MODE}\"" >> "${INSTALLDIR}"/toolchain.conf
 if [ "${MATH_MODE}" = "mkl" ]; then
   echo "MKL_FFTW=\"${MKL_FFTW}\"" >> "${INSTALLDIR}"/toolchain.conf
   echo "MKL_SCALAPACK=\"${MKL_SCALAPACK}\"" >> "${INSTALLDIR}"/toolchain.conf

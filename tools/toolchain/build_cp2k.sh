@@ -209,7 +209,7 @@ else
   fi
   # Some options that should be specially considered:
   # Intel MKL includes FFTW
-  if [ "${with_fftw}" != "__DONTUSE__" ] || [ "${MATH_MODE}" = "mkl" ]; then
+  if [ "${with_fftw}" != "__DONTUSE__" ] || [ "${math_mode}" = "mkl" ]; then
     CMAKE_OPTIONS+=" -DCP2K_USE_FFTW3=ON"
   fi
   # Mimic-MCL (MiMiC Communication Library)
