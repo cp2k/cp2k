@@ -77,13 +77,16 @@ def main() -> None:
             f"Dockerfile.test_spack_psmp-gcc{gcc_version}", args.check
         ) as f:
             base_image = "ubuntu:26.04" if gcc_version > 12 else "ubuntu:24.04"
+            feature_flags = (
+                "-ef openpmd" if gcc_version > 10 else "-df libtorch -ef openpmd"
+            )
             f.write(
                 install_cp2k_spack(
                     version="psmp",
                     mpi_mode="mpich",
                     gcc_version=gcc_version,
                     base_image=base_image,
-                    feature_flags="-ef openpmd",
+                    feature_flags=feature_flags,
                     testopts=testopts,
                     image_tag=f.image_tag,
                 )
