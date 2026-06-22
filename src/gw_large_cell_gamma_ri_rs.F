@@ -34,7 +34,13 @@ MODULE gw_large_cell_Gamma_ri_rs
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
-   USE gw_integrals,                    ONLY: build_3c_integral_block
+   USE gw_integrals,                    ONLY: build_3c_integral_block_ctx,&
+                                              gw_3c_context_create,&
+                                              gw_3c_context_release,&
+                                              gw_3c_context_type,&
+                                              gw_3c_workspace_create,&
+                                              gw_3c_workspace_release,&
+                                              gw_3c_workspace_type
    USE gw_large_cell_gamma,             ONLY: G_occ_vir,&
                                               compute_QP_energies,&
                                               delete_unnecessary_files,&
@@ -627,15 +633,14 @@ CONTAINS
                                                             ri_blk_sizes, row_dist_grid
       REAL(KIND=dp)                                      :: cutoff_ri, dist, t1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: d_vec_local
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: D_local, d_lp_local, int_2d_local, &
-                                                            phi_global, phi_local, rho_pair_local, &
-                                                            Z_blk, Z_global_temp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: int_3c_local
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: D_local, d_lp_local, phi_global, &
+                                                            phi_local, Z_blk, Z_global_temp
       REAL(KIND=dp), DIMENSION(3)                        :: pos_P
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_ptr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type)                      :: dist_phi, dist_Z
       TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(gw_3c_context_type)                           :: ctx_3c
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: input
@@ -696,6 +701,11 @@ CONTAINS
             max_ao_size = MAX(max_ao_size, bs_env%i_ao_end_from_atom(j) - bs_env%i_ao_start_from_atom(j) + 1)
          END DO
          max_loc_ri = MAXVAL(ri_blk_sizes)
+
+         ! shared 3c-integral context for all atoms of this rank (collective: t_c_g0 init)
+         CALL gw_3c_context_create(ctx_3c, qs_env, bs_env%ri_metric, &
+                                   basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, &
+                                   basis_i=bs_env%basis_set_RI)
 
          ! Global mapping array: 4 bytes * N_grid_total (~4MB per million grid points)
          ALLOCATE (map_global_to_local(n_grid_total))
@@ -814,14 +824,11 @@ CONTAINS
             ! D. Build Local RHS Matrix (d_lp_local)
             ! ---------------------------------------------------------------------
             ALLOCATE (d_lp_local(n_local_grid, n_loc_ri))
-            ALLOCATE (rho_pair_local(n_local_grid, max_ao_size*max_ao_size))
-            ALLOCATE (int_3c_local(max_ao_size, max_ao_size, n_loc_ri))
-            ALLOCATE (int_2d_local(max_ao_size*max_ao_size, n_loc_ri))
 
             d_lp_local = 0.0_dp
 
-            CALL compute_d_lp(qs_env, bs_env, phi_local, d_lp_local, n_local_grid, &
-                              n_loc_ri, atom_P, rho_pair_local, int_3c_local, int_2d_local, max_ao_size)
+            CALL compute_d_lp(bs_env, ctx_3c, phi_local, d_lp_local, n_local_grid, &
+                              n_loc_ri, atom_P, max_ao_size)
 
             !$OMP PARALLEL DO DEFAULT(NONE) &
             !$OMP SHARED(n_loc_ri, n_local_grid, d_lp_local, d_vec_local) &
@@ -887,7 +894,6 @@ CONTAINS
 
             DEALLOCATE (Z_global_temp, Z_blk)
             DEALLOCATE (D_local, d_vec_local, d_lp_local)
-            DEALLOCATE (rho_pair_local, int_3c_local, int_2d_local)
 
             DEALLOCATE (local_grid_idx, phi_local)
 
@@ -895,6 +901,8 @@ CONTAINS
 
          ! Clean up the massive global array once the loop finishes
          DEALLOCATE (phi_global)
+
+         CALL gw_3c_context_release(ctx_3c)
 
          CALL dbcsr_finalize(mat_Z_lP)
 
@@ -924,95 +932,107 @@ CONTAINS
    END SUBROUTINE compute_coeff_Z_lP
 
 ! **************************************************************************************************
-!> \brief Computes the dense localized Right-Hand Side (RHS) matrix d_lp
-!> \param qs_env ...
+!> \brief Computes the dense localized RHS d_lp(l,P) = Σ_{μν} Φ_μ(r_l)·Φ_ν(r_l)·(μν|P) for one
+!>        RI atom P, OMP-threaded over (atom_j, atom_k) AO-pair blocks: per thread, build the 3c
+!>        block, then contract grid-chunked pair densities into d_lp via OMP REDUCTION(+:d_lp)
+!>        (cross-thread accumulation order differs from serial at eps level).
 !> \param bs_env ...
-!> \param phi_val ...
-!> \param d_lp ...
-!> \param n_grid_total ...
-!> \param n_loc_ri ...
+!> \param ctx shared 3c-integral context (gw_3c_context_create)
+!> \param phi_val Φ_μ(r_l) on the local-sphere grid (n_grid_total × n_ao)
+!> \param d_lp output (n_grid_total × n_loc_ri), zeroed by the caller, accumulated here
+!> \param n_grid_total number of local-sphere grid rows
+!> \param n_loc_ri number of RI functions of atom_P
 !> \param atom_P ...
-!> \param rho_pair ...
-!> \param int_3c ...
-!> \param int_2d ...
 !> \param max_ao_size ...
 ! **************************************************************************************************
 
-   SUBROUTINE compute_d_lp(qs_env, bs_env, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, &
-                           rho_pair, int_3c, int_2d, max_ao_size)
+   SUBROUTINE compute_d_lp(bs_env, ctx, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, &
+                           max_ao_size)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(gw_3c_context_type), INTENT(IN)               :: ctx
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_val
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: d_lp
-      INTEGER, INTENT(IN)                                :: n_grid_total, n_loc_ri, atom_P
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: rho_pair
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: int_3c
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: int_2d
-      INTEGER, INTENT(IN)                                :: max_ao_size
+      INTEGER, INTENT(IN)                                :: n_grid_total, n_loc_ri, atom_P, &
+                                                            max_ao_size
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_d_lp'
+      INTEGER, PARAMETER                                 :: grid_chunk = 1024
 
-      INTEGER                                            :: atom_j, atom_k, handle, j, jk_idx, &
-                                                            jsize, jstart, k, ksize, kstart, l, ri
+      INTEGER                                            :: atom_j, atom_k, c, handle, j, jk_idx, &
+                                                            jsize, jstart, k, ksize, kstart, l, &
+                                                            l0, ri
+      LOGICAL                                            :: screened
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: int_2d_prv, rho_chunk
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: int_3c_prv
+      TYPE(gw_3c_workspace_type)                         :: ws
 
       CALL timeset(routineN, handle)
 
-      DO atom_j = 1, SIZE(bs_env%i_ao_start_from_atom)
-         jstart = bs_env%i_ao_start_from_atom(atom_j)
-         jsize = bs_env%i_ao_end_from_atom(atom_j) - jstart + 1
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(bs_env, ctx, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size) &
+!$OMP PRIVATE(atom_j, atom_k, c, j, jk_idx, jsize, jstart, k, ksize, kstart, l, l0, ri, &
+!$OMP         screened, int_2d_prv, rho_chunk, int_3c_prv, ws)
 
+      CALL gw_3c_workspace_create(ws, ctx)
+      ALLOCATE (int_3c_prv(max_ao_size, max_ao_size, n_loc_ri))
+      ALLOCATE (int_2d_prv(max_ao_size*max_ao_size, n_loc_ri))
+      ALLOCATE (rho_chunk(grid_chunk, max_ao_size*max_ao_size))
+
+!$OMP DO COLLAPSE(2) SCHEDULE(DYNAMIC) REDUCTION(+:d_lp)
+      DO atom_j = 1, SIZE(bs_env%i_ao_start_from_atom)
          DO atom_k = 1, SIZE(bs_env%i_ao_start_from_atom)
+            jstart = bs_env%i_ao_start_from_atom(atom_j)
+            jsize = bs_env%i_ao_end_from_atom(atom_j) - jstart + 1
             kstart = bs_env%i_ao_start_from_atom(atom_k)
             ksize = bs_env%i_ao_end_from_atom(atom_k) - kstart + 1
 
-            int_3c(1:jsize, 1:ksize, 1:n_loc_ri) = 0.0_dp
+            int_3c_prv(1:jsize, 1:ksize, 1:n_loc_ri) = 0.0_dp
 
             ! Compute B_{μν,P} = (μν|P)
-            CALL build_3c_integral_block(int_3c(1:jsize, 1:ksize, 1:n_loc_ri), &
-                                         qs_env, bs_env%ri_metric, &
-                                         basis_j=bs_env%basis_set_AO, &
-                                         basis_k=bs_env%basis_set_AO, &
-                                         basis_i=bs_env%basis_set_RI, &
-                                         atom_k=atom_k, atom_j=atom_j, atom_i=atom_P)
+            CALL build_3c_integral_block_ctx(int_3c_prv(1:jsize, 1:ksize, 1:n_loc_ri), &
+                                             ctx, ws, atom_j=atom_j, atom_k=atom_k, atom_i=atom_P, &
+                                             screened=screened)
 
-            ! Build Pair Density: ρ(l, μν) = Φ_μ(r_l) \times Φ_ν(r_l)
-            !$OMP PARALLEL DO DEFAULT(NONE) &
-            !$OMP SHARED(ksize, jsize, n_grid_total, rho_pair, phi_val, jstart, kstart) &
-            !$OMP PRIVATE(k, j, l, jk_idx) &
-            !$OMP COLLAPSE(2)
-            DO k = 1, ksize
-               DO j = 1, jsize
-                  jk_idx = (k - 1)*jsize + j
-                  DO l = 1, n_grid_total
-                     rho_pair(l, jk_idx) = phi_val(l, jstart + j - 1)*phi_val(l, kstart + k - 1)
-                  END DO
-               END DO
-            END DO
-            !$OMP END PARALLEL DO
+            ! screened pair => 3c block is identically zero, nothing to contract
+            IF (screened) CYCLE
 
             ! Flatten 3D B_{μν, P} tensor to 2D B_{(μν), P} matrix for BLAS
-            !$OMP PARALLEL DO DEFAULT(NONE) &
-            !$OMP SHARED(n_loc_ri, ksize, jsize, int_2d, int_3c) &
-            !$OMP PRIVATE(ri, k, j, jk_idx) &
-            !$OMP COLLAPSE(2)
             DO ri = 1, n_loc_ri
                DO k = 1, ksize
                   DO j = 1, jsize
                      jk_idx = (k - 1)*jsize + j
-                     int_2d(jk_idx, ri) = int_3c(j, k, ri)
+                     int_2d_prv(jk_idx, ri) = int_3c_prv(j, k, ri)
                   END DO
                END DO
             END DO
-            !$OMP END PARALLEL DO
 
-            ! Perform Contraction: d_{l, P} += ρ(l, μν) \times B_{(μν), P}
-            CALL dgemm("N", "N", n_grid_total, n_loc_ri, jsize*ksize, &
-                       1.0_dp, rho_pair, n_grid_total, &
-                       int_2d, max_ao_size*max_ao_size, &
-                       1.0_dp, d_lp(1, 1), n_grid_total)
+            ! Pair density ρ(l, μν) = Φ_μ(r_l) Φ_ν(r_l) in grid chunks, contracted on the fly:
+            ! d_{l,P} += ρ(l, μν) B_{(μν),P}  (dgemm runs serially inside the parallel region)
+            DO l0 = 1, n_grid_total, grid_chunk
+               c = MIN(grid_chunk, n_grid_total - l0 + 1)
+               DO k = 1, ksize
+                  DO j = 1, jsize
+                     jk_idx = (k - 1)*jsize + j
+                     DO l = 1, c
+                        rho_chunk(l, jk_idx) = phi_val(l0 + l - 1, jstart + j - 1)* &
+                                               phi_val(l0 + l - 1, kstart + k - 1)
+                     END DO
+                  END DO
+               END DO
+               CALL dgemm("N", "N", c, n_loc_ri, jsize*ksize, &
+                          1.0_dp, rho_chunk, grid_chunk, &
+                          int_2d_prv, max_ao_size*max_ao_size, &
+                          1.0_dp, d_lp(l0, 1), n_grid_total)
+            END DO
          END DO
       END DO
+!$OMP END DO
+
+      DEALLOCATE (int_3c_prv, int_2d_prv, rho_chunk)
+      CALL gw_3c_workspace_release(ws)
+
+!$OMP END PARALLEL
 
       CALL timestop(handle)
 
