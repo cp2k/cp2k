@@ -934,8 +934,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Computes the dense localized RHS d_lp(l,P) = Σ_{μν} Φ_μ(r_l)·Φ_ν(r_l)·(μν|P) for one
 !>        RI atom P, OMP-threaded over (atom_j, atom_k) AO-pair blocks: per thread, build the 3c
-!>        block, then contract grid-chunked pair densities into a private d_lp partial; partials
-!>        are reduced into d_lp at the end (accumulation order differs from serial at eps level).
+!>        block, then contract grid-chunked pair densities into d_lp via OMP REDUCTION(+:d_lp)
+!>        (cross-thread accumulation order differs from serial at eps level).
 !> \param bs_env ...
 !> \param ctx shared 3c-integral context (gw_3c_context_create)
 !> \param phi_val Φ_μ(r_l) on the local-sphere grid (n_grid_total × n_ao)
@@ -963,7 +963,7 @@ CONTAINS
                                                             jsize, jstart, k, ksize, kstart, l, &
                                                             l0, ri
       LOGICAL                                            :: screened
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_prv, int_2d_prv, rho_chunk
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: int_2d_prv, rho_chunk
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: int_3c_prv
       TYPE(gw_3c_workspace_type)                         :: ws
 
@@ -972,16 +972,14 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED(bs_env, ctx, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size) &
 !$OMP PRIVATE(atom_j, atom_k, c, j, jk_idx, jsize, jstart, k, ksize, kstart, l, l0, ri, &
-!$OMP         screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, ws)
+!$OMP         screened, int_2d_prv, rho_chunk, int_3c_prv, ws)
 
       CALL gw_3c_workspace_create(ws, ctx)
       ALLOCATE (int_3c_prv(max_ao_size, max_ao_size, n_loc_ri))
       ALLOCATE (int_2d_prv(max_ao_size*max_ao_size, n_loc_ri))
       ALLOCATE (rho_chunk(grid_chunk, max_ao_size*max_ao_size))
-      ALLOCATE (d_lp_prv(n_grid_total, n_loc_ri))
-      d_lp_prv(:, :) = 0.0_dp
 
-!$OMP DO COLLAPSE(2) SCHEDULE(DYNAMIC)
+!$OMP DO COLLAPSE(2) SCHEDULE(DYNAMIC) REDUCTION(+:d_lp)
       DO atom_j = 1, SIZE(bs_env%i_ao_start_from_atom)
          DO atom_k = 1, SIZE(bs_env%i_ao_start_from_atom)
             jstart = bs_env%i_ao_start_from_atom(atom_j)
@@ -1025,18 +1023,13 @@ CONTAINS
                CALL dgemm("N", "N", c, n_loc_ri, jsize*ksize, &
                           1.0_dp, rho_chunk, grid_chunk, &
                           int_2d_prv, max_ao_size*max_ao_size, &
-                          1.0_dp, d_lp_prv(l0, 1), n_grid_total)
+                          1.0_dp, d_lp(l0, 1), n_grid_total)
             END DO
          END DO
       END DO
 !$OMP END DO
 
-!$OMP CRITICAL (compute_d_lp_reduce)
-      d_lp(1:n_grid_total, 1:n_loc_ri) = d_lp(1:n_grid_total, 1:n_loc_ri) + &
-                                         d_lp_prv(1:n_grid_total, 1:n_loc_ri)
-!$OMP END CRITICAL (compute_d_lp_reduce)
-
-      DEALLOCATE (int_3c_prv, int_2d_prv, rho_chunk, d_lp_prv)
+      DEALLOCATE (int_3c_prv, int_2d_prv, rho_chunk)
       CALL gw_3c_workspace_release(ws)
 
 !$OMP END PARALLEL
