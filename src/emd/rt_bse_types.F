@@ -779,8 +779,10 @@ CONTAINS
                CALL cp_cfm_create(rtbse_env%rho_delta_mo(i), rtbse_env%fm_struct_mo_active)
                CALL cp_cfm_set_all(rtbse_env%rho_delta_mo(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
             END DO
-            ! Cross-spin Hartree scratch: single shared AO buffers (not per-spin). Structs
-            ! mirror the proven get_hartree_complex(rho_ao_scratch, sigma_SEX_ao) call.
+         END IF
+         ! Shared AO Hartree buffers: widened from (tda_active .OR. n_spin>1) so n_spin=1 ABBA
+         ! (diagnostic + propagator) gets a dedicated buffer instead of aliasing sigma_SEX_ao.
+         IF (.NOT. rtbse_env%debug_disable_hartree) THEN
             CALL cp_cfm_create(rtbse_env%rho_total_ao_scratch, bs_env%fm_s_Gamma%matrix_struct)
             CALL cp_cfm_create(rtbse_env%hartree_total_ao, bs_env%fm_ks_Gamma(1)%matrix_struct)
             CALL cp_cfm_set_all(rtbse_env%rho_total_ao_scratch, CMPLX(0.0_dp, 0.0_dp, kind=dp))

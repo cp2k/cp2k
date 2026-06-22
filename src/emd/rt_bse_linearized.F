@@ -1592,8 +1592,8 @@ CONTAINS
 !>        and the (n_spin=1) ABBA diagnostic; the open-shell TDA path uses the array routine
 !>        apply_liouvillian_to_drho instead. Detached from the propagator (does NOT touch
 !>        rho / rho_orig / ham_effective / ham_reference); only env scratches drho_probe(ispin),
-!>        rho_ao_scratch, sigma_SEX_ao, ham_workspace(1), sigma_SEX, rho_delta_mo(ispin),
-!>        real_workspace_mo(1) are used.
+!>        rho_ao_scratch, sigma_SEX_ao, hartree_total_ao, ham_workspace(1), sigma_SEX,
+!>        rho_delta_mo(ispin), real_workspace_mo(1) are used.
 !>
 !>        Matrix elements correspond to the Casida-A matrix:
 !>            L_{ia,jb} = (eps_a - eps_i) delta_{ij} delta_{ab} + (ia|jb) - W_{ij,ab}
@@ -1702,13 +1702,13 @@ CONTAINS
          IF (rtbse_env%rirs_kernel) THEN
             ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'  (RI-RS)
             CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_ao_scratch(ispin), &
-                                               rtbse_env%sigma_SEX_ao(ispin))
+                                               rtbse_env%hartree_total_ao)
          ELSE
             ! V^H_λσ = sum_PQ (λσ|P) V_PQ [sum_µν (µν|Q) Δρ_µν]  (AO-RI)
             CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_scratch(ispin), &
-                                     rtbse_env%sigma_SEX_ao(ispin), ispin)
+                                     rtbse_env%hartree_total_ao, ispin)
          END IF
-         CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
+         CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%hartree_total_ao, &
                                                rtbse_env%ham_workspace(1), ispin)
          CALL add_K_MO_to_L_drho(rtbse_env, rtbse_env%ham_workspace(1), L_drho_out, &
                                  CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), ispin)
