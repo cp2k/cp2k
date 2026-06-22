@@ -9,7 +9,9 @@ from spack.package import *
 
 
 class Gau2grid(CMakePackage):
-    """Gau2Grid is a library for the fast computation of a Gaussian and its derivative on a grid."""
+    """Gau2Grid is a library for the fast computation of a Gaussian and
+    its derivative on a grid.
+    """
 
     homepage = "https://github.com/psi4/gau2grid"
     git = "https://github.com/psi4/gau2grid.git"
