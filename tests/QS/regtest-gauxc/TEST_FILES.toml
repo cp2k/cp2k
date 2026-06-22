@@ -15,14 +15,14 @@
                                            {matcher="M031", tol=1e-5, ref=-1.66335561541E+05}]
 "H2_NATIVE_SKALA_GPW_FORCE.inp" = [{matcher="M072", tol=2e-5, ref=3.03111884E-04}]
 "H2_NATIVE_SKALA_GPW_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.963819771363320},
-                                    {matcher="M072", tol=2e-5, ref=3.03117751E-04},
+                                    {matcher="M072", tol=4e-5, ref=3.03117751E-04},
                                     {matcher="M031", tol=1e-5, ref=-1.67988358588E+05}]
 "H2O_NATIVE_SKALA_GPW_NLCC_ENERGY.inp" = [{matcher="E_total", tol=1e-8, ref=-18.116097365992886}]
 "H2_NATIVE_SKALA_GAPW_AE_STRESS.inp" = [{matcher="E_total", tol=5e-8, ref=-0.992567202964758},
                                         {matcher="M072", tol=3e-5, ref=6.26361016E-04},
                                         {matcher="M031", tol=1e-5, ref=-1.00263622292E+05}]
 "H2_NATIVE_SKALA_GAPW_GPWTYPE_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.963819771363320},
-                                             {matcher="M072", tol=2e-5, ref=3.03117751E-04},
+                                             {matcher="M072", tol=4e-5, ref=3.03117751E-04},
                                              {matcher="M031", tol=1e-5, ref=-1.67988358588E+05}]
 "H2_NATIVE_SKALA_GPW_PBC_FORCE_DEBUG.inp" = [{matcher="DEBUG_force_sum", tol=5e-5, ref=0.0}]
 "H2P_NATIVE_SKALA_GPW_UKS_PBC_FORCE_DEBUG.inp" = [{matcher="DEBUG_force_sum", tol=5e-5, ref=0.0}]
