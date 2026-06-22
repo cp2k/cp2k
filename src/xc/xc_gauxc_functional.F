@@ -66,7 +66,8 @@ MODULE xc_gauxc_functional
    LOGICAL, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_gauxc_functional'
 
-   PUBLIC :: apply_gauxc, skala_info, xc_section_uses_gauxc
+   PUBLIC :: apply_gauxc, gauxc_gapw_has_paw_pseudopotentials, skala_info, &
+             xc_section_uses_gauxc
 
    INTERFACE
       INTEGER(c_int) FUNCTION c_setenv(name, value, overwrite) BIND(C, name="setenv")
@@ -954,10 +955,7 @@ CONTAINS
       TYPE(section_vals_type), INTENT(in), POINTER       :: xc_section
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: gapw_xc_abort_message = &
-         "GauXC with METHOD GAPW_XC is not supported yet. "// &
-         "The GAPW_XC one-center XC correction needs a dedicated GauXC design.", &
-         nonlocal_vdw_abort_message = &
+      CHARACTER(len=*), PARAMETER :: nonlocal_vdw_abort_message = &
          "GauXC does not support non-local VDW_POTENTIAL corrections. "// &
          "Use an additive PAIR_POTENTIAL dispersion correction or disable GauXC."
       REAL(KIND=dp), PARAMETER :: gapw_fd_gradient_dx = 1.0E-4_dp
@@ -969,11 +967,11 @@ CONTAINS
       INTEGER                                            :: batch_size, env_status, img, ispin, &
                                                             natom, nimages, nspins, &
                                                             onedft_atom_chunk_size
-      LOGICAL :: do_kpoints, gapw_paw_pseudopotentials, gapw_pseudopotentials, grid_explicit, &
-         hdf5_output, is_periodic, molecular_virial, molecular_virial_debug, &
-         onedft_atom_chunk_size_explicit, periodic_reference, pruning_explicit, use_fd_gradient, &
-         use_gradient_mpi_runtime, use_gradient_self_runtime, use_onedft, use_self_runtime, &
-         use_skala_model, write_hdf5_output
+      LOGICAL :: do_kpoints, gapw_method, gapw_paw_pseudopotentials, gapw_pseudopotentials, &
+         grid_explicit, hdf5_output, is_periodic, molecular_virial, molecular_virial_debug, &
+         need_xc_gradient, onedft_atom_chunk_size_explicit, periodic_reference, pruning_explicit, &
+         use_fd_gradient, use_gradient_mpi_runtime, use_gradient_self_runtime, use_onedft, &
+         use_self_runtime, use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: device_runtime_fill_fraction, &
                                                             molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
@@ -1036,15 +1034,18 @@ CONTAINS
          rho_xc=rho_xc, &
          scf_env=scf_env)
 
-      IF (dft_control%qs_control%gapw_xc) THEN
-         CPABORT(gapw_xc_abort_message)
-      END IF
-      gapw_pseudopotentials = dft_control%qs_control%gapw .AND. &
+      gapw_method = dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc
+      gapw_pseudopotentials = gapw_method .AND. &
                               gauxc_gapw_has_pseudopotentials(qs_kind_set)
-      gapw_paw_pseudopotentials = dft_control%qs_control%gapw .AND. &
+      gapw_paw_pseudopotentials = gapw_method .AND. &
                                   gauxc_gapw_has_paw_pseudopotentials(qs_kind_set)
-      CPASSERT(ASSOCIATED(rho))
-      rho_use => rho
+      IF (dft_control%qs_control%gapw_xc) THEN
+         CPASSERT(ASSOCIATED(rho_xc))
+         rho_use => rho_xc
+      ELSE
+         CPASSERT(ASSOCIATED(rho))
+         rho_use => rho
+      END IF
       CALL qs_rho_get( &
          rho_use, &
          rho_ao_kp=rho_ao)
@@ -1148,26 +1149,19 @@ CONTAINS
       use_skala_model = (INDEX(TRIM(model_key), "SKALA") > 0)
       IF (gapw_pseudopotentials .AND. .NOT. use_onedft) THEN
          CALL cp_abort(__LOCATION__, &
-                       "GauXC with METHOD GAPW and pseudopotentials is supported only for "// &
+                       "GauXC with METHOD GAPW/GAPW_XC and pseudopotentials is supported only for "// &
                        "OneDFT/SKALA-style models that replace the molecular XC term. "// &
                        "Use POTENTIAL ALL for local/semi-local GauXC GAPW validation or METHOD GPW "// &
                        "with pseudopotentials.")
       END IF
-      IF (gapw_paw_pseudopotentials .AND. use_onedft) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "GauXC OneDFT/SKALA with METHOD GAPW and GTH/ECP pseudopotentials supports "// &
-                       "only non-PAW regular-grid kinds, for example kinds treated through GPW_TYPE. "// &
-                       "PAW/one-center GAPW pseudopotential kinds need a dedicated SKALA-consistent "// &
-                       "one-center density design.")
-      END IF
-      IF (gapw_pseudopotentials .AND. use_onedft .AND. para_env%mepos == 0 .AND. &
-          ASSOCIATED(scf_env)) THEN
+      IF (gapw_pseudopotentials .AND. use_onedft .AND. .NOT. dft_control%qs_control%gapw_xc .AND. &
+          .NOT. gapw_paw_pseudopotentials .AND. para_env%mepos == 0 .AND. ASSOCIATED(scf_env)) THEN
          IF (scf_env%iter_count == 1) THEN
             CALL cp_warn( &
                __LOCATION__, &
-               "GauXC OneDFT/SKALA with METHOD GAPW and pseudopotentials evaluates the XC term "// &
-               "directly on the molecular AO/valence density. CP2K's GAPW one-center XC "// &
-               "correction is not used; METHOD GAPW_XC with GauXC remains unsupported.")
+               "GauXC OneDFT/SKALA with METHOD GAPW and GPW_TYPE pseudopotentials evaluates "// &
+               "the XC term directly on the molecular AO/valence density; no GAPW one-center "// &
+               "XC correction is used for those regular-grid kinds.")
          END IF
       END IF
       IF (device_runtime_fill_fraction <= 0.0_dp .OR. device_runtime_fill_fraction > 1.0_dp) THEN
@@ -1185,13 +1179,7 @@ CONTAINS
          END IF
          molecular_virial = .TRUE.
       END IF
-      IF (gapw_pseudopotentials .AND. use_onedft .AND. &
-          (calculate_forces .OR. molecular_virial)) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "GauXC OneDFT/SKALA with METHOD GAPW and pseudopotentials currently "// &
-                       "supports energies only. Nuclear gradients and molecular virials need a "// &
-                       "dedicated derivative of the molecular AO/valence-density XC path.")
-      END IF
+      need_xc_gradient = calculate_forces .OR. molecular_virial
       CALL ensure_gauxc_periodic_reference_scope( &
          dft_control, cell, qs_kind_set, do_kpoints, periodic_reference)
       IF (is_periodic .AND. periodic_reference .AND. para_env%mepos == 0) THEN
@@ -1203,11 +1191,6 @@ CONTAINS
                   "cells. Compact periodic materials require a dedicated periodic GauXC interface.")
             END IF
          END IF
-      END IF
-      IF (dft_control%qs_control%gapw_xc .AND. use_onedft) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "GauXC OneDFT/SKALA with METHOD GAPW_XC is not implemented. "// &
-                       "The GAPW_XC one-center XC correction must be evaluated by the same GauXC model.")
       END IF
       IF (use_onedft) THEN
          IF (has_nlcc(qs_kind_set)) THEN
@@ -1226,7 +1209,7 @@ CONTAINS
          pruning_key = ADJUSTL(pruning_scheme)
          CALL uppercase(grid_key)
          CALL uppercase(pruning_key)
-         IF (use_skala_model .AND. (calculate_forces .OR. molecular_virial) .AND. &
+         IF (use_skala_model .AND. need_xc_gradient .AND. &
              (TRIM(grid_key) /= "SUPERFINE" .OR. TRIM(pruning_key) /= "UNPRUNED")) THEN
             CALL cp_warn( &
                __LOCATION__, &
@@ -1254,10 +1237,10 @@ CONTAINS
       SELECT CASE (TRIM(onedft_gradient_runtime_key))
       CASE ("AUTO", "SELF")
          use_gradient_mpi_runtime = .FALSE.
-         use_gradient_self_runtime = calculate_forces .AND. use_onedft .AND. &
+         use_gradient_self_runtime = need_xc_gradient .AND. use_onedft .AND. &
                                      para_env%num_pe > 1 .AND. .NOT. use_self_runtime
       CASE ("MPI")
-         use_gradient_mpi_runtime = calculate_forces .AND. use_onedft .AND. para_env%num_pe > 1
+         use_gradient_mpi_runtime = need_xc_gradient .AND. use_onedft .AND. para_env%num_pe > 1
          use_gradient_self_runtime = .FALSE.
       CASE DEFAULT
          CALL cp_abort(__LOCATION__, "Unknown GAUXC%ONEDFT_GRADIENT_RUNTIME value.")
@@ -1307,21 +1290,17 @@ CONTAINS
             gauxc_status)
          CALL gauxc_check_status(gauxc_status)
       END IF
-      use_fd_gradient = dft_control%qs_control%gapw .AND. calculate_forces .AND. &
-                        (use_skala_model .OR. gauxc_basis%max_l > 3)
+      use_fd_gradient = gapw_method .AND. need_xc_gradient .AND. (gauxc_basis%max_l > 3)
       IF (use_fd_gradient) use_gradient_mpi_runtime = .FALSE.
-      IF (use_gradient_mpi_runtime .AND. use_self_runtime) THEN
-         CALL cp_abort( &
-            __LOCATION__, &
-            "GAUXC%ONEDFT_GRADIENT_RUNTIME MPI requires a GauXC MPI runtime. "// &
-            "Use GAUXC%SKALA_RUNTIME MPI or a closed-shell AUTO runtime.")
+      IF (use_gradient_mpi_runtime) THEN
+         use_gradient_self_runtime = .FALSE.
       END IF
       IF (use_fd_gradient .AND. para_env%mepos == 0) THEN
          CALL cp_warn( &
             __LOCATION__, &
-            "Using finite-difference GauXC XC gradients for METHOD GAPW with SKALA or "// &
-            "all-electron basis functions beyond f shells.  The upstream analytical GauXC "// &
-            "gradient path is not yet reliable for this case.")
+            "Using finite-difference GauXC XC gradients for METHOD GAPW/GAPW_XC with "// &
+            "basis functions beyond f shells. The upstream analytical GauXC gradient path is "// &
+            "not yet reliable for this case.")
       END IF
       IF (use_self_runtime) THEN
          ! SKALA currently needs a replicated molecular runtime for reproducible
@@ -1413,7 +1392,7 @@ CONTAINS
                               status=gauxc_status, &
                               model=TRIM(model_name))
             CALL gauxc_check_status(gauxc_status)
-            IF (calculate_forces) THEN
+            IF (need_xc_gradient) THEN
                IF (use_fd_gradient) THEN
                   CALL gauxc_xc_gradient_fd( &
                      particle_set, qs_kind_set, density_scalar, nspins, model_name, &
@@ -1439,11 +1418,13 @@ CONTAINS
                              model=TRIM(model_name))
                END IF
                CALL gauxc_check_status(gauxc_status)
-               CALL add_gauxc_gradient_to_force( &
-                  exc_grad%exc_grad, &
-                  force, &
-                  atomic_kind_set, &
-                  para_env)
+               IF (calculate_forces) THEN
+                  CALL add_gauxc_gradient_to_force( &
+                     exc_grad%exc_grad, &
+                     force, &
+                     atomic_kind_set, &
+                     para_env)
+               END IF
                IF (molecular_virial) THEN
                   CALL print_gauxc_molecular_virial(exc_grad%exc_grad, particle_set, para_env)
                END IF
@@ -1478,7 +1459,7 @@ CONTAINS
                               gauxc_status, &
                               model=TRIM(model_name))
             CALL gauxc_check_status(gauxc_status)
-            IF (calculate_forces) THEN
+            IF (need_xc_gradient) THEN
                IF (use_fd_gradient) THEN
                   CALL gauxc_xc_gradient_fd( &
                      particle_set, qs_kind_set, density_scalar, nspins, model_name, &
@@ -1506,11 +1487,13 @@ CONTAINS
                              model=TRIM(model_name))
                END IF
                CALL gauxc_check_status(gauxc_status)
-               CALL add_gauxc_gradient_to_force( &
-                  exc_grad%exc_grad, &
-                  force, &
-                  atomic_kind_set, &
-                  para_env)
+               IF (calculate_forces) THEN
+                  CALL add_gauxc_gradient_to_force( &
+                     exc_grad%exc_grad, &
+                     force, &
+                     atomic_kind_set, &
+                     para_env)
+               END IF
                IF (molecular_virial) THEN
                   CALL print_gauxc_molecular_virial(exc_grad%exc_grad, particle_set, para_env)
                END IF

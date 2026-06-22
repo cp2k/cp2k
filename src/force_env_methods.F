@@ -618,6 +618,12 @@ CONTAINS
                                     (.NOT. use_full_grid)
       dynamic_symmetry = kpoint_symmetry .AND. .NOT. use_full_grid .AND. &
                          .NOT. use_inversion_symmetry_only
+      IF (run_type_id == debug_run .AND. .NOT. fd_energy .AND. .NOT. dynamic_symmetry .AND. &
+          (full_grid .EQV. use_full_grid) .AND. &
+          (inversion_symmetry_only .EQV. use_inversion_symmetry_only)) THEN
+         CALL qs_basis_rotation(force_env%qs_env, kpoints)
+         RETURN
+      END IF
       IF (moving_geometry .AND. .NOT. dynamic_symmetry) RETURN
       IF (moving_geometry .AND. .NOT. kpoint_has_nontrivial_atomic_symmetry(kpoints)) RETURN
       CALL set_kpoint_info(kpoints, full_grid=use_full_grid, &

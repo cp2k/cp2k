@@ -16,6 +16,7 @@ MODULE accint_weights_forces
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE grid_api,                        ONLY: integrate_pgf_product
    USE input_constants,                 ONLY: sic_none,&
                                               xc_none
@@ -48,6 +49,8 @@ MODULE accint_weights_forces
                                               qs_rho_type
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                               transfer_pw2rs
+   USE skala_gpw_functional,            ONLY: skala_gpw_exc_density,&
+                                              xc_section_uses_native_skala_grid
    USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: xc_exc_pw_create,&
                                               xc_vxc_pw_create
@@ -86,9 +89,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'accint_weight_force'
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, natom, &
-                                                            natom_of_kind, nkind
+                                                            natom_of_kind, nkind, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: lr_triplet, uf_grid, use_virial
+      LOGICAL                                            :: lr_triplet, native_grid_diagnostics, &
+                                                            native_skala_grid, uf_grid, use_virial
       REAL(KIND=dp)                                      :: my_force_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: calpha, cvalue
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aforce
@@ -160,10 +164,23 @@ CONTAINS
          END IF
 
          CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
+         native_skala_grid = xc_section_uses_native_skala_grid(xc_section)
+         native_grid_diagnostics = .FALSE.
+         IF (native_skala_grid) THEN
+            CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%GAUXC%NATIVE_GRID_DIAGNOSTICS", &
+                                      l_val=native_grid_diagnostics)
+         END IF
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
             DO iatom = 1, natom_of_kind
                atom_a = atom_list(iatom)
+               IF (native_grid_diagnostics) THEN
+                  output_unit = cp_logger_get_default_io_unit()
+                  IF (output_unit > 0) THEN
+                     WRITE (UNIT=output_unit, FMT="(T2,A,1X,I0,3(1X,ES20.12))") &
+                        "SKALA_GPW| Accurate-XCINT atom force", atom_a, my_force_scale*aforce(:, atom_a)
+                  END IF
+               END IF
                force(ikind)%rho_elec(1:3, iatom) = &
                   force(ikind)%rho_elec(1:3, iatom) + my_force_scale*aforce(1:3, atom_a)
             END DO
@@ -341,13 +358,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_density'
 
       INTEGER                                            :: handle, ispin, myfun, nspins
-      LOGICAL                                            :: rho1_g_valid, rho1_tau_g_valid, &
-                                                            rho1_tau_valid, rho_g_valid, &
-                                                            rho_tau_g_valid, rho_tau_valid, uf_grid
+      LOGICAL :: native_skala_grid, rho1_g_valid, rho1_tau_g_valid, rho1_tau_valid, rho_g_valid, &
+         rho_tau_g_valid, rho_tau_valid, uf_grid
       REAL(KIND=dp)                                      :: excint, factor
       REAL(KIND=dp), DIMENSION(3, 3)                     :: vdum
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g, rho1_g_base, rho_g, rho_g_base, &
                                                             tau1_g, tau1_g_base, tau_g, tau_g_base
       TYPE(pw_c1d_gs_type), POINTER                      :: rho_nlcc_g, rho_nlcc_g_use, rho_nlcc_g_xc
@@ -366,12 +383,13 @@ CONTAINS
       NULLIFY (rho1_g, rho1_g_base, rho1_r, rho1_r_base, rho_fxc, tau1_g, tau1_g_base)
       NULLIFY (rho_g, rho_g_base, rho_r, rho_r_base, tau_g, tau_g_base, tau_r, tau_r_base, &
                tau1_r, tau1_r_base)
-      NULLIFY (rho_nlcc_use, rho_nlcc_xc, rho_nlcc_g_use, rho_nlcc_g_xc, weights)
+      NULLIFY (particle_set, rho_nlcc_use, rho_nlcc_xc, rho_nlcc_g_use, rho_nlcc_g_xc, weights)
 
       CALL get_ks_env(ks_env, &
                       dft_control=dft_control, &
                       pw_env=pw_env, &
                       cell=cell, &
+                      particle_set=particle_set, &
                       rho_nlcc=rho_nlcc, &
                       rho_nlcc_g=rho_nlcc_g)
 
@@ -386,6 +404,7 @@ CONTAINS
       nspins = dft_control%nspins
 
       CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=myfun)
+      native_skala_grid = xc_section_uses_native_skala_grid(xc_section)
 
       CALL pw_env_get(pw_env, xc_pw_pool=xc_pw_pool, auxbas_pw_pool=auxbas_pw_pool)
       uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid, xc_pw_pool%pw_grid)
@@ -441,9 +460,18 @@ CONTAINS
          NULLIFY (vxc_rho, vxc_tau)
          SELECT CASE (order)
          CASE (0)
-            ! we could reduce to energy only here
-            CALL xc_exc_pw_create(rho_r, rho_g, tau_r, xc_section, weights, xc_pw_pool, exc)
+            IF (native_skala_grid) THEN
+               CALL skala_gpw_exc_density(exc, rho_r, rho_g, tau_r, xc_section, weights, &
+                                          xc_pw_pool, particle_set, cell)
+            ELSE
+               ! we could reduce to energy only here
+               CALL xc_exc_pw_create(rho_r, rho_g, tau_r, xc_section, weights, xc_pw_pool, exc)
+            END IF
          CASE (1)
+            IF (native_skala_grid) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Native SKALA GAPW accurate-XCINT response forces are not implemented.")
+            END IF
             CALL qs_rho_get(rho1_struct, rho_r=rho1_r_base, rho_g=rho1_g_base, tau_r=tau1_r_base, &
                             tau_g=tau1_g_base, rho_g_valid=rho1_g_valid, &
                             tau_g_valid=rho1_tau_g_valid, tau_r_valid=rho1_tau_valid)
@@ -476,6 +504,10 @@ CONTAINS
                                   compute_virial=.FALSE., &
                                   virial_xc=vdum)
          CASE (2)
+            IF (native_skala_grid) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Native SKALA GAPW accurate-XCINT response forces are not implemented.")
+            END IF
             CALL qs_rho_get(rho1_struct, rho_r=rho1_r_base, rho_g=rho1_g_base, tau_r=tau1_r_base, &
                             tau_g=tau1_g_base, rho_g_valid=rho1_g_valid, &
                             tau_g_valid=rho1_tau_g_valid, tau_r_valid=rho1_tau_valid)
