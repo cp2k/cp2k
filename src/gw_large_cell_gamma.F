@@ -100,7 +100,7 @@ MODULE gw_large_cell_gamma
              compute_3c_integrals, G_occ_vir, fm_read, write_matrix, &
              fill_fm_Sigma_c_Gamma_time, delete_unnecessary_files, &
              multiply_fm_W_MIC_time_with_Minv_Gamma, get_W_MIC, &
-             create_fm_W_MIC_time, Fourier_transform_w_to_t,&
+             create_fm_W_MIC_time, Fourier_transform_w_to_t, &
              compute_fm_chi_Gamma_freq, compute_QP_energies, fm_write
 
 CONTAINS

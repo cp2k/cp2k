@@ -2583,10 +2583,9 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-
       CALL keyword_create(keyword, __LOCATION__, name="RI_RS", &
                           description="Real-Space Resolution of Identity (RI-RS) method. This "// &
-                          "approximation replaces the conventional 3-center RI integrals (μν|P)"// &
+                          "approximation replaces the conventional 3-center RI integrals (μν|P) "// &
                           "by a factorized representation on an atom-centered real-space grid "// &
                           "{r_ℓ}: (μν|P) ≈ ∑_ℓ φ_μ(r_ℓ) φ_ν(r_ℓ) Z_ℓP. "// &
                           "The coefficients Z_ℓP combine the numerical integration weights and "// &
@@ -2607,7 +2606,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="TIKHONOV", &
-                          description="Regularization parameter (α) used to stabilize " // &
+                          description="Regularization parameter (α) used to stabilize "// &
                           "the inversion of the grid-overlap matrix "// &
                           "D in the Real-Space RI (RI-RS) method. See Equation (9) in https://doi.org/10.1063/1.5090605.", &
                           usage="TIKHONOV 1.0E-8", &

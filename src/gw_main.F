@@ -18,8 +18,8 @@ MODULE gw_main
    USE gw_utils,                        ONLY: create_and_init_bs_env_for_gw
    USE input_constants,                 ONLY: large_cell_Gamma,&
                                               large_cell_Gamma_ri_rs,&
-                                              small_cell_full_kp, &
-                                              non_periodic_ri_rs
+                                              non_periodic_ri_rs,&
+                                              small_cell_full_kp
    USE input_section_types,             ONLY: section_vals_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: qs_environment_type

@@ -198,8 +198,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: kpptr
       REAL(KIND=dp), DIMENSION(3, 3)                     :: cart_hmat
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(section_vals_type), POINTER                   :: dos_pdos_sec, floquet_sec, &
-                                                            gw_sec, kp_bs_sec, ldos_sec, soc_sec
+      TYPE(section_vals_type), POINTER                   :: dos_pdos_sec, floquet_sec, gw_sec, &
+                                                            kp_bs_sec, ldos_sec, soc_sec
 
       CALL timeset(routineN, handle)
       NULLIFY (cell)
@@ -910,7 +910,6 @@ CONTAINS
       CALL bs_env%para_env%from_split(para_env, color_sub)
 
       CALL get_qs_env(qs_env, particle_set=particle_set)
-
 
       n_atom = SIZE(particle_set)
       bs_env%n_atom = n_atom

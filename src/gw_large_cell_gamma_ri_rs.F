@@ -14,46 +14,37 @@ MODULE gw_large_cell_Gamma_ri_rs
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
-                                              pbc, get_cell
+                                              get_cell,&
+                                              pbc
    USE constants_operator,              ONLY: operator_coulomb
-   USE input_constants,                 ONLY: rtp_method_bse
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_release,&
+                                              cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_binary_read, dbcsr_binary_write, dbcsr_copy, dbcsr_create, &
-        dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
-        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, &
-        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry,&
-        dbcsr_deallocate_matrix
+        dbcsr_deallocate_matrix, dbcsr_distribution_get, dbcsr_distribution_new, &
+        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               dbcsr_deallocate_matrix_set,&
                                               max_elements_per_block
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
-                                              dbcsr_reserve_all_blocks
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                              cp_blacs_env_release,&
-                                              cp_blacs_env_type
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_release,&
-                                              cp_fm_type,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_set_all, &
-                                              cp_fm_get_info
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_scale,&
-                                              cp_fm_scale_and_add,&
-                                              cp_fm_schur_product,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                              cp_fm_cholesky_invert,&
-                                              cp_fm_cholesky_reduce,&
-                                              cp_fm_cholesky_restore
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
-                                              cp_fm_power
+                                              cp_fm_cholesky_invert
+   USE cp_fm_diag,                      ONLY: cp_fm_power
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -65,28 +56,25 @@ MODULE gw_large_cell_Gamma_ri_rs
                                               gw_3c_ws_create,&
                                               gw_3c_ws_release,&
                                               gw_3c_ws_type
-   USE gw_large_cell_gamma,             ONLY: G_occ_vir,&
-                                              compute_QP_energies,&
-                                              delete_unnecessary_files,&
-                                              fill_fm_Sigma_c_Gamma_time,&
-                                              multiply_fm_W_MIC_time_with_Minv_Gamma, &
-                                              create_fm_W_MIC_time, Fourier_transform_w_to_t,&
-                                              compute_fm_chi_Gamma_freq, fm_write, get_W_MIC
-   USE gw_non_periodic_ri_rs,           ONLY: ri_rs_grid_assembler, &
-                                              get_basis_offsets, &
-                                              precompute_ri_rs_radii, &
+   USE gw_large_cell_gamma,             ONLY: &
+        Fourier_transform_w_to_t, G_occ_vir, compute_QP_energies, compute_fm_chi_Gamma_freq, &
+        create_fm_W_MIC_time, delete_unnecessary_files, fill_fm_Sigma_c_Gamma_time, fm_write, &
+        get_W_MIC, multiply_fm_W_MIC_time_with_Minv_Gamma
+   USE gw_non_periodic_ri_rs,           ONLY: get_basis_offsets,&
+                                              precompute_ri_rs_radii,&
+                                              ri_rs_grid_assembler,&
                                               solve_D_lp_distributed
-   USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
-   USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
-   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE gw_utils,                        ONLY: de_init_bs_env
+   USE input_constants,                 ONLY: rtp_method_bse
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
+   USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
    USE orbital_pointers,                ONLY: indco,&
                                               ncoset
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -216,7 +204,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE gw_calc_large_cell_Gamma_ri_rs
-
 
 ! **************************************************************************************************
 !> \brief Evaluates atomic basis functions on a real-space grid and builds a sparse DBCSR matrix.
@@ -350,7 +337,7 @@ CONTAINS
       CALL dbcsr_finalize(mat_phi_mu_l)
 
       IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr,*) "Done with evaluation of phi"
+         WRITE (bs_env%unit_nr, *) "Done with evaluation of phi"
       END IF
 
       ! -------------------------------------------------------------------------
@@ -392,17 +379,14 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), INTENT(IN)                          :: r2_threshold
 
-      INTEGER                                            :: first_sgf, i_pt, ico, iend_co, ikind, &
-                                                            ipgf, iset, isgf, ishell, istart_co, &
-                                                            l, last_sgf, lx, ly, lz, n_cart_total, &
-                                                            row_idx
-      REAL(KIND=dp)                                      :: alpha, dist_vec(3), exp_val, poly, r2, &
-                                                            r_atom(3), weight, dist_vec_raw(3)
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
-      INTEGER                                            :: ix, iy, iz, ix_min, ix_max, iy_min, &
-                                                            iy_max, iz_min, iz_max
+      INTEGER :: first_sgf, i_pt, ico, iend_co, ikind, ipgf, iset, isgf, ishell, istart_co, ix, &
+         ix_max, ix_min, iy, iy_max, iy_min, iz, iz_max, iz_min, l, last_sgf, lx, ly, lz, &
+         n_cart_total, row_idx
+      REAL(KIND=dp)                                      :: alpha, cell_vector(3), dist_vec(3), &
+                                                            dist_vec_raw(3), exp_val, poly, r2, &
+                                                            r_atom(3), weight
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
-      REAL(KIND=dp)                                      :: cell_vector(3)
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
 
       ! Get Atom Info
       ikind = particle_set(iatom)%atomic_kind%kind_number
@@ -434,45 +418,45 @@ CONTAINS
          DO iy = iy_min, iy_max
          DO iz = iz_min, iz_max
 
-               cell_vector(1:3) = MATMUL(hmat, REAL([ix, iy, iz], dp))
+            cell_vector(1:3) = MATMUL(hmat, REAL([ix, iy, iz], dp))
 
-               dist_vec = dist_vec_raw - cell_vector
+            dist_vec = dist_vec_raw - cell_vector
 
-               r2 = DOT_PRODUCT(dist_vec, dist_vec)
+            r2 = DOT_PRODUCT(dist_vec, dist_vec)
 
-               IF (r2 > r2_threshold) CYCLE
+            IF (r2 > r2_threshold) CYCLE
 
-               DO iset = 1, orb_basis_set%nset
-                   n_cart_total = ncoset(orb_basis_set%lmax(iset))
+            DO iset = 1, orb_basis_set%nset
+               n_cart_total = ncoset(orb_basis_set%lmax(iset))
 
-                   DO ishell = 1, orb_basis_set%nshell(iset)
-                        l = orb_basis_set%l(ishell, iset)
-                        istart_co = ncoset(l - 1) + 1
-                        iend_co = ncoset(l)
+               DO ishell = 1, orb_basis_set%nshell(iset)
+                  l = orb_basis_set%l(ishell, iset)
+                  istart_co = ncoset(l - 1) + 1
+                  iend_co = ncoset(l)
 
-                        first_sgf = orb_basis_set%first_sgf(ishell, iset)
-                        last_sgf = orb_basis_set%last_sgf(ishell, iset)
+                  first_sgf = orb_basis_set%first_sgf(ishell, iset)
+                  last_sgf = orb_basis_set%last_sgf(ishell, iset)
 
-                        DO ipgf = 1, orb_basis_set%npgf(iset)
-                             alpha = orb_basis_set%zet(ipgf, iset)
-                             exp_val = EXP(-alpha*r2)
+                  DO ipgf = 1, orb_basis_set%npgf(iset)
+                     alpha = orb_basis_set%zet(ipgf, iset)
+                     exp_val = EXP(-alpha*r2)
 
-                             DO isgf = first_sgf, last_sgf
-                                DO ico = istart_co, iend_co
-                                    row_idx = (ipgf - 1)*n_cart_total + ico
-                                    weight = orb_basis_set%sphi(row_idx, isgf)
-                                    lx = indco(1, ico)
-                                    ly = indco(2, ico)
-                                    lz = indco(3, ico)
-                                    poly = (dist_vec(1)**lx)*(dist_vec(2)**ly)*(dist_vec(3)**lz)
+                     DO isgf = first_sgf, last_sgf
+                        DO ico = istart_co, iend_co
+                           row_idx = (ipgf - 1)*n_cart_total + ico
+                           weight = orb_basis_set%sphi(row_idx, isgf)
+                           lx = indco(1, ico)
+                           ly = indco(2, ico)
+                           lz = indco(3, ico)
+                           poly = (dist_vec(1)**lx)*(dist_vec(2)**ly)*(dist_vec(3)**lz)
 
-                                    phi_val(i_pt, isgf) = phi_val(i_pt, isgf) + (weight*poly*exp_val)
+                           phi_val(i_pt, isgf) = phi_val(i_pt, isgf) + (weight*poly*exp_val)
 
-                                END DO
-                             END DO
                         END DO
-                   END DO
+                     END DO
+                  END DO
                END DO
+            END DO
          END DO
          END DO
          END DO
@@ -500,20 +484,20 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_Z_lP
 
       CHARACTER(LEN=*), PARAMETER :: key = 'PROPERTIES%BANDSTRUCTURE%GW%PRINT%RESTART', &
-                                     routineN = 'compute_coeff_Z_lP'
+         routineN = 'compute_coeff_Z_lP'
 
       INTEGER :: atom_j_mepos, atom_j_stride, atom_P, atom_P_start, atom_P_stride, col_end, &
-         col_start, current_chunk_size, g, group_handle, handle, i, i_blk, ikind, info, j, &
-         j_ri, l, loc_idx, loc_ptr, max_ao_size, max_loc_ri, my_group, n_ao_total, n_groups, &
-         n_grid_total, n_loc_ri, n_local_grid, n_procs_per_atom, natom, nkind, num_grid_chunks, &
+         col_start, current_chunk_size, g, group_handle, handle, i, i_blk, ikind, info, j, j_ri, &
+         l, loc_idx, loc_ptr, max_ao_size, max_loc_ri, my_group, n_ao_total, n_grid_total, &
+         n_groups, n_loc_ri, n_local_grid, n_procs_per_atom, natom, nkind, num_grid_chunks, &
          P_loop_atom, r_end, r_start, source_atom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_grid_idx, row_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_phi, col_dist_ri, r_blk_sizes, &
                                                             ri_blk_sizes, row_dist_grid
       REAL(KIND=dp)                                      :: cutoff_ri, cutoff_ri_2, d_sP, dist2_min, &
                                                             r2_threshold, r_c, t1, t2, t3
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_atom, &
-                                                            cutoff_ri_per_kind, d_vec_local
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_atom, cutoff_ri_per_kind, &
+                                                            d_vec_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: D_local, d_lp_local, phi_local, &
                                                             sphere_grid, Z_blk
       REAL(KIND=dp), DIMENSION(3)                        :: dist_vec_raw, pos_P
@@ -625,8 +609,8 @@ CONTAINS
          ELSE
             r_c = bs_env%ri_metric%cutoff_radius
             DO P_loop_atom = 1, natom
-            cutoff_ri_per_atom(P_loop_atom) = &
-               r_c + bs_env%ri_rs%radius_ao_per_atom(P_loop_atom)
+               cutoff_ri_per_atom(P_loop_atom) = &
+                  r_c + bs_env%ri_rs%radius_ao_per_atom(P_loop_atom)
             END DO
          END IF
 
@@ -936,6 +920,8 @@ CONTAINS
 !> \param n_loc_ri number of RI functions of atom_P
 !> \param atom_P RI atom (pinned to cell (0,0,0))
 !> \param max_ao_size ...
+!> \param atom_j_mepos ...
+!> \param atom_j_stride ...
 ! **************************************************************************************************
 
    SUBROUTINE compute_d_lp(bs_env, ctx, cell, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, &
@@ -953,11 +939,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_d_lp'
       INTEGER, PARAMETER                                 :: grid_chunk = 1024
 
-      INTEGER                                            :: atom_j, atom_k, c, handle, ix_max, &
-                                                            ix_min, ix_R, ix_S, iy_max, iy_min, &
-                                                            iy_R, iy_S, iz_max, iz_min, iz_R, &
-                                                            iz_S, j, jk_idx, jsize, jstart, k, &
-                                                            ksize, kstart, l, l0, natom, ri
+      INTEGER :: atom_j, atom_k, c, handle, ix_max, ix_min, ix_R, ix_S, iy_max, iy_min, iy_R, &
+         iy_S, iz_max, iz_min, iz_R, iz_S, j, jk_idx, jsize, jstart, k, ksize, kstart, l, l0, &
+         natom, ri
       INTEGER, DIMENSION(3)                              :: cell_R_vec, cell_S_vec
       LOGICAL                                            :: any_kept, screened
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_prv, int_2d_prv, rho_chunk
@@ -1370,9 +1354,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_W'
 
-      INTEGER                                            :: handle, i_t, j_w, n_RI
+      INTEGER                                            :: handle, i_t, j_w
       REAL(KIND=dp)                                      :: t1
-      TYPE(cp_fm_type)                                   :: fm_M_inv_V_sqrt, fm_V_sqrt, fm_V
+      TYPE(cp_fm_type)                                   :: fm_M_inv_V_sqrt, fm_V, fm_V_sqrt
 
       CALL timeset(routineN, handle)
 
@@ -1406,8 +1390,8 @@ CONTAINS
       CALL multiply_fm_W_MIC_time_with_Minv_Gamma(bs_env, qs_env, fm_W_time)
 
       IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A,T55,A,F10.1,A)') &
-               'Computed W(iτ),', ' Execution time', m_walltime() - t1, ' s'
+         WRITE (bs_env%unit_nr, '(T2,A,T55,A,F10.1,A)') &
+            'Computed W(iτ),', ' Execution time', m_walltime() - t1, ' s'
       END IF
 
       CALL dbcsr_deallocate_matrix_set(mat_chi_Gamma_tau)
@@ -1433,7 +1417,7 @@ CONTAINS
          CALL fm_write(bs_env%fm_W_MIC_freq_zero, 0, "W_freq_rtp", qs_env)
          ! Report calculation
          IF (bs_env%unit_nr > 0) THEN
-              WRITE (bs_env%unit_nr, '(T2,A,T55,A,F10.1,A)') &
+            WRITE (bs_env%unit_nr, '(T2,A,T55,A,F10.1,A)') &
                'Computed W(0),', ' Execution time', m_walltime() - t1, ' s'
          END IF
       END IF
@@ -1463,11 +1447,11 @@ CONTAINS
       INTEGER                                            :: handle, info, n_RI, ndep
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_fm_type)                                   :: fm_work
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_M
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_V_kp
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_M
-      TYPE(cp_fm_type)                                   :: fm_work
 
       CALL timeset(routineN, handle)
 
@@ -1483,11 +1467,11 @@ CONTAINS
       ALLOCATE (mat_V_kp(1:1, 1:2))
       NULLIFY (mat_V_kp(1, 1)%matrix, mat_V_kp(1, 2)%matrix)
       ALLOCATE (mat_V_kp(1, 1)%matrix, mat_V_kp(1, 2)%matrix)
-      
+
       CALL dbcsr_create(mat_V_kp(1, 1)%matrix, template=bs_env%mat_RI_RI%matrix)
       CALL dbcsr_reserve_all_blocks(mat_V_kp(1, 1)%matrix)
       CALL dbcsr_set(mat_V_kp(1, 1)%matrix, 0.0_dp)
-      
+
       ! Dummy imaginary part just to satisfy the routine
       CALL dbcsr_create(mat_V_kp(1, 2)%matrix, template=bs_env%mat_RI_RI%matrix)
       CALL dbcsr_reserve_all_blocks(mat_V_kp(1, 2)%matrix)
@@ -1501,7 +1485,7 @@ CONTAINS
 
       ! Copy real part to fm_V
       CALL copy_dbcsr_to_fm(mat_V_kp(1, 1)%matrix, fm_V)
-      
+
       CALL dbcsr_deallocate_matrix(mat_V_kp(1, 1)%matrix)
       CALL dbcsr_deallocate_matrix(mat_V_kp(1, 2)%matrix)
       DEALLOCATE (mat_V_kp)
@@ -1526,12 +1510,12 @@ CONTAINS
       END IF
 
       ! -----------------------------------------------------------------------
-      ! 4. V -> V^0.5 
+      ! 4. V -> V^0.5
       ! -----------------------------------------------------------------------
       CALL cp_fm_to_fm(fm_V, fm_V_sqrt)
       CALL cp_fm_cholesky_decompose(fm_V_sqrt, info_out=info)
       IF (info == 0) THEN
-         CALL clean_lower_part(fm_V_sqrt) 
+         CALL clean_lower_part(fm_V_sqrt)
       ELSE
          CALL cp_fm_power(fm_V, fm_V_sqrt, 0.5_dp, bs_env%eps_eigval_mat_RI, ndep)
       END IF
@@ -1563,7 +1547,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_chi_freq_j, fm_V_sqrt, fm_Minv_Vsqrt
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_W_freq_j
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_fm_W_freq'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_fm_W_freq'
 
       INTEGER                                            :: handle, info, n_RI, ndep
       TYPE(cp_fm_type)                                   :: fm_eps_freq_j, fm_work
@@ -1595,10 +1579,10 @@ CONTAINS
       ! -----------------------------------------------------------------------
       ! 2. W(iω_j) = V^0.5^T * (ε^-1(iω_j) - Id) * V^0.5
       ! -----------------------------------------------------------------------
-      
+
       ! a) Cholesky decomposition of ε(iω_j)
       CALL cp_fm_cholesky_decompose(fm_eps_freq_j, info_out=info)
-      
+
       ! b) Inversion
       IF (info == 0) THEN
          CALL cp_fm_cholesky_invert(fm_eps_freq_j)
@@ -1616,7 +1600,7 @@ CONTAINS
       CALL parallel_gemm('N', 'N', n_RI, n_RI, n_RI, 1.0_dp, fm_eps_freq_j, fm_V_sqrt, &
                          0.0_dp, fm_work)
 
-      ! e) W(iw) = V^0.5^T * work 
+      ! e) W(iw) = V^0.5^T * work
       CALL parallel_gemm('T', 'N', n_RI, n_RI, n_RI, 1.0_dp, fm_V_sqrt, fm_work, &
                          0.0_dp, fm_W_freq_j)
 
@@ -1630,8 +1614,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Adds a real scalar value to the diagonal of a real full matrix (fm)
-!> \param fm
-!> \param alpha
+!> \param fm ...
+!> \param alpha ...
 ! **************************************************************************************************
 
    SUBROUTINE fm_add_on_diag(fm, alpha)
@@ -1640,8 +1624,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm_add_on_diag'
 
-      INTEGER                                            :: handle, i_global, i_row, &
-                                                            j_col, j_global, ncol_local, nrow_local
+      INTEGER                                            :: handle, i_global, i_row, j_col, &
+                                                            j_global, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
 
       CALL timeset(routineN, handle)
@@ -1668,7 +1652,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Zeroes out the strictly lower triangular part of a real matrix
-!> \param fm_mat
+!> \param fm_mat ...
 ! **************************************************************************************************
    SUBROUTINE clean_lower_part(fm_mat)
       TYPE(cp_fm_type)                                   :: fm_mat
@@ -1688,7 +1672,7 @@ CONTAINS
       DO j_col = 1, ncol_local
          j_global = col_indices(j_col)
          DO i_row = 1, nrow_local
-            IF (j_global < row_indices(i_row)) fm_mat%local_data(i_row,j_col) = 0.0_dp
+            IF (j_global < row_indices(i_row)) fm_mat%local_data(i_row, j_col) = 0.0_dp
          END DO
       END DO
 
