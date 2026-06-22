@@ -693,7 +693,7 @@ CONTAINS
             END DO
 
             ! ---------------------------------------------------------------------
-            ! B. Build phi_local on the fly via fill_phi_for_atom (no replication).
+            ! B. Build phi_local on the fly via fill_phi_for_atom.
             !    Only source atoms whose AO basis can reach the cutoff sphere of
             !    atom_P (MIC distance) contribute; the rest are pruned. The
             !    periodic fill_phi_for_atom sums over (ix, iy, iz) images of
