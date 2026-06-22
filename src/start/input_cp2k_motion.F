@@ -1533,7 +1533,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_LEVEL", &
-                          description="How much output is written out by the LBFGS algorithm. ", &
+                          description="How much output is written out by the LBFGS algorithm. "// &
+                          "Currently this is independent of the &GLOBAL/PRINT_LEVEL setting.", &
                           usage="PRINT_LEVEL MEDIUM", &
                           enum_c_vals=s2a("SILENT", "LOW", "MEDIUM", "HIGH", "DEBUG"), &
                           enum_desc=s2a("Almost no output", &

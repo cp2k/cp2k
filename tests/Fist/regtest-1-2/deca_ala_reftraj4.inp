@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT deca_ala_ref2
+  PROJECT deca_ala_reftraj4
   RUN_TYPE md
 &END GLOBAL
 
@@ -9,22 +9,20 @@
     ENSEMBLE REFTRAJ
     STEPS 11
     &REFTRAJ
-      CELL_FILE_NAME deca_ala4-1.cell
-      EVAL_ENERGY_FORCES T
+      EVAL ENERGY
       FIRST_SNAPSHOT 3
       LAST_SNAPSHOT 11
-      TRAJ_FILE_NAME deca_ala4-pos-1.xyz
-      VARIABLE_VOLUME
+      TRAJ_FILE_NAME deca_ala6-pos-1.xyz
     &END REFTRAJ
   &END MD
   &PRINT
     &TRAJECTORY
-      FILENAME =reftraj2.xyz
+      FILENAME =reftraj4.xyz
     &END TRAJECTORY
   &END PRINT
 &END MOTION
 
-#CPQA DEPENDS deca_ala4.inp
+#CPQA DEPENDS deca_ala6.inp
 &FORCE_EVAL
   METHOD FIST
   &MM

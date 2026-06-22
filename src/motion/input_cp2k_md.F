@@ -505,16 +505,44 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
 
       CALL section_create(section, __LOCATION__, name="REFTRAJ", &
-                          description="Loads an external trajectory file and performs analysis on the"// &
-                          " loaded snapshots.", &
+                          description="Loads an external trajectory file and performs analysis on "// &
+                          "the loaded snapshots; optionally, calculates per-frame potential energy, "// &
+                          "forces and other properties as requested by the keyword `EVAL` below with "// &
+                          "the force method specified in the `&FORCE_EVAL` section. Time integration "// &
+                          "is not performed here, and quantities of velocity, temperature and kinetic "// &
+                          "energy from nuclear motion are therefore irrelevant. Such a REFTRAJ run is "// &
+                          "essentially a series of single-point calculations; the snapshots are not "// &
+                          "necessarily from MD and may be from custom concatenation."//newline//newline// &
+                          "The trajectory should be a multi-frame XYZ file where each frame has the "// &
+                          "same number of atoms and kind specification as the `&FORCE_EVAL/&SUBSYS` "// &
+                          "down to the exact ordering, but cell (box) size and shape can be different. "// &
+                          "The comment line of each frame is parsed for additional information such "// &
+                          "as cell, step, time and energy; currently the parser supports the same "// &
+                          "formats as the XYZ option of `&FORCE_EVAL/&SUBSYS/&CELL/CELL_FILE_FORMAT`, "// &
+                          "corresponding to trajectory files printed from `&MOTION/&PRINT/&TRAJECTORY` "// &
+                          "as XYZ and EXTXYZ and from the external `dumpdcd` tool."//newline//newline// &
+                          "A minimal working example trajectory in the extended XYZ format should have "// &
+                          '`Lattice="<Ax> <Ay> <Az> <Bx> <By> <Bz> <Cx> <Cy> <Cz>"` for the components '// &
+                          "of cell vectors A, B, C, and `Step=<integer>` for the integer timestep. "// &
+                          "`Time=<real>` and `Energy=<real>` for simulation time and potential energy "// &
+                          "respectively are also parsed; if omitted, the default value will be 0.0 . "// &
+                          "Note that the parser is case insensitive, but whitespaces are only used "// &
+                          "between key-value pairs as delimiters and not around the = signs in an "// &
+                          "extended XYZ file. `Properties=species:S:1:pos:R:3` is always assumed for "// &
+                          "backwards compatibility with the primitive XYZ specification: the first "// &
+                          "column is a string for element symbol (or kind alias), followed by three "// &
+                          "columns of real values for Cartesian coordinates in angstrom."//newline//newline// &
+                          "Alternatively, the legacy brief format from `&TRAJECTORY` output where the "// &
+                          "comment line starts with `i = <integer>` for the integer timestep can also "// &
+                          "be used, this time with the = sign surrounded by whitespaces. The cell "// &
+                          "information may come from a separate file requested by `CELL_FILE_NAME` if "// &
+                          "variable, or may be taken as the `&FORCE_EVAL/&SUBSYS/&CELL` if constant.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword, print_key, subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="TRAJ_FILE_NAME", &
-                          description="Specify the filename where the trajectory is stored. "// &
-                          "If you built your own trajectory file make sure it has the trajectory format. "// &
-                          'In particular, each structure has to be enumerated using " i = ..."', &
+                          description="Specify the filename where the trajectory is stored.", &
                           repeats=.FALSE., &
                           usage="TRAJ_FILE_NAME <CHARACTER>", default_lc_val="reftraj.xyz")
       CALL section_add_keyword(section, keyword)
@@ -522,15 +550,19 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CELL_FILE_NAME", &
                           description="Specify the filename where the cell is stored "// &
-                          "(for trajectories generated within variable cell ensembles).", repeats=.FALSE., &
+                          "(for trajectories generated within variable cell ensembles). "// &
+                          "This file will be parsed only when no cell information is found "// &
+                          "in the trajectory file and VARIABLE_VOLUME is set to .TRUE.", &
+                          repeats=.FALSE., &
                           usage="CELL_FILE_NAME <CHARACTER>", default_lc_val="reftraj.cell")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="VARIABLE_VOLUME", &
-         description="Enables the possibility to read a CELL file with information on the CELL size during the MD.", &
-         repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create(keyword, __LOCATION__, name="VARIABLE_VOLUME", &
+                          description="Enables the possibility to read a CELL file with "// &
+                          "information on the CELL size during the MD. This keyword will be "// &
+                          "ignored if cell information is already available in the trajectory file.", &
+                          repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -558,25 +590,19 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EVAL", &
-                          description="Selects the properties to evaluate for each retrieved snapshot during a REFTRAJ run", &
+                          description="Selects the mode of energy and force evaluation for each "// &
+                          "retrieved snapshot during a REFTRAJ run, which determines availability "// &
+                          "of other properties and the time consumption in the computation. The "// &
+                          "default is NONE, a conservative option useful for analyses concerning "// &
+                          "structure only that are independent of force method, such as MSD and "// &
+                          "`&MOTION/&PRINT/&STRUCTURE_DATA`. This keyword supersedes the logical "// &
+                          "keywords `EVAL_<mode>` in older versions of the program.", &
                           default_i_val=REFTRAJ_EVAL_NONE, &
                           enum_i_vals=[REFTRAJ_EVAL_NONE, REFTRAJ_EVAL_ENERGY, REFTRAJ_EVAL_ENERGY_FORCES], &
                           enum_c_vals=s2a("NONE", "ENERGY", "ENERGY_FORCES"), &
-                          enum_desc=s2a("Evaluate nothing", "Evaluate only the energy", "Evaluate energy and forces"))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="eval_energy_forces", &
-                          description="Evaluate energy and forces for each retrieved snapshot during a REFTRAJ run", &
-                          repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
-                          deprecation_notice="Please use MOTION / MD / REFTRAJ / EVAL instead.")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="eval_forces", &
-                          description="Evaluate the forces for each retrieved snapshot during a REFTRAJ run", &
-                          repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
-                          deprecation_notice="Please use MOTION / MD / REFTRAJ / EVAL instead.")
+                          enum_desc=s2a("Do not evaluate energy or force", &
+                                        "Evaluate only the energy", &
+                                        "Evaluate energy and forces"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

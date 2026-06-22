@@ -92,7 +92,6 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=default_path_length)                 :: filename
-      LOGICAL                                            :: old_eval_ef, old_eval_forces
 
       NULLIFY (reftraj%info)
       NULLIFY (reftraj%msd)
@@ -118,13 +117,6 @@ CONTAINS
       CALL section_vals_val_get(reftraj_section, "LAST_SNAPSHOT", i_val=reftraj%info%last_snapshot)
       CALL section_vals_val_get(reftraj_section, "STRIDE", i_val=reftraj%info%stride)
       CALL section_vals_val_get(reftraj_section, "EVAL", i_val=reftraj%info%eval)
-
-      ! Read deprecated keywords to retain backwards compatibility.
-      ! For details see: https://github.com/cp2k/cp2k/issues/894
-      CALL section_vals_val_get(reftraj_section, "EVAL_ENERGY_FORCES", l_val=old_eval_ef)
-      CALL section_vals_val_get(reftraj_section, "EVAL_FORCES", l_val=old_eval_forces)
-      IF (old_eval_ef) reftraj%info%eval = REFTRAJ_EVAL_ENERGY
-      IF (old_eval_forces) reftraj%info%eval = REFTRAJ_EVAL_ENERGY_FORCES
 
       CALL section_vals_val_get(reftraj_section, "MSD%_SECTION_PARAMETERS_", &
                                 l_val=reftraj%info%msd)
