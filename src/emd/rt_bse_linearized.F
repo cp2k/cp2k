@@ -1246,9 +1246,8 @@ CONTAINS
       use_sex = .NOT. rtbse_env%debug_disable_sex
       use_rirs_kernel = rtbse_env%rirs_kernel
 
-      ! Pre-zero the RI-RS spin-summed grid-diagonal accumulators (the SEX harvest target). ALLOCATED is
-      ! exactly RI-RS + Hartree, the case where the per-spin get_sigma below harvests into them.
-      IF (ALLOCATED(rtbse_env%hartree_diag_re)) THEN
+      ! Pre-zero the RI-RS spin-summed grid-diagonal accumulators (the SEX harvest target).
+      IF (use_rirs_kernel .AND. use_sex .AND. use_hartree) THEN
          rtbse_env%hartree_diag_re(:) = 0.0_dp
          rtbse_env%hartree_diag_im(:) = 0.0_dp
       END IF
@@ -1381,9 +1380,10 @@ CONTAINS
             IF (use_sex) THEN
                ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]
                ! Harvest the bare n_l = diag(φ Re(ρ) φ^T) for the RI-RS Hartree reuse below (closed shell:
-               ! Re only). Accumulator passed unconditionally; unallocated -> absent -> harvest self-disables
-               ! on AO-RI / Hartree-off (F2008). Pre-zero ALLOCATED-guarded.
-               IF (ALLOCATED(rtbse_env%hartree_diag_re)) rtbse_env%hartree_diag_re(:) = 0.0_dp
+               ! Re only). The accumulator is passed to get_sigma unconditionally; it is allocated only for
+               ! RI-RS + Hartree (initialize_hartree_potential), so on AO-RI / Hartree-off it is an absent
+               ! optional (F2008) and the harvest self-disables.
+               IF (use_rirs_kernel .AND. use_hartree) rtbse_env%hartree_diag_re(:) = 0.0_dp
                CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin), &
                               grid_diag_re_accum=rtbse_env%hartree_diag_re)
                ! Transform to MO basis (AO scratch -> MO-active result)
@@ -1520,7 +1520,7 @@ CONTAINS
                ! unconditionally: unallocated (hence absent) on AO-RI / Hartree-off -> harvest self-disables
                ! (F2008). Reached only for n_spin=1; open shell sets l_sex_precomputed and harvests in
                ! build_shared_sex_and_hartree instead.
-               IF (ALLOCATED(rtbse_env%hartree_diag_re)) THEN
+               IF (use_rirs_kernel .AND. rtbse_env%n_spin == 1 .AND. use_hartree) THEN
                   rtbse_env%hartree_diag_re(:) = 0.0_dp
                   rtbse_env%hartree_diag_im(:) = 0.0_dp
                END IF
