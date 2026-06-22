@@ -98,15 +98,14 @@ int offload_get_chosen_device(void) { return chosen_device_id; }
  * \author Ole Schuett
  ******************************************************************************/
 void offload_activate_chosen_device(void) {
-  if (chosen_device_id < 0) {
-    return;
-  }
 #if defined(__OFFLOAD_CUDA)
   OFFLOAD_CHECK(cudaSetDevice(chosen_device_id));
 #elif defined(__OFFLOAD_HIP)
   OFFLOAD_CHECK(hipSetDevice(chosen_device_id));
 #elif defined(__OFFLOAD_OPENCL)
-  OFFLOAD_CHECK(libxstream_device_set_active(chosen_device_id));
+  if (chosen_device_id >= 0) {
+    OFFLOAD_CHECK(libxstream_device_set_active(chosen_device_id));
+  }
 #endif
 }
 
@@ -170,26 +169,30 @@ void offload_mem_info(size_t *free, size_t *total) {
 #endif
 }
 
+/*******************************************************************************
+ * \brief Allocate pinned memory (or simple malloc when there is no gpu)
+ ******************************************************************************/
 int offload_host_malloc(void **ptr__, const size_t size__) {
 #if defined(__OFFLOAD)
-  if (chosen_device_id >= 0) {
-    offloadMallocHost(ptr__, size__); /* checked */
-    return offloadSuccess;
-  }
-#endif
+  offloadMallocHost(ptr__, size__); /* checked */
+  return offloadSuccess;
+#else
   *ptr__ = malloc(size__);
   return EXIT_SUCCESS;
+#endif
 }
 
+/*******************************************************************************
+ * \brief free pinned memory (or simple free when there is no gpu)
+ ******************************************************************************/
 int offload_host_free(void *ptr__) {
 #if defined(__OFFLOAD)
-  if (chosen_device_id >= 0) {
-    offloadFreeHost(ptr__); /* checked */
-    return offloadSuccess;
-  }
-#endif
+  offloadFreeHost(ptr__); /* checked */
+  return offloadSuccess;
+#else
   free(ptr__);
   return EXIT_SUCCESS;
+#endif
 }
 
 // EOF
