@@ -1055,19 +1055,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'solve_rk4_timestep'
 
       INTEGER                                            :: handle, i
-      LOGICAL                                            :: do_precomputed_sex, do_shared_hartree
 
       CALL timeset(routineN, handle)
-      ! Cross-spin Hartree: build the spin-summed V_H once per stage, consumed by every spin in
-      ! update_effective_ham_MO. Open shell (n_spin>1) runs build_shared_sex_and_hartree (per-spin SEX
-      ! + RI-RS grid-diagonal harvest + the shared Hartree, built once) and consumes it per spin via
-      ! update_effective_ham_MO(sex_precomputed=.TRUE.). n_spin=1 TDA AO-RI uses build_shared_hartree_ao
-      ! (Hartree only); n_spin=1 RIRS keeps its per-spin path (bit-identical).
-      ! [INTERNAL] dev_notes/rt_bse_rirs_kernel.md (open-shell Hartree diagonal reuse)
-      do_precomputed_sex = (rtbse_env%n_spin > 1)
-      do_shared_hartree = (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) .AND. &
-                          (.NOT. rtbse_env%debug_disable_hartree) .AND. &
-                          (rtbse_env%n_spin > 1 .OR. (.NOT. rtbse_env%rirs_kernel))
       ! RK4 follows the typical scheme
       ! d/dt ρ = f(t, ρ)
       ! f(t,ρ) = -i( Δε Δρ + (f_n-f_m) V_Hartree(Δρ) + ΔΣ(Δρ) )
@@ -1090,17 +1079,7 @@ CONTAINS
          CALL cp_cfm_to_cfm(rho_start(i), rho_end(i))
       END DO
       ! k_1 = f(t, rho_start)
-      IF (do_precomputed_sex) THEN
-         CALL build_shared_sex_and_hartree(rtbse_env, rho_start, keep_ovvo=(.NOT. rtbse_env%tda_active))
-      ELSE IF (do_shared_hartree) THEN
-         CALL build_shared_hartree_ao(rtbse_env, rho_start, keep_ovvo=(.NOT. rtbse_env%tda_active))
-      END IF
-      DO i = 1, rtbse_env%n_spin
-         CALL update_effective_ham_MO(rtbse_env, rho_start(i), rtbse_env%rk4_coefficients(i), i, &
-                                      sex_precomputed=do_precomputed_sex)
-         IF (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) &
-            CALL project_drho_to_ov(rtbse_env, rtbse_env%rk4_coefficients(i), i)
-      END DO
+      CALL evaluate_rk4_stage(rtbse_env, rho_start)
       DO i = 1, rtbse_env%n_spin
          CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rho_end(i), &
                                    CMPLX(rtbse_env%sim_dt/6.0_dp, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(i))
@@ -1109,17 +1088,7 @@ CONTAINS
                                    CMPLX(0.5_dp*rtbse_env%sim_dt, 0.0, kind=dp), rtbse_env%rk4_coefficients(i))
       END DO
       ! k_2 = f(t + dt/2, rho_start + dt/2 * k_1)
-      IF (do_precomputed_sex) THEN
-         CALL build_shared_sex_and_hartree(rtbse_env, rtbse_env%rho_workspace, keep_ovvo=(.NOT. rtbse_env%tda_active))
-      ELSE IF (do_shared_hartree) THEN
-         CALL build_shared_hartree_ao(rtbse_env, rtbse_env%rho_workspace, keep_ovvo=(.NOT. rtbse_env%tda_active))
-      END IF
-      DO i = 1, rtbse_env%n_spin
-         CALL update_effective_ham_MO(rtbse_env, rtbse_env%rho_workspace(i), rtbse_env%rk4_coefficients(i), i, &
-                                      sex_precomputed=do_precomputed_sex)
-         IF (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) &
-            CALL project_drho_to_ov(rtbse_env, rtbse_env%rk4_coefficients(i), i)
-      END DO
+      CALL evaluate_rk4_stage(rtbse_env, rtbse_env%rho_workspace)
       DO i = 1, rtbse_env%n_spin
          CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rho_end(i), &
                                    CMPLX(rtbse_env%sim_dt/3.0_dp, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(i))
@@ -1128,17 +1097,7 @@ CONTAINS
                                    CMPLX(0.5_dp*rtbse_env%sim_dt, 0.0, kind=dp), rtbse_env%rk4_coefficients(i))
       END DO
       ! k_3 = f(t + dt/2, rho_start + dt/2 * k_2)
-      IF (do_precomputed_sex) THEN
-         CALL build_shared_sex_and_hartree(rtbse_env, rtbse_env%rho_workspace, keep_ovvo=(.NOT. rtbse_env%tda_active))
-      ELSE IF (do_shared_hartree) THEN
-         CALL build_shared_hartree_ao(rtbse_env, rtbse_env%rho_workspace, keep_ovvo=(.NOT. rtbse_env%tda_active))
-      END IF
-      DO i = 1, rtbse_env%n_spin
-         CALL update_effective_ham_MO(rtbse_env, rtbse_env%rho_workspace(i), rtbse_env%rk4_coefficients(i), i, &
-                                      sex_precomputed=do_precomputed_sex)
-         IF (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) &
-            CALL project_drho_to_ov(rtbse_env, rtbse_env%rk4_coefficients(i), i)
-      END DO
+      CALL evaluate_rk4_stage(rtbse_env, rtbse_env%rho_workspace)
       DO i = 1, rtbse_env%n_spin
          CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rho_end(i), &
                                    CMPLX(rtbse_env%sim_dt/3.0_dp, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(i))
@@ -1147,17 +1106,7 @@ CONTAINS
                                    CMPLX(rtbse_env%sim_dt, 0.0, kind=dp), rtbse_env%rk4_coefficients(i))
       END DO
       ! k_4 = f(t + dt, rho_start + dt * k_3)
-      IF (do_precomputed_sex) THEN
-         CALL build_shared_sex_and_hartree(rtbse_env, rtbse_env%rho_workspace, keep_ovvo=(.NOT. rtbse_env%tda_active))
-      ELSE IF (do_shared_hartree) THEN
-         CALL build_shared_hartree_ao(rtbse_env, rtbse_env%rho_workspace, keep_ovvo=(.NOT. rtbse_env%tda_active))
-      END IF
-      DO i = 1, rtbse_env%n_spin
-         CALL update_effective_ham_MO(rtbse_env, rtbse_env%rho_workspace(i), rtbse_env%rk4_coefficients(i), i, &
-                                      sex_precomputed=do_precomputed_sex)
-         IF (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) &
-            CALL project_drho_to_ov(rtbse_env, rtbse_env%rk4_coefficients(i), i)
-      END DO
+      CALL evaluate_rk4_stage(rtbse_env, rtbse_env%rho_workspace)
       DO i = 1, rtbse_env%n_spin
          CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rho_end(i), &
                                    CMPLX(rtbse_env%sim_dt/6.0_dp, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(i))
@@ -1169,6 +1118,45 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE solve_rk4_timestep
+
+! **************************************************************************************************
+!> \brief Evaluates one RK4 stage: k = f(t, rho_stage) for every spin, returned in
+!>        rtbse_env%rk4_coefficients. Builds the stage's shared kernels first, then assembles f per spin
+!>        and projects to OV(+VO). The cross-spin Hartree is built once per stage and consumed by every
+!>        spin in update_effective_ham_MO. Open shell (n_spin>1) runs build_shared_sex_and_hartree
+!>        (per-spin SEX + RI-RS grid-diagonal harvest + the shared Hartree) and consumes it per spin via
+!>        update_effective_ham_MO(sex_precomputed=.TRUE.); n_spin=1 TDA AO-RI uses build_shared_hartree_ao
+!>        (Hartree only); n_spin=1 RI-RS keeps its per-spin SEX+Hartree path (bit-identical). No
+!>        timeset/timestop: the callees are individually timed and this is invoked 4x per RK4 timestep.
+!>        [INTERNAL] dev_notes/rt_bse_rirs_kernel.md (open-shell Hartree diagonal reuse)
+!> \param rtbse_env RT-BSE environment
+!> \param rho_stage Per-spin MO density at this RK4 stage (rho_start for k_1, rho_workspace otherwise)
+!> \author Maximilian Graml
+! **************************************************************************************************
+   SUBROUTINE evaluate_rk4_stage(rtbse_env, rho_stage)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho_stage
+
+      INTEGER                                            :: i
+      LOGICAL                                            :: do_precomputed_sex, do_shared_hartree
+
+      do_precomputed_sex = (rtbse_env%n_spin > 1)
+      do_shared_hartree = (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) .AND. &
+                          (.NOT. rtbse_env%debug_disable_hartree) .AND. &
+                          (rtbse_env%n_spin > 1 .OR. (.NOT. rtbse_env%rirs_kernel))
+      IF (do_precomputed_sex) THEN
+         CALL build_shared_sex_and_hartree(rtbse_env, rho_stage, keep_ovvo=(.NOT. rtbse_env%tda_active))
+      ELSE IF (do_shared_hartree) THEN
+         CALL build_shared_hartree_ao(rtbse_env, rho_stage, keep_ovvo=(.NOT. rtbse_env%tda_active))
+      END IF
+      DO i = 1, rtbse_env%n_spin
+         CALL update_effective_ham_MO(rtbse_env, rho_stage(i), rtbse_env%rk4_coefficients(i), i, &
+                                      sex_precomputed=do_precomputed_sex)
+         IF (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) THEN
+            CALL project_drho_to_ov(rtbse_env, rtbse_env%rk4_coefficients(i), i)
+         END IF
+      END DO
+   END SUBROUTINE evaluate_rk4_stage
 
 ! **************************************************************************************************
 !> \brief Builds the spin-summed complex Hartree potential in AO, once per RK4 stage (AO-RI or RI-RS).
