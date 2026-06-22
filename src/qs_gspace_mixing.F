@@ -34,6 +34,7 @@ MODULE qs_gspace_mixing
                                               mixing_storage_type,&
                                               modified_broyden_mixing_nr,&
                                               multisecant_mixing_nr,&
+                                              new_pulay_mixing_nr,&
                                               pulay_mixing_nr
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -170,6 +171,9 @@ CONTAINS
          ELSEIF (mixing_method == pulay_mixing_nr) THEN
             CALL pulay_mixing(qs_env, mixing_store, rho, para_env)
             mixing_store%iter_method = "Pulay"
+         ELSEIF (mixing_method == new_pulay_mixing_nr) THEN
+            CALL pulay_mixing(qs_env, mixing_store, rho, para_env)
+            mixing_store%iter_method = "New Pulay"
          ELSEIF (mixing_method == broyden_mixing_nr) THEN
             CALL cite_reference(Broyden1965)
             CALL broyden_mixing(qs_env, mixing_store, rho, para_env)

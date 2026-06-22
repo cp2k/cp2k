@@ -11,6 +11,7 @@ QS/regtest-dft-d3-bj-auto-ref                               libint
 QS/regtest-dft-d3-lib-ref                                    libint s_dftd3
 QS/regtest-dft-d3bj-lib-ref                                  libint s_dftd3
 QS/regtest-pcc
+QS/regtest-new-pulay-mixing
 QS/regtest-kubo-transport
 QS/regtest-gw-realspace                                     libint !ifx
 QS/regtest-moments-kpoints

@@ -7,6 +7,8 @@
 
 ! **************************************************************************************************
 MODULE qs_mixing_utils
+   USE bibliography,                    ONLY: Sundararaman2017,&
+                                              cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_p_type,&
@@ -25,6 +27,7 @@ MODULE qs_mixing_utils
                                               mixing_storage_type,&
                                               modified_broyden_mixing_nr,&
                                               multisecant_mixing_nr,&
+                                              new_pulay_mixing_nr,&
                                               pulay_mixing_nr
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -212,7 +215,7 @@ CONTAINS
             IF (ASSOCIATED(mixing_store%dacharge)) DEALLOCATE (mixing_store%dacharge)
             ALLOCATE (mixing_store%dacharge(na, max_shell, nbuffer))
          END IF
-         IF (mixing_method == pulay_mixing_nr) THEN
+         IF (mixing_method == pulay_mixing_nr .OR. mixing_method == new_pulay_mixing_nr) THEN
             IF (ASSOCIATED(mixing_store%pulay_matrix)) DEALLOCATE (mixing_store%pulay_matrix)
             ALLOCATE (mixing_store%pulay_matrix(nbuffer, nbuffer, nspins))
             mixing_store%pulay_matrix = 0.0_dp
@@ -275,7 +278,7 @@ CONTAINS
          END IF
 
          !   *** allocate pulay
-         IF (mixing_method == pulay_mixing_nr) THEN
+         IF (mixing_method == pulay_mixing_nr .OR. mixing_method == new_pulay_mixing_nr) THEN
             IF (.NOT. ASSOCIATED(mixing_store%pulay_matrix)) THEN
                ALLOCATE (mixing_store%pulay_matrix(nbuffer, nbuffer, nspins))
             END IF
@@ -415,7 +418,8 @@ CONTAINS
       INTEGER :: handle, iat, ib, icoef1, icoef2, ig, ig1, ig_count, iproc, ispin, n1, n2, natom, &
          nbuffer, ncoef_h1, ncoef_h2, ncoef_s1, ncoef_s2, ng, nimg, nspin
       REAL(dp)                                           :: bconst, beta, cpc_h_tmp, cpc_s_tmp, &
-                                                            fdamp, g2max, g2min, kmin
+                                                            fdamp, g2max, g2min, kmin, qk, qkappa, &
+                                                            qm
       REAL(dp), DIMENSION(:), POINTER                    :: g2
       REAL(dp), DIMENSION(:, :), POINTER                 :: g_vec
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
@@ -457,24 +461,36 @@ CONTAINS
       mixing_store%kerker_factor_mag = 1.0_dp
       mixing_store%special_metric = 1.0_dp
       ig1 = 1
-      IF (rho_g(1)%pw_grid%have_g0) ig1 = 2
-      DO ig = ig1, mixing_store%ig_max
-         mixing_store%kerker_factor(ig) = MAX(g2(ig)/(g2(ig) + beta*beta), kmin)
-         IF (mixing_store%beta_mag > 1.0E-10_dp) THEN
-            mixing_store%kerker_factor_mag(ig) = MAX(g2(ig)/(g2(ig) + mixing_store%beta_mag*mixing_store%beta_mag), kmin)
-         ELSE
-            ! beta_mag ~ 0 means no Kerker screening on the magnetization channel
-            mixing_store%kerker_factor_mag(ig) = 1.0_dp
-         END IF
-         mixing_store%special_metric(ig) = &
-            1.0_dp + 50.0_dp/8.0_dp*( &
-            1.0_dp + COS(g_vec(1, ig)) + COS(g_vec(2, ig)) + COS(g_vec(3, ig)) + &
-            COS(g_vec(1, ig))*COS(g_vec(2, ig)) + &
-            COS(g_vec(2, ig))*COS(g_vec(3, ig)) + &
-            COS(g_vec(1, ig))*COS(g_vec(3, ig)) + &
-            COS(g_vec(1, ig))*COS(g_vec(2, ig))*COS(g_vec(3, ig)))
-      END DO
 
+      IF (.NOT. (mixing_method == new_pulay_mixing_nr)) THEN
+         IF (rho_g(1)%pw_grid%have_g0) ig1 = 2
+         DO ig = ig1, mixing_store%ig_max
+            mixing_store%kerker_factor(ig) = MAX(g2(ig)/(g2(ig) + beta*beta), kmin)
+            IF (mixing_store%beta_mag > 1.0E-10_dp) THEN
+               mixing_store%kerker_factor_mag(ig) = MAX(g2(ig)/(g2(ig) + mixing_store%beta_mag*mixing_store%beta_mag), kmin)
+            ELSE
+               ! beta_mag ~ 0 means no Kerker screening on the magnetization channel
+               mixing_store%kerker_factor_mag(ig) = 1.0_dp
+            END IF
+            mixing_store%special_metric(ig) = &
+               1.0_dp + 50.0_dp/8.0_dp*( &
+               1.0_dp + COS(g_vec(1, ig)) + COS(g_vec(2, ig)) + COS(g_vec(3, ig)) + &
+               COS(g_vec(1, ig))*COS(g_vec(2, ig)) + &
+               COS(g_vec(2, ig))*COS(g_vec(3, ig)) + &
+               COS(g_vec(1, ig))*COS(g_vec(3, ig)) + &
+               COS(g_vec(1, ig))*COS(g_vec(2, ig))*COS(g_vec(3, ig)))
+         END DO
+      ELSE
+         CALL cite_reference(Sundararaman2017)
+         qkappa = mixing_store%qkappa
+         qk = mixing_store%qk
+         qm = mixing_store%qm
+         IF (rho_g(1)%pw_grid%have_g0) ig1 = 1
+         DO ig = ig1, mixing_store%ig_max
+            mixing_store%kerker_factor(ig) = (g2(ig) + qkappa*qkappa)/(g2(ig) + qkappa*qkappa + qk*qk)
+            mixing_store%special_metric(ig) = (g2(ig) + qkappa*qkappa + qm*qm)/(g2(ig) + qkappa*qkappa)
+         END DO
+      END IF
       nbuffer = mixing_store%nbuffer
       DO ispin = 1, nspin
          IF (.NOT. ASSOCIATED(mixing_store%rhoin(ispin)%cc)) THEN
@@ -572,7 +588,7 @@ CONTAINS
       END IF
 
       IF (mixing_method == gspace_mixing_nr) THEN
-      ELSEIF (mixing_method == pulay_mixing_nr) THEN
+      ELSEIF (mixing_method == pulay_mixing_nr .OR. mixing_method == new_pulay_mixing_nr) THEN
          IF (mixing_store%gmix_p .AND. PRESENT(rho_atom)) THEN
             DO ispin = 1, nspin
                DO iat = 1, natom

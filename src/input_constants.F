@@ -935,7 +935,8 @@ MODULE input_constants
                                                pulay_mix = 3, &
                                                broy_mix = 4, &
                                                modified_broy_mix = 5, &
-                                               multisec_mix = 6
+                                               multisec_mix = 6, &
+                                               new_pulay_mix = 7
 
    ! FFT library
    ! these might need sync with fft_lib.F

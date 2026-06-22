@@ -22,6 +22,7 @@ MODULE qs_density_mixing_types
                               kerker_mix, &
                               modified_broy_mix, &
                               multisec_mix, &
+                              new_pulay_mix, &
                               no_mix, &
                               pulay_mix
    USE input_keyword_types, ONLY: keyword_create, &
@@ -50,7 +51,8 @@ MODULE qs_density_mixing_types
                                  gspace_mixing_nr = 2, pulay_mixing_nr = 3, &
                                  broyden_mixing_nr = 4, &
                                  modified_broyden_mixing_nr = 5, &
-                                 multisecant_mixing_nr = 6
+                                 multisecant_mixing_nr = 6, &
+                                 new_pulay_mixing_nr = 7
    PUBLIC :: cp_1d_z_p_type, mixing_storage_create, mixing_storage_type, mixing_storage_release, create_mixing_section
 
    TYPE cp_1d_z_p_type
@@ -67,7 +69,8 @@ MODULE qs_density_mixing_types
       REAL(KIND=dp)                                     :: alpha = -1.0_dp, bconst = -1.0_dp, beta = -1.0_dp, broy_w0 = -1.0_dp, &
                                                            max_g2 = -1.0_dp, max_gvec_exp = -1.0_dp, pulay_alpha = -1.0_dp, &
                                                            pulay_beta = -1.0_dp, r_step = -1.0_dp, reg_par = -1.0_dp, &
-                                                           sigma_max = -1.0_dp, wc = -1.0_dp, wmax = -1.0_dp
+                                                           sigma_max = -1.0_dp, wc = -1.0_dp, wmax = -1.0_dp, qm = -1.0_dp, &
+                                                           qk = -1.0_dp, qkappa = -1.0_dp
       ! Spin-channel-specific mixing parameters (for nspin==2, ispin=2 is the magnetization channel)
       REAL(KIND=dp)                                     :: alpha_mag = -1.0_dp, beta_mag = -1.0_dp
       REAL(KIND=dp), DIMENSION(:), POINTER              :: p_metric => NULL()
@@ -222,6 +225,12 @@ CONTAINS
          CALL section_vals_val_get(mixing_section, "REGULARIZATION", r_val=mixing_store%reg_par)
          CALL section_vals_val_get(mixing_section, "MAX_STEP", r_val=mixing_store%sigma_max)
          CALL section_vals_val_get(mixing_section, "R_FACTOR", r_val=mixing_store%r_step)
+      CASE (new_pulay_mixing_nr)
+         CALL section_vals_val_get(mixing_section, "PULAY_ALPHA", r_val=mixing_store%pulay_alpha)
+         CALL section_vals_val_get(mixing_section, "PULAY_BETA", r_val=mixing_store%pulay_beta)
+         CALL section_vals_val_get(mixing_section, "QM", r_val=mixing_store%qm)
+         CALL section_vals_val_get(mixing_section, "QK", r_val=mixing_store%qk)
+         CALL section_vals_val_get(mixing_section, "QKAPPA", r_val=mixing_store%qkappa)
       END SELECT
 
    END SUBROUTINE mixing_storage_create
@@ -542,10 +551,11 @@ CONTAINS
                                           "PULAY_MIXING", &
                                           "BROYDEN_MIXING", &
                                           "MODIFIED_BROYDEN_MIXING", &
-                                          "MULTISECANT_MIXING"), &
+                                          "MULTISECANT_MIXING", &
+                                          "NEW_PULAY_MIXING"), &
                           enum_i_vals=[no_mix, direct_p_mix, kerker_mix, pulay_mix, broy_mix, &
                                        modified_broy_mix, &
-                                       multisec_mix], &
+                                       multisec_mix, new_pulay_mix], &
                           enum_desc=s2a("No mixing is applied", &
                                         "Direct mixing of new and old density matrices", &
                                         "Mixing of the potential in reciprocal space using the Kerker damping", &
@@ -553,7 +563,9 @@ CONTAINS
                                         "Original CP2K Broyden mixing with a constant BROY_W0 regularization", &
                                         "Modified Broyden mixing with dynamic residual weights controlled by BROY_W0, "// &
                                         "BROY_WREF, and BROY_WMAX", &
-                                        "Multisecant scheme for mixing"))
+                                        "Multisecant scheme for mixing", "New Pulay mixing using Sundararaman et al.'s "// &
+                                        "metric and preconditioner, with improved convergence behavior and suitable for "// &
+                                        "grand canonical SCF"))
 
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -633,6 +645,49 @@ CONTAINS
                           type_of_var=real_t, &
                           default_r_val=1.0_dp, &
                           usage="PULAY_BETA 0.2")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="QM", &
+                          description="The control parameter in the numerator of the Pulay metric "// &
+                          "used in the new Pulay mixing, introduced to suppress charge sloshing: "// &
+                          "Pulay metric: M(g) = (g^2 + qm^2 + qkapa^2)/(g^2 + qkapa^2)", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=0.75_dp, &
+                          unit_str="bohr^-1", &
+                          usage="QM 0.75")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="QK", &
+                          description="The control parameter in the denominator of the Kerker preconditioner "// &
+                          "used in the new Pulay mixing, introduced to suppress charge sloshing: "// &
+                          "Kerker preconditioner: K(g) = alpha * (g^2 + qkapa^2)/(g^2 + qk^2 + qkapa^2)", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=3.0_dp, &
+                          unit_str="bohr^-1", &
+                          usage="QK 3.0")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="QKAPPA", &
+                          description="The control parameter in the numerator and the denominator of "// &
+                          "the Pulay metric and the Kerker preconditioner "// &
+                          "used in the new Pulay mixing, introduced to ensure a finite and well-defined "// &
+                          "Pulay metric at g=0 and a non-zero and well-defined Kerker preconditioner at g=0", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=0.25_dp, &
+                          unit_str="bohr^-1", &
+                          usage="QKAPPA 0.25")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
