@@ -375,19 +375,12 @@ if(MKL_FOUND)
     set(BLAS_mkl_INTFACE "intel")
   endif()
 
-  if(CP2K_BLAS_THREADING MATCHES "thread|gnu-thread")
-    set(BLAS_mkl_thread__ "omp")
-  endif()
-
-  if(CP2K_BLAS_THREADING MATCHES "sequential")
+  if(CP2K_BLAS_THREADING STREQUAL "sequential")
     set(BLAS_mkl_thread__ "seq")
-  endif()
-
-  if(CP2K_BLAS_THREADING MATCHES "intel-thread")
-    set(BLAS_mkl_thread__ "intel")
-  endif()
-
-  if(CP2K_BLAS_THREADING MATCHES "tbb")
+  elseif(CP2K_BLAS_THREADING MATCHES
+         "^(thread|gnu-thread|intel-thread|openmp)$")
+    set(BLAS_mkl_thread__ "omp")
+  elseif(CP2K_BLAS_THREADING STREQUAL "tbb-thread")
     set(BLAS_mkl_thread__ "tbb")
   endif()
 
