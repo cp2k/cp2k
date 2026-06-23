@@ -175,6 +175,8 @@ CONTAINS
       ! ========================================================================
       CALL compute_coeff_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
                               bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
+      ! flag the RI-RS grid as built so a subsequent RT-BSE run reuses Z_lP instead of rebuilding it
+      bs_env%ri_rs%grid_built = .TRUE.
 
       ! ========================================================================
       ! 4. Polarizability matrix χ on the imaginary-time grid
