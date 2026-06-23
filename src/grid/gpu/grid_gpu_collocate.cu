@@ -110,6 +110,7 @@ __launch_bounds__(64) void calculate_coefficients(const kernel_params dev_) {
     __syncthreads();
 
     cab_to_cxyz(task, smem_alpha, smem_cab, coef_);
+    __syncthreads();
   }
 }
 

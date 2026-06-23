@@ -86,6 +86,7 @@ __global__ __launch_bounds__(64) void compute_hab_v4(const kernel_params dev_) {
 
     compute_alpha(task, smem_alpha);
     __syncthreads();
+
     cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
     __syncthreads();
 
@@ -112,6 +113,9 @@ __global__ __launch_bounds__(64) void compute_hab_v4(const kernel_params dev_) {
         }
       }
     }
+    // all warps need to be synchronized here before modifying the task
+    // information.
+    __syncthreads();
   }
 }
 
@@ -173,6 +177,9 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
         T *shared_virial = &shared_memory[6];
 
         if (CALCULATE_FORCES) {
+          // Important to synchronize the warps
+          __syncthreads();
+
           if (tid < 3) {
             shared_forces_a[tid] = get_force_a<COMPUTE_TAU, T>(
                 a, b, tid, task.zeta, task.zetb, task.n1, smem_cab);
@@ -187,8 +194,8 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
                                              task.zetb, task.rab, task.n1,
                                              smem_cab);
           }
+          __syncthreads();
         }
-        __syncthreads();
 
         T block_val1 = 0.0;
         // Try to use as many contiguous threads as possible and limit the
@@ -231,7 +238,11 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
         }
       }
     }
+    __syncthreads();
   }
+
+  // theoretically not needed
+  __syncthreads();
 
   if (CALCULATE_FORCES) {
     const int task_id = dev_.task_sorted_by_blocks_dev[offset];
@@ -617,6 +628,7 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
     if (tid < min(length - ico, lbatch))
       dev_.ptr_dev[2][dev_.tasks[dev_.first_task + block_index()].coef_offset +
                       tid + ico] = sum[tid];
+    __syncthreads();
   }
 }
 
@@ -692,9 +704,6 @@ void context_info::compute_hab_coefficients() {
     compute_hab_v4<double, false>
         <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
            this->main_stream>>>(params);
-    // compute_hab_v2<double, double3, false, false>
-    //   <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
-    //   this->main_stream>>>(params);
     return;
   }
 
