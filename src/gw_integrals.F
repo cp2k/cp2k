@@ -53,8 +53,8 @@ MODULE gw_integrals
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_integrals'
 
    PUBLIC :: build_3c_integral_block, build_3c_integral_block_ctx, &
-             gw_3c_context_type, gw_3c_context_create, gw_3c_context_release, &
-             gw_3c_workspace_type, gw_3c_workspace_create, gw_3c_workspace_release
+             gw_3c_ctx_type, gw_3c_ctx_create, gw_3c_ctx_release, &
+             gw_3c_ws_type, gw_3c_ws_create, gw_3c_ws_release
 
 ! **************************************************************************************************
 !> \brief Shared read-only context for repeated 3-center integral block builds: screening
@@ -62,8 +62,8 @@ MODULE gw_integrals
 !>        truncated-Coulomb table initializations. Create and release OUTSIDE any OMP parallel
 !>        region; creation is MPI-collective when the potential is truncated.
 ! **************************************************************************************************
-   TYPE gw_3c_context_type
-      TYPE(libint_potential_type)                        :: potential_parameter
+   TYPE gw_3c_ctx_type
+      TYPE(libint_potential_type)                        :: potential_parameter = libint_potential_type()
       INTEGER                                            :: op_ij = do_potential_id, &
                                                             op_jk = do_potential_id
       REAL(KIND=dp)                                      :: dr_ij = 0.0_dp, dr_jk = 0.0_dp, &
@@ -80,16 +80,16 @@ MODULE gw_integrals
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set => NULL()
       TYPE(cell_type), POINTER                           :: cell => NULL()
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat = 0.0_dp
-   END TYPE gw_3c_context_type
+   END TYPE gw_3c_ctx_type
 
 ! **************************************************************************************************
 !> \brief Per-thread workspace for 3-center integral block builds: libint object + contraction
 !>        buffers. Each thread creates its own (inside the parallel region is fine).
 ! **************************************************************************************************
-   TYPE gw_3c_workspace_type
+   TYPE gw_3c_ws_type
       TYPE(cp_libint_t)                                  :: lib
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpp_buffer, ccp_buffer
-   END TYPE gw_3c_workspace_type
+   END TYPE gw_3c_ws_type
 
 CONTAINS
 
@@ -103,14 +103,14 @@ CONTAINS
 !> \param basis_k ...
 !> \param basis_i ...
 ! **************************************************************************************************
-   SUBROUTINE gw_3c_context_create(ctx, qs_env, potential_parameter, basis_j, basis_k, basis_i)
+   SUBROUTINE gw_3c_ctx_create(ctx, qs_env, potential_parameter, basis_j, basis_k, basis_i)
 
-      TYPE(gw_3c_context_type), INTENT(OUT)              :: ctx
+      TYPE(gw_3c_ctx_type), INTENT(OUT)                  :: ctx
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_j, basis_k, basis_i
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gw_3c_context_create'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gw_3c_ctx_create'
 
       INTEGER                                            :: egfi, handle, ibasis, ilist, imax, iset, &
                                                             jset, kset, nbasis, ncoi, sgfi, unit_id
@@ -222,15 +222,15 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE gw_3c_context_create
+   END SUBROUTINE gw_3c_ctx_create
 
 ! **************************************************************************************************
 !> \brief Releases the shared 3c-integral context.
 !> \param ctx ...
 ! **************************************************************************************************
-   SUBROUTINE gw_3c_context_release(ctx)
+   SUBROUTINE gw_3c_ctx_release(ctx)
 
-      TYPE(gw_3c_context_type), INTENT(INOUT)            :: ctx
+      TYPE(gw_3c_ctx_type), INTENT(INOUT)                :: ctx
 
       INTEGER                                            :: ibasis, iset
 
@@ -248,37 +248,37 @@ CONTAINS
       IF (ALLOCATED(ctx%basis_j)) DEALLOCATE (ctx%basis_j)
       IF (ALLOCATED(ctx%basis_k)) DEALLOCATE (ctx%basis_k)
 
-   END SUBROUTINE gw_3c_context_release
+   END SUBROUTINE gw_3c_ctx_release
 
 ! **************************************************************************************************
 !> \brief Creates a per-thread 3c workspace: libint object + LIBXSMM contraction buffers.
 !> \param ws ...
 !> \param ctx ...
 ! **************************************************************************************************
-   SUBROUTINE gw_3c_workspace_create(ws, ctx)
+   SUBROUTINE gw_3c_ws_create(ws, ctx)
 
-      TYPE(gw_3c_workspace_type), INTENT(OUT)            :: ws
-      TYPE(gw_3c_context_type), INTENT(IN)               :: ctx
+      TYPE(gw_3c_ws_type), INTENT(OUT)                   :: ws
+      TYPE(gw_3c_ctx_type), INTENT(IN)                   :: ctx
 
       CALL cp_libint_init_3eri(ws%lib, ctx%max_am)
       CALL cp_libint_set_contrdepth(ws%lib, 1)
       ALLOCATE (ws%cpp_buffer(ctx%max_nsgfj*ctx%max_ncok), &
                 ws%ccp_buffer(ctx%max_nsgfj*ctx%max_nsgfk*ctx%max_ncoi))
 
-   END SUBROUTINE gw_3c_workspace_create
+   END SUBROUTINE gw_3c_ws_create
 
 ! **************************************************************************************************
 !> \brief Releases a per-thread 3c workspace.
 !> \param ws ...
 ! **************************************************************************************************
-   SUBROUTINE gw_3c_workspace_release(ws)
+   SUBROUTINE gw_3c_ws_release(ws)
 
-      TYPE(gw_3c_workspace_type), INTENT(INOUT)          :: ws
+      TYPE(gw_3c_ws_type), INTENT(INOUT)                 :: ws
 
       CALL cp_libint_cleanup_3eri(ws%lib)
       DEALLOCATE (ws%cpp_buffer, ws%ccp_buffer)
 
-   END SUBROUTINE gw_3c_workspace_release
+   END SUBROUTINE gw_3c_ws_release
 
 ! **************************************************************************************************
 !> \brief Computes the 3c integral block (mu(atom_j) nu(atom_k) | P(atom_i)) for ONE atom triple,
@@ -286,8 +286,8 @@ CONTAINS
 !>        Thread-safe: reads the frozen ctx + read-only module tables, mutates only its arguments
 !>        and the per-thread ws.
 !> \param int_3c pre-zeroed target; the triple's contribution is accumulated in place
-!> \param ctx shared context from gw_3c_context_create
-!> \param ws per-thread workspace from gw_3c_workspace_create
+!> \param ctx shared context from gw_3c_ctx_create
+!> \param ws per-thread workspace from gw_3c_ws_create
 !> \param atom_j ...
 !> \param atom_k ...
 !> \param atom_i ...
@@ -304,8 +304,8 @@ CONTAINS
                                           j_offset, k_offset, i_offset, screened)
 
       REAL(KIND=dp), DIMENSION(:, :, :)                  :: int_3c
-      TYPE(gw_3c_context_type), INTENT(IN)               :: ctx
-      TYPE(gw_3c_workspace_type), INTENT(INOUT)          :: ws
+      TYPE(gw_3c_ctx_type), INTENT(IN)                   :: ctx
+      TYPE(gw_3c_ws_type), INTENT(INOUT)                 :: ws
       INTEGER, INTENT(IN)                                :: atom_j, atom_k, atom_i
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: cell_j, cell_k, cell_i
       INTEGER, INTENT(IN), OPTIONAL                      :: j_offset, k_offset, i_offset
@@ -436,9 +436,7 @@ CONTAINS
    END SUBROUTINE build_3c_integral_block_ctx
 
 ! **************************************************************************************************
-!> \brief Standalone wrapper: creates a transient ctx + ws, builds the 3c integral block(s) for the
-!>        requested atom triple(s) via build_3c_integral_block_ctx, then releases them. Reuse a
-!>        persistent ctx with build_3c_integral_block_ctx directly in OMP / repeated-call paths.
+!> \brief ...
 !> \param int_3c ...
 !> \param qs_env ...
 !> \param potential_parameter ...
@@ -475,13 +473,13 @@ CONTAINS
 
       INTEGER                                            :: at_i, at_j, at_k, handle, my_i_offset, &
                                                             my_j_offset, my_k_offset
-      TYPE(gw_3c_context_type)                           :: ctx
-      TYPE(gw_3c_workspace_type)                         :: ws
+      TYPE(gw_3c_ctx_type)                               :: ctx
+      TYPE(gw_3c_ws_type)                                :: ws
 
       CALL timeset(routineN, handle)
 
-      CALL gw_3c_context_create(ctx, qs_env, potential_parameter, basis_j, basis_k, basis_i)
-      CALL gw_3c_workspace_create(ws, ctx)
+      CALL gw_3c_ctx_create(ctx, qs_env, potential_parameter, basis_j, basis_k, basis_i)
+      CALL gw_3c_ws_create(ws, ctx)
 
       int_3c(:, :, :) = 0.0_dp
 
@@ -530,8 +528,8 @@ CONTAINS
          END DO ! atom_j (AO)
       END DO ! atom_i (RI)
 
-      CALL gw_3c_workspace_release(ws)
-      CALL gw_3c_context_release(ctx)
+      CALL gw_3c_ws_release(ws)
+      CALL gw_3c_ctx_release(ctx)
 
       CALL timestop(handle)
 

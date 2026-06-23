@@ -226,6 +226,7 @@ list(
   gw_main.F
   gw_large_cell_gamma.F
   gw_small_cell_full_kp.F
+  gw_non_periodic_ri_rs.F
   gw_large_cell_gamma_ri_rs.F
   post_scf_bandstructure_types.F
   post_scf_bandstructure_utils.F
@@ -1801,7 +1802,17 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_OPENPMD}>:openPMD::openPMD>
     $<$<AND:$<CONFIG:COVERAGE>,$<Fortran_COMPILER_ID:GNU>>:gcov>)
 
-string(TIMESTAMP CP2K_TIMESTAMP "%Y-%m-%d %H:%M:%S")
+set(CP2K_BUILD_INFO_FILE "${CMAKE_CURRENT_BINARY_DIR}/cp2k_build_info.h")
+file(WRITE "${CP2K_BUILD_INFO_FILE}" "#define __COMPILE_DATE \"unknown\"\n")
+add_custom_target(
+  cp2k_build_info
+  COMMAND ${CMAKE_COMMAND} -DOUTPUT_FILE=${CP2K_BUILD_INFO_FILE} -P
+          ${PROJECT_SOURCE_DIR}/cmake/GenerateCp2kBuildInfo.cmake
+  BYPRODUCTS ${CP2K_BUILD_INFO_FILE}
+  COMMENT "Updating CP2K build timestamp"
+  VERBATIM)
+set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/cp2k_info.F
+                            PROPERTIES OBJECT_DEPENDS "${CP2K_BUILD_INFO_FILE}")
 
 if(CP2K_DATA_DIR STREQUAL "default")
   set(CP2K_DATA_DIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/${PROJECT_NAME}/data")
@@ -1813,7 +1824,6 @@ target_compile_definitions(
   PUBLIC
     $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
     $<$<BOOL:${CP2K_USE_MPI_F08}>:__MPI_F08>
-    __COMPILE_DATE=\"${CP2K_TIMESTAMP}\"
     __COMPILE_HOST=\"${CP2K_HOST_NAME}\"
     __COMPILE_REVISION=\"${CP2K_GIT_HASH}\"
     __DATA_DIR=\"${CP2K_DATA_DIR}\"
@@ -1882,6 +1892,8 @@ if(CP2K_USE_CUDA
            $<$<NOT:$<BOOL:${CP2K_ENABLE_DBM_GPU}>>:__NO_OFFLOAD_DBM>
            $<$<NOT:$<BOOL:${CP2K_ENABLE_PW_GPU}>>:__NO_OFFLOAD_PW>)
 endif()
+
+add_dependencies(cp2k cp2k_build_info)
 
 # add an alias for the FetchContent. Note that FindPackage will automatically
 # have this alias available.

@@ -63,6 +63,7 @@ MODULE gw_utils
    USE input_constants,                 ONLY: do_potential_truncated,&
                                               large_cell_Gamma,&
                                               large_cell_Gamma_ri_rs,&
+                                              non_periodic_ri_rs,&
                                               ri_rpa_g0w0_crossing_newton,&
                                               rtp_method_bse,&
                                               small_cell_full_kp,&
@@ -190,7 +191,7 @@ CONTAINS
       CALL create_tensors(qs_env, bs_env)
 
       SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
-      CASE (large_cell_Gamma, large_cell_Gamma_ri_rs)
+      CASE (large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs)
 
          CALL allocate_GW_eigenvalues(bs_env)
 
@@ -293,6 +294,10 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "FREQ_MAX_FIT", r_val=bs_env%freq_max_fit)
       CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT", l_val=bs_env%print_contract)
       CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT_VERBOSE", l_val=bs_env%print_contract_verbose)
+      CALL section_vals_val_get(gw_sec, "TIKHONOV", r_val=bs_env%ri_rs%tikhonov)
+      CALL section_vals_val_get(gw_sec, "GRID_SELECT", i_val=bs_env%ri_rs%grid_select)
+      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RI_RS", r_val=bs_env%ri_rs%cutoff_radius_ri_rs)
+      CALL section_vals_val_get(gw_sec, "N_PROCS_PER_ATOM_Z_LP", i_val=bs_env%ri_rs%n_procs_per_atom_z_lp)
 
       IF (bs_env%print_contract) THEN
          bs_env%unit_nr_contract = bs_env%unit_nr
@@ -500,7 +505,7 @@ CONTAINS
                nkp_grid_extra(i_dim) = 1
             CASE (1)
                SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
-               CASE (large_cell_Gamma, large_cell_Gamma_ri_rs)
+               CASE (large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs)
                   nkp_grid(i_dim) = 4
                   nkp_grid_extra(i_dim) = 6
                CASE (small_cell_full_kp)
@@ -1693,9 +1698,12 @@ CONTAINS
          IF (bs_env%do_gw_ri_rs) THEN
             WRITE (u, FMT="(T2,A,ES44.1)") " "
             WRITE (u, FMT="(T2,A,ES37.1)") "INPUT: Regularization parameter for RI-RS ", bs_env%ri_rs%tikhonov
-            WRITE (u, FMT="(T2,A,F31.1,A)") "INPUT: Cutoff radius for grid points in RI-RS ", &
-               bs_env%ri_rs%cutoff_radius_ri_rs*angstrom, " Å"
-            WRITE (u, FMT="(T2,A,I42)") "INPUT: Chunk size for DBCSR matrices ", bs_env%ri_rs%chunk_size_dbcsr
+            IF (bs_env%ri_rs%cutoff_radius_ri_rs /= -1.0_dp) THEN
+               WRITE (u, FMT="(T2,A,F31.1,A)") "INPUT: Cutoff radius for grid points in RI-RS ", &
+                  bs_env%ri_rs%cutoff_radius_ri_rs*angstrom, " Å"
+            END IF
+            WRITE (u, FMT="(T2,A,I35)") "INPUT: Number of MPI ranks per atom in Z_lP solve ", &
+               bs_env%ri_rs%n_procs_per_atom_z_lp
             WRITE (u, FMT="(T2,A,ES44.1)") " "
          END IF
       END IF
@@ -1755,7 +1763,7 @@ CONTAINS
       energy_ex = energy%ex
 
       SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
-      CASE (large_cell_Gamma, large_cell_Gamma_ri_rs)
+      CASE (large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs)
 
          NULLIFY (mat_ks_without_v_xc)
          CALL dbcsr_allocate_matrix_set(mat_ks_without_v_xc, bs_env%n_spin)
@@ -1874,7 +1882,7 @@ CONTAINS
       DO ispin = 1, bs_env%n_spin
          homo = bs_env%n_occ(ispin)
          SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
-         CASE (large_cell_Gamma, large_cell_Gamma_ri_rs)
+         CASE (large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs)
             E_min_ispin = bs_env%eigenval_scf_Gamma(homo + 1, ispin) - &
                           bs_env%eigenval_scf_Gamma(homo, ispin)
             E_max_ispin = bs_env%eigenval_scf_Gamma(n_mo, ispin) - &

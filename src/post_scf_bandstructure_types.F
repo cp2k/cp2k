@@ -67,9 +67,16 @@ MODULE post_scf_bandstructure_types
 
       ! Input parameters for RI-RS
       INTEGER                                          :: grid_select = 1
-      INTEGER                                          :: chunk_size_dbcsr = 256
       REAL(KIND=dp)                                    :: tikhonov = 1.0E-08_dp
       REAL(KIND=dp)                                    :: cutoff_radius_ri_rs = 30.0_dp
+
+      ! Number of MPI ranks that cooperate on one atom's Cholesky solve via
+      ! distributed pdpotrf. Default 1 = single-rank dpotrf path (BLAS, fastest
+      ! when D_local fits per rank). > 1 enables ScaLAPACK: ranks are split into
+      ! atom-groups of this size, D_local is block-cyclic distributed across
+      ! each group (memory ~1/G per rank), and compute_d_lp is also split across
+      ! the subgroup so wall time matches the BLAS path.
+      INTEGER                                          :: n_procs_per_atom_z_lp = 1
 
       ! Data types for building grid points
       TYPE(rirs_grid_type), ALLOCATABLE                :: grid_cache(:)
@@ -79,6 +86,10 @@ MODULE post_scf_bandstructure_types
       TYPE(dbcsr_type)                                 :: mat_Z_lP
       REAL(KIND=dp), ALLOCATABLE                       :: grid_points(:, :)
       LOGICAL                                          :: Z_lP_exists = .FALSE.
+
+      ! Per-atom spatial extent of the most diffuse Gaussian primitive in each basis
+      REAL(KIND=dp), ALLOCATABLE                       :: radius_ao_per_atom(:)
+      REAL(KIND=dp), ALLOCATABLE                       :: radius_ri_per_atom(:)
 
    END TYPE ri_rs_env
 
@@ -508,6 +519,8 @@ CONTAINS
       IF (bs_env%do_gw_ri_rs) CALL dbcsr_release(bs_env%ri_rs%mat_Z_lP)
       IF (ALLOCATED(bs_env%ri_rs%grid_points)) DEALLOCATE (bs_env%ri_rs%grid_points)
       IF (ALLOCATED(bs_env%ri_rs%grid_cache)) DEALLOCATE (bs_env%ri_rs%grid_cache)
+      IF (ALLOCATED(bs_env%ri_rs%radius_ao_per_atom)) DEALLOCATE (bs_env%ri_rs%radius_ao_per_atom)
+      IF (ALLOCATED(bs_env%ri_rs%radius_ri_per_atom)) DEALLOCATE (bs_env%ri_rs%radius_ri_per_atom)
 
       DEALLOCATE (bs_env)
 

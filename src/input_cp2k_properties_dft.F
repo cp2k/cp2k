@@ -2362,10 +2362,6 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_gw_ri_rs_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
       CALL create_soc_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -2587,68 +2583,84 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-   END SUBROUTINE create_gw_section
-
-! **************************************************************************************************
-!> \brief creates an input section for Real-Space Resolution of Identity GW
-!> \param section section to create
-!> \par History
-!>    * 04.2026 created [Ritaj Tyagi]
-! **************************************************************************************************
-   SUBROUTINE create_gw_ri_rs_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="GW_RI_RS", &
-                          description="Parameters needed to set up a RI-RS based GW calculation", &
-                          n_keywords=1, n_subsections=1, repeats=.FALSE.)
-
-      NULLIFY (keyword)
-      CALL keyword_create(keyword, __LOCATION__, &
-                          name="_SECTION_PARAMETERS_", &
-                          description="Controls the activation of the GW RI-RS calculation.", &
+      CALL keyword_create(keyword, __LOCATION__, name="RI_RS", &
+                          description="Real-Space Resolution of Identity (RI-RS) method. This "// &
+                          "approximation replaces the conventional 3-center RI integrals (μν|P) "// &
+                          "by a factorized representation on an atom-centered real-space grid "// &
+                          "{r_ℓ}: (μν|P) ≈ ∑_ℓ φ_μ(r_ℓ) φ_ν(r_ℓ) Z_ℓP. "// &
+                          "The coefficients Z_ℓP combine the numerical integration weights and "// &
+                          "the Coulomb potential of the auxiliary basis function P evaluated "// &
+                          "at grid point r_ℓ. To reduce the computational cost, only grid points "// &
+                          "within the sphere B^P are included, where "// &
+                          "B^P = {r : |r - R_P| < Rc + r_P}. "// &
+                          "Here, r_P is the effective Gaussian basis radius for atom P at which "// &
+                          "the basis function magnitude falls below a threshold δ "// &
+                          "(currently controlled through EPS_FILTER). "// &
+                          "This locality approximation yields a sparse representation of the "// &
+                          "3-center integrals enables reduced computational cost. "// &
+                          "See details in https://doi.org/10.1063/1.5090605.", &
+                          usage="RI_RS", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="TIKHONOV", &
-                          description="Parameter for regularization used in RI-RS. "// &
-                          "See Equation (9) in 10.1063/1.5090605 for more details", &
+                          description="Regularization parameter (α) used to stabilize "// &
+                          "the inversion of the grid-overlap matrix "// &
+                          "D in the Real-Space RI (RI-RS) method. See Equation (9) in https://doi.org/10.1063/1.5090605.", &
                           usage="TIKHONOV 1.0E-8", &
                           default_r_val=1.0E-08_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="GRID_SELECT", &
-                          description="Selection of grid type (1) def2-TZVPP (2) cc-pVTZ ", &
+                          description="Selection of the atom-centeredgrid type used "// &
+                          "in RI-RS optimized by Duchemin and Blase. "// &
+                          "(1) def2-TZVPP: Grid optimized by Duchemin and Blase, "// &
+                          "available for elements up to the fourth row "// &
+                          "of the periodic table (see https://doi.org/10.1021/acs.jctc.1c00101). "// &
+                          "(2) cc-pVTZ: Optimized grids available for H, C, N, and O atoms "// &
+                          "(see https://doi.org/10.1063/1.5090605).", &
                           usage="GRID_SELECT 1", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="CHUNK_SIZE_DBCSR", &
-                          description="Chunk size for DBCSR matrices", &
-                          usage="CHUNK_SIZE_DBCSR 256", &
-                          default_i_val=256)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_RI_RS", &
-                          description="The cutoff radius (in Angstrom) for the Resolution "// &
-                          "of Identity Real Space Approximation", &
+                          description="Override (in Angstrom) of the truncated-Coulomb cutoff radius Rc used "// &
+                          "to size the per-atom RI-RS integration domain "// &
+                          "B^P = {r : |r - R_P| < Rc + r_AO(P)}, where r_AO(P) is the spatial extent of the "// &
+                          "most diffuse AO Gaussian on atom P. By default (-1.0) Rc falls back to "// &
+                          "CUTOFF_RADIUS_RI from the GW section (the same Rc used to build the RI metric "// &
+                          "integrals). Useful for convergence sweeps.", &
                           usage="CUTOFF_RADIUS_RI_RS 15.0", &
-                          default_r_val=cp_unit_to_cp2k(value=15.0_dp, unit_str="angstrom"), &
+                          default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="angstrom"), &
                           type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-   END SUBROUTINE create_gw_ri_rs_section
+      CALL keyword_create(keyword, __LOCATION__, name="N_PROCS_PER_ATOM_Z_LP", &
+                          description="Number of MPI ranks that cooperate on one atom's "// &
+                          "Cholesky factorisation in compute_coeff_Z_lP. Default 1 keeps "// &
+                          "the single-rank LAPACK dpotrf path (BLAS, fastest when "// &
+                          "D_local fits per rank). Setting > 1 enables a ScaLAPACK "// &
+                          "pdpotrf path: ranks are split into atom-groups of this size, "// &
+                          "D_local is block-cyclic distributed across each group (per-rank "// &
+                          "memory ~1/G), the compute_d_lp build is also distributed across "// &
+                          "the subgroup, and multiple groups process different atoms in "// &
+                          "parallel. Use for systems where n_local_grid is large enough "// &
+                          "that the dense (n_local_grid)^2 D_local does not fit in a "// &
+                          "single rank's memory.", &
+                          usage="N_PROCS_PER_ATOM_Z_LP 16", &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_gw_section
 
 ! **************************************************************************************************
 !> \brief creates an input section for calculation SOC for the electronic band structure
