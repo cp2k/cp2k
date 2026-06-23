@@ -393,7 +393,7 @@ CONTAINS
                ! MAO basis
                IF (ASSOCIATED(ec_env%mao_coef)) CALL dbcsr_deallocate_matrix_set(ec_env%mao_coef)
                NULLIFY (ec_env%mao_coef)
-               CALL mao_generate_basis(qs_env, ec_env%mao_coef, ref_basis_set="HARRIS", molecular=.TRUE., &
+               CALL mao_generate_basis(qs_env, ec_env%mao_coef, ref_basis_set="HARRIS", &
                                        max_iter=ec_env%mao_max_iter, eps_grad=ec_env%mao_eps_grad, &
                                        eps1_mao=ec_env%mao_eps1, iolevel=ec_env%mao_iolevel, unit_nr=unit_nr)
             END IF

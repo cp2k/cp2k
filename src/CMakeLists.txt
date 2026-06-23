@@ -363,6 +363,7 @@ list(
   mao_methods.F
   mao_optimizer.F
   mao_wfn_analysis.F
+  mao_io.F
   matrix_exp.F
   maxwell_solver_interface.F
   mdctrl_types.F
