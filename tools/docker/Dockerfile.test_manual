@@ -72,7 +72,7 @@ COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 
 # Compile CP2K.
-COPY ./tools/docker/scripts/build_cp2k.sh .
+COPY ./tools/docker/scripts/build_cp2k.sh ./tools/docker/scripts/cmake_cp2k.sh ./
 RUN ./build_cp2k.sh toolchain pdbg
 
 # Generate manual.
