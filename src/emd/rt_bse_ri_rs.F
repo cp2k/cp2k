@@ -39,14 +39,15 @@ MODULE rt_bse_ri_rs
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE gw_large_cell_Gamma_ri_rs,       ONLY: atomic_basis_at_grid_point,&
+   USE gw_large_cell_Gamma_ri_rs,       ONLY: hadamard_product_inplace
+   USE gw_large_cell_gamma,             ONLY: multiply_fm_W_MIC_time_with_Minv_Gamma
+   USE gw_non_periodic_ri_rs,           ONLY: atomic_basis_at_grid_point,&
                                               compute_coeff_Z_lP,&
                                               contract_A_B_A,&
-                                              hadamard_product_inplace,&
+                                              precompute_ri_rs_radii,&
                                               release_dbcsr_topology_and_matrices,&
                                               ri_rs_grid_assembler,&
                                               setup_square_topology
-   USE gw_large_cell_gamma,             ONLY: multiply_fm_W_MIC_time_with_Minv_Gamma
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
@@ -101,6 +102,11 @@ CONTAINS
       t1 = m_walltime()
 
       CALL ri_rs_grid_assembler(qs_env, bs_env, bs_env%ri_rs%grid_points)
+      ! Per-atom AO/RI screening radii required by the screened grid-fill and d_lP routines; the
+      ! GW RI-RS driver populates these, but the standalone RT-BSE grid build must do so itself.
+      IF (.NOT. ALLOCATED(bs_env%ri_rs%radius_ao_per_atom)) THEN
+         CALL precompute_ri_rs_radii(qs_env, bs_env)
+      END IF
       CALL atomic_basis_at_grid_point(qs_env, bs_env, bs_env%ri_rs%grid_points, &
                                       bs_env%ri_rs%mat_phi_mu_l)
       CALL compute_coeff_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &

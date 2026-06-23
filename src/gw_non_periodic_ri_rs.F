@@ -109,7 +109,9 @@ MODULE gw_non_periodic_ri_rs
    INTEGER(KIND=int_8), PARAMETER, PRIVATE :: dbcsr_msg_elem_limit = INT(HUGE(0_int_4), int_8)
 
    PUBLIC :: gw_calc_non_periodic_ri_rs, ri_rs_grid_assembler, &
-             get_basis_offsets, precompute_ri_rs_radii, solve_D_lp_distributed
+             get_basis_offsets, precompute_ri_rs_radii, solve_D_lp_distributed, &
+             atomic_basis_at_grid_point, compute_coeff_Z_lP, contract_A_B_A, &
+             setup_square_topology, release_dbcsr_topology_and_matrices
 
 CONTAINS
 
