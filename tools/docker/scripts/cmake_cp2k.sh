@@ -22,12 +22,7 @@ VERSION=$2
 
 # Using Ninja because of https://gitlab.kitware.com/cmake/cmake/issues/18188
 
-if [[ "${PROFILE}" =~ ^spack ]]; then
-  eval "$(spack env activate myenv --sh)"
-  # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
-  Torch_DIR="$(dirname "$(find /opt/spack ! -type l -name TorchConfig.cmake | tail -n 1)")"
-  export Torch_DIR
-elif [[ "${PROFILE}" =~ ^toolchain ]]; then
+if [[ "${PROFILE}" =~ ^toolchain ]]; then
   # shellcheck disable=SC1091
   source "${TOOLCHAIN_DIR}/install/setup"
 elif [[ "${PROFILE}" =~ ^ubuntu ]] || [[ "${PROFILE}" =~ ^minimal ]]; then
@@ -43,30 +38,7 @@ cd build || return 1
 
 # TODO: Reconcile PROFILE/VERSION with CP2K_BUILD_OPTIONS in CMakeLists.txt
 #
-if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  cmake \
-    -GNinja \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_USE_EVERYTHING=ON \
-    -DCP2K_USE_DLAF=OFF \
-    -DCP2K_USE_OPENPMD=ON \
-    -DCP2K_USE_TBLITE=OFF \
-    -Werror=dev \
-    .. |& tee ./cmake.log
-  CMAKE_EXIT_CODE=$?
-
-elif [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "ssmp" ]]; then
-  cmake \
-    -GNinja \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_USE_EVERYTHING=ON \
-    -DCP2K_USE_MPI=OFF \
-    -DCP2K_USE_TBLITE=OFF \
-    -Werror=dev \
-    .. |& tee ./cmake.log
-  CMAKE_EXIT_CODE=$?
-
-elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "pdbg" ]]; then
+if [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "pdbg" ]]; then
   cmake \
     -GNinja \
     -DCMAKE_BUILD_TYPE="Debug" \
