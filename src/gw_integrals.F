@@ -63,7 +63,7 @@ MODULE gw_integrals
 !>        region; creation is MPI-collective when the potential is truncated.
 ! **************************************************************************************************
    TYPE gw_3c_ctx_type
-      TYPE(libint_potential_type)                        :: potential_parameter
+      TYPE(libint_potential_type)                        :: potential_parameter = libint_potential_type()
       INTEGER                                            :: op_ij = do_potential_id, &
                                                             op_jk = do_potential_id
       REAL(KIND=dp)                                      :: dr_ij = 0.0_dp, dr_jk = 0.0_dp, &

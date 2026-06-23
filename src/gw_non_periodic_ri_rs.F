@@ -1197,7 +1197,7 @@ CONTAINS
                                                             jsize, jstart, k, ksize, kstart, l, &
                                                             l0, ri
       LOGICAL                                            :: screened
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_prv, int_2d_prv, rho_chunk
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: int_2d_prv, rho_chunk
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: int_3c_prv
       TYPE(gw_3c_ws_type)                                :: ws
 
@@ -1207,21 +1207,19 @@ CONTAINS
       !$OMP SHARED(bs_env, ctx, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size, &
       !$OMP        atom_j_mepos, atom_j_stride) &
       !$OMP PRIVATE(atom_j, atom_k, c, j, jk_idx, jsize, jstart, k, ksize, kstart, l, l0, ri, &
-      !$OMP         screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, ws)
+      !$OMP         screened, int_2d_prv, rho_chunk, int_3c_prv, ws)
 
       CALL gw_3c_ws_create(ws, ctx)
       ALLOCATE (int_3c_prv(max_ao_size, max_ao_size, n_loc_ri))
       ALLOCATE (int_2d_prv(max_ao_size*max_ao_size, n_loc_ri))
       ALLOCATE (rho_chunk(grid_chunk, max_ao_size*max_ao_size))
-      ALLOCATE (d_lp_prv(n_grid_total, n_loc_ri))
-      d_lp_prv(:, :) = 0.0_dp
 
       ! MPI-stride atom_j over the subgroup (atom_j_stride = 1 for the BLAS
       ! path, > 1 for the ScaLAPACK path). The OMP DO parallelizes the inner
       ! atom_k while the outer atom_j carries the MPI stride. COLLAPSE(2) is
       ! dropped because the outer stride is non-unit under ScaLAPACK; for
       ! typical natom the inner loop has plenty of work for DYNAMIC.
-      !$OMP DO SCHEDULE(DYNAMIC)
+      !$OMP DO SCHEDULE(DYNAMIC) REDUCTION(+:d_lp)
       DO atom_j = atom_j_mepos + 1, SIZE(bs_env%i_ao_start_from_atom), atom_j_stride
          DO atom_k = 1, SIZE(bs_env%i_ao_start_from_atom)
             jstart = bs_env%i_ao_start_from_atom(atom_j)
@@ -1265,18 +1263,13 @@ CONTAINS
                CALL dgemm("N", "N", c, n_loc_ri, jsize*ksize, &
                           1.0_dp, rho_chunk, grid_chunk, &
                           int_2d_prv, max_ao_size*max_ao_size, &
-                          1.0_dp, d_lp_prv(l0, 1), n_grid_total)
+                          1.0_dp, d_lp(l0, 1), n_grid_total)
             END DO
          END DO
       END DO
       !$OMP END DO
 
-      !$OMP CRITICAL (compute_d_lp_reduce)
-      d_lp(1:n_grid_total, 1:n_loc_ri) = d_lp(1:n_grid_total, 1:n_loc_ri) + &
-                                         d_lp_prv(1:n_grid_total, 1:n_loc_ri)
-      !$OMP END CRITICAL (compute_d_lp_reduce)
-
-      DEALLOCATE (int_3c_prv, int_2d_prv, rho_chunk, d_lp_prv)
+      DEALLOCATE (int_3c_prv, int_2d_prv, rho_chunk)
       CALL gw_3c_ws_release(ws)
 
       !$OMP END PARALLEL

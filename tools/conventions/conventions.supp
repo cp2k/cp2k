@@ -77,6 +77,7 @@ graph_methods.F: Found WRITE statement with hardcoded unit in "fes_min" https://
 graph_methods.F: Found WRITE statement with hardcoded unit in "fes_path" https://cp2k.org/conv#c012
 graph_utils.F: Found WRITE statement with hardcoded unit in "get_val_res" https://cp2k.org/conv#c012
 greenx_interface.F: Module "gx_minimax" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+gw_integrals.F: Found type cp_libint_t without initializer https://cp2k.org/conv#c016
 gx_ac_unittest.F: Found WRITE statement with hardcoded unit in "gx_ac_unittest" https://cp2k.org/conv#c012
 hdf5_wrapper.F: Module "hdf5" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache" https://cp2k.org/conv#c001
