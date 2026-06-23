@@ -48,8 +48,8 @@
       &END PRINT
       &RTBSE
         DIAGNOSE_LIOUVILLIAN_EIG T
-        LRRTBSE T
         KERNEL_RI RS
+        LRRTBSE T
         TDA T
       &END RTBSE
     &END REAL_TIME_PROPAGATION
@@ -75,15 +75,13 @@
   &PROPERTIES
     &BANDSTRUCTURE
       &GW
+        GRID_SELECT 2
         NUM_TIME_FREQ_POINTS 20
         &PRINT
           &RESTART OFF
           &END RESTART
         &END PRINT
       &END GW
-      &GW_RI_RS
-        GRID_SELECT 2
-      &END GW_RI_RS
     &END BANDSTRUCTURE
   &END PROPERTIES
   &SUBSYS
