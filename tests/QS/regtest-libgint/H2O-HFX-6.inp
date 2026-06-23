@@ -1,0 +1,89 @@
+&GLOBAL
+  EPS_CHECK_DIAG 1.0E-8
+  PRINT_LEVEL Medium
+  PROJECT H2O-6_low_prec
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 80
+      REL_CUTOFF 40
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-8
+      EXTRAPOLATION_ORDER 3
+      WF_INTERPOLATION PS
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-8
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 3
+      SCF_GUESS ATOMIC
+      &OT ON
+        MINIMIZER DIIS
+      &END OT
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &HF
+        HFX_LIBRARY libgint
+        &INTERACTION_POTENTIAL
+          CUTOFF_RADIUS 4.5
+          POTENTIAL_TYPE TRUNCATED
+          T_C_G_DATA ./t_c_g.dat
+        &END INTERACTION_POTENTIAL
+        &MEMORY
+          EPS_STORAGE_SCALING 0.1
+          MAX_MEMORY 1000
+        &END MEMORY
+        &SCREENING
+          EPS_SCHWARZ 1.0E-6
+        &END SCREENING
+      &END HF
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 9.8528 9.8528 9.8528
+    &END CELL
+    # 3 H2O cut from 32 H2O (TIP5P,1bar,300K) a = 9.8528
+    &COORD
+      O       2.280398       9.146539       5.088696
+      H       1.762019       9.820429       5.528454
+      H       3.095987       9.107088       5.588186
+      O       1.251703       2.406261       7.769908
+      H       0.554129       2.982634       8.082024
+      H       1.771257       2.954779       7.182181
+      O       1.596302       6.920128       0.656695
+      H       2.112148       6.126321       0.798136
+      H       1.776389       7.463264       1.424030
+      O       3.280398      10.146539       6.088696
+      H       2.762019      10.820429       6.528454
+      H       4.095987      10.107088       6.588186
+      O       2.251703       3.406261       8.769908
+      H       1.554129       3.982634       9.082024
+      H       2.771257       3.954779       8.182181
+      O       2.596302       7.920128       1.656695
+      H       3.112148       7.126321       1.798136
+      H       2.776389       8.463264       2.424030
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

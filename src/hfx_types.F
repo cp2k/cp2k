@@ -10,6 +10,7 @@
 !> \par History
 !>      04.2008 created [Manuel Guidon]
 !>      05.2019 Moved erfc_cutoff to common/mathlib (A. Bussy)
+!>      10.2025 Added gcc from basis_parameter and hfx_library option
 !> \author Manuel Guidon
 ! **************************************************************************************************
 MODULE hfx_types
@@ -199,6 +200,7 @@ MODULE hfx_types
 ! **************************************************************************************************
    TYPE hfx_general_type
       REAL(dp)                                 :: fraction = 0.0_dp !! for hybrids
+      INTEGER                                  :: hfx_library = 0
       LOGICAL                                  :: treat_lsd_in_core = .FALSE.
    END TYPE hfx_general_type
 
@@ -277,6 +279,7 @@ MODULE hfx_types
       INTEGER, DIMENSION(:), POINTER           :: nshell => NULL()
       REAL(dp), DIMENSION(:, :, :, :), POINTER &
          :: sphi_ext => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER   :: gcc => NULL()
       REAL(dp), DIMENSION(:), POINTER          :: set_radius => NULL()
       REAL(dp), DIMENSION(:, :), POINTER        :: pgf_radius => NULL()
       REAL(dp)                                 :: kind_radius = 0.0_dp
@@ -668,6 +671,9 @@ CONTAINS
 
             CALL section_vals_val_get(hfx_section, "TREAT_LSD_IN_CORE", l_val=logic_val, i_rep_section=irep)
             actual_x_data%general_parameter%treat_lsd_in_core = logic_val
+
+            CALL section_vals_val_get(hfx_section, "HFX_LIBRARY", i_val=int_val, i_rep_section=irep)
+            actual_x_data%general_parameter%hfx_library = int_val
 
             hfx_ri_section => section_vals_get_subs_vals(hfx_section, "RI")
             CALL section_vals_val_get(hfx_ri_section, "_SECTION_PARAMETERS_", l_val=actual_x_data%do_hfx_ri)
@@ -1747,6 +1753,7 @@ CONTAINS
                                 nsgf_set=basis_parameter(ikind)%nsgf, &
                                 first_sgf=basis_parameter(ikind)%first_sgf, &
                                 sphi=basis_parameter(ikind)%sphi, &
+                                gcc=basis_parameter(ikind)%gcc, &
                                 nsgf=basis_parameter(ikind)%nsgf_total, &
                                 l=basis_parameter(ikind)%nl, &
                                 nshell=basis_parameter(ikind)%nshell, &
