@@ -38,7 +38,8 @@ MODULE gw_non_periodic_ri_rs
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                              cp_fm_cholesky_invert
+                                              cp_fm_cholesky_invert,&
+                                              cp_fm_cholesky_solve
    USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -69,7 +70,9 @@ MODULE gw_non_periodic_ri_rs
    USE gw_utils,                        ONLY: de_init_bs_env
    USE input_constants,                 ONLY: rtp_method_bse
    USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
+                                              dp
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
@@ -402,8 +405,8 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
 
-      CHARACTER(LEN=256)                                 :: atom_sym, filename, full_path, line, &
-                                                            suffix
+      CHARACTER(LEN=default_path_length)                 :: filename, full_path, line
+      CHARACTER(LEN=default_string_length)               :: atom_sym, suffix
       INTEGER                                            :: colon_idx, i, ierr, ikind, iunit, nkind
       REAL(KIND=dp)                                      :: pt(3)
 
@@ -1289,8 +1292,8 @@ CONTAINS
 !>        Each rank in the subgroup holds the (replicated) phi_local and the
 !>        (replicated) RHS d_lp; it builds its own block-cyclic slice of the
 !>        squared+Jacobi-scaled Gram matrix D via tiled DGEMM, factorizes via
-!>        pdpotrf (cp_fm_cholesky_decompose, UPLO='U'), and solves with a
-!>        direct pdpotrs call. The replicated d_lp is updated in place via
+!>        cp_fm_cholesky_decompose (UPLO='U'), and solves with
+!>        cp_fm_cholesky_solve. The replicated d_lp is updated in place via
 !>        cp_fm_get_submatrix.
 !> \param phi_local   replicated (n_loc x n_ao) AO values on the sphere grid
 !> \param d_vec       replicated Jacobi diagonal = 1 / ||phi_i||^2
@@ -1323,17 +1326,13 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_D, fm_b
       INTEGER, INTENT(OUT)                               :: info
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_D_lp_distributed'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_D_lp_distributed'
 
       INTEGER                                            :: handle, i_loc, ig, j_loc, jg, &
                                                             ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
-#if defined(__parallel)
-      INTEGER                                            :: scalapack_info
-      INTEGER, DIMENSION(9)                              :: desc_b, desc_D
-#endif
 
       CALL timeset(routineN, handle)
       info = 0
@@ -1424,17 +1423,8 @@ CONTAINS
          CPABORT("pdpotrf failed in solve_D_lp_distributed")
       END IF
 
-      ! ---- pdpotrs (solve in place on fm_b) ------------------------------
-#if defined(__parallel)
-      desc_D(:) = fm_D%matrix_struct%descriptor(:)
-      desc_b(:) = fm_b%matrix_struct%descriptor(:)
-      CALL pdpotrs('U', n_loc, n_rhs, fm_D%local_data, 1, 1, desc_D, &
-                   fm_b%local_data, 1, 1, desc_b, scalapack_info)
-      info = scalapack_info
-#else
-      CALL dpotrs('U', n_loc, n_rhs, fm_D%local_data, n_loc, &
-                  fm_b%local_data, n_loc, info)
-#endif
+      ! ---- pdpotrs/dpotrs (solve in place on fm_b) -----------------------
+      CALL cp_fm_cholesky_solve(fm_D, fm_b, n=n_loc, info_out=info)
       IF (info /= 0) THEN
          CPABORT("pdpotrs failed in solve_D_lp_distributed")
       END IF

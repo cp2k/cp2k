@@ -31,7 +31,8 @@ MODULE cp_fm_cholesky
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_cholesky'
 
    PUBLIC :: cp_fm_cholesky_decompose, cp_fm_cholesky_invert, &
-             cp_fm_cholesky_reduce, cp_fm_cholesky_restore
+             cp_fm_cholesky_reduce, cp_fm_cholesky_restore, &
+             cp_fm_cholesky_solve
 
    ! The following saved variables are Cholesky decomposition global
    ! Stores the default library for Cholesky decomposition
@@ -128,6 +129,73 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_cholesky_decompose
+
+! **************************************************************************************************
+!> \brief solves A*X = B for X, given the Cholesky decomposition U of the
+!>      symmetric positive def. matrix A (A = U^T*U, U upper triangular),
+!>      as produced by cp_fm_cholesky_decompose
+!> \param matrix the Cholesky factor U of A, as produced by cp_fm_cholesky_decompose
+!> \param matrixb on input the right-hand side(s) B, on output the solution(s) X
+!> \param n the number of rows (and columns) of matrix (defaults to the min(size(matrix)))
+!> \param info_out ...
+! **************************************************************************************************
+   SUBROUTINE cp_fm_cholesky_solve(matrix, matrixb, n, info_out)
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrixb
+      INTEGER, INTENT(IN), OPTIONAL            :: n
+      INTEGER, INTENT(OUT), OPTIONAL           :: info_out
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_solve'
+
+      INTEGER                                  :: handle, info, my_n, nrhs
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
+      REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp, b_sp
+#if defined(__parallel)
+      INTEGER, DIMENSION(9)                    :: desca, descb
+#endif
+
+      CALL timeset(routineN, handle)
+
+      my_n = MIN(matrix%matrix_struct%nrow_global, &
+                 matrix%matrix_struct%ncol_global)
+      IF (PRESENT(n)) THEN
+         CPASSERT(n <= my_n)
+         my_n = n
+      END IF
+      nrhs = matrixb%matrix_struct%ncol_global
+
+      a => matrix%local_data
+      a_sp => matrix%local_data_sp
+      b => matrixb%local_data
+      b_sp => matrixb%local_data_sp
+
+#if defined(__parallel)
+      desca(:) = matrix%matrix_struct%descriptor(:)
+      descb(:) = matrixb%matrix_struct%descriptor(:)
+      IF (matrix%use_sp) THEN
+         CALL pspotrs('U', my_n, nrhs, a_sp(1, 1), 1, 1, desca, b_sp(1, 1), 1, 1, descb, info)
+      ELSE
+         CALL pdpotrs('U', my_n, nrhs, a(1, 1), 1, 1, desca, b(1, 1), 1, 1, descb, info)
+      END IF
+#else
+      IF (matrix%use_sp) THEN
+         CALL spotrs('U', my_n, nrhs, a_sp(1, 1), SIZE(a_sp, 1), b_sp(1, 1), SIZE(b_sp, 1), info)
+      ELSE
+         CALL dpotrs('U', my_n, nrhs, a(1, 1), SIZE(a, 1), b(1, 1), SIZE(b, 1), info)
+      END IF
+#endif
+
+      IF (PRESENT(info_out)) THEN
+         info_out = info
+      ELSE IF (info /= 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Cholesky solve failed: "// &
+                       "the matrix is not positive definite or ill-conditioned, info="//cp_to_string(info))
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_fm_cholesky_solve
 
 ! **************************************************************************************************
 !> \brief used to replace the cholesky decomposition by the inverse
