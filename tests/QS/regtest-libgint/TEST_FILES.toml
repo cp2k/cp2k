@@ -1,0 +1,4 @@
+# The regtests of libGint
+"H1.inp"                           = [{matcher="E_total", tol=3e-10, ref=-0.370379995347038}]
+"H2O-HFX-6.inp"                    = [{matcher="E_total", tol=1e-1, ref=-98.48394326}]
+#EOF

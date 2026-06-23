@@ -1,0 +1,67 @@
+&GLOBAL
+  EPS_CHECK_DIAG 1.0E-12
+  PRINT_LEVEL Medium
+  PROJECT H2O-32
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    BASIS_SET_FILE_NAME ./basis.dat
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 140
+      REL_CUTOFF 10
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+      EXTRAPOLATION_ORDER 3
+      WF_INTERPOLATION PS
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-12
+      MAX_SCF 400
+      SCF_GUESS ATOMIC
+      &OT ON
+        MINIMIZER DIIS
+      &END OT
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &HF
+        HFX_LIBRARY both
+        &INTERACTION_POTENTIAL
+          CUTOFF_RADIUS 4
+          POTENTIAL_TYPE TRUNCATED
+          T_C_G_DATA ./t_c_g.dat
+        &END INTERACTION_POTENTIAL
+        &MEMORY
+          EPS_STORAGE_SCALING 0.1
+          MAX_MEMORY 1000
+        &END MEMORY
+        &SCREENING
+          EPS_SCHWARZ 1.0E-12
+        &END SCREENING
+      &END HF
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10. 10. 10.
+    &END CELL
+    &COORD
+      H      0. 0. 0.
+      H      1. 0. 0.
+    &END COORD
+    &KIND H
+      BASIS_SET H_1
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

@@ -361,6 +361,8 @@ Specific options of --with-PKG:
   --with-cusolvermp       NVIDIA cusolverMp: CUDA library for distributed dense
                           linear algebra.
                           Default = no
+  --with-libgint          Enable the use of libGint for the calculation of the Hartree-Fock exchange on (nvidia) GPUs
+                          Default = no
 
 FURTHER INSTRUCTIONS
 
@@ -479,7 +481,7 @@ math_list="mkl acml openblas"
 lib_list="fftw eigen libint libxc gauxc libxsmm libxs libxstream cosma scalapack
           elpa dbcsr cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
           libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol fmt trexio
-          libfci greenx gmp mcl"
+          libfci greenx gmp mcl libgint"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -526,7 +528,7 @@ with_dftd4="__DONTUSE__"
 with_tblite="__INSTALL__"
 with_libsmeagol="__DONTUSE__"
 with_mcl="__DONTUSE__"
-
+with_libgint="__DONTUSE__"
 # the math and mpi libraries are chosen by their respective modes.
 # default math library settings, MATH_MODE picks the math library
 # to use, and with_* defines the default method of installation if it
@@ -898,6 +900,9 @@ Otherwise use option no."
     --with-gsl*)
       with_gsl=$(read_with "${1}")
       ;;
+    --with-libgint*)
+      with_libgint=$(read_with "${1}")
+      ;;
     --with-fmt*)
       with_fmt=$(read_with "${1}")
       ;;
@@ -1163,6 +1168,12 @@ if [ "${with_cmake}" = "__DONTUSE__" ]; then
   report_warning ${LINENO} "Installing dependencies and CP2K requires CMake but
 CMake is not enabled, so a new copy of CMake will be installed first."
   with_cmake="__INSTALL__"
+fi
+
+#libGint installation requires cuda enabled
+if [ "${with_libgint}" != "__DONTUSE__" ] && [ "${enable_cuda}" != "__TRUE__" ]; then
+  report_warning ${LINENO} "libGint requires the use of cuda. Disabling libGint"
+  with_libgint="__DONTUSE__"
 fi
 
 # SIRIUS dependencies

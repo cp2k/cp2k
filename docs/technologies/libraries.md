@@ -374,3 +374,12 @@ MiMiC - Multiscale simulation framework
   <https://https://mimic-project.org>
 - For more information about the framework and supported programs see <https://mimic-project.org>
 - Pass `-DCP2K_USE_MIMIC=ON` to CMake
+
+## libGint
+
+libGint - A library for the calculation of the Hartree Fock exchange on GPUs
+
+- Compared to a regular XF calculation, the changes needed in the input file are :
+- &FORCE_EVAL &DFT &XC &HF HFX_LIBRARY libGint
+- &FORCE_EVAL &DFT &XC &HF &MEMORY MAX_MEMORY X
+- pass -DCP2K_USE_LIBGINT=ON\` to CMake.
