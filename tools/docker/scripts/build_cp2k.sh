@@ -17,7 +17,7 @@ fi
 
 echo "==================== Building CP2K ===================="
 # shellcheck disable=SC1091
-source ./cmake/cmake_cp2k.sh "${PROFILE}" "${VERSION}"
+source ./cmake_cp2k.sh "${PROFILE}" "${VERSION}"
 
 # Compile CP2K
 echo -en '\nCompiling CP2K ... '
