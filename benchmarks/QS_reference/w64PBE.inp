@@ -31,6 +31,7 @@
     &END QS
     &SCF
       EPS_SCF 1.E-7
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 10
       SCF_GUESS ATOMIC
       &OT ON
