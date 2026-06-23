@@ -23,7 +23,7 @@
 
 #if defined(__OFFLOAD_PROFILING)
 #if defined(__OFFLOAD_CUDA)
-#include <nvToolsExt.h>
+#include <nvtx3/nvToolsExt.h>
 #elif defined(__OFFLOAD_HIP) && defined(__HIP_PLATFORM_AMD__)
 #include <roctracer/roctx.h>
 #endif

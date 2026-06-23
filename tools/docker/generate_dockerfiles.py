@@ -577,6 +577,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
         with_mpich="install",
         mpi_mode="mpich",
         enable_cuda="yes",
+        with_libgint="install",
         with_sirius="install",
         gpu_ver=gpu_ver,
         **kwargs,
