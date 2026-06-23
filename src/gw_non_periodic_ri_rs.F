@@ -1185,10 +1185,10 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(gw_3c_ctx_type), INTENT(IN)                   :: ctx
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_val
-      INTEGER, INTENT(IN)                                :: n_grid_total, n_loc_ri, atom_P, &
-                                                            max_ao_size, atom_j_mepos, &
-                                                            atom_j_stride
+      INTEGER, INTENT(IN)                                :: n_grid_total, n_loc_ri
       REAL(KIND=dp), INTENT(INOUT)                       :: d_lp(n_grid_total, n_loc_ri)
+      INTEGER, INTENT(IN)                                :: atom_P, max_ao_size, atom_j_mepos, &
+                                                            atom_j_stride
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_d_lp'
       INTEGER, PARAMETER                                 :: grid_chunk = 1024
