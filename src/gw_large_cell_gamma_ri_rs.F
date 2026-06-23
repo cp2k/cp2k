@@ -931,10 +931,10 @@ CONTAINS
       TYPE(gw_3c_ctx_type), INTENT(IN)                   :: ctx
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_val
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: d_lp
       INTEGER, INTENT(IN)                                :: n_grid_total, n_loc_ri, atom_P, &
                                                             max_ao_size, atom_j_mepos, &
                                                             atom_j_stride
+      REAL(KIND=dp), INTENT(INOUT)                       :: d_lp(n_grid_total, n_loc_ri)
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_d_lp'
       INTEGER, PARAMETER                                 :: grid_chunk = 1024
