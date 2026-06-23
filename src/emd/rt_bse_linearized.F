@@ -79,7 +79,6 @@ MODULE rt_bse_linearized
    USE rt_bse_ri_rs,                    ONLY: compute_hartree_ri_rs,&
                                               compute_hartree_ri_rs_complex,&
                                               compute_hartree_ri_rs_from_diag,&
-                                              hartree_potential_from_diag_ri_rs,&
                                               rt_bse_ri_rs_ensure_V_grid,&
                                               rt_bse_ri_rs_ensure_W0_grid
    USE rt_bse_types,                    ONLY: create_rtbse_env,&
@@ -1110,11 +1109,10 @@ CONTAINS
 !>        and - unless this is the last stage - forms the next stage density
 !>        (rho_workspace = rho_base + advance_weight*dt*k). Builds the stage's shared kernels first: the
 !>        cross-spin Hartree is built once per stage and consumed by every spin in update_effective_ham_MO.
-!>        Open shell (n_spin>1) runs build_shared_sex_and_hartree (per-spin SEX + RI-RS grid-diagonal
-!>        harvest + the shared Hartree), consumed per spin via kernels_prebuilt=.TRUE.; n_spin=1 TDA AO-RI
-!>        uses build_shared_hartree_ao (Hartree only); n_spin=1 RI-RS keeps its per-spin SEX+Hartree path.
+!>        All shell/kernel combinations go through build_shared_sex_and_hartree (mask_mode selects the
+!>        input convention); update_effective_ham_MO is then a pure consumer.
 !>        No timeset/timestop: the callees are individually timed and this runs 4x per RK4 timestep.
-!>        [INTERNAL] dev_notes/rt_bse_equations.md §7 (RK4) / rt_bse_rirs_kernel.md (open-shell Hartree)
+!>        [INTERNAL] dev_notes/rt_bse_equations.md §7 (RK4) / rt_bse_rirs_kernel.md (mask_mode table)
 !> \param rtbse_env RT-BSE environment
 !> \param rho_eval Per-spin MO density f is evaluated at (rho_start for k_1, rho_workspace otherwise)
 !> \param rho_base Per-spin MO density the next stage advances from (the step's rho_start)
@@ -1129,23 +1127,20 @@ CONTAINS
       REAL(kind=dp), INTENT(IN)                          :: result_weight
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: advance_weight
 
-      INTEGER                                            :: i
-      LOGICAL                                            :: do_precomputed_sex, do_shared_hartree
+      INTEGER                                            :: i, mask_mode
 
-      do_precomputed_sex = (rtbse_env%n_spin > 1)
-      do_shared_hartree = (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) .AND. &
-                          (.NOT. rtbse_env%debug_disable_hartree) .AND. &
-                          (rtbse_env%n_spin > 1 .OR. (.NOT. rtbse_env%rirs_kernel))
-      ! Build this stage's shared kernels (see brief), then evaluate f for every spin.
-      IF (do_precomputed_sex) THEN
-         CALL build_shared_sex_and_hartree(rtbse_env, rho_eval, &
-                                           mask_mode=MERGE(kernel_input_ov, kernel_input_ovvo, rtbse_env%tda_active))
-      ELSE IF (do_shared_hartree) THEN
-         CALL build_shared_hartree_ao(rtbse_env, rho_eval, keep_ovvo=(.NOT. rtbse_env%tda_active))
+      ! Input convention for this stage's shared kernel build:
+      IF (rtbse_env%tda_active) THEN
+         mask_mode = kernel_input_ov          ! TDA (any shell): OV only, non-Hermitian
+      ELSE IF (rtbse_env%n_spin > 1) THEN
+         mask_mode = kernel_input_ovvo        ! open-shell ABBA: OV+VO, Hermitian
+      ELSE
+         mask_mode = kernel_input_full        ! closed-shell ABBA: full ρ, Hermitian
       END IF
+      ! Build this stage's shared SEX + bare Hartree; consumers are per-spin in update_effective_ham_MO.
+      CALL build_shared_sex_and_hartree(rtbse_env, rho_eval, mask_mode)
       DO i = 1, rtbse_env%n_spin
-         CALL update_effective_ham_MO(rtbse_env, rho_eval(i), rtbse_env%rk4_coefficients(i), i, &
-                                      kernels_prebuilt=do_precomputed_sex)
+         CALL update_effective_ham_MO(rtbse_env, rho_eval(i), rtbse_env%rk4_coefficients(i), i)
          IF (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) THEN
             CALL project_drho_to_ov(rtbse_env, rtbse_env%rk4_coefficients(i), i)
          END IF
@@ -1348,36 +1343,22 @@ CONTAINS
 !> \param rho Real and imaginary parts ( + spin) of the density at current time
 !> \param ham_effective Effective Hamiltonian in the MO basis that is updated in this routine
 !> \param ispin Spin channel σ being assembled
-!> \param kernels_prebuilt selects the two modes of this routine. .TRUE. (open-shell propagator only):
-!>        the per-spin SEX (sigma_SEX_ao(σ)) and the shared cross-spin Hartree (hartree_total_ao) were
-!>        already built for all spins by build_shared_sex_and_hartree, so consume the stash. .FALSE. /
-!>        absent (closed shell, and the Krylov/Lanczos diagnostics): build SEX + Hartree inline per spin.
-!>        Open-shell ABBA is reachable only with .TRUE. (CPASSERT enforces it - the inline path would
-!>        consume an un-prebuilt, stale hartree_total_ao).
 ! **************************************************************************************************
-   SUBROUTINE update_effective_ham_MO(rtbse_env, rho, ham_effective, ispin, kernels_prebuilt)
+   SUBROUTINE update_effective_ham_MO(rtbse_env, rho, ham_effective, ispin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_cfm_type)                                  :: rho, ham_effective
       INTEGER                                            :: ispin
-      LOGICAL, INTENT(IN), OPTIONAL                      :: kernels_prebuilt
 
       CHARACTER(len=*), PARAMETER :: routineN = 'update_effective_ham_MO'
 
       INTEGER                                            :: handle, i_global, i_loc, j_global, &
                                                             j_loc, k, ncl, nrl
       INTEGER, DIMENSION(:), POINTER                     :: c_idx, r_idx
-      LOGICAL                                            :: l_kernels_prebuilt, use_hartree, &
-                                                            use_rirs_kernel, use_sex
+      LOGICAL                                            :: use_hartree, use_sex
 
       CALL timeset(routineN, handle)
       use_hartree = .NOT. rtbse_env%debug_disable_hartree
       use_sex = .NOT. rtbse_env%debug_disable_sex
-      use_rirs_kernel = rtbse_env%rirs_kernel
-      l_kernels_prebuilt = .FALSE.
-      IF (PRESENT(kernels_prebuilt)) l_kernels_prebuilt = kernels_prebuilt
-
-      ! Update density matrix in AO from latest rho as it is needed for Hartree and SEX contributions
-      CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rho, rtbse_env%rho_ao_scratch(ispin), ispin)
 
       ! Reset the effective Hamiltonian to KS Hamiltonian + G0W0 - reference SEX - reference Hartree
       !DO j = 1, nspin
@@ -1416,190 +1397,53 @@ CONTAINS
          !                           CMPLX(rtbse_env%field(k), 0.0, kind=dp), rtbse_env%ham_workspace(1))
       END DO
       IF (.NOT. rtbse_env%tda_active) THEN
-         IF (rtbse_env%n_spin == 1) THEN
-            ! ===== Option B (closed-shell, legacy): full rho + init reference; RIRS-capable. =====
-            ! Calculate the (S)EX part - based on provided rho
+         ! ===== ABBA: consume the prebuilt per-spin SEX (sigma_SEX_ao(σ)) and shared bare Hartree
+         ! (hartree_total_ao). (f_n-f_m) zeros OO/VV and sets OV/VO signs.  Closed shell uses full-ρ
+         ! input (no mask, reference subtracted via ham_reference); open shell uses OV+VO mask. =====
+         IF (use_sex) THEN
             ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]
-            IF (use_sex) THEN
-               ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]
-               ! Harvest the bare n_l = diag(φ Re(ρ) φ^T) for the RI-RS Hartree reuse below (closed shell:
-               ! Re only). The accumulator is passed to get_sigma unconditionally; it is allocated only for
-               ! RI-RS + Hartree (initialize_hartree_potential), so on AO-RI / Hartree-off it is an absent
-               ! optional (F2008) and the harvest self-disables.
-               IF (use_rirs_kernel .AND. use_hartree) rtbse_env%hartree_diag_re(:) = 0.0_dp
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_scratch(ispin), &
-                              grid_diag_re_accum=rtbse_env%hartree_diag_re)
-               ! Transform to MO basis (AO scratch -> MO-active result)
-               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
-                                                     rtbse_env%sigma_SEX(ispin), ispin)
-               ! Apply occupation factor f_n-f_m
-               CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin)
-               CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
-                                         CMPLX(1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(ispin))
-            END IF
-            ! Calculate Hartree potential. spin_degeneracy is folded into the V_H OUTPUT (cp_fm_scale,
-            ! post-filter -> bit-identical, never into the diagonal which would shift the eps_filter
-            ! cut, P-C12) so the ham assembly coeff is +1. RI-RS reuses the SEX grid diagonal when SEX
-            ! ran; else (debug_disable_sex) it rebuilds the grid.
-            IF (use_hartree) THEN
-               IF (use_rirs_kernel) THEN
-                  ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'  (RI-RS). Hartree uses
-                  ! only Re(ρ); n_l harvested above is bare.
-                  IF (use_sex) THEN
-                     CALL hartree_potential_from_diag_ri_rs(rtbse_env%bs_env, rtbse_env%hartree_diag_re, &
-                                                            rtbse_env%hartree_curr_ao(ispin))
-                  ELSE
-                     CALL cp_cfm_to_fm(msource=rtbse_env%rho_ao_scratch(ispin), &
-                                       mtargetr=rtbse_env%real_workspace(1))
-                     CALL compute_hartree_ri_rs(rtbse_env%bs_env, rtbse_env%real_workspace(1), &
-                                                rtbse_env%hartree_curr_ao(ispin))
-                  END IF
-               ELSE
-                  ! V^H_λσ = sum_PQ (λσ|P) V_PQ [sum_µν (µν|Q) ρ_µν]  (AO-RI)
-                  CALL get_hartree(rtbse_env, rtbse_env%rho_ao_scratch(ispin), &
-                                   rtbse_env%hartree_curr_ao(ispin))
-               END IF
-               ! Fold spin_degeneracy into the V_H output (post-filter, bit-identical for g in {1,2}).
-               CALL cp_fm_scale(rtbse_env%spin_degeneracy, rtbse_env%hartree_curr_ao(ispin))
-               ! Transform to MO basis (AO scratch -> MO-active result)
-               CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%hartree_curr_ao(ispin), &
-                                                    rtbse_env%hartree_curr(ispin), ispin)
-               ! Apply occupation factor f_n-f_m
-               CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%hartree_curr(ispin), ispin)
-               CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(ispin), mtarget=rtbse_env%ham_workspace(1))
-               CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
-                                         CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
-            END IF
-         ELSE
-            ! ===== Option A (open-shell ABBA): OV+VO-masked Delta rho, per-spin SEX, cross-spin
-            ! Hartree, occupation-factor readout. Keeps B-coupling; no reference (mask removes
-            ! it - rho_orig is OO-diagonal). Mirrors the TDA branch but OV+VO + occ-factor instead
-            ! of OV + conjugate-transpose. AO-RI or RI-RS (RIRS: per-spin SEX + shared cross-spin H). =====
-            ! Open-shell ABBA is only ever entered from the propagator, which always prebuilds the
-            ! cross-spin SEX (sigma_SEX_ao(σ)) + Hartree (hartree_total_ao) via build_shared_sex_and_hartree.
-            ! Enforce that contract: the inline-build path would consume a stale, un-prebuilt
-            ! hartree_total_ao (the Hartree below is cross-spin, so it cannot be rebuilt per spin here).
-            ! rho_ao_scratch(σ) stays the full-rho image set at the routine top (consumed by output_mos).
-            CPASSERT(l_kernels_prebuilt)
-            ! SEX: consume the per-spin stash sigma_SEX_ao(σ). (f_n - f_m) zeros OO/VV and sets the OV/VO
-            ! signs; coeff +1.
-            IF (use_sex) THEN
-               ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]
-               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
-                                                     rtbse_env%sigma_SEX(ispin), ispin)
-               CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin)
-               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
-                                         CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%sigma_SEX(ispin))
-            END IF
-            ! Hartree: consume the shared cross-spin V_H[spin_degeneracy * sum_sigma Delta rho_OV+VO]
-            ! built once per RK4 stage by build_shared_sex_and_hartree. Coeff +1 (spin_degeneracy is
-            ! in the summed density - no factor of 2, P9).
-            IF (use_hartree) THEN
-               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%hartree_total_ao, &
-                                                     rtbse_env%ham_workspace(1), ispin)
-               CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%ham_workspace(1), ispin)
-               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
-                                         CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
-            END IF
+            CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
+                                                  rtbse_env%sigma_SEX(ispin), ispin)
+            CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin)
+            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
+                                      CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%sigma_SEX(ispin))
+         END IF
+         IF (use_hartree) THEN
+            ! Builder emits bare V_H (no spin_degeneracy); fold g here (post-occ-factor, P-C12).
+            CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%hartree_total_ao, &
+                                                  rtbse_env%ham_workspace(1), ispin)
+            CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%ham_workspace(1), ispin)
+            CALL cp_cfm_scale(CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
+            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
+                                      CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
          END IF
       ELSE
-         ! ----- Tamm-Dancoff approximation: drop B-coupling between OV and VO
-         ! blocks. Single OV pass + Hermitian conjugate for VO.
-         !   Delta rho_VO = (Delta rho_OV)^C (Delta rho is Hermitian).
-         !   The (mu nu|lambda sigma) and W kernels are symmetric in their AO-pair
-         !   indices and C_active is real, so the AO<->MO transforms commute with
-         !   conjugate transpose: K_MO[Delta rho_VO] = (K_MO[Delta rho_OV])^C for
-         !   both K = V_H and K = Sigma_SEX. We therefore evaluate each kernel only
-         !   once on Delta rho_OV, mask the MO result to OV, and add the VO-block
-         !   contribution as the conjugate transpose of the OV result.
-         !   rho_orig is OO-diagonal in the MO basis, so masking rho gives the same
-         !   OV input as masking rho - rho_orig (TDA reference remains 0 by
-         !   construction).
-         !
-         ! Kernel inputs are non-Hermitian (Delta rho_OV alone has no VO entries),
-         ! so the kernels MUST be complex-linear: get_sigma_complex (Re/Im handled
-         ! separately) and get_hartree_complex (Re/Im fed to real-input get_hartree
-         ! separately, then reassembled). Real-input get_hartree on a non-Hermitian
-         ! input would silently drop Im and break Hermitian conjugacy of the
-         ! OV+VO contributions to ham_effective, giving the propagator real
-         ! eigenvalues -> exponential blow-up.
-         !
-         ! SEX runs before Hartree: the RI-RS SEX kernel materializes φρφ^T whose diagonal n_l is
-         ! the Hartree input, so we harvest it there (Re+Im, ×spin_degeneracy) and reuse it in
-         ! compute_hartree_ri_rs_from_diag. The OV-masked SEX MO result is stashed in sigma_SEX(ispin)
-         ! and assembled AFTER Hartree to preserve the original Hartree-then-SEX accumulation order.
-         !
-         ! Signs: (f_n - f_m) is -1 on OV and +1 on VO; applied explicitly.
+         ! ----- TDA: drop B-coupling. Consume the OV-input kernels prebuilt by
+         ! build_shared_sex_and_hartree. K_MO[Δρ_VO] = (K_MO[Δρ_OV])^C (real C + symmetric AO kernels),
+         ! so evaluate on OV, mask MO to OV, add VO as conjugate transpose.
+         ! Signs: (f_n - f_m) = -1 on OV, +1 on VO; applied explicitly. -----
 
-         ! Build Delta rho_OV (in MO) and project to AO. Open shell (kernels_prebuilt, sigma_SEX_ao(σ)
-         ! prebuilt) skips it: rho_ao_scratch(σ) stays full-rho and SEX is not recomputed here.
-         IF (.NOT. l_kernels_prebuilt) THEN
-            CALL cp_cfm_to_cfm(rho, rtbse_env%rho_delta_mo(ispin))
-            CALL mask_mo_block_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), ispin, keep_OV=.TRUE.)
-            CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), &
-                                                      rtbse_env%rho_ao_scratch(ispin), ispin)
-         END IF
-
-         ! SEX: compute + stash the OV-masked MO self-energy; for RI-RS n_spin=1 also harvest the
-         ! bare grid diagonal n_l = diag(φ Δρ_OV φ^T) (Re+Im) for the Hartree below. When precomputed
-         ! (open shell) sigma_SEX_ao(σ) is the build_shared_sex_and_hartree stash.
+         ! SEX: AO->MO, mask OV, stash (assembled after Hartree).
          IF (use_sex) THEN
-            IF (.NOT. l_kernels_prebuilt) THEN
-               ! Σ^SX_λσ = -sum_νQ [sum_µ (λµ|Q) Δρ_µν][sum_P (νσ|P) W_PQ]. grid_diag accumulators passed
-               ! unconditionally: unallocated (hence absent) on AO-RI / Hartree-off -> harvest self-disables
-               ! (F2008). Reached only for n_spin=1; open shell sets l_kernels_prebuilt and harvests in
-               ! build_shared_sex_and_hartree instead.
-               IF (use_rirs_kernel .AND. rtbse_env%n_spin == 1 .AND. use_hartree) THEN
-                  rtbse_env%hartree_diag_re(:) = 0.0_dp
-                  rtbse_env%hartree_diag_im(:) = 0.0_dp
-               END IF
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_scratch(ispin), &
-                              grid_diag_re_accum=rtbse_env%hartree_diag_re, &
-                              grid_diag_im_accum=rtbse_env%hartree_diag_im)
-            END IF
             CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                   rtbse_env%sigma_SEX(ispin), ispin)
             CALL mask_mo_block_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin, keep_OV=.TRUE.)
          END IF
 
-         ! Hartree (assembled first). RI-RS n_spin=1 reuses the harvested bare diagonal (debug_disable_sex
-         ! rebuilds the grid), then folds spin_degeneracy into the V_H output (cp_cfm_scale, post-filter ->
-         ! bit-identical) so the assembly coeff is ±1. AO-RI / open-shell consume the shared cross-spin
-         ! hartree_total_ao (built once per RK4 stage by build_shared_hartree_ao; spin_degeneracy already
-         ! in the summed density). VO = (OV)^C; rho_delta_mo(ispin) is idle scratch after the projection.
+         ! Hartree: hartree_total_ao is bare (no spin_degeneracy); fold g here (post-mask, P-C12).
+         ! VO = (OV)^C; rho_delta_mo(ispin) is idle scratch.
          IF (use_hartree) THEN
-            IF (use_rirs_kernel .AND. rtbse_env%n_spin == 1) THEN
-               ! V^H_λσ = sum_l φ_λ(r_l) v_l φ_σ(r_l), v_l = sum_l' V_ll' n_l'  (RI-RS)
-               IF (use_sex) THEN
-                  CALL compute_hartree_ri_rs_from_diag(rtbse_env%bs_env, rtbse_env%hartree_diag_re, &
-                                                       rtbse_env%sigma_SEX_ao(ispin), n_im=rtbse_env%hartree_diag_im)
-               ELSE
-                  CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_ao_scratch(ispin), &
-                                                     rtbse_env%sigma_SEX_ao(ispin))
-               END IF
-               ! Fold spin_degeneracy into the V_H output (post-filter, bit-identical for g in {1,2}).
-               CALL cp_cfm_scale(CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), rtbse_env%sigma_SEX_ao(ispin))
-               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
-                                                     rtbse_env%ham_workspace(1), ispin)
-               CALL mask_mo_block_cfm(rtbse_env, rtbse_env%ham_workspace(1), ispin, keep_OV=.TRUE.)
-               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
-                                         CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
-               CALL cp_cfm_transpose(rtbse_env%ham_workspace(1), 'C', rtbse_env%rho_delta_mo(ispin))
-               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
-                                         CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_delta_mo(ispin))
-            ELSE
-               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%hartree_total_ao, &
-                                                     rtbse_env%ham_workspace(1), ispin)
-               CALL mask_mo_block_cfm(rtbse_env, rtbse_env%ham_workspace(1), ispin, keep_OV=.TRUE.)
-               ! OV contribution: sign -1
-               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
-                                         CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
-               ! VO contribution: (OV result)^C, sign +1
-               CALL cp_cfm_transpose(rtbse_env%ham_workspace(1), 'C', rtbse_env%rho_delta_mo(ispin))
-               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
-                                         CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_delta_mo(ispin))
-            END IF
+            CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%hartree_total_ao, &
+                                                  rtbse_env%ham_workspace(1), ispin)
+            CALL mask_mo_block_cfm(rtbse_env, rtbse_env%ham_workspace(1), ispin, keep_OV=.TRUE.)
+            CALL cp_cfm_scale(CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
+            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
+                                      CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
+            CALL cp_cfm_transpose(rtbse_env%ham_workspace(1), 'C', rtbse_env%rho_delta_mo(ispin))
+            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
+                                      CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_delta_mo(ispin))
          END IF
+
          ! SEX assembled (stashed sigma_SEX, OV-masked). OV sign -1; VO = (OV)^C sign +1.
          IF (use_sex) THEN
             CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
@@ -1610,12 +1454,8 @@ CONTAINS
          END IF
 
          ! Restore rho_ao_scratch to the AO image of the current full rho, so any
-         ! post-routine consumer (output_mos) sees the same invariant as on the non-TDA path.
-         ! When precomputed (open shell) it is already full-rho (the masked build above was skipped).
-         IF (.NOT. l_kernels_prebuilt) THEN
-            CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rho, &
-                                                      rtbse_env%rho_ao_scratch(ispin), ispin)
-         END IF
+         ! post-routine consumer (output_mos) sees the same invariant.
+         CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rho, rtbse_env%rho_ao_scratch(ispin), ispin)
       END IF
       ! Keep only the anti-Hermitian part so the RHS remains structure-preserving.
       ! CALL cp_cfm_transpose(ham_effective, 'C', rtbse_env%ham_workspace(1))
@@ -3112,6 +2952,11 @@ CONTAINS
       TYPE(cp_cfm_type)                                  :: k0, seed, v, work_h, zero_rho
 
       CALL timeset(routineN, handle)
+      ! update_effective_ham_MO is now consume-only; caller must call build_shared_sex_and_hartree
+      ! first. This diagnostic predates that contract and needs a wrapper before re-enabling.
+      CALL cp_abort(__LOCATION__, &
+                    "estimate_omega_max_krylov: NYI after consume-only refactor — wrap each "// &
+                    "update_effective_ham_MO call with build_shared_sex_and_hartree(kernel_input_ov) first.")
 
       ispin = 1
       omega_gap = rtbse_env%omega_max
@@ -3279,6 +3124,11 @@ CONTAINS
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: q
 
       CALL timeset(routineN, handle)
+      ! update_effective_ham_MO is now consume-only; caller must call build_shared_sex_and_hartree
+      ! first. This diagnostic predates that contract and needs a wrapper before re-enabling.
+      CALL cp_abort(__LOCATION__, &
+                    "estimate_omega_max_lanczos: NYI after consume-only refactor — wrap each "// &
+                    "update_effective_ham_MO call with build_shared_sex_and_hartree(kernel_input_ov) first.")
 
       ispin = 1
       omega_gap = rtbse_env%omega_max

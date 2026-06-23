@@ -771,15 +771,14 @@ CONTAINS
             CALL cp_fm_create(rtbse_env%C_active(i), rtbse_env%fm_struct_ao_mo_active)
             CALL cp_fm_set_all(rtbse_env%C_active(i), 0.0_dp)
          END DO
-         ! TDA scratch, and the open-shell ABBA path (n_spin>1 + .NOT. tda_active — diagnostic AND propagation):
-         IF (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1) THEN
-            NULLIFY (rtbse_env%rho_delta_mo)
-            ALLOCATE (rtbse_env%rho_delta_mo(rtbse_env%n_spin))
-            DO i = 1, rtbse_env%n_spin
-               CALL cp_cfm_create(rtbse_env%rho_delta_mo(i), rtbse_env%fm_struct_mo_active)
-               CALL cp_cfm_set_all(rtbse_env%rho_delta_mo(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
-            END DO
-         END IF
+         ! Masked-copy staging scratch for the builder (all propagation paths including closed-shell ABBA).
+         ! Also used as conjugate-transpose scratch in the TDA consumer.
+         NULLIFY (rtbse_env%rho_delta_mo)
+         ALLOCATE (rtbse_env%rho_delta_mo(rtbse_env%n_spin))
+         DO i = 1, rtbse_env%n_spin
+            CALL cp_cfm_create(rtbse_env%rho_delta_mo(i), rtbse_env%fm_struct_mo_active)
+            CALL cp_cfm_set_all(rtbse_env%rho_delta_mo(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
+         END DO
          ! Shared AO Hartree buffers: widened from (tda_active .OR. n_spin>1) so n_spin=1 ABBA
          ! (diagnostic + propagator) gets a dedicated buffer instead of aliasing sigma_SEX_ao.
          IF (.NOT. rtbse_env%debug_disable_hartree) THEN
