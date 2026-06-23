@@ -59,7 +59,7 @@ build cp2k daint:
       "BASE_IMAGE",
       "DEPS_IMAGE",
       "FEATURE_FLAGS",
-      "NUM_PROCS"`
+      "NUM_PROCS"
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
