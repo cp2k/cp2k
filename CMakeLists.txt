@@ -828,10 +828,21 @@ endif()
 
 # Libint
 if(CP2K_USE_LIBINT2)
-  find_package(Libint2 REQUIRED)
-  # Prefer the headers and Fortran module that match the selected libint
-  # library. System include paths can otherwise shadow a locally built libint.
-  include_directories(BEFORE ${CP2K_LIBINT2_INCLUDE_DIRS})
+  find_package(Libint2 CONFIG REQUIRED)
+  # Check Fortran interface
+  get_target_property(_libint2_include_dirs Libint2::int2
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  find_file(
+    CP2K_LIBINT2_MOD_FILE
+    NAMES libint_f.mod
+    PATHS ${_libint2_include_dirs} "/usr/lib64/gfortran/modules"
+    NO_DEFAULT_PATH)
+  if(NOT CP2K_LIBINT2_MOD_FILE)
+    message(
+      FATAL_ERROR "Libint2 was found, but its Fortran interface is missing")
+  endif()
+  get_filename_component(_libint2_mod_dir "${CP2K_LIBINT2_MOD_FILE}" DIRECTORY)
+  include_directories(BEFORE ${_libint2_include_dirs} "${_libint2_mod_dir}")
 endif()
 
 if(CP2K_USE_LIBFCI)

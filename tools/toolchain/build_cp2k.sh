@@ -230,6 +230,15 @@ else
       fi
     fi
   done
+  # Additional feature of SIRIUS
+  if [ "${with_sirius}" = "__INSTALL__" ]; then
+    CMAKE_OPTIONS+=" -DCP2K_USE_SIRIUS_VCSQNM=ON"
+    if [ "${with_tblite}" != "__DONTUSE__" ]; then
+      CMAKE_OPTIONS+=" -DCP2K_USE_SIRIUS_DFTD3=ON -DCP2K_USE_SIRIUS_DFTD4=ON"
+    elif [ "${with_dftd4}" != "__DONTUSE__" ]; then
+      CMAKE_OPTIONS+=" -DCP2K_USE_SIRIUS_DFTD4=ON"
+    fi
+  fi
 fi
 # If GPU acceleration is used, add the option about GPU acceleration
 if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then

@@ -1,0 +1,62 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 787e2ce..40bf714 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -205,7 +205,7 @@ else()
+   find_package(LAPACK REQUIRED)
+   set(SIRIUS_LINALG_LIB "${LAPACK_LIBRARIES}")
+   if(SIRIUS_USE_SCALAPACK)
+     find_package(SCALAPACK REQUIRED) # just sets scalapack_DIR
+-    set(SIRIUS_LINALG_LIB "${SIRIUS_LINALG_LIB};${SIRIUS_SCALAPACK_LIBRARIES}")
++    list(APPEND SIRIUS_LINALG_LIB sirius::scalapack)
+   endif()
+ endif()
+diff --git a/cmake/modules/FindSCALAPACK.cmake b/cmake/modules/FindSCALAPACK.cmake
+index 2df5d2f4e..779cf748f 100644
+--- a/cmake/modules/FindSCALAPACK.cmake
++++ b/cmake/modules/FindSCALAPACK.cmake
+@@ -7,8 +7,26 @@ find_library(SIRIUS_SCALAPACK_LIBRARIES
+   HINTS
+   ${_SCALAPACK_LIBRARY_DIRS}
+   ENV SCALAPACKROOT
+-  /usr
+-  PATH_SUFFIXES lib
++  /usr /usr/local
++  PATH_SUFFIXES lib lib64
+   DOC "scalapack library path")
+ 
++if(NOT TARGET sirius::scalapack)
++  add_library(sirius::scalapack INTERFACE IMPORTED)
++  set_target_properties(sirius::scalapack PROPERTIES
++    INTERFACE_LINK_LIBRARIES "${SIRIUS_SCALAPACK_LIBRARIES}"
++  )
++  if(_SCALAPACK_INCLUDE_DIRS)
++    set_target_properties(sirius::scalapack PROPERTIES
++      INTERFACE_INCLUDE_DIRECTORIES "${_SCALAPACK_INCLUDE_DIRS}"
++    )
++  endif()
++endif()
++
++if(CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES)
++  set_property(TARGET sirius::scalapack APPEND PROPERTY
++    INTERFACE_LINK_LIBRARIES ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
++endif()
++
+ find_package_handle_standard_args(SCALAPACK DEFAULT_MSG SIRIUS_SCALAPACK_LIBRARIES)
++mark_as_advanced(SIRIUS_SCALAPACK_LIBRARIES)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 3f3b5d8f1..546a54828 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -119,8 +119,9 @@ target_link_libraries(sirius_cxx PUBLIC ${GSL_LIBRARY}
+   SpFFT::spfft
+   SPLA::spla
+   GSL::gsl
+-  $<$<BOOL:${SIRIUS_USE_DFTD3}>:sirius::dftd3 sirius::mctclib>
+-  $<$<BOOL:${SIRIUS_USE_DFTD4}>:sirius::dftd4 sirius::multicharge sirius::mctclib>
++  $<$<BOOL:${SIRIUS_USE_DFTD3}>:sirius::dftd3>
++  $<$<BOOL:${SIRIUS_USE_DFTD4}>:sirius::dftd4 sirius::multicharge>
++  $<$<OR:$<BOOL:${SIRIUS_USE_DFTD3}>,$<BOOL:${SIRIUS_USE_DFTD4}>>:sirius::mctclib>
+   "${SIRIUS_LINALG_LIB}"
+   $<$<BOOL:${SIRIUS_USE_PUGIXML}>:pugixml::pugixml>
+   $<$<BOOL:${SIRIUS_USE_MEMORY_POOL}>:umpire>
