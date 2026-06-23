@@ -46,6 +46,36 @@ Complex wavefunctions are the default for k-point calculations; see
 for Gamma and special k-points whose Bloch phases can be represented as real. Use complex
 wavefunctions for a general mesh or for atomic k-point symmetry reduction.
 
+#### Feature compatibility
+
+Compatibility with k-point sampling depends on the selected CP2K feature and implementation path.
+The following table summarizes selected common cases for `DFT%KPOINTS`; it is not exhaustive. Refer
+to the documentation of the relevant feature for detailed requirements and limitations or see issue
+[#4854](https://github.com/cp2k/cp2k/issues/4854) which tracks the current status of k-points
+support.
+
+| Feature                       | Compatibility and limitations                                           |
+| ----------------------------- | ----------------------------------------------------------------------- |
+| Standard diagonalization      | **Supported.**                                                          |
+| Orbital transformation (OT)   | **Unsupported.** No k-point path available.                             |
+| Atomic symmetry reduction     | **Experimental.** Validate against an equivalent unreduced calculation. |
+| WFN extrapolation             | **Supported.**                                                          |
+| Other diagonalization methods | **Unsupported.** No k-point path available.                             |
+| Hybrid functionals            | **Supported via [RI-HFXk](hartree-fock/ri_kpoints).**                   |
+| DFT+U                         | **Limited.** Mulliken populations only.                                 |
+| SCCS                          | **Not validated.** Use with caution.                                    |
+| Constrained DFT (CDFT)        | **Unsupported.** No k-point path available.                             |
+| TDDFPT                        | **Limited.** Independent-particle response only (`KERNEL NONE`).        |
+| XAS and RIXS                  | **Unsupported.** No k-point path available.                             |
+| Linear response / DFPT        | **Unsupported.** No k-point path available.                             |
+| GW                            | **Support with separate workflow.** Does not rely on `DFT%KPOINTS`.     |
+| Periodic electric field       | **Unsupported.** Requires OT first.                                     |
+| Active-space calculations     | **Unsupported.** Only `SCHEME NONE` and `SCHEME GAMMA` available.       |
+
+Note that a successful calculation does not by itself establish that a feature--k-point combination
+is reliable for a particular system or property. For a new workflow, converge the k-point mesh and,
+where appropriate, compare with an equivalent real-space supercell calculation.
+
 ## Choosing and converging a mesh
 
 Although rules of thumb can provide a useful starting point, reliable results require converging the
