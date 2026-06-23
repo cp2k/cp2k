@@ -917,9 +917,10 @@ CONTAINS
       IF (ASSOCIATED(rtbse_env%ao_mo_workspace)) CALL cp_fm_release(rtbse_env%ao_mo_workspace)
       IF (ASSOCIATED(rtbse_env%C_active)) CALL cp_fm_release(rtbse_env%C_active)
       IF (ASSOCIATED(rtbse_env%rho_delta_mo)) CALL cp_cfm_release_pa1(rtbse_env%rho_delta_mo)
-      ! Release cross-spin Hartree scratch (TDA or open-shell ABBA).
-      IF (rtbse_env%linearized .AND. &
-          (rtbse_env%tda_active .OR. rtbse_env%n_spin > 1)) THEN
+      ! Release shared bare-Hartree scratch. Mirror the alloc gate exactly (linearized .AND.
+      ! .NOT. debug_disable_hartree, every shell incl closed-shell ABBA) — the old
+      ! (tda_active .OR. n_spin>1) gate leaked both buffers on the closed-shell ABBA path.
+      IF (rtbse_env%linearized .AND. .NOT. rtbse_env%debug_disable_hartree) THEN
          CALL cp_cfm_release(rtbse_env%rho_total_ao_scratch)
          CALL cp_cfm_release(rtbse_env%hartree_total_ao)
       END IF
