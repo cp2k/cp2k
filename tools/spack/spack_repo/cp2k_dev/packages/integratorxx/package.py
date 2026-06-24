@@ -11,8 +11,8 @@ from spack.package import *
 class Integratorxx(CMakePackage):
     """IntegratorXX is a modern C++ library for the generation of atomic and molecular grids for
     quantum chemistry calculations. Among the most important applications of these grids is the
-    evaluation of exchange--correlation (XC) related quantities (energies, potentials, etc) required
-    for density functional theory calculations.
+    evaluation of exchange--correlation (XC) related quantities (energies, potentials, etc)
+    required for density functional theory calculations.
     """
 
     homepage = "https://github.com/wavefunction91/IntegratorXX"
@@ -38,7 +38,6 @@ class Integratorxx(CMakePackage):
     generator("ninja")
 
     def cmake_args(self):
-        spec = self.spec
         args = [
             self.define_from_variant("INTEGRATORXX_HEADER_ONLY", "header_only"),
             self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
