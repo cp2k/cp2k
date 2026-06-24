@@ -232,7 +232,7 @@ CONTAINS
             ALLOCATE (el)
             el = element
             CALL cp_sll_fm_insert_el(pool%cache, el=el)
-            NULLIFY (element%matrix_struct, element%local_data, element%local_data_sp)
+            NULLIFY (element%matrix_struct, element%local_data)
          END BLOCK
       END IF
    END SUBROUTINE fm_pool_give_back_fm

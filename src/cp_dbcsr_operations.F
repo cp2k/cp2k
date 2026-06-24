@@ -162,8 +162,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (fm%use_sp) CPABORT("copy_fm_to_dbcsr_bc: single precision not supported")
-
       ! Create processor grid
       pgrid => fm%matrix_struct%context%blacs2mpi
 
@@ -283,8 +281,6 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
-
-      IF (fm%use_sp) CPABORT("copy_dbcsr_to_fm_bc: single precision not supported")
 
       CALL calculate_fm_block_ranges(bc_mat, first_row, last_row, first_col, last_col)
 
