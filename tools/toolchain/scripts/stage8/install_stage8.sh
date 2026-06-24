@@ -9,7 +9,6 @@
 ./scripts/stage8/install_spfft.sh
 ./scripts/stage8/install_spla.sh
 ./scripts/stage8/install_sirius.sh
-./scripts/stage8/install_libfci.sh
 ./scripts/stage8/install_trexio.sh
 ./scripts/stage8/install_mcl.sh
 #EOF

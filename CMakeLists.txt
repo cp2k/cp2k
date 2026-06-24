@@ -846,7 +846,7 @@ if(CP2K_USE_LIBINT2)
 endif()
 
 if(CP2K_USE_LIBFCI)
-  find_package(LibFCI REQUIRED)
+  find_package(libfci REQUIRED)
 endif()
 
 # Spglib

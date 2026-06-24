@@ -1787,7 +1787,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mclf>
     $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mcl>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:Libint2::int2>
-    $<$<BOOL:${CP2K_USE_LIBFCI}>:cp2k::libfci::fci>
+    $<$<BOOL:${CP2K_USE_LIBFCI}>:libfci::fci>
     $<$<BOOL:${CP2K_USE_COSMA}>:cp2k::cosma>
     $<$<BOOL:${CP2K_USE_DLAF}>:${CP2K_DLAF_FORTRAN_TARGET}>
     $<$<BOOL:${CP2K_USE_GREENX}>:cp2k::greenx>
