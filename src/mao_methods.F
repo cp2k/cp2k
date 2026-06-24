@@ -22,10 +22,11 @@ MODULE mao_methods
                                               write_gto_basis_set
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_get_block_p, &
+        dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE cp_dbcsr_contrib,                ONLY: dbcsr_dot,&
                                               dbcsr_reserve_diag_blocks
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -47,6 +48,7 @@ MODULE mao_methods
    USE kpoint_methods,                  ONLY: rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
+   USE mathlib,                         ONLY: invert_matrix
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_type
    USE particle_types,                  ONLY: particle_type
@@ -71,7 +73,7 @@ MODULE mao_methods
 
    PUBLIC :: mao_initialization, mao_function, mao_function_gradient, mao_orthogonalization, &
              mao_project_gradient, mao_scalar_product, mao_build_q, mao_basis_analysis, &
-             mao_reference_basis, calculate_p_gamma
+             mao_reference_basis, calculate_p_gamma, mao_update_coef, mao_preconditioner
 
 ! **************************************************************************************************
 
@@ -305,9 +307,186 @@ CONTAINS
       CALL dbcsr_release(tmat)
       CALL dbcsr_release(t2mat)
 
-      CALL mao_project_gradient(mao_coef, mao_grad, smat)
+      ! apply Lagrange multiplyer
+      CALL mao_grad_lagrange(mao_coef, mao_grad, smat)
 
    END SUBROUTINE mao_function_gradient
+
+! **************************************************************************************************
+!> \brief Preconditioner for MAO optimization (seems not to work, but left for further tests)
+!> \param mao_coef ...
+!> \param mao_grad ...
+!> \param qmat ...
+!> \param smat ...
+! **************************************************************************************************
+   SUBROUTINE mao_preconditioner(mao_coef, mao_grad, qmat, smat)
+      TYPE(dbcsr_type)                                   :: mao_coef, mao_grad, qmat, smat
+
+      INTEGER                                            :: i, iatom, jatom, m, n
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: eval_error, q_shift
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: qinv, qsmat
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: bblock, gblock, qblock
+      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
+      TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
+      TYPE(dbcsr_type)                                   :: bmat, scmat
+
+      ! temp matrices
+      CALL dbcsr_create(scmat, template=mao_coef)
+      CALL dbcsr_get_info(mao_coef, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
+      CALL dbcsr_create(bmat, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                        row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes)
+      ! calculate B=C(T)*S*C matrix, S=(MAO,MAO) overlap
+      CALL dbcsr_multiply("N", "N", 1.0_dp, smat, mao_coef, 0.0_dp, scmat)
+      CALL dbcsr_multiply("T", "N", 1.0_dp, mao_coef, scmat, 0.0_dp, bmat)
+
+      q_shift = 0.001_dp
+
+      CALL dbcsr_iterator_start(dbcsr_iter, mao_grad)
+      DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
+         CALL dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, gblock)
+         CPASSERT(iatom == jatom)
+         m = SIZE(gblock, 1)
+         n = SIZE(gblock, 2)
+         CALL dbcsr_get_block_p(matrix=bmat, row=iatom, col=jatom, block=bblock, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=qmat, row=iatom, col=jatom, block=qblock, found=found)
+         CPASSERT(found)
+         ALLOCATE (qinv(m, m), qsmat(m, m))
+         qsmat(1:m, 1:m) = qblock(1:m, 1:m)
+         DO i = 1, m
+            qsmat(i, i) = qsmat(i, i) + q_shift
+         END DO
+         CALL invert_matrix(qsmat, qinv, eval_error)
+         ! g = q * g * b
+         gblock(1:m, 1:n) = MATMUL(qinv(1:m, 1:m), MATMUL(gblock(1:m, 1:n), bblock(1:n, 1:n)))
+         DEALLOCATE (qinv, qsmat)
+      END DO
+      CALL dbcsr_iterator_stop(dbcsr_iter)
+
+      CALL mao_project_gradient(mao_coef, mao_grad, smat)
+
+      ! free temp matrices
+      CALL dbcsr_release(scmat)
+      CALL dbcsr_release(bmat)
+
+   END SUBROUTINE mao_preconditioner
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mao_coef ...
+!> \param mao_grad ...
+!> \param smat ...
+! **************************************************************************************************
+   SUBROUTINE mao_grad_lagrange(mao_coef, mao_grad, smat)
+      TYPE(dbcsr_type)                                   :: mao_coef, mao_grad, smat
+
+      INTEGER                                            :: i, iatom, info, jatom, lwork, m, n
+      LOGICAL                                            :: found
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat, bmat, lmat, rmat
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, gblock, sblock
+      TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
+
+      CALL dbcsr_iterator_start(dbcsr_iter, mao_coef)
+      DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
+         CALL dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, cblock)
+         CPASSERT(iatom == jatom)
+         m = SIZE(cblock, 2)
+         n = SIZE(cblock, 1)
+         NULLIFY (sblock)
+         CALL dbcsr_get_block_p(matrix=smat, row=iatom, col=jatom, block=sblock, found=found)
+         CPASSERT(found)
+         lwork = MAX(n*n, 100)
+         ALLOCATE (amat(n, m), bmat(m, m), rmat(m, m), lmat(n, n), w(m), work(lwork))
+         amat(1:n, 1:m) = MATMUL(sblock(1:n, 1:n), cblock(1:n, 1:m))
+         bmat(1:m, 1:m) = MATMUL(TRANSPOSE(amat(1:n, 1:m)), amat(1:n, 1:m))
+         info = 0
+         CALL dsyev("V", "U", m, bmat, m, w, work, lwork, info)
+         CPASSERT(info == 0)
+         CPASSERT(ALL(w > 0.0_dp))
+         w = 1.0_dp/w
+         DO i = 1, m
+            rmat(1:m, i) = bmat(1:m, i)*w(i)
+         END DO
+         bmat(1:m, 1:m) = MATMUL(rmat(1:m, 1:m), TRANSPOSE(bmat(1:m, 1:m)))
+         lmat(1:n, 1:n) = MATMUL(MATMUL(amat(1:n, 1:m), bmat(1:m, 1:m)), TRANSPOSE(amat(1:n, 1:m)))
+         !
+         CALL dbcsr_get_block_p(matrix=mao_grad, row=iatom, col=iatom, block=gblock, found=found)
+         CPASSERT(found)
+         gblock(1:n, 1:m) = gblock(1:n, 1:m) - MATMUL(lmat(1:n, 1:n), gblock(1:n, 1:m))
+         DEALLOCATE (amat, bmat, rmat, lmat, w, work)
+      END DO
+      CALL dbcsr_iterator_stop(dbcsr_iter)
+
+   END SUBROUTINE mao_grad_lagrange
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mao_up ...
+!> \param mao_coef ...
+!> \param mao_grad ...
+!> \param smat ...
+!> \param alpha ...
+! **************************************************************************************************
+   SUBROUTINE mao_update_coef(mao_up, mao_coef, mao_grad, smat, alpha)
+      TYPE(dbcsr_type)                                   :: mao_up, mao_coef, mao_grad, smat
+      REAL(KIND=dp)                                      :: alpha
+
+      INTEGER                                            :: i, iatom, info, jatom, lwork, m, n
+      LOGICAL                                            :: found
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat, bmat, r1mat, r2mat
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, gblock, sblock, ublock
+      TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
+
+      CALL dbcsr_copy(mao_up, mao_coef)
+      CALL dbcsr_iterator_start(dbcsr_iter, mao_coef)
+      DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
+         CALL dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, cblock)
+         CPASSERT(iatom == jatom)
+         CALL dbcsr_get_block_p(matrix=mao_grad, row=iatom, col=iatom, block=gblock, found=found)
+         CPASSERT(found)
+         m = SIZE(cblock, 2)
+         n = SIZE(cblock, 1)
+         NULLIFY (sblock)
+         CALL dbcsr_get_block_p(matrix=smat, row=iatom, col=jatom, block=sblock, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=mao_up, row=iatom, col=iatom, block=ublock, found=found)
+         CPASSERT(found)
+         lwork = MAX(n*n, 100)
+         ALLOCATE (amat(n, m), bmat(m, m), r1mat(m, m), r2mat(m, m), w(m), work(lwork))
+         !
+         amat(1:n, 1:m) = alpha*gblock(1:n, 1:m)
+         bmat(1:m, 1:m) = MATMUL(TRANSPOSE(amat(1:n, 1:m)), MATMUL(sblock(1:n, 1:n), amat(1:n, 1:m)))
+         info = 0
+         CALL dsyev("V", "U", m, bmat, m, w, work, lwork, info)
+         CPASSERT(info == 0)
+         DO i = 1, m
+            IF (w(i) < 1.E-12_dp) THEN
+               w(i) = 0.0_dp
+            ELSE
+               w(i) = SQRT(w(i))
+            END IF
+            r1mat(1:m, i) = bmat(1:m, i)*COS(w(i))
+            IF (w(i) < 1.E-6_dp) THEN
+               r2mat(1:m, i) = bmat(1:m, i)*(1._dp - w(i)**2/6._dp)
+            ELSE
+               r2mat(1:m, i) = bmat(1:m, i)*SIN(w(i))/w(i)
+            END IF
+         END DO
+         r1mat(1:m, 1:m) = MATMUL(r1mat(1:m, 1:m), TRANSPOSE(bmat(1:m, 1:m)))
+         r2mat(1:m, 1:m) = MATMUL(r2mat(1:m, 1:m), TRANSPOSE(bmat(1:m, 1:m)))
+         !
+         ublock(1:n, 1:m) = MATMUL(cblock(1:n, 1:m), r1mat(1:m, 1:m)) + &
+                            MATMUL(amat(1:n, 1:m), r2mat(1:m, 1:m))
+         !
+         DEALLOCATE (amat, bmat, r1mat, r2mat, w, work)
+      END DO
+      CALL dbcsr_iterator_stop(dbcsr_iter)
+
+   END SUBROUTINE mao_update_coef
 
 ! **************************************************************************************************
 !> \brief ...
@@ -320,7 +499,7 @@ CONTAINS
       INTEGER                                            :: i, iatom, info, jatom, lwork, m, n
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w, work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat, bmat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat, bmat, rmat
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, sblock
       TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
 
@@ -334,7 +513,7 @@ CONTAINS
          CALL dbcsr_get_block_p(matrix=smat, row=iatom, col=jatom, block=sblock, found=found)
          CPASSERT(found)
          lwork = MAX(n*n, 100)
-         ALLOCATE (amat(n, m), bmat(m, m), w(m), work(lwork))
+         ALLOCATE (amat(n, m), bmat(m, m), rmat(m, m), w(m), work(lwork))
          amat(1:n, 1:m) = MATMUL(sblock(1:n, 1:n), cblock(1:n, 1:m))
          bmat(1:m, 1:m) = MATMUL(TRANSPOSE(cblock(1:n, 1:m)), amat(1:n, 1:m))
          info = 0
@@ -343,11 +522,11 @@ CONTAINS
          CPASSERT(ALL(w > 0.0_dp))
          w = 1.0_dp/SQRT(w)
          DO i = 1, m
-            amat(1:m, i) = bmat(1:m, i)*w(i)
+            rmat(1:m, i) = bmat(1:m, i)*w(i)
          END DO
-         bmat(1:m, 1:m) = MATMUL(amat(1:m, 1:m), TRANSPOSE(bmat(1:m, 1:m)))
+         bmat(1:m, 1:m) = MATMUL(rmat(1:m, 1:m), TRANSPOSE(bmat(1:m, 1:m)))
          cblock(1:n, 1:m) = MATMUL(cblock(1:n, 1:m), bmat(1:m, 1:m))
-         DEALLOCATE (amat, bmat, w, work)
+         DEALLOCATE (amat, bmat, rmat, w, work)
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
 

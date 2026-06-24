@@ -126,7 +126,7 @@ CONTAINS
       ELSE
          iolev = 1
       END IF
-      IF (iolevel == 0) THEN
+      IF (iolev == 0) THEN
          iw = -1
       END IF
 

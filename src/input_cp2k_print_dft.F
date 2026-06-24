@@ -1455,6 +1455,12 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_PAO", &
+                          description="Print out MAO in PAO format to be used for optimization or learning.", &
+                          usage="PRINT_PAO {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="EPS_GRAD", &
                           description="Threshold for gradient in MAO optimization.", &
                           usage="EPS_GRAD reps", repeats=.FALSE., n_var=1, &

@@ -8,9 +8,9 @@
 # ENERGY : LS + KG embed + Harris (Diag) primitive basis
 "H2_H2O_ecprim.inp"                     = [{matcher="M011", tol=1e-10, ref=-18.4071025433}]
 # ENERGY : LS + KG embed + Harris (Diag) MAO basis
-"2H2O_ecmao.inp"                        = [{matcher="M011", tol=1e-10, ref=-34.0838901711}]
+"2H2O_ecmao.inp"                        = [{matcher="M011", tol=1e-10, ref=-34.08394572951}]
 # ENERGY : LS + KG embed + Harris (Diag) MAO basis options
-"2H2O_ecmao2.inp"                       = [{matcher="M011", tol=1e-08, ref=-34.4437114917}]
+"2H2O_ecmao2.inp"                       = [{matcher="M011", tol=1e-08, ref=-34.45746110722}]
 # ENERGY : LS + KG embed + Harris (Diag) dipole 
 "HF_ec_dipole.inp"                      = [{matcher="M011", tol=1e-08, ref=-24.8917060368}]
 # ENERGY : LS + KG embed + Harris (Diag) dipole 

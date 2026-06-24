@@ -16,7 +16,7 @@ MODULE mao_optimizer
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_get_info, &
         dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_symmetric
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_maxabs,&
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm,&
                                               dbcsr_reserve_diag_blocks
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -24,8 +24,8 @@ MODULE mao_optimizer
    USE mao_methods,                     ONLY: mao_function,&
                                               mao_function_gradient,&
                                               mao_initialization,&
-                                              mao_orthogonalization,&
-                                              mao_scalar_product
+                                              mao_scalar_product,&
+                                              mao_update_coef
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -69,6 +69,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_grad
       TYPE(dbcsr_type)                                   :: amat, binv, cgmat
+      TYPE(dbcsr_type), POINTER                          :: smat
 
       CALL timeset(routineN, handle)
 
@@ -83,9 +84,9 @@ CONTAINS
       END IF
 
       ! initialize MAO coeficients from diagonal blocks of the Q matrix
+      smat => matrix_smm(1)%matrix
       DO ispin = 1, nspin
-         CALL mao_initialization(mao_coef(ispin)%matrix, &
-                                 matrix_q(ispin)%matrix, matrix_smm(1)%matrix, eps1, iolevel, iw)
+         CALL mao_initialization(mao_coef(ispin)%matrix, matrix_q(ispin)%matrix, smat, eps1, iolevel, iw)
       END DO
       ! check for mao sizes
       spin_warning = .FALSE.
@@ -119,7 +120,7 @@ CONTAINS
             CALL dbcsr_create(binv, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
                               row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes)
             CALL mao_function(mao_coef(ispin)%matrix, fval, matrix_q(ispin)%matrix, &
-                              matrix_smm(1)%matrix, binv, .FALSE.)
+                              smat, binv, .FALSE.)
             IF (iw > 0) THEN
                WRITE (UNIT=iw, FMT="(T2,A,T31,A,I2,T56,A,F12.8)") &
                   "MAO Projection", "Spin:", ispin, "Completeness:", fval/electra(ispin)
@@ -145,9 +146,9 @@ CONTAINS
             alpha = 0.25_dp
             beta = 0.0_dp
             CALL mao_function_gradient(mao_coef(ispin)%matrix, fval, mao_grad(ispin)%matrix, &
-                                       matrix_q(ispin)%matrix, matrix_smm(1)%matrix, binv, .FALSE.)
+                                       matrix_q(ispin)%matrix, smat, binv, .FALSE.)
+            grad_norm = dbcsr_frobenius_norm(mao_grad(ispin)%matrix)
             CALL dbcsr_copy(cgmat, mao_grad(ispin)%matrix)
-            grad_norm = dbcsr_maxabs(mao_grad(ispin)%matrix)
             fnold = mao_scalar_product(mao_grad(ispin)%matrix, mao_grad(ispin)%matrix)
             IF (iw > 0) THEN
                WRITE (UNIT=iw, FMT="(/,T2,A,T73,A,I2)") "MAO OPTIMIZATION", "Spin =", ispin
@@ -157,11 +158,11 @@ CONTAINS
             DO iter = 1, max_iter
                IF (grad_norm < eps_grad) EXIT
                IF ((1.0_dp - fval/electra(ispin)) < eps_fun) EXIT
-               CALL dbcsr_add(mao_coef(ispin)%matrix, cgmat, 1.0_dp, alpha)
-               CALL mao_orthogonalization(mao_coef(ispin)%matrix, matrix_smm(1)%matrix)
+               CALL dbcsr_copy(amat, mao_coef(ispin)%matrix)
+               CALL mao_update_coef(mao_coef(ispin)%matrix, amat, cgmat, smat, alpha)
                CALL mao_function_gradient(mao_coef(ispin)%matrix, fval, mao_grad(ispin)%matrix, &
-                                          matrix_q(ispin)%matrix, matrix_smm(1)%matrix, binv, .TRUE.)
-               grad_norm = dbcsr_maxabs(mao_grad(ispin)%matrix)
+                                          matrix_q(ispin)%matrix, smat, binv, .TRUE.)
+               grad_norm = dbcsr_frobenius_norm(mao_grad(ispin)%matrix)
                IF (iw > 0) THEN
                   WRITE (UNIT=iw, FMT="(T2,A,i8,T24,A,F11.8,T48,A,F11.8,T69,A,F6.3)") &
                      "iter=", iter, "fval =", fval/electra(ispin), "grad =", grad_norm, "step =", alpha
@@ -171,14 +172,10 @@ CONTAINS
                CALL dbcsr_add(cgmat, mao_grad(ispin)%matrix, beta, 1.0_dp)
                fnold = fnnew
                ! line search, update alpha
-               CALL dbcsr_copy(amat, mao_coef(ispin)%matrix)
-               CALL dbcsr_add(amat, cgmat, 1.0_dp, 0.5_dp*alpha)
-               CALL mao_orthogonalization(amat, matrix_smm(1)%matrix)
-               CALL mao_function(amat, fa1, matrix_q(ispin)%matrix, matrix_smm(1)%matrix, binv, .TRUE.)
-               CALL dbcsr_copy(amat, mao_coef(ispin)%matrix)
-               CALL dbcsr_add(amat, cgmat, 1.0_dp, alpha)
-               CALL mao_orthogonalization(amat, matrix_smm(1)%matrix)
-               CALL mao_function(amat, fa2, matrix_q(ispin)%matrix, matrix_smm(1)%matrix, binv, .TRUE.)
+               CALL mao_update_coef(amat, mao_coef(ispin)%matrix, cgmat, smat, 0.5_dp*alpha)
+               CALL mao_function(amat, fa1, matrix_q(ispin)%matrix, smat, binv, .TRUE.)
+               CALL mao_update_coef(amat, mao_coef(ispin)%matrix, cgmat, smat, alpha)
+               CALL mao_function(amat, fa2, matrix_q(ispin)%matrix, smat, binv, .TRUE.)
                a2 = (4._dp*fa1 - fa2 - 3._dp*fval)/alpha
                a1 = (fa2 - fval - a2*alpha)/(alpha*alpha)
                IF (ABS(a1) > 1.e-14_dp) THEN
@@ -195,6 +192,7 @@ CONTAINS
                END IF
             END DO
          END DO
+         IF (iw > 0) WRITE (UNIT=iw, FMT="(A)")
          CALL dbcsr_release(binv)
          CALL dbcsr_release(cgmat)
          CALL dbcsr_release(amat)

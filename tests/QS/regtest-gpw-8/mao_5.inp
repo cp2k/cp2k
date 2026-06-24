@@ -19,6 +19,7 @@
         MAX_ITER 0
         NEGLECT_ABC T
         PRINT_BASIS F
+        PRINT_PAO T
         REFERENCE_BASIS EXTERNAL
       &END MAO_ANALYSIS
     &END PRINT

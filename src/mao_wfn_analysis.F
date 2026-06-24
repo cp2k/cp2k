@@ -40,6 +40,7 @@ MODULE mao_wfn_analysis
    USE iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
+   USE mao_io,                          ONLY: mao_write_pao_restart
    USE mao_methods,                     ONLY: mao_basis_analysis,&
                                               mao_build_q,&
                                               mao_reference_basis
@@ -101,7 +102,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, mao_blk, mao_blk_sizes, &
                                                             orb_blk, row_blk_sizes
       LOGICAL                                            :: analyze_ua, explicit, fo, for, fos, &
-                                                            found, neglect_abc, print_basis
+                                                            found, neglect_abc, print_basis, &
+                                                            print_pao
       REAL(KIND=dp) :: deltaq, electra(2), eps_ab, eps_abc, eps_filter, eps_fun, eps_grad, epsx, &
          senabc, senmax, threshold, total_charge, total_spin, ua_charge(2), zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: occnumA, occnumABC, qab, qmatab, qmatac, &
@@ -156,6 +158,7 @@ CONTAINS
       CALL section_vals_val_get(input_section, "EPS_GRAD", r_val=eps_grad)
       CALL section_vals_val_get(input_section, "MAX_ITER", i_val=max_iter)
       CALL section_vals_val_get(input_section, "PRINT_BASIS", l_val=print_basis)
+      CALL section_vals_val_get(input_section, "PRINT_PAO", l_val=print_pao)
       CALL section_vals_val_get(input_section, "NEGLECT_ABC", l_val=neglect_abc)
       CALL section_vals_val_get(input_section, "AB_THRESHOLD", r_val=eps_ab)
       CALL section_vals_val_get(input_section, "ABC_THRESHOLD", r_val=eps_abc)
@@ -840,6 +843,10 @@ CONTAINS
             END DO
             WRITE (unit_nr, "(T2,A,T69,F12.6)") "Maximum SEN value calculated", senmax
          END IF
+      END IF
+
+      IF (print_pao) THEN
+         CALL mao_write_pao_restart(mao_coef, qs_env)
       END IF
 
       IF (unit_nr > 0) THEN
