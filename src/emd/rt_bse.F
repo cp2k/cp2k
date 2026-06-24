@@ -230,7 +230,7 @@ CONTAINS
                                     workspace=rtbse_env%rho_workspace, metric=a_metric_2)
             END DO
          END IF
-         CALL print_timestep_info(rtbse_env, i, [metric], enum_re, k)
+         CALL print_timestep_info(rtbse_env, i, [enum_re], metric, k)
          IF (.NOT. converged) CPABORT("ETRS did not converge")
          CALL cp_iterate(logger%iter_info, iter_nr=i, last=(i == rtbse_env%sim_nsteps))
          DO j = 1, rtbse_env%n_spin
