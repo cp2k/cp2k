@@ -6,7 +6,7 @@
 
 # CMake
 /cmake/                      @mkrack @mtaillefumier @RMeli
-CMakeLists.txt               @mkrack @mtaillefumier @RMeli
+/CMakeLists.txt              @mkrack @mtaillefumier @RMeli
 
 # Spack
 /tools/spack/                @mkrack @mtaillefumier @RMeli
