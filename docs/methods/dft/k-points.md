@@ -1,19 +1,172 @@
 # K-Points
 
-Periodic Quickstep calculations can sample the Brillouin zone through the `&DFT%KPOINTS` section.
-The most common setup is a Monkhorst-Pack mesh:
+Periodic Quickstep calculations approximate Brillouin-zone integrals with a finite, weighted set of
+k-points. The sampling set used for the self-consistent-field (SCF) calculation is defined in
+[&DFT%KPOINTS](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS).
+
+This page introduces k-point sampling in CP2K, explains the available sampling schemes, and
+summarizes the experimental atomic-symmetry reduction path. A band-structure path is a different
+object from the SCF integration mesh; it is defined through
+[&DFT%PRINT%BAND_STRUCTURE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.BAND_STRUCTURE), not through an
+arbitrary `SCHEME GENERAL` list.
+
+## Why k-points are needed
+
+### Brillouin-zone integration
+
+For a periodic system, Bloch's theorem labels the one-electron states by a crystal momentum
+$\mathbf{k}$ in the Brillouin zone. Quantities such as the electronic density, total energy, and
+occupations contain integrals over this zone. In a numerical calculation, CP2K replaces such an
+integral by a weighted sum over a finite set of k-points,
+
+$$
+  \frac{1}{\Omega_\mathrm{BZ}}\int_\mathrm{BZ} f(\mathbf{k})\,d\mathbf{k}
+  \approx \sum_{\mathbf{k}} w_{\mathbf{k}} f(\mathbf{k}),
+$$
+
+where $w_{\mathbf{k}}$ are normalized k-point weights.
+
+A Gamma-only calculation samples only $\mathbf{k}=0$. It is often appropriate for isolated systems,
+large supercells, or other cases where the Brillouin zone is sufficiently small. Smaller primitive
+cells, metals, and systems with strongly dispersive bands usually need a converged k-point mesh.
+
+### K-points in CP2K
+
+For every sampled k-point, CP2K solves a k-dependent Kohn--Sham problem and combines the resulting
+quantities with the k-point weights. The `&KPOINTS` section therefore describes the sampling used
+during the SCF calculation, rather than a post-processing path through selected high-symmetry
+points.
+
+Omitting `&KPOINTS` gives the usual Gamma-only calculation (`SCHEME NONE`). `SCHEME GAMMA` instead
+creates an explicit one-point k-point set at Gamma. The physical sampling is the same in most cases,
+but the two inputs use different implementation paths.
+
+Complex wavefunctions are the default for k-point calculations; see
+[WAVEFUNCTIONS](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.WAVEFUNCTIONS). Real wavefunctions are only valid
+for Gamma and special k-points whose Bloch phases can be represented as real. Use complex
+wavefunctions for a general mesh or for atomic k-point symmetry reduction.
+
+#### Feature compatibility
+
+Compatibility with k-point sampling depends on the selected CP2K feature and implementation path.
+The following table summarizes selected common cases for `DFT%KPOINTS`; it is not exhaustive. Refer
+to the documentation of the relevant feature for detailed requirements and limitations or see issue
+[#4854](https://github.com/cp2k/cp2k/issues/4854) which tracks the current status of k-points
+support.
+
+| Feature                       | Compatibility and limitations                                           |
+| ----------------------------- | ----------------------------------------------------------------------- |
+| Standard diagonalization      | **Supported.**                                                          |
+| Orbital transformation (OT)   | **Unsupported.** No k-point path available.                             |
+| Atomic symmetry reduction     | **Experimental.** Validate against an equivalent unreduced calculation. |
+| WFN extrapolation             | **Supported.**                                                          |
+| Other diagonalization methods | **Unsupported.** No k-point path available.                             |
+| Hybrid functionals            | **Supported via [RI-HFXk](hartree-fock/ri_kpoints).**                   |
+| DFT+U                         | **Limited.** Mulliken populations only.                                 |
+| SCCS                          | **Not validated.** Use with caution.                                    |
+| Constrained DFT (CDFT)        | **Unsupported.** No k-point path available.                             |
+| TDDFPT                        | **Limited.** Independent-particle response only (`KERNEL NONE`).        |
+| XAS and RIXS                  | **Unsupported.** No k-point path available.                             |
+| Linear response / DFPT        | **Unsupported.** No k-point path available.                             |
+| GW                            | **Support with separate workflow.** Does not rely on `DFT%KPOINTS`.     |
+| Periodic electric field       | **Unsupported.** Requires OT first.                                     |
+| Active-space calculations     | **Unsupported.** Only `SCHEME NONE` and `SCHEME GAMMA` available.       |
+
+Note that a successful calculation does not by itself establish that a feature--k-point combination
+is reliable for a particular system or property. For a new workflow, converge the k-point mesh and,
+where appropriate, compare with an equivalent real-space supercell calculation.
+
+## Choosing and converging a mesh
+
+Although rules of thumb can provide a useful starting point, reliable results require converging the
+k-point mesh for the specific system and property of interest. Total energies, forces, stresses,
+metallic occupations, density of states, and band edges can converge at different rates. Increase
+the mesh density until the relevant quantity no longer changes at the accuracy required for the
+calculation.
+
+For slabs, wires, and other low-dimensional systems, sample the periodic directions and normally use
+one k-point in a non-periodic or vacuum direction. Enlarging a real-space supercell reduces the
+Brillouin zone and can reduce the required k-point density, but does not by itself remove
+finite-size effects.
+
+```{important}
+Electronic smearing and DOS broadening do not replace k-point convergence. In particular, a smooth
+DOS obtained from a sparse mesh may still be physically unconverged. See
+[](../electronic_structure/dos.md#broadening-k-points-and-gaps).
+```
+
+For a conventional band structure, first converge the SCF calculation on an appropriate integration
+mesh. Then use [&BAND_STRUCTURE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.BAND_STRUCTURE) and
+[&KPOINT_SET](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.BAND_STRUCTURE.KPOINT_SET) to define the path.
+
+## Sampling schemes
+
+[SCHEME](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.SCHEME) selects one of the schemes described below.
+Regular meshes are evaluated as full meshes by default: atomic symmetry reduction is only requested
+when [SYMMETRY](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.SYMMETRY) is explicitly enabled.
+
+### Gamma-only sampling
+
+For the conventional Gamma-only calculation, omit `&KPOINTS` entirely:
+
+```text
+&DFT
+  ...
+&END DFT
+```
+
+An explicit Gamma-point set can be requested when a k-point calculation path is required by the
+workflow:
+
+```text
+&DFT
+  &KPOINTS
+    SCHEME GAMMA
+  &END KPOINTS
+&END DFT
+```
+
+### Monkhorst--Pack meshes
+
+A Monkhorst--Pack mesh is the usual regular sampling scheme for periodic calculations:
 
 ```text
 &DFT
   &KPOINTS
     SCHEME MONKHORST-PACK 6 6 6
-    WAVEFUNCTIONS COMPLEX
   &END KPOINTS
 &END DFT
 ```
 
-`SCHEME GAMMA` uses only the Gamma point. `SCHEME MONKHORST-PACK` and `SCHEME MACDONALD` generate
-regular meshes. `SCHEME GENERAL` uses explicitly listed k-points:
+The three integers specify the mesh dimensions along the reciprocal lattice vectors. Use
+[GAMMA_CENTERED](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.GAMMA_CENTERED) to generate a Gamma-centered
+variant:
+
+```text
+&KPOINTS
+  SCHEME MONKHORST-PACK 6 6 6
+  GAMMA_CENTERED T
+&END KPOINTS
+```
+
+Gamma centering is supported for Monkhorst--Pack meshes. It is most useful when an even number of
+subdivisions is used and the mesh is required to include Gamma point.
+
+### MacDonald meshes
+
+A MacDonald mesh specifies both the mesh dimensions and an explicit shift:
+
+```text
+&KPOINTS
+  SCHEME MACDONALD 4 4 4 0.25 0.25 0.25
+&END KPOINTS
+```
+
+The first three values define the mesh dimensions; the final three define the shift.
+
+### Explicit k-point sets
+
+`SCHEME GENERAL` accepts an explicitly supplied weighted set of k-points:
 
 ```text
 &KPOINTS
@@ -23,101 +176,200 @@ regular meshes. `SCHEME GENERAL` uses explicitly listed k-points:
 &END KPOINTS
 ```
 
-K-points are given in reciprocal lattice-vector coordinates by default (`UNITS B_VECTOR`). Cartesian
-coordinates can be selected with `UNITS CART_BOHR` or `UNITS CART_ANGSTROM`.
+Each [KPOINT](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.KPOINT) line contains three coordinates and one
+weight. CP2K normalizes the supplied weights internally.
 
-## Symmetry Reduction
+By default, [UNITS](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.UNITS) is `B_VECTOR`, so the coordinates are
+expressed in reciprocal-lattice-vector coordinates. Cartesian coordinates can instead be selected
+with `CART_BOHR` or `CART_ANGSTROM`; their units are $2\pi/\mathrm{Bohr}$ and $2\pi/\mathrm{\AA}$,
+respectively.
 
-Atomic symmetry can reduce the number of k-points that have to be solved explicitly:
+```{note}
+`SCHEME GENERAL` defines an integration set for the SCF calculation. It is not the usual interface
+for a high-symmetry band path. Use `&DFT%PRINT%BAND_STRUCTURE` for that purpose.
+```
+
+### Parallelization over k-points
+
+[PARALLEL_GROUP_SIZE](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.PARALLEL_GROUP_SIZE) controls how MPI
+processes are grouped for a k-point calculation. Its value is the number of MPI processes assigned
+to one k-point group. The group size must divide the total number of MPI processes, and the
+resulting number of groups must divide the number of k-points.
+
+The default `-1` selects the smallest valid number of processes per group. `0` uses all processes
+for each k-point, while a positive value requests that exact group size. This setting is a
+parallelization choice and does not change the physical k-point mesh.
+
+## Related workflows and output
+
+The k-point mesh used for SCF can also be used by several electronic-structure workflows. Their
+additional requirements are documented separately:
+
+- [](../electronic_structure/dos) explains DOS and PDOS output. DOS/PDOS commonly need a denser mesh
+  than a geometry optimization.
+- [](../electronic_structure/molecular_orbitals.md#k-point-mo-output-mokp) documents the `.mokp`
+  k-point MO output. Molden output is not available for k-point calculations.
+- [](hartree-fock/ri_kpoints) documents RI-HFX with k-point sampling and includes a band-structure
+  example.
+- [&WANNIER90](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90) is an experimental interface. With
+  [KPOINTS_SOURCE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.KPOINTS_SOURCE) set to `SCF`, it can
+  use the full SCF mesh from `&DFT%KPOINTS`; Wannier90 export requires a complete mesh.
+- [](../optimization/geometry_and_cell_opt) describes geometry and cell optimization. Their
+  interaction with experimental atomic k-point symmetry is discussed below.
+
+## K-point symmetry reduction
+
+For regular Monkhorst--Pack and MacDonald meshes, CP2K distinguishes two levels of k-point
+reduction:
+
+1. **k-space inversion (time-reversal) reduction**, which pairs $\mathbf{k}$ and $-\mathbf{k}$ and
+   is used by default for regular meshes; and
+1. **atomic (space-group) symmetry reduction**, which uses additional operations that map the
+   current periodic structure onto itself.
+
+The [SYMMETRY](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.SYMMETRY) keyword controls the second level. It is
+off by default; this does **not** disable the default time-reversal reduction for regular meshes.
+
+### Time-reversal reduction
+
+For a regular Monkhorst--Pack or MacDonald mesh, CP2K normally combines inversion-related
+$\mathbf{k}$ and $-\mathbf{k}$ points. This is the standard reduction path when both `SYMMETRY F`
+(the default) and `FULL_GRID F` (the default) are used:
 
 ```text
 &KPOINTS
   SCHEME MONKHORST-PACK 8 8 8
-  SYMMETRY ON
+&END KPOINTS
+```
+
+The reduction can also be requested explicitly with
+[INVERSION_SYMMETRY_ONLY](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.INVERSION_SYMMETRY_ONLY). This is
+useful when `SYMMETRY T` is present in a shared input template, but only time-reversal reduction is
+desired:
+
+```text
+&KPOINTS
+  SCHEME MONKHORST-PACK 8 8 8
+  SYMMETRY T
+  INVERSION_SYMMETRY_ONLY T
+&END KPOINTS
+```
+
+`SCHEME GENERAL` preserves the supplied list by default. When inversion-only reduction is requested
+for an explicit list, each $\mathbf{k}$/$-\mathbf{k}$ pair must be present with equal weights.
+
+To calculate every point of a regular mesh explicitly, disable atomic symmetry and request the full
+mesh:
+
+```text
+&KPOINTS
+  SCHEME MONKHORST-PACK 8 8 8
+  SYMMETRY F
+  FULL_GRID T
+&END KPOINTS
+```
+
+```{note}
+For Monkhorst--Pack and MacDonald meshes, `FULL_GRID T` together with `SYMMETRY T` disables atomic
+symmetry reduction but retains k-space inversion (time-reversal) reduction. Use both `SYMMETRY F`
+and `FULL_GRID T` to obtain a strict full-mesh reference calculation.
+```
+
+### Atomic (space-group) symmetry reduction
+
+```{warning}
+Atomic k-point symmetry reduction is experimental. Validate the energy, forces, stress, and any
+other target property against an equivalent full-mesh calculation before using it for production.
+```
+
+Atomic symmetry reduction further groups regular-grid k-points that are related by operations of the
+current atomic structure. Enable it with `SYMMETRY T`:
+
+```text
+&KPOINTS
+  SCHEME MONKHORST-PACK 8 8 8
+  SYMMETRY T
+  WAVEFUNCTIONS COMPLEX
+&END KPOINTS
+```
+
+This combines the default time-reversal reduction with the additional atomic symmetry operations.
+Complex wavefunctions are required for general atomic symmetry operations with nontrivial Bloch
+phases.
+
+#### Compatible sampling sets
+
+Atomic symmetry reduction applies to regular Monkhorst--Pack and MacDonald meshes. It can also be
+used with `SCHEME GENERAL`, provided that all explicit weights are equal and that the complete set
+is closed under every requested symmetry operation. A nonuniform `GENERAL` list, including a band
+path, should keep `SYMMETRY F`.
+
+#### Cell requirements
+
+For regular Monkhorst--Pack and MacDonald meshes, full atomic reduction currently requires a cell
+matrix in the standard CP2K lower-triangular convention. If a full atomic reduction is requested for
+a non-orthogonal cell or for a cell matrix outside that convention, CP2K warns and falls back to
+[INVERSION_SYMMETRY_ONLY](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.INVERSION_SYMMETRY_ONLY).
+
+Defining the cell through [ABC](#CP2K_INPUT.FORCE_EVAL.SUBSYS.CELL.ABC) and
+[ALPHA_BETA_GAMMA](#CP2K_INPUT.FORCE_EVAL.SUBSYS.CELL.ALPHA_BETA_GAMMA), or reading a suitable CIF
+structure, lets CP2K construct the standard cell orientation from orientation-independent lattice
+parameters.
+
+#### Symmetry backends
+
+[K290](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.SYMMETRY_BACKEND) is the established default backend. The
+optional `SPGLIB` backend uses symmetry operations returned by spglib, including fractional
+translations:
+
+```text
+&KPOINTS
+  SCHEME MONKHORST-PACK 8 8 8
+  SYMMETRY T
   SYMMETRY_BACKEND SPGLIB
   WAVEFUNCTIONS COMPLEX
 &END KPOINTS
 ```
 
-`SYMMETRY_BACKEND` selects the backend that provides and applies atom and k-point symmetry
-operations:
+This option requires CP2K to be built with
+[spglib](../../technologies/libraries.md#spglib-crystal-symmetries-tools). If `SYMMETRY_BACKEND` is
+specified and
+[SYMMETRY_REDUCTION_METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.SYMMETRY_REDUCTION_METHOD) is
+omitted, the reduction method follows the selected backend.
 
-- `K290`: the established CP2K default.
-- `SPGLIB`: use the space-group operations returned by SPGLIB, including fractional translations.
+`SYMMETRY_REDUCTION_METHOD SPGLIB` together with `SYMMETRY_BACKEND K290` is a comparison mode:
+SPGLIB proposes the k-point orbits, while K290 operations are used for the actual transformations.
+It is primarily useful for validation and development rather than as a default production setup.
 
-`SYMMETRY_REDUCTION_METHOD` selects the method used to build the irreducible k-point set. If
-`SYMMETRY_BACKEND` is set explicitly and `SYMMETRY_REDUCTION_METHOD` is omitted, the reduction
-method follows the backend. `SYMMETRY_REDUCTION_METHOD SPGLIB` with `SYMMETRY_BACKEND K290` can be
-used as a comparison mode: SPGLIB proposes the k-point orbits, while only mappings represented by
-the K290 backend are used for the actual transformations.
+#### Moving geometries
 
-`INVERSION_SYMMETRY_ONLY ON` restricts the reduction to time-reversal/inversion symmetry.
-`FULL_GRID ON` disables symmetry reduction while still generating the regular mesh.
+For `GEO_OPT`, `CELL_OPT`, molecular dynamics, and related calculations, CP2K determines atomic
+k-point symmetry from the current cell and coordinates rather than assuming that the initial
+operations remain valid. The irreducible k-point set can consequently change as the geometry
+evolves. A `SCHEME GENERAL` list must remain symmetry-closed at every step or it is rejected.
 
-For general atomic k-point symmetry, use complex wavefunctions. Real wavefunctions are only valid
-for Gamma and special k-points with real Bloch phases.
+When a geometry or cell optimization is intended to preserve the full space group, use the relevant
+[KEEP_SPACE_GROUP](#CP2K_INPUT.MOTION.GEO_OPT.KEEP_SPACE_GROUP) setting. For `CELL_OPT`, see also
+the discussion of [KEEP_SYMMETRY](#CP2K_INPUT.MOTION.CELL_OPT.KEEP_SYMMETRY) in
+[](../optimization/geometry_and_cell_opt.md#constraints-cell-degrees-of-freedom-and-symmetry).
 
-## Explicit K-Point Sets
+#### Validation and troubleshooting
 
-`SCHEME GENERAL` can be used with symmetry reduction when the explicit k-point set is equally
-weighted and closed under the requested symmetry operations:
+For every new system or workflow, compare an atomic-symmetry-reduced calculation with the strict
+full-mesh reference:
 
 ```text
 &KPOINTS
-  SCHEME GENERAL
-  SYMMETRY ON
-  SYMMETRY_BACKEND SPGLIB
-  KPOINT -0.25 -0.25 -0.25 1.0
-  KPOINT -0.25 -0.25  0.25 1.0
-  KPOINT -0.25  0.25 -0.25 1.0
-  KPOINT -0.25  0.25  0.25 1.0
-  KPOINT  0.25 -0.25 -0.25 1.0
-  KPOINT  0.25 -0.25  0.25 1.0
-  KPOINT  0.25  0.25 -0.25 1.0
-  KPOINT  0.25  0.25  0.25 1.0
+  SCHEME MONKHORST-PACK 8 8 8
+  SYMMETRY F
+  FULL_GRID T
+  WAVEFUNCTIONS COMPLEX
 &END KPOINTS
 ```
 
-The same closure requirement applies to K290, SPGLIB, and mixed SPGLIB-reduction/K290-backend
-setups. For band paths or other intentionally nonuniform explicit lists, keep `SYMMETRY OFF`,
-because the order and weights of the points are part of the requested property.
-
-## Cell Convention
-
-CP2K's k-point machinery assumes the standard CP2K cell convention: vector `A` lies along the
-Cartesian X axis and vector `B` lies in the XY plane. Using `ABC` together with `ALPHA_BETA_GAMMA`,
-or reading a CIF file, lets CP2K construct the cell in that convention from orientation-independent
-lattice parameters.
-
-## Moving Geometries
-
-For moving geometries (`GEO_OPT`, `CELL_OPT`, `MD`, and related run types), atomic k-point symmetry
-is rebuilt from the current cell and coordinates instead of reusing operations from the initial
-geometry. This applies to regular Monkhorst-Pack/MacDonald meshes and to closed `GENERAL` k-point
-sets. If the current geometry no longer supports a symmetry operation, the reduced set changes
-accordingly or the explicit `GENERAL` set is rejected if it is no longer symmetry-closed.
-
-`KEEP_SPACE_GROUP T` is the safest way to combine geometry optimization with full atomic k-point
-symmetry. `KEEP_SYMMETRY T` constrains the cell metric, but does not by itself keep atoms on
-space-group-related positions.
-
-## Wannier90
-
-The Wannier90 interface can either keep its historical k-point path controlled by
-`DFT%PRINT%WANNIER90%MP_GRID`, or use the full SCF k-point mesh via
-`DFT%PRINT%WANNIER90%KPOINTS_SOURCE SCF`. The SCF source supports Gamma, Monkhorst-Pack, MacDonald,
-and explicit `SCHEME GENERAL` k-point meshes. If the SCF calculation used K290 or SPGLIB symmetry
-reduction, the corresponding unreduced mesh is regenerated or recovered for the Wannier90 export,
-because Wannier90 expects the full mesh and its nearest-neighbour connectivity. By default,
-`DFT%PRINT%WANNIER90%REUSE_SCF_MOS T` reuses already available SCF MO coefficients when the SCF mesh
-is already complete, including explicit `SCHEME GENERAL` meshes, and for simple
-time-reversal/inversion partners. Atom/AO symmetry reconstruction from an irreducible SCF mesh is
-available for single-band exports and for multi-band exports whose bands are non-degenerate over the
-reduced SCF mesh. Cases where the Wannier90 band window contains or cuts through a degenerate
-subspace are guarded until the gauge and degeneracy alignment is fully validated; guarded cases fall
-back to the historical full-mesh diagonalization for the Wannier90 files.
-
-## Related Pages
-
-- <https://www.cp2k.org/faq:kpoints>
-- [](hartree-fock/ri_kpoints)
+[&DFT%PRINT%KPOINTS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.KPOINTS) prints k-point information and is
+useful for checking the generated set. For further diagnostics, use
+[VERBOSE](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.VERBOSE) and, where necessary, adjust
+[EPS_SYMMETRY](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.EPS_SYMMETRY). The
+[DEBUG_FULL_KPOINT_SYMMETRY](#CP2K_INPUT.FORCE_EVAL.DFT.KPOINTS.DEBUG_FULL_KPOINT_SYMMETRY) option
+is intended for expert finite-difference debugging.
