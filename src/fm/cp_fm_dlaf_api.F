@@ -9,7 +9,7 @@ MODULE cp_fm_dlaf_api
 
    USE cp_fm_basic_linalg, ONLY: cp_fm_uplo_to_full
    USE cp_fm_types, ONLY: cp_fm_type
-   USE kinds, ONLY: sp, dp
+   USE kinds, ONLY: dp
 #include "../base/base_uses.f90"
 
 #if defined(__DLAF)
@@ -17,8 +17,6 @@ MODULE cp_fm_dlaf_api
    USE dlaf_fortran, ONLY: dlaf_pdpotrf, &
                            dlaf_pdsyevd, &
                            dlaf_pdsygvd, &
-                           dlaf_pspotrf, &
-                           dlaf_pspotri, &
                            dlaf_pdpotri
 #endif
 
@@ -28,8 +26,7 @@ MODULE cp_fm_dlaf_api
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_dlaf_api'
 
-   PUBLIC :: cp_pdpotrf_dlaf, cp_pspotrf_dlaf
-   PUBLIC :: cp_pdpotri_dlaf, cp_pspotri_dlaf
+   PUBLIC :: cp_pdpotrf_dlaf, cp_pdpotri_dlaf
    PUBLIC :: cp_fm_diag_dlaf, cp_fm_diag_gen_dlaf
 
 CONTAINS
@@ -76,47 +73,6 @@ CONTAINS
    END SUBROUTINE cp_pdpotrf_dlaf
 
 !***************************************************************************************************
-!> \brief Cholesky factorization using DLA-Future
-!> \param uplo ...
-!> \param n Matrix size
-!> \param a Local matrix
-!> \param ia Row index of first row (has to be 1)
-!> \param ja Col index of first column ()
-!> \param desca ScaLAPACK matrix descriptor
-!> \param info 0 if factorization completed normally
-!> \author Rocco Meli
-!> \author Mikael Simberg
-!> \author Mathieu Taillefumier
-! **************************************************************************************************
-   SUBROUTINE cp_pspotrf_dlaf(uplo, n, a, ia, ja, desca, info)
-      CHARACTER, INTENT(IN)                              :: uplo
-      INTEGER, INTENT(IN)                                :: n
-      REAL, DIMENSION(:, :), TARGET                      :: a
-      INTEGER, INTENT(IN)                                :: ia, ja
-      INTEGER, DIMENSION(9)                              :: desca
-      INTEGER, TARGET                                    :: info
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_pspotrf_dlaf'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-#if defined(__DLAF)
-      CALL dlaf_pspotrf(uplo, n, a, ia, ja, desca, info)
-#else
-      MARK_USED(uplo)
-      MARK_USED(n)
-      MARK_USED(a)
-      MARK_USED(ia)
-      MARK_USED(ja)
-      MARK_USED(desca)
-      MARK_USED(info)
-      CPABORT("CP2K compiled without the DLA-Future library.")
-#endif
-      CALL timestop(handle)
-   END SUBROUTINE cp_pspotrf_dlaf
-
-!***************************************************************************************************
 !> \brief Inverse from Cholesky factorization using DLA-Future
 !> \param uplo ...
 !> \param n Matrix size
@@ -154,46 +110,6 @@ CONTAINS
 #endif
       CALL timestop(handle)
    END SUBROUTINE cp_pdpotri_dlaf
-
-!***************************************************************************************************
-!> \brief Inverse from Cholesky factorization using DLA-Future
-!> \param uplo ...
-!> \param n Matrix size
-!> \param a Local matrix
-!> \param ia Row index of first row (has to be 1)
-!> \param ja Col index of first column ()
-!> \param desca ScaLAPACK matrix descriptor
-!> \param info 0 if factorization completed normally
-!> \author Rocco Meli
-! **************************************************************************************************
-   SUBROUTINE cp_pspotri_dlaf(uplo, n, a, ia, ja, desca, info)
-      CHARACTER, INTENT(IN)                              :: uplo
-      INTEGER, INTENT(IN)                                :: n
-      REAL, DIMENSION(:, :), TARGET                      :: a
-      INTEGER, INTENT(IN)                                :: ia, ja
-      INTEGER, DIMENSION(9)                              :: desca
-      INTEGER, TARGET                                    :: info
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_pspotri_dlaf'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-#if defined(__DLAF)
-      CALL dlaf_pspotri(uplo, n, a, ia, ja, desca, info)
-#else
-      MARK_USED(uplo)
-      MARK_USED(n)
-      MARK_USED(a)
-      MARK_USED(ia)
-      MARK_USED(ja)
-      MARK_USED(desca)
-      MARK_USED(info)
-      CPABORT("CP2K compiled without the DLA-Future library.")
-#endif
-      CALL timestop(handle)
-   END SUBROUTINE cp_pspotri_dlaf
 
 ! **************************************************************************************************
 !> \brief ...

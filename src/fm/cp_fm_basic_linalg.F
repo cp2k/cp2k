@@ -23,8 +23,7 @@ MODULE cp_fm_basic_linalg
    USE kahan_sum, ONLY: accurate_dot_product, &
                         accurate_sum
    USE kinds, ONLY: dp, &
-                    int_8, &
-                    sp
+                    int_8
    USE machine, ONLY: m_memory
    USE mathlib, ONLY: get_pseudo_inverse_svd, &
                       invert_matrix
@@ -75,7 +74,6 @@ MODULE cp_fm_basic_linalg
              cp_fm_matvec ! matrix-vector multiplication (vector replicated)
 
    REAL(KIND=dp), EXTERNAL :: dlange, pdlange, pdlatra
-   REAL(KIND=sp), EXTERNAL :: slange, pslange, pslatra
 
    INTERFACE cp_fm_trace
       MODULE PROCEDURE cp_fm_trace_a0b0t0
@@ -180,7 +178,6 @@ CONTAINS
       INTEGER                                            :: handle, size_a, size_b
       REAL(KIND=dp)                                      :: my_beta
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, b
-      REAL(KIND=sp), DIMENSION(:, :), POINTER            :: a_sp, b_sp
 
       CALL timeset(routineN, handle)
 
@@ -200,20 +197,11 @@ CONTAINS
       END IF
 
       a => matrix_a%local_data
-      a_sp => matrix_a%local_data_sp
 
-      IF (matrix_a%use_sp) THEN
-         size_a = SIZE(a_sp, 1)*SIZE(a_sp, 2)
-      ELSE
-         size_a = SIZE(a, 1)*SIZE(a, 2)
-      END IF
+      size_a = SIZE(a, 1)*SIZE(a, 2)
 
       IF (alpha /= 1.0_dp) THEN
-         IF (matrix_a%use_sp) THEN
-            CALL sscal(size_a, REAL(alpha, sp), a_sp, 1)
-         ELSE
-            CALL dscal(size_a, alpha, a, 1)
-         END IF
+         CALL dscal(size_a, alpha, a, 1)
       END IF
       IF (my_beta /= 0.0_dp) THEN
          IF (matrix_a%matrix_struct%context /= matrix_b%matrix_struct%context) &
@@ -223,24 +211,11 @@ CONTAINS
                                      matrix_b%matrix_struct)) THEN
 
             b => matrix_b%local_data
-            b_sp => matrix_b%local_data_sp
-            IF (matrix_b%use_sp) THEN
-               size_b = SIZE(b_sp, 1)*SIZE(b_sp, 2)
-            ELSE
-               size_b = SIZE(b, 1)*SIZE(b, 2)
-            END IF
+            size_b = SIZE(b, 1)*SIZE(b, 2)
             IF (size_a /= size_b) &
                CPABORT("Matrices must have same local sizes")
 
-            IF (matrix_a%use_sp .AND. matrix_b%use_sp) THEN
-               CALL saxpy(size_a, REAL(my_beta, sp), b_sp, 1, a_sp, 1)
-            ELSEIF (matrix_a%use_sp .AND. .NOT. matrix_b%use_sp) THEN
-               CALL saxpy(size_a, REAL(my_beta, sp), REAL(b, sp), 1, a_sp, 1)
-            ELSEIF (.NOT. matrix_a%use_sp .AND. matrix_b%use_sp) THEN
-               CALL daxpy(size_a, my_beta, REAL(b_sp, dp), 1, a, 1)
-            ELSE
-               CALL daxpy(size_a, my_beta, b, 1, a, 1)
-            END IF
+            CALL daxpy(size_a, my_beta, b, 1, a, 1)
 
          ELSE
 #ifdef __parallel
@@ -515,7 +490,6 @@ CONTAINS
       INTEGER                                  :: handle, i_a, i_b, i_c, j_a, &
                                                   j_b, j_c
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
-      REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp, b_sp, c_sp
 #if defined(__parallel)
       INTEGER, DIMENSION(9)                    :: desca, descb, descc
 #else
@@ -530,10 +504,6 @@ CONTAINS
       a => matrix_a%local_data
       b => matrix_b%local_data
       c => matrix_c%local_data
-
-      a_sp => matrix_a%local_data_sp
-      b_sp => matrix_b%local_data_sp
-      c_sp => matrix_c%local_data_sp
 
       i_a = 1
       IF (PRESENT(a_first_row)) i_a = a_first_row
@@ -559,41 +529,16 @@ CONTAINS
       descb(:) = matrix_b%matrix_struct%descriptor(:)
       descc(:) = matrix_c%matrix_struct%descriptor(:)
 
-      IF (matrix_a%use_sp .AND. matrix_b%use_sp .AND. matrix_c%use_sp) THEN
+      CALL pdgemm(transa, transb, m, n, k, alpha, a, i_a, j_a, desca, b, i_b, j_b, &
+                  descb, beta, c, i_c, j_c, descc)
 
-         CALL psgemm(transa, transb, m, n, k, REAL(alpha, sp), a_sp(1, 1), i_a, j_a, desca, b_sp(1, 1), i_b, j_b, &
-                     descb, REAL(beta, sp), c_sp(1, 1), i_c, j_c, descc)
-
-      ELSEIF ((.NOT. matrix_a%use_sp) .AND. (.NOT. matrix_b%use_sp) .AND. (.NOT. matrix_c%use_sp)) THEN
-
-         CALL pdgemm(transa, transb, m, n, k, alpha, a, i_a, j_a, desca, b, i_b, j_b, &
-                     descb, beta, c, i_c, j_c, descc)
-
-      ELSE
-         CPABORT("Mixed precision gemm NYI")
-      END IF
 #else
 
-      IF (matrix_a%use_sp .AND. matrix_b%use_sp .AND. matrix_c%use_sp) THEN
+      lda = SIZE(a, 1)
+      ldb = SIZE(b, 1)
+      ldc = SIZE(c, 1)
 
-         lda = SIZE(a_sp, 1)
-         ldb = SIZE(b_sp, 1)
-         ldc = SIZE(c_sp, 1)
-
-         CALL sgemm(transa, transb, m, n, k, REAL(alpha, sp), a_sp(i_a, j_a), lda, b_sp(i_b, j_b), ldb, &
-                    REAL(beta, sp), c_sp(i_c, j_c), ldc)
-
-      ELSEIF ((.NOT. matrix_a%use_sp) .AND. (.NOT. matrix_b%use_sp) .AND. (.NOT. matrix_c%use_sp)) THEN
-
-         lda = SIZE(a, 1)
-         ldb = SIZE(b, 1)
-         ldc = SIZE(c, 1)
-
-         CALL dgemm(transa, transb, m, n, k, alpha, a(i_a, j_a), lda, b(i_b, j_b), ldb, beta, c(i_c, j_c), ldc)
-
-      ELSE
-         CPABORT("Mixed precision gemm NYI")
-      END IF
+      CALL dgemm(transa, transb, m, n, k, alpha, a(i_a, j_a), lda, b(i_b, j_b), ldb, beta, c(i_c, j_c), ldc)
 
 #endif
       CALL timestop(handle)
@@ -835,7 +780,6 @@ CONTAINS
       INTEGER                                            :: handle, mypcol, myprow, ncol_local, &
                                                             nrow_local
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, b
-      REAL(KIND=sp), DIMENSION(:, :), POINTER            :: a_sp, b_sp
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(mp_comm_type)                                 :: group
 
@@ -850,26 +794,12 @@ CONTAINS
       a => matrix_a%local_data
       b => matrix_b%local_data
 
-      a_sp => matrix_a%local_data_sp
-      b_sp => matrix_b%local_data_sp
-
       nrow_local = MIN(matrix_a%matrix_struct%nrow_locals(myprow), matrix_b%matrix_struct%nrow_locals(myprow))
       ncol_local = MIN(matrix_a%matrix_struct%ncol_locals(mypcol), matrix_b%matrix_struct%ncol_locals(mypcol))
 
       ! cries for an accurate_dot_product
-      IF (matrix_a%use_sp .AND. matrix_b%use_sp) THEN
-         trace = accurate_sum(REAL(a_sp(1:nrow_local, 1:ncol_local)* &
-                                   b_sp(1:nrow_local, 1:ncol_local), dp))
-      ELSEIF (matrix_a%use_sp .AND. .NOT. matrix_b%use_sp) THEN
-         trace = accurate_sum(REAL(a_sp(1:nrow_local, 1:ncol_local), dp)* &
-                              b(1:nrow_local, 1:ncol_local))
-      ELSEIF (.NOT. matrix_a%use_sp .AND. matrix_b%use_sp) THEN
-         trace = accurate_sum(a(1:nrow_local, 1:ncol_local)* &
-                              REAL(b_sp(1:nrow_local, 1:ncol_local), dp))
-      ELSE
-         trace = accurate_dot_product(a(1:nrow_local, 1:ncol_local), &
-                                      b(1:nrow_local, 1:ncol_local))
-      END IF
+      trace = accurate_dot_product(a(1:nrow_local, 1:ncol_local), &
+                                   b(1:nrow_local, 1:ncol_local))
 
       CALL group%sum(trace)
 
@@ -909,9 +839,7 @@ CONTAINS
 
          INTEGER                                            :: handle, imatrix, n_matrices, &
                                                                ncols_local, nrows_local
-         LOGICAL                                            :: use_sp_a, use_sp_b
          REAL(kind=dp), DIMENSION(:, :), POINTER            :: ldata_a, ldata_b
-         REAL(kind=sp), DIMENSION(:, :), POINTER            :: ldata_a_sp, ldata_b_sp
          TYPE(mp_comm_type)                                 :: group
 
          CALL timeset(routineN, handle)
@@ -920,33 +848,19 @@ CONTAINS
          CPASSERT(SIZE(matrix_a) == n_matrices)
 
          CALL cp_fm_get_info(matrix_b, nrow_local=nrows_local, ncol_local=ncols_local)
-         use_sp_b = matrix_b%use_sp
 
-         IF (use_sp_b) THEN
-            ldata_b_sp => matrix_b%local_data_sp(1:nrows_local, 1:ncols_local)
-         ELSE
-            ldata_b => matrix_b%local_data(1:nrows_local, 1:ncols_local)
-         END IF
+         ldata_b => matrix_b%local_data(1:nrows_local, 1:ncols_local)
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(imatrix, ldata_a, ldata_a_sp, use_sp_a), &
-!$OMP             SHARED(ldata_b, ldata_b_sp, matrix_a, matrix_b), &
-!$OMP             SHARED(ncols_local, nrows_local, n_matrices, trace, use_sp_b)
+!$OMP             PRIVATE(imatrix, ldata_a), &
+!$OMP             SHARED(ldata_b, matrix_a, matrix_b), &
+!$OMP             SHARED(ncols_local, nrows_local, n_matrices, trace)
 
          DO imatrix = 1, n_matrices
 
-            use_sp_a = matrix_a(imatrix) ${appendix}$%use_sp
-
             ! assume that the matrices A(i) and B have identical shapes and distribution schemes
-            IF (use_sp_a .AND. use_sp_b) THEN
-               ldata_a_sp => matrix_a(imatrix) ${appendix}$%local_data_sp(1:nrows_local, 1:ncols_local)
-               trace(imatrix) = accurate_dot_product(ldata_a_sp, ldata_b_sp)
-            ELSE IF (.NOT. use_sp_a .AND. .NOT. use_sp_b) THEN
-               ldata_a => matrix_a(imatrix) ${appendix}$%local_data(1:nrows_local, 1:ncols_local)
-               trace(imatrix) = accurate_dot_product(ldata_a, ldata_b)
-            ELSE
-               CPABORT("Matrices A and B are of different types")
-            END IF
+            ldata_a => matrix_a(imatrix) ${appendix}$%local_data(1:nrows_local, 1:ncols_local)
+            trace(imatrix) = accurate_dot_product(ldata_a, ldata_b)
          END DO
 !$OMP END PARALLEL DO
 
@@ -987,9 +901,8 @@ CONTAINS
 
             INTEGER                                            :: handle, imatrix, n_matrices, &
                                                                   ncols_local, nrows_local
-            LOGICAL                                            :: use_accurate_sum, use_sp_a, use_sp_b
+            LOGICAL                                            :: use_accurate_sum
             REAL(kind=dp), DIMENSION(:, :), POINTER            :: ldata_a, ldata_b
-            REAL(kind=sp), DIMENSION(:, :), POINTER            :: ldata_a_sp, ldata_b_sp
             TYPE(mp_comm_type)                                 :: group
 
             CALL timeset(routineN, handle)
@@ -1002,34 +915,19 @@ CONTAINS
             IF (PRESENT(accurate)) use_accurate_sum = accurate
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(imatrix, ldata_a, ldata_a_sp, ldata_b, ldata_b_sp, ncols_local), &
-!$OMP             PRIVATE(nrows_local, use_sp_a, use_sp_b), &
+!$OMP             PRIVATE(imatrix, ldata_a, ldata_b, ncols_local), &
+!$OMP             PRIVATE(nrows_local), &
 !$OMP             SHARED(matrix_a, matrix_b, n_matrices, trace, use_accurate_sum)
             DO imatrix = 1, n_matrices
                CALL cp_fm_get_info(matrix_a(imatrix) ${appendix1}$, nrow_local=nrows_local, ncol_local=ncols_local)
 
-               use_sp_a = matrix_a(imatrix) ${appendix1}$%use_sp
-               use_sp_b = matrix_b(imatrix) ${appendix2}$%use_sp
-
                ! assume that the matrices A(i) and B(i) have identical shapes and distribution schemes
-               IF (use_sp_a .AND. use_sp_b) THEN
-                  ldata_a_sp => matrix_a(imatrix) ${appendix1}$%local_data_sp(1:nrows_local, 1:ncols_local)
-                  ldata_b_sp => matrix_b(imatrix) ${appendix2}$%local_data_sp(1:nrows_local, 1:ncols_local)
-                  IF (use_accurate_sum) THEN
-                     trace(imatrix) = accurate_dot_product(ldata_a_sp, ldata_b_sp)
-                  ELSE
-                     trace(imatrix) = SUM(ldata_a_sp*ldata_b_sp)
-                  END IF
-               ELSE IF (.NOT. use_sp_a .AND. .NOT. use_sp_b) THEN
-                  ldata_a => matrix_a(imatrix) ${appendix1}$%local_data(1:nrows_local, 1:ncols_local)
-                  ldata_b => matrix_b(imatrix) ${appendix2}$%local_data(1:nrows_local, 1:ncols_local)
-                  IF (use_accurate_sum) THEN
-                     trace(imatrix) = accurate_dot_product(ldata_a, ldata_b)
-                  ELSE
-                     trace(imatrix) = SUM(ldata_a*ldata_b)
-                  END IF
+               ldata_a => matrix_a(imatrix) ${appendix1}$%local_data(1:nrows_local, 1:ncols_local)
+               ldata_b => matrix_b(imatrix) ${appendix2}$%local_data(1:nrows_local, 1:ncols_local)
+               IF (use_accurate_sum) THEN
+                  trace(imatrix) = accurate_dot_product(ldata_a, ldata_b)
                ELSE
-                  CPABORT("Matrices A and B are of different types")
+                  trace(imatrix) = SUM(ldata_a*ldata_b)
                END IF
             END DO
 !$OMP END PARALLEL DO
@@ -1062,10 +960,9 @@ CONTAINS
             INTEGER                                            :: handle, ia, ib, iz, na, nb, ncols_local, &
                                                                   nrows_local, nz
             INTEGER(kind=int_8)                                :: ib8, itrace, na8, ntraces
-            LOGICAL                                            :: use_accurate_sum, use_sp_a, use_sp_b
+            LOGICAL                                            :: use_accurate_sum
             REAL(kind=dp)                                      :: t
             REAL(kind=dp), DIMENSION(:, :), POINTER            :: ldata_a, ldata_b
-            REAL(kind=sp), DIMENSION(:, :), POINTER            :: ldata_a_sp, ldata_b_sp
             TYPE(mp_comm_type)                                 :: group
 
             CALL timeset(routineN, handle)
@@ -1087,8 +984,8 @@ CONTAINS
             na8 = INT(na, kind=int_8)
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(ia, ib, ib8, itrace, iz, ldata_a, ldata_a_sp, ldata_b, ldata_b_sp, ncols_local), &
-!$OMP             PRIVATE(nrows_local, t, use_sp_a, use_sp_b), &
+!$OMP             PRIVATE(ia, ib, ib8, itrace, iz, ldata_a, ldata_b, ncols_local), &
+!$OMP             PRIVATE(nrows_local, t), &
 !$OMP             SHARED(matrix_a, matrix_b, na, na8, nb, ntraces, nz, trace, use_accurate_sum)
             DO itrace = 1, ntraces
                ib8 = (itrace - 1)/na8
@@ -1098,28 +995,14 @@ CONTAINS
                t = 0.0_dp
                DO iz = 1, nz
                   CALL cp_fm_get_info(matrix_a(iz, ia) ${appendix1}$, nrow_local=nrows_local, ncol_local=ncols_local)
-                  use_sp_a = matrix_a(iz, ia) ${appendix1}$%use_sp
-                  use_sp_b = matrix_b(iz, ib) ${appendix2}$%use_sp
 
                   ! assume that the matrices A(iz, ia) and B(iz, ib) have identical shapes and distribution schemes
-                  IF (.NOT. use_sp_a .AND. .NOT. use_sp_b) THEN
-                     ldata_a => matrix_a(iz, ia) ${appendix1}$%local_data(1:nrows_local, 1:ncols_local)
-                     ldata_b => matrix_b(iz, ib) ${appendix2}$%local_data(1:nrows_local, 1:ncols_local)
-                     IF (use_accurate_sum) THEN
-                        t = t + accurate_dot_product(ldata_a, ldata_b)
-                     ELSE
-                        t = t + SUM(ldata_a*ldata_b)
-                     END IF
-                  ELSE IF (use_sp_a .AND. use_sp_b) THEN
-                     ldata_a_sp => matrix_a(iz, ia) ${appendix1}$%local_data_sp(1:nrows_local, 1:ncols_local)
-                     ldata_b_sp => matrix_b(iz, ib) ${appendix2}$%local_data_sp(1:nrows_local, 1:ncols_local)
-                     IF (use_accurate_sum) THEN
-                        t = t + accurate_dot_product(ldata_a_sp, ldata_b_sp)
-                     ELSE
-                        t = t + SUM(ldata_a_sp*ldata_b_sp)
-                     END IF
+                  ldata_a => matrix_a(iz, ia) ${appendix1}$%local_data(1:nrows_local, 1:ncols_local)
+                  ldata_b => matrix_b(iz, ib) ${appendix2}$%local_data(1:nrows_local, 1:ncols_local)
+                  IF (use_accurate_sum) THEN
+                     t = t + accurate_dot_product(ldata_a, ldata_b)
                   ELSE
-                     CPABORT("Matrices A and B are of different types")
+                     t = t + SUM(ldata_a*ldata_b)
                   END IF
                END DO
                trace(ia, ib) = t
@@ -1352,7 +1235,6 @@ CONTAINS
                                                   mypcol, myprow, ncol_global, &
                                                   nrow_global
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
-      REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
       TYPE(cp_blacs_env_type), POINTER         :: context
 
 #if defined(__parallel)
@@ -1361,7 +1243,6 @@ CONTAINS
                                                   nrow_block, nrow_local
       INTEGER, DIMENSION(9)                    :: desca, descc
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c
-      REAL(KIND=sp), DIMENSION(:, :), POINTER  :: c_sp
 #endif
 
       myuplo = 'U'
@@ -1373,7 +1254,6 @@ CONTAINS
       nrow_global = work%matrix_struct%nrow_global
       ncol_global = work%matrix_struct%ncol_global
       CPASSERT(nrow_global == ncol_global)
-      CPASSERT(matrix%use_sp .EQV. work%use_sp)
 
       CALL timeset(routineN, handle)
 
@@ -1390,10 +1270,8 @@ CONTAINS
       ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
 
       a => work%local_data
-      a_sp => work%local_data_sp
       desca(:) = work%matrix_struct%descriptor(:)
       c => matrix%local_data
-      c_sp => matrix%local_data_sp
       descc(:) = matrix%matrix_struct%descriptor(:)
 
       DO icol_local = 1, ncol_local
@@ -1401,60 +1279,35 @@ CONTAINS
          DO irow_local = 1, nrow_local
             irow_global = matrix%matrix_struct%row_indices(irow_local)
             IF (MERGE(irow_global > icol_global, irow_global < icol_global, (myuplo == "U") .OR. (myuplo == "u"))) THEN
-               IF (matrix%use_sp) THEN
-                  c_sp(irow_local, icol_local) = 0.0_sp
-               ELSE
-                  c(irow_local, icol_local) = 0.0_dp
-               END IF
+               c(irow_local, icol_local) = 0.0_dp
             ELSE IF (irow_global == icol_global) THEN
-               IF (matrix%use_sp) THEN
-                  c_sp(irow_local, icol_local) = 0.5_sp*c_sp(irow_local, icol_local)
-               ELSE
-                  c(irow_local, icol_local) = 0.5_dp*c(irow_local, icol_local)
-               END IF
+               c(irow_local, icol_local) = 0.5_dp*c(irow_local, icol_local)
             END IF
          END DO
       END DO
 
       DO icol_local = 1, ncol_local
       DO irow_local = 1, nrow_local
-         IF (matrix%use_sp) THEN
-            a_sp(irow_local, icol_local) = c_sp(irow_local, icol_local)
-         ELSE
-            a(irow_local, icol_local) = c(irow_local, icol_local)
-         END IF
+         a(irow_local, icol_local) = c(irow_local, icol_local)
       END DO
       END DO
 
-      IF (matrix%use_sp) THEN
-         CALL pstran(nrow_global, ncol_global, 1.0_sp, a_sp(1, 1), 1, 1, desca, 1.0_sp, c_sp(1, 1), 1, 1, descc)
-      ELSE
-         CALL pdtran(nrow_global, ncol_global, 1.0_dp, a(1, 1), 1, 1, desca, 1.0_dp, c(1, 1), 1, 1, descc)
-      END IF
+      CALL pdtran(nrow_global, ncol_global, 1.0_dp, a(1, 1), 1, 1, desca, 1.0_dp, c(1, 1), 1, 1, descc)
 
 #else
 
       a => matrix%local_data
-      a_sp => matrix%local_data_sp
 
       IF ((myuplo == "U") .OR. (myuplo == "u")) THEN
          DO irow_global = 1, nrow_global
          DO icol_global = irow_global + 1, ncol_global
-            IF (matrix%use_sp) THEN
-               a_sp(icol_global, irow_global) = a_sp(irow_global, icol_global)
-            ELSE
-               a(icol_global, irow_global) = a(irow_global, icol_global)
-            END IF
+            a(icol_global, irow_global) = a(irow_global, icol_global)
          END DO
          END DO
       ELSE
          DO icol_global = 1, ncol_global
          DO irow_global = icol_global + 1, nrow_global
-            IF (matrix%use_sp) THEN
-               a_sp(irow_global, icol_global) = a_sp(icol_global, irow_global)
-            ELSE
-               a(irow_global, icol_global) = a(icol_global, irow_global)
-            END IF
+            a(irow_global, icol_global) = a(icol_global, irow_global)
          END DO
          END DO
       END IF
@@ -1483,7 +1336,6 @@ CONTAINS
       INTEGER                                  :: k, mypcol, myprow, n, ncol_global, &
                                                   npcol, nprow
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
-      REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
 #if defined(__parallel)
       INTEGER                                  :: icol_global, icol_local, &
                                                   ipcol, iprow, irow_local
@@ -1499,12 +1351,7 @@ CONTAINS
       ncol_global = matrixa%matrix_struct%ncol_global
 
       a => matrixa%local_data
-      a_sp => matrixa%local_data_sp
-      IF (matrixa%use_sp) THEN
-         n = SIZE(a_sp, 1)
-      ELSE
-         n = SIZE(a, 1)
-      END IF
+      n = SIZE(a, 1)
       k = MIN(SIZE(scaling), ncol_global)
 
 #if defined(__parallel)
@@ -1514,20 +1361,12 @@ CONTAINS
                       nprow, npcol, myprow, mypcol, &
                       irow_local, icol_local, iprow, ipcol)
          IF ((ipcol == mypcol)) THEN
-            IF (matrixa%use_sp) THEN
-               CALL SSCAL(n, REAL(scaling(icol_global), sp), a_sp(:, icol_local), 1)
-            ELSE
-               CALL DSCAL(n, scaling(icol_global), a(:, icol_local), 1)
-            END IF
+            CALL DSCAL(n, scaling(icol_global), a(:, icol_local), 1)
          END IF
       END DO
 #else
       DO i = 1, k
-         IF (matrixa%use_sp) THEN
-            CALL SSCAL(n, REAL(scaling(i), sp), a_sp(:, i), 1)
-         ELSE
-            CALL DSCAL(n, scaling(i), a(:, i), 1)
-         END IF
+         CALL DSCAL(n, scaling(i), a(:, i), 1)
       END DO
 #endif
    END SUBROUTINE cp_fm_column_scale
@@ -1546,7 +1385,6 @@ CONTAINS
       INTEGER                                  :: n, m, nrow_global, nrow_local, ncol_local
       INTEGER, DIMENSION(:), POINTER           :: row_indices
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
-      REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
 #if defined(__parallel)
       INTEGER                                  :: irow_global, icol, irow
 #else
@@ -1558,39 +1396,20 @@ CONTAINS
       CPASSERT(SIZE(scaling) == nrow_global)
 
       a => matrixa%local_data
-      a_sp => matrixa%local_data_sp
-      IF (matrixa%use_sp) THEN
-         n = SIZE(a_sp, 1)
-         m = SIZE(a_sp, 2)
-      ELSE
-         n = SIZE(a, 1)
-         m = SIZE(a, 2)
-      END IF
+      n = SIZE(a, 1)
+      m = SIZE(a, 2)
 
 #if defined(__parallel)
       DO icol = 1, ncol_local
-         IF (matrixa%use_sp) THEN
-            DO irow = 1, nrow_local
-               irow_global = row_indices(irow)
-               a(irow, icol) = REAL(scaling(irow_global), dp)*a(irow, icol)
-            END DO
-         ELSE
-            DO irow = 1, nrow_local
-               irow_global = row_indices(irow)
-               a(irow, icol) = scaling(irow_global)*a(irow, icol)
-            END DO
-         END IF
+         DO irow = 1, nrow_local
+            irow_global = row_indices(irow)
+            a(irow, icol) = scaling(irow_global)*a(irow, icol)
+         END DO
       END DO
 #else
-      IF (matrixa%use_sp) THEN
-         DO j = 1, m
-            a_sp(1:n, j) = REAL(scaling(1:n), sp)*a_sp(1:n, j)
-         END DO
-      ELSE
-         DO j = 1, m
-            a(1:n, j) = scaling(1:n)*a(1:n, j)
-         END DO
-      END IF
+      DO j = 1, m
+         a(1:n, j) = scaling(1:n)*a(1:n, j)
+      END DO
 #endif
    END SUBROUTINE cp_fm_row_scale
 
@@ -2066,9 +1885,7 @@ CONTAINS
       INTEGER :: nrows_global, handle, info, lwork
       INTEGER, DIMENSION(:), ALLOCATABLE       :: ipivot
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat
-      REAL(KIND=sp), DIMENSION(:, :), POINTER  :: mat_sp
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: work
-      REAL(KIND=sp), DIMENSION(:), ALLOCATABLE :: work_sp
 #if defined(__parallel)
       INTEGER                                  :: liwork
       INTEGER, DIMENSION(9)                    :: desca
@@ -2080,89 +1897,46 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       mat => matrix%local_data
-      mat_sp => matrix%local_data_sp
       nrows_global = matrix%matrix_struct%nrow_global
       CPASSERT(nrows_global == matrix%matrix_struct%ncol_global)
       ALLOCATE (ipivot(nrows_global))
       ! do LU decomposition
 #if defined(__parallel)
       desca = matrix%matrix_struct%descriptor
-      IF (matrix%use_sp) THEN
-         CALL psgetrf(nrows_global, nrows_global, &
-                      mat_sp, 1, 1, desca, ipivot, info)
-      ELSE
-         CALL pdgetrf(nrows_global, nrows_global, &
-                      mat, 1, 1, desca, ipivot, info)
-      END IF
+      CALL pdgetrf(nrows_global, nrows_global, &
+                   mat, 1, 1, desca, ipivot, info)
 #else
       lda = SIZE(mat, 1)
-      IF (matrix%use_sp) THEN
-         CALL sgetrf(nrows_global, nrows_global, &
-                     mat_sp, lda, ipivot, info)
-      ELSE
-         CALL dgetrf(nrows_global, nrows_global, &
-                     mat, lda, ipivot, info)
-      END IF
+      CALL dgetrf(nrows_global, nrows_global, &
+                  mat, lda, ipivot, info)
 #endif
       IF (info /= 0) THEN
          CALL cp_abort(__LOCATION__, "LU decomposition has failed")
       END IF
       ! do inversion
-      IF (matrix%use_sp) THEN
-         ALLOCATE (work(1))
-      ELSE
-         ALLOCATE (work_sp(1))
-      END IF
 #if defined(__parallel)
       ALLOCATE (iwork(1))
-      IF (matrix%use_sp) THEN
-         CALL psgetri(nrows_global, mat_sp, 1, 1, desca, &
-                      ipivot, work_sp, -1, iwork, -1, info)
-         lwork = INT(work_sp(1))
-         DEALLOCATE (work_sp)
-         ALLOCATE (work_sp(lwork))
-      ELSE
-         CALL pdgetri(nrows_global, mat, 1, 1, desca, &
-                      ipivot, work, -1, iwork, -1, info)
-         lwork = INT(work(1))
-         DEALLOCATE (work)
-         ALLOCATE (work(lwork))
-      END IF
+      CALL pdgetri(nrows_global, mat, 1, 1, desca, &
+                   ipivot, work, -1, iwork, -1, info)
+      lwork = INT(work(1))
+      DEALLOCATE (work)
+      ALLOCATE (work(lwork))
       liwork = INT(iwork(1))
       DEALLOCATE (iwork)
       ALLOCATE (iwork(liwork))
-      IF (matrix%use_sp) THEN
-         CALL psgetri(nrows_global, mat_sp, 1, 1, desca, &
-                      ipivot, work_sp, lwork, iwork, liwork, info)
-      ELSE
-         CALL pdgetri(nrows_global, mat, 1, 1, desca, &
-                      ipivot, work, lwork, iwork, liwork, info)
-      END IF
+      CALL pdgetri(nrows_global, mat, 1, 1, desca, &
+                   ipivot, work, lwork, iwork, liwork, info)
       DEALLOCATE (iwork)
 #else
-      IF (matrix%use_sp) THEN
-         CALL sgetri(nrows_global, mat_sp, lda, &
-                     ipivot, work_sp, -1, info)
-         lwork = INT(work_sp(1))
-         DEALLOCATE (work_sp)
-         ALLOCATE (work_sp(lwork))
-         CALL sgetri(nrows_global, mat_sp, lda, &
-                     ipivot, work_sp, lwork, info)
-      ELSE
-         CALL dgetri(nrows_global, mat, lda, &
-                     ipivot, work, -1, info)
-         lwork = INT(work(1))
-         DEALLOCATE (work)
-         ALLOCATE (work(lwork))
-         CALL dgetri(nrows_global, mat, lda, &
-                     ipivot, work, lwork, info)
-      END IF
+      CALL dgetri(nrows_global, mat, lda, &
+                  ipivot, work, -1, info)
+      lwork = INT(work(1))
+      DEALLOCATE (work)
+      ALLOCATE (work(lwork))
+      CALL dgetri(nrows_global, mat, lda, &
+                  ipivot, work, lwork, info)
 #endif
-      IF (matrix%use_sp) THEN
-         DEALLOCATE (work_sp)
-      ELSE
-         DEALLOCATE (work)
-      END IF
+      DEALLOCATE (work)
       DEALLOCATE (ipivot)
 
       IF (PRESENT(info_out)) THEN
@@ -2194,11 +1968,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_norm'
 
       INTEGER :: nrows, ncols, handle, lwork, nrows_local, ncols_local
-      REAL(KIND=sp) :: res_sp
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: aa
-      REAL(KIND=sp), DIMENSION(:, :), POINTER :: aa_sp
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: work
-      REAL(KIND=sp), DIMENSION(:), ALLOCATABLE :: work_sp
 #if defined(__parallel)
       INTEGER, DIMENSION(9) :: desca
 #else
@@ -2213,7 +1984,6 @@ CONTAINS
                           nrow_local=nrows_local, &
                           ncol_local=ncols_local)
       aa => matrix%local_data
-      aa_sp => matrix%local_data_sp
 
 #if defined(__parallel)
       desca = matrix%matrix_struct%descriptor
@@ -2229,16 +1999,9 @@ CONTAINS
       CASE DEFAULT
          CPABORT("mode input is not valid")
       END SELECT
-      IF (matrix%use_sp) THEN
-         ALLOCATE (work_sp(lwork))
-         res_sp = pslange(mode, nrows, ncols, aa_sp, 1, 1, desca, work_sp)
-         DEALLOCATE (work_sp)
-         res = REAL(res_sp, KIND=dp)
-      ELSE
-         ALLOCATE (work(lwork))
-         res = pdlange(mode, nrows, ncols, aa, 1, 1, desca, work)
-         DEALLOCATE (work)
-      END IF
+      ALLOCATE (work(lwork))
+      res = pdlange(mode, nrows, ncols, aa, 1, 1, desca, work)
+      DEALLOCATE (work)
 #else
       SELECT CASE (mode)
       CASE ('M', 'm')
@@ -2252,18 +2015,10 @@ CONTAINS
       CASE DEFAULT
          CPABORT("mode input is not valid")
       END SELECT
-      IF (matrix%use_sp) THEN
-         ALLOCATE (work_sp(lwork))
-         lda = SIZE(aa_sp, 1)
-         res_sp = slange(mode, nrows, ncols, aa_sp, lda, work_sp)
-         DEALLOCATE (work_sp)
-         res = REAL(res_sp, KIND=dp)
-      ELSE
-         ALLOCATE (work(lwork))
-         lda = SIZE(aa, 1)
-         res = dlange(mode, nrows, ncols, aa, lda, work)
-         DEALLOCATE (work)
-      END IF
+      ALLOCATE (work(lwork))
+      lda = SIZE(aa, 1)
+      res = dlange(mode, nrows, ncols, aa, lda, work)
+      DEALLOCATE (work)
 #endif
 
       CALL timestop(handle)
@@ -2283,9 +2038,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_latra'
 
       INTEGER :: nrows, ncols, handle
-      REAL(KIND=sp) :: res_sp
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: aa
-      REAL(KIND=sp), DIMENSION(:, :), POINTER :: aa_sp
 #if defined(__parallel)
       INTEGER, DIMENSION(9) :: desca
 #else
@@ -2298,29 +2051,15 @@ CONTAINS
       ncols = matrix%matrix_struct%ncol_global
       CPASSERT(nrows == ncols)
       aa => matrix%local_data
-      aa_sp => matrix%local_data_sp
 
 #if defined(__parallel)
       desca = matrix%matrix_struct%descriptor
-      IF (matrix%use_sp) THEN
-         res_sp = pslatra(nrows, aa_sp, 1, 1, desca)
-         res = REAL(res_sp, KIND=dp)
-      ELSE
-         res = pdlatra(nrows, aa, 1, 1, desca)
-      END IF
+      res = pdlatra(nrows, aa, 1, 1, desca)
 #else
-      IF (matrix%use_sp) THEN
-         res_sp = 0.0_sp
-         DO ii = 1, nrows
-            res_sp = res_sp + aa_sp(ii, ii)
-         END DO
-         res = REAL(res_sp, KIND=dp)
-      ELSE
-         res = 0.0_dp
-         DO ii = 1, nrows
-            res = res + aa(ii, ii)
-         END DO
-      END IF
+      res = 0.0_dp
+      DO ii = 1, nrows
+         res = res + aa(ii, ii)
+      END DO
 #endif
 
       CALL timestop(handle)
@@ -2704,7 +2443,6 @@ CONTAINS
       CHARACTER                                :: myuplo
       INTEGER                                  :: info
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
-      REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
 #if defined(__parallel)
       INTEGER, DIMENSION(9)                    :: desca
 #endif
@@ -2713,20 +2451,11 @@ CONTAINS
       IF (PRESENT(uplo)) myuplo = uplo
 
       a => fm_matrix%local_data
-      a_sp => fm_matrix%local_data_sp
 #if defined(__parallel)
       desca(:) = fm_matrix%matrix_struct%descriptor(:)
-      IF (fm_matrix%use_sp) THEN
-         CALL pspotrf(myuplo, n, a_sp(1, 1), 1, 1, desca, info)
-      ELSE
-         CALL pdpotrf(myuplo, n, a(1, 1), 1, 1, desca, info)
-      END IF
+      CALL pdpotrf(myuplo, n, a(1, 1), 1, 1, desca, info)
 #else
-      IF (fm_matrix%use_sp) THEN
-         CALL spotrf(myuplo, n, a_sp(1, 1), SIZE(a_sp, 1), info)
-      ELSE
-         CALL dpotrf(myuplo, n, a(1, 1), SIZE(a, 1), info)
-      END IF
+      CALL dpotrf(myuplo, n, a(1, 1), SIZE(a, 1), info)
 #endif
       IF (info /= 0) &
          CPABORT("Cholesky decomposition failed. Matrix ill-conditioned?")
@@ -2746,7 +2475,6 @@ CONTAINS
 
       CHARACTER                                :: myuplo
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
-      REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
       INTEGER                                  :: info
 #if defined(__parallel)
       INTEGER, DIMENSION(9)                    :: desca
@@ -2756,20 +2484,11 @@ CONTAINS
       IF (PRESENT(uplo)) myuplo = uplo
 
       a => fm_matrix%local_data
-      a_sp => fm_matrix%local_data_sp
 #if defined(__parallel)
       desca(:) = fm_matrix%matrix_struct%descriptor(:)
-      IF (fm_matrix%use_sp) THEN
-         CALL pspotri(myuplo, n, a_sp(1, 1), 1, 1, desca, info)
-      ELSE
-         CALL pdpotri(myuplo, n, a(1, 1), 1, 1, desca, info)
-      END IF
+      CALL pdpotri(myuplo, n, a(1, 1), 1, 1, desca, info)
 #else
-      IF (fm_matrix%use_sp) THEN
-         CALL spotri(myuplo, n, a_sp(1, 1), SIZE(a_sp, 1), info)
-      ELSE
-         CALL dpotri(myuplo, n, a(1, 1), SIZE(a, 1), info)
-      END IF
+      CALL dpotri(myuplo, n, a(1, 1), SIZE(a, 1), info)
 #endif
       CPASSERT(info == 0)
    END SUBROUTINE cp_fm_potri
@@ -2796,9 +2515,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE       :: xvl, yvl, yvm
 #endif
 
-      IF (amat%use_sp) THEN
-         CPABORT("cp_fm_matvec: SP option not available")
-      END IF
       aval = 1.0_dp
       IF (PRESENT(alpha)) aval = alpha
       bval = 0.0_dp

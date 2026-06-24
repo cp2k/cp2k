@@ -196,8 +196,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
-      CALL cp_fm_create(work, matrix_in%matrix_struct, name="apply_full_single", &
-                        use_sp=matrix_in%use_sp)
+      CALL cp_fm_create(work, matrix_in%matrix_struct, name="apply_full_single")
       CALL cp_fm_cholesky_restore(matrix_in, k, preconditioner_env%fm, work,&
            &                      "SOLVE", transa="T")
       CALL cp_fm_cholesky_restore(work, k, preconditioner_env%fm, matrix_out,&

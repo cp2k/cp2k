@@ -22,8 +22,7 @@ MODULE cp_fm_types
                                               cp_fm_struct_retain,&
                                               cp_fm_struct_type,&
                                               cp_fm_struct_write_info
-   USE kinds,                           ONLY: dp,&
-                                              sp
+   USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: cp2k_is_parallel,&
                                               mp_any_source,&
                                               mp_para_env_type,&
@@ -115,10 +114,8 @@ MODULE cp_fm_types
    TYPE cp_fm_type
 !    PRIVATE
       CHARACTER(LEN=60) :: name = ""
-      LOGICAL :: use_sp = .FALSE.
       TYPE(cp_fm_struct_type), POINTER :: matrix_struct => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data => NULL()
-      REAL(KIND=sp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data_sp => NULL()
    END TYPE cp_fm_type
 
 ! **************************************************************************************************
@@ -155,7 +152,6 @@ CONTAINS
 !> \param matrix the matrix to be created
 !> \param matrix_struct the structure of matrix
 !> \param name ...
-!> \param use_sp ...
 !> \param nrow ...
 !> \param ncol ...
 !> \param set_zero ...
@@ -165,11 +161,10 @@ CONTAINS
 !> \note
 !>      preferred allocation routine
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_create(matrix, matrix_struct, name, use_sp, nrow, ncol, set_zero)
+   SUBROUTINE cp_fm_create(matrix, matrix_struct, name, nrow, ncol, set_zero)
       TYPE(cp_fm_type), INTENT(OUT)                      :: matrix
       TYPE(cp_fm_struct_type), INTENT(IN), TARGET        :: matrix_struct
       CHARACTER(LEN=*), INTENT(in), OPTIONAL             :: name
-      LOGICAL, INTENT(in), OPTIONAL                      :: use_sp
       INTEGER, INTENT(IN), OPTIONAL                      :: nrow, ncol
       LOGICAL, INTENT(in), OPTIONAL                      :: set_zero
 
@@ -210,25 +205,13 @@ CONTAINS
          ncol_local = MAX(1, matrix_struct%ncol_locals(context%mepos(2)))
       END IF
 
-      matrix%use_sp = .FALSE.
-      IF (PRESENT(use_sp)) matrix%use_sp = use_sp
-
       NULLIFY (matrix%local_data)
-      NULLIFY (matrix%local_data_sp)
 
-      IF (matrix%use_sp) THEN
-         ALLOCATE (matrix%local_data_sp(nrow_local, ncol_local))
-      ELSE
-         ALLOCATE (matrix%local_data(nrow_local, ncol_local))
-      END IF
+      ALLOCATE (matrix%local_data(nrow_local, ncol_local))
 
       IF (PRESENT(set_zero)) THEN
          IF (set_zero) THEN
-            IF (matrix%use_sp) THEN
-               matrix%local_data_sp(1:nrow_local, 1:ncol_local) = 0.0_sp
-            ELSE
-               matrix%local_data(1:nrow_local, 1:ncol_local) = 0.0_dp
-            END IF
+            matrix%local_data(1:nrow_local, 1:ncol_local) = 0.0_dp
          END IF
       END IF
 
@@ -255,10 +238,6 @@ CONTAINS
       IF (ASSOCIATED(matrix%local_data)) THEN
          DEALLOCATE (matrix%local_data)
          NULLIFY (matrix%local_data)
-      END IF
-      IF (ASSOCIATED(matrix%local_data_sp)) THEN
-         DEALLOCATE (matrix%local_data_sp)
-         NULLIFY (matrix%local_data_sp)
       END IF
       matrix%name = ""
       CALL cp_fm_struct_release(matrix%matrix_struct)
@@ -493,8 +472,6 @@ CONTAINS
       rng = rng_stream_type("cp_fm_init_random_stream", distribution_type=UNIFORM, &
                             extended_precision=.TRUE., seed=seed)
 
-      CPASSERT(.NOT. matrix%use_sp)
-
       CALL cp_fm_get_info(matrix, nrow_global=nrow_global, ncol_global=ncol_global, &
                           nrow_local=nrow_local, ncol_local=ncol_local, &
                           local_data=local_data, &
@@ -564,14 +541,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (matrix%use_sp) THEN
-         matrix%local_data_sp(:, :) = REAL(alpha, sp)
-      ELSE
-         matrix%local_data(:, :) = alpha
-      END IF
+      matrix%local_data(:, :) = alpha
 
       IF (PRESENT(beta)) THEN
-         CPASSERT(.NOT. matrix%use_sp)
          n = MIN(matrix%matrix_struct%nrow_global, matrix%matrix_struct%ncol_global)
          DO i = 1, n
             CALL cp_fm_set_element(matrix, i, i, beta)
@@ -602,7 +574,6 @@ CONTAINS
       INTEGER :: icol_local, ipcol, iprow, irow_local, mypcol, myprow, npcol, &
                  nprow
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: a
-      REAL(KIND=sp), DIMENSION(:, :), POINTER :: a_sp
 #endif
 
       CALL cp_fm_get_info(matrix, nrow_global=nrow_global)
@@ -616,27 +587,18 @@ CONTAINS
       npcol = context%num_pe(2)
 
       a => matrix%local_data
-      a_sp => matrix%local_data_sp
       desca(:) = matrix%matrix_struct%descriptor(:)
 
       DO i = 1, nrow_global
          CALL infog2l(i, i, desca, nprow, npcol, myprow, mypcol, &
                       irow_local, icol_local, iprow, ipcol)
          IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
-            IF (matrix%use_sp) THEN
-               diag(i) = REAL(a_sp(irow_local, icol_local), dp)
-            ELSE
-               diag(i) = a(irow_local, icol_local)
-            END IF
+            diag(i) = a(irow_local, icol_local)
          END IF
       END DO
 #else
       DO i = 1, nrow_global
-         IF (matrix%use_sp) THEN
-            diag(i) = REAL(matrix%local_data_sp(i, i), dp)
-         ELSE
-            diag(i) = matrix%local_data(i, i)
-         END IF
+         diag(i) = matrix%local_data(i, i)
       END DO
 #endif
       CALL matrix%matrix_struct%para_env%sum(diag)
@@ -737,8 +699,6 @@ CONTAINS
       nprow = context%num_pe(1)
       npcol = context%num_pe(2)
 
-      CPASSERT(.NOT. matrix%use_sp)
-
 #if defined(__parallel)
 
       a => matrix%local_data
@@ -802,10 +762,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: full_block
 
       al = 1.0_dp; be = 0.0_dp; i0 = 1; j0 = 1; tr_a = .FALSE.
-      ! can be called too many times, making it a bit useless
-      ! CALL timeset(routineN//','//moduleN,handle)
-
-      CPASSERT(.NOT. fm%use_sp)
 
       IF (PRESENT(alpha)) al = alpha
       IF (PRESENT(beta)) be = beta
@@ -888,8 +844,6 @@ CONTAINS
          END DO
       END IF
 
-      ! CALL timestop(handle)
-
    END SUBROUTINE cp_fm_set_submatrix
 
 ! **************************************************************************************************
@@ -916,8 +870,6 @@ CONTAINS
                                                             this_row
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: full_block
-
-      CPASSERT(.NOT. fm%use_sp)
 
       full_block => fm%local_data
 
@@ -987,8 +939,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       i0 = 1; j0 = 1; tr_a = .FALSE.
-
-      CPASSERT(.NOT. fm%use_sp)
 
       IF (PRESENT(start_row)) i0 = start_row
       IF (PRESENT(start_col)) j0 = start_col
@@ -1146,21 +1096,15 @@ CONTAINS
       REAL(dp)                                           :: my_max
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: a_max_vec
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: my_block
-      REAL(KIND=sp), DIMENSION(:, :), POINTER            :: my_block_sp
 
       CALL timeset(routineN, handle)
 
       my_block => matrix%local_data
-      my_block_sp => matrix%local_data_sp
 
       CALL cp_fm_get_info(matrix, nrow_local=nrow_local, ncol_local=ncol_local, &
                           row_indices=row_indices, col_indices=col_indices)
 
-      IF (matrix%use_sp) THEN
-         a_max = REAL(MAXVAL(ABS(my_block_sp(1:nrow_local, 1:ncol_local))), dp)
-      ELSE
-         a_max = MAXVAL(ABS(my_block(1:nrow_local, 1:ncol_local)))
-      END IF
+      a_max = MAXVAL(ABS(my_block(1:nrow_local, 1:ncol_local)))
 
       IF (PRESENT(ir_max)) THEN
          num_pe = matrix%matrix_struct%para_env%num_pe
@@ -1176,18 +1120,10 @@ CONTAINS
          IF ((ncol_local > 0) .AND. (nrow_local > 0)) THEN
             DO i = 1, ncol_local
                DO j = 1, nrow_local
-                  IF (matrix%use_sp) THEN
-                     IF (ABS(my_block_sp(j, i)) > my_max) THEN
-                        my_max = REAL(my_block_sp(j, i), dp)
-                        ir_max_local = j
-                        ic_max_local = i
-                     END IF
-                  ELSE
-                     IF (ABS(my_block(j, i)) > my_max) THEN
-                        my_max = my_block(j, i)
-                        ir_max_local = j
-                        ic_max_local = i
-                     END IF
+                  IF (ABS(my_block(j, i)) > my_max) THEN
+                     my_max = my_block(j, i)
+                     ir_max_local = j
+                     ic_max_local = i
                   END IF
                END DO
             END DO
@@ -1249,8 +1185,6 @@ CONTAINS
 
       my_block => matrix%local_data
 
-      CPASSERT(.NOT. matrix%use_sp)
-
       CALL cp_fm_get_info(matrix, row_indices=row_indices, nrow_global=nrow_global, &
                           nrow_local=nrow_local, ncol_local=ncol_local)
 
@@ -1288,8 +1222,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       my_block => matrix%local_data
-
-      CPASSERT(.NOT. matrix%use_sp)
 
       CALL cp_fm_get_info(matrix, col_indices=col_indices, ncol_global=ncol_global, &
                           nrow_local=nrow_local, ncol_local=ncol_local)
@@ -1347,8 +1279,6 @@ CONTAINS
 
       my_block => matrix%local_data
 
-      CPASSERT(.NOT. matrix%use_sp)
-
       CALL cp_fm_get_info(matrix, col_indices=col_indices, row_indices=row_indices, &
                           nrow_local=nrow_local, ncol_local=ncol_local)
 
@@ -1395,41 +1325,14 @@ CONTAINS
       IF ((.NOT. cp2k_is_parallel) .OR. &
           cp_fm_struct_equivalent(source%matrix_struct, &
                                   destination%matrix_struct)) THEN
-         IF (source%use_sp .AND. destination%use_sp) THEN
-            IF (SIZE(source%local_data_sp, 1) /= SIZE(destination%local_data_sp, 1) .OR. &
-                SIZE(source%local_data_sp, 2) /= SIZE(destination%local_data_sp, 2)) &
-               CALL cp_abort(__LOCATION__, &
-                             "Cannot copy full matrix <"//TRIM(source%name)// &
-                             "> to full matrix <"//TRIM(destination%name)// &
-                             ">. The local_data blocks have different sizes.")
-            CALL scopy(SIZE(source%local_data_sp, 1)*SIZE(source%local_data_sp, 2), &
-                       source%local_data_sp, 1, destination%local_data_sp, 1)
-         ELSE IF (source%use_sp .AND. .NOT. destination%use_sp) THEN
-            IF (SIZE(source%local_data_sp, 1) /= SIZE(destination%local_data, 1) .OR. &
-                SIZE(source%local_data_sp, 2) /= SIZE(destination%local_data, 2)) &
-               CALL cp_abort(__LOCATION__, &
-                             "Cannot copy full matrix <"//TRIM(source%name)// &
-                             "> to full matrix <"//TRIM(destination%name)// &
-                             ">. The local_data blocks have different sizes.")
-            destination%local_data = REAL(source%local_data_sp, dp)
-         ELSE IF (.NOT. source%use_sp .AND. destination%use_sp) THEN
-            IF (SIZE(source%local_data, 1) /= SIZE(destination%local_data_sp, 1) .OR. &
-                SIZE(source%local_data, 2) /= SIZE(destination%local_data_sp, 2)) &
-               CALL cp_abort(__LOCATION__, &
-                             "Cannot copy full matrix <"//TRIM(source%name)// &
-                             "> to full matrix <"//TRIM(destination%name)// &
-                             ">. The local_data blocks have different sizes.")
-            destination%local_data_sp = REAL(source%local_data, sp)
-         ELSE
-            IF (SIZE(source%local_data, 1) /= SIZE(destination%local_data, 1) .OR. &
-                SIZE(source%local_data, 2) /= SIZE(destination%local_data, 2)) &
-               CALL cp_abort(__LOCATION__, &
-                             "Cannot copy full matrix <"//TRIM(source%name)// &
-                             "> to full matrix <"//TRIM(destination%name)// &
-                             ">. The local_data blocks have different sizes.")
-            CALL dcopy(SIZE(source%local_data, 1)*SIZE(source%local_data, 2), &
-                       source%local_data, 1, destination%local_data, 1)
-         END IF
+         IF (SIZE(source%local_data, 1) /= SIZE(destination%local_data, 1) .OR. &
+             SIZE(source%local_data, 2) /= SIZE(destination%local_data, 2)) &
+            CALL cp_abort(__LOCATION__, &
+                          "Cannot copy full matrix <"//TRIM(source%name)// &
+                          "> to full matrix <"//TRIM(destination%name)// &
+                          ">. The local_data blocks have different sizes.")
+         CALL dcopy(SIZE(source%local_data, 1)*SIZE(source%local_data, 2), &
+                    source%local_data, 1, destination%local_data, 1)
       ELSE
          CPABORT("Data structures of source and target full matrix are not equivalent")
       END IF
@@ -1678,10 +1581,6 @@ CONTAINS
             END DO
          END DO
       ELSE
-         ! assumption of double precision data is carried forward from ScaLAPACK version
-         IF (source%use_sp) CPABORT("only DP kind implemented")
-         IF (destination%use_sp) CPABORT("only DP kind implemented")
-
          NULLIFY (recv_dist, send_dist)
          NULLIFY (recv_col_indices, recv_row_indices, send_col_indices, send_row_indices)
 
@@ -2113,7 +2012,6 @@ CONTAINS
          ! check whether source is available on this process
          IF (ASSOCIATED(source%matrix_struct)) THEN
             desca = source%matrix_struct%descriptor
-            IF (source%use_sp) CPABORT("only DP kind implemented")
             IF (nrows > source%matrix_struct%nrow_global) &
                CPABORT("nrows is greater than nrow_global of source")
             IF (ncols > source%matrix_struct%ncol_global) &
@@ -2126,7 +2024,6 @@ CONTAINS
          ! check destination is available on this process
          IF (ASSOCIATED(destination%matrix_struct)) THEN
             descb = destination%matrix_struct%descriptor
-            IF (destination%use_sp) CPABORT("only DP kind implemented")
             IF (nrows > destination%matrix_struct%nrow_global) &
                CPABORT("nrows is greater than nrow_global of destination")
             IF (ncols > destination%matrix_struct%ncol_global) &
