@@ -1,0 +1,69 @@
+# Top-level files
+/*                           @cp2k/cp2k-admins
+
+# Data
+/data/                       @mkrack @juerghutter
+
+# CMake
+/cmake/                      @mkrack @mtaillefumier @RMeli
+CMakeLists.txt               @mkrack @mtaillefumier @RMeli
+
+# Spack
+/tools/spack/                @mkrack @mtaillefumier @RMeli
+
+# Toolchain
+/tools/toolchain/            @mkrack @oschuett
+
+# Testing + Conventions
+/tools/conventions/          @mkrack @oschuett
+/tools/precommit/            @mkrack @oschuett
+/tools/dashboard/            @mkrack @oschuett
+/tools/docker/               @mkrack @oschuett
+
+# Load bearing APIs and files
+/src/fm/                     @fstein93 @oschuett
+/src/pw/                     @fstein93 @oschuett
+/src/pw_env/                 @fstein93 @oschuett
+/src/mpiwrap/                @fstein93 @oschuett
+/src/dbm/                    @fstein93 @oschuett
+/src/dbt/                    @fstein93 @oschuett
+/src/dbx/                    @fstein93 @oschuett
+/src/base/                   @fstein93 @oschuett
+/src/start/                  @fstein93 @oschuett
+/src/f77_interface.F         @fstein93 @oschuett
+/tests/do_regtest.py         @fstein93 @oschuett
+/tests/matcher_classes.py    @fstein93 @oschuett
+
+# Offload + Grid
+/src/offload/                @mtaillefumier @oschuett
+/src/grid/                   @mtaillefumier @oschuett
+
+# SIRIUS
+/src/sirius_interface.F      @mtaillefumier @RMeli
+/src/*pwdft*                 @mtaillefumier @RMeli
+
+# DLA-Future
+/src/fm/*dlaf*               @RMeli @mtaillefumier
+
+# PAO
+/src/pao_*                   @oschuett
+/tools/pao-ml/               @oschuett
+
+# Path integrals and NNP
+/src/motion/pint_*           @hforbert
+/src/motion/helium_*         @hforbert
+/src/nnp_*                   @hforbert
+
+# Dispersion + tblite
+/src/qs_dispersion_*         @jpoto
+/src/tblite_*                @jpoto
+
+# NEGF
+/src/negf_*                  @dryndyk
+
+# Post Hartree-Fock
+/src/mp2_*                   @JWilhelm @fstein93
+/src/rpa_*                   @JWilhelm @fstein93
+/src/gw_*                    @JWilhelm @fstein93
+
+#EOF
