@@ -84,61 +84,45 @@ EOF
       cmake \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_LIBDIR="lib" \
-        -DBUILD_SHARED_LIBS=YES \
-        -DBUILD_FORTRAN_API=YES \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_FORTRAN_API=ON \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         "${CMAKE_MPI_COMPILERS[@]}" \
         .. > cmake.log 2>&1 || tail_excerpt cmake.log
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . > build.log 2>&1 || tail_excerpt build.log
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target install > install.log 2>&1 || tail_excerpt install.log
-
+      make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename "${SCRIPT_NAME}")"
     fi
-    MCL_LDFLAGS="-L'${pkg_install_dir}/lib/MiMiC' -Wl,-rpath,'${pkg_install_dir}/lib/MiMiC'"
     ;;
   __SYSTEM__)
     echo "==================== Finding MCL from system paths ===================="
     check_lib -lmclf "mcl"
-    add_lib_from_paths MCL_LDFLAGS "mclf.*" "$LIB_PATHS"
-    add_lib_from_paths MCL_LDFLAGS "mcl.*" "$LIB_PATHS"
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libmclf.*" $LIB_PATHS)))"
     ;;
   __DONTUSE__) ;;
 
   *)
     echo "==================== Linking MCL to user paths ===================="
     pkg_install_dir="${with_mcl}"
-
-    # use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
     MCL_LIBDIR="${pkg_install_dir}/lib/MiMiC"
     [ -d "${pkg_install_dir}/lib64" ] && MCL_LIBDIR="${pkg_install_dir}/lib64/MiMiC"
-
     check_dir "${MCL_LIBDIR}"
-    MCL_LDFLAGS="-L'${MCL_LIBDIR}' -Wl,-rpath,'$MCL_LIBDIR}'"
     ;;
 esac
 
 if [ "$with_mcl" != "__DONTUSE__" ]; then
-  MCL_LIBS="-lmcl -lmclf -lstdc++"
   if [ "$with_mcl" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_mcl"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib/MiMiC"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib/MiMiC"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib/MiMiC"
-export MCL_LIBS="${MCL_LIBS}"
-export MCL_ROOT="${pkg_install_dir}"
-prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
-prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_mcl"
 export MCL_VER="${mcl_ver}"
 export MCL_ROOT="${pkg_install_dir}"
-export MCL_LDFLAGS="${MCL_LDFLAGS}"
-export MCL_LIBS="${MCL_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} -D__MIMIC"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${MCL_LDFLAGS}"
-export CP_LIBS="\${CP_LIBS} ${MCL_LIBS}"
 EOF
   filter_setup "${BUILDDIR}/setup_mcl" "${SETUPFILE}"
 fi

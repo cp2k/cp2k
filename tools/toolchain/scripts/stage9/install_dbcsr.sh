@@ -79,8 +79,7 @@ case "${with_dbcsr}" in
         -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
         ${CMAKE_OPTIONS} .. \
         > cmake.log 2>&1 || tail_excerpt cmake.log
-      make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
-      make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
+      make -j $(get_nprocs) install > make.log 2>&1 || tail_excerpt make.log
       cd ..
       if [ "${ENABLE_CUDA}" == "__TRUE__" ]; then
         mkdir build-cuda
@@ -91,8 +90,7 @@ case "${with_dbcsr}" in
           -DCMAKE_INSTALL_PREFIX=${pkg_install_dir}-cuda \
           ${CMAKE_OPTIONS} .. \
           > cmake.log 2>&1 || tail_excerpt cmake.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
-        make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
+        make -j $(get_nprocs) install > make.log 2>&1 || tail_excerpt make.log
         cd ..
       fi
       if [ "${ENABLE_HIP}" == "__TRUE__" ]; then
@@ -103,24 +101,16 @@ case "${with_dbcsr}" in
           -DCMAKE_INSTALL_PREFIX=${pkg_install_dir}-hip \
           ${CMAKE_OPTIONS} .. \
           > cmake.log 2>&1 || tail_excerpt cmake.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
-        make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
+        make -j $(get_nprocs) install > make.log 2>&1 || tail_excerpt make.log
         cd ..
       fi
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage9/$(basename ${SCRIPT_NAME})"
-      DBCSR_CFLAGS="-I'${pkg_install_dir}/include'"
-      DBCSR_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
-      DBCSR_CUDA_CFLAGS="-I'${pkg_install_dir}-cuda/include'"
-      DBCSR_CUDA_LDFLAGS="-L'${pkg_install_dir}-cuda/lib' -Wl,-rpath='${pkg_install_dir}-cuda/lib'"
-      DBCSR_HIP_CFLAGS="-I'${pkg_install_dir}-hip/include'"
-      DBCSR_HIP_LDFLAGS="-L'${pkg_install_dir}-hip/lib' -Wl,-rpath='${pkg_install_dir}-hip/lib'"
     fi
     ;;
   __SYSTEM__)
     echo "==================== Finding DBCSR from system paths ===================="
     check_lib -ldbcsr "dbcsr"
-    add_include_from_paths DBCSR_CFLAGS "dbcsr.h" $INCLUDE_PATHS
-    add_lib_from_paths DBCSR_LDFLAGS "dbcsr.*" $LIB_PATHS
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libdbcsr.*" $LIB_PATHS)))"
     ;;
   __DONTUSE__)
     # Nothing to do
@@ -129,15 +119,13 @@ case "${with_dbcsr}" in
     echo "==================== Linking DBCSR to user paths ===================="
     pkg_install_dir="${with_dbcsr}"
     DBCSR_LIBDIR="${pkg_install_dir}/lib"
+    [ -d "${pkg_install_dir}/lib64" ] && DBCSR_LIBDIR="${pkg_install_dir}/lib64"
     check_dir "${DBCSR_LIBDIR}"
     check_dir "${pkg_install_dir}/include"
-    DBCSR_CFLAGS="-I'${pkg_install_dir}/include'"
-    DBCSR_LDFLAGS="-L'${DBCSR_LIBDIR}' -Wl,-rpath,'${DBCSR_LIBDIR}'"
     ;;
 esac
 
 if [ "${with_dbcsr}" != "__DONTUSE__" ]; then
-  DBCSR_LIBS="-ldbcsr"
   if [ "${with_dbcsr}" != "__SYSTEM__" ]; then
     if [ "${ENABLE_CUDA}" == "__TRUE__" ]; then
       pkg_install_dir1="${pkg_install_dir}-cuda"
@@ -153,20 +141,11 @@ if [ "${with_dbcsr}" != "__DONTUSE__" ]; then
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir1}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir1}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir1}/lib"
-prepend_path CPATH "${pkg_install_dir1}/include"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir1}"
 export DBCSR_ROOT="${pkg_install_dir}"
 export DBCSR_HIP_ROOT="${pkg_install_dir}-hip"
 export DBCSR_CUDA_ROOT="${pkg_install_dir}-cuda"
 export DBCSR_VER="${dbcsr_ver}"
-export DBCSR_DIR="${pkg_install_dir1}/lib/cmake/dbcsr"
-export DBCSR_CFLAGS="${DBCSR_CFLAGS}"
-export DBCSR_LDFLAGS="IF_CUDA(${DBCSR_CUDA_LDFLAGS}|IF_HIP(${DBCSR_HIP_LDFLAGS}|${DBCSR_LDFLAGS}))"
-export DBCSR_LIBS="${DBCSR_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_CUDA(-D__DBCSR_ACC -D__DBCSR|IF_HIP(-D__DBCSR_ACC -D__DBCSR|-D__DBCSR))"
-export CP_CFLAGS="\${CP_CFLAGS} ${DBCSR_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${DBCSR_LDFLAGS}"
-export CP_LIBS="${DBCSR_LIBS} \${CP_LIBS}"
 EOF
 else
   touch "${BUILDDIR}/setup_dbcsr"

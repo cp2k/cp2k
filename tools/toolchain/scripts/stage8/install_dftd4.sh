@@ -25,12 +25,8 @@ case "$with_dftd4" in
 
   __INSTALL__)
     echo "==================== Installing DFTD4 ===================="
-    require_env OPENBLAS_ROOT
-    require_env MATH_LIBS
-
     pkg_install_dir="${INSTALLDIR}/dftd4-${dftd4_ver}"
     install_lock_file="${pkg_install_dir}/install_successful"
-
     if verify_checksums "${install_lock_file}"; then
       echo "dftd4-${dftd4_ver} is already installed, skipping it."
     else
@@ -41,7 +37,7 @@ case "$with_dftd4" in
       cd dftd4-${dftd4_ver}
 
       mkdir build && cd build
-      CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${OPENBLAS_ROOT}" cmake \
+      cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
@@ -52,79 +48,32 @@ case "$with_dftd4" in
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
     ;;
-
   __SYSTEM__)
     echo "==================== Finding DFTD4 from system paths ===================="
     check_command pkg-config --modversion dftd4
-    DFTD4_INCLUDE_PATH=$(pkg-config --cflags dftd4 | awk '{print $1}' | cut -dI -f2)
-    pkg_install_dir=$(dirname ${DFTD4_INCLUDE_PATH})
-    add_include_from_paths DFTD4_CFLAGS "dftd4.h" $DFTD4_INCLUDE_PATH
-    add_include_from_paths DFTD4_CFLAGS "dftd4.mod" $DFTD4_INCLUDE_PATH
-    add_include_from_paths DFTD4_CFLAGS "mctc_io.mod" $DFTD4_INCLUDE_PATH
-    add_include_from_paths DFTD4_CFLAGS "mstore.mod" $DFTD4_INCLUDE_PATH
-    add_include_from_paths DFTD4_CFLAGS "multicharge.mod" $DFTD4_INCLUDE_PATH
-    add_lib_from_paths DFTD4_LDFLAGS "libdftd4.*" $LIB_PATHS
+    pkg_install_dir="$(pkg-config --variable=prefix dftd4)"
     ;;
-
   *)
     echo "==================== Linking DFTD4 to user paths ===================="
     pkg_install_dir="$with_dftd4"
     check_dir "${pkg_install_dir}/include"
     ;;
-
 esac
 
 if [ "$with_dftd4" != "__DONTUSE__" ]; then
-
-  DFTD4_DFLAGS="-D__DFTD4 -D__DFTD4_V4_2"
-  DFTD4_LIBS="-ldftd4 -lmstore -lmulticharge -lmctc-lib"
-
   cat << EOF > "${BUILDDIR}/setup_dftd4"
+export DFTD4_ROOT="${pkg_install_dir}"
 export DFTD4_VER="${dftd4_ver}"
 EOF
-
-  TEMP_LOC=$(find ${pkg_install_dir}/include -name "multicharge.mod")
-  MCHARGE=${TEMP_LOC%/*}
-  TEMP_LOC=$(find ${pkg_install_dir}/include -name "mstore.mod")
-  MSTORE=${TEMP_LOC%/*}
-  TEMP_LOC=$(find ${pkg_install_dir}/include -name "mctc_io.mod")
-  MCTC=${TEMP_LOC%/*}
-  TEMP_LOC=$(find ${pkg_install_dir}/include -name "dftd4.mod")
-  DFTD4=${TEMP_LOC%/*}
-
-  DFTD4_INCLUDE_DIRS="$pkg_install_dir/include"
-  DFTD4_LINK_LIBRARIES="${pkg_install_dir}/lib"
-  DFTD4_CFLAGS="-I'${MCHARGE}' -I'${MCTC}' -I'${DFTD4}'"
-  DFTD4_LDFLAGS="-L'${DFTD4_LINK_LIBRARIES}' -Wl,-rpath,'${DFTD4_LINK_LIBRARIES}'"
-
   if [ "$with_dftd4" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_dftd4"
-prepend_path LD_LIBRARY_PATH "${DFTD4_LINK_LIBRARIES}"
-prepend_path LD_RUN_PATH "${DFTD4_LINK_LIBRARIES}"
-prepend_path LIBRARY_PATH "${DFTD4_LINK_LIBRARIES}"
-prepend_path CPATH "${DFTD4_INCLUDE_DIRS}"
-prepend_path PKG_CONFIG_PATH "${DFTD4_LINK_LIBRARIES}/pkgconfig"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
-
-  cat << EOF >> "${BUILDDIR}/setup_dftd4"
-export MCHARGE="${MCHARGE}"
-export MSTORE="${MSTORE}"
-export MCTC="${MCTC}"
-export DFTD4="${DFTD4}"
-export DFTD4_INCLUDE_DIRS="${DFTD4_INCLUDE_DIRS}"
-export DFTD4_LINK_LIBRARIES="${DFTD4_LINK_LIBRARIES}"
-export DFTD4_ROOT="${pkg_install_dir}"
-export DFTD4_DFLAGS="${DFTD4_DFLAGS}"
-export DFTD4_CFLAGS="${DFTD4_CFLAGS}"
-export DFTD4_LDFLAGS="${DFTD4_LDFLAGS}"
-export DFTD4_LIBS="${DFTD4_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} \${DFTD4_DFLAGS}"
-export CP_CFLAGS="\${CP_CFLAGS} \${DFTD4_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} \${DFTD4_LDFLAGS}"
-export CP_LIBS="\${DFTD4_LIBS} \${CP_LIBS}"
-EOF
   filter_setup "${BUILDDIR}/setup_dftd4" "${SETUPFILE}"
 fi
 

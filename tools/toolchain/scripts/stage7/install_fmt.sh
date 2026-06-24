@@ -20,7 +20,7 @@ source "${INSTALLDIR}"/toolchain.env
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-case "$with_fmt" in
+case "${with_fmt}" in
   __INSTALL__)
     echo "==================== Installing fmt ===================="
     pkg_install_dir="${INSTALLDIR}/fmt-${fmt_ver}"
@@ -33,8 +33,7 @@ case "$with_fmt" in
       [ -d fmt-${fmt_ver} ] && rm -rf fmt-${fmt_ver}
       unzip -q fmt-${fmt_ver}.zip
       cd fmt-${fmt_ver}
-      mkdir build
-      cd build
+      mkdir -p build && cd build
       cmake .. \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
@@ -49,6 +48,7 @@ case "$with_fmt" in
   __SYSTEM__)
     echo "==================== Finding fmt from system paths ===================="
     check_lib -lfmt "fmt"
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libfmt.*" $LIB_PATHS)))"
     ;;
   __DONTUSE__)
     # Nothing to do
@@ -56,7 +56,9 @@ case "$with_fmt" in
   *)
     echo "==================== Linking fmt to user paths ===================="
     pkg_install_dir="${with_fmt}"
-    check_dir "${pkg_install_dir}/lib"
+    fmt_LIBDIR="${pkg_install_dir}/lib/MiMiC"
+    [ -d "${pkg_install_dir}/lib64" ] && fmt_LIBDIR="${pkg_install_dir}/lib64/MiMiC"
+    check_dir "${fmt_LIBDIR}"
     check_dir "${pkg_install_dir}/include"
     ;;
 esac
