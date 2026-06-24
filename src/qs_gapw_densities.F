@@ -68,7 +68,8 @@ CONTAINS
                                                             output_unit
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: extern, my_do_rho0, paw_atom
-      REAL(dp)                                           :: rho0_h_tot, tot_rs_int
+      REAL(dp)                                           :: rho0_h_tot, rho1_h_aspin, rho1_h_spin, &
+                                                            rho1_s_aspin, rho1_s_spin, tot_rs_int
       REAL(dp), DIMENSION(:), POINTER                    :: rho1_h_tot, rho1_s_tot
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -140,6 +141,11 @@ CONTAINS
       rho1_h_tot = 0.0_dp
       rho1_s_tot = 0.0_dp
 
+      rho1_h_spin = 0.0_dp
+      rho1_s_spin = 0.0_dp
+      rho1_h_aspin = 0.0_dp
+      rho1_s_aspin = 0.0_dp
+
       DO ikind = 1, SIZE(atomic_kind_set)
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
          CALL get_qs_kind(my_kind_set(ikind), paw_atom=paw_atom)
@@ -147,7 +153,8 @@ CONTAINS
          !Calculate rho1_h and rho1_s on the radial grids centered on the atomic position
          IF (paw_atom) THEN
             CALL calculate_rho_atom(para_env, rho_atom_set, my_kind_set(ikind), &
-                                    atom_list, natom, nspins, rho1_h_tot, rho1_s_tot)
+                                    atom_list, natom, nspins, rho1_h_tot, rho1_s_tot, &
+                                    rho1_h_spin, rho1_s_spin, rho1_h_aspin, rho1_s_aspin)
          END IF
 
          !Calculate rho0_h and rho0_s on the radial grids centered on the atomic position
@@ -155,7 +162,6 @@ CONTAINS
             CALL calculate_rho0_atom(gapw_control, rho_atom_set, rhoz_cneo_set, rho0_atom_set, &
                                      rho0_mpole, atom_list, natom, ikind, my_kind_set(ikind), &
                                      rho0_h_tot)
-
       END DO
 
       !Do not mess with charges if using a non-default kind_set
@@ -166,6 +172,15 @@ CONTAINS
             qs_charges%total_rho1_hard(ispin) = -rho1_h_tot(ispin)
             qs_charges%total_rho1_soft(ispin) = -rho1_s_tot(ispin)
          END DO
+         !spin
+         CALL para_env%sum(rho1_h_spin)
+         CALL para_env%sum(rho1_s_spin)
+         CALL para_env%sum(rho1_h_aspin)
+         CALL para_env%sum(rho1_s_aspin)
+         qs_charges%total_rho_hard_spin = rho1_h_spin
+         qs_charges%total_rho_soft_spin = rho1_s_spin
+         qs_charges%total_rho_hard_abs_spin = rho1_h_aspin
+         qs_charges%total_rho_soft_abs_spin = rho1_s_aspin
 
          IF (my_do_rho0) THEN
             rho0_mpole%total_rho0_h = -rho0_h_tot

@@ -44,6 +44,10 @@ MODULE qs_charges_types
       REAL(KIND=dp) :: total_rho_soft_gspace = -1.0_dp
       REAL(KIND=dp), DIMENSION(:), POINTER  :: total_rho1_hard => NULL(), &
                                                total_rho1_soft => NULL()
+      REAL(KIND=dp) :: total_rho_hard_spin = -1.0_dp
+      REAL(KIND=dp) :: total_rho_soft_spin = -1.0_dp
+      REAL(KIND=dp) :: total_rho_hard_abs_spin = -1.0_dp
+      REAL(KIND=dp) :: total_rho_soft_abs_spin = -1.0_dp
       REAL(KIND=dp) :: total_rho1_hard_nuc = -1.0_dp
       REAL(KIND=dp) :: total_rho1_soft_nuc_rspace = -1.0_dp
       REAL(KIND=dp) :: total_rho1_soft_nuc_lebedev = -1.0_dp
@@ -85,6 +89,11 @@ CONTAINS
       qs_charges%total_rho1_hard_nuc = 0.0_dp
       qs_charges%total_rho1_soft_nuc_rspace = 0.0_dp
       qs_charges%total_rho1_soft_nuc_lebedev = 0.0_dp
+      !
+      qs_charges%total_rho_hard_spin = 0.0_dp
+      qs_charges%total_rho_soft_spin = 0.0_dp
+      qs_charges%total_rho_hard_abs_spin = 0.0_dp
+      qs_charges%total_rho_soft_abs_spin = 0.0_dp
    END SUBROUTINE qs_charges_create
 
 ! **************************************************************************************************
