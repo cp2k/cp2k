@@ -41,7 +41,6 @@ class Libxs(CMakePackage):
     depends_on("libxsmm")
 
     def cmake_args(self):
-        spec = self.spec
         args = [
             self.define_from_variant("LIBXS_FORTRAN", "fortran"),
             self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
