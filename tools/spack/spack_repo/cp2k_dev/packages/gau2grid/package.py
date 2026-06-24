@@ -13,9 +13,9 @@ class Gau2grid(CMakePackage):
     its derivative on a grid.
     """
 
-    homepage = "https://github.com/psi4/gau2grid"
+    homepage = "https://gau2grid.readthedocs.io"
     git = "https://github.com/psi4/gau2grid.git"
-    url = "https://github.com/psi4/gau2grid/archive/v2.0.9.tar.gz"
+    url = "https://github.com/psi4/gau2grid/archive/refs/tags/v2.0.9.tar.gz"
 
     maintainers("awvwgk", "mkrack")
 
