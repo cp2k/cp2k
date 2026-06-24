@@ -67,7 +67,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env, input=input, para_env=para_env)
 
-      IF(SIZE(mao_coef) == 1) THEN
+      IF (SIZE(mao_coef) == 1) THEN
          ! open file
          unit_nr = cp_print_key_unit_nr(logger, &
                                         input, &
@@ -105,7 +105,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: label
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      INTEGER                                            :: iatom, natoms, i, m, n
+      INTEGER                                            :: i, iatom, m, n, natoms
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:, :), POINTER                 :: local_block, mpi_buffer

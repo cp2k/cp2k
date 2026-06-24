@@ -19,6 +19,7 @@
         MAX_ITER 10
         NEGLECT_ABC F
         PRINT_BASIS F
+        PRINT_PAO T
         REFERENCE_BASIS ORBITAL
       &END MAO_ANALYSIS
     &END PRINT
