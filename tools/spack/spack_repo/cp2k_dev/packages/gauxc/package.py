@@ -23,7 +23,7 @@ class Gauxc(CMakePackage, CudaPackage):
     license("BSD-3-Clause")
 
     version("master", branch="master")
-    version("dev20260522", branch="skala", commit="69ee054054c642bce0d9b5e8c9c0c13afa97b774")
+    version("dev20260608", branch="skala", commit="36aeab80bf7b2245087bdfeffd8e61b11206b3bd")
     version(
         "1.2.dev2",
         sha256="6659d00522b443f2557a960a9ba0217449d2ee25df809634d6becca23eb0f1ff",
@@ -31,17 +31,17 @@ class Gauxc(CMakePackage, CudaPackage):
     )
     version("1.1", sha256="17de077fb23e44d03b0ed14dcd8117c01e5b3431fbefa2352d751639ada7f91c")
 
-    variant("c", default=True, description="Build with C API support")
-    variant("fortran", default=True, description="Build with Fortran support")
+    variant("c", default=True, description="Build with C API support", when="@master")
+    variant("c", default=True, description="Build with C API support", when="@1.2.dev2")
+    variant("c", default=True, description="Build with C API support", when="@dev20260608")
+    variant("fortran", default=True, description="Build with Fortran support", when="@dev20260608")
     variant("host", default=True, description="Build with host integrator")
     variant("cuda", default=False, description="Build with CUDA support")
     variant("hip", default=False, description="Build with HIP support")
     variant("mpi", default=False, description="Build with MPI support")
     variant("openmp", default=True, description="Build with OpenMP support")
     variant("tests", default=False, description="Build with unit tests")
-    variant("gau2grid", default=True, description="Build with Gau2Grid collocation")
     variant("hdf5", default=True, description="Build with HDF5 support")
-    variant("onedft", default=False, description="Build with ONEDFT functional")
     variant("skala", default=False, description="Build with Skala support")
     variant("fast_rsqrt", default=False, description="Build with fast RSQRT support")
     variant("blas_prefer_ilp64", default=False, description="Prefer ILP64 for host BLAS")
@@ -51,11 +51,10 @@ class Gauxc(CMakePackage, CudaPackage):
     variant("cutlass", default=False, description="Build with CUTLASS linear algebra support")
     variant("pic", default=True, description="Build position independent code")
 
-    conflicts("+skala", when="~onedft", msg="Skala requires ONEDFT support")
     conflicts("+magma", when="~cuda ~hip", msg="MAGMA requires CUDA or HIP")
     conflicts("+nccl", when="~cuda", msg="NCCL requires CUDA")
     conflicts("+cutlass", when="~cuda", msg="CUTLASS requires CUDA")
-    conflicts("+fortran", when="~c", msg="Fortran bindings require C API")
+    conflicts("+fortran", when="~c @1.2.dev2:", msg="Fortran bindings require C API")
 
     # Skala resource file
     skala_version = "1.1"
@@ -83,7 +82,7 @@ class Gauxc(CMakePackage, CudaPackage):
     depends_on("mpi", when="+mpi")
     depends_on("cuda", when="+cuda")
     depends_on("hip", when="+hip")
-    depends_on("gau2grid", when="+gau2grid")
+    depends_on("gau2grid")
     depends_on("nlohmann-json", when="+skala")
     depends_on("py-torch@2:~cuda", when="+skala~cuda")
     depends_on("py-torch@2:+cuda", when="+skala+cuda")
@@ -104,9 +103,8 @@ class Gauxc(CMakePackage, CudaPackage):
             self.define("GAUXC_ENABLE_MPI", spec.satisfies("+mpi")),
             self.define("GAUXC_ENABLE_OPENMP", spec.satisfies("+openmp")),
             self.define("GAUXC_ENABLE_TESTS", spec.satisfies("+tests")),
-            self.define("GAUXC_ENABLE_GAU2GRID", spec.satisfies("+gau2grid")),
             self.define("GAUXC_ENABLE_HDF5", spec.satisfies("+hdf5")),
-            self.define("GAUXC_ENABLE_ONEDFT", spec.satisfies("+onedft")),
+            self.define("GAUXC_ENABLE_ONEDFT", spec.satisfies("+skala")),
             self.define("GAUXC_ENABLE_FAST_RSQRT", spec.satisfies("+fast_rsqrt")),
             self.define("GAUXC_BLAS_PREFER_ILP64", spec.satisfies("+blas_prefer_ilp64")),
             self.define("GAUXC_LINK_CUDA_STATIC", spec.satisfies("+link_cuda_static")),
