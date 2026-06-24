@@ -97,9 +97,14 @@ CONTAINS
 !> \param nspins ...
 !> \param tot_rho1_h ...
 !> \param tot_rho1_s ...
+!> \param rho1_h_spin ...
+!> \param rho1_s_spin ...
+!> \param rho1_h_aspin ...
+!> \param rho1_s_aspin ...
 ! **************************************************************************************************
    SUBROUTINE calculate_rho_atom(para_env, rho_atom_set, qs_kind, atom_list, &
-                                 natom, nspins, tot_rho1_h, tot_rho1_s)
+                                 natom, nspins, tot_rho1_h, tot_rho1_s, &
+                                 rho1_h_spin, rho1_s_spin, rho1_h_aspin, rho1_s_aspin)
 
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
@@ -107,23 +112,25 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_list
       INTEGER, INTENT(IN)                                :: natom, nspins
       REAL(dp), DIMENSION(:), INTENT(INOUT)              :: tot_rho1_h, tot_rho1_s
+      REAL(dp), INTENT(INOUT)                            :: rho1_h_spin, rho1_s_spin, rho1_h_aspin, &
+                                                            rho1_s_aspin
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom'
 
       INTEGER :: damax_iso_not0_local, handle, i, i1, i2, iat, iatom, icg, ipgf1, ipgf2, ir, &
          iset1, iset2, iso, iso1, iso1_coeff, iso1_first, iso1_last, iso2, iso2_coeff, iso2_first, &
          iso2_last, j, l, l_iso, l_sub, l_sum, lmax12, lmax_expansion, lmin12, m1s, m2s, &
-         max_iso_not0, max_iso_not0_local, max_npgf, max_s_harm, maxl, maxso, mepos, n1s, n2s, nr, &
-         nset, num_pe, size1, size2
+         max_iso_not0, max_iso_not0_local, max_npgf, max_s_harm, maxl, maxso, mepos, n1s, n2s, na, &
+         nr, nset, num_pe, size1, size2
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cg_n_list, dacg_n_list
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cg_list, dacg_list
       INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf, o2nindex
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: done_vgg
-      REAL(dp)                                           :: c1, c2, cpc_h, cpc_s, rho_h, rho_s, &
-                                                            root_zet12, zet12
+      REAL(dp)                                           :: c1, c2, cpc_h, cpc_s, rfun, rho_h, &
+                                                            rho_s, root_zet12, zet12
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: erf_zet12, g1, g2, gg0, int1, int2
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: dgg, gg, gg_lm1
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: dgg, gg, gg_lm1, sfun_h, sfun_s
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: g_rad, vgg
       REAL(dp), DIMENSION(:, :), POINTER                 :: coeff_h, coeff_s, zet
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_CG
@@ -392,6 +399,28 @@ CONTAINS
             END DO ! iso
 
          END DO ! ispin
+
+         IF (nspins == 2) THEN
+            na = SIZE(harmonics%slm, 1)
+            ALLOCATE (sfun_h(nr, na), sfun_s(nr, na))
+            sfun_h = 0.0_dp
+            sfun_s = 0.0_dp
+            DO iso = 1, max_iso_not0
+               DO ir = 1, nr
+                  rfun = grid_atom%wr(ir)*(rho_atom_set(iatom)%rho_rad_h(1)%r_coef(ir, iso) - &
+                                           rho_atom_set(iatom)%rho_rad_h(2)%r_coef(ir, iso))
+                  sfun_h(ir, 1:na) = sfun_h(ir, 1:na) + rfun*harmonics%slm(1:na, iso)*grid_atom%wa(1:na)
+                  rfun = grid_atom%wr(ir)*(rho_atom_set(iatom)%rho_rad_s(1)%r_coef(ir, iso) - &
+                                           rho_atom_set(iatom)%rho_rad_s(2)%r_coef(ir, iso))
+                  sfun_s(ir, 1:na) = sfun_s(ir, 1:na) + rfun*harmonics%slm(1:na, iso)*grid_atom%wa(1:na)
+               END DO
+            END DO
+            rho1_h_spin = rho1_h_spin + SUM(sfun_h(1:nr, 1:na))
+            rho1_s_spin = rho1_s_spin + SUM(sfun_s(1:nr, 1:na))
+            rho1_h_aspin = rho1_h_aspin + SUM(ABS(sfun_h(1:nr, 1:na)))
+            rho1_s_aspin = rho1_s_aspin + SUM(ABS(sfun_s(1:nr, 1:na)))
+            DEALLOCATE (sfun_h, sfun_s)
+         END IF
 
       END DO ! iat
 

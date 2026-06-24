@@ -131,6 +131,7 @@ MODULE qs_scf_post_gpw
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_chargemol,                    ONLY: write_wfx
+   USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
                                               calculate_wavefunction
    USE qs_commutators,                  ONLY: build_com_hr_matrix
@@ -2167,6 +2168,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
+      TYPE(qs_charges_type), POINTER                     :: qs_charges
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -2398,6 +2400,15 @@ CONTAINS
 
       ! Integrated absolute spin density and spin contamination ***
       IF (dft_control%nspins == 2) THEN
+         total_spin_dens = 0.0_dp
+         total_abs_spin_dens = 0.0_dp
+         IF (dft_control%qs_control%gapw) THEN
+            CALL get_qs_env(qs_env, qs_charges=qs_charges)
+            total_spin_dens = qs_charges%total_rho_hard_spin - &
+                              qs_charges%total_rho_soft_spin
+            total_abs_spin_dens = qs_charges%total_rho_hard_abs_spin - &
+                                  qs_charges%total_rho_soft_abs_spin
+         END IF
          CALL get_qs_env(qs_env, mos=mos)
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
@@ -2405,10 +2416,10 @@ CONTAINS
          CALL auxbas_pw_pool%create_pw(wf_r)
          CALL pw_copy(rho_r(1), wf_r)
          CALL pw_axpy(rho_r(2), wf_r, alpha=-1._dp)
-         total_spin_dens = pw_integrate_function(wf_r)
+         total_spin_dens = total_spin_dens + pw_integrate_function(wf_r)
          IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,(T3,A,T61,F20.10))') &
             "Integrated spin density: ", total_spin_dens
-         total_abs_spin_dens = pw_integrate_function(wf_r, oprt="ABS")
+         total_abs_spin_dens = total_abs_spin_dens + pw_integrate_function(wf_r, oprt="ABS")
          IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='((T3,A,T61,F20.10))') &
             "Integrated absolute spin density: ", total_abs_spin_dens
          CALL auxbas_pw_pool%give_back_pw(wf_r)
