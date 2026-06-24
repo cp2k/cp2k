@@ -47,56 +47,39 @@ case "$with_libfci" in
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         .. > cmake.log 2>&1 || tail_excerpt cmake.log
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . > build.log 2>&1 || tail_excerpt build.log
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target install > install.log 2>&1 || tail_excerpt install.log
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename "${SCRIPT_NAME}")"
+      make install -j $(get_nprocs) > build.log 2>&1 || tail_excerpt build.log
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename "${SCRIPT_NAME}")"
       cd ../..
     fi
-    LIBFCI_CFLAGS="-I'${pkg_install_dir}/include'"
-    LIBFCI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding libfci from system paths ===================="
     check_lib -lfci "libfci"
-    add_include_from_paths LIBFCI_CFLAGS "libfci.h" $INCLUDE_PATHS
-    add_lib_from_paths LIBFCI_LDFLAGS "libfci.*" $LIB_PATHS
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libfci.*" $LIB_PATHS)))"
     ;;
   *)
     echo "==================== Linking libfci to user paths ===================="
-    pkg_install_dir="$with_libfci"
+    pkg_install_dir="${with_libfci}"
     LIBFCI_LIBDIR="${pkg_install_dir}/lib"
     [ -d "${pkg_install_dir}/lib64" ] && LIBFCI_LIBDIR="${pkg_install_dir}/lib64"
     check_dir "${LIBFCI_LIBDIR}"
     check_dir "${pkg_install_dir}/include"
-    LIBFCI_CFLAGS="-I'${pkg_install_dir}/include'"
-    LIBFCI_LDFLAGS="-L'${LIBFCI_LIBDIR}' -Wl,-rpath,'${LIBFCI_LIBDIR}'"
     ;;
 esac
 if [ "$with_libfci" != "__DONTUSE__" ]; then
-  LIBFCI_LIBS="-lfci -lstdc++"
   cat << EOF > "${BUILDDIR}/setup_libfci"
 export LIBFCI_VER="${libfci_ver}"
+export LIBFCI_ROOT="${pkg_install_dir}"
 EOF
   if [ "$with_libfci" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_libfci"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path CPATH "${pkg_install_dir}/include"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
-  cat << EOF >> "${BUILDDIR}/setup_libfci"
-export LIBFCI_CFLAGS="${LIBFCI_CFLAGS}"
-export LIBFCI_LDFLAGS="${LIBFCI_LDFLAGS}"
-export LIBFCI_LIBS="${LIBFCI_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} -D__LIBFCI"
-export CP_CFLAGS="\${CP_CFLAGS} ${LIBFCI_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBFCI_LDFLAGS}"
-export CP_LIBS="${LIBFCI_LIBS} \${CP_LIBS}"
-export LIBFCI_ROOT="${pkg_install_dir}"
-EOF
   filter_setup "${BUILDDIR}/setup_libfci" "${SETUPFILE}"
 fi
 
