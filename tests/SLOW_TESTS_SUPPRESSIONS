@@ -94,5 +94,9 @@ QS/regtest-tddfpt-force/h2o_tddfpt_newtonx.inp
 QS/regtest-tddfpt-force-gapw/h2o_t08.inp
 QS/regtest-smeagol-1/au-2x2x3-bulk.inp
 QS/regtest-smeagol-2/au-1x1x4-bulk.inp
+QS/regtest-gauxc/H2_NATIVE_SKALA_GPW_PBC_FORCE_DEBUG.inp
+QS/regtest-gauxc/H2P_NATIVE_SKALA_GPW_UKS_PBC_FORCE_DEBUG.inp
+QS/regtest-gauxc/H2_NATIVE_SKALA_GAPW_GTH_STRESS_DEBUG.inp
+QS/regtest-gauxc/H2_NATIVE_SKALA_GAPW_ECP_STRESS_DEBUG.inp
 
 #EOF
