@@ -9,7 +9,7 @@ postfix=""
 # used ranks, can be any value, by default the number of physical cores on the node
 ranks=$(lscpu | awk '/^Core\(s\) per socket:/ {cores=$NF}; /^Socket\(s\):/ {sockets=$NF}; END{print cores*sockets}')
 # adjust command for testing as needed
-command="mpirun -np $ranks ../../../exe/local/cp2k.popt"
+command="mpirun -np $ranks ../../../install/bin/cp2k.popt"
 # iterations used for testing (best value retained for benchmark result)
 maxiter=3
 
