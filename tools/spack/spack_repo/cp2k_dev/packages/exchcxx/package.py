@@ -43,7 +43,7 @@ class Exchcxx(CMakePackage, CudaPackage):
     depends_on("libxc@7.0.0:", when="+libxc")
     depends_on("cuda@11:", when="+cuda")
     depends_on("hip", when="+hip")
-    depends_on("intel-oneapi-dpcpp", when="+sycl")
+    depends_on("intel-oneapi-compilers", when="+sycl")
 
     generator("ninja")
 
