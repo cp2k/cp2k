@@ -21,7 +21,7 @@ To build a local version of the manual perform the following steps:
 1. (optional) Build a CP2K binary and use it to generate the `cp2k_input.xml` file:
 
    ```
-   ../exe/local/cp2k.psmp --xml
+   ../install/bin/cp2k.psmp --xml
    ```
 
 1. (optional) Generate Markdown pages from the `cp2k_input.xml` file:

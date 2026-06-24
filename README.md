@@ -37,11 +37,14 @@ help on git, see [Git Tips & Tricks](https://github.com/cp2k/cp2k/wiki/Git-Tips-
 
 ## Install CP2K
 
-The easiest way to build CP2K with all of its dependencies is as a
-[Docker container](./tools/docker/README.md).
+CP2K manual provides installation instructions for below available methods:
+
+- [Build from Source](https://manual.cp2k.org/trunk/getting-started/build-from-source.html)
+- [Build with Spack](https://manual.cp2k.org/trunk/getting-started/build-with-spack.html)
+- [Install from Distribution](https://manual.cp2k.org/trunk/getting-started/distributions.html)
 
 For building CP2K from scratch, including GPU acceleration for NVIDIA (CUDA), AMD (HIP/ROCm), or
-OpenCL devices, see the [installation instructions](./INSTALL.md).
+OpenCL devices, also see the [installation instructions](./INSTALL.md).
 
 ## Links
 
