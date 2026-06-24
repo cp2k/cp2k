@@ -246,6 +246,15 @@ CONTAINS
       n_pade = n_fit/2
       IF (PRESENT(n_pade_opt)) n_pade = n_pade_opt
 
+      ! Too few FT points (e.g. very short propagation with &FT on) leave n_pade < 1;
+      ! the Thiele recurrence would then divide by zero. Skip, returning zeros.
+      IF (n_pade < 1) THEN
+         CPWARN("FT deck too short for Padé; raise STEPS or disable &FT.")
+         y_eval(1:n_eval) = CMPLX(0.0, 0.0, kind=dp)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
       ! Warn about a large number of Padé parameters
       IF (n_pade > 1000) THEN
          CPWARN("More then 1000 Padé parameters requested - may reduce with FIT_E_MIN/FIT_E_MAX.")
