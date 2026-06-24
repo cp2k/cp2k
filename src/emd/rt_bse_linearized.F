@@ -159,13 +159,15 @@ CONTAINS
 
       INTEGER                                            :: handle, i, j, k
       LOGICAL                                            :: converged
-      REAL(kind=dp) :: a_metric_1, a_metric_2, enum_im, enum_re, full_max, full_max_old, &
-         idempotence_dev, metric, oo_max, oo_max_old, ov_growth, ov_max, ov_max_old, t_phys, &
-         timestep_walltime, timestep_walltime_start, vo_growth, vo_max, vo_max_old, vv_max, &
-         vv_max_old
+      REAL(kind=dp) :: a_metric_1, a_metric_2, full_max, full_max_old, idempotence_dev, metric, &
+         oo_max, oo_max_old, ov_growth, ov_max, ov_max_old, t_phys, timestep_walltime, &
+         timestep_walltime_start, vo_growth, vo_max, vo_max_old, vv_max, vv_max_old
+      REAL(kind=dp), DIMENSION(2)                        :: enum_im, enum_re
       TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho_lab
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+
+      ! Per-spin (alpha/beta) electron numbers; only 1:n_spin entries are used.
 
       CALL timeset(routineN, handle)
 
@@ -315,7 +317,8 @@ CONTAINS
             !       ' (new/old): ', ov_growth, vo_growth, ' | old OV/VO: ', ov_max_old, vo_max_old
             ! END IF
          END DO
-         CALL get_electron_number_MO(rtbse_env, rtbse_env%rho_new, enum_re, enum_im)
+         CALL get_electron_number_MO(rtbse_env, rtbse_env%rho_new, &
+                                     enum_re(1:rtbse_env%n_spin), enum_im(1:rtbse_env%n_spin))
          IF (.FALSE.) THEN
             ! Not all of these are used, but they are all good metrics to check the convergence in problematic cases
             ! TODO : Allow for conditional warning
@@ -329,7 +332,7 @@ CONTAINS
             END DO
          END IF
          timestep_walltime = m_walltime() - timestep_walltime_start
-         CALL print_timestep_info(rtbse_env, i, enum_re, step_walltime=timestep_walltime)
+         CALL print_timestep_info(rtbse_env, i, enum_re(1:rtbse_env%n_spin), step_walltime=timestep_walltime)
          !IF (.NOT. converged) CPABORT("ETRS did not converge")
          CALL cp_iterate(logger%iter_info, iter_nr=i, last=(i == rtbse_env%sim_nsteps - 1))
 
@@ -2830,18 +2833,20 @@ CONTAINS
    END SUBROUTINE project_drho_to_ov
 
 ! **************************************************************************************************
-!> \brief Number of electrons from the MO density: N_e = spin_degeneracy * sum_σ Re Tr[ρ^σ].
-!>        Diagonal sum over active MOs per spin; the imaginary trace is a non-Hermiticity diagnostic.
+!> \brief Per-spin electron numbers from the MO density: N_e^σ = spin_degeneracy * Re Tr[ρ^σ],
+!>        returned as one entry per spin channel (alpha/beta). The node-local diagonal partial
+!>        sums are reduced over the BLACS grid before scaling; the imaginary trace is a
+!>        non-Hermiticity diagnostic.
 !>        [INTERNAL] dev_notes/rt_bse_equations.md §9.7
 !> \param rtbse_env Entry point - rtbse environment
-!> \param rho Density matrix in MO basis
-!> \param electron_n_re Real number of electrons
-!> \param electron_n_im Imaginary number of electrons, which can arise from numerical non-hermiticity
+!> \param rho Density matrix in MO basis (per spin)
+!> \param electron_n_re Real electron number per spin channel (size n_spin)
+!> \param electron_n_im Imaginary electron number per spin channel (numerical non-hermiticity)
 ! **************************************************************************************************
    SUBROUTINE get_electron_number_MO(rtbse_env, rho, electron_n_re, electron_n_im)
       TYPE(rtbse_env_type)                               :: rtbse_env
       TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho
-      REAL(kind=dp), INTENT(OUT)                         :: electron_n_re, electron_n_im
+      REAL(kind=dp), DIMENSION(:), INTENT(OUT)           :: electron_n_re, electron_n_im
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_electron_number_MO'
 
@@ -2850,8 +2855,8 @@ CONTAINS
                                                             ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
 
-      electron_n_re = 0.0_dp
-      electron_n_im = 0.0_dp
+      electron_n_re(:) = 0.0_dp
+      electron_n_im(:) = 0.0_dp
       DO j = 1, rtbse_env%n_spin
          CALL cp_cfm_get_info(matrix=rho(j), &
                               nrow_local=nrow_local, &
@@ -2867,16 +2872,19 @@ CONTAINS
                j_global = col_indices(j_local)
                IF (j_global == i_global) THEN
                   ! Found diagonal element
-                  electron_n_re = electron_n_re + REAL(local_data(i_local, j_local), kind=dp)
-                  electron_n_im = electron_n_im + AIMAG(local_data(i_local, j_local))
+                  electron_n_re(j) = electron_n_re(j) + REAL(local_data(i_local, j_local), kind=dp)
+                  electron_n_im(j) = electron_n_im(j) + AIMAG(local_data(i_local, j_local))
                   EXIT
                END IF
             END DO
          END DO
+         ! reduce the per-rank partial traces over the process grid (the MO diagonal is distributed)
+         CALL rho(j)%matrix_struct%para_env%sum(electron_n_re(j))
+         CALL rho(j)%matrix_struct%para_env%sum(electron_n_im(j))
+         ! N_e^σ = spin_degeneracy * Tr[ρ^σ] (g=2 closed shell; 1 per channel open shell)
+         electron_n_re(j) = electron_n_re(j)*rtbse_env%spin_degeneracy
+         electron_n_im(j) = electron_n_im(j)*rtbse_env%spin_degeneracy
       END DO
-      ! N_e = spin_degeneracy * Tr (g=2 closed shell; 1 per channel open shell)
-      electron_n_re = electron_n_re*rtbse_env%spin_degeneracy
-      electron_n_im = electron_n_im*rtbse_env%spin_degeneracy
    END SUBROUTINE get_electron_number_MO
 
 ! **************************************************************************************************

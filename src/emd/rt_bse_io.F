@@ -159,14 +159,17 @@ CONTAINS
                                   step_walltime)
       TYPE(rtbse_env_type)                               :: rtbse_env
       INTEGER                                            :: step
-      REAL(kind=dp)                                      :: electron_num_re
+      REAL(kind=dp), DIMENSION(:), INTENT(IN)            :: electron_num_re
       REAL(kind=dp), OPTIONAL                            :: convergence
       INTEGER, OPTIONAL                                  :: etrs_num
       REAL(kind=dp), OPTIONAL                            :: step_walltime
       TYPE(cp_logger_type), POINTER                      :: logger
       LOGICAL                                          :: flag_lrrtbse
+      INTEGER                                            :: nch
 
       logger => cp_get_default_logger()
+      ! one electron-number column per spin channel (1 = closed shell, 2 = open shell alpha/beta)
+      nch = SIZE(electron_num_re)
 
       IF (.NOT. PRESENT(convergence) .OR. .NOT. PRESENT(etrs_num)) THEN
          flag_lrrtbse = .TRUE.
@@ -183,23 +186,47 @@ CONTAINS
                      step_walltime*REAL(rtbse_env%sim_nsteps, dp)
                   WRITE (rtbse_env%unit_nr, '(A)') &
                      " RTBSE|"
-                  WRITE (rtbse_env%unit_nr, '(A23,T35,A13,T66,A15)') &
-                     " RTBSE| Simulation step", "Step time [s]", "Electron number"
+                  IF (nch == 1) THEN
+                     WRITE (rtbse_env%unit_nr, '(A23,T27,A13,T66,A15)') &
+                        " RTBSE| Simulation step", "Step time [s]", "Electron number"
+                  ELSE
+                     ! T67/T88 (not T66/T86): each α/β is 2 bytes but 1 display col, so the byte
+                     ! anchor is +1 per unicode char to right-align ')' under the value's last digit.
+                     ! T anchors carry +1 byte per α/β before the ')' (α col → +1, β col → +2),
+                     ! since each is 2 bytes but 1 display col; right-aligns ')' on the last digit.
+                     WRITE (rtbse_env%unit_nr, '(A23,T27,A13,T47,A15,T68,A15)') &
+                        " RTBSE| Simulation step", "Step time [s]", "El. number (α)", "El. number (β)"
+                  END IF
                ELSE
-                  WRITE (rtbse_env%unit_nr, '(A23,T66,A15)') " RTBSE| Simulation step", "Electron number"
+                  IF (nch == 1) THEN
+                     WRITE (rtbse_env%unit_nr, '(A23,T66,A15)') " RTBSE| Simulation step", "Electron number"
+                  ELSE
+                     WRITE (rtbse_env%unit_nr, '(A23,T47,A15,T68,A15)') &
+                        " RTBSE| Simulation step", "El. number (α)", "El. number (β)"
+                  END IF
                END IF
             END IF
             IF (PRESENT(step_walltime)) THEN
-               WRITE (rtbse_env%unit_nr, '(A7,I16,T37,F15.3,T61,E20.8E3)') &
-                  ' RTBSE|', step, step_walltime, electron_num_re
+               IF (nch == 1) THEN
+                  WRITE (rtbse_env%unit_nr, '(A7,I16,T30,F10.3,T69,E12.3E3)') &
+                     ' RTBSE|', step, step_walltime, electron_num_re(1)
+               ELSE
+                  WRITE (rtbse_env%unit_nr, '(A7,I16,T30,F10.3,T49,E12.3E3,T69,E12.3E3)') &
+                     ' RTBSE|', step, step_walltime, electron_num_re(1), electron_num_re(2)
+               END IF
             ELSE
-               WRITE (rtbse_env%unit_nr, '(A7,I16,T61,E20.8E3)') ' RTBSE|', step, electron_num_re
+               IF (nch == 1) THEN
+                  WRITE (rtbse_env%unit_nr, '(A7,I16,T61,E20.8E3)') ' RTBSE|', step, electron_num_re(1)
+               ELSE
+                  WRITE (rtbse_env%unit_nr, '(A7,I16,T49,E12.3E3,T69,E12.3E3)') &
+                     ' RTBSE|', step, electron_num_re(1), electron_num_re(2)
+               END IF
             END IF
          ELSE
             WRITE (rtbse_env%unit_nr, '(A23,A20,A20,A17)') " RTBSE| Simulation step", "Convergence", &
                "Electron number", "ETRS Iterations"
             WRITE (rtbse_env%unit_nr, '(A7,I16,E20.8E3,E20.8E3,I17)') ' RTBSE|', step, convergence, &
-               electron_num_re, etrs_num
+               electron_num_re(1), etrs_num
          END IF
       END IF
 
