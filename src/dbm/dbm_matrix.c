@@ -570,6 +570,9 @@ double dbm_maxeps(const dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b) {
   assert(matrix_a->dist == matrix_b->dist);
   assert(num_shards == dbm_get_num_shards(matrix_b));
 
+  // Handles asymmetric sparsity: blocks in A but not B are compared against
+  // zero, and blocks in B but not A are checked in a second pass. The
+  // reduction(max) avoids the previous data race on the shared epsilon.
 #pragma omp parallel for reduction(max : epsilon) DBM_OMP_SCHEDULE
   for (int ishard = 0; ishard < num_shards; ++ishard) {
     const dbm_shard_t *const shard_a = &matrix_a->shards[ishard];
@@ -594,6 +597,7 @@ double dbm_maxeps(const dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b) {
         }
       }
     }
+    // Second pass: blocks present in B but absent from A (treat A as zero).
     for (int iblock = 0; iblock < shard_b->nblocks; ++iblock) {
       const dbm_block_t *const blk_b = &shard_b->blocks[iblock];
       if (NULL != dbm_shard_lookup(shard_a, blk_b->row, blk_b->col)) {

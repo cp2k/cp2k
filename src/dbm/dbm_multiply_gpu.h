@@ -25,6 +25,9 @@ typedef struct {
   offloadEvent_t event;
 } dbm_shard_gpu_t;
 
+// Separate from dbm_pack_t because device allocation lifetime differs from the
+// host pack (which is reallocated each tick); tracks device capacity
+// explicitly.
 typedef struct {
   double *data; // on the device
   int data_allocated;

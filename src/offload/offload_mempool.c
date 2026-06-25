@@ -402,6 +402,7 @@ void offload_mempool_stats_print(int fortran_comm,
                           " Number of allocations  Used [MiB]  Size [MiB]\n",
                           output_unit);
   }
+#if defined(__OFFLOAD)
   if (0 < memstats.device_mallocs) {
     cp_mpi_max_uint64(&memstats.device_peak, 1, comm);
     snprintf(buffer, sizeof(buffer),
@@ -412,6 +413,7 @@ void offload_mempool_stats_print(int fortran_comm,
              (uintptr_t)((memstats.device_peak + (512U << 10)) >> 20));
     OFFLOAD_MEMPOOL_PRINT(print_func, buffer, output_unit);
   }
+#endif
   if (0 < memstats.host_mallocs) {
     cp_mpi_max_uint64(&memstats.host_peak, 1, comm);
     snprintf(buffer, sizeof(buffer),
