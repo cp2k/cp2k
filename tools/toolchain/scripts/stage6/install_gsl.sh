@@ -42,13 +42,20 @@ case "$with_gsl" in
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})"
     fi
-
     GSL_CFLAGS="-I'${pkg_install_dir}/include'"
     GSL_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding GSL from system paths ===================="
     check_command pkg-config --modversion gsl
+    GSL_INCLUDE_PATH=$(pkg-config --cflags gsl | awk '{print $1}' | cut -dI -f2)
+    pkg_install_dir=$(dirname ${GSL_INCLUDE_PATH})
+    # Deal with the condition that libgsl is installed in "/usr/lib/x86_64-linux-gnu"
+    if [[ "${pkg_install_dir}" == "/usr/lib"* ]]; then
+      pkg_install_dir="/usr"
+    else
+      INCLUDE_PATHS=${INCLUDE_PATHS}:"${pkg_install_dir}/include"
+    fi
     add_include_from_paths GSL_CFLAGS "gsl.h" $INCLUDE_PATHS
     add_lib_from_paths GSL_LDFLAGS "libgsl.*" $LIB_PATHS
     ;;
@@ -65,30 +72,19 @@ case "$with_gsl" in
     ;;
 esac
 if [ "$with_gsl" != "__DONTUSE__" ]; then
-  GSL_LIBS="-lgsl"
   if [ "$with_gsl" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_gsl"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path CPATH "$pkg_install_dir/include"
-export GSL_INCLUDE_DIR="$pkg_install_dir/include"
-export GSL_LIBRARY="-lgsl"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_gsl"
+export GSL_ROOT="${pkg_install_dir}"
 export GSL_VER="${gsl_ver}"
 export GSL_CFLAGS="${GSL_CFLAGS}"
 export GSL_LDFLAGS="${GSL_LDFLAGS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__GSL|)"
-export CP_CFLAGS="\${CP_CFLAGS} ${GSL_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${GSL_LDFLAGS}"
-export GSL_LIBRARY="-lgsl"
-export GSL_ROOT="${pkg_install_dir}"
-export GSL_INCLUDE_DIR="$pkg_install_dir/include"
-prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib64/pkgconfig"
-prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
-export CP_LIBS="IF_MPI(${GSL_LIBS}|) \${CP_LIBS}"
 EOF
   filter_setup "${BUILDDIR}/setup_gsl" "${SETUPFILE}"
 fi

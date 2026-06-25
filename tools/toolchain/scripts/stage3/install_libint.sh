@@ -74,30 +74,24 @@ case "$with_libint" in
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})"
     fi
-
-    LIBINT_CFLAGS="-I${pkg_install_dir}/include"
-    LIBINT_LDFLAGS="-L${pkg_install_dir}/lib"
     ;;
   __SYSTEM__)
     echo "==================== Finding LIBINT from system paths ===================="
     check_lib -lint2 "libint"
-    add_include_from_paths -p LIBINT_CFLAGS "libint" $INCLUDE_PATHS
-    add_lib_from_paths LIBINT_LDFLAGS "libint2.*" $LIB_PATHS
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libint2.*" $LIB_PATHS)))"
     ;;
   __DONTUSE__) ;;
 
   *)
     echo "==================== Linking LIBINT to user paths ===================="
-    pkg_install_dir="$with_libint"
+    pkg_install_dir="${with_libint}"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    LIBINT_CFLAGS="-I${pkg_install_dir}/include"
-    LIBINT_LDFLAGS="-L${pkg_install_dir}/lib"
     ;;
 esac
 if [ "$with_libint" != "__DONTUSE__" ]; then
-  LIBINT_LIBS="-lint2"
   cat << EOF > "${BUILDDIR}/setup_libint"
+export LIBINT2_ROOT="${pkg_install_dir}"
 export LIBINT_VER="${libint_ver}"
 EOF
   if [ "$with_libint" != "__SYSTEM__" ]; then
@@ -106,18 +100,8 @@ prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
-export LIBINT2_ROOT="${pkg_install_dir}"
 EOF
   fi
-  cat << EOF >> "${BUILDDIR}/setup_libint"
-export LIBINT_CFLAGS="${LIBINT_CFLAGS}"
-export LIBINT_LDFLAGS="${LIBINT_LDFLAGS}"
-export LIBINT_LIBS="${LIBINT_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} -D__LIBINT"
-export CP_CFLAGS="\${CP_CFLAGS} ${LIBINT_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBINT_LDFLAGS}"
-export CP_LIBS="${LIBINT_LIBS} \${CP_LIBS}"
-EOF
   filter_setup "${BUILDDIR}/setup_libint" "${SETUPFILE}"
 fi
 

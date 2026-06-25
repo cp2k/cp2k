@@ -58,8 +58,6 @@ case "$with_fftw" in
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})"
     fi
-    FFTW_CFLAGS="-I'${pkg_install_dir}/include'"
-    FFTW_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding FFTW from system paths ===================="
@@ -70,11 +68,7 @@ case "$with_fftw" in
     # Deal with the condition that libfftw3 is installed in "/usr/lib/x86_64-linux-gnu"
     if [[ "${pkg_install_dir}" == "/usr/lib"* ]]; then
       pkg_install_dir="/usr"
-    else
-      INCLUDE_PATHS=${INCLUDE_PATHS}:"$pkg_install_dir/include"
     fi
-    add_include_from_paths FFTW_CFLAGS "fftw3.h" FFTW_INC ${INCLUDE_PATHS}
-    add_lib_from_paths FFTW_LDFLAGS "libfftw3.*" ${LIB_PATHS}
     ;;
   __DONTUSE__)
     # Nothing to do
@@ -84,8 +78,6 @@ case "$with_fftw" in
     pkg_install_dir="$with_fftw"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    FFTW_CFLAGS="-I'${pkg_install_dir}/include'"
-    FFTW_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "$with_fftw" != "__DONTUSE__" ]; then
@@ -96,7 +88,6 @@ if [ "$with_fftw" != "__DONTUSE__" ]; then
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path CPATH "$pkg_install_dir/include"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
@@ -104,15 +95,8 @@ EOF
   # we may also want to cover FFT_SG
   cat << EOF >> "${BUILDDIR}/setup_fftw"
 export FFTW_VER="${fftw_ver}"
-export FFTW3_INCLUDES="${FFTW_CFLAGS}"
+export FFTW3_INCLUDES="-I${pkg_install_dir}/include"
 export FFTW3_LIBS="${FFTW_LIBS}"
-export FFTW_CFLAGS="${FFTW_CFLAGS}"
-export FFTW_LDFLAGS="${FFTW_LDFLAGS}"
-export FFTW_LIBS="${FFTW_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} -D__FFTW3 IF_COVERAGE(IF_MPI(|-U__FFTW3)|)"
-export CP_CFLAGS="\${CP_CFLAGS} ${FFTW_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${FFTW_LDFLAGS}"
-export CP_LIBS="${FFTW_LIBS} \${CP_LIBS}"
 export FFTW_ROOT="${FFTW_ROOT:-${pkg_install_dir}}"
 export FFTW3_ROOT="${FFTW_ROOT:-${pkg_install_dir}}"
 EOF

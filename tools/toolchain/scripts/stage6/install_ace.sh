@@ -20,9 +20,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_ace" ] && rm "${BUILDDIR}/setup_ace"
 
-ACE_LDFLAGS=''
-ACE_LIBS=''
-
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -31,7 +28,6 @@ case "$with_ace" in
     echo "==================== Installing Ace ======================="
     pkg_install_dir="${INSTALLDIR}/${ace_dir}"
     install_lock_file="${pkg_install_dir}/install_successful"
-    ace_root="${pkg_install_dir}"
     if verify_checksums "${install_lock_file}"; then
       echo "${ace_dir} aka Ace is already installed, skipping it."
     else
@@ -61,10 +57,6 @@ case "$with_ace" in
       make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})"
     fi
-    ACE_CFLAGS="-I'${pkg_install_dir}/include'"
-    #smuggle include dirs to CXXFLAGS via DFLAGS....
-    ACE_DFLAGS="-D__ACE ${ACE_CFLAGS}"
-    ACE_LDFLAGS="-L'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding Ace from system paths ===================="
@@ -77,15 +69,11 @@ case "$with_ace" in
   __DONTUSE__) ;;
   *)
     echo "==================== Linking ACE to user paths ===================="
-    pkg_install_dir="$with_ace"
+    pkg_install_dir="${with_ace}"
     check_dir "${pkg_install_dir}/include/ace"
     check_dir "${pkg_install_dir}/include/ace-evaluator"
     check_dir "${pkg_install_dir}/include/yaml-cpp"
     check_dir "${pkg_install_dir}/lib"
-    ACE_CFLAGS="-I'${pkg_install_dir}/include'"
-    #smuggle include dirs to CXXFLAGS via DFLAGS....
-    ACE_DFLAGS="-D__ACE ${ACE_CFLAGS}"
-    ACE_LDFLAGS="-L'${pkg_install_dir}/lib'"
     ;;
 esac
 
@@ -103,20 +91,6 @@ prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
     filter_setup "${BUILDDIR}/setup_ace" "${SETUPFILE}"
   fi
-
-  cat << EOF >> "${BUILDDIR}/setup_ace"
-export ACE_DFLAGS="${ACE_DFLAGS}"
-export ACE_CFLAGS="${ACE_CFLAGS}"
-export ACE_LDFLAGS="${ACE_LDFLAGS}"
-export ACE_LIBS="${ACE_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} ${ACE_DFLAGS}"
-export CP_CFLAGS="\${CP_CFLAGS} ${ACE_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${ACE_LDFLAGS}"
-export CP_LIBS="\${CP_LIBS} ${ACE_LIBS}"
-EOF
-#  cat << EOF >> "${INSTALLDIR}/lsan.supp"
-## leaks related to ACE
-#EOF
 fi
 
 load "${BUILDDIR}/setup_ace"

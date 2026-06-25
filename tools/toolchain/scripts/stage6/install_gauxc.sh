@@ -163,26 +163,22 @@ case "${with_gauxc}" in
         "${SCRIPT_DIR}/stage6/exchcxx-disable-builtin.patch" "${BUILDDIR}/${gauxc_pkg}" \
         "${BUILDDIR}/${nlohmann_json_pkg}" "${BUILDDIR}/${skala_model_pkg}"
     fi
-    GAUXC_CFLAGS="-I'${pkg_install_dir}/include' -I'${pkg_install_dir}/include/gauxc/modules'"
-    GAUXC_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding GauXC from system paths ===================="
     check_lib -lgauxc "GauXC"
-    add_include_from_paths -p GAUXC_CFLAGS "gauxc" $INCLUDE_PATHS
-    add_include_from_paths GAUXC_CFLAGS "gauxc/modules/gauxc_status.mod" $INCLUDE_PATHS
-    add_lib_from_paths GAUXC_LDFLAGS "libgauxc.*" $LIB_PATHS
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libgauxc.*" $LIB_PATHS)))"
     ;;
   __DONTUSE__) ;;
 
   *)
     echo "==================== Linking GauXC to user paths ===================="
     pkg_install_dir="${with_gauxc}"
-    check_dir "${pkg_install_dir}/lib"
+    GAUXC_LIBDIR="${pkg_install_dir}/lib"
+    [ -d "${pkg_install_dir}/lib64" ] && DBCSR_LIBDIR="${pkg_install_dir}/lib64"
+    check_dir "${GAUXC_LIBDIR}"
     check_dir "${pkg_install_dir}/include"
     check_dir "${pkg_install_dir}/include/gauxc/modules"
-    GAUXC_CFLAGS="-I'${pkg_install_dir}/include' -I'${pkg_install_dir}/include/gauxc/modules'"
-    GAUXC_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 
@@ -192,20 +188,8 @@ if [ "${with_gauxc}" != "__DONTUSE__" ]; then
   else
     gauxc_skala_model=""
   fi
-  GAUXC_LIBS="-lgauxc -lintegratorxx -lexchcxx"
-  GAUXC_DFLAGS="-D__GAUXC"
-  gauxc_config_file="$(find_in_paths "gauxc/gauxc_config.f" $INCLUDE_PATHS)"
-  if { [ "${gauxc_config_file}" != "__FALSE__" ] && grep -q "GAUXC_HAS_MPI" "${gauxc_config_file}"; } ||
-    { [ -f "${pkg_install_dir}/include/gauxc/gauxc_config.f" ] &&
-      grep -q "GAUXC_HAS_MPI" "${pkg_install_dir}/include/gauxc/gauxc_config.f"; }; then
-    GAUXC_DFLAGS="${GAUXC_DFLAGS} -DGAUXC_HAS_MPI"
-  fi
-
   cat << EOF > "${BUILDDIR}/setup_gauxc"
 export GAUXC_VER="${gauxc_ver}"
-export GAUXC_CFLAGS="${GAUXC_CFLAGS}"
-export GAUXC_LDFLAGS="${GAUXC_LDFLAGS}"
-export GAUXC_LIBS="${GAUXC_LIBS}"
 export GAUXC_ROOT="${pkg_install_dir}"
 export GAUXC_SKALA_MODEL="${gauxc_skala_model}"
 EOF
@@ -214,17 +198,9 @@ EOF
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path CPATH "${pkg_install_dir}/include/gauxc/modules"
-prepend_path CPATH "${pkg_install_dir}/include"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
-  cat << EOF >> "${BUILDDIR}/setup_gauxc"
-export CP_DFLAGS="\${CP_DFLAGS} ${GAUXC_DFLAGS}"
-export CP_CFLAGS="\${CP_CFLAGS} ${GAUXC_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${GAUXC_LDFLAGS}"
-export CP_LIBS="${GAUXC_LIBS} \${CP_LIBS}"
-EOF
   filter_setup "${BUILDDIR}/setup_gauxc" "${SETUPFILE}"
 fi
 

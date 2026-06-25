@@ -15,12 +15,6 @@ source "${SCRIPT_DIR}"/signal_trap.sh
 source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
 
-if [ "$MPI_MODE" = "no" ]; then
-  report_warning $LINENO "MPI is disabled, skipping sirius installation"
-  echo 'with_sirius="__FALSE__"' >> ${BUILDDIR}/setup_sirius
-  exit 0
-fi
-
 [ -f "${BUILDDIR}/setup_sirius" ] && rm "${BUILDDIR}/setup_sirius"
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
