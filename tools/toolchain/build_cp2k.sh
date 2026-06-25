@@ -5,6 +5,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
+# Load module environment if exists
+LOADEDMODULES_AT_BUILD="${LOADEDMODULES-}"
+
 TOOLCHAIN_ROOTDIR="${PWD}"
 # Exit this script if it is not called from the ./tools/toolchain directory
 if [ "${TOOLCHAIN_ROOTDIR}" != "${SCRIPT_DIR}" ]; then
@@ -340,8 +343,13 @@ EOF
 
   # Export variable for CMake options to cp2k_env file
   if [ "${REBUILD_ONLY}" != "__TRUE__" ]; then
-    cat << EOF > "${CMAKE_INSTALL_PREFIX}/cp2k_env"
-#!/bin/bash
+    echo "#!/bin/bash" > "${CMAKE_INSTALL_PREFIX}/cp2k_env"
+    if [ -n "${LOADEDMODULES_AT_BUILD}" ]; then
+      printf "Detected module environment; writing to cp2k_env.\n\n"
+      printf 'module load %s\n' "${LOADEDMODULES_AT_BUILD//:/ }" \
+        >> "${CMAKE_INSTALL_PREFIX}/cp2k_env"
+    fi
+    cat << EOF >> "${CMAKE_INSTALL_PREFIX}/cp2k_env"
 source ${TOOLCHAIN_INSTALL_DIR}/setup
 prepend_path PATH "${CMAKE_INSTALL_PREFIX}/bin"
 prepend_path LD_LIBRARY_PATH "${CMAKE_INSTALL_PREFIX}/lib"
