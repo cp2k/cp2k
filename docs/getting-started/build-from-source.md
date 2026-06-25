@@ -15,8 +15,7 @@ Currently, CP2K offers two convenient ways for building CP2K from source with it
 
 ```{note}
 - The toolchain does not cover all optional dependencies due to their complicated dependencies
-  requirements, such as DLA-Future. SIRIUS with complete support (including DFT-D4 and NLCG) is
-  also unavailable via toolchain due to the same reason.
+  requirements, such as DLA-Future, PEXSI, and SIRIUS with complete support (including NLCG).
 - The latter approach with Spack is only available for the current
 [CP2K master branch](https://github.com/cp2k/cp2k) and CP2K release versions `2026.02` and newer.
 ```
@@ -26,26 +25,10 @@ Currently, CP2K offers two convenient ways for building CP2K from source with it
 The `make_cp2k.sh` script supports and facilitates the build of CP2K and its dependencies from
 scratch using [Spack](https://spack.readthedocs.io) and
 [CMake](https://cmake.org/cmake/help/latest/index.html). The build is performed locally within the
-folder `CP2K_ROOT` which defaults to the current working directory. This should be a `cp2k` folder
-containing the CP2K source tree which can be download with
+folder `CP2K_ROOT` which refers to the root directory of CP2K source tree.
 
-```
-> git clone https://github.com/cp2k/cp2k.git cp2k
-```
-
-and after
-
-```
-> cd cp2k
-```
-
-this script can be run using the default options with
-
-```
-> ./make_cp2k.sh
-```
-
-The flags `-h` or `--help` print the available options.
+This script can be run using the default options with `./make_cp2k.sh`. The flags `-h` or `--help`
+print the available options:
 
 <details>
 
@@ -208,6 +191,7 @@ cd <CP2K_REPOSITORY>
 mkdir build/
 cmake -S . -B build \
     -GNinja \
+    -DCP2K_USE_MPI=ON \
     -DCP2K_USE_LIBXC=ON \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_SPGLIB=ON \
@@ -215,13 +199,14 @@ cmake -S . -B build \
     -DCP2K_USE_SPLA=ON \
     -DCP2K_USE_SIRIUS=ON \
     -DCP2K_USE_COSMA=ON \
-    -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=A100
+    -DCP2K_USE_ACCEL=CUDA \
+    -DCP2K_WITH_GPU=A100
 
 cmake --build build -j 32
 cmake --install build
 ```
 
 - The commands `cmake --build build -j 32` and `cmake --install build` can be replaced by a single
-  command `cmake --build build --target install -j 32`
+  command `cmake --build build --target install -j 32`.
 - If you want to clean your build cache after installing in order to save space, simply run
-  `cmake --build build --target clean`
+  `cmake --build build --target clean`.
