@@ -150,8 +150,22 @@ static void backend_stop(backend_context_t *ctx) {
 }
 
 /*******************************************************************************
- * \brief Private routine for multipling two packs.
- * \author Ole Schuett
+ * \brief Private routine for multiplying two packs (C += alpha * A * B).
+ *
+ * Blocks in each pack are grouped by shard (free_index % nshards) and sorted
+ * by sum_index within each group. The algorithm:
+ *  1. Builds shard-boundary lookup tables for A (rows) and B (cols).
+ *  2. For each (shard_row, shard_col) pair, determines the contiguous A and B
+ *     block ranges belonging to that shard.
+ *  3. Performs a merge-join over sum_index: advances A and B cursors in
+ *lockstep, caching the B sub-range for each sum_index so that multiple A blocks
+ *with the same sum_index reuse it without rescanning.
+ *  4. Applies a norm-based filter (alpha^2 * norm_a * norm_b < eps) for early
+ *     rejection before looking up or allocating the C block.
+ *  5. Accumulates matching pairs into a batched GEMM task list, flushing to the
+ *     backend (CPU or GPU) every DBM_MAX_BATCH_SIZE tasks.
+ *
+ * \author Ole Schuett and Hans Pabst
  ******************************************************************************/
 static void multiply_packs(const bool transa, const bool transb,
                            const double alpha, const dbm_pack_t *pack_a,
@@ -240,6 +254,8 @@ static void multiply_packs(const bool transa, const bool transb,
         }
 
         // Merge over sum_index (both ranges sorted by sum_index).
+        // Cache the B sub-range for each sum_index so that multiple A blocks
+        // sharing the same sum_index reuse it without re-scanning B.
         int i = iblock_start, j = jblock_start, last_sum_index = -1;
         int b_range_start = -1, b_range_end = -1;
 

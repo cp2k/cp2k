@@ -203,7 +203,7 @@ int dbm_multiply_opencl_launch_kernel(void *stream, double alpha, int ntasks,
       size_t work_size[] = {1, 1, 1}, ibatch = 0;
       const size_t work_tasks = ntasks;
       cl_kernel kernel = NULL;
-      int bk, use_blkrd = 0;
+      int bk, bk0, use_blkrd = 0;
       cl_int size;
       assert(NULL != str && NULL != str->queue);
       /* base init (once): env vars, flags, source, extensions */
@@ -346,8 +346,8 @@ int dbm_multiply_opencl_launch_kernel(void *stream, double alpha, int ntasks,
         task_complete = dbm_multiply_gpu_launch_info(&task, params_host, ntasks,
                                                      param_format, 0);
       }
-      bk = (0 < bk_max ? LIBXS_MIN(dbm_multiply_opencl_bk(task.max_k), bk_max)
-                       : dbm_multiply_opencl_bk(task.max_k));
+      bk0 = dbm_multiply_opencl_bk(task.max_k);
+      bk = (0 < bk_max ? LIBXS_MIN(bk0, bk_max) : bk0);
       { /* per-shape kernel lookup/compile */
         dbm_multiply_opencl_key_t key;
         cl_kernel *kptr;

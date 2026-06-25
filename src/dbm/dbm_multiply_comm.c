@@ -39,6 +39,8 @@ static int lcm(const int a, const int b) { return (a * b) / gcd(a, b); }
  * \author Hans Pabst
  ******************************************************************************/
 static int checked_byte_count(const int nelements, const size_t element_size) {
+  // MPI displacements/counts are int; unchecked multiplication could overflow
+  // silently and corrupt the alltoallv layout.
   assert(0 <= nelements);
   assert(element_size <= INT_MAX);
   assert(nelements <= INT_MAX / (int)element_size);
@@ -62,6 +64,8 @@ static inline int isum(const int n, const int input[n]) {
  * \author Ole Schuett and Hans Pabst
  ******************************************************************************/
 static inline void icumsum(const int n, const int input[n], int output[n]) {
+  // Exclusive prefix sum using carried accumulators to avoid a load from
+  // output[i-1] each iteration (removes loop-carried memory dependency).
   int oval = output[0] = 0, ival = input[0];
   for (int i = 1; i < n; i++) {
     output[i] = (oval += ival);
@@ -80,6 +84,8 @@ static void compute_data_recv_count(const int nranks,
                                     const int sum_index_sizes[],
                                     const dbm_pack_block_t blks_recv[],
                                     int data_recv_count[nranks]) {
+  // Derives per-rank data counts locally from the already-received block
+  // metadata, eliminating a collective alltoall for exchanging data amounts.
   memset(data_recv_count, 0, nranks * sizeof(int));
   for (int irank = 0; irank < nranks; irank++) {
     for (int i = 0; i < blks_recv_count[irank]; i++) {
@@ -450,7 +456,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
                           blks_recv, blks_recv_count_byte, blks_recv_displ_byte,
                           dist->comm);
 
-    // Compute data counts from the received block metadata.
+    // 3rd compute data counts from the received block metadata.
     int data_recv_count[nranks], data_recv_displ[nranks];
     compute_data_recv_count(nranks, blks_recv_count, blks_recv_displ,
                             free_index_sizes, sum_index_sizes, blks_recv,
@@ -469,7 +475,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
                             data_recv, data_recv_count, data_recv_displ,
                             dist->comm);
 
-    // Post-process received blocks and assemble them into a pack.
+    // 5th post-process received blocks and assemble them into a pack.
     postprocess_received_blocks(nranks, dist_indices->nshards, nblocks_recv,
                                 blks_recv_count, blks_recv_displ,
                                 data_recv_displ, blks_recv);

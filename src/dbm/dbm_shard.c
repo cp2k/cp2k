@@ -160,6 +160,9 @@ static void hashtable_insert(dbm_shard_t *shard, const int block_idx) {
   assert(0 <= block_idx && block_idx < shard->nblocks);
   const dbm_block_t *blk = &shard->blocks[block_idx];
   const unsigned int h = hash(blk->row, blk->col);
+  // Bounded probe: at most hashtable_size steps (load factor < 1 guarantees
+  // termination). Avoids unbounded scans when the slot variable wrapped around
+  // via the mask but the inner iteration continued past the table end.
   int slot = (shard->hashtable_prime * h) & hashtable_mask(shard);
   for (int i = 0; i < shard->hashtable_size; ++i) { // linear probing
     if (shard->hashtable[slot] == 0) {              // 0 means empty
@@ -177,6 +180,8 @@ static void hashtable_insert(dbm_shard_t *shard, const int block_idx) {
  ******************************************************************************/
 dbm_block_t *dbm_shard_lookup(const dbm_shard_t *shard, const int row,
                               const int col) {
+  // Bounded probe count prevents scanning the entire table on a miss when
+  // clusters exist (previous code could re-enter via slot wrap and re-scan).
   int slot = (shard->hashtable_prime * hash(row, col)) & hashtable_mask(shard);
   for (int i = 0; i < shard->hashtable_size; ++i) { // linear probing
     const int block_idx = shard->hashtable[slot];

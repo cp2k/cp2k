@@ -61,6 +61,9 @@ void dbm_multiply_gpu_start(const int max_batch_size, const int nshards,
  ******************************************************************************/
 static void upload_pack(const dbm_pack_t *pack_host, dbm_pack_gpu_t *pack_dev,
                         const offloadStream_t stream) {
+  // Reallocate only when the device buffer is too small; data_allocated tracks
+  // the device capacity independently from the host-side data_size that changes
+  // each tick (previous code compared against the wrong field).
   const size_t size = pack_host->data_size * sizeof(double);
   if (pack_dev->data_allocated < pack_host->data_size) {
     offload_mempool_device_free(pack_dev->data);
