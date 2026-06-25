@@ -1,0 +1,3 @@
+"H2_GAPW_SKALA_ENERGY.inp"     = [{matcher="E_total", tol=1e-8,  ref=-0.974637831482592}]
+"H2_GAPW_SKALA_GTH_ENERGY.inp" = [{matcher="E_total", tol=1e-8, ref=-0.970732754767575}]
+"H2_NATIVE_SKALA_GAPW_AE_STRESS.inp" = [{matcher="E_total", tol=5e-8, ref=-0.9938198742}]
