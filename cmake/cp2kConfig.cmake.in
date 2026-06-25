@@ -106,7 +106,7 @@ if(NOT TARGET cp2k::cp2k)
 
   set(CP2K_USE_LIBFCI @CP2K_USE_LIBFCI@)
   if(CP2K_USE_LIBFCI)
-    find_dependency(LibFCI REQUIRED)
+    find_dependency(libfci REQUIRED)
   endif()
 
   set(CP2K_USE_SPGLIB @CP2K_USE_SPGLIB@)
