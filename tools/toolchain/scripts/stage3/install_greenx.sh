@@ -1,20 +1,18 @@
 #!/bin/bash -e
 
+# TODO: Review and if possible fix shellcheck errors.
+# shellcheck disable=all
+
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 greenx_ver="2.2"
 greenx_sha256="cf0abb77cc84a3381a690a6ac7ca839da0007bb9e6120f3f25e47de50e29431f"
 
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/common_vars.sh
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/tool_kit.sh
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/signal_trap.sh
-# shellcheck disable=SC1091
 source "${INSTALLDIR}"/toolchain.conf
-# shellcheck disable=SC1091
 source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_greenx" ] && rm "${BUILDDIR}/setup_greenx"
@@ -58,12 +56,11 @@ case "$with_greenx" in
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename "${SCRIPT_NAME}")"
       cd ..
     fi
-    GREENX_CFLAGS="-I'${pkg_install_dir}/include/modules'"
-    GREENX_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding GreenX from system paths ===================="
     check_lib -lGXCommon "greenx"
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libGXCommon.*" $LIB_PATHS)))"
     check_lib -lgx_ac "greenx"
     check_lib -lgx_minimax "greenx"
     ;;
@@ -71,16 +68,15 @@ case "$with_greenx" in
 
   *)
     echo "==================== Linking GreenX to user paths ===================="
-    pkg_install_dir="$with_greenx"
+    pkg_install_dir="${with_greenx}"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include/modules"
-    GREENX_CFLAGS="-I'${pkg_install_dir}/include/modules'"
-    GREENX_LDFLAGS="-L'${pkg_install_dir}/lib'"
     ;;
 esac
+
 if [ "$with_greenx" != "__DONTUSE__" ]; then
-  GREENX_LIBS=" -lGXCommon -lgx_ac -lgx_minimax"
   cat << EOF > "${BUILDDIR}/setup_greenx"
+export GREENX_ROOT="${pkg_install_dir}"
 export GREENX_VER="${greenx_ver}"
 EOF
   if [ "$with_greenx" != "__SYSTEM__" ]; then
@@ -88,20 +84,9 @@ EOF
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path CPATH "$pkg_install_dir/include"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
   fi
-  cat << EOF >> "${BUILDDIR}/setup_greenx"
-export GREENX_CFLAGS="${GREENX_CFLAGS}"
-export GREENX_LDFLAGS="${GREENX_LDFLAGS}"
-export GREENX_LIBS="${GREENX_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} -D__GREENX"
-export CP_CFLAGS="\${CP_CFLAGS} ${GREENX_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${GREENX_LDFLAGS}"
-export CP_LIBS="${GREENX_LIBS} \${CP_LIBS}"
-export GREENX_ROOT="${pkg_install_dir}"
-EOF
   filter_setup "${BUILDDIR}/setup_greenx" "${SETUPFILE}"
 fi
 

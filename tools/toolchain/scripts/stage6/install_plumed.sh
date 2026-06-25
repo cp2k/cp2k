@@ -18,23 +18,14 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_plumed" ] && rm "${BUILDDIR}/setup_plumed"
 
-PLUMED_LDFLAGS=''
-PLUMED_LIBS=''
-
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
-
-# PLUMED works only with MPI switched on
-if [ "${MPI_MODE}" = "no" ]; then
-  report_warning ${LINENO} "MPI is disabled, skipping PLUMED installation"
-  exit 0
-fi
 
 case "$with_plumed" in
   __INSTALL__)
     echo "==================== Installing PLUMED ===================="
     pkg_install_dir="${INSTALLDIR}/plumed-${plumed_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "plumed-${plumed_ver} is already installed, skipping it."
     else
@@ -73,51 +64,38 @@ case "$with_plumed" in
       make install > install.log 2>&1 || tail_excerpt install.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})"
     fi
-    PLUMED_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding PLUMED from system paths ===================="
     check_lib -lplumed "PLUMED"
-    add_lib_from_paths PLUMED_LDFLAGS "libplumed*" $LIB_PATHS
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libplumed.*" $LIB_PATHS)))"
     ;;
   __DONTUSE__) ;;
 
   *)
     echo "==================== Linking PLUMED to user paths ===================="
-    pkg_install_dir="$with_plumed"
-    check_dir "${pkg_install_dir}/lib"
-    PLUMED_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
+    pkg_install_dir="${with_plumed}"
+    PLUMED_LIBDIR="${pkg_install_dir}/lib"
+    [ -d "${pkg_install_dir}/lib64" ] && PLUMED_LIBDIR="${pkg_install_dir}/lib64"
+    check_dir "${PLUMED_LIBDIR}"
     ;;
 esac
 
 if [ "$with_plumed" != "__DONTUSE__" ]; then
-  # Prefer static library if available
-  if [ -f "${pkg_install_dir}/lib/libplumed.a" ]; then
-    PLUMED_LIBS="-l:libplumed.a -ldl -lstdc++ -lz -ldl"
-  else
-    PLUMED_LIBS="-lplumed -ldl -lstdc++ -lz -ldl"
-  fi
   cat << EOF > "${BUILDDIR}/setup_plumed"
+export PLUMED_ROOT="${pkg_install_dir}"
 export PLUMED_VER="${plumed_ver}"
 EOF
   if [ "$with_plumed" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_plumed"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
-prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
-    filter_setup "${BUILDDIR}/setup_plumed" "${SETUPFILE}"
   fi
-  cat << EOF >> "${BUILDDIR}/setup_plumed"
-export PLUMED_LDFLAGS="${PLUMED_LDFLAGS}"
-export PLUMED_LIBS="${PLUMED_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__PLUMED2|)"
-export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${PLUMED_LDFLAGS}|)"
-export CP_LIBS="IF_MPI(${PLUMED_LIBS}|) \${CP_LIBS}"
-export PLUMED_ROOT="${pkg_install_dir}"
-EOF
+  filter_setup "${BUILDDIR}/setup_plumed" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_plumed"

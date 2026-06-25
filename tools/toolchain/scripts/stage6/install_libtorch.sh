@@ -42,32 +42,21 @@ case "${with_libtorch}" in
 
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename "${SCRIPT_NAME}")"
     fi
-    LIBTORCH_CXXFLAGS="-I${pkg_install_dir}/include"
-    LIBTORCH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding libtorch from system paths ===================="
     check_lib -ltorch "libtorch"
-    add_include_from_paths LIBTORCH_CXXFLAGS "libtorch.h" $INCLUDE_PATHS
-    add_lib_from_paths LIBTORCH_LDFLAGS "libtorch.*" "$LIB_PATHS"
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libtorch.*" $LIB_PATHS)))"
     ;;
   __DONTUSE__) ;;
 
   *)
     echo "==================== Linking libtorch to user paths ===================="
     pkg_install_dir="${with_libtorch}"
-
     # use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
     LIBTORCH_LIBDIR="${pkg_install_dir}/lib"
     [ -d "${pkg_install_dir}/lib64" ] && LIBTORCH_LIBDIR="${pkg_install_dir}/lib64"
-
     check_dir "${LIBTORCH_LIBDIR}"
-    LIBTORCH_CXXFLAGS="-I${pkg_install_dir}/include"
-    if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
-      LIBTORCH_LDFLAGS="-Wl,--no-as-needed,-L'${LIBTORCH_LIBDIR}' -Wl,--no-as-needed,-rpath='${LIBTORCH_LIBDIR}'"
-    else
-      LIBTORCH_LDFLAGS="-L'${LIBTORCH_LIBDIR}' -Wl,-rpath='${LIBTORCH_LIBDIR}'"
-    fi
     ;;
 esac
 
@@ -84,12 +73,6 @@ prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
-  cat << EOF >> "${BUILDDIR}/setup_libtorch"
-export CP_DFLAGS="\${CP_DFLAGS} -D__LIBTORCH"
-export CXXFLAGS="\${CXXFLAGS} ${LIBTORCH_CXXFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBTORCH_LDFLAGS}"
-export CP_LIBS="\${CP_LIBS} -lc10 -ltorch_cpu -ltorch"
-EOF
   filter_setup "${BUILDDIR}/setup_libtorch" "${SETUPFILE}"
 fi
 

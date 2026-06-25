@@ -66,7 +66,6 @@ EOF
     ;;
 esac
 if [ "$with_libxsmm" != "__DONTUSE__" ]; then
-  LIBXSMM_LIBS="-lxsmm -ldl -lpthread"
   cat << EOF > "${BUILDDIR}/setup_libxsmm"
 export LIBXSMM_VER="${libxsmm_ver}"
 export LIBXSMM_ROOT="${pkg_install_dir:-}"
