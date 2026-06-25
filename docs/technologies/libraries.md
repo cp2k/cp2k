@@ -32,12 +32,14 @@ incompatibilities between Accelerate and reference BLAS/LAPACK.
 MPI (version 3 or later) and SCALAPACK are needed for parallel code. (Use the latest versions
 available and download all patches!).
 
-:warning: Note that your MPI installation must match the used Fortran compiler. If your computing
+```{Warning}
+Note that your MPI installation must match the used Fortran compiler. If your computing
 platform does not provide MPI, there are several freely available alternatives:
 
 - MPICH MPI: <https://www.mpich.org/> (may require `-fallow-argument-mismatch` when building with
   GCC 10)
 - OpenMPI MPI: <http://www.open-mpi.org/>
+```
 
 For more information of ScaLAPACK, see <http://www.netlib.org/scalapack/>. ScaLAPACK can be part of
 ACML (AMD) or cluster MKL (Intel); these libraries are recommended on the corresponding machines if
@@ -56,12 +58,20 @@ to install and use FFTW3. The current version of CP2K works with FFTW 3.X (pass
 FFTW is also provided by MKL. If you have MKL but still want to use standalone FFTW3, pass
 `-DCP2K_USE_FFTW3_WITH_MKL=ON` to CMake.
 
-:warning: Note that FFTW must know the Fortran compiler you will use in order to install properly
+```{Warning}
+Note that FFTW must know the Fortran compiler you will use in order to install properly
 (e.g., `export F77=gfortran` before configure if you intend to use gfortran).
+```
 
 Since CP2K is OpenMP parallelized, the FFTW3 threading library libfftw3_omp (or libfftw3_threads) is
 required. Pass `-DCP2K_ENABLE_FFTW3_OPENMP_SUPPORT=ON` or `-DCP2K_ENABLE_FFTW3_THREADS_SUPPORT=ON`
 respectivly to CMake.
+
+```{Warning}
+Support for FFTW is required for some features, especially systems with very large block sizes/grid
+sizes. A future release of CP2K may make FFTW a hard dependency. Please consider CP2K to be compiled
+with support for FFTW.
+```
 
 ## LIBINT (enables methods including HF exchange)
 

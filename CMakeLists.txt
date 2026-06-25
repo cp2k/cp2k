@@ -1369,8 +1369,10 @@ if(NOT CP2K_USE_VORI)
 endif()
 
 if(NOT CP2K_USE_FFTW3)
+  message("   - FFTW3")
   message(
-    "   - FFTW3: FFTW3 may become mandatory in future releases of CP2K. Please consider installing and enabling it. Some features of CP2K may not work properly without FFTW3."
+    WARNING
+      "FFTW3 may become mandatory in future releases of CP2K. Calculations requiring large grid sizes may not work properly without FFTW3. Please consider installing and enabling it."
   )
 endif()
 
