@@ -25,8 +25,6 @@ case "$with_libfci" in
 
   __INSTALL__)
     echo "==================== Installing libfci ===================="
-    require_env MATH_LIBS
-
     pkg_install_dir="${INSTALLDIR}/libfci-${libfci_ver}"
     install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then

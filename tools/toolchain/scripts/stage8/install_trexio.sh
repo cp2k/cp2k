@@ -25,9 +25,7 @@ case "$with_trexio" in
 
   __INSTALL__)
     echo "==================== Installing TREXIO ===================="
-    require_env HDF5_LIBS
-    require_env HDF5_CFLAGS
-    require_env HDF5_LDFLAGS
+    require_env HDF5_ROOT
 
     pkg_install_dir="${INSTALLDIR}/trexio-${trexio_ver}"
     install_lock_file="${pkg_install_dir}/install_successful"
@@ -42,7 +40,7 @@ case "$with_trexio" in
 
       CMAKE_OPTIONS="-DCMAKE_VERBOSE_MAKEFILE=ON"
       if [ "${MPI_MODE}" != "no" ]; then
-        CMAKE_OPTIONS="-DCMAKE_C_COMPILER=${MPICC}"
+        CMAKE_OPTIONS+="-DCMAKE_C_COMPILER=${MPICC}"
       fi
 
       mkdir build && cd build
@@ -56,51 +54,34 @@ case "$with_trexio" in
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
-    TREXIO_CFLAGS="-I${pkg_install_dir}/include"
-    TREXIO_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding trexio from system paths ===================="
-    require_env HDF5_LIBS
-    require_env HDF5_CFLAGS
-    require_env HDF5_LDFLAGS
+    require_env HDF5_ROOT
     check_lib -ltrexio "trexio"
-    add_include_from_paths trexio_CFLAGS "trexio*" $INCLUDE_PATHS
-    add_lib_from_paths trexio_LDFLAGS "libtrexio.*" $LIB_PATHS
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libtrexio.*" $LIB_PATHS)))"
     ;;
   *)
     echo "==================== Linking TREXIO to user paths ===================="
-    pkg_install_dir="$with_trexio"
+    pkg_install_dir="${with_trexio}"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    TREXIO_CFLAGS="-I'${pkg_install_dir}/include'"
-    TREXIO_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "$with_trexio" != "__DONTUSE__" ]; then
-  TREXIO_LIBS="-l:libtrexio.a"
   cat << EOF > "${BUILDDIR}/setup_trexio"
 export TREXIO_VER="${trexio_ver}"
+export TREXIO_ROOT="${pkg_install_dir}"
 EOF
   if [ "$with_trexio" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_trexio"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path CPATH "${pkg_install_dir}/include"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
-  cat << EOF >> "${BUILDDIR}/setup_trexio"
-export TREXIO_CFLAGS="${TREXIO_CFLAGS}"
-export TREXIO_LDFLAGS="${TREXIO_LDFLAGS}"
-export TREXIO_LIB="${TREXIO_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} -D__TREXIO"
-export CP_CFLAGS="\${CP_CFLAGS} ${TREXIO_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${TREXIO_LDFLAGS}"
-export CP_LIBS="${TREXIO_LIBS} \${CP_LIBS}"
-EOF
   filter_setup "${BUILDDIR}/setup_trexio" "${SETUPFILE}"
 fi
 

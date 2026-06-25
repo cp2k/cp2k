@@ -56,8 +56,6 @@ case "${with_libsmeagol}" in
       mkdir ${pkg_install_dir}/include && cp obj/*.mod ${pkg_install_dir}/include
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename ${SCRIPT_NAME})"
     fi
-    LIBSMEAGOL_CFLAGS="-I${pkg_install_dir}/include"
-    LIBSMEAGOL_LDFLAGS="-L${pkg_install_dir}/lib -Wl,-rpath,${pkg_install_dir}/lib"
     ;;
   __SYSTEM__)
     echo "==================== Finding libsmeagol from system paths ===================="
@@ -70,14 +68,12 @@ case "${with_libsmeagol}" in
     pkg_install_dir="${with_libsmeagol}"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/obj"
-    LIBSMEAGOL_CFLAGS="-I'${pkg_install_dir}/obj'"
-    LIBSMEAGOL_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 
 if [ "${with_libsmeagol}" != "__DONTUSE__" ]; then
-  LIBSMEAGOL_LIBS="-l:libsmeagol.a"
   cat << EOF > "${BUILDDIR}/setup_libsmeagol"
+export LIBSMEAGOL_ROOT="${pkg_install_dir}"
 export LIBSMEAGOL_VER="${libsmeagol_ver}"
 EOF
   if [ "${with_libsmeagol}" != "__SYSTEM__" ]; then
@@ -85,21 +81,9 @@ EOF
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path CPATH "${pkg_install_dir}/include"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
-  # libsmeagol depends on an MPI library. In its current state libsmeagol cannot be linked with a non-MPI code.
-  cat << EOF >> "${BUILDDIR}/setup_libsmeagol"
-export LIBSMEAGOL_CFLAGS="${LIBSMEAGOL_CFLAGS}"
-export LIBSMEAGOL_LDFLAGS="${LIBSMEAGOL_LDFLAGS}"
-export LIBSMEAGOL_LIBS="${LIBSMEAGOL_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__SMEAGOL|)"
-export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${LIBSMEAGOL_CFLAGS}|)"
-export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${LIBSMEAGOL_LDFLAGS}|)"
-export CP_LIBS="IF_MPI(${LIBSMEAGOL_LIBS}|) \${CP_LIBS}"
-export LIBSMEAGOL_ROOT="${pkg_install_dir}"
-EOF
   filter_setup "${BUILDDIR}/setup_libsmeagol" "${SETUPFILE}"
 fi
 

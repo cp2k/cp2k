@@ -44,42 +44,33 @@ case "${with_libvori:=__INSTALL__}" in
         -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         .. > cmake.log 2>&1 || tail_excerpt cmake.log
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . > build.log 2>&1 || tail_excerpt build.log
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target test > test.log 2>&1 || tail_excerpt test.log
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target install > install.log 2>&1 || tail_excerpt install.log
-
+      make -j "$(get_nprocs)" install > make.log 2>&1 || tail_excerpt make.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename "${SCRIPT_NAME}")"
     fi
-    LIBVORI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding libvori from system paths ===================="
     check_lib -lvori "libvori"
-    add_lib_from_paths LIBVORI_LDFLAGS "libvori.*" "$LIB_PATHS"
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libvori.*" $LIB_PATHS)))"
     ;;
   __DONTUSE__) ;;
 
   *)
     echo "==================== Linking libvori to user paths ===================="
     pkg_install_dir="${with_libvori}"
-
     # use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
     LIBVORI_LIBDIR="${pkg_install_dir}/lib"
     [ -d "${pkg_install_dir}/lib64" ] && LIBVORI_LIBDIR="${pkg_install_dir}/lib64"
-
     check_dir "${LIBVORI_LIBDIR}"
-    LIBVORI_LDFLAGS="-L'${LIBVORI_LIBDIR}' -Wl,-rpath,'${LIBVORI_LIBDIR}'"
     ;;
 esac
 
 if [ "$with_libvori" != "__DONTUSE__" ]; then
-  LIBVORI_LIBS="-lvori -lstdc++"
   if [ "$with_libvori" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_libvori"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-export LIBVORI_LIBS="${LIBVORI_LIBS}"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
@@ -87,11 +78,6 @@ EOF
   cat << EOF >> "${BUILDDIR}/setup_libvori"
 export LIBVORI_VER="${libvori_ver}"
 export LIBVORI_ROOT="${pkg_install_dir}"
-export LIBVORI_LDFLAGS="${LIBVORI_LDFLAGS}"
-export LIBVORI_LIBRARY="-lvori"
-export CP_DFLAGS="\${CP_DFLAGS} -D__LIBVORI"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBVORI_LDFLAGS}"
-export CP_LIBS="\${CP_LIBS} ${LIBVORI_LIBS}"
 EOF
   filter_setup "${BUILDDIR}/setup_libvori" "${SETUPFILE}"
 fi

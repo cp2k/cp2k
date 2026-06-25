@@ -132,11 +132,8 @@ case "$with_sirius" in
           ${EXTRA_CMAKE_FLAGS} .. \
           >> cmake.log 2>&1 || tail_excerpt cmake.log
         make -j $(get_nprocs) install >> make.log 2>&1 || tail_excerpt make.log
-        SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/cuda/lib' -Wl,-rpath,'${pkg_install_dir}/cuda/lib'"
         cd ..
       fi
-      SIRIUS_CFLAGS="-I'${pkg_install_dir}/include/sirius'"
-      SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib"
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})" \
         "${SCRIPT_DIR}/stage8/sirius-linking.patch"
     fi
@@ -144,25 +141,21 @@ case "$with_sirius" in
   __SYSTEM__)
     check_lib -lsirius "sirius"
     check_lib -lsirius_cxx "sirius_cxx"
-    add_include_from_paths SIRIUS_CFLAGS "sirius*" $INCLUDE_PATHS
-    add_lib_from_paths SIRIUS_LDFLAGS "libsirius.*" $LIB_PATHS
-    add_lib_from_paths SIRIUS_LDFLAGS "libsirius_cxx.*" $LIB_PATHS
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libsirius.*" $LIB_PATHS)))"
     ;;
   *)
     echo "==================== Linking SIRIUS to user paths ===================="
-    pkg_install_dir="$with_sirius"
-    check_dir "${pkg_install_dir}/lib"
-    check_dir "${pkg_install_dir}/lib64"
+    pkg_install_dir="${with_sirius}"
+    SIRIUS_LIBDIR="${pkg_install_dir}/lib"
+    [ -d "${pkg_install_dir}/lib64" ] && SIRIUS_LIBDIR="${pkg_install_dir}/lib64"
+    check_dir "${SIRIUS_LIBDIR}"
     check_dir "${pkg_install_dir}/include"
     ;;
 esac
 if [ "$with_sirius" != "__DONTUSE__" ]; then
-  SIRIUS_LIBS="-lsirius -lsirius_cxx IF_CUDA(-lcusolver|)"
-  SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/cuda/lib' -Wl,-rpath,'${pkg_install_dir}/cuda/lib'"
-  SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
-  SIRIUS_CFLAGS="-I'${pkg_install_dir}/include/sirius'"
   cat << EOF > "${BUILDDIR}/setup_sirius"
 export SIRIUS_VER="${sirius_ver}"
+export SIRIUS_ROOT="${pkg_install_dir}"
 EOF
   if [ "$with_sirius" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_sirius"
@@ -170,7 +163,6 @@ prepend_path PATH "${pkg_install_dir}/bin"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path CPATH "${pkg_install_dir}/include/sirius"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
@@ -183,17 +175,6 @@ prepend_path LIBRARY_PATH "${pkg_install_dir}/cuda/lib"
 EOF
     fi
   fi
-  cat << EOF >> "${BUILDDIR}/setup_sirius"
-export SIRIUS_CFLAGS="IF_CUDA(-I${pkg_install_dir}/cuda/include/sirius|-I${pkg_install_dir}/include/sirius)"
-export SIRIUS_FFLAGS="IF_CUDA(-I${pkg_install_dir}/cuda/include/sirius|-I${pkg_install_dir}/include/sirius)"
-export SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
-export SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/cuda/lib' -Wl,-rpath,'${pkg_install_dir}/cuda/lib'"
-export SIRIUS_LIBS="${SIRIUS_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI("-D__SIRIUS"|)"
-export CP_CFLAGS="\${CP_CFLAGS} IF_MPI("\${SIRIUS_CFLAGS}"|)"
-export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(IF_CUDA("\${SIRIUS_CUDA_LDFLAGS}"|"\${SIRIUS_LDFLAGS}")|)"
-export CP_LIBS="IF_MPI("\${SIRIUS_LIBS}"|) \${CP_LIBS}"
-EOF
   filter_setup "${BUILDDIR}/setup_sirius" "${SETUPFILE}"
   cat << EOF >> ${INSTALLDIR}/lsan.supp
 # leaks related to SIRIUS
