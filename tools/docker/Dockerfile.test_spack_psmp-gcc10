@@ -43,17 +43,22 @@ ENV IMAGE_TAG=${IMAGE_TAG:-spack_psmp-gcc10}
 ARG SPACK_CACHE
 ENV SPACK_CACHE="${SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://host.containers.internal:9000}"
 
-# Copy CP2K repository into container
-WORKDIR /opt
-COPY . cp2k/
-
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
+COPY ./tools/spack ./tools/spack
+COPY ./tools/docker ./tools/docker
+COPY ./make_cp2k.sh .
 RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 10 -mpi mpich -ue -df libtorch -ef openpmd
 
 ###### Stage 2: Build CP2K ######
 
 FROM build_deps AS build_cp2k
+
+COPY ./src ./src
+COPY ./data ./data
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
 
 RUN ./make_cp2k.sh -cv psmp -gv 10 -gpu none -mpi mpich -df libtorch -ef openpmd
 
@@ -75,11 +80,11 @@ COPY --from=build_cp2k /opt/cp2k/spack/spack/opt/spack ./spack/spack/opt/spack
 COPY --from=build_cp2k /opt/cp2k/install ./install
 
 # Install CP2K regression tests
-COPY --from=build_cp2k /opt/cp2k/tests ./tests
+COPY ./tests ./tests
 COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 
 # Install CP2K/Quickstep CI benchmarks
-COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
+COPY ./benchmarks/CI ./benchmarks/CI
 
 # Do not rely only on LD_LIBRARY_PATH because it is fragile
 COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
