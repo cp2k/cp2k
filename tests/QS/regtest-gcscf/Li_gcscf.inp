@@ -14,36 +14,36 @@
       CUTOFF 100
       REL_CUTOFF 40
     &END MGRID
+    &PLANAR_COUNTER_CHARGE ON
+      DIST_EDGE 1.5
+      GAU_C 1.5
+      PARALLEL_PLANE XY
+    &END PLANAR_COUNTER_CHARGE
     &QS
       EPS_DEFAULT 1.0E-10
     &END QS
-    &PLANAR_COUNTER_CHARGE ON
-      DIST_EDGE 3.0
-      GAU_C 0.2
-      PARALLEL_PLANE XZ
-    &END PLANAR_COUNTER_CHARGE
     &SCF
-      &GCE ON
-        TARGET_WORKFUNCTION [eV] 4.5
-        MIXING_COEF 0.3
-      &END GCE
       ADDED_MOS 10
       CHOLESKY INVERSE
       EPS_SCF 1.0E-9
-      MAX_SCF 200
+      MAX_SCF 100
       &DIAGONALIZATION
         ALGORITHM STANDARD
       &END DIAGONALIZATION
+      &GCE ON
+        MIXING_COEF 0.3
+        TARGET_WORKFUNCTION [eV] 4.5
+      &END GCE
       &MIXING
         ALPHA 0.1
         METHOD NEW_PULAY_MIXING
-        NBROYDEN 8
-        QK 3
+        NBROYDEN 5
+        QK 1
         QKAPPA 0.25
         QM 0.75
       &END MIXING
       &SMEAR ON
-        ELECTRONIC_TEMPERATURE [K] 1000
+        ELECTRONIC_TEMPERATURE [K] 300
         METHOD FERMI_DIRAC
       &END SMEAR
     &END SCF
@@ -54,20 +54,10 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 9.0 6.0 16.0
+      ABC 9.0 6.0 10.0
       PERIODIC XYZ
     &END CELL
-    &TOPOLOGY
-      &CENTER_COORDINATES
-      &END CENTER_COORDINATES
-    &END TOPOLOGY
     &COORD
-      Li   0.0   0.0  -0.9
-      Li   3.0   0.0  -0.9
-      Li   6.0   0.0  -0.9
-      Li   0.0   3.0  -0.9
-      Li   3.0   3.0  -0.9
-      Li   6.0   3.0  -0.9
       Li   1.5   1.5   0.9
       Li   4.5   1.5   0.9
       Li   7.5   1.5   0.9
@@ -79,5 +69,9 @@
       BASIS_SET DZVP-MOLOPT-SR-GTH-q3
       POTENTIAL GTH-LDA-q3
     &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

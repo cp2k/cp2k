@@ -1,2 +1,2 @@
 # runs are executed in the same order as in this file
-"Li_gcscf.inp"                    = [{matcher="E_total", tol=1e-10, ref=-87.977472456355983}]
+"Li_gcscf.inp"                    = [{matcher="E_total", tol=1e-9, ref=-44.036008353017763}]

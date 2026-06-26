@@ -404,8 +404,14 @@ CONTAINS
                                    smear=scf_control%smear, &
                                    probe=probe)
          ELSE
-            CALL set_mo_occupation(mo_array=mos, &
-                                   smear=scf_control%smear)
+            IF (.NOT. scf_control%gce%do_gce) THEN
+               CALL set_mo_occupation(mo_array=mos, &
+                                      smear=scf_control%smear)
+            ELSE
+               CALL set_mo_occupation(mo_array=mos, &
+                                      smear=scf_control%smear, &
+                                      gce=scf_control%gce)
+            END IF
          END IF
       END IF
 
@@ -1175,8 +1181,14 @@ CONTAINS
             !rotate the mos by the eigenvectors of C'HC
             CALL parallel_gemm('N', 'N', nao, nmo, nmo, rone, c0, evec, rzero, mo_coeff)
 
-            CALL set_mo_occupation(mo_set=mos(ispin), &
-                                   smear=scf_control%smear)
+            IF (.NOT. scf_control%gce%do_gce) THEN
+               CALL set_mo_occupation(mo_set=mos(ispin), &
+                                      smear=scf_control%smear)
+            ELSE
+               CALL set_mo_occupation(mo_set=mos(ispin), &
+                                      smear=scf_control%smear, &
+                                      gce=scf_control%gce)
+            END IF
 
             ! does not yet handle k-points
             CALL calculate_density_matrix(mos(ispin), &
@@ -1387,8 +1399,14 @@ CONTAINS
                                  jacobi_threshold=scf_control%diagonalization%jacobi_threshold)
       END DO
 
-      CALL set_mo_occupation(mo_array=mos, &
-                             smear=scf_control%smear)
+      IF (.NOT. scf_control%gce%do_gce) THEN
+         CALL set_mo_occupation(mo_array=mos, &
+                                smear=scf_control%smear)
+      ELSE
+         CALL set_mo_occupation(mo_array=mos, &
+                                smear=scf_control%smear, &
+                                gce=scf_control%gce)
+      END IF
 
       DO ispin = 1, nspin
          ! does not yet handle k-points
@@ -1956,8 +1974,14 @@ CONTAINS
                CALL cp_fm_cholesky_restore(c0, nmo, ortho, mo_coeff, "SOLVE")
             END IF
 
-            CALL set_mo_occupation(mo_set=mos(ispin), &
-                                   smear=scf_control%smear)
+            IF (.NOT. scf_control%gce%do_gce) THEN
+               CALL set_mo_occupation(mo_set=mos(ispin), &
+                                      smear=scf_control%smear)
+            ELSE
+               CALL set_mo_occupation(mo_set=mos(ispin), &
+                                      smear=scf_control%smear, &
+                                      gce=scf_control%gce)
+            END IF
 
             ! does not yet handle k-points
             CALL calculate_density_matrix(mos(ispin), &
@@ -2070,8 +2094,14 @@ CONTAINS
          END IF
       END DO !ispin
 
-      CALL set_mo_occupation(mo_array=mos, &
-                             smear=scf_control%smear)
+      IF (.NOT. scf_control%gce%do_gce) THEN
+         CALL set_mo_occupation(mo_array=mos, &
+                                smear=scf_control%smear)
+      ELSE
+         CALL set_mo_occupation(mo_array=mos, &
+                                smear=scf_control%smear, &
+                                gce=scf_control%gce)
+      END IF
 
       DO ispin = 1, nspins
          ! does not yet handle k-points

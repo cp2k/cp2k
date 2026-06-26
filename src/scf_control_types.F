@@ -152,7 +152,8 @@ MODULE scf_control_types
       REAL(KIND=dp)                         :: target_workfunction = 0.16_dp, &
                                                ref_esp = 0.0_dp, &
                                                mixing_coef = 0.3_dp, &
-                                               prev_workfunction = -1001.0_dp
+                                               prev_workfunction = -1001.0_dp, &
+                                               nelec = 0.0_dp
    END TYPE gce_type
 
 CONTAINS
