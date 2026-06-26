@@ -35,6 +35,11 @@ extern "C" {
 #endif
 
 namespace rocm_backend {
+
+constexpr size_t align_up_elems(size_t n_elems, size_t elem_alignment) {
+  return (n_elems + elem_alignment - 1) & ~(elem_alignment - 1);
+}
+
 kernel_params
 context_info::set_kernel_parameters(const int level,
                                     const smem_parameters &smem_params) {
@@ -235,8 +240,10 @@ extern "C" void grid_gpu_create_task_list(
     tasks_host[i].ncosetb = rocm_backend::ncoset(lb_max_basis);
     // it should lmax + 3 because calculating forces+stress+compute_tau requires
     // l + 3
-    tasks_host[i].max_cab_size = rocm_backend::ncoset(la_max_basis + 3) *
-                                 rocm_backend::ncoset(lb_max_basis + 3);
+    tasks_host[i].max_cab_size =
+        rocm_backend::align_up_elems(rocm_backend::ncoset(la_max_basis + 3) *
+                                         rocm_backend::ncoset(lb_max_basis + 3),
+                                     4);
 
     // size of entire spherical basis
     tasks_host[i].nsgfa = ibasis->nsgf;
@@ -274,9 +281,13 @@ extern "C" void grid_gpu_create_task_list(
     } else {
       tasks_host[i].coef_offset =
           tasks_host[i - 1].coef_offset +
-          rocm_backend::ncoset(tasks_host[i - 1].lp_max);
+          rocm_backend::align_up_elems(
+              rocm_backend::ncoset(tasks_host[i - 1].lp_max), 4);
     }
-    coef_size += rocm_backend::ncoset(tasks_host[i].lp_max);
+
+    // calculate the size such that the coef table is a multiple of 4.
+    coef_size += rocm_backend::align_up_elems(
+        rocm_backend::ncoset(tasks_host[i].lp_max), 4);
 
     auto &grid = ctx->grid_[tasks_host[i].level];
     // compute the cube properties
