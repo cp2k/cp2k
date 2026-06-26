@@ -36,7 +36,7 @@ case "$with_cosma" in
 
     echo "==================== Installing COSMA ===================="
     pkg_install_dir="${INSTALLDIR}/COSMA-${cosma_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
 
     if verify_checksums "${install_lock_file}"; then
       echo "COSMA-${cosma_ver} is already installed, skipping it."
@@ -212,7 +212,7 @@ case "$with_cosma" in
     ;;
   __SYSTEM__)
     echo "==================== Finding COSMA from system paths ===================="
-    check_command pkg-config --modversion cosma
+    check_pkgconfig cosma
     pkg_install_dir="$(pkg-config --variable=prefix cosma)"
     ;;
   __DONTUSE__) ;;
@@ -233,13 +233,13 @@ if [ "$with_cosma" != "__DONTUSE__" ]; then
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
-prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_cosma"
 export COSMA_VER="${cosma_ver}"
-export COSMA_ROOT="$pkg_install_dir"
+export COSMA_ROOT="${pkg_install_dir}"
 EOF
   filter_setup "${BUILDDIR}/setup_cosma" "${SETUPFILE}"
 

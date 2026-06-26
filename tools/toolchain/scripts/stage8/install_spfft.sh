@@ -23,7 +23,7 @@ case "${with_spfft}" in
   __INSTALL__)
     echo "==================== Installing SpFFT ===================="
     pkg_install_dir="${INSTALLDIR}/SpFFT-${spfft_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "SpFFT-${spfft_ver} is already installed, skipping it."
     else
@@ -81,7 +81,6 @@ case "${with_spfft}" in
         [ -f src/libspfft.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
         [ -f src/libspfft.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
       fi
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
 
       if [ "$ENABLE_HIP" = "__TRUE__" ]; then
         case "${GPUVER}" in
@@ -115,19 +114,21 @@ case "${with_spfft}" in
             cmake \
               -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
               -DCMAKE_INSTALL_LIBDIR=lib \
+              -DCMAKE_CXX_COMPILER="${MPICXX}" \
               -DCMAKE_VERBOSE_MAKEFILE=ON \
               -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
-              -DSPLA_OMP=ON \
-              -DSPLA_FORTRAN=ON \
-              -DSPLA_INSTALL=ON \
-              -DSPLA_STATIC=ON \
-              -DSPLA_GPU_BACKEND=ROCM \
+              -DSPFFT_OMP=ON \
+              -DSPFFT_MPI=ON \
+              -DSPFFT_STATIC=ON \
+              -DSPFFT_FORTRAN=ON \
+              -DSPFFT_INSTALL=ON \
+              -DSPFFT_GPU_BACKEND=ROCM \
               ${EXTRA_CMAKE_FLAGS} .. \
               > cmake.log 2>&1 || tail_excerpt cmake.log
             make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
             install -d ${pkg_install_dir}/lib/rocm
-            [ -f src/libspla.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/rocm >> install.log 2>&1
-            [ -f src/libspla.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/rocm >> install.log 2>&1
+            [ -f src/libspfft.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/rocm >> install.log 2>&1
+            [ -f src/libspfft.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/rocm >> install.log 2>&1
             ;;
           *) ;;
 
@@ -138,7 +139,7 @@ case "${with_spfft}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding SpFFT from system paths ===================="
-    check_command pkg-config --modversion spfft
+    check_pkgconfig spfft
     pkg_install_dir="$(pkg-config --variable=prefix spfft)"
     ;;
   __DONTUSE__)
@@ -157,9 +158,9 @@ esac
 if [ "$with_spfft" != "__DONTUSE__" ]; then
   if [ "$with_spfft" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_spfft"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF

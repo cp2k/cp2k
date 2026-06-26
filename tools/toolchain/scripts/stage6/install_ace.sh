@@ -80,10 +80,10 @@ export ACE_VER="${ace_ver}"
 EOF
   if [ "$with_ace" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_ace"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
     filter_setup "${BUILDDIR}/setup_ace" "${SETUPFILE}"
   fi

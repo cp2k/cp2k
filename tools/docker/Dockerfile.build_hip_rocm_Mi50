@@ -44,6 +44,7 @@ COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
     --mpi-mode=mpich \
     --enable-hip=yes \
+    --with-sirius=install \
     --gpu-ver=Mi50 \
     --dry-run
 

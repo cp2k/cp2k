@@ -175,7 +175,7 @@ case "${with_gauxc}" in
     echo "==================== Linking GauXC to user paths ===================="
     pkg_install_dir="${with_gauxc}"
     GAUXC_LIBDIR="${pkg_install_dir}/lib"
-    [ -d "${pkg_install_dir}/lib64" ] && DBCSR_LIBDIR="${pkg_install_dir}/lib64"
+    [ -d "${pkg_install_dir}/lib64" ] && GAUXC_LIBDIR="${pkg_install_dir}/lib64"
     check_dir "${GAUXC_LIBDIR}"
     check_dir "${pkg_install_dir}/include"
     check_dir "${pkg_install_dir}/include/gauxc/modules"

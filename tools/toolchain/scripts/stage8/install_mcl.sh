@@ -97,7 +97,7 @@ EOF
   __SYSTEM__)
     echo "==================== Finding MCL from system paths ===================="
     check_lib -lmclf "mcl"
-    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libmclf.*" $LIB_PATHS)))"
+    pkg_install_dir="$(dirname $(dirname $(dirname $(find_in_paths "libmclf.*" $LIB_PATHS))))"
     ;;
   __DONTUSE__) ;;
 

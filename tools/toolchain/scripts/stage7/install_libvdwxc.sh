@@ -17,11 +17,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libvdwxc" ] && rm "${BUILDDIR}/setup_libvdwxc"
 
-if [ "$MPI_MODE" = "no" ] && [ $with_sirius = "__FALSE__" ]; then
-  report_warning $LINENO "MPI and SIRIUS are disabled, skipping libvdwxc installation"
-  exit 0
-fi
-
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 

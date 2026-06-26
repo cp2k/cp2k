@@ -26,7 +26,7 @@ case "${with_mpich}" in
   __INSTALL__)
     echo "==================== Installing MPICH ===================="
     pkg_install_dir="${INSTALLDIR}/mpich-${mpich_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "mpich-${mpich_ver} is already installed, skipping it."
     else
@@ -72,9 +72,9 @@ case "${with_mpich}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding MPICH from system paths ===================="
-    check_command mpiexec "mpich" && MPIEXEC="$(command -v mpiexec)"
+    check_command mpiexec "mpich" && MPIEXEC="$(command -v mpiexec)" || exit 1
     check_command mpicc "mpich" && MPICC="$(command -v mpicc)" || exit 1
-    if [ $(command -v mpic++ > /dev/null 2>&1) ]; then
+    if $(command -v mpic++ > /dev/null 2>&1); then
       check_command mpic++ "mpich" && MPICXX="$(command -v mpic++)" || exit 1
     else
       check_command mpicxx "mpich" && MPICXX="$(command -v mpicxx)" || exit 1

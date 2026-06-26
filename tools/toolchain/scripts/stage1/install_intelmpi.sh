@@ -26,7 +26,7 @@ case "${with_intelmpi}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding Intel MPI from system paths ===================="
-    check_command mpiexec "intelmpi" && MPIEXEC="$(real_path $(command -v mpiexec))"
+    check_command mpiexec "intelmpi" && MPIEXEC="$(real_path $(command -v mpiexec))" || exit 1
     if [ "${with_intel}" != "__DONTUSE__" ]; then
       if [ "${with_ifx}" = "yes" ]; then
         check_command mpiicx "intelmpi" && MPICC="$(real_path $(command -v mpiicx))" || exit 1

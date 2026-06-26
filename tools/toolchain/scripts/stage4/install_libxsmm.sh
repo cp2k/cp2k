@@ -30,7 +30,7 @@ EOF
       exit 0
     fi
     pkg_install_dir="${INSTALLDIR}/libxsmm-${libxsmm_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "libxsmm-${libxsmm_ver} is already installed, skipping it."
     else

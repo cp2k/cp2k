@@ -51,7 +51,7 @@ case "$with_spglib" in
     ;;
   __SYSTEM__)
     echo "==================== Finding Spglib from system paths ===================="
-    check_command pkg-config --modversion spglib
+    check_pkgconfig spglib
     pkg_install_dir="$(pkg-config --variable=prefix spglib)"
     ;;
   __DONTUSE__) ;;

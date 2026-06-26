@@ -35,17 +35,17 @@ case "$with_acml" in
     echo "==================== Linking ACML to user paths ===================="
     pkg_install_dir="$with_acml"
     check_dir "${pkg_install_dir}/lib"
-    ACML_CFLAGS="-I'${pkg_install_dir}/include'"
-    ACML_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
+    ACML_CFLAGS="-I${pkg_install_dir}/include"
+    ACML_LDFLAGS="-L${pkg_install_dir}/lib -Wl,-rpath,${pkg_install_dir}/lib"
     ;;
 esac
 if [ "$with_acml" != "__DONTUSE__" ]; then
   ACML_LIBS="-lacml"
   if [ "$with_acml" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_acml"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 EOF
     filter_setup "${BUILDDIR}/setup_acml" "${SETUPFILE}"
   fi

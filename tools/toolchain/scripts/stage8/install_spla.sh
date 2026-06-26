@@ -23,7 +23,7 @@ case "${with_spla}" in
   __INSTALL__)
     echo "==================== Installing SpLA ===================="
     pkg_install_dir="${INSTALLDIR}/SpLA-${spla_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "SpLA-${spla_ver} is already installed, skipping it."
     else
@@ -114,7 +114,7 @@ case "${with_spla}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding SpLA from system paths ===================="
-    check_command pkg-config --modversion spla
+    check_pkgconfig spla
     pkg_install_dir="$(pkg-config --variable=prefix spla)"
     ;;
   __DONTUSE__)
@@ -133,11 +133,11 @@ esac
 if [ "$with_spla" != "__DONTUSE__" ]; then
   if [ "$with_spla" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_spla"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
-prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_spla"

@@ -126,27 +126,24 @@ case "${with_dbcsr}" in
 esac
 
 if [ "${with_dbcsr}" != "__DONTUSE__" ]; then
+  cat << EOF > "${BUILDDIR}/setup_dbcsr"
+export DBCSR_VER="${dbcsr_ver}"
+export DBCSR_ROOT="${pkg_install_dir}"
+EOF
   if [ "${with_dbcsr}" != "__SYSTEM__" ]; then
+    pkg_install_dir1="${pkg_install_dir}"
     if [ "${ENABLE_CUDA}" == "__TRUE__" ]; then
       pkg_install_dir1="${pkg_install_dir}-cuda"
-    else
-      if [ "${ENABLE_HIP}" == "__TRUE__" ]; then
-        pkg_install_dir1="${pkg_install_dir}-hip"
-      else
-        pkg_install_dir1="${pkg_install_dir}"
-      fi
+    elif [ "${ENABLE_HIP}" == "__TRUE__" ]; then
+      pkg_install_dir1="${pkg_install_dir}-hip"
     fi
-  fi
-  cat << EOF > "${BUILDDIR}/setup_dbcsr"
+    cat << EOF >> "${BUILDDIR}/setup_dbcsr"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir1}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir1}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir1}/lib"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir1}"
-export DBCSR_ROOT="${pkg_install_dir}"
-export DBCSR_HIP_ROOT="${pkg_install_dir}-hip"
-export DBCSR_CUDA_ROOT="${pkg_install_dir}-cuda"
-export DBCSR_VER="${dbcsr_ver}"
 EOF
+  fi
 else
   touch "${BUILDDIR}/setup_dbcsr"
 fi

@@ -615,6 +615,7 @@ RUN hipconfig
         base_image="ubuntu",
         mpi_mode="mpich",
         enable_hip="yes",
+        with_sirius="install",
         gpu_ver=gpu_ver,
     )
 

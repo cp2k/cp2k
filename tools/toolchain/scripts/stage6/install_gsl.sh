@@ -23,7 +23,7 @@ case "$with_gsl" in
   __INSTALL__)
     echo "==================== Installing GSL ===================="
     pkg_install_dir="${INSTALLDIR}/gsl-${gsl_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "gsl-${gsl_ver} is already installed, skipping it."
     else
@@ -42,22 +42,17 @@ case "$with_gsl" in
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})"
     fi
-    GSL_CFLAGS="-I'${pkg_install_dir}/include'"
-    GSL_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
+    GSL_CFLAGS="-I${pkg_install_dir}/include"
+    GSL_LDFLAGS="-L${pkg_install_dir}/lib -Wl,-rpath,${pkg_install_dir}/lib"
     ;;
   __SYSTEM__)
     echo "==================== Finding GSL from system paths ===================="
-    check_command pkg-config --modversion gsl
-    GSL_INCLUDE_PATH=$(pkg-config --cflags gsl | awk '{print $1}' | cut -dI -f2)
-    pkg_install_dir=$(dirname ${GSL_INCLUDE_PATH})
-    # Deal with the condition that libgsl is installed in "/usr/lib/x86_64-linux-gnu"
-    if [[ "${pkg_install_dir}" == "/usr/lib"* ]]; then
-      pkg_install_dir="/usr"
-    else
-      INCLUDE_PATHS=${INCLUDE_PATHS}:"${pkg_install_dir}/include"
-    fi
-    add_include_from_paths GSL_CFLAGS "gsl.h" $INCLUDE_PATHS
-    add_lib_from_paths GSL_LDFLAGS "libgsl.*" $LIB_PATHS
+    check_pkgconfig gsl
+    pkg_install_dir="$(pkg-config --variable=prefix gsl)"
+    GSL_INCLUDEDIR="$(pkg-config --variable=includedir gsl)"
+    GSL_LIBDIR="$(pkg-config --variable=libdir gsl)"
+    GSL_CFLAGS="-I${GSL_INCLUDEDIR}"
+    GSL_LDFLAGS="-L${GSL_LIBDIR} -Wl,-rpath,${GSL_LIBDIR}"
     ;;
   __DONTUSE__)
     # Nothing to do
@@ -65,18 +60,18 @@ case "$with_gsl" in
   *)
     echo "==================== Linking GSL to user paths ===================="
     pkg_install_dir="$with_gsl"
-    check_dir "$pkg_install_dir/lib"
-    check_dir "$pkg_install_dir/include"
-    GSL_CFLAGS="-I'${pkg_install_dir}/include'"
-    GSL_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
+    check_dir "${pkg_install_dir}/lib"
+    check_dir "${pkg_install_dir}/include"
+    GSL_CFLAGS="-I${pkg_install_dir}/include"
+    GSL_LDFLAGS="-L${pkg_install_dir}/lib -Wl,-rpath,${pkg_install_dir}/lib"
     ;;
 esac
 if [ "$with_gsl" != "__DONTUSE__" ]; then
   if [ "$with_gsl" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_gsl"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 EOF
   fi
