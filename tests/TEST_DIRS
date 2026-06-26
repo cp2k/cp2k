@@ -135,7 +135,20 @@ QS/regtest-ot-2
 Fist/regtest-5
 QS/regtest-kp-hfx-ri-2                                      libint libxc !ifx
 QS/regtest-xc
-QS/regtest-gauxc                                            gauxc
+QS/regtest-gauxc-api                                        gauxc
+QS/regtest-gauxc-api-debug                                  gauxc
+QS/regtest-gauxc-cdft                                       gauxc
+QS/regtest-gauxc-skala                                      gauxc
+QS/regtest-gauxc-gpw-mol                                    gauxc
+QS/regtest-gauxc-gpw-nlcc                                   gauxc
+QS/regtest-gauxc-gpw-coords                                 gauxc
+QS/regtest-gauxc-gpw-mech                                   gauxc
+QS/regtest-gauxc-gpw-kp                                     gauxc
+QS/regtest-gauxc-gapw-base                                  gauxc
+QS/regtest-gauxc-gapw-ae-kp                                 gauxc
+QS/regtest-gauxc-gapw-gth                                   gauxc
+QS/regtest-gauxc-gapw-gth-kp                                gauxc
+QS/regtest-gauxc-gapw-ecp                                   gauxc
 QS/regtest-gauxc-cuda                                       gauxc_cuda
 SE/regtest-3-2
 QS/regtest-almo-2

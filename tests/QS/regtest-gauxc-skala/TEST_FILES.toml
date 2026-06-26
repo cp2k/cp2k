@@ -1,0 +1,2 @@
+"H2_SKALA_ENERGY.inp"          = [{matcher="E_total", tol=1e-8,  ref=-0.979366068078563}]
+"H2_SKALA_ENERGY_CHUNKED.inp"  = [{matcher="E_total", tol=1e-8,  ref=-0.979366068078563}]

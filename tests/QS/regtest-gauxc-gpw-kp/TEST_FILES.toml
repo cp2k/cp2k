@@ -1,0 +1,3 @@
+"H2_NATIVE_SKALA_GPW_KP_INV_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-1.60697601748110}]
+"H2_NATIVE_SKALA_GPW_KP_SYM_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-1.60697601748110}]
+"H2_NATIVE_SKALA_GPW_KP_SPGLIB_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-1.60697601748110}]
