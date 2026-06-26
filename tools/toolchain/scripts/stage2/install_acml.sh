@@ -46,7 +46,6 @@ if [ "$with_acml" != "__DONTUSE__" ]; then
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path CPATH "$pkg_install_dir/include"
 EOF
     filter_setup "${BUILDDIR}/setup_acml" "${SETUPFILE}"
   fi

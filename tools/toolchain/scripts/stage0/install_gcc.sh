@@ -108,8 +108,6 @@ case "${with_gcc}" in
     check_install ${pkg_install_dir}/bin/gfortran "gcc" && FC="${pkg_install_dir}/bin/gfortran" || exit 1
     F90="${FC}"
     F77="${FC}"
-    GCC_CFLAGS="-I'${pkg_install_dir}/include'"
-    GCC_LDFLAGS="-L'${pkg_install_dir}/lib64' -L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib64' -Wl,-rpath,'${pkg_install_dir}/lib64'"
     ;;
   __SYSTEM__)
     echo "==================== Finding GCC from system paths ===================="
@@ -119,8 +117,6 @@ case "${with_gcc}" in
     echo "GCC compiler version $(gcc -dumpfullversion) found"
     F90="${FC}"
     F77="${FC}"
-    add_include_from_paths -p GCC_CFLAGS "c++" ${INCLUDE_PATHS}
-    add_lib_from_paths GCC_LDFLAGS "libgfortran.*" ${LIB_PATHS}
     ;;
   __DONTUSE__)
     # Nothing to do
@@ -137,8 +133,6 @@ case "${with_gcc}" in
     check_command ${pkg_install_dir}/bin/gfortran "gcc" && FC="${pkg_install_dir}/bin/gfortran" || exit 1
     F90="${FC}"
     F77="${FC}"
-    GCC_CFLAGS="-I'${pkg_install_dir}/include'"
-    GCC_LDFLAGS="-L'${pkg_install_dir}/lib64' -L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib64' -Wl,-rpath,'${pkg_install_dir}/lib64'"
     ;;
 esac
 if [ "${ENABLE_TSAN}" = "__TRUE__" ]; then
@@ -153,6 +147,7 @@ export CXX="${CXX}"
 export FC="${FC}"
 export F90="${F90}"
 export F77="${F77}"
+export TSANFLAGS="${TSANFLAGS}"
 EOF
   if [ "${with_gcc}" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_gcc"
@@ -164,14 +159,8 @@ prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib64"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib64"
-prepend_path CPATH "${pkg_install_dir}/include"
 EOF
   fi
-  cat << EOF >> "${BUILDDIR}/setup_gcc"
-export GCC_CFLAGS="${GCC_CFLAGS}"
-export GCC_LDFLAGS="${GCC_LDFLAGS}"
-export TSANFLAGS="${TSANFLAGS}"
-EOF
   filter_setup "${BUILDDIR}/setup_gcc" "${SETUPFILE}"
 fi
 

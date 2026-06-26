@@ -39,10 +39,6 @@ case "$MATH_MODE" in
     ;;
 esac
 
-export CP_CFLAGS="${CP_CFLAGS} ${MATH_CFLAGS}"
-export CP_LDFLAGS="${CP_LDFLAGS} ${MATH_LDFLAGS}"
-export CP_LIBS="${CP_LIBS} ${MATH_LIBS}"
-
 write_toolchain_env "${INSTALLDIR}"
 
 #EOF

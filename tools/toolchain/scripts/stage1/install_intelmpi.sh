@@ -43,9 +43,6 @@ case "${with_intelmpi}" in
     fi
     MPIFORT="${MPIFC}"
     MPIF77="${MPIFC}"
-    # include path is already handled by compiler wrapper scripts (can cause wrong mpi.mod with GNU Fortran)
-    # add_include_from_paths INTELMPI_CFLAGS "mpi.h" $INCLUDE_PATHS
-    add_lib_from_paths INTELMPI_LDFLAGS "libmpi.*" $LIB_PATHS
     check_lib -lmpi "intelmpi"
     check_lib -lmpicxx "intelmpi"
     ;;
@@ -69,9 +66,6 @@ case "${with_intelmpi}" in
     fi
     MPIFORT="${MPIFC}"
     MPIF77="${MPIFC}"
-    # include path is already handled by compiler wrapper scripts (can cause wrong mpi.mod with GNU Fortran)
-    #INTELMPI_CFLAGS="-I'${pkg_install_dir}/include'"
-    INTELMPI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "${with_intelmpi}" != "__DONTUSE__" ]; then
@@ -82,7 +76,6 @@ if [ "${with_intelmpi}" != "__DONTUSE__" ]; then
   else
     I_MPI_FC="ifort"
   fi
-  INTELMPI_LIBS="-lmpi -lmpicxx"
   echo "I_MPI_CXX is ${I_MPI_CXX}"
   echo "I_MPI_CC  is ${I_MPI_CC}"
   echo "I_MPI_FC  is ${I_MPI_FC}"
@@ -100,16 +93,6 @@ export MPICXX="${MPICXX}"
 export MPIFC="${MPIFC}"
 export MPIFORT="${MPIFORT}"
 export MPIF77="${MPIF77}"
-export INTELMPI_CFLAGS="${INTELMPI_CFLAGS}"
-export INTELMPI_LDFLAGS="${INTELMPI_LDFLAGS}"
-export INTELMPI_LIBS="${INTELMPI_LIBS}"
-export MPI_CFLAGS="${INTELMPI_CFLAGS}"
-export MPI_LDFLAGS="${INTELMPI_LDFLAGS}"
-export MPI_LIBS="${INTELMPI_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel -D__MPI_F08|)"
-export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${INTELMPI_CFLAGS}|)"
-export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${INTELMPI_LDFLAGS}|)"
-export CP_LIBS="\${CP_LIBS} IF_MPI(${INTELMPI_LIBS}|)"
 EOF
   if [ "${with_intelmpi}" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_intelmpi"
@@ -117,7 +100,6 @@ prepend_path PATH "${pkg_install_dir}/bin"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path CPATH "${pkg_install_dir}/include"
 EOF
   fi
   filter_setup "${BUILDDIR}/setup_intelmpi" "${SETUPFILE}"
