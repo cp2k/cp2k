@@ -45,8 +45,6 @@ case "${with_amd}" in
     check_command ${pkg_install_dir}/bin/flang "amd" && FC="${pkg_install_dir}/bin/flang" || exit 1
     F90="${FC}"
     F77="${FC}"
-    AMD_CFLAGS="-I'${pkg_install_dir}/include'"
-    AMD_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "${with_amd}" != "__DONTUSE__" ]; then
@@ -69,14 +67,8 @@ prepend_path PATH "${pkg_install_dir}/bin"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path CPATH "${pkg_install_dir}/include"
 EOF
   fi
-  cat << EOF >> "${BUILDDIR}/setup_amd"
-export AMD_CFLAGS="${AMD_CFLAGS}"
-export AMD_LDFLAGS="${AMD_LDFLAGS}"
-export AMD_LIBS="${AMD_LIBS}"
-EOF
   filter_setup "${BUILDDIR}/setup_amd" "${SETUPFILE}"
 fi
 

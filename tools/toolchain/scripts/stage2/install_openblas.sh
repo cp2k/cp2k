@@ -25,7 +25,7 @@ case "${with_openblas}" in
   __INSTALL__)
     echo "==================== Installing OpenBLAS ===================="
     pkg_install_dir="${INSTALLDIR}/openblas-${openblas_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "openblas-${openblas_ver} is already installed, skipping it."
     else
@@ -110,7 +110,7 @@ case "${with_openblas}" in
     if [[ "${pkg_install_dir}" == "/usr/lib"* ]]; then
       pkg_install_dir="/usr"
     else
-      INCLUDE_PATHS=${INCLUDE_PATHS}:"$pkg_install_dir/include"
+      INCLUDE_PATHS=${INCLUDE_PATHS}:"${pkg_install_dir}/include"
     fi
     add_include_from_paths OPENBLAS_CFLAGS "openblas_config.h" $INCLUDE_PATHS
     add_lib_from_paths OPENBLAS_LDFLAGS "libopenblas.*" $LIB_PATHS
@@ -123,8 +123,8 @@ case "${with_openblas}" in
     pkg_install_dir="$with_openblas"
     check_dir "${pkg_install_dir}/include"
     check_dir "${pkg_install_dir}/lib"
-    OPENBLAS_CFLAGS="-I'${pkg_install_dir}/include'"
-    OPENBLAS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
+    OPENBLAS_CFLAGS="-I${pkg_install_dir}/include"
+    OPENBLAS_LDFLAGS="-L${pkg_install_dir}/lib -Wl,-rpath,${pkg_install_dir}/lib"
     OPENBLAS_LIBS="-lopenblas"
     # detect separate omp builds
     (__libdir="${pkg_install_dir}/lib" LIB_PATHS="__libdir" check_lib -lopenblas_openmp 2> /dev/null) &&
@@ -136,10 +136,10 @@ esac
 if [ "$with_openblas" != "__DONTUSE__" ]; then
   if [ "$with_openblas" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_openblas"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path CPATH "$pkg_install_dir/include"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path CPATH "${pkg_install_dir}/include"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_openblas"

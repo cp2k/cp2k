@@ -1,19 +1,18 @@
 #!/bin/bash -e
 
+# TODO: Review and if possible fix shellcheck errors.
+# shellcheck disable=all
+
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 gmp_ver="6.3.0"
 gmp_sha256="e56fd59d76810932a0555aa15a14b61c16bed66110d3c75cc2ac49ddaa9ab24c"
-# shellcheck disable=SC1091
+
 source "${SCRIPT_DIR}"/common_vars.sh
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/tool_kit.sh
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/signal_trap.sh
-# shellcheck disable=SC1091
 source "${INSTALLDIR}"/toolchain.conf
-# shellcheck disable=SC1091
 source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_gmp" ] && rm "${BUILDDIR}/setup_gmp"
@@ -48,52 +47,35 @@ case "$with_gmp" in
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage2/$(basename "${SCRIPT_NAME}")"
       cd ..
     fi
-    GMP_CFLAGS="-I'${pkg_install_dir}/include'"
-    GMP_LDFLAGS="-L'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding GMP from system paths ===================="
     check_lib -lgmp "gmp"
     check_lib -lgmpxx "gmpxx"
-    add_include_from_paths GMP_CFLAGS "gmp.h" "$INCLUDE_PATHS"
-    add_lib_from_paths GSL_LDFLAGS "libgmp.*" "$LIB_PATHS"
-    add_lib_from_paths GSL_LDFLAGS "libgmpxx.*" "$LIB_PATHS"
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libgmp.*" $LIB_PATHS)))"
     ;;
   __DONTUSE__) ;;
 
   *)
     echo "==================== Linking GMP to user paths ===================="
-    pkg_install_dir="$with_gmp"
+    pkg_install_dir="${with_gmp}"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    GMP_CFLAGS="-I'${pkg_install_dir}/include'"
-    GMP_LDFLAGS="-L'${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "$with_gmp" != "__DONTUSE__" ]; then
-  GMP_LIBS=" -lgmp -lgmpxx"
   cat << EOF > "${BUILDDIR}/setup_gmp"
 export GMP_VER="${gmp_ver}"
+export GMP_ROOT="${pkg_install_dir}"
 EOF
   if [ "$with_gmp" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_gmp"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path CPATH "$pkg_install_dir/include"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
   fi
-  # TODO : Is it necessary to have a separate feature for GMP, i.e -D__GMP during compilation?
-  cat << EOF >> "${BUILDDIR}/setup_gmp"
-export GMP_CFLAGS="${GMP_CFLAGS}"
-export GMP_LDFLAGS="${GMP_LDFLAGS}"
-export GMP_LIBS="${GMP_LIBS}"
-export CP_CFLAGS="\${CP_CFLAGS} ${GMP_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${GMP_LDFLAGS}"
-export CP_LIBS="${GMP_LIBS} \${CP_LIBS}"
-export GMP_ROOT="${pkg_install_dir}"
-EOF
   filter_setup "${BUILDDIR}/setup_gmp" "${SETUPFILE}"
 fi
 

@@ -109,16 +109,12 @@ export MKL_CFLAGS="${MKL_CFLAGS}"
 export MKL_LIBS="${MKL_LIBS}"
 export MATH_CFLAGS="\${MATH_CFLAGS} ${MKL_CFLAGS}"
 export MATH_LIBS="\${MATH_LIBS} ${MKL_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} -D__MKL"
 EOF
   if [ "${MKL_FFTW}" = "yes" ]; then
     cat << EOF >> "${BUILDDIR}/setup_mkl"
-export FFTW3_INCLUDES="${MKL_CFLAGS}"
+export FFTW3_INCLUDES="-I${MKLROOT}/include/fftw"
 export FFTW3_LIBS="${MKL_LIBS}"
-export FFTW_CFLAGS="${MKL_CFLAGS}"
-export FFTW_LDFLAGS="${MKL_LDFLAGS}"
 export FFTW_LIBS="${MKL_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} -D__FFTW3 IF_COVERAGE(IF_MPI(|-U__FFTW3)|)"
 EOF
   fi
   filter_setup "${BUILDDIR}/setup_mkl" "${SETUPFILE}"
