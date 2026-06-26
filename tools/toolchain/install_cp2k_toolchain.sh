@@ -1330,46 +1330,10 @@ if [ "${ENABLE_CRAY}" = "__TRUE__" ]; then
   export MPIFC="${FC}"
   export MPIFORT="${MPIFC}"
   export MPIF77="${MPIFC}"
-  case $MPI_MODE in
-    mpich)
-      if [ -n "$MPICH_DIR" ]; then
-        cray_mpich_include_path="$MPICH_DIR/include"
-        cray_mpich_lib_path="$MPICH_DIR/lib"
-        export INCLUDE_PATHS="$INCLUDE_PATHS $cray_mpich_include_path"
-        export LIB_PATHS="$LIB_PATHS $cray_mpich_lib_path"
-      fi
-      if [ "$with_mpich" = "__DONTUSE__" ]; then
-        add_include_from_paths MPI_CFLAGS "mpi.h" "$INCLUDE_PATHS"
-        add_include_from_paths MPI_LDFLAGS "libmpi.*" "$LIB_PATHS"
-        export MPI_CFLAGS
-        export MPI_LDFLAGS
-        export MPI_LIBS=" "
-        export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__parallel|)"
-      fi
-      ;;
-    openmpi)
-      if [ "$with_openmpi" = "__DONTUSE__" ]; then
-        add_include_from_paths MPI_CFLAGS "mpi.h" "$INCLUDE_PATHS"
-        add_include_from_paths MPI_LDFLAGS "libmpi.*" "$LIB_PATHS"
-        export MPI_CFLAGS
-        export MPI_LDFLAGS
-        export MPI_LIBS="-lmpi -lmpi_cxx"
-        export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__parallel|)"
-      fi
-      ;;
-    intelmpi)
-      if [ "$with_intelmpi" = "__DONTUSE__" ]; then
-        with_gcc="__DONTUSE__"
-        with_intel="__SYSTEM__"
-        add_include_from_paths MPI_CFLAGS "mpi.h" "$INCLUDE_PATHS"
-        add_include_from_paths MPI_LDFLAGS "libmpi.*" "$LIB_PATHS"
-        export MPI_CFLAGS
-        export MPI_LDFLAGS
-        export MPI_LIBS="-lmpi -lmpi_cxx"
-        export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__parallel|)"
-      fi
-      ;;
-  esac
+  if [ "$with_intelmpi" = "__DONTUSE__" ]; then
+    with_gcc="__DONTUSE__"
+    with_intel="__SYSTEM__"
+  fi
   check_lib -lz
   check_lib -ldl
   export CRAY_EXTRA_LIBS="-lz -ldl"

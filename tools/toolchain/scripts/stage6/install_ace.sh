@@ -60,10 +60,6 @@ case "$with_ace" in
     ;;
   __SYSTEM__)
     echo "==================== Finding Ace from system paths ===================="
-    # check_lib -lace "ACE"
-    # add_lib_from_paths ACE_LDFLAGS "libpace*" $LIB_PATHS
-    # add_include_from_paths ACE_CFLAGS "ace" $INCLUDE_PATHS
-    # ACE_DFLAGS="-D__ACE"
     report_error "The system detection of Ace is not supported; please use \"--with-ace=install\"."
     ;;
   __DONTUSE__) ;;

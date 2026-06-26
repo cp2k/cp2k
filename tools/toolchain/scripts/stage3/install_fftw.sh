@@ -23,7 +23,6 @@ cd "${BUILDDIR}"
 
 case "$with_fftw" in
   __INSTALL__)
-    require_env MPI_LIBS
     echo "==================== Installing FFTW ===================="
     pkg_install_dir="${INSTALLDIR}/fftw-${fftw_ver}"
     install_lock_file="$pkg_install_dir/install_successful"

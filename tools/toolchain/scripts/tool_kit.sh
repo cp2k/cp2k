@@ -742,5 +742,5 @@ filter_setup() {
 
   local filename=$(basename "$source_file")
   echo "# ==================== Setup for ${filename#*_} ==================== #" >> "$target_file"
-  sed '/if[[:space:]]/,/^[[:space:]]*fi$/d' "$source_file" | grep -v -E '# For|# Other|CPATH|FLAGS|CP_LIBS' >> "$target_file"
+  grep -v -E 'CPATH|FLAGS|_LIBS|_INCLUDES' "$source_file" >> "$target_file"
 }
