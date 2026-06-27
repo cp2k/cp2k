@@ -244,6 +244,10 @@ cmake_dependent_option(
   "Compile CP2K with libvdwxc support when SIRIUS is compiled with it"
   "CP2K_USE_SIRIUS" OFF)
 
+cmake_dependent_option(
+  CP2K_USE_LIBGINT "Enable LibGint support" ${CP2K_USE_EVERYTHING}
+  "CP2K_USE_ACCEL MATCHES \"CUDA\"" OFF)
+
 set(CP2K_BLAS_VENDOR
     "auto"
     CACHE STRING "blas vendor/generic libraries")
@@ -845,6 +849,10 @@ if(CP2K_USE_LIBINT2)
   include_directories(BEFORE ${_libint2_include_dirs} "${_libint2_mod_dir}")
 endif()
 
+if(CP2K_USE_LIBGINT)
+  find_package(LibGint REQUIRED)
+endif()
+
 if(CP2K_USE_LIBFCI)
   find_package(libfci REQUIRED)
 endif()
@@ -1217,6 +1225,12 @@ if(CP2K_USE_LIBINT2)
           "    - Libraries: ${CP2K_LIBINT2_LINK_LIBRARIES}\n")
 endif()
 
+if(CP2K_USE_LIBGINT)
+  message(" - LibGint\n"
+          "   - include directories: ${CP2K_LIBGINT_INCLUDE_DIRS}\n"
+          "   - libraries: ${CP2K_LIBGINT_LINK_LIBRARIES}\n\n")
+endif()
+
 if(CP2K_USE_LIBFCI)
   message("  - LibFCI\n"
           "    - Include directories: ${CP2K_LIBFCI_INCLUDE_DIRS}\n"
@@ -1335,6 +1349,10 @@ endif()
 
 if(NOT CP2K_USE_LIBINT2)
   message("  - Libint2")
+endif()
+
+if(NOT CP2K_USE_LIBGINT)
+  message("   - LibGint")
 endif()
 
 if(NOT CP2K_USE_LIBFCI)
