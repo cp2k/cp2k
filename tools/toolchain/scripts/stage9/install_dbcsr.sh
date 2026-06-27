@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_NAME}")/.." && pwd -P)"
 
-dbcsr_ver="4d85b72"
-dbcsr_sha256="33461c7313e432b8902c9484ec327550d01b32b1b487020d3372d0ddd19265dc"
+dbcsr_ver="2.10.0"
+dbcsr_sha256="3d897220fbb4498215331efad6905eb7744881b4cf04eb5c5fb4db7c48a56ef9"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -27,12 +27,12 @@ case "${with_dbcsr}" in
     if verify_checksums "${install_lock_file}"; then
       echo "dbcsr-${dbcsr_ver} is already installed, skipping it."
     else
+      # retrieve_package "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz"
       if [ -f dbcsr-${dbcsr_ver}.tar.gz ]; then
         echo "dbcsr-${dbcsr_ver}.tar.gz is found"
       else
-        download_pkg_from_urlpath "${dbcsr_sha256}" "${dbcsr_ver}" \
-          https://codeload.github.com/cp2k/dbcsr/tar.gz \
-          "dbcsr-${dbcsr_ver}.tar.gz"
+        download_pkg_from_urlpath "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz" \
+          https://github.com/cp2k/dbcsr/releases/download/v${dbcsr_ver}
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d dbcsr-${dbcsr_ver} ] && rm -rf dbcsr-${dbcsr_ver}
@@ -45,30 +45,18 @@ case "${with_dbcsr}" in
           sed -i "s/    H100)/    H100\\n    GB10)/" CMakeLists.txt
           sed -i "/  set(GPU_ARCH_NUMBER_H100 90)/a\\  set(GPU_ARCH_NUMBER_GB10 121)" CMakeLists.txt
           cp src/acc/libsmm_acc/parameters/parameters_H100.json \
-            src/acc/libsmm_acc/parameters/parameters_GB10.json 2> /dev/null || true
+            src/acc/libsmm_acc/parameters/parameters_GB10.json
         fi
-      fi
-      # Locate fypp (GitHub tarballs lack submodules).
-      FYPP_EXE=""
-      if [ -x "${ROOTDIR}/../../tools/build_utils/fypp" ]; then
-        FYPP_EXE="${ROOTDIR}/../../tools/build_utils/fypp"
-      elif [ -x "${SCRIPT_DIR}/fypp" ]; then
-        FYPP_EXE="${SCRIPT_DIR}/fypp"
-      elif command -v fypp > /dev/null 2>&1; then
-        FYPP_EXE="$(command -v fypp)"
-      else
-        report_error $LINENO "Failed to find the FYPP preprocessor."
       fi
       mkdir build-cpu
       cd build-cpu
-      CMAKE_OPTIONS="-DBUILD_TESTING=NO -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=RelWithDebInfo"
-      CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DUSE_OPENMP=ON"
-      CMAKE_OPTIONS="${CMAKE_OPTIONS} -DWITH_EXAMPLES=NO -DFYPP_EXECUTABLE=${FYPP_EXE}"
-      if [ "${with_libxsmm}" != "__DONTUSE__" ]; then
-        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_LIBXSMM=ON"
-      fi
+      CMAKE_OPTIONS="-DBUILD_TESTING=NO -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON"
+      CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DUSE_OPENMP=ON -DWITH_EXAMPLES=NO"
       if [ "${with_libxs}" != "__DONTUSE__" ]; then
         CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_LIBXS=ON"
+        if [ "${with_libxsmm}" != "__DONTUSE__" ]; then
+          CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_LIBXSMM=ON"
+        fi
       fi
       if [ "${MPI_MODE}" == "no" ]; then
         CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_MPI=OFF"
