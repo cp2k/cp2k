@@ -97,6 +97,7 @@ MODULE qs_scf
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_type
    USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: evolt
    USE preconditioner,                  ONLY: prepare_preconditioner,&
                                               restart_preconditioner
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -160,6 +161,7 @@ MODULE qs_scf
                                               qs_scf_set_loop_flags
    USE qs_scf_output,                   ONLY: qs_scf_cdft_info,&
                                               qs_scf_cdft_initial_info,&
+                                              qs_scf_gce_info,&
                                               qs_scf_loop_info,&
                                               qs_scf_loop_print,&
                                               qs_scf_outer_loop_info,&
@@ -434,6 +436,16 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".scfLog")
 
+      IF (scf_control%gce%do_gce .AND. output_unit > 0) THEN
+         WRITE (UNIT=output_unit, FMT="(/,T2,78('-'))")
+         WRITE (UNIT=output_unit, FMT="(T31,A)") &
+            "GRAND-CANONICAL SCF"
+         WRITE (UNIT=output_unit, FMT="(T20,A,F12.6,A)") &
+            "Target work function (TWF):", &
+            evolt*scf_control%gce%target_workfunction, " eV"
+         WRITE (UNIT=output_unit, FMT="(T2,78('-'))")
+      END IF
+
       IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
          "SCF WAVEFUNCTION OPTIMIZATION"
 
@@ -578,6 +590,10 @@ CONTAINS
             t2 = m_walltime()
 
             CALL qs_scf_loop_info(scf_env, output_unit, just_energy, t1, t2, energy)
+
+            IF (scf_control%gce%do_gce) THEN
+               CALL qs_scf_gce_info(output_unit, scf_env, qs_env, just_energy)
+            END IF
 
             IF (.NOT. just_energy) energy%tot_old = energy%total
 
@@ -775,8 +791,14 @@ CONTAINS
                                          probe=dft_control%probe)
                END IF
             ELSE
-               CALL set_mo_occupation(mo_set=mos(ispin), &
-                                      smear=scf_control%smear)
+               IF (.NOT. scf_control%gce%do_gce) THEN
+                  CALL set_mo_occupation(mo_set=mos(ispin), &
+                                         smear=scf_control%smear)
+               ELSE
+                  CALL set_mo_occupation(mo_set=mos(ispin), &
+                                         smear=scf_control%smear, &
+                                         gce=scf_control%gce)
+               END IF
             END IF
          END IF
       END DO
