@@ -332,8 +332,8 @@ __inline__ __device__ void compute_alpha(const smem_task<T> &task,
   const int s3 = (task.lp + 1);
   const int s2 = (task.la_max + 1) * s3;
   const int s1 = (task.lb_max + 1) * s2;
-  const int tid =
-      threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
+  const int tid = thread_global_index();
+
   for (int i = tid; i < 3 * s1; i += blockDim.x * blockDim.y * blockDim.z)
     alpha[i] = 0.0;
 
@@ -358,7 +358,6 @@ __inline__ __device__ void compute_alpha(const smem_task<T> &task,
       }
     }
   }
-  __syncthreads(); // because of concurrent writes to alpha
 }
 
 __host__ __inline__ __device__ void
