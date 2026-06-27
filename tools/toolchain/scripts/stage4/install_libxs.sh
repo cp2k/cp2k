@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxs_ver="ee1e6ab"
-libxs_sha256="c5b64701d5c1d01b0307c9ae438d3e12408b04cf8b0f4a11e8139107b3bd82fa"
+libxs_ver="1.0.0"
+libxs_sha256="de26f50cb986a2f0e4f92c0eb489d40a44f7e4c5acd22751a6cfa2829dabd04d"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -31,9 +31,8 @@ case "$with_libxs" in
       if [ -f libxs-${libxs_ver}.tar.gz ]; then
         echo "libxs-${libxs_ver}.tar.gz is found"
       else
-        download_pkg_from_urlpath "${libxs_sha256}" "${libxs_ver}" \
-          https://codeload.github.com/hfp/libxs/tar.gz \
-          "libxs-${libxs_ver}.tar.gz"
+        download_pkg_from_urlpath "${libxs_sha256}" "libxs-${libxs_ver}.tar.gz" \
+          https://github.com/hfp/libxs/releases/download/${libxs_ver}
       fi
       [ -d libxs-${libxs_ver} ] && rm -rf libxs-${libxs_ver}
       tar -xzf libxs-${libxs_ver}.tar.gz
