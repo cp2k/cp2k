@@ -24,7 +24,7 @@ case "${with_fmt}" in
   __INSTALL__)
     echo "==================== Installing fmt ===================="
     pkg_install_dir="${INSTALLDIR}/fmt-${fmt_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "fmt-${fmt_ver} is already installed, skipping it."
     else
@@ -56,8 +56,8 @@ case "${with_fmt}" in
   *)
     echo "==================== Linking fmt to user paths ===================="
     pkg_install_dir="${with_fmt}"
-    fmt_LIBDIR="${pkg_install_dir}/lib/MiMiC"
-    [ -d "${pkg_install_dir}/lib64" ] && fmt_LIBDIR="${pkg_install_dir}/lib64/MiMiC"
+    fmt_LIBDIR="${pkg_install_dir}/lib"
+    [ -d "${pkg_install_dir}/lib64" ] && fmt_LIBDIR="${pkg_install_dir}/lib64"
     check_dir "${fmt_LIBDIR}"
     check_dir "${pkg_install_dir}/include"
     ;;

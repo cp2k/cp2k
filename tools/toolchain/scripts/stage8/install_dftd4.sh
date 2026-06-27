@@ -50,7 +50,7 @@ case "$with_dftd4" in
     ;;
   __SYSTEM__)
     echo "==================== Finding DFTD4 from system paths ===================="
-    check_command pkg-config --modversion dftd4
+    check_pkgconfig dftd4
     pkg_install_dir="$(pkg-config --variable=prefix dftd4)"
     ;;
   *)

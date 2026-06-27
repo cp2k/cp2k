@@ -6,7 +6,7 @@
 # shellcheck shell=bash
 
 SYS_INCLUDE_PATH=${SYS_INCLUDE_PATH:-"/usr/local/include:/usr/include"}
-SYS_LIB_PATH=${SYS_LIB_PATH:-"/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib:/usr/lib/x86_64-linux-gnu:/usr/lib/aarch-linux-gnu:/lib64:/lib"}
+SYS_LIB_PATH=${SYS_LIB_PATH:-"/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib:/usr/lib/x86_64-linux-gnu:/usr/lib/aarch64-linux-gnu:/lib64:/lib"}
 INCLUDE_PATHS=${INCLUDE_PATHS:-"CPATH SYS_INCLUDE_PATH"}
 LIB_PATHS=${LIB_PATHS:-"LIBRARY_PATH LD_LIBRARY_PATH LD_RUN_PATH SYS_LIB_PATH"}
 time_start=$(date +%s)
@@ -273,7 +273,7 @@ add_include_from_paths() {
     fi
     echo "Found include directory $__found_target"
     eval __cflags=\$"${__cflags_name}"
-    __cflags="${__cflags} -I'${__found_target}'"
+    __cflags="${__cflags} -I${__found_target}"
     # remove possible duplicates
     __cflags="$(unique $__cflags)"
     # must escape all quotes again before the last eval, as
@@ -314,7 +314,7 @@ add_lib_from_paths() {
     fi
     echo "Found lib directory $__found_target"
     eval __ldflags=\$"${__ldflags_name}"
-    __ldflags="${__ldflags} -L'${__found_target}' -Wl,-rpath,'${__found_target}'"
+    __ldflags="${__ldflags} -L${__found_target} -Wl,-rpath,${__found_target}"
     # remove possible duplicates
     __ldflags="$(unique $__ldflags)"
     # must escape all quotes again before the last eval, as
@@ -356,6 +356,16 @@ check_command() {
     echo "path to ${__command} is $(real_path $(command -v ${__command}))"
   else
     report_error "Cannot find ${__command}, please check if the package ${__package} is installed or in system search path"
+  fi
+}
+
+# Check pkg-config package
+check_pkgconfig() {
+  local pkg="$1"
+  if $(pkg-config --exists "${pkg}"); then
+    echo "pkg-config found ${pkg} under $(pkg-config --variable=prefix "${pkg}")"
+  else
+    report_error "Cannot find pkg-config package ${pkg}"
   fi
 }
 

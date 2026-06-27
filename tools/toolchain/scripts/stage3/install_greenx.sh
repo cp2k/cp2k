@@ -19,13 +19,12 @@ source "${INSTALLDIR}"/toolchain.env
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
-with_greenx=${with_greenx:__DONTUSE__}
-with_gmp=${with_greenx:__DONTUSE__}
+
 case "$with_greenx" in
   __INSTALL__)
     echo "==================== Installing GreenX ===================="
     pkg_install_dir="${INSTALLDIR}/greenX-${greenx_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "greenX-${greenx_ver} is already installed, skipping it."
     else
@@ -38,7 +37,7 @@ case "$with_greenx" in
       cd build
       # CP2K only uses the AC and Minimax components
       # TODO : Add the stdc++ to libs when libint not used?
-      if [ "$with_gmp" != "__DONTUSE__" ]; then
+      if [ "${with_gmp}" != "__DONTUSE__" ]; then
         gmp_flag=ON
       else
         gmp_flag=OFF
@@ -81,10 +80,10 @@ export GREENX_VER="${greenx_ver}"
 EOF
   if [ "$with_greenx" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_greenx"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
   filter_setup "${BUILDDIR}/setup_greenx" "${SETUPFILE}"

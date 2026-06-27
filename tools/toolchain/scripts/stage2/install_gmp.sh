@@ -19,12 +19,12 @@ source "${INSTALLDIR}"/toolchain.env
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
-with_gmp=${with_gmp:__DONTUSE__}
+
 case "$with_gmp" in
   __INSTALL__)
     echo "==================== Installing GMP ===================="
     pkg_install_dir="${INSTALLDIR}/gmp-${gmp_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "gmp-${gmp_ver} is already installed, skipping it."
     else
@@ -70,10 +70,10 @@ export GMP_ROOT="${pkg_install_dir}"
 EOF
   if [ "$with_gmp" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_gmp"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
   filter_setup "${BUILDDIR}/setup_gmp" "${SETUPFILE}"

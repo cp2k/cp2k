@@ -26,7 +26,7 @@ case "${with_gcc}" in
   __INSTALL__)
     echo "==================== Installing GCC ===================="
     pkg_install_dir="${INSTALLDIR}/gcc-${gcc_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "gcc-${gcc_ver} is already installed, skipping it."
     else

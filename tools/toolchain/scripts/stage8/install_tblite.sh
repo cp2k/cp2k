@@ -60,7 +60,7 @@ case "$with_tblite" in
     ;;
   __SYSTEM__)
     echo "==================== Finding tblite from system paths ===================="
-    check_command pkg-config --modversion tblite
+    check_pkgconfig tblite
     pkg_install_dir="$(pkg-config --variable=prefix tblite)"
     ;;
   *)

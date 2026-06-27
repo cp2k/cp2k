@@ -23,7 +23,7 @@ case "$with_libxstream" in
   __INSTALL__)
     echo "==================== Installing LIBXStream ===================="
     pkg_install_dir="${INSTALLDIR}/libxstream-${libxstream_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
 
     # libxstream depends on libxs
     if [ "$with_libxs" = "__DONTUSE__" ]; then

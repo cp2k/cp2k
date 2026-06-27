@@ -1233,7 +1233,8 @@ if [ "${MATH_MODE}" = "mkl" ]; then
   fi
   # Block libtorch installation bacause of compatibility issue
   if [ "${with_libtorch}" = "__INSTALL__" ]; then
-    report_error "Installing prebuilt libtorch is disabled for oneMKL builds because it is incompatible with CP2K's external oneMKL stack."
+    report_error ${LINENO} \
+      "Installing prebuilt libtorch is disabled for oneMKL builds due to known conflicts between bundled and externally linked oneMKL libraries. Please provide a compatible libtorch installation via --with-libtorch=system or --with-libtorch=<path>."
   fi
 fi
 

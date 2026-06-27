@@ -23,7 +23,7 @@ case "${with_pugixml}" in
   __INSTALL__)
     echo "==================== Installing pugixml ===================="
     pkg_install_dir="${INSTALLDIR}/pugixml-${pugixml_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "pugixml-${pugixml_ver} is already installed, skipping it."
     else
@@ -46,7 +46,7 @@ case "${with_pugixml}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding pugixml from system paths ===================="
-    check_command pkg-config --modversion pugixml
+    check_pkgconfig pugixml
     pkg_install_dir="$(pkg-config --variable=prefix pugixml)"
     ;;
   __DONTUSE__)

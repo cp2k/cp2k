@@ -23,7 +23,7 @@ case "$with_libxs" in
   __INSTALL__)
     echo "==================== Installing LIBXS ===================="
     pkg_install_dir="${INSTALLDIR}/libxs-${libxs_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "libxs-${libxs_ver} is already installed, skipping it."
     else

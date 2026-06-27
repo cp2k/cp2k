@@ -24,7 +24,7 @@ case "${with_ninja}" in
     ninja_sha256="f0055ad0369bf2e372955ba55128d000cfcc21777057806015b45e4accbebf23"
 
     pkg_install_dir="${INSTALLDIR}/ninja-v${ninja_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
 
     if verify_checksums "${install_lock_file}"; then
       echo "ninja-v${ninja_ver} is already installed, skipping it."

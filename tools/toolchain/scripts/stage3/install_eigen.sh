@@ -50,7 +50,7 @@ case "$with_eigen" in
     ;;
   __SYSTEM__)
     echo "==================== Finding Eigen from system paths ===================="
-    check_command pkg-config --modversion eigen3
+    check_pkgconfig eigen3
     pkg_install_dir="$(pkg-config --variable=prefix eigen3)"
     ;;
   __DONTUSE__) ;;

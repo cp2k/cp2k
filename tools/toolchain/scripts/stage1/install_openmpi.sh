@@ -26,7 +26,7 @@ case "${with_openmpi}" in
   __INSTALL__)
     echo "==================== Installing OpenMPI ===================="
     pkg_install_dir="${INSTALLDIR}/openmpi-${openmpi_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
+    install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
       echo "openmpi-${openmpi_ver} is already installed, skipping it."
     else
@@ -72,7 +72,7 @@ case "${with_openmpi}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding OpenMPI from system paths ===================="
-    check_command mpiexec "openmpi" && MPIEXEC="$(command -v mpiexec)"
+    check_command mpiexec "openmpi" && MPIEXEC="$(command -v mpiexec)" || exit 1
     check_command mpicc "openmpi" && MPICC="$(command -v mpicc)" || exit 1
     check_command mpic++ "openmpi" && MPICXX="$(command -v mpic++)" || exit 1
     check_command mpifort "openmpi" && MPIFC="$(command -v mpifort)" || exit 1
