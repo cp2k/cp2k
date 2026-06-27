@@ -92,32 +92,33 @@ __global__ __launch_bounds__(64) void compute_hab_v4(const kernel_params dev_) {
     cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
     __syncthreads();
 
-    for (int jco = task.first_cosetb; jco < task.ncosetb; jco++) {
-      const auto &b = coset_inv[jco];
-      for (int ico = task.first_coseta; ico < task.ncoseta; ico++) {
-        const auto &a = coset_inv[ico];
-        const T hab = get_hab<COMPUTE_TAU, T>(a, b, task.zeta, task.zetb,
-                                              task.n1, smem_cab);
-        if (task.block_transposed) {
-          for (int j = tid / 8; j < task.nsgf_seta; j += 8) {
-            const T sphia = task.sphia[j * task.maxcoa + ico];
-            for (int i = tid % 8; i < task.nsgf_setb; i += 8) {
-              const T sphib = task.sphib[i * task.maxcob + jco];
-              task.hab_block[j * task.nsgfb + i] += hab * sphia * sphib;
-            }
+    for (int i = 0; i < task.nsgf_setb; i++) {
+      for (int j = 0; j < task.nsgf_seta; j++) {
+        T tmp =0.0;
+        for (int jco = task.first_cosetb + tid / 8; jco < task.ncosetb; jco+=8) {
+          const T sphib = task.sphib[i * task.maxcob + jco];
+          const auto &b = coset_inv[jco];
+          for (int ico = task.first_coseta + tid % 8; ico < task.ncoseta; ico+=8) {
+            const auto &a = coset_inv[ico];
+            const T hab = get_hab<COMPUTE_TAU, T>(a, b, task.zeta, task.zetb,
+                                                  task.n1, smem_cab);
+            
+            const T sphia_times_sphib =
+              task.sphia[j * task.maxcoa + ico] * sphib;
+            tmp += hab * sphia_times_sphib;
           }
-        } else {
-          for (int i = tid / 8; i < task.nsgf_setb; i += 8) {
-            const T sphib = task.sphib[i * task.maxcob + jco];
-            for (int j = tid % 8; j < task.nsgf_seta; j += 8) {
-              const T sphia_times_sphib =
-                  task.sphia[j * task.maxcoa + ico] * sphib;
-              task.hab_block[i * task.nsgfa + j] += hab * sphia_times_sphib;
-            }
+        }
+        tmp = block_reduce_64(smem_alpha, tmp, tid);
+        if (tid == 0) {
+          if (task.block_transposed) {
+            task.hab_block[j * task.nsgfb + i] += tmp;
+          } else {
+            task.hab_block[i * task.nsgfa + j] += tmp;
           }
         }
       }
     }
+
     // all warps need to be synchronized here before modifying the task
     // information.
     __syncthreads();
