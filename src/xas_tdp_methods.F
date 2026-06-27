@@ -31,7 +31,8 @@ MODULE xas_tdp_methods
         dbcsr_get_info, dbcsr_get_occupation, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
         dbcsr_type_symmetric
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
+                                              dbcsr_reserve_all_blocks
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
@@ -90,6 +91,7 @@ MODULE xas_tdp_methods
    USE physcon,                         ONLY: a_fine,&
                                               angstrom,&
                                               evolt
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
@@ -118,8 +120,6 @@ MODULE xas_tdp_methods
    USE qs_operators_ao,                 ONLY: p_xyz_ao,&
                                               rRc_xyz_ao
    USE qs_pdos,                         ONLY: calculate_projected_dos
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                              qs_rho_type
    USE qs_scf_types,                    ONLY: ot_method_nr
    USE rixs_types,                      ONLY: rixs_env_type
    USE util,                            ONLY: get_limit,&
@@ -594,21 +594,21 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: at_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_type)                                   :: matrix_tmp
+      TYPE(dbcsr_type), POINTER                          :: matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: tmp_basis
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
-      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_type), POINTER                        :: dummy_section
       TYPE(section_vals_type), POINTER                   :: loc_section, xas_tdp_section
 
       NULLIFY (xas_tdp_section, at_kind_set, ind_of_kind, dft_control, qs_kind_set, tmp_basis)
-      NULLIFY (qs_loc_env, loc_section, mos, particle_set, rho, rho_ao, mo_evals, cell)
-      NULLIFY (mo_coeff, matrix_ks, admm_env, dummy_section)
+      NULLIFY (qs_loc_env, loc_section, mos, particle_set, mo_evals, cell)
+      NULLIFY (mo_coeff, matrix_ks, admm_env, dummy_section, matrix_p)
 
 !  XAS TDP control type initialization
       CALL get_qs_env(qs_env, dft_control=dft_control, do_rixs=do_rixs)
@@ -835,8 +835,7 @@ CONTAINS
 
 !  Compute the projector on the unoccupied, unperturbed ground state: Q = 1 - SP, sor each spin
       IF (do_os) nspins = 2
-      CALL get_qs_env(qs_env, rho=rho, matrix_s=matrix_s)
-      CALL qs_rho_get(rho, rho_ao=rho_ao)
+      CALL get_qs_env(qs_env, matrix_s=matrix_s, mos=mos)
 
       ALLOCATE (xas_tdp_env%q_projector(nspins))
       ALLOCATE (xas_tdp_env%q_projector(1)%matrix)
@@ -848,19 +847,31 @@ CONTAINS
                            template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       END IF
 
+      ALLOCATE (matrix_p)
+      CALL dbcsr_create(matrix_p, name="RHO_AO", template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
+
 !     In the case of spin-restricted calculations, rho_ao includes double occupency => 0.5 prefactor
+!     Note: we build the density matrix from C*C^T, so as not to inherit the sparsity of S matrix
       fact = -0.5_dp; IF (do_os) fact = -1.0_dp
-      CALL dbcsr_multiply('N', 'N', fact, matrix_s(1)%matrix, rho_ao(1)%matrix, 0.0_dp, &
+      CALL dbcsr_reserve_all_blocks(matrix_p)
+      CALL dbcsr_set(matrix_p, 0.0_dp)
+      CALL calculate_density_matrix(mos(1), matrix_p)
+      CALL dbcsr_multiply('N', 'N', fact, matrix_s(1)%matrix, matrix_p, 0.0_dp, &
                           xas_tdp_env%q_projector(1)%matrix, filter_eps=xas_tdp_control%eps_filter)
       CALL dbcsr_add_on_diag(xas_tdp_env%q_projector(1)%matrix, 1.0_dp)
       CALL dbcsr_finalize(xas_tdp_env%q_projector(1)%matrix)
 
       IF (do_os) THEN
-         CALL dbcsr_multiply('N', 'N', fact, matrix_s(1)%matrix, rho_ao(2)%matrix, 0.0_dp, &
+         CALL dbcsr_set(matrix_p, 0.0_dp)
+         CALL calculate_density_matrix(mos(2), matrix_p)
+         CALL dbcsr_multiply('N', 'N', fact, matrix_s(1)%matrix, matrix_p, 0.0_dp, &
                              xas_tdp_env%q_projector(2)%matrix, filter_eps=xas_tdp_control%eps_filter)
          CALL dbcsr_add_on_diag(xas_tdp_env%q_projector(2)%matrix, 1.0_dp)
          CALL dbcsr_finalize(xas_tdp_env%q_projector(2)%matrix)
       END IF
+
+      CALL dbcsr_release(matrix_p)
+      DEALLOCATE (matrix_p)
 
 !  Create the structure for the dipole in the AO basis
       ALLOCATE (xas_tdp_env%dipmat(3))
