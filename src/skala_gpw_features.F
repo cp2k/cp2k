@@ -212,8 +212,9 @@ CONTAINS
       INTEGER :: handle, i, ipt, ispin, j, k, local_row, my_atom_partition, &
          ndynamic_local_per_point, nflat, nflat_local, nspins, phase_handle, real_base, row
       INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL :: can_use_atom_chunks, collapse_spin_dynamics, my_requires_coordinate_grad, &
-         my_requires_grad, my_requires_stress_grad, my_route_atom_chunks, my_use_atom_chunks
+      LOGICAL :: collapse_spin_dynamics, my_requires_coordinate_grad, my_requires_grad, &
+         my_requires_stress_grad, my_route_atom_chunks, my_use_atom_chunks, &
+         use_atom_chunk_protocol, use_atom_chunk_routing
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: global_dynamic, local_dynamic
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho, rhoa, rhob, tau_a, tau_b, tau_total
       TYPE(cp_3d_r_cp_type), DIMENSION(3)                :: drho, drhoa, drhob
@@ -256,10 +257,10 @@ CONTAINS
       CALL ensure_layout_cache(pw_grid, particle_set, cell, weights, my_atom_partition)
       CALL timestop(phase_handle)
       nflat = cached_layout%nflat
-      can_use_atom_chunks = my_use_atom_chunks .AND. cached_layout%chunk_feature_count > 0 .AND. &
-                            .NOT. (my_requires_coordinate_grad .OR. my_requires_stress_grad)
-      collapse_spin_dynamics = (nspins == 1 .AND. can_use_atom_chunks .AND. &
-                                my_route_atom_chunks)
+      use_atom_chunk_protocol = my_use_atom_chunks .AND. &
+                                .NOT. (my_requires_coordinate_grad .OR. my_requires_stress_grad)
+      use_atom_chunk_routing = use_atom_chunk_protocol .AND. my_route_atom_chunks
+      collapse_spin_dynamics = nspins == 1 .AND. use_atom_chunk_routing
       ndynamic_local_per_point = ndynamic_per_point
       IF (collapse_spin_dynamics) ndynamic_local_per_point = nrks_dynamic_per_point
       ALLOCATE (local_dynamic(ndynamic_local_per_point*nflat_local))
@@ -324,7 +325,7 @@ CONTAINS
                                (my_requires_coordinate_grad .OR. my_requires_stress_grad)))
       CALL timestop(phase_handle)
 
-      IF (can_use_atom_chunks .AND. my_route_atom_chunks) THEN
+      IF (use_atom_chunk_routing) THEN
          CALL timeset("skala_gpw_route_dyn", phase_handle)
          CALL route_atom_chunk_dynamics(features, local_dynamic, pw_grid%para%group, &
                                         collapse_spin_dynamics)
@@ -363,17 +364,20 @@ CONTAINS
 
       CALL timeset("skala_gpw_feature_sums", phase_handle)
       IF (features%uses_atom_chunks) THEN
-         IF (features%uses_collapsed_rks_dynamic) THEN
-            features%electron_count = SUM(2.0_dp*features%chunk_density(:, 1)* &
-                                          cached_layout%chunk_grid_weights)
-            features%spin_moment = 0.0_dp
-         ELSE
-            features%electron_count = SUM((features%chunk_density(:, 1) + &
+         features%electron_count = 0.0_dp
+         features%spin_moment = 0.0_dp
+         IF (features%chunk_feature_count > 0) THEN
+            IF (features%uses_collapsed_rks_dynamic) THEN
+               features%electron_count = SUM(2.0_dp*features%chunk_density(:, 1)* &
+                                             cached_layout%chunk_grid_weights)
+            ELSE
+               features%electron_count = SUM((features%chunk_density(:, 1) + &
+                                              features%chunk_density(:, 2))* &
+                                             cached_layout%chunk_grid_weights)
+               features%spin_moment = SUM((features%chunk_density(:, 1) - &
                                            features%chunk_density(:, 2))* &
                                           cached_layout%chunk_grid_weights)
-            features%spin_moment = SUM((features%chunk_density(:, 1) - &
-                                        features%chunk_density(:, 2))* &
-                                       cached_layout%chunk_grid_weights)
+            END IF
          END IF
          CALL pw_grid%para%group%sum(features%electron_count)
          CALL pw_grid%para%group%sum(features%spin_moment)
@@ -387,16 +391,26 @@ CONTAINS
       CALL timestop(phase_handle)
 
       CALL timeset("skala_gpw_tensor_update", phase_handle)
-      IF (can_use_atom_chunks .AND. .NOT. features%uses_atom_chunks) THEN
-         CALL extract_atom_chunk_dynamics(features)
+      IF (use_atom_chunk_protocol .AND. .NOT. features%uses_atom_chunks) THEN
+         IF (features%chunk_feature_count > 0) CALL extract_atom_chunk_dynamics(features)
          features%uses_atom_chunks = .TRUE.
       END IF
-      CALL add_feature_tensors(features, my_requires_grad, my_requires_coordinate_grad, &
-                               my_requires_stress_grad, &
-                               features%uses_atom_chunks, &
-                               requires_weight_grad= &
-                               (my_atom_partition == skala_gpw_atom_partition_smooth .AND. &
-                                (my_requires_coordinate_grad .OR. my_requires_stress_grad)))
+      IF (.NOT. features%uses_atom_chunks .OR. features%chunk_feature_count > 0) THEN
+         CALL add_feature_tensors(features, my_requires_grad, my_requires_coordinate_grad, &
+                                  my_requires_stress_grad, &
+                                  features%uses_atom_chunks, &
+                                  requires_weight_grad= &
+                                  (my_atom_partition == skala_gpw_atom_partition_smooth .AND. &
+                                   (my_requires_coordinate_grad .OR. my_requires_stress_grad)))
+      ELSE
+         ! This rank participates in atom-chunk communication but owns no model input rows.
+         features%owns_coordinate_tensor = .FALSE.
+         features%owns_grid_coordinate_tensor = .FALSE.
+         features%owns_weight_tensors = .FALSE.
+         features%owns_dynamic_tensors = .FALSE.
+         features%owns_inputs = .FALSE.
+         features%owns_static_tensors = .FALSE.
+      END IF
       CALL timestop(phase_handle)
       features%active = .TRUE.
 
@@ -1258,7 +1272,6 @@ CONTAINS
                                                             send_counts, send_displs
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_dynamic, send_dynamic
 
-      CPASSERT(cached_layout%chunk_feature_count > 0)
       nsend = SIZE(cached_layout%route_local_dest)
       nrecv = SUM(cached_layout%route_point_recv_counts)
       CPASSERT(nsend == SIZE(cached_layout%local_feature_rows))
@@ -1266,8 +1279,8 @@ CONTAINS
       ndynamic_route_per_point = ndynamic_per_point
       IF (collapse_spin_dynamics) ndynamic_route_per_point = nrks_dynamic_per_point
 
-      ALLOCATE (send_dynamic(ndynamic_route_per_point*nsend), &
-                recv_dynamic(ndynamic_route_per_point*nrecv), &
+      ALLOCATE (send_dynamic(MAX(1, ndynamic_route_per_point*nsend)), &
+                recv_dynamic(MAX(1, ndynamic_route_per_point*nrecv)), &
                 cursor(cached_layout%nproc), send_counts(cached_layout%nproc), &
                 send_displs(cached_layout%nproc), recv_counts(cached_layout%nproc), &
                 recv_displs(cached_layout%nproc))
@@ -1290,42 +1303,44 @@ CONTAINS
       CALL group%alltoall(send_dynamic, send_counts, send_displs, recv_dynamic, recv_counts, &
                           recv_displs)
 
-      IF (collapse_spin_dynamics) THEN
-         ALLOCATE (features%chunk_density(cached_layout%chunk_feature_count, 1), &
-                   features%chunk_grad(cached_layout%chunk_feature_count, 3, 1), &
-                   features%chunk_kin(cached_layout%chunk_feature_count, 1), &
-                   features%chunk_return_positions(cached_layout%chunk_feature_count))
-         features%uses_collapsed_rks_dynamic = .TRUE.
-      ELSE
-         ALLOCATE (features%chunk_density(cached_layout%chunk_feature_count, 2), &
-                   features%chunk_grad(cached_layout%chunk_feature_count, 3, 2), &
-                   features%chunk_kin(cached_layout%chunk_feature_count, 2), &
-                   features%chunk_return_positions(cached_layout%chunk_feature_count))
-      END IF
-      features%chunk_return_positions(:) = cached_layout%chunk_return_positions
-
-      DO chunk_row = 1, cached_layout%chunk_feature_count
-         point_pos = cached_layout%chunk_return_positions(chunk_row)
-         CPASSERT(point_pos >= 1 .AND. point_pos <= cached_layout%chunk_feature_count)
-         dyn_base = ndynamic_route_per_point*(point_pos - 1)
+      features%uses_collapsed_rks_dynamic = collapse_spin_dynamics
+      IF (cached_layout%chunk_feature_count > 0) THEN
          IF (collapse_spin_dynamics) THEN
-            features%chunk_density(chunk_row, 1) = recv_dynamic(dyn_base + 1)
-            features%chunk_grad(chunk_row, 1, 1) = recv_dynamic(dyn_base + 2)
-            features%chunk_grad(chunk_row, 2, 1) = recv_dynamic(dyn_base + 3)
-            features%chunk_grad(chunk_row, 3, 1) = recv_dynamic(dyn_base + 4)
-            features%chunk_kin(chunk_row, 1) = recv_dynamic(dyn_base + 5)
+            ALLOCATE (features%chunk_density(cached_layout%chunk_feature_count, 1), &
+                      features%chunk_grad(cached_layout%chunk_feature_count, 3, 1), &
+                      features%chunk_kin(cached_layout%chunk_feature_count, 1), &
+                      features%chunk_return_positions(cached_layout%chunk_feature_count))
          ELSE
-            features%chunk_density(chunk_row, :) = recv_dynamic(dyn_base + 1:dyn_base + 2)
-            features%chunk_grad(chunk_row, 1, 1) = recv_dynamic(dyn_base + 3)
-            features%chunk_grad(chunk_row, 2, 1) = recv_dynamic(dyn_base + 4)
-            features%chunk_grad(chunk_row, 3, 1) = recv_dynamic(dyn_base + 5)
-            features%chunk_grad(chunk_row, 1, 2) = recv_dynamic(dyn_base + 6)
-            features%chunk_grad(chunk_row, 2, 2) = recv_dynamic(dyn_base + 7)
-            features%chunk_grad(chunk_row, 3, 2) = recv_dynamic(dyn_base + 8)
-            features%chunk_kin(chunk_row, :) = recv_dynamic(dyn_base + 9:dyn_base + 10)
+            ALLOCATE (features%chunk_density(cached_layout%chunk_feature_count, 2), &
+                      features%chunk_grad(cached_layout%chunk_feature_count, 3, 2), &
+                      features%chunk_kin(cached_layout%chunk_feature_count, 2), &
+                      features%chunk_return_positions(cached_layout%chunk_feature_count))
          END IF
-      END DO
-      CPASSERT(ALL(features%chunk_return_positions > 0))
+         features%chunk_return_positions(:) = cached_layout%chunk_return_positions
+
+         DO chunk_row = 1, cached_layout%chunk_feature_count
+            point_pos = cached_layout%chunk_return_positions(chunk_row)
+            CPASSERT(point_pos >= 1 .AND. point_pos <= cached_layout%chunk_feature_count)
+            dyn_base = ndynamic_route_per_point*(point_pos - 1)
+            IF (collapse_spin_dynamics) THEN
+               features%chunk_density(chunk_row, 1) = recv_dynamic(dyn_base + 1)
+               features%chunk_grad(chunk_row, 1, 1) = recv_dynamic(dyn_base + 2)
+               features%chunk_grad(chunk_row, 2, 1) = recv_dynamic(dyn_base + 3)
+               features%chunk_grad(chunk_row, 3, 1) = recv_dynamic(dyn_base + 4)
+               features%chunk_kin(chunk_row, 1) = recv_dynamic(dyn_base + 5)
+            ELSE
+               features%chunk_density(chunk_row, :) = recv_dynamic(dyn_base + 1:dyn_base + 2)
+               features%chunk_grad(chunk_row, 1, 1) = recv_dynamic(dyn_base + 3)
+               features%chunk_grad(chunk_row, 2, 1) = recv_dynamic(dyn_base + 4)
+               features%chunk_grad(chunk_row, 3, 1) = recv_dynamic(dyn_base + 5)
+               features%chunk_grad(chunk_row, 1, 2) = recv_dynamic(dyn_base + 6)
+               features%chunk_grad(chunk_row, 2, 2) = recv_dynamic(dyn_base + 7)
+               features%chunk_grad(chunk_row, 3, 2) = recv_dynamic(dyn_base + 8)
+               features%chunk_kin(chunk_row, :) = recv_dynamic(dyn_base + 9:dyn_base + 10)
+            END IF
+         END DO
+         CPASSERT(ALL(features%chunk_return_positions > 0))
+      END IF
 
       DEALLOCATE (cursor, recv_counts, recv_displs, recv_dynamic, send_counts, send_displs, &
                   send_dynamic)
@@ -1625,12 +1640,14 @@ CONTAINS
 
       INTEGER                                            :: atom_rows, iatom, rows
 
-      nsubchunks = 1
-      IF (max_rows <= 0) RETURN
+      nsubchunks = 0
       IF (.NOT. cached_layout%active) RETURN
       IF (cached_layout%chunk_natom <= 0) RETURN
+      IF (max_rows <= 0) THEN
+         nsubchunks = 1
+         RETURN
+      END IF
 
-      nsubchunks = 0
       rows = 0
       DO iatom = 1, cached_layout%chunk_natom
          atom_rows = INT(cached_layout%chunk_atomic_grid_sizes(iatom))
