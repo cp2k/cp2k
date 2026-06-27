@@ -275,7 +275,7 @@ while [[ $# -gt 0 ]]; do
             done
             # dbcsr must use blas as fallback when libxs/libxsmm is disabled
             if [[ "${ON_OFF}" == "OFF" ]]; then
-              SED_PATTERN_LIST+=" -e '/\s*-\s+\"smm=libxsmm\"/ s/libxsmm/blas/'"
+              SED_PATTERN_LIST+=" -e '/\s*-\s+\"smm=libxs\"/ s/libxs/blas/'"
             fi
             ;;
           ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | hdf5 | libfci | libint2 | \
