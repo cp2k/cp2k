@@ -193,16 +193,26 @@ if [ ${DEBUG_BUILD} == "__TRUE__" ]; then
 fi
 if [ -n "$(grep -- "--install-all" "${TOOLCHAIN_ROOTDIR}/toolchain_settings")" ]; then
   CMAKE_OPTIONS+=" -DCP2K_USE_EVERYTHING=ON -DCP2K_USE_DLAF=OFF -DCP2K_USE_PEXSI=OFF"
+  # If MPI is disabled, set "CP2K_USE_MPI" to "OFF"
+  if [ "${mpi_mode}" = "no" ]; then
+    CMAKE_OPTIONS+=" -DCP2K_USE_MPI=OFF"
+  fi
+  # Some options that should be specially considered:
+  # Intel MKL includes FFTW
+  if [ "${with_fftw}" = "__DONTUSE__" ] && [ "${math_mode}" != "mkl" ]; then
+    CMAKE_OPTIONS+=" -DCP2K_USE_FFTW3=OFF"
+  fi
+  # MiMic-MCL (MiMiC Communication Library)
+  if [ "${with_mcl}" = "__DONTUSE__" ]; then
+    CMAKE_OPTIONS+=" -DCP2K_USE_MIMIC=OFF"
+  fi
   for toolchain_option in $(grep -i "dontuse" "${TOOLCHAIN_INSTALL_DIR}/toolchain.conf" |
-    grep -Evi "gcc|amd|intel" | cut -d'_' -f2 | cut -d'=' -f1); do
-    var_name="with_${toolchain_option}"
-    if [ "${!var_name}" != "__DONTUSE__" ]; then
-      ADDED_CMAKE_OPTION=$(sed -n '/option(/,/)/p' "${CP2K_ROOT}/CMakeLists.txt" |
-        grep -i "${toolchain_option}" | awk '{print $1}' | cut -d'(' -f2 | head -n 1)
-      # Use "if-then" below can avoid generating empty "-D=OFF" options
-      if [ -n "${ADDED_CMAKE_OPTION}" ]; then
-        CMAKE_OPTIONS+=" -D${ADDED_CMAKE_OPTION}=OFF"
-      fi
+    grep -Evi "gcc|amd|intel|cmake|fftw|mkl|dbcsr" | cut -d'_' -f2 | cut -d'=' -f1); do
+    ADDED_CMAKE_OPTION=$(sed -n '/option(/,/)/p' "${CP2K_ROOT}/CMakeLists.txt" |
+      grep -i "${toolchain_option}" | awk '{print $1}' | cut -d'(' -f2 | head -n 1)
+    # Use "if-then" below can avoid generating empty "-D=OFF" options
+    if [ -n "${ADDED_CMAKE_OPTION}" ]; then
+      CMAKE_OPTIONS+=" -D${ADDED_CMAKE_OPTION}=OFF"
     fi
   done
 else
@@ -215,7 +225,7 @@ else
   if [ "${with_fftw}" != "__DONTUSE__" ] || [ "${math_mode}" = "mkl" ]; then
     CMAKE_OPTIONS+=" -DCP2K_USE_FFTW3=ON"
   fi
-  # Mimic-MCL (MiMiC Communication Library)
+  # MiMic-MCL (MiMiC Communication Library)
   if [ "${with_mcl}" != "__DONTUSE__" ]; then
     CMAKE_OPTIONS+=" -DCP2K_USE_MIMIC=ON"
   fi
@@ -233,19 +243,22 @@ else
       fi
     fi
   done
-  # Additional feature of SIRIUS
-  if [ "${with_sirius}" = "__INSTALL__" ]; then
-    CMAKE_OPTIONS+=" -DCP2K_USE_SIRIUS_VCSQNM=ON"
-    if [ "${with_tblite}" != "__DONTUSE__" ]; then
-      CMAKE_OPTIONS+=" -DCP2K_USE_SIRIUS_DFTD3=ON -DCP2K_USE_SIRIUS_DFTD4=ON"
-    elif [ "${with_dftd4}" != "__DONTUSE__" ]; then
-      CMAKE_OPTIONS+=" -DCP2K_USE_SIRIUS_DFTD4=ON"
-    fi
+fi
+# Additional feature of SIRIUS
+if [ "${with_sirius}" = "__INSTALL__" ]; then
+  CMAKE_OPTIONS+=" -DCP2K_USE_SIRIUS_VCSQNM=ON"
+  if [ "${with_tblite}" != "__DONTUSE__" ]; then
+    CMAKE_OPTIONS+=" -DCP2K_USE_SIRIUS_DFTD3=ON -DCP2K_USE_SIRIUS_DFTD4=ON"
+  elif [ "${with_dftd4}" != "__DONTUSE__" ]; then
+    CMAKE_OPTIONS+=" -DCP2K_USE_SIRIUS_DFTD4=ON"
   fi
 fi
 # If GPU acceleration is used, add the option about GPU acceleration
 if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
   CMAKE_OPTIONS+=" -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=${GPU_VER}"
+  if [ "${with_cusolvermp}" != "__DONTUSE__" ]; then
+    CMAKE_OPTIONS+=" -DCP2K_USE_CUSOLVER_MP=ON"
+  fi
 elif [ "${ENABLE_HIP}" = "__TRUE__" ]; then
   CMAKE_OPTIONS+=" -DCP2K_USE_ACCEL=HIP -DCP2K_WITH_GPU=${GPU_VER}"
 elif [ "${ENABLE_OPENCL}" = "__TRUE__" ]; then
