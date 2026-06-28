@@ -25,11 +25,11 @@ source "${INSTALLDIR}"/toolchain.env
 cd "${BUILDDIR}"
 
 # HIP-build of Tiled-MM and COSMA requires rocblas
-if [ "$with_cosma" != "__DONTUSE__" ] && [ "$ENABLE_HIP" = "__TRUE__" ]; then
+if [ "${with_cosma}" != "__DONTUSE__" ] && [ "$ENABLE_HIP" = "__TRUE__" ]; then
   check_lib -lrocblas "rocm"
 fi
 
-case "$with_cosma" in
+case "${with_cosma}" in
   __INSTALL__)
     require_env OPENBLAS_ROOT
     require_env SCALAPACK_ROOT
@@ -227,19 +227,26 @@ case "$with_cosma" in
     check_dir "${pkg_install_dir}/include"
     ;;
 esac
-if [ "$with_cosma" != "__DONTUSE__" ]; then
-  if [ "$with_cosma" != "__SYSTEM__" ]; then
+if [ "${with_cosma}" != "__DONTUSE__" ]; then
+  if [ "${with_cosma}" != "__SYSTEM__" ]; then
+    pkg_install_dir1="${pkg_install_dir}"
+    if [ "${with_cosma}" = "__INSTALL__" ]; then
+      if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
+        pkg_install_dir1="${pkg_install_dir}-cuda"
+      elif [ "${ENABLE_HIP}" = "__TRUE__" ]; then
+        pkg_install_dir1="${pkg_install_dir}-hip"
+      fi
+    fi
     cat << EOF > "${BUILDDIR}/setup_cosma"
-prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
-prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
-prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir1}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir1}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir1}/lib"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir1}/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir1}"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_cosma"
 export COSMA_VER="${cosma_ver}"
-export COSMA_ROOT="${pkg_install_dir}"
 EOF
   filter_setup "${BUILDDIR}/setup_cosma" "${SETUPFILE}"
 

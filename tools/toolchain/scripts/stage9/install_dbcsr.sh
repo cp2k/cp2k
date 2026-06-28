@@ -70,6 +70,7 @@ case "${with_dbcsr}" in
       make -j $(get_nprocs) install > make.log 2>&1 || tail_excerpt make.log
       cd ..
       if [ "${ENABLE_CUDA}" == "__TRUE__" ]; then
+        echo "Installing from scratch into ${pkg_install_dir}-cuda"
         mkdir build-cuda
         cd build-cuda
         CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_ACCEL=cuda"
@@ -82,6 +83,7 @@ case "${with_dbcsr}" in
         cd ..
       fi
       if [ "${ENABLE_HIP}" == "__TRUE__" ]; then
+        echo "Installing from scratch into ${pkg_install_dir}-hip"
         mkdir build-hip
         cd build-hip
         CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_ACCEL=hip -DWITH_GPU=Mi250"
@@ -116,14 +118,15 @@ esac
 if [ "${with_dbcsr}" != "__DONTUSE__" ]; then
   cat << EOF > "${BUILDDIR}/setup_dbcsr"
 export DBCSR_VER="${dbcsr_ver}"
-export DBCSR_ROOT="${pkg_install_dir}"
 EOF
   if [ "${with_dbcsr}" != "__SYSTEM__" ]; then
     pkg_install_dir1="${pkg_install_dir}"
-    if [ "${ENABLE_CUDA}" == "__TRUE__" ]; then
-      pkg_install_dir1="${pkg_install_dir}-cuda"
-    elif [ "${ENABLE_HIP}" == "__TRUE__" ]; then
-      pkg_install_dir1="${pkg_install_dir}-hip"
+    if [ "${with_dbcsr}" = "__INSTALL__" ]; then
+      if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
+        pkg_install_dir1="${pkg_install_dir}-cuda"
+      elif [ "${ENABLE_HIP}" = "__TRUE__" ]; then
+        pkg_install_dir1="${pkg_install_dir}-hip"
+      fi
     fi
     cat << EOF >> "${BUILDDIR}/setup_dbcsr"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir1}/lib"
