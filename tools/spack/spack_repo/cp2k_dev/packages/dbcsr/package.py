@@ -12,19 +12,22 @@ from spack.package import *
 
 
 class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
-    """Distributed Block Compressed Sparse Row matrix library."""
+    """The Distributed Block Compressed Sparse Row (DBCSR) matrix library is a
+    library designed to efficiently perform sparse matrix-matrix multiplication,
+    among other operations. It is MPI and OpenMP parallel and can exploit Nvidia
+    and AMD GPUs via CUDA and HIP."""
 
     homepage = "https://github.com/cp2k/dbcsr"
     git = "https://github.com/cp2k/dbcsr.git"
     url = "https://github.com/cp2k/dbcsr/releases/download/v2.2.0/dbcsr-2.2.0.tar.gz"
     list_url = "https://github.com/cp2k/dbcsr/releases"
 
-    maintainers("dev-zero", "mtaillefumier", "RMeli", "hfp")
+    maintainers("dev-zero", "mtaillefumier", "RMeli", "hfp", "mkrack")
 
     license("GPL-2.0-or-later")
 
     version("develop", branch="develop")
-    version("2.9.2-preview", commit="4d85b72e3427ec7f595ad0cf38a4d00f72f9ff60")
+    version("2.10.0", sha256="3d897220fbb4498215331efad6905eb7744881b4cf04eb5c5fb4db7c48a56ef9")
     version("2.9.1", sha256="fa5a4aeba0a07761511af2c26c779bd811b5ea0ef06a5d94535b6dd7b2e0ce59")
     version("2.9.0", sha256="a04cacd2203bd97a31ac993f9ab84237a48191140bba29efadbc27db544bbcd6")
     version("2.8.0", sha256="d55e4f052f28d1ed0faeaa07557241439243287a184d1fd27f875c8b9ca6bd96")
@@ -56,9 +59,9 @@ class Dbcsr(CMakePackage, CudaPackage, ROCmPackage):
     variant("opencl", default=False, description="Enable OpenCL backend")
     variant("mpi_f08", default=False, when="@2.6:", description="Use mpi F08 module")
 
-    depends_on("c", type="build")  # generated
-    depends_on("cxx", type="build")  # generated
-    depends_on("fortran", type="build")  # generated
+    depends_on("c", type="build")
+    depends_on("cxx", type="build")
+    depends_on("fortran", type="build")
 
     depends_on("blas")
     depends_on("lapack")

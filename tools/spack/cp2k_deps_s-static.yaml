@@ -64,7 +64,7 @@ spack:
         - "~examples"
         - "+openmp"
         - "~shared"
-        - "smm=libxsmm"
+        - "smm=libxs"
 
     fftw:
       require:
@@ -102,7 +102,7 @@ spack:
     - "ninja@1.13"
     - "python@3.11:"
     # CP2K
-    - "dbcsr@2.9.2-preview"
+    - "dbcsr@2.10.0"
 #   - "dftd4@4.0.2"
     - "fftw@3.3.11"
 #   - "hdf5@2.1.0"
