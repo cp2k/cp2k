@@ -140,7 +140,6 @@ option(CP2K_USE_MPI "Enable MPI support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBXS
        "Enable LIBXS support; required if OpenCL backend enabled"
        ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_PEXSI "Enable PEXSI support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_SPGLIB "Enable Spglib support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_VORI "Enable Libvori support" ${CP2K_USE_EVERYTHING})
@@ -238,11 +237,6 @@ cmake_dependent_option(
   CP2K_USE_CRAY_PM_ACCEL_ENERGY ON
   "Enable CRAY power management framework with gpu support"
   "(NOT CP2K_USE_ACCEL MATCHES \"NONE\") AND (CP2K_USE_CRAY_PM_ENERGY)" OFF)
-
-cmake_dependent_option(
-  CP2K_USE_LIBVDWXC OFF
-  "Compile CP2K with libvdwxc support when SIRIUS is compiled with it"
-  "CP2K_USE_SIRIUS" OFF)
 
 set(CP2K_BLAS_VENDOR
     "auto"
