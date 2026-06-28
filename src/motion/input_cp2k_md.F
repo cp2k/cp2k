@@ -48,7 +48,10 @@ MODULE input_cp2k_md
    USE kinds,                           ONLY: dp
    USE reftraj_types,                   ONLY: REFTRAJ_EVAL_ENERGY,&
                                               REFTRAJ_EVAL_ENERGY_FORCES,&
-                                              REFTRAJ_EVAL_NONE
+                                              REFTRAJ_EVAL_NONE,&
+                                              REFTRAJ_WRAP_CENTRAL,&
+                                              REFTRAJ_WRAP_NONE,&
+                                              REFTRAJ_WRAP_POSITIVE
    USE string_utilities,                ONLY: newline,&
                                               s2a
 #include "../base/base_uses.f90"
@@ -603,6 +606,22 @@ CONTAINS
                           enum_desc=s2a("Do not evaluate energy or force", &
                                         "Evaluate only the energy", &
                                         "Evaluate energy and forces"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="WRAP", &
+                          description="Whether and how atoms would be wrapped to inside the "// &
+                          "simulation box according to periodic boundary condition before any "// &
+                          "subsequent analysis. Useful when there is need to convert the raw, "// &
+                          "unwrapped coordinates produced from `MOTION%PRINT%TRAJECTORY` for "// &
+                          "post-processing. This keyword will be ignored when requesting MSD "// &
+                          "calculation because wrapping coordinates makes displacement discontinuous.", &
+                          default_i_val=REFTRAJ_WRAP_NONE, &
+                          enum_i_vals=[REFTRAJ_WRAP_NONE, REFTRAJ_WRAP_POSITIVE, REFTRAJ_WRAP_CENTRAL], &
+                          enum_c_vals=s2a("NONE", "POSITIVE", "CENTRAL"), &
+                          enum_desc=s2a("Do not wrap atoms at all and use coordinates exactly as input", &
+                                        "Wrap atoms so that fractional coordinates are within [0, 1]", &
+                                        "Wrap atoms so that fractional coordinates are within [-1/2, +1/2]"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
