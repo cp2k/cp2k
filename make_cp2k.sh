@@ -170,6 +170,8 @@ VERBOSE_SPACK=""
 export CP2K_ENV="cp2k_env"
 export CP2K_ROOT=${CP2K_ROOT:-${PWD}}
 export CP2K_VERSION="${CP2K_VERSION:-psmp}"
+
+export BUILD_PATH="${BUILD_PATH:-${CP2K_ROOT}}"
 export INSTALL_PREFIX="${INSTALL_PREFIX:-${CP2K_ROOT}/install}"
 
 # Parse flags
@@ -183,6 +185,15 @@ while [[ $# -gt 0 ]]; do
       BUILD_DEPS="always"
       BUILD_DEPS_ONLY="yes"
       shift 1
+      ;;
+    -bp | --build_path)
+      if (($# > 1)); then
+        BUILD_PATH="$(realpath "${2}")"
+      else
+        echo "ERROR: No build path argument found for flag \"${1}\""
+        ${EXIT_CMD} 1
+      fi
+      shift 2
       ;;
     -bsl | --build_static_libcp2k)
       BUILD_SHARED_LIBS="OFF"
@@ -626,6 +637,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo ""
   echo "Usage: ${SCRIPT_NAME} [-bd | --build_deps]"
   echo "                    [-bd_only | --build_deps_only]"
+  echo "                    [-bp | --build_path PATH]"
   echo "                    [-bsl | --build_static_libcp2k]"
   echo "                    [-bt | --build_type (Debug | Release | RelWithDebInfo)]"
   echo "                    [-cray]"
@@ -648,6 +660,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "Flags:"
   echo " --build_deps          : Force a rebuild of all CP2K dependencies from scratch (removes the spack folder)"
   echo " --build_deps_only     : Rebuild ONLY the CP2K dependencies from scratch (removes the spack folder)"
+  echo " --build_path          : Define the CP2K build path (default: ${CP2K_ROOT})"
   echo " --build_static_libcp2k: Build a static CP2K library libcp2k.a instead of the default shared one libcp2k.so"
   echo " --build_type          : Set preferred CMake build type for CP2K (default: \"Release\")"
   echo " --cp2k_version        : CP2K version to be built (default: \"psmp\")"
@@ -691,6 +704,7 @@ fi
 echo ""
 echo "BUILD_DEPS          = ${BUILD_DEPS}"
 echo "BUILD_DEPS_ONLY     = ${BUILD_DEPS_ONLY}"
+echo "BUILD_PATH          = ${BUILD_PATH}"
 echo "BUILD_SHARED_LIBS   = ${BUILD_SHARED_LIBS}"
 echo "CP2K_BUILD_TYPE     = ${CP2K_BUILD_TYPE}"
 echo "CP2K_VERSION        = ${CP2K_VERSION}"
@@ -702,7 +716,6 @@ if ((CUDA_SM_CODE > 0)); then
 else
   echo "GPU                 = ${GPU_MODEL}"
 fi
-echo "INSTALL_PREFIX      = ${INSTALL_PREFIX}"
 echo "INSTALL_MESSAGE     = ${INSTALL_MESSAGE}"
 echo "IN_CONTAINER        = ${IN_CONTAINER}"
 echo "MPI_MODE            = ${MPI_MODE}"
@@ -888,7 +901,7 @@ echo ""
 
 # Spack version
 export SPACK_VERSION="${SPACK_VERSION:-1.1.1}"
-export SPACK_BUILD_PATH="${CP2K_ROOT}/spack"
+export SPACK_BUILD_PATH="${BUILD_PATH}/spack"
 export SPACK_ROOT="${SPACK_BUILD_PATH}/spack"
 
 # Isolate user configuration for spack
@@ -1271,7 +1284,7 @@ eval "$(spack env activate --sh ${CP2K_ENV})"
 spack env status
 
 # CMake configuration step
-export CMAKE_BUILD_PATH="${CP2K_ROOT}/build"
+export CMAKE_BUILD_PATH="${BUILD_PATH}/build"
 
 # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
 Torch_DIR="$(dirname "$(find "${SPACK_ROOT}" ! -type l -name TorchConfig.cmake | tail -n 1)")"
