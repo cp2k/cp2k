@@ -10,6 +10,7 @@
 
 # Spack
 /tools/spack/                @mkrack @mtaillefumier @RMeli
+/make_cp2k.sh                @mkrack @mtaillefumier @RMeli
 
 # Toolchain
 /tools/toolchain/            @mkrack @oschuett
