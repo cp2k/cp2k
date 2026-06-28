@@ -32,7 +32,8 @@ MODULE integrator
    USE cell_methods,                    ONLY: init_cell,&
                                               read_xyz_comment
    USE cell_types,                      ONLY: cell_type,&
-                                              parse_cell_line
+                                              parse_cell_line,&
+                                              pbc
    USE constraint,                      ONLY: rattle_control,&
                                               shake_control,&
                                               shake_roll_control,&
@@ -88,6 +89,9 @@ MODULE integrator
    USE qs_environment_types,            ONLY: get_qs_env
    USE reftraj_types,                   ONLY: REFTRAJ_EVAL_ENERGY_FORCES,&
                                               REFTRAJ_EVAL_NONE,&
+                                              REFTRAJ_WRAP_CENTRAL,&
+                                              REFTRAJ_WRAP_NONE,&
+                                              REFTRAJ_WRAP_POSITIVE,&
                                               reftraj_type
    USE reftraj_util,                    ONLY: compute_msd_reftraj
    USE rt_propagation_methods,          ONLY: propagation_step
@@ -1687,6 +1691,25 @@ CONTAINS
          cell%hmat = h
          CALL init_cell(cell)
       END IF
+
+      ! Wrap coordinates if requested
+      SELECT CASE (reftraj_env%info%wrap)
+      CASE (REFTRAJ_WRAP_NONE)
+         ! Do Nothing
+      CASE (REFTRAJ_WRAP_POSITIVE)
+         ! Wrap to positive range
+         DO i = 1, nparticle
+            particle_set(i)%r(1:3) = pbc(particle_set(i)%r(1:3), cell, positive_range=.TRUE.)
+         END DO
+      CASE (REFTRAJ_WRAP_CENTRAL)
+         ! Wrap to halfway, i.e. origin is at the center
+         DO i = 1, nparticle
+            particle_set(i)%r(1:3) = pbc(particle_set(i)%r(1:3), cell)
+         END DO
+      CASE DEFAULT
+         ! Should not reach here
+         CPABORT("Option invalid or unavailable for reftraj_env%info%wrap")
+      END SELECT
 
       ![ADAPT] update input structure with new coordinates, make new labels
       CALL qmmmx_update_force_env(force_env, force_env%root_section)

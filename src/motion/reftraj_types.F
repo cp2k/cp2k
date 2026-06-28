@@ -33,9 +33,12 @@ MODULE reftraj_types
    INTEGER, PARAMETER, PUBLIC :: REFTRAJ_EVAL_NONE = 101
    INTEGER, PARAMETER, PUBLIC :: REFTRAJ_EVAL_ENERGY = 102
    INTEGER, PARAMETER, PUBLIC :: REFTRAJ_EVAL_ENERGY_FORCES = 103
+   INTEGER, PARAMETER, PUBLIC :: REFTRAJ_WRAP_NONE = 201
+   INTEGER, PARAMETER, PUBLIC :: REFTRAJ_WRAP_POSITIVE = 202
+   INTEGER, PARAMETER, PUBLIC :: REFTRAJ_WRAP_CENTRAL = 203
 
 ! **************************************************************************************************
-!> \brief parameters related to the analysis of previously generated trajecorties
+!> \brief parameters related to the analysis of previously generated trajectories
 !> \author MI
 ! **************************************************************************************************
    TYPE reftraj_info_type
@@ -43,6 +46,7 @@ MODULE reftraj_types
       INTEGER                                  :: last_snapshot = 0
       INTEGER                                  :: stride = 0
       INTEGER                                  :: eval = REFTRAJ_EVAL_NONE
+      INTEGER                                  :: wrap = REFTRAJ_WRAP_NONE
       LOGICAL                                  :: variable_volume = .FALSE.
       LOGICAL                                  :: msd = .FALSE.
       TYPE(cp_parser_type), POINTER            :: traj_parser => NULL()
@@ -117,9 +121,14 @@ CONTAINS
       CALL section_vals_val_get(reftraj_section, "LAST_SNAPSHOT", i_val=reftraj%info%last_snapshot)
       CALL section_vals_val_get(reftraj_section, "STRIDE", i_val=reftraj%info%stride)
       CALL section_vals_val_get(reftraj_section, "EVAL", i_val=reftraj%info%eval)
+      CALL section_vals_val_get(reftraj_section, "WRAP", i_val=reftraj%info%wrap)
 
       CALL section_vals_val_get(reftraj_section, "MSD%_SECTION_PARAMETERS_", &
                                 l_val=reftraj%info%msd)
+      IF (reftraj%info%msd .AND. (reftraj%info%wrap /= REFTRAJ_WRAP_NONE)) THEN
+         CPWARN("MSD calculation is incompatible with wrapping coordinates")
+         reftraj%info%wrap = REFTRAJ_WRAP_NONE
+      END IF
 
    END SUBROUTINE create_reftraj
 
