@@ -122,7 +122,6 @@ elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; t
   cmake \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DDBCSR_DIR="${DBCSR_CUDA_ROOT}/lib/cmake/dbcsr" \
     -DSPLA_ROOT="${SPLA_ROOT}-cuda" \
     -DCP2K_WITH_GPU="${PROFILE:15}" \
     -DCP2K_USE_ACCEL=CUDA \
@@ -150,7 +149,6 @@ elif [[ "${PROFILE}" == "toolchain_hip_"* ]] && [[ "${VERSION}" == "psmp" ]]; th
   cmake \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DDBCSR_DIR="${DBCSR_HIP_ROOT}/lib/cmake/dbcsr" \
     -DCP2K_WITH_GPU="${PROFILE:14}" \
     -DCP2K_USE_ACCEL=HIP \
     -DCP2K_USE_MPI=ON \

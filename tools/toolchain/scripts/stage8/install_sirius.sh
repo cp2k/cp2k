@@ -103,6 +103,7 @@ case "$with_sirius" in
 
       if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
         [ -d build-cuda ] && rm -rf "build-cuda"
+        echo "Installing from scratch into ${pkg_install_dir}/cuda"
         mkdir build-cuda
         cd build-cuda
         cmake \
