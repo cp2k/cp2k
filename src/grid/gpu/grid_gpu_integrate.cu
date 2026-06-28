@@ -61,7 +61,7 @@ __device__ __inline__ T block_reduce_64(T *table, const T val_, const int tid) {
 }
 
 template <typename T, bool COMPUTE_TAU>
-__global__ __launch_bounds__(64) void compute_hab_v4(const kernel_params dev_) {
+__global__ __launch_bounds__(64) void compute_hab(const kernel_params dev_) {
   // Copy task from global to shared memory and precompute some stuff.
   extern __shared__ T shared_memory[];
   // T *smem_cab = &shared_memory[dev_.smem_cab_offset];
@@ -73,60 +73,59 @@ __global__ __launch_bounds__(64) void compute_hab_v4(const kernel_params dev_) {
   T *smem_alpha = &shared_memory[0];
   const int tid = thread_global_index();
   const int offset = dev_.sorted_blocks_offset_dev[block_index()];
-  T *__restrict__ smem_cab = allocate_workspace<T>(dev_);
+
+  T *__restrict__ smem_cab = nullptr;
+
+  smem_cab = allocate_workspace<T>(dev_);
 
   for (int tk = 0; tk < number_of_tasks; tk++) {
     __shared__ smem_task<T> task;
     const int task_id = dev_.task_sorted_by_blocks_dev[offset + tk];
     if (dev_.tasks[task_id].skip_task)
       continue;
+
+    // all warps need to be synchronized here before modifying the task
+    // information.
+    __syncthreads();
     fill_smem_task_coef(dev_, task_id, task);
 
-    T *__restrict__ coef_ = reinterpret_cast<double *>(__builtin_assume_aligned(
+    T *__restrict__ coef_ = reinterpret_cast<T *>(__builtin_assume_aligned(
         &dev_.ptr_dev[2][dev_.tasks[task_id].coef_offset], 32));
 
     __syncthreads();
     compute_alpha(task, smem_alpha);
     __syncthreads();
-
     cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
     __syncthreads();
 
-    for (int i = 0; i < task.nsgf_setb; i++) {
-      for (int j = 0; j < task.nsgf_seta; j++) {
-        T tmp =0.0;
-        for (int jco = task.first_cosetb + tid / 8; jco < task.ncosetb; jco+=8) {
+    for (int i = tid / 8; i < task.nsgf_setb; i += 8) {
+      for (int j = tid % 8; j < task.nsgf_seta; j += 8) {
+        T tmp = 0.0;
+        for (int jco = task.first_cosetb; jco < task.ncosetb; jco++) {
           const T sphib = task.sphib[i * task.maxcob + jco];
           const auto &b = coset_inv[jco];
-          for (int ico = task.first_coseta + tid % 8; ico < task.ncoseta; ico+=8) {
+          for (int ico = task.first_coseta; ico < task.ncoseta; ico++) {
             const auto &a = coset_inv[ico];
             const T hab = get_hab<COMPUTE_TAU, T>(a, b, task.zeta, task.zetb,
                                                   task.n1, smem_cab);
-            
             const T sphia_times_sphib =
-              task.sphia[j * task.maxcoa + ico] * sphib;
+                task.sphia[j * task.maxcoa + ico] * sphib;
             tmp += hab * sphia_times_sphib;
           }
         }
-        tmp = block_reduce_64(smem_alpha, tmp, tid);
-        if (tid == 0) {
-          if (task.block_transposed) {
-            task.hab_block[j * task.nsgfb + i] += tmp;
-          } else {
-            task.hab_block[i * task.nsgfa + j] += tmp;
-          }
+        if (task.block_transposed) {
+          task.hab_block[j * task.nsgfb + i] += tmp;
+        } else {
+          task.hab_block[i * task.nsgfa + j] += tmp;
         }
       }
     }
-
-    // all warps need to be synchronized here before modifying the task
-    // information.
-    __syncthreads();
   }
 }
 
-template <typename T, typename T3, bool COMPUTE_TAU, bool CALCULATE_FORCES>
-__global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
+template <typename T, typename T3, bool COMPUTE_TAU>
+__global__
+__launch_bounds__(64) void compute_hab_forces(const kernel_params dev_) {
   // Copy task from global to shared memory and precompute some stuff.
   extern __shared__ T shared_memory[];
   const int number_of_tasks = dev_.num_tasks_per_block_dev[block_index()];
@@ -137,6 +136,8 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
   T *smem_alpha = &shared_memory[0];
   const int tid = thread_global_index();
   const int offset = dev_.sorted_blocks_offset_dev[block_index()];
+
+  T *__restrict__ smem_cab = allocate_workspace<T>(dev_);
 
   T fa[3], fb[3];
   T virial[9];
@@ -158,8 +159,6 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
   virial[7] = 0.0;
   virial[8] = 0.0;
 
-  T *__restrict__ smem_cab = allocate_workspace<T>(dev_);
-
   for (int tk = 0; tk < number_of_tasks; tk++) {
     __shared__ smem_task<T> task;
     const int task_id = dev_.task_sorted_by_blocks_dev[offset + tk];
@@ -174,71 +173,120 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
     cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
     __syncthreads();
 
-    for (int jco = task.first_cosetb; jco < task.ncosetb; jco++) {
-      const auto &b = coset_inv[jco];
-      for (int ico = task.first_coseta; ico < task.ncoseta; ico++) {
-        const auto &a = coset_inv[ico];
-        const T hab = get_hab<COMPUTE_TAU, T>(a, b, task.zeta, task.zetb,
-                                              task.n1, smem_cab);
-        T *shared_forces_a = &shared_memory[0];
-        T *shared_forces_b = &shared_memory[3];
-        T *shared_virial = &shared_memory[6];
-
-        if (CALCULATE_FORCES) {
-          if (tid < 3) {
-            shared_forces_a[tid] = get_force_a<COMPUTE_TAU, T>(
-                a, b, tid, task.zeta, task.zetb, task.n1, smem_cab);
-            shared_forces_b[tid] = get_force_b<COMPUTE_TAU, T>(
-                a, b, tid, task.zeta, task.zetb, task.rab, task.n1, smem_cab);
-          }
-          if ((tid < 9) && (dev_.ptr_dev[5] != nullptr)) {
-            shared_virial[tid] =
-                get_virial_a<COMPUTE_TAU, T>(a, b, tid / 3, tid % 3, task.zeta,
-                                             task.zetb, task.n1, smem_cab) +
-                get_virial_b<COMPUTE_TAU, T>(a, b, tid / 3, tid % 3, task.zeta,
-                                             task.zetb, task.rab, task.n1,
-                                             smem_cab);
-          }
+    for (int i = tid / 8; i < task.nsgf_setb; i += 8) {
+      for (int j = tid % 8; j < task.nsgf_seta; j += 8) {
+        T tmp = 0.0;
+        T block_value = 0.0;
+        if (task.block_transposed) {
+          block_value =
+              task.pab_block[j * task.nsgfb + i] * task.off_diag_twice;
+        } else {
+          block_value =
+              task.pab_block[i * task.nsgfa + j] * task.off_diag_twice;
         }
-
-        T block_val1 = 0.0;
-        // Try to use as many contiguous threads as possible and limit the
-        // number of warps that do partial work
-        for (int i = tid / 8; i < task.nsgf_setb; i += 8) {
+        for (int jco = task.first_cosetb; jco < task.ncosetb; jco++) {
           const T sphib = task.sphib[i * task.maxcob + jco];
-          for (int j = tid % 8; j < task.nsgf_seta; j += 8) {
-            const T sphia_times_sphib =
-                task.sphia[j * task.maxcoa + ico] * sphib;
-            if (CALCULATE_FORCES) {
-              if (task.block_transposed) {
-                block_val1 += task.pab_block[j * task.nsgfb + i] *
-                              task.off_diag_twice * sphia_times_sphib;
-              } else {
-                block_val1 += task.pab_block[i * task.nsgfa + j] *
-                              task.off_diag_twice * sphia_times_sphib;
-              }
-            }
-            if (task.block_transposed) {
-              task.hab_block[j * task.nsgfb + i] += hab * sphia_times_sphib;
-            } else {
-              task.hab_block[i * task.nsgfa + j] += hab * sphia_times_sphib;
+          const auto &b = coset_inv[jco];
+          for (int ico = task.first_coseta; ico < task.ncoseta; ico++) {
+            const auto &a = coset_inv[ico];
+            const T hab = get_hab<COMPUTE_TAU, T>(a, b, task.zeta, task.zetb,
+                                                  task.n1, smem_cab);
+            T sphia_times_sphib = task.sphia[j * task.maxcoa + ico] * sphib;
+            tmp += hab * sphia_times_sphib;
+
+            sphia_times_sphib *= block_value;
+            fa[0] += sphia_times_sphib *
+                     get_force_a<COMPUTE_TAU, T>(a, b, 0, task.zeta, task.zetb,
+                                                 task.n1, smem_cab);
+            fa[1] += sphia_times_sphib *
+                     get_force_a<COMPUTE_TAU, T>(a, b, 1, task.zeta, task.zetb,
+                                                 task.n1, smem_cab);
+            fa[2] += sphia_times_sphib *
+                     get_force_a<COMPUTE_TAU, T>(a, b, 2, task.zeta, task.zetb,
+                                                 task.n1, smem_cab);
+
+            fb[0] += sphia_times_sphib *
+                     get_force_b<COMPUTE_TAU, T>(a, b, 0, task.zeta, task.zetb,
+                                                 task.rab, task.n1, smem_cab);
+            fb[1] += sphia_times_sphib *
+                     get_force_b<COMPUTE_TAU, T>(a, b, 1, task.zeta, task.zetb,
+                                                 task.rab, task.n1, smem_cab);
+            fb[2] += sphia_times_sphib *
+                     get_force_b<COMPUTE_TAU, T>(a, b, 2, task.zeta, task.zetb,
+                                                 task.rab, task.n1, smem_cab);
+
+            if (dev_.ptr_dev[5] != nullptr) {
+              virial[0] +=
+                  sphia_times_sphib *
+                  (get_virial_a<COMPUTE_TAU, T>(a, b, 0, 0, task.zeta,
+                                                task.zetb, task.n1, smem_cab) +
+                   get_virial_b<COMPUTE_TAU, T>(a, b, 0, 0, task.zeta,
+                                                task.zetb, task.rab, task.n1,
+                                                smem_cab));
+              virial[1] +=
+                  sphia_times_sphib *
+                  (get_virial_a<COMPUTE_TAU, T>(a, b, 0, 1, task.zeta,
+                                                task.zetb, task.n1, smem_cab) +
+                   get_virial_b<COMPUTE_TAU, T>(a, b, 0, 1, task.zeta,
+                                                task.zetb, task.rab, task.n1,
+                                                smem_cab));
+              virial[2] +=
+                  sphia_times_sphib *
+                  (get_virial_a<COMPUTE_TAU, T>(a, b, 0, 2, task.zeta,
+                                                task.zetb, task.n1, smem_cab) +
+                   get_virial_b<COMPUTE_TAU, T>(a, b, 0, 2, task.zeta,
+                                                task.zetb, task.rab, task.n1,
+                                                smem_cab));
+              virial[3] +=
+                  sphia_times_sphib *
+                  (get_virial_a<COMPUTE_TAU, T>(a, b, 1, 0, task.zeta,
+                                                task.zetb, task.n1, smem_cab) +
+                   get_virial_b<COMPUTE_TAU, T>(a, b, 1, 0, task.zeta,
+                                                task.zetb, task.rab, task.n1,
+                                                smem_cab));
+              virial[4] +=
+                  sphia_times_sphib *
+                  (get_virial_a<COMPUTE_TAU, T>(a, b, 1, 1, task.zeta,
+                                                task.zetb, task.n1, smem_cab) +
+                   get_virial_b<COMPUTE_TAU, T>(a, b, 1, 1, task.zeta,
+                                                task.zetb, task.rab, task.n1,
+                                                smem_cab));
+              virial[5] +=
+                  sphia_times_sphib *
+                  (get_virial_a<COMPUTE_TAU, T>(a, b, 1, 2, task.zeta,
+                                                task.zetb, task.n1, smem_cab) +
+                   get_virial_b<COMPUTE_TAU, T>(a, b, 1, 2, task.zeta,
+                                                task.zetb, task.rab, task.n1,
+                                                smem_cab));
+              virial[6] +=
+                  sphia_times_sphib *
+                  (get_virial_a<COMPUTE_TAU, T>(a, b, 2, 0, task.zeta,
+                                                task.zetb, task.n1, smem_cab) +
+                   get_virial_b<COMPUTE_TAU, T>(a, b, 2, 0, task.zeta,
+                                                task.zetb, task.rab, task.n1,
+                                                smem_cab));
+              virial[7] +=
+                  sphia_times_sphib *
+                  (get_virial_a<COMPUTE_TAU, T>(a, b, 2, 1, task.zeta,
+                                                task.zetb, task.n1, smem_cab) +
+                   get_virial_b<COMPUTE_TAU, T>(a, b, 2, 1, task.zeta,
+                                                task.zetb, task.rab, task.n1,
+                                                smem_cab));
+              virial[8] +=
+                  sphia_times_sphib *
+                  (get_virial_a<COMPUTE_TAU, T>(a, b, 2, 2, task.zeta,
+                                                task.zetb, task.n1, smem_cab) +
+                   get_virial_b<COMPUTE_TAU, T>(a, b, 2, 2, task.zeta,
+                                                task.zetb, task.rab, task.n1,
+                                                smem_cab));
             }
           }
         }
 
-        if (CALCULATE_FORCES) {
-          __syncthreads();
-          for (int k = 0; k < 3; k++) {
-            fa[k] += block_val1 * shared_forces_a[k];
-            fb[k] += block_val1 * shared_forces_b[k];
-          }
-          if (dev_.ptr_dev[5] != nullptr) {
-            for (int k = 0; k < 3; k++) {
-              for (int l = 0; l < 3; l++) {
-                virial[3 * k + l] += shared_virial[3 * k + l] * block_val1;
-              }
-            }
-          }
+        if (task.block_transposed) {
+          task.hab_block[j * task.nsgfb + i] += tmp;
+        } else {
+          task.hab_block[i * task.nsgfa + j] += tmp;
         }
       }
     }
@@ -248,36 +296,34 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
   // theoretically not needed
   __syncthreads();
 
-  if (CALCULATE_FORCES) {
-    const int task_id = dev_.task_sorted_by_blocks_dev[offset];
-    const auto &glb_task = dev_.tasks[task_id];
-    const int iatom = glb_task.iatom;
-    const int jatom = glb_task.jatom;
-    T *forces_a = &dev_.ptr_dev[4][3 * iatom];
-    T *forces_b = &dev_.ptr_dev[4][3 * jatom];
+  const int task_id = dev_.task_sorted_by_blocks_dev[offset];
+  const auto &glb_task = dev_.tasks[task_id];
+  const int iatom = glb_task.iatom;
+  const int jatom = glb_task.jatom;
+  T *forces_a = &dev_.ptr_dev[4][3 * iatom];
+  T *forces_b = &dev_.ptr_dev[4][3 * jatom];
 
-    T *sum = (T *)shared_memory;
-    if (dev_.ptr_dev[5] != nullptr) {
+  T *sum = (T *)shared_memory;
+  if (dev_.ptr_dev[5] != nullptr) {
 
-      for (int i = 0; i < 9; i++) {
-        virial[i] = block_reduce_64<T>(sum, virial[i], tid);
-
-        if (tid == 0)
-          atomicAdd(dev_.ptr_dev[5] + i, virial[i]);
-      }
-    }
-
-    for (int i = 0; i < 3; i++) {
-      fa[i] = block_reduce_64<T>(sum, fa[i], tid);
+    for (int i = 0; i < 9; i++) {
+      virial[i] = block_reduce_64<T>(sum, virial[i], tid);
 
       if (tid == 0)
-        atomicAdd(forces_a + i, fa[i]);
-
-      fb[i] = block_reduce_64<T>(sum, fb[i], tid);
-
-      if (tid == 0)
-        atomicAdd(forces_b + i, fb[i]);
+        atomicAdd(dev_.ptr_dev[5] + i, virial[i]);
     }
+  }
+
+  for (int i = 0; i < 3; i++) {
+    fa[i] = block_reduce_64<T>(sum, fa[i], tid);
+
+    if (tid == 0)
+      atomicAdd(forces_a + i, fa[i]);
+
+    fb[i] = block_reduce_64<T>(sum, fb[i], tid);
+
+    if (tid == 0)
+      atomicAdd(forces_b + i, fb[i]);
   }
 }
 
@@ -334,7 +380,6 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
   __syncthreads();
 
   __shared__ T accumulator[lbatch][64];
-  // __shared__ T sum[lbatch];
 
   // we use a multi pass algorithm here because shared memory usage (or
   // register) would become too high for high angular momentum
@@ -707,27 +752,27 @@ void context_info::compute_hab_coefficients() {
   const dim3 threads_per_block(4, 4, 4);
 
   if (!compute_tau && !calculate_forces) {
-    compute_hab_v4<double, false>
+    compute_hab<double, false>
         <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
            this->main_stream>>>(params);
     return;
   }
 
+  if (compute_tau && !calculate_forces) {
+    compute_hab<double, true>
+        <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
+           this->main_stream>>>(params);
+  }
+
   if (!compute_tau && calculate_forces) {
-    compute_hab_v2<double, double3, false, true>
+    compute_hab_forces<double, double3, false>
         <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
            this->main_stream>>>(params);
     return;
   }
 
   if (compute_tau && calculate_forces) {
-    compute_hab_v2<double, double3, true, true>
-        <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
-           this->main_stream>>>(params);
-  }
-
-  if (compute_tau && !calculate_forces) {
-    compute_hab_v2<double, double3, true, false>
+    compute_hab_forces<double, double3, true>
         <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
            this->main_stream>>>(params);
   }
