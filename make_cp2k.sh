@@ -716,6 +716,7 @@ if ((CUDA_SM_CODE > 0)); then
 else
   echo "GPU                 = ${GPU_MODEL}"
 fi
+echo "INSTALL_PREFIX      = ${INSTALL_PREFIX}"
 echo "INSTALL_MESSAGE     = ${INSTALL_MESSAGE}"
 echo "IN_CONTAINER        = ${IN_CONTAINER}"
 echo "MPI_MODE            = ${MPI_MODE}"
