@@ -36,10 +36,8 @@ a conventional functional evaluated by GauXC:
 &END XC
 ```
 
-A non-`NONE` [MODEL](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL.GAUXC.MODEL) selects a GauXC OneDFT
-model. The model can be a `.fun` file or an installed model name. The underlying
-[FUNCTIONAL](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL.GAUXC.FUNCTIONAL) is optional in this case
-and defaults to `PBE`:
+A non-`NONE` model selects a GauXC OneDFT model. The model can be a `.fun` file or an installed
+model name. The underlying functional is optional in this case and defaults to `PBE`:
 
 ```text
 &XC
@@ -65,8 +63,8 @@ supported scope.
 ### Periodic Reference Calculations
 
 Periodic inputs are not a compact periodic GauXC implementation. To use the molecular path in a
-periodic input as an isolated-cell reference calculation, explicitly set
-[PERIODIC_REFERENCE](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL.GAUXC.PERIODIC_REFERENCE) to `T`:
+periodic input as an isolated-cell reference calculation, explicitly set `PERIODIC_REFERENCE` to
+`T`:
 
 ```text
 &GAUXC
@@ -86,19 +84,15 @@ dedicated periodic GauXC interface.
 
 ### OneDFT and SKALA Runtime Controls
 
-[ONEDFT_ATOM_CHUNK_SIZE](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL.GAUXC.ONEDFT_ATOM_CHUNK_SIZE)
-controls atom-blocked Torch inference. A positive value selects the number of atoms per block, zero
-disables chunking, and the default lets GauXC or the `GAUXC_ONEDFT_ATOM_CHUNK_SIZE` environment
-variable choose the policy.
+`ONEDFT_ATOM_CHUNK_SIZE` controls atom-blocked Torch inference. A positive value selects the number
+of atoms per block, zero disables chunking, and the default lets GauXC or the
+`GAUXC_ONEDFT_ATOM_CHUNK_SIZE` environment variable choose the policy.
 
-For MPI calculations,
-[SKALA_RUNTIME](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL.GAUXC.SKALA_RUNTIME) controls the
-communicator used for OneDFT/SKALA energy and potential evaluation. `AUTO` uses the force-evaluation
-communicator for closed-shell calculations and a replicated rank-local runtime for open-shell
-calculations. The corresponding
-[ONEDFT_GRADIENT_RUNTIME](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL.GAUXC.ONEDFT_GRADIENT_RUNTIME)
-setting defaults to a conservative replicated runtime for nuclear gradients. Select `MPI` only with
-a GauXC installation that supports distributed OneDFT gradients.
+For MPI calculations, `SKALA_RUNTIME` controls the communicator used for OneDFT/SKALA energy and
+potential evaluation. `AUTO` uses the force-evaluation communicator for closed-shell calculations
+and a replicated rank-local runtime for open-shell calculations. The corresponding
+`ONEDFT_GRADIENT_RUNTIME` setting defaults to a conservative replicated runtime for nuclear
+gradients. Select `MPI` only with a GauXC installation that supports distributed OneDFT gradients.
 
 ### GAPW and Other Restrictions
 
@@ -179,9 +173,8 @@ model and system before using it for production calculations.
 - TorchScript models require a LibTorch installation compatible with CP2K's BLAS and OpenMP runtime.
   Pre-built LibTorch bundles can conflict with a CP2K build using oneMKL; use a compatible BLAS
   stack or build LibTorch against the selected dynamic stack when this occurs.
-- [OUTPUT_PATH](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL.GAUXC.OUTPUT_PATH) writes GauXC molecule
-  and basis-set diagnostics to an existing directory. It requires GauXC to have been built with HDF5
-  support.
+- `OUTPUT_PATH` writes GauXC molecule and basis-set diagnostics to an existing directory. It
+  requires GauXC to have been built with HDF5 support.
 
 ## See Also
 
