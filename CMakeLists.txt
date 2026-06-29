@@ -417,7 +417,6 @@ add_custom_target(
   BYPRODUCTS ${post_configure_file})
 
 # MPI
-
 if(CP2K_USE_MPI)
   get_property(REQUIRED_MPI_COMPONENTS GLOBAL PROPERTY ENABLED_LANGUAGES)
   list(REMOVE_ITEM REQUIRED_MPI_COMPONENTS CUDA) # CUDA does not have an MPI
@@ -453,20 +452,10 @@ endif()
 # BLAS & LAPACK, PkgConfig
 find_package(Lapack REQUIRED) # also calls find_package(BLAS)
 
-message("\n------------------------------------------------------------")
-message("-                          DBCSR                           -")
-message("------------------------------------------------------------\n")
-
-if(CP2K_USE_DBCSR_CONFIG)
-  find_package(DBCSR 2.9 REQUIRED CONFIG)
-  if(CP2K_USE_MPI AND NOT DBCSR_USE_MPI)
-    message(
-      FATAL_ERROR
-        "DBCSR needs to be compiled with MPI support when CP2K MPI support is enabled"
-    )
-  endif()
-else()
-  find_package(DBCSR 2.8 REQUIRED)
+# in practice it is always for any decent configuration. But I add a flags to
+# turn it off
+if(CP2K_USE_MPI)
+  find_package(SCALAPACK REQUIRED)
 endif()
 
 # SMM (Small Matrix-Matrix multiplication)
@@ -474,19 +463,16 @@ if(CP2K_USE_LIBXS)
   find_package(libxs REQUIRED)
   if(CP2K_USE_LIBXSMM)
     find_package(libxsmm CONFIG REQUIRED)
-    message(STATUS "Using LIBXS + LIBXSMM for Small Matrix Multiplication")
+    message(STATUS "Using LIBXS + LIBXSMM for Small Matrix Multiplication\n")
   else()
-    message(STATUS "Using LIBXS for Small Matrix Multiplication")
+    message(STATUS "Using LIBXS for Small Matrix Multiplication\n")
   endif()
 endif()
 
-# in practice it is always for any decent configuration. But I add a flags to
-# turn it off
-if(CP2K_USE_MPI)
-  find_package(SCALAPACK REQUIRED)
-endif()
-
-# CUDA / ROCM easy for cuda a moving target for hip
+# Resolve the accelerator architecture before discovering dependencies. CUDA/HIP
+# dependencies may enable the corresponding language and otherwise initialize
+# CMAKE_{CUDA|HIP}_ARCHITECTURES to the compiler default before CP2K can
+# translate the legacy CP2K_WITH_GPU option.
 
 if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
   set(CP2K_GPU_ARCH_NUMBER_K20X 35)
@@ -530,7 +516,7 @@ if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
   if(NOT _ignore_with_gpu_option)
     message(
       STATUS
-        "\nCP2K_WITH_GPU is deprecated in favor of CMAKE_HIP_ARCHITECTURES or CMAKE_CUDA_ARCHITECTURES\n"
+        "CP2K_WITH_GPU is deprecated in favor of CMAKE_HIP_ARCHITECTURES or CMAKE_CUDA_ARCHITECTURES"
     )
     if(CP2K_USE_ACCEL MATCHES CUDA)
       list(FIND CP2K_SUPPORTED_CUDA_ARCHITECTURES ${CP2K_WITH_GPU}
@@ -557,11 +543,31 @@ if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
   endif()
 endif()
 
+message("\n------------------------------------------------------------")
+message("-                          DBCSR                           -")
+message("------------------------------------------------------------\n")
+
+if(CP2K_USE_DBCSR_CONFIG)
+  find_package(DBCSR 2.9 REQUIRED CONFIG)
+  if(CP2K_USE_MPI AND NOT DBCSR_USE_MPI)
+    message(
+      FATAL_ERROR
+        "DBCSR needs to be compiled with MPI support when CP2K MPI support is enabled"
+    )
+  endif()
+else()
+  find_package(DBCSR 2.8 REQUIRED)
+endif()
+
 set(CP2K_USE_HIP OFF)
 set(CP2K_USE_CUDA OFF)
 set(CP2K_USE_OPENCL OFF)
 
 if(CP2K_USE_ACCEL MATCHES "CUDA")
+  message("\n-----------------------------------------------------------")
+  message("-                          CUDA                           -")
+  message("-----------------------------------------------------------\n")
+
   option(CP2K_WITH_GPU_PROFILING "Enable GPU profiling" OFF)
   # P100 is the default target.
 
@@ -574,10 +580,6 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   else()
     find_package(CUDAToolkit REQUIRED)
   endif()
-
-  message("\n-----------------------------------------------------------")
-  message("-                          CUDA                           -")
-  message("-----------------------------------------------------------\n")
 
   message(STATUS "GPU architecture number: ${CMAKE_CUDA_ARCHITECTURES}")
   message(STATUS "GPU profiling enabled: ${CP2K_WITH_GPU_PROFILING}")
