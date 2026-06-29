@@ -467,7 +467,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -ip | --install_path | --install_prefix)
       if (($# > 1)); then
-        INSTALL_PREFIX="${2}"
+        INSTALL_PREFIX="$(realpath "${2}")"
       else
         echo "ERROR: No install path argument found for flag \"${1}\""
         ${EXIT_CMD} 1
@@ -915,7 +915,7 @@ export CP2K_CONFIG_FILE="${SPACK_BUILD_PATH}/cp2k_deps_${CP2K_VERSION:0:1}${CP2K
 
 # If requested, remove the spack folder for (re)building all CP2K dependencies
 if [[ "${BUILD_DEPS}" == "always" ]]; then
-  for folder in ${SPACK_BUILD_PATH} ${CP2K_ROOT}/build ${CP2K_ROOT}/install; do
+  for folder in ${SPACK_BUILD_PATH} ${BUILD_PATH}/build ${INSTALL_PREFIX}; do
     if [[ -d "${folder}" ]]; then
       echo "Removing folder \"${folder}\""
       rm -rf "${folder}"
@@ -925,7 +925,7 @@ fi
 
 # If requested, remove the build folder for (re)building CP2K
 if [[ "${REBUILD_CP2K}" == "yes" ]]; then
-  for folder in ${CP2K_ROOT}/build ${CP2K_ROOT}/install; do
+  for folder in ${BUILD_PATH}/build ${INSTALL_PREFIX}; do
     if [[ -d "${folder}" ]]; then
       echo "Removing folder \"${folder}\""
       rm -rf "${folder}"
