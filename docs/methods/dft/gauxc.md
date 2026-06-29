@@ -13,13 +13,6 @@ The CP2K interface currently provides two distinct paths:
   CP2K GPW real-space grid. It has a different support scope and should be treated separately from
   the molecular-quadrature path.
 
-## Building CP2K with GauXC
-
-Build CP2K with `-DCP2K_USE_GAUXC=ON`. The CP2K toolchain can install GauXC with
-`--with-gauxc=install`; this also installs the LibTorch and model resources used by OneDFT/SKALA. An
-MPI-enabled CP2K binary requires a GauXC installation with MPI support. See
-[](../../technologies/libraries) for the build dependencies and LibTorch compatibility notes.
-
 ## Basic Input
 
 GauXC is selected as the only XC functional in the
@@ -49,10 +42,24 @@ model name. The underlying functional is optional in this case and defaults to `
 &END XC
 ```
 
-`MODEL SKALA` obtains the model path from the `GAUXC_SKALA_MODEL` environment variable. The
-molecular-quadrature OneDFT/SKALA path defaults to `GRID SUPERFINE` and `PRUNING_SCHEME UNPRUNED`
-unless these settings are provided explicitly. These settings are recommended for force checks;
-coarser grids are accuracy settings and should be converged for the target calculation.
+The `.fun` format and available model checkpoints are defined by GauXC rather than CP2K. `.fun`
+files use TorchScript serialization. The official Skala 1.1 checkpoint can be downloaded together
+with GauXC in toolchain, or from Hugging Face with the `hf` command provided by the
+`huggingface_hub` package:
+
+```bash
+hf download microsoft/skala-1.1 skala-1.1.fun --local-dir .
+```
+
+Select the downloaded checkpoint with `MODEL ./skala-1.1.fun`. Alternatively, set
+`GAUXC_SKALA_MODEL` to its path and use `MODEL SKALA`. See the
+[GauXC/Skala model documentation](https://microsoft.github.io/skala/gauxc/c-library.html#download-checkpoint-from-huggingface)
+for the model interface and available checkpoints. Obtain `.fun` files only from trusted sources.
+
+The molecular-quadrature OneDFT/SKALA path defaults to `GRID SUPERFINE` and
+`PRUNING_SCHEME UNPRUNED` unless these settings are provided explicitly. These settings are
+recommended for force checks; coarser grids are accuracy settings and should be converged for the
+target calculation.
 
 ## Molecular-Quadrature Path
 
