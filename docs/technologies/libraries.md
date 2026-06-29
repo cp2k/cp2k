@@ -206,12 +206,17 @@ of each atom.
   <https://brehm-research.de/bqb> for more information as well as the `bqbtool` to inspect BQB
   files.
 
-## Torch (Machine Learning Framework needed for NequIP)
+## Torch (PyTorch C++ library)
 
-LibTorch is used by TorchScript-based functionality, including GauXC OneDFT/SKALA support.
+LibTorch is the C++ distribution of PyTorch. CP2K uses it for the NequIP interface and for GauXC
+OneDFT/SKALA models.
 
-- The C++ API of PyTorch can be downloaded from https://pytorch.org/get-started/locally/.
+- LibTorch can be downloaded from the
+  [PyTorch installation page](https://pytorch.org/get-started/locally/).
 - Pass `-DCP2K_USE_LIBTORCH=ON` to CMake to enable support for libtorch.
+- For GPU acceleration, choose a LibTorch distribution compatible with the available backend and
+  hardware, such as CUDA for an NVIDIA GPU or ROCm for a supported AMD GPU. Refer to the PyTorch
+  installation page for current platform, driver, and runtime requirements.
 
 ```{caution}
 Note that currently pre-built libtorch bundle (up to 2.12.1) is not compatible with CP2K's external
