@@ -7,6 +7,7 @@ maxdepth: 2
 ---
 gpw
 gapw
+gauxc
 hartree-fock/index
 local_ri
 constrained

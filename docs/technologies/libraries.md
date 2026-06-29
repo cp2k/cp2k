@@ -132,11 +132,6 @@ LIBXC is a library that provides wider choice of XC functionals.
   with `cmake .. -DDISABLE_KXC=OFF <other LIBXC configuration flags>`.
 - Pass `-DCP2K_USE_LIBXC=ON` to CMake.
 - [LIBXSMM](https://github.com/libxsmm/libxsmm/) provides just-in-time kernels for LIBXS.
-- Pass `-DCP2K_USE_LIBXSMM=ON` to CMake to enable it; this option is valid only when
-  `-DCP2K_USE_LIBXS=ON` is also passed.
-- The integration of LIBXS and LIBXSMM uses `libxs_jit.F`, which is provided by LIBXS and compiled
-  by DBCSR and CP2K.
-- LIBXSMM can be used with both CUDA and HIP backends; see [](./accelerators/index.md).
 
 ## GauXC (xc integration library)
 
@@ -146,15 +141,11 @@ integrator.
 - Libtorch is required for OneDFT/SKALA support.
 - Pass `-DCP2K_USE_GAUXC=ON` to CMake to enable GauXC. An MPI-enabled CP2K build requires a GauXC
   installation built with MPI support.
-- GauXC support is primarily intended for isolated QS calculations. Coverage of compact periodic
-  systems, k-points, periodic stress tensors, and GAPW-related paths is limited; consult the Input
-  Reference for the current `&GAUXC` support and input restrictions.
 - TorchScript-based GauXC models require a libtorch installation compatible with CP2K's BLAS and
   OpenMP runtime. Pre-built libtorch bundles can conflict with a CP2K build using oneMKL; use a
   compatible generic BLAS stack or rebuild libtorch against the selected dynamic stack when this
   occurs.
-- `CP2K_GAUXC_STATUS_STDERR=1` mirrors GauXC status messages to standard error, which can be useful
-  when launcher or CI logs do not preserve the CP2K output file after an external-library failure.
+- See [](../methods/dft/gauxc) for input, supported calculation types, and current limitations.
 
 ## PEXSI (low scaling SCF method)
 
