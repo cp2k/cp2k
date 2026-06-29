@@ -15,4 +15,5 @@ molecular_orbitals
 band/index
 dos
 population/index
+wannier90
 ```
