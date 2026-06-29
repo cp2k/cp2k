@@ -34,13 +34,7 @@ case "$with_libxstream" in
     if verify_checksums "${install_lock_file}"; then
       echo "libxstream-${libxstream_ver} is already installed, skipping it."
     else
-      # retrieve_package "${libxstream_sha256}" "libxstream-${libxstream_ver}.tar.gz"
-      if [ -f libxstream-${libxstream_ver}.tar.gz ]; then
-        echo "libxstream-${libxstream_ver}.tar.gz is found"
-      else
-        download_pkg_from_urlpath "${libxstream_sha256}" "libxstream-${libxstream_ver}.tar.gz" \
-          https://github.com/hfp/libxs/releases/download/${libxstream_ver}
-      fi
+      retrieve_package "${libxstream_sha256}" "libxstream-${libxstream_ver}.tar.gz"
       [ -d libxstream-${libxstream_ver} ] && rm -rf libxstream-${libxstream_ver}
       tar -xzf libxstream-${libxstream_ver}.tar.gz
 

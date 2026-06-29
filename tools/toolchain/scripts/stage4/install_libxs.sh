@@ -27,13 +27,7 @@ case "$with_libxs" in
     if verify_checksums "${install_lock_file}"; then
       echo "libxs-${libxs_ver} is already installed, skipping it."
     else
-      # retrieve_package "${libxs_sha256}" "libxs-${libxs_ver}.tar.gz"
-      if [ -f libxs-${libxs_ver}.tar.gz ]; then
-        echo "libxs-${libxs_ver}.tar.gz is found"
-      else
-        download_pkg_from_urlpath "${libxs_sha256}" "libxs-${libxs_ver}.tar.gz" \
-          https://github.com/hfp/libxs/releases/download/${libxs_ver}
-      fi
+      retrieve_package "${libxs_sha256}" "libxs-${libxs_ver}.tar.gz"
       [ -d libxs-${libxs_ver} ] && rm -rf libxs-${libxs_ver}
       tar -xzf libxs-${libxs_ver}.tar.gz
 
