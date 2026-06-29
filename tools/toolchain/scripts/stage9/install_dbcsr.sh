@@ -27,13 +27,7 @@ case "${with_dbcsr}" in
     if verify_checksums "${install_lock_file}"; then
       echo "dbcsr-${dbcsr_ver} is already installed, skipping it."
     else
-      # retrieve_package "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz"
-      if [ -f dbcsr-${dbcsr_ver}.tar.gz ]; then
-        echo "dbcsr-${dbcsr_ver}.tar.gz is found"
-      else
-        download_pkg_from_urlpath "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz" \
-          https://github.com/cp2k/dbcsr/releases/download/v${dbcsr_ver}
-      fi
+      retrieve_package "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d dbcsr-${dbcsr_ver} ] && rm -rf dbcsr-${dbcsr_ver}
       tar -xzf dbcsr-${dbcsr_ver}.tar.gz
