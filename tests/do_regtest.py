@@ -219,7 +219,7 @@ async def main() -> None:
     if cfg.flag_slow:
         print("\n" + "-" * 15 + "--------------- Slow Tests ---------------" + "-" * 15)
         threshold = 2 * percentile(timings, 0.95)
-        outliers = [r for r in all_results if r.duration > threshold]
+        outliers = [r for r in all_results if r.duration > 0.95 * threshold]
         maybe_slow = [r for r in outliers if r.fullname not in cfg.slow_suppressions]
         num_suppressed = len(outliers) - len(maybe_slow)
         rerun_tasks: List[Task[BatchResult]] = []
