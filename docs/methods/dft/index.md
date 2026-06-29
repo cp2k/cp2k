@@ -7,16 +7,16 @@ maxdepth: 2
 ---
 gpw
 gapw
-gauxc
 hartree-fock/index
+basis_sets
+pseudopotentials
+k-points
+cutoff
 local_ri
 constrained
 cneo
 linear_scaling
-k-points
-basis_sets
-pseudopotentials
-cutoff
+gauxc
 ```
 
 Density functional theory in CP2K is primarily provided by the Quickstep module. Most production

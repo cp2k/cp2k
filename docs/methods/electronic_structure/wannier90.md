@@ -1,10 +1,9 @@
 # Wannier90 interface
 
-CP2K can generate the input and matrix files required by
-[Wannier90](https://wannier.org/) through
-[&WANNIER90](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90). The interface is experimental.
-It prepares the k-point mesh, eigenvalues, and overlap matrices from a periodic Quickstep
-calculation; the subsequent construction and use of Wannier functions are performed by Wannier90.
+CP2K can generate the input and matrix files required by [Wannier90](https://wannier.org/) through
+[&WANNIER90](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90). The interface is experimental. It prepares
+the k-point mesh, eigenvalues, and overlap matrices from a periodic Quickstep calculation; the
+subsequent construction and use of Wannier functions are performed by Wannier90.
 
 Wannier90 requires a complete, uniformly weighted k-point mesh with its nearest-neighbour
 connectivity. A high-symmetry band path is not a suitable input mesh. See [](../dft/k-points) for
@@ -14,8 +13,8 @@ k-point sampling and convergence.
 
 1. Run a periodic, diagonalization-based SCF calculation with a converged k-point mesh and enough
    bands for the intended Wannierization.
-2. Enable `&DFT%PRINT%WANNIER90`. CP2K writes the Wannier90 input and data files.
-3. Add the Wannier90 settings specific to the calculation, such as projections, disentanglement
+1. Enable `&DFT%PRINT%WANNIER90`. CP2K writes the Wannier90 input and data files.
+1. Add the Wannier90 settings specific to the calculation, such as projections, disentanglement
    windows, or post-processing options, to the generated `.win` file, then run Wannier90 with the
    same seed name.
 
@@ -40,8 +39,8 @@ used by the SCF calculation:
 &END FORCE_EVAL
 ```
 
-[WANNIER_FUNCTIONS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.WANNIER_FUNCTIONS) sets the number
-of Wannier functions. [ADDED_MOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.ADDED_MOS) provides
+[WANNIER_FUNCTIONS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.WANNIER_FUNCTIONS) sets the number of
+Wannier functions. [ADDED_MOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.ADDED_MOS) provides
 additional bands for the export, and
 [EXCLUDE_BANDS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.EXCLUDE_BANDS) can remove selected bands
 from it. Choose the exported band window and the subsequent Wannier90 settings for the particular
@@ -116,10 +115,10 @@ mesh, but using a separately chosen mesh requires its own convergence assessment
 
 ## Reusing SCF orbitals
 
-With `KPOINTS_SOURCE SCF`,
-[REUSE_SCF_MOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.REUSE_SCF_MOS) is enabled by default.
-CP2K reuses the SCF orbital coefficients directly when the SCF mesh is already complete. It can also
-reconstruct some time-reversal and atomic-symmetry-related points from a symmetry-reduced SCF mesh.
+With `KPOINTS_SOURCE SCF`, [REUSE_SCF_MOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.REUSE_SCF_MOS)
+is enabled by default. CP2K reuses the SCF orbital coefficients directly when the SCF mesh is
+already complete. It can also reconstruct some time-reversal and atomic-symmetry-related points from
+a symmetry-reduced SCF mesh.
 
 The reconstruction is only used when the exported band window is suitable. In particular, a
 symmetry-reconstructed window must contain complete degenerate subspaces. If it cuts through a
