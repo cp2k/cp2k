@@ -1,7 +1,6 @@
---- a/Makefile.in	2026-03-04 17:57:56.000000000 +0000
-+++ b/Makefile.in	2026-06-15 16:37:06.464630054 +0000
-@@ -43753,7 +43753,7 @@
-
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -43752,6 +43752,6 @@
  # library with shared sources for the test files
  noinst_LTLIBRARIES = libelpa@SUFFIX@_public.la \
 -	libelpa@SUFFIX@_private.la libelpatest@SUFFIX@.la
@@ -9,3 +8,13 @@
  libelpa@SUFFIX@_public_la_FCFLAGS = $(AM_FCFLAGS) $(FC_MODOUT)modules $(FC_MODINC)private_modules
  libelpa@SUFFIX@_public_la_SOURCES = \
    src/elpa.F90 \
+--- a/src/solve_tridi/merge_systems_template.F90
++++ b/src/solve_tridi/merge_systems_template.F90
+@@ -809,4 +809,6 @@
+-        write(error_unit,*) "Returing early from merge_systems (na1==1 .or. na1==2)"
++        if (wantDebug) then
++          write(error_unit,*) "Returing early from merge_systems (na1==1 .or. na1==2)"
++        endif
+         ! na=1 can be tested with "mpirun -n 4 ./validate_real_double_solve_tridiagonal_1stage_gpu_blocktridi 3 3 1"
+         ! na=2 can be tested with "mpirun -n 4 ./validate_real_double_solve_tridiagonal_1stage_gpu_toeplitz 4 4 2"
+       else if (na1>2) then
