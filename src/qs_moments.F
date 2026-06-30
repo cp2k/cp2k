@@ -1479,7 +1479,7 @@ CONTAINS
                                    row=irow, col=icol, BLOCK=sblock, found=found)
             IF (ASSOCIATED(cblock) .AND. .NOT. ASSOCIATED(sblock) .OR. &
                 .NOT. ASSOCIATED(cblock) .AND. ASSOCIATED(sblock)) THEN
-               CPABORT("")
+               CPABORT("cblock and sblock should both be present for contract_cossin")
             END IF
 
             IF (ASSOCIATED(cblock) .AND. ASSOCIATED(sblock)) THEN

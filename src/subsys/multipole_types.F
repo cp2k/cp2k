@@ -85,7 +85,7 @@ CONTAINS
       CASE (do_multipole_quadrupole)
          multipoles%task(1:3) = .TRUE.
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Multipole supports only charge, dipole and quadrupole")
       END SELECT
       nparticles = SIZE(particle_set)
       IF (multipoles%task(1)) THEN

@@ -330,7 +330,7 @@ CONTAINS
 
       CHARACTER(LEN=16)                                  :: energy_label, fmtstr_data
       CHARACTER(LEN=32)                                  :: zero_label
-      CHARACTER(LEN=default_string_length)               :: my_act, my_pos
+      CHARACTER(LEN=default_string_length)               :: err, my_act, my_pos
       INTEGER :: broaden_type, energy_unit, energy_zero, fractional_occupation_int, handle, i, ik, &
          iounit, ispin, iterstep, iv, iw, ndigits, nhist, nmo(2), nmo_kp, nspins, &
          resolved_energy_zero
@@ -368,9 +368,9 @@ CONTAINS
          ! make sure is a valid grid
          DO i = 1, 3
             IF (nkp_grid(i) < 1) THEN
-               WRITE (UNIT=iounit, FMT='(T4,A,I3,A,I1)') &
+               WRITE (UNIT=err, FMT='(T4,A,I3,A,I1)') &
                   "Invalid kpoint grid for DOS ", nkp_grid(i), " in dimension ", i
-               CPABORT("")
+               CPABORT(TRIM(err))
             END IF
          END DO
          ! calculate orbitals and energies

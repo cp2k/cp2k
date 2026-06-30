@@ -1144,7 +1144,7 @@ CONTAINS
          CASE (outer_scf_optimizer_secant)
             WRITE (output_unit, '(A)') "  Minimizer               : Secant"
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown CDFT outer_scf optimizer")
          END SELECT
          WRITE (output_unit, '(/,A,L7)') &
             "  Reusing OT preconditioner: ", cdft_control%reuse_precond

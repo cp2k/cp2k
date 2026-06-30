@@ -1308,7 +1308,7 @@ CONTAINS
                   sr = erfc(qm_alpha*dr)/dr
                   qpot = qpot + qeff*sr
                ELSE
-                  CPABORT("")
+                  CPABORT("Unknown pot_type for dr > rtiny")
                END IF
             END IF
          END DO LoopMM
@@ -1397,7 +1397,7 @@ CONTAINS
                   dsr = 0.5_dp*(erfc(qm_alpha*drp)/drp - erfc(qm_alpha*drm)/drm)/ddrmm
                   fsr = qeff*qcharge*dsr
                ELSE
-                  CPABORT("")
+                  CPABORT("Unknown pot_type for dr > rtiny")
                END IF
                force_ab = -fsr*rij/dr
             ELSE

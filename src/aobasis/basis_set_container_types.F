@@ -208,7 +208,9 @@ CONTAINS
             END IF
          END DO
       ELSE
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       "Neither inum nor basis_type exists "// &
+                       "for remove_basis_from_container")
       END IF
       !
       IF (ibas /= 0) THEN
@@ -264,7 +266,9 @@ CONTAINS
             END IF
          END DO
       ELSE
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       "Neither inumbas nor basis_type exists "// &
+                       "for get_basis_from_container")
       END IF
 
    END SUBROUTINE get_basis_from_container

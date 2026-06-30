@@ -253,7 +253,7 @@ CONTAINS
             nimg = dft_control%nimages
          END IF
       ELSE
-         CPABORT("")
+         CPABORT("Either matrix_s or matrixkp_s is needed for build_overlap_matrix_low")
       END IF
 
       nkind = SIZE(qs_kind_set)
@@ -472,7 +472,7 @@ CONTAINS
                                   lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
                                   rab, sab=oint(:, :, 1), dab=oint(:, :, 2:4), ddab=oint(:, :, 5:10))
                CASE DEFAULT
-                  CPABORT("")
+                  CPABORT("Only 0, 1, 2 are supported as nder in build_overlap_matrix_low")
                END SELECT
                IF (do_forces .AND. ASSOCIATED(p_block) .AND. ((iatom /= jatom) .OR. use_virial)) THEN
                   ! Decontract P matrix block
@@ -874,7 +874,7 @@ CONTAINS
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
          use_cell_mapping = (SIZE(cell_to_index) > 1)
       ELSE
-         CPABORT("")
+         CPABORT("Either matrix_p or matrixkp_p is needed for build_overlap_force")
       END IF
 
       nkind = SIZE(qs_kind_set)

@@ -78,7 +78,7 @@ CONTAINS
          CALL decode_periodic_wavelet(periodic, params)
       CASE (pw_poisson_none)
       CASE default
-         CPABORT("")
+         CPABORT("Unknown Poisson solver")
       END SELECT
 
       ! Set Ewald default to NONE
@@ -99,7 +99,7 @@ CONTAINS
    END SUBROUTINE pw_poisson_read_parameters
 
 ! **************************************************************************************************
-!> \brief Helper routien for pw_poisson_read_parameters
+!> \brief Helper routine for pw_poisson_read_parameters
 !> \param periodic ...
 !> \param params ...
 !> \author Ole Schuett
@@ -126,7 +126,7 @@ CONTAINS
       CASE (use_perd_none)
          params%periodic = [0, 0, 0]
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Invalid periodicity")
       END SELECT
       ! check for consistent use of periodicity (cell <-> Poisson solver)
       !CPPostcondition(ALL(perd == cell%perd),cp_fatal_level,routineP,failure)
@@ -134,7 +134,7 @@ CONTAINS
    END SUBROUTINE decode_periodic_green
 
 ! **************************************************************************************************
-!> \brief Helper routien for pw_poisson_read_parameters
+!> \brief Helper routine for pw_poisson_read_parameters
 !> \param periodic ...
 !> \param params ...
 !> \author Ole Schuett
@@ -172,7 +172,7 @@ CONTAINS
       CASE (use_perd_x, use_perd_y, use_perd_z)
          CPABORT("Poisson solver for this periodicity not yet implemented")
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Invalid periodicity")
       END SELECT
 
    END SUBROUTINE decode_periodic_wavelet

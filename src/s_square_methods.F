@@ -214,9 +214,9 @@ CONTAINS
          energy = s2_restraint_control%strength*(s_square - s2_restraint_control%target)
          s2_restraint_control%s2_order_p = s_square
       CASE (do_s2_restraint) ! not yet implemented
-         CPABORT("")
+         CPABORT("do_s2_restraint for <S**2> not yet implemented")
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown <S**2> constraint/restraint form")
       END SELECT
 
       CALL timestop(handle)

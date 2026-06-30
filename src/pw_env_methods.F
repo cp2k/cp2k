@@ -367,7 +367,7 @@ CONTAINS
             xc_deriv_spline3_smooth, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth)
          smooth_required = smooth_required .OR. .TRUE.
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown xc_deriv_method_id")
       END SELECT
       SELECT CASE (xc_smooth_method_id)
       CASE (xc_rho_no_smooth)
@@ -375,7 +375,7 @@ CONTAINS
       CASE (xc_rho_spline2_smooth, xc_rho_spline3_smooth, xc_rho_nn10, xc_rho_nn50)
          smooth_required = smooth_required .OR. .TRUE.
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown xc_smooth_method_id")
       END SELECT
       ! EPR, NMR, EFG can require splines. If the linres/EFG section is present we assume
       ! it could be on and splines might be used (not quite sure if this is due to their use of splines or something else)

@@ -1132,7 +1132,10 @@ CONTAINS
          CASE ("PP")
             otype = 4 ! simple atomic pair potential list
          CASE default
-            CPABORT("")
+            CALL cp_abort(__LOCATION__, &
+                          "<AB>, <ABC>, <ABBA>, <PP> are supported as the <operator_type> "// &
+                          "for build_neighbor_lists, found unknown option "// &
+                          "<"//TRIM(operator_type)//">")
          END SELECT
       ELSE
          ! default is a simple AB neighbor list
@@ -1211,7 +1214,7 @@ CONTAINS
             nlistb(ikind) = SIZE(atom(ikind)%list)
             listb(ikind)%list => index_list
          CASE default
-            CPABORT("")
+            CPABORT("Only 1, 2, 3, 4 are supported as otype for the operator")
          END SELECT
       END DO
 
@@ -1445,7 +1448,7 @@ CONTAINS
             DEALLOCATE (lista(ikind)%list)
          END DO
       CASE default
-         CPABORT("")
+         CPABORT("Only 1, 2, 3, 4 are supported as otype for the operator")
       END SELECT
       DEALLOCATE (kind_a, pres_a, pres_b, lista, listb, nlista, nlistb)
       DEALLOCATE (index_list)

@@ -1503,7 +1503,9 @@ CONTAINS
          min_nze = MAX(nze_a, 1_int_8)
          max_nze = MAX(MAXVAL([nze_b, nze_c]), 1_int_8)
       CASE DEFAULT
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       "Only 1, 2, 3 are supported as max_mm_dim "// &
+                       "for split_factor_estimate")
       END SELECT
 
       nsplit = INT(MIN(INT(numnodes, KIND=int_8), NINT(REAL(max_nze, dp)/(REAL(min_nze, dp)*s_opt_factor), KIND=int_8)))

@@ -125,7 +125,7 @@ CONTAINS
       CASE (do_uks_atom, do_uhf_atom, do_rohf_atom)
          CPABORT("Unrestricted methods not allowed for GRB generation")
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown method for GRB generation")
       END SELECT
 
       ! input for basis optimization
@@ -292,7 +292,7 @@ CONTAINS
                rbasis(:, i + 3, l) = 0.125_dp*(wfn(:, i, l, 3) - 3._dp*wfn(:, i, l, 1) &
                                                + 3._dp*wfn(:, i, l, -1) - wfn(:, i, l, -3))/delta**3
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Only 1, 2, 3 are supported as the number of response derivatives")
             END SELECT
          END DO
 

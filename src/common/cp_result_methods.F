@@ -330,8 +330,7 @@ CONTAINS
                CASE (result_type_logical)
                   n_entries = n_entries + SIZE(results%result_value(i)%value%logical_type)
                CASE DEFAULT
-                  ! Type not implemented in cp_result_type
-                  CPABORT("")
+                  CPABORT("Type not implemented in cp_result_type")
                END SELECT
                EXIT
             END IF

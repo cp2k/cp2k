@@ -166,7 +166,7 @@ CONTAINS
          CASE (pw_poisson_wavelet)
             rebuild = (poisson_env%parameters%wavelet_scf_type /= wavelet%itype_scf) .OR. rebuild
          CASE default
-            CPABORT("")
+            CPABORT("Unknown Poisson solver")
          END SELECT
       END IF
       IF (rebuild) THEN

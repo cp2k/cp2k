@@ -98,7 +98,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'topology_coordinate_pack'
 
-      CHARACTER(LEN=default_string_length)               :: atmname
+      CHARACTER(LEN=default_string_length)               :: atmname, err
       INTEGER                                            :: atom_i, atom_j, counter, dim0, dim1, &
                                                             dim2, dim3, first, handle, handle2, i, &
                                                             iatom, ikind, iw, j, k, last, &
@@ -263,11 +263,12 @@ CONTAINS
       IF (ANY(kind_of == 0)) THEN
          DO i = 1, topology%natoms
             IF (kind_of(i) == 0) THEN
-               WRITE (*, *) i, kind_of(i)
-               WRITE (*, *) "Two molecules have been defined as identical molecules but atoms mismatch charges!"
+               WRITE (err, "(1X,I5)") i
             END IF
          END DO
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       "Two molecules have been defined as identical molecules but atoms "// &
+                       "mismatch charges! Check these atoms:"//TRIM(err))
       END IF
       CALL timestop(handle2)
 
@@ -798,7 +799,10 @@ CONTAINS
             CALL reallocate(ex_bond_list_w(j)%array1, 1, l)
          END DO
       CASE DEFAULT
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       "<BOND> is supported as the <keyword> for "// &
+                       "setup_exclusion_list, found unknown option "// &
+                       "<"//TRIM(keyword)//">")
       END SELECT
 
    END SUBROUTINE setup_exclusion_list

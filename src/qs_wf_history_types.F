@@ -264,7 +264,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(wf_history))
       CPASSERT(ASSOCIATED(wf_history%past_states))
       IF (wf_index > wf_history%memory_depth .OR. wf_index > wf_history%snapshot_count) THEN
-         CPABORT("")
+         CPABORT("Requested wavefunction index not available in history")
       END IF
       res => wf_history%past_states( &
              MODULO(wf_history%snapshot_count + 1 - wf_index, &

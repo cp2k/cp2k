@@ -208,7 +208,7 @@ CONTAINS
             my_start_time = globenv%cp2k_start_time
          ELSE
             ! If none of the two arguments is present abort.. This routine should always check about time.
-            CPABORT("")
+            CPABORT("Neither target_time nor globenv exists for external_control")
          END IF
 
          IF ((.NOT. should_stop) .AND. (my_target_time > 0.0_dp)) THEN

@@ -1004,9 +1004,7 @@ CONTAINS
       safe_calc = .FALSE.
       IF (PRESENT(safe_computation)) safe_calc = safe_computation
       ii = coarse_coeffs_pw%pw_grid%para%group%compare(fine_values_pw%pw_grid%para%group)
-      IF (ii > mp_comm_congruent) THEN
-         CPABORT("")
-      END IF
+      CPASSERT(ii <= mp_comm_congruent)
       my_coarse_bo = coarse_coeffs_pw%pw_grid%bounds_local
       coarse_gbo = coarse_coeffs_pw%pw_grid%bounds
       fine_bo = fine_values_pw%pw_grid%bounds_local

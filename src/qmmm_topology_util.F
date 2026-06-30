@@ -164,13 +164,11 @@ CONTAINS
             IF (detected_link) THEN
                IF (iw > 0) WRITE (iw, fmt='(A)', ADVANCE="NO") " QM/MM link detected..."
                IF (.NOT. qmmm_env%qmmm_link) THEN
-                  IF (iw > 0) WRITE (iw, fmt='(A)') " Missing LINK section in input file!"
-                  WRITE (output_unit, '(T2,"QMMM_CONNECTIVITY|",A)') &
-                     " ERROR in the QM/MM connectivity. A QM/MM LINK was detected but", &
-                     " no LINK section was provided in the Input file!", &
-                     " This very probably can be identified as an error in the specified QM", &
-                     " indexes or in a missing LINK section. Check your structure!"
-                  CPABORT("")
+                  CALL cp_abort(__LOCATION__, &
+                                "ERROR in the QM/MM connectivity: a QM/MM LINK was detected but "// &
+                                "no LINK section was provided in the Input file! "// &
+                                "This very probably can be identified as an error in the specified QM "// &
+                                "indexes or in a missing LINK section. Check your structure!")
                END IF
             END IF
             qm_molecule_index(qm_mol_num) = imolecule

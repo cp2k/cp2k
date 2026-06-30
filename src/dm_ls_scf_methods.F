@@ -341,7 +341,7 @@ CONTAINS
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_bs_sqrt, matrix_tmp, &
                              0.0_dp, matrix)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Direction should be forward or backward when applying preconditioner")
       END SELECT
 
       CALL dbcsr_release(matrix_tmp)

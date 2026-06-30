@@ -165,7 +165,7 @@ CONTAINS
          scf_env%outer_scf%gradient(:, ihistory) = return_basis_center_gradient_norm(qs_env)
 
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown outer SCF type")
 
       END SELECT
 
@@ -365,7 +365,7 @@ CONTAINS
                                                               scf_control%outer_scf%cdft_opt_control%newton_step* &
                                                               MATMUL(inv_jacobian, scf_env%outer_scf%gradient(:, ihistory))
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown outer SCF optimizer")
             END SELECT
             EXIT
          END DO
@@ -422,7 +422,7 @@ CONTAINS
       CASE (outer_scf_basis_center_opt)
          CALL qs_update_basis_center_pos(qs_env)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown outer SCF type")
       END SELECT
 
       CALL timestop(handle)
@@ -489,7 +489,7 @@ CONTAINS
       CASE (outer_scf_basis_center_opt)
          outer_scf_history(1, ivec) = 0.0_dp
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown outer SCF type")
       END SELECT
       CALL set_qs_env(qs_env, outer_scf_ihistory=outer_scf_ihistory)
       ! multilinear extrapolation
@@ -516,7 +516,7 @@ CONTAINS
       CASE (outer_scf_basis_center_opt)
          ! nothing to do
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown outer SCF type")
       END SELECT
 
       DEALLOCATE (extrapolation)
@@ -635,7 +635,7 @@ CONTAINS
             scf_env%outer_scf%inv_jacobian = cdft_control%constraint%inv_jacobian
          END IF
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Switching direction should be either ot2cdft or cdft2ot")
       END SELECT
 
    END SUBROUTINE outer_loop_switch

@@ -1721,7 +1721,7 @@ CONTAINS
          !!! FIXME this is rubbish at the moment as we have no force to be computed on this
          CALL HBP_colvar(colvar, cell, particles=particles)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown colvar type for colvar_eval_mol_f")
       END SELECT
       ! Check for fixed atom constraints
       IF (PRESENT(fixd_list)) CALL check_fixed_atom_cns_colv(fixd_list, colvar)
@@ -1809,7 +1809,7 @@ CONTAINS
       CASE (mindist_colvar_id)
          CALL mindist_colvar(colvar, cell, subsys=subsys)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown colvar type for colvar_eval_glob_f")
       END SELECT
       ! Check for fixed atom constraints
       CALL check_fixed_atom_cns_colv(subsys%gci%fixd_list, colvar)
@@ -1881,7 +1881,7 @@ CONTAINS
       CASE (HBP_colvar_id)
          CALL HBP_colvar(colvar, cell, particles=particles)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown colvar type for colvar_recursive_eval")
       END SELECT
    END SUBROUTINE colvar_recursive_eval
 
@@ -2042,8 +2042,7 @@ CONTAINS
             xi(2) = 0.0_dp
             xi(3) = 1.0_dp
          CASE DEFAULT
-            !Not implemented for anything which is not a single component.
-            CPABORT("")
+            CPABORT("xyz_diag_colvar not implemented for anything which is not a single component")
          END SELECT
          fi(:) = xi
       END IF

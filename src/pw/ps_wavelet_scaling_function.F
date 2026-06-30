@@ -53,8 +53,7 @@ CONTAINS
       nrange = ni
       ALLOCATE (y(0:nd), stat=i_all)
       IF (i_all /= 0) THEN
-         WRITE (*, *) ' scaling_function: problem of memory allocation'
-         CPABORT("")
+         CPABORT("Scaling_function: problem of memory allocation")
       END IF
 
       ! plot scaling function
@@ -108,8 +107,7 @@ CONTAINS
       CALL lazy_arrays(itype, m, ch, cg, cgt, cht)
       ALLOCATE (y(0:nd), stat=i_all)
       IF (i_all /= 0) THEN
-         WRITE (*, *) ' wavelet_function: problem of memory allocation'
-         CPABORT("")
+         CPABORT("Wavelet_function: problem of memory allocation")
       END IF
 
       ! plot wavelet

@@ -348,7 +348,12 @@ CONTAINS
          id_wpc = "FORCE_MIXING_LABELS"
          id_extxyz = "force_mixing_label" ! non-standard
       CASE DEFAULT
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       "<TRAJECTORY>, <VELOCITIES>, <FORCES>, "// &
+                       "<FORCE_MIXING_LABELS> are supported as "// &
+                       "the <my_pk_name> for write_trajectory, "// &
+                       "found unknown option "// &
+                       "<"//TRIM(my_pk_name)//">")
       END SELECT
 
       charge_occup = .FALSE.
@@ -463,7 +468,7 @@ CONTAINS
                   "Step ", it, ", E = ", etot
             END IF
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown output format")
          END SELECT
          IF (TRIM(my_pk_name) == "FORCE_MIXING_LABELS") THEN
             ALLOCATE (fml_array(3*SIZE(particle_set)))

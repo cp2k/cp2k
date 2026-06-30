@@ -617,7 +617,7 @@ CONTAINS
          END DO
 
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown dft_control%sic_list_id")
       END SELECT
 
       ! data needed for each of the orbs

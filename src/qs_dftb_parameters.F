@@ -306,7 +306,7 @@ CONTAINS
             DO l = 0, 3
                SELECT CASE (l)
                CASE DEFAULT
-                  CPABORT("")
+                  CPABORT("Only 0, 1, 2 are supported as the value of l")
                CASE (0)
                   lp = 10
                CASE (1)

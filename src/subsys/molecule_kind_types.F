@@ -287,7 +287,7 @@ CONTAINS
             CASE (combine_colvar_id)
                ncolv%ncombinecvs = ncolv%ncombinecvs + 1
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown colvar type")
             END SELECT
          END DO
       END IF
