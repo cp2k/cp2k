@@ -10,11 +10,11 @@
 ! **************************************************************************************************
 MODULE cp_control_utils
    USE bibliography,                    ONLY: &
-        Andreussi2012, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, Grimme2017, Hu2007, &
-        Katbashev2025, Krack2000, Lippert1997, Lippert1999, Porezag1995, Pracht2019, Repasky2002, &
-        Rocha2006, Schenter2008, Seifert1996, Souza2002, Stengel2009, Stewart1989, Stewart2007, &
-        Thiel1992, Umari2002, VanVoorhis2015, VandeVondele2005a, VandeVondele2005b, Yin2017, &
-        Zhechkov2005, cite_reference
+        Andreussi2012, Andreussi2019, Chai2025a, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, &
+        Grimme2017, Hu2007, Katbashev2025, Krack2000, Lippert1997, Lippert1999, Porezag1995, &
+        Pracht2019, Repasky2002, Rocha2006, Schenter2008, Seifert1996, Souza2002, Stengel2009, &
+        Stewart1989, Stewart2007, Thiel1992, Umari2002, VanVoorhis2015, VandeVondele2005a, &
+        VandeVondele2005b, Yin2017, Zhechkov2005, cite_reference
    USE cell_types,                      ONLY: cell_transform_input_cartesian,&
                                               cell_type
    USE cp_control_types,                ONLY: &
@@ -58,8 +58,8 @@ MODULE cp_control_utils
         gaussian_env, gfn1xtb, gfn_tblite, kg_tnadd_embed, kg_tnadd_embed_ri, no_admm_type, &
         numerical, ramp_env, real_time_propagation, rtp_method_bse, sccs_andreussi, &
         sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
-        sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, tblite_cli_born_kernel_auto, &
+        sccs_fattebert_gygi, sccs_saa_andreussi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
+        sic_mauri_spz, sic_mauri_us, sic_none, slater, tblite_cli_born_kernel_auto, &
         tblite_cli_solution_state_gsolv, tblite_cli_solvation_alpb, tblite_cli_solvation_cpcm, &
         tblite_cli_solvation_gb, tblite_cli_solvation_gbe, tblite_cli_solvation_gbsa, &
         tblite_guess_ceh, tblite_mixer_memory_inherit, tblite_scc_mixer_auto, &
@@ -742,6 +742,40 @@ CONTAINS
                CALL section_vals_val_get(tmp_section, "RHO_ZERO", &
                                          r_val=dft_control%sccs_control%rho_zero)
                CALL cite_reference(Fattebert2002)
+            CASE (sccs_saa_andreussi)
+               tmp_section => section_vals_get_subs_vals(sccs_section, "SAA_ANDREUSSI")
+               CALL section_vals_get(tmp_section, explicit=is_present)
+               IF (.NOT. is_present) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "SCCS method SAA_ANDREUSSI requires the "// &
+                                "SAA_ANDREUSSI section.")
+               END IF
+               IF (.NOT. ALL(cell%perd == 1)) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "SCCS method SAA_ANDREUSSI is only implemented for "// &
+                                "3D periodic calculations.")
+               END IF
+               CALL section_vals_val_get(tmp_section, "RHO_MAX", &
+                                         r_val=dft_control%sccs_control%rho_max)
+               CALL section_vals_val_get(tmp_section, "RHO_MIN", &
+                                         r_val=dft_control%sccs_control%rho_min)
+               IF (dft_control%sccs_control%rho_max < dft_control%sccs_control%rho_min) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "The SCCS parameter RHO_MAX is smaller than RHO_MIN. "// &
+                                "Please, check your input!")
+               END IF
+               CALL section_vals_val_get(tmp_section, "F0", &
+                                         r_val=dft_control%sccs_control%f0)
+               CALL section_vals_val_get(tmp_section, "DELTA_ETA", &
+                                         r_val=dft_control%sccs_control%delta_eta)
+               CALL section_vals_val_get(tmp_section, "DELTA_ZETA", &
+                                         r_val=dft_control%sccs_control%delta_zeta)
+               CALL section_vals_val_get(tmp_section, "R_SOLV", &
+                                         r_val=dft_control%sccs_control%r_solv)
+               CALL section_vals_val_get(tmp_section, "ALPHA_ZETA", &
+                                         r_val=dft_control%sccs_control%alpha_zeta)
+               CALL cite_reference(Andreussi2019)
+               CALL cite_reference(Chai2025a)
             CASE DEFAULT
                CPABORT("Invalid SCCS model specified. Please, check your input!")
             END SELECT
@@ -2455,6 +2489,17 @@ CONTAINS
                   "SCCS| Dielectric function proposed by Fattebert and Gygi", &
                   "SCCS|  beta", dft_control%sccs_control%beta, &
                   "SCCS|  rho_zero", dft_control%sccs_control%rho_zero
+            CASE (sccs_saa_andreussi)
+               WRITE (UNIT=output_unit, FMT="(T2,A,/,A,/,(T2,A,T61,ES20.6))") &
+                  "SCCS| Dielectric function of the solvent aware algorithm", &
+                  "SCCS| proposed by Andreussi et al.", &
+                  "SCCS|  rho_max", dft_control%sccs_control%rho_max, &
+                  "SCCS|  rho_min", dft_control%sccs_control%rho_min, &
+                  "SCCS|  f0", dft_control%sccs_control%f0, &
+                  "SCCS|  delta_eta", dft_control%sccs_control%delta_eta, &
+                  "SCCS|  alpha_zeta", dft_control%sccs_control%alpha_zeta, &
+                  "SCCS|  delta_zeta", dft_control%sccs_control%delta_zeta, &
+                  "SCCS|  R_solv", dft_control%sccs_control%R_solv
             CASE DEFAULT
                CPABORT("Invalid SCCS model specified. Please, check your input!")
             END SELECT

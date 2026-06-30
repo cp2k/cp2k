@@ -554,7 +554,8 @@ MODULE cp_control_types
 ! \brief Control parameters for the SCCS models
 ! **************************************************************************************************
    TYPE sccs_control_type
-      LOGICAL                              :: sccs_activated = .FALSE.
+      LOGICAL                              :: sccs_activated = .FALSE., &
+                                              saa_activated = .FALSE.
       INTEGER                              :: derivative_method = 0, &
                                               max_iter = 0, &
                                               method_id = 0
@@ -569,7 +570,12 @@ MODULE cp_control_types
                                               mixing = 0.0_dp, &
                                               rho_zero = 0.0_dp, &
                                               rho_max = 0.0_dp, &
-                                              rho_min = 0.0_dp
+                                              rho_min = 0.0_dp, &
+                                              f0 = 0.0_dp, &
+                                              delta_eta = 0.0_dp, &
+                                              alpha_zeta = 0.0_dp, &
+                                              delta_zeta = 0.0_dp, &
+                                              R_solv = 0.0_dp
    END TYPE sccs_control_type
 
 ! **************************************************************************************************
