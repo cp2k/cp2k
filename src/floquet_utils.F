@@ -21,12 +21,12 @@ MODULE floquet_utils
                                               cp_cfm_set_all,&
                                               cp_cfm_set_submatrix,&
                                               cp_cfm_type
-   USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE kinds,                           ONLY: default_string_length,&
-                                              dp
+                                              dp,&
+                                              int_8
    USE kpoint_k_r_trafo_simple,         ONLY: replicate_rs_matrices,&
                                               rs_to_kp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
@@ -34,13 +34,16 @@ MODULE floquet_utils
                                               kpoint_create,&
                                               kpoint_release,&
                                               kpoint_type
+   USE machine,                         ONLY: m_hostnm,&
+                                              m_memory_details
    USE mathconstants,                   ONLY: gaussi,&
                                               pi,&
                                               z_one,&
                                               z_zero
    USE mathlib,                         ONLY: geeig_right,&
                                               gemm_square
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
    USE physcon,                         ONLY: evolt
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -58,12 +61,20 @@ MODULE floquet_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'floquet_utils'
 
-   ! Public subroutines
-   PUBLIC :: build_floquet_matrix, &
-             calculate_epsilon_derivative, &
-             build_momentum_matrix, &
+   ! Number of full Floquet-Hamiltonian copies (each n_f_size^2 complex(dp), 16 bytes per
+   ! element) that the subgroup must be able to hold, distributed across its ranks. About 6
+   ! are actually live at once (floquet_matrix + floquet_copy + cfm_eigenvectors plus the
+   ! ScaLAPACK eigensolver / Green's-function scratch); we size for 10 to leave headroom.
+   INTEGER, PARAMETER, PRIVATE :: n_fm_work_copies = 10
+
+   ! Public subroutines (the block builders, calculate_epsilon_derivative and
+   ! floquet_ranks_per_node are private helpers used only within this module)
+   PUBLIC :: build_floquet_matrix_local, &
+             floquet_precompute_kp_data, &
+             floquet_determine_subgroup_size, &
              check_floquet_conversion, &
              calculate_floquet_spectral_function, &
+             get_quasi_energies, &
              write_quasi_energy, &
              write_floquet_spectral_function
 
@@ -75,24 +86,31 @@ CONTAINS
 !> \param xkp ...
 !> \param e_k ...
 !> \param de_dk ...
+!> \param do_parallel option to distribute the results e_k/de_dk across MPI ranks. When
+!>        .TRUE. k-point ikp is computed and stored only on rank MOD(ikp-1,num_pe), at the
+!>        compressed index CEILING(ikp/num_pe). This MUST match the layout used by
+!>        qs_moment_kpoints_deep so that e_k/de_dk co-locate with the dipole of the same
+!>        k-point. Default .FALSE. -> every rank computes/stores all k-points (replicated).
 ! **************************************************************************************************
-   SUBROUTINE calculate_epsilon_derivative(qs_env, xkp, e_k, de_dk)
+   SUBROUTINE calculate_epsilon_derivative(qs_env, xkp, e_k, de_dk, do_parallel)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          OPTIONAL                                        :: e_k
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :), OPTIONAL                 :: de_dk
+      LOGICAL, OPTIONAL                                  :: do_parallel
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_epsilon_derivative'
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: C_dH_C, C_dS_C, C_k, dH_dk_i, dS_dk_i, &
                                                             H_k, S_k
-      INTEGER                                            :: handle, i_dir, ikp, ispin, n, n_img_all, &
-                                                            n_spin, nao, nkp
+      INTEGER                                            :: handle, i_dir, ikp, ispin, mepos, n, &
+                                                            n_img_all, n_spin, nao, nkp, num_copy, &
+                                                            num_pe
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_all
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_all
-      LOGICAL                                            :: present_dedk, present_ek
+      LOGICAL                                            :: my_do_parallel, present_dedk, present_ek
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: H_rs, S_rs
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
@@ -111,6 +129,9 @@ CONTAINS
 
       IF (.NOT. (present_ek .OR. present_dedk)) CPABORT("Subroutine needs either e_k or de_dk")
 
+      my_do_parallel = .FALSE.
+      IF (PRESENT(do_parallel)) my_do_parallel = do_parallel
+
       CALL get_qs_env(qs_env, &
                       matrix_ks_kp=matrix_ks_kp, &
                       matrix_s_kp=matrix_s_kp, &
@@ -126,6 +147,19 @@ CONTAINS
       n_spin = SIZE(matrix_ks_kp, 1)
       nkp = SIZE(xkp, 2)
 
+      ! Distribution of k-points across ranks (mirrors qs_moment_kpoints_deep). With
+      ! do_parallel=.FALSE. every rank computes all k-points (replicated). With .TRUE.
+      ! rank mepos computes only k-points with MOD(ikp-1,num_pe)==mepos, stored at the
+      ! compressed index CEILING(ikp/num_pe).
+      mepos = 0
+      num_pe = 1
+      num_copy = nkp
+      IF (my_do_parallel) THEN
+         mepos = para_env%mepos
+         num_pe = para_env%num_pe
+         num_copy = CEILING(REAL(nkp)/num_pe)
+      END IF
+
       ! create kpoint environment kpoints_all which contains all neighbor cells R
       ! without considering any lattice symmetry
       NULLIFY (kpoints_all)
@@ -139,12 +173,12 @@ CONTAINS
       CALL replicate_rs_matrices(matrix_s_kp, kpoints_scf, S_rs, cell_to_index_all)
       CALL replicate_rs_matrices(matrix_ks_kp, kpoints_scf, H_rs, cell_to_index_all)
 
-      IF (present_dedk) ALLOCATE (de_dk(n_spin, nkp, 3, nao), source=0.0_dp)
-      IF (present_ek) ALLOCATE (e_k(n_spin, nkp, nao), source=0.0_dp)
+      IF (present_dedk) ALLOCATE (de_dk(n_spin, num_copy, 3, nao), source=0.0_dp)
+      IF (present_ek) ALLOCATE (e_k(n_spin, num_copy, nao), source=0.0_dp)
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP PRIVATE(ikp, ispin, S_k, H_k, eigenvals, C_k, dS_dk_i, dH_dk_i, C_dS_C, C_dH_C) &
-!$OMP SHARED(nao, n_spin, de_dk, e_k, present_ek, present_dedk, &
+!$OMP SHARED(nao, n_spin, de_dk, e_k, present_ek, present_dedk, mepos, num_pe, &
 !$OMP nkp, xkp, S_rs, H_rs, index_to_cell_all, hmat)
       IF (present_dedk) ALLOCATE (dS_dk_i(nao, nao), C_dS_C(nao, nao), &
                                   dH_dk_i(nao, nao), C_dH_C(nao, nao), source=z_zero)
@@ -153,6 +187,7 @@ CONTAINS
 !$OMP DO COLLAPSE(2)
       DO ispin = 1, n_spin
          DO ikp = 1, nkp
+            IF (MOD(ikp - 1, num_pe) /= mepos) CYCLE
 
             ! S^R -> S(k), H^R -> H(k)
             S_k = 0
@@ -162,7 +197,7 @@ CONTAINS
 
             ! Diagonalize H(k)C(k) = S(k)C(k)ε(k)
             CALL geeig_right(H_k, S_k, eigenvals, C_k)
-            IF (present_ek) e_k(ispin, ikp, :) = eigenvals(:)
+            IF (present_ek) e_k(ispin, CEILING(REAL(ikp)/num_pe), :) = eigenvals(:)
 
             IF (present_dedk) THEN
                ! Evaluate the derivatives using
@@ -175,7 +210,8 @@ CONTAINS
                   CALL gemm_square(C_k, 'C', dH_dk_i, 'N', C_k, 'N', C_dH_C)
 
                   DO n = 1, nao
-                     de_dk(ispin, ikp, i_dir, n) = DBLE(C_dH_C(n, n)) - DBLE(eigenvals(n)*C_dS_C(n, n))
+                     de_dk(ispin, CEILING(REAL(ikp)/num_pe), i_dir, n) = &
+                        DBLE(C_dH_C(n, n)) - DBLE(eigenvals(n)*C_dS_C(n, n))
                   END DO
                END DO
             END IF
@@ -193,97 +229,83 @@ CONTAINS
    END SUBROUTINE calculate_epsilon_derivative
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param xkp ...
-!> \param momentum ...
+!> \brief Momentum matrix elements p_nm(k) for one k-point and spin, from precomputed band data:
+!>        p_nm = i d_nm (ε_n - ε_m) + ∇_k ε_n δ_nm (= <ψ_n|-iħ∇_r|ψ_m>). No communication.
+!> \param e_k_kp_spin band energies for this k-point/spin (nao)
+!> \param de_dk_kp_spin band-energy k-derivatives for this k-point/spin (3, nao)
+!> \param dipole_kp_spin dipole matrix elements for this k-point/spin (3, nao, nao)
+!> \param momentum momentum matrix elements p (3, nao, nao) for this k-point/spin
 ! **************************************************************************************************
-   SUBROUTINE build_momentum_matrix(qs_env, xkp, momentum)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(KIND=dp), DIMENSION(3)                        :: xkp
-      COMPLEX(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :)                           :: momentum
+   SUBROUTINE build_momentum_matrix(e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, momentum)
+      REAL(KIND=dp), DIMENSION(:)                        :: e_k_kp_spin
+      REAL(KIND=dp), DIMENSION(:, :)                     :: de_dk_kp_spin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :)               :: dipole_kp_spin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :)               :: momentum
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_momentum_matrix'
 
-      COMPLEX(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :, :)                        :: dipole
-      INTEGER                                            :: handle, i, i_dir, ispin, j, n_spin, nao
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp1
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: e_k
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: de_dk
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      INTEGER                                            :: handle, i, i_dir, j, nao
 
       CALL timeset(routineN, handle)
+
+      nao = SIZE(e_k_kp_spin)
 
       ! We calculate momentum matrix elements p_nm = <ψ_n|-iħ∇_r|ψ_m>
       ! p_nm = <u_n|(ħk - iħ∇_r)|u_m>
       ! p_nm = i d_nm (ε_n - ε_m) + ∇_k ε_n δ_nm
 
-      NULLIFY (dft_control)
-      CALL get_qs_env(qs_env, dft_control=dft_control, mos=mos)
-      CALL get_mo_set(mo_set=mos(1), nao=nao)
-
-      ALLOCATE (xkp1(3, 1), source=0.0_dp)
-      xkp1(:, 1) = xkp(:)
-      CALL calculate_epsilon_derivative(qs_env, xkp1, e_k, de_dk)
-      n_spin = dft_control%nspins
-      CALL qs_moment_kpoints_deep(qs_env, xkp1, dipole)
-
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP PRIVATE(ispin, i_dir, i, j) &
-!$OMP SHARED(nao, n_spin, momentum, dipole, e_k, de_dk)
-!$OMP DO COLLAPSE(4)
-      DO ispin = 1, n_spin
-         DO i_dir = 1, 3
-            DO i = 1, nao
-               DO j = 1, nao
-                  IF (j == i) THEN
-                     momentum(ispin, i_dir, i, j) = de_dk(ispin, 1, i_dir, i)
-                  ELSE
-                     momentum(ispin, i_dir, i, j) = gaussi*(e_k(ispin, 1, i) - e_k(ispin, 1, j))* &
-                                                    dipole(ispin, 1, i_dir, i, j)
-                  END IF
-               END DO
+!$OMP PRIVATE(i_dir, i, j) &
+!$OMP SHARED(nao, momentum, dipole_kp_spin, e_k_kp_spin, de_dk_kp_spin)
+!$OMP DO COLLAPSE(3)
+      DO i_dir = 1, 3
+         DO i = 1, nao
+            DO j = 1, nao
+               IF (j == i) THEN
+                  momentum(i_dir, i, j) = de_dk_kp_spin(i_dir, i)
+               ELSE
+                  momentum(i_dir, i, j) = gaussi*(e_k_kp_spin(i) - e_k_kp_spin(j))* &
+                                          dipole_kp_spin(i_dir, i, j)
+               END IF
             END DO
          END DO
       END DO
 !$OMP END DO
 !$OMP END PARALLEL
-      DEALLOCATE (xkp1, dipole, e_k, de_dk)
 
       CALL timestop(handle)
    END SUBROUTINE build_momentum_matrix
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
+!> \brief Off-diagonal coupling block of H_F(k) for one k-point and spin, from precomputed data:
+!>        off_diag_uv = Σ_α p_uv^α(k) · E_factor(α), E_factor(α) = (i E(α) e^{iφ(α)})/(2ω).
+!>        The block is accumulated into off_diag_m (which must be pre-zeroed by the caller).
 !> \param bs_env ...
-!> \param xkp ...
-!> \param ispin ...
-!> \param off_diag_m ...
+!> \param e_k_kp_spin band energies for this k-point/spin (nao)
+!> \param de_dk_kp_spin band-energy k-derivatives for this k-point/spin (3, nao)
+!> \param dipole_kp_spin dipole matrix elements for this k-point/spin (3, nao, nao)
+!> \param off_diag_m off-diagonal coupling block (nao, nao)
 ! **************************************************************************************************
-   SUBROUTINE build_off_diagonal_matrix(qs_env, bs_env, xkp, ispin, off_diag_m)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   SUBROUTINE build_off_diagonal_matrix(bs_env, e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, off_diag_m)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(3)                        :: xkp
-      INTEGER                                            :: ispin
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: off_diag_m
+      REAL(KIND=dp), DIMENSION(:)                        :: e_k_kp_spin
+      REAL(KIND=dp), DIMENSION(:, :)                     :: de_dk_kp_spin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :)               :: dipole_kp_spin
+      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: off_diag_m
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_off_diagonal_matrix'
 
-      COMPLEX(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :)                           :: momentum
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: momentum
       COMPLEX(KIND=dp), DIMENSION(3)                     :: efactor
-      INTEGER                                            :: handle, i, i_dir, j, n_spin, nao
+      INTEGER                                            :: handle, i, i_dir, j, nao
       REAL(KIND=dp)                                      :: amplitude, omega
       REAL(KIND=dp), DIMENSION(3)                        :: e_vec, phi, polarisation
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 
       ! Builds the matrix that occupies the off diagonal blocks in the Floquet Matrix H_F
+
+      nao = SIZE(e_k_kp_spin)
 
       polarisation(:) = bs_env%floquet_polarisation(:)
       IF (SQRT(SUM(polarisation**2)) < EPSILON(0.0_dp)) THEN
@@ -294,12 +316,9 @@ CONTAINS
       e_vec(:) = amplitude*polarisation
       phi(:) = pi*bs_env%floquet_phi(:)
       omega = bs_env%floquet_omega
-      n_spin = bs_env%n_spin
 
-      CALL get_qs_env(qs_env, mos=mos)
-      CALL get_mo_set(mo_set=mos(1), nao=nao)
-      ALLOCATE (momentum(n_spin, 3, nao, nao), source=z_zero)
-      CALL build_momentum_matrix(qs_env, xkp, momentum)
+      ALLOCATE (momentum(3, nao, nao), source=z_zero)
+      CALL build_momentum_matrix(e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, momentum)
 
       ! E_factor(α) = (i E(α) exp(i·φ(α)))/(2ω) where α = x,y,z
       DO i_dir = 1, 3
@@ -310,7 +329,7 @@ CONTAINS
          DO i = 1, nao
             DO j = 1, nao
                off_diag_m(i, j) = off_diag_m(i, j) + &
-                                  momentum(ispin, i_dir, i, j)*efactor(i_dir)
+                                  momentum(i_dir, i, j)*efactor(i_dir)
             END DO
          END DO
       END DO
@@ -321,107 +340,264 @@ CONTAINS
    END SUBROUTINE build_off_diagonal_matrix
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
+!> \brief Diagonal block of H_F(k) for Floquet sector f_index: equilibrium band energies shifted
+!>        by f_index·ħΩ, diag_e(n,n) = ε_{nk} + f_index·ħΩ. Only the diagonal is written.
 !> \param bs_env ...
-!> \param xkp ...
-!> \param ispin ...
-!> \param f_index ...
-!> \param diag_e ...
+!> \param e_k_kp_spin band energies for this k-point/spin (nao)
+!> \param f_index Floquet sector index
+!> \param diag_e diagonal block (nao, nao)
 ! **************************************************************************************************
-   SUBROUTINE build_diagonal_matrix(qs_env, bs_env, xkp, ispin, f_index, diag_e)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   SUBROUTINE build_diagonal_matrix(bs_env, e_k_kp_spin, f_index, diag_e)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(3)                        :: xkp
-      INTEGER                                            :: ispin, f_index
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: diag_e
+      REAL(KIND=dp), DIMENSION(:)                        :: e_k_kp_spin
+      INTEGER                                            :: f_index
+      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: diag_e
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_diagonal_matrix'
 
-      INTEGER                                            :: handle, i, n_spin, nao
+      INTEGER                                            :: handle, i, nao
       REAL(KIND=dp)                                      :: omega
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp1
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: e_k
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 
-      ! Builds the matrix that occupies the off diagonal blocks in the Floquet Matrix H_F
+      ! Builds the equilibrium-energy diagonal block of Floquet sector f_index
 
+      nao = SIZE(e_k_kp_spin)
       omega = bs_env%floquet_omega
-      n_spin = bs_env%n_spin
-
-      CALL get_qs_env(qs_env, mos=mos)
-      CALL get_mo_set(mo_set=mos(1), nao=nao)
-      ALLOCATE (xkp1(3, 1), source=0.0_dp)
-      xkp1(:, 1) = xkp(:)
-      CALL calculate_epsilon_derivative(qs_env, xkp1, e_k)
-
       DO i = 1, nao
-         diag_e(i, i) = e_k(ispin, 1, i) + f_index*omega
+         diag_e(i, i) = e_k_kp_spin(i) + f_index*omega
       END DO
-      DEALLOCATE (xkp1, e_k)
+
       CALL timestop(handle)
 
    END SUBROUTINE build_diagonal_matrix
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
+!> \brief Communication-free assembly of the Floquet-Bloch Hamiltonian H_F(k) for a single
+!>        k-point and spin channel, from band data already broadcast to every rank of the
+!>        owning subgroup (e_k_kp, de_dk_kp, dipole_kp). Performs no global MPI collectives, so
+!>        it runs independently inside the subgroup whose BLACS context owns floquet_matrix.
+!>        Assembled from the modular block builders build_off_diagonal_matrix /
+!>        build_diagonal_matrix (which in turn use build_momentum_matrix).
 !> \param bs_env ...
-!> \param xkp ...
-!> \param ispin ...
-!> \param floquet_matrix ...
+!> \param e_k_kp_spin band energies for this k-point/spin (nao)
+!> \param de_dk_kp_spin band-energy k-derivatives for this k-point/spin (3, nao)
+!> \param dipole_kp_spin dipole matrix elements for this k-point/spin (3, nao, nao)
+!> \param floquet_matrix the (subgroup-distributed) Floquet matrix to fill
 ! **************************************************************************************************
-   SUBROUTINE build_floquet_matrix(qs_env, bs_env, xkp, ispin, floquet_matrix)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   SUBROUTINE build_floquet_matrix_local(bs_env, e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, floquet_matrix)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(3)                        :: xkp
-      INTEGER                                            :: ispin
+      REAL(KIND=dp), DIMENSION(:)                        :: e_k_kp_spin
+      REAL(KIND=dp), DIMENSION(:, :)                     :: de_dk_kp_spin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :)               :: dipole_kp_spin
       TYPE(cp_cfm_type)                                  :: floquet_matrix
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_floquet_matrix'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_floquet_matrix_local'
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: conj_off_diag_m, diag_e, off_diag_m
       INTEGER                                            :: f_index, handle, i, i_f, max_f_index, &
-                                                            n_fbands, n_spin, nao
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp1
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+                                                            n_fbands, nao
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, &
-                      mos=mos)
-      CALL get_mo_set(mo_set=mos(1), nao=nao)
+      nao = SIZE(e_k_kp_spin)
       max_f_index = bs_env%max_floquet_index
       n_fbands = 1 + 2*max_f_index
-      n_spin = bs_env%n_spin
 
       ! Creates the floquet matrix H_F by placing the diagonal and off diagonal blocks
-
-      ALLOCATE (xkp1(3, 1), source=0.0_dp)
       ALLOCATE (diag_e(nao, nao), source=z_zero)
       ALLOCATE (off_diag_m(nao, nao), source=z_zero)
       ALLOCATE (conj_off_diag_m(nao, nao), source=z_zero)
-      xkp1(:, 1) = xkp(:)
-      CALL build_off_diagonal_matrix(qs_env, bs_env, xkp, ispin, off_diag_m)
+
+      CALL build_off_diagonal_matrix(bs_env, e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, off_diag_m)
       conj_off_diag_m(:, :) = CONJG(TRANSPOSE(off_diag_m(:, :)))
 
       floquet_matrix%local_data(:, :) = z_zero
       DO i = 1, n_fbands
          i_f = 1 + (i - 1)*nao
          f_index = i - max_f_index - 1
-         CALL build_diagonal_matrix(qs_env, bs_env, xkp, ispin, f_index, diag_e)
+         CALL build_diagonal_matrix(bs_env, e_k_kp_spin, f_index, diag_e)
          CALL cp_cfm_set_submatrix(floquet_matrix, diag_e, i_f, i_f)
          IF (i > 1) THEN
             CALL cp_cfm_set_submatrix(floquet_matrix, off_diag_m, i_f, i_f - nao)
             CALL cp_cfm_set_submatrix(floquet_matrix, conj_off_diag_m, i_f - nao, i_f)
          END IF
       END DO
-      DEALLOCATE (diag_e, off_diag_m, conj_off_diag_m, xkp1)
+      DEALLOCATE (diag_e, off_diag_m, conj_off_diag_m)
 
       CALL timestop(handle)
-   END SUBROUTINE build_floquet_matrix
+   END SUBROUTINE build_floquet_matrix_local
+
+! **************************************************************************************************
+!> \brief Precompute, on the global communicator, the band quantities needed to assemble the
+!>        Floquet-Bloch Hamiltonian for all DOS k-points (all spins), distributed across ranks.
+!>
+!>        The expensive part of building H_F(k) is the conversion of the distributed
+!>        real-space DBCSR matrices into dense real-space arrays (done inside
+!>        calculate_epsilon_derivative and qs_moment_kpoints_deep via the global collective
+!>        group%sum). Those routines are therefore called by ALL ranks of the global
+!>        communicator (do NOT call this from inside a subgroup).
+!>
+!>        Both are called with do_parallel=.TRUE., so the RESULTS are DISTRIBUTED, not
+!>        replicated: k-point ikp is computed and stored only on rank MOD(ikp-1,num_pe), at
+!>        the compressed local index CEILING(ikp/num_pe). e_k, de_dk and dipole all use the
+!>        same layout, so a rank that owns a k-point owns all three for that k-point. This is
+!>        what lets the caller hold only ~nkp/num_pe k-points per rank (the full set cannot
+!>        be stored for large systems) and route each k-point to the subgroup that owns it.
+!>
+!>        The large real-space arrays (H_rs, S_rs, D_rs) are allocated and freed inside these
+!>        routines, so they do not coexist with the distributed Floquet matrices the caller
+!>        allocates only after this call returns.
+!> \param qs_env ...
+!> \param bs_env ...
+!> \param e_k band energies ε_{nk} (nspin, num_copy, nao), num_copy = CEILING(nkp_DOS/num_pe)
+!> \param de_dk k-derivatives ∇_k ε_{nk} (nspin, num_copy, 3, nao)
+!> \param dipole dipole matrix elements d_nm(k) (nspin, num_copy, 3, nao, nao)
+! **************************************************************************************************
+   SUBROUTINE floquet_precompute_kp_data(qs_env, bs_env, e_k, de_dk, dipole)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: e_k
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: de_dk
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :, :)                        :: dipole
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'floquet_precompute_kp_data'
+
+      INTEGER                                            :: handle, ikp, n_kp_dos, nkp_start
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp_all
+
+      CALL timeset(routineN, handle)
+
+      nkp_start = bs_env%nkp_only_DOS
+      n_kp_dos = bs_env%nkp_bs_and_DOS - nkp_start
+
+      ! Collect the coordinates of all DOS k-points (global storage index nkp_start + local).
+      ALLOCATE (xkp_all(3, n_kp_dos))
+      DO ikp = 1, n_kp_dos
+         xkp_all(:, ikp) = bs_env%kpoints_DOS%xkp(1:3, nkp_start + ikp)
+      END DO
+
+      ! Distribute the results across ranks (one k-point per rank, round-robin by global
+      ! rank). Both routines must use the SAME distribution so e_k/de_dk co-locate with the
+      ! dipole of each k-point.
+      CALL calculate_epsilon_derivative(qs_env, xkp_all, e_k=e_k, de_dk=de_dk, do_parallel=.TRUE.)
+      CALL qs_moment_kpoints_deep(qs_env, xkp_all, dipole, do_parallel=.TRUE.)
+
+      DEALLOCATE (xkp_all)
+
+      CALL timestop(handle)
+   END SUBROUTINE floquet_precompute_kp_data
+
+! **************************************************************************************************
+!> \brief Number of MPI ranks that share a physical node, determined by splitting the given
+!>        communicator into node-local communicators keyed on the hostname.
+!>        Each rank's color is the global rank index of the first rank with the same hostname,
+!>        so same-node ranks always get the same color with no hash collisions possible.
+!> \param para_env the (global) parallel environment
+!> \return the number of ranks on the calling rank's node
+! **************************************************************************************************
+   FUNCTION floquet_ranks_per_node(para_env) RESULT(ranks_per_node)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER                                            :: ranks_per_node
+
+      CHARACTER(LEN=default_string_length)               :: hostname
+      INTEGER                                            :: color, i, nranks, str_len
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: hostnames_ascii, my_hostname_ascii
+      TYPE(mp_comm_type)                                 :: node_comm
+
+      CALL m_hostnm(hostname)
+
+      ! All-gather every rank's hostname as ASCII integers, then assign color = the index
+      ! of the first rank that shares this rank's hostname. Ranks on the same node get
+      ! identical color; ranks on different nodes get different colors. No hash needed.
+      str_len = default_string_length
+      nranks = para_env%num_pe
+      ALLOCATE (my_hostname_ascii(str_len), hostnames_ascii(nranks*str_len))
+      DO i = 1, str_len
+         my_hostname_ascii(i) = ICHAR(hostname(i:i))
+      END DO
+      hostnames_ascii(:) = 0
+      hostnames_ascii(para_env%mepos*str_len + 1:(para_env%mepos + 1)*str_len) = my_hostname_ascii(:)
+      CALL para_env%sum(hostnames_ascii)
+
+      color = para_env%mepos
+      DO i = 0, para_env%mepos - 1
+         IF (ALL(hostnames_ascii(i*str_len + 1:(i + 1)*str_len) == my_hostname_ascii(:))) THEN
+            color = i
+            EXIT
+         END IF
+      END DO
+      DEALLOCATE (my_hostname_ascii, hostnames_ascii)
+
+      CALL node_comm%from_split(comm=para_env, color=color, key=para_env%mepos)
+      ranks_per_node = MAX(1, node_comm%num_pe)
+      CALL node_comm%free()
+
+   END FUNCTION floquet_ranks_per_node
+
+! **************************************************************************************************
+!> \brief Choose the number of MPI ranks per subgroup so that the subgroup can hold the Floquet
+!>        working set distributed across its ranks. The working set is taken to be
+!>        n_fm_work_copies copies of the n_f_size^2 complex(dp) Floquet Hamiltonian, i.e.
+!>          needed_bytes = 16 * n_fm_work_copies * n_f_size^2
+!>        and the subgroup size is the smallest G with needed_bytes/G <= per-rank physical
+!>        memory (node memory / ranks per node).
+!> \param para_env the (global) parallel environment
+!> \param n_f_size dimension of the (square) Floquet matrix = nao*(1+2*max_floquet_index)
+!> \param unit_nr I/O unit for logging (<= 0 to suppress)
+!> \return the chosen number of ranks per subgroup (1 .. num_pe)
+! **************************************************************************************************
+   FUNCTION floquet_determine_subgroup_size(para_env, n_f_size, unit_nr) RESULT(group_size)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(IN)                                :: n_f_size, unit_nr
+      INTEGER                                            :: group_size
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'floquet_determine_subgroup_size'
+
+      INTEGER                                            :: handle, ranks_per_node
+      INTEGER(KIND=int_8)                                :: Buffers, Cached, MemFree, MemLikelyFree, &
+                                                            mem_per_rank, MemTotal, needed_bytes, &
+                                                            Slab, SReclaimable
+
+      CALL timeset(routineN, handle)
+
+      ! Physical memory available to one MPI rank = node memory / ranks per node.
+      CALL m_memory_details(MemTotal, MemFree, Buffers, Cached, Slab, SReclaimable, MemLikelyFree)
+      ranks_per_node = floquet_ranks_per_node(para_env)
+      mem_per_rank = MemTotal/INT(ranks_per_node, int_8)
+
+      ! Total memory the subgroup must hold: n_fm_work_copies copies of the Floquet
+      ! Hamiltonian, each n_f_size^2 complex(dp) numbers at 16 bytes each.
+      needed_bytes = 16_int_8*INT(n_fm_work_copies, int_8)*INT(n_f_size, int_8)**2
+
+      IF (mem_per_rank <= 0_int_8) THEN
+         ! Memory info unavailable (e.g. no /proc on this platform): fall back to one
+         ! subgroup spanning all ranks, which minimises the per-rank footprint.
+         group_size = para_env%num_pe
+      ELSE
+         ! Smallest G with needed_bytes/G <= mem_per_rank. Clamp to num_pe in int_8
+         ! arithmetic before converting, to avoid overflowing a default integer.
+         group_size = INT(MIN((needed_bytes + mem_per_rank - 1_int_8)/mem_per_rank, &
+                              INT(para_env%num_pe, int_8)))
+      END IF
+      group_size = MAX(1, group_size)
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A)') ""
+         WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Detected MPI ranks per node:", ranks_per_node
+         WRITE (unit_nr, '(T2,A,T66,I12,A)') "FLOQUET MEMORY | Physical memory per rank:", &
+            mem_per_rank/1048576_int_8, " MiB"
+         WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Floquet copies needed:", n_fm_work_copies
+         WRITE (unit_nr, '(T2,A,T66,I12,A)') "FLOQUET MEMORY | Total Floquet working set:", &
+            needed_bytes/1048576_int_8, " MiB"
+         WRITE (unit_nr, '(T2,A,T66,I12,A)') "FLOQUET MEMORY | Floquet working set per rank:", &
+            (needed_bytes/INT(MAX(group_size, 1), int_8))/1048576_int_8, " MiB"
+         WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Chosen MPI ranks per subgroup:", group_size
+      END IF
+
+      CALL timestop(handle)
+   END FUNCTION floquet_determine_subgroup_size
 
 ! **************************************************************************************************
 !> \brief ...
@@ -522,42 +698,30 @@ CONTAINS
    END SUBROUTINE calculate_floquet_spectral_function
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param bs_env ...
-!> \param ispin ...
-!> \param ikp_for_file ...
-!> \param xkp ...
-!> \param eigenvalues ...
+!> \brief Extract the nao quasi-energies from the full set of Floquet eigenvalues: the
+!>        quasi-energies are the nao eigenvalues of smallest magnitude (folded into the first
+!>        Floquet Brillouin zone -ħΩ/2 < ε ≤ ħΩ/2), returned ordered by their position in the
+!>        spectrum.
+!> \param eigenvalues the full set of Floquet eigenvalues (n_f_size)
+!> \param quasi_energies the extracted quasi-energies (nao); its size sets how many are kept
 ! **************************************************************************************************
-   SUBROUTINE write_quasi_energy(qs_env, bs_env, ispin, ikp_for_file, xkp, eigenvalues)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER                                            :: ispin, ikp_for_file
-      REAL(KIND=dp), DIMENSION(3)                        :: xkp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+   SUBROUTINE get_quasi_energies(eigenvalues, quasi_energies)
+      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:)                        :: quasi_energies
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_quasi_energy'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_quasi_energies'
 
-      CHARACTER(LEN=default_string_length)               :: fname
-      INTEGER                                            :: handle, i, j, n, nao, nkp_start, qunit
+      INTEGER                                            :: handle, i, j, n, nao
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices, work
-      REAL(KIND=dp)                                      :: fbz_max, fbz_min, omega, qe
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: quasi_energies
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, mos=mos)
-      CALL get_mo_set(mo_set=mos(1), nao=nao)
-
-      nkp_start = bs_env%nkp_only_DOS
-      omega = bs_env%floquet_omega
-      fbz_max = omega/2.0_dp
-      fbz_min = -omega/2.0_dp
-
       n = SIZE(eigenvalues)
-      ALLOCATE (indices(nao), work(nao), quasi_energies(nao))
+      nao = SIZE(quasi_energies)
+
+      ! Greedily select the nao eigenvalues closest to zero, then order them by their index
+      ! in the spectrum.
+      ALLOCATE (indices(nao), work(nao))
       indices(:) = [(i, i=1, nao)]
       DO i = 1, nao
          DO j = 1, n
@@ -566,8 +730,35 @@ CONTAINS
          END DO
       END DO
       CALL sort(indices, nao, work)
-
       quasi_energies(:) = eigenvalues(indices(:))
+      DEALLOCATE (indices, work)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_quasi_energies
+
+! **************************************************************************************************
+!> \brief Write the (precomputed) quasi-energies for one k-point and spin to the QE output file.
+!> \param bs_env ...
+!> \param ispin ...
+!> \param ikp_for_file ...
+!> \param xkp ...
+!> \param quasi_energies quasi-energies for this k-point/spin (nao)
+! **************************************************************************************************
+   SUBROUTINE write_quasi_energy(bs_env, ispin, ikp_for_file, xkp, quasi_energies)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      INTEGER                                            :: ispin, ikp_for_file
+      REAL(KIND=dp), DIMENSION(3)                        :: xkp
+      REAL(KIND=dp), DIMENSION(:)                        :: quasi_energies
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_quasi_energy'
+
+      CHARACTER(LEN=default_string_length)               :: fname
+      INTEGER                                            :: handle, i, nao, qunit
+
+      CALL timeset(routineN, handle)
+
+      nao = SIZE(quasi_energies)
 
       IF (bs_env%para_env%is_source()) THEN
          WRITE (fname, "(2A)") TRIM(bs_env%floquet_qe_file), ".bs"
@@ -585,12 +776,10 @@ CONTAINS
             "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
          WRITE (qunit, "(A)") "#  Floquet band  Quasi-energy [eV]"
          DO i = 1, nao
-            qe = quasi_energies(i)
-            WRITE (qunit, "(I8,F21.8)") i, qe*evolt
+            WRITE (qunit, "(I8,F21.8)") i, quasi_energies(i)*evolt
          END DO
          CALL close_file(qunit)
       END IF
-      DEALLOCATE (indices, work, quasi_energies)
 
       CALL timestop(handle)
 

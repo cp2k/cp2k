@@ -11,7 +11,9 @@
 !> \author Shridhar Shanbhag (27.01.2026)
 ! **************************************************************************************************
 MODULE floquet_main
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_release,&
+                                              cp_blacs_env_type
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
@@ -21,15 +23,19 @@ MODULE floquet_main
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE floquet_utils,                   ONLY: build_floquet_matrix,&
+   USE floquet_utils,                   ONLY: build_floquet_matrix_local,&
                                               calculate_floquet_spectral_function,&
                                               check_floquet_conversion,&
+                                              floquet_determine_subgroup_size,&
+                                              floquet_precompute_kp_data,&
+                                              get_quasi_energies,&
                                               write_floquet_spectral_function,&
                                               write_quasi_energy
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE physcon,                         ONLY: a_bohr,&
                                               evolt
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
@@ -61,24 +67,34 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'floquet'
 
-      INTEGER                                            :: handle, ikp, ikp_for_file, ispin, &
-                                                            max_f_index, n_E, n_f_size, n_fbands, &
-                                                            n_spin, nao, nkp, nkp_start, unit_nr
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices
+      INTEGER                                            :: group_size, handle, ikp, ikp_for_file, &
+                                                            ispin, local_src, loc_idx, max_f_index, &
+                                                            my_group, n_E, n_f_size, n_fbands, &
+                                                            n_kp_dos, n_spin, nao, ngroups, nkp, &
+                                                            nkp_start, owner, unit_nr
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: group_distribution
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :)                              :: dipole_kp_spin
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :, :)                        :: dipole
       REAL(KIND=dp)                                      :: energy_step, energy_window
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a_k, eigenvalues
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a_k, e_k_kp_spin, eigenvalues, &
+                                                            quasi_energies
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: de_dk_kp_spin
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: all_a_k, all_quasi_energies, &
+                                                            e_k
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: de_dk
       REAL(KIND=dp), DIMENSION(3)                        :: xkp
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       TYPE(cp_cfm_type)                                  :: cfm_eigenvectors, floquet_copy, &
                                                             floquet_matrix
       TYPE(cp_fm_struct_type), POINTER                   :: floquet_struct
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, &
-                      blacs_env=blacs_env, &
                       para_env=para_env, &
                       mos=mos)
       CALL get_mo_set(mo_set=mos(1), nao=nao)
@@ -150,27 +166,98 @@ CONTAINS
          WRITE (unit_nr, '(2X,A,T12,A,T22,A)') "KPoint", "Spin", "Coordinate"
       END IF
 
+      n_kp_dos = nkp - nkp_start
+
+      ! Phase 1 (subgroup sizing + split): choose the number of ranks per subgroup so the
+      ! subgroup can hold the Floquet working set (n_fm_work_copies copies of the n_f_size^2
+      ! complex Hamiltonian) distributed across its ranks, within per-rank physical memory. For
+      ! large systems (e.g. Bi2Te3 / TZVP) the Floquet matrix does not fit on a single rank, so
+      ! it must be distributed across a sufficiently large subgroup.
+      group_size = floquet_determine_subgroup_size(para_env, n_f_size, unit_nr)
+
+      ! Split the global communicator into contiguous-block subgroups, mirroring
+      ! qs_tddfpt2_subgroups. group_distribution(r) gives the subgroup of global rank r.
+      ALLOCATE (group_distribution(0:para_env%num_pe - 1))
+      ALLOCATE (para_env_sub)
+      CALL para_env_sub%from_split(comm=para_env, ngroups=ngroups, &
+                                   group_distribution=group_distribution, &
+                                   subgroup_min_size=group_size)
+      my_group = group_distribution(para_env%mepos)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Number of subgroups:", ngroups
+         WRITE (unit_nr, '(T2,A)') ""
+      END IF
+
+      NULLIFY (blacs_env_sub)
+      CALL cp_blacs_env_create(blacs_env_sub, para_env_sub)
+
+      ! The struct (and its BLACS context) is k-point independent and kept for the whole run;
+      ! the heavy distributed cfm matrices are (de)allocated per k-point (see below).
       CALL cp_fm_struct_create(floquet_struct, &
                                nrow_global=n_f_size, &
                                ncol_global=n_f_size, &
-                               context=blacs_env, &
-                               para_env=para_env)
+                               context=blacs_env_sub, &
+                               para_env=para_env_sub)
 
-      CALL cp_cfm_create(floquet_matrix, floquet_struct, set_zero=.TRUE.)
-      CALL cp_cfm_create(floquet_copy, floquet_struct, set_zero=.TRUE.)
-      CALL cp_cfm_create(cfm_eigenvectors, floquet_struct, set_zero=.TRUE.)
-      ALLOCATE (eigenvalues(n_f_size), indices(nao))
+      ALLOCATE (eigenvalues(n_f_size))
+      ALLOCATE (quasi_energies(nao))
       ALLOCATE (a_k(n_E))
-      DO ikp = nkp_start + 1, nkp
 
-         xkp(1:3) = bs_env%kpoints_DOS%xkp(1:3, ikp)
-         ikp_for_file = ikp - nkp_start
+      ! Per-single-(k-point,spin) broadcast buffers: the owner rank fills its slice and
+      ! broadcasts them within the owning subgroup so every subgroup rank can build its piece
+      ! of the Floquet matrix. These same buffers are passed to the Floquet matrix builder.
+      ALLOCATE (e_k_kp_spin(nao))
+      ALLOCATE (de_dk_kp_spin(3, nao))
+      ALLOCATE (dipole_kp_spin(3, nao, nao))
+
+      ! Collectors for the results of every (spin, k-point) work item. Each subgroup fills
+      ! only the slots it computed (on its source rank, to avoid double counting), and the
+      ! arrays are summed across the global communicator afterwards.
+      ALLOCATE (all_quasi_energies(nao, n_spin, n_kp_dos), source=0.0_dp)
+      ALLOCATE (all_a_k(n_E, n_spin, n_kp_dos), source=0.0_dp)
+
+      ! Phase 2a (global): compute the band data for ALL DOS k-points once, distributed across
+      ! ranks (k-point ikp owned by global rank MOD(ikp-1,num_pe), stored at CEILING(ikp/num_pe)).
+      ! Called by all ranks; the large real-space arrays are built and freed inside, so they do
+      ! not coexist with the distributed Floquet matrices allocated below.
+      CALL floquet_precompute_kp_data(qs_env, bs_env, e_k, de_dk, dipole)
+
+      ! Phase 2b (subgroup loop): each DOS k-point is processed by the subgroup that contains
+      ! the rank owning its data; that owner broadcasts the k-point's band data within the
+      ! subgroup, then the whole subgroup builds and diagonalises H_F(k).
+      DO ikp = 1, n_kp_dos
+         owner = MOD(ikp - 1, para_env%num_pe)
+         ! Only the subgroup that owns this k-point's data works on it. The test is identical
+         ! for all ranks of a subgroup, so they enter the subgroup-collective calls together.
+         IF (group_distribution(owner) /= my_group) CYCLE
+
+         ! Identify the owner's rank within the subgroup; the per-spin band data is broadcast
+         ! from it to all subgroup ranks inside the spin loop below.
+         local_src = -1
+         IF (para_env%mepos == owner) local_src = para_env_sub%mepos
+         CALL para_env_sub%max(local_src)
+
+         CALL cp_cfm_create(floquet_matrix, floquet_struct, set_zero=.TRUE.)
+         CALL cp_cfm_create(floquet_copy, floquet_struct, set_zero=.TRUE.)
+         CALL cp_cfm_create(cfm_eigenvectors, floquet_struct, set_zero=.TRUE.)
 
          DO ispin = 1, n_spin
-            ! Build the Floquet-Bloch Hamiltonian matrix H_F(k), with the equilibrium
-            ! band energies ε_{nk} on the diagonal (shifted by mħΩ per sector) and
-            ! the light-matter coupling blocks A . p_uv on the off-diagonals
-            CALL build_floquet_matrix(qs_env, bs_env, xkp, ispin, floquet_matrix)
+            ! The owner copies its single-spin slice of this k-point's distributed band data
+            ! into the broadcast buffers, then broadcasts them to the whole subgroup.
+            IF (para_env%mepos == owner) THEN
+               loc_idx = CEILING(REAL(ikp)/para_env%num_pe)
+               e_k_kp_spin(:) = e_k(ispin, loc_idx, :)
+               de_dk_kp_spin(:, :) = de_dk(ispin, loc_idx, :, :)
+               dipole_kp_spin(:, :, :) = dipole(ispin, loc_idx, :, :, :)
+            END IF
+            CALL para_env_sub%bcast(e_k_kp_spin, local_src)
+            CALL para_env_sub%bcast(de_dk_kp_spin, local_src)
+            CALL para_env_sub%bcast(dipole_kp_spin, local_src)
+
+            ! Build the Floquet-Bloch Hamiltonian H_F(k) on this subgroup's matrix from the
+            ! broadcast band data of this k-point - no global communication involved.
+            CALL build_floquet_matrix_local(bs_env, e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, &
+                                            floquet_matrix)
 
             IF (bs_env%floquet_do_quasi) THEN
                ! Use a copy of the Floquet matrix for diagonalization, since
@@ -178,18 +265,17 @@ CONTAINS
                CALL cp_cfm_to_cfm(floquet_matrix, floquet_copy)
 
                ! Diagonalize the Floquet-Bloch matrix H_F(k) F_{α,k} = ε_α F_{α,k}
-               ! to obtain the quasi-energies ε_α (eigenvalues) and the
-               ! Floquet-Bloch coefficients F^{nu}_{α,k} (eigenvectors)
+               ! to obtain the eigenvalues ε_α and the Floquet-Bloch coefficients F^{nu}_{α,k}
                CALL cp_cfm_set_all(cfm_eigenvectors, z_zero)
                CALL cp_cfm_heevd(floquet_copy, cfm_eigenvectors, eigenvalues)
+
+               ! Extract the quasi-energies (the nao eigenvalues folded into the first Floquet
+               ! Brillouin zone) from the full eigenvalue spectrum.
+               CALL get_quasi_energies(eigenvalues, quasi_energies)
 
                ! Run a conversion check to ensure that MAX_FLOQUET_INDEX,
                ! the size of the truncated matrix H_F(k), is sufficiently large.
                CALL check_floquet_conversion(qs_env, bs_env, cfm_eigenvectors)
-
-               ! Write the quasi-energies ε_α folded into the first Floquet Brillouin
-               ! zone -ħΩ/2 < ε_α ≤ ħΩ/2 for this k-point and spin channel
-               CALL write_quasi_energy(qs_env, bs_env, ispin, ikp_for_file, xkp, eigenvalues)
             END IF
 
             IF (bs_env%floquet_do_dos) THEN
@@ -197,24 +283,66 @@ CONTAINS
                ! A_phys(k,ω) = -(1/π) Im[ Tr_KS G^R_{00}(k,ω) ]
                ! from the zero-zero Floquet sector of the retarded Green's function
                CALL calculate_floquet_spectral_function(qs_env, bs_env, floquet_matrix, a_k)
-
-               ! Write A_phys(k,ω) (or f(ω,μ)·A_phys for the occupied spectral weight)
-               ! to output for this k-point and spin channel
-               CALL write_floquet_spectral_function(qs_env, bs_env, ispin, ikp_for_file, xkp, a_k)
             END IF
 
-            ! Write progress in the main output file
-            IF (unit_nr > 0) WRITE (unit_nr, '(2X,I6,T12,I4,T18,3F12.6)') ikp_for_file, ispin, xkp(1:3)
+            ! Store the results so they can be gathered and written in k-order later.
+            ! Only the subgroup source contributes, so the global sum picks up each
+            ! work item exactly once.
+            IF (para_env_sub%is_source()) THEN
+               IF (bs_env%floquet_do_quasi) all_quasi_energies(:, ispin, ikp) = quasi_energies(:)
+               IF (bs_env%floquet_do_dos) all_a_k(:, ispin, ikp) = a_k(:)
+            END IF
+         END DO
 
+         CALL cp_cfm_release(floquet_matrix)
+         CALL cp_cfm_release(floquet_copy)
+         CALL cp_cfm_release(cfm_eigenvectors)
+      END DO
+
+      DEALLOCATE (e_k, de_dk, dipole)
+
+      ! Phase 3 (gather + write): collect all results on the global communicator and write
+      ! them out in k-point/spin order on the global I/O rank. Writing here (rather than
+      ! inside the distributed loop) avoids races between subgroups on the output files,
+      ! whose REPLACE/APPEND logic relies on the k-points being written sequentially.
+      CALL para_env%sum(all_quasi_energies)
+      CALL para_env%sum(all_a_k)
+
+      DO ikp = nkp_start + 1, nkp
+         ikp_for_file = ikp - nkp_start
+         xkp(1:3) = bs_env%kpoints_DOS%xkp(1:3, ikp)
+         DO ispin = 1, n_spin
+            IF (bs_env%floquet_do_quasi) THEN
+               quasi_energies(:) = all_quasi_energies(:, ispin, ikp_for_file)
+
+               ! Write the quasi-energies ε_α folded into the first Floquet Brillouin
+               ! zone -ħΩ/2 < ε_α ≤ ħΩ/2 for this k-point and spin channel
+               CALL write_quasi_energy(bs_env, ispin, ikp_for_file, xkp, quasi_energies)
+            END IF
+
+            IF (bs_env%floquet_do_dos) THEN
+               a_k(:) = all_a_k(:, ispin, ikp_for_file)
+
+               ! Write DOS(k,ω)
+               ! to output for this k-point and spin channel
+               CALL write_floquet_spectral_function(qs_env, bs_env, ispin, ikp_for_file, xkp, a_k)
+
+               ! Write progress in the main output file
+            END IF
+            IF (unit_nr > 0) WRITE (unit_nr, '(2X,I6,T12,I4,T18,3F12.6)') ikp_for_file, ispin, xkp(1:3)
          END DO
       END DO
 
       IF (unit_nr > 0) WRITE (unit_nr, '(A)') ""
-      DEALLOCATE (eigenvalues)
-      CALL cp_cfm_release(floquet_matrix)
-      CALL cp_cfm_release(floquet_copy)
-      CALL cp_cfm_release(cfm_eigenvectors)
+
+      ! Note: the distributed cfm matrices (floquet_matrix, floquet_copy, cfm_eigenvectors)
+      ! are released inside the k-point loop above; the distributed band arrays (e_k, de_dk,
+      ! dipole) are released right after it. Only the persistent objects remain here.
+      DEALLOCATE (eigenvalues, quasi_energies, a_k, all_quasi_energies, all_a_k, group_distribution)
+      DEALLOCATE (e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin)
       CALL cp_fm_struct_release(floquet_struct)
+      CALL cp_blacs_env_release(blacs_env_sub)
+      CALL mp_para_env_release(para_env_sub)
 
       CALL timestop(handle)
 
