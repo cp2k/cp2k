@@ -34,14 +34,7 @@ EOF
     if verify_checksums "${install_lock_file}"; then
       echo "libxsmm-${libxsmm_ver} is already installed, skipping it."
     else
-      # retrieve_package "${libxsmm_sha256}" "libxsmm-${libxsmm_ver}.tar.gz"
-      if [ -f libxsmm-${libxsmm_ver}.tar.gz ]; then
-        echo "libxsmm-${libxsmm_ver}.tar.gz is found"
-      else
-        download_pkg_from_urlpath "${libxsmm_sha256}" "${libxsmm_ver}.tar.gz" \
-          https://github.com/libxsmm/libxsmm/archive/refs/tags \
-          "libxsmm-${libxsmm_ver}.tar.gz"
-      fi
+      retrieve_package "${libxsmm_sha256}" "libxsmm-${libxsmm_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d libxsmm-${libxsmm_ver} ] && rm -rf libxsmm-${libxsmm_ver}
       tar -xzf libxsmm-${libxsmm_ver}.tar.gz
