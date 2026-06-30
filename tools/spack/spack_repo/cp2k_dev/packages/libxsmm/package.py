@@ -8,50 +8,49 @@ from spack.package import *
 
 
 class Libxsmm(CMakePackage):
-    """Library for specialized dense
-    and sparse matrix operations,
-    and deep learning primitives."""
+    """LIBXSMM is high performance library for small dense and sparse linear
+    algebra opertions incl. GEMM and elementwise primities often seen in deep
+    learning applications. It also serves as reference implementation of Tensor
+    Processing Primitives (TPP), a programming abstraction for efficient and
+    portable deep learning and HPC workloads. With version 2.0, LIBXSMM focuses
+    on providing a complete and architecture-portable set of TPPs (small dense
+    and sparse matrix operations as well as element-wise, GEMM, and BRGEMM
+    primitives) from which higher-level operators such as convolutions,
+    fully-connected layers, normalization, and pooling are composed. LIBXSMM
+    targets Intel Architecture with Intel SSE, Intel AVX, Intel AVX2, Intel
+    AVX‑512 (with VNNI and Bfloat16), and Intel AMX (Advanced Matrix
+    Extensions), AArch64 (NEON, SVE, and SME), and RISC‑V (RVV). Code generation
+    is mainly based on Just‑In‑Time (JIT) code specialization for
+    compiler-independent performance (matrix multiplications, matrix
+    transpose/copy, sparse functionality, and tensor primitives). LIBXSMM is
+    suitable for "build once and deploy everywhere", i.e., no special target
+    flags are needed to exploit the available performance. Supported GEMM
+    datatypes are: FP64, FP32, FP16, bfloat16, BF8, HF8, MXBF8, MXHF8, int16,
+    int8, MXBF6, MXHF6, MXFP4, int4, int2 and int1. Additionally, various
+    non-standard low precision combinations are supported."""
 
     homepage = "https://github.com/libxsmm/libxsmm"
-    url = "https://github.com/libxsmm/libxsmm/archive/1.17.tar.gz"
+    url = "https://github.com/libxsmm/libxsmm/archive/2.0.0.tar.gz"
     git = "https://github.com/libxsmm/libxsmm.git"
 
-    maintainers("hfp")
+    maintainers("hfp", "mkrack")
 
     license("BSD-3-Clause")
 
-    version("20260617", commit="db07b74b2ffcf9f303bc0ad0b14740512c5341d1")
-    version("20260610-cp2k", commit="79033a7a1da039681cfa3b5ed2fe662a401fa4f3")
-    version("20260526-cp2k", commit="0cea22fdc34ec54bc59ffb47a43cb3e28b26d3e0")
-    version("1.17-cp2k", commit="e0c4a2389afba36c453233ad7de07bd92c715bec")
+    version("main", branch="main")
+    version("2.0.0", sha256="7e532dc5520f864ce6d7f44f3fd50365e3edb23da97dbdc54fd53845d86a290b")
 
     variant("shared", default=False, description="With shared libraries.")
     variant("fortran", default=True, description="With Fortran support.")
 
-    depends_on("c", type="build")  # generated
-    depends_on("cxx", type="build")  # generated
-    depends_on("fortran", type="build", when="+fortran")  # generated
+    depends_on("c", type="build")
+    depends_on("cxx", type="build")
+    depends_on("fortran", type="build", when="+fortran")
 
     depends_on("python", type="build")
     depends_on("cmake@3.13:", type="build")
 
-    # A recent `as` is needed to compile libxmss until version 1.17
-    # (<https://github.com/spack/spack/issues/28404>), but not afterwards
-    # (<https://github.com/spack/spack/pull/21671#issuecomment-779882282>).
-    # depends_on("binutils+ld+gas@2.33:", type="build")
-
-    # Version 2.0 supports both x86_64 and aarch64
     requires("target=x86_64:", "target=aarch64:")
-    # requires("target=x86_64:", when="@:1")
-
-    @property
-    def libs(self):
-        result = find_libraries(["libxsmm", "libxsmmf"], root=self.prefix, recursive=True)
-        if len(result) == 0:
-            result = find_libraries(
-                ["libxsmm", "libxsmmf"], root=self.prefix, shared=False, recursive=True
-            )
-        return result
 
     def cmake_args(self):
         spec = self.spec

@@ -138,7 +138,7 @@ spack:
     - "libvori@220621"
     - "libxc@7.0.0"
     - "libxs@1.0.0"
-    - "libxsmm@20260617"
+    - "libxsmm@2.0.0"
     - "openblas@0.3.33"
     - "pace@2025.12.4.1"
     - "py-torch@2.12.0"
