@@ -83,6 +83,10 @@ CONTAINS
                       mos=mos)
       CALL get_mo_set(mo_set=mos(1), nao=nao)
 
+      IF (.NOT. (bs_env%floquet_do_quasi .OR. bs_env%floquet_do_dos)) THEN
+         CPABORT("Either FLOQUET_DO_QUASI or FLOQUET_DO_DOS must be TRUE")
+      END IF
+
       unit_nr = bs_env%unit_nr
       nkp = bs_env%nkp_bs_and_DOS
       nkp_start = bs_env%nkp_only_DOS
@@ -168,32 +172,36 @@ CONTAINS
             ! the light-matter coupling blocks A . p_uv on the off-diagonals
             CALL build_floquet_matrix(qs_env, bs_env, xkp, ispin, floquet_matrix)
 
-            ! Use a copy of the Floquet matrix for diagonalization, since
-            ! cp_cfm_heevd overwrites it (needed later for the Green's function)
-            CALL cp_cfm_to_cfm(floquet_matrix, floquet_copy)
+            IF (bs_env%floquet_do_quasi) THEN
+               ! Use a copy of the Floquet matrix for diagonalization, since
+               ! cp_cfm_heevd overwrites it (needed later for the Green's function)
+               CALL cp_cfm_to_cfm(floquet_matrix, floquet_copy)
 
-            ! Diagonalize the Floquet-Bloch matrix H_F(k) F_{α,k} = ε_α F_{α,k}
-            ! to obtain the quasi-energies ε_α (eigenvalues) and the
-            ! Floquet-Bloch coefficients F^{nu}_{α,k} (eigenvectors)
-            CALL cp_cfm_set_all(cfm_eigenvectors, z_zero)
-            CALL cp_cfm_heevd(floquet_copy, cfm_eigenvectors, eigenvalues)
+               ! Diagonalize the Floquet-Bloch matrix H_F(k) F_{α,k} = ε_α F_{α,k}
+               ! to obtain the quasi-energies ε_α (eigenvalues) and the
+               ! Floquet-Bloch coefficients F^{nu}_{α,k} (eigenvectors)
+               CALL cp_cfm_set_all(cfm_eigenvectors, z_zero)
+               CALL cp_cfm_heevd(floquet_copy, cfm_eigenvectors, eigenvalues)
 
-            ! Run a conversion check to ensure that MAX_FLOQUET_INDEX,
-            ! the size of the truncated matrix H_F(k), is sufficiently large.
-            CALL check_floquet_conversion(qs_env, bs_env, cfm_eigenvectors)
+               ! Run a conversion check to ensure that MAX_FLOQUET_INDEX,
+               ! the size of the truncated matrix H_F(k), is sufficiently large.
+               CALL check_floquet_conversion(qs_env, bs_env, cfm_eigenvectors)
 
-            ! Write the quasi-energies ε_α folded into the first Floquet Brillouin
-            ! zone -ħΩ/2 < ε_α ≤ ħΩ/2 for this k-point and spin channel
-            CALL write_quasi_energy(qs_env, bs_env, ispin, ikp_for_file, xkp, eigenvalues)
+               ! Write the quasi-energies ε_α folded into the first Floquet Brillouin
+               ! zone -ħΩ/2 < ε_α ≤ ħΩ/2 for this k-point and spin channel
+               CALL write_quasi_energy(qs_env, bs_env, ispin, ikp_for_file, xkp, eigenvalues)
+            END IF
 
-            ! Compute the physical spectral function
-            ! A_phys(k,ω) = -(1/π) Im[ Tr_KS G^R_{00}(k,ω) ]
-            ! from the zero-zero Floquet sector of the retarded Green's function
-            CALL calculate_floquet_spectral_function(qs_env, bs_env, floquet_matrix, a_k)
+            IF (bs_env%floquet_do_dos) THEN
+               ! Compute the physical spectral function
+               ! A_phys(k,ω) = -(1/π) Im[ Tr_KS G^R_{00}(k,ω) ]
+               ! from the zero-zero Floquet sector of the retarded Green's function
+               CALL calculate_floquet_spectral_function(qs_env, bs_env, floquet_matrix, a_k)
 
-            ! Write A_phys(k,ω) (or f(ω,μ)·A_phys for the occupied spectral weight)
-            ! to output for this k-point and spin channel
-            CALL write_floquet_spectral_function(qs_env, bs_env, ispin, ikp_for_file, xkp, a_k)
+               ! Write A_phys(k,ω) (or f(ω,μ)·A_phys for the occupied spectral weight)
+               ! to output for this k-point and spin channel
+               CALL write_floquet_spectral_function(qs_env, bs_env, ispin, ikp_for_file, xkp, a_k)
+            END IF
 
             ! Write progress in the main output file
             IF (unit_nr > 0) WRITE (unit_nr, '(2X,I6,T12,I4,T18,3F12.6)') ikp_for_file, ispin, xkp(1:3)

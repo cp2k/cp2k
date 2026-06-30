@@ -366,6 +366,8 @@ MODULE post_scf_bandstructure_types
                                                       energy_window_floquet = -1.0_dp
       CHARACTER(LEN=default_string_length)         :: floquet_dos_file = "", &
                                                       floquet_qe_file = ""
+      LOGICAL                                      :: floquet_do_quasi = .FALSE., &
+                                                      floquet_do_dos = .FALSE.
 
       ! quantities only needed for small cells and k-point sampling in DFT (small_cell_full_kp)
       INTEGER                                      :: nkp_scf_desymm = -1, &

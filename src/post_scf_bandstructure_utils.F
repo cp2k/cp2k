@@ -260,6 +260,8 @@ CONTAINS
       CALL section_vals_val_get(floquet_sec, "BROADENING", r_val=bs_env%broadening_floquet)
       CALL section_vals_val_get(floquet_sec, "FLOQUET_DOS_FILE_NAME", c_val=bs_env%floquet_dos_file)
       CALL section_vals_val_get(floquet_sec, "QUASI_ENERGIES_FILE_NAME", c_val=bs_env%floquet_qe_file)
+      CALL section_vals_val_get(floquet_sec, "FLOQUET_DO_QUASI", l_val=bs_env%floquet_do_quasi)
+      CALL section_vals_val_get(floquet_sec, "FLOQUET_DO_DOS", l_val=bs_env%floquet_do_dos)
 
       ! read special points for band structure
       ALLOCATE (bs_env%xkp_special(3, bs_env%input_kp_bs_n_sp_pts))

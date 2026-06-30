@@ -571,16 +571,16 @@ CONTAINS
 
       IF (bs_env%para_env%is_source()) THEN
          WRITE (fname, "(2A)") TRIM(bs_env%floquet_qe_file), ".bs"
-         IF (ikp_for_file == 1) THEN
+         IF (ikp_for_file == 1 .AND. ispin == 1) THEN
             CALL open_file(TRIM(fname), unit_number=qunit, file_status="REPLACE", &
                            file_action="WRITE")
+            WRITE (qunit, "(A)") "# Quasi-energies obtained by diagonalising the Floquet Hamiltonian"
+            WRITE (qunit, "(A)") "# (in units of eV, folded to Floquet Brillouin zone)"
          ELSE
             CALL open_file(TRIM(fname), unit_number=qunit, file_status="OLD", &
                            file_action="WRITE", file_position="APPEND")
          END IF
 
-         WRITE (qunit, "(A)") "# Quasi-energies obtained by diagonalising the Floquet Hamiltonian"
-         WRITE (qunit, "(A)") "# (in units of eV, folded to Floquet Brillouin zone)"
          WRITE (qunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
             "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
          WRITE (qunit, "(A)") "#  Floquet band  Quasi-energy [eV]"
@@ -631,15 +631,15 @@ CONTAINS
 
       IF (bs_env%para_env%is_source()) THEN
          WRITE (fname, "(2A)") TRIM(bs_env%floquet_dos_file), ".out"
-         IF (ikp_for_file == 1) THEN
+         IF (ikp_for_file == 1 .AND. ispin == 1) THEN
             CALL open_file(TRIM(fname), unit_number=wunit, file_status="REPLACE", &
                            file_action="WRITE")
+            WRITE (wunit, "(A)") "# Floquet Density of States: D(ω,k) = -1/π*Im[Tr_KS(G^R(ω,k))]"
          ELSE
             CALL open_file(TRIM(fname), unit_number=wunit, file_status="OLD", &
                            file_action="WRITE", file_position="APPEND")
          END IF
 
-         WRITE (wunit, "(A)") "# Floquet Density of States: D(ω,k) = -1/π*Im[Tr_KS(G^R(ω,k))]"
          WRITE (wunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
             "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
          WRITE (wunit, "(A)") "#Energy-E_F (eV)  A(ω,k) = DOS (1/eV)"
