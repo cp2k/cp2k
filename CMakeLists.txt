@@ -133,7 +133,6 @@ option(CP2K_USE_LIBFCI "Enable LibFCI active-space solver support"
        ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBINT2 "Enable Libint2 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBTORCH "Enable LibTorch support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_OPENPMD "Enable support for I/O via openPMD" OFF)
 option(CP2K_USE_LIBXC "Enable LibXC support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GAUXC "Enable GauXC support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_MPI "Enable MPI support" ${CP2K_USE_EVERYTHING})
@@ -171,6 +170,8 @@ cmake_dependent_option(CP2K_USE_SIRIUS "Enable SIRIUS support"
 cmake_dependent_option(CP2K_USE_SPLA "Enable SpLA support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 cmake_dependent_option(CP2K_USE_MIMIC "Enable MIMIC support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_OPENPMD "Enable OpenPMD I/O support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 
 cmake_dependent_option(CP2K_USE_LIBXSMM "Enable LIBXSMM JIT-kernel for LIBXS"
@@ -1121,7 +1122,7 @@ if(CP2K_USE_HDF5)
 endif()
 
 if(CP2K_USE_OPENPMD)
-  message("  - openPMD\n" "    - package directory: ${openPMD_DIR}\n")
+  message("  - OpenPMD\n" "    - package directory: ${openPMD_DIR}\n")
 endif()
 
 if(CP2K_USE_FFTW3)
@@ -1363,6 +1364,10 @@ endif()
 
 if(NOT CP2K_USE_TREXIO)
   message("  - TREXIO")
+endif()
+
+if(NOT CP2K_USE_OPENPMD)
+  message("  - OpenPMD")
 endif()
 
 if(NOT CP2K_USE_GREENX)
