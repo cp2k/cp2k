@@ -33,6 +33,8 @@ MODULE post_scf_bandstructure_types
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
    USE qs_tensors_types,                ONLY: neighbor_list_3c_type
+   USE physcon,                         ONLY: evolt
+
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -303,7 +305,9 @@ MODULE post_scf_bandstructure_types
                                                       trunc_coulomb = libint_potential_type()
 
       ! parameters for SOC calculation
-      REAL(KIND=dp)                                :: energy_window_soc = -1.0_dp
+      REAL(KIND=dp)                                :: soc_window_occ = -1.0_dp
+      REAL(KIND=dp)                                :: soc_window_virt = -1.0_dp
+      REAL(KIND=dp)                                :: soc_window_smearing = 1.0_dp/evolt
       ! sizes: mat_V_SOC_xyz: xyz, img
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: mat_V_SOC_xyz => NULL()
       TYPE(cp_fm_type), DIMENSION(3)               :: fm_V_SOC_xyz_mo = cp_fm_type()

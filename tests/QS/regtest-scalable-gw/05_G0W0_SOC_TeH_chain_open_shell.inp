@@ -45,7 +45,6 @@
         NUM_TIME_FREQ_POINTS 10
       &END GW
       &SOC
-        ENERGY_WINDOW 3.0
       &END SOC
     &END BANDSTRUCTURE
   &END PROPERTIES
