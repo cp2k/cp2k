@@ -40,6 +40,6 @@ class Libxstream(CMakePackage):
         spec = self.spec
         args = [
             self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
-            self.define_from_variant("LIBXSTREAM_SHARED", "shared"),
+            self.define_from_variant("BUILD_SHARED_LIBS", "shared"),
         ]
         return args
