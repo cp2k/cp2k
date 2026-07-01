@@ -142,6 +142,10 @@ CONTAINS
       !
       CALL qs_env_rebuild_pw_env(eht_env)
       CALL qs_energies_init(eht_env, calc_forces=.FALSE.)
+      ! the guess only builds H_KS to diagonalise — it never needs dE/dC
+      ! clear the requires_mo_derivs flag inherited from &OT block so the xTB/tblite
+      ! KS builder skips the mo_derivs path
+      eht_env%requires_mo_derivs = .FALSE.
       IF (dft_control%qs_control%xtb_control%do_tblite) THEN
          CALL build_tblite_ks_matrix(eht_env, .FALSE., .FALSE.)
       ELSE
