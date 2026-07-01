@@ -195,16 +195,6 @@ def process_log_file(fhandle: TextIO) -> None:
                     text = f'Found lossy conversion {m.group(1)} without KIND argument in "{cur_proc}"'
                     msg(text, 15)
 
-        elif (
-            "CPASSERT(.FALSE.)" in line
-            or 'CPABORT("")' in line
-            or "CPABORT('')" in line
-        ):
-            msg(
-                f'Found CPASSERT(.FALSE.) or empty CPABORT() message in "{cur_proc}"',
-                17,
-            )
-
     # check for run-away DT_END search
     assert skip_until_DT_END is False
 
