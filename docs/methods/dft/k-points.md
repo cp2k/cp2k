@@ -211,9 +211,8 @@ additional requirements are documented separately:
   k-point MO output. Molden output is not available for k-point calculations.
 - [](hartree-fock/ri_kpoints) documents RI-HFX with k-point sampling and includes a band-structure
   example.
-- [&WANNIER90](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90) is an experimental interface. With
-  [KPOINTS_SOURCE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.KPOINTS_SOURCE) set to `SCF`, it can
-  use the full SCF mesh from `&DFT%KPOINTS`; Wannier90 export requires a complete mesh.
+- [](../electronic_structure/wannier90) documents the experimental Wannier90 interface, including
+  export from the SCF k-point mesh and the treatment of symmetry-reduced SCF meshes.
 - [](../optimization/geometry_and_cell_opt) describes geometry and cell optimization. Their
   interaction with experimental atomic k-point symmetry is discussed below.
 
