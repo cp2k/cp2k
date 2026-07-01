@@ -148,10 +148,6 @@ proprietary software packages, like e.g. MKL, these have to be installed separat
   of the variables in the file should have a default value, but allow the environment to set the
   values, using: `VAR=${VAR:-default_value}`.
 
-- `script/parse_if.py` is a python code for parsing the `IF_XYZ(A|B)` constructs in the script.
-  Nested structures will be parsed correctly. See
-  [`IF_XYZ` constructs](./README_FOR_DEVELOPERS.md#the-if_xyz-constructs) below.
-
 ### `enable-FEATURE` options
 
 The `enable-FEATURE` options control whether a FEATURE is enabled or disabled. Possible values are:
@@ -174,59 +170,11 @@ one, an extra variable `PKG_MODE` (e.g. `MPI_MODE`) are used as a selector. In t
 `with_PKG` controls the installation method, the `PKG_MODE` variable picks which package to actually
 use. This provides more flexibility.
 
-### The IF_XYZ constructs
-
-Due to the fact that `install_cp2k_toolchain.sh` needs to produce several different versions of the
-arch files: `psmp`, `pdbg`, `ssmp`, `sdbg`, etc, it will have to resolve different flags for
-different arch file versions.
-
-The solution used by this script is to use a syntax construct:
-
-```shell
-IF_XYZ(A | B)
-```
-
-A parser will then parse this expression to *A* if *XYZ* is passed to the parser (python
-`parse_if.py` filename XYZ); and to *B* if *XYZ* is not passed as command line option (python
-`parse_if.py` filename).
-
-The `IF_XYZ(A|B)` construct can be nested, so things like:
-
-```shell
-IF_XYZ(IF_ABC(flag1|flag2) | flag3)
-```
-
-will parse to *flag1* if both *XYZ* and *ABC* are present in the command line arguments of
-`parser_if.py`, to *flag2* if only *XYZ* is present, and *flag3* if nothing is present.
-
 ### To ensure portability
 
 - one should always pass compiler flags through the `allowed_gcc_flags` and `allowed_gfortran_flags`
   filters in `scripts/toolkit.sh` to omit any flags that are not supported by the gcc version used
   (or installed by this script).
-
-- note that `allowed_gcc_flags` and `allowed_gfortran_flags` do not work with `IF_XYZ` constructs.
-  So if you have something like:
-
-```shell
-FCFLAGS="IF_XYZ(flag1 flag2 | flag3 flag4)"
-```
-
-Then you should break this into:
-
-```shell
-XYZ_TRUE_FLAGS="flags1 flags2"
-XYZ_FALSE_FLAGS="flags3 flags4"
-# do filtering
-XYZ_TRUE_FLAGS="$(allowed_gcc_flags $XYZ_TRUE_FLAGS)"
-XYZ_FALSE_FLAGS="$(allowed_gcc_flags $XYZ_FALSE_FLAGS)"
-```
-
-So that:
-
-```shell
-FCFLAGS="IF_XYZ($XYZ_TRUE_FLAGS | $XYZ_FALSE_FLAGS)"
-```
 
 - For any intrinsic fortran modules that may be used, it is best to check with
   `check_gfortran_module` macro defined in `script/tool_kit.sh`. Depending on the gcc version, some

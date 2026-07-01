@@ -46,7 +46,7 @@ case "$with_plumed" in
           libs=""
           ;;
       esac
-      [ -n "${MKL_LIBS}" ] && libs+="$(resolve_string "${MKL_LIBS}" "MPI")"
+      [ -n "${MKL_LIBS}" ] && libs+="${MKL_LIBS}"
 
       # Patch to include <limits> explicitly as required by gcc >= 11.
       sed -i'' -e '/^#include <algorithm>/a\'$'\n''#include <limits>' ./src/lepton/Operation.h

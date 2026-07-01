@@ -47,7 +47,7 @@ case "$with_libvdwxc" in
           CC="${CC}" CFLAGS="${CFLAGS} -fpermissive" \
           FC="${FC}" \
           FFTW3_INCLUDES="${FFTW3_INCLUDES}" \
-          FFTW3_LIBS="$(resolve_string "${FFTW3_LIBS}" "MPI")" \
+          FFTW3_LIBS="${FFTW3_LIBS}" \
           --prefix="${pkg_install_dir}" \
           --libdir="${pkg_install_dir}/lib" \
           --disable-shared \
@@ -57,7 +57,7 @@ case "$with_libvdwxc" in
           CC="${MPICC}" CFLAGS="${CFLAGS} -fpermissive" \
           FC="${MPIFC}" \
           FFTW3_INCLUDES="${FFTW3_INCLUDES}" \
-          FFTW3_LIBS="$(resolve_string "${FFTW3_LIBS}" "MPI")" \
+          FFTW3_LIBS="${FFTW3_LIBS}" \
           --prefix="${pkg_install_dir}" \
           --libdir="${pkg_install_dir}/lib" \
           --disable-shared \
