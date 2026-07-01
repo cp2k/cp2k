@@ -66,7 +66,7 @@ def main() -> None:
             install_cp2k_spack(
                 version="pdbg",
                 mpi_mode="mpich",
-                feature_flags="-ef openpmd",
+                feature_flags="",
                 testopts="",
                 image_tag=f.image_tag,
             )
@@ -77,9 +77,7 @@ def main() -> None:
             f"Dockerfile.test_spack_psmp-gcc{gcc_version}", args.check
         ) as f:
             base_image = "ubuntu:26.04" if gcc_version > 12 else "ubuntu:24.04"
-            feature_flags = (
-                "-ef openpmd" if gcc_version > 10 else "-df libtorch -ef openpmd"
-            )
+            feature_flags = "" if gcc_version > 10 else "-df libtorch"
             f.write(
                 install_cp2k_spack(
                     version="psmp",
@@ -98,7 +96,7 @@ def main() -> None:
                 version="pdbg",
                 mpi_mode="mpich",
                 base_image="fedora:rawhide",
-                feature_flags="-ef openpmd",
+                feature_flags="",
                 testopts=testopts,
                 image_tag=f.image_tag,
             )
@@ -110,7 +108,7 @@ def main() -> None:
                 version="psmp",
                 mpi_mode="mpich",
                 base_image="fedora:latest",
-                feature_flags="-ef openpmd",
+                feature_flags="",
                 testopts=testopts,
                 image_tag=f.image_tag,
             )
@@ -123,7 +121,7 @@ def main() -> None:
                 mpi_mode="mpich",
                 base_image="opensuse/leap:16.0",
                 gcc_version=13,
-                feature_flags="-ef openpmd",
+                feature_flags="",
                 testopts=testopts,
                 image_tag=f.image_tag,
             )
@@ -136,7 +134,7 @@ def main() -> None:
                 mpi_mode="mpich",
                 base_image="docker.io/rockylinux/rockylinux:10",
                 gcc_version=14,
-                feature_flags="-ef openpmd",
+                feature_flags="",
                 testopts=testopts,
                 image_tag=f.image_tag,
             )
@@ -147,7 +145,7 @@ def main() -> None:
             install_cp2k_spack(
                 version="psmp",
                 mpi_mode="mpich",
-                feature_flags="-ef openpmd",
+                feature_flags="",
                 testopts=f"--keepalive --mpiranks=4 --ompthreads=2",
                 image_tag=f.image_tag,
             )
@@ -158,7 +156,7 @@ def main() -> None:
             install_cp2k_spack(
                 version="pdbg",
                 mpi_mode="openmpi",
-                feature_flags="-ef openpmd",
+                feature_flags="",
                 testopts="",
                 image_tag=f.image_tag,
             )
@@ -169,7 +167,7 @@ def main() -> None:
             install_cp2k_spack(
                 version="psmp",
                 mpi_mode="openmpi",
-                feature_flags="-ef openpmd",
+                feature_flags="",
                 testopts=testopts,
                 image_tag=f.image_tag,
             )
@@ -218,7 +216,7 @@ def main() -> None:
                 base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
-                feature_flags="-ef openpmd",
+                feature_flags="",
                 testopts=testopts,
                 image_tag=f.image_tag,
             )

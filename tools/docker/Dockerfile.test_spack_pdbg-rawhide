@@ -39,7 +39,7 @@ WORKDIR /opt/cp2k
 COPY ./tools/spack ./tools/spack
 COPY ./tools/docker ./tools/docker
 COPY ./make_cp2k.sh .
-RUN ./make_cp2k.sh -bd_only -cv pdbg -gpu none  -mpi mpich -ue -ef openpmd
+RUN ./make_cp2k.sh -bd_only -cv pdbg -gpu none  -mpi mpich -ue 
 
 ###### Stage 2: Build CP2K ######
 
@@ -51,7 +51,7 @@ COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 
-RUN ./make_cp2k.sh -cv pdbg  -gpu none -mpi mpich -ef openpmd
+RUN ./make_cp2k.sh -cv pdbg  -gpu none -mpi mpich 
 
 ###### Stage 3: Install CP2K ######
 
