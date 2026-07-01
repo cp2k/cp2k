@@ -162,6 +162,7 @@ SED_PATTERN_LIST=""
 TESTOPTS=""
 USE_CACHE="folder"
 USE_EXTERNALS="no"
+USE_OPENCL="no"
 VERBOSE=0
 VERBOSE_FLAG="--quiet"
 VERBOSE_MAKEFILE="OFF"
@@ -539,6 +540,10 @@ while [[ $# -gt 0 ]]; do
         shift 1
       fi
       ;;
+    -opencl)
+      USE_OPENCL="yes"
+      shift 1
+      ;;
     -rc | --rebuild_cp2k)
       REBUILD_CP2K="yes"
       shift 1
@@ -630,7 +635,7 @@ CMAKE_FEATURE_FLAGS="$(printf '%s\n' "${out[*]}")"
 
 export BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU CP2K_BUILD_TYPE \
   CRAY CUDA_SM_CODE DEPS_BUILD_TYPE GCC_VERSION GPU_MODEL IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PACKAGES \
-  NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS USE_CACHE VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE VERBOSE_SPACK
+  NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS USE_CACHE USE_OPENCL VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE VERBOSE_SPACK
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -674,6 +679,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " -j                    : Maximum number of processes used in parallel"
   echo " --mpi_mode            : Set preferred MPI mode (default: \"mpich\")"
   echo " --num_packages        : Maximum number of packages built by spack in parallel (default: 4)"
+  echo " -opencl               : Perform build with OpenCL support"
   echo " --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)"
   echo " --test                : Perform a regression test run after a successful build"
   echo " --use_cache           : Use a \"folder\", a \"MinIO\" object storage container (requires podman) or \"no\" cache"
@@ -730,6 +736,7 @@ if [[ "${RUN_TEST}" == "yes" ]]; then
 fi
 echo "USE_CACHE           = ${USE_CACHE}"
 echo "USE_EXTERNALS       = ${USE_EXTERNALS}"
+echo "USE_OPENCL          = ${USE_OPENCL}"
 echo "VERBOSE_FLAG        = ${VERBOSE_FLAG}"
 echo "VERBOSE_MAKEFILE    = ${VERBOSE_MAKEFILE}"
 echo "VERBOSE             = ${VERBOSE}"
@@ -1089,6 +1096,7 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
       -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_SM_CODE}/" \
       -e 's/"~cuda\s+~gpu_direct"/"\+cuda \+gpu_direct"/' \
       -e '/\s*#\s*-\s+"fabrics=efa,ucx"/ s/#/ /' \
+      -e '/\s*#\s*-\s+"libxstream@/ s/#/ /' \
       -i "${CP2K_CONFIG_FILE}"
     # Building libfabric with CUDA causes problems
     # sed -E -e 's/"~cuda\s+~gdrcopy"/"\+cuda \+gdrcopy"/' -i "${CP2K_CONFIG_FILE}"
@@ -1102,6 +1110,14 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
     fi
   else
     sed -E -e 's/"~cuda\s+~gdrcopy"/"\~cuda"/' -i "${CP2K_CONFIG_FILE}"
+  fi
+
+  # Activate OpenCL support if requested
+  if [[ "${USE_OPENCL}" == "yes" ]]; then
+    sed -E \
+      -e 's/"~opencl"/"+opencl"/' \
+      -e '/\s*#\s*-\s+"libxstream@/ s/#/ /' \
+      -i "${CP2K_CONFIG_FILE}"
   fi
 
   # Apply Cray specific adaptation of the spack configuration if requested (CSCS)
