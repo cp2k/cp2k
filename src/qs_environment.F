@@ -90,16 +90,16 @@ MODULE qs_environment
    USE hfx_types,                       ONLY: compare_hfx_sections,&
                                               hfx_create
    USE input_constants,                 ONLY: &
-        debug_run, dispersion_d2, dispersion_d3, dispersion_d3bj, do_et_ddapc, do_method_am1, &
-        do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, &
-        do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
-        do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, do_method_rm1, &
-        do_method_xtb, do_qmmm_gauss, do_qmmm_swave, general_roks, gfn1xtb, hden_atomic, &
-        kg_tnadd_embed_ri, linear_response_run, rel_none, rel_trans_atom, smear_fermi_dirac, &
-        tblite_scc_mixer_tblite, tddfpt_kernel_none, vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
-        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
-        wfi_use_prev_wf_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot, &
-        xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
+        debug_run, diag_ot, dispersion_d2, dispersion_d3, dispersion_d3bj, do_et_ddapc, &
+        do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+        do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
+        do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, &
+        do_method_rm1, do_method_xtb, do_qmmm_gauss, do_qmmm_swave, general_roks, gfn1xtb, &
+        hden_atomic, kg_tnadd_embed_ri, linear_response_run, rel_none, rel_trans_atom, &
+        smear_fermi_dirac, tblite_scc_mixer_tblite, tddfpt_kernel_none, vdw_pairpot_dftd2, &
+        vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, wfi_linear_ps_method_nr, &
+        wfi_linear_wf_method_nr, wfi_use_prev_wf_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, &
+        xc_vdw_fun_pairpot, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_vals_get,&
@@ -1603,6 +1603,23 @@ CONTAINS
       END IF
       CALL scf_c_create(scf_control)
       CALL scf_c_read_parameters(scf_control, dft_section)
+      IF (scf_control%gce%do_gce) THEN
+         IF (.NOT. ALL(cell%perd == 1)) THEN
+            CPABORT("Grand canonical SCF is only implemented for 3D periodic calculations.")
+         END IF
+         IF (.NOT. scf_control%smear%do_smear) THEN
+            CPABORT("Grand canonical SCF requires smearing.")
+         END IF
+         IF (scf_control%smear%method /= smear_fermi_dirac) THEN
+            CPABORT("Grand canonical SCF is only implemented for Fermi-Dirac way of smearing.")
+         END IF
+         IF (scf_control%use_ot .OR. .NOT. scf_control%use_diag .OR. &
+             scf_control%diagonalization%method == diag_ot) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Grand canonical SCF requires standard diagonalization. "// &
+                          "It is not implemented with OT.")
+         END IF
+      END IF
       IF (.NOT. dft_control%qs_control%do_ls_scf) THEN
          SELECT CASE (dft_control%qs_control%method_id)
          CASE (do_method_dftb)

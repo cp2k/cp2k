@@ -13,14 +13,9 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_scf
-   USE bibliography,                    ONLY: Becke1988b,&
-                                              Holmberg2017,&
-                                              Holmberg2018,&
-                                              Schiffmann2015,&
-                                              Stewart1982,&
-                                              VandeVondele2003,&
-                                              VandeVondele2005a,&
-                                              Weber2008
+   USE bibliography,                    ONLY: &
+        Becke1988b, Chai2024a, Holmberg2017, Holmberg2018, Schiffmann2015, Stewart1982, &
+        VandeVondele2003, VandeVondele2005a, Weber2008
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level,&
@@ -2048,7 +2043,7 @@ CONTAINS
    END SUBROUTINE create_cdft_opt_section
 
 ! **************************************************************************************************
-!> \brief      Create CP2K input section for the grand canonical ensemble DFT
+!> \brief      Create CP2K input section for the grand canonical SCF
 !> \param section ...
 !> \date
 !> \author     Ziwei Chai
@@ -2064,7 +2059,26 @@ CONTAINS
 
       CALL section_create(section, __LOCATION__, &
                           name="GCE", &
-                          description="Define the settings of the grand canonical ensemble DFT", &
+                          description="Enables grand canonical SCF calculations for "// &
+                          "slab models with a target work function specified by the "// &
+                          "user. The current implementation is intended for three "// &
+                          "dimensional periodic calculations and should be used "// &
+                          "together with the planar counter charge model. The planar "// &
+                          "counter charge screens the net charge of the DFT slab, so "// &
+                          "that the work function can be obtained from the planar "// &
+                          "averaged Hartree potential in the implicit solvent region "// &
+                          "or vacuum region. During the SCF iterations, the work "// &
+                          "function is mixed toward the target value. "// &
+                          "The reported GCE charges during SCF iterations are the "// &
+                          "current net charge of the DFT system excluding the planar "// &
+                          "counter charge. A positive value means electron deficiency. "// &
+                          "The input CHARGE value in the DFT section defines the "// &
+                          "reference charge state. The quantity N_e^(abs,alpha) is "// &
+                          "evaluated as the input CHARGE value minus the reported GCE "// &
+                          "charge. The reported GCE free energy is the sum of the DFT "// &
+                          "total energy and the product of the target work function "// &
+                          "and N_e^(abs,alpha).", &
+                          citations=[Chai2024a], &
                           n_keywords=3, &
                           n_subsections=0, &
                           repeats=.FALSE.)
@@ -2073,7 +2087,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="_SECTION_PARAMETERS_", &
-                          description="Controls the activation of grand canonical ensemble DFT", &
+                          description="Controls the activation of grand canonical SCF", &
                           usage="&GCE ON", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)

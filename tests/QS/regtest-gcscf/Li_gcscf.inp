@@ -1,0 +1,77 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT Li_gcscf
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    LSD
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 100
+      REL_CUTOFF 40
+    &END MGRID
+    &PLANAR_COUNTER_CHARGE ON
+      DIST_EDGE 1.5
+      GAU_C 1.5
+      PARALLEL_PLANE XY
+    &END PLANAR_COUNTER_CHARGE
+    &QS
+      EPS_DEFAULT 1.0E-10
+    &END QS
+    &SCF
+      ADDED_MOS 10
+      CHOLESKY INVERSE
+      EPS_SCF 1.0E-9
+      MAX_SCF 100
+      &DIAGONALIZATION
+        ALGORITHM STANDARD
+      &END DIAGONALIZATION
+      &GCE ON
+        MIXING_COEF 0.3
+        TARGET_WORKFUNCTION [eV] 4.5
+      &END GCE
+      &MIXING
+        ALPHA 0.1
+        METHOD NEW_PULAY_MIXING
+        NBROYDEN 5
+        QK 1
+        QKAPPA 0.25
+        QM 0.75
+      &END MIXING
+      &SMEAR ON
+        ELECTRONIC_TEMPERATURE [K] 300
+        METHOD FERMI_DIRAC
+      &END SMEAR
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 9.0 6.0 10.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      Li   1.5   1.5   0.9
+      Li   4.5   1.5   0.9
+      Li   7.5   1.5   0.9
+      Li   1.5   4.5   0.9
+      Li   4.5   4.5   0.9
+      Li   7.5   4.5   0.9
+    &END COORD
+    &KIND Li
+      BASIS_SET DZVP-MOLOPT-SR-GTH-q3
+      POTENTIAL GTH-LDA-q3
+    &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

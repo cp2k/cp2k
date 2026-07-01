@@ -612,7 +612,8 @@ MODULE cp_control_types
       INTEGER                              :: surf_normal = 0
       REAL(KIND=dp)                        :: dist_edge = 0.0_dp, &
                                               gau_a = 0.0_dp, &
-                                              gau_c = 0.0_dp
+                                              gau_c = 0.0_dp, &
+                                              charge = 0.0_dp
    END TYPE pcc_control_type
 
 ! **************************************************************************************************

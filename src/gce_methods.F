@@ -212,6 +212,8 @@ CONTAINS
 
       tot_charge = pw_integrate_function(rho_tot_gspace, isign=-1)
 
+      pcc_env%charge = tot_charge
+
       dz = pcc_density_r%pw_grid%dr(c)
 
       ucenter = pcc_density_r%pw_grid%bounds(2, c) - INT(pcc_env%dist_edge/dz)

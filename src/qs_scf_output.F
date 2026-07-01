@@ -97,7 +97,8 @@ MODULE qs_scf_output
              qs_scf_write_mos, &
              qs_scf_cdft_info, &
              qs_scf_cdft_initial_info, &
-             qs_scf_cdft_constraint_info
+             qs_scf_cdft_constraint_info, &
+             qs_scf_gce_info
 
 CONTAINS
 
@@ -876,6 +877,18 @@ CONTAINS
                   e_extrapolated = energy%total - 0.5_dp*energy%kTS
                   WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
                      "Total energy (extrapolated to T->0):           ", e_extrapolated
+                  IF (scf_control%gce%do_gce) THEN
+                     WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
+                        "GCE work function [eV]: ", scf_control%gce%prev_workfunction*evolt
+                     WRITE (UNIT=output_unit, FMT="((T3,A,T56,ES25.10))") &
+                        "GCE WF-TWF [eV]: ", (scf_control%gce%prev_workfunction - &
+                                              scf_control%gce%target_workfunction)*evolt
+                     WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
+                        "GCE charge [e]: ", dft_control%pcc_control%charge
+                     WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
+                        "GCE free energy: ", (dft_control%pcc_control%charge + dft_control%charge) &
+                        *scf_control%gce%prev_workfunction*evolt
+                  END IF
                CASE (smear_gaussian)
                   e_extrapolated = energy%total - 0.5_dp*energy%kTS
                   WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
@@ -1299,5 +1312,44 @@ CONTAINS
       END IF
 
    END SUBROUTINE qs_scf_cdft_constraint_info
+
+! **************************************************************************************************
+!> \brief Print grand canonical SCF information for the current SCF iteration.
+!> \param output_unit output unit used for SCF program run information
+!> \param qs_env QS environment
+!> \param just_energy whether this is an energy-only step
+! **************************************************************************************************
+   SUBROUTINE qs_scf_gce_info(output_unit, qs_env, just_energy)
+
+      INTEGER, INTENT(IN)                                :: output_unit
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: just_energy
+
+      REAL(KIND=dp)                                      :: charge, current_wf_ev, delta_wf_ev, &
+                                                            free_ener, target_wf_ev
+      TYPE(dft_control_type), POINTER                    :: dft_control
+
+      IF (output_unit <= 0) RETURN
+      IF (just_energy) RETURN
+
+      current_wf_ev = qs_env%scf_control%gce%prev_workfunction*evolt
+      target_wf_ev = qs_env%scf_control%gce%target_workfunction*evolt
+      delta_wf_ev = current_wf_ev - target_wf_ev
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      charge = dft_control%pcc_control%charge
+      free_ener = (charge + dft_control%charge)*qs_env%scf_control%gce%prev_workfunction
+
+      WRITE (UNIT=output_unit, &
+             FMT="(T8,A,T13,A,T24,A,T27,F6.1,A,T40,A,T56,A,T59,ES10.2,A)") &
+         "GCE", "WF", "=", current_wf_ev, " eV", &
+         "WF-TWF", "=", delta_wf_ev, " eV"
+
+      WRITE (UNIT=output_unit, &
+             FMT="(T13,A,T24,A,T27,F7.3,A,T40,A,T56,A,T59,F14.10,A)") &
+         "Charge", "=", charge, " e", &
+         "GCE free energy", "=", free_ener, " a.u."
+
+   END SUBROUTINE qs_scf_gce_info
 
 END MODULE qs_scf_output
