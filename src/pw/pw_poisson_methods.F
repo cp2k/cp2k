@@ -65,7 +65,7 @@ MODULE pw_poisson_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_poisson_methods'
 
    PUBLIC :: pw_poisson_rebuild, &
-             pw_poisson_solve, pw_poisson_set
+             pw_poisson_solve, pw_poisson_set, pw_func_u_convolution
 
    INTEGER, PARAMETER                       :: use_rs_grid = 0, &
                                                use_gs_grid = 1
@@ -1349,5 +1349,55 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_poisson_set
+
+! **************************************************************************************************
+!> \brief computes the convolution f * u using reciprocal-space multiplication
+!> \par
+!>      Given two real-space functions f and u, this routine evaluates their
+!>      convolution by transforming both to G space, multiplying their Fourier
+!>      components, and transforming the product back to real space.
+!> \param poisson_env   poisson environment
+!> \param func          input function f in real space
+!> \param convolution   convolution result (f * u) in real space
+!> \param u             input function/kernel u in real space
+!> \author Ziwei Chai
+!> \date   12.03.2026
+! **************************************************************************************************
+   SUBROUTINE pw_func_u_convolution(poisson_env, func, convolution, u)
+
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: func, u
+      TYPE(pw_r3d_rs_type), INTENT(INOUT), OPTIONAL      :: convolution
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_func_u_convolution'
+      INTEGER                                            :: handle
+      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_pool_type), POINTER                        :: pw_pool
+      TYPE(pw_c1d_gs_type)                               :: funcg, ug
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(poisson_env))
+      CALL pw_poisson_rebuild(poisson_env, func)
+
+      ! point pw
+      pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
+      pw_grid => pw_pool%pw_grid
+      ! func and u in G space
+      CALL pw_pool%create_pw(funcg)
+      CALL pw_pool%create_pw(ug)
+
+      CALL pw_transfer(func, funcg)
+      CALL pw_transfer(u, ug)
+
+      funcg%array(:) = funcg%array(:)*ug%array(:)
+
+      CALL pw_transfer(funcg, convolution)
+
+      CALL pw_pool%give_back_pw(funcg)
+      CALL pw_pool%give_back_pw(ug)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_func_u_convolution
 
 END MODULE pw_poisson_methods

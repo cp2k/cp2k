@@ -96,7 +96,8 @@ MODULE bibliography
                             Hanasaki2025, Tan2025, Broyden1965, Johnson1988, Kerker1981, &
                             FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
-                            Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017
+                            Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
+                            Chai2025a
 
 CONTAINS
 
@@ -2196,6 +2197,19 @@ CONTAINS
                          "Algorithms and applications to electrochemistry", &
                          source="J. Chem. Phys.", volume="146", pages="114104", &
                          year=2017, doi="10.1063/1.4978411")
+
+      CALL add_reference(key=Andreussi2019, &
+                         authors=s2a("O. Andreussi", "N. G. Hormann", "F. Nattino", "G. Fisicaro", "S. Goedecker", "N. Marzari"), &
+                         title="Solvent-aware interfaces in continuum solvation", &
+                         source="J. Chem. Theory Comput.", volume="15", pages="1996-2009", &
+                         year=2019, doi="10.1021/acs.jctc.8b01174")
+
+      CALL add_reference(key=Chai2025a, &
+                         authors=s2a("Z. Chai", "S. Luber"), &
+                         title="Functional analytic derivation and CP2K implementation of the SCCS model based "// &
+                         "on the solvent-aware interface", &
+                         source="Comput. Phys. Commun.", volume="311", pages="109563", &
+                         year=2025, doi="10.1016/j.cpc.2025.109563")
 
    END SUBROUTINE add_all_references
 
