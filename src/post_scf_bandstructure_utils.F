@@ -216,9 +216,9 @@ CONTAINS
       soc_sec => section_vals_get_subs_vals(bs_sec, "SOC")
       CALL section_vals_get(soc_sec, explicit=bs_env%do_soc)
 
-      CALL section_vals_val_get(soc_sec, "SOC_WINDOW_OCC",r_val=bs_env%soc_window_occ)
-      CALL section_vals_val_get(soc_sec, "SOC_WINDOW_VIRT",r_val=bs_env%soc_window_virt)
-      CALL section_vals_val_get(soc_sec, "SOC_WINDOW_SMEARING",r_val=bs_env%soc_window_smearing)
+      CALL section_vals_val_get(soc_sec, "SOC_WINDOW_OCC", r_val=bs_env%soc_window_occ)
+      CALL section_vals_val_get(soc_sec, "SOC_WINDOW_VIRT", r_val=bs_env%soc_window_virt)
+      CALL section_vals_val_get(soc_sec, "SOC_WINDOW_SMEARING", r_val=bs_env%soc_window_smearing)
 
       NULLIFY (dos_pdos_sec)
       dos_pdos_sec => section_vals_get_subs_vals(bs_sec, "DOS")
@@ -770,7 +770,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'diagonalize_ks_matrix'
 
-      INTEGER                                            :: handle, ispin, ikp
+      INTEGER                                            :: handle, ikp, ispin
       REAL(KIND=dp)                                      :: CBM, VBM
 
       CALL timeset(routineN, handle)
@@ -803,15 +803,14 @@ CONTAINS
 
       CALL timestop(handle)
 
-     ! Gamma-only path for molecules: eigenval_scf is filled here from the Gamma eigenvalues 
+      ! Gamma-only path for molecules: eigenval_scf is filled here from the Gamma eigenvalues
       DO ispin = 1, bs_env%n_spin
          DO ikp = 1, bs_env%nkp_bs_and_DOS
             bs_env%eigenval_scf(:, ikp, ispin) = bs_env%eigenval_scf_Gamma(:, ispin)
          END DO
       END DO
 
-
-      END SUBROUTINE diagonalize_ks_matrix
+   END SUBROUTINE diagonalize_ks_matrix
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1218,12 +1217,11 @@ CONTAINS
                   ' no window'
             END IF
             IF (bs_env%soc_window_occ > 0.0_dp .OR. bs_env%soc_window_virt > 0.0_dp) THEN
-                        WRITE (bs_env%unit_nr, '(T2,A,T71,F10.2)') 'SOC requested, SOC window smearing (eV):', &
-                           bs_env%soc_window_smearing*evolt
+               WRITE (bs_env%unit_nr, '(T2,A,T71,F10.2)') 'SOC requested, SOC window smearing (eV):', &
+                  bs_env%soc_window_smearing*evolt
             END IF
          END IF
       END IF
-
 
       IF (bs_env%do_ldos) THEN
          CPASSERT(bs_env%int_ldos_xyz == int_ldos_z)
@@ -1674,7 +1672,6 @@ CONTAINS
 !> \param eigenval_spinor ...
 !> \param cfm_spinor_wf_ikp ...
 ! **************************************************************************************************
-   !changed for molecules now
    SUBROUTINE SOC_ev(bs_env, qs_env, ikp, eigenval_no_SOC, band_edges_no_SOC, E_min, cfm_mos_ikp, &
                      DOS, PDOS, band_edges, eigenval_spinor, cfm_spinor_wf_ikp)
 
@@ -1757,8 +1754,8 @@ CONTAINS
       !    unbound states couple to the states around the Fermi level)
       eigenval_spinor_no_SOC(1:n_ao) = eigenval_no_SOC(1:n_ao, ikp, 1)
       eigenval_spinor_no_SOC(n_ao + 1:) = eigenval_no_SOC(1:n_ao, ikp, bs_env%n_spin)
-        IF (bs_env%soc_window_occ > 0.0_dp .OR. bs_env%soc_window_virt > 0.0_dp) THEN
-            CALL remove_soc_outside_energy_window_mo(cfm_ks_ikp_spinor, &
+      IF (bs_env%soc_window_occ > 0.0_dp .OR. bs_env%soc_window_virt > 0.0_dp) THEN
+         CALL remove_soc_outside_energy_window_mo(cfm_ks_ikp_spinor, &
                                                   bs_env%soc_window_occ, &
                                                   bs_env%soc_window_virt, &
                                                   bs_env%soc_window_smearing, &
@@ -1767,7 +1764,7 @@ CONTAINS
                                                   band_edges_no_SOC%CBM, &
                                                   bs_env%e_fermi(1))
 
-	 END IF
+      END IF
 
       ! 4. h^G0W0+SOC_nn',σσ'(k_i) = ε_nσ^G0W0(k_i) δ_nn' δ_σσ' + V^SOC_nn',σσ'(k_i)
       CALL cfm_add_on_diag(cfm_ks_ikp_spinor, eigenval_spinor_no_SOC)

@@ -32,9 +32,8 @@ MODULE post_scf_bandstructure_types
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
-   USE qs_tensors_types,                ONLY: neighbor_list_3c_type
    USE physcon,                         ONLY: evolt
-
+   USE qs_tensors_types,                ONLY: neighbor_list_3c_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

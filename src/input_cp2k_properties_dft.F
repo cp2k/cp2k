@@ -2717,8 +2717,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="SOC_WINDOW_SMEARING", &
                           description="Width of the Fermi-like smoothing at the SOC energy-window edge. "// &
-                          "Default reproduces the value of 1 eV."// &
-                          "only effective when at least one SOC window is active.", & 
+                          "Default reproduces the value of 1 eV. "// &
+                          "only effective when at least one SOC window is active.", &
                           usage="SOC_WINDOW_SMEARING 1.0", &
                           default_r_val=cp_unit_to_cp2k(value=1.0_dp, unit_str="eV"), &
                           unit_str="eV")
