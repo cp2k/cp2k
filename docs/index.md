@@ -25,6 +25,18 @@ getting-started/first-calculation
 
 ```{toctree}
 ---
+caption: Developing CP2K
+titlesonly:
+maxdepth: 1
+---
+developing-cp2k/develop-cp2k
+developing-cp2k/coding-conventions
+developing-cp2k/code-structure
+developing-cp2k/error-handling
+```
+
+```{toctree}
+---
 caption: Methods
 titlesonly:
 maxdepth: 1
