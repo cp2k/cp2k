@@ -239,8 +239,7 @@ CONTAINS
    SUBROUTINE build_momentum_matrix(e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, momentum)
       REAL(KIND=dp), DIMENSION(:)                        :: e_k_kp_spin
       REAL(KIND=dp), DIMENSION(:, :)                     :: de_dk_kp_spin
-      COMPLEX(KIND=dp), DIMENSION(:, :, :)               :: dipole_kp_spin
-      COMPLEX(KIND=dp), DIMENSION(:, :, :)               :: momentum
+      COMPLEX(KIND=dp), DIMENSION(:, :, :)               :: dipole_kp_spin, momentum
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_momentum_matrix'
 
@@ -537,30 +536,45 @@ CONTAINS
    END FUNCTION floquet_ranks_per_node
 
 ! **************************************************************************************************
-!> \brief Choose the number of MPI ranks per subgroup so that the subgroup can hold the Floquet
-!>        working set distributed across its ranks. The working set is taken to be
-!>        n_fm_work_copies copies of the n_f_size^2 complex(dp) Floquet Hamiltonian, i.e.
-!>          needed_bytes = 16 * n_fm_work_copies * n_f_size^2
-!>        and the subgroup size is the smallest G with needed_bytes/G <= per-rank physical
-!>        memory (node memory / ranks per node).
-!> \param para_env the (global) parallel environment
-!> \param n_f_size dimension of the (square) Floquet matrix = nao*(1+2*max_floquet_index)
-!> \param unit_nr I/O unit for logging (<= 0 to suppress)
+!> \brief Choose the number of MPI ranks per subgroup as the larger of two floors:
+!>          1. Memory floor G_mem: the subgroup must jointly hold the Floquet working set,
+!>             taken to be n_fm_work_copies copies of the n_f_size^2 complex(dp) Floquet
+!>             Hamiltonian (needed_bytes = 16 * n_fm_work_copies * n_f_size^2), so
+!>             G_mem = ceil(needed_bytes / per-rank physical memory).
+!>          2. K-point floor G_load = floor(num_pe / n_kp_dos): the LARGEST G that still
+!>             yields at least n_kp_dos subgroups (floor(num_pe/G) >= n_kp_dos). When ranks
+!>             outnumber k-points this hands every k-point its own (larger, hence faster)
+!>             subgroup instead of leaving spare ranks idle; the caller stride-interleaves the
+!>             split so the data owners actually spread across those subgroups. When
+!>             n_kp_dos >= num_pe this floor is 0, so G_mem alone applies (unchanged behaviour).
+!>             (floor, not ceil: ceil would give one subgroup too few, forcing an extra round.)
+!> \param qs_env ...
+!> \param bs_env ...
 !> \return the chosen number of ranks per subgroup (1 .. num_pe)
 ! **************************************************************************************************
-   FUNCTION floquet_determine_subgroup_size(para_env, n_f_size, unit_nr) RESULT(group_size)
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: n_f_size, unit_nr
+   FUNCTION floquet_determine_subgroup_size(qs_env, bs_env) RESULT(group_size)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER                                            :: group_size
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'floquet_determine_subgroup_size'
 
-      INTEGER                                            :: handle, ranks_per_node
-      INTEGER(KIND=int_8)                                :: Buffers, Cached, MemFree, MemLikelyFree, &
-                                                            mem_per_rank, MemTotal, needed_bytes, &
+      INTEGER                                            :: g_load, g_mem, handle, n_f_size, &
+                                                            n_kp_dos, nao, ranks_per_node, unit_nr
+      INTEGER(KIND=int_8)                                :: Buffers, Cached, mem_per_rank, MemFree, &
+                                                            MemLikelyFree, MemTotal, needed_bytes, &
                                                             Slab, SReclaimable
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, para_env=para_env, mos=mos)
+      CALL get_mo_set(mo_set=mos(1), nao=nao)
+
+      unit_nr = bs_env%unit_nr
+      n_f_size = nao*(1 + 2*bs_env%max_floquet_index)
+      n_kp_dos = bs_env%nkp_bs_and_DOS - bs_env%nkp_only_DOS
 
       ! Physical memory available to one MPI rank = node memory / ranks per node.
       CALL m_memory_details(MemTotal, MemFree, Buffers, Cached, Slab, SReclaimable, MemLikelyFree)
@@ -574,14 +588,23 @@ CONTAINS
       IF (mem_per_rank <= 0_int_8) THEN
          ! Memory info unavailable (e.g. no /proc on this platform): fall back to one
          ! subgroup spanning all ranks, which minimises the per-rank footprint.
-         group_size = para_env%num_pe
+         g_mem = para_env%num_pe
       ELSE
-         ! Smallest G with needed_bytes/G <= mem_per_rank. Clamp to num_pe in int_8
-         ! arithmetic before converting, to avoid overflowing a default integer.
-         group_size = INT(MIN((needed_bytes + mem_per_rank - 1_int_8)/mem_per_rank, &
-                              INT(para_env%num_pe, int_8)))
+         ! Memory floor: smallest G with needed_bytes/G <= mem_per_rank. Clamp to num_pe in
+         ! int_8 arithmetic before converting, to avoid overflowing a default integer.
+         g_mem = INT(MIN((needed_bytes + mem_per_rank - 1_int_8)/mem_per_rank, &
+                         INT(para_env%num_pe, int_8)))
       END IF
-      group_size = MAX(1, group_size)
+
+      ! K-point floor: floor(num_pe / n_kp_dos) is the largest G that still gives at least
+      ! n_kp_dos subgroups (floor(num_pe/G) >= n_kp_dos), so each k-point can run in its own
+      ! subgroup (one round) when memory allows, with the spare ranks growing each subgroup
+      ! rather than sitting idle. Zero when n_kp_dos >= num_pe (then G_mem alone applies).
+      g_load = para_env%num_pe/MAX(n_kp_dos, 1)
+
+      group_size = MAX(g_mem, g_load)
+      group_size = MIN(group_size, para_env%num_pe)
+      group_size = MAX(group_size, 1)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A)') ""
@@ -593,6 +616,8 @@ CONTAINS
             needed_bytes/1048576_int_8, " MiB"
          WRITE (unit_nr, '(T2,A,T66,I12,A)') "FLOQUET MEMORY | Floquet working set per rank:", &
             (needed_bytes/INT(MAX(group_size, 1), int_8))/1048576_int_8, " MiB"
+         WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Memory floor (ranks/subgroup):", g_mem
+         WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | K-point floor (ranks/subgroup):", g_load
          WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Chosen MPI ranks per subgroup:", group_size
       END IF
 
@@ -706,8 +731,7 @@ CONTAINS
 !> \param quasi_energies the extracted quasi-energies (nao); its size sets how many are kept
 ! **************************************************************************************************
    SUBROUTINE get_quasi_energies(eigenvalues, quasi_energies)
-      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
-      REAL(KIND=dp), DIMENSION(:)                        :: quasi_energies
+      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues, quasi_energies
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_quasi_energies'
 

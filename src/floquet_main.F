@@ -67,22 +67,18 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'floquet'
 
-      INTEGER                                            :: group_size, handle, ikp, ikp_for_file, &
-                                                            ispin, local_src, loc_idx, max_f_index, &
-                                                            my_group, n_E, n_f_size, n_fbands, &
-                                                            n_kp_dos, n_spin, nao, ngroups, nkp, &
-                                                            nkp_start, owner, unit_nr
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: group_distribution
-      COMPLEX(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :)                              :: dipole_kp_spin
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: dipole_kp_spin
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: dipole
+      INTEGER :: group_size, handle, ikp, ikp_for_file, ispin, loc_idx, local_src, max_f_index, &
+         my_group, n_E, n_f_size, n_fbands, n_kp_dos, n_spin, nao, ngroups, nkp, nkp_start, owner, &
+         stride_kp, unit_nr
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: group_distribution
       REAL(KIND=dp)                                      :: energy_step, energy_window
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a_k, e_k_kp_spin, eigenvalues, &
                                                             quasi_energies
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: de_dk_kp_spin
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: all_a_k, all_quasi_energies, &
-                                                            e_k
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: all_a_k, all_quasi_energies, e_k
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: de_dk
       REAL(KIND=dp), DIMENSION(3)                        :: xkp
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
@@ -141,51 +137,70 @@ CONTAINS
          WRITE (unit_nr, '(T2,A,T56,I12)') &
             "                        Floquet Hamiltonian Size:", n_f_size
          WRITE (unit_nr, '(T2,A)') "                        "//REPEAT("-", 44)
-         WRITE (unit_nr, '(T2,A,T56,F12.4)') &
-            "                        Energy window [eV]:", bs_env%energy_window_floquet*evolt
-         WRITE (unit_nr, '(T2,A,T56,F12.4)') &
-            "                        Energy step [eV]:", bs_env%energy_step_floquet*evolt
-         WRITE (unit_nr, '(T2,A,T56,F12.4)') &
-            "                        Broadening [eV]:", bs_env%broadening_floquet*evolt
+         IF (bs_env%floquet_do_dos) THEN
+            WRITE (unit_nr, '(T2,A,T56,F12.4)') &
+               "                        Energy window [eV]:", bs_env%energy_window_floquet*evolt
+            WRITE (unit_nr, '(T2,A,T56,F12.4)') &
+               "                        Energy step [eV]:", bs_env%energy_step_floquet*evolt
+            WRITE (unit_nr, '(T2,A,T56,F12.4)') &
+               "                        Broadening [eV]:", bs_env%broadening_floquet*evolt
+         END IF
          WRITE (unit_nr, '(T2,A)') "                        "//REPEAT("-", 44)
          WRITE (unit_nr, '(A)') ""
 
-         WRITE (unit_nr, '(T2,A)') &
-            "We construct the Floquet-Bloch Hamiltonian and diagonalise to obtain the"
-         WRITE (unit_nr, '(T2,A)') &
-            "eigenvalues which give us the quasi-energies stored in QUASI_ENERGIES.bs"
+         IF (bs_env%floquet_do_quasi) THEN
+            WRITE (unit_nr, '(T2,A)') &
+               "We construct the Floquet-Bloch Hamiltonian and diagonalise it to obtain the"
+            WRITE (unit_nr, '(T2,A)') &
+               "eigenvalues which give us the quasi-energies stored in QUASI_ENERGIES.bs"
+            WRITE (unit_nr, '(A)') ""
+         END IF
+         IF (bs_env%floquet_do_dos) THEN
+            WRITE (unit_nr, '(T2,A)') &
+               "The k-resolved density of states is obtained by computing the trace of"
+            WRITE (unit_nr, '(T2,A)') &
+               "the retarded Green's function and stored in FLOQUET_DOS.out"
+            WRITE (unit_nr, '(T2,A)') &
+               "DOS(ω,k) = -1/π*Im[Tr_KS(G^R(ω,k))]"
+         END IF
          WRITE (unit_nr, '(A)') ""
-         WRITE (unit_nr, '(T2,A)') &
-            "The k-resolved density of states is obtained by computing the trace of"
-         WRITE (unit_nr, '(T2,A)') &
-            "the retarded Green's function and stored in FLOQUET_DOS.out"
-         WRITE (unit_nr, '(T2,A)') &
-            "DOS(ω,k) = -1/π*Im[Tr_KS(G^R(ω,k))]"
-         WRITE (unit_nr, '(A)') ""
-         WRITE (unit_nr, '(T2,A)') "Calculations completed for:"
-         WRITE (unit_nr, '(2X,A,T12,A,T22,A)') "KPoint", "Spin", "Coordinate"
       END IF
 
       n_kp_dos = nkp - nkp_start
 
-      ! Phase 1 (subgroup sizing + split): choose the number of ranks per subgroup so the
-      ! subgroup can hold the Floquet working set (n_fm_work_copies copies of the n_f_size^2
-      ! complex Hamiltonian) distributed across its ranks, within per-rank physical memory. For
-      ! large systems (e.g. Bi2Te3 / TZVP) the Floquet matrix does not fit on a single rank, so
-      ! it must be distributed across a sufficiently large subgroup.
-      group_size = floquet_determine_subgroup_size(para_env, n_f_size, unit_nr)
+      ! Phase 1 (subgroup sizing + split): choose the number of ranks per subgroup as the
+      ! larger of two floors. The memory floor requires the subgroup to hold the Floquet
+      ! working set (n_fm_work_copies copies of the n_f_size^2 complex Hamiltonian) distributed
+      ! across its ranks; for large systems (e.g. Bi2Te3 / TZVP) the matrix does not fit on one
+      ! rank, forcing a larger subgroup. The k-point floor (floor(num_pe / n_kp_dos)) makes the
+      ! subgroups as large as possible while still keeping at least n_kp_dos of them, so spare
+      ! ranks speed up each diagonalisation rather than sitting idle.
+      group_size = floquet_determine_subgroup_size(qs_env, bs_env)
 
-      ! Split the global communicator into contiguous-block subgroups, mirroring
-      ! qs_tddfpt2_subgroups. group_distribution(r) gives the subgroup of global rank r.
+      ! Split the global communicator into subgroups, mirroring qs_tddfpt2_subgroups.
+      ! group_distribution(r) gives the subgroup of global rank r. The band data of k-point ikp
+      ! lives only on global rank MOD(ikp-1,num_pe), i.e. on ranks 0..n_kp_dos-1 when ranks
+      ! outnumber k-points. A contiguous split would pack those owners into the first few
+      ! subgroups (the rest idle), so when num_pe > n_kp_dos we stride-interleave the split
+      ! (stride = number of subgroups) to scatter the owners across all subgroups; otherwise a
+      ! contiguous split (stride 1) keeps better intra-subgroup communication locality.
+      IF (n_kp_dos < para_env%num_pe) THEN
+         stride_kp = para_env%num_pe/group_size
+      ELSE
+         stride_kp = 1
+      END IF
       ALLOCATE (group_distribution(0:para_env%num_pe - 1))
       ALLOCATE (para_env_sub)
       CALL para_env_sub%from_split(comm=para_env, ngroups=ngroups, &
                                    group_distribution=group_distribution, &
-                                   subgroup_min_size=group_size)
+                                   subgroup_min_size=group_size, stride=stride_kp)
       my_group = group_distribution(para_env%mepos)
       IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Subgroup rank stride:", stride_kp
          WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Number of subgroups:", ngroups
          WRITE (unit_nr, '(T2,A)') ""
+         WRITE (unit_nr, '(T2,A)') "Calculations completed for:"
+         WRITE (unit_nr, '(2X,A,T12,A,T22,A)') "KPoint", "Spin", "Coordinate"
       END IF
 
       NULLIFY (blacs_env_sub)
@@ -326,9 +341,9 @@ CONTAINS
                ! Write DOS(k,ω)
                ! to output for this k-point and spin channel
                CALL write_floquet_spectral_function(qs_env, bs_env, ispin, ikp_for_file, xkp, a_k)
-
-               ! Write progress in the main output file
             END IF
+
+            ! Write progress in the main output file
             IF (unit_nr > 0) WRITE (unit_nr, '(2X,I6,T12,I4,T18,3F12.6)') ikp_for_file, ispin, xkp(1:3)
          END DO
       END DO
