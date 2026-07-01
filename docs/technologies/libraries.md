@@ -46,13 +46,25 @@ If your computing platform does not provide MPI, there are several freely availa
   10\)
 - OpenMPI: <http://www.open-mpi.org/>
 
+```{note}
+Open MPI applies process binding by default. This can affect hybrid MPI+OpenMP runs because the
+launcher does not infer the number of OpenMP threads required by each MPI rank. A binding that is
+appropriate for an MPI-only calculation can therefore leave each rank with too few CPUs for its
+OpenMP threads.
+
+For hybrid runs, inspect the resulting mapping and binding, for example with
+`mpirun --display map,bind ...`. Depending on the scheduler allocation and node topology, either
+disable binding with `--bind-to none` or explicitly allocate the required number of cores per rank,
+for example with `--map-by slot:PE=<OMP_NUM_THREADS> --bind-to core`.
+```
+
+CP2K assumes that the MPI library implements MPI version 3; older versions of MPI (e.g., MPI 2.0)
+are not supported. CP2K can make use of the `mpi_f08` module; pass `-DCP2K_USE_MPI_F08=ON` to CMake
+to enable it.
+
 For more information of ScaLAPACK, see <http://www.netlib.org/scalapack/>. ScaLAPACK can be part of
 AOCL (AMD) or oneMKL (Intel); these libraries are recommended on the corresponding machines if
 available.
-
-CP2K assumes that the MPI library implements MPI version 3. Older versions of MPI (e.g., MPI 2.0)
-are not supported. CP2K can make use of the `mpi_f08` module; pass `-DCP2K_USE_MPI_F08=ON` to CMake
-to enable it.
 
 ## FFTW (improved performance of FFTs)
 
