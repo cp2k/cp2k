@@ -1155,9 +1155,7 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
 
   # Create CP2K environment if needed
   if spack env list | grep -q "${CP2K_ENV}"; then
-    if [[ -n "${SPACK_ENV}" ]]; then
-      echo "The Spack environment \"${CP2K_ENV}\" exists already"
-    fi
+    echo "The Spack environment \"${CP2K_ENV}\" exists already"
   else
     cat "${CP2K_CONFIG_FILE}"
     echo "The Spack environment \"${CP2K_ENV}\" does NOT exist"
