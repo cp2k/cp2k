@@ -933,21 +933,39 @@ if [[ "${REBUILD_CP2K}" == "yes" ]]; then
   done
 fi
 
-if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
+# An incomplete build already contains the Spack installation, source cache,
+# environment, and every successfully installed dependency. Re-enter the
+# setup/install path until the completion marker is written.
+if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
 
-  # Create a new local spack folder
+  if [[ -d "${SPACK_BUILD_PATH}" ]]; then
+    echo "INFO: Resuming incomplete CP2K dependency build in ${SPACK_BUILD_PATH}"
+  else
+    echo "INFO: Creating local Spack build directory ${SPACK_BUILD_PATH}"
+  fi
   mkdir -p "${SPACK_BUILD_PATH}"
   cd "${SPACK_BUILD_PATH}" || ${EXIT_CMD} 1
 
   # Reset the spack environment
   unset SPACK_ENV
 
-  # Install Spack
+  # Install Spack only when the local bootstrap is absent. wget --continue
+  # also retains a partially downloaded release archive across interruptions.
   if [[ ! -d "${SPACK_ROOT}" ]]; then
     echo "Installing Spack ${SPACK_VERSION}"
-    wget -q "https://github.com/spack/spack/archive/v${SPACK_VERSION}.tar.gz"
-    tar -xzf "v${SPACK_VERSION}.tar.gz" && rm -f "v${SPACK_VERSION}.tar.gz"
-    mv -f "${SPACK_BUILD_PATH}/spack-${SPACK_VERSION}" "${SPACK_ROOT}"
+    if ! wget -q -c "https://github.com/spack/spack/archive/v${SPACK_VERSION}.tar.gz"; then
+      echo "ERROR: Downloading Spack ${SPACK_VERSION} failed"
+      ${EXIT_CMD} 1
+    fi
+    if ! tar -xzf "v${SPACK_VERSION}.tar.gz"; then
+      echo "ERROR: Extracting Spack ${SPACK_VERSION} failed"
+      ${EXIT_CMD} 1
+    fi
+    if ! mv -f "${SPACK_BUILD_PATH}/spack-${SPACK_VERSION}" "${SPACK_ROOT}"; then
+      echo "ERROR: Installing Spack ${SPACK_VERSION} failed"
+      ${EXIT_CMD} 1
+    fi
+    rm -f "v${SPACK_VERSION}.tar.gz"
   fi
   export PATH="${SPACK_ROOT}/bin:${PATH}"
 
@@ -959,30 +977,32 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   # Prepare for package caching
   if [[ "${USE_CACHE}" == @("folder"|"minio") ]]; then
-    # Create and activate a virtual environment (venv) for Python packages
-    if command -v python3 -m venv --help &> /dev/null; then
-      echo "Installing virtual environment for Python packages"
-      if ! python3 -m venv "${SPACK_BUILD_PATH}/venv"; then
-        echo "ERROR: The creation of a virtual environment (venv) for Python packages failed"
+    # Create the venv only once, then reuse it on a resumed dependency build.
+    if [[ ! -x "${SPACK_BUILD_PATH}/venv/bin/python3" ]]; then
+      if command -v python3 -m venv --help &> /dev/null; then
+        echo "Installing virtual environment for Python packages"
+        if ! python3 -m venv "${SPACK_BUILD_PATH}/venv"; then
+          echo "ERROR: The creation of a virtual environment (venv) for Python packages failed"
+          ${EXIT_CMD} 1
+        fi
+      else
+        echo "ERROR: python3 -m venv was not found"
         ${EXIT_CMD} 1
       fi
-      export PATH="${SPACK_BUILD_PATH}/venv/bin:${PATH}"
-    else
-      echo "ERROR: python3 -m venv was not found"
-      ${EXIT_CMD} 1
     fi
-    # Upgrade pip and install boto3
-    if command -v python3 -m pip --version &> /dev/null; then
-      python3 -m pip install "${VERBOSE_FLAG}" --upgrade pip
-      echo "Installing boto3 module"
-      if ! python3 -m pip install "${VERBOSE_FLAG}" \
+    export PATH="${SPACK_BUILD_PATH}/venv/bin:${PATH}"
+
+    # Avoid contacting PyPI again when the previously prepared venv is intact.
+    if ! python3 -c 'from importlib.metadata import version; assert version("boto3") == "1.38.11"; assert version("google-cloud-storage") == "3.1.0"' &> /dev/null; then
+      if ! python3 -m pip --version &> /dev/null; then
+        echo "ERROR: python3 -m pip was not found"
+        ${EXIT_CMD} 1
+      fi
+      if ! python3 -m pip install "${VERBOSE_FLAG}" --upgrade pip \
         boto3==1.38.11 google-cloud-storage==3.1.0; then
         echo "ERROR: The installation of Python packages for the Spack cache failed"
         ${EXIT_CMD} 1
       fi
-    else
-      echo "ERROR: python3 -m pip was not found"
-      ${EXIT_CMD} 1
     fi
   fi
 
@@ -1248,14 +1268,6 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   echo -e '\n*** Installation of CP2K dependencies completed ***\n'
 
 else
-
-  # Check if the CP2K dependencies have been built successfully
-  if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
-    echo "ERROR: The last build of the CP2K dependencies was not completed successfully"
-    echo "       Re-run the script with the \"--build_dependencies\" or \"-bd\" flag or"
-    echo "       remove the folder ${SPACK_BUILD_PATH}"
-    ${EXIT_CMD} 1
-  fi
 
   # Initialize Spack shell hooks
   # shellcheck source=/dev/null
