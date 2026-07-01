@@ -919,7 +919,7 @@ CONTAINS
                blocking = .TRUE.
             END IF
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown PW grid blocking")
          END SELECT
 
          !..create group for real space distribution

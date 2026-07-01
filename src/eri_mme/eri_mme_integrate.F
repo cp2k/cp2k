@@ -547,7 +547,9 @@ CONTAINS
          CASE (3)
             IF (PRESENT(RR_count)) RR_count = RR_count + 1
          CASE DEFAULT
-            CPABORT("")
+            CALL cp_abort(__LOCATION__, &
+                          "Only 1, 2, 3 are supported as method "// &
+                          "for eri_mme_3c_integrate_nonortho")
          END SELECT
 
          IF (param%debug) THEN

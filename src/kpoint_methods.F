@@ -551,7 +551,7 @@ CONTAINS
             DEALLOCATE (agauge)
          END IF
       CASE DEFAULT
-         CPASSERT(.FALSE.)
+         CPABORT("Option invalid or unavailable for kpoint%kp_scheme")
       END SELECT
 
       ! check for consistency of options
@@ -693,7 +693,7 @@ CONTAINS
          ELSE IF (kpoint%parallel_group_size > 0) THEN
             ngr = MIN(kpoint%parallel_group_size, npe)
          ELSE
-            CPASSERT(.FALSE.)
+            CPABORT("kpoint%parallel_group_size cannot be smaller than -1")
          END IF
          nkp_grp = npe/ngr
          ! processor dimensions

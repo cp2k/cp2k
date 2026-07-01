@@ -87,7 +87,7 @@ CONTAINS
             CALL calculate_dispersion_pairpot(qs_env, dispersion_env, &
                                               energy%dispersion, calculate_forces)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown dispersion type for DFTB")
          END SELECT
       END IF
 

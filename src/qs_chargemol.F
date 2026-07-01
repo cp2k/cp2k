@@ -640,9 +640,7 @@ CONTAINS
 
          IF (mos(1)%use_mo_coeff_b) THEN
             DO ispin = 1, SIZE(mos)
-               IF (.NOT. ASSOCIATED(mos(ispin)%mo_coeff_b)) THEN
-                  CPASSERT(.FALSE.)
-               END IF
+               CPASSERT(ASSOCIATED(mos(ispin)%mo_coeff_b))
                CALL copy_dbcsr_to_fm(mos(ispin)%mo_coeff_b, &
                                      mos(ispin)%mo_coeff)
             END DO

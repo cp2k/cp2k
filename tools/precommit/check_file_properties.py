@@ -208,7 +208,6 @@ def check_file(path: pathlib.Path) -> List[str]:
     if (
         fn_ext not in (".pot", ".patch")
         and basefn != "Makefile"
-        and basefn != "generate_arch_files.sh"
         and "\t" in content
     ):
         warnings += [f"{path}: contains tab character"]
@@ -223,6 +222,13 @@ def check_file(path: pathlib.Path) -> List[str]:
                 warnings += [f"{path}:{i+1} Missing space in multi-line string"]
             if STR_END_SPACE_RE.search(a) and STR_BEGIN_SPACE_RE.search(b):
                 warnings += [f"{path}:{i+1} Double space in multi-line string"]
+
+    # Check CPASSERT(.FALSE.) and empty CPABORT() messages
+    if fn_ext == ".F":
+        if "CPASSERT(.FALSE.)" in content:
+            warnings += [f"{path}: Forced unexplained abortion with CPASSERT(.FALSE.)"]
+        if "CPABORT('')" in content or 'CPABORT("")' in content:
+            warnings += [f"{path}: Unexplained CPABORT() with empty message"]
 
     # check banner
     year = datetime.now(timezone.utc).year

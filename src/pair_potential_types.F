@@ -976,22 +976,26 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(potparm))
       ALLOCATE (potparm)
+
+      IF (PRESENT(ndim) .AND. (PRESENT(ub) .OR. PRESENT(lb))) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "pair_potential_p_create expects either 1 input parameter <ndim> "// &
+                       "or 2 input parameters <ub> and <lb> at each call; found <ndim> "// &
+                       "together with <ub> or <lb>")
+      END IF
+
       IF (PRESENT(ndim)) THEN
          loc_lb = 1
          loc_ub = ndim
          ALLOCATE (potparm%pot(loc_lb:loc_ub))
-         IF (PRESENT(lb) .OR. PRESENT(ub)) THEN
-            CPABORT("")
-         END IF
       ELSE IF (PRESENT(lb) .AND. PRESENT(ub)) THEN
          loc_lb = lb
          loc_ub = ub
          ALLOCATE (potparm%pot(loc_lb:loc_ub))
-         IF (PRESENT(ndim)) THEN
-            CPABORT("")
-         END IF
       ELSE
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       "pair_potential_p_create expects either 1 input parameter <ndim> "// &
+                       "or 2 input parameters <ub> and <lb> at each call; found none")
       END IF
       DO i = loc_lb, loc_ub
          NULLIFY (potparm%pot(i)%pot)

@@ -157,7 +157,7 @@ CONTAINS
          RETURN
       END IF
       ! We should NEVER reach this point
-      CPABORT("")
+      CPABORT("Either l1 or l2 is nonzero for charg_int_3")
    END FUNCTION charg_int_3
 
 ! **************************************************************************************************
@@ -192,7 +192,7 @@ CONTAINS
          RETURN
       END IF
       ! We should NEVER reach this point
-      CPABORT("")
+      CPABORT("Either l1 or l2 is nonzero for coeff_int_3")
    END FUNCTION coeff_int_3
 
 ! **************************************************************************************************
@@ -226,7 +226,7 @@ CONTAINS
          RETURN
       END IF
       ! We should NEVER reach this point
-      CPABORT("")
+      CPABORT("Either l1 or l2 is nonzero for dcharg_int_3")
    END FUNCTION dcharg_int_3
 
 END MODULE semi_empirical_int3_utils

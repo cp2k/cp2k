@@ -224,7 +224,7 @@ CONTAINS
       ELSEIF (history%hlen == 1) THEN
          fmat = history%hmat(nnow)%fmat
       ELSE
-         CPABORT("")
+         CPABORT("Length of matrix history hlen < 1")
       END IF
 
    END SUBROUTINE atom_opt_fmat

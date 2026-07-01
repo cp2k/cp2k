@@ -1392,9 +1392,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(op))
       CPASSERT(ASSOCIATED(op_der))
       !IF(.NOT.op_sm_der(1,1)%matrix%symmetry=="none") THEN
-      IF (.NOT. dbcsr_get_matrix_type(op_der(1, 1)%matrix) == dbcsr_type_no_symmetry) THEN
-         CPABORT("")
-      END IF
+      CPASSERT(dbcsr_get_matrix_type(op_der(1, 1)%matrix) == dbcsr_type_no_symmetry)
 
       NULLIFY (qs_kind, qs_kind_set)
       NULLIFY (cell, particle_set)

@@ -300,7 +300,7 @@ CONTAINS
          CASE (3)
             ewald_env%gmax = gmax_read
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Invalid dimensions of GMAX input in Ewald section")
          END SELECT
          IF (ewald_env%ewald_type == do_ewald_spme) THEN
             CALL section_vals_val_get(ewald_section, "O_SPLINE", i_val=ewald_env%o_spline)
@@ -372,7 +372,7 @@ CONTAINS
                WRITE (iw, '( T2,"EWALD| ",A,T71,I10 )') &
                   'Spline interpolation order ', ewald_env%o_spline
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown Ewald type")
             END SELECT
          ELSE
             WRITE (iw, '( T2,"EWALD| ",T73, A )') 'not used'
@@ -498,7 +498,7 @@ CONTAINS
          CASE (3)
             ewald_env%gmax = gmax_read
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Invalid dimensions of GMAX input in Ewald section")
          END SELECT
       ELSE
          SELECT CASE (param)

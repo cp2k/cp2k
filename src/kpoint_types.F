@@ -818,7 +818,11 @@ CONTAINS
             kpoint%xkp_input(1:3, 1:n_rep) = kpoint%xkp(1:3, 1:n_rep)
             kpoint%wkp_input(1:n_rep) = kpoint%wkp(1:n_rep)
          CASE DEFAULT
-            CPABORT("")
+            CALL cp_abort(__LOCATION__, &
+                          "<NONE>, <GAMMA>, <MONKHORST-PACK>, <MACDONALD>, "// &
+                          "<GENERAL> are supported as the <kpoint%kp_scheme> for "// &
+                          "read_kpoint_section, found unknown option "// &
+                          "<"//TRIM(kpoint%kp_scheme)//">")
          END SELECT
 
          CALL section_vals_val_get(kpoint_section, "GAMMA_CENTERED", l_val=kpoint%gamma_centered)
@@ -874,7 +878,7 @@ CONTAINS
          CASE (use_complex_wfn)
             kpoint%use_real_wfn = .FALSE.
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("The WAVEFUNCTIONS option should be either REAL or COMPLEX")
          END SELECT
 
       ELSE
@@ -968,7 +972,11 @@ CONTAINS
          CASE ("GENERAL")
             WRITE (punit, '(A,T71,A10)') ' BRILLOUIN| K-point scheme ', '   General'
          CASE DEFAULT
-            CPABORT("")
+            CALL cp_abort(__LOCATION__, &
+                          "<NONE>, <GAMMA>, <MONKHORST-PACK>, <MACDONALD>, "// &
+                          "<GENERAL> are supported as the <kpoint%kp_scheme> for "// &
+                          "write_kpoint_info, found unknown option "// &
+                          "<"//TRIM(kpoint%kp_scheme)//">")
          END SELECT
          IF (kpoint%kp_scheme /= "NONE") THEN
             IF (kpoint%symmetry) THEN

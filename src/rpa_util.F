@@ -855,7 +855,7 @@ CONTAINS
          CALL cp_fm_syrk(uplo='U', trans='N', k=dimen_ia, alpha=alpha, matrix_a=fm_mat_S, &
                          ia=1, ja=1, beta=0.0_dp, matrix_c=fm_mat_Q_gemm)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown mm_style for contract_S_to_Q")
       END SELECT
       CALL dgemm_counter_stop(dgemm_counter, dimen_RI, dimen_RI, dimen_ia)
 

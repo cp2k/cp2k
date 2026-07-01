@@ -322,7 +322,7 @@ CONTAINS
             nnode = 0
          END IF
       ELSE
-         CPABORT("")
+         CPABORT("iterator%list_search is not available")
       END IF
 
       iterator%ikind = ikind

@@ -3734,7 +3734,13 @@ CONTAINS
                    ((atm1 == my_atm2) .AND. (atm2 == my_atm1))) found = .TRUE.
             CASE DEFAULT
                ! Should never reach this point
-               CPABORT("")
+               CALL cp_abort(__LOCATION__, &
+                             "<Bond>, <Angle>, <Urey-Bradley>, <Torsion>, "// &
+                             "<Improper>, <Out of plane bend>, <Charge>, "// &
+                             "<Spline_Bond_Env>, <Spline_Non_Bond_Env> are "// &
+                             "supported as the <type_name> for store_FF_missing_par, "// &
+                             "found unknown option "// &
+                             "<"//TRIM(type_name)//">")
             END SELECT
             IF (found) EXIT
          END DO

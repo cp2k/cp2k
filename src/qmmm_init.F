@@ -1028,7 +1028,7 @@ CONTAINS
             CASE (do_qmmm_link_gho)
                ! do nothing for the moment
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown QM/MM link type")
             END SELECT
          END DO
       END IF
@@ -1099,18 +1099,16 @@ CONTAINS
 !> \param mm_el_pot_radius ...
 !> \param mm_el_pot_radius_corr ...
 !> \param mm_atom_index ...
-!> \param iw ...
 !> \par History
 !>      12.2004 created [tlaino]
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, mm_el_pot_radius_corr, &
-                               mm_atom_index, iw)
+                               mm_atom_index)
       TYPE(section_vals_type), POINTER                   :: qmmm_section
       TYPE(qmmm_links_type), POINTER                     :: qmmm_links
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mm_el_pot_radius, mm_el_pot_radius_corr
       INTEGER, DIMENSION(:), POINTER                     :: mm_atom_index
-      INTEGER, INTENT(IN)                                :: iw
 
       INTEGER                                            :: ikind, link_type, mm_index, n_gho, &
                                                             n_imomm, n_pseudo, n_rep_val, n_tot, &
@@ -1175,9 +1173,9 @@ CONTAINS
          !
          DO ikind = 1, SIZE(wrk_tmp)
             IF (COUNT(wrk_tmp == wrk_tmp(ikind)) > 1) THEN
-               WRITE (iw, '(/A)') "In the IMOMM scheme no more than one QM atom can be bounded to the same MM atom."
-               WRITE (iw, '(A)') "Multiple link MM atom not allowed. Check your link sections."
-               CPABORT("")
+               CALL cp_abort(__LOCATION__, &
+                             "In the IMOMM scheme no more than one QM atom can be bounded to the same "// &
+                             "MM atom. Multiple link MM atom not allowed. Check your link sections.")
             END IF
          END DO
          DEALLOCATE (wrk_tmp)
@@ -1205,7 +1203,7 @@ CONTAINS
       IF (n_gho /= 0) THEN
          ! not yet implemented
          ! still to define : type, implementation into QS
-         CPABORT("")
+         CPABORT("QM/MM link with ghost atoms not yet implemented")
       END IF
    END SUBROUTINE setup_qmmm_links
 

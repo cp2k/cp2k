@@ -202,7 +202,7 @@ CONTAINS
                   ! Do nothing..
                CASE DEFAULT
                   ! Never reach this point
-                  CPABORT("")
+                  CPABORT("Unknown potential type for spline_nonbond_control")
                END SELECT
                ! Special case for EAM
                SELECT CASE (pot%type(k))
@@ -638,7 +638,7 @@ CONTAINS
          CASE (tab_type)
             nvar = 4 + nvar
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown potential target for get_nonbond_storage")
          END SELECT
          ! Setup a table of the indexes..
          ALLOCATE (my_index(ndim))
@@ -804,7 +804,7 @@ CONTAINS
                      CASE (nn_type)
                         ! no checks
                      CASE DEFAULT
-                        CPABORT("")
+                        CPABORT("Unknown potential target for get_nonbond_storage")
                      END SELECT
                      IF (ANY(potential_single_allocation == pot_target)) THEN
                         pot_par(nk, :) = REAL(pot_target, KIND=dp)

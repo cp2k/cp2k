@@ -295,7 +295,7 @@ CONTAINS
       CASE (do_tree_mc_ana)
          CALL do_analyze_files(input_declaration, root_section, para_env)
       CASE default
-         CPABORT("")
+         CPABORT("Unknown program")
       END SELECT
       CALL section_vals_release(input_file)
 
@@ -333,7 +333,7 @@ CONTAINS
          CASE (energy_force_run)
             CALL force_env_calc_energy_force(force_env, calc_force=.TRUE.)
          CASE default
-            CPABORT("")
+            CPABORT("Unknown run type")
          END SELECT
          CALL cp_rm_iter_level(sublogger%iter_info, level_name="JUST_ENERGY", n_rlevel_att=iter_level)
       CASE (mol_dyn_run)
@@ -390,7 +390,7 @@ CONTAINS
       CASE (mimic_run)
          CALL do_mimic_loop(force_env)
       CASE default
-         CPABORT("")
+         CPABORT("Unknown run type")
       END SELECT
 
       ! Sample peak memory

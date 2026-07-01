@@ -296,7 +296,7 @@ CONTAINS
                END DO
             END DO
          ELSE
-            CPABORT("")
+            CPABORT("Unknown map_info%dis_type")
          END IF
          IF (nglob_cns /= 0) THEN
             CPABORT("Molecular thermostats with global constraints are impossible!")
@@ -736,7 +736,7 @@ CONTAINS
                END DO
             END DO
          ELSE
-            CPABORT("")
+            CPABORT("Unknown map_info%dis_type")
          END IF
          IF (nglob_cns /= 0) THEN
             CPABORT("Molecular thermostats with global constraints are impossible!")

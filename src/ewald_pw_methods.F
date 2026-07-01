@@ -126,7 +126,7 @@ CONTAINS
                            poisson_env=poisson_env)
       CASE (do_ewald_none)
       CASE default
-         CPABORT("")
+         CPABORT("Unknown ewald_type for ewald_pw_grid_update")
       END SELECT
       IF (ASSOCIATED(poisson_env)) THEN
          ALLOCATE (pw_pools(1))

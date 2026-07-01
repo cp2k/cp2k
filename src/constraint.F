@@ -711,7 +711,7 @@ CONTAINS
             ELSEIF (id_type == "R") THEN
                label = "Rattle Lagrangian Multipliers:"
             ELSE
-               CPABORT("")
+               CPABORT("Only S for Shake or R for Rattle are supported for Lagrangian Multipliers")
             END IF
             WRITE (log_unit, FMT='(A,T40,4F15.9)') TRIM(label), lagr(1:MIN(4, SIZE(lagr)))
             DO j = 5, SIZE(lagr), 4

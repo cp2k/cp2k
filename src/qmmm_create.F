@@ -330,7 +330,7 @@ CONTAINS
       qmmm_link_Imomm = .FALSE.
       IF (qmmm_link) THEN
          CALL setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, &
-                               mm_el_pot_radius_corr, mm_atom_index, iw)
+                               mm_el_pot_radius_corr, mm_atom_index)
          qmmm_env_qm%qmmm_links => qmmm_links
 
          CALL print_qmmm_links(qmmm_section, qmmm_links)

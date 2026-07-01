@@ -595,7 +595,7 @@ CONTAINS
                rbasis(:, i + 3, l) = 0.125_dp*(wfn(:, i, l, 3) - 3._dp*wfn(:, i, l, 1) &
                                                + 3._dp*wfn(:, i, l, -1) - wfn(:, i, l, -3))/delta**3
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Only 1, 2, 3 are supported as the number of wavefunction derivatives")
             END SELECT
          END DO
 

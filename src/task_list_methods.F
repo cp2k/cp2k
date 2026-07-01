@@ -1429,7 +1429,7 @@ CONTAINS
                   END IF
                END IF
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown task list distribution type")
             END SELECT
 
          END DO

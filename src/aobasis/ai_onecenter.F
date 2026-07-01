@@ -257,7 +257,7 @@ CONTAINS
       DO iq = 1, m
          SELECT CASE (l)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Only 0, 1, 2, 3, 4, 5, 6 are supported as the value of l in sg_erf")
          CASE (0)
             ! nothing left to do
          CASE (1)

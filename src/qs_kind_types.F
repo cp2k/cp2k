@@ -3257,7 +3257,7 @@ CONTAINS
                CALL write_orb_basis_set(tmp_basis, output_unit, "Nuclear Soft Basis Set")
             END IF
          ELSE
-            CPABORT("")
+            CPABORT("write_qs_kind requires qs_kind to be associated")
          END IF
 
       END IF
@@ -3296,7 +3296,7 @@ CONTAINS
                CALL write_qs_kind(qs_kind, ikind, output_unit)
             END DO
          ELSE
-            CPABORT("")
+            CPABORT("write_qs_kind_set requires qs_kind_set to be associated")
          END IF
       END IF
 
@@ -3386,7 +3386,7 @@ CONTAINS
 
             END DO
          ELSE
-            CPABORT("")
+            CPABORT("write_gto_basis_sets require qs_kind_set to be associated")
          END IF
       END IF
 

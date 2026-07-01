@@ -146,8 +146,7 @@ CONTAINS
          CASE (do_qmmm_gauss, do_qmmm_swave)
             CPABORT("GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for SE.")
          CASE DEFAULT
-            IF (iw > 0) WRITE (iw, '(T2,"QMMM|",1X,A)') "Unknown Coupling..."
-            CPABORT("")
+            CPABORT("Unknown QM/MM coupling")
          END SELECT
       ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
          ! DFTB
@@ -163,8 +162,7 @@ CONTAINS
          CASE (do_qmmm_gauss, do_qmmm_swave)
             CPABORT("GAUSS or SWAVE QM/MM electrostatic coupling not implemented for DFTB.")
          CASE DEFAULT
-            IF (iw > 0) WRITE (iw, '(T2,"QMMM|",1X,A)') "Unknown Coupling..."
-            CPABORT("")
+            CPABORT("Unknown QM/MM coupling")
          END SELECT
       ELSE
          ! QS
@@ -195,8 +193,7 @@ CONTAINS
             IF (iw > 0) WRITE (iw, '(T2,"QMMM|",1X,A)') &
                "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
          CASE DEFAULT
-            IF (iw > 0) WRITE (iw, '(T2,"QMMM|",1X,A)') "Unknown Coupling..."
-            CPABORT("")
+            CPABORT("Unknown QM/MM coupling")
          END SELECT
          ! Dump info on the electrostatic potential if requested
          IF (BTEST(cp_print_key_should_output(logger%iter_info, print_section, &
@@ -325,7 +322,7 @@ CONTAINS
          END DO
          CALL timestop(handle2)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown kind interpolation")
       END SELECT
       lb = v_qmmm%pw_grid%bounds_local(1, :)
       ub = v_qmmm%pw_grid%bounds_local(2, :)

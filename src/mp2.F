@@ -746,7 +746,7 @@ CONTAINS
                            mos_mp2, para_env, unit_nr, calc_forces, calc_ex, do_ri_sos_laplace_mp2=.TRUE.)
 
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown MP2 method")
       END SELECT
 
       t2 = m_walltime()

@@ -2859,7 +2859,7 @@ CONTAINS
          CALL ec_ls_init(qs_env, ksmat, smat)
          CALL ec_ls_solver(qs_env, pmat, wmat, ec_ls_method=ec_env%ks_solver)
       CASE DEFAULT
-         CPASSERT(.FALSE.)
+         CPABORT("Option invalid or unavailable for ec_env%ks_solver")
       END SELECT
 
       IF (ec_env%mao) THEN
@@ -3064,7 +3064,7 @@ CONTAINS
 
       CASE DEFAULT
 
-         CPASSERT(.FALSE.)
+         CPABORT("Option invalid or unavailable for ec_env%energy_functional")
 
       END SELECT
 

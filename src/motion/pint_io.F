@@ -176,7 +176,7 @@ CONTAINS
             form = "FORMATTED"
             ext = ".xyz"
          CASE default
-            CPABORT("")
+            CPABORT("Unknown output format for pint_write_centroids")
          END SELECT
 
          NULLIFY (f_env, cell, subsys)
@@ -325,7 +325,7 @@ CONTAINS
             form = "FORMATTED"
             ext = ".xyz"
          CASE default
-            CPABORT("")
+            CPABORT("Unknown output format for pint_write_trajectory")
          END SELECT
 
          NULLIFY (f_env, cell, subsys)

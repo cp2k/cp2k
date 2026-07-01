@@ -136,7 +136,7 @@ CONTAINS
             DEALLOCATE (radius)
             DEALLOCATE (c_radius)
          ELSE
-            CPABORT("")
+            CPABORT("Ndim smaller than 1 for Gaussian QM/MM coupling potential")
          END IF
          !
          ALLOCATE (qmmm_gaussian_fns(Ndim - 1))
