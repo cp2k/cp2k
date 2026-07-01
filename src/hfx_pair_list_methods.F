@@ -40,14 +40,141 @@ MODULE hfx_pair_list_methods
              build_pair_list_pgf, &
              build_pgf_product_list, &
              build_atomic_pair_list, &
-             pgf_product_list_size
+             pgf_product_list_size, &
+             build_pair_list_pbc_pgf, &
+             bra_t, allocate_bra
 
    ! an initial estimate for the size of the product list
    INTEGER, SAVE :: pgf_product_list_size = 128
 
-!***
+   ! Store screened primitive gaussian function pairs between two shells (A and B)
+   TYPE :: Bra_t
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)    :: pgf_scr
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)     :: pgf_idx, cell_idx
+      INTEGER :: cell_cnt = 0, pgf_cnt = 0
+   END TYPE Bra_t
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Allocates all arrays within a Bra_t structure.
+!>
+!> This subroutine ensures that a given `Bra_t` pointer has allocated memory
+!> for storing primitive Gaussian pair indices, screening data, and cell indices.
+!> Existing allocations are safely deallocated first.
+!>
+!> \param[in,out] bra         Pointer to the Bra_t structure to allocate.
+!> \param[in]     max_npgf    Maximum number of primitives per shell.
+!> \param[in]     max_ncell   Maximum number of neighbor cells.
+!>
+!> \note The arrays are allocated as follows:
+!>       - `pgf_idx(3, max_npgf^2 * max_ncell)`
+!>       - `pgf_scr(5, max_npgf^2 * max_ncell)`
+!>       - `cell_idx(3, max_ncell)`
+!>
+! **************************************************************************************************
+   SUBROUTINE allocate_Bra(bra, max_npgf, max_ncell)
+      TYPE(bra_t), POINTER                               :: bra
+      INTEGER                                            :: max_npgf, max_ncell
+
+      IF (ALLOCATED(bra%pgf_idx)) DEALLOCATE (bra%pgf_idx)  ! TODO add if n_prm changed
+      IF (ALLOCATED(bra%pgf_scr)) DEALLOCATE (bra%pgf_scr)  ! TODO add if n_prm changed
+      IF (ALLOCATED(bra%cell_idx)) DEALLOCATE (bra%cell_idx) ! TODO add if n_prm changed
+      ALLOCATE (bra%pgf_idx(3, max_npgf*max_npgf*max_ncell))
+      ALLOCATE (bra%pgf_scr(5, max_npgf*max_npgf*max_ncell))
+      ALLOCATE (bra%cell_idx(3, max_ncell))
+   END SUBROUTINE allocate_Bra
+
+! **************************************************************************************************
+!> \brief Builds a screened list of primitives from centers A and B, intersecting with another shell
+!>
+!> This subroutine populates the `Bra_t` structure with indices and screening data
+!> for primitive Gaussian pairs (ipgf,jpgf,n3) that pass the Schwarz screening criterion
+!>
+!> \param[in]  npgfa              Number of primitives in shell A
+!> \param[in]  npgfb              Number of primitives in shell B
+!> \param[out] bra                Pointer to Bra_t structure to populate
+!> \param[in]  screen1            Screening coeffiecients for the AB pair based on most diffuse pgf
+!> \param[in]  screen2            Screening coeffiecients for the CD pair based on most diffuse pgf
+!> \param[in]  pgf                Screening coeeficents for primitive gaussians
+!> \param[in]  log10_pmax         Log10 of maximum integral prefactor
+!> \param[in]  log10_eps_schwarz  Log10 of Schwarz screening threshold
+!> \param[in]  ra                 Cartesian coordinates of center A
+!> \param[in]  rb                 Cartesian coordinates of center B
+!> \param[out] nelements          Total number of valid primitives found
+!> \param[in]  neighbor_cells     Array of lattice vectors
+!> \param[in]  do_periodic        Logical flag for periodic boundary conditions on B
+!>
+!> \note Loops over all cells, shifting the B shell position accordingly
+!>       Only pairs satisfying the screening condition are stored.
+!>
+!> \note Each valid cell contributes a block of pairs stored contiguously in
+!>       bra%pgf_idx, with cell metadata stored in bra%cell_idx
+!> \note screening primitive pairs (ipgf, jpgf) using both coarse and fine screening thresholds
+! **************************************************************************************************
+   SUBROUTINE build_pair_list_pbc_pgf(npgfa, npgfb, bra, screen1, screen2, pgf, &
+                                      log10_pmax, log10_eps_schwarz, ra, rb, nelements, &
+                                      neighbor_cells, do_periodic)
+
+      INTEGER, INTENT(IN)                                :: npgfa, npgfb
+      TYPE(bra_t), POINTER                               :: bra
+      REAL(dp), INTENT(IN)                               :: screen1(2), screen2(2)
+      TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
+         POINTER                                         :: pgf
+      REAL(dp), INTENT(IN)                               :: log10_pmax, log10_eps_schwarz, ra(3), &
+                                                            rb(3)
+      INTEGER, INTENT(OUT)                               :: nelements
+      TYPE(hfx_cell_type), DIMENSION(:), POINTER         :: neighbor_cells
+      LOGICAL, INTENT(IN)                                :: do_periodic
+
+      INTEGER                                            :: cell_cnt, cell_idx, element_cnt, &
+                                                            element_idx, element_off, ipgf, jpgf
+      REAL(dp)                                           :: AB(3), im_B(3), pgf_max, rab2
+
+      element_idx = 0
+      element_off = 0
+      cell_cnt = 0
+      DO cell_idx = 1, SIZE(neighbor_cells)
+         ! move B to this cell while keeping A fixed
+         ! NOTE rb has already been moved by build_pair_list
+         !      so that when cell_r is (000) AB is in the pbc cell
+         IF (do_periodic) THEN
+            im_B = rb + neighbor_cells(cell_idx)%cell_r(:)
+         ELSE
+            im_B = rb
+         END IF
+         AB = ra - im_B
+         rab2 = AB(1)**2 + AB(2)**2 + AB(3)**2
+         ! First screening on the most diffuse AB gaussians along with the most diffuse CD gaussian
+         IF (screen1(1)*rab2 + screen1(2) + screen2(2) + log10_pmax < log10_eps_schwarz) CYCLE
+
+         element_cnt = 0
+         DO ipgf = 1, npgfa
+            DO jpgf = 1, npgfb
+
+               ! Second screening on this actual AB pair and the most diffuse CD from before
+               pgf_max = pgf(jpgf, ipgf)%x(1)*rab2 + pgf(jpgf, ipgf)%x(2)
+               IF (pgf_max + screen2(2) + log10_pmax < log10_eps_schwarz) CYCLE
+               ! This pair passed screening. Add it to the bra.
+               element_idx = element_idx + 1
+               bra%pgf_idx(:, element_idx) = [ipgf, jpgf, cell_idx]
+               bra%pgf_scr(1, element_idx) = pgf_max
+               element_cnt = element_cnt + 1
+            END DO
+         END DO
+
+         ! If this cell produced any pair, add this cell to the bra
+         IF (element_cnt == 0) CYCLE
+         cell_cnt = cell_cnt + 1
+         bra%cell_idx(:, cell_cnt) = [cell_idx, element_cnt, element_off]
+         element_off = element_off + element_cnt
+
+      END DO ! cell
+      bra%cell_cnt = cell_cnt
+      nelements = element_idx
+      bra%pgf_cnt = nelements
+
+   END SUBROUTINE build_pair_list_pbc_pgf
 
 ! **************************************************************************************************
 !> \brief ...

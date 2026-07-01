@@ -53,6 +53,7 @@
 !>      Nov 2008, 2009 Joost VandeVondele and Manuel Guidon
 !>      May 2019 A. Bussy: Added a get_maxl_init function to get current status of nderiv_init and
 !>                moved the file to common (made it accessible from aobasis, same place as gamma.F).
+!>      Oct 2025 M. Puligheddu: Added public qualifier to C0 to simplify reuse
 ! **************************************************************************************************
 MODULE t_c_g0
    USE kinds,                           ONLY: dp
@@ -60,10 +61,13 @@ MODULE t_c_g0
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
+
+   REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE, SAVE, PUBLIC :: C0
+
    PRIVATE
 
    PUBLIC :: t_c_g0_n, init, free_C0, get_lmax_init
-   REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE, SAVE :: C0
+
    INTEGER, PARAMETER :: degree = 13
    REAL(KIND=dp), PARAMETER :: target_error = 0.100000E-08
    INTEGER, PARAMETER :: nderiv_max = 21
