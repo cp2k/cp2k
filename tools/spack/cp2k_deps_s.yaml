@@ -117,7 +117,7 @@ spack:
 
   repos:
     builtin:
-      commit: 036fc0544821e4e6911fc3df8e012285e374536c # 2026-05-19
+      commit: 79540c17f95962564e74fd79d5edd1d0e9f9718c # 2026-06-30
 
   specs:
     # Build tools
@@ -143,7 +143,7 @@ spack:
 #   - "libxstream@1.0.0"
     - "openblas@0.3.33"
     - "pace@2025.12.4.1"
-    - "py-torch@2.12.0"
+    - "py-torch@2.12.1"
     - "spglib@2.7.0"
     - "tblite@0.6.0"
     - "trexio@2.5.0"
