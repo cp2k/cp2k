@@ -13,14 +13,9 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_scf
-   USE bibliography,                    ONLY: Becke1988b,&
-                                              Holmberg2017,&
-                                              Holmberg2018,&
-                                              Schiffmann2015,&
-                                              Stewart1982,&
-                                              VandeVondele2003,&
-                                              VandeVondele2005a,&
-                                              Weber2008
+   USE bibliography,                    ONLY: &
+        Becke1988b, Chai2024a, Holmberg2017, Holmberg2018, Schiffmann2015, Stewart1982, &
+        VandeVondele2003, VandeVondele2005a, Weber2008
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level,&
@@ -2080,10 +2075,10 @@ CONTAINS
                           "The input CHARGE value in the DFT section defines the "// &
                           "reference charge state. The quantity N_e^(abs,alpha) is "// &
                           "evaluated as the input CHARGE value minus the reported GCE "// &
-                          "charge, following Chai and Luber, JCTC 2024, DOI: "// &
-                          "10.1021/acs.jctc.4c00671. The reported GCE free energy is "// &
-                          "the sum of the DFT total energy and the product of the "// &
-                          "target work function and N_e^(abs,alpha).", &
+                          "charge. The reported GCE free energy is the sum of the DFT "// &
+                          "total energy and the product of the target work function "// &
+                          "and N_e^(abs,alpha).", &
+                          citations=[Chai2024a], &
                           n_keywords=3, &
                           n_subsections=0, &
                           repeats=.FALSE.)

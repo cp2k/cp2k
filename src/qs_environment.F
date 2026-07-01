@@ -1615,8 +1615,9 @@ CONTAINS
          END IF
          IF (scf_control%use_ot .OR. .NOT. scf_control%use_diag .OR. &
              scf_control%diagonalization%method == diag_ot) THEN
-            CPABORT("Grand canonical SCF requires standard diagonalization.")
-            CPABORT("It is not implemented with OT.")
+            CALL cp_abort(__LOCATION__, &
+                          "Grand canonical SCF requires standard diagonalization. "// &
+                          "It is not implemented with OT.")
          END IF
       END IF
       IF (.NOT. dft_control%qs_control%do_ls_scf) THEN
