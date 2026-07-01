@@ -319,6 +319,11 @@ while [[ $# -gt 0 ]]; do
                 ;;
               dlaf)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"dla-future.*@/ ${SUBST}"
+                if [[ "${ON_OFF}" == "ON" ]]; then
+                  SED_PATTERN_LIST+=" -e 's/\"~dlaf\"/\"+dlaf\"/'"
+                else
+                  SED_PATTERN_LIST+=" -e 's/\"+dlaf\"/\"~dlaf\"/'"
+                fi
                 ;;
               fftw3)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"fftw@/ ${SUBST}"

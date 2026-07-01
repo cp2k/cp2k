@@ -66,7 +66,7 @@ def main() -> None:
             install_cp2k_spack(
                 version="pdbg",
                 mpi_mode="mpich",
-                feature_flags="-ef openpmd -df sirius",
+                feature_flags="-ef openpmd",
                 testopts="",
                 image_tag=f.image_tag,
             )
