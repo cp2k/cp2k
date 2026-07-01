@@ -13,12 +13,10 @@ RUN ./install_requirements.sh fedora:44
 # Install the toolchain.
 RUN mkdir scripts
 COPY ./tools/toolchain/scripts/VERSION \
-     ./tools/toolchain/scripts/parse_if.py \
      ./tools/toolchain/scripts/tool_kit.sh \
      ./tools/toolchain/scripts/common_vars.sh \
      ./tools/toolchain/scripts/signal_trap.sh \
      ./tools/toolchain/scripts/get_openblas_arch.sh \
-     ./tools/build_utils/fypp \
      ./scripts/
 COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \

@@ -77,13 +77,13 @@ if [ "${with_mkl}" != "__DONTUSE__" ]; then
   done
 
   if [ "${MKL_SCALAPACK}" = "yes" ]; then
-    mkl_scalapack_lib="IF_MPI(-lmkl_scalapack_lp64|)"
+    mkl_scalapack_lib="-lmkl_scalapack_lp64"
     case ${MPI_MODE} in
       intelmpi | mpich)
-        mkl_blacs_lib="IF_MPI(-lmkl_blacs_intelmpi_lp64|)"
+        mkl_blacs_lib="-lmkl_blacs_intelmpi_lp64"
         ;;
       openmpi)
-        mkl_blacs_lib="IF_MPI(-lmkl_blacs_openmpi_lp64|)"
+        mkl_blacs_lib="-lmkl_blacs_openmpi_lp64"
         ;;
     esac
   else

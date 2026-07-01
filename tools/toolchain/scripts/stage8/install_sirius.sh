@@ -40,8 +40,8 @@ case "$with_sirius" in
         # The CMAKE_BUILD_TYPEs "Release" and "RelWithDebInfo" employ -O3/-O2, but already -O2 makes the SIRIUS
         # build quite memory and time intensive. The CMAKE_BUILD_TYPE "Debug" allows for fast compilation, but it
         # generates very slow code.
-        # EXTRA_CMAKE_FLAGS="-DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS= ${EXTRA_CMAKE_FLAGS}"
-        EXTRA_CMAKE_FLAGS="-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS= ${EXTRA_CMAKE_FLAGS}"
+        # EXTRA_CMAKE_FLAGS="-DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS= ${SIRIUS_DBG}"
+        EXTRA_CMAKE_FLAGS="-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS= ${SIRIUS_OPT}"
       else
         SIRIUS_OPT="-O3 -DNDEBUG -mtune=native -ftree-loop-vectorize ${MATH_CFLAGS}"
         SIRIUS_DBG="-O2 -g -mtune=native -ftree-loop-vectorize ${MATH_CFLAGS}"
