@@ -260,6 +260,9 @@ MODULE rt_bse_types
       ! Active single-particle energies = diag(ham_reference_singleparticle), replicated over all
       ! ranks. Drives the [H^0,rho]_mn = (eps_m - eps_n) rho_mn element-wise commutator (mo_active x n_spin).
       REAL(kind=dp), DIMENSION(:, :), POINTER                  :: eps_active => NULL()
+      ! Original run's active eigenvalues stashed from RESTART.trace at read time; compared against
+      ! the recomputed eps_active once the Hamiltonian is built (consistency heads-up), then freed.
+      REAL(kind=dp), DIMENSION(:, :), POINTER                  :: eps_active_restart => NULL()
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_workspace => NULL()
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: sigma_SEX => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: sigma_COH => NULL(), &
@@ -884,6 +887,7 @@ CONTAINS
          CALL cp_cfm_release_pa1(rtbse_env%ham_reference_singleparticle)
       END IF
       IF (ASSOCIATED(rtbse_env%eps_active)) DEALLOCATE (rtbse_env%eps_active)
+      IF (ASSOCIATED(rtbse_env%eps_active_restart)) DEALLOCATE (rtbse_env%eps_active_restart)
       CALL cp_cfm_release_pa1(rtbse_env%rho)
       CALL cp_cfm_release_pa1(rtbse_env%rho_workspace)
       CALL cp_cfm_release_pa1(rtbse_env%rho_new)

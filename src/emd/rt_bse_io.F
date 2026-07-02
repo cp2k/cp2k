@@ -68,6 +68,7 @@ MODULE rt_bse_io
              read_restart_info, &
              read_restart_density, &
              read_restart_C, &
+             check_restart_eps_consistency, &
              print_etrs_info_header, &
              print_etrs_info, &
              print_timestep_info, &
@@ -640,7 +641,7 @@ CONTAINS
       INTEGER                                            :: trace_unit, version, n_spin_file, &
                                                             n_basis_file, n_ao_file, n_eps, n, &
                                                             n_read_max, ios
-      REAL(kind=dp)                                      :: dt_file, kick_scale_file, t_rec, eps_dev
+      REAL(kind=dp)                                      :: dt_file, kick_scale_file, t_rec
       REAL(kind=dp), DIMENSION(3)                        :: kick_dir_file
       REAL(kind=dp), DIMENSION(:, :), ALLOCATABLE        :: eps_file
       COMPLEX(kind=dp), DIMENSION(3)                     :: field_rec
@@ -679,13 +680,10 @@ CONTAINS
          IF (ASSOCIATED(rtbse_env%real_workspace_mo)) THEN
             IF (n_eps /= SIZE(rtbse_env%eps_active, 1)) &
                CALL cp_abort(__LOCATION__, "RESTART.trace: active-window size mismatch")
-            eps_dev = MAXVAL(ABS(eps_file - rtbse_env%eps_active))
-            ! 0.1 meV = 3.674932e-6 Ha: GW analytic continuation gives run-to-run QP noise above FP,
-            ! so warn only well above it - below is accepted silently.
-            IF (eps_dev > 3.674932e-6_dp) &
-               CALL cp_warn(__LOCATION__, &
-                            "RESTART.trace: active eigenvalues deviate beyond 0.1 meV - "// &
-                            "Hamiltonian changed; continuation is physically inconsistent.")
+            ! eps_active is not populated yet (built later in the Hamiltonian init); stash for the
+            ! post-Hamiltonian consistency check in check_restart_eps_consistency.
+            ALLOCATE (rtbse_env%eps_active_restart(n_eps, rtbse_env%n_spin))
+            rtbse_env%eps_active_restart(:, :) = eps_file
          END IF
          DEALLOCATE (eps_file)
       END IF
@@ -708,6 +706,31 @@ CONTAINS
       IF (n_read_max < rtbse_env%sim_start) &
          CPWARN("RESTART.trace: fewer records than restart step - trace prefix incomplete.")
    END SUBROUTINE read_restart_trace
+! **************************************************************************************************
+!> \brief Compares the original run's active eigenvalues (stashed by read_restart_trace) against
+!>        the recomputed eps_active, once the Hamiltonian is built. Prints the max deviation and
+!>        warns above 0.1 meV (GW analytic continuation gives run-to-run QP noise above FP, so the
+!>        threshold is deliberately loose). Frees the stash. No-op if nothing was stashed.
+!> \param rtbse_env RT-BSE environment
+! **************************************************************************************************
+   SUBROUTINE check_restart_eps_consistency(rtbse_env)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      REAL(kind=dp)                                      :: eps_dev
+
+      IF (.NOT. ASSOCIATED(rtbse_env%eps_active_restart)) RETURN
+
+      eps_dev = MAXVAL(ABS(rtbse_env%eps_active_restart - rtbse_env%eps_active))
+      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A,ES12.3,A)') &
+         " RTBSE| Restart eps_active max deviation vs original run ", eps_dev, " Ha"
+      ! 0.1 meV = 3.674932e-6 Ha
+      IF (eps_dev > 3.674932e-6_dp) &
+         CALL cp_warn(__LOCATION__, &
+                      "RESTART.trace: active eigenvalues deviate beyond 0.1 meV - "// &
+                      "Hamiltonian changed; continuation is physically inconsistent.")
+
+      DEALLOCATE (rtbse_env%eps_active_restart)
+      NULLIFY (rtbse_env%eps_active_restart)
+   END SUBROUTINE check_restart_eps_consistency
 ! **************************************************************************************************
 !> \brief Late phase of the restart read: overwrites rho from the lab-frame restart matrices and
 !>        sets restart_extracted. MO-active for the linearized path, AO otherwise

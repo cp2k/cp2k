@@ -34,6 +34,7 @@ MODULE rt_bse_linearized
                                               cp_fm_scale_and_add,&
                                               cp_fm_transpose
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_diag,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
@@ -50,7 +51,8 @@ MODULE rt_bse_linearized
    USE force_env_methods,               ONLY: force_env_calc_energy_force
    USE force_env_types,                 ONLY: force_env_type
    USE input_constants,                 ONLY: rtp_bse_ham_g0w0,&
-                                              use_mom_ref_zero
+                                              use_mom_ref_zero,&
+                                              use_rt_restart
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: twopi
@@ -71,11 +73,10 @@ MODULE rt_bse_linearized
                                               initialize_rtbse_env,&
                                               propagate_density,&
                                               rho_metric
-   USE rt_bse_io,                       ONLY: output_field,&
-                                              output_moments,&
-                                              output_mos_contravariant,&
-                                              output_restart,&
-                                              print_timestep_info
+   USE rt_bse_io,                       ONLY: &
+        check_restart_eps_consistency, output_field, output_moments, output_mos_contravariant, &
+        output_restart, print_timestep_info, read_restart_C, read_restart_density, &
+        read_restart_info
    USE rt_bse_ri_rs,                    ONLY: compute_hartree_ri_rs,&
                                               compute_hartree_ri_rs_complex,&
                                               compute_hartree_ri_rs_from_diag,&
@@ -160,7 +161,7 @@ CONTAINS
       INTEGER                                            :: handle, i, j, k
       LOGICAL                                            :: converged
       REAL(kind=dp) :: a_metric_1, a_metric_2, full_max, full_max_old, idempotence_dev, metric, &
-         oo_max, oo_max_old, ov_growth, ov_max, ov_max_old, t_phys, timestep_walltime, &
+         oo_max, oo_max_old, ov_growth, ov_max, ov_max_old, t_phys, t_start, timestep_walltime, &
          timestep_walltime_start, vo_growth, vo_max, vo_max_old, vv_max, vv_max_old
       REAL(kind=dp), DIMENSION(2)                        :: enum_im, enum_re
       TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho_lab
@@ -182,6 +183,13 @@ CONTAINS
       CALL create_rtbse_env(rtbse_env, force_env, linearized=.TRUE.)
 
       CALL initialize_maximum_timestep(rtbse_env)
+
+      ! Restart phase 1: starting step + trace prefix (trace arrays are final after ENFORCE_MAX_DT)
+      IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
+         CALL read_restart_info(rtbse_env)
+         IF (rtbse_env%sim_start >= rtbse_env%sim_nsteps) &
+            CPABORT("RT_RESTART: restart step >= STEPS - increase MOTION%MD%STEPS")
+      END IF
 
       CALL print_linrtbse_header_info(rtbse_env)
 
@@ -227,18 +235,28 @@ CONTAINS
       ! Initialize non-trivial values
       !  - calculates the moment operators
       CALL initialize_moments(rtbse_env)
-      !  - populates the initial density matrix
-      !     - reads the restart density if requested
-      !  - reads the field and moment trace from previous runs
       !  - populates overlap and inverse overlap matrices
-      !  - prints some info about loaded files into the output
       CALL initialize_rtbse_env(rtbse_env)
 
-      !  - populates the initial density matrix
-      !     - reads the restart density if requested
+      !  - populates the fresh SCF density matrix rho^0 (and the rho_orig reference for delta rho)
       CALL initialize_density_matrix(rtbse_env)
+
+      ! Restart phase 2: overwrite rho from the lab-frame restart files, bridge into this run's MO
+      ! gauge, then enter this run's rotating frame (rotate_rho_phase is a no-op when omega_shift=0)
+      IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
+         CALL read_restart_density(rtbse_env)
+         IF (rtbse_env%restart_extracted) THEN
+            CALL apply_restart_basis_bridge(rtbse_env)
+            t_start = REAL(rtbse_env%sim_start, dp)*rtbse_env%sim_dt
+            DO i = 1, rtbse_env%n_spin
+               CALL rotate_rho_phase(rtbse_env, rtbse_env%rho(i), i, -rtbse_env%omega_shift*t_start)
+            END DO
+         END IF
+      END IF
       !  - calculates/populates the G0W0/KS Hamiltonian, respectively
       CALL initialize_singleparticle_hamiltonian(rtbse_env)
+      ! Restart Hamiltonian-consistency heads-up: eps_active exists only now, so compare here
+      CALL check_restart_eps_consistency(rtbse_env)
       ! Transform initial density matrix to AO basis for use in Hartree and self-energy calculations
       DO i = 1, rtbse_env%n_spin
          CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_orig(i), rtbse_env%rho_ao_scratch(i), i)
@@ -797,8 +815,8 @@ CONTAINS
          ! Save the reference value for the case of delta kick
          CALL cp_cfm_to_cfm(rtbse_env%rho(i), rtbse_env%rho_orig(i))
       END DO
-
-      !MG to do: restart reading of density matrix
+      ! rho_orig stays the SCF reference for delta rho; a restart overwrites only rho, downstream in
+      ! the driver (read_restart_density + apply_restart_basis_bridge + rotate_rho_phase).
 
       CALL timestop(handle)
    END SUBROUTINE initialize_density_matrix
@@ -2614,6 +2632,147 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE build_rho_lab
+
+! **************************************************************************************************
+!> \brief Bridge the restart density from the previous run's active-MO gauge into this run's:
+!>        overlap-metric basis change  U_mn = sum_µν C2_µm S_µν C1_νn   (mo_active × mo_active),
+!>        then  ρ_mn ← sum_pq U_mp ρ_pq U_nq   (ρ ← U ρ U^T, U real orthogonal up to FP).
+!>        Exact under per-MO sign flips and degenerate-subspace rotations of the SCF solution.
+!>        Diagnostics per spin: max|U−1| (total gauge correction), sign-flip count, max off-diag
+!>        (degenerate rotation), max|U^T U−1| (representability loss; warn ≥1e-10, abort ≥1e-3),
+!>        max|U_OV| (occ/virt mixing; warn ≥1e-6). No-op (U=1) when the two gauges agree.
+!>        [INTERNAL] docs/superpowers/specs/2026-07-02-linrtbse-restart-design.md §4.3
+!> \param rtbse_env RT-BSE environment
+! **************************************************************************************************
+   SUBROUTINE apply_restart_basis_bridge(rtbse_env)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_restart_basis_bridge'
+      COMPLEX(kind=dp), PARAMETER :: c_one = CMPLX(1.0_dp, 0.0_dp, kind=dp), &
+         c_zero = CMPLX(0.0_dp, 0.0_dp, kind=dp)
+
+      INTEGER                                            :: handle, i, i_glob, i_mo, ii, j_glob, &
+                                                            j_mo, jj, n_flip, ncol_local, &
+                                                            nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: found
+      REAL(kind=dp)                                      :: dev_ident, dev_offdiag, dev_ov, &
+                                                            dev_unitary
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: u_diag
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: u_data
+      TYPE(cp_fm_type)                                   :: SC_old
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: C_old
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (C_old)
+      ALLOCATE (C_old(rtbse_env%n_spin))
+      DO i = 1, rtbse_env%n_spin
+         CALL cp_fm_create(C_old(i), rtbse_env%fm_struct_ao_mo_active)
+      END DO
+      CALL read_restart_C(rtbse_env, C_old, found)
+      IF (.NOT. found) THEN
+         DO i = 1, rtbse_env%n_spin
+            CALL cp_fm_release(C_old(i))
+         END DO
+         DEALLOCATE (C_old)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      CALL cp_fm_create(SC_old, rtbse_env%fm_struct_ao_mo_active)
+      ALLOCATE (u_diag(rtbse_env%mo_active))
+
+      DO i = 1, rtbse_env%n_spin
+         ! S C1 : [S C1]_µn = sum_ν S_µν C1_νn
+         CALL parallel_gemm("N", "N", rtbse_env%n_ao, rtbse_env%mo_active, rtbse_env%n_ao, &
+                            1.0_dp, rtbse_env%S_fm, C_old(i), 0.0_dp, SC_old)
+         ! U = C2^T (S C1) : U_mn = sum_µ C2_µm [S C1]_µn   -> real_workspace_mo(1)
+         CALL parallel_gemm("T", "N", rtbse_env%mo_active, rtbse_env%mo_active, rtbse_env%n_ao, &
+                            1.0_dp, rtbse_env%C_active(i), SC_old, 0.0_dp, rtbse_env%real_workspace_mo(1))
+
+         ! Diagnostics on U (local blocks + global MAX reduction; diagonal is gathered globally)
+         CALL cp_fm_get_diag(rtbse_env%real_workspace_mo(1), u_diag)
+         n_flip = COUNT(u_diag < 0.0_dp)
+         CALL cp_fm_get_info(rtbse_env%real_workspace_mo(1), nrow_local=nrow_local, ncol_local=ncol_local, &
+                             row_indices=row_indices, col_indices=col_indices, local_data=u_data)
+         dev_ident = 0.0_dp; dev_offdiag = 0.0_dp; dev_ov = 0.0_dp
+         DO ii = 1, nrow_local
+            i_glob = row_indices(ii)
+            i_mo = i_glob + rtbse_env%first_active_mo - 1
+            DO jj = 1, ncol_local
+               j_glob = col_indices(jj)
+               j_mo = j_glob + rtbse_env%first_active_mo - 1
+               IF (i_glob == j_glob) THEN
+                  dev_ident = MAX(dev_ident, ABS(u_data(ii, jj) - 1.0_dp))
+               ELSE
+                  dev_ident = MAX(dev_ident, ABS(u_data(ii, jj)))
+                  dev_offdiag = MAX(dev_offdiag, ABS(u_data(ii, jj)))
+               END IF
+               IF ((i_mo <= rtbse_env%n_occ(i)) .NEQV. (j_mo <= rtbse_env%n_occ(i))) &
+                  dev_ov = MAX(dev_ov, ABS(u_data(ii, jj)))
+            END DO
+         END DO
+         ! U^T U − 1 : [U^T U]_mn = sum_p U_pm U_pn   -> real_workspace_mo(2)
+         CALL parallel_gemm("T", "N", rtbse_env%mo_active, rtbse_env%mo_active, rtbse_env%mo_active, &
+                            1.0_dp, rtbse_env%real_workspace_mo(1), rtbse_env%real_workspace_mo(1), &
+                            0.0_dp, rtbse_env%real_workspace_mo(2))
+         CALL cp_fm_get_info(rtbse_env%real_workspace_mo(2), nrow_local=nrow_local, ncol_local=ncol_local, &
+                             row_indices=row_indices, col_indices=col_indices, local_data=u_data)
+         dev_unitary = 0.0_dp
+         DO ii = 1, nrow_local
+            i_glob = row_indices(ii)
+            DO jj = 1, ncol_local
+               j_glob = col_indices(jj)
+               dev_unitary = MAX(dev_unitary, ABS(u_data(ii, jj) - MERGE(1.0_dp, 0.0_dp, i_glob == j_glob)))
+            END DO
+         END DO
+         CALL rtbse_env%real_workspace_mo(1)%matrix_struct%para_env%max(dev_ident)
+         CALL rtbse_env%real_workspace_mo(1)%matrix_struct%para_env%max(dev_offdiag)
+         CALL rtbse_env%real_workspace_mo(1)%matrix_struct%para_env%max(dev_ov)
+         CALL rtbse_env%real_workspace_mo(1)%matrix_struct%para_env%max(dev_unitary)
+
+         IF (rtbse_env%unit_nr > 0) THEN
+            WRITE (rtbse_env%unit_nr, '(A,I3,A)') " RTBSE| Restart basis bridge U = C2^T S C1 (spin ", i, "):"
+            WRITE (rtbse_env%unit_nr, '(A,ES12.3,A)') " RTBSE|   max |U - 1|         ", dev_ident, &
+               "  (total gauge correction)"
+            WRITE (rtbse_env%unit_nr, '(A,I12)') " RTBSE|   sign flips (U_ii<0)", n_flip
+            WRITE (rtbse_env%unit_nr, '(A,ES12.3,A)') " RTBSE|   max offdiag |U_ij| ", dev_offdiag, &
+               "  (degenerate-subspace rotation)"
+            WRITE (rtbse_env%unit_nr, '(A,ES12.3,A)') " RTBSE|   max |U^T U - 1|    ", dev_unitary, &
+               "  (representability loss)"
+            WRITE (rtbse_env%unit_nr, '(A,ES12.3,A)') " RTBSE|   max |U_OV|         ", dev_ov, &
+               "  (occ/virt structure change)"
+         END IF
+         IF (dev_unitary >= 1.0e-3_dp) &
+            CALL cp_abort(__LOCATION__, &
+                          "Restart basis bridge: active spaces of the two runs differ severely (|U^T U - 1| >= 1e-3)")
+         IF (dev_unitary >= 1.0e-10_dp .AND. dev_unitary < 1.0e-3_dp) &
+            CALL cp_warn(__LOCATION__, &
+                         "Restart basis bridge: representability loss above 1e-10 - active windows differ slightly.")
+         ! 1e-6 floor: benign SCF reconvergence gives ~1e-9 occ/virt gauge noise (the bridge maps it
+         ! correctly either way); only a genuine occupation-structure change reaches this threshold.
+         IF (dev_ov >= 1.0e-6_dp) &
+            CALL cp_warn(__LOCATION__, &
+                         "Restart basis bridge: occupied/virtual mixing above 1e-6 - occupation structure changed.")
+
+         ! ρ ← U ρ U^T : lift U to complex, [Uρ]_mn = sum_p U_mp ρ_pn, then ρ_mn = sum_q [Uρ]_mq U_nq
+         CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace_mo(1), mtarget=rtbse_env%rho_workspace(1))
+         CALL cp_cfm_gemm('N', 'N', rtbse_env%mo_active, rtbse_env%mo_active, rtbse_env%mo_active, &
+                          c_one, rtbse_env%rho_workspace(1), rtbse_env%rho(i), c_zero, rtbse_env%rho_workspace(2))
+         CALL cp_cfm_gemm('N', 'C', rtbse_env%mo_active, rtbse_env%mo_active, rtbse_env%mo_active, &
+                          c_one, rtbse_env%rho_workspace(2), rtbse_env%rho_workspace(1), c_zero, rtbse_env%rho(i))
+      END DO
+
+      DEALLOCATE (u_diag)
+      CALL cp_fm_release(SC_old)
+      DO i = 1, rtbse_env%n_spin
+         CALL cp_fm_release(C_old(i))
+      END DO
+      DEALLOCATE (C_old)
+      CALL timestop(handle)
+   END SUBROUTINE apply_restart_basis_bridge
 
 ! **************************************************************************************************
 !> \brief Complex-linear Hartree contraction. Calls the real-input get_hartree on
