@@ -89,9 +89,9 @@ MODULE rt_bse
                            multiply_fm_cfm
    USE rt_bse_ri_rs, ONLY: compute_sigma_ri_rs_complex
    USE rt_bse_io, ONLY: output_moments, &
-                        read_field, &
                         output_field, &
                         output_mos_contravariant, &
+                        read_restart_info, &
                         read_restart_density, &
                         output_restart, &
                         print_timestep_info, &
@@ -104,7 +104,6 @@ MODULE rt_bse
                                  cp_rm_iter_level, &
                                  cp_iterate
    USE rt_propagation_output, ONLY: print_ft
-   USE rt_propagation_utils, ONLY: read_moments
 
 #include "../base/base_uses.f90"
 
@@ -172,6 +171,13 @@ CONTAINS
       ! Allocate all persistant storage and read input that does not need further processing
       CALL create_rtbse_env(rtbse_env, force_env)
 
+      ! Restart phase 1: starting step + trace prefix, before anything consumes sim_start
+      IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
+         CALL read_restart_info(rtbse_env)
+         IF (rtbse_env%sim_start >= rtbse_env%sim_nsteps) &
+            CPABORT("RT_RESTART: restart step >= STEPS - increase MOTION%MD%STEPS")
+      END IF
+
       CALL print_rtbse_header_info(rtbse_env)
 
       ! Initiate iteration level "MD" in order to copy the structure of other RTP codes
@@ -179,9 +185,7 @@ CONTAINS
       ! Initialize non-trivial values
       !  - calculates the moment operators
       CALL initialize_moments(rtbse_env)
-      !  - reads the field and moment trace from previous runs
       !  - populates overlap and inverse overlap matrices
-      !  - prints some info about loaded files into the output
       CALL initialize_rtbse_env(rtbse_env)
 
       !  - populates the initial density matrix
@@ -279,17 +283,6 @@ CONTAINS
 
       ! Get pointers to parameters from qs_env
       CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env, matrix_s=matrix_s)
-
-      ! ****** START MOMENTS TRACE LOAD
-      ! The moments are only loaded if the consistent save files exist
-      CALL read_moments(rtbse_env%moments_section, rtbse_env%sim_start_orig, &
-                        rtbse_env%sim_start, rtbse_env%moments_trace, rtbse_env%time_trace)
-      ! ****** END MOMENTS TRACE LOAD
-
-      ! ****** START FIELD TRACE LOAD
-      ! The moments are only loaded if the consistent save files exist
-      CALL read_field(rtbse_env)
-      ! ****** END FIELD TRACE LOAD
 
       ! ****** START OVERLAP + INVERSE OVERLAP CALCULATION
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, rtbse_env%S_fm)
