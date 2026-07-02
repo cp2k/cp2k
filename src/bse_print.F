@@ -13,6 +13,8 @@
 MODULE bse_print
 
    USE atomic_kind_types,               ONLY: get_atomic_kind
+   USE bibliography,                    ONLY: Graml2026,&
+                                              cite_reference
    USE bse_properties,                  ONLY: compute_and_print_absorption_spectrum,&
                                               exciton_descr_type
    USE bse_util,                        ONLY: filter_eigvec_contrib
@@ -59,6 +61,7 @@ CONTAINS
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
+      CALL cite_reference(Graml2026)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *) ' '
@@ -126,8 +129,8 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A41)') 'BSE|', 'sum_jb ( A_ia,jb   X_jb^n ) = Ω^n X_ia^n'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A30)') 'BSE|', 'prelim Ref.: Eq. (36) with B=0'
-            WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
+            WRITE (unit_nr, '(T2,A4,T7,A14)') 'BSE|', 'Ref.: Eq. (18)'
+            WRITE (unit_nr, '(T2,A4,T7,A61)') 'BSE|', 'in PRB 113,205152 (2026); https://doi.org/10.1103/38k2-d55h .'
          ELSE
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '*      Full ("ABBA") Bethe Salpeter equation (BSE) (i.e. without TDA)    *'
@@ -143,6 +146,9 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A62)') 'BSE|', '  sum_jb ( A_ia,jb   X_jb^n + B_ia,jb   Y_jb^n ) = Ω^n X_ia^n'
             WRITE (unit_nr, '(T2,A4,T7,A62)') 'BSE|', '- sum_jb ( B_ia,jb   X_jb^n + A_ia,jb   Y_jb^n ) = Ω^n Y_ia^n'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A13)') 'BSE|', 'Ref.: Eq. (8)'
+            WRITE (unit_nr, '(T2,A4,T7,A61)') 'BSE|', 'in PRB 113,205152 (2026); https://doi.org/10.1103/38k2-d55h .'
          END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -164,8 +170,8 @@ CONTAINS
                WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'B_ia,jb = α * v_ia,jb'
             END IF
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A35)') 'BSE|', 'prelim Ref.: Eqs. (24-27),(30),(35)'
-            WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
+            WRITE (unit_nr, '(T2,A4,T7,A14)') 'BSE|', 'Ref.: Eq. (10)'
+            WRITE (unit_nr, '(T2,A4,T7,A61)') 'BSE|', 'in PRB 113,205152 (2026); https://doi.org/10.1103/38k2-d55h .'
          END IF
          IF (.NOT. flag_TDA) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -382,10 +388,10 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T9,A2,T14,A18)') &
                'BSE|', "r:", "position operator."
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A28)') &
-               'BSE|', "prelim Ref.: Eqs. (23), (24)"
-            WRITE (unit_nr, '(T2,A4,T7,A71)') &
-               'BSE|', "in J. Chem. Phys. 152, 044105 (2020); https://doi.org/10.1063/1.5123290"
+            WRITE (unit_nr, '(T2,A4,T7,A21)') &
+               'BSE|', "Ref.: Eqs. (21), (D3)"
+            WRITE (unit_nr, '(T2,A4,T7,A69)') &
+               'BSE|', "in Phys. Rev. B 113, 205152 (2026); https://doi.org/10.1103/38k2-d55h"
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             IF (flag_TDA) THEN
                WRITE (unit_nr, '(T2,A4,T7,A55)') 'BSE|', &
@@ -596,10 +602,10 @@ CONTAINS
             prefix_output, "r:", "position operator."
          WRITE (unit_nr, '(T2,A4)') prefix_output
          WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
-            'prelim Ref.: Eqs. (15)-(22)'
+            'Ref.: Eqs. (28)-(32)'
          WRITE (unit_nr, '(T2,A4,T7,A,A)') prefix_output, &
-            'JCTC 2018, 14, 710-725; ', &
-            'http://doi.org/10.1021/acs.jctc.7b01145'
+            'Phys. Rev. B 113, 205152 (2026); ', &
+            'https://doi.org/10.1103/38k2-d55h'
          WRITE (unit_nr, '(T2,A4)') prefix_output
          WRITE (unit_nr, '(T2,A4)') prefix_output
          IF (exc_descr(1)%flag_TDA) THEN
@@ -659,6 +665,12 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') prefix_output
             WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
                "R_eh^{μμ'} = COV_eh^{μμ'}/(σ^μ_e σ^μ_h) "
+            WRITE (unit_nr, '(T2,A4)') prefix_output
+            WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
+               'Ref.: Eqs. (33)-(36)'
+            WRITE (unit_nr, '(T2,A4,T7,A,A)') prefix_output, &
+               'Phys. Rev. B 113, 205152 (2026); ', &
+               'https://doi.org/10.1103/38k2-d55h'
             WRITE (unit_nr, '(T2,A4)') prefix_output
             WRITE (unit_nr, '(T2,A4)') prefix_output
             IF (exc_descr(1)%flag_TDA) THEN
