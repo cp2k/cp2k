@@ -551,6 +551,7 @@ FROM {base_image}
         with_libsmeagol="",
         with_libtorch="no",
         with_deepmd="no",
+        with_gauxc="no",
     )
 
 
