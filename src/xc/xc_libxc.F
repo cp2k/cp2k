@@ -58,13 +58,11 @@ MODULE xc_libxc
                             xc_f03_func_init, &
                             xc_f03_func_end, &
                             xc_f03_func_info_t, &
-                            xc_f03_functional_get_name, &
                             xc_f03_func_get_info, &
                             xc_f03_func_info_get_family, &
                             xc_f03_func_info_get_kind, &
                             xc_f03_func_info_get_n_ext_params, &
                             xc_f03_func_info_get_name, &
-                            xc_f03_available_functional_numbers, &
                             xc_f03_available_functional_names, &
                             xc_f03_maximum_name_length, &
                             xc_f03_number_of_functionals, &
@@ -215,7 +213,7 @@ CONTAINS
       REAL(KIND=C_DOUBLE) :: default_val
       CHARACTER(LEN=128) :: func_name, param_name, param_descr, description
       CHARACTER(LEN=2*default_string_length) :: warning
-      INTEGER(KIND=C_INT), DIMENSION(:), ALLOCATABLE :: func_ids
+      CHARACTER(LEN=:), DIMENSION(:), ALLOCATABLE :: func_names
       TYPE(xc_f03_func_t)                      :: xc_func
       TYPE(xc_f03_func_info_t)                 :: xc_info
 
@@ -227,20 +225,20 @@ CONTAINS
       no_func = xc_f03_number_of_functionals()
       len_name = xc_f03_maximum_name_length()
 
-      ALLOCATE (func_ids(no_func))
+      ALLOCATE (CHARACTER(LEN=len_name) :: func_names(no_func))
 
-      CALL xc_f03_available_functional_numbers(func_ids)
+      CALL xc_f03_available_functional_names(func_names)
 
       DO ii = 1, no_func
 
-         func_id = func_ids(ii)
+         func_name = func_names(ii)
+         func_id = xc_libxc_wrap_functional_get_number(func_name)
 !$OMP CRITICAL(libxc_init)
          CALL xc_f03_func_init(xc_func, func_id, XC_UNPOLARIZED)
          xc_info = xc_f03_func_get_info(xc_func)
 !$OMP END CRITICAL(libxc_init)
 !$OMP BARRIER
 
-         func_name = xc_f03_functional_get_name(func_id)
          description = xc_f03_func_info_get_name(xc_info)
          n_param = xc_f03_func_info_get_n_ext_params(xc_info)
 
