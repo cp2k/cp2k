@@ -25,6 +25,23 @@ getting-started/first-calculation
 
 ```{toctree}
 ---
+caption: Development
+titlesonly:
+maxdepth: 1
+---
+development/onboarding
+development/coding-conventions
+development/code-structure
+development/error-handling
+development/print-keys
+development/code-formatting
+development/regtesting
+development/preprocessing
+development/dependencies
+```
+
+```{toctree}
+---
 caption: Methods
 titlesonly:
 maxdepth: 1
