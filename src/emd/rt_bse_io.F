@@ -538,27 +538,30 @@ CONTAINS
          rtbse_env%restart_C_written = .TRUE.
       END IF
 
-      CALL write_restart_trace(rtbse_env, time_index)
+      CALL write_restart_trace(rtbse_env)
    END SUBROUTINE output_restart
 ! **************************************************************************************************
-!> \brief Appends the trace record for time_index to RESTART.trace. On the first call of a run
-!>        the file is rewritten from memory (header + records 1..time_index), truncating any
-!>        leftovers from an aborted run; subsequent calls append one record. Ionode writes; the
-!>        record layout matches read_restart_trace verbatim.
+!> \brief Appends the current observable-trace record to RESTART.trace. Records are keyed by the
+!>        observable slot n_slot = sim_step - sim_start_orig + 1 (the SAME index output_moments/
+!>        output_field write) - not by output_restart's time_index, which trails it by one on the
+!>        linearized path (solve_rk4_timestep bumps sim_step), so keying by time_index would drop
+!>        the final slot and leave a gap at the restart boundary. On the first call of a run the
+!>        file is rewritten from memory (header + records 1..n_slot), truncating leftovers from an
+!>        aborted run; subsequent calls append one record. Ionode writes; layout matches
+!>        read_restart_trace verbatim.
 !> \param rtbse_env RT-BSE environment
-!> \param time_index Trace index of the record to write (state after time_index steps)
 ! **************************************************************************************************
-   SUBROUTINE write_restart_trace(rtbse_env, time_index)
+   SUBROUTINE write_restart_trace(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      INTEGER                                            :: time_index
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=default_path_length)                 :: save_name
-      INTEGER                                            :: trace_unit, n, n_eps
+      INTEGER                                            :: trace_unit, n, n_eps, n_slot
 
       logger => cp_get_default_logger()
       save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=".trace", my_local=.FALSE.)
 
       IF (rtbse_env%unit_nr > 0) THEN
+         n_slot = rtbse_env%sim_step - rtbse_env%sim_start_orig + 1
          IF (ASSOCIATED(rtbse_env%real_workspace_mo)) THEN
             n_eps = SIZE(rtbse_env%eps_active, 1)
          ELSE
@@ -578,15 +581,15 @@ CONTAINS
                rtbse_env%dft_control%rtp_control%delta_pulse_scale
             WRITE (trace_unit) n_eps
             IF (n_eps > 0) WRITE (trace_unit) rtbse_env%eps_active
-            DO n = 1, time_index
+            DO n = 1, n_slot
                WRITE (trace_unit) n, rtbse_env%time_trace(n), rtbse_env%field_trace(:, n), &
                   rtbse_env%moments_trace(:, :, n)
             END DO
          ELSE
             CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="WRITE", &
                            file_position="APPEND", unit_number=trace_unit)
-            WRITE (trace_unit) time_index, rtbse_env%time_trace(time_index), rtbse_env%field_trace(:, time_index), &
-               rtbse_env%moments_trace(:, :, time_index)
+            WRITE (trace_unit) n_slot, rtbse_env%time_trace(n_slot), rtbse_env%field_trace(:, n_slot), &
+               rtbse_env%moments_trace(:, :, n_slot)
          END IF
          CALL close_file(trace_unit)
       END IF
@@ -693,7 +696,9 @@ CONTAINS
       DO
          READ (trace_unit, IOSTAT=ios) n, t_rec, field_rec, mom_rec
          IF (ios /= 0) EXIT
-         IF (n > rtbse_env%sim_start) EXIT
+         ! Fill through slot sim_start+1: the live loop's first step writes slot sim_start+2 on the
+         ! linearized path (solve_rk4_timestep bumps sim_step), so slot sim_start+1 must be reloaded.
+         IF (n > rtbse_env%sim_start + 1) EXIT
          IF (n > SIZE(rtbse_env%time_trace)) &
             CPABORT("RESTART.trace: record index exceeds trace size - increase MOTION%MD%STEPS")
          rtbse_env%time_trace(n) = t_rec
