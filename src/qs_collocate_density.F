@@ -269,7 +269,9 @@ CONTAINS
                   n = coset(2, 2, 2)
                   pab(n, 1) = 6._dp*cval_nlcc(4, iexp_nlcc)/alpha**6
                CASE DEFAULT
-                  CPABORT("")
+                  CALL cp_abort(__LOCATION__, &
+                                "Only 1, 2, 3, 4 are supported as the "// &
+                                "value of j in calculate_rho_nlcc")
                END SELECT
             END DO
             IF (dft_control%nspins == 2) pab = pab*0.5_dp
@@ -441,7 +443,9 @@ CONTAINS
                n = coset(2, 2, 2)
                pab(n, 1) = 6._dp*cexp_ppl(4)
             CASE DEFAULT
-               CPABORT("")
+               CALL cp_abort(__LOCATION__, &
+                             "Only 1, 2, 3, 4 are supported as the "// &
+                             "value of j in calculate_ppl_grid")
             END SELECT
          END DO
 

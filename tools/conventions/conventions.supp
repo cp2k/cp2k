@@ -169,15 +169,8 @@ powell.F: Found GOTO statement in procedure "newuob" https://cp2k.org/conv#c201
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all" https://cp2k.org/conv#c012
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all_ortho" https://cp2k.org/conv#c012
 ps_implicit_methods.F: OMP PARALLEL without DEFAULT(NONE) found in "ps_implicit_prepare_blocks" https://cp2k.org/conv#c006
-ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "f_poissonsolver" https://cp2k.org/conv#c012
-ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "p_poissonsolver" https://cp2k.org/conv#c012
-ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "s_poissonsolver" https://cp2k.org/conv#c012
-ps_wavelet_fft3d.F: Found WRITE statement with hardcoded unit in "ctrig" https://cp2k.org/conv#c012
-ps_wavelet_fft3d.F: Found WRITE statement with hardcoded unit in "fourier_dim" https://cp2k.org/conv#c012
 ps_wavelet_kernel.F: Found WRITE statement with hardcoded unit in "indices" https://cp2k.org/conv#c012
 ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "ftest" https://cp2k.org/conv#c012
-ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "p_fft_dimensions" https://cp2k.org/conv#c012
-ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "s_fft_dimensions" https://cp2k.org/conv#c012
 pwdft_environment_types.F: Module "sirius" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 pw_grids.F: Found WRITE statement with hardcoded unit in "pw_grid_sort" https://cp2k.org/conv#c012
 qcschema.F: Module "hdf5_wrapper" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
@@ -193,7 +186,6 @@ qs_dispersion_s_dftd3.F: Module "mctc_env" USEd without ONLY clause or not PRIVA
 qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_density" https://cp2k.org/conv#c012
 qs_fb_env_methods.F: Found CALL cp_fm_gemm in procedure "fb_env_do_diag" https://cp2k.org/conv#c101
 qs_fb_filter_matrix_methods.F: Found WRITE statement with hardcoded unit in "fb_fltrmat_build_atomic_fltrmat" https://cp2k.org/conv#c012
-qs_initial_guess.F: Found WRITE statement with hardcoded unit in "calculate_first_density_matrix" https://cp2k.org/conv#c012
 qs_linres_atom_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_atom_rad" https://cp2k.org/conv#c012
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms" https://cp2k.org/conv#c012
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms_new" https://cp2k.org/conv#c012

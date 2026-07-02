@@ -205,11 +205,7 @@ def check_file(path: pathlib.Path) -> List[str]:
     if "\r\n" in content:
         warnings += [f"{path}: contains DOS linebreaks"]
 
-    if (
-        fn_ext not in (".pot", ".patch")
-        and basefn != "Makefile"
-        and "\t" in content
-    ):
+    if fn_ext not in (".pot", ".patch") and basefn != "Makefile" and "\t" in content:
         warnings += [f"{path}: contains tab character"]
 
     if fn_ext == ".cu" and "#if defined(_OMP_H)\n#error" not in content:

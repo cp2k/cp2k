@@ -398,7 +398,7 @@ CONTAINS
                   force(jkind)%rho_elec(3, atom_b) = force(jkind)%rho_elec(3, atom_b) + force_ab(3)
                END IF
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown semi-empirical method for build_fock_matrix_coulomb")
             END SELECT
          ELSE
             IF (se_int_control%do_ewald_gks) THEN
@@ -570,7 +570,7 @@ CONTAINS
             do_method_rm1, do_method_mndod, do_method_pnnl)
          itype = get_se_type(dft_control%qs_control%method_id)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown semi-empirical method for build_fock_matrix_coulomb_lr")
       END SELECT
 
       ! Zero arrays and possibly build neighbor lists
@@ -590,7 +590,7 @@ CONTAINS
       CASE (do_multipole_quadrupole)
          task = .TRUE.
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Only none, charge, dipole and quadrupole are supported")
       END SELECT
 
       ! Build-up neighbor lists for real-space part of Ewald multipoles
@@ -1139,7 +1139,7 @@ CONTAINS
                   force(jkind)%rho_elec(3, atom_b) = force(jkind)%rho_elec(3, atom_b) + force_ab(3)
                END IF
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown semi-empirical method for build_fock_matrix_coul_lrc")
             END SELECT
          END IF
       END DO
@@ -1474,7 +1474,7 @@ CONTAINS
                   force(jkind)%rho_elec(3, atom_b) = force(jkind)%rho_elec(3, atom_b) + force_ab(3)
                END IF
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown semi-empirical method for build_fock_matrix_coul_lr_r3")
             END SELECT
          END IF
       END DO

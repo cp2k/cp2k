@@ -1787,8 +1787,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(section_vals_in))
       CPASSERT(ASSOCIATED(section_vals_out))
-      !  IF(.NOT. ASSOCIATED(section_vals_in%section, section_vals_out%section))&
-      !     CPABORT("")
 
       istart = 1
       iend = SIZE(section_vals_in%values, 2)
@@ -1816,9 +1814,9 @@ CONTAINS
       END DO
       IF (.NOT. PRESENT(i_rep_low) .AND. (.NOT. PRESENT(i_rep_high))) THEN
          IF (.NOT. (SIZE(section_vals_in%values, 2) == SIZE(section_vals_out%values, 2))) &
-            CPABORT("")
+            CPABORT("Incompatible sizes of values between input and output")
          IF (.NOT. (SIZE(section_vals_in%subs_vals, 2) == SIZE(section_vals_out%subs_vals, 2))) &
-            CPABORT("")
+            CPABORT("Incompatible sizes of subsections between input and output")
       END IF
       iend = SIZE(section_vals_in%subs_vals, 2)
       IF (PRESENT(i_rep_high)) iend = i_rep_high

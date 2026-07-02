@@ -329,7 +329,7 @@ CONTAINS
 #if defined(__parallel)
             CPABORT("to do (pdscal,pdcopy,pdaxpy)")
 #else
-            CPABORT("")
+            CPABORT("to do")
 #endif
          END IF
       END IF
@@ -436,7 +436,7 @@ CONTAINS
 #if defined(__parallel)
             CPABORT("to do (pdscal,pdcopy,pdaxpy)")
 #else
-            CPABORT("")
+            CPABORT("to do")
 #endif
          END IF
       END IF

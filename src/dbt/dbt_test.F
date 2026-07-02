@@ -335,7 +335,7 @@ CONTAINS
 
             IF (.NOT. eql) THEN
                IF (io_unit > 0) WRITE (io_unit, '(A,1X,A)') TRIM(tensor_name), 'Test failed!'
-               CPABORT('')
+               CPABORT("tensor1 and tensor2 are not equal in dbt_test_formats")
             ELSE
                IF (io_unit > 0) WRITE (io_unit, '(A,1X,A)') TRIM(tensor_name), 'Test passed!'
             END IF
@@ -768,7 +768,7 @@ CONTAINS
 
             IF (.NOT. eql .OR. .NOT. notzero) THEN
                IF (io_unit > 0) WRITE (io_unit, *) 'Test failed!', eql_diff
-               CPABORT('')
+               CPABORT("array_3_test_mm is not non-zero or not equal to array_3_mm")
             ELSE
                IF (io_unit > 0) WRITE (io_unit, *) 'Test passed!', eql_diff
             END IF

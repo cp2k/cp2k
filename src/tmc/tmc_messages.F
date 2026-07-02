@@ -208,7 +208,7 @@ CONTAINS
             CALL para_env%send(m_send%task_real, dest, message_tag)
          END IF
          IF (m_send%info(4) > 0) THEN
-            CPABORT("")
+            CPABORT("Unable to send message when m_send%info(4) > 0")
             !TODO send characters CALL para_env%send(m_send%task_char, dest, message_tag)
          END IF
          IF (DEBUG >= 1) &
@@ -238,7 +238,7 @@ CONTAINS
             END IF
             IF (m_send%info(4) > 0) THEN
                IF (.NOT. act_send_recv) ALLOCATE (m_send%task_char(m_send%info(3)))
-               CPABORT("")
+               CPABORT("Unable to broadcast message when m_send%info(4) > 0")
                !TODO bcast char CALL para_env%bcast(m_send%task_char, MASTER_COMM_ID)
             END IF
          END IF
@@ -307,7 +307,7 @@ CONTAINS
          !-- receive message character part
          IF (m_send%info(4) > 0) THEN
             ALLOCATE (m_send%task_char(m_send%info(4)))
-            CPABORT("")
+            CPABORT("Unable to receive message when m_send%info(4) > 0")
             !TODO recv characters CALL para_env%recv(m_send%task_char, dest, message_tag)
          END IF
       END IF

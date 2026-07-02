@@ -1925,7 +1925,7 @@ CONTAINS
                         WRITE (*, *) 'error too many atoms'
                         WRITE (*, *) 'dist=', ABS(r(:))
                         WRITE (*, *) 'large_dist=', (scale + 0.5_dp)*dbox
-                        CPABORT("")
+                        CPABORT("Some atoms are too far from box center")
                      END IF
                   END DO
                END IF
@@ -1958,7 +1958,7 @@ CONTAINS
                         WRITE (*, *) 'box_center', box_center
                         WRITE (*, *) 'ratom', ratom(:, iatom)
                         WRITE (*, *) 'gauge_atom_radius', gauge_atom_radius
-                        CPABORT("")
+                        CPABORT("Some atoms are too close within gauge_atom_radius")
                      END IF
                   END IF
                END DO

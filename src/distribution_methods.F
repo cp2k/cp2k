@@ -691,7 +691,7 @@ CONTAINS
 
          ELSE
             ! expects nothing else
-            CPABORT("")
+            CPABORT("Invalid optimization for DFT%QS%DISTRIBUTION")
          END IF
 
          ! prepare the lists of local particles

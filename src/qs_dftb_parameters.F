@@ -700,7 +700,9 @@ CONTAINS
       RETURN
 
 1     CONTINUE
-      CPABORT("")
+      ! Many instances of READ (..., END=1, err=1) gets conflated here
+      ! TODO: overhaul the file parser to handle errors separately
+      CPABORT("Something went wrong while reading DFTB parameter file")
 
    END SUBROUTINE qs_dftb_param_init
 

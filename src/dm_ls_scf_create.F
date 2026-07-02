@@ -302,7 +302,7 @@ CONTAINS
          ls_scf_env%needs_s_inv = .FALSE.
          ls_scf_env%use_s_sqrt = .FALSE.
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown S_INVERSION type for LS_SCF")
       END SELECT
 
       SELECT CASE (ls_scf_env%s_preconditioner_type)
@@ -447,7 +447,7 @@ CONTAINS
             CALL cite_reference(Lin2013)
             WRITE (unit_nr, '(T2,A,T51,A20)') "Purification method", ADJUSTR("PEXSI")
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown purification method for LS_SCF")
          END SELECT
 
          SELECT CASE (ls_scf_env%ls_mstruct%cluster_type)

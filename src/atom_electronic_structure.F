@@ -158,23 +158,23 @@ CONTAINS
 
       SELECT CASE (method)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown method for calculate_atom_restricted")
       CASE (do_rks_atom)
          need_x = do_hfx
          need_xc = .TRUE.
       CASE (do_uks_atom)
-         CPABORT("")
+         CPABORT("UKS is incompatible with calculate_atom_restricted")
       CASE (do_rhf_atom)
          need_x = .TRUE.
          need_xc = .FALSE.
          hf_frac = 1._dp
       CASE (do_uhf_atom)
-         CPABORT("")
+         CPABORT("UHF is incompatible with calculate_atom_restricted")
       CASE (do_rohf_atom)
          need_x = .TRUE.
          need_xc = .FALSE.
          hf_frac = 1._dp
-         CPABORT("")
+         CPABORT("ROHF is incompatible with calculate_atom_restricted")
       END SELECT
 
       ! ZMP starting to read external density for the zmp calculation
@@ -209,11 +209,11 @@ CONTAINS
       ! Pseudopotentials
       SELECT CASE (atom%potential%ppot_type)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown pseudopotential type for calculate_atom_restricted")
       CASE (NO_PSEUDO)
          SELECT CASE (reltyp)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown relativistic type for calculate_atom_restricted")
          CASE (do_nonrel_atom)
             hcore%op = atom%integrals%kin - atom%zcore*atom%integrals%core
          CASE (do_zoramp_atom, do_sczoramp_atom)
@@ -280,7 +280,7 @@ CONTAINS
          ! Pseudopotential energy
          SELECT CASE (atom%potential%ppot_type)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown pseudopotential type for calculate_atom_restricted")
          CASE (no_pseudo)
             atom%energy%eploc = 0._dp
             atom%energy%epnl = 0._dp
@@ -304,7 +304,7 @@ CONTAINS
          jmat%op = 0._dp
          SELECT CASE (atom%coulomb_integral_type)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown Coulomb integral type for calculate_atom_restricted")
          CASE (do_analytic)
             CALL ceri_contract(jmat%op, atom%integrals%ceri, atom%orbitals%pmat, atom%integrals%n)
          CASE (do_semi_analytic)
@@ -323,7 +323,7 @@ CONTAINS
             kmat%op = 0._dp
             SELECT CASE (atom%exchange_integral_type)
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown exchange integral type for calculate_atom_restricted")
             CASE (do_analytic)
                CALL eeri_contract(kmat%op, atom%integrals%eeri, atom%orbitals%pmat, atom%integrals%n)
             CASE (do_semi_analytic)
@@ -476,14 +476,14 @@ CONTAINS
 
       SELECT CASE (method)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown method for calculate_atom_unrestricted")
       CASE (do_rks_atom)
-         CPABORT("")
+         CPABORT("RKS is incompatible with calculate_atom_unrestricted")
       CASE (do_uks_atom)
          need_x = do_hfx
          need_xc = .TRUE.
       CASE (do_rhf_atom)
-         CPABORT("")
+         CPABORT("RHF is incompatible with calculate_atom_unrestricted")
       CASE (do_uhf_atom)
          need_x = .TRUE.
          need_xc = .FALSE.
@@ -492,7 +492,7 @@ CONTAINS
          need_x = .TRUE.
          need_xc = .FALSE.
          hf_frac = 1._dp
-         CPABORT("")
+         CPABORT("ROHF is incompatible with calculate_atom_unrestricted")
       END SELECT
 
       ! set alpha and beta occupations
@@ -529,11 +529,11 @@ CONTAINS
       lsdpot = .FALSE.
       SELECT CASE (atom%potential%ppot_type)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown pseudopotential type for calculate_atom_unrestricted")
       CASE (no_pseudo)
          SELECT CASE (reltyp)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown relativistic type for calculate_atom_unrestricted")
          CASE (do_nonrel_atom)
             hcore%op = atom%integrals%kin - atom%zcore*atom%integrals%core
          CASE (do_zoramp_atom, do_sczoramp_atom)
@@ -622,7 +622,7 @@ CONTAINS
          ! Pseudopotential energy
          SELECT CASE (atom%potential%ppot_type)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown pseudopotential type for calculate_atom_unrestricted")
          CASE (no_pseudo)
             atom%energy%eploc = 0._dp
             atom%energy%epnl = 0._dp
@@ -646,7 +646,7 @@ CONTAINS
          jmat%op = 0._dp
          SELECT CASE (atom%coulomb_integral_type)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown Coulomb integral type for calculate_atom_unrestricted")
          CASE (do_analytic)
             CALL ceri_contract(jmat%op, atom%integrals%ceri, atom%orbitals%pmat, atom%integrals%n)
          CASE (do_semi_analytic)
@@ -666,7 +666,7 @@ CONTAINS
             kmatb%op = 0._dp
             SELECT CASE (atom%exchange_integral_type)
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown exchange integral type for calculate_atom_unrestricted")
             CASE (do_analytic)
                CALL eeri_contract(kmata%op, atom%integrals%eeri, atom%orbitals%pmata, atom%integrals%n)
                CALL eeri_contract(kmatb%op, atom%integrals%eeri, atom%orbitals%pmatb, atom%integrals%n)
