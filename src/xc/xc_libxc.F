@@ -234,6 +234,9 @@ CONTAINS
       DO ii = 1, no_func
 
          func_id = func_ids(ii)
+         IF (ii > 1) THEN
+            IF (func_id == func_ids(ii - 1)) CYCLE
+         END IF
 !$OMP CRITICAL(libxc_init)
          CALL xc_f03_func_init(xc_func, func_id, XC_UNPOLARIZED)
          xc_info = xc_f03_func_get_info(xc_func)
@@ -284,6 +287,8 @@ CONTAINS
          CALL xc_f03_func_end(xc_func)
 
       END DO
+
+      DEALLOCATE (func_ids)
 
       CALL timestop(handle)
 #else
