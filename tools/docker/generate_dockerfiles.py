@@ -71,7 +71,7 @@ def main() -> None:
                 version="pdbg",
                 mpi_mode="mpich",
                 feature_flags="",
-                testopts=testopts,
+                testopts="",
                 image_tag=f.image_tag,
             )
         )
@@ -112,7 +112,7 @@ def main() -> None:
                 mpi_mode="mpich",
                 base_image="fedora:rawhide",
                 feature_flags="",
-                testopts=testopts,
+                testopts="",
                 image_tag=f.image_tag,
             )
         )
@@ -172,7 +172,7 @@ def main() -> None:
                 version="pdbg",
                 mpi_mode="openmpi",
                 feature_flags="",
-                testopts=testopts,
+                testopts="",
                 image_tag=f.image_tag,
             )
         )
