@@ -25,6 +25,10 @@ def main() -> None:
         f.write(install_deps_toolchain())
         f.write(regtest("toolchain", "psmp", testopts=testopts))
 
+    with OutputFile(f"Dockerfile.test_psmp_keepalive", args.check) as f:
+        f.write(install_deps_toolchain())
+        f.write(regtest("toolchain", "psmp", testopts=f"--keepalive"))
+
     with OutputFile(f"Dockerfile.test_generic_psmp", args.check) as f:
         f.write(install_deps_toolchain(target_cpu="generic"))
         f.write(regtest("toolchain_generic", "psmp"))
@@ -89,6 +93,17 @@ def main() -> None:
                     image_tag=f.image_tag,
                 )
             )
+
+    with OutputFile(f"Dockerfile.test_spack_psmp-keepalive", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                version="psmp",
+                mpi_mode="mpich",
+                feature_flags="",
+                testopts=f"--keepalive --flagslow",
+                image_tag=f.image_tag,
+            )
+        )
 
     with OutputFile(f"Dockerfile.test_spack_pdbg-rawhide", args.check) as f:
         f.write(
