@@ -222,6 +222,10 @@ MODULE rt_bse_types
                                                                    ! Default reference point type for output moments
                                                                    ! Field moments always use zero reference
                                                                    moment_ref_type = use_mom_ref_coac
+      ! Restart output bookkeeping: RESTART.trace header+prefix and (linearized) C_active are
+      ! (re)written on the first output_restart call of a run, then .trace is appended per step.
+      LOGICAL                                                   :: restart_trace_written = .FALSE., &
+                                                                   restart_C_written = .FALSE.
       REAL(kind=dp), DIMENSION(:), POINTER                      :: user_moment_ref_point => NULL()
       REAL(kind=dp)                                             :: sim_time = 0.0_dp, &
                                                                    sim_dt = 0.1_dp, &

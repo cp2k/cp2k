@@ -92,7 +92,7 @@ MODULE rt_bse
                         read_field, &
                         output_field, &
                         output_mos_contravariant, &
-                        read_restart, &
+                        read_restart_density, &
                         output_restart, &
                         print_timestep_info, &
                         print_etrs_info_header, &
@@ -404,7 +404,7 @@ CONTAINS
       DEALLOCATE (occupations)
       ! If the restart field is provided, overwrite rho from restart
       IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
-         CALL read_restart(rtbse_env)
+         CALL read_restart_density(rtbse_env)
       END IF
       ! ****** END INITIAL DENSITY MATRIX CALCULATION
 

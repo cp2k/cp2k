@@ -40,7 +40,10 @@ MODULE rt_bse_io
                               do_bch, &
                               rtp_bse_ham_g0w0, &
                               rtp_bse_ham_ks, &
-                              use_rt_restart
+                              use_rt_restart, &
+                              restart_guess
+   USE qs_environment_types, ONLY: get_qs_env
+   USE scf_control_types, ONLY: scf_control_type
    USE physcon, ONLY: femtoseconds
    USE rt_propagation_output, ONLY: print_moments, &
                                     print_rt_file, &
@@ -62,7 +65,9 @@ MODULE rt_bse_io
              output_mos_contravariant, &
              output_mos_covariant, &
              output_restart, &
-             read_restart, &
+             read_restart_info, &
+             read_restart_density, &
+             read_restart_C, &
              print_etrs_info_header, &
              print_etrs_info, &
              print_timestep_info, &
@@ -468,10 +473,12 @@ CONTAINS
                          rtbse_env%sim_time, .TRUE., append_opt=(rtbse_env%sim_step /= rtbse_env%sim_start_orig))
    END SUBROUTINE output_moments
 ! **************************************************************************************************
-!> \brief Outputs the restart info (last finished iteration step) + restard density matrix
-!> \param restart_section Print key section for the restart files
-!> \param rho Density matrix in AO basis
-!> \param time_index Time index to be written into the info file
+!> \brief Writes the restart set: lab-frame density matrices (MO-active for linearized, AO
+!>        otherwise), the .info step index, the once-per-run C_active gauge reference (linearized
+!>        only), and the appended RESTART.trace record feeding the FT prefix on continuation.
+!> \param rtbse_env RT-BSE environment
+!> \param rho Density matrix (lab frame) to store
+!> \param time_index Trace/step index of this record (state after time_index steps)
 ! **************************************************************************************************
    SUBROUTINE output_restart(rtbse_env, rho, time_index)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -479,6 +486,7 @@ CONTAINS
       INTEGER                                            :: time_index
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: workspace
       CHARACTER(len=17), DIMENSION(4)                    :: file_labels
+      CHARACTER(len=16), DIMENSION(2)                    :: c_file_labels
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: rho_unit_nr, i
 
@@ -487,6 +495,8 @@ CONTAINS
       file_labels(2) = "_SPIN_A_IM.matrix"
       file_labels(3) = "_SPIN_B_RE.matrix"
       file_labels(4) = "_SPIN_B_IM.matrix"
+      c_file_labels(1) = "_SPIN_A_C.matrix"
+      c_file_labels(2) = "_SPIN_B_C.matrix"
 
       logger => cp_get_default_logger()
 
@@ -515,14 +525,196 @@ CONTAINS
          IF (rho_unit_nr > 0) WRITE (rho_unit_nr) time_index
          CALL cp_print_key_finished_output(rho_unit_nr, logger, rtbse_env%restart_section)
       END DO
+
+      ! Once-per-run C_active dump (linearized only): gauge reference for the restart basis bridge
+      IF (ASSOCIATED(rtbse_env%real_workspace_mo) .AND. .NOT. rtbse_env%restart_C_written) THEN
+         DO i = 1, rtbse_env%n_spin
+            rho_unit_nr = cp_print_key_unit_nr(logger, rtbse_env%restart_section, extension=c_file_labels(i), &
+                                               file_form="UNFORMATTED", file_position="REWIND")
+            CALL cp_fm_write_unformatted(rtbse_env%C_active(i), rho_unit_nr)
+            CALL cp_print_key_finished_output(rho_unit_nr, logger, rtbse_env%restart_section)
+         END DO
+         rtbse_env%restart_C_written = .TRUE.
+      END IF
+
+      CALL write_restart_trace(rtbse_env, time_index)
    END SUBROUTINE output_restart
 ! **************************************************************************************************
-!> \brief Reads the density matrix from restart files and updates the starting time
-!> \param restart_section Print key section for the restart files
-!> \param rho Density matrix in AO basis
-!> \param time_index Time index to be written into the info file
+!> \brief Appends the trace record for time_index to RESTART.trace. On the first call of a run
+!>        the file is rewritten from memory (header + records 1..time_index), truncating any
+!>        leftovers from an aborted run; subsequent calls append one record. Ionode writes; the
+!>        record layout matches read_restart_trace verbatim.
+!> \param rtbse_env RT-BSE environment
+!> \param time_index Trace index of the record to write (state after time_index steps)
 ! **************************************************************************************************
-   SUBROUTINE read_restart(rtbse_env)
+   SUBROUTINE write_restart_trace(rtbse_env, time_index)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      INTEGER                                            :: time_index
+      TYPE(cp_logger_type), POINTER                      :: logger
+      CHARACTER(len=default_path_length)                 :: save_name
+      INTEGER                                            :: trace_unit, n, n_eps
+
+      logger => cp_get_default_logger()
+      save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=".trace", my_local=.FALSE.)
+
+      IF (rtbse_env%unit_nr > 0) THEN
+         IF (ASSOCIATED(rtbse_env%real_workspace_mo)) THEN
+            n_eps = SIZE(rtbse_env%eps_active, 1)
+         ELSE
+            n_eps = 0
+         END IF
+         IF (.NOT. rtbse_env%restart_trace_written) THEN
+            CALL open_file(save_name, file_status="UNKNOWN", file_form="UNFORMATTED", file_action="WRITE", &
+                           file_position="REWIND", unit_number=trace_unit)
+            WRITE (trace_unit) 1
+            IF (ASSOCIATED(rtbse_env%real_workspace_mo)) THEN
+               WRITE (trace_unit) rtbse_env%n_spin, rtbse_env%mo_active, rtbse_env%n_ao
+            ELSE
+               WRITE (trace_unit) rtbse_env%n_spin, rtbse_env%n_ao, rtbse_env%n_ao
+            END IF
+            WRITE (trace_unit) rtbse_env%sim_dt
+            WRITE (trace_unit) REAL(rtbse_env%dft_control%rtp_control%delta_pulse_direction, dp), &
+               rtbse_env%dft_control%rtp_control%delta_pulse_scale
+            WRITE (trace_unit) n_eps
+            IF (n_eps > 0) WRITE (trace_unit) rtbse_env%eps_active
+            DO n = 1, time_index
+               WRITE (trace_unit) n, rtbse_env%time_trace(n), rtbse_env%field_trace(:, n), &
+                  rtbse_env%moments_trace(:, :, n)
+            END DO
+         ELSE
+            CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="WRITE", &
+                           file_position="APPEND", unit_number=trace_unit)
+            WRITE (trace_unit) time_index, rtbse_env%time_trace(time_index), rtbse_env%field_trace(:, time_index), &
+               rtbse_env%moments_trace(:, :, time_index)
+         END IF
+         CALL close_file(trace_unit)
+      END IF
+      rtbse_env%restart_trace_written = .TRUE.
+   END SUBROUTINE write_restart_trace
+! **************************************************************************************************
+!> \brief Early phase of the restart read: starting step index from the .info file, an SCF_GUESS
+!>        hygiene check, and the moment/field/time trace prefix from RESTART.trace. Must run before
+!>        anything consumes sim_start and after the trace arrays are sized (post ENFORCE_MAX_DT).
+!> \param rtbse_env RT-BSE environment
+! **************************************************************************************************
+   SUBROUTINE read_restart_info(rtbse_env)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(cp_logger_type), POINTER                      :: logger
+      CHARACTER(len=default_path_length)                 :: save_name
+      INTEGER                                            :: info_unit
+      TYPE(scf_control_type), POINTER                    :: scf_control
+
+      logger => cp_get_default_logger()
+
+      save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=".info", my_local=.FALSE.)
+      IF (file_exists(save_name)) THEN
+         CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
+                        unit_number=info_unit)
+         READ (info_unit) rtbse_env%sim_start
+         CALL close_file(info_unit)
+         IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A31,I25,A24)') " RTBSE| Starting from timestep ", &
+            rtbse_env%sim_start, ", delta kick NOT applied"
+      ELSE
+         CPWARN("Restart required but no info file found - starting from sim_step given in input")
+      END IF
+
+      ! Hygiene nudge only - correctness is protected by the restart basis bridge (linearized path)
+      NULLIFY (scf_control)
+      CALL get_qs_env(rtbse_env%qs_env, scf_control=scf_control)
+      IF (scf_control%density_guess /= restart_guess) &
+         CPWARN("RT_RESTART without SCF_GUESS RESTART - SCF may reconverge to a gauge-rotated MO basis.")
+
+      CALL read_restart_trace(rtbse_env)
+   END SUBROUTINE read_restart_info
+! **************************************************************************************************
+!> \brief Reads the RESTART.trace prefix (records 1..sim_start) into the in-memory moment/field/
+!>        time traces so the continuation FT covers the full history. Header guards: version,
+!>        n_spin, dims, dt (abort); kick params (warn); eps_active > 0.1 meV (warn). All ranks read
+!>        (the traces are replicated). Record layout matches write_restart_trace verbatim.
+!> \param rtbse_env RT-BSE environment
+! **************************************************************************************************
+   SUBROUTINE read_restart_trace(rtbse_env)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(cp_logger_type), POINTER                      :: logger
+      CHARACTER(len=default_path_length)                 :: save_name
+      INTEGER                                            :: trace_unit, version, n_spin_file, &
+                                                            n_basis_file, n_ao_file, n_eps, n, &
+                                                            n_read_max, ios
+      REAL(kind=dp)                                      :: dt_file, kick_scale_file, t_rec, eps_dev
+      REAL(kind=dp), DIMENSION(3)                        :: kick_dir_file
+      REAL(kind=dp), DIMENSION(:, :), ALLOCATABLE        :: eps_file
+      COMPLEX(kind=dp), DIMENSION(3)                     :: field_rec
+      COMPLEX(kind=dp), DIMENSION(:, :), ALLOCATABLE     :: mom_rec
+
+      logger => cp_get_default_logger()
+      save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=".trace", my_local=.FALSE.)
+      IF (.NOT. file_exists(save_name)) THEN
+         CPWARN("RT_RESTART without RESTART.trace - FT of this run will not represent the full history.")
+         RETURN
+      END IF
+
+      CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
+                     unit_number=trace_unit)
+      READ (trace_unit) version
+      IF (version /= 1) CPABORT("RESTART.trace: unknown format version")
+      READ (trace_unit) n_spin_file, n_basis_file, n_ao_file
+      IF (n_spin_file /= rtbse_env%n_spin) CPABORT("RESTART.trace: n_spin mismatch")
+      IF (n_ao_file /= rtbse_env%n_ao) CPABORT("RESTART.trace: n_ao mismatch")
+      ! v1 is strict same-window: the linearized active-MO count must match (D6)
+      IF (ASSOCIATED(rtbse_env%real_workspace_mo) .AND. n_basis_file /= rtbse_env%mo_active) &
+         CALL cp_abort(__LOCATION__, &
+                       "RESTART.trace: active-MO count differs from the original run - same-window continuation only")
+      READ (trace_unit) dt_file
+      IF (ABS(dt_file - rtbse_env%sim_dt) > 1.0e-12_dp*MAX(1.0_dp, ABS(rtbse_env%sim_dt))) &
+         CPABORT("RESTART.trace: TIMESTEP differs from the original run - continuation undefined")
+      READ (trace_unit) kick_dir_file, kick_scale_file
+      IF (MAXVAL(ABS(kick_dir_file - REAL(rtbse_env%dft_control%rtp_control%delta_pulse_direction, dp))) > 1.0e-12_dp .OR. &
+          ABS(kick_scale_file - rtbse_env%dft_control%rtp_control%delta_pulse_scale) > 1.0e-12_dp) &
+         CALL cp_warn(__LOCATION__, &
+                      "RESTART.trace: delta-kick parameters differ from the original run - FT normalization inconsistent.")
+      READ (trace_unit) n_eps
+      IF (n_eps > 0) THEN
+         ALLOCATE (eps_file(n_eps, rtbse_env%n_spin))
+         READ (trace_unit) eps_file
+         IF (ASSOCIATED(rtbse_env%real_workspace_mo)) THEN
+            IF (n_eps /= SIZE(rtbse_env%eps_active, 1)) &
+               CALL cp_abort(__LOCATION__, "RESTART.trace: active-window size mismatch")
+            eps_dev = MAXVAL(ABS(eps_file - rtbse_env%eps_active))
+            ! 0.1 meV = 3.674932e-6 Ha: GW analytic continuation gives run-to-run QP noise above FP,
+            ! so warn only well above it - below is accepted silently.
+            IF (eps_dev > 3.674932e-6_dp) &
+               CALL cp_warn(__LOCATION__, &
+                            "RESTART.trace: active eigenvalues deviate beyond 0.1 meV - "// &
+                            "Hamiltonian changed; continuation is physically inconsistent.")
+         END IF
+         DEALLOCATE (eps_file)
+      END IF
+
+      ALLOCATE (mom_rec(rtbse_env%n_spin, 3))
+      n_read_max = 0
+      DO
+         READ (trace_unit, IOSTAT=ios) n, t_rec, field_rec, mom_rec
+         IF (ios /= 0) EXIT
+         IF (n > rtbse_env%sim_start) EXIT
+         IF (n > SIZE(rtbse_env%time_trace)) &
+            CPABORT("RESTART.trace: record index exceeds trace size - increase MOTION%MD%STEPS")
+         rtbse_env%time_trace(n) = t_rec
+         rtbse_env%field_trace(:, n) = field_rec
+         rtbse_env%moments_trace(:, :, n) = mom_rec
+         n_read_max = MAX(n_read_max, n)
+      END DO
+      DEALLOCATE (mom_rec)
+      CALL close_file(trace_unit)
+      IF (n_read_max < rtbse_env%sim_start) &
+         CPWARN("RESTART.trace: fewer records than restart step - trace prefix incomplete.")
+   END SUBROUTINE read_restart_trace
+! **************************************************************************************************
+!> \brief Late phase of the restart read: overwrites rho from the lab-frame restart matrices and
+!>        sets restart_extracted. MO-active for the linearized path, AO otherwise
+!>        (cp_fm_read_unformatted aborts on a size mismatch, guarding a changed active window).
+!> \param rtbse_env RT-BSE environment
+! **************************************************************************************************
+   SUBROUTINE read_restart_density(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=default_path_length)                 :: save_name, save_name_2
@@ -535,26 +727,10 @@ CONTAINS
       rtbse_env%restart_extracted = .FALSE.
       logger => cp_get_default_logger()
 
-      ! In linearized RT-BSE rho is MO-active sized; otherwise AO sized.
-      ! cp_fm_read_unformatted aborts on a size mismatch, which acts as a guard
-      ! when the restart file was written with a different active window.
       IF (ASSOCIATED(rtbse_env%real_workspace_mo)) THEN
          ws => rtbse_env%real_workspace_mo
       ELSE
          ws => rtbse_env%real_workspace
-      END IF
-
-      ! Start by probing/loading info file
-      save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=".info", my_local=.FALSE.)
-      IF (file_exists(save_name)) THEN
-         CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
-                        unit_number=rho_unit_nr)
-         READ (rho_unit_nr) rtbse_env%sim_start
-         CALL close_file(rho_unit_nr)
-         IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A31,I25,A24)') " RTBSE| Starting from timestep ", &
-            rtbse_env%sim_start, ", delta kick NOT applied"
-      ELSE
-         CPWARN("Restart required but no info file found - starting from sim_step given in input")
       END IF
 
       ! Default labels distinguishing up to two spin species and real/imaginary parts
@@ -583,5 +759,38 @@ CONTAINS
             CPWARN("Restart without some restart matrices - starting from SCF density.")
          END IF
       END DO
-   END SUBROUTINE read_restart
+   END SUBROUTINE read_restart_density
+! **************************************************************************************************
+!> \brief Reads the previous run's C_active slabs (gauge reference for the restart basis bridge).
+!> \param rtbse_env RT-BSE environment
+!> \param C_old Caller-created fm array (n_spin) on fm_struct_ao_mo_active, filled on success
+!> \param found .TRUE. iff all per-spin C files were present and read
+! **************************************************************************************************
+   SUBROUTINE read_restart_C(rtbse_env, C_old, found)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: C_old
+      LOGICAL, INTENT(OUT)                               :: found
+      TYPE(cp_logger_type), POINTER                      :: logger
+      CHARACTER(len=default_path_length)                 :: save_name
+      CHARACTER(len=16), DIMENSION(2)                    :: c_file_labels
+      INTEGER                                            :: c_unit, j
+
+      c_file_labels(1) = "_SPIN_A_C.matrix"
+      c_file_labels(2) = "_SPIN_B_C.matrix"
+      logger => cp_get_default_logger()
+      found = .FALSE.
+      DO j = 1, rtbse_env%n_spin
+         save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, &
+                                                    extension=c_file_labels(j), my_local=.FALSE.)
+         IF (.NOT. file_exists(save_name)) THEN
+            CPWARN("Restart without C_active file - assuming identical MO gauge (no basis bridge).")
+            RETURN
+         END IF
+         CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
+                        unit_number=c_unit)
+         CALL cp_fm_read_unformatted(C_old(j), c_unit)
+         CALL close_file(c_unit)
+      END DO
+      found = .TRUE.
+   END SUBROUTINE read_restart_C
 END MODULE rt_bse_io
