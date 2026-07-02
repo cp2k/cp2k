@@ -25,6 +25,10 @@ def main() -> None:
         f.write(install_deps_toolchain())
         f.write(regtest("toolchain", "psmp", testopts=testopts))
 
+    with OutputFile(f"Dockerfile.test_psmp_keepalive", args.check) as f:
+        f.write(install_deps_toolchain())
+        f.write(regtest("toolchain", "psmp", testopts=f"--keepalive"))
+
     with OutputFile(f"Dockerfile.test_generic_psmp", args.check) as f:
         f.write(install_deps_toolchain(target_cpu="generic"))
         f.write(regtest("toolchain_generic", "psmp"))
@@ -59,7 +63,7 @@ def main() -> None:
 
     # Spack/CMake based testers
 
-    testopts = f"--keepalive"
+    testopts = f"--flagslow"
 
     with OutputFile(f"Dockerfile.test_spack_pdbg", args.check) as f:
         f.write(
@@ -67,7 +71,7 @@ def main() -> None:
                 version="pdbg",
                 mpi_mode="mpich",
                 feature_flags="",
-                testopts="",
+                testopts=testopts,
                 image_tag=f.image_tag,
             )
         )
@@ -89,6 +93,17 @@ def main() -> None:
                     image_tag=f.image_tag,
                 )
             )
+
+    with OutputFile(f"Dockerfile.test_spack_psmp-keepalive", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                version="psmp",
+                mpi_mode="mpich",
+                feature_flags="",
+                testopts=f"--keepalive --flagslow",
+                image_tag=f.image_tag,
+            )
+        )
 
     with OutputFile(f"Dockerfile.test_spack_pdbg-rawhide", args.check) as f:
         f.write(
@@ -146,7 +161,7 @@ def main() -> None:
                 version="psmp",
                 mpi_mode="mpich",
                 feature_flags="",
-                testopts=f"--keepalive --mpiranks=4 --ompthreads=2",
+                testopts=f"--flagslow --mpiranks=4 --ompthreads=2",
                 image_tag=f.image_tag,
             )
         )
@@ -157,7 +172,7 @@ def main() -> None:
                 version="pdbg",
                 mpi_mode="openmpi",
                 feature_flags="",
-                testopts="",
+                testopts=testopts,
                 image_tag=f.image_tag,
             )
         )
@@ -203,7 +218,7 @@ def main() -> None:
                 base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
-                testopts=testopts,
+                testopts=f"--keepalive",
                 image_tag=f.image_tag,
             )
         )
@@ -216,7 +231,7 @@ def main() -> None:
                 base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
-                feature_flags="",
+                feature_flags=f"--keepalive",
                 testopts=testopts,
                 image_tag=f.image_tag,
             )

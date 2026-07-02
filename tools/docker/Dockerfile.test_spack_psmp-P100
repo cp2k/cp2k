@@ -55,7 +55,7 @@ WORKDIR /opt/cp2k
 COPY ./tools/spack ./tools/spack
 COPY ./tools/docker ./tools/docker
 COPY ./make_cp2k.sh .
-RUN ./make_cp2k.sh -bd_only -cv psmp -gpu P100 -gv 13 -mpi mpich -ue 
+RUN ./make_cp2k.sh -bd_only -cv psmp -gpu P100 -gv 13 -mpi mpich -ue --keepalive
 
 ###### Stage 2: Build CP2K ######
 
@@ -67,7 +67,7 @@ COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 
-RUN ./make_cp2k.sh -cv psmp -gv 13 -gpu P100 -mpi mpich 
+RUN ./make_cp2k.sh -cv psmp -gv 13 -gpu P100 -mpi mpich --keepalive
 
 ###### Stage 3: Install CP2K ######
 
@@ -105,7 +105,7 @@ COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
 RUN ldconfig
 
 # Run CP2K regression test
-RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests --keepalive || echo "ERROR: Tests failed"
+RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests --flagslow || echo "ERROR: Tests failed"
 
 # Create entrypoint and finalise container build
 WORKDIR /mnt
