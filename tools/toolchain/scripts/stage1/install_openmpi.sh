@@ -105,6 +105,7 @@ export MPICXX="${MPICXX}"
 export MPIFC="${MPIFC}"
 export MPIFORT="${MPIFORT}"
 export MPIF77="${MPIF77}"
+export PRTE_MCA_hwloc_default_binding_policy=none
 EOF
   if [ "${with_openmpi}" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_openmpi"
