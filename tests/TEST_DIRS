@@ -5,12 +5,12 @@
 # the order will be regularly checked and modified...
 QS/regtest-floquet
 QS/regtest-dft-d4-auto-ref                                  libdftd4
-QS/regtest-dft-d2-auto-ref                                  libint
-QS/regtest-dft-d3-auto-ref                                  libint
-QS/regtest-dft-d3-bj-auto-ref                               libint
-QS/regtest-dft-d3-lib-ref                                    libint s_dftd3
-QS/regtest-dft-d3bj-lib-ref                                  libint s_dftd3
-QS/regtest-libgint                                          libGint libint offload_cuda
+QS/regtest-dft-d2-auto-ref                                  libint !ifx
+QS/regtest-dft-d3-auto-ref                                  libint !ifx
+QS/regtest-dft-d3-bj-auto-ref                               libint !ifx
+QS/regtest-dft-d3-lib-ref                                   libint s_dftd3 !ifx
+QS/regtest-dft-d3bj-lib-ref                                 libint s_dftd3 !ifx
+QS/regtest-libgint                                          libGint libint offload_cuda !ifx
 QS/regtest-pcc
 QS/regtest-new-pulay-mixing
 QS/regtest-gcscf
@@ -184,7 +184,7 @@ Fist/regtest-3
 MC/regtest
 QS/regtest-gw                                               libint !ifx
 QS/regtest-kp-1                                             libint !ifx
-QS/regtest-kp-1-spg                                          libint spglib !ifx
+QS/regtest-kp-1-spg                                         libint spglib !ifx
 QS/regtest-kp-1-spglib                                      libint spglib !ifx
 QS/regtest-nmr-1
 QS/regtest-nmr-4
@@ -316,8 +316,8 @@ QS/regtest-cdft-4-3
 QS/regtest-gpw-6-4
 QS/regtest-tddfpt-soc                                       libint !ifx
 QS/regtest-dft-vdw-corr-1
-QS/regtest-dft-d3-s-ref                                        s_dftd3
-QS/regtest-dft-d3bj-s-ref                                      s_dftd3
+QS/regtest-dft-d3-s-ref                                     s_dftd3
+QS/regtest-dft-d3bj-s-ref                                   s_dftd3
 QS/regtest-cdft-4-2
 QS/regtest-hybrid-2                                         libint !ifx
 QS/regtest-admm-qps                                         libint !ifx
@@ -455,6 +455,6 @@ QS/regtest-trexio                                           trexio
 QS/regtest-trexio-2                                         trexio
 QS/regtest-rtbse-gxac                                       libint greenx !ifx
 QS/regtest-cneo
-QS/regtest-tddfpt-bse                                       libint libxc
+QS/regtest-tddfpt-bse                                       libint libxc !ifx
 QS/regtest-tdwf
-QS/regtest-hybrid-ace-gs                                    libint
+QS/regtest-hybrid-ace-gs                                    libint !ifx
