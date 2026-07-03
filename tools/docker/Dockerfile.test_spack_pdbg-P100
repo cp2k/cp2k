@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_ssmp-p100 -f ./Dockerfile.test_spack_ssmp-P100 ../../
+# Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_pdbg-p100 -f ./Dockerfile.test_spack_pdbg-P100 ../../
 #
 
 ARG BASE_IMAGE="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04"
@@ -45,7 +45,7 @@ ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 ENV CUDA_CACHE_DISABLE 1
 
 ARG IMAGE_TAG
-ENV IMAGE_TAG=${IMAGE_TAG:-spack_ssmp-P100}
+ENV IMAGE_TAG=${IMAGE_TAG:-spack_pdbg-P100}
 
 ARG SPACK_CACHE
 ENV SPACK_CACHE="${SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://host.containers.internal:9000}"
@@ -55,7 +55,7 @@ WORKDIR /opt/cp2k
 COPY ./tools/spack ./tools/spack
 COPY ./tools/docker ./tools/docker
 COPY ./make_cp2k.sh .
-RUN ./make_cp2k.sh -bd_only -cv ssmp -gpu P100 -gv 13 -mpi no -ue 
+RUN ./make_cp2k.sh -bd_only -cv pdbg -gpu P100 -gv 13 -mpi mpich -ue 
 
 ###### Stage 2: Build CP2K ######
 
@@ -67,7 +67,7 @@ COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 
-RUN ./make_cp2k.sh -cv ssmp -gv 13 -gpu P100 -mpi no 
+RUN ./make_cp2k.sh -cv pdbg -gv 13 -gpu P100 -mpi mpich 
 
 ###### Stage 3: Install CP2K ######
 
