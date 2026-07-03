@@ -29,7 +29,7 @@ C-preprocessor to circumvent them.
   the compilers to emit warnings if such a dummy argument is found. Because the (some) dummy
   arguments of procedures in library wrappers are unused, we wrap them as `MARK_USED(argument)` with
   the `MARK_USED`-macro defined in
-  [base_uses.F90](https://github.com/cp2k/cp2k/trunk/master/src/base/base_uses.f90) to prevent the
+  [base_uses.F90](https://github.com/cp2k/cp2k/blob/master/src/base/base_uses.f90) to prevent the
   compiler from emitting warnings.
 
 ```{note}
@@ -40,11 +40,11 @@ This trick does not work in the rare case of assumed-size arguments where we nee
   compiler versions, we may need to circumvent missing features or bugs of earlier versions. It is
   not uncommon to find them after merging a Pull Request with our extensive test suite on the
   Dashboard. Their fix depends on the use case. Currently relevant issues are (with macros defined
-  in [base_uses.F90](https://github.com/cp2k/cp2k/trunk/master/src/base/base_uses.f90))
+  in [base_uses.F90](https://github.com/cp2k/cp2k/blob/master/src/base/base_uses.f90))
   - default initializers of derived types with `ALLOCATABLE` components: Check the value of
     `FTN_NO_DEFAULT_INIT`. If it is true, call the initializer by explicitly setting all
     `ALLOCATABLE` components to `NULL()` (see for instance
-    [here](https://github.com/cp2k/cp2k/trunk/master/mp2_types.F)), otherwise, use the ordinary
+    [here](https://github.com/cp2k/cp2k/blob/master/src/mp2_types.F)), otherwise, use the ordinary
     default initializer.
   - OOP features in OpenMP regions: Instead of `DEFAULT(NONE)` at the start of a `PARALLEL` region,
     use `DEFAULT(OMP_DEFAULT_NONE_WITH_OOP)`.

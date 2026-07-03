@@ -28,9 +28,9 @@ introduced in the `cp2k_info.F` file.
 ## Build system
 
 Add a new feature flag for CMake and extend
-[CMakefiles.txt](https://github.com/cp2k/cp2k/trunc/master/CMakefiles.txt) accordingly. Add a
-suitable `Find<Library>.cmake` file in [](https://github.com/cp2k/cp2k/trunc/master/cmake/modules).
+[CMakefiles.txt](https://github.com/cp2k/cp2k/blob/master/CMakeLists.txt) accordingly. Add a
+suitable `Find<Library>.cmake` file in [](https://github.com/cp2k/cp2k/tree/master/cmake/modules).
 At first, a new dependency is only pulled in if requested explicitly (opt-in). After more testing,
 we will turn it on by default if CP2K is to be built with all dependency. If the library is
 available on Spack, you may add it to the
-[spack recipe](https://github.com/cp2k/cp2k/trunc/master/spack/cp2k_deps_p.yaml).
+[spack recipe](https://github.com/cp2k/cp2k/blob/master/tools/spack/cp2k_deps_p.yaml).
