@@ -1,0 +1,10 @@
+--- a/src/solve_tridi/merge_systems_template.F90
++++ b/src/solve_tridi/merge_systems_template.F90
+@@ -809,4 +809,6 @@
+-        write(error_unit,*) "Returing early from merge_systems (na1==1 .or. na1==2)"
++        if (wantDebug) then
++          write(error_unit,*) "Returning early from merge_systems (na1==1 .or. na1==2)"
++        endif
+         ! na=1 can be tested with "mpirun -n 4 ./validate_real_double_solve_tridiagonal_1stage_gpu_blocktridi 3 3 1"
+         ! na=2 can be tested with "mpirun -n 4 ./validate_real_double_solve_tridiagonal_1stage_gpu_toeplitz 4 4 2"
+       else if (na1>2) then
