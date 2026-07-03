@@ -326,11 +326,9 @@ CONTAINS
                END DO
             END IF
          ELSE
-#if defined(__parallel)
-            CPABORT("to do (pdscal,pdcopy,pdaxpy)")
-#else
-            CPABORT("to do")
-#endif
+            CALL cp_abort(__LOCATION__, &
+                          "cp_cfm_scale_and_add is not yet implemented for cases "// &
+                          "where input two matrix structures are not equivalent")
          END IF
       END IF
       CALL timestop(handle)
@@ -433,11 +431,9 @@ CONTAINS
                END DO
             END IF
          ELSE
-#if defined(__parallel)
-            CPABORT("to do (pdscal,pdcopy,pdaxpy)")
-#else
-            CPABORT("to do")
-#endif
+            CALL cp_abort(__LOCATION__, &
+                          "cp_cfm_scale_and_add_fm is not yet implemented for cases "// &
+                          "where two input matrix structures are not equivalent")
          END IF
       END IF
       CALL timestop(handle)

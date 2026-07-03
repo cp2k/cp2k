@@ -460,22 +460,22 @@ CONTAINS
             IF (almo_scf_env%opt_block_diag_pcg%eps_error_early > 0.0_dp) THEN
                almo_scf_env%opt_block_diag_pcg%eps_error = almo_scf_env%opt_block_diag_pcg%eps_error_early
                almo_scf_env%opt_block_diag_pcg%early_stopping_on = .TRUE.
-               IF (unit_nr > 0) WRITE (*, *) "ALMO_OPTIMIZER_PCG: EPS_ERROR_EARLY is on"
+               IF (unit_nr > 0) WRITE (unit_nr, "(/,T2,A)") "ALMO_OPTIMIZER_PCG: EPS_ERROR_EARLY is on"
             END IF
             IF (almo_scf_env%opt_block_diag_diis%eps_error_early > 0.0_dp) THEN
                almo_scf_env%opt_block_diag_diis%eps_error = almo_scf_env%opt_block_diag_diis%eps_error_early
                almo_scf_env%opt_block_diag_diis%early_stopping_on = .TRUE.
-               IF (unit_nr > 0) WRITE (*, *) "ALMO_OPTIMIZER_DIIS: EPS_ERROR_EARLY is on"
+               IF (unit_nr > 0) WRITE (unit_nr, "(/,T2,A)") "ALMO_OPTIMIZER_DIIS: EPS_ERROR_EARLY is on"
             END IF
             IF (almo_scf_env%opt_block_diag_pcg%max_iter_early > 0) THEN
                almo_scf_env%opt_block_diag_pcg%max_iter = almo_scf_env%opt_block_diag_pcg%max_iter_early
                almo_scf_env%opt_block_diag_pcg%early_stopping_on = .TRUE.
-               IF (unit_nr > 0) WRITE (*, *) "ALMO_OPTIMIZER_PCG: MAX_ITER_EARLY is on"
+               IF (unit_nr > 0) WRITE (unit_nr, "(/,T2,A)") "ALMO_OPTIMIZER_PCG: MAX_ITER_EARLY is on"
             END IF
             IF (almo_scf_env%opt_block_diag_diis%max_iter_early > 0) THEN
                almo_scf_env%opt_block_diag_diis%max_iter = almo_scf_env%opt_block_diag_diis%max_iter_early
                almo_scf_env%opt_block_diag_diis%early_stopping_on = .TRUE.
-               IF (unit_nr > 0) WRITE (*, *) "ALMO_OPTIMIZER_DIIS: MAX_ITER_EARLY is on"
+               IF (unit_nr > 0) WRITE (unit_nr, "(/,T2,A)") "ALMO_OPTIMIZER_DIIS: MAX_ITER_EARLY is on"
             END IF
          ELSE
             almo_scf_env%opt_block_diag_diis%early_stopping_on = .FALSE.
@@ -485,12 +485,12 @@ CONTAINS
             IF (almo_scf_env%opt_xalmo_pcg%eps_error_early > 0.0_dp) THEN
                almo_scf_env%opt_xalmo_pcg%eps_error = almo_scf_env%opt_xalmo_pcg%eps_error_early
                almo_scf_env%opt_xalmo_pcg%early_stopping_on = .TRUE.
-               IF (unit_nr > 0) WRITE (*, *) "XALMO_OPTIMIZER_PCG: EPS_ERROR_EARLY is on"
+               IF (unit_nr > 0) WRITE (unit_nr, "(/,T2,A)") "XALMO_OPTIMIZER_PCG: EPS_ERROR_EARLY is on"
             END IF
             IF (almo_scf_env%opt_xalmo_pcg%max_iter_early > 0.0_dp) THEN
                almo_scf_env%opt_xalmo_pcg%max_iter = almo_scf_env%opt_xalmo_pcg%max_iter_early
                almo_scf_env%opt_xalmo_pcg%early_stopping_on = .TRUE.
-               IF (unit_nr > 0) WRITE (*, *) "XALMO_OPTIMIZER_PCG: MAX_ITER_EARLY is on"
+               IF (unit_nr > 0) WRITE (unit_nr, "(/,T2,A)") "XALMO_OPTIMIZER_PCG: MAX_ITER_EARLY is on"
             END IF
          ELSE
             almo_scf_env%opt_xalmo_pcg%early_stopping_on = .FALSE.

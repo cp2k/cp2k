@@ -220,11 +220,45 @@ def check_file(path: pathlib.Path) -> List[str]:
                 warnings += [f"{path}:{i+1} Double space in multi-line string"]
 
     # Check CPASSERT(.FALSE.) and empty CPABORT() messages
-    if fn_ext == ".F":
+    suppress_cpabort = ["semi_empirical_int_debug.F"]
+    if fn_ext == ".F" and basefn not in suppress_cpabort:
         if "CPASSERT(.FALSE.)" in content:
             warnings += [f"{path}: Forced unexplained abortion with CPASSERT(.FALSE.)"]
         if "CPABORT('')" in content or 'CPABORT("")' in content:
             warnings += [f"{path}: Unexplained CPABORT() with empty message"]
+
+    # Check IF(.FALSE.)
+    suppress_iffalse = [
+        "ps_implicit_methods.F",
+        "pexsi_interface.F",
+        "glbopt_mincrawl.F",
+        "dm_ls_chebyshev.F",
+        "xc_tpss.F",
+        "pao_ml_neuralnet.F",
+        "tmc_tree_acceptance.F",
+        "tmc_moves.F",
+        "tmc_dot_tree.F",
+        "almo_scf_optimizer.F",
+        "qs_initial_guess.F",
+        "qs_linres_current.F",
+        "atom_xc.F",
+        "hfx_energy_potential.F",
+        "kg_vertex_coloring_methods.F",
+        "fftw3_lib.F",
+        "vibrational_analysis.F",
+        "kg_environment.F",
+        "qs_scf_diagonalization.F",
+        "qs_ks_methods.F",
+        "hfx_load_balance_methods.F",
+        "preconditioner_makes.F",
+        "qs_ot_minimizer.F",
+        "rt_bse.F",
+        "qs_linres_op.F",
+        "molecular_states.F",
+    ]
+    if fn_ext == ".F" and basefn not in suppress_iffalse:
+        if "IF(.FALSE.)" in content or "IF (.FALSE.)" in content:
+            warnings += [f"{path}: Inactive code with IF (.FALSE.)"]
 
     # check banner
     year = datetime.now(timezone.utc).year

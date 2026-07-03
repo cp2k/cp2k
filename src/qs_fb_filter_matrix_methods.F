@@ -1264,6 +1264,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build_atomic_fltrmat'
 
+      CHARACTER(LEN=default_string_length)               :: err
       INTEGER                                            :: handle, handle_dgemm, handle_dsygv, ii, &
                                                             info, jj, mat_dim, work_array_size
       LOGICAL                                            :: check_ok
@@ -1317,8 +1318,8 @@ CONTAINS
                  work, work_array_size, info)
       ! check if diagonalisation is successful
       IF (info /= 0) THEN
-         WRITE (*, *) "DSYGV ERROR MESSAGE: ", info
-         CPABORT("DSYGV failed")
+         WRITE (err, *) "DSYGV failed with non-zero exit status ", info
+         CPABORT(TRIM(err))
       END IF
 
       CALL timestop(handle_dsygv)

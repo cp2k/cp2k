@@ -1,4 +1,3 @@
-almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init" https://cp2k.org/conv#c012
 al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel" https://cp2k.org/conv#c012
 base_hooks.F: Found CALL m_abort in procedure "cp_abort" https://cp2k.org/conv#c102
 base_hooks.F: Found STOP statement in procedure "cp_abort" https://cp2k.org/conv#c205
@@ -185,7 +184,6 @@ qs_dispersion_s_dftd3.F: Module "mctc_data" USEd without ONLY clause or not PRIV
 qs_dispersion_s_dftd3.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_density" https://cp2k.org/conv#c012
 qs_fb_env_methods.F: Found CALL cp_fm_gemm in procedure "fb_env_do_diag" https://cp2k.org/conv#c101
-qs_fb_filter_matrix_methods.F: Found WRITE statement with hardcoded unit in "fb_fltrmat_build_atomic_fltrmat" https://cp2k.org/conv#c012
 qs_linres_atom_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_atom_rad" https://cp2k.org/conv#c012
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms" https://cp2k.org/conv#c012
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms_new" https://cp2k.org/conv#c012
