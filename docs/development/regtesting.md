@@ -1,10 +1,10 @@
 # Regression Testing
 
-CP2K comes with over 3000 test input files (located in \[[src>tests]\]) which serve as both examples
-on how to use the many features in CP2K and also as a method for developers to test modifications
-and extensions to CP2K. In order to reduce the chance of bugs being introduced into the code, and
-ensure that all parts of the code are working. We also recommend that all users complete a test
-before using a self-compiled binary for their projects.
+CP2K comes with over 5000 test input files (located in `tests` which serve as both examples on how
+to use the many features in CP2K and also as a method for developers to test modifications and
+extensions to CP2K. In order to reduce the chance of bugs being introduced into the code, and ensure
+that all parts of the code are working. We also recommend that all users complete a test before
+using a self-compiled binary for their projects.
 
 ## Dashboard
 
@@ -22,8 +22,9 @@ new tests!
 
 ## How does it work?
 
-The regression test suite is run using the \[do_regtest\](../../tests/do_regtest.py( script. It
-performs the following tasks:
+The regression test suite is run using the
+[do_regtest](https://github.com/cp2k/cp2k/blob/master/tests/do_regtest.py) script. It performs the
+following tasks:
 
 - executes a list of tests
 - compares the results (outputs) with those of the last known result (reference)
@@ -82,12 +83,13 @@ options:
 
 ### Step 3: Interpretation
 
-A test results can be any of the following: ^ Test Result ^ Meaning | | `OK` | if the results match
-those of a previous run precisely. The execution time is also given. | | `NEW` | if they have not
-been executed previously. The reference result is generated automatically in this run. Tests can
-also be NEW if they have been reset, i.e. been newly added to the TEST_FILES_RESET files. | |
-`RUNTIME FAILURE` | if they stopped unexpectedly (e.g. core dump, or stop) | | `WRONG RESULT` | if
-they produce a result that deviates (even a tiny bit) from an old reference |
+A test results can be any of the following:
+
+|    Test Result    | Meaning                                                                                   |
+| :---------------: | :---------------------------------------------------------------------------------------- |
+|       `OK`        | if the results match those of a previous run precisely. The execution time is also given. |
+| `RUNTIME FAILURE` | if they stopped unexpectedly (e.g. core dump, or stop)                                    |
+|  `WRONG RESULT`   | if they produce a result that deviates (even a tiny bit) from an old reference            |
 
 The last two outcomes generally mean that a bug has been introduced, which requires investigation.
 Since regtesting only yields information relative to a previously known result, it is most useful to
