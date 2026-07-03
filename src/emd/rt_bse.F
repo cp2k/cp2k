@@ -92,6 +92,7 @@ MODULE rt_bse
                         output_field, &
                         output_mos_contravariant, &
                         read_restart_info, &
+                        read_restart_trace, &
                         read_restart_density, &
                         output_restart, &
                         print_timestep_info, &
@@ -171,11 +172,13 @@ CONTAINS
       ! Allocate all persistant storage and read input that does not need further processing
       CALL create_rtbse_env(rtbse_env, force_env)
 
-      ! Restart phase 1: starting step + trace prefix, before anything consumes sim_start
+      ! Restart phase 1: starting step + dt metadata, then the trace prefix, before anything
+      ! consumes sim_start (no ENFORCE_MAX_DT on the full path, so the reads are consecutive).
       IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
          CALL read_restart_info(rtbse_env)
          IF (rtbse_env%sim_start >= rtbse_env%sim_nsteps) &
             CPABORT("RT_RESTART: restart step >= STEPS - increase MOTION%MD%STEPS")
+         CALL read_restart_trace(rtbse_env)
       END IF
 
       CALL print_rtbse_header_info(rtbse_env)

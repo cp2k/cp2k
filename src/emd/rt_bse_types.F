@@ -101,6 +101,7 @@ MODULE rt_bse_types
 !> \param sim_nsteps Number of steps of the simulation
 !> \param sim_time Current time of the simulation
 !> \param sim_dt Timestep of the simulation
+!> \param sim_dt_restart Original-run timestep read from the trace on restart (< 0 when not a restart)
 !> \param etrs_threshold Self-consistency threshold for enforced time reversal symmetry propagation
 !> \param exp_accuracy Threshold for matrix exponential calculation
 !> \param dft_control DFT control parameters
@@ -229,6 +230,9 @@ MODULE rt_bse_types
       REAL(kind=dp), DIMENSION(:), POINTER                      :: user_moment_ref_point => NULL()
       REAL(kind=dp)                                             :: sim_time = 0.0_dp, &
                                                                    sim_dt = 0.1_dp, &
+                                                                   ! Original-run dt read from the trace header on restart (< 0 when not a
+                                                                   ! restart); ENFORCE_MAX_DT reuses it instead of recomputing dt
+                                                                   sim_dt_restart = -1.0_dp, &
                                                                    maximum_timestep = -1.0_dp, &
                                                                    omega_max = -1.0_dp, &
                                                                    etrs_threshold = 1.0e-7_dp, &

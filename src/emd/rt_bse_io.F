@@ -66,6 +66,7 @@ MODULE rt_bse_io
              output_mos_covariant, &
              output_restart, &
              read_restart_info, &
+             read_restart_trace, &
              read_restart_density, &
              read_restart_C, &
              check_restart_eps_consistency, &
@@ -596,16 +597,17 @@ CONTAINS
       rtbse_env%restart_trace_written = .TRUE.
    END SUBROUTINE write_restart_trace
 ! **************************************************************************************************
-!> \brief Early phase of the restart read: starting step index from the .info file, an SCF_GUESS
-!>        hygiene check, and the moment/field/time trace prefix from RESTART.trace. Must run before
-!>        anything consumes sim_start and after the trace arrays are sized (post ENFORCE_MAX_DT).
+!> \brief Early phase of the restart read: the starting step index from the .info file, the original
+!>        run's dt peeked from the RESTART.trace header (so ENFORCE_MAX_DT can inherit it), and an
+!>        SCF_GUESS hygiene check. Runs BEFORE initialize_maximum_timestep; the trace prefix records
+!>        are loaded separately by read_restart_trace once the trace arrays are sized.
 !> \param rtbse_env RT-BSE environment
 ! **************************************************************************************************
    SUBROUTINE read_restart_info(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=default_path_length)                 :: save_name
-      INTEGER                                            :: info_unit
+      INTEGER                                            :: info_unit, trace_unit, version
       TYPE(scf_control_type), POINTER                    :: scf_control
 
       logger => cp_get_default_logger()
@@ -622,13 +624,26 @@ CONTAINS
          CPWARN("Restart required but no info file found - starting from sim_step given in input")
       END IF
 
+      ! Peek the original run's dt from the trace header (version, dims record, dt) so ENFORCE_MAX_DT
+      ! can inherit it rather than recompute a window-dependent dt. The dims record is skipped here;
+      ! read_restart_trace re-reads the full header and validates it once the trace arrays are sized.
+      save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=".trace", my_local=.FALSE.)
+      IF (file_exists(save_name)) THEN
+         CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
+                        unit_number=trace_unit)
+         READ (trace_unit) version
+         IF (version == 1) THEN
+            READ (trace_unit)
+            READ (trace_unit) rtbse_env%sim_dt_restart
+         END IF
+         CALL close_file(trace_unit)
+      END IF
+
       ! Hygiene nudge only - correctness is protected by the restart basis bridge (linearized path)
       NULLIFY (scf_control)
       CALL get_qs_env(rtbse_env%qs_env, scf_control=scf_control)
       IF (scf_control%density_guess /= restart_guess) &
          CPWARN("RT_RESTART without SCF_GUESS RESTART - SCF may reconverge to a gauge-rotated MO basis.")
-
-      CALL read_restart_trace(rtbse_env)
    END SUBROUTINE read_restart_info
 ! **************************************************************************************************
 !> \brief Reads the RESTART.trace prefix (records 1..sim_start) into the in-memory moment/field/
@@ -640,7 +655,7 @@ CONTAINS
    SUBROUTINE read_restart_trace(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_logger_type), POINTER                      :: logger
-      CHARACTER(len=default_path_length)                 :: save_name
+      CHARACTER(len=default_path_length)                 :: save_name, err_msg
       INTEGER                                            :: trace_unit, version, n_spin_file, &
                                                             n_basis_file, n_ao_file, n_eps, n, &
                                                             n_read_max, ios
@@ -669,8 +684,16 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "RESTART.trace: active-MO count differs from the original run - same-window continuation only")
       READ (trace_unit) dt_file
-      IF (ABS(dt_file - rtbse_env%sim_dt) > 1.0e-12_dp*MAX(1.0_dp, ABS(rtbse_env%sim_dt))) &
-         CPABORT("RESTART.trace: TIMESTEP differs from the original run - continuation undefined")
+      ! ENFORCE_MAX_DT inherits dt_file (read_restart_info -> initialize_maximum_timestep), so this
+      ! fires only on the manual path (ENFORCE off + user dt /= original); name the exact fix.
+      IF (ABS(dt_file - rtbse_env%sim_dt) > 1.0e-12_dp*MAX(1.0_dp, ABS(rtbse_env%sim_dt))) THEN
+         WRITE (err_msg, '(A,ES16.9,A,I0,A)') &
+            "RESTART.trace: TIMESTEP differs from the original run (continuation undefined). "// &
+            "Enable RTBSE%ENFORCE_MAX_DT (it inherits the original dt), or set ENFORCE_MAX_DT "// &
+            ".FALSE. with MD%TIMESTEP [fs] ", dt_file*femtoseconds, &
+            " and MD%STEPS ", NINT(REAL(rtbse_env%sim_nsteps, dp)*rtbse_env%sim_dt/dt_file), "."
+         CALL cp_abort(__LOCATION__, TRIM(err_msg))
+      END IF
       READ (trace_unit) kick_dir_file, kick_scale_file
       IF (MAXVAL(ABS(kick_dir_file - REAL(rtbse_env%dft_control%rtp_control%delta_pulse_direction, dp))) > 1.0e-12_dp .OR. &
           ABS(kick_scale_file - rtbse_env%dft_control%rtp_control%delta_pulse_scale) > 1.0e-12_dp) &

@@ -76,7 +76,7 @@ MODULE rt_bse_linearized
    USE rt_bse_io,                       ONLY: &
         check_restart_eps_consistency, output_field, output_moments, output_mos_contravariant, &
         output_restart, print_timestep_info, read_restart_C, read_restart_density, &
-        read_restart_info
+        read_restart_info, read_restart_trace
    USE rt_bse_ri_rs,                    ONLY: compute_hartree_ri_rs,&
                                               compute_hartree_ri_rs_complex,&
                                               compute_hartree_ri_rs_from_diag,&
@@ -182,13 +182,18 @@ CONTAINS
       ! Allocate all persistant storage and read input that does not need further processing
       CALL create_rtbse_env(rtbse_env, force_env, linearized=.TRUE.)
 
+      ! Restart phase 1a: read sim_start + the original run's dt (from the trace header) BEFORE
+      ! ENFORCE_MAX_DT, so the continuation inherits that dt instead of a window-dependent one.
+      IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) &
+         CALL read_restart_info(rtbse_env)
+
       CALL initialize_maximum_timestep(rtbse_env)
 
-      ! Restart phase 1: starting step + trace prefix (trace arrays are final after ENFORCE_MAX_DT)
+      ! Restart phase 1b: load the trace prefix now that ENFORCE_MAX_DT has sized the trace arrays.
       IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
-         CALL read_restart_info(rtbse_env)
          IF (rtbse_env%sim_start >= rtbse_env%sim_nsteps) &
             CPABORT("RT_RESTART: restart step >= STEPS - increase MOTION%MD%STEPS")
+         CALL read_restart_trace(rtbse_env)
       END IF
 
       CALL print_linrtbse_header_info(rtbse_env)
@@ -404,7 +409,7 @@ CONTAINS
 !> \brief Computes the analytic RK4 stability bound t* = 2√2 / Ω_max (a.u.) from the largest active
 !>        GW/KS gap, and (TDA + first-peak) the rotating-frame shift Ω_0 = ε^ai_min.
 !>        Writes the timestep diagnostics to stdout; optionally rewrites TIMESTEP/STEPS under
-!>        ENFORCE_MAX_DT.
+!>        ENFORCE_MAX_DT; on restart it inherits the original dt from the trace and only rescales STEPS.
 !>        [INTERNAL] dev_notes/rt_bse_equations.md §7 Eq. t*
 !> \param rtbse_env Entry point - rtbse environment
 ! **************************************************************************************************
@@ -534,14 +539,35 @@ CONTAINS
          ELSE
             grace_factor = 4.0_dp
          END IF
-         n_steps_new = MAX(1, CEILING(total_time/(rtbse_env%maximum_timestep/grace_factor)))
-         rtbse_env%sim_dt = total_time/REAL(n_steps_new, dp)
-         rtbse_env%sim_nsteps = n_steps_new
-         sim_dt_as = rtbse_env%sim_dt*seconds*1e18_dp
-         WRITE (hint_msg, '(A,F16.4,A,I0,A)') &
-            'ENFORCE_MAX_DT enabled. Resetting TIMESTEP to ', sim_dt_as, &
-            ' as and STEPS to ', n_steps_new, '.'
-         CALL cp_hint(__LOCATION__, TRIM(hint_msg))
+         IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart .AND. &
+             rtbse_env%sim_dt_restart > 0.0_dp) THEN
+            ! Continuation: dt is frozen in the trace, so inherit it and only rescale the step count
+            ! to the requested window. Recomputing dt from the (longer) window would desync the trace
+            ! time-grid and trip the continuation guard in read_restart_trace.
+            rtbse_env%sim_dt = rtbse_env%sim_dt_restart
+            n_steps_new = MAX(1, NINT(total_time/rtbse_env%sim_dt))
+            rtbse_env%sim_nsteps = n_steps_new
+            sim_dt_as = rtbse_env%sim_dt*seconds*1e18_dp
+            WRITE (hint_msg, '(A,F16.4,A,I0,A)') &
+               'ENFORCE_MAX_DT on restart: inheriting original TIMESTEP ', sim_dt_as, &
+               ' as and setting STEPS to ', n_steps_new, '.'
+            CALL cp_hint(__LOCATION__, TRIM(hint_msg))
+            ! The inherited dt was stable in the original run; warn only if this run's stability
+            ! window shrank below it (e.g. the recomputed GW eigenvalues shifted the gap).
+            IF (rtbse_env%sim_dt > rtbse_env%maximum_timestep/grace_factor) &
+               CALL cp_warn(__LOCATION__, &
+                            "ENFORCE_MAX_DT restart: inherited dt exceeds this run's stability "// &
+                            "limit - the recomputed Hamiltonian may make the propagation unstable.")
+         ELSE
+            n_steps_new = MAX(1, CEILING(total_time/(rtbse_env%maximum_timestep/grace_factor)))
+            rtbse_env%sim_dt = total_time/REAL(n_steps_new, dp)
+            rtbse_env%sim_nsteps = n_steps_new
+            sim_dt_as = rtbse_env%sim_dt*seconds*1e18_dp
+            WRITE (hint_msg, '(A,F16.4,A,I0,A)') &
+               'ENFORCE_MAX_DT enabled. Resetting TIMESTEP to ', sim_dt_as, &
+               ' as and STEPS to ', n_steps_new, '.'
+            CALL cp_hint(__LOCATION__, TRIM(hint_msg))
+         END IF
       END IF
 
       IF (rtbse_env%sim_nsteps /= n_steps_old) THEN
