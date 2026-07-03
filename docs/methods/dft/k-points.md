@@ -72,6 +72,15 @@ support.
 | Periodic electric field       | **Unsupported.** Requires OT first.                                     |
 | Active-space calculations     | **Unsupported.** Only `SCHEME NONE` and `SCHEME GAMMA` available.       |
 
+The reason why a specialized feature does not have support for k-point sampling is twofold: it is
+possible that code implementation in CP2K is not present, complete, or verified yet, but it is also
+possible that the underlying theories and algorithms do not have an updated k-point version
+(compared with an isolated, non-periodic formalism) to begin with. In the latter case it is not a
+far stretch to think that a novel k-point generalization to existing methods is worthy of academic
+publications and takes serious collaboration and devoted efforts to investigate. It is therefore
+strongly suggested that reference implementation of k-point formalism in other softwares be provided
+whenever making a feature request of this kind.
+
 Note that a successful calculation does not by itself establish that a feature--k-point combination
 is reliable for a particular system or property. For a new workflow, converge the k-point mesh and,
 where appropriate, compare with an equivalent real-space supercell calculation.

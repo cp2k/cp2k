@@ -19,6 +19,7 @@ getting-started/build-from-source
 getting-started/build-with-spack
 getting-started/distributions
 getting-started/first-calculation
+getting-started/troubleshooting
 ```
 
 ```{toctree}
