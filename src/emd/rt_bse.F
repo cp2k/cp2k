@@ -249,8 +249,8 @@ CONTAINS
          CALL output_mos_contravariant(rtbse_env, rtbse_env%rho, rtbse_env%rho_section)
          ! Also handles outputting to memory
          CALL output_moments(rtbse_env, rtbse_env%rho)
-         ! Output restart files, so that the restart starts at the following time index
-         CALL output_restart(rtbse_env, rtbse_env%rho, i + 1)
+         ! Output restart files, so that the restart resumes at the step recorded in .info
+         CALL output_restart(rtbse_env, rtbse_env%rho)
       END DO
       ! ********************** End the time loop **********************
 

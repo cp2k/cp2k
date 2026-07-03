@@ -57,6 +57,9 @@ MODULE rt_bse_io
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = "rt_bse_io"
 
+   ! RESTART.trace on-disk format version - bump whenever the header or record layout changes
+   INTEGER, PARAMETER, PRIVATE :: restart_trace_version = 1
+
    #:include "rt_bse_macros.fypp"
 
    PUBLIC :: output_moments, &
@@ -476,16 +479,16 @@ CONTAINS
    END SUBROUTINE output_moments
 ! **************************************************************************************************
 !> \brief Writes the restart set: lab-frame density matrices (MO-active for linearized, AO
-!>        otherwise), the .info step index, the once-per-run C_active gauge reference (linearized
-!>        only), and the appended RESTART.trace record feeding the FT prefix on continuation.
+!>        otherwise), the .info step index (sim_step = steps completed = the resume step), the
+!>        once-per-run C_active gauge reference (linearized only), and the appended RESTART.trace
+!>        record feeding the FT prefix on continuation. All indices derive from sim_step so the
+!>        .info/.trace bookkeeping cannot drift apart.
 !> \param rtbse_env RT-BSE environment
 !> \param rho Density matrix (lab frame) to store
-!> \param time_index Trace/step index of this record (state after time_index steps)
 ! **************************************************************************************************
-   SUBROUTINE output_restart(rtbse_env, rho, time_index)
+   SUBROUTINE output_restart(rtbse_env, rho)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho
-      INTEGER                                            :: time_index
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: workspace
       CHARACTER(len=17), DIMENSION(4)                    :: file_labels
       CHARACTER(len=16), DIMENSION(2)                    :: c_file_labels
@@ -524,7 +527,7 @@ CONTAINS
          ! Info
          rho_unit_nr = cp_print_key_unit_nr(logger, rtbse_env%restart_section, extension=".info", &
                                             file_form="UNFORMATTED", file_position="REWIND")
-         IF (rho_unit_nr > 0) WRITE (rho_unit_nr) time_index
+         IF (rho_unit_nr > 0) WRITE (rho_unit_nr) rtbse_env%sim_step
          CALL cp_print_key_finished_output(rho_unit_nr, logger, rtbse_env%restart_section)
       END DO
 
@@ -543,13 +546,11 @@ CONTAINS
    END SUBROUTINE output_restart
 ! **************************************************************************************************
 !> \brief Appends the current observable-trace record to RESTART.trace. Records are keyed by the
-!>        observable slot n_slot = sim_step - sim_start_orig + 1 (the SAME index output_moments/
-!>        output_field write) - not by output_restart's time_index, which trails it by one on the
-!>        linearized path (solve_rk4_timestep bumps sim_step), so keying by time_index would drop
-!>        the final slot and leave a gap at the restart boundary. On the first call of a run the
-!>        file is rewritten from memory (header + records 1..n_slot), truncating leftovers from an
-!>        aborted run; subsequent calls append one record. Ionode writes; layout matches
-!>        read_restart_trace verbatim.
+!>        observable slot n_slot = sim_step - sim_start_orig + 1 - the SAME index output_moments/
+!>        output_field write (both drivers bump sim_step inside the propagation call before the
+!>        output calls run). On the first call of a run the file is rewritten from memory (header +
+!>        records 1..n_slot), truncating leftovers from an aborted run; subsequent calls append one
+!>        record. Ionode writes; layout matches read_restart_trace verbatim.
 !> \param rtbse_env RT-BSE environment
 ! **************************************************************************************************
    SUBROUTINE write_restart_trace(rtbse_env)
@@ -564,6 +565,8 @@ CONTAINS
       IF (rtbse_env%unit_nr > 0) THEN
          n_slot = rtbse_env%sim_step - rtbse_env%sim_start_orig + 1
          IF (ASSOCIATED(rtbse_env%real_workspace_mo)) THEN
+            ! scalar row count is safe: determine_active_mo_window takes the union window across
+            ! spins, so eps_active is rectangular (mo_active, n_spin) by construction
             n_eps = SIZE(rtbse_env%eps_active, 1)
          ELSE
             n_eps = 0
@@ -571,7 +574,7 @@ CONTAINS
          IF (.NOT. rtbse_env%restart_trace_written) THEN
             CALL open_file(save_name, file_status="UNKNOWN", file_form="UNFORMATTED", file_action="WRITE", &
                            file_position="REWIND", unit_number=trace_unit)
-            WRITE (trace_unit) 1
+            WRITE (trace_unit) restart_trace_version
             IF (ASSOCIATED(rtbse_env%real_workspace_mo)) THEN
                WRITE (trace_unit) rtbse_env%n_spin, rtbse_env%mo_active, rtbse_env%n_ao
             ELSE
@@ -632,7 +635,7 @@ CONTAINS
          CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
                         unit_number=trace_unit)
          READ (trace_unit) version
-         IF (version == 1) THEN
+         IF (version == restart_trace_version) THEN
             READ (trace_unit)
             READ (trace_unit) rtbse_env%sim_dt_restart
          END IF
@@ -667,15 +670,26 @@ CONTAINS
 
       logger => cp_get_default_logger()
       save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=".trace", my_local=.FALSE.)
+      ! No trace + real prior history: the FT would run on a zero prefix - either a guaranteed
+      ! multi_fft abort AFTER the full propagation (default FT%START_TIME=0, delta_t=0) or a
+      ! silently wrong tail-only spectrum (START_TIME>0). Fail fast instead.
       IF (.NOT. file_exists(save_name)) THEN
-         CPWARN("RT_RESTART without RESTART.trace - FT of this run will not represent the full history.")
+         IF (rtbse_env%sim_start > 0) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "RT_RESTART without RESTART.trace - the continuation FT would miss the pre-restart "// &
+                          "history. Restore the original run's RESTART.trace next to the density restart files.")
+         END IF
          RETURN
       END IF
 
       CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
                      unit_number=trace_unit)
       READ (trace_unit) version
-      IF (version /= 1) CPABORT("RESTART.trace: unknown format version")
+      IF (version /= restart_trace_version) THEN
+         WRITE (err_msg, '(A,I0,A,I0)') "RESTART.trace: format version ", version, &
+            " does not match this binary's version ", restart_trace_version
+         CALL cp_abort(__LOCATION__, TRIM(err_msg))
+      END IF
       READ (trace_unit) n_spin_file, n_basis_file, n_ao_file
       IF (n_spin_file /= rtbse_env%n_spin) CPABORT("RESTART.trace: n_spin mismatch")
       IF (n_ao_file /= rtbse_env%n_ao) CPABORT("RESTART.trace: n_ao mismatch")
@@ -687,11 +701,10 @@ CONTAINS
       ! ENFORCE_MAX_DT inherits dt_file (read_restart_info -> initialize_maximum_timestep), so this
       ! fires only on the manual path (ENFORCE off + user dt /= original); name the exact fix.
       IF (ABS(dt_file - rtbse_env%sim_dt) > 1.0e-12_dp*MAX(1.0_dp, ABS(rtbse_env%sim_dt))) THEN
-         WRITE (err_msg, '(A,ES16.9,A,I0,A)') &
-            "RESTART.trace: TIMESTEP differs from the original run (continuation undefined). "// &
-            "Enable RTBSE%ENFORCE_MAX_DT (it inherits the original dt), or set ENFORCE_MAX_DT "// &
-            ".FALSE. with MD%TIMESTEP [fs] ", dt_file*femtoseconds, &
-            " and MD%STEPS ", NINT(REAL(rtbse_env%sim_nsteps, dp)*rtbse_env%sim_dt/dt_file), "."
+         WRITE (err_msg, '(A,ES16.9,A)') &
+            "RESTART.trace: TIMESTEP differs from the original run - continuation undefined. "// &
+            "Set MD%TIMESTEP [fs] ", dt_file*femtoseconds, &
+            " or enable RTBSE%ENFORCE_MAX_DT to inherit it automatically."
          CALL cp_abort(__LOCATION__, TRIM(err_msg))
       END IF
       READ (trace_unit) kick_dir_file, kick_scale_file
@@ -719,8 +732,9 @@ CONTAINS
       DO
          READ (trace_unit, IOSTAT=ios) n, t_rec, field_rec, mom_rec
          IF (ios /= 0) EXIT
-         ! Fill through slot sim_start+1: the live loop's first step writes slot sim_start+2 on the
-         ! linearized path (solve_rk4_timestep bumps sim_step), so slot sim_start+1 must be reloaded.
+         ! Fill through slot sim_start+1: both drivers bump sim_step inside the propagation call
+         ! (etrs_scf_loop / solve_rk4_timestep), so the live loop's first step writes slot
+         ! sim_start+2 and slot sim_start+1 must be reloaded here.
          IF (n > rtbse_env%sim_start + 1) EXIT
          IF (n > SIZE(rtbse_env%time_trace)) &
             CPABORT("RESTART.trace: record index exceeds trace size - increase MOTION%MD%STEPS")
