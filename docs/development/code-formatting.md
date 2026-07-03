@@ -1,4 +1,4 @@
-# Code Formatting Conventions and Prettify Tool
+# Code Formatting
 
 Uniform formatting of CP2K source code is enabled by a
 [fprettify](https://github.com/fortran-lang/fprettify) that is an almost complete auto-formatter for

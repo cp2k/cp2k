@@ -8,8 +8,6 @@ class: no-scaled-link
 ---
 ```
 
-% TODO: `{toctree} % :caption: Get started % % get-started/installation % get-started/tutorials % `
-
 ```{toctree}
 ---
 caption: Getting Started
@@ -21,23 +19,6 @@ getting-started/build-from-source
 getting-started/build-with-spack
 getting-started/distributions
 getting-started/first-calculation
-```
-
-```{toctree}
----
-caption: Development
-titlesonly:
-maxdepth: 1
----
-development/onboarding
-development/coding-conventions
-development/code-structure
-development/error-handling
-development/print-keys
-development/code-formatting
-development/regtesting
-development/preprocessing
-development/dependencies
 ```
 
 ```{toctree}
@@ -69,8 +50,6 @@ technologies/accelerators/index
 technologies/libraries
 ```
 
-% TODO: `{toctree} % :caption: How-to guides % % dummy % `
-
 ```{toctree}
 ---
 caption: References
@@ -83,7 +62,15 @@ acronyms
 units
 ```
 
-% TODO: `{toctree} % :caption: Explanations % % dummy % `
+```{toctree}
+---
+caption: Development
+titlesonly:
+maxdepth: 1
+---
+development/onboarding
+development/under-the-hood
+```
 
 ```{toctree}
 ---

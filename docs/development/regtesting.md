@@ -1,4 +1,4 @@
-# CP2K Regression Testing
+# Regression Testing
 
 CP2K comes with over 3000 test input files (located in \[[src>tests]\]) which serve as both examples
 on how to use the many features in CP2K and also as a method for developers to test modifications
