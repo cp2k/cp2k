@@ -1,4 +1,4 @@
-# CP2K Code Structure
+# Code Structure
 
 CP2K is a large, complex application which has many features, methods and algorithms implemented.
 When looking at the code for the first time it can be very challenging to understand how it all
