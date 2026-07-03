@@ -1,10 +1,11 @@
 # *GW* + Bethe-Salpeter equation
 
 The Bethe-Salpeter equation (BSE) is a method for computing electronic excitation energies and
-optical absorption spectra. We describe in Sec. [1](#header-theory) the theory and implementation of
-BSE, in Sec. [2](#header-input) the BSE input keywords and in Sec. [3](#header-example) a full CP2K
-input file of a BSE calculation and the corresponding output. For reviews on BSE, see
-\[[](#Blase2018), [](#Blase2020), [](#Bruneval2015), [](#Sander2015)\].
+optical absorption spectra. We repeat the theory and implementation of BSE from \[[](#Graml2026)\]
+in Sec. [1](#header-theory), in Sec. [2](#header-input) the BSE input keywords and in Sec.
+[3](#header-example) a full CP2K input file of a BSE calculation and the corresponding output. For
+further references on BSE, see \[[](#Blase2018), [](#Blase2020), [](#Bruneval2015),
+[](#Sander2015)\].
 
 (header-theory)=
 
@@ -52,7 +53,7 @@ where $p,q,r,s \in [ 1, N_\mathrm{occ}+N_\mathrm{empty}]$ are KS orbital indices
 the screened Coulomb interaction is always computed from DFT quantitites, i.e. $W_{0}(\omega=0)$
 enters the BSE. $(\mathbf{X}^{(n)},\mathbf{Y}^{(n)})$ with elements $X_{ia}^{(n)}$ and
 $Y_{ia}^{(n)}$ are the eigenvectors of the excitation $n$, which relate to the wave function of the
-electronic excitation \[[](#Blase2020)\],
+electronic excitation,
 
 $$
 \begin{align}
@@ -237,8 +238,7 @@ where we drop the excitation index $n$ from now on for better readability.
 For each excitation level $n$, we have then several quantities, which allow us to quantify the
 spatial extent of the electron, the hole and their combined two-particle character as combined
 electron-hole pair, i.e. as an exciton. By that, we can often determine the type of the excited
-state, i.e. distinguish between, e.g., valence, Rydberg or charge-transfer states
-\[[](#Mewes2018)\].
+state, i.e. distinguish between, e.g., valence, Rydberg or charge-transfer states.
 
 First, we define the distance between electron and hole as
 
@@ -352,7 +352,7 @@ In the upper GW/BSE section, the following keywords have been used:
   Setting a small `ENERGY_CUTOFF_OCC` drastically reduces the computation time and the memory
   consumption, but also might affect the computed excitation energies $\Omega^{(n)}$. Recommended to
   use for large systems with more than 30 atoms, but we recommend a careful convergence test by
-  increasing `ENERGY_CUTOFF_OCC` and observing the effect on $\Omega^{(n)}$ \[[](#Liu2020)\].
+  increasing `ENERGY_CUTOFF_OCC` and observing the effect on $\Omega^{(n)}$ \[[](#Graml2026)\].
 
 - [ENERGY_CUTOFF_EMPTY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.ENERGY_CUTOFF_EMPTY)
   $E_\text{cut}^\text{empty}$: Analogous to `ENERGY_CUTOFF_OCC`, but for the empty states, i.e. only
@@ -394,8 +394,8 @@ optical properties:
 
 - [XC_FUNCTIONAL](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL): Choose between one of the available
   xc-functionals. The starting point can have a profound influence on the excitation energies
-  \[[](#Knysh2024)\]. Motivated by the discussion in \[[](#Schambeck2024)\], we strongly recommend
-  to use BSE@ev*GW*<sub>0</sub>@PBE, i.e. the PBE functional as DFT starting point (see also
+  \[[](#Graml2026)\]. Motivated by the discussion in \[[](#Graml2026)\], we strongly recommend to
+  use BSE@ev*GW*<sub>0</sub>@PBE, i.e. the PBE functional as DFT starting point (see also
   [SELF_CONSISTENCY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.SELF_CONSISTENCY)).
 - [BASIS_SET](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.BASIS_SET): Specify the basis set, which affects
   $N_\mathrm{empty}$ and thus the size of the matrices $A_{ia,jb}$ and $B_{ia,jb}$. The
@@ -410,11 +410,11 @@ $100 \cdot N_\mathrm{occ}^2 N_\mathrm{empty}^2$ Bytes. You can see $N_\mathrm{oc
 $N_\mathrm{empty}$ and the estimated memory consumption from the BSE output. The BSE implementation
 is well parallelized, i.e. you can use several nodes that can provide the memory.
 
-We have benchmarked the numerical precision of our BSE implementation and compared its results to
-the BSE implementation in FHI aims \[[](#Liu2020)\]. For our recommended settings, i.e.
-BSE@ev*GW*<sub>0</sub>@PBE with the aug-cc-pVDZ basis set, we have found excellent agreement with
-less than 5 meV mean absolute deviation averaged over the first 10 excitation levels and the 28
-molecules in *Thiel's set* for Singlet excitations.
+We have benchmarked the numerical precision of our BSE implementation in \[[](#Graml2026)\] and
+compared its results to the BSE implementation in FHI aims \[[](#Liu2020)\]. For our recommended
+settings, i.e. BSE@ev*GW*<sub>0</sub>@PBE with the aug-cc-pVDZ basis set, we have found excellent
+agreement with less than 5 meV mean absolute deviation averaged over the first 10 excitation levels
+and the 28 molecules in *Thiel's set* for Singlet excitations.
 
 The current BSE implementation in CP2K works for molecules. The inclusion of periodic boundary
 conditions in a Γ-only approach and with full *k*-point sampling is work in progress.

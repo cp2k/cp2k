@@ -93,7 +93,7 @@ MODULE bibliography
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
                             Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024, &
                             VazdaCruz2021, Chen2025, Hernandez2025, Marek2025, Hehn2022, Hehn2024, Pasquier2025, &
-                            Hanasaki2025, Tan2025, Broyden1965, Johnson1988, Kerker1981, &
+                            Hanasaki2025, Graml2026, Tan2025, Broyden1965, Johnson1988, Kerker1981, &
                             FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
@@ -2092,6 +2092,13 @@ CONTAINS
                          "to atomically thin transition-metal dichalcogenides", &
                          source="Phys. Rev. B", volume="112", pages="205130", &
                          year=2025, doi="10.1103/v4zv-1pf9")
+
+      CALL add_reference(key=Graml2026, &
+                         authors=s2a("M. Graml", "J. Wilhelm"), &
+                         title="Optical excitations in nanographenes from the Bethe-Salpeter equation "// &
+                         "and time-dependent density functional theory: Absorption spectra and spatial descriptors", &
+                         source="Phys. Rev. B", volume="113", pages="205152", &
+                         year=2026, doi="10.1103/38k2-d55h")
 
       CALL add_reference(key=Hanasaki2025, &
                          authors=s2a("K. Hanasaki", "T. Futaii de Jong", "K. Komarov", "R. Kumar", "M. Malis", &
