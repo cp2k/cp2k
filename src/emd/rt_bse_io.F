@@ -44,7 +44,7 @@ MODULE rt_bse_io
                               restart_guess
    USE qs_environment_types, ONLY: get_qs_env
    USE scf_control_types, ONLY: scf_control_type
-   USE physcon, ONLY: femtoseconds
+   USE physcon, ONLY: evolt, femtoseconds
    USE rt_propagation_output, ONLY: print_moments, &
                                     print_rt_file, &
                                     rt_file_comp_real
@@ -750,8 +750,8 @@ CONTAINS
       eps_dev = MAXVAL(ABS(rtbse_env%eps_active_restart - rtbse_env%eps_active))
       IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A,ES12.3,A)') &
          " RTBSE| Restart eps_active max deviation vs original run ", eps_dev, " Ha"
-      ! 0.1 meV = 3.674932e-6 Ha
-      IF (eps_dev > 3.674932e-6_dp) &
+      ! 0.1 meV = 1.0e-4 eV, converted to Ha via evolt (Ha -> eV factor)
+      IF (eps_dev > 1.0e-4_dp/evolt) &
          CALL cp_warn(__LOCATION__, &
                       "RESTART.trace: active eigenvalues deviate beyond 0.1 meV - "// &
                       "Hamiltonian changed; continuation is physically inconsistent.")
