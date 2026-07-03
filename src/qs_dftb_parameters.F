@@ -306,7 +306,7 @@ CONTAINS
             DO l = 0, 3
                SELECT CASE (l)
                CASE DEFAULT
-                  CPABORT("")
+                  CPABORT("Only 0, 1, 2 are supported as the value of l")
                CASE (0)
                   lp = 10
                CASE (1)
@@ -700,7 +700,9 @@ CONTAINS
       RETURN
 
 1     CONTINUE
-      CPABORT("")
+      ! Many instances of READ (..., END=1, err=1) gets conflated here
+      ! TODO: overhaul the file parser to handle errors separately
+      CPABORT("Something went wrong while reading DFTB parameter file")
 
    END SUBROUTINE qs_dftb_param_init
 

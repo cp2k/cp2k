@@ -1380,7 +1380,7 @@ CONTAINS
                   CALL cp_print_key_finished_output(unit_nr, logger, print_key)
                END DO
             ELSE
-               CPABORT("")
+               CPABORT("Unknown output format for helium_print_coordinates")
             END IF
          END DO
 

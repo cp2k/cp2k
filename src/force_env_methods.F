@@ -320,7 +320,7 @@ CONTAINS
          CASE (use_ipi)
             CALL request_forces(force_env%ipi_env)
          CASE default
-            CPABORT("")
+            CPABORT("Unknown force environment; cannot evaluate energy or force")
          END SELECT
       END IF
       ! In case it is requested, we evaluate the stress tensor numerically
@@ -1393,7 +1393,7 @@ CONTAINS
          CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results, &
                                (1.0_dp - lambda), istate(2), nforce_eval, map_index, mapping_section, .FALSE.)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown mixing type for mixed_energy_forces")
       END SELECT
       !Simply deallocate and loose the pointer references..
       DO iforce_eval = 1, nforce_eval

@@ -205,12 +205,7 @@ def check_file(path: pathlib.Path) -> List[str]:
     if "\r\n" in content:
         warnings += [f"{path}: contains DOS linebreaks"]
 
-    if (
-        fn_ext not in (".pot", ".patch")
-        and basefn != "Makefile"
-        and basefn != "generate_arch_files.sh"
-        and "\t" in content
-    ):
+    if fn_ext not in (".pot", ".patch") and basefn != "Makefile" and "\t" in content:
         warnings += [f"{path}: contains tab character"]
 
     if fn_ext == ".cu" and "#if defined(_OMP_H)\n#error" not in content:
@@ -223,6 +218,18 @@ def check_file(path: pathlib.Path) -> List[str]:
                 warnings += [f"{path}:{i+1} Missing space in multi-line string"]
             if STR_END_SPACE_RE.search(a) and STR_BEGIN_SPACE_RE.search(b):
                 warnings += [f"{path}:{i+1} Double space in multi-line string"]
+
+    # Check CPASSERT(.FALSE.) and empty CPABORT() messages
+    suppress_cpabort = ["semi_empirical_int_debug.F"]
+    if fn_ext == ".F" and basefn not in suppress_cpabort:
+        if "CPASSERT(.FALSE.)" in content:
+            warnings += [
+                f"{path}: Found CPASSERT(.FALSE.) - please use CPABORT() with messages"
+            ]
+        if "CPABORT('')" in content or 'CPABORT("")' in content:
+            warnings += [
+                f"{path}: Found CPABORT() with empty message - please fill in the reason"
+            ]
 
     # check banner
     year = datetime.now(timezone.utc).year

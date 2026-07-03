@@ -174,8 +174,7 @@ CONTAINS
             IF (iw > 0) WRITE (iw, '(T2,"QMMM|",1X,A)') &
                "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
          CASE DEFAULT
-            IF (iw > 0) WRITE (iw, '(T2,"QMMM|",1X,A)') "Unknown Coupling..."
-            CPABORT("")
+            CPABORT("Unknown QM/MM coupling")
          END SELECT
       ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
          ! DFTB
@@ -192,8 +191,7 @@ CONTAINS
          CASE (do_qmmm_gauss, do_qmmm_swave)
             CPABORT("GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for DFTB.")
          CASE DEFAULT
-            IF (iw > 0) WRITE (iw, '(T2,"QMMM|",1X,A)') "Unknown Coupling..."
-            CPABORT("")
+            CPABORT("Unknown QM/MM coupling")
          END SELECT
          IF (need_f) THEN
             Forces(:, :) = Forces(:, :)/REAL(para_env%num_pe, KIND=dp)
@@ -275,8 +273,7 @@ CONTAINS
                IF (iw > 0) WRITE (iw, '(T2,"QMMM|",1X,A)') &
                   "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
             CASE DEFAULT
-               IF (iw > 0) WRITE (iw, '(T2,"QMMM|",1X,A)') "- Unknown Coupling..."
-               CPABORT("")
+               CPABORT("Unknown QM/MM coupling")
             END SELECT
          END IF
       END IF
@@ -525,7 +522,7 @@ CONTAINS
                                 param_section=interp_section)
          END DO
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown interpolation method")
       END SELECT
 
       shells = .FALSE.
@@ -1396,8 +1393,7 @@ CONTAINS
                CASE (do_qmmm_none)
                   CYCLE Diff
                CASE DEFAULT
-                  IF (iw > 0) WRITE (iw, '(T3,A)') "Unknown Coupling..."
-                  CPABORT("")
+                  CPABORT("Unknown QM/MM coupling")
                END SELECT
                energy(K) = pw_integral_ab(rho, v_qmmm_rspace)
             END DO Diff
@@ -1436,8 +1432,7 @@ CONTAINS
       CASE (do_qmmm_none)
          IF (iw > 0) WRITE (iw, '(T3,A)') "No QM/MM Derivatives to debug. Just Mechanical Coupling!"
       CASE DEFAULT
-         IF (iw > 0) WRITE (iw, '(T3,A)') "Unknown Coupling..."
-         CPABORT("")
+         CPABORT("Unknown QM/MM coupling")
       END SELECT
       CALL cp_print_key_finished_output(iw, logger, print_section, "PROGRAM_RUN_INFO")
 

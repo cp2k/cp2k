@@ -125,7 +125,7 @@ CONTAINS
 !>        where other subroutines computes the matrices A, B, E, D and G, which are:
 !>        - A: the ground-state contribution: F_pq*delta_IJ - epsilon_IJ*S_pq
 !>        - B: the Coulomb kernel ~(pI|Jq)
-!>        - C: the xc kernel c_aa (double derivatibe wrt to n_alpha) and C_ab (wrt n_alpha and n_beta)
+!>        - C: the xc kernel c_aa (double derivative wrt to n_alpha) and C_ab (wrt n_alpha and n_beta)
 !>        - D: the on-digonal exact exchange kernel ~(pq|IJ)
 !>        - E: the off-diagonal exact exchange kernel ~(pJ|Iq)
 !>        - G: the metric  S_pq*delta_IJ

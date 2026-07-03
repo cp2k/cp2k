@@ -239,7 +239,7 @@ CONTAINS
          IF (ASSOCIATED(enum)) THEN
             IF (val%type_of_var /= no_t .AND. val%type_of_var /= integer_t .AND. &
                 val%type_of_var /= enum_t) THEN
-               CPABORT("")
+               CPABORT("Type of variable is incompatible with enum")
             END IF
             IF (ASSOCIATED(val%i_val)) THEN
                val%type_of_var = enum_t
@@ -358,10 +358,10 @@ CONTAINS
             IF (SIZE(val%l_val) > 0) THEN
                l_val = val%l_val(1)
             ELSE
-               CPABORT("")
+               CPABORT("Invalid size of logical value(s)")
             END IF
          ELSE
-            CPABORT("")
+            CPABORT("Logical value is unavailable")
          END IF
       END IF
 
@@ -371,10 +371,10 @@ CONTAINS
             IF (SIZE(val%i_val) > 0) THEN
                i_val = val%i_val(1)
             ELSE
-               CPABORT("")
+               CPABORT("Invalid size of integer value(s)")
             END IF
          ELSE
-            CPABORT("")
+            CPABORT("Integer value is unavailable")
          END IF
       END IF
 
@@ -384,10 +384,10 @@ CONTAINS
             IF (SIZE(val%r_val) > 0) THEN
                r_val = val%r_val(1)
             ELSE
-               CPABORT("")
+               CPABORT("Invalid size of real value(s)")
             END IF
          ELSE
-            CPABORT("")
+            CPABORT("Real value is unavailable")
          END IF
       END IF
 
@@ -419,16 +419,16 @@ CONTAINS
                   c_val = val%c_val(1)
                END IF
             ELSE
-               CPABORT("")
+               CPABORT("Invalid size of character value(s)")
             END IF
          ELSE IF (ASSOCIATED(val%i_val) .AND. ASSOCIATED(val%enum)) THEN
             IF (SIZE(val%i_val) > 0) THEN
                c_val = enum_i2c(val%enum, val%i_val(1))
             ELSE
-               CPABORT("")
+               CPABORT("Invalid size of character value(s)")
             END IF
          ELSE
-            CPABORT("")
+            CPABORT("Character value is unavailable")
          END IF
       END IF
 
@@ -668,7 +668,7 @@ CONTAINS
                   WRITE (UNIT=string(2*i - 1:), FMT="(1X,L1)") val%l_val(i)
                END DO
             ELSE
-               CPABORT("")
+               CPABORT("Logical value is unavailable")
             END IF
          CASE (integer_t)
             IF (ASSOCIATED(val%i_val)) THEN
@@ -676,7 +676,7 @@ CONTAINS
                   WRITE (UNIT=string(12*i - 11:), FMT="(I12)") val%i_val(i)
                END DO
             ELSE
-               CPABORT("")
+               CPABORT("Integer value is unavailable")
             END IF
          CASE (real_t)
             IF (ASSOCIATED(val%r_val)) THEN
@@ -692,7 +692,7 @@ CONTAINS
                   END DO
                END IF
             ELSE
-               CPABORT("")
+               CPABORT("Real value is unavailable")
             END IF
          CASE (char_t)
             IF (ASSOCIATED(val%c_val)) THEN
@@ -702,13 +702,13 @@ CONTAINS
                   ipos = ipos + LEN_TRIM(ADJUSTL(val%c_val(i))) + 1
                END DO
             ELSE
-               CPABORT("")
+               CPABORT("Character value is unavailable")
             END IF
          CASE (lchar_t)
             IF (ASSOCIATED(val%c_val)) THEN
                CALL val_get(val, c_val=string)
             ELSE
-               CPABORT("")
+               CPABORT("Character value is unavailable")
             END IF
          CASE (enum_t)
             IF (ASSOCIATED(val%i_val)) THEN
@@ -717,7 +717,7 @@ CONTAINS
                   WRITE (UNIT=string, FMT="(A)") TRIM(ADJUSTL(enum_string))
                END DO
             ELSE
-               CPABORT("")
+               CPABORT("Enumeration value is unavailable")
             END IF
          CASE default
             CPABORT("unexpected type_of_var for val ")

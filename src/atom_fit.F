@@ -206,7 +206,7 @@ CONTAINS
       penalty = .FALSE.
       SELECT CASE (basis%basis_type)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown basis type for atom_fit_basis")
       CASE (GTO_BASIS)
          IF (basis%geometrical) THEN
             ostate%nvar = 2
@@ -312,7 +312,7 @@ CONTAINS
          IF (ostate%state == 2) THEN
             SELECT CASE (basis%basis_type)
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown basis type for atom_fit_basis")
             CASE (GTO_BASIS)
                IF (basis%geometrical) THEN
                   basis%am = 0._dp
@@ -403,7 +403,7 @@ CONTAINS
          ! x->basis
          SELECT CASE (basis%basis_type)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown basis type for atom_fit_basis")
          CASE (GTO_BASIS)
             IF (basis%geometrical) THEN
                basis%am = 0._dp
@@ -479,7 +479,7 @@ CONTAINS
 
       SELECT CASE (basis%basis_type)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown basis type for atom_fit_basis")
       CASE (GTO_BASIS)
          zval = atom_info(1, 1)%atom%z
          crad = ptable(zval)%covalent_radius*bohr
@@ -1235,9 +1235,9 @@ CONTAINS
                   CALL release_opmat(dma)
                   CALL release_opmat(dmb)
                CASE (do_rohf_atom)
-                  CPABORT("")
+                  CPABORT("ROHF not yet implemented for opt_nlcc_param")
                CASE DEFAULT
-                  CPABORT("")
+                  CPABORT("Unknown method for opt_nlcc_param")
                END SELECT
 
                im = im + 1

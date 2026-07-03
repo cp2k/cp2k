@@ -598,9 +598,7 @@ CONTAINS
                conn_info%c_bond_type(i) = conn_info%bond_type(ibond)
             END IF
          ELSE
-            IF (atom_info%id_molname(iatom) /= atom_info%id_molname(jatom)) THEN
-               CPABORT("")
-            END IF
+            CPASSERT(atom_info%id_molname(iatom) == atom_info%id_molname(jatom))
          END IF
       END DO
 

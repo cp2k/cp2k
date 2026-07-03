@@ -151,9 +151,7 @@ CONTAINS
             CALL get_qs_env(qs_env, mo_derivs=mo_derivs, mos=mo_array)
             DO ispin = 1, SIZE(mo_derivs)
                CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff_b=mo_coeff)
-               IF (.NOT. mo_array(ispin)%use_mo_coeff_b) THEN
-                  CPABORT("")
-               END IF
+               CPASSERT(mo_array(ispin)%use_mo_coeff_b)
                CALL dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(ispin, 1)%matrix, mo_coeff, &
                                    0.0_dp, mo_derivs(ispin)%matrix)
             END DO

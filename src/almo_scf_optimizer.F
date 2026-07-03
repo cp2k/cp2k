@@ -4209,7 +4209,7 @@ CONTAINS
                                        ABS(gfun0), &
                                        " is smaller than the threshold", num_threshold
                                  END IF
-                                 CPABORT("")
+                                 CPABORT("Unable to continue with low numerical accuracy")
                               END IF
                               IF (ABS(gfun0) < num_threshold) THEN
                                  IF (unit_nr > 0) THEN
@@ -4217,7 +4217,7 @@ CONTAINS
                                        ABS(gfun0), &
                                        " is smaller than the threshold", num_threshold
                                  END IF
-                                 CPABORT("")
+                                 CPABORT("Unable to continue with low numerical accuracy")
                               END IF
 
                               use_quadratic_approximation = .TRUE.

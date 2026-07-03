@@ -451,7 +451,7 @@ CONTAINS
          CALL dbcsr_release(matrix_qs_nosym)
 
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown mat_distr_aos for matrix_qs_to_almo")
       END SELECT
 
       CALL timestop(handle)
@@ -489,7 +489,7 @@ CONTAINS
          CALL dbcsr_copy(matrix_qs, matrix_almo_redist, keep_sparsity=.TRUE.)
          CALL dbcsr_release(matrix_almo_redist)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown mat_distr_aos for matrix_almo_to_qs")
       END SELECT
 
       CALL timestop(handle)
@@ -1339,7 +1339,7 @@ CONTAINS
                            new_block(:, :) = 1.0_dp
                         ELSE
                            ! remove the intermediate values from the quencher temporarily
-                           CPABORT("")
+                           CPABORT("distance > r0 not yet validated") ! Unexplained in https://github.com/cp2k/cp2k/pull/5345
                            new_block(:, :) = 1.0_dp/(1.0_dp + EXP((r1 - r0)/(r0 - distance) + (r1 - r0)/(r1 - distance)))
                         END IF
 

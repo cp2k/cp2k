@@ -1004,9 +1004,7 @@ CONTAINS
       safe_calc = .FALSE.
       IF (PRESENT(safe_computation)) safe_calc = safe_computation
       ii = coarse_coeffs_pw%pw_grid%para%group%compare(fine_values_pw%pw_grid%para%group)
-      IF (ii > mp_comm_congruent) THEN
-         CPABORT("")
-      END IF
+      CPASSERT(ii <= mp_comm_congruent)
       my_coarse_bo = coarse_coeffs_pw%pw_grid%bounds_local
       coarse_gbo = coarse_coeffs_pw%pw_grid%bounds
       fine_bo = fine_values_pw%pw_grid%bounds_local
@@ -1345,7 +1343,7 @@ CONTAINS
                      CASE (-3)
                         wk = w_border1(3)
                      CASE default
-                        CPABORT("")
+                        CPABORT("Only 1, -1, -3 are supported as the value of ik")
                         CYCLE
                      END SELECT
                   ELSE
@@ -1357,7 +1355,7 @@ CONTAINS
                      CASE (-1)
                         wk = w_border1(1)
                      CASE default
-                        CPABORT("")
+                        CPABORT("Only 3, 1, -1 are supported as the value of ik")
                         CYCLE
                      END SELECT
                   END IF
@@ -1869,7 +1867,7 @@ CONTAINS
                      CASE (-3)
                         wk = w_border1(3)
                      CASE default
-                        CPABORT("")
+                        CPABORT("Only 1, -1, -3 are supported as the value of ik")
                         CYCLE
                      END SELECT
                   ELSE
@@ -1881,7 +1879,7 @@ CONTAINS
                      CASE (-1)
                         wk = w_border1(1)
                      CASE default
-                        CPABORT("")
+                        CPABORT("Only 3, 1, -1 are supported as the value of ik")
                         CYCLE
                      END SELECT
                   END IF
@@ -1911,7 +1909,7 @@ CONTAINS
                            CASE (-3)
                               wj = w_border1(3)*wk
                            CASE default
-                              CPABORT("")
+                              CPABORT("Only 1, -1, -3 are supported as the value of ij")
                               CYCLE
                            END SELECT
                         ELSE
@@ -1923,7 +1921,7 @@ CONTAINS
                            CASE (3)
                               wj = w_border1(3)*wk
                            CASE default
-                              CPABORT("")
+                              CPABORT("Only -1, 1, 3 are supported as the value of ij")
                               CYCLE
                            END SELECT
                         END IF
@@ -2486,7 +2484,7 @@ CONTAINS
    END SUBROUTINE pw_spline_precond_create
 
 ! **************************************************************************************************
-!> \brief switches the types of precoditioner to use
+!> \brief switches the types of preconditioner to use
 !> \param preconditioner the preconditioner to be changed
 !> \param precond_kind the new kind of preconditioner to use
 !> \param pbc ...
@@ -2540,7 +2538,7 @@ CONTAINS
          preconditioner%normalize = .FALSE.
          do_3d_coeff = .TRUE.
       CASE default
-         CPABORT("")
+         CPABORT("Unknown preconditioner kind for pw_spline_precond_set_kind")
       END SELECT
       IF (do_3d_coeff) THEN
          s = 1._dp
@@ -2622,7 +2620,7 @@ CONTAINS
                                         transpose=preconditioner%transpose)
          END IF
       CASE default
-         CPABORT("")
+         CPABORT("Unknown preconditioner kind for pw_spline_do_precond")
       END SELECT
    END SUBROUTINE pw_spline_do_precond
 

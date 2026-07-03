@@ -96,7 +96,7 @@ CONTAINS
          DEALLOCATE (optstate%xopt)
          optstate%state = -1
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown optimization state")
       END SELECT
 
       CALL timestop(handle)

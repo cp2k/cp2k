@@ -142,9 +142,7 @@ CONTAINS
             ! we are using the dbcsr mo_coeff
             ! we copy it to the fm for anycase
             DO ispin = 1, SIZE(mo_array)
-               IF (.NOT. ASSOCIATED(mo_array(ispin)%mo_coeff_b)) THEN
-                  CPASSERT(.FALSE.)
-               END IF
+               CPASSERT(ASSOCIATED(mo_array(ispin)%mo_coeff_b))
                CALL copy_dbcsr_to_fm(mo_array(ispin)%mo_coeff_b, &
                                      mo_array(ispin)%mo_coeff) !fm->dbcsr
             END DO

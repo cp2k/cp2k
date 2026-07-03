@@ -539,7 +539,7 @@ CONTAINS
             IF (iw > 0) WRITE (iw, fmt="(' ZMP       | ERROR! External grid dimension ',I4,' differs from internal grid ',I4)") &
                nr, atom%basis%grid%nr
             IF (iw > 0) WRITE (iw, fmt="(' ZMP       | ERROR! Stopping ZMP calculation')")
-            CPABORT("")
+            CPABORT("Unable to continue reading external density file")
          END IF
 
          DO ir = 1, nr
@@ -549,7 +549,7 @@ CONTAINS
                IF (iw > 0) WRITE (iw, fmt='(" ZMP       |",T20,"R_out[bohr]",T36,"R_in[bohr]",T61,"R_diff[bohr]")')
                IF (iw > 0) WRITE (iw, fmt='(" ZMP       |",T14,E24.15,T39,E24.15,T64,E24.15)') &
                   rr, atom%basis%grid%rad(ir), ABS(rr - atom%basis%grid%rad(ir))
-               CPABORT("")
+               CPABORT("Unable to continue reading external density file")
             END IF
          END DO
          CALL close_file(unit_number=extunit)
@@ -626,7 +626,7 @@ CONTAINS
          IF (iw > 0) WRITE (iw, fmt="(' ZMP       | ERROR! External grid dimension ',I4,' differs from internal grid ',I4)") &
             nr, atom%basis%grid%nr
          IF (iw > 0) WRITE (iw, fmt="(' ZMP       | ERROR! Stopping ZMP calculation')")
-         CPABORT("")
+         CPABORT("Unable to continue reading external v_xc file")
       END IF
       DO ir = 1, nr
          READ (extunit, *) rr, vxc(ir)
@@ -635,7 +635,7 @@ CONTAINS
             IF (iw > 0) WRITE (iw, fmt='(" ZMP       |",T20,"R_out[bohr]",T36,"R_in[bohr]",T61,"R_diff[bohr]")')
             IF (iw > 0) WRITE (iw, fmt='(" ZMP       |",T14,E24.15,T39,E24.15,T64,E24.15)') &
                rr, atom%basis%grid%rad(ir), ABS(rr - atom%basis%grid%rad(ir))
-            CPABORT("")
+            CPABORT("Unable to continue reading external v_xc file")
          END IF
       END DO
 
@@ -737,7 +737,9 @@ CONTAINS
                         corden(:) = corden(:) - REAL(2*j - 2, dp)*fe(:)*rc**(2*j - 2)*cval/a2
                      END IF
                   ELSE
-                     CPABORT("")
+                     CALL cp_abort(__LOCATION__, &
+                                   "Only <RHO>, <DER>, <LAP> are supported as <my_typ> "// &
+                                   "in atom_core_density, found <"//TRIM(my_typ)//">")
                   END IF
                END DO
             END DO
@@ -767,7 +769,9 @@ CONTAINS
                CALL spline3ders(potential%upf_pot%r(1:n), potential%upf_pot%rho_nlcc(1:n), rval(1:m), &
                                 d2ynew=rhoc(1:m))
             ELSE
-               CPABORT("")
+               CALL cp_abort(__LOCATION__, &
+                             "Only <RHO>, <DER>, <LAP> are supported as <my_typ> "// &
+                             "in atom_core_density, found <"//TRIM(my_typ)//">")
             END IF
             IF (reverse) THEN
                DO i = 1, m
@@ -1131,7 +1135,7 @@ CONTAINS
          IF (MAXVAL(ABS(pmat(:, :, l))) < 1.e-14_dp) CYCLE
          SELECT CASE (basis%basis_type)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown basis type for coulomb_potential_analytic")
          CASE (GTO_BASIS)
             DO i = 1, basis%nbas(l)
                DO j = i, basis%nbas(l)
@@ -1528,7 +1532,7 @@ CONTAINS
 
       SELECT CASE (basis%basis_type)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown basis type for potential_analytic")
       CASE (GTO_BASIS)
          DO i = 1, basis%nbas(la)
             DO j = 1, basis%nbas(lb)
@@ -1613,7 +1617,8 @@ CONTAINS
       expa(:) = EXP(-z(:)**2)/sab**(ll + 2)/2._dp**((ll + nu)/2 + 2)
       SELECT CASE (ll)
       CASE DEFAULT
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       "Only 0, 1, 2, 3, 4, 5, 6 are supported as the value of ll")
       CASE (0)
          CPASSERT(nu == 0)
       CASE (1)
@@ -1622,7 +1627,8 @@ CONTAINS
       CASE (2)
          SELECT CASE (nu)
          CASE DEFAULT
-            CPABORT("")
+            CALL cp_abort(__LOCATION__, &
+                          "Only 0, 2 are supported as the value of nu when ll = 2")
          CASE (0)
             erfa(:) = erfa(:) - 2._dp*expa(:)
          CASE (2)
@@ -1631,7 +1637,8 @@ CONTAINS
       CASE (3)
          SELECT CASE (nu)
          CASE DEFAULT
-            CPABORT("")
+            CALL cp_abort(__LOCATION__, &
+                          "Only 1, 3 are supported as the value of nu when ll = 3")
          CASE (1)
             erfa(:) = erfa(:) - expa(:)*(12._dp*z(:) + 30._dp/z(:))
          CASE (3)
@@ -1640,7 +1647,8 @@ CONTAINS
       CASE (4)
          SELECT CASE (nu)
          CASE DEFAULT
-            CPABORT("")
+            CALL cp_abort(__LOCATION__, &
+                          "Only 0, 2, 4 are supported as the value of nu when ll = 4")
          CASE (0)
             erfa(:) = erfa(:) - expa(:)*(4._dp*z(:)**2 + 14._dp)
          CASE (2)
@@ -1651,7 +1659,8 @@ CONTAINS
       CASE (5)
          SELECT CASE (nu)
          CASE DEFAULT
-            CPABORT("")
+            CALL cp_abort(__LOCATION__, &
+                          "Only 1, 3, 5 are supported as the value of nu when ll = 5")
          CASE (1)
             erfa(:) = erfa(:) - expa(:)*(24._dp*z(:)**3 + 108._dp*z(:) + 210._dp/z(:))
          CASE (3)
@@ -1663,7 +1672,8 @@ CONTAINS
       CASE (6)
          SELECT CASE (nu)
          CASE DEFAULT
-            CPABORT("")
+            CALL cp_abort(__LOCATION__, &
+                          "Only 0, 2, 4, 6 are supported as the value of nu when ll = 6")
          CASE (0)
             erfa(:) = erfa(:) - expa(:)*(8._dp*z(:)**4 + 44._dp*z(:)**2 + 114._dp)
          CASE (2)
@@ -1880,7 +1890,7 @@ CONTAINS
             END DO
          END DO
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Only 0, 1, 2 are supported as the value of derivatives")
       END SELECT
 
    END SUBROUTINE numpot_matrix
@@ -2231,9 +2241,9 @@ CONTAINS
       CASE (do_uks_atom, do_uhf_atom)
          spinpol = .TRUE.
       CASE (do_rohf_atom)
-         CPABORT("")
+         CPABORT("ROHF not yet implemented for get_rho0")
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown method for get_rho0")
       END SELECT
 
       nr = atom%basis%grid%nr
@@ -2434,7 +2444,7 @@ CONTAINS
          m = basis%nprim(l)
          SELECT CASE (basis%basis_type)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown basis type for atom_completeness")
          CASE (GTO_BASIS)
             CALL sg_overlap(omat(1:n, 1:n, l), l, basis%am(1:n, l), basis%am(1:n, l))
          CASE (CGTO_BASIS)
@@ -2446,7 +2456,7 @@ CONTAINS
             CALL sto_overlap(omat(1:n, 1:n, l), basis%ns(1:n, l), basis%as(1:n, l), &
                              basis%ns(1:n, l), basis%as(1:n, l))
          CASE (NUM_BASIS)
-            CPABORT("")
+            CPABORT("Numerical basis not yet implemented for atom_completeness")
          END SELECT
          CALL invmat_symm(omat(1:n, 1:n, l))
       END DO

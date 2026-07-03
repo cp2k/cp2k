@@ -181,7 +181,7 @@ CONTAINS
                   END DO
                END IF
             ELSE
-               CPABORT("")
+               CPABORT("None of ax, ay, az is positive")
             END IF
          END DO
          END DO
@@ -254,7 +254,7 @@ CONTAINS
                         END DO
                      END IF
                   ELSE
-                     CPABORT("")
+                     CPABORT("None of bx, by, bz is positive")
                   END IF
                END DO
                END DO

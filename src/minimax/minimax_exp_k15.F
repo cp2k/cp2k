@@ -192,13 +192,13 @@ CONTAINS
          R_min = 2.0000000000000000E+01_dp
          R_max = 1.1750000000000000E+06_dp
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Only integers 1-15 are supported as the value of k")
       END SELECT
 
       fit_coef = 0.0
       aw = 0.0
       IF (Rc < R_min) THEN
-         CPABORT("")
+         CPABORT("Rc < R_min in get_minimax_coeff_k15")
       ELSE
          SELECT CASE (k)
          CASE (1)
@@ -581,7 +581,7 @@ CONTAINS
                END IF
             END IF
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Only integers 1-15 are supported as the value of k")
          END SELECT
       END IF
 

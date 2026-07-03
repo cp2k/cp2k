@@ -732,7 +732,7 @@ CONTAINS
                IF (v0 > 0.1_dp) THEN
                   WRITE (*, '(A,2I5,2F15.9)') "ERROR IN DERIVATIVE OF B VECTOR, IPARTICLE, ICOORD:", iparticle, i, &
                      dbv(kk, i), ddbv(kk)
-                  CPABORT("")
+                  CPABORT("Error on B large than 0.1")
                END IF
             END IF
          END DO
@@ -812,7 +812,7 @@ CONTAINS
                   IF (v0 > 0.1_dp) THEN
                      WRITE (*, '(A,4I5,2F15.9)') "ERROR IN DERIVATIVE OF A MATRIX, IPARTICLE, ICOORD:", iparticle, i, kk, ll, &
                         dAm(kk, ll, i), ddAm(kk, ll)
-                     CPABORT("")
+                     CPABORT("Error on A larger than 0.1")
                   END IF
                END IF
             END DO

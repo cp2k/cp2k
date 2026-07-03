@@ -449,7 +449,7 @@ CONTAINS
             sab(1:na, 1:nb) = sab(1:na, 1:nb) + qab(ia:ja, ib:jb)
          END IF
       ELSE
-         CPABORT("")
+         CPABORT("Direction should be in or out when copying a block of matrix")
       END IF
 
    END SUBROUTINE block_add_ab

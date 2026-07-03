@@ -570,7 +570,7 @@ CONTAINS
 !> \brief Overall control and  environment types initialization
 !> \param xas_tdp_env the environment type to initialize
 !> \param xas_tdp_control the control type to initialize
-!> \param qs_env the inherited qs environement type
+!> \param qs_env the inherited qs environment type
 !> \param rixs_env ...
 ! **************************************************************************************************
    SUBROUTINE xas_tdp_init(xas_tdp_env, xas_tdp_control, qs_env, rixs_env)
@@ -2649,7 +2649,7 @@ CONTAINS
 
                DO ispin = 1, 2
                   CALL duplicate_mo_set(restart_mos(ispin), mos(1))
-                  ! Set the new occupation number in the case of spin-independent based calculaltion since the restart is spin-depedent
+                  ! Set the new occupation number in the case of spin-independent based calculation since the restart is spin-depedent
                   IF (SIZE(mos) == 1) &
                      restart_mos(ispin)%occupation_numbers = mos(1)%occupation_numbers/2
                END DO

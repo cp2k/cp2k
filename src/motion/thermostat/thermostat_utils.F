@@ -491,7 +491,9 @@ CONTAINS
                   itherm = itherm + 1
                   thermolist(ipart) = itherm
                ELSE
-                  CPABORT("")
+                  CALL cp_abort(__LOCATION__, &
+                                "The atom "//cp_to_string(ipart)//" has been "// &
+                                "assigned to different adiabatic regions!")
                END IF
             END DO
          END DO
@@ -510,7 +512,9 @@ CONTAINS
                               itherm = itherm + 1
                               thermolist(ipart) = itherm
                            ELSE
-                              CPABORT("")
+                              CALL cp_abort(__LOCATION__, &
+                                            "The atom "//cp_to_string(ipart)//" has been "// &
+                                            "assigned to different adiabatic regions!")
                            END IF
                         END DO
                      END DO

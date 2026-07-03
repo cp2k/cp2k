@@ -46,6 +46,7 @@ CONTAINS
          , 5000, 5120, 5184, 5400, 5625, 5760, 6000, 6144, 6400, 6480, 6750, 6912, 7200, 7500, 7680&
          , 8000, ctrig_length]
 
+      CHARACTER(LEN=80)                                  :: err
       INTEGER                                            :: i
 
 !Multiple of 2,3,5
@@ -56,8 +57,8 @@ CONTAINS
             RETURN
          END IF
       END DO loop_data
-      WRITE (unit=*, fmt=*) "fourier_dim: ", n, " is bigger than ", idata(ndata1024)
-      CPABORT("")
+      WRITE (unit=err, fmt=*) "fourier_dim: ", n, " is bigger than ", idata(ndata1024)
+      CPABORT(TRIM(err))
    END SUBROUTINE fourier_dim
 
 !  Copyright (C) Stefan Goedecker, CEA Grenoble, 2002
@@ -114,6 +115,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: trig
       INTEGER                                            :: after, before, now, isign, ic
 
+      CHARACTER(LEN=888)                                 :: err
       INTEGER                                            :: i, itt, j, nh
       REAL(KIND=dp)                                      :: angle, trigc, trigs, twopi
 
@@ -200,10 +202,10 @@ CONTAINS
 
       DO i = 1, 150
          IF (i == 150) THEN
-            PRINT *, 'VALUE OF', n, 'NOT ALLOWED FOR FFT, ALLOWED VALUES ARE:'
+            WRITE (err, *) 'VALUE OF', n, 'NOT ALLOWED FOR FFT, ALLOWED VALUES ARE:'
 37          FORMAT(15(i5))
-            WRITE (*, 37) (idata(1, j), j=1, 149)
-            CPABORT("")
+            WRITE (err, 37) (idata(1, j), j=1, 149)
+            CALL cp_abort(__LOCATION__, TRIM(err))
          END IF
          IF (n == idata(1, i)) THEN
             ic = 0

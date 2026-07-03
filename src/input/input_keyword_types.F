@@ -397,7 +397,7 @@ CONTAINS
          CASE (no_t)
             keyword%n_var = 0
          CASE default
-            CPABORT("")
+            CPABORT("Unknown type_of_var for keyword_create")
          END SELECT
       END IF
       IF (PRESENT(n_var)) keyword%n_var = n_var
@@ -582,7 +582,7 @@ CONTAINS
                CASE (no_t)
                   WRITE (unit_nr, "('  Non-standard type.')")
                CASE default
-                  CPABORT("")
+                  CPABORT("Unknown type_of_var for keyword_describe")
                END SELECT
             END IF
             IF (keyword%type_of_var == enum_t) THEN
@@ -743,7 +743,7 @@ CONTAINS
          WRITE (UNIT=unit_number, FMT="(A)") &
             REPEAT(" ", l1)//"<DATA_TYPE kind=""non-standard type"">"
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown type_of_var for write_keyword_xml")
       END SELECT
 
       short_string = ""

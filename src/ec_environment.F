@@ -591,13 +591,13 @@ CONTAINS
             ls_env%needs_s_inv = .FALSE.
             ls_env%use_s_sqrt = .FALSE.
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown ls_env%s_inversion_type")
          END SELECT
       CASE (ec_matrix_trs4, ec_matrix_tc2)
          ls_env%needs_s_inv = .FALSE.
          ls_env%use_s_sqrt = .TRUE.
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown ec_env%ks_solver")
       END SELECT
 
       SELECT CASE (ls_env%s_preconditioner_type)

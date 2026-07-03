@@ -213,7 +213,9 @@ CONTAINS
                CASE (use_qmmmx)
                   CPABORT("No force mixing allowed for mixed CDFT QM/MM")
                CASE DEFAULT
-                  CPASSERT(.FALSE.)
+                  CALL cp_abort(__LOCATION__, &
+                                "Only use_qs_force and use_qmmm are "// &
+                                "supported for mixed_cdft_init")
                END SELECT
                CPASSERT(ASSOCIATED(force_env_qs))
             END DO
@@ -493,7 +495,9 @@ CONTAINS
          CASE (use_qmmm)
             force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
          CASE DEFAULT
-            CPASSERT(.FALSE.)
+            CALL cp_abort(__LOCATION__, &
+                          "Only use_qs_force and use_qmmm are "// &
+                          "supported for mixed_cdft_build_weight_parallel")
          END SELECT
       END DO
       IF (.NOT. force_env%mixed_env%do_mixed_qmmm_cdft) THEN
@@ -903,7 +907,9 @@ CONTAINS
          force_env_qs_source => force_env%sub_force_env(jforce_eval)%force_env
          force_env_qs_target => force_env%sub_force_env(iforce_eval)%force_env
       CASE DEFAULT
-         CPASSERT(.FALSE.)
+         CALL cp_abort(__LOCATION__, &
+                       "Only use_qs_force and use_qmmm are "// &
+                       "supported for mixed_cdft_transfer_weight")
       END SELECT
       IF (.NOT. force_env%mixed_env%do_mixed_qmmm_cdft) THEN
          CALL force_env_get(force_env=force_env_qs_source, &
@@ -1063,7 +1069,9 @@ CONTAINS
          CASE (use_qs_force, use_qmmm)
             force_env_qs => force_env%sub_force_env(iforce_eval)%force_env
          CASE DEFAULT
-            CPASSERT(.FALSE.)
+            CALL cp_abort(__LOCATION__, &
+                          "Only use_qs_force and use_qmmm are "// &
+                          "supported for mixed_cdft_set_flags")
          END SELECT
          IF (.NOT. force_env%mixed_env%do_mixed_qmmm_cdft) THEN
             CALL force_env_get(force_env=force_env_qs, qs_env=qs_env)

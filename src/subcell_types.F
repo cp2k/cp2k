@@ -136,7 +136,7 @@ CONTAINS
 
          DEALLOCATE (subcell)
       ELSE
-         CPABORT("")
+         CPABORT("The subcell is not associated and cannot be deallocated")
       END IF
 
    END SUBROUTINE deallocate_subcell

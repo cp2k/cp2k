@@ -224,7 +224,7 @@ CONTAINS
                   force(jkind)%all_potential(3, atom_b) = force(jkind)%all_potential(3, atom_b) + force_ab(3)
                END IF
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown method for semi-empirical calculation")
             END SELECT
          ELSE
             IF (se_int_control%do_ewald_gks) THEN

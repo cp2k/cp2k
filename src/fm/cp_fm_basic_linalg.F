@@ -218,11 +218,9 @@ CONTAINS
             CALL daxpy(size_a, my_beta, b, 1, a, 1)
 
          ELSE
-#ifdef __parallel
-            CPABORT("to do (pdscal,pdcopy,pdaxpy)")
-#else
-            CPABORT("")
-#endif
+            CALL cp_abort(__LOCATION__, &
+                          "cp_fm_scale_and_add is not yet implemented for cases "// &
+                          "where two input matrix structures are not equivalent")
          END IF
 
       END IF

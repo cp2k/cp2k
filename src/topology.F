@@ -648,7 +648,7 @@ CONTAINS
          CALL read_coordinate_cp2k(topology, para_env, subsys_section)
       CASE DEFAULT
          ! We should never reach this point..
-         CPABORT("")
+         CPABORT("Option invalid or unavailable for reading coordinates")
       END SELECT
 
       ! Parse &COORD section and in case overwrite

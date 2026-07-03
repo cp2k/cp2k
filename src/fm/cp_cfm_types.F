@@ -682,7 +682,7 @@ CONTAINS
                      source%local_data(1, 1), 1, 1, source%matrix_struct%descriptor, 1, &
                      destination%local_data(1, 1), 1, 1, destination%matrix_struct%descriptor, 1)
 #else
-         CPABORT("")
+         CPABORT("cp_cfm_to_cfm_matrix: pzcopy needs __parallel build flag")
 #endif
       END IF
    END SUBROUTINE cp_cfm_to_cfm_matrix

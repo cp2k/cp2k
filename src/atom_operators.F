@@ -138,7 +138,7 @@ CONTAINS
                      END IF
                   END DO
                ELSE
-                  CPABORT("")
+                  CPABORT("Unknown potential confinement type for atom_int_setup")
                END IF
                CALL numpot_matrix(integrals%conf, cpot, basis, 0)
                DEALLOCATE (cpot)
@@ -147,7 +147,7 @@ CONTAINS
 
          SELECT CASE (basis%basis_type)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown basis type for atom_int_setup")
          CASE (GTO_BASIS)
             DO l = 0, lmat
                n = integrals%n(l)
@@ -283,7 +283,7 @@ CONTAINS
             CPASSERT(.NOT. integrals%eri_coulomb)
             CPASSERT(.NOT. integrals%eri_exchange)
          CASE (NUM_BASIS)
-            CPABORT("")
+            CPABORT("Numerical basis not yet implemented for atom_int_setup")
          END SELECT
 
          ! setup transformation matrix to get an orthogonal basis, remove linear dependencies
@@ -366,7 +366,7 @@ CONTAINS
 
          SELECT CASE (basis%basis_type)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown basis type for atom_ppint_setup")
          CASE (GTO_BASIS)
 
             SELECT CASE (potential%ppot_type)
@@ -431,7 +431,7 @@ CONTAINS
             CASE (sgp_pseudo)
                CALL sgpint_setup(integrals, basis, potential)
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown pseudopotential type for atom_ppint_setup")
             END SELECT
 
          CASE (CGTO_BASIS)
@@ -508,7 +508,7 @@ CONTAINS
             CASE (sgp_pseudo)
                CALL sgpint_setup(integrals, basis, potential)
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown pseudopotential type for atom_ppint_setup")
             END SELECT
 
          CASE (STO_BASIS)
@@ -593,11 +593,11 @@ CONTAINS
             CASE (sgp_pseudo)
                CALL sgpint_setup(integrals, basis, potential)
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown pseudopotential type for atom_ppint_setup")
             END SELECT
 
          CASE (NUM_BASIS)
-            CPABORT("")
+            CPABORT("Numerical basis not yet implemented for atom_ppint_setup")
          END SELECT
 
          ! add ecp_pseudo using numerical representation of basis
@@ -833,7 +833,7 @@ CONTAINS
 
       SELECT CASE (reltyp)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown relativistic type for atom_relint_setup")
       CASE (do_nonrel_atom, do_zoramp_atom, do_sczoramp_atom)
          dkhorder = -1
       CASE (do_dkh0_atom)
@@ -848,7 +848,7 @@ CONTAINS
 
       SELECT CASE (reltyp)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown relativistic type for atom_relint_setup")
       CASE (do_nonrel_atom)
          ! nothing to do
          NULLIFY (integrals%tzora, integrals%hdkh)
@@ -951,7 +951,7 @@ CONTAINS
 
             SELECT CASE (basis%basis_type)
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown basis type for atom_relint_setup")
             CASE (GTO_BASIS, CGTO_BASIS)
 
                DO l = 0, lmat
@@ -971,9 +971,9 @@ CONTAINS
                END DO
 
             CASE (STO_BASIS)
-               CPABORT("")
+               CPABORT("Slater-type basis not yet implemented for atom_relint_setup")
             CASE (NUM_BASIS)
-               CPABORT("")
+               CPABORT("Numerical basis not yet implemented for atom_relint_setup")
             END SELECT
 
             CALL dkh_integrals(integrals, basis, dkhorder, sp, tp, vp, pvp)
@@ -1022,7 +1022,7 @@ CONTAINS
             CALL dkh_atom_transformation(sp(1:m, 1:m, l), vp(1:m, 1:m, l), tp(1:m, 1:m, l), pvp(1:m, 1:m, l), m, order)
             SELECT CASE (basis%basis_type)
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unknown basis type for dkh_integrals")
             CASE (GTO_BASIS)
                CPASSERT(n == m)
                integrals%hdkh(1:n, 1:n, l) = tp(1:n, 1:n, l) + vp(1:n, 1:n, l)
@@ -1030,9 +1030,9 @@ CONTAINS
                CALL contract2(integrals%hdkh(1:n, 1:n, l), tp(1:m, 1:m, l), basis%cm(1:m, 1:n, l))
                CALL contract2add(integrals%hdkh(1:n, 1:n, l), vp(1:m, 1:m, l), basis%cm(1:m, 1:n, l))
             CASE (STO_BASIS)
-               CPABORT("")
+               CPABORT("Slater-type basis not yet implemented for dkh_integrals")
             CASE (NUM_BASIS)
-               CPABORT("")
+               CPABORT("Numerical basis not yet implemented for dkh_integrals")
             END SELECT
          ELSE
             integrals%hdkh(1:n, 1:n, l) = 0._dp
@@ -1062,7 +1062,7 @@ CONTAINS
       IF (ebas) THEN
          SELECT CASE (basis_a%basis_type)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown basis type for atom_basis_projection_overlap")
          CASE (GTO_BASIS)
             DO l = 0, lmat
                na = basis_a%nbas(l)

@@ -504,7 +504,7 @@ CONTAINS
             SELECT CASE (dispersion_env%nl_type)
             CASE DEFAULT
                ! unknown functional
-               CPABORT("")
+               CPABORT("Unknown vdW nonlocal functional")
             CASE (vdw_nl_DRSLL)
                WRITE (output_unit, &
                       fmt="(' vdW POTENTIAL| ','DRSLL Functional:           M. Dion et al, PRL 92: 246401 (2004)')")

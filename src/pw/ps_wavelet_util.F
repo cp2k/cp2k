@@ -240,6 +240,7 @@ CONTAINS
                                                             nd1, nd2, nd3
       INTEGER, INTENT(in)                                :: nproc
 
+      CHARACTER(len=80)                                  :: err
       INTEGER                                            :: l1, l2, l3
 
 !dimensions of the density in the real space
@@ -255,24 +256,21 @@ CONTAINS
       CALL fourier_dim(l1, n1)
       IF (n1 == m1) THEN
       ELSE
-         PRINT *, 'the FFT in the x direction is not allowed'
-         PRINT *, 'n01 dimension', n01
-         CPABORT("")
+         WRITE (err, *) 'the FFT in the x direction is not allowed; n01 dimension ', n01
+         CPABORT(TRIM(err))
       END IF
       l1 = l1 + 1
       CALL fourier_dim(l2, n2)
       IF (n2 == m2) THEN
       ELSE
-         PRINT *, 'the FFT in the z direction is not allowed'
-         PRINT *, 'n03 dimension', n03
-         CPABORT("")
+         WRITE (err, *) 'the FFT in the z direction is not allowed; n03 dimension ', n03
+         CPABORT(TRIM(err))
       END IF
       CALL fourier_dim(l3, n3)
       IF (n3 == m3) THEN
       ELSE
-         PRINT *, 'the FFT in the y direction is not allowed'
-         PRINT *, 'n02 dimension', n02
-         CPABORT("")
+         WRITE (err, *) 'the FFT in the y direction is not allowed; n02 dimension ', n02
+         CPABORT(TRIM(err))
       END IF
 
       !dimensions that contain the unpadded real space,
@@ -338,6 +336,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'S_FFT_dimensions'
 
+      CHARACTER(len=80)                                  :: err
       INTEGER                                            :: handle, l1, l2, l3
 
 !dimensions of the density in the real space
@@ -354,17 +353,15 @@ CONTAINS
       CALL fourier_dim(l1, n1)
       IF (n1 == m1) THEN
       ELSE
-         PRINT *, 'the FFT in the x direction is not allowed'
-         PRINT *, 'n01 dimension', n01
-         CPABORT("")
+         WRITE (err, *) 'the FFT in the x direction is not allowed; n01 dimension', n01
+         CPABORT(TRIM(err))
       END IF
       l1 = l1 + 1
       CALL fourier_dim(l2, n2)
       IF (n2 == m2) THEN
       ELSE
-         PRINT *, 'the FFT in the z direction is not allowed'
-         PRINT *, 'n03 dimension', n03
-         CPABORT("")
+         WRITE (err, *) 'the FFT in the z direction is not allowed; n03 dimension', n03
+         CPABORT(TRIM(err))
       END IF
       DO
          CALL fourier_dim(l3, n3)

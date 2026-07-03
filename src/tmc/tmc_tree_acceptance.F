@@ -104,7 +104,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (tmc_params%task_type == task_type_gaussian_adaptation) THEN
-         CPABORT("")
+         CPABORT("task_type_gaussian_adaptation not yet implemented")
 !TODO       CALL acc_check_gauss_adapt(f=tree_element%potential, ct=tree_element%ekin_before_md, acc=accept)
 !DO NOT DO       RETURN
       END IF

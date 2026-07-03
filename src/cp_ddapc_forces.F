@@ -374,7 +374,7 @@ CONTAINS
          END DO
 
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown ddapc constraint/restraint form")
       END SELECT
 
    END SUBROUTINE evaluate_restraint_functional

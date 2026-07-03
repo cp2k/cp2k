@@ -113,12 +113,9 @@ CONTAINS
       c_int = 'I8'
       label = 'PSF'
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
-      IF (.NOT. found) THEN
-         IF (output_unit > 0) THEN
-            WRITE (output_unit, '(A)') "ERROR| Missing PSF specification line"
-         END IF
-         CPABORT("")
-      END IF
+      IF (.NOT. found) &
+         CALL cp_abort(__LOCATION__, &
+                       "Missing PSF specification line in <"//TRIM(filename)//">")
       DO WHILE (parser_test_next_token(parser) /= "EOL")
          CALL parser_get_object(parser, field)
          SELECT CASE (field(1:3))
@@ -460,9 +457,7 @@ CONTAINS
                conn_info%c_bond_b(i) = jatom
             END IF
          ELSE
-            IF (atom_info%id_molname(iatom) /= atom_info%id_molname(jatom)) THEN
-               CPABORT("")
-            END IF
+            CPASSERT(atom_info%id_molname(iatom) == atom_info%id_molname(jatom))
          END IF
       END DO
       !

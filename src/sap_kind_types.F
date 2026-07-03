@@ -152,7 +152,7 @@ CONTAINS
       ELSE IF (i == 0) THEN
          NULLIFY (alist)
       ELSE
-         CPABORT("")
+         CPABORT("Invalid result of locate(sap_int%asort, atom)")
       END IF
 
    END SUBROUTINE get_alist

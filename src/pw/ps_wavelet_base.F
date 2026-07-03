@@ -130,11 +130,10 @@ CONTAINS
       ! transform along z axis
       lot = ncache/(4*n3)
       IF (lot < 1) THEN
-         WRITE (*, *) &
-            'convolxc_off:ncache has to be enlarged to be able to hold at'// &
-            'least one 1-d FFT of this size even though this will'// &
-            'reduce the performance for shorter transform lengths'
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       'convolxc_off:ncache has to be enlarged to be able to hold at '// &
+                       'least one 1-d FFT of this size even though this will '// &
+                       'reduce the performance for shorter transform lengths')
       END IF
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
@@ -184,11 +183,10 @@ CONTAINS
             ! transform along x axis
             lot = ncache/(4*n1)
             IF (lot < 1) THEN
-               WRITE (*, *) &
-                  'convolxc_off:ncache has to be enlarged to be able to hold at'// &
-                  'least one 1-d FFT of this size even though this will'// &
-                  'reduce the performance for shorter transform lengths'
-               CPABORT("")
+               CALL cp_abort(__LOCATION__, &
+                             'convolxc_off:ncache has to be enlarged to be able to hold at '// &
+                             'least one 1-d FFT of this size even though this will '// &
+                             'reduce the performance for shorter transform lengths')
             END IF
 
             DO j = 1, n2, lot
@@ -224,11 +222,10 @@ CONTAINS
             !transform along y axis
             lot = ncache/(4*n2)
             IF (lot < 1) THEN
-               WRITE (*, *) &
-                  'convolxc_off:ncache has to be enlarged to be able to hold at'// &
-                  'least one 1-d FFT of this size even though this will'// &
-                  'reduce the performance for shorter transform lengths'
-               CPABORT("")
+               CALL cp_abort(__LOCATION__, &
+                             'convolxc_off:ncache has to be enlarged to be able to hold at '// &
+                             'least one 1-d FFT of this size even though this will '// &
+                             'reduce the performance for shorter transform lengths')
             END IF
 
             DO j = 1, n1, lot
@@ -945,11 +942,10 @@ CONTAINS
       ! transform along z axis
       lot = ncache/(2*n3)
       IF (lot < 1) THEN
-         WRITE (*, *) &
-            'convolxc_off:ncache has to be enlarged to be able to hold at'// &
-            'least one 1-d FFT of this size even though this will'// &
-            'reduce the performance for shorter transform lengths', n1, n2, n3, nd1, nd2, nd3, md1, md2, md3, nproc, iproc
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       'convolxc_off:ncache has to be enlarged to be able to hold at '// &
+                       'least one 1-d FFT of this size even though this will '// &
+                       'reduce the performance for shorter transform lengths')
       END IF
 
       DO j2 = 1, md2/nproc
@@ -999,11 +995,10 @@ CONTAINS
             ! transform along x axis
             lot = ncache/(4*n1)
             IF (lot < 1) THEN
-               WRITE (*, *) &
-                  'convolxc_off:ncache has to be enlarged to be able to hold at'// &
-                  'least one 1-d FFT of this size even though this will'// &
-                  'reduce the performance for shorter transform lengths'
-               CPABORT("")
+               CALL cp_abort(__LOCATION__, &
+                             'convolxc_off:ncache has to be enlarged to be able to hold at '// &
+                             'least one 1-d FFT of this size even though this will '// &
+                             'reduce the performance for shorter transform lengths')
             END IF
 
             DO j = 1, n2, lot
@@ -1039,11 +1034,10 @@ CONTAINS
             !transform along y axis
             lot = ncache/(4*n2)
             IF (lot < 1) THEN
-               WRITE (*, *) &
-                  'convolxc_off:ncache has to be enlarged to be able to hold at'// &
-                  'least one 1-d FFT of this size even though this will'// &
-                  'reduce the performance for shorter transform lengths'
-               CPABORT("")
+               CALL cp_abort(__LOCATION__, &
+                             'convolxc_off:ncache has to be enlarged to be able to hold at '// &
+                             'least one 1-d FFT of this size even though this will '// &
+                             'reduce the performance for shorter transform lengths')
             END IF
 
             DO j = 1, n1, lot
@@ -1681,11 +1675,10 @@ CONTAINS
       ! transform along z axis
       lot = ncache/(2*n3)
       IF (lot < 1) THEN
-         WRITE (*, *) &
-            'convolxc_on:ncache has to be enlarged to be able to hold at'// &
-            'least one 1-d FFT of this size even though this will'// &
-            'reduce the performance for shorter transform lengths'
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       'convolxc_on:ncache has to be enlarged to be able to hold at '// &
+                       'least one 1-d FFT of this size even though this will '// &
+                       'reduce the performance for shorter transform lengths')
       END IF
 
       DO j2 = 1, md2/nproc
@@ -1738,11 +1731,10 @@ CONTAINS
             ! transform along x axis
             lot = ncache/(4*n1)
             IF (lot < 1) THEN
-               WRITE (*, *) &
-                  'convolxc_on:ncache has to be enlarged to be able to hold at'// &
-                  'least one 1-d FFT of this size even though this will'// &
-                  'reduce the performance for shorter transform lengths'
-               CPABORT("")
+               CALL cp_abort(__LOCATION__, &
+                             'convolxc_on:ncache has to be enlarged to be able to hold at '// &
+                             'least one 1-d FFT of this size even though this will '// &
+                             'reduce the performance for shorter transform lengths')
             END IF
 
             DO j = 1, n2/2, lot
@@ -1778,11 +1770,10 @@ CONTAINS
             !transform along y axis
             lot = ncache/(4*n2)
             IF (lot < 1) THEN
-               WRITE (*, *) &
-                  'convolxc_on:ncache has to be enlarged to be able to hold at'// &
-                  'least one 1-d FFT of this size even though this will'// &
-                  'reduce the performance for shorter transform lengths'
-               CPABORT("")
+               CALL cp_abort(__LOCATION__, &
+                             'convolxc_on:ncache has to be enlarged to be able to hold at '// &
+                             'least one 1-d FFT of this size even though this will '// &
+                             'reduce the performance for shorter transform lengths')
             END IF
 
             DO j = 1, n1, lot

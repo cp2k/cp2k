@@ -605,9 +605,7 @@ CONTAINS
 
       CALL init_periodic_table()
       IF (ndw > 3) THEN
-         WRITE (*, *)
-         WRITE (*, *) 'ERROR: GAUSSIAN format can only handle FES on 3 CV !'
-         CPABORT("")
+         CPABORT("ERROR: GAUSSIAN format can only handle FES on 3 CV !")
       END IF
 
       OPEN (10, file=file, status='old')
@@ -631,10 +629,9 @@ CONTAINS
       END DO
 
       IF (residual > 1.0d-6) THEN
-         WRITE (*, *)
-         WRITE (*, *) 'ERROR: this program can only handle orthogonal cells'
-         WRITE (*, *) ' with vectors pointing in the X, Y and Z directions'
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       "fes_cube_write supports only orthogonal cells with "// &
+                       "vectors pointing in the X, Y and Z directions")
       END IF
 
       WRITE (*, *)

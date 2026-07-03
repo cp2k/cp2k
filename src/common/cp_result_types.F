@@ -228,8 +228,7 @@ CONTAINS
       CASE (result_type_logical)
          ALLOCATE (value%logical_type(size_value))
       CASE DEFAULT
-         ! Type not implemented in cp_result_type
-         CPABORT("")
+         CPABORT("Type not implemented in cp_result_type")
       END SELECT
       CALL timestop(handle)
    END SUBROUTINE cp_result_value_init
@@ -268,8 +267,7 @@ CONTAINS
             CPASSERT(.NOT. ASSOCIATED(value%integer_type))
             CPASSERT(.NOT. ASSOCIATED(value%real_type))
          CASE DEFAULT
-            ! Type not implemented in cp_result_type
-            CPABORT("")
+            CPABORT("Type not implemented in cp_result_type")
          END SELECT
          DEALLOCATE (value)
       END IF
@@ -336,8 +334,7 @@ CONTAINS
          ALLOCATE (value_out%logical_type(isize))
          value_out%logical_type = value_in%logical_type
       CASE DEFAULT
-         ! Type not implemented in cp_result_type
-         CPABORT("")
+         CPABORT("Type not implemented in cp_result_type")
       END SELECT
       CALL timestop(handle)
    END SUBROUTINE cp_result_value_copy

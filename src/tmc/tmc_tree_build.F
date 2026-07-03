@@ -1084,7 +1084,7 @@ CONTAINS
          ! check if real top to bottom or bottom to top deallocation (no middle element deallocation)
          IF (ASSOCIATED(ptr%parent) .AND. &
              (ASSOCIATED(ptr%acc) .OR. ASSOCIATED(ptr%nacc))) THEN
-            CPABORT("")
+            CPABORT("Invalid association state of parent element")
          END IF
 
          IF (ready) THEN
@@ -1383,9 +1383,7 @@ CONTAINS
       !-- new tree head has no parent
       IF (.NOT. ASSOCIATED(actual_ptr, end_of_clean_tree)) THEN
          ! in trajectory just one direction should exist
-         IF (ASSOCIATED(actual_ptr%acc) .AND. ASSOCIATED(actual_ptr%nacc)) THEN
-            CPABORT("")
-         END IF
+         CPASSERT(.NOT. (ASSOCIATED(actual_ptr%acc) .AND. ASSOCIATED(actual_ptr%nacc)))
          ! the parent should be deleted already, but global tree is allocated to the second last accepted, &
          !   hence there could be still a reference to an element...
          IF (.NOT. ASSOCIATED(actual_ptr%parent)) THEN

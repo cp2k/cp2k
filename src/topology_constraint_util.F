@@ -761,7 +761,7 @@ CONTAINS
                            fixd_list(kk)%restraint%k0 = cons_info%fixed_mol_k0(k1loc)
                         ELSE
                            ! Should never reach this point
-                           CPABORT("")
+                           CPABORT("Unknown fix atom specification")
                         END IF
                         IF (fixd_list(kk)%restraint%active) THEN
                            nfixd_restraint = nfixd_restraint + 1
@@ -1164,14 +1164,13 @@ CONTAINS
          ! Check for consistency in the constraint definition
          IF (ANY(lcolv(kk)%colvar%i_atom > last_atom) .OR. &
              ANY(lcolv(kk)%colvar%i_atom < first_atom)) THEN
-            WRITE (*, '(T5,"|",T8,A)') "Error in constraints setup!"
-            WRITE (*, '(T5,"|",T8,A)') "A constraint has been defined for a molecule type", &
-               " but the atoms specified in the constraint and the atoms defined for", &
-               " the molecule DO NOT match!", &
-               "This could be very probable due to a wrong connectivity, or an error", &
-               " in the constraint specification in the input file.", &
-               " Please check it carefully!"
-            CPABORT("")
+            CALL cp_abort(__LOCATION__, &
+                          "Error in constraints setup! A constraint has been "// &
+                          "defined for a molecule type, but the atoms specified "// &
+                          "in the constraint and the atoms defined for the molecule "// &
+                          "DO NOT match! This could be very probable due to a wrong "// &
+                          "connectivity, or an error in the constraint specification "// &
+                          "in the input file. Please check it carefully!")
          END IF
       END DO
    END SUBROUTINE setup_lcolv
@@ -1214,14 +1213,13 @@ CONTAINS
              (g3x3_list(kk)%a + first_atom - 1 > last_atom) .OR. &
              (g3x3_list(kk)%b + first_atom - 1 > last_atom) .OR. &
              (g3x3_list(kk)%c + first_atom - 1 > last_atom)) THEN
-            WRITE (*, '(T5,"|",T8,A)') "Error in constraints setup!"
-            WRITE (*, '(T5,"|",T8,A)') "A constraint has been defined for a molecule type", &
-               " but the atoms specified in the constraint and the atoms defined for", &
-               " the molecule DO NOT match!", &
-               "This could be very probable due to a wrong connectivity, or an error", &
-               " in the constraint specification in the input file.", &
-               " Please check it carefully!"
-            CPABORT("")
+            CALL cp_abort(__LOCATION__, &
+                          "Error in constraints setup! A constraint has been "// &
+                          "defined for a molecule type, but the atoms specified "// &
+                          "in the constraint and the atoms defined for the molecule "// &
+                          "DO NOT match! This could be very probable due to a wrong "// &
+                          "connectivity, or an error in the constraint specification "// &
+                          "in the input file. Please check it carefully!")
          END IF
       END DO
 
@@ -1276,14 +1274,13 @@ CONTAINS
              (g4x6_list(kk)%b + first_atom - 1 > last_atom) .OR. &
              (g4x6_list(kk)%c + first_atom - 1 > last_atom) .OR. &
              (g4x6_list(kk)%d + first_atom - 1 > last_atom)) THEN
-            WRITE (*, '(T5,"|",T8,A)') "Error in constraints setup!"
-            WRITE (*, '(T5,"|",T8,A)') "A constrained has been defined for a molecule type", &
-               " but the atoms specified in the constraint and the atoms defined for", &
-               " the molecule DO NOT match!", &
-               "This could be very probable due to a wrong connectivity, or an error", &
-               " in the constraint specification in the input file.", &
-               " Please check it carefully!"
-            CPABORT("")
+            CALL cp_abort(__LOCATION__, &
+                          "Error in constraints setup! A constrained has been "// &
+                          "defined for a molecule type, but the atoms specified "// &
+                          "in the constraint and the atoms defined for the molecule "// &
+                          "DO NOT match! This could be very probable due to a wrong "// &
+                          "connectivity, or an error in the constraint specification "// &
+                          "in the input file. Please check it carefully!")
          END IF
       END DO
 

@@ -360,7 +360,6 @@ CONTAINS
 
       IF (dft_control%correct_el_density_dip) THEN
          tot_corr_zeff = qs_env%total_zeff_corr
-         !WRITE(*,*) "tot_corr_zeff = ", tot_corr_zeff
          IF ((ABS(tot_corr_zeff) > 0.0_dp) .AND. (density_guess /= restart_guess)) THEN
             CALL cp_warn(__LOCATION__, &
                          "Use SCF_GUESS RESTART in conjunction with "// &
@@ -780,8 +779,12 @@ CONTAINS
 
       IF (density_guess == sparse_guess) THEN
 
-         IF (ofgpw) CPABORT("SPARSE_GUESS not implemented for OFGPW")
-         IF (.NOT. scf_control%use_ot) CPABORT("OT needed!")
+         IF (ofgpw) THEN
+            CPABORT("calculate_first_density_matrix: sparse_guess not implemented for OFGPW")
+         END IF
+         IF (.NOT. scf_control%use_ot) THEN
+            CPABORT("calculate_first_density_matrix: sparse_guess implemented for OT only")
+         END IF
          IF (do_kpoints) THEN
             CPABORT("calculate_first_density_matrix: sparse_guess not implemented for k-points")
          END IF
@@ -910,9 +913,8 @@ CONTAINS
                      !
                      nmo_tmp = nmo_tmp - n_cols
                      natoms_tmp = natoms_tmp - 1
-                     IF (nmo_tmp < 0 .OR. natoms_tmp < 0) THEN
-                        CPABORT("Wrong1!")
-                     END IF
+                     CPASSERT(nmo_tmp >= 0)
+                     CPASSERT(natoms_tmp >= 0)
                      DO j = 1, n_cols
                         CALL dlarnv(1, iseed, n_rows, buff(1, j))
                      END DO
@@ -922,9 +924,7 @@ CONTAINS
                   END DO
                END DO
 
-               IF (istart_col <= nmo) THEN
-                  CPABORT("Wrong2!")
-               END IF
+               CPASSERT(istart_col > nmo)
 
                DEALLOCATE (buff, nelec_kind, sort_kind)
 
@@ -933,7 +933,9 @@ CONTAINS
                   DO i = 1, nmo
                      CALL cp_fm_get_submatrix(mo_coeff, buff, 1, i, nao, 1)
                      IF (SUM(buff**2) < 1E-10_dp) THEN
-                        WRITE (*, *) 'wrong', i, SUM(buff**2)
+                        IF (ounit > 0) THEN
+                           WRITE (ounit, *) 'wrong', i, SUM(buff**2)
+                        END IF
                      END IF
                      length = SQRT(DOT_PRODUCT(buff(:, 1), buff(:, 1)))
                      buff(:, :) = buff(:, :)/length
@@ -942,16 +944,18 @@ CONTAINS
                         length = SQRT(DOT_PRODUCT(buff2(:, 1), buff2(:, 1)))
                         buff2(:, :) = buff2(:, :)/length
                         IF (ABS(DOT_PRODUCT(buff(:, 1), buff2(:, 1)) - 1.0_dp) < 1E-10_dp) THEN
-                           WRITE (*, *) 'wrong2', i, j, DOT_PRODUCT(buff(:, 1), buff2(:, 1))
-                           DO ikind = 1, nao
-                              IF (ABS(mo_coeff%local_data(ikind, i)) > 1e-10_dp) THEN
-                                 WRITE (*, *) 'c1', ikind, mo_coeff%local_data(ikind, i)
-                              END IF
-                              IF (ABS(mo_coeff%local_data(ikind, j)) > 1e-10_dp) THEN
-                                 WRITE (*, *) 'c2', ikind, mo_coeff%local_data(ikind, j)
-                              END IF
-                           END DO
-                           CPABORT("")
+                           IF (ounit > 0) THEN
+                              WRITE (ounit, *) 'wrong2', i, j, DOT_PRODUCT(buff(:, 1), buff2(:, 1))
+                              DO ikind = 1, nao
+                                 IF (ABS(mo_coeff%local_data(ikind, i)) > 1e-10_dp) THEN
+                                    WRITE (ounit, *) 'c1', ikind, mo_coeff%local_data(ikind, i)
+                                 END IF
+                                 IF (ABS(mo_coeff%local_data(ikind, j)) > 1e-10_dp) THEN
+                                    WRITE (ounit, *) 'c2', ikind, mo_coeff%local_data(ikind, j)
+                                 END IF
+                              END DO
+                           END IF
+                           CPABORT("Something went wrong with sparse_guess!")
                         END IF
                      END DO
                   END DO
@@ -1326,7 +1330,7 @@ CONTAINS
                         pdiag(isgfa + 14) = econf(3)/7._dp
                         pdiag(isgfa + 15) = econf(3)/7._dp
                      CASE DEFAULT
-                        CPABORT("")
+                        CPABORT("Only 0, 1, 2, 3 are supported as the value of la")
                      END SELECT
                   END DO
                END DO
@@ -1400,7 +1404,10 @@ CONTAINS
                         END IF
                      END IF
                   CASE DEFAULT
-                     CPABORT("")
+                     CALL cp_abort(__LOCATION__, &
+                                   "Only 1 for s-basis, 4 for sp-basis and 9 for spd-basis "// &
+                                   "are supported as the value of nsgf in the MOPAC type "// &
+                                   "guess for semi-empirical methods")
                   END SELECT
                END DO
             ELSE

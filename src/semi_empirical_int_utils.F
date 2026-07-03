@@ -560,7 +560,7 @@ CONTAINS
          RETURN
       END IF
       ! We should NEVER reach this point
-      CPABORT("")
+      CPABORT("Something went wrong with charg_int_nri")
    END FUNCTION charg_int_nri
 
 ! **************************************************************************************************
@@ -762,7 +762,7 @@ CONTAINS
          RETURN
       END IF
       ! We should NEVER reach this point
-      CPABORT("")
+      CPABORT("Something went wrong with dcharg_int_nri")
    END FUNCTION dcharg_int_nri
 
 ! **************************************************************************************************
@@ -967,7 +967,7 @@ CONTAINS
          RETURN
       END IF
       ! We should NEVER reach this point
-      CPABORT("")
+      CPABORT("Something went wrong with dcharg_int_nri_fs")
    END FUNCTION dcharg_int_nri_fs
 
 ! **************************************************************************************************
@@ -1394,7 +1394,7 @@ CONTAINS
          RETURN
       END IF
       ! We should NEVER reach this point
-      CPABORT("")
+      CPABORT("Something went wrong with charg_int_ri")
    END FUNCTION charg_int_ri
 
 ! **************************************************************************************************
@@ -1528,7 +1528,7 @@ CONTAINS
          RETURN
       END IF
       ! We should NEVER reach this point
-      CPABORT("")
+      CPABORT("Something went wrong with dcharg_int_ri")
    END FUNCTION dcharg_int_ri
 
 ! **************************************************************************************************
@@ -1666,7 +1666,7 @@ CONTAINS
          RETURN
       END IF
       ! We should NEVER reach this point
-      CPABORT("")
+      CPABORT("Something went wrong with dcharg_int_ri_fs")
    END FUNCTION dcharg_int_ri_fs
 
 ! **************************************************************************************************
@@ -2463,7 +2463,7 @@ CONTAINS
             END DO
          END DO
       ELSE
-         CPABORT("")
+         CPABORT("Something went wrong with store_2el_2c_diag")
       END IF
 
    END SUBROUTINE store_2el_2c_diag

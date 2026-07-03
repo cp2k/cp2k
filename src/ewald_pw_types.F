@@ -289,7 +289,7 @@ CONTAINS
       CASE (do_ewald_none)
          ! No EWALD sums..
       CASE default
-         CPABORT("")
+         CPABORT("Unknown ewald_type for ewald_pw_init")
       END SELECT
       ! Poisson Environment
       IF (ASSOCIATED(ewald_pw%poisson_env)) THEN

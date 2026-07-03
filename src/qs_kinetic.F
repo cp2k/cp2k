@@ -238,7 +238,7 @@ CONTAINS
             nimg = dft_control%nimages
          END IF
       ELSE
-         CPABORT("")
+         CPABORT("Either matrix_t or matrixkp_t is needed for build_kinetic_matrix_low")
       END IF
 
       nkind = SIZE(atomic_kind_set)

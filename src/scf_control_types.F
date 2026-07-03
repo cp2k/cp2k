@@ -757,7 +757,7 @@ CONTAINS
                CASE (outer_scf_cdft_constraint)
                   CPABORT("CDFT constraints must be defined in QS&CDFT")
                CASE DEFAULT
-                  CPABORT("")
+                  CPABORT("Unknown outer SCF type")
                END SELECT
                WRITE (output_unit, '(T25,A,T72,ES9.2)') "eps_scf", scf_control%outer_scf%eps_scf
                WRITE (output_unit, '(T25,A,T72,I9)') "max_scf", scf_control%outer_scf%max_scf
@@ -779,7 +779,7 @@ CONTAINS
                CASE (outer_scf_optimizer_secant)
                   WRITE (output_unit, '(T25,A)') "Optimization with the secant method"
                CASE DEFAULT
-                  CPABORT("")
+                  CPABORT("Unknown outer SCF optimizer")
                END SELECT
                WRITE (output_unit, '(T25,A,T72,ES9.2)') "step_size", scf_control%outer_scf%step_size
             ELSE

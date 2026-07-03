@@ -193,11 +193,15 @@ CONTAINS
                                             c_val=cons_info%const_g33_molname(ig))
                END IF
                IF ((cons_info%const_g33_mol(ig) /= 0) .AND. (cons_info%const_g33_molname(ig) /= "UNDEF")) THEN
-                  CPABORT("")
+                  CALL cp_abort(__LOCATION__, &
+                                "Invalid G3X3 constraint section "//cp_to_string(ig)//": "// &
+                                "check MOLECULE and MOLNAME setup!")
                END IF
                IF ((cons_info%const_g33_mol(ig) == 0) .AND. (cons_info%const_g33_molname(ig) == "UNDEF") .AND. &
                    (.NOT. cons_info%g33_intermolecular(ig))) THEN
-                  CPABORT("")
+                  CALL cp_abort(__LOCATION__, &
+                                "Invalid G3X3 constraint section "//cp_to_string(ig)//": "// &
+                                "check MOLECULE and MOLNAME setup!")
                END IF
                CALL section_vals_val_get(g3x3_section, "ATOMS", i_rep_section=ig, &
                                          i_vals=ilist)
@@ -271,11 +275,15 @@ CONTAINS
                                             c_val=cons_info%const_g46_molname(ig))
                END IF
                IF ((cons_info%const_g46_mol(ig) /= 0) .AND. (cons_info%const_g46_molname(ig) /= "UNDEF")) THEN
-                  CPABORT("")
+                  CALL cp_abort(__LOCATION__, &
+                                "Invalid G4X6 constraint section "//cp_to_string(ig)//": "// &
+                                "check MOLECULE and MOLNAME setup!")
                END IF
                IF ((cons_info%const_g46_mol(ig) == 0) .AND. (cons_info%const_g46_molname(ig) == "UNDEF") .AND. &
                    (.NOT. cons_info%g46_intermolecular(ig))) THEN
-                  CPABORT("")
+                  CALL cp_abort(__LOCATION__, &
+                                "Invalid G4X6 constraint section "//cp_to_string(ig)//": "// &
+                                "check MOLECULE and MOLNAME setup!")
                END IF
                CALL section_vals_val_get(g4x6_section, "ATOMS", i_rep_section=ig, &
                                          i_vals=ilist)
@@ -348,11 +356,15 @@ CONTAINS
                                             c_val=cons_info%const_vsite_molname(ig))
                END IF
                IF ((cons_info%const_vsite_mol(ig) /= 0) .AND. (cons_info%const_vsite_molname(ig) /= "UNDEF")) THEN
-                  CPABORT("")
+                  CALL cp_abort(__LOCATION__, &
+                                "Invalid VIRTUAL_SITE constraint section "//cp_to_string(ig)//": "// &
+                                "check MOLECULE and MOLNAME setup!")
                END IF
                IF ((cons_info%const_vsite_mol(ig) == 0) .AND. (cons_info%const_vsite_molname(ig) == "UNDEF") .AND. &
                    (.NOT. cons_info%vsite_intermolecular(ig))) THEN
-                  CPABORT("")
+                  CALL cp_abort(__LOCATION__, &
+                                "Invalid VIRTUAL_SITE constraint section "//cp_to_string(ig)//": "// &
+                                "check MOLECULE and MOLNAME setup!")
                END IF
                CALL section_vals_val_get(vsite_section, "ATOMS", i_rep_section=ig, &
                                          i_vals=ilist)

@@ -488,7 +488,7 @@ CONTAINS
       CASE (no_colvar_id)
          ! Do nothing
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unknown colvar type")
       END SELECT
 
    END SUBROUTINE colvar_create
@@ -1336,7 +1336,7 @@ CONTAINS
       CASE (no_colvar_id)
          ! Do nothing
       CASE default
-         CPABORT("")
+         CPABORT("Unknown colvar type")
       END SELECT
       DEALLOCATE (colvar)
 

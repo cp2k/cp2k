@@ -468,7 +468,10 @@ CONTAINS
             END DO
          END DO
       CASE DEFAULT
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       "<overlap_admm> is supported as the <forcetype> "// &
+                       "for add_qs_force, found unknown option "// &
+                       "<"//TRIM(forcetype)//">")
       END SELECT
 
    END SUBROUTINE add_qs_force
@@ -506,7 +509,10 @@ CONTAINS
             END DO
          END DO
       CASE DEFAULT
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       "<dispersion> is supported as the <forcetype> "// &
+                       "for put_qs_force, found unknown option "// &
+                       "<"//TRIM(forcetype)//">")
       END SELECT
 
    END SUBROUTINE put_qs_force
@@ -544,7 +550,10 @@ CONTAINS
             END DO
          END DO
       CASE DEFAULT
-         CPABORT("")
+         CALL cp_abort(__LOCATION__, &
+                       "<dispersion> is supported as the <forcetype> "// &
+                       "for get_qs_force, found unknown option "// &
+                       "<"//TRIM(forcetype)//">")
       END SELECT
 
    END SUBROUTINE get_qs_force
