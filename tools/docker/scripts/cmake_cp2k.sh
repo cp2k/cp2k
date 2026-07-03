@@ -91,6 +91,7 @@ elif [[ "${PROFILE}" == "toolchain_intel" ]] && [[ "${VERSION}" == "psmp" ]]; th
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=OFF \
+    -DCP2K_USE_FFTW3=ON \
     -DCP2K_USE_MPI=ON \
     -Werror=dev \
     .. |& tee ./cmake.log
@@ -101,6 +102,7 @@ elif [[ "${PROFILE}" == "toolchain_intel" ]] && [[ "${VERSION}" == "ssmp" ]]; th
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=OFF \
+    -DCP2K_USE_FFTW3=ON \
     -DCP2K_USE_MPI=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
