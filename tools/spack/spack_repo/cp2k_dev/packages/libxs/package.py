@@ -33,7 +33,6 @@ class Libxs(CMakePackage):
     depends_on("c", type="build")
     depends_on("fortran", type="build", when="+fortran")
 
-    depends_on("libxsmm")
     depends_on("blas", when="+tests")
 
     def cmake_args(self):
