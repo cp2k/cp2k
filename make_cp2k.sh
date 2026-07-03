@@ -50,7 +50,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 1.9
+# Version: 2.0
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -246,7 +246,7 @@ while [[ $# -gt 0 ]]; do
                 for package in libint2 libxc libxs spglib vori tblite; do
                   CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=ON"
                 done
-                for package in ace deepmd gauxc greenx hdf5 libfci libtorch pexsi trexio; do
+                for package in ace deepmd gauxc greenx hdf5 libfci libgint libtorch pexsi trexio; do
                   CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=OFF"
                 done
                 ;;
@@ -280,8 +280,8 @@ while [[ $# -gt 0 ]]; do
             # Enable or disable all features
             CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=${ON_OFF}"
             for package in adios2 cosma deepmdkit dla-future dla-future-fortran elpa \
-              gauxc greenx hdf5 libfci libfabric libint libvdwxc libsmeagol libvori libxc \
-              libxs mimic-mcl openpmd-api pace pexsi plumed py-torch sirius spfft \
+              gauxc greenx hdf5 libfabric libfci libint libvdwxc libsmeagol libvori \
+              libxc libxs mimic-mcl openpmd-api pace pexsi plumed py-torch sirius spfft \
               spglib spla tblite trexio; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"${package}@/ ${SUBST}"
             done
@@ -290,16 +290,17 @@ while [[ $# -gt 0 ]]; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"smm=libxs\"/ s/libxs/blas/'"
             fi
             ;;
-          ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | hdf5 | libfci | libint2 | \
-            libsmeagol | libtorch | libxc | libxs | mimic | openpmd | pexsi | plumed | spglib | \
-            tblite | trexio | vori)
+          ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | hdf5 | libfci | \
+            libgint | libint2 | libsmeagol | libtorch | libxc | libxs | mimic | openpmd | pexsi | \
+            plumed | spglib | tblite | trexio | vori)
             CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${2^^}=${ON_OFF}"
             # Translate package selection to sed pattern
             case "${2,,}" in
               ace)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"p${2,,}@/ ${SUBST}"
                 ;;
-              cosma | elpa | greenx | hdf5 | libfci | libsmeagol | libxc | pexsi | plumed | spglib | trexio)
+              cosma | elpa | greenx | hdf5 | libfci | libsmeagol | libxc | pexsi | plumed | \
+                spglib | trexio)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
                 ;;
               deepmd)
@@ -703,7 +704,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " - The folder ${CP2K_ROOT}/install is updated after each successful run"
   echo ""
   echo "Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | hdf5 | libfci |"
-  echo "          libint | libsmeagol | libtorch | libvdwxc | libxs | mimic | openpmd | pexsi | plumed |"
+  echo "          libgint | libint | libsmeagol | libtorch | libvdwxc | libxs | mimic | openpmd | pexsi | plumed |"
   echo "          sirius | spfft | spglib | spla | tblite | trexio | vori "
   echo ""
   echo "Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | pw_gpu |"
@@ -833,7 +834,7 @@ case "${CP2K_VERSION}" in
     done
     # Further exclusions are needed for statically linked serial CP2K binaries
     if [[ "${CP2K_VERSION}" == "ssmp-static" ]]; then
-      for package in ace deepmd greenx hdf5 libtorch trexio; do
+      for package in ace deepmd greenx hdf5 libgint libtorch trexio; do
         if [[ "${CMAKE_FEATURE_FLAGS}" == *" -DCP2K_USE_${package^^}=ON"* ]]; then
           echo -e "ERROR: The feature ${package^^} is not available for building statically linked serial CP2K binaries (${CP2K_VERSION})\n"
           ${EXIT_CMD} 1
@@ -1115,6 +1116,16 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
     fi
   else
     sed -E -e 's/"~cuda\s+~gdrcopy"/"\~cuda"/' -i "${CP2K_CONFIG_FILE}"
+  fi
+
+  # CUDA is required for libgint is requested
+  if [[ "${CMAKE_CUDA_FLAGS}" == *"-DCP2K_USE_ACCEL=CUDA"* ]]; then
+    if [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_EVERYTHING=ON"* ]] ||
+      [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_LIBGINT=ON"* ]]; then
+      sed -E \
+        -e '/\s*#\s*-\s+"libgint@/ s/#/ /' \
+        -i "${CP2K_CONFIG_FILE}"
+    fi
   fi
 
   # Activate OpenCL support if requested
