@@ -4,15 +4,48 @@
 
 ### New Features
 
-- TODO
+- DFT+U with k-points for Mulliken methods ([#4855](https://github.com/cp2k/cp2k/pull/4855))
+- Lowdin population analysis for k-points ([#5045](https://github.com/cp2k/cp2k/pull/5045))
+- Wavefunction extrapolation for k-point calculations
+  ([#4884](https://github.com/cp2k/cp2k/pull/4884), [#4943](https://github.com/cp2k/cp2k/pull/4943),
+  [#4949](https://github.com/cp2k/cp2k/pull/4949), [#5219](https://github.com/cp2k/cp2k/pull/5219))
+- GExt wavefunction extrapolation ([#5043](https://github.com/cp2k/cp2k/pull/5043),
+  [#5229](https://github.com/cp2k/cp2k/pull/5229))
+- Adaptively Compressed Exchange (ACE) option to the HFX/ADMM ground-state path
+  ([#5238](https://github.com/cp2k/cp2k/pull/5238))
+- Alternative smearing methods ([#4958](https://github.com/cp2k/cp2k/pull/4958))
+- DOS/PDOS with broadened output and k-point projections
+  ([#5287](https://github.com/cp2k/cp2k/pull/5287),
+  [#5299](https://github.com/cp2k/cp2k/pull/5299),)
+- K-point symmetry reduction ([#5123](https://github.com/cp2k/cp2k/pull/5123),
+  [#5152](https://github.com/cp2k/cp2k/pull/5152), [#5165](https://github.com/cp2k/cp2k/pull/5165),
+  [#5173](https://github.com/cp2k/cp2k/pull/5173))
+- **TODO**
+
+### New Libraries
+
+- Add openPMD output, including scientific metadata support
+  ([#4058](https://github.com/cp2k/cp2k/pull/4058), [#4931](https://github.com/cp2k/cp2k/pull/4931),
+  [#4942](https://github.com/cp2k/cp2k/pull/4942), [#5096](https://github.com/cp2k/cp2k/pull/5096))
+- GauXC/Skala models ([#5084](https://github.com/cp2k/cp2k/pull/5084))
+- LibFCI active-space solver ([#5167](https://github.com/cp2k/cp2k/pull/5167))
+- Reintegrate with LIBXS, LIBXSTREAM, and LIBXSMM ([#5343](https://github.com/cp2k/cp2k/pull/5343))
+- Add libGint for Hartree–Fock exchange with CUDA acceleration
+  ([#5446](https://github.com/cp2k/cp2k/pull/5446))
+- **TODO**
 
 ### Breaking Changes
 
-- TODO
+- Remove &MOTION/&CELL_OPT/TYPE; cell optimizations now always use DIRECT_CELL_OPT
+  ([#5257](https://github.com/cp2k/cp2k/pull/5257))
+- Drop support for GCC 8 ([#5290](https://github.com/cp2k/cp2k/pull/5290))
+- Refactor DOS/PDOS input section ([#5326](https://github.com/cp2k/cp2k/pull/5326))
+- **TODO**
 
 ### Fixes
 
-- TODO
+- Fix issues in the native DFT-D4 implementation. ([#5030](https://github.com/cp2k/cp2k/pull/5030))
+- **TODO**
 
 ______________________________________________________________________
 
