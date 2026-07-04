@@ -68,6 +68,18 @@ def cmakeformat():
 
 
 # ======================================================================================
+@app.route("/cmakelint", methods=["POST"])
+def cmakelint():
+    # Note: the config path must be passed as a single "--flag=value" token.
+    # cmake-lint's "-c"/"--config-files" option is nargs="+", so passing it as
+    # two separate argv tokens ("-c", path) would greedily swallow the target
+    # filename that run_tool() appends as another config file, and silently
+    # scan zero files instead.
+    config = f"--config-files={os.getcwd()}/cmake-lint.yaml"
+    return run_tool(["cmake-lint", config], timeout=30)
+
+
+# ======================================================================================
 @app.route("/fortitude", methods=["POST"])
 def fortitude():
     config = f"--config-file={os.getcwd()}/fortitude.toml"

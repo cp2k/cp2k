@@ -54,7 +54,11 @@ find_package_handle_standard_args(
   CuSolverMP DEFAULT_MSG CP2K_CUSOLVER_MP_LINK_LIBRARIES
   CP2K_CUSOLVER_MP_INCLUDE_DIRS)
 
-if(CP2K_CUSOLVER_MP_FOUND AND NOT TARGET cp2k::CUSOLVER_MP::cusolver_mp)
+if(NOT CP2K_CUSOLVER_MP_FOUND)
+  message(FATAL_ERROR "CuSolverMP requested, but not found")
+endif()
+
+if(NOT TARGET cp2k::CUSOLVER_MP::cusolver_mp)
   add_library(cp2k::CUSOLVER_MP::cusolver_mp INTERFACE IMPORTED)
 
   if(CP2K_CUSOLVERMP_USE_NCCL)
@@ -70,8 +74,6 @@ if(CP2K_CUSOLVER_MP_FOUND AND NOT TARGET cp2k::CUSOLVER_MP::cusolver_mp)
   set_target_properties(
     cp2k::CUSOLVER_MP::cusolver_mp
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_CUSOLVER_MP_INCLUDE_DIRS}")
-else()
-  message(FATAL_ERROR "CuSolverMP requested, but not found")
 endif()
 
 mark_as_advanced(CP2K_CUSOLVER_MP_LINK_LIBRARIES)

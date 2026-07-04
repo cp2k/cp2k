@@ -53,7 +53,7 @@ find_package_handle_standard_args(
     CP2K_ARMPL_ILP64_MP_LINK_LIBRARIES)
 
 # add target to link against
-if(NOT TARGET Armpl::armpl)
+if(NOT TARGET cp2k::BLAS::Armpl::armpl)
   add_library(cp2k::BLAS::Armpl::armpl INTERFACE IMPORTED)
   # now define an alias to the target library
   add_library(cp2k::BLAS::Armpl::blas ALIAS cp2k::BLAS::Armpl::armpl)
