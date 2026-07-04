@@ -224,7 +224,9 @@ CONTAINS
 !                           *  *  *
 
       wunit = default_output_unit
-      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
+      IF (PRESENT(iwunit)) THEN
+         IF (iwunit > 0) wunit = iwunit
+      END IF
 
       IF (task == 'START') THEN
          CALL cite_reference(Byrd1995)
@@ -450,7 +452,9 @@ CONTAINS
 !                           *  *  *
 
       wunit = default_output_unit
-      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
+      IF (PRESENT(iwunit)) THEN
+         IF (iwunit > 0) wunit = iwunit
+      END IF
 
       keep_space_group = .FALSE.
       IF (PRESENT(spgr)) THEN
@@ -1047,7 +1051,9 @@ CONTAINS
       INTEGER                                            :: i, nbdd, wunit
 
       wunit = default_output_unit
-      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
+      IF (PRESENT(iwunit)) THEN
+         IF (iwunit > 0) wunit = iwunit
+      END IF
 
 !     ************
 !     Initialize nbdd, x_projected, constrained and boxed.
@@ -1307,7 +1313,9 @@ CONTAINS
                                                             tu, wmc, wmp, wmw, zibp
 
       wunit = default_output_unit
-      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
+      IF (PRESENT(iwunit)) THEN
+         IF (iwunit > 0) wunit = iwunit
+      END IF
 
 !     References:
 !
@@ -2155,7 +2163,9 @@ CONTAINS
       INTEGER                                            :: i, iact, k, wunit
 
       wunit = default_output_unit
-      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
+      IF (PRESENT(iwunit)) THEN
+         IF (iwunit > 0) wunit = iwunit
+      END IF
 
       nenter = 0
       ileave = n + 1
@@ -2373,7 +2383,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: a1, a2, ddot
 
       wunit = default_output_unit
-      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
+      IF (PRESENT(iwunit)) THEN
+         IF (iwunit > 0) wunit = iwunit
+      END IF
 
       IF (.NOT. (task(1:5) == 'FG_LN')) THEN
 
@@ -2583,7 +2595,9 @@ CONTAINS
       INTEGER                                            :: i, wunit
 
       wunit = default_output_unit
-      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
+      IF (PRESENT(iwunit)) THEN
+         IF (iwunit > 0) wunit = iwunit
+      END IF
 
       IF (iprint >= 0) THEN
          WRITE (wunit, 7001) epsmch
@@ -2670,7 +2684,9 @@ CONTAINS
       INTEGER                                            :: i, imod, wunit
 
       wunit = default_output_unit
-      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
+      IF (PRESENT(iwunit)) THEN
+         IF (iwunit > 0) wunit = iwunit
+      END IF
 
 !           'word' records the status of subspace solutions.
 
@@ -2768,7 +2784,9 @@ CONTAINS
       INTEGER                                            :: i, wunit
 
       wunit = default_output_unit
-      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
+      IF (PRESENT(iwunit)) THEN
+         IF (iwunit > 0) wunit = iwunit
+      END IF
 
       IF (iprint >= 0 .AND. .NOT. (task(1:5) == 'ERROR')) THEN
          WRITE (wunit, 3003)
@@ -3059,7 +3077,9 @@ CONTAINS
 !
 
       wunit = default_output_unit
-      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
+      IF (PRESENT(iwunit)) THEN
+         IF (iwunit > 0) wunit = iwunit
+      END IF
 
       IF (nsub <= 0) RETURN
       IF (iprint >= 99) WRITE (wunit, 4001)

@@ -184,7 +184,11 @@ CONTAINS
          do_kp = (nimages > 1)
 
          IF (do_kp) THEN
-            CPASSERT(PRESENT(cell_to_index) .AND. ASSOCIATED(cell_to_index))
+            IF (PRESENT(cell_to_index)) THEN
+               CPASSERT(ASSOCIATED(cell_to_index))
+            ELSE
+               CPABORT("Missing cell_to_index for k-point calculation")
+            END IF
          END IF
 
          IF (calculate_forces .OR. doat) THEN

@@ -244,6 +244,7 @@ CONTAINS
       INTEGER                                            :: dim_op, handle, i, iatom, imo, imoloc, &
                                                             ispin, j, l_spin, lb, nao, naosub, &
                                                             natoms, nmo, nmosub, nspins, s_spin, ub
+      LOGICAL                                            :: loc_coeff_spin_resolved
       REAL(KIND=dp)                                      :: my_occ, occ_imo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupations
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
@@ -267,13 +268,17 @@ CONTAINS
                          local_molecules=local_molecules, particle_set=particle_set, &
                          para_env=para_env, mos=mos)
          nspins = SIZE(mos, 1)
+         loc_coeff_spin_resolved = .FALSE.
+         IF (PRESENT(loc_coeff)) THEN
+            loc_coeff_spin_resolved = nspins*2 == SIZE(loc_coeff)
+         END IF
          s_spin = 1
          l_spin = nspins
          IF (PRESENT(myspin)) THEN
             s_spin = myspin
             l_spin = myspin
          END IF
-         IF (PRESENT(loc_coeff) .AND. nspins*2 == SIZE(loc_coeff)) THEN
+         IF (loc_coeff_spin_resolved) THEN
             ALLOCATE (moloc_coeff(s_spin:s_spin + 2*(l_spin - s_spin) + 1))
          ELSE
             ALLOCATE (moloc_coeff(s_spin:l_spin))
@@ -284,7 +289,7 @@ CONTAINS
             nmosub = localized_wfn_control%nloc_states(ispin)
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                      ncol_global=nmosub, para_env=para_env, context=mo_coeff%matrix_struct%context)
-            IF (PRESENT(loc_coeff) .AND. nspins*2 == SIZE(loc_coeff)) THEN
+            IF (loc_coeff_spin_resolved) THEN
                CALL cp_fm_create(moloc_coeff(2*ispin - 1), tmp_fm_struct)
                CALL cp_fm_create(moloc_coeff(2*ispin), tmp_fm_struct)
             ELSE
@@ -359,7 +364,7 @@ CONTAINS
                END IF
                nmosub = localized_wfn_control%nloc_states(ispin)
 
-               IF (PRESENT(loc_coeff) .AND. nspins*2 == SIZE(loc_coeff)) THEN
+               IF (loc_coeff_spin_resolved) THEN
                   CALL cp_fm_to_fm(loc_coeff(2*ispin - 1), moloc_coeff(2*ispin - 1))
                   CALL cp_fm_to_fm(loc_coeff(2*ispin), moloc_coeff(2*ispin))
                ELSE

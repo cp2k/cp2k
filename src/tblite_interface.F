@@ -1325,14 +1325,13 @@ CONTAINS
       INTEGER                                            :: nimg, nkind, nsgf, natorb, na, n_mix_cols, mix_offset
       INTEGER                                            :: n_atom, max_orb, max_shell
       INTEGER                                            :: raw_state_status, raw_state_unit
-      LOGICAL                                            :: discard_mixed_output, do_combined_mixing, do_dipole, do_quadrupole, &
-                                                            native_sign_mixing, skip_charge_mixing, &
-                                                            reuse_native_input, skip_scf_dispersion, skip_scf_dispersion_energy, &
-                                                            seed_native_from_rho, &
+      LOGICAL                                            :: advance_native_mixer, discard_mixed_output, do_combined_mixing, &
+                                                            do_dipole, do_quadrupole, native_sign_mixing, &
+                                                            skip_charge_mixing, reuse_native_input, skip_scf_dispersion, &
+                                                            skip_scf_dispersion_energy, seed_native_from_rho, &
                                                             skip_scf_dispersion_gradient, skip_scf_dispersion_potential, &
                                                             use_native_mixer, use_no_mixer
-      REAL(KIND=dp)                                      :: native_seed_charge, norm, moment_alpha, &
-                                                            new_charge, pao
+      REAL(KIND=dp)                                      :: native_seed_charge, norm, new_charge, pao
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       INTEGER                                            :: debug_status
       CHARACTER(LEN=32)                                  :: debug_value
@@ -1405,21 +1404,24 @@ CONTAINS
             CPABORT("Unknown tblite SCC mixer")
          END SELECT
       END IF
-      IF (use_native_mixer .AND. use_rho .AND. (.NOT. calculate_forces) .AND. &
-          scf_env%iter_count > dft_control%qs_control%xtb_control%tblite_mixer_iterations) THEN
-         CPABORT("tblite SCC mixer exceeded TBLITE_MIXER/ITERATIONS")
-      END IF
-      IF (use_native_mixer .AND. use_rho .AND. (.NOT. calculate_forces) .AND. &
-          scf_env%iter_count == 1) THEN
-         CALL tb_configure_mixer(tb, dft_control%qs_control%xtb_control%tblite_mixer_iterations, &
-                                 dft_control%qs_control%xtb_control%tblite_mixer_memory, &
-                                 dft_control%qs_control%xtb_control%tblite_mixer_damping, &
-                                 dft_control%qs_control%xtb_control%tblite_mixer_omega0, &
-                                 dft_control%qs_control%xtb_control%tblite_mixer_min_weight, &
-                                 dft_control%qs_control%xtb_control%tblite_mixer_max_weight, &
-                                 dft_control%qs_control%xtb_control%tblite_mixer_weight_factor, &
-                                 dft_control%qs_control%xtb_control%tblite_mixer_solver)
-         CALL tb_reset_mixer(tb)
+      IF (use_native_mixer) THEN
+         IF (.NOT. ASSOCIATED(scf_env)) CPABORT("tblite SCC mixer requires a QS SCF environment")
+         IF (use_rho .AND. (.NOT. calculate_forces)) THEN
+            IF (scf_env%iter_count > dft_control%qs_control%xtb_control%tblite_mixer_iterations) THEN
+               CPABORT("tblite SCC mixer exceeded TBLITE_MIXER/ITERATIONS")
+            END IF
+            IF (scf_env%iter_count == 1) THEN
+               CALL tb_configure_mixer(tb, dft_control%qs_control%xtb_control%tblite_mixer_iterations, &
+                                       dft_control%qs_control%xtb_control%tblite_mixer_memory, &
+                                       dft_control%qs_control%xtb_control%tblite_mixer_damping, &
+                                       dft_control%qs_control%xtb_control%tblite_mixer_omega0, &
+                                       dft_control%qs_control%xtb_control%tblite_mixer_min_weight, &
+                                       dft_control%qs_control%xtb_control%tblite_mixer_max_weight, &
+                                       dft_control%qs_control%xtb_control%tblite_mixer_weight_factor, &
+                                       dft_control%qs_control%xtb_control%tblite_mixer_solver)
+               CALL tb_reset_mixer(tb)
+            END IF
+         END IF
       END IF
       nspin = dft_control%nspins
       IF (nspin /= tb%wfn%nspin) CPABORT("CP2K/tblite spin channel mismatch")
@@ -1438,12 +1440,14 @@ CONTAINS
       IF (ASSOCIATED(tb%dipbra)) do_dipole = .TRUE.
       IF (ASSOCIATED(tb%quadbra)) do_quadrupole = .TRUE.
       reuse_native_input = .FALSE.
-      IF (use_native_mixer .AND. scf_env%iter_count == 1) THEN
-         reuse_native_input = ANY(ABS(tb%wfn%qsh) > 1.0E-14_dp)
-         IF (do_dipole) reuse_native_input = reuse_native_input .OR. &
-                                             ANY(ABS(tb%wfn%dpat) > 1.0E-14_dp)
-         IF (do_quadrupole) reuse_native_input = reuse_native_input .OR. &
-                                                 ANY(ABS(tb%wfn%qpat) > 1.0E-14_dp)
+      IF (use_native_mixer) THEN
+         IF (scf_env%iter_count == 1) THEN
+            reuse_native_input = ANY(ABS(tb%wfn%qsh) > 1.0E-14_dp)
+            IF (do_dipole) reuse_native_input = reuse_native_input .OR. &
+                                                ANY(ABS(tb%wfn%dpat) > 1.0E-14_dp)
+            IF (do_quadrupole) reuse_native_input = reuse_native_input .OR. &
+                                                    ANY(ABS(tb%wfn%qpat) > 1.0E-14_dp)
+         END IF
       END IF
       n_atom = SIZE(particle_set)
       nkind = SIZE(atomic_kind_set)
@@ -1609,7 +1613,11 @@ CONTAINS
 
       IF (use_native_mixer) THEN
          IF (.NOT. ALLOCATED(tb%mixer)) CPABORT("tblite mixer not initialized")
-         IF (use_rho .AND. (.NOT. calculate_forces) .AND. scf_env%iter_count > 1) THEN
+         advance_native_mixer = .FALSE.
+         IF (use_rho .AND. (.NOT. calculate_forces)) THEN
+            advance_native_mixer = scf_env%iter_count > 1
+         END IF
+         IF (advance_native_mixer) THEN
             CALL tb%mixer%next(error)
             IF (ALLOCATED(error)) CPABORT("tblite native mixer failed")
             CALL tb%mixer%get(tb%wfn%qsh)
@@ -1840,7 +1848,6 @@ CONTAINS
          CALL tb%pot%reset
          tb%e_es = 0.0_dp
          tb%e_scd = 0.0_dp
-         moment_alpha = scf_env%p_mix_alpha
          IF (nspin > 1) THEN
             DO iatom = 1, n_atom
                ii = tb%calc%bas%ish_at(iatom)

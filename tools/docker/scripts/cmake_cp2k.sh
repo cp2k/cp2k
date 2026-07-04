@@ -90,8 +90,14 @@ elif [[ "${PROFILE}" == "toolchain_intel" ]] && [[ "${VERSION}" == "psmp" ]]; th
   cmake \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_USE_EVERYTHING=OFF \
-    -DCP2K_USE_MPI=ON \
+    -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_OPENPMD=OFF \
+    -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_GAUXC=OFF \
+    -DCP2K_USE_MIMIC=OFF \
+    -DCP2K_USE_PEXSI=OFF \
+    -DCP2K_USE_DLAF=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
@@ -100,8 +106,14 @@ elif [[ "${PROFILE}" == "toolchain_intel" ]] && [[ "${VERSION}" == "ssmp" ]]; th
   cmake \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_USE_EVERYTHING=OFF \
+    -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_MPI=OFF \
+    -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_GAUXC=OFF \
+    -DCP2K_USE_MIMIC=OFF \
+    -DCP2K_USE_PEXSI=OFF \
+    -DCP2K_USE_DLAF=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?

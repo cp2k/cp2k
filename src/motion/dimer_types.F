@@ -309,9 +309,11 @@ CONTAINS
                                 nfixd=nfixed_atoms, &
                                 fixd_list=fixd_list)
          IF (ASSOCIATED(fixd_list)) THEN
-            IF (PRESENT(unit) .AND. unit > 0) THEN
-               WRITE (unit, "(/,T2,A,T9,A,T71,I10)") &
-                  "DIMER|", "Number of fixed atoms to adjust dimer vector", nfixed_atoms
+            IF (PRESENT(unit)) THEN
+               IF (unit > 0) THEN
+                  WRITE (unit, "(/,T2,A,T9,A,T71,I10)") &
+                     "DIMER|", "Number of fixed atoms to adjust dimer vector", nfixed_atoms
+               END IF
             END IF
             DO ii = 1, nfixed_atoms
                IF (.NOT. fixd_list(ii)%restraint%active) THEN

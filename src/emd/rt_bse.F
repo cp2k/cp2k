@@ -1398,11 +1398,13 @@ CONTAINS
       END IF
 
       NULLIFY (work)
-      IF (PRESENT(work_opt) .AND. SIZE(work_opt) >= 4) THEN
-         deallocate_work = .FALSE.
+      deallocate_work = .TRUE.
+      IF (PRESENT(work_opt)) THEN
+         deallocate_work = SIZE(work_opt) < 4
+      END IF
+      IF (.NOT. deallocate_work) THEN
          work => work_opt
       ELSE
-         deallocate_work = .TRUE.
          ALLOCATE (work(4))
          ! Allocate the work storage on the fly
          DO i = 1, 4

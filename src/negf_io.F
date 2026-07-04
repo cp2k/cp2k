@@ -91,84 +91,110 @@ CONTAINS
 
       exist = .FALSE.
 
-      WRITE (string1, *) icontact
-      WRITE (string2, *) ispin
-
-      ! try to read from the filename that is generated automatically from the printkey
-      contact_section => section_vals_get_subs_vals(negf_section, "CONTACT")
-      print_key => section_vals_get_subs_vals(contact_section, "RESTART", i_rep_section=icontact)
-
-      IF (my_h00) THEN
-         IF (ispin == 0) THEN
-            middle_name = "N"//TRIM(string1)//"-H00"
-         ELSE
-            middle_name = "N"//TRIM(string1)//"-H00-S"//TRIM(string2)
+      IF (my_h00 .OR. my_h01 .OR. my_s00 .OR. my_s01) THEN
+         IF (.NOT. PRESENT(icontact)) THEN
+            CPABORT("Missing contact index for NEGF restart filename")
          END IF
-         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
-                                           extension=".hs", my_local=.FALSE.)
-      END IF
+         WRITE (string1, *) icontact
 
-      IF (my_h01) THEN
-         IF (ispin == 0) THEN
-            middle_name = "N"//TRIM(string1)//"-H01"
-         ELSE
-            middle_name = "N"//TRIM(string1)//"-H01-S"//TRIM(string2)
+         IF (my_h00 .OR. my_h01) THEN
+            IF (.NOT. PRESENT(ispin)) THEN
+               CPABORT("Missing spin index for NEGF restart filename")
+            END IF
+            WRITE (string2, *) ispin
          END IF
-         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
-                                           extension=".hs", my_local=.FALSE.)
-      END IF
 
-      IF (my_s00) THEN
-         middle_name = "N"//TRIM(string1)//"-S00"
-         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
-                                           extension=".hs", my_local=.FALSE.)
-      END IF
+         ! Try to read from the filename that is generated automatically from the print key.
+         contact_section => section_vals_get_subs_vals(negf_section, "CONTACT")
+         print_key => section_vals_get_subs_vals(contact_section, "RESTART", i_rep_section=icontact)
 
-      IF (my_s01) THEN
-         middle_name = "N"//TRIM(string1)//"-S01"
-         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
-                                           extension=".hs", my_local=.FALSE.)
-      END IF
-
-      ! try to read from the filename that is generated automatically from the printkey
-      print_key => section_vals_get_subs_vals(negf_section, "SCATTERING_REGION%RESTART")
-
-      IF (my_h) THEN
-         IF (ispin == 0) THEN
-            middle_name = "Hs"
-         ELSE
-            middle_name = "Hs-S"//TRIM(string2)
+         IF (my_h00) THEN
+            IF (ispin == 0) THEN
+               middle_name = "N"//TRIM(string1)//"-H00"
+            ELSE
+               middle_name = "N"//TRIM(string1)//"-H00-S"//TRIM(string2)
+            END IF
+            filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                              extension=".hs", my_local=.FALSE.)
          END IF
-         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
-                                           extension=".hs", my_local=.FALSE.)
-      END IF
 
-      IF (my_s) THEN
-         middle_name = "Ss"
-         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
-                                           extension=".hs", my_local=.FALSE.)
-      END IF
-
-      IF (my_hc) THEN
-         IF (ispin == 0) THEN
-            middle_name = "Hsc-N"//TRIM(string1)
-         ELSE
-            middle_name = "Hsc-N"//TRIM(string1)//"-S"//TRIM(string2)
+         IF (my_h01) THEN
+            IF (ispin == 0) THEN
+               middle_name = "N"//TRIM(string1)//"-H01"
+            ELSE
+               middle_name = "N"//TRIM(string1)//"-H01-S"//TRIM(string2)
+            END IF
+            filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                              extension=".hs", my_local=.FALSE.)
          END IF
-         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
-                                           extension=".hs", my_local=.FALSE.)
+
+         IF (my_s00) THEN
+            middle_name = "N"//TRIM(string1)//"-S00"
+            filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                              extension=".hs", my_local=.FALSE.)
+         END IF
+
+         IF (my_s01) THEN
+            middle_name = "N"//TRIM(string1)//"-S01"
+            filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                              extension=".hs", my_local=.FALSE.)
+         END IF
       END IF
 
-      IF (my_sc) THEN
-         middle_name = "Ssc-N"//TRIM(string1)
-         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
-                                           extension=".hs", my_local=.FALSE.)
-      END IF
+      IF (my_h .OR. my_s .OR. my_hc .OR. my_sc) THEN
+         IF (my_h .OR. my_hc) THEN
+            IF (.NOT. PRESENT(ispin)) THEN
+               CPABORT("Missing spin index for NEGF restart filename")
+            END IF
+            WRITE (string2, *) ispin
+         END IF
 
-      ! try to read from the filename that is generated automatically from the printkey
-      print_key => section_vals_get_subs_vals(negf_section, "PRINT%RESTART")
+         IF (my_hc .OR. my_sc) THEN
+            IF (.NOT. PRESENT(icontact)) THEN
+               CPABORT("Missing contact index for NEGF restart filename")
+            END IF
+            WRITE (string1, *) icontact
+         END IF
+
+         ! Try to read from the filename that is generated automatically from the print key.
+         print_key => section_vals_get_subs_vals(negf_section, "SCATTERING_REGION%RESTART")
+
+         IF (my_h) THEN
+            IF (ispin == 0) THEN
+               middle_name = "Hs"
+            ELSE
+               middle_name = "Hs-S"//TRIM(string2)
+            END IF
+            filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                              extension=".hs", my_local=.FALSE.)
+         END IF
+
+         IF (my_s) THEN
+            middle_name = "Ss"
+            filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                              extension=".hs", my_local=.FALSE.)
+         END IF
+
+         IF (my_hc) THEN
+            IF (ispin == 0) THEN
+               middle_name = "Hsc-N"//TRIM(string1)
+            ELSE
+               middle_name = "Hsc-N"//TRIM(string1)//"-S"//TRIM(string2)
+            END IF
+            filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                              extension=".hs", my_local=.FALSE.)
+         END IF
+
+         IF (my_sc) THEN
+            middle_name = "Ssc-N"//TRIM(string1)
+            filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                              extension=".hs", my_local=.FALSE.)
+         END IF
+      END IF
 
       IF (my_h_scf) THEN
+         ! Try to read from the filename that is generated automatically from the print key.
+         print_key => section_vals_get_subs_vals(negf_section, "PRINT%RESTART")
          filename = negf_generate_filename(logger, print_key, &
                                            extension="", my_local=.FALSE., iter_string=.TRUE.)
       END IF
@@ -252,14 +278,15 @@ CONTAINS
          root = outPath(1:my_ind1)//my_middle_name(2:LEN_TRIM(my_middle_name))
       END IF
 
-      IF (PRESENT(iter_string) .AND. iter_string) THEN
-         ! use the cp_iter_string as a postfix
-         postfix = "-"//TRIM(cp_iter_string(logger%iter_info, print_key=print_key, for_file=.TRUE.))
-         IF (TRIM(postfix) == "-") postfix = ""
-         ! and add the extension
-         postfix = TRIM(postfix)//extension
-      ELSE
-         postfix = extension
+      postfix = extension
+      IF (PRESENT(iter_string)) THEN
+         IF (iter_string) THEN
+            ! use the cp_iter_string as a postfix
+            postfix = "-"//TRIM(cp_iter_string(logger%iter_info, print_key=print_key, for_file=.TRUE.))
+            IF (TRIM(postfix) == "-") postfix = ""
+            ! and add the extension
+            postfix = TRIM(postfix)//extension
+         END IF
       END IF
 
       ! and let the logger generate the filename
