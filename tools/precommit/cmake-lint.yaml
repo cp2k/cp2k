@@ -1,0 +1,27 @@
+lint:
+  disabled_codes:
+    # Missing docstring on function/macro declaration - not CP2K's convention.
+    - C0111
+    # Line too long - false positive on the "#!"-style license banner that
+    # every .cmake/CMakeLists.txt file starts with; cmake-format deliberately
+    # does not rewrap "#!" comment lines, so they stay at their original width.
+    - C0301
+    # Invalid variable/argument/macro name - CP2K's convention is to prefix
+    # local/private names with one or more underscores (e.g. "_package_name",
+    # "__var") and to use snake_case for macros, neither of which matches
+    # cmake-lint's default naming patterns. This also fires spuriously on
+    # dynamically composed variable names like "CP2K_${_varname}_ROOT", which
+    # no static naming pattern can ever match.
+    - C0103
+    # Missing COMMENT in add_custom_command()/add_custom_target() - stylistic,
+    # not required by this codebase.
+    - C0113
+    # Bad indentation on wrapped multi-line arguments - cmake-lint's
+    # indentation heuristic disagrees with cmake-format's own line-wrapping
+    # in several already-formatted, correct files; not a reliable signal here.
+    - C0307
+    # "String looks like a variable reference missing an open tag" - false
+    # positive on deliberately-escaped "\${VAR}" references inside
+    # install(CODE "...") scripts, where the escaping defers expansion to
+    # install time on purpose.
+    - W0106
