@@ -321,8 +321,6 @@ foreach(_libtype "ST" "DYN")
             TOLOWER "${_mpi_impl}_${_iface}_${_bits}_${_threading}_${_libtype}"
                     _tgt_config)
 
-          set(_scalapack_tgt cp2k::BLAS::MKL::scalapack_${_tgt_config})
-
           if(_mkl_blacs_lib
              AND TARGET ${_mkl_tgt}
              AND TARGET MPI::MPI_CXX
@@ -348,7 +346,10 @@ foreach(_libtype "ST" "DYN")
 
           if(_mkl_scalapack_lib AND NOT TARGET
                                     cp2k::BLAS::MKL::scalapack_${_tgt_config})
-            set(_scalapack_libs "${_mkl_scalapack_lib}" "${_blacs_tgt}")
+            set(_scalapack_libs "${_mkl_scalapack_lib}")
+            if(TARGET cp2k::BLAS::MKL::blacs_${_tgt_config})
+              list(APPEND _scalapack_libs cp2k::BLAS::MKL::blacs_${_tgt_config})
+            endif()
             add_library(cp2k::BLAS::MKL::scalapack_${_tgt_config} INTERFACE
                         IMPORTED)
             set_target_properties(

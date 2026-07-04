@@ -91,7 +91,7 @@ foreach(lib_name "fftw3" "fftw3l" "fftw3q" "fftw3f")
   endif()
 endforeach()
 
-set(CP2K_FFTW3_FOUND ON)
+set(CP2K_FFTW3_FOUND ${Fftw_FOUND})
 mark_as_advanced(
   CP2K_FFTW3_FOUND
   CP2K_FFTW3_ROOT

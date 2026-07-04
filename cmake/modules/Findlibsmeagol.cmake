@@ -24,15 +24,17 @@ else()
                                     CP2K_LIBSMEAGOL_LINK_LIBRARIES)
 endif()
 
-if(NOT TARGET cp2k::libsmeagol::smeagol)
-  add_library(cp2k::libsmeagol::smeagol INTERFACE IMPORTED)
-  set_target_properties(
-    cp2k::libsmeagol::smeagol PROPERTIES INTERFACE_LINK_LIBRARIES
-                                         "${CP2K_LIBSMEAGOL_LINK_LIBRARIES}")
-  if(CP2K_LIBSMEAGOL_INCLUDE_DIRS)
+if(CP2K_LIBSMEAGOL_FOUND)
+  if(NOT TARGET cp2k::libsmeagol::smeagol)
+    add_library(cp2k::libsmeagol::smeagol INTERFACE IMPORTED)
     set_target_properties(
-      cp2k::libsmeagol::smeagol PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
-                                           "${CP2K_LIBSMEAGOL_INCLUDE_DIRS}")
+      cp2k::libsmeagol::smeagol PROPERTIES INTERFACE_LINK_LIBRARIES
+                                           "${CP2K_LIBSMEAGOL_LINK_LIBRARIES}")
+    if(CP2K_LIBSMEAGOL_INCLUDE_DIRS)
+      set_target_properties(
+        cp2k::libsmeagol::smeagol PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+                                             "${CP2K_LIBSMEAGOL_INCLUDE_DIRS}")
+    endif()
   endif()
 endif()
 

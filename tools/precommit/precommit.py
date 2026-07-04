@@ -256,6 +256,7 @@ def process_file(fn: str, allow_modifications: bool) -> None:
 
     if re.match(r"(.*/CMakeLists.txt)|(.*\.cmake)$", fn):
         run_remote_tool("cmakeformat", fn)
+        run_remote_tool("cmakelint", fn)
 
     if re.match(r"./data/.*POTENTIALS?$", fn):
         check_data_files()

@@ -16,7 +16,7 @@ include(cp2k_utils)
 cp2k_set_default_paths(BLIS "BLIS")
 
 if(DEFINED AOCL_ROOT)
-  list(CP2K_BLIS_ROOT "${AOCL_ROOT}" "$ENV{AOCL_ROOT}")
+  list(APPEND CP2K_BLIS_ROOT "${AOCL_ROOT}" "$ENV{AOCL_ROOT}")
 endif()
 
 # one day blis will have a pkg-config file
@@ -46,7 +46,7 @@ endif()
 if(CP2K_BLIS_FOUND)
   if(NOT TARGET cp2k::BLAS::Blis::blis)
     add_library(cp2k::BLAS::Blis::blis INTERFACE IMPORTED)
-    add_library(cp2k::BLAS::Blis::blas alias cp2k::BLAS::Blis::blis)
+    add_library(cp2k::BLAS::Blis::blas ALIAS cp2k::BLAS::Blis::blis)
   endif()
 
   set_property(TARGET cp2k::BLAS::Blis::blis

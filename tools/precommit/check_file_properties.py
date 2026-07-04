@@ -93,6 +93,7 @@ FLAG_EXCEPTIONS_RE = re.compile(r"|".join(FLAG_EXCEPTIONS))
 PORTABLE_FILENAME_RE = re.compile(r"^[a-zA-Z0-9._/#~=+-]*$")
 OP_RE = re.compile(r"[\\|()!&><=*/+-]")
 NUM_RE = re.compile(r"[0-9]+[ulUL]*")
+NO_DEFAULT_PATH_RE = re.compile(r"\bNO_DEFAULT_PATH\b")
 CP2K_FLAGS_RE = re.compile(
     r"FUNCTION cp2k_flags\(\)(.*)END FUNCTION cp2k_flags", re.DOTALL
 )
@@ -308,6 +309,14 @@ def check_file(path: pathlib.Path) -> List[str]:
                 warnings += [
                     f"{path}: CMake option {opt} not mentioned in docs/technologies section nor build-from-source.md"
                 ]
+
+    # NO_DEFAULT_PATH disables searching CMAKE_PREFIX_PATH and other default
+    # locations, which breaks Spack, system-package, and HPC-module installs
+    # unless every possible layout is hand-enumerated in PATHS/HINTS - don't use it.
+    if (
+        fn_ext == ".cmake" or path.name == "CMakeLists.txt"
+    ) and NO_DEFAULT_PATH_RE.search(content):
+        warnings += [f"{path}: Found NO_DEFAULT_PATH, please remove it"]
 
     # Check for DOIs that could be a bibliography reference.
     if re.match(r"docs/[^/]+/.*\.md", str(path)) and "docs/CP2K_INPUT" not in str(path):

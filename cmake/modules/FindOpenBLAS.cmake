@@ -25,7 +25,7 @@ endif()
 
 if(NOT CP2K_OPENBLAS_FOUND)
   set(CP2K_OPENBLAS64_ROOT ${CP2K_OPENBLAS_ROOT})
-  set(CP2K_OPENBLA_THREADS_ROOT ${CP2K_OPENBLAS_ROOT})
+  set(CP2K_OPENBLAS_THREADS_ROOT ${CP2K_OPENBLAS_ROOT})
   cp2k_find_libraries(OPENBLAS "openblas")
   cp2k_find_libraries(OPENBLAS64 "openblas64")
   cp2k_find_libraries(OPENBLAS_THREADS "openblas_threads;openblas_omp")

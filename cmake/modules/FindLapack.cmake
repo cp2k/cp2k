@@ -42,8 +42,7 @@ if(NOT CP2K_CONFIG_PACKAGE)
           CP2K_LAPACK_LINK_LIBRARIES
           NAMES "lapack" "lapack64"
           PATH_SUFFIXES "openblas" "openblas64" "openblas-pthread"
-                        "openblas-openmp" "lib" "lib64"
-          NO_DEFAULT_PATH)
+                        "openblas-openmp" "lib" "lib64")
       endif()
     endif()
   endif()

@@ -99,9 +99,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY
 foreach(__var ROCM_ROOT CRAY_ROCM_ROOT ORNL_ROCM_ROOT CRAY_ROCM_PREFIX
               ROCM_PREFIX CRAY_ROCM_DIR)
   if($ENV{${__var}})
-    list(APPEND CMAKE_PREFIX_PATH $ENV{__var})
+    list(APPEND CMAKE_PREFIX_PATH $ENV{${__var}})
     set(ROCM_PATH
-        $ENV{__var}
+        $ENV{${__var}}
         CACHE PATH "Path to ROCm installation")
   endif()
 endforeach()
@@ -397,29 +397,16 @@ if(NOT Python_EXECUTABLE)
     REQUIRED)
 endif()
 
-# get the git hash Get the latest abbreviated commit hash of the working branch
-# As a fall back, e.g. in a container, try reading a file named "REVISION".
-execute_process(
-  COMMAND bash -c "git log -1 --format=%h || cat REVISION"
-  WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-  ERROR_QUIET
-  OUTPUT_VARIABLE CP2K_GIT_HASH
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
+# The git hash (__COMPILE_REVISION) is refreshed at *build* time rather than
+# here at configure time, see the cp2k_build_info target in src/CMakeLists.txt
+# and cmake/GenerateCp2kBuildInfo.cmake, so that "git commit; ninja" embeds the
+# new hash without requiring a re-run of cmake.
 
 execute_process(
   COMMAND hostnamectl --transient
   WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
   OUTPUT_VARIABLE CP2K_HOST_NAME
   OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-add_custom_target(
-  AlwaysCheckGit
-  COMMAND
-    ${CMAKE_COMMAND} -DRUN_CHECK_GIT_VERSION=1
-    -Dpre_configure_dir=${pre_configure_dir}
-    -Dpost_configure_file=${post_configure_dir}
-    -DGIT_HASH_CACHE=${GIT_HASH_CACHE} -P ${CURRENT_LIST_DIR}/CheckGit.cmake
-  BYPRODUCTS ${post_configure_file})
 
 # MPI
 if(CP2K_USE_MPI)
@@ -589,7 +576,7 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   message(STATUS "GPU architecture number: ${CMAKE_CUDA_ARCHITECTURES}")
   message(STATUS "GPU profiling enabled: ${CP2K_WITH_GPU_PROFILING}")
 
-  if(WITH_CUDA_PROFILING)
+  if(CP2K_WITH_GPU_PROFILING)
     find_library(
       CUDA_NVTOOLSEXT nvToolsExt
       PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}
@@ -836,8 +823,7 @@ if(CP2K_USE_LIBINT2)
   find_file(
     CP2K_LIBINT2_MOD_FILE
     NAMES libint_f.mod
-    PATHS ${_libint2_include_dirs} "/usr/lib64/gfortran/modules"
-    NO_DEFAULT_PATH)
+    PATHS ${_libint2_include_dirs} "/usr/lib64/gfortran/modules")
   if(NOT CP2K_LIBINT2_MOD_FILE)
     message(
       FATAL_ERROR "Libint2 was found, but its Fortran interface is missing")
@@ -871,18 +857,18 @@ if(CP2K_USE_SPLA)
                       INTERFACE_INCLUDE_DIRECTORIES)
   get_target_property(CP2K_SPLA_LINK_LIBRARIES SPLA::spla
                       INTERFACE_LINK_LIBRARIES)
-  if(NOT SPLA_GPU_BACKEND AND CP2K_USE_GEMM_OFFLOADING)
-    set(CP2K_USE_GEMM_OFFLOADING OFF)
+  if(NOT SPLA_GPU_BACKEND AND CP2K_USE_SPLA_GEMM_OFFLOADING)
     message(
       FATAL_ERROR
-        "SpLA should be compiled with GPU support if the gemm offloading is requested. Use -DCP2K_USE_GEMM_OFFLOADING=OFF otherwise"
+        "SpLA should be compiled with GPU support if the gemm offloading is requested. Use -DCP2K_USE_SPLA_GEMM_OFFLOADING=OFF otherwise"
     )
   endif()
 endif()
 
-if(CP2K_USE_DFTD4)
-  find_package(dftd4 REQUIRED)
-  # Detect dftd4_VERSION from dftd4-config-version.cmake
+# Sets CP2K_USE_DFTD4_V3 / CP2K_USE_DFTD4_V4_2 from dftd4_VERSION, which is
+# populated by dftd4-config-version.cmake either directly via
+# find_package(dftd4) or transitively via find_package(tblite).
+macro(cp2k_detect_dftd4_api)
   if(dftd4_VERSION VERSION_LESS "4.0.0")
     message(STATUS "DFTD4: found version ${dftd4_VERSION}, using v3.x API")
     set(CP2K_USE_DFTD4_V3 ON)
@@ -895,6 +881,11 @@ if(CP2K_USE_DFTD4)
   else()
     set(CP2K_USE_DFTD4_V4_2 OFF)
   endif()
+endmacro()
+
+if(CP2K_USE_DFTD4)
+  find_package(dftd4 REQUIRED)
+  cp2k_detect_dftd4_api()
 endif()
 
 if(CP2K_USE_DEEPMD)
@@ -923,19 +914,7 @@ if(CP2K_USE_TBLITE)
   target_link_libraries(
     cp2k::tblite INTERFACE tblite::tblite mctc-lib::mctc-lib dftd4::dftd4
                            toml-f::toml-f s-dftd3::s-dftd3)
-  # Detect dftd4_VERSION from dftd4-config-version.cmake
-  if(dftd4_VERSION VERSION_LESS "4.0.0")
-    message(STATUS "DFTD4: found version ${dftd4_VERSION}, using v3.x API")
-    set(CP2K_USE_DFTD4_V3 ON)
-  else()
-    set(CP2K_USE_DFTD4_V3 OFF)
-  endif()
-  if(dftd4_VERSION VERSION_GREATER_EQUAL "4.2.0")
-    message(STATUS "DFTD4: found version ${dftd4_VERSION}, using v4.2+ API")
-    set(CP2K_USE_DFTD4_V4_2 ON)
-  else()
-    set(CP2K_USE_DFTD4_V4_2 OFF)
-  endif()
+  cp2k_detect_dftd4_api()
 endif()
 
 # SIRIUS

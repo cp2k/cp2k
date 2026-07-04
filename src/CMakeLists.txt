@@ -1554,6 +1554,7 @@ if(CP2K_USE_CUDA
       set(CP2K_DBM_OPENCL_KERNEL dbm/dbm_multiply_opencl.cl)
       set(CP2K_DBM_OPENCL_GENHDR
           "${CMAKE_CURRENT_BINARY_DIR}/${CP2K_DBM_OPENCL_KERNEL}.h")
+      # cmake-lint: disable=E1126
       add_custom_command(
         COMMAND
           ${CP2K_OPENCL_SCRIPT} -b 6 -p \"\" -I "${CP2K_OPENCL_BACKEND}"
@@ -1806,13 +1807,18 @@ target_link_libraries(
     $<$<AND:$<CONFIG:COVERAGE>,$<Fortran_COMPILER_ID:GNU>>:gcov>)
 
 set(CP2K_BUILD_INFO_FILE "${CMAKE_CURRENT_BINARY_DIR}/cp2k_build_info.h")
-file(WRITE "${CP2K_BUILD_INFO_FILE}" "#define __COMPILE_DATE \"unknown\"\n")
+file(
+  WRITE "${CP2K_BUILD_INFO_FILE}"
+  "#define __COMPILE_DATE \"unknown\"\n#define __COMPILE_REVISION \"unknown\"\n"
+)
 add_custom_target(
   cp2k_build_info
-  COMMAND ${CMAKE_COMMAND} -DOUTPUT_FILE=${CP2K_BUILD_INFO_FILE} -P
-          ${PROJECT_SOURCE_DIR}/cmake/GenerateCp2kBuildInfo.cmake
+  COMMAND
+    ${CMAKE_COMMAND} -DOUTPUT_FILE=${CP2K_BUILD_INFO_FILE}
+    -DSOURCE_DIR=${PROJECT_SOURCE_DIR} -P
+    ${PROJECT_SOURCE_DIR}/cmake/GenerateCp2kBuildInfo.cmake
   BYPRODUCTS ${CP2K_BUILD_INFO_FILE}
-  COMMENT "Updating CP2K build timestamp"
+  COMMENT "Updating CP2K build timestamp and git revision"
   VERBATIM)
 set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/cp2k_info.F
                             PROPERTIES OBJECT_DEPENDS "${CP2K_BUILD_INFO_FILE}")
@@ -1828,7 +1834,6 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
     $<$<BOOL:${CP2K_USE_MPI_F08}>:__MPI_F08>
     __COMPILE_HOST=\"${CP2K_HOST_NAME}\"
-    __COMPILE_REVISION=\"${CP2K_GIT_HASH}\"
     __DATA_DIR=\"${CP2K_DATA_DIR}\"
     __COMPILE_ARCH=\"${CMAKE_SYSTEM_PROCESSOR}\"
     $<$<BOOL:${CP2K_USE_PLUMED}>:__PLUMED2>

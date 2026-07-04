@@ -35,10 +35,6 @@ find_package_handle_standard_args(
   FlexiBLAS DEFAULT_MSG CP2K_FLEXIBLAS_INCLUDE_DIRS
   CP2K_FLEXIBLAS_LINK_LIBRARIES)
 
-if(NOT CP2K_FLEXIBLAS_FOUND)
-  set(CP2K_BLAS_VENDOR "FlexiBLAS")
-endif()
-
 if(CP2K_FLEXIBLAS_FOUND)
   if(NOT TARGET cp2k::BLAS::FlexiBLAS::flexiblas)
     add_library(cp2k::BLAS::FlexiBLAS::flexiblas INTERFACE IMPORTED)

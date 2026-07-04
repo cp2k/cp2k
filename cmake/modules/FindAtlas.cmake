@@ -15,13 +15,13 @@ include(cp2k_utils)
 cp2k_set_default_paths(ATLAS "Atlas")
 
 cp2k_find_libraries(ATLAS "atlas")
-cp2k_include_dirs(FFTW3 "cblas.h atlas/cblas.h")
+cp2k_include_dirs(ATLAS "cblas.h atlas/cblas.h")
 # check if found
 find_package_handle_standard_args(Atlas REQUIRED_VARS CP2K_ATLAS_INCLUDE_DIRS
                                                       CP2K_ATLAS_LINK_LIBRARIES)
 
 # add target to link against
-if(CP2K_ATLAS_FOUND AND NOT TARGET CP2K_ATLAS::atlas)
+if(CP2K_ATLAS_FOUND)
   if(NOT TARGET cp2k::BLAS::ATLAS::atlas)
     add_library(cp2k::BLAS::ATLAS::atlas INTERFACE IMPORTED)
   endif()
