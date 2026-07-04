@@ -252,14 +252,15 @@ CONTAINS
          root = outPath(1:my_ind1)//my_middle_name(2:LEN_TRIM(my_middle_name))
       END IF
 
-      IF (PRESENT(iter_string) .AND. iter_string) THEN
-         ! use the cp_iter_string as a postfix
-         postfix = "-"//TRIM(cp_iter_string(logger%iter_info, print_key=print_key, for_file=.TRUE.))
-         IF (TRIM(postfix) == "-") postfix = ""
-         ! and add the extension
-         postfix = TRIM(postfix)//extension
-      ELSE
-         postfix = extension
+      postfix = extension
+      IF (PRESENT(iter_string)) THEN
+         IF (iter_string) THEN
+            ! use the cp_iter_string as a postfix
+            postfix = "-"//TRIM(cp_iter_string(logger%iter_info, print_key=print_key, for_file=.TRUE.))
+            IF (TRIM(postfix) == "-") postfix = ""
+            ! and add the extension
+            postfix = TRIM(postfix)//extension
+         END IF
       END IF
 
       ! and let the logger generate the filename
