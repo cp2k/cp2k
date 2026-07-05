@@ -1,11 +1,11 @@
 "H2_PBE_CDFT_REFERENCE.inp"    = [{matcher="E_total", tol=1e-9, ref=-1.157232743213941},
                                   {matcher="M071", tol=1e-8, ref=0.197625731046}]
-"H2_GAUXC_MODEL_PBE_CDFT.inp"       = [{matcher="E_total", tol=1e-9, ref=-1.157229554329094},
+"H2_GAUXC_MODEL_PBE_CDFT.inp"       = [{matcher="E_total", tol=1e-9, ref=-1.157229340943540},
                                   {matcher="M071", tol=1e-8, ref=0.197624070585}]
 "H2_SKALA_CDFT.inp"            = [{matcher="M071", tol=1e-3, ref=0.216557647288}]
 "H2_GAPW_SKALA_CDFT.inp"       = [{matcher="M071", tol=1e-3, ref=0.217417757774}]
 "H2_PBE_CDFT_CI_REFERENCE.inp" = [{matcher="M073", tol=1e-8, ref=345.364329058819},
                                   {matcher="M077", tol=1e-8, ref=-1.16295181842678}]
-"H2_GAUXC_MODEL_PBE_CDFT_CI_NGROUPS.inp" = [{matcher="M073", tol=1e-8, ref=345.325437357859},
-                                       {matcher="M077", tol=1e-8, ref=-1.16294823026735}]
+"H2_GAUXC_MODEL_PBE_CDFT_CI_NGROUPS.inp" = [{matcher="M073", tol=1e-8, ref=345.325380057211},
+                                       {matcher="M077", tol=1e-8, ref=-1.16294801624740}]
 "H2_SKALA_CDFT_CI.inp"         = [{matcher="M077", tol=5e-8, ref=-1.39020335005227}]

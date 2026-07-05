@@ -57,15 +57,16 @@ Finite-difference checks with `STOP_ON_MISMATCH` are included for:
   is kept diagonal in the targeted debug tests above.
 - GAPW_XC forces and diagonal stress: `regtest-acc-1/h2o-gapw_xc-force-1.inp`,
   `regtest-acc-1/h2o-gapw_xc-stress-debug-1.inp`.
-- UZH all-electron GAPW forces and full stress: `regtest-acc-1/h2o-uzh-gapw-force-1.inp`,
-  `regtest-acc-1/h2o-uzh-gapw-stress-debug-1.inp`.
-- UZH GTH GAPW/GAPW_XC forces and full stress: `regtest-acc-1/h2o-uzh-gth-gapw-force-1.inp`,
-  `regtest-acc-1/h2o-uzh-gth-gapw-stress-debug-1.inp`,
+- UZH all-electron GAPW forces and analytical stress smoke:
+  `regtest-acc-1/h2o-uzh-gapw-force-1.inp`, `regtest-acc-1/h2o-uzh-gapw-stress-debug-1.inp`.
+- UZH GTH GAPW/GAPW_XC forces and analytical stress smoke:
+  `regtest-acc-1/h2o-uzh-gth-gapw-force-1.inp`, `regtest-acc-1/h2o-uzh-gth-gapw-stress-debug-1.inp`,
   `regtest-acc-1/h2o-uzh-gth-gapw_xc-force-1.inp`, and
   `regtest-acc-1/h2o-uzh-gth-gapw_xc-stress-debug-1.inp`.
-- def2-ECP GAPW/GAPW_XC force and stress checks: `regtest-ecp/SbH3_def2_gapw_force.inp`,
-  `SbH3_def2_gapw_stress_debug.inp`, `Sb2_def2_gapw_xc_force.inp`, and
-  `Sb2_def2_gapw_xc_stress_debug.inp`.
+- ECP GAPW/GAPW_XC targeted force and analytical stress smoke checks:
+  `regtest-ecp/ICl_lanl2dz_gapw_force.inp`, `ICl_lanl2dz_gapw_stress.inp`,
+  `ICl_lanl2dz_gapw_xc_force.inp`, and `ICl_lanl2dz_gapw_xc_stress.inp`; the def2-ECP energy path
+  remains covered by `regtest-ecp/SbH3_def2_gapw.inp`.
 - ADMM-GAPW forces: `regtest-acc-1/HF-d5.inp`, `regtest-acc-5/ft3_fine.inp`.
 - ADMM-GAPW diagonal stress: `regtest-acc-2/h2o-admm-gapw-stress-debug-1.inp`,
   `regtest-acc-2/h2o-admm-gapw-pbe-stress-debug-1.inp`.

@@ -119,7 +119,8 @@ CONTAINS
 !> \param dense_mat ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat)
-      USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_iterator_type, &
+      USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
+                              dbcsr_get_matrix_type, dbcsr_get_stored_coordinates, dbcsr_iterator_type, &
                               dbcsr_iterator_start, dbcsr_iterator_next_block, dbcsr_iterator_blocks_left, &
                               dbcsr_iterator_stop, dbcsr_type_antisymmetric, dbcsr_type_symmetric
       TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_mat
@@ -128,12 +129,14 @@ CONTAINS
 
       CHARACTER                                          :: matrix_type
       INTEGER                                            :: col, col_end, col_start, icol, irow, &
-                                                            nblkcols_total, nblkrows_total, ncols, &
-                                                            nrows, row, row_end, row_start
+                                                            mynode, nblkcols_total, &
+                                                            nblkrows_total, ncols, nrows, owner, &
+                                                            row, row_end, row_start
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: c_offset, r_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       LOGICAL                                            :: transposed
       REAL(c_double), POINTER                            :: block(:, :)
+      TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL dbcsr_get_info(dbcsr_mat%matrix, &
@@ -142,7 +145,9 @@ CONTAINS
                           nblkrows_total=nblkrows_total, &
                           nblkcols_total=nblkcols_total, &
                           nfullrows_total=nrows, &
-                          nfullcols_total=ncols)
+                          nfullcols_total=ncols, &
+                          distribution=dist)
+      CALL dbcsr_distribution_get(dist, mynode=mynode)
       matrix_type = dbcsr_get_matrix_type(dbcsr_mat%matrix)
 
       IF (.NOT. ALLOCATED(dense_mat)) THEN
@@ -169,6 +174,8 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, dbcsr_mat%matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, block, transposed=transposed)
+         CALL dbcsr_get_stored_coordinates(dbcsr_mat%matrix, irow, icol, owner)
+         IF (owner /= mynode) CYCLE
          row_start = r_offset(irow)
          row_end = row_start + row_blk_size(irow) - 1
          col_start = c_offset(icol)
@@ -895,31 +902,36 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name
-      CHARACTER(len=default_string_length)               :: xc_fun_name
+      CHARACTER(len=default_string_length)               :: xc_fun_key, xc_fun_name
       LOGICAL                                            :: native_grid
 
       CALL section_vals_val_get(functional, "FUNCTIONAL", c_val=xc_fun_name)
       CALL section_vals_val_get(functional, "MODEL", c_val=model_name)
       CALL section_vals_val_get(functional, "NATIVE_GRID", l_val=native_grid)
       model_key = ADJUSTL(model_name)
+      xc_fun_key = ADJUSTL(xc_fun_name)
       CALL uppercase(model_key)
+      CALL uppercase(xc_fun_key)
 
       IF (PRESENT(reference)) THEN
-         IF (TRIM(model_key) == "NONE" .OR. TRIM(model_key) == "") THEN
+         IF (TRIM(model_key) == "NONE" .OR. TRIM(model_key) == "" .OR. &
+             TRIM(model_key) == TRIM(xc_fun_key)) THEN
             reference = "Functional computed by GauXC (underlying: "//TRIM(xc_fun_name)//")"
          ELSE
             reference = "Functional computed by GauXC Skala model "//TRIM(model_name)
          END IF
       END IF
       IF (PRESENT(shortform)) THEN
-         IF (TRIM(model_key) == "NONE" .OR. TRIM(model_key) == "") THEN
+         IF (TRIM(model_key) == "NONE" .OR. TRIM(model_key) == "" .OR. &
+             TRIM(model_key) == TRIM(xc_fun_key)) THEN
             shortform = "GAUXC ("//TRIM(xc_fun_name)//")"
          ELSE
             shortform = "GAUXC Skala"
          END IF
       END IF
       IF (PRESENT(needs)) THEN
-         IF (native_grid .AND. TRIM(model_key) /= "NONE" .AND. TRIM(model_key) /= "") THEN
+         IF (native_grid .AND. TRIM(model_key) /= "NONE" .AND. TRIM(model_key) /= "" .AND. &
+             TRIM(model_key) /= TRIM(xc_fun_key)) THEN
             IF (lsd) THEN
                needs%rho_spin = .TRUE.
                needs%drho_spin = .TRUE.
@@ -960,10 +972,11 @@ CONTAINS
          "Use an additive PAIR_POTENTIAL dispersion correction or disable GauXC."
       REAL(KIND=dp), PARAMETER :: gapw_fd_gradient_dx = 1.0E-4_dp
 
-      CHARACTER(len=default_path_length)                 :: model_key, model_name, output_path
+      CHARACTER(len=default_path_length)                 :: model_eval_name, model_key, model_name, &
+                                                            output_path
       CHARACTER(len=default_string_length) :: gradient_runtime, gradient_runtime_key, grid_key, &
          grid_type, int_exec_space, lb_exec_space, lwd_kernel, pruning_key, pruning_scheme, &
-         radial_quadrature, skala_runtime, skala_runtime_key, xc_fun_name
+         radial_quadrature, skala_runtime, skala_runtime_key, xc_fun_key, xc_fun_name
       INTEGER                                            :: atom_chunk_size, batch_size, env_status, &
                                                             img, ispin, natom, nimages, nspins
       LOGICAL :: atom_chunk_size_explicit, do_kpoints, gapw_method, gapw_paw_pseudopotentials, &
@@ -1140,12 +1153,20 @@ CONTAINS
 
       model_key = ADJUSTL(model_name)
       CALL uppercase(model_key)
+      xc_fun_key = ADJUSTL(xc_fun_name)
+      CALL uppercase(xc_fun_key)
       skala_runtime_key = ADJUSTL(skala_runtime)
       CALL uppercase(skala_runtime_key)
       gradient_runtime_key = ADJUSTL(gradient_runtime)
       CALL uppercase(gradient_runtime_key)
-      use_gauxc_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
+      use_gauxc_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE" .AND. &
+                         TRIM(model_key) /= TRIM(xc_fun_key))
       use_skala_model = (INDEX(TRIM(model_key), "SKALA") > 0)
+      model_eval_name = model_name
+      IF (.NOT. use_gauxc_model) THEN
+         ! MODEL NONE and MODEL equal to FUNCTIONAL select conventional GauXC.
+         model_eval_name = "NONE"
+      END IF
       IF (gapw_pseudopotentials .AND. use_gauxc_model .AND. .NOT. dft_control%qs_control%gapw_xc .AND. &
           .NOT. gapw_paw_pseudopotentials .AND. para_env%mepos == 0 .AND. ASSOCIATED(scf_env)) THEN
          IF (scf_env%iter_count == 1) THEN
@@ -1213,6 +1234,7 @@ CONTAINS
             IF (env_status /= 0 .OR. LEN_TRIM(model_name) == 0) THEN
                CPABORT("MODEL SKALA requires the GAUXC_SKALA_MODEL environment variable")
             END IF
+            model_eval_name = model_name
          END IF
       END IF
       SELECT CASE (TRIM(skala_runtime_key))
@@ -1294,9 +1316,11 @@ CONTAINS
             "basis functions beyond f shells. The upstream analytical GauXC gradient path is "// &
             "not yet reliable for this case.")
       END IF
-      IF (use_self_runtime) THEN
+      IF (use_self_runtime .OR. .NOT. use_gauxc_model) THEN
          ! SKALA currently needs a replicated molecular runtime for reproducible
          ! open-shell densities across CP2K MPI ranks.
+         ! Conventional GauXC also uses a replicated runtime here: CP2K has
+         ! already allreduced the dense AO density matrix on every rank.
          gauxc_grid_result = gauxc_create_grid( &
                              gauxc_mol, &
                              gauxc_basis, &
@@ -1382,12 +1406,12 @@ CONTAINS
                               density_scalar, &
                               nspins=nspins, &
                               status=gauxc_status, &
-                              model=TRIM(model_name))
+                              model=TRIM(model_eval_name))
             CALL gauxc_check_status(gauxc_status)
             IF (need_xc_gradient) THEN
                IF (use_fd_gradient) THEN
                   CALL gauxc_xc_gradient_fd( &
-                     particle_set, qs_kind_set, density_scalar, nspins, model_name, &
+                     particle_set, qs_kind_set, density_scalar, nspins, model_eval_name, &
                      xc_fun_name, grid_type, radial_quadrature, pruning_scheme, &
                      lb_exec_space, int_exec_space, lwd_kernel, batch_size, &
                      device_runtime_fill_fraction, gapw_fd_gradient_dx, para_env, &
@@ -1399,7 +1423,7 @@ CONTAINS
                              nspins=nspins, &
                              natom=natom, &
                              status=gauxc_status, &
-                             model=TRIM(model_name))
+                             model=TRIM(model_eval_name))
                ELSE
                   exc_grad = gauxc_compute_xc_gradient( &
                              gauxc_integrator_result, &
@@ -1407,7 +1431,7 @@ CONTAINS
                              nspins=nspins, &
                              natom=natom, &
                              status=gauxc_status, &
-                             model=TRIM(model_name))
+                             model=TRIM(model_eval_name))
                END IF
                CALL gauxc_check_status(gauxc_status)
                IF (calculate_forces) THEN
@@ -1423,7 +1447,7 @@ CONTAINS
                IF (molecular_virial_debug) THEN
                   CALL debug_gauxc_molecular_virial( &
                      exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, nspins, &
-                     model_name, xc_fun_name, grid_type, radial_quadrature, pruning_scheme, &
+                     model_eval_name, xc_fun_name, grid_type, radial_quadrature, pruning_scheme, &
                      lb_exec_space, int_exec_space, lwd_kernel, batch_size, &
                      device_runtime_fill_fraction, molecular_virial_debug_dx, para_env)
                END IF
@@ -1449,12 +1473,12 @@ CONTAINS
                               density_zeta, &
                               nspins, &
                               gauxc_status, &
-                              model=TRIM(model_name))
+                              model=TRIM(model_eval_name))
             CALL gauxc_check_status(gauxc_status)
             IF (need_xc_gradient) THEN
                IF (use_fd_gradient) THEN
                   CALL gauxc_xc_gradient_fd( &
-                     particle_set, qs_kind_set, density_scalar, nspins, model_name, &
+                     particle_set, qs_kind_set, density_scalar, nspins, model_eval_name, &
                      xc_fun_name, grid_type, radial_quadrature, pruning_scheme, &
                      lb_exec_space, int_exec_space, lwd_kernel, batch_size, &
                      device_runtime_fill_fraction, gapw_fd_gradient_dx, para_env, &
@@ -1467,7 +1491,7 @@ CONTAINS
                              nspins, &
                              natom, &
                              gauxc_status, &
-                             model=TRIM(model_name))
+                             model=TRIM(model_eval_name))
                ELSE
                   exc_grad = gauxc_compute_xc_gradient( &
                              gauxc_integrator_result, &
@@ -1476,7 +1500,7 @@ CONTAINS
                              nspins, &
                              natom, &
                              gauxc_status, &
-                             model=TRIM(model_name))
+                             model=TRIM(model_eval_name))
                END IF
                CALL gauxc_check_status(gauxc_status)
                IF (calculate_forces) THEN
@@ -1492,7 +1516,7 @@ CONTAINS
                IF (molecular_virial_debug) THEN
                   CALL debug_gauxc_molecular_virial( &
                      exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, nspins, &
-                     model_name, xc_fun_name, grid_type, radial_quadrature, pruning_scheme, &
+                     model_eval_name, xc_fun_name, grid_type, radial_quadrature, pruning_scheme, &
                      lb_exec_space, int_exec_space, lwd_kernel, batch_size, &
                      device_runtime_fill_fraction, molecular_virial_debug_dx, para_env, &
                      density_zeta=density_zeta)

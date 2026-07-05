@@ -572,12 +572,17 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: functional
       LOGICAL                                            :: gauxc_model_none_selected
 
-      CHARACTER(LEN=default_string_length)               :: model_key, model_name
+      CHARACTER(LEN=default_string_length)               :: model_key, model_name, xc_fun_name, &
+                                                            xc_key
 
       CALL section_vals_val_get(functional, "MODEL", c_val=model_name)
+      CALL section_vals_val_get(functional, "FUNCTIONAL", c_val=xc_fun_name)
       model_key = ADJUSTL(model_name)
+      xc_key = ADJUSTL(xc_fun_name)
       CALL uppercase(model_key)
-      gauxc_model_none_selected = (TRIM(model_key) == "" .OR. TRIM(model_key) == "NONE")
+      CALL uppercase(xc_key)
+      gauxc_model_none_selected = (TRIM(model_key) == "" .OR. TRIM(model_key) == "NONE" .OR. &
+                                   TRIM(model_key) == TRIM(xc_key))
    END FUNCTION gauxc_model_none_selected
 
 ! **************************************************************************************************
@@ -600,10 +605,26 @@ CONTAINS
       CALL uppercase(xc_key)
       libxc_names(:) = ""
       SELECT CASE (TRIM(xc_key))
+      CASE ("LDA", "PADE")
+         nfunc = 2
+         libxc_names(1) = "LDA_X"
+         libxc_names(2) = "LDA_C_PW"
+      CASE ("VWN")
+         nfunc = 2
+         libxc_names(1) = "LDA_X"
+         libxc_names(2) = "LDA_C_VWN"
       CASE ("PBE")
          nfunc = 2
          libxc_names(1) = "GGA_X_PBE"
          libxc_names(2) = "GGA_C_PBE"
+      CASE ("BLYP")
+         nfunc = 2
+         libxc_names(1) = "GGA_X_B88"
+         libxc_names(2) = "GGA_C_LYP"
+      CASE ("BP")
+         nfunc = 2
+         libxc_names(1) = "GGA_X_B88"
+         libxc_names(2) = "GGA_C_P86"
       CASE ("TPSS")
          nfunc = 2
          libxc_names(1) = "MGGA_X_TPSS"
@@ -612,8 +633,9 @@ CONTAINS
          nfunc = 2
          libxc_names(1) = "MGGA_X_R2SCAN"
          libxc_names(2) = "MGGA_C_R2SCAN"
-      CASE default
-         CPABORT("GAUXC MODEL NONE one-center GAPW corrections currently know PBE, TPSS, and R2SCAN.")
+      CASE DEFAULT
+         nfunc = 1
+         libxc_names(1) = TRIM(xc_key)
       END SELECT
    END SUBROUTINE gauxc_model_none_libxc_names
 

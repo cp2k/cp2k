@@ -17,6 +17,7 @@
 #include <cassert>
 
 #include <cfenv>
+#include <climits>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -48,17 +49,38 @@ private:
  ******************************************************************************/
 static bool use_cuda_if_available = true;
 
-class TorchCpuThreadGuard {
-public:
-  TorchCpuThreadGuard() {
-    at::set_num_threads(1);
-    at::set_num_interop_threads(1);
+static bool get_positive_int_env(const char *name, int &value) {
+  const char *raw = std::getenv(name);
+  if (raw == nullptr || raw[0] == '\0') {
+    return false;
   }
-};
+  char *end = nullptr;
+  const long parsed = std::strtol(raw, &end, 10);
+  if (end == raw || *end != '\0' || parsed <= 0 || parsed > INT_MAX) {
+    return false;
+  }
+  value = static_cast<int>(parsed);
+  return true;
+}
 
-static TorchCpuThreadGuard torch_cpu_thread_guard;
+static void initialize_torch_threads_from_env() {
+  static bool initialized = false;
+  if (initialized) {
+    return;
+  }
+  initialized = true;
+
+  int num_threads = 0;
+  if (get_positive_int_env("CP2K_TORCH_NUM_THREADS", num_threads)) {
+    at::set_num_threads(num_threads);
+  }
+  if (get_positive_int_env("CP2K_TORCH_NUM_INTEROP_THREADS", num_threads)) {
+    at::set_num_interop_threads(num_threads);
+  }
+}
 
 static torch::Device get_device() {
+  initialize_torch_threads_from_env();
   if (!use_cuda_if_available || !torch::cuda::is_available()) {
     return torch::kCPU;
   }
@@ -118,6 +140,7 @@ static torch_c_tensor_t *tensor_from_array(const torch::Dtype dtype,
                                            const bool req_grad, const int ndims,
                                            const int64_t sizes[],
                                            void *source) {
+  initialize_torch_threads_from_env();
   const auto opts = torch::TensorOptions().dtype(dtype).requires_grad(req_grad);
   const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
   return new torch_c_tensor_t(torch::from_blob(source, sizes_ref, opts));
