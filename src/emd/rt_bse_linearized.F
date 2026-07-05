@@ -306,21 +306,23 @@ CONTAINS
          rtbse_env%sim_step = i
 
          CALL solve_rk4_timestep(rtbse_env, rtbse_env%rho, rtbse_env%rho_new, converged, k, metric)
-         DO j = 1, rtbse_env%n_spin
-            !MG for debugging
-            CALL get_rho_block_maxnorms(rtbse_env, rtbse_env%rho(j), j, &
-                                        full_max_old, oo_max_old, vv_max_old, ov_max_old, vo_max_old)
-            CALL get_rho_block_maxnorms(rtbse_env, rtbse_env%rho_new(j), j, &
-                                        full_max, oo_max, vv_max, ov_max, vo_max)
-            ov_growth = ov_max/MAX(ov_max_old, TINY(1.0_dp))
-            vo_growth = vo_max/MAX(vo_max_old, TINY(1.0_dp))
-            ! IF (rtbse_env%unit_nr > 0) THEN
-            !    WRITE (rtbse_env%unit_nr, '(A,I3, A, 5ES12.3)') 'MG: Block max norms for spin ', j, ': ', &
-            !       full_max, oo_max, vv_max, ov_max, vo_max
-            !    WRITE (rtbse_env%unit_nr, '(A,I3,A,2ES12.3,A,2ES12.3)') 'MG: OV/VO growth for spin ', j, &
-            !       ' (new/old): ', ov_growth, vo_growth, ' | old OV/VO: ', ov_max_old, vo_max_old
-            ! END IF
-         END DO
+         !MG for debugging
+         IF (.FALSE.) THEN
+            DO j = 1, rtbse_env%n_spin
+               CALL get_rho_block_maxnorms(rtbse_env, rtbse_env%rho(j), j, &
+                                           full_max_old, oo_max_old, vv_max_old, ov_max_old, vo_max_old)
+               CALL get_rho_block_maxnorms(rtbse_env, rtbse_env%rho_new(j), j, &
+                                           full_max, oo_max, vv_max, ov_max, vo_max)
+               ov_growth = ov_max/MAX(ov_max_old, TINY(1.0_dp))
+               vo_growth = vo_max/MAX(vo_max_old, TINY(1.0_dp))
+               IF (rtbse_env%unit_nr > 0) THEN
+                  WRITE (rtbse_env%unit_nr, '(A,I3, A, 5ES12.3)') 'MG: Block max norms for spin ', j, ': ', &
+                     full_max, oo_max, vv_max, ov_max, vo_max
+                  WRITE (rtbse_env%unit_nr, '(A,I3,A,2ES12.3,A,2ES12.3)') 'MG: OV/VO growth for spin ', j, &
+                     ' (new/old): ', ov_growth, vo_growth, ' | old OV/VO: ', ov_max_old, vo_max_old
+               END IF
+            END DO
+         END IF
          CALL get_electron_number_MO(rtbse_env, rtbse_env%rho_new, &
                                      enum_re(1:rtbse_env%n_spin), enum_im(1:rtbse_env%n_spin))
          IF (.FALSE.) THEN
