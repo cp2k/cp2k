@@ -15,6 +15,8 @@ MODULE qs_vxc_atom
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE external_potential_types,        ONLY: gth_potential_type,&
+                                              sgp_potential_type
    USE input_constants,                 ONLY: xc_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -120,14 +122,16 @@ CONTAINS
 
       INTEGER                                            :: bo(2), gapw_density_partition, handle, &
                                                             iat, iatom, idir, ikind, ir, jdir, &
-                                                            myfun, na, natom, nr, nspins, num_pe
+                                                            myfun, na, natom, nr, nspins, num_pe, &
+                                                            zatom
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL :: accint, donlcc, evaluate_hard, evaluate_soft, gradient_f, lsd, &
          my_calculate_forces, nlcc, paw_atom, skala_atom_grid, tau_f, use_virial
       REAL(dp)                                           :: agr, alpha, density_cut, exc_h, exc_s, &
                                                             gradient_cut, &
-                                                            my_adiabatic_rescale_factor, tau_cut
+                                                            my_adiabatic_rescale_factor, tau_cut, &
+                                                            zeff
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
       REAL(dp), DIMENSION(3)                             :: skala_atom_force_h, skala_atom_force_s
@@ -140,6 +144,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -151,6 +156,7 @@ CONTAINS
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: my_rho_atom_set
       TYPE(rho_atom_type), POINTER                       :: rho_atom
       TYPE(section_vals_type), POINTER                   :: input, my_xc_section, xc_fun_section
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
       TYPE(tau_basis_cache_type)                         :: tau_basis_cache
       TYPE(virial_type), POINTER                         :: virial
       TYPE(xc_derivative_set_type)                       :: deriv_set
@@ -165,6 +171,7 @@ CONTAINS
       NULLIFY (my_kind_set)
       NULLIFY (atomic_kind_set)
       NULLIFY (grid_atom)
+      NULLIFY (gth_potential)
       NULLIFY (force)
       NULLIFY (harmonics)
       NULLIFY (input)
@@ -173,6 +180,7 @@ CONTAINS
       NULLIFY (rho_atom)
       NULLIFY (my_rho_atom_set)
       NULLIFY (rho_nlcc)
+      NULLIFY (sgp_potential)
       NULLIFY (virial)
       my_calculate_forces = .FALSE.
       IF (PRESENT(calculate_forces)) my_calculate_forces = calculate_forces
@@ -250,11 +258,17 @@ CONTAINS
 
          DO ikind = 1, SIZE(atomic_kind_set)
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
+            NULLIFY (gth_potential, sgp_potential)
             CALL get_qs_kind(my_kind_set(ikind), paw_atom=paw_atom, &
-                             harmonics=harmonics, grid_atom=grid_atom)
+                             gth_potential=gth_potential, harmonics=harmonics, &
+                             grid_atom=grid_atom, sgp_potential=sgp_potential, &
+                             zatom=zatom, zeff=zeff)
             CALL get_qs_kind(my_kind_set(ikind), basis_set=basis_1c, basis_type="GAPW_1C")
 
             IF (.NOT. paw_atom) CYCLE
+            IF (skala_atom_grid .AND. &
+                (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. &
+                ABS(zeff - REAL(zatom, dp)) <= 1.0E-10_dp) CYCLE
 
             nr = grid_atom%nr
             na = grid_atom%ng_sphere

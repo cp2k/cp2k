@@ -7,6 +7,7 @@
 
 #if defined(__LIBTORCH)
 
+#include <ATen/Parallel.h>
 #include <c10/core/DeviceGuard.h>
 #include <torch/csrc/api/include/torch/cuda.h>
 #include <torch/script.h>
@@ -46,6 +47,16 @@ private:
  * \author Ole Schuett
  ******************************************************************************/
 static bool use_cuda_if_available = true;
+
+class TorchCpuThreadGuard {
+public:
+  TorchCpuThreadGuard() {
+    at::set_num_threads(1);
+    at::set_num_interop_threads(1);
+  }
+};
+
+static TorchCpuThreadGuard torch_cpu_thread_guard;
 
 static torch::Device get_device() {
   if (!use_cuda_if_available || !torch::cuda::is_available()) {

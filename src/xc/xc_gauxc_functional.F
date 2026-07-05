@@ -1146,13 +1146,6 @@ CONTAINS
       CALL uppercase(gradient_runtime_key)
       use_gauxc_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
       use_skala_model = (INDEX(TRIM(model_key), "SKALA") > 0)
-      IF (gapw_pseudopotentials .AND. .NOT. use_gauxc_model) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "GauXC with METHOD GAPW/GAPW_XC and pseudopotentials is supported only for "// &
-                       "Skala-style models that replace the molecular XC term. "// &
-                       "Use POTENTIAL ALL for local/semi-local GauXC GAPW validation or METHOD GPW "// &
-                       "with pseudopotentials.")
-      END IF
       IF (gapw_pseudopotentials .AND. use_gauxc_model .AND. .NOT. dft_control%qs_control%gapw_xc .AND. &
           .NOT. gapw_paw_pseudopotentials .AND. para_env%mepos == 0 .AND. ASSOCIATED(scf_env)) THEN
          IF (scf_env%iter_count == 1) THEN
