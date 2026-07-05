@@ -50,7 +50,6 @@ case "${with_mpich}" in
         --prefix="${pkg_install_dir}" \
         --libdir="${pkg_install_dir}/lib" \
         --with-device=${MPICH_DEVICE} \
-        --without-slurm \
         ${FAST_OPTION} \
         FFLAGS="${FCFLAGS}" \
         FCFLAGS="${FCFLAGS}" \
