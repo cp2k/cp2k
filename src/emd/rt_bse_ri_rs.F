@@ -30,9 +30,9 @@ MODULE rt_bse_ri_rs
                                               cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_get_info, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release, dbcsr_scale, &
-        dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_get_occupation, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_release, dbcsr_scale, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_contrib,                ONLY: dbcsr_get_diag
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
@@ -338,6 +338,14 @@ CONTAINS
 
       CALL dbcsr_scale(matrix_Sigma_AO, prefactor)
       CALL copy_dbcsr_to_fm(matrix_Sigma_AO, sigma_AO_fm)
+
+      ! Grid-occupation diagnostic: sparse fill of the density grid transient and the AO self-energy,
+      ! with the fixed W^0 grid as the flat control. Consumed per RK4 step by the linearized driver.
+      IF (bs_env%ri_rs%print_grid_occupation) THEN
+         bs_env%ri_rs%rho_grid_occ = dbcsr_get_occupation(matrix_rho_grid)
+         bs_env%ri_rs%sigma_ao_occ = dbcsr_get_occupation(matrix_Sigma_AO)
+         bs_env%ri_rs%w0_grid_occ = dbcsr_get_occupation(bs_env%ri_rs%mat_W0_grid_rtbse)
+      END IF
 
       CALL release_dbcsr_topology_and_matrices(dist=dist_ao_ao, mapped_dist=dist_row_ao, &
                                                m1=matrix_rho_AO, m2=matrix_Sigma_AO)

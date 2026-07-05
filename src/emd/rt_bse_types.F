@@ -457,6 +457,8 @@ CONTAINS
       CALL rtbse_resolve_rirs_flag(force_env%qs_env, bs_env, rirs_kernel=rtbse_env%rirs_kernel)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DIAGNOSE_LIOUVILLIAN_EIG", &
                                 l_val=rtbse_env%diagnose_liouvillian_eig)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PRINT_GRID_OCCUPATION", &
+                                l_val=bs_env%ri_rs%print_grid_occupation)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_FORCE_HACKED_GW_H2_EIGENVALUES", &
                                 l_val=rtbse_env%debug_force_hacked_gw_h2_eigenvalues)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_FORCE_HACKED_GW_O2_EIGENVALUES", &
@@ -471,6 +473,7 @@ CONTAINS
          rtbse_env%tda_shift_to_first_peak = .FALSE.
          ! rirs_kernel is already forced .FALSE. here by rtbse_resolve_rirs_flag.
          rtbse_env%diagnose_liouvillian_eig = .FALSE.
+         bs_env%ri_rs%print_grid_occupation = .FALSE.
          rtbse_env%debug_force_hacked_gw_h2_eigenvalues = .FALSE.
          rtbse_env%debug_force_hacked_gw_o2_eigenvalues = .FALSE.
       END IF

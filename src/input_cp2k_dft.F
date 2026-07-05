@@ -2198,6 +2198,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_GRID_OCCUPATION", &
+                          description="Diagnostic for the RI-RS linearized RT-BSE kernel: at every RK4 step, "// &
+                          "print the DBCSR occupation (nonzero fraction) of the grid response transient rho_grid "// &
+                          "and the AO self-energy Sigma_AO, next to the fixed W0_grid control. Shows how the "// &
+                          "response density fills the filtered grid over time (the per-step cost growth). "// &
+                          "Emitted as GRID_OCC| lines; requires the RI-RS kernel.", &
+                          usage="PRINT_GRID_OCCUPATION", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! Debug-only QP override: H2 / def2-SVP-custom hardcoded GW eigenvalues
       CALL keyword_create(keyword, __LOCATION__, name="DEBUG_FORCE_HACKED_GW_H2_EIGENVALUES", &
                           description="Debug-only: override the GW quasiparticle eigenvalues used by the "// &
