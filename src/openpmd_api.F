@@ -1216,6 +1216,4 @@ MODULE openpmd_api
          END SUBROUTINE openpmd_mesh_set_unit_dimension
 
 #endif
-         ! In two lines of this file, "make pretty" applies a wrong indentation and keeps it for the rest of this file.
-         ! Hence, we end up a bit further to the right than we should.
       END MODULE openpmd_api
