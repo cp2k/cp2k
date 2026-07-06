@@ -18,7 +18,6 @@ MODULE floquet_main
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
-                                              cp_cfm_to_cfm,&
                                               cp_cfm_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -77,8 +76,8 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: dipole
       INTEGER :: group_size, handle, ikp, ispin, loc_idx, local_src, max_f_index, max_printed_ikp, &
-         my_group, n_E, n_f_size, n_fbands, n_kp_dos, n_recv, n_send, n_spin, n_streams, nao, &
-         ngroups, nkp, nkp_start, owner, stride_kp, unit_nr
+                 my_group, n_E, n_f_size, n_fbands, n_kp_dos, n_recv, n_send, n_spin, n_streams, nao, &
+                 ngroups, nkp, nkp_start, owner, stride_kp, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: group_distribution, remaining, req_ikp
       LOGICAL                                            :: all_sent, am_collector
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: received
@@ -90,8 +89,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: de_dk
       REAL(KIND=dp), DIMENSION(3)                        :: xkp
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
-      TYPE(cp_cfm_type)                                  :: cfm_eigenvectors, floquet_copy, &
-                                                            floquet_matrix
+      TYPE(cp_cfm_type)                                  :: cfm_eigenvectors, floquet_matrix
       TYPE(cp_fm_struct_type), POINTER                   :: floquet_struct
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_comm_type)                                 :: comm_stream
@@ -309,11 +307,9 @@ CONTAINS
          CALL para_env_sub%max(local_src)
 
          CALL cp_cfm_create(floquet_matrix, floquet_struct, set_zero=.TRUE.)
-         CALL cp_cfm_create(floquet_copy, floquet_struct, set_zero=.TRUE.)
          CALL cp_cfm_create(cfm_eigenvectors, floquet_struct, set_zero=.TRUE.)
 
          DO ispin = 1, n_spin
-            print *, "doing ikp: ", ikp, "ispin: ", ispin, para_env%mepos
             ! The owner copies its single-spin slice of this k-point's distributed band data
             ! into the broadcast buffers, then broadcasts them to the whole subgroup.
             IF (para_env%mepos == owner) THEN
@@ -331,14 +327,12 @@ CONTAINS
             CALL build_floquet_matrix_local(bs_env, e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, &
                                             floquet_matrix)
 
-            ! Use a copy of the Floquet matrix for diagonalization, since
-            ! cp_cfm_heevd overwrites it (needed later for the Green's function)
-            CALL cp_cfm_to_cfm(floquet_matrix, floquet_copy)
-
-            ! Diagonalize the Floquet-Bloch matrix H_F(k) F_{α,k} = ε_α F_{α,k}
-            ! to obtain the eigenvalues ε_α and the Floquet-Bloch coefficients F^{nu}_{α,k}
+            ! Diagonalize the Floquet-Bloch matrix H_F(k) F_{α,k} = ε_α F_{α,k} to obtain the
+            ! eigenvalues ε_α and the Floquet-Bloch coefficients F^{nu}_{α,k}. cp_cfm_heevd
+            ! overwrites its input, but floquet_matrix is not needed afterwards (both the
+            ! quasi-energies and the DOS are built from the eigenpairs), so diagonalize in place.
             CALL cp_cfm_set_all(cfm_eigenvectors, z_zero)
-            CALL cp_cfm_heevd(floquet_copy, cfm_eigenvectors, eigenvalues)
+            CALL cp_cfm_heevd(floquet_matrix, cfm_eigenvectors, eigenvalues)
 
             ! Extract the quasi-energies (the nao eigenvalues folded into the first Floquet
             ! Brillouin zone) from the full eigenvalue spectrum.
@@ -348,10 +342,9 @@ CONTAINS
             ! the size of the truncated matrix H_F(k), is sufficiently large.
             CALL check_floquet_conversion(qs_env, bs_env, cfm_eigenvectors)
 
-            ! Compute the physical spectral function
-            ! A_phys(k,ω) = -(1/π) Im[ Tr_KS G^R_{00}(k,ω) ]
-            ! from the zero-zero Floquet sector of the retarded Green's function
-            CALL calculate_floquet_spectral_function(qs_env, bs_env, floquet_matrix, a_k)
+            ! Compute the physical spectral function A_phys(k,ω) = -(1/π) Im[ Tr_KS G^R_{00}(k,ω) ]
+            ! directly from the eigenpairs (spectral representation of the central sector).
+            CALL calculate_floquet_spectral_function(qs_env, bs_env, eigenvalues, cfm_eigenvectors, a_k)
 
             ! Store this (k-point, spin) result on the subgroup source; it is sent to the
             ! collector once both spins of this k-point are done (see after the spin loop).
@@ -359,7 +352,6 @@ CONTAINS
                all_quasi_energies(:, ispin, ikp) = quasi_energies(:)
                all_a_k(:, ispin, ikp) = a_k(:)
             END IF
-            print *, "done ikp: ", ikp, "ispin: ", ispin, para_env%mepos
          END DO
 
          ! This k-point is complete (all spins). The subgroup source ships it to the collector;
@@ -376,7 +368,6 @@ CONTAINS
          END IF
 
          CALL cp_cfm_release(floquet_matrix)
-         CALL cp_cfm_release(floquet_copy)
          CALL cp_cfm_release(cfm_eigenvectors)
       END DO
 
@@ -398,7 +389,7 @@ CONTAINS
       END IF
       CALL comm_stream%free()
 
-      ! Note: the distributed cfm matrices (floquet_matrix, floquet_copy, cfm_eigenvectors)
+      ! Note: the distributed cfm matrices (floquet_matrix, cfm_eigenvectors)
       ! are released inside the k-point loop above; the distributed band arrays (e_k, de_dk,
       ! dipole) are released right after it. Only the persistent objects remain here.
       DEALLOCATE (eigenvalues, quasi_energies, a_k, all_quasi_energies, all_a_k, group_distribution)
@@ -419,8 +410,8 @@ CONTAINS
 !>        scratch/output buffers of the enclosing routine.
 ! **************************************************************************************************
       SUBROUTINE stream_poll_and_write()
-         INTEGER                                            :: i_done, jkp, jspin
-         LOGICAL                                            :: any_done
+      INTEGER                                            :: i_done, jkp, jspin
+      LOGICAL                                            :: any_done
 
          ! Reap whatever has arrived so far (non-blocking); a k-point is received once all of
          ! its streams (quasi and/or DOS) have completed. mp_testany reports flag=.TRUE. with an

@@ -13,12 +13,7 @@
 MODULE floquet_utils
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_invert,&
-                                              cp_cfm_scale_and_add
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_get_submatrix,&
-                                              cp_cfm_release,&
-                                              cp_cfm_set_all,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_get_submatrix,&
                                               cp_cfm_set_submatrix,&
                                               cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
@@ -666,26 +661,32 @@ CONTAINS
    END SUBROUTINE check_floquet_conversion
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief k-resolved Floquet density of states A(k,E) = -(1/π) Im Tr_KS G^R_00(k,E) from the
+!>        spectral representation of the retarded Green's function. With H_F = Σ_α λ_α |α><α|,
+!>          A(E) = -(1/π) Σ_α w_α Im[ 1/(E + iη - λ_α) ],   η = broadening/2,
+!>        where w_α = Σ_{n in central (f=0) Floquet sector} |<n|α>|^2 is the weight of Floquet
+!>        eigenvector α on that sector. This reuses the eigenpairs from cp_cfm_heevd, so it
+!>        avoids the per-energy dense matrix inversion of the full Floquet Hamiltonian.
 !> \param qs_env ...
 !> \param bs_env ...
-!> \param floquet_matrix ...
-!> \param a_k ...
+!> \param eigenvalues Floquet eigenvalues λ_α (n_f_size)
+!> \param cfm_eigenvectors Floquet eigenvectors |α> (n_f_size x n_f_size)
+!> \param a_k the spectral function A(k,E) on the energy grid (n_E)
 ! **************************************************************************************************
-   SUBROUTINE calculate_floquet_spectral_function(qs_env, bs_env, floquet_matrix, a_k)
+   SUBROUTINE calculate_floquet_spectral_function(qs_env, bs_env, eigenvalues, cfm_eigenvectors, a_k)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(cp_cfm_type)                                  :: floquet_matrix
+      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
+      TYPE(cp_cfm_type)                                  :: cfm_eigenvectors
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a_k
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_floquet_spectral_function'
 
-      COMPLEX(KIND=dp)                                   :: diag
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: g00
-      INTEGER                                            :: handle, i, i_E, max_f_index, n_E, nao, &
-                                                            start_row_g00
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: v0_block
+      INTEGER                                            :: handle, i_E, max_f_index, n_E, n_f_size, &
+                                                            nao, start_row_g00
       REAL(KIND=dp)                                      :: broad, E_min, energy, energy_step, mu
-      TYPE(cp_cfm_type)                                  :: g_r
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weight
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
@@ -699,24 +700,22 @@ CONTAINS
       E_min = mu - bs_env%energy_window_floquet
       max_f_index = bs_env%max_floquet_index
       n_E = SIZE(a_k)
+      n_f_size = SIZE(eigenvalues)
       start_row_g00 = 1 + nao*max_f_index
 
-      ALLOCATE (g00(nao, nao))
-      CALL cp_cfm_create(g_r, floquet_matrix%matrix_struct, set_zero=.TRUE.)
+      ! Central-sector rows of the eigenvectors, <n|α> for n in the f=0 block and all α, then
+      ! their per-eigenvector weight w_α = Σ_n |<n|α>|^2 (Σ_α w_α = nao by unitarity).
+      ALLOCATE (v0_block(nao, n_f_size))
+      CALL cp_cfm_get_submatrix(cfm_eigenvectors, v0_block, start_row_g00, 1)
+      ALLOCATE (weight(n_f_size))
+      weight(:) = SUM(ABS(v0_block)**2, DIM=1)
 
       DO i_E = 1, n_E
          energy = E_min + i_E*energy_step
-         diag = energy + gaussi*broad/2.0_dp
-         CALL cp_cfm_set_all(g_r, z_zero, diag)
-         CALL cp_cfm_scale_and_add(z_one, g_r, -z_one, floquet_matrix)
-         CALL cp_cfm_lu_invert(g_r)
-         g00(:, :) = 0.0_dp
-         CALL cp_cfm_get_submatrix(g_r, g00, start_row_g00, start_row_g00)
-         a_k(i_E) = -AIMAG(SUM([(g00(i, i), i=1, nao)]))/pi
+         a_k(i_E) = -SUM(weight(:)*AIMAG(z_one/(energy + gaussi*broad/2.0_dp - eigenvalues(:))))/pi
       END DO
 
-      DEALLOCATE (g00)
-      CALL cp_cfm_release(g_r)
+      DEALLOCATE (v0_block, weight)
 
       CALL timestop(handle)
 
