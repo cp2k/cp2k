@@ -967,10 +967,11 @@ CONTAINS
          ! filter cpuids by vlen to show more relevant information
          IF (m_cpuid_vlen(cpuid_static) < m_cpuid_vlen(cpuid)) THEN
             ! base/machine_cpuid.c relies on the (same) target flags as the Fortran code
-            CALL cp_hint(__LOCATION__, "The compiler target flags ("// &
-                         TRIM(m_cpuid_name(cpuid_static))//") used to build this binary cannot exploit "// &
-                         "all extensions of this CPU model ("//TRIM(m_cpuid_name(cpuid))//"). "// &
-                         "Consider compiler target flags as part of FCFLAGS and CFLAGS (ARCH file).")
+            CALL cp_hint(__LOCATION__, "The compiler target ("// &
+                         TRIM(m_cpuid_name(cpuid_static))//") used to build this binary does not "// &
+                         "enable all instruction-set extensions available on this CPU ("// &
+                         TRIM(m_cpuid_name(cpuid))//"). Consider reconfiguring and rebuilding CP2K "// &
+                         "for this target system to enable them.")
          END IF
 
          WRITE (UNIT=output_unit, FMT="()")
