@@ -1324,7 +1324,7 @@ CONTAINS
             END IF
 
             ! compute DFT+SOC eigenvalues; based on these, compute band edges, DOS and LDOS
-            CALL SOC_ev(bs_env, qs_env, ikp, bs_env%eigenval_scf, band_edges_scf, &
+            CALL SOC_ev(bs_env, qs_env, ikp, bs_env%eigenval_scf, &
                         E_min, cfm_mos_ikp, DOS_scf_SOC, PDOS_scf_SOC, &
                         band_edges_scf_SOC, eigenval_spinor, cfm_spinor_wf_ikp)
 
@@ -1340,7 +1340,7 @@ CONTAINS
             IF (bs_env%do_gw) THEN
 
                ! compute G0W0+SOC eigenvalues; based on these, compute band edges, DOS and LDOS
-               CALL SOC_ev(bs_env, qs_env, ikp, bs_env%eigenval_G0W0, band_edges_G0W0, &
+               CALL SOC_ev(bs_env, qs_env, ikp, bs_env%eigenval_G0W0, &
                            E_min, cfm_mos_ikp, DOS_G0W0_SOC, PDOS_G0W0_SOC, &
                            band_edges_G0W0_SOC, eigenval_spinor_G0W0, cfm_spinor_wf_ikp)
 
@@ -1663,7 +1663,6 @@ CONTAINS
 !> \param qs_env ...
 !> \param ikp ...
 !> \param eigenval_no_SOC ...
-!> \param band_edges_no_SOC ...
 !> \param E_min ...
 !> \param cfm_mos_ikp ...
 !> \param DOS ...
@@ -1672,14 +1671,13 @@ CONTAINS
 !> \param eigenval_spinor ...
 !> \param cfm_spinor_wf_ikp ...
 ! **************************************************************************************************
-   SUBROUTINE SOC_ev(bs_env, qs_env, ikp, eigenval_no_SOC, band_edges_no_SOC, E_min, cfm_mos_ikp, &
+   SUBROUTINE SOC_ev(bs_env, qs_env, ikp, eigenval_no_SOC, E_min, cfm_mos_ikp, &
                      DOS, PDOS, band_edges, eigenval_spinor, cfm_spinor_wf_ikp)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: ikp
       REAL(KIND=dp), DIMENSION(:, :, :)                  :: eigenval_no_SOC
-      TYPE(band_edges_type)                              :: band_edges_no_SOC
       REAL(KIND=dp)                                      :: E_min
       TYPE(cp_cfm_type), DIMENSION(2)                    :: cfm_mos_ikp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: DOS
@@ -1696,6 +1694,8 @@ CONTAINS
       TYPE(cp_cfm_type)                                  :: cfm_eigenvec_ikp_spinor, &
                                                             cfm_ks_ikp_spinor, cfm_mos_ikp_spinor, &
                                                             cfm_SOC_ikp_spinor, cfm_work_ikp_spinor
+
+!TYPE(band_edges_type)                              :: band_edges_no_SOC
 
       CALL timeset(routineN, handle)
 
