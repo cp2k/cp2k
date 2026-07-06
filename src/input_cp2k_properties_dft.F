@@ -3129,20 +3129,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="FLOQUET_DO_QUASI", &
-                          description="Floquet do quasi", &
-                          usage="FLOQUET_DO_QUASI F", &
-                          default_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="FLOQUET_DO_DOS", &
-                          description="Floquet do quasi", &
-                          usage="FLOQUET_DO_DOS F", &
-                          default_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
    END SUBROUTINE create_floquet_section
 
 END MODULE input_cp2k_properties_dft

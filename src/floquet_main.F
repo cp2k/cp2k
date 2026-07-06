@@ -105,10 +105,6 @@ CONTAINS
                       mos=mos)
       CALL get_mo_set(mo_set=mos(1), nao=nao)
 
-      IF (.NOT. (bs_env%floquet_do_quasi .OR. bs_env%floquet_do_dos)) THEN
-         CPABORT("Either FLOQUET_DO_QUASI or FLOQUET_DO_DOS must be TRUE")
-      END IF
-
       unit_nr = bs_env%unit_nr
       nkp = bs_env%nkp_bs_and_DOS
       nkp_start = bs_env%nkp_only_DOS
@@ -147,32 +143,26 @@ CONTAINS
          WRITE (unit_nr, '(T2,A,T56,I12)') &
             "                        Floquet Hamiltonian Size:", n_f_size
          WRITE (unit_nr, '(T2,A)') "                        "//REPEAT("-", 44)
-         IF (bs_env%floquet_do_dos) THEN
-            WRITE (unit_nr, '(T2,A,T56,F12.4)') &
-               "                        Energy window [eV]:", bs_env%energy_window_floquet*evolt
-            WRITE (unit_nr, '(T2,A,T56,F12.4)') &
-               "                        Energy step [eV]:", bs_env%energy_step_floquet*evolt
-            WRITE (unit_nr, '(T2,A,T56,F12.4)') &
-               "                        Broadening [eV]:", bs_env%broadening_floquet*evolt
-         END IF
+         WRITE (unit_nr, '(T2,A,T56,F12.4)') &
+            "                        Energy window [eV]:", bs_env%energy_window_floquet*evolt
+         WRITE (unit_nr, '(T2,A,T56,F12.4)') &
+            "                        Energy step [eV]:", bs_env%energy_step_floquet*evolt
+         WRITE (unit_nr, '(T2,A,T56,F12.4)') &
+            "                        Broadening [eV]:", bs_env%broadening_floquet*evolt
          WRITE (unit_nr, '(T2,A)') "                        "//REPEAT("-", 44)
          WRITE (unit_nr, '(A)') ""
 
-         IF (bs_env%floquet_do_quasi) THEN
-            WRITE (unit_nr, '(T2,A)') &
-               "We construct the Floquet-Bloch Hamiltonian and diagonalise it to obtain the"
-            WRITE (unit_nr, '(T2,A)') &
-               "eigenvalues which give us the quasi-energies stored in QUASI_ENERGIES.bs"
-            WRITE (unit_nr, '(A)') ""
-         END IF
-         IF (bs_env%floquet_do_dos) THEN
-            WRITE (unit_nr, '(T2,A)') &
-               "The k-resolved density of states is obtained by computing the trace of"
-            WRITE (unit_nr, '(T2,A)') &
-               "the retarded Green's function and stored in FLOQUET_DOS.out"
-            WRITE (unit_nr, '(T2,A)') &
-               "DOS(ω,k) = -1/π*Im[Tr_KS(G^R(ω,k))]"
-         END IF
+         WRITE (unit_nr, '(T2,A)') &
+            "We construct the Floquet-Bloch Hamiltonian and diagonalise it to obtain the"
+         WRITE (unit_nr, '(T2,A)') &
+            "eigenvalues which give us the quasi-energies stored in QUASI_ENERGIES.bs"
+         WRITE (unit_nr, '(A)') ""
+         WRITE (unit_nr, '(T2,A)') &
+            "The k-resolved density of states is obtained by computing the trace of"
+         WRITE (unit_nr, '(T2,A)') &
+            "the retarded Green's function and stored in FLOQUET_DOS.out"
+         WRITE (unit_nr, '(T2,A)') &
+            "DOS(ω,k) = -1/π*Im[Tr_KS(G^R(ω,k))]"
          WRITE (unit_nr, '(A)') ""
       END IF
 
@@ -248,8 +238,8 @@ CONTAINS
       ! k-point is "received" once all its streams have arrived. Tags: quasi = ikp, DOS =
       ! n_kp_dos + ikp.
       n_streams = 0
-      IF (bs_env%floquet_do_quasi) n_streams = n_streams + 1
-      IF (bs_env%floquet_do_dos) n_streams = n_streams + 1
+      n_streams = n_streams + 1
+      n_streams = n_streams + 1
       am_collector = para_env%is_source()
       ! Dedicated communicator (duplicate of para_env, same rank order) for all streaming
       ! point-to-point, so its tags can never collide with cp_fm/cp_cfm or any other traffic on
@@ -275,16 +265,12 @@ CONTAINS
          n_recv = 0
          DO ikp = 1, n_kp_dos
             IF (group_distribution(MOD(ikp - 1, para_env%num_pe)) == my_group) CYCLE
-            IF (bs_env%floquet_do_quasi) THEN
-               n_recv = n_recv + 1
-               CALL comm_stream%irecv(all_quasi_energies(:, :, ikp), mp_any_source, recv_reqs(n_recv), tag=ikp)
-               req_ikp(n_recv) = ikp
-            END IF
-            IF (bs_env%floquet_do_dos) THEN
-               n_recv = n_recv + 1
-               CALL comm_stream%irecv(all_a_k(:, :, ikp), mp_any_source, recv_reqs(n_recv), tag=n_kp_dos + ikp)
-               req_ikp(n_recv) = ikp
-            END IF
+            n_recv = n_recv + 1
+            CALL comm_stream%irecv(all_quasi_energies(:, :, ikp), mp_any_source, recv_reqs(n_recv), tag=ikp)
+            req_ikp(n_recv) = ikp
+            n_recv = n_recv + 1
+            CALL comm_stream%irecv(all_a_k(:, :, ikp), mp_any_source, recv_reqs(n_recv), tag=n_kp_dos + ikp)
+            req_ikp(n_recv) = ikp
          END DO
       ELSE
          ! Non-collector subgroup sources send their finished k-points; size to the worst case.
@@ -345,37 +331,33 @@ CONTAINS
             CALL build_floquet_matrix_local(bs_env, e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, &
                                             floquet_matrix)
 
-            IF (bs_env%floquet_do_quasi) THEN
-               ! Use a copy of the Floquet matrix for diagonalization, since
-               ! cp_cfm_heevd overwrites it (needed later for the Green's function)
-               CALL cp_cfm_to_cfm(floquet_matrix, floquet_copy)
+            ! Use a copy of the Floquet matrix for diagonalization, since
+            ! cp_cfm_heevd overwrites it (needed later for the Green's function)
+            CALL cp_cfm_to_cfm(floquet_matrix, floquet_copy)
 
-               ! Diagonalize the Floquet-Bloch matrix H_F(k) F_{α,k} = ε_α F_{α,k}
-               ! to obtain the eigenvalues ε_α and the Floquet-Bloch coefficients F^{nu}_{α,k}
-               CALL cp_cfm_set_all(cfm_eigenvectors, z_zero)
-               CALL cp_cfm_heevd(floquet_copy, cfm_eigenvectors, eigenvalues)
+            ! Diagonalize the Floquet-Bloch matrix H_F(k) F_{α,k} = ε_α F_{α,k}
+            ! to obtain the eigenvalues ε_α and the Floquet-Bloch coefficients F^{nu}_{α,k}
+            CALL cp_cfm_set_all(cfm_eigenvectors, z_zero)
+            CALL cp_cfm_heevd(floquet_copy, cfm_eigenvectors, eigenvalues)
 
-               ! Extract the quasi-energies (the nao eigenvalues folded into the first Floquet
-               ! Brillouin zone) from the full eigenvalue spectrum.
-               CALL get_quasi_energies(eigenvalues, quasi_energies)
+            ! Extract the quasi-energies (the nao eigenvalues folded into the first Floquet
+            ! Brillouin zone) from the full eigenvalue spectrum.
+            CALL get_quasi_energies(eigenvalues, quasi_energies)
 
-               ! Run a conversion check to ensure that MAX_FLOQUET_INDEX,
-               ! the size of the truncated matrix H_F(k), is sufficiently large.
-               CALL check_floquet_conversion(qs_env, bs_env, cfm_eigenvectors)
-            END IF
+            ! Run a conversion check to ensure that MAX_FLOQUET_INDEX,
+            ! the size of the truncated matrix H_F(k), is sufficiently large.
+            CALL check_floquet_conversion(qs_env, bs_env, cfm_eigenvectors)
 
-            IF (bs_env%floquet_do_dos) THEN
-               ! Compute the physical spectral function
-               ! A_phys(k,ω) = -(1/π) Im[ Tr_KS G^R_{00}(k,ω) ]
-               ! from the zero-zero Floquet sector of the retarded Green's function
-               CALL calculate_floquet_spectral_function(qs_env, bs_env, floquet_matrix, a_k)
-            END IF
+            ! Compute the physical spectral function
+            ! A_phys(k,ω) = -(1/π) Im[ Tr_KS G^R_{00}(k,ω) ]
+            ! from the zero-zero Floquet sector of the retarded Green's function
+            CALL calculate_floquet_spectral_function(qs_env, bs_env, floquet_matrix, a_k)
 
             ! Store this (k-point, spin) result on the subgroup source; it is sent to the
             ! collector once both spins of this k-point are done (see after the spin loop).
             IF (para_env_sub%is_source()) THEN
-               IF (bs_env%floquet_do_quasi) all_quasi_energies(:, ispin, ikp) = quasi_energies(:)
-               IF (bs_env%floquet_do_dos) all_a_k(:, ispin, ikp) = a_k(:)
+               all_quasi_energies(:, ispin, ikp) = quasi_energies(:)
+               all_a_k(:, ispin, ikp) = a_k(:)
             END IF
             print *, "done ikp: ", ikp, "ispin: ", ispin, para_env%mepos
          END DO
@@ -386,14 +368,10 @@ CONTAINS
             IF (am_collector) THEN
                received(ikp) = .TRUE.
             ELSE
-               IF (bs_env%floquet_do_quasi) THEN
-                  n_send = n_send + 1
-                  CALL comm_stream%isend(all_quasi_energies(:, :, ikp), 0, send_reqs(n_send), tag=ikp)
-               END IF
-               IF (bs_env%floquet_do_dos) THEN
-                  n_send = n_send + 1
-                  CALL comm_stream%isend(all_a_k(:, :, ikp), 0, send_reqs(n_send), tag=n_kp_dos + ikp)
-               END IF
+               n_send = n_send + 1
+               CALL comm_stream%isend(all_quasi_energies(:, :, ikp), 0, send_reqs(n_send), tag=ikp)
+               n_send = n_send + 1
+               CALL comm_stream%isend(all_a_k(:, :, ikp), 0, send_reqs(n_send), tag=n_kp_dos + ikp)
             END IF
          END IF
 
@@ -465,14 +443,10 @@ CONTAINS
             jkp = max_printed_ikp + 1
             xkp(1:3) = bs_env%kpoints_DOS%xkp(1:3, nkp_start + jkp)
             DO jspin = 1, n_spin
-               IF (bs_env%floquet_do_quasi) THEN
-                  quasi_energies(:) = all_quasi_energies(:, jspin, jkp)
-                  CALL write_quasi_energy(bs_env, jspin, jkp, xkp, quasi_energies)
-               END IF
-               IF (bs_env%floquet_do_dos) THEN
-                  a_k(:) = all_a_k(:, jspin, jkp)
-                  CALL write_floquet_spectral_function(qs_env, bs_env, jspin, jkp, xkp, a_k)
-               END IF
+               quasi_energies(:) = all_quasi_energies(:, jspin, jkp)
+               CALL write_quasi_energy(bs_env, jspin, jkp, xkp, quasi_energies)
+               a_k(:) = all_a_k(:, jspin, jkp)
+               CALL write_floquet_spectral_function(qs_env, bs_env, jspin, jkp, xkp, a_k)
                IF (unit_nr > 0) WRITE (unit_nr, '(2X,I6,T12,I4,T18,3F12.6)') jkp, jspin, xkp(1:3)
             END DO
             max_printed_ikp = jkp
