@@ -191,12 +191,12 @@ CONTAINS
 !> \param E_LUMO ...
 !> \param e_fermi ...
 ! **************************************************************************************************
-   SUBROUTINE remove_soc_outside_energy_window_mo(cfm_ks_spinor, e_win_vbm, e_win_cbm, temp_smear, &
-                                                  eigenval, E_HOMO, E_LUMO, e_fermi)
+   SUBROUTINE remove_soc_outside_energy_window_mo(cfm_ks_spinor, e_win_cbm, temp_smear, &
+                                                  eigenval, e_fermi)
       TYPE(cp_cfm_type)                                  :: cfm_ks_spinor
-      REAL(KIND=dp)                                      :: e_win_vbm, e_win_cbm, temp_smear
+      REAL(KIND=dp)                                      :: e_win_cbm, e_fermi, temp_smear
       REAL(KIND=dp), DIMENSION(:)                        :: eigenval
-      REAL(KIND=dp)                                      :: E_HOMO, E_LUMO, e_fermi
+      !REAL(KIND=dp)                                      :: E_HOMO, E_LUMO, e_fermi
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_soc_outside_energy_window_mo'
 

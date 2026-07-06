@@ -1756,12 +1756,9 @@ CONTAINS
       eigenval_spinor_no_SOC(n_ao + 1:) = eigenval_no_SOC(1:n_ao, ikp, bs_env%n_spin)
       IF (bs_env%soc_window_occ > 0.0_dp .OR. bs_env%soc_window_virt > 0.0_dp) THEN
          CALL remove_soc_outside_energy_window_mo(cfm_ks_ikp_spinor, &
-                                                  bs_env%soc_window_occ, &
                                                   bs_env%soc_window_virt, &
                                                   bs_env%soc_window_smearing, &
                                                   eigenval_spinor_no_SOC, &
-                                                  band_edges_no_SOC%VBM, &
-                                                  band_edges_no_SOC%CBM, &
                                                   bs_env%e_fermi(1))
 
       END IF

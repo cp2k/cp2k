@@ -16,7 +16,15 @@
 
 "07_G0W0_periodic_H2Te_kp_sampling_SCF.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.389}]
 
+"07_G0W0_periodic_H2Te_kp_sampling_SCF_occ.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.383}]
+
+"07_G0W0_periodic_H2Te_kp_sampling_SCF_virt.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.387}]
+
+"07_G0W0_periodic_H2Te_kp_sampling_SCF_occ_virt_smear.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.388}]
+
 "07_G0W0_periodic_H2Te_kp_sampling_SCF_kpsym.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.389}]
+
+"07_G0W0_periodic_H2Te_kp_sampling_SCF_kpsym_occ_virt_smear.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.388}]
 
 "08_G0W0_periodic_H2Te_kp_sampling_SCF_FREQ_MAX_FIT_10_eV.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.871}]
 #EOF
