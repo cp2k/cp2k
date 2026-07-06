@@ -62,10 +62,10 @@ context_info::set_kernel_parameters(const int level,
   params.la_max_diff = smem_params.ldiffs().la_max_diff;
   params.lb_max_diff = smem_params.ldiffs().lb_max_diff;
 
-  params.ptr_dev[0] = pab_block_.data();
+  params.buffers_dev.pab_block = pab_block_.data();
 
   if (level >= 0) {
-    params.ptr_dev[1] = grid_[level].data();
+    params.buffers_dev.grid = grid_[level].data();
     memcpy(params.dh_, grid_[level].dh(), 9 * sizeof(double));
     memcpy(params.dh_inv_, grid_[level].dh_inv(), 9 * sizeof(double));
     params.first_task = first_task_per_level_[level];
@@ -76,11 +76,11 @@ context_info::set_kernel_parameters(const int level,
     params.grid_border_width_ = grid_[level].border_width();
   }
 
-  params.ptr_dev[2] = this->coef_dev_.data();
-  params.ptr_dev[3] = hab_block_.data();
-  params.ptr_dev[4] = forces_.data();
-  params.ptr_dev[5] = virial_.data();
-  params.ptr_dev[6] = this->cab_dev_.data();
+  params.buffers_dev.coef = this->coef_dev_.data();
+  params.buffers_dev.hab_block = hab_block_.data();
+  params.buffers_dev.forces = forces_.data();
+  params.buffers_dev.virial = virial_.data();
+  params.buffers_dev.cab = this->cab_dev_.data();
   params.cab_block_offset_dev = this->cab_block_offset_dev.data();
   params.sphi_dev = this->sphi_dev.data();
   return params;

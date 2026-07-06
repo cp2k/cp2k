@@ -826,13 +826,15 @@ __device__ __inline__ void fill_smem_task_coef(const kernel_params &dev,
     // Locate current matrix block within the buffer.
     const int block_offset = dev.block_offsets[glb_task.block_num];
     task.block_transposed = glb_task.block_transposed;
-    task.pab_block = dev.ptr_dev[0] + block_offset + glb_task.subblock_offset;
+    task.pab_block =
+        dev.buffers_dev.pab_block + block_offset + glb_task.subblock_offset;
 
-    if (dev.ptr_dev[3] != nullptr) {
-      task.hab_block = dev.ptr_dev[3] + block_offset + glb_task.subblock_offset;
-      if (dev.ptr_dev[4] != nullptr) {
-        task.forces_a = &dev.ptr_dev[4][3 * iatom];
-        task.forces_b = &dev.ptr_dev[4][3 * jatom];
+    if (dev.buffers_dev.hab_block != nullptr) {
+      task.hab_block =
+          dev.buffers_dev.hab_block + block_offset + glb_task.subblock_offset;
+      if (dev.buffers_dev.forces != nullptr) {
+        task.forces_a = &dev.buffers_dev.forces[3 * iatom];
+        task.forces_b = &dev.buffers_dev.forces[3 * jatom];
       }
     }
   }
@@ -896,7 +898,7 @@ public:
 template <typename T>
 __inline__ __device__ T *allocate_workspace(const kernel_params &dev_) {
   unsigned int offset = dev_.cab_block_offset_dev[block_index()];
-  return (T *)(dev_.ptr_dev[6] + offset);
+  return (T *)(dev_.buffers_dev.cab + offset);
 }
 
 template <typename T, typename T3>

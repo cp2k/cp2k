@@ -99,7 +99,8 @@ __launch_bounds__(64) void calculate_coefficients(const kernel_params dev_) {
       continue;
     fill_smem_task_coef(dev_, task_id, task);
 
-    T *__restrict__ coef_ = &dev_.ptr_dev[2][dev_.tasks[task_id].coef_offset];
+    T *__restrict__ coef_ =
+        &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset];
 
     compute_alpha(task, smem_alpha);
 
@@ -160,8 +161,9 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
   //  Alloc shared memory.
   extern __shared__ T coefs_[];
 
-  T *coef_ =
-      &dev_.ptr_dev[2][dev_.tasks[dev_.first_task + block_index()].coef_offset];
+  const size_t coef_offset =
+      dev_.tasks[dev_.first_task + block_index()].coef_offset;
+  T *coef_ = &dev_.buffers_dev.coef[coef_offset];
   __shared__ T dh_[9];
 
   if (tid < 9) {
@@ -387,7 +389,7 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
         }
 
         res *= exp(-(r3x2 + r3y2 + r3z2) * task.zetp);
-        atomicAdd(dev_.ptr_dev[1] +
+        atomicAdd(dev_.buffers_dev.grid +
                       (z2 * dev_.grid_local_size_.y + y2) *
                           dev_.grid_local_size_.x +
                       x2,
