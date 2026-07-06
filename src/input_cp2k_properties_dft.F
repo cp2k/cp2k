@@ -2698,7 +2698,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="SOC_WINDOW_OCC", &
                           description="Apply SOC only for states with eigenvalues below VBM "// &
                           "in the interval $[\varepsilon_\mathrm{VBM}-E_\mathrm{window\_occ}, \ "// &
-                          "\varepsilon_\mathrm{VBM}]$. "//&
+                          "\varepsilon_\mathrm{VBM}]$. "// &
                           "to use for large systems to prevent numerical instabilities.", &
                           usage="SOC_WINDOW_OCC 5.0", &
                           default_r_val=-1.0_dp, &
