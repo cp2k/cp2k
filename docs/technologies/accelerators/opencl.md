@@ -1,51 +1,72 @@
 # OpenCL
 
-OpenCL devices are currently supported for DBCSR and DBM/DBT, and can cover GPUs and other devices.
-Kernels can be automatically tuned.
+CP2K can use OpenCL devices through the DBCSR and DBM/DBT offload paths. This supports GPUs and
+other devices that provide a suitable OpenCL implementation. The OpenCL backend relies on
+[LIBXS](../libraries.md#libxs-improved-performance-for-matrix-multiplication) and
+[LIBXSTREAM](../libraries.md#libxstream-opencl-offload-runtime); LIBXSMM may additionally be used
+through LIBXS.
 
-Note: the OpenCL backend uses some functionality from LIBXSMM (dependency). CP2K's offload-library
-serving DBM/DBT and other libraries depends on DBCSR's OpenCL backend.
+OpenCL acceleration does not provide the CUDA/HIP GRID or PW GPU backends. It is therefore most
+useful for the DBCSR and DBM workloads supported by the OpenCL backend.
 
 ## Installing OpenCL and preparing the runtime environment
 
-- Installing an OpenCL runtime depends on the operating system and the device vendor. Debian for
-  instance brings two packages called `opencl-headers` and `ocl-icd-opencl-dev` which can be present
-  in addition to a vendor-specific installation. The OpenCL header files are only necessary if
-  CP2K/DBCSR is compiled from source. Please note, some implementations ship with outdated OpenCL
-  headers which can prevent using latest features (if an application discovers such features only at
-  compile-time). When building from source, for instance `libOpenCL.so` is sufficient at link-time
-  (ICD loader). However, an Installable Client Driver (ICD) is finally necessary at runtime.
-- NVIDIA CUDA, AMD HIP, and Intel OneAPI are fully equipped with an OpenCL runtime (if
-  `opencl-headers` package is not installed, CPATH can be needed to point into the former
-  installation, similarly `LIBRARY_PATH` for finding `libOpenCL.so` at link-time). Installing a
-  minimal or stand-alone OpenCL is also possible, e.g., following the instructions for Debian (or
-  Ubuntu) as given for every [release](https://github.com/intel/compute-runtime/releases) of the
-  [Intel Compute Runtime](https://github.com/intel/compute-runtime).
-- The environment variable `ACC_OPENCL_VERBOSE` prints information at runtime of CP2K about kernels
-  generated (`ACC_OPENCL_VERBOSE=2`) or executed (`ACC_OPENCL_VERBOSE=3`) which can be used to check
-  an installation.
+An OpenCL build needs both development files at configuration time and an actual device driver at
+runtime:
+
+- CMake must be able to find OpenCL headers and the OpenCL loader library. On Debian and Ubuntu, the
+  distribution packages are commonly named `opencl-headers` and `ocl-icd-opencl-dev`; package names
+  vary on other systems.
+- The loader library alone is not enough to run CP2K. The system also needs an Installable Client
+  Driver (ICD) provided by the device vendor or another OpenCL implementation. Vendor SDKs and
+  runtimes, such as NVIDIA CUDA, AMD ROCm, or Intel's compute runtime, may provide the necessary
+  components, but their availability and installation layout are platform dependent.
+- For a manually managed installation in a non-standard prefix, make OpenCL, LIBXS, and LIBXSTREAM
+  discoverable by CMake. `CMAKE_PREFIX_PATH` is usually the most convenient mechanism; see
+  [](../../getting-started/build-from-source.md) for the general CMake workflow.
+- Set `ACC_OPENCL_VERBOSE=2` to print information about generated kernels, or `ACC_OPENCL_VERBOSE=3`
+  to print information about executed kernels. These settings are useful for checking that CP2K
+  reaches the intended OpenCL runtime and device.
 
 ## Building CP2K with OpenCL-based DBCSR
 
-- CP2K's toolchain supports `--enable-opencl` to select DBCSR's OpenCL backend. This can be combined
-  with `--enable-cuda` (`--gpu-ver` is then imposed) to use a GPU for CP2K's GRID and PW components
-  (no OpenCL support yet) with DBM's CUDA implementation to be preferred.
-- For manually writing an ARCH-file, add `-D__OPENCL` and `-D__DBCSR_ACC` to `CFLAGS` and add
-  `-lOpenCL` to the `LIBS` variable, i.e., `OFFLOAD_CC` and `OFFLOAD_FLAGS` can duplicate `CC` and
-  `CFLAGS` (no special offload compiler needed). Please also set `OFFLOAD_TARGET = opencl` to enable
-  the OpenCL backend in DBCSR. For OpenCL, it is not necessary to specify a GPU version (e.g.,
-  `GPUVER = V100` would map/limit to `exts/dbcsr/src/acc/opencl/smm/params/tune_multiply_V100.csv`).
-  In fact, `GPUVER` limits tuned parameters to the specified GPU, whereas by default all tuned
-  parameters are embedded (`exts/dbcsr/src/acc/opencl/smm/params/*.csv`) and applied at runtime. If
-  auto-tuned parameters are not available for DBCSR, well-chosen defaults will be used to populate
-  kernels at runtime.
-- Auto-tuned parameters are embedded into the binary, i.e., CP2K does not rely on a hard-coded
-  location. Setting `OPENCL_LIBSMM_SMM_PARAMS=/path/to/csv-file` environment variable can supply
-  parameters for an already built application, or `OPENCL_LIBSMM_SMM_PARAMS=0` can disable using
-  tuned parameters. Refer to <https://cp2k.github.io/dbcsr/> on how to tune kernels (parameters).
+Configure CP2K with CMake as usual and add:
 
-## Building CP2K with OpenCL-based DBM library
+```bash
+cmake -S . -B build -GNinja \
+  -DCP2K_USE_ACCEL=OPENCL \
+  -DCP2K_USE_LIBXS=ON \
+  -DCMAKE_PREFIX_PATH=/path/to/dependencies
+cmake --build build --parallel
+```
 
-- Pass `-DCP2K_USE_ACCEL=OPENCL` to CMake in addition to following above instructions for "Building
-  CP2K with OpenCL-based DBCSR". An additional Makefile rule can be necessary to transform OpenCL
-  code into a ressource header file.
+`CP2K_USE_LIBXS=ON` is required for the OpenCL backend. CMake also requires OpenCL and LIBXSTREAM,
+and the DBCSR installation selected by CMake must support the requested OpenCL configuration. The
+CMake summary identifies the discovered OpenCL and LIBXSTREAM dependencies. No GPU architecture
+needs to be specified for an OpenCL build.
+
+CMake supplies the required compile definitions, include paths, and link dependencies. In
+particular, do not duplicate these settings through manually added compiler or linker flags.
+
+The DBCSR OpenCL kernels use tuned small-matrix-multiplication parameters where available. The
+available parameter sets are embedded into the application, so the executable does not depend on a
+fixed external parameter-file location. If no suitable tuned parameters are available, DBCSR uses
+fallback defaults to construct kernels at runtime.
+
+Set `OPENCL_LIBSMM_SMM_PARAMS=/path/to/csv-file` to override the built-in parameters for an existing
+application, or set `OPENCL_LIBSMM_SMM_PARAMS=0` to disable them. See the
+[DBCSR documentation](https://cp2k.github.io/dbcsr/) for details on kernel-parameter tuning.
+
+## Building CP2K with the OpenCL-based DBM library
+
+`-DCP2K_USE_ACCEL=OPENCL` also enables the OpenCL-capable DBM build path. The `CP2K_ENABLE_DBM_GPU`
+option is enabled by default when an accelerator backend is selected; set
+`-DCP2K_ENABLE_DBM_GPU=OFF` to build without DBM offload while retaining the rest of the selected
+configuration.
+
+During the build, CMake generates the header that embeds the DBM OpenCL kernel source and adds the
+required target dependencies automatically. No additional build rule or generated source file has to
+be maintained by the user.
+
+The CUDA/HIP-specific GRID and PW acceleration options do not enable corresponding OpenCL backends.
+To disable DBCSR acceleration explicitly, configure with `-DCP2K_DBCSR_USE_CPU_ONLY=ON`.
