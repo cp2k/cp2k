@@ -40,6 +40,7 @@
   ([#5257](https://github.com/cp2k/cp2k/pull/5257))
 - Drop support for GCC 8 ([#5290](https://github.com/cp2k/cp2k/pull/5290))
 - Refactor DOS/PDOS input section ([#5326](https://github.com/cp2k/cp2k/pull/5326))
+- Remove obsolete Cython Python bindings ([#5541](https://github.com/cp2k/cp2k/pull/5541))
 - **TODO**
 
 ### Fixes
