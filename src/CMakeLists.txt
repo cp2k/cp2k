@@ -1379,6 +1379,7 @@ list(
   xc/xc.F
   xc/xc_functionals_utilities.F
   xc/xc_fxc_kernel.F
+  xc/xc_gauxc_cache.F
   xc/xc_gauxc_functional.F
   xc/xc_gauxc_interface.F
   xc/xc_hcth.F
