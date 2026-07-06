@@ -1307,6 +1307,20 @@ CONTAINS
                "processed in "//TRIM(r_cwd), &
                "generated at "//TRIM(timestamp)
             WRITE (UNIT=file_unit, FMT="(T2,A)") &
+               REPEAT(" -*WARNING*- ", 6)
+            WRITE (UNIT=file_unit, FMT="(T2,A)") &
+               "WARNING| the lines enclosed in between -*WARNING*- contain metadata"
+            WRITE (UNIT=file_unit, FMT="(T2,A)") &
+               "WARNING| provided in a tentative format for the newly implemented"
+            WRITE (UNIT=file_unit, FMT="(T2,A)") &
+               "WARNING| CIF output from CP2K version 2026.2, which may be unstable"
+            WRITE (UNIT=file_unit, FMT="(T2,A)") &
+               "WARNING| and subject to overhaul in a future release. Contact the"
+            WRITE (UNIT=file_unit, FMT="(T2,A)") &
+               "WARNING| developers in case a stabilized format is needed for some"
+            WRITE (UNIT=file_unit, FMT="(T2,A)") &
+               "WARNING| downstream CIF parser with text pattern matchers (regexp)."
+            WRITE (UNIT=file_unit, FMT="(T2,A)") &
                "- Optimization type: "//TRIM(gopt_env_label)
             IF (conv) THEN
                WRITE (UNIT=file_unit, FMT="(T2,A)") &
@@ -1364,6 +1378,8 @@ CONTAINS
                   cp_unit_from_cp2k(hmat(2, i), "angstrom"), &
                   cp_unit_from_cp2k(hmat(3, i), "angstrom")
             END DO
+            WRITE (UNIT=file_unit, FMT="(T2,A)") &
+               REPEAT("-*WARNING*- ", 6)
             WRITE (UNIT=file_unit, FMT="(A)") ";"
             ! Data of cell and geometry
             WRITE (UNIT=file_unit, FMT="(/,A,T44,A)") &
