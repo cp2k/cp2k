@@ -120,10 +120,22 @@ is enabled by default. CP2K reuses the SCF orbital coefficients directly when th
 already complete. It can also reconstruct some time-reversal and atomic-symmetry-related points from
 a symmetry-reduced SCF mesh.
 
-The reconstruction is only used when the exported band window is suitable. In particular, a
-symmetry-reconstructed window must contain complete degenerate subspaces. If it cuts through a
-degenerate subspace, CP2K falls back to a full-mesh diagonalization before writing the Wannier90
-files. This fallback is intentional and preserves a well-defined exported subspace.
+```{note}
+SCF orbital reuse requires all relevant symmetry k-point data to be available within one k-point
+parallel group. If the SCF calculation distributes k-points over multiple groups, CP2K cannot
+currently collect the orbitals across those groups and instead falls back to a full-mesh
+diagonalization for the Wannier90 files.
+
+Set `PARALLEL_GROUP_SIZE 0` to keep all MPI processes in one k-point group and enable the reuse
+path. This disables parallelization over k-points, however, so it is a compatibility setting for
+SCF MO reuse rather than a general performance recommendation.
+```
+
+When the SCF k-point data are available, CP2K can reuse orbitals directly from a complete SCF mesh
+or reconstruct missing points from a symmetry-reduced mesh. A symmetry-reconstructed export window
+must contain complete degenerate subspaces. If the window cuts through a degenerate subspace, CP2K
+falls back to a full-mesh diagonalization before writing the Wannier90 files. This preserves a
+well-defined exported subspace.
 
 [VALIDATE_REUSE_SCF_MOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.VALIDATE_REUSE_SCF_MOS) builds a
 full-mesh reference and compares it with the reconstructed orbitals. It is expensive and intended
