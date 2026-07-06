@@ -670,8 +670,14 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
         if (tid == 0)
           accumulator[i][0] = val;
       }
+#if defined(__CUDACC__)
       __syncwarp();
+#endif
     }
+
+#if !defined(__CUDACC__)
+    __syncthreads();
+#endif
 
     if (tid < min(length - ico, lbatch)) {
       const size_t coef_offset =
