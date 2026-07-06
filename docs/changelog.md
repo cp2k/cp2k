@@ -14,7 +14,8 @@
 - Adaptively Compressed Exchange (ACE) option to the HFX/ADMM ground-state path
   ([#5238](https://github.com/cp2k/cp2k/pull/5238))
 - Alternative smearing methods ([#4958](https://github.com/cp2k/cp2k/pull/4958))
-- Brownian chain molecular dynamics (BCMD) propagator for path integrals ([#5247](https://github.com/cp2k/cp2k/pull/5247))
+- Brownian chain molecular dynamics (BCMD) propagator for path integrals
+  ([#5247](https://github.com/cp2k/cp2k/pull/5247))
 - DOS/PDOS with broadened output and k-point projections
   ([#5287](https://github.com/cp2k/cp2k/pull/5287),
   [#5299](https://github.com/cp2k/cp2k/pull/5299),)
