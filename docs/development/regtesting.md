@@ -1,292 +1,326 @@
 # Regression Testing
 
-CP2K comes with over 5000 test input files (located in `tests` which serve as both examples on how
-to use the many features in CP2K and also as a method for developers to test modifications and
-extensions to CP2K. In order to reduce the chance of bugs being introduced into the code, and ensure
-that all parts of the code are working. We also recommend that all users complete a test before
-using a self-compiled binary for their projects.
+CP2K comes with a large collection of test inputs in `tests/`. They serve both as examples of how to
+use CP2K features and as regression tests for changes to the code. Running the relevant tests before
+and after a modification reduces the risk of introducing unintended regressions. Users are also
+strongly encouraged to run at least a representative test set before relying on a self-built CP2K
+binary for production calculations.
 
 ## Dashboard
 
-A number of regtests are run automatically by various members of our community. The results of these
-tests are collected centrally at the [Dashboard](http://dashboard.cp2k.org). If errors are detected,
-the developer responsible for the change should fix it immediately. The output logs provide the arch
-file used for these tests, which might suggest useful settings for that particular architecture.
+A number of regression-test configurations are run automatically by members of the CP2K community.
+Their results are collected on the [CP2K Dashboard](https://dashboard.cp2k.org). If a dashboard
+failure is associated with a change, it should be investigated before that change is merged. The
+corresponding logs and configuration information can also be useful when reproducing a failure on a
+similar system.
 
 ## Code Coverage
 
-We aim that the regression test suite covers all the functionality of CP2K. For this purpose we
-regularly create [Coverage reports](http://www.cp2k.org/static/coverage/) of the test-suite. If you
-see parts of the code which are not well tested, please contribute to improving coverage by writing
-new tests!
+We aim for the regression suite to exercise as much of CP2K as practical. Regular
+[coverage reports](https://www.cp2k.org/static/coverage/) help identify poorly tested paths. When
+adding functionality, please add a focused test where possible; improving coverage is a useful
+contribution in its own right.
 
 ## How does it work?
 
-The regression test suite is run using the
-[do_regtest](https://github.com/cp2k/cp2k/blob/master/tests/do_regtest.py) script. It performs the
-following tasks:
+The regression suite is run by
+[`tests/do_regtest.py`](https://github.com/cp2k/cp2k/blob/master/tests/do_regtest.py). The driver:
 
-- executes a list of tests
-- compares the results (outputs) with those of the last known result (reference)
-- produces a summary
+- runs the standalone unit-test executables listed in `tests/UNIT_TESTS`;
+- runs the input-based tests listed through `tests/TEST_DIRS` and their `TEST_FILES.toml` files;
+- compares selected output values with validated references; and
+- prints a summary and writes detailed failures to `error_summary` in the test work directory.
+
+The driver reads the CP2K feature flags from `cp2k.<version> --version`, so test directories whose
+requirements are not met by the executable are skipped automatically.
 
 ## Running the regtests
 
 ### Step 0: Build the executable
 
-- Build the executable (see [Building from Source](../getting-started/build-from-source.md) and
-  [Building with Spack](../getting-started/build-with-spack.md)).
+Build CP2K first; see [Building from Source](../getting-started/build-from-source.md) or
+[Building with Spack](../getting-started/build-with-spack.md). A full run requires the selected
+`cp2k.<version>` executable and the corresponding `*_unittest.<version>` executables in the same
+binary directory. For example, the `psmp` variant normally uses a CMake build directory containing
+`build/bin/cp2k.psmp` and the `*.psmp` unit-test executables.
 
 ### Step 1: Preparation
 
-- Decide on a directory for doing the regtest, there will be plenty of files in this dir (after a
-  while) so make it something like `$HOME/rt`
-- Clone a version of cp2k into `$HOME/rt`.
-- Set up the arch files so that you can cleanly build cp2k (test this)
+- Use a CP2K source checkout that matches the binaries being tested. The checkout provides
+  `tests/do_regtest.py`, the test inputs and references, and the default `data/` directory.
+- Choose a work base directory outside the source tree, for example `$HOME/cp2k-regtesting`. The
+  driver creates a timestamped `TEST-YYYY-MM-DD_HH-MM-SS` directory below it for each run.
+- Decide how many MPI ranks and OpenMP threads one individual test should use, and how many CPU
+  tasks are available to run several tests concurrently.
+
+```{important}
+The driver copies the `tests/` tree into its work directory.  The work base directory must not be
+inside the source tree's `tests/` directory.  Testing a binary against a substantially different
+source revision can also make numerical differences difficult to interpret.
+```
 
 ### Step 2: Running
 
+The current interface is:
+
+```text
+./tests/do_regtest.py [options] <binary-dir> <version>
 ```
-$ tests/do_regtest.py -h
+
+`<binary-dir>` is the directory containing the executables. `<version>` is their suffix, such as
+`psmp`, `ssmp`, `pdbg`, or `sdbg`. Thus, for `<binary-dir> = ./build/bin` and `<version> = psmp`,
+the driver runs `./build/bin/cp2k.psmp` and the matching unit-test executables.
+
+A typical local MPI/OpenMP run is:
+
+```bash
+./tests/do_regtest.py \
+  --mpiranks 2 \
+  --ompthreads 2 \
+  --maxtasks 8 \
+  --workbasedir "$HOME/cp2k-regtesting" \
+  ./build/bin psmp
+```
+
+The available options are:
+
+```text
 usage: do_regtest.py [-h] [--mpiranks MPIRANKS] [--ompthreads OMPTHREADS]
                      [--maxtasks MAXTASKS] [--num_gpus NUM_GPUS]
                      [--timeout TIMEOUT] [--maxerrors MAXERRORS]
                      [--mpiexec MPIEXEC] [--smoketest] [--valgrind]
                      [--keepalive] [--flagslow] [--debug]
                      [--restrictdir RESTRICTDIR] [--skipdir SKIPDIR]
-                     [--workbasedir WORKBASEDIR] arch version
+                     [--workbasedir WORKBASEDIR] [--cp2kdatadir CP2KDATADIR]
+                     [--skip_unittests] [--skip_regtests]
+                     binary_dir version
+```
 
-Runs CP2K regression test suite.
+`--mpiranks` specifies the number of MPI ranks used by **each individual test**, not the number of
+ranks allocated to the whole run. `--ompthreads` specifies the number of OpenMP threads per rank.
+For serial variants (`ssmp` and `sdbg`), the driver uses one MPI rank regardless of `--mpiranks`.
 
-positional arguments:
-  arch
-  version
+`--maxtasks` is the total CPU-task budget available to the driver. It limits the number of test
+batches that can run concurrently; approximately
 
-options:
-  -h, --help            show this help message and exit
-  --mpiranks MPIRANKS
-  --ompthreads OMPTHREADS
-  --maxtasks MAXTASKS
-  --num_gpus NUM_GPUS
-  --timeout TIMEOUT
-  --maxerrors MAXERRORS
-  --mpiexec MPIEXEC
-  --smoketest           Runs only the first test of each directory.
-  --valgrind            Runs tests under Valgrind memcheck. Best used together with --keepalive.
-  --keepalive           Use a persistent cp2k-shell process to reduce startup time.
-  --flagslow            Flag slow tests in the final summary and status report.
-  --debug
-  --restrictdir RESTRICTDIR
-  --skipdir SKIPDIR
-  --workbasedir WORKBASEDIR
+```text
+floor(maxtasks / (mpiranks * ompthreads))
+```
+
+batches can run at the same time, with at least one worker. Set it to the CPU capacity actually
+available to the test run.
+
+Other commonly useful options are:
+
+- `--smoketest`: run only the first regression input in each selected directory, for a quick broad
+  check;
+- `--restrictdir REGEX` and `--skipdir REGEX`: include or exclude test directories by regular
+  expression; either option may be repeated;
+- `--skip_unittests` or `--skip_regtests`: deliberately omit one part of the suite;
+- `--timeout SECONDS` and `--maxerrors N`: limit the duration of individual tests and the number of
+  errors before aborting;
+- `--mpiexec 'COMMAND ... {N} ...'`: use a site-specific MPI launcher, where `{N}` is replaced by
+  the value of `--mpiranks`;
+- `--keepalive`: reuse a persistent `cp2k --shell` process for supported directories to reduce
+  startup overhead;
+- `--valgrind`: run executables under Valgrind memcheck, usually together with `--keepalive`;
+- `--flagslow`: identify unusually slow tests; and
+- `--cp2kdatadir DIR`: use a CP2K data directory other than the source tree's `data/` directory.
+
+For the complete option list of the checked-out version, run:
+
+```bash
+./tests/do_regtest.py --help
+```
+
+For example, to check only the `QS/regtest-*` directories:
+
+```bash
+./tests/do_regtest.py \
+  --restrictdir 'QS/regtest-.*' \
+  --workbasedir "$HOME/cp2k-regtesting" \
+  ./build/bin psmp
 ```
 
 ### Step 3: Interpretation
 
-A test results can be any of the following:
+The driver prints the work directory for every completed test batch and writes detailed error
+messages to `error_summary`. A test result can be one of the following:
 
-|    Test Result    | Meaning                                                                                   |
-| :---------------: | :---------------------------------------------------------------------------------------- |
-|       `OK`        | if the results match those of a previous run precisely. The execution time is also given. |
-| `RUNTIME FAILURE` | if they stopped unexpectedly (e.g. core dump, or stop)                                    |
-|  `WRONG RESULT`   | if they produce a result that deviates (even a tiny bit) from an old reference            |
+- **`OK`**: The executable completed and all requested comparisons passed. The execution time is
+  also shown.
+- **`RUNTIME FAIL`**: The CP2K or unit-test executable stopped unexpectedly or returned a nonzero
+  status.
+- **`WRONG RESULT`**: The calculation completed, but at least one compared quantity differs from its
+  reference.
+- **`TIMED OUT`**: The test exceeded the configured `--timeout`.
+- **`HUGE OUTPUT`**: The test produced more than 2 MiB of output.
+- **`N/A`**: The selected matcher determined that the comparison is not applicable.
 
-The last two outcomes generally mean that a bug has been introduced, which requires investigation.
-Since regtesting only yields information relative to a previously known result, it is most useful to
-do a regtest before and after you make changes. To allow per-test numerical difference higher than
-that set as a default, add third column in appropriate TEST_FILES file with a relative value of the
-difference.
+`RUNTIME FAIL` and `WRONG RESULT` generally require investigation. A wrong result does not by itself
+justify changing the reference: first determine whether it is an intended and scientifically valid
+effect of the change, a platform-dependent numerical difference, or a regression. Because the suite
+compares against known references, running the relevant tests both before and after a change is
+particularly informative.
 
 ## Adding Tests
 
-The test-suite is fully controlled by the following files in the
-[tests](https://github.com/cp2k/cp2k/tree/master/tests) directories.
+The test suite is controlled by files in the
+[`tests`](https://github.com/cp2k/cp2k/tree/master/tests) directory:
 
-- `TEST_DIRS`: This is just a list of directories that contains tests. You can add your directory
-  here. Conditions on the CP2K executable (linked dependencies) or the runtime parameters (number of
-  MPI parameters or OpenMP threads etc.) can be also added if necessary.
-- `TEST_TYPES` : This file allows you to create a new test type, i.e. to specify for which words
-  should be grepped and what field should be used in the numerical comparison.
-- `TEST_FILES.toml` : This file exists in each test directory and contains a list of file-reference
-  pairs. Each pair represents a CP2K input file and a search pattern (defined in `TEST_TYPES`) which
-  is used to compare the found value with a reference. An input file may be used several times with
-  a different kind of test. Each input is only run once but different quantities of interest are
-  compared. You can add your file name here. Adding a comment about what it tests might help later
-  debugging problems if a regtest fails.
+- `TEST_DIRS` lists the regression-test directories. A line can also contain conditions on the CP2K
+  feature flags or on the number of MPI ranks, so that a directory is run only when it is
+  applicable.
+- `UNIT_TESTS` lists standalone unit-test executables run by the driver.
+- `TEST_FILES.toml` exists in each regression-test directory. Its entries associate a CP2K input
+  file with zero or more matcher specifications. An input is executed only once even when several
+  quantities are checked.
+- `matchers.py` implements the available matchers. A matcher specification normally names the
+  matcher and gives its reference value and tolerance; it may also select a generated output file.
+
+To add a regression test, place a focused input in an appropriate directory (or create a new one),
+record the quantities to be checked in `TEST_FILES.toml`, and ensure that the directory is listed in
+`TEST_DIRS`. Adding a short comment about what a test covers can make later failures much easier to
+diagnose.
 
 ```{note}
-Only the test directories listed in `TEST_DIRS` are actually considered for testing. If you do not add your new test directory, bugs introduced by you or others will not be found. So, please double-check whether you have actually added your test directory.
+Only directories listed in `TEST_DIRS` are considered by the driver.  If a new test directory is not
+listed there, the test will never be run and cannot detect later regressions.
 ```
+
+When changing a reference value or tolerance, explain why in the corresponding pull request.
+Tolerances should allow expected numerical variation without hiding meaningful regressions.
 
 ## Run with sbatch
 
-What you need:
+### What you need
 
-- `sbatch` template script
-- a CP2K source tree with a built CP2K
+- an `sbatch` script or an existing Slurm allocation;
+- a CP2K source tree containing `tests/do_regtest.py`, `tests/`, and `data/`; and
+- a compatible binary directory containing the selected CP2K executables.
 
-## Instructions
+### Instructions
 
-The way the regtest script works is that it goes through all the directories (for example
-`tests/QS/regtest-admm-1/`) and launches all tests in that directory. After each directories tests
-are started it checks whether the number of maximum tasks is reached, if not it also spawns the
-tests from the next directory. If the maximum number of tasks to run has been reached it waits until
-enough of them have finished to spawn tests from the next directory. Since the tests are usually
-rather short this procedure seldomly causes oversubscription.
+The driver runs the tests directory by directory and limits concurrent work according to
+`--maxtasks`. Within a Slurm allocation, each individual MPI test is normally launched through
+`srun`; if the requested resources are not immediately free, Slurm waits until they become
+available. Consequently, a larger allocation can execute more test batches concurrently.
 
-Also, `srun` should simply wait until nodes are free should there be no more free nodes available
-within the given allocation. Hence, the more nodes (or total number of tasks) you allocate for the
-`sbatch` the more tests can run in parallel. But we have to make sure `do_regtest` knows about that
-number by setting `-maxtasks ${SLURM_NTASKS}`, `SLURM_NTASKS` is automatically set by `sbatch` to
-the number of tasks you specified either when running `sbatch` or in the preamble of the `sbatch`
-script.
+`SLURM_NTASKS` is the total number of MPI tasks in the allocation. It should **not** normally be
+passed to `--mpiranks`, because that would make every individual test use the entire allocation.
+Instead, choose a modest number of ranks for one test, for example two, and use the allocation size
+to set `--maxtasks`. When OpenMP threads are used, the CPU-task budget is usually
+`SLURM_NTASKS * SLURM_CPUS_PER_TASK`.
 
-Append the following to your `sbatch` template and at least adapt the value for `CP2K_BASE_DIR` and
-possibly also the `CP2K_TEST_DIR`:
+Append the following to an `sbatch` script and adapt `CP2K_BASE_DIR`, `CP2K_BINARY_DIR`, and the
+chosen CP2K variant:
 
-```
+```bash
 CP2K_BASE_DIR="/PATH/TO/YOUR/CP2K/SOURCE/TREE"
+CP2K_BINARY_DIR="${CP2K_BASE_DIR}/build/bin"
 CP2K_TEST_DIR="${SCRATCH}/cp2k_regtesting"
-# CP2K_REGTEST_SCRIPT_DIR=""  # only set if needed (see below)
-
-CP2K_ARCH="local"
 CP2K_VERSION="psmp"
 
-# the following is the default, adjust if you want to run single tests with more than 2 ranks/tasks
+# Resources for one individual test.  Do not set this to ${SLURM_NTASKS}
+# unless deliberately testing one calculation across the whole allocation.
 NTASKS_SINGLE_TEST=2
-NNODES_SINGLE_TEST=1  # otherwise srun will distribute the 2 tasks over 2 nodes
-SRUN_CMD="srun --cpu-bind=verbose,cores"
-
-# the following should be sufficiently generic:
+OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
+MAXTASKS="$((SLURM_NTASKS * OMP_NUM_THREADS))"
 
 mkdir -p "${CP2K_TEST_DIR}"
-cd "${CP2K_TEST_DIR}"
+cd "${CP2K_BASE_DIR}"
 
-cp2k_rel_dir=$(realpath --relative-to="${CP2K_TEST_DIR}" "${CP2K_BASE_DIR}")
-# srun does not like `-np`, override the complete command instead:
-export cp2k_run_prefix="${SRUN_CMD} -N ${NNODES_SINGLE_TEST} -n ${NTASKS_SINGLE_TEST}"
+./tests/do_regtest.py \
+  --mpiranks "${NTASKS_SINGLE_TEST}" \
+  --ompthreads "${OMP_NUM_THREADS}" \
+  --maxtasks "${MAXTASKS}" \
+  --mpiexec "srun --nodes=1 --ntasks={N} --cpus-per-task=${OMP_NUM_THREADS} --cpu-bind=cores" \
+  --workbasedir "${CP2K_TEST_DIR}" \
+  "${CP2K_BINARY_DIR}" "${CP2K_VERSION}" \
+  |& tee "${CP2K_TEST_DIR}/${CP2K_VERSION}.log"
 
-"${CP2K_REGEST_SCRIPT_DIR:-${CP2K_BASE_DIR}/tools/regtesting}/do_regtest" \
-  -arch "${CP2K_ARCH}" \
-  -version "${CP2K_VERSION}" \
-  -nobuild \
-  -mpiranks ${NTASKS_SINGLE_TEST} \
-  -ompthreads ${OMP_NUM_THREADS} \
-  -maxtasks ${SLURM_NTASKS} \
-  -cp2kdir "${cp2k_rel_dir}" \
-  |& tee "${CP2K_TEST_DIR}/${CP2K_ARCH}.${CP2K_VERSION}.log"
-
-# the above will output both to the slurm-*.out as well as a log file,
-# if you want only the log file replace the `|& tee` with a `>&`.
-
-# More options:
-# -farming   ... enable farming mode, see below
-# -retest    ... only do tests which failed in a previous run
+# To write only to the log file rather than both the Slurm output and the log,
+# replace '|& tee ...' with '>& ...'.
 ```
 
-A complete `sbatch` script to run the regtests on CSCS’ Alps (Eiger) could look as follows:
+The `--nodes=1` setting keeps each two-rank test on a single node. To test communication across
+nodes, choose a suitable larger value of `NTASKS_SINGLE_TEST` and provide a site-specific `srun`
+template, for example with `--nodes`, `--ntasks-per-node`, and the required MPI plugin or placement
+options.
 
-```
+A complete generic batch-script template is:
+
+```bash
 #!/bin/bash -l
 #SBATCH --time=01:00:00
 #SBATCH --nodes=4
-#SBATCH --ntasks-per-node=128
+#SBATCH --ntasks-per-node=64
 #SBATCH --cpus-per-task=2
-#SBATCH --ntasks-per-core=1
-
-# More SBATCH options:
-# If you need 512GB memory nodes (otherwise only 256GB guaranteed):
-#    #SBATCH --mem=497G
-# To run on the debug queue (max 10 nodes, 30 min):
-#    #SBATCH--partition=debug
 
 set -o errexit
 set -o nounset
 set -o pipefail
 
-export MPICH_OFI_STARTUP_CONNECT=1
-export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 export OMP_PROC_BIND=close
 export OMP_PLACES=cores
 
-source "${MODULESHOME}/init/bash"
+# Load the compiler, MPI implementation, and libraries used to build CP2K here.
+# module load ...
 
-module load cpeGNU
-module load \
-    cray-fftw \
-    ELPA/2020.11.001 \
-    libxsmm/1.16.1 \
-    libxc/5.1.3 \
-    Libint-CP2K/2.6.0 \
-    gcc/10.2.0
-
-# Let the user see the currently loaded modules in the slurm log for completeness:
-module list
-
-CP2K_BASE_DIR="/users/timuel/work/cp2k"
+CP2K_BASE_DIR="/PATH/TO/YOUR/CP2K/SOURCE/TREE"
+CP2K_BINARY_DIR="${CP2K_BASE_DIR}/build/bin"
 CP2K_TEST_DIR="${SCRATCH}/cp2k_regtesting"
-
-CP2K_ARCH="Eiger-gfortran"
 CP2K_VERSION="psmp"
-
 NTASKS_SINGLE_TEST=2
-NNODES_SINGLE_TEST=1
-SRUN_CMD="srun --cpu-bind=verbose,cores"
-
-# to run tests across nodes (to check for communication effects), use:
-# NNODES_SINGLE_TEST=4
-# SRUN_CMD="srun --cpu-bind=verbose,cores --ntasks-per-node 2"
-
-# the following should be sufficiently generic:
+MAXTASKS="$((SLURM_NTASKS * SLURM_CPUS_PER_TASK))"
 
 mkdir -p "${CP2K_TEST_DIR}"
-cd "${CP2K_TEST_DIR}"
+cd "${CP2K_BASE_DIR}"
 
-cp2k_rel_dir=$(realpath --relative-to="${CP2K_TEST_DIR}" "${CP2K_BASE_DIR}")
-# srun does not like `-np`, override the complete command instead:
-export cp2k_run_prefix="${SRUN_CMD} -N ${NNODES_SINGLE_TEST} -n ${NTASKS_SINGLE_TEST}"
-
-"${CP2K_REGEST_SCRIPT_DIR:-${CP2K_BASE_DIR}/tools/regtesting}/do_regtest" \
-  -arch "${CP2K_ARCH}" \
-  -version "${CP2K_VERSION}" \
-  -nobuild \
-  -mpiranks ${NTASKS_SINGLE_TEST} \
-  -ompthreads ${OMP_NUM_THREADS} \
-  -maxtasks ${SLURM_NTASKS} \
-  -cp2kdir "${cp2k_rel_dir}" \
- |& tee "${CP2K_TEST_DIR}/${CP2K_ARCH}.${CP2K_VERSION}.log"
+./tests/do_regtest.py \
+  --mpiranks "${NTASKS_SINGLE_TEST}" \
+  --ompthreads "${OMP_NUM_THREADS}" \
+  --maxtasks "${MAXTASKS}" \
+  --mpiexec "srun --nodes=1 --ntasks={N} --cpus-per-task=${OMP_NUM_THREADS} --cpu-bind=cores" \
+  --workbasedir "${CP2K_TEST_DIR}" \
+  "${CP2K_BINARY_DIR}" "${CP2K_VERSION}" \
+  |& tee "${CP2K_TEST_DIR}/${CP2K_VERSION}.log"
 ```
 
 ## Minimal directory setup
 
-If you want to test a precompiled executable there is a minimal directory layout you have to
-reproduce to run the regtest:
+The regression driver must be run from a CP2K source tree because it obtains `tests/`, `data/`, and
+its own implementation from that tree. A separately built or precompiled CP2K installation can still
+be tested by passing its binary directory as `<binary-dir>`.
 
-- `cp2k-prebuilt/exe/prebuilt/*.psmp` … directory with all the executables
-- `cp2k-prebuilt/tests` … directory containing the tests (can NOT be a symlink)
-- `cp2k-prebuilt/data` … containing CP2Ks data
+For input-based regression tests, the minimum practical layout is therefore:
 
-An example if your HPC center uses EasyBuild to provide the CP2K package:
+```text
+cp2k-source
+├── data/
+└── tests/
+    ├── do_regtest.py
+    ├── TEST_DIRS
+    ├── TEST_FILES.toml directories ...
+    └── matchers.py
 
-```
 cp2k-prebuilt
-├── data -> /apps/eiger/UES/jenkins/1.4.0/software/CP2K/8.1-cpeGNU-21.04/data
-├── exe
-│   └── prebuilt -> /apps/eiger/UES/jenkins/1.4.0/software/CP2K/8.1-cpeGNU-21.04/bin
-└── tests
+└── bin/
+    └── cp2k.psmp
 ```
 
-and then update the variables as follows:
+Run the test driver from `cp2k-source` and point it to the prebuilt binary directory:
 
-```
-CP2K_BASE_DIR="/PATH/TO/THE/MINIMAL/DIR/cp2k-prebuilt"
-CP2K_TEST_DIR="${SCRATCH}/cp2k_regtesting"
-CP2K_REGTEST_SCRIPT_DIR="/PATH/TO/A/FULL/CP2K/DIR/tools/regtesting"
+```bash
+cd /PATH/TO/cp2k-source
 
-CP2K_ARCH="prebuilt"
-CP2K_VERSION="psmp"
+./tests/do_regtest.py \
+  --skip_unittests \
+  --workbasedir "${SCRATCH}/cp2k_regtesting" \
+  /PATH/TO/cp2k-prebuilt/bin psmp
 ```
 
-```{note}
-if the `tools/regtesting` is not in that minimal directory tree as shown above you may get an error about the `timings.py` not found and there will be no timings. If you need those you should link/copy the regtesting scripts into `tools/regtest` of that minimal directory tree, at which you point you can leave the `CP2K_REGTEST_SCRIPT_DIR` variable undefined again.
-```
+Use `--skip_unittests` only when the precompiled installation does not provide the corresponding
+`*_unittest.psmp` executables. When a compatible data directory is not available in the source tree,
+add `--cp2kdatadir /PATH/TO/data` (or set `CP2K_DATA_DIR`) explicitly.
