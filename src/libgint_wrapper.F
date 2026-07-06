@@ -176,7 +176,7 @@ CONTAINS
                nla = nsgfl_a(l, iset)
                IF (ALLOCATED(flat_gcc)) DEALLOCATE (flat_gcc)
                ALLOCATE (flat_gcc(npgfa(iset)*nla))
-               flat_gcc = PACK(gcc(1:npgfa(iset), inla:inla + nla - 1, iset), .TRUE.)
+               flat_gcc(:) = PACK(gcc(1:npgfa(iset), inla:inla + nla - 1, iset), .TRUE.)
                CALL libgint_set_Atom_L(libGint_handle, jset - 1, l, nla, flat_gcc)
                inla = inla + nla
             END DO

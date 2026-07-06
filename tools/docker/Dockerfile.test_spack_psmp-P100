@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_psmp-P100 -f ./Dockerfile.test_spack_psmp-P100 ../../
+# Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_psmp-p100 -f ./Dockerfile.test_spack_psmp-P100 ../../
 #
 
 ARG BASE_IMAGE="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04"

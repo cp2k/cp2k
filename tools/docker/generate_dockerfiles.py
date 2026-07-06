@@ -226,6 +226,20 @@ def main() -> None:
             )
         )
 
+    with OutputFile(f"Dockerfile.test_spack_pdbg-P100", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                version="pdbg",
+                mpi_mode="mpich",
+                base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
+                gcc_version=13,
+                gpu_model="P100",
+                feature_flags="",
+                testopts=testopts,
+                image_tag=f.image_tag,
+            )
+        )
+
     # End Spack/CMake based tester
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
@@ -979,7 +993,7 @@ class OutputFile:
         self.content.write(f"# This file was created by generate_dockerfiles.py.\n")
         if "_spack_" in filename:
             self.image_tag = filename.removeprefix("Dockerfile.test_")
-            usage = f"./spack_cache_start.sh; podman build --shm-size=1g -t {self.image_tag} -f ./{filename} ../../"
+            usage = f"./spack_cache_start.sh; podman build --shm-size=1g -t {self.image_tag.lower()} -f ./{filename} ../../"
         else:
             self.image_tag = ""
             usage = f"podman build --shm-size=1g -f ./{filename} ../../"
