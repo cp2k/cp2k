@@ -192,12 +192,12 @@ developers, nor does it suggest that the original author may be contacted for as
 In the very first place, please refer to the [](./troubleshooting) page for a catalog of well-known
 warning and error messages with readily available explanations and suggestions. Search through the
 venues mentioned above for similar questions from others, and see if there are recent answers and
-advice applicable to the scenario. For the time being, it is not recommended to seek for
+advice applicable to the scenario. For the time being, it is not recommended to seek for unofficial
 CP2K-specific suggestions from generic large language models (LLM); even if they have been trained
 on a refined and verified corpus of CP2K materials one day, they can still hallucinate and generate
-superficially convincing but factually incorrect responses. Unless willing to take responsibility
-for the correctness of any content produced by AIs as with human authors of a formal academic
-publication, do not bother mentioning anything from AIs at all.
+superficially convincing but factually incorrect responses. (Unless willing to take responsibility
+for the correctness of any content produced by artificial intelligence as with human authors of a
+formal academic publication, do not bother mentioning anything from AI in the discussion at all.)
 
 Before submitting a question, please compose it with sufficient details, accuracy, and clarity.
 Approach the process in the same way as making a presentation to general audience, or even writing
@@ -210,21 +210,30 @@ The release date or git version of CP2K, and custom revisions if any, has to be 
 beginning. It is encouraged to try out the latest development version from the master branch of the
 github repository whenever situation permits, as this is likely containing the resolution patches
 already, and if not, works on which will benefit the next release version. Be aware that there are
-distinctive sets of [Input Reference](../CP2K_INPUT) for the past releases as well as the latest
-development version; check twice if it matches the program actually used prior to reading it.
+distinctive sets of manuals, with [](../CP2K_INPUT) for the latest development version and
+[](../versions) for the past releases; check twice if a page matches the program actually used prior
+to reading it.
 
 For problems related to installation and/or performance, the hardware specification and the
 configuration for linked libraries should be explained. The distribution source and means of
 preparation of dependencies, like with package managers, environment-controlling modules, or just a
-build from source, need clarifying.
+build from source, need clarifying. Faulty libraries are unfortunately very common that problems may
+be localized to a machine X or with a dependency Y, or even in a period of time Z with certain
+external concurrent processes or other users intervening; try ruling out these factors first.
 
 For error terminations and wrong results, it is imperative to provide a complete input deck and the
 output files. The "input deck" encompasses not only the main input file with keyword settings, but
 also all of the external files referenced inside unless they are available under the official `data`
-directory, so that the job can be actually run and tested. Instead of the original intended chemical
-structure and composition, it is better to use a simplified system that triggers the malfunction
-reliably; this prevents confidential research information to be disclosed and reduces the demand on
-computational resources to ease the load of computers on the developer side.
+directory, so that the job can be actually run and tested on the developers' side. Suspected wrong
+results should have the precise location in the output and the reference expectation pointed out.
+
+```{note}
+The input file does not have to use the intended chemical structure and composition in the original
+encounter. For the [minimal reproducer](https://en.wikipedia.org/wiki/Minimal_reproducible_example),
+any simplified system is fine and the accuracy-controlling parameters can be tuned down, as long as
+the input can reliably trigger the problem. Not only would this reduce the demand on computational
+resources while reproducing, but also confidential research information would not be disclosed.
+```
 
 Lastly, please kindly understand that, despite the CP2K developers having knowledge about the
 algorithm infrastructures and program implementations, they may not be suitable for answering all of

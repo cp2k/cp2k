@@ -22,6 +22,23 @@
 - K-point symmetry reduction ([#5123](https://github.com/cp2k/cp2k/pull/5123),
   [#5152](https://github.com/cp2k/cp2k/pull/5152), [#5165](https://github.com/cp2k/cp2k/pull/5165),
   [#5173](https://github.com/cp2k/cp2k/pull/5173))
+- Input keyword for cutoff radius of HFX shortrange potential
+  ([#4945](https://github.com/cp2k/cp2k/pull/4945))
+- Input keyword for L-BFGS optimizer print control ([#5274](https://github.com/cp2k/cp2k/pull/5274))
+- New output of NEB including relative energy plot and final structures
+  ([#5382](https://github.com/cp2k/cp2k/pull/5382))
+- New output of final structure from optimization in CIF and EXTXYZ formats
+  ([#5118](https://github.com/cp2k/cp2k/pull/5118), [#5140](https://github.com/cp2k/cp2k/pull/5140))
+- New output of Hessian before mass weighting from revised vibrational analysis printout
+  ([#5395](https://github.com/cp2k/cp2k/pull/5395))
+- Dimer initialization by reading molden files ([#5312](https://github.com/cp2k/cp2k/pull/5312))
+- Parse cell information from EXTXYZ for both initial geometry and each frame of reftraj run
+  ([#4960](https://github.com/cp2k/cp2k/pull/4960), [#5401](https://github.com/cp2k/cp2k/pull/5401))
+- Wrapping input atomic coordinates for each frame before calculation in a reftraj run
+  ([#5479](https://github.com/cp2k/cp2k/pull/5479))
+- Per-thermal-region function for rescaling temperatures in MD (independent of thermostats)
+  ([#5002](https://github.com/cp2k/cp2k/pull/5002))
+- Cell optimization with fixed volume ([#5086](https://github.com/cp2k/cp2k/pull/5086))
 - **TODO**
 
 ### New Libraries
@@ -43,6 +60,8 @@
 - Drop support for GCC 8 ([#5290](https://github.com/cp2k/cp2k/pull/5290))
 - Refactor DOS/PDOS input section ([#5326](https://github.com/cp2k/cp2k/pull/5326))
 - Remove obsolete Cython Python bindings ([#5541](https://github.com/cp2k/cp2k/pull/5541))
+- Remove EVAL_ENERGY_FORCES and EVAL_FORCES keywords in favor of EVAL under &MOTION/&MD/&REFTRAJ
+  ([#5401](https://github.com/cp2k/cp2k/pull/5401))
 - **TODO**
 
 ### Fixes
