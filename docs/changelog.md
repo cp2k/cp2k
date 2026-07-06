@@ -45,6 +45,8 @@
 ### Fixes
 
 - Fix issues in the native DFT-D4 implementation. ([#5030](https://github.com/cp2k/cp2k/pull/5030))
+- Analytical periodic-subspace stress for 2D systems with ANALYTIC/MT
+  ([#5282](https://github.com/cp2k/cp2k/pull/5282))
 - **TODO**
 
 ______________________________________________________________________
