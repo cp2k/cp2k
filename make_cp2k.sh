@@ -1257,7 +1257,7 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
         spack compiler list
       fi
     fi
-    if ! spack -e "${CP2K_ENV}" --no-user-config --no-system-config concretize --fresh --jobs $((NUM_PROCS)); then
+    if ! spack -e "${CP2K_ENV}" concretize --fresh --jobs $((NUM_PROCS)); then
       echo -e "\nERROR: The spack concretize for environment \"${CP2K_ENV}\" failed"
       ${EXIT_CMD} 1
     fi
