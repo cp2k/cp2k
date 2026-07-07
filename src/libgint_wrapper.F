@@ -36,6 +36,8 @@ MODULE libGint_wrapper
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    PRIVATE
+
+#if(__LIBGINT)
    INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: first_set_of_atom
    TYPE(bra_t), TARGET, SAVE :: bra, ket
    LOGICAL, SAVE :: first_call = .TRUE.
@@ -43,6 +45,7 @@ MODULE libGint_wrapper
    !$OMP THREADPRIVATE( first_set_of_atom, first_call )
    !$OMP THREADPRIVATE( bra,ket )
    !$OMP THREADPRIVATE( libGint_handle )
+#endif
 
    PUBLIC :: cp_libGint_init, libGint_update_env, libGint_set_density, libGint_coulomb4, &
              libGint_update_fock_matrix, libGint_get_fock_matrix
