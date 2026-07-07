@@ -3,13 +3,10 @@
 # A stand-alone build in this folder can be performed with:
 # podman build --build-arg DEPS_IMAGE=<image id> --shm-size=1g -f build_cp2k_spack.Dockerfile ../../
 #
-# Author: Matthias Krack (MK)
-#
+# Stage 2: Build CP2K
 
 ARG BASE_IMAGE=${BASE_IMAGE:-ubuntu:26.04}
 ARG DEPS_IMAGE=${DEPS_IMAGE:-}
-
-###### Stage 2: Build CP2K ######
 
 FROM "${DEPS_IMAGE}" AS build_cp2k
 
@@ -24,15 +21,17 @@ ENV NUM_PROCS=${NUM_PROCS:-32}
 ARG FEATURE_FLAGS
 ENV FEATURE_FLAGS=${FEATURE_FLAGS:-}
 
-# Update CP2K files
-WORKDIR /opt/cp2k
-RUN rm -rf benchmarks cmake data src tests tools
-COPY . .
-
 # Build CP2K
+WORKDIR /opt/cp2k
+COPY ./src ./src
+COPY ./data ./data
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
+
 RUN ./make_cp2k.sh -cray -cv ${CP2K_VERSION} -uc no -j${NUM_PROCS} ${FEATURE_FLAGS}
 
-###### Stage 3: Install CP2K ######
+# Stage 3: Install CP2K
 
 FROM "${BASE_IMAGE}" AS install_cp2k
 
@@ -50,11 +49,11 @@ COPY --from=build_cp2k /opt/cp2k/spack/spack/opt/spack ./spack/spack/opt/spack
 COPY --from=build_cp2k /opt/cp2k/install ./install
 
 # Install CP2K regression tests
-COPY --from=build_cp2k /opt/cp2k/tests ./tests
+COPY ./tests ./tests
 COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 
 # Install CP2K/Quickstep CI benchmarks
-COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
+COPY ./benchmarks/CI ./benchmarks/CI
 
 # Do not rely only on LD_LIBRARY_PATH because it is fragile
 COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
