@@ -150,7 +150,7 @@ LIBXC is a library that provides wider choice of XC functionals.
 GauXC can be used to evaluate selected exchange-correlation functionals through an external
 integrator.
 
-- Libtorch is required for OneDFT/SKALA support.
+- Libtorch is required for Skala support.
 - Pass `-DCP2K_USE_GAUXC=ON` to CMake to enable GauXC. An MPI-enabled CP2K build requires a GauXC
   installation built with MPI support.
 - TorchScript-based GauXC models require a libtorch installation compatible with CP2K's BLAS and
@@ -221,7 +221,7 @@ of each atom.
 ## Torch (PyTorch C++ library)
 
 LibTorch is the C++ distribution of PyTorch. CP2K uses it for the NequIP interface and for GauXC
-OneDFT/SKALA models.
+Skala models.
 
 - LibTorch can be downloaded from the
   [PyTorch installation page](https://pytorch.org/get-started/locally/).

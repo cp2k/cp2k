@@ -76,7 +76,7 @@ MODULE skala_gpw_functional
 
    PUBLIC :: ensure_native_skala_grid_scope, get_gauxc_section, skala_gapw_atom_vxc_of_r, &
              native_skala_gapw_density_partition, skala_gpw_eval, skala_gpw_exc_density, &
-             xc_section_uses_native_skala_grid, xc_section_uses_onedft_model
+             xc_section_uses_native_skala_grid, xc_section_uses_gauxc_model
 
    TYPE(skala_torch_model_type), SAVE                  :: cached_model
    CHARACTER(len=default_path_length), SAVE            :: cached_model_path = ""
@@ -109,27 +109,27 @@ CONTAINS
    END FUNCTION xc_section_uses_native_skala_grid
 
 ! **************************************************************************************************
-!> \brief Return true if the GAUXC subsection requests a OneDFT/SKALA-style model.
+!> \brief Return true if the GAUXC subsection requests a Skala-style model.
 !> \param xc_section ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION xc_section_uses_onedft_model(xc_section) RESULT(uses_onedft_model)
+   FUNCTION xc_section_uses_gauxc_model(xc_section) RESULT(uses_gauxc_model)
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
-      LOGICAL                                            :: uses_onedft_model
+      LOGICAL                                            :: uses_gauxc_model
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name
       TYPE(section_vals_type), POINTER                   :: gauxc_section
 
-      uses_onedft_model = .FALSE.
+      uses_gauxc_model = .FALSE.
       gauxc_section => get_gauxc_section(xc_section)
       IF (ASSOCIATED(gauxc_section)) THEN
          CALL section_vals_val_get(gauxc_section, "MODEL", c_val=model_name)
          model_key = ADJUSTL(model_name)
          CALL uppercase(model_key)
-         uses_onedft_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
+         uses_gauxc_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
       END IF
 
-   END FUNCTION xc_section_uses_onedft_model
+   END FUNCTION xc_section_uses_gauxc_model
 
 ! **************************************************************************************************
 !> \brief Return the hard/soft GAPW one-center density partition for native SKALA.

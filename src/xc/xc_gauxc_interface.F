@@ -733,7 +733,7 @@ CONTAINS
 
 #ifdef __GAUXC
       CHARACTER(len=default_path_length)                 :: model_key
-      LOGICAL                                            :: use_onedft
+      LOGICAL                                            :: use_gauxc_model
 #ifdef GAUXC_HAS_ONEDFT
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
 #if defined (__HAS_IEEE_EXCEPTIONS)
@@ -742,11 +742,11 @@ CONTAINS
       INTEGER                                            :: omp_max_threads_restore
 #endif
 
-      use_onedft = .FALSE.
+      use_gauxc_model = .FALSE.
       IF (PRESENT(model)) THEN
          model_key = ADJUSTL(model)
          CALL uppercase(model_key)
-         use_onedft = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
+         use_gauxc_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
       END IF
 
       IF (.NOT. ALLOCATED(res%vxc_scalar)) THEN
@@ -756,11 +756,11 @@ CONTAINS
       END IF
       res%vxc_scalar = 0._dp
 
-      IF (use_onedft) THEN
+      IF (use_gauxc_model) THEN
 #ifndef GAUXC_HAS_ONEDFT
-         CPABORT("GauXC lacks OneDFT support")
+         CPABORT("GauXC lacks Skala support")
 #else
-         ! OneDFT may change the OpenMP team size for later parallel regions.
+         ! Skala may change the OpenMP team size for later parallel regions.
          ! Restore max threads only; omp_get_num_threads() is 1 here.
          omp_max_threads_restore = omp_get_max_threads()
 #if defined (__HAS_IEEE_EXCEPTIONS)
@@ -811,7 +811,7 @@ CONTAINS
       IF (nspins == 1) THEN
          ! xmat factor 2 is applied by both CP2K and GauXC
          ! "unapply" it here to even things back out.
-         ! This is NOT necessary in the OneDFT branch.
+         ! This is NOT necessary in the Skala branch.
          density_scalar = 0.5_dp*density_scalar
          CALL gauxc_integrator_eval_exc_vxc_rks( &
             status%status, &
@@ -882,7 +882,7 @@ CONTAINS
 
 #ifdef __GAUXC
       CHARACTER(len=default_path_length)                 :: model_key
-      LOGICAL                                            :: use_onedft
+      LOGICAL                                            :: use_gauxc_model
 #ifdef GAUXC_HAS_ONEDFT
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
 #if defined (__HAS_IEEE_EXCEPTIONS)
@@ -894,18 +894,18 @@ CONTAINS
       ALLOCATE (res%exc_grad(3*natom))
       res%exc_grad = 0._dp
 
-      use_onedft = .FALSE.
+      use_gauxc_model = .FALSE.
       IF (PRESENT(model)) THEN
          model_key = ADJUSTL(model)
          CALL uppercase(model_key)
-         use_onedft = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
+         use_gauxc_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
       END IF
 
-      IF (use_onedft) THEN
+      IF (use_gauxc_model) THEN
 #ifndef GAUXC_HAS_ONEDFT
-         CPABORT("GauXC lacks OneDFT support")
+         CPABORT("GauXC lacks Skala support")
 #else
-         ! OneDFT may change the OpenMP team size for later parallel regions.
+         ! Skala may change the OpenMP team size for later parallel regions.
          ! Restore max threads only; omp_get_num_threads() is 1 here.
          omp_max_threads_restore = omp_get_max_threads()
 #if defined (__HAS_IEEE_EXCEPTIONS)
