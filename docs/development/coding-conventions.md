@@ -161,5 +161,7 @@ central redirections, i.e. avoid to use direct calls to external libraries in CP
 - The following keywords are required: `\brief`, `\param` (for each parameter), `\retval` (for
   functions).
 - The following keywords are optional: `\note`, `\par`, `\date`, `\author`.
-- Please run `make doxify` to format your doxygen comments, or generate templates where none exist.
+- Run `./tools/precommit/precommit.py --allow-modifications <file>` before committing modified
+  Fortran sources. It runs Doxify before applying the Fortran formatter. To update Doxygen blocks
+  only, run `./tools/doxify/doxify.sh <file>`.
 - See our [doxygen pages](http://doxygen.cp2k.org/files.html) for the result.

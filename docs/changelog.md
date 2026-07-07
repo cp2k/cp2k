@@ -42,11 +42,14 @@
   ([#5257](https://github.com/cp2k/cp2k/pull/5257))
 - Drop support for GCC 8 ([#5290](https://github.com/cp2k/cp2k/pull/5290))
 - Refactor DOS/PDOS input section ([#5326](https://github.com/cp2k/cp2k/pull/5326))
+- Remove obsolete Cython Python bindings ([#5541](https://github.com/cp2k/cp2k/pull/5541))
 - **TODO**
 
 ### Fixes
 
 - Fix issues in the native DFT-D4 implementation. ([#5030](https://github.com/cp2k/cp2k/pull/5030))
+- Analytical periodic-subspace stress for 2D systems with ANALYTIC/MT
+  ([#5282](https://github.com/cp2k/cp2k/pull/5282))
 - **TODO**
 
 ______________________________________________________________________

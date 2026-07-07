@@ -8,5 +8,4 @@ maxdepth: 2
 cuda
 hip
 opencl
-fpga
 ```
