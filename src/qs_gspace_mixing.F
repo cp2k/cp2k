@@ -173,7 +173,7 @@ CONTAINS
             mixing_store%iter_method = "Pulay"
          ELSEIF (mixing_method == new_pulay_mixing_nr) THEN
             CALL pulay_mixing(qs_env, mixing_store, rho, para_env)
-            mixing_store%iter_method = "New Pulay"
+            mixing_store%iter_method = "NPulay"
          ELSEIF (mixing_method == broyden_mixing_nr) THEN
             CALL cite_reference(Broyden1965)
             CALL broyden_mixing(qs_env, mixing_store, rho, para_env)
