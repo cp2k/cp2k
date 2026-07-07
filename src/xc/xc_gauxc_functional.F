@@ -579,7 +579,8 @@ CONTAINS
                       batch_size, &
                       device_runtime_fill_fraction, &
                       gauxc_status, &
-                      mpi_comm=mp_comm_self%get_handle())
+                      mpi_comm=mp_comm_self%get_handle(), &
+                      force_new_runtime=.TRUE.)
       CALL gauxc_check_status(gauxc_status)
       gauxc_integrator_fd = gauxc_create_integrator( &
                             TRIM(xc_fun_name), &
@@ -1331,7 +1332,8 @@ CONTAINS
                              batch_size, &
                              device_runtime_fill_fraction, &
                              gauxc_status, &
-                             mpi_comm=mp_comm_self%get_handle())
+                             mpi_comm=mp_comm_self%get_handle(), &
+                             force_new_runtime=.TRUE.)
       ELSE
          ! Use the QS force-evaluation communicator rather than GauXC's global
          ! runtime.  In mixed CDFT the diabatic states can be built on disjoint
@@ -1373,7 +1375,8 @@ CONTAINS
                                       batch_size, &
                                       device_runtime_fill_fraction, &
                                       gauxc_status, &
-                                      mpi_comm=mp_comm_self%get_handle())
+                                      mpi_comm=mp_comm_self%get_handle(), &
+                                      force_new_runtime=.TRUE.)
          CALL gauxc_check_status(gauxc_status)
          gauxc_gradient_integrator_result = gauxc_create_integrator( &
                                             TRIM(xc_fun_name), &
