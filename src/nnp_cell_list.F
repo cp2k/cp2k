@@ -112,8 +112,8 @@ CONTAINS
 
          IF (rebuild) THEN
             CALL nnp_build_cell_list_cache(cache, cell, exact_cutoff, list_cutoff, skin)
-         ELSE IF (skin > 0.0_dp .AND. cache%initialized) THEN
-            ! On skin reuse the bin geometry is frozen, but the head/next chain
+         ELSE IF (cache%initialized) THEN
+            ! On reuse the bin geometry is frozen, but the head/next chain
             ! is rebinned from current positions so the walk still finds every
             ! in-cutoff pair.
             CALL nnp_cell_list_rebin_chain(cache)
