@@ -1159,7 +1159,7 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
   spack compiler list
 
   # Retrieve the newest compiler version found by spack
-  GCC_VERSION_NEWEST="$(spack compilers | awk '/gcc/ {print $2}' | sort -V | tail -n 1)"
+  GCC_VERSION_NEWEST="$(spack compilers | sed -nE 's/.*gcc@([0-9]+(\.[0-9]+)*).*/\1/p' | sort -V | tail -n 1)"
   echo "The newest GCC compiler version found by spack is ${GCC_VERSION_NEWEST}"
   GCC_VERSION_NEWEST="$(echo "${GCC_VERSION_NEWEST}" | sed -E -e 's/.*@([0-9]+).*/\1/' | cut -d. -f1)"
 
