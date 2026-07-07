@@ -1,22 +1,30 @@
 "01_G0W0_periodic_H2O.inp"              = [{matcher="E_G0W0_direct_gap", tol=1e-03, ref=9.861}]
 
 "02_G0W0_IH_SOC_LDOS.inp"               = [{matcher="E_G0W0_direct_gap", tol=1e-03, ref=17.826},
-                                           {matcher="E_SCF_SOC_gap", tol=1e-03, ref=11.344}]
+                                           {matcher="E_SCF_SOC_gap", tol=1e-03, ref=11.248}]
 
 "03_G0W0_bandstructure_IH_chain.inp"    = [{matcher="E_G0W0_direct_gap", tol=5e-04, ref=21.962},
-                                           {matcher="E_G0W0_SOC_gap", tol=5e-04, ref=21.678}]
+                                           {matcher="E_G0W0_SOC_gap", tol=5e-04, ref=21.622}]
 
 "04_G0W0_SOC_TeH_chain_open_shell_kp_extrapol.inp" = [{matcher="E_G0W0_direct_gap", tol=1e-03, ref=5.174}]
 
 "05_G0W0_SOC_TeH_chain_open_shell.inp"  = [{matcher="E_G0W0_direct_gap", tol=5e-04, ref=5.178},
-                                           {matcher="E_SCF_SOC_gap", tol=5e-04, ref=0.306},
-                                           {matcher="E_G0W0_SOC_gap", tol=5e-04, ref=5.134}]
+                                           {matcher="E_SCF_SOC_gap", tol=5e-04, ref=0.257},
+                                           {matcher="E_G0W0_SOC_gap", tol=5e-04, ref=5.127}]
 
 "06_G0W0_periodic_H2O_Hedin_shift.inp"  = [{matcher="E_G0W0_direct_gap", tol=1e-03, ref=10.417}]
 
-"07_G0W0_periodic_H2Te_kp_sampling_SCF.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.315}]
+"07_G0W0_periodic_H2Te_kp_sampling_SCF.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.389}]
 
-"07_G0W0_periodic_H2Te_kp_sampling_SCF_kpsym.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.315}]
+"07_G0W0_periodic_H2Te_kp_sampling_SCF_occ.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.383}]
 
-"08_G0W0_periodic_H2Te_kp_sampling_SCF_FREQ_MAX_FIT_10_eV.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.780}]
+"07_G0W0_periodic_H2Te_kp_sampling_SCF_virt.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.387}]
+
+"07_G0W0_periodic_H2Te_kp_sampling_SCF_occ_virt_smear.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.388}]
+
+"07_G0W0_periodic_H2Te_kp_sampling_SCF_kpsym.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.389}]
+
+"07_G0W0_periodic_H2Te_kp_sampling_SCF_kpsym_occ_virt_smear.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.388}]
+
+"08_G0W0_periodic_H2Te_kp_sampling_SCF_FREQ_MAX_FIT_10_eV.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.871}]
 #EOF

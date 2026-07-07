@@ -33,6 +33,7 @@ MODULE soc_pseudopotential_methods
    USE qs_neighbor_list_types,          ONLY: get_neighbor_list_set_p,&
                                               neighbor_list_set_p_type
    USE virial_types,                    ONLY: virial_type
+   !USE physcon,                         ONLY: evolt
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -182,16 +183,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param cfm_ks_spinor ...
-!> \param e_win ...
+!> \param e_win_cbm ...
+!> \param temp_smear ...
 !> \param eigenval ...
-!> \param E_HOMO ...
-!> \param E_LUMO ...
+!> \param e_fermi ...
 ! **************************************************************************************************
-   SUBROUTINE remove_soc_outside_energy_window_mo(cfm_ks_spinor, e_win, eigenval, E_HOMO, E_LUMO)
+   SUBROUTINE remove_soc_outside_energy_window_mo(cfm_ks_spinor, e_win_cbm, temp_smear, &
+                                                  eigenval, e_fermi)
       TYPE(cp_cfm_type)                                  :: cfm_ks_spinor
-      REAL(KIND=dp)                                      :: e_win
+      REAL(KIND=dp)                                      :: e_win_cbm, temp_smear
       REAL(KIND=dp), DIMENSION(:)                        :: eigenval
-      REAL(KIND=dp)                                      :: E_HOMO, E_LUMO
+      REAL(KIND=dp)                                      :: e_fermi
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_soc_outside_energy_window_mo'
 
@@ -199,7 +201,9 @@ CONTAINS
                                                             ncol_global, ncol_local, nrow_global, &
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: E_i, E_j
+      REAL(KIND=dp)                                      :: E_i, E_j, w_i, w_j, x_i, x_j
+
+!REAL(KIND=dp)                                      :: E_HOMO, E_LUMO, e_fermi
 
       ! Remove SOC outside of energy window (otherwise, numerical problems arise
       ! because energetically low semicore states and energetically very high
@@ -220,6 +224,10 @@ CONTAINS
       CPASSERT(nrow_global == SIZE(eigenval))
       CPASSERT(ncol_global == SIZE(eigenval))
 
+      ! Apply a smooth energy window to the SOC coupling matrix. Each state gets a
+      ! weight in [0,1]: 1 = full SOC, decaying to 0 outside the window via a
+      ! Fermi-like function of width temp_smear. A matrix element coupling states i
+      ! and j is scaled by SQRT(w_i*w_j), applying the damping symmetrically to both.
       DO jjB = 1, ncol_local
          j_glob = col_indices(jjB)
          DO iiB = 1, nrow_local
@@ -227,11 +235,24 @@ CONTAINS
 
             E_i = eigenval(i_glob)
             E_j = eigenval(j_glob)
-
-            IF (E_i < E_HOMO - 0.5_dp*e_win .OR. E_i > E_LUMO + 0.5_dp*e_win .OR. &
-                E_j < E_HOMO - 0.5_dp*e_win .OR. E_j > E_LUMO + 0.5_dp*e_win) THEN
-               cfm_ks_spinor%local_data(iiB, jjB) = 0.0_dp
+            IF (E_i <= e_fermi) THEN
+               !x_i = ABS(E_i - e_fermi) - 0.5_dp * e_win_vbm
+               w_i = 1.0_dp
+            ELSE
+               x_i = ABS(E_i - e_fermi) - e_win_cbm
+               w_i = 1.0_dp/(EXP(x_i/temp_smear) + 1.0_dp)
             END IF
+
+            IF (E_j <= e_fermi) THEN
+               !x_j = ABS(E_j - e_fermi) - 0.5_dp * e_win_vbm
+               w_j = 1.0_dp
+            ELSE
+               x_j = ABS(E_j - e_fermi) - e_win_cbm
+               w_j = 1.0_dp/(EXP(x_j/temp_smear) + 1.0_dp)
+            END IF
+
+            cfm_ks_spinor%local_data(iiB, jjB) = &
+               cfm_ks_spinor%local_data(iiB, jjB)*SQRT(w_i*w_j)
 
          END DO
       END DO

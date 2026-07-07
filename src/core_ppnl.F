@@ -626,11 +626,11 @@ CONTAINS
                                                          MATMUL(alkint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 1)))
 
                               ELSE
-                                 l_block_x(1:nb, 1:na) = l_block_x(1:nb, 1:na) - &
+                                 l_block_x(1:nb, 1:na) = l_block_x(1:nb, 1:na) + &
                                                          MATMUL(blkint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 1)))
-                                 l_block_y(1:nb, 1:na) = l_block_y(1:nb, 1:na) - &
+                                 l_block_y(1:nb, 1:na) = l_block_y(1:nb, 1:na) + &
                                                          MATMUL(blkint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 1)))
-                                 l_block_z(1:nb, 1:na) = l_block_z(1:nb, 1:na) - &
+                                 l_block_z(1:nb, 1:na) = l_block_z(1:nb, 1:na) + &
                                                          MATMUL(blkint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 1)))
                               END IF
                            END IF

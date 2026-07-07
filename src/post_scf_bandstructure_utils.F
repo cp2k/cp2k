@@ -216,7 +216,9 @@ CONTAINS
       soc_sec => section_vals_get_subs_vals(bs_sec, "SOC")
       CALL section_vals_get(soc_sec, explicit=bs_env%do_soc)
 
-      CALL section_vals_val_get(soc_sec, "ENERGY_WINDOW", r_val=bs_env%energy_window_soc)
+      CALL section_vals_val_get(soc_sec, "SOC_WINDOW_OCC", r_val=bs_env%soc_window_occ)
+      CALL section_vals_val_get(soc_sec, "SOC_WINDOW_VIRT", r_val=bs_env%soc_window_virt)
+      CALL section_vals_val_get(soc_sec, "SOC_WINDOW_SMEARING", r_val=bs_env%soc_window_smearing)
 
       NULLIFY (dos_pdos_sec)
       dos_pdos_sec => section_vals_get_subs_vals(bs_sec, "DOS")
@@ -768,7 +770,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'diagonalize_ks_matrix'
 
-      INTEGER                                            :: handle, ispin
+      INTEGER                                            :: handle, ikp, ispin
       REAL(KIND=dp)                                      :: CBM, VBM
 
       CALL timeset(routineN, handle)
@@ -800,6 +802,13 @@ CONTAINS
       END DO
 
       CALL timestop(handle)
+
+      ! Gamma-only path for molecules: eigenval_scf is filled here from the Gamma eigenvalues
+      DO ispin = 1, bs_env%n_spin
+         DO ikp = 1, bs_env%nkp_bs_and_DOS
+            bs_env%eigenval_scf(:, ikp, ispin) = bs_env%eigenval_scf_Gamma(:, ispin)
+         END DO
+      END DO
 
    END SUBROUTINE diagonalize_ks_matrix
 
@@ -1193,10 +1202,25 @@ CONTAINS
 
          IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(A)') ''
-            WRITE (bs_env%unit_nr, '(T2,A,F43.1,A)') 'SOC requested, SOC energy window:', &
-               bs_env%energy_window_soc*evolt, ' eV'
+            IF (bs_env%soc_window_occ > 0.0_dp) THEN
+               WRITE (bs_env%unit_nr, '(T2,A,T71,F10.2)') 'SOC requested, SOC energy window occ (eV):', &
+                  bs_env%soc_window_occ*evolt
+            ELSE
+               WRITE (bs_env%unit_nr, '(T2,A,T71,A10)') 'SOC requested, SOC energy window occ (eV):', &
+                  ' no window'
+            END IF
+            IF (bs_env%soc_window_virt > 0.0_dp) THEN
+               WRITE (bs_env%unit_nr, '(T2,A,T71,F10.2)') 'SOC requested, SOC energy window virt (eV):', &
+                  bs_env%soc_window_virt*evolt
+            ELSE
+               WRITE (bs_env%unit_nr, '(T2,A,T71,A10)') 'SOC requested, SOC energy window virt (eV):', &
+                  ' no window'
+            END IF
+            IF (bs_env%soc_window_occ > 0.0_dp .OR. bs_env%soc_window_virt > 0.0_dp) THEN
+               WRITE (bs_env%unit_nr, '(T2,A,T71,F10.2)') 'SOC requested, SOC window smearing (eV):', &
+                  bs_env%soc_window_smearing*evolt
+            END IF
          END IF
-
       END IF
 
       IF (bs_env%do_ldos) THEN
@@ -1300,7 +1324,7 @@ CONTAINS
             END IF
 
             ! compute DFT+SOC eigenvalues; based on these, compute band edges, DOS and LDOS
-            CALL SOC_ev(bs_env, qs_env, ikp, bs_env%eigenval_scf, band_edges_scf, &
+            CALL SOC_ev(bs_env, qs_env, ikp, bs_env%eigenval_scf, &
                         E_min, cfm_mos_ikp, DOS_scf_SOC, PDOS_scf_SOC, &
                         band_edges_scf_SOC, eigenval_spinor, cfm_spinor_wf_ikp)
 
@@ -1316,7 +1340,7 @@ CONTAINS
             IF (bs_env%do_gw) THEN
 
                ! compute G0W0+SOC eigenvalues; based on these, compute band edges, DOS and LDOS
-               CALL SOC_ev(bs_env, qs_env, ikp, bs_env%eigenval_G0W0, band_edges_G0W0, &
+               CALL SOC_ev(bs_env, qs_env, ikp, bs_env%eigenval_G0W0, &
                            E_min, cfm_mos_ikp, DOS_G0W0_SOC, PDOS_G0W0_SOC, &
                            band_edges_G0W0_SOC, eigenval_spinor_G0W0, cfm_spinor_wf_ikp)
 
@@ -1639,7 +1663,6 @@ CONTAINS
 !> \param qs_env ...
 !> \param ikp ...
 !> \param eigenval_no_SOC ...
-!> \param band_edges_no_SOC ...
 !> \param E_min ...
 !> \param cfm_mos_ikp ...
 !> \param DOS ...
@@ -1648,14 +1671,13 @@ CONTAINS
 !> \param eigenval_spinor ...
 !> \param cfm_spinor_wf_ikp ...
 ! **************************************************************************************************
-   SUBROUTINE SOC_ev(bs_env, qs_env, ikp, eigenval_no_SOC, band_edges_no_SOC, E_min, cfm_mos_ikp, &
+   SUBROUTINE SOC_ev(bs_env, qs_env, ikp, eigenval_no_SOC, E_min, cfm_mos_ikp, &
                      DOS, PDOS, band_edges, eigenval_spinor, cfm_spinor_wf_ikp)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: ikp
       REAL(KIND=dp), DIMENSION(:, :, :)                  :: eigenval_no_SOC
-      TYPE(band_edges_type)                              :: band_edges_no_SOC
       REAL(KIND=dp)                                      :: E_min
       TYPE(cp_cfm_type), DIMENSION(2)                    :: cfm_mos_ikp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: DOS
@@ -1672,6 +1694,8 @@ CONTAINS
       TYPE(cp_cfm_type)                                  :: cfm_eigenvec_ikp_spinor, &
                                                             cfm_ks_ikp_spinor, cfm_mos_ikp_spinor, &
                                                             cfm_SOC_ikp_spinor, cfm_work_ikp_spinor
+
+!TYPE(band_edges_type)                              :: band_edges_no_SOC
 
       CALL timeset(routineN, handle)
 
@@ -1730,12 +1754,13 @@ CONTAINS
       !    unbound states couple to the states around the Fermi level)
       eigenval_spinor_no_SOC(1:n_ao) = eigenval_no_SOC(1:n_ao, ikp, 1)
       eigenval_spinor_no_SOC(n_ao + 1:) = eigenval_no_SOC(1:n_ao, ikp, bs_env%n_spin)
-      IF (bs_env%energy_window_soc > 0.0_dp) THEN
+      IF (bs_env%soc_window_occ > 0.0_dp .OR. bs_env%soc_window_virt > 0.0_dp) THEN
          CALL remove_soc_outside_energy_window_mo(cfm_ks_ikp_spinor, &
-                                                  bs_env%energy_window_soc, &
+                                                  bs_env%soc_window_virt, &
+                                                  bs_env%soc_window_smearing, &
                                                   eigenval_spinor_no_SOC, &
-                                                  band_edges_no_SOC%VBM, &
-                                                  band_edges_no_SOC%CBM)
+                                                  bs_env%e_fermi(1))
+
       END IF
 
       ! 4. h^G0W0+SOC_nn',σσ'(k_i) = ε_nσ^G0W0(k_i) δ_nn' δ_σσ' + V^SOC_nn',σσ'(k_i)
@@ -2792,12 +2817,27 @@ CONTAINS
 
       ! careful: inside add_dbcsr_submat, mat_V_SOC_xyz is multiplied by i because the real matrix
       !          mat_V_SOC_xyz is antisymmetric as V_SOC matrix is purely imaginary and Hermitian
+      ! V_x * sigma_x: sigma_x = ((0,1),(1,0))
+      ! ud block (1,s): +i*V_x
       CALL add_dbcsr_submat(bs_env%cfm_SOC_spinor_ao(1), bs_env%mat_V_SOC_xyz(1, 1)%matrix, &
-                            str, s, 1, z_one, .TRUE.)
+                            str, 1, s, z_one, .FALSE.)
+      ! du block (s,1): +i*V_x
+      CALL add_dbcsr_submat(bs_env%cfm_SOC_spinor_ao(1), bs_env%mat_V_SOC_xyz(1, 1)%matrix, &
+                            str, s, 1, z_one, .FALSE.)
+
+      ! V_y * sigma_y: sigma_y = ((0,-i),(i,0))
+      ! ud block (1,s): i*(i*V_y) = -V_y  (extra gaussi factor)
       CALL add_dbcsr_submat(bs_env%cfm_SOC_spinor_ao(1), bs_env%mat_V_SOC_xyz(2, 1)%matrix, &
-                            str, s, 1, gaussi, .TRUE.)
+                            str, 1, s, gaussi, .FALSE.)
+      ! du block (s,1): -i*(i*V_y) = +V_y  (extra -gaussi factor)
+      CALL add_dbcsr_submat(bs_env%cfm_SOC_spinor_ao(1), bs_env%mat_V_SOC_xyz(2, 1)%matrix, &
+                            str, s, 1, -gaussi, .FALSE.)
+
+      ! V_z * sigma_z: sigma_z = ((1,0),(0,-1))
+      ! uu block (1,1): +i*V_z
       CALL add_dbcsr_submat(bs_env%cfm_SOC_spinor_ao(1), bs_env%mat_V_SOC_xyz(3, 1)%matrix, &
                             str, 1, 1, z_one, .FALSE.)
+      ! dd block (s,s): -i*V_z
       CALL add_dbcsr_submat(bs_env%cfm_SOC_spinor_ao(1), bs_env%mat_V_SOC_xyz(3, 1)%matrix, &
                             str, s, s, -z_one, .FALSE.)
 

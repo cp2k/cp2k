@@ -2695,13 +2695,34 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
-                          description="Apply SOC only for states with eigenvalues in the "// &
-                          "interval $[\varepsilon_\mathrm{VBM}-E_\mathrm{window}/2, "// &
-                          "\varepsilon_\mathrm{CBM}+E_\mathrm{window}/2]$. Might be necessary "// &
+      CALL keyword_create(keyword, __LOCATION__, name="SOC_WINDOW_OCC", &
+                          description="Apply SOC only for states with eigenvalues below VBM "// &
+                          "in the interval $[\varepsilon_\mathrm{VBM}-E_\mathrm{window\_occ}, \ "// &
+                          "\varepsilon_\mathrm{VBM}]$. "// &
                           "to use for large systems to prevent numerical instabilities.", &
-                          usage="ENERGY_WINDOW 5.0", &
-                          default_r_val=cp_unit_to_cp2k(value=40.0_dp, unit_str="eV"), &
+                          usage="SOC_WINDOW_OCC 5.0", &
+                          default_r_val=-1.0_dp, &
+                          unit_str="eV")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SOC_WINDOW_VIRT", &
+                          description="Apply SOC only for states with eigenvalues above CBM "// &
+                          "in the interval $[\varepsilon_\mathrm{CBM},\ "// &
+                          "\varepsilon_\mathrm{CBM}+E_\mathrm{window\_virt}]$, "// &
+                          "to use for large systems to prevent numerical instabilities.", &
+                          usage="SOC_WINDOW_VIRT 5.0", &
+                          default_r_val=-1.0_dp, &
+                          unit_str="eV")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SOC_WINDOW_SMEARING", &
+                          description="Width of the Fermi-like smoothing at the SOC energy-window edge. "// &
+                          "Default reproduces the value of 1 eV. "// &
+                          "only effective when at least one SOC window is active.", &
+                          usage="SOC_WINDOW_SMEARING 1.0", &
+                          default_r_val=cp_unit_to_cp2k(value=1.0_dp, unit_str="eV"), &
                           unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
