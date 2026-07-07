@@ -196,10 +196,7 @@ if [ "${math_mode}" = "mkl" ]; then
   if [ -z "${MKLROOT}" ]; then
     report_error ${LINENO} "math_mode is mkl, but MKLROOT is not set by ${TOOLCHAIN_INSTALL_DIR}/setup."
   fi
-  CMAKE_OPTIONS+=" -DMKL_ROOT=${MKLROOT} -DCP2K_BLAS_VENDOR=MKL -DCP2K_BLAS_THREADING=sequential"
-  if [ "${mpi_mode}" != "no" ] && [ "${MKL_SCALAPACK}" = "yes" ]; then
-    CMAKE_OPTIONS+=" -DCP2K_SCALAPACK_VENDOR=MKL"
-  fi
+  CMAKE_OPTIONS+=" -DCP2K_BLAS_VENDOR=MKL -DCP2K_BLAS_THREADING=sequential"
 fi
 if [ -n "$(grep -- "--install-all" "${TOOLCHAIN_ROOTDIR}/toolchain_settings")" ]; then
   CMAKE_OPTIONS+=" -DCP2K_USE_EVERYTHING=ON -DCP2K_USE_DLAF=OFF -DCP2K_USE_PEXSI=OFF -DCP2K_USE_OPENPMD=OFF"
