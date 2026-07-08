@@ -13,12 +13,13 @@
 MODULE floquet_utils
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
-   USE cp_cfm_types,                    ONLY: cp_cfm_get_submatrix,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_get_info,&
                                               cp_cfm_set_submatrix,&
                                               cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
+   USE input_constants,                 ONLY: small_cell_full_kp
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
@@ -60,22 +61,23 @@ MODULE floquet_utils
    ! element) that the subgroup must be able to hold, distributed across its ranks. A few are
    ! live at once (floquet_matrix + cfm_eigenvectors + eigensolver scratch); we size for 10 to
    ! leave headroom.
-   INTEGER, PARAMETER, PRIVATE :: n_fm_work_copies = 10
+   INTEGER, PARAMETER, PRIVATE :: n_fm_work_copies = 4
 
    ! Fraction of the per-rank free memory the Floquet working set is allowed to occupy. The rest
    ! is a reserve for everything the working-set estimate does NOT count: the SCF/post-SCF
    ! baseline, the ScaLAPACK eigensolver's internal workspace, the distributed dipole/band data,
    ! and the replicated real-space arrays built transiently in the precompute.
-   REAL(KIND=dp), PARAMETER, PRIVATE :: mem_fill_fraction = 0.4_dp
+   REAL(KIND=dp), PARAMETER, PRIVATE :: mem_fill_fraction = 0.5_dp
 
-   ! Public subroutines (the block builders, calculate_epsilon_derivative and
-   ! floquet_ranks_per_node are private helpers used only within this module)
+   ! Public subroutines (the block builders, calculate_epsilon_derivative,
+   ! floquet_ranks_per_node, floquet_reference_energy and fold_to_first_fbz are private
+   ! helpers used only within this module)
    PUBLIC :: build_floquet_matrix_local, &
              floquet_precompute_kp_data, &
              floquet_determine_subgroup_size, &
-             check_floquet_conversion, &
-             calculate_floquet_spectral_function, &
-             get_floquet_energies, &
+             floquet_sector_weights, &
+             check_floquet_convergence, &
+             calculate_floquet_observables, &
              write_floquet_results
 
 CONTAINS
@@ -564,9 +566,9 @@ CONTAINS
 
       INTEGER                                            :: g_load, g_mem, handle, n_f_size, &
                                                             n_kp_dos, nao, ranks_per_node, unit_nr
-      INTEGER(KIND=int_8)                                :: Buffers, Cached, MemFree, MemLikelyFree, &
-                                                            MemTotal, needed_bytes, Slab, &
-                                                            SReclaimable, usable_per_rank
+      INTEGER(KIND=int_8)                                :: Buffers, Cached, MemFree, &
+                                                            MemLikelyFree, MemTotal, needed_bytes, &
+                                                            Slab, SReclaimable, usable_per_rank
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
@@ -633,160 +635,332 @@ CONTAINS
    END FUNCTION floquet_determine_subgroup_size
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param bs_env ...
-!> \param cfm_eigenvectors ...
+!> \brief Central- and boundary-sector weights of every Floquet eigenvector:
+!>          w0_α = Σ_{n=1..nao} |<n, m=0  | α>|^2                            (central sector)
+!>          wE_α = Σ_{n=1..nao} ( |<n, m=-M | α>|^2 + |<n, m=+M | α>|^2 )    (outermost rungs)
+!>
+!>        w0 → 1 for the m=0 replica of a physical band and → 0 for every other replica, so it
+!>        both selects the m=0 bands and weights the central-sector Green's function. wE is the
+!>        truncation diagnostic consumed by check_floquet_convergence.
+!>
+!>        Only 3 of the n_fbands sector blocks are ever needed, so their local rows are collected
+!>        once and only those rows of the block-cyclic local_data are touched - never the whole
+!>        matrix. Only the (2, n_f_size) REAL buffer is reduced over the subgroup, so the
+!>        n_f_size^2 complex eigenvector matrix is never replicated. The reduction leaves w0 and
+!>        wE identical on every subgroup rank, hence any selection derived from them cannot
+!>        diverge between ranks.
+!> \param nao number of atomic orbitals (the size of one Floquet sector block)
+!> \param max_f_index the Floquet truncation index M
+!> \param cfm_eigenvectors Floquet eigenvectors |α> (n_f_size x n_f_size), columns
+!> \param w0 central-sector weight of each eigenvector (n_f_size)
+!> \param wE combined weight on the two outermost sectors m = ±M (n_f_size)
 ! **************************************************************************************************
-   SUBROUTINE check_floquet_conversion(qs_env, bs_env, cfm_eigenvectors)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+   SUBROUTINE floquet_sector_weights(nao, max_f_index, cfm_eigenvectors, w0, wE)
+      INTEGER                                            :: nao, max_f_index
       TYPE(cp_cfm_type)                                  :: cfm_eigenvectors
+      REAL(KIND=dp), DIMENSION(:)                        :: w0, wE
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_floquet_conversion'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'floquet_sector_weights'
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: vector_block_0, vector_block_1
-      INTEGER                                            :: handle, max_f_index, nao, start_row_0, &
-                                                            start_row_1
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      COMPLEX(KIND=dp)                                   :: z
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
+      INTEGER                                            :: handle, i_glob, i_loc, j_glob, j_loc, k, &
+                                                            m_blk, n_f_size, n_fbands, n_rows_0, &
+                                                            n_rows_E, ncol_local, nrow_local
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rows_0, rows_E
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: acc0, accE
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buf
+      TYPE(mp_para_env_type), POINTER                    :: para_env_cfm
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, mos=mos)
-      CALL get_mo_set(mo_set=mos(1), nao=nao)
+      n_f_size = SIZE(w0)
+      n_fbands = 1 + 2*max_f_index
 
-      max_f_index = bs_env%max_floquet_index
+      CALL cp_cfm_get_info(cfm_eigenvectors, nrow_local=nrow_local, ncol_local=ncol_local, &
+                           row_indices=row_indices, col_indices=col_indices, &
+                           local_data=local_data, para_env=para_env_cfm)
 
-      start_row_0 = 1 + nao*max_f_index
-      start_row_1 = 1 + nao*(max_f_index + 1)
-
-      ALLOCATE (vector_block_0(3*nao, nao), vector_block_1(3*nao, nao), source=z_zero)
-      CALL cp_cfm_get_submatrix(cfm_eigenvectors, vector_block_0, start_row_0, start_row_0)
-      CALL cp_cfm_get_submatrix(cfm_eigenvectors, vector_block_1, start_row_1, start_row_1)
-      IF (bs_env%eps_floquet > 0) THEN
-         IF (ABS(MAXVAL(ABS(vector_block_0)) - MAXVAL(ABS(vector_block_1))) > bs_env%eps_floquet) THEN
-            CPABORT("FLOQUET DIAGONALIZATION DID NOT CONVERGE. MAX_FLOQUET_INDEX TOO SMALL")
+      ! Global row i_glob = (m_blk-1)*nao + n selects the Floquet sector m_blk, matching the
+      ! tiling laid down in build_floquet_matrix_local (there f_index = i - max_f_index - 1, so
+      ! f=0 is block max_f_index+1). Collect the local rows of the 3 blocks we consume once -
+      ! 3/n_fbands of the global rows, scattered by the block-cyclic map - so the accumulation
+      ! below never walks the whole matrix. nrow_local/ncol_local are the *valid* extents of
+      ! local_data (its first dimension is the local leading dimension, which may be larger);
+      ! ranks holding no rows or columns leave the counts at zero and contribute nothing.
+      ! With max_f_index = 0 the central block is the only block: the ELSE IF cannot fire, so
+      ! rows_E stays empty and wE = 0, which check_floquet_convergence skips over.
+      ALLOCATE (rows_0(MAX(nrow_local, 1)), rows_E(MAX(nrow_local, 1)))
+      n_rows_0 = 0
+      n_rows_E = 0
+      DO i_loc = 1, nrow_local
+         i_glob = row_indices(i_loc)
+         m_blk = (i_glob - 1)/nao + 1
+         IF (m_blk == max_f_index + 1) THEN
+            n_rows_0 = n_rows_0 + 1
+            rows_0(n_rows_0) = i_loc
+         ELSE IF (m_blk == 1 .OR. m_blk == n_fbands) THEN
+            n_rows_E = n_rows_E + 1
+            rows_E(n_rows_E) = i_loc
          END IF
-      END IF
-      DEALLOCATE (vector_block_0, vector_block_1)
+      END DO
+
+      ! REAL(z)^2 + AIMAG(z)^2, not ABS(z)^2: the latter takes a square root only to square it
+      ! away again. Both weights go into one buffer so a single collective suffices.
+      ALLOCATE (buf(2, n_f_size))
+      buf(:, :) = 0.0_dp
+      DO j_loc = 1, ncol_local
+         j_glob = col_indices(j_loc)
+         acc0 = 0.0_dp
+         DO k = 1, n_rows_0
+            z = local_data(rows_0(k), j_loc)
+            acc0 = acc0 + REAL(z, dp)**2 + AIMAG(z)**2
+         END DO
+         accE = 0.0_dp
+         DO k = 1, n_rows_E
+            z = local_data(rows_E(k), j_loc)
+            accE = accE + REAL(z, dp)**2 + AIMAG(z)**2
+         END DO
+         buf(1, j_glob) = acc0
+         buf(2, j_glob) = accE
+      END DO
+      DEALLOCATE (rows_0, rows_E)
+
+      CALL para_env_cfm%sum(buf)
+      w0(:) = buf(1, :)
+      wE(:) = buf(2, :)
+      DEALLOCATE (buf)
+
+      ! The nao rows of a sector block are orthonormal rows of a unitary matrix, so Σ_α w0_α =
+      ! nao. This validates the row -> block arithmetic; it cannot detect the wrong *choice* of
+      ! central block (the sum rule holds for every sector), which the zero-field limit catches.
+      CPASSERT(ABS(SUM(w0) - REAL(nao, dp)) < 1.0E-6_dp*REAL(nao, dp))
+
       CALL timestop(handle)
 
-   END SUBROUTINE check_floquet_conversion
+   END SUBROUTINE floquet_sector_weights
 
 ! **************************************************************************************************
-!> \brief k-resolved Floquet density of states A(k,E) = -(1/π) Im Tr_KS G^R_00(k,E) from the
-!>        spectral representation of the retarded Green's function. With H_F = Σ_α λ_α |α><α|,
-!>          A(E) = -(1/π) Σ_α w_α Im[ 1/(E + iη - λ_α) ],   η = broadening/2,
-!>        where w_α = Σ_{n in central (f=0) Floquet sector} |<n|α>|^2 is the weight of Floquet
-!>        eigenvector α on that sector. This reuses the eigenpairs from cp_cfm_heevd, so it
-!>        avoids the per-energy dense matrix inversion of the full Floquet Hamiltonian.
-!> \param qs_env ...
+!> \brief Check that MAX_FLOQUET_INDEX is large enough, i.e. that the Floquet ladder was
+!>        truncated far enough away from the central sector to leave it unperturbed.
+!>
+!>        A truncation is converged when the m=0 states carry no appreciable weight on the two
+!>        outermost rungs m = ±M. With w0_α = w_α^(0) and wE_α = w_α^(-M) + w_α^(+M),
+!>          leak = MAXVAL(wE, MASK = w0 > 1/2)
+!>        i.e. the weight of the max Floquet index carried by the worst m=0-dominated state. It
+!>        lies in [0,1], is exactly 0 at zero field, falls geometrically as M grows, and needs no
+!>        band selection, so it can be evaluated straight from the sector weights.
+!>
+!>        CPABORT reaches mpi_abort(MPI_COMM_WORLD) (base_hooks -> cp_abort_handler -> mp_abort),
+!>        and the only thing preceding it, delay_non_master(), is a pure sleep with no MPI call.
+!>        Aborting here from whichever rank first sees the failure therefore tears down the whole
+!>        job cleanly - no collective reduction of the leakage is needed.
 !> \param bs_env ...
-!> \param eigenvalues Floquet eigenvalues λ_α (n_f_size)
-!> \param cfm_eigenvectors Floquet eigenvectors |α> (n_f_size x n_f_size)
-!> \param a_k the spectral function A(k,E) on the energy grid (n_E)
+!> \param w0 central-sector weights from floquet_sector_weights (n_f_size)
+!> \param wE outermost-sector weights from floquet_sector_weights (n_f_size)
 ! **************************************************************************************************
-   SUBROUTINE calculate_floquet_spectral_function(qs_env, bs_env, eigenvalues, cfm_eigenvectors, a_k)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   SUBROUTINE check_floquet_convergence(bs_env, w0, wE)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
-      TYPE(cp_cfm_type)                                  :: cfm_eigenvectors
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a_k
+      REAL(KIND=dp), DIMENSION(:)                        :: w0, wE
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_floquet_spectral_function'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_floquet_convergence'
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: v0_block
-      INTEGER                                            :: handle, i_E, max_f_index, n_E, n_f_size, &
-                                                            nao, start_row_g00
-      REAL(KIND=dp)                                      :: broad, E_min, energy, energy_step, mu
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weight
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      ! the formatted abort message below is ~110 characters, longer than default_string_length
+      CHARACTER(LEN=256)                                 :: msg
+      INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: leak
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, mos=mos)
+      ! MAX_FLOQUET_INDEX = 0 means no sidebands at all: the central block is the only block,
+      ! there is no boundary distinct from it (wE = 0), and H_F is just diag(ε_nk).
+      IF (bs_env%max_floquet_index < 1) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
 
-      CALL get_mo_set(mo_set=mos(1), mu=mu, nao=nao)
+      ! No cleanly m=0-dominated state exists at all: the drive has hybridised every band with
+      ! its sidebands. A red flag in its own right, but not a truncation failure.
+      IF (.NOT. ANY(w0 > 0.5_dp)) THEN
+         CPWARN("Floquet: no m=0-dominated state; cannot assess MAX_FLOQUET_INDEX convergence.")
+         CALL timestop(handle)
+         RETURN
+      END IF
 
+      leak = MAXVAL(wE, MASK=(w0 > 0.5_dp))
+
+      ! Diagnostic only. bs_env%unit_nr > 0 on the global I/O rank alone, and that rank belongs
+      ! to exactly one subgroup, so this covers only the k-points that subgroup processes.
+      IF (bs_env%unit_nr > 0) THEN
+         WRITE (bs_env%unit_nr, '(T2,A,T66,ES15.2E2)') &
+            "FLOQUET CONVERGENCE | Outermost-rung weight of m=0 states:", leak
+      END IF
+
+      IF (bs_env%eps_floquet > 0.0_dp .AND. leak > bs_env%eps_floquet) THEN
+         WRITE (msg, '(A,ES10.2E2,A,ES10.2E2,A)') &
+            "FLOQUET: m=0 weight on the outermost Floquet index ", leak, &
+            " exceeds EPS_FLOQUET ", bs_env%eps_floquet, ". MAX_FLOQUET_INDEX is too small."
+         CPABORT(TRIM(msg))
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE check_floquet_convergence
+
+! **************************************************************************************************
+!> \brief Energy origin for the quasi-energy fold and for the Floquet DOS grid: the valence band
+!>        maximum. bs_env%band_edges_scf is only filled when GW ran or on the small_cell_full_kp
+!>        path (post_scf_bandstructure_utils.F, get_VBM_CBM_bandgaps); otherwise it keeps its
+!>        -1.0 default. The fallback to the Gamma-point HOMO mirrors band_edges_scf_guess in
+!>        eval_bandstructure_properties, so the Floquet DOS shares its origin with the ordinary
+!>        DOS on every code path.
+!> \param bs_env ...
+!> \return the valence band maximum
+! **************************************************************************************************
+   FUNCTION floquet_reference_energy(bs_env) RESULT(mu)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp)                                      :: mu
+
+      IF (bs_env%do_gw .OR. &
+          bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp) THEN
+         mu = bs_env%band_edges_scf%VBM
+      ELSE IF (bs_env%n_spin == 1) THEN
+         mu = bs_env%eigenval_scf_Gamma(bs_env%n_occ(1), 1)
+      ELSE
+         mu = MAX(bs_env%eigenval_scf_Gamma(bs_env%n_occ(1), 1), &
+                  bs_env%eigenval_scf_Gamma(bs_env%n_occ(2), 2))
+      END IF
+
+   END FUNCTION floquet_reference_energy
+
+! **************************************************************************************************
+!> \brief Fold an energy into the first Floquet Brillouin zone, -ħΩ/2 < ε ≤ +ħΩ/2.
+!>        CEILING(x - 1/2) is the nearest integer with halves rounded DOWN, which places the
+!>        boundary at +Ω/2 and so yields the half-open interval. (NINT rounds halves away from
+!>        zero and would give [-Ω/2, +Ω/2) instead.)
+!> \param e the energy to fold, measured from the chosen origin
+!> \param omega the drive frequency ħΩ
+!> \return the folded energy
+! **************************************************************************************************
+   ELEMENTAL FUNCTION fold_to_first_fbz(e, omega) RESULT(e_folded)
+      REAL(KIND=dp), INTENT(IN)                          :: e, omega
+      REAL(KIND=dp)                                      :: e_folded
+
+      e_folded = e - omega*REAL(CEILING(e/omega - 0.5_dp), dp)
+
+   END FUNCTION fold_to_first_fbz
+
+! **************************************************************************************************
+!> \brief All Floquet observables for one k-point and spin, from the eigenvalues and the sector
+!>        weights alone (no further access to the distributed eigenvectors, no communication):
+!>
+!>        (a) Spectral function / DOS, from the spectral representation of the retarded Green's
+!>            function of the central sector. With H_F = Σ_α λ_α |α><α|,
+!>              A(k,E) = -(1/π) Im Tr_KS G^R_00(k,E) = -(1/π) Σ_α w0_α Im[1/(E + iη - λ_α)],
+!>            η = broadening/2. This avoids the per-energy dense inversion of the full H_F.
+!>
+!>        (b) m=0 band structure: the nao eigenvectors with the largest central-sector weight
+!>            w0_α. In the zero-field limit w0_α is exactly 1 on the m=0 block and 0 elsewhere,
+!>            so these reduce to the equilibrium band energies ε_nk; at finite field they are the
+!>            photon-dressed bands. Returned in ascending energy order, together with their w0.
+!>
+!>        (c) Quasi-energies: the m=0 bands, measured from the VBM, folded into the first Floquet
+!>            Brillouin zone. Returned in the same band order as the m=0 bands.
+!> \param bs_env ...
+!> \param eigenvalues Floquet eigenvalues λ_α, ascending as returned by cp_cfm_heevd (n_f_size)
+!> \param w0 central-sector weights from floquet_sector_weights (n_f_size)
+!> \param a_k the spectral function A(k,E) on the energy grid (n_E)
+!> \param m0_energies the m=0 band energies, absolute and unfolded (nao)
+!> \param m0_weights central-sector weight w0 of each m=0 band, in [0,1] (nao)
+!> \param quasi_energies the m=0 bands relative to the VBM, folded to -ħΩ/2 < ε ≤ ħΩ/2 (nao)
+! **************************************************************************************************
+   SUBROUTINE calculate_floquet_observables(bs_env, eigenvalues, w0, &
+                                            a_k, m0_energies, m0_weights, quasi_energies)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues, w0, a_k, m0_energies, &
+                                                            m0_weights, quasi_energies
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_floquet_observables'
+
+      INTEGER                                            :: handle, i_E, n_E, n_f_size, nao
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices, perm, work
+      REAL(KIND=dp)                                      :: broad, E_min, energy, energy_step, mu, &
+                                                            omega
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w_sort
+
+      CALL timeset(routineN, handle)
+
+      n_f_size = SIZE(eigenvalues)
+      nao = SIZE(m0_energies)
+      n_E = SIZE(a_k)
+
+      mu = floquet_reference_energy(bs_env)
+      omega = bs_env%floquet_omega
       broad = bs_env%broadening_floquet
       energy_step = bs_env%energy_step_floquet
       E_min = mu - bs_env%energy_window_floquet
-      max_f_index = bs_env%max_floquet_index
-      n_E = SIZE(a_k)
-      n_f_size = SIZE(eigenvalues)
-      start_row_g00 = 1 + nao*max_f_index
 
-      ! Central-sector rows of the eigenvectors, <n|α> for n in the f=0 block and all α, then
-      ! their per-eigenvector weight w_α = Σ_n |<n|α>|^2 (Σ_α w_α = nao by unitarity).
-      ALLOCATE (v0_block(nao, n_f_size))
-      CALL cp_cfm_get_submatrix(cfm_eigenvectors, v0_block, start_row_g00, 1)
-      ALLOCATE (weight(n_f_size))
-      weight(:) = SUM(ABS(v0_block)**2, DIM=1)
-
+      ! (a) A(k,E) = -(1/π) Σ_α w0_α Im[1/(E + iη - λ_α)]
       DO i_E = 1, n_E
          energy = E_min + i_E*energy_step
-         a_k(i_E) = -SUM(weight(:)*AIMAG(z_one/(energy + gaussi*broad/2.0_dp - eigenvalues(:))))/pi
+         a_k(i_E) = -SUM(w0(:)*AIMAG(z_one/(energy + gaussi*broad/2.0_dp - eigenvalues(:))))/pi
       END DO
 
-      DEALLOCATE (v0_block, weight)
+      ! (b) Rank the eigenvectors by DESCENDING central-sector weight: sorting -w0 ascending puts
+      ! the nao largest weights in the first nao entries of the permutation. CALL sort(arr, n,
+      ! indices) sorts arr in place and returns the pre-sort positions (common/array_sort.fypp),
+      ! so w_sort has to be a copy - w0 is still needed below.
+      ALLOCATE (w_sort(n_f_size), perm(n_f_size))
+      w_sort(:) = -w0(:)
+      CALL sort(w_sort, n_f_size, perm)
+
+      ! A near-tie ACROSS THE CUT means a physical band is split roughly evenly between two
+      ! replicas (the drive is on resonance with a sideband), so which one we keep is arbitrary.
+      ! Only the nao/nao+1 pair matters: a tie among the selected bands is harmless, since both
+      ! members are kept either way and the indices are re-sorted by energy below.
+      IF (n_f_size > nao) THEN
+         IF (ABS(w_sort(nao) - w_sort(nao + 1)) < 1.0E-4_dp) THEN
+            CPWARN("Floquet m=0 band selection is ambiguous: near-degenerate central-sector weights.")
+         END IF
+      END IF
+
+      ! cp_cfm_heevd returns the eigenvalues in ascending order, so ordering the selected indices
+      ! ascending orders the m=0 bands by energy.
+      ALLOCATE (indices(nao), work(nao))
+      indices(:) = perm(1:nao)
+      CALL sort(indices, nao, work)
+      m0_energies(:) = eigenvalues(indices(:))
+      m0_weights(:) = w0(indices(:))
+
+      ! (c) Fold the m=0 bands, measured from the VBM, into the first Floquet Brillouin zone.
+      quasi_energies(:) = fold_to_first_fbz(m0_energies(:) - mu, omega)
+
+      DEALLOCATE (w_sort, perm, indices, work)
 
       CALL timestop(handle)
 
-   END SUBROUTINE calculate_floquet_spectral_function
+   END SUBROUTINE calculate_floquet_observables
 
 ! **************************************************************************************************
-!> \brief Extract the nao quasi-energies from the full set of Floquet eigenvalues: the
-!>        quasi-energies are the nao eigenvalues of smallest magnitude (folded into the first
-!>        Floquet Brillouin zone -ħΩ/2 < ε ≤ ħΩ/2), returned ordered by their position in the
-!>        spectrum.
+!> \brief Write all Floquet results in one pass, on the global I/O rank:
+!>          <floquet_bs_file>.bs   the m=0 band structure (absolute energies) and its weights,
+!>          <floquet_qe_file>.bs   those bands folded into the first Floquet Brillouin zone,
+!>          <floquet_dos_file>.out the k-resolved spectral function.
+!>        All three share one energy origin, the VBM (see floquet_reference_energy). Each file is
+!>        opened once (REPLACE) and written for every DOS k-point and spin.
 !> \param bs_env ...
-!> \param eigenvalues the full set of Floquet eigenvalues
-!> \param floquet_bands the energies of the m=0 sector
-!> \param quasi_energies the extracted quasi-energies
+!> \param all_quasi_energies folded quasi-energies per (band, spin, DOS k-point) (nao, n_spin, n_kp_dos)
+!> \param all_a_k spectral function A(k,E) per (energy, spin, DOS k-point) (n_E, n_spin, n_kp_dos)
+!> \param all_m0_energies m=0 band energies per (band, spin, DOS k-point) (nao, n_spin, n_kp_dos)
+!> \param all_m0_weights central-sector weights per (band, spin, DOS k-point) (nao, n_spin, n_kp_dos)
 ! **************************************************************************************************
-   SUBROUTINE get_floquet_energies(bs_env, eigenvalues, floquet_bands, quasi_energies)
+   SUBROUTINE write_floquet_results(bs_env, all_quasi_energies, all_a_k, &
+                                    all_m0_energies, all_m0_weights)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues, floquet_bands, &
-                                                            quasi_energies
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_floquet_energies'
-
-      INTEGER                                            :: handle, m, n, nao
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: work
-      REAL(KIND=dp)                                      :: omega
-
-      CALL timeset(routineN, handle)
-
-      omega = bs_env%floquet_omega
-      n = SIZE(eigenvalues)
-      nao = SIZE(quasi_energies)
-      m = (n/nao - 1)/2
-
-      ALLOCATE (work(nao))
-      floquet_bands(:) = eigenvalues(nao*m + 1:nao*(m + 1))
-      quasi_energies(:) = floquet_bands(:) - omega*(0.5_dp + FLOOR(floquet_bands/omega))
-      CALL sort(quasi_energies, nao, work)
-      DEALLOCATE (work)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE get_floquet_energies
-
-! **************************************************************************************************
-!> \brief Write all Floquet results in one pass: the quasi-energies to <floquet_qe_file>.bs and
-!>        the k-resolved density of states to <floquet_dos_file>.out. Each file is opened once
-!>        (REPLACE) and written for every DOS k-point and spin, on the global I/O rank.
-!> \param qs_env ...
-!> \param bs_env ...
-!> \param all_floquet_bands ...
-!> \param all_quasi_energies quasi-energies for every (band, spin, DOS k-point) (nao, n_spin, n_kp_dos)
-!> \param all_a_k spectral function A(k,E) for every (energy, spin, DOS k-point) (n_E, n_spin, n_kp_dos)
-! **************************************************************************************************
-   SUBROUTINE write_floquet_results(qs_env, bs_env, all_floquet_bands, all_quasi_energies, all_a_k)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:, :, :)                  :: all_floquet_bands, all_quasi_energies, &
-                                                            all_a_k
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: all_quasi_energies, all_a_k, &
+                                                            all_m0_energies, all_m0_weights
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_floquet_results'
 
@@ -796,31 +970,33 @@ CONTAINS
                                                             nkp_start, qunit, wunit
       REAL(KIND=dp)                                      :: E_min, energy, energy_step, mu
       REAL(KIND=dp), DIMENSION(3)                        :: xkp
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 
       IF (bs_env%para_env%is_source()) THEN
 
-         nao = SIZE(all_floquet_bands, 1)
-         n_spin = SIZE(all_floquet_bands, 2)
-         n_kp_dos = SIZE(all_floquet_bands, 3)
+         nao = SIZE(all_quasi_energies, 1)
+         n_spin = SIZE(all_quasi_energies, 2)
+         n_kp_dos = SIZE(all_quasi_energies, 3)
          n_E = SIZE(all_a_k, 1)
          nkp_start = bs_env%nkp_only_DOS
 
-         CALL get_qs_env(qs_env, mos=mos)
-         CALL get_mo_set(mo_set=mos(1), mu=mu)
+         mu = floquet_reference_energy(bs_env)
          energy_step = bs_env%energy_step_floquet
          E_min = mu - bs_env%energy_window_floquet
 
-         WRITE (fname, "(2A)") TRIM(bs_env%floquet_bs_file), ".out"
+         WRITE (fname, "(2A)") TRIM(bs_env%floquet_bs_file), ".bs"
          CALL open_file(TRIM(fname), unit_number=bunit, file_status="REPLACE", file_action="WRITE")
-         WRITE (bunit, "(A)") "# Floquet engineered bands of the m=0 sector"
+         WRITE (bunit, "(A)") "# Floquet m=0 (central-sector) band structure"
+         WRITE (bunit, "(A)") "# (in units of eV, absolute energies, not folded)"
+         WRITE (bunit, "(A)") "# w = sum_n |<n,m=0|alpha>|^2 in [0,1]: w~1 clean m=0 replica,"
+         WRITE (bunit, "(A)") "# w~0.5 hybridised with a sideband (drive near resonance)"
 
          WRITE (fname, "(2A)") TRIM(bs_env%floquet_qe_file), ".bs"
          CALL open_file(TRIM(fname), unit_number=qunit, file_status="REPLACE", file_action="WRITE")
          WRITE (qunit, "(A)") "# Quasi-energies obtained by diagonalising the Floquet Hamiltonian"
-         WRITE (qunit, "(A)") "# (in units of eV, folded to Floquet Brillouin zone)"
+         WRITE (qunit, "(A)") "# (in units of eV, the m=0 bands relative to the VBM, folded to"
+         WRITE (qunit, "(A)") "# the first Floquet Brillouin zone -hbar*Omega/2 < e <= hbar*Omega/2)"
 
          WRITE (fname, "(2A)") TRIM(bs_env%floquet_dos_file), ".out"
          CALL open_file(TRIM(fname), unit_number=wunit, file_status="REPLACE", file_action="WRITE")
@@ -830,12 +1006,13 @@ CONTAINS
             xkp(1:3) = bs_env%kpoints_DOS%xkp(1:3, nkp_start + ikp_for_file)
             DO ispin = 1, n_spin
 
-               ! Floquet bands for this k-point and spin
+               ! m=0 band structure for this k-point and spin
                WRITE (bunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
                   "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
-               WRITE (bunit, "(A)") "#  Floquet band  Band-energy [eV]"
+               WRITE (bunit, "(A)") "#  Floquet band  Energy [eV]         m=0 weight"
                DO i = 1, nao
-                  WRITE (bunit, "(I8,F21.8)") i, all_floquet_bands(i, ispin, ikp_for_file)*evolt
+                  WRITE (bunit, "(I8,F21.8,F17.5)") i, all_m0_energies(i, ispin, ikp_for_file)*evolt, &
+                     all_m0_weights(i, ispin, ikp_for_file)
                END DO
 
                ! Quasi-energies (folded to -ħΩ/2 < ε ≤ ħΩ/2) for this k-point and spin
@@ -849,10 +1026,11 @@ CONTAINS
                ! DOS A(k,ω) for this k-point and spin
                WRITE (wunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
                   "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
-               WRITE (wunit, "(A)") "#Energy-E_F (eV)  A(ω,k) = DOS (1/eV)"
+               WRITE (wunit, "(A)") "#Energy-VBM (eV)  A(ω,k) = DOS (1/eV)"
                DO i_E = 1, n_E
                   energy = E_min + i_E*energy_step
-                  WRITE (wunit, "(2X,2G13.4)") energy*evolt, all_a_k(i_E, ispin, ikp_for_file)/evolt
+                  WRITE (wunit, "(2X,2G13.4)") (energy - mu)*evolt, &
+                     all_a_k(i_E, ispin, ikp_for_file)/evolt
                END DO
 
             END DO

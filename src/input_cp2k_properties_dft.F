@@ -3115,10 +3115,10 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="FLOQUET_BANDS_FILE_NAME", &
-                          description="File name used for the Floquet quasi-energies.", &
-                          usage="FLOQUET_BANDS_FILE_NAME FLOQUET_BANDS", &
-                          default_lc_val="FLOQUET_BANDSTRUCTURE")
+      CALL keyword_create(keyword, __LOCATION__, name="FLOQUET_DOS_FILE_NAME", &
+                          description="File name used for the Floquet spectral function.", &
+                          usage="FLOQUET_DOS_FILE_NAME FLOQUET_DOS", &
+                          default_lc_val="FLOQUET_DOS")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -3129,10 +3129,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="FLOQUET_DOS_FILE_NAME", &
-                          description="File name used for the Floquet spectral function.", &
-                          usage="FLOQUET_DOS_FILE_NAME FLOQUET_DOS", &
-                          default_lc_val="FLOQUET_DOS")
+      CALL keyword_create(keyword, __LOCATION__, name="FLOQUET_BS_FILE_NAME", &
+                          description="File name used for the Floquet m=0 (central-sector) "// &
+                          "band structure.", &
+                          usage="FLOQUET_BS_FILE_NAME FLOQUET_BANDSTRUCTURE", &
+                          default_lc_val="FLOQUET_BANDSTRUCTURE")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

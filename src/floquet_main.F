@@ -23,11 +23,11 @@ MODULE floquet_main
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE floquet_utils,                   ONLY: build_floquet_matrix_local,&
-                                              calculate_floquet_spectral_function,&
-                                              check_floquet_conversion,&
+                                              calculate_floquet_observables,&
+                                              check_floquet_convergence,&
                                               floquet_determine_subgroup_size,&
                                               floquet_precompute_kp_data,&
-                                              get_floquet_energies,&
+                                              floquet_sector_weights,&
                                               write_floquet_results
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
@@ -69,15 +69,16 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: dipole
       INTEGER :: group_size, handle, ikp, ispin, loc_idx, local_src, max_f_index, my_group, n_E, &
-         n_f_size, n_fbands, n_kp_dos, n_spin, nao, ngroups, nkp, nkp_start, owner, stride_kp, &
-         unit_nr
+                 n_f_size, n_fbands, n_kp_dos, n_spin, nao, ngroups, nkp, nkp_start, owner, &
+                 stride_kp, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: group_distribution
       REAL(KIND=dp)                                      :: energy_step, energy_window
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a_k, e_k_kp_spin, eigenvalues, &
-                                                            floquet_bands, quasi_energies
+                                                            m0_energies, m0_weights, &
+                                                            quasi_energies, w0, wE
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: de_dk_kp_spin
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: all_a_k, all_floquet_bands, &
-                                                            all_quasi_energies, e_k
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: all_a_k, all_m0_energies, &
+                                                            all_m0_weights, all_quasi_energies, e_k
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: de_dk
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       TYPE(cp_cfm_type)                                  :: cfm_eigenvectors, floquet_matrix
@@ -140,9 +141,23 @@ CONTAINS
          WRITE (unit_nr, '(A)') ""
 
          WRITE (unit_nr, '(T2,A)') &
-            "We construct the Floquet-Bloch Hamiltonian and diagonalise it to obtain the"
+            "We construct the Floquet-Bloch Hamiltonian and diagonalise it. Projecting the"
          WRITE (unit_nr, '(T2,A)') &
-            "eigenvalues which give us the quasi-energies stored in QUASI_ENERGIES.bs"
+            "eigenvectors onto the Floquet sectors gives the weights w = Σ_n |<n,m|α>|², from"
+         WRITE (unit_nr, '(T2,A)') &
+            "which all of the following are obtained."
+         WRITE (unit_nr, '(A)') ""
+         WRITE (unit_nr, '(T2,A)') &
+            "The m=0 bands are the eigenvectors with the largest central-sector weight; they"
+         WRITE (unit_nr, '(T2,A)') &
+            "reduce to the equilibrium bands at zero field and are stored, with their weights,"
+         WRITE (unit_nr, '(T2,A)') &
+            "in FLOQUET_BANDSTRUCTURE.bs"
+         WRITE (unit_nr, '(A)') ""
+         WRITE (unit_nr, '(T2,A)') &
+            "Folding those bands into the first Floquet Brillouin zone, relative to the VBM,"
+         WRITE (unit_nr, '(T2,A)') &
+            "gives the quasi-energies stored in QUASI_ENERGIES.bs"
          WRITE (unit_nr, '(A)') ""
          WRITE (unit_nr, '(T2,A)') &
             "The k-resolved density of states is obtained by computing the trace of"
@@ -199,9 +214,14 @@ CONTAINS
                                para_env=para_env_sub)
 
       ALLOCATE (eigenvalues(n_f_size))
-      ALLOCATE (floquet_bands(nao))
       ALLOCATE (quasi_energies(nao))
       ALLOCATE (a_k(n_E))
+
+      ! Central-sector (m=0) and outermost-sector (m=±M) weights of the eigenvectors of H_F(k)
+      ! for one (k-point, spin). Every Floquet observable below is a function of w0 and the
+      ! eigenvalues alone; wE is consumed only by the truncation check.
+      ALLOCATE (w0(n_f_size), wE(n_f_size))
+      ALLOCATE (m0_energies(nao), m0_weights(nao))
 
       ! Per-single-(k-point,spin) broadcast buffers: the owner rank fills its slice and
       ! broadcasts them within the owning subgroup so every subgroup rank can build its piece
@@ -212,9 +232,10 @@ CONTAINS
 
       ! Per-(spin,k-point) result slots. Each is filled once by the owning subgroup's source
       ! rank; the full arrays are gathered across the global communicator once, after the loop.
-      ALLOCATE (all_floquet_bands(nao, n_spin, n_kp_dos), source=0.0_dp)
       ALLOCATE (all_quasi_energies(nao, n_spin, n_kp_dos), source=0.0_dp)
       ALLOCATE (all_a_k(n_E, n_spin, n_kp_dos), source=0.0_dp)
+      ALLOCATE (all_m0_energies(nao, n_spin, n_kp_dos), source=0.0_dp)
+      ALLOCATE (all_m0_weights(nao, n_spin, n_kp_dos), source=0.0_dp)
 
       ! Phase 2a (global): compute the band data for ALL DOS k-points once, distributed across
       ! ranks (k-point ikp owned by global rank MOD(ikp-1,num_pe), stored at CEILING(ikp/num_pe)).
@@ -242,7 +263,6 @@ CONTAINS
          CALL cp_cfm_create(cfm_eigenvectors, floquet_struct, set_zero=.TRUE.)
 
          DO ispin = 1, n_spin
-            PRINT *, "doing ikp: ", ikp, "ispin: ", ispin, "mepos: ", para_env%mepos, para_env_sub%mepos
             ! The owner copies its single-spin slice of this k-point's distributed band data
             ! into the broadcast buffers, then broadcasts them to the whole subgroup.
             IF (para_env%mepos == owner) THEN
@@ -267,26 +287,33 @@ CONTAINS
             CALL cp_cfm_set_all(cfm_eigenvectors, z_zero)
             CALL cp_cfm_heevd(floquet_matrix, cfm_eigenvectors, eigenvalues)
 
-            ! Run a conversion check to ensure that MAX_FLOQUET_INDEX,
-            ! the size of the truncated matrix H_F(k), is sufficiently large.
-            CALL check_floquet_conversion(qs_env, bs_env, cfm_eigenvectors)
+            ! Project every eigenvector onto the central (m=0) and outermost (m=±M) Floquet
+            ! sectors, w_α^(m) = Σ_n |<n,m|α>|^2. Read straight off the distributed local data,
+            ! touching only the rows of those three blocks; one small real reduction follows.
+            CALL floquet_sector_weights(nao, max_f_index, cfm_eigenvectors, w0, wE)
 
-            ! Extract the quasi-energies (the nao eigenvalues folded into the first Floquet
-            ! Brillouin zone) from the full eigenvalue spectrum.
-            CALL get_floquet_energies(bs_env, eigenvalues, floquet_bands, quasi_energies)
+            ! Check that MAX_FLOQUET_INDEX, the size of the truncated matrix H_F(k), is large
+            ! enough: the m=0 states must carry no appreciable weight on the outermost rungs.
+            ! Aborts the whole job (mpi_abort) if that weight exceeds EPS_FLOQUET, so no
+            ! reduction of the leakage across ranks is needed.
+            IF (bs_env%eps_floquet>0) THEN
+               CALL check_floquet_convergence(bs_env, w0, wE)
+            END IF
 
-            ! Compute the physical spectral function A_phys(k,ω) = -(1/π) Im[ Tr_KS G^R_{00}(k,ω) ]
-            ! directly from the eigenpairs (spectral representation of the central sector).
-            CALL calculate_floquet_spectral_function(qs_env, bs_env, eigenvalues, cfm_eigenvectors, a_k)
+            ! Spectral function A_phys(k,ω) = -(1/π) Im[Tr_KS G^R_{00}(k,ω)], the m=0 bands (the
+            ! nao eigenvectors with the largest central-sector weight, reducing to ε_nk at zero
+            ! field), and the quasi-energies (those bands folded into the first Floquet BZ).
+            CALL calculate_floquet_observables(bs_env, eigenvalues, w0, &
+                                               a_k, m0_energies, m0_weights, quasi_energies)
 
             ! Store this (k-point, spin) result on the subgroup source only, so the global sum
             ! below picks up each work item exactly once.
             IF (para_env_sub%is_source()) THEN
-               all_floquet_bands(:, ispin, ikp) = floquet_bands(:)
                all_quasi_energies(:, ispin, ikp) = quasi_energies(:)
                all_a_k(:, ispin, ikp) = a_k(:)
+               all_m0_energies(:, ispin, ikp) = m0_energies(:)
+               all_m0_weights(:, ispin, ikp) = m0_weights(:)
             END IF
-            PRINT *, "done ikp: ", ikp, "ispin: ", ispin, "mepos: ", para_env%mepos, para_env_sub%mepos
          END DO
 
          CALL cp_cfm_release(floquet_matrix)
@@ -298,17 +325,19 @@ CONTAINS
       ! Phase 3 (gather + write): collect all results on the global communicator and write them
       ! out in k-point/spin order on the global I/O rank. Each work item was stored by exactly
       ! one subgroup source, so the sum reconstructs the full arrays without double counting.
-      CALL para_env%sum(all_floquet_bands)
       CALL para_env%sum(all_quasi_energies)
       CALL para_env%sum(all_a_k)
+      CALL para_env%sum(all_m0_energies)
+      CALL para_env%sum(all_m0_weights)
 
-      CALL write_floquet_results(qs_env, bs_env, all_floquet_bands, all_quasi_energies, all_a_k)
+      CALL write_floquet_results(bs_env, all_quasi_energies, all_a_k, &
+                                 all_m0_energies, all_m0_weights)
 
       ! Note: the distributed cfm matrices (floquet_matrix, cfm_eigenvectors) are released inside
       ! the k-point loop above; the distributed band arrays (e_k, de_dk, dipole) are released
       ! right after it. Only the persistent objects remain here.
-      DEALLOCATE (eigenvalues, floquet_bands, quasi_energies, a_k, &
-                  all_floquet_bands, all_quasi_energies, all_a_k, group_distribution)
+      DEALLOCATE (eigenvalues, quasi_energies, a_k, all_quasi_energies, all_a_k, group_distribution)
+      DEALLOCATE (w0, wE, m0_energies, m0_weights, all_m0_energies, all_m0_weights)
       DEALLOCATE (e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin)
       CALL cp_fm_struct_release(floquet_struct)
       CALL cp_blacs_env_release(blacs_env_sub)
