@@ -6,9 +6,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-plumed_ver="2.10.0"
+plumed_ver="2.10.1"
 plumed_pkg="plumed-src-${plumed_ver}.tgz"
-plumed_sha256="a47791bb0178599743be55416679820bdf0afe7be565644ae98fc23749dee945"
+plumed_sha256="3679652608cac7da083cfe3a5b164122d6869ac4fbd0e8983a1501b815b25fdf"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -29,7 +29,9 @@ case "$with_plumed" in
     if verify_checksums "${install_lock_file}"; then
       echo "plumed-${plumed_ver} is already installed, skipping it."
     else
-      retrieve_package "${plumed_sha256}" "${plumed_pkg}"
+      # retrieve_package "${plumed_sha256}" "${plumed_pkg}"
+      download_pkg_from_urlpath "${plumed_sha256}" "${plumed_pkg}" \
+        https://github.com/plumed/plumed2/releases/download/v${plumed_ver}
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d plumed-${plumed_ver} ] && rm -rf plumed-${plumed_ver}
       tar -xzf ${plumed_pkg}
