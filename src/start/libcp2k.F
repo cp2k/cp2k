@@ -49,6 +49,17 @@ MODULE libcp2k
 
    PRIVATE
 
+   PUBLIC :: cp2k_get_version, cp2k_init, cp2k_init_without_mpi, cp2k_init_without_mpi_comm, &
+             cp2k_finalize, cp2k_finalize_without_mpi, cp2k_create_force_env, &
+             cp2k_create_force_env_comm, cp2k_destroy_force_env, cp2k_set_positions, &
+             cp2k_set_velocities, cp2k_set_cell, cp2k_get_result, cp2k_get_natom, &
+             cp2k_get_nparticle, cp2k_get_positions, cp2k_get_forces, &
+             cp2k_get_potential_energy, cp2k_get_cell, cp2k_get_qmmm_cell, &
+             cp2k_calc_energy_force, cp2k_calc_energy, cp2k_run_input, cp2k_run_input_comm, &
+             cp2k_transport_set_callback, cp2k_active_space_get_mo_count, &
+             cp2k_active_space_get_fock_sub, cp2k_active_space_get_eri_nze_count, &
+             cp2k_active_space_get_eri
+
    TYPE, EXTENDS(eri_type_eri_element_func) :: eri2array
       INTEGER(C_INT), POINTER :: coords(:) => NULL()
       REAL(C_DOUBLE), POINTER :: values(:) => NULL()
