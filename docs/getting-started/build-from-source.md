@@ -110,7 +110,7 @@ Use `./make_cp2k.sh --help` to display the complete list of options:
 
 <details>
 
-<summary>Click to see all options (version 1.9)</summary>
+<summary>Click to see all options (version 2.0)</summary>
 
 ```
 Usage: make_cp2k.sh [-bd | --build_deps]
@@ -152,6 +152,7 @@ Flags:
  -j                    : Maximum number of processes used in parallel
  --mpi_mode            : Set preferred MPI mode (default: "mpich")
  --num_packages        : Maximum number of packages built by spack in parallel (default: 4)
+ -opencl               : Perform build with OpenCL support
  --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)
  --test                : Perform a regression test run after a successful build
  --use_cache           : Use a "folder", a "MinIO" object storage container (requires podman) or "no" cache
@@ -170,8 +171,8 @@ Hints:
  - The folder ${CP2K_ROOT}/install is updated after each successful run
 
 Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | hdf5 | libfci |
-          libint | libsmeagol | libtorch | libvdwxc | libxs | mimic | openpmd | pexsi | plumed |
-          sirius | spfft | spglib | spla | tblite | trexio | vori
+          libgint | libint | libsmeagol | libtorch | libvdwxc | libxs | mimic | openpmd | pexsi | plumed |
+          sirius | spfft | spglib | spla | tblite | trexio | vori 
 
 Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | pw_gpu |
           spla_gemm_offloading | unified_memory

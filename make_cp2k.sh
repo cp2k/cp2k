@@ -663,7 +663,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-mpi | --mpi_mode (mpich | no | openmpi)]"
   echo "                    [-np | --num_packages #PACKAGES]"
   echo "                    [-rc | --rebuild_cp2k]"
-  echo "                    [-t | -test \"TESTOPTS\"]"
+  echo "                    [-t | --test \"TESTOPTS\"]"
   echo "                    [-uc | --use_cache (folder | minio | no | none)]"
   echo "                    [-ue | --use_externals]"
   echo "                    [-v | --verbose]"
