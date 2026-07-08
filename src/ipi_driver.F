@@ -87,7 +87,7 @@ CONTAINS
 #else
       INTEGER, PARAMETER                       :: MSGLEN = 12
 
-      CHARACTER(len=default_path_length)       :: c_hostname, drv_hostname
+      CHARACTER(len=default_path_length)       :: c_hostname, drv_hostname, drv_prefix
       CHARACTER(LEN=default_string_length)     :: header
       INTEGER                                  :: drv_port, handle, i_drv_unix, &
                                                   idir, ii, inet, ip, iwait, &
@@ -132,6 +132,7 @@ CONTAINS
       CALL section_vals_val_get(drv_section, "HOST", c_val=drv_hostname)
       CALL section_vals_val_get(drv_section, "PORT", i_val=drv_port)
       CALL section_vals_val_get(drv_section, "UNIX", l_val=drv_unix)
+      CALL section_vals_val_get(drv_section, "PREFIX", c_val=drv_prefix)
       CALL section_vals_val_get(drv_section, "SLEEP_TIME", r_val=sleeptime)
       CPASSERT(sleeptime >= 0)
 
@@ -145,7 +146,14 @@ CONTAINS
          WRITE (output_unit, *) "@ INPUT DATA: ", TRIM(drv_hostname), drv_port, drv_unix
       END IF
 
-      c_hostname = TRIM(drv_hostname)//C_NULL_CHAR
+      IF (drv_unix) THEN
+         ! for UNIX sockets, HOST names the socket file which lives at
+         ! /tmp/<PREFIX>_<HOST> (PREFIX must match the peer's convention,
+         ! e.g. "ipi" for i-PI)
+         c_hostname = "/tmp/"//TRIM(drv_prefix)//"_"//TRIM(drv_hostname)//C_NULL_CHAR
+      ELSE
+         c_hostname = TRIM(drv_hostname)//C_NULL_CHAR
+      END IF
       IF (ionode) CALL open_connect_socket(socket, i_drv_unix, drv_port, c_hostname)
 
       NULLIFY (wait_msg)
