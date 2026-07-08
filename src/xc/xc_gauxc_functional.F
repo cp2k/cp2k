@@ -120,9 +120,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat)
       USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
-                              dbcsr_get_matrix_type, dbcsr_get_stored_coordinates, dbcsr_iterator_type, &
-                              dbcsr_iterator_start, dbcsr_iterator_next_block, dbcsr_iterator_blocks_left, &
-                              dbcsr_iterator_stop, dbcsr_type_antisymmetric, dbcsr_type_symmetric
+                              dbcsr_get_matrix_type, dbcsr_get_readonly_block_p, &
+                              dbcsr_get_stored_coordinates, dbcsr_type_antisymmetric, &
+                              dbcsr_type_symmetric
       TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_mat
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: dense_mat
@@ -134,10 +134,9 @@ CONTAINS
                                                             row, row_end, row_start
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: c_offset, r_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
-      LOGICAL                                            :: transposed
+      LOGICAL                                            :: found
       REAL(c_double), POINTER                            :: block(:, :)
       TYPE(dbcsr_distribution_type)                      :: dist
-      TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL dbcsr_get_info(dbcsr_mat%matrix, &
                           row_blk_size=row_blk_size, &
@@ -171,25 +170,18 @@ CONTAINS
          c_offset(col) = c_offset(col - 1) + col_blk_size(col - 1)
       END DO
 
-      CALL dbcsr_iterator_start(iter, dbcsr_mat%matrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, irow, icol, block, transposed=transposed)
-         CALL dbcsr_get_stored_coordinates(dbcsr_mat%matrix, irow, icol, owner)
-         IF (owner /= mynode) CYCLE
-         row_start = r_offset(irow)
-         row_end = row_start + row_blk_size(irow) - 1
-         col_start = c_offset(icol)
-         col_end = col_start + col_blk_size(icol) - 1
-         IF (transposed) THEN
-            dense_mat(row_start:row_end, col_start:col_end) = TRANSPOSE(block)
-            IF (irow /= icol) THEN
-               IF (matrix_type == dbcsr_type_symmetric) THEN
-                  dense_mat(col_start:col_end, row_start:row_end) = block
-               ELSE IF (matrix_type == dbcsr_type_antisymmetric) THEN
-                  dense_mat(col_start:col_end, row_start:row_end) = -block
-               END IF
-            END IF
-         ELSE
+      ! Replicated DBCSR blocks must enter the following MPI sum exactly once.
+      DO irow = 1, nblkrows_total
+         DO icol = 1, nblkcols_total
+            CALL dbcsr_get_stored_coordinates(dbcsr_mat%matrix, irow, icol, owner)
+            IF (owner /= mynode) CYCLE
+            CALL dbcsr_get_readonly_block_p(matrix=dbcsr_mat%matrix, row=irow, col=icol, &
+                                            block=block, found=found)
+            IF (.NOT. found) CYCLE
+            row_start = r_offset(irow)
+            row_end = row_start + row_blk_size(irow) - 1
+            col_start = c_offset(icol)
+            col_end = col_start + col_blk_size(icol) - 1
             dense_mat(row_start:row_end, col_start:col_end) = block
             IF (irow /= icol) THEN
                IF (matrix_type == dbcsr_type_symmetric) THEN
@@ -198,9 +190,8 @@ CONTAINS
                   dense_mat(col_start:col_end, row_start:row_end) = -TRANSPOSE(block)
                END IF
             END IF
-         END IF
+         END DO
       END DO
-      CALL dbcsr_iterator_stop(iter)
 
       DEALLOCATE (r_offset, c_offset)
 
