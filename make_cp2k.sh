@@ -914,7 +914,7 @@ echo ""
 ### Build CP2K dependencies with Spack if needed or requested ###
 
 # Spack version
-export SPACK_VERSION="${SPACK_VERSION:-1.2.0}"
+export SPACK_VERSION="${SPACK_VERSION:-1.2.1}"
 export SPACK_BUILD_PATH="${BUILD_PATH}/spack"
 export SPACK_ROOT="${SPACK_BUILD_PATH}/spack"
 
