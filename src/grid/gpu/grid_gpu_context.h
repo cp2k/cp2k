@@ -415,6 +415,20 @@ struct task_info {
 };
 
 /*******************************************************************************
+ * \brief Device buffers used by the collocate and integrate kernels.
+ *        Which fields are non-null depends on which kernel is launched.
+ ******************************************************************************/
+struct kernel_buffers {
+  double *pab_block{nullptr};
+  double *grid{nullptr};
+  double *coef{nullptr};
+  double *hab_block{nullptr};
+  double *forces{nullptr};
+  double *virial{nullptr};
+  double *cab{nullptr};
+};
+
+/*******************************************************************************
  * \brief Parameters of the collocate kernel.
  ******************************************************************************/
 
@@ -435,8 +449,7 @@ struct kernel_params {
   char la_max_diff{0};
   char lb_max_diff{0};
   enum grid_func func;
-  double *ptr_dev[7] = {nullptr, nullptr, nullptr, nullptr,
-                        nullptr, nullptr, nullptr};
+  kernel_buffers buffers_dev;
   double **sphi_dev{nullptr};
   int ntasks{0};
   int *task_sorted_by_blocks_dev{nullptr};

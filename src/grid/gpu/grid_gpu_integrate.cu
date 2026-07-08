@@ -90,7 +90,7 @@ __global__ __launch_bounds__(64) void compute_hab(const kernel_params dev_) {
     fill_smem_task_coef(dev_, task_id, task);
 
     T *__restrict__ coef_ = reinterpret_cast<T *>(__builtin_assume_aligned(
-        &dev_.ptr_dev[2][dev_.tasks[task_id].coef_offset], 32));
+        &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset], 32));
 
     __syncthreads();
     compute_alpha(task, smem_alpha);
@@ -166,7 +166,8 @@ __launch_bounds__(64) void compute_hab_forces(const kernel_params dev_) {
       continue;
     fill_smem_task_coef(dev_, task_id, task);
 
-    T *__restrict__ coef_ = &dev_.ptr_dev[2][dev_.tasks[task_id].coef_offset];
+    T *__restrict__ coef_ =
+        &dev_.buffers_dev.coef[dev_.tasks[task_id].coef_offset];
     __syncthreads();
     compute_alpha(task, smem_alpha);
     __syncthreads();
@@ -215,7 +216,7 @@ __launch_bounds__(64) void compute_hab_forces(const kernel_params dev_) {
                      get_force_b<COMPUTE_TAU, T>(a, b, 2, task.zeta, task.zetb,
                                                  task.rab, task.n1, smem_cab);
 
-            if (dev_.ptr_dev[5] != nullptr) {
+            if (dev_.buffers_dev.virial != nullptr) {
               virial[0] +=
                   sphia_times_sphib *
                   (get_virial_a<COMPUTE_TAU, T>(a, b, 0, 0, task.zeta,
@@ -300,17 +301,17 @@ __launch_bounds__(64) void compute_hab_forces(const kernel_params dev_) {
   const auto &glb_task = dev_.tasks[task_id];
   const int iatom = glb_task.iatom;
   const int jatom = glb_task.jatom;
-  T *forces_a = &dev_.ptr_dev[4][3 * iatom];
-  T *forces_b = &dev_.ptr_dev[4][3 * jatom];
+  T *forces_a = &dev_.buffers_dev.forces[3 * iatom];
+  T *forces_b = &dev_.buffers_dev.forces[3 * jatom];
 
   T *sum = (T *)shared_memory;
-  if (dev_.ptr_dev[5] != nullptr) {
+  if (dev_.buffers_dev.virial != nullptr) {
 
     for (int i = 0; i < 9; i++) {
       virial[i] = block_reduce_64<T>(sum, virial[i], tid);
 
       if (tid == 0)
-        atomicAdd(dev_.ptr_dev[5] + i, virial[i]);
+        atomicAdd(dev_.buffers_dev.virial + i, virial[i]);
     }
   }
 
@@ -354,7 +355,7 @@ specialized to the integration.
 
 ******************************************************************************/
 template <typename T, typename T3, bool distributed__, bool orthogonal_,
-          int lbatch = 10>
+          int lbatch = 20>
 __global__
 __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
   if (dev_.tasks[dev_.first_task + block_index()].skip_task)
@@ -482,10 +483,10 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
           // the register is actually needed for computation. This is true on
           // NVIDIA hardware
 
-          T grid_value =
-              __ldg(&dev_.ptr_dev[1][(z2 * dev_.grid_local_size_.y + y2) *
-                                         dev_.grid_local_size_.x +
-                                     x2]);
+          const int grid_index =
+              (z2 * dev_.grid_local_size_.y + y2) * dev_.grid_local_size_.x +
+              x2;
+          T grid_value = __ldg(&dev_.buffers_dev.grid[grid_index]);
 
           const T r3xy = r3.x * r3.y;
           const T r3xz = r3.x * r3.z;
@@ -673,12 +674,20 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
         if (tid == 0)
           accumulator[i][0] = val;
       }
+#if defined(__CUDACC__)
       __syncwarp();
+#endif
     }
 
-    if (tid < min(length - ico, lbatch))
-      dev_.ptr_dev[2][dev_.tasks[dev_.first_task + block_index()].coef_offset +
-                      tid + ico] = accumulator[tid][0];
+#if !defined(__CUDACC__)
+    __syncthreads();
+#endif
+
+    if (tid < min(length - ico, lbatch)) {
+      const size_t coef_offset =
+          dev_.tasks[dev_.first_task + block_index()].coef_offset;
+      dev_.buffers_dev.coef[coef_offset + tid + ico] = accumulator[tid][0];
+    }
     __syncthreads();
   }
 }
