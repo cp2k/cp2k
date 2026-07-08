@@ -57,10 +57,16 @@ MODULE floquet_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'floquet_utils'
 
    ! Number of full Floquet-Hamiltonian copies (each n_f_size^2 complex(dp), 16 bytes per
-   ! element) that the subgroup must be able to hold, distributed across its ranks. About 6
-   ! are actually live at once (floquet_matrix + floquet_copy + cfm_eigenvectors plus the
-   ! ScaLAPACK eigensolver / Green's-function scratch); we size for 10 to leave headroom.
+   ! element) that the subgroup must be able to hold, distributed across its ranks. A few are
+   ! live at once (floquet_matrix + cfm_eigenvectors + eigensolver scratch); we size for 10 to
+   ! leave headroom.
    INTEGER, PARAMETER, PRIVATE :: n_fm_work_copies = 10
+
+   ! Fraction of the per-rank free memory the Floquet working set is allowed to occupy. The rest
+   ! is a reserve for everything the working-set estimate does NOT count: the SCF/post-SCF
+   ! baseline, the ScaLAPACK eigensolver's internal workspace, the distributed dipole/band data,
+   ! and the replicated real-space arrays built transiently in the precompute.
+   REAL(KIND=dp), PARAMETER, PRIVATE :: mem_fill_fraction = 0.4_dp
 
    ! Public subroutines (the block builders, calculate_epsilon_derivative and
    ! floquet_ranks_per_node are private helpers used only within this module)
@@ -69,9 +75,8 @@ MODULE floquet_utils
              floquet_determine_subgroup_size, &
              check_floquet_conversion, &
              calculate_floquet_spectral_function, &
-             get_quasi_energies, &
-             write_quasi_energy, &
-             write_floquet_spectral_function
+             get_floquet_energies, &
+             write_floquet_results
 
 CONTAINS
 
@@ -535,7 +540,10 @@ CONTAINS
 !>          1. Memory floor G_mem: the subgroup must jointly hold the Floquet working set,
 !>             taken to be n_fm_work_copies copies of the n_f_size^2 complex(dp) Floquet
 !>             Hamiltonian (needed_bytes = 16 * n_fm_work_copies * n_f_size^2), so
-!>             G_mem = ceil(needed_bytes / per-rank physical memory).
+!>             G_mem = ceil(needed_bytes / usable per-rank memory), where the usable memory is
+!>             mem_fill_fraction of the per-rank FREE memory (MemLikelyFree / ranks-per-node) -
+!>             the rest is kept as a reserve for the baseline, eigensolver scratch, band data,
+!>             and the precompute's replicated arrays, none of which are in needed_bytes.
 !>          2. K-point floor G_load = floor(num_pe / n_kp_dos): the LARGEST G that still
 !>             yields at least n_kp_dos subgroups (floor(num_pe/G) >= n_kp_dos). When ranks
 !>             outnumber k-points this hands every k-point its own (larger, hence faster)
@@ -556,9 +564,9 @@ CONTAINS
 
       INTEGER                                            :: g_load, g_mem, handle, n_f_size, &
                                                             n_kp_dos, nao, ranks_per_node, unit_nr
-      INTEGER(KIND=int_8)                                :: Buffers, Cached, mem_per_rank, MemFree, &
-                                                            MemLikelyFree, MemTotal, needed_bytes, &
-                                                            Slab, SReclaimable
+      INTEGER(KIND=int_8)                                :: Buffers, Cached, MemFree, MemLikelyFree, &
+                                                            MemTotal, needed_bytes, Slab, &
+                                                            SReclaimable, usable_per_rank
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
@@ -571,23 +579,26 @@ CONTAINS
       n_f_size = nao*(1 + 2*bs_env%max_floquet_index)
       n_kp_dos = bs_env%nkp_bs_and_DOS - bs_env%nkp_only_DOS
 
-      ! Physical memory available to one MPI rank = node memory / ranks per node.
+      ! Memory the Floquet working set may use on one rank: a fraction of the per-rank FREE
+      ! memory (node free memory / ranks per node). Free (not total) so the already-resident
+      ! SCF baseline is excluded; the fraction leaves a reserve for the many consumers not in
+      ! needed_bytes (eigensolver scratch, band data, replicated precompute arrays).
       CALL m_memory_details(MemTotal, MemFree, Buffers, Cached, Slab, SReclaimable, MemLikelyFree)
       ranks_per_node = floquet_ranks_per_node(para_env)
-      mem_per_rank = MemTotal/INT(ranks_per_node, int_8)
+      usable_per_rank = INT(mem_fill_fraction*REAL(MemLikelyFree, dp), int_8)/INT(ranks_per_node, int_8)
 
       ! Total memory the subgroup must hold: n_fm_work_copies copies of the Floquet
       ! Hamiltonian, each n_f_size^2 complex(dp) numbers at 16 bytes each.
       needed_bytes = 16_int_8*INT(n_fm_work_copies, int_8)*INT(n_f_size, int_8)**2
 
-      IF (mem_per_rank <= 0_int_8) THEN
+      IF (usable_per_rank <= 0_int_8) THEN
          ! Memory info unavailable (e.g. no /proc on this platform): fall back to one
          ! subgroup spanning all ranks, which minimises the per-rank footprint.
          g_mem = para_env%num_pe
       ELSE
-         ! Memory floor: smallest G with needed_bytes/G <= mem_per_rank. Clamp to num_pe in
+         ! Memory floor: smallest G with needed_bytes/G <= usable_per_rank. Clamp to num_pe in
          ! int_8 arithmetic before converting, to avoid overflowing a default integer.
-         g_mem = INT(MIN((needed_bytes + mem_per_rank - 1_int_8)/mem_per_rank, &
+         g_mem = INT(MIN((needed_bytes + usable_per_rank - 1_int_8)/usable_per_rank, &
                          INT(para_env%num_pe, int_8)))
       END IF
 
@@ -604,8 +615,10 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A)') ""
          WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Detected MPI ranks per node:", ranks_per_node
-         WRITE (unit_nr, '(T2,A,T66,I12,A)') "FLOQUET MEMORY | Physical memory per rank:", &
-            mem_per_rank/1048576_int_8, " MiB"
+         WRITE (unit_nr, '(T2,A,T66,I12,A)') "FLOQUET MEMORY | Free memory per rank:", &
+            (MemLikelyFree/INT(ranks_per_node, int_8))/1048576_int_8, " MiB"
+         WRITE (unit_nr, '(T2,A,T66,I12,A)') "FLOQUET MEMORY | Usable per rank (reserve applied):", &
+            usable_per_rank/1048576_int_8, " MiB"
          WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Floquet copies needed:", n_fm_work_copies
          WRITE (unit_nr, '(T2,A,T66,I12,A)') "FLOQUET MEMORY | Total Floquet working set:", &
             needed_bytes/1048576_int_8, " MiB"
@@ -726,144 +739,132 @@ CONTAINS
 !>        quasi-energies are the nao eigenvalues of smallest magnitude (folded into the first
 !>        Floquet Brillouin zone -ħΩ/2 < ε ≤ ħΩ/2), returned ordered by their position in the
 !>        spectrum.
-!> \param eigenvalues the full set of Floquet eigenvalues (n_f_size)
-!> \param quasi_energies the extracted quasi-energies (nao); its size sets how many are kept
+!> \param bs_env ...
+!> \param eigenvalues the full set of Floquet eigenvalues
+!> \param floquet_bands the energies of the m=0 sector
+!> \param quasi_energies the extracted quasi-energies
 ! **************************************************************************************************
-   SUBROUTINE get_quasi_energies(eigenvalues, quasi_energies)
-      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues, quasi_energies
+   SUBROUTINE get_floquet_energies(bs_env, eigenvalues, floquet_bands, quasi_energies)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues, floquet_bands, &
+                                                            quasi_energies
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_quasi_energies'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_floquet_energies'
 
-      INTEGER                                            :: handle, i, j, n, nao
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices, work
+      INTEGER                                            :: handle, m, n, nao
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: work
+      REAL(KIND=dp)                                      :: omega
 
       CALL timeset(routineN, handle)
 
+      omega = bs_env%floquet_omega
       n = SIZE(eigenvalues)
       nao = SIZE(quasi_energies)
+      m = (n/nao - 1)/2
 
-      ! Greedily select the nao eigenvalues closest to zero, then order them by their index
-      ! in the spectrum.
-      ALLOCATE (indices(nao), work(nao))
-      indices(:) = [(i, i=1, nao)]
-      DO i = 1, nao
-         DO j = 1, n
-            IF (ANY(indices == j)) CYCLE
-            IF (ABS(eigenvalues(j)) < ABS(eigenvalues(indices(i)))) indices(i) = j
-         END DO
-      END DO
-      CALL sort(indices, nao, work)
-      quasi_energies(:) = eigenvalues(indices(:))
-      DEALLOCATE (indices, work)
+      ALLOCATE (work(nao))
+      floquet_bands(:) = eigenvalues(nao*m + 1:nao*(m + 1))
+      quasi_energies(:) = floquet_bands(:) - omega*(0.5_dp + FLOOR(floquet_bands/omega))
+      CALL sort(quasi_energies, nao, work)
+      DEALLOCATE (work)
 
       CALL timestop(handle)
 
-   END SUBROUTINE get_quasi_energies
+   END SUBROUTINE get_floquet_energies
 
 ! **************************************************************************************************
-!> \brief Write the (precomputed) quasi-energies for one k-point and spin to the QE output file.
-!> \param bs_env ...
-!> \param ispin ...
-!> \param ikp_for_file ...
-!> \param xkp ...
-!> \param quasi_energies quasi-energies for this k-point/spin (nao)
-! **************************************************************************************************
-   SUBROUTINE write_quasi_energy(bs_env, ispin, ikp_for_file, xkp, quasi_energies)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER                                            :: ispin, ikp_for_file
-      REAL(KIND=dp), DIMENSION(3)                        :: xkp
-      REAL(KIND=dp), DIMENSION(:)                        :: quasi_energies
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_quasi_energy'
-
-      CHARACTER(LEN=default_string_length)               :: fname
-      INTEGER                                            :: handle, i, nao, qunit
-
-      CALL timeset(routineN, handle)
-
-      nao = SIZE(quasi_energies)
-
-      IF (bs_env%para_env%is_source()) THEN
-         WRITE (fname, "(2A)") TRIM(bs_env%floquet_qe_file), ".bs"
-         IF (ikp_for_file == 1 .AND. ispin == 1) THEN
-            CALL open_file(TRIM(fname), unit_number=qunit, file_status="REPLACE", &
-                           file_action="WRITE")
-            WRITE (qunit, "(A)") "# Quasi-energies obtained by diagonalising the Floquet Hamiltonian"
-            WRITE (qunit, "(A)") "# (in units of eV, folded to Floquet Brillouin zone)"
-         ELSE
-            CALL open_file(TRIM(fname), unit_number=qunit, file_status="OLD", &
-                           file_action="WRITE", file_position="APPEND")
-         END IF
-
-         WRITE (qunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
-            "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
-         WRITE (qunit, "(A)") "#  Floquet band  Quasi-energy [eV]"
-         DO i = 1, nao
-            WRITE (qunit, "(I8,F21.8)") i, quasi_energies(i)*evolt
-         END DO
-         CALL close_file(qunit)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE write_quasi_energy
-! **************************************************************************************************
-!> \brief ...
+!> \brief Write all Floquet results in one pass: the quasi-energies to <floquet_qe_file>.bs and
+!>        the k-resolved density of states to <floquet_dos_file>.out. Each file is opened once
+!>        (REPLACE) and written for every DOS k-point and spin, on the global I/O rank.
 !> \param qs_env ...
 !> \param bs_env ...
-!> \param ispin ...
-!> \param ikp_for_file ...
-!> \param xkp ...
-!> \param a_k ...
+!> \param all_floquet_bands ...
+!> \param all_quasi_energies quasi-energies for every (band, spin, DOS k-point) (nao, n_spin, n_kp_dos)
+!> \param all_a_k spectral function A(k,E) for every (energy, spin, DOS k-point) (n_E, n_spin, n_kp_dos)
 ! **************************************************************************************************
-   SUBROUTINE write_floquet_spectral_function(qs_env, bs_env, ispin, ikp_for_file, xkp, a_k)
+   SUBROUTINE write_floquet_results(qs_env, bs_env, all_floquet_bands, all_quasi_energies, all_a_k)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER                                            :: ispin, ikp_for_file
-      REAL(KIND=dp), DIMENSION(3)                        :: xkp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a_k
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: all_floquet_bands, all_quasi_energies, &
+                                                            all_a_k
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_floquet_spectral_function'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_floquet_results'
 
       CHARACTER(LEN=default_string_length)               :: fname
-      INTEGER                                            :: handle, i_E, n_E, nkp_start, wunit
+      INTEGER                                            :: bunit, handle, i, i_E, ikp_for_file, &
+                                                            ispin, n_E, n_kp_dos, n_spin, nao, &
+                                                            nkp_start, qunit, wunit
       REAL(KIND=dp)                                      :: E_min, energy, energy_step, mu
+      REAL(KIND=dp), DIMENSION(3)                        :: xkp
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, mos=mos)
-
-      CALL get_mo_set(mo_set=mos(1), mu=mu)
-
-      energy_step = bs_env%energy_step_floquet
-      E_min = mu - bs_env%energy_window_floquet
-      n_E = SIZE(a_k)
-      nkp_start = bs_env%nkp_only_DOS
-
       IF (bs_env%para_env%is_source()) THEN
-         WRITE (fname, "(2A)") TRIM(bs_env%floquet_dos_file), ".out"
-         IF (ikp_for_file == 1 .AND. ispin == 1) THEN
-            CALL open_file(TRIM(fname), unit_number=wunit, file_status="REPLACE", &
-                           file_action="WRITE")
-            WRITE (wunit, "(A)") "# Floquet Density of States: D(ω,k) = -1/π*Im[Tr_KS(G^R(ω,k))]"
-         ELSE
-            CALL open_file(TRIM(fname), unit_number=wunit, file_status="OLD", &
-                           file_action="WRITE", file_position="APPEND")
-         END IF
 
-         WRITE (wunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
-            "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
-         WRITE (wunit, "(A)") "#Energy-E_F (eV)  A(ω,k) = DOS (1/eV)"
-         DO i_E = 1, n_E
-            energy = E_min + i_E*energy_step
-            WRITE (wunit, "(2X,2G13.4)") energy*evolt, a_k(i_E)/evolt
+         nao = SIZE(all_floquet_bands, 1)
+         n_spin = SIZE(all_floquet_bands, 2)
+         n_kp_dos = SIZE(all_floquet_bands, 3)
+         n_E = SIZE(all_a_k, 1)
+         nkp_start = bs_env%nkp_only_DOS
+
+         CALL get_qs_env(qs_env, mos=mos)
+         CALL get_mo_set(mo_set=mos(1), mu=mu)
+         energy_step = bs_env%energy_step_floquet
+         E_min = mu - bs_env%energy_window_floquet
+
+         WRITE (fname, "(2A)") TRIM(bs_env%floquet_bs_file), ".out"
+         CALL open_file(TRIM(fname), unit_number=bunit, file_status="REPLACE", file_action="WRITE")
+         WRITE (bunit, "(A)") "# Floquet engineered bands of the m=0 sector"
+
+         WRITE (fname, "(2A)") TRIM(bs_env%floquet_qe_file), ".bs"
+         CALL open_file(TRIM(fname), unit_number=qunit, file_status="REPLACE", file_action="WRITE")
+         WRITE (qunit, "(A)") "# Quasi-energies obtained by diagonalising the Floquet Hamiltonian"
+         WRITE (qunit, "(A)") "# (in units of eV, folded to Floquet Brillouin zone)"
+
+         WRITE (fname, "(2A)") TRIM(bs_env%floquet_dos_file), ".out"
+         CALL open_file(TRIM(fname), unit_number=wunit, file_status="REPLACE", file_action="WRITE")
+         WRITE (wunit, "(A)") "# Floquet Density of States: D(ω,k) = -1/π*Im[Tr_KS(G^R(ω,k))]"
+
+         DO ikp_for_file = 1, n_kp_dos
+            xkp(1:3) = bs_env%kpoints_DOS%xkp(1:3, nkp_start + ikp_for_file)
+            DO ispin = 1, n_spin
+
+               ! Floquet bands for this k-point and spin
+               WRITE (bunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
+                  "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
+               WRITE (bunit, "(A)") "#  Floquet band  Band-energy [eV]"
+               DO i = 1, nao
+                  WRITE (bunit, "(I8,F21.8)") i, all_floquet_bands(i, ispin, ikp_for_file)*evolt
+               END DO
+
+               ! Quasi-energies (folded to -ħΩ/2 < ε ≤ ħΩ/2) for this k-point and spin
+               WRITE (qunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
+                  "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
+               WRITE (qunit, "(A)") "#  Floquet band  Quasi-energy [eV]"
+               DO i = 1, nao
+                  WRITE (qunit, "(I8,F21.8)") i, all_quasi_energies(i, ispin, ikp_for_file)*evolt
+               END DO
+
+               ! DOS A(k,ω) for this k-point and spin
+               WRITE (wunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
+                  "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
+               WRITE (wunit, "(A)") "#Energy-E_F (eV)  A(ω,k) = DOS (1/eV)"
+               DO i_E = 1, n_E
+                  energy = E_min + i_E*energy_step
+                  WRITE (wunit, "(2X,2G13.4)") energy*evolt, all_a_k(i_E, ispin, ikp_for_file)/evolt
+               END DO
+
+            END DO
          END DO
+
+         CALL close_file(bunit)
+         CALL close_file(qunit)
          CALL close_file(wunit)
       END IF
 
       CALL timestop(handle)
 
-   END SUBROUTINE write_floquet_spectral_function
+   END SUBROUTINE write_floquet_results
 
 END MODULE floquet_utils
