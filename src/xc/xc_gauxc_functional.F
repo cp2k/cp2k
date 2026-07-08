@@ -117,8 +117,9 @@ CONTAINS
 !> \brief ...
 !> \param dbcsr_mat ...
 !> \param dense_mat ...
+!> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat)
+   SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat, para_env)
       USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
                               dbcsr_get_matrix_type, dbcsr_get_readonly_block_p, &
                               dbcsr_get_stored_coordinates, dbcsr_type_antisymmetric, &
@@ -126,12 +127,11 @@ CONTAINS
       TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_mat
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: dense_mat
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       CHARACTER                                          :: matrix_type
-      INTEGER                                            :: col, col_end, col_start, icol, irow, &
-                                                            mynode, nblkcols_total, &
-                                                            nblkrows_total, ncols, nrows, owner, &
-                                                            row, row_end, row_start
+      INTEGER :: col, col_end, col_start, icol, irow, mynode, nblkcols_total, nblkrows_total, &
+         ncols, nrows, numnodes, owner, row, row_end, row_start
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: c_offset, r_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       LOGICAL                                            :: found
@@ -146,7 +146,7 @@ CONTAINS
                           nfullrows_total=nrows, &
                           nfullcols_total=ncols, &
                           distribution=dist)
-      CALL dbcsr_distribution_get(dist, mynode=mynode)
+      CALL dbcsr_distribution_get(dist, mynode=mynode, numnodes=numnodes)
       matrix_type = dbcsr_get_matrix_type(dbcsr_mat%matrix)
 
       IF (.NOT. ALLOCATED(dense_mat)) THEN
@@ -173,6 +173,7 @@ CONTAINS
       ! Replicated DBCSR blocks must enter the following MPI sum exactly once.
       DO irow = 1, nblkrows_total
          DO icol = 1, nblkcols_total
+            IF (numnodes == 1 .AND. para_env%num_pe > 1 .AND. para_env%mepos /= 0) CYCLE
             CALL dbcsr_get_stored_coordinates(dbcsr_mat%matrix, irow, icol, owner)
             IF (owner /= mynode) CYCLE
             CALL dbcsr_get_readonly_block_p(matrix=dbcsr_mat%matrix, row=irow, col=icol, &
@@ -1392,7 +1393,7 @@ CONTAINS
          IF (img > 1) THEN
             CPABORT("UNIMPLEMENTED: Handling nimg>1 in k-point integration")
          END IF
-         CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
+         CALL dbcsr_to_dense(rho_ao(1, img), density_scalar, para_env)
          CALL para_env%sum(density_scalar)
          IF (nspins == 1) THEN
             gauxc_xc_result = gauxc_compute_xc( &
@@ -1452,7 +1453,7 @@ CONTAINS
             ! In here:
             ! scalar <- rho_ao(1, :) + rho_ao(2, :)
             ! zeta   <- rho_ao(1, :) - rho_ao(2, :)
-            CALL dbcsr_to_dense(rho_ao(2, img), density_zeta)
+            CALL dbcsr_to_dense(rho_ao(2, img), density_zeta, para_env)
             CALL para_env%sum(density_zeta)
             ! Do NOT reorder the following lines!
             density_scalar(:, :) = density_scalar(:, :) + density_zeta(:, :)
