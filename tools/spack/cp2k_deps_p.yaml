@@ -203,7 +203,7 @@ spack:
 #   - "dftd4@4.0.2"
 #   - "dla-future@0.10.0"
 #   - "dla-future-fortran@0.5.0"
-    - "elpa@2026.02.001"
+    - "elpa@2026.02.002"
     - "fftw@3.3.11"
     - "gauxc@dev20260608"
     - "greenx@2.2"
