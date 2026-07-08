@@ -48,8 +48,8 @@ class Libint(CMakePackage):
     depends_on("cxx", type="build")
     depends_on("fortran", type="build", when="+fortran")
 
-    depends_on("boost", type="build")
-    depends_on("eigen", type="build")
+    depends_on("boost")
+    depends_on("eigen")
 
     def setup_build_environment(self, env):
         env.append_flags("CXXFLAGS", "-g1")

@@ -192,8 +192,6 @@ def main() -> None:
             install_cp2k_spack(
                 version="ssmp-static",
                 mpi_mode="no",
-                base_image="ubuntu:24.04",
-                gcc_version=14,
                 testopts=testopts,
                 image_tag=f.image_tag,
             )

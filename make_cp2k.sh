@@ -914,7 +914,7 @@ echo ""
 ### Build CP2K dependencies with Spack if needed or requested ###
 
 # Spack version
-export SPACK_VERSION="${SPACK_VERSION:-1.1.1}"
+export SPACK_VERSION="${SPACK_VERSION:-1.2.1}"
 export SPACK_BUILD_PATH="${BUILD_PATH}/spack"
 export SPACK_ROOT="${SPACK_BUILD_PATH}/spack"
 
@@ -1159,7 +1159,7 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
   spack compiler list
 
   # Retrieve the newest compiler version found by spack
-  GCC_VERSION_NEWEST="$(spack compilers | awk '/gcc/ {print $2}' | sort -V | tail -n 1)"
+  GCC_VERSION_NEWEST="$(spack compilers | sed -nE 's/.*gcc@([0-9]+(\.[0-9]+)*).*/\1/p' | sort -V | tail -n 1)"
   echo "The newest GCC compiler version found by spack is ${GCC_VERSION_NEWEST}"
   GCC_VERSION_NEWEST="$(echo "${GCC_VERSION_NEWEST}" | sed -E -e 's/.*@([0-9]+).*/\1/' | cut -d. -f1)"
 
@@ -1230,7 +1230,7 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
       ${EXIT_CMD} 1
     fi
     # Concretize CP2K dependencies
-    if ! spack -e "${CP2K_ENV}" concretize --fresh --jobs $((NUM_PROCS)); then
+    if ! spack -e "${CP2K_ENV}" concretize --fresh --jobs "${NUM_PROCS}"; then
       echo -e "\nERROR: The spack concretize for environment \"${CP2K_ENV}\" failed"
       echo ""
       echo "HINT: The (-ue | --use_externals) flags can cause conflicts with outdated"
@@ -1257,7 +1257,7 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
         spack compiler list
       fi
     fi
-    if ! spack -e "${CP2K_ENV}" --no-user-config --no-system-config concretize --fresh --jobs $((NUM_PROCS)); then
+    if ! spack -e "${CP2K_ENV}" concretize --fresh --jobs "${NUM_PROCS}"; then
       echo -e "\nERROR: The spack concretize for environment \"${CP2K_ENV}\" failed"
       ${EXIT_CMD} 1
     fi
@@ -1266,7 +1266,7 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
   ((VERBOSE > 0)) && spack find -c
 
   # Install CP2K dependencies via Spack
-  if ! spack -e "${CP2K_ENV}" install --jobs "$((NUM_PROCS / NUM_PACKAGES))" --concurrent-packages "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
+  if ! spack -e "${CP2K_ENV}" install -j "${NUM_PROCS}" -p "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
     echo "ERROR: Building the CP2K dependencies with spack failed"
     if [[ "${USE_EXTERNALS}" == "yes" ]]; then
       echo "HINT:  Try to re-run the build without the (-ue | --use_externals) flag which avoids"
