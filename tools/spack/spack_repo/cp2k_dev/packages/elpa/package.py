@@ -28,6 +28,9 @@ class Elpa(AutotoolsPackage, CudaPackage, ROCmPackage):
     version("master", branch="master")
 
     version(
+        "2026.02.002", sha256="02e3c59fec53cd8eb66a4cc15fa4fbf190cf9654227223fb8ad55713e9427932"
+    )
+    version(
         "2026.02.001", sha256="a379f27f4dbd27b2ee45017afec656d064301e97150c874649bdfd64957b75ed"
     )
     version(
@@ -90,7 +93,7 @@ class Elpa(AutotoolsPackage, CudaPackage, ROCmPackage):
     # )
     # patch("hipcc.patch", when="+rocm @2025.01.001:2025.06.001")
     # Suppress debug output to stderr for non-debug builds
-    patch("elpa-2026.02.001-wantDebug.patch", when="@2026.02.001")
+    patch("elpa-2026.02.001-wantDebug.patch", when="@2026.02.001:")
 
     depends_on("c", type="build")  # generated
     depends_on("cxx", type="build")  # generated
