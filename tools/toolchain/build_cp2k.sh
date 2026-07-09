@@ -29,7 +29,6 @@ source "${TOOLCHAIN_SCRIPTS_DIR}/tool_kit.sh"
 # ====================== Parameter parsing ======================
 CP2K_ROOT=$(cd "${TOOLCHAIN_ROOTDIR}/../.." && pwd)
 CMAKE_INSTALL_PREFIX=${CP2K_ROOT}/install
-CLEAN_BUILD="__FALSE__"
 DEBUG_BUILD="__FALSE__"
 BUILD_JOBS="$(get_nprocs)"
 BUILD_SHARED_LIBS="ON"
@@ -50,8 +49,6 @@ Options:
   -j N, -jN             Number of parallel build jobs
   --prefix              Set CMAKE_INSTALL_PREFIX (default is ${CP2K_ROOT}/install)
   --dry-run             Show generated CMake options only and then exit
-  --clean               Remove the build directory before configuring, which means
-                        rebuilding CP2K entirely
   --debug               Build debug version of CP2K (-DCMAKE_BUILD_TYPE=Debug)
   --build-static        Set -DBUILD_SHARED_LIBS=OFF (default is ON)
   --rebuild-only        Skip CMake configuration and only rebuild/install CP2K
@@ -68,9 +65,6 @@ while [ $# -ge 1 ]; do
       ;;
     --rebuild-only)
       REBUILD_ONLY="__TRUE__"
-      ;;
-    --clean)
-      CLEAN_BUILD="__TRUE__"
       ;;
     -j)
       BUILD_JOBS="$2"
@@ -110,7 +104,6 @@ done
 
 if [ "${REBUILD_ONLY}" = "__TRUE__" ]; then
   if [ "${DRY_RUN}" = "__TRUE__" ] ||
-    [ "${CLEAN_BUILD}" = "__TRUE__" ] ||
     [ "${PREFIX_SET}" = "__TRUE__" ] ||
     [ "${DEBUG_SET}" = "__TRUE__" ] ||
     [ "${BUILD_STATIC_SET}" = "__TRUE__" ]; then
@@ -179,6 +172,7 @@ EOF
   exit 1
 fi
 
+# ====================== Configure & Build ======================
 # Load toolchain environment (required for with_xxx variables)
 source "${TOOLCHAIN_INSTALL_DIR}/setup"
 source "${TOOLCHAIN_INSTALL_DIR}/toolchain.conf"
@@ -287,12 +281,6 @@ fi
 if [ "${DRY_RUN}" != "__TRUE__" ]; then
   rm -f build.log
 
-  # ====================== Optional clean ======================
-  if [ "${CLEAN_BUILD}" = "__TRUE__" ] && [ -d "${BUILD_DIR}" ]; then
-    echo "Removing existing build directory: ${BUILD_DIR}"
-    rm -rf "${BUILD_DIR}"
-  fi
-
   if [ "${REBUILD_ONLY}" = "__TRUE__" ]; then
     # Check if cmake_install.cmake exists
     CMAKE_INSTALL_FILE="${BUILD_DIR}/cmake_install.cmake"
@@ -334,9 +322,12 @@ EOF
     log_build "Using existing CP2K environment file:"
     log_build "  ${CMAKE_INSTALL_PREFIX}/cp2k_env"
   else
+    if [ -d "${BUILD_DIR}" ]; then
+      echo "Removing existing build directory before configuration: ${BUILD_DIR}"
+      rm -rf "${BUILD_DIR}"
+    fi
     mkdir -p "${BUILD_DIR}"
 
-    # ====================== Configure ======================
     log_cmake "================== CMake configuration ==================="
     log_cmake "Source dir : ${CP2K_ROOT}"
     log_cmake "Build  dir : ${BUILD_DIR}"
@@ -347,7 +338,6 @@ EOF
     cmake -S "${CP2K_ROOT}" -B "${BUILD_DIR}" ${CMAKE_OPTIONS} 2>&1 | tee -a cmake.log
   fi
 
-  # ====================== Build ======================
   log_build "==================== Building CP2K ======================="
   log_build "Parallel jobs: ${BUILD_JOBS}"
   set -o pipefail
