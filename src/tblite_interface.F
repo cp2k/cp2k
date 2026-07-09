@@ -727,7 +727,7 @@ CONTAINS
       INTEGER                                            :: iounit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: scf_section
-
+      REAL(KIND=dp)                                      :: xtb_inter
       NULLIFY (scf_section, logger)
 
       logger => cp_get_default_logger()
@@ -739,11 +739,11 @@ CONTAINS
       energy%dispersion = SUM(tb%e_disp)
       energy%dispersion_sc = SUM(tb%e_scd)
       energy%xtb_xb_inter = SUM(tb%e_hal)
-      energy%xtb_xb_inter = energy%xtb_xb_inter + SUM(tb%e_int)
+      xtb_inter = SUM(tb%e_int)
 
       energy%total = energy%core + energy%repulsive + energy%el_stat + energy%dispersion &
-                     + energy%dispersion_sc + energy%xtb_xb_inter + energy%kTS &
-                     + energy%efield + energy%qmmm_el
+                     + energy%dispersion_sc + energy%xtb_xb_inter + xtb_inter &
+                     + energy%kTS + energy%efield + energy%qmmm_el
 
       iounit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
                                     extension=".scfLog")
@@ -754,9 +754,15 @@ CONTAINS
             "Electrostatic energy:                          ", energy%el_stat, &
             "Self-consistent dispersion energy:             ", energy%dispersion_sc, &
             "Non-self consistent dispersion energy:         ", energy%dispersion
-         WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
-            "Correction for halogen bonding:                ", energy%xtb_xb_inter
-         IF (ABS(energy%efield) > 1.e-12_dp) THEN
+         IF (ABS(energy%xtb_xb_inter) > 1.e-9_dp) THEN
+            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
+               "Correction for halogen bonding:                ", energy%xtb_xb_inter
+         END IF
+         IF (ABS(xtb_inter) > 1.e-9_dp) THEN
+            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
+               "Additional interaction (e.g. spin):            ", xtb_inter
+         END IF
+         IF (ABS(energy%efield) > 1.e-9_dp) THEN
             WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
                "Electric field interaction energy:             ", energy%efield
          END IF
