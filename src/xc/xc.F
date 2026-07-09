@@ -81,7 +81,7 @@ MODULE xc
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc'
    CHARACTER(len=*), PARAMETER, PRIVATE :: gauxc_high_deriv_message = &
-                                        "Response and kernel properties with GauXC/Skala require higher XC derivatives, "// &
+                                           "Response and kernel properties with GauXC/Skala require higher XC derivatives, "// &
                                       "which are not implemented. Use a native CP2K XC functional or disable the coupled XC kernel."
 
 CONTAINS

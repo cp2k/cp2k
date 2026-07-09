@@ -961,16 +961,15 @@ CONTAINS
       REAL(KIND=dp), PARAMETER :: gapw_fd_gradient_dx = 1.0E-4_dp
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name, output_path
-      CHARACTER(len=default_string_length) :: grid_key, grid_type, int_exec_space, lb_exec_space, &
-         lwd_kernel, gradient_runtime, gradient_runtime_key, pruning_key, &
-         pruning_scheme, radial_quadrature, skala_runtime, skala_runtime_key, xc_fun_name
-      INTEGER                                            :: batch_size, env_status, img, ispin, &
-                                                            natom, nimages, nspins, &
-                                                            atom_chunk_size
-      LOGICAL :: do_kpoints, gapw_method, gapw_paw_pseudopotentials, gapw_pseudopotentials, &
-         grid_explicit, hdf5_output, is_periodic, molecular_virial, molecular_virial_debug, &
-         need_xc_gradient, atom_chunk_size_explicit, periodic_reference, pruning_explicit, &
-         use_fd_gradient, use_gradient_mpi_runtime, use_gradient_self_runtime, use_gauxc_model, &
+      CHARACTER(len=default_string_length) :: gradient_runtime, gradient_runtime_key, grid_key, &
+         grid_type, int_exec_space, lb_exec_space, lwd_kernel, pruning_key, pruning_scheme, &
+         radial_quadrature, skala_runtime, skala_runtime_key, xc_fun_name
+      INTEGER                                            :: atom_chunk_size, batch_size, env_status, &
+                                                            img, ispin, natom, nimages, nspins
+      LOGICAL :: atom_chunk_size_explicit, do_kpoints, gapw_method, gapw_paw_pseudopotentials, &
+         gapw_pseudopotentials, grid_explicit, hdf5_output, is_periodic, molecular_virial, &
+         molecular_virial_debug, need_xc_gradient, periodic_reference, pruning_explicit, &
+         use_fd_gradient, use_gauxc_model, use_gradient_mpi_runtime, use_gradient_self_runtime, &
          use_self_runtime, use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: device_runtime_fill_fraction, &
                                                             molecular_virial_debug_dx

@@ -28,8 +28,8 @@ a conventional functional evaluated by GauXC:
 &END XC
 ```
 
-A non-`NONE` model selects a GauXC Skala model. The model can be a `.fun` file or an installed
-model name. The underlying functional is optional in this case and defaults to `PBE`:
+A non-`NONE` model selects a GauXC Skala model. The model can be a `.fun` file or an installed model
+name. The underlying functional is optional in this case and defaults to `PBE`:
 
 ```text
 &XC
@@ -93,9 +93,9 @@ dedicated periodic GauXC interface.
 of atoms per block, zero disables chunking, and the default lets GauXC or the
 `GAUXC_ONEDFT_ATOM_CHUNK_SIZE` environment variable choose the policy.
 
-For MPI calculations, `SKALA_RUNTIME` controls the communicator used for Skala energy and
-potential evaluation. `AUTO` uses the force-evaluation communicator for closed-shell calculations
-and a replicated rank-local runtime for open-shell calculations. The corresponding
+For MPI calculations, `SKALA_RUNTIME` controls the communicator used for Skala energy and potential
+evaluation. `AUTO` uses the force-evaluation communicator for closed-shell calculations and a
+replicated rank-local runtime for open-shell calculations. The corresponding
 `MODEL_GRADIENT_RUNTIME` setting defaults to a conservative replicated runtime for nuclear
 gradients. Select `MPI` only with a GauXC installation that supports distributed Skala gradients.
 
@@ -104,11 +104,10 @@ gradients. Select `MPI` only with a GauXC installation that supports distributed
 - Conventional GauXC with `METHOD GAPW` requires all-electron potentials. With pseudopotentials,
   `METHOD GAPW` is available only for Skala-style models and evaluates the molecular
   AO/valence-density XC term directly.
-- Skala with `METHOD GAPW` and GTH/ECP pseudopotentials currently supports energies only;
-  forces and molecular virials are unavailable. CP2K's GAPW one-center XC correction is not used on
-  this path.
-- `METHOD GAPW_XC`, NLCC pseudopotentials with Skala, and non-local `VDW_POTENTIAL`
-  corrections are not supported by the molecular GauXC path.
+- Skala with `METHOD GAPW` and GTH/ECP pseudopotentials currently supports energies only; forces and
+  molecular virials are unavailable. CP2K's GAPW one-center XC correction is not used on this path.
+- `METHOD GAPW_XC`, NLCC pseudopotentials with Skala, and non-local `VDW_POTENTIAL` corrections are
+  not supported by the molecular GauXC path.
 - Higher-XC-derivative response and kernel properties are not available through GauXC. Real-time
   propagation is also unsupported.
 
