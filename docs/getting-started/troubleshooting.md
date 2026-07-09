@@ -98,9 +98,9 @@ diagonalization library. Setting [PREFERRED_DIAG_LIBRARY](#CP2K_INPUT.GLOBAL.PRE
 to `SCALAPACK` can probably circumvent some bugs like in github issue
 [#4484](https://github.com/cp2k/cp2k/issues/4484).
 
-When running a hybrid DFT calculation, where it is well-known that the evaluation of ({term}`ERI`)
-for [Hartree-Fock exchange](../methods/dft/hartree-fock/index) and the in-core storage tends to be
-very memory-intensive, the upper bound of memory requirement depends on the number of MPI parallel
+When running a hybrid DFT calculation, where it is well-known that the evaluation of {term}`ERI` for
+[Hartree-Fock exchange](../methods/dft/hartree-fock/index) and the in-core storage tends to be very
+memory-intensive, the upper bound of memory requirement depends on the number of MPI parallel
 processes and the value of [MAX_MEMORY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.HF.MEMORY.MAX_MEMORY) in MB.
 The first SCF cycle is usually very time-consuming due to the necessary initial evaluation of ERI,
 and so do not terminate the program too early as long as the memory is fine.
@@ -164,7 +164,7 @@ A (integer|floating point|string) type object was expected, found (end of line|<
 File: <filename>, Line: <line>, Column: <col>
 ```
 
-This kind of error arises from the parser of input files, and natually is resolved by preparing or
+This kind of error arises from the parser of input files, and naturally is resolved by preparing or
 editing the file in accordance with the manual. Say, a structure input requiring XYZ format should
 not use CIF, and the XYZ file should have number of atoms on the first line, comments on the second
 line and each of the rest of (number of atoms) lines in a format of

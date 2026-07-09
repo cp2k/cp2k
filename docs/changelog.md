@@ -5,6 +5,8 @@
 ### New Features
 
 - DFT+U with k-points for Mulliken methods ([#4855](https://github.com/cp2k/cp2k/pull/4855))
+- Energy Correction Harris functional with k-points
+  ([#5031](https://github.com/cp2k/cp2k/pull/5031))
 - Lowdin population analysis for k-points ([#5045](https://github.com/cp2k/cp2k/pull/5045))
 - Wavefunction extrapolation for k-point calculations
   ([#4884](https://github.com/cp2k/cp2k/pull/4884), [#4943](https://github.com/cp2k/cp2k/pull/4943),
@@ -62,6 +64,9 @@
 - Remove obsolete Cython Python bindings ([#5541](https://github.com/cp2k/cp2k/pull/5541))
 - Remove EVAL_ENERGY_FORCES and EVAL_FORCES keywords in favor of EVAL under &MOTION/&MD/&REFTRAJ
   ([#5401](https://github.com/cp2k/cp2k/pull/5401))
+- An implementation of the FFTW3 interface may be turned into a hard dependency in a later release.
+  Please consider compiling and CP2K with FFTW3, MKL, AOCL or any other library implementing this
+  interface if you have not used it until now. ([#5454](https://github.com/cp2k/cp2k/pull/5454))
 - **TODO**
 
 ### Fixes
