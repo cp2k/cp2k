@@ -76,6 +76,10 @@ spack:
         - "+fortran"
         - "~shared"
 
+    libfci:
+      require:
+        - "~shared"
+
     libint:
       require:
         - "+fortran"
