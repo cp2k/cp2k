@@ -837,7 +837,7 @@ if(CP2K_USE_LIBGINT)
 endif()
 
 if(CP2K_USE_LIBFCI)
-  find_package(libfci REQUIRED)
+  find_package(LibFCI REQUIRED)
 endif()
 
 # Spglib
@@ -1208,9 +1208,7 @@ if(CP2K_USE_LIBGINT)
 endif()
 
 if(CP2K_USE_LIBFCI)
-  message("  - LibFCI\n"
-          "    - Include directories: ${CP2K_LIBFCI_INCLUDE_DIRS}\n"
-          "    - Libraries: ${CP2K_LIBFCI_LINK_LIBRARIES}\n")
+  message("  - LibFCI\n" "    - Libraries: ${CP2K_LIBFCI_LINK_LIBRARIES}\n")
 endif()
 
 if(CP2K_USE_VORI)
