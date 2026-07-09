@@ -104,7 +104,7 @@ CONTAINS
       IF (iounit > 0) WRITE (UNIT=iounit, FMT='(/,(T3,A,T61,I10))') &
          " Calculate DOS at iteration step ", iterstep
 
-      CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%DELTA_E", r_val=de)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%DELTA_E", r_val=de)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%APPEND", l_val=append)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%NDIGITS", i_val=ndigits)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%ENERGY_UNIT", i_val=energy_unit)
@@ -118,6 +118,18 @@ CONTAINS
          my_pos = "REWIND"
       END IF
       ndigits = MIN(MAX(ndigits, 1), 10)
+      IF (PRESENT(write_curve_output)) THEN
+         IF (write_curve_output .AND. de <= 0.0_dp) THEN
+            CPWARN("Broadened DOS output requires DELTA_E > 0 and will be skipped")
+            CALL timestop(handle)
+            RETURN
+         END IF
+         IF (write_curve_output .AND. broaden_width <= 0.0_dp) THEN
+            CPWARN("Broadened DOS output requires a finite WIDTH and will be skipped")
+            CALL timestop(handle)
+            RETURN
+         END IF
+      END IF
       do_broaden = .FALSE.
       IF (PRESENT(write_curve_output)) do_broaden = write_curve_output
       do_broaden = do_broaden .AND. (broaden_width > 0.0_dp)
@@ -242,9 +254,9 @@ CONTAINS
       CASE (dos_energy_zero_absolute)
          energy_ref(:) = 0.0_dp
       CASE (dos_energy_zero_hoco)
-         energy_ref(:) = hoco(:)
+         energy_ref(:) = MAXVAL(hoco(1:nspins))
       CASE DEFAULT
-         energy_ref(:) = e_fermi(:)
+         energy_ref(:) = MAXVAL(e_fermi(1:nspins))
       END SELECT
       IF (.NOT. do_broaden) energy_ref(:) = 0.0_dp
       energy_factor = MERGE(dos_energy_scale(energy_unit), 1.0_dp, do_broaden)
@@ -275,10 +287,15 @@ CONTAINS
                WRITE (UNIT=iw, FMT="(A,A)") "# Energy zero: ", TRIM(zero_label)
                CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
             END IF
-            WRITE (UNIT=iw, FMT="(T2,A,A,A)") "#  "//TRIM(energy_label)//"  Alpha_Density    Occupation", &
-               "    "//TRIM(energy_label), "  Beta_Density     Occupation"
-            ! (2(F15.8,2F20.ndigits))
-            WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(2(F15.8,2F20.", ndigits, "))"
+            IF (do_broaden .OR. de > 0.0_dp) THEN
+               WRITE (UNIT=iw, FMT="(A,A,A)") "#  "//TRIM(energy_label)//"  Alpha_Density    Occupation", &
+                  "    Beta_Density     Occupation"
+               WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(F15.8,4F20.", ndigits, ")"
+            ELSE
+               WRITE (UNIT=iw, FMT="(A,A,A)") "#  "//TRIM(energy_label)//"  Alpha_Density    Occupation", &
+                  "    "//TRIM(energy_label), "  Beta_Density     Occupation"
+               WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(2(F15.8,2F20.", ndigits, "))"
+            END IF
          ELSE
             WRITE (UNIT=iw, FMT="(A,F12.6,A,F12.6,A)") &
                "# E(Fermi) = ", e_fermi(1), " a.u. = ", e_fermi(1)*ev_factor, " eV"
@@ -294,14 +311,20 @@ CONTAINS
          END IF
          DO i = 1, nhist
             IF (nspins == 2) THEN
-               e1 = (ehist(i, 1) - energy_ref(1))*energy_factor
-               e2 = (ehist(i, 2) - energy_ref(2))*energy_factor
-               ! fmtstr_data == "(2(F15.8,2F20.xx))"
                IF (do_broaden) THEN
-                  WRITE (UNIT=iw, FMT=fmtstr_data) e1, hist(i, 1)*density_factor, &
-                     occval(i, 1)*density_factor, e2, hist(i, 2)*density_factor, &
+                  eval = (ehist(i, 1) - energy_ref(1))*energy_factor
+                  WRITE (UNIT=iw, FMT=fmtstr_data) eval, hist(i, 1)*density_factor, &
+                     occval(i, 1)*density_factor, hist(i, 2)*density_factor, &
                      occval(i, 2)*density_factor
+               ELSE IF (de > 0.0_dp) THEN
+                  IF (hist(i, 1) == 0.0_dp .AND. occval(i, 1) == 0.0_dp .AND. &
+                      hist(i, 2) == 0.0_dp .AND. occval(i, 2) == 0.0_dp) CYCLE
+                  eval = ehist(i, 1)
+                  WRITE (UNIT=iw, FMT=fmtstr_data) eval, hist(i, 1), occval(i, 1), &
+                     hist(i, 2), occval(i, 2)
                ELSE
+                  e1 = ehist(i, 1)
+                  e2 = ehist(i, 2)
                   WRITE (UNIT=iw, FMT=fmtstr_data) e1, hist(i, 1), occval(i, 1), &
                      e2, hist(i, 2), occval(i, 2)
                END IF
@@ -314,6 +337,7 @@ CONTAINS
                ELSE
                   out_density = hist(i, 1)
                   out_occ = occval(i, 1)
+                  IF (out_density == 0.0_dp .AND. out_occ == 0.0_dp) CYCLE
                END IF
                WRITE (UNIT=iw, FMT=fmtstr_data) eval, out_density, out_occ
             END IF
@@ -401,7 +425,7 @@ CONTAINS
       IF (iounit > 0) WRITE (UNIT=iounit, FMT='((T3,A,3I3,A))') &
          " Using a", kpoints%nkp_grid(:), ' '//TRIM(kpoints%kp_scheme)//' grid'
 
-      CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%DELTA_E", r_val=de)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%DELTA_E", r_val=de)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%APPEND", l_val=append)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%NDIGITS", i_val=ndigits)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%ENERGY_UNIT", i_val=energy_unit)
@@ -409,14 +433,33 @@ CONTAINS
       CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%BROADEN%TYPE", i_val=broaden_type)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%BROADEN%WIDTH", r_val=broaden_width)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%BROADEN%VOIGT_MIXING", r_val=voigt_mixing)
-      ! ensure a lower value for the DOS grid width
-      de = MAX(de, 0.00001_dp)
       IF (append .AND. iterstep > 1) THEN
          my_pos = "APPEND"
       ELSE
          my_pos = "REWIND"
       END IF
       ndigits = MIN(MAX(ndigits, 1), 10)
+      IF (PRESENT(write_curve_output)) THEN
+         IF (write_curve_output .AND. de <= 0.0_dp) THEN
+            CPWARN("Broadened k-point DOS output requires DELTA_E > 0 and will be skipped")
+            CALL timestop(handle)
+            IF (explicit) CALL kpoint_release(kpoints)
+            RETURN
+         END IF
+         IF (write_curve_output .AND. broaden_width <= 0.0_dp) THEN
+            CPWARN("Broadened k-point DOS output requires a finite WIDTH and will be skipped")
+            CALL timestop(handle)
+            IF (explicit) CALL kpoint_release(kpoints)
+            RETURN
+         END IF
+      ELSE IF (de <= 0.0_dp) THEN
+         CPWARN("K-point DOS output requires DELTA_E > 0 and will be skipped")
+         CALL timestop(handle)
+         IF (explicit) CALL kpoint_release(kpoints)
+         RETURN
+      END IF
+      ! ensure a lower value for the DOS grid width
+      de = MAX(de, 0.00001_dp)
       do_broaden = .FALSE.
       IF (PRESENT(write_curve_output)) do_broaden = write_curve_output
       do_broaden = do_broaden .AND. (broaden_width > 0.0_dp)
@@ -518,9 +561,9 @@ CONTAINS
       CASE (dos_energy_zero_absolute)
          energy_ref(:) = 0.0_dp
       CASE (dos_energy_zero_hoco)
-         energy_ref(:) = hoco(:)
+         energy_ref(:) = MAXVAL(hoco(1:nspins))
       CASE DEFAULT
-         energy_ref(:) = e_fermi(:)
+         energy_ref(:) = MAXVAL(e_fermi(1:nspins))
       END SELECT
       IF (.NOT. do_broaden) energy_ref(:) = 0.0_dp
       energy_factor = MERGE(dos_energy_scale(energy_unit), 1.0_dp, do_broaden)
@@ -576,6 +619,8 @@ CONTAINS
                   WRITE (UNIT=iw, FMT=fmtstr_data) eval, hist(i, 1)*density_factor, &
                      occval(i, 1)*density_factor, hist(i, 2)*density_factor, occval(i, 2)*density_factor
                ELSE
+                  IF (hist(i, 1) == 0.0_dp .AND. occval(i, 1) == 0.0_dp .AND. &
+                      hist(i, 2) == 0.0_dp .AND. occval(i, 2) == 0.0_dp) CYCLE
                   WRITE (UNIT=iw, FMT=fmtstr_data) eval, hist(i, 1), occval(i, 1), &
                      hist(i, 2), occval(i, 2)
                END IF
@@ -587,6 +632,7 @@ CONTAINS
                ELSE
                   out_density = hist(i, 1)
                   out_occ = occval(i, 1)
+                  IF (out_density == 0.0_dp .AND. out_occ == 0.0_dp) CYCLE
                END IF
                WRITE (UNIT=iw, FMT=fmtstr_data) eval, out_density, out_occ
             END IF

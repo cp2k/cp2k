@@ -2705,6 +2705,12 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="DELTA_E", &
+                          description="Energy spacing of the DOS/PDOS output grid.", &
+                          usage="DELTA_E 0.0005", type_of_var=real_t, default_r_val=0.001_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="NLUMO", &
                           description="Number of unoccupied orbitals to include in the DOS/PDOS (-1=all). "// &
                           "For OT calculations, the requested virtual orbitals are generated after SCF using the "// &
@@ -2733,12 +2739,7 @@ CONTAINS
 
       CALL section_create(subsection, __LOCATION__, name="CURVE", &
                           description="Controls the printing of broadened DOS/PDOS curves.", &
-                          n_keywords=3, n_subsections=1, repeats=.FALSE.)
-      CALL keyword_create(keyword, __LOCATION__, name="DELTA_E", &
-                          description="Energy spacing of the broadened DOS/PDOS output grid.", &
-                          usage="DELTA_E 0.0005", type_of_var=real_t, default_r_val=0.001_dp)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
+                          n_keywords=2, n_subsections=1, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_UNIT", &
                           description="Energy unit used for the printed DOS/PDOS energy axis. "// &
                           "Intensities are converted consistently to the selected energy unit.", &

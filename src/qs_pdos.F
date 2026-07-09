@@ -178,20 +178,21 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          ALLOCATABLE, DIMENSION(:)                       :: ldos_index, r_ldos_index
       INTEGER :: broaden_type, energy_unit, energy_zero, handle, homo, i, iatom, ikind, il, ildos, &
-         im, imo, in_x, in_y, in_z, ir, irow, iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, &
-         jz, k, lcomponent, lshell, maxl, maxlgto, my_spin, n_dependent, n_r_ldos, n_rep, nao, &
-         natom, ncol_global, ndigits, nkind, nldos, nmo, np_tot, npoints, nrow_global, nset, nsgf, &
-         nvirt, out_each, output_unit, resolved_energy_zero
+         im, imo, imo_ref, in_x, in_y, in_z, ir, irow, iset, isgf, ishell, ispin_ref, iso, iterstep, &
+         iw, j, jx, jy, jz, k, lcomponent, lshell, maxl, maxlgto, my_spin, n_dependent, n_r_ldos, &
+         n_rep, nao, natom, ncol_global, ndigits, nkind, nldos, nmo, nmo_ref, np_tot, npoints, &
+         nrow_global, nset, nsgf, nvirt, out_each, output_unit, resolved_energy_zero
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: firstrow
       INTEGER, DIMENSION(:), POINTER                     :: list, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: bo, l
       LOGICAL :: append, calc_matsh, do_curve, do_ldos, do_r_ldos, do_virt, fractional_occupation, &
          ionode, separate_components, should_output, write_curve, write_pdos_file
       LOGICAL, DIMENSION(:, :), POINTER                  :: read_r
-      REAL(KIND=dp) :: broaden_width, de, dh(3, 3), dvol, e_fermi, energy_factor, energy_ref, &
-         ev_factor, hoco, r(3), r_vec(3), ratom(3), voigt_mixing
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, evals_virt, &
-                                                            occupation_numbers
+      REAL(KIND=dp) :: broaden_width, de, dh(3, 3), dvol, e_fermi, e_fermi_ref(2), &
+         energy_factor, energy_ref, ev_factor, hoco, hoco_ref(2), r(3), r_vec(3), ratom(3), &
+         voigt_mixing
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, eval_ref, evals_virt, &
+                                                            occupation_numbers, occ_ref
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pdos_array
       TYPE(cell_type), POINTER                           :: cell
@@ -200,6 +201,7 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: matrix_shalfc, matrix_work
       TYPE(cp_fm_type), POINTER                          :: matrix_shalf, mo_coeff, mo_virt
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_ref
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: s_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -213,7 +215,7 @@ CONTAINS
       TYPE(r_ldos_p_type), DIMENSION(:), POINTER         :: r_ldos_p
       TYPE(section_vals_type), POINTER                   :: curve_section, ldos_section
 
-      NULLIFY (logger)
+      NULLIFY (logger, mos_ref, eval_ref, occ_ref)
       logger => cp_get_default_logger()
       ionode = logger%para_env%is_source()
       my_print_key = "PRINT%PDOS"
@@ -258,7 +260,7 @@ CONTAINS
 
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%OUT_EACH_MO", i_val=out_each)
       IF (out_each == -1) out_each = nao + 1
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%DELTA_E", r_val=de)
+      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%DELTA_E", r_val=de)
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%BROADEN%TYPE", i_val=broaden_type)
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%BROADEN%WIDTH", r_val=broaden_width)
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%BROADEN%VOIGT_MIXING", r_val=voigt_mixing)
@@ -266,6 +268,14 @@ CONTAINS
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%ENERGY_UNIT", i_val=energy_unit)
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%ENERGY_ZERO", i_val=energy_zero)
       ndigits = MIN(MAX(ndigits, 1), 10)
+      IF (write_curve .AND. de <= 0.0_dp) THEN
+         CPWARN("Broadened PDOS output requires DELTA_E > 0 and will be skipped")
+         write_curve = .FALSE.
+      END IF
+      IF (write_curve .AND. broaden_width <= 0.0_dp) THEN
+         CPWARN("Broadened PDOS output requires a finite WIDTH and will be skipped")
+         write_curve = .FALSE.
+      END IF
       do_curve = write_curve .AND. (broaden_width > 0.0_dp)
       IF (do_curve) de = MAX(de, 0.00001_dp)
       nvirt = 0
@@ -560,14 +570,39 @@ CONTAINS
              1.0e-8_dp) fractional_occupation = .TRUE.
       END DO
       IF (hoco < -0.5_dp*HUGE(0.0_dp)) hoco = e_fermi
+      IF (PRESENT(ispin) .AND. dft_control%nspins == 2) THEN
+         e_fermi_ref(:) = 0.0_dp
+         hoco_ref(:) = -HUGE(0.0_dp)
+         CALL get_qs_env(qs_env=qs_env, mos=mos_ref)
+         IF (ASSOCIATED(mos_ref)) THEN
+            DO ispin_ref = 1, dft_control%nspins
+               CALL get_mo_set(mo_set=mos_ref(ispin_ref), nmo=nmo_ref, mu=e_fermi_ref(ispin_ref))
+               eval_ref => mos_ref(ispin_ref)%eigenvalues
+               occ_ref => mos_ref(ispin_ref)%occupation_numbers
+               DO imo_ref = 1, nmo_ref
+                  IF (occ_ref(imo_ref) > 1.0e-10_dp) &
+                     hoco_ref(ispin_ref) = MAX(hoco_ref(ispin_ref), eval_ref(imo_ref))
+                  IF (ABS(occ_ref(imo_ref) - REAL(NINT(occ_ref(imo_ref)), KIND=dp)) > &
+                      1.0e-8_dp) fractional_occupation = .TRUE.
+               END DO
+               IF (hoco_ref(ispin_ref) < -0.5_dp*HUGE(0.0_dp)) hoco_ref(ispin_ref) = e_fermi_ref(ispin_ref)
+            END DO
+         ELSE
+            e_fermi_ref(:) = e_fermi
+            hoco_ref(:) = hoco
+         END IF
+      ELSE
+         e_fermi_ref(:) = e_fermi
+         hoco_ref(:) = hoco
+      END IF
       resolved_energy_zero = dos_resolve_energy_zero(energy_zero, dft_control%smear, fractional_occupation)
       SELECT CASE (resolved_energy_zero)
       CASE (dos_energy_zero_absolute)
          energy_ref = 0.0_dp
       CASE (dos_energy_zero_hoco)
-         energy_ref = hoco
+         energy_ref = MAXVAL(hoco_ref(1:dft_control%nspins))
       CASE DEFAULT
-         energy_ref = e_fermi
+         energy_ref = MAXVAL(e_fermi_ref(1:dft_control%nspins))
       END SELECT
       energy_factor = dos_energy_scale(energy_unit)
       energy_label = dos_energy_label(energy_unit)
@@ -1122,7 +1157,7 @@ CONTAINS
          RETURN
       END IF
 
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%DELTA_E", r_val=de)
+      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%DELTA_E", r_val=de)
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%APPEND", l_val=append)
       IF (TRIM(my_print_key) == "PRINT%DOS") THEN
          CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%PDOS%COMPONENTS", l_val=separate_components)
@@ -1135,7 +1170,12 @@ CONTAINS
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%BROADEN%VOIGT_MIXING", r_val=voigt_mixing)
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%ENERGY_ZERO", i_val=energy_zero)
       ndigits = MIN(MAX(ndigits, 1), 10)
-      de = MAX(de, 0.00001_dp)
+      IF (write_curve .AND. de <= 0.0_dp) THEN
+         CPWARN("Broadened k-point PDOS output requires DELTA_E > 0 and will be skipped")
+         CALL timestop(handle)
+         RETURN
+      END IF
+      IF (write_curve) de = MAX(de, 0.00001_dp)
 
       ldos_section => section_vals_get_subs_vals(dft_section, TRIM(my_print_key)//"%LDOS")
       CALL section_vals_get(ldos_section, n_repetition=nldos)
@@ -1152,7 +1192,7 @@ CONTAINS
          RETURN
       END IF
       IF (broaden_width <= 0.0_dp) THEN
-         CPWARN("Broadened k-point PDOS output requires a finite WIDTH")
+         CPWARN("Broadened k-point PDOS output requires a finite WIDTH and will be skipped")
          CALL timestop(handle)
          RETURN
       END IF
@@ -1211,9 +1251,9 @@ CONTAINS
       CASE (dos_energy_zero_absolute)
          energy_ref(:) = 0.0_dp
       CASE (dos_energy_zero_hoco)
-         energy_ref(:) = hoco(:)
+         energy_ref(:) = MAXVAL(hoco(1:nspins))
       CASE DEFAULT
-         energy_ref(:) = e_fermi(:)
+         energy_ref(:) = MAXVAL(e_fermi(1:nspins))
       END SELECT
       zero_label = dos_energy_zero_label(resolved_energy_zero)
       IF (energy_zero == dos_energy_zero_auto) zero_label = "AUTO -> "//TRIM(zero_label)
