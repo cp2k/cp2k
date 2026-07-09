@@ -366,7 +366,16 @@ MODULE nnp_environment_types
       ! High-water mark of the per-element angular-cache slab, tracked so the 1D
       ! cutoff caches settle at the true per-element peak.
       INTEGER                                             :: cache_cap = 0
-      TYPE(nnp_neighbor_type)                             :: neighbor
+      ! There is a bug with some older compilers preventing requiring an explicit
+      ! initialization of allocatable components (see mp2_types.F).
+#if defined(FTN_NO_DEFAULT_INIT)
+      TYPE(nnp_neighbor_type)                             :: neighbor = nnp_neighbor_type( &
+                                                             pbc_copies=-1, n_rad=NULL(), &
+                                                             n_ang1=NULL(), n_ang2=NULL(), &
+                                                             rad=NULL(), ang1=NULL(), ang2=NULL())
+#else
+      TYPE(nnp_neighbor_type)                             :: neighbor = nnp_neighbor_type()
+#endif
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: radial_sym
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)         :: radial_force
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: angular_sym
