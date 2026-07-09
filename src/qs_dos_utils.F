@@ -12,8 +12,7 @@ MODULE qs_dos_utils
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
 #include "./base/base_uses.f90"
@@ -146,28 +145,29 @@ CONTAINS
 !> \param do_dos_output whether the DOS print key is active
 !> \param do_projected_dos whether any projected DOS output is requested
 !> \param do_pdos whether kind-resolved PDOS output is requested
-!> \param do_pdos_raw whether raw kind-resolved PDOS output is requested
+!> \param do_curve whether broadened curve output is requested
 ! **************************************************************************************************
-   SUBROUTINE get_dos_pdos_flags(dos_section, do_dos_output, do_projected_dos, do_pdos, do_pdos_raw)
+   SUBROUTINE get_dos_pdos_flags(dos_section, do_dos_output, do_projected_dos, do_pdos, do_curve)
 
       TYPE(section_vals_type), POINTER                   :: dos_section
       LOGICAL, INTENT(IN)                                :: do_dos_output
-      LOGICAL, INTENT(OUT)                               :: do_projected_dos, do_pdos, do_pdos_raw
+      LOGICAL, INTENT(OUT)                               :: do_projected_dos, do_pdos, do_curve
 
       INTEGER                                            :: nrep
       LOGICAL                                            :: has_ldos, has_r_ldos
-      TYPE(section_vals_type), POINTER                   :: ldos_section, pdos_section
+      TYPE(section_vals_type), POINTER                   :: curve_section, ldos_section, pdos_section
 
       do_projected_dos = .FALSE.
       do_pdos = .FALSE.
-      do_pdos_raw = .FALSE.
+      do_curve = .FALSE.
       has_ldos = .FALSE.
       has_r_ldos = .FALSE.
 
       IF (do_dos_output) THEN
          pdos_section => section_vals_get_subs_vals(dos_section, "PDOS")
          CALL section_vals_get(pdos_section, explicit=do_pdos)
-         IF (do_pdos) CALL section_vals_val_get(pdos_section, "RAW", l_val=do_pdos_raw)
+         curve_section => section_vals_get_subs_vals(dos_section, "CURVE")
+         CALL section_vals_get(curve_section, explicit=do_curve)
          ldos_section => section_vals_get_subs_vals(dos_section, "LDOS")
          CALL section_vals_get(ldos_section, n_repetition=nrep)
          has_ldos = (nrep > 0)

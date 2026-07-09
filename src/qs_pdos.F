@@ -139,7 +139,7 @@ CONTAINS
 !> \param unoccupied_evals ...
 !> \param pdos_print_key ...
 !> \param write_pdos ...
-!> \param write_pdos_raw ...
+!> \param write_pdos_curve ...
 !> \date    26.02.2008
 !> \par History:
 !>       - Added optional external matrix_shalf to avoid recomputing it (A. Bussy, 09.2019)
@@ -151,7 +151,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_projected_dos(mo_set, atomic_kind_set, qs_kind_set, particle_set, qs_env, &
                                       dft_section, ispin, xas_mittle, external_matrix_shalf, &
-                                      unoccupied_orbs, unoccupied_evals, pdos_print_key, write_pdos, write_pdos_raw)
+                                      unoccupied_orbs, unoccupied_evals, pdos_print_key, write_pdos, write_pdos_curve)
 
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -165,7 +165,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL, TARGET     :: external_matrix_shalf, unoccupied_orbs
       TYPE(cp_1d_r_p_type), INTENT(IN), OPTIONAL, TARGET :: unoccupied_evals
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: pdos_print_key
-      LOGICAL, INTENT(IN), OPTIONAL                      :: write_pdos, write_pdos_raw
+      LOGICAL, INTENT(IN), OPTIONAL                      :: write_pdos, write_pdos_curve
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_projected_dos'
 
@@ -185,9 +185,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: firstrow
       INTEGER, DIMENSION(:), POINTER                     :: list, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: bo, l
-      LOGICAL :: append, calc_matsh, do_broaden, do_ldos, do_r_ldos, do_virt, &
-         fractional_occupation, ionode, separate_components, should_output, write_raw, &
-         write_standard
+      LOGICAL :: append, calc_matsh, do_curve, do_ldos, do_r_ldos, do_virt, fractional_occupation, &
+         ionode, separate_components, should_output, write_curve, write_pdos_file
       LOGICAL, DIMENSION(:, :), POINTER                  :: read_r
       REAL(KIND=dp) :: broaden_width, de, dh(3, 3), dvol, e_fermi, energy_factor, energy_ref, &
          ev_factor, hoco, r(3), r_vec(3), ratom(3), voigt_mixing
@@ -212,18 +211,18 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(r_ldos_p_type), DIMENSION(:), POINTER         :: r_ldos_p
-      TYPE(section_vals_type), POINTER                   :: ldos_section
+      TYPE(section_vals_type), POINTER                   :: curve_section, ldos_section
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
       ionode = logger%para_env%is_source()
       my_print_key = "PRINT%PDOS"
       IF (PRESENT(pdos_print_key)) my_print_key = TRIM(pdos_print_key)
-      write_standard = .TRUE.
-      IF (PRESENT(write_pdos)) write_standard = write_pdos
-      write_raw = .TRUE.
-      IF (PRESENT(write_pdos_raw)) write_raw = write_pdos_raw
-      write_raw = write_raw .AND. write_standard
+      write_pdos_file = .TRUE.
+      IF (PRESENT(write_pdos)) write_pdos_file = write_pdos
+      curve_section => section_vals_get_subs_vals(dft_section, TRIM(my_print_key)//"%CURVE")
+      CALL section_vals_get(curve_section, explicit=write_curve)
+      IF (PRESENT(write_pdos_curve)) write_curve = write_pdos_curve
       should_output = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
                                                        TRIM(my_print_key)), cp_p_file)
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -234,7 +233,7 @@ CONTAINS
 
       NULLIFY (context, s_matrix, orb_basis_set, para_env, pdos_array)
       NULLIFY (eigenvalues, fm_struct_tmp, mo_coeff, vecbuffer, mo_virt)
-      NULLIFY (ldos_section, list, cell, pw_env, auxbas_pw_pool, evals_virt)
+      NULLIFY (curve_section, ldos_section, list, cell, pw_env, auxbas_pw_pool, evals_virt)
       NULLIFY (occupation_numbers, ldos_p, r_ldos_p, dft_control, occupation_numbers)
 
       CALL timeset(routineN, handle)
@@ -259,16 +258,16 @@ CONTAINS
 
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%OUT_EACH_MO", i_val=out_each)
       IF (out_each == -1) out_each = nao + 1
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%DELTA_E", r_val=de)
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%BROADEN_TYPE", i_val=broaden_type)
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%BROADEN_WIDTH", r_val=broaden_width)
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%VOIGT_MIXING", r_val=voigt_mixing)
+      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%DELTA_E", r_val=de)
+      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%BROADEN%TYPE", i_val=broaden_type)
+      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%BROADEN%WIDTH", r_val=broaden_width)
+      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%BROADEN%VOIGT_MIXING", r_val=voigt_mixing)
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%NDIGITS", i_val=ndigits)
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%ENERGY_UNIT", i_val=energy_unit)
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%ENERGY_ZERO", i_val=energy_zero)
+      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%ENERGY_UNIT", i_val=energy_unit)
+      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%ENERGY_ZERO", i_val=energy_zero)
       ndigits = MIN(MAX(ndigits, 1), 10)
-      do_broaden = (broaden_width > 0.0_dp)
-      IF (do_broaden) de = MAX(de, 0.00001_dp)
+      do_curve = write_curve .AND. (broaden_width > 0.0_dp)
+      IF (do_curve) de = MAX(de, 0.00001_dp)
       nvirt = 0
       NULLIFY (evals_virt)
       IF (PRESENT(unoccupied_orbs) .AND. PRESENT(unoccupied_evals)) THEN
@@ -732,7 +731,7 @@ CONTAINS
          my_pos = "REWIND"
       END IF
       my_act = "WRITE"
-      IF (write_standard .OR. write_raw) THEN
+      IF (write_pdos_file) THEN
       DO ikind = 1, nkind
 
          NULLIFY (orb_basis_set)
@@ -755,16 +754,16 @@ CONTAINS
             my_spin = 1
          END IF
 
-         IF (write_standard .AND. do_broaden) THEN
+         IF (write_pdos_file .AND. do_curve) THEN
             IF (separate_components) THEN
-               CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle), my_pos, my_act, iterstep, &
+               CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle)//"_curve", my_pos, my_act, iterstep, &
                                          e_fermi, hoco, energy_ref, TRIM(zero_label), &
                                          "Projected DOS for atomic kind "//TRIM(kind_name), &
                                          maxl, .TRUE., pdos_array(1:nsoset(maxl), ikind, :), &
                                          eigenvalues, nmo + nvirt, de, broaden_type, broaden_width, &
                                          voigt_mixing, ndigits, pdos_print_key=TRIM(my_print_key))
             ELSE
-               CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle), my_pos, my_act, iterstep, &
+               CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle)//"_curve", my_pos, my_act, iterstep, &
                                          e_fermi, hoco, energy_ref, TRIM(zero_label), &
                                          "Projected DOS for atomic kind "//TRIM(kind_name), &
                                          maxl, .FALSE., pdos_array(0:maxl, ikind, :), &
@@ -773,9 +772,9 @@ CONTAINS
             END IF
          END IF
 
-         IF (write_raw) THEN
+         IF (write_pdos_file) THEN
             iw = cp_print_key_unit_nr(logger, dft_section, TRIM(my_print_key), &
-                                      extension=".pdos_raw", file_position=my_pos, file_action=my_act, &
+                                      extension=".pdos", file_position=my_pos, file_action=my_act, &
                                       file_form="FORMATTED", middle_name=TRIM(my_mittle))
             IF (iw > 0) THEN
 
@@ -795,7 +794,6 @@ CONTAINS
                   "# E(Fermi) = ", e_fermi, " a.u. = ", e_fermi*ev_factor, " eV"
                WRITE (UNIT=iw, FMT="(A,F12.6,A,F12.6,A)") &
                   "# E(HOCO)  = ", hoco, " a.u. = ", hoco*ev_factor, " eV"
-               WRITE (UNIT=iw, FMT="(A,A)") "# Energy zero: ", TRIM(zero_label)
                IF (separate_components) THEN
                   ALLOCATE (tmp_str(0:0, 0:maxl, -maxl:maxl))
                   tmp_str = ""
@@ -806,20 +804,20 @@ CONTAINS
                   END DO
 
                   WRITE (UNIT=iw, FMT=fmtstr2) &
-                     "#          MO "//TRIM(energy_label)//"      Occupation", "Total", &
+                     "#          MO Energy[a.u.]      Occupation", "Total", &
                      ((TRIM(tmp_str(0, il, im)), im=-il, il), il=0, maxl)
                   DO imo = 1, nmo + nvirt
-                     WRITE (UNIT=iw, FMT=fmtstr1) imo, (eigenvalues(imo) - energy_ref)*energy_factor, &
+                     WRITE (UNIT=iw, FMT=fmtstr1) imo, eigenvalues(imo), &
                         occupation_numbers(imo), SUM(pdos_array(1:nsoset(maxl), ikind, imo)), &
                         (pdos_array(lshell, ikind, imo), lshell=1, nsoset(maxl))
                   END DO
                   DEALLOCATE (tmp_str)
                ELSE
                   WRITE (UNIT=iw, FMT=fmtstr2) &
-                     "#          MO "//TRIM(energy_label)//"      Occupation", "Total", &
+                     "#          MO Energy[a.u.]      Occupation", "Total", &
                      (TRIM(l_sym(il)), il=0, maxl)
                   DO imo = 1, nmo + nvirt
-                     WRITE (UNIT=iw, FMT=fmtstr1) imo, (eigenvalues(imo) - energy_ref)*energy_factor, &
+                     WRITE (UNIT=iw, FMT=fmtstr1) imo, eigenvalues(imo), &
                         occupation_numbers(imo), SUM(pdos_array(0:maxl, ikind, imo)), &
                         (pdos_array(lshell, ikind, imo), lshell=0, maxl)
                   END DO
@@ -850,9 +848,9 @@ CONTAINS
                my_spin = 1
             END IF
 
-            IF (do_broaden) THEN
+            IF (do_curve) THEN
                IF (ldos_p(ildos)%ldos%separate_components) THEN
-                  CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle), my_pos, my_act, iterstep, &
+                  CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle)//"_curve", my_pos, my_act, iterstep, &
                                             e_fermi, hoco, energy_ref, TRIM(zero_label), &
                                             "Projected DOS for atom list "//TRIM(ldos_index(ildos)), &
                                             ldos_p(ildos)%ldos%maxl, .TRUE., &
@@ -860,7 +858,7 @@ CONTAINS
                                             eigenvalues, nmo + nvirt, de, broaden_type, broaden_width, &
                                             voigt_mixing, ndigits, pdos_print_key=TRIM(my_print_key))
                ELSE
-                  CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle), my_pos, my_act, iterstep, &
+                  CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle)//"_curve", my_pos, my_act, iterstep, &
                                             e_fermi, hoco, energy_ref, TRIM(zero_label), &
                                             "Projected DOS for atom list "//TRIM(ldos_index(ildos)), &
                                             ldos_p(ildos)%ldos%maxl, .FALSE., &
@@ -871,7 +869,7 @@ CONTAINS
             END IF
 
             iw = cp_print_key_unit_nr(logger, dft_section, TRIM(my_print_key), &
-                                      extension=".pdos_raw", file_position=my_pos, file_action=my_act, &
+                                      extension=".pdos", file_position=my_pos, file_action=my_act, &
                                       file_form="FORMATTED", middle_name=TRIM(my_mittle))
             IF (iw > 0) THEN
 
@@ -892,7 +890,6 @@ CONTAINS
                   "# E(Fermi) = ", e_fermi, " a.u. = ", e_fermi*ev_factor, " eV"
                WRITE (UNIT=iw, FMT="(A,F12.6,A,F12.6,A)") &
                   "# E(HOCO)  = ", hoco, " a.u. = ", hoco*ev_factor, " eV"
-               WRITE (UNIT=iw, FMT="(A,A)") "# Energy zero: ", TRIM(zero_label)
                IF (ldos_p(ildos)%ldos%separate_components) THEN
                   ALLOCATE (tmp_str(0:0, 0:ldos_p(ildos)%ldos%maxl, -ldos_p(ildos)%ldos%maxl:ldos_p(ildos)%ldos%maxl))
                   tmp_str = ""
@@ -903,10 +900,10 @@ CONTAINS
                   END DO
 
                   WRITE (UNIT=iw, FMT=fmtstr2) &
-                     "#          MO "//TRIM(energy_label)//"      Occupation", "Total", &
+                     "#          MO Energy[a.u.]      Occupation", "Total", &
                      ((TRIM(tmp_str(0, il, im)), im=-il, il), il=0, ldos_p(ildos)%ldos%maxl)
                   DO imo = 1, nmo + nvirt
-                     WRITE (UNIT=iw, FMT=fmtstr1) imo, (eigenvalues(imo) - energy_ref)*energy_factor, &
+                     WRITE (UNIT=iw, FMT=fmtstr1) imo, eigenvalues(imo), &
                         occupation_numbers(imo), &
                         SUM(ldos_p(ildos)%ldos%pdos_array(1:nsoset(ldos_p(ildos)%ldos%maxl), imo)), &
                         (ldos_p(ildos)%ldos%pdos_array(lshell, imo), &
@@ -915,10 +912,10 @@ CONTAINS
                   DEALLOCATE (tmp_str)
                ELSE
                   WRITE (UNIT=iw, FMT=fmtstr2) &
-                     "#          MO "//TRIM(energy_label)//"      Occupation", "Total", &
+                     "#          MO Energy[a.u.]      Occupation", "Total", &
                      (TRIM(l_sym(il)), il=0, ldos_p(ildos)%ldos%maxl)
                   DO imo = 1, nmo + nvirt
-                     WRITE (UNIT=iw, FMT=fmtstr1) imo, (eigenvalues(imo) - energy_ref)*energy_factor, &
+                     WRITE (UNIT=iw, FMT=fmtstr1) imo, eigenvalues(imo), &
                         occupation_numbers(imo), &
                         SUM(ldos_p(ildos)%ldos%pdos_array(0:ldos_p(ildos)%ldos%maxl, imo)), &
                         (ldos_p(ildos)%ldos%pdos_array(lshell, imo), lshell=0, ldos_p(ildos)%ldos%maxl)
@@ -951,7 +948,7 @@ CONTAINS
          END IF
 
          iw = cp_print_key_unit_nr(logger, dft_section, TRIM(my_print_key), &
-                                   extension=".pdos_raw", file_position=my_pos, file_action=my_act, &
+                                   extension=".pdos", file_position=my_pos, file_action=my_act, &
                                    file_form="FORMATTED", middle_name=TRIM(my_mittle))
          IF (iw > 0) THEN
             fmtstr1 = "(I8,2X,2F16.6,  (2X,F16.8))"
@@ -964,14 +961,13 @@ CONTAINS
                "# E(Fermi) = ", e_fermi, " a.u. = ", e_fermi*ev_factor, " eV"
             WRITE (UNIT=iw, FMT="(A,F12.6,A,F12.6,A)") &
                "# E(HOCO)  = ", hoco, " a.u. = ", hoco*ev_factor, " eV"
-            WRITE (UNIT=iw, FMT="(A,A)") "# Energy zero: ", TRIM(zero_label)
-            WRITE (UNIT=iw, FMT="(A,A,A)") &
-               "#          MO ", TRIM(energy_label), "      Occupation      LDOS"
+            WRITE (UNIT=iw, FMT="(A)") &
+               "#          MO Energy[a.u.]      Occupation      LDOS"
             DO imo = 1, nmo + nvirt
                IF (r_ldos_p(ildos)%ldos%eval_range(1) <= eigenvalues(imo) .AND. &
                    r_ldos_p(ildos)%ldos%eval_range(2) >= eigenvalues(imo)) THEN
                   WRITE (UNIT=iw, FMT="(I8,2X,2F16.6,E20.10,E20.10)") imo, &
-                     (eigenvalues(imo) - energy_ref)*energy_factor, occupation_numbers(imo), &
+                     eigenvalues(imo), occupation_numbers(imo), &
                      r_ldos_p(ildos)%ldos%pdos_array(imo), r_ldos_p(ildos)%ldos%pdos_array(imo)*np_tot
                END IF
             END DO
@@ -1034,14 +1030,14 @@ CONTAINS
 !> \param dft_section ...
 !> \param pdos_print_key ...
 !> \param write_pdos ...
-!> \param write_pdos_raw ...
+!> \param write_pdos_curve ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_projected_dos_kp(qs_env, dft_section, pdos_print_key, write_pdos, write_pdos_raw)
+   SUBROUTINE calculate_projected_dos_kp(qs_env, dft_section, pdos_print_key, write_pdos, write_pdos_curve)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: dft_section
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: pdos_print_key
-      LOGICAL, INTENT(IN), OPTIONAL                      :: write_pdos, write_pdos_raw
+      LOGICAL, INTENT(IN), OPTIONAL                      :: write_pdos, write_pdos_curve
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_projected_dos_kp'
 
@@ -1055,7 +1051,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_comp, ao_kind, ao_l, kind_maxl
       LOGICAL                                            :: append, fractional_occupation, &
                                                             separate_components, should_output, &
-                                                            write_raw, write_standard
+                                                            write_curve, write_pdos_file
       REAL(KIND=dp)                                      :: broaden_cutoff, broaden_width, de, e1, &
                                                             e2, e_fermi(2), emax, emin, &
                                                             energy_ref(2), hoco(2), voigt_mixing, &
@@ -1079,19 +1075,19 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(section_vals_type), POINTER                   :: ldos_section
+      TYPE(section_vals_type), POINTER                   :: curve_section, ldos_section
 
       NULLIFY (logger, kpoints, dft_control, para_env, atomic_kind_set, qs_kind_set, particle_set)
       NULLIFY (matrix_s_kp, scf_env)
-      NULLIFY (kp, mo_set, eigenvalues, fm_struct_tmp, orb_basis_set, ldos_section)
+      NULLIFY (kp, mo_set, eigenvalues, fm_struct_tmp, orb_basis_set, curve_section, ldos_section)
       logger => cp_get_default_logger()
       my_print_key = "PRINT%PDOS"
       IF (PRESENT(pdos_print_key)) my_print_key = TRIM(pdos_print_key)
-      write_standard = .TRUE.
-      IF (PRESENT(write_pdos)) write_standard = write_pdos
-      write_raw = .FALSE.
-      IF (PRESENT(write_pdos_raw)) write_raw = write_pdos_raw
-      write_raw = write_raw .AND. write_standard
+      write_pdos_file = .TRUE.
+      IF (PRESENT(write_pdos)) write_pdos_file = write_pdos
+      curve_section => section_vals_get_subs_vals(dft_section, TRIM(my_print_key)//"%CURVE")
+      CALL section_vals_get(curve_section, explicit=write_curve)
+      IF (PRESENT(write_pdos_curve)) write_curve = write_pdos_curve
       should_output = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
                                                        TRIM(my_print_key)), cp_p_file)
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -1126,7 +1122,7 @@ CONTAINS
          RETURN
       END IF
 
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%DELTA_E", r_val=de)
+      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%DELTA_E", r_val=de)
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%APPEND", l_val=append)
       IF (TRIM(my_print_key) == "PRINT%DOS") THEN
          CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%PDOS%COMPONENTS", l_val=separate_components)
@@ -1134,10 +1130,10 @@ CONTAINS
          CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%COMPONENTS", l_val=separate_components)
       END IF
       CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%NDIGITS", i_val=ndigits)
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%BROADEN_TYPE", i_val=broaden_type)
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%BROADEN_WIDTH", r_val=broaden_width)
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%VOIGT_MIXING", r_val=voigt_mixing)
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%ENERGY_ZERO", i_val=energy_zero)
+      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%BROADEN%TYPE", i_val=broaden_type)
+      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%BROADEN%WIDTH", r_val=broaden_width)
+      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%BROADEN%VOIGT_MIXING", r_val=voigt_mixing)
+      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%ENERGY_ZERO", i_val=energy_zero)
       ndigits = MIN(MAX(ndigits, 1), 10)
       de = MAX(de, 0.00001_dp)
 
@@ -1148,11 +1144,15 @@ CONTAINS
       IF (nldos > 0 .OR. n_r_ldos > 0) THEN
          CPWARN("LDOS/R_LDOS are not implemented for k-point PDOS and will be ignored")
       END IF
-      IF (write_raw) THEN
-         CPWARN("Raw k-point PDOS output is not implemented and will be ignored")
+      IF (write_pdos_file) THEN
+         CPWARN("State-resolved k-point PDOS output is not implemented yet")
+      END IF
+      IF (.NOT. write_curve) THEN
+         CALL timestop(handle)
+         RETURN
       END IF
       IF (broaden_width <= 0.0_dp) THEN
-         CPWARN("Broadened k-point PDOS output requires a finite BROADEN_WIDTH")
+         CPWARN("Broadened k-point PDOS output requires a finite WIDTH")
          CALL timestop(handle)
          RETURN
       END IF
@@ -1302,7 +1302,7 @@ CONTAINS
       my_act = "WRITE"
       spin(1) = "ALPHA"
       spin(2) = "BETA"
-      IF (write_standard) THEN
+      IF (write_pdos_file) THEN
       DO ikind = 1, nkind
          IF (kind_maxl(ikind) < 0) CYCLE
          CALL get_atomic_kind(atomic_kind_set(ikind), name=kind_name)
@@ -1312,7 +1312,7 @@ CONTAINS
             ELSE
                my_mittle = "k"//TRIM(ADJUSTL(cp_to_string(ikind)))
             END IF
-            CALL write_broadened_pdos_curve(logger, dft_section, TRIM(my_mittle), my_pos, my_act, &
+            CALL write_broadened_pdos_curve(logger, dft_section, TRIM(my_mittle)//"_curve", my_pos, my_act, &
                                             iterstep, e_fermi(ispin), hoco(ispin), energy_ref(ispin), &
                                             TRIM(zero_label), &
                                             "K-point projected DOS for atomic kind "//TRIM(kind_name), &
@@ -1473,7 +1473,7 @@ CONTAINS
       ELSE
          ncomponents = maxl + 1
       END IF
-      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%ENERGY_UNIT", i_val=energy_unit)
+      CALL section_vals_val_get(dft_section, TRIM(my_print_key)//"%CURVE%ENERGY_UNIT", i_val=energy_unit)
       energy_factor = dos_energy_scale(energy_unit)
       density_factor = dos_density_scale(energy_unit)
       energy_label = dos_energy_label(energy_unit)

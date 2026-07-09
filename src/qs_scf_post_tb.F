@@ -179,8 +179,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: aname
       INTEGER :: after, gfn_type, handle, homo, iat, iatom, ikind, img, ispin, iw, nat, natom, &
          nkind, nlumo_stm, nlumos, nspins, print_level, unit_nr
-      LOGICAL :: do_cube, do_dos, do_kpoints, do_pdos, do_pdos_raw, do_projected_dos, explicit, &
-         gfn0, has_homo, omit_headers, print_it, rebuild, vdip
+      LOGICAL :: do_cube, do_curve, do_dos, do_kpoints, do_pdos, do_projected_dos, explicit, gfn0, &
+         has_homo, omit_headers, print_it, rebuild, vdip
       REAL(KIND=dp)                                      :: zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge, zcharge
       REAL(KIND=dp), DIMENSION(2, 2)                     :: homo_lumo
@@ -446,13 +446,16 @@ CONTAINS
       IF (.NOT. no_mos) THEN
          print_key => section_vals_get_subs_vals(print_section, "DOS")
          do_dos = BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
-         CALL get_dos_pdos_flags(print_key, do_dos, do_projected_dos, do_pdos, do_pdos_raw)
+         CALL get_dos_pdos_flags(print_key, do_dos, do_projected_dos, do_pdos, do_curve)
          IF (do_dos) THEN
             IF (do_kpoints) THEN
                CALL calculate_dos_kp(qs_env, dft_section)
+               IF (do_curve) CALL calculate_dos_kp(qs_env, dft_section, write_curve_output=.TRUE.)
             ELSE
                CALL get_qs_env(qs_env, mos=mos)
                CALL calculate_dos(mos, dft_section, smearing_enabled=dft_control%smear)
+               IF (do_curve) CALL calculate_dos(mos, dft_section, smearing_enabled=dft_control%smear, &
+                                                write_curve_output=.TRUE.)
             END IF
          END IF
 
@@ -460,7 +463,7 @@ CONTAINS
          IF (do_projected_dos) THEN
             IF (do_kpoints) THEN
                CALL calculate_projected_dos_kp(qs_env, dft_section, pdos_print_key="PRINT%DOS", &
-                                               write_pdos=do_pdos, write_pdos_raw=do_pdos_raw)
+                                               write_pdos=do_pdos, write_pdos_curve=do_curve)
             ELSE
                CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
                DO ispin = 1, dft_control%nspins
@@ -480,11 +483,11 @@ CONTAINS
                   IF (dft_control%nspins == 2) THEN
                      CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
                                                   qs_kind_set, particle_set, qs_env, dft_section, ispin=ispin, &
-                                                  pdos_print_key="PRINT%DOS", write_pdos=do_pdos, write_pdos_raw=do_pdos_raw)
+                                                  pdos_print_key="PRINT%DOS", write_pdos=do_pdos, write_pdos_curve=do_curve)
                   ELSE
                      CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
                                                   qs_kind_set, particle_set, qs_env, dft_section, &
-                                                  pdos_print_key="PRINT%DOS", write_pdos=do_pdos, write_pdos_raw=do_pdos_raw)
+                                                  pdos_print_key="PRINT%DOS", write_pdos=do_pdos, write_pdos_curve=do_curve)
                   END IF
                END DO
             END IF
