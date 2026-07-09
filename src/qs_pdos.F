@@ -178,21 +178,20 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          ALLOCATABLE, DIMENSION(:)                       :: ldos_index, r_ldos_index
       INTEGER :: broaden_type, energy_unit, energy_zero, handle, homo, i, iatom, ikind, il, ildos, &
-         im, imo, imo_ref, in_x, in_y, in_z, ir, irow, iset, isgf, ishell, ispin_ref, iso, iterstep, &
-         iw, j, jx, jy, jz, k, lcomponent, lshell, maxl, maxlgto, my_spin, n_dependent, n_r_ldos, &
-         n_rep, nao, natom, ncol_global, ndigits, nkind, nldos, nmo, nmo_ref, np_tot, npoints, &
-         nrow_global, nset, nsgf, nvirt, out_each, output_unit, resolved_energy_zero
+         im, imo, imo_ref, in_x, in_y, in_z, ir, irow, iset, isgf, ishell, iso, ispin_ref, &
+         iterstep, iw, j, jx, jy, jz, k, lcomponent, lshell, maxl, maxlgto, my_spin, n_dependent, &
+         n_r_ldos, n_rep, nao, natom, ncol_global, ndigits, nkind, nldos, nmo, nmo_ref, np_tot, &
+         npoints, nrow_global, nset, nsgf, nvirt, out_each, output_unit, resolved_energy_zero
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: firstrow
       INTEGER, DIMENSION(:), POINTER                     :: list, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: bo, l
       LOGICAL :: append, calc_matsh, do_curve, do_ldos, do_r_ldos, do_virt, fractional_occupation, &
          ionode, separate_components, should_output, write_curve, write_pdos_file
       LOGICAL, DIMENSION(:, :), POINTER                  :: read_r
-      REAL(KIND=dp) :: broaden_width, de, dh(3, 3), dvol, e_fermi, e_fermi_ref(2), &
-         energy_factor, energy_ref, ev_factor, hoco, hoco_ref(2), r(3), r_vec(3), ratom(3), &
-         voigt_mixing
+      REAL(KIND=dp) :: broaden_width, de, dh(3, 3), dvol, e_fermi, e_fermi_ref(2), energy_factor, &
+         energy_ref, ev_factor, hoco, hoco_ref(2), r(3), r_vec(3), ratom(3), voigt_mixing
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, eval_ref, evals_virt, &
-                                                            occupation_numbers, occ_ref
+                                                            occ_ref, occupation_numbers
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pdos_array
       TYPE(cell_type), POINTER                           :: cell
@@ -201,11 +200,11 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: matrix_shalfc, matrix_work
       TYPE(cp_fm_type), POINTER                          :: matrix_shalf, mo_coeff, mo_virt
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_ref
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: s_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(ldos_p_type), DIMENSION(:), POINTER           :: ldos_p
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_ref
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env

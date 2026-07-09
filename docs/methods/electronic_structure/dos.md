@@ -72,8 +72,8 @@ Useful input keywords are documented in the input reference:
   plottable DOS/PDOS curve output.
 - [ENERGY_UNIT](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.CURVE.ENERGY_UNIT): print curve energies in
   Hartree or eV.
-- [ENERGY_ZERO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.CURVE.ENERGY_ZERO): choose the reference
-  energy for curve output.
+- [ENERGY_ZERO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.CURVE.ENERGY_ZERO): choose the reference energy
+  for curve output.
 - [&BROADEN](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.CURVE.BROADEN): choose the line shape and
   broadening width for curve output.
 - [&PDOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.PDOS): request projected DOS on each element.
@@ -97,9 +97,9 @@ separate post-SCF step.
 
 ### Choosing the energy reference
 
-Use [ENERGY_ZERO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.CURVE.ENERGY_ZERO) to make different
-curve plots comparable. This setting applies to broadened curve output, while ordinary non-curve
-outputs are not shifted by this setting.
+Use [ENERGY_ZERO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.CURVE.ENERGY_ZERO) to make different curve
+plots comparable. This setting applies to broadened curve output, while ordinary non-curve outputs
+are not shifted by this setting.
 
 - `FERMI` is normally the appropriate zero for metals and smeared calculations.
 - `HOCO` places the highest occupied crystal orbital at zero. It is often more convenient for
@@ -143,8 +143,8 @@ sampling of the Brillouin zone, especially near the band edges or the Fermi leve
 produce a smooth curve, but it should not be used as a substitute for insufficient k-point sampling.
 
 For molecular or very large supercell calculations with only the Gamma point, the broadened curve is
-a representation of discrete levels. It can still be useful for assigning orbital character, but peak
-widths are chosen mainly for visualization rather than for Brillouin-zone integration.
+a representation of discrete levels. It can still be useful for assigning orbital character, but
+peak widths are chosen mainly for visualization rather than for Brillouin-zone integration.
 
 ## Interpreting PDOS
 
@@ -284,8 +284,8 @@ generic PDOS format should not be interpreted as ordinary ground-state Kohn-Sham
 
 A typical XAS_TDP use is to assign intense spectral features to atomic or orbital character, for
 example to distinguish metal-centered, ligand-centered, or mixed transitions. In this context,
-`DELTA_E` and `&CURVE` remain useful plotting controls, while ordinary DFT-DOS concepts
-such as Fermi-level alignment, HOCO alignment, or total DOS are usually not the relevant analysis
-target. See [&XAS%PRINT%PDOS](#CP2K_INPUT.FORCE_EVAL.DFT.XAS.PRINT.PDOS) and
+`DELTA_E` and `&CURVE` remain useful plotting controls, while ordinary DFT-DOS concepts such as
+Fermi-level alignment, HOCO alignment, or total DOS are usually not the relevant analysis target.
+See [&XAS%PRINT%PDOS](#CP2K_INPUT.FORCE_EVAL.DFT.XAS.PRINT.PDOS) and
 [&XAS_TDP%PRINT%PDOS](#CP2K_INPUT.FORCE_EVAL.DFT.XAS_TDP.PRINT.PDOS) for the corresponding input
 sections.
