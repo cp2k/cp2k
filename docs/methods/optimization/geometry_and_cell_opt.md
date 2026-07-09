@@ -123,10 +123,8 @@ transition-state search machinery; it requires additional method-specific settin
 treated as an ordinary minimization.
 
 [MAX_ITER](#CP2K_INPUT.MOTION.GEO_OPT.MAX_ITER) limits the number of optimization iterations. One
-optimization iteration can require more than one force evaluation, depending on the optimizer, line
-search, and the selected `CELL_OPT` mode.
-
-An optimization may terminate if one of the following events takes place:
+optimization iteration can require more than one force evaluation, depending on the optimizer and
+line search mode. An optimization may terminate if one of the following events takes place:
 
 - The convergence criteria (see below) are satisfied before reaching `MAX_ITER`;
 - The `MAX_ITER` is reached, regardless of whether the convergence criteria are satisfied or not;
@@ -317,6 +315,8 @@ of an `iterate.dat` excerpt is reproduced below.
     9   15     1     0  con    0  1.0D+00  1.2D-02  7.569D-04 -1.152D+00
 ```
 
+### More notes about convergence
+
 Geometry and cell optimization normally try to lower the energy, but convergence is determined by
 the active force, displacement, and pressure criteria rather than by the total energy alone.
 Intermediate steps may sometimes increase the energy. A very small energy increase at the final step
@@ -466,22 +466,17 @@ geometry updates could make extrapolation unavailable and automatically fall bac
 ```{danger}
 **Be responsible, and do not ignore SCF convergence failure blindly.**
 
-By default, a failure in SCF convergence aborts the program with a message like:
-`SCF run NOT converged. To continue the calculation regardless, please set the keyword
-IGNORE_CONVERGENCE_FAILURE.` Setting
-[IGNORE_CONVERGENCE_FAILURE](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.IGNORE_CONVERGENCE_FAILURE)
-to `.TRUE.` turns it into a warning `SCF run NOT converged` that allows for optimization
-to continue. However, bad SCF convergence leads to unreliable energy, force, and stress
-on the current step, introducing error to the updated structure and the extrapolated
-wavefunction on the next step. An optimization process with most or all steps failing
-to converge SCF cycles does not yield trustworthy results in the end.
+The general issue of SCF convergence is discussed in [](../dft/convergence).
+Bad SCF convergence leads to unreliable energy, force, and stress on the current step,
+introducing error to the updated structure and the extrapolated wavefunction on the next
+step. An optimization process with most or all steps failing to converge SCF cycles does
+not yield trustworthy results in the end. Abnormal behaviors such as structure "blowing up"
+should not come off as surprising if convergence failure is ignored.
 
-Therefore, `IGNORE_CONVERGENCE_FAILURE` should only be considered as a **last resort**
-out of desperation, rather than a universal remedy used on a regular basis or even as
-the default. There are dozens of measures available towards SCF convergence on top of
-a realistic, chemically sensible model structure and appropriate net charge, spin
-multiplicity, atomic magnetization, and k-point sampling; please try achieving SCF
-convergence on the starting structure in a single-point calculation in the first place.
+Preparing a nice starting structure in the first place is more reliable than using a crude
+structure and wishing that it becomes easier to converge SCF cycles as optimization goes.
+A single-point energy calculation of the starting structure can be utilized to experiment
+with options that achieve convergence as well as to assess the time consumption.
 ```
 
 ## Output files and restarts

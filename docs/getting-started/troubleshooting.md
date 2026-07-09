@@ -174,6 +174,52 @@ line and each of the rest of (number of atoms) lines in a format of
 
 `CPASSERT` is one of the [](../development/error-handling) mechanisms in CP2K intended for
 conditions that should hold most of the time, like some basic sanity checks for correct data types,
-matching matrix dimensions, or availability of essential elements for a certain routine. The
-location of a `CPASSERT` statement in the source code is shown at the lower right corner of the
-message box.
+matching matrix dimensions, or availability of essential elements for a certain routine. Therefore,
+`CPASSERT failed` is a minimal blanket statement for these unlikely events, only indicating the code
+location at the lower right corner of the message box.
+
+When `CPASSERT failed` occur for a valid input file strictly following documentation, report to
+developers and justify the situation where the condition fails. The message may be revised for a
+clearer user-oriented phrasing upon reasonable request.
+
+### GEOMETRY wrong or EMAX_SPLINE too small
+
+This error originates from closely contacting or outright overlapping atoms in the geometry that are
+detected while building a neighbor list. Although the keyword `EMAX_SPLINE` is for a Molecular
+Mechanics (MM) calculation with classical force fields, this error does not necessarily come from a
+MM or QM/MM task because neighbor lists are also widely used in quantum mechanics (QM).
+
+Always remember to inspect the input structure in a visualization program as said in the section
+[](../methods/optimization/geometry_and_cell_opt.md#starting-structure-and-cell). Among the many
+possibilities of modelling errors, there are three frequently relevant pitfalls:
+
+- The file conversion procedure during structure preparation involve formats that do not record any
+  information about periodicity or cell definition, or whose record is not yet universally
+  recognized such as the extended XYZ specification;
+- The redefinition of cell vectors (most commonly by means of linear transformation) and the
+  construction of surface slabs or supercells violate the original periodicity, or fail to
+  deduplicate atoms sent to the same coordinate dictated by symmetry-equivalent positions;
+- The structure contains crystallographic disorder where one site has more than one possible type of
+  atom, and the fractional occupancy is not handled well when creating the model, as discussed in
+  [a FAQ](./foreword-and-faq.md#how-do-i-create-the-atomistic-model-for-cp2k-input).
+
+### SCF run NOT converged
+
+Refer to [](../methods/dft/convergence).
+
+### Messages mentioning LSD
+
+`LSD` is an alias for [UKS](#CP2K_INPUT.FORCE_EVAL.DFT.UKS) in some error messages such as
+`Use the LSD option for an odd number of electrons` and `LSD: try to use a different multiplicity`.
+[CHARGE](#CP2K_INPUT.FORCE_EVAL.DFT.CHARGE) and
+[MULTIPLICITY](#CP2K_INPUT.FORCE_EVAL.DFT.MULTIPLICITY) options should be set correctly based on the
+chemistry to be modelled. If the system is intended to be closed-shell, broken geometry like missing
+or duplicated hydrogen atoms may give rise to the errors.
+
+### Index to radix array not found
+
+This error arises from a combination of high [CUTOFF](#CP2K_INPUT.FORCE_EVAL.DFT.MGRID.CUTOFF) for
+the real-space grid and large cell size in some direction, which leads to a high internal plane-wave
+FFT length that the external FFT library may not support. Besides reducing cutoff and/or cell size,
+try enabling [EXTENDED_FFT_LENGTHS](#CP2K_INPUT.GLOBAL.EXTENDED_FFT_LENGTHS) or switching
+[PREFERRED_FFT_LIBRARY](#CP2K_INPUT.GLOBAL.PREFERRED_FFT_LIBRARY).
