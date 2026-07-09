@@ -19,7 +19,7 @@ class Libfci(CMakePackage):
     maintainers("mkrack")
 
     homepage = "https://github.com/DCM-Uni-Paderborn/libfci"
-    url = "https://www.cp2k.org/static/downloads/libfci-0.1.0.tar.gz"
+    url = "https://www.cp2k.org/static/downloads/libfci-0.0.0.tar.gz"
     git = "https://github.com/DCM-Uni-Paderborn/libfci.git"
 
     license("LicenseRef-Knizia-Permissive", checked_by="mkrack")
@@ -28,8 +28,7 @@ class Libfci(CMakePackage):
     version("0.1.0", sha256="63e8bd632e55f4b99dbaa3e905cdcd3c5dbc17aefdca1391b855f34a792bb29a")
 
     variant("openmp", default=True, description="Build with OpenMP parallelisation support")
-    variant("pic", default=True, description="Build position independent code")
-    variant("shared", default=False, description="Build shared libraries (otherwise static)")
+    variant("shared", default=True, description="Build shared libraries (otherwise static)")
 
     depends_on("cmake@3.16:", type="build")
     depends_on("cxx", type="build")
@@ -38,32 +37,8 @@ class Libfci(CMakePackage):
     depends_on("lapack")
 
     def cmake_args(self):
-        spec = self.spec
-
         args = [
             self.define_from_variant("LIBFCI_USE_OPENMP", "openmp"),
-            self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
             self.define_from_variant("BUILD_SHARED_LIBS", "shared"),
-            self.define("BLA_STATIC", True),
         ]
-
-        # Force BLAS manually for static linking
-        if not spec.satisfies("+shared"):
-            blas = spec["blas"]
-
-            # Get actual static libraries
-            blas_libs = []
-            for lib in blas.libs.libraries:
-                if lib.endswith(".a"):
-                    blas_libs.append(lib)
-
-            # Fallback if .a not explicitly listed
-            if not blas_libs:
-                blas_libs = blas.libs.libraries
-
-            full = blas_libs + ["-lpthread", "-lm", "-ldl"]
-
-            args.append(self.define("BLAS_LIBRARIES", ";".join(full)))
-            args.append(self.define("LAPACK_LIBRARIES", ";".join(full)))
-
         return args
