@@ -5,7 +5,10 @@
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
 
-cmake_minimum_required(VERSION 3.22)
+if(CMAKE_VERSION VERSION_LESS "3.24")
+  message(FATAL_ERROR "CP2K requires CMake 3.24 or newer.")
+endif()
+
 include(CMakeFindDependencyMacro)
 
 if(NOT TARGET cp2k::cp2k)
