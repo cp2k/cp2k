@@ -5,20 +5,22 @@
 
 from spack_repo.builtin.build_systems.cmake import CMakePackage, generator
 from spack_repo.builtin.build_systems.cuda import CudaPackage
+from spack_repo.builtin.build_systems.rocm import ROCmPackage
 
 from spack.package import *
 
 
-class Gauxc(CMakePackage, CudaPackage):
+class Gauxc(CMakePackage, CudaPackage, ROCmPackage):
     """GauXC is a modern, modular C++ library for the evaluation of quantities related to
     the exchange-correlation (XC) energy (e.g. potential, etc) in the Gaussian basis set
-    discretization of Kohn-Sham density function theory (KS-DFT) on heterogenous architectures."""
+    discretization of Kohn-Sham density function theory (KS-DFT) on heterogenous
+    architectures."""
 
     homepage = "https://github.com/wavefunction91/GauXC"
     git = "https://github.com/wavefunction91/GauXC.git"
-    url = "https://github.com/wavefunction91/GauXC/archive/refs/tags/v1.1.tar.gz"
+    url = "https://github.com/wavefunction91/GauXC/archive/refs/tags/v0.0.tar.gz"
 
-    maintainers("awvwgk", "mkrack")
+    maintainers("mkrack", "RMeli")
 
     license("BSD-3-Clause")
 
@@ -36,8 +38,6 @@ class Gauxc(CMakePackage, CudaPackage):
     variant("c", default=True, description="Build with C API support", when="@dev20260608")
     variant("fortran", default=True, description="Build with Fortran support", when="@dev20260608")
     variant("host", default=True, description="Build with host integrator")
-    variant("cuda", default=False, description="Build with CUDA support")
-    variant("hip", default=False, description="Build with HIP support")
     variant("mpi", default=False, description="Build with MPI support")
     variant("openmp", default=True, description="Build with OpenMP support")
     variant("tests", default=False, description="Build with unit tests")
@@ -51,22 +51,23 @@ class Gauxc(CMakePackage, CudaPackage):
     variant("cutlass", default=False, description="Build with CUTLASS linear algebra support")
     variant("pic", default=True, description="Build position independent code")
 
-    conflicts("+magma", when="~cuda ~hip", msg="MAGMA requires CUDA or HIP")
+    # Skala resource file
+    SKALA_RESOURCES = {"1.1": "0c8432ac3f03c8f1276372df9aca5b7ee7f8939d47a8789eb158976e89aa0606"}
+    variant("skala_version", default="none", values=("none", *SKALA_RESOURCES.keys()), multi=False)
+    for skala_version, sha256 in SKALA_RESOURCES.items():
+        resource(
+            name=f"skala_fun_{skala_version}",
+            url=f"https://huggingface.co/microsoft/skala-{skala_version}/resolve/main/skala-{skala_version}.fun",
+            sha256=sha256,
+            expand=False,
+            placement="onedft_models",
+            when=f"+skala skala_version={skala_version}",
+        )
+
+    conflicts("+magma", when="~cuda ~rocm", msg="MAGMA requires CUDA or HIP")
     conflicts("+nccl", when="~cuda", msg="NCCL requires CUDA")
     conflicts("+cutlass", when="~cuda", msg="CUTLASS requires CUDA")
     conflicts("+fortran", when="~c @1.2.dev2:", msg="Fortran bindings require C API")
-
-    # Skala resource file
-    skala_version = "1.1"
-    skala_file = f"skala-{skala_version}.fun"
-    resource(
-        name="skala_fun",
-        url=f"https://huggingface.co/microsoft/skala-{skala_version}/resolve/main/{skala_file}",
-        sha256="0c8432ac3f03c8f1276372df9aca5b7ee7f8939d47a8789eb158976e89aa0606",
-        expand=False,
-        placement=skala_file,
-        when="+skala",
-    )
 
     depends_on("c", type="build")
     depends_on("cxx", type="build")
@@ -81,7 +82,7 @@ class Gauxc(CMakePackage, CudaPackage):
     depends_on("highfive@:2.10.1", when="+hdf5")
     depends_on("mpi", when="+mpi")
     depends_on("cuda", when="+cuda")
-    depends_on("hip", when="+hip")
+    depends_on("hip", when="+rocm")
     depends_on("gau2grid")
     depends_on("nlohmann-json", when="+skala")
     depends_on("py-torch@2:~cuda", when="+skala~cuda")
@@ -95,32 +96,41 @@ class Gauxc(CMakePackage, CudaPackage):
     def cmake_args(self):
         spec = self.spec
         args = [
-            self.define("GAUXC_ENABLE_C", spec.satisfies("+c")),
-            self.define("GAUXC_ENABLE_FORTRAN", spec.satisfies("+fortran")),
-            self.define("GAUXC_ENABLE_HOST", spec.satisfies("+host")),
-            self.define("GAUXC_ENABLE_CUDA", spec.satisfies("+cuda")),
-            self.define("GAUXC_ENABLE_HIP", spec.satisfies("+hip")),
-            self.define("GAUXC_ENABLE_MPI", spec.satisfies("+mpi")),
-            self.define("GAUXC_ENABLE_OPENMP", spec.satisfies("+openmp")),
-            self.define("GAUXC_ENABLE_TESTS", spec.satisfies("+tests")),
-            self.define("GAUXC_ENABLE_HDF5", spec.satisfies("+hdf5")),
-            self.define("GAUXC_ENABLE_ONEDFT", spec.satisfies("+skala")),
-            self.define("GAUXC_ENABLE_FAST_RSQRT", spec.satisfies("+fast_rsqrt")),
-            self.define("GAUXC_BLAS_PREFER_ILP64", spec.satisfies("+blas_prefer_ilp64")),
-            self.define("GAUXC_LINK_CUDA_STATIC", spec.satisfies("+link_cuda_static")),
-            self.define("GAUXC_ENABLE_MAGMA", spec.satisfies("+magma")),
-            self.define("GAUXC_ENABLE_NCCL", spec.satisfies("+nccl")),
-            self.define("GAUXC_ENABLE_CUTLASS", spec.satisfies("+cutlass")),
+            self.define_from_variant("GAUXC_ENABLE_C", "c"),
+            self.define_from_variant("GAUXC_ENABLE_FORTRAN", "fortran"),
+            self.define_from_variant("GAUXC_ENABLE_HOST", "host"),
+            self.define_from_variant("GAUXC_ENABLE_CUDA", "cuda"),
+            self.define_from_variant("GAUXC_ENABLE_HIP", "rocm"),
+            self.define_from_variant("GAUXC_ENABLE_MPI", "mpi"),
+            self.define_from_variant("GAUXC_ENABLE_OPENMP", "openmp"),
+            self.define_from_variant("GAUXC_ENABLE_TESTS", "tests"),
+            self.define_from_variant("GAUXC_ENABLE_HDF5", "hdf5"),
+            self.define_from_variant("GAUXC_ENABLE_ONEDFT", "skala"),
+            self.define_from_variant("GAUXC_ENABLE_FAST_RSQRT", "fast_rsqrt"),
+            self.define_from_variant("GAUXC_BLAS_PREFER_ILP64", "blas_prefer_ilp64"),
+            self.define_from_variant("GAUXC_LINK_CUDA_STATIC", "link_cuda_static"),
+            self.define_from_variant("GAUXC_ENABLE_MAGMA", "magma"),
+            self.define_from_variant("GAUXC_ENABLE_NCCL", "nccl"),
+            self.define_from_variant("GAUXC_ENABLE_CUTLASS", "cutlass"),
             self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
         ]
         if spec.satisfies("+cuda"):
-            args.append(self.define_cuda_architectures(self))
+            archs = spec.variants["cuda_arch"].value
+            if "none" not in archs:
+                arch_str = ";".join(archs)
+                args.append(self.define("CMAKE_CUDA_ARCHITECTURES", arch_str))
+        if spec.satisfies("+rocm"):
+            archs = spec.variants["amdgpu_target"].value
+            if "none" not in archs:
+                arch_str = ";".join(archs)
+                args.append(self.define("CMAKE_HIP_ARCHITECTURES", arch_str))
         return args
 
     def install(self, spec, prefix):
         super().install(spec, prefix)
-        if self.spec.satisfies("+skala"):
-            target_dir = self.prefix.share.gauxc.join("onedft_models")
+        if spec.satisfies("+skala"):
+            skala_version = spec.variants["skala_version"].value
+            skala_file = f"skala-{skala_version}.fun"
+            target_dir = prefix.share.gauxc.join("onedft_models")
             mkdirp(target_dir)
-            print(target_dir)
-            install(join_path(self.skala_file, self.skala_file), target_dir)
+            install(join_path("onedft_models", skala_file), target_dir)
