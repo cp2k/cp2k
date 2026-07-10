@@ -78,11 +78,11 @@ usually takes less than one hour:
   - You can check the status of your PR at
     [https://github.com/cp2k/cp2k/pulls](https://github.com/cp2k/cp2k/pulls)
   - We use `git rebase` to keep the
-    [Git history linear](https://github.com/cp2k/cp2k/wiki/Git-Tips-&-Tricks), meaning that in your
-    final Pull Request there can't be any merge commits
+    [Git history linear](https://github.com/cp2k/cp2k/wiki/CP2K-CI#git-history), meaning that in
+    your final Pull Request there can't be any merge commits
 - The PR will trigger the
   [CP2K Continuous Integration (CI) system](https://github.com/cp2k/cp2k/wiki/CP2K-CI) to check
-  conventions and running some checks
+  conventions, compatibility, and correctness
   - In the case of success, the PR will be merged by one of the CP2K administrators
   - In the case of error, please check what's wrong in the CI logs, fix it in your branch, and
     commit/push again. The CI will automatically rerun on the new version of the code (no need to

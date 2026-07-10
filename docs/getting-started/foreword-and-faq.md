@@ -157,17 +157,8 @@ distinct perspectives.
 
 ## Does CP2K support k-points?
 
-As an essential element for solid-state electronic structure, there is of course support for
-k-points in a broad sense in the `QUICKSTEP` module of CP2K. A few specialized features may not have
-complete, verified program implementations for k-point support, or are based on theories and
-algorithms that do not have an updated k-point version (compared with an isolated, non-periodic
-formalism) to begin with. After all, it is not a far stretch to think that a novel k-point
-generalization to existing methods is worthy of one or more academic publications and takes serious
-collaboration and devoted efforts to investigate.
-
-The development status and user opinions about k-point supports can be found at the dedicated
-[github issue](https://github.com/cp2k/cp2k/issues/4854); any request for new features of this kind
-requires providing a reference implementation of k-point formalism in other softwares.
+As an essential element for solid-state electronic structure, k-point sampling is supported for some
+features in the `QUICKSTEP` module of CP2K, as elaborated on [](../methods/dft/k-points).
 
 ## Where can I meet the CP2K community?
 
@@ -198,32 +189,51 @@ Raymond's [How To Ask Questions The Smart Way](http://www.catb.org/~esr/faqs/sma
 (**Disclaimer**: this link does not imply any connection between the original author and the CP2K
 developers, nor does it suggest that the original author may be contacted for assistance.)
 
+In the very first place, please refer to the [](./troubleshooting) page for a catalog of well-known
+warning and error messages with readily available explanations and suggestions. Search through the
+venues mentioned above for similar questions from others, and see if there are recent answers and
+advice applicable to the scenario. For the time being, it is not recommended to seek for unofficial
+CP2K-specific suggestions from generic large language models (LLM); even if they have been trained
+on a refined and verified corpus of CP2K materials one day, they can still hallucinate and generate
+superficially convincing but factually incorrect responses. (Unless willing to take responsibility
+for the correctness of any content produced by artificial intelligence as with human authors of a
+formal academic publication, do not bother mentioning anything from AI in the discussion at all.)
+
 Before submitting a question, please compose it with sufficient details, accuracy, and clarity.
 Approach the process in the same way as making a presentation to general audience, or even writing
 the "Methods" section in a formal academic publication; this includes giving explanations to
 uncommon acronyms (say, the abbreviated name of a specific class of materials, or anything that is
 not on the [Acronyms](../acronyms) page) and traceable citations (with publication title, date, and
-DOI, instead of merely showing a screenshot or a paragraph of copy-pasted text). The release date or
-git version of CP2K, and custom revisions if any, has to be mentioned in the first place.
+DOI link, instead of merely showing a screenshot or a paragraph of copy-pasted text).
+
+The release date or git version of CP2K, and custom revisions if any, has to be mentioned at the
+beginning. It is encouraged to try out the latest development version from the master branch of the
+github repository whenever situation permits, as this is likely containing the resolution patches
+already, and if not, works on which will benefit the next release version. Be aware that there are
+distinctive sets of manuals, with [](../CP2K_INPUT) for the latest development version and
+[](../versions) for the past releases; check twice if a page matches the program actually used prior
+to reading it.
 
 For problems related to installation and/or performance, the hardware specification and the
 configuration for linked libraries should be explained. The distribution source and means of
 preparation of dependencies, like with package managers, environment-controlling modules, or just a
-build from source, need clarifying.
+build from source, need clarifying. Faulty libraries are unfortunately very common that problems may
+be localized to a machine X or with a dependency Y, or even in a period of time Z with certain
+external concurrent processes or other users intervening; try ruling out these factors first.
 
 For error terminations and wrong results, it is imperative to provide a complete input deck and the
 output files. The "input deck" encompasses not only the main input file with keyword settings, but
 also all of the external files referenced inside unless they are available under the official `data`
-directory, so that the job can be actually run and tested. Instead of the original intended chemical
-structure and composition, it is better to use a simplified system that triggers the malfunction
-reliably; this prevents confidential research information to be disclosed and reduces the demand on
-computational resources to ease the load of computers on the developer side.
+directory, so that the job can be actually run and tested on the developers' side. Suspected wrong
+results should have the precise location in the output and the reference expectation pointed out.
 
-Please refrain from talking about CP2K-specific suggestions from generic large language model (LLM)
-or other types of artificial intelligence (AI). Even if the AIs have been trained on a refined and
-verified corpus of CP2K-oriented information one day, they can still hallucinate and generate
-superficially convincing but scientifically incorrect responses. As with academic publications, the
-human author is responsible for the correctness of any content produced by AIs.
+```{note}
+The input file does not have to use the intended chemical structure and composition in the original
+encounter. For the [minimal reproducer](https://en.wikipedia.org/wiki/Minimal_reproducible_example),
+any simplified system is fine and the accuracy-controlling parameters can be tuned down, as long as
+the input can reliably trigger the problem. Not only would this reduce the demand on computational
+resources while reproducing, but also confidential research information would not be disclosed.
+```
 
 Lastly, please kindly understand that, despite the CP2K developers having knowledge about the
 algorithm infrastructures and program implementations, they may not be suitable for answering all of
@@ -235,18 +245,16 @@ reproduce reported findings, the original authors. This is not denying any perso
 teach oneself at no cost, but rather hinting the necessity of communicating with the right
 professional people which does not have substitutes.
 
-## May I join in development and send patches?
+## What can I do for the community?
 
-Certainly! CP2K welcomes all sorts of contributions, from a small typo fix to modular code
-refactoring, to interfaces with other packages, to novel implementation of cutting-edge
-technology... Sharing kindness is an easy feat, and patches makes it more complete, that is the
-essence of open-source programming.
+Potential forms of contribution, apart from engaging in the discussions, include:
 
-The CP2K project uses `git` as the version control tool, and the official code repository is on
-github as [cp2k](https://github.com/cp2k/cp2k). For detailed instructions see the page
-[Starting development](https://www.cp2k.org/dev:starting).
+- Participating the project development as instructed on [](../development/onboarding.md);
+- Enriching the [cp2k-examples](https://github.com/cp2k/cp2k-examples) repository with example
+  inputs, outputs, pre- and post-analysis scripts. Interpretation and discussion of the results from
+  the program to complete the workflow would be nice to have.
 
-Another form of contribution is to enrich the [cp2k-examples](https://github.com/cp2k/cp2k-examples)
-repository with example inputs and outputs, complete with post-analysis workflow down to straight
-publishable results and discussions if possible. This will help other curious users see the full
-potential of CP2K in terms of scientific and engineering applications.
+It is also strongly advised to share the input files as well as structures as supplementary
+materials in a publication. This will not only help other curious readers see the full potential of
+CP2K in terms of scientific and engineering applications, but also bridge the gap between
+theoretical configurations and input setup syntax.
