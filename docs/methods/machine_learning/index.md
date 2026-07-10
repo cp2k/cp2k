@@ -6,7 +6,7 @@ titlesonly:
 maxdepth: 2
 ---
 nequip
-mac
+mace
 nnp
 pao-ml
 deepmd
