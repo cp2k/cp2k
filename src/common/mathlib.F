@@ -1387,29 +1387,17 @@ CONTAINS
    END FUNCTION ei
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param xx ...
-!> \return ...
+!> \brief Computes the digamma function, the logarithmic derivative of the gamma function.
+!> \param xx Argument of the digamma function.
+!> \return The digamma function at xx. Returns zero at poles and for arguments outside the
+!>         supported numerical range.
+!> \par History
+!>      Adapted from the FUNPACK routine PSI, written at Argonne National Laboratory and modified
+!>      by A. H. Morris (NSWC).
+!> \note The implementation uses the rational Chebyshev approximations of Cody, Strecok, and
+!>       Thacher, Math. Comp. 27, 123-127 (1973), together with the reflection formula.
 ! **************************************************************************************************
    PURE FUNCTION digamma(xx) RESULT(fn_val)
-!---------------------------------------------------------------------
-
-!                 EVALUATION OF THE DIGAMMA FUNCTION
-
-!                           -----------
-
-!     DIGAMMA(XX) IS ASSIGNED THE VALUE 0 WHEN THE DIGAMMA FUNCTION CANNOT
-!     BE COMPUTED.
-
-!     THE MAIN COMPUTATION INVOLVES EVALUATION OF RATIONAL CHEBYSHEV
-!     APPROXIMATIONS PUBLISHED IN MATH. COMP. 27, 123-127(1973) BY
-!     CODY, STRECOK AND THACHER.
-
-!---------------------------------------------------------------------
-!     THIS ROUTINE WAS WRITTEN AT ARGONNE NATIONAL LABORATORY FOR THE FUNPACK
-!     PACKAGE OF SPECIAL FUNCTION SUBROUTINES. PSI WAS MODIFIED BY
-!     A.H. MORRIS (NSWC).
-!---------------------------------------------------------------------
       REAL(dp), INTENT(IN)                               :: xx
       REAL(dp)                                           :: fn_val
 
@@ -1427,66 +1415,39 @@ CONTAINS
       REAL(dp)                                           :: aug, den, sgn, upper, w, x, xmax1, xmx0, &
                                                             xsmall, z
 
-!---------------------------------------------------------------------
-!     PIOV4 = PI/4
-!     DX0 = ZERO OF PSI TO EXTENDED PRECISION
-!---------------------------------------------------------------------
-!---------------------------------------------------------------------
-!     COEFFICIENTS FOR RATIONAL APPROXIMATION OF
-!     PSI(X) / (X - X0),  0.5 <= X <= 3.0
-!---------------------------------------------------------------------
-!---------------------------------------------------------------------
-!     COEFFICIENTS FOR RATIONAL APPROXIMATION OF
-!     PSI(X) - LN(X) + 1 / (2*X),  X > 3.0
-!---------------------------------------------------------------------
-!---------------------------------------------------------------------
-!     MACHINE DEPENDENT CONSTANTS ...
-!        XMAX1  = THE SMALLEST POSITIVE FLOATING POINT CONSTANT
-!                 WITH ENTIRELY INTEGER REPRESENTATION.  ALSO USED
-!                 AS NEGATIVE OF LOWER BOUND ON ACCEPTABLE NEGATIVE
-!                 ARGUMENTS AND AS THE POSITIVE ARGUMENT BEYOND WHICH
-!                 PSI MAY BE REPRESENTED AS ALOG(X).
-!        XSMALL = ABSOLUTE ARGUMENT BELOW WHICH PI*COTAN(PI*X)
-!                 MAY BE REPRESENTED BY 1/X.
-!---------------------------------------------------------------------
+! piov4 is pi/4 and dx0 is the positive zero of the digamma function. The coefficient sets
+! p1/q1 approximate digamma(x)/(x - dx0) for 0.5 <= x <= 3, while p2/q2 approximate
+! digamma(x) - log(x) + 1/(2*x) for x > 3.
 
+      ! xmax1 limits integer argument reduction for large negative values and marks the point beyond
+      ! which the asymptotic value log(x) is sufficient. For very small x, pi*cot(pi*x) is
+      ! approximated by 1/x.
       xmax1 = MIN(REAL(HUGE(0), KIND=dp), 1.0e0_dp/EPSILON(1.0e0_dp))
       xsmall = 1.e-9_dp
-!---------------------------------------------------------------------
+
       x = xx
       aug = 0.0e0_dp
       IF (x < 0.5e0_dp) THEN
-!---------------------------------------------------------------------
-!     X < 0.5,  USE REFLECTION FORMULA
-!     PSI(1-X) = PSI(X) + PI * COTAN(PI*X)
-!---------------------------------------------------------------------
+         ! Use digamma(x) = digamma(1 - x) - pi*cot(pi*x).
          IF (ABS(x) <= xsmall) THEN
             IF (x == 0.0e0_dp) THEN
-               !     ERROR RETURN
+               ! The digamma function has a pole at zero.
                fn_val = 0.0e0_dp
                RETURN
             END IF
-!---------------------------------------------------------------------
-!     0 < ABS(X) <= XSMALL.  USE 1/X AS A SUBSTITUTE
-!     FOR  PI*COTAN(PI*X)
-!---------------------------------------------------------------------
+            ! For small nonzero x, use -1/x for -pi*cot(pi*x).
             aug = -1.0e0_dp/x
             x = 1.0e0_dp - x
          ELSE
-!---------------------------------------------------------------------
-!     REDUCTION OF ARGUMENT FOR COTAN
-!---------------------------------------------------------------------
+            ! Reduce the cotangent argument to the first quadrant and keep track of its sign.
             w = -x
             sgn = piov4
             IF (w <= 0.0e0_dp) THEN
                w = -w
                sgn = -sgn
             END IF
-!---------------------------------------------------------------------
-!     MAKE AN ERROR EXIT IF X <= -XMAX1
-!---------------------------------------------------------------------
             IF (w >= xmax1) THEN
-               !     ERROR RETURN
+               ! Argument reduction is no longer reliable.
                fn_val = 0.0e0_dp
                RETURN
             END IF
@@ -1494,46 +1455,33 @@ CONTAINS
             w = w - nq
             nq = INT(w*4.0e0_dp)
             w = 4.0e0_dp*(w - nq*.25e0_dp)
-!---------------------------------------------------------------------
-!     W IS NOW RELATED TO THE FRACTIONAL PART OF  4.0 * X.
-!     ADJUST ARGUMENT TO CORRESPOND TO VALUES IN FIRST
-!     QUADRANT AND DETERMINE SIGN
-!---------------------------------------------------------------------
+
             n = nq/2
             IF ((n + n) /= nq) w = 1.0e0_dp - w
             z = piov4*w
             m = n/2
             IF ((m + m) /= n) sgn = -sgn
-!---------------------------------------------------------------------
-!     DETERMINE FINAL VALUE FOR  -PI*COTAN(PI*X)
-!---------------------------------------------------------------------
+
+            ! Evaluate -pi*cot(pi*x), using either tan(z) or cot(z) after quadrant reduction.
             n = (nq + 1)/2
             m = n/2
             m = m + m
             IF (m /= n) THEN
                aug = sgn*((SIN(z)/COS(z))*4.0e0_dp)
             ELSE
-               !---------------------------------------------------------------------
-               !     CHECK FOR SINGULARITY
-               !---------------------------------------------------------------------
                IF (z == 0.0e0_dp) THEN
-                  !     ERROR RETURN
+                  ! Negative integers are poles of the digamma function.
                   fn_val = 0.0e0_dp
                   RETURN
                END IF
-!---------------------------------------------------------------------
-!     USE COS/SIN AS A SUBSTITUTE FOR COTAN, AND
-!     SIN/COS AS A SUBSTITUTE FOR TAN
-!---------------------------------------------------------------------
                aug = sgn*((COS(z)/SIN(z))*4.0e0_dp)
             END IF
             x = 1.0e0_dp - x
          END IF
       END IF
+
       IF (x <= 3.0e0_dp) THEN
-!---------------------------------------------------------------------
-!     0.5 <= X <= 3.0
-!---------------------------------------------------------------------
+         ! Rational approximation on 0.5 <= x <= 3.
          den = x
          upper = p1(1)*x
 
@@ -1547,13 +1495,9 @@ CONTAINS
          fn_val = den*xmx0 + aug
          RETURN
       END IF
-!---------------------------------------------------------------------
-!     IF X >= XMAX1, DIGAMMA(X) = LN(X)
-!---------------------------------------------------------------------
+
       IF (x < xmax1) THEN
-!---------------------------------------------------------------------
-!     3.0 < X < XMAX1
-!---------------------------------------------------------------------
+         ! Asymptotic rational correction for 3 < x < xmax1.
          w = 1.0e0_dp/(x*x)
          den = w
          upper = p2(1)*w
@@ -1565,6 +1509,7 @@ CONTAINS
 
          aug = upper/(den + q2(4)) - 0.5e0_dp/x + aug
       END IF
+      ! For x >= xmax1, the correction is negligible and this reduces to log(x).
       fn_val = aug + LOG(x)
 
    END FUNCTION digamma
