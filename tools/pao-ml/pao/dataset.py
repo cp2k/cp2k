@@ -30,6 +30,14 @@ def _as_int_tensor(x: List[Any] | npt.NDArray[np.int64]) -> torch.Tensor:
 
 
 # ======================================================================================
+def prepare_xblock(xblock: npt.NDArray[np.float64]) -> torch.Tensor:
+    # Orthonormalize labels as it's required for the loss_functions.
+    ortho_xblock = np.linalg.svd(xblock, full_matrices=False)[2]
+    # Add an extra leading dimension to simplify the batching.
+    return _as_float_tensor(ortho_xblock).unsqueeze(0)
+
+
+# ======================================================================================
 class PaoDataset(Dataset[AtomicDataDict]):
     def __init__(
         self,
@@ -86,17 +94,13 @@ class PaoDataset(Dataset[AtomicDataDict]):
 
                 # TODO remove edges that are more than num_layers hops await from iatom.
 
-                # Orthonormalize labels as it's required for the loss_functions.
-                xblock = np.linalg.svd(f.xblocks[iatom], full_matrices=False)[2]
-
                 # Collect all tensors into an AtomicDataDict for NequIP.
                 self.examples.append(
                     {
                         "atom_types": _as_int_tensor(neighbor_atom_types),
                         "edge_index": _as_int_tensor(edge_index).T,
                         "edge_vectors": _as_float_tensor(edge_vectors),
-                        # Adding an extra leading dimension to simplify the batching.
-                        "xblock": _as_float_tensor(xblock).unsqueeze(0),
+                        "xblock": prepare_xblock(f.xblocks[iatom]),
                         # The "pos" key is used by batched_from_list() to compute edge_index offsets.
                         "pos": torch.zeros(len(neighbor_pos)),
                         # Within an example the central atom is always the first atom.
