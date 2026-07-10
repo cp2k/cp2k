@@ -1,9 +1,8 @@
 # GauXC
 
 [GauXC](https://github.com/wavefunction91/GauXC) provides an external exchange-correlation (XC)
-integrator for Quickstep. It can evaluate selected conventional functionals and GauXC OneDFT models,
-including SKALA models, through the [GAUXC](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL.GAUXC)
-section.
+integrator for Quickstep. It can evaluate selected conventional functionals and GauXC Skala models
+through the [GAUXC](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL.GAUXC) section.
 
 The CP2K interface currently provides two distinct paths:
 
@@ -29,8 +28,8 @@ a conventional functional evaluated by GauXC:
 &END XC
 ```
 
-A non-`NONE` model selects a GauXC OneDFT model. The model can be a `.fun` file or an installed
-model name. The underlying functional is optional in this case and defaults to `PBE`:
+A non-`NONE` model selects a GauXC Skala model. The model can be a `.fun` file or an installed model
+name. The underlying functional is optional in this case and defaults to `PBE`:
 
 ```text
 &XC
@@ -56,10 +55,9 @@ Select the downloaded checkpoint with `MODEL ./skala-1.1.fun`. Alternatively, se
 [GauXC/Skala model documentation](https://microsoft.github.io/skala/gauxc/c-library.html#download-checkpoint-from-huggingface)
 for the model interface and available checkpoints. Obtain `.fun` files only from trusted sources.
 
-The molecular-quadrature OneDFT/SKALA path defaults to `GRID SUPERFINE` and
-`PRUNING_SCHEME UNPRUNED` unless these settings are provided explicitly. These settings are
-recommended for force checks; coarser grids are accuracy settings and should be converged for the
-target calculation.
+The molecular-quadrature Skala path defaults to `GRID SUPERFINE` and `PRUNING_SCHEME UNPRUNED`
+unless these settings are provided explicitly. These settings are recommended for force checks;
+coarser grids are accuracy settings and should be converged for the target calculation.
 
 ## Molecular-Quadrature Path
 
@@ -89,28 +87,27 @@ It uses a molecular quadrature and must not be used to validate compact periodic
 neighbor-cell AO blocks, k-points, compact-cell quadrature, and periodic stress tensors require a
 dedicated periodic GauXC interface.
 
-### OneDFT and SKALA Runtime Controls
+### Skala Runtime Controls
 
-`ONEDFT_ATOM_CHUNK_SIZE` controls atom-blocked Torch inference. A positive value selects the number
+`MODEL_ATOM_CHUNK_SIZE` controls atom-blocked Torch inference. A positive value selects the number
 of atoms per block, zero disables chunking, and the default lets GauXC or the
 `GAUXC_ONEDFT_ATOM_CHUNK_SIZE` environment variable choose the policy.
 
-For MPI calculations, `SKALA_RUNTIME` controls the communicator used for OneDFT/SKALA energy and
-potential evaluation. `AUTO` uses the force-evaluation communicator for closed-shell calculations
-and a replicated rank-local runtime for open-shell calculations. The corresponding
-`ONEDFT_GRADIENT_RUNTIME` setting defaults to a conservative replicated runtime for nuclear
-gradients. Select `MPI` only with a GauXC installation that supports distributed OneDFT gradients.
+For MPI calculations, `SKALA_RUNTIME` controls the communicator used for Skala energy and potential
+evaluation. `AUTO` uses the force-evaluation communicator for closed-shell calculations and a
+replicated rank-local runtime for open-shell calculations. The corresponding
+`MODEL_GRADIENT_RUNTIME` setting defaults to a conservative replicated runtime for nuclear
+gradients. Select `MPI` only with a GauXC installation that supports distributed Skala gradients.
 
 ### GAPW and Other Restrictions
 
 - Conventional GauXC with `METHOD GAPW` requires all-electron potentials. With pseudopotentials,
-  `METHOD GAPW` is available only for OneDFT/SKALA-style models and evaluates the molecular
+  `METHOD GAPW` is available only for Skala-style models and evaluates the molecular
   AO/valence-density XC term directly.
-- OneDFT/SKALA with `METHOD GAPW` and GTH/ECP pseudopotentials currently supports energies only;
-  forces and molecular virials are unavailable. CP2K's GAPW one-center XC correction is not used on
-  this path.
-- `METHOD GAPW_XC`, NLCC pseudopotentials with OneDFT/SKALA, and non-local `VDW_POTENTIAL`
-  corrections are not supported by the molecular GauXC path.
+- Skala with `METHOD GAPW` and GTH/ECP pseudopotentials currently supports energies only; forces and
+  molecular virials are unavailable. CP2K's GAPW one-center XC correction is not used on this path.
+- `METHOD GAPW_XC`, NLCC pseudopotentials with Skala, and non-local `VDW_POTENTIAL` corrections are
+  not supported by the molecular GauXC path.
 - Higher-XC-derivative response and kernel properties are not available through GauXC. Real-time
   propagation is also unsupported.
 

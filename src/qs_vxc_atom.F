@@ -45,7 +45,7 @@ MODULE qs_vxc_atom
                                               skala_gapw_density_partition_hard_only,&
                                               skala_gapw_density_partition_none,&
                                               skala_gapw_density_partition_soft_only,&
-                                              xc_section_uses_onedft_model
+                                              xc_section_uses_gauxc_model
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
    USE xc_atom,                         ONLY: fill_rho_set,&
@@ -207,7 +207,7 @@ CONTAINS
       xc_fun_section => section_vals_get_subs_vals(my_xc_section, "XC_FUNCTIONAL")
       CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", &
                                 i_val=myfun)
-      skala_atom_grid = xc_section_uses_onedft_model(my_xc_section)
+      skala_atom_grid = xc_section_uses_gauxc_model(my_xc_section)
       gapw_density_partition = skala_gapw_density_partition_hard_minus_soft
       IF (skala_atom_grid) THEN
          gapw_density_partition = native_skala_gapw_density_partition(my_xc_section)

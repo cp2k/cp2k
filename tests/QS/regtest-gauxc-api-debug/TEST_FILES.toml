@@ -1,2 +1,2 @@
-"H2_ONEDFT_PBE_FORCE_DEBUG.inp" = [{matcher="DEBUG_force_sum", tol=5e-5, ref=0.0}]
-"NH3_ONEDFT_PBE_FORCE_DEBUG.inp" = [{matcher="DEBUG_force_sum", tol=5e-5, ref=0.0}]
+"H2_GAUXC_MODEL_PBE_FORCE_DEBUG.inp" = [{matcher="DEBUG_force_sum", tol=5e-5, ref=0.0}]
+"NH3_GAUXC_MODEL_PBE_FORCE_DEBUG.inp" = [{matcher="DEBUG_force_sum", tol=5e-5, ref=0.0}]

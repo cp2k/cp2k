@@ -85,11 +85,11 @@ MODULE xc_gauxc_functional
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Set the GauXC OneDFT atom chunk environment knob when the CP2K keyword is explicit.
+!> \brief Set the GauXC Skala atom chunk environment knob when the CP2K keyword is explicit.
 !> \param atom_chunk_size ...
 !> \param is_explicit ...
 ! **************************************************************************************************
-   SUBROUTINE set_gauxc_onedft_atom_chunk_env(atom_chunk_size, is_explicit)
+   SUBROUTINE set_gauxc_model_atom_chunk_env(atom_chunk_size, is_explicit)
       INTEGER, INTENT(IN)                                :: atom_chunk_size
       LOGICAL, INTENT(IN)                                :: is_explicit
 
@@ -109,9 +109,9 @@ CONTAINS
       END IF
       IF (ierr /= 0_c_int) THEN
          CALL cp_abort(__LOCATION__, &
-                       "Could not set GAUXC_ONEDFT_ATOM_CHUNK_SIZE for GauXC OneDFT/SKALA.")
+                       "Could not set GAUXC_ONEDFT_ATOM_CHUNK_SIZE for GauXC Skala.")
       END IF
-   END SUBROUTINE set_gauxc_onedft_atom_chunk_env
+   END SUBROUTINE set_gauxc_model_atom_chunk_env
 
 ! **************************************************************************************************
 !> \brief ...
@@ -908,14 +908,14 @@ CONTAINS
          IF (TRIM(model_key) == "NONE" .OR. TRIM(model_key) == "") THEN
             reference = "Functional computed by GauXC (underlying: "//TRIM(xc_fun_name)//")"
          ELSE
-            reference = "Functional computed by GauXC OneDFT model "//TRIM(model_name)
+            reference = "Functional computed by GauXC Skala model "//TRIM(model_name)
          END IF
       END IF
       IF (PRESENT(shortform)) THEN
          IF (TRIM(model_key) == "NONE" .OR. TRIM(model_key) == "") THEN
             shortform = "GAUXC ("//TRIM(xc_fun_name)//")"
          ELSE
-            shortform = "GAUXC OneDFT"
+            shortform = "GAUXC Skala"
          END IF
       END IF
       IF (PRESENT(needs)) THEN
@@ -961,16 +961,15 @@ CONTAINS
       REAL(KIND=dp), PARAMETER :: gapw_fd_gradient_dx = 1.0E-4_dp
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name, output_path
-      CHARACTER(len=default_string_length) :: grid_key, grid_type, int_exec_space, lb_exec_space, &
-         lwd_kernel, onedft_gradient_runtime, onedft_gradient_runtime_key, pruning_key, &
-         pruning_scheme, radial_quadrature, skala_runtime, skala_runtime_key, xc_fun_name
-      INTEGER                                            :: batch_size, env_status, img, ispin, &
-                                                            natom, nimages, nspins, &
-                                                            onedft_atom_chunk_size
-      LOGICAL :: do_kpoints, gapw_method, gapw_paw_pseudopotentials, gapw_pseudopotentials, &
-         grid_explicit, hdf5_output, is_periodic, molecular_virial, molecular_virial_debug, &
-         need_xc_gradient, onedft_atom_chunk_size_explicit, periodic_reference, pruning_explicit, &
-         use_fd_gradient, use_gradient_mpi_runtime, use_gradient_self_runtime, use_onedft, &
+      CHARACTER(len=default_string_length) :: gradient_runtime, gradient_runtime_key, grid_key, &
+         grid_type, int_exec_space, lb_exec_space, lwd_kernel, pruning_key, pruning_scheme, &
+         radial_quadrature, skala_runtime, skala_runtime_key, xc_fun_name
+      INTEGER                                            :: atom_chunk_size, batch_size, env_status, &
+                                                            img, ispin, natom, nimages, nspins
+      LOGICAL :: atom_chunk_size_explicit, do_kpoints, gapw_method, gapw_paw_pseudopotentials, &
+         gapw_pseudopotentials, grid_explicit, hdf5_output, is_periodic, molecular_virial, &
+         molecular_virial_debug, need_xc_gradient, periodic_reference, pruning_explicit, &
+         use_fd_gradient, use_gauxc_model, use_gradient_mpi_runtime, use_gradient_self_runtime, &
          use_self_runtime, use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: device_runtime_fill_fraction, &
                                                             molecular_virial_debug_dx
@@ -1095,9 +1094,9 @@ CONTAINS
          r_val=device_runtime_fill_fraction)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
-         "ONEDFT_ATOM_CHUNK_SIZE", &
-         i_val=onedft_atom_chunk_size, &
-         explicit=onedft_atom_chunk_size_explicit)
+         "MODEL_ATOM_CHUNK_SIZE", &
+         i_val=atom_chunk_size, &
+         explicit=atom_chunk_size_explicit)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "PERIODIC_REFERENCE", &
@@ -1132,8 +1131,8 @@ CONTAINS
          c_val=skala_runtime)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
-         "ONEDFT_GRADIENT_RUNTIME", &
-         c_val=onedft_gradient_runtime)
+         "MODEL_GRADIENT_RUNTIME", &
+         c_val=gradient_runtime)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "OUTPUT_PATH", &
@@ -1143,23 +1142,23 @@ CONTAINS
       CALL uppercase(model_key)
       skala_runtime_key = ADJUSTL(skala_runtime)
       CALL uppercase(skala_runtime_key)
-      onedft_gradient_runtime_key = ADJUSTL(onedft_gradient_runtime)
-      CALL uppercase(onedft_gradient_runtime_key)
-      use_onedft = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
+      gradient_runtime_key = ADJUSTL(gradient_runtime)
+      CALL uppercase(gradient_runtime_key)
+      use_gauxc_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
       use_skala_model = (INDEX(TRIM(model_key), "SKALA") > 0)
-      IF (gapw_pseudopotentials .AND. .NOT. use_onedft) THEN
+      IF (gapw_pseudopotentials .AND. .NOT. use_gauxc_model) THEN
          CALL cp_abort(__LOCATION__, &
                        "GauXC with METHOD GAPW/GAPW_XC and pseudopotentials is supported only for "// &
-                       "OneDFT/SKALA-style models that replace the molecular XC term. "// &
+                       "Skala-style models that replace the molecular XC term. "// &
                        "Use POTENTIAL ALL for local/semi-local GauXC GAPW validation or METHOD GPW "// &
                        "with pseudopotentials.")
       END IF
-      IF (gapw_pseudopotentials .AND. use_onedft .AND. .NOT. dft_control%qs_control%gapw_xc .AND. &
+      IF (gapw_pseudopotentials .AND. use_gauxc_model .AND. .NOT. dft_control%qs_control%gapw_xc .AND. &
           .NOT. gapw_paw_pseudopotentials .AND. para_env%mepos == 0 .AND. ASSOCIATED(scf_env)) THEN
          IF (scf_env%iter_count == 1) THEN
             CALL cp_warn( &
                __LOCATION__, &
-               "GauXC OneDFT/SKALA with METHOD GAPW and GPW_TYPE pseudopotentials evaluates "// &
+               "GauXC Skala with METHOD GAPW and GPW_TYPE pseudopotentials evaluates "// &
                "the XC term directly on the molecular AO/valence density; no GAPW one-center "// &
                "XC correction is used for those regular-grid kinds.")
          END IF
@@ -1168,9 +1167,9 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "GAUXC%DEVICE_RUNTIME_FILL_FRACTION must be > 0 and <= 1.")
       END IF
-      IF (onedft_atom_chunk_size < -1) THEN
+      IF (atom_chunk_size < -1) THEN
          CALL cp_abort(__LOCATION__, &
-                       "GAUXC%ONEDFT_ATOM_CHUNK_SIZE must be -1, zero, or positive.")
+                       "GAUXC%MODEL_ATOM_CHUNK_SIZE must be -1, zero, or positive.")
       END IF
       IF (molecular_virial_debug) THEN
          IF (molecular_virial_debug_dx <= 0.0_dp) THEN
@@ -1192,16 +1191,16 @@ CONTAINS
             END IF
          END IF
       END IF
-      IF (use_onedft) THEN
+      IF (use_gauxc_model) THEN
          IF (has_nlcc(qs_kind_set)) THEN
             CALL cp_abort(__LOCATION__, &
-                          "GauXC OneDFT/SKALA with NLCC pseudopotentials is not implemented. "// &
+                          "GauXC Skala with NLCC pseudopotentials is not implemented. "// &
                           "The frozen core density would need a SKALA-consistent feature definition.")
          END IF
       END IF
-      IF (use_onedft) THEN
-         CALL set_gauxc_onedft_atom_chunk_env( &
-            onedft_atom_chunk_size, onedft_atom_chunk_size_explicit)
+      IF (use_gauxc_model) THEN
+         CALL set_gauxc_model_atom_chunk_env( &
+            atom_chunk_size, atom_chunk_size_explicit)
          IF (.NOT. grid_explicit) grid_type = "SUPERFINE"
          IF (.NOT. pruning_explicit) pruning_scheme = "UNPRUNED"
 
@@ -1213,7 +1212,7 @@ CONTAINS
              (TRIM(grid_key) /= "SUPERFINE" .OR. TRIM(pruning_key) /= "UNPRUNED")) THEN
             CALL cp_warn( &
                __LOCATION__, &
-               "GauXC OneDFT/SKALA nuclear gradients are sensitive to the GauXC molecular grid. "// &
+               "GauXC Skala nuclear gradients are sensitive to the GauXC molecular grid. "// &
                "Use GRID SUPERFINE and PRUNING_SCHEME UNPRUNED for quantitative force checks.")
          END IF
          IF (TRIM(model_key) == "SKALA") THEN
@@ -1234,18 +1233,18 @@ CONTAINS
          CALL cp_abort(__LOCATION__, "Unknown GAUXC%SKALA_RUNTIME value.")
       END SELECT
       IF (.NOT. use_skala_model) use_self_runtime = .FALSE.
-      SELECT CASE (TRIM(onedft_gradient_runtime_key))
+      SELECT CASE (TRIM(gradient_runtime_key))
       CASE ("AUTO", "SELF")
          use_gradient_mpi_runtime = .FALSE.
-         use_gradient_self_runtime = need_xc_gradient .AND. use_onedft .AND. &
+         use_gradient_self_runtime = need_xc_gradient .AND. use_gauxc_model .AND. &
                                      para_env%num_pe > 1 .AND. .NOT. use_self_runtime
       CASE ("MPI")
-         use_gradient_mpi_runtime = need_xc_gradient .AND. use_onedft .AND. para_env%num_pe > 1
+         use_gradient_mpi_runtime = need_xc_gradient .AND. use_gauxc_model .AND. para_env%num_pe > 1
          use_gradient_self_runtime = .FALSE.
       CASE DEFAULT
-         CALL cp_abort(__LOCATION__, "Unknown GAUXC%ONEDFT_GRADIENT_RUNTIME value.")
+         CALL cp_abort(__LOCATION__, "Unknown GAUXC%MODEL_GRADIENT_RUNTIME value.")
       END SELECT
-      IF (.NOT. use_onedft) THEN
+      IF (.NOT. use_gauxc_model) THEN
          use_gradient_mpi_runtime = .FALSE.
          use_gradient_self_runtime = .FALSE.
       END IF
@@ -1344,7 +1343,7 @@ CONTAINS
       CALL gauxc_check_status(gauxc_status)
 
       IF (use_gradient_self_runtime) THEN
-         ! Upstream GauXC does not yet support OneDFT/SKALA nuclear gradients
+         ! Upstream GauXC does not yet support Skala nuclear gradients
          ! on an MPI runtime.  Keep the energy/VXC path on the normal MPI
          ! runtime and use an isolated runtime only for the replicated gradient.
          gauxc_gradient_grid_result = gauxc_create_grid( &

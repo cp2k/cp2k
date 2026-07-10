@@ -35,7 +35,7 @@
         &GAUXC
           GRID FINE
           MODEL SKALA
-          ONEDFT_ATOM_CHUNK_SIZE 1
+          MODEL_ATOM_CHUNK_SIZE 1
           PERIODIC_REFERENCE T
           PRUNING_SCHEME ROBUST
         &END GAUXC
