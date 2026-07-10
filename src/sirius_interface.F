@@ -123,7 +123,7 @@ CONTAINS
 !> \author JHU
 ! **************************************************************************************************
    SUBROUTINE cp_sirius_finalize()
-      CALL sirius_finalize(.FALSE., .FALSE., .FALSE.)
+      CALL sirius_finalize(call_mpi_fin=.FALSE., call_device_reset=.FALSE.)
    END SUBROUTINE cp_sirius_finalize
 
 !***************************************************************************************************
