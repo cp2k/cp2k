@@ -28,7 +28,8 @@ MODULE manybody_nequip
                                               dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_para_env_type
-   USE pair_potential_types,            ONLY: nequip_pot_type,&
+   USE pair_potential_types,            ONLY: mace_type,&
+                                              nequip_pot_type,&
                                               nequip_type,&
                                               pair_potential_pp_type,&
                                               pair_potential_single_type
@@ -132,7 +133,8 @@ CONTAINS
 
       CALL setup_neq_data(fist_nonbond_env, neq_data, neq_pot, nequip_work)
 
-      IF (nequip_work%target_pot_type == nequip_type) THEN
+      IF (nequip_work%target_pot_type == nequip_type .OR. &
+          nequip_work%target_pot_type == mace_type) THEN
          CALL prepare_edges_shifts_nequip(nequip_work)
       ELSE
          CALL prepare_edges_shifts_allegro(nequip_work)
@@ -564,7 +566,8 @@ CONTAINS
       n_atoms = SIZE(nequip_work%particle_set)
 
       ! for allegro ensure ghost atoms are included in the evaluation
-      IF (nequip_work%target_pot_type /= nequip_type) THEN
+      IF (nequip_work%target_pot_type /= nequip_type .AND. &
+          nequip_work%target_pot_type /= mace_type) THEN
          ! label atoms in the local edges
          DO i = 1, SIZE(nequip_work%local_edges, 2)
             atom_a = INT(nequip_work%local_edges(1, i))
@@ -708,7 +711,8 @@ CONTAINS
       DO iat_use = 1, SIZE(neq_data%use_indices)
          iat = neq_data%use_indices(iat_use)
          ! Only apply the local mask for Allegro models
-         IF (nequip_work%target_pot_type /= nequip_type) THEN
+         IF (nequip_work%target_pot_type /= nequip_type .AND. &
+             nequip_work%target_pot_type /= mace_type) THEN
             IF (.NOT. nequip_work%sum_energy(iat)) CYCLE
          END IF
 
@@ -717,7 +721,8 @@ CONTAINS
       CALL torch_tensor_release(t_energy)
       pot_total = pot_total*pot%unit_energy_val
 
-      IF (nequip_work%target_pot_type == nequip_type) THEN
+      IF (nequip_work%target_pot_type == nequip_type .OR. &
+          nequip_work%target_pot_type == mace_type) THEN
          neq_data%force = neq_data%force/REAL(nequip_work%para_env%num_pe, dp)
          pot_total = pot_total/REAL(nequip_work%para_env%num_pe, dp)
       END IF
@@ -728,7 +733,8 @@ CONTAINS
 
          neq_data%virial(:, :) = RESHAPE(v_ptr, [3, 3])*pot%unit_energy_val
          CALL torch_tensor_release(t_virial)
-         IF (nequip_work%target_pot_type == nequip_type) THEN
+         IF (nequip_work%target_pot_type == nequip_type .OR. &
+             nequip_work%target_pot_type == mace_type) THEN
             neq_data%virial = neq_data%virial/REAL(nequip_work%para_env%num_pe, dp)
          END IF
       END IF

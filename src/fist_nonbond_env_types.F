@@ -23,7 +23,7 @@ MODULE fist_nonbond_env_types
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE pair_potential_types,            ONLY: &
-        ace_type, allegro_type, gal21_type, gal_type, nequip_type, pair_potential_pp_release, &
+        ace_type, allegro_type, gal21_type, gal_type, mace_type, nequip_type, pair_potential_pp_release, &
         pair_potential_pp_type, siepmann_type, tersoff_type
    USE torch_api,                       ONLY: torch_model_release,&
                                               torch_model_type
@@ -494,6 +494,10 @@ CONTAINS
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
                   END IF
                   IF (ANY(potparm%pot(idim, jdim)%pot%type == nequip_type)) THEN
+                     fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
+                     fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
+                  END IF
+                  IF (ANY(potparm%pot(idim, jdim)%pot%type == mace_type)) THEN
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
                   END IF

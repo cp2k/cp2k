@@ -69,7 +69,7 @@ MODULE force_fields_input
    USE pair_potential_types,            ONLY: &
         ace_type, allegro_type, b4_type, bm_type, deepmd_type, do_potential_single_allocation, &
         ea_type, eam_pot_type, ft_pot_type, ft_type, ftd_type, gal21_type, gal_type, gp_type, &
-        gw_type, ip_type, ipbv_pot_type, lj_charmm_type, nequip_pot_type, nequip_type, &
+        gw_type, ip_type, ipbv_pot_type, lj_charmm_type, mace_type, nequip_pot_type, nequip_type, &
         no_potential_single_allocation, pair_potential_p_type, pair_potential_reallocate, &
         potential_single_allocation, siepmann_type, tab_pot_type, tab_type, tersoff_type, wl_type
    USE shell_potential_types,           ONLY: shell_p_create,&
@@ -109,8 +109,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names
       INTEGER :: nace, nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, ndeepmd, neam, ngal, &
-         ngal21, ngd, ngp, nimpr, nipbv, nlj, nnequip, nopbend, nshell, nsiepmann, ntab, ntersoff, &
-         ntors, ntot, nubs, nwl
+         ngal21, ngd, ngp, nimpr, nipbv, nlj, nmace, nnequip, nopbend, nshell, nsiepmann, ntab, &
+         ntersoff, ntors, ntot, nubs, nwl
       LOGICAL                                            :: explicit, unique_spline
       REAL(KIND=dp)                                      :: min_eps_spline_allowed
       TYPE(input_info_type), POINTER                     :: inp_info
@@ -324,6 +324,19 @@ CONTAINS
             nace = nace - 1 + SIZE(atm_names) + (SIZE(atm_names)*SIZE(atm_names) - SIZE(atm_names))/2
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nace, ace=.TRUE.)
             CALL read_ace_section(inp_info%nonbonded, tmp_section2, ntot)
+         END IF
+
+         tmp_section2 => section_vals_get_subs_vals(tmp_section, "MACE")
+         CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=nmace)
+         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + &
+                ngal + ngal21 + nsiepmann + nnequip + ntab + ndeepmd + nace
+         IF (explicit) THEN
+            ! avoid repeating the mace section for each pair
+            CALL section_vals_val_get(tmp_section2, "ATOMS", c_vals=atm_names)
+            nmace = nmace - 1 + SIZE(atm_names) + (SIZE(atm_names)*SIZE(atm_names) - SIZE(atm_names))/2
+            ! MACE reuses the nequip_pot_type storage (set%nequip), hence nequip=.TRUE. here
+            CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nmace, nequip=.TRUE.)
+            CALL read_mace_section(inp_info%nonbonded, tmp_section2, ntot)
          END IF
 
       END IF
@@ -825,6 +838,57 @@ CONTAINS
       END DO
 
    END SUBROUTINE read_nequip_section
+
+! **************************************************************************************************
+!> \brief Reads the MACE section
+!> \param nonbonded ...
+!> \param section ...
+!> \param start ...
+!> \author Xinyue Sun
+! **************************************************************************************************
+   SUBROUTINE read_mace_section(nonbonded, section, start)
+      TYPE(pair_potential_p_type), POINTER               :: nonbonded
+      TYPE(section_vals_type), POINTER                   :: section
+      INTEGER, INTENT(IN)                                :: start
+
+      CHARACTER(LEN=default_string_length)               :: pot_file_name, unit_energy, unit_forces, &
+                                                            unit_length
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: atm_names
+      INTEGER                                            :: isec, jsec, n_items
+      TYPE(nequip_pot_type)                              :: mace
+
+      n_items = 1
+      isec = 1
+      n_items = isec*n_items
+      CALL section_vals_val_get(section, "ATOMS", c_vals=atm_names)
+      CALL section_vals_val_get(section, "POT_FILE_NAME", c_val=pot_file_name)
+      CALL section_vals_val_get(section, "UNIT_LENGTH", c_val=unit_length)
+      CALL section_vals_val_get(section, "UNIT_ENERGY", c_val=unit_energy)
+      CALL section_vals_val_get(section, "UNIT_FORCES", c_val=unit_forces)
+
+      mace%pot_file_name = discover_file(pot_file_name)
+      mace%unit_length = unit_length
+      mace%unit_forces = unit_forces
+      mace%unit_energy = unit_energy
+      ! MACE models are exported to speak the same metadata/tensor dialect as NequIP
+      CALL read_nequip_data(mace)
+      CALL check_cp2k_atom_names_in_torch(atm_names, mace%type_names_torch)
+
+      DO isec = 1, SIZE(atm_names)
+         DO jsec = isec, SIZE(atm_names)
+            nonbonded%pot(start + n_items)%pot%type = mace_type
+            nonbonded%pot(start + n_items)%pot%at1 = atm_names(isec)
+            nonbonded%pot(start + n_items)%pot%at2 = atm_names(jsec)
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at1)
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at2)
+            nonbonded%pot(start + n_items)%pot%set(1)%nequip = mace
+            nonbonded%pot(start + n_items)%pot%rcutsq = mace%rcutsq
+            n_items = n_items + 1
+         END DO
+      END DO
+
+   END SUBROUTINE read_mace_section
 
 ! **************************************************************************************************
 !> \brief Reads the LJ section

@@ -43,6 +43,7 @@ MODULE fist_neighbor_list_control
                                               allegro_type,&
                                               gal21_type,&
                                               gal_type,&
+                                              mace_type,&
                                               nequip_type,&
                                               pair_potential_pp_type,&
                                               siepmann_type,&
@@ -234,6 +235,9 @@ CONTAINS
                      full_nl(ikind, jkind) = .TRUE.
                   END IF
                   IF (ANY(potparm%pot(ikind, jkind)%pot%type == nequip_type)) THEN
+                     full_nl(ikind, jkind) = .TRUE.
+                  END IF
+                  IF (ANY(potparm%pot(ikind, jkind)%pot%type == mace_type)) THEN
                      full_nl(ikind, jkind) = .TRUE.
                   END IF
                   IF (ANY(potparm%pot(ikind, jkind)%pot%type == ace_type)) THEN
