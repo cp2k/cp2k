@@ -15,23 +15,24 @@
 
 Since CP2K 2024.1 version, a failure in SCF convergence in a Quickstep calculation aborts the
 program by default. This means that after reaching [MAX_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.MAX_SCF)
-cycles, the value printed under `Convergence` does not meet
+cycles (50 by default), the value printed under the `Convergence` column does not meet
 [EPS_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.EPS_SCF). A variety of measures are available for
 converging the SCF to a reasonable result, which this page discusses, assuming that the reader has
 read [](../../getting-started/foreword-and-faq) and the other documentations under [](./index)
 first.
 
 ```{note}
-At the moment, the convergence criterion does not take the absolute change in energy into account.
+At the moment, the convergence criterion does not take the absolute change in energy into account,
+and the convergence of the diagonalization algorithm differs from that of the OT algorithm.
 ```
 
 ```{danger}
 **Take your own risk and responsibility for ignoring convergence failure !!**
 
 Setting [IGNORE_CONVERGENCE_FAILURE](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.IGNORE_CONVERGENCE_FAILURE)
-will instead emit a warning ` *** WARNING in qs_scf.F:684 :: SCF run NOT converged ***` and proceed
-to other calculation. Unfortunately, few do realize the need to scrutinize subsequent outcomes for
-accuracy, let alone precision. It can lead to qualitatively and quantitatively incorrect results
+will instead emit a warning ` *** WARNING in qs_scf.F:700 :: SCF run NOT converged ***` and proceed
+to other calculation. Unfortunately, few do realize the necessity to scrutinize subsequent outcomes
+for accuracy, let alone precision. It can lead to qualitatively and quantitatively incorrect results
 including but not limited to strange electronic occupation and band structure, unphysical response
 properties, and wild atomic motion and out-of-control temperature. These are not credible and useful.
 
@@ -62,8 +63,10 @@ initial wavefunction and density matrix is generated from the atomic density of 
 In this case the [MAGNETIZATION](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.MAGNETIZATION) keyword and the
 [BS](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.BS) section can be used to provide the orbital occupation
 pattern of different spin channels and quantum numbers, which is especially crucial for systems with
-certain magnetic order like ferromagnetic and antiferromagnetic materials. Prior discussions can be
-found at [google group](https://groups.google.com/g/cp2k/c/8fTVlCEjSME) and page 34-36 of
+certain magnetic order like ferromagnetic, ferrimagnetic and antiferromagnetic materials. Relevant
+literature or materials database entry often give information about the atomic magnetization. As for
+how the keywords and sections are set up, prior discussions can be found at a
+[google group thread](https://groups.google.com/g/cp2k/c/8fTVlCEjSME) and page 34-36 of
 [a 2015 tutorial](https://www.cp2k.org/_media/events:2015_cecam_tutorial:ling_hybrids.pdf).
 
 Setting SCF_GUESS to `RESTART` and specifying a wavefunction restart file for the keyword
@@ -102,3 +105,37 @@ Some parameters that control the accuracy for Quickstep calculation, such as
 good as necessary. The overall time cost is not necessarily increased with the parameters leaning on
 the more accurate and expensive side: even if each SCF iteration takes longer, the total number of
 iterations to reach convergence may still be reduced.
+
+Similarly, higher number or density of k-points for the Brillouin-zone sampling may be beneficial,
+in particular if the cell is small and the system is not insulating. A convergence test for k-points
+with respect to the target property does not need to start with what is too low to make SCF
+converge.
+
+## For diagonalization
+
+The standard diagonalization algorithm for the Kohn-Sham matrix is activated by setting the
+[DIAGONALIZATION](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.DIAGONALIZATION) section, with full support for the
+mixing and smearing techniques.
+
+The mixing procedures of the density matrix in [MIXING](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.MIXING)
+supports several methods in the keyword [METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.MIXING.METHOD). The
+default conservative `DIRECT_P_MIXING` option may be swapped with `BROYDEN_MIXING`, `PULAY_MIXING`,
+`KERKER_MIXING`, etc.
+
+Fractional occupation of molecular orbitals, or smearing, is enabled by the section
+[SMEAR](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR). It is very useful for systems with small to none band
+gap and strong static correlation. The possibilities provided by the keyword
+[METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR.METHOD) include Fermi-Dirac smearing at a certain
+[ELECTRONIC_TEMPERATURE](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR.ELECTRONIC_TEMPERATURE) and several
+broadening methods with width [SIGMA](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR.SIGMA); elevated
+ELECTRONIC_TEMPERATURE or SIGMA can handle difficult systems, but extrapolation to 0 is required to
+obtain results comparable with what without smearing.
+
+## For OT
+
+Alternative to the diagonalization is the orbital transformation ({term}`OT`) method, activated by
+setting the [OT](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT) section. The most important settings are
+[ALGORITHM](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.ALGORITHM),
+[LINESEARCH](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.LINESEARCH),
+[MINIMIZER](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.MINIMIZER), and
+[PRECONDITIONER](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.PRECONDITIONER).
