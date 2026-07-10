@@ -3,8 +3,6 @@
 # A stand-alone build in this folder can be performed with:
 # podman build --shm-size=1g -f build_deps_spack.Dockerfile ../../
 #
-# Author: Matthias Krack (MK)
-#
 # Stage 1: Create a base image providing the dependencies for building a CP2K binary
 
 ARG BASE_IMAGE=${BASE_IMAGE:-ubuntu:26.04}
@@ -52,10 +50,10 @@ ENV CP2K_VERSION=${CP2K_VERSION:-psmp}
 ARG FEATURE_FLAGS
 ENV FEATURE_FLAGS=${FEATURE_FLAGS:-}
 
-# Copy CP2K repository into container
-WORKDIR /opt
-COPY . cp2k/
-
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
+COPY ./tools/spack ./tools/spack
+COPY ./tools/docker ./tools/docker
+COPY ./make_cp2k.sh .
+
 RUN ./make_cp2k.sh -bd_only -cray -cv ${CP2K_VERSION} -uc no -ue -j${NUM_PROCS} ${FEATURE_FLAGS}
