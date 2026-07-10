@@ -86,7 +86,7 @@ spack:
         - "~cutlass"
         - "+fortran"
         - "+openmp"
-        - "+skala"
+        - "+skala skala_version=1.1"
 
     hdf5:
       require:
