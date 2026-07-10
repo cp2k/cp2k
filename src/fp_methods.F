@@ -13,7 +13,6 @@
 ! **************************************************************************************************
 MODULE fp_methods
 
-   USE beta_gamma_psi,                  ONLY: psi
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -29,6 +28,7 @@ MODULE fp_methods
    USE mathconstants,                   ONLY: fac,&
                                               maxfac,&
                                               oorootpi
+   USE mathlib,                         ONLY: digamma
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
 #include "./base/base_uses.f90"
@@ -162,7 +162,7 @@ CONTAINS
             rab = pbc(rab, cell)
             r = SQRT(SUM(rab**2))
             CALL smooth_count(r, fp_env%inner_radius, fp_env%smooth_width, c, dcdr)
-            sf = kT*(psi(fp_env%ro1 + fp_env%ri2 + 1) - psi(fp_env%ri2 + 1))*(-dcdr)/r
+            sf = kT*(digamma(fp_env%ro1 + fp_env%ri2 + 1) - digamma(fp_env%ri2 + 1))*(-dcdr)/r
             particles(iparticle)%f = particles(iparticle)%f - sf*rab
             particles(icenter)%f = particles(icenter)%f + sf*rab
          END DO
@@ -173,7 +173,7 @@ CONTAINS
             rab = pbc(rab, cell)
             r = SQRT(SUM(rab**2))
             CALL smooth_count(r, fp_env%outer_radius, fp_env%smooth_width, c, dcdr)
-            sf = kT*(psi(fp_env%ro1 + fp_env%ri2 + 1) - psi(fp_env%ro1 + 1))*(dcdr)/r
+            sf = kT*(digamma(fp_env%ro1 + fp_env%ri2 + 1) - digamma(fp_env%ro1 + 1))*(dcdr)/r
             particles(iparticle)%f = particles(iparticle)%f - sf*rab
             particles(icenter)%f = particles(icenter)%f + sf*rab
          END DO

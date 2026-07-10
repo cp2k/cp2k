@@ -70,7 +70,6 @@ list(
   soc_pseudopotential_methods.F
   soc_pseudopotential_utils.F
   basis_set_output.F
-  beta_gamma_psi.F
   block_p_types.F
   bse_main.F
   bse_full_diag.F
