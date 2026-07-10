@@ -62,7 +62,7 @@ binaries, installing the toolchain with `--with-libtorch` is sufficient; for GPU
 provide the path to a CUDA LibTorch build:
 
 ```shell
-./install_cp2k_toolchain.sh --with-libtorch
+./install_cp2k_toolchain.sh --with-libtorch=<path-to-libtorch>
 ```
 
 ## Further Resources
