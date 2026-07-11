@@ -619,10 +619,10 @@ CMAKE_FEATURE_FLAGS="${CMAKE_FEATURE_FLAG_ALL} ${CMAKE_FEATURE_FLAG_MPI} ${CMAKE
 
 # DLA-Future does not work with MPICH yet
 case "${MPI_MODE}" in
-  mpich)
+  mpich | openmpi)
     if [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_EVERYTHING=ON"* ]] ||
       [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_DLAF=ON"* ]]; then
-      echo -e "\nINFO: DLA-Future does not work with MPICH yet and is disabled"
+      echo -e "\nINFO: DLA-Future does not work with ${MPI_MODE^^} yet and is disabled"
       CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_DLAF=OFF"
       SED_PATTERN_LIST+=" -e '/\s*-\s+\"dla-future.*@/ s/^ /#/'"
       SED_PATTERN_LIST+=" -e 's/\+dlaf/\~dlaf/'"
