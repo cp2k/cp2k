@@ -13,6 +13,19 @@
  *******************************************************************************
 ```
 
+```text
+ *******************************************************************************
+ *   ___                                                                       *
+ *  /   \                                                                      *
+ * [ABORT]                                                                     *
+ *  \___/                KS energy is an abnormal value (NaN/Inf).             *
+ *    |                                                                        *
+ *  O/|                                                                        *
+ * /| |                                                                        *
+ * / \                                                    qs_ks_methods.F:1166 *
+ *******************************************************************************
+```
+
 Since CP2K 2024.1 version, a failure in SCF convergence in a Quickstep calculation aborts the
 program by default. This means that after reaching [MAX_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.MAX_SCF)
 cycles (50 by default), the value printed under the `Convergence` column does not meet
