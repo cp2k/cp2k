@@ -137,7 +137,6 @@ DEPS_BUILD_TYPE="${DEPS_BUILD_TYPE:-Release}"
 CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=ON" # all features are activated by default
 CMAKE_FEATURE_FLAGS="-DCP2K_BLAS_VENDOR=OpenBLAS" # LAPACK/BLAS from OpenBLAS by default
 CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_FFTW3=ON"       # FFTW3 is always activated unless explicitly disabled
-CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_DLAF=OFF"       # DLAF is deactivated by default
 CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=ON"        # MPI is switched on by default
 CMAKE_FEATURE_FLAGS_GPU="-DCP2K_USE_SPLA_GEMM_OFFLOADING=ON"
 CRAY="no"
@@ -281,8 +280,8 @@ while [[ $# -gt 0 ]]; do
             CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=${ON_OFF}"
             for package in adios2 cosma deepmdkit dla-future dla-future-fortran elpa \
               gauxc greenx hdf5 libfabric libfci libint libvdwxc libsmeagol libvori \
-              libxc libxs mimic-mcl openpmd-api pace pexsi plumed py-torch sirius spfft \
-              spglib spla tblite trexio; do
+              libxc libxs libxsmm mimic-mcl openpmd-api pace pexsi plumed py-torch sirius \
+              spfft spglib spla tblite trexio; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"${package}@/ ${SUBST}"
             done
             # dbcsr must use blas as fallback when libxs/libxsmm is disabled
@@ -322,9 +321,9 @@ while [[ $# -gt 0 ]]; do
               dlaf)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"dla-future.*@/ ${SUBST}"
                 if [[ "${ON_OFF}" == "ON" ]]; then
-                  SED_PATTERN_LIST+=" -e 's/\"~dlaf\"/\"+dlaf\"/'"
+                  SED_PATTERN_LIST+=" -e 's/\~dlaf/\+dlaf/'"
                 else
-                  SED_PATTERN_LIST+=" -e 's/\"+dlaf\"/\"~dlaf\"/'"
+                  SED_PATTERN_LIST+=" -e 's/\+dlaf/\~dlaf/'"
                 fi
                 ;;
               fftw3)
@@ -352,7 +351,7 @@ while [[ $# -gt 0 ]]; do
                 fi
                 ;;
               libxs)
-                SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"libxs@/ ${SUBST}"
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"libxsmm@/ ${SUBST}"
                 if [[ "${ON_OFF}" == "OFF" ]]; then
                   SED_PATTERN_LIST+=" -e '/\s*-\s+\"smm=${2,,}\"/ s/${2,,}/blas/'"
@@ -618,6 +617,19 @@ NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
 # Assemble CMake feature flag list
 CMAKE_FEATURE_FLAGS="${CMAKE_FEATURE_FLAG_ALL} ${CMAKE_FEATURE_FLAG_MPI} ${CMAKE_FEATURE_FLAGS}"
 
+# DLA-Future does not work with MPICH yet
+case "${MPI_MODE}" in
+  mpich | openmpi)
+    if [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_EVERYTHING=ON"* ]] ||
+      [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_DLAF=ON"* ]]; then
+      echo -e "\nINFO: DLA-Future does not work with ${MPI_MODE^^} yet and is disabled"
+      CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_DLAF=OFF"
+      SED_PATTERN_LIST+=" -e '/\s*-\s+\"dla-future.*@/ s/^ /#/'"
+      SED_PATTERN_LIST+=" -e 's/\+dlaf/\~dlaf/'"
+    fi
+    ;;
+esac
+
 # Clean CMake feature flag list from repeated entries and keep only the last definition
 declare -A last=()
 order=()
@@ -757,7 +769,7 @@ echo ""
 echo "CMAKE_FEATURE_FLAGS = ${CMAKE_FEATURE_FLAGS}"
 echo ""
 
-((VERBOSE > 0)) && echo "SED_PATTERN_LIST    = ${SED_PATTERN_LIST}"
+((VERBOSE > 0)) && echo -e "SED_PATTERN_LIST    = ${SED_PATTERN_LIST}\n"
 
 # Check if a valid number for the packages to be built by spack in parallel is given
 if ((NUM_PACKAGES < 1)); then
