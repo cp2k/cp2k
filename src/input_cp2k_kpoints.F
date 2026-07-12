@@ -152,11 +152,11 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="DEBUG_FULL_KPOINT_SYMMETRY", &
                           description="Use full atomic k-point symmetry also for DEBUG finite-difference "// &
-                          "points. This is an expert option: the default keeps finite-difference energies "// &
-                          "on inversion/time-reversal symmetry to avoid comparing slightly different "// &
-                          "irreducible k-point sets.", &
+                          "points. This is enabled by default so analytical and finite-difference "// &
+                          "evaluations use the symmetry of their current geometry. Disable it to restrict "// &
+                          "DEBUG finite-difference energies to inversion/time-reversal symmetry.", &
                           usage="DEBUG_FULL_KPOINT_SYMMETRY <LOGICAL>", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

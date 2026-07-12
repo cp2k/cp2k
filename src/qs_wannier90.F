@@ -2665,7 +2665,7 @@ CONTAINS
       INTEGER :: iao, iatom, ikind, imo, irow, irow_source, irow_target, irow_work, nao, natom, &
          nmo, rot_slot, source_atom, source_dim, target_atom, target_dim
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_size, ao_start
-      LOGICAL                                            :: reverse_phase, time_reversal
+      LOGICAL                                            :: time_reversal
       REAL(KIND=dp)                                      :: arg, coeff_imag, coeff_real, coskl, &
                                                             phase_imag, phase_real, sinkl
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dst_i, dst_r, src_i, src_r
@@ -2750,7 +2750,6 @@ CONTAINS
       END IF
 
       time_reversal = kpsym%rotp(isym) < 0
-      reverse_phase = qs_kpoint%gamma_centered .AND. ANY(MOD(qs_kpoint%nkp_grid, 2) == 0)
       xkp_phase(1:3) = kpsym%xkp(1:3, isym)
       DO iatom = 1, natom
          source_atom = iatom
@@ -2770,7 +2769,7 @@ CONTAINS
          IF (ASSOCIATED(kpsym%kgphase)) THEN
             arg = arg + kpsym%kgphase(source_atom, isym)
          END IF
-         IF (reverse_phase) arg = -arg
+         arg = -arg
          coskl = COS(twopi*arg)
          sinkl = SIN(twopi*arg)
          DO imo = 1, nmo

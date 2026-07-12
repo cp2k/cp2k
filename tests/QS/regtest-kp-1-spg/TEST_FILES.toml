@@ -19,4 +19,9 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=20}]
 "h_hex_c3_gamma_macdonald_spglib.inp"   = [{matcher="E_total", tol=1e-7, ref=-9.29866167374671},
                                            {matcher="N_special_kpoints", tol=0.0, ref=32}]
+"he_monoclinic_full_symmetry.inp"       = [{matcher="E_total", tol=1e-10, ref=-11.32544952043517},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=2}]
+"he_monoclinic_full_symmetry_debug.inp" = [{matcher="DEBUG_stress_sum", tol=1.0e-8, ref=0.0},
+                                           {matcher="DEBUG_force_sum", tol=1.0e-8, ref=0.0},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
 #EOF

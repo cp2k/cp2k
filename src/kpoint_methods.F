@@ -15,6 +15,7 @@
 MODULE kpoint_methods
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
+                                              pbc,&
                                               real_to_scaled
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
@@ -32,6 +33,7 @@ MODULE kpoint_methods
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
         dbcsr_replicate_all, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
         dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
@@ -133,7 +135,7 @@ CONTAINS
       LOGICAL                                            :: spez
       REAL(KIND=dp)                                      :: eps_kpoint, wsum
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coord, scoord
-      REAL(KIND=dp), DIMENSION(3)                        :: diff, kgvec, srot
+      REAL(KIND=dp), DIMENSION(3)                        :: diff, kgvec, r_pbc, scoord_pbc, srot
       REAL(KIND=dp), DIMENSION(3, 3)                     :: srotmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp_full
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp_full
@@ -184,11 +186,16 @@ CONTAINS
          ! kind type list
          ALLOCATE (kpoint%atype(natom))
          kpoint%atype = atype
-         ! Match the periodic gauge used by the k-space matrices.
+         ! Match the atom images used by CP2K's periodic neighbor lists.
          ALLOCATE (agauge(3, natom))
-         DO i = 1, natom
-            agauge(1:3, i) = -FLOOR(scoord(1:3, i) + 0.5_dp - kpoint%eps_geo)
-         END DO
+         agauge = 0
+         IF (kpoint%symmetry) THEN
+            DO i = 1, natom
+               r_pbc(1:3) = pbc(particle_set(i)%r(1:3), cell)
+               CALL real_to_scaled(scoord_pbc, r_pbc, cell)
+               agauge(1:3, i) = NINT(scoord_pbc(1:3) - scoord(1:3, i))
+            END DO
+         END IF
 
          CALL crys_sym_gen(crys_sym, scoord, atype, cell%hmat, delta=kpoint%eps_geo, iounit=iounit, &
                            use_spglib=kpoint%symmetry)
@@ -198,6 +205,7 @@ CONTAINS
                          use_spglib_reduction= &
                          kpoint%symmetry_reduction_method == use_spglib_kpoint_symmetry, &
                          use_spglib_backend=kpoint%symmetry_backend == use_spglib_kpoint_backend)
+         IF (crys_sym%inversion_only) kpoint%inversion_symmetry_only = .TRUE.
          kpoint%nkp = crys_sym%nkpoint
          ALLOCATE (kpoint%xkp(3, kpoint%nkp), kpoint%wkp(kpoint%nkp))
          wsum = SUM(crys_sym%wkpoint)
@@ -250,6 +258,9 @@ CONTAINS
                   ALLOCATE (kpsym%rotp(ns))
                   ALLOCATE (kpsym%f0(natom, ns))
                   ALLOCATE (kpsym%fcell(3, natom, ns))
+                  ALLOCATE (kpsym%fcell_gauge(3, natom, ns))
+                  ALLOCATE (kpsym%phase_mode(ns))
+                  kpsym%phase_mode = 0
                   ALLOCATE (kpsym%kgphase(natom, ns))
                   nr = 0
                   DO is = 1, SIZE(crys_sym%kplink, 2)
@@ -274,6 +285,8 @@ CONTAINS
                               DO j = 1, natom
                                  srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
                                  kpsym%fcell(1:3, j, nr) = &
+                                    NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr)))
+                                 kpsym%fcell_gauge(1:3, j, nr) = &
                                     NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr))) + &
                                     MATMUL(frot(1:3, 1:3), agauge(1:3, j)) - &
                                     agauge(1:3, kpsym%f0(j, nr))
@@ -311,6 +324,8 @@ CONTAINS
                                  DO j = 1, natom
                                     srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
                                     kpsym%fcell(1:3, j, nr) = &
+                                       NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr)))
+                                    kpsym%fcell_gauge(1:3, j, nr) = &
                                        NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr))) + &
                                        MATMUL(frot(1:3, 1:3), agauge(1:3, j)) - &
                                        agauge(1:3, kpsym%f0(j, nr))
@@ -391,7 +406,9 @@ CONTAINS
             kpoint%atype = atype
             ALLOCATE (agauge(3, natom))
             DO i = 1, natom
-               agauge(1:3, i) = -FLOOR(scoord(1:3, i) + 0.5_dp - kpoint%eps_geo)
+               r_pbc(1:3) = pbc(particle_set(i)%r(1:3), cell)
+               CALL real_to_scaled(scoord_pbc, r_pbc, cell)
+               agauge(1:3, i) = NINT(scoord_pbc(1:3) - scoord(1:3, i))
             END DO
 
             CALL crys_sym_gen(crys_sym, scoord, atype, cell%hmat, delta=kpoint%eps_geo, iounit=iounit, &
@@ -403,6 +420,7 @@ CONTAINS
                                     use_spglib_reduction= &
                                     kpoint%symmetry_reduction_method == use_spglib_kpoint_symmetry, &
                                     use_spglib_backend=kpoint%symmetry_backend == use_spglib_kpoint_backend)
+            IF (crys_sym%inversion_only) kpoint%inversion_symmetry_only = .TRUE.
             IF (ASSOCIATED(kpoint%xkp)) THEN
                DEALLOCATE (kpoint%xkp)
                NULLIFY (kpoint%xkp)
@@ -458,6 +476,9 @@ CONTAINS
                      ALLOCATE (kpsym%rotp(ns))
                      ALLOCATE (kpsym%f0(natom, ns))
                      ALLOCATE (kpsym%fcell(3, natom, ns))
+                     ALLOCATE (kpsym%fcell_gauge(3, natom, ns))
+                     ALLOCATE (kpsym%phase_mode(ns))
+                     kpsym%phase_mode = 0
                      ALLOCATE (kpsym%kgphase(natom, ns))
                      nr = 0
                      DO is = 1, SIZE(crys_sym%kplink, 2)
@@ -482,6 +503,8 @@ CONTAINS
                                  DO j = 1, natom
                                     srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
                                     kpsym%fcell(1:3, j, nr) = &
+                                       NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr)))
+                                    kpsym%fcell_gauge(1:3, j, nr) = &
                                        NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr))) + &
                                        MATMUL(frot(1:3, 1:3), agauge(1:3, j)) - &
                                        agauge(1:3, kpsym%f0(j, nr))
@@ -519,6 +542,8 @@ CONTAINS
                                     DO j = 1, natom
                                        srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
                                        kpsym%fcell(1:3, j, nr) = &
+                                          NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr)))
+                                       kpsym%fcell_gauge(1:3, j, nr) = &
                                           NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr))) + &
                                           MATMUL(frot(1:3, 1:3), agauge(1:3, j)) - &
                                           agauge(1:3, kpsym%f0(j, nr))
@@ -1736,8 +1761,10 @@ CONTAINS
 !> \param fmwork  FM work matrices (kpoint group)
 !> \param for_aux_fit ...
 !> \param pmat_ext ...
+!> \param overlap_rs ...
 ! **************************************************************************************************
-   SUBROUTINE kpoint_density_transform(kpoint, denmat, wtype, tempmat, sab_nl, fmwork, for_aux_fit, pmat_ext)
+   SUBROUTINE kpoint_density_transform(kpoint, denmat, wtype, tempmat, sab_nl, fmwork, for_aux_fit, &
+                                       pmat_ext, overlap_rs)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(dbcsr_p_type), DIMENSION(:, :)                :: denmat
@@ -1749,6 +1776,8 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: for_aux_fit
       TYPE(cp_fm_type), DIMENSION(:, :, :), INTENT(IN), &
          OPTIONAL                                        :: pmat_ext
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: overlap_rs
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform'
 
@@ -1809,6 +1838,9 @@ CONTAINS
 
       CALL get_kpoint_info(kpoint, nkp=nkp, xkp=xkp, wkp=wkp, &
                            cell_to_index=cell_to_index)
+      IF (PRESENT(overlap_rs)) THEN
+         CALL calibrate_symmetry_phases(kpoint, overlap_rs, tempmat, sab_nl, cell_to_index)
+      END IF
       ! initialize real space density matrices
       IF (aux_fit) THEN
          kp => kpoint%kp_aux_env(1)%kpoint_env
@@ -1819,8 +1851,6 @@ CONTAINS
       nc = SIZE(kp%mos, 1)
       nimg = SIZE(denmat, 2)
       real_only = (nc == 1)
-      ! Gamma-centered even grids store atom-cell shifts in the opposite Bloch-phase convention.
-      reverse_phase = kpoint%gamma_centered .AND. ANY(MOD(kpoint%nkp_grid(1:3), 2) == 0)
 
       para_env => kpoint%blacs_env_all%para_env
       ALLOCATE (info(nspin*nkp*nc))
@@ -1900,10 +1930,12 @@ CONTAINS
                   END DO
                   CPASSERT(ira > 0)
                   kind_rot => kpoint%kind_rotmat(ira, :)
+                  CPASSERT(kpsym%phase_mode(is) > 0)
+                  reverse_phase = kpsym%phase_mode(is) == 2
                   CALL symtrans_phase(srpmat, scpmat, rpmat, cpmat, real_only, kind_rot, &
                                       kpsym%rot(1:3, 1:3, is), kpsym%f0(:, is), &
-                                      kpsym%fcell(:, :, is), kpoint%atype, kpsym%xkp(1:3, is), &
-                                      kpsym%rotp(is) < 0, reverse_phase)
+                                      kpsym%fcell_gauge(:, :, is), kpoint%atype, &
+                                      kpsym%xkp(1:3, is), kpsym%rotp(is) < 0, reverse_phase)
                   CALL transform_dmat(denmat, srpmat, scpmat, ispin, real_only, sab_nl, &
                                       cell_to_index, kpsym%xkp(1:3, is), wkpx)
                END DO
@@ -2064,6 +2096,129 @@ CONTAINS
    END SUBROUTINE ensure_work_matrix
 
 ! **************************************************************************************************
+!> \brief Select the Bloch-phase convention that preserves overlap covariance.
+!> \param kpoint ...
+!> \param overlap_rs ...
+!> \param tempmat ...
+!> \param sab_nl ...
+!> \param cell_to_index ...
+! **************************************************************************************************
+   SUBROUTINE calibrate_symmetry_phases(kpoint, overlap_rs, tempmat, sab_nl, cell_to_index)
+
+      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: overlap_rs
+      TYPE(dbcsr_type), POINTER                          :: tempmat
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+
+      CHARACTER(LEN=256)                                 :: phase_error
+      INTEGER                                            :: best_mode, ik, ir, ira, is, jr, mode
+      LOGICAL                                            :: needs_calibration, reverse
+      REAL(KIND=dp)                                      :: best_residual, candidate_norm, &
+                                                            direct_norm, overlap_dot, &
+                                                            phase_tolerance, relative_residual
+      TYPE(dbcsr_type), POINTER                          :: direct_c, direct_r, source_c, source_r, &
+                                                            sym_c, sym_r
+      TYPE(kind_rotmat_type), DIMENSION(:), POINTER      :: kind_rot
+      TYPE(kpoint_sym_type), POINTER                     :: kpsym
+
+      needs_calibration = .FALSE.
+      DO ik = 1, kpoint%nkp
+         kpsym => kpoint%kp_sym(ik)%kpoint_sym
+         IF (kpsym%apply_symmetry) THEN
+            IF (ANY(kpsym%phase_mode == 0)) THEN
+               needs_calibration = .TRUE.
+               EXIT
+            END IF
+         END IF
+      END DO
+      IF (.NOT. needs_calibration) RETURN
+
+      ALLOCATE (source_r, source_c, direct_r, direct_c, sym_r, sym_c)
+      CALL dbcsr_create(source_r, template=tempmat, matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(source_c, template=tempmat, matrix_type=dbcsr_type_antisymmetric)
+      CALL dbcsr_create(direct_r, template=tempmat, matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(direct_c, template=tempmat, matrix_type=dbcsr_type_antisymmetric)
+      CALL dbcsr_create(sym_r, template=tempmat, matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(sym_c, template=tempmat, matrix_type=dbcsr_type_antisymmetric)
+      CALL cp_dbcsr_alloc_block_from_nbl(source_r, sab_nl)
+      CALL cp_dbcsr_alloc_block_from_nbl(source_c, sab_nl)
+      CALL cp_dbcsr_alloc_block_from_nbl(direct_r, sab_nl)
+      CALL cp_dbcsr_alloc_block_from_nbl(direct_c, sab_nl)
+      CALL cp_dbcsr_alloc_block_from_nbl(sym_r, sab_nl)
+      CALL cp_dbcsr_alloc_block_from_nbl(sym_c, sab_nl)
+
+      phase_tolerance = MAX(1.0e-6_dp, 100.0_dp*kpoint%eps_geo)
+      DO ik = 1, kpoint%nkp
+         kpsym => kpoint%kp_sym(ik)%kpoint_sym
+         IF (.NOT. kpsym%apply_symmetry) CYCLE
+         IF (ALL(kpsym%phase_mode > 0)) CYCLE
+
+         CALL dbcsr_set(source_r, 0.0_dp)
+         CALL dbcsr_set(source_c, 0.0_dp)
+         CALL rskp_transform(source_r, source_c, overlap_rs, 1, kpoint%xkp(1:3, ik), &
+                             cell_to_index, sab_nl)
+
+         DO is = 1, kpsym%nwght
+            IF (kpsym%phase_mode(is) > 0) CYCLE
+            CALL dbcsr_set(direct_r, 0.0_dp)
+            CALL dbcsr_set(direct_c, 0.0_dp)
+            CALL rskp_transform(direct_r, direct_c, overlap_rs, 1, kpsym%xkp(1:3, is), &
+                                cell_to_index, sab_nl)
+            CALL dbcsr_dot(direct_r, direct_r, direct_norm)
+            CALL dbcsr_dot(direct_c, direct_c, candidate_norm)
+            direct_norm = direct_norm + candidate_norm
+
+            ir = ABS(kpsym%rotp(is))
+            ira = 0
+            DO jr = 1, SIZE(kpoint%ibrot)
+               IF (ir == kpoint%ibrot(jr)) ira = jr
+            END DO
+            CPASSERT(ira > 0)
+            kind_rot => kpoint%kind_rotmat(ira, :)
+
+            best_mode = 0
+            best_residual = HUGE(1.0_dp)
+            DO mode = 1, 2
+               reverse = mode == 2
+               CALL symtrans_phase(sym_r, sym_c, source_r, source_c, .FALSE., kind_rot, &
+                                   kpsym%rot(1:3, 1:3, is), kpsym%f0(:, is), &
+                                   kpsym%fcell_gauge(:, :, is), kpoint%atype, &
+                                   kpsym%xkp(1:3, is), kpsym%rotp(is) < 0, reverse)
+               CALL dbcsr_dot(sym_r, sym_r, candidate_norm)
+               CALL dbcsr_dot(sym_c, sym_c, relative_residual)
+               candidate_norm = candidate_norm + relative_residual
+               CALL dbcsr_dot(sym_r, direct_r, overlap_dot)
+               CALL dbcsr_dot(sym_c, direct_c, relative_residual)
+               overlap_dot = overlap_dot + relative_residual
+               relative_residual = SQRT(MAX(0.0_dp, candidate_norm + direct_norm - &
+                                            2.0_dp*overlap_dot)/MAX(direct_norm, TINY(1.0_dp)))
+               IF (relative_residual < best_residual) THEN
+                  best_residual = relative_residual
+                  best_mode = mode
+               END IF
+            END DO
+            IF (best_residual > phase_tolerance) THEN
+               WRITE (phase_error, '(A,ES12.4,A,I0,A,I0)') &
+                  "No Bloch-phase direction preserves overlap covariance; residual=", &
+                  best_residual, ", irreducible k-point=", ik, ", operation=", is
+               CALL cp_abort(__LOCATION__, TRIM(phase_error))
+            END IF
+            kpsym%phase_mode(is) = best_mode
+         END DO
+      END DO
+
+      CALL dbcsr_deallocate_matrix(source_r)
+      CALL dbcsr_deallocate_matrix(source_c)
+      CALL dbcsr_deallocate_matrix(direct_r)
+      CALL dbcsr_deallocate_matrix(direct_c)
+      CALL dbcsr_deallocate_matrix(sym_r)
+      CALL dbcsr_deallocate_matrix(sym_c)
+
+   END SUBROUTINE calibrate_symmetry_phases
+
+! **************************************************************************************************
 !> \brief Symmetrize a complex k-point matrix including Bloch phase shifts
 !> \param srpmat real part of transformed matrix
 !> \param scpmat imaginary part of transformed matrix
@@ -2167,8 +2322,8 @@ CONTAINS
          ELSE
             shift = fcell(1:3, icol) - fcell(1:3, irow)
          END IF
-         arg = REAL(shift(1), dp)*xkp(1) + REAL(shift(2), dp)*xkp(2) + REAL(shift(3), dp)*xkp(3)
-         ! The Bloch phase depends only on the mapped atom-cell shifts and the target k-point.
+         arg = REAL(shift(1), dp)*xkp(1) + REAL(shift(2), dp)*xkp(2) + &
+               REAL(shift(3), dp)*xkp(3)
          coskl = COS(twopi*arg)
          sinkl = SIN(twopi*arg)
          IF (real_only) THEN

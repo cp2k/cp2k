@@ -1,0 +1,63 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT bn_gfn1_kp_spglib_phase
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &KPOINTS
+      EPS_SYMMETRY 1.0E-8
+      FULL_GRID OFF
+      SCHEME MACDONALD 3 3 3 0 0 0
+      SYMMETRY ON
+      SYMMETRY_BACKEND SPGLIB
+      SYMMETRY_REDUCTION_METHOD SPGLIB
+      VERBOSE T
+    &END KPOINTS
+    &QS
+      EPS_DEFAULT 1.0E-12
+      METHOD xTB
+      &XTB
+        GFN_TYPE TBLITE
+        &TBLITE
+          ACCURACY 0.05
+          METHOD GFN1
+        &END TBLITE
+      &END XTB
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-9
+      MAX_SCF 300
+      SCF_GUESS MOPAC
+      &MIXING
+        ALPHA 0.2
+        METHOD DIRECT_P_MIXING
+      &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 3.608972409874 3.608972409874 3.608972409874
+      CANONICALIZE TRUE
+      PERIODIC XYZ
+      SYMMETRY CUBIC
+    &END CELL
+    &COORD
+      SCALED
+      B  0.00 0.00 0.00
+      B  0.00 0.50 0.50
+      B  0.50 0.00 0.50
+      B  0.50 0.50 0.00
+      N  0.25 0.25 0.25
+      N  0.25 0.75 0.75
+      N  0.75 0.25 0.75
+      N  0.75 0.75 0.25
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
