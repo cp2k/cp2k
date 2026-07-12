@@ -41,6 +41,8 @@
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "Si_gfn2_kp_spglib_backend.inp"          = [{matcher="E_total", tol=1.0E-8, ref=-13.65677573470654},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"Si_gfn2_kp_spglib_shifted.inp"          = [{matcher="E_total", tol=1.0E-8, ref=-13.65677573470655},
+                                             {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "Zn_fcc_gfn2_kp_k290.inp"                = [{matcher="E_total", tol=1.0E-8, ref=-0.528740963544749},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "Ar_fcc_gfn2_ls.inp"                     = [{matcher="M011", tol=5.0E-8, ref=-17.12154132132343}]
