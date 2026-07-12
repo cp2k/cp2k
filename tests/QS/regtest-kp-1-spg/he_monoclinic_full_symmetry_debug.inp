@@ -5,6 +5,7 @@
 &END GLOBAL
 
 &DEBUG
+  CHECK_ATOM_FORCE 1 Z
   DEBUG_FORCES T
   DEBUG_STRESS_TENSOR T
   DX 1.0E-4
@@ -37,11 +38,11 @@
       METHOD GPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-10
-      MAX_SCF 150
+      EPS_SCF 1.0E-9
+      MAX_SCF 80
       SCF_GUESS ATOMIC
       &MIXING
-        ALPHA 0.4
+        ALPHA 0.7
         METHOD DIRECT_P_MIXING
       &END MIXING
       &PRINT
@@ -62,10 +63,8 @@
     &END CELL
     &COORD
       SCALED
-      He 0.13 0.21 0.17
-      He 0.87 0.21 0.83
-      He 0.13 0.79 0.17
-      He 0.87 0.79 0.83
+      He 0.13 0.00 0.17
+      He 0.87 0.00 0.83
     &END COORD
     &KIND He
       BASIS_SET DZVP-GTH

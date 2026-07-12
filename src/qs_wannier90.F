@@ -2665,7 +2665,7 @@ CONTAINS
       INTEGER :: iao, iatom, ikind, imo, irow, irow_source, irow_target, irow_work, nao, natom, &
          nmo, rot_slot, source_atom, source_dim, target_atom, target_dim
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_size, ao_start
-      LOGICAL                                            :: time_reversal
+      LOGICAL                                            :: reverse_phase, time_reversal
       REAL(KIND=dp)                                      :: arg, coeff_imag, coeff_real, coskl, &
                                                             phase_imag, phase_real, sinkl
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dst_i, dst_r, src_i, src_r
@@ -2750,6 +2750,10 @@ CONTAINS
       END IF
 
       time_reversal = kpsym%rotp(isym) < 0
+      reverse_phase = qs_kpoint%gamma_centered .AND. ANY(MOD(qs_kpoint%nkp_grid, 2) == 0)
+      IF (ASSOCIATED(kpsym%phase_mode)) THEN
+         IF (kpsym%phase_mode(isym) > 0) reverse_phase = kpsym%phase_mode(isym) == 2
+      END IF
       xkp_phase(1:3) = kpsym%xkp(1:3, isym)
       DO iatom = 1, natom
          source_atom = iatom
@@ -2763,13 +2767,13 @@ CONTAINS
             DEALLOCATE (src_r, src_i, dst_r, dst_i, ao_start, ao_size)
             RETURN
          END IF
-         arg = REAL(kpsym%fcell(1, source_atom, isym), KIND=dp)*xkp_phase(1) + &
-               REAL(kpsym%fcell(2, source_atom, isym), KIND=dp)*xkp_phase(2) + &
-               REAL(kpsym%fcell(3, source_atom, isym), KIND=dp)*xkp_phase(3)
+         arg = REAL(kpsym%fcell_gauge(1, source_atom, isym), KIND=dp)*xkp_phase(1) + &
+               REAL(kpsym%fcell_gauge(2, source_atom, isym), KIND=dp)*xkp_phase(2) + &
+               REAL(kpsym%fcell_gauge(3, source_atom, isym), KIND=dp)*xkp_phase(3)
          IF (ASSOCIATED(kpsym%kgphase)) THEN
             arg = arg + kpsym%kgphase(source_atom, isym)
          END IF
-         arg = -arg
+         IF (reverse_phase) arg = -arg
          coskl = COS(twopi*arg)
          sinkl = SIN(twopi*arg)
          DO imo = 1, nmo

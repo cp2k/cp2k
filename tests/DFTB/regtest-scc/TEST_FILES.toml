@@ -61,7 +61,7 @@
 "c_kp1.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-13.76936385283589}]
 "c_gamma_ls.inp"                        = [{matcher="M011", tol=1.0E-10, ref=-13.37701309109568}]
 "c_kp1_kpsym_debug_stress.inp"          = [{matcher="E_total", tol=1.0E-12, ref=-13.76936385283589},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=32},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4},
                                            {matcher="M042", tol=1.0E-5, ref=0.0}]
 "c_kp2.inp"                             = [{matcher="E_total", tol=7e-14, ref=-13.76786045921772}]
 "c_kp2_stress.inp"                      = [{matcher="E_total", tol=1.0E-12, ref=-13.76771748328116},

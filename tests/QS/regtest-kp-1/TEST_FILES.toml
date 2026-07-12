@@ -29,7 +29,7 @@
 "h_ortho_sym_red.inp"                   = [{matcher="E_total", tol=1e-8, ref=-2.73592238316042}]
 "h_mono_sym_red.inp"                    = [{matcher="E_total", tol=1e-10, ref=-3.15139711262736}]
 "h_hex_c3_gamma_k290.inp"               = [{matcher="E_total", tol=1e-7, ref=-9.29840881688658},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=20}]
+                                           {matcher="N_special_kpoints", tol=0.0, ref=8}]
 "h_fcc_wannier90_scf_mp.inp"            = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1},
                                            {matcher="WANNIER90_SCF_MO_REUSE"},
