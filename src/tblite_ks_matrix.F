@@ -30,8 +30,7 @@ MODULE tblite_ks_matrix
                                               mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE tblite_interface,                ONLY: tb_derive_dH_diag,&
-                                              tb_derive_dH_off,&
+   USE tblite_interface,                ONLY: tb_derive_dH_off,&
                                               tb_ham_add_coulomb,&
                                               tb_update_charges
 #include "./base/base_uses.f90"
@@ -139,7 +138,6 @@ CONTAINS
       END IF
 
       IF (calculate_forces) THEN
-         CALL tb_derive_dH_diag(qs_env, force_use_rho, nimg)
          CALL tb_derive_dH_off(qs_env, force_use_rho, nimg)
       END IF
 

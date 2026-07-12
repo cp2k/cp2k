@@ -45,6 +45,7 @@ MODULE tblite_interface
    USE atprop_types, ONLY: atprop_type
    USE basis_set_types, ONLY: gto_basis_set_type, gto_basis_set_p_type, &
                               & allocate_gto_basis_set, write_gto_basis_set, process_gto_basis
+   USE block_p_types, ONLY: block_p_type
    USE cell_types, ONLY: cell_type, get_cell
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_control_types, ONLY: dft_control_type, xtb_reference_cli_type
@@ -53,7 +54,7 @@ MODULE tblite_interface
                            dbcsr_iterator_type, dbcsr_iterator_blocks_left, &
                            dbcsr_iterator_start, dbcsr_iterator_stop, &
                            dbcsr_iterator_next_block
-   USE cp_dbcsr_contrib, ONLY: dbcsr_print
+   USE cp_dbcsr_contrib, ONLY: dbcsr_dot, dbcsr_print
    USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations, ONLY: dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set
    USE cp_log_handling, ONLY: cp_get_default_logger, &
@@ -96,7 +97,7 @@ MODULE tblite_interface
    USE qs_neighbor_list_types, ONLY: neighbor_list_iterator_create, neighbor_list_iterate, &
                                      get_iterator_info, neighbor_list_set_p_type, &
                                      neighbor_list_iterator_p_type, neighbor_list_iterator_release
-   USE qs_overlap, ONLY: create_sab_matrix
+   USE qs_overlap, ONLY: build_overlap_matrix, create_sab_matrix
    USE cp_dbcsr_output, ONLY: cp_dbcsr_write_sparse_matrix
    USE qs_rho_types, ONLY: qs_rho_get, qs_rho_type
    USE qs_scf_types, ONLY: qs_scf_env_type
@@ -132,7 +133,7 @@ MODULE tblite_interface
    PUBLIC :: tb_native_scc_mixer_active
    PUBLIC :: tb_scf_mixer_error
    PUBLIC :: tb_get_multipole
-   PUBLIC :: tb_derive_dH_diag, tb_derive_dH_off
+   PUBLIC :: tb_derive_dH_off
    PUBLIC :: tb_reference_cli_compare
 
 CONTAINS
@@ -918,27 +919,31 @@ CONTAINS
       INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, &
                                                             ic, iw, iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, &
                                                             irow, ia, ib, sgfa, sgfb, ldsab, nseta, nsetb, &
-                                                            natorb_a, natorb_b, sgfa0, slot
+                                                            natorb_a, natorb_b, raw_iatom, raw_jatom, &
+                                                            slot, idim, jdim
       LOGICAL                                            :: found, norml1, norml2, use_arnoldi
-      REAL(KIND=dp)                                      :: dr, rr
+      REAL(KIND=dp)                                      :: dr, dshpoly, ff, hij_base, r2, rr
+      REAL(KIND=dp)                                      :: native_dot_tmp, native_cn_icol, native_cn_irow, &
+                                                            native_dot_weight
       INTEGER, DIMENSION(3)                              :: cell
       REAL(KIND=dp)                                      :: hij, shpoly
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
-      REAL(KIND=dp), DIMENSION(3)                        :: rij
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      INTEGER                                            :: debug_status
-      CHARACTER(LEN=32)                                  :: debug_value
-#endif
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
+      REAL(KIND=dp), DIMENSION(3)                        :: native_h0_overlap_force, native_radial_force, raw_rij, rij
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: native_radial_dot
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(:, :, :), POINTER                :: cell_to_index
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: native_cn_deriv_thread
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: native_radial_force_thread
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint, hint
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: radial_hint
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min
       INTEGER, DIMENSION(:), POINTER                     :: npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, zeta, zetb, scon_a, scon_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sblock, fblock
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fblock, pblock, sblock
+      TYPE(block_p_type), DIMENSION(3, 3)                 :: radial_blocks
 !$    INTEGER                                            :: hash, hash1, lock_num
 !$    INTEGER(KIND=int_8)                                :: iatom8
 !$    INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
@@ -948,7 +953,8 @@ CONTAINS
       TYPE(atprop_type), POINTER                            :: atprop
       TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
       TYPE(cp_logger_type), POINTER                         :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER          :: matrix_h, matrix_s, matrix_p, matrix_w
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER          :: matrix_dh_native, matrix_h, matrix_p, &
+                                                               matrix_q_native, matrix_s, matrix_s_native, matrix_w
       TYPE(dft_control_type), POINTER                       :: dft_control
       TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
       TYPE(gto_basis_set_type), POINTER                     :: basis_set_a, basis_set_b
@@ -968,7 +974,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (ks_env, energy, atomic_kind_set, qs_kind_set)
-      NULLIFY (matrix_h, matrix_s, atprop, dft_control)
+      NULLIFY (matrix_dh_native, matrix_h, matrix_q_native, matrix_s, matrix_s_native, atprop, dft_control)
       NULLIFY (sab_orb, sab_kp, rho, tb, kpoints, cell_to_index)
 
       CALL get_qs_env(qs_env=qs_env, &
@@ -1040,14 +1046,29 @@ CONTAINS
          tb%use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       END IF
 
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
+      IF (calculate_forces) THEN
+         CALL dbcsr_allocate_matrix_set(matrix_q_native, 1, nimg)
+         DO img = 1, nimg
+            ALLOCATE (matrix_q_native(1, img)%matrix)
+            CALL dbcsr_copy(matrix_q_native(1, img)%matrix, matrix_w(1, img)%matrix, &
+                            name="TBLITE NATIVE OVERLAP FORCE MATRIX")
+         END DO
+      END IF
+
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
+      IF (calculate_forces) THEN
+         ALLOCATE (native_radial_force_thread(3, SIZE(atom_of_kind)))
+         ALLOCATE (native_cn_deriv_thread(SIZE(atom_of_kind)))
+         native_cn_deriv_thread = 0.0_dp
+         native_radial_force_thread = 0.0_dp
+      END IF
 
       ! set up basis set lists
       ALLOCATE (basis_set_list(nkind))
       CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
 
       ! allocate overlap matrix
-      CALL dbcsr_allocate_matrix_set(matrix_s, maxder, nimg)
+      CALL dbcsr_allocate_matrix_set(matrix_s, 1, nimg)
       CALL create_sab_matrix(ks_env, matrix_s, "OVERLAP MATRIX", basis_set_list, basis_set_list, &
                              sab_orb, .TRUE.)
       CALL set_ks_env(ks_env, matrix_s_kp=matrix_s)
@@ -1061,18 +1082,37 @@ CONTAINS
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
       END DO
       CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
+      IF (calculate_forces .AND. nimg > 1) THEN
+         CALL dbcsr_allocate_matrix_set(matrix_dh_native, 9, nimg)
+         DO img = 1, nimg
+            DO idim = 1, 9
+               ALLOCATE (matrix_dh_native(idim, img)%matrix)
+               CALL dbcsr_create(matrix_dh_native(idim, img)%matrix, template=matrix_s(1, img)%matrix, &
+                                 name="TBLITE H0 STRAIN DERIVATIVE")
+               CALL cp_dbcsr_alloc_block_from_nbl(matrix_dh_native(idim, img)%matrix, sab_orb)
+            END DO
+         END DO
+      END IF
       ldsab = get_memory_usage(qs_kind_set, "ORB", "ORB")
+
+      native_radial_dot = 0.0_dp
 
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (calculate_forces, basis_set_list, sab_orb, matrix_s, matrix_h, &
+!$OMP SHARED (calculate_forces, basis_set_list, sab_orb, matrix_dh_native, matrix_s, matrix_h, matrix_p, &
 !$OMP        cell_to_index, nimg, atom_of_kind, qs_kind_set, tb, h0, ldsab, maxder, locks, &
-!$OMP        ncoset) &
+!$OMP        native_cn_deriv_thread, native_radial_force_thread, ncoset) &
 !$OMP PRIVATE (slot, hash, hash1, iatom8, lock_num, ikind, jkind, iatom, jatom, cell, rij, ic, irow, &
-!$OMP        icol, dr, n1, n2, ia, ib, i, iset, jset, sgfa, sgfb, nseta, nsetb, natorb_a, &
-!$OMP        natorb_b, sgfa0, found, zeta, first_sgfa, la_max, la_min, npgfa, nsgfa, rpgfa, set_radius_a, &
+!$OMP        icol, dr, dshpoly, ff, hij_base, r2, raw_iatom, raw_jatom, &
+!$OMP        raw_rij, native_cn_icol, native_cn_irow, native_dot_weight, native_h0_overlap_force, &
+!$OMP        native_radial_force, &
+!$OMP        n1, n2, ia, ib, i, idim, jdim, iset, jset, sgfa, sgfb, &
+!$OMP        nseta, nsetb, natorb_a, &
+!$OMP        natorb_b, found, zeta, first_sgfa, la_max, la_min, npgfa, nsgfa, rpgfa, set_radius_a, &
 !$OMP        scon_a, first_sgfb, lb_max, lb_min, npgfb, nsgfb, rpgfb, set_radius_b, scon_b, zetb, rr, hij, shpoly, &
-!$OMP        owork, oint, sint, hint, basis_set_a, basis_set_b, sblock, fblock)
+!$OMP        owork, oint, sint, hint, radial_hint, basis_set_a, basis_set_b, sblock, fblock, &
+!$OMP        pblock, radial_blocks) &
+!$OMP REDUCTION (+ : native_radial_dot)
 
 !$OMP SINGLE
 !$    ALLOCATE (locks(nlock))
@@ -1094,6 +1134,13 @@ CONTAINS
          jatom = sab_orb(1)%nlist_task(slot)%jatom
          cell(:) = sab_orb(1)%nlist_task(slot)%cell(:)
          rij(1:3) = sab_orb(1)%nlist_task(slot)%r(1:3)
+         raw_iatom = iatom
+         raw_jatom = jatom
+         raw_rij = rij
+         native_cn_icol = 0.0_dp
+         native_cn_irow = 0.0_dp
+         native_h0_overlap_force = 0.0_dp
+         native_radial_force = 0.0_dp
 
          ! canonicalize pair ordering as in current serial flow
          icol = MAX(iatom, jatom)
@@ -1106,6 +1153,7 @@ CONTAINS
          END IF
 
          dr = NORM2(rij(:))
+         r2 = dr*dr
 
          IF (nimg == 1) THEN
             ic = 1
@@ -1122,6 +1170,23 @@ CONTAINS
          CALL dbcsr_get_block_p(matrix=matrix_h(1, ic)%matrix, &
                                 row=irow, col=icol, BLOCK=fblock, found=found)
          CPASSERT(found)
+         IF (calculate_forces) THEN
+            NULLIFY (pblock)
+            CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
+                                   row=irow, col=icol, BLOCK=pblock, found=found)
+            CPASSERT(found)
+            IF (nimg > 1) THEN
+               DO jdim = 1, 3
+                  DO idim = 1, 3
+                     NULLIFY (radial_blocks(idim, jdim)%block)
+                     CALL dbcsr_get_block_p(matrix=matrix_dh_native(idim + 3*(jdim - 1), ic)%matrix, &
+                                            row=irow, col=icol, BLOCK=radial_blocks(idim, jdim)%block, &
+                                            found=found)
+                     CPASSERT(found)
+                  END DO
+               END DO
+            END IF
+         END IF
 
          ! --------- Overlap
          !get basis information
@@ -1164,6 +1229,10 @@ CONTAINS
          sint = 0.0_dp
          ALLOCATE (hint(natorb_a, natorb_b, maxder))
          hint = 0.0_dp
+         IF (calculate_forces .AND. nimg > 1) THEN
+            ALLOCATE (radial_hint(natorb_a, natorb_b, 3, 3))
+            radial_hint = 0.0_dp
+         END IF
 
          !----------------- overlap integrals
          DO iset = 1, nseta
@@ -1217,26 +1286,76 @@ CONTAINS
                hij = tb%selfenergy(n1 + iset)
                DO ia = sgfa, sgfa + nsgfa(iset) - 1
                   hint(ia, ia, 1) = hij
+                  IF (calculate_forces) THEN
+                     native_cn_icol = native_cn_icol + tb%dsedcn(n1 + iset)*pblock(ia, ia)
+                     DO jdim = 1, 3
+                        DO idim = 1, 3
+                           IF (nimg == 1) THEN
+                              native_radial_dot(idim, jdim) = native_radial_dot(idim, jdim) + &
+                                                              tb%dsedcn(n1 + iset)*tb%dcndL(idim, jdim, icol)*pblock(ia, ia)
+                           ELSE
+                              radial_hint(ia, ia, idim, jdim) = radial_hint(ia, ia, idim, jdim) + &
+                                                                tb%dsedcn(n1 + iset)*tb%dcndL(idim, jdim, icol)
+                           END IF
+                        END DO
+                     END DO
+                  END IF
                END DO
             END DO
          ELSE
             !get off-diagonal F matrix
             rr = SQRT(dr/(h0%rad(jkind) + h0%rad(ikind)))
             n1 = tb%calc%bas%ish_at(icol)
-            sgfa0 = 1
             DO iset = 1, nseta
                sgfa = first_sgfa(1, iset)
-               sgfa0 = sgfa0 + tb%calc%bas%cgto(iset, tb%mol%id(icol))%nprim
                n2 = tb%calc%bas%ish_at(irow)
                DO jset = 1, nsetb
                   sgfb = first_sgfb(1, jset)
                   shpoly = (1.0_dp + h0%shpoly(iset, ikind)*rr) &
                            *(1.0_dp + h0%shpoly(jset, jkind)*rr)
-                  hij = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
-                        *h0%hscale(iset, jset, ikind, jkind)*shpoly
+                  dshpoly = ((1.0_dp + h0%shpoly(iset, ikind)*rr)*h0%shpoly(jset, jkind)*rr &
+                             + (1.0_dp + h0%shpoly(jset, jkind)*rr)*h0%shpoly(iset, ikind)*rr) &
+                            *0.5_dp/r2
+                  hij_base = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
+                             *h0%hscale(iset, jset, ikind, jkind)
+                  hij = hij_base*shpoly
                   DO ia = sgfa, sgfa + nsgfa(iset) - 1
                      DO ib = sgfb, sgfb + nsgfb(jset) - 1
                         hint(ia, ib, 1) = hij*sint(ia, ib, 1)
+                        IF (calculate_forces) THEN
+                           native_dot_weight = 2.0_dp
+                           IF (icol == irow) native_dot_weight = 1.0_dp
+                           native_cn_icol = native_cn_icol + native_dot_weight*0.5_dp* &
+                                            h0%hscale(iset, jset, ikind, jkind)*shpoly* &
+                                            tb%dsedcn(n1 + iset)*pblock(ib, ia)*sint(ia, ib, 1)
+                           native_cn_irow = native_cn_irow + native_dot_weight*0.5_dp* &
+                                            h0%hscale(iset, jset, ikind, jkind)*shpoly* &
+                                            tb%dsedcn(n2 + jset)*pblock(ib, ia)*sint(ia, ib, 1)
+                           native_radial_force = native_radial_force + &
+                                                 hij_base*dshpoly*pblock(ib, ia)*sint(ia, ib, 1)*raw_rij
+                           native_h0_overlap_force = native_h0_overlap_force + &
+                                                     hij*pblock(ib, ia)*sint(ia, ib, 2:4)
+                           DO jdim = 1, 3
+                              DO idim = 1, 3
+                                 IF (nimg == 1) THEN
+                                    native_radial_dot(idim, jdim) = native_radial_dot(idim, jdim) + &
+                                                                    native_dot_weight*pblock(ib, ia)*( &
+                                                                    (-hij)*sint(ia, ib, idim + 1)*rij(jdim) + &
+                                                                    hij_base*dshpoly*sint(ia, ib, 1)*rij(idim)*rij(jdim) + &
+                                                                0.5_dp*h0%hscale(iset, jset, ikind, jkind)*shpoly*sint(ia, ib, 1)* &
+                                                                    (tb%dsedcn(n1 + iset)*tb%dcndL(idim, jdim, icol) + &
+                                                                     tb%dsedcn(n2 + jset)*tb%dcndL(idim, jdim, irow)))
+                                 ELSE
+                                    radial_hint(ia, ib, idim, jdim) = radial_hint(ia, ib, idim, jdim) + &
+                                                                      (-hij)*sint(ia, ib, idim + 1)*rij(jdim) + &
+                                                                      hij_base*dshpoly*sint(ia, ib, 1)*rij(idim)*rij(jdim) + &
+                                                                0.5_dp*h0%hscale(iset, jset, ikind, jkind)*shpoly*sint(ia, ib, 1)* &
+                                                                      (tb%dsedcn(n1 + iset)*tb%dcndL(idim, jdim, icol) + &
+                                                                       tb%dsedcn(n2 + jset)*tb%dcndL(idim, jdim, irow))
+                                 END IF
+                              END DO
+                           END DO
+                        END IF
                      END DO
                   END DO
                END DO
@@ -1247,12 +1366,45 @@ CONTAINS
 !$       CALL omp_set_lock(locks(hash))
          IF (icol <= irow) THEN
             fblock(:, :) = fblock(:, :) + hint(:, :, 1)
+            IF (calculate_forces .AND. nimg > 1) THEN
+               DO jdim = 1, 3
+                  DO idim = 1, 3
+                     radial_blocks(idim, jdim)%block(:, :) = radial_blocks(idim, jdim)%block(:, :) + &
+                                                             radial_hint(:, :, idim, jdim)
+                  END DO
+               END DO
+            END IF
          ELSE
             fblock(:, :) = fblock(:, :) + TRANSPOSE(hint(:, :, 1))
+            IF (calculate_forces .AND. nimg > 1) THEN
+               DO jdim = 1, 3
+                  DO idim = 1, 3
+                     radial_blocks(idim, jdim)%block(:, :) = radial_blocks(idim, jdim)%block(:, :) + &
+                                                             TRANSPOSE(radial_hint(:, :, idim, jdim))
+                  END DO
+               END DO
+            END IF
          END IF
 !$       CALL omp_unset_lock(locks(hash))
 
+         IF (calculate_forces) THEN
+            ff = 2.0_dp
+!$OMP CRITICAL(tblite_native_radial_force)
+            native_radial_force_thread(:, raw_iatom) = &
+               native_radial_force_thread(:, raw_iatom) - ff*native_radial_force
+            native_radial_force_thread(:, raw_jatom) = &
+               native_radial_force_thread(:, raw_jatom) + ff*native_radial_force
+            native_radial_force_thread(:, icol) = &
+               native_radial_force_thread(:, icol) + ff*native_h0_overlap_force
+            native_radial_force_thread(:, irow) = &
+               native_radial_force_thread(:, irow) - ff*native_h0_overlap_force
+            native_cn_deriv_thread(icol) = native_cn_deriv_thread(icol) + native_cn_icol
+            native_cn_deriv_thread(irow) = native_cn_deriv_thread(irow) + native_cn_irow
+!$OMP END CRITICAL(tblite_native_radial_force)
+         END IF
+
          DEALLOCATE (sint, hint)
+         IF (ALLOCATED(radial_hint)) DEALLOCATE (radial_hint)
 
       END DO
 !$OMP END DO
@@ -1267,6 +1419,38 @@ CONTAINS
 !$OMP END SINGLE NOWAIT
 !$OMP END PARALLEL
 
+      IF (calculate_forces) THEN
+         IF (nimg > 1) THEN
+            native_radial_dot = 0.0_dp
+            DO img = 1, nimg
+               DO jdim = 1, 3
+                  DO idim = 1, 3
+                     CALL dbcsr_finalize(matrix_dh_native(idim + 3*(jdim - 1), img)%matrix)
+                     CALL dbcsr_dot(matrix_dh_native(idim + 3*(jdim - 1), img)%matrix, &
+                                    matrix_p(1, img)%matrix, native_dot_tmp)
+                     native_radial_dot(idim, jdim) = native_radial_dot(idim, jdim) + native_dot_tmp
+                  END DO
+               END DO
+            END DO
+            CALL dbcsr_deallocate_matrix_set(matrix_dh_native)
+         ELSE
+            CALL para_env%sum(native_radial_dot)
+         END IF
+         CALL para_env%sum(native_cn_deriv_thread)
+         tb%grad = 0.0_dp
+         CALL tb_add_grad(tb%grad, tb%dcndr, native_cn_deriv_thread, tb%mol%nat)
+         CALL tb_grad2force(qs_env, tb, para_env, 4)
+         DO iatom = 1, SIZE(atom_of_kind)
+            ikind = kind_of(iatom)
+            force(ikind)%overlap(:, atom_of_kind(iatom)) = &
+               force(ikind)%overlap(:, atom_of_kind(iatom)) + native_radial_force_thread(:, iatom)
+         END DO
+         IF (tb%use_virial) THEN
+            virial%pv_overlap = virial%pv_overlap - native_radial_dot/para_env%num_pe
+            virial%pv_virial = virial%pv_virial - native_radial_dot/para_env%num_pe
+         END IF
+      END IF
+
       DO img = 1, nimg
          DO i = 1, SIZE(matrix_s, 1)
             CALL dbcsr_finalize(matrix_s(i, img)%matrix)
@@ -1275,6 +1459,15 @@ CONTAINS
             CALL dbcsr_finalize(matrix_h(i, img)%matrix)
          END DO
       END DO
+
+      IF (calculate_forces) THEN
+         CALL build_overlap_matrix(ks_env, matrixkp_s=matrix_s_native, &
+                                   matrix_name="OVERLAP MATRIX", nderivative=nderivatives, &
+                                   basis_type_a="ORB", basis_type_b="ORB", sab_nl=sab_orb, &
+                                   calculate_forces=.TRUE., matrixkp_p=matrix_q_native)
+         CALL dbcsr_deallocate_matrix_set(matrix_s_native)
+         CALL dbcsr_deallocate_matrix_set(matrix_q_native)
+      END IF
 
       !compute multipole moments for gfn2
       IF (dft_control%qs_control%xtb_control%tblite_method == gfn2xtb) &
@@ -1297,6 +1490,8 @@ CONTAINS
       END IF
 
       DEALLOCATE (basis_set_list)
+      IF (ALLOCATED(native_cn_deriv_thread)) DEALLOCATE (native_cn_deriv_thread)
+      IF (ALLOCATED(native_radial_force_thread)) DEALLOCATE (native_radial_force_thread)
 
       CALL timestop(handle)
 
@@ -3197,121 +3392,7 @@ CONTAINS
    END SUBROUTINE tb_zero_force
 
 ! **************************************************************************************************
-!> \brief compute the derivative of the energy
-!> \param qs_env ...
-!> \param use_rho ...
-!> \param nimg ...
-! **************************************************************************************************
-   SUBROUTINE tb_derive_dH_diag(qs_env, use_rho, nimg)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(IN)                                :: use_rho
-      INTEGER, INTENT(IN)                                :: nimg
-
-#if defined(__TBLITE)
-      INTEGER                                            :: i, iatom, ic, ikind, ind, is, ish, ispin, &
-                                                            jatom, jkind
-      INTEGER, DIMENSION(3)                              :: cellind
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: found
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_kp
-      TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(tblite_type), POINTER                         :: tb
-
-      ! compute mulliken charges required for charge update
-      NULLIFY (scf_env, rho, tb, sab_orb, sab_kp, para_env, kpoints)
-      CALL get_qs_env(qs_env=qs_env, scf_env=scf_env, rho=rho, tb_tblite=tb, &
-                      sab_orb=sab_orb, sab_kp=sab_kp, para_env=para_env, kpoints=kpoints)
-
-      NULLIFY (cell_to_index)
-      IF (nimg > 1) THEN
-         IF (.NOT. ASSOCIATED(sab_kp)) CPABORT("Missing tblite k-point neighbor list")
-         sab_orb => sab_kp
-         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
-      END IF
-
-      NULLIFY (matrix_p)
-      IF (use_rho) THEN
-         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
-      ELSEIF (ASSOCIATED(tb%rho_ao_kp_ref)) THEN
-         matrix_p => tb%rho_ao_kp_ref
-      ELSE
-         matrix_p => scf_env%p_mix_new
-      END IF
-
-      ALLOCATE (dE(tb%mol%nat))
-
-      dE = 0.0_dp
-      ! loop over all atom pairs with a non-zero overlap (sab_orb)
-      NULLIFY (nl_iterator)
-      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, cell=cellind)
-
-         IF (iatom /= jatom) CYCLE
-
-         IF (ikind /= jkind) CPABORT("Type wrong")
-
-         is = tb%calc%bas%ish_at(iatom)
-
-         IF (nimg == 1) THEN
-            ic = 1
-         ELSE
-            ic = cell_to_index(cellind(1), cellind(2), cellind(3))
-            CPASSERT(ic > 0)
-         END IF
-
-         IF (cellind(1) /= 0) CYCLE
-         IF (cellind(2) /= 0) CYCLE
-         IF (cellind(3) /= 0) CYCLE
-
-         DO ispin = 1, SIZE(matrix_p, 1)
-            CALL dbcsr_get_block_p(matrix=matrix_p(ispin, ic)%matrix, &
-                                   row=iatom, col=jatom, BLOCK=pblock, found=found)
-
-            IF (.NOT. found) CPABORT("block not found")
-
-            ind = 0
-            DO ish = 1, tb%calc%bas%nsh_id(ikind)
-               DO i = 1, msao(tb%calc%bas%cgto(ish, ikind)%ang)
-                  ind = ind + 1
-                  dE(iatom) = dE(iatom) + tb%dsedcn(is + ish)*pblock(ind, ind)
-               END DO
-            END DO
-         END DO
-      END DO
-      CALL neighbor_list_iterator_release(nl_iterator)
-      CALL para_env%sum(dE)
-
-      tb%grad = 0.0_dp
-      CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
-      IF (tb%use_virial) CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
-      CALL tb_grad2force(qs_env, tb, para_env, 4)
-      DEALLOCATE (dE)
-
-#else
-      MARK_USED(qs_env)
-      MARK_USED(use_rho)
-      MARK_USED(nimg)
-      CPABORT("Built without TBLITE")
-#endif
-
-   END SUBROUTINE tb_derive_dH_diag
-
-! **************************************************************************************************
-!> \brief compute the derivative of the energy
+!> \brief Add SCC-overlap and direct multipole Hamiltonian derivatives.
 !> \param qs_env ...
 !> \param use_rho ...
 !> \param nimg ...
@@ -3323,48 +3404,36 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nimg
 
 #if defined(__TBLITE)
-      INTEGER                                            :: i, ij, iatom, ic, icol, ikind, ni, nj, nkind, nel, &
-                                                            sgfi, sgfj, ityp, jatom, jkind, jrow, jtyp, iset, jset, &
-                                                            nseti, nsetj, ia, ib, inda, indb, fold_index, &
-                                                            has_nyquist_image, n_cn_norm_images, n_periodic, &
-                                                            n_non_nyquist_images, &
-                                                            n_sampled_kpoints, sampled_axes, sampled_even_axes, &
-                                                            sampled_non_nyquist_axes, sampled_odd_axes, nspin
-      INTEGER, DIMENSION(3)                              :: cellind, fold_shape, nkp_cellind, nkp_grid
+      INTEGER                                            :: i, idim, ij, iatom, ic, icol, ikind, img, ispin, &
+                                                            jdim, ni, nj, nkind, nel, &
+                                                            ityp, jatom, jkind, jrow, jtyp, iset, jset, nseti, nsetj, &
+                                                            ia, ib, inda, indb, sampled_axes, sampled_even_axes, &
+                                                            sampled_gamma_axes, nspin, ikp_axis
+      INTEGER, DIMENSION(3)                              :: cellind, nkp_cellind, nkp_grid
       INTEGER, DIMENSION(:), POINTER                     :: nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: found, has_multipole_response, image_pair, kpoint_image_pair, &
-                                                            sampled_image_pair
-      REAL(KIND=dp)                                      :: r2, dr, itemp, jtemp, rr, hij, shpoly, dshpoly, idHdc, jdHdc, &
-                                                            scal, hp, i_a_shift, j_a_shift, i_a_shift_mag, j_a_shift_mag, &
+      LOGICAL                                            :: found, gamma_centered, gamma_sampled_image_pair, &
+                                                            has_multipole_response, sampled_image_pair, &
+                                                            use_matrix_scc_stress
+      LOGICAL, DIMENSION(3)                              :: mesh_has_gamma
+      REAL(KIND=dp)                                      :: r2, dr, i_a_shift, j_a_shift, i_a_shift_mag, j_a_shift_mag, &
                                                             ishift, jshift, ishift_mag, jshift_mag, pij_charge, &
-                                                            pij_magnet, wij_charge, &
-                                                            dip_deriv_fac, quad_deriv_fac, dip_deriv_fac_pair, &
-                                                            quad_deriv_fac_pair, overlap_deriv_fac, pot_deriv_scale, &
-                                                            w_deriv_scale, h0_deriv_scale, mp_deriv_scale, &
-                                                            pot_image_deriv_scale, w_image_deriv_scale, &
-                                                            h0_image_deriv_scale, mp_image_deriv_scale, &
-                                                            pot_pair_scale, w_pair_scale, h0_pair_scale, mp_pair_scale, &
-                                                            pot_self_image_deriv_scale, w_self_image_deriv_scale, &
-                                                            h0_self_image_deriv_scale, mp_self_image_deriv_scale, &
-                                                            cn_image_scale, cn_deriv_scale, &
-                                                            nyquist_self_image_deriv_scale
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      INTEGER                                            :: debug_status
-      CHARACTER(LEN=32)                                  :: scale_value
-#endif
-      REAL(KIND=dp), DIMENSION(3)                        :: rij, dgrad
+                                                            pij_magnet, mp_pair_scale, kpoint_coordinate, native_dot_tmp
+      REAL(KIND=dp), DIMENSION(3)                        :: kp_shift
+      REAL(KIND=dp), DIMENSION(3)                        :: rij, dgrad, dhgrad_charge, dhgrad_magnet, &
+                                                            mpgrad_charge, mpgrad_magnet
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hsigma
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, t_ov, idip, jdip, idip_mag, jdip_mag, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: t_ov, idip, jdip, idip_mag, jdip_mag, &
                                                             iquad, jquad, iquad_mag, jquad_mag
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: non_nyquist_folded_seen
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: t_dip, t_quad, t_d_ov
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: t_i_dip, t_i_quad, t_j_dip, t_j_quad
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock, pblock_beta, wblock, wblock_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :, :) :: scc_strain_hint
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock, pblock_beta
+      TYPE(block_p_type), DIMENSION(3, 3, 2)             :: scc_strain_blocks
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_w
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_dh_scc, matrix_p
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER            :: basis_set_a, basis_set_b
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -3378,11 +3447,11 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(tb_hamiltonian), POINTER                      :: h0
       TYPE(tblite_type), POINTER                         :: tb
+      TYPE(virial_type), POINTER                         :: virial
 
       ! compute mulliken charges required for charge update
-      NULLIFY (scf_env, rho, tb, sab_orb, sab_kp, para_env, kpoints, matrix_w)
+      NULLIFY (scf_env, rho, tb, sab_orb, sab_kp, para_env, kpoints, matrix_dh_scc, virial)
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
                       scf_env=scf_env, &
@@ -3392,87 +3461,34 @@ CONTAINS
                       sab_kp=sab_kp, &
                       para_env=para_env, &
                       qs_kind_set=qs_kind_set, &
-                      kpoints=kpoints, &
-                      matrix_w_kp=matrix_w)
+                      kpoints=kpoints)
 
       NULLIFY (cell_to_index)
       IF (nimg > 1) THEN
          IF (.NOT. ASSOCIATED(sab_kp)) CPABORT("Missing tblite k-point neighbor list")
          sab_orb => sab_kp
-         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index, nkp_grid=nkp_grid)
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index, nkp_grid=nkp_grid, &
+                              kp_shift=kp_shift, gamma_centered=gamma_centered)
       ELSE
          nkp_grid = 1
+         kp_shift = 0.0_dp
+         gamma_centered = .TRUE.
       END IF
-      sampled_odd_axes = 0
-      IF (nkp_grid(1) > 1 .AND. MODULO(nkp_grid(1), 2) == 1) sampled_odd_axes = sampled_odd_axes + 1
-      IF (nkp_grid(2) > 1 .AND. MODULO(nkp_grid(2), 2) == 1) sampled_odd_axes = sampled_odd_axes + 1
-      IF (nkp_grid(3) > 1 .AND. MODULO(nkp_grid(3), 2) == 1) sampled_odd_axes = sampled_odd_axes + 1
-      n_periodic = COUNT(tb%mol%periodic)
-      n_sampled_kpoints = 1
+      mesh_has_gamma = .FALSE.
       DO i = 1, 3
-         IF (tb%mol%periodic(i)) n_sampled_kpoints = n_sampled_kpoints*nkp_grid(i)
+         DO ikp_axis = 1, nkp_grid(i)
+            IF (gamma_centered .AND. MODULO(nkp_grid(i), 2) == 0) THEN
+               kpoint_coordinate = REAL(2*ikp_axis - nkp_grid(i), KIND=dp)/ &
+                                   REAL(2*nkp_grid(i), KIND=dp) + kp_shift(i)
+            ELSE
+               kpoint_coordinate = REAL(2*ikp_axis - nkp_grid(i) - 1, KIND=dp)/ &
+                                   REAL(2*nkp_grid(i), KIND=dp) + kp_shift(i)
+            END IF
+            IF (ABS(kpoint_coordinate - ANINT(kpoint_coordinate)) < 1.0e-12_dp) &
+               mesh_has_gamma(i) = .TRUE.
+         END DO
       END DO
-
-      h0 => tb%calc%h0
       has_multipole_response = ASSOCIATED(tb%dipbra) .OR. ASSOCIATED(tb%quadbra)
-      dip_deriv_fac = -1.0_dp
-      quad_deriv_fac = -1.0_dp
-      pot_deriv_scale = 1.0_dp
-      w_deriv_scale = 1.0_dp
-      h0_deriv_scale = 1.0_dp
-      mp_deriv_scale = 1.0_dp
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_POT_SCALE", scale_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) pot_deriv_scale
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_W_SCALE", scale_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) w_deriv_scale
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_H0_SCALE", scale_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) h0_deriv_scale
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_MP_SCALE", scale_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) mp_deriv_scale
-#endif
-      pot_image_deriv_scale = pot_deriv_scale
-      w_image_deriv_scale = w_deriv_scale
-      h0_image_deriv_scale = h0_deriv_scale
-      mp_image_deriv_scale = mp_deriv_scale
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_POT_IMAGE_SCALE", scale_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) pot_image_deriv_scale
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_W_IMAGE_SCALE", scale_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) w_image_deriv_scale
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_H0_IMAGE_SCALE", scale_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) h0_image_deriv_scale
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_MP_IMAGE_SCALE", scale_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) mp_image_deriv_scale
-#endif
-      pot_self_image_deriv_scale = pot_image_deriv_scale
-      w_self_image_deriv_scale = w_image_deriv_scale
-      h0_self_image_deriv_scale = h0_image_deriv_scale
-      mp_self_image_deriv_scale = mp_image_deriv_scale
-      ! K-point self-images are stored in CP2K's sorted on-site image block.
-      ! Keep the sampled-image H0 response on the real-space normalization. The
-      ! corresponding Pulay/W contribution is normalized below from the
-      ! Nyquist multiplicity of the sampled k-point image. Multipole models use
-      ! the sampled matrix block orientation for their self-image derivatives.
-      IF (nimg > 1 .AND. ANY(nkp_grid > 1) .AND. has_multipole_response) &
-         mp_self_image_deriv_scale = -mp_image_deriv_scale
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_POT_SELF_IMAGE_SCALE", scale_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) pot_self_image_deriv_scale
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_W_SELF_IMAGE_SCALE", scale_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) w_self_image_deriv_scale
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_H0_SELF_IMAGE_SCALE", scale_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) h0_self_image_deriv_scale
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_MP_SELF_IMAGE_SCALE", scale_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) mp_self_image_deriv_scale
-#endif
-      cn_image_scale = 1.0_dp
-      IF (nimg > 1 .AND. ANY(tb%mol%periodic)) cn_image_scale = -0.25_dp
-      cn_deriv_scale = 1.0_dp
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_CN_IMAGE_SCALE", scale_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) cn_image_scale
-#endif
 
       NULLIFY (matrix_p)
       IF (use_rho) THEN
@@ -3483,13 +3499,29 @@ CONTAINS
          matrix_p => scf_env%p_mix_new
       END IF
       nspin = SIZE(matrix_p, 1)
+      use_matrix_scc_stress = tb%use_virial .AND. nimg > 1 .AND. ALL(tb%mol%periodic)
+
+      IF (use_matrix_scc_stress) THEN
+         CALL dbcsr_allocate_matrix_set(matrix_dh_scc, 9*nspin, nimg)
+         DO img = 1, nimg
+            DO ispin = 1, nspin
+               DO jdim = 1, 3
+                  DO idim = 1, 3
+                     i = idim + 3*(jdim - 1) + 9*(ispin - 1)
+                     ALLOCATE (matrix_dh_scc(i, img)%matrix)
+                     CALL dbcsr_create(matrix_dh_scc(i, img)%matrix, template=matrix_p(ispin, img)%matrix, &
+                                       name="TBLITE SCC STRAIN DERIVATIVE")
+                     CALL cp_dbcsr_alloc_block_from_nbl(matrix_dh_scc(i, img)%matrix, sab_orb)
+                  END DO
+               END DO
+            END DO
+         END DO
+      END IF
 
       ! set up basis set lists
       nkind = SIZE(atomic_kind_set)
       ALLOCATE (basis_set_list(nkind))
       CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
-
-      ALLOCATE (dE(tb%mol%nat))
 
       nel = msao(tb%calc%bas%maxl)**2
       ALLOCATE (t_ov(nel))
@@ -3502,13 +3534,8 @@ CONTAINS
       ALLOCATE (idip(dip_n), jdip(dip_n), idip_mag(dip_n), jdip_mag(dip_n))
       ALLOCATE (iquad(quad_n), jquad(quad_n), iquad_mag(quad_n), jquad_mag(quad_n))
 
-      dE = 0.0_dp
       tb%grad = 0.0_dp
       hsigma = 0.0_dp
-      fold_shape = 2*nkp_grid + 1
-      ALLOCATE (non_nyquist_folded_seen(PRODUCT(fold_shape)))
-      non_nyquist_folded_seen = 0
-      has_nyquist_image = 0
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
       NULLIFY (nl_iterator)
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
@@ -3532,7 +3559,6 @@ CONTAINS
          r2 = DOT_PRODUCT(rij, rij)
          dr = SQRT(r2)
          IF (icol == jrow .AND. dr < same_atom) CYCLE
-         rr = SQRT(dr/(h0%rad(ikind) + h0%rad(jkind)))
 
          !get basis information
          basis_set_a => basis_set_list(ikind)%gto_basis_set
@@ -3552,7 +3578,6 @@ CONTAINS
             ic = cell_to_index(cellind(1), cellind(2), cellind(3))
             CPASSERT(ic > 0)
          END IF
-         image_pair = (cellind(1) /= 0 .OR. cellind(2) /= 0 .OR. cellind(3) /= 0)
          nkp_cellind = 0
          DO i = 1, 3
             IF (nkp_grid(i) > 1) THEN
@@ -3564,49 +3589,20 @@ CONTAINS
          IF (nkp_cellind(1) /= 0) sampled_axes = sampled_axes + 1
          IF (nkp_cellind(2) /= 0) sampled_axes = sampled_axes + 1
          IF (nkp_cellind(3) /= 0) sampled_axes = sampled_axes + 1
-         kpoint_image_pair = image_pair .AND. sampled_axes > 0
          sampled_even_axes = 0
-         IF (nkp_grid(1) > 1 .AND. MODULO(nkp_grid(1), 2) == 0 .AND. &
-             ABS(2*nkp_cellind(1)) == nkp_grid(1)) sampled_even_axes = sampled_even_axes + 1
-         IF (nkp_grid(2) > 1 .AND. MODULO(nkp_grid(2), 2) == 0 .AND. &
-             ABS(2*nkp_cellind(2)) == nkp_grid(2)) sampled_even_axes = sampled_even_axes + 1
-         IF (nkp_grid(3) > 1 .AND. MODULO(nkp_grid(3), 2) == 0 .AND. &
-             ABS(2*nkp_cellind(3)) == nkp_grid(3)) sampled_even_axes = sampled_even_axes + 1
-         sampled_non_nyquist_axes = MAX(0, sampled_axes - sampled_even_axes)
-         IF (kpoint_image_pair .AND. sampled_even_axes > 0) has_nyquist_image = 1
-         IF (kpoint_image_pair .AND. sampled_non_nyquist_axes > 0 .AND. sampled_even_axes == 0) THEN
-            fold_index = 1 + (nkp_cellind(1) + nkp_grid(1)) &
-                         + fold_shape(1)*(nkp_cellind(2) + nkp_grid(2)) &
-                         + fold_shape(1)*fold_shape(2)*(nkp_cellind(3) + nkp_grid(3))
-            non_nyquist_folded_seen(fold_index) = 1
-         END IF
-         sampled_image_pair = kpoint_image_pair .AND. sampled_even_axes > 0
-         pot_pair_scale = MERGE(pot_image_deriv_scale, pot_deriv_scale, image_pair)
-         w_pair_scale = MERGE(w_image_deriv_scale, w_deriv_scale, image_pair)
-         h0_pair_scale = MERGE(h0_image_deriv_scale, h0_deriv_scale, image_pair)
-         mp_pair_scale = MERGE(mp_image_deriv_scale, mp_deriv_scale, image_pair)
-         IF (icol == jrow .AND. sampled_image_pair) THEN
-            pot_pair_scale = pot_self_image_deriv_scale
-            w_pair_scale = w_self_image_deriv_scale
-            ! sampled_even_axes identifies a Nyquist self-image. The sorted
-            ! self-image block needs one normalization; the multiplicity follows
-            ! from the sampled mesh, periodicity, and active response channels.
-            nyquist_self_image_deriv_scale = 1.0_dp
-            IF (has_multipole_response) THEN
-               IF (n_periodic > 1) &
-                  nyquist_self_image_deriv_scale = 1.0_dp + REAL(n_periodic, dp)/ &
-                                                   REAL(n_sampled_kpoints*(1 + dip_n + quad_n), dp)
-            ELSEIF (n_periodic == 3) THEN
-               nyquist_self_image_deriv_scale = 1.0_dp + 1.0_dp/REAL(n_sampled_kpoints*n_periodic, dp)
+         sampled_gamma_axes = 0
+         DO i = 1, 3
+            IF (nkp_grid(i) > 1 .AND. MODULO(nkp_grid(i), 2) == 0 .AND. &
+                ABS(2*nkp_cellind(i)) == nkp_grid(i)) THEN
+               sampled_even_axes = sampled_even_axes + 1
+               IF (mesh_has_gamma(i)) sampled_gamma_axes = sampled_gamma_axes + 1
             END IF
-            w_pair_scale = w_pair_scale*nyquist_self_image_deriv_scale
-            ! Odd Monkhorst-Pack meshes do not contain a Nyquist image along the
-            ! sampled axis. Match the self-image W derivative to the reduced
-            ! real-space representation used by the k-point density transform.
-            w_pair_scale = w_pair_scale*(1.0_dp - 0.125_dp*REAL(sampled_odd_axes, dp))
-            h0_pair_scale = h0_self_image_deriv_scale
-            mp_pair_scale = mp_self_image_deriv_scale
-         END IF
+         END DO
+         sampled_image_pair = sampled_axes > 0 .AND. sampled_even_axes > 0
+         gamma_sampled_image_pair = sampled_image_pair .AND. sampled_gamma_axes == sampled_even_axes
+         mp_pair_scale = 1.0_dp
+         IF (icol == jrow .AND. sampled_image_pair .AND. has_multipole_response .AND. &
+             .NOT. gamma_sampled_image_pair) mp_pair_scale = -1.0_dp
 
          NULLIFY (pblock, pblock_beta)
          CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
@@ -3617,17 +3613,22 @@ CONTAINS
                                    row=jrow, col=icol, BLOCK=pblock_beta, found=found)
             IF (.NOT. found) CPABORT("pblock beta not found")
          END IF
-
-         NULLIFY (wblock, wblock_beta)
-         CALL dbcsr_get_block_p(matrix=matrix_w(1, ic)%matrix, &
-                                row=jrow, col=icol, block=wblock, found=found)
-         CPASSERT(found)
-         IF (nspin > 1) THEN
-            CALL dbcsr_get_block_p(matrix=matrix_w(2, ic)%matrix, &
-                                   row=jrow, col=icol, block=wblock_beta, found=found)
-            CPASSERT(found)
+         IF (use_matrix_scc_stress) THEN
+            ALLOCATE (scc_strain_hint(SIZE(pblock, 2), SIZE(pblock, 1), 3, 3, nspin))
+            scc_strain_hint = 0.0_dp
+            DO ispin = 1, nspin
+               DO jdim = 1, 3
+                  DO idim = 1, 3
+                     NULLIFY (scc_strain_blocks(idim, jdim, ispin)%block)
+                     i = idim + 3*(jdim - 1) + 9*(ispin - 1)
+                     CALL dbcsr_get_block_p(matrix=matrix_dh_scc(i, ic)%matrix, &
+                                            row=jrow, col=icol, &
+                                            BLOCK=scc_strain_blocks(idim, jdim, ispin)%block, found=found)
+                     IF (.NOT. found) CPABORT("SCC strain derivative block not found")
+                  END DO
+               END DO
+            END DO
          END IF
-
          i_a_shift = tb%pot%vat(icol, 1)
          j_a_shift = tb%pot%vat(jrow, 1)
          i_a_shift_mag = 0.0_dp
@@ -3652,19 +3653,13 @@ CONTAINS
             iquad_mag(:) = tb%pot%vqp(:, icol, 2)
             jquad_mag(:) = tb%pot%vqp(:, jrow, 2)
          END IF
-         dip_deriv_fac_pair = dip_deriv_fac
-         quad_deriv_fac_pair = quad_deriv_fac
-         overlap_deriv_fac = 1.0_dp
-
          ni = tb%calc%bas%ish_at(icol)
          DO iset = 1, nseti
-            sgfi = first_sgfa(1, iset)
             ishift = i_a_shift + tb%pot%vsh(ni + iset, 1)
             ishift_mag = 0.0_dp
             IF (SIZE(tb%pot%vsh, 2) > 1) ishift_mag = i_a_shift_mag + tb%pot%vsh(ni + iset, 2)
             nj = tb%calc%bas%ish_at(jrow)
             DO jset = 1, nsetj
-               sgfj = first_sgfb(1, jset)
                jshift = j_a_shift + tb%pot%vsh(nj + jset, 1)
                jshift_mag = 0.0_dp
                IF (SIZE(tb%pot%vsh, 2) > 1) jshift_mag = j_a_shift_mag + tb%pot%vsh(nj + jset, 2)
@@ -3674,19 +3669,6 @@ CONTAINS
                   & r2, rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_i_dip, t_i_quad, &
                   & t_j_dip, t_j_quad)
 
-               shpoly = (1.0_dp + h0%shpoly(iset, ikind)*rr) &
-                        *(1.0_dp + h0%shpoly(jset, jkind)*rr)
-               dshpoly = ((1.0_dp + h0%shpoly(iset, ikind)*rr)*h0%shpoly(jset, jkind)*rr &
-                          + (1.0_dp + h0%shpoly(jset, jkind)*rr)*h0%shpoly(iset, ikind)*rr) &
-                         *0.5_dp/r2
-               scal = h0%hscale(iset, jset, ikind, jkind)
-               hij = 0.5_dp*(tb%selfenergy(ni + iset) + tb%selfenergy(nj + jset))*scal
-
-               idHdc = tb%dsedcn(ni + iset)*shpoly*scal
-               jdHdc = tb%dsedcn(nj + jset)*shpoly*scal
-
-               itemp = 0.0_dp
-               jtemp = 0.0_dp
                dgrad = 0.0_dp
                DO inda = 1, nsgfa(iset)
                   ia = first_sgfa(1, iset) - first_sgfa(1, 1) + inda
@@ -3697,58 +3679,54 @@ CONTAINS
 
                      pij_charge = pblock(ib, ia)
                      pij_magnet = 0.0_dp
-                     wij_charge = wblock(ib, ia)
                      IF (nspin > 1) THEN
                         pij_charge = pij_charge + pblock_beta(ib, ia)
                         pij_magnet = pblock(ib, ia) - pblock_beta(ib, ia)
-                        ! CP2K's core Hamiltonian force setup leaves matrix_w(1)
-                        ! as the already combined alpha+beta channel for LSD.
                      END IF
+                     mpgrad_charge = MATMUL(t_i_dip(:, :, ij), idip) &
+                                     + MATMUL(t_j_dip(:, :, ij), jdip) &
+                                     + MATMUL(t_i_quad(:, :, ij), iquad) &
+                                     + MATMUL(t_j_quad(:, :, ij), jquad)
+                     mpgrad_magnet = MATMUL(t_i_dip(:, :, ij), idip_mag) &
+                                     + MATMUL(t_j_dip(:, :, ij), jdip_mag) &
+                                     + MATMUL(t_i_quad(:, :, ij), iquad_mag) &
+                                     + MATMUL(t_j_quad(:, :, ij), jquad_mag)
+                     dhgrad_charge = -(ishift + jshift)*t_d_ov(:, ij) - mp_pair_scale*mpgrad_charge
+                     dhgrad_magnet = -(ishift_mag + jshift_mag)*t_d_ov(:, ij) - mp_pair_scale*mpgrad_magnet
+                     dgrad(:) = dgrad(:) - &
+                                ((ishift + jshift)*pij_charge + &
+                                 (ishift_mag + jshift_mag)*pij_magnet)*t_d_ov(:, ij) - &
+                                mp_pair_scale*(pij_charge*mpgrad_charge + pij_magnet*mpgrad_magnet)
 
-                     itemp = itemp + overlap_deriv_fac*idHdc*pij_charge*t_ov(ij)
-                     jtemp = jtemp + overlap_deriv_fac*jdHdc*pij_charge*t_ov(ij)
-
-                     hp = 2*hij*pij_charge
-                     dgrad(:) = dgrad(:) &
-                                + overlap_deriv_fac*(-pot_pair_scale*((ishift + jshift)*pij_charge &
-                                                                      + (ishift_mag + jshift_mag)*pij_magnet)*t_d_ov(:, ij) &
-                                                     - 2*w_pair_scale*wij_charge*t_d_ov(:, ij) &
-                                                     + h0_pair_scale*(hp*shpoly*t_d_ov(:, ij) &
-                                                                      + hp*dshpoly*t_ov(ij)*rij)) &
-                                + mp_pair_scale*(pij_charge*( &
-                                                 dip_deriv_fac_pair*(MATMUL(t_i_dip(:, :, ij), idip) &
-                                                                     + MATMUL(t_j_dip(:, :, ij), jdip)) &
-                                                 + quad_deriv_fac_pair*(MATMUL(t_i_quad(:, :, ij), iquad) &
-                                                                        + MATMUL(t_j_quad(:, :, ij), jquad))) &
-                                                 + pij_magnet*( &
-                                                 dip_deriv_fac_pair*(MATMUL(t_i_dip(:, :, ij), idip_mag) &
-                                                                     + MATMUL(t_j_dip(:, :, ij), jdip_mag)) &
-                                                 + quad_deriv_fac_pair*(MATMUL(t_i_quad(:, :, ij), iquad_mag) &
-                                                                        + MATMUL(t_j_quad(:, :, ij), jquad_mag))))
+                     IF (ALLOCATED(scc_strain_hint)) THEN
+                        DO jdim = 1, 3
+                           DO idim = 1, 3
+                              scc_strain_hint(ia, ib, idim, jdim, 1) = &
+                                 scc_strain_hint(ia, ib, idim, jdim, 1) &
+                                 + (dhgrad_charge(idim) + MERGE(dhgrad_magnet(idim), 0.0_dp, nspin > 1))*rij(jdim)
+                              IF (nspin > 1) THEN
+                                 scc_strain_hint(ia, ib, idim, jdim, 2) = &
+                                    scc_strain_hint(ia, ib, idim, jdim, 2) &
+                                    + (dhgrad_charge(idim) - dhgrad_magnet(idim))*rij(jdim)
+                              END IF
+                           END DO
+                        END DO
+                     END IF
 
                   END DO
                END DO
-               ! Periodic self-image pairs share one atom in the sorted CP2K block representation.
-               IF (icol == jrow) THEN
-                  IF (sampled_image_pair) THEN
-                     dE(icol) = dE(icol) + cn_image_scale*0.5_dp*(itemp + jtemp)
-                  ELSE
-                     dE(icol) = dE(icol) + 0.5_dp*(itemp + jtemp)
-                  END IF
-               ELSE
-                  dE(icol) = dE(icol) + itemp
-                  dE(jrow) = dE(jrow) + jtemp
-               END IF
                tb%grad(:, icol) = tb%grad(:, icol) - dgrad
                tb%grad(:, jrow) = tb%grad(:, jrow) + dgrad
-               IF (tb%use_virial) THEN
+               IF (tb%use_virial .AND. .NOT. use_matrix_scc_stress) THEN
                   IF (icol == jrow) THEN
                      DO ia = 1, 3
                         DO ib = 1, 3
-                           IF (sampled_image_pair) THEN
-                              hsigma(ia, ib) = hsigma(ia, ib) - 0.25_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
+                           IF (sampled_image_pair .AND. .NOT. gamma_sampled_image_pair) THEN
+                              hsigma(ia, ib) = hsigma(ia, ib) - 0.25_dp* &
+                                               (rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
                            ELSE
-                              hsigma(ia, ib) = hsigma(ia, ib) + 0.25_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
+                              hsigma(ia, ib) = hsigma(ia, ib) + 0.25_dp* &
+                                               (rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
                            END IF
                         END DO
                      END DO
@@ -3762,43 +3740,64 @@ CONTAINS
                END IF
             END DO
          END DO
+         IF (ALLOCATED(scc_strain_hint)) THEN
+            DO ispin = 1, nspin
+               DO jdim = 1, 3
+                  DO idim = 1, 3
+                     IF (icol <= jrow) THEN
+                        scc_strain_blocks(idim, jdim, ispin)%block(:, :) = &
+                           scc_strain_blocks(idim, jdim, ispin)%block(:, :) &
+                           + scc_strain_hint(:, :, idim, jdim, ispin)
+                     ELSE
+                        scc_strain_blocks(idim, jdim, ispin)%block(:, :) = &
+                           scc_strain_blocks(idim, jdim, ispin)%block(:, :) &
+                           + TRANSPOSE(scc_strain_hint(:, :, idim, jdim, ispin))
+                     END IF
+                  END DO
+               END DO
+            END DO
+            DEALLOCATE (scc_strain_hint)
+         END IF
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
 
-      CALL para_env%sum(hsigma)
-      CALL para_env%sum(dE)
-      CALL para_env%max(non_nyquist_folded_seen)
-      CALL para_env%max(has_nyquist_image)
-      n_non_nyquist_images = COUNT(non_nyquist_folded_seen > 0)
-      n_cn_norm_images = 1 + n_non_nyquist_images + has_nyquist_image
-      ! GFN2-like multipole Hamiltonians fold the scalar CN response over
-      ! k-point image classes. Non-Nyquist classes need the central class plus
-      ! the sampled folded images, with one aggregate Nyquist class if present.
-      IF (has_multipole_response .AND. n_periodic == 3 .AND. n_non_nyquist_images > 0) &
-         cn_deriv_scale = 1.0_dp - 0.5_dp/REAL(n_cn_norm_images, dp)
-      dE = cn_deriv_scale*dE
+      IF (use_matrix_scc_stress) THEN
+         hsigma = 0.0_dp
+         DO img = 1, nimg
+            DO ispin = 1, nspin
+               DO jdim = 1, 3
+                  DO idim = 1, 3
+                     i = idim + 3*(jdim - 1) + 9*(ispin - 1)
+                     CALL dbcsr_finalize(matrix_dh_scc(i, img)%matrix)
+                     CALL dbcsr_dot(matrix_dh_scc(i, img)%matrix, matrix_p(ispin, img)%matrix, native_dot_tmp)
+                     ! Symmetric DBCSR storage represents both orientations of each assembled pair.
+                     hsigma(idim, jdim) = hsigma(idim, jdim) + 0.5_dp*native_dot_tmp
+                  END DO
+               END DO
+            END DO
+         END DO
+         CALL dbcsr_deallocate_matrix_set(matrix_dh_scc)
+      ELSE
+         CALL para_env%sum(hsigma)
+      END IF
       CALL para_env%sum(tb%grad)
-
-      CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
       CALL tb_grad2force(qs_env, tb, para_env, 4)
 
-      CALL tb_dump_sigma_component("before_h0_off", tb%sigma, para_env)
-      tb%sigma = tb%sigma + hsigma
-      CALL tb_dump_sigma_component("after_h0_off_direct", tb%sigma, para_env)
-      IF (tb%use_virial) THEN
-         CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
-         CALL tb_dump_sigma_component("after_h0_off_cn", tb%sigma, para_env)
-      END IF
+      IF (.NOT. use_matrix_scc_stress) tb%sigma = tb%sigma + hsigma
 
-      DEALLOCATE (dE)
-      DEALLOCATE (non_nyquist_folded_seen)
       DEALLOCATE (basis_set_list)
       DEALLOCATE (t_ov, t_d_ov)
       DEALLOCATE (t_dip, t_i_dip, t_j_dip)
       DEALLOCATE (t_quad, t_i_quad, t_j_quad)
       DEALLOCATE (idip, jdip, idip_mag, jdip_mag, iquad, jquad, iquad_mag, jquad_mag)
 
-      IF (tb%use_virial) CALL tb_add_stress(qs_env, tb, para_env)
+      IF (tb%use_virial) THEN
+         CALL tb_add_stress(qs_env, tb, para_env)
+         IF (use_matrix_scc_stress) THEN
+            CALL get_qs_env(qs_env=qs_env, virial=virial)
+            virial%pv_virial = virial%pv_virial - hsigma/para_env%num_pe
+         END IF
+      END IF
 
 #else
       MARK_USED(qs_env)
