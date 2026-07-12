@@ -1,5 +1,10 @@
 # How to make a SCF run converge
 
+Since CP2K version 2024.1, a failure in SCF convergence in a Quickstep calculation will abort the
+program by default. This means that after reaching [MAX_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.MAX_SCF)
+cycles (default 50), the value printed under the `Convergence` column does not meet
+[EPS_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.EPS_SCF).
+
 ```text
  *******************************************************************************
  *   ___                                                                       *
@@ -12,6 +17,8 @@
  * / \                                                            qs_scf.F:702 *
  *******************************************************************************
 ```
+
+Occasionally the symptom of diverging SCF cycles manifests as another error before hitting MAX_SCF.
 
 ```text
  *******************************************************************************
@@ -26,18 +33,9 @@
  *******************************************************************************
 ```
 
-Since CP2K 2024.1 version, a failure in SCF convergence in a Quickstep calculation aborts the
-program by default. This means that after reaching [MAX_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.MAX_SCF)
-cycles (50 by default), the value printed under the `Convergence` column does not meet
-[EPS_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.EPS_SCF). A variety of measures are available for
-converging the SCF to a reasonable result, which this page discusses, assuming that the reader has
-read [](../../getting-started/foreword-and-faq) and the other documentations under [](./index)
-first.
-
-```{note}
-At the moment, the convergence criterion does not take the absolute change in energy into account,
-and the convergence of the diagonalization algorithm differs from that of the OT algorithm.
-```
+This page discusses a variety of measures available for addressing these errors and converging to a
+reasonable SCF solution with good precision. It is assumed that the reader has read beforehand
+[](../../getting-started/foreword-and-faq) and the other documentations under [](./index).
 
 ```{danger}
 **Take your own risk and responsibility for ignoring convergence failure !!**
@@ -59,17 +57,28 @@ in the first place; any other tasks not preceded by it is like putting the cart 
 
 The very first ingredient of SCF convergence is a sensible input structure, applicable to every type
 of computation task including geometry and cell optimization, as elaborated on
-[](../../methods/optimization/geometry_and_cell_opt.md#starting-structure-and-cell).
+[](../optimization/geometry_and_cell_opt.md#starting-structure-and-cell). A good initial structure
+and a sufficiently small step size of structure evolution are favorable for the task types that
+involve atomic motion, as the [EXTRAPOLATION](#CP2K_INPUT.FORCE_EVAL.DFT.QS.EXTRAPOLATION) of
+wavefunction works best this way. Its usage is detailed elsewhere for
+[optimization](../optimization/geometry_and_cell_opt.md#extrapolation) and
+[molecular dynamics](../sampling/molecular_dynamics.md#extrapolation-of-the-electronic-initial-guess)
+and the rest of this page will focus on a single-point calculation without such convenience.
 
-On top of that, there is also the net charge and spin multiplicity as specified by keywords
-[CHARGE](#CP2K_INPUT.FORCE_EVAL.DFT.CHARGE) and
-[MULTIPLICITY](#CP2K_INPUT.FORCE_EVAL.DFT.MULTIPLICITY) respectively that should be set to represent
-the realistic electronic state. Use the [UKS](#CP2K_INPUT.FORCE_EVAL.DFT.UKS) keyword (or
+On top of a reasonable structure, there is also the net charge and electronic spin multiplicity as
+specified by a pair of keywords [CHARGE](#CP2K_INPUT.FORCE_EVAL.DFT.CHARGE) and
+[MULTIPLICITY](#CP2K_INPUT.FORCE_EVAL.DFT.MULTIPLICITY) respectively, that should represent a
+realistic electronic state. Use the [UKS](#CP2K_INPUT.FORCE_EVAL.DFT.UKS) keyword (`UKS` can be
 equivalently written as `LSD`) to request for an unrestricted, spin-polarized calculation of
-open-shell systems.
-
-If the geometry is reasonable, check whether the [XC](#CP2K_INPUT.FORCE_EVAL.DFT.XC) section or the
-respective section of model Hamiltonian has been set up correctly.
+open-shell systems. For instance, it is well-known that the dioxygen molecule $\mathrm{O_2}$ has a
+[triplet](https://en.wikipedia.org/wiki/Triplet_oxygen) ground state, and even the lowest
+[singlet](https://en.wikipedia.org/wiki/Singlet_oxygen) state is an excited state available from
+energetic conditions like in photochemical systems; unless singlet oxygen is really intended, the
+calculation of a dioxygen molecule should normally use `MULTIPLICITY 3` together with `UKS` so as to
+allow for two alpha electrons that do not get paired with beta electrons. But for more complicated
+cases such as multiple dioxygen molecules coexisting or a dioxygen molecule adsorbed on a surface,
+simply setting `MULTIPLICITY` may not be enough; this is where a delicate preparation of SCF initial
+guess would be necessary.
 
 The default of [SCF_GUESS](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SCF_GUESS) is `ATOMIC`, meaning that the
 initial wavefunction and density matrix is generated from the atomic density of each kind of atom.
@@ -111,6 +120,10 @@ gamma-only calculation by using the Harris functional for energy correction unde
 [DFT/ENERGY_CORRECTION](#CP2K_INPUT.FORCE_EVAL.DFT.ENERGY_CORRECTION).
 ```
 
+With the structure, electronic state and initial guess cleared, the next step is to check if the
+[XC](#CP2K_INPUT.FORCE_EVAL.DFT.XC) section or the respective section of model Hamiltonian has been
+set up correctly. Try searching the regtest input files for a reference.
+
 Some parameters that control the accuracy for Quickstep calculation, such as
 [EPS_DEFAULT](#CP2K_INPUT.FORCE_EVAL.DFT.QS.EPS_DEFAULT),
 [CUTOFF](#CP2K_INPUT.FORCE_EVAL.DFT.MGRID.CUTOFF) and
@@ -120,11 +133,17 @@ the more accurate and expensive side: even if each SCF iteration takes longer, t
 iterations to reach convergence may still be reduced.
 
 Similarly, higher number or density of k-points for the Brillouin-zone sampling may be beneficial,
-in particular if the cell is small and the system is not insulating. A convergence test for k-points
-with respect to the target property does not need to start with what is too low to make SCF
-converge.
+in particular if the cell is small (corresponding to long reciprocal-space lattice vectors) and the
+system is an electronic conductor or semi-conductor. A convergence test for k-points with respect to
+the target property does not need to start with what is too low to make SCF converge.
 
-## For diagonalization
+## Algorithm-specific considerations
+
+At the moment, the convergence criterion does not take the absolute change in energy into account,
+and the convergence of the diagonalization algorithm differs from that of the OT algorithm. Thus,
+these two algorithms are examined separately below.
+
+### For diagonalization
 
 The standard diagonalization algorithm for the Kohn-Sham matrix is activated by setting the
 [DIAGONALIZATION](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.DIAGONALIZATION) section, with full support for the
@@ -136,19 +155,31 @@ default conservative `DIRECT_P_MIXING` option may be swapped with `BROYDEN_MIXIN
 `KERKER_MIXING`, etc.
 
 Fractional occupation of molecular orbitals, or smearing, is enabled by the section
-[SMEAR](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR). It is very useful for systems with small to none band
-gap and strong static correlation. The possibilities provided by the keyword
-[METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR.METHOD) include Fermi-Dirac smearing at a certain
-[ELECTRONIC_TEMPERATURE](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR.ELECTRONIC_TEMPERATURE) and several
-broadening methods with width [SIGMA](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR.SIGMA); elevated
-ELECTRONIC_TEMPERATURE or SIGMA can handle difficult systems, but extrapolation to 0 is required to
-obtain results comparable with what without smearing.
+[SMEAR](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR) which is very useful for systems with small to none
+band gap and strong static correlation. The possibilities provided by the keyword
+[METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR.METHOD) include Fermi-Dirac distribution and several
+broadening methods like Gaussian broadening. An elevated
+[ELECTRONIC_TEMPERATURE](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR.ELECTRONIC_TEMPERATURE) for the
+Fermi-Dirac smearing can handle difficult systems, but extrapolation to 0 is required to obtain
+results comparable with what without smearing. Likewise, the Gaussian broadening should use a width
+[SIGMA](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.SMEAR.SIGMA) systematically reduced to 0. Also note that some
+algorithms is compatible only with the uniform occupation.
 
-## For OT
+### For OT
 
-Alternative to the diagonalization is the orbital transformation ({term}`OT`) method, activated by
-setting the [OT](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT) section. The most important settings are
-[ALGORITHM](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.ALGORITHM),
-[LINESEARCH](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.LINESEARCH),
-[MINIMIZER](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.MINIMIZER), and
+Alternative to the diagonalization is the minimization-based orbital transformation ({term}`OT`)
+method, activated by setting the [OT](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT) section. The most important
+settings are [ALGORITHM](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.ALGORITHM) for the algorithm,
+[LINESEARCH](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.LINESEARCH) and
+[MINIMIZER](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.MINIMIZER) for the minimization, and
 [PRECONDITIONER](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT.PRECONDITIONER).
+
+The [OUTER_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OUTER_SCF) section controls an outer loop where the
+OT preconditioner is updated. The conventional loop for updating Kohn-Sham matrix is the inner loop
+now: if [SCF/MAX_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.MAX_SCF) is met without satisfying
+[SCF/EPS_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.EPS_SCF), the program leaves the inner loop, updates
+the OT preconditioner as one iteration of the outer loop, then starts another inner loop. In this
+scenario, [SCF/MAX_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.MAX_SCF) can be reduced to about 16 to 32 so
+as to invoke the preconditioner maker with an adequate frequency balancing time cost and convergence
+behavior. Setting [SCF/OUTER_SCF/MAX_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OUTER_SCF.MAX_SCF) to about
+8 to 16 suffices for most situations.
