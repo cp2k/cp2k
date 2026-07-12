@@ -29,9 +29,7 @@ case "$with_plumed" in
     if verify_checksums "${install_lock_file}"; then
       echo "plumed-${plumed_ver} is already installed, skipping it."
     else
-      # retrieve_package "${plumed_sha256}" "${plumed_pkg}"
-      download_pkg_from_urlpath "${plumed_sha256}" "${plumed_pkg}" \
-        https://github.com/plumed/plumed2/releases/download/v${plumed_ver}
+      retrieve_package "${plumed_sha256}" "${plumed_pkg}"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d plumed-${plumed_ver} ] && rm -rf plumed-${plumed_ver}
       tar -xzf ${plumed_pkg}
