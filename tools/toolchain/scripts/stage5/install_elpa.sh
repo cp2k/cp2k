@@ -41,9 +41,7 @@ case "${with_elpa}" in
       echo "elpa-${elpa_ver} is already installed, skipping it."
     else
       require_env MATH_LIBS
-      # retrieve_package "${elpa_sha256}" "elpa-${elpa_ver}.tar.gz"
-      download_pkg_from_urlpath "${elpa_sha256}" "elpa-${elpa_ver}.tar.gz" \
-        https://elpa.mpcdf.mpg.de/software/tarball-archive/Releases/${elpa_ver}
+      retrieve_package "${elpa_sha256}" "elpa-${elpa_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d elpa-${elpa_ver} ] && rm -rf elpa-${elpa_ver}
       tar -xzf elpa-${elpa_ver}.tar.gz
