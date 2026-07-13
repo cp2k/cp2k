@@ -16,14 +16,14 @@ MODULE xtb_spinpol
    USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
-                                              dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_iterator_blocks_left,&
                                               dbcsr_iterator_next_block,&
                                               dbcsr_iterator_start,&
                                               dbcsr_iterator_stop,&
                                               dbcsr_iterator_type,&
-                                              dbcsr_p_type, dbcsr_type
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
@@ -65,6 +65,7 @@ CONTAINS
 !> \param ks_matrix ...
 !> \param matrix_p ...
 !> \param energy ...
+!> \param sap_int ...
 !> \param calculate_forces ...
 !> \param just_energy ...
 ! **************************************************************************************************
@@ -79,41 +80,38 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'build_xtb_spinpol'
 
-      INTEGER                                            :: atom_a, handle, iatom, ikind, is, na, ns, nspins, &
-                                                            natom, natorb, nimg, nkind, nsgf, lmax, la, lb, lma, &
-                                                            icol, irow, ia, ib, jkind, jatom, i, ic, nb, &
-                                                            atom_i, atom_j, iac
+      INTEGER :: atom_a, atom_i, atom_j, handle, i, ia, iac, iatom, ib, ic, icol, ikind, irow, &
+         jatom, jkind, la, lb, na, natom, natorb, nb, nimg, nkind, nsgf, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
-      LOGICAL                                            :: use_virial, defined, found
-      REAL(KIND=dp)                                      :: espin, dr, fval, fi, fo
-      REAL(KIND=dp), DIMENSION(3)                        :: rij, fij
-      REAL(KIND=dp), DIMENSION(5)                        :: pal
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: wall
+      LOGICAL                                            :: defined, found, use_virial
+      REAL(KIND=dp)                                      :: dr, espin, fi, fval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: docg
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, bocg, wab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: wabk
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: aksb, bksb, sblock, pamat, pbmat, dsblock
+      REAL(KIND=dp), DIMENSION(3)                        :: fij, rij
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: wall
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: aksb, bksb, dsblock, pamat, pbmat, sblock
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dsint
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p_kp, matrix_s, matrix_s_kp
       TYPE(dbcsr_type), POINTER                          :: s_matrix
-      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: n_list
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(virial_type), POINTER                         :: virial
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
@@ -136,7 +134,7 @@ CONTAINS
                          atprop=atprop)
 
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                                  kind_of=kind_of, &        
+                                  kind_of=kind_of, &
                                   atom_of_kind=atom_of_kind)
 
          use_virial = .FALSE.
@@ -149,7 +147,7 @@ CONTAINS
          CALL get_qs_env(qs_env, matrix_s_kp=matrix_s, para_env=para_env)
 
          ! expand parameters
-         ALLOCATE(wabk(nsgf, nsgf, nkind))
+         ALLOCATE (wabk(nsgf, nsgf, nkind))
          wabk = 0.0_dp
          DO ikind = 1, nkind
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
@@ -185,20 +183,20 @@ CONTAINS
             CALL get_atomic_kind(atomic_kind_set(ikind), natom=na)
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
             CALL get_xtb_atom_param(xtb_kind, defined=defined, natorb=natorb)
-            IF (.NOT. defined .OR. natorb < 1) CYCLE      
-            ALLOCATE(docg(natorb), wab(natorb, natorb))
+            IF (.NOT. defined .OR. natorb < 1) CYCLE
+            ALLOCATE (docg(natorb), wab(natorb, natorb))
             wab(1:natorb, 1:natorb) = wabk(1:natorb, 1:natorb, ikind)
             DO iatom = 1, na
                atom_a = atomic_kind_set(ikind)%atom_list(iatom)
                docg = 0.0_dp
                docg(1:natorb) = aocg(1:natorb, atom_a) - bocg(1:natorb, atom_a)
-               espin = 0.5_dp * DOT_PRODUCT(docg, MATMUL(wab, docg))
+               espin = 0.5_dp*DOT_PRODUCT(docg, MATMUL(wab, docg))
                energy%xtb_spinpol = energy%xtb_spinpol + espin
                IF (atprop%energy) THEN
                   atprop%atecoul(iatom) = atprop%atecoul(iatom) + espin
                END IF
             END DO
-            DEALLOCATE(docg, wab)
+            DEALLOCATE (docg, wab)
          END DO
 
          ! Forces and Virial
@@ -227,8 +225,8 @@ CONTAINS
                                          row=irow, col=icol, block=pbmat, found=found)
                   CPASSERT(found)
 
-                  na = SIZE(pamat,1)
-                  nb = SIZE(pamat,2)
+                  na = SIZE(pamat, 1)
+                  nb = SIZE(pamat, 2)
 
                   fval = 1.0_dp
 
@@ -239,8 +237,8 @@ CONTAINS
 
                      CALL fupdate(fi, pamat, pbmat, dsblock, na, nb, fval, &
                                   wabk(1:na, 1:na, ikind), wabk(1:nb, 1:nb, jkind), &
-                                  aocg(1:na,irow), aocg(1:nb,icol), bocg(1:na,irow), bocg(1:nb,icol))
- 
+                                  aocg(1:na, irow), aocg(1:nb, icol), bocg(1:na, irow), bocg(1:nb, icol))
+
                      force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i) + fi
                      force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
                   END DO
@@ -276,8 +274,8 @@ CONTAINS
                                  DO i = 1, 3
                                     CALL fupdate(fi, pamat, pbmat, dsint(:, :, i), na, nb, fval, &
                                                  wabk(1:na, 1:na, ikind), wabk(1:nb, 1:nb, jkind), &
-                                                 aocg(1:na,irow), aocg(1:nb,icol), &
-                                                 bocg(1:na,irow), bocg(1:nb,icol))
+                                                 aocg(1:na, irow), aocg(1:nb, icol), &
+                                                 bocg(1:na, irow), bocg(1:nb, icol))
                                     fij(i) = fi
                                  END DO
                                  fi = 1.0_dp
@@ -316,8 +314,8 @@ CONTAINS
                                          row=irow, col=icol, block=pbmat, found=found)
                   CPASSERT(found)
 
-                  na = SIZE(pamat,1)
-                  nb = SIZE(pamat,2)
+                  na = SIZE(pamat, 1)
+                  nb = SIZE(pamat, 2)
 
                   fval = 1.0_dp
                   IF (irow == iatom) fval = -1.0_dp
@@ -330,8 +328,8 @@ CONTAINS
 
                      CALL fupdate(fi, pamat, pbmat, dsblock, na, nb, fval, &
                                   wabk(1:na, 1:na, ikind), wabk(1:nb, 1:nb, jkind), &
-                                  aocg(1:na,irow), aocg(1:nb,icol), bocg(1:na,irow), bocg(1:nb,icol))
- 
+                                  aocg(1:na, irow), aocg(1:nb, icol), bocg(1:na, irow), bocg(1:nb, icol))
+
                      force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i) + fi
                      force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
                      fij(i) = fi
@@ -365,14 +363,14 @@ CONTAINS
                   CALL dbcsr_get_block_p(matrix=ks_matrix(2, 1)%matrix, &
                                          row=irow, col=icol, block=bksb, found=found)
                   CPASSERT(found)
-                  na = SIZE(aksb,1)
-                  nb = SIZE(aksb,2)
+                  na = SIZE(aksb, 1)
+                  nb = SIZE(aksb, 2)
                   ikind = kind_of(irow)
                   jkind = kind_of(icol)
                   fval = 0.5_dp
                   CALL ksupdate(aksb, bksb, sblock, na, nb, fval, &
                                 wabk(1:na, 1:na, ikind), wabk(1:nb, 1:nb, jkind), &
-                                aocg(1:na,irow), aocg(1:nb,icol), bocg(1:na,irow), bocg(1:nb,icol))
+                                aocg(1:na, irow), aocg(1:nb, icol), bocg(1:na, irow), bocg(1:nb, icol))
                END DO
                CALL dbcsr_iterator_stop(iter)
             ELSE
@@ -401,12 +399,12 @@ CONTAINS
                                          row=irow, col=icol, block=bksb, found=found)
                   CPASSERT(found)
 
-                  na = SIZE(aksb,1)
-                  nb = SIZE(aksb,2)
+                  na = SIZE(aksb, 1)
+                  nb = SIZE(aksb, 2)
                   fval = 0.5_dp
                   CALL ksupdate(aksb, bksb, sblock, na, nb, fval, &
                                 wabk(1:na, 1:na, ikind), wabk(1:nb, 1:nb, jkind), &
-                                aocg(1:na,irow), aocg(1:nb,icol), bocg(1:na,irow), bocg(1:nb,icol))
+                                aocg(1:na, irow), aocg(1:nb, icol), bocg(1:na, irow), bocg(1:nb, icol))
                END DO
                CALL neighbor_list_iterator_release(nl_iterator)
             END IF
@@ -421,6 +419,21 @@ CONTAINS
 
    END SUBROUTINE build_xtb_spinpol
 
+! **************************************************************************************************
+!> \brief ...
+!> \param aksb ...
+!> \param bksb ...
+!> \param sb ...
+!> \param na ...
+!> \param nb ...
+!> \param fval ...
+!> \param wabi ...
+!> \param wabj ...
+!> \param qai ...
+!> \param qaj ...
+!> \param qbi ...
+!> \param qbj ...
+! **************************************************************************************************
    SUBROUTINE ksupdate(aksb, bksb, sb, na, nb, fval, &
                        wabi, wabj, qai, qaj, qbi, qbj)
 
@@ -428,33 +441,45 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sb
       INTEGER, INTENT(IN)                                :: na, nb
       REAL(KIND=dp), INTENT(IN)                          :: fval
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: wabi
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: wabj
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: qai
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: qaj
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: qbi
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: qbj
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: wabi, wabj
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: qai, qaj, qbi, qbj
 
       INTEGER                                            :: ia, ib
-      REAL(KIND=dp), DIMENSION(na)                       :: dqa, wa 
-      REAL(KIND=dp), DIMENSION(nb)                       :: dqb, wb
+      REAL(KIND=dp), DIMENSION(na)                       :: dqa, wa
       REAL(KIND=dp), DIMENSION(na, nb)                   :: wqab
+      REAL(KIND=dp), DIMENSION(nb)                       :: dqb, wb
 
       dqa = qai - qbi
       dqb = qaj - qbj
       wa = MATMUL(wabi, dqa)
       wb = MATMUL(wabj, dqb)
-      DO ib=1,nb
-         DO ia=1,na
-            wqab(ia,ib) = fval * sb(ia,ib) * (wa(ia) + wb(ib))
+      DO ib = 1, nb
+         DO ia = 1, na
+            wqab(ia, ib) = fval*sb(ia, ib)*(wa(ia) + wb(ib))
          END DO
       END DO
-      
+
       aksb = aksb + wqab
       bksb = bksb - wqab
 
    END SUBROUTINE ksupdate
 
+! **************************************************************************************************
+!> \brief ...
+!> \param fij ...
+!> \param pa ...
+!> \param pb ...
+!> \param ds ...
+!> \param na ...
+!> \param nb ...
+!> \param fval ...
+!> \param wabi ...
+!> \param wabj ...
+!> \param qai ...
+!> \param qaj ...
+!> \param qbi ...
+!> \param qbj ...
+! **************************************************************************************************
    SUBROUTINE fupdate(fij, pa, pb, ds, na, nb, fval, &
                       wabi, wabj, qai, qaj, qbi, qbj)
 
@@ -463,17 +488,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ds
       INTEGER, INTENT(IN)                                :: na, nb
       REAL(KIND=dp), INTENT(IN)                          :: fval
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: wabi
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: wabj
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: qai
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: qaj
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: qbi
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: qbj
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: wabi, wabj
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: qai, qaj, qbi, qbj
 
       INTEGER                                            :: ia, ib
-      REAL(KIND=dp), DIMENSION(na)                       :: dqa, wa, dpsa
-      REAL(KIND=dp), DIMENSION(nb)                       :: dqb, wb, dpsb
+      REAL(KIND=dp), DIMENSION(na)                       :: dpsa, dqa, wa
       REAL(KIND=dp), DIMENSION(na, nb)                   :: dpab
+      REAL(KIND=dp), DIMENSION(nb)                       :: dpsb, dqb, wb
 
       dqa = qai - qbi
       dqb = qaj - qbj
@@ -482,15 +503,15 @@ CONTAINS
       dpab = pa - pb
       dpsa = 0.0_dp
       dpsb = 0.0_dp
-      DO ib=1,nb
-         DO ia=1,na
+      DO ib = 1, nb
+         DO ia = 1, na
             dpsa(ia) = dpsa(ia) + dpab(ia, ib)*ds(ia, ib)
             dpsb(ib) = dpsb(ib) + dpab(ia, ib)*ds(ia, ib)
          END DO
       END DO
- 
+
       fij = SUM(wa*dpsa) + SUM(wb*dpsb)
-      
+
    END SUBROUTINE fupdate
 
 END MODULE xtb_spinpol

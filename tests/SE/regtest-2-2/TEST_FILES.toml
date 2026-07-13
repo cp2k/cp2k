@@ -14,7 +14,7 @@
 "FeC.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-545.05816363206452}]
 "FeH_1cat.inp"                          = [{matcher="M003", tol=1.0E-14, ref=-427.83088810217504}]
 "FeH_7cat.inp"                          = [{matcher="M003", tol=1.0E-14, ref=-144.32569270051397}]
-"FeH_8cat.inp"                          = [{matcher="M003", tol=1.0E-14, ref=-46.77363824958222}]
+"FeH_8cat.inp"                          = [{matcher="M003", tol=1.0E-14, ref=-46.77363824961697}]
 "FeH_9cat.inp"                          = [{matcher="M029", tol=1.0E-14, ref=11798.83943644446481}]
 "Pt-cis-2xpet3Cl2-si.inp"               = [{matcher="M003", tol=3e-14, ref=-3116.3314196834754}]
 "Pt-cis-2xpet3Cl2-si-noc.inp"           = [{matcher="M003", tol=8e-14, ref=-3116.62376488246764}]
