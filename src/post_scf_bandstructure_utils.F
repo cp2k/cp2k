@@ -53,7 +53,8 @@ MODULE post_scf_bandstructure_utils
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
+                                              cp_to_string
    USE cp_parser_methods,               ONLY: read_float_object
    USE input_constants,                 ONLY: int_ldos_z,&
                                               large_cell_Gamma,&
@@ -83,6 +84,8 @@ MODULE post_scf_bandstructure_utils
    USE physcon,                         ONLY: angstrom,&
                                               evolt
    USE post_scf_bandstructure_types,    ONLY: band_edges_type,&
+                                              eps_qp_gap,&
+                                              max_qp_gap,&
                                               post_scf_bandstructure_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -2970,9 +2973,40 @@ CONTAINS
       CALL get_VBM_CBM_bandgaps(bs_env%band_edges_G0W0, bs_env%eigenval_G0W0, bs_env)
       CALL get_VBM_CBM_bandgaps(bs_env%band_edges_HF, bs_env%eigenval_HF, bs_env)
 
+      CALL check_qp_gap_sanity(bs_env)
+
       CALL timestop(handle)
 
    END SUBROUTINE get_all_VBM_CBM_bandgaps
+
+! **************************************************************************************************
+!> \brief Warn if the G0W0 fundamental band gap is inverted or implausibly large, i.e. if the
+!>        quasiparticle solve has produced a spectrum that cannot be physical.
+!> \param bs_env ...
+! **************************************************************************************************
+   SUBROUTINE check_qp_gap_sanity(bs_env)
+
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      REAL(KIND=dp)                                      :: gap, gap_scf
+
+      gap = bs_env%band_edges_G0W0%IDBG
+      gap_scf = bs_env%band_edges_scf%IDBG
+
+      ! requiring a healthy SCF gap keeps the inversion test from firing on a genuine metal
+      IF (gap < -eps_qp_gap .AND. gap_scf > eps_qp_gap) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "G0W0 band gap is negative ("// &
+                      TRIM(ADJUSTL(cp_to_string(gap*evolt, '(F12.3)')))//" eV): the quasiparticle "// &
+                      "spectrum is inverted. Check numerical parameters.")
+      ELSE IF (ABS(gap) > max_qp_gap) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "G0W0 band gap is implausibly large ("// &
+                      TRIM(ADJUSTL(cp_to_string(gap*evolt, '(F12.3)')))//" eV): the quasiparticle "// &
+                      "solve has likely diverged. Check numerical parameters.")
+      END IF
+
+   END SUBROUTINE check_qp_gap_sanity
 
 ! **************************************************************************************************
 !> \brief ...

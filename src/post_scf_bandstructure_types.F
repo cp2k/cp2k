@@ -45,6 +45,14 @@ MODULE post_scf_bandstructure_types
 
    PUBLIC :: post_scf_bandstructure_type, band_edges_type, data_3_type, bs_env_release
 
+   ! Sanity bounds on a fundamental quasiparticle gap, in Hartree: below -eps_qp_gap the spectrum is
+   ! inverted, above max_qp_gap the quasiparticle solve has diverged. eps_qp_gap is a noise tolerance,
+   ! low enough that a metal or a near-degenerate system does not trip the inversion test; max_qp_gap
+   ! sits far above any real valence gap (a few tens of eV) but is not derived from the all-electron
+   ! KS spread (~1000 eV), which would defeat the test.
+   REAL(KIND=dp), PARAMETER, PUBLIC                   :: eps_qp_gap = 0.01_dp/evolt, &
+                                                         max_qp_gap = 200.0_dp/evolt
+
    ! valence band maximum (VBM), conduction band minimum (CBM), direct band gap (DBG),
    ! indirect band gap (IDBG)
    TYPE band_edges_type

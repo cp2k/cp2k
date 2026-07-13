@@ -41,7 +41,9 @@ MODULE rt_bse_types
    USE qs_environment_types, ONLY: qs_environment_type, &
                                    get_qs_env
    USE force_env_types, ONLY: force_env_type
-   USE post_scf_bandstructure_types, ONLY: post_scf_bandstructure_type
+   USE post_scf_bandstructure_types, ONLY: post_scf_bandstructure_type, &
+                                           eps_qp_gap, &
+                                           max_qp_gap
    USE rt_propagation_types, ONLY: rt_prop_type
    USE rt_propagation_utils, ONLY: warn_section_unused
    USE gw_integrals, ONLY: build_3c_integral_block
@@ -55,6 +57,8 @@ MODULE rt_bse_types
                               rtp_bse_ham_g0w0, &
                               rtp_method_bse_linearized
    USE bse_util, ONLY: determine_cutoff_indices
+   USE cp_log_handling, ONLY: cp_to_string
+   USE physcon, ONLY: evolt
    USE mathconstants, ONLY: z_zero
    USE input_section_types, ONLY: section_vals_type, &
                                   section_vals_val_get, &
@@ -508,6 +512,7 @@ CONTAINS
       IF (rtbse_env%rirs_kernel .AND. bs_env%ri_rs%grid_select == 1) THEN
          CPWARN("linRTBSE RIRS: use GRID_SELECT=2 for accuracy")
       END IF
+      CALL check_qp_gap_sanity(rtbse_env, bs_env)
       CALL determine_active_mo_window(rtbse_env, bs_env)
       ! Owned active-MO matrix structure (currently identical to the full n_ao x n_ao struct
       ! when no truncation is active; will be used by the linearized RT-BSE allocation path).
@@ -972,6 +977,52 @@ CONTAINS
       NULLIFY (rtbse_env)
 
    END SUBROUTINE release_rtbse_env
+
+! **************************************************************************************************
+!> \brief Abort if the quasiparticle spectrum handed to the propagator is inverted or has diverged.
+!>
+!> Tests the fundamental gap per spin channel - not E(HOMO+1) - E(HOMO), since G0W0 reorders levels -
+!> on the very array the propagator consumes. Under RTBSE_HAMILTONIAN KS the quasiparticle energies
+!> never enter the propagator, so a broken G0W0 spectrum is irrelevant there and does not abort.
+!> \param rtbse_env RT-BSE environment with n_ao, n_occ, n_spin, ham_reference_type populated.
+!> \param bs_env Bandstructure environment providing the eigenvalues.
+! **************************************************************************************************
+   SUBROUTINE check_qp_gap_sanity(rtbse_env, bs_env)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      INTEGER                                            :: homo, ispin
+      REAL(KIND=dp)                                      :: gap, gap_scf
+
+      IF (rtbse_env%ham_reference_type /= rtp_bse_ham_g0w0) RETURN
+
+      DO ispin = 1, rtbse_env%n_spin
+         homo = rtbse_env%n_occ(ispin)
+         IF (homo < 1 .OR. homo >= rtbse_env%n_ao) CYCLE
+
+         gap = MINVAL(bs_env%eigenval_G0W0(homo + 1:rtbse_env%n_ao, 1, ispin)) - &
+               MAXVAL(bs_env%eigenval_G0W0(1:homo, 1, ispin))
+         gap_scf = MINVAL(bs_env%eigenval_scf_Gamma(homo + 1:rtbse_env%n_ao, ispin)) - &
+                   MAXVAL(bs_env%eigenval_scf_Gamma(1:homo, ispin))
+
+         ! requiring a healthy SCF gap keeps the inversion test from firing on a genuine metal
+         IF (gap < -eps_qp_gap .AND. gap_scf > eps_qp_gap) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "RTBSE: G0W0 gap of spin "//TRIM(ADJUSTL(cp_to_string(ispin)))// &
+                          " is negative ("//TRIM(ADJUSTL(cp_to_string(gap*evolt, '(F12.3)')))// &
+                          " eV): propagating an inverted spectrum is meaningless. Check the GW "// &
+                          "numerical parameters, or use RTBSE_HAMILTONIAN KS.")
+         ELSE IF (ABS(gap) > max_qp_gap) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "RTBSE: G0W0 gap of spin "//TRIM(ADJUSTL(cp_to_string(ispin)))// &
+                          " is implausibly large ("// &
+                          TRIM(ADJUSTL(cp_to_string(gap*evolt, '(F12.3)')))//" eV): the GW step "// &
+                          "has likely diverged. Check the GW numerical parameters, or use "// &
+                          "RTBSE_HAMILTONIAN KS.")
+         END IF
+      END DO
+
+   END SUBROUTINE check_qp_gap_sanity
 
 ! **************************************************************************************************
 !> \brief Determine the combined active MO window for linearized RT-BSE truncation.
