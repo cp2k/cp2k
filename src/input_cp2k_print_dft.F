@@ -2687,9 +2687,9 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: xas_mode
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection
+      TYPE(section_type), POINTER                        :: broaden_subsection, pdos_section, subsection
 
-      NULLIFY (subsection)
+      NULLIFY (broaden_subsection, pdos_section, subsection)
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -2699,67 +2699,15 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="DELTA_E", &
-                          description="Energy spacing of the broadened DOS/PDOS output grid.", &
-                          usage="DELTA_E 0.0005", type_of_var=real_t, default_r_val=0.001_dp)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_UNIT", &
-                          description="Energy unit used for the printed DOS/PDOS energy axis. "// &
-                          "For broadened spectra, intensities are converted consistently to the selected energy unit.", &
-                          usage="ENERGY_UNIT HARTREE", type_of_var=enum_t, &
-                          enum_c_vals=s2a("HARTREE", "EV"), &
-                          enum_i_vals=[1, 2], &
-                          enum_desc=s2a("Print energies in Hartree (a.u.).", &
-                                        "Print energies in electronvolt."), &
-                          default_i_val=1)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_ZERO", &
-                          description="Reference energy used for the printed DOS/PDOS energy axis. "// &
-                          "With AUTO, the Fermi energy is used if smearing is enabled or fractional "// &
-                          "occupations are found; otherwise the highest occupied crystal orbital is used.", &
-                          usage="ENERGY_ZERO AUTO", type_of_var=enum_t, &
-                          enum_c_vals=s2a("AUTO", "ABSOLUTE", "FERMI", "HOCO"), &
-                          enum_i_vals=[1, 2, 3, 4], &
-                          enum_desc=s2a("Choose FERMI for smeared or fractionally occupied systems, otherwise HOCO.", &
-                                        "Print absolute orbital energies.", &
-                                        "Shift orbital energies by the Fermi energy.", &
-                                        "Shift orbital energies by the highest occupied crystal orbital."), &
-                          default_i_val=1)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="BROADEN_TYPE", &
-                          description="Type of broadening function used to produce the DOS/PDOS curve.", &
-                          usage="BROADEN_TYPE GAUSSIAN", type_of_var=enum_t, &
-                          enum_c_vals=s2a("GAUSSIAN", "LORENTZIAN", "PSEUDO_VOIGT"), &
-                          enum_i_vals=[1, 2, 3], &
-                          enum_desc=s2a("Use a Gaussian broadening function.", &
-                                        "Use a Lorentzian broadening function.", &
-                                        "Use a pseudo-Voigt mixture of Lorentzian and Gaussian functions."), &
-                          default_i_val=1)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="BROADEN_WIDTH", &
-                          description="Full width at half maximum (FWHM) of the DOS/PDOS broadening function.", &
-                          usage="BROADEN_WIDTH [eV] 0.1", type_of_var=real_t, &
-                          default_r_val=cp_unit_to_cp2k(value=0.1_dp, unit_str="eV"), unit_str="eV")
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VOIGT_MIXING", &
-                          description="Lorentzian fraction of the pseudo-Voigt broadening function.", &
-                          usage="VOIGT_MIXING 0.5", type_of_var=real_t, default_r_val=0.5_dp)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
                           description="Specify the number of digits used to print DOS/PDOS values.", &
                           default_i_val=6)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DELTA_E", &
+                          description="Energy spacing of the DOS/PDOS output grid.", &
+                          usage="DELTA_E 0.0005", type_of_var=real_t, default_r_val=0.001_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2773,29 +2721,80 @@ CONTAINS
       CALL keyword_release(keyword)
 
       IF (.NOT. xas_mode) THEN
-         CALL section_create(subsection, __LOCATION__, name="PDOS", &
+         CALL section_create(pdos_section, __LOCATION__, name="PDOS", &
                              description="Controls the printing of kind-resolved projected DOS.", &
-                             n_keywords=2, n_subsections=0)
-         CALL keyword_create(keyword, __LOCATION__, name="COMPONENTS", &
-                             description="Print out PDOS distinguishing all angular momentum components.", &
-                             usage="COMPONENTS", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-         CALL section_add_keyword(subsection, keyword)
-         CALL keyword_release(keyword)
-
-         CALL keyword_create(keyword, __LOCATION__, name="RAW", &
-                             description="Print MO-resolved projected DOS weights to *.pdos_raw.", &
-                             usage="RAW", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-         CALL section_add_keyword(subsection, keyword)
-         CALL keyword_release(keyword)
-         CALL section_add_subsection(print_key, subsection)
-         CALL section_release(subsection)
+                             n_keywords=1, n_subsections=0)
       ELSE
-         CALL keyword_create(keyword, __LOCATION__, name="COMPONENTS", &
-                             description="Print out PDOS distinguishing all angular momentum components.", &
-                             usage="COMPONENTS", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-         CALL section_add_keyword(print_key, keyword)
-         CALL keyword_release(keyword)
+         pdos_section => print_key
       END IF
+      CALL keyword_create(keyword, __LOCATION__, name="COMPONENTS", &
+                          description="Print out PDOS distinguishing all angular momentum components.", &
+                          usage="COMPONENTS", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(pdos_section, keyword)
+      CALL keyword_release(keyword)
+      IF (.NOT. xas_mode) THEN
+         CALL section_add_subsection(print_key, pdos_section)
+         CALL section_release(pdos_section)
+      END IF
+
+      CALL section_create(subsection, __LOCATION__, name="CURVE", &
+                          description="Controls the printing of broadened DOS/PDOS curves.", &
+                          n_keywords=2, n_subsections=1, repeats=.FALSE.)
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_UNIT", &
+                          description="Energy unit used for the printed DOS/PDOS energy axis. "// &
+                          "Intensities are converted consistently to the selected energy unit.", &
+                          usage="ENERGY_UNIT HARTREE", type_of_var=enum_t, &
+                          enum_c_vals=s2a("HARTREE", "EV"), &
+                          enum_i_vals=[1, 2], &
+                          enum_desc=s2a("Print energies in Hartree (a.u.).", &
+                                        "Print energies in electronvolt."), &
+                          default_i_val=1)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_ZERO", &
+                          description="Reference energy used for the printed DOS/PDOS energy axis. "// &
+                          "With AUTO, the Fermi energy is used if smearing is enabled or fractional "// &
+                          "occupations are found; otherwise the highest occupied crystal orbital is used.", &
+                          usage="ENERGY_ZERO AUTO", type_of_var=enum_t, &
+                          enum_c_vals=s2a("AUTO", "ABSOLUTE", "FERMI", "HOCO"), &
+                          enum_i_vals=[1, 2, 3, 4], &
+                          enum_desc=s2a("Choose FERMI for smeared or fractionally occupied systems, otherwise HOCO.", &
+                                        "Print absolute orbital energies.", &
+                                        "Shift orbital energies by the Fermi energy.", &
+                                        "Shift orbital energies by the highest occupied crystal orbital."), &
+                          default_i_val=1)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_create(broaden_subsection, __LOCATION__, name="BROADEN", &
+                          description="Controls the line shape used for broadened DOS/PDOS curves.", &
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
+      CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
+                          description="Type of broadening function used to produce the DOS/PDOS curve.", &
+                          usage="TYPE GAUSSIAN", type_of_var=enum_t, &
+                          enum_c_vals=s2a("GAUSSIAN", "LORENTZIAN", "PSEUDO_VOIGT"), &
+                          enum_i_vals=[1, 2, 3], &
+                          enum_desc=s2a("Use a Gaussian broadening function.", &
+                                        "Use a Lorentzian broadening function.", &
+                                        "Use a pseudo-Voigt mixture of Lorentzian and Gaussian functions."), &
+                          default_i_val=1)
+      CALL section_add_keyword(broaden_subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="WIDTH", &
+                          description="Full width at half maximum (FWHM) of the DOS/PDOS broadening function.", &
+                          usage="WIDTH [eV] 0.1", type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=0.1_dp, unit_str="eV"), unit_str="eV")
+      CALL section_add_keyword(broaden_subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="VOIGT_MIXING", &
+                          description="Lorentzian fraction of the pseudo-Voigt broadening function.", &
+                          usage="VOIGT_MIXING 0.5", type_of_var=real_t, default_r_val=0.5_dp)
+      CALL section_add_keyword(broaden_subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(subsection, broaden_subsection)
+      CALL section_release(broaden_subsection)
+      CALL section_add_subsection(print_key, subsection)
+      CALL section_release(subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="OUT_EACH_STATE", &
                           variants=["OUT_EACH_MO"], &

@@ -28,10 +28,10 @@ used to assign the chemical character of the peaks or band edges.
 
 ```{important}
 Most of the DOS/PDOS functionality described below, including the unified
-`&DFT%PRINT%DOS` interface and the broadened, directly plottable `.dos` and `.pdos` files, is only
-available in CP2K 2026.2 and later versions. In earlier CP2K versions, `.dos` and `.pdos` referred
-to state-resolved raw outputs rather than broadened DOS/PDOS curves. The raw output of PDOS is
-preserved and now written as `.pdos_raw` through `&DFT%PRINT%DOS%PDOS%RAW` keyword.
+`&DFT%PRINT%DOS` interface and the `&CURVE` subsection for broadened, directly plottable
+DOS/PDOS curves, is only available in CP2K 2026.2 and later versions. The ordinary `.dos` and
+`.pdos` outputs keep the traditional non-broadened data, while `&CURVE` requests additional
+broadened curve output.
 ```
 
 ## Basic CP2K input
@@ -46,10 +46,14 @@ additionally write projected DOS files.
   &DFT
     &PRINT
       &DOS
-        ENERGY_UNIT EV
-        ENERGY_ZERO AUTO
-        BROADEN_WIDTH [eV] 0.1
         DELTA_E [eV] 0.01
+        &CURVE
+          ENERGY_UNIT EV
+          ENERGY_ZERO AUTO
+          &BROADEN
+            WIDTH [eV] 0.1
+          &END BROADEN
+        &END CURVE
         &PDOS
           COMPONENTS F
         &END PDOS
@@ -61,15 +65,18 @@ additionally write projected DOS files.
 
 Useful input keywords are documented in the input reference:
 
-- [ENERGY_UNIT](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.ENERGY_UNIT): print energies in Hartree or eV.
-- [ENERGY_ZERO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.ENERGY_ZERO): choose the reference energy.
-- [BROADEN_WIDTH](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.BROADEN_WIDTH),
-  [BROADEN_TYPE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.BROADEN_TYPE), and
-  [VOIGT_MIXING](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.VOIGT_MIXING): choose the line shape.
 - [DELTA_E](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.DELTA_E): choose the energy-grid spacing.
 - [NLUMO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.NLUMO): requested number of unoccupied states for
   DOS/PDOS.
-- [&PDOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.LDOS): request projected DOS on each element.
+- [&CURVE](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.CURVE): request additional broadened, directly
+  plottable DOS/PDOS curve output.
+- [ENERGY_UNIT](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.CURVE.ENERGY_UNIT): print curve energies in
+  Hartree or eV.
+- [ENERGY_ZERO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.CURVE.ENERGY_ZERO): choose the reference energy
+  for curve output.
+- [&BROADEN](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.CURVE.BROADEN): choose the line shape and
+  broadening width for curve output.
+- [&PDOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.PDOS): request projected DOS on each element.
 - [&LDOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.LDOS) and
   [&R_LDOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.R_LDOS): request atom-list or real-space local
   projected DOS.
@@ -78,7 +85,6 @@ For PDOS, there are some additional controls:
 
 - [COMPONENTS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.PDOS.COMPONENTS): split angular-momentum
   channels into individual components. This keyword also applies to `&LDOS` and `&R_LDOS`.
-- [RAW](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.PDOS.RAW): print raw state-resolved projected weights.
 
 ```{note}
 For diagonalization-based SCF calculations, the unoccupied states used for DOS/PDOS are those
@@ -91,8 +97,9 @@ separate post-SCF step.
 
 ### Choosing the energy reference
 
-Use [ENERGY_ZERO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.ENERGY_ZERO) to make different calculations
-and plots comparable.
+Use [ENERGY_ZERO](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.CURVE.ENERGY_ZERO) to make different curve
+plots comparable. This setting applies to broadened curve output, while ordinary non-curve outputs
+are not shifted by this setting.
 
 - `FERMI` is normally the appropriate zero for metals and smeared calculations.
 - `HOCO` places the highest occupied crystal orbital at zero. It is often more convenient for
@@ -101,7 +108,7 @@ and plots comparable.
 - `ABSOLUTE` prints the absolute Kohn-Sham eigenvalues.
 - `AUTO` selects `FERMI` when smearing or fractional occupations are present, and `HOCO` otherwise.
 
-The output header reports both reference energies and the selected zero, for example:
+The curve output header reports both reference energies and the selected zero, for example:
 
 ```text
 # E(Fermi) = 0.223578 a.u. = 6.08391 eV
@@ -110,9 +117,10 @@ The output header reports both reference energies and the selected zero, for exa
 ```
 
 When comparing several structures or charge states, choose the same energy-zero convention for all
-plots. If an absolute alignment is needed across different cells or surfaces, additional
-electrostatic-potential alignment may be required; changing the DOS zero alone is not a substitute
-for such an alignment.
+curve plots. In spin-polarized calculations, the two spin channels use the same reference energy so
+that alpha and beta curves remain on a common energy axis. If an absolute alignment is needed across
+different cells or surfaces, additional electrostatic-potential alignment may be required; changing
+the DOS zero alone is not a substitute for such an alignment.
 
 ## Broadening, k-points, and gaps
 
@@ -121,26 +129,29 @@ widths, can be affected by the calculation setup. Appropriate choices of the fun
 k-point sampling, smearing, unoccupied states, and broadening parameters are important for obtaining
 a reliable interpretation of the electronic structure.
 
-The broadened DOS replaces each discrete eigenvalue by a normalized line shape.
-[BROADEN_WIDTH](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.BROADEN_WIDTH) is the full width at half
-maximum (FWHM). The default value of 0.1 eV is a reasonable choice for most applications. Smaller
-values can be useful for resolving narrow features, small gaps, spin splittings, or defect states,
-whereas larger values mainly produce smoother curves and may hide such details.
+The broadened curve output replaces each discrete eigenvalue by a normalized line shape. The
+broadening [WIDTH](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.CURVE.BROADEN.WIDTH) is the full width at
+half maximum (FWHM). The default value of 0.1 eV is a reasonable choice for most applications.
+Smaller values can be useful for resolving narrow features, small gaps, spin splittings, or defect
+states, whereas larger values mainly produce smoother curves and may hide such details. Curve output
+requires `DELTA_E > 0`; if `DELTA_E <= 0`, CP2K skips the broadened curve output and prints a
+warning.
 
 DOS and PDOS usually require a denser k-point mesh than calculations aimed only at total energies,
 forces, or geometry optimization. A too sparse k-point mesh gives a DOS dominated by the discrete
 sampling of the Brillouin zone, especially near the band edges or the Fermi level. Broadening helps
 produce a smooth curve, but it should not be used as a substitute for insufficient k-point sampling.
 
-For molecular or very large supercell calculations with only the Gamma point, the DOS is a broadened
-representation of discrete levels. It can still be useful for assigning orbital character, but peak
-widths are chosen mainly for visualization rather than for Brillouin-zone integration.
+For molecular or very large supercell calculations with only the Gamma point, the broadened curve is
+a representation of discrete levels. It can still be useful for assigning orbital character, but
+peak widths are chosen mainly for visualization rather than for Brillouin-zone integration.
 
 ## Interpreting PDOS
 
-With `&PDOS`, CP2K writes projected DOS, usually one file per atomic kind and spin channel. A
-`.pdos` file contains a projected `total` column followed by angular-momentum or component-resolved
-columns:
+With `&PDOS`, CP2K writes projected DOS, usually one file per atomic kind and spin channel. The
+ordinary `.pdos` files contain state-resolved projected weights. If `&CURVE` is also requested, CP2K
+additionally writes broadened PDOS curve files with a projected `total` column followed by
+angular-momentum or component-resolved columns:
 
 ```text
 # Energy[eV]  total  s  p  d
@@ -153,7 +164,7 @@ into individual components:
 # Energy[eV]  total  s  py  pz  px  ...
 ```
 
-The `total` column in one `.pdos` file is the projected total for that atomic kind, not the total
+The `total` column in one PDOS curve file is the projected total for that atomic kind, not the total
 DOS of the full system. Summing the projected totals over all kinds should reproduce the total DOS
 up to numerical and output precision, provided that the same states and broadening are used.
 
@@ -178,18 +189,8 @@ contributions:
 For quantitative orbital populations, integrated PDOS values should be used with care because they
 depend on the projection scheme, basis set, and chosen energy window.
 
-[`RAW T`](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.DOS.PDOS.RAW) prints state-resolved projected weights in
-addition to the broadened `.pdos` files:
-
-```text
-&DOS
-  &PDOS
-    RAW T
-  &END PDOS
-&END DOS
-```
-
-The `RAW` option is currently not available with k-points calculations.
+State-resolved k-point PDOS output is currently not available. K-point PDOS is accumulated with
+k-point weights for the broadened curve output.
 
 ### Projection used for PDOS
 
@@ -213,38 +214,38 @@ then accumulated with the k-point weights to form the broadened PDOS.
 
 ### Using gnuplot
 
-The DOS and PDOS files can be plotted directly with [gnuplot](http://gnuplot.info/), since comment
-lines starting with `#` are ignored. For example, if the first column is the energy and the second
-column is the total DOS, a simple plot is
+The broadened DOS and PDOS curve files can be plotted directly with [gnuplot](http://gnuplot.info/),
+since comment lines starting with `#` are ignored. For example, if the first column is the energy
+and the second column is the total DOS, a simple plot is
 
 ```gnuplot
-plot "project-1.dos" using 1:2 with lines title "DOS"
+plot "project-curve-1.dos" using 1:2 with lines title "DOS"
 ```
 
 The plotted energy range can be restricted directly in the `plot` command. For example, to show only
 states within 5 eV of the chosen energy zero,
 
 ```gnuplot
-plot [-5:5] "project-1.dos" using 1:2 with lines title "DOS"
+plot [-5:5] "project-curve-1.dos" using 1:2 with lines title "DOS"
 ```
 
 Both the energy and DOS ranges can be limited in the same way:
 
 ```gnuplot
-plot [-5:5][0:*] "project-1.dos" using 1:2 with lines title "DOS"
+plot [-5:5][0:*] "project-curve-1.dos" using 1:2 with lines title "DOS"
 ```
 
-For PDOS files, different columns can be plotted together. For example, if the second column is the
-kind-resolved total PDOS and the following columns are angular-momentum components,
+For PDOS curve files, different columns can be plotted together. For example, if the second column
+is the kind-resolved total PDOS and the following columns are angular-momentum components,
 
 ```gnuplot
-plot [-5:5] "project-k1-1.pdos" using 1:2 with lines title "total", \
+plot [-5:5] "project-k1-curve-1.pdos" using 1:2 with lines title "total", \
             "" using 1:3 with lines title "s", \
             "" using 1:4 with lines title "p"
 ```
 
-When comparing DOS/PDOS with band structures, use the same energy zero, for example `FERMI` for
-metals or `HOCO` for many insulating and molecular systems.
+When comparing DOS/PDOS curves with band structures, use the same energy zero, for example `FERMI`
+for metals or `HOCO` for many insulating and molecular systems.
 
 ## Local projected DOS
 
@@ -283,8 +284,8 @@ generic PDOS format should not be interpreted as ordinary ground-state Kohn-Sham
 
 A typical XAS_TDP use is to assign intense spectral features to atomic or orbital character, for
 example to distinguish metal-centered, ligand-centered, or mixed transitions. In this context,
-broadening and energy-grid settings remain useful plotting controls, while ordinary DFT-DOS concepts
-such as Fermi-level alignment, HOCO alignment, or total DOS are usually not the relevant analysis
-target. See [&XAS%PRINT%PDOS](#CP2K_INPUT.FORCE_EVAL.DFT.XAS.PRINT.PDOS) and
+`DELTA_E` and `&CURVE` remain useful plotting controls, while ordinary DFT-DOS concepts such as
+Fermi-level alignment, HOCO alignment, or total DOS are usually not the relevant analysis target.
+See [&XAS%PRINT%PDOS](#CP2K_INPUT.FORCE_EVAL.DFT.XAS.PRINT.PDOS) and
 [&XAS_TDP%PRINT%PDOS](#CP2K_INPUT.FORCE_EVAL.DFT.XAS_TDP.PRINT.PDOS) for the corresponding input
 sections.

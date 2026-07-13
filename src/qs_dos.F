@@ -57,18 +57,19 @@ CONTAINS
 !> \param dft_section ...
 !> \param unoccupied_evals ...
 !> \param smearing_enabled ...
+!> \param write_curve_output ...
 !> \date    26.02.2008
 !> \par History:
 !> \author  JGH
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE calculate_dos(mos, dft_section, unoccupied_evals, smearing_enabled)
+   SUBROUTINE calculate_dos(mos, dft_section, unoccupied_evals, smearing_enabled, write_curve_output)
 
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(section_vals_type), POINTER                   :: dft_section
       TYPE(cp_1d_r_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: unoccupied_evals
-      LOGICAL, INTENT(IN), OPTIONAL                      :: smearing_enabled
+      LOGICAL, INTENT(IN), OPTIONAL                      :: smearing_enabled, write_curve_output
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_dos'
 
@@ -106,18 +107,32 @@ CONTAINS
       CALL section_vals_val_get(dft_section, "PRINT%DOS%DELTA_E", r_val=de)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%APPEND", l_val=append)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%NDIGITS", i_val=ndigits)
-      CALL section_vals_val_get(dft_section, "PRINT%DOS%ENERGY_UNIT", i_val=energy_unit)
-      CALL section_vals_val_get(dft_section, "PRINT%DOS%ENERGY_ZERO", i_val=energy_zero)
-      CALL section_vals_val_get(dft_section, "PRINT%DOS%BROADEN_TYPE", i_val=broaden_type)
-      CALL section_vals_val_get(dft_section, "PRINT%DOS%BROADEN_WIDTH", r_val=broaden_width)
-      CALL section_vals_val_get(dft_section, "PRINT%DOS%VOIGT_MIXING", r_val=voigt_mixing)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%ENERGY_UNIT", i_val=energy_unit)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%ENERGY_ZERO", i_val=energy_zero)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%BROADEN%TYPE", i_val=broaden_type)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%BROADEN%WIDTH", r_val=broaden_width)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%BROADEN%VOIGT_MIXING", r_val=voigt_mixing)
       IF (append .AND. iterstep > 1) THEN
          my_pos = "APPEND"
       ELSE
          my_pos = "REWIND"
       END IF
       ndigits = MIN(MAX(ndigits, 1), 10)
-      do_broaden = (broaden_width > 0.0_dp)
+      IF (PRESENT(write_curve_output)) THEN
+         IF (write_curve_output .AND. de <= 0.0_dp) THEN
+            CPWARN("Broadened DOS output requires DELTA_E > 0 and will be skipped")
+            CALL timestop(handle)
+            RETURN
+         END IF
+         IF (write_curve_output .AND. broaden_width <= 0.0_dp) THEN
+            CPWARN("Broadened DOS output requires a finite WIDTH and will be skipped")
+            CALL timestop(handle)
+            RETURN
+         END IF
+      END IF
+      do_broaden = .FALSE.
+      IF (PRESENT(write_curve_output)) do_broaden = write_curve_output
+      do_broaden = do_broaden .AND. (broaden_width > 0.0_dp)
       IF (do_broaden) de = MAX(de, 0.00001_dp)
 
       emin = 1.e10_dp
@@ -239,21 +254,28 @@ CONTAINS
       CASE (dos_energy_zero_absolute)
          energy_ref(:) = 0.0_dp
       CASE (dos_energy_zero_hoco)
-         energy_ref(:) = hoco(:)
+         energy_ref(:) = MAXVAL(hoco(1:nspins))
       CASE DEFAULT
-         energy_ref(:) = e_fermi(:)
+         energy_ref(:) = MAXVAL(e_fermi(1:nspins))
       END SELECT
-      energy_factor = dos_energy_scale(energy_unit)
-      density_factor = dos_density_scale(energy_unit)
-      energy_label = dos_energy_label(energy_unit)
+      IF (.NOT. do_broaden) energy_ref(:) = 0.0_dp
+      energy_factor = MERGE(dos_energy_scale(energy_unit), 1.0_dp, do_broaden)
+      density_factor = MERGE(dos_density_scale(energy_unit), 1.0_dp, do_broaden)
+      energy_label = dos_energy_label(MERGE(energy_unit, 1, do_broaden))
       zero_label = dos_energy_zero_label(resolved_energy_zero)
       IF (energy_zero == dos_energy_zero_auto) zero_label = "AUTO -> "//TRIM(zero_label)
       ev_factor = dos_energy_scale(dos_energy_unit_ev)
 
       my_act = "WRITE"
-      iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%DOS", &
-                                extension=".dos", file_position=my_pos, file_action=my_act, &
-                                file_form="FORMATTED")
+      IF (do_broaden) THEN
+         iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%DOS", &
+                                   extension=".dos", file_position=my_pos, file_action=my_act, &
+                                   file_form="FORMATTED", middle_name="curve")
+      ELSE
+         iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%DOS", &
+                                   extension=".dos", file_position=my_pos, file_action=my_act, &
+                                   file_form="FORMATTED")
+      END IF
       IF (iw > 0) THEN
          WRITE (UNIT=iw, FMT="(A,I0)") "# DOS at iteration step i = ", iterstep
          IF (nspins == 2) THEN
@@ -261,33 +283,48 @@ CONTAINS
                "# E(Fermi) = ", e_fermi(1:2), " a.u. = ", e_fermi(1:2)*ev_factor, " eV"
             WRITE (UNIT=iw, FMT="(A,2F12.6,A,2F12.6,A)") &
                "# E(HOCO)  = ", hoco(1:2), " a.u. = ", hoco(1:2)*ev_factor, " eV"
-            WRITE (UNIT=iw, FMT="(A,A)") "# Energy zero: ", TRIM(zero_label)
-            IF (do_broaden) CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
-            WRITE (UNIT=iw, FMT="(T2,A,A,A)") "#  "//TRIM(energy_label)//"  Alpha_Density    Occupation", &
-               "    "//TRIM(energy_label), "  Beta_Density     Occupation"
-            ! (2(F15.8,2F20.ndigits))
-            WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(2(F15.8,2F20.", ndigits, "))"
+            IF (do_broaden) THEN
+               WRITE (UNIT=iw, FMT="(A,A)") "# Energy zero: ", TRIM(zero_label)
+               CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
+            END IF
+            IF (do_broaden .OR. de > 0.0_dp) THEN
+               WRITE (UNIT=iw, FMT="(A,A,A)") "#  "//TRIM(energy_label)//"  Alpha_Density    Occupation", &
+                  "    Beta_Density     Occupation"
+               WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(F15.8,4F20.", ndigits, ")"
+            ELSE
+               WRITE (UNIT=iw, FMT="(A,A,A)") "#  "//TRIM(energy_label)//"  Alpha_Density    Occupation", &
+                  "    "//TRIM(energy_label), "  Beta_Density     Occupation"
+               WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(2(F15.8,2F20.", ndigits, "))"
+            END IF
          ELSE
             WRITE (UNIT=iw, FMT="(A,F12.6,A,F12.6,A)") &
                "# E(Fermi) = ", e_fermi(1), " a.u. = ", e_fermi(1)*ev_factor, " eV"
             WRITE (UNIT=iw, FMT="(A,F12.6,A,F12.6,A)") &
                "# E(HOCO)  = ", hoco(1), " a.u. = ", hoco(1)*ev_factor, " eV"
-            WRITE (UNIT=iw, FMT="(A,A)") "# Energy zero: ", TRIM(zero_label)
-            IF (do_broaden) CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
+            IF (do_broaden) THEN
+               WRITE (UNIT=iw, FMT="(A,A)") "# Energy zero: ", TRIM(zero_label)
+               CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
+            END IF
             WRITE (UNIT=iw, FMT="(A,A)") "# "//TRIM(energy_label), "       Density     Occupation"
             ! (F15.8,2F20.ndigits)
             WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(F15.8,2F20.", ndigits, ")"
          END IF
          DO i = 1, nhist
             IF (nspins == 2) THEN
-               e1 = (ehist(i, 1) - energy_ref(1))*energy_factor
-               e2 = (ehist(i, 2) - energy_ref(2))*energy_factor
-               ! fmtstr_data == "(2(F15.8,2F20.xx))"
                IF (do_broaden) THEN
-                  WRITE (UNIT=iw, FMT=fmtstr_data) e1, hist(i, 1)*density_factor, &
-                     occval(i, 1)*density_factor, e2, hist(i, 2)*density_factor, &
+                  eval = (ehist(i, 1) - energy_ref(1))*energy_factor
+                  WRITE (UNIT=iw, FMT=fmtstr_data) eval, hist(i, 1)*density_factor, &
+                     occval(i, 1)*density_factor, hist(i, 2)*density_factor, &
                      occval(i, 2)*density_factor
+               ELSE IF (de > 0.0_dp) THEN
+                  IF (hist(i, 1) == 0.0_dp .AND. occval(i, 1) == 0.0_dp .AND. &
+                      hist(i, 2) == 0.0_dp .AND. occval(i, 2) == 0.0_dp) CYCLE
+                  eval = ehist(i, 1)
+                  WRITE (UNIT=iw, FMT=fmtstr_data) eval, hist(i, 1), occval(i, 1), &
+                     hist(i, 2), occval(i, 2)
                ELSE
+                  e1 = ehist(i, 1)
+                  e2 = ehist(i, 2)
                   WRITE (UNIT=iw, FMT=fmtstr_data) e1, hist(i, 1), occval(i, 1), &
                      e2, hist(i, 2), occval(i, 2)
                END IF
@@ -300,6 +337,7 @@ CONTAINS
                ELSE
                   out_density = hist(i, 1)
                   out_occ = occval(i, 1)
+                  IF (out_density == 0.0_dp .AND. out_occ == 0.0_dp) CYCLE
                END IF
                WRITE (UNIT=iw, FMT=fmtstr_data) eval, out_density, out_occ
             END IF
@@ -316,15 +354,17 @@ CONTAINS
 !> \brief Compute and write density of states (kpoints)
 !> \param qs_env ...
 !> \param dft_section ...
+!> \param write_curve_output ...
 !> \date    26.02.2008
 !> \par History:
 !> \author  JGH
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE calculate_dos_kp(qs_env, dft_section)
+   SUBROUTINE calculate_dos_kp(qs_env, dft_section, write_curve_output)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: dft_section
+      LOGICAL, INTENT(IN), OPTIONAL                      :: write_curve_output
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_dos_kp'
 
@@ -388,20 +428,41 @@ CONTAINS
       CALL section_vals_val_get(dft_section, "PRINT%DOS%DELTA_E", r_val=de)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%APPEND", l_val=append)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%NDIGITS", i_val=ndigits)
-      CALL section_vals_val_get(dft_section, "PRINT%DOS%ENERGY_UNIT", i_val=energy_unit)
-      CALL section_vals_val_get(dft_section, "PRINT%DOS%ENERGY_ZERO", i_val=energy_zero)
-      CALL section_vals_val_get(dft_section, "PRINT%DOS%BROADEN_TYPE", i_val=broaden_type)
-      CALL section_vals_val_get(dft_section, "PRINT%DOS%BROADEN_WIDTH", r_val=broaden_width)
-      CALL section_vals_val_get(dft_section, "PRINT%DOS%VOIGT_MIXING", r_val=voigt_mixing)
-      ! ensure a lower value for the DOS grid width
-      de = MAX(de, 0.00001_dp)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%ENERGY_UNIT", i_val=energy_unit)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%ENERGY_ZERO", i_val=energy_zero)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%BROADEN%TYPE", i_val=broaden_type)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%BROADEN%WIDTH", r_val=broaden_width)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%CURVE%BROADEN%VOIGT_MIXING", r_val=voigt_mixing)
       IF (append .AND. iterstep > 1) THEN
          my_pos = "APPEND"
       ELSE
          my_pos = "REWIND"
       END IF
       ndigits = MIN(MAX(ndigits, 1), 10)
-      do_broaden = (broaden_width > 0.0_dp)
+      IF (PRESENT(write_curve_output)) THEN
+         IF (write_curve_output .AND. de <= 0.0_dp) THEN
+            CPWARN("Broadened k-point DOS output requires DELTA_E > 0 and will be skipped")
+            CALL timestop(handle)
+            IF (explicit) CALL kpoint_release(kpoints)
+            RETURN
+         END IF
+         IF (write_curve_output .AND. broaden_width <= 0.0_dp) THEN
+            CPWARN("Broadened k-point DOS output requires a finite WIDTH and will be skipped")
+            CALL timestop(handle)
+            IF (explicit) CALL kpoint_release(kpoints)
+            RETURN
+         END IF
+      ELSE IF (de <= 0.0_dp) THEN
+         CPWARN("K-point DOS output requires DELTA_E > 0 and will be skipped")
+         CALL timestop(handle)
+         IF (explicit) CALL kpoint_release(kpoints)
+         RETURN
+      END IF
+      ! ensure a lower value for the DOS grid width
+      de = MAX(de, 0.00001_dp)
+      do_broaden = .FALSE.
+      IF (PRESENT(write_curve_output)) do_broaden = write_curve_output
+      do_broaden = do_broaden .AND. (broaden_width > 0.0_dp)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
       nspins = dft_control%nspins
@@ -500,21 +561,28 @@ CONTAINS
       CASE (dos_energy_zero_absolute)
          energy_ref(:) = 0.0_dp
       CASE (dos_energy_zero_hoco)
-         energy_ref(:) = hoco(:)
+         energy_ref(:) = MAXVAL(hoco(1:nspins))
       CASE DEFAULT
-         energy_ref(:) = e_fermi(:)
+         energy_ref(:) = MAXVAL(e_fermi(1:nspins))
       END SELECT
-      energy_factor = dos_energy_scale(energy_unit)
-      density_factor = dos_density_scale(energy_unit)
-      energy_label = dos_energy_label(energy_unit)
+      IF (.NOT. do_broaden) energy_ref(:) = 0.0_dp
+      energy_factor = MERGE(dos_energy_scale(energy_unit), 1.0_dp, do_broaden)
+      density_factor = MERGE(dos_density_scale(energy_unit), 1.0_dp, do_broaden)
+      energy_label = dos_energy_label(MERGE(energy_unit, 1, do_broaden))
       zero_label = dos_energy_zero_label(resolved_energy_zero)
       IF (energy_zero == dos_energy_zero_auto) zero_label = "AUTO -> "//TRIM(zero_label)
       ev_factor = dos_energy_scale(dos_energy_unit_ev)
 
       my_act = "WRITE"
-      iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%DOS", &
-                                extension=".dos", file_position=my_pos, file_action=my_act, &
-                                file_form="FORMATTED")
+      IF (do_broaden) THEN
+         iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%DOS", &
+                                   extension=".dos", file_position=my_pos, file_action=my_act, &
+                                   file_form="FORMATTED", middle_name="curve")
+      ELSE
+         iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%DOS", &
+                                   extension=".dos", file_position=my_pos, file_action=my_act, &
+                                   file_form="FORMATTED")
+      END IF
       IF (iw > 0) THEN
          WRITE (UNIT=iw, FMT="(A,I0)") "# DOS at iteration step i = ", iterstep
          IF (nspins == 2) THEN
@@ -522,8 +590,10 @@ CONTAINS
                "# E(Fermi) = ", e_fermi(1:2), " a.u. = ", e_fermi(1:2)*ev_factor, " eV"
             WRITE (UNIT=iw, FMT="(A,2F12.6,A,2F12.6,A)") &
                "# E(HOCO)  = ", hoco(1:2), " a.u. = ", hoco(1:2)*ev_factor, " eV"
-            WRITE (UNIT=iw, FMT="(A,A)") "# Energy zero: ", TRIM(zero_label)
-            IF (do_broaden) CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
+            IF (do_broaden) THEN
+               WRITE (UNIT=iw, FMT="(A,A)") "# Energy zero: ", TRIM(zero_label)
+               CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
+            END IF
             WRITE (UNIT=iw, FMT="(A,A)") "#  "//TRIM(energy_label)//"  Alpha_Density    Occupation", &
                "   Beta_Density     Occupation"
             ! (F15.8,4F20.ndigits)
@@ -533,8 +603,10 @@ CONTAINS
                "# E(Fermi) = ", e_fermi(1), " a.u. = ", e_fermi(1)*ev_factor, " eV"
             WRITE (UNIT=iw, FMT="(A,F12.6,A,F12.6,A)") &
                "# E(HOCO)  = ", hoco(1), " a.u. = ", hoco(1)*ev_factor, " eV"
-            WRITE (UNIT=iw, FMT="(A,A)") "# Energy zero: ", TRIM(zero_label)
-            IF (do_broaden) CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
+            IF (do_broaden) THEN
+               WRITE (UNIT=iw, FMT="(A,A)") "# Energy zero: ", TRIM(zero_label)
+               CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
+            END IF
             WRITE (UNIT=iw, FMT="(A,A)") "#  "//TRIM(energy_label), "       Density     Occupation"
             ! (F15.8,2F20.ndigits)
             WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(F15.8,2F20.", ndigits, ")"
@@ -547,6 +619,8 @@ CONTAINS
                   WRITE (UNIT=iw, FMT=fmtstr_data) eval, hist(i, 1)*density_factor, &
                      occval(i, 1)*density_factor, hist(i, 2)*density_factor, occval(i, 2)*density_factor
                ELSE
+                  IF (hist(i, 1) == 0.0_dp .AND. occval(i, 1) == 0.0_dp .AND. &
+                      hist(i, 2) == 0.0_dp .AND. occval(i, 2) == 0.0_dp) CYCLE
                   WRITE (UNIT=iw, FMT=fmtstr_data) eval, hist(i, 1), occval(i, 1), &
                      hist(i, 2), occval(i, 2)
                END IF
@@ -558,6 +632,7 @@ CONTAINS
                ELSE
                   out_density = hist(i, 1)
                   out_occ = occval(i, 1)
+                  IF (out_density == 0.0_dp .AND. out_occ == 0.0_dp) CYCLE
                END IF
                WRITE (UNIT=iw, FMT=fmtstr_data) eval, out_density, out_occ
             END IF
