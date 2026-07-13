@@ -13,10 +13,6 @@ Required packages:
 The MACE version used for export should be compatible with the version
 used for training the model.
 
-The ASE package is optional and only used to generate the atomic
-number-to-element symbol mapping. A built-in periodic table fallback is
-provided when ASE is not available.
-
 After exporting, the CP2K-compatible `.pth` file can be loaded by CP2K
 through the LibTorch interface. No MACE, e3nn, or Python installation is
 required during CP2K simulations.
@@ -25,6 +21,7 @@ Usage:
     python create_cp2k_model.py my_mace.model --dtype float64 --head default
     -> writes  my_mace.model-cp2k.pth
 """
+
 import argparse
 import os
 from typing import Dict, Optional
@@ -35,11 +32,6 @@ import torch
 from e3nn.util import jit
 from e3nn.util.jit import compile_mode
 
-# A MACE model trained on GPU stores its e3nn submodules as TorchScript buffers
-# serialized on the CUDA device. e3nn's CodeGenMixin.__setstate__ restores them
-# with a bare `torch.jit.load(buffer)` (no map_location), which fails on a
-# CPU-only torch ("Could not run 'aten::empty_strided' ... 'CUDA' backend").
-# Force every torch.jit.load to map to CPU so such models load anywhere.
 _orig_jit_load = torch.jit.load
 
 
@@ -50,16 +42,15 @@ def _cpu_jit_load(*args, **kwargs):
 
 torch.jit.load = _cpu_jit_load
 
-# Z -> chemical symbol table (index == atomic number)
-try:
-    from ase.data import chemical_symbols
-except ImportError:  # minimal fallback, first 100 elements
-    chemical_symbols = ["X"] + """
-        H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co
-        Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb
-        Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os
-        Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm
-    """.split()
+# Z -> chemical symbol table (index == atomic number). Covers the dummy X plus
+# all 118 known elements, matching CP2K's src/common/periodic_table.F.
+chemical_symbols = ["X"] + """
+    H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co
+    Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb
+    Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os
+    Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm
+    Md No Lr Rf Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og
+""".split()
 
 
 @compile_mode("script")
@@ -166,9 +157,13 @@ def build_metadata(model: torch.nn.Module, dtype: str) -> Dict[str, str]:
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("model_path", help="Path to the trained MACE .model file")
-    p.add_argument("--head", default=None, help="Model head to export (multi-head models)")
+    p.add_argument(
+        "--head", default=None, help="Model head to export (multi-head models)"
+    )
     p.add_argument("--dtype", choices=["float64", "float32"], default="float64")
-    p.add_argument("--output", default=None, help="Output path (default: <model>-cp2k.pth)")
+    p.add_argument(
+        "--output", default=None, help="Output path (default: <model>-cp2k.pth)"
+    )
     return p.parse_args()
 
 
