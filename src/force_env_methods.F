@@ -543,11 +543,14 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       LOGICAL, INTENT(IN)                                :: fd_energy
 
+      REAL(KIND=dp), PARAMETER                           :: eps_cell = 1.0E-14_dp
+
       CHARACTER(LEN=default_string_length)               :: kp_scheme
       INTEGER                                            :: run_type_id
-      LOGICAL :: debug_full_kpoint_symmetry, debug_inversion_only, do_kpoints, dynamic_symmetry, &
-         full_grid, input_full_grid, input_inversion_symmetry_only, inversion_symmetry_only, &
-         kpoint_symmetry, moving_geometry, use_full_grid, use_inversion_symmetry_only
+      LOGICAL :: debug_full_kpoint_symmetry, debug_full_kpoint_symmetry_explicit, &
+         debug_inversion_only, do_kpoints, dynamic_symmetry, force_full_debug_symmetry, full_grid, &
+         input_full_grid, input_inversion_symmetry_only, inversion_symmetry_only, kpoint_symmetry, &
+         moving_geometry, non_lower_triangular_cell, use_full_grid, use_inversion_symmetry_only
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -599,23 +602,36 @@ CONTAINS
       input_full_grid = full_grid
       input_inversion_symmetry_only = inversion_symmetry_only
       debug_full_kpoint_symmetry = .FALSE.
+      debug_full_kpoint_symmetry_explicit = .FALSE.
       IF (ASSOCIATED(input)) THEN
          kpoint_section => section_vals_get_subs_vals(input, "DFT%KPOINTS")
          CALL section_vals_val_get(kpoint_section, "FULL_GRID", l_val=input_full_grid)
          CALL section_vals_val_get(kpoint_section, "INVERSION_SYMMETRY_ONLY", &
                                    l_val=input_inversion_symmetry_only)
          CALL section_vals_val_get(kpoint_section, "DEBUG_FULL_KPOINT_SYMMETRY", &
-                                   l_val=debug_full_kpoint_symmetry)
+                                   l_val=debug_full_kpoint_symmetry, &
+                                   explicit=debug_full_kpoint_symmetry_explicit)
       END IF
       ! Moving geometries and DEBUG finite differences must not reuse atomic symmetry from
       ! another geometry. Rebuild the k-point symmetry from the current cell and positions.
-      ! Keep numerical finite-difference energies and DFTB DEBUG checks on the established
-      ! inversion/time-reversal reduction.
+      ! An explicit DEBUG_FULL_KPOINT_SYMMETRY OFF keeps numerical finite-difference
+      ! energies and DFTB DEBUG checks on inversion/time-reversal reduction.
       debug_inversion_only = run_type_id == debug_run .AND. .NOT. debug_full_kpoint_symmetry .AND. &
                              (fd_energy .OR. dft_control%qs_control%dftb)
+      force_full_debug_symmetry = run_type_id == debug_run .AND. debug_full_kpoint_symmetry_explicit .AND. &
+                                  debug_full_kpoint_symmetry
       use_full_grid = input_full_grid
       use_inversion_symmetry_only = (input_inversion_symmetry_only .OR. debug_inversion_only) .AND. &
                                     (.NOT. use_full_grid)
+      ! Preserve restrictions selected during initial setup. The explicit DEBUG expert option
+      ! remains available for symmetry diagnostics on otherwise unsupported cell matrices.
+      IF (inversion_symmetry_only .AND. .NOT. force_full_debug_symmetry .AND. .NOT. use_full_grid) &
+         use_inversion_symmetry_only = .TRUE.
+      non_lower_triangular_cell = (ABS(cell%hmat(2, 1)) > eps_cell) .OR. &
+                                  (ABS(cell%hmat(3, 1)) > eps_cell) .OR. &
+                                  (ABS(cell%hmat(3, 2)) > eps_cell)
+      IF (non_lower_triangular_cell .AND. .NOT. force_full_debug_symmetry .AND. .NOT. use_full_grid) &
+         use_inversion_symmetry_only = .TRUE.
       dynamic_symmetry = kpoint_symmetry .AND. .NOT. use_full_grid .AND. &
                          .NOT. use_inversion_symmetry_only
       IF (run_type_id == debug_run .AND. .NOT. fd_energy .AND. .NOT. dynamic_symmetry .AND. &

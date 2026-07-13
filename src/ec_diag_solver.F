@@ -248,9 +248,9 @@ CONTAINS
       ! density matrices in real space
       tempmat => matrix_s(1, 1)%matrix
       CALL kpoint_density_transform(ec_env%kpoints, matrix_p, .FALSE., tempmat, &
-                                    ec_env%sab_orb, fmwork)
+                                    ec_env%sab_orb, fmwork, overlap_rs=matrix_s)
       CALL kpoint_density_transform(ec_env%kpoints, matrix_w, .TRUE., tempmat, &
-                                    ec_env%sab_orb, fmwork)
+                                    ec_env%sab_orb, fmwork, overlap_rs=matrix_s)
 
       ec_env%ekTS = 0.0_dp
       mos => ec_env%kpoints%kp_env(1)%kpoint_env%mos
@@ -711,4 +711,3 @@ CONTAINS
    END SUBROUTINE ec_ls_solver
 
 END MODULE ec_diag_solver
-

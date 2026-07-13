@@ -5,4 +5,14 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "si_kp_tblite_mixer_spglib.inp"         = [{matcher="E_total", tol=6.0E-7, ref=-14.73197235360055},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
+"bn_gfn1_kp_spglib_phase.inp"           = [{matcher="E_total", tol=1.0E-10, ref=-18.86184474675449},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"urea_gfn1_kp_spglib_boundary.inp"       = [{matcher="E_total", tol=1.0E-10, ref=-30.88452203095506},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=6}]
+"urea_gfn1_kp_spglib_cellopt.inp"        = [{matcher="M011", tol=1.0E-8, ref=-30.88891308320623},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=6}]
+"ice_viii_gfn2_kp_spglib_nonsymmorphic.inp" = [{matcher="E_total", tol=1.0E-10, ref=-40.76699240612732},
+                                                 {matcher="N_special_kpoints", tol=0.0, ref=6}]
+"ice_ix_gfn2_kp_k290_nonsymmorphic.inp" = [{matcher="E_total", tol=1.0E-10, ref=-61.12461062282138},
+                                            {matcher="N_special_kpoints", tol=0.0, ref=14}]
 #EOF

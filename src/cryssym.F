@@ -898,9 +898,7 @@ CONTAINS
 
             duplicate = .FALSE.
             DO jop = 1, nrot
-               IF (ALL(frot == srot(:, :, jop)) .AND. &
-                   ALL(ABS(csym%translations(1:3, iop) - csym%vt(1:3, jop) - &
-                           ANINT(csym%translations(1:3, iop) - csym%vt(1:3, jop))) <= eps)) THEN
+               IF (ALL(frot == srot(:, :, jop))) THEN
                   duplicate = .TRUE.
                   EXIT
                END IF
@@ -1716,12 +1714,14 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: a1, a2, a3, b1, b2, b3
       REAL(KIND=dp), INTENT(IN)                          :: alat
 
-      INTEGER                                            :: i, ibsign, iop, j, kr, nkpts
+      INTEGER                                            :: i, ibsign, iop, j, kr, nkpts, &
+                                                            nskipped_overlaps
       REAL(KIND=dp)                                      :: eps
       REAL(KIND=dp), DIMENSION(3)                        :: diff, rr, wcart
 
       nkpts = SIZE(wkp)
       eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
+      nskipped_overlaps = 0
 
       wkp = 0.0_dp
       kpop = 0
@@ -1755,8 +1755,11 @@ CONTAINS
                         csym%kplink(1, j) = i
                         wkp(i) = wkp(i) + 1.0_dp
                         kpop(j) = kr
-                     ELSE
-                        CPASSERT(csym%kplink(1, j) == i)
+                     ELSEIF (csym%kplink(1, j) /= i) THEN
+                        ! Approximate K290 operation sets need not be closed for structures whose
+                        ! coordinates lie close to several symmetry tolerances. Keep the existing
+                        ! disjoint orbit instead of aborting or double-counting this mesh point.
+                        nskipped_overlaps = nskipped_overlaps + 1
                      END IF
                      EXIT
                   END IF
@@ -1767,10 +1770,28 @@ CONTAINS
          END DO
       END DO
 
-      DO i = 1, nkpts
-         CPASSERT(csym%kplink(1, i) /= 0)
-         CPASSERT(kpop(i) /= 0)
-      END DO
+      IF (nskipped_overlaps > 0) THEN
+         wkp = 1.0_dp
+         CALL inversion_symm(xkp, wkp, csym%kplink(1, :))
+         DO i = 1, nkpts
+            IF (wkp(i) > 0.0_dp) THEN
+               kpop(i) = 1
+            ELSE
+               kpop(i) = 2
+            END IF
+         END DO
+         csym%nrtot = 0
+         csym%inversion_only = .TRUE.
+         CALL cp_warn(__LOCATION__, &
+                      "The K290 k-point operations produced overlapping, non-closed mesh orbits; "// &
+                      "falling back to inversion/time-reversal symmetry. Use SYMMETRY_BACKEND SPGLIB "// &
+                      "for full reduction by a closed crystallographic symmetry group.")
+      ELSE
+         DO i = 1, nkpts
+            CPASSERT(csym%kplink(1, i) /= 0)
+            CPASSERT(kpop(i) /= 0)
+         END DO
+      END IF
 
    END SUBROUTINE reduce_kpoint_mesh
 

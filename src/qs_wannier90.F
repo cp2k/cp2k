@@ -2751,6 +2751,9 @@ CONTAINS
 
       time_reversal = kpsym%rotp(isym) < 0
       reverse_phase = qs_kpoint%gamma_centered .AND. ANY(MOD(qs_kpoint%nkp_grid, 2) == 0)
+      IF (ASSOCIATED(kpsym%phase_mode)) THEN
+         IF (kpsym%phase_mode(isym) > 0) reverse_phase = kpsym%phase_mode(isym) == 2
+      END IF
       xkp_phase(1:3) = kpsym%xkp(1:3, isym)
       DO iatom = 1, natom
          source_atom = iatom
@@ -2764,9 +2767,9 @@ CONTAINS
             DEALLOCATE (src_r, src_i, dst_r, dst_i, ao_start, ao_size)
             RETURN
          END IF
-         arg = REAL(kpsym%fcell(1, source_atom, isym), KIND=dp)*xkp_phase(1) + &
-               REAL(kpsym%fcell(2, source_atom, isym), KIND=dp)*xkp_phase(2) + &
-               REAL(kpsym%fcell(3, source_atom, isym), KIND=dp)*xkp_phase(3)
+         arg = REAL(kpsym%fcell_gauge(1, source_atom, isym), KIND=dp)*xkp_phase(1) + &
+               REAL(kpsym%fcell_gauge(2, source_atom, isym), KIND=dp)*xkp_phase(2) + &
+               REAL(kpsym%fcell_gauge(3, source_atom, isym), KIND=dp)*xkp_phase(3)
          IF (ASSOCIATED(kpsym%kgphase)) THEN
             arg = arg + kpsym%kgphase(source_atom, isym)
          END IF

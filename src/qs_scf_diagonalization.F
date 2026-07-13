@@ -761,7 +761,7 @@ CONTAINS
          CALL kpoint_density_matrices(kpoints)
          ! density matrices in real space
          CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
-                                       matrix_s(1, 1)%matrix, sab_nl, fmwork)
+                                       matrix_s(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s)
       END IF
 
       CALL dbcsr_deallocate_matrix(rmatrix)
