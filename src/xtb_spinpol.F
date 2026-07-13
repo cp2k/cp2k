@@ -14,6 +14,7 @@ MODULE xtb_spinpol
                                               get_atomic_kind,&
                                               get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_type
+   USE bibliography,                    ONLY: Neugebauer2023
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
@@ -125,6 +126,8 @@ CONTAINS
       nimg = dft_control%nimages
 
       IF (nspins == 2) THEN
+
+         CALL cite_reference(Neugebauer2023)
 
          CALL get_qs_env(qs_env, &
                          qs_kind_set=qs_kind_set, &

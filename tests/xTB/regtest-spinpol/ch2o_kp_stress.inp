@@ -15,8 +15,8 @@
 &FORCE_EVAL
   STRESS_TENSOR ANALYTICAL
   &DFT
-    LSD
     CHARGE 0
+    LSD
     MULTIPLICITY 3
     &KPOINTS
       FULL_GRID ON
@@ -27,8 +27,8 @@
     &QS
       METHOD xTB
       &XTB
-        SPIN_POLARISATION T
         CHECK_ATOMIC_CHARGES F
+        SPIN_POLARISATION T
       &END XTB
     &END QS
     &SCF
@@ -36,7 +36,7 @@
       MAX_SCF 100
       SCF_GUESS MOPAC
       &MIXING
-         ALPHA 0.15
+        ALPHA 0.15
       &END MIXING
     &END SCF
   &END DFT
