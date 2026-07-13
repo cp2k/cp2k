@@ -80,8 +80,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'build_xtb_spinpol'
 
-      INTEGER :: atom_a, atom_i, atom_j, handle, i, ia, iac, iatom, ib, ic, icol, ikind, irow, &
-         jatom, jkind, la, lb, na, natom, natorb, nb, nimg, nkind, nsgf, nspins
+      INTEGER :: atom_a, atom_i, atom_j, handle, i, ia, iac, iatom, ib, ic, icol, ikind, iknd, &
+         irow, jatom, jkind, jknd, la, lb, na, natom, natorb, nb, nimg, nkind, nsgf, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(3)                              :: cellind
@@ -304,8 +304,17 @@ CONTAINS
                   ic = cell_to_index(cellind(1), cellind(2), cellind(3))
                   CPASSERT(ic > 0)
 
-                  atom_i = atom_of_kind(iatom)
-                  atom_j = atom_of_kind(jatom)
+                  IF (irow == iatom) THEN
+                     iknd = ikind
+                     jknd = jkind
+                     atom_i = atom_of_kind(iatom)
+                     atom_j = atom_of_kind(jatom)
+                  ELSE
+                     iknd = jkind
+                     jknd = ikind
+                     atom_i = atom_of_kind(jatom)
+                     atom_j = atom_of_kind(iatom)
+                  END IF
                   !
                   CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
                                          row=irow, col=icol, block=pamat, found=found)
@@ -318,7 +327,6 @@ CONTAINS
                   nb = SIZE(pamat, 2)
 
                   fval = 1.0_dp
-                  IF (irow == iatom) fval = -1.0_dp
 
                   fij = 0.0_dp
                   DO i = 1, 3
@@ -327,11 +335,11 @@ CONTAINS
                      CPASSERT(found)
 
                      CALL fupdate(fi, pamat, pbmat, dsblock, na, nb, fval, &
-                                  wabk(1:na, 1:na, ikind), wabk(1:nb, 1:nb, jkind), &
+                                  wabk(1:na, 1:na, iknd), wabk(1:nb, 1:nb, jknd), &
                                   aocg(1:na, irow), aocg(1:nb, icol), bocg(1:na, irow), bocg(1:nb, icol))
 
-                     force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i) + fi
-                     force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
+                     force(iknd)%rho_elec(i, atom_i) = force(iknd)%rho_elec(i, atom_i) + fi
+                     force(jknd)%rho_elec(i, atom_j) = force(jknd)%rho_elec(i, atom_j) - fi
                      fij(i) = fi
                   END DO
                   IF (use_virial) THEN
@@ -386,8 +394,8 @@ CONTAINS
                   ic = cell_to_index(cellind(1), cellind(2), cellind(3))
                   CPASSERT(ic > 0)
 
-                  ikind = kind_of(iatom)
-                  jkind = kind_of(jatom)
+                  ikind = kind_of(irow)
+                  jkind = kind_of(icol)
 
                   CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
                                          row=irow, col=icol, block=sblock, found=found)
