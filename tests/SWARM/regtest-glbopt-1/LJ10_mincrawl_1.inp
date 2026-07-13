@@ -58,6 +58,8 @@
     &END VELOCITY_SOFTENING
   &END MD
   &PRINT  ! IO is expensive, turning everything off
+    &FINAL_STRUCTURE OFF
+    &END FINAL_STRUCTURE
     &RESTART OFF
     &END RESTART
     &RESTART_HISTORY OFF
