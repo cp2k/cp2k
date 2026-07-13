@@ -55,6 +55,7 @@ MODULE mathlib
              multinomial, &
              det_3x3, &
              dihedral_angle, &
+             digamma, &
              gcd, &
              inv_3x3, &
              lcm, &
@@ -1384,6 +1385,134 @@ CONTAINS
       END IF
 
    END FUNCTION ei
+
+! **************************************************************************************************
+!> \brief Computes the digamma function, the logarithmic derivative of the gamma function.
+!> \param xx Argument of the digamma function.
+!> \return The digamma function at xx. Returns zero at poles and for arguments outside the
+!>         supported numerical range.
+!> \par History
+!>      Adapted from the FUNPACK routine PSI, written at Argonne National Laboratory and modified
+!>      by A. H. Morris (NSWC).
+!> \note The implementation uses the rational Chebyshev approximations of Cody, Strecok, and
+!>       Thacher, Math. Comp. 27, 123-127 (1973), together with the reflection formula.
+! **************************************************************************************************
+   PURE FUNCTION digamma(xx) RESULT(fn_val)
+      REAL(dp), INTENT(IN)                               :: xx
+      REAL(dp)                                           :: fn_val
+
+      REAL(dp), PARAMETER :: dx0 = 1.461632144968362341262659542325721325e0_dp, p1(7) = [ &
+         .895385022981970e-02_dp, .477762828042627e+01_dp, .142441585084029e+03_dp, &
+         .118645200713425e+04_dp, .363351846806499e+04_dp, .413810161269013e+04_dp, &
+         .130560269827897e+04_dp], p2(4) = [-.212940445131011e+01_dp, -.701677227766759e+01_dp, &
+         -.448616543918019e+01_dp, -.648157123766197e+00_dp], piov4 = .785398163397448e0_dp, q1(6) &
+         = [.448452573429826e+02_dp, .520752771467162e+03_dp, .221000799247830e+04_dp, &
+         .364127349079381e+04_dp, .190831076596300e+04_dp, .691091682714533e-05_dp]
+      REAL(dp), PARAMETER :: q2(4) = [.322703493791143e+02_dp, .892920700481861e+02_dp, &
+         .546117738103215e+02_dp, .777788548522962e+01_dp]
+
+      INTEGER                                            :: i, m, n, nq
+      REAL(dp)                                           :: aug, den, sgn, upper, w, x, xmax1, xmx0, &
+                                                            xsmall, z
+
+! piov4 is pi/4 and dx0 is the positive zero of the digamma function. The coefficient sets
+! p1/q1 approximate digamma(x)/(x - dx0) for 0.5 <= x <= 3, while p2/q2 approximate
+! digamma(x) - log(x) + 1/(2*x) for x > 3.
+
+      ! xmax1 limits integer argument reduction for large negative values and marks the point beyond
+      ! which the asymptotic value log(x) is sufficient. For very small x, pi*cot(pi*x) is
+      ! approximated by 1/x.
+      xmax1 = MIN(REAL(HUGE(0), KIND=dp), 1.0e0_dp/EPSILON(1.0e0_dp))
+      xsmall = 1.e-9_dp
+
+      x = xx
+      aug = 0.0e0_dp
+      IF (x < 0.5e0_dp) THEN
+         ! Use digamma(x) = digamma(1 - x) - pi*cot(pi*x).
+         IF (ABS(x) <= xsmall) THEN
+            IF (x == 0.0e0_dp) THEN
+               ! The digamma function has a pole at zero.
+               fn_val = 0.0e0_dp
+               RETURN
+            END IF
+            ! For small nonzero x, use -1/x for -pi*cot(pi*x).
+            aug = -1.0e0_dp/x
+            x = 1.0e0_dp - x
+         ELSE
+            ! Reduce the cotangent argument to the first quadrant and keep track of its sign.
+            w = -x
+            sgn = piov4
+            IF (w <= 0.0e0_dp) THEN
+               w = -w
+               sgn = -sgn
+            END IF
+            IF (w >= xmax1) THEN
+               ! Argument reduction is no longer reliable.
+               fn_val = 0.0e0_dp
+               RETURN
+            END IF
+            nq = INT(w)
+            w = w - nq
+            nq = INT(w*4.0e0_dp)
+            w = 4.0e0_dp*(w - nq*.25e0_dp)
+
+            n = nq/2
+            IF ((n + n) /= nq) w = 1.0e0_dp - w
+            z = piov4*w
+            m = n/2
+            IF ((m + m) /= n) sgn = -sgn
+
+            ! Evaluate -pi*cot(pi*x), using either tan(z) or cot(z) after quadrant reduction.
+            n = (nq + 1)/2
+            m = n/2
+            m = m + m
+            IF (m /= n) THEN
+               aug = sgn*((SIN(z)/COS(z))*4.0e0_dp)
+            ELSE
+               IF (z == 0.0e0_dp) THEN
+                  ! Negative integers are poles of the digamma function.
+                  fn_val = 0.0e0_dp
+                  RETURN
+               END IF
+               aug = sgn*((COS(z)/SIN(z))*4.0e0_dp)
+            END IF
+            x = 1.0e0_dp - x
+         END IF
+      END IF
+
+      IF (x <= 3.0e0_dp) THEN
+         ! Rational approximation on 0.5 <= x <= 3.
+         den = x
+         upper = p1(1)*x
+
+         DO i = 1, 5
+            den = (den + q1(i))*x
+            upper = (upper + p1(i + 1))*x
+         END DO
+
+         den = (upper + p1(7))/(den + q1(6))
+         xmx0 = x - dx0
+         fn_val = den*xmx0 + aug
+         RETURN
+      END IF
+
+      IF (x < xmax1) THEN
+         ! Asymptotic rational correction for 3 < x < xmax1.
+         w = 1.0e0_dp/(x*x)
+         den = w
+         upper = p2(1)*w
+
+         DO i = 1, 3
+            den = (den + q2(i))*w
+            upper = (upper + p2(i + 1))*w
+         END DO
+
+         aug = upper/(den + q2(4)) - 0.5e0_dp/x + aug
+      END IF
+      ! For x >= xmax1, the correction is negligible and this reduces to log(x).
+      fn_val = aug + LOG(x)
+
+   END FUNCTION digamma
 
 ! **************************************************************************************************
 !> \brief computes the exponential integral
