@@ -165,6 +165,7 @@ MODULE xtb_parameters
 ! *** Public data types ***
 
    PUBLIC :: xtb_parameters_init, xtb_parameters_set, init_xtb_basis, xtb_set_kab
+   PUBLIC :: xtb_spinpol_init, xtb_spinpol_ext
    PUBLIC :: metal, early3d, pp_gfn0
 
 CONTAINS
@@ -467,6 +468,112 @@ CONTAINS
       CALL parser_release(parser)
 
    END SUBROUTINE xtb1_parameters_init
+
+! **************************************************************************************************
+!> \brief ...
+!> \param param ...
+!> \param gfn_type ...
+!> \param element_symbol ...
+!> \param parameter_file_path ...
+!> \param spinpol_param_file_name ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE xtb_spinpol_init(param, gfn_type, element_symbol, parameter_file_path, spinpol_param_file_name, &
+                               para_env)
+
+      TYPE(xtb_atom_type), POINTER                       :: param
+      INTEGER, INTENT(IN)                                :: gfn_type
+      CHARACTER(LEN=2), INTENT(IN)                       :: element_symbol
+      CHARACTER(LEN=*), INTENT(IN)                       :: parameter_file_path, &
+                                                            spinpol_param_file_name
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(len=default_string_length)               :: filename
+      INTEGER                                            :: zin, znum
+      LOGICAL                                            :: at_end
+      TYPE(cp_parser_type)                               :: parser
+
+      SELECT CASE (gfn_type)
+      CASE (0)
+         CPABORT("gfn_type = 0: No spin polarisation possible!")
+      CASE (1)
+         ! OK
+      CASE (2)
+         CPABORT("gfn_type = 2 not yet supported")
+      CASE DEFAULT
+         CPABORT("Wrong gfn_type")
+      END SELECT
+
+      filename = ADJUSTL(TRIM(parameter_file_path))//ADJUSTL(TRIM(spinpol_param_file_name))
+      CALL parser_create(parser, filename, apply_preprocessing=.FALSE., para_env=para_env)
+      znum = 0
+      param%wall = 0.0_dp
+      CALL get_ptable_info(element_symbol, znum)
+      DO
+         at_end = .FALSE.
+         CALL parser_get_next_line(parser, 1, at_end)
+         IF (at_end) EXIT
+         CALL parser_get_object(parser, zin)
+         IF (zin == znum) THEN
+            CALL parser_get_object(parser, param%wall(1, 1))
+            CALL parser_get_object(parser, param%wall(1, 2))
+            CALL parser_get_object(parser, param%wall(2, 2))
+            CALL parser_get_object(parser, param%wall(1, 3))
+            CALL parser_get_object(parser, param%wall(2, 3))
+            CALL parser_get_object(parser, param%wall(3, 3))
+            param%wall(2, 1) = param%wall(1, 2)
+            param%wall(3, 1) = param%wall(1, 3)
+            param%wall(3, 2) = param%wall(2, 3)
+         END IF
+      END DO
+      CALL parser_release(parser)
+
+   END SUBROUTINE xtb_spinpol_init
+
+! **************************************************************************************************
+!> \brief ...
+!> \param param ...
+!> \param gfn_type ...
+!> \param xtb_control ...
+! **************************************************************************************************
+   SUBROUTINE xtb_spinpol_ext(param, gfn_type, xtb_control)
+      TYPE(xtb_atom_type), POINTER                       :: param
+      INTEGER, INTENT(IN)                                :: gfn_type
+      TYPE(xtb_control_type), INTENT(IN), POINTER        :: xtb_control
+
+      INTEGER                                            :: i
+
+      SELECT CASE (gfn_type)
+      CASE (0)
+         CPABORT("gfn_type = 0: No spin polarisation possible!")
+      CASE (1)
+         ! OK
+      CASE (2)
+         CPABORT("gfn_type = 2 not yet supported")
+      CASE DEFAULT
+         CPABORT("Wrong gfn_type")
+      END SELECT
+
+      IF (param%defined) THEN
+         IF (ASSOCIATED(xtb_control%spinpol_type)) THEN
+            DO i = 1, SIZE(xtb_control%spinpol_type)
+               IF (xtb_control%spinpol_type(i) == param%z) THEN
+                  param%wall(1, 1) = xtb_control%spinpol_vals(1, i)
+                  param%wall(1, 2) = xtb_control%spinpol_vals(2, i)
+                  param%wall(2, 2) = xtb_control%spinpol_vals(3, i)
+                  param%wall(1, 3) = xtb_control%spinpol_vals(4, i)
+                  param%wall(2, 3) = xtb_control%spinpol_vals(5, i)
+                  param%wall(3, 3) = xtb_control%spinpol_vals(6, i)
+                  param%wall(2, 1) = param%wall(1, 2)
+                  param%wall(3, 1) = param%wall(1, 3)
+                  param%wall(3, 2) = param%wall(2, 3)
+                  EXIT
+               END IF
+            END DO
+         END IF
+      END IF
+
+   END SUBROUTINE xtb_spinpol_ext
 
 ! **************************************************************************************************
 !> \brief Read atom parameters for xTB Hamiltonian from input file

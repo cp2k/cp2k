@@ -571,6 +571,9 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
+      IF (ls_scf_env%do_pao) THEN
+         CPABORT("LS_SCF%LS_DIIS not compatible with PAO")
+      END IF
       nspin = ls_scf_env%nspins
       diis_step = .FALSE.
       my_nmixing = 2

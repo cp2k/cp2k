@@ -73,6 +73,7 @@ MODULE xtb_coulomb
                                               sap_int_type
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
+   USE xtb_spinpol,                     ONLY: build_xtb_spinpol
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
 #include "./base/base_uses.f90"
@@ -642,6 +643,12 @@ CONTAINS
          CALL build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge, energy, xgamma, zeffk, &
                                    sap_int, calculate_forces, just_energy)
          DEALLOCATE (zeffk, xgamma)
+      END IF
+
+      IF (xtb_control%do_spinpol) THEN
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+         CALL build_xtb_spinpol(qs_env, ks_matrix, matrix_p, energy, &
+                                sap_int, calculate_forces, just_energy)
       END IF
 
       ! QMMM

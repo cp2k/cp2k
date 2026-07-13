@@ -1259,7 +1259,6 @@ CONTAINS
       pdiag(:) = 0.0_dp
 
       ALLOCATE (sdiag(nao))
-
       sdiag(:) = 0.0_dp
       IF (has_unit_metric) THEN
          sdiag(:) = 1.0_dp
@@ -1341,13 +1340,14 @@ CONTAINS
                   isgfa = first_sgf(atom_a)
                   IF (z == 1 .AND. nsgf == 2) THEN
                      ! Hydrogen 2s basis
-                     pdiag(isgfa) = 1.0_dp
+                     pdiag(isgfa) = 1.0_dp/REAL(nspin, dp)
                      pdiag(isgfa + 1) = 0.0_dp
                   ELSE
                      DO isgf = 1, nsgf
                         na = naox(isgf)
                         la = laox(isgf)
                         occ = REAL(occupation(la + 1), dp)/REAL(2*la + 1, dp)
+                        occ = occ/REAL(nspin, dp)
                         pdiag(isgfa + isgf - 1) = occ
                      END DO
                   END IF
@@ -1456,8 +1456,11 @@ CONTAINS
             END DO
             DO ispin = 1, nspin
                IF (nelectron_spin(ispin) /= 0) THEN
+                  rscale = SUM(pdiag)/REAL(nelectron_spin(ispin), dp)
                   matrix_p => pmat(ispin)%matrix
+                  pdiag = rscale*pdiag
                   CALL dbcsr_set_diag(matrix_p, pdiag)
+                  pdiag = pdiag/rscale
                END IF
             END DO
          ELSE

@@ -431,8 +431,9 @@ CONTAINS
          energy%qmmm_el = energy%qmmm_el + pc_ener
       END IF
 
-      energy%total = energy%core + energy%hartree + energy%efield + energy%qmmm_el + &
-                     energy%repulsive + energy%dispersion + energy%dftb3 + energy%kTS
+      energy%total = energy%core + energy%repulsive + &
+                     energy%hartree + energy%xtb_spinpol + energy%efield + &
+                     energy%qmmm_el + energy%dispersion + energy%dftb3 + energy%kTS
 
       iounit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
                                     extension=".scfLog")
@@ -442,6 +443,10 @@ CONTAINS
             "Zeroth order Hamiltonian energy:               ", energy%core, &
             "Charge fluctuation energy:                     ", energy%hartree, &
             "London dispersion energy:                      ", energy%dispersion
+         IF (dft_control%qs_control%xtb_control%do_spinpol) THEN
+            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
+            "Spin polarisation correction:         ", energy%xtb_spinpol
+         END IF
          IF (dft_control%qs_control%xtb_control%xb_interaction) THEN
             WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
                "Correction for halogen bonding:                ", energy%xtb_xb_inter

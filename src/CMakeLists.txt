@@ -884,6 +884,7 @@ list(
   xray_diffraction.F
   xtb_qresp.F
   xtb_coulomb.F
+  xtb_spinpol.F
   xtb_eeq.F
   xtb_ehess.F
   xtb_ehess_force.F
