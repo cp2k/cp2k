@@ -70,6 +70,7 @@ QS/regtest-ot
 QS/regtest-openpmd                                          openpmd
 QS/regtest-ec-force                                         libint !ifx
 QS/regtest-embed                                            libint !ifx
+xTB/spinpol    
 xTB/regtest-5
 xTB/regtest-gfn1-d                                          spglib
 QS/regtest-gpw-2-3
