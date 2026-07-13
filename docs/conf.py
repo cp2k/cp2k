@@ -46,6 +46,8 @@ html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 html_favicon = "_static/favicon.png"
 html_copy_source = False
+html_last_updated_fmt = "%a, %d %b %Y %H:%M:%S +0000"
+html_last_updated_use_utc = True
 
 add_module_names = False
 
