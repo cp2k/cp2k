@@ -39,15 +39,9 @@ MODULE fist_neighbor_list_control
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE pair_potential_types,            ONLY: ace_type,&
-                                              allegro_type,&
-                                              gal21_type,&
-                                              gal_type,&
-                                              mace_type,&
-                                              nequip_type,&
-                                              pair_potential_pp_type,&
-                                              siepmann_type,&
-                                              tersoff_type
+   USE pair_potential_types,            ONLY: &
+        ace_type, allegro_type, gal21_type, gal_type, mace_type, nequip_type, &
+        pair_potential_pp_type, siepmann_type, tersoff_type
    USE particle_types,                  ONLY: particle_type
 #include "./base/base_uses.f90"
 

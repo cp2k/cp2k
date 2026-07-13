@@ -54,8 +54,9 @@ MODULE manybody_potential
    USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: &
         ace_type, allegro_type, deepmd_type, ea_type, eam_pot_type, gal21_pot_type, gal21_type, &
-        gal_pot_type, gal_type, mace_type, nequip_type, pair_potential_pp_type, pair_potential_single_type, &
-        siepmann_pot_type, siepmann_type, tersoff_pot_type, tersoff_type
+        gal_pot_type, gal_type, mace_type, nequip_type, pair_potential_pp_type, &
+        pair_potential_single_type, siepmann_pot_type, siepmann_type, tersoff_pot_type, &
+        tersoff_type
    USE particle_types,                  ONLY: particle_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -105,11 +106,11 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
       LOGICAL                                            :: any_ace, any_allegro, any_deepmd, &
-                                                            any_gal, any_gal21, any_mace, any_nequip, &
-                                                            any_siepmann, any_tersoff
+                                                            any_gal, any_gal21, any_mace, &
+                                                            any_nequip, any_siepmann, any_tersoff
       REAL(KIND=dp)                                      :: drij, embed, pot_ace, pot_allegro, &
-                                                            pot_deepmd, pot_loc, pot_mace, pot_nequip, &
-                                                            qr, rab2_max, rij(3)
+                                                            pot_deepmd, pot_loc, pot_mace, &
+                                                            pot_nequip, qr, rab2_max, rij(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       REAL(KIND=dp), POINTER                             :: fembed(:)
@@ -589,8 +590,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
       LOGICAL                                            :: any_ace, any_allegro, any_deepmd, &
-                                                            any_gal, any_gal21, any_mace, any_nequip, &
-                                                            any_siepmann, any_tersoff
+                                                            any_gal, any_gal21, any_mace, &
+                                                            any_nequip, any_siepmann, any_tersoff
       REAL(KIND=dp) :: f_eam, fac, fr(3), ptens11, ptens12, ptens13, ptens21, ptens22, ptens23, &
          ptens31, ptens32, ptens33, rab(3), rab2, rab2_max, rtmp(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi

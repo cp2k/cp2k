@@ -15,9 +15,9 @@
 ! **************************************************************************************************
 MODULE input_cp2k_mm
    USE bibliography,                    ONLY: &
-        Batatia2022, Batzner2022, Bochkarev2024, Clabaut2020, Clabaut2021, Devynck2012, Dick1958, Drautz2019, &
-        Foiles1986, Lysogorskiy2021, Mitchell1993, Musaelian2023, Siepmann1995, Tan2025, &
-        Tersoff1988, Tosi1964a, Tosi1964b, Wang2018, Yamada2000, Zeng2023
+        Batatia2022, Batzner2022, Bochkarev2024, Clabaut2020, Clabaut2021, Devynck2012, Dick1958, &
+        Drautz2019, Foiles1986, Lysogorskiy2021, Mitchell1993, Musaelian2023, Siepmann1995, &
+        Tan2025, Tersoff1988, Tosi1964a, Tosi1964b, Wang2018, Yamada2000, Zeng2023
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               debug_print_level,&
                                               high_print_level,&
