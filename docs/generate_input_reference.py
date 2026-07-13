@@ -7,7 +7,6 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 import re
 import sys
-from datetime import datetime, timezone
 from collections import defaultdict
 from functools import cache
 
@@ -97,12 +96,6 @@ def build_input_reference(root: ET.Element, output_dir: Path) -> None:
     # Build landing page.
     cp2k_version = get_text(root.find("CP2K_VERSION"))
     compile_revision = get_text(root.find("COMPILE_REVISION"))
-    time_now = datetime.now(timezone.utc)
-    date_now = time_now.date()
-    # prep = "at"
-    # tstr = time_now.isoformat(timespec="seconds") # YYYY-MM-DDTHH:MM:SS+HH:MM
-    prep = "on"
-    tstr = date_now.isoformat()  # YYYY-MM-DD
 
     output = []
     output += ["%", "% This file was created by generate_input_reference.py", "%"]
@@ -112,9 +105,10 @@ def build_input_reference(root: ET.Element, output_dir: Path) -> None:
     assert compile_revision.startswith("git:")
     github_url = f"https://github.com/cp2k/cp2k/tree/{compile_revision[4:]}"
     output += [
-        f"Built {prep} {tstr} for {cp2k_version} ([{compile_revision}]({github_url})).",
+        f"Based on {cp2k_version} ([{compile_revision}]({github_url})).",
         "",
         "For past stable releases, see [](./versions).",
+        "",
     ]
 
     output += ["```{toctree}"]
