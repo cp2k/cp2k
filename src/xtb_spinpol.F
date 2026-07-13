@@ -44,6 +44,7 @@ MODULE xtb_spinpol
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
    USE sap_kind_types,                  ONLY: sap_int_type
+   USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
@@ -89,7 +90,7 @@ CONTAINS
       LOGICAL                                            :: defined, found, use_virial
       REAL(KIND=dp)                                      :: dr, espin, fi, fval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: docg
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, bocg, wab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, bocg, pam, pbm, wab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: wabk
       REAL(KIND=dp), DIMENSION(3)                        :: fij, rij
       REAL(KIND=dp), DIMENSION(3, 3)                     :: wall
@@ -246,7 +247,7 @@ CONTAINS
                END DO
                CALL dbcsr_iterator_stop(iter)
                ! use dsint list
-               IF (use_virial) THEN
+               IF (use_virial .AND. 0 == 0) THEN
                   CPASSERT(ASSOCIATED(sap_int))
                   DO ikind = 1, nkind
                      DO jkind = 1, nkind
@@ -269,18 +270,33 @@ CONTAINS
                                  CALL dbcsr_get_block_p(matrix=matrix_p(2, 1)%matrix, &
                                                         row=irow, col=icol, block=pbmat, found=found)
                                  CPASSERT(found)
+                                 IF (irow == iatom) THEN
+                                    na = SIZE(pamat, 1)
+                                    nb = SIZE(pamat, 2)
+                                    ALLOCATE (pam(na, nb), pbm(na, nb))
+                                    pam = pamat
+                                    pbm = pbmat
+                                 ELSE
+                                    na = SIZE(pamat, 2)
+                                    nb = SIZE(pamat, 1)
+                                    ALLOCATE (pam(na, nb), pbm(na, nb))
+                                    pam = TRANSPOSE(pamat)
+                                    pbm = TRANSPOSE(pbmat)
+                                 END IF
+
                                  fval = 1.0_dp
-                                 IF (irow == iatom) fval = -1.0_dp
                                  DO i = 1, 3
-                                    CALL fupdate(fi, pamat, pbmat, dsint(:, :, i), na, nb, fval, &
+                                    CALL fupdate(fi, pam, pbm, dsint(:, :, i), na, nb, fval, &
                                                  wabk(1:na, 1:na, ikind), wabk(1:nb, 1:nb, jkind), &
-                                                 aocg(1:na, irow), aocg(1:nb, icol), &
-                                                 bocg(1:na, irow), bocg(1:nb, icol))
+                                                 aocg(1:na, iatom), aocg(1:nb, jatom), &
+                                                 bocg(1:na, iatom), bocg(1:nb, jatom))
                                     fij(i) = fi
                                  END DO
                                  fi = 1.0_dp
                                  IF (iatom == jatom) fi = 0.5_dp
                                  CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
+                                 DEALLOCATE (pam, pbm)
+
                               END IF
                            END DO
                         END DO
@@ -309,11 +325,13 @@ CONTAINS
                      jknd = jkind
                      atom_i = atom_of_kind(iatom)
                      atom_j = atom_of_kind(jatom)
+                     rij = rij
                   ELSE
                      iknd = jkind
                      jknd = ikind
                      atom_i = atom_of_kind(jatom)
                      atom_j = atom_of_kind(iatom)
+                     rij = -rij
                   END IF
                   !
                   CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
