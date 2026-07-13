@@ -22,6 +22,9 @@ ASE
 ASPC
     Always Stable Predictor-Corrector [→ more](methods/sampling/molecular_dynamics)
 
+BCC
+    Body-Centered Cubic crystal structure
+
 BFGS
     Broyden–Fletcher–Goldfarb–Shanno algorithm [→ more](methods/optimization/geometry_and_cell_opt)
 
@@ -45,6 +48,9 @@ CG
 
 CHARMM
     Chemistry at HARvard Molecular Mechanics
+
+CIF
+    Crystallographic Information File
 
 COLVAR
     COLlective VARiable [→ more](methods/sampling/metadynamics)
@@ -83,7 +89,7 @@ DLA-F
     Distributed Linear Algebra from the Future [→ more](technologies/eigensolvers/dlaf)
 
 DOS
-    Density Of States
+    Density Of States [→ more](methods/electronic_structure/dos)
 
 EAM
     Embedded-Atom Method
@@ -154,6 +160,9 @@ GTO
 GW
     GW approximation [→ more](methods/properties/optical/index)
 
+HCP
+    Hexagonal Close-Packed crystal structure
+
 HF
     Hartree Fock [→ more](methods/dft/hartree-fock/index)
 
@@ -215,7 +224,7 @@ MNDO
     Modified Neglect of Diatomic Overlap
 
 MO
-    Molecular Orbitals [→ more](methods/dft/index)
+    Molecular Orbitals [→ more](methods/electronic_structure/molecular_orbitals)
 
 MOM
     Maximum Overlap Method
@@ -273,6 +282,9 @@ PBC
 
 PBE
     Perdew–Burke–Ernzerhof exchange-correlation functional [→ more](methods/dft/index)
+
+PDB
+    Protein Data Bank (the database or the format specification)
 
 PIGLET
     Path Integral Generalized Langevin Equation Thermostat
@@ -363,6 +375,12 @@ TRS4
 
 UFF
     Universal Force Field
+
+UKS
+    Unrestricted Kohn-Sham [→ more](methods/dft/index)
+
+VMD
+    Visual Molecular Dynamics
 
 XAS
     X-ray Absorption Spectra [→ more](methods/properties/x-ray/index)

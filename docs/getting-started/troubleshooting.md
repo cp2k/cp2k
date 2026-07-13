@@ -143,19 +143,23 @@ Check everything that determines the environment variables and paths, including 
 [with toolchain](./build-from-source.md#toolchain-based-build), do not forget to source the
 `cp2k_env` to load the dependencies as instructed.
 
-### Asterisks or NaN in the output
+### Asterisks, NaN or Inf in the output
 
 This is a general fortran behavior about how a fixed-width field format handles a numeric value that
 cannot be fitted in. For example, the edit descriptor `F12.6` specifies a real float-type field with
 exactly 12 characters, including 6 for the fractional part and 1 for the decimal point (and 1 for
 the minus sign if negative), thus leaving only 5 places for the integer part; if the value to be
 printed is larger than 99999.999999 or smaller than -9999.999999, it would not fit in and a string
-of asterisks `************` would be shown instead. If something goes haywire and the value is not
-even a valid number any more, it would be represented as `         NaN`, where NaN is shorthand for
-"Not a Number". Most of these field formats are designed with output layout, value precision and
-possible range in mind, so the presence of asterisks and NaN in the output should invoke some doubts
-on the reliability of very large or very small numeric results even if the calculation looks fine
-otherwise.
+of asterisks `************` would be shown instead. Most of these field formats are designed with
+output layout, value precision and possible range in mind, so the presence of a string of asterisks
+in the place of numeric output should invoke some doubts on the reliability of very large or very
+small numeric results, even if the calculation looks fine otherwise. Note that there are some format
+specifications like the PDB file and the Gaussian cube file where the entries have some restricted
+fixed-width field formats for writing or reading, while others like the XYZ file are more lenient.
+
+Beyond that, abnormal values may be represented as `NaN` for "Not a Number" or `Inf` for Infinity,
+padded with whitespaces to satisfy the width of the edit descriptor. Both of these marks in the
+output suggest that something numerically unstable has gone haywire and needs developer attention.
 
 ### A certain type object was expected, found something else
 
@@ -203,9 +207,10 @@ possibilities of modelling errors, there are three frequently relevant pitfalls:
   atom, and the fractional occupancy is not handled well when creating the model, as discussed in
   [a FAQ](./foreword-and-faq.md#how-do-i-create-the-atomistic-model-for-cp2k-input).
 
-### SCF run NOT converged
+### SCF convergence troubles
 
-Refer to [](../methods/dft/convergence).
+`SCF run NOT converged` and `KS energy is an abnormal value (NaN/Inf)` are discussed separately on
+[](../methods/dft/convergence).
 
 ### Messages mentioning LSD
 
