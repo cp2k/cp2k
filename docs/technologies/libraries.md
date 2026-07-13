@@ -220,8 +220,8 @@ of each atom.
 
 ## Torch (PyTorch C++ library)
 
-LibTorch is the C++ distribution of PyTorch. CP2K uses it for the NequIP interface and for GauXC
-Skala models.
+LibTorch is the C++ distribution of PyTorch. CP2K uses it for the NequIP and MACE interfaces and for
+GauXC Skala models.
 
 - LibTorch can be downloaded from the
   [PyTorch installation page](https://pytorch.org/get-started/locally/).
