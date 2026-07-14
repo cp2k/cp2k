@@ -648,7 +648,11 @@ CONTAINS
          END IF
 
          ! periodic fields don't work with RTP
-         CPASSERT(.NOT. do_rtp)
+         IF (do_rtp) &
+            CALL cp_abort(__LOCATION__, &
+                          "Periodic efield cannot be used with RTP. When restarting a "// &
+                          "run with periodic efield, set RESTART_RTP under &EXT_RESTART "// &
+                          "section to .FALSE. explicitly if RESTART_DEFAULT is .TRUE.")
          IF (dft_control%period_efield%displacement_field) THEN
             CALL cite_reference(Stengel2009)
          ELSE
