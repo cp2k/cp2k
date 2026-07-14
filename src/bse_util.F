@@ -1275,25 +1275,23 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Determine a single combined active-MO window covering all spin channels for open-shell
-!>        BSE truncation. Mirrors the linRTBSE determine_active_mo_window logic (per-spin
-!>        determine_cutoff_indices, then union of bounds), so the two pipelines truncate to the
-!>        same active space. CPWARN if the per-spin cutoff candidates differ.
-!> \param Eigenval per-spin GW eigenvalues, shape (level, spin)
+!>        BSE truncation (per-spin determine_cutoff_indices, then union of bounds). Cuts on the DFT
+!>        axis, as the closed-shell path in truncate_BSE_matrices and linRTBSE's
+!>        determine_active_mo_window do, so the pipelines truncate to the same active space.
+!>        CPWARN if the per-spin cutoff candidates differ.
 !> \param Eigenval_scf per-spin SCF eigenvalues, shape (level, spin)
 !> \param homo per-spin number of occupied levels
 !> \param virtual per-spin number of virtual levels
-!> \param use_ks_energies select SCF (.TRUE.) vs GW (.FALSE.) eigenvalues for the cutoff
 !> \param cutoff_occ occupied-orbital energy cutoff
 !> \param cutoff_empty empty-orbital energy cutoff
 !> \param first_active_mo combined first occupied MO index (OUT)
 !> \param last_active_mo combined last MO index (OUT)
 ! **************************************************************************************************
-   SUBROUTINE determine_bse_combined_window(Eigenval, Eigenval_scf, homo, virtual, &
-                                            use_ks_energies, cutoff_occ, cutoff_empty, &
+   SUBROUTINE determine_bse_combined_window(Eigenval_scf, homo, virtual, &
+                                            cutoff_occ, cutoff_empty, &
                                             first_active_mo, last_active_mo)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, Eigenval_scf
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval_scf
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
-      LOGICAL, INTENT(IN)                                :: use_ks_energies
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_occ, cutoff_empty
       INTEGER, INTENT(OUT)                               :: first_active_mo, last_active_mo
 
@@ -1313,15 +1311,9 @@ CONTAINS
       spins_differ = .FALSE.
 
       DO isp = 1, SIZE(homo)
-         IF (use_ks_energies) THEN
-            CALL determine_cutoff_indices(Eigenval_scf(:, isp), homo(isp), virtual(isp), &
-                                          homo_red, virt_red, homo_incl, virt_incl, &
-                                          cutoff_occ, cutoff_empty)
-         ELSE
-            CALL determine_cutoff_indices(Eigenval(:, isp), homo(isp), virtual(isp), &
-                                          homo_red, virt_red, homo_incl, virt_incl, &
-                                          cutoff_occ, cutoff_empty)
-         END IF
+         CALL determine_cutoff_indices(Eigenval_scf(:, isp), homo(isp), virtual(isp), &
+                                       homo_red, virt_red, homo_incl, virt_incl, &
+                                       cutoff_occ, cutoff_empty)
          IF (isp > 1) THEN
             IF (homo_incl /= first_occ_prev .OR. homo(isp) + virt_incl /= last_virt_prev) &
                spins_differ = .TRUE.

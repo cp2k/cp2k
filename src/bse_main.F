@@ -174,8 +174,8 @@ CONTAINS
       IF (nspins > 1) THEN
          ! === Open-shell path: combined-window cutoff, per-spin truncation, joint A (+B for ABBA) ===
          ! Determine union of per-spin active MO windows
-         CALL determine_bse_combined_window(Eigenval(:, 1, :), Eigenval_scf(:, 1, :), homo, virtual, &
-                                            mp2_env%bse%use_ks_energies, mp2_env%bse%bse_cutoff_occ, &
+         CALL determine_bse_combined_window(Eigenval_scf(:, 1, :), homo, virtual, &
+                                            mp2_env%bse%bse_cutoff_occ, &
                                             mp2_env%bse%bse_cutoff_empty, &
                                             first_active_mo, last_active_mo)
          DO ispin = 1, nspins
