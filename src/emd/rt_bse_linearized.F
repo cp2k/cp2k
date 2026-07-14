@@ -611,9 +611,9 @@ CONTAINS
    SUBROUTINE print_linrtbse_header_info(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
 
-      INTEGER                                            :: n_steps
-      REAL(kind=dp)                                      :: fft_resolution, nyquist_frequency, &
-                                                            total_time
+      INTEGER                                            :: ispin, n_steps
+      REAL(kind=dp)                                      :: e_first, e_last, fft_resolution, &
+                                                            nyquist_frequency, total_time
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
@@ -689,6 +689,30 @@ CONTAINS
          WRITE (rtbse_env%unit_nr, '(A,T71,I10)') ' First active occupied MO index:', rtbse_env%first_active_mo
          WRITE (rtbse_env%unit_nr, '(A,T71,I10)') ' Last active virtual MO index:', rtbse_env%last_active_mo
          WRITE (rtbse_env%unit_nr, '(A,T71,I10)') ' Number of active MOs:', rtbse_env%mo_active
+         IF (rtbse_env%active_mo_truncation) THEN
+            ! The window is cut on the DFT axis but propagated on the QP axis, so the QP edges may
+            ! exceed the nominal cutoff. Print both so the window can be checked against the input.
+            DO ispin = 1, rtbse_env%n_spin
+               e_first = (rtbse_env%bs_env%eigenval_scf_Gamma(rtbse_env%first_active_mo, ispin) - &
+                          rtbse_env%bs_env%eigenval_scf_Gamma(rtbse_env%n_occ(ispin), ispin))*evolt
+               e_last = (rtbse_env%bs_env%eigenval_scf_Gamma(rtbse_env%last_active_mo, ispin) - &
+                         rtbse_env%bs_env%eigenval_scf_Gamma(rtbse_env%n_occ(ispin) + 1, ispin))*evolt
+               WRITE (rtbse_env%unit_nr, '(A,I1,A,T71,F10.3)') ' Spin ', ispin, &
+                  ' first active MO, E - E_HOMO (KS) [eV]:', e_first
+               WRITE (rtbse_env%unit_nr, '(A,I1,A,T71,F10.3)') ' Spin ', ispin, &
+                  ' last active MO, E - E_LUMO (KS) [eV]:', e_last
+               IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+                  e_first = (rtbse_env%bs_env%eigenval_G0W0(rtbse_env%first_active_mo, 1, ispin) - &
+                             rtbse_env%bs_env%eigenval_G0W0(rtbse_env%n_occ(ispin), 1, ispin))*evolt
+                  e_last = (rtbse_env%bs_env%eigenval_G0W0(rtbse_env%last_active_mo, 1, ispin) - &
+                            rtbse_env%bs_env%eigenval_G0W0(rtbse_env%n_occ(ispin) + 1, 1, ispin))*evolt
+                  WRITE (rtbse_env%unit_nr, '(A,I1,A,T71,F10.3)') ' Spin ', ispin, &
+                     ' first active MO, E - E_HOMO (QP) [eV]:', e_first
+                  WRITE (rtbse_env%unit_nr, '(A,I1,A,T71,F10.3)') ' Spin ', ispin, &
+                     ' last active MO, E - E_LUMO (QP) [eV]:', e_last
+               END IF
+            END DO
+         END IF
       END IF
 
    END SUBROUTINE print_linrtbse_header_info
