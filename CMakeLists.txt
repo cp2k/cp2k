@@ -909,7 +909,7 @@ if(CP2K_USE_ACE)
 endif()
 
 if(CP2K_USE_TBLITE)
-  find_package(tblite REQUIRED)
+  find_package(tblite 0.7.0 REQUIRED)
   add_library(cp2k::tblite INTERFACE IMPORTED)
   target_link_libraries(
     cp2k::tblite INTERFACE tblite::tblite mctc-lib::mctc-lib dftd4::dftd4
