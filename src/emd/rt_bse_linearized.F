@@ -1057,6 +1057,14 @@ CONTAINS
       ! For RI-RS the W = V + W^c kernel is on the real-space grid in mat_W0_grid_rtbse.
       IF (.NOT. use_rirs_kernel) THEN
          IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+            ! W(w=0) is built by the GW step only under its RTBSE rtp_method gate; reaching this
+            ! consumer without it means gate and consumer disagree. The HF branch below needs no W.
+            IF (.NOT. ASSOCIATED(rtbse_env%bs_env%fm_W_MIC_freq_zero%matrix_struct)) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "RT-BSE AO-RI kernel needs the screened interaction W(w=0), which the "// &
+                             "GW step did not build. Select the RT-BSE propagator with '&RTBSE' or "// &
+                             "'&RTBSE RTBSE', not '&RTBSE TDDFT'.")
+            END IF
             ! In a non-HF calculation, copy the actual correlation part of the interaction
             CALL copy_fm_to_dbcsr(rtbse_env%bs_env%fm_W_MIC_freq_zero, rtbse_env%w_dbcsr)
          ELSE

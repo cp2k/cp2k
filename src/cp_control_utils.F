@@ -3402,8 +3402,15 @@ CONTAINS
                                 i_val=dft_control%rtp_control%rtbse_ham)
       CALL section_vals_val_get(rtp_section, "RTBSE%LINEARIZED_BSE_PROPAGATION", &
                                 l_val=linearize_bse_propagation)
-      ! Change rtp_method to linearized bse
+      ! Change rtp_method to linearized bse. The section parameter also feeds bs_env%rtp_method,
+      ! which gates the W(w=0) build in the GW step - TDDFT there would dispatch the linearized
+      ! propagator with no screened interaction to propagate with, so reject the combination.
       IF (linearize_bse_propagation) THEN
+         IF (dft_control%rtp_control%rtp_method /= rtp_method_bse) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "LINEARIZED_BSE_PROPAGATION requires the RTBSE section opened as "// &
+                          "'&RTBSE' or '&RTBSE RTBSE', not '&RTBSE TDDFT'.")
+         END IF
          dft_control%rtp_control%rtp_method = rtp_method_bse_linearized
       END IF
 

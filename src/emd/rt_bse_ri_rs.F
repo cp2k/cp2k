@@ -218,6 +218,15 @@ CONTAINS
          RETURN
       END IF
 
+      ! W(w=0) is built by the GW step only under its RTBSE rtp_method gate; reaching this consumer
+      ! without it means gate and consumer disagree. Abort rather than read a never-created cp_fm.
+      IF (.NOT. ASSOCIATED(bs_env%fm_W_MIC_freq_zero%matrix_struct)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "RT-BSE RI-RS kernel needs the screened interaction W(w=0), which the GW "// &
+                       "step did not build. Select the RT-BSE propagator with '&RTBSE' or "// &
+                       "'&RTBSE RTBSE', not '&RTBSE TDDFT'.")
+      END IF
+
       CALL rt_bse_ri_rs_ensure_grid(bs_env, qs_env)
       t1 = m_walltime()
 
