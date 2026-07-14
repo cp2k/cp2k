@@ -10,7 +10,11 @@
 "CH2O_gfn1_stress.inp"                         = [{matcher="DEBUG_stress_sum", tol=1.0E-5, ref=0.0000000}]
 "Si_gfn1_fd_force.inp"                         = [{matcher="M082", tol=2.0E-4, ref=0.0000000}]
 "Si_gfn1_fd_stress.inp"                        = [{matcher="M042", tol=1.0E-5, ref=0.0000000}]
-"Si_gfn1_kp_stress.inp"                        = [{matcher="DEBUG_stress_sum", tol=5.0E-5, ref=0.0000000}]
+"Si_gfn1_kp_stress.inp"                        = [{matcher="DEBUG_stress_sum", tol=5.0E-6, ref=0.0000000}]
+"H2O_gfn1_yz_kp_debug.inp"                     = [{matcher="DEBUG_stress_sum", tol=1.0E-7, ref=0.0000000},
+                                                   {matcher="DEBUG_periodic_stress_sum", tol=1.0E-7, ref=0.0000000},
+                                                   {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
+                                                   {matcher="N_special_kpoints", tol=0.0, ref=2}]
 "Ar_fcc_gfn1_kp_debug.inp"                     = [{matcher="DEBUG_stress_sum", tol=1.0E-5, ref=0.0000000},
                                                    {matcher="DEBUG_force_sum", tol=1.0E-5, ref=0.0000000},
                                                    {matcher="N_special_kpoints", tol=0.0, ref=4}]
@@ -29,4 +33,7 @@
                                                    {matcher="DEBUG_periodic_stress_sum", tol=5.0E-6, ref=0.0000000},
                                                    {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
                                                    {matcher="N_special_kpoints", tol=0.0, ref=2}]
+"hbn_gfn1_hex_kp_debug.inp"                    = [{matcher="DEBUG_stress_sum", tol=1.0E-6, ref=0.0000000},
+                                                   {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
+                                                   {matcher="N_special_kpoints", tol=0.0, ref=8}]
 #EOF
