@@ -508,10 +508,6 @@ CONTAINS
                        "systems - the first-peak gap estimate would mix spin channels. "// &
                        "Set TDA_SHIFT_TO_FIRST_PEAK=.FALSE. for open-shell runs.")
       END IF
-      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C12
-      IF (rtbse_env%rirs_kernel .AND. bs_env%ri_rs%grid_select == 1) THEN
-         CPWARN("linRTBSE RIRS: use GRID_SELECT=2 for accuracy")
-      END IF
       CALL check_qp_gap_sanity(rtbse_env, bs_env)
       CALL determine_active_mo_window(rtbse_env, bs_env)
       ! Owned active-MO matrix structure (currently identical to the full n_ao x n_ao struct
