@@ -157,7 +157,7 @@ get_nprocs() {
   if [ -n "${NPROCS_OVERWRITE}" ]; then
     echo ${NPROCS_OVERWRITE} | sed 's/^0*//'
   elif $(command -v nproc > /dev/null 2>&1); then
-    echo $(nproc --all)
+    echo $(nproc)
   elif $(command -v sysctl > /dev/null 2>&1); then
     echo $(sysctl -n hw.ncpu)
   else
