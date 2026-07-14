@@ -6,7 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Floquet stuff
+!> \brief Driver for Floquet-Bloch band-structure calculations: builds and diagonalises the
+!>        truncated Floquet-Bloch Hamiltonian H_F(k) for each DOS k-point and writes the m=0
+!>        band structure, the quasi-energies and the Floquet density of states. The heavy
+!>        physics lives in floquet_utils; this module only orchestrates the MPI-subgroup work
+!>        distribution across k-points.
 !> \par History
 !> \author Shridhar Shanbhag (27.01.2026)
 ! **************************************************************************************************
@@ -55,9 +59,16 @@ MODULE floquet_main
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param bs_env ...
+!> \brief Compute the Floquet-Bloch band structure in three phases. (1) Split the global
+!>        communicator into subgroups sized to hold the distributed H_F(k) working set and to
+!>        keep at least one subgroup per DOS k-point. (2) Precompute the band data for all DOS
+!>        k-points once (distributed round-robin across ranks), then loop over k-points: each is
+!>        handled by the subgroup owning its data, which broadcasts the band data internally,
+!>        assembles and diagonalises H_F(k), and derives the sector weights and observables.
+!>        (3) Gather the per-(k-point,spin) results across the global communicator and write the
+!>        three output files on the I/O rank.
+!> \param qs_env the Quickstep environment (SCF results, k-points, parallel environment)
+!> \param bs_env the post-SCF band-structure environment holding all Floquet input parameters
 ! **************************************************************************************************
    SUBROUTINE floquet(qs_env, bs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -104,7 +115,7 @@ CONTAINS
       energy_step = bs_env%energy_step_floquet
       energy_window = 2*bs_env%energy_window_floquet
 
-      n_E = INT(energy_window/energy_step)
+      n_E = NINT(energy_window/energy_step)
 
       IF (unit_nr > 0) THEN
 
@@ -296,9 +307,7 @@ CONTAINS
             ! enough: the m=0 states must carry no appreciable weight on the outermost rungs.
             ! Aborts the whole job (mpi_abort) if that weight exceeds EPS_FLOQUET, so no
             ! reduction of the leakage across ranks is needed.
-            IF (bs_env%eps_floquet>0) THEN
-               CALL check_floquet_convergence(bs_env, w0, wE)
-            END IF
+            CALL check_floquet_convergence(bs_env, w0, wE)
 
             ! Spectral function A_phys(k,ω) = -(1/π) Im[Tr_KS G^R_{00}(k,ω)], the m=0 bands (the
             ! nao eigenvectors with the largest central-sector weight, reducing to ε_nk at zero

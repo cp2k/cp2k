@@ -6,14 +6,19 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Floquet stuff
+!> \brief Helper routines behind the Floquet-Bloch band-structure driver (floquet_main): the
+!>        band-data precompute (band energies, their k-derivatives and dipoles for all DOS
+!>        k-points), the block-wise assembly of the Floquet-Bloch Hamiltonian H_F(k), the
+!>        MPI-subgroup sizing, the projection of the eigenvectors onto the Floquet sectors, the
+!>        MAX_FLOQUET_INDEX convergence check, and the derivation and output of the observables
+!>        (m=0 band structure, quasi-energies, density of states).
 !> \par History
 !> \author Shridhar Shanbhag (27.01.2026)
 ! **************************************************************************************************
 MODULE floquet_utils
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
-   USE cp_cfm_types,                    ONLY: cp_cfm_get_info,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_get_submatrix,&
                                               cp_cfm_set_submatrix,&
                                               cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
@@ -59,7 +64,7 @@ MODULE floquet_utils
 
    ! Number of full Floquet-Hamiltonian copies (each n_f_size^2 complex(dp), 16 bytes per
    ! element) that the subgroup must be able to hold, distributed across its ranks. A few are
-   ! live at once (floquet_matrix + cfm_eigenvectors + eigensolver scratch); we size for 10 to
+   ! live at once (floquet_matrix + cfm_eigenvectors + eigensolver scratch); we size for 4 to
    ! leave headroom.
    INTEGER, PARAMETER, PRIVATE :: n_fm_work_copies = 4
 
@@ -310,7 +315,7 @@ CONTAINS
 
       polarisation(:) = bs_env%floquet_polarisation(:)
       IF (SQRT(SUM(polarisation**2)) < EPSILON(0.0_dp)) THEN
-         CPABORT("Invalid (too small) polarisation vector specified for POLARISATION_PUMP")
+         CPABORT("Invalid (too small) polarisation vector specified for POLARISATION")
       END IF
 
       amplitude = bs_env%floquet_amplitude
@@ -643,12 +648,12 @@ CONTAINS
 !>        both selects the m=0 bands and weights the central-sector Green's function. wE is the
 !>        truncation diagnostic consumed by check_floquet_convergence.
 !>
-!>        Only 3 of the n_fbands sector blocks are ever needed, so their local rows are collected
-!>        once and only those rows of the block-cyclic local_data are touched - never the whole
-!>        matrix. Only the (2, n_f_size) REAL buffer is reduced over the subgroup, so the
-!>        n_f_size^2 complex eigenvector matrix is never replicated. The reduction leaves w0 and
-!>        wE identical on every subgroup rank, hence any selection derived from them cannot
-!>        diverge between ranks.
+!>        Sector m occupies the nao rows starting at 1 + (m + M)*nao, matching the tiling laid
+!>        down in build_floquet_matrix_local. Only 3 of the n_fbands sectors are ever needed, so
+!>        they are pulled one at a time through cp_cfm_get_submatrix into a single
+!>        nao x n_f_size buffer - the n_f_size^2 eigenvector matrix is never replicated whole.
+!>        cp_cfm_get_submatrix returns the block replicated on every rank of the subgroup, so w0
+!>        and wE come out identical everywhere and no selection derived from them can diverge.
 !> \param nao number of atomic orbitals (the size of one Floquet sector block)
 !> \param max_f_index the Floquet truncation index M
 !> \param cfm_eigenvectors Floquet eigenvectors |α> (n_f_size x n_f_size), columns
@@ -662,80 +667,37 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'floquet_sector_weights'
 
-      COMPLEX(KIND=dp)                                   :: z
-      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: local_data
-      INTEGER                                            :: handle, i_glob, i_loc, j_glob, j_loc, k, &
-                                                            m_blk, n_f_size, n_fbands, n_rows_0, &
-                                                            n_rows_E, ncol_local, nrow_local
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rows_0, rows_E
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: acc0, accE
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buf
-      TYPE(mp_para_env_type), POINTER                    :: para_env_cfm
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: v_block
+      INTEGER                                            :: handle, n_f_size
 
       CALL timeset(routineN, handle)
 
       n_f_size = SIZE(w0)
-      n_fbands = 1 + 2*max_f_index
 
-      CALL cp_cfm_get_info(cfm_eigenvectors, nrow_local=nrow_local, ncol_local=ncol_local, &
-                           row_indices=row_indices, col_indices=col_indices, &
-                           local_data=local_data, para_env=para_env_cfm)
+      ! One buffer, reused for each sector: <n, m | α> for the nao rows of sector m and all
+      ! eigenvectors α. The row offsets follow from the block tiling of H_F(k): sector m=0 is
+      ! block max_f_index+1, sector m=-M is block 1, sector m=+M is block 2*max_f_index+1.
+      ALLOCATE (v_block(nao, n_f_size))
 
-      ! Global row i_glob = (m_blk-1)*nao + n selects the Floquet sector m_blk, matching the
-      ! tiling laid down in build_floquet_matrix_local (there f_index = i - max_f_index - 1, so
-      ! f=0 is block max_f_index+1). Collect the local rows of the 3 blocks we consume once -
-      ! 3/n_fbands of the global rows, scattered by the block-cyclic map - so the accumulation
-      ! below never walks the whole matrix. nrow_local/ncol_local are the *valid* extents of
-      ! local_data (its first dimension is the local leading dimension, which may be larger);
-      ! ranks holding no rows or columns leave the counts at zero and contribute nothing.
-      ! With max_f_index = 0 the central block is the only block: the ELSE IF cannot fire, so
-      ! rows_E stays empty and wE = 0, which check_floquet_convergence skips over.
-      ALLOCATE (rows_0(MAX(nrow_local, 1)), rows_E(MAX(nrow_local, 1)))
-      n_rows_0 = 0
-      n_rows_E = 0
-      DO i_loc = 1, nrow_local
-         i_glob = row_indices(i_loc)
-         m_blk = (i_glob - 1)/nao + 1
-         IF (m_blk == max_f_index + 1) THEN
-            n_rows_0 = n_rows_0 + 1
-            rows_0(n_rows_0) = i_loc
-         ELSE IF (m_blk == 1 .OR. m_blk == n_fbands) THEN
-            n_rows_E = n_rows_E + 1
-            rows_E(n_rows_E) = i_loc
-         END IF
-      END DO
+      CALL cp_cfm_get_submatrix(cfm_eigenvectors, v_block, 1 + nao*max_f_index, 1)
+      w0(:) = SUM(ABS(v_block)**2, DIM=1)
 
-      ! REAL(z)^2 + AIMAG(z)^2, not ABS(z)^2: the latter takes a square root only to square it
-      ! away again. Both weights go into one buffer so a single collective suffices.
-      ALLOCATE (buf(2, n_f_size))
-      buf(:, :) = 0.0_dp
-      DO j_loc = 1, ncol_local
-         j_glob = col_indices(j_loc)
-         acc0 = 0.0_dp
-         DO k = 1, n_rows_0
-            z = local_data(rows_0(k), j_loc)
-            acc0 = acc0 + REAL(z, dp)**2 + AIMAG(z)**2
-         END DO
-         accE = 0.0_dp
-         DO k = 1, n_rows_E
-            z = local_data(rows_E(k), j_loc)
-            accE = accE + REAL(z, dp)**2 + AIMAG(z)**2
-         END DO
-         buf(1, j_glob) = acc0
-         buf(2, j_glob) = accE
-      END DO
-      DEALLOCATE (rows_0, rows_E)
+      ! With max_f_index = 0 the central block is the only block: there is no boundary distinct
+      ! from it, wE stays zero, and check_floquet_convergence skips over it.
+      wE(:) = 0.0_dp
+      IF (max_f_index >= 1) THEN
+         CALL cp_cfm_get_submatrix(cfm_eigenvectors, v_block, 1, 1)
+         wE(:) = SUM(ABS(v_block)**2, DIM=1)
 
-      CALL para_env_cfm%sum(buf)
-      w0(:) = buf(1, :)
-      wE(:) = buf(2, :)
-      DEALLOCATE (buf)
+         CALL cp_cfm_get_submatrix(cfm_eigenvectors, v_block, 1 + nao*2*max_f_index, 1)
+         wE(:) = wE(:) + SUM(ABS(v_block)**2, DIM=1)
+      END IF
+
+      DEALLOCATE (v_block)
 
       ! The nao rows of a sector block are orthonormal rows of a unitary matrix, so Σ_α w0_α =
-      ! nao. This validates the row -> block arithmetic; it cannot detect the wrong *choice* of
-      ! central block (the sum rule holds for every sector), which the zero-field limit catches.
+      ! nao. This validates the block offsets; it cannot detect the wrong *choice* of central
+      ! block (the sum rule holds for every sector), which the zero-field limit catches.
       CPASSERT(ABS(SUM(w0) - REAL(nao, dp)) < 1.0E-6_dp*REAL(nao, dp))
 
       CALL timestop(handle)
