@@ -36,8 +36,10 @@ MODULE floquet_main
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_para_env_release,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_any_source,&
+                                              mp_para_env_release,&
+                                              mp_para_env_type,&
+                                              mp_request_type
    USE physcon,                         ONLY: a_bohr,&
                                               evolt
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
@@ -75,14 +77,17 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'floquet'
+      INTEGER, PARAMETER                                 :: floquet_done_tag = 1
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: dipole_kp_spin
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: dipole
       INTEGER :: group_size, handle, ikp, ispin, loc_idx, local_src, max_f_index, my_group, n_E, &
-                 n_f_size, n_fbands, n_kp_dos, n_spin, nao, ngroups, nkp, nkp_start, owner, &
-                 stride_kp, unit_nr
+         n_f_size, n_fbands, n_kp_dos, n_own, n_received, n_remote, n_spin, nao, next_to_print, &
+         ngroups, nkp, nkp_start, owner, stride_kp, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: group_distribution
+      INTEGER, DIMENSION(1)                              :: recv_buf
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: ikp_done
       REAL(KIND=dp)                                      :: energy_step, energy_window
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a_k, e_k_kp_spin, eigenvalues, &
                                                             m0_energies, m0_weights, &
@@ -96,6 +101,9 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: floquet_struct
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(mp_request_type)                              :: recv_request
+
+! MPI tag for the per-k-point completion messages sent to the collector (global rank 0)
 
       CALL timeset(routineN, handle)
 
@@ -127,43 +135,43 @@ CONTAINS
          WRITE (unit_nr, '(T2,A)') REPEAT('-', 79)
          WRITE (unit_nr, '(T2,A)') ' '
 
-         WRITE (unit_nr, '(T2,A,T56,ES12.2E2)') &
-            "FLOQUET PARAMETERS      Amplitude [V/m]:", bs_env%floquet_amplitude*evolt/a_bohr
-         WRITE (unit_nr, '(T2,A,T56,F12.4)') &
-            "                        Frequency [eV]:", bs_env%floquet_omega*evolt
-         WRITE (unit_nr, '(T2,A)') "                        "//REPEAT("-", 44)
-         WRITE (unit_nr, '(T2,A,T56,3F8.4)') &
-            "                        Polarisation:", bs_env%floquet_polarisation(1:3)
-         WRITE (unit_nr, '(T2,A,T56,3F8.4)') &
-            "                        Phase offsets:", pi*bs_env%floquet_phi(1:3)
-         WRITE (unit_nr, '(T2,A)') "                        "//REPEAT("-", 44)
-         WRITE (unit_nr, '(T2,A,T56,I12)') &
-            "                        Max Floquet index:", bs_env%max_floquet_index
-         WRITE (unit_nr, '(T2,A,T56,I12)') &
-            "                        Floquet Hamiltonian Size:", n_f_size
-         WRITE (unit_nr, '(T2,A)') "                        "//REPEAT("-", 44)
-         WRITE (unit_nr, '(T2,A,T56,F12.4)') &
-            "                        Energy window [eV]:", bs_env%energy_window_floquet*evolt
-         WRITE (unit_nr, '(T2,A,T56,F12.4)') &
-            "                        Energy step [eV]:", bs_env%energy_step_floquet*evolt
-         WRITE (unit_nr, '(T2,A,T56,F12.4)') &
-            "                        Broadening [eV]:", bs_env%broadening_floquet*evolt
-         WRITE (unit_nr, '(T2,A)') "                        "//REPEAT("-", 44)
+         WRITE (unit_nr, '(T2,A,T67,ES12.2E2)') &
+            "FLOQUET PARAMETERS                 Amplitude [V/m]:", bs_env%floquet_amplitude*evolt/a_bohr
+         WRITE (unit_nr, '(T2,A,T67,F12.4)') &
+            "                                   Frequency [eV]:", bs_env%floquet_omega*evolt
+         WRITE (unit_nr, '(T2,A)') "                                   "//REPEAT("-", 44)
+         WRITE (unit_nr, '(T2,A,T55,3F8.4)') &
+            "                                   Polarisation:", bs_env%floquet_polarisation(1:3)
+         WRITE (unit_nr, '(T2,A,T55,3F8.4)') &
+            "                                   Phase offsets:", pi*bs_env%floquet_phi(1:3)
+         WRITE (unit_nr, '(T2,A)') "                                   "//REPEAT("-", 44)
+         WRITE (unit_nr, '(T2,A,T67,I12)') &
+            "                                   Max Floquet index:", bs_env%max_floquet_index
+         WRITE (unit_nr, '(T2,A,T67,I12)') &
+            "                                   Floquet Hamiltonian Size:", n_f_size
+         WRITE (unit_nr, '(T2,A)') "                                   "//REPEAT("-", 44)
+         WRITE (unit_nr, '(T2,A,T67,F12.4)') &
+            "                                   Energy window [eV]:", bs_env%energy_window_floquet*evolt
+         WRITE (unit_nr, '(T2,A,T67,F12.4)') &
+            "                                   Energy step [eV]:", bs_env%energy_step_floquet*evolt
+         WRITE (unit_nr, '(T2,A,T67,F12.4)') &
+            "                                   Broadening [eV]:", bs_env%broadening_floquet*evolt
+         WRITE (unit_nr, '(T2,A)') "                                   "//REPEAT("-", 44)
          WRITE (unit_nr, '(A)') ""
 
          WRITE (unit_nr, '(T2,A)') &
             "We construct the Floquet-Bloch Hamiltonian and diagonalise it. Projecting the"
          WRITE (unit_nr, '(T2,A)') &
-            "eigenvectors onto the Floquet sectors gives the weights w = Σ_n |<n,m|α>|², from"
+            "eigenvectors onto the Floquet sectors gives the weights w = Σ_n |<n,m|α>|²,"
          WRITE (unit_nr, '(T2,A)') &
-            "which all of the following are obtained."
+            "from which all of the following are obtained."
          WRITE (unit_nr, '(A)') ""
          WRITE (unit_nr, '(T2,A)') &
             "The m=0 bands are the eigenvectors with the largest central-sector weight; they"
          WRITE (unit_nr, '(T2,A)') &
-            "reduce to the equilibrium bands at zero field and are stored, with their weights,"
+            "reduce to the equilibrium bands at zero field and are stored, with their"
          WRITE (unit_nr, '(T2,A)') &
-            "in FLOQUET_BANDSTRUCTURE.bs"
+            " weights, in FLOQUET_BANDSTRUCTURE.bs"
          WRITE (unit_nr, '(A)') ""
          WRITE (unit_nr, '(T2,A)') &
             "Folding those bands into the first Floquet Brillouin zone, relative to the VBM,"
@@ -211,6 +219,9 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Subgroup rank stride:", stride_kp
          WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Number of subgroups:", ngroups
+         WRITE (unit_nr, '(/,T2,A,I5,A,I1,A)') "FLOQUET CALCULATIONS PROGRESS OUT OF", n_kp_dos, &
+            " K-POINTS AND ", n_spin, " SPINS"
+         WRITE (unit_nr, '(T2,A)') "KPOINT  SPIN"
       END IF
 
       NULLIFY (blacs_env_sub)
@@ -248,6 +259,36 @@ CONTAINS
       ALLOCATE (all_m0_energies(nao, n_spin, n_kp_dos), source=0.0_dp)
       ALLOCATE (all_m0_weights(nao, n_spin, n_kp_dos), source=0.0_dp)
 
+      ! Ordered progress printing: the collector (global rank 0) tracks which DOS k-points have
+      ! finished and prints them in ascending order, live from inside the loop. A completion is
+      ! either self-marked (a k-point the collector processes itself) or arrives as a one-int
+      ! message from the owning subgroup's source. Because there is no way to cancel a posted
+      ! irecv, the collector must know up front exactly how many messages it will receive
+      ! (n_remote), so it never leaves an unmatched receive outstanding: n_own is the number of
+      ! k-points the collector self-marks, i.e. those owned by its own subgroup when it is that
+      ! subgroup's source, and n_remote is the rest.
+      IF (para_env%is_source()) THEN
+         ALLOCATE (ikp_done(n_kp_dos))
+         ikp_done(:) = .FALSE.
+
+         n_own = 0
+         IF (para_env_sub%is_source()) THEN
+            DO ikp = 1, n_kp_dos
+               IF (group_distribution(MOD(ikp - 1, para_env%num_pe)) == my_group) n_own = n_own + 1
+            END DO
+         END IF
+         n_remote = n_kp_dos - n_own
+
+         ! Post the first non-blocking receive for a completion from any subgroup source; it is
+         ! reposted after each one completes until all n_remote have been received.
+         n_received = 0
+         next_to_print = 1
+         IF (n_remote > 0) THEN
+            recv_buf(1) = 0
+            CALL para_env%irecv(recv_buf, mp_any_source, recv_request, tag=floquet_done_tag)
+         END IF
+      END IF
+
       ! Phase 2a (global): compute the band data for ALL DOS k-points once, distributed across
       ! ranks (k-point ikp owned by global rank MOD(ikp-1,num_pe), stored at CEILING(ikp/num_pe)).
       ! Called by all ranks; the large real-space arrays are built and freed inside, so they do
@@ -259,6 +300,31 @@ CONTAINS
       ! subgroup, then the whole subgroup builds and diagonalises H_F(k). The collector drains
       ! its mailbox and writes finished k-points at the top of every iteration (local, no barrier).
       DO ikp = 1, n_kp_dos
+         ! Collector: non-blockingly drain whatever completion messages have arrived, then print
+         ! every contiguous finished k-point from the front. This runs at the top of every
+         ! iteration - including those this rank does not own and CYCLEs past - so finished
+         ! k-points print live and in order, without ever blocking on a k-point still in flight.
+         IF (para_env%is_source()) THEN
+            DO WHILE (n_received < n_remote)
+               IF (.NOT. recv_request%test()) EXIT
+               ikp_done(recv_buf(1)) = .TRUE.
+               n_received = n_received + 1
+               IF (n_received < n_remote) THEN
+                  recv_buf(1) = 0
+                  CALL para_env%irecv(recv_buf, mp_any_source, recv_request, tag=floquet_done_tag)
+               END IF
+            END DO
+            DO WHILE (next_to_print <= n_kp_dos)
+               IF (.NOT. ikp_done(next_to_print)) EXIT
+               IF (unit_nr > 0) THEN
+                  DO ispin = 1, n_spin
+                     WRITE (unit_nr, '(T2,I6,I6)') next_to_print, ispin
+                  END DO
+               END IF
+               next_to_print = next_to_print + 1
+            END DO
+         END IF
+
          owner = MOD(ikp - 1, para_env%num_pe)
          ! Only the subgroup that owns this k-point's data works on it. The test is identical
          ! for all ranks of a subgroup, so they enter the subgroup-collective calls together.
@@ -325,9 +391,46 @@ CONTAINS
             END IF
          END DO
 
+         ! Report this k-point (all spins done) to the collector, global rank 0, which prints the
+         ! k-points in ascending order. Exactly one sender per k-point - the owning subgroup's
+         ! source. Rank 0 marks its own directly instead of sending to itself; every other source
+         ! sends one one-int message and moves on, so there is no barrier and no deadlock.
+         IF (para_env_sub%is_source()) THEN
+            IF (para_env%is_source()) THEN
+               ikp_done(ikp) = .TRUE.
+            ELSE
+               CALL para_env%send(ikp, 0, floquet_done_tag)
+            END IF
+         END IF
+
          CALL cp_cfm_release(floquet_matrix)
          CALL cp_cfm_release(cfm_eigenvectors)
       END DO
+
+      ! Collector: the loop is over, so any k-point still unfinished is one whose completion
+      ! message has not yet been received. Block-receive the remaining ones (there are exactly
+      ! n_remote - n_received left), then print the final contiguous tail in order. Because
+      ! n_remote is exact, the last receive is not reposted and no irecv is left outstanding.
+      IF (para_env%is_source()) THEN
+         DO WHILE (n_received < n_remote)
+            CALL recv_request%wait()
+            ikp_done(recv_buf(1)) = .TRUE.
+            n_received = n_received + 1
+            IF (n_received < n_remote) THEN
+               recv_buf(1) = 0
+               CALL para_env%irecv(recv_buf, mp_any_source, recv_request, tag=floquet_done_tag)
+            END IF
+         END DO
+         DO WHILE (next_to_print <= n_kp_dos)
+            IF (.NOT. ikp_done(next_to_print)) EXIT
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T2,A,I6,A,I6)') &
+                  "FLOQUET PROGRESS | Completed k-point ", next_to_print, " of ", n_kp_dos
+            END IF
+            next_to_print = next_to_print + 1
+         END DO
+         DEALLOCATE (ikp_done)
+      END IF
 
       DEALLOCATE (e_k, de_dk, dipole)
 

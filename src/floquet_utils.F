@@ -571,9 +571,9 @@ CONTAINS
 
       INTEGER                                            :: g_load, g_mem, handle, n_f_size, &
                                                             n_kp_dos, nao, ranks_per_node, unit_nr
-      INTEGER(KIND=int_8)                                :: Buffers, Cached, MemFree, &
-                                                            MemLikelyFree, MemTotal, needed_bytes, &
-                                                            Slab, SReclaimable, usable_per_rank
+      INTEGER(KIND=int_8)                                :: Buffers, Cached, MemFree, MemLikelyFree, &
+                                                            MemTotal, needed_bytes, Slab, &
+                                                            SReclaimable, usable_per_rank
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
@@ -623,14 +623,14 @@ CONTAINS
          WRITE (unit_nr, '(T2,A)') ""
          WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Detected MPI ranks per node:", ranks_per_node
          WRITE (unit_nr, '(T2,A,T66,I12,A)') "FLOQUET MEMORY | Free memory per rank:", &
-            (MemLikelyFree/INT(ranks_per_node, int_8))/1048576_int_8, " MiB"
+            (MemLikelyFree/INT(ranks_per_node, int_8))/1048576_int_8, " MB"
          WRITE (unit_nr, '(T2,A,T66,I12,A)') "FLOQUET MEMORY | Usable per rank (reserve applied):", &
-            usable_per_rank/1048576_int_8, " MiB"
+            usable_per_rank/1048576_int_8, " MB"
          WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Floquet copies needed:", n_fm_work_copies
          WRITE (unit_nr, '(T2,A,T66,I12,A)') "FLOQUET MEMORY | Total Floquet working set:", &
-            needed_bytes/1048576_int_8, " MiB"
+            needed_bytes/1048576_int_8, " MB"
          WRITE (unit_nr, '(T2,A,T66,I12,A)') "FLOQUET MEMORY | Floquet working set per rank:", &
-            (needed_bytes/INT(MAX(group_size, 1), int_8))/1048576_int_8, " MiB"
+            (needed_bytes/INT(MAX(group_size, 1), int_8))/1048576_int_8, " MB"
          WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Memory floor (ranks/subgroup):", g_mem
          WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | K-point floor (ranks/subgroup):", g_load
          WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Chosen MPI ranks per subgroup:", group_size
@@ -729,10 +729,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_floquet_convergence'
 
-      ! the formatted abort message below is ~110 characters, longer than default_string_length
       CHARACTER(LEN=256)                                 :: msg
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: leak
+
+! the formatted abort message below is ~110 characters, longer than default_string_length
 
       CALL timeset(routineN, handle)
 
@@ -752,13 +753,6 @@ CONTAINS
       END IF
 
       leak = MAXVAL(wE, MASK=(w0 > 0.5_dp))
-
-      ! Diagnostic only. bs_env%unit_nr > 0 on the global I/O rank alone, and that rank belongs
-      ! to exactly one subgroup, so this covers only the k-points that subgroup processes.
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,T66,ES15.2E2)') &
-            "FLOQUET CONVERGENCE | Outermost-rung weight of m=0 states:", leak
-      END IF
 
       IF (bs_env%eps_floquet > 0.0_dp .AND. leak > bs_env%eps_floquet) THEN
          WRITE (msg, '(A,ES10.2E2,A,ES10.2E2,A)') &
