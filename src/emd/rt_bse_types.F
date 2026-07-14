@@ -1070,17 +1070,13 @@ CONTAINS
 
       DO ispin = 1, rtbse_env%n_spin
          n_virt = n_ao_full - rtbse_env%n_occ(ispin)
-         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
-            CALL determine_cutoff_indices(bs_env%eigenval_G0W0(:, 1, ispin), &
-                                          rtbse_env%n_occ(ispin), n_virt, &
-                                          homo_red, virt_red, homo_incl, virt_incl, &
-                                          cutoff_occ, cutoff_empty)
-         ELSE
-            CALL determine_cutoff_indices(bs_env%eigenval_scf_Gamma(:, ispin), &
-                                          rtbse_env%n_occ(ispin), n_virt, &
-                                          homo_red, virt_red, homo_incl, virt_incl, &
-                                          cutoff_occ, cutoff_empty)
-         END IF
+         ! Cut on the DFT axis, as LRBSE does: it is ascending by construction, so the window is a
+         ! well-defined contiguous MO range, which is all C_active can extract. The G0W0 axis is
+         ! not ordered.
+         CALL determine_cutoff_indices(bs_env%eigenval_scf_Gamma(:, ispin), &
+                                       rtbse_env%n_occ(ispin), n_virt, &
+                                       homo_red, virt_red, homo_incl, virt_incl, &
+                                       cutoff_occ, cutoff_empty)
          ! Translate the per-spin candidate to global MO indices [homo_incl, homo + virt_incl]
          IF (ispin > 1) THEN
             IF (homo_incl /= first_occ_prev .OR. (rtbse_env%n_occ(ispin) + virt_incl) /= last_virt_prev) THEN
