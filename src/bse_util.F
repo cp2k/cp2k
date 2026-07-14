@@ -1191,12 +1191,23 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'determine_cutoff_indices'
 
-      INTEGER                                            :: handle, i_homo, j_virt
+      INTEGER                                            :: handle, i_chk, i_homo, j_virt
 
       CALL timeset(routineN, handle)
       ! Determine index in homo and virtual for truncation
       ! Uses indices of outermost orbitals within energy range (-cutoff_occ,cutoff_empty)
       IF (cutoff_occ > 0 .OR. cutoff_empty > 0) THEN
+         ! The scans below EXIT at the first orbital beyond the cutoff, which only yields the correct
+         ! window on an ascending axis. A non-monotonic one (G0W0) stops at the first inversion and
+         ! silently drops in-window orbitals.
+         DO i_chk = 2, homo + virtual
+            IF (Eigenval(i_chk) < Eigenval(i_chk - 1)) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "determine_cutoff_indices: eigenvalues are not ascending. Take the "// &
+                             "energy cutoff on the DFT axis; the G0W0 axis is not ordered.")
+            END IF
+         END DO
+
          IF (-cutoff_occ < Eigenval(1) - Eigenval(homo) &
              .OR. cutoff_occ < 0) THEN
             homo_red = homo
