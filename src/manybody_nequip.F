@@ -566,8 +566,7 @@ CONTAINS
       n_atoms = SIZE(nequip_work%particle_set)
 
       ! for allegro ensure ghost atoms are included in the evaluation
-      IF (nequip_work%target_pot_type /= nequip_type .AND. &
-          nequip_work%target_pot_type /= mace_type) THEN
+      IF (nequip_work%target_pot_type == allegro_type) THEN
          ! label atoms in the local edges
          DO i = 1, SIZE(nequip_work%local_edges, 2)
             atom_a = INT(nequip_work%local_edges(1, i))
