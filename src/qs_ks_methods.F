@@ -143,6 +143,7 @@ MODULE qs_ks_methods
                                               get_gauxc_section,&
                                               xc_section_uses_native_skala_grid
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
+   USE string_utilities,                ONLY: uppercase
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE virial_types,                    ONLY: virial_type
@@ -199,14 +200,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
 
-      CHARACTER(len=default_string_length)               :: name
+      CHARACTER(len=default_string_length)               :: gauxc_model_name, name
       INTEGER                                            :: ace_rebuild_frequency, atom_a, handle, &
                                                             iatom, ikind, img, ispin, natom, &
                                                             nimages, nspins, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL :: ace_active, do_adiabatic_rescaling, do_ddapc, do_hfx, do_kpoints, do_ppl, dokp, &
-         gapw, gapw_xc, just_energy_xc, lrigpw, my_print, native_grid_diagnostics, &
-         native_grid_use_cuda, native_skala_restore_exc, rigpw, use_gauxc_matrix, use_virial
+         gapw, gapw_xc, gauxc_model_none, just_energy_xc, lrigpw, my_print, &
+         native_grid_diagnostics, native_grid_use_cuda, native_skala_restore_exc, rigpw, &
+         use_gauxc_matrix, use_virial
       LOGICAL, SAVE :: native_grid_cpu_kpoints_warned = .FALSE.
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p, &
@@ -922,12 +924,19 @@ CONTAINS
                NULLIFY (rho1)
                IF (dft_control%use_gauxc .AND. (gapw .OR. gapw_xc) .AND. &
                    .NOT. xc_section_uses_native_skala_grid(xc_section)) THEN
-                  ! Molecular GauXC evaluates the XC term outside xc_derivatives.
-                  ! The accurate-XCINT force correction would otherwise try to
-                  ! evaluate the GAUXC section through CP2K's local functional path.
-                  ! Native-grid SKALA can provide this correction through the
-                  ! CP2K grid path and needs it for GAPW_XC force consistency.
-                  CONTINUE
+                  gauxc_model_none = .FALSE.
+                  gauxc_section => get_gauxc_section(xc_section)
+                  IF (ASSOCIATED(gauxc_section)) THEN
+                     CALL section_vals_val_get(gauxc_section, "MODEL", c_val=gauxc_model_name)
+                     gauxc_model_name = ADJUSTL(gauxc_model_name)
+                     CALL uppercase(gauxc_model_name)
+                     gauxc_model_none = (TRIM(gauxc_model_name) == "" .OR. &
+                                         TRIM(gauxc_model_name) == "NONE")
+                  END IF
+                  IF (gauxc_model_none .AND. &
+                      (gapw_xc .OR. gauxc_gapw_has_paw_pseudopotentials(qs_kind_set))) THEN
+                     CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section)
+                  END IF
                ELSE
                   CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section)
                END IF

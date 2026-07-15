@@ -307,9 +307,11 @@ CONTAINS
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv maximum implemented derivative of the xc functional
 !> \param print_warn whether to print warning about development status of a functional
+!> \param func_name_override optional LibXC functional name overriding the section name
 !> \author F. Tran
 ! **************************************************************************************************
-   SUBROUTINE libxc_lda_info(libxc_params, reference, shortform, needs, max_deriv, print_warn)
+   SUBROUTINE libxc_lda_info(libxc_params, reference, shortform, needs, max_deriv, print_warn, &
+                             func_name_override)
 
       TYPE(section_vals_type), POINTER         :: libxc_params
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
@@ -317,6 +319,7 @@ CONTAINS
          INTENT(inout), OPTIONAL               :: needs
       INTEGER, INTENT(out), OPTIONAL           :: max_deriv
       LOGICAL, INTENT(IN), OPTIONAL            :: print_warn
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: func_name_override
 
 #if defined (__LIBXC)
       CHARACTER(LEN=128)                       :: s1, s2
@@ -326,8 +329,13 @@ CONTAINS
       TYPE(xc_f03_func_t)                      :: xc_func
       TYPE(xc_f03_func_info_t)                 :: xc_info
 
-      func_name = libxc_params%section%name
-      CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)
+      IF (PRESENT(func_name_override)) THEN
+         func_name = func_name_override
+         func_scale = 1.0_dp
+      ELSE
+         func_name = libxc_params%section%name
+         CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)
+      END IF
 
       CALL cite_reference(Marques2012)
       CALL cite_reference(Lehtola2018)
@@ -398,6 +406,7 @@ CONTAINS
       MARK_USED(needs)
       MARK_USED(max_deriv)
       MARK_USED(print_warn)
+      MARK_USED(func_name_override)
 
       CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking "// &
                     "for a functional of the LibXC library, "// &
@@ -415,9 +424,11 @@ CONTAINS
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv maximum implemented derivative of the xc functional
 !> \param print_warn whether to print warning about development status of a functional
+!> \param func_name_override optional LibXC functional name overriding the section name
 !> \author F. Tran
 ! **************************************************************************************************
-   SUBROUTINE libxc_lsd_info(libxc_params, reference, shortform, needs, max_deriv, print_warn)
+   SUBROUTINE libxc_lsd_info(libxc_params, reference, shortform, needs, max_deriv, print_warn, &
+                             func_name_override)
 
       TYPE(section_vals_type), POINTER         :: libxc_params
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
@@ -425,6 +436,7 @@ CONTAINS
          INTENT(inout), OPTIONAL               :: needs
       INTEGER, INTENT(out), OPTIONAL           :: max_deriv
       LOGICAL, INTENT(IN), OPTIONAL            :: print_warn
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: func_name_override
 
 #if defined (__LIBXC)
       CHARACTER(LEN=128)                       :: s1, s2
@@ -434,8 +446,13 @@ CONTAINS
       TYPE(xc_f03_func_t)                      :: xc_func
       TYPE(xc_f03_func_info_t)                 :: xc_info
 
-      func_name = libxc_params%section%name
-      CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)
+      IF (PRESENT(func_name_override)) THEN
+         func_name = func_name_override
+         func_scale = 1.0_dp
+      ELSE
+         func_name = libxc_params%section%name
+         CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)
+      END IF
 
       CALL cite_reference(Marques2012)
       CALL cite_reference(Lehtola2018)
@@ -508,6 +525,7 @@ CONTAINS
       MARK_USED(needs)
       MARK_USED(max_deriv)
       MARK_USED(print_warn)
+      MARK_USED(func_name_override)
 
       CALL cp_abort(__LOCATION__, "Unknown functional! If you are "// &
                     "asking for a functional of the LibXC library, "// &
@@ -542,14 +560,16 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param libxc_params input parameter (functional name, scaling and parameters)
+!> \param func_name_override optional LibXC functional name overriding the section name
 !> \author F. Tran
 ! **************************************************************************************************
-   SUBROUTINE libxc_lda_eval(rho_set, deriv_set, grad_deriv, libxc_params)
+   SUBROUTINE libxc_lda_eval(rho_set, deriv_set, grad_deriv, libxc_params, func_name_override)
 
       TYPE(xc_rho_set_type), INTENT(IN)        :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN) :: deriv_set
       INTEGER, INTENT(in)                      :: grad_deriv
       TYPE(section_vals_type), POINTER         :: libxc_params
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: func_name_override
 
 #if defined (__LIBXC)
       CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lda_eval'
@@ -574,15 +594,22 @@ CONTAINS
       NULLIFY (dummy)
       NULLIFY (rho, norm_drho, laplace_rho, tau)
 
-      func_name = libxc_params%section%name
-      CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)
+      IF (PRESENT(func_name_override)) THEN
+         func_name = func_name_override
+         func_scale = 1.0_dp
+      ELSE
+         func_name = libxc_params%section%name
+         CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)
+      END IF
 
       IF (ABS(func_scale - 1.0_dp) < 1.0e-10_dp) func_scale = 1.0_dp
 
       func_id = xc_libxc_wrap_functional_get_number(func_name)
       CALL xc_f03_func_init(xc_func, func_id, XC_UNPOLARIZED)
       xc_info = xc_f03_func_get_info(xc_func)
-      CALL xc_libxc_wrap_functional_set_params(xc_func, xc_info, libxc_params, no_exc)
+      no_exc = .FALSE.
+      IF (.NOT. PRESENT(func_name_override)) &
+         CALL xc_libxc_wrap_functional_set_params(xc_func, xc_info, libxc_params, no_exc)
 
       CALL xc_rho_set_get(rho_set, can_return_null=.TRUE., &
                           rho=rho, norm_drho=norm_drho, laplace_rho=laplace_rho, &
@@ -762,6 +789,7 @@ CONTAINS
       MARK_USED(deriv_set)
       MARK_USED(grad_deriv)
       MARK_USED(libxc_params)
+      MARK_USED(func_name_override)
       CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking "// &
                     "for a functional of the LibXC library, "// &
                     "you have to download and install the library!")
@@ -777,14 +805,16 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param libxc_params input parameter (functional name, scaling and parameters)
+!> \param func_name_override optional LibXC functional name overriding the section name
 !> \author F. Tran
 ! **************************************************************************************************
-   SUBROUTINE libxc_lsd_eval(rho_set, deriv_set, grad_deriv, libxc_params)
+   SUBROUTINE libxc_lsd_eval(rho_set, deriv_set, grad_deriv, libxc_params, func_name_override)
 
       TYPE(xc_rho_set_type), INTENT(IN)        :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN) :: deriv_set
       INTEGER, INTENT(in)                      :: grad_deriv
       TYPE(section_vals_type), POINTER         :: libxc_params
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: func_name_override
 
 #if defined (__LIBXC)
       CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lsd_eval'
@@ -823,15 +853,22 @@ CONTAINS
       NULLIFY (rhoa, rhob, norm_drho, norm_drhoa, norm_drhob, laplace_rhoa, &
                laplace_rhob, tau_a, tau_b)
 
-      func_name = libxc_params%section%name
-      CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)
+      IF (PRESENT(func_name_override)) THEN
+         func_name = func_name_override
+         func_scale = 1.0_dp
+      ELSE
+         func_name = libxc_params%section%name
+         CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)
+      END IF
 
       IF (ABS(func_scale - 1.0_dp) < 1.0e-10_dp) func_scale = 1.0_dp
 
       func_id = xc_libxc_wrap_functional_get_number(func_name)
       CALL xc_f03_func_init(xc_func, func_id, XC_POLARIZED)
       xc_info = xc_f03_func_get_info(xc_func)
-      CALL xc_libxc_wrap_functional_set_params(xc_func, xc_info, libxc_params, no_exc)
+      no_exc = .FALSE.
+      IF (.NOT. PRESENT(func_name_override)) &
+         CALL xc_libxc_wrap_functional_set_params(xc_func, xc_info, libxc_params, no_exc)
 
       CALL xc_rho_set_get(rho_set, can_return_null=.TRUE., &
                           rhoa=rhoa, rhob=rhob, norm_drho=norm_drho, &
@@ -1290,6 +1327,7 @@ CONTAINS
       MARK_USED(deriv_set)
       MARK_USED(grad_deriv)
       MARK_USED(libxc_params)
+      MARK_USED(func_name_override)
 
       CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking "// &
                     "for a functional of the LibXC library, "// &

@@ -109,7 +109,7 @@ CONTAINS
    END FUNCTION xc_section_uses_native_skala_grid
 
 ! **************************************************************************************************
-!> \brief Return true if the GAUXC subsection requests a Skala-style model.
+!> \brief Return true if the GAUXC subsection requests a model evaluation.
 !> \param xc_section ...
 !> \return ...
 ! **************************************************************************************************
@@ -117,16 +117,20 @@ CONTAINS
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL                                            :: uses_gauxc_model
 
-      CHARACTER(len=default_path_length)                 :: model_key, model_name
+      CHARACTER(len=default_path_length)                 :: model_key, model_name, xc_key, xc_name
       TYPE(section_vals_type), POINTER                   :: gauxc_section
 
       uses_gauxc_model = .FALSE.
       gauxc_section => get_gauxc_section(xc_section)
       IF (ASSOCIATED(gauxc_section)) THEN
          CALL section_vals_val_get(gauxc_section, "MODEL", c_val=model_name)
+         CALL section_vals_val_get(gauxc_section, "FUNCTIONAL", c_val=xc_name)
          model_key = ADJUSTL(model_name)
+         xc_key = ADJUSTL(xc_name)
          CALL uppercase(model_key)
-         uses_gauxc_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
+         CALL uppercase(xc_key)
+         uses_gauxc_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE" .AND. &
+                             TRIM(model_key) /= TRIM(xc_key))
       END IF
 
    END FUNCTION xc_section_uses_gauxc_model

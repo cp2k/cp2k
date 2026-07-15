@@ -3,3 +3,7 @@
 "SbH3_def2_gapw.inp"                    = [{matcher="M011", tol=1.0E-11, ref=-241.414769303399083}]
 "HCl_ccECP.inp"                         = [{matcher="M011", tol=1.0E-12, ref=-15.457709431781252}]
 "HCl_force.inp"                         = []
+"ICl_lanl2dz_gapw_force.inp"            = []
+"ICl_lanl2dz_gapw_stress.inp"           = []
+"ICl_lanl2dz_gapw_xc_force.inp"         = []
+"ICl_lanl2dz_gapw_xc_stress.inp"        = []

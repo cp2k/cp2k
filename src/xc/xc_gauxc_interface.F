@@ -506,6 +506,7 @@ CONTAINS
 !> \param device_runtime_fill_fraction ...
 !> \param status ...
 !> \param mpi_comm optional communicator for a grid-local GauXC runtime
+!> \param force_new_runtime force creation of a grid-local GauXC runtime
 !> \return ...
 ! **************************************************************************************************
    FUNCTION gauxc_create_grid( &
@@ -518,7 +519,8 @@ CONTAINS
       batch_size, &
       device_runtime_fill_fraction, &
       status, &
-      mpi_comm) RESULT(res)
+      mpi_comm, &
+      force_new_runtime) RESULT(res)
 
       TYPE(cp_gauxc_molecule_type), INTENT(IN)           :: molecule
       TYPE(cp_gauxc_basisset_type), INTENT(in)           :: basis
@@ -528,13 +530,14 @@ CONTAINS
       REAL(c_double), INTENT(IN)                         :: device_runtime_fill_fraction
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       INTEGER, INTENT(IN), OPTIONAL                      :: mpi_comm
+      LOGICAL, INTENT(IN), OPTIONAL                      :: force_new_runtime
       TYPE(cp_gauxc_grid_type)                           :: res
 
 #ifdef __GAUXC
       INTEGER(c_int)                                     :: grid_type_local, int_exec_space_local, &
                                                             lb_exec_space_local, &
                                                             pruning_scheme_local, radial_quad_local
-      LOGICAL                                            :: use_device_runtime
+      LOGICAL                                            :: force_new_runtime_local, use_device_runtime
 
       grid_type_local = read_atomic_grid_size(grid_type)
       radial_quad_local = read_radial_quad(radial_quadrature)
@@ -542,6 +545,8 @@ CONTAINS
       lb_exec_space_local = read_execution_space(lb_exec_space)
       int_exec_space_local = read_execution_space("host")
       use_device_runtime = (lb_exec_space_local == gauxc_executionspace%device)
+      force_new_runtime_local = .FALSE.
+      IF (PRESENT(force_new_runtime)) force_new_runtime_local = force_new_runtime
       res%owns_rt = .FALSE.
 
       IF (use_device_runtime) THEN
@@ -570,7 +575,8 @@ CONTAINS
          IF (PRESENT(mpi_comm)) THEN
             ! Reuse the global runtime when the requested communicator matches
             ! the communicator used during gauxc_init.
-            IF (.NOT. rt_has_mpi_comm .OR. mpi_comm /= rt_mpi_comm) THEN
+            IF (force_new_runtime_local .OR. .NOT. rt_has_mpi_comm .OR. &
+                mpi_comm /= rt_mpi_comm) THEN
                res%rt = gauxc_runtime_environment_new(status%status, mpi_comm)
                GAUXC_RETURN_IF_ERROR(status)
                res%owns_rt = .TRUE.
@@ -578,6 +584,7 @@ CONTAINS
          END IF
 #else
          MARK_USED(mpi_comm)
+         MARK_USED(force_new_runtime)
 #endif
       END IF
 
@@ -637,6 +644,7 @@ CONTAINS
       MARK_USED(grid_type)
       MARK_USED(lb_exec_space)
       MARK_USED(mpi_comm)
+      MARK_USED(force_new_runtime)
       MARK_USED(molecule)
       MARK_USED(pruning_scheme)
       MARK_USED(radial_quadrature)
@@ -809,10 +817,6 @@ CONTAINS
       END IF
 
       IF (nspins == 1) THEN
-         ! xmat factor 2 is applied by both CP2K and GauXC
-         ! "unapply" it here to even things back out.
-         ! This is NOT necessary in the Skala branch.
-         density_scalar = 0.5_dp*density_scalar
          CALL gauxc_integrator_eval_exc_vxc_rks( &
             status%status, &
             integrator%integrator, &

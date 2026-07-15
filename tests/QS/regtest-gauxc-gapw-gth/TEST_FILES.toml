@@ -1,8 +1,8 @@
-"H2_NATIVE_SKALA_GAPW_GTH_STRESS.inp" = [{matcher="E_total", tol=5e-8, ref=-0.9912833172}]
-"H2_NATIVE_SKALA_GAPW_GTH_STRESS_CHUNK_REQUEST.inp" = [{matcher="E_total", tol=5e-8, ref=-0.9912833169}]
+"H2_NATIVE_SKALA_GAPW_GTH_STRESS.inp" = [{matcher="E_total", tol=5e-8, ref=-0.97019845356640}]
+"H2_NATIVE_SKALA_GAPW_GTH_STRESS_CHUNK_REQUEST.inp" = [{matcher="E_total", tol=5e-8, ref=-0.97019845356640}]
 "H2_NATIVE_SKALA_GAPW_GPWTYPE_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.96567258919119},
                                              {matcher="M072", tol=1e-4, ref=5.37252718E-05},
                                              {matcher="M031", tol=1e-5, ref=-8.58976831594E+04}]
-"H2_NATIVE_SKALA_GAPW_XC_GTH_STRESS.inp" = [{matcher="E_total", tol=5e-8, ref=-0.9698629747}]
+"H2_NATIVE_SKALA_GAPW_XC_GTH_STRESS.inp" = [{matcher="E_total", tol=5e-8, ref=-0.94877811114650}]
 "H2_NATIVE_SKALA_GAPW_GTH_FORCE_DEBUG.inp" = [{matcher="DEBUG_force_sum", tol=2e-1, ref=0.0}]
 "H2_NATIVE_SKALA_GAPW_GTH_STRESS_DEBUG.inp" = [{matcher="DEBUG_stress_sum", tol=2e-1, ref=0.0}]

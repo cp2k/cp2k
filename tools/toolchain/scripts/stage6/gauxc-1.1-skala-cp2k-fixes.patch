@@ -1,8 +1,11 @@
 diff --git a/cmake/gauxc-config.cmake.in b/cmake/gauxc-config.cmake.in
-index c6c4c2d4..35e426af 100644
+index c6c4c2d4..b517ccc5 100644
 --- a/cmake/gauxc-config.cmake.in
 +++ b/cmake/gauxc-config.cmake.in
-@@ -8,0 +9,8 @@ include(CMakeFindDependencyMacro)
+@@ -6,6 +6,14 @@ list(PREPEND CMAKE_MODULE_PATH ${GauXC_CMAKE_DIR}                      )
+ list(PREPEND CMAKE_MODULE_PATH ${GauXC_CMAKE_DIR}/linalg-cmake-modules )
+ include(CMakeFindDependencyMacro)
+
 +if(POLICY CMP0144)
 +  cmake_policy(PUSH)
 +  cmake_policy(SET CMP0144 NEW)
@@ -11,7 +14,13 @@ index c6c4c2d4..35e426af 100644
 +  endif()
 +  set(CMAKE_POLICY_DEFAULT_CMP0144 NEW)
 +endif()
-@@ -93,0 +102,9 @@ endif()
+ # Always Required Dependencies
+ find_dependency( ExchCXX )
+ find_dependency( IntegratorXX )
+@@ -91,4 +99,13 @@ if(NOT TARGET gauxc::gauxc)
+     include("${GauXC_CMAKE_DIR}/gauxc-targets.cmake")
+ endif()
+
 +if(POLICY CMP0144)
 +  if(DEFINED _GAUXC_PREV_CMAKE_POLICY_DEFAULT_CMP0144)
 +    set(CMAKE_POLICY_DEFAULT_CMP0144 "${_GAUXC_PREV_CMAKE_POLICY_DEFAULT_CMP0144}")
@@ -21,33 +30,7 @@ index c6c4c2d4..35e426af 100644
 +  unset(_GAUXC_PREV_CMAKE_POLICY_DEFAULT_CMP0144)
 +  cmake_policy(POP)
 +endif()
-diff --git a/external/gau2grid/generated_source/gau2grid/gau2grid_pragma.h b/external/gau2grid/generated_source/gau2grid/gau2grid_pragma.h
---- a/external/gau2grid/generated_source/gau2grid/gau2grid_pragma.h
-+++ b/external/gau2grid/generated_source/gau2grid/gau2grid_pragma.h
-@@ -14,0 +15,8 @@
-+#if (defined(__GNUC__) || defined(__GNUG__)) && \
-+    !defined(__APPLE__) && !defined(__clang__)
-+static inline void* gg_aligned_alloc(const size_t alignment, const size_t size) {
-+    const size_t aligned_size =
-+        ((size + alignment - 1) / alignment) * alignment;
-+    return aligned_alloc(alignment, aligned_size);
-+}
-+#endif
-@@ -15,0 +24 @@
-+
-@@ -70 +79 @@
--    #define ALIGNED_MALLOC(alignment, size)                  aligned_alloc(alignment, size)
-+    #define ALIGNED_MALLOC(alignment, size)                  gg_aligned_alloc(alignment, size)
-diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index a9e60fd8..29b0949d 100644
---- a/src/CMakeLists.txt
-+++ b/src/CMakeLists.txt
-@@ -122,1 +122,4 @@ if ( GAUXC_HAS_ONEDFT )
--  target_link_libraries( gauxc PUBLIC "${TORCH_LIBRARIES}" nlohmann_json::nlohmann_json)
-+  get_target_property(GAUXC_NLOHMANN_JSON_INCLUDE_DIRS
-+    nlohmann_json::nlohmann_json INTERFACE_INCLUDE_DIRECTORIES)
-+  target_include_directories(gauxc PRIVATE ${GAUXC_NLOHMANN_JSON_INCLUDE_DIRS})
-+  target_link_libraries( gauxc PUBLIC "${TORCH_LIBRARIES}")
+ set(GauXC_LIBRARIES gauxc::gauxc)
 diff --git a/cmake/gauxc-exchcxx.cmake b/cmake/gauxc-exchcxx.cmake
 index 412df9b3..011ae844 100644
 --- a/cmake/gauxc-exchcxx.cmake
@@ -98,6 +81,129 @@ index b6bbbf0e..502067d2 100644
 +  endif()
 
 +endif()
+diff --git a/external/gau2grid/generated_source/gau2grid/gau2grid_pragma.h b/external/gau2grid/generated_source/gau2grid/gau2grid_pragma.h
+index f6033886..4bbbf13f 100644
+--- a/external/gau2grid/generated_source/gau2grid/gau2grid_pragma.h
++++ b/external/gau2grid/generated_source/gau2grid/gau2grid_pragma.h
+@@ -14,0 +15,9 @@
++#if (defined(__GNUC__) || defined(__GNUG__)) && \
++    !defined(__APPLE__) && !defined(__clang__)
++static inline void* gg_aligned_alloc(const size_t alignment, const size_t size) {
++    const size_t aligned_size =
++        ((size + alignment - 1) / alignment) * alignment;
++    return aligned_alloc(alignment, aligned_size);
++}
++#endif
++
+@@ -67,7 +76,7 @@
+ #elif defined(__GNUC__) || defined(__GNUG__)
+     // pragmas for GCC
+
+-    #define ALIGNED_MALLOC(alignment, size)                  aligned_alloc(alignment, size)
++    #define ALIGNED_MALLOC(alignment, size)                  gg_aligned_alloc(alignment, size)
+     #define ALIGNED_FREE(ptr)                                free(ptr)
+     #define ASSUME_ALIGNED(ptr, width)
+
+diff --git a/include/gauxc/xc_integrator_settings.hpp b/include/gauxc/xc_integrator_settings.hpp
+index a63899e6..9031be78 100644
+--- a/include/gauxc/xc_integrator_settings.hpp
++++ b/include/gauxc/xc_integrator_settings.hpp
+@@ -23,6 +23,9 @@ struct IntegratorSettingsSNLinK : public IntegratorSettingsEXX {
+ struct IntegratorSettingsXC { virtual ~IntegratorSettingsXC() noexcept = default; };
+ struct IntegratorSettingsKS : public IntegratorSettingsXC {
+   double gks_dtol = 1e-12;
++  // RKS density matrices are interpreted as one-spin densities by default.
++  // Set this when the caller provides the spin-summed closed-shell density.
++  bool rks_density_matrix_is_spin_summed = false;
+ };
+
+ struct OneDFTSettings : public IntegratorSettingsXC {
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index a9e60fd8..29b0949d 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -119,7 +119,10 @@ if( GAUXC_HAS_MPI )
+ endif()
+
+ if ( GAUXC_HAS_ONEDFT )
+-  target_link_libraries( gauxc PUBLIC "${TORCH_LIBRARIES}" nlohmann_json::nlohmann_json)
++  get_target_property(GAUXC_NLOHMANN_JSON_INCLUDE_DIRS
++    nlohmann_json::nlohmann_json INTERFACE_INCLUDE_DIRECTORIES)
++  target_include_directories(gauxc PRIVATE ${GAUXC_NLOHMANN_JSON_INCLUDE_DIRS})
++  target_link_libraries( gauxc PUBLIC "${TORCH_LIBRARIES}")
+ endif()
+
+ add_subdirectory( runtime_environment )
+diff --git a/src/c-api/c_xc_integrator.cxx b/src/c-api/c_xc_integrator.cxx
+index 534eb3d0..f1efc430 100644
+--- a/src/c-api/c_xc_integrator.cxx
++++ b/src/c-api/c_xc_integrator.cxx
+@@ -200,12 +200,14 @@ void gauxc_integrator_eval_exc_rks(
+     detail::gauxc_status_handle(status, 1, "Exc output pointer cannot be null");
+     return;
+   }
++  IntegratorSettingsKS ks_settings{};
++  ks_settings.rks_density_matrix_is_spin_summed = true;
+   try {
+     detail::get_xc_integrator_ptr(integrator)->eval_exc(
+       m, n,
+       density_matrix, ldp,
+       exc,
+-      IntegratorSettingsXC{} );
++      ks_settings );
+   } catch (std::exception& e) {
+     detail::gauxc_status_handle(status, 1, e.what());
+   }
+@@ -333,13 +335,15 @@ void gauxc_integrator_eval_exc_vxc_rks(
+     detail::gauxc_status_handle(status, 1, "VXC matrix pointer cannot be null");
+     return;
+   }
++  IntegratorSettingsKS ks_settings{};
++  ks_settings.rks_density_matrix_is_spin_summed = true;
+   try {
+     detail::get_xc_integrator_ptr(integrator)->eval_exc_vxc(
+       m, n,
+       density_matrix, ldp,
+       vxc_matrix, vxc_ld,
+       exc,
+-      IntegratorSettingsXC{} );
++      ks_settings );
+   } catch (std::exception& e) {
+     detail::gauxc_status_handle(status, 1, e.what());
+   }
+@@ -565,12 +569,14 @@ void gauxc_integrator_eval_exc_grad_rks(
+     detail::gauxc_status_handle(status, 1, "Exc gradient output pointer cannot be null");
+     return;
+   }
++  IntegratorSettingsEXC_GRAD exc_grad_settings{};
++  exc_grad_settings.rks_density_matrix_is_spin_summed = true;
+   try {
+     detail::get_xc_integrator_ptr(integrator)->eval_exc_grad(
+       m, n,
+       density_matrix, ldp,
+       exc_grad,
+-      IntegratorSettingsXC{} );
++      exc_grad_settings );
+   } catch (std::exception& e) {
+     detail::gauxc_status_handle(status, 1, e.what());
+   }
+@@ -726,13 +732,15 @@ void gauxc_integrator_eval_fxc_contraction_rks(
+     detail::gauxc_status_handle(status, 1, "FXC output pointer cannot be null");
+     return;
+   }
++  IntegratorSettingsKS ks_settings{};
++  ks_settings.rks_density_matrix_is_spin_summed = true;
+   try {
+     detail::get_xc_integrator_ptr(integrator)->eval_fxc_contraction(
+       m, n,
+       density_matrix, ldp,
+       t_density_matrix, ldtp,
+       fxc, ldfxc,
+-      IntegratorSettingsXC{} );
++      ks_settings );
+   } catch (std::exception& e) {
+     detail::gauxc_status_handle(status, 1, e.what());
+   }
 diff --git a/src/xc_integrator/local_work_driver/factory.cxx b/src/xc_integrator/local_work_driver/factory.cxx
 index fd6b86ad..3547e1d3 100644
 --- a/src/xc_integrator/local_work_driver/factory.cxx
@@ -135,3 +241,443 @@ index fd6b86ad..3547e1d3 100644
    (void)(settings);
 
    switch(ex) {
+diff --git a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator.hpp b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator.hpp
+index 1287835e..91027539 100644
+--- a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator.hpp
++++ b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator.hpp
+@@ -128,7 +128,8 @@ protected:
+                             const value_type* Py, int64_t ldpy,
+                             const value_type* Px, int64_t ldpx,
+                             host_task_iterator task_begin, host_task_iterator task_end,
+-                            XCDeviceData& device_data, bool do_vxc );
++                            XCDeviceData& device_data, bool do_vxc,
++                            const IntegratorSettingsXC& settings );
+
+   void exc_vxc_local_work_( const basis_type& basis, const value_type* Ps, int64_t ldps,
+                             const value_type* Pz, int64_t ldpz,
+@@ -139,7 +140,7 @@ protected:
+                             value_type* VXCy, int64_t ldvxcy,
+                             value_type* VXCx, int64_t ldvxcx, value_type* EXC, value_type *N_EL,
+                             host_task_iterator task_begin, host_task_iterator task_end,
+-                            XCDeviceData& device_data );
++                            XCDeviceData& device_data, const IntegratorSettingsXC& settings );
+
+   void pre_onedft_local_work_( const basis_type& basis, const value_type* Ps, int64_t ldps,
+                             const value_type* Pz, int64_t ldpz,
+@@ -159,7 +160,7 @@ protected:
+                             const value_type* tPs, int64_t ldtps,
+                             const value_type* tPz, int64_t ldtpz,
+                             host_task_iterator task_begin, host_task_iterator task_end,
+-                            XCDeviceData& device_data);
++                            XCDeviceData& device_data, const IntegratorSettingsXC& settings);
+
+   void fxc_contraction_local_work_( const basis_type& basis, const value_type* Ps, int64_t ldps,
+                             const value_type* Pz, int64_t ldpz,
+@@ -169,7 +170,7 @@ protected:
+                             value_type* FXCs, int64_t ldfxcs,
+                             value_type* FXCz, int64_t ldfxcz,
+                             host_task_iterator task_begin, host_task_iterator task_end,
+-                            XCDeviceData& device_data );
++                            XCDeviceData& device_data, const IntegratorSettingsXC& settings );
+
+   void eval_exc_grad_local_work_( const basis_type& basis, const value_type* Ps, int64_t ldps,
+                                   const value_type* Pz, int64_t ldpz,
+diff --git a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc.hpp b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc.hpp
+index 9a2a7cf4..b6f4a3da 100644
+--- a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc.hpp
++++ b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc.hpp
+@@ -59,7 +59,7 @@ void IncoreReplicatedXCDeviceIntegrator<ValueType>::
+     exc_vxc_local_work_( basis, Ps, ldps, Pz, ldpz, Py, ldpy, Px, ldpx,
+         // Passing nullptr for VXCs disables VXC entirely
+         nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0, EXC, &N_EL,
+-       tasks.begin(), tasks.end(), *device_data_ptr);
++       tasks.begin(), tasks.end(), *device_data_ptr, settings);
+   });
+
+   GAUXC_MPI_CODE(
+@@ -100,4 +100,3 @@ void IncoreReplicatedXCDeviceIntegrator<ValueType>::
+
+ }
+ }
+-
+diff --git a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_grad.hpp b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_grad.hpp
+index 6c030bc2..15230d68 100644
+--- a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_grad.hpp
++++ b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_grad.hpp
+@@ -168,6 +168,10 @@ void IncoreReplicatedXCDeviceIntegrator<ValueType>::
+   IntegratorSettingsEXC_GRAD exc_grad_settings;
+   if( auto* tmp = dynamic_cast<const IntegratorSettingsEXC_GRAD*>(&settings) ) {
+     exc_grad_settings = *tmp;
++  } else if( auto* ks_tmp = dynamic_cast<const IntegratorSettingsKS*>(&settings) ) {
++    exc_grad_settings.gks_dtol = ks_tmp->gks_dtol;
++    exc_grad_settings.rks_density_matrix_is_spin_summed =
++      ks_tmp->rks_density_matrix_is_spin_summed;
+   }
+
+   // Check that Partition Weights have been calculated
+@@ -221,7 +225,8 @@ void IncoreReplicatedXCDeviceIntegrator<ValueType>::
+     else                         lwd->eval_collocation_gradient( &device_data );
+
+     // Evaluate X matrix and V vars
+-    const auto xmat_fac = is_rks ? 2.0 : 1.0;
++    const auto xmat_fac =
++      (is_rks and not exc_grad_settings.rks_density_matrix_is_spin_summed) ? 2.0 : 1.0;
+     const auto need_lapl = func.needs_laplacian();
+     const auto need_xmat_grad = not func.is_lda();
+     auto do_xmat_vvar = [&](density_id den_id) {
+diff --git a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_vxc.hpp b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_vxc.hpp
+index 6a27521d..42723b94 100644
+--- a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_vxc.hpp
++++ b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_vxc.hpp
+@@ -110,8 +110,8 @@ void IncoreReplicatedXCDeviceIntegrator<ValueType>::
+     // If we can do reductions on the device (e.g. NCCL)
+     // Don't communicate data back to the host before reduction
+     this->timer_.time_op("XCIntegrator.LocalWork_EXC_VXC", [&](){
+-      exc_vxc_local_work_( basis, Ps, ldps, Pz, ldpz, Py, ldpy, Px, ldpx, tasks.begin(), tasks.end(),
+-        *device_data_ptr, true);
++      exc_vxc_local_work_( basis, Ps, ldps, Pz, ldpz, Py, ldpy, Px, ldpx, tasks.begin(), tasks.end(),
++        *device_data_ptr, true, settings);
+     });
+
+     GAUXC_MPI_CODE(
+@@ -177,7 +177,7 @@ void IncoreReplicatedXCDeviceIntegrator<ValueType>::
+     this->timer_.time_op("XCIntegrator.LocalWork_EXC_VXC", [&](){
+       exc_vxc_local_work_( basis, Ps, ldps, Pz, ldpz, Py, ldpy, Px, ldpx,
+                                 VXCs, ldvxcs, VXCz, ldvxcz, VXCy, ldvxcy, VXCx, ldvxcx, EXC,
+-                              &N_EL, tasks.begin(), tasks.end(), *device_data_ptr);
++                              &N_EL, tasks.begin(), tasks.end(), *device_data_ptr, settings);
+     });
+
+     GAUXC_MPI_CODE(
+@@ -225,7 +225,8 @@ void IncoreReplicatedXCDeviceIntegrator<ValueType>::
+                             const value_type* Py, int64_t ldpy,
+                             const value_type* Px, int64_t ldpx,
+                             host_task_iterator task_begin, host_task_iterator task_end,
+-                            XCDeviceData& device_data, bool do_vxc ) {
++                            XCDeviceData& device_data, bool do_vxc,
++                            const IntegratorSettingsXC& settings ) {
+   const bool is_gks = (Pz != nullptr) and (Py != nullptr) and (Px != nullptr);
+   const bool is_uks = (Pz != nullptr) and (Py == nullptr) and (Px == nullptr);
+   const bool is_rks = (Ps != nullptr) and (not is_uks and not is_gks);
+@@ -243,6 +244,11 @@ void IncoreReplicatedXCDeviceIntegrator<ValueType>::
+
+   if( func.is_mgga() and is_gks ) GAUXC_GENERIC_EXCEPTION("GKS mGGAs NYI!");
+
++  IntegratorSettingsKS ks_settings;
++  if( auto* tmp = dynamic_cast<const IntegratorSettingsKS*>(&settings) ) {
++    ks_settings = *tmp;
++  }
++
+   // Get basis map
+   BasisSetMap basis_map(basis,mol);
+
+@@ -312,7 +318,8 @@ void IncoreReplicatedXCDeviceIntegrator<ValueType>::
+     else if( func.is_gga() ) lwd->eval_collocation_gradient( &device_data );
+     else                     lwd->eval_collocation( &device_data );
+
+-    const double xmat_fac = is_rks ? 2.0 : 1.0;
++    const double xmat_fac =
++      (is_rks and not ks_settings.rks_density_matrix_is_spin_summed) ? 2.0 : 1.0;
+     const bool need_xmat_grad = func.is_mgga();
+
+     // Evaluate X matrix and V vars
+@@ -396,11 +403,12 @@ void IncoreReplicatedXCDeviceIntegrator<ValueType>::
+                             value_type* VXCy, int64_t ldvxcy,
+                             value_type* VXCx, int64_t ldvxcx, value_type* EXC, value_type *N_EL,
+                             host_task_iterator task_begin, host_task_iterator task_end,
+-                            XCDeviceData& device_data ) {
++                            XCDeviceData& device_data, const IntegratorSettingsXC& settings ) {
+
+   // Get integrate and keep data on device
+   const bool do_vxc = VXCs;
+-  exc_vxc_local_work_( basis, Ps, ldps, Pz, ldpz, Py, ldpy, Px, ldpx, task_begin, task_end, device_data, do_vxc );
++  exc_vxc_local_work_( basis, Ps, ldps, Pz, ldpz, Py, ldpy, Px, ldpx,
++                       task_begin, task_end, device_data, do_vxc, settings );
+   auto rt  = detail::as_device_runtime(this->load_balancer_->runtime());
+   rt.device_backend()->master_queue_synchronize();
+
+@@ -414,4 +422,3 @@ void IncoreReplicatedXCDeviceIntegrator<ValueType>::
+
+ }
+ }
+-
+diff --git a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_fxc_contraction.hpp b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_fxc_contraction.hpp
+index ffc0ca41..0b813924 100644
+--- a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_fxc_contraction.hpp
++++ b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_fxc_contraction.hpp
+@@ -85,7 +85,7 @@ namespace GauXC::detail {
+       // Don't communicate data back to the host before reduction
+       this->timer_.time_op("XCIntegrator.LocalWork_FXC", [&](){
+         fxc_contraction_local_work_( basis, Ps, ldps, Pz, ldpz, tPs, ldtps, tPz, ldtpz,
+-          tasks.begin(), tasks.end(), *device_data_ptr);
++          tasks.begin(), tasks.end(), *device_data_ptr, ks_settings);
+       });
+
+       GAUXC_MPI_CODE(
+@@ -127,7 +127,8 @@ namespace GauXC::detail {
+       // data from device
+       this->timer_.time_op("XCIntegrator.LocalWork_FXC", [&](){
+         fxc_contraction_local_work_( basis, Ps, ldps, Pz, ldpz, tPs, ldtps, tPz, ldtpz, &N_EL,
+-                              FXCs, ldfxcs, FXCz, ldfxcz, tasks.begin(), tasks.end(), *device_data_ptr);
++                              FXCs, ldfxcs, FXCz, ldfxcz, tasks.begin(), tasks.end(), *device_data_ptr,
++                              ks_settings);
+       });
+
+       GAUXC_MPI_CODE(
+@@ -160,7 +161,7 @@ namespace GauXC::detail {
+                             const value_type* tPs, int64_t ldtps,
+                             const value_type* tPz, int64_t ldtpz,
+                             host_task_iterator task_begin, host_task_iterator task_end,
+-                            XCDeviceData& device_data) {
++                            XCDeviceData& device_data, const IntegratorSettingsXC& settings) {
+     const bool is_uks = (Pz != nullptr);
+     const bool is_rks = !is_uks;
+     if (not is_rks and not is_uks) {
+@@ -175,6 +176,11 @@ namespace GauXC::detail {
+     const auto& func  = *this->func_;
+     const auto& mol   = this->load_balancer_->molecule();
+
++    IntegratorSettingsKS ks_settings;
++    if( auto* tmp = dynamic_cast<const IntegratorSettingsKS*>(&settings) ) {
++      ks_settings = *tmp;
++    }
++
+     // Get basis map
+     BasisSetMap basis_map(basis,mol);
+
+@@ -243,7 +249,8 @@ namespace GauXC::detail {
+       else if( func.is_gga() ) lwd->eval_collocation_gradient( &device_data );
+       else                     lwd->eval_collocation( &device_data );
+
+-      const double xmat_fac = is_rks ? 2.0 : 1.0;
++      const double xmat_fac =
++        (is_rks and not ks_settings.rks_density_matrix_is_spin_summed) ? 2.0 : 1.0;
+       const bool need_xmat_grad = func.is_mgga();
+
+       // Evaluate X matrix and V vars
+@@ -327,11 +334,11 @@ namespace GauXC::detail {
+                             value_type* FXCs, int64_t ldfxcs,
+                             value_type* FXCz, int64_t ldfxcz,
+                             host_task_iterator task_begin, host_task_iterator task_end,
+-                            XCDeviceData& device_data ) {
++                            XCDeviceData& device_data, const IntegratorSettingsXC& settings ) {
+
+     // Get integrate and keep data on device
+     fxc_contraction_local_work_( basis, Ps, ldps, Pz, ldpz, tPs, ldtps, tPz, ldtpz,
+-                              task_begin, task_end, device_data);
++                              task_begin, task_end, device_data, settings);
+     auto rt  = detail::as_device_runtime(this->load_balancer_->runtime());
+     rt.device_backend()->master_queue_synchronize();
+
+diff --git a/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_grad.hpp b/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_grad.hpp
+index f04ae24b..b3c5db95 100644
+--- a/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_grad.hpp
++++ b/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_grad.hpp
+@@ -126,6 +126,10 @@ void ReferenceReplicatedXCHostIntegrator<ValueType>::
+   IntegratorSettingsEXC_GRAD exc_grad_settings;
+   if( auto* tmp = dynamic_cast<const IntegratorSettingsEXC_GRAD*>(&settings) ) {
+     exc_grad_settings = *tmp;
++  } else if( auto* ks_tmp = dynamic_cast<const IntegratorSettingsKS*>(&settings) ) {
++    exc_grad_settings.gks_dtol = ks_tmp->gks_dtol;
++    exc_grad_settings.rks_density_matrix_is_spin_summed =
++      ks_tmp->rks_density_matrix_is_spin_summed;
+   }
+
+   // Get basis map
+@@ -330,7 +334,8 @@ void ReferenceReplicatedXCHostIntegrator<ValueType>::
+
+     // Evaluate X matrix (2 * P * B/Bx/By/Bz) -> store in Z
+     // XXX: This assumes that bfn + gradients are contiguous in memory
+-    const auto xmat_fac = is_rks ? 2.0 : 1.0;
++    const auto xmat_fac =
++      (is_rks and not exc_grad_settings.rks_density_matrix_is_spin_summed) ? 2.0 : 1.0;
+     const int  xmat_len = func.is_lda() ? 1 : 4;
+     lwd->eval_xmat( xmat_len*npts, nbf, nbe, submat_map, xmat_fac, Ps, ldps, basis_eval, nbe,
+                     xNmat, nbe, nbe_scr );
+diff --git a/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_vxc.hpp b/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_vxc.hpp
+index 29878c50..94774eb5 100644
+--- a/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_vxc.hpp
++++ b/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_vxc.hpp
+@@ -385,7 +385,8 @@ void ReferenceReplicatedXCHostIntegrator<ValueType>::
+
+
+     // Evaluate X matrix (fac * P * B) -> store in Z
+-    const auto xmat_fac = is_rks ? 2.0 : 1.0; // TODO Fix for spinor RKS input
++    const auto xmat_fac =
++      (is_rks and not ks_settings.rks_density_matrix_is_spin_summed) ? 2.0 : 1.0;
+     lwd->eval_xmat( mgga_dim_scal * npts, nbf, nbe, submat_map, xmat_fac, Ps, ldps, basis_eval, nbe,
+       zmat, nbe, nbe_scr );
+
+diff --git a/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_fxc_contraction.hpp b/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_fxc_contraction.hpp
+index 192fe0f8..473e56f7 100644
+--- a/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_fxc_contraction.hpp
++++ b/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_fxc_contraction.hpp
+@@ -387,7 +387,8 @@ void ReferenceReplicatedXCHostIntegrator<ValueType>::
+
+
+     // Evaluate X matrix (fac * P * B) -> store in Z
+-    const auto xmat_fac = is_rks ? 2.0 : 1.0; // TODO Fix for spinor RKS input
++    const auto xmat_fac =
++      (is_rks and not ks_settings.rks_density_matrix_is_spin_summed) ? 2.0 : 1.0;
+     lwd->eval_xmat( mgga_dim_scal * npts, nbf, nbe, submat_map, xmat_fac, Ps, ldps, basis_eval, nbe,
+       zmat, nbe, nbe_scr );
+     // X matrix for Pz
+diff --git a/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator.hpp b/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator.hpp
+index 40e9512f..ceaaee1a 100644
+--- a/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator.hpp
++++ b/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator.hpp
+@@ -139,7 +139,9 @@ protected:
+                             value_type* VXCy, int64_t ldvxcy,
+                             value_type* VXCx, int64_t ldvxcx,
+                             value_type* EXC, value_type *N_EL,
+-                            host_task_iterator task_begin, host_task_iterator task_end, incore_integrator_type& incore_integrator
++                            host_task_iterator task_begin, host_task_iterator task_end,
++                            incore_integrator_type& incore_integrator,
++                            const IntegratorSettingsXC& ks_settings
+                              );
+
+
+@@ -152,7 +154,9 @@ protected:
+                            value_type* VXCz, int64_t ldvxcz,
+                            value_type* VXCy, int64_t ldvxcy,
+                            value_type* VXCx, int64_t ldvxcx,
+-                           value_type* EXC, value_type* N_EL, incore_integrator_type& incore_integrator);
++                           value_type* EXC, value_type* N_EL,
++                           incore_integrator_type& incore_integrator,
++                           const IntegratorSettingsXC& ks_settings);
+ public:
+
+   template <typename... Args>
+diff --git a/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_exc.hpp b/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_exc.hpp
+index 2a5565c9..02126e12 100644
+--- a/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_exc.hpp
++++ b/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_exc.hpp
+@@ -38,7 +38,7 @@ void ShellBatchedReplicatedXCIntegrator<BaseIntegratorType, IncoreIntegratorType
+              const value_type* Pz, int64_t ldpz,
+              const value_type* Py, int64_t ldpy,
+              const value_type* Px, int64_t ldpx,
+-             value_type* EXC, const IntegratorSettingsXC& /*ks_settings*/) {
++             value_type* EXC, const IntegratorSettingsXC& ks_settings) {
+
+
+   const auto& basis = this->load_balancer_->basis();
+@@ -84,7 +84,7 @@ void ShellBatchedReplicatedXCIntegrator<BaseIntegratorType, IncoreIntegratorType
+   this->timer_.time_op("XCIntegrator.LocalWork", [&](){
+     exc_vxc_local_work_( basis, Ps, ldps, Pz, ldpz, Py, ldpy, Px, ldpx,
+       nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0, EXC,
+-      &N_EL, tasks.begin(), tasks.end(), incore_integrator );
++      &N_EL, tasks.begin(), tasks.end(), incore_integrator, ks_settings );
+   });
+
+   // Release ownership of LWD back to this integrator instance
+@@ -134,4 +134,3 @@ void ShellBatchedReplicatedXCIntegrator<BaseIntegratorType, IncoreIntegratorType
+
+ }
+ }
+-
+diff --git a/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_exc_grad.hpp b/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_exc_grad.hpp
+index 1b594e31..caae56d1 100644
+--- a/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_exc_grad.hpp
++++ b/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_exc_grad.hpp
+@@ -22,7 +22,7 @@ void ShellBatchedReplicatedXCIntegrator<BaseIntegratorType, IncoreIntegratorType
+   eval_exc_grad_( int64_t m, int64_t n, const value_type* P, int64_t ldp, value_type* EXC_GRAD, const IntegratorSettingsXC& settings ) {
+
+   GAUXC_GENERIC_EXCEPTION("ShellBatched exc_grad NYI" );
+-  util::unused(m,n,P,ldp,EXC_GRAD);
++  util::unused(m,n,P,ldp,EXC_GRAD,settings);
+ }
+
+ template <typename BaseIntegratorType, typename IncoreIntegratorType>
+@@ -31,7 +31,7 @@ void ShellBatchedReplicatedXCIntegrator<BaseIntegratorType, IncoreIntegratorType
+                   const value_type* Pz, int64_t lpdz, value_type* EXC_GRAD, const IntegratorSettingsXC& settings ) {
+
+   GAUXC_GENERIC_EXCEPTION("ShellBatched exc_grad NYI" );
+-  util::unused(m,n,Ps,ldps,Pz,lpdz,EXC_GRAD);
++  util::unused(m,n,Ps,ldps,Pz,lpdz,EXC_GRAD,settings);
+ }
+
+ template <typename BaseIntegratorType, typename IncoreIntegratorType>
+diff --git a/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_exc_vxc.hpp b/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_exc_vxc.hpp
+index 3dd43f4d..961c3f46 100644
+--- a/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_exc_vxc.hpp
++++ b/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_exc_vxc.hpp
+@@ -42,7 +42,7 @@ void ShellBatchedReplicatedXCIntegrator<BaseIntegratorType, IncoreIntegratorType
+                  value_type* VXCz, int64_t ldvxcz,
+                  value_type* VXCy, int64_t ldvxcy,
+                  value_type* VXCx, int64_t ldvxcx,
+-                 value_type* EXC, const IntegratorSettingsXC& /*ks_settings*/) {
++                 value_type* EXC, const IntegratorSettingsXC& ks_settings) {
+
+
+   const auto& basis = this->load_balancer_->basis();
+@@ -98,7 +98,7 @@ void ShellBatchedReplicatedXCIntegrator<BaseIntegratorType, IncoreIntegratorType
+   this->timer_.time_op("XCIntegrator.LocalWork", [&](){
+     exc_vxc_local_work_( basis, Ps, ldps, Pz, ldpz, Py, ldpy, Px, ldpx,
+       VXCs, ldvxcs, VXCz, ldvxcz, VXCy, ldvxcy, VXCx, ldvxcx, EXC,
+-      &N_EL, tasks.begin(), tasks.end(), incore_integrator );
++      &N_EL, tasks.begin(), tasks.end(), incore_integrator, ks_settings );
+   });
+
+   // Release ownership of LWD back to this integrator instance
+@@ -166,7 +166,8 @@ void ShellBatchedReplicatedXCIntegrator<BaseIntegratorType, IncoreIntegratorType
+                        value_type* VXCx, int64_t ldvxcx,
+                        value_type* EXC, value_type *N_EL,
+                        host_task_iterator task_begin, host_task_iterator task_end,
+-                       incore_integrator_type& incore_integrator ) {
++                       incore_integrator_type& incore_integrator,
++                       const IntegratorSettingsXC& ks_settings ) {
+
+   //incore_integrator.exc_vxc_local_work( basis, P, ldp, VXC, ldvxc, EXC, N_EL, task_begin, task_end, device_data );
+   //return;
+@@ -227,7 +228,7 @@ void ShellBatchedReplicatedXCIntegrator<BaseIntegratorType, IncoreIntegratorType
+     // Execute task
+     execute_task_batch( next_task, basis, mol, Ps, ldps, Pz, ldpz,
+       Py, ldpy, Px, ldpx, VXCs, ldvxcs, VXCz, ldvxcz, VXCy, ldvxcy,
+-      VXCx, ldvxcx, EXC, N_EL, incore_integrator );
++      VXCx, ldvxcx, EXC, N_EL, incore_integrator, ks_settings );
+   };
+
+
+@@ -287,7 +288,8 @@ void ShellBatchedReplicatedXCIntegrator<BaseIntegratorType, IncoreIntegratorType
+                       value_type* VXCy, int64_t ldvxcy,
+                       value_type* VXCx, int64_t ldvxcx,
+                       value_type* EXC, value_type *N_EL,
+-                      incore_integrator_type& incore_integrator ) {
++                      incore_integrator_type& incore_integrator,
++                      const IntegratorSettingsXC& ks_settings ) {
+
+
+   // Alias information
+@@ -398,13 +400,13 @@ void ShellBatchedReplicatedXCIntegrator<BaseIntegratorType, IncoreIntegratorType
+     incore_integrator.exc_vxc_local_work( basis_subset, Ps_submat, nbe,
+       Pz_submat, nbe, Py_submat, nbe, Px_submat, nbe, VXCs_submat, nbe,
+       VXCz_submat, nbe, VXCy_submat, nbe, VXCx_submat, nbe,
+-      &EXC_tmp, &NEL_tmp, task_begin, task_end, *device_data_ptr_ );
++      &EXC_tmp, &NEL_tmp, task_begin, task_end, *device_data_ptr_, ks_settings );
+   } else if constexpr (not IncoreIntegratorType::is_device) {
+ #endif
+     incore_integrator.exc_vxc_local_work( basis_subset, Ps_submat, nbe,
+       Pz_submat, nbe, Py_submat, nbe, Px_submat, nbe, VXCs_submat, nbe,
+       VXCz_submat, nbe, VXCy_submat, nbe, VXCx_submat, nbe,
+-      &EXC_tmp, &NEL_tmp, IntegratorSettingsKS{}, task_begin, task_end );
++      &EXC_tmp, &NEL_tmp, ks_settings, task_begin, task_end );
+ #ifdef GAUXC_HAS_DEVICE
+   }
+ #endif
+@@ -444,4 +446,3 @@ void ShellBatchedReplicatedXCIntegrator<BaseIntegratorType, IncoreIntegratorType
+
+ }
+ }
+-
+diff --git a/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_fxc_contraction.hpp b/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_fxc_contraction.hpp
+index 289de960..6dc916cb 100644
+--- a/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_fxc_contraction.hpp
++++ b/src/xc_integrator/shell_batched/shell_batched_replicated_xc_integrator_fxc_contraction.hpp
+@@ -41,7 +41,7 @@ void ShellBatchedReplicatedXCIntegrator<BaseIntegratorType, IncoreIntegratorType
+                         const IntegratorSettingsXC& ks_settings ) {
+   GAUXC_GENERIC_EXCEPTION("ShellBatched FXC contraction NYI");
+   util::unused(m,n,Ps,ldps,Pz,ldpz,tPs,ldtps,tPz,ldtpz,
+-                 FXCs,ldfxcs,FXCz,ldfxcz);
++                 FXCs,ldfxcs,FXCz,ldfxcz,ks_settings);
+
+ }
