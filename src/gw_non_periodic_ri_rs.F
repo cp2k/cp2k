@@ -536,8 +536,14 @@ CONTAINS
          suffix = "_def2-tzvp-rs.ion"
       ELSE IF (bs_env%ri_rs%grid_select == 2) THEN
          suffix = "_cc-pvtz-rs.ion"
+      ELSE IF (bs_env%ri_rs%grid_select == 3) THEN
+         IF (LEN_TRIM(bs_env%ri_rs%grid_file_suffix) > 0) THEN
+            suffix = TRIM(bs_env%ri_rs%grid_file_suffix)
+         ELSE
+            suffix = "_rirs.ion"
+         END IF
       ELSE
-         CPABORT("Unknown grid_select value. Valid options are 1 (def2-TZVPP) or 2 (cc-pVTZ).")
+         CPABORT("Unknown grid_select (1=def2-TZVPP, 2=cc-pVTZ, 3=user-provided).")
       END IF
 
       nkind = SIZE(atomic_kind_set)

@@ -60,17 +60,10 @@ MODULE gw_utils
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gw_communication,                ONLY: fm_to_local_array
    USE gw_integrals,                    ONLY: build_3c_integral_block
-   USE input_constants,                 ONLY: do_potential_truncated,&
-                                              large_cell_Gamma,&
-                                              large_cell_Gamma_ri_rs,&
-                                              non_periodic_ri_rs,&
-                                              ri_rpa_g0w0_crossing_newton,&
-                                              rtp_bse_kernel_ri_ao,&
-                                              rtp_bse_kernel_ri_rs,&
-                                              rtp_method_bse,&
-                                              rtp_method_bse_linearized,&
-                                              small_cell_full_kp,&
-                                              xc_none
+   USE input_constants,                 ONLY: &
+        do_potential_truncated, large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs, &
+        ri_rpa_g0w0_crossing_newton, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_rs, rtp_method_bse, &
+        rtp_method_bse_linearized, small_cell_full_kp, xc_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -357,6 +350,7 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT_VERBOSE", l_val=bs_env%print_contract_verbose)
       CALL section_vals_val_get(gw_sec, "TIKHONOV", r_val=bs_env%ri_rs%tikhonov)
       CALL section_vals_val_get(gw_sec, "GRID_SELECT", i_val=bs_env%ri_rs%grid_select)
+      CALL section_vals_val_get(gw_sec, "GRID_FILE_SUFFIX", c_val=bs_env%ri_rs%grid_file_suffix)
       CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RL_RI", r_val=bs_env%ri_rs%cutoff_radius_ri_rs)
       CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RL_AO", r_val=bs_env%ri_rs%cutoff_radius_ri_ao)
       CALL section_vals_val_get(gw_sec, "N_PROCS_PER_ATOM_Z_LP", i_val=bs_env%ri_rs%n_procs_per_atom_z_lp)

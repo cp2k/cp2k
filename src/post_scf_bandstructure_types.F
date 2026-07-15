@@ -85,6 +85,7 @@ MODULE post_scf_bandstructure_types
       LOGICAL                                          :: keep_sparsity_rirs = .TRUE.
       REAL(KIND=dp)                                    :: cutoff_radius_v_w = -1.0_dp
       REAL(KIND=dp)                                    :: cutoff_radius_g_w = -1.0_dp
+      CHARACTER(LEN=default_string_length)             :: grid_file_suffix = ""
 
       ! Data types for cutoffs based DBCSR matrices
       REAL(KIND=dp), ALLOCATABLE                       :: chunk_centroids(:, :)
