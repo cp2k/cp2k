@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026.2 (Draft)
+## 2026.2 (July 15, 2026)
 
 ### New Features
 
@@ -41,7 +41,6 @@
 - Per-thermal-region function for rescaling temperatures in MD (independent of thermostats)
   ([#5002](https://github.com/cp2k/cp2k/pull/5002))
 - Cell optimization with fixed volume ([#5086](https://github.com/cp2k/cp2k/pull/5086))
-- **TODO**
 
 ### New Libraries
 
@@ -53,7 +52,6 @@
 - Reintegrate with LIBXS, LIBXSTREAM, and LIBXSMM ([#5343](https://github.com/cp2k/cp2k/pull/5343))
 - Add libGint for Hartree–Fock exchange with CUDA acceleration
   ([#5446](https://github.com/cp2k/cp2k/pull/5446))
-- **TODO**
 
 ### Breaking Changes
 
@@ -67,14 +65,12 @@
 - An implementation of the FFTW3 interface may be turned into a hard dependency in a later release.
   Please consider compiling and CP2K with FFTW3, MKL, AOCL or any other library implementing this
   interface if you have not used it until now. ([#5454](https://github.com/cp2k/cp2k/pull/5454))
-- **TODO**
 
 ### Fixes
 
 - Fix issues in the native DFT-D4 implementation. ([#5030](https://github.com/cp2k/cp2k/pull/5030))
 - Analytical periodic-subspace stress for 2D systems with ANALYTIC/MT
   ([#5282](https://github.com/cp2k/cp2k/pull/5282))
-- **TODO**
 
 ______________________________________________________________________
 

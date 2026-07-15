@@ -26,7 +26,7 @@ project(
   cp2k
   DESCRIPTION "CP2K"
   HOMEPAGE_URL "https://www.cp2k.org"
-  VERSION "2026.1"
+  VERSION "2026.2"
   LANGUAGES Fortran C CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
