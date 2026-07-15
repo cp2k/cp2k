@@ -250,8 +250,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="AUTO_BASIS", &
-                          description="Specify size of automatically generated auxiliary (RI) basis sets: "// &
-                          "Options={small,medium,large,huge}", &
+                          description="Specify type and size of automatically generated auxiliary "// &
+                          "(RI) basis sets. Exactly two arguments are required for this option. "// &
+                          "The first argument of basis type should be one of the following: "// &
+                          "`RI_AUX`, `AUX_FIT`, `LRI_AUX`, `P_LRI_AUX`, `RI_HXC`, `RI_XAS`, or "// &
+                          "`RI_HFX`. The second argument of basis size should be one of the "// &
+                          "following: `SMALL`, `MEDIUM`, `LARGE`, or `HUGE`. The default is not "// &
+                          "using any of these basis sets, requested by `AUTO_BASIS X X` (exactly "// &
+                          "as written here).", &
                           usage="AUTO_BASIS {basis_type} {basis_size}", &
                           type_of_var=char_t, repeats=.TRUE., n_var=-1, default_c_vals=["X", "X"])
       CALL section_add_keyword(section, keyword)

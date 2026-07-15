@@ -242,7 +242,18 @@ CONTAINS
             CALL uppercase(tmpstringlist(2))
             SELECT CASE (tmpstringlist(2))
             CASE ("X")
-               isize = -1
+               SELECT CASE (tmpstringlist(1))
+               CASE ("X")
+                  ! Do nothing
+               CASE DEFAULT
+                  CALL cp_abort(__LOCATION__, &
+                                "AUTO_BASIS: the size <X> is invalid for the "// &
+                                "type <"//TRIM(ADJUSTL(tmpstringlist(1)))//">; "// &
+                                "use one of SMALL, MEDIUM, LARGE, HUGE for "// &
+                                "the size. The syntax AUTO_BASIS X X is a "// &
+                                "reserved case for using NO automatically "// &
+                                "generated basis sets.")
+               END SELECT
             CASE ("SMALL")
                isize = 0
             CASE ("MEDIUM")
@@ -648,7 +659,11 @@ CONTAINS
          END IF
 
          ! periodic fields don't work with RTP
-         CPASSERT(.NOT. do_rtp)
+         IF (do_rtp) &
+            CALL cp_abort(__LOCATION__, &
+                          "Periodic efield cannot be used with RTP. When restarting a "// &
+                          "run with periodic efield, set RESTART_RTP under &EXT_RESTART "// &
+                          "section to .FALSE. explicitly if RESTART_DEFAULT is .TRUE.")
          IF (dft_control%period_efield%displacement_field) THEN
             CALL cite_reference(Stengel2009)
          ELSE
@@ -2122,7 +2137,18 @@ CONTAINS
             CALL uppercase(tmpstringlist(2))
             SELECT CASE (tmpstringlist(2))
             CASE ("X")
-               isize = -1
+               SELECT CASE (tmpstringlist(1))
+               CASE ("X")
+                  ! Do nothing
+               CASE DEFAULT
+                  CALL cp_abort(__LOCATION__, &
+                                "AUTO_BASIS: the size <X> is invalid for the "// &
+                                "type <"//TRIM(ADJUSTL(tmpstringlist(1)))//">; "// &
+                                "use one of SMALL, MEDIUM, LARGE, HUGE for "// &
+                                "the size. The syntax AUTO_BASIS X X is a "// &
+                                "reserved case for using NO automatically "// &
+                                "generated basis sets.")
+               END SELECT
             CASE ("SMALL")
                isize = 0
             CASE ("MEDIUM")

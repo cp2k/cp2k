@@ -61,7 +61,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: basis_sort
 
       CHARACTER(LEN=2)                                   :: element_symbol
-      CHARACTER(LEN=default_string_length)               :: bsname
+      CHARACTER(LEN=default_string_length)               :: bsname, kname
       INTEGER                                            :: i, j, jj, l, laux, linc, lmax, lval, lx, &
                                                             nsets, nx, z
       INTEGER, DIMENSION(0:18)                           :: nval
@@ -84,7 +84,7 @@ CONTAINS
                   2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp]
       !
       CPASSERT(.NOT. ASSOCIATED(ri_aux_basis_set))
-      NULLIFY (orb_basis_set)
+      NULLIFY (orb_basis_set, econf)
       IF (.NOT. PRESENT(basis_type)) THEN
          CALL get_qs_kind(qs_kind, basis_set=orb_basis_set, basis_type="ORB")
       ELSE
@@ -106,6 +106,15 @@ CONTAINS
          CALL init_orbital_pointers(2*lmax)
          CALL get_basis_products(lmax, zmin, zmax, zeff, pmin, pmax, peff)
          CALL get_qs_kind(qs_kind, zeff=zval, elec_conf=econf, element_symbol=element_symbol)
+         IF (.NOT. ASSOCIATED(econf)) THEN
+            CALL get_qs_kind(qs_kind, name=kname)
+            CALL cp_abort(__LOCATION__, &
+                          "AUTO_BASIS RI_AUX cannot process atom kind "// &
+                          "<"//TRIM(ADJUSTL(kname))//"> due to missing "// &
+                          "definition of potential or electron configuration; "// &
+                          "consider setting keyword ELEC_CONF explicitly for "// &
+                          "GHOST atom kind that has assigned a basis set")
+         END IF
          CALL get_ptable_info(element_symbol, ielement=z)
          lval = 0
          DO l = 0, MAXVAL(UBOUND(econf))
@@ -236,7 +245,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: exact_1c_terms, tda_kernel
 
       CHARACTER(LEN=2)                                   :: element_symbol
-      CHARACTER(LEN=default_string_length)               :: bsname
+      CHARACTER(LEN=default_string_length)               :: bsname, kname
       INTEGER                                            :: i, j, l, laux, linc, lm, lmax, lval, n1, &
                                                             n2, nsets, z
       INTEGER, DIMENSION(0:18)                           :: nval
@@ -267,12 +276,21 @@ CONTAINS
       END IF
       !
       CPASSERT(.NOT. ASSOCIATED(lri_aux_basis_set))
-      NULLIFY (orb_basis_set)
+      NULLIFY (orb_basis_set, econf)
       CALL get_qs_kind(qs_kind, basis_set=orb_basis_set, basis_type="ORB")
       IF (ASSOCIATED(orb_basis_set)) THEN
          CALL get_basis_keyfigures(orb_basis_set, lmax, zmin, zmax, zeff)
          CALL get_basis_products(lmax, zmin, zmax, zeff, pmin, pmax, peff)
          CALL get_qs_kind(qs_kind, zeff=zval, elec_conf=econf, element_symbol=element_symbol)
+         IF (.NOT. ASSOCIATED(econf)) THEN
+            CALL get_qs_kind(qs_kind, name=kname)
+            CALL cp_abort(__LOCATION__, &
+                          "AUTO_BASIS LRI_AUX cannot process atom kind "// &
+                          "<"//TRIM(ADJUSTL(kname))//"> due to missing "// &
+                          "definition of potential or electron configuration; "// &
+                          "consider setting keyword ELEC_CONF explicitly for "// &
+                          "GHOST atom kind that has assigned a basis set")
+         END IF
          CALL get_ptable_info(element_symbol, ielement=z)
          lval = 0
          DO l = 0, MAXVAL(UBOUND(econf))
