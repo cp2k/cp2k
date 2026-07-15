@@ -34,6 +34,11 @@
                                                      {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2543},
                                                      {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5545},
                                                      {matcher="LinRTBSE_static_pol_xx",  tol=1e-04, ref=1.0304841828E+001}]
+"h2_linrtbse_tda_full_rirs_gridsel3.inp"          = [{matcher="RIRS_Grid",               tol=1e-03, ref=272},
+                                                     {matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=18.0092},
+                                                     {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2543},
+                                                     {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5545},
+                                                     {matcher="LinRTBSE_static_pol_xx",  tol=1e-04, ref=1.0304841828E+001}]
 "h2_linrtbse_tda_open_shell.inp"                  = [{matcher="LinRTBSE_1st_excit_ener",      tol=1e-04, ref=12.1081},
                                                      {matcher="LinRTBSE_2nd_excit_ener",      tol=1e-04, ref=18.0141},
                                                      {matcher="LinRTBSE_3rd_excit_ener",      tol=1e-04, ref=25.0470},
