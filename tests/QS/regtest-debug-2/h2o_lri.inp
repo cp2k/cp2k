@@ -21,8 +21,7 @@
     &EFIELD
     &END EFIELD
     &MGRID
-      CUTOFF 240
-      REL_CUTOFF 40
+      CUTOFF 100
     &END MGRID
     &PRINT
       &MOMENTS ON
@@ -35,7 +34,7 @@
       METHOD LRIGPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-7
       MAX_SCF 10
       SCF_GUESS ATOMIC
       &OT
@@ -43,7 +42,7 @@
         PRECONDITIONER FULL_SINGLE_INVERSE
       &END OT
       &OUTER_SCF
-        EPS_SCF 1.0E-6
+        EPS_SCF 1.0E-7
         MAX_SCF 10
       &END OUTER_SCF
     &END SCF
@@ -64,7 +63,7 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [angstrom] 4.5 4.5 4.5
+      ABC [angstrom] 5.0 5.0 5.0
       PERIODIC NONE
     &END CELL
     &COORD
