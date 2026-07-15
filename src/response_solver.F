@@ -2751,6 +2751,7 @@ CONTAINS
          s_matrix => matrix_s(1, 1)%matrix
          CALL ao_charges(p_matrix, s_matrix, aocg, para_env)
          CALL ao_charges(mpa, s_matrix, aocg1, para_env)
+         IF (nspins == 2) aocg1 = 0.5_dp*aocg1
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), natom=na)
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
