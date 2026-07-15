@@ -79,7 +79,8 @@ MODULE colvar_types
                                  mindist_colvar_id = 23, &
                                  acid_hyd_dist_colvar_id = 24, &
                                  acid_hyd_shell_colvar_id = 25, &
-                                 hydronium_dist_colvar_id = 26
+                                 hydronium_dist_colvar_id = 26, &
+                                 voronoiipz_colvar_id = 27
 
 ! **************************************************************************************************
 !> \brief parameters for the distance collective variable
@@ -222,6 +223,27 @@ MODULE colvar_types
                                          i_hydrogens => NULL()
       REAL(KIND=dp)                   :: rwoh = 0.0_dp, raoh = 0.0_dp, lambda = 0.0_dp, nc = 0.0_dp
    END TYPE acid_hyd_dist_colvar_type
+
+
+! **************************************************************************************************
+   TYPE voronoiipz_parameters_type
+      INTEGER, DIMENSION(:), POINTER :: group_a => NULL()
+      INTEGER, DIMENSION(:), POINTER :: group_b => NULL()
+      INTEGER, DIMENSION(:), POINTER :: pair_i0 => NULL()
+      INTEGER, DIMENSION(:), POINTER :: pair_i1 => NULL()
+      INTEGER                        :: n_pairs = 0
+      INTEGER                        :: lambda = 1
+      INTEGER                        :: zidx = 3
+      INTEGER                        :: nrx = 0
+      REAL(KIND=dp)                  :: d0 = 2.0_dp
+      REAL(KIND=dp)                  :: d1 = 2.0_dp
+      REAL(KIND=dp)                  :: d2 = 2.0_dp
+      REAL(KIND=dp)                  :: d3 = 2.0_dp
+      REAL(KIND=dp)                  :: zmid = 0.0_dp
+      REAL(KIND=dp)                  :: nl_cutoff = 4.536862_dp
+   END TYPE voronoiipz_parameters_type
+! **************************************************************************************************
+
 
 ! **************************************************************************************************
    TYPE acid_hyd_shell_colvar_type
@@ -377,6 +399,7 @@ MODULE colvar_types
       TYPE(HBP_colvar_type), POINTER               :: HBP => NULL()
       TYPE(ring_puckering_colvar_type), POINTER    :: ring_puckering_param => NULL()
       TYPE(mindist_colvar_type), POINTER           :: mindist_param => NULL()
+      TYPE(voronoiipz_parameters_type), POINTER :: voronoiipz_params => NULL()
    END TYPE colvar_type
 
 ! **************************************************************************************************
@@ -485,10 +508,17 @@ CONTAINS
          ALLOCATE (colvar%ring_puckering_param)
       CASE (mindist_colvar_id)
          ALLOCATE (colvar%mindist_param)
+      CASE (voronoiipz_colvar_id)
+         ALLOCATE (colvar%voronoiipz_params)
+         ! Initialize any primitive scalar parameters to default values if needed
+         colvar%voronoiipz_params%lambda = 0
+         colvar%voronoiipz_params%zidx   = 3
+         NULLIFY (colvar%voronoiipz_params%group_a)
+         NULLIFY (colvar%voronoiipz_params%group_b)
       CASE (no_colvar_id)
          ! Do nothing
       CASE DEFAULT
-         CPABORT("Unknown colvar type")
+         CPABORT("")
       END SELECT
 
    END SUBROUTINE colvar_create
@@ -958,6 +988,15 @@ CONTAINS
                list(idum) = colvar%combine_cvs_param%colvar_p(ii)%colvar%i_atom(j)
             END DO
          END DO
+      
+      CASE (voronoiipz_colvar_id)
+         colvar%use_points = .FALSE.
+         ! 1. Combine group_a and group_b into the setup list
+         ALLOCATE(list(SIZE(colvar%voronoiipz_params%group_a) + SIZE(colvar%voronoiipz_params%group_b)))
+         list(1:SIZE(colvar%voronoiipz_params%group_a)) = colvar%voronoiipz_params%group_a(:)
+         list(SIZE(colvar%voronoiipz_params%group_a)+1:SIZE(list)) = colvar%voronoiipz_params%group_b(:)
+         colvar%n_atom_s = SIZE(list) 
+         
       END SELECT
 
       IF (ASSOCIATED(colvar%dsdr)) THEN
@@ -1343,10 +1382,25 @@ CONTAINS
             DEALLOCATE (colvar%mindist_param%k_coord_to)
          END IF
          DEALLOCATE (colvar%mindist_param)
+
+      CASE (voronoiipz_colvar_id)
+         IF (ASSOCIATED(colvar%voronoiipz_params%group_a)) THEN
+            DEALLOCATE (colvar%voronoiipz_params%group_a)
+         END IF
+         IF (ASSOCIATED(colvar%voronoiipz_params%group_b)) THEN
+            DEALLOCATE (colvar%voronoiipz_params%group_b)
+         END IF
+
+         ! Finally, deallocate the master parameter block itself
+         DEALLOCATE (colvar%voronoiipz_params)
+
+       ! ----
+
+
       CASE (no_colvar_id)
          ! Do nothing
       CASE default
-         CPABORT("Unknown colvar type")
+         CPABORT("")
       END SELECT
       DEALLOCATE (colvar)
 
@@ -1372,6 +1426,29 @@ CONTAINS
       CALL colvar_clone_points(colvar_out, colvar_in, my_offset)
       IF (colvar_in%use_points) my_offset = 0
       SELECT CASE (colvar_out%type_id)
+      CASE (voronoiipz_colvar_id)
+         ! 1. Allocate the container structure on the cloned object
+         ALLOCATE (colvar_out%voronoiipz_params)
+         ! 2. Copy over the scalar variables
+         colvar_out%voronoiipz_params%lambda = colvar_in%voronoiipz_params%lambda
+         colvar_out%voronoiipz_params%zidx   = colvar_in%voronoiipz_params%zidx
+         colvar_out%voronoiipz_params%nrx    = colvar_in%voronoiipz_params%nrx
+         colvar_out%voronoiipz_params%zmid   = colvar_in%voronoiipz_params%zmid
+         colvar_out%voronoiipz_params%d0     = colvar_in%voronoiipz_params%d0
+         colvar_out%voronoiipz_params%d1     = colvar_in%voronoiipz_params%d1
+         colvar_out%voronoiipz_params%d2     = colvar_in%voronoiipz_params%d2
+         colvar_out%voronoiipz_params%d3     = colvar_in%voronoiipz_params%d3
+         ! 3. Copy the allocated tracking arrays if present
+         IF (ASSOCIATED(colvar_in%voronoiipz_params%group_a)) THEN
+            ALLOCATE (colvar_out%voronoiipz_params%group_a(SIZE(colvar_in%voronoiipz_params%group_a)))
+            colvar_out%voronoiipz_params%group_a(:) = colvar_in%voronoiipz_params%group_a(:)
+         END IF
+
+         IF (ASSOCIATED(colvar_in%voronoiipz_params%group_b)) THEN
+            ALLOCATE (colvar_out%voronoiipz_params%group_b(SIZE(colvar_in%voronoiipz_params%group_b)))
+            colvar_out%voronoiipz_params%group_b(:) = colvar_in%voronoiipz_params%group_b(:)
+         END IF
+
       CASE (dist_colvar_id)
          colvar_out%dist_param%i_at = colvar_in%dist_param%i_at + my_offset
          colvar_out%dist_param%j_at = colvar_in%dist_param%j_at + my_offset

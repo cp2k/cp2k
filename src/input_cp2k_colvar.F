@@ -50,7 +50,7 @@ MODULE input_cp2k_colvar
 
    PUBLIC :: create_colvar_section, &
              create_colvar_xyz_d_section, &
-             create_colvar_xyz_od_section
+             create_colvar_xyz_od_section, create_voronoiipz_section
 
 CONTAINS
 
@@ -228,6 +228,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_colvar_cond_dist_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_voronoiipz_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -2300,5 +2304,94 @@ CONTAINS
    END SUBROUTINE create_colvar_ring_puckering_section
 
 ! **************************************************************************************************
+!> \brief Creates the VORONOIIPZ collective variable input section
+!> \param section the section to create
+! **************************************************************************************************
+   SUBROUTINE create_voronoiipz_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      NULLIFY(keyword)
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="VORONOIIPZ", &
+                          description="Parameters for the VoronoiIPZ collective variable.", &
+                          n_subsections=0, repeats=.FALSE.)
+      CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
+                          description="Smoothing exponent parameter lambda.", &
+                          usage="LAMBDA 2", type_of_var=integer_t, default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ZMID", &
+                          description="Reference center midplane Z coordinate.", &
+                          usage="ZMID 0.0", type_of_var=real_t, default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ZIDX", &
+                          description="Index mapping descriptor for Z tracking.", &
+                          usage="ZIDX 1", type_of_var=integer_t, default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+
+      CALL keyword_create(keyword, __LOCATION__, name="D_0", &
+                          description="Coefficient d0.", usage="D_0 1.0", &
+                          type_of_var=real_t, default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="D_1", &
+                          description="Coefficient d1.", usage="D_1 1.0", &
+                          type_of_var=real_t, default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="D_2", &
+                          description="Coefficient d2.", usage="D_2 1.0", &
+                          type_of_var=real_t, default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="D_3", &
+                          description="Coefficient d3.", usage="D_3 1.0", &
+                          type_of_var=real_t, default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NL_CUTOFF", &
+           description="Neighbor list cutoff radius for the Voronoi calculation [Bohr]", &
+           usage="NL_CUTOFF 4.536862", default_r_val=4.536862_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)      
+
+      CALL keyword_create(keyword, __LOCATION__, name="GROUPA", &
+           description="Atom indices for group A", &
+           usage="GROUPA 1 2 3", &
+           repeats=.TRUE., &
+           n_var=-1, &
+           type_of_var=integer_t) 
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="GROUPB", &
+           description="Atom indices for group B", &
+           usage="GROUPB 4 5 6", &
+           repeats=.TRUE., &
+           n_var=-1, &
+           type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NRX", &
+                       description="Grid descriptor integer for region scaling.", &
+                       usage="NRX 10", &
+                       type_of_var=integer_t, &
+                       default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_voronoiipz_section
 
 END MODULE input_cp2k_colvar
