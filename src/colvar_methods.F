@@ -28,7 +28,7 @@ MODULE colvar_methods
         plane_def_vec, plane_distance_colvar_id, plane_plane_angle_colvar_id, &
         population_colvar_id, qparm_colvar_id, reaction_path_colvar_id, ring_puckering_colvar_id, &
         rmsd_colvar_id, rotation_colvar_id, torsion_colvar_id, u_colvar_id, xyz_diag_colvar_id, &
-        xyz_outerdiag_colvar_id
+        xyz_outerdiag_colvar_id, voronoiipz_colvar_id
    USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -101,6 +101,8 @@ MODULE colvar_methods
    IMPLICIT NONE
    PRIVATE
 
+   INTEGER :: i, j, n
+
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_methods'
    REAL(KIND=dp), PRIVATE, PARAMETER    :: tolerance_acos = 1.0E-5_dp
 
@@ -143,7 +145,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: iatms
       INTEGER, DIMENSION(:, :), POINTER                  :: p_bounds
       LOGICAL                                            :: check, use_mixed_energy
-      LOGICAL, DIMENSION(26)                             :: my_subsection
+      LOGICAL, DIMENSION(27)                             :: my_subsection
+
       REAL(dp), DIMENSION(:), POINTER                    :: s1, wei, weights
       REAL(dp), DIMENSION(:, :), POINTER                 :: p_range, s1v
       REAL(KIND=dp), DIMENSION(1)                        :: my_val
@@ -153,7 +156,7 @@ CONTAINS
       TYPE(enumeration_type), POINTER                    :: enum
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: section
-      TYPE(section_vals_type), POINTER :: acid_hyd_dist_section, acid_hyd_shell_section, &
+      TYPE(section_vals_type), POINTER :: voronoiipz_section, acid_hyd_dist_section, acid_hyd_shell_section, &
          angle_section, colvar_subsection, combine_section, coordination_section, dfunct_section, &
          distance_from_path_section, distance_section, frame_section, gyration_section, &
          HBP_section, hydronium_dist_section, hydronium_shell_section, mindist_section, &
@@ -181,6 +184,8 @@ CONTAINS
       hydronium_shell_section => section_vals_get_subs_vals(colvar_section, "HYDRONIUM_SHELL", i_rep_section=icol)
       hydronium_dist_section => section_vals_get_subs_vals(colvar_section, "HYDRONIUM_DISTANCE", i_rep_section=icol)
       acid_hyd_dist_section => section_vals_get_subs_vals(colvar_section, "ACID_HYDRONIUM_DISTANCE", i_rep_section=icol)
+      voronoiipz_section => section_vals_get_subs_vals(colvar_section, "VORONOIIPZ", i_rep_section=icol)
+
       acid_hyd_shell_section &
          => section_vals_get_subs_vals(colvar_section, "ACID_HYDRONIUM_SHELL", i_rep_section=icol)
       reaction_path_section => section_vals_get_subs_vals(colvar_section, "REACTION_PATH", i_rep_section=icol, &
@@ -239,6 +244,7 @@ CONTAINS
       CALL section_vals_get(acid_hyd_dist_section, explicit=my_subsection(24))
       CALL section_vals_get(acid_hyd_shell_section, explicit=my_subsection(25))
       CALL section_vals_get(hydronium_dist_section, explicit=my_subsection(26))
+      CALL section_vals_get(voronoiipz_section, explicit=my_subsection(27))
 
       ! Only one colvar can be present
       CPASSERT(COUNT(my_subsection) == 1)
@@ -1065,6 +1071,13 @@ CONTAINS
                                      colvar%hydronium_dist_param%n_hydrogens, &
                                      colvar%hydronium_dist_param%i_oxygens, &
                                      colvar%hydronium_dist_param%i_hydrogens)
+      ELSE IF (my_subsection(27)) THEN
+         CALL colvar_create(colvar, voronoiipz_colvar_id)
+         IF (ASSOCIATED(voronoiipz_section)) THEN
+            CALL read_voronoiipz_colvars(voronoiipz_section, colvar)
+         ELSE
+            WRITE(*,*) "ERROR: voronoiipz_section is NULL at index:", icol
+         END IF
       END IF
       CALL colvar_setup(colvar)
 
@@ -1335,6 +1348,7 @@ CONTAINS
                   ' Puckering Angle', &
                   colvar%ring_puckering_param%iq
             END IF
+
          CASE (mindist_colvar_id)
             WRITE (iw, '( A)') ' COLVARS| CONDITIONED DISTANCE>> '
             WRITE (iw, '( A,T71,I10)') (' COLVARS| COND.DISTANCE  >>> DISTANCE FROM '//tag, &
@@ -1665,6 +1679,7 @@ CONTAINS
       END IF
       ! Initialize the content of the derivative
       colvar%dsdr = 0.0_dp
+
       SELECT CASE (colvar%type_id)
       CASE (dist_colvar_id)
          CALL dist_colvar(colvar, cell, particles=particles)
@@ -1720,8 +1735,10 @@ CONTAINS
       CASE (HBP_colvar_id)
          !!! FIXME this is rubbish at the moment as we have no force to be computed on this
          CALL HBP_colvar(colvar, cell, particles=particles)
+      CASE (voronoiipz_colvar_id)
+         CALL colvar_eval_voronoiipz(colvar, cell, particles=particles) 
       CASE DEFAULT
-         CPABORT("Unknown colvar type for colvar_eval_mol_f")
+         CPABORT("")
       END SELECT
       ! Check for fixed atom constraints
       IF (PRESENT(fixd_list)) CALL check_fixed_atom_cns_colv(fixd_list, colvar)
@@ -1808,8 +1825,14 @@ CONTAINS
          CALL ring_puckering_colvar(colvar, cell, subsys=subsys)
       CASE (mindist_colvar_id)
          CALL mindist_colvar(colvar, cell, subsys=subsys)
+      !*CASE (voronoiipz_colvar_id)
+      !*   CALL colvar_eval_voronoiipz(colvar, cell, particles_set=subsys%particles%els)
+      CASE (voronoiipz_colvar_id)
+         CALL colvar_eval_voronoiipz(colvar, cell, subsys=subsys)
+
+
       CASE DEFAULT
-         CPABORT("Unknown colvar type for colvar_eval_glob_f")
+         CPABORT("")
       END SELECT
       ! Check for fixed atom constraints
       CALL check_fixed_atom_cns_colv(subsys%gci%fixd_list, colvar)
@@ -1881,7 +1904,7 @@ CONTAINS
       CASE (HBP_colvar_id)
          CALL HBP_colvar(colvar, cell, particles=particles)
       CASE DEFAULT
-         CPABORT("Unknown colvar type for colvar_recursive_eval")
+         CPABORT("")
       END SELECT
    END SUBROUTINE colvar_recursive_eval
 
@@ -2042,7 +2065,8 @@ CONTAINS
             xi(2) = 0.0_dp
             xi(3) = 1.0_dp
          CASE DEFAULT
-            CPABORT("xyz_diag_colvar not implemented for anything which is not a single component")
+            !Not implemented for anything which is not a single component.
+            CPABORT("")
          END SELECT
          fi(:) = xi
       END IF
@@ -6110,4 +6134,245 @@ CONTAINS
 
    END SUBROUTINE HBP_colvar
 
+!     +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!     COLVAR_VORONOIIPZ EVALUATION
+!     +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SUBROUTINE colvar_eval_voronoiipz(colvar, cell, subsys, particles)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+
+    TYPE(particle_type), DIMENSION(:), POINTER :: my_particles
+
+    INTEGER                                    :: n
+    INTEGER                                  :: i, j, k, i0, i1, zidx, num_atomsa, num_atomso, idx_a
+    INTEGER                                  :: nrx, lambda, d_in
+    REAL(KIND=dp)                            :: d0, d1, d2, d3, zmid, ion_z, buf, fk
+    REAL(KIND=dp), DIMENSION(3)              :: r0, r1, r_ij, dd
+    REAL(KIND=dp)                            :: dist_mod
+    REAL(KIND=dp)                            :: nl_cutoff
+
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)   :: nnexp, nnexpnorm, charge, charget
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)   :: c, distABinvmod
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: distAB
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: dsdr_tmp
+
+    ! Check presence and assign the pointer dynamically
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSEIF (PRESENT(subsys)) THEN
+       my_particles => subsys%particles%els
+    ELSE
+       CPABORT("colvar_eval_voronoiipz: neither particles nor subsys present")
+    END IF
+
+    ! Extract CV-specific configuration parameters mapped from input_cp2k
+    zidx       = colvar%voronoiipz_params%zidx ! 1=X, 2=Y, 3=Z format (Fortran index shift)
+    nrx        = colvar%voronoiipz_params%nrx
+    lambda     = colvar%voronoiipz_params%lambda
+    zmid       = colvar%voronoiipz_params%zmid
+    d0         = colvar%voronoiipz_params%d0
+    d1         = colvar%voronoiipz_params%d1
+    d2         = colvar%voronoiipz_params%d2
+    d3         = colvar%voronoiipz_params%d3
+    nl_cutoff  = colvar%voronoiipz_params%nl_cutoff
+
+    num_atomsa = SIZE(colvar%voronoiipz_params%group_a)
+    num_atomso = num_atomsa - nrx
+    n = SIZE(my_particles)
+
+    ! Initialize memory
+    ALLOCATE(nnexpnorm(n), charge(n), charget(n))
+    ALLOCATE(nnexp(colvar%voronoiipz_params%n_pairs))
+
+    ALLOCATE(c(colvar%voronoiipz_params%n_pairs))
+    ALLOCATE(distAB(colvar%voronoiipz_params%n_pairs, 3))
+    ALLOCATE(distABinvmod(colvar%voronoiipz_params%n_pairs))
+    ALLOCATE(dsdr_tmp(3, n)) 
+    dsdr_tmp = 0.0_dp
+
+    nnexpnorm = 0.0_dp
+    charge    = 0.0_dp
+    charget   = 0.0_dp
+    c         = 0.0_dp
+    ion_z     = 0.0_dp
+    colvar%dsdr = 0.0_dp  ! CP2K collective variable derivatives array (3, NumAtoms)
+
+    ! 3. LOOP 1: Distance calculation and normalization building
+    !$OMP PARALLEL DO PRIVATE(i, i0, i1, r0, r1, r_ij, dist_mod)
+    do i = 1, colvar%voronoiipz_params%n_pairs
+       i0 = colvar%voronoiipz_params%pair_i0(i) ! Map to group A global index
+       i1 = colvar%voronoiipz_params%pair_i1(i) ! Map to group B global index
+
+       r0 = my_particles(i0)%r
+       r1 = my_particles(i1)%r
+
+       r_ij = pbc(r0, r1, cell)
+       dist_mod = SQRT(SUM(r_ij**2))
+
+       ! CHANGE THESE LINES TO INDEX BY i:
+       distAB(i, :) = r_ij
+
+       distABinvmod(i) = 1.0_dp / MAX(dist_mod, 1.0E-12_dp)
+
+       ! CUTOFF
+       if (dist_mod > nl_cutoff) then
+          nnexp(i) = 0.0_dp
+       else
+          nnexp(i) = EXP(REAL(lambda, dp) * dist_mod)
+       end if
+
+       !$OMP CRITICAL(voronoi_norm_update)
+       nnexpnorm(i1) = nnexpnorm(i1) + nnexp(i)
+       !$OMP END CRITICAL(voronoi_norm_update)
+
+    end do
+    !$OMP END PARALLEL DO
+
+    ! 4. LOOP 2: Compute local unshifted charges
+    !$OMP PARALLEL DO PRIVATE(i, i0, i1)
+    do i = 1, colvar%voronoiipz_params%n_pairs
+       i0 = colvar%voronoiipz_params%pair_i0(i)
+       i1 = colvar%voronoiipz_params%pair_i1(i)
+       c(i) = nnexp(i) / MAX(nnexpnorm(i1), 1.0E-12_dp)
+    
+       !$OMP CRITICAL(voronoi_charge_update)
+       charget(i0) = charget(i0) + c(i)
+       !$OMP END CRITICAL(voronoi_charge_update)
+    end do
+    !$OMP END PARALLEL DO
+    charge(:) = charget(:)
+
+    ! 5. LOOP 2.5: Shift charges & absolute distance metric execution
+    do j = 1, num_atomsa
+       i0 = colvar%voronoiipz_params%group_a(j)
+
+       if (j == num_atomso) then
+          charge(i0) = charge(i0) - d1
+       else if (j == num_atomso + 1) then
+          charge(i0) = charge(i0) - d2
+       else if (j == num_atomso + 2) then
+          charge(i0) = charge(i0) - d3
+       else
+          charge(i0) = charge(i0) - d0
+       end if
+
+       ion_z = ion_z + ABS(my_particles(i0)%r(zidx) - zmid) * (charge(i0)**2)
+       
+       if ((my_particles(i0)%r(zidx) - zmid) >= 0.0_dp) then
+          colvar%dsdr(zidx, i0) = colvar%dsdr(zidx, i0) + (charge(i0)**2)
+       else
+          colvar%dsdr(zidx, i0) = colvar%dsdr(zidx, i0) - (charge(i0)**2)
+       end if
+
+    end do
+
+    ! 6. LOOP 4: Double loop analytical force gradients mapping back to CP2K atoms
+    !$OMP PARALLEL DO PRIVATE(i, k, i0, i1, d_in, fk, buf, dd)
+    do i = 1, colvar%voronoiipz_params%n_pairs
+       i0 = colvar%voronoiipz_params%pair_i0(i)
+       i1 = colvar%voronoiipz_params%pair_i1(i)
+
+       idx_a = i0
+
+       do k = 1, num_atomsa
+          idx_a = colvar%voronoiipz_params%group_a(k)
+          if (i0 == idx_a) then
+             d_in = 1
+          else
+             d_in = 0
+          end if
+
+          fk = REAL(lambda, dp) * c(i) * (REAL(d_in, dp) - c(i))
+          if (charge(i0) > 0.0_dp .AND. i0 < num_atomso) then
+             buf = 2.0_dp * ABS(my_particles(i0)%r(zidx) - zmid) * charge(i0) * fk
+          else
+             buf = 0.0_dp
+          end if
+
+          dd = buf * distABinvmod(i) * distAB(i, :)
+
+          !!$OMP CRITICAL(voronoi_dsdr_update)
+          dsdr_tmp(:, i1) = dsdr_tmp(:, i1) + dd
+          dsdr_tmp(:, idx_a)  = dsdr_tmp(:, idx_a)  - dd
+          !!$OMP END CRITICAL(voronoi_dsdr_update)
+       end do
+    end do
+    !$OMP END PARALLEL DO
+    colvar%dsdr = colvar%dsdr + dsdr_tmp
+
+    colvar%ss = ion_z ! Assign final updated collective variable value 
+    DEALLOCATE(nnexp, nnexpnorm, charge, charget, c, distABinvmod, distAB, dsdr_tmp)
+  END SUBROUTINE colvar_eval_voronoiipz
+
+
+SUBROUTINE read_voronoiipz_colvars(voronoiipz_section, colvar)
+    TYPE(section_vals_type), POINTER         :: voronoiipz_section
+    TYPE(colvar_type), POINTER               :: colvar
+    
+    ! --- Local Variable Declarations ---
+    INTEGER, DIMENSION(:), POINTER           :: temp_array
+    INTEGER                                  :: i, j, n
+
+    IF (.NOT. ASSOCIATED(colvar%voronoiipz_params)) THEN
+       ALLOCATE (colvar%voronoiipz_params)
+    END IF
+
+    ! Read scalar values
+    CALL section_vals_val_get(voronoiipz_section, "LAMBDA", i_val=colvar%voronoiipz_params%lambda)
+    CALL section_vals_val_get(voronoiipz_section, "ZIDX", i_val=colvar%voronoiipz_params%zidx)
+    CALL section_vals_val_get(voronoiipz_section, "NRX", i_val=colvar%voronoiipz_params%nrx)
+    CALL section_vals_val_get(voronoiipz_section, "ZMID", r_val=colvar%voronoiipz_params%zmid)
+    CALL section_vals_val_get(voronoiipz_section, "D_0", r_val=colvar%voronoiipz_params%d0)
+    CALL section_vals_val_get(voronoiipz_section, "D_1", r_val=colvar%voronoiipz_params%d1)
+    CALL section_vals_val_get(voronoiipz_section, "D_2", r_val=colvar%voronoiipz_params%d2)
+    CALL section_vals_val_get(voronoiipz_section, "D_3", r_val=colvar%voronoiipz_params%d3)
+    CALL section_vals_val_get(voronoiipz_section, "NL_CUTOFF", r_val=colvar%voronoiipz_params%nl_cutoff)
+
+
+    ! Read arrays (GROUPA)
+    NULLIFY(temp_array)
+    CALL section_vals_val_get(voronoiipz_section, "GROUPA", i_vals=temp_array)
+    IF (ASSOCIATED(temp_array)) THEN
+       ALLOCATE(colvar%voronoiipz_params%group_a(SIZE(temp_array)))
+       colvar%voronoiipz_params%group_a(:) = temp_array(:)
+    END IF
+
+    ! Read arrays (GROUPB)
+    NULLIFY(temp_array)
+    CALL section_vals_val_get(voronoiipz_section, "GROUPB", i_vals=temp_array)
+    IF (ASSOCIATED(temp_array)) THEN
+       ALLOCATE(colvar%voronoiipz_params%group_b(SIZE(temp_array)))
+       colvar%voronoiipz_params%group_b(:) = temp_array(:)
+    END IF
+
+    ! ==========================================================================
+    ! INTEGRATED PAIRWISE MAPPING CONSTRUCTION
+    IF (ASSOCIATED(colvar%voronoiipz_params%group_a) .AND. ASSOCIATED(colvar%voronoiipz_params%group_b)) THEN
+       
+       ! Calculate total pairs
+       colvar%voronoiipz_params%n_pairs = SIZE(colvar%voronoiipz_params%group_a) * SIZE(colvar%voronoiipz_params%group_b)
+       
+       ! Allocate mapping lookup vectors
+       ALLOCATE(colvar%voronoiipz_params%pair_i0(colvar%voronoiipz_params%n_pairs))
+       ALLOCATE(colvar%voronoiipz_params%pair_i1(colvar%voronoiipz_params%n_pairs))
+       
+       ! Populate pairwise grids
+       n = 0
+       do i = 1, SIZE(colvar%voronoiipz_params%group_a)
+          do j = 1, SIZE(colvar%voronoiipz_params%group_b)
+             n = n + 1
+             colvar%voronoiipz_params%pair_i0(n) = colvar%voronoiipz_params%group_a(i)
+             colvar%voronoiipz_params%pair_i1(n) = colvar%voronoiipz_params%group_b(j)
+          end do
+       end do
+       
+    ELSE
+       colvar%voronoiipz_params%n_pairs = 0
+    END IF
+
+END SUBROUTINE read_voronoiipz_colvars
+   
 END MODULE colvar_methods
