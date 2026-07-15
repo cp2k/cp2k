@@ -51,6 +51,7 @@ MODULE xtb_ehess
                                               neighbor_list_set_p_type
    USE virial_types,                    ONLY: virial_type
    USE xtb_coulomb,                     ONLY: gamma_rab_sr
+   USE xtb_spinpol,                     ONLY: xtb_spinpol_hessian
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
 #include "./base/base_uses.f90"
@@ -72,13 +73,15 @@ CONTAINS
 !> \param charges1 ...
 !> \param mcharge1 ...
 !> \param mcharge ...
+!> \param matrix_p1 ...
 ! **************************************************************************************************
-   SUBROUTINE xtb_coulomb_hessian(qs_env, ks_matrix, charges1, mcharge1, mcharge)
+   SUBROUTINE xtb_coulomb_hessian(qs_env, ks_matrix, charges1, mcharge1, mcharge, matrix_p1)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
       REAL(dp), DIMENSION(:, :)                          :: charges1
       REAL(dp), DIMENSION(:)                             :: mcharge1, mcharge
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xtb_coulomb_hessian'
 
@@ -282,6 +285,10 @@ CONTAINS
          ! Diagonal 3rd order correction (DFTB3)
          CALL dftb3_diagonal_hessian(qs_env, ks_matrix, mcharge, mcharge1, xgamma)
          DEALLOCATE (xgamma)
+      END IF
+
+      IF (xtb_control%do_spinpol) THEN
+         CALL xtb_spinpol_hessian(qs_env, ks_matrix, matrix_p1)
       END IF
 
       IF (qs_env%qmmm .AND. qs_env%qmmm_periodic) THEN

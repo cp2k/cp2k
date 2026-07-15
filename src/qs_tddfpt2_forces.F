@@ -1436,7 +1436,8 @@ CONTAINS
             mcharge1(iatom) = SUM(charges1(iatom, :))
          END DO
          ! Coulomb Kernel
-         CALL xtb_coulomb_hessian(qs_env, matrix_hz, charges1, mcharge1, mcharge)
+         CALL xtb_coulomb_hessian(qs_env, matrix_hz, charges1, mcharge1, mcharge, &
+                                  matrix_pe)
          !
          DEALLOCATE (charges, mcharge, charges1, mcharge1)
       END IF

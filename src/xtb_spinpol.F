@@ -58,7 +58,7 @@ MODULE xtb_spinpol
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xtb_spinpol'
 
-   PUBLIC :: build_xtb_spinpol
+   PUBLIC :: build_xtb_spinpol, xtb_spinpol_hessian
 
 CONTAINS
 
@@ -169,6 +169,7 @@ CONTAINS
          ! Calculate charges
          ALLOCATE (aocg(nsgf, natom), bocg(nsgf, natom))
          aocg = 0.0_dp
+         bocg = 0.0_dp
          IF (nimg > 1) THEN
             matrix_s_kp => matrix_s(:, :)
             matrix_p_kp => matrix_p(1:1, :)
@@ -448,6 +449,119 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_xtb_spinpol
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param matrix_p1 ...
+! **************************************************************************************************
+   SUBROUTINE xtb_spinpol_hessian(qs_env, ks_matrix, matrix_p1)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, matrix_p1
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'xtb_spinpol_hessian'
+
+      INTEGER                                            :: handle, ia, ib, icol, ikind, irow, &
+                                                            jkind, la, lb, na, natom, natorb, nb, &
+                                                            nimg, nkind, nsgf, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      INTEGER, DIMENSION(25)                             :: lao
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: fval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg1, bocg1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: wabk
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: wall
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: aksb, bksb, sblock
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: s_matrix
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      nspins = dft_control%nspins
+      nimg = dft_control%nimages
+
+      IF (nimg /= 1) THEN
+         CPABORT("No kpoints allowed in xTB response calculation")
+      END IF
+
+      IF (nspins == 2) THEN
+
+         CALL get_qs_env(qs_env, &
+                         qs_kind_set=qs_kind_set, &
+                         atomic_kind_set=atomic_kind_set)
+
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
+
+         CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
+         CALL get_qs_kind_set(qs_kind_set, maxsgf=nsgf)
+         CALL get_qs_env(qs_env, matrix_s_kp=matrix_s, para_env=para_env)
+
+         ! expand parameters
+         ALLOCATE (wabk(nsgf, nsgf, nkind))
+         wabk = 0.0_dp
+         DO ikind = 1, nkind
+            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+            CALL get_xtb_atom_param(xtb_kind, natorb=natorb, lao=lao, wall=wall)
+            DO ia = 1, natorb
+               la = lao(ia) + 1
+               DO ib = 1, natorb
+                  lb = lao(ib) + 1
+                  wabk(ia, ib, ikind) = wall(la, lb)
+               END DO
+            END DO
+         END DO
+
+         ! Calculate response charges
+         ALLOCATE (aocg1(nsgf, natom), bocg1(nsgf, natom))
+         aocg1 = 0.0_dp
+         bocg1 = 0.0_dp
+         s_matrix => matrix_s(1, 1)%matrix
+         p_matrix => matrix_p1(1:1)
+         CALL ao_charges(p_matrix, s_matrix, aocg1, para_env)
+         p_matrix => matrix_p1(2:2)
+         CALL ao_charges(p_matrix, s_matrix, bocg1, para_env)
+         aocg1 = 0.5_dp*aocg1
+         bocg1 = 0.5_dp*bocg1
+
+         CALL dbcsr_iterator_start(iter, s_matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, irow, icol, sblock)
+            CALL dbcsr_get_block_p(matrix=ks_matrix(1)%matrix, &
+                                   row=irow, col=icol, block=aksb, found=found)
+            CPASSERT(found)
+            CALL dbcsr_get_block_p(matrix=ks_matrix(2)%matrix, &
+                                   row=irow, col=icol, block=bksb, found=found)
+            CPASSERT(found)
+            na = SIZE(aksb, 1)
+            nb = SIZE(aksb, 2)
+            ikind = kind_of(irow)
+            jkind = kind_of(icol)
+            fval = 1.00_dp
+            CALL ksupdate(aksb, bksb, sblock, na, nb, fval, &
+                          wabk(1:na, 1:na, ikind), wabk(1:nb, 1:nb, jkind), &
+                          aocg1(1:na, irow), aocg1(1:nb, icol), &
+                          bocg1(1:na, irow), bocg1(1:nb, icol))
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+
+         DEALLOCATE (wabk)
+         DEALLOCATE (aocg1, bocg1)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE xtb_spinpol_hessian
 
 ! **************************************************************************************************
 !> \brief ...

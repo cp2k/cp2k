@@ -2772,7 +2772,7 @@ CONTAINS
             mcharge1(iatom) = SUM(charges1(iatom, :))
          END DO
          ! Coulomb Kernel
-         CALL xtb_coulomb_hessian(qs_env, matrix_hz, charges1, mcharge1, mcharge)
+         CALL xtb_coulomb_hessian(qs_env, matrix_hz, charges1, mcharge1, mcharge, mpa)
          CALL calc_xtb_ehess_force(qs_env, p_matrix, mpa, charges, mcharge, charges1, &
                                    mcharge1, debug_forces)
          !

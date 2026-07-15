@@ -10,4 +10,6 @@
 #
 "ch2o_kp_force.inp"                     = []
 "ch2o_kp_stress.inp"                    = []
+#
+"ch2o_polar.inp"                        = []
 #EOF

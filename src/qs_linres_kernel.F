@@ -572,7 +572,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mcharge, mcharge1
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: aocg, aocg1, charges, charges1
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmat, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_p1, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
@@ -651,7 +651,8 @@ CONTAINS
             mcharge1(iatom) = SUM(charges1(iatom, :))
          END DO
          ! Coulomb Kernel
-         CALL xtb_coulomb_hessian(qs_env, p_env%kpp1, charges1, mcharge1, mcharge)
+         pmat => matrix_p1(:, 1)
+         CALL xtb_coulomb_hessian(qs_env, p_env%kpp1, charges1, mcharge1, mcharge, pmat)
          !
          DEALLOCATE (charges, mcharge, charges1, mcharge1)
       END IF
