@@ -56,7 +56,7 @@
   &END DFT
   &PROPERTIES
     &LINRES
-      EPS 1.e-5
+      EPS 1.e-10
       PRECONDITIONER FULL_ALL
       &POLAR
         DO_RAMAN T

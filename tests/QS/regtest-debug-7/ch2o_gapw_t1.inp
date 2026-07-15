@@ -19,8 +19,7 @@
     &EFIELD
     &END EFIELD
     &MGRID
-      CUTOFF 300
-      REL_CUTOFF 50
+      CUTOFF 100
     &END MGRID
     &POISSON
       PERIODIC NONE
@@ -56,7 +55,7 @@
   &END DFT
   &PROPERTIES
     &LINRES
-      EPS 1.e-10
+      EPS 1.e-12
       PRECONDITIONER FULL_ALL
       &POLAR
         DO_RAMAN T
@@ -66,7 +65,7 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [angstrom] 4.0 4.0 4.0
+      ABC [angstrom] 6.0 6.0 6.0
       PERIODIC NONE
     &END CELL
     &COORD

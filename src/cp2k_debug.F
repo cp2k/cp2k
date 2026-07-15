@@ -98,7 +98,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: dipole_moment, dipole_numer, err, &
                                                             my_maxerr, poldir
       REAL(KIND=dp), DIMENSION(3, 2)                     :: dipn
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: polar_analytic, polar_numeric
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: polar_analytic, polar_numeric, polerr
       REAL(KIND=dp), DIMENSION(9)                        :: pvals
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: analyt_forces, numer_forces
       TYPE(cell_type), POINTER                           :: cell
@@ -569,6 +569,7 @@ CONTAINS
                polar_numeric(1:3, k) = 0.5_dp*(dipn(1:3, 2) - dipn(1:3, 1))/de
             END DO
             IF (iw > 0) THEN
+               polerr = 0.0_dp
                WRITE (UNIT=iw, FMT="(/,(T2,A))") &
                   "DEBUG|========================= POLARIZABILITY ================================", &
                   "DEBUG| Coordinates     P(numerical)    P(analytical)    Difference    Error [%]"
@@ -579,6 +580,7 @@ CONTAINS
                         derr = 100._dp*dd/polar_analytic(k, j)
                         WRITE (UNIT=iw, FMT="(T2,A,T12,A1,A1,T21,F16.8,T38,F16.8,T56,G12.3,T72,F9.3)") &
                            "DEBUG|", ACHAR(119 + k), ACHAR(119 + j), polar_numeric(k, j), polar_analytic(k, j), dd, derr
+                        polerr(k, j) = derr
                      ELSE
                         WRITE (UNIT=iw, FMT="(T2,A,T12,A1,A1,T21,F16.8,T38,F16.8,T56,G12.3)") &
                            "DEBUG|", ACHAR(119 + k), ACHAR(119 + j), polar_numeric(k, j), polar_analytic(k, j), dd
@@ -588,6 +590,16 @@ CONTAINS
                WRITE (UNIT=iw, FMT="((T2,A))") &
                   "DEBUG|========================================================================="
                WRITE (UNIT=iw, FMT="(T2,A,T61,E20.12)") ' POLAR : CheckSum  =', SUM(polar_analytic)
+               IF (ANY(ABS(polerr(1:3, 1:3)) > maxerr)) THEN
+                  message = "A mismatch between analytical and numerical polarizabilities "// &
+                            "has been detected. Check the implementation of the "// &
+                            "analytical polarizabilitie calculation"
+                  IF (stop_on_mismatch) THEN
+                     CPABORT(message)
+                  ELSE
+                     CPWARN(message)
+                  END IF
+               END IF
             END IF
          ELSE
             CALL cp_warn(__LOCATION__, "Debug of polarizabilities only for Quickstep code available")

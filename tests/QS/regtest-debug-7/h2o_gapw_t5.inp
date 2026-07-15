@@ -28,7 +28,6 @@
     &END EFIELD
     &MGRID
       CUTOFF 100
-      REL_CUTOFF 40
     &END MGRID
     &PRINT
       &MOMENTS ON
@@ -37,11 +36,11 @@
       &END MOMENTS
     &END PRINT
     &QS
-      EPS_DEFAULT 1.e-10
+      EPS_DEFAULT 1.e-14
       METHOD GAPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-5
+      EPS_SCF 1.0E-7
       MAX_SCF 20
       SCF_GUESS ATOMIC
       &OT
@@ -49,7 +48,7 @@
         PRECONDITIONER FULL_ALL
       &END OT
       &OUTER_SCF
-        EPS_SCF 1.0E-5
+        EPS_SCF 1.0E-7
         MAX_SCF 10
       &END OUTER_SCF
     &END SCF
@@ -60,7 +59,7 @@
   &END DFT
   &PROPERTIES
     &LINRES
-      EPS 1.e-5
+      EPS 1.e-12
       PRECONDITIONER FULL_ALL
       &POLAR
         DO_RAMAN T
@@ -70,7 +69,7 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [angstrom] 4.0 4.0 4.0
+      ABC [angstrom] 6.0 6.0 6.0
       PERIODIC NONE
     &END CELL
     &COORD
