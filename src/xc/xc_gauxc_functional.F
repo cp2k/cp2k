@@ -1264,11 +1264,11 @@ CONTAINS
          END IF
       END IF
 
-       ! After creating the basisset, we will have to check max_l>3 as a further condition
-       params%use_fd_gradient = gapw_method .AND. need_xc_gradient
+      ! After creating the basisset, we will have to check max_l>3 as a further condition
+      params%use_fd_gradient = gapw_method .AND. need_xc_gradient
 
-       IF (.NOT. ASSOCIATED(qs_env%gauxc_cache)) ALLOCATE (qs_env%gauxc_cache)
-       cache => qs_env%gauxc_cache
+      IF (.NOT. ASSOCIATED(qs_env%gauxc_cache)) ALLOCATE (qs_env%gauxc_cache)
+      cache => qs_env%gauxc_cache
       CALL gauxc_cache_init( &
          cache, &
          params, &

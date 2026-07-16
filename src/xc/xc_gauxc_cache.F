@@ -293,42 +293,63 @@ CONTAINS
 #endif
 
    CONTAINS
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
       SUBROUTINE cleanup_after_gradient_integrator()
          CALL gauxc_destroy_integrator(cache%gradient_integrator, status)
          CALL gauxc_check_status(status)
          CALL cleanup_after_gradient_grid()
       END SUBROUTINE cleanup_after_gradient_integrator
 
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
       SUBROUTINE cleanup_after_gradient_grid()
          CALL gauxc_destroy_grid(cache%gradient_grid, status)
          CALL gauxc_check_status(status)
          CALL cleanup_after_integrator()
       END SUBROUTINE cleanup_after_gradient_grid
 
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
       SUBROUTINE cleanup_after_integrator()
          CALL gauxc_destroy_integrator(cache%integrator, status)
          CALL gauxc_check_status(status)
          CALL cleanup_after_grid()
       END SUBROUTINE cleanup_after_integrator
 
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
       SUBROUTINE cleanup_after_grid()
          CALL gauxc_destroy_grid(cache%grid, status)
          CALL gauxc_check_status(status)
          CALL cleanup_after_basisset()
       END SUBROUTINE cleanup_after_grid
 
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
       SUBROUTINE cleanup_after_basisset()
          CALL gauxc_destroy_basisset(cache%basisset, status)
          CALL gauxc_check_status(status)
          CALL cleanup_after_molecule()
       END SUBROUTINE cleanup_after_basisset
 
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
       SUBROUTINE cleanup_after_molecule()
          CALL gauxc_destroy_molecule(cache%molecule, status)
          CALL gauxc_check_status(status)
          CALL cleanup_final()
       END SUBROUTINE cleanup_after_molecule
 
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
       SUBROUTINE cleanup_final()
          IF (ALLOCATED(cache%last_positions)) DEALLOCATE (cache%last_positions)
          cache%is_init = .FALSE.
