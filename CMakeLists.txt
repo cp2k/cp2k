@@ -226,18 +226,18 @@ cmake_dependent_option(
   CP2K_USE_CUSOLVER_MP "Enable cuSOLVERMp. Only active when CUDA is ON" OFF
   "CP2K_USE_ACCEL MATCHES \"CUDA\"" OFF)
 
-cmake_dependent_option(CP2K_USE_NVHPC OFF "Enable Nvidia NVHPC kit"
-                       "(NOT CP2K_USE_ACCEL MATCHES \"CUDA\")" OFF)
+cmake_dependent_option(CP2K_USE_NVHPC "Enable Nvidia NVHPC kit" OFF
+                       "CP2K_USE_ACCEL MATCHES \"CUDA\"" OFF)
 
 cmake_dependent_option(
-  CP2K_USE_SPLA_GEMM_OFFLOADING ON
-  "Enable SpLA dgemm offloading (only valid with GPU support on)"
-  "(NOT CP2K_USE_ACCEL MATCHES \"NONE\") AND (CP2K_USE_SPLA)" OFF)
+  CP2K_USE_SPLA_GEMM_OFFLOADING
+  "Enable SpLA dgemm offloading (only valid with GPU support on)" ON
+  "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\" AND CP2K_USE_SPLA" OFF)
 
 cmake_dependent_option(
-  CP2K_USE_CRAY_PM_ACCEL_ENERGY ON
-  "Enable CRAY power management framework with gpu support"
-  "(NOT CP2K_USE_ACCEL MATCHES \"NONE\") AND (CP2K_USE_CRAY_PM_ENERGY)" OFF)
+  CP2K_USE_CRAY_PM_ACCEL_ENERGY
+  "Enable CRAY power management framework with gpu support" ON
+  "CP2K_USE_ACCEL MATCHES \"OPENCL|HIP|CUDA\" AND CP2K_USE_CRAY_PM_ENERGY" OFF)
 
 cmake_dependent_option(
   CP2K_USE_LIBGINT "Enable LibGint support" ${CP2K_USE_EVERYTHING}
