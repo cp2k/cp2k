@@ -44,7 +44,8 @@ MODULE pw_grid_types
       INTEGER, DIMENSION(:), ALLOCATABLE :: nyzray ! number of g-space rays (pe)
       TYPE(mp_cart_type) :: group = mp_cart_type() ! real space group (2-dim cart)
       INTEGER, DIMENSION(:, :, :, :), ALLOCATABLE :: bo ! list of axis distribution
-      INTEGER, DIMENSION(:), ALLOCATABLE :: pos_of_x ! what my_pos holds a given x plane....should go: hard-codes to plane distributed
+      INTEGER, DIMENSION(:), ALLOCATABLE :: pos_of_x ! what my_pos holds a given x plane
+      ! should go: hard-codes to plane distributed
    END TYPE pw_para_type
 
    ! all you always wanted to know about grids, but were...

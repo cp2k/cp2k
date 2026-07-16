@@ -384,8 +384,9 @@ CONTAINS
                DO ipart = first_atom, last_atom
                   natom_local = natom_local + 1
 ! only map the correct region to the thermostat
-                  IF (thermolist(ipart) /= HUGE(0)) &
+                  IF (thermolist(ipart) /= HUGE(0)) THEN
                      thermostat_info%map_loc_thermo_gen(natom_local) = thermolist(ipart)
+                  END IF
                END DO
             END DO
          END DO
@@ -452,7 +453,7 @@ CONTAINS
                                         qmmm_env)
       TYPE(section_vals_type), POINTER                   :: region_sections
       INTEGER, INTENT(INOUT), OPTIONAL                   :: sum_of_thermostats
-      INTEGER, DIMENSION(:), POINTER                     :: thermolist(:)
+      INTEGER, POINTER                                   :: thermolist(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
@@ -652,19 +653,21 @@ CONTAINS
                nointer = .FALSE.
                ! Determine the number of thermostats defined in the input
                CALL section_vals_get(region_sections, n_repetition=sum_of_thermostats)
-               IF (sum_of_thermostats < 1) &
+               IF (sum_of_thermostats < 1) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "A thermostat type DEFINED is requested but no thermostat "// &
                                 "regions are defined in THERMOSTAT/DEFINE_REGION.")
+               END IF
             CASE (do_region_thermal)
                ! Similar to defined region above, but in THERMAL_REGION%DEFINE_REGION
                nointer = .FALSE.
                ! Determine the number of thermostats defined in the input
                CALL section_vals_get(region_sections, n_repetition=sum_of_thermostats)
-               IF (sum_of_thermostats < 1) &
+               IF (sum_of_thermostats < 1) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "A thermostat type THERMAL is requested but no thermal "// &
                                 "regions are defined in THERMAL_REGION/DEFINE_REGION.")
+               END IF
             END SELECT
 
             ! Here we decide which parallel algorithm to use.
@@ -1082,19 +1085,25 @@ CONTAINS
                atomic_kind => particle_set(ipart)%atomic_kind
                CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
                IF (present_vel) THEN
-                  IF (ASSOCIATED(map_info%p_kin(1, ii)%point)) &
+                  IF (ASSOCIATED(map_info%p_kin(1, ii)%point)) THEN
                      map_info%p_kin(1, ii)%point = map_info%p_kin(1, ii)%point + mass*vel(1, ipart)**2
-                  IF (ASSOCIATED(map_info%p_kin(2, ii)%point)) &
+                  END IF
+                  IF (ASSOCIATED(map_info%p_kin(2, ii)%point)) THEN
                      map_info%p_kin(2, ii)%point = map_info%p_kin(2, ii)%point + mass*vel(2, ipart)**2
-                  IF (ASSOCIATED(map_info%p_kin(3, ii)%point)) &
+                  END IF
+                  IF (ASSOCIATED(map_info%p_kin(3, ii)%point)) THEN
                      map_info%p_kin(3, ii)%point = map_info%p_kin(3, ii)%point + mass*vel(3, ipart)**2
+                  END IF
                ELSE
-                  IF (ASSOCIATED(map_info%p_kin(1, ii)%point)) &
+                  IF (ASSOCIATED(map_info%p_kin(1, ii)%point)) THEN
                      map_info%p_kin(1, ii)%point = map_info%p_kin(1, ii)%point + mass*particle_set(ipart)%v(1)**2
-                  IF (ASSOCIATED(map_info%p_kin(2, ii)%point)) &
+                  END IF
+                  IF (ASSOCIATED(map_info%p_kin(2, ii)%point)) THEN
                      map_info%p_kin(2, ii)%point = map_info%p_kin(2, ii)%point + mass*particle_set(ipart)%v(2)**2
-                  IF (ASSOCIATED(map_info%p_kin(3, ii)%point)) &
+                  END IF
+                  IF (ASSOCIATED(map_info%p_kin(3, ii)%point)) THEN
                      map_info%p_kin(3, ii)%point = map_info%p_kin(3, ii)%point + mass*particle_set(ipart)%v(3)**2
+                  END IF
                END IF
             END DO
          END DO

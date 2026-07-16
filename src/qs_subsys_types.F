@@ -77,12 +77,15 @@ CONTAINS
 
       CALL cp_subsys_release(subsys%cp_subsys)
       CALL cell_release(subsys%cell_ref)
-      IF (ASSOCIATED(subsys%qs_kind_set)) &
+      IF (ASSOCIATED(subsys%qs_kind_set)) THEN
          CALL deallocate_qs_kind_set(subsys%qs_kind_set)
-      IF (ASSOCIATED(subsys%energy)) &
+      END IF
+      IF (ASSOCIATED(subsys%energy)) THEN
          CALL deallocate_qs_energy(subsys%energy)
-      IF (ASSOCIATED(subsys%force)) &
+      END IF
+      IF (ASSOCIATED(subsys%force)) THEN
          CALL deallocate_qs_force(subsys%force)
+      END IF
 
    END SUBROUTINE qs_subsys_release
 

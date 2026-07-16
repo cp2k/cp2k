@@ -121,8 +121,9 @@ CONTAINS
          derivative_set%pw_pool => pw_pool
          CALL pw_pool%retain()
          IF (PRESENT(local_bounds)) THEN
-            IF (ANY(pw_pool%pw_grid%bounds_local /= local_bounds)) &
+            IF (ANY(pw_pool%pw_grid%bounds_local /= local_bounds)) THEN
                CPABORT("incompatible local_bounds and pw_pool")
+            END IF
          END IF
       ELSE
          !FM ugly hack, should be replaced by a pool only for 3d arrays

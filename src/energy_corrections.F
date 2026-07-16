@@ -1726,7 +1726,7 @@ CONTAINS
             IF (dft_control%do_admm_mo) THEN
                CPASSERT(.NOT. qs_env%run_rtp)
                CALL admm_mo_calc_rho_aux(qs_env)
-            ELSEIF (dft_control%do_admm_dm) THEN
+            ELSE IF (dft_control%do_admm_dm) THEN
                CALL admm_dm_calc_rho_aux(qs_env)
             END IF
          END IF

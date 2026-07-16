@@ -171,12 +171,13 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
       CALL unpack_subsys_particles(subsys=subsys, r=x)
    CASE (default_cell_method_id)
       ! Check for VIRIAL
-      IF (.NOT. virial%pv_availability) &
+      IF (.NOT. virial%pv_availability) THEN
          CALL cp_abort(__LOCATION__, &
                        "For a cell optimization task with CELL_OPT/TYPE "// &
                        "DIRECT_CELL_OPT, the FORCE_EVAL/STRESS_TENSOR "// &
                        "keyword MUST be defined in the input file for the "// &
                        "evaluation of the stress tensor, but none is found!")
+      END IF
       IF (gopt_env%cell_env%keep_volume) THEN
          nparticle = force_env_get_nparticle(gopt_env%force_env)
          idg = 3*nparticle
@@ -228,8 +229,9 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
             ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank.
             ! Assume at least master==0
             CALL para_env%bcast(gopt_env%cell_env%pres_int, 0)
-            IF (gopt_env%cell_env%constraint_id /= fix_none) &
+            IF (gopt_env%cell_env%constraint_id /= fix_none) THEN
                CALL para_env%bcast(gopt_env%cell_env%pres_constr, 0)
+            END IF
          END IF
       END BLOCK
    CASE (default_shellcore_method_id)

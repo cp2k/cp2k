@@ -187,10 +187,11 @@ CONTAINS
          ! Build full S^(1/2) matrix (computationally expensive)
          CALL copy_dbcsr_to_fm(sm_s, fm_s_half)
          CALL cp_fm_power(fm_s_half, fm_work1, 0.5_dp, scf_control%eps_eigval, ndep)
-         IF (ndep /= 0) &
+         IF (ndep /= 0) THEN
             CALL cp_warn(__LOCATION__, &
                          "Overlap matrix exhibits linear dependencies. At least some "// &
                          "eigenvalues have been quenched.")
+         END IF
 
          ! Build Lowdin population matrix for each spin
          DO ispin = 1, nspin

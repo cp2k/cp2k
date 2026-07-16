@@ -225,7 +225,9 @@ CONTAINS
             !! This happens in case a container has fully been filled in the compression step
             !! but no other was needed for the current bit size
             !! Therefore we can safely igonore an eof error
+            ! We still need to ask for it to read the data correctly, so we mark it as used
             READ (container%unit, IOSTAT=stat) container%current%data
+            MARK_USED(stat)
             memory_usage = memory_usage + 1
             container%file_counter = container%file_counter + 1
          ELSE

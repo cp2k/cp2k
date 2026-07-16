@@ -32,11 +32,13 @@ CONTAINS
 
       CALL reallocate(real_arr, 1, 20)
 
-      IF (.NOT. ALL(real_arr(1:10) == [(idx, idx=1, 10)])) &
+      IF (.NOT. ALL(real_arr(1:10) == [(idx, idx=1, 10)])) THEN
          ERROR STOP "check_real_rank1_allocated: reallocating changed the initial values"
+      END IF
 
-      IF (.NOT. ALL(real_arr(11:20) == 0.)) &
+      IF (.NOT. ALL(real_arr(11:20) == 0.)) THEN
          ERROR STOP "check_real_rank1_allocated: reallocation failed to initialise new values with 0."
+      END IF
 
       DEALLOCATE (real_arr)
 
@@ -53,8 +55,9 @@ CONTAINS
 
       CALL reallocate(real_arr, 1, 20)
 
-      IF (.NOT. ALL(real_arr(1:20) == 0.)) &
+      IF (.NOT. ALL(real_arr(1:20) == 0.)) THEN
          ERROR STOP "check_real_rank1_unallocated: reallocation failed to initialise new values with 0."
+      END IF
 
       DEALLOCATE (real_arr)
 
@@ -73,11 +76,13 @@ CONTAINS
 
       CALL reallocate(real_arr, 1, 10, 1, 5)
 
-      IF (.NOT. (ALL(real_arr(1:5, 1) == [(idx, idx=1, 5)]) .AND. ALL(real_arr(1:5, 2) == [(idx, idx=6, 10)]))) &
+      IF (.NOT. (ALL(real_arr(1:5, 1) == [(idx, idx=1, 5)]) .AND. ALL(real_arr(1:5, 2) == [(idx, idx=6, 10)]))) THEN
          ERROR STOP "check_real_rank2_allocated: reallocating changed the initial values"
+      END IF
 
-      IF (.NOT. (ALL(real_arr(6:10, 1:2) == 0.) .AND. ALL(real_arr(1:10, 3:5) == 0.))) &
+      IF (.NOT. (ALL(real_arr(6:10, 1:2) == 0.) .AND. ALL(real_arr(1:10, 3:5) == 0.))) THEN
          ERROR STOP "check_real_rank2_allocated: reallocation failed to initialise new values with 0."
+      END IF
 
       DEALLOCATE (real_arr)
 
@@ -94,8 +99,9 @@ CONTAINS
 
       CALL reallocate(real_arr, 1, 10, 1, 5)
 
-      IF (.NOT. ALL(real_arr(1:10, 1:5) == 0.)) &
+      IF (.NOT. ALL(real_arr(1:10, 1:5) == 0.)) THEN
          ERROR STOP "check_real_rank2_unallocated: reallocation failed to initialise new values with 0."
+      END IF
 
       DEALLOCATE (real_arr)
 
@@ -114,11 +120,13 @@ CONTAINS
 
       CALL reallocate(str_arr, 1, 20)
 
-      IF (.NOT. ALL(str_arr(1:10) == [("hello, there", idx=1, 10)])) &
+      IF (.NOT. ALL(str_arr(1:10) == [("hello, there", idx=1, 10)])) THEN
          ERROR STOP "check_string_rank1_allocated: reallocating changed the initial values"
+      END IF
 
-      IF (.NOT. ALL(str_arr(11:20) == "")) &
+      IF (.NOT. ALL(str_arr(11:20) == "")) THEN
          ERROR STOP "check_string_rank1_allocated: reallocation failed to initialise new values with ''."
+      END IF
 
       DEALLOCATE (str_arr)
 
@@ -135,8 +143,9 @@ CONTAINS
 
       CALL reallocate(str_arr, 1, 20)
 
-      IF (.NOT. ALL(str_arr(1:20) == "")) &
+      IF (.NOT. ALL(str_arr(1:20) == "")) THEN
          ERROR STOP "check_string_rank1_allocated: reallocation failed to initialise new values with ''."
+      END IF
 
       DEALLOCATE (str_arr)
 

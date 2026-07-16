@@ -97,9 +97,9 @@
             ! Merge will be performed directly in arr. Need backup of first sublist.
             tmp_arr(1:m) = arr(1:m)
             tmp_idx(1:m) = indices(1:m)
-            i = 1; ! number of elemens consumed from 1st sublist
-            j = 1; ! number of elemens consumed from 2nd sublist
-            k = 1; ! number of elemens already merged
+            i = 1 ! number of elements consumed from 1st sublist
+            j = 1 ! number of elements consumed from 2nd sublist
+            k = 1 ! number of elements already merged
 
             DO WHILE (i <= m .and. j <= size(arr) - m)
                IF (${prefix}$_less_than(arr(m + j), tmp_arr(i))) THEN

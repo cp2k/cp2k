@@ -190,9 +190,10 @@ CONTAINS
             "Zeroth order Hamiltonian energy:               ", energy%core, &
             "Charge equilibration energy:                   ", energy%eeq, &
             "London dispersion energy:                      ", energy%dispersion
-         IF (dft_control%qs_control%xtb_control%do_nonbonded) &
+         IF (dft_control%qs_control%xtb_control%do_nonbonded) THEN
             WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
-            "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
+               "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
+         END IF
          IF (ABS(energy%efield) > 1.e-12_dp) THEN
             WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
                "Electric field interaction energy:             ", energy%efield
@@ -441,12 +442,14 @@ CONTAINS
             "Zeroth order Hamiltonian energy:               ", energy%core, &
             "Charge fluctuation energy:                     ", energy%hartree, &
             "London dispersion energy:                      ", energy%dispersion
-         IF (dft_control%qs_control%xtb_control%xb_interaction) &
+         IF (dft_control%qs_control%xtb_control%xb_interaction) THEN
             WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
-            "Correction for halogen bonding:                ", energy%xtb_xb_inter
-         IF (dft_control%qs_control%xtb_control%do_nonbonded) &
+               "Correction for halogen bonding:                ", energy%xtb_xb_inter
+         END IF
+         IF (dft_control%qs_control%xtb_control%do_nonbonded) THEN
             WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
-            "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
+               "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
+         END IF
          IF (ABS(energy%efield) > 1.e-12_dp) THEN
             WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
                "Electric field interaction energy:             ", energy%efield

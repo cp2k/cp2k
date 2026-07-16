@@ -197,14 +197,16 @@ CONTAINS
       CASE (cholesky_reduce)
          CALL cp_fm_cholesky_reduce(matrix_ks_fm, ortho)
 
-         IF (do_level_shift) &
+         IF (do_level_shift) THEN
             CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, &
                                  level_shift=level_shift, is_triangular=.TRUE., matrix_u_fm=matrix_u_fm)
+         END IF
 
          CALL choose_eigv_solver(matrix_ks_fm, work, mo_eigenvalues)
          CALL cp_fm_cholesky_restore(work, nmo, ortho, mo_coeff, "SOLVE")
-         IF (do_level_shift) &
+         IF (do_level_shift) THEN
             CALL correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
+         END IF
 
       CASE (cholesky_restore)
          CALL cp_fm_uplo_to_full(matrix_ks_fm, work)
@@ -213,15 +215,17 @@ CONTAINS
          CALL cp_fm_cholesky_restore(work, nao, ortho, matrix_ks_fm, &
                                      "SOLVE", pos="LEFT", transa="T")
 
-         IF (do_level_shift) &
+         IF (do_level_shift) THEN
             CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, &
                                  level_shift=level_shift, is_triangular=.TRUE., matrix_u_fm=matrix_u_fm)
+         END IF
 
          CALL choose_eigv_solver(matrix_ks_fm, work, mo_eigenvalues)
          CALL cp_fm_cholesky_restore(work, nmo, ortho, mo_coeff, "SOLVE")
 
-         IF (do_level_shift) &
+         IF (do_level_shift) THEN
             CALL correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
+         END IF
 
       CASE (cholesky_inverse)
          CALL cp_fm_uplo_to_full(matrix_ks_fm, work)
@@ -231,17 +235,19 @@ CONTAINS
          CALL cp_fm_triangular_multiply(ortho, matrix_ks_fm, side="L", transpose_tr=.TRUE., &
                                         invert_tr=.FALSE., uplo_tr="U", n_rows=nao, n_cols=nao, alpha=1.0_dp)
 
-         IF (do_level_shift) &
+         IF (do_level_shift) THEN
             CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, &
                                  level_shift=level_shift, is_triangular=.TRUE., matrix_u_fm=matrix_u_fm)
+         END IF
 
          CALL choose_eigv_solver(matrix_ks_fm, work, mo_eigenvalues)
          CALL cp_fm_triangular_multiply(ortho, work, side="L", transpose_tr=.FALSE., &
                                         invert_tr=.FALSE., uplo_tr="U", n_rows=nao, n_cols=nmo, alpha=1.0_dp)
          CALL cp_fm_to_fm(work, mo_coeff, nmo, 1, 1)
 
-         IF (do_level_shift) &
+         IF (do_level_shift) THEN
             CALL correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
+         END IF
 
       END SELECT
 
@@ -426,9 +432,10 @@ CONTAINS
             CALL cp_fm_symm("L", "U", nao, nao_red, 1.0_dp, matrix_ks_fm, ortho_red, 0.0_dp, work_red)
             CALL parallel_gemm("T", "N", nao_red, nao_red, nao, 1.0_dp, ortho_red, work_red, 0.0_dp, matrix_ks_fm_red)
 
-            IF (do_level_shift) &
+            IF (do_level_shift) THEN
                CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm_red, mo_coeff=mo_coeff, homo=homo, &
                                     level_shift=level_shift, is_triangular=.FALSE., matrix_u_fm=matrix_u_fm_red)
+            END IF
 
             CALL cp_fm_create(work_red2, matrix_ks_fm_red%matrix_struct)
             ALLOCATE (eigenvalues(nao_red))
@@ -440,16 +447,18 @@ CONTAINS
          ELSE
             CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, matrix_ks_fm, ortho, 0.0_dp, work)
             CALL parallel_gemm("T", "N", nao, nao, nao, 1.0_dp, ortho, work, 0.0_dp, matrix_ks_fm)
-            IF (do_level_shift) &
+            IF (do_level_shift) THEN
                CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, &
                                     level_shift=level_shift, is_triangular=.FALSE., matrix_u_fm=matrix_u_fm)
+            END IF
             CALL choose_eigv_solver(matrix_ks_fm, work, mo_eigenvalues)
             CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, ortho, work, 0.0_dp, &
                                mo_coeff)
          END IF
 
-         IF (do_level_shift) &
+         IF (do_level_shift) THEN
             CALL correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
+         END IF
 
       END IF
 
@@ -519,8 +528,9 @@ CONTAINS
 
       END IF
 
-      IF (do_level_shift) &
+      IF (do_level_shift) THEN
          CALL correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
+      END IF
 
       CALL timestop(handle)
 

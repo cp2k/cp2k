@@ -639,8 +639,9 @@ CONTAINS
          END DO
       END DO
       ! ACE
-      IF (any_ace) &
+      IF (any_ace) THEN
          CALL ace_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
+      END IF
 
       DO ikind = 1, nkinds
          DO jkind = ikind, nkinds
@@ -648,8 +649,9 @@ CONTAINS
          END DO
       END DO
       ! DEEPMD
-      IF (any_deepmd) &
+      IF (any_deepmd) THEN
          CALL deepmd_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
+      END IF
 
       ! NEQUIP
       DO ikind = 1, nkinds

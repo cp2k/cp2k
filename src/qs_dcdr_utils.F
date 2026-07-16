@@ -778,8 +778,9 @@ CONTAINS
          IF (explicit) THEN
             CALL section_vals_val_get(dcdr_section, "REFERENCE_POINT", r_vals=ref_point)
          ELSE
-            IF (reference == use_mom_ref_user) &
+            IF (reference == use_mom_ref_user) THEN
                CPABORT("User-defined reference point should be given explicitly")
+            END IF
          END IF
 
          CALL get_reference_point(rpoint=dcdr_env%ref_point, qs_env=qs_env, &

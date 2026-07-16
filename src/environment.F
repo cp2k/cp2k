@@ -470,8 +470,9 @@ CONTAINS
 
       iw = cp_print_key_unit_nr(logger, root_section, "GLOBAL%PRINT/GLOBAL_GAUSSIAN_RNG", &
                                 extension=".Log")
-      IF (iw > 0) &
+      IF (iw > 0) THEN
          CALL globenv%gaussian_rng_stream%write(iw, write_all=.TRUE.)
+      END IF
 
       CALL cp_print_key_finished_output(iw, logger, root_section, &
                                         "GLOBAL%PRINT/GLOBAL_GAUSSIAN_RNG")
@@ -594,8 +595,9 @@ CONTAINS
 
       IF (trace .AND. (.NOT. trace_master .OR. para_env%mepos == 0)) THEN
          unit_nr = -1
-         IF (logger%para_env%is_source() .OR. .NOT. trace_master) &
+         IF (logger%para_env%is_source() .OR. .NOT. trace_master) THEN
             unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+         END IF
          WRITE (tracing_string, "(I6.6,A1,I6.6)") para_env%mepos, ":", para_env%num_pe
          IF (ASSOCIATED(trace_routines)) THEN
             CALL timings_setup_tracing(trace_max, unit_nr, tracing_string, trace_routines)
@@ -682,8 +684,9 @@ CONTAINS
          CPABORT("FARMING program supports only NONE as run type")
       END IF
 
-      IF (globenv%prog_name_id == do_test .AND. globenv%run_type_id /= none_run) &
+      IF (globenv%prog_name_id == do_test .AND. globenv%run_type_id /= none_run) THEN
          CPABORT("TEST program supports only NONE as run type")
+      END IF
 
       CALL m_memory_details(MemTotal, MemFree, Buffers, Cached, Slab, SReclaimable, MemLikelyFree)
       MemTotal_avr = MemTotal
@@ -1231,8 +1234,9 @@ CONTAINS
          IF (ierr /= 0) CPABORT('Could not parse WALLTIME: "'//txt(1:n)//'"')
       ELSE
          READ (txt(1:n), FMT="(I2,A1,I2,A1,I2)", IOSTAT=ierr) hours, c1, minutes, c2, seconds
-         IF (n /= 8 .OR. ierr /= 0 .OR. c1 /= ":" .OR. c2 /= ":") &
+         IF (n /= 8 .OR. ierr /= 0 .OR. c1 /= ":" .OR. c2 /= ":") THEN
             CPABORT('Could not parse WALLTIME: "'//txt(1:n)//'"')
+         END IF
          walltime = 3600.0_dp*REAL(hours, dp) + 60.0_dp*REAL(minutes, dp) + REAL(seconds, dp)
       END IF
    END SUBROUTINE cp2k_get_walltime
@@ -1331,15 +1335,18 @@ CONTAINS
       IF (cg_mode /= CALLGRAPH_NONE) THEN
          CALL section_vals_val_get(root_section, "GLOBAL%CALLGRAPH_FILE_NAME", c_val=cg_filename)
          IF (LEN_TRIM(cg_filename) == 0) cg_filename = TRIM(logger%iter_info%project_name)
-         IF (cg_mode == CALLGRAPH_ALL) & !incorporate mpi-rank into filename
+         IF (cg_mode == CALLGRAPH_ALL) THEN
+            !incorporate mpi-rank into filename
             cg_filename = TRIM(cg_filename)//"_"//TRIM(ADJUSTL(cp_to_string(para_env%mepos)))
+         END IF
          IF (iw > 0) THEN
             WRITE (UNIT=iw, FMT="(T2,3X,A)") "Writing callgraph to: "//TRIM(cg_filename)//".callgraph"
             WRITE (UNIT=iw, FMT="()")
             WRITE (UNIT=iw, FMT="(T2,A)") "-------------------------------------------------------------------------------"
          END IF
-         IF (cg_mode == CALLGRAPH_ALL .OR. para_env%is_source()) &
+         IF (cg_mode == CALLGRAPH_ALL .OR. para_env%is_source()) THEN
             CALL timings_report_callgraph(TRIM(cg_filename)//".callgraph")
+         END IF
       END IF
 
       CALL cp_print_key_finished_output(iw, logger, root_section, &

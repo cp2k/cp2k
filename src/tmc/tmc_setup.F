@@ -239,8 +239,9 @@ CONTAINS
                                      output_path=TRIM(expand_file_name_int(file_name=tmc_energy_worker_out_file_name, &
                                                                            ivalue=tmc_env%tmc_comp_set%group_nr)), &
                                      ierr=ierr)
-               IF (ierr /= 0) &
+               IF (ierr /= 0) THEN
                   CPABORT("creating force env result in error "//cp_to_string(ierr))
+               END IF
             END IF
             ! worker for configurational change
             IF (tmc_env%params%NMC_inp_file /= "" .AND. &
@@ -253,15 +254,18 @@ CONTAINS
                                      output_path=TRIM(expand_file_name_int(file_name=tmc_NMC_worker_out_file_name, &
                                                                            ivalue=tmc_env%tmc_comp_set%group_nr)), &
                                      ierr=ierr)
-               IF (ierr /= 0) &
+               IF (ierr /= 0) THEN
                   CPABORT("creating approx force env result in error "//cp_to_string(ierr))
+               END IF
             END IF
             CALL do_tmc_worker(tmc_env=tmc_env) ! start the worker routine
 
-            IF (tmc_env%w_env%env_id_ener > 0) &
+            IF (tmc_env%w_env%env_id_ener > 0) THEN
                CALL destroy_force_env(tmc_env%w_env%env_id_ener, ierr)
-            IF (tmc_env%w_env%env_id_approx > 0) &
+            END IF
+            IF (tmc_env%w_env%env_id_approx > 0) THEN
                CALL destroy_force_env(tmc_env%w_env%env_id_approx, ierr)
+            END IF
 
             CALL cp_rm_default_logger()
             CALL cp_logger_release(logger_sub)
@@ -296,8 +300,9 @@ CONTAINS
             END DO
             CALL do_tmc_worker(tmc_env=tmc_env, ana_list=tmc_ana_env_list) ! start the worker routine for analysis
             DO i = 1, tmc_env%params%nr_temp
-               IF (ASSOCIATED(tmc_ana_env_list(i)%temp%last_elem)) &
+               IF (ASSOCIATED(tmc_ana_env_list(i)%temp%last_elem)) THEN
                   CALL deallocate_sub_tree_node(tree_elem=tmc_ana_env_list(i)%temp%last_elem)
+               END IF
                CALL tmc_ana_env_release(tmc_ana_env_list(i)%temp)
             END DO
             DEALLOCATE (tmc_ana_env_list)
@@ -401,16 +406,19 @@ CONTAINS
             CALL analysis_init(ana_env=ana_list(temp)%temp, nr_dim=nr_dim)
             ! to allocate the dipole array in tree elements
             IF (ana_list(temp)%temp%costum_dip_file_name /= &
-                tmc_default_unspecified_name) &
+                tmc_default_unspecified_name) THEN
                tmc_env%params%print_dipole = .TRUE.
+            END IF
 
-            IF (.NOT. ASSOCIATED(elem)) &
+            IF (.NOT. ASSOCIATED(elem)) THEN
                CALL allocate_new_sub_tree_node(tmc_params=tmc_env%params, &
                                                next_el=elem, nr_dim=nr_dim)
+            END IF
             CALL analysis_restart_read(ana_env=ana_list(temp)%temp, &
                                        elem=elem)
-            IF (.NOT. ASSOCIATED(elem) .AND. .NOT. ASSOCIATED(ana_list(temp)%temp%last_elem)) &
+            IF (.NOT. ASSOCIATED(elem) .AND. .NOT. ASSOCIATED(ana_list(temp)%temp%last_elem)) THEN
                CPABORT("uncorrect initialization of the initial configuration")
+            END IF
             ! do for all directories
             DO dir_ind = 1, SIZE(ana_list(temp)%temp%dirs)
                WRITE (output_unit, FMT='(T2,A,"| ",A,T41,A40)') "TMC_ANA", &
@@ -424,25 +432,31 @@ CONTAINS
                ! remove the last saved element to start with a new file
                !  there is no weight for this element
                IF (dir_ind < SIZE(ana_list(temp)%temp%dirs) .AND. &
-                   ASSOCIATED(ana_list(temp)%temp%last_elem)) &
+                   ASSOCIATED(ana_list(temp)%temp%last_elem)) THEN
                   CALL deallocate_sub_tree_node(tree_elem=ana_list(temp)%temp%last_elem)
-               IF (ASSOCIATED(ana_list(temp)%temp%last_elem)) &
+               END IF
+               IF (ASSOCIATED(ana_list(temp)%temp%last_elem)) THEN
                   ana_list(temp)%temp%conf_offset = ana_list(temp)%temp%conf_offset &
                                                     + ana_list(temp)%temp%last_elem%nr
+               END IF
             END DO
             CALL finalize_tmc_analysis(ana_env=ana_list(temp)%temp)
             ! write analysis restart file
             !  if there is something to write
             ! shifts the last element to actual element
-            IF (ASSOCIATED(ana_list(temp)%temp%last_elem)) &
+            IF (ASSOCIATED(ana_list(temp)%temp%last_elem)) THEN
                CALL analysis_restart_print(ana_env=ana_list(temp)%temp)
-            IF (ASSOCIATED(ana_list(temp)%temp%last_elem)) &
+            END IF
+            IF (ASSOCIATED(ana_list(temp)%temp%last_elem)) THEN
                CALL deallocate_sub_tree_node(tree_elem=ana_list(temp)%temp%last_elem)
-            IF (ASSOCIATED(elem)) &
+            END IF
+            IF (ASSOCIATED(elem)) THEN
                CALL deallocate_sub_tree_node(tree_elem=elem)
+            END IF
 
-            IF (ASSOCIATED(ana_list(temp)%temp%last_elem)) &
+            IF (ASSOCIATED(ana_list(temp)%temp%last_elem)) THEN
                CALL deallocate_sub_tree_node(tree_elem=ana_list(temp)%temp%last_elem)
+            END IF
 
             CALL tmc_ana_env_release(ana_list(temp)%temp)
          END DO
@@ -499,8 +513,9 @@ CONTAINS
       CALL section_vals_val_get(tmc_section, "NR_TEMPERATURE", i_val=nr_temp)
 
       CALL section_vals_val_get(tmc_section, "TEMPERATURE", r_vals=inp_Temp)
-      IF ((nr_temp > 1) .AND. (SIZE(inp_Temp) /= 2)) &
+      IF ((nr_temp > 1) .AND. (SIZE(inp_Temp) /= 2)) THEN
          CPABORT("specify each temperature, skip keyword NR_TEMPERATURE")
+      END IF
       IF (nr_temp == 1) THEN
          nr_temp = SIZE(inp_Temp)
          ALLOCATE (Temps(nr_temp))
@@ -513,9 +528,10 @@ CONTAINS
          DO t_act = 2, SIZE(Temps)
             Temps(t_act) = Temps(t_act - 1) + (tmax - tmin)/(SIZE(Temps) - 1.0_dp)
          END DO
-         IF (ANY(Temps < 0.0_dp)) &
+         IF (ANY(Temps < 0.0_dp)) THEN
             CALL cp_abort(__LOCATION__, "The temperatures are negative. Should be specified using "// &
                           "TEMPERATURE {T_min} {T_max} and NR_TEMPERATURE {#temperatures}")
+         END IF
       END IF
 
       ! get multiple directories
@@ -596,13 +612,15 @@ CONTAINS
       CALL section_vals_val_get(tmc_section, "GROUP_ENERGY_NR", i_val=tmc_env%tmc_comp_set%group_ener_nr)
       CALL section_vals_val_get(tmc_section, "GROUP_CC_SIZE", i_val=tmc_env%tmc_comp_set%group_cc_size)
       CALL section_vals_val_get(tmc_section, "GROUP_ANALYSIS_NR", i_val=itmp)
-      IF (tmc_env%tmc_comp_set%ana_on_the_fly > 0) &
+      IF (tmc_env%tmc_comp_set%ana_on_the_fly > 0) THEN
          tmc_env%tmc_comp_set%ana_on_the_fly = itmp
-      IF (tmc_env%tmc_comp_set%ana_on_the_fly > 1) &
+      END IF
+      IF (tmc_env%tmc_comp_set%ana_on_the_fly > 1) THEN
          CALL cp_abort(__LOCATION__, &
                        "analysing on the fly is up to now not supported for multiple cores. "// &
                        "Restart file witing for this case and temperature "// &
                        "distribution has to be solved.!.")
+      END IF
       CALL section_vals_val_get(tmc_section, "RESULT_LIST_IN_MEMORY", l_val=tmc_env%params%USE_REDUCED_TREE)
       ! swap the variable, because of oposit meaning
       tmc_env%params%USE_REDUCED_TREE = .NOT. tmc_env%params%USE_REDUCED_TREE
@@ -615,21 +633,24 @@ CONTAINS
          CPABORT("no or a valid NMC input file has to be specified ")
       ELSE IF (tmc_env%params%NMC_inp_file == "") THEN
          ! no keyword
-         IF (tmc_env%tmc_comp_set%group_cc_size > 0) &
+         IF (tmc_env%tmc_comp_set%group_cc_size > 0) THEN
             CALL cp_warn(__LOCATION__, &
                          "The configurational groups are deactivated, "// &
                          "because no approximated energy input is specified.")
+         END IF
          tmc_env%tmc_comp_set%group_cc_size = 0
       ELSE
          ! check file existence
          INQUIRE (FILE=TRIM(tmc_env%params%NMC_inp_file), EXIST=flag, IOSTAT=itmp)
-         IF (.NOT. flag .OR. itmp /= 0) &
+         IF (.NOT. flag .OR. itmp /= 0) THEN
             CPABORT("a valid NMC input file has to be specified")
+         END IF
       END IF
 
       CALL section_vals_val_get(tmc_section, "TEMPERATURE", r_vals=inp_Temp)
-      IF (tmc_env%params%nr_temp > 1 .AND. SIZE(inp_Temp) /= 2) &
+      IF (tmc_env%params%nr_temp > 1 .AND. SIZE(inp_Temp) /= 2) THEN
          CPABORT("specify each temperature, skip keyword NR_TEMPERATURE")
+      END IF
       IF (tmc_env%params%nr_temp == 1) THEN
          tmc_env%params%nr_temp = SIZE(inp_Temp)
          ALLOCATE (tmc_env%params%Temp(tmc_env%params%nr_temp))
@@ -642,9 +663,10 @@ CONTAINS
          DO itmp = 2, SIZE(tmc_env%params%Temp)
             tmc_env%params%Temp(itmp) = tmc_env%params%Temp(itmp - 1) + (tmax - tmin)/(SIZE(tmc_env%params%Temp) - 1.0_dp)
          END DO
-         IF (ANY(tmc_env%params%Temp < 0.0_dp)) &
+         IF (ANY(tmc_env%params%Temp < 0.0_dp)) THEN
             CALL cp_abort(__LOCATION__, "The temperatures are negative. Should be specified using "// &
                           "TEMPERATURE {T_min} {T_max} and NR_TEMPERATURE {#temperatures}")
+         END IF
       END IF
 
       CALL section_vals_val_get(tmc_section, "TASK_TYPE", explicit=explicit_key)
@@ -711,13 +733,14 @@ CONTAINS
             tmc_env%m_env%restart_out_file_name = tmc_default_restart_out_file_name
             tmc_env%m_env%restart_out_step = HUGE(tmc_env%m_env%restart_out_step)
          END IF
-         IF (tmc_env%m_env%restart_out_step < 0) &
+         IF (tmc_env%m_env%restart_out_step < 0) THEN
             CALL cp_abort(__LOCATION__, &
                           "Please specify a valid value for the frequency "// &
                           "to write restart files (RESTART_OUT #). "// &
                           "# > 0 to define the amount of Markov chain elements in between, "// &
                           "or 0 to deactivate the restart file writing. "// &
                           "Lonely keyword writes restart file only at the end of the run.")
+         END IF
 
          CALL section_vals_val_get(tmc_section, "INFO_OUT_STEP_SIZE", i_val=tmc_env%m_env%info_out_step_size)
          CALL section_vals_val_get(tmc_section, "DOT_TREE", c_val=tmc_env%params%dot_file_name)
@@ -734,13 +757,15 @@ CONTAINS
       ! the NMC_FILE_NAME is already read in tmc_preread_input
       CALL section_vals_val_get(tmc_section, "ENERGY_FILE_NAME", c_val=tmc_env%params%energy_inp_file)
       ! file name keyword without file name
-      IF (tmc_env%params%energy_inp_file == "") &
+      IF (tmc_env%params%energy_inp_file == "") THEN
          CPABORT("a valid exact energy input file has to be specified ")
+      END IF
       ! check file existence
       INQUIRE (FILE=TRIM(tmc_env%params%energy_inp_file), EXIST=flag, IOSTAT=itmp)
-      IF (.NOT. flag .OR. itmp /= 0) &
+      IF (.NOT. flag .OR. itmp /= 0) THEN
          CALL cp_abort(__LOCATION__, "a valid exact energy input file has to be specified, "// &
                        TRIM(tmc_env%params%energy_inp_file)//" does not exist.")
+      END IF
 
       CALL section_vals_val_get(tmc_section, "NUM_MV_ELEM_IN_CELL", i_val=tmc_env%params%nr_elem_mv)
 
@@ -751,10 +776,12 @@ CONTAINS
 
       CALL section_vals_val_get(tmc_section, "SUB_BOX", r_vals=r_arr_tmp)
       IF (SIZE(r_arr_tmp) > 1) THEN
-         IF (SIZE(r_arr_tmp) /= tmc_env%params%dim_per_elem) &
+         IF (SIZE(r_arr_tmp) /= tmc_env%params%dim_per_elem) THEN
             CPABORT("The entered sub box sizes does not fit in number of dimensions.")
-         IF (ANY(r_arr_tmp <= 0.0_dp)) &
+         END IF
+         IF (ANY(r_arr_tmp <= 0.0_dp)) THEN
             CPABORT("The entered sub box lengths should be greater than 0.")
+         END IF
          DO itmp = 1, SIZE(tmc_env%params%sub_box_size)
             tmc_env%params%sub_box_size(itmp) = r_arr_tmp(itmp)/au2a
          END DO
@@ -774,14 +801,17 @@ CONTAINS
       CALL section_vals_val_get(tmc_section, "PRINT_ONLY_ACC", l_val=tmc_env%params%print_only_diff_conf)
       CALL section_vals_val_get(tmc_section, "PRINT_COORDS", l_val=tmc_env%params%print_trajectory)
       CALL section_vals_val_get(tmc_section, "PRINT_DIPOLE", explicit=explicit)
-      IF (explicit) &
+      IF (explicit) THEN
          CALL section_vals_val_get(tmc_section, "PRINT_DIPOLE", l_val=tmc_env%params%print_dipole)
+      END IF
       CALL section_vals_val_get(tmc_section, "PRINT_FORCES", explicit=explicit)
-      IF (explicit) &
+      IF (explicit) THEN
          CALL section_vals_val_get(tmc_section, "PRINT_FORCES", l_val=tmc_env%params%print_forces)
+      END IF
       CALL section_vals_val_get(tmc_section, "PRINT_CELL", explicit=explicit)
-      IF (explicit) &
+      IF (explicit) THEN
          CALL section_vals_val_get(tmc_section, "PRINT_CELL", l_val=tmc_env%params%print_cell)
+      END IF
       CALL section_vals_val_get(tmc_section, "PRINT_ENERGIES", l_val=tmc_env%params%print_energies)
 
    END SUBROUTINE tmc_read_input
@@ -850,9 +880,10 @@ CONTAINS
                                             - tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr)/ &
                                            REAL(tmc_comp_set%group_cc_size, KIND=dp))
 
-            IF (tmc_comp_set%group_cc_nr < 1) &
+            IF (tmc_comp_set%group_cc_nr < 1) THEN
                CALL cp_warn(__LOCATION__, &
                             "There are not enougth cores left for creating groups for configurational change.")
+            END IF
             IF (flag) success = .FALSE.
          END IF
 
@@ -1010,9 +1041,10 @@ CONTAINS
          WRITE (file_nr, FMT=fmt_my) plabel, "cores per group (ener|cc) ", &
             cp_to_string(tmc_env%tmc_comp_set%group_ener_size)//" | "// &
             cp_to_string(tmc_env%tmc_comp_set%group_cc_size)
-         IF (ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_ana)) &
+         IF (ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_ana)) THEN
             WRITE (file_nr, FMT=fmt_my) plabel, "Analysis groups ", &
-            cp_to_string(tmc_env%tmc_comp_set%para_env_m_ana%num_pe - 1)
+               cp_to_string(tmc_env%tmc_comp_set%para_env_m_ana%num_pe - 1)
+         END IF
          IF (SIZE(tmc_env%params%Temp(:)) <= 7) THEN
             WRITE (fmt_tmp, *) '(T2,A,"| ",A,T25,A56)'
             c_tmp = ""
@@ -1026,18 +1058,20 @@ CONTAINS
             cp_to_string(tmc_env%m_env%num_MC_elem)
          WRITE (file_nr, FMT=fmt_my) plabel, "exact potential input file:", &
             TRIM(tmc_env%params%energy_inp_file)
-         IF (tmc_env%params%NMC_inp_file /= "") &
+         IF (tmc_env%params%NMC_inp_file /= "") THEN
             WRITE (file_nr, FMT=fmt_my) plabel, "approximate potential input file:", &
-            TRIM(tmc_env%params%NMC_inp_file)
+               TRIM(tmc_env%params%NMC_inp_file)
+         END IF
          IF (ANY(tmc_env%params%sub_box_size > 0.0_dp)) THEN
             WRITE (fmt_tmp, *) '(T2,A,"| ",A,T25,A56)'
             c_tmp = ""
             WRITE (c_tmp, FMT="(1000F8.2)") tmc_env%params%sub_box_size(:)*au2a
             WRITE (file_nr, FMT=fmt_tmp) plabel, "Sub box size [A]", TRIM(c_tmp)
          END IF
-         IF (tmc_env%params%pressure > 0.0_dp) &
+         IF (tmc_env%params%pressure > 0.0_dp) THEN
             WRITE (file_nr, FMT=fmt_my) plabel, "Pressure [bar]: ", &
-            cp_to_string(tmc_env%params%pressure*au2bar)
+               cp_to_string(tmc_env%params%pressure*au2bar)
+         END IF
          WRITE (file_nr, FMT=fmt_my) plabel, "Numbers of atoms/molecules moved "
          WRITE (file_nr, FMT=fmt_my) plabel, "  within one conf. change", &
             cp_to_string(tmc_env%params%nr_elem_mv)

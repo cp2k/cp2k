@@ -303,8 +303,9 @@ CONTAINS
       logger%ref_count = 1
 
       IF (PRESENT(template_logger)) THEN
-         IF (template_logger%ref_count < 1) &
+         IF (template_logger%ref_count < 1) THEN
             CPABORT(routineP//" template_logger%ref_count<1")
+         END IF
          logger%print_level = template_logger%print_level
          logger%default_global_unit_nr = template_logger%default_global_unit_nr
          logger%close_local_unit_on_dealloc = template_logger%close_local_unit_on_dealloc
@@ -339,16 +340,19 @@ CONTAINS
          logger%suffix = ""
       END IF
       IF (PRESENT(para_env)) logger%para_env => para_env
-      IF (.NOT. ASSOCIATED(logger%para_env)) &
+      IF (.NOT. ASSOCIATED(logger%para_env)) THEN
          CPABORT(routineP//" para env not associated")
-      IF (.NOT. logger%para_env%is_valid()) &
+      END IF
+      IF (.NOT. logger%para_env%is_valid()) THEN
          CPABORT(routineP//" para_env%ref_count<1")
+      END IF
       CALL logger%para_env%retain()
 
       IF (PRESENT(print_level)) logger%print_level = print_level
 
-      IF (PRESENT(default_global_unit_nr)) &
+      IF (PRESENT(default_global_unit_nr)) THEN
          logger%default_global_unit_nr = default_global_unit_nr
+      END IF
       IF (PRESENT(global_filename)) THEN
          logger%global_filename = global_filename
          logger%close_global_unit_on_dealloc = .TRUE.
@@ -362,8 +366,9 @@ CONTAINS
          END IF
       END IF
 
-      IF (PRESENT(default_local_unit_nr)) &
+      IF (PRESENT(default_local_unit_nr)) THEN
          logger%default_local_unit_nr = default_local_unit_nr
+      END IF
       IF (PRESENT(local_filename)) THEN
          logger%local_filename = local_filename
          logger%close_local_unit_on_dealloc = .TRUE.
@@ -407,8 +412,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_retain', &
          routineP = moduleN//':'//routineN
 
-      IF (logger%ref_count < 1) &
+      IF (logger%ref_count < 1) THEN
          CPABORT(routineP//" logger%ref_count<1")
+      END IF
       logger%ref_count = logger%ref_count + 1
    END SUBROUTINE cp_logger_retain
 
@@ -426,8 +432,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       IF (ASSOCIATED(logger)) THEN
-         IF (logger%ref_count < 1) &
+         IF (logger%ref_count < 1) THEN
             CPABORT(routineP//" logger%ref_count<1")
+         END IF
          logger%ref_count = logger%ref_count - 1
          IF (logger%ref_count == 0) THEN
             IF (logger%close_global_unit_on_dealloc .AND. &
@@ -476,8 +483,9 @@ CONTAINS
 
       lggr => logger
       IF (.NOT. ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-      IF (lggr%ref_count < 1) &
+      IF (lggr%ref_count < 1) THEN
          CPABORT(routineP//" logger%ref_count<1")
+      END IF
 
       res = level >= lggr%print_level
    END FUNCTION cp_logger_would_log
@@ -547,8 +555,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_set_log_level', &
          routineP = moduleN//':'//routineN
 
-      IF (logger%ref_count < 1) &
+      IF (logger%ref_count < 1) THEN
          CPABORT(routineP//" logger%ref_count<1")
+      END IF
       logger%print_level = level
    END SUBROUTINE cp_logger_set_log_level
 
@@ -584,8 +593,9 @@ CONTAINS
          NULLIFY (lggr)
       END IF
       IF (.NOT. ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-      IF (lggr%ref_count < 1) &
+      IF (lggr%ref_count < 1) THEN
          CPABORT(routineP//" logger%ref_count<1")
+      END IF
 
       IF (PRESENT(local)) loc = local
       IF (PRESENT(skip_not_ionode)) skip = skip_not_ionode
@@ -692,8 +702,9 @@ CONTAINS
       lggr => logger
 
       IF (.NOT. ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-      IF (lggr%ref_count < 1) &
+      IF (lggr%ref_count < 1) THEN
          CPABORT(routineP//" logger%ref_count<1")
+      END IF
       IF (PRESENT(local)) loc = local
       IF (loc) THEN
          res = TRIM(root)//TRIM(lggr%suffix)//'_p'// &

@@ -103,9 +103,10 @@ CONTAINS
                                    i_val=proj_mo%ref_nlumo)
 
          ! Relevent only in EMD
-         IF (.NOT. rtp_control%fixed_ions) &
+         IF (.NOT. rtp_control%fixed_ions) THEN
             CALL section_vals_val_get(proj_mo_section, "PROPAGATE_REF", i_rep_section=i_rep, &
                                       l_val=proj_mo%propagate_ref)
+         END IF
 
          ! If no reference .wfn is provided, using the restart SCF file:
          IF (proj_mo%ref_mo_file_name == "DEFAULT") THEN
@@ -136,11 +137,12 @@ CONTAINS
 
          CALL section_vals_val_get(proj_mo_section, "TD_MO_SPIN", i_rep_section=i_rep, &
                                    i_val=proj_mo%td_mo_spin)
-         IF (proj_mo%td_mo_spin > SIZE(mos)) &
+         IF (proj_mo%td_mo_spin > SIZE(mos)) THEN
             CALL cp_abort(__LOCATION__, &
                           "You asked to project the time dependent BETA spin while the "// &
                           "real time DFT run has only one spin defined. "// &
                           "Please set TD_MO_SPIN to 1 or use UKS.")
+         END IF
 
          CALL section_vals_val_get(proj_mo_section, "TD_MO_INDEX", i_rep_section=i_rep, &
                                    i_vals=tmp_ints)
@@ -160,10 +162,11 @@ CONTAINS
             ALLOCATE (proj_mo%td_mo_occ(SIZE(proj_mo%td_mo_index)))
             proj_mo%td_mo_occ(:) = 0.0_dp
             DO j_td = 1, SIZE(proj_mo%td_mo_index)
-               IF (proj_mo%td_mo_index(j_td) > nbr_mo_td_max) &
+               IF (proj_mo%td_mo_index(j_td) > nbr_mo_td_max) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "The MO number available in the Time Dependent run "// &
                                 "is smaller than the MO number you have required in TD_MO_INDEX.")
+               END IF
                proj_mo%td_mo_occ(j_td) = mos(proj_mo%td_mo_spin)%occupation_numbers(proj_mo%td_mo_index(j_td))
             END DO
          END IF
@@ -237,9 +240,10 @@ CONTAINS
 
       IF (para_env%is_source()) THEN
          INQUIRE (FILE=TRIM(proj_mo%ref_mo_file_name), exist=is_file)
-         IF (.NOT. is_file) &
+         IF (.NOT. is_file) THEN
             CALL cp_abort(__LOCATION__, &
                           "Reference file not found! Name of the file CP2K looked for: "//TRIM(proj_mo%ref_mo_file_name))
+         END IF
 
          CALL open_file(file_name=proj_mo%ref_mo_file_name, &
                         file_action="READ", &
@@ -254,10 +258,11 @@ CONTAINS
 
       IF (para_env%is_source()) CALL close_file(unit_number=restart_unit)
 
-      IF (proj_mo%ref_mo_spin > SIZE(mo_ref_temp)) &
+      IF (proj_mo%ref_mo_spin > SIZE(mo_ref_temp)) THEN
          CALL cp_abort(__LOCATION__, &
                        "Projection on spin BETA is not possible as the reference wavefunction "// &
                        "only has one spin channel. Use a reference .wfn calculated with UKS/LSD, or set REF_MO_SPIN to 1")
+      END IF
 
       ! Store only the mos required
       nbr_mo_max = mo_ref_temp(proj_mo%ref_mo_spin)%mo_coeff%matrix_struct%ncol_global
@@ -269,19 +274,21 @@ CONTAINS
          END DO
       ELSE
          DO i_ref = 1, SIZE(proj_mo%ref_mo_index)
-            IF (proj_mo%ref_mo_index(i_ref) > nbr_mo_max) &
+            IF (proj_mo%ref_mo_index(i_ref) > nbr_mo_max) THEN
                CALL cp_abort(__LOCATION__, &
                              "The number of MOs available in the reference wavefunction "// &
                              "is smaller than the MO number you have requested in REF_MO_INDEX.")
+            END IF
          END DO
       END IF
       nbr_ref_mo = SIZE(proj_mo%ref_mo_index)
 
-      IF (nbr_ref_mo > nbr_mo_max) &
+      IF (nbr_ref_mo > nbr_mo_max) THEN
          CALL cp_abort(__LOCATION__, &
                        "The total number of requested MOs is larger than what is available in the reference wavefunction. "// &
                        "If you are trying to project onto virtual states, make sure they are included in the .wfn file "// &
                        "e.g., by the ADDED_MOS keyword in the SCF section of the input when calculating your reference.")
+      END IF
 
       ! Store
       ALLOCATE (proj_mo%mo_ref(nbr_ref_mo))
@@ -290,14 +297,16 @@ CONTAINS
                                nrow_global=mo_ref_temp(proj_mo%ref_mo_spin)%mo_coeff%matrix_struct%nrow_global, &
                                ncol_global=1)
 
-      IF (dft_control%rtp_control%fixed_ions) &
+      IF (dft_control%rtp_control%fixed_ions) THEN
          CALL cp_fm_create(mo_coeff_temp, mo_ref_fmstruct, 'mo_ref')
+      END IF
 
       DO mo_index = 1, nbr_ref_mo
          real_mo_index = proj_mo%ref_mo_index(mo_index)
-         IF (real_mo_index > nbr_mo_max) &
+         IF (real_mo_index > nbr_mo_max) THEN
             CALL cp_abort(__LOCATION__, &
                           "One of reference mo index is larger then the total number of available mo in the .wfn file.")
+         END IF
 
          ! fill with the reference mo values
          CALL cp_fm_create(proj_mo%mo_ref(mo_index), mo_ref_fmstruct, 'mo_ref')
@@ -324,8 +333,9 @@ CONTAINS
       DEALLOCATE (mo_ref_temp)
 
       CALL cp_fm_struct_release(mo_ref_fmstruct)
-      IF (dft_control%rtp_control%fixed_ions) &
+      IF (dft_control%rtp_control%fixed_ions) THEN
          CALL cp_fm_release(mo_coeff_temp)
+      END IF
 
    END SUBROUTINE read_reference_mo_from_wfn
 
@@ -372,8 +382,9 @@ CONTAINS
       ! Does not compute the projection if not the required time step
       IF (.NOT. BTEST(cp_print_key_should_output(logger%iter_info, &
                                                  print_mo_section, ""), &
-                      cp_p_file)) &
+                      cp_p_file)) THEN
          RETURN
+      END IF
 
       IF (.NOT. dft_control%rtp_control%fixed_ions) THEN
          CALL get_qs_env(qs_env, &

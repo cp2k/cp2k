@@ -106,8 +106,9 @@ CONTAINS
          CALL cp_fm_release(ex_env%wfn_history%evect)
          CALL cp_fm_release(ex_env%wfn_history%cpmos)
 
-         IF (ALLOCATED(ex_env%gw_eigen)) &
+         IF (ALLOCATED(ex_env%gw_eigen)) THEN
             DEALLOCATE (ex_env%gw_eigen)
+         END IF
 
          DEALLOCATE (ex_env)
 

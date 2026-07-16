@@ -128,7 +128,7 @@ CONTAINS
       IF (ctx%op_ij == do_potential_truncated .OR. ctx%op_ij == do_potential_short) THEN
          ctx%dr_ij = potential_parameter%cutoff_radius*cutoff_screen_factor
          ctx%dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (ctx%op_ij == do_potential_coulomb) THEN
+      ELSE IF (ctx%op_ij == do_potential_coulomb) THEN
          ctx%dr_ij = 1000000.0_dp
          ctx%dr_ik = 1000000.0_dp
       END IF

@@ -1179,7 +1179,7 @@ CONTAINS
          WRITE (filename, '(A18,I1.1)') "IBO_CENTERS_SPREAD"
          iw = cp_print_key_unit_nr(logger, print_section, "", extension=".csp", &
                                    middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE.)
-      ELSEIF (PRESENT(iounit)) THEN
+      ELSE IF (PRESENT(iounit)) THEN
          iw = iounit
       ELSE
          iw = -1
@@ -1702,7 +1702,7 @@ CONTAINS
                   IF (order == 2) THEN
                      aij = aij + 4._dp*mij**2 - (mii - mjj)**2
                      bij = bij + 4._dp*mij*(mii - mjj)
-                  ELSEIF (order == 4) THEN
+                  ELSE IF (order == 4) THEN
                      aij = aij - mii**4 - mjj**4 + 6._dp*(mii**2 + mjj**2)*mij**2 + &
                            mii**3*mjj + mii*mjj**3
                      bij = bij + 4._dp*mij*(mii**3 - mjj**3)

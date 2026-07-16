@@ -3708,9 +3708,10 @@ CONTAINS
 
          CALL get_RI_density_coeffs(density_coeffs, rho_ao, 1, basis_set_AO, basis_set_RI, &
                                     mult_by_s, skip_ri_metric, ri_data, qs_env)
-         IF (nspins == 2) &
+         IF (nspins == 2) THEN
             CALL get_RI_density_coeffs(density_coeffs_2, rho_ao, 2, basis_set_AO, basis_set_RI, &
                                        mult_by_s, skip_ri_metric, ri_data, qs_env)
+         END IF
 
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%XC%HF%RI%PRINT%RI_DENSITY_COEFFS", &
                                         extension=".dat", file_status="REPLACE", &

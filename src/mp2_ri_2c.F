@@ -916,9 +916,9 @@ CONTAINS
                                    hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end, &
                                    eri_method=eri_method)
 
-      ELSEIF (eri_method == do_eri_gpw .OR. &
-              (potential_type == do_potential_long .AND. qs_env%mp2_env%eri_method == do_eri_os) &
-              .OR. (potential_type == do_potential_id .AND. qs_env%mp2_env%eri_method == do_eri_mme)) THEN
+      ELSE IF (eri_method == do_eri_gpw .OR. &
+               (potential_type == do_potential_long .AND. qs_env%mp2_env%eri_method == do_eri_os) &
+               .OR. (potential_type == do_potential_id .AND. qs_env%mp2_env%eri_method == do_eri_mme)) THEN
 
          CALL mp2_eri_2c_integrate_gpw(qs_env, para_env_sub, my_group_L_start, my_group_L_end, &
                                        natom, potential, sab_orb_sub, L_local_col, kind_of)

@@ -73,11 +73,13 @@ CONTAINS
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: total_rho_core_rspace, total_rho_gspace
 
       qs_charges%total_rho_core_rspace = 0.0_dp
-      IF (PRESENT(total_rho_core_rspace)) &
+      IF (PRESENT(total_rho_core_rspace)) THEN
          qs_charges%total_rho_core_rspace = total_rho_core_rspace
+      END IF
       qs_charges%total_rho_gspace = 0.0_dp
-      IF (PRESENT(total_rho_gspace)) &
+      IF (PRESENT(total_rho_gspace)) THEN
          qs_charges%total_rho_gspace = total_rho_gspace
+      END IF
       qs_charges%total_rho_soft_gspace = 0.0_dp
       qs_charges%total_rho0_hard_lebedev = 0.0_dp
       qs_charges%total_rho_soft_gspace = 0.0_dp

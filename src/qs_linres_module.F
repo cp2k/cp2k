@@ -202,8 +202,9 @@ CONTAINS
          vcd_env%apt_total_nvpt(:, :, vcd_env%dcdr_env%lambda) = &
             vcd_env%apt_el_nvpt(:, :, vcd_env%dcdr_env%lambda) + vcd_env%apt_nuc_nvpt(:, :, vcd_env%dcdr_env%lambda)
 
-         IF (vcd_env%do_mfp) &
+         IF (vcd_env%do_mfp) THEN
             vcd_env%aat_atom_mfp(:, :, vcd_env%dcdr_env%lambda) = vcd_env%aat_atom_mfp(:, :, vcd_env%dcdr_env%lambda)*4._dp
+         END IF
 
       END DO !lambda
 

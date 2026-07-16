@@ -996,7 +996,7 @@ CONTAINS
             lsd = .TRUE.
             scale_rho = .TRUE.
          END IF
-      ELSEIF (PRESENT(do_triplet)) THEN
+      ELSE IF (PRESENT(do_triplet)) THEN
          IF (nspins == 1 .AND. do_triplet) lsd = .TRUE.
       END IF
 

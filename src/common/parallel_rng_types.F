@@ -512,8 +512,9 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: antithetic, extended_precision
       TYPE(rng_stream_type)                              :: rng_stream
 
-      IF (LEN_TRIM(name) > rng_name_length) &
+      IF (LEN_TRIM(name) > rng_name_length) THEN
          CPABORT("given random number generator name is too long")
+      END IF
 
       rng_stream%name = TRIM(name)
 
@@ -630,14 +631,16 @@ CONTAINS
       LOGICAL, INTENT(OUT), OPTIONAL                     :: buffer_filled
 
       IF (PRESENT(name)) name = self%name
-      IF (PRESENT(distribution_type)) &
+      IF (PRESENT(distribution_type)) THEN
          distribution_type = self%distribution_type
+      END IF
       IF (PRESENT(bg)) bg = self%bg
       IF (PRESENT(cg)) cg = self%cg
       IF (PRESENT(ig)) ig = self%ig
       IF (PRESENT(antithetic)) antithetic = self%antithetic
-      IF (PRESENT(extended_precision)) &
+      IF (PRESENT(extended_precision)) THEN
          extended_precision = self%extended_precision
+      END IF
       IF (PRESENT(buffer)) buffer = self%buffer
       IF (PRESENT(buffer_filled)) buffer_filled = self%buffer_filled
    END SUBROUTINE get
@@ -1131,8 +1134,9 @@ CONTAINS
 
       my_write_all = .FALSE.
 
-      IF (PRESENT(write_all)) &
+      IF (PRESENT(write_all)) THEN
          my_write_all = write_all
+      END IF
 
       WRITE (UNIT=output_unit, FMT="(/,T2,A,/)") &
          "Random number stream <"//TRIM(self%name)//">:"

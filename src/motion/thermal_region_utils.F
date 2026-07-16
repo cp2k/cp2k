@@ -425,12 +425,14 @@ CONTAINS
                           TRIM(my_reg)//" which is not allowed!")
          END IF
       ELSE
-         IF (.NOT. ipart > 0) &
+         IF (.NOT. ipart > 0) THEN
             CALL cp_abort(__LOCATION__, &
                           "Input atom index "//TRIM(my_part)//" is non-positive!")
-         IF (.NOT. ipart <= particles%n_els) &
+         END IF
+         IF (.NOT. ipart <= particles%n_els) THEN
             CALL cp_abort(__LOCATION__, &
                           "Input atom index "//TRIM(my_part)//" is out of bounds!")
+         END IF
       END IF
 
    END SUBROUTINE set_t_region_index

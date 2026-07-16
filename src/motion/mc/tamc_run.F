@@ -269,13 +269,6 @@ CONTAINS
          IF (simpar%v0 == 0._dp) simpar%v0 = cell%deth
       END IF
 
-      ! Initialize velocities possibly applying constraints at the zeroth MD step
-! ! !     CALL section_vals_val_get(motion_section,"PRINT%RESTART%SPLIT_RESTART_FILE",&
-! ! !                               l_val=write_binary_restart_file)
-!! let us see if this created all the trouble
-!      CALL setup_velocities(force_env,simpar,globenv,md_env,md_section,constraint_section, &
-!                            write_binary_restart_file)
-
       ! Setup Free Energy Calculation (if required)
       CALL fe_env_create(fe_env, free_energy_section)
       CALL set_md_env(md_env=md_env, simpar=simpar, fe_env=fe_env, cell=cell, &
@@ -294,7 +287,6 @@ CONTAINS
 
       force_env%meta_env%dt = force_env%meta_env%zdt
       CALL initialize_md_ener(md_ener, force_env, simpar)
-!     force_env%meta_env%dt=force_env%meta_env%zdt
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MC setup up
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -306,11 +298,8 @@ CONTAINS
 ! set some values...will use get_globenv if that ever comes around
 
 ! initialize the random numbers
-!       IF (para_env%is_source()) THEN
       rng_stream_mc = rng_stream_type(name="Random numbers for monte carlo acc/rej", &
                                       distribution_type=UNIFORM)
-!       ENDIF
-!!!!! this should go in a routine hmc_read
 
       NULLIFY (mc_section)
       ALLOCATE (mc_par)
@@ -328,7 +317,6 @@ CONTAINS
       CALL section_vals_val_get(mc_section, "RANDOMTOSKIP", i_val=rand2skip)
       CPASSERT(rand2skip >= 0)
       temp = cp_unit_from_cp2k(simpar%temp_ext, "K")
-!
 
       CALL set_mc_par(mc_par, ensemble=ensemble, nstep=nmccycles, iprint=iprint, temperature=temp, &
                       beta=1.0_dp/temp/boltzmann*joule, exp_max_val=0.9_dp*LOG(HUGE(0.0_dp)), &
@@ -372,11 +360,12 @@ CONTAINS
           (simpar%ensemble == nph_uniaxial_ensemble) .OR. &
           (simpar%ensemble == nph_uniaxial_damped_ensemble)) THEN
          check = virial%pv_availability
-         IF (.NOT. check) &
+         IF (.NOT. check) THEN
             CALL cp_abort(__LOCATION__, &
                           "Virial evaluation not requested for this run in the input file! "// &
                           "You may consider to switch on the virial evaluation with the keyword: STRESS_TENSOR. "// &
                           "Be sure the method you are using can compute the virial!")
+         END IF
          IF (ASSOCIATED(force_env%sub_force_env)) THEN
             DO i = 1, SIZE(force_env%sub_force_env)
                IF (ASSOCIATED(force_env%sub_force_env(i)%force_env)) THEN
@@ -386,11 +375,12 @@ CONTAINS
                END IF
             END DO
          END IF
-         IF (.NOT. check) &
+         IF (.NOT. check) THEN
             CALL cp_abort(__LOCATION__, &
                           "Virial evaluation not requested for all the force_eval sections present in"// &
                           " the input file! You have to switch on the virial evaluation with the keyword: STRESS_TENSOR"// &
                           " in each force_eval section. Be sure the method you are using can compute the virial!")
+         END IF
       END IF
 
       ! Computing Forces at zero MD step
@@ -411,15 +401,12 @@ CONTAINS
             CALL section_vals_remove_values(work_section)
          END IF
 
-!      CALL force_env_calc_energy_force (force_env, calc_force=.TRUE.)
          meta_env_saved => force_env%meta_env
          NULLIFY (force_env%meta_env)
          CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
          force_env%meta_env => meta_env_saved
 
          IF (ASSOCIATED(force_env%qs_env)) THEN
-!           force_env%qs_env%sim_time=time
-!           force_env%qs_env%sim_step=itimes
             force_env%qs_env%sim_time = 0.0_dp
             force_env%qs_env%sim_step = 0
          END IF
@@ -434,26 +421,7 @@ CONTAINS
                   END DO
                END DO
             END IF
-!           IF (force_env%meta_env%well_tempered) THEN
-!              force_env%meta_env%wttemperature = simpar%temp_ext
-!              IF (force_env%meta_env%wtgamma>EPSILON(1._dp)) THEN
-!                 dummy=force_env%meta_env%wttemperature*(force_env%meta_env%wtgamma-1._dp)
-!                 IF (force_env%meta_env%delta_t>EPSILON(1._dp)) THEN
-!                    check=ABS(force_env%meta_env%delta_t-dummy)<1.E+3_dp*EPSILON(1._dp)
-!                    IF(.NOT.check) CALL cp_abort(__LOCATION__,&
-!                       "Inconsistency between DELTA_T and WTGAMMA (both specified):"//&
-!                       " please, verify that DELTA_T=(WTGAMMA-1)*TEMPERATURE")
-!                 ELSE
-!                    force_env%meta_env%delta_t = dummy
-!                 ENDIF
-!              ELSE
-!                 force_env%meta_env%wtgamma    = 1._dp &
-!                    + force_env%meta_env%delta_t/force_env%meta_env%wttemperature
-!              ENDIF
-!              force_env%meta_env%invdt         = 1._dp/force_env%meta_env%delta_t
-!           ENDIF
             CALL tamc_force(force_env)
-!           CALL metadyn_write_colvar(force_env)
          END IF
 
          IF (simpar%do_respa) THEN
@@ -461,16 +429,10 @@ CONTAINS
                                              calc_force=.TRUE.)
          END IF
 
-!        CALL force_env_get( force_env, subsys=subsys)
-!
-!        CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-!             particles=particles)
-
          CALL virial_evaluate(atomic_kinds%els, particles%els, local_particles, &
                               virial, force_env%para_env)
 
          CALL md_energy(md_env, md_ener)
-!        CALL md_write_output(md_env) !inits the print env at itimes == 0 also writes trajectories
          md_stride = 1
       ELSE
          CALL get_md_env(md_env, reftraj=reftraj)
@@ -486,7 +448,6 @@ CONTAINS
       CALL init_mc_moves(moves)
       CALL init_mc_moves(gmoves)
       ALLOCATE (r(1:3, SIZE(particles%els)))
-!       ALLOCATE (r_old(1:3,size(particles%els)))
       CALL mc_averages_create(MCaverages)
       !!!!! some more buffers
       ! Allocate random number for Langevin Thermostat acting on COLVARS
@@ -529,7 +490,6 @@ CONTAINS
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(a)') "HMC|==== end initial average forces"
       END IF
-!     call set_md_env(md_env, init=.FALSE.)
 
       CALL metadyn_write_colvar(force_env)
 
@@ -575,8 +535,6 @@ CONTAINS
          ! Free Energy calculation
 !        CALL free_energy_evaluate(md_env,should_stop,free_energy_section)
 
-         ![AME:UB] IF (should_stop) EXIT
-
          ! Test for <PROJECT_NAME>.EXIT_MD or for WALL_TIME to exit
          ! Default:
          ! IF so we don't overwrite the restart or append to the trajectory
@@ -589,29 +547,12 @@ CONTAINS
          CALL external_control(should_stop, "MD", globenv=globenv)
          IF (should_stop) THEN
             CALL cp_iterate(logger%iter_info, last=.TRUE., iter_nr=itimes)
-!           CALL md_output(md_env,md_section,force_env%root_section,should_stop)
             EXIT
          END IF
-
-!        IF(simpar%ensemble /= reftraj_ensemble) THEN
-!           CALL md_energy(md_env, md_ener)
-!           CALL temperature_control(simpar, md_env, md_ener, force_env, logger)
-!           CALL comvel_control(md_ener, force_env, md_section, logger)
-!           CALL angvel_control(md_ener, force_env, md_section, logger)
-!        ELSE
-!           CALL md_ener_reftraj(md_env, md_ener)
-!        END IF
 
          time_iter_stop = m_walltime()
          used_time = time_iter_stop - time_iter_start
          time_iter_start = time_iter_stop
-
-!!!!! this writes the restart...
-!         CALL md_output(md_env,md_section,force_env%root_section,should_stop)
-
-!        IF(simpar%ensemble == reftraj_ensemble ) THEN
-!           CALL write_output_reftraj(md_env)
-!        END IF
 
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(a,1x,i0)') "HMC| end z step ", istep
@@ -627,7 +568,6 @@ CONTAINS
 
       CALL write_restart(md_env=md_env, root_section=force_env%root_section)
 ! if we need the final kinetic energy for Hybrid Monte Carlo
-!     hmc_ekin%final_ekin=md_ener%ekin
 
       ! Remove the iteration level
       CALL cp_rm_iter_level(logger%iter_info, "MD")
@@ -639,15 +579,12 @@ CONTAINS
       DEALLOCATE (md_env)
       ! Clean restartable sections..
       IF (my_rm_restart_info) CALL remove_restart_info(force_env%root_section)
-!     IF (para_env%is_source()) THEN
-!     ENDIF
       CALL MC_ENV_RELEASE(mc_env)
       DEALLOCATE (mc_env)
       DEALLOCATE (mc_par)
       CALL MC_MOVES_RELEASE(moves)
       CALL MC_MOVES_RELEASE(gmoves)
       DEALLOCATE (r)
-!     DEALLOCATE(r_old)
       DEALLOCATE (xieta)
       DEALLOCATE (An)
       DEALLOCATE (fz)
@@ -1009,10 +946,6 @@ CONTAINS
          fz = 0.0_dp
          ishift = 0
       END IF
-!      lrestart = .false.
-!      if (present(logger) .and. present(iter)) THEN
-!       lrestart=.true.
-!      ENDIF
       CALL get_mc_par(mc_par, nstep=nstep, iprint=iprint)
       meta_env_saved => force_env%meta_env
       NULLIFY (force_env%meta_env)
@@ -1070,20 +1003,6 @@ CONTAINS
             WRITE (output_unit, '(a,f16.8)') "HMC| Running average for potential energy ", averages%ave_energy
             WRITE (output_unit, '(a,1x,i0)') "HMC|======== End Monte Carlo cycle ", i + ishift
          END IF
-!         IF (lrestart) THEN
-!           k=nstep/5
-!           IF(MOD(i,k) == 0) THEN
-!              force_env%qs_env%sim_time=t1
-!              force_env%qs_env%sim_step=it1
-!              DO j=1,force_env%meta_env%n_colvar
-!                force_env%meta_env%metavar(j)%ff_s=fz(j)/real(i+ishift,dp)
-!              ENDDO
-! !              CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=-1)
-!              CALL section_vals_val_set(mcsec,"RANDOMTOSKIP",i_val=i+ishift)
-!              CALL write_restart(md_env=mdenv,root_section=force_env%root_section)
-! !              CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=iter)
-!           ENDIF
-!         ENDIF
       END DO
       force_env%qs_env%sim_time = t1
       force_env%qs_env%sim_step = it1
@@ -1216,7 +1135,7 @@ CONTAINS
 ! to prevent overflows
       IF (value > exp_max_val) THEN
          w = 10.0_dp
-      ELSEIF (value < exp_min_val) THEN
+      ELSE IF (value < exp_min_val) THEN
          w = 0.0_dp
       ELSE
          w = EXP(value)

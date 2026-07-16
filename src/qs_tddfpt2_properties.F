@@ -835,8 +835,9 @@ CONTAINS
                END DO
 
                DO iproc = 1, para_env%num_pe
-                  IF (iproc - 1 /= para_env%mepos) &
+                  IF (iproc - 1 /= para_env%mepos) THEN
                      CALL recv_handlers(iproc)%wait()
+                  END IF
                END DO
 
                ! compute total number of non-negligible excitations
@@ -936,8 +937,9 @@ CONTAINS
             END IF
 
             ! deallocate temporary arrays
-            IF (para_env%is_source()) &
+            IF (para_env%is_source()) THEN
                DEALLOCATE (weights_recv, weights_neg_abs_recv, inds_recv, inds)
+            END IF
          END DO
 
          DEALLOCATE (weights_local, inds_local)
@@ -1525,7 +1527,7 @@ CONTAINS
                                         cell, dft_control, particle_set, pw_env)
             IF (iset == 1) THEN
                WRITE (filename, '(a4,I3.3,I2.2,a11)') "NTO_STATE", istate, i, "_Hole_State"
-            ELSEIF (iset == 2) THEN
+            ELSE IF (iset == 2) THEN
                WRITE (filename, '(a4,I3.3,I2.2,a15)') "NTO_STATE", istate, i, "_Particle_State"
             END IF
             mpi_io = .TRUE.
@@ -1534,7 +1536,7 @@ CONTAINS
                                            log_filename=.FALSE., ignore_should_output=.TRUE., mpi_io=mpi_io)
             IF (iset == 1) THEN
                WRITE (title, *) "Natural Transition Orbital Hole State", i
-            ELSEIF (iset == 2) THEN
+            ELSE IF (iset == 2) THEN
                WRITE (title, *) "Natural Transition Orbital Particle State", i
             END IF
             CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, stride=stride, mpi_io=mpi_io)

@@ -476,12 +476,15 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(rtp%H_last_iter)
       CALL dbcsr_deallocate_matrix_set(rtp%propagator_matrix)
       IF (ASSOCIATED(rtp%rho)) THEN
-         IF (ASSOCIATED(rtp%rho%old)) &
+         IF (ASSOCIATED(rtp%rho%old)) THEN
             CALL dbcsr_deallocate_matrix_set(rtp%rho%old)
-         IF (ASSOCIATED(rtp%rho%next)) &
+         END IF
+         IF (ASSOCIATED(rtp%rho%next)) THEN
             CALL dbcsr_deallocate_matrix_set(rtp%rho%next)
-         IF (ASSOCIATED(rtp%rho%new)) &
+         END IF
+         IF (ASSOCIATED(rtp%rho%new)) THEN
             CALL dbcsr_deallocate_matrix_set(rtp%rho%new)
+         END IF
          DEALLOCATE (rtp%rho)
       END IF
 
@@ -490,20 +493,27 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(rtp%S_inv)
       CALL dbcsr_deallocate_matrix(rtp%S_half)
       CALL dbcsr_deallocate_matrix(rtp%S_minus_half)
-      IF (ASSOCIATED(rtp%B_mat)) &
+      IF (ASSOCIATED(rtp%B_mat)) THEN
          CALL dbcsr_deallocate_matrix(rtp%B_mat)
-      IF (ASSOCIATED(rtp%C_mat)) &
+      END IF
+      IF (ASSOCIATED(rtp%C_mat)) THEN
          CALL dbcsr_deallocate_matrix_set(rtp%C_mat)
-      IF (ASSOCIATED(rtp%S_der)) &
+      END IF
+      IF (ASSOCIATED(rtp%S_der)) THEN
          CALL dbcsr_deallocate_matrix_set(rtp%S_der)
-      IF (ASSOCIATED(rtp%SinvH)) &
+      END IF
+      IF (ASSOCIATED(rtp%SinvH)) THEN
          CALL dbcsr_deallocate_matrix_set(rtp%SinvH)
-      IF (ASSOCIATED(rtp%SinvH_imag)) &
+      END IF
+      IF (ASSOCIATED(rtp%SinvH_imag)) THEN
          CALL dbcsr_deallocate_matrix_set(rtp%SinvH_imag)
-      IF (ASSOCIATED(rtp%SinvB)) &
+      END IF
+      IF (ASSOCIATED(rtp%SinvB)) THEN
          CALL dbcsr_deallocate_matrix_set(rtp%SinvB)
-      IF (ASSOCIATED(rtp%history)) &
+      END IF
+      IF (ASSOCIATED(rtp%history)) THEN
          CALL rtp_history_release(rtp)
+      END IF
       DEALLOCATE (rtp%orders)
    END SUBROUTINE rt_prop_release
 
@@ -515,14 +525,18 @@ CONTAINS
       TYPE(rt_prop_type), INTENT(inout)                  :: rtp
 
       IF (ASSOCIATED(rtp%mos)) THEN
-         IF (ASSOCIATED(rtp%mos%old)) &
+         IF (ASSOCIATED(rtp%mos%old)) THEN
             CALL cp_fm_release(rtp%mos%old)
-         IF (ASSOCIATED(rtp%mos%new)) &
+         END IF
+         IF (ASSOCIATED(rtp%mos%new)) THEN
             CALL cp_fm_release(rtp%mos%new)
-         IF (ASSOCIATED(rtp%mos%next)) &
+         END IF
+         IF (ASSOCIATED(rtp%mos%next)) THEN
             CALL cp_fm_release(rtp%mos%next)
-         IF (ASSOCIATED(rtp%mos%admm)) &
+         END IF
+         IF (ASSOCIATED(rtp%mos%admm)) THEN
             CALL cp_fm_release(rtp%mos%admm)
+         END IF
          CALL cp_fm_struct_release(rtp%ao_ao_fmstruct)
          DEALLOCATE (rtp%mos)
       END IF
@@ -593,8 +607,9 @@ CONTAINS
 
       IF (ASSOCIATED(rtp%history%s_history)) THEN
          DO i = 1, SIZE(rtp%history%s_history)
-            IF (ASSOCIATED(rtp%history%s_history(i)%matrix)) &
+            IF (ASSOCIATED(rtp%history%s_history(i)%matrix)) THEN
                CALL dbcsr_deallocate_matrix(rtp%history%s_history(i)%matrix)
+            END IF
          END DO
          DEALLOCATE (rtp%history%s_history)
       END IF

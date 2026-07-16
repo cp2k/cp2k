@@ -94,21 +94,21 @@ CONTAINS
       rx = r(1)*cell_size_inv
       IF (rx > 0.5_dp) THEN
          rx = rx - REAL(INT(rx + 0.5_dp), dp)
-      ELSEIF (rx < -0.5_dp) THEN
+      ELSE IF (rx < -0.5_dp) THEN
          rx = rx - REAL(INT(rx - 0.5_dp), dp)
       END IF
 
       ry = r(2)*cell_size_inv
       IF (ry > 0.5_dp) THEN
          ry = ry - REAL(INT(ry + 0.5_dp), dp)
-      ELSEIF (ry < -0.5_dp) THEN
+      ELSE IF (ry < -0.5_dp) THEN
          ry = ry - REAL(INT(ry - 0.5_dp), dp)
       END IF
 
       rz = r(3)*cell_size_inv
       IF (rz > 0.5_dp) THEN
          rz = rz - REAL(INT(rz + 0.5_dp), dp)
-      ELSEIF (rz < -0.5_dp) THEN
+      ELSE IF (rz < -0.5_dp) THEN
          rz = rz - REAL(INT(rz - 0.5_dp), dp)
       END IF
 

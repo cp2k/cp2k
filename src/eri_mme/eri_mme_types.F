@@ -127,8 +127,9 @@ CONTAINS
       CHARACTER(len=2)                                   :: string
 
       WRITE (string, '(I2)') n_minimax_max
-      IF (n_minimax > n_minimax_max) &
+      IF (n_minimax > n_minimax_max) THEN
          CPABORT("The maximum allowed number of minimax points N_MINIMAX is "//TRIM(string))
+      END IF
 
       param%n_minimax = n_minimax
       param%n_grids = 1

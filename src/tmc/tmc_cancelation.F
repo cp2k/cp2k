@@ -97,8 +97,9 @@ CONTAINS
                           //cp_to_string(elem%stat))
          END SELECT
          ! set dot color
-         IF (tmc_env%params%DRAW_TREE) &
+         IF (tmc_env%params%DRAW_TREE) THEN
             CALL create_dot_color(tree_element=elem, tmc_params=tmc_env%params)
+         END IF
 
          ! add to list
          IF (need_to_cancel) THEN

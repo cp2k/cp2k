@@ -24,10 +24,13 @@ MODULE openpmd_api
    USE kinds, ONLY: default_string_length, dp, sp
    USE message_passing, ONLY: mp_comm_type
 #include "./base/base_uses.f90"
+#endif
 
    IMPLICIT NONE
 
    PRIVATE
+
+#ifdef __OPENPMD
 
    INTEGER, PARAMETER :: openpmd_access_create = 0
    INTEGER, PARAMETER :: openpmd_access_read_only = 1
@@ -259,7 +262,6 @@ MODULE openpmd_api
       #:for dim in dimensions
          PUBLIC :: openpmd_dynamic_memory_view_type_${dim}$d
       #:endfor
-
 #endif
 
    CONTAINS
@@ -1214,6 +1216,5 @@ MODULE openpmd_api
 
             CALL openpmd_c_mesh_set_unit_dimension(this%c_ptr, unitDimension)
          END SUBROUTINE openpmd_mesh_set_unit_dimension
-
 #endif
       END MODULE openpmd_api

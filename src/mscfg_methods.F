@@ -191,8 +191,10 @@ CONTAINS
          smear_almo_scf = qs_env%scf_control%smear%do_smear
          IF (smear_almo_scf) THEN
             scf_section => section_vals_get_subs_vals(dft_section, "SCF")
-            CALL section_vals_val_get(scf_section, "added_mos", i_val=tot_added_mos) !! Get total number of added MOs
-            tot_isize = last_atom_of_frag(nfrags) - first_atom_of_frag(1) + 1 !! Get total number of atoms (assume consecutive atoms)
+             !! Get total number of added MOs
+            CALL section_vals_val_get(scf_section, "added_mos", i_val=tot_added_mos)
+             !! Get total number of atoms (assume consecutive atoms)
+            tot_isize = last_atom_of_frag(nfrags) - first_atom_of_frag(1) + 1
             !! Check that number of added MOs matches the number of atoms
             !! (to ensure compatibility, since each fragment will be computed with such parameters)
             IF (tot_isize /= tot_added_mos) THEN
@@ -200,7 +202,8 @@ CONTAINS
             END IF
             !! Get total number of MOs
             CALL get_qs_env(qs_env, mos=mos)
-            IF (SIZE(mos) > 1) CPABORT("Unrestricted ALMO methods are NYI") !! Unrestricted ALMO is not implemented yet
+             !! Unrestricted ALMO is not implemented yet
+            IF (SIZE(mos) > 1) CPABORT("Unrestricted ALMO methods are NYI")
             CALL get_mo_set(mo_set=mos(1), nmo=nmo)
             !! Initialize storage of MO energies for ALMO smearing
             CPASSERT(ASSOCIATED(almo_scf_env))

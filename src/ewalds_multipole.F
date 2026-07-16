@@ -61,6 +61,17 @@ MODULE ewalds_multipole
    IMPLICIT NONE
    PRIVATE
 
+   TYPE charge_mono_type
+      REAL(KIND=dp), DIMENSION(:), &
+         POINTER                          :: charge => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), &
+         POINTER                          :: pos => NULL()
+   END TYPE charge_mono_type
+   TYPE multi_charge_type
+      TYPE(charge_mono_type), DIMENSION(:), &
+         POINTER                          :: charge_typ => NULL()
+   END TYPE multi_charge_type
+
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    LOGICAL, PRIVATE, PARAMETER :: debug_r_space = .FALSE.
    LOGICAL, PRIVATE, PARAMETER :: debug_g_space = .FALSE.
@@ -1276,16 +1287,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
                                      particle_set, local_particles, iw, debug_r_space)
-      TYPE charge_mono_type
-         REAL(KIND=dp), DIMENSION(:), &
-            POINTER                          :: charge
-         REAL(KIND=dp), DIMENSION(:, :), &
-            POINTER                          :: pos
-      END TYPE charge_mono_type
-      TYPE multi_charge_type
-         TYPE(charge_mono_type), DIMENSION(:), &
-            POINTER                          :: charge_typ
-      END TYPE multi_charge_type
       TYPE(ewald_environment_type), POINTER    :: ewald_env
       TYPE(ewald_pw_type), POINTER             :: ewald_pw
       TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
@@ -1607,7 +1608,7 @@ CONTAINS
                                  DO l1 = 1, SIZE(multipoles(atom_b)%charge_typ(l)%charge)
 
                                 rm = rab + multipoles(atom_b)%charge_typ(l)%pos(:, l1) - multipoles(atom_a)%charge_typ(k)%pos(:, k1)
-                                    r = SQRT(DOT_PRODUCT(rm, rm))
+                                    r = NORM2(rm)
                                     q = multipoles(atom_b)%charge_typ(l)%charge(l1)*multipoles(atom_a)%charge_typ(k)%charge(k1)
                                     energy = energy + q/r*fac_ij
                                  END DO
@@ -1646,7 +1647,7 @@ CONTAINS
                               DO l1 = 1, SIZE(multipoles(atom_b)%charge_typ(l)%charge)
 
                                 rm = rab + multipoles(atom_b)%charge_typ(l)%pos(:, l1) - multipoles(atom_a)%charge_typ(k)%pos(:, k1)
-                                 r = SQRT(DOT_PRODUCT(rm, rm))
+                                 r = NORM2(rm)
                                  q = multipoles(atom_b)%charge_typ(l)%charge(l1)*multipoles(atom_a)%charge_typ(k)%charge(k1)
                                  energy = energy + q/r*fac_ij
                               END DO
@@ -1727,7 +1728,7 @@ CONTAINS
                ALLOCATE (multipoles(i)%charge_typ(isize)%charge(2))
                ALLOCATE (multipoles(i)%charge_typ(isize)%pos(3, 2))
                CALL random_stream%fill(rvec)
-               rvec = rvec/(2.0_dp*SQRT(DOT_PRODUCT(rvec, rvec)))*dx
+               rvec = rvec/(2.0_dp*NORM2(rvec))*dx
                multipoles(i)%charge_typ(isize)%charge(1) = echarge
                multipoles(i)%charge_typ(isize)%pos(1:3, 1) = rvec
                multipoles(i)%charge_typ(isize)%charge(2) = -echarge
@@ -1742,9 +1743,9 @@ CONTAINS
                ALLOCATE (multipoles(i)%charge_typ(isize)%pos(3, 4))
                CALL random_stream%fill(rvec1)
                CALL random_stream%fill(rvec2)
-               rvec1 = rvec1/SQRT(DOT_PRODUCT(rvec1, rvec1))
+               rvec1 = rvec1/NORM2(rvec1)
                rvec2 = rvec2 - DOT_PRODUCT(rvec2, rvec1)*rvec1
-               rvec2 = rvec2/SQRT(DOT_PRODUCT(rvec2, rvec2))
+               rvec2 = rvec2/NORM2(rvec2)
                !
                rvec1 = rvec1/2.0_dp*dx
                rvec2 = rvec2/2.0_dp*dx

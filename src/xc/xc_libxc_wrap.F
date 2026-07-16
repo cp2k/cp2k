@@ -105,9 +105,10 @@ MODULE xc_libxc_wrap
                                   section_release, &
                                   section_type, section_vals_type, section_vals_val_get
 #include "../base/base_uses.f90"
-
+#endif
    IMPLICIT NONE
    PRIVATE
+#if defined (__LIBXC)
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_libxc_wrap'
 

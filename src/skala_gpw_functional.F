@@ -1514,8 +1514,9 @@ CONTAINS
          CPASSERT(SUM(features%route_point_send_counts) == nroute_points)
 
          nroute_grad_per_point = ngrad_per_point
-         IF (features%uses_collapsed_rks_dynamic) &
+         IF (features%uses_collapsed_rks_dynamic) THEN
             nroute_grad_per_point = ncollapsed_grad_per_point
+         END IF
          ALLOCATE (send_grad_buffer(MAX(1, nroute_grad_per_point*features%chunk_feature_count)), &
                    recv_grad_buffer(MAX(1, nroute_grad_per_point*nroute_points)), &
                    route_grad_return_send_counts(SIZE(features%route_point_recv_counts)), &

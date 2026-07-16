@@ -181,8 +181,9 @@ CONTAINS
       becke_control => cdft_control%becke_control
       group => cdft_control%group
       cutoffs => becke_control%cutoffs
-      IF (cdft_control%atomic_charges) &
+      IF (cdft_control%atomic_charges) THEN
          charge => cdft_control%charge
+      END IF
       in_memory = .FALSE.
       IF (cdft_control%save_pot) THEN
          in_memory = becke_control%in_memory
@@ -221,7 +222,7 @@ CONTAINS
                      becke_control%vector_buffer%pair_dist_vecs(:, jatom, iatom) = -dist_vec(:)
                   END IF
                END IF
-               becke_control%vector_buffer%R12(iatom, jatom) = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
+               becke_control%vector_buffer%R12(iatom, jatom) = NORM2(dist_vec)
                becke_control%vector_buffer%R12(jatom, iatom) = becke_control%vector_buffer%R12(iatom, jatom)
             END DO
          END DO
@@ -243,8 +244,9 @@ CONTAINS
          ! A subsequent check (atom_in_group) ensures that the gradients of these dummy atoms are correct
          IF (cdft_control%save_pot .OR. &
              becke_control%cavity_confine .OR. &
-             becke_control%should_skip) &
+             becke_control%should_skip) THEN
             is_constraint(catom(i)) = .TRUE.
+         END IF
       END DO
       bo = group(1)%weight%pw_grid%bounds_local
       dvol = group(1)%weight%pw_grid%dvol
@@ -333,7 +335,7 @@ CONTAINS
                      IF (becke_control%vector_buffer%distances(iatom) == 0.0_dp) THEN
                         r = becke_control%vector_buffer%position_vecs(:, iatom)
                         dist_vec = (r - grid_p) - ANINT((r - grid_p)/cell_v)*cell_v
-                        dist1 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
+                        dist1 = NORM2(dist_vec)
                         becke_control%vector_buffer%distance_vecs(:, iatom) = dist_vec
                         becke_control%vector_buffer%distances(iatom) = dist1
                      ELSE
@@ -346,7 +348,7 @@ CONTAINS
                         r(ip) = MODULO(r(ip), cell%hmat(ip, ip)) - cell%hmat(ip, ip)/2._dp
                      END DO
                      dist_vec = (r - grid_p) - ANINT((r - grid_p)/cell_v)*cell_v
-                     dist1 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
+                     dist1 = NORM2(dist_vec)
                   END IF
                   IF (dist1 <= cutoffs(iatom)) THEN
                      IF (in_memory) THEN
@@ -367,7 +369,7 @@ CONTAINS
                               IF (becke_control%vector_buffer%distances(jatom) == 0.0_dp) THEN
                                  r1 = becke_control%vector_buffer%position_vecs(:, jatom)
                                  dist_vec = (r1 - grid_p) - ANINT((r1 - grid_p)/cell_v)*cell_v
-                                 dist2 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
+                                 dist2 = NORM2(dist_vec)
                                  becke_control%vector_buffer%distance_vecs(:, jatom) = dist_vec
                                  becke_control%vector_buffer%distances(jatom) = dist2
                               ELSE
@@ -380,7 +382,7 @@ CONTAINS
                                  r1(ip) = MODULO(r1(ip), cell%hmat(ip, ip)) - cell%hmat(ip, ip)/2._dp
                               END DO
                               dist_vec = (r1 - grid_p) - ANINT((r1 - grid_p)/cell_v)*cell_v
-                              dist2 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
+                              dist2 = NORM2(dist_vec)
                            END IF
                            IF (in_memory) THEN
                               IF (becke_control%vector_buffer%store_vectors) THEN
@@ -562,8 +564,9 @@ CONTAINS
          END IF
       END IF
       NULLIFY (cutoffs)
-      IF (ALLOCATED(is_constraint)) &
+      IF (ALLOCATED(is_constraint)) THEN
          DEALLOCATE (is_constraint)
+      END IF
       DEALLOCATE (catom)
       DEALLOCATE (cell_functions)
       DEALLOCATE (skip_me)
@@ -1186,8 +1189,9 @@ CONTAINS
       cdft_control => dft_control%qs_control%cdft_control
       is_becke = (cdft_control%type == outer_scf_becke_constraint)
       becke_control => cdft_control%becke_control
-      IF (is_becke .AND. .NOT. ASSOCIATED(becke_control)) &
+      IF (is_becke .AND. .NOT. ASSOCIATED(becke_control)) THEN
          CPABORT("Becke control has not been allocated.")
+      END IF
       group => cdft_control%group
       ! Initialize
       nvar = SIZE(cdft_control%target)
@@ -1228,9 +1232,10 @@ CONTAINS
             IF (is_becke .AND. (cdft_control%external_control .AND. becke_control%cavity_confine)) THEN
                ! With external control, we can use cavity_mat as a mask to kahan sum
                eps_cavity = becke_control%eps_cavity
-               IF (igroup /= 1) &
+               IF (igroup /= 1) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "Multiple constraints not yet supported by parallel mixed calculations.")
+               END IF
                dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%array, rho_r(i)%array, &
                                                                    becke_control%cavity_mat, eps_cavity)*dvol
             ELSE
@@ -1254,9 +1259,10 @@ CONTAINS
       END IF
       IF (dft_control%qs_control%gapw) THEN
          ! GAPW: add core charges (rho_hard - rho_soft)
-         IF (cdft_control%fragment_density) &
+         IF (cdft_control%fragment_density) THEN
             CALL cp_abort(__LOCATION__, &
                           "Fragment constraints not yet compatible with GAPW.")
+         END IF
          ALLOCATE (gapw_offset(nvar, dft_control%nspins))
          gapw_offset = 0.0_dp
          CALL get_qs_env(qs_env, rho0_mpole=rho0_mpole)
@@ -1622,18 +1628,21 @@ CONTAINS
       cdft_control => dft_control%qs_control%cdft_control
       is_becke = (cdft_control%type == outer_scf_becke_constraint)
       becke_control => cdft_control%becke_control
-      IF (is_becke .AND. .NOT. ASSOCIATED(becke_control)) &
+      IF (is_becke .AND. .NOT. ASSOCIATED(becke_control)) THEN
          CPABORT("Becke control has not been allocated.")
+      END IF
       group => cdft_control%group
       dvol = group(1)%weight%pw_grid%dvol
       ! Fragment densities are meaningful only for some calculation types
-      IF (.NOT. qs_env%single_point_run) &
+      IF (.NOT. qs_env%single_point_run) THEN
          CALL cp_abort(__LOCATION__, &
                        "CDFT fragment constraints are only compatible with single "// &
                        "point calculations (run_type ENERGY or ENERGY_FORCE).")
-      IF (dft_control%qs_control%gapw) &
+      END IF
+      IF (dft_control%qs_control%gapw) THEN
          CALL cp_abort(__LOCATION__, &
                        "CDFT fragment constraint not compatible with GAPW.")
+      END IF
       needs_spin_density = .FALSE.
       multiplier = 1.0_dp
       nfrag_spins = 1
@@ -1691,10 +1700,11 @@ CONTAINS
       CALL get_qs_env(qs_env, subsys=subsys)
       CALL qs_subsys_get(subsys, nelectron_total=nelectron_total)
       nelectron_frag = pw_integrate_function(rho_frag(1))
-      IF (NINT(nelectron_frag) /= nelectron_total) &
+      IF (NINT(nelectron_frag) /= nelectron_total) THEN
          CALL cp_abort(__LOCATION__, &
                        "The number of electrons in the reference and interacting "// &
                        "configurations does not match. Check your fragment cube files.")
+      END IF
       ! Update constraint target value i.e. perform integration w_i*rho_frag_{tot/spin}*dr
       cdft_control%target = 0.0_dp
       DO igroup = 1, SIZE(group)

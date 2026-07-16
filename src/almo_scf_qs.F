@@ -288,63 +288,6 @@ CONTAINS
          CALL dbcsr_work_create(matrix_new, work_mutable=.TRUE.)
          CALL dbcsr_get_info(matrix_new, nblkrows_total=nblkrows_tot, &
                              row_blk_size=row_blk_size, col_blk_size=col_blk_size)
-         ! startQQQ - this part of the code scales quadratically
-         ! therefore it is replaced with a less general but linear scaling algorithm below
-         ! the quadratic algorithm is kept to be re-written later
-         !QQQCALL dbcsr_get_info(matrix_new, nblkrows_total=nblkrows_tot, nblkcols_total=nblkcols_tot)
-         !QQQDO row = 1, nblkrows_tot
-         !QQQ   DO col = 1, nblkcols_tot
-         !QQQ      tr = .FALSE.
-         !QQQ      iblock_row = row
-         !QQQ      iblock_col = col
-         !QQQ      CALL dbcsr_get_stored_coordinates(matrix_new, iblock_row, iblock_col, tr, hold)
-
-         !QQQ      IF(hold==mynode) THEN
-         !QQQ
-         !QQQ         ! RZK-warning replace with a function which says if this
-         !QQQ         ! distribution block is active or not
-         !QQQ         ! Translate indeces of distribution blocks to domain blocks
-         !QQQ         if (size_keys(1)==almo_mat_dim_aobasis) then
-         !QQQ           domain_row=almo_scf_env%domain_index_of_ao_block(iblock_row)
-         !QQQ         else if (size_keys(2)==almo_mat_dim_occ .OR. &
-         !QQQ                  size_keys(2)==almo_mat_dim_virt .OR. &
-         !QQQ                  size_keys(2)==almo_mat_dim_virt_disc .OR. &
-         !QQQ                  size_keys(2)==almo_mat_dim_virt_full) then
-         !QQQ           domain_row=almo_scf_env%domain_index_of_mo_block(iblock_row)
-         !QQQ         else
-         !QQQ           CPErrorMessage(cp_failure_level,routineP,"Illegal dimension")
-         !QQQ           CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
-         !QQQ         endif
-
-         !QQQ         if (size_keys(2)==almo_mat_dim_aobasis) then
-         !QQQ           domain_col=almo_scf_env%domain_index_of_ao_block(iblock_col)
-         !QQQ         else if (size_keys(2)==almo_mat_dim_occ .OR. &
-         !QQQ                  size_keys(2)==almo_mat_dim_virt .OR. &
-         !QQQ                  size_keys(2)==almo_mat_dim_virt_disc .OR. &
-         !QQQ                  size_keys(2)==almo_mat_dim_virt_full) then
-         !QQQ           domain_col=almo_scf_env%domain_index_of_mo_block(iblock_col)
-         !QQQ         else
-         !QQQ           CPErrorMessage(cp_failure_level,routineP,"Illegal dimension")
-         !QQQ           CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
-         !QQQ         endif
-
-         !QQQ         ! Finds if we need this block
-         !QQQ         ! only the block-diagonal constraint is implemented here
-         !QQQ         active=.false.
-         !QQQ         if (domain_row==domain_col) active=.true.
-
-         !QQQ         IF (active) THEN
-         !QQQ            ALLOCATE (new_block(row_blk_size(iblock_row), col_blk_size(iblock_col)))
-         !QQQ            new_block(:, :) = 1.0_dp
-         !QQQ            CALL dbcsr_put_block(matrix_new, iblock_row, iblock_col, new_block)
-         !QQQ            DEALLOCATE (new_block)
-         !QQQ         ENDIF
-
-         !QQQ      ENDIF ! mynode
-         !QQQ   ENDDO
-         !QQQENDDO
-         !QQQtake care of zero-electron fragments
-         ! endQQQ - end of the quadratic part
          ! start linear-scaling replacement:
          ! works only for molecular blocks AND molecular distributions
          DO row = 1, nblkrows_tot
@@ -611,7 +554,7 @@ CONTAINS
                                  n_el_f=REAL(almo_scf_env%nelectrons_total, dp), &
                                  maxocc=2.0_dp, &
                                  flexible_electron_count=dft_control%relax_multiplicity)
-         ELSEIF (almo_scf_env%nspins == 2) THEN
+         ELSE IF (almo_scf_env%nspins == 2) THEN
             CALL allocate_mo_set(mo_set=mos(ispin), &
                                  nao=nrow_fm, &
                                  nmo=ncol_fm, &
@@ -1495,23 +1438,6 @@ CONTAINS
          DEALLOCATE (first_atom_of_molecule)
          DEALLOCATE (last_atom_of_molecule)
       END IF
-
-      !mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(&
-      !   dbcsr_distribution(almo_scf_env%quench_t(ispin))))
-      !CALL dbcsr_get_info(almo_scf_env%quench_t(ispin), distribution=dist, &
-      !                    nblkrows_total=nblkrows_tot, nblkcols_total=nblkcols_tot)
-      !DO row = 1, nblkrows_tot
-      !   DO col = 1, nblkcols_tot
-      !      tr = .FALSE.
-      !      iblock_row = row
-      !      iblock_col = col
-      !      CALL dbcsr_get_stored_coordinates(almo_scf_env%quench_t(ispin),&
-      !              iblock_row, iblock_col, tr, hold)
-      !      CALL dbcsr_get_block_p(almo_scf_env%quench_t(ispin),&
-      !              row, col, p_old_block, found)
-      !      write(*,*) "RST_NOTE:", mynode, row, col, hold, found
-      !   ENDDO
-      !ENDDO
 
       CALL timestop(handle)
 

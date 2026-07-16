@@ -276,7 +276,7 @@ CONTAINS
             WRITE (unit_nr_prv, "(T4,A,T68,I13)") "Est. optimal split factor:", nsplit
          END IF
 
-      ELSEIF (batched_repl > 0) THEN
+      ELSE IF (batched_repl > 0) THEN
          nsplit = nsplit_batched
          nsplit_opt = nsplit
          max_mm_dim = max_mm_dim_batched
@@ -342,7 +342,7 @@ CONTAINS
 
          IF (matrix_c%do_batched == 1) THEN
             matrix_c%mm_storage%batched_beta = beta
-         ELSEIF (matrix_c%do_batched > 1) THEN
+         ELSE IF (matrix_c%do_batched > 1) THEN
             matrix_c%mm_storage%batched_beta = matrix_c%mm_storage%batched_beta*beta
          END IF
 
@@ -355,7 +355,7 @@ CONTAINS
             IF (.NOT. nodata_3) CALL dbm_zero(matrix_c_rs%matrix)
 
             IF (matrix_c%do_batched >= 1) matrix_c%mm_storage%store_batched => matrix_c_rs
-         ELSEIF (matrix_c%do_batched == 3) THEN
+         ELSE IF (matrix_c%do_batched == 3) THEN
             matrix_c_rs => matrix_c%mm_storage%store_batched
          END IF
 
@@ -446,7 +446,7 @@ CONTAINS
                matrix_b%mm_storage%store_batched_repl => matrix_b_rep
                CALL dbt_tas_set_batched_state(matrix_b, state=3)
             END IF
-         ELSEIF (matrix_b%do_batched == 3) THEN
+         ELSE IF (matrix_b%do_batched == 3) THEN
             matrix_b_rep => matrix_b%mm_storage%store_batched_repl
          END IF
 
@@ -532,14 +532,14 @@ CONTAINS
                matrix_c%mm_storage%store_batched_repl => matrix_c_rep
                CALL dbt_tas_set_batched_state(matrix_c, state=3)
             END IF
-         ELSEIF (matrix_c%do_batched == 2) THEN
+         ELSE IF (matrix_c%do_batched == 2) THEN
             ALLOCATE (matrix_c_rep)
             CALL dbt_tas_replicate(matrix_c_rs%matrix, dbt_tas_info(matrix_a_rs), matrix_c_rep, nodata=nodata_3)
             ! just leave sparsity structure for retain sparsity but no values
             IF (.NOT. nodata_3) CALL dbm_zero(matrix_c_rep%matrix)
             matrix_c%mm_storage%store_batched_repl => matrix_c_rep
             CALL dbt_tas_set_batched_state(matrix_c, state=3)
-         ELSEIF (matrix_c%do_batched == 3) THEN
+         ELSE IF (matrix_c%do_batched == 3) THEN
             matrix_c_rep => matrix_c%mm_storage%store_batched_repl
          END IF
 
@@ -625,7 +625,7 @@ CONTAINS
                matrix_a%mm_storage%store_batched_repl => matrix_a_rep
                CALL dbt_tas_set_batched_state(matrix_a, state=3)
             END IF
-         ELSEIF (matrix_a%do_batched == 3) THEN
+         ELSE IF (matrix_a%do_batched == 3) THEN
             matrix_a_rep => matrix_a%mm_storage%store_batched_repl
          END IF
 
@@ -740,7 +740,7 @@ CONTAINS
          CALL dbt_tas_destroy(matrix_c_rs)
          DEALLOCATE (matrix_c_rs)
          IF (PRESENT(filter_eps)) CALL dbt_tas_filter(matrix_c, filter_eps)
-      ELSEIF (matrix_c%do_batched > 0) THEN
+      ELSE IF (matrix_c%do_batched > 0) THEN
          IF (matrix_c%mm_storage%batched_out) THEN
             matrix_c%mm_storage%batched_trans = (transc_prv .NEQV. transc)
          END IF

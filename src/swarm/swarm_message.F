@@ -866,8 +866,9 @@ CONTAINS
 
          TYPE(message_entry_type), POINTER :: new_entry
 
-         IF (swarm_message_haskey(msg, key)) &
+         IF (swarm_message_haskey(msg, key)) THEN
             CPABORT("swarm_message_add_${label}$: key already exists: "//TRIM(key))
+         END IF
 
          ALLOCATE (new_entry)
          new_entry%key = key
@@ -920,8 +921,9 @@ CONTAINS
          curr_entry => msg%root
          DO WHILE (ASSOCIATED(curr_entry))
             IF (TRIM(curr_entry%key) == TRIM(key)) THEN
-               IF (.NOT. ASSOCIATED(curr_entry%value_${label}$)) &
+               IF (.NOT. ASSOCIATED(curr_entry%value_${label}$)) THEN
                   CPABORT("swarm_message_get_${label}$: value not associated key: "//TRIM(key))
+               END IF
                #:if label.startswith("1d_")
                   ALLOCATE (value(SIZE(curr_entry%value_${label}$)))
                #:endif

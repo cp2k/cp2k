@@ -204,7 +204,7 @@ CONTAINS
                   basis%ddbf(k, i, l) = (REAL(l*(l - 1), dp)*rk**(l - 2) - &
                                          2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al*rk**(l + 2))*ear
                END DO
-            ELSEIF (basis%basis_type == CGTO_BASIS) THEN
+            ELSE IF (basis%basis_type == CGTO_BASIS) THEN
                DO k = 1, nr
                   rk = basis%grid%rad(k)
                   ear = EXP(-al*basis%grid%rad(k)**2)

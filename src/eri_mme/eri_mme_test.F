@@ -158,8 +158,9 @@ CONTAINS
                acc_check = .TRUE.
             END IF
 
-            IF (.NOT. acc_check) &
+            IF (.NOT. acc_check) THEN
                CPABORT("Actual error greater than upper bound estimate.")
+            END IF
 
          END IF
       END IF

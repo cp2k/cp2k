@@ -329,8 +329,9 @@ CONTAINS
                           basis_set=basis_1c, basis_type="GAPW_1C")
 
          cneo = ASSOCIATED(cneo_potential)
-         IF (cneo .AND. tddft) &
+         IF (cneo .AND. tddft) THEN
             CPABORT("Electronic TDDFT with CNEO quantum nuclei is not implemented.")
+         END IF
 
          NULLIFY (nuc_basis)
          max_iso_not0_nuc = 0
@@ -372,8 +373,9 @@ CONTAINS
             END IF
             nchan_0 = nsoset(lmax0)
 
-            IF (nchan_0 > MAX(max_iso_not0, max_iso_not0_nuc)) &
+            IF (nchan_0 > MAX(max_iso_not0, max_iso_not0_nuc)) THEN
                CPABORT("channels for rho0 > # max of spherical harmonics")
+            END IF
 
             NULLIFY (Vh1_h, Vh1_s)
             ALLOCATE (Vh1_h(nr, max_iso_not0))

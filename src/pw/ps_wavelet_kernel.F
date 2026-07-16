@@ -12,6 +12,7 @@
 MODULE ps_wavelet_kernel
 
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_comm_type
    USE ps_wavelet_base,                 ONLY: scramble_unpack
    USE ps_wavelet_fft3d,                ONLY: ctrig,&
@@ -235,8 +236,8 @@ CONTAINS
          shift
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: after, before, now
       REAL(kind=dp)                                      :: a, b, c, cp, d, diff, dx, feI, feR, foI, &
-                                                            foR, fR, mu1, pi, pion, ponx, pony, &
-                                                            sp, value, x
+                                                            foR, fR, mu1, pion, ponx, pony, sp, &
+                                                            value, x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: kernel_scf, x_scf, y_scf
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: btrig, cossinarr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: halfft_cache, kernel
@@ -354,9 +355,6 @@ CONTAINS
       ALLOCATE (after(7))
       ALLOCATE (now(7))
       ALLOCATE (before(7))
-
-      !constants
-      pi = 4._dp*ATAN(1._dp)
 
       !arrays for the halFFT
       CALL ctrig(n3/2, btrig, after, before, now, 1, ic)

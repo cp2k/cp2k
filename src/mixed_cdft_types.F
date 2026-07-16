@@ -310,41 +310,55 @@ CONTAINS
       INTEGER                                            :: i, j
 
       CALL pw_env_release(cdft_control%pw_env)
-      IF (ASSOCIATED(cdft_control%dest_list)) &
+      IF (ASSOCIATED(cdft_control%dest_list)) THEN
          DEALLOCATE (cdft_control%dest_list)
-      IF (ASSOCIATED(cdft_control%dest_list_save)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%dest_list_save)) THEN
          DEALLOCATE (cdft_control%dest_list_save)
-      IF (ASSOCIATED(cdft_control%dest_list_bo)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%dest_list_bo)) THEN
          DEALLOCATE (cdft_control%dest_list_bo)
-      IF (ASSOCIATED(cdft_control%dest_bo_save)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%dest_bo_save)) THEN
          DEALLOCATE (cdft_control%dest_bo_save)
-      IF (ASSOCIATED(cdft_control%source_list)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%source_list)) THEN
          DEALLOCATE (cdft_control%source_list)
-      IF (ASSOCIATED(cdft_control%source_list_save)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%source_list_save)) THEN
          DEALLOCATE (cdft_control%source_list_save)
-      IF (ASSOCIATED(cdft_control%source_list_bo)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%source_list_bo)) THEN
          DEALLOCATE (cdft_control%source_list_bo)
-      IF (ASSOCIATED(cdft_control%source_bo_save)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%source_bo_save)) THEN
          DEALLOCATE (cdft_control%source_bo_save)
-      IF (ASSOCIATED(cdft_control%recv_bo)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%recv_bo)) THEN
          DEALLOCATE (cdft_control%recv_bo)
-      IF (ASSOCIATED(cdft_control%weight)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%weight)) THEN
          DEALLOCATE (cdft_control%weight)
-      IF (ASSOCIATED(cdft_control%cavity)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%cavity)) THEN
          DEALLOCATE (cdft_control%cavity)
-      IF (ALLOCATED(cdft_control%constraint_type)) &
+      END IF
+      IF (ALLOCATED(cdft_control%constraint_type)) THEN
          DEALLOCATE (cdft_control%constraint_type)
+      END IF
       IF (ALLOCATED(cdft_control%occupations)) THEN
          DO i = 1, SIZE(cdft_control%occupations, 1)
             DO j = 1, SIZE(cdft_control%occupations, 2)
-               IF (ASSOCIATED(cdft_control%occupations(i, j)%array)) &
+               IF (ASSOCIATED(cdft_control%occupations(i, j)%array)) THEN
                   DEALLOCATE (cdft_control%occupations(i, j)%array)
+               END IF
             END DO
          END DO
          DEALLOCATE (cdft_control%occupations)
       END IF
-      IF (ASSOCIATED(cdft_control%dlb_control)) &
+      IF (ASSOCIATED(cdft_control%dlb_control)) THEN
          CALL mixed_cdft_dlb_release(cdft_control%dlb_control)
+      END IF
       IF (ASSOCIATED(cdft_control%sendbuff)) THEN
          DO i = 1, SIZE(cdft_control%sendbuff)
             CALL mixed_cdft_buffers_release(cdft_control%sendbuff(i))
@@ -355,10 +369,12 @@ CONTAINS
          CALL cdft_control_release(cdft_control%cdft_control)
          DEALLOCATE (cdft_control%cdft_control)
       END IF
-      IF (ASSOCIATED(cdft_control%blacs_env)) &
+      IF (ASSOCIATED(cdft_control%blacs_env)) THEN
          CALL cp_blacs_env_release(cdft_control%blacs_env)
-      IF (ASSOCIATED(cdft_control%qs_kind_set)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%qs_kind_set)) THEN
          CALL deallocate_qs_kind_set(cdft_control%qs_kind_set)
+      END IF
       IF (ASSOCIATED(cdft_control%sub_logger)) THEN
          DO i = 1, SIZE(cdft_control%sub_logger)
             CALL cp_logger_release(cdft_control%sub_logger(i)%p)
@@ -381,8 +397,9 @@ CONTAINS
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(dlb_control%recv_work_repl)) &
+      IF (ASSOCIATED(dlb_control%recv_work_repl)) THEN
          DEALLOCATE (dlb_control%recv_work_repl)
+      END IF
       IF (ASSOCIATED(dlb_control%sendbuff)) THEN
          DO i = 1, SIZE(dlb_control%sendbuff)
             CALL mixed_cdft_buffers_release(dlb_control%sendbuff(i))
@@ -397,27 +414,36 @@ CONTAINS
       END IF
       IF (ASSOCIATED(dlb_control%recv_info)) THEN
          DO i = 1, SIZE(dlb_control%recv_info)
-            IF (ASSOCIATED(dlb_control%recv_info(i)%matrix_info)) &
+            IF (ASSOCIATED(dlb_control%recv_info(i)%matrix_info)) THEN
                DEALLOCATE (dlb_control%recv_info(i)%matrix_info)
-            IF (ASSOCIATED(dlb_control%recv_info(i)%target_list)) &
+            END IF
+            IF (ASSOCIATED(dlb_control%recv_info(i)%target_list)) THEN
                DEALLOCATE (dlb_control%recv_info(i)%target_list)
+            END IF
          END DO
          DEALLOCATE (dlb_control%recv_info)
       END IF
-      IF (ASSOCIATED(dlb_control%bo)) &
+      IF (ASSOCIATED(dlb_control%bo)) THEN
          DEALLOCATE (dlb_control%bo)
-      IF (ASSOCIATED(dlb_control%expected_work)) &
+      END IF
+      IF (ASSOCIATED(dlb_control%expected_work)) THEN
          DEALLOCATE (dlb_control%expected_work)
-      IF (ASSOCIATED(dlb_control%prediction_error)) &
+      END IF
+      IF (ASSOCIATED(dlb_control%prediction_error)) THEN
          DEALLOCATE (dlb_control%prediction_error)
-      IF (ASSOCIATED(dlb_control%target_list)) &
+      END IF
+      IF (ASSOCIATED(dlb_control%target_list)) THEN
          DEALLOCATE (dlb_control%target_list)
-      IF (ASSOCIATED(dlb_control%cavity)) &
+      END IF
+      IF (ASSOCIATED(dlb_control%cavity)) THEN
          DEALLOCATE (dlb_control%cavity)
-      IF (ASSOCIATED(dlb_control%weight)) &
+      END IF
+      IF (ASSOCIATED(dlb_control%weight)) THEN
          DEALLOCATE (dlb_control%weight)
-      IF (ASSOCIATED(dlb_control%gradients)) &
+      END IF
+      IF (ASSOCIATED(dlb_control%gradients)) THEN
          DEALLOCATE (dlb_control%gradients)
+      END IF
       DEALLOCATE (dlb_control)
 
    END SUBROUTINE mixed_cdft_dlb_release
@@ -430,12 +456,15 @@ CONTAINS
    SUBROUTINE mixed_cdft_buffers_release(buffer)
       TYPE(buffers)                                      :: buffer
 
-      IF (ASSOCIATED(buffer%cavity)) &
+      IF (ASSOCIATED(buffer%cavity)) THEN
          DEALLOCATE (buffer%cavity)
-      IF (ASSOCIATED(buffer%weight)) &
+      END IF
+      IF (ASSOCIATED(buffer%weight)) THEN
          DEALLOCATE (buffer%weight)
-      IF (ASSOCIATED(buffer%gradients)) &
+      END IF
+      IF (ASSOCIATED(buffer%gradients)) THEN
          DEALLOCATE (buffer%gradients)
+      END IF
 
    END SUBROUTINE mixed_cdft_buffers_release
 

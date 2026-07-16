@@ -152,8 +152,9 @@ CONTAINS
       CALL allocate_grid_atom(basis%grid)
       CALL section_vals_val_get(grb_section, "QUADRATURE", i_val=quadtype)
       CALL section_vals_val_get(grb_section, "GRID_POINTS", i_val=ngp)
-      IF (ngp <= 0) &
+      IF (ngp <= 0) THEN
          CPABORT("# point radial grid < 0")
+      END IF
       CALL create_grid_atom(basis%grid, ngp, 1, 1, 0, quadtype)
       basis%grid%nr = ngp
       !

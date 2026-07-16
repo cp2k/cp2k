@@ -283,8 +283,9 @@ CONTAINS
       CALL get_md_env(md_env, ehrenfest_md=ehrenfest_md)
 
       !If requested set up the REFTRAJ run
-      IF (simpar%ensemble == reftraj_ensemble .AND. ehrenfest_md) &
+      IF (simpar%ensemble == reftraj_ensemble .AND. ehrenfest_md) THEN
          CPABORT("Ehrenfest MD does not support reftraj ensemble ")
+      END IF
       IF (simpar%ensemble == reftraj_ensemble) THEN
          reftraj_section => section_vals_get_subs_vals(md_section, "REFTRAJ")
          ALLOCATE (reftraj)
@@ -338,11 +339,12 @@ CONTAINS
           (simpar%ensemble == nph_uniaxial_ensemble) .OR. &
           (simpar%ensemble == nph_uniaxial_damped_ensemble)) THEN
          check = virial%pv_availability
-         IF (.NOT. check) &
+         IF (.NOT. check) THEN
             CALL cp_abort(__LOCATION__, &
                           "Virial evaluation not requested for this run in the input file!"// &
                           " You may consider to switch on the virial evaluation with the keyword: STRESS_TENSOR."// &
                           " Be sure the method you are using can compute the virial!")
+         END IF
          IF (ASSOCIATED(force_env%sub_force_env)) THEN
             DO i = 1, SIZE(force_env%sub_force_env)
                IF (ASSOCIATED(force_env%sub_force_env(i)%force_env)) THEN
@@ -352,11 +354,12 @@ CONTAINS
                END IF
             END DO
          END IF
-         IF (.NOT. check) &
+         IF (.NOT. check) THEN
             CALL cp_abort(__LOCATION__, &
                           "Virial evaluation not requested for all the force_eval sections present in"// &
                           " the input file! You have to switch on the virial evaluation with the keyword: STRESS_TENSOR"// &
                           " in each force_eval section. Be sure the method you are using can compute the virial!")
+         END IF
       END IF
 
       ! Computing Forces at zero MD step
@@ -402,10 +405,11 @@ CONTAINS
                      dummy = force_env%meta_env%wttemperature*(force_env%meta_env%wtgamma - 1._dp)
                      IF (force_env%meta_env%delta_t > EPSILON(1._dp)) THEN
                         check = ABS(force_env%meta_env%delta_t - dummy) < 1.E+3_dp*EPSILON(1._dp)
-                        IF (.NOT. check) &
+                        IF (.NOT. check) THEN
                            CALL cp_abort(__LOCATION__, &
                                          "Inconsistency between DELTA_T and WTGAMMA (both specified):"// &
                                          " please, verify that DELTA_T=(WTGAMMA-1)*TEMPERATURE")
+                        END IF
                      ELSE
                         force_env%meta_env%delta_t = dummy
                      END IF
@@ -526,8 +530,9 @@ CONTAINS
          IF (itimes >= simpar%max_steps) should_stop = .TRUE.
 
          ! call external hook e.g. from global optimization
-         IF (PRESENT(mdctrl)) &
+         IF (PRESENT(mdctrl)) THEN
             CALL mdctrl_callback(mdctrl, md_env, should_stop)
+         END IF
 
          IF (should_stop) THEN
             CALL cp_iterate(logger%iter_info, last=.TRUE., iter_nr=itimes)

@@ -855,29 +855,35 @@ CONTAINS
             IF (lsd) THEN
                DO ir = 1, nr
                   DO ia = 1, na
-                     IF (rho_set_h%rhoa(ia, ir, 1) > rho_set_h%rho_cutoff) &
+                     IF (rho_set_h%rhoa(ia, ir, 1) > rho_set_h%rho_cutoff) THEN
                         vxc_GLLB_h(ia, ir, 1) = vxc_GLLB_h(ia, ir, 1) + &
                                                 weight_h(ia, ir)*vxc_tmp_h(ia, ir, 1)/rho_set_h%rhoa(ia, ir, 1)
-                     IF (rho_set_h%rhob(ia, ir, 1) > rho_set_h%rho_cutoff) &
+                     END IF
+                     IF (rho_set_h%rhob(ia, ir, 1) > rho_set_h%rho_cutoff) THEN
                         vxc_GLLB_h(ia, ir, 2) = vxc_GLLB_h(ia, ir, 2) + &
                                                 weight_h(ia, ir)*vxc_tmp_h(ia, ir, 2)/rho_set_h%rhob(ia, ir, 1)
-                     IF (rho_set_s%rhoa(ia, ir, 1) > rho_set_s%rho_cutoff) &
+                     END IF
+                     IF (rho_set_s%rhoa(ia, ir, 1) > rho_set_s%rho_cutoff) THEN
                         vxc_GLLB_s(ia, ir, 1) = vxc_GLLB_s(ia, ir, 1) + &
                                                 weight_s(ia, ir)*vxc_tmp_s(ia, ir, 1)/rho_set_s%rhoa(ia, ir, 1)
-                     IF (rho_set_s%rhob(ia, ir, 1) > rho_set_s%rho_cutoff) &
+                     END IF
+                     IF (rho_set_s%rhob(ia, ir, 1) > rho_set_s%rho_cutoff) THEN
                         vxc_GLLB_s(ia, ir, 2) = vxc_GLLB_s(ia, ir, 2) + &
                                                 weight_s(ia, ir)*vxc_tmp_s(ia, ir, 2)/rho_set_s%rhob(ia, ir, 1)
+                     END IF
                   END DO
                END DO
             ELSE
                DO ir = 1, nr
                   DO ia = 1, na
-                     IF (rho_set_h%rho(ia, ir, 1) > rho_set_h%rho_cutoff) &
+                     IF (rho_set_h%rho(ia, ir, 1) > rho_set_h%rho_cutoff) THEN
                         vxc_GLLB_h(ia, ir, 1) = vxc_GLLB_h(ia, ir, 1) + &
                                                 weight_h(ia, ir)*vxc_tmp_h(ia, ir, 1)/rho_set_h%rho(ia, ir, 1)
-                     IF (rho_set_s%rho(ia, ir, 1) > rho_set_s%rho_cutoff) &
+                     END IF
+                     IF (rho_set_s%rho(ia, ir, 1) > rho_set_s%rho_cutoff) THEN
                         vxc_GLLB_s(ia, ir, 1) = vxc_GLLB_s(ia, ir, 1) + &
                                                 weight_s(ia, ir)*vxc_tmp_s(ia, ir, 1)/rho_set_s%rho(ia, ir, 1)
+                     END IF
                   END DO
                END DO
             END IF

@@ -167,8 +167,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (.NOT. ASSOCIATED(preconditioner_env%dbcsr_matrix)) &
+      IF (.NOT. ASSOCIATED(preconditioner_env%dbcsr_matrix)) THEN
          CPABORT("NOT ASSOCIATED preconditioner_env%dbcsr_matrix")
+      END IF
       CALL dbcsr_multiply('N', 'N', 1.0_dp, preconditioner_env%dbcsr_matrix, matrix_in, &
                           0.0_dp, matrix_out)
 

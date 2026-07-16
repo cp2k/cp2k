@@ -220,7 +220,7 @@ CONTAINS
          dokp = .FALSE.
          use_cell_mapping = .FALSE.
          nimg = dft_control%nimages
-      ELSEIF (PRESENT(matrixkp_t)) THEN
+      ELSE IF (PRESENT(matrixkp_t)) THEN
          dokp = .TRUE.
          IF (PRESENT(ext_kpoints)) THEN
             IF (ASSOCIATED(ext_kpoints)) THEN
@@ -279,7 +279,7 @@ CONTAINS
          ELSE
             IF (PRESENT(matrix_p)) THEN
                matp => matrix_p
-            ELSEIF (PRESENT(matrixkp_p)) THEN
+            ELSE IF (PRESENT(matrixkp_p)) THEN
                matp => matrixkp_p(1, 1)%matrix
             ELSE
                CPABORT("Missing density matrix")

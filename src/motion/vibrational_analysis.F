@@ -653,7 +653,7 @@ CONTAINS
                      DO j = 1, nvib
                         D_deriv(:) = D_deriv(:) + dip_deriv(:, j)*Hint2(j, i)
                      END DO
-                     intensities_d(i) = SQRT(DOT_PRODUCT(D_deriv, D_deriv))
+                     intensities_d(i) = NORM2(D_deriv)
                      P_deriv = 0._dp
                      DO j = 1, nvib
                         ! P_deriv has units bohr^2/sqrt(a.u.)
@@ -970,7 +970,7 @@ CONTAINS
             work(:) = work - norm*D(:, i)
          END DO
          ! Check norm of the new generated vector
-         norm = SQRT(DOT_PRODUCT(work, work))
+         norm = NORM2(work)
          IF (norm >= 10E4_dp*thrs_motion) THEN
             ! Accept new vector
             ifound = ifound + 1

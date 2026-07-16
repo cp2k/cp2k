@@ -11,17 +11,21 @@
 ! **************************************************************************************************
 PROGRAM gx_ac_unittest
 #include "base/base_uses.f90"
-#if !defined(__GREENX)
-   ! Abort and inform that GreenX was not included in the compilation
-   ! Ideally, this will be avoided in testing by the conditional tests
-   CPABORT("CP2K not compiled with GreenX library.")
-#else
+#if defined(__GREENX)
    USE kinds, ONLY: dp
    USE gx_ac, ONLY: create_thiele_pade, &
                     evaluate_thiele_pade_at, &
                     free_params, &
                     params
+#endif
 
+   IMPLICIT NONE
+
+#if !defined(__GREENX)
+   ! Abort and inform that GreenX was not included in the compilation
+   ! Ideally, this will be avoided in testing by the conditional tests
+   CPABORT("CP2K not compiled with GreenX library.")
+#else
    ! Create the dataset containing the fitting data
    ! Two Lorentzian peaks with some overlap
    COMPLEX(kind=dp)                   :: damp_one = (2, 0), &

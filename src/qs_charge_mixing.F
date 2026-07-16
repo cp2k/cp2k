@@ -117,8 +117,9 @@ CONTAINS
          mixer_max_weight = tblite_mixer_max_weight_default
          IF (PRESENT(tblite_mixer_max_weight)) mixer_max_weight = tblite_mixer_max_weight
          IF (mixer_max_weight <= 0.0_dp) CPABORT("tblite SCC mixer MAX_WEIGHT must be positive")
-         IF (mixer_max_weight < mixer_min_weight) &
+         IF (mixer_max_weight < mixer_min_weight) THEN
             CPABORT("tblite SCC mixer MAX_WEIGHT must not be smaller than MIN_WEIGHT")
+         END IF
          mixer_weight_factor = tblite_mixer_weight_factor_default
          IF (PRESENT(tblite_mixer_weight_factor)) mixer_weight_factor = tblite_mixer_weight_factor
          IF (mixer_weight_factor <= 0.0_dp) CPABORT("tblite SCC mixer WEIGHT_FACTOR must be positive")
@@ -183,21 +184,21 @@ CONTAINS
          IF ((iter_count == 1) .OR. (iter_count + 1 <= mixing_store%nskip_mixing)) THEN
             ! skip mixing
             mixing_store%iter_method = "NoMix"
-         ELSEIF (((iter_count + 1 - mixing_store%nskip_mixing) <= mixing_store%n_simple_mix) .OR. (nvec == 1)) THEN
+         ELSE IF (((iter_count + 1 - mixing_store%nskip_mixing) <= mixing_store%n_simple_mix) .OR. (nvec == 1)) THEN
             CALL mix_charges_only(mixing_store, charges, alpha, imin, ns, para_env)
             mixing_store%iter_method = "Mixing"
-         ELSEIF (mixing_method == gspace_mixing_nr) THEN
+         ELSE IF (mixing_method == gspace_mixing_nr) THEN
             CPABORT("Kerker method not available for Charge Mixing")
-         ELSEIF (mixing_method == pulay_mixing_nr) THEN
+         ELSE IF (mixing_method == pulay_mixing_nr) THEN
             CPABORT("Pulay method not available for Charge Mixing")
-         ELSEIF (mixing_method == broyden_mixing_nr) THEN
+         ELSE IF (mixing_method == broyden_mixing_nr) THEN
             CALL broyden_mixing(mixing_store, charges, imin, nvec, ns, para_env)
             mixing_store%iter_method = "Broy."
-         ELSEIF (mixing_method == modified_broyden_mixing_nr) THEN
+         ELSE IF (mixing_method == modified_broyden_mixing_nr) THEN
             CPABORT("Modified Broyden mixing is only available for DFT density mixing")
-         ELSEIF (mixing_method == multisecant_mixing_nr) THEN
+         ELSE IF (mixing_method == multisecant_mixing_nr) THEN
             CPABORT("Multisecant_mixing method not available for Charge Mixing")
-         ELSEIF (mixing_method == new_pulay_mixing_nr) THEN
+         ELSE IF (mixing_method == new_pulay_mixing_nr) THEN
             CPABORT("New Pulay method not available for Charge Mixing")
          END IF
 

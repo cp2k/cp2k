@@ -490,9 +490,10 @@ CONTAINS
                END IF
             END IF
 
-            IF (tmc_env%params%DRAW_TREE) &
+            IF (tmc_env%params%DRAW_TREE) THEN
                CALL create_global_tree_dot_color(gt_tree_element=tmp_gt_list_ptr%gt_elem, &
                                                  tmc_params=tmc_env%params)
+            END IF
          END IF
          tmp_gt_list_ptr => tmp_gt_list_ptr%next
       END DO
@@ -546,8 +547,9 @@ CONTAINS
                           cp_to_string(stat))
          END SELECT
 
-         IF (tmc_params%DRAW_TREE) &
+         IF (tmc_params%DRAW_TREE) THEN
             CALL create_dot_color(tree_element=ptr, tmc_params=tmc_params)
+         END IF
       END IF
 
       ! end the timing
@@ -685,8 +687,9 @@ CONTAINS
                !-- hence new configurations can be created on basis of this configuration
             CASE (status_calculate_MD, status_calculate_NMC_steps, status_calculate_energy, &
                   status_created, status_calc_approx_ener)
-               IF (gt_act_elem%conf(gt_act_elem%mv_conf)%elem%stat /= gt_act_elem%stat) &
+               IF (gt_act_elem%conf(gt_act_elem%mv_conf)%elem%stat /= gt_act_elem%stat) THEN
                   gt_act_elem%stat = gt_act_elem%conf(gt_act_elem%mv_conf)%elem%stat
+               END IF
             CASE (status_calculated)
             CASE DEFAULT
                CALL cp_abort(__LOCATION__, &
@@ -754,9 +757,10 @@ CONTAINS
             tmc_env%m_env%result_count(gt_act_elem%mv_conf) + 1
          ! in case of swapped also count the result for
          !  the other swapped temperature
-         IF (gt_act_elem%swaped) &
+         IF (gt_act_elem%swaped) THEN
             tmc_env%m_env%result_count(gt_act_elem%mv_conf + 1) = &
-            tmc_env%m_env%result_count(gt_act_elem%mv_conf + 1) + 1
+               tmc_env%m_env%result_count(gt_act_elem%mv_conf + 1) + 1
+         END IF
          ! count also for global tree Markov Chain
          tmc_env%m_env%result_count(0) = tmc_env%m_env%result_count(0) + 1
 
@@ -816,14 +820,16 @@ CONTAINS
          END IF ! result acceptance check
          !======================================================================
          !-- set status accepted or rejected of certain subtree elements
-         IF (.NOT. gt_act_elem%swaped) &
+         IF (.NOT. gt_act_elem%swaped) THEN
             CALL subtree_configuration_stat_change(gt_ptr=gt_act_elem, &
                                                    stat=gt_act_elem%stat, &
                                                    tmc_params=tmc_env%params)
+         END IF
 
-         IF (tmc_env%params%DRAW_TREE) &
+         IF (tmc_env%params%DRAW_TREE) THEN
             CALL create_global_tree_dot_color(gt_tree_element=gt_act_elem, &
                                               tmc_params=tmc_env%params)
+         END IF
 
          ! probability update
          CALL prob_update(move_types=tmc_env%params%move_types, &
@@ -835,11 +841,12 @@ CONTAINS
                                         result_count=tmc_env%m_env%result_count, &
                                         conf_updated=gt_act_elem%mv_conf, accepted=result_acc, &
                                         tmc_params=tmc_env%params)
-         IF (gt_act_elem%swaped) &
+         IF (gt_act_elem%swaped) THEN
             CALL write_result_list_element(result_list=tmc_env%m_env%result_list, &
                                            result_count=tmc_env%m_env%result_count, &
                                            conf_updated=gt_act_elem%mv_conf + 1, accepted=result_acc, &
                                            tmc_params=tmc_env%params)
+         END IF
 
          ! save for analysis
          IF (tmc_env%tmc_comp_set%para_env_m_ana%num_pe > 1 .AND. result_acc) THEN
@@ -879,8 +886,9 @@ CONTAINS
       ready = .FALSE.
       IF ((elem%scf_energies_count >= 4) &
           .AND. (elem%stat /= status_deleted) .AND. (elem%stat /= status_deleted_result) &
-          .AND. (elem%stat /= status_canceled_ener)) &
+          .AND. (elem%stat /= status_canceled_ener)) THEN
          ready = .TRUE.
+      END IF
    END FUNCTION ready_for_update_acc_prob
 
 ! **************************************************************************************************
@@ -1032,9 +1040,10 @@ CONTAINS
             IF (tmp_prob >= 0.0_dp) THEN
                tmp_pt_ptr%gt_elem%prob_acc = tmp_prob
                !-- speculative canceling for the related direction
-               IF (tmc_env%params%SPECULATIVE_CANCELING) &
+               IF (tmc_env%params%SPECULATIVE_CANCELING) THEN
                   CALL search_canceling_elements(pt_elem_in=tmp_pt_ptr%gt_elem, &
                                                  prob=tmp_pt_ptr%gt_elem%prob_acc, tmc_env=tmc_env)
+               END IF
             END IF
 
             ! get next related global tree pointer

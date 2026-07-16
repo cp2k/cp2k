@@ -147,7 +147,7 @@ CONTAINS
       IF (dft_control%qs_control%dftb) THEN
          do_dftb = .TRUE.
          do_xtb = .FALSE.
-      ELSEIF (dft_control%qs_control%xtb) THEN
+      ELSE IF (dft_control%qs_control%xtb) THEN
          do_dftb = .FALSE.
          do_xtb = .TRUE.
       ELSE
@@ -159,7 +159,7 @@ CONTAINS
       NULLIFY (matrix_s)
       IF (do_dftb) THEN
          CALL build_dftb_overlap(qs_env, 0, matrix_s)
-      ELSEIF (do_xtb) THEN
+      ELSE IF (do_xtb) THEN
          CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, sab_orb=sab_nl)
          CALL build_overlap_matrix(ks_env, matrix_s, basis_type_a='ORB', basis_type_b='ORB', sab_nl=sab_nl)
       END IF
@@ -179,7 +179,7 @@ CONTAINS
             ! use mm charge smearing for non-scc cases
             IF (.NOT. dftb_control%self_consistent) eta_a(0) = eta_mm
             IF (.NOT. defined .OR. natorb < 1) CYCLE
-         ELSEIF (do_xtb) THEN
+         ELSE IF (do_xtb) THEN
             NULLIFY (xtb_kind)
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
             CALL get_xtb_atom_param(xtb_kind, zeff=zeff)
@@ -263,7 +263,7 @@ CONTAINS
       IF (dft_control%qs_control%dftb) THEN
          do_dftb = .TRUE.
          do_xtb = .FALSE.
-      ELSEIF (dft_control%qs_control%xtb) THEN
+      ELSE IF (dft_control%qs_control%xtb) THEN
          do_dftb = .FALSE.
          do_xtb = .TRUE.
       ELSE
@@ -275,7 +275,7 @@ CONTAINS
       NULLIFY (matrix_s)
       IF (do_dftb) THEN
          CALL build_dftb_overlap(qs_env, 0, matrix_s)
-      ELSEIF (do_xtb) THEN
+      ELSE IF (do_xtb) THEN
          CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, sab_orb=sab_nl)
          CALL build_overlap_matrix(ks_env, matrix_s, basis_type_a='ORB', basis_type_b='ORB', sab_nl=sab_nl)
       END IF
@@ -363,7 +363,7 @@ CONTAINS
       IF (dft_control%qs_control%dftb) THEN
          do_dftb = .TRUE.
          do_xtb = .FALSE.
-      ELSEIF (dft_control%qs_control%xtb) THEN
+      ELSE IF (dft_control%qs_control%xtb) THEN
          do_dftb = .FALSE.
          do_xtb = .TRUE.
       ELSE
@@ -375,7 +375,7 @@ CONTAINS
       NULLIFY (matrix_s)
       IF (do_dftb) THEN
          CALL build_dftb_overlap(qs_env, 0, matrix_s)
-      ELSEIF (do_xtb) THEN
+      ELSE IF (do_xtb) THEN
          CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, sab_orb=sab_nl)
          CALL build_overlap_matrix(ks_env, matrix_s, basis_type_a='ORB', basis_type_b='ORB', sab_nl=sab_nl)
       END IF
@@ -469,7 +469,7 @@ CONTAINS
                ! use mm charge smearing for non-scc cases
                IF (.NOT. dftb_control%self_consistent) eta_a(0) = eta_mm
                IF (.NOT. defined .OR. natorb < 1) CYCLE
-            ELSEIF (do_xtb) THEN
+            ELSE IF (do_xtb) THEN
                NULLIFY (xtb_kind)
                CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
                CALL get_xtb_atom_param(xtb_kind, zeff=zeff)
@@ -512,7 +512,7 @@ CONTAINS
                ! use mm charge smearing for non-scc cases
                IF (.NOT. dftb_control%self_consistent) eta_a(0) = eta_mm
                IF (.NOT. defined .OR. natorb < 1) CYCLE
-            ELSEIF (do_xtb) THEN
+            ELSE IF (do_xtb) THEN
                NULLIFY (xtb_kind)
                CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
                CALL get_xtb_atom_param(xtb_kind, zeff=zeff)
@@ -644,7 +644,7 @@ CONTAINS
          IF (dft_control%qs_control%dftb) THEN
             do_dftb = .TRUE.
             do_xtb = .FALSE.
-         ELSEIF (dft_control%qs_control%xtb) THEN
+         ELSE IF (dft_control%qs_control%xtb) THEN
             do_dftb = .FALSE.
             do_xtb = .TRUE.
          ELSE
@@ -654,7 +654,7 @@ CONTAINS
          NULLIFY (matrix_s)
          IF (do_dftb) THEN
             CALL build_dftb_overlap(qs_env, 1, matrix_s)
-         ELSEIF (do_xtb) THEN
+         ELSE IF (do_xtb) THEN
             CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, sab_orb=sab_nl)
             CALL build_overlap_matrix(ks_env, matrix_s, nderivative=1, &
                                       basis_type_a='ORB', basis_type_b='ORB', sab_nl=sab_nl)
@@ -675,7 +675,7 @@ CONTAINS
             IF (do_dftb) THEN
                CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
                CALL get_dftb_atom_param(dftb_kind, zeff=zeff)
-            ELSEIF (do_xtb) THEN
+            ELSE IF (do_xtb) THEN
                CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
                CALL get_xtb_atom_param(xtb_kind, zeff=zeff)
             END IF
@@ -703,7 +703,7 @@ CONTAINS
                ! use mm charge smearing for non-scc cases
                IF (.NOT. dftb_control%self_consistent) eta_a(0) = eta_mm
                IF (.NOT. defined .OR. natorb < 1) CYCLE
-            ELSEIF (do_xtb) THEN
+            ELSE IF (do_xtb) THEN
                eta_a(0) = eta_mm
             END IF
             DO i = 1, SIZE(list)
@@ -743,7 +743,7 @@ CONTAINS
                CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
                CALL get_dftb_atom_param(dftb_kind, defined=defined, natorb=natorb)
                IF (.NOT. defined .OR. natorb < 1) CYCLE
-            ELSEIF (do_xtb) THEN
+            ELSE IF (do_xtb) THEN
                ! use all kinds
             END IF
             DO i = 1, SIZE(list)
@@ -887,7 +887,7 @@ CONTAINS
          IF (dft_control%qs_control%dftb) THEN
             do_dftb = .TRUE.
             do_xtb = .FALSE.
-         ELSEIF (dft_control%qs_control%xtb) THEN
+         ELSE IF (dft_control%qs_control%xtb) THEN
             do_dftb = .FALSE.
             do_xtb = .TRUE.
          ELSE
@@ -897,7 +897,7 @@ CONTAINS
          NULLIFY (matrix_s)
          IF (do_dftb) THEN
             CALL build_dftb_overlap(qs_env, 1, matrix_s)
-         ELSEIF (do_xtb) THEN
+         ELSE IF (do_xtb) THEN
             CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, sab_orb=sab_nl)
             CALL build_overlap_matrix(ks_env, matrix_s, nderivative=1, &
                                       basis_type_a='ORB', basis_type_b='ORB', sab_nl=sab_nl)
@@ -917,7 +917,7 @@ CONTAINS
             IF (do_dftb) THEN
                CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
                CALL get_dftb_atom_param(dftb_kind, zeff=zeff)
-            ELSEIF (do_xtb) THEN
+            ELSE IF (do_xtb) THEN
                CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
                CALL get_xtb_atom_param(xtb_kind, zeff=zeff)
             END IF
@@ -1054,7 +1054,7 @@ CONTAINS
                   ! use mm charge smearing for non-scc cases
                   IF (.NOT. dftb_control%self_consistent) eta_a(0) = eta_mm
                   IF (.NOT. defined .OR. natorb < 1) CYCLE
-               ELSEIF (do_xtb) THEN
+               ELSE IF (do_xtb) THEN
                   eta_a(0) = eta_mm
                END IF
                DO i = 1, SIZE(list)
@@ -1116,7 +1116,7 @@ CONTAINS
                   ! use mm charge smearing for non-scc cases
                   IF (.NOT. dftb_control%self_consistent) eta_a(0) = eta_mm
                   IF (.NOT. defined .OR. natorb < 1) CYCLE
-               ELSEIF (do_xtb) THEN
+               ELSE IF (do_xtb) THEN
                   eta_a(0) = eta_mm
                END IF
                DO i = 1, SIZE(list)
@@ -1159,7 +1159,7 @@ CONTAINS
                CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
                CALL get_dftb_atom_param(dftb_kind, defined=defined, natorb=natorb)
                IF (.NOT. defined .OR. natorb < 1) CYCLE
-            ELSEIF (do_xtb) THEN
+            ELSE IF (do_xtb) THEN
                !
             END IF
             DO i = 1, SIZE(list)

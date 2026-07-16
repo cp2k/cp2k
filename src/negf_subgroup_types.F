@@ -137,8 +137,9 @@ CONTAINS
       CALL cp_blacs_env_release(sub_env%blacs_env)
       CALL mp_para_env_release(sub_env%para_env)
 
-      IF (ALLOCATED(sub_env%group_distribution)) &
+      IF (ALLOCATED(sub_env%group_distribution)) THEN
          DEALLOCATE (sub_env%group_distribution)
+      END IF
 
       sub_env%ngroups = 0
 

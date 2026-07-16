@@ -231,7 +231,7 @@ CONTAINS
 
       IF (PRESENT(md_env)) THEN
          CALL get_md_env(md_env=md_env, force_env=my_force_env)
-      ELSEIF (PRESENT(force_env)) THEN
+      ELSE IF (PRESENT(force_env)) THEN
          my_force_env => force_env
       END IF
 
@@ -551,9 +551,9 @@ CONTAINS
       ELSE
          IF (ASSOCIATED(force_env)) THEN
             para_env => force_env%para_env
-         ELSEIF (PRESENT(pint_env)) THEN
+         ELSE IF (PRESENT(pint_env)) THEN
             para_env => pint_env%logger%para_env
-         ELSEIF (PRESENT(helium_env)) THEN
+         ELSE IF (PRESENT(helium_env)) THEN
             ! Only needed in case that pure helium is simulated
             ! In this case write_restart is called only by processors
             ! with associated helium_env
@@ -995,7 +995,7 @@ CONTAINS
          CALL section_vals_val_set(pint_section, "NOSE%VELOCITY%_DEFAULT_KEYWORD_", &
                                    r_vals_ptr=r_vals)
 
-      ELSEIF (pint_env%pimd_thermostat == thermostat_gle) THEN
+      ELSE IF (pint_env%pimd_thermostat == thermostat_gle) THEN
 
          NULLIFY (tmpsec)
          tmpsec => section_vals_get_subs_vals(pint_section, "GLE")
@@ -1326,8 +1326,9 @@ CONTAINS
             WRITE (stmp, *) reqlen
             err_str = TRIM(ADJUSTL(err_str))// &
                       TRIM(ADJUSTL(stmp))//"'."
-            IF (msgLEN /= reqlen) &
+            IF (msgLEN /= reqlen) THEN
                CPABORT(err_str)
+            END IF
 
             ! allocate the buffer to be saved and fill it with forces
             ! forces should be the same on all processors, but we don't check that here
@@ -1458,9 +1459,10 @@ CONTAINS
 
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
 
-      IF (ik == -2) &
+      IF (ik == -2) THEN
          CALL cp_abort(__LOCATION__, "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
+      END IF
 
       DO
          IF (SIZE(work_section%values, 2) == 1) EXIT
@@ -1938,9 +1940,10 @@ CONTAINS
       CPASSERT(coord_section%ref_count > 0)
       section => coord_section%section
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
-      IF (ik == -2) &
+      IF (ik == -2) THEN
          CALL cp_abort(__LOCATION__, "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
+      END IF
       DO
          IF (SIZE(coord_section%values, 2) == 1) EXIT
          CALL section_vals_add_values(coord_section)
@@ -2065,9 +2068,10 @@ CONTAINS
       CPASSERT(ss_section%ref_count > 0)
       section => ss_section%section
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
-      IF (ik == -2) &
+      IF (ik == -2) THEN
          CALL cp_abort(__LOCATION__, "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
+      END IF
       DO
          IF (SIZE(ss_section%values, 2) == 1) EXIT
          CALL section_vals_add_values(ss_section)
@@ -2135,9 +2139,10 @@ CONTAINS
       CPASSERT(ds_section%ref_count > 0)
       section => ds_section%section
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
-      IF (ik == -2) &
+      IF (ik == -2) THEN
          CALL cp_abort(__LOCATION__, "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
+      END IF
       DO
          IF (SIZE(ds_section%values, 2) == 1) EXIT
          CALL section_vals_add_values(ds_section)
@@ -2204,9 +2209,10 @@ CONTAINS
       CPASSERT(ww_section%ref_count > 0)
       section => ww_section%section
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
-      IF (ik == -2) &
+      IF (ik == -2) THEN
          CALL cp_abort(__LOCATION__, "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
+      END IF
       DO
          IF (SIZE(ww_section%values, 2) == 1) EXIT
          CALL section_vals_add_values(ww_section)
@@ -2270,9 +2276,10 @@ CONTAINS
       CPASSERT(invdt_section%ref_count > 0)
       section => invdt_section%section
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
-      IF (ik == -2) &
+      IF (ik == -2) THEN
          CALL cp_abort(__LOCATION__, "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
+      END IF
       DO
          IF (SIZE(invdt_section%values, 2) == 1) EXIT
          CALL section_vals_add_values(invdt_section)

@@ -12,6 +12,7 @@
 MODULE ps_wavelet_base
 
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_comm_type
    USE ps_wavelet_fft3d,                ONLY: ctrig,&
                                               ctrig_length,&
@@ -705,9 +706,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: hx, hy, hz
 
       INTEGER                                            :: i1, i2, j1, j2, j3
-      REAL(KIND=dp)                                      :: fourpi2, ker, mu3, p1, p2, pi
+      REAL(KIND=dp)                                      :: fourpi2, ker, mu3, p1, p2
 
-      pi = 4._dp*ATAN(1._dp)
       fourpi2 = 4._dp*pi**2
       j3 = i3 !n3/2+1-abs(n3/2+2-i3)
       mu3 = REAL(j3 - 1, KIND=dp)/REAL(n3, KIND=dp)

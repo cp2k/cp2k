@@ -302,8 +302,9 @@ CONTAINS
          NULLIFY (sub_env%task_list_orb_soft, sub_env%task_list_aux_fit_soft)
 
          IF (sub_env%is_mgrid) THEN
-            IF (tddfpt_control%mgrid_is_explicit) &
+            IF (tddfpt_control%mgrid_is_explicit) THEN
                CALL init_tddfpt_mgrid(qs_control, tddfpt_control, mgrid_saved)
+            END IF
 
             IF (ASSOCIATED(weights)) THEN
                CPABORT('Redefining MGRID and integration weights not compatible')
@@ -344,8 +345,9 @@ CONTAINS
                END IF
             END IF
 
-            IF (tddfpt_control%mgrid_is_explicit) &
+            IF (tddfpt_control%mgrid_is_explicit) THEN
                CALL restore_qs_mgrid(qs_control, mgrid_saved)
+            END IF
          ELSE
             CALL pw_env_retain(pw_env_global)
             sub_env%pw_env => pw_env_global
@@ -380,7 +382,7 @@ CONTAINS
             CALL rho0_s_grid_create(sub_env%pw_env, sub_env%local_rho_set%rho0_mpole)
             CALL hartree_local_create(sub_env%hartree_local)
             CALL init_coulomb_local(sub_env%hartree_local, natom)
-         ELSEIF (dft_control%qs_control%gapw_xc) THEN
+         ELSE IF (dft_control%qs_control%gapw_xc) THEN
             CALL get_qs_env(qs_env, &
                             atomic_kind_set=atomic_kind_set, &
                             qs_kind_set=qs_kind_set)
@@ -448,17 +450,21 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (sub_env%is_mgrid) THEN
-         IF (ASSOCIATED(sub_env%task_list_aux_fit)) &
+         IF (ASSOCIATED(sub_env%task_list_aux_fit)) THEN
             CALL deallocate_task_list(sub_env%task_list_aux_fit)
+         END IF
 
-         IF (ASSOCIATED(sub_env%task_list_aux_fit_soft)) &
+         IF (ASSOCIATED(sub_env%task_list_aux_fit_soft)) THEN
             CALL deallocate_task_list(sub_env%task_list_aux_fit_soft)
+         END IF
 
-         IF (ASSOCIATED(sub_env%task_list_orb)) &
+         IF (ASSOCIATED(sub_env%task_list_orb)) THEN
             CALL deallocate_task_list(sub_env%task_list_orb)
+         END IF
 
-         IF (ASSOCIATED(sub_env%task_list_orb_soft)) &
+         IF (ASSOCIATED(sub_env%task_list_orb_soft)) THEN
             CALL deallocate_task_list(sub_env%task_list_orb_soft)
+         END IF
 
          CALL release_neighbor_list_sets(sub_env%sab_aux_fit)
          CALL release_neighbor_list_sets(sub_env%sab_orb)
@@ -468,8 +474,9 @@ CONTAINS
             DEALLOCATE (sub_env%dbcsr_dist)
          END IF
 
-         IF (ASSOCIATED(sub_env%dist_2d)) &
+         IF (ASSOCIATED(sub_env%dist_2d)) THEN
             CALL distribution_2d_release(sub_env%dist_2d)
+         END IF
       END IF
 
       ! GAPW
@@ -512,8 +519,9 @@ CONTAINS
       CALL cp_blacs_env_release(sub_env%blacs_env)
       CALL mp_para_env_release(sub_env%para_env)
 
-      IF (ALLOCATED(sub_env%group_distribution)) &
+      IF (ALLOCATED(sub_env%group_distribution)) THEN
          DEALLOCATE (sub_env%group_distribution)
+      END IF
 
       sub_env%is_split = .FALSE.
 
@@ -578,8 +586,9 @@ CONTAINS
          END DO
          ! igrid == 0 if qs_control%cutoff is larger than the largest manually provided cutoff value;
          ! use the largest actual value
-         IF (igrid <= 0) &
+         IF (igrid <= 0) THEN
             qs_control%cutoff = qs_control%e_cutoff(1)
+         END IF
       ELSE
          qs_control%e_cutoff(1) = qs_control%cutoff
          DO igrid = 2, ngrids
@@ -607,8 +616,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(qs_control%e_cutoff)) &
+      IF (ASSOCIATED(qs_control%e_cutoff)) THEN
          DEALLOCATE (qs_control%e_cutoff)
+      END IF
 
       qs_control%commensurate_mgrids = mgrid_saved%commensurate_mgrids
       qs_control%realspace_mgrids = mgrid_saved%realspace_mgrids

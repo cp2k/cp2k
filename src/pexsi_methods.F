@@ -146,8 +146,9 @@ CONTAINS
       pexsi_env%num_ranks_per_pole = min_ranks_per_pole ! not a PEXSI option
       pexsi_env%csr_screening = csr_screening
 
-      IF (numElectronInitialTolerance < numElectronTargetTolerance) &
+      IF (numElectronInitialTolerance < numElectronTargetTolerance) THEN
          numElectronInitialTolerance = numElectronTargetTolerance
+      END IF
 
       pexsi_env%tol_nel_initial = numElectronInitialTolerance
       pexsi_env%tol_nel_target = numElectronTargetTolerance
@@ -337,20 +338,24 @@ CONTAINS
       IF (first_call) THEN
          ! Assertion that matrices have the expected symmetry (both should be symmetric if no
          ! S preconditioning and no molecular clustering)
-         IF (.NOT. dbcsr_has_symmetry(matrix_ks)) &
+         IF (.NOT. dbcsr_has_symmetry(matrix_ks)) THEN
             CPABORT("PEXSI interface expects a non-symmetric DBCSR Kohn-Sham matrix")
-         IF (.NOT. dbcsr_has_symmetry(matrix_s)) &
+         END IF
+         IF (.NOT. dbcsr_has_symmetry(matrix_s)) THEN
             CPABORT("PEXSI interface expects a non-symmetric DBCSR overlap matrix")
+         END IF
 
          ! Assertion on datatype
          IF ((pexsi_env%csr_mat_s%nzval_local%data_type /= dbcsr_csr_type_real_8) &
-             .OR. (pexsi_env%csr_mat_ks%nzval_local%data_type /= dbcsr_csr_type_real_8)) &
+             .OR. (pexsi_env%csr_mat_ks%nzval_local%data_type /= dbcsr_csr_type_real_8)) THEN
             CPABORT("Complex data type not supported by PEXSI")
+         END IF
 
          ! Assertion on number of non-zero elements
          !(TODO: update when PEXSI changes to Long Int)
-         IF (pexsi_env%csr_mat_s%nze_total >= INT(2, kind=int_8)**31) &
+         IF (pexsi_env%csr_mat_s%nze_total >= INT(2, kind=int_8)**31) THEN
             CPABORT("Total number of non-zero elements of CSR matrix is too large to be handled by PEXSI")
+         END IF
       END IF
 
       CALL dbcsr_get_info(matrix_ks, distribution=dist)
@@ -464,8 +469,9 @@ CONTAINS
             n_total_inertia_iter
       END IF
 
-      IF (.NOT. pexsi_convergence) &
+      IF (.NOT. pexsi_convergence) THEN
          CPABORT("PEXSI did not converge. Consider logPEXSI0 for more information.")
+      END IF
 
       ! Retrieve results from PEXSI
       IF (mynode < pexsi_env%mp_dims(1)*pexsi_env%mp_dims(2)) THEN

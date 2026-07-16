@@ -151,11 +151,12 @@ CONTAINS
             CALL parser_get_next_line(parser, 1, at_end=my_end)
             my_end = my_end .OR. (LEN_TRIM(parser%input_line) == 0)
             IF (my_end) THEN
-               IF (j /= natom) &
+               IF (j /= natom) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "Number of lines in XYZ format not equal to the number of atoms."// &
                                 " Error in XYZ format. Very probably the line with title is missing or is empty."// &
                                 " Please check the XYZ file and rerun your job!")
+               END IF
                EXIT Frames
             END IF
          END DO

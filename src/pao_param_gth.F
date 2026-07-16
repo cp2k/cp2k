@@ -123,8 +123,9 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
-      IF (pao%precondition) &
+      IF (pao%precondition) THEN
          CALL pao_param_gth_preconditioner(pao, qs_env, nterms)
+      END IF
 
       DEALLOCATE (row_blk_size, col_blk_size, nterms)
       CALL timestop(handle)
@@ -208,8 +209,9 @@ CONTAINS
          CALL group%sum(block)
 
          CALL dbcsr_get_block_p(matrix=matrix_gth_overlap, row=iatom, col=jatom, block=block_overlap, found=found)
-         IF (ASSOCIATED(block_overlap)) &
+         IF (ASSOCIATED(block_overlap)) THEN
             block_overlap = block
+         END IF
 
          DEALLOCATE (block)
       END DO
@@ -232,8 +234,9 @@ CONTAINS
                                      converged=converged)
       CALL dbcsr_release(matrix_gth_overlap)
 
-      IF (.NOT. converged) &
+      IF (.NOT. converged) THEN
          CPABORT("PAO: Sqrt of GTH-preconditioner did not converge.")
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE pao_param_gth_preconditioner
@@ -381,8 +384,9 @@ CONTAINS
       DEALLOCATE (world_X, world_G)
 
       ! sum penalty energies across ranks
-      IF (PRESENT(penalty)) &
+      IF (PRESENT(penalty)) THEN
          CALL group%sum(penalty)
+      END IF
 
       ! print homo-lumo gap encountered by fock-layer
       CALL group%min(gaps)
@@ -421,20 +425,24 @@ CONTAINS
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
       CALL get_qs_kind(qs_kind_set(ikind), pao_potentials=pao_potentials)
 
-      IF (SIZE(pao_potentials) /= 1) &
+      IF (SIZE(pao_potentials) /= 1) THEN
          CPABORT("GTH parametrization requires exactly one PAO_POTENTIAL section per KIND")
+      END IF
 
       max_projector = pao_potentials(1)%max_projector
       maxl = pao_potentials(1)%maxl
 
-      IF (maxl < 0) &
+      IF (maxl < 0) THEN
          CPABORT("GTH parametrization requires non-negative PAO_POTENTIAL%MAXL")
+      END IF
 
-      IF (max_projector < 0) &
+      IF (max_projector < 0) THEN
          CPABORT("GTH parametrization requires non-negative PAO_POTENTIAL%MAX_PROJECTOR")
+      END IF
 
-      IF (MOD(maxl, 2) /= 0) &
+      IF (MOD(maxl, 2) /= 0) THEN
          CPABORT("GTH parametrization requires even-numbered PAO_POTENTIAL%MAXL")
+      END IF
 
       ncombis = (max_projector + 1)*(max_projector + 2)/2
       nparams = ncombis*(maxl/2 + 1)

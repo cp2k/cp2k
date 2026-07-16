@@ -984,7 +984,7 @@ CONTAINS
       IF (rab >= ru) THEN
          fcc = 0._dp
          dfcc = 0._dp
-      ELSEIF (rab <= rl) THEN
+      ELSE IF (rab <= rl) THEN
          fcc = 1._dp
          dfcc = 0._dp
       ELSE

@@ -1401,8 +1401,9 @@ CONTAINS
       num_pe = para_env%num_pe
       ! if not already set, use all processors for the group (for large-cell GW, performance
       ! seems to be best for a single group with all MPI processes per group)
-      IF (bs_env%group_size_tensor < 0 .OR. bs_env%group_size_tensor > num_pe) &
+      IF (bs_env%group_size_tensor < 0 .OR. bs_env%group_size_tensor > num_pe) THEN
          bs_env%group_size_tensor = num_pe
+      END IF
 
       ! group_size_tensor must divide num_pe without rest; otherwise everything will be complicated
       IF (MODULO(num_pe, bs_env%group_size_tensor) /= 0) THEN
@@ -2052,15 +2053,17 @@ CONTAINS
          DO i = 1, SIZE(exp_RI, 1)
             DO j = 1, SIZE(exp_RI, 2)
                IF (exp_RI(i, j) < exp_min_RI .AND. exp_RI(i, j) > 1E-3_dp) exp_min_RI = exp_RI(i, j)
-               IF (exp_RI(i, j) < exp_RI_kind(ikind) .AND. exp_RI(i, j) > 1E-3_dp) &
+               IF (exp_RI(i, j) < exp_RI_kind(ikind) .AND. exp_RI(i, j) > 1E-3_dp) THEN
                   exp_RI_kind(ikind) = exp_RI(i, j)
+               END IF
             END DO
          END DO
          DO i = 1, SIZE(exp_ao, 1)
             DO j = 1, SIZE(exp_ao, 2)
                IF (exp_ao(i, j) < exp_min_ao .AND. exp_ao(i, j) > 1E-3_dp) exp_min_ao = exp_ao(i, j)
-               IF (exp_ao(i, j) < exp_ao_kind(ikind) .AND. exp_ao(i, j) > 1E-3_dp) &
+               IF (exp_ao(i, j) < exp_ao_kind(ikind) .AND. exp_ao(i, j) > 1E-3_dp) THEN
                   exp_ao_kind(ikind) = exp_ao(i, j)
+               END IF
             END DO
          END DO
          radius_ao_kind(ikind) = SQRT(-LOG(eps)/exp_ao_kind(ikind))

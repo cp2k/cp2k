@@ -185,12 +185,20 @@ CONTAINS
             ELSE
                atom_info%id_resname(natom) = id0
             END IF
+            ! Some information is not always given, so we mark it as used to prevent linters from crying
+            ! regarding never a never used variable 'istat'
             READ (UNIT=line(23:26), FMT=*, IOSTAT=istat) atom_info%resid(natom)
+            MARK_USED(istat)
             READ (UNIT=line(31:38), FMT=*, IOSTAT=istat) atom_info%r(1, natom)
+            MARK_USED(istat)
             READ (UNIT=line(39:46), FMT=*, IOSTAT=istat) atom_info%r(2, natom)
+            MARK_USED(istat)
             READ (UNIT=line(47:54), FMT=*, IOSTAT=istat) atom_info%r(3, natom)
+            MARK_USED(istat)
             READ (UNIT=line(55:60), FMT=*, IOSTAT=istat) atom_info%occup(natom)
+            MARK_USED(istat)
             READ (UNIT=line(61:66), FMT=*, IOSTAT=istat) atom_info%beta(natom)
+            MARK_USED(istat)
             READ (UNIT=line(73:76), FMT=*, IOSTAT=istat) strtmp
             IF (istat == 0) THEN
                atom_info%id_molname(natom) = str2id(s2s(strtmp))
@@ -209,7 +217,7 @@ CONTAINS
             IF (topology%charge_occup) atom_info%atm_charge(natom) = atom_info%occup(natom)
             IF (topology%charge_beta) atom_info%atm_charge(natom) = atom_info%beta(natom)
             IF (topology%charge_extended) THEN
-               READ (UNIT=line(81:), FMT=*, IOSTAT=istat) atom_info%atm_charge(natom)
+               READ (UNIT=line(81:), FMT=*) atom_info%atm_charge(natom)
             END IF
 
             IF (atom_info%id_element(natom) == id0) THEN
@@ -310,8 +318,9 @@ CONTAINS
       CALL section_vals_val_get(print_key, "CHARGE_BETA", l_val=charge_beta)
       CALL section_vals_val_get(print_key, "CHARGE_EXTENDED", l_val=charge_extended)
       i = COUNT([charge_occup, charge_beta, charge_extended])
-      IF (i > 1) &
+      IF (i > 1) THEN
          CPABORT("Either only CHARGE_OCCUP, CHARGE_BETA, or CHARGE_EXTENDED can be selected")
+      END IF
 
       atom_info => topology%atom_info
       record = cp_print_key_generate_filename(logger, print_key, &
@@ -371,8 +380,9 @@ CONTAINS
          END IF
          IF (ASSOCIATED(atom_info%atm_charge)) THEN
             IF (ANY([charge_occup, charge_beta, charge_extended]) .AND. &
-                (atom_info%atm_charge(i) == -HUGE(0.0_dp))) &
+                (atom_info%atm_charge(i) == -HUGE(0.0_dp))) THEN
                CPABORT("No atomic charges found yet (after the topology setup)")
+            END IF
             IF (charge_occup) THEN
                WRITE (UNIT=line(55:60), FMT="(F6.2)") atom_info%atm_charge(i)
             ELSE IF (charge_beta) THEN

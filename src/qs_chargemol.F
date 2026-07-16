@@ -604,7 +604,7 @@ CONTAINS
          DO imo = 1, mos(1)%homo
             IF (nspins == 1) THEN
                WRITE (iwfx, '(A15)') "Alpha and Beta"
-            ELSEIF (dft_control%uks) THEN
+            ELSE IF (dft_control%uks) THEN
                WRITE (iwfx, '(A6)') "Alpha"
             ELSE
                CALL cp_abort(__LOCATION__, "This wavefunction type is currently"// &

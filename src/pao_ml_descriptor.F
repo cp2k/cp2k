@@ -138,8 +138,9 @@ CONTAINS
             Rab = pbc(ra, rb, cell)
             CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=jkind)
             CALL get_qs_kind(qs_kind_set(jkind), pao_descriptors=pao_descriptors)
-            IF (SIZE(pao_descriptors) /= ndesc) &
+            IF (SIZE(pao_descriptors) /= ndesc) THEN
                CPABORT("Not all KINDs have the same number of PAO_DESCRIPTOR sections")
+            END IF
             weight = pao_descriptors(idesc)%weight
             beta = pao_descriptors(idesc)%beta
             CALL pao_calc_gaussian(basis_set, block_V=block_V, Rab=Rab, lpot=0, beta=beta, weight=weight)
@@ -150,8 +151,9 @@ CONTAINS
          CALL diamat_all(V_evecs, V_evals)
 
          ! use eigenvalues of V_block as descriptor
-         IF (PRESENT(descriptor)) &
+         IF (PRESENT(descriptor)) THEN
             descriptor((idesc - 1)*N + 1:idesc*N) = V_evals(:)
+         END IF
 
          ! FORCES ----------------------------------------------------------------------------------
          IF (PRESENT(forces)) THEN
@@ -254,8 +256,9 @@ CONTAINS
 
       ! check if N was chosen large enough
       IF (natoms > N) THEN
-         IF (neighbor_dist(N + 1) < screening_radius) &
+         IF (neighbor_dist(N + 1) < screening_radius) THEN
             CPABORT("PAO heuristic for descriptor size broke down")
+         END IF
       END IF
 
       DO idesc = 1, ndesc
@@ -273,8 +276,9 @@ CONTAINS
             CALL get_qs_kind(qs_kind_set(jkind), pao_descriptors=jpao_descriptors)
             CALL get_atomic_kind(particle_set(katom)%atomic_kind, kind_number=kkind)
             CALL get_qs_kind(qs_kind_set(kkind), pao_descriptors=kpao_descriptors)
-            IF (SIZE(jpao_descriptors) /= ndesc .OR. SIZE(kpao_descriptors) /= ndesc) &
+            IF (SIZE(jpao_descriptors) /= ndesc .OR. SIZE(kpao_descriptors) /= ndesc) THEN
                CPABORT("Not all KINDs have the same number of PAO_DESCRIPTOR sections")
+            END IF
             jweight = jpao_descriptors(idesc)%weight
             jbeta = jpao_descriptors(idesc)%beta
             kweight = kpao_descriptors(idesc)%weight
@@ -304,8 +308,9 @@ CONTAINS
          CALL diamat_all(S_evecs, S_evals)
 
          ! use eigenvalues of S_block as descriptor
-         IF (PRESENT(descriptor)) &
+         IF (PRESENT(descriptor)) THEN
             descriptor((idesc - 1)*N + 1:idesc*N) = S_evals(:)
+         END IF
 
          ! FORCES ----------------------------------------------------------------------------------
          IF (PRESENT(forces)) THEN

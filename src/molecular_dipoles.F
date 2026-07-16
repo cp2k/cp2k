@@ -76,7 +76,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dipole_set
       REAL(KIND=dp), DIMENSION(3)                        :: ci, gvec, rcc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: center(:, :)
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: center
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -84,7 +84,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(particle_type), POINTER                       :: particle_set(:)
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       logger => cp_get_default_logger()
@@ -224,7 +224,7 @@ CONTAINS
          dipole_set(:, :) = dipole_set(:, :)*debye ! Debye
          DO I = 1, SIZE(dipole_set, 2)
             WRITE (UNIT=iounit, FMT='(T8,I6,T21,5F12.6)') I, charge_set(I), dipole_set(1:3, I), &
-               SQRT(DOT_PRODUCT(dipole_set(1:3, I), dipole_set(1:3, I)))
+               NORM2(dipole_set(1:3, I))
          END DO
          WRITE (UNIT=iounit, FMT="(T2,A,T61,E20.12)") ' DIPOLE : CheckSum  =', SUM(dipole_set)
       END IF

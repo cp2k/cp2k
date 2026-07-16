@@ -16,6 +16,7 @@
 MODULE xc_tfw
    USE cp_array_utils,                  ONLY: cp_3d_r_cp_type
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: pi
    USE xc_derivative_desc,              ONLY: deriv_norm_drho,&
                                               deriv_norm_drhoa,&
                                               deriv_norm_drhob,&
@@ -37,8 +38,6 @@ MODULE xc_tfw
    PRIVATE
 
 ! *** Global parameters ***
-
-   REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
    REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
                                f23 = 2.0_dp*f13, &
                                f43 = 4.0_dp*f13, &

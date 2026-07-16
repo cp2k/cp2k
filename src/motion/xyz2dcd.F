@@ -13,7 +13,8 @@ PROGRAM xyz2dcd
 !
 ! Note: The input coordinates and the cell vectors should be in Angstrom.
 
-! Uncomment the following line if this module is available (e.g. with gfortran) and comment the corresponding variable declarations below
+! Uncomment the following line if this module is available (e.g. with gfortran)
+! and comment the corresponding variable declarations below
 ! USE ISO_FORTRAN_ENV, ONLY: error_unit,input_unit,output_unit
 
    IMPLICIT NONE
@@ -367,9 +368,9 @@ PROGRAM xyz2dcd
          a(1:3) = h(1:3, 1)
          b(1:3) = h(1:3, 2)
          c(1:3) = h(1:3, 3)
-         abc(1) = SQRT(DOT_PRODUCT(a(1:3), a(1:3)))
-         abc(2) = SQRT(DOT_PRODUCT(b(1:3), b(1:3)))
-         abc(3) = SQRT(DOT_PRODUCT(c(1:3), c(1:3)))
+         abc(1) = NORM2(a(1:3))
+         abc(2) = NORM2(b(1:3))
+         abc(3) = NORM2(c(1:3))
          alpha = angle(b(1:3), c(1:3))*degree
          beta = angle(a(1:3), c(1:3))*degree
          gamma = angle(a(1:3), b(1:3))*degree
@@ -579,8 +580,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: length_of_a, length_of_b
       REAL(KIND=dp), DIMENSION(SIZE(a, 1))               :: a_norm, b_norm
 
-      length_of_a = SQRT(DOT_PRODUCT(a, a))
-      length_of_b = SQRT(DOT_PRODUCT(b, b))
+      length_of_a = NORM2(a)
+      length_of_b = NORM2(b)
 
       IF ((length_of_a > eps_geo) .AND. (length_of_b > eps_geo)) THEN
          a_norm(:) = a(:)/length_of_a

@@ -55,10 +55,12 @@ CONTAINS
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
 
       IF (ASSOCIATED(wavelet)) THEN
-         IF (ASSOCIATED(wavelet%karray)) &
+         IF (ASSOCIATED(wavelet%karray)) THEN
             DEALLOCATE (wavelet%karray)
-         IF (ASSOCIATED(wavelet%rho_z_sliced)) &
+         END IF
+         IF (ASSOCIATED(wavelet%rho_z_sliced)) THEN
             DEALLOCATE (wavelet%rho_z_sliced)
+         END IF
          DEALLOCATE (wavelet)
       END IF
    END SUBROUTINE ps_wavelet_release

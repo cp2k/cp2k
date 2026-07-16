@@ -196,8 +196,9 @@ CONTAINS
             parser%input_unit = unit_nr
             IF (PRESENT(file_name)) parser%input_file_name = TRIM(ADJUSTL(file_name))
          ELSE
-            IF (.NOT. PRESENT(file_name)) &
+            IF (.NOT. PRESENT(file_name)) THEN
                CPABORT("at least one of filename and unit_nr must be present")
+            END IF
             CALL open_file(file_name=TRIM(ADJUSTL(file_name)), &
                            unit_number=parser%input_unit)
             parser%input_file_name = TRIM(ADJUSTL(file_name))

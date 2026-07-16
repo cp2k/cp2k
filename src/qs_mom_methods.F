@@ -89,8 +89,9 @@ CONTAINS
          ! Ensure that all orbital indices are positive integers.
          ! A special value '0' means 'disabled keyword',
          ! it must appear once to be interpreted in such a way
-         IF (tmp_iarr(1) < 0 .OR. (tmp_iarr(1) == 0 .AND. norbs > 1)) &
+         IF (tmp_iarr(1) < 0 .OR. (tmp_iarr(1) == 0 .AND. norbs > 1)) THEN
             CPABORT("MOM: all molecular orbital indices must be positive integer numbers")
+         END IF
 
          DEALLOCATE (tmp_iarr)
       END IF
@@ -265,9 +266,10 @@ CONTAINS
           (mom_is_unique_orbital_indices(scf_control%diagonalization%mom_deoccA) .AND. &
            mom_is_unique_orbital_indices(scf_control%diagonalization%mom_deoccB) .AND. &
            mom_is_unique_orbital_indices(scf_control%diagonalization%mom_occA) .AND. &
-           mom_is_unique_orbital_indices(scf_control%diagonalization%mom_occB))) &
+           mom_is_unique_orbital_indices(scf_control%diagonalization%mom_occB))) THEN
          CALL cp_abort(__LOCATION__, &
                        "Duplicate orbital indices were found in the MOM section")
+      END IF
 
       ! ignore beta orbitals for spin-unpolarized calculations
       IF (nspins == 1 .AND. (scf_control%diagonalization%mom_deoccB(1) /= 0 &
@@ -308,16 +310,18 @@ CONTAINS
       END DO
 
       ! proceed alpha orbitals
-      IF (nspins >= 1) &
+      IF (nspins >= 1) THEN
          CALL mom_reoccupy_orbitals(mos(1), &
                                     scf_control%diagonalization%mom_deoccA, &
                                     scf_control%diagonalization%mom_occA, 'alpha')
+      END IF
 
       ! proceed beta orbitals (if any)
-      IF (nspins >= 2) &
+      IF (nspins >= 2) THEN
          CALL mom_reoccupy_orbitals(mos(2), &
                                     scf_control%diagonalization%mom_deoccB, &
                                     scf_control%diagonalization%mom_occB, 'beta')
+      END IF
 
       ! recompute the density matrix if the molecular orbitals are here;
       ! otherwise do nothing to prevent zeroing out the density matrix
@@ -392,9 +396,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (.NOT. scf_control%diagonalization%mom_didguess) &
+      IF (.NOT. scf_control%diagonalization%mom_didguess) THEN
          CALL cp_abort(__LOCATION__, &
                        "The current implementation of the maximum overlap method is incompatible with the initial SCF guess")
+      END IF
 
       ! number of spins == dft_control%nspins
       nspins = SIZE(matrix_ks)

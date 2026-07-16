@@ -103,7 +103,7 @@ CONTAINS
       END IF
 
       fieldpol = efield%polarisation
-      fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
+      fieldpol = fieldpol/NORM2(fieldpol)
       fieldpol = -fieldpol*efield%strength
 
       dfilter = efield%dfilter

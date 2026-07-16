@@ -657,7 +657,7 @@ CONTAINS
                               ntarget = ntarget + 1
                               wtot = wtot + atom%weight*w_virt/100._dp
                            END IF
-                        ELSEIF (k < atom%state%maxn_occ(l)) THEN
+                        ELSE IF (k < atom%state%maxn_occ(l)) THEN
                            atom%orbitals%wrefene(k, l, 1) = w_semi
                            atom%orbitals%wrefchg(k, l, 1) = w_semi/100._dp
                            atom%orbitals%crefene(k, l, 1) = t_semi
@@ -735,7 +735,7 @@ CONTAINS
                               wtot = wtot + atom%weight*2._dp*w_virt/100._dp
                               ntarget = ntarget + 2
                            END IF
-                        ELSEIF (k < atom%state%maxn_occ(l)) THEN
+                        ELSE IF (k < atom%state%maxn_occ(l)) THEN
                            atom%orbitals%wrefene(k, l, 1:2) = w_semi
                            atom%orbitals%wrefchg(k, l, 1:2) = w_semi/100._dp
                            atom%orbitals%crefene(k, l, 1:2) = t_semi

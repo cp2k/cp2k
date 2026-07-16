@@ -175,8 +175,9 @@ CONTAINS
             END DO
             PRINT *, enum%i_vals
          END IF
-         IF (enum%strict) &
+         IF (enum%strict) THEN
             CPABORT("invalid value for enumeration:"//cp_to_string(i))
+         END IF
          res = ADJUSTL(cp_to_string(i))
       END IF
    END FUNCTION enum_i2c
@@ -211,11 +212,13 @@ CONTAINS
       END DO
 
       IF (.NOT. found) THEN
-         IF (enum%strict) &
+         IF (enum%strict) THEN
             CPABORT("invalid value for enumeration:"//TRIM(c))
+         END IF
          READ (c, "(i10)", iostat=iostat) res
-         IF (iostat /= 0) &
+         IF (iostat /= 0) THEN
             CPABORT("invalid value for enumeration2:"//TRIM(c))
+         END IF
       END IF
    END FUNCTION enum_c2i
 

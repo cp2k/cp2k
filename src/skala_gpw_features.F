@@ -225,8 +225,9 @@ CONTAINS
       my_requires_grad = .FALSE.
       IF (PRESENT(requires_grad)) my_requires_grad = requires_grad
       my_requires_coordinate_grad = .FALSE.
-      IF (PRESENT(requires_coordinate_grad)) &
+      IF (PRESENT(requires_coordinate_grad)) THEN
          my_requires_coordinate_grad = requires_coordinate_grad
+      END IF
       my_requires_stress_grad = .FALSE.
       IF (PRESENT(requires_stress_grad)) my_requires_stress_grad = requires_stress_grad
       my_use_atom_chunks = .FALSE.
@@ -595,8 +596,9 @@ CONTAINS
       END IF
 
       max_local_features = nflat_local
-      IF (my_atom_partition == skala_gpw_atom_partition_smooth) &
+      IF (my_atom_partition == skala_gpw_atom_partition_smooth) THEN
          max_local_features = nflat_local*natom
+      END IF
       ALLOCATE (local_owner(max_local_features), &
                 local_source_points(max_local_features), &
                 local_static(nstatic_per_point*max_local_features), &
@@ -779,8 +781,9 @@ CONTAINS
          atom_position(owner) = atom_position(owner) + 1
          source_global = global_source_points(ipt)
          cached_layout%feature_source_points(row) = source_global
-         IF (cached_layout%global_to_feature(source_global) == 0) &
+         IF (cached_layout%global_to_feature(source_global) == 0) THEN
             cached_layout%global_to_feature(source_global) = row
+         END IF
          static_base = nstatic_per_point*(ipt - 1)
          cached_layout%grid_coords(:, row) = global_static(static_base + 1:static_base + 3)
          cached_layout%grid_weights(row) = global_static(static_base + 4)
@@ -1458,14 +1461,18 @@ CONTAINS
       IF (ALLOCATED(cache%chunk_feature_displs)) DEALLOCATE (cache%chunk_feature_displs)
       IF (ALLOCATED(cache%chunk_grad_counts)) DEALLOCATE (cache%chunk_grad_counts)
       IF (ALLOCATED(cache%chunk_grad_displs)) DEALLOCATE (cache%chunk_grad_displs)
-      IF (ALLOCATED(cache%route_grad_return_recv_counts)) &
+      IF (ALLOCATED(cache%route_grad_return_recv_counts)) THEN
          DEALLOCATE (cache%route_grad_return_recv_counts)
-      IF (ALLOCATED(cache%route_grad_return_recv_displs)) &
+      END IF
+      IF (ALLOCATED(cache%route_grad_return_recv_displs)) THEN
          DEALLOCATE (cache%route_grad_return_recv_displs)
-      IF (ALLOCATED(cache%route_grad_return_send_counts)) &
+      END IF
+      IF (ALLOCATED(cache%route_grad_return_send_counts)) THEN
          DEALLOCATE (cache%route_grad_return_send_counts)
-      IF (ALLOCATED(cache%route_grad_return_send_displs)) &
+      END IF
+      IF (ALLOCATED(cache%route_grad_return_send_displs)) THEN
          DEALLOCATE (cache%route_grad_return_send_displs)
+      END IF
       IF (ALLOCATED(cache%route_local_dest)) DEALLOCATE (cache%route_local_dest)
       IF (ALLOCATED(cache%chunk_return_positions)) DEALLOCATE (cache%chunk_return_positions)
       IF (ALLOCATED(cache%route_point_recv_counts)) DEALLOCATE (cache%route_point_recv_counts)
@@ -1488,17 +1495,20 @@ CONTAINS
       IF (ALLOCATED(cache%local_feature_offsets)) DEALLOCATE (cache%local_feature_offsets)
       IF (ALLOCATED(cache%local_feature_points)) DEALLOCATE (cache%local_feature_points)
       IF (ALLOCATED(cache%local_feature_rows)) DEALLOCATE (cache%local_feature_rows)
-      IF (ALLOCATED(cache%atomic_grid_size_bound_shape)) &
+      IF (ALLOCATED(cache%atomic_grid_size_bound_shape)) THEN
          DEALLOCATE (cache%atomic_grid_size_bound_shape)
-      IF (ALLOCATED(cache%chunk_atomic_grid_size_bound_shape)) &
+      END IF
+      IF (ALLOCATED(cache%chunk_atomic_grid_size_bound_shape)) THEN
          DEALLOCATE (cache%chunk_atomic_grid_size_bound_shape)
+      END IF
       IF (ALLOCATED(cache%atomic_grid_weights)) DEALLOCATE (cache%atomic_grid_weights)
       IF (ALLOCATED(cache%chunk_atomic_grid_weights)) DEALLOCATE (cache%chunk_atomic_grid_weights)
       IF (ALLOCATED(cache%chunk_grid_weights)) DEALLOCATE (cache%chunk_grid_weights)
       IF (ALLOCATED(cache%grid_weights)) DEALLOCATE (cache%grid_weights)
       IF (ALLOCATED(cache%atom_coords)) DEALLOCATE (cache%atom_coords)
-      IF (ALLOCATED(cache%chunk_coarse_0_atomic_coords)) &
+      IF (ALLOCATED(cache%chunk_coarse_0_atomic_coords)) THEN
          DEALLOCATE (cache%chunk_coarse_0_atomic_coords)
+      END IF
       IF (ALLOCATED(cache%coarse_0_atomic_coords)) DEALLOCATE (cache%coarse_0_atomic_coords)
       IF (ALLOCATED(cache%chunk_grid_coords)) DEALLOCATE (cache%chunk_grid_coords)
       IF (ALLOCATED(cache%grid_coords)) DEALLOCATE (cache%grid_coords)
@@ -1592,22 +1602,30 @@ CONTAINS
       IF (ALLOCATED(features%chunk_grad_counts)) DEALLOCATE (features%chunk_grad_counts)
       IF (ALLOCATED(features%chunk_grad_displs)) DEALLOCATE (features%chunk_grad_displs)
       IF (ALLOCATED(features%chunk_return_positions)) DEALLOCATE (features%chunk_return_positions)
-      IF (ALLOCATED(features%route_grad_return_recv_counts)) &
+      IF (ALLOCATED(features%route_grad_return_recv_counts)) THEN
          DEALLOCATE (features%route_grad_return_recv_counts)
-      IF (ALLOCATED(features%route_grad_return_recv_displs)) &
+      END IF
+      IF (ALLOCATED(features%route_grad_return_recv_displs)) THEN
          DEALLOCATE (features%route_grad_return_recv_displs)
-      IF (ALLOCATED(features%route_grad_return_send_counts)) &
+      END IF
+      IF (ALLOCATED(features%route_grad_return_send_counts)) THEN
          DEALLOCATE (features%route_grad_return_send_counts)
-      IF (ALLOCATED(features%route_grad_return_send_displs)) &
+      END IF
+      IF (ALLOCATED(features%route_grad_return_send_displs)) THEN
          DEALLOCATE (features%route_grad_return_send_displs)
-      IF (ALLOCATED(features%route_point_recv_counts)) &
+      END IF
+      IF (ALLOCATED(features%route_point_recv_counts)) THEN
          DEALLOCATE (features%route_point_recv_counts)
-      IF (ALLOCATED(features%route_point_recv_displs)) &
+      END IF
+      IF (ALLOCATED(features%route_point_recv_displs)) THEN
          DEALLOCATE (features%route_point_recv_displs)
-      IF (ALLOCATED(features%route_point_send_counts)) &
+      END IF
+      IF (ALLOCATED(features%route_point_send_counts)) THEN
          DEALLOCATE (features%route_point_send_counts)
-      IF (ALLOCATED(features%route_point_send_displs)) &
+      END IF
+      IF (ALLOCATED(features%route_point_send_displs)) THEN
          DEALLOCATE (features%route_point_send_displs)
+      END IF
       IF (ALLOCATED(features%route_send_local_rows)) DEALLOCATE (features%route_send_local_rows)
       IF (ALLOCATED(features%feature_index)) DEALLOCATE (features%feature_index)
       IF (ALLOCATED(features%local_feature_counts)) DEALLOCATE (features%local_feature_counts)
@@ -1618,8 +1636,9 @@ CONTAINS
       IF (ALLOCATED(features%atomic_grid_weights)) DEALLOCATE (features%atomic_grid_weights)
       IF (ALLOCATED(features%atomic_grid_sizes)) DEALLOCATE (features%atomic_grid_sizes)
       IF (ALLOCATED(features%coarse_0_atomic_coords)) DEALLOCATE (features%coarse_0_atomic_coords)
-      IF (ALLOCATED(features%atomic_grid_size_bound_shape)) &
+      IF (ALLOCATED(features%atomic_grid_size_bound_shape)) THEN
          DEALLOCATE (features%atomic_grid_size_bound_shape)
+      END IF
       features%chunk_feature_count = 0
       features%nflat = 0
       features%nflat_local = 0

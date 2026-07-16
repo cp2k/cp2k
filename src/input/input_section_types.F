@@ -326,8 +326,9 @@ CONTAINS
          IF (ASSOCIATED(section)) THEN
             CPASSERT(section%ref_count > 0)
 
-            IF (.NOT. my_hide_root) &
+            IF (.NOT. my_hide_root) THEN
                WRITE (UNIT=unit_nr, FMT="('*** section &',A,' ***')") TRIM(ADJUSTL(section%name))
+            END IF
             IF (level > 1) THEN
                message = get_section_info(section)
                CALL print_message(TRIM(a2s(section%description))//TRIM(message), unit_nr, 0, 0, 0)
@@ -347,8 +348,9 @@ CONTAINS
                END DO
             END IF
             IF (section%n_subsections > 0 .AND. my_recurse >= 0) THEN
-               IF (.NOT. my_hide_root) &
+               IF (.NOT. my_hide_root) THEN
                   WRITE (UNIT=unit_nr, FMT="('** subsections **')")
+               END IF
                DO isub = 1, section%n_subsections
                   IF (my_recurse > 0) THEN
                      CALL section_describe(section%subsections(isub)%section, unit_nr, &
@@ -358,8 +360,9 @@ CONTAINS
                   END IF
                END DO
             END IF
-            IF (.NOT. my_hide_root) &
+            IF (.NOT. my_hide_root) THEN
                WRITE (UNIT=unit_nr, FMT="('*** &end section ',A,' ***')") TRIM(ADJUSTL(section%name))
+            END IF
          ELSE
             WRITE (unit_nr, "(a)") '<section *null*>'
          END IF
@@ -586,11 +589,12 @@ CONTAINS
          section%subsections => new_subsections
       END IF
       DO i = 1, section%n_subsections
-         IF (subsection%name == section%subsections(i)%section%name) &
+         IF (subsection%name == section%subsections(i)%section%name) THEN
             CALL cp_abort(__LOCATION__, &
                           "trying to add a subsection with a name ("// &
                           TRIM(subsection%name)//") that was already used in section " &
                           //TRIM(section%name))
+         END IF
       END DO
       CALL section_retain(subsection)
       section%n_subsections = section%n_subsections + 1
@@ -761,10 +765,11 @@ CONTAINS
 
       isection = section_get_subsection_index(section_vals%section, subsection_name(1:my_index))
       IF (isection > 0) res => section_vals%subs_vals(isection, irep)%section_vals
-      IF (.NOT. (ASSOCIATED(res) .OR. my_can_return_null)) &
+      IF (.NOT. (ASSOCIATED(res) .OR. my_can_return_null)) THEN
          CALL cp_abort(__LOCATION__, &
                        "could not find subsection "//TRIM(subsection_name(1:my_index))//" in section "// &
                        TRIM(section_vals%section%name)//" at ")
+      END IF
       IF (is_path .AND. ASSOCIATED(res)) THEN
          res => section_vals_get_subs_vals(res, subsection_name(my_index + 2:LEN_TRIM(subsection_name)), &
                                            i_rep_section, can_return_null)
@@ -1096,16 +1101,18 @@ CONTAINS
                      PRESENT(c_val) .OR. PRESENT(l_vals) .OR. PRESENT(i_vals) .OR. &
                      PRESENT(r_vals) .OR. PRESENT(c_vals)
       ik = section_get_keyword_index(s_vals%section, keyword_name(my_index:len_key))
-      IF (ik == -2) &
+      IF (ik == -2) THEN
          CALL cp_abort(__LOCATION__, &
                        "section "//TRIM(section%name)//" does not contain keyword "// &
                        TRIM(keyword_name(my_index:len_key)))
+      END IF
       keyword => section%keywords(ik)%keyword
-      IF (.NOT. (irs > 0 .AND. irs <= SIZE(s_vals%subs_vals, 2))) &
+      IF (.NOT. (irs > 0 .AND. irs <= SIZE(s_vals%subs_vals, 2))) THEN
          CALL cp_abort(__LOCATION__, &
                        "section repetition requested ("//cp_to_string(irs)// &
                        ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals, 2)) &
                        //")")
+      END IF
       NULLIFY (my_val)
       IF (PRESENT(n_rep_val)) n_rep_val = 0
       IF (irs <= SIZE(s_vals%values, 2)) THEN ! the section was parsed
@@ -1128,11 +1135,12 @@ CONTAINS
       END IF
       IF (PRESENT(val)) val => my_val
       IF (valRequested) THEN
-         IF (.NOT. ASSOCIATED(my_val)) &
+         IF (.NOT. ASSOCIATED(my_val)) THEN
             CALL cp_abort(__LOCATION__, &
                           "Value requested, but no value set getting value from "// &
                           "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "// &
                           TRIM(section%name))
+         END IF
          CALL val_get(my_val, l_val=l_val, i_val=i_val, r_val=r_val, &
                       c_val=c_val, l_vals=l_vals, i_vals=i_vals, r_vals=r_vals, &
                       c_vals=c_vals)
@@ -1183,15 +1191,17 @@ CONTAINS
       IF (PRESENT(i_rep_section)) irs = i_rep_section
       section => s_vals%section
       ik = section_get_keyword_index(s_vals%section, keyword_name(my_index:len_key))
-      IF (ik == -2) &
+      IF (ik == -2) THEN
          CALL cp_abort(__LOCATION__, &
                        "section "//TRIM(section%name)//" does not contain keyword "// &
                        TRIM(keyword_name(my_index:len_key)))
-      IF (.NOT. (irs > 0 .AND. irs <= SIZE(s_vals%subs_vals, 2))) &
+      END IF
+      IF (.NOT. (irs > 0 .AND. irs <= SIZE(s_vals%subs_vals, 2))) THEN
          CALL cp_abort(__LOCATION__, &
                        "section repetition requested ("//cp_to_string(irs)// &
                        ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals, 2)) &
                        //")")
+      END IF
       list => s_vals%values(ik, irs)%list
 
    END SUBROUTINE section_vals_list_get
@@ -1266,20 +1276,22 @@ CONTAINS
       IF (PRESENT(i_rep_val)) irk = i_rep_val
       section => s_vals%section
       ik = section_get_keyword_index(s_vals%section, keyword_name(my_index:len_key))
-      IF (ik == -2) &
+      IF (ik == -2) THEN
          CALL cp_abort(__LOCATION__, &
                        "section "//TRIM(section%name)//" does not contain keyword "// &
                        TRIM(keyword_name(my_index:len_key)))
+      END IF
       ! Add values..
       DO
          IF (irs <= SIZE(s_vals%values, 2)) EXIT
          CALL section_vals_add_values(s_vals)
       END DO
-      IF (.NOT. (irs > 0 .AND. irs <= SIZE(s_vals%subs_vals, 2))) &
+      IF (.NOT. (irs > 0 .AND. irs <= SIZE(s_vals%subs_vals, 2))) THEN
          CALL cp_abort(__LOCATION__, &
                        "section repetition requested ("//cp_to_string(irs)// &
                        ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals, 2)) &
                        //")")
+      END IF
       keyword => s_vals%section%keywords(ik)%keyword
       NULLIFY (my_val)
       IF (PRESENT(val)) my_val => val
@@ -1288,18 +1300,20 @@ CONTAINS
                PRESENT(r_vals_ptr) .OR. PRESENT(c_vals_ptr)
       IF (ASSOCIATED(my_val)) THEN
          ! check better?
-         IF (valSet) &
+         IF (valSet) THEN
             CALL cp_abort(__LOCATION__, &
                           " both val and values present, in setting "// &
                           "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "// &
                           TRIM(section%name))
+         END IF
       ELSE
          ! ignore ?
-         IF (.NOT. valSet) &
+         IF (.NOT. valSet) THEN
             CALL cp_abort(__LOCATION__, &
                           " empty value in setting "// &
                           "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "// &
                           TRIM(section%name))
+         END IF
          CPASSERT(valSet)
          IF (keyword%type_of_var == lchar_t) THEN
             CALL val_create(my_val, lc_val=c_val, lc_vals_ptr=c_vals_ptr)
@@ -1316,11 +1330,12 @@ CONTAINS
       IF (irk == -1) THEN
          CALL cp_sll_val_insert_el_at(vals, my_val, index=-1)
       ELSE IF (irk <= cp_sll_val_get_length(vals)) THEN
-         IF (irk <= 0) &
+         IF (irk <= 0) THEN
             CALL cp_abort(__LOCATION__, &
                           "invalid irk "//TRIM(ADJUSTL(cp_to_string(irk)))// &
                           " in keyword "//TRIM(keyword_name(my_index:len_key))//" of section "// &
                           TRIM(section%name))
+         END IF
          old_val => cp_sll_val_get_el_at(vals, index=irk)
          CALL val_release(old_val)
          CALL cp_sll_val_set_el_at(vals, value=my_val, index=irk)
@@ -1386,17 +1401,19 @@ CONTAINS
       IF (PRESENT(i_rep_val)) irk = i_rep_val
       section => s_vals%section
       ik = section_get_keyword_index(s_vals%section, keyword_name(my_index:len_key))
-      IF (ik == -2) &
+      IF (ik == -2) THEN
          CALL cp_abort(__LOCATION__, &
                        "section "//TRIM(section%name)//" does not contain keyword "// &
                        TRIM(keyword_name(my_index:len_key)))
+      END IF
       ! ignore unset of non set values
       IF (irs <= SIZE(s_vals%values, 2)) THEN
-         IF (.NOT. (irs > 0 .AND. irs <= SIZE(s_vals%subs_vals, 2))) &
+         IF (.NOT. (irs > 0 .AND. irs <= SIZE(s_vals%subs_vals, 2))) THEN
             CALL cp_abort(__LOCATION__, &
                           "section repetition requested ("//cp_to_string(irs)// &
                           ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals, 2)) &
                           //")")
+         END IF
          IF (irk == -1) THEN
             pos => cp_sll_val_get_rest(s_vals%values(ik, irs)%list, iter=-1)
          ELSE
@@ -1589,10 +1606,11 @@ CONTAINS
             TRIM(substitute_special_xml_tokens(a2s(section%description))) &
             //"</DESCRIPTION>"
 
-         IF (ALLOCATED(section%deprecation_notice)) &
+         IF (ALLOCATED(section%deprecation_notice)) THEN
             WRITE (UNIT=unit_number, FMT="(A)") REPEAT(" ", l1)//"<DEPRECATION_NOTICE>"// &
-            TRIM(substitute_special_xml_tokens(section%deprecation_notice)) &
-            //"</DEPRECATION_NOTICE>"
+               TRIM(substitute_special_xml_tokens(section%deprecation_notice)) &
+               //"</DEPRECATION_NOTICE>"
+         END IF
 
          IF (ASSOCIATED(section%citations)) THEN
             DO i = 1, SIZE(section%citations, 1)
@@ -1735,10 +1753,11 @@ CONTAINS
       CPASSERT(irep <= SIZE(s_vals%subs_vals, 2))
 
       isection = section_get_subsection_index(s_vals%section, subsection_name(my_index:LEN_TRIM(subsection_name)))
-      IF (isection <= 0) &
+      IF (isection <= 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "could not find subsection "//subsection_name(my_index:LEN_TRIM(subsection_name))//" in section "// &
                        TRIM(section_vals%section%name)//" at ")
+      END IF
       CALL section_vals_retain(new_section_vals)
       CALL section_vals_release(s_vals%subs_vals(isection, irep)%section_vals)
       s_vals%subs_vals(isection, irep)%section_vals => new_section_vals
@@ -1813,10 +1832,12 @@ CONTAINS
          END DO
       END DO
       IF (.NOT. PRESENT(i_rep_low) .AND. (.NOT. PRESENT(i_rep_high))) THEN
-         IF (.NOT. (SIZE(section_vals_in%values, 2) == SIZE(section_vals_out%values, 2))) &
+         IF (.NOT. (SIZE(section_vals_in%values, 2) == SIZE(section_vals_out%values, 2))) THEN
             CPABORT("Incompatible sizes of values between input and output")
-         IF (.NOT. (SIZE(section_vals_in%subs_vals, 2) == SIZE(section_vals_out%subs_vals, 2))) &
+         END IF
+         IF (.NOT. (SIZE(section_vals_in%subs_vals, 2) == SIZE(section_vals_out%subs_vals, 2))) THEN
             CPABORT("Incompatible sizes of subsections between input and output")
+         END IF
       END IF
       iend = SIZE(section_vals_in%subs_vals, 2)
       IF (PRESENT(i_rep_high)) iend = i_rep_high

@@ -277,7 +277,7 @@ CONTAINS
                         IF (my_rho < rho_smooth_cutoff) THEN
                            IF (my_rho < rho_cutoff) THEN
                               pot(i, j, k) = 0.0_dp
-                           ELSEIF (my_rho < rho_smooth_cutoff_2) THEN
+                           ELSE IF (my_rho < rho_smooth_cutoff_2) THEN
                               my_rho_n = (my_rho - rho_cutoff)/rho_smooth_cutoff_range_2
                               my_rho_n2 = my_rho_n*my_rho_n
                               pot(i, j, k) = pot(i, j, k)* &
@@ -312,7 +312,7 @@ CONTAINS
                         IF (my_rho < rho_smooth_cutoff) THEN
                            IF (my_rho < rho_cutoff) THEN
                               pot(i, j, k) = 0.0_dp
-                           ELSEIF (my_rho < rho_smooth_cutoff_2) THEN
+                           ELSE IF (my_rho < rho_smooth_cutoff_2) THEN
                               my_rho_n = (my_rho - rho_cutoff)/rho_smooth_cutoff_range_2
                               my_rho_n2 = my_rho_n*my_rho_n
                               pot(i, j, k) = pot(i, j, k)* &
@@ -349,7 +349,7 @@ CONTAINS
                         IF (my_rho < rho_smooth_cutoff) THEN
                            IF (my_rho < rho_cutoff) THEN
                               pot(i, j, k) = 0.0_dp
-                           ELSEIF (my_rho < rho_smooth_cutoff_2) THEN
+                           ELSE IF (my_rho < rho_smooth_cutoff_2) THEN
                               my_rho_n = (my_rho - rho_cutoff)/rho_smooth_cutoff_range_2
                               my_rho_n2 = my_rho_n*my_rho_n
                               pot(i, j, k) = pot(i, j, k)* &
@@ -378,7 +378,7 @@ CONTAINS
                         IF (my_rho < rho_smooth_cutoff) THEN
                            IF (my_rho < rho_cutoff) THEN
                               pot(i, j, k) = 0.0_dp
-                           ELSEIF (my_rho < rho_smooth_cutoff_2) THEN
+                           ELSE IF (my_rho < rho_smooth_cutoff_2) THEN
                               my_rho_n = (my_rho - rho_cutoff)/rho_smooth_cutoff_range_2
                               my_rho_n2 = my_rho_n*my_rho_n
                               pot(i, j, k) = pot(i, j, k)* &
@@ -990,8 +990,9 @@ CONTAINS
       needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
 
       IF (needs%tau .OR. needs%tau_spin) THEN
-         IF (.NOT. ASSOCIATED(tau1_r)) &
+         IF (.NOT. ASSOCIATED(tau1_r)) THEN
             CPABORT("Tau-dependent functionals requires allocated kinetic energy density grid")
+         END IF
          ALLOCATE (v_xc_tau(nspins))
          DO ispin = 1, nspins
             CALL pw_pool%create_pw(v_xc_tau(ispin))
@@ -2165,8 +2166,9 @@ CONTAINS
          END DO
       END IF
 
-      IF (laplace_f .AND. my_gapw) &
+      IF (laplace_f .AND. my_gapw) THEN
          CPABORT("Laplace-dependent functional not implemented with GAPW!")
+      END IF
 
       IF (my_compute_virial .AND. (gradient_f .OR. laplace_f)) CALL allocate_pw(virial_pw, pw_pool, bo)
 
@@ -3416,8 +3418,7 @@ CONTAINS
       lsd = (nspins /= 1)
 
       NULLIFY (rho_g, tau)
-      IF (PRESENT(tau_r)) &
-         tau => tau_r
+      IF (PRESENT(tau_r)) tau => tau_r
 
       IF (section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")) THEN
          CALL xc_rho_set_and_dset_create(rho_set, deriv_set, 2, &
@@ -3481,8 +3482,7 @@ CONTAINS
       lsd = (nspins /= 1)
 
       NULLIFY (rho_g, tau)
-      IF (PRESENT(tau_r)) &
-         tau => tau_r
+      IF (PRESENT(tau_r)) tau => tau_r
 
       my_do_sf = .FALSE.
       IF (PRESENT(do_sf)) my_do_sf = do_sf
@@ -3590,8 +3590,9 @@ CONTAINS
                   CPABORT("Normalization of derivative requires any of norm_drhob or drhob!")
                END IF
             CASE (deriv_rho, deriv_tau, deriv_laplace_rho)
-               IF (lsd) &
+               IF (lsd) THEN
                   CPABORT(TRIM(id_to_desc(split_desc(idesc)))//" not handled in lsd!'")
+               END IF
             CASE (deriv_rhoa, deriv_rhob, deriv_tau_a, deriv_tau_b, deriv_laplace_rhoa, deriv_laplace_rhob)
             CASE default
                CPABORT("Unknown derivative id")

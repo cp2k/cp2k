@@ -55,15 +55,15 @@ CONTAINS
 
       IF (dft_control%qs_control%semi_empirical) THEN
          CALL scf_post_calculation_se(qs_env)
-      ELSEIF (dft_control%qs_control%dftb) THEN
+      ELSE IF (dft_control%qs_control%dftb) THEN
          CALL wfn_localization_tb(qs_env, "DFTB")
          CALL scf_post_calculation_tb(qs_env, "DFTB", .FALSE.)
-      ELSEIF (dft_control%qs_control%xtb) THEN
+      ELSE IF (dft_control%qs_control%xtb) THEN
          CALL wfn_localization_tb(qs_env, "xTB")
          CALL scf_post_calculation_tb(qs_env, "xTB", .FALSE.)
-      ELSEIF (dft_control%qs_control%ofgpw) THEN
+      ELSE IF (dft_control%qs_control%ofgpw) THEN
          CPWARN("No properties from PRINT section available for OFGPW methods")
-      ELSEIF (dft_control%qs_control%lri_optbas .AND. dft_control%qs_control%gpw) THEN
+      ELSE IF (dft_control%qs_control%lri_optbas .AND. dft_control%qs_control%gpw) THEN
          CALL optimize_lri_basis(qs_env)
       ELSE
          IF (PRESENT(wf_type)) THEN

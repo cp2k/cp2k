@@ -587,11 +587,13 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf
 
       IF (PRESENT(name)) name = potential%name
-      IF (PRESENT(alpha_core_charge)) &
+      IF (PRESENT(alpha_core_charge)) THEN
          alpha_core_charge = potential%alpha_core_charge
+      END IF
       IF (PRESENT(ccore_charge)) ccore_charge = potential%ccore_charge
-      IF (PRESENT(core_charge_radius)) &
+      IF (PRESENT(core_charge_radius)) THEN
          core_charge_radius = potential%core_charge_radius
+      END IF
       IF (PRESENT(z)) z = potential%z
       IF (PRESENT(zeff)) zeff = potential%zeff
       IF (PRESENT(zeff_correction)) zeff_correction = potential%zeff_correction
@@ -763,13 +765,15 @@ CONTAINS
 
       IF (PRESENT(name)) name = potential%name
       IF (PRESENT(aliases)) aliases = potential%aliases
-      IF (PRESENT(alpha_core_charge)) &
+      IF (PRESENT(alpha_core_charge)) THEN
          alpha_core_charge = potential%alpha_core_charge
+      END IF
       IF (PRESENT(alpha_ppl)) alpha_ppl = potential%alpha_ppl
       IF (PRESENT(ccore_charge)) ccore_charge = potential%ccore_charge
       IF (PRESENT(cerf_ppl)) cerf_ppl = potential%cerf_ppl
-      IF (PRESENT(core_charge_radius)) &
+      IF (PRESENT(core_charge_radius)) THEN
          core_charge_radius = potential%core_charge_radius
+      END IF
       IF (PRESENT(ppl_radius)) ppl_radius = potential%ppl_radius
       IF (PRESENT(ppnl_radius)) ppnl_radius = potential%ppnl_radius
       IF (PRESENT(soc_present)) soc_present = potential%soc
@@ -1371,9 +1375,10 @@ CONTAINS
                CALL reallocate(elec_conf, 0, l)
                IF (read_from_input) THEN
                   is_ok = cp_sll_val_next(list, val)
-                  IF (.NOT. is_ok) &
+                  IF (.NOT. is_ok) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Error reading the Potential from input file!")
+                  END IF
                   CALL val_get(val, c_val=line_att)
                   READ (line_att, *) elec_conf(l)
                   CALL remove_word(line_att)
@@ -1411,9 +1416,10 @@ CONTAINS
 
                IF (read_from_input) THEN
                   is_ok = cp_sll_val_next(list, val)
-                  IF (.NOT. is_ok) &
+                  IF (.NOT. is_ok) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Error reading the Potential from input file!")
+                  END IF
                   CALL val_get(val, c_val=line_att)
                   READ (line_att, *) r
                ELSE
@@ -1557,9 +1563,10 @@ CONTAINS
                ! Read ngau and npol
                IF (read_from_input) THEN
                   is_ok = cp_sll_val_next(list, val)
-                  IF (.NOT. is_ok) &
+                  IF (.NOT. is_ok) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Error reading the Potential from input file!")
+                  END IF
                   CALL val_get(val, c_val=line_att)
                   READ (line_att, *) ngau, npol
                   CALL remove_word(line_att)
@@ -1579,9 +1586,10 @@ CONTAINS
                DO igau = 1, ngau
                   IF (read_from_input) THEN
                      is_ok = cp_sll_val_next(list, val)
-                     IF (.NOT. is_ok) &
+                     IF (.NOT. is_ok) THEN
                         CALL cp_abort(__LOCATION__, &
                                       "Error reading the Potential from input file!")
+                     END IF
                      CALL val_get(val, c_val=line_att)
                      READ (line_att, *) alpha(igau), (cval(igau, ipol), ipol=1, npol)
                   ELSE
@@ -1775,9 +1783,10 @@ CONTAINS
                CALL reallocate(elec_conf, 0, l)
                IF (read_from_input) THEN
                   is_ok = cp_sll_val_next(list, val)
-                  IF (.NOT. is_ok) &
+                  IF (.NOT. is_ok) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Error while reading GTH potential from input file")
+                  END IF
                   CALL val_get(val, c_val=line_att)
                   READ (line_att, *) elec_conf(l)
                   CALL remove_word(line_att)
@@ -1818,9 +1827,10 @@ CONTAINS
                ! distribution and calculate the corresponding coefficient
                IF (read_from_input) THEN
                   is_ok = cp_sll_val_next(list, val)
-                  IF (.NOT. is_ok) &
+                  IF (.NOT. is_ok) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Error while reading GTH potential from input file")
+                  END IF
                   CALL val_get(val, c_val=line_att)
                   READ (line_att, *) r
                   CALL remove_word(line_att)
@@ -2157,9 +2167,10 @@ CONTAINS
                   DO l = 0, lppnl
                      IF (read_from_input) THEN
                         is_ok = cp_sll_val_next(list, val)
-                        IF (.NOT. is_ok) &
+                        IF (.NOT. is_ok) THEN
                            CALL cp_abort(__LOCATION__, &
                                          "Error while reading GTH potential from input file")
+                        END IF
                         CALL val_get(val, c_val=line_att)
                         READ (line_att, *) r
                         CALL remove_word(line_att)
@@ -2204,13 +2215,15 @@ CONTAINS
                            END IF
                         ELSE
                            IF (read_from_input) THEN
-                              IF (LEN_TRIM(line_att) /= 0) &
+                              IF (LEN_TRIM(line_att) /= 0) THEN
                                  CALL cp_abort(__LOCATION__, &
                                                "Error while reading GTH potential from input file")
+                              END IF
                               is_ok = cp_sll_val_next(list, val)
-                              IF (.NOT. is_ok) &
+                              IF (.NOT. is_ok) THEN
                                  CALL cp_abort(__LOCATION__, &
                                                "Error while reading GTH potential from input file")
+                              END IF
                               CALL val_get(val, c_val=line_att)
                               READ (line_att, *) hprj_ppnl(i, i, l)
                               CALL remove_word(line_att)
@@ -2258,13 +2271,15 @@ CONTAINS
                         ! Read non-local parameters for spin-orbit coupling
                         DO i = 1, nprj_ppnl
                            IF (read_from_input) THEN
-                              IF (LEN_TRIM(line_att) /= 0) &
+                              IF (LEN_TRIM(line_att) /= 0) THEN
                                  CALL cp_abort(__LOCATION__, &
                                                "Error while reading GTH potential from input file")
+                              END IF
                               is_ok = cp_sll_val_next(list, val)
-                              IF (.NOT. is_ok) &
+                              IF (.NOT. is_ok) THEN
                                  CALL cp_abort(__LOCATION__, &
                                                "Error while reading GTH potential from input file")
+                              END IF
                               CALL val_get(val, c_val=line_att)
                               READ (line_att, *) kprj_ppnl(i, i, l)
                               CALL remove_word(line_att)
@@ -2443,11 +2458,13 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf
 
       IF (PRESENT(name)) potential%name = name
-      IF (PRESENT(alpha_core_charge)) &
+      IF (PRESENT(alpha_core_charge)) THEN
          potential%alpha_core_charge = alpha_core_charge
+      END IF
       IF (PRESENT(ccore_charge)) potential%ccore_charge = ccore_charge
-      IF (PRESENT(core_charge_radius)) &
+      IF (PRESENT(core_charge_radius)) THEN
          potential%core_charge_radius = core_charge_radius
+      END IF
       IF (PRESENT(z)) potential%z = z
       IF (PRESENT(zeff)) potential%zeff = zeff
       IF (PRESENT(zeff_correction)) potential%zeff_correction = zeff_correction
@@ -2573,13 +2590,15 @@ CONTAINS
          POINTER                                         :: hprj_ppnl, kprj_ppnl
 
       IF (PRESENT(name)) potential%name = name
-      IF (PRESENT(alpha_core_charge)) &
+      IF (PRESENT(alpha_core_charge)) THEN
          potential%alpha_core_charge = alpha_core_charge
+      END IF
       IF (PRESENT(alpha_ppl)) potential%alpha_ppl = alpha_ppl
       IF (PRESENT(ccore_charge)) potential%ccore_charge = ccore_charge
       IF (PRESENT(cerf_ppl)) potential%cerf_ppl = cerf_ppl
-      IF (PRESENT(core_charge_radius)) &
+      IF (PRESENT(core_charge_radius)) THEN
          potential%core_charge_radius = core_charge_radius
+      END IF
       IF (PRESENT(ppl_radius)) potential%ppl_radius = ppl_radius
       IF (PRESENT(ppnl_radius)) potential%ppnl_radius = ppnl_radius
       IF (PRESENT(lppnl)) potential%lppnl = lppnl

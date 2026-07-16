@@ -49,8 +49,9 @@ CONTAINS
    SUBROUTINE pao_param_init_equi(pao)
       TYPE(pao_env_type), POINTER                        :: pao
 
-      IF (pao%precondition) &
+      IF (pao%precondition) THEN
          CPABORT("PAO preconditioning not supported for selected parametrization.")
+      END IF
 
    END SUBROUTINE pao_param_init_equi
 

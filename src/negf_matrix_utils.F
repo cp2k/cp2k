@@ -342,8 +342,9 @@ CONTAINS
 
       DO ic = 1, ncell
          rep = i_to_c(direction_axis_abs, ic)
-         IF (ABS(rep) <= 2) &
+         IF (ABS(rep) <= 2) THEN
             CALL dbcsr_add(matrix_cells_raw(rep)%matrix, mat_nosym(ic)%matrix, 1.0_dp, 1.0_dp)
+         END IF
       END DO
 
       IF (direction_axis >= 0) THEN
@@ -469,15 +470,17 @@ CONTAINS
                                    block=rblock, found=found)
             IF (found) THEN
                iproc = rank_contact(irow, icol)
-               IF (iproc > 0) &
+               IF (iproc > 0) THEN
                   send_nelems(iproc) = send_nelems(iproc) + SIZE(rblock)
+               END IF
             END IF
 
             CALL dbcsr_get_block_p(matrix=matrix_contact, row=irow, col=icol, block=rblock, found=found)
             IF (found) THEN
                iproc = rank_device(irow, icol)
-               IF (iproc > 0) &
+               IF (iproc > 0) THEN
                   recv_nelems(iproc) = recv_nelems(iproc) + SIZE(rblock)
+               END IF
             END IF
          END DO
       END DO
@@ -485,14 +488,16 @@ CONTAINS
       ! pack blocks
       ALLOCATE (recv_packed_blocks(para_env%num_pe))
       DO iproc = 1, para_env%num_pe
-         IF (iproc /= mepos_plus1 .AND. recv_nelems(iproc) > 0) &
+         IF (iproc /= mepos_plus1 .AND. recv_nelems(iproc) > 0) THEN
             ALLOCATE (recv_packed_blocks(iproc)%vector(recv_nelems(iproc)))
+         END IF
       END DO
 
       ALLOCATE (send_packed_blocks(para_env%num_pe))
       DO iproc = 1, para_env%num_pe
-         IF (send_nelems(iproc) > 0) &
+         IF (send_nelems(iproc) > 0) THEN
             ALLOCATE (send_packed_blocks(iproc)%vector(send_nelems(iproc)))
+         END IF
       END DO
 
       send_nelems(:) = 0
@@ -556,15 +561,17 @@ CONTAINS
                CALL para_env%irecv(recv_packed_blocks(iproc)%vector, iproc - 1, recv_handlers(iproc), 1)
             END IF
          ELSE
-            IF (ALLOCATED(send_packed_blocks(iproc)%vector)) &
+            IF (ALLOCATED(send_packed_blocks(iproc)%vector)) THEN
                CALL MOVE_ALLOC(send_packed_blocks(iproc)%vector, recv_packed_blocks(iproc)%vector)
+            END IF
          END IF
       END DO
 
       ! unpack blocks
       DO iproc = 1, para_env%num_pe
-         IF (iproc /= mepos_plus1 .AND. recv_nelems(iproc) > 0) &
+         IF (iproc /= mepos_plus1 .AND. recv_nelems(iproc) > 0) THEN
             CALL recv_handlers(iproc)%wait()
+         END IF
       END DO
 
       recv_nelems(:) = 0
@@ -601,22 +608,25 @@ CONTAINS
       END DO
 
       DO iproc = 1, para_env%num_pe
-         IF (iproc /= mepos_plus1 .AND. send_nelems(iproc) > 0) &
+         IF (iproc /= mepos_plus1 .AND. send_nelems(iproc) > 0) THEN
             CALL send_handlers(iproc)%wait()
+         END IF
       END DO
 
       ! release memory
       DEALLOCATE (recv_handlers, send_handlers)
 
       DO iproc = para_env%num_pe, 1, -1
-         IF (ALLOCATED(send_packed_blocks(iproc)%vector)) &
+         IF (ALLOCATED(send_packed_blocks(iproc)%vector)) THEN
             DEALLOCATE (send_packed_blocks(iproc)%vector)
+         END IF
       END DO
       DEALLOCATE (send_packed_blocks)
 
       DO iproc = para_env%num_pe, 1, -1
-         IF (ALLOCATED(recv_packed_blocks(iproc)%vector)) &
+         IF (ALLOCATED(recv_packed_blocks(iproc)%vector)) THEN
             DEALLOCATE (recv_packed_blocks(iproc)%vector)
+         END IF
       END DO
       DEALLOCATE (recv_packed_blocks)
 
@@ -744,8 +754,9 @@ CONTAINS
       nomirror = 0
       DO ic = 1, ncell
          cell = i2c(:, ic)
-         IF (cell_to_index(-cell(1), -cell(2), -cell(3)) == 0) &
+         IF (cell_to_index(-cell(1), -cell(2), -cell(3)) == 0) THEN
             nomirror = nomirror + 1
+         END IF
       END DO
 
       ! create the mirror imgs

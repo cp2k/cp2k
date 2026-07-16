@@ -195,8 +195,9 @@ CONTAINS
                          nshell=nshell, &
                          particles=particles, &
                          virial=virial)
-      IF (nshell /= 0) &
+      IF (nshell /= 0) THEN
          CPABORT("Langevin dynamics is not yet implemented for core-shell models")
+      END IF
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
@@ -1651,10 +1652,11 @@ CONTAINS
 
       ! Check if we reached the end of the file and provide some info..
       IF (my_end) THEN
-         IF (reftraj_env%isnap /= (simpar%nsteps - 1)) &
+         IF (reftraj_env%isnap /= (simpar%nsteps - 1)) THEN
             CALL cp_abort(__LOCATION__, &
                           "Reached the end of the Trajectory  frames in the TRAJECTORY file. Number of "// &
                           "missing frames ("//cp_to_string((simpar%nsteps - 1) - reftraj_env%isnap)//").")
+         END IF
       END IF
 
       ! Read cell parameters from cell file if requested and if not yet available
@@ -1664,10 +1666,11 @@ CONTAINS
          CPASSERT(trj_itimes == cell_itimes)
          ! Check if we reached the end of the file and provide some info..
          IF (my_end) THEN
-            IF (reftraj_env%isnap /= (simpar%nsteps - 1)) &
+            IF (reftraj_env%isnap /= (simpar%nsteps - 1)) THEN
                CALL cp_abort(__LOCATION__, &
                              "Reached the end of the cell info frames in the CELL file. Number of "// &
                              "missing frames ("//cp_to_string((simpar%nsteps - 1) - reftraj_env%isnap)//").")
+            END IF
          END IF
       END IF
 
@@ -2527,9 +2530,10 @@ CONTAINS
                               core_particle_set, para_env, shell_adiabatic, vel=.TRUE.)
 
       ! Update constraint virial
-      IF (simpar%constraint) &
+      IF (simpar%constraint) THEN
          CALL pv_constraint(gci, local_molecules, molecule_set, &
                             molecule_kind_set, particle_set, virial, para_env)
+      END IF
 
       CALL virial_evaluate(atomic_kind_set, particle_set, &
                            local_particles, virial, para_env)

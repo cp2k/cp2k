@@ -407,10 +407,10 @@ CONTAINS
       DO j = b, e
          IF (Func(j:j) == '(') THEN
             ParCnt = ParCnt + 1
-         ELSEIF (Func(j:j) == ')') THEN
+         ELSE IF (Func(j:j) == ')') THEN
             ParCnt = ParCnt - 1
             IF (ParCnt == 0) EXIT
-         ELSEIF (ParCnt == 1 .AND. Func(j:j) == ',') THEN
+         ELSE IF (ParCnt == 1 .AND. Func(j:j) == ',') THEN
             ArgPos = j
             ArgCnt = ArgCnt + 1
          END IF
@@ -748,7 +748,7 @@ CONTAINS
          DO j = b + 1, e - 1
             IF (F(j:j) == '(') THEN
                k = k + 1
-            ELSEIF (F(j:j) == ')') THEN
+            ELSE IF (F(j:j) == ')') THEN
                k = k - 1
             END IF
             IF (k < 0) EXIT
@@ -792,11 +792,11 @@ CONTAINS
 !      WRITE(*,*)'1. F(b:e) = "+..."'
          CALL CompileSubstr(i, F, b + 1, e, Var)
          RETURN
-      ELSEIF (CompletelyEnclosed(F, b, e)) THEN ! Case 2: F(b:e) = '(...)'
+      ELSE IF (CompletelyEnclosed(F, b, e)) THEN ! Case 2: F(b:e) = '(...)'
 !      WRITE(*,*)'2. F(b:e) = "(...)"'
          CALL CompileSubstr(i, F, b + 1, e - 1, Var)
          RETURN
-      ELSEIF (SCAN(F(b:b), calpha) > 0) THEN
+      ELSE IF (SCAN(F(b:b), calpha) > 0) THEN
          n = MathFunctionIndex(F(b:e))
          IF (n > 0) THEN
             b2 = b + INDEX(F(b:e), '(') - 1
@@ -807,13 +807,13 @@ CONTAINS
                RETURN
             END IF
          END IF
-      ELSEIF (F(b:b) == '-') THEN
+      ELSE IF (F(b:b) == '-') THEN
          IF (CompletelyEnclosed(F, b + 1, e)) THEN ! Case 4: F(b:e) = '-(...)'
 !         WRITE(*,*)'4. F(b:e) = "-(...)"'
             CALL CompileSubstr(i, F, b + 2, e - 1, Var)
             CALL AddCompiledByte(i, cNeg)
             RETURN
-         ELSEIF (SCAN(F(b + 1:b + 1), calpha) > 0) THEN
+         ELSE IF (SCAN(F(b + 1:b + 1), calpha) > 0) THEN
             n = MathFunctionIndex(F(b + 1:e))
             IF (n > 0) THEN
                b2 = b + INDEX(F(b + 1:e), '(')
@@ -835,7 +835,7 @@ CONTAINS
          DO j = e, b, -1
             IF (F(j:j) == ')') THEN
                k = k + 1
-            ELSEIF (F(j:j) == '(') THEN
+            ELSE IF (F(j:j) == '(') THEN
                k = k - 1
             END IF
             IF (k == 0 .AND. F(j:j) == Ops(io) .AND. IsBinaryOp(j, F)) THEN
@@ -900,9 +900,9 @@ CONTAINS
       DO j = b, e
          IF (F(j:j) == '(') THEN
             ParCnt = ParCnt + 1
-         ELSEIF (F(j:j) == ')') THEN
+         ELSE IF (F(j:j) == ')') THEN
             ParCnt = ParCnt - 1
-         ELSEIF (ParCnt == 0 .AND. F(j:j) == ',') THEN
+         ELSE IF (ParCnt == 0 .AND. F(j:j) == ',') THEN
             CALL CompileSubstr(i, F, b2, j - 1, Var)
             b2 = j + 1
          END IF
@@ -938,17 +938,17 @@ CONTAINS
       IF (F(j:j) == '+' .OR. F(j:j) == '-') THEN ! Plus or minus sign:
          IF (j == 1) THEN ! - leading unary operator ?
             res = .FALSE.
-         ELSEIF (SCAN(F(j - 1:j - 1), '+-*/^(,') > 0) THEN ! - other unary operator ?
+         ELSE IF (SCAN(F(j - 1:j - 1), '+-*/^(,') > 0) THEN ! - other unary operator ?
             res = .FALSE.
-         ELSEIF (SCAN(F(j + 1:j + 1), '0123456789') > 0 .AND. & ! - in exponent of real number ?
-                 SCAN(F(j - 1:j - 1), 'eEdD') > 0) THEN
+         ELSE IF (SCAN(F(j + 1:j + 1), '0123456789') > 0 .AND. & ! - in exponent of real number ?
+                  SCAN(F(j - 1:j - 1), 'eEdD') > 0) THEN
             Dflag = .FALSE.; Pflag = .FALSE.
             k = j - 1
             DO WHILE (k > 1) !   step to the left in mantissa
                k = k - 1
                IF (SCAN(F(k:k), '0123456789') > 0) THEN
                   Dflag = .TRUE.
-               ELSEIF (F(k:k) == '.') THEN
+               ELSE IF (F(k:k) == '.') THEN
                   IF (Pflag) THEN
                      EXIT !   * EXIT: 2nd appearance of '.'
                   ELSE
@@ -1011,7 +1011,7 @@ CONTAINS
          CASE ('+', '-') ! Permitted only
             IF (Bflag) THEN
                InMan = .TRUE.; Bflag = .FALSE. ! - at beginning of mantissa
-            ELSEIF (Eflag) THEN
+            ELSE IF (Eflag) THEN
                InExp = .TRUE.; Eflag = .FALSE. ! - at beginning of exponent
             ELSE
                EXIT ! - otherwise STOP
@@ -1019,7 +1019,7 @@ CONTAINS
          CASE ('0':'9') ! Mark
             IF (Bflag) THEN
                InMan = .TRUE.; Bflag = .FALSE. ! - beginning of mantissa
-            ELSEIF (Eflag) THEN
+            ELSE IF (Eflag) THEN
                InExp = .TRUE.; Eflag = .FALSE. ! - beginning of exponent
             END IF
             IF (InMan) DInMan = .TRUE. ! Mantissa contains digit
@@ -1028,7 +1028,7 @@ CONTAINS
             IF (Bflag) THEN
                Pflag = .TRUE. ! - mark 1st appearance of '.'
                InMan = .TRUE.; Bflag = .FALSE. !   mark beginning of mantissa
-            ELSEIF (InMan .AND. .NOT. Pflag) THEN
+            ELSE IF (InMan .AND. .NOT. Pflag) THEN
                Pflag = .TRUE. ! - mark 1st appearance of '.'
             ELSE
                EXIT ! - otherwise STOP

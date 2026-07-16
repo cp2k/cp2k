@@ -80,9 +80,10 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section
 
       IF (PRESENT(require_consistent_energy_force)) THEN
-         IF (require_consistent_energy_force) &
+         IF (require_consistent_energy_force) THEN
             CALL cp_abort(__LOCATION__, &
                           "qmmmx_energy_and_forces got require_consistent_energy_force but force mixing is active. ")
+         END IF
       END IF
 
       ! Possibly translate the system
@@ -118,9 +119,9 @@ CONTAINS
 
          IF (mom_conserv_region == do_fm_mom_conserv_core) THEN
             mom_conserv_min_label = force_mixing_label_QM_core
-         ELSEIF (mom_conserv_region == do_fm_mom_conserv_QM) THEN
+         ELSE IF (mom_conserv_region == do_fm_mom_conserv_QM) THEN
             mom_conserv_min_label = force_mixing_label_QM_dynamics
-         ELSEIF (mom_conserv_region == do_fm_mom_conserv_buffer) THEN
+         ELSE IF (mom_conserv_region == do_fm_mom_conserv_buffer) THEN
             mom_conserv_min_label = force_mixing_label_buffer
          ELSE
             CPABORT("Got unknown MOMENTUM_CONSERVATION_REGION (not CORE, QM, or BUFFER) !")
@@ -141,8 +142,9 @@ CONTAINS
          ELSE IF (mom_conserv_type == do_fm_mom_conserv_equal_a) THEN
             mom_conserv_mass = 0.0_dp
             DO ip = 1, SIZE(cur_indices)
-               IF (cur_labels(ip) >= mom_conserv_min_label) &
+               IF (cur_labels(ip) >= mom_conserv_min_label) THEN
                   mom_conserv_mass = mom_conserv_mass + particles_qmmm_core(cur_indices(ip))%atomic_kind%mass
+               END IF
             END DO
             delta_a = total_f/mom_conserv_mass
             DO ip = 1, SIZE(cur_indices)

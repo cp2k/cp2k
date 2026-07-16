@@ -304,7 +304,7 @@ CONTAINS
                WRITE (output_unit, "(T2,A)") &
                   "FARMING| ---- WARNING ---- failed to open ("//TRIM(farming_env%restart_file_name)//"), starting at 1"
             END IF
-            CLOSE (iunit, IOSTAT=stat)
+            CLOSE (iunit)
          END IF
 
          CALL cp_print_key_finished_output(output_unit, logger, farming_section, &

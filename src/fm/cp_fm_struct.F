@@ -232,8 +232,9 @@ CONTAINS
 
       ALLOCATE (fmstruct%nrow_locals(0:(fmstruct%context%num_pe(1) - 1)), &
                 fmstruct%ncol_locals(0:(fmstruct%context%num_pe(2) - 1)))
-      IF (.NOT. PRESENT(template_fmstruct)) &
+      IF (.NOT. PRESENT(template_fmstruct)) THEN
          fmstruct%first_p_pos = [0, 0]
+      END IF
       IF (PRESENT(first_p_pos)) fmstruct%first_p_pos = first_p_pos
 
       fmstruct%nrow_locals = 0
@@ -266,10 +267,12 @@ CONTAINS
          CALL m_flush(iunit)
       END IF
 
-      IF (SUM(fmstruct%ncol_locals) /= fmstruct%ncol_global) &
+      IF (SUM(fmstruct%ncol_locals) /= fmstruct%ncol_global) THEN
          CPABORT("sum of local cols not equal global cols")
-      IF (SUM(fmstruct%nrow_locals) /= fmstruct%nrow_global) &
+      END IF
+      IF (SUM(fmstruct%nrow_locals) /= fmstruct%nrow_global) THEN
          CPABORT("sum of local row not equal global rows")
+      END IF
 #else
       ! block = full matrix
       fmstruct%nrow_block = fmstruct%nrow_global
@@ -281,10 +284,11 @@ CONTAINS
       fmstruct%local_leading_dimension = MAX(fmstruct%local_leading_dimension, &
                                              fmstruct%nrow_locals(fmstruct%context%mepos(1)))
       IF (PRESENT(local_leading_dimension)) THEN
-         IF (MAX(1, fmstruct%nrow_locals(fmstruct%context%mepos(1))) > local_leading_dimension) &
+         IF (MAX(1, fmstruct%nrow_locals(fmstruct%context%mepos(1))) > local_leading_dimension) THEN
             CALL cp_abort(__LOCATION__, "local_leading_dimension too small ("// &
                           cp_to_string(local_leading_dimension)//"<"// &
                           cp_to_string(fmstruct%local_leading_dimension)//")")
+         END IF
          fmstruct%local_leading_dimension = local_leading_dimension
       END IF
 

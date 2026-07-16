@@ -99,7 +99,8 @@ MODULE rt_bse_types
 !> \param dft_control DFT control parameters
 !> \param ham_effective Real and imaginary part of the effective Hamiltonian used to propagate
 !>                      the density matrix
-!> \param ham_reference Reference Hamiltonian, which does not change in the propagation = DFT+G0W0 - initial Hartree - initial COHSEX
+!> \param ham_reference Reference Hamiltonian, which does not change in the
+!>                      propagation = DFT+G0W0 - initial Hartree - initial COHSEX
 !> \param ham_workspace Workspace matrices for use with the Hamiltonian propagation - storage of
 !>                      exponential propagators etc.
 !> \param rho Density matrix at the current time step
@@ -145,7 +146,7 @@ MODULE rt_bse_types
                                                                    moments_field => NULL()
       INTEGER                                                   :: sim_step = 0, &
                                                                    sim_start = 0, &
-                                                                   ! Needed for continuation runs for loading of previous moments trace
+                                                                   ! Needed to continue runs by loading previous moments trace
                                                                    sim_start_orig = 0, &
                                                                    sim_nsteps = -1, &
                                                                    ! Default reference point type for output moments

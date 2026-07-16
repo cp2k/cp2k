@@ -126,9 +126,10 @@ CONTAINS
             restart = explicit
             work_section2 => section_vals_get_subs_vals(work_section, "MASS")
             CALL section_vals_get(work_section2, explicit=explicit)
-            IF (restart .NEQV. explicit) &
+            IF (restart .NEQV. explicit) THEN
                CALL cp_abort(__LOCATION__, "You need to define both VELOCITY and "// &
                              "MASS section (or none) in the BAROSTAT section")
+            END IF
             restart = explicit .AND. restart
          END IF
 
@@ -616,21 +617,24 @@ CONTAINS
             restart = explicit
             work_section => section_vals_get_subs_vals(nose_section, "COORD")
             CALL section_vals_get(work_section, explicit=explicit)
-            IF (.NOT. restart .AND. explicit) &
+            IF (.NOT. restart .AND. explicit) THEN
                CALL cp_abort(__LOCATION__, "You need to define both VELOCITY and "// &
                              "COORD and MASS and FORCE section (or none) in the NOSE section")
+            END IF
             restart = explicit .AND. restart
             work_section => section_vals_get_subs_vals(nose_section, "MASS")
             CALL section_vals_get(work_section, explicit=explicit)
-            IF (.NOT. restart .AND. explicit) &
+            IF (.NOT. restart .AND. explicit) THEN
                CALL cp_abort(__LOCATION__, "You need to define both VELOCITY and "// &
                              "COORD and MASS and FORCE section (or none) in the NOSE section")
+            END IF
             restart = explicit .AND. restart
             work_section => section_vals_get_subs_vals(nose_section, "FORCE")
             CALL section_vals_get(work_section, explicit=explicit)
-            IF (.NOT. restart .AND. explicit) &
+            IF (.NOT. restart .AND. explicit) THEN
                CALL cp_abort(__LOCATION__, "You need to define both VELOCITY and "// &
                              "COORD and MASS and FORCE section (or none) in the NOSE section")
+            END IF
             restart = explicit .AND. restart
          END IF
 

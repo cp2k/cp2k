@@ -38,7 +38,8 @@ MODULE farming_types
       LOGICAL :: restart = .FALSE.
       LOGICAL :: CYCLE = .FALSE.
       LOGICAL :: captain_minion = .FALSE.
-      INTEGER, DIMENSION(:), POINTER                              :: group_partition => NULL() ! user preference for partitioning the cpus
+      ! user preference for partitioning the cpus
+      INTEGER, DIMENSION(:), POINTER                              :: group_partition => NULL()
       CHARACTER(LEN=default_path_length)                          :: restart_file_name = "" ! restart file for farming
       CHARACTER(LEN=default_path_length)                          :: cwd = "" ! directory we started from
       INTEGER                                                     :: Njobs = -1 ! how many jobs to run

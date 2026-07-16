@@ -184,8 +184,9 @@ CONTAINS
       END DO
       ! Trigger error
       IF ((my_end) .AND. (j /= natom - MOD(natom, 2) + 1)) THEN
-         IF (j /= natom) &
+         IF (j /= natom) THEN
             CPABORT("Error while reading CRD file. Unexpected end of file.")
+         END IF
       ELSE IF (MOD(natom, 2) /= 0) THEN
          ! In case let's handle the last atom
          j = natom
@@ -230,10 +231,11 @@ CONTAINS
          END DO
          setup_velocities = .TRUE.
          IF ((my_end) .AND. (j /= natom - MOD(natom, 2) + 1)) THEN
-            IF (j /= natom) &
+            IF (j /= natom) THEN
                CALL cp_warn(__LOCATION__, &
                             "No VELOCITY information found in CRD file. Ignoring BOX information. "// &
                             "Please provide the BOX information directly from the main CP2K input! ")
+            END IF
             setup_velocities = .FALSE.
          ELSE IF (MOD(natom, 2) /= 0) THEN
             ! In case let's handle the last atom
@@ -257,10 +259,11 @@ CONTAINS
       IF (my_end) THEN
          CPWARN_IF(j /= natom, "BOX information missing in CRD file.")
       ELSE
-         IF (j /= natom) &
+         IF (j /= natom) THEN
             CALL cp_warn(__LOCATION__, &
                          "BOX information found in CRD file. They will be ignored. "// &
                          "Please provide the BOX information directly from the main CP2K input!")
+         END IF
       END IF
       CALL parser_release(parser)
       CALL cp_print_key_finished_output(iw, logger, subsys_section, &
@@ -1060,16 +1063,18 @@ CONTAINS
       CALL parser_get_next_line(parser, 1, at_end=my_end)
       i = 1
       DO WHILE ((i <= dim) .AND. (.NOT. my_end))
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array1(i))
          i = i + 1
       END DO
       ! Trigger end of file aborting
-      IF (my_end .AND. (i <= dim)) &
+      IF (my_end .AND. (i <= dim)) THEN
          CALL cp_abort(__LOCATION__, &
                        "End of file while reading section "//TRIM(section)//" in amber topology file!")
+      END IF
    END SUBROUTINE rd_amber_section_i1
 
 ! **************************************************************************************************
@@ -1096,26 +1101,30 @@ CONTAINS
       i = 1
       DO WHILE ((i <= dim) .AND. (.NOT. my_end))
          !array1
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array1(i))
          !array2
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array2(i))
          !array3
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array3(i))
          i = i + 1
       END DO
       ! Trigger end of file aborting
-      IF (my_end .AND. (i <= dim)) &
+      IF (my_end .AND. (i <= dim)) THEN
          CALL cp_abort(__LOCATION__, &
                        "End of file while reading section "//TRIM(section)//" in amber topology file!")
+      END IF
    END SUBROUTINE rd_amber_section_i3
 
 ! **************************************************************************************************
@@ -1143,31 +1152,36 @@ CONTAINS
       i = 1
       DO WHILE ((i <= dim) .AND. (.NOT. my_end))
          !array1
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array1(i))
          !array2
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array2(i))
          !array3
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array3(i))
          !array4
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array4(i))
          i = i + 1
       END DO
       ! Trigger end of file aborting
-      IF (my_end .AND. (i <= dim)) &
+      IF (my_end .AND. (i <= dim)) THEN
          CALL cp_abort(__LOCATION__, &
                        "End of file while reading section "//TRIM(section)//" in amber topology file!")
+      END IF
    END SUBROUTINE rd_amber_section_i4
 
 ! **************************************************************************************************
@@ -1197,36 +1211,42 @@ CONTAINS
       i = 1
       DO WHILE ((i <= dim) .AND. (.NOT. my_end))
          !array1
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array1(i))
          !array2
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array2(i))
          !array3
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array3(i))
          !array4
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array4(i))
          !array5
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array5(i))
          i = i + 1
       END DO
       ! Trigger end of file aborting
-      IF (my_end .AND. (i <= dim)) &
+      IF (my_end .AND. (i <= dim)) THEN
          CALL cp_abort(__LOCATION__, &
                        "End of file while reading section "//TRIM(section)//" in amber topology file!")
+      END IF
    END SUBROUTINE rd_amber_section_i5
 
 ! **************************************************************************************************
@@ -1250,16 +1270,18 @@ CONTAINS
       CALL parser_get_next_line(parser, 1, at_end=my_end)
       i = 1
       DO WHILE ((i <= dim) .AND. (.NOT. my_end))
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array1(i), lower_to_upper=.TRUE.)
          i = i + 1
       END DO
       ! Trigger end of file aborting
-      IF (my_end .AND. (i <= dim)) &
+      IF (my_end .AND. (i <= dim)) THEN
          CALL cp_abort(__LOCATION__, &
                        "End of file while reading section "//TRIM(section)//" in amber topology file!")
+      END IF
    END SUBROUTINE rd_amber_section_c1
 
 ! **************************************************************************************************
@@ -1283,16 +1305,18 @@ CONTAINS
       CALL parser_get_next_line(parser, 1, at_end=my_end)
       i = 1
       DO WHILE ((i <= dim) .AND. (.NOT. my_end))
-         IF (parser_test_next_token(parser) == "EOL") &
+         IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end=my_end)
+         END IF
          IF (my_end) EXIT
          CALL parser_get_object(parser, array1(i))
          i = i + 1
       END DO
       ! Trigger end of file aborting
-      IF (my_end .AND. (i <= dim)) &
+      IF (my_end .AND. (i <= dim)) THEN
          CALL cp_abort(__LOCATION__, &
                        "End of file while reading section "//TRIM(section)//" in amber topology file!")
+      END IF
    END SUBROUTINE rd_amber_section_r1
 
 ! **************************************************************************************************
@@ -1321,8 +1345,9 @@ CONTAINS
          section = TRIM(parser%input_line(indflag:))
          ! Input format
          CALL parser_get_next_line(parser, 1, at_end=my_end)
-         IF (INDEX(parser%input_line, "%FORMAT") == 0 .OR. my_end) &
+         IF (INDEX(parser%input_line, "%FORMAT") == 0 .OR. my_end) THEN
             CPABORT("Expecting %FORMAT. Not found! Abort reading of AMBER topology file!")
+         END IF
 
          start_f = INDEX(parser%input_line, "(")
          end_f = INDEX(parser%input_line, ")")
@@ -1346,10 +1371,11 @@ CONTAINS
       LOGICAL                                            :: found_AMBER_V8
 
       CALL parser_search_string(parser, "%VERSION ", .TRUE., found_AMBER_V8, begin_line=.TRUE.)
-      IF (.NOT. found_AMBER_V8) &
+      IF (.NOT. found_AMBER_V8) THEN
          CALL cp_abort(__LOCATION__, &
                        "This is not an AMBER V.8 PRMTOP format file. Cannot interpret older "// &
                        "AMBER file formats. ")
+      END IF
       IF (output_unit > 0) WRITE (output_unit, '(" AMBER_INFO| ",A)') "Amber PrmTop V.8 or greater.", &
          TRIM(parser%input_line)
 

@@ -81,11 +81,13 @@
             initial_capacity_ = 11
          END IF
 
-         IF (initial_capacity_ < 1) &
+         IF (initial_capacity_ < 1) THEN
             CPABORT("initial_capacity < 1")
+         END IF
 
-         IF (ASSOCIATED(hash_map%buckets)) &
+         IF (ASSOCIATED(hash_map%buckets)) THEN
             CPABORT("hash map is already initialized.")
+         END IF
 
          ALLOCATE (hash_map%buckets(initial_capacity_))
          hash_map%size = 0

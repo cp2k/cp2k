@@ -672,7 +672,7 @@ CONTAINS
                counter = counter + 1
                lmn(1, counter) = l; lmn(2, counter) = m; lmn(3, counter) = n
                pos = MATMUL(lmn(:, counter), recip_lattice)
-               dist(counter) = SQRT(DOT_PRODUCT(pos, pos))
+               dist(counter) = NORM2(pos)
             END DO
          END DO
       END DO
@@ -776,8 +776,8 @@ CONTAINS
                DO loop_s = 1, num_shells
                   DO loop_b = 1, multi(shell_list(loop_s))
                      delta = DOT_PRODUCT(bvector(:, loop_bn, cur_shell), bvector(:, loop_b, loop_s))/ &
-                             SQRT(DOT_PRODUCT(bvector(:, loop_bn, cur_shell), bvector(:, loop_bn, cur_shell))* &
-                                  DOT_PRODUCT(bvector(:, loop_b, loop_s), bvector(:, loop_b, loop_s)))
+                             NORM2(bvector(:, loop_bn, cur_shell))* &
+                             NORM2(bvector(:, loop_b, loop_s))
                      IF (ABS(ABS(delta) - 1.0_dp) < eps6) lpar = .TRUE.
                   END DO
                END DO
@@ -871,7 +871,7 @@ CONTAINS
          IF (.NOT. b1sat) THEN
             IF (shell < search_shells .AND. iprint >= 3) THEN
                WRITE (stdout, '(1x,a,24x,a1)') '| B1 condition is not satisfied: Adding another shell', '|'
-            ELSEIF (shell == search_shells) THEN
+            ELSE IF (shell == search_shells) THEN
                WRITE (stdout, *) ' '
                WRITE (stdout, '(1x,a,i3,a)') 'Unable to satisfy B1 with any of the first ', search_shells, ' shells'
                WRITE (stdout, '(1x,a)') 'Your cell might be very long, or you may have an irregular MP grid'

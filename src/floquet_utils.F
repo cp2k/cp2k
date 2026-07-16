@@ -303,7 +303,7 @@ CONTAINS
 
       ! E_factor(α) = (i E(α) exp(i·φ(α)))/(2ω) where α = x,y,z
       DO i_dir = 1, 3
-         efactor(i_dir) = gaussi*e_vec(i_dir)*CMPLX(DCOS(phi(i_dir)), DSIN(phi(i_dir)), KIND=dp)/(2*omega)
+         efactor(i_dir) = gaussi*e_vec(i_dir)*CMPLX(COS(phi(i_dir)), SIN(phi(i_dir)), KIND=dp)/(2*omega)
       END DO
 
       DO i_dir = 1, 3

@@ -140,7 +140,7 @@ CONTAINS
          IF (DOT_PRODUCT(efield%polarisation, efield%polarisation) == 0) THEN
             pol(:) = 1.0_dp/3.0_dp
          ELSE
-            pol(:) = efield%polarisation(:)/(SQRT(DOT_PRODUCT(efield%polarisation, efield%polarisation)))
+            pol(:) = efield%polarisation(:)/NORM2(efield%polarisation)
          END IF
 
          SELECT CASE (efield%envelop_id)
@@ -151,10 +151,12 @@ CONTAINS
                                        efield%phase_offset*pi)*pol(:)
             END IF
          CASE (ramp_env)
-            IF (sim_step >= efield%envelop_i_vars(1) .AND. sim_step <= efield%envelop_i_vars(2)) &
+            IF (sim_step >= efield%envelop_i_vars(1) .AND. sim_step <= efield%envelop_i_vars(2)) THEN
                strength = E_0*(sim_step - efield%envelop_i_vars(1))/(efield%envelop_i_vars(2) - efield%envelop_i_vars(1))
-            IF (sim_step >= efield%envelop_i_vars(3) .AND. sim_step <= efield%envelop_i_vars(4)) &
+            END IF
+            IF (sim_step >= efield%envelop_i_vars(3) .AND. sim_step <= efield%envelop_i_vars(4)) THEN
                strength = E_0*(efield%envelop_i_vars(4) - sim_step)/(efield%envelop_i_vars(4) - efield%envelop_i_vars(3))
+            END IF
             IF (sim_step > efield%envelop_i_vars(4) .AND. efield%envelop_i_vars(4) > 0) strength = 0.0_dp
             IF (sim_step <= efield%envelop_i_vars(1)) strength = 0.0_dp
             field = field + strength*COS(sim_time*nu*twopi + &

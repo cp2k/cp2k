@@ -364,10 +364,11 @@ CONTAINS
 
       ! simulated annealing start temperature
       global_tree%Temp = tmc_env%params%Temp(1)
-      IF (tmc_env%params%nr_temp /= 1 .AND. tmc_env%m_env%temp_decrease /= 1.0_dp) &
+      IF (tmc_env%params%nr_temp /= 1 .AND. tmc_env%m_env%temp_decrease /= 1.0_dp) THEN
          CALL cp_abort(__LOCATION__, &
                        "there is no parallel tempering implementation for simulated annealing implemented "// &
                        "(just one Temp per global tree element.")
+      END IF
 
       !-- IF program is restarted, read restart file
       IF (tmc_env%m_env%restart_in_file_name /= "") THEN
@@ -440,10 +441,12 @@ CONTAINS
       !-- distribute energy of first element to all subtrees
       DO i = 1, SIZE(gt_tree_ptr%conf)
          gt_tree_ptr%conf(i)%elem%stat = status_accepted_result
-         IF (ASSOCIATED(gt_tree_ptr%conf(1)%elem%dipole)) &
+         IF (ASSOCIATED(gt_tree_ptr%conf(1)%elem%dipole)) THEN
             gt_tree_ptr%conf(i)%elem%dipole = gt_tree_ptr%conf(1)%elem%dipole
-         IF (tmc_env%m_env%restart_in_file_name == "") &
+         END IF
+         IF (tmc_env%m_env%restart_in_file_name == "") THEN
             gt_tree_ptr%conf(i)%elem%potential = gt_tree_ptr%conf(1)%elem%potential
+         END IF
       END DO
 
       IF (tmc_env%m_env%restart_in_file_name == "") THEN
@@ -538,10 +541,12 @@ CONTAINS
              ((.NOT. n_acc) .AND. ASSOCIATED(tmp_elem%nacc))) THEN
 
             !set pointer to the actual element
-            IF (n_acc) &
+            IF (n_acc) THEN
                new_elem => tmp_elem%acc
-            IF (.NOT. n_acc) &
+            END IF
+            IF (.NOT. n_acc) THEN
                new_elem => tmp_elem%nacc
+            END IF
 
             ! check for existing subtree element
             CPASSERT(ASSOCIATED(new_elem%conf(new_elem%mv_conf)%elem))
@@ -570,10 +575,11 @@ CONTAINS
             CASE (mv_type_MD)
                new_elem%conf(new_elem%mv_conf)%elem%stat = status_calculate_MD
             CASE (mv_type_NMC_moves)
-               IF (new_elem%conf(new_elem%mv_conf)%elem%stat /= status_canceled_nmc) &
+               IF (new_elem%conf(new_elem%mv_conf)%elem%stat /= status_canceled_nmc) THEN
                   CALL cp_warn(__LOCATION__, &
                                "reactivating tree element with wrong status"// &
                                cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%stat))
+               END IF
                new_elem%conf(new_elem%mv_conf)%elem%stat = status_calculate_NMC_steps
 
                !IF(DEBUG>=1) WRITE(tmc_out_file_nr,*)"ATTENTION: reactivation of canceled subtree ", &
@@ -599,12 +605,14 @@ CONTAINS
             !-- set pointers to and from element one level up
             !-- paste new gt tree node element at right end
             IF (n_acc) THEN
-               IF (ASSOCIATED(tmp_elem%acc)) &
+               IF (ASSOCIATED(tmp_elem%acc)) THEN
                   CPABORT("creating new subtree element on an occupied acc branch")
+               END IF
                tmp_elem%acc => new_elem
             ELSE
-               IF (ASSOCIATED(tmp_elem%nacc)) &
+               IF (ASSOCIATED(tmp_elem%nacc)) THEN
                   CPABORT("creating new subtree element on an occupied nacc branch")
+               END IF
                tmp_elem%nacc => new_elem
             END IF
             new_elem%parent => tmp_elem
@@ -687,9 +695,10 @@ CONTAINS
                new_elem%prob_acc = tmc_env%params%move_types%acc_prob( &
                                    mv_type_swap_conf, new_elem%mv_conf)
                CALL add_to_references(gt_elem=new_elem)
-               IF (tmc_env%params%DRAW_TREE) &
+               IF (tmc_env%params%DRAW_TREE) THEN
                   CALL create_global_tree_dot(new_element=new_elem, &
                                               tmc_params=tmc_env%params)
+               END IF
                ! nothing to do for the workers
                stat = status_calculated
                keep_on = .FALSE.
@@ -710,10 +719,11 @@ CONTAINS
                      !-- if not exist create new subtree element
                      CALL create_new_subtree_node(act_gt_el=new_elem, &
                                                   tmc_env=tmc_env)
-                     IF (tmc_env%params%DRAW_TREE) &
+                     IF (tmc_env%params%DRAW_TREE) THEN
                         CALL create_dot(new_element=new_elem%conf(new_elem%mv_conf)%elem, &
                                         conf=new_elem%conf(new_elem%mv_conf)%elem%sub_tree_nr, &
                                         tmc_params=tmc_env%params)
+                     END IF
                   END IF
                ELSE
                   !-- check if child element in REJECTED direction already exist
@@ -725,10 +735,11 @@ CONTAINS
                      !-- if not exist create new subtree element
                      CALL create_new_subtree_node(act_gt_el=new_elem, &
                                                   tmc_env=tmc_env)
-                     IF (tmc_env%params%DRAW_TREE) &
+                     IF (tmc_env%params%DRAW_TREE) THEN
                         CALL create_dot(new_element=new_elem%conf(new_elem%mv_conf)%elem, &
                                         conf=new_elem%conf(new_elem%mv_conf)%elem%sub_tree_nr, &
                                         tmc_params=tmc_env%params)
+                     END IF
                   END IF
                END IF
                ! set approximate probability of acceptance
@@ -738,9 +749,10 @@ CONTAINS
                                    new_elem%conf(new_elem%mv_conf)%elem%move_type, new_elem%mv_conf)
                ! add refence and dot
                CALL add_to_references(gt_elem=new_elem)
-               IF (tmc_env%params%DRAW_TREE) &
+               IF (tmc_env%params%DRAW_TREE) THEN
                   CALL create_global_tree_dot(new_element=new_elem, &
                                               tmc_params=tmc_env%params)
+               END IF
             END IF ! swap or no swap
          END IF ! global tree node already exist. Hence the Subtree node also (it is speculative canceled)
       END IF ! keep on (checking and creating)
@@ -749,8 +761,9 @@ CONTAINS
          IF (new_elem%stat == status_accepted_result .OR. &
              new_elem%stat == status_accepted .OR. &
              new_elem%stat == status_rejected .OR. &
-             new_elem%stat == status_rejected_result) &
+             new_elem%stat == status_rejected_result) THEN
             CPABORT("selected existing RESULT gt node")
+         END IF
          !-- set status of global tree element for decision in master routine
          SELECT CASE (new_elem%conf(new_elem%mv_conf)%elem%stat)
          CASE (status_rejected_result, status_rejected, status_accepted, &
@@ -758,16 +771,18 @@ CONTAINS
             ! energy is already calculated
             new_elem%stat = status_calculated
             stat = new_elem%conf(new_elem%mv_conf)%elem%stat
-            IF (tmc_env%params%DRAW_TREE) &
+            IF (tmc_env%params%DRAW_TREE) THEN
                CALL create_dot_color(tree_element=new_elem%conf(new_elem%mv_conf)%elem, &
                                      tmc_params=tmc_env%params)
+            END IF
          CASE (status_calc_approx_ener)
             new_elem%stat = new_elem%conf(new_elem%mv_conf)%elem%stat
             IF (stat /= status_calculated) THEN
                stat = new_elem%conf(new_elem%mv_conf)%elem%stat
-               IF (tmc_env%params%DRAW_TREE) &
+               IF (tmc_env%params%DRAW_TREE) THEN
                   CALL create_dot_color(tree_element=new_elem%conf(new_elem%mv_conf)%elem, &
                                         tmc_params=tmc_env%params)
+               END IF
             END IF
          CASE (status_calculate_MD, status_calculate_energy, &
                status_calculate_NMC_steps, status_created)
@@ -775,9 +790,10 @@ CONTAINS
             new_elem%stat = new_elem%conf(new_elem%mv_conf)%elem%stat
             IF (stat /= status_calculated) THEN
                stat = new_elem%conf(new_elem%mv_conf)%elem%stat
-               IF (tmc_env%params%DRAW_TREE) &
+               IF (tmc_env%params%DRAW_TREE) THEN
                   CALL create_dot_color(tree_element=new_elem%conf(new_elem%mv_conf)%elem, &
                                         tmc_params=tmc_env%params)
+               END IF
             END IF
          CASE (status_cancel_ener, status_canceled_ener)
             ! configuration is already created,
@@ -787,9 +803,10 @@ CONTAINS
             ! creation complete, handle energy calculation at a different position
             !  (for different worker group)
             stat = status_calculated
-            IF (tmc_env%params%DRAW_TREE) &
+            IF (tmc_env%params%DRAW_TREE) THEN
                CALL create_dot_color(tree_element=new_elem%conf(new_elem%mv_conf)%elem, &
                                      tmc_params=tmc_env%params)
+            END IF
          CASE (status_cancel_nmc, status_canceled_nmc)
             ! reactivation canceled element (but with new global tree element)
             new_elem%conf(new_elem%mv_conf)%elem%stat = &
@@ -797,9 +814,10 @@ CONTAINS
             new_elem%stat = status_calculate_NMC_steps
             stat = new_elem%conf(new_elem%mv_conf)%elem%stat
             reactivation_cc_count = reactivation_cc_count + 1
-            IF (tmc_env%params%DRAW_TREE) &
+            IF (tmc_env%params%DRAW_TREE) THEN
                CALL create_dot_color(tree_element=new_elem%conf(new_elem%mv_conf)%elem, &
                                      tmc_params=tmc_env%params)
+            END IF
          CASE DEFAULT
             CALL cp_abort(__LOCATION__, &
                           "unknown stat "// &
@@ -953,8 +971,9 @@ CONTAINS
             new_elem%stat = status_calculated
          ELSE
             new_elem%stat = status_created
-            IF (tmc_env%params%NMC_inp_file /= "") &
+            IF (tmc_env%params%NMC_inp_file /= "") THEN
                new_elem%stat = status_calc_approx_ener
+            END IF
          END IF
       CASE (mv_type_gausian_adapt)
          ! still could be implemented
@@ -1004,8 +1023,9 @@ CONTAINS
       ELSE
          gt_ptr%stat = status_deleted
       END IF
-      IF (tmc_env%params%DRAW_TREE .AND. PRESENT(draw)) &
+      IF (tmc_env%params%DRAW_TREE .AND. PRESENT(draw)) THEN
          CALL create_global_tree_dot_color(gt_tree_element=gt_ptr, tmc_params=tmc_env%params)
+      END IF
 
       !remove pointer from tree parent
       IF (ASSOCIATED(gt_ptr%parent)) THEN
@@ -1060,12 +1080,13 @@ CONTAINS
 
       ! if there is still e reference to a global tree pointer, do not deallocate element
       IF (ASSOCIATED(ptr%gt_nodes_references)) THEN
-         IF (ASSOCIATED(ptr%parent)) &
+         IF (ASSOCIATED(ptr%parent)) THEN
             CALL cp_warn(__LOCATION__, &
                          "try to deallocate subtree element"// &
                          cp_to_string(ptr%sub_tree_nr)//cp_to_string(ptr%nr)// &
                          " still with global tree element references e.g."// &
                          cp_to_string(ptr%gt_nodes_references%gt_elem%nr))
+         END IF
          CPASSERT(ASSOCIATED(ptr%gt_nodes_references%gt_elem))
       ELSE
          SELECT CASE (ptr%stat)
@@ -1095,8 +1116,9 @@ CONTAINS
             ELSE
                ptr%stat = status_deleted
             END IF
-            IF (tmc_env%params%DRAW_TREE .AND. PRESENT(draw)) &
+            IF (tmc_env%params%DRAW_TREE .AND. PRESENT(draw)) THEN
                CALL create_dot_color(tree_element=ptr, tmc_params=tmc_env%params)
+            END IF
 
             !remove pointer from tree parent
             IF (ASSOCIATED(ptr%parent)) THEN
@@ -1276,19 +1298,21 @@ CONTAINS
             ! delete element
             IF (remove_this) THEN
                !-- mark as deleted and draw it in tree
-               IF (.NOT. ASSOCIATED(begin_ptr%parent)) &
+               IF (.NOT. ASSOCIATED(begin_ptr%parent)) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "try to remove unused subtree element "// &
                                 cp_to_string(begin_ptr%sub_tree_nr)//" "// &
                                 cp_to_string(begin_ptr%nr)// &
                                 " but parent does not exist")
+               END IF
                tmp_ptr => begin_ptr
                ! check if a working group is still working on this element
                removed = .TRUE.
                DO i = 1, SIZE(working_elem_list(:))
                   IF (ASSOCIATED(working_elem_list(i)%elem)) THEN
-                     IF (ASSOCIATED(working_elem_list(i)%elem, tmp_ptr)) &
+                     IF (ASSOCIATED(working_elem_list(i)%elem, tmp_ptr)) THEN
                         removed = .FALSE.
+                     END IF
                   END IF
                END DO
                IF (removed) THEN
@@ -1333,10 +1357,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       !-- going up to the head ot the subtree
-      IF (ASSOCIATED(actual_ptr%parent)) &
+      IF (ASSOCIATED(actual_ptr%parent)) THEN
          CALL remove_result_g_tree(end_of_clean_tree=end_of_clean_tree, &
                                    actual_ptr=actual_ptr%parent, &
                                    tmc_env=tmc_env)
+      END IF
       !-- new tree head has no parent
       IF (.NOT. ASSOCIATED(actual_ptr, end_of_clean_tree)) THEN
          !-- deallocate node
@@ -1376,9 +1401,10 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       !-- going up to the head ot the subtree
-      IF (ASSOCIATED(actual_ptr%parent)) &
+      IF (ASSOCIATED(actual_ptr%parent)) THEN
          CALL remove_result_s_tree(end_of_clean_tree, actual_ptr%parent, &
                                    tmc_env)
+      END IF
 
       !-- new tree head has no parent
       IF (.NOT. ASSOCIATED(actual_ptr, end_of_clean_tree)) THEN
@@ -1446,8 +1472,9 @@ CONTAINS
                                    actual_ptr=tmp_gt_ptr, tmc_env=tmc_env)
 
          !check if something changed, if not no deallocation of result subtree necessary
-         IF (.NOT. ASSOCIATED(tmc_env%m_env%gt_head, tmc_env%m_env%gt_clean_end)) &
+         IF (.NOT. ASSOCIATED(tmc_env%m_env%gt_head, tmc_env%m_env%gt_clean_end)) THEN
             change_trajec = .TRUE.
+         END IF
          tmc_env%m_env%gt_head => tmc_env%m_env%gt_clean_end
          CPASSERT(.NOT. ASSOCIATED(tmc_env%m_env%gt_head%parent))
          !IF (DEBUG>=20) WRITE(tmc_out_file_nr,*)"new head of pt tree is ",tmc_env%m_env%gt_head%nr
@@ -1459,8 +1486,9 @@ CONTAINS
          ! get last checked element in trajectory related to the subtree (resultlist order is NOT subtree order)
          conf_loop: DO i = 1, SIZE(tmc_env%m_env%result_list)
             last_acc_st_elem => tmc_env%m_env%result_list(i)%elem
-            IF (last_acc_st_elem%sub_tree_nr == tree) &
+            IF (last_acc_st_elem%sub_tree_nr == tree) THEN
                EXIT conf_loop
+            END IF
          END DO conf_loop
          CPASSERT(last_acc_st_elem%sub_tree_nr == tree)
          CALL remove_unused_s_tree(begin_ptr=tmc_env%m_env%st_clean_ends(tree)%elem, &

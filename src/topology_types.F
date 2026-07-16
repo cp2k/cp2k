@@ -68,12 +68,13 @@ MODULE topology_types
       REAL(KIND=dp)                                 :: hbonds_k0 = -1.0_dp ! Restraints control
       ! Fixed Atoms
       INTEGER                                       :: nfixed_atoms = -1
-     INTEGER, POINTER                              :: fixed_atoms(:) => NULL(), fixed_type(:) => NULL(), fixed_mol_type(:) => NULL()
-      LOGICAL, POINTER                              :: fixed_restraint(:) => NULL() ! Restraints control
-      REAL(KIND=dp), POINTER                        :: fixed_k0(:) => NULL() ! Restraints control
+      INTEGER, DIMENSION(:), POINTER                :: fixed_atoms => NULL(), fixed_type => NULL(), fixed_mol_type => NULL()
+      LOGICAL, DIMENSION(:), POINTER                :: fixed_restraint => NULL() ! Restraints control
+      REAL(KIND=dp), DIMENSION(:), POINTER          :: fixed_k0 => NULL() ! Restraints control
       ! Freeze QM or MM
       INTEGER                                       :: freeze_qm = -1, freeze_mm = -1, freeze_qm_type = -1, freeze_mm_type = -1
-      LOGICAL                                       :: fixed_mm_restraint = .FALSE., fixed_qm_restraint = .FALSE. ! Restraints control
+      ! Restraints control
+      LOGICAL                                       :: fixed_mm_restraint = .FALSE., fixed_qm_restraint = .FALSE.
       REAL(KIND=dp)                                 :: fixed_mm_k0 = -1.0_dp, fixed_qm_k0 = -1.0_dp ! Restraints control
       ! Freeze with molnames
       LOGICAL, POINTER                              :: fixed_mol_restraint(:) => NULL() ! Restraints control
@@ -524,8 +525,9 @@ CONTAINS
       !-----------------------------------------------------------------------------
       ! 3. DEALLOCATE things in topology%cons_info
       !-----------------------------------------------------------------------------
-      IF (ASSOCIATED(topology%cons_info)) &
+      IF (ASSOCIATED(topology%cons_info)) THEN
          CALL deallocate_constraint(topology%cons_info)
+      END IF
       !-----------------------------------------------------------------------------
       ! 4. DEALLOCATE things in topology
       !-----------------------------------------------------------------------------

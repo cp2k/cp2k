@@ -241,8 +241,9 @@ CONTAINS
 
             ! Tr(r_0 * r_0)
             CALL dbcsr_dot(matrix_res(ispin)%matrix, matrix_res(ispin)%matrix, norm_rr(ispin))
-            IF (abnormal_value(norm_rr(ispin))) &
+            IF (abnormal_value(norm_rr(ispin))) THEN
                CPABORT("Preconditioner: Tr[r_j*r_j] is an abnormal value (NaN/Inf)")
+            END IF
 
             IF (norm_rr(ispin) < 0.0_dp) CPABORT("norm_rr < 0")
             norm_res = MAX(norm_res, ABS(norm_rr(ispin)/REAL(nao, dp)))
@@ -272,8 +273,9 @@ CONTAINS
             ! Tr[r_j+1*z_j+1]
             CALL dbcsr_dot(matrix_res(ispin)%matrix, matrix_res(ispin)%matrix, new_norm(ispin))
             IF (new_norm(ispin) < 0.0_dp) CPABORT("tr(r_j+1*z_j+1) < 0")
-            IF (abnormal_value(new_norm(ispin))) &
+            IF (abnormal_value(new_norm(ispin))) THEN
                CPABORT("Preconditioner: Tr[r_j+1*z_j+1] is an abnormal value (NaN/Inf)")
+            END IF
             norm_res = MAX(norm_res, new_norm(ispin)/REAL(nao, dp))
 
             IF (norm_rr(ispin) < linres_control%eps*0.001_dp &
@@ -710,8 +712,9 @@ CONTAINS
                CALL dbcsr_dot(matrix_cg(ispin)%matrix, matrix_Ax(ispin)%matrix, norm_cA(ispin))
 
                CPABORT("tr(Ap_j*p_j) < 0")
-               IF (abnormal_value(norm_cA(ispin))) &
+               IF (abnormal_value(norm_cA(ispin))) THEN
                   CPABORT("Preconditioner: Tr[Ap_j*p_j] is an abnormal value (NaN/Inf)")
+               END IF
 
             END IF
 
@@ -790,8 +793,9 @@ CONTAINS
             ! Tr[r_j+1*z_j+1]
             CALL dbcsr_dot(matrix_res(ispin)%matrix, matrix_z0(ispin)%matrix, new_norm(ispin))
             IF (new_norm(ispin) < 0.0_dp) CPABORT("tr(r_j+1*z_j+1) < 0")
-            IF (abnormal_value(new_norm(ispin))) &
+            IF (abnormal_value(new_norm(ispin))) THEN
                CPABORT("Preconditioner: Tr[r_j+1*z_j+1] is an abnormal value (NaN/Inf)")
+            END IF
             norm_res = MAX(norm_res, new_norm(ispin)/REAL(nao, dp))
 
             IF (norm_rr(ispin) < linres_control%eps .OR. new_norm(ispin) < linres_control%eps) THEN

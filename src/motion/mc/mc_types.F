@@ -1751,8 +1751,9 @@ CONTAINS
       rcutsq_max = 0.0e0_dp
       DO itype = 1, SIZE(potparm%pot, 1)
          DO jtype = itype, SIZE(potparm%pot, 2)
-            IF (potparm%pot(itype, jtype)%pot%rcutsq > rcutsq_max) &
+            IF (potparm%pot(itype, jtype)%pot%rcutsq > rcutsq_max) THEN
                rcutsq_max = potparm%pot(itype, jtype)%pot%rcutsq
+            END IF
          END DO
       END DO
 
@@ -1865,8 +1866,9 @@ CONTAINS
       DO itype = 1, ntypes
          lnew_type = .TRUE.
          DO jtype = 1, itype - 1
-            IF (TRIM(names_init(itype)) == TRIM(names_init(jtype))) &
+            IF (TRIM(names_init(itype)) == TRIM(names_init(jtype))) THEN
                lnew_type = .FALSE.
+            END IF
          END DO
          IF (lnew_type) THEN
             nmol_types = nmol_types + 1
@@ -2068,19 +2070,24 @@ CONTAINS
       ! some ensembles require multiple boxes or molecule types
       SELECT CASE (mc_par%ensemble)
       CASE ("GEMC_NPT")
-         IF (nmol_types <= 1) &
+         IF (nmol_types <= 1) THEN
             CPABORT('Cannot have GEMC-NPT simulation with only one molecule type')
-         IF (nboxes <= 1) &
+         END IF
+         IF (nboxes <= 1) THEN
             CPABORT('Cannot have GEMC-NPT simulation with only one box')
+         END IF
       CASE ("GEMC_NVT")
-         IF (nboxes <= 1) &
+         IF (nboxes <= 1) THEN
             CPABORT('Cannot have GEMC-NVT simulation with only one box')
+         END IF
       CASE ("TRADITIONAL")
-         IF (mc_par%pmswap > 0.0E0_dp) &
+         IF (mc_par%pmswap > 0.0E0_dp) THEN
             CPABORT('You cannot do swap moves in a system with only one box')
+         END IF
       CASE ("VIRIAL")
-         IF (nchain_total /= 2) &
+         IF (nchain_total /= 2) THEN
             CPABORT('You need exactly two molecules in the box to compute the second virial.')
+         END IF
       END SELECT
 
 ! can't choose an AVBMC target atom number higher than the number

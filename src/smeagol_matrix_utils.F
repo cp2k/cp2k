@@ -72,7 +72,8 @@ MODULE smeagol_matrix_utils
    INTEGER, PARAMETER, PRIVATE          :: nelements_dbcsr_send = 2
    INTEGER, PARAMETER, PRIVATE          :: nelements_dbcsr_dim2 = nelements_dbcsr_send
 
-   INTEGER(kind=int_8), PARAMETER, PRIVATE :: max_mpi_packet_size_bytes = 134217728 ! 128 MiB (to limit memory usage for matrix redistribution)
+   ! 128 MiB (to limit memory usage for matrix redistribution)
+   INTEGER(kind=int_8), PARAMETER, PRIVATE :: max_mpi_packet_size_bytes = 134217728
    INTEGER(kind=int_8), PARAMETER, PRIVATE :: max_mpi_packet_size_dp = max_mpi_packet_size_bytes/INT(dp_size, kind=int_8)
 
    ! a portable way to determine the upper bound for tag value is to call
@@ -220,7 +221,8 @@ CONTAINS
       ! via subroutine arguments, an extra MPI_Allreduce operation is needed each time we call
       ! replicate_neighbour_list() / get_nnodes_local().
       max_ijk_cell_image(3) = -1
-      IF (.NOT. do_merge) max_ijk_cell_image(3) = 1 ! bulk-transport calculation expects exactly 3 cell images along transport direction
+      ! bulk-transport calculation expects exactly 3 cell images along transport direction
+      IF (.NOT. do_merge) max_ijk_cell_image(3) = 1
 
       ! replicate pair-wise neighbour list. Identical non-zero matrix blocks from cell image along transport direction
       ! are grouped together if do_merge == .TRUE.
@@ -502,8 +504,10 @@ CONTAINS
          END IF
       END IF
 
-      ! point-to-point recv/send can be replaced with alltoallv, if data to distribute per rank is < 2^31 elements (should be OK due to SMEAGOL limitation)
-      ! in principle, it is possible to overcome this limit by using derived datatypes (which will require additional wrapper functions, indeed).
+      ! point-to-point recv/send can be replaced with alltoallv, if data to distribute per rank is < 2^31 elements
+      ! (should be OK due to SMEAGOL limitation)
+      ! in principle, it is possible to overcome this limit by using derived datatypes
+      ! (which will require additional wrapper functions, indeed).
       !
       ! pre-post non-blocking receive operations
       IF (n_nonzero_elements_siesta > 0) THEN
@@ -685,10 +689,13 @@ CONTAINS
       IF (ALLOCATED(send_buffer)) DEALLOCATE (send_buffer)
       DEALLOCATE (offset_per_proc, n_packed_elements_per_proc)
 
-      ! non-zero matrix elements in 'recv_buffer' array are grouped by their source MPI rank, local row index, and column index (in this order).
-      ! Reorder the matrix elements ('reorder_recv_buffer') so they are grouped by their local row index, source MPI rank, and column index.
+      ! non-zero matrix elements in 'recv_buffer' array are grouped by their source MPI rank,
+      ! local row index, and column index (in this order).
+      ! Reorder the matrix elements ('reorder_recv_buffer') so they are grouped by their local row index,
+      ! source MPI rank, and column index.
       ! (column indices are in the ascending order within each (row index, source MPI rank) block).
-      ! The array 'packed_index' allows mapping matrix element between these intermediate order and SIESTA order : local row index, column index
+      ! The array 'packed_index' allows mapping matrix element between these intermediate order and SIESTA order :
+      ! local row index, column index
       IF (n_nonzero_elements_siesta > 0) THEN
          ALLOCATE (reorder_recv_buffer(n_nonzero_elements_siesta))
          ALLOCATE (next_nonzero_element_offset(siesta_struct%nrows))
@@ -1023,7 +1030,8 @@ CONTAINS
 
       IF (ALLOCATED(send_buffer)) DEALLOCATE (send_buffer)
 
-      iproc = siesta_struct%gather_root ! if do_distribute == .FALSE., collect matrix elements from MPI process with rank gather_root
+      ! if do_distribute == .FALSE., collect matrix elements from MPI process with rank gather_root
+      iproc = siesta_struct%gather_root
       IF (n_nonzero_elements_dbcsr > 0) THEN
          DO inode_proc = 1, nnodes_proc
             n_image_ind = siesta_struct%n_dbcsr_cell_images_to_merge(inode_proc)
@@ -1866,8 +1874,9 @@ CONTAINS
          ! there is no need to send data to the same MPI process
          IF (iproc /= mepos) THEN
             nrequests = nrequests + INT(nelements_per_proc(iproc)/max_nelements_per_packet)
-            IF (MOD(nelements_per_proc(iproc), max_nelements_per_packet) > 0) &
+            IF (MOD(nelements_per_proc(iproc), max_nelements_per_packet) > 0) THEN
                nrequests = nrequests + 1
+            END IF
          END IF
       END DO
    END FUNCTION get_number_of_mpi_sendrecv_requests

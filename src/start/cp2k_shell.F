@@ -541,13 +541,13 @@ CONTAINS
       TYPE(cp2k_shell_type)                              :: shell
       CHARACTER(LEN=*), INTENT(IN)                       :: arg1
 
-      INTEGER                                            :: ierr, iostat, n_atom
+      INTEGER                                            :: ierr, n_atom
 
       IF (.NOT. parse_env_id(arg1, shell)) RETURN
       CALL get_natom(shell%env_id, n_atom, ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_natom failed', shell)) RETURN
       IF (shell%iw > 0) THEN
-         WRITE (shell%iw, '(i10)', iostat=iostat) n_atom
+         WRITE (shell%iw, '(i10)') n_atom
          CALL m_flush(shell%iw)
       END IF
    END SUBROUTINE get_natom_command

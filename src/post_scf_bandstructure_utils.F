@@ -1938,8 +1938,9 @@ CONTAINS
       CALL bs_env%para_env%max(z_end_global)
       n_z = z_end_global - z_start_global + 1
 
-      IF (ANY(ABS(bs_env%hmat(1:2, 3)) > 1.0E-6_dp) .OR. ANY(ABS(bs_env%hmat(3, 1:2)) > 1.0E-6_dp)) &
+      IF (ANY(ABS(bs_env%hmat(1:2, 3)) > 1.0E-6_dp) .OR. ANY(ABS(bs_env%hmat(3, 1:2)) > 1.0E-6_dp)) THEN
          CPABORT("Please choose a cell that has 90° angles to the z-direction.")
+      END IF
       ! for integration, we need the dz and the conversion from H -> eV and a_Bohr -> Å
       bs_env%unit_ldos_int_z_inv_Ang2_eV = bs_env%hmat(3, 3)/REAL(n_z, KIND=dp)/evolt/angstrom**2
 

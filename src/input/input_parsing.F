@@ -93,22 +93,25 @@ CONTAINS
       output_unit = cp_logger_get_default_io_unit()
 
       CPASSERT(section_vals%ref_count > 0)
-      IF (root_sect .AND. parser%icol1 > parser%icol2) &
+      IF (root_sect .AND. parser%icol1 > parser%icol2) THEN
          CALL cp_abort(__LOCATION__, &
                        "Error 1: this routine must be called just after having parsed the start of the section " &
                        //TRIM(parser_location(parser)))
+      END IF
       section => section_vals%section
       IF (root_sect) THEN
          token = TRIM(ADJUSTL(parser%input_line(parser%icol1:parser%icol2))) ! Ignore leading or trailing blanks
          CALL uppercase(token)
-         IF (token /= parser%section_character//section%name) &
+         IF (token /= parser%section_character//section%name) THEN
             CALL cp_abort(__LOCATION__, &
                           "Error 2: this routine must be called just after having parsed the start of the section " &
                           //TRIM(parser_location(parser)))
+         END IF
       END IF
-      IF (.NOT. section%repeats .AND. SIZE(section_vals%values, 2) /= 0) &
+      IF (.NOT. section%repeats .AND. SIZE(section_vals%values, 2) /= 0) THEN
          CALL cp_abort(__LOCATION__, "Section "//TRIM(section%name)// &
                        " should not repeat "//TRIM(parser_location(parser)))
+      END IF
       CALL section_vals_add_values(section_vals)
       irs = SIZE(section_vals%values, 2)
 
@@ -138,10 +141,11 @@ CONTAINS
                                 lower_to_upper=.TRUE., at_end=at_end)
          token = TRIM(ADJUSTL(token)) ! Ignore leading or trailing blanks
          IF (at_end) THEN
-            IF (root_sect) &
+            IF (root_sect) THEN
                CALL cp_abort(__LOCATION__, &
                              "unexpected end of file while parsing section "// &
                              TRIM(section%name)//" "//TRIM(parser_location(parser)))
+            END IF
             EXIT
          END IF
          IF (token(1:1) == parser%section_character) THEN
@@ -269,15 +273,17 @@ CONTAINS
                      END IF
                   END IF
 
-                  IF (ALLOCATED(keyword%deprecation_notice)) &
+                  IF (ALLOCATED(keyword%deprecation_notice)) THEN
                      CALL cp_warn(__LOCATION__, &
                                   "The specified keyword '"//TRIM(token)// &
                                   "' is deprecated and may be removed in a future version: "// &
                                   keyword%deprecation_notice)
+                  END IF
 
                   NULLIFY (el)
-                  IF (ik /= 0 .AND. keyword%type_of_var == lchar_t) &
+                  IF (ik /= 0 .AND. keyword%type_of_var == lchar_t) THEN
                      CALL parser_skip_space(parser)
+                  END IF
                   CALL val_create_parsing(el, type_of_var=keyword%type_of_var, &
                                           n_var=keyword%n_var, default_value=keyword%lone_keyword_value, &
                                           enum=keyword%enum, unit=keyword%unit, &
@@ -289,10 +295,11 @@ CONTAINS
                      IF (.NOT. ASSOCIATED(last_val)) THEN
                         section_vals%values(ik, irs)%list => new_val
                      ELSE
-                        IF (.NOT. keyword%repeats) &
+                        IF (.NOT. keyword%repeats) THEN
                            CALL cp_abort(__LOCATION__, &
                                          "Keyword "//TRIM(token)// &
                                          " in section "//TRIM(section%name)//" should not repeat.")
+                        END IF
                         IF (ASSOCIATED(last_val, previous_list)) THEN
                            last_val => previous_last
                         ELSE
@@ -524,16 +531,18 @@ CONTAINS
             END IF
          END IF
       CASE (lchar_t)
-         IF (ASSOCIATED(default_value)) &
+         IF (ASSOCIATED(default_value)) THEN
             CALL cp_abort(__LOCATION__, &
                           "input variables of type lchar_t cannot have a lone keyword attribute,"// &
                           " no value is interpreted as empty string"// &
                           TRIM(parser_location(parser)))
-         IF (n_var /= 1) &
+         END IF
+         IF (n_var /= 1) THEN
             CALL cp_abort(__LOCATION__, &
                           "input variables of type lchar_t cannot be repeated,"// &
                           " one always represent a whole line, till the end"// &
                           TRIM(parser_location(parser)))
+         END IF
          IF (parser_test_next_token(parser) == "EOL") THEN
             ALLOCATE (c_val_p(1))
             c_val_p(1) = ' '
@@ -677,11 +686,12 @@ CONTAINS
                my_unit => unit
             END IF
          END IF
-         IF (.NOT. cp_unit_compatible(unit, my_unit)) &
+         IF (.NOT. cp_unit_compatible(unit, my_unit)) THEN
             CALL cp_abort(__LOCATION__, &
                           "Incompatible units. Defined as ("// &
                           TRIM(cp_unit_desc(unit))//") specified in input as ("// &
                           TRIM(cp_unit_desc(my_unit))//"). These units are incompatible!")
+         END IF
       END IF
       CALL parser_get_object(parser, r_val)
       IF (ASSOCIATED(unit)) THEN

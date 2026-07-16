@@ -117,8 +117,9 @@ CONTAINS
       CPABORT("OFFLOAD and FPGA cannot be configured concurrently! Recompile with -D__NO_OFFLOAD_PW.")
 #endif
       stat = pw_fpga_initialize()
-      IF (stat /= 0) &
+      IF (stat /= 0) THEN
          CPABORT("pw_fpga_init: failed")
+      END IF
 #endif
 
 #if (__PW_FPGA_SP && !(__PW_FPGA))

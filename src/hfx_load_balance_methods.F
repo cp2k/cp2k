@@ -1860,9 +1860,10 @@ CONTAINS
       ! it also avoids degenerate cases where thousands of zero sized tasks
       ! are assigned to the same (least loaded) cpu
       !
-      IF (do_randomize) &
+      IF (do_randomize) THEN
          rng_stream = rng_stream_type(name="uniform_rng", &
                                       distribution_type=UNIFORM)
+      END IF
 
       DO i = total_number_of_bins, 1, -nstep
          tmp_cpu_cost = my_cost_cpu

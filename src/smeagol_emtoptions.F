@@ -179,7 +179,8 @@ MODULE smeagol_emtoptions
          smeagolglobal_emSTT = torqueflag
          smeagolglobal_emSTTLin = torquelin
 
-         ! In case of the original SIESTA+SMEAGOL, 'TimeReversal' keyword is enabled by default, therefore 'EM.TimeReversal' is also enabled.
+         ! In case of the original SIESTA+SMEAGOL, 'TimeReversal' keyword is enabled by default,
+         ! therefore 'EM.TimeReversal' is also enabled.
          ! In case of this CP2K+SMEAGOL interface, the default value of 'timereversal' variable is .FALSE.
          IF (smeagol_control%aux%timereversal) THEN
             CALL cp_warn(__LOCATION__, &
@@ -328,7 +329,8 @@ MODULE smeagol_emtoptions
 
             ! current-induced forces
             ! The value of 'smeagol_control%emforces' is set in qs_energies().
-            ! Calculation of forces is enabled automatically for certain run_types (energy_force, geo_opt, md) and disabled otherwise.
+            ! Calculation of forces is enabled automatically for certain run_types
+            ! (energy_force, geo_opt, md) and disabled otherwise.
             IF (smeagol_control%aux%curr_dist) THEN
                smeagol_control%emforces = .TRUE.
             END IF
@@ -338,8 +340,9 @@ MODULE smeagol_emtoptions
            IF (.NOT. smeagol_control%aux%isexplicit_GetRhoSingleLead) smeagol_control%aux%GetRhoSingleLead = GetRhoSingleLeadDefault
 
             IF (smeagol_control%aux%MinChannelIndex < 1) smeagol_control%aux%MinChannelIndex = 1
-            IF (smeagol_control%aux%MaxChannelIndex < 1) &
+            IF (smeagol_control%aux%MaxChannelIndex < 1) THEN
                smeagol_control%aux%MaxChannelIndex = smeagol_control%aux%MinChannelIndex + 4
+            END IF
 
             IF (smeagolglobal_emSTT .AND. smeagolglobal_emSTTLin .AND. smeagol_control%aux%GetRhoSingleLead /= -3) THEN
                CALL cp_warn(__LOCATION__, &

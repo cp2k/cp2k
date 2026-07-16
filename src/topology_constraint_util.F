@@ -241,11 +241,13 @@ CONTAINS
             END IF
          END IF
          CALL section_vals_val_get(hbonds_section, "ATOM_TYPE", n_rep_val=nrep)
-         IF (nrep /= 0) &
+         IF (nrep /= 0) THEN
             CALL section_vals_val_get(hbonds_section, "ATOM_TYPE", c_vals=atom_typeh)
+         END IF
          CALL section_vals_val_get(hbonds_section, "TARGETS", n_rep_val=nrep)
-         IF (nrep /= 0) &
+         IF (nrep /= 0) THEN
             CALL section_vals_val_get(hbonds_section, "TARGETS", r_vals=hdist)
+         END IF
          IF (ASSOCIATED(hdist)) THEN
             CPASSERT(SIZE(hdist) == SIZE(atom_typeh))
          END IF
@@ -342,7 +344,7 @@ CONTAINS
                IF (ishbond) THEN
                   nhdist = nhdist + 1
                   rvec = particle_set(offset + bond_list(k)%a)%r - particle_set(offset + bond_list(k)%b)%r
-                  rmod = SQRT(DOT_PRODUCT(rvec, rvec))
+                  rmod = NORM2(rvec)
                   IF (ASSOCIATED(hdist)) THEN
                      IF (SIZE(hdist) > 0) THEN
                         IF (bond_list(k)%a == j) atomic_kind => atom_list(bond_list(k)%b)%atomic_kind
@@ -750,13 +752,13 @@ CONTAINS
                         IF (fix_fixed_atom) THEN
                            fixd_list(kk)%restraint%active = cons_info%fixed_restraint(k2loc)
                            fixd_list(kk)%restraint%k0 = cons_info%fixed_k0(k2loc)
-                        ELSEIF (fix_atom_qm) THEN
+                        ELSE IF (fix_atom_qm) THEN
                            fixd_list(kk)%restraint%active = cons_info%fixed_qm_restraint
                            fixd_list(kk)%restraint%k0 = cons_info%fixed_qm_k0
-                        ELSEIF (fix_atom_mm) THEN
+                        ELSE IF (fix_atom_mm) THEN
                            fixd_list(kk)%restraint%active = cons_info%fixed_mm_restraint
                            fixd_list(kk)%restraint%k0 = cons_info%fixed_mm_k0
-                        ELSEIF (fix_atom_molname) THEN
+                        ELSE IF (fix_atom_molname) THEN
                            fixd_list(kk)%restraint%active = cons_info%fixed_mol_restraint(k1loc)
                            fixd_list(kk)%restraint%k0 = cons_info%fixed_mol_k0(k1loc)
                         ELSE
@@ -813,8 +815,9 @@ CONTAINS
                               CASE (use_perd_xyz)
                                  CPASSERT(SIZE(r) == 3)
                                  fixd_list(kk)%coord(1:3) = r(1:3)
-                                 IF (ASSOCIATED(topology%cell_muc)) &
+                                 IF (ASSOCIATED(topology%cell_muc)) THEN
                                     CALL cell_transform_input_cartesian(topology%cell_muc, fixd_list(kk)%coord)
+                                 END IF
                               END SELECT
                            ELSE
                               ! Write coord0 value for restraint
@@ -1338,11 +1341,12 @@ CONTAINS
             ! Intramolecular constraint
             IF (const_mol(i) /= 0) THEN
                k = const_mol(i)
-               IF (k > SIZE(molecule_kind_set)) &
+               IF (k > SIZE(molecule_kind_set)) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "A constraint has been specified providing the molecule index. But the"// &
                                 " molecule index ("//cp_to_string(k)//") is out of range of the possible"// &
                                 " molecule kinds ("//cp_to_string(SIZE(molecule_kind_set))//").")
+               END IF
                isize = SIZE(constr_x_mol(k)%constr)
                CALL reallocate(constr_x_mol(k)%constr, 1, isize + 1)
                constr_x_mol(k)%constr(isize + 1) = i
@@ -1379,13 +1383,14 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: found
       CHARACTER(LEN=*), INTENT(IN)                       :: name
 
-      IF (.NOT. found) &
+      IF (.NOT. found) THEN
          CALL cp_warn(__LOCATION__, &
                       " MOLNAME ("//TRIM(name)//") was defined for constraints, but this molecule name "// &
                       "is not defined. Please check carefully your PDB, PSF (has priority over PDB) or "// &
                       "input driven CP2K coordinates. In case you may not find the reason for this warning "// &
                       "it may be a good idea to print all molecule information (including kind name) activating "// &
                       "the print_key MOLECULES specific of the SUBSYS%PRINT section. ")
+      END IF
 
    END SUBROUTINE print_warning_molname
 

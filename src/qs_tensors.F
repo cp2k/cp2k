@@ -713,7 +713,7 @@ CONTAINS
           .OR. op_ij == do_potential_mix_cl_trunc) THEN
          dr_ij = potential_parameter%cutoff_radius*cutoff_screen_factor
          dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (op_ij == do_potential_coulomb) THEN
+      ELSE IF (op_ij == do_potential_coulomb) THEN
          dr_ij = 1000000.0_dp
          dr_ik = 1000000.0_dp
       END IF
@@ -722,7 +722,7 @@ CONTAINS
           .OR. op_jk == do_potential_mix_cl_trunc) THEN
          dr_jk = potential_parameter%cutoff_radius*cutoff_screen_factor
          dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (op_jk == do_potential_coulomb) THEN
+      ELSE IF (op_jk == do_potential_coulomb) THEN
          dr_jk = 1000000.0_dp
          dr_ik = 1000000.0_dp
       END IF
@@ -1030,7 +1030,7 @@ CONTAINS
           .OR. op_ij == do_potential_mix_cl_trunc) THEN
          dr_ij = potential_parameter%cutoff_radius*cutoff_screen_factor
          dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (op_ij == do_potential_coulomb) THEN
+      ELSE IF (op_ij == do_potential_coulomb) THEN
          dr_ij = 1000000.0_dp
          dr_ik = 1000000.0_dp
       END IF
@@ -1039,7 +1039,7 @@ CONTAINS
           .OR. op_jk == do_potential_mix_cl_trunc) THEN
          dr_jk = potential_parameter%cutoff_radius*cutoff_screen_factor
          dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (op_jk == do_potential_coulomb) THEN
+      ELSE IF (op_jk == do_potential_coulomb) THEN
          dr_jk = 1000000.0_dp
          dr_ik = 1000000.0_dp
       END IF
@@ -1262,7 +1262,7 @@ CONTAINS
 
          IF (do_kpoints_prv) THEN
             prefac = 0.5_dp
-         ELSEIF (nl_3c%sym == symmetric_jk) THEN
+         ELSE IF (nl_3c%sym == symmetric_jk) THEN
             IF (jatom == katom) THEN
                prefac = 0.5_dp
             ELSE
@@ -1548,7 +1548,7 @@ CONTAINS
             END DO
          END DO
 
-      ELSEIF (nl_3c%sym == symmetric_jk) THEN
+      ELSE IF (nl_3c%sym == symmetric_jk) THEN
          !Add the transpose of t3c_der_j to t3c_der_k to get the fully populated tensor
          CALL dbt_create(t3c_der_k(1, 1, 1), t3c_tmp)
          DO i_xyz = 1, 3
@@ -1567,7 +1567,7 @@ CONTAINS
          END DO
          CALL dbt_destroy(t3c_tmp)
 
-      ELSEIF (nl_3c%sym == symmetric_none) THEN
+      ELSE IF (nl_3c%sym == symmetric_none) THEN
          DO i_xyz = 1, 3
             DO kcell = 1, ncell_RI
                DO jcell = 1, nimg
@@ -1701,7 +1701,7 @@ CONTAINS
           .OR. op_ij == do_potential_mix_cl_trunc) THEN
          dr_ij = potential_parameter%cutoff_radius*cutoff_screen_factor
          dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (op_ij == do_potential_coulomb) THEN
+      ELSE IF (op_ij == do_potential_coulomb) THEN
          dr_ij = 1000000.0_dp
          dr_ik = 1000000.0_dp
       END IF
@@ -1710,7 +1710,7 @@ CONTAINS
           .OR. op_jk == do_potential_mix_cl_trunc) THEN
          dr_jk = potential_parameter%cutoff_radius*cutoff_screen_factor
          dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (op_jk == do_potential_coulomb) THEN
+      ELSE IF (op_jk == do_potential_coulomb) THEN
          dr_jk = 1000000.0_dp
          dr_ik = 1000000.0_dp
       END IF
@@ -2238,7 +2238,7 @@ CONTAINS
           .OR. op_ij == do_potential_mix_cl_trunc) THEN
          dr_ij = potential_parameter%cutoff_radius*cutoff_screen_factor
          dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (op_ij == do_potential_coulomb) THEN
+      ELSE IF (op_ij == do_potential_coulomb) THEN
          dr_ij = 1000000.0_dp
          dr_ik = 1000000.0_dp
       END IF
@@ -2247,7 +2247,7 @@ CONTAINS
           .OR. op_jk == do_potential_mix_cl_trunc) THEN
          dr_jk = potential_parameter%cutoff_radius*cutoff_screen_factor
          dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (op_jk == do_potential_coulomb) THEN
+      ELSE IF (op_jk == do_potential_coulomb) THEN
          dr_jk = 1000000.0_dp
          dr_ik = 1000000.0_dp
       END IF
@@ -2454,7 +2454,7 @@ CONTAINS
             ELSE
                prefac = 1.0_dp
             END IF
-         ELSEIF (nl_3c%sym == symmetric_ij) THEN
+         ELSE IF (nl_3c%sym == symmetric_ij) THEN
             IF (iatom == jatom) THEN
                ! factor 0.5 due to double-counting of diagonal blocks
                ! (we desymmetrize by adding transpose)
@@ -2689,13 +2689,13 @@ CONTAINS
             END DO
             CALL dbt_destroy(t_3c_tmp)
          END IF
-      ELSEIF (nl_3c%sym == symmetric_ij) THEN
+      ELSE IF (nl_3c%sym == symmetric_ij) THEN
          DO kcell = 1, nimg
             DO jcell = 1, nimg
                CALL dbt_filter(t3c(jcell, kcell), filter_eps/2)
             END DO
          END DO
-      ELSEIF (nl_3c%sym == symmetric_none) THEN
+      ELSE IF (nl_3c%sym == symmetric_none) THEN
          DO kcell = 1, nimg
             DO jcell = 1, nimg
                CALL dbt_filter(t3c(jcell, kcell), filter_eps)

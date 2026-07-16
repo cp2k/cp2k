@@ -246,7 +246,7 @@
                   factorial = factorial*REAL(kk, KIND=dp)
                   dampsumfi = dampsumfi + (xf/factorial)
                END DO
-               dampaexpi = dexp(-dampa_ij*r)
+               dampaexpi = EXP(-dampa_ij*r)
                dampfunci = dampsumfi*dampaexpi*dampfac_ij
                dampfuncdiffi = -dampa_ij*dampaexpi* &
                                dampfac_ij*(((dampa_ij*r)**nkdamp_ij)/ &
@@ -267,7 +267,7 @@
                   factorial = factorial*REAL(kk, KIND=dp)
                   dampsumfj = dampsumfj + (xf/factorial)
                END DO
-               dampaexpj = dexp(-dampa_ji*r)
+               dampaexpj = EXP(-dampa_ji*r)
                dampfuncj = dampsumfj*dampaexpj*dampfac_ji
                dampfuncdiffj = -dampa_ji*dampaexpj* &
                                dampfac_ji*(((dampa_ji*r)**nkdamp_ji)/ &
@@ -287,7 +287,7 @@
                   factorial = factorial*REAL(kk, KIND=dp)
                   dampsumfj = dampsumfj + (xf/factorial)
                END DO
-               dampaexpj = dexp(-dampa_ij*r)
+               dampaexpj = EXP(-dampa_ij*r)
                dampfuncj = dampsumfj*dampaexpj*dampfac_ij
                dampfuncdiffj = -dampa_ij*dampaexpj* &
                                dampfac_ij*(((dampa_ij*r)**nkdamp_ij)/ &
@@ -308,7 +308,7 @@
                   factorial = factorial*REAL(kk, KIND=dp)
                   dampsumfi = dampsumfi + (xf/factorial)
                END DO
-               dampaexpi = dexp(-dampa_ji*r)
+               dampaexpi = EXP(-dampa_ji*r)
                dampfunci = dampsumfi*dampaexpi*dampfac_ji
                dampfuncdiffi = -dampa_ji*dampaexpi* &
                                dampfac_ji*(((dampa_ji*r)**nkdamp_ji)/ &

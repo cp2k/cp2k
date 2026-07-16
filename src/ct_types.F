@@ -66,31 +66,6 @@ MODULE ct_types
 
       REAL(KIND=dp)         :: energy_correction = 0.0_dp
 
-!SPIN!!!    ! metric matrices for covariant to contravariant transformations
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: p_index_up=>NULL()
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: p_index_down=>NULL()
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: q_index_up=>NULL()
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: q_index_down=>NULL()
-!SPIN!!!
-!SPIN!!!    ! kohn-sham, covariant-covariant representation
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_ks=>NULL()
-!SPIN!!!    ! density, contravariant-contravariant representation
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_p=>NULL()
-!SPIN!!!    ! occ orbitals, contravariant-covariant representation
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_t=>NULL()
-!SPIN!!!    ! virt orbitals, contravariant-covariant representation
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_v=>NULL()
-!SPIN!!!
-!SPIN!!!    ! to avoid building Occ-by-N and Virt-vy-N matrices inside
-!SPIN!!!    ! the ct routines get them from the external code
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_qp_template=>NULL()
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_pq_template=>NULL()
-!SPIN!!!
-!SPIN!!!    ! single excitation amplitudes
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE  :: matrix_x
-!SPIN!!!    ! residuals
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE  :: matrix_res
-
       ! metric matrices for covariant to contravariant transformations
       TYPE(dbcsr_type), POINTER  :: p_index_up => NULL()
       TYPE(dbcsr_type), POINTER  :: p_index_down => NULL()
@@ -154,7 +129,6 @@ CONTAINS
       env%order_lanczos = 3
       env%eps_lancsoz = 1.0E-4_dp
       env%max_iter_lanczos = 40
-      !env%nspins = -1
       env%converged = .FALSE.
       env%conjugator = cg_polak_ribiere
 
@@ -231,22 +205,6 @@ CONTAINS
                                                             qq_preconditioner_full, &
                                                             pp_preconditioner_full
 
-!INTEGER      , OPTIONAL                     :: nspins
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: p_index_up
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: p_index_down
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: q_index_up
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: q_index_down
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_ks
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_p
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_t
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_v
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_qp_template
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_pq_template
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_x
-!SPIN!!!
-!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), OPTIONAL           :: copy_matrix_x
-!INTEGER                                               :: ispin
-
       IF (PRESENT(use_occ_orbs)) use_occ_orbs = env%use_occ_orbs
       IF (PRESENT(use_virt_orbs)) use_virt_orbs = env%use_virt_orbs
       IF (PRESENT(occ_orbs_orthogonal)) occ_orbs_orthogonal = &
@@ -267,7 +225,6 @@ CONTAINS
       IF (PRESENT(eps_convergence)) eps_convergence = env%eps_convergence
       IF (PRESENT(eps_filter)) eps_filter = env%eps_filter
       IF (PRESENT(max_iter)) max_iter = env%max_iter
-      !IF (PRESENT(nspins)) nspins = env%nspins
       IF (PRESENT(matrix_ks)) matrix_ks => env%matrix_ks
       IF (PRESENT(matrix_p)) matrix_p => env%matrix_p
       IF (PRESENT(matrix_t)) matrix_t => env%matrix_t
@@ -281,12 +238,8 @@ CONTAINS
       IF (PRESENT(p_index_down)) p_index_down => env%p_index_down
       IF (PRESENT(q_index_down)) q_index_down => env%q_index_down
       IF (PRESENT(copy_matrix_x)) THEN
-         !DO ispin=1,env%nspins
-         !CALL dbcsr_copy(copy_matrix_x(ispin),env%matrix_x(ispin))
          CALL dbcsr_copy(copy_matrix_x, env%matrix_x)
-         !ENDDO
       END IF
-      !IF (PRESENT(matrix_x)) matrix_x => env%matrix_x
       IF (PRESENT(energy_correction)) energy_correction = env%energy_correction
       IF (PRESENT(converged)) converged = env%converged
 
@@ -352,20 +305,6 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: qq_preconditioner_full, &
                                                             pp_preconditioner_full
 
-!INTEGER      , OPTIONAL                     :: nspins
-!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: p_index_up
-!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: p_index_down
-!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: q_index_up
-!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: q_index_down
-!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_ks
-!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_p
-!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_t
-!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_v
-!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_qp_template
-!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_pq_template
-! set para_env and blacs_env which are needed to operate with full matrices
-! it would be nice to have everything with cp_dbcsr matrices, well maybe later
-
       env%para_env => para_env
       env%blacs_env => blacs_env
 
@@ -389,7 +328,6 @@ CONTAINS
       IF (PRESENT(eps_convergence)) env%eps_convergence = eps_convergence
       IF (PRESENT(eps_filter)) env%eps_filter = eps_filter
       IF (PRESENT(max_iter)) env%max_iter = max_iter
-      !IF (PRESENT(nspins)) env%nspins = nspins
       IF (PRESENT(conjugator)) env%conjugator = conjugator
       IF (PRESENT(matrix_ks)) env%matrix_ks => matrix_ks
       IF (PRESENT(matrix_p)) env%matrix_p => matrix_p
@@ -415,18 +353,12 @@ CONTAINS
 
       TYPE(ct_step_env_type)                             :: env
 
-!INTEGER                                     :: ispin
-
       NULLIFY (env%para_env)
       NULLIFY (env%blacs_env)
 
       !DO ispin=1,env%nspins
       CALL dbcsr_release(env%matrix_x)
       CALL dbcsr_release(env%matrix_res)
-      !CALL dbcsr_release(env%matrix_x(ispin))
-      !CALL dbcsr_release(env%matrix_res(ispin))
-      !ENDDO
-      !DEALLOCATE(env%matrix_x,env%matrix_res)
 
       NULLIFY (env%p_index_up)
       NULLIFY (env%p_index_down)

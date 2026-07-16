@@ -231,7 +231,7 @@ CONTAINS
       IF (.NOT. PRESENT(order)) THEN
          IF (array_eq_i(map1_in_1, map2_in_1) .AND. array_eq_i(map1_in_2, map2_in_2)) THEN
             dist_compatible_tas = check_equal(in_tmp_3%nd_dist, out_tmp_1%nd_dist)
-         ELSEIF (array_eq_i([map1_in_1, map1_in_2], [map2_in_1, map2_in_2])) THEN
+         ELSE IF (array_eq_i([map1_in_1, map1_in_2], [map2_in_1, map2_in_2])) THEN
             dist_compatible_tensor = check_equal(in_tmp_3%nd_dist, out_tmp_1%nd_dist)
          END IF
       END IF
@@ -239,7 +239,7 @@ CONTAINS
       IF (dist_compatible_tas) THEN
          CALL dbt_tas_copy(out_tmp_1%matrix_rep, in_tmp_3%matrix_rep, summation)
          IF (move_prv) CALL dbt_clear(in_tmp_3)
-      ELSEIF (dist_compatible_tensor) THEN
+      ELSE IF (dist_compatible_tensor) THEN
          CALL dbt_copy_nocomm(in_tmp_3, out_tmp_1, summation)
          IF (move_prv) CALL dbt_clear(in_tmp_3)
       ELSE
@@ -1274,7 +1274,7 @@ CONTAINS
                ALLOCATE (tensor2_out)
                CALL dbt_remap(tensor2, ind2_linked, ind2_free, tensor2_out, comm_2d=dist_in%pgrid%mp_comm_2d, &
                               dist1=dist_list, mp_dims_1=mp_dims, nodata=nodata2, move_data=move_data_2)
-            ELSEIF (compat1 == 2) THEN ! linked index is second 2d dimension
+            ELSE IF (compat1 == 2) THEN ! linked index is second 2d dimension
                ! get distribution of linked index, tensor 2 must adopt this distribution
                ! get grid dimensions of linked index
                ALLOCATE (mp_dims(ndims_mapping_column(dist_in%pgrid%nd_index_grid)))
@@ -1315,7 +1315,7 @@ CONTAINS
                ALLOCATE (tensor1_out)
                CALL dbt_remap(tensor1, ind1_linked, ind1_free, tensor1_out, comm_2d=dist_in%pgrid%mp_comm_2d, &
                               dist1=dist_list, mp_dims_1=mp_dims, nodata=nodata1, move_data=move_data_1)
-            ELSEIF (compat2 == 2) THEN
+            ELSE IF (compat2 == 2) THEN
                ALLOCATE (mp_dims(ndims_mapping_column(dist_in%pgrid%nd_index_grid)))
                CALL dbt_get_mapping_info(dist_in%pgrid%nd_index_grid, dims2_2d=mp_dims)
                ALLOCATE (tensor1_out)
@@ -1419,7 +1419,7 @@ CONTAINS
          WRITE (unit_nr_prv, '(T2,A,1X,A,A,1X)', advance='no') "compatibility of", TRIM(tensor_in%name), ":"
          IF (compat1 == 1 .AND. compat2 == 2) THEN
             WRITE (unit_nr_prv, '(A)') "Normal"
-         ELSEIF (compat1 == 2 .AND. compat2 == 1) THEN
+         ELSE IF (compat1 == 2 .AND. compat2 == 1) THEN
             WRITE (unit_nr_prv, '(A)') "Transposed"
          ELSE
             WRITE (unit_nr_prv, '(A)') "Not compatible"
@@ -1442,7 +1442,7 @@ CONTAINS
 
       IF (compat1 == 1 .AND. compat2 == 2) THEN
          trans = .FALSE.
-      ELSEIF (compat1 == 2 .AND. compat2 == 1) THEN
+      ELSE IF (compat1 == 2 .AND. compat2 == 1) THEN
          trans = .TRUE.
       ELSE
          CPABORT("this should not happen")
@@ -1453,7 +1453,7 @@ CONTAINS
             WRITE (unit_nr_prv, '(T2,A,1X,A,A,1X)', advance='no') "compatibility of", TRIM(tensor_out%name), ":"
             IF (compat1 == 1 .AND. compat2 == 2) THEN
                WRITE (unit_nr_prv, '(A)') "Normal"
-            ELSEIF (compat1 == 2 .AND. compat2 == 1) THEN
+            ELSE IF (compat1 == 2 .AND. compat2 == 1) THEN
                WRITE (unit_nr_prv, '(A)') "Transposed"
             ELSE
                WRITE (unit_nr_prv, '(A)') "Not compatible"
@@ -1526,7 +1526,7 @@ CONTAINS
       compat_map = 0
       IF (array_eq_i(map1, compat_ind)) THEN
          compat_map = 1
-      ELSEIF (array_eq_i(map2, compat_ind)) THEN
+      ELSE IF (array_eq_i(map2, compat_ind)) THEN
          compat_map = 2
       END IF
 

@@ -312,8 +312,9 @@ CONTAINS
       END IF
 
       IF (nintervals > 0) THEN
-         IF (SIZE(xnodes_unity) < 4*nintervals) &
+         IF (SIZE(xnodes_unity) < 4*nintervals) THEN
             nintervals = SIZE(xnodes_unity)/4
+         END IF
 
          DO interval = 1, nintervals
             xnodes_unity(4*interval - 3) = 0.125_dp* &
@@ -553,14 +554,16 @@ CONTAINS
          DO interval = 1, nintervals_exist
             errors(interval) = subintervals(interval)%error
 
-            IF (subintervals(interval)%error > subintervals(interval)%conv) &
+            IF (subintervals(interval)%error > subintervals(interval)%conv) THEN
                nintervals = nintervals + 1
+            END IF
          END DO
 
          CALL sort(errors, nintervals_exist, inds)
 
-         IF (nintervals > 0) &
+         IF (nintervals > 0) THEN
             ALLOCATE (sr_env%subintervals(nintervals))
+         END IF
 
          nintervals = 0
          DO ipoint = nintervals_exist, 1, -1

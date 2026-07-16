@@ -179,16 +179,18 @@ CONTAINS
 
       ! Step 1: See if the client is ready
       CALL ask_status(comm_socket, msgbuffer)
-      IF (TRIM(msgbuffer) /= "READY") &
+      IF (TRIM(msgbuffer) /= "READY") THEN
          CPABORT("i–PI: Expected READY header but recieved "//TRIM(msgbuffer))
+      END IF
 
       ! Step 2: Send cell and position data to client
       CALL send_posdata(comm_socket, subsys=ipi_env%subsys)
 
       ! Step 3: Ask for status, should be done now
       CALL ask_status(comm_socket, msgbuffer)
-      IF (TRIM(msgbuffer) /= "HAVEDATA") &
+      IF (TRIM(msgbuffer) /= "HAVEDATA") THEN
          CPABORT("i–PI: Expected HAVEDATA header but recieved "//TRIM(msgbuffer))
+      END IF
 
       ! Step 4: Ask for data
       ALLOCATE (forces(3, nAtom))
@@ -267,8 +269,9 @@ CONTAINS
       ! Exchange headers
       CALL writebuffer(sockfd, msg, msglength)
       CALL get_header(sockfd, msgbuffer)
-      IF (TRIM(msgbuffer) /= "FORCEREADY") &
+      IF (TRIM(msgbuffer) /= "FORCEREADY") THEN
          CPABORT("i–PI: Expected FORCEREADY header but recieved "//TRIM(msgbuffer))
+      END IF
 
       ! Recieve data
       CALL readbuffer(sockfd, energy)

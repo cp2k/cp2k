@@ -232,8 +232,9 @@ CONTAINS
       END DO
       CALL unpack_subsys_particles(worker%subsys, r=positions)
 
-      IF (n_fragments > 0 .AND. worker%iw > 0) &
+      IF (n_fragments > 0 .AND. worker%iw > 0) THEN
          WRITE (worker%iw, '(A,13X,I10)') " GLBOPT| Ran fix_fragmentation times:", n_fragments
+      END IF
 
       ! setup geometry optimization
       IF (worker%iw > 0) WRITE (worker%iw, '(A,13X,I10)') " GLBOPT| Starting local optimisation at trajectory frame ", iframe
@@ -292,10 +293,10 @@ CONTAINS
       DO WHILE (stack_size > 0)
          i = stack(stack_size); stack_size = stack_size - 1 !pop
          DO j = 1, n_particles
-            IF (norm(diff(positions, i, j)) < 1.25*bondlength) THEN ! they are close = they are connected
+            IF (NORM2(diff(positions, i, j)) < 1.25*bondlength) THEN ! they are close = they are connected
                IF (.NOT. marked(j)) THEN
                   marked(j) = .TRUE.
-                  stack(stack_size + 1) = j; stack_size = stack_size + 1; !push
+                  stack(stack_size + 1) = j; stack_size = stack_size + 1 !push
                END IF
             END IF
          END DO
@@ -314,7 +315,7 @@ CONTAINS
          IF (marked(i)) CYCLE
          DO j = 1, n_particles
             IF (.NOT. marked(j)) CYCLE
-            d = norm(diff(positions, i, j))
+            d = NORM2(diff(positions, i, j))
             IF (d < min_dist) THEN
                min_dist = d
                cluster_edge = i
@@ -324,7 +325,7 @@ CONTAINS
       END DO
 
       dr = diff(positions, cluster_edge, fragment_edge)
-      s = 1.0 - bondlength/norm(dr)
+      s = 1.0 - bondlength/NORM2(dr)
       DO i = 1, n_particles
          IF (marked(i)) CYCLE
          positions(3*i - 2:3*i) = positions(3*i - 2:3*i) - s*dr
@@ -347,19 +348,6 @@ CONTAINS
 
       dr = positions(3*i - 2:3*i) - positions(3*j - 2:3*j)
    END FUNCTION diff
-
-! **************************************************************************************************
-!> \brief Helper routine for fix_fragmentation, calculates vector norm
-!> \param vec ...
-!> \return ...
-!> \author Ole Schuett
-! **************************************************************************************************
-   PURE FUNCTION norm(vec) RESULT(res)
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vec
-      REAL(KIND=dp)                                      :: res
-
-      res = SQRT(DOT_PRODUCT(vec, vec))
-   END FUNCTION norm
 
 ! **************************************************************************************************
 !> \brief Finalizes worker for global optimization

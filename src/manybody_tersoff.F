@@ -346,7 +346,7 @@ CONTAINS
       lambda3 = tersoff%lambda3
       rab2_max = rcutsq
       rij(:) = r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v
-      drij = SQRT(DOT_PRODUCT(rij, rij))
+      drij = NORM2(rij)
       ter_zeta_ij = 0.0_dp
       DO ilist = 1, n_loc_size
          kparticle = full_loc_list(2, ilist)
@@ -413,7 +413,7 @@ CONTAINS
       rab2_max = rcutsq
 
       rij(:) = r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v
-      drij = SQRT(DOT_PRODUCT(rij, rij))
+      drij = NORM2(rij)
       rij_hat(:) = rij(:)/drij
 
       nparticle = SIZE(r_last_update_pbc)
@@ -576,7 +576,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       rij(:) = r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v
-      drij = SQRT(DOT_PRODUCT(rij, rij))
+      drij = NORM2(rij)
       rij_hat(:) = rij(:)/drij
 
       fac = -0.5_dp

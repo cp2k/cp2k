@@ -104,8 +104,9 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
-      IF (pao%precondition) &
+      IF (pao%precondition) THEN
          CPABORT("PAO preconditioning not supported for selected parametrization.")
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE pao_param_init_exp

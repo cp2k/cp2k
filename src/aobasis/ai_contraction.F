@@ -439,7 +439,7 @@ CONTAINS
          ELSE
             qab(ia:ja, ib:jb) = qab(ia:ja, ib:jb) + sab(1:na, 1:nb)
          END IF
-      ELSEIF (dir == "OUT" .OR. dir == "out") THEN
+      ELSE IF (dir == "OUT" .OR. dir == "out") THEN
          !  SAB <= QAB(block)
          ja = ia + na - 1
          jb = ib + nb - 1

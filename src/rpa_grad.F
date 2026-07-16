@@ -1054,8 +1054,9 @@ CONTAINS
       mem_per_block = REAL(number_of_elements_per_blk, KIND=dp)*8.0_dp
       number_of_parallel_channels = MAX(1, MIN(MAXVAL(grid) - 1, FLOOR(mem_real/mem_per_block)))
       CALL para_env%min(number_of_parallel_channels)
-      IF (mp2_env%ri_grad%max_parallel_comm > 0) &
+      IF (mp2_env%ri_grad%max_parallel_comm > 0) THEN
          number_of_parallel_channels = MIN(number_of_parallel_channels, mp2_env%ri_grad%max_parallel_comm)
+      END IF
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T3,A,T75,I6)') 'GRAD_INFO| Number of parallel communication channels:', number_of_parallel_channels
@@ -1671,11 +1672,13 @@ CONTAINS
             pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
             pcol_recv = MODULO(my_pcol - proc_shift, num_pe_col)
 
-            IF (ALLOCATED(index2send(pcol_send)%array)) &
+            IF (ALLOCATED(index2send(pcol_send)%array)) THEN
                size_send_buffer = MAX(size_send_buffer, SIZE(index2send(pcol_send)%array))
+            END IF
 
-            IF (ALLOCATED(index2recv(pcol_recv)%array)) &
+            IF (ALLOCATED(index2recv(pcol_recv)%array)) THEN
                size_recv_buffer = MAX(size_recv_buffer, SIZE(index2recv(pcol_recv)%array))
+            END IF
          END DO
 
          ALLOCATE (buffer_send(nrow_local, size_send_buffer), buffer_recv(nrow_local, size_recv_buffer))
@@ -1829,11 +1832,13 @@ CONTAINS
             pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
             pcol_recv = MODULO(my_pcol - proc_shift, num_pe_col)
 
-            IF (ALLOCATED(index2send(pcol_send)%array)) &
+            IF (ALLOCATED(index2send(pcol_send)%array)) THEN
                size_send_buffer = MAX(size_send_buffer, SIZE(index2send(pcol_send)%array))
+            END IF
 
-            IF (ALLOCATED(index2recv(pcol_recv)%array)) &
+            IF (ALLOCATED(index2recv(pcol_recv)%array)) THEN
                size_recv_buffer = MAX(size_recv_buffer, SIZE(index2recv(pcol_recv)%array))
+            END IF
          END DO
 
          ALLOCATE (buffer_send(nrow_local, size_send_buffer), buffer_recv(nrow_local, size_recv_buffer))
@@ -2273,14 +2278,18 @@ CONTAINS
 
       DO ispin = 1, nspins
          DO pcol = 0, SIZE(sos_mp2_work_occ(ispin)%index2send, 1) - 1
-            IF (ALLOCATED(sos_mp2_work_occ(ispin)%index2send(pcol)%array)) &
+            IF (ALLOCATED(sos_mp2_work_occ(ispin)%index2send(pcol)%array)) THEN
                DEALLOCATE (sos_mp2_work_occ(ispin)%index2send(pcol)%array)
-            IF (ALLOCATED(sos_mp2_work_occ(ispin)%index2send(pcol)%array)) &
+            END IF
+            IF (ALLOCATED(sos_mp2_work_occ(ispin)%index2send(pcol)%array)) THEN
                DEALLOCATE (sos_mp2_work_occ(ispin)%index2send(pcol)%array)
-            IF (ALLOCATED(sos_mp2_work_virt(ispin)%index2recv(pcol)%array)) &
+            END IF
+            IF (ALLOCATED(sos_mp2_work_virt(ispin)%index2recv(pcol)%array)) THEN
                DEALLOCATE (sos_mp2_work_virt(ispin)%index2recv(pcol)%array)
-            IF (ALLOCATED(sos_mp2_work_virt(ispin)%index2recv(pcol)%array)) &
+            END IF
+            IF (ALLOCATED(sos_mp2_work_virt(ispin)%index2recv(pcol)%array)) THEN
                DEALLOCATE (sos_mp2_work_virt(ispin)%index2recv(pcol)%array)
+            END IF
          END DO
          DEALLOCATE (sos_mp2_work_occ(ispin)%index2send, &
                      sos_mp2_work_occ(ispin)%index2recv, &
@@ -2309,7 +2318,8 @@ CONTAINS
          mp2_env%ri_grad%P_ij(ispin)%array(:, :) = 0.5_dp*(mp2_env%ri_grad%P_ij(ispin)%array + &
                                                            TRANSPOSE(mp2_env%ri_grad%P_ij(ispin)%array))
 
-         ! The first index of P_ab has to be distributed within the subgroups, so sum it up first and add the required elements later
+         ! The first index of P_ab has to be distributed within the subgroups,
+         ! so sum it up first and add the required elements later
          CALL para_env%sum(sos_mp2_work_virt(ispin)%P)
 
          itmp = get_limit(virtual(ispin), para_env_sub%num_pe, para_env_sub%mepos)

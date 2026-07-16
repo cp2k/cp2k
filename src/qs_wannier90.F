@@ -1232,7 +1232,7 @@ CONTAINS
                      WRITE (reason, "(A,I0,A,ES9.2,A,I0,A,A32)") &
                         "atom/AO W90 guarded: best/", num_candidates, "=", best_residual, &
                         " k=", ik, " ", TRIM(best_reason)
-                  ELSEIF (.NOT. ok .AND. num_candidates == 0) THEN
+                  ELSE IF (.NOT. ok .AND. num_candidates == 0) THEN
                      reason = "no matching SCF symmetry operation candidate"
                   END IF
                ELSE
@@ -1262,7 +1262,7 @@ CONTAINS
                                                             reason, source_window_min_svalue, &
                                                             candidate_residual)
                   END IF
-               ELSEIF (.NOT. ok) THEN
+               ELSE IF (.NOT. ok) THEN
                   CALL ritz_reconstruct_wannier90_window(dst_real, dst_imag, dst_real, dst_imag, &
                                                          matrix_s, matrix_ks, kpoint%xkp(1:3, ik), &
                                                          cell_to_index, sab_nl, ispin, &
@@ -1752,7 +1752,7 @@ CONTAINS
                      END IF
                   END IF
                END IF
-            ELSEIF (ASSOCIATED(qs_kpoint%kp_sym)) THEN
+            ELSE IF (ASSOCIATED(qs_kpoint%kp_sym)) THEN
                kpsym => qs_kpoint%kp_sym(ikred)%kpoint_sym
                IF (ASSOCIATED(kpsym)) THEN
                   DO isym_try = 1, kpsym%nwred

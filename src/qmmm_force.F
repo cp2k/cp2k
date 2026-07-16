@@ -135,10 +135,11 @@ CONTAINS
                WRITE (unit=output_unit, fmt='("ip, j, pos, lat_pos ",2I6,6F12.5)') ip, j, &
                   particles_qm(ip)%r, DOT_PRODUCT(qm_cell%h_inv(j, :), particles_qm(ip)%r)
             END IF
-            IF (.NOT. check) &
+            IF (.NOT. check) THEN
                CALL cp_abort(__LOCATION__, &
                              "QM/MM QM atoms must be fully contained in the same image of the QM box "// &
                              "- No wrapping of coordinates is allowed! ")
+            END IF
          END DO
       END DO
 

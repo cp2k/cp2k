@@ -200,13 +200,13 @@ CONTAINS
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
 
          CALL vwn_lda_01(rho, x, e_0, e_rho, npoints, sc)
-      ELSEIF (order >= 0) THEN
+      ELSE IF (order >= 0) THEN
          deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
 
          CALL vwn_lda_0(rho, x, e_0, npoints, sc)
-      ELSEIF (order == -1) THEN
+      ELSE IF (order == -1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)

@@ -77,8 +77,9 @@ CONTAINS
       CALL list_init(reports)
       CALL collect_reports_from_ranks(reports, cost_type, para_env)
 
-      IF (list_size(reports) > 0 .AND. iw > 0) &
+      IF (list_size(reports) > 0 .AND. iw > 0) THEN
          CALL print_reports(reports, iw, r_timings, sort_by_self_time, cost_type, report_maxloc, para_env)
+      END IF
 
       ! deallocate reports
       DO WHILE (list_size(reports) > 0)
@@ -111,8 +112,9 @@ CONTAINS
       TYPE(timer_env_type), POINTER                      :: timer_env
 
       NULLIFY (r_stat, r_report, timer_env)
-      IF (.NOT. list_isready(reports)) &
+      IF (.NOT. list_isready(reports)) THEN
          CPABORT("BUG")
+      END IF
 
       timer_env => get_timer_env()
 
@@ -232,8 +234,9 @@ CONTAINS
       TYPE(routine_report_type), POINTER                 :: r_report_i, r_report_j
 
       NULLIFY (r_report_i, r_report_j)
-      IF (.NOT. list_isready(reports)) &
+      IF (.NOT. list_isready(reports)) THEN
          CPABORT("BUG")
+      END IF
 
       ! are we printing timing or energy ?
       SELECT CASE (cost_type)

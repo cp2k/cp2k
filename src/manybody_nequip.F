@@ -468,8 +468,9 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(neq_data%force)) THEN
-         IF (SIZE(neq_data%force, 2) /= nequip_work%n_atoms_use) &
+         IF (SIZE(neq_data%force, 2) /= nequip_work%n_atoms_use) THEN
             DEALLOCATE (neq_data%force, neq_data%use_indices)
+         END IF
       END IF
 
       IF (.NOT. ASSOCIATED(neq_data%force)) THEN

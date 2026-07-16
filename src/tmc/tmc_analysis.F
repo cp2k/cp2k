@@ -118,13 +118,15 @@ CONTAINS
             CALL section_vals_val_get(tmc_ana_section, "DENSITY", i_vals=i_arr_tmp)
 
             IF (SIZE(i_arr_tmp(:)) == 3) THEN
-               IF (ANY(i_arr_tmp(:) <= 0)) &
+               IF (ANY(i_arr_tmp(:) <= 0)) THEN
                   CALL cp_abort(__LOCATION__, "The amount of intervals in each "// &
                                 "direction has to be greater than 0.")
+               END IF
                nr_bins(:) = i_arr_tmp(:)
             ELSE IF (SIZE(i_arr_tmp(:)) == 1) THEN
-               IF (ANY(i_arr_tmp(:) <= 0)) &
+               IF (ANY(i_arr_tmp(:) <= 0)) THEN
                   CPABORT("The amount of intervals has to be greater than 0.")
+               END IF
                nr_bins(:) = i_arr_tmp(1)
             ELSE IF (SIZE(i_arr_tmp(:)) == 0) THEN
                nr_bins(:) = 1
@@ -250,13 +252,15 @@ CONTAINS
       END IF
 
       ! init radial distribution function
-      IF (ASSOCIATED(ana_env%pair_correl)) &
+      IF (ASSOCIATED(ana_env%pair_correl)) THEN
          CALL ana_pair_correl_init(ana_pair_correl=ana_env%pair_correl, &
                                    atoms=ana_env%atoms, cell=ana_env%cell)
+      END IF
       ! init classical dipole moment calculations
-      IF (ASSOCIATED(ana_env%dip_mom)) &
+      IF (ASSOCIATED(ana_env%dip_mom)) THEN
          CALL ana_dipole_moment_init(ana_dip_mom=ana_env%dip_mom, &
                                      atoms=ana_env%atoms)
+      END IF
    END SUBROUTINE analysis_init
 
 ! **************************************************************************************************
@@ -484,18 +488,21 @@ CONTAINS
 
       IF (weight_act > 0) THEN
          ! calculates the 3 dimensional distributed density
-         IF (ASSOCIATED(ana_env%density_3d)) &
+         IF (ASSOCIATED(ana_env%density_3d)) THEN
             CALL calc_density_3d(elem=ana_env%last_elem, &
                                  weight=weight_act, atoms=ana_env%atoms, &
                                  ana_env=ana_env)
+         END IF
          ! calculated the radial distribution function for each atom type
-         IF (ASSOCIATED(ana_env%pair_correl)) &
+         IF (ASSOCIATED(ana_env%pair_correl)) THEN
             CALL calc_paircorrelation(elem=ana_env%last_elem, weight=weight_act, &
                                       atoms=ana_env%atoms, ana_env=ana_env)
+         END IF
          ! calculates the classical dipole moments
-         IF (ASSOCIATED(ana_env%dip_mom)) &
+         IF (ASSOCIATED(ana_env%dip_mom)) THEN
             CALL calc_dipole_moment(elem=ana_env%last_elem, weight=weight_act, &
                                     ana_env=ana_env)
+         END IF
          ! calculates the dipole moments analysis and dielectric constant
          IF (ASSOCIATED(ana_env%dip_ana)) THEN
             ! in symmetric case use also the dipoles
@@ -504,64 +511,72 @@ CONTAINS
                ! (-x,y,z)
                ana_env%last_elem%dipole(1) = -ana_env%last_elem%dipole(1)
                dip_tmp(:) = ana_env%last_elem%dipole(:)
-               IF (ASSOCIATED(ana_env%dip_mom)) &
+               IF (ASSOCIATED(ana_env%dip_mom)) THEN
                   ana_env%dip_mom%last_dip_cl(1) = -ana_env%dip_mom%last_dip_cl(1)
+               END IF
                CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act, &
                                          ana_env=ana_env)
                ! (-x,-y,z)
                ana_env%last_elem%dipole(:) = dip_tmp(:)
                ana_env%last_elem%dipole(2) = -ana_env%last_elem%dipole(2)
                dip_tmp(:) = ana_env%last_elem%dipole(:)
-               IF (ASSOCIATED(ana_env%dip_mom)) &
+               IF (ASSOCIATED(ana_env%dip_mom)) THEN
                   ana_env%dip_mom%last_dip_cl(2) = -ana_env%dip_mom%last_dip_cl(2)
+               END IF
                CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act, &
                                          ana_env=ana_env)
                ! (-x,-y,-z)
                ana_env%last_elem%dipole(:) = dip_tmp(:)
                ana_env%last_elem%dipole(3) = -ana_env%last_elem%dipole(3)
                dip_tmp(:) = ana_env%last_elem%dipole(:)
-               IF (ASSOCIATED(ana_env%dip_mom)) &
+               IF (ASSOCIATED(ana_env%dip_mom)) THEN
                   ana_env%dip_mom%last_dip_cl(3) = -ana_env%dip_mom%last_dip_cl(3)
+               END IF
                CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act, &
                                          ana_env=ana_env)
                ! (x,-y,-z)
                ana_env%last_elem%dipole(:) = dip_tmp(:)
                ana_env%last_elem%dipole(1) = -ana_env%last_elem%dipole(1)
                dip_tmp(:) = ana_env%last_elem%dipole(:)
-               IF (ASSOCIATED(ana_env%dip_mom)) &
+               IF (ASSOCIATED(ana_env%dip_mom)) THEN
                   ana_env%dip_mom%last_dip_cl(1) = -ana_env%dip_mom%last_dip_cl(1)
+               END IF
                CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act, &
                                          ana_env=ana_env)
                ! (x,y,-z)
                ana_env%last_elem%dipole(:) = dip_tmp(:)
                ana_env%last_elem%dipole(2) = -ana_env%last_elem%dipole(2)
                dip_tmp(:) = ana_env%last_elem%dipole(:)
-               IF (ASSOCIATED(ana_env%dip_mom)) &
+               IF (ASSOCIATED(ana_env%dip_mom)) THEN
                   ana_env%dip_mom%last_dip_cl(2) = -ana_env%dip_mom%last_dip_cl(2)
+               END IF
                CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act, &
                                          ana_env=ana_env)
                ! (-x,y,-z)
                ana_env%last_elem%dipole(:) = dip_tmp(:)
                ana_env%last_elem%dipole(1) = -ana_env%last_elem%dipole(1)
                dip_tmp(:) = ana_env%last_elem%dipole(:)
-               IF (ASSOCIATED(ana_env%dip_mom)) &
+               IF (ASSOCIATED(ana_env%dip_mom)) THEN
                   ana_env%dip_mom%last_dip_cl(1) = -ana_env%dip_mom%last_dip_cl(1)
+               END IF
                CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act, &
                                          ana_env=ana_env)
                ! (x,-y,z)
                ana_env%last_elem%dipole(:) = dip_tmp(:)
                ana_env%last_elem%dipole(:) = -ana_env%last_elem%dipole(:)
                dip_tmp(:) = ana_env%last_elem%dipole(:)
-               IF (ASSOCIATED(ana_env%dip_mom)) &
+               IF (ASSOCIATED(ana_env%dip_mom)) THEN
                   ana_env%dip_mom%last_dip_cl(:) = -ana_env%dip_mom%last_dip_cl(:)
+               END IF
                CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act, &
                                          ana_env=ana_env)
                ! back to (x,y,z)
                ana_env%last_elem%dipole(:) = dip_tmp(:)
                ana_env%last_elem%dipole(2) = -ana_env%last_elem%dipole(2)
                dip_tmp(:) = ana_env%last_elem%dipole(:)
-               IF (ASSOCIATED(ana_env%dip_mom)) &
+               IF (ASSOCIATED(ana_env%dip_mom)) THEN
                   ana_env%dip_mom%last_dip_cl(2) = -ana_env%dip_mom%last_dip_cl(2)
+               END IF
             END IF
             CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act, &
                                       ana_env=ana_env)
@@ -600,24 +615,29 @@ CONTAINS
       ! start the timing
       CALL timeset(routineN, handle)
       IF (ASSOCIATED(ana_env%density_3d)) THEN
-         IF (ana_env%density_3d%conf_counter > 0) &
+         IF (ana_env%density_3d%conf_counter > 0) THEN
             CALL print_density_3d(ana_env=ana_env)
+         END IF
       END IF
       IF (ASSOCIATED(ana_env%pair_correl)) THEN
-         IF (ana_env%pair_correl%conf_counter > 0) &
+         IF (ana_env%pair_correl%conf_counter > 0) THEN
             CALL print_paircorrelation(ana_env=ana_env)
+         END IF
       END IF
       IF (ASSOCIATED(ana_env%dip_mom)) THEN
-         IF (ana_env%dip_mom%conf_counter > 0) &
+         IF (ana_env%dip_mom%conf_counter > 0) THEN
             CALL print_dipole_moment(ana_env)
+         END IF
       END IF
       IF (ASSOCIATED(ana_env%dip_ana)) THEN
-         IF (ana_env%dip_ana%conf_counter > 0) &
+         IF (ana_env%dip_ana%conf_counter > 0) THEN
             CALL print_dipole_analysis(ana_env)
+         END IF
       END IF
       IF (ASSOCIATED(ana_env%displace)) THEN
-         IF (ana_env%displace%conf_counter > 0) &
+         IF (ana_env%displace%conf_counter > 0) THEN
             CALL print_average_displacement(ana_env)
+         END IF
       END IF
 
       ! end the timing
@@ -691,16 +711,18 @@ CONTAINS
                CALL deallocate_sub_tree_node(tree_elem=elem)
             END IF
             ! if there was no previous element, create a new temp element to write in
-            IF (.NOT. ASSOCIATED(elem)) &
+            IF (.NOT. ASSOCIATED(elem)) THEN
                CALL allocate_new_sub_tree_node(tmc_params=tmc_params, next_el=elem, &
                                                nr_dim=nr_dim)
+            END IF
          END DO conf_loop
       END IF
       ! close the files
       CALL analyse_files_close(tmc_ana=ana_env)
 
-      IF (ASSOCIATED(elem)) &
+      IF (ASSOCIATED(elem)) THEN
          CALL deallocate_sub_tree_node(tree_elem=elem)
+      END IF
 
       ! end the timing
       CALL timestop(handle)
@@ -843,11 +865,12 @@ CONTAINS
          CALL open_file(file_name=file_name, file_status="UNKNOWN", &
                         file_action="WRITE", file_position="APPEND", &
                         unit_number=file_ptr)
-         IF (.NOT. flag) &
+         IF (.NOT. flag) THEN
             WRITE (file_ptr, FMT='(A8,11A20)') "# conf_nr", "dens_act[g/cm^3]", &
-            "dens_average[g/cm^3]", "density_variance", &
-            "averages:volume", "box_lenth_x", "box_lenth_y", "box_lenth_z", &
-            "variances:volume", "box_lenth_x", "box_lenth_y", "box_lenth_z"
+               "dens_average[g/cm^3]", "density_variance", &
+               "averages:volume", "box_lenth_x", "box_lenth_y", "box_lenth_z", &
+               "variances:volume", "box_lenth_x", "box_lenth_y", "box_lenth_z"
+         END IF
          WRITE (file_ptr, FMT="(I8,11F20.10)") ana_env%density_3d%conf_counter + 1 - weight, &
             SUM(mass_bin(:, :, :))/vol_sub_box/SIZE(mass_bin(:, :, :)), &
             SUM(ana_env%density_3d%sum_density(:, :, :))/ &
@@ -975,11 +998,12 @@ CONTAINS
                        SIZE(ana_env%density_3d%sum_density(:, :, :))/ &
                        REAL(ana_env%density_3d%conf_counter, KIND=dp))**2)
       WRITE (ana_env%io_unit, FMT="(/,T2,A)") REPEAT("-", 79)
-      IF (ana_env%print_test_output) &
+      IF (ana_env%print_test_output) THEN
          WRITE (ana_env%io_unit, *) "TMC|ANALYSIS_CELL_DENSITY_X= ", &
-         SUM(ana_env%density_3d%sum_density(:, :, :))/ &
-         SIZE(ana_env%density_3d%sum_density(:, :, :))/ &
-         REAL(ana_env%density_3d%conf_counter, KIND=dp)
+            SUM(ana_env%density_3d%sum_density(:, :, :))/ &
+            SIZE(ana_env%density_3d%sum_density(:, :, :))/ &
+            REAL(ana_env%density_3d%conf_counter, KIND=dp)
+      END IF
       ! end the timing
       CALL timestop(handle)
    END SUBROUTINE print_density_3d
@@ -1175,12 +1199,13 @@ CONTAINS
          END DO
          CALL close_file(unit_number=file_ptr)
 
-         IF (ana_env%print_test_output) &
+         IF (ana_env%print_test_output) THEN
             WRITE (*, *) "TMC|ANALYSIS_G_R_"// &
-            TRIM(ana_env%pair_correl%pairs(pair)%f_n)//"_"// &
-            TRIM(ana_env%pair_correl%pairs(pair)%s_n)//"_X= ", &
-            SUM(ana_env%pair_correl%g_r(pair, :)/ana_env%pair_correl%conf_counter/ &
-                voldr*ana_env%pair_correl%pairs(pair)%pair_count/vol)
+               TRIM(ana_env%pair_correl%pairs(pair)%f_n)//"_"// &
+               TRIM(ana_env%pair_correl%pairs(pair)%s_n)//"_X= ", &
+               SUM(ana_env%pair_correl%g_r(pair, :)/ana_env%pair_correl%conf_counter/ &
+                   voldr*ana_env%pair_correl%pairs(pair)%pair_count/vol)
+         END IF
       END DO
 
       ! end the timing
@@ -1297,9 +1322,10 @@ CONTAINS
    SUBROUTINE print_dipole_moment(ana_env)
       TYPE(tmc_analysis_env), POINTER                    :: ana_env
 
-      IF (ana_env%print_test_output) &
+      IF (ana_env%print_test_output) THEN
          WRITE (*, *) "TMC|ANALYSIS_FINAL_CLASS_CELL_DIPOLE_MOMENT_X= ", &
-         ana_env%dip_mom%last_dip_cl(:)
+            ana_env%dip_mom%last_dip_cl(:)
+      END IF
    END SUBROUTINE print_dipole_moment
 
 ! **************************************************************************************************
@@ -1327,8 +1353,9 @@ CONTAINS
       CPASSERT(ASSOCIATED(ana_env%dip_ana))
 
       weight_act = weight
-      IF (ana_env%dip_ana%ana_type == ana_type_sym_xyz) &
+      IF (ana_env%dip_ana%ana_type == ana_type_sym_xyz) THEN
          weight_act = weight_act/REAL(8.0, KIND=dp)
+      END IF
 
       ! get the volume
       ALLOCATE (scaled_cell)
@@ -1521,12 +1548,14 @@ CONTAINS
       WRITE (ana_env%io_unit, FMT=fmt_my) plabel, "temperature ", cp_to_string(ana_env%temperature)
       WRITE (ana_env%io_unit, FMT=fmt_my) plabel, "used configurations ", &
          cp_to_string(REAL(ana_env%dip_ana%conf_counter, KIND=dp))
-      IF (ana_env%dip_ana%ana_type == ana_type_ice) &
+      IF (ana_env%dip_ana%ana_type == ana_type_ice) THEN
          WRITE (ana_env%io_unit, FMT='(T2,A,"| ",A)') plabel, &
-         "ice analysis with directions of hexagonal structure"
-      IF (ana_env%dip_ana%ana_type == ana_type_sym_xyz) &
+            "ice analysis with directions of hexagonal structure"
+      END IF
+      IF (ana_env%dip_ana%ana_type == ana_type_sym_xyz) THEN
          WRITE (ana_env%io_unit, FMT='(T2,A,"| ",A)') plabel, &
-         "ice analysis with symmetrized dipoles in each direction."
+            "ice analysis with symmetrized dipoles in each direction."
+      END IF
 
       WRITE (ana_env%io_unit, FMT=fmt_my) plabel, "for product of 2 directions(per vol):"
       DO i = 1, 3
@@ -1607,8 +1636,9 @@ CONTAINS
          CALL open_file(file_name=file_name, file_status="UNKNOWN", &
                         file_action="WRITE", file_position="APPEND", &
                         unit_number=file_ptr)
-         IF (.NOT. flag) &
+         IF (.NOT. flag) THEN
             WRITE (file_ptr, *) "# conf     squared deviation of the cell"
+         END IF
          WRITE (file_ptr, *) elem%nr, disp
          CALL close_file(unit_number=file_ptr)
       END IF
@@ -1638,9 +1668,10 @@ CONTAINS
       WRITE (ana_env%io_unit, FMT=fmt_my) plabel, "cell root mean square deviation: ", &
          cp_to_string(SQRT(ana_env%displace%disp/ &
                            REAL(ana_env%displace%conf_counter, KIND=dp)))
-      IF (ana_env%print_test_output) &
+      IF (ana_env%print_test_output) THEN
          WRITE (*, *) "TMC|ANALYSIS_AVERAGE_CELL_DISPLACEMENT_X= ", &
-         SQRT(ana_env%displace%disp/ &
-              REAL(ana_env%displace%conf_counter, KIND=dp))
+            SQRT(ana_env%displace%disp/ &
+                 REAL(ana_env%displace%conf_counter, KIND=dp))
+      END IF
    END SUBROUTINE print_average_displacement
 END MODULE tmc_analysis

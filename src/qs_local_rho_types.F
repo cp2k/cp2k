@@ -156,12 +156,9 @@ CONTAINS
       nkind = SIZE(rhoz_set)
 
       DO ikind = 1, nkind
-         IF (ASSOCIATED(rhoz_set(ikind)%r_coef)) &
-            DEALLOCATE (rhoz_set(ikind)%r_coef)
-         IF (ASSOCIATED(rhoz_set(ikind)%dr_coef)) &
-            DEALLOCATE (rhoz_set(ikind)%dr_coef)
-         IF (ASSOCIATED(rhoz_set(ikind)%vr_coef)) &
-            DEALLOCATE (rhoz_set(ikind)%vr_coef)
+         IF (ASSOCIATED(rhoz_set(ikind)%r_coef)) DEALLOCATE (rhoz_set(ikind)%r_coef)
+         IF (ASSOCIATED(rhoz_set(ikind)%dr_coef)) DEALLOCATE (rhoz_set(ikind)%dr_coef)
+         IF (ASSOCIATED(rhoz_set(ikind)%vr_coef)) DEALLOCATE (rhoz_set(ikind)%vr_coef)
       END DO
 
       DEALLOCATE (rhoz_set)

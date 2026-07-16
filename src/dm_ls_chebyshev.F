@@ -263,27 +263,33 @@ CONTAINS
 
          DO iwindow = 1, nwindow
             CALL dbcsr_copy(matrix_dummy1, matrix_tmp1)
-            CALL dbcsr_copy(matrix_dummy2(iwindow), matrix_tmp2) !matrix_dummy2=
-            CALL dbcsr_scale(matrix_dummy1, kernel_g(1)*aitchev_T(1, iwindow)) !first term of chebyshev poly(matrix)
-            CALL dbcsr_scale(matrix_dummy2(iwindow), 2.0_dp*kernel_g(2)*aitchev_T(2, iwindow)) !second term of chebyshev poly(matrix)
+            !matrix_dummy2=
+            CALL dbcsr_copy(matrix_dummy2(iwindow), matrix_tmp2)
+            !first term of chebyshev poly(matrix)
+            CALL dbcsr_scale(matrix_dummy1, kernel_g(1)*aitchev_T(1, iwindow))
+            !second term of chebyshev poly(matrix)
+            CALL dbcsr_scale(matrix_dummy2(iwindow), 2.0_dp*kernel_g(2)*aitchev_T(2, iwindow))
 
             CALL dbcsr_add(matrix_dummy2(iwindow), matrix_dummy1, 1.0_dp, 1.0_dp)
          END DO
 
          DO icheb = 2, ncheb - 1
             t1 = m_walltime()
+            !matrix multiplication(Recursion)
             CALL dbcsr_multiply("N", "N", 2.0_dp, matrix_F, matrix_tmp2, &
-                                -1.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter) !matrix multiplication(Recursion)
+                                -1.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
             CALL dbcsr_copy(matrix_tmp3, matrix_tmp1)
             CALL dbcsr_copy(matrix_tmp1, matrix_tmp2)
             CALL dbcsr_copy(matrix_tmp2, matrix_tmp3)
-            CALL dbcsr_trace(matrix_tmp2, trace=mu(icheb + 1)) !icheb+1 th coefficient
+            !icheb+1 th coefficient
+            CALL dbcsr_trace(matrix_tmp2, trace=mu(icheb + 1))
             CALL kernel(kernel_g(icheb + 1), icheb + 1, ncheb)
 
             DO iwindow = 1, nwindow
 
                CALL dbcsr_copy(matrix_dummy1, matrix_tmp2)
-               CALL dbcsr_scale(matrix_dummy1, 2.0_dp*kernel_g(icheb + 1)*aitchev_T(icheb + 1, iwindow)) !second term of chebyshev poly(matrix)
+               !second term of chebyshev poly(matrix)
+               CALL dbcsr_scale(matrix_dummy1, 2.0_dp*kernel_g(icheb + 1)*aitchev_T(icheb + 1, iwindow))
                CALL dbcsr_add(matrix_dummy2(iwindow), matrix_dummy1, 1.0_dp, 1.0_dp)
                CALL dbcsr_trace(matrix_dummy2(iwindow), trace=trace_dm(iwindow)) !icheb+1 th coefficient
 

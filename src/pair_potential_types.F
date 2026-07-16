@@ -641,10 +641,12 @@ CONTAINS
       potparm%at1 = 'NULL'
       potparm%at2 = 'NULL'
       potparm%rcutsq = 0.0_dp
-      IF (ASSOCIATED(potparm%pair_spline_data)) &
+      IF (ASSOCIATED(potparm%pair_spline_data)) THEN
          CALL spline_data_p_release(potparm%pair_spline_data)
-      IF (ASSOCIATED(potparm%spl_f)) &
+      END IF
+      IF (ASSOCIATED(potparm%spl_f)) THEN
          CALL spline_factor_release(potparm%spl_f)
+      END IF
 
       DO i = 1, SIZE(potparm%type)
          potparm%set(i)%rmin = not_initialized
@@ -1049,8 +1051,9 @@ CONTAINS
       IF (PRESENT(istart)) l_start = istart
       IF (PRESENT(iend)) l_end = iend
       DO i = l_start, l_end
-         IF (.NOT. ASSOCIATED(source%pot(i)%pot)) &
+         IF (.NOT. ASSOCIATED(source%pot(i)%pot)) THEN
             CALL pair_potential_single_create(source%pot(i)%pot)
+         END IF
          CALL pair_potential_single_copy(source%pot(i)%pot, dest%pot(i)%pot)
       END DO
    END SUBROUTINE pair_potential_p_copy

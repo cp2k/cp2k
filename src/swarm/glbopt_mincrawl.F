@@ -182,8 +182,9 @@ CONTAINS
          RETURN
       END IF
 
-      IF (TRIM(status) == "ok") &
+      IF (TRIM(status) == "ok") THEN
          CALL mincrawl_register_minima(this, report)
+      END IF
 
       IF (.FALSE.) CALL print_tempdist(best_minima)
 

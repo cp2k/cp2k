@@ -1481,7 +1481,7 @@ CONTAINS
                                         cell, dft_control, particle_set, pw_env)
             IF (iset == 1) THEN
                WRITE (filename, '(A6,I3.3,A5,I2.2,a11)') "_NEXC_", istate, "_NTO_", i, "_Hole_State"
-            ELSEIF (iset == 2) THEN
+            ELSE IF (iset == 2) THEN
                WRITE (filename, '(A6,I3.3,A5,I2.2,a15)') "_NEXC_", istate, "_NTO_", i, "_Particle_State"
             END IF
             info_approx_trunc = TRIM(ADJUSTL(info_approximation))
@@ -1493,7 +1493,7 @@ CONTAINS
                                                 log_filename=.FALSE., ignore_should_output=.TRUE., mpi_io=mpi_io)
             IF (iset == 1) THEN
                WRITE (title, *) "Natural Transition Orbital Hole State", i
-            ELSEIF (iset == 2) THEN
+            ELSE IF (iset == 2) THEN
                WRITE (title, *) "Natural Transition Orbital Particle State", i
             END IF
             CALL cp_pw_to_cube(wf_r, unit_nr_cube, title, particles=particles, stride=stride, mpi_io=mpi_io)

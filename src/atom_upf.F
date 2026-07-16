@@ -218,39 +218,39 @@ CONTAINS
             IF (nametag(2:8) == "PP_INFO") THEN
                CPASSERT(nametag(9:9) == ">")
                CALL upf_info_section(parser, pot)
-            ELSEIF (nametag(2:10) == "PP_HEADER") THEN
+            ELSE IF (nametag(2:10) == "PP_HEADER") THEN
                IF (.NOT. (nametag(11:11) == ">")) THEN
                   CALL upf_header_option(parser, pot)
                END IF
-            ELSEIF (nametag(2:8) == "PP_MESH") THEN
+            ELSE IF (nametag(2:8) == "PP_MESH") THEN
                IF (.NOT. (nametag(9:9) == ">")) THEN
                   CALL upf_mesh_option(parser, pot)
                END IF
                CALL upf_mesh_section(parser, pot)
-            ELSEIF (nametag(2:8) == "PP_NLCC") THEN
+            ELSE IF (nametag(2:8) == "PP_NLCC") THEN
                IF (nametag(9:9) == ">") THEN
                   CALL upf_nlcc_section(parser, pot, .FALSE.)
                ELSE
                   CALL upf_nlcc_section(parser, pot, .TRUE.)
                END IF
-            ELSEIF (nametag(2:9) == "PP_LOCAL") THEN
+            ELSE IF (nametag(2:9) == "PP_LOCAL") THEN
                IF (nametag(10:10) == ">") THEN
                   CALL upf_local_section(parser, pot, .FALSE.)
                ELSE
                   CALL upf_local_section(parser, pot, .TRUE.)
                END IF
-            ELSEIF (nametag(2:12) == "PP_NONLOCAL") THEN
+            ELSE IF (nametag(2:12) == "PP_NONLOCAL") THEN
                CPASSERT(nametag(13:13) == ">")
                CALL upf_nonlocal_section(parser, pot)
-            ELSEIF (nametag(2:13) == "PP_SEMILOCAL") THEN
+            ELSE IF (nametag(2:13) == "PP_SEMILOCAL") THEN
                CALL upf_semilocal_section(parser, pot)
-            ELSEIF (nametag(2:9) == "PP_PSWFC") THEN
+            ELSE IF (nametag(2:9) == "PP_PSWFC") THEN
                ! skip section for now
-            ELSEIF (nametag(2:11) == "PP_RHOATOM") THEN
+            ELSE IF (nametag(2:11) == "PP_RHOATOM") THEN
                ! skip section for now
-            ELSEIF (nametag(2:7) == "PP_PAW") THEN
+            ELSE IF (nametag(2:7) == "PP_PAW") THEN
                ! skip section for now
-            ELSEIF (nametag(2:6) == "/UPF>") THEN
+            ELSE IF (nametag(2:6) == "/UPF>") THEN
                EXIT
             END IF
          END IF
@@ -856,7 +856,7 @@ CONTAINS
                END IF
                IF (icount > ms) EXIT
             END DO
-         ELSEIF (string(1:15) == "</PP_SEMILOCAL>") THEN
+         ELSE IF (string(1:15) == "</PP_SEMILOCAL>") THEN
             EXIT
          ELSE
             !

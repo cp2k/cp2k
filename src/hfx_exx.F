@@ -567,7 +567,7 @@ CONTAINS
             xc_section_aux => qs_env%mp2_env%ri_rpa%xc_section_aux
             xc_section_primary => qs_env%mp2_env%ri_rpa%xc_section_primary
          END IF
-      ELSEIF (qs_env%energy_correction) THEN
+      ELSE IF (qs_env%energy_correction) THEN
          IF (ASSOCIATED(qs_env%ec_env%xc_section_aux) .AND. &
              ASSOCIATED(qs_env%ec_env%xc_section_primary)) THEN
             xc_section_aux => qs_env%ec_env%xc_section_aux

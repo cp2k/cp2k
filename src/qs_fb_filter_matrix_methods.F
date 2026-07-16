@@ -480,7 +480,7 @@ CONTAINS
 
       INTEGER :: handle, handle_mpi, iatom_global, iatom_in_halo, ind, ipair, ipe, itrial, &
          jatom_global, jatom_in_halo, jkind, natoms_global, natoms_in_halo, ncols_atmatrix, &
-         ncols_blk, nrows_atmatrix, nrows_blk, numprocs, pe, recv_encode, send_encode, stat
+         ncols_blk, nrows_atmatrix, nrows_blk, numprocs, pe, recv_encode, send_encode
       INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: pairs_recv, pairs_send
       INTEGER, ALLOCATABLE, DIMENSION(:) :: atomic_H_blk_col_start, atomic_H_blk_row_start, &
          atomic_S_blk_col_start, atomic_S_blk_row_start, col_block_size_data, ind_in_halo, &
@@ -583,9 +583,7 @@ CONTAINS
 
       ! construct atomic matrix for H for atomic_halo
       ALLOCATE (atomic_H_blk_row_start(natoms_in_halo + 1), &
-                atomic_H_blk_col_start(natoms_in_halo + 1), &
-                STAT=stat)
-      CPASSERT(stat == 0)
+                atomic_H_blk_col_start(natoms_in_halo + 1))
       CALL fb_atmatrix_calc_size(H_mat, &
                                  atomic_halo, &
                                  nrows_atmatrix, &
@@ -603,9 +601,7 @@ CONTAINS
 
       ! construct atomic matrix for S for atomic_halo
       ALLOCATE (atomic_S_blk_row_start(natoms_in_halo + 1), &
-                atomic_S_blk_col_start(natoms_in_halo + 1), &
-                STAT=stat)
-      CPASSERT(stat == 0)
+                atomic_S_blk_col_start(natoms_in_halo + 1))
       CALL fb_atmatrix_calc_size(S_mat, &
                                  atomic_halo, &
                                  nrows_atmatrix, &
@@ -797,7 +793,7 @@ CONTAINS
 
       INTEGER :: handle, iatom_global, iatom_in_halo, itrial, jatom_global, jatom_in_halo, jkind, &
          natoms_global, natoms_in_halo, ncols_atmatrix, ncols_blk, ncols_blk_max, nrows_atmatrix, &
-         nrows_blk, nrows_blk_max, stat
+         nrows_blk, nrows_blk_max
       INTEGER, ALLOCATABLE, DIMENSION(:) :: atomic_H_blk_col_start, atomic_H_blk_row_start, &
          atomic_S_blk_col_start, atomic_S_blk_row_start, col_block_size_data
       INTEGER, DIMENSION(:), POINTER                     :: halo_atoms, ntfns, row_block_size_data
@@ -841,9 +837,7 @@ CONTAINS
 
       ! construct atomic matrix for H for atomic_halo
       ALLOCATE (atomic_H_blk_row_start(natoms_in_halo + 1), &
-                atomic_H_blk_col_start(natoms_in_halo + 1), &
-                STAT=stat)
-      CPASSERT(stat == 0)
+                atomic_H_blk_col_start(natoms_in_halo + 1))
       CALL fb_atmatrix_calc_size(H_mat, &
                                  atomic_halo, &
                                  nrows_atmatrix, &
@@ -859,9 +853,7 @@ CONTAINS
 
       ! construct atomic matrix for S for atomic_halo
       ALLOCATE (atomic_S_blk_row_start(natoms_in_halo + 1), &
-                atomic_S_blk_col_start(natoms_in_halo + 1), &
-                STAT=stat)
-      CPASSERT(stat == 0)
+                atomic_S_blk_col_start(natoms_in_halo + 1))
       CALL fb_atmatrix_calc_size(S_mat, &
                                  atomic_halo, &
                                  nrows_atmatrix, &
@@ -905,9 +897,6 @@ CONTAINS
                               kind_number=jkind)
          nrows_blk = row_block_size_data(iatom_global)
          ncols_blk = ntfns(jkind)
-
-         ! ALLOCATE(mat_blk(nrows_blk,ncols_blk) STAT=stat)
-         ! CPPostcondition(stat==0, cp_failure_level, routineP,failure)
 
          ! do it column-wise one trial function at a time
          DO itrial = 1, ntfns(jkind)

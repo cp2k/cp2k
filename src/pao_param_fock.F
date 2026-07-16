@@ -95,8 +95,10 @@ CONTAINS
 
       ! calculate homo-lumo gap (it's useful for detecting numerical issues)
       gap = HUGE(dp)
-      IF (m < n) & ! catch special case n==m
+      IF (m < n) THEN
+         ! catch special case n==m
          gap = H_evals(m + 1) - H_evals(m)
+      END IF
 
       IF (PRESENT(penalty)) THEN
          ! penalty terms: occupied and virtual eigenvalues repel each other
@@ -164,8 +166,9 @@ CONTAINS
          M5 = MATMUL(MATMUL(block_N, M4), block_N)
 
          ! add regularization gradient
-         IF (PRESENT(penalty)) &
+         IF (PRESENT(penalty)) THEN
             M5 = M5 + 2.0_dp*pao%regularization*V
+         END IF
 
          ! symmetrize
          G = 0.5_dp*(M5 + TRANSPOSE(M5)) ! the final gradient

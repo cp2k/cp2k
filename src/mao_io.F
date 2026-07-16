@@ -122,8 +122,10 @@ CONTAINS
          NULLIFY (local_block)
          CALL dbcsr_get_block_p(matrix=matrix, row=iatom, col=iatom, block=local_block, found=found)
          IF (ASSOCIATED(local_block)) THEN
-            IF (SIZE(local_block) > 0) & ! catch corner-case
+            IF (SIZE(local_block) > 0) THEN
+               ! catch corner-case
                mpi_buffer(:, :) = local_block(:, :)
+            END IF
          ELSE
             mpi_buffer(:, :) = 0.0_dp
          END IF

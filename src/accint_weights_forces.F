@@ -412,7 +412,7 @@ CONTAINS
          NULLIFY (rho_r, rho_g, tau_r, tau_g)
          IF (rho_g_valid) THEN
             CALL create_density_on_pool(xc_pw_pool, rho_g_base, rho_r, rho_g)
-         ELSEIF (ASSOCIATED(rho_r_base)) THEN
+         ELSE IF (ASSOCIATED(rho_r_base)) THEN
             CALL create_density_on_pool_from_r(auxbas_pw_pool, xc_pw_pool, rho_r_base, rho_r, rho_g)
          ELSE
             CPABORT("Fine Grid in xc_density requires rho_r or rho_g")
@@ -420,7 +420,7 @@ CONTAINS
          IF (rho_tau_valid) THEN
             IF (rho_tau_g_valid) THEN
                CALL create_density_on_pool(xc_pw_pool, tau_g_base, tau_r, tau_g)
-            ELSEIF (ASSOCIATED(tau_r_base)) THEN
+            ELSE IF (ASSOCIATED(tau_r_base)) THEN
                CALL create_density_on_pool_from_r(auxbas_pw_pool, xc_pw_pool, tau_r_base, tau_r, tau_g)
             ELSE
                CPABORT("Fine Grid in xc_density requires tau_r or tau_g")
@@ -482,7 +482,7 @@ CONTAINS
                NULLIFY (rho1_r, rho1_g, tau1_r, tau1_g)
                IF (rho1_g_valid) THEN
                   CALL create_density_on_pool(xc_pw_pool, rho1_g_base, rho1_r, rho1_g)
-               ELSEIF (ASSOCIATED(rho1_r_base)) THEN
+               ELSE IF (ASSOCIATED(rho1_r_base)) THEN
                   CALL create_density_on_pool_from_r(auxbas_pw_pool, xc_pw_pool, rho1_r_base, rho1_r, rho1_g)
                ELSE
                   CPABORT("Fine Grid in xc_density requires rho1_r or rho1_g")
@@ -490,7 +490,7 @@ CONTAINS
                IF (rho1_tau_valid) THEN
                   IF (rho1_tau_g_valid) THEN
                      CALL create_density_on_pool(xc_pw_pool, tau1_g_base, tau1_r, tau1_g)
-                  ELSEIF (ASSOCIATED(tau1_r_base)) THEN
+                  ELSE IF (ASSOCIATED(tau1_r_base)) THEN
                      CALL create_density_on_pool_from_r(auxbas_pw_pool, xc_pw_pool, tau1_r_base, tau1_r, tau1_g)
                   ELSE
                      CPABORT("Fine Grid in xc_density requires tau1_r or tau1_g")
@@ -518,7 +518,7 @@ CONTAINS
                NULLIFY (rho1_r, rho1_g, tau1_r, tau1_g)
                IF (rho1_g_valid) THEN
                   CALL create_density_on_pool(xc_pw_pool, rho1_g_base, rho1_r, rho1_g)
-               ELSEIF (ASSOCIATED(rho1_r_base)) THEN
+               ELSE IF (ASSOCIATED(rho1_r_base)) THEN
                   CALL create_density_on_pool_from_r(auxbas_pw_pool, xc_pw_pool, rho1_r_base, rho1_r, rho1_g)
                ELSE
                   CPABORT("Fine Grid in xc_density requires rho1_r or rho1_g")
@@ -526,7 +526,7 @@ CONTAINS
                IF (rho1_tau_valid) THEN
                   IF (rho1_tau_g_valid) THEN
                      CALL create_density_on_pool(xc_pw_pool, tau1_g_base, tau1_r, tau1_g)
-                  ELSEIF (ASSOCIATED(tau1_r_base)) THEN
+                  ELSE IF (ASSOCIATED(tau1_r_base)) THEN
                      CALL create_density_on_pool_from_r(auxbas_pw_pool, xc_pw_pool, tau1_r_base, tau1_r, tau1_g)
                   ELSE
                      CPABORT("Fine Grid in xc_density requires tau1_r or tau1_g")
@@ -574,8 +574,9 @@ CONTAINS
                DEALLOCATE (vxc_rho)
             END IF
             IF (ASSOCIATED(vxc_tau)) THEN
-               IF (.NOT. ASSOCIATED(tau1_r)) &
+               IF (.NOT. ASSOCIATED(tau1_r)) THEN
                   CPABORT("Tau response density required for mGGA xc_density")
+               END IF
                DO ispin = 1, nspins
                   CALL pw_multiply_with(vxc_tau(ispin), tau1_r(ispin))
                   CALL pw_axpy(vxc_tau(ispin), exc, 1.0_dp)

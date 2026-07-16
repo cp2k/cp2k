@@ -250,8 +250,9 @@ CONTAINS
       !We do all the checks on what we allow in this initial implementation
       IF (ri_data%flavor /= ri_pmat) CPABORT("K-points RI-HFX only with RHO flavor")
       IF (ri_data%same_op) ri_data%same_op = .FALSE. !force the full calculation with RI metric
-      IF (ABS(ri_data%eps_pgf_orb - dft_control%qs_control%eps_pgf_orb) > 1.0E-16_dp) &
+      IF (ABS(ri_data%eps_pgf_orb - dft_control%qs_control%eps_pgf_orb) > 1.0E-16_dp) THEN
          CPABORT("RI%EPS_PGF_ORB and QS%EPS_PGF_ORB must be identical for RI-HFX k-points")
+      END IF
 
       CALL get_kp_and_ri_images(ri_data, qs_env)
       nimg = ri_data%nimg
@@ -3637,8 +3638,9 @@ CONTAINS
 
       DO i_img = 1, nimg
          DO i_spin = 1, nspins
-            IF (.NOT. (i_img == 1 .AND. i_spin == 1)) &
+            IF (.NOT. (i_img == 1 .AND. i_spin == 1)) THEN
                CALL dbt_create(rho_ao_t_sub(1, 1), rho_ao_t_sub(i_spin, i_img))
+            END IF
             CALL copy_2c_to_subgroup(rho_ao_t_sub(i_spin, i_img), rho_ao_t(i_spin, i_img), &
                                      group_size, ngroups, para_env)
             CALL dbt_destroy(rho_ao_t(i_spin, i_img))
@@ -4398,8 +4400,9 @@ CONTAINS
       CALL neighbor_list_iterator_release(nl_iterator)
       CALL release_neighbor_list_sets(nl_2c)
       CALL para_env%max(ri_data%nimg)
-      IF (ri_data%nimg > nimg) &
+      IF (ri_data%nimg > nimg) THEN
          CPABORT("Make sure the smallest exponent of the RI-HFX basis is larger than that of the ORB basis.")
+      END IF
 
       !Keep track of which images will not contribute, so that can be ignored before calculation
       CALL para_env%sum(present_img)

@@ -166,7 +166,7 @@ CONTAINS
             rhoavsurf(i) = accurate_sum(wf_r%array(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), i))
          END DO
 
-      ELSEIF (idir_surfdip == 2) THEN
+      ELSE IF (idir_surfdip == 2) THEN
          isurf = 3
          jsurf = 1
 
@@ -258,7 +258,7 @@ CONTAINS
          IF (idir_surfdip == 3) THEN
             vdip_r%array(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), irho) = &
                vdip_r%array(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), irho) + vdip
-         ELSEIF (idir_surfdip == 2) THEN
+         ELSE IF (idir_surfdip == 2) THEN
             IF (irho >= bo(1, 2) .AND. irho <= bo(2, 2)) THEN
                vdip_r%array(bo(1, 1):bo(2, 1), irho, bo(1, 3):bo(2, 3)) = &
                   vdip_r%array(bo(1, 1):bo(2, 1), irho, bo(1, 3):bo(2, 3)) + vdip

@@ -969,8 +969,8 @@ CONTAINS
 
          npt(:, :)%f = (1.0_dp + (3.0_dp*infree))*kin + fdotr - &
                        3.0_dp*simpar%p_ext*box%deth
-      ELSEIF (simpar%ensemble == npt_f_ensemble .OR. &
-              simpar%ensemble == npe_f_ensemble) THEN
+      ELSE IF (simpar%ensemble == npt_f_ensemble .OR. &
+               simpar%ensemble == npe_f_ensemble) THEN
          npt(:, :)%f = virial%pv_virial(:, :) + &
                        pv_kin(:, :) + virial%pv_constraint(:, :) - &
                        unit(:, :)*simpar%p_ext*box%deth + &
@@ -980,8 +980,8 @@ CONTAINS
             trace = trace/3.0_dp
             npt(:, :)%f = trace*unit(:, :)
          END IF
-      ELSEIF (simpar%ensemble == nph_uniaxial_ensemble .OR. &
-              simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
+      ELSE IF (simpar%ensemble == nph_uniaxial_ensemble .OR. &
+               simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
          v = box%deth
          vi = 1._dp/v
          v0 = simpar%v0

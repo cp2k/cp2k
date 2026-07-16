@@ -309,8 +309,9 @@ CONTAINS
             ekin_imol = 0.0_dp
             DO ispin = 1, nspins
                ekin_imol = ekin_imol + pw_integral_ab(rho1_r(ispin), vxc_rho(ispin))
-               IF (ASSOCIATED(vxc_tau)) &
+               IF (ASSOCIATED(vxc_tau)) THEN
                   ekin_imol = ekin_imol + pw_integral_ab(tau1_r(ispin), vxc_tau(ispin))
+               END IF
             END DO
          END IF
       END IF
@@ -409,8 +410,9 @@ CONTAINS
                ekin_imol = 0.0_dp
                DO ispin = 1, nspins
                   ekin_imol = ekin_imol + pw_integral_ab(rho1_r(ispin), vxc_rho(ispin))
-                  IF (ASSOCIATED(vxc_tau)) &
+                  IF (ASSOCIATED(vxc_tau)) THEN
                      ekin_imol = ekin_imol + pw_integral_ab(tau1_r(ispin), vxc_tau(ispin))
+                  END IF
                END DO
             END IF
          END IF

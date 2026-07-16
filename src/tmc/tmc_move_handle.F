@@ -114,22 +114,25 @@ CONTAINS
       CALL section_vals_get(nmc_section, explicit=explicit)
       IF (explicit) THEN
          ! check the approx potential file, already read
-         IF (tmc_params%NMC_inp_file == "") &
+         IF (tmc_params%NMC_inp_file == "") THEN
             CPABORT("Please specify a valid approximate potential.")
+         END IF
 
          CALL section_vals_val_get(nmc_section, "NR_NMC_STEPS", &
                                    i_val=nmc_steps)
-         IF (nmc_steps <= 0) &
+         IF (nmc_steps <= 0) THEN
             CPABORT("Please specify a valid amount of NMC steps (NR_NMC_STEPS {INTEGER}).")
+         END IF
 
          CALL section_vals_val_get(nmc_section, "PROB", r_val=nmc_prob)
 
          CALL section_vals_val_get(move_type_section, "INIT_ACC_PROB", &
                                    r_val=nmc_init_acc_prob)
-         IF (nmc_init_acc_prob <= 0.0_dp) &
+         IF (nmc_init_acc_prob <= 0.0_dp) THEN
             CALL cp_abort(__LOCATION__, &
                           "Please select a valid initial acceptance probability (>0.0) "// &
                           "for INIT_ACC_PROB")
+         END IF
 
          move_type_section => section_vals_get_subs_vals(nmc_section, "MOVE_TYPE")
          CALL section_vals_get(move_type_section, n_repetition=n_NMC_items)
@@ -150,10 +153,11 @@ CONTAINS
          ! initilaize the move array with related sizes, probs, etc.
          CALL move_types_create(tmc_params%move_types, tmc_params%nr_temp)
 
-         IF (mv_prob_sum <= 0.0) &
+         IF (mv_prob_sum <= 0.0) THEN
             CALL cp_abort(__LOCATION__, &
                           "The probabilities to perform the moves are "// &
                           "in total less equal 0")
+         END IF
 
          ! get the sizes, probs, etc. for each move type and convert units
          DO i_tmp = 1, n_items + n_NMC_items
@@ -188,16 +192,18 @@ CONTAINS
             ! move sizes are checked afterwards, because not all moves require a valid move size
             CALL section_vals_val_get(move_type_section, "PROB", i_rep_section=i_rep, &
                                       r_val=mv_prob)
-            IF (mv_prob < 0.0_dp) &
+            IF (mv_prob < 0.0_dp) THEN
                CALL cp_abort(__LOCATION__, &
                              "Please select a valid move probability (>0.0) "// &
                              "for the move type "//inp_kind_name)
+            END IF
             CALL section_vals_val_get(move_type_section, "INIT_ACC_PROB", i_rep_section=i_rep, &
                                       r_val=init_acc_prob)
-            IF (init_acc_prob < 0.0_dp) &
+            IF (init_acc_prob < 0.0_dp) THEN
                CALL cp_abort(__LOCATION__, &
                              "Please select a valid initial acceptance probability (>0.0) "// &
                              "for the move type "//inp_kind_name)
+            END IF
             ! set the related index and perform unit conversion of move sizes
             SELECT CASE (inp_kind_name)
                ! atom / molecule translation
@@ -278,8 +284,9 @@ CONTAINS
                      CALL section_vals_val_get(move_type_section, "ATOMS", &
                                                i_rep_section=i_rep, i_rep_val=i, &
                                                c_vals=move_types%atom_lists(i)%atoms)
-                     IF (SIZE(move_types%atom_lists(i)%atoms) <= 1) &
+                     IF (SIZE(move_types%atom_lists(i)%atoms) <= 1) THEN
                         CPABORT("ATOM_SWAP requires minimum two atom kinds selected. ")
+                     END IF
                   END DO
                END IF
                ! gaussian adaptation
@@ -290,10 +297,11 @@ CONTAINS
                CPABORT("A unknown move type is selected: "//inp_kind_name)
             END SELECT
             ! check for valid move sizes
-            IF (delta_x < 0.0_dp) &
+            IF (delta_x < 0.0_dp) THEN
                CALL cp_abort(__LOCATION__, &
                              "Please select a valid move size (>0.0) "// &
                              "for the move type "//inp_kind_name)
+            END IF
             ! check if not already set
             IF (move_types%mv_weight(ind) > 0.0) THEN
                CPABORT("TMC: Each move type can be set only once. ")
@@ -341,11 +349,12 @@ CONTAINS
           move_types%mv_weight(mv_type_mol_rot) > 0.0_dp) THEN
          ! if there is no molecule information available,
          !   molecules moves can not be performed
-         IF (mol_array(SIZE(mol_array)) == SIZE(mol_array)) &
+         IF (mol_array(SIZE(mol_array)) == SIZE(mol_array)) THEN
             CALL cp_abort(__LOCATION__, &
                           "molecule move: there is no molecule "// &
                           "information available. Please specify molecules when "// &
                           "using molecule moves.")
+         END IF
       END IF
 
       ! for the atom swap move
@@ -363,11 +372,12 @@ CONTAINS
                         EXIT ref_loop
                      END IF
                   END DO ref_loop
-                  IF (.NOT. found) &
+                  IF (.NOT. found) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "ATOM_SWAP: The selected atom type ("// &
                                    TRIM(move_types%atom_lists(list_i)%atoms(atom_j))// &
                                    ") is not contained in the system. ")
+                  END IF
                   ! check if not be swapped with the same atom type
                   IF (ANY(move_types%atom_lists(list_i)%atoms(atom_j) == &
                           move_types%atom_lists(list_i)%atoms(atom_j + 1:))) THEN
@@ -389,10 +399,11 @@ CONTAINS
                   END IF
                END DO ref_lop
             END IF
-            IF (.NOT. found) &
+            IF (.NOT. found) THEN
                CALL cp_abort(__LOCATION__, &
                              "The system contains only a single atom type,"// &
                              " atom_swap is not possible.")
+            END IF
          END IF
       END IF
    END SUBROUTINE check_moves
@@ -408,8 +419,9 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(tmc_params))
       CALL move_types_release(tmc_params%move_types)
-      IF (ASSOCIATED(tmc_params%nmc_move_types)) &
+      IF (ASSOCIATED(tmc_params%nmc_move_types)) THEN
          CALL move_types_release(tmc_params%nmc_move_types)
+      END IF
    END SUBROUTINE finalize_mv_types
 
 ! **************************************************************************************************
@@ -760,8 +772,9 @@ CONTAINS
          CPASSERT(PRESENT(acc))
          IF (PRESENT(subbox)) THEN
             ! only update subbox acceptance
-            IF (acc) &
+            IF (acc) THEN
                move_types%subbox_acc_count(mv_type, conf_moved) = move_types%subbox_acc_count(mv_type, conf_moved) + 1
+            END IF
             move_types%subbox_count(mv_type, conf_moved) = move_types%subbox_count(mv_type, conf_moved) + 1
             ! No more to do
             change_type = 0
@@ -790,8 +803,9 @@ CONTAINS
       END IF
 
       IF (conf_moved > 0) move_types%mv_count(0, conf_moved) = move_types%mv_count(0, conf_moved) + ABS(change_res)
-      IF (mv_type >= 0 .AND. conf_moved > 0) &
+      IF (mv_type >= 0 .AND. conf_moved > 0) THEN
          move_types%mv_count(mv_type, conf_moved) = move_types%mv_count(mv_type, conf_moved) + ABS(change_type)
+      END IF
 
       IF (prob_opt) THEN
          WHERE (move_types%mv_count > 0) &

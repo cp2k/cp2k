@@ -311,21 +311,21 @@ CONTAINS
       i1 = 1
       IF (n < 2) THEN
          CALL stop_error("error in iix: n < 2")
-      ELSEIF (n == 2) THEN
+      ELSE IF (n == 2) THEN
          i1 = 1
-      ELSEIF (n == 3) THEN
+      ELSE IF (n == 3) THEN
          IF (x <= xi(2)) THEN ! first element
             i1 = 1
          ELSE
             i1 = 2
          END IF
-      ELSEIF (x <= xi(1)) THEN ! left end
+      ELSE IF (x <= xi(1)) THEN ! left end
          i1 = 1
-      ELSEIF (x <= xi(2)) THEN ! first element
+      ELSE IF (x <= xi(2)) THEN ! first element
          i1 = 1
-      ELSEIF (x <= xi(3)) THEN ! second element
+      ELSE IF (x <= xi(3)) THEN ! second element
          i1 = 2
-      ELSEIF (x >= xi(n)) THEN ! right end
+      ELSE IF (x >= xi(n)) THEN ! right end
          i1 = n - 1
       ELSE
          ! bisection: xi(i1) <= x < xi(i2)

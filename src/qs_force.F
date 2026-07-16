@@ -227,8 +227,9 @@ CONTAINS
 
          CALL calc_c_mat_force(qs_env)
          IF (dft_control%do_admm) CALL rt_admm_force(qs_env)
-         IF (dft_control%rtp_control%velocity_gauge .AND. dft_control%rtp_control%nl_gauge_transform) &
+         IF (dft_control%rtp_control%velocity_gauge .AND. dft_control%rtp_control%nl_gauge_transform) THEN
             CALL velocity_gauge_nl_force(qs_env, particle_set)
+         END IF
       END IF
       ! from an eventual Mulliken restraint
       IF (dft_control%qs_control%mulliken_restraint) THEN
@@ -286,18 +287,18 @@ CONTAINS
          CALL build_se_core_matrix(qs_env=qs_env, para_env=para_env, &
                                    calculate_forces=.TRUE.)
          CALL se_core_core_interaction(qs_env, para_env, calculate_forces=.TRUE.)
-      ELSEIF (dft_control%qs_control%dftb) THEN
+      ELSE IF (dft_control%qs_control%dftb) THEN
          CALL build_dftb_matrices(qs_env=qs_env, para_env=para_env, &
                                   calculate_forces=.TRUE.)
          CALL calculate_dftb_dispersion(qs_env=qs_env, para_env=para_env, &
                                         calculate_forces=.TRUE.)
-      ELSEIF (dft_control%qs_control%xtb) THEN
+      ELSE IF (dft_control%qs_control%xtb) THEN
          IF (dft_control%qs_control%xtb_control%do_tblite) THEN
             CALL build_tblite_matrices(qs_env=qs_env, calculate_forces=.TRUE.)
          ELSE
             CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.TRUE.)
          END IF
-      ELSEIF (perform_ec) THEN
+      ELSE IF (perform_ec) THEN
          ! Calculates core and grid based forces
          CALL energy_correction(qs_env, ec_init=.FALSE., calculate_forces=.TRUE.)
       ELSE
@@ -305,10 +306,12 @@ CONTAINS
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.TRUE.)
          ! The above line reset the core H, which should be re-updated in case a TD field is applied:
          IF (qs_env%run_rtp) THEN
-            IF (dft_control%apply_efield_field) &
+            IF (dft_control%apply_efield_field) THEN
                CALL efield_potential_lengh_gauge(qs_env)
-            IF (dft_control%rtp_control%velocity_gauge) &
+            END IF
+            IF (dft_control%rtp_control%velocity_gauge) THEN
                CALL velocity_gauge_ks_matrix(qs_env, subtract_nl_term=.FALSE.)
+            END IF
 
          END IF
          CALL calculate_ecore_self(qs_env)
@@ -368,9 +371,9 @@ CONTAINS
                                   t3=dummy_real)
             END IF
          END IF
-      ELSEIF (perform_ec) THEN
+      ELSE IF (perform_ec) THEN
          ! energy correction forces postponed
-      ELSEIF (qs_env%harris_method) THEN
+      ELSE IF (qs_env%harris_method) THEN
          ! Harris method forces already done in harris_energy_correction
       ELSE
          ! Compute grid-based forces

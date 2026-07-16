@@ -272,8 +272,9 @@ CONTAINS
       END IF
 
       ! Langevin on COLVARS
-      IF (meta_env%langevin) &
+      IF (meta_env%langevin) THEN
          DEALLOCATE (meta_env%rng)
+      END IF
 
       NULLIFY (meta_env%time)
       NULLIFY (meta_env%metadyn_section)

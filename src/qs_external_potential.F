@@ -91,7 +91,7 @@ CONTAINS
                                    qs_env%sim_step, qs_env%sim_time, &
                                    scaling_factor)
                dft_control%eval_external_potential = .FALSE.
-            ELSEIF (dft_control%expot_control%read_from_cube) THEN
+            ELSE IF (dft_control%expot_control%read_from_cube) THEN
                scaling_factor = dft_control%expot_control%scaling_factor
                CALL cp_cube_to_pw(v_ee, 'pot.cube', scaling_factor)
                dft_control%eval_external_potential = .FALSE.

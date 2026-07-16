@@ -709,7 +709,7 @@ CONTAINS
       IF (rab < 1.e-6_dp) THEN
          ! on site terms
          gmat(:, :) = eta(:, :)
-      ELSEIF (rab > rcut) THEN
+      ELSE IF (rab > rcut) THEN
          ! do nothing
       ELSE
          rk = rab**kg
@@ -777,7 +777,7 @@ CONTAINS
       IF (rab < 1.e-6) THEN
          ! on site terms
          dgmat(:, :) = 0.0_dp
-      ELSEIF (rab > rcut) THEN
+      ELSE IF (rab > rcut) THEN
          dgmat(:, :) = 0.0_dp
       ELSE
          eta = eta**(-kg)

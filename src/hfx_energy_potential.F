@@ -3123,12 +3123,13 @@ CONTAINS
             DO mb = 1, mb_max
                DO ma = 1, ma_max
                   iint = iint + 1
-                  IF (ABS(prim(iint)) > 0.0000000000001) &
+                  IF (ABS(prim(iint)) > 0.0000000000001) THEN
                      WRITE (99, *) atom_offsets(i, 1) + ma + set_offsets(iset, 1, i, 1) - 1, &
-                     atom_offsets(j, 1) + ma + set_offsets(jset, 1, j, 1) - 1, &
-                     atom_offsets(k, 1) + ma + set_offsets(kset, 1, k, 1) - 1, &
-                     atom_offsets(l, 1) + ma + set_offsets(lset, 1, l, 1) - 1, &
-                     prim(iint)
+                        atom_offsets(j, 1) + ma + set_offsets(jset, 1, j, 1) - 1, &
+                        atom_offsets(k, 1) + ma + set_offsets(kset, 1, k, 1) - 1, &
+                        atom_offsets(l, 1) + ma + set_offsets(lset, 1, l, 1) - 1, &
+                        prim(iint)
+                  END IF
                END DO
             END DO
          END DO

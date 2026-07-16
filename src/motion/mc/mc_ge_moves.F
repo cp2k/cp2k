@@ -242,8 +242,9 @@ CONTAINS
                   end_mol = start_mol + SUM(nchains(:, ibox)) - 1
                   CALL check_for_overlap(bias_env(ibox)%force_env, &
                                          nchains(:, ibox), nunits(:), loverlap, mol_type(start_mol:end_mol))
-                  IF (loverlap) &
+                  IF (loverlap) THEN
                      CPABORT('Quickstep move found an overlap in the old config')
+                  END IF
                END IF
                bias_energy_old(ibox) = last_bias_energy(ibox)
             END DO
@@ -254,7 +255,7 @@ CONTAINS
 ! used to prevent over and underflows
             IF (energies >= -1.0E-8) THEN
                w = 1.0_dp
-            ELSEIF (energies <= -500.0_dp) THEN
+            ELSE IF (energies <= -500.0_dp) THEN
                w = 0.0_dp
             ELSE
                w = EXP(energies)
@@ -272,7 +273,7 @@ CONTAINS
 ! used to prevent over and underflows
             IF (energies >= 0.0_dp) THEN
                w = 1.0_dp
-            ELSEIF (energies <= -500.0_dp) THEN
+            ELSE IF (energies <= -500.0_dp) THEN
                w = 0.0_dp
             ELSE
                w = EXP(energies)
@@ -367,9 +368,10 @@ CONTAINS
             DO iparticle = 1, nunits_tot(ibox)
                particles(ibox)%list%els(iparticle)%r(1:3) = &
                   r_old(1:3, iparticle, ibox)
-               IF (lbias .AND. box_flag(ibox) == 1) &
+               IF (lbias .AND. box_flag(ibox) == 1) THEN
                   particles_bias(ibox)%list%els(iparticle)%r(1:3) = &
-                  r_old(1:3, iparticle, ibox)
+                     r_old(1:3, iparticle, ibox)
+               END IF
             END DO
          END DO
 
@@ -386,9 +388,10 @@ CONTAINS
       DO ibox = 1, nboxes
          CALL cp_subsys_set(subsys(ibox)%subsys, &
                             particles=particles(ibox)%list)
-         IF (lbias .AND. box_flag(ibox) == 1) &
+         IF (lbias .AND. box_flag(ibox) == 1) THEN
             CALL cp_subsys_set(subsys_bias(ibox)%subsys, &
                                particles=particles_bias(ibox)%list)
+         END IF
       END DO
 
       ! deallocate some stuff
@@ -991,7 +994,7 @@ CONTAINS
 
          IF (del_quickstep_energy > exp_max_val) THEN
             del_quickstep_energy = max_val
-         ELSEIF (del_quickstep_energy < exp_min_val) THEN
+         ELSE IF (del_quickstep_energy < exp_min_val) THEN
             del_quickstep_energy = min_val
          ELSE
             del_quickstep_energy = EXP(del_quickstep_energy)
@@ -1245,11 +1248,13 @@ CONTAINS
 
 ! add to one box, subtract from the other
       IF (old_cell_length(1, 1)*old_cell_length(2, 1)* &
-          old_cell_length(3, 1) + vol_dis <= (3.0E0_dp/angstrom)**3) &
+          old_cell_length(3, 1) + vol_dis <= (3.0E0_dp/angstrom)**3) THEN
          CPABORT('GE_volume moves are trying to make box 1 smaller than 3')
+      END IF
       IF (old_cell_length(1, 2)*old_cell_length(2, 2)* &
-          old_cell_length(3, 2) + vol_dis <= (3.0E0_dp/angstrom)**3) &
+          old_cell_length(3, 2) + vol_dis <= (3.0E0_dp/angstrom)**3) THEN
          CPABORT('GE_volume moves are trying to make box 2 smaller than 3')
+      END IF
 
       DO iside = 1, 3
          new_cell_length(iside, 1) = (old_cell_length(1, 1)**3 + &

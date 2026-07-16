@@ -120,14 +120,14 @@ CONTAINS
                   rc = potential%rcon
                   sc = potential%scon
                   cpot(1:m) = (basis%grid%rad(1:m)/rc)**sc
-               ELSEIF (potential%conf_type == barrier_conf) THEN
+               ELSE IF (potential%conf_type == barrier_conf) THEN
                   om = potential%rcon
                   ron = potential%scon
                   rc = ron + om
                   DO i = 1, m
                      IF (basis%grid%rad(i) < ron) THEN
                         cpot(i) = 0.0_dp
-                     ELSEIF (basis%grid%rad(i) < rc) THEN
+                     ELSE IF (basis%grid%rad(i) < rc) THEN
                         x = (basis%grid%rad(i) - ron)/om
                         x = 1._dp - x
                         cpot(i) = -6._dp*x**5 + 15._dp*x**4 - 10._dp*x**3 + 1._dp

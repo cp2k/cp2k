@@ -178,8 +178,9 @@ CONTAINS
       tmp_cell%hmat(:, 3) = tmp_cell%hmat(:, 3)*box_scale(3)
       CALL init_cell(cell=tmp_cell)
 
-      IF (PRESENT(scaled_hmat)) &
+      IF (PRESENT(scaled_hmat)) THEN
          scaled_hmat(:, :) = tmp_cell%hmat
+      END IF
 
       IF (PRESENT(vec)) THEN
          vec = pbc(r=vec, cell=tmp_cell)
@@ -611,9 +612,10 @@ CONTAINS
       eff(:) = 0.0_dp
 
       DO i = 1, tmc_env%params%nr_temp
-         IF (tmc_env%m_env%tree_node_count(i) > 0) &
+         IF (tmc_env%m_env%tree_node_count(i) > 0) THEN
             eff(i) = tmc_env%params%move_types%mv_count(0, i)/ &
                      (tmc_env%m_env%tree_node_count(i)*1.0_dp)
+         END IF
          eff(0) = eff(0) + tmc_env%params%move_types%mv_count(0, i)/ &
                   (SUM(tmc_env%m_env%tree_node_count(1:))*1.0_dp)
       END DO

@@ -99,25 +99,25 @@ CONTAINS
 
       IF (bn(1) > 0) THEN
          IACB = os_overlap3(an, cn + i1, bn - i1) + (C(1) - B(1))*os_overlap3(an, cn, bn - i1)
-      ELSEIF (bn(2) > 0) THEN
+      ELSE IF (bn(2) > 0) THEN
          IACB = os_overlap3(an, cn + i2, bn - i2) + (C(2) - B(2))*os_overlap3(an, cn, bn - i2)
-      ELSEIF (bn(3) > 0) THEN
+      ELSE IF (bn(3) > 0) THEN
          IACB = os_overlap3(an, cn + i3, bn - i3) + (C(3) - B(3))*os_overlap3(an, cn, bn - i3)
       ELSE
          IF (cn(1) > 0) THEN
             IACB = os_overlap3(an + i1, cn - i1, bn) + (A(1) - C(1))*os_overlap3(an, cn - i1, bn)
-         ELSEIF (cn(2) > 0) THEN
+         ELSE IF (cn(2) > 0) THEN
             IACB = os_overlap3(an + i2, cn - i2, bn) + (A(2) - C(2))*os_overlap3(an, cn - i2, bn)
-         ELSEIF (cn(3) > 0) THEN
+         ELSE IF (cn(3) > 0) THEN
             IACB = os_overlap3(an + i3, cn - i3, bn) + (A(3) - C(3))*os_overlap3(an, cn - i3, bn)
          ELSE
             IF (an(1) > 0) THEN
                IACB = (G(1) - A(1))*os_overlap3(an - i1, cn, bn) + &
                       0.5_dp*(an(1) - 1)/(xsi + xc)*os_overlap3(an - i1 - i1, cn, bn)
-            ELSEIF (an(2) > 0) THEN
+            ELSE IF (an(2) > 0) THEN
                IACB = (G(2) - A(2))*os_overlap3(an - i2, cn, bn) + &
                       0.5_dp*(an(2) - 1)/(xsi + xc)*os_overlap3(an - i2 - i2, cn, bn)
-            ELSEIF (an(3) > 0) THEN
+            ELSE IF (an(3) > 0) THEN
                IACB = (G(3) - A(3))*os_overlap3(an - i3, cn, bn) + &
                       0.5_dp*(an(3) - 1)/(xsi + xc)*os_overlap3(an - i3 - i3, cn, bn)
             ELSE

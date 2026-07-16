@@ -515,8 +515,9 @@ CONTAINS
       try: BLOCK
          CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
-         IF (.NOT. ASSOCIATED(active_space_env)) &
+         IF (.NOT. ASSOCIATED(active_space_env)) THEN
             EXIT try
+         END IF
 
          CALL get_mo_set(active_space_env%mos_active(1), nmo=nmo)
       END BLOCK try
@@ -555,13 +556,15 @@ CONTAINS
       try: BLOCK
          CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
-         IF (.NOT. ASSOCIATED(active_space_env)) &
+         IF (.NOT. ASSOCIATED(active_space_env)) THEN
             EXIT try
+         END IF
 
          CALL get_mo_set(active_space_env%mos_active(1), nmo=norb)
 
-         IF (buf_len < norb*norb) &
+         IF (buf_len < norb*norb) THEN
             EXIT try
+         END IF
 
          DO i = 0, norb - 1
             DO j = 0, norb - 1
@@ -602,8 +605,9 @@ CONTAINS
       try: BLOCK
          CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
-         IF (.NOT. ASSOCIATED(active_space_env)) &
+         IF (.NOT. ASSOCIATED(active_space_env)) THEN
             EXIT try
+         END IF
 
          nze_count = INT(active_space_env%eri%eri(1)%csr_mat%nze_total, KIND(nze_count))
       END BLOCK try
@@ -646,12 +650,14 @@ CONTAINS
       try: BLOCK
          CALL get_qs_env(f_env%force_env%qs_env, active_space=active_space_env)
 
-         IF (.NOT. ASSOCIATED(active_space_env)) &
+         IF (.NOT. ASSOCIATED(active_space_env)) THEN
             EXIT try
+         END IF
 
          ASSOCIATE (nze => active_space_env%eri%eri(1)%csr_mat%nze_total)
-            IF (buf_coords_len < 4*nze .OR. buf_values_len < nze) &
+            IF (buf_coords_len < 4*nze .OR. buf_values_len < nze) THEN
                EXIT try
+            END IF
 
             CALL active_space_env%eri%eri_foreach(1, active_space_env%active_orbitals, eri2array(buf_coords, buf_values))
 

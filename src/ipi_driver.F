@@ -212,8 +212,9 @@ CONTAINS
             CALL para_env%bcast(combuf)
 
             CALL force_env_get(force_env, subsys=subsys)
-            IF (nat /= subsys%particles%n_els) &
+            IF (nat /= subsys%particles%n_els) THEN
                CPABORT("@DRIVER MODE: Uh-oh! Particle number mismatch between i-PI and cp2k input!")
+            END IF
             ii = 0
             DO ip = 1, subsys%particles%n_els
                DO idir = 1, 3

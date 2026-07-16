@@ -462,14 +462,16 @@ CONTAINS
          IF (do_ls .AND. (.NOT. skip_ls)) THEN
             CALL neb_ls(stepsize, sline, rep_env, neb_env, coords, energies, forces, &
                         vels, particle_set, iw, output_unit, distances, diis_section, iw2)
-            IF (iw2 > 0) &
+            IF (iw2 > 0) THEN
                WRITE (iw2, '(T2,A,T69,F12.6)') "SD| Stepsize in SD after linesearch", &
-               stepsize
+                  stepsize
+            END IF
          ELSE
             stepsize = MIN(norm*stepsize0, max_stepsize)
-            IF (iw2 > 0) &
+            IF (iw2 > 0) THEN
                WRITE (iw2, '(T2,A,T69,F12.6)') "SD| Stepsize in SD no linesearch performed", &
-               stepsize
+                  stepsize
+            END IF
          END IF
          sline%wrk = stepsize*sline%wrk
          diis_on = accept_diis_step(istep > max_sd_steps, n_diis, err, crr, set_err, sline, coords, &

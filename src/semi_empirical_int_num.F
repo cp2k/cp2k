@@ -619,7 +619,7 @@ CONTAINS
                   (zaf*pai + zbf*pbj)*EXP(-apdg*(rij - dai - dbj)**2) + &
                   (zaf*pbi + zbf*paj)*EXP(-apdg*(rij - dbi - daj)**2) + &
                   (zaf*pbi + zbf*pbj)*EXP(-apdg*(rij - dbi - dbj)**2)
-            ELSEIF (itype == do_method_pchg) THEN
+            ELSE IF (itype == do_method_pchg) THEN
                qcorr = 0.0_dp
                scale = 0.0_dp
             ELSE
@@ -635,11 +635,11 @@ CONTAINS
                 (sepj%z == 1 .AND. (sepi%z == 6 .OR. sepi%z == 7 .OR. sepi%z == 8))) THEN
                ! Special Case O-H or N-H or C-H
                scale = scale*(2._dp*xab*EXP(-aab*rija*rija))
-            ELSEIF (sepi%z == 6 .AND. sepj%z == 6) THEN
+            ELSE IF (sepi%z == 6 .AND. sepj%z == 6) THEN
                ! Special Case C-C
                scale = scale*(2._dp*xab*EXP(-aab*(rija + 0.0003_dp*rija**6)) + 9.28_dp*EXP(-5.98_dp*rija))
-            ELSEIF ((sepi%z == 8 .AND. sepj%z == 14) .OR. &
-                    (sepj%z == 8 .AND. sepi%z == 14)) THEN
+            ELSE IF ((sepi%z == 8 .AND. sepj%z == 14) .OR. &
+                     (sepj%z == 8 .AND. sepi%z == 14)) THEN
                ! Special Case Si-O
                scale = scale*(2._dp*xab*EXP(-aab*(rija + 0.0003_dp*rija**6)) - 0.0007_dp*EXP(-(rija - 2.9_dp)**2))
             ELSE

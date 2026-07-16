@@ -1024,8 +1024,9 @@ CONTAINS
             IF (do_igaim) CALL dbcsr_get_block_p(matrix=deltajp_d(1)%matrix, row=brow, col=bcol, &
                                                  block=jp_block_d, found=den_found)
 
-            IF (.NOT. ASSOCIATED(jp_block_a)) &
+            IF (.NOT. ASSOCIATED(jp_block_a)) THEN
                CPABORT("p_block not associated in deltap")
+            END IF
 
             iatom_old = iatom
             jatom_old = jatom

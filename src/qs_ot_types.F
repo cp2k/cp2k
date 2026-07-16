@@ -269,25 +269,31 @@ CONTAINS
 
       CALL dbcsr_set(qs_ot_env%matrix_gx, 0.0_dp)
 
-      IF (qs_ot_env%use_dx) &
+      IF (qs_ot_env%use_dx) THEN
          CALL dbcsr_set(qs_ot_env%matrix_dx, 0.0_dp)
+      END IF
 
-      IF (qs_ot_env%use_gx_old) &
+      IF (qs_ot_env%use_gx_old) THEN
          CALL dbcsr_set(qs_ot_env%matrix_gx_old, 0.0_dp)
+      END IF
 
       IF (qs_ot_env%settings%do_rotation) THEN
          CALL dbcsr_set(qs_ot_env%rot_mat_gx, 0.0_dp)
-         IF (qs_ot_env%use_dx) &
+         IF (qs_ot_env%use_dx) THEN
             CALL dbcsr_set(qs_ot_env%rot_mat_dx, 0.0_dp)
-         IF (qs_ot_env%use_gx_old) &
+         END IF
+         IF (qs_ot_env%use_gx_old) THEN
             CALL dbcsr_set(qs_ot_env%rot_mat_gx_old, 0.0_dp)
+         END IF
       END IF
       IF (qs_ot_env%settings%do_ener) THEN
          qs_ot_env%ener_gx(:) = 0.0_dp
-         IF (qs_ot_env%use_dx) &
+         IF (qs_ot_env%use_dx) THEN
             qs_ot_env%ener_dx(:) = 0.0_dp
-         IF (qs_ot_env%use_gx_old) &
+         END IF
+         IF (qs_ot_env%use_gx_old) THEN
             qs_ot_env%ener_gx_old(:) = 0.0_dp
+         END IF
       END IF
 
    END SUBROUTINE qs_ot_init

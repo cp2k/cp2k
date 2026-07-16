@@ -62,8 +62,9 @@ CONTAINS
 
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
 
-      IF (ASSOCIATED(dftb_parameter)) &
+      IF (ASSOCIATED(dftb_parameter)) THEN
          CALL deallocate_dftb_atom_param(dftb_parameter)
+      END IF
 
       ALLOCATE (dftb_parameter)
 

@@ -105,8 +105,9 @@ CONTAINS
          DEALLOCATE (admm_dm%matrix_a)
       END IF
 
-      IF (ASSOCIATED(admm_dm%block_map)) &
+      IF (ASSOCIATED(admm_dm%block_map)) THEN
          DEALLOCATE (admm_dm%block_map)
+      END IF
 
       DEALLOCATE (admm_dm%mcweeny_history)
       DEALLOCATE (admm_dm)

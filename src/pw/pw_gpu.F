@@ -301,8 +301,9 @@ CONTAINS
             ! real space is distributed over x and y coordinate
             ! we have two stages of communication
             !
-            IF (r_dim(1) == 1) &
+            IF (r_dim(1) == 1) THEN
                CPABORT("This processor distribution is not supported.")
+            END IF
 
             CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, fft_sizes=fft_scratch_size)
 
@@ -463,8 +464,9 @@ CONTAINS
             ! real space is distributed over x and y coordinate
             ! we have two stages of communication
             !
-            IF (r_dim(1) == 1) &
+            IF (r_dim(1) == 1) THEN
                CPABORT("This processor distribution is not supported.")
+            END IF
 
             CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, fft_sizes=fft_scratch_size)
 

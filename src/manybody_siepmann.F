@@ -185,7 +185,7 @@ CONTAINS
                            element_symbol=element_symbol)
       IF (element_symbol /= "O") RETURN
       rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v)
-      drji = SQRT(DOT_PRODUCT(rji, rji))
+      drji = NORM2(rji)
       DO ilist = 1, n_loc_size
          kparticle = full_loc_list(2, ilist)
          IF (kparticle == jparticle) CYCLE
@@ -243,7 +243,7 @@ CONTAINS
       F = siepmann%F
 
       rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v)
-      drji = SQRT(DOT_PRODUCT(rji, rji))
+      drji = NORM2(rji)
       rji_hat(:) = rji(:)/drji
 
       nparticle = SIZE(r_last_update_pbc)
@@ -339,19 +339,19 @@ CONTAINS
                            element_symbol=element_symbol)
       IF (element_symbol /= "O") RETURN
       rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v)
-      drji = SQRT(DOT_PRODUCT(rji, rji))
+      drji = NORM2(rji)
 
       DO iatom = 1, natom
          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
                               element_symbol=element_symbol)
          IF (element_symbol /= "H") CYCLE
          rih(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(iatom)%r(:), cell)
-         drih = SQRT(DOT_PRODUCT(rih, rih))
+         drih = NORM2(rih)
          IF (drih >= h_max_dist) CYCLE
          count_h = count_h + 1
          IF (count_h == 1) THEN
             index_h1 = iatom
-         ELSEIF (count_h == 2) THEN
+         ELSE IF (count_h == 2) THEN
             index_h2 = iatom
          END IF
       END DO
@@ -363,21 +363,21 @@ CONTAINS
          ELSE
             CPABORT("No H atoms for O found")
          END IF
-      ELSEIF (count_h == 1) THEN
+      ELSE IF (count_h == 1) THEN
          IF (siepmann%allow_oh_formation) THEN
             IF (PRESENT(nr_oh)) nr_oh = nr_oh + 1
             siep_Phi_ij = 0.0_dp
          ELSE
             CPABORT("Only one H atom of O atom found")
          END IF
-      ELSEIF (count_h == 3) THEN
+      ELSE IF (count_h == 3) THEN
          IF (siepmann%allow_h3o_formation) THEN
             IF (PRESENT(nr_h3o)) nr_h3o = nr_h3o + 1
             siep_Phi_ij = 0.0_dp
          ELSE
             CPABORT("Three H atoms for O atom found")
          END IF
-      ELSEIF (count_h > 3) THEN
+      ELSE IF (count_h > 3) THEN
          CPABORT("Error in Siepmann-Sprik part: too many H atoms for O")
       END IF
 
@@ -386,7 +386,7 @@ CONTAINS
          rih1(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h1)%r(:), cell)
          rih2(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h2)%r(:), cell)
          rix(:) = rih1(:) + rih2(:)
-         drix = SQRT(DOT_PRODUCT(rix, rix))
+         drix = NORM2(rix)
          cosphi = DOT_PRODUCT(rji, rix)/(drji*drix)
          IF (cosphi < -1.0_dp) cosphi = -1.0_dp
          IF (cosphi > +1.0_dp) cosphi = +1.0_dp
@@ -441,7 +441,7 @@ CONTAINS
                            cell_v, cell, rcutsq, &
                            particle_set)
       rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v)
-      drji = SQRT(DOT_PRODUCT(rji, rji))
+      drji = NORM2(rji)
       rji_hat(:) = rji(:)/drji
 
       DO iatom = 1, natom
@@ -449,23 +449,23 @@ CONTAINS
                               element_symbol=element_symbol)
          IF (element_symbol /= "H") CYCLE
          rih(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(iatom)%r(:), cell)
-         drih = SQRT(DOT_PRODUCT(rih, rih))
+         drih = NORM2(rih)
          IF (drih >= h_max_dist) CYCLE
          count_h = count_h + 1
          IF (count_h == 1) THEN
             index_h1 = iatom
-         ELSEIF (count_h == 2) THEN
+         ELSE IF (count_h == 2) THEN
             index_h2 = iatom
          END IF
       END DO
 
       IF (count_h == 0 .AND. .NOT. siepmann%allow_o_formation) THEN
          CPABORT("No H atoms for O found")
-      ELSEIF (count_h == 1 .AND. .NOT. siepmann%allow_oh_formation) THEN
+      ELSE IF (count_h == 1 .AND. .NOT. siepmann%allow_oh_formation) THEN
          CPABORT("Only one H atom for O atom found")
-      ELSEIF (count_h == 3 .AND. .NOT. siepmann%allow_h3o_formation) THEN
+      ELSE IF (count_h == 3 .AND. .NOT. siepmann%allow_h3o_formation) THEN
          CPABORT("Three H atoms for O atom found")
-      ELSEIF (count_h > 3) THEN
+      ELSE IF (count_h > 3) THEN
          CPABORT("Error in Siepmann-Sprik part: too many H atoms for O")
       END IF
 
@@ -474,7 +474,7 @@ CONTAINS
          rih1(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h1)%r(:), cell)
          rih2(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h2)%r(:), cell)
          rix(:) = rih1(:) + rih2(:)
-         drix = SQRT(DOT_PRODUCT(rix, rix))
+         drix = NORM2(rix)
          rix_hat(:) = rix(:)/drix
          cosphi = DOT_PRODUCT(rji, rix)/(drji*drix)
          IF (cosphi < -1.0_dp) cosphi = -1.0_dp
@@ -561,7 +561,7 @@ CONTAINS
       IF (element_symbol /= "O") RETURN
 
       rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v)
-      drji = SQRT(DOT_PRODUCT(rji, rji))
+      drji = NORM2(rji)
       rji_hat(:) = rji(:)/drji
 
       fac = -1.0_dp !gradient to force
@@ -646,7 +646,7 @@ CONTAINS
       IF (element_symbol /= "O") RETURN
 
       rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:) - r_last_update_pbc(iparticle)%r(:) + cell_v)
-      drji = SQRT(DOT_PRODUCT(rji, rji))
+      drji = NORM2(rji)
 
       fac = -1.0_dp
       Phi_ij = siep_Phi_ij(siepmann, r_last_update_pbc, iparticle, jparticle, &

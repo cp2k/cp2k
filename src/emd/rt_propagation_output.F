@@ -197,19 +197,23 @@ CONTAINS
             REAL(n_electrons, dp)
          WRITE (UNIT=output_unit, FMT="((T3,A,T59,F22.14))") &
             "Total energy:", rtp%energy_new
-         IF (run_type == ehrenfest) &
+         IF (run_type == ehrenfest) THEN
             WRITE (UNIT=output_unit, FMT="((T3,A,T61,F20.14))") &
-            "Energy difference to previous iteration step:", rtp%energy_new - rtp%energy_old
-         IF (run_type == real_time_propagation) &
+               "Energy difference to previous iteration step:", rtp%energy_new - rtp%energy_old
+         END IF
+         IF (run_type == real_time_propagation) THEN
             WRITE (UNIT=output_unit, FMT="((T3,A,T61,F20.14))") &
-            "Energy difference to initial state:", rtp%energy_new - rtp%energy_old
-         IF (PRESENT(delta_iter)) &
+               "Energy difference to initial state:", rtp%energy_new - rtp%energy_old
+         END IF
+         IF (PRESENT(delta_iter)) THEN
             WRITE (UNIT=output_unit, FMT="((T3,A,T61,E20.6))") &
-            "Convergence:", delta_iter
+               "Convergence:", delta_iter
+         END IF
          IF (rtp%converged) THEN
-            IF (run_type == real_time_propagation) &
+            IF (run_type == real_time_propagation) THEN
                WRITE (UNIT=output_unit, FMT="((T3,A,T61,F12.2))") &
-               "Time needed for propagation:", used_time
+                  "Time needed for propagation:", used_time
+            END IF
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,3X,F16.14))") &
                "CONVERGENCE REACHED", rtp%energy_new - rtp%energy_old
          END IF
@@ -220,22 +224,25 @@ CONTAINS
             CALL get_rtp(rtp=rtp, mos_new=mos_new)
             CALL rt_calculate_orthonormality(orthonormality, &
                                              mos_new, matrix_s(1)%matrix)
-            IF (output_unit > 0) &
+            IF (output_unit > 0) THEN
                WRITE (output_unit, FMT="(/,(T3,A,T60,F20.10))") &
-               "Max deviation from orthonormalization:", orthonormality
+                  "Max deviation from orthonormalization:", orthonormality
+            END IF
          END IF
       END IF
 
-      IF (output_unit > 0) &
+      IF (output_unit > 0) THEN
          CALL m_flush(output_unit)
+      END IF
       CALL cp_print_key_finished_output(output_unit, logger, rtp_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 
       IF (rtp%converged) THEN
          dft_section => section_vals_get_subs_vals(input, "DFT")
          IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                                              dft_section, "REAL_TIME_PROPAGATION%PRINT%FIELD"), cp_p_file)) &
+                                              dft_section, "REAL_TIME_PROPAGATION%PRINT%FIELD"), cp_p_file)) THEN
             CALL print_field_applied(qs_env, dft_section)
+         END IF
          CALL make_moment(qs_env)
          IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                               dft_section, "REAL_TIME_PROPAGATION%PRINT%E_CONSTITUENTS"), cp_p_file)) THEN
@@ -406,9 +413,10 @@ CONTAINS
 
       rtp%energy_old = rtp%energy_new
 
-      IF (.NOT. rtp%converged .AND. rtp%iter >= dft_control%rtp_control%max_iter) &
+      IF (.NOT. rtp%converged .AND. rtp%iter >= dft_control%rtp_control%max_iter) THEN
          CALL cp_abort(__LOCATION__, "EMD did not converge, either increase MAX_ITER "// &
                        "or use a smaller TIMESTEP")
+      END IF
 
    END SUBROUTINE rt_prop_output
 
@@ -838,7 +846,7 @@ CONTAINS
       CHARACTER(len=14)                                  :: ext
       CHARACTER(len=2)                                   :: sdir
       INTEGER                                            :: dir, handle, print_unit
-      INTEGER, DIMENSION(:), POINTER                     :: stride(:)
+      INTEGER, DIMENSION(:), POINTER                     :: stride
       LOGICAL                                            :: mpi_io
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(current_env_type)                             :: current_env
@@ -886,7 +894,7 @@ CONTAINS
 
          IF (dir == 1) THEN
             sdir = "-x"
-         ELSEIF (dir == 2) THEN
+         ELSE IF (dir == 2) THEN
             sdir = "-y"
          ELSE
             sdir = "-z"

@@ -162,7 +162,7 @@ CONTAINS
                      rr(m, coa, 1) = rr(m, coa, 1) + g*REAL(az - 1, dp)*(rr(m, coa2z, 1) - rr(m + 1, coa2z, 1))
                   END DO
                END IF
-            ELSEIF (ay > 0) THEN
+            ELSE IF (ay > 0) THEN
                DO m = 0, mmax - la
                   rr(m, coa, 1) = rap(2)*rr(m, coa1y, 1) - rcp(2)*rr(m + 1, coa1y, 1)
                END DO
@@ -171,7 +171,7 @@ CONTAINS
                      rr(m, coa, 1) = rr(m, coa, 1) + g*REAL(ay - 1, dp)*(rr(m, coa2y, 1) - rr(m + 1, coa2y, 1))
                   END DO
                END IF
-            ELSEIF (ax > 0) THEN
+            ELSE IF (ax > 0) THEN
                DO m = 0, mmax - la
                   rr(m, coa, 1) = rap(1)*rr(m, coa1x, 1) - rcp(1)*rr(m + 1, coa1x, 1)
                END DO
@@ -225,7 +225,7 @@ CONTAINS
                            rr(m, coa, cob) = rr(m, coa, cob) + g*REAL(az, dp)*(rr(m, coa1z, cob1z) - rr(m + 1, coa1z, cob1z))
                         END DO
                      END IF
-                  ELSEIF (by > 0) THEN
+                  ELSE IF (by > 0) THEN
                      DO m = 0, mmax - la - lb
                         rr(m, coa, cob) = rbp(2)*rr(m, coa, cob1y) - rcp(2)*rr(m + 1, coa, cob1y)
                      END DO
@@ -239,7 +239,7 @@ CONTAINS
                            rr(m, coa, cob) = rr(m, coa, cob) + g*REAL(ay, dp)*(rr(m, coa1y, cob1y) - rr(m + 1, coa1y, cob1y))
                         END DO
                      END IF
-                  ELSEIF (bx > 0) THEN
+                  ELSE IF (bx > 0) THEN
                      DO m = 0, mmax - la - lb
                         rr(m, coa, cob) = rbp(1)*rr(m, coa, cob1x) - rcp(1)*rr(m + 1, coa, cob1x)
                      END DO

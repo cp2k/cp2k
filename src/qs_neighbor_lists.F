@@ -112,6 +112,10 @@ MODULE qs_neighbor_lists
    END TYPE local_atoms_type
 ! **************************************************************************************************
 
+   TYPE local_lists
+      INTEGER, DIMENSION(:), POINTER           :: list => NULL()
+   END TYPE local_lists
+
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_neighbor_lists'
 
    ! private counter, used to version qs neighbor lists
@@ -430,7 +434,7 @@ CONTAINS
       IF (dokp) THEN
          ! no MIC for kpoints
          mic = .FALSE.
-      ELSEIF (nddo) THEN
+      ELSE IF (nddo) THEN
          ! enforce MIC for interaction lists in SE
          mic = .TRUE.
       END IF
@@ -663,8 +667,9 @@ CONTAINS
                CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius_lb)
                DO jkind = 1, nkind
                   DO ikind = 1, nkind
-                     IF (pair_radius(ikind, jkind) + cutoff_screen_factor*roperator <= pair_radius_lb(ikind, jkind)) &
+                     IF (pair_radius(ikind, jkind) + cutoff_screen_factor*roperator <= pair_radius_lb(ikind, jkind)) THEN
                         pair_radius(ikind, jkind) = pair_radius_lb(ikind, jkind) - roperator
+                     END IF
                   END DO
                END DO
             ELSE
@@ -947,7 +952,7 @@ CONTAINS
          qs_env%lri_env%soo_list => soo_list
          CALL write_neighbor_lists(soo_list, particle_set, cell, para_env, neighbor_list_section, &
                                    "/SOO_LIST", "soo_list", "ORBITAL ORBITAL (RI)")
-      ELSEIF (rigpw) THEN
+      ELSE IF (rigpw) THEN
          ALLOCATE (ri_present(nkind), ri_radius(nkind))
          ri_present = .FALSE.
          ri_radius = 0.0_dp
@@ -1081,31 +1086,28 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_neighbor_lists'
 
-      TYPE local_lists
-         INTEGER, DIMENSION(:), POINTER           :: list
-      END TYPE local_lists
-
-      INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
-                 iatom_subcell, icell, ikind, j, jatom, jatom_local, jcell, jkind, k, &
-                 kcell, maxat, mol_a, mol_b, nkind, otype, natom, inode, nnode, nentry
+      INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, iatom_subcell, icell, ikind, &
+         inode, j, jatom, jatom_local, jcell, jkind, k, kcell, maxat, mol_a, mol_b, natom, nentry, &
+         nkind, nnode, otype
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nlista, nlistb
       INTEGER, DIMENSION(3)                              :: cell_b, ncell, nsubcell, periodic
       INTEGER, DIMENSION(:), POINTER                     :: index_list
-      LOGICAL                                            :: include_ab, my_mic, &
-                                                            my_molecular, my_symmetric, my_sort_atomb
+      LOGICAL                                            :: include_ab, my_mic, my_molecular, &
+                                                            my_sort_atomb, my_symmetric
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: pres_a, pres_b
-      REAL(dp)                                           :: rab2, rab2_max, rab_max, rabm, deth, subcell_scale
-      REAL(dp), DIMENSION(3)                             :: r, rab, ra, rb, sab_max, sb, &
-                                                            sb_pbc, sb_min, sb_max, rab_pbc, pd, sab_max_guard
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nlista, nlistb
+      REAL(dp)                                           :: deth, rab2, rab2_max, rab_max, rabm, &
+                                                            subcell_scale
+      REAL(dp), DIMENSION(3)                             :: pd, r, ra, rab, rab_pbc, rb, sab_max, &
+                                                            sab_max_guard, sb, sb_max, sb_min, &
+                                                            sb_pbc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: r_pbc
       TYPE(local_lists), DIMENSION(:), POINTER           :: lista, listb
-      TYPE(neighbor_list_p_type), &
-         ALLOCATABLE, DIMENSION(:)                       :: kind_a
-      TYPE(neighbor_list_set_type), POINTER              :: neighbor_list_set
-      TYPE(subcell_type), DIMENSION(:, :, :), &
-         POINTER                                         :: subcell
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: r_pbc
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_p_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: kind_a
+      TYPE(neighbor_list_set_type), POINTER              :: neighbor_list_set
+      TYPE(subcell_type), DIMENSION(:, :, :), POINTER    :: subcell
 
       CALL timeset(routineN//"_"//TRIM(nlname), handle)
 

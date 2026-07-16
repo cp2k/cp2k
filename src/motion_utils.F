@@ -180,7 +180,7 @@ CONTAINS
       END DO
       ! Normalize Translations
       DO i = 1, 3
-         norm = SQRT(DOT_PRODUCT(Tr(:, i), Tr(:, i)))
+         norm = NORM2(Tr(:, i))
          Tr(:, i) = Tr(:, i)/norm
       END DO
       dof = 3
@@ -445,8 +445,9 @@ CONTAINS
                CALL section_vals_val_get(root_section, "MOTION%PRINT%TRAJECTORY%CHARGE_EXTENDED", &
                                          l_val=charge_extended)
                i = COUNT([charge_occup, charge_beta, charge_extended])
-               IF (i > 1) &
+               IF (i > 1) THEN
                   CPABORT("Either only CHARGE_OCCUP, CHARGE_BETA, or CHARGE_EXTENDED can be selected, ")
+               END IF
             END IF
             IF (new_file) THEN
                CALL m_timestamp(timestamp)

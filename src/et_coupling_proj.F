@@ -150,8 +150,9 @@ CONTAINS
 
       IF (ASSOCIATED(ec)) THEN
 
-         IF (ASSOCIATED(ec%fermi)) &
+         IF (ASSOCIATED(ec%fermi)) THEN
             DEALLOCATE (ec%fermi)
+         END IF
          IF (ASSOCIATED(ec%m_transf)) THEN
             CALL cp_fm_release(matrix=ec%m_transf)
             DEALLOCATE (ec%m_transf)
@@ -166,8 +167,9 @@ CONTAINS
          IF (ASSOCIATED(ec%block)) THEN
 
             DO i = 1, SIZE(ec%block)
-               IF (ASSOCIATED(ec%block(i)%atom)) &
+               IF (ASSOCIATED(ec%block(i)%atom)) THEN
                   DEALLOCATE (ec%block(i)%atom)
+               END IF
                IF (ASSOCIATED(ec%block(i)%mo)) THEN
                   DO j = 1, SIZE(ec%block(i)%mo)
                      CALL deallocate_mo_set(ec%block(i)%mo(j))
@@ -242,8 +244,9 @@ CONTAINS
       DO i = 1, n_atoms
          CALL get_atomic_kind(particle_set(i)%atomic_kind, kind_number=j)
          CALL get_qs_kind(qs_kind_set(j), basis_set=ao_basis_set)
-         IF (.NOT. ASSOCIATED(ao_basis_set)) &
+         IF (.NOT. ASSOCIATED(ao_basis_set)) THEN
             CPABORT('Unsupported basis set type. ')
+         END IF
          CALL get_gto_basis_set(gto_basis_set=ao_basis_set, &
                                 nset=n_set, nshell=n_shell, l=ang_mom_id)
          DO j = 1, n_set
@@ -300,8 +303,9 @@ CONTAINS
          ! Count unique atoms
          DO j = 1, SIZE(atom_id)
             ! Check atom ID validity
-            IF (atom_id(j) < 1 .OR. atom_id(j) > n_atoms) &
+            IF (atom_id(j) < 1 .OR. atom_id(j) > n_atoms) THEN
                CPABORT('invalid fragment atom ID ('//TRIM(ADJUSTL(cp_to_string(atom_id(j))))//')')
+            END IF
             ! Check if the atom is not in previously-defined blocks
             found = .FALSE.
             DO k = 1, i - 1
@@ -346,12 +350,15 @@ CONTAINS
       END DO
 
       ! Clean memory
-      IF (ASSOCIATED(atom_nf)) &
+      IF (ASSOCIATED(atom_nf)) THEN
          DEALLOCATE (atom_nf)
-      IF (ASSOCIATED(atom_ps)) &
+      END IF
+      IF (ASSOCIATED(atom_ps)) THEN
          DEALLOCATE (atom_ps)
-      IF (ASSOCIATED(t)) &
+      END IF
+      IF (ASSOCIATED(t)) THEN
          DEALLOCATE (t)
+      END IF
 
    END SUBROUTINE set_block_data
 
@@ -409,8 +416,9 @@ CONTAINS
 ! Routine name for debug purposes
 ! Local variables
 
-      IF (.NOT. cp_fm_struct_equivalent(mat_h%matrix_struct, mat_w%matrix_struct)) &
+      IF (.NOT. cp_fm_struct_equivalent(mat_h%matrix_struct, mat_w%matrix_struct)) THEN
          CPABORT('cannot reorder Hamiltonian, working-matrix structure is not equivalent')
+      END IF
 
       ! Matrix-element reordering
       nr = 1
@@ -672,8 +680,9 @@ CONTAINS
       END DO
 
       ! Clean memory
-      IF (ALLOCATED(dat)) &
+      IF (ALLOCATED(dat)) THEN
          DEALLOCATE (dat)
+      END IF
 
    END SUBROUTINE hamiltonian_block_diag
 
@@ -718,8 +727,9 @@ CONTAINS
             END IF
          END DO
 
-         IF (.NOT. found) &
+         IF (.NOT. found) THEN
             CPABORT('MO-fraction atom ID not defined in the block')
+         END IF
 
          ! sum MO coefficients from the atom
          DO k = 1, blk_at(j)%n_ao
@@ -773,8 +783,9 @@ CONTAINS
 
       IF (n > 0) THEN
 
-         IF (output_unit > 0) &
+         IF (output_unit > 0) THEN
             WRITE (output_unit, '(/,T3,A/)') 'Block state fractions:'
+         END IF
 
          ! Number of AO functions
          CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
@@ -809,8 +820,9 @@ CONTAINS
                      IF (ASSOCIATED(list_mo)) THEN
 
                         IF (j > 1) THEN
-                           IF (output_unit > 0) &
+                           IF (output_unit > 0) THEN
                               WRITE (output_unit, *)
+                           END IF
                         END IF
 
                         DO l = 1, SIZE(list_mo)
@@ -820,13 +832,15 @@ CONTAINS
                                                  list_mo(l), list_at)
                               c2 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(2), &
                                                  list_mo(l), list_at)
-                              IF (output_unit > 0) &
+                              IF (output_unit > 0) THEN
                                  WRITE (output_unit, '(I5,A,I5,2F20.10)') j, ' /', list_mo(l), c1, c2
+                              END IF
                            ELSE
                               c1 = get_mo_c2_sum(ec%block(blk)%atom, mat_w(1), &
                                                  list_mo(l), list_at)
-                              IF (output_unit > 0) &
+                              IF (output_unit > 0) THEN
                                  WRITE (output_unit, '(I5,A,I5,F20.10)') j, ' /', list_mo(l), c1
+                              END IF
                            END IF
 
                         END DO
@@ -873,8 +887,9 @@ CONTAINS
 ! Routine name for debug purposes
 
       prnt_fm = .FALSE.
-      IF (PRESENT(fermi)) &
+      IF (PRESENT(fermi)) THEN
          prnt_fm = fermi
+      END IF
 
       IF (output_unit > 0) THEN
 
@@ -884,11 +899,13 @@ CONTAINS
          IF (n_spins > 1) THEN
 
             mx_a = mo(1)%nmo
-            IF (PRESENT(mx_mo_a)) &
+            IF (PRESENT(mx_mo_a)) THEN
                mx_a = MIN(mo(1)%nmo, mx_mo_a)
+            END IF
             mx_b = mo(2)%nmo
-            IF (PRESENT(mx_mo_b)) &
+            IF (PRESENT(mx_mo_b)) THEN
                mx_b = MIN(mo(2)%nmo, mx_mo_b)
+            END IF
             n = MAX(mx_a, mx_b)
 
             DO i = 1, n
@@ -918,8 +935,9 @@ CONTAINS
          ELSE
 
             mx_a = mo(1)%nmo
-            IF (PRESENT(mx_mo_a)) &
+            IF (PRESENT(mx_mo_a)) THEN
                mx_a = MIN(mo(1)%nmo, mx_mo_a)
+            END IF
 
             DO i = 1, mx_a
                WRITE (output_unit, '(T3,I10,2F12.4)') &
@@ -984,8 +1002,9 @@ CONTAINS
             my_pos = "APPEND"
          END IF
 
-         IF (output_unit > 0) &
+         IF (output_unit > 0) THEN
             WRITE (output_unit, '(/,T3,A/)') 'Printing coupling elements to output files'
+         END IF
 
          DO i = 1, ec%n_blocks
             DO j = i + 1, ec%n_blocks
@@ -1104,15 +1123,16 @@ CONTAINS
       ALLOCATE (vec_t(n_mo))
       CPASSERT(ASSOCIATED(vec_t))
       CALL cp_fm_vectorssum(mat_t, vec_t)
-      vec_t = 1.0_dp/DSQRT(vec_t)
+      vec_t = 1.0_dp/SQRT(vec_t)
       CALL cp_fm_column_scale(mo%mo_coeff, vec_t)
 
       ! Clean memory
       CALL cp_fm_struct_release(fmstruct=fm_s)
       CALL cp_fm_release(matrix=mat_sc)
       CALL cp_fm_release(matrix=mat_t)
-      IF (ASSOCIATED(vec_t)) &
+      IF (ASSOCIATED(vec_t)) THEN
          DEALLOCATE (vec_t)
+      END IF
 
    END SUBROUTINE normalize_mo_vectors
 
@@ -1222,24 +1242,28 @@ CONTAINS
 
       ! Number of states
       n_mo = mat_u%matrix_struct%nrow_global
-      IF (n_mo /= mat_u%matrix_struct%ncol_global) &
+      IF (n_mo /= mat_u%matrix_struct%ncol_global) THEN
          CPABORT('block state matrix is not square')
-      IF (n_mo /= SIZE(vec_e)) &
+      END IF
+      IF (n_mo /= SIZE(vec_e)) THEN
          CPABORT('inconsistent number of states / energies')
+      END IF
 
       ! Maximal occupancy
       CALL get_qs_env(qs_env, dft_control=dft_cntrl)
       mx_occ = 2.0_dp
-      IF (dft_cntrl%nspins > 1) &
+      IF (dft_cntrl%nspins > 1) THEN
          mx_occ = 1.0_dp
+      END IF
 
       ! Number of electrons
       n_el = ec%block(id)%n_electrons
       IF (dft_cntrl%nspins > 1) THEN
          n_el = n_el/2
          IF (MOD(ec%block(id)%n_electrons, 2) == 1) THEN
-            IF (spin == 1) &
+            IF (spin == 1) THEN
                n_el = n_el + 1
+            END IF
          END IF
       END IF
 
@@ -1518,8 +1542,9 @@ CONTAINS
 
       ! Parallel calculation - master thread
       master = .FALSE.
-      IF (output_unit > 0) &
+      IF (output_unit > 0) THEN
          master = .TRUE.
+      END IF
 
       ! Header
       IF (master) THEN
@@ -1603,20 +1628,23 @@ CONTAINS
          CPABORT('ET_COUPLING not implemented with kpoints')
       ELSE
          !  no K-points
-         IF (master) &
+         IF (master) THEN
             WRITE (output_unit, '(T3,A)') 'No K-point sampling (Gamma point only)'
+         END IF
       END IF
 
       IF (dft_cntrl%nspins == 2) THEN
 
-         IF (master) &
+         IF (master) THEN
             WRITE (output_unit, '(/,T3,A)') 'Spin-polarized calculation'
+         END IF
 
          !<--- Open shell / No K-points ------------------------------------------------>!
 
          ! State eneries of the whole system
-         IF (mo(1)%nao /= mo(2)%nao) &
+         IF (mo(1)%nao /= mo(2)%nao) THEN
             CPABORT('different number of alpha/beta AO basis functions')
+         END IF
          IF (master) THEN
             WRITE (output_unit, '(/,T3,A,I10)') &
                'Number of AO basis functions       = ', mo(1)%nao
@@ -1648,8 +1676,9 @@ CONTAINS
 
       ELSE
 
-         IF (master) &
+         IF (master) THEN
             WRITE (output_unit, '(/,T3,A)') 'Spin-restricted calculation'
+         END IF
 
          !<--- Close shell / No K-points ----------------------------------------------->!
 

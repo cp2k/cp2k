@@ -333,8 +333,9 @@ CONTAINS
          map_info%s_kin = 0.0_dp
          DO i = 1, 3
             DO j = 1, natoms_local
-               IF (ASSOCIATED(map_info%p_kin(i, j)%point)) &
+               IF (ASSOCIATED(map_info%p_kin(i, j)%point)) THEN
                   map_info%p_kin(i, j)%point = map_info%p_kin(i, j)%point + 1
+               END IF
             END DO
          END DO
 
@@ -428,8 +429,9 @@ CONTAINS
          map_info%s_kin = 0.0_dp
          DO i = 1, 3
             DO j = 1, natoms_local
-               IF (ASSOCIATED(map_info%p_kin(i, j)%point)) &
+               IF (ASSOCIATED(map_info%p_kin(i, j)%point)) THEN
                   map_info%p_kin(i, j)%point = map_info%p_kin(i, j)%point + 1
+               END IF
             END DO
          END DO
 

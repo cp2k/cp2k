@@ -33,7 +33,8 @@ MODULE message_passing
 
 #include "../base/base_uses.f90"
 
-! To simplify the transition between the old MPI module and the F08-style module, we introduce these constants to switch between the required handle types
+! To simplify the transition between the old MPI module and the F08-style module,
+! we introduce these constants to switch between the required handle types
 ! Unfortunately, Fortran does not offer something like typedef in C++
 #if defined(__parallel) && defined(__MPI_F08)
 #define MPI_DATA_TYPE TYPE(MPI_Datatype)
@@ -60,9 +61,11 @@ MODULE message_passing
 #endif
 
 #if defined(__parallel)
-! subroutines: unfortunately, mpi implementations do not provide interfaces for all subroutines (problems with types and ranks explosion),
+! subroutines: unfortunately, mpi implementations do not provide interfaces for all subroutines
+!              (problems with types and ranks explosion),
 !              we do not quite know what is in the module, so we can not include any....
-!              to nevertheless get checking for what is included, we use the mpi module without use clause, getting all there is
+!              to nevertheless get checking for what is included, we use the mpi module
+!              without use clause, getting all there is
 #if defined(__MPI_F08)
    USE mpi_f08
 #else

@@ -650,10 +650,11 @@ CONTAINS
             CPABORT("unknown electric field unit:"//TRIM(cp_to_string(basic_unit)))
          END SELECT
       CASE (cp_ukind_none)
-         IF (basic_unit /= cp_units_none) &
+         IF (basic_unit /= cp_units_none) THEN
             CALL cp_abort(__LOCATION__, &
                           "if the kind of the unit is none also unit must be undefined,not:" &
                           //TRIM(cp_to_string(basic_unit)))
+         END IF
       CASE default
          CPABORT("unknown kind of unit:"//TRIM(cp_to_string(basic_kind)))
       END SELECT
@@ -679,10 +680,11 @@ CONTAINS
       my_power = 1
       IF (PRESENT(power)) my_power = power
       IF (basic_unit == cp_units_none .AND. basic_kind /= cp_ukind_undef) THEN
-         IF (basic_kind /= cp_units_none) &
+         IF (basic_kind /= cp_units_none) THEN
             CALL cp_abort(__LOCATION__, &
                           "unit not yet fully specified, unit of kind "// &
                           TRIM(cp_to_string(basic_unit)))
+         END IF
       END IF
       SELECT CASE (basic_kind)
       CASE (cp_ukind_undef)
@@ -862,9 +864,10 @@ CONTAINS
       IF (accept_undefined) my_accept_undefined = accept_undefined
       IF (PRESENT(power)) my_power = power
       IF (basic_unit == cp_units_none) THEN
-         IF (.NOT. my_accept_undefined .AND. basic_kind == cp_units_none) &
+         IF (.NOT. my_accept_undefined .AND. basic_kind == cp_units_none) THEN
             CALL cp_abort(__LOCATION__, "unit not yet fully specified, unit of kind "// &
                           TRIM(cp_to_string(basic_kind)))
+         END IF
       END IF
       SELECT CASE (basic_kind)
       CASE (cp_ukind_undef)
@@ -900,10 +903,11 @@ CONTAINS
             res = "K_e"
          CASE (cp_units_none)
             res = "energy"
-            IF (.NOT. my_accept_undefined) &
+            IF (.NOT. my_accept_undefined) THEN
                CALL cp_abort(__LOCATION__, &
                              "unit not yet fully specified, unit of kind "// &
                              TRIM(res))
+            END IF
          CASE default
             CPABORT("unknown energy unit:"//TRIM(cp_to_string(basic_unit)))
          END SELECT
@@ -931,10 +935,11 @@ CONTAINS
             res = "au_temp"
          CASE (cp_units_none)
             res = "temperature"
-            IF (.NOT. my_accept_undefined) &
+            IF (.NOT. my_accept_undefined) THEN
                CALL cp_abort(__LOCATION__, &
                              "unit not yet fully specified, unit of kind "// &
                              TRIM(res))
+            END IF
          CASE default
             CPABORT("unknown temperature unit:"//TRIM(cp_to_string(basic_unit)))
          END SELECT
@@ -956,10 +961,11 @@ CONTAINS
             res = "au_p"
          CASE (cp_units_none)
             res = "pressure"
-            IF (.NOT. my_accept_undefined) &
+            IF (.NOT. my_accept_undefined) THEN
                CALL cp_abort(__LOCATION__, &
                              "unit not yet fully specified, unit of kind "// &
                              TRIM(res))
+            END IF
          CASE default
             CPABORT("unknown pressure unit:"//TRIM(cp_to_string(basic_unit)))
          END SELECT
@@ -971,10 +977,11 @@ CONTAINS
             res = "deg"
          CASE (cp_units_none)
             res = "angle"
-            IF (.NOT. my_accept_undefined) &
+            IF (.NOT. my_accept_undefined) THEN
                CALL cp_abort(__LOCATION__, &
                              "unit not yet fully specified, unit of kind "// &
                              TRIM(res))
+            END IF
          CASE default
             CPABORT("unknown angle unit:"//TRIM(cp_to_string(basic_unit)))
          END SELECT
@@ -992,10 +999,11 @@ CONTAINS
             res = "wavenumber_t"
          CASE (cp_units_none)
             res = "time"
-            IF (.NOT. my_accept_undefined) &
+            IF (.NOT. my_accept_undefined) THEN
                CALL cp_abort(__LOCATION__, &
                              "unit not yet fully specified, unit of kind "// &
                              TRIM(res))
+            END IF
          CASE default
             CPABORT("unknown time unit:"//TRIM(cp_to_string(basic_unit)))
          END SELECT
@@ -1009,10 +1017,11 @@ CONTAINS
             res = "m_e"
          CASE (cp_units_none)
             res = "mass"
-            IF (.NOT. my_accept_undefined) &
+            IF (.NOT. my_accept_undefined) THEN
                CALL cp_abort(__LOCATION__, &
                              "unit not yet fully specified, unit of kind "// &
                              TRIM(res))
+            END IF
          CASE default
             CPABORT("unknown mass unit:"//TRIM(cp_to_string(basic_unit)))
          END SELECT
@@ -1024,10 +1033,11 @@ CONTAINS
             res = "au_pot"
          CASE (cp_units_none)
             res = "potential"
-            IF (.NOT. my_accept_undefined) &
+            IF (.NOT. my_accept_undefined) THEN
                CALL cp_abort(__LOCATION__, &
                              "unit not yet fully specified, unit of kind "// &
                              TRIM(res))
+            END IF
          CASE default
             CPABORT("unknown potential unit:"//TRIM(cp_to_string(basic_unit)))
          END SELECT
@@ -1041,10 +1051,11 @@ CONTAINS
             res = "au_f"
          CASE (cp_units_none)
             res = "force"
-            IF (.NOT. my_accept_undefined) &
+            IF (.NOT. my_accept_undefined) THEN
                CALL cp_abort(__LOCATION__, &
                              "unit not yet fully specified, unit of kind "// &
                              TRIM(res))
+            END IF
          CASE default
             CPABORT("unknown potential unit:"//TRIM(cp_to_string(basic_unit)))
          END SELECT
@@ -1060,10 +1071,11 @@ CONTAINS
             res = "au_efield"
          CASE (cp_units_none)
             res = "electric field"
-            IF (.NOT. my_accept_undefined) &
+            IF (.NOT. my_accept_undefined) THEN
                CALL cp_abort(__LOCATION__, &
                              "unit not yet fully specified, unit of kind "// &
                              TRIM(res))
+            END IF
          CASE default
             CPABORT("unknown efield unit:"//TRIM(cp_to_string(basic_unit)))
          END SELECT

@@ -237,8 +237,9 @@ CONTAINS
             DEALLOCATE (active_space_env%as_mix_x_buffer)
          END IF
 
-         IF (ASSOCIATED(active_space_env%pmat_inactive)) &
+         IF (ASSOCIATED(active_space_env%pmat_inactive)) THEN
             CALL dbcsr_deallocate_matrix_set(active_space_env%pmat_inactive)
+         END IF
 
          DEALLOCATE (active_space_env)
       END IF
@@ -380,8 +381,9 @@ CONTAINS
 
                ! 1) Collect the amount of local data from each process
                nonzero_elements_local = 0
-               IF (MOD(i12 - 1, this%comm_exchange%num_pe) == this%comm_exchange%mepos) &
+               IF (MOD(i12 - 1, this%comm_exchange%num_pe) == this%comm_exchange%mepos) THEN
                   nonzero_elements_local = eri%nzerow_local(i12l)
+               END IF
                CALL mp_group%allgather(nonzero_elements_local, nonzero_elements_global)
 
                ! 2) Prepare arrays for communication (calculate the offsets and the total number of elements)

@@ -737,9 +737,10 @@ CONTAINS
                            DO idir = 1, 3
                               CALL dbcsr_get_readonly_block_p(moments_der(i, idir)%matrix, &
                                                               iatom, jatom, oblock, found)
-                              IF (found) &
+                              IF (found) THEN
                                  qupole_der((i - 1)*3 + idir) = &
-                                 qupole_der((i - 1)*3 + idir) - factor*SUM(pblock*oblock)
+                                    qupole_der((i - 1)*3 + idir) - factor*SUM(pblock*oblock)
+                              END IF
                            END DO
                         END DO
                      END IF

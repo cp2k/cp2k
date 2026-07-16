@@ -465,7 +465,7 @@ CONTAINS
          CALL rho0_s_grid_create(sub_env%pw_env, work_matrices%local_rho_set%rho0_mpole)
          CALL hartree_local_create(work_matrices%hartree_local)
          CALL init_coulomb_local(work_matrices%hartree_local, natom)
-      ELSEIF (dft_control%qs_control%gapw_xc) THEN
+      ELSE IF (dft_control%qs_control%gapw_xc) THEN
          CALL get_qs_env(qs_env, &
                          atomic_kind_set=atomic_kind_set, &
                          qs_kind_set=qs_kind_set)
@@ -939,8 +939,9 @@ CONTAINS
          CALL cp_fm_release(work_matrices%slambda)
          DEALLOCATE (work_matrices%slambda)
       END IF
-      IF (ASSOCIATED(work_matrices%S_eigenvalues)) &
+      IF (ASSOCIATED(work_matrices%S_eigenvalues)) THEN
          DEALLOCATE (work_matrices%S_eigenvalues)
+      END IF
       ! Ewald
       IF (ASSOCIATED(work_matrices%ewald_env)) THEN
          CALL ewald_env_release(work_matrices%ewald_env)

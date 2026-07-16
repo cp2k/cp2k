@@ -120,18 +120,24 @@ CONTAINS
       ! Check compatibility
       CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set, pao_basis_size=pao_basis_size)
       CALL get_atomic_kind(atomic_kind_set(ikind), name=kind_name, z=z)
-      IF (model%version /= 2) &
+      IF (model%version /= 2) THEN
          CPABORT("Model version not supported.")
-      IF (TRIM(model%kind_name) /= TRIM(kind_name)) &
+      END IF
+      IF (TRIM(model%kind_name) /= TRIM(kind_name)) THEN
          CPABORT("Kind name does not match.")
-      IF (model%atomic_number /= z) &
+      END IF
+      IF (model%atomic_number /= z) THEN
          CPABORT("Atomic number does not match.")
-      IF (TRIM(model%prim_basis_name) /= TRIM(basis_set%name)) &
+      END IF
+      IF (TRIM(model%prim_basis_name) /= TRIM(basis_set%name)) THEN
          CPABORT("Primary basis set name does not match.")
-      IF (model%prim_basis_size /= basis_set%nsgf) &
+      END IF
+      IF (model%prim_basis_size /= basis_set%nsgf) THEN
          CPABORT("Primary basis set size does not match.")
-      IF (model%pao_basis_size /= pao_basis_size) &
+      END IF
+      IF (model%pao_basis_size /= pao_basis_size) THEN
          CPABORT("PAO basis size does not match.")
+      END IF
 
       CALL omp_init_lock(model%lock)
       CALL timestop(handle)

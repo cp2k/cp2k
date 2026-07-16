@@ -135,9 +135,10 @@ CONTAINS
          CPASSERT(stat /= TMC_STATUS_FAILED)
          CPASSERT(work_list(wg)%elem%stat /= status_calc_approx_ener)
 
-         IF (DEBUG >= 1) &
+         IF (DEBUG >= 1) THEN
             WRITE (tmc_env%m_env%io_unit, *) &
-            "TMC|master: cancel group "//cp_to_string(wg)
+               "TMC|master: cancel group "//cp_to_string(wg)
+         END IF
          CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=wg, &
                           para_env=para_env, tmc_params=tmc_env%params)
          work_list(wg)%canceled = .TRUE.
@@ -247,8 +248,9 @@ CONTAINS
       walltime_offset = 20 ! default value the whole program needs to finalize
 
       ! initialize the different modules
-      IF (tmc_env%params%DRAW_TREE) &
+      IF (tmc_env%params%DRAW_TREE) THEN
          CALL init_draw_trees(tmc_params=tmc_env%params)
+      END IF
 
       !-- initialize variables
       ! nr_of_job: counting the different task send / received
@@ -284,10 +286,11 @@ CONTAINS
                        para_env=tmc_env%tmc_comp_set%para_env_m_w, &
                        tmc_params=tmc_env%params, &
                        elem=init_conf, success=flag, wait_for_message=.TRUE.)
-      IF (stat /= TMC_STAT_START_CONF_RESULT) &
+      IF (stat /= TMC_STAT_START_CONF_RESULT) THEN
          CALL cp_abort(__LOCATION__, &
                        "receiving start configuration failed, received stat "// &
                        cp_to_string(stat))
+      END IF
       ! get the atom names from first energy worker
       CALL communicate_atom_types(atoms=tmc_env%params%atoms, &
                                   source=1, &
@@ -299,10 +302,11 @@ CONTAINS
       CALL check_moves(tmc_params=tmc_env%params, &
                        move_types=tmc_env%params%move_types, &
                        mol_array=init_conf%mol)
-      IF (ASSOCIATED(tmc_env%params%nmc_move_types)) &
+      IF (ASSOCIATED(tmc_env%params%nmc_move_types)) THEN
          CALL check_moves(tmc_params=tmc_env%params, &
                           move_types=tmc_env%params%nmc_move_types, &
                           mol_array=init_conf%mol)
+      END IF
 
       ! set initial configuration
       ! set initial random number generator seed (rng seed)
@@ -348,15 +352,17 @@ CONTAINS
       CALL deallocate_sub_tree_node(tree_elem=init_conf)
 
       ! regtest output
-      IF (tmc_env%params%print_test_output .OR. DEBUG > 0) &
+      IF (tmc_env%params%print_test_output .OR. DEBUG > 0) THEN
          WRITE (tmc_env%m_env%io_unit, *) "TMC|first_global_tree_rnd_nr_X= ", &
-         tmc_env%m_env%gt_head%rnd_nr
+            tmc_env%m_env%gt_head%rnd_nr
+      END IF
 
       ! calculate the approx energy of the first element (later the exact)
       IF (tmc_env%m_env%gt_head%conf(1)%elem%stat == status_calc_approx_ener) THEN
          wg = 1
-         IF (tmc_env%tmc_comp_set%group_cc_nr > 0) &
+         IF (tmc_env%tmc_comp_set%group_cc_nr > 0) THEN
             wg = tmc_env%tmc_comp_set%group_ener_nr + 1
+         END IF
          stat = TMC_STAT_APPROX_ENERGY_REQUEST
          CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=wg, &
                           para_env=tmc_env%tmc_comp_set%para_env_m_w, &
@@ -391,27 +397,30 @@ CONTAINS
             IF (flag .EQV. .FALSE.) EXIT worker_request_loop
             ! messages from worker group could be faster then the canceling request
             IF (worker_info(wg)%canceled .AND. (stat /= TMC_CANCELING_RECEIPT)) THEN
-               IF (DEBUG >= 1) &
+               IF (DEBUG >= 1) THEN
                   WRITE (tmc_env%m_env%io_unit, *) &
-                  "TMC|master: recv stat "//cp_to_string(stat)// &
-                  " of canceled worker group"
+                     "TMC|master: recv stat "//cp_to_string(stat)// &
+                     " of canceled worker group"
+               END IF
                CYCLE worker_request_loop
             END IF
 
             ! in case of parallel tempering canceled element could be reactivated,
             !   calculated faster and deleted
-            IF (.NOT. ASSOCIATED(worker_info(wg)%elem)) &
+            IF (.NOT. ASSOCIATED(worker_info(wg)%elem)) THEN
                CALL cp_abort(__LOCATION__, &
                              "no tree elem exist when receiving stat "// &
                              cp_to_string(stat)//"of group"//cp_to_string(wg))
+            END IF
 
-            IF (DEBUG >= 1) &
+            IF (DEBUG >= 1) THEN
                WRITE (tmc_env%m_env%io_unit, *) &
-               "TMC|master: received stat "//cp_to_string(stat)// &
-               " of sub tree "//cp_to_string(worker_info(wg)%elem%sub_tree_nr)// &
-               " elem"//cp_to_string(worker_info(wg)%elem%nr)// &
-               " with stat"//cp_to_string(worker_info(wg)%elem%stat)// &
-               " of group"//cp_to_string(wg)//" group canceled ", worker_info(wg)%canceled
+                  "TMC|master: received stat "//cp_to_string(stat)// &
+                  " of sub tree "//cp_to_string(worker_info(wg)%elem%sub_tree_nr)// &
+                  " elem"//cp_to_string(worker_info(wg)%elem%nr)// &
+                  " with stat"//cp_to_string(worker_info(wg)%elem%stat)// &
+                  " of group"//cp_to_string(wg)//" group canceled ", worker_info(wg)%canceled
+            END IF
             SELECT CASE (stat)
                ! -- FAILED --------------------------
             CASE (TMC_STATUS_FAILED)
@@ -539,8 +548,9 @@ CONTAINS
                worker_info(wg)%start_time = m_walltime() - worker_info(wg)%start_time
                CALL set_walltime_delay(worker_info(wg)%start_time, walltime_delay)
 
-               IF (.NOT. worker_info(wg)%canceled) &
+               IF (.NOT. worker_info(wg)%canceled) THEN
                   worker_info(wg)%busy = .FALSE.
+               END IF
                ! the first node in tree is always accepted.!.
                IF (ASSOCIATED(worker_info(wg)%elem, init_conf)) THEN
                   !-- distribute energy of first element to all subtrees
@@ -555,9 +565,10 @@ CONTAINS
                   init_conf => NULL()
                ELSE
                   worker_info(wg)%elem%stat = status_calculated
-                  IF (tmc_env%params%DRAW_TREE) &
+                  IF (tmc_env%params%DRAW_TREE) THEN
                      CALL create_dot_color(worker_info(wg)%elem, &
                                            tmc_params=tmc_env%params)
+                  END IF
                   ! check acceptance of depending nodes
                   ! first (initial) configuration do not have to be checked
                   CALL check_acceptance_of_depending_subtree_nodes(tree_elem=worker_info(wg)%elem, &
@@ -578,11 +589,12 @@ CONTAINS
                                         para_env=tmc_env%tmc_comp_set%para_env_m_w, &
                                         tmc_env=tmc_env, &
                                         cancel_count=cancel_count)
-               IF (DEBUG >= 9) &
+               IF (DEBUG >= 9) THEN
                   WRITE (tmc_env%m_env%io_unit, *) &
-                  "TMC|master: handled energy result of sub tree ", &
-                  worker_info(wg)%elem%sub_tree_nr, " elem ", worker_info(wg)%elem%nr, &
-                  " with stat", worker_info(wg)%elem%stat
+                     "TMC|master: handled energy result of sub tree ", &
+                     worker_info(wg)%elem%sub_tree_nr, " elem ", worker_info(wg)%elem%nr, &
+                     " with stat", worker_info(wg)%elem%stat
+               END IF
                worker_info(wg)%elem => NULL()
 
                !-- SCF ENERGY -----------------------
@@ -610,11 +622,12 @@ CONTAINS
          !-- do tree update (check new results)
          CALL tree_update(tmc_env=tmc_env, result_acc=flag, &
                           something_updated=l_update_tree)
-         IF (DEBUG >= 2 .AND. l_update_tree) &
+         IF (DEBUG >= 2 .AND. l_update_tree) THEN
             WRITE (tmc_env%m_env%io_unit, *) &
-            "TMC|master: tree updated "//cp_to_string(l_update_tree)// &
-            " of with gt elem "//cp_to_string(tmc_env%m_env%gt_act%nr)// &
-            " with stat"//cp_to_string(tmc_env%m_env%gt_act%stat)
+               "TMC|master: tree updated "//cp_to_string(l_update_tree)// &
+               " of with gt elem "//cp_to_string(tmc_env%m_env%gt_act%nr)// &
+               " with stat"//cp_to_string(tmc_env%m_env%gt_act%stat)
+         END IF
 
          CALL send_analysis_tasks(ana_list=tmc_env%m_env%analysis_list, &
                                   ana_worker_info=ana_worker_info, &
@@ -642,13 +655,15 @@ CONTAINS
                   "(incl. delay", walltime_delay, "and offset", walltime_offset, ") left"
             ELSE
                ! calculations finished
-               IF (tmc_env%params%print_test_output) &
+               IF (tmc_env%params%print_test_output) THEN
                   WRITE (tmc_env%m_env%io_unit, *) "Total energy: ", &
-                  tmc_env%m_env%result_list(1)%elem%potential
+                     tmc_env%m_env%result_list(1)%elem%potential
+               END IF
             END IF
-            IF (tmc_env%m_env%restart_out_step /= 0) &
+            IF (tmc_env%m_env%restart_out_step /= 0) THEN
                CALL print_restart_file(tmc_env=tmc_env, job_counts=nr_of_job, &
                                        timings=worker_timings_aver)
+            END IF
             EXIT task_loop
          END IF
 
@@ -656,9 +671,10 @@ CONTAINS
          ! update the rest of the tree (canceling and deleting elements)
          ! =======================================================================
          IF (l_update_tree) THEN
-            IF (DEBUG >= 2) &
+            IF (DEBUG >= 2) THEN
                WRITE (tmc_env%m_env%io_unit, *) &
-               "TMC|master: start remove elem and cancel calculation"
+                  "TMC|master: start remove elem and cancel calculation"
+            END IF
             !-- CLEANING tree nodes beside the path through the tree from
             !      end_of_clean_tree to tree_ptr
             ! --> getting back the end of clean tree
@@ -680,13 +696,15 @@ CONTAINS
          worker_counter = worker_counter + 1
          wg = MODULO(worker_counter, tmc_env%tmc_comp_set%para_env_m_w%num_pe - 1) + 1
 
-         IF (DEBUG >= 16 .AND. ALL(worker_info(:)%busy)) &
+         IF (DEBUG >= 16 .AND. ALL(worker_info(:)%busy)) THEN
             WRITE (tmc_env%m_env%io_unit, *) "all workers are busy"
+         END IF
 
          IF (.NOT. worker_info(wg)%busy) THEN
-            IF (DEBUG >= 13) &
+            IF (DEBUG >= 13) THEN
                WRITE (tmc_env%m_env%io_unit, *) &
-               "TMC|master: search new task for worker ", wg
+                  "TMC|master: search new task for worker ", wg
+            END IF
             ! no group separation
             IF (tmc_env%tmc_comp_set%group_cc_nr <= 0) THEN
                ! search next element to calculate the energy
@@ -698,7 +716,7 @@ CONTAINS
                                                new_elem=gt_elem_tmp, &
                                                reactivation_cc_count=reactivation_cc_count)
                END IF
-            ELSEIF (wg > tmc_env%tmc_comp_set%group_ener_nr) THEN
+            ELSE IF (wg > tmc_env%tmc_comp_set%group_ener_nr) THEN
                ! specialized groups (groups for exact energy and groups for configurational change)
                ! creating new element (configurational change group)
                !-- crate new node, configurational change is handled in tmc_tree module
@@ -707,8 +725,9 @@ CONTAINS
                                             reactivation_cc_count=reactivation_cc_count)
                ! element could be already created, hence CC worker has nothing to do for this element
                ! in next round he will get a task
-               IF (stat == status_created .OR. stat == status_calculate_energy) &
+               IF (stat == status_created .OR. stat == status_calculate_energy) THEN
                   stat = TMC_STATUS_WAIT_FOR_NEW_TASK
+               END IF
             ELSE
                ! search next element to calculate the energy
                CALL search_next_energy_calc(gt_head=tmc_env%m_env%gt_act, &
@@ -716,10 +735,11 @@ CONTAINS
                                             react_count=reactivation_ener_count)
             END IF
 
-            IF (DEBUG >= 10) &
+            IF (DEBUG >= 10) THEN
                WRITE (tmc_env%m_env%io_unit, *) &
-               "TMC|master: send task with elem stat "//cp_to_string(stat)// &
-               " to group "//cp_to_string(wg)
+                  "TMC|master: send task with elem stat "//cp_to_string(stat)// &
+                  " to group "//cp_to_string(wg)
+            END IF
             ! MESSAGE settings: status informations and task for communication
             SELECT CASE (stat)
             CASE (TMC_STATUS_WAIT_FOR_NEW_TASK)
@@ -741,9 +761,10 @@ CONTAINS
                ! in case of parallel tempering the node can be already be calculating (related to another global tree node
                !-- send task to calculate system property
                gt_elem_tmp%conf(gt_elem_tmp%mv_conf)%elem%stat = status_calculate_energy
-               IF (tmc_env%params%DRAW_TREE) &
+               IF (tmc_env%params%DRAW_TREE) THEN
                   CALL create_dot_color(tree_element=gt_elem_tmp%conf(gt_elem_tmp%mv_conf)%elem, &
                                         tmc_params=tmc_env%params)
+               END IF
                stat = TMC_STAT_ENERGY_REQUEST
                CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=wg, &
                                 para_env=tmc_env%tmc_comp_set%para_env_m_w, &
@@ -809,27 +830,30 @@ CONTAINS
                   WRITE (tmc_env%m_env%io_unit, FMT=*) &
                      "ener prepared ", tree_elem_counters
                END IF
-               IF (tmc_env%params%SPECULATIVE_CANCELING) &
+               IF (tmc_env%params%SPECULATIVE_CANCELING) THEN
                   WRITE (tmc_env%m_env%io_unit, *) &
-                  "canceled cc|E:     ", nr_of_job(5:6), &
-                  ", reactivated: cc ", &
-                  reactivation_cc_count, &
-                  ", reactivated: E ", &
-                  reactivation_ener_count
+                     "canceled cc|E:     ", nr_of_job(5:6), &
+                     ", reactivated: cc ", &
+                     reactivation_cc_count, &
+                     ", reactivated: E ", &
+                     reactivation_ener_count
+               END IF
                WRITE (tmc_env%m_env%io_unit, FMT='(A,2F10.2)') &
                   " Average time for cc/ener calc          ", &
                   worker_timings_aver(1), worker_timings_aver(2)
-               IF (tmc_env%params%SPECULATIVE_CANCELING) &
+               IF (tmc_env%params%SPECULATIVE_CANCELING) THEN
                   WRITE (tmc_env%m_env%io_unit, FMT='(A,2F10.2)') &
-                  " Average time until cancel cc/ener calc ", &
-                  worker_timings_aver(3), worker_timings_aver(4)
-               IF (tmc_env%params%esimate_acc_prob) &
+                     " Average time until cancel cc/ener calc ", &
+                     worker_timings_aver(3), worker_timings_aver(4)
+               END IF
+               IF (tmc_env%params%esimate_acc_prob) THEN
                   WRITE (tmc_env%m_env%io_unit, *) &
-                  "Estimate correct (acc/Nacc) | wrong (acc/nacc)", &
-                  tmc_env%m_env%estim_corr_wrong(1), &
-                  tmc_env%m_env%estim_corr_wrong(3), " | ", &
-                  tmc_env%m_env%estim_corr_wrong(2), &
-                  tmc_env%m_env%estim_corr_wrong(4)
+                     "Estimate correct (acc/Nacc) | wrong (acc/nacc)", &
+                     tmc_env%m_env%estim_corr_wrong(1), &
+                     tmc_env%m_env%estim_corr_wrong(3), " | ", &
+                     tmc_env%m_env%estim_corr_wrong(2), &
+                     tmc_env%m_env%estim_corr_wrong(4)
+               END IF
                WRITE (tmc_env%m_env%io_unit, *) &
                   "Time: ", INT(m_walltime() - run_time_start), "of", &
                   INT(tmc_env%m_env%walltime - walltime_delay - walltime_offset), &
@@ -869,10 +893,11 @@ CONTAINS
          " (MC elements/calculated configuration) global:", &
          efficiency(0), " sub tree(s): ", efficiency(1:)
       DEALLOCATE (efficiency)
-      IF (tmc_env%tmc_comp_set%group_cc_nr > 0) &
+      IF (tmc_env%tmc_comp_set%group_cc_nr > 0) THEN
          WRITE (tmc_env%m_env%io_unit, FMT="(A,1000F5.2)") &
-         " (MC elements/created configuration)          :", &
-         tmc_env%m_env%result_count(:)/REAL(nr_of_job(3), KIND=dp)
+            " (MC elements/created configuration)          :", &
+            tmc_env%m_env%result_count(:)/REAL(nr_of_job(3), KIND=dp)
+      END IF
       WRITE (tmc_env%m_env%io_unit, FMT="(A,1000F5.2)") &
          " (MC elements/energy calculated configuration):", &
          tmc_env%m_env%result_count(:)/REAL(nr_of_job(4), KIND=dp)
@@ -909,8 +934,9 @@ CONTAINS
       CALL free_cancelation_list(tmc_env%m_env%cancelation_list)
 
       ! -- write final configuration
-      IF (tmc_env%params%DRAW_TREE) &
+      IF (tmc_env%params%DRAW_TREE) THEN
          CALL finalize_draw_tree(tmc_params=tmc_env%params)
+      END IF
 
       WRITE (tmc_env%m_env%io_unit, *) "TMC master: all work done."
 

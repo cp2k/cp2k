@@ -53,15 +53,18 @@ CONTAINS
 
       is_valid_varname = .FALSE.
 
-      IF (LEN(str) == 0) &
+      IF (LEN(str) == 0) then
          RETURN
+      end if
 
-      IF (INDEX(alpha, str(1:1)) == 0) &
+      IF (INDEX(alpha, str(1:1)) == 0) then
          RETURN
+      end if
 
       DO idx = 2, LEN(str)
-         IF (INDEX(alphanum, str(idx:idx)) == 0) &
+         IF (INDEX(alphanum, str(idx:idx)) == 0) then
             RETURN
+         end if
       END DO
 
       is_valid_varname = .TRUE.
@@ -592,8 +595,9 @@ CONTAINS
             CPABORT(TRIM(message))
          END IF
 
-         IF (idx > 0) &
+         IF (idx > 0) then
             var_value = TRIM(inpp%variable_value(idx))
+         end if
 
          newline = input_line(1:pos1 - 3)//var_value//input_line(pos2 + 2:)
          input_line = newline
@@ -605,8 +609,9 @@ CONTAINS
          pos1 = pos1 + 1 ! move to the start of the variable name
          pos2 = INDEX(input_line(pos1:), ' ')
 
-         IF (pos2 == 0) &
+         IF (pos2 == 0) then
             pos2 = LEN_TRIM(input_line(pos1:)) + 1
+         end if
 
          pos2 = pos1 + pos2 - 2 ! end of the variable name, minus the separating whitespace
          var_name = input_line(pos1:pos2)

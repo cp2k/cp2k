@@ -833,7 +833,7 @@ CONTAINS
                         ADJUSTR("ACOUL"), "- "//" Slater parameter: ", sep%acoul
                      WRITE (UNIT=output_unit, FMT="(T16,A11,T30,A,T69,I12)") &
                         ADJUSTR("NR"), "- "//" Slater parameter: ", sep%nr
-                  ELSEIF ((typ == do_method_am1 .OR. typ == do_method_rm1) .AND. sep%z == 5) THEN
+                  ELSE IF ((typ == do_method_am1 .OR. typ == do_method_rm1) .AND. sep%z == 5) THEN
                      ! Standard case
                      DO i = 1, SIZE(sep%bfn1, 1)
                         i_string = cp_to_string(i)

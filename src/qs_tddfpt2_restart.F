@@ -294,8 +294,9 @@ CONTAINS
          END DO
       END DO
 
-      IF (para_env_global%is_source()) &
+      IF (para_env_global%is_source()) THEN
          CALL close_file(unit_number=iunit)
+      END IF
 
       CALL timestop(handle)
 
@@ -634,11 +635,13 @@ CONTAINS
             sum_sign_array(icol_global) = sum_sign_array(icol_global) + sign_int
 
             IF (sign_int > 0) THEN
-               IF (minrow_pos_array(icol_global) > irow_global) &
+               IF (minrow_pos_array(icol_global) > irow_global) THEN
                   minrow_pos_array(icol_global) = irow_global
+               END IF
             ELSE IF (sign_int < 0) THEN
-               IF (minrow_neg_array(icol_global) > irow_global) &
+               IF (minrow_neg_array(icol_global) > irow_global) THEN
                   minrow_neg_array(icol_global) = irow_global
+               END IF
             END IF
 
          END DO

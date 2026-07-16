@@ -331,7 +331,7 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(matrix_P_munu_local)
          CALL dbcsr_deallocate_matrix_set(mat_munu_local)
 
-      ELSEIF (eri_method == do_eri_gpw) THEN
+      ELSE IF (eri_method == do_eri_gpw) THEN
          CALL get_qs_env(qs_env, ks_env=ks_env)
 
          CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)

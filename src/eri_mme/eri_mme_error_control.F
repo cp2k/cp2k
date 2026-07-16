@@ -92,13 +92,15 @@ CONTAINS
 
       max_iter = 100
 
-      IF ((cutoff_r - cutoff_l)/(0.5_dp*(cutoff_r + cutoff_l)) <= tol) &
+      IF ((cutoff_r - cutoff_l)/(0.5_dp*(cutoff_r + cutoff_l)) <= tol) THEN
          CALL cp_abort(__LOCATION__, "difference of boundaries for cutoff "// &
                        "(MAX - MIN) must be greater than cutoff precision.")
+      END IF
 
-      IF ((delta >= 1.0_dp) .OR. (delta <= 0.0_dp)) &
+      IF ((delta >= 1.0_dp) .OR. (delta <= 0.0_dp)) THEN
          CALL cp_abort(__LOCATION__, &
                        "relative delta to modify initial cutoff interval (DELTA) must be in (0, 1)")
+      END IF
 
       cutoff_lr(1) = cutoff_l
       cutoff_lr(2) = cutoff_r
@@ -113,10 +115,11 @@ CONTAINS
 
       ! 1) find valid initial values for bisection
       DO iter1 = 1, max_iter + 1
-         IF (iter1 > max_iter) &
+         IF (iter1 > max_iter) THEN
             CALL cp_abort(__LOCATION__, &
                           "Maximum number of iterations in bisection to determine initial "// &
                           "cutoff interval has been exceeded.")
+         END IF
 
          cutoff_lr(1) = MAX(cutoff_lr(1), 0.5_dp*G_min**2)
          ! approx.) is hit
@@ -144,9 +147,10 @@ CONTAINS
          "ERI_MME| Step, cutoff (min, max, mid), err(minimax), err(cutoff), err diff"
 
       DO iter2 = 1, max_iter + 1
-         IF (iter2 > max_iter) &
+         IF (iter2 > max_iter) THEN
             CALL cp_abort(__LOCATION__, &
                           "Maximum number of iterations in bisection to determine cutoff has been exceeded")
+         END IF
 
          cutoff_mid = 0.5_dp*(cutoff_lr(1) + cutoff_lr(2))
          CALL cutoff_minimax_error(cutoff_mid, hmat, h_inv, vol, G_min, zet_min, l_mm, zet_max, l_max_zet, &
@@ -337,9 +341,10 @@ CONTAINS
       gr = 0.5_dp*(SQRT(5.0_dp) - 1.0_dp) ! golden ratio
       ! Find valid starting values for golden section search
       DO iter = 1, max_iter + 1
-         IF (iter > max_iter) &
+         IF (iter > max_iter) THEN
             CALL cp_abort(__LOCATION__, "Maximum number of iterations for finding "// &
                           "exponent maximizing cutoff error has been exceeded.")
+         END IF
 
          CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_max_zet, zet_max_tmp, C, err_ctff_curr, para_env)
          IF (err_ctff_prev >= err_ctff_curr) THEN

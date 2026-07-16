@@ -2299,14 +2299,14 @@ CONTAINS
          CALL dbcsr_iterator_next_block(iter, irow, icol, rblock)
          IF (.NOT. ALLOCATED(rwork)) THEN
             ALLOCATE (rwork(SIZE(rblock, 1), SIZE(rblock, 2)))
-         ELSEIF (SIZE(rwork, 1) /= SIZE(rblock, 1) .OR. SIZE(rwork, 2) /= SIZE(rblock, 2)) THEN
+         ELSE IF (SIZE(rwork, 1) /= SIZE(rblock, 1) .OR. SIZE(rwork, 2) /= SIZE(rblock, 2)) THEN
             DEALLOCATE (rwork)
             ALLOCATE (rwork(SIZE(rblock, 1), SIZE(rblock, 2)))
          END IF
          IF (.NOT. real_only) THEN
             IF (.NOT. ALLOCATED(cwork)) THEN
                ALLOCATE (cwork(SIZE(rblock, 1), SIZE(rblock, 2)))
-            ELSEIF (SIZE(cwork, 1) /= SIZE(rblock, 1) .OR. SIZE(cwork, 2) /= SIZE(rblock, 2)) THEN
+            ELSE IF (SIZE(cwork, 1) /= SIZE(rblock, 1) .OR. SIZE(cwork, 2) /= SIZE(rblock, 2)) THEN
                DEALLOCATE (cwork)
                ALLOCATE (cwork(SIZE(rblock, 1), SIZE(rblock, 2)))
             END IF

@@ -122,7 +122,7 @@ CONTAINS
       ! generate the transformed potentials
       IF (is_ecp) THEN
          CALL ecp_sgp_constr(ecp_pot, sgp_pot, basis)
-      ELSEIF (is_upf) THEN
+      ELSE IF (is_upf) THEN
          CALL upf_sgp_constr(upf_pot, sgp_pot, basis)
       ELSE
          CPABORT("Either ecp_pot or upf_pot is needed for sgp_construction")
@@ -137,7 +137,7 @@ CONTAINS
       !
       IF (is_ecp) THEN
          CALL ecpints(hnl%op, basis, ecp_pot)
-      ELSEIF (is_upf) THEN
+      ELSE IF (is_upf) THEN
          CALL upfints(core%op, hnl%op, basis, upf_pot, cutpotu, sgp_pot%ac_local)
       ELSE
          CPABORT("Either ecp_pot or upf_pot is needed for sgp_construction")
@@ -246,7 +246,7 @@ CONTAINS
       IF (do_transform) THEN
          IF (is_ecp) THEN
             CALL ecp_sgp_constr(ecp_pot, sgp_pot, atom_ref%basis)
-         ELSEIF (is_upf) THEN
+         ELSE IF (is_upf) THEN
             CALL upf_sgp_constr(upf_pot, sgp_pot, atom_ref%basis)
          ELSE
             CPABORT("Either ecp_pseudo or upf_pseudo is needed for atom_sgp_construction")
@@ -279,7 +279,7 @@ CONTAINS
          !
          IF (is_ecp) THEN
             CALL ecpints(hnl%op, atom_ref%basis, ecp_pot)
-         ELSEIF (is_upf) THEN
+         ELSE IF (is_upf) THEN
             CALL upfints(core%op, hnl%op, atom_ref%basis, upf_pot, cutpotu, sgp_pot%ac_local)
          ELSE
             CPABORT("Either ecp_pseudo or upf_pseudo is needed for atom_sgp_construction")

@@ -1135,7 +1135,7 @@ CONTAINS
                END IF
             END IF
 
-         ELSEIF (sign == BWFFT) THEN
+         ELSE IF (sign == BWFFT) THEN
             ! Stage 3 -> 1
 
             bbuf => fft_scratch%a5buf
@@ -1217,7 +1217,7 @@ CONTAINS
 
          CALL release_fft_scratch(fft_scratch)
 
-      ELSEIF (DIM(2) == 1) THEN
+      ELSE IF (DIM(2) == 1) THEN
 
          !
          ! Second case; one stage of communication
@@ -1277,7 +1277,7 @@ CONTAINS
                END IF
             END IF
 
-         ELSEIF (sign == BWFFT) THEN
+         ELSE IF (sign == BWFFT) THEN
             ! Stage 3 -> 1
 
             IF (test) THEN

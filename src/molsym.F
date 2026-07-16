@@ -1210,10 +1210,12 @@ CONTAINS
       IF (.NOT. sym%linear) THEN
          DO icn = 2, sym%ncn
             DO isec = 1, sym%nsec(icn)
-               IF (saxis(icn, sym%sec(:, isec, icn), sym, coord)) &
+               IF (saxis(icn, sym%sec(:, isec, icn), sym, coord)) THEN
                   CALL addses(icn, sym%sec(:, isec, icn), sym)
-               IF (saxis(2*icn, sym%sec(:, isec, icn), sym, coord)) &
+               END IF
+               IF (saxis(2*icn, sym%sec(:, isec, icn), sym, coord)) THEN
                   CALL addses(2*icn, sym%sec(:, isec, icn), sym)
+               END IF
             END DO
          END DO
       END IF

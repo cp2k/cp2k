@@ -167,8 +167,9 @@ PROGRAM cp2k
          INTEGER :: veclib_max_threads, ierr
          CALL get_environment_variable("VECLIB_MAXIMUM_THREADS", env_var, status=ierr)
          veclib_max_threads = 0
-         IF (ierr == 0) &
+         IF (ierr == 0) THEN
             READ (env_var, *) veclib_max_threads
+         END IF
          IF (ierr == 1 .OR. (ierr == 0 .AND. veclib_max_threads > 1)) THEN
             CALL cp_warn(__LOCATION__, &
                          "macOS' Accelerate framework has its own threading enabled which may interfere"// &
@@ -236,8 +237,9 @@ PROGRAM cp2k
 
          DO inp_var_idx = 1, SIZE(initial_variables, 2)
             ! check whether the variable was already set, in this case, overwrite
-            IF (TRIM(initial_variables(1, inp_var_idx)) == arg_att(:var_set_sep - 1)) &
+            IF (TRIM(initial_variables(1, inp_var_idx)) == arg_att(:var_set_sep - 1)) THEN
                EXIT
+            END IF
          END DO
 
          IF (inp_var_idx > SIZE(initial_variables, 2)) THEN

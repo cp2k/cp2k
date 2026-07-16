@@ -227,8 +227,7 @@ CONTAINS
          END DO
 
          DO ishell = 1, gto_basis_set%nshell(iset)
-            gcc(:, ishell, iset) = gcc(:, ishell, iset)/ &
-                                   SQRT(DOT_PRODUCT(gcc(:, ishell, iset), gcc(:, ishell, iset)))
+            gcc(:, ishell, iset) = gcc(:, ishell, iset)/NORM2(gcc(:, ishell, iset))
          END DO
       END DO
 

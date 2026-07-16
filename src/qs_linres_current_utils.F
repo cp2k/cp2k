@@ -794,8 +794,9 @@ CONTAINS
       current_env%do_selected_states = n_rep > 0
       !
       ! for the moment selected states doesnt work with the preconditioner FULL_ALL
-      IF (linres_control%preconditioner_type == ot_precond_full_all .AND. current_env%do_selected_states) &
+      IF (linres_control%preconditioner_type == ot_precond_full_all .AND. current_env%do_selected_states) THEN
          CPABORT("Selected states doesnt work with the preconditioner FULL_ALL")
+      END IF
       !
       !
       NULLIFY (current_env%selected_states_on_atom_list)
@@ -1160,7 +1161,7 @@ CONTAINS
             REPEAT(' ', 20 - LEN_TRIM(current_env%orb_center_name))//TRIM(current_env%orb_center_name)
          IF (current_env%orb_center == current_orb_center_common) THEN
             WRITE (output_unit, "(T2,A,T50,3F10.6)") "CURRENT| Common center", common_center(1:3)
-         ELSEIF (current_env%orb_center == current_orb_center_box) THEN
+         ELSE IF (current_env%orb_center == current_orb_center_box) THEN
             WRITE (output_unit, "(T2,A,T60,3I5)") "CURRENT| Nbr boxes in each direction", nbox(1:3)
          END IF
          !

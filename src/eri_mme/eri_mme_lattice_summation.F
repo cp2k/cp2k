@@ -89,7 +89,7 @@ CONTAINS
       IF (PRESENT(G_rad)) G_rad = exp_radius(l_max, alpha_G, sum_precision, 1.0_dp, epsabs=G_res)
       IF (PRESENT(R_rad)) R_rad = exp_radius(l_max, alpha_R, sum_precision, 1.0_dp, epsabs=R_res)
 
-   END SUBROUTINE
+   END SUBROUTINE eri_mme_2c_get_rads
 
 ! **************************************************************************************************
 !> \brief Get summation radii for 3c integrals
@@ -149,7 +149,7 @@ CONTAINS
          R_rads_3(2) = exp_radius(la_max + lb_max + lc_max, alpha_R, sum_precision, 1.0_dp, R_res)
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE eri_mme_3c_get_rads
 
 ! **************************************************************************************************
 !> \brief Get summation bounds for 2c integrals
@@ -212,7 +212,7 @@ CONTAINS
          n_sum_3d(2) = nsum_2c_rspace_3d(ns_R, la_max, lb_max)
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE eri_mme_2c_get_bounds
 
 ! **************************************************************************************************
 !> \brief Get summation bounds for 3c integrals
@@ -326,7 +326,7 @@ CONTAINS
          n_sum_3d(3) = nsum_3c_rspace_3d(ns3_R1, ns3_R2, la_max, lb_max, lc_max)
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE eri_mme_3c_get_bounds
 
 ! **************************************************************************************************
 !> \brief Roughly estimated number of floating point operations
@@ -341,7 +341,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: nsum_2c_gspace_1d
 
       nsum_2c_gspace_1d = NINT(ns_G*(2*exp_w + (l + m + 1)*5), KIND=int_8)
-   END FUNCTION
+   END FUNCTION nsum_2c_gspace_1d
 
 ! **************************************************************************************************
 !> \brief Compute Ewald-like sum for 2-center ERIs in G space in 1 dimension
@@ -380,7 +380,7 @@ CONTAINS
          END DO
       END DO
 
-      S_G(:) = REAL(S_G_c(0:l_max)*i_pow((/(l, l=0, l_max)/)))*inv_lgth
+      S_G(:) = REAL(S_G_c(0:l_max)*i_pow([(l, l=0, l_max)]))*inv_lgth
    END SUBROUTINE pgf_sum_2c_gspace_1d
 
 ! **************************************************************************************************
@@ -396,7 +396,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: nsum_2c_gspace_3d
 
       nsum_2c_gspace_3d = NINT(ns_G*(2*exp_w + ncoset(l + m)*7), KIND=int_8)
-   END FUNCTION
+   END FUNCTION nsum_2c_gspace_3d
 
 ! **************************************************************************************************
 !> \brief As pgf_sum_2c_gspace_1d but 3d sum required for non-orthorhombic cells
@@ -495,7 +495,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: nsum_2c_rspace_1d
 
       nsum_2c_rspace_1d = NINT(ns_R*(exp_w + (l + m + 1)*3), KIND=int_8)
-   END FUNCTION
+   END FUNCTION nsum_2c_rspace_1d
 
 ! **************************************************************************************************
 !> \brief Compute Ewald-like sum for 2-center ERIs in R space in 1 dimension
@@ -553,7 +553,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: nsum_2c_rspace_3d
 
       nsum_2c_rspace_3d = NINT(ns_R*(exp_w + ncoset(l + m)*(4 + ncoset(l + m)*4)), KIND=int_8)
-   END FUNCTION
+   END FUNCTION nsum_2c_rspace_3d
 
 ! **************************************************************************************************
 !> \brief As pgf_sum_2c_rspace_1d but 3d sum required for non-orthorhombic cells
@@ -611,7 +611,8 @@ CONTAINS
                END DO
                DO lco = 1, ncoset(l_max)
                   CALL get_l(lco, l, lx, ly, lz)
-                  S_R_C(coset(lx, ly, lz)) = S_R_C(coset(lx, ly, lz)) + R_pow_l(1, lx)*R_pow_l(2, ly)*R_pow_l(3, lz)*exp_tot ! cost: 4 flops
+                  ! cost: 4 flops
+                  S_R_C(coset(lx, ly, lz)) = S_R_C(coset(lx, ly, lz)) + R_pow_l(1, lx)*R_pow_l(2, ly)*R_pow_l(3, lz)*exp_tot
                END DO
             END DO
          END DO
@@ -794,7 +795,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: nsum_3c_gspace_1d
 
       nsum_3c_gspace_1d = 15
-   END FUNCTION
+   END FUNCTION nsum_3c_gspace_1d
 
 ! **************************************************************************************************
 !> \brief Roughly estimated number of floating point operations
@@ -810,7 +811,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: nsum_product_3c_gspace_1d
 
       nsum_product_3c_gspace_1d = MIN(19, NINT(ns_G*(3 + ns_R*2)))
-   END FUNCTION
+   END FUNCTION nsum_product_3c_gspace_1d
 
 ! **************************************************************************************************
 !> \brief Roughly estimated number of floating point operations
@@ -826,7 +827,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: nsum_3c_rspace_1d
 
       nsum_3c_rspace_1d = NINT(MIN((4 + ns_R1*2), ns_R1*(ns_R2 + 1)), KIND=int_8)
-   END FUNCTION
+   END FUNCTION nsum_3c_rspace_1d
 
 ! **************************************************************************************************
 !> \brief Helper routine: compute SQRT(alpha/pi) (-1)^n sum_(R, R') sum_{t=0}^{l+m} E(t,l,m) H(RC - P(R) - R', t + n, alpha)
@@ -954,7 +955,7 @@ CONTAINS
       END DO
 
       S_R = S_R*pi**(-0.5_dp)*((zeta + zetb)/(zeta*zetb))**(-0.5_dp)
-   END SUBROUTINE
+   END SUBROUTINE pgf_sum_3c_rspace_1d_generic
 
 ! **************************************************************************************************
 !> \brief Helper routine: compute SQRT(alpha/pi) (-1)^n sum_(R, R') sum_{t=0}^{l+m} E(t,l,m) H(RC - P(R) - R', t + n, alpha)
@@ -1009,7 +1010,7 @@ CONTAINS
                   #:for l in range(0, l_tot_max)
                      #:for k in range(0, l+2)
                         #:if k<l or k>0
-                           h_to_c_${k}$_${l+1}$ = #{if k<l}#-${k+1}$*h_to_c_${k+1}$_${l}$#{endif}# #{if k > 0}#+2*alpha*h_to_c_${k-1}$_${l}$#{endif}#
+                           h_to_c_${k}$_${l+1}$ = #{if k<l}#-${k+1}$*h_to_c_${k+1}$_${l}$#{endif}##{if k > 0}#+2*alpha*h_to_c_${k-1}$_${l}$#{endif}#
                         #:else
                            h_to_c_${k}$_${l+1}$ = 0.0_dp
                         #:endif
@@ -1087,15 +1088,15 @@ CONTAINS
                         #:for l in range(0,l_max+1)
                            #:for t in range(0,l+m+2)
                               #:if l < l_max
-                                 E_${t}$_${l+1}$_${m}$ = zeta*(#{if t>0}# c1*E_${t-1}$_${l}$_${m}$#{endif}# &
+                                 E_${t}$_${l+1}$_${m}$ = zeta*(#{if t>0}#c1*E_${t-1}$_${l}$_${m}$#{endif}# &
                                  #{if t<=l+m}# +c2*E_${t}$_${l}$_${m}$&#{endif}#
                                  #{if t<l+m}# +${2*(t+1)}$*E_${t+1}$_${l}$_${m}$ &#{endif}#
                                  #{if l>0 and t<=l-1+m}#-${2*l}$*E_${t}$_${l-1}$_${m}$#{endif}#)
                               #:endif
                               #:if m < m_max
-                                 E_${t}$_${l}$_${m+1}$ = zetb*(#{if t>0}# c1*E_${t-1}$_${l}$_${m}$#{endif}# &
+                                 E_${t}$_${l}$_${m+1}$ = zetb*(#{if t>0}#c1*E_${t-1}$_${l}$_${m}$#{endif}# &
                                  #{if t<=l+m}#+c3*E_${t}$_${l}$_${m}$&#{endif}#
-                                 #{if t<l+m}# +${2*(t+1)}$*E_${t+1}$_${l}$_${m}$ &#{endif}#
+                                 #{if t<l+m}#+${2*(t+1)}$*E_${t+1}$_${l}$_${m}$&#{endif}#
                                  #{if m>0 and t<=m-1+l}#-${2*m}$*E_${t}$_${l}$_${m-1}$#{endif}#)
                               #:endif
                            #:endfor
@@ -1115,7 +1116,7 @@ CONTAINS
                   END DO
 
                   S_R = S_R*pi**(-0.5_dp)*((zeta + zetb)/(zeta*zetb))**(-0.5_dp)
-               END SUBROUTINE
+               END SUBROUTINE pgf_sum_3c_rspace_1d_${l_max}$_${m_max}$_${n_max}$_exp_${prop_exp}$
             #:endfor
          #:endfor
       #:endfor
@@ -1265,7 +1266,7 @@ CONTAINS
 
       nsum_3c_gspace_3d = NINT(ns_G1*ns_G2*(5*exp_w + ncoset(l)*ncoset(m)*ncoset(n)*4), KIND=int_8)
 
-   END FUNCTION
+   END FUNCTION nsum_3c_gspace_3d
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1427,7 +1428,7 @@ CONTAINS
       END SELECT
       S_G = REAL(S_G_c, KIND=dp)/vol**2
 
-   END SUBROUTINE
+   END SUBROUTINE pgf_sum_3c_gspace_3d
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1543,7 +1544,7 @@ CONTAINS
          3*nsum_gaussian_overlap(l, m, 1) + &
          ncoset(l)*ncoset(m)*(ncoset(l + m)*4 + ncoset(n)*8)), &
          KIND=int_8)
-   END FUNCTION
+   END FUNCTION nsum_product_3c_gspace_3d
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1764,7 +1765,7 @@ CONTAINS
          ncoset(l + m)*2 + ncoset(n)*ncoset(l + m)*4)), &
          KIND=int_8)
 
-   END FUNCTION
+   END FUNCTION nsum_3c_rspace_3d
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1962,7 +1963,7 @@ CONTAINS
       ELSE
          nsum_gaussian_overlap = nsum_gaussian_overlap + loop*32
       END IF
-   END FUNCTION
+   END FUNCTION nsum_gaussian_overlap
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1981,7 +1982,7 @@ CONTAINS
       IF (PRESENT(lx)) lx = indco(1, lco)
       IF (PRESENT(ly)) ly = indco(2, lco)
       IF (PRESENT(lz)) lz = indco(3, lco)
-   END SUBROUTINE
+   END SUBROUTINE get_l
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1993,10 +1994,10 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: i_pow
 
       COMPLEX(KIND=dp), DIMENSION(0:3), PARAMETER :: &
-         ip = (/(1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp)/)
+         ip = [(1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp)]
 
       i_pow = ip(MOD(i, 4))
 
-   END FUNCTION
+   END FUNCTION i_pow
 
 END MODULE eri_mme_lattice_summation

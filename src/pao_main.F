@@ -279,8 +279,9 @@ CONTAINS
                EXIT
             END IF
 
-            IF (MOD(icycle, pao%write_cycles) == 0) &
-               CALL pao_write_restart(pao, qs_env, energy) ! write an intermediate restart file
+            IF (MOD(icycle, pao%write_cycles) == 0) THEN
+               CALL pao_write_restart(pao, qs_env, energy)
+            END IF ! write an intermediate restart file
          END IF
 
          ! check for early abort without convergence?

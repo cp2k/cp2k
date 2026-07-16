@@ -247,7 +247,7 @@ CONTAINS
          IF (PRESENT(eta)) eta = eeqGam(za)
          IF (PRESENT(kcn)) kcn = eeqkCN(za)
          IF (PRESENT(rad)) rad = eeqAlp(za)
-      ELSEIF (model == 2) THEN
+      ELSE IF (model == 2) THEN
          CPASSERT(za <= max_elem)
          IF (PRESENT(chi)) chi = eeq_chi(za)
          IF (PRESENT(eta)) eta = eeq_eta(za)

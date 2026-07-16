@@ -153,7 +153,7 @@ CONTAINS
          smoothing = .FALSE.
          ecut = 1.e10_dp ! not used, just to have vars defined
          sigma = 1._dp ! not used, just to have vars defined
-      ELSEIF (ecut == -1._dp .AND. sigma == -1._dp) THEN
+      ELSE IF (ecut == -1._dp .AND. sigma == -1._dp) THEN
          smoothing = .TRUE.
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL auxbas_pw_pool%create_pw(dvr2rs)

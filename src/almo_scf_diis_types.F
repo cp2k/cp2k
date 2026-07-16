@@ -258,8 +258,9 @@ CONTAINS
       ! update the buffer length
       old_buffer_length = diis_env%buffer_length
       diis_env%buffer_length = diis_env%buffer_length + 1
-      IF (diis_env%buffer_length > diis_env%max_buffer_length) &
+      IF (diis_env%buffer_length > diis_env%max_buffer_length) THEN
          diis_env%buffer_length = diis_env%max_buffer_length
+      END IF
 
       !!!! resize B matrix
       !!!IF (old_buffer_length.lt.diis_env%buffer_length) THEN
@@ -402,23 +403,11 @@ CONTAINS
 
             ! use the eigensystem to invert (implicitly) B matrix
             ! and compute the extrapolation coefficients
-            !! ALLOCATE(tmp1(diis_env%buffer_length+1,1))
-            !! ALLOCATE(coeff(diis_env%buffer_length+1,1))
-            !! tmp1(:,1)=-1.0_dp*m_b_copy(1,:)/eigenvalues(:)
-            !! coeff=MATMUL(m_b_copy,tmp1)
-            !! DEALLOCATE(tmp1)
             ALLOCATE (tmp1(diis_env%buffer_length + 1))
             ALLOCATE (coeff(diis_env%buffer_length + 1))
             tmp1(:) = -1.0_dp*m_b_copy(1, :)/eigenvalues(:)
             coeff(:) = MATMUL(m_b_copy, tmp1)
             DEALLOCATE (tmp1)
-
-            !IF (unit_nr.gt.0) THEN
-            !   DO im=1,diis_env%buffer_length+1
-            !      WRITE(unit_nr,*) diis_env%m_b(idomain)%mdata(im,:)
-            !   ENDDO
-            !   WRITE (unit_nr,*) coeff(:,1)
-            !ENDIF
 
             ! extrapolate the variable
             checksum = 0.0_dp
@@ -441,7 +430,6 @@ CONTAINS
                   checksum = checksum + coeff(im + 1)
                END DO
             END IF
-            !WRITE(*,*) checksum
 
             DEALLOCATE (coeff)
 

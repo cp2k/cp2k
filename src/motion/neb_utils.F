@@ -118,8 +118,7 @@ CONTAINS
          CALL rmsd3(particle_set, coords%xyz(:, i), coords%xyz(:, i0), &
                     iw, rotate=my_rotate)
       END IF
-      distance = SQRT(DOT_PRODUCT(coords%wrk(:, i) - coords%wrk(:, i0), &
-                                  coords%wrk(:, i) - coords%wrk(:, i0)))
+      distance = NORM2(coords%wrk(:, i) - coords%wrk(:, i0))
 
    END SUBROUTINE neb_replica_distance
 
@@ -224,11 +223,12 @@ CONTAINS
                DO iatom = 1, natom
                   ! Atom coordinates
                   CALL parser_get_next_line(parser, 1, at_end=my_end)
-                  IF (my_end) &
+                  IF (my_end) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Number of lines in XYZ format not equal to the number of atoms."// &
                                    " Error in XYZ format for REPLICA coordinates. Very probably the"// &
                                    " line with title is missing or is empty. Please check the XYZ file and rerun your job!")
+                  END IF
                   READ (parser%input_line, *) dummy_char, r(1:3)
                   ic = 3*(iatom - 1)
                   coords%xyz(ic + 1:ic + 3, i_rep) = r(1:3)*bohr
@@ -737,7 +737,7 @@ CONTAINS
          ! String method..
          tangent(:) = 0.0_dp
       END SELECT
-      distance0 = SQRT(DOT_PRODUCT(tangent(:), tangent(:)))
+      distance0 = NORM2(tangent(:))
       IF (distance0 /= 0.0_dp) tangent(:) = tangent(:)/distance0
    END SUBROUTINE get_tangent
 
@@ -849,7 +849,7 @@ CONTAINS
          ALLOCATE (dtmp1(nsize_wrk))
          dtmp1(:) = forces%wrk(:, i) - dot_product_band(neb_env, forces%wrk(:, i), tangent, Mmatrix)*tangent
          forces%wrk(:, i) = dtmp1
-         tmp = SQRT(DOT_PRODUCT(dtmp1, dtmp1))
+         tmp = NORM2(dtmp1)
          dtmp1(:) = dtmp1(:)/tmp
          ! Project out only the spring component interfering with the
          ! orthogonal gradient of the band

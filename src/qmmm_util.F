@@ -128,10 +128,11 @@ CONTAINS
       END IF
 
       IF (force_env%in_use == use_qmmmx) THEN
-         IF (iwall_type /= do_qmmm_wall_none) &
+         IF (iwall_type /= do_qmmm_wall_none) THEN
             CALL cp_warn(__LOCATION__, &
                          "Reflective walls for QM/MM are not implemented (or useful) when "// &
                          "force mixing is active.  Skipping!")
+         END IF
          RETURN
       END IF
 
@@ -619,7 +620,7 @@ CONTAINS
 
       REAL(KIND=dp)                                      :: r, r0
 
-      r = SQRT(DOT_PRODUCT(rij, rij))
+      r = NORM2(rij)
       r0 = spherical_cutoff(1) - 20.0_dp*spherical_cutoff(2)
       factor = 0.5_dp*(1.0_dp - TANH((r - r0)/spherical_cutoff(2)))
 

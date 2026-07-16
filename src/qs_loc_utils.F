@@ -340,10 +340,11 @@ CONTAINS
                   IF (localized_wfn_control%do_homo) THEN
                      occ_imo = occupations(imo)
                      IF (ABS(occ_imo - my_occ) > localized_wfn_control%eps_occ) THEN
-                        IF (localized_wfn_control%localization_method /= do_loc_none) &
+                        IF (localized_wfn_control%localization_method /= do_loc_none) THEN
                            CALL cp_abort(__LOCATION__, &
                                          "States with different occupations "// &
                                          "cannot be rotated together")
+                        END IF
                      END IF
                   END IF
                   ! Take the imo vector from the full set and copy in the imoloc vector of the subset
@@ -357,10 +358,11 @@ CONTAINS
                my_occ = occupations(lb)
                occ_imo = occupations(ub)
                IF (ABS(occ_imo - my_occ) > localized_wfn_control%eps_occ) THEN
-                  IF (localized_wfn_control%localization_method /= do_loc_none) &
+                  IF (localized_wfn_control%localization_method /= do_loc_none) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "States with different occupations "// &
                                    "cannot be rotated together")
+                  END IF
                END IF
                nmosub = localized_wfn_control%nloc_states(ispin)
 
@@ -414,7 +416,7 @@ CONTAINS
                END DO
             END DO
 
-         ELSEIF (localized_wfn_control%operator_type == op_loc_pipek) THEN
+         ELSE IF (localized_wfn_control%operator_type == op_loc_pipek) THEN
             natoms = SIZE(qs_loc_env%particle_set, 1)
             ALLOCATE (qs_loc_env%op_fm_set(natoms, 1))
             CALL set_qs_loc_env(qs_loc_env=qs_loc_env, dim_op=natoms)
@@ -439,7 +441,7 @@ CONTAINS
 
             CALL get_berry_operator(qs_loc_env, qs_env)
 
-         ELSEIF (localized_wfn_control%operator_type == op_loc_pipek) THEN
+         ELSE IF (localized_wfn_control%operator_type == op_loc_pipek) THEN
 
             !!    here we don't have to do anything
             !!    CALL get_pipek_mezey_operator ( qs_loc_env, qs_env )
@@ -757,7 +759,7 @@ CONTAINS
             IF (PRESENT(do_mixed)) my_do_mixed = do_mixed
             IF (do_homo) THEN
                my_middle = "LOC_HOMO"
-            ELSEIF (my_do_mixed) THEN
+            ELSE IF (my_do_mixed) THEN
                my_middle = "LOC_MIXED"
             ELSE
                my_middle = "LOC_LUMO"
@@ -872,12 +874,13 @@ CONTAINS
       IF (PRESENT(do_mixed)) my_do_mixed = do_mixed
       IF (do_homo) THEN
          fname_key = "LOCHOMO_RESTART_FILE_NAME"
-      ELSEIF (my_do_mixed) THEN
+      ELSE IF (my_do_mixed) THEN
          fname_key = "LOCMIXD_RESTART_FILE_NAME"
       ELSE
          fname_key = "LOCLUMO_RESTART_FILE_NAME"
-         IF (.NOT. PRESENT(evals)) &
+         IF (.NOT. PRESENT(evals)) THEN
             CPABORT("Missing argument to localize unoccupied states.")
+         END IF
       END IF
 
       file_exists = .FALSE.
@@ -889,7 +892,7 @@ CONTAINS
          print_key => section_vals_get_subs_vals(section2, "LOC_RESTART")
          IF (do_homo) THEN
             my_middle = "LOC_HOMO"
-         ELSEIF (my_do_mixed) THEN
+         ELSE IF (my_do_mixed) THEN
             my_middle = "LOC_MIXED"
          ELSE
             my_middle = "LOC_LUMO"
@@ -914,8 +917,10 @@ CONTAINS
             READ (rst_unit) qs_loc_env%localized_wfn_control%nloc_states
          END IF
       ELSE
-         IF (output_unit > 0) WRITE (output_unit, "(/,T10,A)") &
-            "Restart file not available filename=<"//TRIM(filename)//'>'
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, "(/,T10,A)") &
+               "Restart file not available filename=<"//TRIM(filename)//'>'
+         END IF
       END IF
       CALL para_env%bcast(file_exists)
 
@@ -956,14 +961,16 @@ CONTAINS
                   eig_read = 0.0_dp
                   READ (rst_unit) eig_read(1:nmo_read)
                END IF
-               IF (nmo_read < nmo) &
+               IF (nmo_read < nmo) THEN
                   CALL cp_warn(__LOCATION__, &
                                "The number of MOs on the restart unit is smaller than the number of "// &
                                "the allocated MOs. ")
-               IF (nmo_read > nmo) &
+               END IF
+               IF (nmo_read > nmo) THEN
                   CALL cp_warn(__LOCATION__, &
                                "The number of MOs on the restart unit is greater than the number of "// &
                                "the allocated MOs. The read MO set will be truncated!")
+               END IF
 
                nmo = MIN(nmo, nmo_read)
                IF (do_homo .OR. do_mixed) THEN
@@ -1186,7 +1193,6 @@ CONTAINS
                                maxocc=maxocc)
                ! Get eigenstates (only needed if not already calculated before)
                IF ((.NOT. my_do_mo_cubes) &
-                   !                  .OR. section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO")==0)&
                    .AND. my_do_homo .AND. ASSOCIATED(qs_env%scf_env) &
                    .AND. qs_env%scf_env%method == ot_method_nr .AND. (.NOT. dft_control%restricted)) THEN
                   CALL make_mo_eig(mos, nspin, ks_rmpv, scf_control, mo_derivs)
@@ -1207,11 +1213,12 @@ CONTAINS
                   localized_wfn_control%lu_bound_states(1, ispin) = 1
                   localized_wfn_control%lu_bound_states(2, ispin) = ilast_intocc
                   IF (nmoloc(ispin) /= n_mo(ispin)) THEN
-                     IF (output_unit > 0) &
+                     IF (output_unit > 0) THEN
                         WRITE (output_unit, "(/,T2,A,I4,A,I6,A,/,T15,A,F12.6,A,F12.6,A)") &
-                        "LOCALIZATION| Spin ", ispin, " The first ", &
-                        ilast_intocc, " occupied orbitals are localized,", " with energies from ", &
-                        mo_eigenvalues(1), " to ", mo_eigenvalues(ilast_intocc), " [a.u.]."
+                           "LOCALIZATION| Spin ", ispin, " The first ", &
+                           ilast_intocc, " occupied orbitals are localized,", " with energies from ", &
+                           mo_eigenvalues(1), " to ", mo_eigenvalues(ilast_intocc), " [a.u.]."
+                     END IF
                   END IF
                ELSE IF (localized_wfn_control%set_of_states == energy_loc_range .AND. my_do_homo) THEN
                   ilow = 0
@@ -1243,11 +1250,12 @@ CONTAINS
                   nmoloc(ispin) = n_mo(ispin) - homo
                   localized_wfn_control%lu_bound_states(1, ispin) = homo + 1
                   localized_wfn_control%lu_bound_states(2, ispin) = n_mo(ispin)
-                  IF (output_unit > 0) &
+                  IF (output_unit > 0) THEN
                      WRITE (output_unit, "(/,T2,A,I4,A,I6,A,/,T15,A,F12.6,A,F12.6,A)") &
-                     "LOCALIZATION| Spin ", ispin, " The first ", &
-                     nmoloc(ispin), " virtual orbitals are localized,", " with energies from ", &
-                     mo_eigenvalues(homo + 1), " to ", mo_eigenvalues(n_mo(ispin)), " [a.u.]."
+                        "LOCALIZATION| Spin ", ispin, " The first ", &
+                        nmoloc(ispin), " virtual orbitals are localized,", " with energies from ", &
+                        mo_eigenvalues(homo + 1), " to ", mo_eigenvalues(n_mo(ispin)), " [a.u.]."
+                  END IF
                ELSE IF (localized_wfn_control%set_of_states == state_loc_mixed) THEN
                   nextra = localized_wfn_control%nextra
                   nocc = homo
@@ -1262,14 +1270,15 @@ CONTAINS
                   nmoloc(ispin) = nocc + nextra
                   localized_wfn_control%lu_bound_states(1, ispin) = 1
                   localized_wfn_control%lu_bound_states(2, ispin) = nmoloc(ispin)
-                  IF (output_unit > 0) &
+                  IF (output_unit > 0) THEN
                      WRITE (output_unit, "(/,T2,A,I4,A,I6,A,/,T15,A,I6,/,T15,A,I6,/,T15,A,I6,/,T15,A,F12.6,A)") &
-                     "LOCALIZATION| Spin ", ispin, " The first ", &
-                     nmoloc(ispin), " orbitals are localized.", &
-                     "Number of fully occupied MOs: ", nocc, &
-                     "Number of partially occupied MOs: ", npocc, &
-                     "Number of extra degrees of freedom: ", nextra, &
-                     "Excess charge: ", my_tot_zeff_corr, " electrons"
+                        "LOCALIZATION| Spin ", ispin, " The first ", &
+                        nmoloc(ispin), " orbitals are localized.", &
+                        "Number of fully occupied MOs: ", nocc, &
+                        "Number of partially occupied MOs: ", npocc, &
+                        "Number of extra degrees of freedom: ", nextra, &
+                        "Excess charge: ", my_tot_zeff_corr, " electrons"
+                  END IF
                ELSE
                   nmoloc(ispin) = MIN(localized_wfn_control%nloc_states(1), n_mo(ispin))
                   IF (output_unit > 0 .AND. my_do_homo) WRITE (output_unit, "(/,T2,A,I4,A,I6,A)") "LOCALIZATION| Spin ", ispin, &

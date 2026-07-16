@@ -53,7 +53,7 @@ CONTAINS
       tmp = arr(1)
       arr(1) = arr(2)
       arr(2) = tmp
-   END SUBROUTINE
+   END SUBROUTINE swap_i8
 
 ! **************************************************************************************************
 !> \brief ...
@@ -68,7 +68,7 @@ CONTAINS
       tmp = arr(1)
       arr(1) = arr(2)
       arr(2) = tmp
-   END SUBROUTINE
+   END SUBROUTINE swap_i
 
 ! **************************************************************************************************
 !> \brief ...
@@ -87,7 +87,7 @@ CONTAINS
       array_eq_i = .FALSE.
       IF (SIZE(arr1) == SIZE(arr2)) array_eq_i = ALL(arr1 == arr2)
 #endif
-   END FUNCTION
+   END FUNCTION array_eq_i
 
 ! **************************************************************************************************
 !> \brief ...
@@ -106,6 +106,6 @@ CONTAINS
       array_eq_i8 = .FALSE.
       IF (SIZE(arr1) == SIZE(arr2)) array_eq_i8 = ALL(arr1 == arr2)
 #endif
-   END FUNCTION
+   END FUNCTION array_eq_i8
 
 END MODULE

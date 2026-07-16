@@ -144,7 +144,7 @@ CONTAINS
       i = 1
       DO WHILE (i <= ndim)
          IF (ABS(eval2(i)) < EPSILON(REAL(0.0, dp))) THEN
-            evec_r(:, i) = evec_r(:, i)/SQRT(DOT_PRODUCT(evec_r(:, i), evec_r(:, i)))
+            evec_r(:, i) = evec_r(:, i)/NORM2(evec_r(:, i))
             revec(:, i) = CMPLX(evec_r(:, i), REAL(0.0, dp), dp)
             levec(:, i) = CMPLX(evec_l(:, i), REAL(0.0, dp), dp)
             i = i + 1

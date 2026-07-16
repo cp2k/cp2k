@@ -304,8 +304,9 @@ CONTAINS
          ! restart.hs
          ! ----------
 
-         IF (para_env_global%is_source() .AND. negf_control%write_common_restart_file) &
+         IF (para_env_global%is_source() .AND. negf_control%write_common_restart_file) THEN
             CALL negf_write_restart(filename, negf_env, negf_control)
+         END IF
 
          ! current
          ! -------
@@ -965,8 +966,9 @@ CONTAINS
                                         matrix_s_global=matrix_s_fm, &
                                         is_circular=.TRUE., &
                                         g_surf_cache=g_surf_circular(ispin))
-            IF (negf_control%disable_cache) &
+            IF (negf_control%disable_cache) THEN
                CALL green_functions_cache_release(g_surf_circular(ispin))
+            END IF
 
             ! closed contour: L-path
             CALL negf_add_rho_equiv_low(rho_ao_fm=rho_ao_fm(ispin), &
@@ -983,8 +985,9 @@ CONTAINS
                                         matrix_s_global=matrix_s_fm, &
                                         is_circular=.FALSE., &
                                         g_surf_cache=g_surf_linear(ispin))
-            IF (negf_control%disable_cache) &
+            IF (negf_control%disable_cache) THEN
                CALL green_functions_cache_release(g_surf_linear(ispin))
+            END IF
          END DO
 
          IF (nspins > 1) THEN
@@ -1149,8 +1152,9 @@ CONTAINS
          END IF
       END IF
 
-      IF (negf_control%update_HS .AND. (.NOT. negf_control%is_dft_entire)) &
+      IF (negf_control%update_HS .AND. (.NOT. negf_control%is_dft_entire)) THEN
          CALL qs_energies(qs_env, consistent_energies=.FALSE., calc_forces=.FALSE.)
+      END IF
 
       CALL get_qs_env(qs_env, blacs_env=blacs_env, do_kpoints=do_kpoints, dft_control=dft_control, &
                       matrix_ks_kp=matrix_ks_qs_kp, para_env=para_env, rho=rho_struct, subsys=subsys)
@@ -1395,8 +1399,9 @@ CONTAINS
                                         matrix_s_global=matrix_s_fm, &
                                         is_circular=.TRUE., &
                                         g_surf_cache=g_surf_circular(ispin))
-            IF (negf_control%disable_cache) &
+            IF (negf_control%disable_cache) THEN
                CALL green_functions_cache_release(g_surf_circular(ispin))
+            END IF
 
             ! closed contour: L-path
             CALL negf_add_rho_equiv_low(rho_ao_fm=rho_ao_new_fm(ispin), &
@@ -1413,8 +1418,9 @@ CONTAINS
                                         matrix_s_global=matrix_s_fm, &
                                         is_circular=.FALSE., &
                                         g_surf_cache=g_surf_linear(ispin))
-            IF (negf_control%disable_cache) &
+            IF (negf_control%disable_cache) THEN
                CALL green_functions_cache_release(g_surf_linear(ispin))
+            END IF
 
             ! non-equilibrium part
             delta = 0.0_dp
@@ -1439,8 +1445,9 @@ CONTAINS
                                           base_contact=base_contact, &
                                           matrix_s_global=matrix_s_fm, &
                                           g_surf_cache=g_surf_nonequiv(ispin))
-               IF (negf_control%disable_cache) &
+               IF (negf_control%disable_cache) THEN
                   CALL green_functions_cache_release(g_surf_nonequiv(ispin))
+               END IF
             END IF
          END DO
 
@@ -2134,8 +2141,9 @@ CONTAINS
                DO ipoint = 1, npoints
                   IF (ASSOCIATED(g_ret_s(ipoint)%matrix_struct)) THEN
                      CALL cp_cfm_finish_copy_general(g_ret_s(ipoint), info1(ipoint))
-                     IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix_struct)) &
+                     IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix_struct)) THEN
                         CALL cp_cfm_cleanup_copy_general(info1(ipoint))
+                     END IF
                   END IF
                END DO
 

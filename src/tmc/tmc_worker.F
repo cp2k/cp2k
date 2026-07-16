@@ -167,13 +167,15 @@ CONTAINS
             END IF
             ! set the communicator in the external control for receiving exit tags
             !  and sending additional information (e.g. the intermediate scf energies)
-            IF (tmc_env%params%use_scf_energy_info) &
+            IF (tmc_env%params%use_scf_energy_info) THEN
                CALL set_intermediate_info_comm(env_id=itmp, &
                                                comm=tmc_env%tmc_comp_set%para_env_m_w)
-            IF (tmc_env%params%SPECULATIVE_CANCELING) &
+            END IF
+            IF (tmc_env%params%SPECULATIVE_CANCELING) THEN
                CALL set_external_comm(comm=tmc_env%tmc_comp_set%para_env_m_w, &
                                       in_external_master_id=MASTER_COMM_ID, &
                                       in_exit_tag=TMC_CANCELING_MESSAGE)
+            END IF
          END IF
          !-- WORKING LOOP --!
          master_work_time: DO
@@ -187,9 +189,10 @@ CONTAINS
                              result_count=ana_restart_conf, &
                              tmc_params=tmc_env%params, elem=conf)
 
-            IF (DEBUG >= 1 .AND. work_stat /= TMC_STATUS_WAIT_FOR_NEW_TASK) &
+            IF (DEBUG >= 1 .AND. work_stat /= TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
                WRITE (tmc_env%w_env%io_unit, *) "worker: group master of group ", &
-               tmc_env%tmc_comp_set%group_nr, "got task ", work_stat
+                  tmc_env%tmc_comp_set%group_nr, "got task ", work_stat
+            END IF
             calc_stat = TMC_STATUS_CALCULATING
             SELECT CASE (work_stat)
             CASE (TMC_STATUS_WAIT_FOR_NEW_TASK)
@@ -208,9 +211,10 @@ CONTAINS
                                 para_env=para_env_m_w, &
                                 tmc_params=tmc_env%params)
             CASE (TMC_STATUS_FAILED)
-               IF (DEBUG >= 1) &
+               IF (DEBUG >= 1) THEN
                   WRITE (tmc_env%w_env%io_unit, *) "master worker of group", &
-                  tmc_env%tmc_comp_set%group_nr, " exit work time."
+                     tmc_env%tmc_comp_set%group_nr, " exit work time."
+               END IF
                EXIT master_work_time
                !-- group master read the CP2K input file, and write data to master
             CASE (TMC_STAT_START_CONF_REQUEST)
@@ -230,10 +234,11 @@ CONTAINS
                                 tmc_params=tmc_env%params, elem=conf, &
                                 wait_for_message=.TRUE.)
 
-               IF (ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_first_w)) &
+               IF (ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_first_w)) THEN
                   CALL communicate_atom_types(atoms=tmc_env%params%atoms, &
                                               source=1, &
                                               para_env=tmc_env%tmc_comp_set%para_env_m_first_w)
+               END IF
                !-- calculate the approximate energy
             CASE (TMC_STAT_APPROX_ENERGY_REQUEST)
                CPASSERT(tmc_env%w_env%env_id_approx > 0)
@@ -267,7 +272,7 @@ CONTAINS
                   CALL nested_markov_chain_MC(conf=conf, &
                                               env_id=tmc_env%w_env%env_id_approx, &
                                               tmc_env=tmc_env, calc_status=calc_stat)
-               ELSEIF (work_stat == TMC_STAT_MD_REQUEST) THEN
+               ELSE IF (work_stat == TMC_STAT_MD_REQUEST) THEN
                   !TODO Hybrid MC routine
                   CPABORT("there is no Hybrid MC implemented yet.")
 
@@ -339,10 +344,11 @@ CONTAINS
                                            res_exist=flag, ierr=ierr)
                         IF (.NOT. flag) tmc_env%params%print_dipole = .FALSE.
                         ! TODO maybe let run with the changed option, but inform user properly
-                        IF (.NOT. flag) &
+                        IF (.NOT. flag) THEN
                            CALL cp_abort(__LOCATION__, &
                                          "TMC: The requested dipoles are not porvided by the "// &
                                          "force environment.")
+                        END IF
                      END IF
                   CASE DEFAULT
                      CALL cp_abort(__LOCATION__, &
@@ -358,10 +364,11 @@ CONTAINS
                END SELECT
 
                !-- send information back to master
-               IF (DEBUG >= 1) &
+               IF (DEBUG >= 1) THEN
                   WRITE (tmc_env%w_env%io_unit, *) "worker group ", &
-                  tmc_env%tmc_comp_set%group_nr, &
-                  "calculations done, send result energy", conf%potential
+                     tmc_env%tmc_comp_set%group_nr, &
+                     "calculations done, send result energy", conf%potential
+               END IF
                itmp = MASTER_COMM_ID
                CALL tmc_message(msg_type=work_stat, send_recv=send_msg, &
                                 dest=itmp, &
@@ -386,9 +393,10 @@ CONTAINS
 
                   CALL analysis_init(ana_env=ana_list(itmp)%temp, nr_dim=num_dim)
                   ana_list(itmp)%temp%print_test_output = tmc_env%params%print_test_output
-                  IF (.NOT. ASSOCIATED(conf)) &
+                  IF (.NOT. ASSOCIATED(conf)) THEN
                      CALL allocate_new_sub_tree_node(tmc_params=tmc_env%params, &
                                                      next_el=conf, nr_dim=num_dim)
+                  END IF
                   CALL analysis_restart_read(ana_env=ana_list(itmp)%temp, &
                                              elem=conf)
                   !check if we have the read the file
@@ -438,12 +446,14 @@ CONTAINS
                              cp_to_string(work_stat))
             END SELECT
 
-            IF (DEBUG >= 1 .AND. work_stat /= TMC_STATUS_WAIT_FOR_NEW_TASK) &
+            IF (DEBUG >= 1 .AND. work_stat /= TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
                WRITE (tmc_env%w_env%io_unit, *) "worker: group ", &
-               tmc_env%tmc_comp_set%group_nr, &
-               "send back status:", work_stat
-            IF (ASSOCIATED(conf)) &
+                  tmc_env%tmc_comp_set%group_nr, &
+                  "send back status:", work_stat
+            END IF
+            IF (ASSOCIATED(conf)) THEN
                CALL deallocate_sub_tree_node(tree_elem=conf)
+            END IF
          END DO master_work_time
          !-- every other group paricipants----------------------------------------
       ELSE
@@ -489,7 +499,7 @@ CONTAINS
                   CALL nested_markov_chain_MC(conf=conf, &
                                               env_id=tmc_env%w_env%env_id_approx, &
                                               tmc_env=tmc_env, calc_status=calc_stat)
-               ELSEIF (work_stat == TMC_STAT_MD_REQUEST) THEN
+               ELSE IF (work_stat == TMC_STAT_MD_REQUEST) THEN
                   !TODO Hybrid MC routine
                   CPABORT("there is no Hybrid MC implemented yet.")
 
@@ -516,8 +526,9 @@ CONTAINS
                              "group participant got unknown working type "// &
                              cp_to_string(work_stat))
             END SELECT
-            IF (ASSOCIATED(conf)) &
+            IF (ASSOCIATED(conf)) THEN
                CALL deallocate_sub_tree_node(tree_elem=conf)
+            END IF
          END DO worker_work_time
       END IF
       ! --------------------------------------------------------------------
@@ -525,8 +536,9 @@ CONTAINS
       IF (ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_ana)) THEN
          DO itmp = 1, tmc_env%params%nr_temp
             CALL analysis_restart_print(ana_env=ana_list(itmp)%temp)
-            IF (ASSOCIATED(conf)) &
+            IF (ASSOCIATED(conf)) THEN
                CALL deallocate_sub_tree_node(tree_elem=ana_list(itmp)%temp%last_elem)
+            END IF
             CALL finalize_tmc_analysis(ana_list(itmp)%temp)
          END DO
       END IF
@@ -546,9 +558,10 @@ CONTAINS
                CALL remove_intermediate_info_comm(env_id=itmp)
             END IF
          END IF
-         IF (ASSOCIATED(tmc_env%tmc_comp_set%para_env_sub_group)) &
+         IF (ASSOCIATED(tmc_env%tmc_comp_set%para_env_sub_group)) THEN
             CALL stop_whole_group(para_env=tmc_env%tmc_comp_set%para_env_sub_group, &
                                   tmc_params=tmc_env%params)
+         END IF
 
          work_stat = TMC_STATUS_STOP_RECEIPT
          itmp = MASTER_COMM_ID
@@ -563,10 +576,11 @@ CONTAINS
                           tmc_params=tmc_env%params)
       END IF
 
-      IF (DEBUG >= 5) &
+      IF (DEBUG >= 5) THEN
          WRITE (tmc_env%w_env%io_unit, *) "worker ", &
-         tmc_env%tmc_comp_set%para_env_sub_group%mepos, "of group ", &
-         tmc_env%tmc_comp_set%group_nr, "stops working!"
+            tmc_env%tmc_comp_set%para_env_sub_group%mepos, "of group ", &
+            tmc_env%tmc_comp_set%group_nr, "stops working!"
+      END IF
 
       IF (PRESENT(ana_list)) THEN
          DO itmp = 1, tmc_env%params%nr_temp
@@ -574,8 +588,9 @@ CONTAINS
             ana_list(itmp)%temp%cell => NULL()
          END DO
       END IF
-      IF (ASSOCIATED(conf)) &
+      IF (ASSOCIATED(conf)) THEN
          CALL deallocate_sub_tree_node(tree_elem=conf)
+      END IF
       IF (ASSOCIATED(ana_restart_conf)) DEALLOCATE (ana_restart_conf)
 
       ! end the timing
@@ -872,10 +887,11 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(f_env))
       CPASSERT(ASSOCIATED(f_env%force_env))
-      IF (.NOT. ASSOCIATED(f_env%force_env%qs_env)) &
+      IF (.NOT. ASSOCIATED(f_env%force_env%qs_env)) THEN
          CALL cp_abort(__LOCATION__, &
                        "the intermediate SCF energy request can not be set "// &
                        "employing this force environment! ")
+      END IF
 
       ! set the information
       values(1) = REAL(comm%get_handle(), KIND=dp)
@@ -910,10 +926,11 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(f_env))
       CPASSERT(ASSOCIATED(f_env%force_env))
-      IF (.NOT. ASSOCIATED(f_env%force_env%qs_env)) &
+      IF (.NOT. ASSOCIATED(f_env%force_env%qs_env)) THEN
          CALL cp_abort(__LOCATION__, &
                        "the SCF intermediate energy communicator can not be "// &
                        "removed! ")
+      END IF
 
       description = "[EXT_SCF_ENER_COMM]"
 

@@ -937,33 +937,6 @@ CONTAINS
 
       END DO
 
-      ! simple but quadratically scaling procedure
-      ! loop over local blocks
-      !CALL dbcsr_iterator_start(iter,matrix)
-      !DO WHILE (dbcsr_iterator_blocks_left(iter))
-      !   CALL dbcsr_iterator_next_block(iter,row,col,data_p,&
-      !           row_size=row_size,col_size=col_size)
-      !   DO idomain = 1, ndomains
-      !      IF (job_type==select_row_col) THEN
-      !         domain_needs_block=(qblk_exists(domain_map,col,idomain)&
-      !            .AND.qblk_exists(domain_map,row,idomain))
-      !      ELSE
-      !         domain_needs_block=(idomain==col&
-      !            .AND.qblk_exists(domain_map,row,idomain))
-      !      ENDIF
-      !      IF (domain_needs_block) THEN
-      !         transp=.FALSE.
-      !         dest_node=node_of_domain(idomain)
-      !         !CALL dbcsr_get_stored_coordinates(distr_pattern,&
-      !         !        idomain, idomain, transp, dest_node)
-      !         send_descriptor(1,dest_node+1)=send_descriptor(1,dest_node+1)+1
-      !         send_descriptor(2,dest_node+1)=send_descriptor(2,dest_node+1)+&
-      !            row_size*col_size
-      !      ENDIF
-      !   ENDDO
-      !ENDDO
-      !CALL dbcsr_iterator_stop(iter)
-
       ! communicate number of blocks and their sizes to the other nodes
       CALL group%alltoall(send_descriptor, recv_descriptor, ldesc)
 
@@ -1058,15 +1031,6 @@ CONTAINS
                IF (block_node == myNode) THEN
                   CALL dbcsr_get_block_p(matrix, row, col, block_p, found, row_size, col_size)
                   IF (found) THEN
-                     !col_offset=0
-                     !DO icol=1,col_size
-                     !   start_data=send_offset_cpu(dest_node+1)+&
-                     !              offset_block(dest_node+1)+&
-                     !              col_offset
-                     !   send_data(start_data+1:start_data+row_size)=&
-                     !      data_p(1:row_size,icol)
-                     !   col_offset=col_offset+row_size
-                     !ENDDO
                      col_offset = row_size*col_size
                      start_data = send_offset_cpu(dest_node + 1) + &
                                   offset_block(dest_node + 1)
@@ -1086,45 +1050,6 @@ CONTAINS
          END DO ! loop over rows
 
       END DO
-      ! more simple but quadratically scaling version
-      !CALL dbcsr_iterator_start(iter,matrix)
-      !DO WHILE (dbcsr_iterator_blocks_left(iter))
-      !   CALL dbcsr_iterator_next_block(iter,row,col,data_p,&
-      !           row_size=row_size,col_size=col_size)
-      !   DO idomain = 1, ndomains
-      !      IF (job_type==select_row_col) THEN
-      !         domain_needs_block=(qblk_exists(domain_map,col,idomain)&
-      !            .AND.qblk_exists(domain_map,row,idomain))
-      !      ELSE
-      !         domain_needs_block=(idomain==col&
-      !            .AND.qblk_exists(domain_map,row,idomain))
-      !      ENDIF
-      !      IF (domain_needs_block) THEN
-      !         transp=.FALSE.
-      !         dest_node=node_of_domain(idomain)
-      !         !CALL dbcsr_get_stored_coordinates(distr_pattern,&
-      !         !        idomain, idomain, transp, dest_node)
-      !         ! place the data appropriately
-      !         col_offset=0
-      !         DO icol=1,col_size
-      !            start_data=send_offset_cpu(dest_node+1)+&
-      !                       offset_block(dest_node+1)+&
-      !                       col_offset
-      !            send_data(start_data+1:start_data+row_size)=&
-      !               data_p(1:row_size,icol)
-      !            col_offset=col_offset+row_size
-      !         ENDDO
-      !         offset_block(dest_node+1)=offset_block(dest_node+1)+col_size*row_size
-      !         ! fill out row,col information
-      !         send_data2(send_offset2_cpu(dest_node+1)+&
-      !               offset2_block(dest_node+1)+1)=row
-      !         send_data2(send_offset2_cpu(dest_node+1)+&
-      !               offset2_block(dest_node+1)+2)=col
-      !         offset2_block(dest_node+1)=offset2_block(dest_node+1)+2
-      !      ENDIF
-      !   ENDDO
-      !ENDDO
-      !CALL dbcsr_iterator_stop(iter)
 
       ! send-receive all blocks
       CALL group%alltoall(send_data, send_size_cpu, send_offset_cpu, &
@@ -1142,9 +1067,6 @@ CONTAINS
 
       ! copy blocks into submatrices
       CALL dbcsr_get_info(matrix, col_blk_size=col_blk_size, row_blk_size=row_blk_size)
-!    ALLOCATE(subm_row_size(ndomains),subm_col_size(ndomains))
-!    subm_row_size(:)=0
-!    subm_col_size(:)=0
       ndomains2 = SIZE(submatrix)
       IF (ndomains2 /= ndomains) THEN
          CPABORT("wrong submatrix size")
@@ -1159,9 +1081,6 @@ CONTAINS
       submatrix(:)%domain = -1
       DO idomain = 1, ndomains
          dest_node = node_of_domain(idomain)
-         !transp=.FALSE.
-         !CALL dbcsr_get_stored_coordinates(distr_pattern,&
-         !        idomain, idomain, transp, dest_node)
          IF (dest_node == mynode) THEN
             submatrix(idomain)%domain = idomain
             submatrix(idomain)%nbrows = 0
@@ -1174,12 +1093,9 @@ CONTAINS
             index_er = domain_map%index1(idomain) - 1 ! index end row
             DO index_row = index_sr, index_er
                row = domain_map%pairs(index_row, 1)
-               !DO row = 1, nblkrows_tot
-               !   IF (qblk_exists(domain_map,row,idomain)) THEN
                first_row(row) = submatrix(idomain)%nrows + 1
                submatrix(idomain)%nrows = submatrix(idomain)%nrows + row_blk_size(row)
                submatrix(idomain)%nbrows = submatrix(idomain)%nbrows + 1
-               !   ENDIF
             END DO
             ALLOCATE (submatrix(idomain)%dbcsr_row(submatrix(idomain)%nbrows))
             ALLOCATE (submatrix(idomain)%size_brow(submatrix(idomain)%nbrows))
@@ -1190,12 +1106,9 @@ CONTAINS
             index_er = domain_map%index1(idomain) - 1 ! index end row
             DO index_row = index_sr, index_er
                row = domain_map%pairs(index_row, 1)
-               !DO row = 1, nblkrows_tot
-               !   IF (first_row(row).ne.-1) THEN
                submatrix(idomain)%dbcsr_row(smrow) = row
                submatrix(idomain)%size_brow(smrow) = row_blk_size(row)
                smrow = smrow + 1
-               !   ENDIF
             END DO
 
             ! loop over the necessary columns
@@ -1216,17 +1129,9 @@ CONTAINS
                ELSE
                   col = idomain
                END IF
-               !DO col = 1, nblkcols_tot
-               !   IF (job_type==select_row_col) THEN
-               !      domain_needs_block=(qblk_exists(domain_map,col,idomain))
-               !   ELSE
-               !      domain_needs_block=(col==idomain) ! RZK-warning col belongs to the domain
-               !   ENDIF
-               !   IF (domain_needs_block) THEN
                first_col(col) = submatrix(idomain)%ncols + 1
                submatrix(idomain)%ncols = submatrix(idomain)%ncols + col_blk_size(col)
                submatrix(idomain)%nbcols = submatrix(idomain)%nbcols + 1
-               !   ENDIF
             END DO
 
             ALLOCATE (submatrix(idomain)%dbcsr_col(submatrix(idomain)%nbcols))
@@ -1250,12 +1155,9 @@ CONTAINS
                ELSE
                   col = idomain
                END IF
-               !DO col = 1, nblkcols_tot
-               !   IF (first_col(col).ne.-1) THEN
                submatrix(idomain)%dbcsr_col(smcol) = col
                submatrix(idomain)%size_bcol(smcol) = col_blk_size(col)
                smcol = smcol + 1
-               !   ENDIF
             END DO
 
             ALLOCATE (submatrix(idomain)%mdata( &

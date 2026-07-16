@@ -204,7 +204,7 @@ CONTAINS
                                                             iparticle2, istart_g, s_dim
       REAL(KIND=dp)                                      :: g2, gcut2, tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: my_Am, my_Amw
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gfunc_sq(:, :, :)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gfunc_sq
 
 !NB precalculate as many things outside of the innermost loop as possible, in particular w(ig)*gfunc(ig,igauus1)*gfunc(ig,igauss2)
 
@@ -766,7 +766,7 @@ CONTAINS
             !
             IF (iparticle1 /= iparticle2) THEN
                ra = rvec
-               r = SQRT(DOT_PRODUCT(ra, ra))
+               r = NORM2(ra)
                my_val = factor/r
             END IF
             EwM(idim) = my_val - factor*g_ewald

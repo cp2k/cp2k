@@ -1103,11 +1103,11 @@ CONTAINS
 
       IF (PRESENT(counter)) THEN
          WRITE (str, "(I12)") counter
-      ELSEIF (PRESENT(rval)) THEN
+      ELSE IF (PRESENT(rval)) THEN
          WRITE (str, "(G18.8)") rval
-      ELSEIF (PRESENT(ival)) THEN
+      ELSE IF (PRESENT(ival)) THEN
          WRITE (str, "(I12)") ival
-      ELSEIF (PRESENT(cval)) THEN
+      ELSE IF (PRESENT(cval)) THEN
          WRITE (str, "(A)") TRIM(ADJUSTL(cval))
       ELSE
          WRITE (str, "(A)") ""

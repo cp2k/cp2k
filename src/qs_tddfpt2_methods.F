@@ -285,12 +285,15 @@ CONTAINS
       CALL kernel_info(log_unit, dft_control, tddfpt_control, xc_section)
 
       IF (do_kpoints) THEN
-         IF (calc_forces) &
+         IF (calc_forces) THEN
             CPABORT("TDDFPT forces are not implemented for k-points")
-         IF (do_rixs) &
+         END IF
+         IF (do_rixs) THEN
             CPABORT("RIXS/TDDFPT is not implemented for k-points")
-         IF (do_soc) &
+         END IF
+         IF (do_soc) THEN
             CPABORT("TDDFPT-SOC is not implemented for k-points")
+         END IF
          CALL tddfpt_kpoint_independent_particle(qs_env, logger, tddfpt_control)
          CALL cp_print_key_finished_output(log_unit, &
                                            logger, &
@@ -341,8 +344,9 @@ CONTAINS
       ! multiplicity of molecular system
       IF (nspins > 1) THEN
          mult = ABS(SIZE(gs_mos(1)%evals_occ) - SIZE(gs_mos(2)%evals_occ)) + 1
-         IF (mult > 2) &
+         IF (mult > 2) THEN
             CALL cp_warn(__LOCATION__, "There is a convergence issue for multiplicity >= 3")
+         END IF
       ELSE
          IF (tddfpt_control%rks_triplets) THEN
             mult = 3
@@ -511,7 +515,7 @@ CONTAINS
          state_change = .FALSE.
          IF (ex_env%state > 0) THEN
             my_state = ex_env%state
-         ELSEIF (ex_env%state < 0) THEN
+         ELSE IF (ex_env%state < 0) THEN
             ! state following
             ALLOCATE (my_mos(nspins))
             DO ispin = 1, nspins
@@ -634,8 +638,9 @@ CONTAINS
       END DO
       DEALLOCATE (gs_mos)
 
-      IF (ASSOCIATED(matrix_ks_oep)) &
+      IF (ASSOCIATED(matrix_ks_oep)) THEN
          CALL dbcsr_deallocate_matrix_set(matrix_ks_oep)
+      END IF
 
       CALL timestop(handle)
 
@@ -681,21 +686,27 @@ CONTAINS
       CALL get_qs_env(qs_env, dft_control=dft_control, input=input, kpoints=kpoints)
 
       IF (dft_control%nimages > 1) THEN
-         IF (tddfpt_control%kernel /= tddfpt_kernel_none) &
+         IF (tddfpt_control%kernel /= tddfpt_kernel_none) THEN
             CPABORT("TDDFPT with k-points currently supports only KERNEL NONE")
+         END IF
          CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn)
-         IF (use_real_wfn) &
+         IF (use_real_wfn) THEN
             CPABORT("K-point TDDFPT requires complex wavefunctions")
-         IF (tddfpt_control%spinflip /= no_sf_tddfpt) &
+         END IF
+         IF (tddfpt_control%spinflip /= no_sf_tddfpt) THEN
             CPABORT("Spin-flip TDDFPT is not implemented for k-points")
-         IF (tddfpt_control%do_smearing) &
+         END IF
+         IF (tddfpt_control%do_smearing) THEN
             CPABORT("Smeared-occupation TDDFPT is not implemented for k-points")
-         IF (tddfpt_control%oe_corr /= oe_none) &
+         END IF
+         IF (tddfpt_control%oe_corr /= oe_none) THEN
             CPABORT("Orbital-energy-corrected TDDFPT is not implemented for k-points")
+         END IF
          IF (tddfpt_control%dipole_form /= 0 .AND. &
              tddfpt_control%dipole_form /= tddfpt_dipole_velocity .AND. &
-             tddfpt_control%dipole_form /= tddfpt_dipole_scf_moment) &
+             tddfpt_control%dipole_form /= tddfpt_dipole_scf_moment) THEN
             CPABORT("K-point TDDFPT supports only velocity-form or SCF_MOMENT transition dipoles")
+         END IF
       END IF
 
       IF (tddfpt_control%nstates <= 0) THEN
@@ -710,8 +721,9 @@ CONTAINS
 
       IF (dft_control%nimages > 1) THEN
          IF (tddfpt_control%do_exciton_descriptors .OR. &
-             tddfpt_control%do_directional_exciton_descriptors) &
+             tddfpt_control%do_directional_exciton_descriptors) THEN
             CPABORT("Exciton descriptors are not implemented for k-point TDDFPT")
+         END IF
          print_sub => section_vals_get_subs_vals(tddfpt_print_section, "NTO_ANALYSIS")
          CALL section_vals_get(print_sub, explicit=explicit)
          IF (explicit) CPABORT("NTO analysis is not implemented for k-point TDDFPT")
@@ -1074,13 +1086,15 @@ CONTAINS
       ntrans_kpoint = 0
       DO ispin = 1, nspins
          nvirt_spin(ispin) = nmo_spin(ispin) - homo_spin(ispin)
-         IF (homo_spin(ispin) <= 0 .OR. nvirt_spin(ispin) <= 0) &
+         IF (homo_spin(ispin) <= 0 .OR. nvirt_spin(ispin) <= 0) THEN
             CPABORT("At least one occupied and one unoccupied MO are required for k-point TDDFPT")
+         END IF
          ntrans_kpoint = ntrans_kpoint + homo_spin(ispin)*nvirt_spin(ispin)
       END DO
       ntrans_total = nkp*ntrans_kpoint
-      IF (ntrans_total <= 0) &
+      IF (ntrans_total <= 0) THEN
          CPABORT("No independent-particle k-point transitions available")
+      END IF
 
       ALLOCATE (transition_energy(ntrans_total), transition_dipole_re(ntrans_total, nderivs), &
                 transition_dipole_im(ntrans_total, nderivs), oscillator_strength(ntrans_total), &
@@ -1143,8 +1157,9 @@ CONTAINS
             IF (my_kpgrp) THEN
                CALL get_mo_set(mos_kp(1, ispin), eigenvalues=eigenvalues)
                CPASSERT(ASSOCIATED(eigenvalues))
-               IF (para_env_kp%is_source()) &
+               IF (para_env_kp%is_source()) THEN
                   eigenvalues_kp(1:nmo_spin(ispin)) = eigenvalues(1:nmo_spin(ispin))
+               END IF
                IF (.NOT. use_scf_moment_dipoles) THEN
                   CALL get_mo_set(mos_kp(1, ispin), mo_coeff=mo_coeff_re)
                   CALL get_mo_set(mos_kp(2, ispin), mo_coeff=mo_coeff_im)
@@ -1206,8 +1221,9 @@ CONTAINS
                      trans_index = (ikp - 1)*ntrans_kpoint + spin_offset + &
                                    (iocc - 1)*nvirt_spin(ispin) + ivirt - homo_spin(ispin)
                      gap = eigenvalues_kp(ivirt) - eigenvalues_kp(iocc)
-                     IF (gap <= 0.0_dp) &
+                     IF (gap <= 0.0_dp) THEN
                         CPABORT("K-point TDDFPT requires positive occupied-virtual energy gaps")
+                     END IF
                      IF (use_scf_moment_dipoles) THEN
                         oscillator_factor = SQRT(spin_factor*wkp(ikp))
                         dipole_re = REAL(kpoint_dipole(ispin, ikp, ideriv, iocc, ivirt), KIND=dp)
@@ -1245,8 +1261,9 @@ CONTAINS
          END DO
       END DO
 
-      IF (ANY(transition_energy <= 0.0_dp)) &
+      IF (ANY(transition_energy <= 0.0_dp)) THEN
          CPABORT("K-point TDDFPT KERNEL NONE requires positive occupied-virtual energy gaps")
+      END IF
 
       CALL sort(transition_energy, ntrans_total, inds)
       nstates = MIN(tddfpt_control%nstates, ntrans_total)
@@ -1971,7 +1988,7 @@ CONTAINS
             DO ispin = 1, nspins
                CPASSERT(.NOT. ASSOCIATED(gs_mos(ispin)%evals_occ_matrix))
             END DO
-         ELSEIF (ewcut) THEN
+         ELSE IF (ewcut) THEN
             ! Filter orbitals wrt energy window
             DO ispin = 1, nspins
                DO i = 1, gs_mos(ispin)%nmo_occ

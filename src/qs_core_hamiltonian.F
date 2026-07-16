@@ -230,9 +230,10 @@ CONTAINS
       IF (dft_control%tddfpt2_control%enabled) THEN
          nders = 1
          IF (dft_control%do_admm) THEN
-            IF (dft_control%admm_control%purification_method /= do_admm_purify_none) &
+            IF (dft_control%admm_control%purification_method /= do_admm_purify_none) THEN
                CALL cp_abort(__LOCATION__, &
                              "Only purification method NONE is possible with TDDFT at the moment")
+            END IF
          END IF
       END IF
 
@@ -336,9 +337,10 @@ CONTAINS
          nkind = SIZE(atomic_kind_set)
          CALL allocate_oce_set(oce, nkind)
          eps_fit = dft_control%qs_control%gapw_control%eps_fit
-         IF (ASSOCIATED(sap_oce)) &
+         IF (ASSOCIATED(sap_oce)) THEN
             CALL build_oce_matrices(oce%intac, calculate_forces, nder, qs_kind_set, particle_set, &
                                     sap_oce, eps_fit)
+         END IF
       END IF
 
       ! *** KG atomic potentials for nonadditive kinetic energy

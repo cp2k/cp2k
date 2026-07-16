@@ -239,8 +239,9 @@ CONTAINS
 
       nfrags = 0
       DO ii = 1, SIZE(particle_set)
-         IF (nfrags < particle_set(ii)%fragment_index) &
+         IF (nfrags < particle_set(ii)%fragment_index) THEN
             nfrags = particle_set(ii)%fragment_index
+         END IF
       END DO
 
       logger => cp_get_default_logger()
@@ -269,13 +270,13 @@ CONTAINS
                   IF (particle_set(iatom)%fragment_index == jj) THEN
                      totalcol = totalcol + orb_basis_set_list(ikind)%gto_basis_set%nsgf
                      lfirstcoljj = .FALSE.
-                  ELSEIF (lfirstcoljj) THEN
+                  ELSE IF (lfirstcoljj) THEN
                      colskip = colskip + orb_basis_set_list(ikind)%gto_basis_set%nsgf
                   END IF
                   IF (particle_set(iatom)%fragment_index == ii) THEN
                      totalrow = totalrow + orb_basis_set_list(ikind)%gto_basis_set%nsgf
                      lfirstcol = .FALSE.
-                  ELSEIF (lfirstcol) THEN
+                  ELSE IF (lfirstcol) THEN
                      rowskip = rowskip + orb_basis_set_list(ikind)%gto_basis_set%nsgf
                   END IF
                   rowfrag = rowfrag + orb_basis_set_list(ikind)%gto_basis_set%nsgf

@@ -482,8 +482,9 @@ CONTAINS
       my_ncol = matrix%matrix_struct%ncol_global
       IF (PRESENT(ncol)) my_ncol = ncol
 
-      IF (ncol_global < (my_start_col + my_ncol - 1)) &
+      IF (ncol_global < (my_start_col + my_ncol - 1)) THEN
          CPABORT("ncol_global>=(my_start_col+my_ncol-1)")
+      END IF
 
       ALLOCATE (buff(nrow_global))
 
@@ -1268,7 +1269,7 @@ CONTAINS
       IF (PRESENT(dir)) THEN
          IF (dir == 'c' .OR. dir == 'C') THEN
             docol = .TRUE.
-         ELSEIF (dir == 'r' .OR. dir == 'R') THEN
+         ELSE IF (dir == 'r' .OR. dir == 'R') THEN
             docol = .FALSE.
          ELSE
             CPABORT('Wrong argument DIR')
@@ -1326,11 +1327,12 @@ CONTAINS
           cp_fm_struct_equivalent(source%matrix_struct, &
                                   destination%matrix_struct)) THEN
          IF (SIZE(source%local_data, 1) /= SIZE(destination%local_data, 1) .OR. &
-             SIZE(source%local_data, 2) /= SIZE(destination%local_data, 2)) &
+             SIZE(source%local_data, 2) /= SIZE(destination%local_data, 2)) THEN
             CALL cp_abort(__LOCATION__, &
                           "Cannot copy full matrix <"//TRIM(source%name)// &
                           "> to full matrix <"//TRIM(destination%name)// &
                           ">. The local_data blocks have different sizes.")
+         END IF
          CALL dcopy(SIZE(source%local_data, 1)*SIZE(source%local_data, 2), &
                     source%local_data, 1, destination%local_data, 1)
       ELSE
@@ -1472,17 +1474,21 @@ CONTAINS
       na = msource%matrix_struct%nrow_global
       nb = mtarget%matrix_struct%nrow_global
 !    nrow must be <= na and nb
-      IF (nrow > na) &
+      IF (nrow > na) THEN
          CPABORT("cannot copy because nrow > number of rows of source matrix")
-      IF (nrow > nb) &
+      END IF
+      IF (nrow > nb) THEN
          CPABORT("cannot copy because nrow > number of rows of target matrix")
+      END IF
       na = msource%matrix_struct%ncol_global
       nb = mtarget%matrix_struct%ncol_global
 !    ncol must be <= na_col and nb_col
-      IF (ncol > na) &
+      IF (ncol > na) THEN
          CPABORT("cannot copy because nrow > number of rows of source matrix")
-      IF (ncol > nb) &
+      END IF
+      IF (ncol > nb) THEN
          CPABORT("cannot copy because nrow > number of rows of target matrix")
+      END IF
 
 #if defined(__parallel)
       desca(:) = msource%matrix_struct%descriptor(:)
@@ -1716,7 +1722,8 @@ CONTAINS
          !      pack send buffers
          !      call isend
          !  DEST_2
-         !      wait for the recvs and unpack buffers (this part eventually will go into another routine to allow comms to run concurrently)
+         !      wait for the recvs and unpack buffers (this part eventually will go into another
+         !         routine to allow comms to run concurrently)
          !  SRC_2
          !      wait for the sends
 
@@ -2012,10 +2019,12 @@ CONTAINS
          ! check whether source is available on this process
          IF (ASSOCIATED(source%matrix_struct)) THEN
             desca = source%matrix_struct%descriptor
-            IF (nrows > source%matrix_struct%nrow_global) &
+            IF (nrows > source%matrix_struct%nrow_global) THEN
                CPABORT("nrows is greater than nrow_global of source")
-            IF (ncols > source%matrix_struct%ncol_global) &
+            END IF
+            IF (ncols > source%matrix_struct%ncol_global) THEN
                CPABORT("ncols is greater than ncol_global of source")
+            END IF
             smat => source%local_data
          ELSE
             desca = -1
@@ -2024,10 +2033,12 @@ CONTAINS
          ! check destination is available on this process
          IF (ASSOCIATED(destination%matrix_struct)) THEN
             descb = destination%matrix_struct%descriptor
-            IF (nrows > destination%matrix_struct%nrow_global) &
+            IF (nrows > destination%matrix_struct%nrow_global) THEN
                CPABORT("nrows is greater than nrow_global of destination")
-            IF (ncols > destination%matrix_struct%ncol_global) &
+            END IF
+            IF (ncols > destination%matrix_struct%ncol_global) THEN
                CPABORT("ncols is greater than ncol_global of destination")
+            END IF
             dmat => destination%local_data
          ELSE
             descb = -1

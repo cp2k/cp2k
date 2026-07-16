@@ -133,16 +133,21 @@ CONTAINS
 
          IF (qs_loc_env%do_localize) THEN
             ! Do the Real localization..
-            IF (output_unit > 0 .AND. do_homo) WRITE (output_unit, "(/,T2,A,I3)") &
-               "LOCALIZATION| Computing localization properties "// &
-               "for OCCUPIED ORBITALS. Spin:", ispin
-            IF (output_unit > 0 .AND. do_mixed) WRITE (output_unit, "(/,T2,A,/,T16,A,I3)") &
-               "LOCALIZATION| Computing localization properties for OCCUPIED, ", &
-               "PARTIALLY OCCUPIED and UNOCCUPIED ORBITALS. Spin:", ispin
-            IF (output_unit > 0 .AND. (.NOT. do_homo) .AND. (.NOT. do_mixed)) &
+            IF (output_unit > 0 .AND. do_homo) THEN
                WRITE (output_unit, "(/,T2,A,I3)") &
-               "LOCALIZATION| Computing localization properties "// &
-               "for UNOCCUPIED ORBITALS. Spin:", ispin
+                  "LOCALIZATION| Computing localization properties "// &
+                  "for OCCUPIED ORBITALS. Spin:", ispin
+            END IF
+            IF (output_unit > 0 .AND. do_mixed) THEN
+               WRITE (output_unit, "(/,T2,A,/,T16,A,I3)") &
+                  "LOCALIZATION| Computing localization properties for OCCUPIED, ", &
+                  "PARTIALLY OCCUPIED and UNOCCUPIED ORBITALS. Spin:", ispin
+            END IF
+            IF (output_unit > 0 .AND. (.NOT. do_homo) .AND. (.NOT. do_mixed)) THEN
+               WRITE (output_unit, "(/,T2,A,I3)") &
+                  "LOCALIZATION| Computing localization properties "// &
+                  "for UNOCCUPIED ORBITALS. Spin:", ispin
+            END IF
 
             scenter => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
 

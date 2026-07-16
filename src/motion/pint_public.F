@@ -148,7 +148,7 @@ CONTAINS
 
          np = 2**il ! number of points to be generated at this level
          dl = n/(2*np) ! interval betw points (in index numbers)
-         vrnc = vrnc/2.0_dp; ! variance at this level (=t at level 0)
+         vrnc = vrnc/2.0_dp ! variance at this level (=t at level 0)
 
          ! loop over points added in this level
          DO ip = 0, np - 1

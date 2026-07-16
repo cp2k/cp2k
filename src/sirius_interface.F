@@ -327,7 +327,7 @@ CONTAINS
                                       symbol=element_symbol, &
                                       mass=REAL(mass/massunit, KIND=C_DOUBLE))
 
-         ELSEIF (ASSOCIATED(gth_potential)) THEN
+         ELSE IF (ASSOCIATED(gth_potential)) THEN
 !
             NULLIFY (atom_grid)
             CALL allocate_grid_atom(atom_grid)

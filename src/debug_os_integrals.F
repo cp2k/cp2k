@@ -75,7 +75,7 @@ CONTAINS
       ALLOCATE (swork(lds, lds, 1))
       sab = 0._dp
       rab(:) = B(:) - A(:)
-      dab = SQRT(DOT_PRODUCT(rab, rab))
+      dab = NORM2(rab)
       xa_work(1) = xa
       xb_work(1) = xb
       rpgfa = 20._dp
@@ -219,11 +219,11 @@ CONTAINS
 
       !---------------------------------------
       rab(:) = B(:) - A(:)
-      dab = SQRT(DOT_PRODUCT(rab, rab))
+      dab = NORM2(rab)
       rac(:) = C(:) - A(:)
-      dac = SQRT(DOT_PRODUCT(rac, rac))
+      dac = NORM2(rac)
       rbc(:) = C(:) - B(:)
-      dbc = SQRT(DOT_PRODUCT(rbc, rbc))
+      dbc = NORM2(rbc)
       ALLOCATE (sabc(ncoset(la_max), ncoset(lb_max), ncoset(lc_max)))
       xa_work(1) = xa
       xb_work(1) = xb
@@ -422,7 +422,7 @@ CONTAINS
       ALLOCATE (swork(lds, lds))
       saabb = 0._dp
       rab(:) = B(:) - A(:)
-      dab = SQRT(DOT_PRODUCT(rab, rab))
+      dab = NORM2(rab)
       xa_work1(1) = xa1
       xa_work2(1) = xa2
       xb_work1(1) = xb1

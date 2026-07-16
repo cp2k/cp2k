@@ -363,8 +363,9 @@ CONTAINS
       ! omega * S_S - H_S - V_Hartree
       CALL cp_fm_to_cfm(msourcer=s_s, mtarget=g_ret_s)
       CALL cp_cfm_scale_and_add_fm(omega, g_ret_s, z_mone, h_s)
-      IF (PRESENT(v_hartree_s)) &
+      IF (PRESENT(v_hartree_s)) THEN
          CALL cp_cfm_scale_and_add_fm(z_one, g_ret_s, z_one, v_hartree_s)
+      END IF
 
       ! g_ret_s = [omega * S_S - H_S - \sum_{contact} self_energy_{contact}^{ret.} ]^-1
       CALL cp_cfm_scale_and_add(z_one, g_ret_s, z_mone, self_energy_ret_sum)

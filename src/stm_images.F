@@ -309,8 +309,9 @@ CONTAINS
                      nstates(ispin) = nstates(ispin) + 1
                   END IF
                END DO
-               IF ((output_unit > 0) .AND. evals(ispin)%array(1) > efermi + stm_biases(ibias)) &
+               IF ((output_unit > 0) .AND. evals(ispin)%array(1) > efermi + stm_biases(ibias)) THEN
                   WRITE (output_unit, '(T4,A)') "Warning: EFermi+bias below lowest computed occupied MO"
+               END IF
             ELSE
                nmo = SIZE(evals(ispin)%array)
                DO imo = 1, nmo
@@ -320,8 +321,9 @@ CONTAINS
                      nstates(ispin) = nstates(ispin) + 1
                   END IF
                END DO
-               IF ((output_unit > 0) .AND. evals(ispin)%array(nmo) < efermi + stm_biases(ibias)) &
+               IF ((output_unit > 0) .AND. evals(ispin)%array(nmo) < efermi + stm_biases(ibias)) THEN
                   WRITE (output_unit, '(T4,A)') "Warning: E-Fermi+bias above highest computed unoccupied MO"
+               END IF
             END IF
             istates = istates + nstates(ispin)
          END DO

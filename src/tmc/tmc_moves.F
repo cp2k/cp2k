@@ -124,8 +124,9 @@ CONTAINS
 !                    rng_seed=elem%rng_seed, rng_seed_last_acc=last_acc_elem%rng_seed)
          !-- atom translation
       CASE (mv_type_atom_trans)
-         IF (act_nr_elem_mv == 0) &
+         IF (act_nr_elem_mv == 0) THEN
             act_nr_elem_mv = SIZE(elem%pos)/tmc_params%dim_per_elem
+         END IF
          ALLOCATE (elem_center(tmc_params%dim_per_elem))
          i = 1
          move_elements_loop: DO
@@ -167,8 +168,9 @@ CONTAINS
       CASE (mv_type_mol_trans)
          nr_molec = MAXVAL(elem%mol(:))
          ! if all particles should be displaced, set the amount of molecules
-         IF (act_nr_elem_mv == 0) &
+         IF (act_nr_elem_mv == 0) THEN
             act_nr_elem_mv = nr_molec
+         END IF
          ALLOCATE (mol_in_sb(nr_molec))
          ALLOCATE (elem_center(tmc_params%dim_per_elem))
          mol_in_sb(:) = status_frozen
@@ -181,8 +183,9 @@ CONTAINS
             IF (check_pos_in_subbox(pos=elem_center, &
                                     subbox_center=elem%subbox_center, &
                                     box_scale=elem%box_scale, tmc_params=tmc_params) &
-                ) &
+                ) THEN
                mol_in_sb(m) = status_ok
+            END IF
          END DO
          ! displace the selected amount of molecules
          IF (ANY(mol_in_sb(:) == status_ok)) THEN
@@ -242,8 +245,9 @@ CONTAINS
          !-- molecule rotation
       CASE (mv_type_mol_rot)
          nr_molec = MAXVAL(elem%mol(:))
-         IF (act_nr_elem_mv == 0) &
+         IF (act_nr_elem_mv == 0) THEN
             act_nr_elem_mv = nr_molec
+         END IF
          ALLOCATE (mol_in_sb(nr_molec))
          ALLOCATE (elem_center(tmc_params%dim_per_elem))
          mol_in_sb(:) = status_frozen
@@ -256,8 +260,9 @@ CONTAINS
             IF (check_pos_in_subbox(pos=elem_center, &
                                     subbox_center=elem%subbox_center, &
                                     box_scale=elem%box_scale, tmc_params=tmc_params) &
-                ) &
+                ) THEN
                mol_in_sb(m) = status_ok
+            END IF
          END DO
          ! rotate the selected amount of molecules
          IF (ANY(mol_in_sb(:) == status_ok)) THEN
@@ -703,16 +708,18 @@ CONTAINS
          CALL find_nearest_proton_acceptor_donator(elem=elem, mol=mol, &
                                                    donor_acceptor=donor_acceptor, tmc_params=tmc_params, &
                                                    rng_stream=rng_stream)
-         IF (ANY(mol_arr(:) == mol)) &
+         IF (ANY(mol_arr(:) == mol)) THEN
             EXIT chain_completition_loop
+         END IF
          mol_arr(counter) = mol
       END DO chain_completition_loop
       counter = counter - 1 ! last searched element is equal to one other in list
 
       ! just take the loop of molecules out of the chain
       DO k = 1, counter
-         IF (mol_arr(k) == mol) &
+         IF (mol_arr(k) == mol) THEN
             EXIT
+         END IF
       END DO
       mol_arr(1:counter - k + 1) = mol_arr(k:counter)
       counter = counter - k + 1

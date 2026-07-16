@@ -51,7 +51,7 @@ MODULE dbt_array_list_methods
    TYPE array_list
       INTEGER, DIMENSION(:), ALLOCATABLE :: col_data
       INTEGER, DIMENSION(:), ALLOCATABLE :: ptr
-   END TYPE
+   END TYPE array_list
 
    INTERFACE get_ith_array
       MODULE PROCEDURE allocate_and_get_ith_array
@@ -128,7 +128,7 @@ CONTAINS
          END IF
       #:endfor
 
-   END SUBROUTINE
+   END SUBROUTINE create_array_list
 
 ! **************************************************************************************************
 !> \brief extract a subset of arrays
@@ -151,7 +151,7 @@ CONTAINS
             CALL create_array_list(array_sublist, ndata, ${varlist("data", nmax=dim)}$)
          END IF
       #:endfor
-   END FUNCTION
+   END FUNCTION array_sublist
 
 ! **************************************************************************************************
 !> \brief destroy array list.
@@ -161,7 +161,7 @@ CONTAINS
       TYPE(array_list), INTENT(INOUT) :: list
 
       DEALLOCATE (list%ptr, list%col_data)
-   END SUBROUTINE
+   END SUBROUTINE destroy_array_list
 
 ! **************************************************************************************************
 !> \brief Get all arrays contained in list
@@ -185,7 +185,7 @@ CONTAINS
          o(1:ndata) = i_selected(:)
       ELSE
          ndata = number_of_arrays(list)
-         o(1:ndata) = (/(i, i=1, ndata)/)
+         o(1:ndata) = [(i, i=1, ndata)]
       END IF
 
       ASSOCIATE (ptr => list%ptr, col_data => list%col_data)
@@ -215,7 +215,7 @@ CONTAINS
 
       END ASSOCIATE
 
-   END SUBROUTINE
+   END SUBROUTINE get_ith_array
 
 ! **************************************************************************************************
 !> \brief get ith array
@@ -231,7 +231,7 @@ CONTAINS
 
          ALLOCATE (array, source=col_data(ptr(i):ptr(i + 1) - 1))
       END ASSOCIATE
-   END SUBROUTINE
+   END SUBROUTINE allocate_and_get_ith_array
 
 ! **************************************************************************************************
 !> \brief sizes of arrays stored in list
@@ -288,7 +288,7 @@ CONTAINS
             partial_sum = partial_sum + list_in%col_data(i_ptr)
          END DO
       END DO
-   END SUBROUTINE
+   END SUBROUTINE array_offsets
 
 ! **************************************************************************************************
 !> \brief reorder array list.
@@ -309,7 +309,7 @@ CONTAINS
          END IF
       #:endfor
 
-   END SUBROUTINE
+   END SUBROUTINE reorder_arrays
 
 ! **************************************************************************************************
 !> \brief check whether two array lists are equal
@@ -320,7 +320,7 @@ CONTAINS
       LOGICAL :: check_equal
 
       check_equal = array_eq_i(list1%col_data, list2%col_data) .AND. array_eq_i(list1%ptr, list2%ptr)
-   END FUNCTION
+   END FUNCTION check_equal
 
 ! **************************************************************************************************
 !> \brief check whether two arrays are equal
@@ -337,6 +337,6 @@ CONTAINS
       array_eq_i = .FALSE.
       IF (SIZE(arr1) == SIZE(arr2)) array_eq_i = ALL(arr1 == arr2)
 #endif
-   END FUNCTION
+   END FUNCTION array_eq_i
 
 END MODULE dbt_array_list_methods

@@ -426,8 +426,9 @@ CONTAINS
       ! if we're doing a discrete volume move, we need to set up the array
       ! that keeps track of which direction we can move in
       IF (ldiscrete) THEN
-         IF (nboxes /= 1) &
+         IF (nboxes /= 1) THEN
             CPABORT('ldiscrete=.true. ONLY for systems with 1 box')
+         END IF
          CALL create_discrete_array(abc(:, 1), discrete_array(:, :), &
                                     discrete_step)
       END IF
@@ -549,7 +550,7 @@ CONTAINS
                END DO
             END IF
 
-         ELSEIF (rand < pmswap) THEN
+         ELSE IF (rand < pmswap) THEN
 
             ! try a swap move
             IF (MOD(nnstep, iprint) == 0 .AND. (iw > 0)) THEN
@@ -569,7 +570,7 @@ CONTAINS
                                       mol_type=mol_type, nchain_total=nchain_total, nunits=nunits, &
                                       atom_names=atom_names, mass=mass)
 
-         ELSEIF (rand < pmhmc) THEN
+         ELSE IF (rand < pmhmc) THEN
 ! try hybrid Monte Carlo
             IF (MOD(nnstep, iprint) == 0 .AND. (iw > 0)) THEN
                WRITE (iw, *) "Attempting a hybrid Monte Carlo move"
@@ -595,7 +596,7 @@ CONTAINS
                              energy_check(box_number), r_old(:, :, box_number), &
                              rng_stream)
 
-         ELSEIF (rand < pmavbmc) THEN
+         ELSE IF (rand < pmavbmc) THEN
             ! try an AVBMC move
             IF (MOD(nnstep, iprint) == 0 .AND. (iw > 0)) THEN
                WRITE (iw, *) "Attempting an AVBMC1 move"
@@ -626,8 +627,9 @@ CONTAINS
                   EXIT
                END IF
             END DO
-            IF (molecule_type_swap == 0) &
+            IF (molecule_type_swap == 0) THEN
                CPABORT('Did not choose a molecule type to swap...check AVBMC input')
+            END IF
 
             ! now pick a molecule, automatically rejecting the move if the
             ! box is empty or only has one molecule
@@ -749,8 +751,8 @@ CONTAINS
                      ! figure out what kind of move we're doing
                      IF (rand < conf_prob(1, molecule_type)) THEN
                         move_type = 'bond'
-                     ELSEIF (rand < (conf_prob(1, molecule_type) + &
-                                     conf_prob(2, molecule_type))) THEN
+                     ELSE IF (rand < (conf_prob(1, molecule_type) + &
+                                      conf_prob(2, molecule_type))) THEN
                         move_type = 'angle'
                      ELSE
                         move_type = 'dihedral'
@@ -766,7 +768,7 @@ CONTAINS
                                                  move_type, lreject, rng_stream)
                      IF (lreject) EXIT
                   END IF
-               ELSEIF (rand < pmtrans) THEN
+               ELSE IF (rand < pmtrans) THEN
                   ! translate a whole molecule in the system
                   ! pick a molecule type
                   IF (ionode) rand = rng_stream%next()
@@ -783,10 +785,11 @@ CONTAINS
                      'Did not choose a molecule type to translate...PMTRANS_MOL should not be all 0.0')
 
                   ! now pick a molecule of that type
-                  IF (ionode) &
+                  IF (ionode) THEN
                      CALL find_mc_test_molecule(mc_molecule_info, &
                                                 start_atom, box_number, idum, rng_stream, &
                                                 molecule_type_old=molecule_type)
+                  END IF
                   CALL group%bcast(start_atom, source)
                   CALL group%bcast(box_number, source)
                   box_flag(box_number) = 1
@@ -798,7 +801,7 @@ CONTAINS
                                                start_atom, box_number, bias_energy(box_number), &
                                                molecule_type, lreject, rng_stream)
                   IF (lreject) EXIT
-               ELSEIF (rand < pmcltrans) THEN
+               ELSE IF (rand < pmcltrans) THEN
                   ! translate a whole cluster in the system
                   ! first, pick a box to do it for
                   IF (ionode) rand = rng_stream%next()
@@ -835,10 +838,11 @@ CONTAINS
                      __LOCATION__, &
                      'Did not choose a molecule type to rotate...PMROT_MOL should not be all 0.0')
 
-                  IF (ionode) &
+                  IF (ionode) THEN
                      CALL find_mc_test_molecule(mc_molecule_info, &
                                                 start_atom, box_number, idum, rng_stream, &
                                                 molecule_type_old=molecule_type)
+                  END IF
                   CALL group%bcast(start_atom, source)
                   CALL group%bcast(box_number, source)
                   box_flag(box_number) = 1
@@ -1271,9 +1275,10 @@ CONTAINS
          CPABORT('The box needs to be cubic for a virial calculation (it is easiest).')
       END IF
       IF (virial_cutoffs(nintegral_divisions) > abc(1)/2.0E0_dp) THEN
-         IF (iw > 0) &
+         IF (iw > 0) THEN
             WRITE (iw, *) "Box length ", abc(1)*angstrom, " virial cutoff ", &
-            virial_cutoffs(nintegral_divisions)*angstrom
+               virial_cutoffs(nintegral_divisions)*angstrom
+         END IF
          CPABORT('You need a bigger box to deal with this virial cutoff (see above).')
       END IF
 
@@ -1371,7 +1376,7 @@ CONTAINS
 
                   IF (exponent > exp_max_val) THEN
                      exponent = exp_max_val
-                  ELSEIF (exponent < exp_min_val) THEN
+                  ELSE IF (exponent < exp_min_val) THEN
                      exponent = exp_min_val
                   END IF
                   mayer(itemp, ibin) = mayer(itemp, ibin) + EXP(exponent) - 1.0_dp
@@ -1382,8 +1387,9 @@ CONTAINS
          END DO
          ! write out some info that keeps track of where we are
          IF (iw > 0) THEN
-            IF (MOD(ivirial, iprint) == 0) &
+            IF (MOD(ivirial, iprint) == 0) THEN
                WRITE (iw, '(A,I6,A,I6)') ' Done with config ', ivirial, ' out of ', nvirial
+            END IF
          END IF
       END DO
 

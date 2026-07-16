@@ -382,12 +382,15 @@ CONTAINS
       admm_env%aux_x_param(:) = admm_control%aux_x_param(:)
 
       !ADMMP, ADMMQ, ADMMS
-      IF ((.NOT. admm_env%charge_constrain) .AND. (admm_env%scaling_model == do_admm_exch_scaling_merlot)) &
+      IF ((.NOT. admm_env%charge_constrain) .AND. (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
          admm_env%do_admmp = .TRUE.
-      IF (admm_env%charge_constrain .AND. (admm_env%scaling_model == do_admm_exch_scaling_none)) &
+      END IF
+      IF (admm_env%charge_constrain .AND. (admm_env%scaling_model == do_admm_exch_scaling_none)) THEN
          admm_env%do_admmq = .TRUE.
-      IF (admm_env%charge_constrain .AND. (admm_env%scaling_model == do_admm_exch_scaling_merlot)) &
+      END IF
+      IF (admm_env%charge_constrain .AND. (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
          admm_env%do_admms = .TRUE.
+      END IF
 
       IF ((admm_control%method == do_admm_blocking_purify_full) .OR. &
           (admm_control%method == do_admm_blocked_projection)) THEN
@@ -483,13 +486,16 @@ CONTAINS
       DEALLOCATE (admm_env%eigvals_lambda)
       DEALLOCATE (admm_env%eigvals_P_to_be_purified)
 
-      IF (ASSOCIATED(admm_env%block_map)) &
+      IF (ASSOCIATED(admm_env%block_map)) THEN
          DEALLOCATE (admm_env%block_map)
+      END IF
 
-      IF (ASSOCIATED(admm_env%xc_section_primary)) &
+      IF (ASSOCIATED(admm_env%xc_section_primary)) THEN
          CALL section_vals_release(admm_env%xc_section_primary)
-      IF (ASSOCIATED(admm_env%xc_section_aux)) &
+      END IF
+      IF (ASSOCIATED(admm_env%xc_section_aux)) THEN
          CALL section_vals_release(admm_env%xc_section_aux)
+      END IF
 
       IF (ASSOCIATED(admm_env%admm_gapw_env)) CALL admm_gapw_env_release(admm_env%admm_gapw_env)
       IF (ASSOCIATED(admm_env%admm_dm)) CALL admm_dm_release(admm_env%admm_dm)

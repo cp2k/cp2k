@@ -99,8 +99,9 @@ CONTAINS
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
 
-      IF (ASSOCIATED(xtb_parameter)) &
+      IF (ASSOCIATED(xtb_parameter)) THEN
          CALL deallocate_xtb_atom_param(xtb_parameter)
+      END IF
 
       ALLOCATE (xtb_parameter)
 

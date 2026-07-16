@@ -147,7 +147,7 @@ CONTAINS
 
          IF (do_kpoints) THEN
             CPWARN("Localization not implemented for k-point calculations!")
-         ELSEIF (dft_control%restricted) THEN
+         ELSE IF (dft_control%restricted) THEN
             IF (iounit > 0) WRITE (iounit, *) &
                " Unclear how we define MOs / localization in the restricted case ... skipping"
          ELSE

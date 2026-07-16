@@ -121,9 +121,10 @@ CONTAINS
 
       my_stride = 1
       IF (PRESENT(stride)) THEN
-         IF (SIZE(stride) /= 1 .AND. SIZE(stride) /= 3) &
+         IF (SIZE(stride) /= 1 .AND. SIZE(stride) /= 3) THEN
             CALL cp_abort(__LOCATION__, "STRIDE keyword can accept only 1 "// &
                           "(the same for X,Y,Z) or 3 values. Correct your input file.")
+         END IF
          IF (SIZE(stride) == 1) THEN
             DO i = 1, 3
                my_stride(i) = stride(1)
@@ -268,8 +269,9 @@ CONTAINS
       ELSE
          size_of_z = CEILING(REAL(pw%pw_grid%bounds(2, 3) - pw%pw_grid%bounds(1, 3) + 1, dp)/REAL(my_stride(3), dp))
          num_linebreak = size_of_z/num_entries_line
-         IF (MODULO(size_of_z, num_entries_line) /= 0) &
+         IF (MODULO(size_of_z, num_entries_line) /= 0) THEN
             num_linebreak = num_linebreak + 1
+         END IF
          msglen = (size_of_z*entry_len + num_linebreak)*mpi_character_size
          CALL mp_unit%set_handle(unit_nr)
          CALL pw_to_cube_parallel(pw, mp_unit, title, particles_r, particles_z, particles_zeff, &
@@ -409,8 +411,9 @@ CONTAINS
          ! Each data line of a Gaussian cube contains max 6 entries with last line potentially containing less if nz % 6 /= 0
          ! Thus, this size is simply the number of entries multiplied by the entry size + the number of line breaks
          num_linebreak = size_of_z/num_entries_line
-         IF (MODULO(size_of_z, num_entries_line) /= 0) &
+         IF (MODULO(size_of_z, num_entries_line) /= 0) THEN
             num_linebreak = num_linebreak + 1
+         END IF
          msglen = (size_of_z*entry_len + num_linebreak)*mpi_character_size
          CALL cube_to_pw_parallel(grid, filename, scaling, msglen, silent=silent)
       END IF
@@ -630,9 +633,10 @@ CONTAINS
                IF ((lbounds_local(1) <= i) .AND. (i <= ubounds_local(1)) .AND. (lbounds_local(2) <= j) &
                    .AND. (j <= ubounds_local(2))) THEN
                   !allow scaling of external potential values by factor 'scaling' (SCALING_FACTOR in input file)
-                  IF (ANY(grid%array(i, j, lbounds(3):ubounds(3)) /= buffer(lbounds(3):ubounds(3))*scaling)) &
+                  IF (ANY(grid%array(i, j, lbounds(3):ubounds(3)) /= buffer(lbounds(3):ubounds(3))*scaling)) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Error in parallel read of input cube file.")
+                  END IF
                END IF
 
             END DO
@@ -824,8 +828,9 @@ CONTAINS
                   END IF
                   tmp = TRIM(tmp)//TRIM(value)
                   counter = counter + 1
-                  IF (MODULO(counter, num_entries_line) == 0 .OR. k == last_z) &
+                  IF (MODULO(counter, num_entries_line) == 0 .OR. k == last_z) THEN
                      tmp = TRIM(tmp)//NEW_LINE('C')
+                  END IF
                END DO
                writebuffer(islice) = tmp
                islice = islice + 1
@@ -889,9 +894,10 @@ CONTAINS
 
       my_stride = 1
       IF (PRESENT(stride)) THEN
-         IF (SIZE(stride) /= 1 .AND. SIZE(stride) /= 3) &
+         IF (SIZE(stride) /= 1 .AND. SIZE(stride) /= 3) THEN
             CALL cp_abort(__LOCATION__, "STRIDE keyword can accept only 1 "// &
                           "(the same for X,Y,Z) or 3 values. Correct your input file.")
+         END IF
          IF (SIZE(stride) == 1) THEN
             DO i = 1, 3
                my_stride(i) = stride(1)

@@ -343,10 +343,10 @@ CONTAINS
             xcmat%op = 0._dp
             CALL calculate_atom_vxc_lda(xcmat, atom, xc_section)
             ! ZMP added options for the zmp calculations, building external density and vxc potential
-         ELSEIF (need_zmp) THEN
+         ELSE IF (need_zmp) THEN
             xcmat%op = 0._dp
             CALL calculate_atom_zmp(ext_density=ext_density, atom=atom, lprint=.FALSE., xcmat=xcmat)
-         ELSEIF (need_vxc) THEN
+         ELSE IF (need_vxc) THEN
             xcmat%op = 0._dp
             CALL calculate_atom_ext_vxc(vxc=ext_vxc, atom=atom, lprint=.FALSE., xcmat=xcmat)
          ELSE
@@ -503,10 +503,10 @@ CONTAINS
                ne = atom%state%occupation(l, k)
                IF (ne == 0._dp) THEN !empty shell
                   EXIT !assume there are no holes
-               ELSEIF (ne == 2._dp*nm) THEN !closed shell
+               ELSE IF (ne == 2._dp*nm) THEN !closed shell
                   atom%state%occa(l, k) = nm
                   atom%state%occb(l, k) = nm
-               ELSEIF (atom%state%multiplicity == -2) THEN !High spin case
+               ELSE IF (atom%state%multiplicity == -2) THEN !High spin case
                   atom%state%occa(l, k) = MIN(ne, nm)
                   atom%state%occb(l, k) = MAX(0._dp, ne - nm)
                ELSE

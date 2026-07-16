@@ -121,7 +121,8 @@ MODULE pao_types
 !> \var constants_ready           set when stuff, which does not depend of atomic positions is ready
 !> \var need_initial_scf          set when the initial density matrix is not self-consistend
 !> \var matrix_X                  parameters of pao basis, which eventually determine matrix_U. Uses diag_distribution.
-!> \var matrix_U0                 constant pre-rotation which serves as initial guess for exp-parametrization. Uses diag_distribution.
+!> \var matrix_U0                 constant pre-rotation which serves as initial guess for exp-parametrization.
+!>                                Uses diag_distribution.
 !> \var matrix_H0                 Diagonal blocks of core hamiltonian, uses diag_distribution
 !> \var matrix_Y                  selector matrix which translates between primary and pao basis.
 !>                                basically a block diagonal "rectangular identity matrix". Uses s_matrix-distribution.
@@ -253,8 +254,9 @@ CONTAINS
       CALL dbcsr_release(pao%matrix_H0)
 
       DEALLOCATE (pao%ml_training_set)
-      IF (ALLOCATED(pao%ml_training_matrices)) &
+      IF (ALLOCATED(pao%ml_training_matrices)) THEN
          DEALLOCATE (pao%ml_training_matrices)
+      END IF
 
       IF (ALLOCATED(pao%models)) THEN
          DO i = 1, SIZE(pao%models)

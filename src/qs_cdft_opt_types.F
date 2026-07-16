@@ -135,10 +135,12 @@ CONTAINS
       TYPE(cdft_opt_type), POINTER                       :: cdft_opt_control
 
       IF (ASSOCIATED(cdft_opt_control)) THEN
-         IF (ASSOCIATED(cdft_opt_control%jacobian_vector)) &
+         IF (ASSOCIATED(cdft_opt_control%jacobian_vector)) THEN
             DEALLOCATE (cdft_opt_control%jacobian_vector)
-         IF (ALLOCATED(cdft_opt_control%jacobian_step)) &
+         END IF
+         IF (ALLOCATED(cdft_opt_control%jacobian_step)) THEN
             DEALLOCATE (cdft_opt_control%jacobian_step)
+         END IF
 
          DEALLOCATE (cdft_opt_control)
       END IF
@@ -188,22 +190,26 @@ CONTAINS
       CALL section_vals_val_get(cdft_opt_section, "FACTOR_LS", &
                                 r_val=cdft_opt_control%factor_ls)
       IF (cdft_opt_control%factor_ls <= 0.0_dp .OR. &
-          cdft_opt_control%factor_ls >= 1.0_dp) &
+          cdft_opt_control%factor_ls >= 1.0_dp) THEN
          CALL cp_abort(__LOCATION__, &
                        "Keyword FACTOR_LS must be between 0.0 and 1.0.")
+      END IF
       CALL section_vals_val_get(cdft_opt_section, "JACOBIAN_FREQ", explicit=exists)
       IF (exists) THEN
          CALL section_vals_val_get(cdft_opt_section, "JACOBIAN_FREQ", &
                                    i_vals=tmplist)
-         IF (SIZE(tmplist) /= 2) &
+         IF (SIZE(tmplist) /= 2) THEN
             CALL cp_abort(__LOCATION__, &
                           "Keyword JACOBIAN_FREQ takes exactly two input values.")
-         IF (ANY(tmplist < 0)) &
+         END IF
+         IF (ANY(tmplist < 0)) THEN
             CALL cp_abort(__LOCATION__, &
                           "Keyword JACOBIAN_FREQ takes only positive values.")
-         IF (ALL(tmplist == 0)) &
+         END IF
+         IF (ALL(tmplist == 0)) THEN
             CALL cp_abort(__LOCATION__, &
                           "Both values to keyword JACOBIAN_FREQ cannot be zero.")
+         END IF
          cdft_opt_control%jacobian_freq(:) = tmplist(1:2)
       END IF
       CALL section_vals_val_get(cdft_opt_section, "JACOBIAN_RESTART", &
@@ -275,9 +281,10 @@ CONTAINS
          IF (cdft_opt_control%jacobian_freq(2) > 0) THEN
             WRITE (output_unit, '(T6,A,I4,A)') &
                "The Jacobian is restarted every ", cdft_opt_control%jacobian_freq(2), " energy evaluation"
-            IF (cdft_opt_control%jacobian_freq(1) > 0) &
+            IF (cdft_opt_control%jacobian_freq(1) > 0) THEN
                WRITE (output_unit, '(T29,A,I4,A)') &
-               "or every ", cdft_opt_control%jacobian_freq(1), " CDFT SCF iteration"
+                  "or every ", cdft_opt_control%jacobian_freq(1), " CDFT SCF iteration"
+            END IF
          ELSE
             WRITE (output_unit, '(T6,A,I4,A)') &
                "The Jacobian is restarted every ", cdft_opt_control%jacobian_freq(1), " CDFT SCF iteration"

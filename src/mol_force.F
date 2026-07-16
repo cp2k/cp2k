@@ -53,17 +53,17 @@ CONTAINS
 
       SELECT CASE (id_type)
       CASE (do_ff_quartic)
-         dij = SQRT(DOT_PRODUCT(rij, rij))
+         dij = NORM2(rij)
          disp = dij - r0
          energy = (f12*k(1) + (f13*k(2) + f14*k(3)*disp)*disp)*disp*disp
          fscalar = ((k(1) + (k(2) + k(3)*disp)*disp)*disp)/dij
       CASE (do_ff_morse)
-         dij = SQRT(DOT_PRODUCT(rij, rij))
+         dij = NORM2(rij)
          disp = dij - r0
          energy = k(1)*((1 - EXP(-k(2)*disp))**2 - 1)
          fscalar = 2*k(1)*k(2)*EXP(-k(2)*disp)*(1 - EXP(-k(2)*disp))/dij
       CASE (do_ff_cubic)
-         dij = SQRT(DOT_PRODUCT(rij, rij))
+         dij = NORM2(rij)
          disp = dij - r0
          energy = k(1)*disp**2*(1 + cs*disp + 7.0_dp/12.0_dp*cs**2*disp**2)
          fscalar = (2.0_dp*k(1)*disp*(1 + cs*disp + 7.0_dp/12.0_dp*cs**2*disp**2) + &
@@ -76,7 +76,7 @@ CONTAINS
          energy = f14*k(1)*disp*disp
          fscalar = k(1)*disp
       CASE (do_ff_charmm, do_ff_amber)
-         dij = SQRT(DOT_PRODUCT(rij, rij))
+         dij = NORM2(rij)
          disp = dij - r0
          IF (ABS(disp) < EPSILON(1.0_dp)) THEN
             energy = 0.0_dp
@@ -86,7 +86,7 @@ CONTAINS
             fscalar = 2.0_dp*k(1)*disp/dij
          END IF
       CASE (do_ff_harmonic, do_ff_g87)
-         dij = SQRT(DOT_PRODUCT(rij, rij))
+         dij = NORM2(rij)
          disp = dij - r0
          IF (ABS(disp) < EPSILON(1.0_dp)) THEN
             energy = 0.0_dp
@@ -96,7 +96,7 @@ CONTAINS
             fscalar = k(1)*disp/dij
          END IF
       CASE (do_ff_fues)
-         dij = SQRT(DOT_PRODUCT(rij, rij))
+         dij = NORM2(rij)
          disp = r0/dij
          energy = f12*k(1)*r0*r0*(1.0_dp + disp*(disp - 2.0_dp))
          fscalar = k(1)*r0*disp*disp*(1.0_dp - disp)/dij
@@ -507,7 +507,7 @@ CONTAINS
       b = DOT_PRODUCT(t41, t41) - D
 
       !inverse norm of t41
-      is41 = 1.0_dp/SQRT(DOT_PRODUCT(t41, t41))
+      is41 = 1.0_dp/NORM2(t41)
 
       cosphi = SQRT(b)*is41
       IF (cosphi > 1.0_dp) cosphi = 1.0_dp

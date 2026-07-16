@@ -765,7 +765,7 @@ CONTAINS
          DO i_com = 1, helium%nnp%n_committee !loop over committee members
             ! Predict energy
             CALL nnp_predict(helium%nnp%arc(ind), helium%nnp, i_com)
-            helium%nnp%atomic_energy(i, i_com) = helium%nnp%arc(ind)%layer(helium%nnp%n_layer)%node(1) ! + helium%nnp%atom_energies(ind)
+            helium%nnp%atomic_energy(i, i_com) = helium%nnp%arc(ind)%layer(helium%nnp%n_layer)%node(1)
 
             !Gradients
             IF (PRESENT(force)) THEN
@@ -1068,7 +1068,7 @@ CONTAINS
             p = np
             db = db - 1
          END DO
-      ELSEIF (delta_bead < 0) THEN
+      ELSE IF (delta_bead < 0) THEN
          bead = ref_bead
          p = part
          db = delta_bead

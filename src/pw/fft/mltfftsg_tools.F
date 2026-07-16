@@ -15,7 +15,10 @@ MODULE mltfftsg_tools
 
 #include "../../base/base_uses.f90"
 
+   IMPLICIT NONE
+
    PRIVATE
+
    INTEGER, PARAMETER :: ctrig_length = 1024
    INTEGER, PARAMETER :: cache_size = 2048
    PUBLIC :: mltfftsg

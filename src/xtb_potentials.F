@@ -807,10 +807,11 @@ CONTAINS
                        ((name_atm_a) == (nonbonded%pot(ingp)%pot%at2)))) THEN
                      CALL pair_potential_single_copy(nonbonded%pot(ingp)%pot, pot)
                      ! multiple potential not implemented, simply overwriting
-                     IF (found) &
+                     IF (found) THEN
                         CALL cp_warn(__LOCATION__, &
                                      "Multiple NONBONDED declaration: "//TRIM(name_atm_a)// &
                                      " and "//TRIM(name_atm_b)//" OVERWRITING! ")
+                     END IF
                      !IF (iw > 0) WRITE (iw, *) "    FOUND ", TRIM(name_atm_a), " ", TRIM(name_atm_b)
                      found = .TRUE.
                   END IF

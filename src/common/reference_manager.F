@@ -332,14 +332,18 @@ CONTAINS
          WRITE (unit, '(T3,A)') '<SOURCE>'//thebib(i)%ref%source//'</SOURCE>'
 
          ! DOI, volume, pages, year, month.
-         IF (ALLOCATED(thebib(i)%ref%doi)) &
+         IF (ALLOCATED(thebib(i)%ref%doi)) THEN
             WRITE (unit, '(T3,A)') '<DOI>'//TRIM(substitute_special_xml_tokens(thebib(i)%ref%doi))//'</DOI>'
-         IF (ALLOCATED(thebib(i)%ref%volume)) &
+         END IF
+         IF (ALLOCATED(thebib(i)%ref%volume)) THEN
             WRITE (unit, '(T3,A)') '<VOLUME>'//thebib(i)%ref%volume//'</VOLUME>'
-         IF (ALLOCATED(thebib(i)%ref%pages)) &
+         END IF
+         IF (ALLOCATED(thebib(i)%ref%pages)) THEN
             WRITE (unit, '(T3,A)') '<PAGES>'//thebib(i)%ref%pages//'</PAGES>'
-         IF (thebib(i)%ref%year > 0) &
+         END IF
+         IF (thebib(i)%ref%year > 0) THEN
             WRITE (unit, '(T3,A,I4.4,A)') '<YEAR>', thebib(i)%ref%year, '</YEAR>'
+         END IF
          WRITE (unit, '(T2,A)') '</REFERENCE>'
       END DO
 

@@ -281,7 +281,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'efield_tb_berry'
 
       COMPLEX(KIND=dp)                                   :: zdeta
-      COMPLEX(KIND=dp), DIMENSION(3)                     :: zi(3)
+      COMPLEX(KIND=dp), DIMENSION(3)                     :: zi
       INTEGER                                            :: atom_a, atom_b, handle, ia, iac, iatom, &
                                                             ic, icol, idir, ikind, irow, is, &
                                                             ispin, jatom, jkind, natom, nimg, &
@@ -334,7 +334,7 @@ CONTAINS
       END IF
 
       fieldpol = dft_control%period_efield%polarisation
-      fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
+      fieldpol = fieldpol/NORM2(fieldpol)
       fieldpol = -fieldpol*strength
       hmat = cell%hmat(:, :)/twopi
       DO idir = 1, 3
@@ -452,7 +452,7 @@ CONTAINS
                NULLIFY (sap_int)
                IF (dft_control%qs_control%dftb) THEN
                   CPABORT("DFTB stress tensor for periodic efield not implemented")
-               ELSEIF (dft_control%qs_control%xtb) THEN
+               ELSE IF (dft_control%qs_control%xtb) THEN
                   CALL xtb_dsint_list(qs_env, sap_int)
                ELSE
                   CPABORT("TB method unknown")
@@ -612,7 +612,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dfield_tb_berry'
 
       COMPLEX(KIND=dp)                                   :: zdeta
-      COMPLEX(KIND=dp), DIMENSION(3)                     :: zi(3)
+      COMPLEX(KIND=dp), DIMENSION(3)                     :: zi
       INTEGER                                            :: atom_a, atom_b, handle, i, ia, iatom, &
                                                             ic, icol, idir, ikind, irow, is, &
                                                             ispin, jatom, jkind, natom, nimg, nspin
@@ -674,7 +674,7 @@ CONTAINS
       END IF
 
       fieldpol = dft_control%period_efield%polarisation
-      fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
+      fieldpol = fieldpol/NORM2(fieldpol)
       fieldpol = fieldpol*strength
 
       omega = cell%deth

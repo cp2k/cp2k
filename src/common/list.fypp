@@ -87,15 +87,18 @@
          initial_capacity_ = 11
          If (PRESENT(initial_capacity)) initial_capacity_ = initial_capacity
 
-         IF (initial_capacity_ < 0) &
+         IF (initial_capacity_ < 0) THEN
             CPABORT("list_${valuetype}$_create: initial_capacity < 0")
+         END IF
 
-         IF (ASSOCIATED(list%arr)) &
+         IF (ASSOCIATED(list%arr)) THEN
             CPABORT("list_${valuetype}$_create: list is already initialized.")
+         END IF
 
          ALLOCATE (list%arr(initial_capacity_), stat=stat)
-         IF (stat /= 0) &
+         IF (stat /= 0) THEN
             CPABORT("list_${valuetype}$_init: allocation failed")
+         END IF
 
          list%size = 0
       END SUBROUTINE list_${valuetype}$_init
@@ -112,8 +115,9 @@
       SUBROUTINE list_${valuetype}$_destroy(list)
          TYPE(list_${valuetype}$_type), intent(inout)  :: list
          INTEGER :: i
-         IF (.not. ASSOCIATED(list%arr)) &
+         IF (.not. ASSOCIATED(list%arr)) THEN
             CPABORT("list_${valuetype}$_destroy: list is not initialized.")
+         END IF
 
          do i = 1, list%size
             deallocate (list%arr(i)%p)
@@ -137,12 +141,15 @@
          TYPE(list_${valuetype}$_type), intent(inout)  :: list
          ${valuetype_in}$, intent(in) :: value
          INTEGER, intent(in) :: pos
-         IF (.not. ASSOCIATED(list%arr)) &
+         IF (.not. ASSOCIATED(list%arr)) THEN
             CPABORT("list_${valuetype}$_set: list is not initialized.")
-         IF (pos < 1) &
+         END IF
+         IF (pos < 1) THEN
             CPABORT("list_${valuetype}$_set: pos < 1")
-         IF (pos > list%size) &
+         END IF
+         IF (pos > list%size) THEN
             CPABORT("list_${valuetype}$_set: pos > size")
+         END IF
          list%arr(pos)%p%value ${value_assign}$value
       END SUBROUTINE list_${valuetype}$_set
 
@@ -159,15 +166,18 @@
          ${valuetype_in}$, intent(in)                  :: value
          INTEGER                                     :: stat
 
-         IF (.not. ASSOCIATED(list%arr)) &
+         IF (.not. ASSOCIATED(list%arr)) THEN
             CPABORT("list_${valuetype}$_push: list is not initialized.")
-         if (list%size == size(list%arr)) &
-            call change_capacity_${valuetype}$ (list, 2*size(list%arr) + 1)
+         END IF
+         IF (list%size == size(list%arr)) THEN
+            CALL change_capacity_${valuetype}$ (list, 2*size(list%arr) + 1)
+         END IF
 
          list%size = list%size + 1
          ALLOCATE (list%arr(list%size)%p, stat=stat)
-         IF (stat /= 0) &
+         IF (stat /= 0) THEN
             CPABORT("list_${valuetype}$_push: allocation failed")
+         END IF
          list%arr(list%size)%p%value ${value_assign}$value
       END SUBROUTINE list_${valuetype}$_push
 
@@ -187,15 +197,19 @@
          INTEGER, intent(in) :: pos
          INTEGER :: i, stat
 
-         IF (.not. ASSOCIATED(list%arr)) &
+         IF (.not. ASSOCIATED(list%arr)) THEN
             CPABORT("list_${valuetype}$_insert: list is not initialized.")
-         IF (pos < 1) &
+         END IF
+         IF (pos < 1) THEN
             CPABORT("list_${valuetype}$_insert: pos < 1")
-         IF (pos > list%size + 1) &
+         END IF
+         IF (pos > list%size + 1) THEN
             CPABORT("list_${valuetype}$_insert: pos > size+1")
+         END IF
 
-         if (list%size == size(list%arr)) &
+         if (list%size == size(list%arr)) THEN
             call change_capacity_${valuetype}$ (list, 2*size(list%arr) + 1)
+         END IF
 
          list%size = list%size + 1
          do i = list%size, pos + 1, -1
@@ -203,8 +217,9 @@
          end do
 
          ALLOCATE (list%arr(pos)%p, stat=stat)
-         IF (stat /= 0) &
+         IF (stat /= 0) THEN
             CPABORT("list_${valuetype}$_insert: allocation failed.")
+         END IF
          list%arr(pos)%p%value ${value_assign}$value
       END SUBROUTINE list_${valuetype}$_insert
 
@@ -221,10 +236,12 @@
          TYPE(list_${valuetype}$_type), intent(inout)  :: list
          ${valuetype_out}$  :: value
 
-         IF (.not. ASSOCIATED(list%arr)) &
+         IF (.not. ASSOCIATED(list%arr)) THEN
             CPABORT("list_${valuetype}$_peek: list is not initialized.")
-         IF (list%size < 1) &
+         END IF
+         IF (list%size < 1) THEN
             CPABORT("list_${valuetype}$_peek: list is empty.")
+         END IF
 
          value ${value_assign}$list%arr(list%size)%p%value
       END FUNCTION list_${valuetype}$_peek
@@ -245,10 +262,12 @@
          TYPE(list_${valuetype}$_type), intent(inout)  :: list
          ${valuetype_out}$  :: value
 
-         IF (.not. ASSOCIATED(list%arr)) &
+         IF (.NOT. ASSOCIATED(list%arr)) THEN
             CPABORT("list_${valuetype}$_pop: list is not initialized.")
-         IF (list%size < 1) &
+         END IF
+         IF (list%size < 1) THEN
             CPABORT("list_${valuetype}$_pop: list is empty.")
+         END IF
 
          value ${value_assign}$list%arr(list%size)%p%value
          deallocate (list%arr(list%size)%p)
@@ -266,12 +285,13 @@
          TYPE(list_${valuetype}$_type), intent(inout)  :: list
          INTEGER :: i
 
-         IF (.not. ASSOCIATED(list%arr)) &
+         IF (.not. ASSOCIATED(list%arr)) THEN
             CPABORT("list_${valuetype}$_clear: list is not initialized.")
+         END IF
 
-         do i = 1, list%size
+         DO i = 1, list%size
             deallocate (list%arr(i)%p)
-         end do
+         END DO
          list%size = 0
       END SUBROUTINE list_${valuetype}$_clear
 
@@ -290,12 +310,15 @@
          INTEGER, intent(in) :: pos
          ${valuetype_out}$ :: value
 
-         IF (.not. ASSOCIATED(list%arr)) &
+         IF (.NOT. ASSOCIATED(list%arr)) THEN
             CPABORT("list_${valuetype}$_get: list is not initialized.")
-         IF (pos < 1) &
+         END IF
+         IF (pos < 1) THEN
             CPABORT("list_${valuetype}$_get: pos < 1")
-         IF (pos > list%size) &
+         END IF
+         IF (pos > list%size) THEN
             CPABORT("list_${valuetype}$_get: pos > size")
+         END IF
 
          value ${value_assign}$list%arr(pos)%p%value
 
@@ -314,17 +337,20 @@
          INTEGER, intent(in) :: pos
          INTEGER :: i
 
-         IF (.not. ASSOCIATED(list%arr)) &
+         IF (.NOT. ASSOCIATED(list%arr)) THEN
             CPABORT("list_${valuetype}$_del: list is not initialized.")
-         IF (pos < 1) &
+         END IF
+         IF (pos < 1) THEN
             CPABORT("list_${valuetype}$_det: pos < 1")
-         IF (pos > list%size) &
+         END IF
+         IF (pos > list%size) THEN
             CPABORT("list_${valuetype}$_det: pos > size")
+         END IF
 
          deallocate (list%arr(pos)%p)
-         do i = pos, list%size - 1
+         DO i = pos, list%size - 1
             list%arr(i)%p => list%arr(i + 1)%p
-         end do
+         END DO
 
          list%size = list%size - 1
 
@@ -342,8 +368,9 @@
          TYPE(list_${valuetype}$_type), intent(in)  :: list
          INTEGER :: size
 
-         IF (.not. ASSOCIATED(list%arr)) &
+         IF (.NOT. ASSOCIATED(list%arr)) THEN
             CPABORT("list_${valuetype}$_size: list is not initialized.")
+         END IF
 
          size = list%size
       END FUNCTION list_${valuetype}$_size
@@ -363,29 +390,34 @@
          TYPE(private_item_p_type_${valuetype}$), DIMENSION(:), POINTER :: old_arr
 
          new_cap = new_capacity
-         IF (new_cap < 0) &
+         IF (new_cap < 0) THEN
             CPABORT("list_${valuetype}$_change_capacity: new_capacity < 0")
-         IF (new_cap < list%size) &
+         END IF
+         IF (new_cap < list%size) THEN
             CPABORT("list_${valuetype}$_change_capacity: new_capacity < size")
+         END IF
          IF (new_cap > HUGE(i)) THEN
-            IF (size(list%arr) == HUGE(i)) &
+            IF (size(list%arr) == HUGE(i)) THEN
                CPABORT("list_${valuetype}$_change_capacity: list has reached integer limit.")
+            END IF
             new_cap = HUGE(i) ! grow as far as possible
          END IF
 
          old_arr => list%arr
          allocate (list%arr(new_cap), stat=stat)
-         IF (stat /= 0) &
+         IF (stat /= 0) THEN
             CPABORT("list_${valuetype}$_change_capacity: allocation failed")
+         END IF
 
-         do i = 1, list%size
+         DO i = 1, list%size
             allocate (list%arr(i)%p, stat=stat)
-            IF (stat /= 0) &
+            IF (stat /= 0) THEN
                CPABORT("list_${valuetype}$_change_capacity: allocation failed")
+            END IF
             list%arr(i)%p%value ${value_assign}$old_arr(i)%p%value
-            deallocate (old_arr(i)%p)
-         end do
-         deallocate (old_arr)
+            DEALLOCATE (old_arr(i)%p)
+         END DO
+         DEALLOCATE (old_arr)
 
       END SUBROUTINE change_capacity_${valuetype}$
    #:enddef

@@ -259,16 +259,20 @@ CONTAINS
                IF (m >= 2) fx(ip, 3) = f13*f43*fxfac/2.0_dp**f23
                IF (m >= 3) fx(ip, 4) = -f23*f13*f43*fxfac/2.0_dp**f53
             ELSE
-               IF (m >= 0) &
+               IF (m >= 0) THEN
                   fx(ip, 1) = ((1.0_dp + x)**f43 + (1.0_dp - x)**f43 - 2.0_dp)*fxfac
-               IF (m >= 1) &
+               END IF
+               IF (m >= 1) THEN
                   fx(ip, 2) = ((1.0_dp + x)**f13 - (1.0_dp - x)**f13)*fxfac*f43
-               IF (m >= 2) &
+               END IF
+               IF (m >= 2) THEN
                   fx(ip, 3) = ((1.0_dp + x)**(-f23) + (1.0_dp - x)**(-f23))* &
                               fxfac*f43*f13
-               IF (m >= 3) &
+               END IF
+               IF (m >= 3) THEN
                   fx(ip, 4) = ((1.0_dp + x)**(-f53) - (1.0_dp - x)**(-f53))* &
                               fxfac*f43*f13*(-f23)
+               END IF
             END IF
          END IF
       END DO
@@ -314,16 +318,20 @@ CONTAINS
             IF (m >= 2) fx(3) = f13*f43*fxfac/2.0_dp**f23
             IF (m >= 3) fx(4) = -f23*f13*f43*fxfac/2.0_dp**f53
          ELSE
-            IF (m >= 0) &
+            IF (m >= 0) THEN
                fx(1) = ((1.0_dp + x)**f43 + (1.0_dp - x)**f43 - 2.0_dp)*fxfac
-            IF (m >= 1) &
+            END IF
+            IF (m >= 1) THEN
                fx(2) = ((1.0_dp + x)**f13 - (1.0_dp - x)**f13)*fxfac*f43
-            IF (m >= 2) &
+            END IF
+            IF (m >= 2) THEN
                fx(3) = ((1.0_dp + x)**(-f23) + (1.0_dp - x)**(-f23))* &
                        fxfac*f43*f13
-            IF (m >= 3) &
+            END IF
+            IF (m >= 3) THEN
                fx(4) = ((1.0_dp + x)**(-f53) - (1.0_dp - x)**(-f53))* &
                        fxfac*f43*f13*(-f23)
+            END IF
          END IF
       END IF
 

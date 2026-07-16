@@ -685,7 +685,7 @@ CONTAINS
                ra(:) = pbc(particle_set(atom_a)%r, cell)
                rb(:) = pbc(particle_set(atom_b)%r, cell)
                rab = rb(:) - ra(:) + cell_v
-               dab = SQRT(DOT_PRODUCT(rab, rab))
+               dab = NORM2(rab)
                IF (ilist <= neighbor_kind_pair%nscale) THEN
                   WRITE (UNIT=output_unit, FMT="(T3,2(I6,3(1X,F10.6)),3(1X,I3),10X,F8.4,L4,F11.5,F9.5)") &
                      atom_a, ra(1:3)*conv, &

@@ -731,11 +731,13 @@ CONTAINS
          ! first invocation of the subroutine : initialise md_iter_level and md_first_step variables
          smeagol_control%aux%md_iter_level = cp_get_iter_level_by_name(logger%iter_info, "MD")
 
-         IF (smeagol_control%aux%md_iter_level <= 0) &
+         IF (smeagol_control%aux%md_iter_level <= 0) THEN
             smeagol_control%aux%md_iter_level = cp_get_iter_level_by_name(logger%iter_info, "GEO_OPT")
+         END IF
 
-         IF (smeagol_control%aux%md_iter_level <= 0) &
+         IF (smeagol_control%aux%md_iter_level <= 0) THEN
             smeagol_control%aux%md_iter_level = 0
+         END IF
 
          !  index of the first GEO_OPT / MD step
          IF (smeagol_control%aux%md_iter_level > 0) THEN

@@ -167,8 +167,9 @@ CONTAINS
          END IF
 
          IF (dft_control%tddfpt2_control%do_smearing) THEN
-            IF (.NOT. ASSOCIATED(dft_control%tddfpt2_control%smeared_occup)) &
+            IF (.NOT. ASSOCIATED(dft_control%tddfpt2_control%smeared_occup)) THEN
                CPABORT("Smearing occupation not associated.")
+            END IF
             CALL deallocate_fermi_params(dft_control%tddfpt2_control%smeared_occup)
          END IF
          IF (dft_control%qs_control%lrigpw) THEN

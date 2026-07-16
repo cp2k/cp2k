@@ -44,11 +44,12 @@ CONTAINS
       ind = INDEX(token, "..")
       READ (UNIT=token(:ind - 1), FMT=*) ilist%istart
       READ (UNIT=token(ind + 2:), FMT=*) ilist%iend
-      IF (ilist%istart > ilist%iend) &
+      IF (ilist%istart > ilist%iend) THEN
          CALL cp_abort(__LOCATION__, &
                        "Invalid list range specified: "// &
                        TRIM(ADJUSTL(cp_to_string(ilist%istart)))//".."// &
                        TRIM(ADJUSTL(cp_to_string(ilist%iend))))
+      END IF
       ilist%nel_list = ilist%iend - ilist%istart + 1
       ilist%ipresent = ilist%istart
       ilist%in_use = .TRUE.

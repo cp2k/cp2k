@@ -133,8 +133,9 @@ CONTAINS
          !WRITE (*,*) "this is worker ", worker_id, swarm_mpi%worker%mepos, swarm_mpi%worker%num_pe
 
          ! collect world-ranks of each worker groups rank-0 node
-         IF (swarm_mpi%worker%mepos == 0) &
+         IF (swarm_mpi%worker%mepos == 0) THEN
             swarm_mpi%wid2group(worker_id) = swarm_mpi%world%mepos
+         END IF
 
       END IF
 
@@ -162,14 +163,16 @@ CONTAINS
          logger => cp_get_default_logger()
          output_unit = logger%default_local_unit_nr
          swarm_mpi%master_output_path = output_unit2path(output_unit)
-         IF (output_unit /= default_output_unit) &
+         IF (output_unit /= default_output_unit) THEN
             CLOSE (output_unit)
+         END IF
       END IF
 
       CALL swarm_mpi%world%bcast(swarm_mpi%master_output_path)
 
-      IF (ASSOCIATED(swarm_mpi%master)) &
+      IF (ASSOCIATED(swarm_mpi%master)) THEN
          CALL error_add_new_logger(swarm_mpi%master, swarm_mpi%master_output_path)
+      END IF
    END SUBROUTINE logger_init_master
 
 ! **************************************************************************************************
@@ -183,8 +186,9 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: output_path
 
       output_path = "__STD_OUT__"
-      IF (output_unit /= default_output_unit) &
+      IF (output_unit /= default_output_unit) THEN
          INQUIRE (unit=output_unit, name=output_path)
+      END IF
    END FUNCTION output_unit2path
 
 ! **************************************************************************************************
@@ -245,9 +249,10 @@ CONTAINS
       IF (para_env%is_source()) THEN
          ! open output_unit according to output_path
          output_unit = default_output_unit
-         IF (output_path /= "__STD_OUT__") &
+         IF (output_path /= "__STD_OUT__") THEN
             CALL open_file(file_name=output_path, file_status="UNKNOWN", &
                            file_action="WRITE", file_position="APPEND", unit_number=output_unit)
+         END IF
       END IF
 
       old_logger => cp_get_default_logger()
@@ -294,8 +299,9 @@ CONTAINS
       NULLIFY (logger, old_logger)
       logger => cp_get_default_logger()
       output_unit = logger%default_local_unit_nr
-      IF (output_unit > 0 .AND. output_unit /= default_output_unit) &
+      IF (output_unit > 0 .AND. output_unit /= default_output_unit) THEN
          CALL close_file(output_unit)
+      END IF
 
       CALL cp_rm_default_logger() !pops the top-most logger
       old_logger => cp_get_default_logger()

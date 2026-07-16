@@ -182,15 +182,17 @@ CONTAINS
       nspins = dft_control%nspins
 
       IF (n_rep_hf /= 1) CPABORT("ACE: only one &HF section is supported.")
-      IF (dft_control%nimages /= 1) &
+      IF (dft_control%nimages /= 1) THEN
          CPABORT("ACE: k-points / multiple images are not implemented.")
+      END IF
 
       ! ACE requires explicit MO coefficients (C_occ) which are only available
       ! with diagonalization-based SCF.  OT never constructs mo_coeff during
       ! the SCF, so the ACE projector build loop would silently get garbage.
       CALL get_qs_env(qs_env, scf_control=scf_control)
-      IF (scf_control%use_ot) &
+      IF (scf_control%use_ot) THEN
          CPABORT("ACE: OT doesn't work, use diagonalization-based SCF.")
+      END IF
 
       rebuild_freq = MAX(1, ace_rebuild_frequency)
 
@@ -198,8 +200,9 @@ CONTAINS
       ! Bypass A: energy-only call
       ! ------------------------------------------------------------------
       IF (just_energy) THEN
-         IF (DBG_ROUTING .AND. iw > 0) &
+         IF (DBG_ROUTING .AND. iw > 0) THEN
             WRITE (iw, '(T2,A)') 'ACE | just_energy=T: full HFX (no matrix update)'
+         END IF
          CALL hfx_call(qs_env, ks_matrix, rho, energy, &
                        calculate_forces, just_energy, &
                        v_rspace_new, v_tau_rspace, ext_xc_section)
@@ -211,8 +214,9 @@ CONTAINS
       ! Bypass B: ionic forces requested
       ! ------------------------------------------------------------------
       IF (calculate_forces) THEN
-         IF (DBG_ROUTING .AND. iw > 0) &
+         IF (DBG_ROUTING .AND. iw > 0) THEN
             WRITE (iw, '(T2,A)') 'ACE | calculate_forces=T: full HFX for exact forces'
+         END IF
          CALL hfx_call(qs_env, ks_matrix, rho, energy, &
                        calculate_forces, just_energy, &
                        v_rspace_new, v_tau_rspace, ext_xc_section)
@@ -271,13 +275,15 @@ CONTAINS
          IF (ace_built_now) THEN
             ace_is_built = .TRUE.
             ace_step_counter = 1
-            IF (DBG_ROUTING .AND. iw > 0) &
+            IF (DBG_ROUTING .AND. iw > 0) THEN
                WRITE (iw, '(T4,A)') 'ACE | W built. Projector live from next step.'
+            END IF
          ELSE
             ace_is_built = .FALSE.
             ace_step_counter = 0
-            IF (DBG_ROUTING .AND. iw > 0) &
+            IF (DBG_ROUTING .AND. iw > 0) THEN
                WRITE (iw, '(T4,A)') 'ACE | Build deferred (C_occ=0). Full HFX in ks_matrix.'
+            END IF
          END IF
 
       ELSE
@@ -409,8 +415,9 @@ CONTAINS
                     v_rspace_new, v_tau_rspace, ext_xc_section)
       ehfx_full = energy%ex
 
-      IF (DBG_BUILD .AND. iw > 0) &
+      IF (DBG_BUILD .AND. iw > 0) THEN
          WRITE (iw, '(/,T2,A,F20.10)') 'ACE BUILD | E_x(full HFX) = ', ehfx_full
+      END IF
 
       ! Allocate / resize module storage
       IF (ALLOCATED(ace_W)) THEN
@@ -426,9 +433,10 @@ CONTAINS
       ! ----------------------------------------------------------------
       DO ispin = 1, nspins
 
-         IF (mos_for_ace(ispin)%use_mo_coeff_b) &
+         IF (mos_for_ace(ispin)%use_mo_coeff_b) THEN
             CALL copy_dbcsr_to_fm(mos_for_ace(ispin)%mo_coeff_b, &
                                   mos_for_ace(ispin)%mo_coeff)
+         END IF
 
          CALL get_mo_set(mos_for_ace(ispin), mo_coeff=mo_coeff, &
                          nao=nao, nmo=nmo, homo=nocc, &
@@ -450,8 +458,9 @@ CONTAINS
          END IF
 
          IF (frob < 1.0e-20_dp) THEN
-            IF (DBG_BUILD .AND. iw > 0) &
+            IF (DBG_BUILD .AND. iw > 0) THEN
                WRITE (iw, '(T4,A)') 'mo_coeff=0: build deferred to next step.'
+            END IF
             CALL timestop(handle)
             RETURN
          END IF
@@ -530,12 +539,14 @@ CONTAINS
             CPABORT("ACE: Cholesky of -M failed (not positive definite).")
          END IF
 
-         IF (DBG_BUILD .AND. iw > 0) &
+         IF (DBG_BUILD .AND. iw > 0) THEN
             WRITE (iw, '(T4,A)') 'Cholesky OK (info=0).'
+         END IF
 
          ! Step 7: W = xi * U^{-1}
-         IF (ASSOCIATED(ace_W(1, ispin)%matrix_struct)) &
+         IF (ASSOCIATED(ace_W(1, ispin)%matrix_struct)) THEN
             CALL cp_fm_release(ace_W(1, ispin))
+         END IF
 
          CALL cp_fm_create(ace_W(1, ispin), xi_fm%matrix_struct, name="W_ACE")
          CALL cp_fm_to_fm(xi_fm, ace_W(1, ispin))
@@ -735,9 +746,10 @@ CONTAINS
          CALL cp_fm_release(P_fm)
          CALL cp_fm_release(PW_fm)
 
-         IF (DBG_ENERGY .AND. iw > 0) &
+         IF (DBG_ENERGY .AND. iw > 0) THEN
             WRITE (iw, '(T4,A,I4,A,F20.10)') &
-            'ispin=', ispin, '  E_x(ACE) += ', -0.5_dp*trace_val
+               'ispin=', ispin, '  E_x(ACE) += ', -0.5_dp*trace_val
+         END IF
       END DO
 
       energy%ex = ehfx_ace
@@ -776,15 +788,17 @@ CONTAINS
 
             IF (do_admm) THEN
                CALL get_admm_env(admm_env, mos_aux_fit=mos_aux_diag)
-               IF (mos_aux_diag(ispin)%use_mo_coeff_b) &
+               IF (mos_aux_diag(ispin)%use_mo_coeff_b) THEN
                   CALL copy_dbcsr_to_fm(mos_aux_diag(ispin)%mo_coeff_b, &
                                         mos_aux_diag(ispin)%mo_coeff)
+               END IF
                CALL get_mo_set(mos_aux_diag(ispin), mo_coeff=mo_coeff_diag, &
                                nao=nao_d, nmo=nmo_d, homo=nocc_d)
             ELSE
-               IF (mos_diag(ispin)%use_mo_coeff_b) &
+               IF (mos_diag(ispin)%use_mo_coeff_b) THEN
                   CALL copy_dbcsr_to_fm(mos_diag(ispin)%mo_coeff_b, &
                                         mos_diag(ispin)%mo_coeff)
+               END IF
                CALL get_mo_set(mos_diag(ispin), mo_coeff=mo_coeff_diag, &
                                nao=nao_d, nmo=nmo_d, homo=nocc_d)
             END IF

@@ -1204,8 +1204,9 @@ CONTAINS
                   precond(ispin)%local_data(:, :)*residual(ispin)%local_data(:, :)
             END DO
          ELSE
-            IF (mp2_env%ri_grad%polak_ribiere) &
+            IF (mp2_env%ri_grad%polak_ribiere) THEN
                residual_new_dot_diff_search_vec_old = accurate_dot_product_spin(residual, diff_search_vector)
+            END IF
 
             DO ispin = 1, nspins
                diff_search_vector(ispin)%local_data(:, :) = &
@@ -1810,7 +1811,8 @@ CONTAINS
                deb = force(1)%overlap_admm(1:3, 1)
                IF (use_virial) e_dummy = third_tr(virial%pv_virial)
             END IF
-            ! Add the second half of the projector deriatives contracting the first order density matrix with the fockian in the auxiliary basis
+            ! Add the second half of the projector deriatives contracting the first order
+            ! density matrix with the fockian in the auxiliary basis
             IF (do_exx) THEN
                CALL admm_projection_derivative(qs_env, matrix_ks_aux, matrix_p_mp2)
             ELSE

@@ -122,16 +122,18 @@ CONTAINS
          IF (rtp%linear_scaling) THEN
             CALL dbcsr_multiply("N", "N", one, SinvH(ispin)%matrix, rho_new(re)%matrix, zero, tmp, &
                                 filter_eps=rtp%filter_eps)
-            IF (rtp%propagate_complex_ks) &
+            IF (rtp%propagate_complex_ks) THEN
                CALL dbcsr_multiply("N", "N", one, SinvH_imag(ispin)%matrix, rho_new(im)%matrix, one, tmp, &
                                    filter_eps=rtp%filter_eps)
+            END IF
             CALL dbcsr_multiply("N", "N", one, SinvB(ispin)%matrix, rho_new(im)%matrix, one, tmp, &
                                 filter_eps=rtp%filter_eps)
             CALL compute_forces(force, tmp, S_der, rho_new(im)%matrix, C_mat, kind_of, atom_of_kind)
          ELSE
             CALL dbcsr_multiply("N", "N", one, SinvH(ispin)%matrix, rho_ao(ispin)%matrix, zero, tmp)
-            IF (rtp%propagate_complex_ks) &
+            IF (rtp%propagate_complex_ks) THEN
                CALL dbcsr_multiply("N", "N", one, SinvH_imag(ispin)%matrix, rho_ao_im(ispin)%matrix, one, tmp)
+            END IF
             CALL dbcsr_multiply("N", "N", one, SinvB(ispin)%matrix, rho_ao_im(ispin)%matrix, one, tmp)
             CALL compute_forces(force, tmp, S_der, rho_ao_im(ispin)%matrix, C_mat, kind_of, atom_of_kind)
          END IF

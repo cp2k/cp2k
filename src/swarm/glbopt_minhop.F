@@ -217,8 +217,9 @@ CONTAINS
             ! new locally lowest
             IF (this%iw > 0) WRITE (this%iw, '(A)') " MINHOP| New locally lowest"
             this%worker_state(wid)%Epot_hop = report_Epot
-            IF (.NOT. ALLOCATED(this%worker_state(wid)%pos_hop)) &
+            IF (.NOT. ALLOCATED(this%worker_state(wid)%pos_hop)) THEN
                ALLOCATE (this%worker_state(wid)%pos_hop(SIZE(report_positions)))
+            END IF
             this%worker_state(wid)%pos_hop(:) = report_positions
             this%worker_state(wid)%fp_hop = report_fp
          END IF

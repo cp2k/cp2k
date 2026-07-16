@@ -314,8 +314,9 @@ CONTAINS
              method_name_id /= do_nnp .AND. &
              method_name_id /= do_embed .AND. &
              method_name_id /= do_fist .AND. &
-             method_name_id /= do_ipi) &
+             method_name_id /= do_ipi) THEN
             CPABORT("Energy/Force run not available for all methods ")
+         END IF
 
          sublogger => cp_get_default_logger()
          CALL cp_add_iter_level(sublogger%iter_info, "JUST_ENERGY", &
@@ -324,8 +325,9 @@ CONTAINS
          ! loop over molecules to generate a molecular guess
          ! this procedure is initiated here to avoid passing globenv deep down
          ! the subroutine stack
-         IF (do_mol_loop(force_env=force_env)) &
+         IF (do_mol_loop(force_env=force_env)) THEN
             CALL loop_over_molecules(globenv, force_env)
+         END IF
 
          SELECT CASE (globenv%run_type_id)
          CASE (energy_run)
@@ -347,8 +349,9 @@ CONTAINS
       CASE (do_tamc)
          CALL qs_tamc(force_env, globenv)
       CASE (real_time_propagation)
-         IF (method_name_id /= do_qs) &
+         IF (method_name_id /= do_qs) THEN
             CPABORT("Real time propagation needs METHOD QS. ")
+         END IF
          CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
          dft_control%rtp_control%fixed_ions = .TRUE.
          SELECT CASE (dft_control%rtp_control%rtp_method)
@@ -360,8 +363,9 @@ CONTAINS
             CALL rt_prop_setup(force_env)
          END SELECT
       CASE (ehrenfest)
-         IF (method_name_id /= do_qs) &
+         IF (method_name_id /= do_qs) THEN
             CPABORT("Ehrenfest dynamics needs METHOD QS ")
+         END IF
          CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
          dft_control%rtp_control%fixed_ions = .FALSE.
          CALL qs_mol_dyn(force_env, globenv)
@@ -369,8 +373,9 @@ CONTAINS
          CALL do_bsse_calculation(force_env, globenv)
       CASE (linear_response_run)
          IF (method_name_id /= do_qs .AND. &
-             method_name_id /= do_qmmm) &
+             method_name_id /= do_qmmm) THEN
             CPABORT("Property calculations by Linear Response only within the QS or QMMM program ")
+         END IF
          ! The Ground State is needed, it can be read from Restart
          CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., linres=.TRUE.)
          CALL linres_calculation(force_env)
@@ -800,8 +805,9 @@ CONTAINS
          ! change to the new working directory
 
          CALL m_chdir(TRIM(farming_env%Job(i)%cwd), ierr)
-         IF (ierr /= 0) &
+         IF (ierr /= 0) THEN
             CPABORT("Failed to change dir to: "//TRIM(farming_env%Job(i)%cwd))
+         END IF
 
          ! generate a fresh call to cp2k_run
          IF (new_rank == 0) THEN

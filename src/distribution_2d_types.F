@@ -132,8 +132,9 @@ CONTAINS
       END IF
       IF (PRESENT(n_col_distribution)) THEN
          IF (ASSOCIATED(distribution_2d%col_distribution)) THEN
-            IF (n_col_distribution > distribution_2d%n_col_distribution) &
+            IF (n_col_distribution > distribution_2d%n_col_distribution) THEN
                CPABORT("n_col_distribution<=distribution_2d%n_col_distribution")
+            END IF
             ! else alloc col_distribution?
          END IF
          distribution_2d%n_col_distribution = n_col_distribution
@@ -145,15 +146,17 @@ CONTAINS
       END IF
       IF (PRESENT(n_row_distribution)) THEN
          IF (ASSOCIATED(distribution_2d%row_distribution)) THEN
-            IF (n_row_distribution > distribution_2d%n_row_distribution) &
+            IF (n_row_distribution > distribution_2d%n_row_distribution) THEN
                CPABORT("n_row_distribution<=distribution_2d%n_row_distribution")
+            END IF
             ! else alloc row_distribution?
          END IF
          distribution_2d%n_row_distribution = n_row_distribution
       END IF
 
-      IF (PRESENT(local_rows_ptr)) &
+      IF (PRESENT(local_rows_ptr)) THEN
          distribution_2d%local_rows => local_rows_ptr
+      END IF
       IF (.NOT. ASSOCIATED(distribution_2d%local_rows)) THEN
          CPASSERT(PRESENT(n_local_rows))
          ALLOCATE (distribution_2d%local_rows(SIZE(n_local_rows)))
@@ -164,11 +167,13 @@ CONTAINS
       END IF
       ALLOCATE (distribution_2d%n_local_rows(SIZE(distribution_2d%local_rows)))
       IF (PRESENT(n_local_rows)) THEN
-         IF (SIZE(distribution_2d%n_local_rows) /= SIZE(n_local_rows)) &
+         IF (SIZE(distribution_2d%n_local_rows) /= SIZE(n_local_rows)) THEN
             CPABORT("SIZE(distribution_2d%n_local_rows)==SIZE(n_local_rows)")
+         END IF
          DO i = 1, SIZE(distribution_2d%n_local_rows)
-            IF (SIZE(distribution_2d%local_rows(i)%array) < n_local_rows(i)) &
+            IF (SIZE(distribution_2d%local_rows(i)%array) < n_local_rows(i)) THEN
                CPABORT("SIZE(distribution_2d%local_rows(i)%array)>=n_local_rows(i)")
+            END IF
             distribution_2d%n_local_rows(i) = n_local_rows(i)
          END DO
       ELSE
@@ -178,8 +183,9 @@ CONTAINS
          END DO
       END IF
 
-      IF (PRESENT(local_cols_ptr)) &
+      IF (PRESENT(local_cols_ptr)) THEN
          distribution_2d%local_cols => local_cols_ptr
+      END IF
       IF (.NOT. ASSOCIATED(distribution_2d%local_cols)) THEN
          CPASSERT(PRESENT(n_local_cols))
          ALLOCATE (distribution_2d%local_cols(SIZE(n_local_cols)))
@@ -190,11 +196,13 @@ CONTAINS
       END IF
       ALLOCATE (distribution_2d%n_local_cols(SIZE(distribution_2d%local_cols)))
       IF (PRESENT(n_local_cols)) THEN
-         IF (SIZE(distribution_2d%n_local_cols) /= SIZE(n_local_cols)) &
+         IF (SIZE(distribution_2d%n_local_cols) /= SIZE(n_local_cols)) THEN
             CPABORT("SIZE(distribution_2d%n_local_cols)==SIZE(n_local_cols)")
+         END IF
          DO i = 1, SIZE(distribution_2d%n_local_cols)
-            IF (SIZE(distribution_2d%local_cols(i)%array) < n_local_cols(i)) &
+            IF (SIZE(distribution_2d%local_cols(i)%array) < n_local_cols(i)) THEN
                CPABORT("SIZE(distribution_2d%local_cols(i)%array)>=n_local_cols(i)")
+            END IF
             distribution_2d%n_local_cols(i) = n_local_cols(i)
          END DO
       ELSE
@@ -315,8 +323,9 @@ CONTAINS
                   DO i = 1, SIZE(distribution_2d%row_distribution, 1)
                      WRITE (unit=unit_nr, fmt="(i6,',')", advance="no") distribution_2d%row_distribution(i, 1)
                      ! keep lines finite, so that we can open outputs in vi
-                     IF (MODULO(i, 8) == 0 .AND. i /= SIZE(distribution_2d%row_distribution, 1)) &
+                     IF (MODULO(i, 8) == 0 .AND. i /= SIZE(distribution_2d%row_distribution, 1)) THEN
                         WRITE (unit=unit_nr, fmt='()')
+                     END IF
                   END DO
                   WRITE (unit=unit_nr, fmt="('),')")
                ELSE
@@ -336,8 +345,9 @@ CONTAINS
                   DO i = 1, SIZE(distribution_2d%col_distribution, 1)
                      WRITE (unit=unit_nr, fmt="(i6,',')", advance="no") distribution_2d%col_distribution(i, 1)
                      ! keep lines finite, so that we can open outputs in vi
-                     IF (MODULO(i, 8) == 0 .AND. i /= SIZE(distribution_2d%col_distribution, 1)) &
+                     IF (MODULO(i, 8) == 0 .AND. i /= SIZE(distribution_2d%col_distribution, 1)) THEN
                         WRITE (unit=unit_nr, fmt='()')
+                     END IF
                   END DO
                   WRITE (unit=unit_nr, fmt="('),')")
                ELSE
@@ -355,8 +365,9 @@ CONTAINS
                   DO i = 1, SIZE(distribution_2d%n_local_rows)
                      WRITE (unit=unit_nr, fmt="(i6,',')", advance="no") distribution_2d%n_local_rows(i)
                      ! keep lines finite, so that we can open outputs in vi
-                     IF (MODULO(i, 10) == 0 .AND. i /= SIZE(distribution_2d%n_local_rows)) &
+                     IF (MODULO(i, 10) == 0 .AND. i /= SIZE(distribution_2d%n_local_rows)) THEN
                         WRITE (unit=unit_nr, fmt='()')
+                     END IF
                   END DO
                   WRITE (unit=unit_nr, fmt="('),')")
                ELSE
@@ -395,8 +406,9 @@ CONTAINS
                   DO i = 1, SIZE(distribution_2d%n_local_cols)
                      WRITE (unit=unit_nr, fmt="(i6,',')", advance="no") distribution_2d%n_local_cols(i)
                      ! keep lines finite, so that we can open outputs in vi
-                     IF (MODULO(i, 10) == 0 .AND. i /= SIZE(distribution_2d%n_local_cols)) &
+                     IF (MODULO(i, 10) == 0 .AND. i /= SIZE(distribution_2d%n_local_cols)) THEN
                         WRITE (unit=unit_nr, fmt='()')
+                     END IF
                   END DO
                   WRITE (unit=unit_nr, fmt="('),')")
                ELSE

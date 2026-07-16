@@ -184,8 +184,9 @@ CONTAINS
       pres_ext = 0.0_dp
       CALL section_vals_val_get(geo_section, "EXTERNAL_PRESSURE", r_vals=pvals)
       check = (SIZE(pvals) == 1) .OR. (SIZE(pvals) == 9)
-      IF (.NOT. check) &
+      IF (.NOT. check) THEN
          CPABORT("EXTERNAL_PRESSURE can have 1 or 9 components only!")
+      END IF
 
       IF (SIZE(pvals) == 9) THEN
          ind = 0
@@ -425,7 +426,8 @@ CONTAINS
             gamma = angle(cell%hmat(:, 1), cell%hmat(:, 2))
             cosg = COS(gamma)
             sing = SIN(gamma)
-            ! Here, g is the average derivative of the cell vector length ab_length, and deriv_gamma is the derivative of the angle gamma
+            ! Here, g is the average derivative of the cell vector length ab_length,
+            ! and deriv_gamma is the derivative of the angle gamma
             g = 0.5_dp*(gradient(1) + cosg*gradient(2) + sing*gradient(3))
             deriv_gamma = (gradient(3)*cosg - gradient(2)*sing)/b_length
             gradient(1) = g

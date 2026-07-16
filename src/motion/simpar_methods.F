@@ -320,17 +320,19 @@ CONTAINS
       CALL section_vals_get(tmp_section, explicit=simpar%constraint)
       IF (simpar%constraint) THEN
          CALL section_vals_val_get(tmp_section, "SHAKE_TOLERANCE", r_val=simpar%shake_tol)
-         IF (simpar%shake_tol <= EPSILON(0.0_dp)*1000.0_dp) &
+         IF (simpar%shake_tol <= EPSILON(0.0_dp)*1000.0_dp) THEN
             CALL cp_warn(__LOCATION__, &
                          "Shake tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "// &
                          "This may lead to numerical problems. Setting up shake_tol to 1000*EPSILON!")
+         END IF
          simpar%shake_tol = MAX(EPSILON(0.0_dp)*1000.0_dp, simpar%shake_tol)
 
          CALL section_vals_val_get(tmp_section, "ROLL_TOLERANCE", r_val=simpar%roll_tol)
-         IF (simpar%roll_tol <= EPSILON(0.0_dp)*1000.0_dp) &
+         IF (simpar%roll_tol <= EPSILON(0.0_dp)*1000.0_dp) THEN
             CALL cp_warn(__LOCATION__, &
                          "Roll tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "// &
                          "This may lead to numerical problems. Setting up roll_tol to 1000*EPSILON!")
+         END IF
          simpar%roll_tol = MAX(EPSILON(0.0_dp)*1000.0_dp, simpar%roll_tol)
       END IF
 

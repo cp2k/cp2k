@@ -365,8 +365,9 @@ CONTAINS
             END IF
             IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bend_kind_set)) THEN
                DO i = 1, SIZE(molecule_kind_set(imolecule_kind)%bend_kind_set)
-                  IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bend_kind_set(i)%legendre%coeffs)) &
+                  IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bend_kind_set(i)%legendre%coeffs)) THEN
                      DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_kind_set(i)%legendre%coeffs)
+                  END IF
                END DO
                DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_kind_set)
             END IF
@@ -934,24 +935,30 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T9,A,I6,/,T9,A,(T30,5I10))") &
                "Number of molecules: ", nmolecule, "Molecule list:", &
                (molecule_kind%molecule_list(imolecule), imolecule=1, nmolecule)
-            IF (molecule_kind%nbond > 0) &
+            IF (molecule_kind%nbond > 0) THEN
                WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
-               "Number of bonds:       ", molecule_kind%nbond
-            IF (molecule_kind%nbend > 0) &
+                  "Number of bonds:       ", molecule_kind%nbond
+            END IF
+            IF (molecule_kind%nbend > 0) THEN
                WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
-               "Number of bends:       ", molecule_kind%nbend
-            IF (molecule_kind%nub > 0) &
+                  "Number of bends:       ", molecule_kind%nbend
+            END IF
+            IF (molecule_kind%nub > 0) THEN
                WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
-               "Number of Urey-Bradley:", molecule_kind%nub
-            IF (molecule_kind%ntorsion > 0) &
+                  "Number of Urey-Bradley:", molecule_kind%nub
+            END IF
+            IF (molecule_kind%ntorsion > 0) THEN
                WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
-               "Number of torsions:    ", molecule_kind%ntorsion
-            IF (molecule_kind%nimpr > 0) &
+                  "Number of torsions:    ", molecule_kind%ntorsion
+            END IF
+            IF (molecule_kind%nimpr > 0) THEN
                WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
-               "Number of improper:    ", molecule_kind%nimpr
-            IF (molecule_kind%nopbend > 0) &
+                  "Number of improper:    ", molecule_kind%nimpr
+            END IF
+            IF (molecule_kind%nopbend > 0) THEN
                WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
-               "Number of out opbends:    ", molecule_kind%nopbend
+                  "Number of out opbends:    ", molecule_kind%nopbend
+            END IF
          END IF
       END IF
    END SUBROUTINE write_molecule_kind

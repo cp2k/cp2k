@@ -112,9 +112,9 @@ CONTAINS
             CALL get_qs_env(qs_env, dft_control=dft_control)
             IF (dft_control%qs_control%semi_empirical) THEN
                CPABORT("Not available")
-            ELSEIF (dft_control%qs_control%dftb) THEN
+            ELSE IF (dft_control%qs_control%dftb) THEN
                CPABORT("Not available")
-            ELSEIF (dft_control%qs_control%xtb) THEN
+            ELSE IF (dft_control%qs_control%xtb) THEN
                CALL response_force_xtb(qs_env, p_env, ex_env%matrix_hz, ex_env, debug=ex_env%debug_forces)
             ELSE
                ! KS-DFT

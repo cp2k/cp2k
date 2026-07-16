@@ -153,8 +153,9 @@ CONTAINS
       IF (explicit) THEN
          CALL section_vals_val_get(vcd_section, "MAGNETIC_ORIGIN_REFERENCE", r_vals=ref_point)
       ELSE
-         IF (reference == use_mom_ref_user) &
+         IF (reference == use_mom_ref_user) THEN
             CPABORT("User-defined reference point should be given explicitly")
+         END IF
       END IF
 
       CALL get_reference_point(rpoint=vcd_env%magnetic_origin, qs_env=qs_env, &
@@ -167,8 +168,9 @@ CONTAINS
       IF (explicit) THEN
          CALL section_vals_val_get(vcd_section, "SPATIAL_ORIGIN_REFERENCE", r_vals=ref_point)
       ELSE
-         IF (reference == use_mom_ref_user) &
+         IF (reference == use_mom_ref_user) THEN
             CPABORT("User-defined reference point should be given explicitly")
+         END IF
       END IF
 
       CALL get_reference_point(rpoint=vcd_env%spatial_origin, qs_env=qs_env, &
@@ -824,9 +826,10 @@ CONTAINS
              + apt_total_nvpt(2, 2, l) &
              + apt_total_nvpt(3, 3, l))/3._dp
          DO i = 1, 3
-            IF (vcd_env%output_unit > 0) &
+            IF (vcd_env%output_unit > 0) THEN
                WRITE (vcd_env%output_unit, "(A,F15.6,F15.6,F15.6)") &
-               "NVP | ", apt_total_nvpt(i, :, l)
+                  "NVP | ", apt_total_nvpt(i, :, l)
+            END IF
          END DO
       END DO
 
@@ -836,9 +839,10 @@ CONTAINS
          IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3)") &
             'NVP | Atom', l
          DO i = 1, 3
-            IF (vcd_env%output_unit > 0) &
+            IF (vcd_env%output_unit > 0) THEN
                WRITE (vcd_env%output_unit, "(A,F15.6,F15.6,F15.6)") &
-               "NVP | ", vcd_env%aat_atom_nvpt(i, :, l)
+                  "NVP | ", vcd_env%aat_atom_nvpt(i, :, l)
+            END IF
          END DO
       END DO
 
@@ -849,9 +853,10 @@ CONTAINS
             IF (vcd_env%output_unit > 0) WRITE (vcd_env%output_unit, "(A,I3)") &
                'MFP | Atom', l
             DO i = 1, 3
-               IF (vcd_env%output_unit > 0) &
+               IF (vcd_env%output_unit > 0) THEN
                   WRITE (vcd_env%output_unit, "(A,F15.6,F15.6,F15.6)") &
-                  "MFP | ", vcd_env%aat_atom_mfp(i, :, l)
+                     "MFP | ", vcd_env%aat_atom_mfp(i, :, l)
+               END IF
             END DO
          END DO
       END IF

@@ -583,7 +583,7 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: uu
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: theta
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: u_vdw(:, :)
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: u_vdw
       INTEGER                                            :: handle, ig, iq, l, m, nl_type, nqs, &
                                                             q1_i, q2_i
       LOGICAL                                            :: use_virial

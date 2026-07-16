@@ -272,9 +272,9 @@ CONTAINS
                b32 = particle_set(index_c)%r - particle_set(index_b)%r
                b12 = pbc(b12, cell)
                b32 = pbc(b32, cell)
-               d12 = SQRT(DOT_PRODUCT(b12, b12))
+               d12 = NORM2(b12)
                id12 = 1.0_dp/d12
-               d32 = SQRT(DOT_PRODUCT(b32, b32))
+               d32 = NORM2(b32)
                id32 = 1.0_dp/d32
                dist = DOT_PRODUCT(b12, b32)
                theta = (dist*id12*id32)
@@ -343,11 +343,11 @@ CONTAINS
                tn(1) = t32(2)*t34(3) - t34(2)*t32(3)
                tn(2) = -t32(1)*t34(3) + t34(1)*t32(3)
                tn(3) = t32(1)*t34(2) - t34(1)*t32(2)
-               sm = SQRT(DOT_PRODUCT(tm, tm))
+               sm = NORM2(tm)
                ism = 1.0_dp/sm
-               sn = SQRT(DOT_PRODUCT(tn, tn))
+               sn = NORM2(tn)
                isn = 1.0_dp/sn
-               s32 = SQRT(DOT_PRODUCT(t32, t32))
+               s32 = NORM2(t32)
                is32 = 1.0_dp/s32
                dist1 = DOT_PRODUCT(t12, t32)
                dist2 = DOT_PRODUCT(t34, t32)
@@ -415,11 +415,11 @@ CONTAINS
                tn(1) = t32(2)*t34(3) - t34(2)*t32(3)
                tn(2) = -t32(1)*t34(3) + t34(1)*t32(3)
                tn(3) = t32(1)*t34(2) - t34(1)*t32(2)
-               sm = SQRT(DOT_PRODUCT(tm, tm))
+               sm = NORM2(tm)
                ism = 1.0_dp/sm
-               sn = SQRT(DOT_PRODUCT(tn, tn))
+               sn = NORM2(tn)
                isn = 1.0_dp/sn
-               s32 = SQRT(DOT_PRODUCT(t32, t32))
+               s32 = NORM2(t32)
                is32 = 1.0_dp/s32
                dist1 = DOT_PRODUCT(t12, t32)
                dist2 = DOT_PRODUCT(t34, t32)
@@ -483,8 +483,8 @@ CONTAINS
                tm(1) = t32(2)*t12(3) - t12(2)*t32(3)
                tm(2) = -t32(1)*t12(3) + t12(1)*t32(3)
                tm(3) = t32(1)*t12(2) - t12(1)*t32(2)
-               sm = SQRT(DOT_PRODUCT(tm, tm))
-               s32 = SQRT(DOT_PRODUCT(t32, t32))
+               sm = NORM2(tm)
+               s32 = NORM2(t32)
                CALL force_opbends(opbend_list(iopbend)%opbend_kind%id_type, &
                                   s32, tm, t41, t42, t43, &
                                   opbend_list(iopbend)%opbend_kind%k, &

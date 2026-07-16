@@ -395,9 +395,28 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(orb_basis_set)) RETURN
 
-      IF (cell%perd(1) == 1) THEN; ix_min = -1; ix_max = 1; ELSE; ix_min = 0; ix_max = 0; END IF
-      IF (cell%perd(2) == 1) THEN; iy_min = -1; iy_max = 1; ELSE; iy_min = 0; iy_max = 0; END IF
-      IF (cell%perd(3) == 1) THEN; iz_min = -1; iz_max = 1; ELSE; iz_min = 0; iz_max = 0; END IF
+      IF (cell%perd(1) == 1) THEN
+         ix_min = -1
+         ix_max = 1
+      ELSE
+         ix_min = 0
+         ix_max = 0
+      END IF
+      IF (cell%perd(2) == 1) THEN
+         iy_min = -1
+         iy_max = 1
+      ELSE
+         iy_min = 0
+         iy_max = 0
+      END IF
+
+      IF (cell%perd(3) == 1) THEN
+         iz_min = -1
+         iz_max = 1
+      ELSE
+         iz_min = 0
+         iz_max = 0
+      END IF
 
       r_atom = particle_set(iatom)%r
 
@@ -952,9 +971,27 @@ CONTAINS
 
       natom = SIZE(bs_env%i_ao_start_from_atom)
 
-      IF (cell%perd(1) == 1) THEN; ix_min = -1; ix_max = 1; ELSE; ix_min = 0; ix_max = 0; END IF
-      IF (cell%perd(2) == 1) THEN; iy_min = -1; iy_max = 1; ELSE; iy_min = 0; iy_max = 0; END IF
-      IF (cell%perd(3) == 1) THEN; iz_min = -1; iz_max = 1; ELSE; iz_min = 0; iz_max = 0; END IF
+      IF (cell%perd(1) == 1) THEN
+         ix_min = -1
+         ix_max = 1
+      ELSE
+         ix_min = 0
+         ix_max = 0
+      END IF
+      IF (cell%perd(2) == 1) THEN
+         iy_min = -1
+         iy_max = 1
+      ELSE
+         iy_min = 0
+         iy_max = 0
+      END IF
+      IF (cell%perd(3) == 1) THEN
+         iz_min = -1
+         iz_max = 1
+      ELSE
+         iz_min = 0
+         iz_max = 0
+      END IF
 
       !$OMP PARALLEL DEFAULT(NONE) &
       !$OMP SHARED(bs_env, ctx, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size, &

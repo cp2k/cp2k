@@ -118,14 +118,16 @@ CONTAINS
          ! User defined virial screening
          CALL section_vals_val_get(barostat_section, "VIRIAL", i_val=barostat%virial_components)
          check = barostat%virial_components == do_clv_xyz .OR. simpar%ensemble == npt_f_ensemble
-         IF (.NOT. check) &
+         IF (.NOT. check) THEN
             CALL cp_abort(__LOCATION__, "The screening of the components of "// &
                           "the virial is available only with the NPT_F ensemble!")
+         END IF
       ELSE
-         IF (explicit) &
+         IF (explicit) THEN
             CALL cp_warn(__LOCATION__, &
                          "A barostat has been defined with an MD ensemble which does not support barostat! "// &
                          "Its definition will be ignored!")
+         END IF
       END IF
 
    END SUBROUTINE create_barostat_type

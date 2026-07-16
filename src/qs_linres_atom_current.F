@@ -266,16 +266,11 @@ CONTAINS
       NULLIFY (basis_1c_set, jp_RARnu, jp2_RARnu)
 
       ALLOCATE (a_block(nspins), b_block(nspins), c_block(nspins), d_block(nspins), &
-                jp_RARnu(nspins), jp2_RARnu(nspins), &
-                STAT=istat)
-      CPASSERT(istat == 0)
+                jp_RARnu(nspins), jp2_RARnu(nspins))
 
       ALLOCATE (a_matrix(max_nsgf, max_nsgf), b_matrix(max_nsgf, max_nsgf), &
-                c_matrix(max_nsgf, max_nsgf), d_matrix(max_nsgf, max_nsgf), &
-                STAT=istat)
-      CPASSERT(istat == 0)
-      ALLOCATE (proj_work1(len_PC1), proj_work2(len_CPC), STAT=istat)
-      CPASSERT(istat == 0)
+                c_matrix(max_nsgf, max_nsgf), d_matrix(max_nsgf, max_nsgf))
+      ALLOCATE (proj_work1(len_PC1), proj_work2(len_CPC))
 
 !$OMP SINGLE
 !$    ALLOCATE (alloc_lock(natom))
@@ -602,8 +597,9 @@ CONTAINS
                END IF
                CALL para_env%sum(tmp_coeff)
 
-               IF (ASSOCIATED(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef)) &
+               IF (ASSOCIATED(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef)) THEN
                   nbr_dbl = nbr_dbl + 8.0_dp*REAL(SIZE(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef), dp)
+               END IF
             END DO ! ispin
          END DO ! iat
 

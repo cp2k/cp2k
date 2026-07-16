@@ -266,24 +266,33 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(fb_env%obj))
       CPASSERT(fb_env%obj%ref_count > 0)
-      IF (PRESENT(rcut)) &
+      IF (PRESENT(rcut)) THEN
          rcut => fb_env%obj%rcut
-      IF (PRESENT(filter_temperature)) &
+      END IF
+      IF (PRESENT(filter_temperature)) THEN
          filter_temperature = fb_env%obj%filter_temperature
-      IF (PRESENT(auto_cutoff_scale)) &
+      END IF
+      IF (PRESENT(auto_cutoff_scale)) THEN
          auto_cutoff_scale = fb_env%obj%auto_cutoff_scale
-      IF (PRESENT(eps_default)) &
+      END IF
+      IF (PRESENT(eps_default)) THEN
          eps_default = fb_env%obj%eps_default
-      IF (PRESENT(atomic_halos)) &
+      END IF
+      IF (PRESENT(atomic_halos)) THEN
          CALL fb_atomic_halo_list_associate(atomic_halos, fb_env%obj%atomic_halos)
-      IF (PRESENT(trial_fns)) &
+      END IF
+      IF (PRESENT(trial_fns)) THEN
          CALL fb_trial_fns_associate(trial_fns, fb_env%obj%trial_fns)
-      IF (PRESENT(collective_com)) &
+      END IF
+      IF (PRESENT(collective_com)) THEN
          collective_com = fb_env%obj%collective_com
-      IF (PRESENT(local_atoms)) &
+      END IF
+      IF (PRESENT(local_atoms)) THEN
          local_atoms => fb_env%obj%local_atoms
-      IF (PRESENT(nlocal_atoms)) &
+      END IF
+      IF (PRESENT(nlocal_atoms)) THEN
          nlocal_atoms = fb_env%obj%nlocal_atoms
+      END IF
    END SUBROUTINE fb_env_get
 
 ! **********************************************************************
@@ -329,32 +338,38 @@ CONTAINS
          END IF
          fb_env%obj%rcut => rcut
       END IF
-      IF (PRESENT(filter_temperature)) &
+      IF (PRESENT(filter_temperature)) THEN
          fb_env%obj%filter_temperature = filter_temperature
-      IF (PRESENT(auto_cutoff_scale)) &
+      END IF
+      IF (PRESENT(auto_cutoff_scale)) THEN
          fb_env%obj%auto_cutoff_scale = auto_cutoff_scale
-      IF (PRESENT(eps_default)) &
+      END IF
+      IF (PRESENT(eps_default)) THEN
          fb_env%obj%eps_default = eps_default
+      END IF
       IF (PRESENT(atomic_halos)) THEN
          CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos)
          CALL fb_atomic_halo_list_associate(fb_env%obj%atomic_halos, atomic_halos)
       END IF
       IF (PRESENT(trial_fns)) THEN
-         IF (fb_trial_fns_has_data(trial_fns)) &
+         IF (fb_trial_fns_has_data(trial_fns)) THEN
             CALL fb_trial_fns_retain(trial_fns)
+         END IF
          CALL fb_trial_fns_release(fb_env%obj%trial_fns)
          CALL fb_trial_fns_associate(fb_env%obj%trial_fns, trial_fns)
       END IF
-      IF (PRESENT(collective_com)) &
+      IF (PRESENT(collective_com)) THEN
          fb_env%obj%collective_com = collective_com
+      END IF
       IF (PRESENT(local_atoms)) THEN
          IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
             DEALLOCATE (fb_env%obj%local_atoms)
          END IF
          fb_env%obj%local_atoms => local_atoms
       END IF
-      IF (PRESENT(nlocal_atoms)) &
+      IF (PRESENT(nlocal_atoms)) THEN
          fb_env%obj%nlocal_atoms = nlocal_atoms
+      END IF
    END SUBROUTINE fb_env_set
 
 END MODULE qs_fb_env_types

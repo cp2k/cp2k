@@ -569,8 +569,9 @@ CONTAINS
          DO istore = 1, MIN(almo_scf_env%almo_history%istore, almo_scf_env%almo_history%nstore)
             CALL dbcsr_release(almo_scf_env%almo_history%matrix_p_up_down(ispin, istore))
          END DO
-         IF (almo_scf_env%almo_history%istore > 0) &
+         IF (almo_scf_env%almo_history%istore > 0) THEN
             CALL dbcsr_release(almo_scf_env%almo_history%matrix_t(ispin))
+         END IF
       END DO
       DEALLOCATE (almo_scf_env%almo_history%matrix_p_up_down)
       DEALLOCATE (almo_scf_env%almo_history%matrix_t)
@@ -580,8 +581,9 @@ CONTAINS
             CALL dbcsr_release(almo_scf_env%xalmo_history%matrix_p_up_down(ispin, istore))
             !CALL dbcsr_release(almo_scf_env%xalmo_history%matrix_x(ispin, istore))
          END DO
-         IF (almo_scf_env%xalmo_history%istore > 0) &
+         IF (almo_scf_env%xalmo_history%istore > 0) THEN
             CALL dbcsr_release(almo_scf_env%xalmo_history%matrix_t(ispin))
+         END IF
       END DO
       DEALLOCATE (almo_scf_env%xalmo_history%matrix_p_up_down)
       !DEALLOCATE (almo_scf_env%xalmo_history%matrix_x)

@@ -223,7 +223,7 @@ CONTAINS
             ELSE
                scf_env%iter_method = "P_Mix/Diag."
             END IF
-         ELSEIF (scf_env%mixing_method > 1) THEN
+         ELSE IF (scf_env%mixing_method > 1) THEN
             scf_env%iter_param = scf_env%mixing_store%alpha
             IF (use_jacobi) THEN
                scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Jacobi"
@@ -1124,9 +1124,9 @@ CONTAINS
             CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom)
             CALL mixing_init(subspace_env%mixing_method, rho, subspace_env%mixing_store, &
                              para_env, rho_atom=rho_atom)
-         ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+         ELSE IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
             CALL charge_mixing_init(subspace_env%mixing_store)
-         ELSEIF (dft_control%qs_control%semi_empirical) THEN
+         ELSE IF (dft_control%qs_control%semi_empirical) THEN
             CPABORT('SE Code not possible')
          ELSE
             CALL mixing_init(subspace_env%mixing_method, rho, subspace_env%mixing_store, para_env)
@@ -1378,7 +1378,7 @@ CONTAINS
             ELSE
                scf_env%iter_method = "P_Mix/Diag."
             END IF
-         ELSEIF (scf_env%mixing_method > 1) THEN
+         ELSE IF (scf_env%mixing_method > 1) THEN
             scf_env%iter_param = scf_env%mixing_store%alpha
             IF (use_jacobi) THEN
                scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Jacobi"
@@ -1476,7 +1476,7 @@ CONTAINS
          IF (scf_env%mixing_method == 1) THEN
             scf_env%iter_param = scf_env%p_mix_alpha
             scf_env%iter_method = "P_Mix/OTdiag."
-         ELSEIF (scf_env%mixing_method > 1) THEN
+         ELSE IF (scf_env%mixing_method > 1) THEN
             scf_env%iter_param = scf_env%mixing_store%alpha
             scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/OTdiag."
          END IF
@@ -1695,7 +1695,7 @@ CONTAINS
          IF (scf_env%mixing_method == 1) THEN
             scf_env%iter_param = scf_env%p_mix_alpha
             scf_env%iter_method = "P_Mix/Diag."
-         ELSEIF (scf_env%mixing_method > 1) THEN
+         ELSE IF (scf_env%mixing_method > 1) THEN
             scf_env%iter_param = scf_env%mixing_store%alpha
             scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Diag."
          END IF
@@ -1917,10 +1917,11 @@ CONTAINS
             CALL lanczos_refinement(scf_env%krylov_space, ks, c0, c1, mo_eigenvalues, &
                                     nao, eps_iter, ispin, check_moconv_only=my_check_moconv_only)
             t2 = m_walltime()
-            IF (output_unit > 0) &
+            IF (output_unit > 0) THEN
                WRITE (output_unit, '(T8,I3,T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)') &
-               ispin, iter, scf_env%krylov_space%nmo_conv, &
-               scf_env%krylov_space%max_res_norm, scf_env%krylov_space%min_res_norm, t2 - t1
+                  ispin, iter, scf_env%krylov_space%nmo_conv, &
+                  scf_env%krylov_space%max_res_norm, scf_env%krylov_space%min_res_norm, t2 - t1
+            END IF
 
             CYCLE
          ELSE
@@ -2038,8 +2039,9 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DAVIDSON", &
                                          extension=".scfLog")
 
-      IF (output_unit > 0) &
+      IF (output_unit > 0) THEN
          WRITE (output_unit, "(/T15,A)") '<<<<<<<<<  DAVIDSON ITERATIONS   <<<<<<<<<<'
+      END IF
 
       IF (scf_env%mixing_method == 1) THEN
          scf_env%iter_param = scf_env%p_mix_alpha

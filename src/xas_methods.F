@@ -316,7 +316,7 @@ CONTAINS
                WRITE (UNIT=output_unit, FMT="( A , I7, A, I7)") " The sub-set contains states from ", &
                   qs_loc_env%localized_wfn_control%lu_bound_states(1, my_spin), " to ", &
                   qs_loc_env%localized_wfn_control%lu_bound_states(2, my_spin)
-            ELSEIF (qs_loc_env%localized_wfn_control%set_of_states == state_loc_list) THEN
+            ELSE IF (qs_loc_env%localized_wfn_control%set_of_states == state_loc_list) THEN
                WRITE (UNIT=output_unit, FMT="( A )") " The sub-set contains states given in the input list"
             END IF
 
@@ -431,8 +431,9 @@ CONTAINS
             CALL get_mo_set(mos(my_spin), nmo=nmo)
             CALL get_xas_env(xas_env, occ_estate=occ_estate, xas_nelectron=xas_nelectron)
             tmp = xas_nelectron + 1.0_dp - occ_estate
-            IF (nmo < tmp) &
+            IF (nmo < tmp) THEN
                CPABORT("CLS: the required method needs added_mos to the ground state")
+            END IF
             ! If the restart file for this atom exists, the mos and the
             ! occupation numbers are overwritten
             ! It is necessary that the restart is for the same xas method
@@ -724,31 +725,31 @@ CONTAINS
          nele = REAL(nelectron, dp) - 0.5_dp
          occ_homo = 1.0_dp
          occ_homo_plus = 0._dp
-      ELSEIF (xas_control%xas_method == xas_tp_xhh) THEN
+      ELSE IF (xas_control%xas_method == xas_tp_xhh) THEN
          occ_estate = 0.5_dp
          nele = REAL(nelectron, dp)
          occ_homo = 1.0_dp
          occ_homo_plus = 0.5_dp
-      ELSEIF (xas_control%xas_method == xas_tp_fh) THEN
+      ELSE IF (xas_control%xas_method == xas_tp_fh) THEN
          occ_estate = 0.0_dp
          nele = REAL(nelectron, dp) - 1.0_dp
          occ_homo = 1.0_dp
          occ_homo_plus = 0._dp
-      ELSEIF (xas_control%xas_method == xas_tp_xfh) THEN
+      ELSE IF (xas_control%xas_method == xas_tp_xfh) THEN
          occ_estate = 0.0_dp
          nele = REAL(nelectron, dp)
          occ_homo = 1.0_dp
          occ_homo_plus = 1._dp
-      ELSEIF (xas_control%xas_method == xes_tp_val) THEN
+      ELSE IF (xas_control%xas_method == xes_tp_val) THEN
          occ_estate = xas_control%xes_core_occupation
          nele = REAL(nelectron, dp) - xas_control%xes_core_occupation
          occ_homo = xas_control%xes_homo_occupation
-      ELSEIF (xas_control%xas_method == xas_dscf) THEN
+      ELSE IF (xas_control%xas_method == xas_dscf) THEN
          occ_estate = 0.0_dp
          nele = REAL(nelectron, dp)
          occ_homo = 1.0_dp
          occ_homo_plus = 1._dp
-      ELSEIF (xas_control%xas_method == xas_tp_flex) THEN
+      ELSE IF (xas_control%xas_method == xas_tp_flex) THEN
          nele = REAL(xas_control%nel_tot, dp)
          occ_estate = REAL(xas_control%xas_core_occupation, dp)
          IF (nele < 0.0_dp) nele = REAL(nelectron, dp) - (1.0_dp - occ_estate)
@@ -857,7 +858,7 @@ CONTAINS
                             "xas_env%ostrength_sm-"//TRIM(ADJUSTL(cp_to_string(i))))
             CALL dbcsr_set(xas_env%ostrength_sm(i)%matrix, 0.0_dp)
          END DO
-      ELSEIF (xas_control%dipole_form == xas_dip_vel) THEN
+      ELSE IF (xas_control%dipole_form == xas_dip_vel) THEN
          !
          ! prepare for allocation
          natom = SIZE(particle_set, 1)
@@ -918,31 +919,31 @@ CONTAINS
       IF (xas_control%state_type == xas_1s_type) THEN
          nq(1) = 1
          lq(1) = 0
-      ELSEIF (xas_control%state_type == xas_2s_type) THEN
+      ELSE IF (xas_control%state_type == xas_2s_type) THEN
          nq(1) = 2
          lq(1) = 0
-      ELSEIF (xas_control%state_type == xas_2p_type) THEN
+      ELSE IF (xas_control%state_type == xas_2p_type) THEN
          nq(1) = 2
          lq(1) = 1
-      ELSEIF (xas_control%state_type == xas_3s_type) THEN
+      ELSE IF (xas_control%state_type == xas_3s_type) THEN
          nq(1) = 3
          lq(1) = 0
-      ELSEIF (xas_control%state_type == xas_3p_type) THEN
+      ELSE IF (xas_control%state_type == xas_3p_type) THEN
          nq(1) = 3
          lq(1) = 1
-      ELSEIF (xas_control%state_type == xas_3d_type) THEN
+      ELSE IF (xas_control%state_type == xas_3d_type) THEN
          nq(1) = 3
          lq(1) = 2
-      ELSEIF (xas_control%state_type == xas_4s_type) THEN
+      ELSE IF (xas_control%state_type == xas_4s_type) THEN
          nq(1) = 4
          lq(1) = 0
-      ELSEIF (xas_control%state_type == xas_4p_type) THEN
+      ELSE IF (xas_control%state_type == xas_4p_type) THEN
          nq(1) = 4
          lq(1) = 1
-      ELSEIF (xas_control%state_type == xas_4d_type) THEN
+      ELSE IF (xas_control%state_type == xas_4d_type) THEN
          nq(1) = 4
          lq(1) = 2
-      ELSEIF (xas_control%state_type == xas_4f_type) THEN
+      ELSE IF (xas_control%state_type == xas_4f_type) THEN
          nq(1) = 4
          lq(1) = 3
       ELSE
@@ -1659,7 +1660,8 @@ CONTAINS
             END DO
          END IF
 
-         CALL reallocate(xas_env%state_of_atom, 1, nexc_atoms, 1, MAXVAL(nexc_states)) ! Scales down the 2d-array to the minimal size
+         ! Scales down the 2d-array to the minimal size
+         CALL reallocate(xas_env%state_of_atom, 1, nexc_atoms, 1, MAXVAL(nexc_states))
 
       ELSE ! Manually selected orbital indices
 

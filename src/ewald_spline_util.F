@@ -398,10 +398,10 @@ CONTAINS
             END DO
             Na = SQRT(dxTerm*dxTerm + dyTerm*dyTerm + dzTerm*dzTerm)
             dn = Eval_d_Interp_Spl3_pbc([xs1, xs2, xs3], TabLR)
-            Nn = SQRT(DOT_PRODUCT(dn, dn))
+            Nn = NORM2(dn)
             Fterm = Eval_Interp_Spl3_pbc([xs1, xs2, xs3], TabLR)
             tmp1 = ABS(Term - Fterm)
-            tmp2 = SQRT(DOT_PRODUCT(dn - [dxTerm, dyTerm, dzTerm], dn - [dxTerm, dyTerm, dzTerm]))
+            tmp2 = NORM2(dn - [dxTerm, dyTerm, dzTerm])
             errf = errf + tmp1
             maxerrorf = MAX(maxerrorf, tmp1)
             errd = errd + tmp2

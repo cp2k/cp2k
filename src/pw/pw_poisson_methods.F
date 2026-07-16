@@ -537,8 +537,9 @@ CONTAINS
             ! point pw
             pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
             pw_grid => pw_pool%pw_grid
-            IF (.NOT. pw_grid_compare(pw_pool%pw_grid, vhartree%pw_grid)) &
+            IF (.NOT. pw_grid_compare(pw_pool%pw_grid, vhartree%pw_grid)) THEN
                CPABORT("vhartree has a different grid than the poisson solver")
+            END IF
             ! density in G space
             CALL pw_pool%create_pw(rhog)
             IF (PRESENT(aux_density)) THEN
@@ -948,8 +949,9 @@ CONTAINS
                ! point pw
                pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
                pw_grid => pw_pool%pw_grid
-               IF (.NOT. pw_grid_compare(pw_pool%pw_grid, vhartree%pw_grid)) &
+               IF (.NOT. pw_grid_compare(pw_pool%pw_grid, vhartree%pw_grid)) THEN
                   CPABORT("vhartree has a different grid than the poisson solver")
+               END IF
                ! density in G space
                CALL pw_pool%create_pw(rhog)
                IF (PRESENT(aux_density)) THEN
@@ -1292,12 +1294,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (PRESENT(parameters)) &
-         poisson_env%parameters = parameters
+      IF (PRESENT(parameters)) poisson_env%parameters = parameters
 
       IF (PRESENT(cell_hmat)) THEN
-         IF (ANY(poisson_env%cell_hmat /= cell_hmat)) &
+         IF (ANY(poisson_env%cell_hmat /= cell_hmat)) THEN
             CALL pw_poisson_cleanup(poisson_env)
+         END IF
          poisson_env%cell_hmat(:, :) = cell_hmat(:, :)
          poisson_env%rebuild = .TRUE.
       END IF

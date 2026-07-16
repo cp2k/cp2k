@@ -69,9 +69,11 @@ MODULE xtb_parameters
                                      0.98_dp, 1.57_dp, 2.04_dp, 2.55_dp, 3.04_dp, 3.44_dp, 3.98_dp, 4.50_dp, & ! 10
                                      0.93_dp, 1.31_dp, 1.61_dp, 1.90_dp, 2.19_dp, 2.58_dp, 3.16_dp, 3.50_dp, & ! 18
                                      0.82_dp, 1.00_dp, 1.36_dp, 1.54_dp, 1.63_dp, 1.66_dp, 1.55_dp, 1.83_dp, &
-                                     1.88_dp, 1.91_dp, 1.90_dp, 1.65_dp, 1.81_dp, 2.01_dp, 2.18_dp, 2.55_dp, 2.96_dp, 3.00_dp, & ! 36
+                                     1.88_dp, 1.91_dp, 1.90_dp, 1.65_dp, 1.81_dp, 2.01_dp, 2.18_dp, 2.55_dp, &
+                                     2.96_dp, 3.00_dp, & ! 36
                                      0.82_dp, 0.95_dp, 1.22_dp, 1.33_dp, 1.60_dp, 2.16_dp, 1.90_dp, 2.20_dp, &
-                                     2.28_dp, 2.20_dp, 1.93_dp, 1.69_dp, 1.78_dp, 1.96_dp, 2.05_dp, 2.10_dp, 2.66_dp, 2.60_dp, & ! 54
+                                     2.28_dp, 2.20_dp, 1.93_dp, 1.69_dp, 1.78_dp, 1.96_dp, 2.05_dp, 2.10_dp, &
+                                     2.66_dp, 2.60_dp, & ! 54
                                      0.79_dp, 0.89_dp, 1.10_dp, &
                                      1.12_dp, 1.13_dp, 1.14_dp, 1.15_dp, 1.17_dp, 1.18_dp, 1.20_dp, 1.21_dp, &
                                      1.22_dp, 1.23_dp, 1.24_dp, 1.25_dp, 1.26_dp, 1.27_dp, & ! Lanthanides
@@ -116,9 +118,11 @@ MODULE xtb_parameters
                                      1.30_dp, 0.99_dp, 0.84_dp, 0.75_dp, 0.71_dp, 0.64_dp, 0.60_dp, 0.62_dp, & ! 10
                                      1.60_dp, 1.40_dp, 1.24_dp, 1.14_dp, 1.09_dp, 1.04_dp, 1.00_dp, 1.01_dp, & ! 18
                                      2.00_dp, 1.74_dp, 1.59_dp, 1.48_dp, 1.44_dp, 1.30_dp, 1.29_dp, 1.24_dp, &
-                                     1.18_dp, 1.17_dp, 1.22_dp, 1.20_dp, 1.23_dp, 1.20_dp, 1.20_dp, 1.18_dp, 1.17_dp, 1.16_dp, & ! 36
+                                     1.18_dp, 1.17_dp, 1.22_dp, 1.20_dp, 1.23_dp, 1.20_dp, 1.20_dp, 1.18_dp, &
+                                     1.17_dp, 1.16_dp, & ! 36
                                      2.15_dp, 1.90_dp, 1.76_dp, 1.64_dp, 1.56_dp, 1.46_dp, 1.38_dp, 1.36_dp, &
-                                     1.34_dp, 1.30_dp, 1.36_dp, 1.40_dp, 1.42_dp, 1.40_dp, 1.40_dp, 1.37_dp, 1.36_dp, 1.36_dp, & ! 54
+                                     1.34_dp, 1.30_dp, 1.36_dp, 1.40_dp, 1.42_dp, 1.40_dp, 1.40_dp, 1.37_dp, &
+                                     1.36_dp, 1.36_dp, & ! 54
                                      2.38_dp, 2.06_dp, 1.94_dp, &
                                      1.84_dp, 1.90_dp, 1.88_dp, 1.86_dp, 1.85_dp, 1.83_dp, 1.82_dp, 1.81_dp, &
                                      1.80_dp, 1.79_dp, 1.77_dp, 1.77_dp, 1.78_dp, 1.74_dp, & ! Lanthanides
@@ -138,9 +142,11 @@ MODULE xtb_parameters
                                      1.05_dp, 2.05_dp, 3.00_dp, 4.00_dp, 3.00_dp, 2.00_dp, 1.25_dp, 1.00_dp, & ! 10
                                      1.05_dp, 2.05_dp, 3.00_dp, 4.00_dp, 3.00_dp, 2.00_dp, 1.25_dp, 1.00_dp, & ! 18
                                      1.05_dp, 2.05_dp, 3.50_dp, 3.50_dp, 3.50_dp, 3.50_dp, 3.50_dp, 3.50_dp, &
-                                     3.50_dp, 3.50_dp, 3.50_dp, 2.50_dp, 2.50_dp, 3.50_dp, 3.50_dp, 3.50_dp, 1.25_dp, 1.00_dp, & ! 36
+                                     3.50_dp, 3.50_dp, 3.50_dp, 2.50_dp, 2.50_dp, 3.50_dp, 3.50_dp, 3.50_dp, &
+                                     1.25_dp, 1.00_dp, & ! 36
                                      1.05_dp, 2.05_dp, 3.50_dp, 3.50_dp, 3.50_dp, 3.50_dp, 3.50_dp, 3.50_dp, &
-                                     3.50_dp, 3.50_dp, 3.50_dp, 2.50_dp, 2.50_dp, 3.50_dp, 3.50_dp, 3.50_dp, 1.25_dp, 1.00_dp, & ! 54
+                                     3.50_dp, 3.50_dp, 3.50_dp, 2.50_dp, 2.50_dp, 3.50_dp, 3.50_dp, 3.50_dp, &
+                                     1.25_dp, 1.00_dp, & ! 54
                                      1.05_dp, 2.05_dp, 3.00_dp, &
                                      3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, &
                                      3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, & ! Lanthanides
@@ -646,14 +652,14 @@ CONTAINS
             CASE (78)
                kab = 0.80_dp
             END SELECT
-         ELSEIF (za == 5 .OR. zb == 5) THEN
+         ELSE IF (za == 5 .OR. zb == 5) THEN
             ! Boron
             z = za + zb - 5
             SELECT CASE (z)
             CASE (15)
                kab = 0.97_dp
             END SELECT
-         ELSEIF (za == 7 .OR. zb == 7) THEN
+         ELSE IF (za == 7 .OR. zb == 7) THEN
             ! Nitrogen
             z = za + zb - 7
             SELECT CASE (z)
@@ -662,21 +668,21 @@ CONTAINS
                ! in the paper this is Kab for B-Si
                kab = 1.01_dp
             END SELECT
-         ELSEIF (za > 20 .AND. za < 30) THEN
+         ELSE IF (za > 20 .AND. za < 30) THEN
             ! 3d
             IF (zb > 20 .AND. zb < 30) THEN
                ! 3d
                kab = 1.10_dp
-            ELSEIF ((zb > 38 .AND. zb < 48) .OR. (zb > 56 .AND. zb < 80)) THEN
+            ELSE IF ((zb > 38 .AND. zb < 48) .OR. (zb > 56 .AND. zb < 80)) THEN
                ! 4d/5d/4f
                kab = 0.50_dp*(1.20_dp + 1.10_dp)
             END IF
-         ELSEIF ((za > 38 .AND. za < 48) .OR. (za > 56 .AND. za < 80)) THEN
+         ELSE IF ((za > 38 .AND. za < 48) .OR. (za > 56 .AND. za < 80)) THEN
             ! 4d/5d/4f
             IF (zb > 20 .AND. zb < 30) THEN
                ! 3d
                kab = 0.50_dp*(1.20_dp + 1.10_dp)
-            ELSEIF ((zb > 38 .AND. zb < 48) .OR. (zb > 56 .AND. zb < 80)) THEN
+            ELSE IF ((zb > 38 .AND. zb < 48) .OR. (zb > 56 .AND. zb < 80)) THEN
                ! 4d/5d/4f
                kab = 1.20_dp
             END IF

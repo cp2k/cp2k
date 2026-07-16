@@ -721,10 +721,12 @@ CONTAINS
 
       counter = counter + 1
 
-      IF (ASSOCIATED(ptr%acc)) &
+      IF (ASSOCIATED(ptr%acc)) THEN
          CALL count_nodes_in_global_tree(ptr%acc, counter)
-      IF (ASSOCIATED(ptr%nacc)) &
+      END IF
+      IF (ASSOCIATED(ptr%nacc)) THEN
          CALL count_nodes_in_global_tree(ptr%nacc, counter)
+      END IF
    END SUBROUTINE count_nodes_in_global_tree
 
 ! **************************************************************************************************
@@ -741,9 +743,11 @@ CONTAINS
 
       counter = counter + 1
 
-      IF (ASSOCIATED(ptr%acc)) &
+      IF (ASSOCIATED(ptr%acc)) THEN
          CALL count_nodes_in_tree(ptr%acc, counter)
-      IF (ASSOCIATED(ptr%nacc)) &
+      END IF
+      IF (ASSOCIATED(ptr%nacc)) THEN
          CALL count_nodes_in_tree(ptr%nacc, counter)
+      END IF
    END SUBROUTINE count_nodes_in_tree
 END MODULE tmc_tree_search

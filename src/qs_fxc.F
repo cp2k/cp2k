@@ -371,8 +371,9 @@ CONTAINS
       END DO
       ! Create fields for mGGA functionals. This implementation is not ready yet!
       IF (needs%tau .OR. needs%tau_spin) THEN
-         IF (.NOT. ASSOCIATED(tau1_r)) &
+         IF (.NOT. ASSOCIATED(tau1_r)) THEN
             CPABORT("Tau-dependent functionals requires allocated kinetic energy density grid")
+         END IF
          ALLOCATE (fxc_tau(spindim), gxc_tau(nspins))
          DO ispin = 1, spindim
             CALL pw_pool%create_pw(fxc_tau(ispin))

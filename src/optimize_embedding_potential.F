@@ -151,8 +151,9 @@ CONTAINS
          END DO
 
          ! Find out whether we need a spin-dependend embedding potential
-         IF (.NOT. ((all_nspins(1) == 1) .AND. (all_nspins(2) == 1) .AND. (all_nspins(3) == 1))) &
+         IF (.NOT. ((all_nspins(1) == 1) .AND. (all_nspins(2) == 1) .AND. (all_nspins(3) == 1))) THEN
             open_shell_embed = .TRUE.
+         END IF
 
          ! If it's open shell, we need to check spin states
          IF (open_shell_embed) THEN
@@ -667,12 +668,14 @@ CONTAINS
       TYPE(opt_embed_pot_type)                           :: opt_embed
 
       ! Read the potential as a vector in the auxiliary basis
-      IF (opt_embed%read_embed_pot) &
+      IF (opt_embed%read_embed_pot) THEN
          CALL read_embed_pot_vector(qs_env, embed_pot, spin_embed_pot, section, &
                                     opt_embed%embed_pot_coef, opt_embed%open_shell_embed)
+      END IF
       ! Read the potential as a cube (two cubes for open shell)
-      IF (opt_embed%read_embed_pot_cube) &
+      IF (opt_embed%read_embed_pot_cube) THEN
          CALL read_embed_pot_cube(embed_pot, spin_embed_pot, section, opt_embed%open_shell_embed)
+      END IF
 
    END SUBROUTINE read_embed_pot
 
@@ -695,8 +698,9 @@ CONTAINS
       exist = .FALSE.
       CALL section_vals_val_get(section, "EMBED_CUBE_FILE_NAME", c_val=filename)
       INQUIRE (FILE=filename, exist=exist)
-      IF (.NOT. exist) &
+      IF (.NOT. exist) THEN
          CPABORT("Embedding cube file not found. ")
+      END IF
 
       scaling_factor = 1.0_dp
       CALL cp_cube_to_pw(embed_pot, filename, scaling_factor)
@@ -706,8 +710,9 @@ CONTAINS
          exist = .FALSE.
          CALL section_vals_val_get(section, "EMBED_SPIN_CUBE_FILE_NAME", c_val=filename)
          INQUIRE (FILE=filename, exist=exist)
-         IF (.NOT. exist) &
+         IF (.NOT. exist) THEN
             CPABORT("Embedding spin cube file not found. ")
+         END IF
 
          scaling_factor = 1.0_dp
          CALL cp_cube_to_pw(spin_embed_pot, filename, scaling_factor)
@@ -784,8 +789,9 @@ CONTAINS
 
          READ (restart_unit) dimen_restart_basis
          ! Check the dimensions of the bases: the actual and the restart one
-         IF (.NOT. (dimen_restart_basis == dimen_aux)) &
+         IF (.NOT. (dimen_restart_basis == dimen_aux)) THEN
             CPABORT("Wrong dimension of the embedding basis in the restart file.")
+         END IF
 
          ALLOCATE (coef_read(dimen_var_aux))
          coef_read = 0.0_dp
@@ -844,8 +850,9 @@ CONTAINS
       exist = .FALSE.
       CALL section_vals_val_get(section, "EMBED_RESTART_FILE_NAME", c_val=filename)
       INQUIRE (FILE=filename, exist=exist)
-      IF (.NOT. exist) &
+      IF (.NOT. exist) THEN
          CPABORT("Embedding restart file not found. ")
+      END IF
 
    END SUBROUTINE embed_restart_file_name
 
@@ -1505,14 +1512,16 @@ CONTAINS
 
       ELSE ! Finite basis optimization
          ! If the previous step has been rejected, we go back to the previous expansion coefficients
-         IF (.NOT. opt_embed%accept_step) &
+         IF (.NOT. opt_embed%accept_step) THEN
             CALL cp_fm_scale_and_add(1.0_dp, opt_embed%embed_pot_coef, -1.0_dp, opt_embed%step)
+         END IF
 
          ! Do a simple steepest descent
          IF (opt_embed%steep_desc) THEN
-            IF (opt_embed%i_iter > 2) &
+            IF (opt_embed%i_iter > 2) THEN
                opt_embed%trust_rad = Barzilai_Borwein(opt_embed%step, opt_embed%prev_step, &
                                                       opt_embed%embed_pot_grad, opt_embed%prev_embed_pot_grad)
+            END IF
             IF (ABS(opt_embed%trust_rad) > opt_embed%max_trad) THEN
                IF (opt_embed%trust_rad > 0.0_dp) THEN
                   opt_embed%trust_rad = opt_embed%max_trad
@@ -1530,9 +1539,11 @@ CONTAINS
 
             ! First, update the Hessian inverse if needed
             IF (opt_embed%i_iter > 1) THEN
-               IF (opt_embed%accept_step) & ! We don't update Hessian if the step has been rejected
+               IF (opt_embed%accept_step) THEN
+                  ! We don't update Hessian if the step has been rejected
                   CALL symm_rank_one_update(opt_embed%embed_pot_grad, opt_embed%prev_embed_pot_grad, &
                                             opt_embed%step, opt_embed%prev_embed_pot_Hess, opt_embed%embed_pot_Hess)
+               END IF
             END IF
 
             ! Add regularization term to the Hessian
@@ -2213,8 +2224,9 @@ CONTAINS
          ! If energy change is larger than the predicted one, increase trust radius twice
          ! Else (between 0 and 1) leave as it is, unless Newton step has been taken and if the step is less than max
          IF ((ener_ratio > 1.0_dp) .AND. (.NOT. opt_embed%newton_step) .AND. &
-             (opt_embed%trust_rad < opt_embed%max_trad)) &
+             (opt_embed%trust_rad < opt_embed%max_trad)) THEN
             opt_embed%trust_rad = 2.0_dp*opt_embed%trust_rad
+         END IF
       ELSE ! Energy decreases
          ! If the decrease is not too large we allow this step to be taken
          ! Otherwise, the step is rejected
@@ -2222,8 +2234,9 @@ CONTAINS
             opt_embed%accept_step = .FALSE.
          END IF
          ! Trust radius is decreased 4 times unless it's smaller than the minimal allowed value
-         IF (opt_embed%trust_rad >= opt_embed%min_trad) &
+         IF (opt_embed%trust_rad >= opt_embed%min_trad) THEN
             opt_embed%trust_rad = 0.25_dp*opt_embed%trust_rad
+         END IF
       END IF
 
       IF (opt_embed%accept_step) opt_embed%last_accepted = opt_embed%i_iter

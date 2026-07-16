@@ -48,8 +48,9 @@ CONTAINS
          CALL dbcsr_copy(pao%matrix_D_preconed, pao%matrix_D)
       END IF
 
-      IF (pao%optimizer == pao_opt_bfgs) &
+      IF (pao%optimizer == pao_opt_bfgs) THEN
          CALL pao_opt_init_bfgs(pao)
+      END IF
 
    END SUBROUTINE pao_opt_init
 
@@ -85,11 +86,13 @@ CONTAINS
 
       CALL dbcsr_release(pao%matrix_D)
       CALL dbcsr_release(pao%matrix_G_prev)
-      IF (pao%precondition) &
+      IF (pao%precondition) THEN
          CALL dbcsr_release(pao%matrix_D_preconed)
+      END IF
 
-      IF (pao%optimizer == pao_opt_bfgs) &
+      IF (pao%optimizer == pao_opt_bfgs) THEN
          CALL dbcsr_release(pao%matrix_BFGS)
+      END IF
 
    END SUBROUTINE pao_opt_finalize
 

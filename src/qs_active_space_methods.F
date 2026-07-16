@@ -288,19 +288,23 @@ CONTAINS
       NULLIFY (kpoints)
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints, dft_control=dft_control, kpoints=kpoints)
       IF (do_kpoints) THEN
-         IF (.NOT. ASSOCIATED(kpoints)) &
+         IF (.NOT. ASSOCIATED(kpoints)) THEN
             CALL cp_abort(__LOCATION__, "Missing Gamma-point environment for active space module")
+         END IF
          CALL get_kpoint_info(kpoints, kp_scheme=kp_scheme, nkp=nkp, use_real_wfn=use_real_wfn)
          IF (TRIM(kp_scheme) /= "GAMMA" .OR. nkp /= 1 .OR. .NOT. use_real_wfn) THEN
             CALL cp_abort(__LOCATION__, &
                           "Only Gamma-point DFT%KPOINTS are supported in the active space module")
          END IF
-         IF (.NOT. ASSOCIATED(kpoints%kp_env)) &
+         IF (.NOT. ASSOCIATED(kpoints%kp_env)) THEN
             CALL cp_abort(__LOCATION__, "Missing Gamma-point environment for active space module")
-         IF (.NOT. ASSOCIATED(kpoints%kp_env(1)%kpoint_env)) &
+         END IF
+         IF (.NOT. ASSOCIATED(kpoints%kp_env(1)%kpoint_env)) THEN
             CALL cp_abort(__LOCATION__, "Missing Gamma-point environment for active space module")
-         IF (.NOT. ASSOCIATED(kpoints%kp_env(1)%kpoint_env%mos)) &
+         END IF
+         IF (.NOT. ASSOCIATED(kpoints%kp_env(1)%kpoint_env%mos)) THEN
             CALL cp_abort(__LOCATION__, "Missing Gamma-point MOs for active space module")
+         END IF
       END IF
 
       ! adiabatic rescaling?
@@ -786,7 +790,7 @@ CONTAINS
                      END IF
                      mo_set_active%eigenvalues(i) = eigenvalues(i, ispin)
                      ! if it was not an active orbital, check whether it is an inactive orbital
-                  ELSEIF (nmo_inactive_remaining > 0) THEN
+                  ELSE IF (nmo_inactive_remaining > 0) THEN
                      CALL cp_fm_to_fm(fm_dummy, fm_target_inactive, 1, i, i)
                      ! store on the fly the mapping of inactive orbitals
                      active_space_env%inactive_orbitals(nmo_inactive - nmo_inactive_remaining + 1, ispin) = i
@@ -819,7 +823,7 @@ CONTAINS
                      DO j = 0, jm
                         IF (ANY(active_space_env%active_orbitals(:, ispin) == i + j)) THEN
                            WRITE (iw, '(T3,F12.6,A5)', advance="no") eigenvalues(i + j, ispin), " [A]"
-                        ELSEIF (ANY(active_space_env%inactive_orbitals(:, ispin) == i + j)) THEN
+                        ELSE IF (ANY(active_space_env%inactive_orbitals(:, ispin) == i + j)) THEN
                            WRITE (iw, '(T3,F12.6,A5)', advance="no") eigenvalues(i + j, ispin), " [I]"
                         ELSE
                            WRITE (iw, '(T3,F12.6,A5)', advance="no") eigenvalues(i + j, ispin), " [V]"
@@ -996,7 +1000,7 @@ CONTAINS
          IF (i == 1) THEN
             n1 = nmo
             n2 = nmo
-         ELSEIF (i == 2) THEN
+         ELSE IF (i == 2) THEN
             n1 = nmo
             n2 = nmo
          ELSE
@@ -1451,8 +1455,9 @@ CONTAINS
       ! Check the input group
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       IF (eri_env%eri_gpw%group_size < 1) eri_env%eri_gpw%group_size = para_env%num_pe
-      IF (MOD(para_env%num_pe, eri_env%eri_gpw%group_size) /= 0) &
+      IF (MOD(para_env%num_pe, eri_env%eri_gpw%group_size) /= 0) THEN
          CPABORT("Group size must be a divisor of the total number of processes!")
+      END IF
       ! Create a new para_env or reuse the old one
       IF (eri_env%eri_gpw%group_size == para_env%num_pe) THEN
          eri_env%para_env_sub => para_env
@@ -1774,7 +1779,7 @@ CONTAINS
                      !
                      DEALLOCATE (eri, eri_index)
                   END DO
-               ELSEIF (eri_env%method == eri_method_full_gpw) THEN
+               ELSE IF (eri_env%method == eri_method_full_gpw) THEN
                   DO isp2 = isp1, nspins
                      CALL get_mo_set(mo_set=mos(isp2), nmo=nmo2)
                      nx = (nmo2*(nmo2 + 1))/2
@@ -2193,7 +2198,7 @@ CONTAINS
       CALL section_vals_val_get(input, "STRIDE", i_vals=istride)
       IF (SIZE(istride) == 1) THEN
          str(1:3) = istride(1)
-      ELSEIF (SIZE(istride) == 3) THEN
+      ELSE IF (SIZE(istride) == 3) THEN
          str(1:3) = istride(1:3)
       ELSE
          CPABORT("STRIDE arguments inconsistent")
@@ -3136,7 +3141,7 @@ CONTAINS
             END IF
             converged = .TRUE.
             EXIT
-         ELSEIF (ABS(delta_E) <= eps_iter) THEN
+         ELSE IF (ABS(delta_E) <= eps_iter) THEN
             IF (iw > 0) THEN
                WRITE (UNIT=iw, FMT="(/,T3,A,I5,A)") &
                   "*** rs-DFT embedding run converged in ", iter, " iteration(s) ***"
@@ -3318,7 +3323,7 @@ CONTAINS
             converged = .TRUE.
             EXIT
             ! check for convergence
-         ELSEIF (ABS(delta_E) <= eps_iter) THEN
+         ELSE IF (ABS(delta_E) <= eps_iter) THEN
             IF (iw > 0) THEN
                WRITE (UNIT=iw, FMT="(/,T3,A,I5,A)") &
                   "*** rs-DFT embedding run converged in ", iter, " iteration(s) ***"

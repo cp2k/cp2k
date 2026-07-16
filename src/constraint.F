@@ -157,43 +157,51 @@ CONTAINS
                   int_max_sigma = 0.0_dp
                   ishake_int = ishake_int + 1
                   ! 3x3
-                  IF (n3x3con /= 0) &
+                  IF (n3x3con /= 0) THEN
                      CALL shake_3x3_int(molecule, particle_set, pos, vel, dt, ishake_int, &
                                         int_max_sigma)
+                  END IF
                   ! 4x6
-                  IF (n4x6con /= 0) &
+                  IF (n4x6con /= 0) THEN
                      CALL shake_4x6_int(molecule, particle_set, pos, vel, dt, ishake_int, &
                                         int_max_sigma)
+                  END IF
                   ! Collective Variables
-                  IF (ncolv%ntot /= 0) &
+                  IF (ncolv%ntot /= 0) THEN
                      CALL shake_colv_int(molecule, particle_set, pos, vel, dt, ishake_int, &
                                          cell, imass, int_max_sigma)
+                  END IF
                END DO Shake_Intra_Loop
                max_sigma = MAX(max_sigma, int_max_sigma)
                CALL shake_int_info(log_unit, i, ishake_int, max_sigma)
                ! Virtual Site
-               IF (nvsitecon /= 0) &
+               IF (nvsitecon /= 0) THEN
                   CALL shake_vsite_int(molecule, pos)
+               END IF
             END DO
          END DO MOL
          ! Intermolecular constraints
          IF (do_ext_constraint) THEN
             CALL update_temporary_set(group, pos=pos, vel=vel)
             ! 3x3
-            IF (gci%ng3x3 /= 0) &
+            IF (gci%ng3x3 /= 0) THEN
                CALL shake_3x3_ext(gci, particle_set, pos, vel, dt, ishake_ext, &
                                   max_sigma)
+            END IF
             ! 4x6
-            IF (gci%ng4x6 /= 0) &
+            IF (gci%ng4x6 /= 0) THEN
                CALL shake_4x6_ext(gci, particle_set, pos, vel, dt, ishake_ext, &
                                   max_sigma)
+            END IF
             ! Collective Variables
-            IF (gci%ncolv%ntot /= 0) &
+            IF (gci%ncolv%ntot /= 0) THEN
                CALL shake_colv_ext(gci, particle_set, pos, vel, dt, ishake_ext, &
                                    cell, imass, max_sigma)
+            END IF
             ! Virtual Site
-            IF (gci%nvsite /= 0) &
+            IF (gci%nvsite /= 0) THEN
                CALL shake_vsite_ext(gci, pos)
+            END IF
             CALL restore_temporary_set(particle_set, local_particles, pos=pos, vel=vel)
          END IF
          CALL shake_ext_info(log_unit, ishake_ext, max_sigma)
@@ -283,15 +291,18 @@ CONTAINS
                   int_max_sigma = 0.0_dp
                   irattle_int = irattle_int + 1
                   ! 3x3
-                  IF (n3x3con /= 0) &
+                  IF (n3x3con /= 0) THEN
                      CALL rattle_3x3_int(molecule, particle_set, vel, dt)
+                  END IF
                   ! 4x6
-                  IF (n4x6con /= 0) &
+                  IF (n4x6con /= 0) THEN
                      CALL rattle_4x6_int(molecule, particle_set, vel, dt)
+                  END IF
                   ! Collective Variables
-                  IF (ncolv%ntot /= 0) &
+                  IF (ncolv%ntot /= 0) THEN
                      CALL rattle_colv_int(molecule, particle_set, vel, dt, &
                                           irattle_int, cell, imass, int_max_sigma)
+                  END IF
                END DO Rattle_Intra_Loop
                max_sigma = MAX(max_sigma, int_max_sigma)
                CALL rattle_int_info(log_unit, i, irattle_int, max_sigma)
@@ -301,15 +312,18 @@ CONTAINS
          IF (do_ext_constraint) THEN
             CALL update_temporary_set(group, vel=vel)
             ! 3x3
-            IF (gci%ng3x3 /= 0) &
+            IF (gci%ng3x3 /= 0) THEN
                CALL rattle_3x3_ext(gci, particle_set, vel, dt)
+            END IF
             ! 4x6
-            IF (gci%ng4x6 /= 0) &
+            IF (gci%ng4x6 /= 0) THEN
                CALL rattle_4x6_ext(gci, particle_set, vel, dt)
+            END IF
             ! Collective Variables
-            IF (gci%ncolv%ntot /= 0) &
+            IF (gci%ncolv%ntot /= 0) THEN
                CALL rattle_colv_ext(gci, particle_set, vel, dt, &
                                     irattle_ext, cell, imass, max_sigma)
+            END IF
             CALL restore_temporary_set(particle_set, local_particles, vel=vel)
          END IF
          CALL rattle_ext_info(log_unit, irattle_ext, max_sigma)
@@ -417,17 +431,20 @@ CONTAINS
                   int_max_sigma = 0.0_dp
                   ishake_int = ishake_int + 1
                   ! 3x3
-                  IF (n3x3con /= 0) &
+                  IF (n3x3con /= 0) THEN
                      CALL shake_roll_3x3_int(molecule, particle_set, pos, vel, r_shake, &
                                              v_shake, dt, ishake_int, int_max_sigma)
+                  END IF
                   ! 4x6
-                  IF (n4x6con /= 0) &
+                  IF (n4x6con /= 0) THEN
                      CALL shake_roll_4x6_int(molecule, particle_set, pos, vel, r_shake, &
                                              dt, ishake_int, int_max_sigma)
+                  END IF
                   ! Collective Variables
-                  IF (ncolv%ntot /= 0) &
+                  IF (ncolv%ntot /= 0) THEN
                      CALL shake_roll_colv_int(molecule, particle_set, pos, vel, r_shake, &
                                               v_shake, dt, ishake_int, cell, imass, int_max_sigma)
+                  END IF
                END DO Shake_Roll_Intra_Loop
                max_sigma = MAX(max_sigma, int_max_sigma)
                CALL shake_int_info(log_unit, i, ishake_int, max_sigma)
@@ -441,20 +458,24 @@ CONTAINS
          IF (do_ext_constraint) THEN
             CALL update_temporary_set(group, pos=pos, vel=vel)
             ! 3x3
-            IF (gci%ng3x3 /= 0) &
+            IF (gci%ng3x3 /= 0) THEN
                CALL shake_roll_3x3_ext(gci, particle_set, pos, vel, r_shake, &
                                        v_shake, dt, ishake_ext, max_sigma)
+            END IF
             ! 4x6
-            IF (gci%ng4x6 /= 0) &
+            IF (gci%ng4x6 /= 0) THEN
                CALL shake_roll_4x6_ext(gci, particle_set, pos, vel, r_shake, &
                                        dt, ishake_ext, max_sigma)
+            END IF
             ! Collective Variables
-            IF (gci%ncolv%ntot /= 0) &
+            IF (gci%ncolv%ntot /= 0) THEN
                CALL shake_roll_colv_ext(gci, particle_set, pos, vel, r_shake, &
                                         v_shake, dt, ishake_ext, cell, imass, max_sigma)
+            END IF
             ! Virtual Site
-            IF (gci%nvsite /= 0) &
+            IF (gci%nvsite /= 0) THEN
                CPABORT("Virtual Site Constraint/Restraint not implemented for SHAKE_ROLL!")
+            END IF
             CALL restore_temporary_set(particle_set, local_particles, pos=pos, vel=vel)
          END IF
          CALL shake_ext_info(log_unit, ishake_ext, max_sigma)
@@ -564,17 +585,20 @@ CONTAINS
                   int_max_sigma = 0.0_dp
                   irattle_int = irattle_int + 1
                   ! 3x3
-                  IF (n3x3con /= 0) &
+                  IF (n3x3con /= 0) THEN
                      CALL rattle_roll_3x3_int(molecule, particle_set, vel, r_rattle, dt, &
                                               veps)
+                  END IF
                   ! 4x6
-                  IF (n4x6con /= 0) &
+                  IF (n4x6con /= 0) THEN
                      CALL rattle_roll_4x6_int(molecule, particle_set, vel, r_rattle, dt, &
                                               veps)
+                  END IF
                   ! Collective Variables
-                  IF (ncolv%ntot /= 0) &
+                  IF (ncolv%ntot /= 0) THEN
                      CALL rattle_roll_colv_int(molecule, particle_set, vel, r_rattle, dt, &
                                                irattle_int, veps, cell, imass, int_max_sigma)
+                  END IF
                END DO Rattle_Roll_Intramolecular
                max_sigma = MAX(max_sigma, int_max_sigma)
                CALL rattle_int_info(log_unit, i, irattle_int, max_sigma)
@@ -584,17 +608,20 @@ CONTAINS
          IF (do_ext_constraint) THEN
             CALL update_temporary_set(para_env, vel=vel)
             ! 3x3
-            IF (gci%ng3x3 /= 0) &
+            IF (gci%ng3x3 /= 0) THEN
                CALL rattle_roll_3x3_ext(gci, particle_set, vel, r_rattle, dt, &
                                         veps)
+            END IF
             ! 4x6
-            IF (gci%ng4x6 /= 0) &
+            IF (gci%ng4x6 /= 0) THEN
                CALL rattle_roll_4x6_ext(gci, particle_set, vel, r_rattle, dt, &
                                         veps)
+            END IF
             ! Collective Variables
-            IF (gci%ncolv%ntot /= 0) &
+            IF (gci%ncolv%ntot /= 0) THEN
                CALL rattle_roll_colv_ext(gci, particle_set, vel, r_rattle, dt, &
                                          irattle_ext, veps, cell, imass, max_sigma)
+            END IF
             CALL restore_temporary_set(particle_set, local_particles, vel=vel)
          END IF
          CALL rattle_ext_info(log_unit, irattle_ext, max_sigma)
@@ -708,7 +735,7 @@ CONTAINS
          IF (log_unit > 0) THEN
             IF (id_type == "S") THEN
                label = "Shake  Lagrangian Multipliers:"
-            ELSEIF (id_type == "R") THEN
+            ELSE IF (id_type == "R") THEN
                label = "Rattle Lagrangian Multipliers:"
             ELSE
                CPABORT("Only S for Shake or R for Rattle are supported for Lagrangian Multipliers")
@@ -743,11 +770,12 @@ CONTAINS
             "Molecule Nr.:", i, " Nr. Iterations:", ishake_int, " Max. Err.:", max_sigma
       END IF
       ! Notify a not converged SHAKE
-      IF (ishake_int > Max_Shake_Iter) &
+      IF (ishake_int > Max_Shake_Iter) THEN
          CALL cp_warn(__LOCATION__, &
                       "Shake NOT converged in "//cp_to_string(Max_Shake_Iter)//" iterations in the "// &
                       "intramolecular constraint loop for Molecule nr. "//cp_to_string(i)// &
                       ". CP2K continues but results could be meaningless. ")
+      END IF
    END SUBROUTINE shake_int_info
 
 ! **************************************************************************************************
@@ -769,10 +797,11 @@ CONTAINS
             " Max. Err.:", max_sigma
       END IF
       ! Notify a not converged SHAKE
-      IF (ishake_ext > Max_Shake_Iter) &
+      IF (ishake_ext > Max_Shake_Iter) THEN
          CALL cp_warn(__LOCATION__, &
                       "Shake NOT converged in "//cp_to_string(Max_Shake_Iter)//" iterations in the "// &
                       "intermolecular constraint. CP2K continues but results could be meaningless.")
+      END IF
    END SUBROUTINE shake_ext_info
 
 ! **************************************************************************************************
@@ -794,11 +823,12 @@ CONTAINS
             "Molecule Nr.:", i, " Nr. Iterations:", irattle_int, " Max. Err.:", max_sigma
       END IF
       ! Notify a not converged RATTLE
-      IF (irattle_int > Max_shake_Iter) &
+      IF (irattle_int > Max_shake_Iter) THEN
          CALL cp_warn(__LOCATION__, &
                       "Rattle NOT converged in "//cp_to_string(Max_Shake_Iter)//" iterations in the "// &
                       "intramolecular constraint loop for Molecule nr. "//cp_to_string(i)// &
                       ". CP2K continues but results could be meaningless.")
+      END IF
    END SUBROUTINE rattle_int_info
 
 ! **************************************************************************************************
@@ -820,10 +850,11 @@ CONTAINS
             " Max. Err.:", max_sigma
       END IF
       ! Notify a not converged RATTLE
-      IF (irattle_ext > Max_shake_Iter) &
+      IF (irattle_ext > Max_shake_Iter) THEN
          CALL cp_warn(__LOCATION__, &
                       "Rattle NOT converged in "//cp_to_string(Max_Shake_Iter)//" iterations in the "// &
                       "intermolecular constraint. CP2K continues but results could be meaningless.")
+      END IF
    END SUBROUTINE rattle_ext_info
 
 ! **************************************************************************************************

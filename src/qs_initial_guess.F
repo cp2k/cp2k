@@ -330,8 +330,9 @@ CONTAINS
             IF (j /= 0) THEN
                filename = TRIM(file_name)//".bak-"//ADJUSTL(cp_to_string(j))
             END IF
-            IF (para_env%is_source()) &
+            IF (para_env%is_source()) THEN
                INQUIRE (FILE=filename, exist=exist)
+            END IF
             CALL para_env%bcast(exist)
             IF ((.NOT. exist) .AND. (i < not_read)) THEN
                not_read = i
@@ -417,7 +418,7 @@ CONTAINS
 
                   IF (has_unit_metric) THEN
                      CALL make_basis_simple(mo_coeff, nmo)
-                  ELSEIF (dft_control%smear) THEN
+                  ELSE IF (dft_control%smear) THEN
                      CALL make_basis_lowdin(vmatrix=mo_coeff, ncol=nmo, &
                                             matrix_s=s_sparse(1)%matrix)
                   ELSE
@@ -937,11 +938,11 @@ CONTAINS
                            WRITE (ounit, *) 'wrong', i, SUM(buff**2)
                         END IF
                      END IF
-                     length = SQRT(DOT_PRODUCT(buff(:, 1), buff(:, 1)))
+                     length = NORM2(buff(:, 1))
                      buff(:, :) = buff(:, :)/length
                      DO j = i + 1, nmo
                         CALL cp_fm_get_submatrix(mo_coeff, buff2, 1, j, nao, 1)
-                        length = SQRT(DOT_PRODUCT(buff2(:, 1), buff2(:, 1)))
+                        length = NORM2(buff2(:, 1))
                         buff2(:, :) = buff2(:, :)/length
                         IF (ABS(DOT_PRODUCT(buff(:, 1), buff2(:, 1)) - 1.0_dp) < 1E-10_dp) THEN
                            IF (ounit > 0) THEN
@@ -1289,10 +1290,10 @@ CONTAINS
                                         lmax=maxll, occupation=edftb)
                maxll = MIN(maxll, maxl)
                econf(0:maxl) = edftb(0:maxl)
-            ELSEIF (dft_control%qs_control%xtb) THEN
+            ELSE IF (dft_control%qs_control%xtb) THEN
                CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
                CALL get_xtb_atom_param(xtb_kind, z=z, natorb=nsgf, nao=naox, lao=laox, occupation=occupation)
-            ELSEIF (has_pot) THEN
+            ELSE IF (has_pot) THEN
                CALL get_atomic_kind(atomic_kind_set(ikind), z=z)
                CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, elec_conf=elec_conf, zeff=zeff)
                maxll = MIN(SIZE(elec_conf) - 1, maxl)
@@ -1334,7 +1335,7 @@ CONTAINS
                      END SELECT
                   END DO
                END DO
-            ELSEIF (dft_control%qs_control%xtb) THEN
+            ELSE IF (dft_control%qs_control%xtb) THEN
                DO iatom = 1, natom
                   atom_a = atom_list(iatom)
                   isgfa = first_sgf(atom_a)
@@ -1351,7 +1352,7 @@ CONTAINS
                      END DO
                   END IF
                END DO
-            ELSEIF (dft_control%qs_control%semi_empirical) THEN
+            ELSE IF (dft_control%qs_control%semi_empirical) THEN
                yy = REAL(dft_control%charge, KIND=dp)/REAL(nao, KIND=dp)
                DO iatom = 1, natom
                   atom_a = atom_list(iatom)

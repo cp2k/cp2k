@@ -401,7 +401,7 @@ CONTAINS
                CALL cp_fm_release(tmp_fm)
                CALL cp_fm_release(tmp_fm_1)
                CALL cp_fm_struct_release(tmp_fm_struct)
-            ELSEIF (my_guess_wan) THEN
+            ELSE IF (my_guess_wan) THEN
                nguess = localized_wfn_control%nguess(myspin)
                ALLOCATE (tmp_mat(nao, nguess))
                CALL cp_fm_get_submatrix(moloc_coeff(myspin), tmp_mat, 1, 1, nao, nguess)

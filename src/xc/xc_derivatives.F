@@ -676,8 +676,9 @@ CONTAINS
          max_deriv_min = MIN(max_deriv_min, max_deriv_i)
       END DO
       IF (PRESENT(max_deriv)) max_deriv = max_deriv_min
-      IF (PRESENT(reference)) &
+      IF (PRESENT(reference)) THEN
          reference = "Functional computed by GauXC (underlying: "//TRIM(xc_fun_name)//")"
+      END IF
       IF (PRESENT(shortform)) shortform = "GAUXC ("//TRIM(xc_fun_name)//")"
    END SUBROUTINE gauxc_model_none_xc_info
 

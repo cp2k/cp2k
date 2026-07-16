@@ -228,7 +228,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: check_diis
       LOGICAL                                            :: accepted
 
-      REAL(KIND=dp)                                      :: costh, norm1, norm2
+      REAL(KIND=dp)                                      :: costh, ref_norm, step_norm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tmp
 
       accepted = .TRUE.
@@ -237,9 +237,9 @@ CONTAINS
          ! (a) The direction of the DIIS step, can be compared to the reference step.
          !     if the angle is grater than a specified value, the DIIS step is not
          !     acceptable.
-         norm1 = SQRT(DOT_PRODUCT(ref, ref))
-         norm2 = SQRT(DOT_PRODUCT(step, step))
-         costh = DOT_PRODUCT(ref, step)/(norm1*norm2)
+         ref_norm = NORM2(ref)
+         step_norm = NORM2(step)
+         costh = DOT_PRODUCT(ref, step)/(ref_norm*step_norm)
          IF (check_diis) THEN
             IF (costh < acceptance_factor(MIN(10, nv))) accepted = .FALSE.
          ELSE
@@ -258,7 +258,7 @@ CONTAINS
       IF (accepted .AND. check_diis) THEN
          ! (b) The length of the DIIS step is limited to be no more than 10 times
          !     the reference step
-         IF (norm1 > norm2*10.0_dp) accepted = .FALSE.
+         IF (ref_norm > step_norm*10.0_dp) accepted = .FALSE.
          IF (output_unit > 0 .AND. (.NOT. accepted)) THEN
             WRITE (output_unit, '(T2,"DIIS|",A)') &
                "The length of the DIIS step is limited to be no more than 10 times", &
@@ -267,10 +267,10 @@ CONTAINS
       END IF
       IF (accepted .AND. check_diis) THEN
          ! (d) If the DIIS matrix is nearly singular, the norm of the DIIS step
-         !     vector becomes small and cwrk/norm1 becomes large, signaling a
-         !     numerical stability problems. If the magnitude of cwrk/norm1
+         !     vector becomes small and cwrk/ref_norm becomes large, signaling a
+         !     numerical stability problems. If the magnitude of cwrk/ref_norm
          !     exceeds 10^8 then the step size is assumed to be unacceptable
-         IF (ANY(ABS(cwrk(1:nv)/norm1) > 10**8_dp)) accepted = .FALSE.
+         IF (ANY(ABS(cwrk(1:nv)/ref_norm) > 10**8_dp)) accepted = .FALSE.
          IF (output_unit > 0 .AND. (.NOT. accepted)) THEN
             WRITE (output_unit, '(T2,"DIIS|",A)') &
                "If the DIIS matrix is nearly singular, the norm of the DIIS step", &

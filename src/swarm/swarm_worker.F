@@ -123,8 +123,9 @@ CONTAINS
          END SELECT
       END IF
 
-      IF (.NOT. swarm_message_haskey(report, "status")) &
+      IF (.NOT. swarm_message_haskey(report, "status")) THEN
          CALL swarm_message_add(report, "status", "ok")
+      END IF
 
    END SUBROUTINE swarm_worker_execute
 

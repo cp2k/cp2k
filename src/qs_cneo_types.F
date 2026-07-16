@@ -121,32 +121,45 @@ CONTAINS
       TYPE(rhoz_cneo_type), POINTER                      :: rhoz_cneo
 
       IF (ASSOCIATED(rhoz_cneo)) THEN
-         IF (ASSOCIATED(rhoz_cneo%pmat)) &
+         IF (ASSOCIATED(rhoz_cneo%pmat)) THEN
             DEALLOCATE (rhoz_cneo%pmat)
-         IF (ASSOCIATED(rhoz_cneo%core)) &
+         END IF
+         IF (ASSOCIATED(rhoz_cneo%core)) THEN
             DEALLOCATE (rhoz_cneo%core)
-         IF (ASSOCIATED(rhoz_cneo%vmat)) &
+         END IF
+         IF (ASSOCIATED(rhoz_cneo%vmat)) THEN
             DEALLOCATE (rhoz_cneo%vmat)
-         IF (ASSOCIATED(rhoz_cneo%fmat)) &
+         END IF
+         IF (ASSOCIATED(rhoz_cneo%fmat)) THEN
             DEALLOCATE (rhoz_cneo%fmat)
-         IF (ASSOCIATED(rhoz_cneo%wfn)) &
+         END IF
+         IF (ASSOCIATED(rhoz_cneo%wfn)) THEN
             DEALLOCATE (rhoz_cneo%wfn)
-         IF (ASSOCIATED(rhoz_cneo%cpc_h)) &
+         END IF
+         IF (ASSOCIATED(rhoz_cneo%cpc_h)) THEN
             DEALLOCATE (rhoz_cneo%cpc_h)
-         IF (ASSOCIATED(rhoz_cneo%cpc_s)) &
+         END IF
+         IF (ASSOCIATED(rhoz_cneo%cpc_s)) THEN
             DEALLOCATE (rhoz_cneo%cpc_s)
-         IF (ASSOCIATED(rhoz_cneo%rho_rad_h)) &
+         END IF
+         IF (ASSOCIATED(rhoz_cneo%rho_rad_h)) THEN
             DEALLOCATE (rhoz_cneo%rho_rad_h)
-         IF (ASSOCIATED(rhoz_cneo%rho_rad_s)) &
+         END IF
+         IF (ASSOCIATED(rhoz_cneo%rho_rad_s)) THEN
             DEALLOCATE (rhoz_cneo%rho_rad_s)
-         IF (ASSOCIATED(rhoz_cneo%vrho_rad_h)) &
+         END IF
+         IF (ASSOCIATED(rhoz_cneo%vrho_rad_h)) THEN
             DEALLOCATE (rhoz_cneo%vrho_rad_h)
-         IF (ASSOCIATED(rhoz_cneo%vrho_rad_s)) &
+         END IF
+         IF (ASSOCIATED(rhoz_cneo%vrho_rad_s)) THEN
             DEALLOCATE (rhoz_cneo%vrho_rad_s)
-         IF (ASSOCIATED(rhoz_cneo%ga_Vlocal_gb_h)) &
+         END IF
+         IF (ASSOCIATED(rhoz_cneo%ga_Vlocal_gb_h)) THEN
             DEALLOCATE (rhoz_cneo%ga_Vlocal_gb_h)
-         IF (ASSOCIATED(rhoz_cneo%ga_Vlocal_gb_s)) &
+         END IF
+         IF (ASSOCIATED(rhoz_cneo%ga_Vlocal_gb_s)) THEN
             DEALLOCATE (rhoz_cneo%ga_Vlocal_gb_s)
+         END IF
       END IF
 
    END SUBROUTINE deallocate_rhoz_cneo
@@ -181,8 +194,9 @@ CONTAINS
 
       TYPE(cneo_potential_type), POINTER                 :: potential
 
-      IF (ASSOCIATED(potential)) &
+      IF (ASSOCIATED(potential)) THEN
          CALL deallocate_cneo_potential(potential)
+      END IF
 
       ALLOCATE (potential)
 
@@ -197,36 +211,51 @@ CONTAINS
       TYPE(cneo_potential_type), POINTER                 :: potential
 
       IF (ASSOCIATED(potential)) THEN
-         IF (ASSOCIATED(potential%elec_conf)) &
+         IF (ASSOCIATED(potential%elec_conf)) THEN
             DEALLOCATE (potential%elec_conf)
-         IF (ASSOCIATED(potential%my_gcc_h)) &
+         END IF
+         IF (ASSOCIATED(potential%my_gcc_h)) THEN
             DEALLOCATE (potential%my_gcc_h)
-         IF (ASSOCIATED(potential%my_gcc_s)) &
+         END IF
+         IF (ASSOCIATED(potential%my_gcc_s)) THEN
             DEALLOCATE (potential%my_gcc_s)
-         IF (ASSOCIATED(potential%ovlp)) &
+         END IF
+         IF (ASSOCIATED(potential%ovlp)) THEN
             DEALLOCATE (potential%ovlp)
-         IF (ASSOCIATED(potential%kin)) &
+         END IF
+         IF (ASSOCIATED(potential%kin)) THEN
             DEALLOCATE (potential%kin)
-         IF (ASSOCIATED(potential%utrans)) &
+         END IF
+         IF (ASSOCIATED(potential%utrans)) THEN
             DEALLOCATE (potential%utrans)
-         IF (ASSOCIATED(potential%distance)) &
+         END IF
+         IF (ASSOCIATED(potential%distance)) THEN
             DEALLOCATE (potential%distance)
-         IF (ASSOCIATED(potential%harmonics)) &
+         END IF
+         IF (ASSOCIATED(potential%harmonics)) THEN
             CALL deallocate_harmonics_atom(potential%harmonics)
-         IF (ASSOCIATED(potential%Qlm_gg)) &
+         END IF
+         IF (ASSOCIATED(potential%Qlm_gg)) THEN
             DEALLOCATE (potential%Qlm_gg)
-         IF (ASSOCIATED(potential%gg)) &
+         END IF
+         IF (ASSOCIATED(potential%gg)) THEN
             DEALLOCATE (potential%gg)
-         IF (ASSOCIATED(potential%vgg)) &
+         END IF
+         IF (ASSOCIATED(potential%vgg)) THEN
             DEALLOCATE (potential%vgg)
-         IF (ASSOCIATED(potential%n2oindex)) &
+         END IF
+         IF (ASSOCIATED(potential%n2oindex)) THEN
             DEALLOCATE (potential%n2oindex)
-         IF (ASSOCIATED(potential%o2nindex)) &
+         END IF
+         IF (ASSOCIATED(potential%o2nindex)) THEN
             DEALLOCATE (potential%o2nindex)
-         IF (ASSOCIATED(potential%rad2l)) &
+         END IF
+         IF (ASSOCIATED(potential%rad2l)) THEN
             DEALLOCATE (potential%rad2l)
-         IF (ASSOCIATED(potential%oorad2l)) &
+         END IF
+         IF (ASSOCIATED(potential%oorad2l)) THEN
             DEALLOCATE (potential%oorad2l)
+         END IF
          DEALLOCATE (potential)
       END IF
 
@@ -356,8 +385,9 @@ CONTAINS
          IF (PRESENT(z)) THEN
             potential%z = z
             potential%zeff = REAL(z, dp)
-            IF (ASSOCIATED(potential%elec_conf)) &
+            IF (ASSOCIATED(potential%elec_conf)) THEN
                CPABORT("elec_conf is already associated")
+            END IF
             ALLOCATE (potential%elec_conf(0:3))
             potential%elec_conf(0:3) = ptable(z)%e_conv(0:3)
             CPASSERT(potential%mass == 0.0_dp)
