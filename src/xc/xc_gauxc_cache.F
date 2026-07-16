@@ -50,16 +50,15 @@ MODULE xc_gauxc_cache
    END TYPE cp_gauxc_cache_params
 
    TYPE, extends(cp_gauxc_cache_params)            :: cp_gauxc_cache_type
-      TYPE(cp_gauxc_molecule_type)                 :: molecule
-      TYPE(cp_gauxc_basisset_type)                 :: basisset
-      TYPE(cp_gauxc_grid_type)                     :: grid
-      TYPE(cp_gauxc_grid_type)                     :: gradient_grid
-      TYPE(cp_gauxc_integrator_type)               :: integrator
-      TYPE(cp_gauxc_integrator_type)               :: gradient_integrator
-      INTEGER                                      :: mpi_comm
+      TYPE(cp_gauxc_molecule_type)                 :: molecule = cp_gauxc_molecule_type()
+      TYPE(cp_gauxc_basisset_type)                 :: basisset = cp_gauxc_basisset_type()
+      TYPE(cp_gauxc_grid_type)                     :: grid = cp_gauxc_grid_type()
+      TYPE(cp_gauxc_grid_type)                     :: gradient_grid = cp_gauxc_grid_type()
+      TYPE(cp_gauxc_integrator_type)               :: integrator = cp_gauxc_integrator_type()
+      TYPE(cp_gauxc_integrator_type)               :: gradient_integrator = cp_gauxc_integrator_type()
+      INTEGER                                      :: mpi_comm = -1
       LOGICAL                                      :: is_init = .FALSE.
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: last_positions
-
    CONTAINS
 
       PROCEDURE, PUBLIC                            :: needs_gradient_grid => gauxc_cache_type_needs_gradient_grid
