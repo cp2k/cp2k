@@ -1443,7 +1443,6 @@ CONTAINS
       END IF
 
       focc = 2.0_dp
-      IF (nspins == 2) focc = 1.0_dp
       DO ispin = 1, nspins
          mos => gs_mos(ispin)%mos_occ
          CALL cp_fm_get_info(mos, ncol_global=norb)
