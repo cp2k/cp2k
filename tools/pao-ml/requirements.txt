@@ -1,6 +1,6 @@
 e3nn==0.6.0
 nequip==0.17.1
-torch==2.11.0
+torch==2.13.0
 
 
 #EOF
