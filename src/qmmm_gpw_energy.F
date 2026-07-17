@@ -126,8 +126,9 @@ CONTAINS
       print_section => section_vals_get_subs_vals(input_section, "QMMM%PRINT")
       iw = cp_print_key_unit_nr(logger, print_section, "PROGRAM_RUN_INFO", &
                                 extension=".qmmmLog")
-      IF (iw > 0) &
+      IF (iw > 0) THEN
          WRITE (iw, '(T2,"QMMM|",1X,A)') "Information on the QM/MM Electrostatic Potential:"
+      END IF
       !
       ! Initializing vectors:
       !        Zeroing v_qmmm_rspace
@@ -148,7 +149,7 @@ CONTAINS
          CASE DEFAULT
             CPABORT("Unknown QM/MM coupling")
          END SELECT
-      ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+      ELSE IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
          ! DFTB
          SELECT CASE (qmmm_env%qmmm_coupl_type)
          CASE (do_qmmm_none)
@@ -172,9 +173,10 @@ CONTAINS
          CASE (do_qmmm_pcharge)
             CPABORT("Point Charge QM/MM electrostatic coupling not implemented for GPW/GAPW.")
          CASE (do_qmmm_gauss, do_qmmm_swave)
-            IF (iw > 0) &
+            IF (iw > 0) THEN
                WRITE (iw, '(T2,"QMMM|",1X,A)') &
-               "QM/MM Coupling computed collocating the Gaussian Potential Functions."
+                  "QM/MM Coupling computed collocating the Gaussian Potential Functions."
+            END IF
             interp_section => section_vals_get_subs_vals(input_section, &
                                                          "QMMM%INTERPOLATOR")
             CALL qmmm_elec_with_gaussian(qmmm_env=qmmm_env, &
@@ -807,8 +809,9 @@ CONTAINS
             IndMM = mm_atom_index(LIndMM)
             ra(:) = pbc(mm_particles(IndMM)%r - dOmmOqm, mm_cell) + dOmmOqm
             qt = mm_charges(LIndMM)
-            IF (shells) &
+            IF (shells) THEN
                ra(:) = pbc(mm_particles(LIndMM)%r - dOmmOqm, mm_cell) + dOmmOqm
+            END IF
             ! Possible Spherical Cutoff
             IF (qmmm_spherical_cutoff(1) > 0.0_dp) THEN
                CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor)

@@ -188,10 +188,12 @@ CONTAINS
          a02(i) = a2(i)/alat
          a03(i) = a3(i)/alat
       END DO
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(" KPSYM| NUMBER OF ATOMS (STRUCT):",I6)') nat
-      IF (iout > 0) &
+      END IF
+      IF (iout > 0) THEN
          WRITE (iout, '(" KPSYM|",10X,"K   TYPE",14X,"X(K)")')
+      END IF
       itype = 0
       DO i = 1, nat
          ! Assign an atomic type (for internal purposes)
@@ -206,19 +208,22 @@ CONTAINS
          END IF
          itype = itype + 1
          IF (itype > nsp) THEN
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, '(A,I4,")")') &
-               ' KPSYM| NUMBER OF ATOMIC TYPES EXCEEDS DIMENSION (NSP=)', &
-               nsp
-            IF (iout > 0) &
+                  ' KPSYM| NUMBER OF ATOMIC TYPES EXCEEDS DIMENSION (NSP=)', &
+                  nsp
+            END IF
+            IF (iout > 0) THEN
                WRITE (iout, '(" KPSYM| THE ARRAY TY IS:",/,9(1X,10I7,/))') &
-               (ty(j), j=1, nat)
+                  (ty(j), j=1, nat)
+            END IF
             CALL stopgm('K290', 'FATAL ERROR')
          END IF
 178      CONTINUE
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, '(" KPSYM|",6X,I5,I6,3F10.5)') &
-            i, ty(i), (xkapa(j, i), j=1, 3)
+               i, ty(i), (xkapa(j, i), j=1, 3)
+         END IF
       END DO
       ! ==--------------------------------------------------------------==
       ! IS THE STRAIN SIGNIFICANT ?
@@ -264,11 +269,12 @@ CONTAINS
       ! ==--------------------------------------------------------------==
       invadd = 0
       IF (li == 0) THEN
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, '(A,/,A,/,A)') &
-            ' KPSYM| ALTHOUGH THE POINT GROUP OF THE CRYSTAL DOES NOT', &
-            ' KPSYM| CONTAIN INVERSION, THE SPECIAL POINT GENERATION ALGORITHM', &
-            ' KPSYM| WILL CONSIDER IT AS A SYMMETRY OPERATION'
+               ' KPSYM| ALTHOUGH THE POINT GROUP OF THE CRYSTAL DOES NOT', &
+               ' KPSYM| CONTAIN INVERSION, THE SPECIAL POINT GENERATION ALGORITHM', &
+               ' KPSYM| WILL CONSIDER IT AS A SYMMETRY OPERATION'
+         END IF
          invadd = 1
       END IF
       ! ==--------------------------------------------------------------==
@@ -283,101 +289,125 @@ CONTAINS
       ! ==--------------------------------------------------------------==
       ! == GROUP-THEORETICAL INFORMATION                                ==
       ! ==--------------------------------------------------------------==
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(/," KPSYM| GROUP-THEORETICAL INFORMATION:")')
+      END IF
       ! IHG .... Point group of the primitive lattice, holohedral
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, &
                 '(" KPSYM|    POINT GROUP OF THE PRIMITIVE LATTICE: ",A," SYSTEM")') &
-         icst(ihg)
+            icst(ihg)
+      END IF
       ! IHC .... Code distinguishing between hexagonal and cubic groups
       ! ISY .... Code indicating whether the space group is symmorphic
       IF (isy == 0) THEN
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, '(" KPSYM|",4X,"NONSYMMORPHIC GROUP")')
-      ELSEIF (isy == 1) THEN
-         IF (iout > 0) &
+         END IF
+      ELSE IF (isy == 1) THEN
+         IF (iout > 0) THEN
             WRITE (iout, '(" KPSYM|",4X,"SYMMORPHIC GROUP")')
-      ELSEIF (isy == -1) THEN
-         IF (iout > 0) &
+         END IF
+      ELSE IF (isy == -1) THEN
+         IF (iout > 0) THEN
             WRITE (iout, '(" KPSYM|",4X,"SYMMORPHIC GROUP WITH NON-STANDARD ORIGIN")')
-      ELSEIF (isy == -2) THEN
-         IF (iout > 0) &
+         END IF
+      ELSE IF (isy == -2) THEN
+         IF (iout > 0) THEN
             WRITE (iout, '(" KPSYM|",4X,"NONSYMMORPHIC GROUP???")')
+         END IF
       END IF
       ! LI ..... Inversions symmetry
       IF (li == 0) THEN
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, '(" KPSYM|",4X,"NO INVERSION SYMMETRY")')
-      ELSEIF (li > 0) THEN
-         IF (iout > 0) &
+         END IF
+      ELSE IF (li > 0) THEN
+         IF (iout > 0) THEN
             WRITE (iout, '(" KPSYM|",4X,"INVERSION SYMMETRY")')
+         END IF
       END IF
       ! NC ..... Total number of elements in the point group
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, &
                 '(" KPSYM|",4X,"TOTAL NUMBER OF ELEMENTS IN THE POINT GROUP:",I3)') nc
-      IF (iout > 0) &
+      END IF
+      IF (iout > 0) THEN
          WRITE (iout, '(" KPSYM|",4X,"TO SUM UP: (",I1,5I3,")")') &
-         ihg, ihc, isy, li, nc, indpg
+            ihg, ihc, isy, li, nc, indpg
+      END IF
       ! IB ..... List of the rotations constituting the point group
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(/," KPSYM|",4X,"LIST OF THE ROTATIONS:")')
-      IF (iout > 0) &
+      END IF
+      IF (iout > 0) THEN
          WRITE (iout, '(7X,12I4)') (ib(i), i=1, nc)
+      END IF
       ! V ...... Nonprimitive translations (for nonsymmorphic groups)
       IF (isy <= 0) THEN
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, '(/," KPSYM|",4X,"NONPRIMITIVE TRANSLATIONS:")')
-         IF (iout > 0) &
+         END IF
+         IF (iout > 0) THEN
             WRITE (iout, '(A,A)') &
-            ' ROT    V  IN THE BASIS A1, A2, A3      ', &
-            'V  IN CARTESIAN COORDINATES'
+               ' ROT    V  IN THE BASIS A1, A2, A3      ', &
+               'V  IN CARTESIAN COORDINATES'
+         END IF
          ! Cartesian components of nonprimitive translation.
          DO i = 1, nc
             DO j = 1, 3
                vv0(j) = v(1, i)*a1(j) + v(2, i)*a2(j) + v(3, i)*a3(j)
             END DO
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, '(1X,I3,3F10.5,3X,3F10.5)') &
-               ib(i), (v(j, i), j=1, 3), vv0
+                  ib(i), (v(j, i), j=1, 3), vv0
+            END IF
          END DO
       END IF
       ! F0 ..... The function defined in Maradudin, Ipatova by
       ! eq. (3.2.12): atom transformation table.
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, &
                 '(/," KPSYM|",4X,"ATOM TRANSFORMATION TABLE (MARADUDIN,VOSKO):")')
-      IF (iout > 0) &
+      END IF
+      IF (iout > 0) THEN
          WRITE (iout, '(5(4X,"R  AT->AT"))')
-      IF (iout > 0) &
+      END IF
+      IF (iout > 0) THEN
          WRITE (iout, '(I5," [Identity]")') 1
+      END IF
       DO k = 2, nc
          DO j = 1, nat
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, '(I5,2I4)', advance="no") ib(k), j, f0(k, j)
-            IF ((MOD(j, 5) == 0) .AND. iout > 0) &
+            END IF
+            IF ((MOD(j, 5) == 0) .AND. iout > 0) THEN
                WRITE (iout, *)
+            END IF
          END DO
-         IF ((MOD(j - 1, 5) /= 0) .AND. iout > 0) &
+         IF ((MOD(j - 1, 5) /= 0) .AND. iout > 0) THEN
             WRITE (iout, *)
+         END IF
       END DO
       ! R ...... List of the 3 x 3 rotation matrices
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(/," KPSYM|",4X,"LIST OF THE 3 X 3 ROTATION MATRICES:")')
+      END IF
       IF (ihc == 0) THEN
          DO k = 1, nc
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, &
                       '(4X,I3," (",I2,": ",A11,")",2(3F14.6,/,25X),3F14.6)') &
-               k, ib(k), rname_hexai(ib(k)), ((r(i, j, ib(k)), j=1, 3), i=1, 3)
+                  k, ib(k), rname_hexai(ib(k)), ((r(i, j, ib(k)), j=1, 3), i=1, 3)
+            END IF
          END DO
       ELSE
          DO k = 1, nc
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, &
                       '(4X,I3," (",I2,": ",A10,") ",2(3F14.6,/,25X),3F14.6)') &
-               k, ib(k), rname_cubic(ib(k)), ((r(i, j, ib(k)), j=1, 3), i=1, 3)
+                  k, ib(k), rname_cubic(ib(k)), ((r(i, j, ib(k)), j=1, 3), i=1, 3)
+            END IF
          END DO
       END IF
       ! ==--------------------------------------------------------------==
@@ -391,34 +421,42 @@ CONTAINS
       ! (cubic/hexagonal) will apply to the crystal as well as the Bravais
       ! lattice.
       ! ==--------------------------------------------------------------==
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(/,1X,19("*"),A,25("*"))') &
-         ' GENERATION OF SPECIAL POINTS '
+            ' GENERATION OF SPECIAL POINTS '
+      END IF
       ! Parameter Q of Monkhorst and Pack, generalized for 3 axes B1,2,3
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(A,/,1X,3I5)') &
-         ' KPSYM| MONKHORST-PACK PARAMETERS (GENERALIZED) IQ1,IQ2,IQ3:', &
-         iq1, iq2, iq3
+            ' KPSYM| MONKHORST-PACK PARAMETERS (GENERALIZED) IQ1,IQ2,IQ3:', &
+            iq1, iq2, iq3
+      END IF
       ! WVK0 is the shift of the whole mesh (see Macdonald)
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(A,/,1X,3F10.5)') &
-         ' KPSYM| CONSTANT VECTOR SHIFT (MACDONALD) OF THIS MESH:', wvk0
-      IF (iabs(iq1) + iabs(iq2) + iabs(iq3) == 0) GOTO 710
+            ' KPSYM| CONSTANT VECTOR SHIFT (MACDONALD) OF THIS MESH:', wvk0
+      END IF
+      IF (ABS(iq1) + ABS(iq2) + ABS(iq3) == 0) GOTO 710
       IF (ABS(istriz) /= 1) THEN
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, '(" KPSYM| INVALID SWITCH FOR SYMMETRIZATION",I10)') istriz
-         IF (iout > 0) &
+         END IF
+         IF (iout > 0) THEN
             WRITE (iout, '(" KPSYM| INVALID SWITCH FOR SYMMETRIZATION",I10)') istriz
+         END IF
          CALL stopgm('K290', 'ISTRIZ WRONG ARGUMENT')
       END IF
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(" KPSYM| SYMMETRIZATION SWITCH: ",I3)', advance="no") istriz
+      END IF
       IF (istriz == 1) THEN
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, '(" (SYMMETRIZATION OF MONKHORST-PACK MESH)")')
+         END IF
       ELSE
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, '(" (NO SYMMETRIZATION OF MONKHORST-PACK MESH)")')
+         END IF
       END IF
       ! Set to 0.
       DO i = 1, nkpoint
@@ -433,12 +471,15 @@ CONTAINS
          ! rotations than Bravais lattice.
          ! We use only the rotations for Bravais lattices
          IF (ntvec == 1) THEN
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, *) ' KPSYM| NUMBER OF ROTATIONS FOR BRAVAIS LATTICE', nc0
-            IF (iout > 0) &
+            END IF
+            IF (iout > 0) THEN
                WRITE (iout, *) ' KPSYM| NUMBER OF ROTATIONS FOR CRYSTAL LATTICE', nc
-            IF (iout > 0) &
+            END IF
+            IF (iout > 0) THEN
                WRITE (iout, *) ' KPSYM| NO DUPLICATION FOUND'
+            END IF
             CALL stopgm('ERROR', &
                         'SOMETHING IS WRONG IN GROUP DETERMINATION')
          END IF
@@ -446,19 +487,24 @@ CONTAINS
          DO i = 1, nc0
             ib(i) = ib0(i)
          END DO
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, '(/,1X,20("! "),"WARNING",20("!"))')
-         IF (iout > 0) &
+         END IF
+         IF (iout > 0) THEN
             WRITE (iout, '(A)') &
-            ' KPSYM| THE CRYSTAL HAS MORE SYMMETRY THAN THE BRAVAIS LATTICE'
-         IF (iout > 0) &
+               ' KPSYM| THE CRYSTAL HAS MORE SYMMETRY THAN THE BRAVAIS LATTICE'
+         END IF
+         IF (iout > 0) THEN
             WRITE (iout, '(A)') &
-            ' KPSYM| BECAUSE THIS IS NOT A PRIMITIVE CELL'
-         IF (iout > 0) &
+               ' KPSYM| BECAUSE THIS IS NOT A PRIMITIVE CELL'
+         END IF
+         IF (iout > 0) THEN
             WRITE (iout, '(A)') &
-            ' KPSYM| USE ONLY SYMMETRY FROM BRAVAIS LATTICE'
-         IF (iout > 0) &
+               ' KPSYM| USE ONLY SYMMETRY FROM BRAVAIS LATTICE'
+         END IF
+         IF (iout > 0) THEN
             WRITE (iout, '(1X,20("! "),"WARNING",20("!"),/)')
+         END IF
       END IF
       CALL sppt2(iout, iq1, iq2, iq3, wvk0, nkpoint, &
                  a01, a02, a03, b01, b02, b03, &
@@ -467,16 +513,18 @@ CONTAINS
       ! ==--------------------------------------------------------------==
       ! == Check on error signals                                       ==
       ! ==--------------------------------------------------------------==
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(/," KPSYM|",1X,I5," SPECIAL POINTS GENERATED")') ntot
+      END IF
       IF (ntot == 0) THEN
          GOTO 710
       ELSE IF (ntot < 0) THEN
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, '(A,I5,/,A,/,A)') ' KPSYM| DIMENSION NKPOINT =', nkpoint, &
-            ' KPSYM| INSUFFICIENT FOR ACCOMMODATING ALL THE SPECIAL POINTS', &
-            ' KPSYM| WHAT FOLLOWS IS AN INCOMPLETE LIST'
-         ntot = iabs(ntot)
+               ' KPSYM| INSUFFICIENT FOR ACCOMMODATING ALL THE SPECIAL POINTS', &
+               ' KPSYM| WHAT FOLLOWS IS AN INCOMPLETE LIST'
+         END IF
+         ntot = ABS(ntot)
       END IF
       ! Before using the list WVKL as wave vectors, they have to be
       ! multiplied by 2*Pi
@@ -485,9 +533,10 @@ CONTAINS
       DO i = 1, ntot
          iswght = iswght + lwght(i)
       END DO
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(8X,A,T33,A,4X,A)') &
-         'WAVEVECTOR K', 'WEIGHT', 'UNFOLDING ROTATIONS'
+            'WAVEVECTOR K', 'WEIGHT', 'UNFOLDING ROTATIONS'
+      END IF
       ! Set near-zeroes equal to zero:
       DO l = 1, ntot
          DO i = 1, 3
@@ -508,17 +557,20 @@ CONTAINS
             END DO
          END IF
          lmax = lwght(l)
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, fmt='(1X,I5,3F8.4,I8,T42,12I3)') &
-            l, (wvkl(i, l), i=1, 3), lwght(l), (lrot(i, l), i=1, MIN(lmax, 12))
+               l, (wvkl(i, l), i=1, 3), lwght(l), (lrot(i, l), i=1, MIN(lmax, 12))
+         END IF
          DO j = 13, lmax, 12
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, fmt='(T42,12I3)') &
-               (lrot(i, l), i=j, MIN(lmax, j - 1 + 12))
+                  (lrot(i, l), i=j, MIN(lmax, j - 1 + 12))
+            END IF
          END DO
       END DO
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(24X,"TOTAL:",I8)') iswght
+      END IF
       ! ==--------------------------------------------------------------==
 710   CONTINUE
       ! ==--------------------------------------------------------------==
@@ -723,12 +775,14 @@ CONTAINS
 
       IF (iout > 0) THEN
          IF (li > 0) THEN
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, '(1X,A)') &
-               'KPSYM| THE POINT GROUP OF THE CRYSTAL CONTAINS THE INVERSION'
+                  'KPSYM| THE POINT GROUP OF THE CRYSTAL CONTAINS THE INVERSION'
+            END IF
          END IF
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, *)
+         END IF
       END IF
 
    END SUBROUTINE group1s
@@ -1300,138 +1354,139 @@ CONTAINS
       ! (Thierry Deutsch - 1998 [Maybe not complete!!])
       IF (ihg < 6) THEN
          IF (nc == 0) THEN
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, '(" ATFTM1! IHG=",A," NC=",I2)') icst(ihg), nC
+            END IF
             CALL stopgm('ATFTM1', 'NUMBER OF ROTATION NULL')
             ! Triclinic system
-         ELSEIF (nc == 1) THEN
+         ELSE IF (nc == 1) THEN
             ! IB=1
             indpg = 1           ! 1 (c1)
-         ELSEIF (nc == 2 .AND. ib(2) == 25) THEN
+         ELSE IF (nc == 2 .AND. ib(2) == 25) THEN
             ! IB=125
             indpg = 2           ! <1>(ci)
-         ELSEIF (nc == 2 .AND. ( &
-                 ib(2) == 4 .OR. & ! 2[001]
-                 ib(2) == 2 .OR. & ! 2[100]
-                 ib(2) == 3)) THEN ! 2[010]
+         ELSE IF (nc == 2 .AND. ( &
+                  ib(2) == 4 .OR. & ! 2[001]
+                  ib(2) == 2 .OR. & ! 2[100]
+                  ib(2) == 3)) THEN ! 2[010]
             ! Monoclinic system
             ! IB=14 (z-axis) OR
             ! IB=12 (x-axis) OR
             ! IB=13 (y-axis)
             indpg = 3           ! 2 (c2)
-         ELSEIF (nc == 2 .AND. ( &
-                 ib(2) == 28 .OR. &
-                 ib(2) == 26 .OR. &
-                 ib(2) == 27)) THEN
+         ELSE IF (nc == 2 .AND. ( &
+                  ib(2) == 28 .OR. &
+                  ib(2) == 26 .OR. &
+                  ib(2) == 27)) THEN
             ! IB=128 (z-axis) OR
             ! IB=126 (x-axis) OR
             ! IB=127 (y-axis)
             indpg = 4           ! m (c1h)
-         ELSEIF (nc == 4 .AND. ( &
-                 ib(4) == 28 .OR. & ! 2[001]
-                 ib(4) == 27 .OR. & ! 2[010]
-                 ib(4) == 26 .OR. & ! 2[100]
-                 ib(4) == 37 .OR. & ! -2[-110]
-                 ib(4) == 40)) THEN ! 2[110]
+         ELSE IF (nc == 4 .AND. ( &
+                  ib(4) == 28 .OR. & ! 2[001]
+                  ib(4) == 27 .OR. & ! 2[010]
+                  ib(4) == 26 .OR. & ! 2[100]
+                  ib(4) == 37 .OR. & ! -2[-110]
+                  ib(4) == 40)) THEN ! 2[110]
             ! IB=1  425 28 (z-axis)  OR
             ! IB=1  225 26 (x-axis)  OR
             ! IB=1  325 27 (y-axis)  OR
             ! IB=113 2537 (-xy-axis)OR
             ! IB=116 2540 (xy-axis)
             indpg = 5           ! 2/m(c2h)
-         ELSEIF (nc == 4 .AND. ( &
-                 ib(4) == 15 .OR. &
-                 ib(4) == 20 .OR. &
-                 ib(4) == 24)) THEN
+         ELSE IF (nc == 4 .AND. ( &
+                  ib(4) == 15 .OR. &
+                  ib(4) == 20 .OR. &
+                  ib(4) == 24)) THEN
             ! Tetragonal system
             ! IB=14 1415 (z-axis) OR
             ! IB=12 1920 (x-axis) OR
             ! IB=13 2224 (y-axis)
             indpg = 11          ! 4 (c4)
-         ELSEIF (nc == 4 .AND. ( &
-                 ib(4) == 39 .OR. &
-                 ib(4) == 44 .OR. &
-                 ib(4) == 48)) THEN
+         ELSE IF (nc == 4 .AND. ( &
+                  ib(4) == 39 .OR. &
+                  ib(4) == 44 .OR. &
+                  ib(4) == 48)) THEN
             ! IB=14 3839 (z-axis) OR
             ! IB=12 4344 (x-axis) OR
             ! IB=13 4648 (y-axis)
             indpg = 12          ! <4>(s4)
-         ELSEIF (nc == 8 .AND. ( &
-                 (ib(3) == 14 .AND. ib(8) == 39) .OR. &
-                 (ib(3) == 19 .AND. ib(8) == 44) .OR. &
-                 (ib(3) == 22 .AND. ib(8) == 48))) THEN
+         ELSE IF (nc == 8 .AND. ( &
+                  (ib(3) == 14 .AND. ib(8) == 39) .OR. &
+                  (ib(3) == 19 .AND. ib(8) == 44) .OR. &
+                  (ib(3) == 22 .AND. ib(8) == 48))) THEN
             ! IB=14 1415 2825 3839 (z-axis) OR
             ! IB=12 1920 2625 4344 (x-axis) OR
             ! IB=13 2224 2725 4648 (y-axis)
             indpg = 13          ! 422(d4)
-         ELSEIF (nc == 8 .AND. ib(4) == 4 .AND. ( &
-                 ib(8) == 16 .OR. &
-                 ib(8) == 20 .OR. &
-                 ib(8) == 24)) THEN
+         ELSE IF (nc == 8 .AND. ib(4) == 4 .AND. ( &
+                  ib(8) == 16 .OR. &
+                  ib(8) == 20 .OR. &
+                  ib(8) == 24)) THEN
             ! IB=12 3 413 1415 16 (z-axis) OR
             ! IB=12 3 417 1920 18 (x-axis) OR
             ! IB=12 3 421 2224 23 (y-axis)
             indpg = 14          ! 4/m(c4h)
-         ELSEIF (nc == 8 .AND. ( &
-                 ib(8) == 40 .OR. &
-                 ib(8) == 42 .OR. &
-                 ib(8) == 47)) THEN
+         ELSE IF (nc == 8 .AND. ( &
+                  ib(8) == 40 .OR. &
+                  ib(8) == 42 .OR. &
+                  ib(8) == 47)) THEN
             ! IB=14 1415 2627 3740 (z-axis) OR
             ! IB=12 1920 2827 4142 (x-axis) OR
             ! IB=13 2224 2628 4547 (y-axis)
             indpg = 15          ! 4mm(c4v)
-         ELSEIF (nc == 8 .AND. ( &
-                 (ib(3) == 13 .AND. ib(8) == 39) .OR. &
-                 (ib(3) == 17 .AND. ib(8) == 44) .OR. &
-                 (ib(3) == 21 .AND. ib(8) == 48))) THEN
+         ELSE IF (nc == 8 .AND. ( &
+                  (ib(3) == 13 .AND. ib(8) == 39) .OR. &
+                  (ib(3) == 17 .AND. ib(8) == 44) .OR. &
+                  (ib(3) == 21 .AND. ib(8) == 48))) THEN
             ! IB=14 1316 2627 3839 (z-axis) OR
             ! IB=12 1718 2827 4344 (x-axis) OR
             ! IB=13 2123 2628 4648 (y-axis)
             indpg = 16          ! <4>2m(d2d)
-         ELSEIF (nc == 16 .AND. ( &
-                 ib(16) == 40 .OR. &
-                 ib(16) == 44 .OR. &
-                 ib(16) == 48)) THEN
+         ELSE IF (nc == 16 .AND. ( &
+                  ib(16) == 40 .OR. &
+                  ib(16) == 44 .OR. &
+                  ib(16) == 48)) THEN
             ! IB=12 3 413 1415 1625 2627 2837 3839 40 (z-axis) OR
             ! IB=12 3 417 1920 1825 2627 2841 4344 42 (x-axis) OR
             ! IB=12 3 421 2224 2325 2627 2845 4648 47 (y-axis)
             indpg = 17          ! 4/mmm(d4h)
-         ELSEIF (nc == 4 .AND. (ib(4) == 4)) THEN
+         ELSE IF (nc == 4 .AND. (ib(4) == 4)) THEN
             ! Orthorhombic system
             ! IB=12  3  4
             indpg = 25          ! 222(d2)
-         ELSEIF (nc == 4 .AND. ( &
-                 ib(4) == 27 .OR. &
-                 ib(4) == 28)) THEN
+         ELSE IF (nc == 4 .AND. ( &
+                  ib(4) == 27 .OR. &
+                  ib(4) == 28)) THEN
             ! IB=13 2627 (z-axis) OR
             ! IB=12 2728 (x-axis) OR
             ! IB=14 2628 (y-axis) OR
             indpg = 26          ! mm2(c2v)
-         ELSEIF (nc == 8) THEN
+         ELSE IF (nc == 8) THEN
             ! IB=12 3 425 2627 28
             indpg = 27          ! mmm(d2h)
-         ELSEIF (nc == 12 .AND. ( &
-                 ib(12) == 12 .OR. &
-                 ib(12) == 47 .OR. &
-                 ib(12) == 45)) THEN
+         ELSE IF (nc == 12 .AND. ( &
+                  ib(12) == 12 .OR. &
+                  ib(12) == 47 .OR. &
+                  ib(12) == 45)) THEN
             ! Cubic system
             ! IB=12  3  4  5  6  7  8  910 1112 OR
             ! IB=15 1113 1823 2530 3537 4247 OR
             ! IB=18 1016 1821 2532 3440 4245
             indpg = 28          ! 23 (t)
-         ELSEIF (nc == 24 .AND. ib(24) == 36) THEN
+         ELSE IF (nc == 24 .AND. ib(24) == 36) THEN
             ! IB= 1  2  3  4  5  6  7  8  910 1112
             ! 2526 2728 2930 3132 3334 3536
             indpg = 29          ! m3 (th)
-         ELSEIF (nc == 24 .AND. ib(24) == 24) THEN
+         ELSE IF (nc == 24 .AND. ib(24) == 24) THEN
             ! IB=12 3 45 6 78 9 1011 12
             ! 1314 1516 1718 1920 2122 2324
             indpg = 30          ! 432 (o)
-         ELSEIF (nc == 24 .AND. ib(24) == 48) THEN
+         ELSE IF (nc == 24 .AND. ib(24) == 48) THEN
             ! IB=12 3 45 6 78 9 1011 12
             ! 3738 3940 4142 4345 4647 48
             indpg = 31          ! <4>3m(td)
-         ELSEIF (nc == 48) THEN
+         ELSE IF (nc == 48) THEN
             ! IB=1..48
             indpg = 32          ! m3m(oh)
          ELSE
@@ -1441,69 +1496,70 @@ CONTAINS
             ! Probably a sub-group of 32
             indpg = -32
          END IF
-      ELSEIF (ihg >= 6) THEN
+      ELSE IF (ihg >= 6) THEN
          IF (nc == 0) THEN
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, '(" ATFTM1! IHG=",A," NC=",I2)') icst(ihg), nC
+            END IF
             CALL stopgm('ATFTM1', 'NUMBER OF ROTATION NULL')
             ! Triclinic system
-         ELSEIF (nc == 1) THEN
+         ELSE IF (nc == 1) THEN
             ! IB=1
             indpg = 1           ! 1 (c1)
-         ELSEIF (nc == 2 .AND. ib(2) == 13) THEN
+         ELSE IF (nc == 2 .AND. ib(2) == 13) THEN
             ! IB=113
             indpg = 2           ! <1>(ci)
-         ELSEIF (nc == 2 .AND. ( &
-                 ib(2) == 4)) THEN ! 2[001]
+         ELSE IF (nc == 2 .AND. ( &
+                  ib(2) == 4)) THEN ! 2[001]
             ! Monoclinic system
             ! IB=1 4
             indpg = 3           ! 2 (c2)
-         ELSEIF (nc == 2 .AND. ( &
-                 ib(2) == 16)) THEN
+         ELSE IF (nc == 2 .AND. ( &
+                  ib(2) == 16)) THEN
             ! IB=116
             indpg = 4           ! m (c1h)
-         ELSEIF (nc == 4 .AND. ( &
-                 ib(4) == 24 .OR. &
-                 ib(4) == 20)) THEN
+         ELSE IF (nc == 4 .AND. ( &
+                  ib(4) == 24 .OR. &
+                  ib(4) == 20)) THEN
             ! IB=112 1324 OR
             ! IB=1  813 20
             indpg = 5           ! 2/m(c2h)
-         ELSEIF (nc == 3 .AND. ib(3) == 5) THEN
+         ELSE IF (nc == 3 .AND. ib(3) == 5) THEN
             ! Trigonal system
             ! IB=13 5
             indpg = 6           ! 3 (c3)
-         ELSEIF (nc == 6 .AND. ib(6) == 17) THEN
+         ELSE IF (nc == 6 .AND. ib(6) == 17) THEN
             ! IB=113 1517 35
             indpg = 7           ! <3>(c3i)
-         ELSEIF (nc == 6 .AND. ib(6) == 11) THEN
+         ELSE IF (nc == 6 .AND. ib(6) == 11) THEN
             ! IB=17 9 1135
             indpg = 8           ! 32 (d3)
-         ELSEIF (nc == 6 .AND. ib(6) == 23) THEN
+         ELSE IF (nc == 6 .AND. ib(6) == 23) THEN
             ! IB=13 5 1921 23
             indpg = 9           ! 3m (c3v)
-         ELSEIF (nc == 12 .AND. ib(12) == 23) THEN
+         ELSE IF (nc == 12 .AND. ib(12) == 23) THEN
             ! IB=13 5 79 1113 1517 1921 23
             indpg = 10          ! <3>m(d3d)
-         ELSEIF (nc == 6 .AND. ib(6) == 6) THEN
+         ELSE IF (nc == 6 .AND. ib(6) == 6) THEN
             ! Hexagonal system
             ! IB=12 3 45 6
             indpg = 18          ! 6 (c6)
-         ELSEIF (nc == 6 .AND. ib(6) == 18) THEN
+         ELSE IF (nc == 6 .AND. ib(6) == 18) THEN
             ! IB=13 5 1416 18
             indpg = 19          ! <6>(c3h)
-         ELSEIF (nc == 12 .AND. ib(12) == 18) THEN
+         ELSE IF (nc == 12 .AND. ib(12) == 18) THEN
             ! IB=12 3 45 6 1314 1516 1718
             indpg = 20          ! 6/m(c6h)
-         ELSEIF (nc == 12 .AND. ib(12) == 12) THEN
+         ELSE IF (nc == 12 .AND. ib(12) == 12) THEN
             ! IB=12 3 45 6 78 9 1011 12
             indpg = 21          ! 622(d6)
-         ELSEIF (nc == 12 .AND. ib(2) == 2 .AND. ib(12) == 24) THEN
+         ELSE IF (nc == 12 .AND. ib(2) == 2 .AND. ib(12) == 24) THEN
             ! IB=12 3 45 6 1920 2122 2324
             indpg = 22          ! 6mm(c6v)
-         ELSEIF (nc == 12 .AND. ib(2) == 3 .AND. ib(12) == 24) THEN
+         ELSE IF (nc == 12 .AND. ib(2) == 3 .AND. ib(12) == 24) THEN
             ! IB=13 5 79 1114 1618 2022 24
             indpg = 23          ! <6>m2(d3h)
-         ELSEIF (nc == 24) THEN
+         ELSE IF (nc == 24) THEN
             ! IB=1..24
             indpg = 24          ! 6/mmm(d6h)
          ELSE
@@ -1540,7 +1596,7 @@ CONTAINS
                xb(i) = a(i, 1)*origin(1) + a(i, 2)*origin(2) + a(i, 3)*origin(3)
             END DO
             isy = -1
-         ELSEIF (info == 0) THEN
+         ELSE IF (info == 0) THEN
             isy = 0
          ELSE
             isy = -2
@@ -1554,83 +1610,98 @@ CONTAINS
       ! == Output                                                       ==
       ! ==--------------------------------------------------------------==
       IF (iout > 0) THEN
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, *)
+         END IF
          CALL xstring(icst(ihg), i, j)
          IF ((ihg == 7 .AND. nc == 24) .OR. &
              (ihg == 5 .AND. nc == 48)) THEN
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, '(A,A,A)') &
-               ' KPSYM| THE POINT GROUP OF THE CRYSTAL IS THE FULL ', &
-               icst(ihg) (i:j), &
-               ' GROUP'
+                  ' KPSYM| THE POINT GROUP OF THE CRYSTAL IS THE FULL ', &
+                  icst(ihg) (i:j), &
+                  ' GROUP'
+            END IF
          ELSE
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, '(A,A,A,I2,A)') &
-               ' KPSYM| THE CRYSTAL SYSTEM IS ', &
-               icst(ihg) (i:j), &
-               ' WITH ', nc, ' OPERATIONS:'
+                  ' KPSYM| THE CRYSTAL SYSTEM IS ', &
+                  icst(ihg) (i:j), &
+                  ' WITH ', nc, ' OPERATIONS:'
+            END IF
             IF (ihc == 0) THEN
-               IF (iout > 0) &
+               IF (iout > 0) THEN
                   WRITE (iout, '( 5(5(A13),/))') (rname_hexai(ib(i)), i=1, nc)
+               END IF
             ELSE
-               IF (iout > 0) &
+               IF (iout > 0) THEN
                   WRITE (iout, '(10(5(A13),/))') (rname_cubic(ib(i)), i=1, nc)
+               END IF
             END IF
          END IF
          ! ==------------------------------------------------------------==
          IF (isy == 1) THEN
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, '(A)') &
-               ' KPSYM| THE SPACE GROUP OF THE CRYSTAL IS SYMMORPHIC'
-         ELSEIF (isy == -1) THEN
-            IF (iout > 0) &
+                  ' KPSYM| THE SPACE GROUP OF THE CRYSTAL IS SYMMORPHIC'
+            END IF
+         ELSE IF (isy == -1) THEN
+            IF (iout > 0) THEN
                WRITE (iout, '(A)') &
-               ' KPSYM| THE SPACE GROUP OF THE CRYSTAL IS SYMMORPHIC'
-            IF (iout > 0) &
+                  ' KPSYM| THE SPACE GROUP OF THE CRYSTAL IS SYMMORPHIC'
+            END IF
+            IF (iout > 0) THEN
                WRITE (iout, '(A,A,/,T3,3F10.6,3X,3F10.6)') &
-               ' KPSYM| THE STANDARD ORIGIN OF COORDINATES IS:   ', &
-               '[CARTESIAN]   [CRYSTAL]', xb, origin
-         ELSEIF (isy == 0) THEN
-            IF (iout > 0) &
+                  ' KPSYM| THE STANDARD ORIGIN OF COORDINATES IS:   ', &
+                  '[CARTESIAN]   [CRYSTAL]', xb, origin
+            END IF
+         ELSE IF (isy == 0) THEN
+            IF (iout > 0) THEN
                WRITE (iout, '(A,/,3X,A,F15.6,A)') &
-               ' KPSYM| THE SPACE GROUP IS NON-SYMMORPHIC,', &
-               ' (SUM OF TRANSLATION VECTORS=', vs, ')'
-         ELSEIF (isy == -2) THEN
-            IF (iout > 0) &
+                  ' KPSYM| THE SPACE GROUP IS NON-SYMMORPHIC,', &
+                  ' (SUM OF TRANSLATION VECTORS=', vs, ')'
+            END IF
+         ELSE IF (isy == -2) THEN
+            IF (iout > 0) THEN
                WRITE (iout, '(A,A)') &
-               ' KPSYM| CANNOT DETERMINE IF THE SPACE GROUP IS', &
-               ' SYMMORPHIC OR NOT'
-            IF (iout > 0) &
+                  ' KPSYM| CANNOT DETERMINE IF THE SPACE GROUP IS', &
+                  ' SYMMORPHIC OR NOT'
+            END IF
+            IF (iout > 0) THEN
                WRITE (iout, '(A,/,A,/,3X,A,F15.6,A)') &
-               ' KPSYM| THE SPACE GROUP IS NON-SYMMORPHIC,', &
-               ' KPSYM| OR ELSE A NON STANDARD ORIGIN OF COORDINATES WAS USED.', &
-               ' KPSYM| (SUM OF TRANSLATION VECTORS=', vs, ')'
+                  ' KPSYM| THE SPACE GROUP IS NON-SYMMORPHIC,', &
+                  ' KPSYM| OR ELSE A NON STANDARD ORIGIN OF COORDINATES WAS USED.', &
+                  ' KPSYM| (SUM OF TRANSLATION VECTORS=', vs, ')'
+            END IF
          END IF
          IF (indpg > 0) THEN
             CALL xstring(pgrp(indpg), i, j)
             CALL xstring(pgrd(indpg), k, l)
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, '(A,A,"(",A,")",T56,"[INDEX=",I2,"]")') &
-               ' KPSYM| THE POINT GROUP OF THE CRYSTAL IS  ', pgrp(indpg) (i:j), &
-               pgrd(indpg) (k:l), indpg
+                  ' KPSYM| THE POINT GROUP OF THE CRYSTAL IS  ', pgrp(indpg) (i:j), &
+                  pgrd(indpg) (k:l), indpg
+            END IF
          ELSE
             CALL xstring(pgrp(-indpg), i, j)
             CALL xstring(pgrd(-indpg), k, l)
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, '(A,I2,A,A,"(",A,")",T56,"[INDEX=",I2,"]")') &
-               ' KPSYM| POINT GROUP: GROUP ORDER=', nc, &
-               '    SUBGROUP OF ', pgrp(-indpg) (i:j), &
-               pgrd(-indpg) (k:l), -indpg
+                  ' KPSYM| POINT GROUP: GROUP ORDER=', nc, &
+                  '    SUBGROUP OF ', pgrp(-indpg) (i:j), &
+                  pgrd(-indpg) (k:l), -indpg
+            END IF
          END IF
          IF (ntvec == 1) THEN
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, '(A,T60,I6)') &
-               ' KPSYM| NUMBER OF PRIMITIVE CELL:', ntvec
+                  ' KPSYM| NUMBER OF PRIMITIVE CELL:', ntvec
+            END IF
          ELSE
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, '(A,T60,I6)') &
-               ' KPSYM| NUMBER OF PRIMITIVE CELLS:', ntvec
+                  ' KPSYM| NUMBER OF PRIMITIVE CELLS:', ntvec
+            END IF
          END IF
       END IF
 
@@ -2403,11 +2474,12 @@ CONTAINS
 280            CONTINUE
             END DO
          END DO
-         IF (iremov > 0 .AND. iout > 0) &
+         IF (iremov > 0 .AND. iout > 0) THEN
             WRITE (iout, '(A,A,/,A,1X,I6,A,/)') &
-            ' KPSYM| SOME OF THESE MESH POINTS ARE RELATED BY LATTICE ', &
-            'TRANSLATION VECTORS', &
-            ' KPSYM|', iremov, ' OF THE MESH POINTS REMOVED.'
+               ' KPSYM| SOME OF THESE MESH POINTS ARE RELATED BY LATTICE ', &
+               'TRANSLATION VECTORS', &
+               ' KPSYM|', iremov, ' OF THE MESH POINTS REMOVED.'
+         END IF
       END IF
       ! ==--------------------------------------------------------------==
       ! == IN THE MESH OF WAVEVECTORS, NOW SEARCH FOR EQUIVALENT POINTS:==
@@ -2500,59 +2572,72 @@ CONTAINS
       ! == THE LIST OF WEIGHTS LWGHT IS NOT NORMALIZED                  ==
       ! ==--------------------------------------------------------------==
       IF (ntot > nkpoint) THEN
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, *) 'IN SPPT2 NUMBER OF SPECIAL POINTS = ', ntot
-         IF (iout > 0) &
+         END IF
+         IF (iout > 0) THEN
             WRITE (iout, *) 'BUT NKPOINT = ', nkpoint
+         END IF
          ntot = -1
       END IF
       IF (iout > 0) THEN
          ! Write the index table relating k points in the mesh
          ! with special k points
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, '(/,A,4X,A)') &
-            ' KPSYM|', 'CROSS TABLE RELATING MESH POINTS WITH SPECIAL POINTS:'
-         IF (iout > 0) &
+               ' KPSYM|', 'CROSS TABLE RELATING MESH POINTS WITH SPECIAL POINTS:'
+         END IF
+         IF (iout > 0) THEN
             WRITE (iout, '(5(4X,"IK -> SK"))')
+         END IF
          DO i = 1, imesh
             iplace = includ(i)/2
-            IF (iout > 0) &
+            IF (iout > 0) THEN
                WRITE (iout, '(1X,I5,1X,I5)', advance="no") i, iplace
-            IF ((MOD(i, 5) == 0) .AND. iout > 0) &
+            END IF
+            IF ((MOD(i, 5) == 0) .AND. iout > 0) THEN
                WRITE (iout, *)
+            END IF
          END DO
-         IF ((MOD(j - 1, 5) /= 0) .AND. iout > 0) &
+         IF ((MOD(j - 1, 5) /= 0) .AND. iout > 0) THEN
             WRITE (iout, *)
+         END IF
       END IF
       RETURN
       ! ==--------------------------------------------------------------==
       ! == ERROR MESSAGES                                               ==
       ! ==--------------------------------------------------------------==
 450   CONTINUE
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
-      IF (iout > 0) &
+      END IF
+      IF (iout > 0) THEN
          WRITE (iout, '(A,3F10.4,/,A,3F10.4,A,/,A,I3,A)') &
-         ' THE VECTOR     ', wva, &
-         ' GENERATED FROM ', wvk, ' IN THE BASIC MESH', &
-         ' BY ROTATION NO. ', ibrav(iop), ' IS OUTSIDE THE 1BZ'
+            ' THE VECTOR     ', wva, &
+            ' GENERATED FROM ', wvk, ' IN THE BASIC MESH', &
+            ' BY ROTATION NO. ', ibrav(iop), ' IS OUTSIDE THE 1BZ'
+      END IF
       CALL stopgm('SPPT2', 'VECTOR OUTSIDE THE 1BZ')
       ! ==--------------------------------------------------------------==
 470   CONTINUE
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
-      IF (iout > 0) &
+      END IF
+      IF (iout > 0) THEN
          WRITE (iout, *) 'MESH SIZE EXCEEDS NKPOINT=', nkpoint
+      END IF
       CALL stopgm('SPPT2', 'MESH SIZE EXCEEDED')
       ! ==--------------------------------------------------------------==
 490   CONTINUE
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
-      IF (iout > 0) &
+      END IF
+      IF (iout > 0) THEN
          WRITE (iout, '(A,3F10.4,/,A,3F10.4,A,/,A,I3,A)') &
-         ' THE VECTOR     ', wva, &
-         ' GENERATED FROM ', wvk, ' IN THE BASIC MESH', &
-         ' BY ROTATION NO. ', ib(n), ' IS NOT IN THE LIST'
+            ' THE VECTOR     ', wva, &
+            ' GENERATED FROM ', wvk, ' IN THE BASIC MESH', &
+            ' BY ROTATION NO. ', ib(n), ' IS NOT IN THE LIST'
+      END IF
       CALL stopgm('SPPT2', 'VECTOR NOT IN THE LIST')
       ! ==--------------------------------------------------------------==
       RETURN
@@ -2615,7 +2700,7 @@ CONTAINS
          igarbg = 0
          RETURN
          ! ==--------------------------------------------------------------==
-      ELSEIF ((iplace > -2) .AND. (iplace <= 0)) THEN
+      ELSE IF ((iplace > -2) .AND. (iplace <= 0)) THEN
          ! The particular HASH function used in this case:
          rhash = 0.7890_dp*wvk(1) &
                  + 0.6810_dp*wvk(2) &
@@ -2639,10 +2724,11 @@ CONTAINS
             ipoint = list(ihash)
          END DO
          ! List too long
-         IF (iout > 0) &
+         IF (iout > 0) THEN
             WRITE (iout, '(2A,/,A)') &
-            ' SUBROUTINE MESH *** FATAL ERROR *** LINKED LIST', &
-            ' TOO LONG ***', ' CHOOSE A BETTER HASH-FUNCTION'
+               ' SUBROUTINE MESH *** FATAL ERROR *** LINKED LIST', &
+               ' TOO LONG ***', ' CHOOSE A BETTER HASH-FUNCTION'
+         END IF
          CALL stopgm('MESH', 'WARNING')
          ! WVK was not found
 130      CONTINUE
@@ -2654,12 +2740,14 @@ CONTAINS
             ! IPLACE=0: add WVK to the list
             list(ihash) = istore
             IF (istore > nmesh) THEN
-               IF (iout > 0) &
+               IF (iout > 0) THEN
                   WRITE (iout, '(A)') 'SUBROUTINE MESH *** FATAL ERROR ***'
-               IF (iout > 0) &
+               END IF
+               IF (iout > 0) THEN
                   WRITE (iout, '(A,I10,A,/,A,3F10.5)') &
-                  ' ISTORE=', istore, ' EXCEEDS DIMENSIONS', &
-                  ' WVK = ', wvk
+                     ' ISTORE=', istore, ' EXCEEDS DIMENSIONS', &
+                     ' WVK = ', wvk
+               END IF
                CALL stopgm('MESH', 'WARNING')
             END IF
             list(istore) = nil
@@ -2691,11 +2779,12 @@ CONTAINS
       ! == Error - beyond list                                          ==
       ! ==--------------------------------------------------------------==
 190   CONTINUE
-      IF (iout > 0) &
+      IF (iout > 0) THEN
          WRITE (iout, '(A,/,A,I5,A,/)') &
-         ' SUBROUTINE MESH *** WARNING ***', &
-         ' IPLACE = ', iplace, &
-         ' IS BEYOND THE LISTS - WVK SET TO 1.0E38'
+            ' SUBROUTINE MESH *** WARNING ***', &
+            ' IPLACE = ', iplace, &
+            ' IS BEYOND THE LISTS - WVK SET TO 1.0E38'
+      END IF
       DO i = 1, 3
          wvk(i) = 1.0e38_dp
       END DO

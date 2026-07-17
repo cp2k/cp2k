@@ -105,7 +105,8 @@ CONTAINS
          !Angular dependance %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
          Vang = 0.0_dp
 
-         !Calculation of the normal vector centered on the Me atom of the pair, only the first time that an interaction with the metal atom of the pair is evaluated
+         ! Calculation of the normal vector centered on the Me atom of the pair,
+         ! only the first time that an interaction with the metal atom of the pair is evaluated
          IF (gal21%n_vectors(1, jparticle) == 0.0_dp .AND. &
              gal21%n_vectors(2, jparticle) == 0.0_dp .AND. &
              gal21%n_vectors(3, jparticle) == 0.0_dp) THEN
@@ -113,13 +114,14 @@ CONTAINS
                                                     particle_set, cell)
          END IF
 
-         nvec(:) = gal21%n_vectors(:, jparticle) !Else, retrive it, should not have moved sinc metal is supposed to be frozen
+         ! Else, retrive it, should not have moved sinc metal is supposed to be frozen
+         nvec(:) = gal21%n_vectors(:, jparticle)
 
          !Calculation of the sum of the expontial weights of each Me surrounding the principal one
          sum_weight = somme(gal21, r_last_update_pbc, iparticle, particle_set, cell)
 
          !Exponential damping weight for angular dependance
-         weight = EXP(-SQRT(DOT_PRODUCT(rji, rji))/gal21%r1)
+         weight = EXP(-NORM2(rji)/gal21%r1)
 
          !Calculation of the truncated fourier series of the water-dipole/surface-normal angle
          anglepart = 0.0_dp
@@ -229,15 +231,18 @@ CONTAINS
          IF (kparticle == jparticle) CYCLE !Avoid the principal Me atom (j) in the counting
          CALL get_atomic_kind(atomic_kind=particle_set(kparticle)%atomic_kind, &
                               element_symbol=element_symbol_k)
-         IF (element_symbol_k /= gal21%met1 .AND. element_symbol_k /= gal21%met2) CYCLE !Keep only metals
+         !Keep only metals
+         IF (element_symbol_k /= gal21%met1 .AND. element_symbol_k /= gal21%met2) CYCLE
          rjk(:) = pbc(r_last_update_pbc(jparticle)%r(:), r_last_update_pbc(kparticle)%r(:), cell)
-         drjk = SQRT(DOT_PRODUCT(rjk, rjk))
-         IF (drjk > gal21%rcutsq) CYCLE !Keep only those within square root of the force-field cutoff distance of the metallic atom of the evaluated pair
-         normale(:) = normale(:) - rjk(:)/(drjk*drjk*drjk*drjk*drjk) !Build the normal, vector by vector
+         drjk = NORM2(rjk)
+         !Keep only those within square root of the force-field cutoff distance of the metallic atom of the evaluated pair
+         IF (drjk > gal21%rcutsq) CYCLE
+         !Build the normal, vector by vector
+         normale(:) = normale(:) - rjk(:)/(drjk*drjk*drjk*drjk*drjk)
       END DO
 
       ! Normalisation of the vector
-      normale(:) = normale(:)/SQRT(DOT_PRODUCT(normale, normale))
+      normale(:) = normale(:)/NORM2(normale)
 
    END FUNCTION normale
 
@@ -269,11 +274,14 @@ CONTAINS
       DO kparticle = 1, natom !Loop on every atom of the system
          CALL get_atomic_kind(atomic_kind=particle_set(kparticle)%atomic_kind, &
                               element_symbol=element_symbol_k)
-         IF (element_symbol_k /= gal21%met1 .AND. element_symbol_k /= gal21%met2) CYCLE !Keep only metals
+         !Keep only metals
+         IF (element_symbol_k /= gal21%met1 .AND. element_symbol_k /= gal21%met2) CYCLE
          rki(:) = pbc(r_last_update_pbc(kparticle)%r(:), r_last_update_pbc(iparticle)%r(:), cell)
-         IF (SQRT(DOT_PRODUCT(rki, rki)) > gal21%rcutsq) CYCLE !Keep only those within cutoff distance of the oxygen atom of the evaluated pair (the omega ensemble)
-         IF (element_symbol_k == gal21%met1) somme = somme + EXP(-SQRT(DOT_PRODUCT(rki, rki))/gal21%r1) !Build the sum of the exponential weights
-         IF (element_symbol_k == gal21%met2) somme = somme + EXP(-SQRT(DOT_PRODUCT(rki, rki))/gal21%r2) !Build the sum of the exponential weights
+         !Keep only those within cutoff distance of the oxygen atom of the evaluated pair (the omega ensemble)
+         IF (NORM2(rki) > gal21%rcutsq) CYCLE
+         !Build the sum of the exponential weights
+         IF (element_symbol_k == gal21%met1) somme = somme + EXP(-NORM2(rki)/gal21%r1)
+         IF (element_symbol_k == gal21%met2) somme = somme + EXP(-NORM2(rki)/gal21%r2)
       END DO
 
    END FUNCTION somme
@@ -325,11 +333,11 @@ CONTAINS
                               element_symbol=element_symbol)
          IF (element_symbol /= "H") CYCLE !Kepp only hydrogen
          rih(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(iatom)%r(:), cell)
-         IF (SQRT(DOT_PRODUCT(rih, rih)) >= h_max_dist) CYCLE !Keep only hydrogen that are bounded to the considered O
+         IF (NORM2(rih) >= h_max_dist) CYCLE !Keep only hydrogen that are bounded to the considered O
          count_h = count_h + 1
          IF (count_h == 1) THEN
             index_h1 = iatom
-         ELSEIF (count_h == 2) THEN
+         ELSE IF (count_h == 2) THEN
             index_h2 = iatom
          END IF
       END DO
@@ -348,7 +356,7 @@ CONTAINS
       rih1(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h1)%r(:), cell)
       rih2(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h2)%r(:), cell)
       rix(:) = rih1(:) + rih2(:) ! build the dipole vector rix of the H2O molecule
-      costheta = DOT_PRODUCT(rix, nvec)/SQRT(DOT_PRODUCT(rix, rix))
+      costheta = DOT_PRODUCT(rix, nvec)/NORM2(rix)
       IF (costheta < -1.0_dp) costheta = -1.0_dp
       IF (costheta > +1.0_dp) costheta = +1.0_dp
       theta = ACOS(costheta) ! Theta is the angle between the normal to the surface and the dipole
@@ -359,8 +367,7 @@ CONTAINS
 
       rjh1(:) = pbc(r_last_update_pbc(jparticle)%r(:), r_last_update_pbc(index_h1)%r(:), cell)
       rjh2(:) = pbc(r_last_update_pbc(jparticle)%r(:), r_last_update_pbc(index_h2)%r(:), cell)
-      VH = (gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)*(EXP(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1))) + &
-                                                         EXP(-BH*SQRT(DOT_PRODUCT(rjh2, rjh2))))
+      VH = (gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)*(EXP(-BH*NORM2(rjh1)) + EXP(-BH*NORM2(rjh2)))
 
       ! For fit purpose
       IF (gal21%express .AND. energy) THEN
@@ -370,9 +377,8 @@ CONTAINS
 
          IF (index_outfile > 0) WRITE (index_outfile, *) "Fourier", costheta, COS(2.0_dp*theta), COS(3.0_dp*theta), &
             COS(4.0_dp*theta) !, theta
-         IF (index_outfile > 0) WRITE (index_outfile, *) "H_rep", EXP(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1))) + &
-            EXP(-BH*SQRT(DOT_PRODUCT(rjh2, rjh2)))
-         !IF (index_outfile > 0) WRITE (index_outfile, *) "H_r6", -1/DOT_PRODUCT(rjh1,rjh1)**3 -1/DOT_PRODUCT(rjh2,rjh2)**3
+         IF (index_outfile > 0) WRITE (index_outfile, *) "H_rep", EXP(-BH*NORM2(rjh1)) + &
+            EXP(-BH*NORM2(rjh2))
 
          CALL cp_print_key_finished_output(index_outfile, logger, mm_section, &
                                            "PRINT%PROGRAM_RUN_INFO")
@@ -415,7 +421,7 @@ CONTAINS
       IF (element_symbol == "O") THEN !To avoid counting two times each pair
 
          rji(:) = pbc(r_last_update_pbc(jparticle)%r(:), r_last_update_pbc(iparticle)%r(:), cell)
-         drji = SQRT(DOT_PRODUCT(rji, rji))
+         drji = NORM2(rji)
          rji_hat(:) = rji(:)/drji ! hat = pure directional component of a given vector
 
          IF (.NOT. ALLOCATED(gal21%n_vectors)) THEN !First calling of the forcefield only
@@ -430,7 +436,8 @@ CONTAINS
 
          !Angular dependance %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-         !Calculation of the normal vector centered on the Me atom of the pair, only the first time that an interaction with the metal atom of the pair is evaluated
+         ! Calculation of the normal vector centered on the Me atom of the pair, only the first time that an interaction with
+         ! the metal atom of the pair is evaluated
          IF (gal21%n_vectors(1, jparticle) == 0.0_dp .AND. &
              gal21%n_vectors(2, jparticle) == 0.0_dp .AND. &
              gal21%n_vectors(3, jparticle) == 0.0_dp) THEN
@@ -566,19 +573,22 @@ CONTAINS
                                                             rki_hat(3), weight_rji
 
       rji(:) = pbc(r_last_update_pbc(jparticle)%r(:), r_last_update_pbc(iparticle)%r(:), cell)
-      weight_rji = EXP(-SQRT(DOT_PRODUCT(rji, rji))/gal21%r1)
+      weight_rji = EXP(-NORM2(rji)/gal21%r1)
 
       natom = SIZE(particle_set)
       DO kparticle = 1, natom !Loop on every atom of the system
          CALL get_atomic_kind(atomic_kind=particle_set(kparticle)%atomic_kind, &
                               element_symbol=element_symbol_k)
-         IF (element_symbol_k /= gal21%met1 .AND. element_symbol_k /= gal21%met2) CYCLE !Keep only metals
+         !Keep only metals
+         IF (element_symbol_k /= gal21%met1 .AND. element_symbol_k /= gal21%met2) CYCLE
          rki(:) = pbc(r_last_update_pbc(kparticle)%r(:), r_last_update_pbc(iparticle)%r(:), cell)
-         IF (SQRT(DOT_PRODUCT(rki, rki)) > gal21%rcutsq) CYCLE !Keep only those within cutoff distance of the oxygen atom of the evaluated pair (the omega ensemble)
-         drki = SQRT(DOT_PRODUCT(rki, rki))
+         !Keep only those within cutoff distance of the oxygen atom of the evaluated pair (the omega ensemble)
+         IF (NORM2(rki) > gal21%rcutsq) CYCLE
+         drki = NORM2(rki)
          rki_hat(:) = rki(:)/drki
 
-         IF (element_symbol_k == gal21%met1) dwdr(:) = (-1.0_dp)*(1.0_dp/gal21%r1)*EXP(-drki/gal21%r1)*rki_hat(:) !Build the sum of derivativs
+         !Build the sum of derivativs
+         IF (element_symbol_k == gal21%met1) dwdr(:) = (-1.0_dp)*(1.0_dp/gal21%r1)*EXP(-drki/gal21%r1)*rki_hat(:)
          IF (element_symbol_k == gal21%met2) dwdr(:) = (-1.0_dp)*(1.0_dp/gal21%r2)*EXP(-drki/gal21%r2)*rki_hat(:)
 
          f_nonbond(1:3, iparticle) = f_nonbond(1:3, iparticle) + dwdr(1:3)*weight_rji &
@@ -641,11 +651,11 @@ CONTAINS
                               element_symbol=element_symbol)
          IF (element_symbol /= "H") CYCLE !Kepp only hydrogen
          rih(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(iatom)%r(:), cell)
-         IF (SQRT(DOT_PRODUCT(rih, rih)) >= h_max_dist) CYCLE !Keep only hydrogen that are bounded to the considered O
+         IF (NORM2(rih) >= h_max_dist) CYCLE !Keep only hydrogen that are bounded to the considered O
          count_h = count_h + 1
          IF (count_h == 1) THEN
             index_h1 = iatom
-         ELSEIF (count_h == 2) THEN
+         ELSE IF (count_h == 2) THEN
             index_h2 = iatom
          END IF
       END DO
@@ -662,14 +672,14 @@ CONTAINS
       a4 = gal21%a41 + gal21%a42*gal21%gcn(jparticle) + gal21%a43*gal21%gcn(jparticle)*gal21%gcn(jparticle)
 
       rji(:) = pbc(r_last_update_pbc(jparticle)%r(:), r_last_update_pbc(iparticle)%r(:), cell)
-      rji_hat(:) = rji(:)/SQRT(DOT_PRODUCT(rji, rji)) ! hat = pure directional component of a given vector
+      rji_hat(:) = rji(:)/NORM2(rji) ! hat = pure directional component of a given vector
 
       !dipole vector rix of the H2O molecule
       rih1(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h1)%r(:), cell)
       rih2(:) = pbc(r_last_update_pbc(iparticle)%r(:), r_last_update_pbc(index_h2)%r(:), cell)
       rix(:) = rih1(:) + rih2(:) ! build the dipole vector rix of the H2O molecule
-      rix_hat(:) = rix(:)/SQRT(DOT_PRODUCT(rix, rix)) ! hat = pure directional component of a given vector
-      costheta = DOT_PRODUCT(rix, nvec)/SQRT(DOT_PRODUCT(rix, rix)) ! Theta is the angle between the normal to the surface and the dipole
+      rix_hat(:) = rix(:)/NORM2(rix) ! hat = pure directional component of a given vector
+      costheta = DOT_PRODUCT(rix, nvec)/NORM2(rix) ! Theta is the angle between the normal to the surface and the dipole
       IF (costheta < -1.0_dp) costheta = -1.0_dp
       IF (costheta > +1.0_dp) costheta = +1.0_dp
       theta = ACOS(costheta) ! Theta is the angle between the normal to the surface and the dipole
@@ -677,7 +687,7 @@ CONTAINS
       ! Calculation of partial derivativ of the angular components
       dsumdtheta = -1.0_dp*a1*SIN(theta) - a2*2.0_dp*SIN(2.0_dp*theta) - &
                    a3*3.0_dp*SIN(3.0_dp*theta) - a4*4.0_dp*SIN(4.0_dp*theta)
-      dcostheta(:) = (1.0_dp/SQRT(DOT_PRODUCT(rix, rix)))*(nvec(:) - costheta*rix_hat(:))
+      dcostheta(:) = (1.0_dp/NORM2(rix))*(nvec(:) - costheta*rix_hat(:))
       dangular(:) = prefactor*dsumdtheta*(-1.0_dp/SIN(theta))*dcostheta(:)
 
       !Force due to the third component of the derivativ of the angular term
@@ -695,35 +705,35 @@ CONTAINS
 
       rjh1(:) = pbc(r_last_update_pbc(jparticle)%r(:), r_last_update_pbc(index_h1)%r(:), cell)
       f_nonbond(1:3, index_h1) = f_nonbond(1:3, index_h1) + (gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                                 BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1)))*rjh1(:)/SQRT(DOT_PRODUCT(rjh1, rjh1))
+                                 BH*EXP(-BH*NORM2(rjh1))*rjh1(:)/NORM2(rjh1)
 
       IF (use_virial) THEN
          pv_nonbond(1, 1:3) = pv_nonbond(1, 1:3) + rjh1(1)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                                                            BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1)))) &
-                              *rjh1(:)/SQRT(DOT_PRODUCT(rjh1, rjh1))
+                                                            BH*EXP(-BH*NORM2(rjh1))) &
+                              *rjh1(:)/NORM2(rjh1)
          pv_nonbond(2, 1:3) = pv_nonbond(2, 1:3) + rjh1(2)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                                                            BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1)))) &
-                              *rjh1(:)/SQRT(DOT_PRODUCT(rjh1, rjh1))
+                                                            BH*EXP(-BH*NORM2(rjh1))) &
+                              *rjh1(:)/NORM2(rjh1)
          pv_nonbond(3, 1:3) = pv_nonbond(3, 1:3) + rjh1(3)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                                                            BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1)))) &
-                              *rjh1(:)/SQRT(DOT_PRODUCT(rjh1, rjh1))
+                                                            BH*EXP(-BH*NORM2(rjh1))) &
+                              *rjh1(:)/NORM2(rjh1)
       END IF
 
       rjh2(:) = pbc(r_last_update_pbc(jparticle)%r(:), r_last_update_pbc(index_h2)%r(:), cell)
       f_nonbond(1:3, index_h2) = f_nonbond(1:3, index_h2) + ((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                                                             BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh2, rjh2)))) &
-                                 *rjh2(:)/SQRT(DOT_PRODUCT(rjh2, rjh2))
+                                                             BH*EXP(-BH*NORM2(rjh2))) &
+                                 *rjh2(:)/NORM2(rjh2)
 
       IF (use_virial) THEN
          pv_nonbond(1, 1:3) = pv_nonbond(1, 1:3) + rjh2(1)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                                                            BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh2, rjh2)))) &
-                              *rjh2(:)/SQRT(DOT_PRODUCT(rjh2, rjh2))
+                                                            BH*EXP(-BH*NORM2(rjh2))) &
+                              *rjh2(:)/NORM2(rjh2)
          pv_nonbond(2, 1:3) = pv_nonbond(2, 1:3) + rjh2(2)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                                                            BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh2, rjh2)))) &
-                              *rjh2(:)/SQRT(DOT_PRODUCT(rjh2, rjh2))
+                                                            BH*EXP(-BH*NORM2(rjh2))) &
+                              *rjh2(:)/NORM2(rjh2)
          pv_nonbond(3, 1:3) = pv_nonbond(3, 1:3) + rjh2(3)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                                                            BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh2, rjh2)))) &
-                              *rjh2(:)/SQRT(DOT_PRODUCT(rjh2, rjh2))
+                                                            BH*EXP(-BH*NORM2(rjh2))) &
+                              *rjh2(:)/NORM2(rjh2)
       END IF
 
    END SUBROUTINE angular_d

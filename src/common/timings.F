@@ -96,8 +96,9 @@ CONTAINS
 
       IF (PRESENT(timer_env)) timer_env_ => timer_env
       IF (.NOT. PRESENT(timer_env)) CALL timer_env_create(timer_env_)
-      IF (.NOT. ASSOCIATED(timer_env_)) &
+      IF (.NOT. ASSOCIATED(timer_env_)) THEN
          CPABORT("add_timer_env: not associated")
+      END IF
 
       CALL timer_env_retain(timer_env_)
       IF (.NOT. list_isready(timers_stack)) CALL list_init(timers_stack)
@@ -157,10 +158,12 @@ CONTAINS
    SUBROUTINE timer_env_retain(timer_env)
       TYPE(timer_env_type), POINTER                      :: timer_env
 
-      IF (.NOT. ASSOCIATED(timer_env)) &
+      IF (.NOT. ASSOCIATED(timer_env)) THEN
          CPABORT("timer_env_retain: not associated")
-      IF (timer_env%ref_count < 0) &
+      END IF
+      IF (timer_env%ref_count < 0) THEN
          CPABORT("timer_env_retain: negativ ref_count")
+      END IF
       timer_env%ref_count = timer_env%ref_count + 1
    END SUBROUTINE timer_env_retain
 
@@ -176,10 +179,12 @@ CONTAINS
       TYPE(callgraph_item_type), DIMENSION(:), POINTER   :: ct_items
       TYPE(routine_stat_type), POINTER                   :: r_stat
 
-      IF (.NOT. ASSOCIATED(timer_env)) &
+      IF (.NOT. ASSOCIATED(timer_env)) THEN
          CPABORT("timer_env_release: not associated")
-      IF (timer_env%ref_count < 0) &
+      END IF
+      IF (timer_env%ref_count < 0) THEN
          CPABORT("timer_env_release: negativ ref_count")
+      END IF
       timer_env%ref_count = timer_env%ref_count - 1
       IF (timer_env%ref_count > 0) RETURN
 
@@ -437,10 +442,12 @@ CONTAINS
       TYPE(timer_env_type), POINTER                      :: timer_env
 
       ! catch edge cases where timer_env is not yet/anymore available
-      IF (.NOT. list_isready(timers_stack)) &
+      IF (.NOT. list_isready(timers_stack)) THEN
          RETURN
-      IF (list_size(timers_stack) == 0) &
+      END IF
+      IF (list_size(timers_stack) == 0) THEN
          RETURN
+      END IF
 
       timer_env => list_peek(timers_stack)
       WRITE (unit_nr, '(/,A,/)') " ===== Routine Calling Stack ===== "

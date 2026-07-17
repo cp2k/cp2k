@@ -83,8 +83,9 @@ CONTAINS
       CALL generate_initial_basis(kind_section, opt_bas, para_env)
 
       CALL section_vals_get(train_section, n_repetition=opt_bas%ntraining_sets)
-      IF (opt_bas%ntraining_sets == 0) &
+      IF (opt_bas%ntraining_sets == 0) THEN
          CPABORT("No training set was specified in the Input")
+      END IF
 
       ALLOCATE (opt_bas%training_input(opt_bas%ntraining_sets))
       ALLOCATE (opt_bas%training_dir(opt_bas%ntraining_sets))
@@ -136,8 +137,9 @@ CONTAINS
 
       logger => cp_get_default_logger()
       unit_nr = -1
-      IF (logger%para_env%is_source()) &
+      IF (logger%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger)
+      END IF
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(1X,A,A)') "BASOPT| Total number of calculations ", &
@@ -294,14 +296,16 @@ CONTAINS
          CALL section_vals_val_get(optbas_section, "GROUP_PARTITION", i_vals=i_vals)
          isize = SIZE(i_vals)
          nptot = SUM(i_vals)
-         IF (nptot /= nproc) &
+         IF (nptot /= nproc) THEN
             CALL cp_abort(__LOCATION__, &
                           "Number of processors in group distribution does not match number of MPI tasks."// &
                           " Please change input.")
-         IF (.NOT. isize <= ncalc) &
+         END IF
+         IF (.NOT. isize <= ncalc) THEN
             CALL cp_abort(__LOCATION__, &
                           "Number of Groups larger than number of calculations"// &
                           " Please change input.")
+         END IF
          CPASSERT(nptot == nproc)
          ALLOCATE (opt_bas%comp_group(isize))
          ALLOCATE (opt_bas%group_partition(0:isize - 1))
@@ -741,12 +745,14 @@ CONTAINS
          CALL section_vals_val_get(const_section, "USE_EXP", i_vals=def_exp, i_rep_section=irep)
          CALL section_vals_val_get(const_section, "BOUNDARIES", explicit=is_bound, i_rep_section=irep)
          CALL section_vals_val_get(const_section, "MAX_VAR_FRACTION", explicit=is_varlim, i_rep_section=irep)
-         IF (is_bound .AND. is_varlim) &
+         IF (is_bound .AND. is_varlim) THEN
             CALL cp_abort(__LOCATION__, "Exponent has two constraints. "// &
                           "This is not possible at the moment. Please change input.")
-         IF (.NOT. is_bound .AND. .NOT. is_varlim) &
+         END IF
+         IF (.NOT. is_bound .AND. .NOT. is_varlim) THEN
             CALL cp_abort(__LOCATION__, "Exponent is declared to be constraint but none is given"// &
                           " Please change input.")
+         END IF
          IF (def_exp(1) == -1) THEN
             DO iset = 1, flex_basis%nsets
                IF (def_exp(2) == -1) THEN
@@ -754,27 +760,30 @@ CONTAINS
                      CALL set_constraint(flex_basis, iset, ipgf, const_section, is_bound, is_varlim, irep)
                   END DO
                ELSE
-                  IF (def_exp(2) <= flex_basis%subset(iset)%nexp) &
+                  IF (def_exp(2) <= flex_basis%subset(iset)%nexp) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Exponent declared in constraint is larger than number of exponents in the set"// &
                                    " Please change input.")
+                  END IF
                   CALL set_constraint(flex_basis, iset, def_exp(2), const_section, is_bound, is_varlim, irep)
                END IF
             END DO
          ELSE
-            IF (.NOT. def_exp(1) <= flex_basis%nsets) &
+            IF (.NOT. def_exp(1) <= flex_basis%nsets) THEN
                CALL cp_abort(__LOCATION__, &
                              "Set number of constraint is larger than number of sets in the template basis set."// &
                              " Please change input.")
+            END IF
             IF (def_exp(2) == -1) THEN
                DO ipgf = 1, flex_basis%subset(iset)%nexp
                   CALL set_constraint(flex_basis, def_exp(1), ipgf, const_section, is_bound, is_varlim, irep)
                END DO
             ELSE
-               IF (.NOT. def_exp(2) <= flex_basis%subset(def_exp(1))%nexp) &
+               IF (.NOT. def_exp(2) <= flex_basis%subset(def_exp(1))%nexp) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "Exponent declared in constraint is larger than number of exponents in the set"// &
                                 " Please change input.")
+               END IF
                CALL set_constraint(flex_basis, def_exp(1), def_exp(2), const_section, is_bound, is_varlim, irep)
             END IF
          END IF
@@ -805,10 +814,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: r_val
       REAL(KIND=dp), DIMENSION(:), POINTER               :: r_vals
 
-      IF (flex_basis%subset(iset)%exp_has_const(ipgf)) &
+      IF (flex_basis%subset(iset)%exp_has_const(ipgf)) THEN
          CALL cp_abort(__LOCATION__, &
                        "Multiple constraints due to collision in CONSTRAIN_EXPONENTS."// &
                        " Please change input.")
+      END IF
       flex_basis%subset(iset)%exp_has_const(ipgf) = .TRUE.
       IF (is_bound) THEN
          flex_basis%subset(iset)%exp_const(ipgf)%const_type = 0
@@ -816,12 +826,13 @@ CONTAINS
          flex_basis%subset(iset)%exp_const(ipgf)%llim = MINVAL(r_vals)
          flex_basis%subset(iset)%exp_const(ipgf)%ulim = MAXVAL(r_vals)
          r_val = flex_basis%subset(iset)%exps(ipgf)
-         IF (flex_basis%subset(iset)%exps(ipgf) > MAXVAL(r_vals) .OR. flex_basis%subset(iset)%exps(ipgf) < MINVAL(r_vals)) &
+         IF (flex_basis%subset(iset)%exps(ipgf) > MAXVAL(r_vals) .OR. flex_basis%subset(iset)%exps(ipgf) < MINVAL(r_vals)) THEN
             CALL cp_abort(__LOCATION__, &
                           "Exponent "//cp_to_string(r_val)// &
                           " declared in constraint is out of bounds of constraint"//cp_to_string(MINVAL(r_vals))// &
                           " to"//cp_to_string(MAXVAL(r_vals))// &
                           " Please change input.")
+         END IF
          flex_basis%subset(iset)%exp_const(ipgf)%init = SUM(r_vals)/2.0_dp
          flex_basis%subset(iset)%exp_const(ipgf)%var_fac = MAXVAL(r_vals)/flex_basis%subset(iset)%exp_const(ipgf)%init - 1.0_dp
       END IF
@@ -1139,8 +1150,7 @@ CONTAINS
 
       ! just to get an understandable basis normalize coefficients
       DO icon1 = 1, subset%ncon_tot
-         subset%coeff(:, icon1) = subset%coeff(:, icon1)/ &
-                                  SQRT(DOT_PRODUCT(subset%coeff(:, icon1), subset%coeff(:, icon1)))
+         subset%coeff(:, icon1) = subset%coeff(:, icon1)/NORM2(subset%coeff(:, icon1))
       END DO
       DEALLOCATE (r_val)
 

@@ -108,17 +108,22 @@ CONTAINS
       IF (PRESENT(muMin0)) pexsi_options%options%muMin0 = muMin0
       IF (PRESENT(muMax0)) pexsi_options%options%muMax0 = muMax0
       IF (PRESENT(mu0)) pexsi_options%options%mu0 = mu0
-      IF (PRESENT(muInertiaTolerance)) &
+      IF (PRESENT(muInertiaTolerance)) THEN
          pexsi_options%options%muInertiaTolerance = muInertiaTolerance
-      IF (PRESENT(muInertiaExpansion)) &
+      END IF
+      IF (PRESENT(muInertiaExpansion)) THEN
          pexsi_options%options%muInertiaExpansion = muInertiaExpansion
-      IF (PRESENT(muPEXSISafeGuard)) &
+      END IF
+      IF (PRESENT(muPEXSISafeGuard)) THEN
          pexsi_options%options%muPEXSISafeGuard = muPEXSISafeGuard
-      IF (PRESENT(numElectronPEXSITolerance)) &
+      END IF
+      IF (PRESENT(numElectronPEXSITolerance)) THEN
          pexsi_options%options%numElectronPEXSITolerance = numElectronPEXSITolerance
+      END IF
       IF (PRESENT(matrixType)) pexsi_options%options%matrixType = matrixType
-      IF (PRESENT(isSymbolicFactorize)) &
+      IF (PRESENT(isSymbolicFactorize)) THEN
          pexsi_options%options%isSymbolicFactorize = isSymbolicFactorize
+      END IF
       IF (PRESENT(ordering)) pexsi_options%options%ordering = ordering
       IF (PRESENT(rowOrdering)) pexsi_options%options%rowOrdering = rowOrdering
       IF (PRESENT(npSymbFact)) pexsi_options%options%npSymbFact = npSymbFact
@@ -205,17 +210,22 @@ CONTAINS
       IF (PRESENT(muMin0)) muMin0 = pexsi_options%options%muMin0
       IF (PRESENT(muMax0)) muMax0 = pexsi_options%options%muMax0
       IF (PRESENT(mu0)) mu0 = pexsi_options%options%mu0
-      IF (PRESENT(muInertiaTolerance)) &
+      IF (PRESENT(muInertiaTolerance)) THEN
          muInertiaTolerance = pexsi_options%options%muInertiaTolerance
-      IF (PRESENT(muInertiaExpansion)) &
+      END IF
+      IF (PRESENT(muInertiaExpansion)) THEN
          muInertiaExpansion = pexsi_options%options%muInertiaExpansion
-      IF (PRESENT(muPEXSISafeGuard)) &
+      END IF
+      IF (PRESENT(muPEXSISafeGuard)) THEN
          muPEXSISafeGuard = pexsi_options%options%muPEXSISafeGuard
-      IF (PRESENT(numElectronPEXSITolerance)) &
+      END IF
+      IF (PRESENT(numElectronPEXSITolerance)) THEN
          numElectronPEXSITolerance = pexsi_options%options%numElectronPEXSITolerance
+      END IF
       IF (PRESENT(matrixType)) matrixType = pexsi_options%options%matrixType
-      IF (PRESENT(isSymbolicFactorize)) &
+      IF (PRESENT(isSymbolicFactorize)) THEN
          isSymbolicFactorize = pexsi_options%options%isSymbolicFactorize
+      END IF
       IF (PRESENT(ordering)) ordering = pexsi_options%options%ordering
       IF (PRESENT(rowOrdering)) rowOrdering = pexsi_options%options%rowOrdering
       IF (PRESENT(npSymbFact)) npSymbFact = pexsi_options%options%npSymbFact
@@ -281,8 +291,9 @@ CONTAINS
       CALL timeset(routineN, handle)
       cp_pexsi_plan_initialize = f_ppexsi_plan_initialize(comm%get_handle(), numProcRow, &
                                                           numProcCol, outputFileIndex, info)
-      IF (info /= 0) &
+      IF (info /= 0) THEN
          CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
+      END IF
       CALL timestop(handle)
 #else
       MARK_USED(comm)
@@ -329,8 +340,9 @@ CONTAINS
       CALL f_ppexsi_load_real_hs_matrix(plan, pexsi_options%options, nrows, nnz, nnzLocal, &
                                         numColLocal, colptrLocal, rowindLocal, &
                                         HnzvalLocal, isSIdentity, SnzvalLocal, info)
-      IF (info /= 0) &
+      IF (info /= 0) THEN
          CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
+      END IF
       CALL timestop(handle)
 #else
       MARK_USED(plan)
@@ -343,9 +355,11 @@ CONTAINS
       CPABORT("Requires linking to the PEXSI library.")
 
       ! MARK_USED macro does not work on assumed shape variables
-      IF (.FALSE.) THEN; DO
+      IF (.FALSE.) THEN
+         DO
             IF (colptrLocal(1) > rowindLocal(1) .OR. HnzvalLocal(1) > SnzvalLocal(1)) EXIT
-         END DO; END IF
+         END DO
+      END IF
 #endif
    END SUBROUTINE cp_pexsi_load_real_hs_matrix
 
@@ -396,8 +410,9 @@ CONTAINS
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
 
-      IF (info /= 0) &
+      IF (info /= 0) THEN
          CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
+      END IF
       CALL timestop(handle)
 #else
       MARK_USED(plan)
@@ -440,8 +455,9 @@ CONTAINS
       CALL f_ppexsi_retrieve_real_dft_matrix(plan, DMnzvalLocal, EDMnzvalLocal, &
                                              FDMnzvalLocal, totalEnergyH, &
                                              totalEnergyS, totalFreeEnergy, info)
-      IF (info /= 0) &
+      IF (info /= 0) THEN
          CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
+      END IF
       CALL timestop(handle)
 #else
       MARK_USED(plan)
@@ -470,8 +486,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       CALL f_ppexsi_plan_finalize(plan, info)
-      IF (info /= 0) &
+      IF (info /= 0) THEN
          CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
+      END IF
       CALL timestop(handle)
 #else
       MARK_USED(plan)

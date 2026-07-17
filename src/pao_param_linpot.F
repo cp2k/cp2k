@@ -124,8 +124,9 @@ CONTAINS
 
       CALL pao_param_linpot_regularizer(pao)
 
-      IF (pao%precondition) &
+      IF (pao%precondition) THEN
          CALL pao_param_linpot_preconditioner(pao)
+      END IF
 
       CALL para_env%sync() ! ensure that timestop is not called too early
 
@@ -445,19 +446,23 @@ CONTAINS
          CALL dbcsr_get_block_p(matrix=pao%matrix_V_terms, row=iatom, col=iatom, block=block_V_terms, found=found)
          CPASSERT(ASSOCIATED(block_V_terms))
          nterms = SIZE(block_V_terms, 2)
-         IF (nterms > 0) & ! protect against corner-case of zero pao parameters
+         IF (nterms > 0) THEN
+            ! protect against corner-case of zero pao parameters
             vec_V = MATMUL(block_V_terms, block_X(:, 1))
+         END IF
          block_V(1:n, 1:n) => vec_V(:) ! map vector into matrix
 
          ! symmetrize
-         IF (MAXVAL(ABS(block_V - TRANSPOSE(block_V))/MAX(1.0_dp, MAXVAL(ABS(block_V)))) > 1e-12) &
+         IF (MAXVAL(ABS(block_V - TRANSPOSE(block_V))/MAX(1.0_dp, MAXVAL(ABS(block_V)))) > 1e-12) THEN
             CPABORT("block_V not symmetric")
+         END IF
          block_V = 0.5_dp*(block_V + TRANSPOSE(block_V)) ! symmetrize exactly
 
          ! regularization energy
          ! protect against corner-case of zero pao parameters
-         IF (PRESENT(penalty) .AND. nterms > 0) &
+         IF (PRESENT(penalty) .AND. nterms > 0) THEN
             regu_energy = regu_energy + DOT_PRODUCT(block_X(:, 1), MATMUL(block_R, block_X(:, 1)))
+         END IF
 
          CALL pao_calc_U_block_fock(pao, iatom=iatom, penalty=penalty, V=block_V, U=block_U, &
                                     gap=gaps(iatom), evals=evals(:, iatom))
@@ -473,16 +478,18 @@ CONTAINS
                !TODO: this 2nd call does double work. However, *sometimes* this branch is not taken.
                CALL pao_calc_U_block_fock(pao, iatom=iatom, penalty=penalty, V=block_V, U=block_U, &
                                           M1=block_M1, G=block_M2, gap=gaps(iatom), evals=evals(:, iatom))
-               IF (MAXVAL(ABS(block_M2 - TRANSPOSE(block_M2))) > 1e-14_dp) &
+               IF (MAXVAL(ABS(block_M2 - TRANSPOSE(block_M2))) > 1e-14_dp) THEN
                   CPABORT("matrix not symmetric")
+               END IF
 
                ! gradient dE/dX
                IF (PRESENT(matrix_G)) THEN
                   CALL dbcsr_get_block_p(matrix=matrix_G, row=iatom, col=iatom, block=block_G, found=found)
                   CPASSERT(ASSOCIATED(block_G))
                   block_G(:, 1) = MATMUL(vec_M2, block_V_terms)
-                  IF (PRESENT(penalty)) &
-                     block_G = block_G + 2.0_dp*MATMUL(block_R, block_X) ! regularization gradient
+                  IF (PRESENT(penalty)) THEN
+                     block_G = block_G + 2.0_dp*MATMUL(block_R, block_X)
+                  END IF ! regularization gradient
                END IF
 
                ! forced dE/dR

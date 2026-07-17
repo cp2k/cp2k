@@ -1620,8 +1620,9 @@ CONTAINS
       my_algorithm = 0
       IF (PRESENT(algorithm)) my_algorithm = algorithm
 
-      IF (my_algorithm == 1 .AND. (.NOT. PRESENT(para_env) .OR. .NOT. PRESENT(blacs_env))) &
+      IF (my_algorithm == 1 .AND. (.NOT. PRESENT(para_env) .OR. .NOT. PRESENT(blacs_env))) THEN
          CPABORT("PARA and BLACS env are necessary for cholesky algorithm")
+      END IF
 
       use_sigma_inv_guess = .FALSE.
       IF (PRESENT(use_guess)) THEN
@@ -2092,18 +2093,12 @@ CONTAINS
       ALLOCATE (subm_in(ndomains))
       ALLOCATE (subm_temp(ndomains))
       ALLOCATE (subm_out(ndomains))
-      !!!TRIM ALLOCATE(subm_trimmer(ndomains))
       CALL init_submatrices(subm_in)
       CALL init_submatrices(subm_temp)
       CALL init_submatrices(subm_out)
 
       CALL construct_submatrices(matrix_in, subm_in, &
                                  dpattern, map, node_of_domain, select_row)
-
-      !!!TRIM IF (matrix_trimmer_required) THEN
-      !!!TRIM    CALL construct_submatrices(matrix_trimmer,subm_trimmer,&
-      !!!TRIM            dpattern,map,node_of_domain,select_row)
-      !!!TRIM ENDIF
 
       IF (my_action == 0) THEN
          ! for example, apply preconditioner
@@ -2257,15 +2252,9 @@ CONTAINS
 
       ALLOCATE (subm_main(ndomains))
       CALL init_submatrices(subm_main)
-      !!!TRIM ALLOCATE(subm_trimmer(ndomains))
 
       CALL construct_submatrices(matrix_main, subm_main, &
                                  dpattern, map, node_of_domain, select_row_col)
-
-      !!!TRIM IF (matrix_trimmer_required) THEN
-      !!!TRIM    CALL construct_submatrices(matrix_trimmer,subm_trimmer,&
-      !!!TRIM            dpattern,map,node_of_domain,select_row)
-      !!!TRIM ENDIF
 
       IF (my_action == -1) THEN
          ! project out the local occupied space
@@ -2315,37 +2304,8 @@ CONTAINS
                END DO
 
                naos = subm_main(idomain)%nrows
-               !WRITE(*,*) "Domain, mo_self_and_neig, ao_domain: ", idomain, n_domain_mos, naos
 
                ALLOCATE (Minv(naos, naos))
-
-               !!!TRIM IF (my_use_trimmer) THEN
-               !!!TRIM    ! THIS IS SUPER EXPENSIVE (ELIMINATE)
-               !!!TRIM    ! trim the main matrix before inverting
-               !!!TRIM    ! assume that the trimmer columns are different (i.e. the main matrix is different for each MO)
-               !!!TRIM    allocate(tmp(naos,nmos(idomain)))
-               !!!TRIM    DO ii=1, nmos(idomain)
-               !!!TRIM       ! transform the main matrix using the trimmer for the current MO
-               !!!TRIM       DO jj=1, naos
-               !!!TRIM          DO kk=1, naos
-               !!!TRIM             Mstore(jj,kk)=sumb_main(idomain)%mdata(jj,kk)*&
-               !!!TRIM                subm_trimmer(idomain)%mdata(jj,ii)*&
-               !!!TRIM                subm_trimmer(idomain)%mdata(kk,ii)
-               !!!TRIM          ENDDO
-               !!!TRIM       ENDDO
-               !!!TRIM       ! invert the main matrix (exclude some eigenvalues, shift some)
-               !!!TRIM       CALL pseudo_invert_matrix(A=Mstore,Ainv=Minv,N=naos,method=1,&
-               !!!TRIM               !range1_thr=1.0E-9_dp,range2_thr=1.0E-9_dp,&
-               !!!TRIM               shift=1.0E-5_dp,&
-               !!!TRIM               range1=nmos(idomain),range2=nmos(idomain),&
-               !!!TRIM
-               !!!TRIM       ! apply the inverted matrix
-               !!!TRIM       ! RZK-warning this is only possible when the preconditioner is applied
-               !!!TRIM       tmp(:,ii)=MATMUL(Minv,subm_in(idomain)%mdata(:,ii))
-               !!!TRIM    ENDDO
-               !!!TRIM    subm_out=MATMUL(tmp,sigma)
-               !!!TRIM    deallocate(tmp)
-               !!!TRIM ELSE
 
                IF (PRESENT(bad_modes_projector_down)) THEN
                   ALLOCATE (proj_array(naos, naos))
@@ -2360,7 +2320,6 @@ CONTAINS
                   CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
                                             range1=nmos(idomain), range2=n_domain_mos)
                END IF
-               !!!TRIM ENDIF
 
                CALL copy_submatrices(subm_main(idomain), preconditioner(idomain), .FALSE.)
                CALL copy_submatrix_data(Minv, preconditioner(idomain))
@@ -2635,24 +2594,6 @@ CONTAINS
          unit_nr = -1
       END IF
 
-      !CALL dpotrf('L', N, Ainv, N, INFO )
-      !IF( INFO/=0 ) THEN
-      !   CPErrorMessage(cp_failure_level,routineP,"DPOTRF failed")
-      !   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
-      !END IF
-      !CALL dpotri('L', N, Ainv, N, INFO )
-      !IF( INFO/=0 ) THEN
-      !   CPErrorMessage(cp_failure_level,routineP,"DPOTRI failed")
-      !   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
-      !END IF
-      !! complete the matrix
-      !DO ii=1,N
-      !   DO jj=ii+1,N
-      !      Ainv(ii,jj)=Ainv(jj,ii)
-      !   ENDDO
-      !   !WRITE(*,'(100F13.9)') Ainv(ii,:)
-      !ENDDO
-
       ! diagonalize first
       ALLOCATE (eigenvalues(N))
       ! Query the optimal workspace for dsyev
@@ -2688,21 +2629,6 @@ CONTAINS
       DEALLOCATE (test, testN)
 
       DEALLOCATE (eigenvalues)
-
-!!!    ! compute the error
-!!!    allocate(test(N,N))
-!!!    test=MATMUL(Ainv,A)
-!!!    DO ii=1,N
-!!!       test(ii,ii)=test(ii,ii)-1.0_dp
-!!!    ENDDO
-!!!    test_error=0.0_dp
-!!!    DO ii=1,N
-!!!       DO jj=1,N
-!!!          test_error=test_error+test(jj,ii)*test(jj,ii)
-!!!       ENDDO
-!!!    ENDDO
-!!!    WRITE(*,*) "Inversion error: ", SQRT(test_error)
-!!!    deallocate(test)
 
       CALL timestop(handle)
 
@@ -2915,21 +2841,6 @@ CONTAINS
          CPABORT("Illegal method selected for matrix inversion")
 
       END SELECT
-
-      !! compute the inversion error
-      !allocate(temp1(N,N))
-      !temp1=MATMUL(Ainv,A)
-      !DO ii=1,N
-      !   temp1(ii,ii)=temp1(ii,ii)-1.0_dp
-      !ENDDO
-      !temp1_error=0.0_dp
-      !DO ii=1,N
-      !   DO jj=1,N
-      !      temp1_error=temp1_error+temp1(jj,ii)*temp1(jj,ii)
-      !   ENDDO
-      !ENDDO
-      !WRITE(*,*) "Inversion error: ", SQRT(temp1_error)
-      !deallocate(temp1)
 
       CALL timestop(handle)
 

@@ -112,8 +112,9 @@ CONTAINS
       ! calculate prediction's variance
       variance = kernel(pao%gp_scale, descriptor, descriptor) - DOT_PRODUCT(weights, cov)
 
-      IF (variance < 0.0_dp) &
+      IF (variance < 0.0_dp) THEN
          CPABORT("PAO gaussian process found negative variance")
+      END IF
 
       DEALLOCATE (cov, weights)
    END SUBROUTINE pao_ml_gp_predict

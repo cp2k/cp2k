@@ -193,7 +193,7 @@ CONTAINS
          END IF
          IF (ALL(reused_mos)) THEN
             WRITE (output_unit, '(T3,A,T38,A)') "Eigensystem source:", "CP2K canonical MOs"
-         ELSEIF (ANY(reused_mos)) THEN
+         ELSE IF (ANY(reused_mos)) THEN
             WRITE (output_unit, '(T3,A,T38,A)') "Eigensystem source:", "mixed canonical/internal"
          ELSE
             WRITE (output_unit, '(T3,A,T38,A)') "Eigensystem source:", "internal diagonalization"
@@ -708,7 +708,7 @@ CONTAINS
       x = (eig - mu)/kT
       IF (x > 80.0_dp) THEN
          occ = 0.0_dp
-      ELSEIF (x < -80.0_dp) THEN
+      ELSE IF (x < -80.0_dp) THEN
          occ = maxocc
       ELSE
          occ = maxocc/(1.0_dp + EXP(x))

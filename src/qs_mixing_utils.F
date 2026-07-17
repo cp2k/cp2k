@@ -188,7 +188,7 @@ CONTAINS
             CPASSERT(.NOT. mixing_store%gmix_p)
             IF (dft_control%qs_control%dftb) THEN
                max_shell = max_dftb_scc_vars
-            ELSEIF (dft_control%qs_control%xtb) THEN
+            ELSE IF (dft_control%qs_control%xtb) THEN
                max_shell = max_xtb_scc_vars
             ELSE
                CPABORT('UNKNOWN METHOD')
@@ -219,7 +219,7 @@ CONTAINS
             IF (ASSOCIATED(mixing_store%pulay_matrix)) DEALLOCATE (mixing_store%pulay_matrix)
             ALLOCATE (mixing_store%pulay_matrix(nbuffer, nbuffer, nspins))
             mixing_store%pulay_matrix = 0.0_dp
-         ELSEIF (mixing_method == broyden_mixing_nr) THEN
+         ELSE IF (mixing_method == broyden_mixing_nr) THEN
             IF (ASSOCIATED(mixing_store%abroy)) DEALLOCATE (mixing_store%abroy)
             ALLOCATE (mixing_store%abroy(nbuffer, nbuffer))
             mixing_store%abroy = 0.0_dp
@@ -232,7 +232,7 @@ CONTAINS
             IF (ASSOCIATED(mixing_store%ubroy)) DEALLOCATE (mixing_store%ubroy)
             ALLOCATE (mixing_store%ubroy(na, max_shell, nbuffer))
             mixing_store%ubroy = 0.0_dp
-         ELSEIF (mixing_method == multisecant_mixing_nr) THEN
+         ELSE IF (mixing_method == multisecant_mixing_nr) THEN
             CPABORT("multisecant_mixing not available")
          END IF
       ELSE
@@ -588,7 +588,7 @@ CONTAINS
       END IF
 
       IF (mixing_method == gspace_mixing_nr) THEN
-      ELSEIF (mixing_method == pulay_mixing_nr .OR. mixing_method == new_pulay_mixing_nr) THEN
+      ELSE IF (mixing_method == pulay_mixing_nr .OR. mixing_method == new_pulay_mixing_nr) THEN
          IF (mixing_store%gmix_p .AND. PRESENT(rho_atom)) THEN
             DO ispin = 1, nspin
                DO iat = 1, natom
@@ -613,7 +613,7 @@ CONTAINS
                END DO
             END DO
          END IF
-      ELSEIF (mixing_method == broyden_mixing_nr .OR. mixing_method == modified_broyden_mixing_nr) THEN
+      ELSE IF (mixing_method == broyden_mixing_nr .OR. mixing_method == modified_broyden_mixing_nr) THEN
          DO ispin = 1, nspin
             IF (.NOT. ASSOCIATED(mixing_store%rhoin_old(ispin)%cc)) THEN
                ALLOCATE (mixing_store%rhoin_old(ispin)%cc(ng))
@@ -685,7 +685,7 @@ CONTAINS
             END DO
             IF (rho_g(1)%pw_grid%have_g0) mixing_store%p_metric(1) = bconst
          END IF
-      ELSEIF (mixing_method == multisecant_mixing_nr) THEN
+      ELSE IF (mixing_method == multisecant_mixing_nr) THEN
          IF (.NOT. ASSOCIATED(mixing_store%ig_global_index)) THEN
             ALLOCATE (mixing_store%ig_global_index(ng))
          END IF

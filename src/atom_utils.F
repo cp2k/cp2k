@@ -2549,7 +2549,7 @@ CONTAINS
                            ja = ibptr(ia, la)
                            jb = ibptr(ib, lb)
                            smat(ja:ja + nna - 1, jb:jb + nnb - 1) = smat(ja:ja + nna - 1, jb:jb + nnb - 1) + sab(1:nna, 1:nnb)
-                        ELSEIF (basis%basis_type == CGTO_BASIS) THEN
+                        ELSE IF (basis%basis_type == CGTO_BASIS) THEN
                            DO ka = 1, basis%nbas(la)
                               DO kb = 1, basis%nbas(lb)
                                  ja = ibptr(ka, la)
@@ -2572,7 +2572,7 @@ CONTAINS
                                     jb = ibptr(ib, lb)
                                     smat(ja:ja + nna - 1, jb:jb + nnb - 1) = smat(ja:ja + nna - 1, jb:jb + nnb - 1) &
                                                                              + sab(1:nna, 1:nnb)
-                                 ELSEIF (basis%basis_type == CGTO_BASIS) THEN
+                                 ELSE IF (basis%basis_type == CGTO_BASIS) THEN
                                     DO ka = 1, basis%nbas(la)
                                        DO kb = 1, basis%nbas(lb)
                                           ja = ibptr(ka, la)

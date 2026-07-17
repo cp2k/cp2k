@@ -287,7 +287,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iw
 
-      INTEGER                                            :: i, ierr, j, len, ntim, siz
+      INTEGER                                            :: i, j, len, ntim, siz
       REAL(KIND=dp)                                      :: perf, t, tend, tstart
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ca, cb
 
@@ -298,10 +298,8 @@ CONTAINS
       DO i = 6, 24
          len = 2**i
          IF (8.0_dp*REAL(len, KIND=dp) > max_memory*0.5_dp) EXIT
-         ALLOCATE (ca(len), STAT=ierr)
-         IF (ierr /= 0) EXIT
-         ALLOCATE (cb(len), STAT=ierr)
-         IF (ierr /= 0) EXIT
+         ALLOCATE (ca(len))
+         ALLOCATE (cb(len))
 
          CALL RANDOM_NUMBER(ca)
          ntim = NINT(1.e7_dp/REAL(len, KIND=dp))
@@ -348,7 +346,7 @@ CONTAINS
       LOGICAL                                            :: test_matmul, test_dgemm
       INTEGER                                            :: iw
 
-      INTEGER                                            :: i, ierr, j, len, ntim, siz
+      INTEGER                                            :: i, j, len, ntim, siz
       REAL(KIND=dp)                                      :: perf, t, tend, tstart, xdum
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ma, mb, mc
 
@@ -360,12 +358,9 @@ CONTAINS
          DO i = 5, siz, 2
             len = 2**i + 1
             IF (8.0_dp*REAL(len*len, KIND=dp) > max_memory*0.3_dp) EXIT
-            ALLOCATE (ma(len, len), STAT=ierr)
-            IF (ierr /= 0) EXIT
-            ALLOCATE (mb(len, len), STAT=ierr)
-            IF (ierr /= 0) EXIT
-            ALLOCATE (mc(len, len), STAT=ierr)
-            IF (ierr /= 0) EXIT
+            ALLOCATE (ma(len, len))
+            ALLOCATE (mb(len, len))
+            ALLOCATE (mc(len, len))
             mc = 0.0_dp
 
             CALL RANDOM_NUMBER(xdum)
@@ -454,12 +449,9 @@ CONTAINS
          DO i = 5, siz, 2
             len = 2**i + 1
             IF (8.0_dp*REAL(len*len, KIND=dp) > max_memory*0.3_dp) EXIT
-            ALLOCATE (ma(len, len), STAT=ierr)
-            IF (ierr /= 0) EXIT
-            ALLOCATE (mb(len, len), STAT=ierr)
-            IF (ierr /= 0) EXIT
-            ALLOCATE (mc(len, len), STAT=ierr)
-            IF (ierr /= 0) EXIT
+            ALLOCATE (ma(len, len))
+            ALLOCATE (mb(len, len))
+            ALLOCATE (mc(len, len))
             mc = 0.0_dp
 
             CALL RANDOM_NUMBER(xdum)
@@ -566,8 +558,8 @@ CONTAINS
 
       INTEGER, PARAMETER                                 :: ndate(3) = [12, 48, 96]
 
-      INTEGER                                            :: iall, ierr, it, j, len, n(3), ntim, &
-                                                            radix_in, radix_out, siz, stat
+      INTEGER                                            :: iall, it, j, len, n(3), ntim, radix_in, &
+                                                            radix_out, siz, stat
       COMPLEX(KIND=dp), DIMENSION(4, 4, 4)               :: zz
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: ca, cb, cc
       CHARACTER(LEN=7)                                   :: method
@@ -605,8 +597,8 @@ CONTAINS
                len = radix_out
                n = len
                IF (16.0_dp*REAL(len*len*len, KIND=dp) > max_memory*0.5_dp) EXIT
-               ALLOCATE (ra(len, len, len), STAT=ierr)
-               ALLOCATE (ca(len, len, len), STAT=ierr)
+               ALLOCATE (ra(len, len, len))
+               ALLOCATE (ca(len, len, len))
                CALL RANDOM_NUMBER(ra)
                ca(:, :, :) = ra
                CALL RANDOM_NUMBER(ra)
@@ -652,25 +644,29 @@ CONTAINS
             CALL fft3d(FWFFT, n, ca, cb)
             tdiff = MAXVAL(ABS(ca - cc))
             IF (tdiff > 1.0E-12_dp) THEN
-               IF (para_env%is_source()) &
+               IF (para_env%is_source()) THEN
                   WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         FWFFT ", &
-                  "             Input array is changed in out-of-place FFT !"
+                     "             Input array is changed in out-of-place FFT !"
+               END IF
             ELSE
-               IF (para_env%is_source()) &
+               IF (para_env%is_source()) THEN
                   WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         FWFFT ", &
-                  "         Input array is not changed in out-of-place FFT !"
+                     "         Input array is not changed in out-of-place FFT !"
+               END IF
             END IF
             ca(:, :, :) = cc
             CALL fft3d(BWFFT, n, ca, cb)
             tdiff = MAXVAL(ABS(ca - cc))
             IF (tdiff > 1.0E-12_dp) THEN
-               IF (para_env%is_source()) &
+               IF (para_env%is_source()) THEN
                   WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         BWFFT ", &
-                  "             Input array is changed in out-of-place FFT !"
+                     "             Input array is changed in out-of-place FFT !"
+               END IF
             ELSE
-               IF (para_env%is_source()) &
+               IF (para_env%is_source()) THEN
                   WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         BWFFT ", &
-                  "         Input array is not changed in out-of-place FFT !"
+                     "         Input array is not changed in out-of-place FFT !"
+               END IF
             END IF
             IF (para_env%is_source()) WRITE (iw, *)
 

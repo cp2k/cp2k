@@ -302,8 +302,9 @@ CONTAINS
       END IF
       DEALLOCATE (scf_control%smear)
 
-      IF (ASSOCIATED(scf_control%outer_scf%cdft_opt_control)) &
+      IF (ASSOCIATED(scf_control%outer_scf%cdft_opt_control)) THEN
          CALL cdft_opt_type_release(scf_control%outer_scf%cdft_opt_control)
+      END IF
 
       IF (ASSOCIATED(scf_control%gce)) THEN
          DEALLOCATE (scf_control%gce)
@@ -353,7 +354,7 @@ CONTAINS
       IF (scf_control%use_diag .AND. scf_control%use_ot) THEN
          ! don't allow both options to be true
          CPABORT("Don't activate OT and Diagonaliztion together")
-      ELSEIF (.NOT. (scf_control%use_diag .OR. scf_control%use_ot)) THEN
+      ELSE IF (.NOT. (scf_control%use_diag .OR. scf_control%use_ot)) THEN
          ! set default to diagonalization
          scf_control%use_diag = .TRUE.
       END IF
@@ -699,9 +700,10 @@ CONTAINS
                   WRITE (UNIT=output_unit, FMT="(T25,A,T71,ES10.2)") &
                      "Smearing width (sigma) [a.u.]:", scf_control%smear%smearing_width, &
                      "Accuracy threshold:", scf_control%smear%eps_fermi_dirac
-                  IF (scf_control%smear%fixed_mag_mom > 0.0_dp) &
+                  IF (scf_control%smear%fixed_mag_mom > 0.0_dp) THEN
                      WRITE (UNIT=output_unit, FMT="(T25,A,T61,F20.1)") &
-                     "Fixed magnetic moment set to:", scf_control%smear%fixed_mag_mom
+                        "Fixed magnetic moment set to:", scf_control%smear%fixed_mag_mom
+                  END IF
                CASE (smear_energy_window)
                   WRITE (UNIT=output_unit, FMT="(T25,A,T71,F10.6)") &
                      "Smear window [a.u.]:       ", scf_control%smear%window_size

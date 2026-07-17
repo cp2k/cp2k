@@ -249,9 +249,10 @@ CONTAINS
          CALL parser_search_string(parser, "_space_group_symop_operation_xyz", ignore_case=.FALSE., found=found, &
                                    begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
       END IF
-      IF (.NOT. found) &
+      IF (.NOT. found) THEN
          CALL cp_warn(__LOCATION__, "The fields (_symmetry_equiv_pos_as_xyz) or "// &
                       "(_space_group_symop_operation_xyz) were not found in CIF file!")
+      END IF
       IF (iw > 0) WRITE (iw, '(A,I0)') " CIF_INFO| Number of atoms before applying symmetry operations :: ", natom
       IF (iw > 0) WRITE (iw, '(A10,1X,3F12.6)') (TRIM(id2str(atom_info%id_atmname(ii))), atom_info%r(1:3, ii), ii=1, natom)
       isym = 0
@@ -290,7 +291,6 @@ CONTAINS
                DO jj = 1, natom
                   r2 = atom_info%r(1:3, jj)
                   r = pbc(r1 - r2, cell)
-                  ! SQRT(DOT_PRODUCT(r, r)) <= threshold
                   IF (DOT_PRODUCT(r, r) <= (threshold*threshold)) THEN
                      check = .FALSE.
                      EXIT

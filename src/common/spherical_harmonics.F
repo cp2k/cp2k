@@ -1805,30 +1805,42 @@ CONTAINS
       REAL(KIND=dp)                                      :: sumk, t
 
       ! Check validity of the input parameters
-      IF (j1 < 0.0_dp) &
+      IF (j1 < 0.0_dp) THEN
          CPABORT("The angular momentum quantum number j1 has to be nonnegative")
-      IF (.NOT. (is_integer(j1) .OR. is_integer(2.0_dp*j1))) &
+      END IF
+      IF (.NOT. (is_integer(j1) .OR. is_integer(2.0_dp*j1))) THEN
          CPABORT("The angular momentum quantum number j1 has to be integer or half-integer")
-      IF (j2 < 0.0_dp) &
+      END IF
+      IF (j2 < 0.0_dp) THEN
          CPABORT("The angular momentum quantum number j2 has to be nonnegative")
-      IF (.NOT. (is_integer(j2) .OR. is_integer(2.0_dp*j2))) &
+      END IF
+      IF (.NOT. (is_integer(j2) .OR. is_integer(2.0_dp*j2))) THEN
          CPABORT("The angular momentum quantum number j2 has to be integer or half-integer")
-      IF (J < 0.0_dp) &
+      END IF
+      IF (J < 0.0_dp) THEN
          CPABORT("The angular momentum quantum number J has to be nonnegative")
-      IF (.NOT. (is_integer(J) .OR. is_integer(2.0_dp*J))) &
+      END IF
+      IF (.NOT. (is_integer(J) .OR. is_integer(2.0_dp*J))) THEN
          CPABORT("The angular momentum quantum number J has to be integer or half-integer")
-      IF ((ABS(m1) - j1) > EPSILON(m1)) &
+      END IF
+      IF ((ABS(m1) - j1) > EPSILON(m1)) THEN
          CPABORT("The angular momentum quantum number m1 has to satisfy -j1 <= m1 <= j1")
-      IF (.NOT. (is_integer(m1) .OR. is_integer(2.0_dp*m1))) &
+      END IF
+      IF (.NOT. (is_integer(m1) .OR. is_integer(2.0_dp*m1))) THEN
          CPABORT("The angular momentum quantum number m1 has to be integer or half-integer")
-      IF ((ABS(m2) - j2) > EPSILON(m2)) &
+      END IF
+      IF ((ABS(m2) - j2) > EPSILON(m2)) THEN
          CPABORT("The angular momentum quantum number m2 has to satisfy -j2 <= m1 <= j2")
-      IF (.NOT. (is_integer(m2) .OR. is_integer(2.0_dp*m2))) &
+      END IF
+      IF (.NOT. (is_integer(m2) .OR. is_integer(2.0_dp*m2))) THEN
          CPABORT("The angular momentum quantum number m2 has to be integer or half-integer")
-      IF ((ABS(M) - J) > EPSILON(M)) &
+      END IF
+      IF ((ABS(M) - J) > EPSILON(M)) THEN
          CPABORT("The angular momentum quantum number M has to satisfy -J <= M <= J")
-      IF (.NOT. (is_integer(M) .OR. is_integer(2.0_dp*M))) &
+      END IF
+      IF (.NOT. (is_integer(M) .OR. is_integer(2.0_dp*M))) THEN
          CPABORT("The angular momentum quantum number M has to be integer or half-integer")
+      END IF
 
       IF (is_integer(j1 + j2 + J) .AND. &
           is_integer(j1 + m1) .AND. &
@@ -1872,8 +1884,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Compute the Wigner 3-j symbol
-!>        / j1 j2 j3 \
-!>        \ m1 m2 m3 /
+!>        ( j1 j2 j3 )
+!>        ( m1 m2 m3 )
 !>        using the Clebsch-Gordon coefficients
 !> \param j1 Angular momentum quantum number of the first state | j1 m1 >
 !> \param m1 Magnetic quantum number of the first first state | j1 m1 >

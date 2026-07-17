@@ -315,31 +315,43 @@ CONTAINS
       TYPE(becke_constraint_type), INTENT(INOUT)         :: becke_control
 
       IF (becke_control%vector_buffer%store_vectors) THEN
-         IF (ALLOCATED(becke_control%vector_buffer%distances)) &
+         IF (ALLOCATED(becke_control%vector_buffer%distances)) THEN
             DEALLOCATE (becke_control%vector_buffer%distances)
-         IF (ALLOCATED(becke_control%vector_buffer%distance_vecs)) &
+         END IF
+         IF (ALLOCATED(becke_control%vector_buffer%distance_vecs)) THEN
             DEALLOCATE (becke_control%vector_buffer%distance_vecs)
-         IF (ALLOCATED(becke_control%vector_buffer%position_vecs)) &
+         END IF
+         IF (ALLOCATED(becke_control%vector_buffer%position_vecs)) THEN
             DEALLOCATE (becke_control%vector_buffer%position_vecs)
-         IF (ALLOCATED(becke_control%vector_buffer%R12)) &
+         END IF
+         IF (ALLOCATED(becke_control%vector_buffer%R12)) THEN
             DEALLOCATE (becke_control%vector_buffer%R12)
-         IF (ALLOCATED(becke_control%vector_buffer%pair_dist_vecs)) &
+         END IF
+         IF (ALLOCATED(becke_control%vector_buffer%pair_dist_vecs)) THEN
             DEALLOCATE (becke_control%vector_buffer%pair_dist_vecs)
+         END IF
       END IF
-      IF (ASSOCIATED(becke_control%cutoffs)) &
+      IF (ASSOCIATED(becke_control%cutoffs)) THEN
          DEALLOCATE (becke_control%cutoffs)
-      IF (ASSOCIATED(becke_control%cutoffs_tmp)) &
+      END IF
+      IF (ASSOCIATED(becke_control%cutoffs_tmp)) THEN
          DEALLOCATE (becke_control%cutoffs_tmp)
-      IF (ASSOCIATED(becke_control%radii_tmp)) &
+      END IF
+      IF (ASSOCIATED(becke_control%radii_tmp)) THEN
          DEALLOCATE (becke_control%radii_tmp)
-      IF (ASSOCIATED(becke_control%radii)) &
+      END IF
+      IF (ASSOCIATED(becke_control%radii)) THEN
          DEALLOCATE (becke_control%radii)
-      IF (ASSOCIATED(becke_control%aij)) &
+      END IF
+      IF (ASSOCIATED(becke_control%aij)) THEN
          DEALLOCATE (becke_control%aij)
-      IF (ASSOCIATED(becke_control%cavity_mat)) &
+      END IF
+      IF (ASSOCIATED(becke_control%cavity_mat)) THEN
          DEALLOCATE (becke_control%cavity_mat)
-      IF (becke_control%cavity_confine) &
+      END IF
+      IF (becke_control%cavity_confine) THEN
          CALL release_hirshfeld_type(becke_control%cavity_env)
+      END IF
 
    END SUBROUTINE becke_control_release
 
@@ -435,44 +447,60 @@ CONTAINS
       INTEGER                                            :: i
 
       ! Constraint settings
-      IF (ASSOCIATED(cdft_control%atoms)) &
+      IF (ASSOCIATED(cdft_control%atoms)) THEN
          DEALLOCATE (cdft_control%atoms)
-      IF (ASSOCIATED(cdft_control%strength)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%strength)) THEN
          DEALLOCATE (cdft_control%strength)
-      IF (ASSOCIATED(cdft_control%target)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%target)) THEN
          DEALLOCATE (cdft_control%target)
-      IF (ASSOCIATED(cdft_control%value)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%value)) THEN
          DEALLOCATE (cdft_control%value)
-      IF (ASSOCIATED(cdft_control%charges_fragment)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%charges_fragment)) THEN
          DEALLOCATE (cdft_control%charges_fragment)
-      IF (ASSOCIATED(cdft_control%fragments)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%fragments)) THEN
          DEALLOCATE (cdft_control%fragments)
-      IF (ASSOCIATED(cdft_control%is_constraint)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%is_constraint)) THEN
          DEALLOCATE (cdft_control%is_constraint)
-      IF (ASSOCIATED(cdft_control%charge)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%charge)) THEN
          DEALLOCATE (cdft_control%charge)
+      END IF
       ! Constraint atom groups
       IF (ASSOCIATED(cdft_control%group)) THEN
          DO i = 1, SIZE(cdft_control%group)
-            IF (ASSOCIATED(cdft_control%group(i)%atoms)) &
+            IF (ASSOCIATED(cdft_control%group(i)%atoms)) THEN
                DEALLOCATE (cdft_control%group(i)%atoms)
-            IF (ASSOCIATED(cdft_control%group(i)%coeff)) &
-               DEALLOCATE (cdft_control%group(i)%coeff)
-            IF (ALLOCATED(cdft_control%group(i)%d_sum_const_dR)) &
-               DEALLOCATE (cdft_control%group(i)%d_sum_const_dR)
-            IF (cdft_control%type == outer_scf_becke_constraint) THEN
-               IF (ASSOCIATED(cdft_control%group(i)%gradients)) &
-                  DEALLOCATE (cdft_control%group(i)%gradients)
-            ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
-               IF (ASSOCIATED(cdft_control%group(i)%gradients_x)) &
-                  DEALLOCATE (cdft_control%group(i)%gradients_x)
-               IF (ASSOCIATED(cdft_control%group(i)%gradients_y)) &
-                  DEALLOCATE (cdft_control%group(i)%gradients_y)
-               IF (ASSOCIATED(cdft_control%group(i)%gradients_z)) &
-                  DEALLOCATE (cdft_control%group(i)%gradients_z)
             END IF
-            IF (ASSOCIATED(cdft_control%group(i)%integrated)) &
+            IF (ASSOCIATED(cdft_control%group(i)%coeff)) THEN
+               DEALLOCATE (cdft_control%group(i)%coeff)
+            END IF
+            IF (ALLOCATED(cdft_control%group(i)%d_sum_const_dR)) THEN
+               DEALLOCATE (cdft_control%group(i)%d_sum_const_dR)
+            END IF
+            IF (cdft_control%type == outer_scf_becke_constraint) THEN
+               IF (ASSOCIATED(cdft_control%group(i)%gradients)) THEN
+                  DEALLOCATE (cdft_control%group(i)%gradients)
+               END IF
+            ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
+               IF (ASSOCIATED(cdft_control%group(i)%gradients_x)) THEN
+                  DEALLOCATE (cdft_control%group(i)%gradients_x)
+               END IF
+               IF (ASSOCIATED(cdft_control%group(i)%gradients_y)) THEN
+                  DEALLOCATE (cdft_control%group(i)%gradients_y)
+               END IF
+               IF (ASSOCIATED(cdft_control%group(i)%gradients_z)) THEN
+                  DEALLOCATE (cdft_control%group(i)%gradients_z)
+               END IF
+            END IF
+            IF (ASSOCIATED(cdft_control%group(i)%integrated)) THEN
                DEALLOCATE (cdft_control%group(i)%integrated)
+            END IF
          END DO
          DEALLOCATE (cdft_control%group)
       END IF
@@ -488,21 +516,27 @@ CONTAINS
       ! Release OUTER_SCF types
       CALL cdft_opt_type_release(cdft_control%ot_control%cdft_opt_control)
       CALL cdft_opt_type_release(cdft_control%constraint_control%cdft_opt_control)
-      IF (ASSOCIATED(cdft_control%constraint%variables)) &
+      IF (ASSOCIATED(cdft_control%constraint%variables)) THEN
          DEALLOCATE (cdft_control%constraint%variables)
-      IF (ASSOCIATED(cdft_control%constraint%count)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%constraint%count)) THEN
          DEALLOCATE (cdft_control%constraint%count)
-      IF (ASSOCIATED(cdft_control%constraint%gradient)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%constraint%gradient)) THEN
          DEALLOCATE (cdft_control%constraint%gradient)
-      IF (ASSOCIATED(cdft_control%constraint%energy)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%constraint%energy)) THEN
          DEALLOCATE (cdft_control%constraint%energy)
-      IF (ASSOCIATED(cdft_control%constraint%inv_jacobian)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%constraint%inv_jacobian)) THEN
          DEALLOCATE (cdft_control%constraint%inv_jacobian)
+      END IF
       ! Storage for mixed CDFT calculations
       IF (ALLOCATED(cdft_control%occupations)) THEN
          DO i = 1, SIZE(cdft_control%occupations)
-            IF (ASSOCIATED(cdft_control%occupations(i)%array)) &
+            IF (ASSOCIATED(cdft_control%occupations(i)%array)) THEN
                DEALLOCATE (cdft_control%occupations(i)%array)
+            END IF
          END DO
          DEALLOCATE (cdft_control%occupations)
       END IF
@@ -543,8 +577,9 @@ CONTAINS
    SUBROUTINE hirshfeld_control_release(hirshfeld_control)
       TYPE(hirshfeld_constraint_type), INTENT(INOUT)     :: hirshfeld_control
 
-      IF (ASSOCIATED(hirshfeld_control%radii)) &
+      IF (ASSOCIATED(hirshfeld_control%radii)) THEN
          DEALLOCATE (hirshfeld_control%radii)
+      END IF
       CALL release_hirshfeld_type(hirshfeld_control%hirshfeld_env)
 
    END SUBROUTINE hirshfeld_control_release

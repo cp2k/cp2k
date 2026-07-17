@@ -1261,9 +1261,9 @@ CONTAINS
          rcut = rcut + 0.1_dp
          IF (cnfun == 1) THEN
             CALL cnparam_d3(rcut, rcov, dispersion_env%k1, cnab, dcnab)
-         ELSEIF (cnfun == 2) THEN
+         ELSE IF (cnfun == 2) THEN
             CALL modcn_d3(rcut, rcov, cnab, dcnab)
-         ELSEIF (cnfun == 3) THEN
+         ELSE IF (cnfun == 3) THEN
             den = 0.0_dp
             CALL cn_d4per(rcut, rcov, den, cnab, dcnab)
          ELSE
@@ -1367,9 +1367,9 @@ CONTAINS
             rcovab = dispersion_env%rcov(za) + dispersion_env%rcov(zb)
             IF (cnfun == 1) THEN
                CALL cnparam_d3(rcc, rcovab, dispersion_env%k1, cnab, dcnab)
-            ELSEIF (cnfun == 2) THEN
+            ELSE IF (cnfun == 2) THEN
                CALL modcn_d3(rcc, rcovab, cnab, dcnab)
-            ELSEIF (cnfun == 3) THEN
+            ELSE IF (cnfun == 3) THEN
                den = ABS(dispersion_env%eneg(za) - dispersion_env%eneg(zb))
                CALL cn_d4per(rcc, rcovab, den, cnab, dcnab)
             ELSE

@@ -31,7 +31,8 @@ PROGRAM dumpdcd
 !       The output in DCD format is in binary format.
 !       The input coordinates should be in Angstrom. Velocities and forces are expected to be in atomic units.
 
-! Uncomment the following line if this module is available (e.g. with gfortran) and comment the corresponding variable declarations below
+! Uncomment the following line if this module is available (e.g. with gfortran) and comment the corresponding
+! variable declarations below
 ! USE ISO_FORTRAN_ENV, ONLY: error_unit,input_unit,output_unit
 
    IMPLICIT NONE
@@ -618,9 +619,9 @@ PROGRAM dumpdcd
                   gamma_dcd = gamma
                END IF
                ! Overwrite cell information from DCD header
-               a = SQRT(DOT_PRODUCT(hmat(1:3, 1), hmat(1:3, 1)))
-               b = SQRT(DOT_PRODUCT(hmat(1:3, 2), hmat(1:3, 2)))
-               c = SQRT(DOT_PRODUCT(hmat(1:3, 3), hmat(1:3, 3)))
+               a = NORM2(hmat(1:3, 1))
+               b = NORM2(hmat(1:3, 2))
+               c = NORM2(hmat(1:3, 3))
                ! Lattice vectors from DCD headers of VEL files are atomic units, but the CP2K cell file is in Angstrom
                IF (unit_string == "[a.u.]") THEN
                   a = a/angstrom
@@ -1014,8 +1015,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: length_of_a, length_of_b
       REAL(KIND=dp), DIMENSION(SIZE(a, 1))               :: a_norm, b_norm
 
-      length_of_a = SQRT(DOT_PRODUCT(a, a))
-      length_of_b = SQRT(DOT_PRODUCT(b, b))
+      length_of_a = NORM2(a)
+      length_of_b = NORM2(b)
 
       IF ((length_of_a > eps_geo) .AND. (length_of_b > eps_geo)) THEN
          a_norm(:) = a(:)/length_of_a

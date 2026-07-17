@@ -212,11 +212,13 @@ CONTAINS
             DEALLOCATE (gci%colv_list)
          END IF
 
-         IF (ASSOCIATED(gci%g3x3_list)) &
+         IF (ASSOCIATED(gci%g3x3_list)) THEN
             DEALLOCATE (gci%g3x3_list)
+         END IF
 
-         IF (ASSOCIATED(gci%g4x6_list)) &
+         IF (ASSOCIATED(gci%g4x6_list)) THEN
             DEALLOCATE (gci%g4x6_list)
+         END IF
 
          ! Local information
          IF (ASSOCIATED(gci%lcolv)) THEN
@@ -227,14 +229,17 @@ CONTAINS
             DEALLOCATE (gci%lcolv)
          END IF
 
-         IF (ASSOCIATED(gci%lg3x3)) &
+         IF (ASSOCIATED(gci%lg3x3)) THEN
             DEALLOCATE (gci%lg3x3)
+         END IF
 
-         IF (ASSOCIATED(gci%lg4x6)) &
+         IF (ASSOCIATED(gci%lg4x6)) THEN
             DEALLOCATE (gci%lg4x6)
+         END IF
 
-         IF (ASSOCIATED(gci%fixd_list)) &
+         IF (ASSOCIATED(gci%fixd_list)) THEN
             DEALLOCATE (gci%fixd_list)
+         END IF
 
          DEALLOCATE (gci)
       END IF

@@ -1460,8 +1460,9 @@ CONTAINS
       dtm = -f1/f2
       tsum = zero
       nseg = 1
-      IF (iprint >= 99) &
+      IF (iprint >= 99) THEN
          WRITE (wunit, 1011) nbreak
+      END IF
 
       nleft = nbreak
       iter = 1
@@ -3429,24 +3430,30 @@ CONTAINS
 !        algorithm enters the second stage.
 
          ftest = finit + stp*gtest
-         IF (stage == 1 .AND. f <= ftest .AND. g >= zero) &
+         IF (stage == 1 .AND. f <= ftest .AND. g >= zero) THEN
             stage = 2
+         END IF
 
 !        Test for warnings.
 
-         IF (brackt .AND. (stp <= stmin .OR. stp >= stmax)) &
+         IF (brackt .AND. (stp <= stmin .OR. stp >= stmax)) THEN
             task = 'WARNING: ROUNDING ERRORS PREVENT PROGRESS'
-         IF (brackt .AND. stmax - stmin <= xtol*stmax) &
+         END IF
+         IF (brackt .AND. stmax - stmin <= xtol*stmax) THEN
             task = 'WARNING: XTOL TEST SATISFIED'
-         IF (stp == stpmax .AND. f <= ftest .AND. g <= gtest) &
+         END IF
+         IF (stp == stpmax .AND. f <= ftest .AND. g <= gtest) THEN
             task = 'WARNING: STP = STPMAX'
-         IF (stp == stpmin .AND. (f > ftest .OR. g >= gtest)) &
+         END IF
+         IF (stp == stpmin .AND. (f > ftest .OR. g >= gtest)) THEN
             task = 'WARNING: STP = STPMIN'
+         END IF
 
 !        Test for convergence.
 
-         IF (f <= ftest .AND. ABS(g) <= gtol*(-ginit)) &
+         IF (f <= ftest .AND. ABS(g) <= gtol*(-ginit)) THEN
             task = 'CONVERGENCE'
+         END IF
 
 !        Test for termination.
 

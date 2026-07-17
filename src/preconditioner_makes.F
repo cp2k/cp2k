@@ -93,8 +93,9 @@ CONTAINS
       precon_type = preconditioner_env%in_use
       SELECT CASE (precon_type)
       CASE (ot_precond_full_single)
-         IF (my_solver_type /= ot_precond_solver_default) &
+         IF (my_solver_type /= ot_precond_solver_default) THEN
             CPABORT("Only PRECOND_SOLVER DEFAULT for the moment")
+         END IF
          IF (PRESENT(matrix_s)) THEN
             CALL make_full_single(preconditioner_env, preconditioner_env%fm, &
                                   matrix_h, matrix_s, energy_homo, energy_gap)
@@ -105,14 +106,16 @@ CONTAINS
 
       CASE (ot_precond_s_inverse)
          IF (my_solver_type == ot_precond_solver_default) my_solver_type = ot_precond_solver_inv_chol
-         IF (.NOT. PRESENT(matrix_s)) &
+         IF (.NOT. PRESENT(matrix_s)) THEN
             CPABORT("Type for S=1 not implemented")
+         END IF
          CALL make_full_s_inverse(preconditioner_env, matrix_s)
 
       CASE (ot_precond_full_kinetic)
          IF (my_solver_type == ot_precond_solver_default) my_solver_type = ot_precond_solver_inv_chol
-         IF (.NOT. (PRESENT(matrix_s) .AND. PRESENT(matrix_t))) &
+         IF (.NOT. (PRESENT(matrix_s) .AND. PRESENT(matrix_t))) THEN
             CPABORT("Type for S=1 not implemented")
+         END IF
          CALL make_full_kinetic(preconditioner_env, matrix_t, matrix_s, energy_gap)
       CASE (ot_precond_full_single_inverse)
          IF (my_solver_type == ot_precond_solver_default) my_solver_type = ot_precond_solver_inv_chol
@@ -745,8 +748,9 @@ CONTAINS
       matrices(1)%matrix => dbcsr_cThc
       CALL setup_arnoldi_env(arnoldi_env, matrices, max_iter=20, threshold=1.0E-3_dp, selection_crit=2, &
                              nval_request=1, nrestarts=8, generalized_ev=.FALSE., iram=.FALSE.)
-      IF (ASSOCIATED(preconditioner_env%max_ev_vector)) &
+      IF (ASSOCIATED(preconditioner_env%max_ev_vector)) THEN
          CALL set_arnoldi_initial_vector(arnoldi_env, preconditioner_env%max_ev_vector)
+      END IF
       CALL arnoldi_ev(matrices, arnoldi_env)
       max_ev = REAL(get_selected_ritz_val(arnoldi_env, 1), dp)
 
@@ -776,8 +780,9 @@ CONTAINS
          CALL setup_arnoldi_env(arnoldi_env, matrices, max_iter=20, threshold=2.0E-2_dp, selection_crit=3, &
                                 nval_request=1, nrestarts=8, generalized_ev=.FALSE., iram=.FALSE.)
       END IF
-      IF (ASSOCIATED(preconditioner_env%min_ev_vector)) &
+      IF (ASSOCIATED(preconditioner_env%min_ev_vector)) THEN
          CALL set_arnoldi_initial_vector(arnoldi_env, preconditioner_env%min_ev_vector)
+      END IF
 
       ! compute the LUMO energy
       CALL arnoldi_ev(matrices, arnoldi_env)

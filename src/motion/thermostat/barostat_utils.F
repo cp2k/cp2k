@@ -75,7 +75,7 @@ CONTAINS
                baro_kin = baro_kin + 0.5_dp*npt(i, j)%v**2*npt(i, j)%mass
             END DO
          END DO
-      ELSEIF (simpar%ensemble == nph_uniaxial_ensemble .OR. simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
+      ELSE IF (simpar%ensemble == nph_uniaxial_ensemble .OR. simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
          v0 = simpar%v0
          iv0 = 1._dp/v0
          v_shock = simpar%v_shock

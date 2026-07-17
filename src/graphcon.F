@@ -547,7 +547,7 @@ CONTAINS
          IF (q(k) == k) THEN
             q(k) = n
          ELSE
-            go to 1
+            GOTO 1
          END IF
       END DO
       first = .TRUE.

@@ -34,6 +34,8 @@ MODULE mp_perf_test
 #endif
 #endif
 
+   IMPLICIT NONE
+
    PRIVATE
 
    PUBLIC :: mpi_perf_test
@@ -334,8 +336,9 @@ CONTAINS
       END IF
       rcount = Nloc
       DO itests = 1, 3
-         IF (ionode .AND. output_unit > 0) &
+         IF (ionode .AND. output_unit > 0) THEN
             WRITE (output_unit, *) "------------------------------- test ", itests, " ------------------------"
+         END IF
          ! *** reference ***
          DO j = 1, Nprocs
             DO i = 1, Nloc

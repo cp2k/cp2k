@@ -358,7 +358,7 @@ CONTAINS
                   fgcore_coulomb(2, particle_set(p2)%shell_index) - fat(2)*dvols
                fgcore_coulomb(3, particle_set(p2)%shell_index) = &
                   fgcore_coulomb(3, particle_set(p2)%shell_index) - fat(3)*dvols
-            ELSEIF (p2 /= 0) THEN
+            ELSE IF (p2 /= 0) THEN
                CALL dg_sum_patch_force_3d(drpot, rhos2, exp_igr%centre(:, p2), fat)
                fg_coulomb(1, p2) = fg_coulomb(1, p2) - fat(1)*dvols
                fg_coulomb(2, p2) = fg_coulomb(2, p2) - fat(2)*dvols
@@ -505,7 +505,7 @@ CONTAINS
          ex1 => exp_igr%shell_ex(:, p1)
          ey1 => exp_igr%shell_ey(:, p1)
          ez1 => exp_igr%shell_ez(:, p1)
-      ELSEIF (my_is1_core) THEN
+      ELSE IF (my_is1_core) THEN
          center1 => exp_igr%core_centre(:, particle_set(p1)%shell_index)
          ex1 => exp_igr%core_ex(:, particle_set(p1)%shell_index)
          ey1 => exp_igr%core_ey(:, particle_set(p1)%shell_index)
@@ -545,7 +545,7 @@ CONTAINS
             ex2 => exp_igr%shell_ex(:, p2)
             ey2 => exp_igr%shell_ey(:, p2)
             ez2 => exp_igr%shell_ez(:, p2)
-         ELSEIF (my_is2_core) THEN
+         ELSE IF (my_is2_core) THEN
             center2 => exp_igr%core_centre(:, particle_set(p2)%shell_index)
             ex2 => exp_igr%core_ex(:, particle_set(p2)%shell_index)
             ey2 => exp_igr%core_ey(:, particle_set(p2)%shell_index)
@@ -633,7 +633,7 @@ CONTAINS
          ex1 => exp_igr%core_ex(:, particle_set(p1)%shell_index)
          ey1 => exp_igr%core_ey(:, particle_set(p1)%shell_index)
          ez1 => exp_igr%core_ez(:, particle_set(p1)%shell_index)
-      ELSEIF (my_is1_shell) THEN
+      ELSE IF (my_is1_shell) THEN
          ex1 => exp_igr%shell_ex(:, p1)
          ey1 => exp_igr%shell_ey(:, p1)
          ez1 => exp_igr%shell_ez(:, p1)
@@ -659,7 +659,7 @@ CONTAINS
             ex2 => exp_igr%core_ex(:, particle_set(p2)%shell_index)
             ey2 => exp_igr%core_ey(:, particle_set(p2)%shell_index)
             ez2 => exp_igr%core_ez(:, particle_set(p2)%shell_index)
-         ELSEIF (my_is2_shell) THEN
+         ELSE IF (my_is2_shell) THEN
             ex2 => exp_igr%shell_ex(:, p2)
             ey2 => exp_igr%shell_ey(:, p2)
             ez2 => exp_igr%shell_ez(:, p2)

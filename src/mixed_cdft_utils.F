@@ -209,10 +209,11 @@ CONTAINS
             CALL force_env_get(force_env_qs, qs_env=qs_env)
          END IF
          CALL get_qs_env(qs_env, pw_env=pw_env, dft_control=dft_control)
-         IF (.NOT. dft_control%qs_control%cdft) &
+         IF (.NOT. dft_control%qs_control%cdft) THEN
             CALL cp_abort(__LOCATION__, &
                           "A mixed CDFT simulation with multiple force_evals was requested, "// &
                           "but CDFT constraints were not active in the QS section of all force_evals!")
+         END IF
          cdft_control => dft_control%qs_control%cdft_control
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          settings%bo = auxbas_pw_pool%pw_grid%bounds_local
@@ -227,13 +228,15 @@ CONTAINS
             settings%rs_dims(:, iforce_eval) = auxbas_pw_pool%pw_grid%para%group%num_pe_cart
             IF (auxbas_pw_pool%pw_grid%grid_span == HALFSPACE) settings%odd(iforce_eval) = 1
             ! Becke constraint atoms/coeffs
-            IF (cdft_control%natoms > SIZE(settings%atoms, 1)) &
+            IF (cdft_control%natoms > SIZE(settings%atoms, 1)) THEN
                CALL cp_abort(__LOCATION__, &
                              "More CDFT constraint atoms than defined in mixed section. "// &
                              "Use default values for MIXED\MAPPING.")
+            END IF
             settings%atoms(1:cdft_control%natoms, iforce_eval) = cdft_control%atoms
-            IF (mixed_cdft%run_type == mixed_cdft_parallel) &
+            IF (mixed_cdft%run_type == mixed_cdft_parallel) THEN
                settings%coeffs(1:cdft_control%natoms, iforce_eval) = cdft_control%group(1)%coeff
+            END IF
             ! Integer type settings
             IF (cdft_control%type == outer_scf_becke_constraint) THEN
                settings%si(1, iforce_eval) = cdft_control%becke_control%cutoff_type
@@ -274,41 +277,46 @@ CONTAINS
             IF (cdft_control%type == outer_scf_becke_constraint) THEN
                IF (cdft_control%becke_control%cutoff_type == becke_cutoff_element) THEN
                   nkinds = SIZE(cdft_control%becke_control%cutoffs_tmp)
-                  IF (nkinds > settings%max_nkinds) &
+                  IF (nkinds > settings%max_nkinds) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "More than "//TRIM(cp_to_string(settings%max_nkinds))// &
                                    " unique elements were defined in BECKE_CONSTRAINT\ELEMENT_CUTOFF. Are you sure"// &
                                    " your input is correct? If yes, please increase max_nkinds and recompile.")
+                  END IF
                   settings%cutoffs(1:nkinds, iforce_eval) = cdft_control%becke_control%cutoffs_tmp(:)
                END IF
                IF (cdft_control%becke_control%adjust) THEN
                   CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
-                  IF (.NOT. SIZE(atomic_kind_set) == SIZE(cdft_control%becke_control%radii_tmp)) &
+                  IF (.NOT. SIZE(atomic_kind_set) == SIZE(cdft_control%becke_control%radii_tmp)) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Length of keyword BECKE_CONSTRAINT\ATOMIC_RADII does not "// &
                                    "match number of atomic kinds in the input coordinate file.")
+                  END IF
                   nkinds = SIZE(cdft_control%becke_control%radii_tmp)
-                  IF (nkinds > settings%max_nkinds) &
+                  IF (nkinds > settings%max_nkinds) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "More than "//TRIM(cp_to_string(settings%max_nkinds))// &
                                    " unique elements were defined in BECKE_CONSTRAINT\ATOMIC_RADII. Are you sure"// &
                                    " your input is correct? If yes, please increase max_nkinds and recompile.")
+                  END IF
                   settings%radii(1:nkinds, iforce_eval) = cdft_control%becke_control%radii_tmp(:)
                END IF
             END IF
             IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
                IF (ASSOCIATED(cdft_control%hirshfeld_control%radii)) THEN
                   CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
-                  IF (.NOT. SIZE(atomic_kind_set) == SIZE(cdft_control%hirshfeld_control%radii)) &
+                  IF (.NOT. SIZE(atomic_kind_set) == SIZE(cdft_control%hirshfeld_control%radii)) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Length of keyword HIRSHFELD_CONSTRAINT&RADII does not "// &
                                    "match number of atomic kinds in the input coordinate file.")
+                  END IF
                   nkinds = SIZE(cdft_control%hirshfeld_control%radii)
-                  IF (nkinds > settings%max_nkinds) &
+                  IF (nkinds > settings%max_nkinds) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "More than "//TRIM(cp_to_string(settings%max_nkinds))// &
                                    " unique elements were defined in HIRSHFELD_CONSTRAINT&RADII. Are you sure"// &
                                    " your input is correct? If yes, please increase max_nkinds and recompile.")
+                  END IF
                   settings%radii(1:nkinds, iforce_eval) = cdft_control%hirshfeld_control%radii(:)
                END IF
             END IF
@@ -333,15 +341,17 @@ CONTAINS
          is_match = is_match .AND. (settings%rs_dims(2, 1) == settings%rs_dims(2, iforce_eval))
          is_match = is_match .AND. (settings%odd(1) == settings%odd(iforce_eval))
       END DO
-      IF (.NOT. is_match) &
+      IF (.NOT. is_match) THEN
          CALL cp_abort(__LOCATION__, &
                        "Mismatch detected in the &MGRID settings of the CDFT force_evals.")
+      END IF
       IF (settings%spherical(1) == 1) settings%is_spherical = .TRUE.
       IF (settings%odd(1) == 1) settings%is_odd = .TRUE.
       ! Make sure CDFT settings are consistent
       CALL force_env%para_env%sum(settings%atoms)
-      IF (mixed_cdft%run_type == mixed_cdft_parallel) &
+      IF (mixed_cdft%run_type == mixed_cdft_parallel) THEN
          CALL force_env%para_env%sum(settings%coeffs)
+      END IF
       settings%ncdft = 0
       DO i = 1, SIZE(settings%atoms, 1)
          DO iforce_eval = 2, nforce_eval
@@ -352,12 +362,13 @@ CONTAINS
          END DO
          IF (settings%atoms(i, 1) /= 0) settings%ncdft = settings%ncdft + 1
       END DO
-      IF (.NOT. is_match .AND. mixed_cdft%run_type == mixed_cdft_parallel) &
+      IF (.NOT. is_match .AND. mixed_cdft%run_type == mixed_cdft_parallel) THEN
          CALL cp_abort(__LOCATION__, &
                        "Mismatch detected in the &CDFT section of the CDFT force_evals. "// &
                        "Parallel mode mixed CDFT requires identical constraint definitions in both CDFT states. "// &
                        "Switch to serial mode or disable keyword PARALLEL_BUILD if you "// &
                        "want to use nonidentical constraint definitions.")
+      END IF
       CALL force_env%para_env%sum(settings%si)
       CALL force_env%para_env%sum(settings%sr)
       DO i = 1, SIZE(settings%sb, 1)
@@ -377,13 +388,15 @@ CONTAINS
             IF (settings%sr(i, 1) /= settings%sr(i, iforce_eval)) is_match = .FALSE.
          END DO
       END DO
-      IF (.NOT. is_match) &
+      IF (.NOT. is_match) THEN
          CALL cp_abort(__LOCATION__, &
                        "Mismatch detected in the &CDFT settings of the CDFT force_evals.")
+      END IF
       ! Some CDFT features are currently disabled for mixed calculations: check that these features were not requested
-      IF (mixed_cdft%dlb .AND. .NOT. settings%sb(1, 1)) &
+      IF (mixed_cdft%dlb .AND. .NOT. settings%sb(1, 1)) THEN
          CALL cp_abort(__LOCATION__, &
                        "Parallel mode mixed CDFT load balancing requires Gaussian cavity confinement.")
+      END IF
       ! Check for identical constraints in case of run type serial/parallel_nobuild
       IF (mixed_cdft%run_type /= mixed_cdft_parallel) THEN
          ! Get array sizes
@@ -409,8 +422,9 @@ CONTAINS
          ! Sum up array sizes and check consistency
          CALL force_env%para_env%sum(array_sizes)
          IF (ANY(array_sizes(:, :, 1) /= array_sizes(1, 1, 1)) .OR. &
-             ANY(array_sizes(:, :, 2) /= array_sizes(1, 1, 2))) &
+             ANY(array_sizes(:, :, 2) /= array_sizes(1, 1, 2))) THEN
             mixed_cdft%identical_constraints = .FALSE.
+         END IF
          ! Check constraint definitions
          IF (mixed_cdft%identical_constraints) THEN
             ! Prepare temporary storage
@@ -454,14 +468,17 @@ CONTAINS
                END DO
                DO iforce_eval = 2, nforce_eval
                   DO iatom = 1, SIZE(atoms(1, i)%array)
-                     IF (atoms(1, i)%array(iatom) /= atoms(iforce_eval, i)%array(iatom)) &
+                     IF (atoms(1, i)%array(iatom) /= atoms(iforce_eval, i)%array(iatom)) THEN
                         mixed_cdft%identical_constraints = .FALSE.
-                     IF (coeff(1, i)%array(iatom) /= coeff(iforce_eval, i)%array(iatom)) &
+                     END IF
+                     IF (coeff(1, i)%array(iatom) /= coeff(iforce_eval, i)%array(iatom)) THEN
                         mixed_cdft%identical_constraints = .FALSE.
+                     END IF
                      IF (.NOT. mixed_cdft%identical_constraints) EXIT
                   END DO
-                  IF (constraint_type(1, i) /= constraint_type(iforce_eval, i)) &
+                  IF (constraint_type(1, i) /= constraint_type(iforce_eval, i)) THEN
                      mixed_cdft%identical_constraints = .FALSE.
+                  END IF
                   IF (.NOT. mixed_cdft%identical_constraints) EXIT
                END DO
                IF (.NOT. mixed_cdft%identical_constraints) EXIT
@@ -509,12 +526,15 @@ CONTAINS
                END DO
                IF (cdft_control%type == outer_scf_becke_constraint) THEN
                   IF (.NOT. cdft_control%atomic_charges) DEALLOCATE (cdft_control%atoms)
-                  IF (cdft_control%becke_control%cavity_confine) &
+                  IF (cdft_control%becke_control%cavity_confine) THEN
                      CALL release_hirshfeld_type(cdft_control%becke_control%cavity_env)
-                  IF (cdft_control%becke_control%cutoff_type == becke_cutoff_element) &
+                  END IF
+                  IF (cdft_control%becke_control%cutoff_type == becke_cutoff_element) THEN
                      DEALLOCATE (cdft_control%becke_control%cutoffs_tmp)
-                  IF (cdft_control%becke_control%adjust) &
+                  END IF
+                  IF (cdft_control%becke_control%adjust) THEN
                      DEALLOCATE (cdft_control%becke_control%radii_tmp)
+                  END IF
                END IF
             END IF
          END DO
@@ -549,16 +569,19 @@ CONTAINS
       settings%radius = settings%sr(5, 1)
       ! Transfer settings only needed if the constraint should be built in parallel
       IF (mixed_cdft%run_type == mixed_cdft_parallel) THEN
-         IF (settings%sb(6, 1)) &
+         IF (settings%sb(6, 1)) THEN
             CALL cp_abort(__LOCATION__, &
                           "Calculation of atomic Becke charges not supported with parallel mode mixed CDFT")
-         IF (mixed_cdft%nconstraint /= 1) &
+         END IF
+         IF (mixed_cdft%nconstraint /= 1) THEN
             CALL cp_abort(__LOCATION__, &
                           "Parallel mode mixed CDFT does not yet support multiple constraints.")
+         END IF
 
-         IF (settings%si(5, 1) /= outer_scf_becke_constraint) &
+         IF (settings%si(5, 1) /= outer_scf_becke_constraint) THEN
             CALL cp_abort(__LOCATION__, &
                           "Parallel mode mixed CDFT does not support Hirshfeld constraints.")
+         END IF
 
          ALLOCATE (mixed_cdft%cdft_control)
          CALL cdft_control_create(mixed_cdft%cdft_control)
@@ -593,10 +616,11 @@ CONTAINS
                IF (settings%cutoffs(i, 1) /= settings%cutoffs(i, 2)) is_match = .FALSE.
                IF (settings%cutoffs(i, 1) /= 0.0_dp) nkinds = nkinds + 1
             END DO
-            IF (.NOT. is_match) &
+            IF (.NOT. is_match) THEN
                CALL cp_abort(__LOCATION__, &
                              "Mismatch detected in the &BECKE_CONSTRAINT "// &
                              "&ELEMENT_CUTOFF settings of the two force_evals.")
+            END IF
             ALLOCATE (cdft_control%becke_control%cutoffs_tmp(nkinds))
             cdft_control%becke_control%cutoffs_tmp = settings%cutoffs(1:nkinds, 1)
          END IF
@@ -607,10 +631,11 @@ CONTAINS
                IF (settings%radii(i, 1) /= settings%radii(i, 2)) is_match = .FALSE.
                IF (settings%radii(i, 1) /= 0.0_dp) nkinds = nkinds + 1
             END DO
-            IF (.NOT. is_match) &
+            IF (.NOT. is_match) THEN
                CALL cp_abort(__LOCATION__, &
                              "Mismatch detected in the &BECKE_CONSTRAINT "// &
                              "&ATOMIC_RADII settings of the two force_evals.")
+            END IF
             ALLOCATE (cdft_control%becke_control%radii(nkinds))
             cdft_control%becke_control%radii = settings%radii(1:nkinds, 1)
          END IF
@@ -706,8 +731,9 @@ CONTAINS
          mixed_cdft%is_special = .FALSE. ! Flag to control the last mapping
          ! With xc smoothing, the grid is always (ncpu/2,1) distributed
          ! and correct behavior cannot be guaranteed for ncpu/2 > nx, so we abort...
-         IF (ncpu/2 > settings%npts(1, 1)) &
+         IF (ncpu/2 > settings%npts(1, 1)) THEN
             CPABORT("ncpu/2 => nx: decrease ncpu or disable xc_smoothing")
+         END IF
          !
          ALLOCATE (mixed_rs_dims(2))
          IF (settings%rs_dims(2, 1) /= 1) mixed_cdft%is_pencil = .TRUE.
@@ -740,11 +766,12 @@ CONTAINS
          ELSE
             IF (.NOT. pw_grid%para%group%num_pe_cart(2) == 1) is_match = .FALSE.
          END IF
-         IF (.NOT. is_match) &
+         IF (.NOT. is_match) THEN
             CALL cp_abort(__LOCATION__, &
                           "Unable to create a suitable grid distribution "// &
                           "for mixed CDFT calculations. Try decreasing the total number "// &
                           "of processors or disabling xc_smoothing.")
+         END IF
          DEALLOCATE (mixed_rs_dims)
          ! Create the pool
          bo_mixed = pw_grid%bounds_local
@@ -1010,8 +1037,9 @@ CONTAINS
       DEALLOCATE (settings%rs_dims)
       DEALLOCATE (settings%odd)
       DEALLOCATE (settings%atoms)
-      IF (mixed_cdft%run_type == mixed_cdft_parallel) &
+      IF (mixed_cdft%run_type == mixed_cdft_parallel) THEN
          DEALLOCATE (settings%coeffs)
+      END IF
       DEALLOCATE (settings%cutoffs)
       DEALLOCATE (settings%radii)
       DEALLOCATE (settings%si)
@@ -1088,15 +1116,17 @@ CONTAINS
          CALL get_qs_env(qs_env, dft_control=dft_control)
          CPASSERT(ASSOCIATED(dft_control))
          nspins = dft_control%nspins
-         IF (force_env_qs%para_env%is_source()) &
+         IF (force_env_qs%para_env%is_source()) THEN
             has_occupation_numbers(iforce_eval) = ALLOCATED(dft_control%qs_control%cdft_control%occupations)
+         END IF
       END DO
       CALL force_env%para_env%sum(has_occupation_numbers(1))
       DO iforce_eval = 2, nforce_eval
          CALL force_env%para_env%sum(has_occupation_numbers(iforce_eval))
-         IF (has_occupation_numbers(1) .NEQV. has_occupation_numbers(iforce_eval)) &
+         IF (has_occupation_numbers(1) .NEQV. has_occupation_numbers(iforce_eval)) THEN
             CALL cp_abort(__LOCATION__, &
                           "Mixing of uniform and non-uniform occupations is not allowed.")
+         END IF
       END DO
       uniform_occupation = .NOT. has_occupation_numbers(1)
       DEALLOCATE (has_occupation_numbers)
@@ -1154,8 +1184,9 @@ CONTAINS
             ! Valgrind 3.12/gfortran 4.8.4 oddly complains here (unconditional jump)
             ! if mixed_cdft%calculate_metric = .FALSE. and the need to null the array
             ! is queried with IF (mixed_cdft%calculate_metric) &
-            IF (.NOT. uniform_occupation) &
+            IF (.NOT. uniform_occupation) THEN
                NULLIFY (occno_tmp(iforce_eval, ispin)%array)
+            END IF
          END DO
          IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
          ! From this point onward, we access data local to the sub_force_envs
@@ -1228,8 +1259,9 @@ CONTAINS
          ! Occupation numbers
          IF (.NOT. uniform_occupation) THEN
             DO ispin = 1, nspins
-               IF (ncol_mo(ispin) /= SIZE(dft_control%qs_control%cdft_control%occupations(ispin)%array)) &
+               IF (ncol_mo(ispin) /= SIZE(dft_control%qs_control%cdft_control%occupations(ispin)%array)) THEN
                   CPABORT("Array dimensions dont match.")
+               END IF
                IF (force_env_qs%para_env%is_source()) THEN
                   ALLOCATE (occno_tmp(iforce_eval, ispin)%array(ncol_mo(ispin)))
                   occno_tmp(iforce_eval, ispin)%array = dft_control%qs_control%cdft_control%occupations(ispin)%array
@@ -1248,8 +1280,9 @@ CONTAINS
       ! We use this method for the serial case (mixed_cdft%run_type == mixed_cdft_serial) as well to move the arrays to the
       ! correct blacs_env, which is impossible using a simple copy of the arrays
       ALLOCATE (mixed_wmat_tmp(nforce_eval, nvar))
-      IF (mixed_cdft%calculate_metric) &
+      IF (mixed_cdft%calculate_metric) THEN
          ALLOCATE (mixed_matrix_p_tmp(nforce_eval, nspins))
+      END IF
       DO iforce_eval = 1, nforce_eval
          ! MO coefficients
          DO ispin = 1, nspins
@@ -1381,8 +1414,9 @@ CONTAINS
             WRITE (iounit, '(T3,A,I3,A,I3,A)') '###### CDFT states I =', istate, ' and J = ', jstate, ' ######'
             WRITE (iounit, '(T3,A)') REPEAT('#', 44)
             DO ivar = 1, nvar
-               IF (ivar > 1) &
+               IF (ivar > 1) THEN
                   WRITE (iounit, '(A)') ''
+               END IF
                WRITE (iounit, '(T3,A,T60,(3X,I18))') 'Atomic group:', ivar
                WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
                   'Strength of constraint I:', mixed_cdft%results%strength(ivar, istate)
@@ -1491,8 +1525,9 @@ CONTAINS
       INTEGER                                            :: kcol, kpermutation, krow, npermutations
 
       npermutations = n*(n - 1)/2 ! Size of upper triangular part
-      IF (ipermutation > npermutations) &
+      IF (ipermutation > npermutations) THEN
          CPABORT("Permutation index out of bounds")
+      END IF
       kpermutation = 0
       DO krow = 1, n
          DO kcol = krow + 1, n
@@ -1610,18 +1645,20 @@ CONTAINS
       block_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT%BLOCK_DIAGONALIZE")
 
       CALL section_vals_get(block_section, explicit=explicit)
-      IF (.NOT. explicit) &
+      IF (.NOT. explicit) THEN
          CALL cp_abort(__LOCATION__, &
                        "Block diagonalization of CDFT Hamiltonian was requested, but the "// &
                        "corresponding input section is missing!")
+      END IF
 
       CALL section_vals_val_get(block_section, "BLOCK", n_rep_val=nblk)
       ALLOCATE (blocks(nblk))
       DO i = 1, nblk
          NULLIFY (blocks(i)%array)
          CALL section_vals_val_get(block_section, "BLOCK", i_rep_val=i, i_vals=tmplist)
-         IF (SIZE(tmplist) < 1) &
+         IF (SIZE(tmplist) < 1) THEN
             CPABORT("Each BLOCK must contain at least 1 state.")
+         END IF
          ALLOCATE (blocks(i)%array(SIZE(tmplist)))
          blocks(i)%array(:) = tmplist(:)
       END DO
@@ -1630,8 +1667,9 @@ CONTAINS
       ! Check that the requested states exist
       DO i = 1, nblk
          DO j = 1, SIZE(blocks(i)%array)
-            IF (blocks(i)%array(j) < 1 .OR. blocks(i)%array(j) > nforce_eval) &
+            IF (blocks(i)%array(j) < 1 .OR. blocks(i)%array(j) > nforce_eval) THEN
                CPABORT("Requested state does not exist.")
+            END IF
          END DO
       END DO
       ! Check for duplicates
@@ -1663,9 +1701,10 @@ CONTAINS
          ELSE
             nrecursion = nblk/2
          END IF
-         IF (nrecursion /= 1 .AND. .NOT. ignore_excited) &
+         IF (nrecursion /= 1 .AND. .NOT. ignore_excited) THEN
             CALL cp_abort(__LOCATION__, &
                           "Keyword IGNORE_EXCITED must be active for recursive diagonalization.")
+         END IF
       END IF
 
    END SUBROUTINE mixed_cdft_read_block_diag
@@ -1709,10 +1748,11 @@ CONTAINS
             END DO
          END DO
          ! Check that none of the interaction energies is repulsive
-         IF (ANY(H_block(i)%array >= 0.0_dp)) &
+         IF (ANY(H_block(i)%array >= 0.0_dp)) THEN
             CALL cp_abort(__LOCATION__, &
                           "At least one of the interaction energies within block "//TRIM(ADJUSTL(cp_to_string(i)))// &
                           " is repulsive.")
+         END IF
       END DO
 
    END SUBROUTINE mixed_cdft_get_blocks
@@ -1847,10 +1887,11 @@ CONTAINS
             END DO
          END DO
          ! Check that none of the interaction energies is repulsive
-         IF (ANY(H_offdiag >= 0.0_dp)) &
+         IF (ANY(H_offdiag >= 0.0_dp)) THEN
             CALL cp_abort(__LOCATION__, &
                           "At least one of the interaction energies between blocks "//TRIM(ADJUSTL(cp_to_string(i)))// &
                           " and "//TRIM(ADJUSTL(cp_to_string(j)))//" is repulsive.")
+         END IF
          ! Now transform: C_i^T * H * C_j
          H_offdiag(:, :) = MATMUL(H_offdiag, H_block(j)%array)
          H_offdiag(:, :) = MATMUL(TRANSPOSE(H_block(i)%array), H_offdiag)

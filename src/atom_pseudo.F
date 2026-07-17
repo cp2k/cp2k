@@ -257,10 +257,10 @@ CONTAINS
                      ne = state%occupation(l, k)
                      IF (ne == 0._dp) THEN !empty shell
                         EXIT !assume there are no holes
-                     ELSEIF (ne == 2._dp*nm) THEN !closed shell
+                     ELSE IF (ne == 2._dp*nm) THEN !closed shell
                         state%occa(l, k) = nm
                         state%occb(l, k) = nm
-                     ELSEIF (state%multiplicity == -2) THEN !High spin case
+                     ELSE IF (state%multiplicity == -2) THEN !High spin case
                         state%occa(l, k) = MIN(ne, nm)
                         state%occb(l, k) = MAX(0._dp, ne - nm)
                      ELSE

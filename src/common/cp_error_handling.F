@@ -63,8 +63,9 @@ CONTAINS
       CALL delay_non_master() ! cleaner output if all ranks abort simultaneously
 
       unit_nr = cp_logger_get_default_io_unit()
-      IF (unit_nr <= 0) &
-         unit_nr = default_output_unit ! fall back to stdout
+      IF (unit_nr <= 0) THEN
+         unit_nr = default_output_unit
+      END IF ! fall back to stdout
 
       CALL print_abort_message(message, location, unit_nr)
       CALL print_stack(unit_nr)
@@ -125,8 +126,9 @@ CONTAINS
 
       ! we (ab)use the logger to determine the first MPI rank
       unit_nr = cp_logger_get_default_io_unit()
-      IF (unit_nr <= 0) &
-         wait_time = wait_time + 1.0_dp ! rank-0 gets a head start of one second.
+      IF (unit_nr <= 0) THEN
+         wait_time = wait_time + 1.0_dp
+      END IF ! rank-0 gets a head start of one second.
 
 !$    IF (omp_get_thread_num() /= 0) &
 !$       wait_time = wait_time + 1.0_dp ! master threads gets another second

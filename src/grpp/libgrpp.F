@@ -16,6 +16,10 @@ MODULE libgrpp
    USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
                                               C_INT32_T
 
+   IMPLICIT NONE
+
+   PRIVATE
+
    INTEGER(4), PARAMETER :: LIBGRPP_CART_ORDER_DIRAC = 0
    INTEGER(4), PARAMETER :: LIBGRPP_CART_ORDER_TURBOMOLE = 1
 
@@ -25,6 +29,12 @@ MODULE libgrpp
    INTEGER(4), PARAMETER :: LIBGRPP_NUCLEAR_MODEL_FERMI = 3
    INTEGER(4), PARAMETER :: LIBGRPP_NUCLEAR_MODEL_FERMI_BUBBLE = 4
    INTEGER(4), PARAMETER :: LIBGRPP_NUCLEAR_MODEL_POINT_CHARGE_NUMERICAL = 5
+
+   PUBLIC :: libgrpp_init
+   PUBLIC :: libgrpp_type1_integrals
+   PUBLIC :: libgrpp_type1_integrals_gradient
+   PUBLIC :: libgrpp_type2_integrals
+   PUBLIC :: libgrpp_type2_integrals_gradient
 
    INTERFACE
 

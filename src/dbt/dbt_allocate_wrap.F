@@ -56,7 +56,7 @@ CONTAINS
             ELSE
                shape_prv = shape_spec
             END IF
-         ELSEIF (PRESENT(source)) THEN
+         ELSE IF (PRESENT(source)) THEN
             IF (PRESENT(order)) THEN
                shape_prv(order) = SHAPE(source)
             ELSE

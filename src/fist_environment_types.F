@@ -187,7 +187,7 @@ CONTAINS
       IF (PRESENT(subsys)) subsys => fist_env%subsys
       IF (PRESENT(efield)) efield => fist_env%efield
 
-      IF (ASSOCIATED(fist_env%subsys)) &
+      IF (ASSOCIATED(fist_env%subsys)) THEN
          CALL cp_subsys_get(fist_env%subsys, &
                             atomic_kinds=atomic_kinds, &
                             local_molecules=local_molecules, &
@@ -200,6 +200,7 @@ CONTAINS
                             multipoles=fist_multipoles, &
                             results=results, &
                             cell=cell)
+      END IF
       IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
       IF (PRESENT(particle_set)) particle_set => particles%els
       IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds%els

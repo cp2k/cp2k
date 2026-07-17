@@ -261,8 +261,9 @@ CONTAINS
 
       IF (.NOT. master%should_stop) THEN
          CALL external_control(master%should_stop, "SWARM", master%globenv)
-         IF (master%should_stop .AND. master%iw > 0) &
+         IF (master%should_stop .AND. master%iw > 0) THEN
             WRITE (master%iw, *) " SWARM| Received stop from external_control. Quitting."
+         END IF
       END IF
 
       !IF(unit > 0) &

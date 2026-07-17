@@ -577,7 +577,7 @@ CONTAINS
                   CALL admm_mo_calc_rho_aux(qs_env)
                END IF
             END IF
-         ELSEIF (dft_control%do_admm_dm) THEN
+         ELSE IF (dft_control%do_admm_dm) THEN
             CALL admm_dm_calc_rho_aux(qs_env)
          END IF
       END IF
@@ -1093,7 +1093,7 @@ CONTAINS
          ELSE
             CALL admm_mo_merge_ks_matrix(qs_env)
          END IF
-      ELSEIF (dft_control%do_admm_dm) THEN
+      ELSE IF (dft_control%do_admm_dm) THEN
          CALL admm_dm_merge_ks_matrix(qs_env)
       END IF
 
@@ -1171,8 +1171,9 @@ CONTAINS
 
       IF (native_skala_restore_exc) energy%total = native_skala_total_scf
 
-      IF (abnormal_value(energy%total)) &
+      IF (abnormal_value(energy%total)) THEN
          CPABORT("KS energy is an abnormal value (NaN/Inf).")
+      END IF
 
       ! Print detailed energy
       IF (my_print) THEN
@@ -1448,8 +1449,9 @@ CONTAINS
       END IF
 
       ! kinetic energy
-      IF (ASSOCIATED(matrixkp_t)) &
+      IF (ASSOCIATED(matrixkp_t)) THEN
          CALL calculate_ptrace(matrixkp_t, rho_ao_kp, energy%kinetic, dft_control%nspins)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE evaluate_core_matrix_traces
@@ -1482,12 +1484,12 @@ CONTAINS
                                    calculate_forces=calculate_forces, &
                                    just_energy=just_energy)
 
-      ELSEIF (dft_control%qs_control%dftb) THEN
+      ELSE IF (dft_control%qs_control%dftb) THEN
          CALL build_dftb_ks_matrix(qs_env, &
                                    calculate_forces=calculate_forces, &
                                    just_energy=just_energy)
 
-      ELSEIF (dft_control%qs_control%xtb) THEN
+      ELSE IF (dft_control%qs_control%xtb) THEN
          IF (dft_control%qs_control%xtb_control%do_tblite) THEN
             CALL build_tblite_ks_matrix(qs_env, &
                                         calculate_forces=calculate_forces, &

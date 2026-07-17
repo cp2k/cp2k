@@ -206,11 +206,13 @@ CONTAINS
 
          ! test if the real space density is available
          CPASSERT(ASSOCIATED(rho_struct))
-         IF (dft_control%nspins /= 1 .AND. dft_control%nspins /= 2) &
+         IF (dft_control%nspins /= 1 .AND. dft_control%nspins /= 2) THEN
             CPABORT("nspins must be 1 or 2")
+         END IF
          mspin = SIZE(rho_struct_r)
-         IF (dft_control%nspins == 2 .AND. mspin == 1) &
+         IF (dft_control%nspins == 2 .AND. mspin == 1) THEN
             CPABORT("Spin count mismatch")
+         END IF
 
          ! there are some options related to SIC here.
          ! Normal DFT computes E(rho_alpha,rho_beta) (or its variant E(2*rho_alpha) for non-LSD)
@@ -242,8 +244,9 @@ CONTAINS
             sic_scaling_b_zero = .FALSE.
          END IF
 
-         IF (PRESENT(pw_env_external)) &
+         IF (PRESENT(pw_env_external)) THEN
             pw_env => pw_env_external
+         END IF
          CALL pw_env_get(pw_env, xc_pw_pool=xc_pw_pool, auxbas_pw_pool=auxbas_pw_pool)
          uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid, xc_pw_pool%pw_grid)
 
@@ -759,7 +762,7 @@ CONTAINS
             NULLIFY (rho_r, rho_g, tau_r, tau_g)
             IF (rho_g_valid) THEN
                CALL create_density_on_pool(xc_pw_pool, rho_struct_g, rho_r, rho_g)
-            ELSEIF (ASSOCIATED(rho_struct_r)) THEN
+            ELSE IF (ASSOCIATED(rho_struct_r)) THEN
                CALL create_density_on_pool_from_r(auxbas_pw_pool, xc_pw_pool, rho_struct_r, rho_r, rho_g)
             ELSE
                CPABORT("Fine Grid in qs_xc_density requires rho_r or rho_g")
@@ -767,7 +770,7 @@ CONTAINS
             IF (tau_r_valid) THEN
                IF (tau_g_valid) THEN
                   CALL create_density_on_pool(xc_pw_pool, tau_struct_g, tau_r, tau_g)
-               ELSEIF (ASSOCIATED(tau_struct_r)) THEN
+               ELSE IF (ASSOCIATED(tau_struct_r)) THEN
                   CALL create_density_on_pool_from_r(auxbas_pw_pool, xc_pw_pool, tau_struct_r, tau_r, tau_g)
                ELSE
                   CPABORT("Fine Grid in qs_xc_density requires tau_r or tau_g")

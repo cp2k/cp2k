@@ -789,8 +789,9 @@ CONTAINS
       IF (dft_control%sic_method_id == sic_none) RETURN
       IF (dft_control%sic_method_id == sic_eo) RETURN
 
-      IF (dft_control%qs_control%gapw) &
+      IF (dft_control%qs_control%gapw) THEN
          CPABORT("sic and GAPW not yet compatible")
+      END IF
 
       ! OK, right now we like two spins to do sic, could be relaxed for AD
       CPASSERT(dft_control%nspins == 2)
@@ -1131,18 +1132,22 @@ CONTAINS
                "Integral of the (density * v_xc):              ", energy%exc
          END IF
 
-         IF (energy%e_hartree /= 0.0_dp) &
+         IF (energy%e_hartree /= 0.0_dp) THEN
             WRITE (UNIT=output_unit, FMT="(T3,A,T61,F20.10)") &
-            "Coulomb (electron-electron) energy:            ", energy%e_hartree
-         IF (energy%dispersion /= 0.0_dp) &
+               "Coulomb (electron-electron) energy:            ", energy%e_hartree
+         END IF
+         IF (energy%dispersion /= 0.0_dp) THEN
             WRITE (UNIT=output_unit, FMT="(T3,A,T61,F20.10)") &
-            "Dispersion energy:                             ", energy%dispersion
-         IF (energy%efield /= 0.0_dp) &
+               "Dispersion energy:                             ", energy%dispersion
+         END IF
+         IF (energy%efield /= 0.0_dp) THEN
             WRITE (UNIT=output_unit, FMT="(T3,A,T61,F20.10)") &
-            "Electric field interaction energy:             ", energy%efield
-         IF (energy%gcp /= 0.0_dp) &
+               "Electric field interaction energy:             ", energy%efield
+         END IF
+         IF (energy%gcp /= 0.0_dp) THEN
             WRITE (UNIT=output_unit, FMT="(T3,A,T61,F20.10)") &
-            "gCP energy:                                    ", energy%gcp
+               "gCP energy:                                    ", energy%gcp
+         END IF
          IF (dft_control%qs_control%gapw) THEN
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T61,F20.10))") &
                "GAPW| Exc from hard and soft atomic rho1:      ", energy%exc1 + energy%exc1_aux_fit, &
@@ -1530,7 +1535,7 @@ CONTAINS
                IF (lri_env%ppl_ri) THEN
                   CALL v_int_ppl_update(qs_env, lri_v_int, calculate_forces)
                END IF
-            ELSEIF (rigpw) THEN
+            ELSE IF (rigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL get_qs_env(qs_env, nkind=nkind, para_env=para_env)
                DO ikind = 1, nkind
@@ -1634,7 +1639,7 @@ CONTAINS
                IF (lri_env%ppl_ri) THEN
                   CALL v_int_ppl_update(qs_env, lri_v_int, calculate_forces)
                END IF
-            ELSEIF (rigpw) THEN
+            ELSE IF (rigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL get_qs_env(qs_env, nkind=nkind, para_env=para_env)
                DO ikind = 1, nkind
@@ -1672,7 +1677,7 @@ CONTAINS
          IF (calculate_forces) THEN
             CALL calculate_lri_forces(lri_env, lri_density, qs_env, rho_ao_kp, atomic_kind_set)
          END IF
-      ELSEIF (rigpw) THEN
+      ELSE IF (rigpw) THEN
          CALL get_qs_env(qs_env, matrix_s=smat)
          DO ispin = 1, nspins
             CALL calculate_ri_ks_matrix(lri_env, lri_v_int, ks_matrix(ispin, 1)%matrix, &

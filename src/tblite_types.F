@@ -133,16 +133,21 @@ CONTAINS
          IF (ALLOCATED(tb_tblite%dcndr)) DEALLOCATE (tb_tblite%dcndr)
          IF (ALLOCATED(tb_tblite%dcndL)) DEALLOCATE (tb_tblite%dcndL)
 
-         IF (ASSOCIATED(tb_tblite%dipbra)) &
+         IF (ASSOCIATED(tb_tblite%dipbra)) THEN
             CALL dbcsr_deallocate_matrix_set(tb_tblite%dipbra)
-         IF (ASSOCIATED(tb_tblite%dipket)) &
+         END IF
+         IF (ASSOCIATED(tb_tblite%dipket)) THEN
             CALL dbcsr_deallocate_matrix_set(tb_tblite%dipket)
-         IF (ASSOCIATED(tb_tblite%quadbra)) &
+         END IF
+         IF (ASSOCIATED(tb_tblite%quadbra)) THEN
             CALL dbcsr_deallocate_matrix_set(tb_tblite%quadbra)
-         IF (ASSOCIATED(tb_tblite%quadket)) &
+         END IF
+         IF (ASSOCIATED(tb_tblite%quadket)) THEN
             CALL dbcsr_deallocate_matrix_set(tb_tblite%quadket)
-         IF (ASSOCIATED(tb_tblite%rho_ao_kp_ref)) &
+         END IF
+         IF (ASSOCIATED(tb_tblite%rho_ao_kp_ref)) THEN
             CALL dbcsr_deallocate_matrix_set(tb_tblite%rho_ao_kp_ref)
+         END IF
 #if defined(__TBLITE)
          IF (ALLOCATED(tb_tblite%mixer)) DEALLOCATE (tb_tblite%mixer)
          IF (ALLOCATED(tb_tblite%param)) DEALLOCATE (tb_tblite%param)

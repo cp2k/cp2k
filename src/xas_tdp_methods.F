@@ -800,8 +800,9 @@ CONTAINS
       IF (do_uks) nspins = 2 !in roks, same MOs for both spins
 
       ! by default, all (doubly occupied) homo are localized
-      IF (xas_tdp_control%n_search < 0 .OR. xas_tdp_control%n_search > MINVAL(homo)) &
+      IF (xas_tdp_control%n_search < 0 .OR. xas_tdp_control%n_search > MINVAL(homo)) THEN
          xas_tdp_control%n_search = MINVAL(homo)
+      END IF
       CALL qs_loc_control_init(qs_loc_env, loc_section, do_homo=.TRUE., do_xas=.TRUE., &
                                nloc_xas=xas_tdp_control%n_search, spin_xas=1)
 
@@ -2649,9 +2650,11 @@ CONTAINS
 
                DO ispin = 1, 2
                   CALL duplicate_mo_set(restart_mos(ispin), mos(1))
-                  ! Set the new occupation number in the case of spin-independent based calculation since the restart is spin-depedent
-                  IF (SIZE(mos) == 1) &
+                  ! Set the new occupation number in the case of spin-independent based calculation
+                  ! since the restart is spin-depedent
+                  IF (SIZE(mos) == 1) THEN
                      restart_mos(ispin)%occupation_numbers = mos(1)%occupation_numbers/2
+                  END IF
                END DO
 
                CALL cp_fm_to_fm_submat(msource=lr_coeffs, mtarget=restart_mos(1)%mo_coeff, nrow=nao, &

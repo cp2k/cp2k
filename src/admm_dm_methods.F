@@ -76,8 +76,9 @@ CONTAINS
          CPABORT("admm_dm_calc_rho_aux: unknown method")
       END SELECT
 
-      IF (admm_dm%purify) &
+      IF (admm_dm%purify) THEN
          CALL purify_mcweeny(qs_env)
+      END IF
 
       CALL update_rho_aux(qs_env)
 
@@ -120,8 +121,9 @@ CONTAINS
          CPABORT("admm_dm_merge_ks_matrix: unknown method")
       END SELECT
 
-      IF (admm_dm%purify) &
+      IF (admm_dm%purify) THEN
          CALL dbcsr_deallocate_matrix_set(matrix_ks_merge)
+      END IF
 
       CALL timestop(handle)
 
@@ -217,8 +219,9 @@ CONTAINS
             IF (admm_dm%block_map(iatom, jatom) == 1) THEN
                CALL dbcsr_get_block_p(rho_ao_aux(ispin)%matrix, &
                                       row=iatom, col=jatom, BLOCK=sparse_block_aux, found=found)
-               IF (found) &
+               IF (found) THEN
                   sparse_block_aux = sparse_block
+               END IF
             END IF
          END DO
          CALL dbcsr_iterator_stop(iter)
@@ -333,8 +336,9 @@ CONTAINS
          CALL dbcsr_iterator_start(iter, matrix_ks_merge(ispin)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
-            IF (admm_dm%block_map(iatom, jatom) == 0) &
+            IF (admm_dm%block_map(iatom, jatom) == 0) THEN
                sparse_block = 0.0_dp
+            END IF
          END DO
          CALL dbcsr_iterator_stop(iter)
          CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_ks_merge(ispin)%matrix, 1.0_dp, 1.0_dp)

@@ -180,8 +180,9 @@ CONTAINS
       nspin = SIZE(matrix_p, 1)
       nimg = SIZE(matrix_p, 2)
       IF (ASSOCIATED(tb%rho_ao_kp_ref)) THEN
-         IF (SIZE(tb%rho_ao_kp_ref, 1) /= nspin .OR. SIZE(tb%rho_ao_kp_ref, 2) /= nimg) &
+         IF (SIZE(tb%rho_ao_kp_ref, 1) /= nspin .OR. SIZE(tb%rho_ao_kp_ref, 2) /= nimg) THEN
             CALL dbcsr_deallocate_matrix_set(tb%rho_ao_kp_ref)
+         END IF
       END IF
       IF (.NOT. ASSOCIATED(tb%rho_ao_kp_ref)) THEN
          CALL dbcsr_allocate_matrix_set(tb%rho_ao_kp_ref, nspin, nimg)
@@ -337,8 +338,9 @@ CONTAINS
       info = tb%calc%variable_info()
       IF (info%charge > shell_resolved) CPABORT("tblite: no support for orbital resolved charge")
       IF (info%dipole > atom_resolved) CPABORT("tblite: no support for shell resolved dipole moment")
-      IF (info%quadrupole > atom_resolved) &
+      IF (info%quadrupole > atom_resolved) THEN
          CPABORT("tblite: no support shell resolved quadrupole moment")
+      END IF
 
       CALL new_wavefunction(tb%wfn, tb%mol%nat, tb%calc%bas%nsh, tb%calc%bas%nao, nSpin, 0.0_dp)
       CALL get_occupation(tb%mol, tb%calc%bas, tb%calc%h0, tb%wfn%nocc, tb%wfn%n0at, tb%wfn%n0sh)
@@ -463,8 +465,9 @@ CONTAINS
       IF (omega0 <= 0.0_dp) CPABORT("tblite SCC mixer OMEGA0 must be positive")
       IF (min_weight <= 0.0_dp) CPABORT("tblite SCC mixer MIN_WEIGHT must be positive")
       IF (max_weight <= 0.0_dp) CPABORT("tblite SCC mixer MAX_WEIGHT must be positive")
-      IF (max_weight < min_weight) &
+      IF (max_weight < min_weight) THEN
          CPABORT("tblite SCC mixer MAX_WEIGHT must not be smaller than MIN_WEIGHT")
+      END IF
       IF (weight_factor <= 0.0_dp) CPABORT("tblite SCC mixer WEIGHT_FACTOR must be positive")
       SELECT CASE (solver)
       CASE (tblite_solver_gvd, tblite_solver_gvr)
@@ -1470,8 +1473,9 @@ CONTAINS
       END IF
 
       !compute multipole moments for gfn2
-      IF (dft_control%qs_control%xtb_control%tblite_method == gfn2xtb) &
+      IF (dft_control%qs_control%xtb_control%tblite_method == gfn2xtb) THEN
          CALL tb_get_multipole(qs_env, tb)
+      END IF
 
       ! output overlap information
       NULLIFY (logger)
@@ -1582,7 +1586,7 @@ CONTAINS
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DEBUG_SKIP_SCF_DISPERSION_GRADIENT", debug_value, STATUS=debug_status)
       IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) skip_scf_dispersion_gradient
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DEBUG_SKIP_SCF_DISPERSION_POTENTIAL", debug_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) skip_scf_dispersion_potential
+      IF (debug_status == 0) READ (debug_value, *) skip_scf_dispersion_potential
 #endif
       IF (dft_control%qs_control%do_ls_scf .OR. scf_control%use_ot) THEN
          use_native_mixer = .FALSE.
@@ -1630,9 +1634,10 @@ CONTAINS
       NULLIFY (matrix_p)
       IF (use_rho) THEN
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
-      ELSEIF (calculate_forces .AND. nspin > 1) THEN
-         IF (.NOT. ASSOCIATED(tb%rho_ao_kp_ref)) &
+      ELSE IF (calculate_forces .AND. nspin > 1) THEN
+         IF (.NOT. ASSOCIATED(tb%rho_ao_kp_ref)) THEN
             CPABORT("Missing converged tblite density for UKS/LSD forces")
+         END IF
          matrix_p => tb%rho_ao_kp_ref
       ELSE
          matrix_p => scf_env%p_mix_new
@@ -1923,7 +1928,7 @@ CONTAINS
             ! LS_SCF and OT optimize the electronic variables directly. Use the
             ! current shell/multipole response from that density without an
             ! extra SCC variable mixing step.
-         ELSEIF (nspin > 1) THEN
+         ELSE IF (nspin > 1) THEN
             n_mix_cols = nspin*max_shell
             IF (do_dipole) n_mix_cols = n_mix_cols + nspin*dip_n
             IF (do_quadrupole) n_mix_cols = n_mix_cols + nspin*quad_n
@@ -1987,7 +1992,7 @@ CONTAINS
             skip_charge_mixing = use_no_mixer
             IF (skip_charge_mixing) THEN
                !
-            ELSEIF (do_combined_mixing) THEN
+            ELSE IF (do_combined_mixing) THEN
                n_mix_cols = max_shell
                IF (do_dipole) n_mix_cols = n_mix_cols + dip_n
                IF (do_quadrupole) n_mix_cols = n_mix_cols + quad_n
@@ -2118,10 +2123,12 @@ CONTAINS
          CALL tb%calc%coulomb%get_energy(tb%mol, tb%cache, tb%wfn, tb%e_es)
       END IF
       IF (ALLOCATED(tb%calc%dispersion)) THEN
-         IF (.NOT. skip_scf_dispersion_potential) &
+         IF (.NOT. skip_scf_dispersion_potential) THEN
             CALL tb%calc%dispersion%get_potential(tb%mol, tb%dcache, tb%wfn, tb%pot)
-         IF (.NOT. skip_scf_dispersion_energy) &
+         END IF
+         IF (.NOT. skip_scf_dispersion_energy) THEN
             CALL tb%calc%dispersion%get_energy(tb%mol, tb%dcache, tb%wfn, tb%e_scd)
+         END IF
       END IF
       IF (ALLOCATED(tb%calc%interactions)) THEN
          CALL tb%calc%interactions%get_potential(tb%mol, tb%icache, tb%wfn, tb%pot)
@@ -3484,8 +3491,9 @@ CONTAINS
                kpoint_coordinate = REAL(2*ikp_axis - nkp_grid(i) - 1, KIND=dp)/ &
                                    REAL(2*nkp_grid(i), KIND=dp) + kp_shift(i)
             END IF
-            IF (ABS(kpoint_coordinate - ANINT(kpoint_coordinate)) < 1.0e-12_dp) &
+            IF (ABS(kpoint_coordinate - ANINT(kpoint_coordinate)) < 1.0e-12_dp) THEN
                mesh_has_gamma(i) = .TRUE.
+            END IF
          END DO
       END DO
       has_multipole_response = ASSOCIATED(tb%dipbra) .OR. ASSOCIATED(tb%quadbra)
@@ -3493,7 +3501,7 @@ CONTAINS
       NULLIFY (matrix_p)
       IF (use_rho) THEN
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
-      ELSEIF (ASSOCIATED(tb%rho_ao_kp_ref)) THEN
+      ELSE IF (ASSOCIATED(tb%rho_ao_kp_ref)) THEN
          matrix_p => tb%rho_ao_kp_ref
       ELSE
          matrix_p => scf_env%p_mix_new
@@ -3933,8 +3941,9 @@ CONTAINS
       post_processing_output_file = ""
       IF (LEN_TRIM(ref%grad_file) > 0) grad_file = ref%grad_file
       IF (LEN_TRIM(ref%json_file) > 0) json_file = ref%json_file
-      IF (LEN_TRIM(ref%post_processing_output_file) > 0) &
+      IF (LEN_TRIM(ref%post_processing_output_file) > 0) THEN
          post_processing_output_file = ref%post_processing_output_file
+      END IF
 
       WRITE (charge_str, "(I0)") dft_control%charge
       spin = MAX(0, dft_control%multiplicity - 1)
@@ -4026,8 +4035,9 @@ CONTAINS
          WRITE (UNIT=iounit, FMT="(T2,A,ES12.4,A,ES12.4,A)") &
             "The native reference run uses tblite's library default ", tblite_mixer_min_weight_default, &
             ", while CP2K uses MIN_WEIGHT ", dft_control%qs_control%xtb_control%tblite_mixer_min_weight, "."
-         IF (ref%stop_on_error) &
+         IF (ref%stop_on_error) THEN
             CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/MIN_WEIGHT")
+         END IF
       END IF
       IF (ABS(dft_control%qs_control%xtb_control%tblite_mixer_max_weight - &
               tblite_mixer_max_weight_default) > 10.0_dp*EPSILON(1.0_dp)) THEN
@@ -4036,8 +4046,9 @@ CONTAINS
          WRITE (UNIT=iounit, FMT="(T2,A,ES12.4,A,ES12.4,A)") &
             "The native reference run uses tblite's library default ", tblite_mixer_max_weight_default, &
             ", while CP2K uses MAX_WEIGHT ", dft_control%qs_control%xtb_control%tblite_mixer_max_weight, "."
-         IF (ref%stop_on_error) &
+         IF (ref%stop_on_error) THEN
             CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/MAX_WEIGHT")
+         END IF
       END IF
       IF (ABS(dft_control%qs_control%xtb_control%tblite_mixer_weight_factor - &
               tblite_mixer_weight_factor_default) > 10.0_dp*EPSILON(1.0_dp)) THEN
@@ -4047,19 +4058,22 @@ CONTAINS
             "The native reference run uses tblite's library default ", tblite_mixer_weight_factor_default, &
             ", while CP2K uses WEIGHT_FACTOR ", &
             dft_control%qs_control%xtb_control%tblite_mixer_weight_factor, "."
-         IF (ref%stop_on_error) &
+         IF (ref%stop_on_error) THEN
             CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/WEIGHT_FACTOR")
+         END IF
       END IF
       etemp = 300.0_dp
-      IF (ASSOCIATED(scf_control) .AND. ASSOCIATED(scf_control%smear)) THEN
-         IF (scf_control%smear%do_smear) THEN
-            etemp = cp_unit_from_cp2k(scf_control%smear%electronic_temperature, "K")
-            IF (scf_control%smear%method /= smear_fermi_dirac) THEN
-               WRITE (UNIT=iounit, FMT="(/,T2,A,A,A)") &
-                  "WARNING: tblite reference CLI cannot reproduce CP2K smearing method ", &
-                  TRIM(tb_reference_smear_method_name(scf_control%smear%method)), "."
-               WRITE (UNIT=iounit, FMT="(T2,A,F12.3,A)") &
-                  "The native reference run uses Fermi-Dirac electronic temperature ", etemp, " K instead."
+      IF (ASSOCIATED(scf_control)) THEN
+         IF (ASSOCIATED(scf_control%smear)) THEN
+            IF (scf_control%smear%do_smear) THEN
+               etemp = cp_unit_from_cp2k(scf_control%smear%electronic_temperature, "K")
+               IF (scf_control%smear%method /= smear_fermi_dirac) THEN
+                  WRITE (UNIT=iounit, FMT="(/,T2,A,A,A)") &
+                     "WARNING: tblite reference CLI cannot reproduce CP2K smearing method ", &
+                     TRIM(tb_reference_smear_method_name(scf_control%smear%method)), "."
+                  WRITE (UNIT=iounit, FMT="(T2,A,F12.3,A)") &
+                     "The native reference run uses Fermi-Dirac electronic temperature ", etemp, " K instead."
+               END IF
             END IF
          END IF
       END IF
@@ -4072,13 +4086,15 @@ CONTAINS
          etemp_guess_str = " --etemp-guess "//TRIM(ADJUSTL(etemp_guess_val_str))
       END IF
       param_str = ""
-      IF (LEN_TRIM(dft_control%qs_control%xtb_control%tblite_param_file) > 0) &
+      IF (LEN_TRIM(dft_control%qs_control%xtb_control%tblite_param_file) > 0) THEN
          param_str = " --param "//TRIM(tb_shell_quote(dft_control%qs_control%xtb_control%tblite_param_file))
+      END IF
       spinpol_str = ""
       IF (dft_control%lsd) spinpol_str = " --spin-polarized"
       post_processing_str = ""
-      IF (LEN_TRIM(ref%post_processing) > 0) &
+      IF (LEN_TRIM(ref%post_processing) > 0) THEN
          post_processing_str = " --post-processing "//TRIM(tb_shell_quote(ref%post_processing))
+      END IF
       post_processing_output_str = ""
       IF (LEN_TRIM(post_processing_output_file) > 0) THEN
          WRITE (UNIT=iounit, FMT="(/,T2,A)") &
@@ -4089,8 +4105,9 @@ CONTAINS
                                       TRIM(tb_shell_quote(post_processing_output_file))
       END IF
       restart_str = " --no-restart"
-      IF (LEN_TRIM(ref%restart_file) > 0) &
+      IF (LEN_TRIM(ref%restart_file) > 0) THEN
          restart_str = " --restart "//TRIM(tb_shell_quote(ref%restart_file))
+      END IF
 
       CALL tb_write_reference_gen(qs_env, TRIM(gen_file))
 
@@ -4138,17 +4155,22 @@ CONTAINS
       WRITE (UNIT=iounit, FMT="(T2,A,A)") "Guess:      ", TRIM(guess)
       WRITE (UNIT=iounit, FMT="(T2,A,A)") "Solver:     ", TRIM(solver)
       WRITE (UNIT=iounit, FMT="(T2,A,L1)") "Spin-pol.:  ", dft_control%lsd
-      IF (ref%efield_active) &
+      IF (ref%efield_active) THEN
          WRITE (UNIT=iounit, FMT="(T2,A,3ES16.8,A)") "Efield:     ", ref%efield, " V/Angstrom"
-      IF (ref%solvation_active) &
+      END IF
+      IF (ref%solvation_active) THEN
          WRITE (UNIT=iounit, FMT="(T2,A,A,1X,A)") "Solvation:  ", TRIM(solvation_model_name), &
-         TRIM(ref%solvation_solvent)
-      IF (LEN_TRIM(ref%post_processing) > 0) &
+            TRIM(ref%solvation_solvent)
+      END IF
+      IF (LEN_TRIM(ref%post_processing) > 0) THEN
          WRITE (UNIT=iounit, FMT="(T2,A,A)") "Post proc.: ", TRIM(ref%post_processing)
-      IF (LEN_TRIM(post_processing_output_file) > 0) &
+      END IF
+      IF (LEN_TRIM(post_processing_output_file) > 0) THEN
          WRITE (UNIT=iounit, FMT="(T2,A,A)") "PP output:  ", TRIM(post_processing_output_file)
-      IF (ref%electronic_temperature_guess > 0.0_dp) &
+      END IF
+      IF (ref%electronic_temperature_guess > 0.0_dp) THEN
          WRITE (UNIT=iounit, FMT="(T2,A,F12.3,A)") "Guess etemp:", etemp_guess, " K"
+      END IF
       WRITE (UNIT=iounit, FMT="(T2,A,A)") "Grad file:  ", TRIM(grad_file)
       WRITE (UNIT=iounit, FMT="(T2,A,A)") "JSON file:  ", TRIM(json_file)
       WRITE (UNIT=iounit, FMT="(T2,A,A)") "Log file:   ", TRIM(log_file)
@@ -4351,8 +4373,9 @@ CONTAINS
          grad_str = ""
          IF (ref%guess_cli%grad) grad_str = " --grad"
          json_str = ""
-         IF (LEN_TRIM(ref%guess_cli%json_file) > 0) &
+         IF (LEN_TRIM(ref%guess_cli%json_file) > 0) THEN
             json_str = " --json "//TRIM(tb_shell_quote(ref%guess_cli%json_file))
+         END IF
          log_file = TRIM(file_base)//".guess.log"
          command = TRIM(tb_shell_quote(ref%program_name))// &
                    " guess --charge "//TRIM(ADJUSTL(charge_str))// &
@@ -4367,38 +4390,44 @@ CONTAINS
                    " "//TRIM(tb_shell_quote(guess_input))// &
                    " > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
          CALL tb_reference_cli_execute(ref, "guess", command, log_file, iounit)
-         IF (.NOT. ref%keep_files .AND. LEN_TRIM(ref%guess_cli%json_file) > 0) &
+         IF (.NOT. ref%keep_files .AND. LEN_TRIM(ref%guess_cli%json_file) > 0) THEN
             CALL tb_delete_file(ref%guess_cli%json_file)
+         END IF
       END IF
 
       IF (ref%param_cli%enabled) THEN
          method_str = ""
-         IF (ref%param_cli%method_explicit .OR. LEN_TRIM(ref%param_cli%input_file) == 0) &
+         IF (ref%param_cli%method_explicit .OR. LEN_TRIM(ref%param_cli%input_file) == 0) THEN
             method_str = " --method "// &
                          TRIM(tb_reference_method_name(MERGE(ref%param_cli%method, &
                                                              dft_control%qs_control%xtb_control%tblite_method, &
                                                              ref%param_cli%method_explicit)))
+         END IF
          output_str = ""
-         IF (LEN_TRIM(ref%param_cli%output_file) > 0) &
+         IF (LEN_TRIM(ref%param_cli%output_file) > 0) THEN
             output_str = " --output "//TRIM(tb_shell_quote(ref%param_cli%output_file))
+         END IF
          log_file = TRIM(file_base)//".param.log"
          command = TRIM(tb_shell_quote(ref%program_name))//" param"// &
                    TRIM(method_str)// &
                    TRIM(output_str)
-         IF (LEN_TRIM(ref%param_cli%input_file) > 0) &
+         IF (LEN_TRIM(ref%param_cli%input_file) > 0) THEN
             command = TRIM(command)//" "//TRIM(tb_shell_quote(ref%param_cli%input_file))
+         END IF
          command = TRIM(command)//" > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
          CALL tb_reference_cli_execute(ref, "param", command, log_file, iounit)
-         IF (.NOT. ref%keep_files .AND. LEN_TRIM(ref%param_cli%output_file) > 0) &
+         IF (.NOT. ref%keep_files .AND. LEN_TRIM(ref%param_cli%output_file) > 0) THEN
             CALL tb_delete_file(ref%param_cli%output_file)
+         END IF
       END IF
 
       IF (ref%fit_cli%enabled) THEN
          dry_run_str = ""
          IF (ref%fit_cli%dry_run) dry_run_str = " --dry-run"
          copy_str = ""
-         IF (LEN_TRIM(ref%fit_cli%copy_file) > 0) &
+         IF (LEN_TRIM(ref%fit_cli%copy_file) > 0) THEN
             copy_str = " --copy "//TRIM(tb_shell_quote(ref%fit_cli%copy_file))
+         END IF
          log_file = TRIM(file_base)//".fit.log"
          command = TRIM(tb_shell_quote(ref%program_name))//" fit"// &
                    TRIM(dry_run_str)// &
@@ -4407,8 +4436,9 @@ CONTAINS
                    " "//TRIM(tb_shell_quote(ref%fit_cli%input_file))// &
                    " > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
          CALL tb_reference_cli_execute(ref, "fit", command, log_file, iounit)
-         IF (.NOT. ref%keep_files .AND. LEN_TRIM(ref%fit_cli%copy_file) > 0) &
+         IF (.NOT. ref%keep_files .AND. LEN_TRIM(ref%fit_cli%copy_file) > 0) THEN
             CALL tb_delete_file(ref%fit_cli%copy_file)
+         END IF
       END IF
 
       IF (ref%tagdiff_cli%enabled) THEN
@@ -4740,8 +4770,9 @@ CONTAINS
       CALL tb_delete_file(grad_file)
       CALL tb_delete_file(json_file)
       CALL tb_delete_file(log_file)
-      IF (LEN_TRIM(post_processing_output_file) > 0) &
+      IF (LEN_TRIM(post_processing_output_file) > 0) THEN
          CALL tb_delete_file(post_processing_output_file)
+      END IF
 
    END SUBROUTINE tb_reference_cleanup
 

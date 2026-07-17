@@ -278,8 +278,9 @@ CONTAINS
                scf_control%outer_scf%cdft_opt_control%ijacobian(2) = scf_control%outer_scf%cdft_opt_control%ijacobian(2) + 1
                IF (scf_control%outer_scf%cdft_opt_control%ijacobian(2) >= &
                    scf_control%outer_scf%cdft_opt_control%jacobian_freq(2) .AND. &
-                   scf_control%outer_scf%cdft_opt_control%jacobian_freq(2) > 0) &
+                   scf_control%outer_scf%cdft_opt_control%jacobian_freq(2) > 0) THEN
                   scf_env%outer_scf%deallocate_jacobian = .TRUE.
+               END IF
             END IF
          END IF
          !   *** add the converged wavefunction to the wavefunction history
@@ -317,8 +318,9 @@ CONTAINS
 
          ! *** cleanup
          CALL scf_env_cleanup(scf_env)
-         IF (dft_control%qs_control%cdft) &
+         IF (dft_control%qs_control%cdft) THEN
             CALL cdft_control_cleanup(dft_control%qs_control%cdft_control)
+         END IF
 
          IF (PRESENT(has_converged)) THEN
             has_converged = converged
@@ -474,10 +476,11 @@ CONTAINS
          CALL get_results(results, description=description, &
                           values=res_val_3, n_entries=i_tmp)
          CPASSERT(i_tmp == 3)
-         IF (ALL(res_val_3(:) <= 0.0)) &
+         IF (ALL(res_val_3(:) <= 0.0)) THEN
             CALL cp_abort(__LOCATION__, &
                           " Trying to access result ("//TRIM(description)// &
                           ") which is not correctly stored.")
+         END IF
          CALL external_comm%set_handle(NINT(res_val_3(1)))
       END IF
       ext_master_id = NINT(res_val_3(2))
@@ -578,7 +581,7 @@ CONTAINS
             IF (tblite_native_mixer) THEN
                scf_env%iter_param = dft_control%qs_control%xtb_control%tblite_mixer_damping
                scf_env%iter_method = "TBLite/Diag"
-            ELSEIF (internal_tblite_mixer) THEN
+            ELSE IF (internal_tblite_mixer) THEN
                scf_env%iter_method = "TBLite/Diag"
                IF (dft_control%qs_control%dftb) THEN
                   scf_env%iter_param = dft_control%qs_control%dftb_control%tblite_mixer_damping
@@ -641,8 +644,9 @@ CONTAINS
             END IF
 
             IF (.NOT. BTEST(cp_print_key_should_output(logger%iter_info, &
-                                                       scf_section, "PRINT%ITERATION_INFO/TIME_CUMUL"), cp_p_file)) &
+                                                       scf_section, "PRINT%ITERATION_INFO/TIME_CUMUL"), cp_p_file)) THEN
                t1 = m_walltime()
+            END IF
 
             ! mixing methods have the new density matrix in p_mix_new
             IF (scf_env%mixing_method > 0) THEN
@@ -691,9 +695,10 @@ CONTAINS
       converged = inner_loop_converged .AND. outer_loop_converged
       total_scf_steps = total_steps
 
-      IF (dft_control%qs_control%cdft) &
+      IF (dft_control%qs_control%cdft) THEN
          dft_control%qs_control%cdft_control%total_steps = &
-         dft_control%qs_control%cdft_control%total_steps + total_steps
+            dft_control%qs_control%cdft_control%total_steps + total_steps
+      END IF
 
       IF (.NOT. converged) THEN
          IF (scf_control%ignore_convergence_failure .OR. should_stop) THEN
@@ -715,8 +720,10 @@ CONTAINS
       ! if needed copy mo_coeff dbcsr->fm for later use in post_scf!fm->dbcsr
       DO ispin = 1, SIZE(mos) !fm -> dbcsr
          IF (mos(ispin)%use_mo_coeff_b) THEN !fm->dbcsr
-            IF (.NOT. ASSOCIATED(mos(ispin)%mo_coeff_b)) & !fm->dbcsr
-               CPABORT("mo_coeff_b is not allocated") !fm->dbcsr
+            IF (.NOT. ASSOCIATED(mos(ispin)%mo_coeff_b)) THEN
+               !fm->dbcsr
+               CPABORT("mo_coeff_b is not allocated")
+            END IF !fm->dbcsr
             CALL copy_dbcsr_to_fm(mos(ispin)%mo_coeff_b, & !fm->dbcsr
                                   mos(ispin)%mo_coeff) !fm -> dbcsr
          END IF !fm->dbcsr
@@ -921,10 +928,11 @@ CONTAINS
             IF (dft_control%restricted) THEN
                scf_env%qs_ot_env(1)%restricted = .TRUE.
                ! requires rotation
-               IF (.NOT. scf_env%qs_ot_env(1)%settings%do_rotation) &
+               IF (.NOT. scf_env%qs_ot_env(1)%settings%do_rotation) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "Restricted calculation with OT requires orbital rotation. Please "// &
                                 "activate the OT%ROTATION keyword!")
+               END IF
             ELSE
                scf_env%qs_ot_env(:)%restricted = .FALSE.
             END IF
@@ -934,8 +942,9 @@ CONTAINS
             do_rotation = scf_env%qs_ot_env(1)%settings%do_rotation
             ! only full all needs rotation
             is_full_all = scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all
-            IF (do_rotation .AND. is_full_all) &
+            IF (do_rotation .AND. is_full_all) THEN
                CPABORT('PRECONDITIONER FULL_ALL is not compatible with ROTATION.')
+            END IF
 
             ! might need the KS matrix to init properly
             CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., &
@@ -943,10 +952,11 @@ CONTAINS
 
             ! if an old preconditioner is still around (i.e. outer SCF is active),
             ! remove it if this could be worthwhile
-            IF (.NOT. reuse_precond) &
+            IF (.NOT. reuse_precond) THEN
                CALL restart_preconditioner(qs_env, scf_env%ot_preconditioner, &
                                            scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                                            dft_control%nspins)
+            END IF
 
             !
             ! preconditioning still needs to be done correctly with has_unit_metric
@@ -958,13 +968,14 @@ CONTAINS
                orthogonality_metric => matrix_s(1)%matrix
             END IF
 
-            IF (.NOT. reuse_precond) &
+            IF (.NOT. reuse_precond) THEN
                CALL prepare_preconditioner(qs_env, mos, matrix_ks, matrix_s, scf_env%ot_preconditioner, &
                                            scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                                            scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                                            scf_env%qs_ot_env(1)%settings%energy_gap, dft_control%nspins, &
                                            has_unit_metric=has_unit_metric, &
                                            chol_type=scf_env%qs_ot_env(1)%settings%cholesky_type)
+            END IF
             IF (reuse_precond) reuse_precond = .FALSE.
 
             CALL ot_scf_init(mo_array=mos, matrix_s=orthogonality_metric, &
@@ -1203,8 +1214,9 @@ CONTAINS
             ! usually this means that the electronic structure has already converged to the correct state
             ! but the constraint optimizer keeps jumping over the optimal solution
             IF (scf_env%outer_scf%iter_count == 1 .AND. scf_env%iter_count == 1 &
-                .AND. cdft_control%total_steps /= 1) &
+                .AND. cdft_control%total_steps /= 1) THEN
                cdft_control%nreused = cdft_control%nreused - 1
+            END IF
             ! SCF converged in less than precond_freq steps
             IF (scf_env%outer_scf%iter_count == 1 .AND. scf_env%iter_count <= cdft_control%precond_freq .AND. &
                 cdft_control%total_steps /= 1 .AND. cdft_control%nreused < cdft_control%max_reuse) THEN
@@ -1356,17 +1368,22 @@ CONTAINS
    SUBROUTINE cdft_control_cleanup(cdft_control)
       TYPE(cdft_control_type), POINTER                   :: cdft_control
 
-      IF (ASSOCIATED(cdft_control%constraint%variables)) &
+      IF (ASSOCIATED(cdft_control%constraint%variables)) THEN
          DEALLOCATE (cdft_control%constraint%variables)
-      IF (ASSOCIATED(cdft_control%constraint%count)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%constraint%count)) THEN
          DEALLOCATE (cdft_control%constraint%count)
-      IF (ASSOCIATED(cdft_control%constraint%gradient)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%constraint%gradient)) THEN
          DEALLOCATE (cdft_control%constraint%gradient)
-      IF (ASSOCIATED(cdft_control%constraint%energy)) &
+      END IF
+      IF (ASSOCIATED(cdft_control%constraint%energy)) THEN
          DEALLOCATE (cdft_control%constraint%energy)
+      END IF
       IF (ASSOCIATED(cdft_control%constraint%inv_jacobian) .AND. &
-          cdft_control%constraint%deallocate_jacobian) &
+          cdft_control%constraint%deallocate_jacobian) THEN
          DEALLOCATE (cdft_control%constraint%inv_jacobian)
+      END IF
 
    END SUBROUTINE cdft_control_cleanup
 
@@ -1438,10 +1455,11 @@ CONTAINS
          IF (explicit_jacobian) THEN
             ! Build Jacobian with finite differences
             cdft_control => dft_control%qs_control%cdft_control
-            IF (.NOT. ASSOCIATED(cdft_control)) &
+            IF (.NOT. ASSOCIATED(cdft_control)) THEN
                CALL cp_abort(__LOCATION__, &
                              "Optimizers that need the explicit Jacobian can"// &
                              " only be used together with a valid CDFT constraint.")
+            END IF
             ! Redirect output from Jacobian calculation to a new file by creating a temporary logger
             project_name = logger%iter_info%project_name
             CALL create_tmp_logger(para_env, project_name, "-JacobianInfo.out", output_unit, tmp_logger)
@@ -1537,8 +1555,9 @@ CONTAINS
                   jacobian(i, j) = jacobian(i, j)/dh(j)
                END DO
             END DO
-            IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) &
+            IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
                ALLOCATE (scf_env%outer_scf%inv_jacobian(nvar, nvar))
+            END IF
             inv_jacobian => scf_env%outer_scf%inv_jacobian
             CALL invert_matrix(jacobian, inv_jacobian, inv_error)
             scf_control%outer_scf%cdft_opt_control%broyden_update = .FALSE.
@@ -1629,22 +1648,25 @@ CONTAINS
             do_linesearch = .FALSE.
          CASE (broyden_type_1_ls, broyden_type_1_explicit_ls, broyden_type_2_ls, broyden_type_2_explicit_ls)
             cdft_control => dft_control%qs_control%cdft_control
-            IF (.NOT. ASSOCIATED(cdft_control)) &
+            IF (.NOT. ASSOCIATED(cdft_control)) THEN
                CALL cp_abort(__LOCATION__, &
                              "Optimizers that perform a line search can"// &
                              " only be used together with a valid CDFT constraint")
-            IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian)) &
+            END IF
+            IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
                do_linesearch = .TRUE.
+            END IF
          END SELECT
       END SELECT
       IF (do_linesearch) THEN
          BLOCK
             TYPE(mo_set_type), DIMENSION(:), ALLOCATABLE :: mos_ls, mos_stashed
             cdft_control => dft_control%qs_control%cdft_control
-            IF (.NOT. ASSOCIATED(cdft_control)) &
+            IF (.NOT. ASSOCIATED(cdft_control)) THEN
                CALL cp_abort(__LOCATION__, &
                              "Optimizers that perform a line search can"// &
                              " only be used together with a valid CDFT constraint")
+            END IF
             CPASSERT(ASSOCIATED(scf_env%outer_scf%inv_jacobian))
             CPASSERT(ASSOCIATED(scf_control%outer_scf%cdft_opt_control))
             alpha = scf_control%outer_scf%cdft_opt_control%newton_step_save
@@ -1778,8 +1800,9 @@ CONTAINS
                         IF (i == max_linesearch) continue_ls_exit = .TRUE.
                         ! Exit if constraint target is satisfied to requested tolerance
                         IF (SQRT(MAXVAL(scf_env%outer_scf%gradient(:, scf_env%outer_scf%iter_count + 1)**2)) < &
-                            scf_control%outer_scf%eps_scf) &
+                            scf_control%outer_scf%eps_scf) THEN
                            continue_ls_exit = .TRUE.
+                        END IF
                         ! Exit if line search jumped over the optimal step length
                         IF (sign_changed) continue_ls_exit = .TRUE.
                      END IF
@@ -1835,9 +1858,10 @@ CONTAINS
                             "Line search did not converge. CDFT SCF proceeds with fixed step size.")
                scf_control%outer_scf%cdft_opt_control%newton_step = scf_control%outer_scf%cdft_opt_control%newton_step_save
             END IF
-            IF (reached_maxls) &
+            IF (reached_maxls) THEN
                CALL cp_warn(__LOCATION__, &
                             "Line search did not converge. CDFT SCF proceeds with lasted iterated step size.")
+            END IF
             CALL cp_rm_default_logger()
             CALL cp_logger_release(tmp_logger)
             ! Release temporary storage

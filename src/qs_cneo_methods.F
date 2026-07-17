@@ -185,9 +185,10 @@ CONTAINS
       CALL get_gto_basis_set(nuc_soft_basis, npgf=npgf_s, gcc=gcc_s)
       ! There is such a limitation because we rely on atomic code to build S, T and U.
       ! Usually l=5 is more than enough, suppoting PB6H basis.
-      IF (maxl > lmat) &
+      IF (maxl > lmat) THEN
          CALL cp_abort(__LOCATION__, "Nuclear basis with angular momentum higher than "// &
                        "atom_types::lmat is not supported yet.")
+      END IF
 
       set_index = 0
       shell_index = 0
@@ -1074,7 +1075,7 @@ CONTAINS
       ! initial guess of f is taken from the result of last iteration
       CALL atom_solve_cneo(fmat, f, utrans, wfn, ener, pmat, r, distance, nsgf, nne)
       ! test if zero initial guess is better
-      IF (SQRT(DOT_PRODUCT(r, r)) > 1.e-12_dp .AND. DOT_PRODUCT(f, f) /= 0.0_dp) THEN
+      IF (NORM2(r) > 1.e-12_dp .AND. DOT_PRODUCT(f, f) /= 0.0_dp) THEN
          CALL atom_solve_cneo(fmat, [0.0_dp, 0.0_dp, 0.0_dp], utrans, wfn, &
                               ener, pmat, r_tmp, distance, nsgf, nne)
          IF (DOT_PRODUCT(r_tmp, r_tmp) < DOT_PRODUCT(r, r)) THEN
@@ -1085,7 +1086,7 @@ CONTAINS
       max_iter = 20
       iter = 0
       ! using Newton's method to solve for f
-      DO WHILE (SQRT(DOT_PRODUCT(r, r)) > 1.e-12_dp)
+      DO WHILE (NORM2(r) > 1.e-12_dp)
          iter = iter + 1
          ! construct numerical Jacobian with one-side finite difference
          DO i = 1, 3
@@ -1118,13 +1119,13 @@ CONTAINS
             CALL invert_matrix_3x3(jac, jac_inv, det, try_svd=.TRUE.)
          END IF
          df = -RESHAPE(MATMUL(jac_inv, RESHAPE(r, [3, 1])), [3])
-         df_norm = SQRT(DOT_PRODUCT(df, df))
+         df_norm = NORM2(df)
          f_tmp = f
          r_tmp = r
-         g0 = SQRT(DOT_PRODUCT(r_tmp, r_tmp))
+         g0 = NORM2(r_tmp)
          f = f_tmp + df
          CALL atom_solve_cneo(fmat, f, utrans, wfn, ener, pmat, r, distance, nsgf, nne)
-         g1 = SQRT(DOT_PRODUCT(r, r))
+         g1 = NORM2(r)
          step = 1.0_dp
          DO WHILE (g1 >= g0)
             ! line search
@@ -1136,7 +1137,7 @@ CONTAINS
             step = step*MAX(-g0p/(2.0_dp*(g1 - g0 - g0p)), 0.1_dp)
             f = f_tmp + step*df
             CALL atom_solve_cneo(fmat, f, utrans, wfn, ener, pmat, r, distance, nsgf, nne)
-            g1 = SQRT(DOT_PRODUCT(r, r))
+            g1 = NORM2(r)
          END DO
          IF (iter >= max_iter) THEN
             CALL cp_warn(__LOCATION__, "CNEO nuclear position constraint solver failed to "// &

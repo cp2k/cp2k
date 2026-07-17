@@ -273,7 +273,7 @@ CONTAINS
       ! total number of occupied orbitals
       IF (PRESENT(nocc) .AND. ghost) THEN
          nocc = 0
-      ELSEIF (PRESENT(nocc)) THEN
+      ELSE IF (PRESENT(nocc)) THEN
          nocc = 0
          DO l = 0, lmat
             DO k = 1, 7

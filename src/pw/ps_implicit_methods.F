@@ -274,8 +274,9 @@ CONTAINS
          iter = iter + 1
          reached_max_iter = iter > max_iter
          reached_tol = pres_error <= tol
-         IF (pres_error > large_error) &
+         IF (pres_error > large_error) THEN
             CPABORT("Poisson solver did not converge.")
+         END IF
          ps_implicit_env%times_called = ps_implicit_env%times_called + 1
          IF (reached_max_iter .OR. reached_tol) EXIT
 
@@ -286,8 +287,9 @@ CONTAINS
       END DO
       CALL ps_implicit_print_convergence_msg(iter, max_iter, outp_unit)
 
-      IF ((times_called /= 0) .AND. (.NOT. use_zero_initial_guess)) &
+      IF ((times_called /= 0) .AND. (.NOT. use_zero_initial_guess)) THEN
          CALL pw_copy(v_new, ps_implicit_env%initial_guess)
+      END IF
 
       IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
@@ -439,8 +441,9 @@ CONTAINS
          iter = iter + 1
          reached_max_iter = iter > max_iter
          reached_tol = pres_error <= tol
-         IF (pres_error > large_error) &
+         IF (pres_error > large_error) THEN
             CPABORT("Poisson solver did not converge.")
+         END IF
          ps_implicit_env%times_called = ps_implicit_env%times_called + 1
          IF (reached_max_iter .OR. reached_tol) EXIT
 
@@ -454,8 +457,9 @@ CONTAINS
       CALL pw_shrink(neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
                      dct_env%bounds_local_shftd, v_new_xpndd, v_new)
 
-      IF ((times_called /= 0) .AND. (.NOT. use_zero_initial_guess)) &
+      IF ((times_called /= 0) .AND. (.NOT. use_zero_initial_guess)) THEN
          CALL pw_copy(v_new_xpndd, ps_implicit_env%initial_guess)
+      END IF
 
       IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
@@ -705,8 +709,9 @@ CONTAINS
          reached_max_iter = iter > max_iter
          reached_tol = pres_error <= tol
          ps_implicit_env%times_called = ps_implicit_env%times_called + 1
-         IF (pres_error > large_error) &
+         IF (pres_error > large_error) THEN
             CPABORT("Poisson solver did not converge.")
+         END IF
          IF (reached_max_iter .OR. reached_tol) EXIT
 
 ! update
@@ -994,8 +999,9 @@ CONTAINS
          reached_max_iter = iter > max_iter
          reached_tol = pres_error <= tol
          ps_implicit_env%times_called = ps_implicit_env%times_called + 1
-         IF (pres_error > large_error) &
+         IF (pres_error > large_error) THEN
             CPABORT("Poisson solver did not converge.")
+         END IF
          IF (reached_max_iter .OR. reached_tol) EXIT
 
 ! update
@@ -1249,13 +1255,15 @@ CONTAINS
 ! evaluate R^(-1)
          ps_implicit_env%Rinv(:, :) = R
          CALL DGETRF(n_tiles_tot + 1, n_tiles_tot + 1, ps_implicit_env%Rinv, n_tiles_tot + 1, ipiv, info)
-         IF (info /= 0) &
+         IF (info /= 0) THEN
             CALL cp_abort(__LOCATION__, &
                           "R is (nearly) singular! Either two Dirichlet constraints are identical or "// &
                           "you need to reduce the number of tiles.")
+         END IF
          CALL DGETRI(n_tiles_tot + 1, ps_implicit_env%Rinv, n_tiles_tot + 1, ipiv, work_arr, n_tiles_tot + 1, info)
-         IF (info /= 0) &
+         IF (info /= 0) THEN
             CPABORT("Inversion of R failed!")
+         END IF
 
          DEALLOCATE (QAinvxBt, Bxunit_vec, R, work_arr, ipiv)
          CALL pw_pool_release(pw_pool_xpndd)
@@ -1378,13 +1386,15 @@ CONTAINS
 ! evaluate R^(-1)
          ps_implicit_env%Rinv(:, :) = R
          CALL DGETRF(n_tiles_tot + 1, n_tiles_tot + 1, ps_implicit_env%Rinv, n_tiles_tot + 1, ipiv, info)
-         IF (info /= 0) &
+         IF (info /= 0) THEN
             CALL cp_abort(__LOCATION__, &
                           "R is (nearly) singular! Either two Dirichlet constraints are identical or "// &
                           "you need to reduce the number of tiles.")
+         END IF
          CALL DGETRI(n_tiles_tot + 1, ps_implicit_env%Rinv, n_tiles_tot + 1, ipiv, work_arr, n_tiles_tot + 1, info)
-         IF (info /= 0) &
+         IF (info /= 0) THEN
             CPABORT("Inversion of R failed!")
+         END IF
 
          DEALLOCATE (QAinvxBt, Bxunit_vec, R, work_arr, ipiv)
 

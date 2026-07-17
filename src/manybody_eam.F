@@ -186,7 +186,7 @@ CONTAINS
       index = INT(rab/eam_b%drar) + 1
       IF (index > eam_b%npoints) THEN
          index = eam_b%npoints
-      ELSEIF (index < 1) THEN
+      ELSE IF (index < 1) THEN
          index = 1
       END IF
       qq = rab - eam_b%rval(index)
@@ -196,7 +196,7 @@ CONTAINS
       index = INT(rab/eam_a%drar) + 1
       IF (index > eam_a%npoints) THEN
          index = eam_a%npoints
-      ELSEIF (index < 1) THEN
+      ELSE IF (index < 1) THEN
          index = 1
       END IF
       qq = rab - eam_a%rval(index)
@@ -233,7 +233,7 @@ CONTAINS
       index = INT(rab/eam_a%drar) + 1
       IF (index > eam_a%npoints) THEN
          index = eam_a%npoints
-      ELSEIF (index < 1) THEN
+      ELSE IF (index < 1) THEN
          index = 1
       END IF
       qq = rab - eam_a%rval(index)
@@ -247,7 +247,7 @@ CONTAINS
       index = INT(rab/eam_b%drar) + 1
       IF (index > eam_b%npoints) THEN
          index = eam_b%npoints
-      ELSEIF (index < 1) THEN
+      ELSE IF (index < 1) THEN
          index = 1
       END IF
       qq = rab - eam_b%rval(index)

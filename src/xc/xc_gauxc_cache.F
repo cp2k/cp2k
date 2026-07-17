@@ -139,13 +139,13 @@ CONTAINS
       cache%molecule = gauxc_create_molecule( &
                        particle_set, &
                        status)
-      IF (status%status%code /= 0) GO TO 100
+      IF (status%status%code /= 0) GOTO 100
 
       cache%basisset = gauxc_create_basisset( &
                        qs_kind_set, &
                        particle_set, &
                        status)
-      IF (status%status%code /= 0) GO TO 200
+      IF (status%status%code /= 0) GOTO 200
 
       params%use_fd_gradient = &
          params%use_fd_gradient .AND. (cache%max_l() > 3)
@@ -195,7 +195,7 @@ CONTAINS
                       status, &
                       mpi_comm=para_env%get_handle())
       END IF
-      IF (status%status%code /= 0) GO TO 300
+      IF (status%status%code /= 0) GOTO 300
 
       cache%integrator = gauxc_create_integrator( &
                          TRIM(params%xc_fun_name), &
@@ -204,7 +204,7 @@ CONTAINS
                          params%lwd_kernel, &
                          params%nspins, &
                          status)
-      IF (status%status%code /= 0) GO TO 400
+      IF (status%status%code /= 0) GOTO 400
 
       IF (params%use_gradient_self_runtime) THEN
          ! Upstream GauXC does not yet support OneDFT/SKALA nuclear gradients
@@ -222,7 +222,7 @@ CONTAINS
                                status, &
                                mpi_comm=mp_comm_self%get_handle(), &
                                force_new_runtime=.TRUE.)
-         IF (status%status%code /= 0) GO TO 500
+         IF (status%status%code /= 0) GOTO 500
          cache%gradient_integrator = gauxc_create_integrator( &
                                      TRIM(params%xc_fun_name), &
                                      cache%gradient_grid, &
@@ -230,7 +230,7 @@ CONTAINS
                                      params%lwd_kernel, &
                                      params%nspins, &
                                      status)
-         IF (status%status%code /= 0) GO TO 600
+         IF (status%status%code /= 0) GOTO 600
       END IF
 
       cache%natom = params%natom
@@ -250,8 +250,9 @@ CONTAINS
       cache%use_gradient_self_runtime = params%use_gradient_self_runtime
       cache%use_self_runtime = params%use_self_runtime
       cache%use_fd_gradient = params%use_fd_gradient
-      IF (ALLOCATED(cache%last_positions)) &
+      IF (ALLOCATED(cache%last_positions)) THEN
          DEALLOCATE (cache%last_positions)
+      END IF
       ALLOCATE (cache%last_positions(3, params%natom))
 
       BLOCK
@@ -271,31 +272,32 @@ CONTAINS
 100   CONTINUE
       CALL gauxc_destroy_molecule(cache%molecule, status)
       CALL gauxc_check_status(status)
-      GO TO 999
+      GOTO 999
 
 200   CONTINUE
       CALL gauxc_destroy_basisset(cache%basisset, status)
       CALL gauxc_check_status(status)
-      GO TO 100
+      GOTO 100
 
 300   CONTINUE
       CALL gauxc_destroy_grid(cache%grid, status)
       CALL gauxc_check_status(status)
-      GO TO 200
+      GOTO 200
 
 400   CONTINUE
       CALL gauxc_destroy_integrator(cache%integrator, status)
       CALL gauxc_check_status(status)
-      GO TO 300
+      GOTO 300
 
 500   CONTINUE
       CALL gauxc_destroy_grid(cache%gradient_grid, status)
       CALL gauxc_check_status(status)
-      GO TO 400
+      GOTO 400
 
 600   CONTINUE
       CALL gauxc_destroy_integrator(cache%gradient_integrator, status)
       CALL gauxc_check_status(status)
+      GOTO 500
 
 999   CONTINUE
       IF (ALLOCATED(cache%last_positions)) DEALLOCATE (cache%last_positions)

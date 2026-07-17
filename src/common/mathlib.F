@@ -187,8 +187,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: length_of_a, length_of_b
       REAL(KIND=dp), DIMENSION(SIZE(a, 1))               :: a_norm, b_norm
 
-      length_of_a = SQRT(DOT_PRODUCT(a, a))
-      length_of_b = SQRT(DOT_PRODUCT(b, b))
+      length_of_a = NORM2(a)
+      length_of_b = NORM2(b)
 
       IF ((length_of_a > eps_geo) .AND. (length_of_b > eps_geo)) THEN
          a_norm(:) = a(:)/length_of_a
@@ -997,8 +997,9 @@ CONTAINS
       ! set singular values that are too small to zero
       DO i = 1, n
          IF (sig(i) > rskip*MAXVAL(sig)) THEN
-            IF (PRESENT(determinant)) &
+            IF (PRESENT(determinant)) THEN
                determinant = determinant*sig(i)
+            END IF
             sig_plus(i, i) = 1._dp/sig(i)
          ELSE
             sig_plus(i, i) = 0.0_dp
@@ -1975,12 +1976,14 @@ CONTAINS
       IF (n /= SIZE(C_out, 2)) CPABORT("Incompatible (cols) result array 3 (C).")
       IF (.NOT. (A_trans == 'N' .OR. A_trans == 'n' .OR. &
                  A_trans == 'T' .OR. A_trans == 't' .OR. &
-                 A_trans == 'C' .OR. A_trans == 'c')) &
+                 A_trans == 'C' .OR. A_trans == 'c')) THEN
          CPABORT("Unknown transpose character for array 1 (A).")
+      END IF
       IF (.NOT. (B_trans == 'N' .OR. B_trans == 'n' .OR. &
                  B_trans == 'T' .OR. B_trans == 't' .OR. &
-                 B_trans == 'C' .OR. B_trans == 'c')) &
+                 B_trans == 'C' .OR. B_trans == 'c')) THEN
          CPABORT("Unknown transpose character for array 2 (B).")
+      END IF
 
       CALL timeset(routineN, handle)
 
@@ -2018,12 +2021,14 @@ CONTAINS
       IF (n /= SIZE(C_out, 2)) CPABORT("Incompatible (cols) result array 3 (C).")
       IF (.NOT. (A_trans == 'N' .OR. A_trans == 'n' .OR. &
                  A_trans == 'T' .OR. A_trans == 't' .OR. &
-                 A_trans == 'C' .OR. A_trans == 'c')) &
+                 A_trans == 'C' .OR. A_trans == 'c')) THEN
          CPABORT("Unknown transpose character for array 1 (A).")
+      END IF
       IF (.NOT. (B_trans == 'N' .OR. B_trans == 'n' .OR. &
                  B_trans == 'T' .OR. B_trans == 't' .OR. &
-                 B_trans == 'C' .OR. B_trans == 'c')) &
+                 B_trans == 'C' .OR. B_trans == 'c')) THEN
          CPABORT("Unknown transpose character for array 2 (B).")
+      END IF
 
       CALL timeset(routineN, handle)
 
@@ -2068,16 +2073,19 @@ CONTAINS
       IF (n /= SIZE(D_out, 2)) CPABORT("Incompatible (cols) result array 4 (D).")
       IF (.NOT. (A_trans == 'N' .OR. A_trans == 'n' .OR. &
                  A_trans == 'T' .OR. A_trans == 't' .OR. &
-                 A_trans == 'C' .OR. A_trans == 'c')) &
+                 A_trans == 'C' .OR. A_trans == 'c')) THEN
          CPABORT("Unknown transpose character for array 1 (A).")
+      END IF
       IF (.NOT. (B_trans == 'N' .OR. B_trans == 'n' .OR. &
                  B_trans == 'T' .OR. B_trans == 't' .OR. &
-                 B_trans == 'C' .OR. B_trans == 'c')) &
+                 B_trans == 'C' .OR. B_trans == 'c')) THEN
          CPABORT("Unknown transpose character for array 2 (B).")
+      END IF
       IF (.NOT. (C_trans == 'N' .OR. C_trans == 'n' .OR. &
                  C_trans == 'T' .OR. C_trans == 't' .OR. &
-                 C_trans == 'C' .OR. C_trans == 'c')) &
+                 C_trans == 'C' .OR. C_trans == 'c')) THEN
          CPABORT("Unknown transpose character for array 3 (C).")
+      END IF
 
       CALL timeset(routineN, handle)
 
@@ -2127,16 +2135,19 @@ CONTAINS
       IF (n /= SIZE(D_out, 2)) CPABORT("Incompatible (cols) result array 4 (D).")
       IF (.NOT. (A_trans == 'N' .OR. A_trans == 'n' .OR. &
                  A_trans == 'T' .OR. A_trans == 't' .OR. &
-                 A_trans == 'C' .OR. A_trans == 'c')) &
+                 A_trans == 'C' .OR. A_trans == 'c')) THEN
          CPABORT("Unknown transpose character for array 1 (A).")
+      END IF
       IF (.NOT. (B_trans == 'N' .OR. B_trans == 'n' .OR. &
                  B_trans == 'T' .OR. B_trans == 't' .OR. &
-                 B_trans == 'C' .OR. B_trans == 'c')) &
+                 B_trans == 'C' .OR. B_trans == 'c')) THEN
          CPABORT("Unknown transpose character for array 2 (B).")
+      END IF
       IF (.NOT. (C_trans == 'N' .OR. C_trans == 'n' .OR. &
                  C_trans == 'T' .OR. C_trans == 't' .OR. &
-                 C_trans == 'C' .OR. C_trans == 'c')) &
+                 C_trans == 'C' .OR. C_trans == 'c')) THEN
          CPABORT("Unknown transpose character for array 3 (C).")
+      END IF
 
       CALL timeset(routineN, handle)
 

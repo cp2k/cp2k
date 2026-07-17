@@ -612,7 +612,7 @@ CONTAINS
                CALL qs_fgxc_analytic(rho, rhox, xc_section, weights, auxbas_pw_pool, &
                                      fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip=do_sf)
             END IF
-         ELSEIF (do_numeric) THEN
+         ELSE IF (do_numeric) THEN
             IF (do_analytic) THEN
                CALL qs_fgxc_gdiff(ks_env, rho, rhox, xc_section, order, eps_delta, is_rks_triplets, &
                                   weights, fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip=do_sf)
@@ -633,7 +633,7 @@ CONTAINS
          IF (gapw .OR. gapw_xc) THEN
             IF (do_analytic .AND. .NOT. do_numeric) THEN
                CPABORT("Analytic 3rd EXC derivatives not available")
-            ELSEIF (do_numeric) THEN
+            ELSE IF (do_numeric) THEN
                IF (do_analytic) THEN
                   CALL gfxc_atom_diff(qs_env, ex_env%local_rho_set%rho_atom_set, &
                                       local_rho_set_f%rho_atom_set, local_rho_set_g%rho_atom_set, &
@@ -820,7 +820,7 @@ CONTAINS
             END IF
             IF (do_analytic .AND. .NOT. do_numeric) THEN
                CPABORT("Analytic 3rd derivatives of EXC not available")
-            ELSEIF (do_numeric) THEN
+            ELSE IF (do_numeric) THEN
                IF (do_analytic) THEN
                   CALL qs_fgxc_gdiff(ks_env, rho_aux_fit, rhox_aux, xc_section, order, eps_delta, &
                                      is_rks_triplets, weights, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
@@ -909,7 +909,7 @@ CONTAINS
 
                IF (do_analytic .AND. .NOT. do_numeric) THEN
                   CPABORT("Analytic 3rd EXC derivatives not available")
-               ELSEIF (do_numeric) THEN
+               ELSE IF (do_numeric) THEN
                   IF (do_analytic) THEN
                      CALL gfxc_atom_diff(qs_env, rho_atom_set, &
                                          rho_atom_set_f, rho_atom_set_g, &

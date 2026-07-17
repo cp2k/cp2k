@@ -1611,7 +1611,7 @@ CONTAINS
          END IF
 
          fieldpol = dft_control%period_efield%polarisation
-         fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
+         fieldpol = fieldpol/NORM2(fieldpol)
          fieldpol = -fieldpol*dft_control%period_efield%strength
          hmat = cell%hmat(:, :)/twopi
          DO idir = 1, 3
@@ -1693,7 +1693,7 @@ CONTAINS
          END IF
 
          fieldpol = dft_control%period_efield%polarisation
-         fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
+         fieldpol = fieldpol/NORM2(fieldpol)
          fieldpol = -fieldpol*dft_control%period_efield%strength
          hmat = cell%hmat(:, :)/twopi
          DO idir = 1, 3
@@ -1764,7 +1764,7 @@ CONTAINS
 
       dfilter(1:3) = dft_control%period_efield%d_filter(1:3)
       fieldpol = dft_control%period_efield%polarisation
-      fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
+      fieldpol = fieldpol/NORM2(fieldpol)
       fieldpol = -fieldpol*dft_control%period_efield%strength
       hmat = cell%hmat(:, :)/twopi
       omega = cell%deth
@@ -1882,7 +1882,7 @@ CONTAINS
       END IF
 
       fieldpol = dft_control%period_efield%polarisation
-      fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
+      fieldpol = fieldpol/NORM2(fieldpol)
       fieldpol = -fieldpol*dft_control%period_efield%strength
 
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)

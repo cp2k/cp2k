@@ -142,7 +142,7 @@ CONTAINS
             CALL get_minimax_coeff_k15(k, Rc, aw, mm_error)
             IF (PRESENT(which_coeffs)) which_coeffs = mm_k15
          END IF
-      ELSEIF (k <= 53) THEN
+      ELSE IF (k <= 53) THEN
          CALL get_minimax_coeff_k53(k, Rc, aw, mm_error)
          IF (PRESENT(which_coeffs)) which_coeffs = mm_k53
       ELSE

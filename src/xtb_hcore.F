@@ -156,7 +156,7 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
          IF (metal(za)) THEN
             kcnlk(0:3, ikind) = 0.0_dp
-         ELSEIF (early3d(za)) THEN
+         ELSE IF (early3d(za)) THEN
             kcnlk(0, ikind) = kcns
             kcnlk(1, ikind) = kcnp
             kcnlk(2, ikind) = 0.005_dp
@@ -278,7 +278,7 @@ CONTAINS
                      ELSE
                         km = km*kdiff
                      END IF
-                  ELSEIF (zb == 1 .AND. nb == 2) THEN
+                  ELSE IF (zb == 1 .AND. nb == 2) THEN
                      km = km*kdiff
                   END IF
                   kijab(i, j, ikind, jkind) = km

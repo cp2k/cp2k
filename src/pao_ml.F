@@ -95,8 +95,9 @@ CONTAINS
 
       IF (pao%iw > 0) WRITE (pao%iw, *) 'PAO|ML| Initializing maschine learning...'
 
-      IF (pao%parameterization /= pao_rotinv_param) &
+      IF (pao%parameterization /= pao_rotinv_param) THEN
          CPABORT("PAO maschine learning requires ROTINV parametrization")
+      END IF
 
       CALL get_qs_env(qs_env, para_env=para_env, atomic_kind_set=atomic_kind_set)
 
@@ -166,8 +167,9 @@ CONTAINS
          CALL pao_read_raw(filename, param, hmat, kinds, atom2kind, positions, xblocks, ml_range)
 
          ! check parametrization
-         IF (TRIM(param) /= TRIM(ADJUSTL(id2str(pao%parameterization)))) &
+         IF (TRIM(param) /= TRIM(ADJUSTL(id2str(pao%parameterization)))) THEN
             CPABORT("Restart PAO parametrization does not match")
+         END IF
 
          ! map read-in kinds onto kinds of this run
          CALL match_kinds(pao, qs_env, kinds, kindsmap)
@@ -277,8 +279,9 @@ CONTAINS
          END DO
       END DO
 
-      IF (ANY(kindsmap < 1)) &
+      IF (ANY(kindsmap < 1)) THEN
          CPABORT("PAO: Could not match all kinds from training set")
+      END IF
    END SUBROUTINE match_kinds
 
 ! **************************************************************************************************
@@ -301,8 +304,10 @@ CONTAINS
          training_list => training_lists(ikind)
          IF (training_list%npoints > 0) CYCLE ! it's ok
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set, pao_basis_size=pao_basis_size)
-         IF (pao_basis_size /= basis_set%nsgf) & ! if this kind has pao enabled...
+         IF (pao_basis_size /= basis_set%nsgf) THEN
+            ! if this kind has pao enabled...
             CPABORT("Found no training-points for kind: "//TRIM(training_list%kindname))
+         END IF
       END DO
 
    END SUBROUTINE sanity_check
@@ -343,10 +348,12 @@ CONTAINS
 
          ! figure out size of input and output
          inp_size = 0; out_size = 0
-         IF (ALLOCATED(training_list%head%input)) &
+         IF (ALLOCATED(training_list%head%input)) THEN
             inp_size = SIZE(training_list%head%input)
-         IF (ALLOCATED(training_list%head%output)) &
+         END IF
+         IF (ALLOCATED(training_list%head%output)) THEN
             out_size = SIZE(training_list%head%output)
+         END IF
          CALL para_env%sum(inp_size)
          CALL para_env%sum(out_size)
 
@@ -574,8 +581,9 @@ CONTAINS
       IF (pao%iw > 0) WRITE (pao%iw, "(A,E20.10,A,T71,I10)") " PAO|ML| max prediction variance:", &
          MAXVAL(variances), " for atom:", MAXLOC(variances)
 
-      IF (MAXVAL(variances) > pao%ml_tolerance) &
+      IF (MAXVAL(variances) > pao%ml_tolerance) THEN
          CPABORT("Variance of prediction above ML_TOLERANCE.")
+      END IF
 
       DEALLOCATE (variances)
 

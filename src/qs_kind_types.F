@@ -1008,7 +1008,7 @@ CONTAINS
             IF (PRESENT(maxlppl) .AND. ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, nexp_ppl=n)
                maxlppl = MAX(maxlppl, 2*(n - 1))
-            ELSEIF (PRESENT(maxlppl) .AND. ASSOCIATED(sgp_potential)) THEN
+            ELSE IF (PRESENT(maxlppl) .AND. ASSOCIATED(sgp_potential)) THEN
                CALL get_potential(potential=sgp_potential, nrloc=nrloc, ecp_semi_local=ecp_semi_local)
                n = MAXVAL(nrloc) - 2
                maxlppl = MAX(maxlppl, 2*(n - 1))
@@ -1023,7 +1023,7 @@ CONTAINS
             IF (PRESENT(maxlppnl) .AND. ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, lprj_ppnl_max=imax)
                maxlppnl = MAX(maxlppnl, imax)
-            ELSEIF (PRESENT(maxlppnl) .AND. ASSOCIATED(sgp_potential)) THEN
+            ELSE IF (PRESENT(maxlppnl) .AND. ASSOCIATED(sgp_potential)) THEN
                CALL get_potential(potential=sgp_potential, lmax=imax)
                maxlppnl = MAX(maxlppnl, imax)
             END IF
@@ -1046,7 +1046,7 @@ CONTAINS
             IF (PRESENT(maxppnl) .AND. ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, nppnl=imax)
                maxppnl = MAX(maxppnl, imax)
-            ELSEIF (PRESENT(maxppnl) .AND. ASSOCIATED(sgp_potential)) THEN
+            ELSE IF (PRESENT(maxppnl) .AND. ASSOCIATED(sgp_potential)) THEN
                CALL get_potential(potential=sgp_potential, nppnl=imax)
                maxppnl = MAX(maxppnl, imax)
             END IF
@@ -1327,7 +1327,7 @@ CONTAINS
 
       IF (ASSOCIATED(qs_kind%gth_potential)) THEN
          CALL init_potential(qs_kind%gth_potential)
-      ELSEIF (ASSOCIATED(qs_kind%sgp_potential)) THEN
+      ELSE IF (ASSOCIATED(qs_kind%sgp_potential)) THEN
          CALL init_potential(qs_kind%sgp_potential)
       END IF
 
@@ -1790,12 +1790,12 @@ CONTAINS
                basis_set_type(i) = "ORB"
                basis_set_form(i) = "GTO"
                basis_set_name(i) = tmpstringlist(1)
-            ELSEIF (SIZE(tmpstringlist) == 2) THEN
+            ELSE IF (SIZE(tmpstringlist) == 2) THEN
                ! default is GTO
                basis_set_type(i) = tmpstringlist(1)
                basis_set_form(i) = "GTO"
                basis_set_name(i) = tmpstringlist(2)
-            ELSEIF (SIZE(tmpstringlist) == 3) THEN
+            ELSE IF (SIZE(tmpstringlist) == 3) THEN
                basis_set_type(i) = tmpstringlist(1)
                basis_set_form(i) = tmpstringlist(2)
                basis_set_name(i) = tmpstringlist(3)
@@ -1876,7 +1876,7 @@ CONTAINS
                      potential_type = potential_name
                   END IF
                END IF
-            ELSEIF (SIZE(tmpstringlist) == 2) THEN
+            ELSE IF (SIZE(tmpstringlist) == 2) THEN
                potential_type = tmpstringlist(1)
                potential_name = tmpstringlist(2)
             ELSE
@@ -1930,19 +1930,22 @@ CONTAINS
             CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                       keyword_name="RHO0_EXP_RADIUS", r_val=qs_kind%hard0_radius)
          END IF
-         IF (qs_kind%hard_radius < qs_kind%hard0_radius) &
+         IF (qs_kind%hard_radius < qs_kind%hard0_radius) THEN
             CPABORT("rc0 should be <= rc")
+         END IF
 
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="MAX_RAD_LOCAL", r_val=qs_kind%max_rad_local)
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="LEBEDEV_GRID", i_val=qs_kind%ngrid_ang)
-         IF (qs_kind%ngrid_ang <= 0) &
+         IF (qs_kind%ngrid_ang <= 0) THEN
             CPABORT("# point lebedev grid < 0")
+         END IF
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="RADIAL_GRID", i_val=qs_kind%ngrid_rad)
-         IF (qs_kind%ngrid_rad <= 0) &
+         IF (qs_kind%ngrid_rad <= 0) THEN
             CPABORT("# point radial grid < 0")
+         END IF
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="GPW_TYPE", l_val=qs_kind%gpw_type_forced)
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
@@ -2146,21 +2149,25 @@ CONTAINS
                                          keyword_name="ORBITALS", &
                                          i_vals=orbitals)
                norbitals = SIZE(orbitals)
-               IF (norbitals <= 0 .OR. norbitals > 2*l + 1) &
+               IF (norbitals <= 0 .OR. norbitals > 2*l + 1) THEN
                   CALL cp_abort(__LOCATION__, "DFT+U| Invalid number of ORBITALS specified: "// &
                                 "1 to 2*L+1 integer numbers are expected")
+               END IF
                ALLOCATE (qs_kind%dft_plus_u%orbitals(norbitals))
                qs_kind%dft_plus_u%orbitals(:) = orbitals(:)
                NULLIFY (orbitals)
                DO m = 1, norbitals
-                  IF (qs_kind%dft_plus_u%orbitals(m) > l) &
+                  IF (qs_kind%dft_plus_u%orbitals(m) > l) THEN
                      CPABORT("DFT+U| Invalid orbital magnetic quantum number specified: m > l")
-                  IF (qs_kind%dft_plus_u%orbitals(m) < -l) &
+                  END IF
+                  IF (qs_kind%dft_plus_u%orbitals(m) < -l) THEN
                      CPABORT("DFT+U| Invalid orbital magnetic quantum number specified: m < -l")
+                  END IF
                   DO j = 1, norbitals
                      IF (j /= m) THEN
-                        IF (qs_kind%dft_plus_u%orbitals(j) == qs_kind%dft_plus_u%orbitals(m)) &
+                        IF (qs_kind%dft_plus_u%orbitals(j) == qs_kind%dft_plus_u%orbitals(m)) THEN
                            CPABORT("DFT+U| An orbital magnetic quantum number was specified twice")
+                        END IF
                      END IF
                   END DO
                END DO
@@ -2254,16 +2261,18 @@ CONTAINS
          qs_kind%se_parameter%zeff = qs_kind%se_parameter%zeff - zeff_correction
 
          check = ((potential_name /= '') .OR. explicit_potential) .AND. .NOT. silent
-         IF (check) &
+         IF (check) THEN
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding POTENTIAL for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
+         END IF
 
          check = ((k_rep > 0) .OR. explicit_basis) .AND. .NOT. silent
-         IF (check) &
+         IF (check) THEN
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding BASIS for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
+         END IF
 
       CASE (do_method_dftb)
          ! Allocate all_potential
@@ -2287,16 +2296,18 @@ CONTAINS
          END IF
 
          check = ((potential_name /= '') .OR. explicit_potential) .AND. .NOT. silent
-         IF (check) &
+         IF (check) THEN
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding POTENTIAL for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
+         END IF
 
          check = ((k_rep > 0) .OR. explicit_basis) .AND. .NOT. silent
-         IF (check) &
+         IF (check) THEN
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding BASIS for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
+         END IF
 
       CASE (do_method_xtb)
          ! Allocate all_potential
@@ -2320,16 +2331,18 @@ CONTAINS
          END IF
 
          check = ((potential_name /= '') .OR. explicit_potential) .AND. .NOT. silent
-         IF (check) &
+         IF (check) THEN
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding POTENTIAL for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
+         END IF
 
          check = ((k_rep > 0) .OR. explicit_basis) .AND. .NOT. silent
-         IF (check) &
+         IF (check) THEN
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding BASIS for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
+         END IF
 
       CASE (do_method_pw)
          ! PW DFT
@@ -2645,8 +2658,9 @@ CONTAINS
                   CALL atom_release_upf(upfpot)
                   CALL atom_sgp_release(sgppot)
                CASE ("CNEO")
-                  IF (zeff_correction /= 0.0_dp) &
+                  IF (zeff_correction /= 0.0_dp) THEN
                      CPABORT("CORE_CORRECTION is not compatible with CNEO")
+                  END IF
                   CALL allocate_cneo_potential(qs_kind%cneo_potential)
                   CALL set_cneo_potential(qs_kind%cneo_potential, z=z)
                   mass = 0.0_dp
@@ -2773,14 +2787,17 @@ CONTAINS
       CALL get_qs_kind(qs_kind, name=name, gth_potential=gth_potential, basis_set=basis_set)
 
       npp = -1; nbs = -1
-      IF (ASSOCIATED(gth_potential)) &
+      IF (ASSOCIATED(gth_potential)) THEN
          npp = parse_valence_electrons(gth_potential%aliases)
-      IF (ASSOCIATED(basis_set)) &
+      END IF
+      IF (ASSOCIATED(basis_set)) THEN
          nbs = parse_valence_electrons(basis_set%aliases)
+      END IF
 
-      IF (npp >= 0 .AND. nbs >= 0 .AND. npp /= nbs) &
+      IF (npp >= 0 .AND. nbs >= 0 .AND. npp /= nbs) THEN
          CALL cp_abort(__LOCATION__, "Basis-set and pseudo-potential of atomic kind '"//TRIM(name)//"'"// &
                        " were optimized for different valence electron numbers.")
+      END IF
 
    END SUBROUTINE check_potential_basis_compatibility
 
@@ -3986,7 +4003,7 @@ CONTAINS
          IF (ASSOCIATED(gth_potential)) THEN
             CALL get_potential(potential=gth_potential, nlcc_present=nlcc_present)
             nlcc = nlcc .OR. nlcc_present
-         ELSEIF (ASSOCIATED(sgp_potential)) THEN
+         ELSE IF (ASSOCIATED(sgp_potential)) THEN
             CALL get_potential(potential=sgp_potential, has_nlcc=nlcc_present)
             nlcc = nlcc .OR. nlcc_present
          END IF

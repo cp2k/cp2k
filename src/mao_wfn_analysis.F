@@ -243,8 +243,9 @@ CONTAINS
       CALL get_particle_set(particle_set, qs_kind_set, nmao=col_blk_sizes)
       ! check if MAOs have been specified
       DO iab = 1, natom
-         IF (col_blk_sizes(iab) < 0) &
+         IF (col_blk_sizes(iab) < 0) THEN
             CPABORT("Number of MAOs has to be specified in KIND section for all elements")
+         END IF
       END DO
       DO ispin = 1, nspin
          ! coeficients

@@ -417,54 +417,58 @@ CONTAINS
             END IF
 
             IF (iatom <= jatom) THEN
-               IF (iatom == lambda) &
+               IF (iatom == lambda) THEN
                   CALL integrate_pgf_product( &
-                  la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                  lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                  ra, rab, rs_rho(igrid_level), &
-                  hab, o1=na1 - 1, o2=nb1 - 1, &
-                  radius=radius, &
-                  calculate_forces=.TRUE., &
-                  compute_tau=.FALSE., &
-                  use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
-                  hdab=hdab, pab=pab)
-               IF (jatom == lambda) &
+                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                     lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+                     ra, rab, rs_rho(igrid_level), &
+                     hab, o1=na1 - 1, o2=nb1 - 1, &
+                     radius=radius, &
+                     calculate_forces=.TRUE., &
+                     compute_tau=.FALSE., &
+                     use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
+                     hdab=hdab, pab=pab)
+               END IF
+               IF (jatom == lambda) THEN
                   CALL integrate_pgf_product( &
-                  la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                  lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                  ra, rab, rs_rho(igrid_level), &
-                  hab, o1=na1 - 1, o2=nb1 - 1, &
-                  radius=radius, &
-                  calculate_forces=.TRUE., &
-                  compute_tau=.FALSE., &
-                  use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
-                  hadb=hadb, pab=pab)
+                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                     lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+                     ra, rab, rs_rho(igrid_level), &
+                     hab, o1=na1 - 1, o2=nb1 - 1, &
+                     radius=radius, &
+                     calculate_forces=.TRUE., &
+                     compute_tau=.FALSE., &
+                     use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
+                     hadb=hadb, pab=pab)
+               END IF
             ELSE
                rab_inv = -rab
-               IF (iatom == lambda) &
+               IF (iatom == lambda) THEN
                   CALL integrate_pgf_product( &
-                  lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                  la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                  rb, rab_inv, rs_rho(igrid_level), &
-                  hab, o1=nb1 - 1, o2=na1 - 1, &
-                  radius=radius, &
-                  calculate_forces=.TRUE., &
-                  force_a=force_b, force_b=force_a, &
-                  compute_tau=.FALSE., &
-                  use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
-                  hadb=hadb, pab=pab)
-               IF (jatom == lambda) &
+                     lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                     rb, rab_inv, rs_rho(igrid_level), &
+                     hab, o1=nb1 - 1, o2=na1 - 1, &
+                     radius=radius, &
+                     calculate_forces=.TRUE., &
+                     force_a=force_b, force_b=force_a, &
+                     compute_tau=.FALSE., &
+                     use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
+                     hadb=hadb, pab=pab)
+               END IF
+               IF (jatom == lambda) THEN
                   CALL integrate_pgf_product( &
-                  lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                  la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                  rb, rab_inv, rs_rho(igrid_level), &
-                  hab, o1=nb1 - 1, o2=na1 - 1, &
-                  radius=radius, &
-                  calculate_forces=.TRUE., &
-                  force_a=force_b, force_b=force_a, &
-                  compute_tau=.FALSE., &
-                  use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
-                  hdab=hdab, pab=pab)
+                     lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                     rb, rab_inv, rs_rho(igrid_level), &
+                     hab, o1=nb1 - 1, o2=na1 - 1, &
+                     radius=radius, &
+                     calculate_forces=.TRUE., &
+                     force_a=force_b, force_b=force_a, &
+                     compute_tau=.FALSE., &
+                     use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern, &
+                     hdab=hdab, pab=pab)
+               END IF
             END IF
 
             new_set_pair_coming = .FALSE.

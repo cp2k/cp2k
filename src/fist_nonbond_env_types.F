@@ -189,29 +189,36 @@ CONTAINS
       IF (PRESENT(rlist_lowsq)) rlist_lowsq => fist_nonbond_env%rlist_lowsq
       IF (PRESENT(ij_kind_full_fac)) ij_kind_full_fac => fist_nonbond_env%ij_kind_full_fac
       IF (PRESENT(nonbonded)) nonbonded => fist_nonbond_env%nonbonded
-      IF (PRESENT(r_last_update)) &
+      IF (PRESENT(r_last_update)) THEN
          r_last_update => fist_nonbond_env%r_last_update
-      IF (PRESENT(r_last_update_pbc)) &
+      END IF
+      IF (PRESENT(r_last_update_pbc)) THEN
          r_last_update_pbc => fist_nonbond_env%r_last_update_pbc
-      IF (PRESENT(rshell_last_update_pbc)) &
+      END IF
+      IF (PRESENT(rshell_last_update_pbc)) THEN
          rshell_last_update_pbc => fist_nonbond_env%rshell_last_update_pbc
-      IF (PRESENT(rcore_last_update_pbc)) &
+      END IF
+      IF (PRESENT(rcore_last_update_pbc)) THEN
          rcore_last_update_pbc => fist_nonbond_env%rcore_last_update_pbc
-      IF (PRESENT(cell_last_update)) &
+      END IF
+      IF (PRESENT(cell_last_update)) THEN
          cell_last_update => fist_nonbond_env%cell_last_update
+      END IF
       IF (PRESENT(lup)) lup = fist_nonbond_env%lup
       IF (PRESENT(aup)) aup = fist_nonbond_env%aup
       IF (PRESENT(ei_scale14)) ei_scale14 = fist_nonbond_env%ei_scale14
       IF (PRESENT(vdw_scale14)) vdw_scale14 = fist_nonbond_env%vdw_scale14
-      IF (PRESENT(shift_cutoff)) &
+      IF (PRESENT(shift_cutoff)) THEN
          shift_cutoff = fist_nonbond_env%shift_cutoff
+      END IF
       IF (PRESENT(do_electrostatics)) do_electrostatics = fist_nonbond_env%do_electrostatics
       IF (PRESENT(natom_types)) natom_types = fist_nonbond_env%natom_types
       IF (PRESENT(counter)) counter = fist_nonbond_env%counter
       IF (PRESENT(last_update)) last_update = fist_nonbond_env%last_update
       IF (PRESENT(num_update)) num_update = fist_nonbond_env%num_update
-      IF (PRESENT(long_range_correction)) &
+      IF (PRESENT(long_range_correction)) THEN
          long_range_correction = fist_nonbond_env%long_range_correction
+      END IF
    END SUBROUTINE fist_nonbond_env_get
 
 ! **************************************************************************************************
@@ -283,29 +290,36 @@ CONTAINS
       IF (PRESENT(charges)) fist_nonbond_env%charges => charges
       IF (PRESENT(rlist_lowsq)) fist_nonbond_env%rlist_lowsq => rlist_lowsq
       IF (PRESENT(nonbonded)) fist_nonbond_env%nonbonded => nonbonded
-      IF (PRESENT(r_last_update)) &
+      IF (PRESENT(r_last_update)) THEN
          fist_nonbond_env%r_last_update => r_last_update
-      IF (PRESENT(r_last_update_pbc)) &
+      END IF
+      IF (PRESENT(r_last_update_pbc)) THEN
          fist_nonbond_env%r_last_update_pbc => r_last_update_pbc
-      IF (PRESENT(rshell_last_update_pbc)) &
+      END IF
+      IF (PRESENT(rshell_last_update_pbc)) THEN
          fist_nonbond_env%rshell_last_update_pbc => rshell_last_update_pbc
-      IF (PRESENT(rcore_last_update_pbc)) &
+      END IF
+      IF (PRESENT(rcore_last_update_pbc)) THEN
          fist_nonbond_env%rcore_last_update_pbc => rcore_last_update_pbc
-      IF (PRESENT(cell_last_update)) &
+      END IF
+      IF (PRESENT(cell_last_update)) THEN
          fist_nonbond_env%cell_last_update => cell_last_update
+      END IF
       IF (PRESENT(lup)) fist_nonbond_env%lup = lup
       IF (PRESENT(aup)) fist_nonbond_env%aup = aup
       IF (PRESENT(ei_scale14)) fist_nonbond_env%ei_scale14 = ei_scale14
       IF (PRESENT(vdw_scale14)) fist_nonbond_env%vdw_scale14 = vdw_scale14
-      IF (PRESENT(shift_cutoff)) &
+      IF (PRESENT(shift_cutoff)) THEN
          fist_nonbond_env%shift_cutoff = shift_cutoff
+      END IF
       IF (PRESENT(do_electrostatics)) fist_nonbond_env%do_electrostatics = do_electrostatics
       IF (PRESENT(natom_types)) fist_nonbond_env%natom_types = natom_types
       IF (PRESENT(counter)) fist_nonbond_env%counter = counter
       IF (PRESENT(last_update)) fist_nonbond_env%last_update = last_update
       IF (PRESENT(num_update)) fist_nonbond_env%num_update = num_update
-      IF (PRESENT(long_range_correction)) &
+      IF (PRESENT(long_range_correction)) THEN
          fist_nonbond_env%long_range_correction = long_range_correction
+      END IF
    END SUBROUTINE fist_nonbond_env_set
 
 ! **************************************************************************************************

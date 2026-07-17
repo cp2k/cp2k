@@ -133,7 +133,7 @@ CONTAINS
       CPASSERT(G_max > G_min)
       IF (potential_prv == eri_mme_coulomb .OR. potential_prv == eri_mme_longrange) THEN
          minimax_Rc = (G_max/G_min)**2
-      ELSEIF (potential_prv == eri_mme_yukawa) THEN
+      ELSE IF (potential_prv == eri_mme_yukawa) THEN
          minimax_Rc = (G_max**2 + pot_par**2)/(G_min**2 + pot_par**2)
       END IF
 
@@ -165,9 +165,9 @@ CONTAINS
       IF (PRESENT(err_minimax)) THEN
          IF (potential_prv == eri_mme_coulomb) THEN
             err_minimax = err_minimax/G_min**2
-         ELSEIF (potential_prv == eri_mme_yukawa) THEN
+         ELSE IF (potential_prv == eri_mme_yukawa) THEN
             err_minimax = err_minimax/(G_min**2 + pot_par**2)
-         ELSEIF (potential_prv == eri_mme_longrange) THEN
+         ELSE IF (potential_prv == eri_mme_longrange) THEN
             err_minimax = err_minimax/G_min**2 ! approx. of Coulomb
             err_minimax = err_minimax*EXP(-G_min**2/pot_par**2) ! exponential factor
          END IF

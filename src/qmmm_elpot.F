@@ -145,7 +145,7 @@ CONTAINS
                   t = 2._dp/(rootpi*x*rc)*EXP(-(x/rc)**2)
                   pot0_2(2, i) = (t - pot0_2(1, i)/x)*dx
                END DO
-            ELSEIF (qmmm_coupl_type == do_qmmm_swave) THEN
+            ELSE IF (qmmm_coupl_type == do_qmmm_swave) THEN
                ! S-wave expansion :: 1/x - exp(-2*x/rc) * ( 1/x - 1/rc )
                pot0_2(1, 1) = 1.0_dp/rc
                pot0_2(2, 1) = 0.0_dp

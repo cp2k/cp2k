@@ -128,16 +128,16 @@ CONTAINS
 
       IF (dn(1) > 0) THEN
          IABCD = os(an, bn, cn + i1, dn - i1) - (D(1) - C(1))*os(an, bn, cn, dn - i1)
-      ELSEIF (dn(2) > 0) THEN
+      ELSE IF (dn(2) > 0) THEN
          IABCD = os(an, bn, cn + i2, dn - i2) - (D(2) - C(2))*os(an, bn, cn, dn - i2)
-      ELSEIF (dn(3) > 0) THEN
+      ELSE IF (dn(3) > 0) THEN
          IABCD = os(an, bn, cn + i3, dn - i3) - (D(3) - C(3))*os(an, bn, cn, dn - i3)
       ELSE
          IF (bn(1) > 0) THEN
             IABCD = os(an + i1, bn - i1, cn, dn) - (B(1) - A(1))*os(an, bn - i1, cn, dn)
-         ELSEIF (bn(2) > 0) THEN
+         ELSE IF (bn(2) > 0) THEN
             IABCD = os(an + i2, bn - i2, cn, dn) - (B(2) - A(2))*os(an, bn - i2, cn, dn)
-         ELSEIF (bn(3) > 0) THEN
+         ELSE IF (bn(3) > 0) THEN
             IABCD = os(an + i3, bn - i3, cn, dn) - (B(3) - A(3))*os(an, bn - i3, cn, dn)
          ELSE
             IF (cn(1) > 0) THEN
@@ -145,12 +145,12 @@ CONTAINS
                        0.5_dp*an(1)/eta*os(an - i1, bn, cn - i1, dn) + &
                        0.5_dp*(cn(1) - 1)/eta*os(an, bn, cn - i1 - i1, dn) - &
                        xsi/eta*os(an + i1, bn, cn - i1, dn)
-            ELSEIF (cn(2) > 0) THEN
+            ELSE IF (cn(2) > 0) THEN
                IABCD = ((Q(2) - C(2)) + xsi/eta*(P(2) - A(2)))*os(an, bn, cn - i2, dn) + &
                        0.5_dp*an(2)/eta*os(an - i2, bn, cn - i2, dn) + &
                        0.5_dp*(cn(2) - 1)/eta*os(an, bn, cn - i2 - i2, dn) - &
                        xsi/eta*os(an + i2, bn, cn - i2, dn)
-            ELSEIF (cn(3) > 0) THEN
+            ELSE IF (cn(3) > 0) THEN
                IABCD = ((Q(3) - C(3)) + xsi/eta*(P(3) - A(3)))*os(an, bn, cn - i3, dn) + &
                        0.5_dp*an(3)/eta*os(an - i3, bn, cn - i3, dn) + &
                        0.5_dp*(cn(3) - 1)/eta*os(an, bn, cn - i3 - i3, dn) - &
@@ -161,12 +161,12 @@ CONTAINS
                           (W(1) - P(1))*os(an - i1, bn, cn, dn, m + 1) + &
                           0.5_dp*(an(1) - 1)/xsi*os(an - i1 - i1, bn, cn, dn, m) - &
                           0.5_dp*(an(1) - 1)/xsi*rho/xsi*os(an - i1 - i1, bn, cn, dn, m + 1)
-               ELSEIF (an(2) > 0) THEN
+               ELSE IF (an(2) > 0) THEN
                   IABCD = (P(2) - A(2))*os(an - i2, bn, cn, dn, m) + &
                           (W(2) - P(2))*os(an - i2, bn, cn, dn, m + 1) + &
                           0.5_dp*(an(2) - 1)/xsi*os(an - i2 - i2, bn, cn, dn, m) - &
                           0.5_dp*(an(2) - 1)/xsi*rho/xsi*os(an - i2 - i2, bn, cn, dn, m + 1)
-               ELSEIF (an(3) > 0) THEN
+               ELSE IF (an(3) > 0) THEN
                   IABCD = (P(3) - A(3))*os(an - i3, bn, cn, dn, m) + &
                           (W(3) - P(3))*os(an - i3, bn, cn, dn, m + 1) + &
                           0.5_dp*(an(3) - 1)/xsi*os(an - i3 - i3, bn, cn, dn, m) - &

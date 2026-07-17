@@ -65,19 +65,21 @@ CONTAINS
                                 i_vals=multiple_unit_cell)
 
       ! Fail is one of the value is set to zero..
-      IF (ANY(multiple_unit_cell <= 0)) &
+      IF (ANY(multiple_unit_cell <= 0)) THEN
          CALL cp_abort(__LOCATION__, "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL accepts "// &
                        "only integer values greater than zero.")
+      END IF
 
       IF (ANY(multiple_unit_cell /= 1)) THEN
 
          ! Check that the setup between CELL and TOPOLOGY is the same
          CALL section_vals_val_get(subsys_section, "CELL%MULTIPLE_UNIT_CELL", &
                                    i_vals=iwork)
-         IF (ANY(iwork /= multiple_unit_cell)) &
+         IF (ANY(iwork /= multiple_unit_cell)) THEN
             CALL cp_abort(__LOCATION__, "The input parameters for "// &
                           "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL and "// &
                           "SUBSYS%CELL%MULTIPLE_UNIT_CELL have to agree.")
+         END IF
 
          cell => topology%cell_muc
          natoms = topology%natoms*PRODUCT(multiple_unit_cell)
@@ -88,9 +90,10 @@ CONTAINS
          IF (explicit) THEN
             CALL section_vals_val_get(work_section, '_DEFAULT_KEYWORD_', n_rep_val=nrep)
             check = nrep == natoms
-            IF (.NOT. check) &
+            IF (.NOT. check) THEN
                CALL cp_abort(__LOCATION__, "The number of available entries in the "// &
                              "VELOCITY section is not compatible with the number of atoms.")
+            END IF
          END IF
 
          CALL reallocate(topology%atom_info%id_molname, 1, natoms)

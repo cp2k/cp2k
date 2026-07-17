@@ -398,8 +398,9 @@ CONTAINS
                   DO k = 1, SIZE(fixd_list)
                      IF (fixd_list(k)%fixd == j) THEN
                         IF (fixd_list(k)%itype /= use_perd_xyz) CYCLE
-                        IF (.NOT. fixd_list(k)%restraint%active) &
+                        IF (.NOT. fixd_list(k)%restraint%active) THEN
                            colvar%dsdr(:, i) = 0.0_dp
+                        END IF
                         EXIT
                      END IF
                   END DO

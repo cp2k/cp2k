@@ -417,14 +417,17 @@ CONTAINS
             do_tddfpt_unsupported_kpoints = tddfpt_kernel /= tddfpt_kernel_none
             IF (.NOT. do_tddfpt_unsupported_kpoints) THEN
                CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn)
-               IF (use_real_wfn) &
+               IF (use_real_wfn) THEN
                   CALL cp_abort(__LOCATION__, "K-point TDDFPT requires complex wavefunctions.")
+               END IF
             END IF
             CALL section_vals_val_get(tddfpt_section, "DO_BSE", l_val=do_bse)
-            IF (.NOT. do_bse) &
+            IF (.NOT. do_bse) THEN
                CALL section_vals_val_get(tddfpt_section, "DO_BSE_W_ONLY", l_val=do_bse)
-            IF (.NOT. do_bse) &
+            END IF
+            IF (.NOT. do_bse) THEN
                CALL section_vals_val_get(tddfpt_section, "DO_BSE_GW_ONLY", l_val=do_bse)
+            END IF
          END IF
          do_active_space = .FALSE.
          active_space_section => section_vals_get_subs_vals(qs_env%input, "DFT%ACTIVE_SPACE")
@@ -471,10 +474,11 @@ CONTAINS
                                       l_val=do_wfc_low_scaling)
             CALL section_vals_val_get(qs_env%input, "DFT%XC%WF_CORRELATION%LOW_SCALING%DO_KPOINTS", &
                                       l_val=do_wfc_low_scaling_kpoints)
-            IF (.NOT. do_bse) &
+            IF (.NOT. do_bse) THEN
                CALL section_vals_val_get(qs_env%input, &
                                          "DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE%_SECTION_PARAMETERS_", &
                                          l_val=do_bse)
+            END IF
          END IF
          CALL restrict_unsupported_atomic_kpoint_symmetry(kpoints, method_id, do_hfx, do_exx, do_gw, &
                                                           do_tddfpt_unsupported_kpoints, &
@@ -534,8 +538,9 @@ CONTAINS
       ! more kpoint stuff
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, blacs_env=blacs_env)
       IF (do_kpoints) THEN
-         IF (dft_control%qs_control%do_ls_scf) &
+         IF (dft_control%qs_control%do_ls_scf) THEN
             CPABORT("DFT%KPOINTS are not implemented with QS/LS_SCF; use a real-space supercell instead.")
+         END IF
          CALL kpoint_env_initialize(kpoints, para_env, blacs_env, with_aux_fit=dft_control%do_admm)
          CALL kpoint_initialize_mos(kpoints, qs_env%mos)
          CALL get_qs_env(qs_env=qs_env, wf_history=wf_history)
@@ -1189,7 +1194,7 @@ CONTAINS
             CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
          END IF
-      ELSEIF (dft_control%qs_control%method_id == do_method_xtb) THEN
+      ELSE IF (dft_control%qs_control%method_id == do_method_xtb) THEN
          ! Read xTB parameter file
          xtb_control => dft_control%qs_control%xtb_control
          CALL get_qs_env(qs_env, nkind=nkind)
@@ -1623,11 +1628,13 @@ CONTAINS
       IF (.NOT. dft_control%qs_control%do_ls_scf) THEN
          SELECT CASE (dft_control%qs_control%method_id)
          CASE (do_method_dftb)
-            IF (dft_control%qs_control%dftb_control%tblite_scc_mixer == tblite_scc_mixer_tblite) &
+            IF (dft_control%qs_control%dftb_control%tblite_scc_mixer == tblite_scc_mixer_tblite) THEN
                scf_control%max_scf = dft_control%qs_control%dftb_control%tblite_mixer_iterations
+            END IF
          CASE (do_method_xtb)
-            IF (dft_control%qs_control%xtb_control%tblite_scc_mixer == tblite_scc_mixer_tblite) &
+            IF (dft_control%qs_control%xtb_control%tblite_scc_mixer == tblite_scc_mixer_tblite) THEN
                scf_control%max_scf = dft_control%qs_control%xtb_control%tblite_mixer_iterations
+            END IF
          END SELECT
       END IF
 
@@ -1873,7 +1880,7 @@ CONTAINS
             dispersion_env%nd3_exclude_pair = 0
             dispersion_env%parameter_file_name = dftb_control%dispersion_parameter_file
             CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
-         ELSEIF (dftb_control%dispersion .AND. dftb_control%dispersion_type == dispersion_d3bj) THEN
+         ELSE IF (dftb_control%dispersion .AND. dftb_control%dispersion_type == dispersion_d3bj) THEN
             dispersion_env%type = xc_vdw_fun_pairpot
             dispersion_env%pp_type = vdw_pairpot_dftd3bj
             dispersion_env%eps_cn = dftb_control%epscn
@@ -1889,7 +1896,7 @@ CONTAINS
             dispersion_env%nd3_exclude_pair = 0
             dispersion_env%parameter_file_name = dftb_control%dispersion_parameter_file
             CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
-         ELSEIF (dftb_control%dispersion .AND. dftb_control%dispersion_type == dispersion_d2) THEN
+         ELSE IF (dftb_control%dispersion .AND. dftb_control%dispersion_type == dispersion_d2) THEN
             dispersion_env%type = xc_vdw_fun_pairpot
             dispersion_env%pp_type = vdw_pairpot_dftd2
             dispersion_env%exp_pre = dftb_control%exp_pre
@@ -2217,10 +2224,11 @@ CONTAINS
       n_mo(1) = n_mo(1) + scf_control%added_mos(1)
 
       IF (dft_control%nspins == 2) THEN
-         IF (n_mo(2) > n_mo(1)) &
+         IF (n_mo(2) > n_mo(1)) THEN
             CALL cp_warn(__LOCATION__, &
                          "More beta than alpha MOs requested. "// &
                          "The number of beta MOs will be reduced to the number alpha MOs.")
+         END IF
          n_mo(2) = MIN(n_mo(1), n_mo(2))
          CPASSERT(n_mo(1) >= nelectron_spin(1))
          CPASSERT(n_mo(2) >= nelectron_spin(2))
@@ -2230,10 +2238,11 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints)
       IF (do_kpoints .AND. dft_control%nspins == 2) THEN
          ! we need equal number of calculated states
-         IF (n_mo(2) /= n_mo(1)) &
+         IF (n_mo(2) /= n_mo(1)) THEN
             CALL cp_warn(__LOCATION__, &
                          "Kpoints: Different number of MOs requested. "// &
                          "The number of beta MOs will be set to the number alpha MOs.")
+         END IF
          n_mo(2) = n_mo(1)
          CPASSERT(n_mo(1) >= nelectron_spin(1))
          CPASSERT(n_mo(2) >= nelectron_spin(2))
@@ -2480,7 +2489,7 @@ CONTAINS
                "- Orbital basis functions:                   ", maxlgto, &
                "- Local part of the GTH pseudopotential:     ", maxlppl, &
                "- Non-local part of the GTH pseudopotential: ", maxlppnl
-         ELSEIF (maxlppl > -1) THEN
+         ELSE IF (maxlppl > -1) THEN
             WRITE (UNIT=output_unit, FMT="(/,T3,A,(T30,A,T75,I6))") &
                "Maximum angular momentum of the", &
                "- Orbital basis functions:                   ", maxlgto, &

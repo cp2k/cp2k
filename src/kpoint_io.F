@@ -231,7 +231,7 @@ CONTAINS
                DO iset = 1, nset
                   nshell_max = MAX(nshell_max, nshell(iset))
                END DO
-            ELSEIF (ASSOCIATED(dftb_parameter)) THEN
+            ELSE IF (ASSOCIATED(dftb_parameter)) THEN
                CALL get_dftb_atom_param(dftb_parameter, lmax=lmax)
                nset_max = MAX(nset_max, 1)
                nshell_max = MAX(nshell_max, lmax + 1)
@@ -266,7 +266,7 @@ CONTAINS
                      nso_info(ishell, iset, iatom) = nso(lshell)
                   END DO
                END DO
-            ELSEIF (ASSOCIATED(dftb_parameter)) THEN
+            ELSE IF (ASSOCIATED(dftb_parameter)) THEN
                CALL get_dftb_atom_param(dftb_parameter, lmax=lmax)
                nset_info(iatom) = 1
                nshell_info(1, iatom) = lmax + 1

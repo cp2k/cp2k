@@ -642,7 +642,7 @@ CONTAINS
             CALL qs_rho_update_rho(rho, qs_env=qs_env) ! that could be called before
             IF (dft_control%qs_control%gapw) THEN
                CALL prepare_gapw_den(qs_env)
-            ELSEIF (dft_control%qs_control%gapw_xc) THEN
+            ELSE IF (dft_control%qs_control%gapw_xc) THEN
                CALL prepare_gapw_den(qs_env, do_rho0=.FALSE.)
             END IF
 

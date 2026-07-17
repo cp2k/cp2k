@@ -667,10 +667,11 @@ CONTAINS
          ELSE
             IF (qmmm_env%spherical_cutoff(2) <= 0.0_dp) qmmm_env%spherical_cutoff(2) = EPSILON(0.0_dp)
             tmp_radius = qmmm_env%spherical_cutoff(1) - 20.0_dp*qmmm_env%spherical_cutoff(2)
-            IF (tmp_radius <= 0.0_dp) &
+            IF (tmp_radius <= 0.0_dp) THEN
                CALL cp_abort(__LOCATION__, &
                              "SPHERICAL_CUTOFF(1) > 20*SPHERICAL_CUTOFF(1)! Please correct parameters for "// &
                              "the Spherical Cutoff in order to satisfy the previous condition!")
+            END IF
          END IF
          !
          ! Initialization of arrays and core_charge_radius...
@@ -1032,12 +1033,15 @@ CONTAINS
             END SELECT
          END DO
       END IF
-      IF (PRESENT(mm_link_scale_factor) .AND. (link_involv_mm /= 0)) &
+      IF (PRESENT(mm_link_scale_factor) .AND. (link_involv_mm /= 0)) THEN
          ALLOCATE (mm_link_scale_factor(link_involv_mm))
-      IF (PRESENT(fist_scale_charge_link) .AND. (link_involv_mm /= 0)) &
+      END IF
+      IF (PRESENT(fist_scale_charge_link) .AND. (link_involv_mm /= 0)) THEN
          ALLOCATE (fist_scale_charge_link(link_involv_mm))
-      IF (PRESENT(mm_link_atoms) .AND. (link_involv_mm /= 0)) &
+      END IF
+      IF (PRESENT(mm_link_atoms) .AND. (link_involv_mm /= 0)) THEN
          ALLOCATE (mm_link_atoms(link_involv_mm))
+      END IF
       IF (PRESENT(qm_atom_index)) ALLOCATE (qm_atom_index(num_qm_atom_tot))
       IF (PRESENT(qm_atom_type)) ALLOCATE (qm_atom_type(num_qm_atom_tot))
       IF (PRESENT(qm_atom_index)) qm_atom_index = 0
@@ -1286,8 +1290,9 @@ CONTAINS
                CALL section_vals_val_get(move_section, "RADIUS", r_val=radius, i_rep_section=i_add)
                CALL section_vals_val_get(move_section, "CORR_RADIUS", n_rep_val=n_rep_val, i_rep_section=i_add)
                c_radius = radius
-               IF (n_rep_val == 1) &
+               IF (n_rep_val == 1) THEN
                   CALL section_vals_val_get(move_section, "CORR_RADIUS", r_val=c_radius, i_rep_section=i_add)
+               END IF
 
                CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius, &
                                      mm_atom_chrg=mm_atom_chrg, mm_el_pot_radius=mm_el_pot_radius, &
@@ -1313,8 +1318,9 @@ CONTAINS
                CALL section_vals_val_get(add_section, "CHARGE", r_val=charge, i_rep_section=i_add)
                CALL section_vals_val_get(add_section, "CORR_RADIUS", n_rep_val=n_rep_val, i_rep_section=i_add)
                c_radius = radius
-               IF (n_rep_val == 1) &
+               IF (n_rep_val == 1) THEN
                   CALL section_vals_val_get(add_section, "CORR_RADIUS", r_val=c_radius, i_rep_section=i_add)
+               END IF
 
                CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius, charge, &
                                      mm_atom_chrg=mm_atom_chrg, mm_el_pot_radius=mm_el_pot_radius, &
@@ -1496,8 +1502,9 @@ CONTAINS
          END IF
          DO j = i + 1, num_image_mm_atom
             atom_b = qmmm_env%image_charge_pot%image_mm_list(j)
-            IF (atom_a == atom_b) &
+            IF (atom_a == atom_b) THEN
                CPABORT("There are atoms doubled in image list.")
+            END IF
          END DO
       END DO
 

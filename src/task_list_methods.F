@@ -1682,8 +1682,7 @@ CONTAINS
 
       DO i = 1, desc%group_size
          ! At the moment we can only offload replicated tasks
-         IF (load_imbalance(i) > 0) &
-            load_imbalance(i) = MIN(load_imbalance(i), recv_buf_i(i))
+         IF (load_imbalance(i) > 0) load_imbalance(i) = MIN(load_imbalance(i), recv_buf_i(i))
       END DO
 
       ! simplest algorithm I can think of of is that the processor with the most
@@ -1935,8 +1934,9 @@ CONTAINS
          DO igrid_level = 1, SIZE(rs_descs)
             IF (rs_descs(igrid_level)%rs_desc%distributed) THEN
 
-               IF (.NOT. skip_load_balance_distributed) &
+               IF (.NOT. skip_load_balance_distributed) THEN
                   CALL load_balance_distributed(tasks, ntasks, rs_descs, igrid_level, natoms)
+               END IF
 
                CALL get_current_loads(loads(:, igrid_level), rs_descs, igrid_level, ntasks, &
                                       tasks, use_reordered_ranks=.FALSE.)
@@ -1957,10 +1957,6 @@ CONTAINS
                replicated_load = replicated_load + SUM(loads(:, igrid_level))
             END IF
          END DO
-
-         !IF (desc%my_pos==0) THEN
-         ! WRITE(*,*) "Total replicated load is ",replicated_load
-         !END IF
 
          ! Now we adjust the rank ordering based on the current loads
          ! we leave the first distributed level and all the replicated levels in the default order
@@ -2022,21 +2018,6 @@ CONTAINS
          ! Now we use the replicated tasks to balance out the rest of the load
          CALL load_balance_replicated(rs_descs, ntasks, tasks)
 
-         !total_loads = 0
-         !DO igrid_level=1,SIZE(rs_descs)
-         !  CALL get_current_loads(loads(:,igrid_level), rs_descs, igrid_level, ntasks, &
-         !                         tasks, use_reordered_ranks=.TRUE.)
-         !  total_loads = total_loads + loads(:, igrid_level)
-         !END DO
-
-         !IF (desc%my_pos==0) THEN
-         !  WRITE(*,*) ""
-         !  WRITE(*,*) "At the end of the load balancing procedure"
-         !  WRITE(*,*) "Maximum  load:",MAXVAL(total_loads)
-         !  WRITE(*,*) "Average  load:",SUM(total_loads)/SIZE(total_loads)
-         !  WRITE(*,*) "Minimum  load:",MINVAL(total_loads)
-         !ENDIF
-
          ! given a list of tasks, this will do the needed reshuffle so that all tasks will be local
          CALL create_local_tasks(rs_descs, ntasks, tasks, ntasks_recv, tasks_recv)
 
@@ -2045,13 +2026,6 @@ CONTAINS
          ! we will be sending. These lists are needed for redistribute_matrix.
          !
          CALL get_atom_pair(atom_pair_send, tasks, ntasks=ntasks, send=.TRUE., symmetric=symmetric, rs_descs=rs_descs)
-
-         ! natom_send=SIZE(atom_pair_send)
-         ! CALL desc%group%sum(natom_send)
-         ! IF (desc%my_pos==0) THEN
-         !     WRITE(*,*) ""
-         !     WRITE(*,*) "Total number of atomic blocks to be send:",natom_send
-         ! ENDIF
 
          CALL get_atom_pair(atom_pair_recv, tasks_recv, ntasks=ntasks_recv, send=.FALSE., symmetric=symmetric, rs_descs=rs_descs)
 
@@ -2859,18 +2833,24 @@ CONTAINS
             tasks(itask)%subpatch_pattern = 0
             ! encode the domain size for this task
             ! if the bit is set, we need to add the border in that direction
-            IF (ix == lb_coord(1) .AND. .NOT. dir_periodic(1)) &
+            IF (ix == lb_coord(1) .AND. .NOT. dir_periodic(1)) THEN
                tasks(itask)%subpatch_pattern = IBSET(tasks(itask)%subpatch_pattern, 0)
-            IF (ix == ub_coord(1) .AND. .NOT. dir_periodic(1)) &
+            END IF
+            IF (ix == ub_coord(1) .AND. .NOT. dir_periodic(1)) THEN
                tasks(itask)%subpatch_pattern = IBSET(tasks(itask)%subpatch_pattern, 1)
-            IF (iy == lb_coord(2) .AND. .NOT. dir_periodic(2)) &
+            END IF
+            IF (iy == lb_coord(2) .AND. .NOT. dir_periodic(2)) THEN
                tasks(itask)%subpatch_pattern = IBSET(tasks(itask)%subpatch_pattern, 2)
-            IF (iy == ub_coord(2) .AND. .NOT. dir_periodic(2)) &
+            END IF
+            IF (iy == ub_coord(2) .AND. .NOT. dir_periodic(2)) THEN
                tasks(itask)%subpatch_pattern = IBSET(tasks(itask)%subpatch_pattern, 3)
-            IF (iz == lb_coord(3) .AND. .NOT. dir_periodic(3)) &
+            END IF
+            IF (iz == lb_coord(3) .AND. .NOT. dir_periodic(3)) THEN
                tasks(itask)%subpatch_pattern = IBSET(tasks(itask)%subpatch_pattern, 4)
-            IF (iz == ub_coord(3) .AND. .NOT. dir_periodic(3)) &
+            END IF
+            IF (iz == ub_coord(3) .AND. .NOT. dir_periodic(3)) THEN
                tasks(itask)%subpatch_pattern = IBSET(tasks(itask)%subpatch_pattern, 5)
+            END IF
             itask = itask + 1
          END DO
          END DO

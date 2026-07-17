@@ -1755,7 +1755,7 @@ CONTAINS
                         csym%kplink(1, j) = i
                         wkp(i) = wkp(i) + 1.0_dp
                         kpop(j) = kr
-                     ELSEIF (csym%kplink(1, j) /= i) THEN
+                     ELSE IF (csym%kplink(1, j) /= i) THEN
                         ! Approximate K290 operation sets need not be closed for structures whose
                         ! coordinates lie close to several symmetry tolerances. Keep the existing
                         ! disjoint orbit instead of aborting or double-counting this mesh point.

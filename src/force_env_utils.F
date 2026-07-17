@@ -393,7 +393,7 @@ CONTAINS
          CALL cp_subsys_get(subsys, particles=particles)
          DO iparticle = 1, SIZE(particles%els)
             force = particles%els(iparticle)%f(:)
-            mod_force = SQRT(DOT_PRODUCT(force, force))
+            mod_force = NORM2(force)
             IF ((mod_force > max_value) .AND. (mod_force /= 0.0_dp)) THEN
                force = force/mod_force*max_value
                particles%els(iparticle)%f(:) = force

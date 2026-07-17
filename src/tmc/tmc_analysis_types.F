@@ -156,22 +156,28 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(tmc_ana))
 
-      IF (ASSOCIATED(tmc_ana%dirs)) &
+      IF (ASSOCIATED(tmc_ana%dirs)) THEN
          DEALLOCATE (tmc_ana%dirs)
+      END IF
 
-      IF (ASSOCIATED(tmc_ana%density_3d)) &
+      IF (ASSOCIATED(tmc_ana%density_3d)) THEN
          CALL tmc_ana_dens_release(tmc_ana%density_3d)
-      IF (ASSOCIATED(tmc_ana%pair_correl)) &
+      END IF
+      IF (ASSOCIATED(tmc_ana%pair_correl)) THEN
          CALL tmc_ana_pair_correl_release(tmc_ana%pair_correl)
+      END IF
 
-      IF (ASSOCIATED(tmc_ana%dip_mom)) &
+      IF (ASSOCIATED(tmc_ana%dip_mom)) THEN
          CALL tmc_ana_dipole_moment_release(tmc_ana%dip_mom)
+      END IF
 
-      IF (ASSOCIATED(tmc_ana%dip_ana)) &
+      IF (ASSOCIATED(tmc_ana%dip_ana)) THEN
          CALL tmc_ana_dipole_analysis_release(tmc_ana%dip_ana)
+      END IF
 
-      IF (ASSOCIATED(tmc_ana%displace)) &
+      IF (ASSOCIATED(tmc_ana%displace)) THEN
          CALL tmc_ana_displacement_release(ana_disp=tmc_ana%displace)
+      END IF
 
       DEALLOCATE (tmc_ana)
 

@@ -567,7 +567,7 @@ CONTAINS
             END IF
             IF (PRESENT(matrixkp_t)) THEN
                CALL build_atomic_relmat(matrixkp_t(1, ic)%matrix, atomic_kind_set, qs_kind_set)
-            ELSEIF (PRESENT(matrix_t)) THEN
+            ELSE IF (PRESENT(matrix_t)) THEN
                CALL build_atomic_relmat(matrix_t(1)%matrix, atomic_kind_set, qs_kind_set)
             END IF
          ELSE

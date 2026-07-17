@@ -196,8 +196,9 @@ CONTAINS
       DO iopt = 0, opt_bas%powell_param%maxfun
          CALL compute_residuum_vectors(opt_bas, f_env_id, matrix_S_inv, tot_time, &
                                        para_env_top, para_env, iopt)
-         IF (para_env_top%is_source()) &
+         IF (para_env_top%is_source()) THEN
             CALL powell_optimize(opt_bas%powell_param%nvar, opt_bas%x_opt, opt_bas%powell_param)
+         END IF
          CALL para_env_top%bcast(opt_bas%powell_param%state)
          CALL para_env_top%bcast(opt_bas%x_opt)
          CALL update_free_vars(opt_bas)
@@ -362,9 +363,10 @@ CONTAINS
             icomb = MOD(icalc - 1, opt_bas%ncombinations)
             opt_bas%powell_param%f = opt_bas%powell_param%f + &
                                      (f_vec(icalc) + energy(icalc))*opt_bas%fval_weight(icomb)
-            IF (opt_bas%use_condition_number) &
+            IF (opt_bas%use_condition_number) THEN
                opt_bas%powell_param%f = opt_bas%powell_param%f + &
                                         LOG(cond_vec(icalc))*opt_bas%condition_weight(icomb)
+            END IF
          END DO
       ELSE
          f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
@@ -560,8 +562,7 @@ CONTAINS
       END DO
 
       DO icon1 = 1, subset%ncon_tot
-         subset%coeff(:, icon1) = subset%coeff(:, icon1)/ &
-                                  SQRT(DOT_PRODUCT(subset%coeff(:, icon1), subset%coeff(:, icon1)))
+         subset%coeff(:, icon1) = subset%coeff(:, icon1)/NORM2(subset%coeff(:, icon1))
       END DO
       CALL timestop(handle)
 
@@ -667,8 +668,9 @@ CONTAINS
       tot_time = tot_time + my_time
 
       unit_nr = -1
-      IF (para_env_top%is_source() .AND. (MOD(iopt, opt_bas%write_frequency) == 0 .OR. iopt == opt_bas%powell_param%maxfun)) &
+      IF (para_env_top%is_source() .AND. (MOD(iopt, opt_bas%write_frequency) == 0 .OR. iopt == opt_bas%powell_param%maxfun)) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger)
+      END IF
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(1X,A,I8)') "BASOPT| Information at iteration number:", iopt

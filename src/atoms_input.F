@@ -144,8 +144,9 @@ CONTAINS
                      EXIT
                   END IF
                END DO
-               IF (LEN_TRIM(line_att(start_c:end_c - 1)) == 0) &
+               IF (LEN_TRIM(line_att(start_c:end_c - 1)) == 0) THEN
                   CPABORT("incorrectly formatted line in coord section'"//line_att//"'")
+               END IF
                IF (wrd == 1) THEN
                   atom_info%id_atmname(iatom) = str2id(s2s(line_att(start_c:end_c - 1)))
                ELSE
@@ -195,24 +196,26 @@ CONTAINS
                      EXIT
                   END IF
                END DO
-               IF (LEN_TRIM(line_att(start_c:end_c - 1)) == 0) &
+               IF (LEN_TRIM(line_att(start_c:end_c - 1)) == 0) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "Incorrectly formatted input line for atom "// &
                                 TRIM(ADJUSTL(cp_to_string(iatom)))// &
                                 " found in COORD section. Input line: <"// &
                                 TRIM(line_att)//"> ")
+               END IF
                SELECT CASE (wrd)
                CASE (1)
                   atom_info%id_atmname(iatom) = str2id(s2s(line_att(start_c:end_c - 1)))
                CASE (2:4)
                   CALL read_float_object(line_att(start_c:end_c - 1), &
                                          atom_info%r(wrd - 1, iatom), error_message)
-                  IF (LEN_TRIM(error_message) /= 0) &
+                  IF (LEN_TRIM(error_message) /= 0) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Incorrectly formatted input line for atom "// &
                                    TRIM(ADJUSTL(cp_to_string(iatom)))// &
                                    " found in COORD section. "//TRIM(error_message)// &
                                    " Input line: <"//TRIM(line_att)//"> ")
+                  END IF
                CASE (5)
                   READ (line_att(start_c:end_c - 1), *) strtmp
                   atom_info%id_molname(iatom) = str2id(strtmp)
@@ -343,8 +346,9 @@ CONTAINS
                      EXIT
                   END IF
                END DO
-               IF (wrd /= 5 .AND. end_c >= LEN(line_att) + 1) &
+               IF (wrd /= 5 .AND. end_c >= LEN(line_att) + 1) THEN
                   CPABORT("incorrectly formatted line in coord section'"//line_att//"'")
+               END IF
                IF (wrd == 1) THEN
                   at_name(ishell) = line_att(start_c:end_c - 1)
                   CALL uppercase(at_name(ishell))
@@ -393,8 +397,9 @@ CONTAINS
                            EXIT
                         END IF
                      END DO
-                     IF (wrd /= 5 .AND. end_c >= LEN(line_att) + 1) &
+                     IF (wrd /= 5 .AND. end_c >= LEN(line_att) + 1) THEN
                         CPABORT("incorrectly formatted line in coord section'"//line_att//"'")
+                     END IF
                      IF (wrd == 1) THEN
                         at_name_c(ishell) = line_att(start_c:end_c - 1)
                         CALL uppercase(at_name_c(ishell))

@@ -206,8 +206,9 @@ CONTAINS
       TYPE(replica_env_type), POINTER                    :: rep_env
 
       rep_env => rep_envs_get_rep_env(rep_env_id, ierr=stat)
-      IF (.NOT. ASSOCIATED(rep_env)) &
+      IF (.NOT. ASSOCIATED(rep_env)) THEN
          CPABORT("could not find rep_env with id_nr"//cp_to_string(rep_env_id))
+      END IF
       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env)
       logger => cp_get_default_logger()
       CALL cp_rm_iter_level(iteration_info=logger%iter_info, &

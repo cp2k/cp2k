@@ -217,7 +217,7 @@ CONTAINS
             END IF
             IF (iparticle1 /= iparticle2) THEN
                ra = rvec
-               r = SQRT(DOT_PRODUCT(ra, ra))
+               r = NORM2(ra)
                t2 = -1.0_dp/(r*r)*factor
                drvec = ra/r*q1t*q2t
                d_el(1:3, iparticle1) = d_el(1:3, iparticle1) + t2*drvec

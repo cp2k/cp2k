@@ -94,14 +94,16 @@ CONTAINS
             molecule_kind => molecule%molecule_kind
             CALL get_molecule_kind(molecule_kind, nconstraint=nconstraint, nvsite=nvsitecon)
             IF (nconstraint == 0) CYCLE
-            IF (nvsitecon /= 0) &
+            IF (nvsitecon /= 0) THEN
                CALL force_vsite_int(molecule, particle_set)
+            END IF
          END DO
       END DO MOL
       ! Intermolecular Virtual Site Constraints
       IF (do_ext_constraint) THEN
-         IF (gci%nvsite /= 0) &
+         IF (gci%nvsite /= 0) THEN
             CALL force_vsite_ext(gci, particle_set)
+         END IF
       END IF
 
    END SUBROUTINE vsite_force_control

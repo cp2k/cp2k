@@ -82,19 +82,22 @@ CONTAINS
                "Self energy of the core charge distribution:   ", energy%core_self, &
                "Hartree energy:                                ", energy%hartree, &
                "Exchange-correlation energy:                   ", energy%exc
-            IF (energy%dispersion /= 0.0_dp) &
+            IF (energy%dispersion /= 0.0_dp) THEN
                WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
-               "Dispersion energy:                             ", energy%dispersion
-            IF (energy%gcp /= 0.0_dp) &
+                  "Dispersion energy:                             ", energy%dispersion
+            END IF
+            IF (energy%gcp /= 0.0_dp) THEN
                WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
-               "gCP energy:                                    ", energy%gcp
-            IF (energy%efield /= 0.0_dp) &
+                  "gCP energy:                                    ", energy%gcp
+            END IF
+            IF (energy%efield /= 0.0_dp) THEN
                WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
-               "Electric field interaction energy:          ", energy%efield
+                  "Electric field interaction energy:          ", energy%efield
+            END IF
 
-         ELSEIF (dft_control%qs_control%semi_empirical) THEN
+         ELSE IF (dft_control%qs_control%semi_empirical) THEN
             CPABORT("NONSCF not available")
-         ELSEIF (dft_control%qs_control%dftb) THEN
+         ELSE IF (dft_control%qs_control%dftb) THEN
             CPASSERT(energy%dftb3 == 0.0_dp)
             energy%total = energy%total + energy%band + energy%qmmm_el
             WRITE (UNIT=iounit, FMT="(/,T2,A,T40,A,F10.2,T61,F20.10)") &
@@ -103,10 +106,11 @@ CONTAINS
                "Core Hamiltonian energy:                       ", energy%core, &
                "Repulsive potential energy:                    ", energy%repulsive, &
                "Dispersion energy:                             ", energy%dispersion
-            IF (energy%efield /= 0.0_dp) &
+            IF (energy%efield /= 0.0_dp) THEN
                WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
-               "Electric field interaction energy:          ", energy%efield
-         ELSEIF (dft_control%qs_control%xtb) THEN
+                  "Electric field interaction energy:          ", energy%efield
+            END IF
+         ELSE IF (dft_control%qs_control%xtb) THEN
             energy%total = energy%total + energy%band + energy%qmmm_el
             WRITE (UNIT=iounit, FMT="(/,T2,A,T40,A,F10.2,T61,F20.10)") &
                "Diagonalization", "Time:", tdiag, energy%total
@@ -117,12 +121,14 @@ CONTAINS
                "SRB Correction energy:                         ", energy%srb, &
                "Charge equilibration energy:                   ", energy%eeq, &
                "Dispersion energy:                             ", energy%dispersion
-            IF (dft_control%qs_control%xtb_control%do_nonbonded) &
+            IF (dft_control%qs_control%xtb_control%do_nonbonded) THEN
                WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
-               "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
-            IF (energy%efield /= 0.0_dp) &
+                  "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
+            END IF
+            IF (energy%efield /= 0.0_dp) THEN
                WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
-               "Electric field interaction energy:          ", energy%efield
+                  "Electric field interaction energy:          ", energy%efield
+            END IF
          ELSE
             CPABORT("NONSCF not available")
          END IF

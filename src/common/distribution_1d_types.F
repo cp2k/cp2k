@@ -104,8 +104,9 @@ CONTAINS
       CALL para_env%retain()
 
       distribution_1d%listbased_distribution = .FALSE.
-      IF (PRESENT(listbased_distribution)) &
+      IF (PRESENT(listbased_distribution)) THEN
          distribution_1d%listbased_distribution = listbased_distribution
+      END IF
 
       ALLOCATE (distribution_1d%n_el(my_n_lists), distribution_1d%list(my_n_lists))
 

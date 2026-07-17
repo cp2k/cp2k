@@ -80,11 +80,12 @@ CONTAINS
                       dft_control=dft_control)
 
       IF (SIZE(scf_control%outer_scf%cdft_opt_control%jacobian_step) /= 1 .AND. &
-          SIZE(scf_control%outer_scf%cdft_opt_control%jacobian_step) /= SIZE(scf_env%outer_scf%variables, 1)) &
+          SIZE(scf_control%outer_scf%cdft_opt_control%jacobian_step) /= SIZE(scf_env%outer_scf%variables, 1)) THEN
          CALL cp_abort(__LOCATION__, &
                        cp_to_string(SIZE(scf_control%outer_scf%cdft_opt_control%jacobian_step))// &
                        " values passed to keyword JACOBIAN_STEP, expected 1 or "// &
                        cp_to_string(SIZE(scf_env%outer_scf%variables, 1)))
+      END IF
 
       ALLOCATE (dh(SIZE(scf_env%outer_scf%variables, 1)))
       IF (SIZE(dh) /= SIZE(scf_control%outer_scf%cdft_opt_control%jacobian_step)) THEN
@@ -229,8 +230,9 @@ CONTAINS
          use_md_history = .TRUE.
          ! Check that none of the history values are identical in which case we should try something different
          DO i = 1, nvar
-            IF (ABS(variable_history(i, 2) - variable_history(i, 1)) < 1.0E-12_dp) &
+            IF (ABS(variable_history(i, 2) - variable_history(i, 1)) < 1.0E-12_dp) THEN
                use_md_history = .FALSE.
+            END IF
          END DO
          IF (use_md_history) THEN
             ALLOCATE (jacobian(nvar, nvar))
@@ -238,8 +240,9 @@ CONTAINS
                jacobian(i, i) = (gradient_history(i, 2) - gradient_history(i, 1))/ &
                                 (variable_history(i, 2) - variable_history(i, 1))
             END DO
-            IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) &
+            IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
                ALLOCATE (scf_env%outer_scf%inv_jacobian(nvar, nvar))
+            END IF
             inv_jacobian => scf_env%outer_scf%inv_jacobian
             CALL invert_matrix(jacobian, inv_jacobian, inv_error)
             DEALLOCATE (jacobian)
@@ -253,17 +256,19 @@ CONTAINS
       IF (ihistory >= 2 .AND. .NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
          ! Next, try history from current SCF procedure
          nvar = SIZE(scf_env%outer_scf%variables, 1)
-         IF (SIZE(scf_env%outer_scf%gradient, 2) < 3) &
+         IF (SIZE(scf_env%outer_scf%gradient, 2) < 3) THEN
             CALL cp_abort(__LOCATION__, &
                           "Keyword EXTRAPOLATION_ORDER in section OUTER_SCF must be greater than or equal "// &
                           "to 3 for optimizers that build the Jacobian from SCF history.")
+         END IF
          ALLOCATE (jacobian(nvar, nvar))
          DO i = 1, nvar
             jacobian(i, i) = (scf_env%outer_scf%gradient(i, ihistory) - scf_env%outer_scf%gradient(i, ihistory - 1))/ &
                              (scf_env%outer_scf%variables(i, ihistory) - scf_env%outer_scf%variables(i, ihistory - 1))
          END DO
-         IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) &
+         IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
             ALLOCATE (scf_env%outer_scf%inv_jacobian(nvar, nvar))
+         END IF
          inv_jacobian => scf_env%outer_scf%inv_jacobian
          CALL invert_matrix(jacobian, inv_jacobian, inv_error)
          DEALLOCATE (jacobian)
@@ -294,11 +299,13 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(scf_control%outer_scf%cdft_opt_control%jacobian_vector))
       nvar = SIZE(scf_env%outer_scf%variables, 1)
-      IF (SIZE(scf_control%outer_scf%cdft_opt_control%jacobian_vector) /= nvar**2) &
+      IF (SIZE(scf_control%outer_scf%cdft_opt_control%jacobian_vector) /= nvar**2) THEN
          CALL cp_abort(__LOCATION__, &
                        "Too many or too few values defined for restarting inverse Jacobian.")
-      IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) &
+      END IF
+      IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
          ALLOCATE (scf_env%outer_scf%inv_jacobian(nvar, nvar))
+      END IF
       inv_jacobian => scf_env%outer_scf%inv_jacobian
       iwork = 1
       DO i = 1, nvar

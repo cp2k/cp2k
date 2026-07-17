@@ -323,7 +323,7 @@ CONTAINS
             fes_old = fes_now
             !WRITE(10+j,'(10f20.10)')(xx(id),id=ndim,1,-1),-fes(pnt)
 
-            norm_dx = SQRT(DOT_PRODUCT(dx, dx))
+            norm_dx = NORM2(dx)
             IF (norm_dx == 0.0_dp) EXIT ! It is in a really flat region
             xx = xx - MIN(0.1_dp, norm_dx)*dx/norm_dx
             ! Re-evaluating pos
@@ -448,7 +448,7 @@ CONTAINS
          ! compute average length (distance 1)
          DO irep = 2, nreplica
             xx = pos(:, irep) - pos(:, irep - 1)
-            avg1 = avg1 + SQRT(DOT_PRODUCT(xx, xx))
+            avg1 = avg1 + NORM2(xx)
          END DO
          avg1 = avg1/REAL(nreplica - 1, KIND=dp)
 
@@ -456,7 +456,7 @@ CONTAINS
          ! compute average length (distance 2)
          DO irep = 3, nreplica
             xx = pos(:, irep) - pos(:, irep - 2)
-            avg2 = avg2 + SQRT(DOT_PRODUCT(xx, xx))
+            avg2 = avg2 + NORM2(xx)
          END DO
          avg2 = avg2/REAL(nreplica - 2, KIND=dp)
 
@@ -478,7 +478,7 @@ CONTAINS
             davg2 = 0.0_dp
             IF (irep < nf - 1) THEN
                xx = pos(:, irep) - pos(:, irep + 2)
-               xx0 = SQRT(DOT_PRODUCT(xx, xx))
+               xx0 = NORM2(xx)
                dxx = 1.0_dp/xx0*xx
                ene = ene + 0.25_dp*mep_input_data%kb*(xx0 - avg2)**2
                davg2 = davg2 + dxx
@@ -486,7 +486,7 @@ CONTAINS
 
             IF (irep > ns + 1) THEN
                xx = pos(:, irep) - pos(:, irep - 2)
-               yy0 = SQRT(DOT_PRODUCT(xx, xx))
+               yy0 = NORM2(xx)
                dyy = 1.0_dp/yy0*xx
                davg2 = davg2 + dyy
             END IF
@@ -503,11 +503,11 @@ CONTAINS
             ! Evaluation of the elastic term
             ! -------------------------------------------------------------
             xx = pos(:, irep) - pos(:, irep + 1)
-            yy0 = SQRT(DOT_PRODUCT(xx, xx))
+            yy0 = NORM2(xx)
             dyy = 1.0_dp/yy0*xx
 
             xx = pos(:, irep) - pos(:, irep - 1)
-            xx0 = SQRT(DOT_PRODUCT(xx, xx))
+            xx0 = NORM2(xx)
             dxx = 1.0_dp/xx0*xx
             davg1 = (dxx + dyy)/REAL(nreplica - 1, KIND=dp)
 
@@ -517,11 +517,11 @@ CONTAINS
 
             ! Evaluate the tangent
             xx = pos(:, irep + 1) - pos(:, irep)
-            xx = xx/SQRT(DOT_PRODUCT(xx, xx))
+            xx = xx/NORM2(xx)
             yy = pos(:, irep) - pos(:, irep - 1)
-            yy = yy/SQRT(DOT_PRODUCT(yy, yy))
+            yy = yy/NORM2(yy)
             tang = xx + yy
-            tang = tang/SQRT(DOT_PRODUCT(tang, tang))
+            tang = tang/NORM2(tang)
 
             xx = derivative(fes, ipos, iperd, ndim, ngrid, dp_grid)
             dx(:, irep) = DOT_PRODUCT(dx(:, irep), tang)*tang + &
@@ -536,7 +536,7 @@ CONTAINS
             ene = ene + fes_rep(irep)
             IF ((irep == 1) .OR. (irep == nreplica)) CYCLE
 
-            norm_dx = SQRT(DOT_PRODUCT(dx(:, irep), dx(:, irep)))
+            norm_dx = NORM2(dx(:, irep))
             IF (norm_dx /= 0.0_dp) THEN
                pos(:, irep) = pos(:, irep) - MIN(0.1_dp, norm_dx)*dx(:, irep)/norm_dx
             END IF

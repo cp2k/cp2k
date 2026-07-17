@@ -364,9 +364,9 @@ CONTAINS
                               charges)
 
       TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set(:)
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(distribution_1d_type), POINTER                :: local_particles
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: e_self(:)
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: e_self
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
 
       INTEGER                                            :: ewald_type, ii, iparticle_kind, &

@@ -252,11 +252,13 @@ CONTAINS
       occup_stats_occ_threshold = 1e-6_dp
       IF (SIZE(tmpstringlist) > 0) THEN  ! the lone_keyword_c_vals doesn't work as advertised, handle it manually
          print_occup_stats = .TRUE.
-         IF (LEN_TRIM(tmpstringlist(1)) > 0) &
+         IF (LEN_TRIM(tmpstringlist(1)) > 0) THEN
             READ (tmpstringlist(1), *) print_occup_stats
+         END IF
       END IF
-      IF (SIZE(tmpstringlist) > 1) &
+      IF (SIZE(tmpstringlist) > 1) THEN
          READ (tmpstringlist(2), *) occup_stats_occ_threshold
+      END IF
 
       logger => cp_get_default_logger()
       print_mo_info = (cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO") /= 0)
@@ -701,22 +703,25 @@ CONTAINS
                "Two-electron integral energy [eV]:             ", energy%hartree*evolt, &
                "Electronic energy [eV]:                        ", &
                (energy%core + 0.5_dp*energy%hartree)*evolt
-            IF (energy%dispersion /= 0.0_dp) &
+            IF (energy%dispersion /= 0.0_dp) THEN
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
-               "Dispersion energy [eV]:                     ", energy%dispersion*evolt
-         ELSEIF (dft_control%qs_control%dftb) THEN
+                  "Dispersion energy [eV]:                     ", energy%dispersion*evolt
+            END IF
+         ELSE IF (dft_control%qs_control%dftb) THEN
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                "Core Hamiltonian energy:                       ", energy%core, &
                "Repulsive potential energy:                    ", energy%repulsive, &
                "Electronic energy:                             ", energy%hartree, &
                "Dispersion energy:                             ", energy%dispersion
-            IF (energy%dftb3 /= 0.0_dp) &
+            IF (energy%dftb3 /= 0.0_dp) THEN
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
-               "DFTB3 3rd order energy:                     ", energy%dftb3
-            IF (energy%efield /= 0.0_dp) &
+                  "DFTB3 3rd order energy:                     ", energy%dftb3
+            END IF
+            IF (energy%efield /= 0.0_dp) THEN
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
-               "Electric field interaction energy:          ", energy%efield
-         ELSEIF (dft_control%qs_control%xtb) THEN
+                  "Electric field interaction energy:          ", energy%efield
+            END IF
+         ELSE IF (dft_control%qs_control%xtb) THEN
             IF (dft_control%qs_control%xtb_control%do_tblite) THEN
                WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                   "Core Hamiltonian energy:                       ", energy%core, &
@@ -733,28 +738,31 @@ CONTAINS
                      "SRB Correction energy:                         ", energy%srb, &
                      "Charge equilibration energy:                   ", energy%eeq, &
                      "Dispersion energy:                             ", energy%dispersion
-               ELSEIF (dft_control%qs_control%xtb_control%gfn_type == 1) THEN
+               ELSE IF (dft_control%qs_control%xtb_control%gfn_type == 1) THEN
                   WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                      "Core Hamiltonian energy:                       ", energy%core, &
                      "Repulsive potential energy:                    ", energy%repulsive, &
                      "Electronic energy:                             ", energy%hartree, &
                      "DFTB3 3rd order energy:                        ", energy%dftb3, &
                      "Dispersion energy:                             ", energy%dispersion
-                  IF (dft_control%qs_control%xtb_control%xb_interaction) &
+                  IF (dft_control%qs_control%xtb_control%xb_interaction) THEN
                      WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
-                     "Correction for halogen bonding:                ", energy%xtb_xb_inter
-               ELSEIF (dft_control%qs_control%xtb_control%gfn_type == 2) THEN
+                        "Correction for halogen bonding:                ", energy%xtb_xb_inter
+                  END IF
+               ELSE IF (dft_control%qs_control%xtb_control%gfn_type == 2) THEN
                   CPABORT("gfn_typ 2 NYA")
                ELSE
                   CPABORT("invalid gfn_typ")
                END IF
             END IF
-            IF (dft_control%qs_control%xtb_control%do_nonbonded) &
+            IF (dft_control%qs_control%xtb_control%do_nonbonded) THEN
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
-               "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
-            IF (energy%efield /= 0.0_dp) &
+                  "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
+            END IF
+            IF (energy%efield /= 0.0_dp) THEN
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
-               "Electric field interaction energy:          ", energy%efield
+                  "Electric field interaction energy:          ", energy%efield
+            END IF
          ELSE
             IF (dft_control%do_admm) THEN
                exc_energy = energy%exc + energy%exc_aux_fit
@@ -792,22 +800,27 @@ CONTAINS
                   "Hartree energy:                                ", energy%hartree, &
                   "Exchange-correlation energy:                   ", exc_energy
             END IF
-            IF (energy%e_hartree /= 0.0_dp) &
+            IF (energy%e_hartree /= 0.0_dp) THEN
                WRITE (UNIT=output_unit, FMT="(T3,A,/,T3,A,T56,F25.14)") &
-               "Coulomb Electron-Electron Interaction Energy ", &
-               "- Already included in the total Hartree term ", energy%e_hartree
-            IF (energy%ex /= 0.0_dp) &
+                  "Coulomb Electron-Electron Interaction Energy ", &
+                  "- Already included in the total Hartree term ", energy%e_hartree
+            END IF
+            IF (energy%ex /= 0.0_dp) THEN
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
-               "Hartree-Fock Exchange energy:                  ", energy%ex
-            IF (energy%dispersion /= 0.0_dp) &
+                  "Hartree-Fock Exchange energy:                  ", energy%ex
+            END IF
+            IF (energy%dispersion /= 0.0_dp) THEN
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
-               "Dispersion energy:                             ", energy%dispersion
-            IF (energy%gcp /= 0.0_dp) &
+                  "Dispersion energy:                             ", energy%dispersion
+            END IF
+            IF (energy%gcp /= 0.0_dp) THEN
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
-               "gCP energy:                                    ", energy%gcp
-            IF (energy%efield /= 0.0_dp) &
+                  "gCP energy:                                    ", energy%gcp
+            END IF
+            IF (energy%efield /= 0.0_dp) THEN
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
-               "Electric field interaction energy:          ", energy%efield
+                  "Electric field interaction energy:          ", energy%efield
+            END IF
             IF (gapw) THEN
                WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                   "GAPW| Exc from hard and soft atomic rho1:      ", exc1_energy, &
@@ -1200,9 +1213,10 @@ CONTAINS
             WRITE (output_unit, '(A,L7)') &
                "  Precompute gradients    : ", cdft_control%becke_control%in_memory
             WRITE (output_unit, '(A)') "  "
-            IF (cdft_control%becke_control%adjust) &
+            IF (cdft_control%becke_control%adjust) THEN
                WRITE (output_unit, '(A)') &
-               "  Using atomic radii to generate a heteronuclear charge partitioning"
+                  "  Using atomic radii to generate a heteronuclear charge partitioning"
+            END IF
             WRITE (output_unit, '(A)') "  "
             IF (.NOT. cdft_control%becke_control%cavity_confine) THEN
                WRITE (output_unit, '(A)') &

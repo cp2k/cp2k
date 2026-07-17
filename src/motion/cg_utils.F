@@ -163,7 +163,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: gradient2, ls_norm
 
       CALL timeset(routineN, handle)
-      norm_ls_vec = SQRT(DOT_PRODUCT(ls_vec, ls_vec))
+      norm_ls_vec = NORM2(ls_vec)
       my_use_only_grad = .FALSE.
       IF (PRESENT(use_only_grad)) my_use_only_grad = use_only_grad
       IF (norm_ls_vec /= 0.0_dp) THEN
@@ -260,7 +260,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tls_norm
 
       CALL timeset(routineN, handle)
-      norm_tls_vec = SQRT(DOT_PRODUCT(tls_vec, tls_vec))
+      norm_tls_vec = NORM2(tls_vec)
       IF (norm_tls_vec /= 0.0_dp) THEN
          ALLOCATE (tls_norm(SIZE(tls_vec)))
 
@@ -379,7 +379,7 @@ CONTAINS
                 dimer_env%rot%g0
          work = -2.0_dp*(work - dimer_env%rot%g0)
          work = work - DOT_PRODUCT(work, dimer_env%nvec)*dimer_env%nvec
-         opt_energy = SQRT(DOT_PRODUCT(work, work))
+         opt_energy = NORM2(work)
          DEALLOCATE (work)
       END IF
       dimer_env%rot%angle2 = angle
@@ -434,7 +434,7 @@ CONTAINS
 
       pcom = xvec
       xicom = xi
-      xicom = xicom/SQRT(DOT_PRODUCT(xicom, xicom))
+      xicom = xicom/NORM2(xicom)
       step = step*0.8_dp ! target a little before the minimum for the first point
       ax = 0.0_dp
       xx = step
@@ -520,7 +520,7 @@ CONTAINS
 
       pcom = xvec
       xicom = xi
-      xicom = xicom/SQRT(DOT_PRODUCT(xicom, xicom))
+      xicom = xicom/NORM2(xicom)
       step = step*0.8_dp ! target a little before the minimum for the first point
       ax = 0.0_dp
       xx = step
@@ -866,9 +866,10 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(/,T2,A)") REPEAT("*", 79)
          WRITE (UNIT=output_unit, FMT="(T2,A,T22,A,I7,T78,A)") &
             "***", "BRENT   - NUMBER OF ENERGY EVALUATIONS : ", loc_iter, "***"
-         IF (iter == itmax + 1) &
+         IF (iter == itmax + 1) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T22,A,T78,A)") &
-            "***", "BRENT - NUMBER OF ITERATIONS EXCEEDED ", "***"
+               "***", "BRENT - NUMBER OF ITERATIONS EXCEEDED ", "***"
+         END IF
          WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", 79)
       END IF
       CPASSERT(iter /= itmax + 1)
@@ -1079,7 +1080,7 @@ CONTAINS
          g = h
          h = -xi*dimer_env%cg_rot%norm_theta + gam*dimer_env%cg_rot%norm_h*dimer_env%cg_rot%nvec_old
          h = h - DOT_PRODUCT(h, dimer_env%nvec)*dimer_env%nvec
-         norm_h = SQRT(DOT_PRODUCT(h, h))
+         norm_h = NORM2(h)
          IF (norm_h < EPSILON(0.0_dp)) THEN
             h = 0.0_dp
          ELSE

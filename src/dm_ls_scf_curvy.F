@@ -95,9 +95,10 @@ CONTAINS
 
 ! If new search direction has to be computed transform H into the orthnormal basis
 
-      IF (ls_scf_env%curvy_data%line_search_step == 1) &
+      IF (ls_scf_env%curvy_data%line_search_step == 1) THEN
          CALL transform_matrix_orth(ls_scf_env%matrix_ks, ls_scf_env%matrix_s_sqrt_inv, &
                                     ls_scf_env%eps_filter)
+      END IF
 
 ! Set the energies for the line search and make sure to give the correct energy back to scf_main
       ls_scf_env%curvy_data%energies(lsstep) = energy

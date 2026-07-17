@@ -152,8 +152,9 @@ CONTAINS
                   WRITE (unit=unit_nr, fmt="(',')", advance="no")
                END IF
             END DO
-            IF (SIZE(array) > 0) &
+            IF (SIZE(array) > 0) THEN
                WRITE (unit=unit_nr, fmt=el_format, advance="no") array(SIZE(array))
+            END IF
          ELSE
             DO i = 1, SIZE(array) - 1
                WRITE (unit=unit_nr, fmt=defaultFormat, advance="no") array(i)
@@ -163,8 +164,9 @@ CONTAINS
                   WRITE (unit=unit_nr, fmt="(',')", advance="no")
                END IF
             END DO
-            IF (SIZE(array) > 0) &
+            IF (SIZE(array) > 0) THEN
                WRITE (unit=unit_nr, fmt=defaultFormat, advance="no") array(SIZE(array))
+            END IF
          END IF
          WRITE (unit=unit_nr, fmt="(' )')")
          call m_flush(unit_nr)
@@ -289,8 +291,7 @@ CONTAINS
 !> \note
 !>      the array should be ordered in growing order
 ! **************************************************************************************************
-      FUNCTION cp_1d_${nametype1}$_bsearch(array, el, l_index, u_index) &
-         result(res)
+      FUNCTION cp_1d_${nametype1}$_bsearch(array, el, l_index, u_index) result(res)
          ${type1}$, intent(in) :: array(:)
          ${type1}$, intent(in) :: el
          INTEGER, INTENT(in), OPTIONAL :: l_index, u_index

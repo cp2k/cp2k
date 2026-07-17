@@ -193,8 +193,9 @@ CONTAINS
       CALL dimer_fixed_atom_control(dimer_env%nvec, subsys, unit_nr)
       ! Normalize dimer vector
       norm = SQRT(SUM(dimer_env%nvec**2))
-      IF (norm <= EPSILON(0.0_dp)) &
+      IF (norm <= EPSILON(0.0_dp)) THEN
          CPABORT("The norm of the dimer vector is 0! Calculation cannot proceed further.")
+      END IF
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, "(T2,A,T9,A,T69,F12.6)") &
             "DIMER|", "Norm of dimer vector to be normalized by rescaling", norm
@@ -414,8 +415,9 @@ CONTAINS
             CALL globenv%gaussian_rng_stream%fill(dimer_env%nvec)
          CASE (dimer_init_molden)
             CALL section_vals_val_get(dimer_section, "VIB_MOLDEN_NAME", explicit=explicit)
-            IF (.NOT. explicit) &
+            IF (.NOT. explicit) THEN
                CPABORT("INITIALIZATION_METHOD MOLDEN requires VIB_MOLDEN_NAME")
+            END IF
             CALL section_vals_val_get(dimer_section, "VIB_MOLDEN_NAME", c_val=molden_name)
             IF (unit > 0) THEN
                WRITE (unit, "(/,T2,A,T9,A)") &
@@ -441,11 +443,12 @@ CONTAINS
                   CALL parser_get_next_line(parser, 1)
                   READ (UNIT=parser%input_line, FMT=*, IOSTAT=ierr) &
                      array_r(3*j - 2), array_r(3*j - 1), array_r(3*j)
-                  IF (ierr /= 0) &
+                  IF (ierr /= 0) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Error while reading MOLDEN file: cannot parse the line "// &
                                    TRIM(ADJUSTL(cp_to_string(j)))//" of <"//vib_name//"> "// &
                                    "for components of the normal mode")
+                  END IF
                END DO
                dimer_env%nvec(:) = dimer_env%nvec(:) + array_r(:)*vib_wt_list(i)
             END DO Vib_modes

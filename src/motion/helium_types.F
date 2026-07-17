@@ -121,7 +121,8 @@ MODULE helium_types
       REAL(KIND=dp), DIMENSION(3)    :: origin = 0.0_dp!< origin of the cell (first voxel position)
       REAL(KIND=dp)                  :: droplet_radius = 0.0_dp !< radius of the droplet
 
-      REAL(KIND=dp), DIMENSION(3)    :: center = 0.0_dp!< COM of solute (if present) or center of periodic cell (if periodic) or COM of helium
+      REAL(KIND=dp), DIMENSION(3)    :: center = 0.0_dp!< COM of solute (if present) or center of
+      ! periodic cell (if periodic) or COM of helium
 
       INTEGER :: sampling_method = helium_sampling_ceperley
       ! worm sampling parameters
@@ -151,7 +152,8 @@ MODULE helium_types
       LOGICAL :: worm_is_closed = .FALSE.!before isector=1 -> open; isector=0 -> closed
 
       INTEGER :: iter_norot = 0!< number of iterations to try for a given imaginary time slice rotation (num inner MC loop iters)
-      INTEGER :: iter_rot = 0!< number of rotations to try (total number of iterations is iter_norot*iter_rot) (num outer MC loop iters)
+      INTEGER :: iter_rot = 0!< number of rotations to try (total number of iterations is iter_norot*iter_rot)
+      ! (num outer MC loop iters)
       !
       INTEGER       :: maxcycle = 0!< maximum cyclic permutation change to attempt
       INTEGER       :: m_dist_type = 0!< distribution from which the cycle length m is sampled
@@ -186,7 +188,8 @@ MODULE helium_types
       INTEGER(KIND=int_8)              :: accepts = 0_int_8!< number of accepted new configurations
       !
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: tmatrix => NULL()!< ? permutation probability related
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: pmatrix => NULL()!< ? permutation probability related [use might change/new ones added/etc]
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: pmatrix => NULL()!< ? permutation probability related
+      ! [use might change/new ones added/etc]
       REAL(KIND=dp) :: pweight = 0.0_dp!< ? permutation probability related
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: ipmatrix => NULL()
       INTEGER, DIMENSION(:, :), POINTER :: nmatrix => NULL()
@@ -208,7 +211,8 @@ MODULE helium_types
       TYPE(helium_vector_type)               :: prarea2 = helium_vector_type()!< projected area squared
       TYPE(helium_vector_type)               :: mominer = helium_vector_type()!< moment of inertia
       INTEGER                                :: averages_iweight = 0!< weight for restarted averages
-      LOGICAL                                :: averages_restarted = .FALSE.!< flag indicating whether the averages have been restarted
+      LOGICAL                                :: averages_restarted = .FALSE.!< flag indicating whether the averages
+      ! have been restarted
 
       REAL(KIND=dp) :: link_action = 0.0_dp, inter_action = 0.0_dp, pair_action = 0.0_dp
 
@@ -266,8 +270,10 @@ MODULE helium_types
       INTEGER :: solute_beads = 0!< number of solute beads (pint_env%p)
       INTEGER :: get_helium_forces = 0!< parameter to determine whether the average or last MC force should be taken to MD
       CHARACTER(LEN=2), DIMENSION(:), POINTER :: solute_element => NULL()!< element names of solute atoms (pint_env%ndim/3)
-      TYPE(cell_type), POINTER  :: solute_cell => NULL()!< dimensions of the solvated system cell (a,b,c) (should be removed at some point)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: force_avrg => NULL()!< averaged forces exerted by He solvent on the solute DIM(p,ndim)
+      TYPE(cell_type), POINTER  :: solute_cell => NULL()!< dimensions of the solvated system cell (a,b,c)
+      ! (should be removed at some point)
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: force_avrg => NULL()!< averaged forces exerted by He solvent
+      ! on the solute DIM(p,ndim)
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: force_inst => NULL()!< instantaneous forces exerted by He on the solute (p,ndim)
       CHARACTER(LEN=2), DIMENSION(:), POINTER  :: ename => NULL()
       INTEGER :: enum = 0

@@ -2050,12 +2050,12 @@ CONTAINS
       DO l = 0, la
          IF (l == 0) THEN
             fun(:, l) = z_one
-         ELSEIF (l == 1) THEN
+         ELSE IF (l == 1) THEN
             fun(:, l) = CMPLX(0.0_dp, 0.5_dp*oa*gval(:), KIND=dp)
-         ELSEIF (l == 2) THEN
+         ELSE IF (l == 2) THEN
             fun(:, l) = CMPLX(-(0.5_dp*oa*gval(:))**2, 0.0_dp, KIND=dp)
             fun(:, l) = fun(:, l) + CMPLX(0.5_dp*oa, 0.0_dp, KIND=dp)
-         ELSEIF (l == 3) THEN
+         ELSE IF (l == 3) THEN
             fun(:, l) = CMPLX(0.0_dp, -(0.5_dp*oa*gval(:))**3, KIND=dp)
             fun(:, l) = fun(:, l) + CMPLX(0.0_dp, 0.75_dp*oa*oa*gval(:), KIND=dp)
          ELSE
@@ -2065,12 +2065,12 @@ CONTAINS
       DO l = 0, lb
          IF (l == 0) THEN
             gun(:, l) = z_one
-         ELSEIF (l == 1) THEN
+         ELSE IF (l == 1) THEN
             gun(:, l) = CMPLX(0.0_dp, 0.5_dp*ob*gval(:), KIND=dp)
-         ELSEIF (l == 2) THEN
+         ELSE IF (l == 2) THEN
             gun(:, l) = CMPLX(-(0.5_dp*ob*gval(:))**2, 0.0_dp, KIND=dp)
             gun(:, l) = gun(:, l) + CMPLX(0.5_dp*ob, 0.0_dp, KIND=dp)
-         ELSEIF (l == 3) THEN
+         ELSE IF (l == 3) THEN
             gun(:, l) = CMPLX(0.0_dp, -(0.5_dp*ob*gval(:))**3, KIND=dp)
             gun(:, l) = gun(:, l) + CMPLX(0.0_dp, 0.75_dp*ob*ob*gval(:), KIND=dp)
          ELSE

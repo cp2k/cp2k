@@ -176,7 +176,7 @@ CONTAINS
          CASE DEFAULT
             CPABORT("Unknown QM/MM coupling")
          END SELECT
-      ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+      ELSE IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
          ! DFTB
          SELECT CASE (qmmm_env%qmmm_coupl_type)
          CASE (do_qmmm_none)
@@ -1212,8 +1212,9 @@ CONTAINS
             LIndMM = pot%mm_atom_index(Imm)
             IndMM = mm_atom_index(LIndMM)
             ra(:) = pbc(mm_particles(IndMM)%r - dOmmOqm, mm_cell) + dOmmOqm
-            IF (shells) &
+            IF (shells) THEN
                ra(:) = pbc(mm_particles(LIndMM)%r - dOmmOqm, mm_cell) + dOmmOqm
+            END IF
             qt = mm_charges(LIndMM)
             ! Possible Spherical Cutoff
             IF (qmmm_spherical_cutoff(1) > 0.0_dp) THEN
@@ -1421,10 +1422,11 @@ CONTAINS
                   Err(K) = (Analytical_Forces(K, I) - Num_Forces(K, I))/Num_Forces(K, I)*100.0_dp
                END IF
             END DO
-            IF (iw > 0) &
+            IF (iw > 0) THEN
                WRITE (iw, 100) IndMM, Analytical_Forces(1, I), Num_Forces(1, I), Err(1), &
-               Analytical_Forces(2, I), Num_Forces(2, I), Err(2), &
-               Analytical_Forces(3, I), Num_Forces(3, I), Err(3)
+                  Analytical_Forces(2, I), Num_Forces(2, I), Err(2), &
+                  Analytical_Forces(3, I), Num_Forces(3, I), Err(3)
+            END IF
             CPASSERT(ABS(Err(1)) <= MaxErr)
             CPASSERT(ABS(Err(2)) <= MaxErr)
             CPASSERT(ABS(Err(3)) <= MaxErr)
@@ -1532,10 +1534,11 @@ CONTAINS
          Err(2) = (debug_force(2) - force(2))/force(2)*100.0_dp
          Err(3) = (debug_force(3) - force(3))/force(3)*100.0_dp
       END IF
-      IF (iw > 0) &
+      IF (iw > 0) THEN
          WRITE (iw, 100) Icount, debug_force(1), force(1), Err(1), &
-         debug_force(2), force(2), Err(2), &
-         debug_force(3), force(3), Err(3)
+            debug_force(2), force(2), Err(2), &
+            debug_force(3), force(3), Err(3)
+      END IF
       CPASSERT(ABS(Err(1)) <= MaxErr)
       CPASSERT(ABS(Err(2)) <= MaxErr)
       CPASSERT(ABS(Err(3)) <= MaxErr)
@@ -1638,9 +1641,10 @@ CONTAINS
 
                energy(K) = pw_integral_ab(rho, grids(coarser_grid_level))
             END DO Diff
-            IF (iw > 0) &
+            IF (iw > 0) THEN
                WRITE (iw, '(A,I6,A,I3,A,2F15.9)') &
-               "DEBUG LR:: MM Atom = ", IndMM, " Coord = ", J, " Energies (+/-) :: ", energy(2), energy(1)
+                  "DEBUG LR:: MM Atom = ", IndMM, " Coord = ", J, " Energies (+/-) :: ", energy(2), energy(1)
+            END IF
             Num_Forces(J, I) = (energy(2) - energy(1))/(2.0_dp*Dx)
             mm_particles(IndMM)%r(J) = Coord_save
          END DO Coords
@@ -1654,10 +1658,11 @@ CONTAINS
             Err(2) = (debug_force(2, I) - Num_Forces(2, I))/Num_Forces(2, I)*100.0_dp
             Err(3) = (debug_force(3, I) - Num_Forces(3, I))/Num_Forces(3, I)*100.0_dp
          END IF
-         IF (iw > 0) &
+         IF (iw > 0) THEN
             WRITE (iw, 100) IndMM, debug_force(1, I), Num_Forces(1, I), Err(1), &
-            debug_force(2, I), Num_Forces(2, I), Err(2), &
-            debug_force(3, I), Num_Forces(3, I), Err(3)
+               debug_force(2, I), Num_Forces(2, I), Err(2), &
+               debug_force(3, I), Num_Forces(3, I), Err(3)
+         END IF
          CPASSERT(ABS(Err(1)) <= MaxErr)
          CPASSERT(ABS(Err(2)) <= MaxErr)
          CPASSERT(ABS(Err(3)) <= MaxErr)
@@ -1752,9 +1757,10 @@ CONTAINS
 
                energy(K) = pw_integral_ab(rho, grids(coarser_grid_level))
             END DO Diff
-            IF (iw > 0) &
+            IF (iw > 0) THEN
                WRITE (iw, '(A,I6,A,I3,A,2F15.9)') &
-               "DEBUG LR:: MM Atom = ", IndMM, " Coord = ", J, " Energies (+/-) :: ", energy(2), energy(1)
+                  "DEBUG LR:: MM Atom = ", IndMM, " Coord = ", J, " Energies (+/-) :: ", energy(2), energy(1)
+            END IF
             Num_Forces(J, I) = (energy(2) - energy(1))/(2.0_dp*Dx)
             mm_particles(IndMM)%r(J) = Coord_save
          END DO Coords
@@ -1768,10 +1774,11 @@ CONTAINS
             Err(2) = (debug_force(2, I) - Num_Forces(2, I))/Num_Forces(2, I)*100.0_dp
             Err(3) = (debug_force(3, I) - Num_Forces(3, I))/Num_Forces(3, I)*100.0_dp
          END IF
-         IF (iw > 0) &
+         IF (iw > 0) THEN
             WRITE (iw, 100) IndMM, debug_force(1, I), Num_Forces(1, I), Err(1), &
-            debug_force(2, I), Num_Forces(2, I), Err(2), &
-            debug_force(3, I), Num_Forces(3, I), Err(3)
+               debug_force(2, I), Num_Forces(2, I), Err(2), &
+               debug_force(3, I), Num_Forces(3, I), Err(3)
+         END IF
          CPASSERT(ABS(Err(1)) <= MaxErr)
          CPASSERT(ABS(Err(2)) <= MaxErr)
          CPASSERT(ABS(Err(3)) <= MaxErr)

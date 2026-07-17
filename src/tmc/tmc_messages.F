@@ -88,8 +88,9 @@ CONTAINS
       CPASSERT(ASSOCIATED(para_env))
 
       master = .FALSE.
-      IF (para_env%mepos == MASTER_COMM_ID) &
+      IF (para_env%mepos == MASTER_COMM_ID) THEN
          master = .TRUE.
+      END IF
    END FUNCTION check_if_group_master
 
 ! **************************************************************************************************
@@ -211,11 +212,12 @@ CONTAINS
             CPABORT("Unable to send message when m_send%info(4) > 0")
             !TODO send characters CALL para_env%send(m_send%task_char, dest, message_tag)
          END IF
-         IF (DEBUG >= 1) &
+         IF (DEBUG >= 1) THEN
             WRITE (*, *) "TMC|message: ID: ", para_env%mepos, &
-            " send element info to   ", dest, " of stat ", m_send%info(1), &
-            " with size int/real/char", m_send%info(2:), " with comm ", &
-            para_env%get_handle(), " and tag ", message_tag
+               " send element info to   ", dest, " of stat ", m_send%info(1), &
+               " with size int/real/char", m_send%info(2:), " with comm ", &
+               para_env%get_handle(), " and tag ", message_tag
+         END IF
          IF (m_send%info(2) > 0) DEALLOCATE (m_send%task_int)
          IF (m_send%info(3) > 0) DEALLOCATE (m_send%task_real)
          IF (m_send%info(4) > 0) DEALLOCATE (m_send%task_char)
@@ -290,10 +292,11 @@ CONTAINS
             ! first get message type and sizes
             CALL para_env%recv(m_send%info, dest, message_tag)
          END IF
-         IF (DEBUG >= 1) &
+         IF (DEBUG >= 1) THEN
             WRITE (*, *) "TMC|message: ID: ", para_env%mepos, &
-            " recv element info from ", dest, " of stat ", m_send%info(1), &
-            " with size int/real/char", m_send%info(2:)
+               " recv element info from ", dest, " of stat ", m_send%info(1), &
+               " with size int/real/char", m_send%info(2:)
+         END IF
          !-- receive message integer part
          IF (m_send%info(2) > 0) THEN
             ALLOCATE (m_send%task_int(m_send%info(2)))
@@ -350,14 +353,16 @@ CONTAINS
          CASE (TMC_STAT_ENERGY_REQUEST, TMC_STAT_APPROX_ENERGY_REQUEST)
             CALL read_energy_request_message(elem, m_send, tmc_params)
          CASE (TMC_STAT_ENERGY_RESULT)
-            IF (PRESENT(elem_array)) &
+            IF (PRESENT(elem_array)) THEN
                CALL read_energy_result_message(elem_array(dest)%elem, m_send, tmc_params)
+            END IF
          CASE (TMC_STAT_NMC_REQUEST, TMC_STAT_NMC_BROADCAST, &
                TMC_STAT_MD_REQUEST, TMC_STAT_MD_BROADCAST)
             CALL read_NMC_request_massage(msg_type, elem, m_send, tmc_params)
          CASE (TMC_STAT_NMC_RESULT, TMC_STAT_MD_RESULT)
-            IF (PRESENT(elem_array)) &
+            IF (PRESENT(elem_array)) THEN
                CALL read_NMC_result_massage(msg_type, elem_array(dest)%elem, m_send, tmc_params)
+            END IF
          CASE (TMC_STATUS_FAILED, TMC_STATUS_STOP_RECEIPT)
             ! if task is failed, handle situation in outer routine
          CASE (TMC_STAT_SCF_STEP_ENER_RECEIVE)
@@ -1075,8 +1080,9 @@ CONTAINS
       counter = 0
       !then float array with pos, (vel), random number seed, subbox_center
       msg_size_real = 1 + SIZE(elem%pos) + 1 + SIZE(elem%rng_seed) + 1 + SIZE(elem%subbox_center(:)) + 1
-      IF (msg_type == TMC_STAT_MD_REQUEST .OR. msg_type == TMC_STAT_MD_BROADCAST) &
-         msg_size_real = msg_size_real + 1 + SIZE(elem%vel) ! the velocities
+      IF (msg_type == TMC_STAT_MD_REQUEST .OR. msg_type == TMC_STAT_MD_BROADCAST) THEN
+         msg_size_real = msg_size_real + 1 + SIZE(elem%vel)
+      END IF ! the velocities
       IF (tmc_params%pressure >= 0.0_dp) msg_size_real = msg_size_real + 1 + SIZE(elem%box_scale(:)) ! box size for NpT
 
       ALLOCATE (m_send%task_real(msg_size_real))
@@ -1214,9 +1220,10 @@ CONTAINS
                      + 1 + SIZE(tmc_params%nmc_move_types%mv_count) &
                      + 1 + SIZE(tmc_params%nmc_move_types%acc_count) + 1
       IF (DEBUG > 0) msg_size_int = msg_size_int + 1 + 1 + 1 + 1
-      IF (.NOT. ANY(tmc_params%sub_box_size <= 0.1_dp)) &
+      IF (.NOT. ANY(tmc_params%sub_box_size <= 0.1_dp)) THEN
          msg_size_int = msg_size_int + 1 + SIZE(tmc_params%nmc_move_types%subbox_count) &
                         + 1 + SIZE(tmc_params%nmc_move_types%subbox_acc_count)
+      END IF
 
       ALLOCATE (m_send%task_int(msg_size_int))
       counter = 1
@@ -1270,8 +1277,9 @@ CONTAINS
                       + 1 ! check bit
 
       IF (msg_type == TMC_STAT_MD_REQUEST .OR. msg_type == TMC_STAT_MD_RESULT .OR. &
-          msg_type == TMC_STAT_MD_BROADCAST) &
-         msg_size_real = msg_size_real + 1 + SIZE(elem%vel) + 1 + 1 + 1 + 1 ! for MD also: vel, e_kin_befor_md, ekin
+          msg_type == TMC_STAT_MD_BROADCAST) THEN
+         msg_size_real = msg_size_real + 1 + SIZE(elem%vel) + 1 + 1 + 1 + 1
+      END IF ! for MD also: vel, e_kin_befor_md, ekin
 
       ALLOCATE (m_send%task_real(msg_size_real))
       ! pos
@@ -1400,8 +1408,9 @@ CONTAINS
           msg_type == TMC_STAT_MD_BROADCAST) THEN
          elem%vel = m_send%task_real(counter + 1:counter + NINT(m_send%task_real(counter)))
          counter = counter + 1 + INT(m_send%task_real(counter))
-         IF (.NOT. (tmc_params%task_type == task_type_gaussian_adaptation)) &
+         IF (.NOT. (tmc_params%task_type == task_type_gaussian_adaptation)) THEN
             elem%ekin_before_md = m_send%task_real(counter + 1)
+         END IF
          counter = counter + 2
          elem%ekin = m_send%task_real(counter + 1)
          counter = counter + 2
@@ -1415,8 +1424,9 @@ CONTAINS
       END IF
 
       DEALLOCATE (mv_counter, acc_counter)
-      IF (.NOT. ANY(tmc_params%sub_box_size <= 0.1_dp)) &
+      IF (.NOT. ANY(tmc_params%sub_box_size <= 0.1_dp)) THEN
          DEALLOCATE (subbox_counter, subbox_acc_counter)
+      END IF
       CPASSERT(counter == m_send%info(3))
       CPASSERT(m_send%task_int(m_send%info(2)) == message_end_flag)
       CPASSERT(INT(m_send%task_real(m_send%info(3))) == message_end_flag)
@@ -1564,7 +1574,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=default_string_length), &
-         ALLOCATABLE, DIMENSION(:)                       :: msg(:)
+         ALLOCATABLE, DIMENSION(:)                       :: msg
       INTEGER                                            :: i
 
       CPASSERT(ASSOCIATED(para_env))

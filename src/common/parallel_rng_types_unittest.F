@@ -32,14 +32,16 @@ PROGRAM parallel_rng_types_TEST
    nsamples = 1000
    nargs = command_argument_count()
 
-   IF (nargs > 1) &
+   IF (nargs > 1) then
       ERROR STOP "Usage: parallel_rng_types_TEST [<int:nsamples>]"
+   end if
 
    IF (nargs == 1) THEN
       CALL get_command_argument(1, arg)
       READ (arg, *, iostat=stat) nsamples
-      IF (stat /= 0) &
+      IF (stat /= 0) then
          ERROR STOP "Usage: parallel_rng_types_TEST [<int:nsamples>]"
+      end if
    END IF
 
    CALL mp_world_init(mpi_comm)
@@ -60,8 +62,9 @@ PROGRAM parallel_rng_types_TEST
                                 distribution_type=UNIFORM, &
                                 extended_precision=.TRUE.)
 
-   IF (ionode) &
+   IF (ionode) then
       CALL rng_stream%write(default_output_unit)
+   end if
 
    tmax = -HUGE(0.0_dp)
    tmin = +HUGE(0.0_dp)
@@ -94,8 +97,9 @@ PROGRAM parallel_rng_types_TEST
                                 distribution_type=GAUSSIAN, &
                                 extended_precision=.TRUE.)
 
-   IF (ionode) &
+   IF (ionode) then
       CALL rng_stream%write(default_output_unit)
+   end if
 
    tmax = -HUGE(0.0_dp)
    tmin = +HUGE(0.0_dp)
@@ -162,8 +166,9 @@ CONTAINS
       CALL rng_stream%get(ig=ig, cg=cg, bg=bg, name=name)
 
       IF (ANY(ig /= ig_orig) .OR. ANY(cg /= cg_orig) .OR. ANY(bg /= bg_orig) &
-          .OR. (name /= name_orig)) &
+          .OR. (name /= name_orig)) then
          ERROR STOP "Stream dump and load roundtrip failed"
+      end if
 
       WRITE (UNIT=default_output_unit, FMT="(T4,A)") &
          "Roundtrip successful"
@@ -185,8 +190,9 @@ CONTAINS
       WRITE (UNIT=default_output_unit, FMT="(T4,A10,A433)") &
          "GENERATED:", rng_record
 
-      IF (rng_record /= serialized_string) &
+      IF (rng_record /= serialized_string) then
          ERROR STOP "Serialized record does not match the expected output"
+      end if
 
       WRITE (UNIT=default_output_unit, FMT="(T4,A)") &
          "Serialized record matches the expected output"
@@ -214,19 +220,22 @@ CONTAINS
       arr = orig
       CALL rng_stream%shuffle(arr)
 
-      IF (ALL(arr == orig)) &
+      IF (ALL(arr == orig)) then
          ERROR STOP "shuffle failed: array was left untouched"
+      end if
       WRITE (UNIT=default_output_unit, FMT="(A)", ADVANCE="no") "."
 
-      IF (ANY(arr /= orig(arr))) &
+      IF (ANY(arr /= orig(arr))) then
          ERROR STOP "shuffle failed: the shuffled original is not the shuffled original"
+      end if
       WRITE (UNIT=default_output_unit, FMT="(A)", ADVANCE="no") "."
 
       ! sort and compare to orig
       mask = .TRUE.
       DO idx = 1, size(orig)
-         IF (MINVAL(arr, mask) /= orig(idx)) &
+         IF (MINVAL(arr, mask) /= orig(idx)) then
             ERROR STOP "shuffle failed: there is at least one unknown index"
+         end if
          mask(MINLOC(arr, mask)) = .FALSE.
       END DO
       WRITE (UNIT=default_output_unit, FMT="(A)", ADVANCE="no") "."
@@ -235,8 +244,9 @@ CONTAINS
       CALL rng_stream%reset()
       CALL rng_stream%shuffle(arr2)
 
-      IF (ANY(arr2 /= arr)) &
+      IF (ANY(arr2 /= arr)) then
          ERROR STOP "shuffle failed: array was shuffled differently with same rng state"
+      end if
       WRITE (UNIT=default_output_unit, FMT="(A)", ADVANCE="no") "."
 
       WRITE (UNIT=default_output_unit, FMT="(T4,A)") &

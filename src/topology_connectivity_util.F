@@ -74,7 +74,7 @@ CONTAINS
          inter_bends, inter_bonds, inter_imprs, inter_torsions, inter_ubs, intra_bends, &
          intra_bonds, intra_imprs, intra_torsions, intra_ubs, inum, ires, istart_mol, istart_typ, &
          itorsion, ityp, iub, iw, j, j1, j2, j3, j4, jind, last, min_index, natom, nelectron, &
-         nsgf, nval_tot1, nval_tot2, nvar1, nvar2, output_unit, stat
+         nsgf, nval_tot1, nval_tot2, nvar1, nvar2, output_unit
       INTEGER, DIMENSION(:), POINTER :: c_var_a, c_var_b, c_var_c, c_var_d, c_var_type, &
          first_list, last_list, map_atom_mol, map_atom_type, map_cvar_mol, map_cvars, map_var_mol, &
          map_vars, molecule_list
@@ -225,7 +225,7 @@ CONTAINS
             found = .TRUE.
             found_last = .FALSE.
             imol = ABS(map_atom_mol(i))
-         ELSEIF (ikind == topology%nmol_type) THEN
+         ELSE IF (ikind == topology%nmol_type) THEN
             found = .TRUE.
             found_last = .TRUE.
             imol = ABS(map_atom_mol(natom))
@@ -1057,9 +1057,8 @@ CONTAINS
          END IF
          molecule_kind => molecule_kind_set(i)
          nval_tot2 = nval_tot2 + iimpr*SIZE(molecule_kind%molecule_list)
-         ALLOCATE (impr_list(iimpr), STAT=stat)
-         ALLOCATE (opbend_list(iimpr), STAT=stat)
-         CPASSERT(stat == 0)
+         ALLOCATE (impr_list(iimpr))
+         ALLOCATE (opbend_list(iimpr))
          iimpr = 0
          DO j = bnd_type(1, i), bnd_type(2, i)
             IF (j == 0) CYCLE

@@ -235,7 +235,7 @@ CONTAINS
          dokp = .FALSE.
          use_cell_mapping = .FALSE.
          nimg = dft_control%nimages
-      ELSEIF (PRESENT(matrixkp_s)) THEN
+      ELSE IF (PRESENT(matrixkp_s)) THEN
          dokp = .TRUE.
          IF (PRESENT(ext_kpoints)) THEN
             IF (ASSOCIATED(ext_kpoints)) THEN
@@ -868,7 +868,7 @@ CONTAINS
       IF (PRESENT(matrix_p)) THEN
          dokp = .FALSE.
          use_cell_mapping = .FALSE.
-      ELSEIF (PRESENT(matrixkp_p)) THEN
+      ELSE IF (PRESENT(matrixkp_p)) THEN
          dokp = .TRUE.
          CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)

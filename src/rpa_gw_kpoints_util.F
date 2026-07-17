@@ -1315,8 +1315,9 @@ CONTAINS
       ELSE IF (kpoint_weights_W_method == kp_weights_W_tailored .OR. &
                kpoint_weights_W_method == kp_weights_W_auto) THEN
 
-         IF (kpoint_weights_W_method == kp_weights_W_tailored) &
+         IF (kpoint_weights_W_method == kp_weights_W_tailored) THEN
             exp_kpoints = qs_env%mp2_env%ri_rpa_im_time%exp_tailored_weights
+         END IF
 
          IF (kpoint_weights_W_method == kp_weights_W_auto) THEN
             IF (SUM(periodic) == 2) exp_kpoints = -1.0_dp

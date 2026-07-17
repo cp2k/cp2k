@@ -200,8 +200,9 @@ PROGRAM graph
       END IF
 
    END DO
-   IF (COUNT([l_orac, l_cp2k, l_cpmd]) /= 1) &
+   IF (COUNT([l_orac, l_cp2k, l_cpmd]) /= 1) THEN
       CPABORT("Error! You've to specify either ORAC, CP2K or CPMD!")
+   END IF
 
    ! For CPMD move filename to colvar_mtd
    IF (l_cpmd) THEN
@@ -358,9 +359,10 @@ PROGRAM graph
          END IF
 
       END DO
-      IF (ANY(mep_input_data%minima == HUGE(0.0_dp))) &
+      IF (ANY(mep_input_data%minima == HUGE(0.0_dp))) THEN
          CALL cp_abort(__LOCATION__, &
                        "-find-path requires the specification of -point-a and -point-b !")
+      END IF
    ELSE
       ALLOCATE (mep_input_data%minima(0, 0))
    END IF
@@ -647,7 +649,7 @@ PROGRAM graph
 
          IF (.NOT. lstride .AND. MOD(it, nwr) == 0) THEN
             WRITE (iw, '("FES|",T7,a,i4,a2)') "Mapping Gaussians ::", INT(10*ANINT(10.*it/nt)), " %"
-         ELSEIF (.NOT. lstride .AND. it == nt) THEN
+         ELSE IF (.NOT. lstride .AND. it == nt) THEN
             WRITE (iw, '("FES|",T7,a,i4,a2)') "Mapping Gaussians ::", INT(10*ANINT(10.*it/nt)), " %"
          END IF
       END DO Hills
@@ -663,7 +665,7 @@ PROGRAM graph
 
          IF (ncount < 10) THEN
             WRITE (out3_stride, '(A,i1)') TRIM(out3), ncount
-         ELSEIF (ncount < 100) THEN
+         ELSE IF (ncount < 100) THEN
             WRITE (out3_stride, '(A,i2)') TRIM(out3), ncount
          ELSE
             WRITE (out3_stride, '(A,i3)') TRIM(out3), ncount

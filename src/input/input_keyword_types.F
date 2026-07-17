@@ -274,8 +274,9 @@ CONTAINS
          IF (PRESENT(default_l_val) .OR. PRESENT(default_l_vals) .OR. &
              PRESENT(default_i_val) .OR. PRESENT(default_i_vals) .OR. &
              PRESENT(default_r_val) .OR. PRESENT(default_r_vals) .OR. &
-             PRESENT(default_c_val) .OR. PRESENT(default_c_vals)) &
+             PRESENT(default_c_val) .OR. PRESENT(default_c_vals)) THEN
             CPABORT("you should pass either default_val or a default value, not both")
+         END IF
          keyword%default_value => default_val
          IF (ASSOCIATED(default_val%enum)) THEN
             IF (ASSOCIATED(keyword%enum)) THEN
@@ -310,10 +311,11 @@ CONTAINS
                           " assumed undefined type by default")
          END IF
       ELSE IF (PRESENT(type_of_var)) THEN
-         IF (keyword%type_of_var /= type_of_var) &
+         IF (keyword%type_of_var /= type_of_var) THEN
             CALL cp_abort(__LOCATION__, &
                           "keyword "//TRIM(keyword%names(1))// &
                           " has a type different from the type of the default_value")
+         END IF
          keyword%type_of_var = type_of_var
       END IF
 
@@ -325,15 +327,17 @@ CONTAINS
          IF (PRESENT(lone_keyword_l_val) .OR. PRESENT(lone_keyword_l_vals) .OR. &
              PRESENT(lone_keyword_i_val) .OR. PRESENT(lone_keyword_i_vals) .OR. &
              PRESENT(lone_keyword_r_val) .OR. PRESENT(lone_keyword_r_vals) .OR. &
-             PRESENT(lone_keyword_c_val) .OR. PRESENT(lone_keyword_c_vals)) &
+             PRESENT(lone_keyword_c_val) .OR. PRESENT(lone_keyword_c_vals)) THEN
             CALL cp_abort(__LOCATION__, &
                           "you should pass either lone_keyword_val or a lone_keyword value, not both")
+         END IF
          keyword%lone_keyword_value => lone_keyword_val
          CALL val_retain(lone_keyword_val)
          IF (ASSOCIATED(lone_keyword_val%enum)) THEN
             IF (ASSOCIATED(keyword%enum)) THEN
-               IF (.NOT. ASSOCIATED(keyword%enum, lone_keyword_val%enum)) &
+               IF (.NOT. ASSOCIATED(keyword%enum, lone_keyword_val%enum)) THEN
                   CPABORT("keyword%enum/=lone_keyword_val%enum")
+               END IF
             ELSE
                IF (ASSOCIATED(keyword%lone_keyword_value)) THEN
                   CPABORT(".NOT. ASSOCIATED(keyword%lone_keyword_value)")
@@ -355,8 +359,9 @@ CONTAINS
          IF (keyword%lone_keyword_value%type_of_var == no_t) THEN
             CALL val_release(keyword%lone_keyword_value)
          ELSE
-            IF (keyword%lone_keyword_value%type_of_var /= keyword%type_of_var) &
+            IF (keyword%lone_keyword_value%type_of_var /= keyword%type_of_var) THEN
                CPABORT("lone_keyword_value type incompatible with keyword type")
+            END IF
             ! lc_val cannot have lone_keyword_value!
             IF (keyword%type_of_var == enum_t) THEN
                IF (keyword%enum%strict) THEN
@@ -364,8 +369,9 @@ CONTAINS
                   DO i = 1, SIZE(keyword%enum%i_vals)
                      check = check .OR. (keyword%default_value%i_val(1) == keyword%enum%i_vals(i))
                   END DO
-                  IF (.NOT. check) &
+                  IF (.NOT. check) THEN
                      CPABORT("default value not in enumeration : "//keyword%names(1))
+                  END IF
                END IF
             END IF
          END IF
@@ -384,8 +390,9 @@ CONTAINS
                DO i = 1, SIZE(keyword%enum%i_vals)
                   check = check .OR. (keyword%default_value%i_val(1) == keyword%enum%i_vals(i))
                END DO
-               IF (.NOT. check) &
+               IF (.NOT. check) THEN
                   CPABORT("default value not in enumeration : "//keyword%names(1))
+               END IF
             END IF
             keyword%n_var = SIZE(keyword%default_value%i_val)
          CASE (real_t)
@@ -401,8 +408,9 @@ CONTAINS
          END SELECT
       END IF
       IF (PRESENT(n_var)) keyword%n_var = n_var
-      IF (keyword%type_of_var == lchar_t .AND. keyword%n_var /= 1) &
+      IF (keyword%type_of_var == lchar_t .AND. keyword%n_var /= 1) THEN
          CPABORT("arrays of lchar_t not supported : "//keyword%names(1))
+      END IF
 
       IF (PRESENT(unit_str)) THEN
          ALLOCATE (keyword%unit)
@@ -760,10 +768,11 @@ CONTAINS
          TRIM(substitute_special_xml_tokens(a2s(keyword%description))) &
          //"</DESCRIPTION>"
 
-      IF (ALLOCATED(keyword%deprecation_notice)) &
+      IF (ALLOCATED(keyword%deprecation_notice)) THEN
          WRITE (UNIT=unit_number, FMT="(A)") REPEAT(" ", l1)//"<DEPRECATION_NOTICE>"// &
-         TRIM(substitute_special_xml_tokens(keyword%deprecation_notice)) &
-         //"</DEPRECATION_NOTICE>"
+            TRIM(substitute_special_xml_tokens(keyword%deprecation_notice)) &
+            //"</DEPRECATION_NOTICE>"
+      END IF
 
       IF (ASSOCIATED(keyword%default_value) .AND. &
           (keyword%type_of_var /= no_t)) THEN

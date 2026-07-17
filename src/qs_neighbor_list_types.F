@@ -358,8 +358,9 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl
 
-      IF (SIZE(iterator_set) /= 1 .AND. .NOT. PRESENT(mepos)) &
+      IF (SIZE(iterator_set) /= 1 .AND. .NOT. PRESENT(mepos)) THEN
          CPABORT("Parallel iterator calls must include 'mepos'")
+      END IF
 
       IF (PRESENT(mepos)) THEN
          me = mepos
@@ -461,10 +462,10 @@ CONTAINS
          IF (iterator%inode >= iterator%nnode) THEN
             ! end of loop
             istat = 1
-         ELSEIF (iterator%inode == 0) THEN
+         ELSE IF (iterator%inode == 0) THEN
             iterator%inode = 1
             iterator%neighbor_node => first_node(iterator%neighbor_list)
-         ELSEIF (iterator%inode > 0) THEN
+         ELSE IF (iterator%inode > 0) THEN
             ! we can be sure that there is another node in this list
             iterator%inode = iterator%inode + 1
             iterator%neighbor_node => iterator%neighbor_node%next_neighbor_node

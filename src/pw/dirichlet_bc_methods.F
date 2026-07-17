@@ -905,7 +905,7 @@ CONTAINS
       END SELECT
 
       alpha = linspace(0.0_dp, 2*pi, n_dbcs + 1)
-      alpha_rotd = alpha + delta_alpha;
+      alpha_rotd = alpha + delta_alpha
       SELECT CASE (parallel_axis)
       CASE (x_axis)
          DO j = 1, n_dbcs
@@ -1180,7 +1180,7 @@ CONTAINS
       IF (direction == FWROT) THEN
          vec_tmp = MATMUL(Rmat, vec)
          vec_transfd = vec_tmp + Tp
-      ELSEIF (direction == BWROT) THEN
+      ELSE IF (direction == BWROT) THEN
          Rmat_inv = inv_3x3(Rmat)
          Tpoint(1) = Rmat_inv(1, 1)*Tp(1) + Rmat_inv(1, 2)*Tp(2) + Rmat_inv(1, 3)*Tp(3)
          Tpoint(2) = Rmat_inv(2, 1)*Tp(1) + Rmat_inv(2, 2)*Tp(2) + Rmat_inv(2, 3)*Tp(3)

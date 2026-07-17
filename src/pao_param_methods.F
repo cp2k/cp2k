@@ -231,8 +231,9 @@ CONTAINS
 
       CALL group%max(delta_max)
       IF (pao%iw > 0) WRITE (pao%iw, *) 'PAO| checked unitaryness, max delta:', delta_max
-      IF (delta_max > pao%check_unitary_tol) &
+      IF (delta_max > pao%check_unitary_tol) THEN
          CPABORT("Found bad unitaryness:"//cp_to_string(delta_max))
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE pao_assert_unitary

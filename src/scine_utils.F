@@ -117,15 +117,15 @@ CONTAINS
                DO j = 1, nc, 5
                   IF (nc > j + 4) THEN
                      WRITE (iounit, "(T12,5(F20.12,','))") hessian(nc, j:j + 4)
-                  ELSEIF (nc == j + 4) THEN
+                  ELSE IF (nc == j + 4) THEN
                      WRITE (iounit, "(T12,4(F20.12,','),F20.12,' ]')") hessian(nc, j:nc)
-                  ELSEIF (nc == j + 3) THEN
+                  ELSE IF (nc == j + 3) THEN
                      WRITE (iounit, "(T12,3(F20.12,','),F20.12,' ]')") hessian(nc, j:nc)
-                  ELSEIF (nc == j + 2) THEN
+                  ELSE IF (nc == j + 2) THEN
                      WRITE (iounit, "(T12,2(F20.12,','),F20.12,' ]')") hessian(nc, j:nc)
-                  ELSEIF (nc == j + 1) THEN
+                  ELSE IF (nc == j + 1) THEN
                      WRITE (iounit, "(T12,1(F20.12,','),F20.12,' ]')") hessian(nc, j:nc)
-                  ELSEIF (nc == j) THEN
+                  ELSE IF (nc == j) THEN
                      WRITE (iounit, "(T12,F20.12,' ]')") hessian(nc, j:nc)
                   END IF
                END DO
@@ -134,15 +134,15 @@ CONTAINS
                DO j = 1, nc, 5
                   IF (nc > j + 4) THEN
                      WRITE (iounit, "(T12,5(F20.12,','))") hessian(nc, j:j + 4)
-                  ELSEIF (nc == j + 4) THEN
+                  ELSE IF (nc == j + 4) THEN
                      WRITE (iounit, "(T12,4(F20.12,','),F20.12,' ]')") hessian(nc, j:nc)
-                  ELSEIF (nc == j + 3) THEN
+                  ELSE IF (nc == j + 3) THEN
                      WRITE (iounit, "(T12,3(F20.12,','),F20.12,' ]')") hessian(nc, j:nc)
-                  ELSEIF (nc == j + 2) THEN
+                  ELSE IF (nc == j + 2) THEN
                      WRITE (iounit, "(T12,2(F20.12,','),F20.12,' ]')") hessian(nc, j:nc)
-                  ELSEIF (nc == j + 1) THEN
+                  ELSE IF (nc == j + 1) THEN
                      WRITE (iounit, "(T12,1(F20.12,','),F20.12,' ]')") hessian(nc, j:nc)
-                  ELSEIF (nc == j) THEN
+                  ELSE IF (nc == j) THEN
                      WRITE (iounit, "(T12,F20.12,' ]')") hessian(nc, j:nc)
                   END IF
                END DO
@@ -151,15 +151,15 @@ CONTAINS
                DO j = 1, nc, 5
                   IF (nc > j + 4) THEN
                      WRITE (iounit, "(T12,5(F20.12,','))") hessian(nc, j:j + 4)
-                  ELSEIF (nc == j + 4) THEN
+                  ELSE IF (nc == j + 4) THEN
                      WRITE (iounit, "(T12,4(F20.12,','),F20.12,' ]')") hessian(nc, j:nc)
-                  ELSEIF (nc == j + 3) THEN
+                  ELSE IF (nc == j + 3) THEN
                      WRITE (iounit, "(T12,3(F20.12,','),F20.12,' ]')") hessian(nc, j:nc)
-                  ELSEIF (nc == j + 2) THEN
+                  ELSE IF (nc == j + 2) THEN
                      WRITE (iounit, "(T12,2(F20.12,','),F20.12,' ]')") hessian(nc, j:nc)
-                  ELSEIF (nc == j + 1) THEN
+                  ELSE IF (nc == j + 1) THEN
                      WRITE (iounit, "(T12,1(F20.12,','),F20.12,' ]')") hessian(nc, j:nc)
-                  ELSEIF (nc == j) THEN
+                  ELSE IF (nc == j) THEN
                      WRITE (iounit, "(T12,F20.12,' ]')") hessian(nc, j:nc)
                   END IF
                END DO

@@ -182,8 +182,9 @@ CONTAINS
       num_blocks_diff = ABS(num_blocks - num_blocks_dbcsr)
       IF (num_blocks_diff /= 0) THEN
          WRITE (*, *) "num_blocks mismatch dbcsr:", num_blocks_dbcsr, "new:", num_blocks
-         IF (DBM_VALIDATE_NBLOCKS_MATCH) &
+         IF (DBM_VALIDATE_NBLOCKS_MATCH) THEN
             CPABORT("num_blocks mismatch")
+         END IF
       END IF
 
       IF (DBM_VALIDATE_NBLOCKS_MATCH) THEN

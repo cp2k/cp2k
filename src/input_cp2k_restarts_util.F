@@ -62,10 +62,11 @@ CONTAINS
       CPASSERT(velocity_section%ref_count > 0)
       section => velocity_section%section
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
-      IF (ik == -2) &
+      IF (ik == -2) THEN
          CALL cp_abort(__LOCATION__, &
                        "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
+      END IF
 
       ! At least one of the two arguments must be present..
       check = PRESENT(particles) .NEQV. PRESENT(velocity)

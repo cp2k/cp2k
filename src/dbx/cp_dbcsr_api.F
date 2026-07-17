@@ -235,10 +235,11 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix
 
       CALL dbcsr_release(matrix)
-      IF (dbcsr_valid_index(matrix)) &
+      IF (dbcsr_valid_index(matrix)) THEN
          CALL cp_abort(__LOCATION__, &
                        'You should not "deallocate" a referenced matrix. '// &
                        'Avoid pointers to DBCSR matrices.')
+      END IF
       DEALLOCATE (matrix)
    END SUBROUTINE dbcsr_deallocate_matrix
 

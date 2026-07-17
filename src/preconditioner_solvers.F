@@ -91,8 +91,9 @@ CONTAINS
          ! make sure preconditioner_env is not destroyed in between
          occ_matrix = 1.0_dp
          IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-            IF (preconditioner_env%condition_num < 0.0_dp) &
+            IF (preconditioner_env%condition_num < 0.0_dp) THEN
                CALL estimate_cond_num(preconditioner_env%sparse_matrix, preconditioner_env%condition_num)
+            END IF
             CALL dbcsr_filter(preconditioner_env%sparse_matrix, &
                               1.0_dp/preconditioner_env%condition_num*0.01_dp)
             occ_matrix = dbcsr_get_occupation(preconditioner_env%sparse_matrix)

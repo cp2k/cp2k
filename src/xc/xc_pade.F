@@ -118,8 +118,9 @@ CONTAINS
       END IF
 
       IF (PRESENT(needs)) THEN
-         IF (.NOT. PRESENT(lsd)) &
+         IF (.NOT. PRESENT(lsd)) THEN
             CPABORT("Arguments mismatch.")
+         END IF
          IF (lsd) THEN
             needs%rho_spin = .TRUE.
          ELSE

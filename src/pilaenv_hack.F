@@ -18,6 +18,8 @@
 !> \return ...
 ! **************************************************************************************************
 INTEGER FUNCTION PILAENV(ICTXT, PREC)
+   IMPLICIT NONE
+
    INTEGER :: ICTXT
    CHARACTER(LEN=1) :: PREC
 
@@ -29,5 +31,5 @@ END FUNCTION PILAENV
 !> \brief ...
 ! **************************************************************************************************
 SUBROUTINE NAG_dummy()
-
+   IMPLICIT NONE
 END SUBROUTINE NAG_dummy

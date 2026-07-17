@@ -761,8 +761,9 @@ CONTAINS
          END IF
       END SELECT
 
-      IF (PRESENT(extrapolation_method_nr)) &
+      IF (PRESENT(extrapolation_method_nr)) THEN
          extrapolation_method_nr = actual_extrapolation_method_nr
+      END IF
       my_orthogonal_wf = .FALSE.
 
       SELECT CASE (actual_extrapolation_method_nr)
@@ -2305,8 +2306,9 @@ CONTAINS
             wfi_linear_ps_method_nr, wfi_ps_method_nr, &
             wfi_aspc_nr, wfi_gext_proj_nr, wfi_gext_proj_qtr_nr)
          IF (qs_env%wf_history%snapshot_count >= 2) THEN
-            IF (debug_this_module .AND. io_unit > 0) &
+            IF (debug_this_module .AND. io_unit > 0) THEN
                WRITE (io_unit, FMT="(T2,A)") "QS| Purging WFN history"
+            END IF
             CALL wfi_create(wf_history, interpolation_method_nr= &
                             dft_control%qs_control%wf_interpolation_method_nr, &
                             extrapolation_order=dft_control%qs_control%wf_extrapolation_order, &

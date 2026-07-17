@@ -516,7 +516,7 @@ CONTAINS
 
          IF (exponent > exp_max_val) THEN
             boltz_weights(imove) = max_val
-         ELSEIF (exponent < exp_min_val) THEN
+         ELSE IF (exponent < exp_min_val) THEN
             boltz_weights(imove) = min_val
          ELSE
             boltz_weights(imove) = EXP(exponent)
@@ -587,8 +587,9 @@ CONTAINS
       END IF
 
 ! make sure a configuration was chosen
-      IF (choosen == 0) &
+      IF (choosen == 0) THEN
          CPABORT('CBMC swap move failed to select config')
+      END IF
 
 ! if this is an old configuration, we always choose the first one
       IF (lremove) choosen = 1
@@ -761,7 +762,7 @@ CONTAINS
             start_atom = start_atom + nunits(mol_type(start_mol + imolecule - 1))
          END DO
 
-      ELSEIF (PRESENT(box)) THEN
+      ELSE IF (PRESENT(box)) THEN
 ! any molecule in box...need to find molecule type and start atom
          rand = rng_stream%next()
          molecule_number = CEILING(rand*REAL(SUM(nchains(:, box)), KIND=dp))
@@ -779,7 +780,7 @@ CONTAINS
             start_atom = start_atom + nunits(mol_type(start_mol + imolecule - 1))
          END DO
 
-      ELSEIF (PRESENT(molecule_type_old)) THEN
+      ELSE IF (PRESENT(molecule_type_old)) THEN
 ! any molecule of type molecule_type_old...need to find box number and start atom
          rand = rng_stream%next()
          molecule_number = CEILING(rand*REAL(SUM(nchains(molecule_type_old, :)), KIND=dp))

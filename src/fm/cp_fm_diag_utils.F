@@ -200,12 +200,14 @@ CONTAINS
       ncpu = num_pe_old - nzero
 
       ! Avoid layouts with odd number of CPUs (blacs grid layout will be square)
-      IF (ncpu > 2) &
+      IF (ncpu > 2) THEN
          ncpu = ncpu - MODULO(ncpu, 2)
+      END IF
 
       ! if there are no zero-width columns and the number of processors was even, leave it at that
-      IF (ncpu == num_pe_old) &
+      IF (ncpu == num_pe_old) THEN
          RETURN
+      END IF
 
       ! Iteratively search for the maximum number of CPUs for ELPA
       ! On each step, we test whether the blacs grid created with ncpu processes
@@ -216,8 +218,9 @@ CONTAINS
          gcd_max = -1
          DO ipe = 1, CEILING(SQRT(REAL(ncpu, dp)))
             jpe = ncpu/ipe
-            IF (ipe*jpe /= ncpu) &
+            IF (ipe*jpe /= ncpu) THEN
                CYCLE
+            END IF
             IF (gcd(ipe, jpe) >= gcd_max) THEN
                npcol = jpe
                gcd_max = gcd(ipe, jpe)
@@ -228,17 +231,20 @@ CONTAINS
          ! (snippet copied from cp_fm_struct.F:cp_fm_struct_create)
          nzero = 0
          DO ipe = 0, npcol - 1
-            IF (numroc(ncol_global, ncol_block, ipe, 0, npcol) == 0) &
+            IF (numroc(ncol_global, ncol_block, ipe, 0, npcol) == 0) THEN
                nzero = nzero + 1
+            END IF
          END DO
 
-         IF (nzero == 0) &
+         IF (nzero == 0) THEN
             EXIT
+         END IF
 
          ncpu = ncpu - nzero
 
-         IF (ncpu > 2) &
+         IF (ncpu > 2) THEN
             ncpu = ncpu - MODULO(ncpu, 2)
+         END IF
       END DO
 
    END FUNCTION cp_fm_max_ncpu_non_zero_column
@@ -423,8 +429,9 @@ CONTAINS
          eigenvectors_new = eigenvectors
       END IF
 
-      IF (PRESENT(redist_info)) &
+      IF (PRESENT(redist_info)) THEN
          redist_info = rdinfo
+      END IF
 #else
 
       MARK_USED(matrix)

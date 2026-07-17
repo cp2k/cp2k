@@ -39,6 +39,7 @@ MODULE ct_methods
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
+   USE mathconstants,                   ONLY: pi
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1378,13 +1379,11 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: nmins
 
       INTEGER                                            :: i, nroots
-      REAL(KIND=dp)                                      :: DD, der, p, phi, pi, q, temp1, temp2, u, &
-                                                            v, y1, y2, y2i, y2r, y3
+      REAL(KIND=dp)                                      :: DD, der, p, phi, q, temp1, temp2, u, v, &
+                                                            y1, y2, y2i, y2r, y3
       REAL(KIND=dp), DIMENSION(3)                        :: x
 
 !    CALL timeset(routineN,handle)
-
-      pi = ACOS(-1.0_dp)
 
       ! Step 0: Check coefficients and find the true order of the eq
       IF (a == 0.0_dp) THEN
@@ -1520,8 +1519,9 @@ CONTAINS
 
       ! create a matrix for eigenvectors
       CALL dbcsr_work_create(c, work_mutable=.TRUE.)
-      IF (do_eigenvalues) &
+      IF (do_eigenvalues) THEN
          CALL dbcsr_work_create(e, work_mutable=.TRUE.)
+      END IF
 
       CALL dbcsr_iterator_readonly_start(iter, matrix)
 

@@ -21,6 +21,7 @@ MODULE xc_xalpha
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: pi
    USE pw_types,                        ONLY: pw_r3d_rs_type
    USE xc_derivative_desc,              ONLY: deriv_rho,&
                                               deriv_rhoa,&
@@ -40,8 +41,6 @@ MODULE xc_xalpha
    PRIVATE
 
 ! *** Global parameters ***
-
-   REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
    REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
                                f23 = 2.0_dp*f13, &
                                f43 = 4.0_dp*f13

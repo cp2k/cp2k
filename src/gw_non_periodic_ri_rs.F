@@ -258,14 +258,16 @@ CONTAINS
 
          DO i = 1, SIZE(zet_ao, 1)
             DO j = 1, SIZE(zet_ao, 2)
-               IF (zet_ao(i, j) > 1.0E-3_dp) &
+               IF (zet_ao(i, j) > 1.0E-3_dp) THEN
                   alpha_min_ao_kind(ikind) = MIN(alpha_min_ao_kind(ikind), zet_ao(i, j))
+               END IF
             END DO
          END DO
          DO i = 1, SIZE(zet_ri, 1)
             DO j = 1, SIZE(zet_ri, 2)
-               IF (zet_ri(i, j) > 1.0E-3_dp) &
+               IF (zet_ri(i, j) > 1.0E-3_dp) THEN
                   alpha_min_ri_kind(ikind) = MIN(alpha_min_ri_kind(ikind), zet_ri(i, j))
+               END IF
             END DO
          END DO
       END DO

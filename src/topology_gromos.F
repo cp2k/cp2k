@@ -607,10 +607,12 @@ CONTAINS
       DEALLOCATE (na)
       DEALLOCATE (am)
       DEALLOCATE (ac)
-      IF (ASSOCIATED(ba)) &
+      IF (ASSOCIATED(ba)) THEN
          DEALLOCATE (ba)
-      IF (ASSOCIATED(bb)) &
+      END IF
+      IF (ASSOCIATED(bb)) THEN
          DEALLOCATE (bb)
+      END IF
 
       CALL timestop(handle)
       CALL cp_print_key_finished_output(iw, logger, subsys_section, &

@@ -120,7 +120,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: norm
 
       gradient = gradient - DOT_PRODUCT(gradient, dimer_env%nvec)*dimer_env%nvec
-      norm = SQRT(DOT_PRODUCT(gradient, gradient))
+      norm = NORM2(gradient)
       IF (norm < EPSILON(0.0_dp)) THEN
          ! This means that NVEC is totally aligned with minimum curvature mode
          gradient = 0.0_dp

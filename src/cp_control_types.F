@@ -891,8 +891,9 @@ CONTAINS
    SUBROUTINE mulliken_control_release(mulliken_restraint_control)
       TYPE(mulliken_restraint_type), INTENT(INOUT)       :: mulliken_restraint_control
 
-      IF (ASSOCIATED(mulliken_restraint_control%atoms)) &
+      IF (ASSOCIATED(mulliken_restraint_control%atoms)) THEN
          DEALLOCATE (mulliken_restraint_control%atoms)
+      END IF
       mulliken_restraint_control%strength = 0.0_dp
       mulliken_restraint_control%target = 0.0_dp
       mulliken_restraint_control%natoms = 0
@@ -927,10 +928,12 @@ CONTAINS
    SUBROUTINE ddapc_control_release(ddapc_restraint_control)
       TYPE(ddapc_restraint_type), INTENT(INOUT)          :: ddapc_restraint_control
 
-      IF (ASSOCIATED(ddapc_restraint_control%atoms)) &
+      IF (ASSOCIATED(ddapc_restraint_control%atoms)) THEN
          DEALLOCATE (ddapc_restraint_control%atoms)
-      IF (ASSOCIATED(ddapc_restraint_control%coeff)) &
+      END IF
+      IF (ASSOCIATED(ddapc_restraint_control%coeff)) THEN
          DEALLOCATE (ddapc_restraint_control%coeff)
+      END IF
       ddapc_restraint_control%strength = 0.0_dp
       ddapc_restraint_control%target = 0.0_dp
       ddapc_restraint_control%natoms = 0
@@ -1207,18 +1210,21 @@ CONTAINS
       IF (ASSOCIATED(proj_mo_list)) THEN
          DO i = 1, SIZE(proj_mo_list)
             IF (ASSOCIATED(proj_mo_list(i)%proj_mo)) THEN
-               IF (ALLOCATED(proj_mo_list(i)%proj_mo%ref_mo_index)) &
+               IF (ALLOCATED(proj_mo_list(i)%proj_mo%ref_mo_index)) THEN
                   DEALLOCATE (proj_mo_list(i)%proj_mo%ref_mo_index)
+               END IF
                IF (ALLOCATED(proj_mo_list(i)%proj_mo%mo_ref)) THEN
                   DO mo_ref_nbr = 1, SIZE(proj_mo_list(i)%proj_mo%mo_ref)
                      CALL cp_fm_release(proj_mo_list(i)%proj_mo%mo_ref(mo_ref_nbr))
                   END DO
                   DEALLOCATE (proj_mo_list(i)%proj_mo%mo_ref)
                END IF
-               IF (ALLOCATED(proj_mo_list(i)%proj_mo%td_mo_index)) &
+               IF (ALLOCATED(proj_mo_list(i)%proj_mo%td_mo_index)) THEN
                   DEALLOCATE (proj_mo_list(i)%proj_mo%td_mo_index)
-               IF (ALLOCATED(proj_mo_list(i)%proj_mo%td_mo_occ)) &
+               END IF
+               IF (ALLOCATED(proj_mo_list(i)%proj_mo%td_mo_occ)) THEN
                   DEALLOCATE (proj_mo_list(i)%proj_mo%td_mo_occ)
+               END IF
                DEALLOCATE (proj_mo_list(i)%proj_mo)
             END IF
          END DO
@@ -1244,8 +1250,9 @@ CONTAINS
                IF (ASSOCIATED(efield_fields(i)%efield%envelop_i_vars)) THEN
                   DEALLOCATE (efield_fields(i)%efield%envelop_i_vars)
                END IF
-               IF (ASSOCIATED(efield_fields(i)%efield%polarisation)) &
+               IF (ASSOCIATED(efield_fields(i)%efield%polarisation)) THEN
                   DEALLOCATE (efield_fields(i)%efield%polarisation)
+               END IF
                DEALLOCATE (efield_fields(i)%efield)
             END IF
          END DO

@@ -110,8 +110,9 @@ CONTAINS
             g3d = fourpi/g2
             screen_function%array(ig) = screen_function%array(ig) - g3d*EXP(-g2/(4.0E0_dp*alpha2))
          END DO
-         IF (screen_function%pw_grid%have_g0) &
+         IF (screen_function%pw_grid%have_g0) THEN
             screen_function%array(1) = screen_function%array(1) + fourpi/(4.0E0_dp*alpha2)
+         END IF
       CASE (MT2D)
          iz = special_dimension ! iz is the direction with NO PBC
          zlength = slab_size ! zlength is the thickness of the cell

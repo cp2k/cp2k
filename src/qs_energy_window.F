@@ -88,7 +88,7 @@ CONTAINS
       INTEGER                                            :: handle, i, lanzcos_max_iter, last, nao, &
                                                             nelectron_total, newton_schulz_order, &
                                                             next, nwindows, print_unit, unit_nr
-      INTEGER, DIMENSION(:), POINTER                     :: stride(:)
+      INTEGER, DIMENSION(:), POINTER                     :: stride
       LOGICAL                                            :: mpi_io, print_cube, restrict_range
       REAL(KIND=dp) :: bin_width, density_ewindow_total, density_total, energy_range, fermi_level, &
          filter_eps, frob_norm, lanzcos_threshold, lower_bound, occupation, upper_bound

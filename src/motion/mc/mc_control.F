@@ -372,8 +372,9 @@ CONTAINS
       CALL destroy_force_env(f_env_id, ierr, .FALSE.)
       IF (ierr /= 0) CPABORT("mc_create_force_env: destroy_force_env failed")
 
-      IF (PRESENT(globenv_new)) &
+      IF (PRESENT(globenv_new)) THEN
          CALL force_env_get(force_env, globenv=globenv_new)
+      END IF
 
    END SUBROUTINE mc_create_force_env
 
@@ -408,9 +409,10 @@ CONTAINS
       TYPE(mc_input_file_type), POINTER                  :: mc_input_file
       LOGICAL, INTENT(IN)                                :: ionode
 
-      IF (ionode) &
+      IF (ionode) THEN
          CALL mc_make_dat_file_new(r(:, :), atom_symbols, nunits_tot, &
                                    box_length(:), 'bias_temp.dat', nchains(:), mc_input_file)
+      END IF
 
       CALL mc_create_force_env(bias_env, input_declaration, para_env, 'bias_temp.dat')
 

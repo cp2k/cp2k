@@ -164,20 +164,23 @@ CONTAINS
          CALL section_vals_val_get(xc_section, "gradient_cutoff", r_val=gradient_cut)
          CALL section_vals_val_get(xc_section, "tau_cutoff", r_val=tau_cut)
          ! Perform numerical stability checks and possibly correct the issues
-         IF (density_cut <= EPSILON(0.0_dp)*100.0_dp) &
+         IF (density_cut <= EPSILON(0.0_dp)*100.0_dp) THEN
             CALL cp_warn(__LOCATION__, &
                          "DENSITY_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "// &
                          "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! ")
+         END IF
          density_cut = MAX(EPSILON(0.0_dp)*100.0_dp, density_cut)
-         IF (gradient_cut <= EPSILON(0.0_dp)*100.0_dp) &
+         IF (gradient_cut <= EPSILON(0.0_dp)*100.0_dp) THEN
             CALL cp_warn(__LOCATION__, &
                          "GRADIENT_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "// &
                          "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! ")
+         END IF
          gradient_cut = MAX(EPSILON(0.0_dp)*100.0_dp, gradient_cut)
-         IF (tau_cut <= EPSILON(0.0_dp)*100.0_dp) &
+         IF (tau_cut <= EPSILON(0.0_dp)*100.0_dp) THEN
             CALL cp_warn(__LOCATION__, &
                          "TAU_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "// &
                          "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! ")
+         END IF
          tau_cut = MAX(EPSILON(0.0_dp)*100.0_dp, tau_cut)
          CALL section_vals_val_set(xc_section, "density_cutoff", r_val=density_cut)
          CALL section_vals_val_set(xc_section, "gradient_cutoff", r_val=gradient_cut)
@@ -416,8 +419,9 @@ CONTAINS
 
          IF (dft_control%admm_control%purification_method == do_admm_purify_mo_diag .OR. &
              dft_control%admm_control%purification_method == do_admm_purify_mo_no_diag) THEN
-            IF (dft_control%admm_control%method /= do_admm_basis_projection) &
+            IF (dft_control%admm_control%method /= do_admm_basis_projection) THEN
                CPABORT("ADMM: Chosen purification requires BASIS_PROJECTION")
+            END IF
 
             IF (.NOT. do_ot) CPABORT("ADMM: MO-based purification requires OT.")
          END IF
@@ -440,9 +444,10 @@ CONTAINS
       CALL section_vals_val_get(dft_section, "MULTIPLICITY", i_val=dft_control%multiplicity)
       CALL section_vals_val_get(dft_section, "RELAX_MULTIPLICITY", r_val=dft_control%relax_multiplicity)
       IF (dft_control%relax_multiplicity > 0.0_dp) THEN
-         IF (.NOT. dft_control%uks) &
+         IF (.NOT. dft_control%uks) THEN
             CALL cp_abort(__LOCATION__, "The option RELAX_MULTIPLICITY is only valid for "// &
                           "unrestricted Kohn-Sham (UKS) calculations")
+         END IF
       END IF
 
       !Read the HAIR PROBES input section if present
@@ -578,8 +583,9 @@ CONTAINS
          CALL section_vals_val_get(tmp_section, "POLARISATION", r_vals=pol)
          dft_control%period_efield%polarisation(1:3) = pol(1:3)
          IF (PRESENT(cell)) THEN
-            IF (ASSOCIATED(cell)) &
+            IF (ASSOCIATED(cell)) THEN
                CALL cell_transform_input_cartesian(cell, dft_control%period_efield%polarisation(1:3))
+            END IF
          END IF
          CALL section_vals_val_get(tmp_section, "D_FILTER", r_vals=pol)
          dft_control%period_efield%d_filter(1:3) = pol(1:3)
@@ -659,11 +665,12 @@ CONTAINS
          END IF
 
          ! periodic fields don't work with RTP
-         IF (do_rtp) &
+         IF (do_rtp) THEN
             CALL cp_abort(__LOCATION__, &
                           "Periodic efield cannot be used with RTP. When restarting a "// &
                           "run with periodic efield, set RESTART_RTP under &EXT_RESTART "// &
                           "section to .FALSE. explicitly if RESTART_DEFAULT is .TRUE.")
+         END IF
          IF (dft_control%period_efield%displacement_field) THEN
             CALL cite_reference(Stengel2009)
          ELSE
@@ -1232,8 +1239,9 @@ CONTAINS
             jj = jj + SIZE(tmplist)
          END DO
          qs_control%mulliken_restraint_control%natoms = jj
-         IF (qs_control%mulliken_restraint_control%natoms < 1) &
+         IF (qs_control%mulliken_restraint_control%natoms < 1) THEN
             CPABORT("Need at least 1 atom to use mulliken constraints")
+         END IF
          ALLOCATE (qs_control%mulliken_restraint_control%atoms(qs_control%mulliken_restraint_control%natoms))
          jj = 0
          DO k = 1, n_rep
@@ -1281,10 +1289,11 @@ CONTAINS
          CALL section_vals_val_get(se_section, "INTEGRAL_SCREENING", &
                                    i_val=qs_control%se_control%integral_screening)
          IF (qs_control%method_id == do_method_pnnl) THEN
-            IF (qs_control%se_control%integral_screening /= do_se_IS_slater) &
+            IF (qs_control%se_control%integral_screening /= do_se_IS_slater) THEN
                CALL cp_warn(__LOCATION__, &
                             "PNNL semi-empirical parameterization supports only the Slater type "// &
                             "integral scheme. Revert to Slater and continue the calculation.")
+            END IF
             qs_control%se_control%integral_screening = do_se_IS_slater
          END IF
          ! Global Arrays variable
@@ -1349,21 +1358,23 @@ CONTAINS
             qs_control%se_control%do_ewald = .FALSE.
             qs_control%se_control%do_ewald_r3 = .FALSE.
             qs_control%se_control%do_ewald_gks = .TRUE.
-            IF (qs_control%method_id /= do_method_pnnl) &
+            IF (qs_control%method_id /= do_method_pnnl) THEN
                CALL cp_abort(__LOCATION__, &
                              "A periodic semi-empirical calculation was requested with a long-range  "// &
                              "summation on the single integral evaluation. This scheme is supported  "// &
                              "only by the PNNL parameterization.")
+            END IF
          CASE (do_se_lr_ewald_r3)
             qs_control%se_control%do_ewald = .TRUE.
             qs_control%se_control%do_ewald_r3 = .TRUE.
             qs_control%se_control%do_ewald_gks = .FALSE.
-            IF (qs_control%se_control%integral_screening /= do_se_IS_kdso) &
+            IF (qs_control%se_control%integral_screening /= do_se_IS_kdso) THEN
                CALL cp_abort(__LOCATION__, &
                              "A periodic semi-empirical calculation was requested with a long-range  "// &
                              "summation for the slowly convergent part 1/R^3, which is not congruent "// &
                              "with the integral screening chosen. The only integral screening supported "// &
                              "by this periodic type calculation is the standard Klopman-Dewar-Sabelli-Ohno.")
+            END IF
          END SELECT
 
          ! dispersion pair potentials
@@ -1427,18 +1438,21 @@ CONTAINS
                                         "DFTB/TBLITE_MIXER")
          IF (qs_control%do_ls_scf) THEN
             IF (dftb_scc_mixer_explicit .AND. &
-                qs_control%dftb_control%tblite_scc_mixer /= tblite_scc_mixer_none) &
+                qs_control%dftb_control%tblite_scc_mixer /= tblite_scc_mixer_none) THEN
                CALL cp_warn(__LOCATION__, &
                             "DFTB/SCC_MIXER is reset to NONE with QS/LS_SCF; LS_SCF optimizes "// &
                             "the density matrix directly.")
-            IF (dftb_tblite_mixer_explicit) &
+            END IF
+            IF (dftb_tblite_mixer_explicit) THEN
                CALL cp_warn(__LOCATION__, &
                             "DFTB/TBLITE_MIXER settings are ignored with QS/LS_SCF; LS_SCF controls "// &
                             "the density-matrix optimization.")
+            END IF
             qs_control%dftb_control%tblite_scc_mixer = tblite_scc_mixer_none
          END IF
-         IF (qs_control%dftb_control%tblite_mixer_damping <= 0.0_dp) &
+         IF (qs_control%dftb_control%tblite_mixer_damping <= 0.0_dp) THEN
             CPABORT("DFTB/TBLITE_MIXER/DAMPING must be positive")
+         END IF
          CALL section_vals_val_get(dftb_section, "EPS_DISP", &
                                    r_val=qs_control%dftb_control%eps_disp)
          CALL section_vals_val_get(dftb_section, "DO_EWALD", explicit=explicit)
@@ -1498,8 +1512,9 @@ CONTAINS
          CALL section_vals_val_get(xtb_tblite, "_SECTION_PARAMETERS_", l_val=tblite_section_active)
          qs_control%xtb_control%do_tblite = (qs_control%xtb_control%gfn_type == gfn_tblite)
          IF (qs_control%xtb_control%do_tblite) THEN
-            IF (.NOT. tblite_section_active) &
+            IF (.NOT. tblite_section_active) THEN
                CPABORT("XTB/GFN_TYPE TBLITE requires an XTB/TBLITE section")
+            END IF
             ! The CP2K-internal GFN1 defaults are still used to initialize shared xTB fields.
             qs_control%xtb_control%gfn_type = gfn1xtb
          ELSE IF (tblite_section_active) THEN
@@ -1520,37 +1535,43 @@ CONTAINS
                                         qs_control%xtb_control%tblite_mixer_max_weight, &
                                         qs_control%xtb_control%tblite_mixer_weight_factor, &
                                         "XTB/TBLITE_MIXER")
-         IF (xtb_tblite_mixer_explicit) &
+         IF (xtb_tblite_mixer_explicit) THEN
             CALL section_vals_val_get(xtb_tblite_mixer, "DAMPING", &
                                       explicit=qs_control%xtb_control%tblite_mixer_damping_explicit)
+         END IF
          IF ((.NOT. qs_control%xtb_control%do_tblite) .AND. &
              qs_control%xtb_control%gfn_type == 0) THEN
             IF (xtb_scc_mixer_explicit .AND. &
                 qs_control%xtb_control%tblite_scc_mixer /= tblite_scc_mixer_auto .AND. &
-                qs_control%xtb_control%tblite_scc_mixer /= tblite_scc_mixer_none) &
+                qs_control%xtb_control%tblite_scc_mixer /= tblite_scc_mixer_none) THEN
                CALL cp_warn(__LOCATION__, &
                             "XTB/SCC_MIXER is reset to NONE for CP2K-internal GFN0-xTB; "// &
                             "GFN0-xTB has no SCC variables to mix.")
-            IF (xtb_tblite_mixer_explicit) &
+            END IF
+            IF (xtb_tblite_mixer_explicit) THEN
                CALL cp_warn(__LOCATION__, &
                             "XTB/TBLITE_MIXER settings are ignored for CP2K-internal GFN0-xTB; "// &
                             "GFN0-xTB has no SCC variables to mix.")
+            END IF
             qs_control%xtb_control%tblite_scc_mixer = tblite_scc_mixer_none
          END IF
          IF (qs_control%do_ls_scf) THEN
             IF (xtb_scc_mixer_explicit .AND. &
-                qs_control%xtb_control%tblite_scc_mixer /= tblite_scc_mixer_none) &
+                qs_control%xtb_control%tblite_scc_mixer /= tblite_scc_mixer_none) THEN
                CALL cp_warn(__LOCATION__, &
                             "XTB/SCC_MIXER is reset to NONE with QS/LS_SCF; LS_SCF optimizes "// &
                             "the density matrix directly.")
-            IF (xtb_tblite_mixer_explicit) &
+            END IF
+            IF (xtb_tblite_mixer_explicit) THEN
                CALL cp_warn(__LOCATION__, &
                             "XTB/TBLITE_MIXER settings are ignored with QS/LS_SCF; LS_SCF controls "// &
                             "the density-matrix optimization.")
+            END IF
             qs_control%xtb_control%tblite_scc_mixer = tblite_scc_mixer_none
          END IF
-         IF (qs_control%xtb_control%tblite_mixer_damping <= 0.0_dp) &
+         IF (qs_control%xtb_control%tblite_mixer_damping <= 0.0_dp) THEN
             CPABORT("XTB/TBLITE_MIXER/DAMPING must be positive")
+         END IF
          CALL section_vals_val_get(xtb_section, "DO_EWALD", explicit=explicit)
          IF (explicit) THEN
             CALL section_vals_val_get(xtb_section, "DO_EWALD", &
@@ -1870,14 +1891,17 @@ CONTAINS
                                    c_val=qs_control%xtb_control%tblite_param_file)
          CALL section_vals_val_get(xtb_tblite, "ACCURACY", &
                                    r_val=qs_control%xtb_control%tblite_accuracy)
-         IF (qs_control%xtb_control%tblite_accuracy <= 0.0_dp) &
+         IF (qs_control%xtb_control%tblite_accuracy <= 0.0_dp) THEN
             CPABORT("XTB/TBLITE/ACCURACY must be positive")
-         IF (qs_control%xtb_control%tblite_mixer_damping <= 0.0_dp) &
+         END IF
+         IF (qs_control%xtb_control%tblite_mixer_damping <= 0.0_dp) THEN
             CPABORT("XTB/TBLITE_MIXER/DAMPING must be positive")
+         END IF
          CALL section_vals_val_get(xtb_tblite, "REFERENCE_CLI", l_val=tblite_reference_cli)
          CALL section_vals_get(xtb_tblite_ref_cli, explicit=tblite_reference_cli_section)
-         IF (tblite_reference_cli .AND. (.NOT. tblite_reference_cli_section)) &
+         IF (tblite_reference_cli .AND. (.NOT. tblite_reference_cli_section)) THEN
             CPABORT("XTB/TBLITE/REFERENCE_CLI keyword requires an XTB/TBLITE/REFERENCE_CLI section")
+         END IF
          IF (tblite_reference_cli .OR. tblite_reference_cli_section) THEN
             CALL read_xtb_reference_cli_section(xtb_tblite_ref_cli, qs_control%xtb_control%reference_cli, cell)
             qs_control%xtb_control%reference_cli%enabled = .TRUE.
@@ -1941,8 +1965,9 @@ CONTAINS
       IF (omega0 <= 0.0_dp) CPABORT(TRIM(section_name)//"/OMEGA0 must be positive")
       IF (min_weight <= 0.0_dp) CPABORT(TRIM(section_name)//"/MIN_WEIGHT must be positive")
       IF (max_weight <= 0.0_dp) CPABORT(TRIM(section_name)//"/MAX_WEIGHT must be positive")
-      IF (max_weight < min_weight) &
+      IF (max_weight < min_weight) THEN
          CPABORT(TRIM(section_name)//"/MAX_WEIGHT must not be smaller than MIN_WEIGHT")
+      END IF
       IF (weight_factor <= 0.0_dp) CPABORT(TRIM(section_name)//"/WEIGHT_FACTOR must be positive")
 
    END SUBROUTINE read_tblite_mixer_section
@@ -1991,11 +2016,13 @@ CONTAINS
          CALL section_vals_val_get(solvation_section, "SOLVENT", c_val=ref_cli%solvation_solvent)
          CALL section_vals_val_get(solvation_section, "BORN_KERNEL", i_val=ref_cli%solvation_born_kernel)
          CALL section_vals_val_get(solvation_section, "SOLUTION_STATE", i_val=ref_cli%solvation_state)
-         IF (LEN_TRIM(ref_cli%solvation_solvent) == 0) &
+         IF (LEN_TRIM(ref_cli%solvation_solvent) == 0) THEN
             CPABORT("REFERENCE_CLI implicit solvation needs SOLVENT")
+         END IF
          IF (ref_cli%solvation_model == tblite_cli_solvation_cpcm .AND. &
-             ref_cli%solvation_born_kernel /= tblite_cli_born_kernel_auto) &
+             ref_cli%solvation_born_kernel /= tblite_cli_born_kernel_auto) THEN
             CPABORT("BORN_KERNEL is invalid with MODEL CPCM")
+         END IF
          IF (ref_cli%solvation_state /= tblite_cli_solution_state_gsolv) THEN
             SELECT CASE (ref_cli%solvation_model)
             CASE (tblite_cli_solvation_alpb, tblite_cli_solvation_gbsa)
@@ -2007,18 +2034,21 @@ CONTAINS
       END IF
       CALL section_vals_val_get(ref_cli_section, "ELECTRONIC_TEMPERATURE_GUESS", &
                                 r_val=ref_cli%electronic_temperature_guess)
-      IF (ref_cli%electronic_temperature_guess < 0.0_dp) &
+      IF (ref_cli%electronic_temperature_guess < 0.0_dp) THEN
          CPABORT("XTB/TBLITE/REFERENCE_CLI/ELECTRONIC_TEMPERATURE_GUESS must not be negative")
-      IF (ref_cli%electronic_temperature_guess > 0.0_dp .AND. ref_cli%guess /= tblite_guess_ceh) &
+      END IF
+      IF (ref_cli%electronic_temperature_guess > 0.0_dp .AND. ref_cli%guess /= tblite_guess_ceh) THEN
          CPABORT("XTB/TBLITE/REFERENCE_CLI/ELECTRONIC_TEMPERATURE_GUESS requires GUESS CEH")
+      END IF
       guess_section => section_vals_get_subs_vals(ref_cli_section, "GUESS_CLI")
       CALL section_vals_get(guess_section, explicit=ref_cli%guess_cli%enabled)
       IF (ref_cli%guess_cli%enabled) THEN
          CALL section_vals_val_get(guess_section, "METHOD", i_val=ref_cli%guess_cli%method)
          CALL section_vals_val_get(guess_section, "ELECTRONIC_TEMPERATURE_GUESS", &
                                    r_val=ref_cli%guess_cli%electronic_temperature_guess)
-         IF (ref_cli%guess_cli%electronic_temperature_guess < 0.0_dp) &
+         IF (ref_cli%guess_cli%electronic_temperature_guess < 0.0_dp) THEN
             CPABORT("REFERENCE_CLI/GUESS_CLI/ELECTRONIC_TEMPERATURE_GUESS must not be negative")
+         END IF
          CALL section_vals_val_get(guess_section, "SOLVER", i_val=ref_cli%guess_cli%solver)
          CALL section_vals_val_get(guess_section, "EFIELD", explicit=ref_cli%guess_cli%efield_active)
          IF (ref_cli%guess_cli%efield_active) THEN
@@ -2049,10 +2079,12 @@ CONTAINS
          CALL section_vals_val_get(fit_section, "INPUT_FILE", c_val=ref_cli%fit_cli%input_file)
          CALL section_vals_val_get(fit_section, "DRY_RUN", l_val=ref_cli%fit_cli%dry_run)
          CALL section_vals_val_get(fit_section, "COPY", c_val=ref_cli%fit_cli%copy_file)
-         IF (LEN_TRIM(ref_cli%fit_cli%param_file) == 0) &
+         IF (LEN_TRIM(ref_cli%fit_cli%param_file) == 0) THEN
             CPABORT("XTB/TBLITE/REFERENCE_CLI/FIT_CLI needs PARAM_FILE")
-         IF (LEN_TRIM(ref_cli%fit_cli%input_file) == 0) &
+         END IF
+         IF (LEN_TRIM(ref_cli%fit_cli%input_file) == 0) THEN
             CPABORT("XTB/TBLITE/REFERENCE_CLI/FIT_CLI needs INPUT_FILE")
+         END IF
       END IF
       tagdiff_section => section_vals_get_subs_vals(ref_cli_section, "TAGDIFF_CLI")
       CALL section_vals_get(tagdiff_section, explicit=ref_cli%tagdiff_cli%enabled)
@@ -2060,10 +2092,12 @@ CONTAINS
          CALL section_vals_val_get(tagdiff_section, "ACTUAL", c_val=ref_cli%tagdiff_cli%actual_file)
          CALL section_vals_val_get(tagdiff_section, "REFERENCE", c_val=ref_cli%tagdiff_cli%reference_file)
          CALL section_vals_val_get(tagdiff_section, "FIT", l_val=ref_cli%tagdiff_cli%fit)
-         IF (LEN_TRIM(ref_cli%tagdiff_cli%actual_file) == 0) &
+         IF (LEN_TRIM(ref_cli%tagdiff_cli%actual_file) == 0) THEN
             CPABORT("XTB/TBLITE/REFERENCE_CLI/TAGDIFF_CLI needs ACTUAL")
-         IF (LEN_TRIM(ref_cli%tagdiff_cli%reference_file) == 0) &
+         END IF
+         IF (LEN_TRIM(ref_cli%tagdiff_cli%reference_file) == 0) THEN
             CPABORT("XTB/TBLITE/REFERENCE_CLI/TAGDIFF_CLI needs REFERENCE")
+         END IF
       END IF
       CALL section_vals_val_get(ref_cli_section, "KEEP_FILES", l_val=ref_cli%keep_files)
       CALL section_vals_val_get(ref_cli_section, "ERROR_LIMIT", r_val=ref_cli%error_limit)
@@ -2174,8 +2208,9 @@ CONTAINS
          END IF
       END DO
 
-      IF (t_control%conv < 0) &
+      IF (t_control%conv < 0) THEN
          t_control%conv = ABS(t_control%conv)
+      END IF
 
       ! DIPOLE_MOMENTS subsection
       dipole_section => section_vals_get_subs_vals(t_section, "DIPOLE_MOMENTS")
@@ -2217,9 +2252,10 @@ CONTAINS
          CALL section_vals_val_get(mgrid_section, "PROGRESSION_FACTOR", &
                                    r_val=t_control%mgrid_progression_factor, explicit=explicit)
          IF (explicit) THEN
-            IF (t_control%mgrid_progression_factor <= 1.0_dp) &
+            IF (t_control%mgrid_progression_factor <= 1.0_dp) THEN
                CALL cp_abort(__LOCATION__, &
                              "Progression factor should be greater then 1.0 to ensure multi-grid ordering")
+            END IF
          ELSE
             t_control%mgrid_progression_factor = qs_control%progression_factor
          END IF
@@ -2253,8 +2289,9 @@ CONTAINS
          IF (.NOT. explicit) t_control%mgrid_skip_load_balance = qs_control%skip_load_balance_distributed
 
          IF (ASSOCIATED(t_control%mgrid_e_cutoff)) THEN
-            IF (SIZE(t_control%mgrid_e_cutoff) /= t_control%mgrid_ngrids) &
+            IF (SIZE(t_control%mgrid_e_cutoff) /= t_control%mgrid_ngrids) THEN
                CPABORT("Inconsistent values for number of multi-grids")
+            END IF
 
             ! sort multi-grids in descending order according to their cutoff values
             t_control%mgrid_e_cutoff = -t_control%mgrid_e_cutoff
@@ -2269,8 +2306,9 @@ CONTAINS
       xc_section => section_vals_get_subs_vals(t_section, "XC")
       xc_func => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       CALL section_vals_get(xc_func, explicit=explicit)
-      IF (explicit) &
+      IF (explicit) THEN
          CALL xc_functionals_expand(xc_func, xc_section)
+      END IF
 
       ! sTDA subsection
       stda_section => section_vals_get_subs_vals(t_section, "STDA")
@@ -2490,8 +2528,7 @@ CONTAINS
                   dft_control%period_efield%strength
             END IF
 
-            IF (SQRT(DOT_PRODUCT(dft_control%period_efield%polarisation, &
-                                 dft_control%period_efield%polarisation)) < EPSILON(0.0_dp)) THEN
+            IF (NORM2(dft_control%period_efield%polarisation) < EPSILON(0.0_dp)) THEN
                CPABORT("Invalid (too small) polarisation vector specified for PERIODIC_EFIELD")
             END IF
          END IF
@@ -2900,8 +2937,9 @@ CONTAINS
          ELSE
             WRITE (UNIT=output_unit, FMT="(T2,A,T71,F10.1)") &
                "QS| Density cutoff [a.u.]:", qs_control%cutoff
-            IF (qs_control%commensurate_mgrids) &
+            IF (qs_control%commensurate_mgrids) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A)") "QS| Using commensurate multigrids"
+            END IF
             WRITE (UNIT=output_unit, FMT="(T2,A,T71,F10.1)") &
                "QS| Multi grid cutoff [a.u.]: 1) grid level", qs_control%e_cutoff(1)
             WRITE (UNIT=output_unit, FMT="(T2,A,I3,A,T71,F10.1)") &
@@ -3031,9 +3069,10 @@ CONTAINS
          IF (qs_control%ddapc_restraint) THEN
             DO i = 1, SIZE(qs_control%ddapc_restraint_control)
                ddapc_restraint_control => qs_control%ddapc_restraint_control(i)
-               IF (SIZE(qs_control%ddapc_restraint_control) > 1) &
+               IF (SIZE(qs_control%ddapc_restraint_control) > 1) THEN
                   WRITE (UNIT=output_unit, FMT="(T2,A,T3,I8)") &
-                  "QS| parameters for DDAPC restraint number", i
+                     "QS| parameters for DDAPC restraint number", i
+               END IF
                WRITE (UNIT=output_unit, FMT="(T2,A,T73,ES8.1)") &
                   "QS| ddapc restraint target", ddapc_restraint_control%target
                WRITE (UNIT=output_unit, FMT="(T2,A,T73,ES8.1)") &
@@ -3104,8 +3143,9 @@ CONTAINS
 
       IF (PRESENT(ddapc_restraint_section)) THEN
          IF (ASSOCIATED(qs_control%ddapc_restraint_control)) THEN
-            IF (SIZE(qs_control%ddapc_restraint_control) >= 2) &
+            IF (SIZE(qs_control%ddapc_restraint_control) >= 2) THEN
                CPABORT("ET_COUPLING cannot be used in combination with a normal restraint")
+            END IF
          ELSE
             ddapc_section => ddapc_restraint_section
             ALLOCATE (qs_control%ddapc_restraint_control(1))
@@ -3144,8 +3184,9 @@ CONTAINS
          END DO
          IF (jj < 1) CPABORT("Need at least 1 atom to use ddapc constraints")
          ddapc_restraint_control%natoms = jj
-         IF (ASSOCIATED(ddapc_restraint_control%atoms)) &
+         IF (ASSOCIATED(ddapc_restraint_control%atoms)) THEN
             DEALLOCATE (ddapc_restraint_control%atoms)
+         END IF
          ALLOCATE (ddapc_restraint_control%atoms(ddapc_restraint_control%natoms))
          jj = 0
          DO k = 1, n_rep
@@ -3157,8 +3198,9 @@ CONTAINS
             END DO
          END DO
 
-         IF (ASSOCIATED(ddapc_restraint_control%coeff)) &
+         IF (ASSOCIATED(ddapc_restraint_control%coeff)) THEN
             DEALLOCATE (ddapc_restraint_control%coeff)
+         END IF
          ALLOCATE (ddapc_restraint_control%coeff(ddapc_restraint_control%natoms))
          ddapc_restraint_control%coeff = 1.0_dp
 
@@ -3170,13 +3212,15 @@ CONTAINS
                                       i_rep_val=k, r_vals=rtmplist)
             DO j = 1, SIZE(rtmplist)
                jj = jj + 1
-               IF (jj > ddapc_restraint_control%natoms) &
+               IF (jj > ddapc_restraint_control%natoms) THEN
                   CPABORT("Need the same number of coeff as there are atoms ")
+               END IF
                ddapc_restraint_control%coeff(jj) = rtmplist(j)
             END DO
          END DO
-         IF (jj < ddapc_restraint_control%natoms .AND. jj /= 0) &
+         IF (jj < ddapc_restraint_control%natoms .AND. jj /= 0) THEN
             CPABORT("Need no or the same number of coeff as there are atoms.")
+         END IF
       END DO
       k = 0
       DO i = 1, SIZE(qs_control%ddapc_restraint_control)
@@ -3365,12 +3409,13 @@ CONTAINS
       proj_mo_section => section_vals_get_subs_vals(rtp_section, "PRINT%PROJECTION_MO")
       CALL section_vals_get(proj_mo_section, explicit=is_present)
       IF (is_present) THEN
-         IF (dft_control%rtp_control%linear_scaling) &
+         IF (dft_control%rtp_control%linear_scaling) THEN
             CALL cp_abort(__LOCATION__, &
                           "You have defined a time dependent projection of mos, but "// &
                           "only the density matrix is propagated (DENSITY_PROPAGATION "// &
                           ".TRUE.). Please either use MO-based real time DFT or do not "// &
                           "define any PRINT%PROJECTION_MO section")
+         END IF
          dft_control%rtp_control%is_proj_mo = .TRUE.
       ELSE
          dft_control%rtp_control%is_proj_mo = .FALSE.
@@ -3455,8 +3500,9 @@ CONTAINS
          DO i = 1, n_elems
             DO j = 1, 2
                IF (dft_control%rtp_control%print_pol_elements(i, j) > 3 .OR. &
-                   dft_control%rtp_control%print_pol_elements(i, j) < 1) &
+                   dft_control%rtp_control%print_pol_elements(i, j) < 1) THEN
                   CPABORT("Polarisation tensor element not 1,2 or 3 in at least one index")
+               END IF
             END DO
          END DO
       END IF
@@ -3579,8 +3625,9 @@ CONTAINS
          END DO
 
          dft_control%probe(i)%natoms = jj
-         IF (dft_control%probe(i)%natoms < 1) &
+         IF (dft_control%probe(i)%natoms < 1) THEN
             CPABORT("Need at least 1 atom to use hair probes formalism")
+         END IF
          ALLOCATE (dft_control%probe(i)%atom_ids(dft_control%probe(i)%natoms))
 
          jj = 0

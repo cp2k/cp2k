@@ -139,8 +139,9 @@ CONTAINS
          CPASSERT(globenv%ref_count > 0)
          globenv%ref_count = globenv%ref_count - 1
          IF (globenv%ref_count == 0) THEN
-            IF (ALLOCATED(globenv%gaussian_rng_stream)) &
+            IF (ALLOCATED(globenv%gaussian_rng_stream)) THEN
                DEALLOCATE (globenv%gaussian_rng_stream)
+            END IF
             DEALLOCATE (globenv)
          END IF
       END IF

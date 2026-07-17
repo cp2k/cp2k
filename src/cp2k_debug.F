@@ -612,7 +612,7 @@ CONTAINS
       IF (dft_control%apply_efield) THEN
          dft_control%efield_fields(1)%efield%strength = amplitude
          dft_control%efield_fields(1)%efield%polarisation(1:3) = poldir(1:3)
-      ELSEIF (dft_control%apply_period_efield) THEN
+      ELSE IF (dft_control%apply_period_efield) THEN
          dft_control%period_efield%strength = amplitude
          dft_control%period_efield%polarisation(1:3) = poldir(1:3)
       ELSE

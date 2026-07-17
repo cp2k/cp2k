@@ -72,20 +72,23 @@ CONTAINS
       my_shell_adiabatic = .FALSE.
       map_info => al%map_info
 
-      IF (debug_this_module) &
+      IF (debug_this_module) THEN
          CALL dump_vel(molecule_kind_set, molecule_set, local_molecules, particle_set, vel, "INIT")
+      END IF
 
       IF (al%tau_nh <= 0.0_dp) THEN
          CALL al_OU_step(0.5_dp, al, force_env, map_info, molecule_kind_set, molecule_set, &
                          particle_set, local_molecules, local_particles, vel)
-         IF (debug_this_module) &
+         IF (debug_this_module) THEN
             CALL dump_vel(molecule_kind_set, molecule_set, local_molecules, particle_set, vel, "post OU")
+         END IF
       ELSE
          ! quarter step of Langevin using Ornstein-Uhlenbeck
          CALL al_OU_step(0.25_dp, al, force_env, map_info, molecule_kind_set, molecule_set, &
                          particle_set, local_molecules, local_particles, vel)
-         IF (debug_this_module) &
+         IF (debug_this_module) THEN
             CALL dump_vel(molecule_kind_set, molecule_set, local_molecules, particle_set, vel, "post 1st OU")
+         END IF
 
          ! Compute the kinetic energy for the region to thermostat for the (T dependent chi step)
          CALL ke_region_particles(map_info, particle_set, molecule_kind_set, &
@@ -99,8 +102,9 @@ CONTAINS
          ! Recompute the kinetic energy for the region to thermostat (for the T dependent chi step)
          CALL ke_region_particles(map_info, particle_set, molecule_kind_set, &
                                   local_molecules, molecule_set, group, vel=vel)
-         IF (debug_this_module) &
+         IF (debug_this_module) THEN
             CALL dump_vel(molecule_kind_set, molecule_set, local_molecules, particle_set, vel, "post rescale_vel")
+         END IF
 
          ! quarter step of chi
          CALL al_NH_quarter_step(al, map_info, set_half_step_vel_factors=.FALSE.)
@@ -108,8 +112,9 @@ CONTAINS
          ! quarter step of Langevin using Ornstein-Uhlenbeck
          CALL al_OU_step(0.25_dp, al, force_env, map_info, molecule_kind_set, molecule_set, &
                          particle_set, local_molecules, local_particles, vel)
-         IF (debug_this_module) &
+         IF (debug_this_module) THEN
             CALL dump_vel(molecule_kind_set, molecule_set, local_molecules, particle_set, vel, "post 2nd OU")
+         END IF
       END IF
 
       ! Recompute the final kinetic energy for the region to thermostat
@@ -187,7 +192,7 @@ CONTAINS
          iparticle_local, jj, last_atom, nmol_local, nparticle, nparticle_kind, nparticle_local
       LOGICAL                                            :: check, present_vel
       REAL(KIND=dp)                                      :: mass
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: w(:, :)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: w
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(molecule_type), POINTER                       :: molecule
 

@@ -158,10 +158,11 @@ CONTAINS
          END IF
 
          !Calculate rho0_h and rho0_s on the radial grids centered on the atomic position
-         IF (my_do_rho0) &
+         IF (my_do_rho0) THEN
             CALL calculate_rho0_atom(gapw_control, rho_atom_set, rhoz_cneo_set, rho0_atom_set, &
                                      rho0_mpole, atom_list, natom, ikind, my_kind_set(ikind), &
                                      rho0_h_tot)
+         END IF
       END DO
 
       !Do not mess with charges if using a non-default kind_set

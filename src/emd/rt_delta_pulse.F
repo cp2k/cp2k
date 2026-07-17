@@ -159,8 +159,9 @@ CONTAINS
 
          CALL get_rtp(rtp=rtp, mos_old=mos_old, mos_new=mos_new)
          IF (rtp_control%apply_delta_pulse) THEN
-            IF (dft_control%qs_control%dftb) &
+            IF (dft_control%qs_control%dftb) THEN
                CALL build_dftb_overlap(qs_env, 1, matrix_s)
+            END IF
             IF (rtp_control%periodic) THEN
                IF (output_unit > 0) THEN
                   WRITE (UNIT=output_unit, FMT="(/,(T3,A,T40))") &

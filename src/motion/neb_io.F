@@ -116,33 +116,37 @@ CONTAINS
       ! Before continuing let's do some consistency check between keywords
       IF (neb_env%pot_type /= pot_neb_full) THEN
          ! Requires the use of colvars
-         IF (.NOT. neb_env%use_colvar) &
+         IF (.NOT. neb_env%use_colvar) THEN
             CALL cp_abort(__LOCATION__, &
                           "A potential energy function based on free energy or minimum energy"// &
                           " was requested without enabling the usage of COLVARS. Both methods"// &
                           " are based on COLVARS definition.")
+         END IF
          ! Moreover let's check if the proper sections have been defined..
          SELECT CASE (neb_env%pot_type)
          CASE (pot_neb_fe)
             wrk_section => section_vals_get_subs_vals(neb_env%root_section, "MOTION%MD")
             CALL section_vals_get(wrk_section, explicit=explicit)
-            IF (.NOT. explicit) &
+            IF (.NOT. explicit) THEN
                CALL cp_abort(__LOCATION__, &
                              "A free energy BAND (colvars projected) calculation is requested"// &
                              " but NONE MD section was defined in the input.")
+            END IF
          CASE (pot_neb_me)
             wrk_section => section_vals_get_subs_vals(neb_env%root_section, "MOTION%GEO_OPT")
             CALL section_vals_get(wrk_section, explicit=explicit)
-            IF (.NOT. explicit) &
+            IF (.NOT. explicit) THEN
                CALL cp_abort(__LOCATION__, &
                              "A minimum energy BAND (colvars projected) calculation is requested"// &
                              " but NONE GEO_OPT section was defined in the input.")
+            END IF
          END SELECT
       ELSE
-         IF (neb_env%use_colvar) &
+         IF (neb_env%use_colvar) THEN
             CALL cp_abort(__LOCATION__, &
                           "A band calculation was requested with a full potential energy. USE_COLVAR cannot"// &
                           " be set for this kind of calculation!")
+         END IF
       END IF
       ! String Method
       CALL section_vals_val_get(neb_section, "STRING_METHOD%SMOOTHING", r_val=neb_env%smoothing)
@@ -263,9 +267,10 @@ CONTAINS
          END IF
       END DO
 
-      IF (output_unit > 0) &
+      IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT='(/,T2,A)') &
-         routineN//": Done!"
+            routineN//": Done!"
+      END IF
 
       CALL cp_print_key_finished_output(iw, logger, neb_env%neb_section, "FINAL_BAND")
 

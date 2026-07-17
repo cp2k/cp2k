@@ -112,10 +112,12 @@ CONTAINS
       CASE (default_minimization_method_id, default_ts_method_id)
          CALL force_env_get(gopt_env%force_env, subsys=subsys)
          ! before starting we handle the case of translating coordinates (QM/MM)
-         IF (gopt_env%force_env%in_use == use_qmmm) &
+         IF (gopt_env%force_env%in_use == use_qmmm) THEN
             CALL apply_qmmm_translate(gopt_env%force_env%qmmm_env)
-         IF (gopt_env%force_env%in_use == use_qmmmx) &
+         END IF
+         IF (gopt_env%force_env%in_use == use_qmmmx) THEN
             CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
+         END IF
          nparticle = force_env_get_nparticle(gopt_env%force_env)
          ALLOCATE (x0(3*nparticle))
          CALL pack_subsys_particles(subsys=subsys, r=x0)
@@ -124,10 +126,12 @@ CONTAINS
          ! Store reference cell
          gopt_env%h_ref = cell%hmat
          ! before starting we handle the case of translating coordinates (QM/MM)
-         IF (gopt_env%force_env%in_use == use_qmmm) &
+         IF (gopt_env%force_env%in_use == use_qmmm) THEN
             CALL apply_qmmm_translate(gopt_env%force_env%qmmm_env)
-         IF (gopt_env%force_env%in_use == use_qmmmx) &
+         END IF
+         IF (gopt_env%force_env%in_use == use_qmmmx) THEN
             CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
+         END IF
          nparticle = force_env_get_nparticle(gopt_env%force_env)
          ALLOCATE (x0(3*nparticle + 6))
          CALL pack_subsys_particles(subsys=subsys, r=x0)
@@ -670,7 +674,7 @@ CONTAINS
 
       IF (PRESENT(pres_diff_constr) .AND. PRESENT(pres_tol)) THEN
          conv_p = ABS(pres_diff_constr) < ABS(pres_tol)
-      ELSEIF (PRESENT(pres_diff) .AND. PRESENT(pres_tol)) THEN
+      ELSE IF (PRESENT(pres_diff) .AND. PRESENT(pres_tol)) THEN
          conv_p = ABS(pres_diff) < ABS(pres_tol)
       END IF
 
@@ -896,8 +900,9 @@ CONTAINS
          CALL write_structure_data(particle_set, cell, motion_section)
          CALL write_restart(force_env=force_env, root_section=root_section)
 
-         IF (output_unit > 0) &
+         IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,T20,' Reevaluating energy at the minimum')")
+         END IF
 
          CALL cp_eval_at(gopt_env, x0, f=etot, master=master, final_evaluation=.TRUE., &
                          para_env=para_env)

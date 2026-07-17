@@ -148,8 +148,9 @@ CONTAINS
    SUBROUTINE csvr_thermo_dealloc(nvt)
       TYPE(csvr_thermo_type), DIMENSION(:), POINTER      :: nvt
 
-      IF (ASSOCIATED(nvt)) &
+      IF (ASSOCIATED(nvt)) THEN
          DEALLOCATE (nvt)
+      END IF
    END SUBROUTINE csvr_thermo_dealloc
 
 END MODULE csvr_system_types

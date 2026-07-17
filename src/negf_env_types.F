@@ -290,9 +290,10 @@ CONTAINS
                   (icontact, sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, &
                    para_env, negf_env, sub_env, negf_control, negf_section, log_unit, is_separate=.TRUE.)
             ELSE
-               IF (log_unit > 0) &
+               IF (log_unit > 0) THEN
                   WRITE (log_unit, '(/,T2,A,T70,I11,/,A)') "NEGF| Construct the Kohn-Sham matrix for the contact", icontact, &
-                  "       from the separate bulk DFT calculation"
+                     "       from the separate bulk DFT calculation"
+               END IF
                CALL force_env_get(sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, qs_env=qs_env_contact)
                CALL qs_energies(qs_env_contact, consistent_energies=.FALSE., calc_forces=.FALSE.)
                CALL negf_env_contact_init_matrices(contact_env=negf_env%contacts(icontact), sub_env=sub_env, &
@@ -314,9 +315,10 @@ CONTAINS
                CALL negf_env_contact_read_write_hs(icontact, force_env, para_env, negf_env, sub_env, negf_control, negf_section, &
                                                    log_unit, is_separate=.FALSE., is_dft_entire=is_dft_entire)
             ELSE
-               IF (log_unit > 0) &
+               IF (log_unit > 0) THEN
                   WRITE (log_unit, '(/,T2,A,T70,I11,/,A)') "NEGF| Construct the Kohn-Sham matrix for the contact", icontact, &
-                  "       from the entire system bulk DFT calculation"
+                     "       from the entire system bulk DFT calculation"
+               END IF
                IF (.NOT. is_dft_entire) CALL qs_energies(qs_env, consistent_energies=.FALSE., calc_forces=.FALSE.)
                is_dft_entire = .TRUE.
                CALL negf_env_contact_init_matrices_gamma(contact_env=negf_env%contacts(icontact), &
@@ -329,8 +331,9 @@ CONTAINS
       END DO
 
       ! stage 3:  obtain an initial KS-matrix for the scattering region
-      IF (log_unit > 0) &
+      IF (log_unit > 0) THEN
          WRITE (log_unit, '(/,T2,A,T70)') "NEGF| Construct the Kohn-Sham matrix for the scattering region"
+      END IF
       IF (negf_control%read_write_HS) THEN
          CALL negf_env_scatt_read_write_hs(force_env, para_env, negf_env, sub_env, negf_control, negf_section, log_unit, &
                                            is_dft_entire=is_dft_entire)
@@ -915,18 +918,22 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "Primary and secondary bulk contact cells should not overlap ")
       ELSE IF (r2_origin_cell(1) < r2_origin_cell(2)) THEN
-         IF (.NOT. ALLOCATED(contact_env%atomlist_cell0)) &
+         IF (.NOT. ALLOCATED(contact_env%atomlist_cell0)) THEN
             ALLOCATE (contact_env%atomlist_cell0(SIZE(contact_control%atomlist_cell(1)%vector)))
+         END IF
          contact_env%atomlist_cell0(:) = contact_control%atomlist_cell(1)%vector(:)
-         IF (.NOT. ALLOCATED(contact_env%atomlist_cell1)) &
+         IF (.NOT. ALLOCATED(contact_env%atomlist_cell1)) THEN
             ALLOCATE (contact_env%atomlist_cell1(SIZE(contact_control%atomlist_cell(2)%vector)))
+         END IF
          contact_env%atomlist_cell1(:) = contact_control%atomlist_cell(2)%vector(:)
       ELSE
-         IF (.NOT. ALLOCATED(contact_env%atomlist_cell0)) &
+         IF (.NOT. ALLOCATED(contact_env%atomlist_cell0)) THEN
             ALLOCATE (contact_env%atomlist_cell0(SIZE(contact_control%atomlist_cell(2)%vector)))
+         END IF
          contact_env%atomlist_cell0(:) = contact_control%atomlist_cell(2)%vector(:)
-         IF (.NOT. ALLOCATED(contact_env%atomlist_cell1)) &
+         IF (.NOT. ALLOCATED(contact_env%atomlist_cell1)) THEN
             ALLOCATE (contact_env%atomlist_cell1(SIZE(contact_control%atomlist_cell(1)%vector)))
+         END IF
          contact_env%atomlist_cell1(:) = contact_control%atomlist_cell(1)%vector(:)
       END IF
       IF (.NOT. contact_control%read_write_HS) THEN
@@ -1690,8 +1697,9 @@ CONTAINS
 
       natoms_cell0 = 0
       DO iatom = 1, natoms_bulk
-         IF (atom_map(iatom)%cell(direction_axis_abs) == dir_axis_min) &
+         IF (atom_map(iatom)%cell(direction_axis_abs) == dir_axis_min) THEN
             natoms_cell0 = natoms_cell0 + 1
+         END IF
       END DO
 
       ALLOCATE (atomlist_cell0(natoms_cell0))
@@ -1771,8 +1779,9 @@ CONTAINS
 
       natoms_cell1 = 0
       DO iatom = 1, natoms_bulk
-         IF (atom_map(iatom)%cell(direction_axis_abs) == dir_axis_min + offset) &
+         IF (atom_map(iatom)%cell(direction_axis_abs) == dir_axis_min + offset) THEN
             natoms_cell1 = natoms_cell1 + 1
+         END IF
       END DO
 
       ALLOCATE (atomlist_cell1(natoms_cell1))

@@ -234,10 +234,12 @@ CONTAINS
          optimizer%gradient = 0.0_dp
          optimizer%dsave = 0.0_dp
          optimizer%work_array = 0.0_dp
-         IF (PRESENT(wanted_relative_f_delta)) &
+         IF (PRESENT(wanted_relative_f_delta)) THEN
             optimizer%wanted_relative_f_delta = wanted_relative_f_delta
-         IF (PRESENT(wanted_projected_gradient)) &
+         END IF
+         IF (PRESENT(wanted_projected_gradient)) THEN
             optimizer%wanted_projected_gradient = wanted_projected_gradient
+         END IF
          optimizer%kind_of_bound = 0
          IF (PRESENT(kind_of_bound)) optimizer%kind_of_bound = kind_of_bound
          IF (PRESENT(lower_bound)) optimizer%lower_bound = lower_bound
@@ -375,10 +377,12 @@ CONTAINS
       IF (PRESENT(obj_funct)) obj_funct = optimizer%obj_funct
       IF (PRESENT(m)) m = optimizer%m
       IF (PRESENT(max_f_per_iter)) max_f_per_iter = optimizer%max_f_per_iter
-      IF (PRESENT(wanted_projected_gradient)) &
+      IF (PRESENT(wanted_projected_gradient)) THEN
          wanted_projected_gradient = optimizer%wanted_projected_gradient
-      IF (PRESENT(wanted_relative_f_delta)) &
+      END IF
+      IF (PRESENT(wanted_relative_f_delta)) THEN
          wanted_relative_f_delta = optimizer%wanted_relative_f_delta
+      END IF
       IF (PRESENT(print_every)) print_every = optimizer%print_every
       IF (PRESENT(x)) x => optimizer%x
       IF (PRESENT(n_var)) n_var = SIZE(x)
@@ -389,15 +393,17 @@ CONTAINS
       IF (PRESENT(last_f)) last_f = optimizer%last_f
       IF (PRESENT(f)) f = optimizer%f
       IF (PRESENT(at_end)) at_end = optimizer%status > 3
-      IF (PRESENT(actual_projected_gradient)) &
+      IF (PRESENT(actual_projected_gradient)) THEN
          actual_projected_gradient = optimizer%projected_gradient
+      END IF
       IF (optimizer%master == optimizer%para_env%mepos) THEN
          IF (optimizer%isave(30) > 1 .AND. (optimizer%task(1:5) == "NEW_X" .OR. &
                                             optimizer%task(1:4) == "STOP" .AND. optimizer%task(7:9) == "CPU")) THEN
             ! nr iterations >1 .and. dsave contains the wanted data
             IF (PRESENT(last_f)) last_f = optimizer%dsave(2)
-            IF (PRESENT(actual_projected_gradient)) &
+            IF (PRESENT(actual_projected_gradient)) THEN
                actual_projected_gradient = optimizer%dsave(13)
+            END IF
          ELSE
             CPASSERT(.NOT. PRESENT(last_f))
             CPASSERT(.NOT. PRESENT(actual_projected_gradient))
@@ -698,8 +704,7 @@ CONTAINS
       DEALLOCATE (xold)
       IF (PRESENT(f)) f = optimizer%f
       IF (PRESENT(last_f)) last_f = optimizer%last_f
-      IF (PRESENT(projected_gradient)) &
-         projected_gradient = optimizer%projected_gradient
+      IF (PRESENT(projected_gradient)) projected_gradient = optimizer%projected_gradient
       IF (PRESENT(n_iter)) n_iter = optimizer%n_iter
       CALL timestop(handle)
 
@@ -735,8 +740,7 @@ CONTAINS
       IF (PRESENT(n_iter)) n_iter = NINT(results(1))
       IF (PRESENT(f)) f = results(2)
       IF (PRESENT(last_f)) last_f = results(3)
-      IF (PRESENT(projected_gradient)) &
-         projected_gradient = results(4)
+      IF (PRESENT(projected_gradient)) projected_gradient = results(4)
 
    END SUBROUTINE cp_opt_gopt_bcast_res
 

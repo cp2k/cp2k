@@ -1669,7 +1669,7 @@ CONTAINS
                                          nvar=nvar, &
                                          Ilist=Ilist)
                Ilist(it_levl) = -1
-            ELSEIF (it_levl == max_levl) THEN
+            ELSE IF (it_levl == max_levl) THEN
                IF (Ilist(1) > ind) CYCLE
                Ilist(it_levl) = ind
                nvar = nvar + 1

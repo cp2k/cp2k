@@ -162,9 +162,10 @@ CONTAINS
             END DO
             wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
             isuccess = fftw_export_wisdom_to_filename(wisdom_file_name_c)
-            IF (isuccess == 0) &
+            IF (isuccess == 0) THEN
                CALL cp_warn(__LOCATION__, "Error exporting wisdom to file "//TRIM(wisdom_file)//". "// &
                             "Wisdom was not exported.")
+            END IF
          END IF
       END IF
 
@@ -191,8 +192,9 @@ CONTAINS
       LOGICAL :: file_exists
 
       isuccess = fftw_init_threads()
-      IF (isuccess == 0) &
+      IF (isuccess == 0) THEN
          CPABORT("Error initializing FFTW with threads")
+      END IF
 
       ! Read FFTW wisdom (if available)
       ! all nodes are opening the file here...
@@ -212,10 +214,11 @@ CONTAINS
             END DO
             wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
             isuccess = fftw_import_wisdom_from_filename(wisdom_file_name_c)
-            IF (isuccess == 0) &
+            IF (isuccess == 0) THEN
                CALL cp_warn(__LOCATION__, "Error importing wisdom from file "//TRIM(wisdom_file)//". "// &
                             "Maybe the file was created with a different configuration than CP2K is run with. "// &
                             "CP2K continues without importing wisdom.")
+            END IF
          END IF
       END IF
 #else
@@ -1039,7 +1042,7 @@ CONTAINS
       IF (plan%fsign == +1 .AND. plan%trans) THEN
          istride = plan%m
          idist = 1
-      ELSEIF (plan%fsign == -1 .AND. plan%trans) THEN
+      ELSE IF (plan%fsign == -1 .AND. plan%trans) THEN
          ostride = plan%m
          odist = 1
       END IF
@@ -1161,7 +1164,7 @@ CONTAINS
 !$       out_offset = 1 + plan%num_rows*my_id*plan%n
 !$       IF (plan%fsign == +1 .AND. plan%trans) THEN
 !$          in_offset = 1 + plan%num_rows*my_id
-!$       ELSEIF (plan%fsign == -1 .AND. plan%trans) THEN
+!$       ELSE IF (plan%fsign == -1 .AND. plan%trans) THEN
 !$          out_offset = 1 + plan%num_rows*my_id
 !$       END IF
 !$       scal_offset = 1 + plan%n*plan%num_rows*my_id

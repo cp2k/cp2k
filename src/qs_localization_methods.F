@@ -162,7 +162,6 @@ CONTAINS
             END DO
          END DO
          CALL C%matrix_struct%para_env%sum(f2)
-         !write(*,*) 'qs_localize: f_2=',f2
          !-------------------------------------------------------------------
          ! compute the derivative of f_2
          ! f_2(x)=(x^2+eps)^1/2
@@ -179,7 +178,6 @@ CONTAINS
          !-------------------------------------------------------------------
          !
          gnorm = cp_fm_frobenius_norm(G)
-         !write(*,*) 'qs_localize: norm(G)=',gnorm
          !
          ! rescale for steepest descent
          CALL cp_fm_scale(-alpha, G)
@@ -191,7 +189,6 @@ CONTAINS
          expfactor = 1.0_dp
          CALL cp_fm_scale_and_add(1.0_dp, U, expfactor, G)
          tnorm = cp_fm_frobenius_norm(G)
-         !write(*,*) 'Taylor expansion i=',1,' norm(X^i)/i!=',tnorm
          IF (tnorm > 1.0E-10_dp) THEN
             ! other orders
             CALL cp_fm_to_fm(G, Gp1)
@@ -203,7 +200,6 @@ CONTAINS
                expfactor = expfactor/REAL(i, KIND=dp)
                CALL cp_fm_scale_and_add(1.0_dp, U, expfactor, Gp1)
                tnorm = cp_fm_frobenius_norm(Gp1)
-               !write(*,*) 'Taylor expansion i=',i,' norm(X^i)/i!=',tnorm*expfactor
                IF (tnorm*expfactor < 1.0E-10_dp) EXIT
             END DO
          END IF
@@ -219,7 +215,6 @@ CONTAINS
          !
          ! Are we done?
          sweeps = istep
-         !IF(gnorm<=grad_thresh.AND.ABS((f2-f2old)/f2)<=f2_thresh.AND.istep>1) THEN
          IF (ABS((f2 - f2old)/f2) <= eps .AND. istep > 1) THEN
             converged = .TRUE.
             EXIT
@@ -231,23 +226,6 @@ CONTAINS
       !
       ! Print the final result
       IF (output_unit > 0) WRITE (output_unit, '(A,E16.10)') ' sparseness function f2 = ', f2
-      !
-      ! sparsity
-      !DO i=1,size(thresh,1)
-      !   gnorm = 0.0_dp
-      !   DO o=1,ncol_local
-      !      DO p=1,nrow_local
-      !         IF(ABS(C%local_data(p,o))>thresh(i)) THEN
-      !            gnorm = gnorm + 1.0_dp
-      !         ENDIF
-      !      ENDDO
-      !   ENDDO
-      !   CALL C%matrix_struct%para_env%sum(gnorm)
-      !   IF(output_unit>0) THEN
-      !      WRITE(output_unit,*) 'qs_localize: ratio2=',gnorm / ( REAL(k,KIND=dp)*REAL(n,KIND=dp) ),thresh(i)
-      !   ENDIF
-      !ENDDO
-      !
       ! deallocate
       CALL cp_fm_struct_release(fm_struct_k_k)
       CALL cp_fm_release(CTmp)
@@ -689,7 +667,7 @@ CONTAINS
          IF (do_cinit_random) THEN
             icinit = 1
             do_U_guess_mo = .FALSE.
-         ELSEIF (do_cinit_mo) THEN
+         ELSE IF (do_cinit_mo) THEN
             icinit = 2
             do_U_guess_mo = .TRUE.
          END IF
@@ -1161,7 +1139,7 @@ CONTAINS
                IF ((ABS(ds) < 1.0E-10_dp) .AND. (lsl == 1)) THEN
                   new_direction = .TRUE.
                   ds_min = 0.5_dp/alpha
-               ELSEIF (ABS(ds) > 10.0_dp) THEN
+               ELSE IF (ABS(ds) > 10.0_dp) THEN
                   new_direction = .TRUE.
                   ds_min = 0.5_dp/alpha
                ELSE
@@ -1349,7 +1327,7 @@ CONTAINS
       IF (ABS(b12) > 1.e-10_dp) THEN
          ratio = -a12/b12
          theta = 0.25_dp*ATAN(ratio)
-      ELSEIF (ABS(b12) < 1.e-10_dp) THEN
+      ELSE IF (ABS(b12) < 1.e-10_dp) THEN
          b12 = 0.0_dp
          theta = 0.0_dp
       ELSE
@@ -1997,14 +1975,6 @@ CONTAINS
          IF (new_direction) THEN
             ! energy converged up to machine precision ?
             line_searches = line_searches + 1
-            ! DO i=1,line_search_count
-            !   write(15,*) pos(i),energy(i)
-            ! ENDDO
-            ! write(15,*) ""
-            ! CALL m_flush(15)
-            !write(16,*) evals(:)
-            !write(17,*) matrix_A%local_data(:,:)
-            !write(18,*) matrix_G%local_data(:,:)
             IF (output_unit > 0) THEN
                WRITE (output_unit, '(T5,I10,T18,I10,T31,2F20.6,F10.3)') line_searches, Iterations, Omega, tol, ds_min
                CALL m_flush(output_unit)
@@ -2513,9 +2483,9 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: c_array_me, c_array_partner
       COMPLEX(KIND=dp), POINTER                          :: mii(:), mij(:), mjj(:)
       INTEGER :: i, idim, ii, ik, il1, il2, il_recv, il_recv_partner, ilow1, ilow2, ip, ip_has_i, &
-         ip_partner, ip_recv_from, ip_recv_partner, ipair, iperm, istat, istate, iu1, iu2, iup1, &
-         iup2, j, jj, jstate, k, kk, lsweep, n1, n2, npair, nperm, ns_me, ns_partner, &
-         ns_recv_from, ns_recv_partner
+         ip_partner, ip_recv_from, ip_recv_partner, ipair, iperm, istate, iu1, iu2, iup1, iup2, j, &
+         jj, jstate, k, kk, lsweep, n1, n2, npair, nperm, ns_me, ns_partner, ns_recv_from, &
+         ns_recv_partner
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount, rdispl
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: list_pair
       LOGICAL                                            :: should_stop
@@ -2532,8 +2502,8 @@ CONTAINS
 
       ALLOCATE (mii(dim2), mij(dim2), mjj(dim2))
 
-      ALLOCATE (rcount(para_env%num_pe), STAT=istat)
-      ALLOCATE (rdispl(para_env%num_pe), STAT=istat)
+      ALLOCATE (rcount(para_env%num_pe))
+      ALLOCATE (rdispl(para_env%num_pe))
 
       tolerance = 1.0e10_dp
       sweeps = 0
@@ -2705,7 +2675,6 @@ CONTAINS
 
                IF (ilow1 < ilow2) THEN
                   ! no longer compiles in official sdgb:
-                  !CALL dgemm("N", "N", nstate, n1, n2, 1.0_dp, rotmat(1, k), nstate, rmat_loc(1 + n1, 1), n1 + n2, 0.0_dp, gmat, nstate)
                   ! probably inefficient:
                   CALL dgemm("N", "N", nstate, n1, n2, 1.0_dp, rotmat(1:, k:), nstate, rmat_loc(1 + n1:, 1:n1), &
                              n2, 0.0_dp, gmat(:, :), nstate)
@@ -2715,7 +2684,6 @@ CONTAINS
                   CALL dgemm("N", "N", nstate, n1, n2, 1.0_dp, rotmat(1:, k:), nstate, &
                              rmat_loc(1:, n2 + 1:), n1 + n2, 0.0_dp, gmat(:, :), nstate)
                   ! no longer compiles in official sdgb:
-                  !CALL dgemm("N", "N", nstate, n1, n1, 1.0_dp, rotmat(1, 1), nstate, rmat_loc(n2 + 1, n2 + 1), n1 + n2, 1.0_dp, gmat, nstate)
                   ! probably inefficient:
                   CALL dgemm("N", "N", nstate, n1, n1, 1.0_dp, rotmat(1:, 1:), nstate, rmat_loc(n2 + 1:, n2 + 1:), &
                              n1, 1.0_dp, gmat(:, :), nstate)
@@ -2993,7 +2961,7 @@ CONTAINS
             list_pair(JJ, II) = i
          END DO
          IF (MOD(para_env%num_pe, 2) == 1) list_pair(2, npair) = -1
-      ELSEIF (MOD(iperm, 2) == 0) THEN
+      ELSE IF (MOD(iperm, 2) == 0) THEN
 !..a type shift
          jj = list_pair(1, npair)
          DO I = npair, 3, -1

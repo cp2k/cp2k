@@ -407,10 +407,12 @@ CONTAINS
       IF (dft_control%dft_plus_u) CPABORT('WARNING: DFT+U not supported in QCSchema')
       IF (dft_control%do_sccs) CPABORT('WARNING: SCCS not supported in QCSchema')
       IF (qs_env%qmmm) CPABORT('WARNING: QM/MM not supported in QCSchema')
-      IF (dft_control%qs_control%mulliken_restraint) &
+      IF (dft_control%qs_control%mulliken_restraint) THEN
          CPABORT('WARNING: Mulliken restrains not supported in QCSchema')
-      IF (dft_control%qs_control%semi_empirical) &
+      END IF
+      IF (dft_control%qs_control%semi_empirical) THEN
          CPABORT('WARNING: semi_empirical methods not supported in QCSchema')
+      END IF
       IF (dft_control%qs_control%dftb) CPABORT('WARNING: DFTB not supported in QCSchema')
       IF (dft_control%qs_control%xtb) CPABORT('WARNING: xTB not supported in QCSchema')
 

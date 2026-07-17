@@ -355,7 +355,8 @@ CONTAINS
       bv(:) = 0.0_dp
       cv(:) = 1.0_dp/Vol
       CALL build_b_vector(bv, cp_ddapc_env%gfunc, cp_ddapc_env%w, &
-                          particle_set, radii, rho_tot_g, gcut); bv(:) = bv(:)/Vol
+                          particle_set, radii, rho_tot_g, gcut)
+      bv(:) = bv(:)/Vol
       CALL rho_tot_g%pw_grid%para%group%sum(bv)
       c1 = DOT_PRODUCT(cv, MATMUL(cp_ddapc_env%AmI, bv)) - ch_dens
       c1 = c1/cp_ddapc_env%c0
@@ -718,11 +719,13 @@ CONTAINS
          bv2(:) = 0.0_dp
          particle_set(iparticle)%r(i) = rvec(i) + dx
          CALL build_b_vector(bv1, cp_ddapc_env%gfunc, cp_ddapc_env%w, &
-                             particle_set, radii, rho_tot_g, gcut); bv1(:) = bv1(:)/Vol
+                             particle_set, radii, rho_tot_g, gcut)
+         bv1(:) = bv1(:)/Vol
          CALL rho_tot_g%pw_grid%para%group%sum(bv1)
          particle_set(iparticle)%r(i) = rvec(i) - dx
          CALL build_b_vector(bv2, cp_ddapc_env%gfunc, cp_ddapc_env%w, &
-                             particle_set, radii, rho_tot_g, gcut); bv2(:) = bv2(:)/Vol
+                             particle_set, radii, rho_tot_g, gcut)
+         bv2(:) = bv2(:)/Vol
          CALL rho_tot_g%pw_grid%para%group%sum(bv2)
          ddbv(:) = (bv1(:) - bv2(:))/(2.0_dp*dx)
          DO kk = 1, SIZE(ddbv)

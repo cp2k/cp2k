@@ -340,9 +340,10 @@ CONTAINS
       IF (PRESENT(mpi_io)) parallel_write = mpi_io
       my_stride = 1
       IF (PRESENT(stride)) THEN
-         IF (SIZE(stride) /= 1 .AND. SIZE(stride) /= 3) &
+         IF (SIZE(stride) /= 1 .AND. SIZE(stride) /= 3) THEN
             CALL cp_abort(__LOCATION__, "STRIDE keyword can accept only 1 "// &
                           "(the same for X,Y,Z) or 3 values. Correct your input file.")
+         END IF
          IF (SIZE(stride) == 1) THEN
             DO i = 1, 3
                my_stride(i) = stride(1)

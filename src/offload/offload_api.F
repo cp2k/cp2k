@@ -158,8 +158,9 @@ CONTAINS
 
       device_id = offload_get_chosen_device_c()
 
-      IF (device_id < 0) &
+      IF (device_id < 0) THEN
          CPABORT("No offload device has been chosen.")
+      END IF
 
    END FUNCTION offload_get_chosen_device
 

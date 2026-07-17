@@ -608,8 +608,9 @@ CONTAINS
       CALL xc_f03_func_init(xc_func, func_id, XC_UNPOLARIZED)
       xc_info = xc_f03_func_get_info(xc_func)
       no_exc = .FALSE.
-      IF (.NOT. PRESENT(func_name_override)) &
+      IF (.NOT. PRESENT(func_name_override)) THEN
          CALL xc_libxc_wrap_functional_set_params(xc_func, xc_info, libxc_params, no_exc)
+      END IF
 
       CALL xc_rho_set_get(rho_set, can_return_null=.TRUE., &
                           rho=rho, norm_drho=norm_drho, laplace_rho=laplace_rho, &
@@ -867,8 +868,9 @@ CONTAINS
       CALL xc_f03_func_init(xc_func, func_id, XC_POLARIZED)
       xc_info = xc_f03_func_get_info(xc_func)
       no_exc = .FALSE.
-      IF (.NOT. PRESENT(func_name_override)) &
+      IF (.NOT. PRESENT(func_name_override)) THEN
          CALL xc_libxc_wrap_functional_set_params(xc_func, xc_info, libxc_params, no_exc)
+      END IF
 
       CALL xc_rho_set_get(rho_set, can_return_null=.TRUE., &
                           rhoa=rhoa, rhob=rhob, norm_drho=norm_drho, &

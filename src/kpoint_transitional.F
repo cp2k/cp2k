@@ -47,8 +47,9 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: res
 
       IF (ASSOCIATED(this%ptr_1d)) THEN
-         IF (SIZE(this%ptr_2d, 2) /= 1) &
+         IF (SIZE(this%ptr_2d, 2) /= 1) THEN
             CPABORT("Method not implemented for k-points")
+         END IF
       END IF
 
       res => this%ptr_1d

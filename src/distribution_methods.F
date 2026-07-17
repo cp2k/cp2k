@@ -207,12 +207,14 @@ CONTAINS
                   END DO
                ELSE
                   CALL cp_heap_get_first(bin_heap_count, bin, bin_price, found)
-                  IF (.NOT. found) &
+                  IF (.NOT. found) THEN
                      CPABORT("No topmost heap element found.")
+                  END IF
 
                   ipe = bin
-                  IF (bin_price /= workload_count(ipe)) &
+                  IF (bin_price /= workload_count(ipe)) THEN
                      CPABORT("inconsistent heap")
+                  END IF
 
                   workload_count(ipe) = workload_count(ipe) + nload
                   IF (ipe == mype) THEN
@@ -245,12 +247,14 @@ CONTAINS
                   END DO
                ELSE
                   CALL cp_heap_get_first(bin_heap_fill, bin, bin_price, found)
-                  IF (.NOT. found) &
+                  IF (.NOT. found) THEN
                      CPABORT("No topmost heap element found.")
+                  END IF
 
                   ipe = bin
-                  IF (bin_price /= workload_fill(ipe)) &
+                  IF (bin_price /= workload_fill(ipe)) THEN
                      CPABORT("inconsistent heap")
+                  END IF
 
                   workload_fill(ipe) = workload_fill(ipe) + nload
                   is_local = (ipe == mype)
@@ -275,8 +279,9 @@ CONTAINS
 
          END DO
 
-         IF (ANY(workload_fill /= workload_count)) &
+         IF (ANY(workload_fill /= workload_count)) THEN
             CPABORT("Inconsistent heaps encountered")
+         END IF
 
          CALL cp_heap_release(bin_heap_count)
          CALL cp_heap_release(bin_heap_fill)
@@ -563,8 +568,9 @@ CONTAINS
             CALL section_vals_val_get(distribution_section, "COST_MODEL", i_val=cost_model)
             IF (.NOT. molecular_distribution) THEN
                DO iatom = 1, natom
-                  IF (iatom > nclusters) &
+                  IF (iatom > nclusters) THEN
                      CPABORT("Bounds error")
+                  END IF
                   CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
                   cluster_list(iatom) = iatom
                   SELECT CASE (cost_model)
@@ -619,8 +625,9 @@ CONTAINS
                                             nprow, cluster_row_distribution(:, 1), npcol, cluster_col_distribution(:, 1))
             ELSE
                IF (basic_cluster_optimization) THEN
-                  IF (molecular_distribution) &
+                  IF (molecular_distribution) THEN
                      CPABORT("clustering and molecular blocking NYI")
+                  END IF
                   ALLOCATE (pbc_scaled_coords(3, natom), coords(3, natom))
                   DO iatom = 1, natom
                      CALL real_to_scaled(pbc_scaled_coords(:, iatom), pbc(particle_set(iatom)%r(:), cell), cell)
@@ -864,15 +871,18 @@ CONTAINS
       DO cluster_index = nclusters, 1, -1
          cluster = cluster_list(cluster_index)
          CALL cp_heap_get_first(bin_heap, bin, bin_price, found)
-         IF (.NOT. found) &
+         IF (.NOT. found) THEN
             CPABORT("No topmost heap element found.")
+         END IF
          !
          prow = INT((bin - 1)*pgrid_gcd/npcols)
-         IF (prow >= nprows) &
+         IF (prow >= nprows) THEN
             CPABORT("Invalid process row.")
+         END IF
          pcol = INT((bin - 1)*pgrid_gcd/nprows)
-         IF (pcol >= npcols) &
+         IF (pcol >= npcols) THEN
             CPABORT("Invalid process column.")
+         END IF
          row_distribution(cluster) = prow + 1
          col_distribution(cluster) = pcol + 1
          !
@@ -1197,7 +1207,7 @@ CONTAINS
                   balance_new = MAXVAL(REAL(nat_cluster, KIND=dp))/MINVAL(REAL(nat_cluster, KIND=dp))
                   IF (balance_new < balance) THEN
                      balance = balance_new
-                     min_seed = seed + i*40;
+                     min_seed = seed + i*40
                   END IF
                ELSE
                   found = .TRUE.
@@ -1314,7 +1324,7 @@ CONTAINS
             devi = HUGE(1.0_dp)
             DO j = 1, i - 1
                dvec = pbc(cent_coord(:, j), cent_coord(:, i), cell)
-               dist = SQRT(DOT_PRODUCT(dvec, dvec))
+               dist = NORM2(dvec)
                IF (dist < devi) devi = dist
             END DO
             rn = rng_stream%next()

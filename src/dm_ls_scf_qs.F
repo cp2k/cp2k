@@ -322,8 +322,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       my_keep_sparsity = .TRUE.
-      IF (PRESENT(keep_sparsity)) &
+      IF (PRESENT(keep_sparsity)) THEN
          my_keep_sparsity = keep_sparsity
+      END IF
 
       IF (.NOT. ls_mstruct%do_pao) THEN
          CALL dbcsr_create(matrix_declustered, template=matrix_qs)
@@ -583,8 +584,9 @@ CONTAINS
       ! compute the corresponding KS matrix and new energy, mix density if requested
       CALL qs_rho_update_rho(rho, qs_env=qs_env)
       IF (ls_scf_env%do_rho_mixing) THEN
-         IF (ls_scf_env%density_mixing_method == direct_mixing_nr) &
+         IF (ls_scf_env%density_mixing_method == direct_mixing_nr) THEN
             CPABORT("Direct P mixing not implemented in linear scaling SCF. ")
+         END IF
          IF (ls_scf_env%density_mixing_method >= gspace_mixing_nr) THEN
             IF (iscf > MAX(ls_scf_env%mixing_store%nskip_mixing, 1)) THEN
                CALL gspace_mixing(qs_env, ls_scf_env%density_mixing_method, &
@@ -839,9 +841,9 @@ CONTAINS
             CALL get_qs_env(qs_env, rho_atom_set=rho_atom)
             CALL mixing_init(ls_scf_env%density_mixing_method, rho, ls_scf_env%mixing_store, &
                              ls_scf_env%para_env, rho_atom=rho_atom)
-         ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+         ELSE IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
             CALL charge_mixing_init(ls_scf_env%mixing_store)
-         ELSEIF (dft_control%qs_control%semi_empirical) THEN
+         ELSE IF (dft_control%qs_control%semi_empirical) THEN
             CPABORT('SE Code not possible')
          ELSE
             CALL mixing_init(ls_scf_env%density_mixing_method, rho, ls_scf_env%mixing_store, &

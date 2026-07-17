@@ -594,8 +594,9 @@ CONTAINS
       nomirror = 0
       DO ic = 1, ncell
          cell = i2c(:, ic)
-         IF (cell_to_index(-cell(1), -cell(2), -cell(3)) == 0) &
+         IF (cell_to_index(-cell(1), -cell(2), -cell(3)) == 0) THEN
             nomirror = nomirror + 1
+         END IF
       END DO
 
       ! create the mirror imgs

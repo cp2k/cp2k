@@ -548,8 +548,9 @@ CONTAINS
          ! Read input string of fixed length (single line)
 
          ! Check for EOF
-         IF (parser%icol == -1) &
+         IF (parser%icol == -1) THEN
             CPABORT("Unexpectetly reached EOF"//TRIM(parser_location(parser)))
+         END IF
 
          length = MIN(len_trim_inputline - parser%icol1 + 1, length)
          parser%icol1 = parser%icol + 1

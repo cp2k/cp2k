@@ -563,8 +563,9 @@ CONTAINS
                WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Cutoff error:", param%par%err_c
              WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Total error (minimax + cutoff):", param%par%err_mm + param%par%err_c
             END IF
-            IF (param%par%print_calib) &
+            IF (param%par%print_calib) THEN
                WRITE (unit_nr, '(T2, A, T68, F13.10)') "ERI_MME|   Minimax scaling constant in AM-GM estimate:", param%par%C_mm
+            END IF
          END IF
       END IF
 
@@ -786,8 +787,9 @@ CONTAINS
       CALL section_vals_val_get(eri_mme_test_section, "POTENTIAL", i_val=potential)
       CALL section_vals_val_get(eri_mme_test_section, "POTENTIAL_PARAM", r_val=pot_par)
 
-      IF (nzet <= 0) &
+      IF (nzet <= 0) THEN
          CPABORT("Number of exponents NZET must be greater than 0.")
+      END IF
 
       CALL init_orbital_pointers(l_max)
 

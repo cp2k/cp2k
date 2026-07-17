@@ -58,7 +58,7 @@ MODULE smeagol_control_types
       REAL(kind=dp)                                      :: to_smeagol_energy_units = 2.0_dp
 
       !> number of cell images along i and j cell vectors
-      INTEGER, DIMENSION(2)                              :: n_cell_images = (/1, 1/)
+      INTEGER, DIMENSION(2)                              :: n_cell_images = [1, 1]
 
       !> what lead (bulk transport calculation)
       INTEGER                                            :: lead_label = smeagol_bulklead_leftright

@@ -114,8 +114,9 @@ CONTAINS
       END IF
 
       ! Stop if not implemented
-      IF (gopt_env%type_id == default_ts_method_id) &
+      IF (gopt_env%type_id == default_ts_method_id) THEN
          CPABORT("BFGS method not yet working with DIMER")
+      END IF
 
       ALLOCATE (optimizer)
       CALL cp_opt_gopt_create(optimizer, para_env=para_env, obj_funct=gopt_env, &

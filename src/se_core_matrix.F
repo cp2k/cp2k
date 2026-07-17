@@ -281,24 +281,6 @@ CONTAINS
             ! two-centre one-electron term
             NULLIFY (s_block)
 
-!          CALL dbcsr_get_block_p(matrix_s(1)%matrix,&
-!               irow,icol,s_block,found)
-!          CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,failure)
-!
-!          if( irow == iatom )then
-!            R= -rij
-!            call makeS(R,nra,nrb,ZSa,ZSb,ZPa,ZPb,S)
-!          else
-!            R= rij
-!            call makeS(R,nrb,nra,ZSb,ZSa,ZPb,ZPa,S)
-!          endif
-!
-!          do i=1,4
-!            do j=1,4
-!              s_block(i,j)=S(ix(i),ix(j))
-!            enddo
-!          enddo
-
             CALL dbcsr_get_block_p(matrix_s(1)%matrix, &
                                    irow, icol, s_block, found)
             CPASSERT(ASSOCIATED(s_block))
@@ -319,27 +301,10 @@ CONTAINS
                atom_a = atom_of_kind(iatom)
                atom_b = atom_of_kind(jatom)
 
-!            if( irow == iatom )then
-!              R= -rij
-!              call makedS(R,nra,nrb,ZSa,ZSb,ZPa,ZPb,dS)
-!            else
-!              R= rij
-!              call makedS(R,nrb,nra,ZSb,ZSa,ZPb,ZPa,dS)
-!            endif
-
                CALL dbcsr_get_block_p(matrix_p(1)%matrix, irow, icol, pabmat, found)
                CPASSERT(ASSOCIATED(pabmat))
                DO icor = 1, 3
                   force_ab(icor) = 0._dp
-
-!              CALL dbcsr_get_block_p(matrix_s(icor+1)%matrix,irow,icol,dsmat,found)
-!              CPPostcondition(ASSOCIATED(dsmat),cp_failure_level,routineP,failure)
-!
-!              do i=1,4
-!                do j=1,4
-!                  dsmat(i,j)=dS(ix(i),ix(j),icor)
-!                enddo
-!              enddo
 
                   CALL dbcsr_get_block_p(matrix_s(icor + 1)%matrix, irow, icol, dsmat, found)
                   CPASSERT(ASSOCIATED(dsmat))
@@ -628,7 +593,7 @@ CONTAINS
       S(:, :) = 0.0_dp
 
       v(:) = R(:)
-      rr = SQRT(DOT_PRODUCT(v, v))
+      rr = NORM2(v)
 
       IF (rr < 1.0e-20_dp) THEN
 
@@ -1006,7 +971,7 @@ CONTAINS
       dS(:, :, :) = 0.0_dp
 
       v(:) = R(:)
-      rr = SQRT(DOT_PRODUCT(v, v))
+      rr = NORM2(v)
 
       IF (rr < 1.0e-20_dp) THEN
 

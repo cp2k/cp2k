@@ -87,18 +87,18 @@ CONTAINS
 
       IF (bn(1) > 0) THEN
          IAB = os_overlap2(an + i1, bn - i1) + (A(1) - B(1))*os_overlap2(an, bn - i1)
-      ELSEIF (bn(2) > 0) THEN
+      ELSE IF (bn(2) > 0) THEN
          IAB = os_overlap2(an + i2, bn - i2) + (A(2) - B(2))*os_overlap2(an, bn - i2)
-      ELSEIF (bn(3) > 0) THEN
+      ELSE IF (bn(3) > 0) THEN
          IAB = os_overlap2(an + i3, bn - i3) + (A(3) - B(3))*os_overlap2(an, bn - i3)
       ELSE
          IF (an(1) > 0) THEN
             IAB = (P(1) - A(1))*os_overlap2(an - i1, bn) + &
                   0.5_dp*(an(1) - 1)/xsi*os_overlap2(an - i1 - i1, bn)
-         ELSEIF (an(2) > 0) THEN
+         ELSE IF (an(2) > 0) THEN
             IAB = (P(2) - A(2))*os_overlap2(an - i2, bn) + &
                   0.5_dp*(an(2) - 1)/xsi*os_overlap2(an - i2 - i2, bn)
-         ELSEIF (an(3) > 0) THEN
+         ELSE IF (an(3) > 0) THEN
             IAB = (P(3) - A(3))*os_overlap2(an - i3, bn) + &
                   0.5_dp*(an(3) - 1)/xsi*os_overlap2(an - i3 - i3, bn)
          ELSE

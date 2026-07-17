@@ -981,33 +981,38 @@ CONTAINS
                         filename_bak_2 = TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(i - 1))
                         IF (do_log) THEN
                            unit_nr = cp_logger_get_unit_nr(logger, local=my_local)
-                           IF (unit_nr > 0) &
+                           IF (unit_nr > 0) THEN
                               WRITE (unit_nr, *) "Moving file "//TRIM(filename_bak_2)// &
-                              " into file "//TRIM(filename_bak_1)//"."
+                                 " into file "//TRIM(filename_bak_1)//"."
+                           END IF
                         END IF
                         INQUIRE (FILE=filename_bak_2, EXIST=found)
                         IF (.NOT. found) THEN
                            IF (do_log) THEN
                               unit_nr = cp_logger_get_unit_nr(logger, local=my_local)
-                              IF (unit_nr > 0) &
+                              IF (unit_nr > 0) THEN
                                  WRITE (unit_nr, *) "File "//TRIM(filename_bak_2)//" not existing.."
+                              END IF
                            END IF
                         ELSE
                            ! Shared file: rotate on the source rank only; per-task
                            ! (my_local) files are per-rank, rotated by their owner.
-                           IF (my_local .OR. logger%para_env%is_source()) &
+                           IF (my_local .OR. logger%para_env%is_source()) THEN
                               CALL m_mov(TRIM(filename_bak_2), TRIM(filename_bak_1))
+                           END IF
                         END IF
                      END DO
                      ! The last backup is always the one with index 1
                      filename_bak = TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(1))
                      IF (do_log) THEN
                         unit_nr = cp_logger_get_unit_nr(logger, local=my_local)
-                        IF (unit_nr > 0) &
+                        IF (unit_nr > 0) THEN
                            WRITE (unit_nr, *) "Moving file "//TRIM(filename)//" into file "//TRIM(filename_bak)//"."
+                        END IF
                      END IF
-                     IF (my_local .OR. logger%para_env%is_source()) &
+                     IF (my_local .OR. logger%para_env%is_source()) THEN
                         CALL m_mov(TRIM(filename), TRIM(filename_bak))
+                     END IF
                   ELSE
                      ! Zero the backup history for this new iteration level..
                      print_key%ibackup(my_backup_level) = 0
@@ -1028,10 +1033,11 @@ CONTAINS
             END IF
             IF (do_log) THEN
                unit_nr = cp_logger_get_unit_nr(logger, local=my_local)
-               IF (unit_nr > 0) &
+               IF (unit_nr > 0) THEN
                   WRITE (unit_nr, *) "Writing "//TRIM(print_key%section%name)//" "// &
-                  TRIM(cp_iter_string(logger%iter_info))//" to "// &
-                  TRIM(filename)
+                     TRIM(cp_iter_string(logger%iter_info))//" to "// &
+                     TRIM(filename)
+               END IF
             END IF
          END IF
       ELSE

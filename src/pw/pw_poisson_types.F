@@ -367,8 +367,9 @@ CONTAINS
                g3d = fourpi/g2
                gf%array(ig) = g3d*(1.0_dp - COS(rlength*gg))
             END DO
-            IF (grid%have_g0) &
+            IF (grid%have_g0) THEN
                gf%array(1) = 0.5_dp*fourpi*rlength*rlength
+            END IF
 
          CASE (MT2D, MT1D, MT0D)
 
@@ -377,8 +378,9 @@ CONTAINS
                g3d = fourpi/g2
                gf%array(ig) = g3d + green%screen_fn%array(ig)
             END DO
-            IF (grid%have_g0) &
+            IF (grid%have_g0) THEN
                gf%array(1) = green%screen_fn%array(1)
+            END IF
 
          CASE (PS_IMPLICIT)
 
@@ -452,10 +454,12 @@ CONTAINS
             DEALLOCATE (gftype%p3m_charge)
          END IF
       END IF
-      IF (ALLOCATED(gftype%p3m_bm2)) &
+      IF (ALLOCATED(gftype%p3m_bm2)) THEN
          DEALLOCATE (gftype%p3m_bm2)
-      IF (ALLOCATED(gftype%p3m_coeff)) &
+      END IF
+      IF (ALLOCATED(gftype%p3m_coeff)) THEN
          DEALLOCATE (gftype%p3m_coeff)
+      END IF
    END SUBROUTINE pw_green_release
 
 ! **************************************************************************************************

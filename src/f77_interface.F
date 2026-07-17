@@ -755,11 +755,12 @@ CONTAINS
             ! Check that the order of the force_eval is the correct one
             CALL section_vals_val_get(force_env_sections, "METHOD", i_val=method_name_id, &
                                       i_rep_section=i_force_eval(1))
-            IF ((method_name_id /= do_mixed) .AND. (method_name_id /= do_embed)) &
+            IF ((method_name_id /= do_mixed) .AND. (method_name_id /= do_embed)) THEN
                CALL cp_abort(__LOCATION__, &
                              "In case of multiple force_eval the MAIN force_eval (the first in the list of FORCE_EVAL_ORDER or "// &
                              "the one omitted from that order list) must be a MIXED_ENV type calculation. Please check your "// &
                              "input file and possibly correct the MULTIPLE_FORCE_EVAL%FORCE_EVAL_ORDER. ")
+            END IF
 
             IF (method_name_id == do_mixed) THEN
                check = ASSOCIATED(force_env%mixed_env%sub_para_env)
@@ -807,8 +808,9 @@ CONTAINS
          IF (method_name_id == do_qmmm) THEN
             qmmmx_section => section_vals_get_subs_vals(force_env_section, "QMMM%FORCE_MIXING")
             CALL section_vals_get(qmmmx_section, explicit=do_qmmm_force_mixing)
-            IF (do_qmmm_force_mixing) &
-               method_name_id = do_qmmmx ! QMMM Force-Mixing has its own (hidden) method_id
+            IF (do_qmmm_force_mixing) THEN
+               method_name_id = do_qmmmx
+            END IF ! QMMM Force-Mixing has its own (hidden) method_id
          END IF
 
          SELECT CASE (method_name_id)
@@ -943,8 +945,9 @@ CONTAINS
          ! Release force_env_section
          IF (nforce_eval > 1) CALL section_vals_release(force_env_section)
       END DO
-      IF (use_multiple_para_env) &
+      IF (use_multiple_para_env) THEN
          CALL cp_rm_default_logger()
+      END IF
       DEALLOCATE (group_distribution)
       DEALLOCATE (i_force_eval)
       timer_env => get_timer_env()

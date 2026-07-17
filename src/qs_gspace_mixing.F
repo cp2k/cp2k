@@ -164,25 +164,25 @@ CONTAINS
             CALL cite_reference(Kerker1981)
             CALL gmix_potential_only(qs_env, mixing_store, rho)
             mixing_store%iter_method = "Kerker"
-         ELSEIF (mixing_method == gspace_mixing_nr) THEN
+         ELSE IF (mixing_method == gspace_mixing_nr) THEN
             CALL cite_reference(Kerker1981)
             CALL gmix_potential_only(qs_env, mixing_store, rho)
             mixing_store%iter_method = "Kerker"
-         ELSEIF (mixing_method == pulay_mixing_nr) THEN
+         ELSE IF (mixing_method == pulay_mixing_nr) THEN
             CALL pulay_mixing(qs_env, mixing_store, rho, para_env)
             mixing_store%iter_method = "Pulay"
-         ELSEIF (mixing_method == new_pulay_mixing_nr) THEN
+         ELSE IF (mixing_method == new_pulay_mixing_nr) THEN
             CALL pulay_mixing(qs_env, mixing_store, rho, para_env)
             mixing_store%iter_method = "NPulay"
-         ELSEIF (mixing_method == broyden_mixing_nr) THEN
+         ELSE IF (mixing_method == broyden_mixing_nr) THEN
             CALL cite_reference(Broyden1965)
             CALL broyden_mixing(qs_env, mixing_store, rho, para_env)
             mixing_store%iter_method = "Broy."
-         ELSEIF (mixing_method == modified_broyden_mixing_nr) THEN
+         ELSE IF (mixing_method == modified_broyden_mixing_nr) THEN
             CALL cite_reference(Johnson1988)
             CALL modified_broyden_mixing(qs_env, mixing_store, rho, para_env)
             mixing_store%iter_method = "MBroy"
-         ELSEIF (mixing_method == multisecant_mixing_nr) THEN
+         ELSE IF (mixing_method == multisecant_mixing_nr) THEN
             CPASSERT(.NOT. gapw)
             CALL multisecant_mixing(mixing_store, rho, para_env)
             mixing_store%iter_method = "MSec."
@@ -1446,7 +1446,7 @@ CONTAINS
          DO jb = 1, nb + 1
             IF (jb < ib) THEN
                kb = jb
-            ELSEIF (jb > ib) THEN
+            ELSE IF (jb > ib) THEN
                kb = jb - 1
             ELSE
                CYCLE
@@ -1564,7 +1564,7 @@ CONTAINS
                           AIMAG(pgn(ig))*AIMAG(pgn(ig))
             END DO
             CALL para_env%sum(pgn_norm)
-         ELSEIF (use_zgemm_rev) THEN
+         ELSE IF (use_zgemm_rev) THEN
 
             CALL zgemv("N", nb, ng_global, cone, a_matrix(1, 1), &
                        nb, gn_global(1), 1, czero, tmp_vec(1), 1)

@@ -318,9 +318,10 @@ CONTAINS
                                        dft_section=dft_section)
          CALL set_uniform_occupation_mo_array(mo_array, nspin)
 
-         IF (dft_control%rtp_control%apply_wfn_mix_init_restart) &
+         IF (dft_control%rtp_control%apply_wfn_mix_init_restart) THEN
             CALL wfn_mix(mo_array, particle_set, dft_section, qs_kind_set, para_env, output_unit, &
                          for_rtp=.TRUE.)
+         END IF
 
          DO ispin = 1, nspin
             CALL calculate_density_matrix(mo_array(ispin), p_rmpv(ispin)%matrix)
@@ -423,8 +424,9 @@ CONTAINS
          DO mo = 1, mo_array(ispin)%nmo
             IF (mo_array(ispin)%occupation_numbers(mo) /= 0.0 .AND. &
                 mo_array(ispin)%occupation_numbers(mo) /= 1.0 .AND. &
-                mo_array(ispin)%occupation_numbers(mo) /= 2.0) &
+                mo_array(ispin)%occupation_numbers(mo) /= 2.0) THEN
                is_uniform = .FALSE.
+            END IF
          END DO
          mo_array(ispin)%uniform_occupation = is_uniform
       END DO

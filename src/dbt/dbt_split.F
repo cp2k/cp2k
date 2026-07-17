@@ -272,7 +272,7 @@ CONTAINS
 
                         CALL timestop(handle)
 
-                     END SUBROUTINE
+                     END SUBROUTINE dbt_split_blocks_generic
 
 ! **************************************************************************************************
 !> \brief Split tensor blocks into smaller blocks of maximum size PRODUCT(block_sizes).
@@ -331,7 +331,7 @@ CONTAINS
                                                                                                   nodata=nodata)
                         #:endfor
 
-                     END SUBROUTINE
+                     END SUBROUTINE dbt_split_blocks
 
 ! **************************************************************************************************
 !> \brief Copy tensor with split blocks to tensor with original block sizes.
@@ -480,7 +480,7 @@ CONTAINS
 
                               CALL timestop(handle)
 
-                           END SUBROUTINE
+                           END SUBROUTINE dbt_split_copyback
 
 ! **************************************************************************************************
 !> \brief split two tensors with same total sizes but different block sizes such that they have
@@ -503,7 +503,8 @@ CONTAINS
                               INTEGER, DIMENSION(ndims_tensor(tensor1)), &
                                  INTENT(IN), OPTIONAL                        :: order
                               LOGICAL, INTENT(IN), OPTIONAL     :: nodata1, nodata2, move_data
-                          INTEGER, DIMENSION(:), ALLOCATABLE  :: ${varlist("blk_size_split_1")}$, ${varlist("blk_size_split_2")}$, &
+                              INTEGER, DIMENSION(:), ALLOCATABLE  :: ${varlist("blk_size_split_1")}$, &
+                                                                     ${varlist("blk_size_split_2")}$, &
                                                                      blk_size_d_1, blk_size_d_2, blk_size_d_split
                               INTEGER :: size_sum_1, size_sum_2, size_sum, bind_1, bind_2, isplit, bs, idim, i
                               LOGICAL :: move_prv, nodata1_prv, nodata2_prv
@@ -551,7 +552,7 @@ CONTAINS
                                        size_sum = size_sum + bs
                                        isplit = isplit + 1
                                        blk_size_d_split(isplit) = bs
-                                    ELSEIF (blk_size_d_1(bind_1 + 1) > blk_size_d_2(bind_2 + 1)) THEN
+                                    ELSE IF (blk_size_d_1(bind_1 + 1) > blk_size_d_2(bind_2 + 1)) THEN
                                        bind_2 = bind_2 + 1
                                        bs = blk_size_d_2(bind_2)
                                        blk_size_d_1(bind_1 + 1) = blk_size_d_1(bind_1 + 1) - bs
@@ -608,7 +609,7 @@ CONTAINS
                                  END IF
                               #:endfor
 
-                           END SUBROUTINE
+                           END SUBROUTINE dbt_make_compatible_blocks
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
@@ -698,6 +699,6 @@ CONTAINS
                               CALL dbt_copy_contraction_storage(tensor_in, tensor_out)
 
                               CALL timestop(handle)
-                           END SUBROUTINE
+                           END SUBROUTINE dbt_crop
 
-                        END MODULE
+                        END MODULE dbt_split

@@ -440,9 +440,10 @@ CONTAINS
       !   END IF
       !END IF
 
-      IF (PRESENT(local_rho_set)) &
+      IF (PRESENT(local_rho_set)) THEN
          CALL get_local_rho(local_rho_set, rho0_mpole=rho0_mpole, rho_atom_set=rho_atom_set, &
                             rhoz_cneo_set=rhoz_cneo_set)
+      END IF
       ! Q from rho0_mpole of local_rho_set
       ! for TDDFT forces we need mixed potential / integral space
       ! potential stored on local_rho_set_2nd

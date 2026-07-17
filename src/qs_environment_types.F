@@ -744,20 +744,27 @@ CONTAINS
       ! Resp charges
       IF (PRESENT(rhs)) rhs => qs_env%rhs
 
-      IF (PRESENT(local_rho_set)) &
+      IF (PRESENT(local_rho_set)) THEN
          local_rho_set => qs_env%local_rho_set
-      IF (PRESENT(rho_atom_set)) &
+      END IF
+      IF (PRESENT(rho_atom_set)) THEN
          CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
-      IF (PRESENT(rho0_atom_set)) &
+      END IF
+      IF (PRESENT(rho0_atom_set)) THEN
          CALL get_local_rho(qs_env%local_rho_set, rho0_atom_set=rho0_atom_set)
-      IF (PRESENT(rho0_mpole)) &
+      END IF
+      IF (PRESENT(rho0_mpole)) THEN
          CALL get_local_rho(qs_env%local_rho_set, rho0_mpole=rho0_mpole)
-      IF (PRESENT(rhoz_set)) &
+      END IF
+      IF (PRESENT(rhoz_set)) THEN
          CALL get_local_rho(qs_env%local_rho_set, rhoz_set=rhoz_set)
-      IF (PRESENT(rhoz_cneo_set)) &
+      END IF
+      IF (PRESENT(rhoz_cneo_set)) THEN
          CALL get_local_rho(qs_env%local_rho_set, rhoz_cneo_set=rhoz_cneo_set)
-      IF (PRESENT(ecoul_1c)) &
+      END IF
+      IF (PRESENT(ecoul_1c)) THEN
          CALL get_hartree_local(qs_env%hartree_local, ecoul_1c=ecoul_1c)
+      END IF
       IF (PRESENT(rho0_s_rs)) THEN
          CALL get_local_rho(qs_env%local_rho_set, rho0_mpole=rho0_m)
          IF (ASSOCIATED(rho0_m)) THEN
@@ -1488,10 +1495,12 @@ CONTAINS
          DEALLOCATE (qs_env%outer_scf_history)
          qs_env%outer_scf_ihistory = 0
       END IF
-      IF (ASSOCIATED(qs_env%gradient_history)) &
+      IF (ASSOCIATED(qs_env%gradient_history)) THEN
          DEALLOCATE (qs_env%gradient_history)
-      IF (ASSOCIATED(qs_env%variable_history)) &
+      END IF
+      IF (ASSOCIATED(qs_env%variable_history)) THEN
          DEALLOCATE (qs_env%variable_history)
+      END IF
       IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
       IF (ASSOCIATED(qs_env%local_rho_set)) THEN
          CALL local_rho_set_release(qs_env%local_rho_set)
@@ -1722,10 +1731,12 @@ CONTAINS
          DEALLOCATE (qs_env%outer_scf_history)
          qs_env%outer_scf_ihistory = 0
       END IF
-      IF (ASSOCIATED(qs_env%gradient_history)) &
+      IF (ASSOCIATED(qs_env%gradient_history)) THEN
          DEALLOCATE (qs_env%gradient_history)
-      IF (ASSOCIATED(qs_env%variable_history)) &
+      END IF
+      IF (ASSOCIATED(qs_env%variable_history)) THEN
          DEALLOCATE (qs_env%variable_history)
+      END IF
       IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
       IF (ASSOCIATED(qs_env%local_rho_set)) THEN
          CALL local_rho_set_release(qs_env%local_rho_set)

@@ -183,12 +183,14 @@ CONTAINS
             READ (rst_unit) nexc_search_read, nexc_atoms_read, occ_estate_read, xas_nelectron_read
             READ (rst_unit) xas_estate_read
 
-            IF (xas_method_read /= xas_method) &
+            IF (xas_method_read /= xas_method) THEN
                CPABORT("READ XAS RESTART: restart with different XAS method is not possible.")
-            IF (nexc_atoms_read /= nexc_atoms) &
+            END IF
+            IF (nexc_atoms_read /= nexc_atoms) THEN
                CALL cp_abort(__LOCATION__, &
                              "READ XAS RESTART: restart with different excited atoms "// &
                              "is not possible. Start instead a new XAS run with the new set of atoms.")
+            END IF
          END IF
 
          CALL para_env%bcast(xas_estate_read)
@@ -206,8 +208,9 @@ CONTAINS
             CALL cp_fm_set_all(mo_coeff, 0.0_dp)
             IF (para_env%is_source()) THEN
                READ (rst_unit) nao_read, nmo_read
-               IF (nao /= nao_read) &
+               IF (nao /= nao_read) THEN
                   CPABORT("To change basis is not possible. ")
+               END IF
                ALLOCATE (eig_read(nmo_read), occ_read(nmo_read))
                eig_read = 0.0_dp
                occ_read = 0.0_dp
@@ -216,10 +219,11 @@ CONTAINS
                eigenvalues(1:nmo) = eig_read(1:nmo)
                occupation_numbers(1:nmo) = occ_read(1:nmo)
                IF (nmo_read > nmo) THEN
-                  IF (occupation_numbers(nmo) >= EPSILON(0.0_dp)) &
+                  IF (occupation_numbers(nmo) >= EPSILON(0.0_dp)) THEN
                      CALL cp_warn(__LOCATION__, &
                                   "The number of occupied MOs on the restart unit is larger than "// &
                                   "the allocated MOs.")
+                  END IF
 
                END IF
                DEALLOCATE (eig_read, occ_read)

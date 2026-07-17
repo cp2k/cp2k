@@ -559,8 +559,9 @@ CONTAINS
                                 starts_array_mc, ends_array_mc, &
                                 starts_array_mc_block, ends_array_mc_block, calc_forces)
 
-         IF (mp2_env%ri_rpa%do_rse) &
+         IF (mp2_env%ri_rpa%do_rse) THEN
             CALL rse_energy(qs_env, mp2_env, para_env, dft_control, mo_coeff, homo, Eigenval)
+         END IF
 
          IF (do_im_time) THEN
             IF (ASSOCIATED(mat_P_global%matrix)) THEN

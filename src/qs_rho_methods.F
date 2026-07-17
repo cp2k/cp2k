@@ -140,8 +140,9 @@ CONTAINS
                       do_kpoints=do_kpoints, &
                       pw_env=pw_env, &
                       dft_control=dft_control)
-      IF (PRESENT(pw_env_external)) &
+      IF (PRESENT(pw_env_external)) THEN
          pw_env => pw_env_external
+      END IF
 
       nimg = dft_control%nimages
 
@@ -182,8 +183,9 @@ CONTAINS
 
       ! rho_ao
       IF (my_rebuild_ao .OR. (.NOT. ASSOCIATED(rho_ao_kp))) THEN
-         IF (ASSOCIATED(rho_ao_kp)) &
+         IF (ASSOCIATED(rho_ao_kp)) THEN
             CALL dbcsr_deallocate_matrix_set(rho_ao_kp)
+         END IF
          ! Create a new density matrix set
          CALL dbcsr_allocate_matrix_set(rho_ao_kp, nspins, nimg)
          CALL qs_rho_set(rho, rho_ao_kp=rho_ao_kp)
@@ -406,12 +408,12 @@ CONTAINS
          CALL calculate_harris_density(qs_env, harris_env%rhoin, rho_struct)
          CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
 
-      ELSEIF (dft_control%qs_control%semi_empirical .OR. &
-              dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+      ELSE IF (dft_control%qs_control%semi_empirical .OR. &
+               dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
 
          CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE.)
 
-      ELSEIF (dft_control%qs_control%lrigpw) THEN
+      ELSE IF (dft_control%qs_control%lrigpw) THEN
          CPASSERT(.NOT. dft_control%use_kinetic_energy_density)
          CPASSERT(.NOT. dft_control%drho_by_collocation)
          CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
@@ -427,7 +429,7 @@ CONTAINS
          CALL set_qs_env(qs_env, lri_density=lri_density)
          CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
 
-      ELSEIF (dft_control%qs_control%rigpw) THEN
+      ELSE IF (dft_control%qs_control%rigpw) THEN
          CPASSERT(.NOT. dft_control%use_kinetic_energy_density)
          CPASSERT(.NOT. dft_control%drho_by_collocation)
          CALL get_qs_env(qs_env, lri_env=lri_env)

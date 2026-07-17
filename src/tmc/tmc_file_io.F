@@ -301,10 +301,11 @@ CONTAINS
       CALL open_file(file_name=file_name, file_status="OLD", file_form="UNFORMATTED", &
                      file_action="READ", unit_number=file_ptr)
       READ (file_ptr) temp_size
-      IF (temp_size /= SIZE(tmc_env%params%Temp)) &
+      IF (temp_size /= SIZE(tmc_env%params%Temp)) THEN
          CALL cp_abort(__LOCATION__, &
                        "the actual specified temperatures does not "// &
                        "fit in amount with the one from restart file ")
+      END IF
       ALLOCATE (tmp_temp(temp_size))
       READ (file_ptr) tmp_temp(:), &
          tmc_env%m_env%gt_act%nr, &
@@ -323,9 +324,10 @@ CONTAINS
          job_counts, &
          timings
 
-      IF (ANY(ABS(tmc_env%params%Temp(:) - tmp_temp(:)) >= 0.005)) &
+      IF (ANY(ABS(tmc_env%params%Temp(:) - tmp_temp(:)) >= 0.005)) THEN
          CALL cp_abort(__LOCATION__, "the temperatures differ from the previous calculation. "// &
                        "There were the following temperatures used:")
+      END IF
       IF (ANY(mv_weight_tmp(:) /= tmc_env%params%move_types%mv_weight(:))) THEN
          CPWARN("The amount of mv types differs between the original and the restart run.")
       END IF
@@ -722,13 +724,14 @@ CONTAINS
       ! write the different energies
       ! TODO if necessary
 
-      IF (files_conf_missmatch) &
+      IF (files_conf_missmatch) THEN
          CALL cp_warn(__LOCATION__, &
                       'there is a missmatch in the configuration numbering. '// &
                       "Read number of lines (pos|cell|dip)"// &
                       cp_to_string(tmc_ana%lc_traj)//"|"// &
                       cp_to_string(tmc_ana%lc_cell)//"|"// &
                       cp_to_string(tmc_ana%lc_dip))
+      END IF
 
       ! end the timing
       CALL timestop(handle)
@@ -769,20 +772,22 @@ CONTAINS
          c_tmp(:) = " "
          tmc_ana%lc_traj = tmc_ana%lc_traj + 1
          READ (tmc_ana%id_traj, '(A)', IOSTAT=status) c_tmp(:)
-         IF (status > 0) &
+         IF (status > 0) THEN
             CALL cp_abort(__LOCATION__, &
                           "configuration header read error at line: "// &
                           cp_to_string(tmc_ana%lc_traj)//": "//c_tmp)
+         END IF
          IF (status < 0) THEN ! end of file reached
             stat = TMC_STATUS_WAIT_FOR_NEW_TASK
             EXIT search_next_conf
          END IF
          IF (INDEX(c_tmp, "=") > 0) THEN
             READ (c_tmp(INDEX(c_tmp, "=") + 1:), *, IOSTAT=status) i_tmp ! read the configuration number
-            IF (status /= 0) &
+            IF (status /= 0) THEN
                CALL cp_abort(__LOCATION__, &
                              "configuration header read error (for conf nr) at line: "// &
                              cp_to_string(tmc_ana%lc_traj))
+            END IF
             IF (i_tmp > conf_nr) THEN
                ! TODO we could also read the energy ...
                conf_nr = i_tmp
@@ -914,8 +919,9 @@ CONTAINS
       IF (status < 0) THEN ! end of file reached
          stat = TMC_STATUS_WAIT_FOR_NEW_TASK
       ELSE IF (status > 0) THEN
-         IF (status /= 0) &
+         IF (status /= 0) THEN
             CPABORT("configuration cell read error at line: "//cp_to_string(tmc_ana%lc_cell))
+         END IF
          stat = TMC_STATUS_FAILED
       ELSE
          IF (elem%nr < 0) elem%nr = conf_nr

@@ -285,8 +285,9 @@ CONTAINS
       ![NB] need more sophisticated QM extended, buffer rules
 
       ! add QM using hysteretic selection (core_list, r_qm) + unbreakable bonds
-      IF (debug_this_module .AND. output_unit > 0) &
+      IF (debug_this_module .AND. output_unit > 0) THEN
          WRITE (output_unit, *) "BOB QM_extended_seed_is_core_list ", QM_extended_seed_is_core_list
+      END IF
       IF (QM_extended_seed_is_core_list) THEN
          QM_extended_seed_min_label_val = force_mixing_label_QM_core_list
       ELSE ! QM region seed is all of core, not just core list + unbreakable bonds
@@ -378,17 +379,19 @@ CONTAINS
                EXIT
             END IF
          END DO
-         IF (old_index <= 0) &
+         IF (old_index <= 0) THEN
             CALL cp_abort(__LOCATION__, &
                           "add_new_label found atom with a label "// &
                           "already set, but not in new_indices array")
+         END IF
          new_labels(old_index) = label
       ELSE
          n_new = n_new + 1
-         IF (n_new > max_n_qm) &
+         IF (n_new > max_n_qm) THEN
             CALL cp_abort(__LOCATION__, &
                           "add_new_label tried to add more atoms "// &
                           "than allowed by &FORCE_MIXING&MAX_N_QM!")
+         END IF
          IF (n_new > SIZE(new_indices)) CALL reallocate(new_indices, 1, n_new + 9)
          IF (n_new > SIZE(new_labels)) CALL reallocate(new_labels, 1, n_new + 9)
          new_indices(n_new) = ip
@@ -483,8 +486,9 @@ CONTAINS
             adaptive_exclude = .FALSE.
             DO im_exclude = 1, SIZE(adaptive_exclude_molecules)
                IF (TRIM(molecule_set(im)%molecule_kind%name) == TRIM(adaptive_exclude_molecules(im_exclude)) .OR. &
-                   TRIM(molecule_set(im)%molecule_kind%name) == '_QM_'//TRIM(adaptive_exclude_molecules(im_exclude))) &
+                   TRIM(molecule_set(im)%molecule_kind%name) == '_QM_'//TRIM(adaptive_exclude_molecules(im_exclude))) THEN
                   adaptive_exclude = .TRUE.
+               END IF
             END DO
             IF (adaptive_exclude) CYCLE
          END IF
@@ -493,15 +497,17 @@ CONTAINS
          IF (molec_in_inner) THEN
             DO ip = molecule_set(im)%first_atom, molecule_set(im)%last_atom
                ! labels are being rebuild from scratch, so never overwrite new label that's higher level
-               IF (new_full_labels(ip) < set_label_val) &
+               IF (new_full_labels(ip) < set_label_val) THEN
                   CALL add_new_label(ip, set_label_val, n_new, new_indices, new_labels, new_full_labels, max_n_qm)
+               END IF
             END DO
          ELSE IF (molec_in_outer) THEN
             IF (ANY(orig_full_labels(molecule_set(im)%first_atom:molecule_set(im)%last_atom) >= set_label_val)) THEN
                DO ip = molecule_set(im)%first_atom, molecule_set(im)%last_atom
                   ! labels are being rebuild from scratch, so never overwrite new label that's higher level
-                  IF (new_full_labels(ip) < set_label_val) &
+                  IF (new_full_labels(ip) < set_label_val) THEN
                      CALL add_new_label(ip, set_label_val, n_new, new_indices, new_labels, new_full_labels, max_n_qm)
+                  END IF
                END DO
             END IF
          END IF
@@ -644,8 +650,9 @@ CONTAINS
 
       ! get CUR_INDICES, CUR_LABELS
       CALL get_force_mixing_indices(force_mixing_section, cur_indices, cur_labels)
-      IF (SIZE(cur_indices) <= 0) &
+      IF (SIZE(cur_indices) <= 0) THEN
          CPABORT("cur_indices is empty, found no QM atoms")
+      END IF
 
       IF (debug_this_module .AND. output_unit > 0) THEN
          WRITE (output_unit, *) "cur_indices ", cur_indices
@@ -665,21 +672,23 @@ CONTAINS
                   EXIT
                END IF
             END DO
-            IF (.NOT. mapped) &
+            IF (.NOT. mapped) THEN
                CALL cp_abort(__LOCATION__, &
                              "Force-mixing failed to find QM_KIND mapping for atom of type "// &
                              TRIM(particles(cur_indices(ip))%atomic_kind%element_symbol)// &
                              "! ")
+            END IF
          END IF
       END DO
 
       ! pre-existing QM_KIND section specifies list of core atom
       qm_kind_section => section_vals_get_subs_vals3(qmmm_section, "QM_KIND")
       CALL section_vals_get(qm_kind_section, n_repetition=i_rep_section_core)
-      IF (i_rep_section_core <= 0) &
+      IF (i_rep_section_core <= 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "Force-mixing QM didn't find any QM_KIND sections, "// &
                        "so no core specified!")
+      END IF
       i_rep_section_extended = i_rep_section_core
       DO ielem = 1, n_elements
          new_element_core = .TRUE.
@@ -800,8 +809,9 @@ CONTAINS
          n_labels = n_labels + SIZE(labels_entry)
       END DO
 
-      IF (n_indices /= n_labels) &
+      IF (n_indices /= n_labels) THEN
          CPABORT("got unequal numbers of force_mixing indices and labels!")
+      END IF
    END SUBROUTINE get_force_mixing_indices
 
 END MODULE qmmmx_util

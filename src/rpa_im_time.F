@@ -477,8 +477,9 @@ CONTAINS
 
                         first_cycle_im_time = .FALSE.
 
-                        IF (jquad == 1 .AND. flops_2 == 0) &
+                        IF (jquad == 1 .AND. flops_2 == 0) THEN
                            has_mat_P_blocks(i_cell_T, i_mem, j_mem, i_cell_R_1, i_cell_R_2) = .FALSE.
+                        END IF
 
                      END DO
                   END DO

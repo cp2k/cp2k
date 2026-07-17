@@ -501,7 +501,7 @@ CONTAINS
    SUBROUTINE colvar_setup(colvar)
       TYPE(colvar_type), INTENT(INOUT)                   :: colvar
 
-      INTEGER                                            :: i, idum, iend, ii, istart, j, np, stat
+      INTEGER                                            :: i, idum, iend, ii, istart, j, np
       INTEGER, DIMENSION(:), POINTER                     :: list
 
       SELECT CASE (colvar%type_id)
@@ -660,11 +660,12 @@ CONTAINS
          IF (colvar%plane_plane_angle_param%plane1%type_of_def == plane_def_atoms) np = np + 3
          IF (colvar%plane_plane_angle_param%plane2%type_of_def == plane_def_atoms) np = np + 3
          ! if np is equal to zero this means that this is not a COLLECTIVE variable..
-         IF (np == 0) &
+         IF (np == 0) THEN
             CALL cp_abort(__LOCATION__, &
                           "PLANE_PLANE_ANGLE Colvar defined using two normal vectors! This is "// &
                           "not a COLLECTIVE VARIABLE! One of the two planes must be defined "// &
                           "using atomic positions.")
+         END IF
 
          ! Number of real atoms involved in the colvar
          colvar%n_atom_s = 0
@@ -850,8 +851,8 @@ CONTAINS
          i = colvar%xyz_outerdiag_param%i_atoms(2)
          list(2) = i
       CASE (u_colvar_id)
-         np = 1; ALLOCATE (list(np), stat=stat)
-         CPASSERT(stat == 0)
+         np = 1
+         ALLOCATE (list(np))
          colvar%n_atom_s = np; list(1) = 1
       CASE (Wc_colvar_id)
          np = 3
@@ -1034,8 +1035,9 @@ CONTAINS
          idum = idum + 1
          i = i_oxygens(ii)
          list(idum) = i
-         IF (ANY(i_hydrogens == i)) &
+         IF (ANY(i_hydrogens == i)) THEN
             CPABORT("COLVAR: atoms doubled in OXYGENS and HYDROGENS list")
+         END IF
       END DO
       DO ii = 1, n_hydrogens
          idum = idum + 1
@@ -1046,10 +1048,12 @@ CONTAINS
       DO i = 1, np
          DO ii = i + 1, np
             IF (list(i) == list(ii)) THEN
-               IF (i <= n_oxygens) &
+               IF (i <= n_oxygens) THEN
                   CPABORT("atoms doubled in OXYGENS list")
-               IF (i > n_oxygens) &
+               END IF
+               IF (i > n_oxygens) THEN
                   CPABORT("atoms doubled in HYDROGENS list")
+               END IF
             END IF
          END DO
       END DO
@@ -1113,17 +1117,20 @@ CONTAINS
          idum = idum + 1
          i = i_oxygens_water(ii)
          list(idum) = i
-         IF (ANY(i_hydrogens == i)) &
+         IF (ANY(i_hydrogens == i)) THEN
             CPABORT("COLVAR: atoms doubled in OXYGENS_WATER and HYDROGENS list")
-         IF (ANY(i_oxygens_acid == i)) &
+         END IF
+         IF (ANY(i_oxygens_acid == i)) THEN
             CPABORT("COLVAR: atoms doubled in OXYGENS_WATER and OXYGENS_ACID list")
+         END IF
       END DO
       DO ii = 1, n_oxygens_acid
          idum = idum + 1
          i = i_oxygens_acid(ii)
          list(idum) = i
-         IF (ANY(i_hydrogens == i)) &
+         IF (ANY(i_hydrogens == i)) THEN
             CPABORT("COLVAR: atoms doubled in OXYGENS_ACID and HYDROGENS list")
+         END IF
       END DO
       DO ii = 1, n_hydrogens
          idum = idum + 1
@@ -1134,12 +1141,15 @@ CONTAINS
       DO i = 1, np
          DO ii = i + 1, np
             IF (list(i) == list(ii)) THEN
-               IF (i <= n_oxygens_water) &
+               IF (i <= n_oxygens_water) THEN
                   CPABORT("atoms doubled in OXYGENS_WATER list")
-               IF (i > n_oxygens_water .AND. i <= n_oxygens_water + n_oxygens_acid) &
+               END IF
+               IF (i > n_oxygens_water .AND. i <= n_oxygens_water + n_oxygens_acid) THEN
                   CPABORT("atoms doubled in OXYGENS_ACID list")
-               IF (i > n_oxygens_water + n_oxygens_acid) &
+               END IF
+               IF (i > n_oxygens_water + n_oxygens_acid) THEN
                   CPABORT("atoms doubled in HYDROGENS list")
+               END IF
             END IF
          END DO
       END DO
@@ -1354,7 +1364,7 @@ CONTAINS
       TYPE(colvar_type), INTENT(IN)                      :: colvar_in
       INTEGER, INTENT(IN), OPTIONAL                      :: i_atom_offset
 
-      INTEGER                                            :: i, my_offset, ndim, ndim2, stat
+      INTEGER                                            :: i, my_offset, ndim, ndim2
 
       my_offset = 0
       IF (PRESENT(i_atom_offset)) my_offset = i_atom_offset
@@ -1407,7 +1417,7 @@ CONTAINS
             ndim = SIZE(colvar_in%coord_param%c_kinds_to_b)
             ALLOCATE (colvar_out%coord_param%c_kinds_to_b(ndim))
             colvar_out%coord_param%c_kinds_to_b = colvar_in%coord_param%c_kinds_to_b
-         ELSEIF (ASSOCIATED(colvar_in%coord_param%i_at_to_b)) THEN
+         ELSE IF (ASSOCIATED(colvar_in%coord_param%i_at_to_b)) THEN
             ! INDEX
             ndim = SIZE(colvar_in%coord_param%i_at_to_b)
             ALLOCATE (colvar_out%coord_param%i_at_to_b(ndim))
@@ -1615,11 +1625,11 @@ CONTAINS
             colvar_out%reaction_path_param%align_frames = colvar_in%reaction_path_param%align_frames
             colvar_out%reaction_path_param%subset = colvar_in%reaction_path_param%subset
             ndim = SIZE(colvar_in%reaction_path_param%i_rmsd)
-            ALLOCATE (colvar_out%reaction_path_param%i_rmsd(ndim), stat=stat)
+            ALLOCATE (colvar_out%reaction_path_param%i_rmsd(ndim))
             colvar_out%reaction_path_param%i_rmsd = colvar_in%reaction_path_param%i_rmsd
             ndim = SIZE(colvar_in%reaction_path_param%r_ref, 1)
             ndim2 = SIZE(colvar_in%reaction_path_param%r_ref, 2)
-            ALLOCATE (colvar_out%reaction_path_param%r_ref(ndim, ndim2), stat=stat)
+            ALLOCATE (colvar_out%reaction_path_param%r_ref(ndim, ndim2))
             colvar_out%reaction_path_param%r_ref = colvar_in%reaction_path_param%r_ref
          ELSE
             ndim = SIZE(colvar_in%reaction_path_param%colvar_p)
@@ -1842,8 +1852,9 @@ CONTAINS
 
       IF (ASSOCIATED(colvar_p)) THEN
          DO i = 1, SIZE(colvar_p)
-            IF (ASSOCIATED(colvar_p(i)%colvar)) &
+            IF (ASSOCIATED(colvar_p(i)%colvar)) THEN
                CALL colvar_release(colvar_p(i)%colvar)
+            END IF
          END DO
          DEALLOCATE (colvar_p)
       END IF

@@ -192,8 +192,9 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: one_stage, qr, should_print
 
 #if defined(__ELPA)
-      IF (elpa_init(20180525) /= ELPA_OK) &
+      IF (elpa_init(20180525) /= ELPA_OK) THEN
          CPABORT("The linked ELPA library does not support the required API version")
+      END IF
       IF (PRESENT(one_stage)) elpa_one_stage = one_stage
       IF (PRESENT(should_print)) elpa_print = should_print
       IF (PRESENT(qr)) elpa_qr = qr
@@ -294,8 +295,9 @@ CONTAINS
                                     caller_is_elpa=.TRUE., redist_info=rdinfo)
 
       ! Call ELPA on CPUs that hold the new matrix
-      IF (ASSOCIATED(matrix_new%matrix_struct)) &
+      IF (ASSOCIATED(matrix_new%matrix_struct)) THEN
          CALL cp_fm_diag_elpa_base(matrix_new, eigenvectors_new, eigenvalues, rdinfo)
+      END IF
 
       ! Redistribute results and clean up
       CALL cp_fm_redistribute_end(matrix, eigenvectors, eigenvalues, matrix_new, eigenvectors_new)
@@ -389,12 +391,14 @@ CONTAINS
       ! Matrix order must be even
       use_qr = elpa_qr .AND. (MODULO(n, 2) == 0)
       ! Matrix order and block size must be greater than or equal to 64
-      IF (.NOT. elpa_qr_unsafe) &
+      IF (.NOT. elpa_qr_unsafe) THEN
          use_qr = use_qr .AND. (n >= 64) .AND. (nblk >= 64)
+      END IF
 
       ! Check if eigenvalues computed with elpa_qr_unsafe should be verified
-      IF (use_qr .AND. elpa_qr_unsafe .AND. elpa_print) &
+      IF (use_qr .AND. elpa_qr_unsafe .AND. elpa_print) THEN
          check_eigenvalues = .TRUE.
+      END IF
 
       CALL matrix%matrix_struct%para_env%bcast(check_eigenvalues)
 
@@ -497,8 +501,9 @@ CONTAINS
       CALL elpa_obj%set("solver", &
                         MERGE(ELPA_SOLVER_1STAGE, ELPA_SOLVER_2STAGE, elpa_one_stage), &
                         success)
-      IF (success /= ELPA_OK) &
+      IF (success /= ELPA_OK) THEN
          CPABORT("Setting solver for ELPA failed")
+      END IF
 
       ! enabling the GPU must happen before setting the kernel
       SELECT CASE (elpa_kernel)
@@ -539,8 +544,9 @@ CONTAINS
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
 
-      IF (success /= ELPA_OK) &
+      IF (success /= ELPA_OK) THEN
          CPABORT("ELPA failed to diagonalize a matrix")
+      END IF
 
       IF (check_eigenvalues) THEN
          ! run again without QR
@@ -548,11 +554,13 @@ CONTAINS
          CPASSERT(success == ELPA_OK)
 
          CALL elpa_obj%eigenvectors(matrix_noqr%local_data, eval_noqr, eigenvectors_noqr%local_data, success)
-         IF (success /= ELPA_OK) &
+         IF (success /= ELPA_OK) THEN
             CPABORT("ELPA failed to diagonalize a matrix even without QR decomposition")
+         END IF
 
-         IF (ANY(ABS(eval(1:neig) - eval_noqr(1:neig)) > th)) &
+         IF (ANY(ABS(eval(1:neig) - eval_noqr(1:neig)) > th)) THEN
             CPABORT("ELPA failed to calculate Eigenvalues with ELPA's QR decomposition")
+         END IF
 
          DEALLOCATE (eval_noqr)
          CALL cp_fm_release(matrix_noqr)

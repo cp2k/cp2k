@@ -261,7 +261,7 @@ CONTAINS
          CALL change_bond_length(r_old, r_new, mc_par, molecule_type, &
                                  molecule_kind, dis_length, particles, rng_stream)
 
-      ELSEIF (move_type == 'angle') THEN
+      ELSE IF (move_type == 'angle') THEN
 
 ! record the attempt
          moves%angle%attempts = moves%angle%attempts + 1
@@ -338,7 +338,7 @@ CONTAINS
             value = -BETA*(bias_energy_new - bias_energy_old)
             IF (value > exp_max_val) THEN
                w = 10.0_dp
-            ELSEIF (value < exp_min_val) THEN
+            ELSE IF (value < exp_min_val) THEN
                w = 0.0_dp
             ELSE
                w = EXP(value)*dis_length**2
@@ -366,7 +366,7 @@ CONTAINS
                moves%bias_bond%successes = moves%bias_bond%successes + 1
                move_updates%bias_bond%successes = &
                   move_updates%bias_bond%successes + 1
-            ELSEIF (move_type == 'angle') THEN
+            ELSE IF (move_type == 'angle') THEN
                moves%angle%qsuccesses = moves%angle%qsuccesses + 1
                move_updates%angle%successes = &
                   move_updates%angle%successes + 1
@@ -581,7 +581,7 @@ CONTAINS
             value = -BETA*(bias_energy_new - bias_energy_old)
             IF (value > exp_max_val) THEN
                w = 10.0_dp
-            ELSEIF (value < exp_min_val) THEN
+            ELSE IF (value < exp_min_val) THEN
                w = 0.0_dp
             ELSE
                w = EXP(value)
@@ -780,7 +780,7 @@ CONTAINS
 
       IF (dir == 1) THEN
          lx = .TRUE.
-      ELSEIF (dir == 2) THEN
+      ELSE IF (dir == 2) THEN
          ly = .TRUE.
       END IF
 
@@ -822,7 +822,7 @@ CONTAINS
             particles%els(iunit)%r(3) = rznew + nzcm
 
          END DO
-      ELSEIF (ly) THEN
+      ELSE IF (ly) THEN
 
 ! ***    ROTATE UNITS OF I AROUND y-AXIS ***
 
@@ -884,7 +884,7 @@ CONTAINS
             value = -BETA*(bias_energy_new - bias_energy_old)
             IF (value > exp_max_val) THEN
                w = 10.0_dp
-            ELSEIF (value < exp_min_val) THEN
+            ELSE IF (value < exp_min_val) THEN
                w = 0.0_dp
             ELSE
                w = EXP(value)
@@ -1208,8 +1208,9 @@ CONTAINS
          END IF
       END IF
       CALL group%bcast(ltoo_small, source)
-      IF (ltoo_small) &
+      IF (ltoo_small) THEN
          CPABORT("Attempted a volume move where box size got too small.")
+      END IF
 
 ! now compute the energy
       CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
@@ -1227,7 +1228,7 @@ CONTAINS
       value = -BETA*(energy_term + volume_term + pressure_term)
       IF (value > exp_max_val) THEN
          w = 10.0_dp
-      ELSEIF (value < exp_min_val) THEN
+      ELSE IF (value < exp_min_val) THEN
          w = 0.0_dp
       ELSE
          w = EXP(value)
@@ -1374,7 +1375,7 @@ CONTAINS
             IF (bond_list(ibond)%a == iatom) THEN
                counter(iatom) = counter(iatom) + 1
                connectivity(counter(iatom), iatom) = bond_list(ibond)%b
-            ELSEIF (bond_list(ibond)%b == iatom) THEN
+            ELSE IF (bond_list(ibond)%b == iatom) THEN
                counter(iatom) = counter(iatom) + 1
                connectivity(counter(iatom), iatom) = bond_list(ibond)%a
             END IF
@@ -1421,7 +1422,7 @@ CONTAINS
 
 ! notice we weight by the opposite masses...therefore lighter segments
 ! will move further
-      old_length = SQRT(DOT_PRODUCT(bond_a, bond_a))
+      old_length = NORM2(bond_a)
       new_length_a = dis_length*mass_b/(mass_a + mass_b)
       new_length_b = dis_length*mass_a/(mass_a + mass_b)
 
@@ -1543,7 +1544,7 @@ CONTAINS
             IF (bond_list(ibond)%a == iatom) THEN
                counter(iatom) = counter(iatom) + 1
                connectivity(counter(iatom), iatom) = bond_list(ibond)%b
-            ELSEIF (bond_list(ibond)%b == iatom) THEN
+            ELSE IF (bond_list(ibond)%b == iatom) THEN
                counter(iatom) = counter(iatom) + 1
                connectivity(counter(iatom), iatom) = bond_list(ibond)%a
             END IF
@@ -1591,15 +1592,15 @@ CONTAINS
          bond_c(i) = r_new(i, bend_list(bend_number)%c) - &
                      r_new(i, bend_list(bend_number)%b)
       END DO
-      old_length_a = SQRT(DOT_PRODUCT(bond_a, bond_a))
-      old_length_c = SQRT(DOT_PRODUCT(bond_c, bond_c))
+      old_length_a = NORM2(bond_a)
+      old_length_c = NORM2(bond_c)
       old_angle = ACOS(DOT_PRODUCT(bond_a, bond_c)/(old_length_a*old_length_c))
 
       DO i = 1, 3
          bisector(i) = bond_a(i)/old_length_a + & ! not yet normalized
                        bond_c(i)/old_length_c
       END DO
-      bis_length = SQRT(DOT_PRODUCT(bisector, bisector))
+      bis_length = NORM2(bisector)
       bisector(1:3) = bisector(1:3)/bis_length
 
 ! now we need to find the cross product of the B-A and B-C vectors and normalize
@@ -1607,14 +1608,14 @@ CONTAINS
       cross_prod(1) = bond_a(2)*bond_c(3) - bond_a(3)*bond_c(2)
       cross_prod(2) = bond_a(3)*bond_c(1) - bond_a(1)*bond_c(3)
       cross_prod(3) = bond_a(1)*bond_c(2) - bond_a(2)*bond_c(1)
-      cross_prod(1:3) = cross_prod(1:3)/SQRT(DOT_PRODUCT(cross_prod, cross_prod))
+      cross_prod(1:3) = cross_prod(1:3)/NORM2(cross_prod)
 
 ! we have two axis of a coordinate system...let's get the third
       cross_prod_plane(1) = cross_prod(2)*bisector(3) - cross_prod(3)*bisector(2)
       cross_prod_plane(2) = cross_prod(3)*bisector(1) - cross_prod(1)*bisector(3)
       cross_prod_plane(3) = cross_prod(1)*bisector(2) - cross_prod(2)*bisector(1)
       cross_prod_plane(1:3) = cross_prod_plane(1:3)/ &
-                              SQRT(DOT_PRODUCT(cross_prod_plane, cross_prod_plane))
+                              NORM2(cross_prod_plane)
 
 ! now bisector is x, cross_prod_plane is the y vector (pointing towards c),
 ! and cross_prod is z
@@ -1636,7 +1637,7 @@ CONTAINS
          temp(1:3) = r_new(1:3, iatom) - &
                      DOT_PRODUCT(cross_prod(1:3), r_new(1:3, iatom))* &
                      cross_prod(1:3)
-         temp_length = SQRT(DOT_PRODUCT(temp, temp))
+         temp_length = NORM2(temp)
 
 ! we can now compute all three components of the new bond vector along the
 ! axis defined above
@@ -1667,7 +1668,7 @@ CONTAINS
                                    cross_prod(1:3)
             END IF
 
-         ELSEIF (atom_c(iatom) == 1) THEN
+         ELSE IF (atom_c(iatom) == 1) THEN
 
 ! if the y-coordinate is less than zero, we need to switch the sign when we make the vector,
 ! as the angle computed by the dot product can't distinguish between that
@@ -1805,7 +1806,7 @@ CONTAINS
             IF (bond_list(ibond)%a == iatom) THEN
                counter(iatom) = counter(iatom) + 1
                connectivity(counter(iatom), iatom) = bond_list(ibond)%b
-            ELSEIF (bond_list(ibond)%b == iatom) THEN
+            ELSE IF (bond_list(ibond)%b == iatom) THEN
                counter(iatom) = counter(iatom) + 1
                connectivity(counter(iatom), iatom) = bond_list(ibond)%a
             END IF
@@ -1846,7 +1847,7 @@ CONTAINS
          bond_a(i) = r_new(i, torsion_list(torsion_number)%c) - &
                      r_new(i, torsion_list(torsion_number)%b)
       END DO
-      old_length_a = SQRT(DOT_PRODUCT(bond_a, bond_a))
+      old_length_a = NORM2(bond_a)
       bond_a(1:3) = bond_a(1:3)/old_length_a
 
 ! figure out how much we move each side, since we're mass-weighting, by the
@@ -1880,7 +1881,7 @@ CONTAINS
             temp(1:3) = temp(1:3) + r_new(1:3, torsion_list(torsion_number)%b)
             r_new(1:3, iatom) = temp(1:3)
 
-         ELSEIF (atom_d(iatom) == 1) THEN
+         ELSE IF (atom_d(iatom) == 1) THEN
 
 ! shift the coords so c is at the origin
             r_new(1:3, iatom) = r_new(1:3, iatom) - &
@@ -2214,7 +2215,7 @@ CONTAINS
           .NOT. lin .AND. move_type == 'out') THEN
 ! standard Metropolis rule
          prefactor = 1.0_dp
-      ELSEIF (.NOT. lin .AND. move_type == 'in') THEN
+      ELSE IF (.NOT. lin .AND. move_type == 'in') THEN
          prefactor = (1.0_dp - pbias(molecule_type))*volume_in/(pbias(molecule_type)*volume_out)
       ELSE
          prefactor = pbias(molecule_type)*volume_out/((1.0_dp - pbias(molecule_type))*volume_in)
@@ -2229,7 +2230,7 @@ CONTAINS
 
          IF (del_quickstep_energy > exp_max_val) THEN
             del_quickstep_energy = max_val
-         ELSEIF (del_quickstep_energy < exp_min_val) THEN
+         ELSE IF (del_quickstep_energy < exp_min_val) THEN
             del_quickstep_energy = 0.0_dp
          ELSE
             del_quickstep_energy = EXP(del_quickstep_energy)
@@ -2416,7 +2417,7 @@ CONTAINS
       value = -BETA*(energy_term)
       IF (value > exp_max_val) THEN
          w = 10.0_dp
-      ELSEIF (value < exp_min_val) THEN
+      ELSE IF (value < exp_min_val) THEN
          w = 0.0_dp
       ELSE
          w = EXP(value)
@@ -2674,7 +2675,7 @@ CONTAINS
             value = -BETA*(bias_energy_new - bias_energy_old)
             IF (value > exp_max_val) THEN
                w = 10.0_dp
-            ELSEIF (value < exp_min_val) THEN
+            ELSE IF (value < exp_min_val) THEN
                w = 0.0_dp
             ELSE
                w = EXP(value)

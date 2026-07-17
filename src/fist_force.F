@@ -735,7 +735,7 @@ CONTAINS
                shell_particle_set(i)%f(3) = fshell_total(3, i) + fgshell_coulomb(3, i)
             END DO
 
-         ELSEIF (shell_present .AND. .NOT. shell_model_ad) THEN
+         ELSE IF (shell_present .AND. .NOT. shell_model_ad) THEN
             CPABORT("Non adiabatic shell-model not implemented.")
          ELSE
             DO i = 1, natoms
@@ -767,7 +767,7 @@ CONTAINS
                shell_particle_set(i)%f(2) = fshell_total(2, i)
                shell_particle_set(i)%f(3) = fshell_total(3, i)
             END DO
-         ELSEIF (shell_present .AND. .NOT. shell_model_ad) THEN
+         ELSE IF (shell_present .AND. .NOT. shell_model_ad) THEN
             CPABORT("Non adiabatic shell-model not implemented.")
          ELSE
             DO i = 1, natoms

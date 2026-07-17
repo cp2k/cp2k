@@ -83,10 +83,12 @@ CONTAINS
       ! terms sensing neighboring atoms
       DO ipot = 1, npots
          pot_maxl = pao_potentials(ipot)%maxl ! maxl is taken from central atom
-         IF (pot_maxl < 0) &
+         IF (pot_maxl < 0) THEN
             CPABORT("ROTINV parametrization requires non-negative PAO_POTENTIAL%MAXL")
-         IF (MOD(pot_maxl, 2) /= 0) &
+         END IF
+         IF (MOD(pot_maxl, 2) /= 0) THEN
             CPABORT("ROTINV parametrization requires even-numbered PAO_POTENTIAL%MAXL")
+         END IF
          DO max_shell = 1, nshells
          DO min_shell = 1, max_shell
          DO lpot = 0, pot_maxl, 2
@@ -203,8 +205,9 @@ CONTAINS
                IF (jatom == iatom) CYCLE ! no self-interaction
                CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=jkind)
                CALL get_qs_kind(qs_kind_set(jkind), pao_potentials=jpao_potentials)
-               IF (SIZE(jpao_potentials) /= npots) &
+               IF (SIZE(jpao_potentials) /= npots) THEN
                   CPABORT("Not all KINDs have the same number of PAO_POTENTIAL sections")
+               END IF
 
                ! initialize exponents
                pot_weight = jpao_potentials(ipot)%weight ! taken from remote atom
@@ -448,8 +451,9 @@ CONTAINS
                IF (jatom == iatom) CYCLE ! no self-interaction
                CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=jkind)
                CALL get_qs_kind(qs_kind_set(jkind), pao_potentials=jpao_potentials)
-               IF (SIZE(jpao_potentials) /= npots) &
+               IF (SIZE(jpao_potentials) /= npots) THEN
                   CPABORT("Not all KINDs have the same number of PAO_POTENTIAL sections")
+               END IF
 
                ! initialize exponents
                pot_weight = jpao_potentials(ipot)%weight ! taken from remote atom

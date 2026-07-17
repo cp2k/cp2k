@@ -173,7 +173,7 @@ CONTAINS
                         g = SQRT(g2)
                         IF (qmmm_coupl_type == do_qmmm_gauss) THEN
                            LG(idim) = 4.0_dp*Pi/g2*EXP(-(g2*rc2)/4.0_dp)
-                        ELSEIF (qmmm_coupl_type == do_qmmm_swave) THEN
+                        ELSE IF (qmmm_coupl_type == do_qmmm_swave) THEN
                            tmp = 4.0_dp/rc2
                            LG(idim) = 4.0_dp*Pi*tmp**2/(g2*(g2 + tmp)**2)
                         END IF
@@ -363,8 +363,9 @@ CONTAINS
 
       CALL ewald_env_get(ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles, &
                          gmax=gmax, o_spline=o_spline, alpha=alpha, rcut=rcut)
-      IF (do_multipoles) &
+      IF (do_multipoles) THEN
          CPABORT("No multipole force fields allowed in QM-QM Ewald long range correction")
+      END IF
 
       SELECT CASE (qmmm_coupl_type)
       CASE (do_qmmm_coulomb)

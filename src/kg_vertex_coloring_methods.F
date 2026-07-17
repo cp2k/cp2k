@@ -667,8 +667,9 @@ CONTAINS
 
       valid = .FALSE.
       CALL check_coloring(graph, valid)
-      IF (.NOT. valid) &
+      IF (.NOT. valid) THEN
          CPABORT("Coloring not valid.")
+      END IF
 
       nnodes = SIZE(kg_env%molecule_set)
 

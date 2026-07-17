@@ -165,12 +165,14 @@ CONTAINS
          ! either in the lengh or velocity gauge.
          ! should be called  after qs_energies_init and before qs_ks_update_qs_env
          IF (dft_control%apply_efield_field) THEN
-            IF (ANY(cell%perd(1:3) /= 0)) &
+            IF (ANY(cell%perd(1:3) /= 0)) THEN
                CPABORT("Length gauge (efield) and periodicity are not compatible")
+            END IF
             CALL efield_potential_lengh_gauge(qs_env)
          ELSE IF (rtp_control%velocity_gauge) THEN
-            IF (dft_control%apply_vector_potential) &
+            IF (dft_control%apply_vector_potential) THEN
                CALL update_vector_potential(qs_env, dft_control)
+            END IF
             CALL velocity_gauge_ks_matrix(qs_env, subtract_nl_term=.FALSE.)
          END IF
 
@@ -408,8 +410,9 @@ CONTAINS
 
       DO i = 1, SIZE(exp_H_new)
          CALL dbcsr_add(propagator_matrix(i)%matrix, exp_H_new(i)%matrix, 0.0_dp, prefac)
-         IF (propagator == do_em) &
+         IF (propagator == do_em) THEN
             CALL dbcsr_add(propagator_matrix(i)%matrix, exp_H_old(i)%matrix, 1.0_dp, prefac)
+         END IF
       END DO
 
       CALL timestop(handle)

@@ -1184,10 +1184,12 @@ CONTAINS
                count_list(elem_seen) = 1
             END IF
          END IF
-         IF (LEN_TRIM(cif_type_symbol(iatom)) > w_cif_type_symbol) &
+         IF (LEN_TRIM(cif_type_symbol(iatom)) > w_cif_type_symbol) THEN
             w_cif_type_symbol = LEN_TRIM(cif_type_symbol(iatom))
-         IF (LEN_TRIM(cif_label(iatom)) > w_cif_label) &
+         END IF
+         IF (LEN_TRIM(cif_label(iatom)) > w_cif_label) THEN
             w_cif_label = LEN_TRIM(cif_label(iatom))
+         END IF
       END DO atom_loop
 
       ! Determine the format of each line in cif considering width of cif_type_symbol and cif_label
@@ -1260,9 +1262,10 @@ CONTAINS
          file_unit = cp_print_key_unit_nr(logger, input_section, "PRINT%FINAL_STRUCTURE", &
                                           file_status="REPLACE", file_form="FORMATTED", &
                                           extension=".xyz")
-         IF (file_unit > 0) &
+         IF (file_unit > 0) THEN
             CALL write_particle_coordinates(particle_set, file_unit, dump_extxyz, "POS", title, &
                                             cell=cell, unit_conv=unit_conv, print_kind=print_kind)
+         END IF
       END IF
 
       ! Write CIF
@@ -1430,9 +1433,10 @@ CONTAINS
       CALL section_release(tmp_cell_section)
       CALL cp_print_key_finished_output(file_unit, logger, input_section, &
                                         "PRINT%FINAL_STRUCTURE")
-      IF (output_unit > 0) &
+      IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT='(/,T2,A)') &
-         routineN//": Done!"
+            routineN//": Done!"
+      END IF
 
       CALL timestop(handle)
 

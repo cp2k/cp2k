@@ -120,9 +120,10 @@ CONTAINS
 
       #:for m_max in range(0, 4*libint_max_am_supported)
 #if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
-         IF (${m_max}$ <= m_max) &
+         IF (${m_max}$ <= m_max) THEN
             libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) &
-            = F(${m_max}$+1)
+               = F(${m_max}$+1)
+         END IF
 
 #endif
       #:endfor
@@ -215,9 +216,10 @@ CONTAINS
 
       #:for m_max in range(0, 4*libint_max_am_supported)
 #if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
-         IF (${m_max}$ <= m_max) &
+         IF (${m_max}$ <= m_max) THEN
             libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) & ! ERROR: __LIBINT_MAX_AM is too large
-            = F(${m_max}$+1)
+               = F(${m_max}$+1)
+         END IF
 #endif
       #:endfor
 
@@ -287,9 +289,10 @@ CONTAINS
       #:for m_max in range(0, 4*libint_max_am_supported)
 #if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
 
-         IF (${m_max}$ <= m_max) &
+         IF (${m_max}$ <= m_max) THEN
             libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) & ! ERROR: __LIBINT_MAX_AM is too large
-            = F(${m_max}$+1)
+               = F(${m_max}$+1)
+         END IF
 #endif
       #:endfor
 

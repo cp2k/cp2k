@@ -1244,7 +1244,7 @@ CONTAINS
             CALL pw_zero(vhxc_rspace)
             IF (gapw) THEN
                CALL pw_transfer(v_hartree_rspace_gs, vhxc_rspace)
-            ELSEIF (gapw_xc) THEN
+            ELSE IF (gapw_xc) THEN
                CALL pw_transfer(vh_rspace, vhxc_rspace)
             END IF
             CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
@@ -1795,7 +1795,7 @@ CONTAINS
             CALL pw_zero(v_xc(ispin))
             IF (gapw) THEN ! Hartree potential of response density
                CALL pw_axpy(v_hartree_rspace_t, v_xc(ispin))
-            ELSEIF (gapw_xc) THEN
+            ELSE IF (gapw_xc) THEN
                CALL pw_axpy(zv_hartree_rspace, v_xc(ispin))
             END IF
             CALL integrate_v_rspace(qs_env=qs_env, &

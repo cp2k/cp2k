@@ -266,7 +266,7 @@ CONTAINS
                nsplit_list_square(count_square) = split
                count_accept = count_accept + 1
                nsplit_list_accept(count_accept) = split
-            ELSEIF (accept_pgrid_dims(dims_sub, relative=.FALSE.)) THEN
+            ELSE IF (accept_pgrid_dims(dims_sub, relative=.FALSE.)) THEN
                count_accept = count_accept + 1
                nsplit_list_accept(count_accept) = split
             END IF
@@ -277,10 +277,10 @@ CONTAINS
       IF (count_square > 0) THEN
          minpos = MINLOC(ABS(nsplit_list_square(1:count_square) - nsplit), DIM=1)
          get_opt_nsplit = nsplit_list_square(minpos)
-      ELSEIF (count_accept > 0) THEN
+      ELSE IF (count_accept > 0) THEN
          minpos = MINLOC(ABS(nsplit_list_accept(1:count_accept) - nsplit), DIM=1)
          get_opt_nsplit = nsplit_list_accept(minpos)
-      ELSEIF (count > 0) THEN
+      ELSE IF (count > 0) THEN
          minpos = MINLOC(ABS(nsplit_list(1:count) - nsplit), DIM=1)
          get_opt_nsplit = nsplit_list(minpos)
       ELSE
@@ -462,7 +462,7 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(split_info%refcount)) THEN
          abort = .TRUE.
-      ELSEIF (split_info%refcount < 1) THEN
+      ELSE IF (split_info%refcount < 1) THEN
          abort = .TRUE.
       END IF
 

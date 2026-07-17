@@ -200,8 +200,9 @@ CONTAINS
                       poisson_env=poisson_env)
       CALL auxbas_pw_pool%create_pw(v_hartree_rspace)
 
-      IF (gapw .OR. gapw_xc) &
+      IF (gapw .OR. gapw_xc) THEN
          CALL prepare_gapw_den(qs_env, p_env%local_rho_set, do_rho0=(.NOT. gapw_xc))
+      END IF
 
       ! *** calculate the hartree potential on the total density ***
       CALL auxbas_pw_pool%create_pw(rho1_tot_gspace)
@@ -454,7 +455,7 @@ CONTAINS
          psmat(1:ns, 1:1) => rho_ao(1:ns)
          CALL update_ks_atom(qs_env, ksmat, psmat, forces=my_calc_forces, tddft=.TRUE., &
                              rho_atom_external=p_env%local_rho_set%rho_atom_set)
-      ELSEIF (gapw_xc) THEN
+      ELSE IF (gapw_xc) THEN
          ns = SIZE(p_env%kpp1)
          ksmat(1:ns, 1:1) => p_env%kpp1(1:ns)
          ns = SIZE(rho_ao)

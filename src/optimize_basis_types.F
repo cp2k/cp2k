@@ -177,8 +177,9 @@ CONTAINS
             IF (ALLOCATED(kind%deriv_info(iinfo)%in_use_set)) DEALLOCATE (kind%deriv_info(iinfo)%in_use_set)
             IF (ALLOCATED(kind%deriv_info(iinfo)%use_contr)) THEN
                DO icont = 1, SIZE(kind%deriv_info(iinfo)%use_contr)
-                  IF (ALLOCATED(kind%deriv_info(iinfo)%use_contr(icont)%in_use)) &
+                  IF (ALLOCATED(kind%deriv_info(iinfo)%use_contr(icont)%in_use)) THEN
                      DEALLOCATE (kind%deriv_info(iinfo)%use_contr(icont)%in_use)
+                  END IF
                END DO
                DEALLOCATE (kind%deriv_info(iinfo)%use_contr)
             END IF
@@ -190,22 +191,30 @@ CONTAINS
          DO ibasis = 0, SIZE(kind%flex_basis) - 1
             IF (ALLOCATED(kind%flex_basis(ibasis)%subset)) THEN
                DO iset = 1, SIZE(kind%flex_basis(ibasis)%subset)
-                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%l)) &
+                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%l)) THEN
                      DEALLOCATE (kind%flex_basis(ibasis)%subset(iset)%l)
-                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%coeff)) &
+                  END IF
+                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%coeff)) THEN
                      DEALLOCATE (kind%flex_basis(ibasis)%subset(iset)%coeff)
-                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%opt_coeff)) &
+                  END IF
+                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%opt_coeff)) THEN
                      DEALLOCATE (kind%flex_basis(ibasis)%subset(iset)%opt_coeff)
-                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%coeff_x_ind)) &
+                  END IF
+                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%coeff_x_ind)) THEN
                      DEALLOCATE (kind%flex_basis(ibasis)%subset(iset)%coeff_x_ind)
-                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%exps)) &
+                  END IF
+                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%exps)) THEN
                      DEALLOCATE (kind%flex_basis(ibasis)%subset(iset)%exps)
-                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%opt_exps)) &
+                  END IF
+                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%opt_exps)) THEN
                      DEALLOCATE (kind%flex_basis(ibasis)%subset(iset)%opt_exps)
-                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%exp_x_ind)) &
+                  END IF
+                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%exp_x_ind)) THEN
                      DEALLOCATE (kind%flex_basis(ibasis)%subset(iset)%exp_x_ind)
-                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%exp_const)) &
+                  END IF
+                  IF (ALLOCATED(kind%flex_basis(ibasis)%subset(iset)%exp_const)) THEN
                      DEALLOCATE (kind%flex_basis(ibasis)%subset(iset)%exp_const)
+                  END IF
                END DO
                DEALLOCATE (kind%flex_basis(ibasis)%subset)
             END IF

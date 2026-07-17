@@ -225,9 +225,9 @@ CONTAINS
                CALL get_qs_env(qs_env, dft_control=dft_control)
                IF (dft_control%qs_control%semi_empirical) THEN
                   CPABORT("Not available")
-               ELSEIF (dft_control%qs_control%dftb) THEN
+               ELSE IF (dft_control%qs_control%dftb) THEN
                   CPABORT("Not available")
-               ELSEIF (dft_control%qs_control%xtb) THEN
+               ELSE IF (dft_control%qs_control%xtb) THEN
                   CALL response_force_xtb(qs_env, p_env, ex_env%matrix_hz, ex_env, debug=debug_forces)
                ELSE
                   CALL response_force(qs_env=qs_env, vh_rspace=ex_env%vh_rspace, &
@@ -330,9 +330,9 @@ CONTAINS
       CALL get_qs_env(qs_env, para_env=para_env)
       IF (dft_control%qs_control%semi_empirical) THEN
          CPABORT("TDDFPT| SE not available")
-      ELSEIF (dft_control%qs_control%dftb) THEN
+      ELSE IF (dft_control%qs_control%dftb) THEN
          CPABORT("TDDFPT| DFTB not available")
-      ELSEIF (dft_control%qs_control%xtb) THEN
+      ELSE IF (dft_control%qs_control%xtb) THEN
          CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.TRUE.)
          CALL build_xtb_ks_matrix(qs_env, calculate_forces=.TRUE., just_energy=.FALSE.)
       ELSE

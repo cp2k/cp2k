@@ -224,8 +224,9 @@ CONTAINS
       END DO
 
       p_env%orthogonal_orbitals = .FALSE.
-      IF (PRESENT(orthogonal_orbitals)) &
+      IF (PRESENT(orthogonal_orbitals)) THEN
          p_env%orthogonal_orbitals = orthogonal_orbitals
+      END IF
 
       CALL fm_pools_create_fm_vect(ao_mo_fm_pools, elements=p_env%S_psi0, &
                                    name="p_env%S_psi0")
@@ -265,7 +266,7 @@ CONTAINS
          CALL rho0_s_grid_create(pw_env, p_env%local_rho_set%rho0_mpole)
          CALL hartree_local_create(p_env%hartree_local)
          CALL init_coulomb_local(p_env%hartree_local, natom)
-      ELSEIF (dft_control%qs_control%gapw_xc) THEN
+      ELSE IF (dft_control%qs_control%gapw_xc) THEN
          CALL get_qs_env(qs_env, &
                          atomic_kind_set=atomic_kind_set, &
                          qs_kind_set=qs_kind_set)

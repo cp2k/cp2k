@@ -1276,7 +1276,7 @@ CONTAINS
 
       IF ((b == a + 1 .OR. b == a - 2) .AND. (c == b + 1 .OR. c == b - 2)) THEN
          factor = 1.0_dp
-      ELSEIF ((b == a - 1 .OR. b == a + 2) .AND. (c == b - 1 .OR. c == b + 2)) THEN
+      ELSE IF ((b == a - 1 .OR. b == a + 2) .AND. (c == b - 1 .OR. c == b + 2)) THEN
          factor = -1.0_dp
       END IF
 
@@ -1298,9 +1298,9 @@ CONTAINS
       l(1:3) = 0
       IF (ii == 0) THEN
          l(iii) = 1
-      ELSEIF (iii == 0) THEN
+      ELSE IF (iii == 0) THEN
          l(ii) = 1
-      ELSEIF (ii == iii) THEN
+      ELSE IF (ii == iii) THEN
          l(ii) = 2
          i = coset(l(1), l(2), l(3)) - 1
       ELSE
@@ -1324,10 +1324,10 @@ CONTAINS
       IF (i1 == 1) THEN
          i2 = 2
          i3 = 3
-      ELSEIF (i1 == 2) THEN
+      ELSE IF (i1 == 2) THEN
          i2 = 3
          i3 = 1
-      ELSEIF (i1 == 3) THEN
+      ELSE IF (i1 == 3) THEN
          i2 = 1
          i3 = 2
       ELSE
@@ -1347,9 +1347,9 @@ CONTAINS
 
       IF ((i1 + i2) == 3) THEN
          i3 = 3
-      ELSEIF ((i1 + i2) == 4) THEN
+      ELSE IF ((i1 + i2) == 4) THEN
          i3 = 2
-      ELSEIF ((i1 + i2) == 5) THEN
+      ELSE IF ((i1 + i2) == 5) THEN
          i3 = 1
       ELSE
       END IF

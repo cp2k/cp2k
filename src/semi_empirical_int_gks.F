@@ -270,7 +270,7 @@ CONTAINS
       v(1) = RAB(1)
       v(2) = RAB(2)
       v(3) = RAB(3)
-      rr = SQRT(DOT_PRODUCT(v, v))
+      rr = NORM2(v)
 
       a2 = 0.5_dp*(1.0_dp/ACOULA + 1.0_dp/ACOULB)
       w0 = a2*rr
@@ -373,7 +373,7 @@ CONTAINS
       v(1) = RAB(1)
       v(2) = RAB(2)
       v(3) = RAB(3)
-      rr = SQRT(DOT_PRODUCT(v, v))
+      rr = NORM2(v)
 
       a2 = 0.5_dp*(1.0_dp/ACOULA + 1.0_dp/ACOULB)
       w0 = a2*rr
@@ -590,7 +590,7 @@ CONTAINS
       v(1) = RAB(1)
       v(2) = RAB(2)
       v(3) = RAB(3)
-      rr = SQRT(DOT_PRODUCT(v, v))
+      rr = NORM2(v)
 
       r1 = 1.0_dp/rr
       r2 = r1*r1
@@ -807,7 +807,7 @@ CONTAINS
       v(1) = RAB(1)
       v(2) = RAB(2)
       v(3) = RAB(3)
-      rr = SQRT(DOT_PRODUCT(v, v))
+      rr = NORM2(v)
 
       a2 = 0.5_dp*(1.0_dp/ACOULA + 1.0_dp/ACOULB)
 

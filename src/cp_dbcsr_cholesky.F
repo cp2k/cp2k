@@ -214,8 +214,9 @@ CONTAINS
       CALL copy_dbcsr_to_fm(matrixb, fm_matrixb)
       !CALL copy_dbcsr_to_fm(matrixout, fm_matrixout)
 
-      IF (op /= "SOLVE" .AND. op /= "MULTIPLY") &
+      IF (op /= "SOLVE" .AND. op /= "MULTIPLY") THEN
          CPABORT("wrong argument op")
+      END IF
 
       IF (PRESENT(pos)) THEN
          SELECT CASE (pos)

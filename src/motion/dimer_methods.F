@@ -197,10 +197,10 @@ CONTAINS
          END IF
          IF (debug_this_module .AND. (iw > 0)) THEN
             WRITE (iw, *) "final gradient:", gradient
-            WRITE (iw, '(A,F20.10)') "norm gradient:", SQRT(DOT_PRODUCT(gradient, gradient))
+            WRITE (iw, '(A,F20.10)') "norm gradient:", NORM2(gradient)
          END IF
          IF (.NOT. gopt_env%do_line_search) THEN
-            f = SQRT(DOT_PRODUCT(gradient, gradient))
+            f = NORM2(gradient)
          ELSE
             f = -DOT_PRODUCT(gradient, dimer_env%tsl%tls_vec)
          END IF
@@ -237,7 +237,7 @@ CONTAINS
       CALL cp_subsys_get(subsys, particles=particles)
 
       natoms = particles%n_els
-      norm_gradient_old = SQRT(DOT_PRODUCT(gradient, gradient))
+      norm_gradient_old = NORM2(gradient)
       IF (norm_gradient_old > 0.0_dp) THEN
          IF (natoms > 1) THEN
             CALL rot_ana(particles%els, mat, dof, print_section, keep_rotations=.FALSE., &

@@ -555,10 +555,11 @@ CONTAINS
       CPASSERT(coord_section%ref_count > 0)
       section => coord_section%section
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
-      IF (ik == -2) &
+      IF (ik == -2) THEN
          CALL cp_abort(__LOCATION__, &
                        "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
+      END IF
 
       DO
          IF (SIZE(coord_section%values, 2) == 1) EXIT
@@ -689,10 +690,11 @@ CONTAINS
       CPASSERT(dipoles_section%ref_count > 0)
       section => dipoles_section%section
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
-      IF (ik == -2) &
+      IF (ik == -2) THEN
          CALL cp_abort(__LOCATION__, &
                        "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
+      END IF
 
       ! At least one of the two arguments must be present..
       nloop = SIZE(dipoles, 2)
@@ -766,10 +768,11 @@ CONTAINS
       CPASSERT(quadrupoles_section%ref_count > 0)
       section => quadrupoles_section%section
       ik = section_get_keyword_index(section, "_DEFAULT_KEYWORD_")
-      IF (ik == -2) &
+      IF (ik == -2) THEN
          CALL cp_abort(__LOCATION__, &
                        "section "//TRIM(section%name)//" does not contain keyword "// &
                        "_DEFAULT_KEYWORD_")
+      END IF
 
       ! At least one of the two arguments must be present..
       nloop = SIZE(quadrupoles, 2)

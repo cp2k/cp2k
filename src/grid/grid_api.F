@@ -474,14 +474,18 @@ CONTAINS
                                             hadb=hadb_cptr, &
                                             a_hdab=a_hdab_cptr)
 
-      IF (PRESENT(force_a) .AND. C_ASSOCIATED(forces_cptr)) &
+      IF (PRESENT(force_a) .AND. C_ASSOCIATED(forces_cptr)) THEN
          force_a = force_a + forces(:, 1)
-      IF (PRESENT(force_b) .AND. C_ASSOCIATED(forces_cptr)) &
+      END IF
+      IF (PRESENT(force_b) .AND. C_ASSOCIATED(forces_cptr)) THEN
          force_b = force_b + forces(:, 2)
-      IF (PRESENT(my_virial_a) .AND. C_ASSOCIATED(virials_cptr)) &
+      END IF
+      IF (PRESENT(my_virial_a) .AND. C_ASSOCIATED(virials_cptr)) THEN
          my_virial_a = my_virial_a + virials(:, :, 1)
-      IF (PRESENT(my_virial_b) .AND. C_ASSOCIATED(virials_cptr)) &
+      END IF
+      IF (PRESENT(my_virial_b) .AND. C_ASSOCIATED(virials_cptr)) THEN
          my_virial_b = my_virial_b + virials(:, :, 2)
+      END IF
 
    END SUBROUTINE integrate_pgf_product
 

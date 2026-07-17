@@ -611,8 +611,9 @@ CONTAINS
                            row_blk_size, col_blk_size_right_out)
 
          CALL copy_fm_to_dbcsr(fm_in, in)
-         IF (ncol /= k_out .OR. my_beta /= 0.0_dp) &
+         IF (ncol /= k_out .OR. my_beta /= 0.0_dp) THEN
             CALL copy_fm_to_dbcsr(fm_out, out)
+         END IF
 
          CALL timeset(routineN//'_core', timing_handle_mult)
          CALL dbcsr_multiply("N", "N", my_alpha, matrix, in, my_beta, out, &
@@ -648,8 +649,9 @@ CONTAINS
 
       n1 = SIZE(sizes1)
       n2 = SIZE(sizes2)
-      IF (n1 /= n2) &
+      IF (n1 /= n2) THEN
          CPABORT("distributions must be equal!")
+      END IF
       sizes1(1:n1) = sizes2(1:n1)
       used = SUM(sizes1(1:n1))
       ! If sizes1 does not cover everything, then we increase the
@@ -723,8 +725,9 @@ CONTAINS
       NULLIFY (col_dist_left)
 
       IF (ncol > 0) THEN
-         IF (.NOT. dbcsr_valid_index(sparse_matrix)) &
+         IF (.NOT. dbcsr_valid_index(sparse_matrix)) THEN
             CPABORT("sparse_matrix must pre-exist")
+         END IF
          !
          ! Setup matrix_v
          CALL cp_fm_get_info(matrix_v, ncol_global=k)
@@ -830,25 +833,6 @@ CONTAINS
             WRITE (*, *) 'PRESENT (matrix_g)', PRESENT(matrix_g)
             WRITE (*, *) 'matrix_type=', dbcsr_get_matrix_type(sparse_matrix)
             WRITE (*, *) 'norm(sm+alpha*v*g^t - fm+alpha*v*g^t)/n=', norm/REAL(nao, dp)
-            IF (norm/REAL(nao, dp) > 1e-12_dp) THEN
-               !WRITE(*,*) 'fm_matrix'
-               !DO j=1,SIZE(fm_matrix%local_data,2)
-               !   DO i=1,SIZE(fm_matrix%local_data,1)
-               !      WRITE(*,'(A,I3,A,I3,A,E26.16,A)') 'a(',i,',',j,')=',fm_matrix%local_data(i,j),';'
-               !   ENDDO
-               !ENDDO
-               !WRITE(*,*) 'mat_v'
-               !CALL dbcsr_print(mat_v)
-               !WRITE(*,*) 'mat_g'
-               !CALL dbcsr_print(mat_g)
-               !WRITE(*,*) 'sparse_matrix'
-               !CALL dbcsr_print(sparse_matrix)
-               !WRITE(*,*) 'sparse_matrix2 (-sm + sparse(fm))'
-               !CALL dbcsr_print(sparse_matrix2)
-               !WRITE(*,*) 'sparse_matrix3 (copy of sm input)'
-               !CALL dbcsr_print(sparse_matrix3)
-               !stop
-            END IF
             CALL dbcsr_release(sparse_matrix2)
             CALL dbcsr_release(sparse_matrix3)
             CALL cp_fm_release(fm_matrix)
@@ -1025,11 +1009,13 @@ CONTAINS
 
          estimated_blocks = max_blocks_per_bin*nbins
          ALLOCATE (blk_dist(estimated_blocks), stat=stat)
-         IF (stat /= 0) &
+         IF (stat /= 0) THEN
             CPABORT("blk_dist")
+         END IF
          ALLOCATE (blk_sizes(estimated_blocks), stat=stat)
-         IF (stat /= 0) &
+         IF (stat /= 0) THEN
             CPABORT("blk_sizes")
+         END IF
          element_stack = 0
          nblks = 0
          DO blk_layer = 1, max_blocks_per_bin
@@ -1051,23 +1037,27 @@ CONTAINS
             block_size => blk_sizes
          ELSE
             ALLOCATE (block_distribution(nblks), stat=stat)
-            IF (stat /= 0) &
+            IF (stat /= 0) THEN
                CPABORT("blk_dist")
+            END IF
             block_distribution(:) = blk_dist(1:nblks)
             DEALLOCATE (blk_dist)
             ALLOCATE (block_size(nblks), stat=stat)
-            IF (stat /= 0) &
+            IF (stat /= 0) THEN
                CPABORT("blk_sizes")
+            END IF
             block_size(:) = blk_sizes(1:nblks)
             DEALLOCATE (blk_sizes)
          END IF
       ELSE
          ALLOCATE (block_distribution(0), stat=stat)
-         IF (stat /= 0) &
+         IF (stat /= 0) THEN
             CPABORT("blk_dist")
+         END IF
          ALLOCATE (block_size(0), stat=stat)
-         IF (stat /= 0) &
+         IF (stat /= 0) THEN
             CPABORT("blk_sizes")
+         END IF
       END IF
 1579  FORMAT(I5, 1X, I5, 1X, I5, 1X, I5, 1X, I5, 1X, I5, 1X, I5, 1X, I5, 1X, I5, 1X, I5)
       IF (debug_mod) THEN

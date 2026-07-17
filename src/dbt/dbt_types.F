@@ -211,7 +211,7 @@ CONTAINS
          CALL dbt_get_mapping_info(map_grid, &
                                    dims_2d=grid_dims, &
                                    dims1_2d=new_dbt_tas_dist_t%dims_grid)
-      ELSEIF (which_dim == 2) THEN
+      ELSE IF (which_dim == 2) THEN
          ALLOCATE (new_dbt_tas_dist_t%dims(ndims_mapping_column(map_blks)))
          ALLOCATE (index_map(ndims_mapping_column(map_blks)))
          CALL dbt_get_mapping_info(map_blks, &
@@ -335,7 +335,7 @@ CONTAINS
                                          dims_2d_i8=matrix_dims, &
                                          map1_2d=index_map, &
                                          dims1_2d=new_dbt_tas_blk_size_t%dims)
-            ELSEIF (which_dim == 2) THEN
+            ELSE IF (which_dim == 2) THEN
                ALLOCATE (index_map(ndims_mapping_column(map_blks)))
                ALLOCATE (new_dbt_tas_blk_size_t%dims(ndims_mapping_column(map_blks)))
                CALL dbt_get_mapping_info(map_blks, &
@@ -455,7 +455,7 @@ CONTAINS
                   IF (idim /= SIZE(tensor_dims_sorted)) THEN
                      dims(idim + 1:) = 0
                      CALL mp_dims_create(pdims_rem, dims(idim + 1:))
-                  ELSEIF (lb_ratio_prv < 0.5_dp) THEN
+                  ELSE IF (lb_ratio_prv < 0.5_dp) THEN
                      ! resort to a less strict load imbalance factor
                      dims(:) = dims_store
                      CALL dbt_mp_dims_create(nodes, dims, tensor_dims, 0.5_dp)
@@ -836,7 +836,7 @@ CONTAINS
             abort = .FALSE.
             IF (.NOT. ASSOCIATED(dist%refcount)) THEN
                abort = .TRUE.
-            ELSEIF (dist%refcount < 1) THEN
+            ELSE IF (dist%refcount < 1) THEN
                abort = .TRUE.
             END IF
 
@@ -1264,7 +1264,7 @@ CONTAINS
             abort = .FALSE.
             IF (.NOT. ASSOCIATED(tensor%refcount)) THEN
                abort = .TRUE.
-            ELSEIF (tensor%refcount < 1) THEN
+            ELSE IF (tensor%refcount < 1) THEN
                abort = .TRUE.
             END IF
 

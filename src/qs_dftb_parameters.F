@@ -204,10 +204,11 @@ CONTAINS
                   CALL parser_release(parser)
                END BLOCK
             END IF
-            IF (.NOT. found) &
+            IF (.NOT. found) THEN
                CALL cp_abort(__LOCATION__, &
                              "Failure in assigning KINDS <"//TRIM(iname)//"> and <"//TRIM(jname)// &
                              "> to a DFTB interaction pair!")
+            END IF
          END DO
       END DO
       ! reading the files

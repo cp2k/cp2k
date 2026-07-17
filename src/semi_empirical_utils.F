@@ -305,10 +305,11 @@ CONTAINS
       END IF
 
       ! Check if the element has been defined..
-      IF (.NOT. sep%defined) &
+      IF (.NOT. sep%defined) THEN
          CALL cp_abort(__LOCATION__, &
                        "Semiempirical type ("//TRIM(sep%name)//") cannot be defined for "// &
                        "the requested parameterization.")
+      END IF
 
       ! Fill 1 center - 2 electron integrals
       CALL setup_1c_2el_int(sep)

@@ -907,7 +907,7 @@ CONTAINS
          CALL rho0_s_grid_create(pw_env, local_rho_set%rho0_mpole)
          CALL hartree_local_create(hartree_local)
          CALL init_coulomb_local(hartree_local, natom)
-      ELSEIF (gapw_xc) THEN
+      ELSE IF (gapw_xc) THEN
          CALL get_qs_env(qs_env, &
                          atomic_kind_set=atomic_kind_set, &
                          qs_kind_set=qs_kind_set)

@@ -318,10 +318,11 @@ CONTAINS
                END IF
                IF (scf_control%outer_scf%cdft_opt_control%broyden_update) THEN
                   ! Perform a Broyden update of the inverse Jacobian J^(-1)
-                  IF (SIZE(scf_env%outer_scf%gradient, 2) < 3) &
+                  IF (SIZE(scf_env%outer_scf%gradient, 2) < 3) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Keyword EXTRAPOLATION_ORDER in section OUTER_SCF "// &
                                    "must be greater than or equal to 3 for Broyden optimizers.")
+                  END IF
                   nvar = SIZE(scf_env%outer_scf%gradient, 1)
                   ALLOCATE (f(nvar, 1), x(nvar, 1))
                   DO i = 1, nvar
@@ -572,31 +573,37 @@ CONTAINS
          cdft_control%constraint%deallocate_jacobian = scf_env%outer_scf%deallocate_jacobian
          IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
             nvariables = SIZE(scf_env%outer_scf%inv_jacobian, 1)
-            IF (.NOT. ASSOCIATED(cdft_control%constraint%inv_jacobian)) &
+            IF (.NOT. ASSOCIATED(cdft_control%constraint%inv_jacobian)) THEN
                ALLOCATE (cdft_control%constraint%inv_jacobian(nvariables, nvariables))
+            END IF
             cdft_control%constraint%inv_jacobian = scf_env%outer_scf%inv_jacobian
          END IF
          ! Now switch
-         IF (ASSOCIATED(scf_env%outer_scf%energy)) &
+         IF (ASSOCIATED(scf_env%outer_scf%energy)) THEN
             DEALLOCATE (scf_env%outer_scf%energy)
+         END IF
          ALLOCATE (scf_env%outer_scf%energy(scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%energy = 0.0_dp
-         IF (ASSOCIATED(scf_env%outer_scf%variables)) &
+         IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
             DEALLOCATE (scf_env%outer_scf%variables)
+         END IF
          ALLOCATE (scf_env%outer_scf%variables(1, scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%variables = 0.0_dp
-         IF (ASSOCIATED(scf_env%outer_scf%gradient)) &
+         IF (ASSOCIATED(scf_env%outer_scf%gradient)) THEN
             DEALLOCATE (scf_env%outer_scf%gradient)
+         END IF
          ALLOCATE (scf_env%outer_scf%gradient(1, scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%gradient = 0.0_dp
-         IF (ASSOCIATED(scf_env%outer_scf%count)) &
+         IF (ASSOCIATED(scf_env%outer_scf%count)) THEN
             DEALLOCATE (scf_env%outer_scf%count)
+         END IF
          ALLOCATE (scf_env%outer_scf%count(scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%count = 0
          ! OT SCF does not need Jacobian
          scf_env%outer_scf%deallocate_jacobian = .TRUE.
-         IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian)) &
+         IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
             DEALLOCATE (scf_env%outer_scf%inv_jacobian)
+         END IF
       CASE (ot2cdft)
          ! OT -> constraint
          scf_control%outer_scf%have_scf = cdft_control%constraint_control%have_scf
@@ -610,27 +617,32 @@ CONTAINS
          CALL cdft_opt_type_copy(scf_control%outer_scf%cdft_opt_control, &
                                  cdft_control%constraint_control%cdft_opt_control)
          nvariables = SIZE(cdft_control%constraint%variables, 1)
-         IF (ASSOCIATED(scf_env%outer_scf%energy)) &
+         IF (ASSOCIATED(scf_env%outer_scf%energy)) THEN
             DEALLOCATE (scf_env%outer_scf%energy)
+         END IF
          ALLOCATE (scf_env%outer_scf%energy(scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%energy = cdft_control%constraint%energy
-         IF (ASSOCIATED(scf_env%outer_scf%variables)) &
+         IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
             DEALLOCATE (scf_env%outer_scf%variables)
+         END IF
          ALLOCATE (scf_env%outer_scf%variables(nvariables, scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%variables = cdft_control%constraint%variables
-         IF (ASSOCIATED(scf_env%outer_scf%gradient)) &
+         IF (ASSOCIATED(scf_env%outer_scf%gradient)) THEN
             DEALLOCATE (scf_env%outer_scf%gradient)
+         END IF
          ALLOCATE (scf_env%outer_scf%gradient(nvariables, scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%gradient = cdft_control%constraint%gradient
-         IF (ASSOCIATED(scf_env%outer_scf%count)) &
+         IF (ASSOCIATED(scf_env%outer_scf%count)) THEN
             DEALLOCATE (scf_env%outer_scf%count)
+         END IF
          ALLOCATE (scf_env%outer_scf%count(scf_control%outer_scf%max_scf + 1))
          scf_env%outer_scf%count = cdft_control%constraint%count
          scf_env%outer_scf%iter_count = cdft_control%constraint%iter_count
          scf_env%outer_scf%deallocate_jacobian = cdft_control%constraint%deallocate_jacobian
          IF (ASSOCIATED(cdft_control%constraint%inv_jacobian)) THEN
-            IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian)) &
+            IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
                DEALLOCATE (scf_env%outer_scf%inv_jacobian)
+            END IF
             ALLOCATE (scf_env%outer_scf%inv_jacobian(nvariables, nvariables))
             scf_env%outer_scf%inv_jacobian = cdft_control%constraint%inv_jacobian
          END IF

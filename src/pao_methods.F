@@ -133,8 +133,9 @@ CONTAINS
 
          ! Load torch model.
          IF (LEN_TRIM(pao_model_file) > 0) THEN
-            IF (.NOT. ALLOCATED(pao%models)) &
+            IF (.NOT. ALLOCATED(pao%models)) THEN
                ALLOCATE (pao%models(SIZE(qs_kind_set)))
+            END IF
             CALL pao_model_load(pao, qs_env, ikind, pao_model_file, pao%models(ikind))
          END IF
 
@@ -290,8 +291,9 @@ CONTAINS
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
          CALL get_qs_kind(qs_kind_set(ikind), pao_basis_size=M)
          CPASSERT(M > 0)
-         IF (blk_sizes_pri(iatom) < M) &
+         IF (blk_sizes_pri(iatom) < M) THEN
             CPABORT("PAO basis size exceeds primary basis size.")
+         END IF
          blk_sizes_aux(iatom) = M
       END DO
 
@@ -554,8 +556,9 @@ CONTAINS
 
       CALL dbcsr_release(matrix_S_desym)
 
-      IF (ABS(ls_scf_env%nelectron_total - trace_PS) > 0.5) &
+      IF (ABS(ls_scf_env%nelectron_total - trace_PS) > 0.5) THEN
          CPABORT("Number of electrons wrong. Trace(PS) ="//cp_to_string(trace_PS))
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE pao_check_trace_PS
@@ -983,12 +986,15 @@ CONTAINS
       IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Adding forces."
 
       IF (pao%max_pao /= 0) THEN
-         IF (pao%penalty_strength /= 0.0_dp) &
+         IF (pao%penalty_strength /= 0.0_dp) THEN
             CPABORT("PAO forces require PENALTY_STRENGTH or MAX_PAO set to zero")
-         IF (pao%linpot_regu_strength /= 0.0_dp) &
+         END IF
+         IF (pao%linpot_regu_strength /= 0.0_dp) THEN
             CPABORT("PAO forces require LINPOT_REGULARIZATION_STRENGTH or MAX_PAO set to zero")
-         IF (pao%regularization /= 0.0_dp) &
+         END IF
+         IF (pao%regularization /= 0.0_dp) THEN
             CPABORT("PAO forces require REGULARIZATION or MAX_PAO set to zero")
+         END IF
       END IF
 
       CALL get_qs_env(qs_env, &
@@ -999,11 +1005,13 @@ CONTAINS
       ALLOCATE (forces(natoms, 3))
       CALL pao_calc_AB(pao, qs_env, ls_scf_env, gradient=.TRUE., forces=forces) ! without penalty terms
 
-      IF (SIZE(pao%ml_training_set) > 0) &
+      IF (SIZE(pao%ml_training_set) > 0) THEN
          CALL pao_ml_forces(pao, qs_env, pao%matrix_G, forces)
+      END IF
 
-      IF (ALLOCATED(pao%models)) &
+      IF (ALLOCATED(pao%models)) THEN
          CALL pao_model_forces(pao, qs_env, pao%matrix_G, forces)
+      END IF
 
       CALL para_env%sum(forces)
       DO iatom = 1, natoms

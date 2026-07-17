@@ -610,8 +610,9 @@ CONTAINS
 
       is_done = .FALSE.
 
-      IF (this%gave_up) &
+      IF (this%gave_up) THEN
          CPABORT("had to give up, should not be called again")
+      END IF
 
       IF (.NOT. this%have_left) THEN
          this%left_x = 0.0_dp
@@ -685,8 +686,9 @@ CONTAINS
       IF (this%have_left .AND. this%have_middle .AND. this%have_right) THEN
          a = this%middle_x - this%left_x
          b = this%right_x - this%middle_x
-         IF (ABS(MIN(a, b)*phi - MAX(a, b)) > 1.0E-10) &
+         IF (ABS(MIN(a, b)*phi - MAX(a, b)) > 1.0E-10) THEN
             CPABORT("golden-ratio gone")
+         END IF
 
          IF (a < b) THEN
             step_size = this%middle_x + a/phi

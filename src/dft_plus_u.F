@@ -189,7 +189,7 @@ CONTAINS
 !> \date          02.07.2008
 !> \par
 !>  \f{eqnarray*}{
-!>   E^{\rm DFT+U} & = & E^{\rm DFT} +  E^{\rm U}\\\
+!>   E^{\rm DFT+U} & = & E^{\rm DFT} +  E^{\rm U}
 !>                 & = & E^{\rm DFT} +  \frac{1}{2}(U - J)\sum_\mu (q_\mu - q_\mu^2)\\[1ex]
 !>   V_{\mu\nu}^{\rm DFT+U} & = & V_{\mu\nu}^{\rm DFT} + V_{\mu\nu}^{\rm U}\\\
 !>                          & = & \frac{\partial E^{\rm DFT}}
@@ -766,10 +766,11 @@ CONTAINS
 
       CALL para_env%sum(energy%dft_plus_u)
 
-      IF (energy%dft_plus_u < 0.0_dp) &
+      IF (energy%dft_plus_u < 0.0_dp) THEN
          CALL cp_warn(__LOCATION__, &
                       "DFT+U energy contribution is negative possibly due "// &
                       "to unphysical Lowdin charges!")
+      END IF
 
       ! Release (local) full matrices
       NULLIFY (fm_s_half)
@@ -1991,10 +1992,11 @@ CONTAINS
 
       CALL para_env%sum(energy%dft_plus_u)
 
-      IF (energy%dft_plus_u < 0.0_dp) &
+      IF (energy%dft_plus_u < 0.0_dp) THEN
          CALL cp_warn(__LOCATION__, &
                       "DFT+U energy contribution is negative possibly due "// &
                       "to unphysical Mulliken charges!")
+      END IF
 
       ! Release local work storage
 

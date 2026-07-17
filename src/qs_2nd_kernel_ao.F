@@ -301,8 +301,9 @@ CONTAINS
          CPASSERT(.NOT. dft_control%qs_control%gapw_xc)
          CPASSERT(.NOT. dft_control%qs_control%lrigpw)
          CPASSERT(.NOT. linres_control%lr_triplet)
-         IF (.NOT. ASSOCIATED(p_env%kpp1_admm)) &
+         IF (.NOT. ASSOCIATED(p_env%kpp1_admm)) THEN
             CPABORT("kpp1_admm has to be associated if ADMM kernel calculations are requested")
+         END IF
 
          nspins = dft_control%nspins
 

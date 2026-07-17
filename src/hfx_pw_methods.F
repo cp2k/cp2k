@@ -147,7 +147,7 @@ CONTAINS
          END IF
          IF (potential_type == do_potential_coulomb) THEN
             CALL pw_copy(poisson_env%green_fft%influence_fn, greenfn)
-         ELSEIF (potential_type == do_potential_truncated) THEN
+         ELSE IF (potential_type == do_potential_truncated) THEN
             CALL section_vals_val_get(ip_section, "CUTOFF_RADIUS", r_val=rcut)
             grid => poisson_env%green_fft%influence_fn%pw_grid
             DO ig = grid%first_gne0, grid%ngpts_cut_local
@@ -156,9 +156,10 @@ CONTAINS
                g3d = fourpi/g2
                greenfn%array(ig) = g3d*(1.0_dp - COS(rcut*gg))
             END DO
-            IF (grid%have_g0) &
+            IF (grid%have_g0) THEN
                greenfn%array(1) = 0.5_dp*fourpi*rcut*rcut
-         ELSEIF (potential_type == do_potential_short) THEN
+            END IF
+         ELSE IF (potential_type == do_potential_short) THEN
             CALL section_vals_val_get(ip_section, "OMEGA", r_val=omega)
             IF (omega > 0.0_dp) omega = 0.25_dp/(omega*omega)
             grid => poisson_env%green_fft%influence_fn%pw_grid

@@ -192,16 +192,19 @@ CONTAINS
          WRITE (iw, '(T36,A,T61,F20.12)') "   Virial (-V/T) ::", -atom%energy%epot/atom%energy%ekin
       END IF
       WRITE (iw, '(T36,A,T61,F20.12)') "     Core Energy ::", atom%energy%ecore
-      IF (atom%energy%exc /= 0._dp) &
+      IF (atom%energy%exc /= 0._dp) THEN
          WRITE (iw, '(T36,A,T61,F20.12)') "       XC Energy ::", atom%energy%exc
+      END IF
       WRITE (iw, '(T36,A,T61,F20.12)') "  Coulomb Energy ::", atom%energy%ecoulomb
-      IF (atom%energy%eexchange /= 0._dp) &
+      IF (atom%energy%eexchange /= 0._dp) THEN
          WRITE (iw, '(T34,A,T61,F20.12)') "HF Exchange Energy ::", atom%energy%eexchange
+      END IF
       IF (atom%potential%ppot_type /= NO_PSEUDO) THEN
          WRITE (iw, '(T20,A,T61,F20.12)') "    Total Pseudopotential Energy ::", atom%energy%epseudo
          WRITE (iw, '(T20,A,T61,F20.12)') "    Local Pseudopotential Energy ::", atom%energy%eploc
-         IF (atom%energy%elsd /= 0._dp) &
+         IF (atom%energy%elsd /= 0._dp) THEN
             WRITE (iw, '(T20,A,T61,F20.12)') "     Local Spin-potential Energy ::", atom%energy%elsd
+         END IF
          WRITE (iw, '(T20,A,T61,F20.12)') " Nonlocal Pseudopotential Energy ::", atom%energy%epnl
       END IF
       IF (atom%potential%confinement) THEN

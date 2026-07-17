@@ -226,12 +226,13 @@ CONTAINS
 
          END IF
 
-         IF (admm_env%purification_method == do_admm_purify_cauchy) &
+         IF (admm_env%purification_method == do_admm_purify_cauchy) THEN
             CALL purify_dm_cauchy(admm_env, &
                                   mo_set=mos_aux_fit(ispin), &
                                   density_matrix=rho_ao_aux(ispin)%matrix, &
                                   ispin=ispin, &
                                   blocked=admm_env%block_dm)
+         END IF
 
          !GPW is the default, PW density is computed using the AUX_FIT basis and task_list
          !If GAPW, the we use the AUX_FIT_SOFT basis and task list
@@ -2180,13 +2181,15 @@ CONTAINS
 
                IF (my_kpgrp) THEN
                   CALL cp_fm_start_copy_general(admm_env%work_aux_aux, work_aux_aux, para_env, info(indx, 1))
-                  IF (.NOT. use_real_wfn) &
+                  IF (.NOT. use_real_wfn) THEN
                      CALL cp_fm_start_copy_general(admm_env%work_aux_aux2, work_aux_aux2, &
                                                    para_env, info(indx, 2))
+                  END IF
                ELSE
                   CALL cp_fm_start_copy_general(admm_env%work_aux_aux, fmdummy, para_env, info(indx, 1))
-                  IF (.NOT. use_real_wfn) &
+                  IF (.NOT. use_real_wfn) THEN
                      CALL cp_fm_start_copy_general(admm_env%work_aux_aux2, fmdummy, para_env, info(indx, 2))
+                  END IF
                END IF
             END DO
          END DO
@@ -2984,12 +2987,14 @@ CONTAINS
 
                IF (my_kpgrp) THEN
                   CALL cp_fm_start_copy_general(admm_env%work_aux_aux, work_aux_aux, para_env, info(indx, 1))
-                  IF (.NOT. use_real_wfn) &
+                  IF (.NOT. use_real_wfn) THEN
                      CALL cp_fm_start_copy_general(admm_env%work_aux_aux2, work_aux_aux2, para_env, info(indx, 2))
+                  END IF
                ELSE
                   CALL cp_fm_start_copy_general(admm_env%work_aux_aux, fmdummy, para_env, info(indx, 1))
-                  IF (.NOT. use_real_wfn) &
+                  IF (.NOT. use_real_wfn) THEN
                      CALL cp_fm_start_copy_general(admm_env%work_aux_aux2, fmdummy, para_env, info(indx, 2))
+                  END IF
                END IF
             END DO
          END DO

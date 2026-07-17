@@ -442,9 +442,9 @@ CONTAINS
          r0_13(:) = particle_set(index_a)%r - particle_set(index_c)%r
          r0_23(:) = particle_set(index_b)%r - particle_set(index_c)%r
 
-         rab = SQRT(DOT_PRODUCT(r0_12, r0_12))
-         rac = SQRT(DOT_PRODUCT(r0_13, r0_13))
-         rbc = SQRT(DOT_PRODUCT(r0_23, r0_23))
+         rab = NORM2(r0_12)
+         rac = NORM2(r0_13)
+         rbc = NORM2(r0_23)
          tab = rab - g3x3_list(ng3x3)%dab
          tac = rac - g3x3_list(ng3x3)%dac
          tbc = rbc - g3x3_list(ng3x3)%dbc
@@ -508,12 +508,12 @@ CONTAINS
          r0_24(:) = particle_set(index_b)%r - particle_set(index_d)%r
          r0_34(:) = particle_set(index_c)%r - particle_set(index_d)%r
 
-         rab = SQRT(DOT_PRODUCT(r0_12, r0_12))
-         rac = SQRT(DOT_PRODUCT(r0_13, r0_13))
-         rad = SQRT(DOT_PRODUCT(r0_14, r0_14))
-         rbc = SQRT(DOT_PRODUCT(r0_23, r0_23))
-         rbd = SQRT(DOT_PRODUCT(r0_24, r0_24))
-         rcd = SQRT(DOT_PRODUCT(r0_34, r0_34))
+         rab = NORM2(r0_12)
+         rac = NORM2(r0_13)
+         rad = NORM2(r0_14)
+         rbc = NORM2(r0_23)
+         rbd = NORM2(r0_24)
+         rcd = NORM2(r0_34)
 
          tab = rab - g4x6_list(ng4x6)%dab
          tac = rac - g4x6_list(ng4x6)%dac

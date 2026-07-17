@@ -277,8 +277,9 @@ CONTAINS
 
       TYPE(stda_kind_type), POINTER                      :: kind_param
 
-      IF (ASSOCIATED(kind_param)) &
+      IF (ASSOCIATED(kind_param)) THEN
          CALL deallocate_stda_kind_param(kind_param)
+      END IF
 
       ALLOCATE (kind_param)
 

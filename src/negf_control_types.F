@@ -183,16 +183,19 @@ CONTAINS
 
          IF (ALLOCATED(negf_control%contacts)) THEN
             DO i = SIZE(negf_control%contacts), 1, -1
-               IF (ALLOCATED(negf_control%contacts(i)%atomlist_bulk)) &
+               IF (ALLOCATED(negf_control%contacts(i)%atomlist_bulk)) THEN
                   DEALLOCATE (negf_control%contacts(i)%atomlist_bulk)
+               END IF
 
-               IF (ALLOCATED(negf_control%contacts(i)%atomlist_screening)) &
+               IF (ALLOCATED(negf_control%contacts(i)%atomlist_screening)) THEN
                   DEALLOCATE (negf_control%contacts(i)%atomlist_screening)
+               END IF
 
                IF (ALLOCATED(negf_control%contacts(i)%atomlist_cell)) THEN
                   DO j = SIZE(negf_control%contacts(i)%atomlist_cell), 1, -1
-                     IF (ALLOCATED(negf_control%contacts(i)%atomlist_cell(j)%vector)) &
+                     IF (ALLOCATED(negf_control%contacts(i)%atomlist_cell(j)%vector)) THEN
                         DEALLOCATE (negf_control%contacts(i)%atomlist_cell(j)%vector)
+                     END IF
                   END DO
                   DEALLOCATE (negf_control%contacts(i)%atomlist_cell)
                END IF
@@ -365,8 +368,9 @@ CONTAINS
       CALL section_vals_val_get(negf_section, "INTEGRATION_MIN_POINTS", i_val=negf_control%integr_min_points)
       CALL section_vals_val_get(negf_section, "INTEGRATION_MAX_POINTS", i_val=negf_control%integr_max_points)
 
-      IF (negf_control%integr_max_points < negf_control%integr_min_points) &
+      IF (negf_control%integr_max_points < negf_control%integr_min_points) THEN
          negf_control%integr_max_points = negf_control%integr_min_points
+      END IF
 
       CALL section_vals_val_get(negf_section, "MAX_SCF", i_val=negf_control%max_scf)
 
@@ -428,8 +432,9 @@ CONTAINS
 
       DO i_rep = 1, n_rep
          IF (ALLOCATED(negf_control%contacts(i_rep)%atomlist_screening)) THEN
-            IF (ALLOCATED(negf_control%contacts(i_rep)%atomlist_screening)) &
+            IF (ALLOCATED(negf_control%contacts(i_rep)%atomlist_screening)) THEN
                natoms_total = natoms_total + SIZE(negf_control%contacts(i_rep)%atomlist_screening)
+            END IF
          END IF
       END DO
 

@@ -1207,11 +1207,12 @@ CONTAINS
       END IF
 
       ! This is clearly a user error
-      IF (.NOT. found .AND. defined_kind_section) &
+      IF (.NOT. found .AND. defined_kind_section) THEN
          CALL cp_abort(__LOCATION__, "Element <"//TRIM(element_symbol)// &
                        "> provided for KIND <"//TRIM(atom_name_in)//"> "// &
                        "which cannot be mapped with any standard element label. Please correct your "// &
                        "input file!")
+      END IF
 
       ! Last chance.. are these atom_kinds of AMBER or CHARMM or GROMOS FF ?
       CALL uppercase(element_symbol)

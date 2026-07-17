@@ -283,12 +283,14 @@ CONTAINS
          CALL set_kpoint_info(kpoints, sab_nl_nosym=sab_nl_nosym)
       END IF
       IF (dft_control%qs_control%cdft) THEN
-         IF (.NOT. (dft_control%qs_control%cdft_control%external_control)) &
+         IF (.NOT. (dft_control%qs_control%cdft_control%external_control)) THEN
             dft_control%qs_control%cdft_control%need_pot = .TRUE.
+         END IF
          IF (ASSOCIATED(dft_control%qs_control%cdft_control%group)) THEN
             ! In case CDFT weight function was built beforehand (in mixed force_eval)
-            IF (ASSOCIATED(dft_control%qs_control%cdft_control%group(1)%weight)) &
+            IF (ASSOCIATED(dft_control%qs_control%cdft_control%group(1)%weight)) THEN
                dft_control%qs_control%cdft_control%need_pot = .FALSE.
+            END IF
          END IF
       END IF
 
@@ -300,13 +302,13 @@ CONTAINS
          CALL se_core_core_interaction(qs_env, para_env, calculate_forces=.FALSE.)
          CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env, energy=energy)
          CALL calculate_dispersion_pairpot(qs_env, dispersion_env, energy%dispersion, calc_forces)
-      ELSEIF (dft_control%qs_control%dftb) THEN
+      ELSE IF (dft_control%qs_control%dftb) THEN
          CALL build_dftb_matrices(qs_env=qs_env, para_env=para_env, &
                                   calculate_forces=.FALSE.)
          CALL calculate_dftb_dispersion(qs_env=qs_env, para_env=para_env, &
                                         calculate_forces=.FALSE.)
          CALL qs_env_update_s_mstruct(qs_env)
-      ELSEIF (dft_control%qs_control%xtb) THEN
+      ELSE IF (dft_control%qs_control%xtb) THEN
          IF (dft_control%qs_control%xtb_control%do_tblite) THEN
             CALL build_tblite_matrices(qs_env=qs_env, calculate_forces=.FALSE.)
          ELSE

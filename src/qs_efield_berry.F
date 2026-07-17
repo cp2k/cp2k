@@ -263,7 +263,7 @@ CONTAINS
       END IF
 
       fieldpol = dft_control%period_efield%polarisation
-      fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
+      fieldpol = fieldpol/NORM2(fieldpol)
       fieldpol = -fieldpol*strength
       hmat = cell%hmat(:, :)/twopi
       DO idir = 1, 3
@@ -296,8 +296,9 @@ CONTAINS
             END IF
          END IF
          IF (use_virial) THEN
-            IF (para_env%mepos == 0) &
+            IF (para_env%mepos == 0) THEN
                CALL virial_pair_force(virial%pv_virial, 1.0_dp, forcea, ria)
+            END IF
          END IF
       END DO
       qi = AIMAG(LOG(zi))
@@ -752,7 +753,7 @@ CONTAINS
       END IF
 
       fieldpol = dft_control%period_efield%polarisation
-      fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
+      fieldpol = fieldpol/NORM2(fieldpol)
       fieldpol = fieldpol*strength
 
       omega = cell%deth

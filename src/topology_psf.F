@@ -113,9 +113,10 @@ CONTAINS
       c_int = 'I8'
       label = 'PSF'
       CALL parser_search_string(parser, label, .TRUE., found, begin_line=.TRUE.)
-      IF (.NOT. found) &
+      IF (.NOT. found) THEN
          CALL cp_abort(__LOCATION__, &
                        "Missing PSF specification line in <"//TRIM(filename)//">")
+      END IF
       DO WHILE (parser_test_next_token(parser) /= "EOL")
          CALL parser_get_object(parser, field)
          SELECT CASE (field(1:3))
@@ -147,11 +148,12 @@ CONTAINS
          natom = 0
       ELSE
          CALL parser_get_object(parser, natom)
-         IF (natom_prev + natom > topology%natoms) &
+         IF (natom_prev + natom > topology%natoms) THEN
             CALL cp_abort(__LOCATION__, &
                           "Number of atoms in connectivity control is larger than the "// &
                           "number of atoms in coordinate control. check coordinates and "// &
                           "connectivity. ")
+         END IF
          IF (iw > 0) WRITE (iw, '(T2,A,'//TRIM(c_int)//')') 'PSF_INFO| NATOM = ', natom
          !malloc the memory that we need
          CALL reallocate(atom_info%id_molname, 1, natom_prev + natom)

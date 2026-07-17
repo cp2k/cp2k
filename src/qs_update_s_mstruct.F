@@ -227,8 +227,9 @@ CONTAINS
 
             IF (ASSOCIATED(qs_env%kg_env%subset)) THEN
                DO isub = 1, qs_env%kg_env%nsubsets
-                  IF (ASSOCIATED(qs_env%kg_env%subset(isub)%task_list)) &
+                  IF (ASSOCIATED(qs_env%kg_env%subset(isub)%task_list)) THEN
                      CALL deallocate_task_list(qs_env%kg_env%subset(isub)%task_list)
+                  END IF
                END DO
             ELSE
                ALLOCATE (qs_env%kg_env%subset(qs_env%kg_env%nsubsets))

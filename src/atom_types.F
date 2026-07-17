@@ -414,8 +414,9 @@ CONTAINS
       CALL allocate_grid_atom(basis%grid)
       CALL section_vals_val_get(basis_section, "QUADRATURE", i_val=quadtype)
       CALL section_vals_val_get(basis_section, "GRID_POINTS", i_val=ngp)
-      IF (ngp <= 0) &
+      IF (ngp <= 0) THEN
          CPABORT("The number of radial grid points must be greater than zero.")
+      END IF
       CALL create_grid_atom(basis%grid, ngp, 1, 1, 0, quadtype)
       basis%grid%nr = ngp
       basis%geometrical = .FALSE.
@@ -840,8 +841,9 @@ CONTAINS
       CALL allocate_grid_atom(gbasis%grid)
       ngp = SIZE(r)
       quadtype = do_gapw_log
-      IF (ngp <= 0) &
+      IF (ngp <= 0) THEN
          CPABORT("The number of radial grid points must be greater than zero.")
+      END IF
       CALL create_grid_atom(gbasis%grid, ngp, 1, 1, 0, quadtype)
       gbasis%grid%nr = ngp
       gbasis%grid%rad(:) = r(:)

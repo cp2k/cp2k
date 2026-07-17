@@ -144,8 +144,9 @@ CONTAINS
       ! Check for   _cell_length_a
       CALL parser_search_string(parser, "CELL", ignore_case=.FALSE., found=found, &
                                 begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
+      IF (.NOT. found) THEN
          CPABORT("The field CELL was not found in XTL file! ")
+      END IF
       CALL parser_get_next_line(parser, 1)
       ! CELL LENGTH A
       CALL parser_get_object(parser, cell_lengths(1))
@@ -178,13 +179,15 @@ CONTAINS
       ! Check for   _atom_site_label
       CALL parser_search_string(parser, "ATOMS", ignore_case=.FALSE., found=found, &
                                 begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
+      IF (.NOT. found) THEN
          CPABORT("The field ATOMS was not found in XTL file! ")
+      END IF
       CALL parser_get_next_line(parser, 1)
       ! Paranoic syntax check.. if this fails one should improve the description of XTL files
       found = (INDEX(parser%input_line, "NAME       X          Y          Z") /= 0)
-      IF (.NOT. found) &
+      IF (.NOT. found) THEN
          CPABORT("The field ATOMS in XTL file, is not followed by name and coordinates tags! ")
+      END IF
       CALL parser_get_next_line(parser, 1)
       ! Parse real info
       natom = 0

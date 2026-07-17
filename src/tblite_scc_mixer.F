@@ -220,7 +220,7 @@ CONTAINS
 
       ALLOCATE (beta(MIN(memory, itn), MIN(memory, itn)), c(MIN(memory, itn), 1))
 
-      omega(it1) = SQRT(DOT_PRODUCT(dq, dq))
+      omega(it1) = NORM2(dq)
       IF (omega(it1) > (wfac/maxw)) THEN
          omega(it1) = wfac/omega(it1)
       ELSE
@@ -229,7 +229,7 @@ CONTAINS
       IF (omega(it1) < minw) omega(it1) = minw
 
       df(:, it1) = dq - dqlast
-      inv = MAX(SQRT(DOT_PRODUCT(df(:, it1), df(:, it1))), EPSILON(1.0_wp))
+      inv = MAX(NORM2(df(:, it1)), EPSILON(1.0_wp))
       inv = 1.0_wp/inv
       df(:, it1) = inv*df(:, it1)
 

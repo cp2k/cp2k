@@ -81,11 +81,9 @@ CONTAINS
 
       SELECT CASE (shape_id)
       CASE (contour_shape_linear)
-         IF (PRESENT(xnodes)) &
-            CALL rescale_nodes_linear(nnodes, tnodes, a, b, xnodes)
+         IF (PRESENT(xnodes)) CALL rescale_nodes_linear(nnodes, tnodes, a, b, xnodes)
 
-         IF (PRESENT(weights)) &
-            weights(:) = b - a
+         IF (PRESENT(weights)) weights(:) = b - a
 
       CASE (contour_shape_arc)
          ALLOCATE (tnodes_angle(nnodes))
@@ -93,8 +91,7 @@ CONTAINS
          tnodes_angle(:) = tnodes(:)
          CALL rescale_nodes_pi_phi(a, b, nnodes, tnodes_angle)
 
-         IF (PRESENT(xnodes)) &
-            CALL rescale_nodes_arc(nnodes, tnodes_angle, a, b, xnodes)
+         IF (PRESENT(xnodes)) CALL rescale_nodes_arc(nnodes, tnodes_angle, a, b, xnodes)
 
          IF (PRESENT(weights)) THEN
             rscale = (pi - get_arc_smallest_angle(a, b))*get_arc_radius(a, b)

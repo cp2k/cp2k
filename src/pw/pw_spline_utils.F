@@ -2116,7 +2116,7 @@ CONTAINS
                                                               + ww1(4)*vv4 + ww0(3)*vv5 + ww1(3)*vv6 + ww0(2)*vv7 + vv0*ww1(2)
                                  coarse_coeffs(i + 3, j, k) = coarse_coeffs(i + 3, j, k) &
                                                               + ww1(4)*vv6 + ww0(3)*vv7 + vv0*ww1(3)
-                              ELSEIF (pbc .AND. .NOT. is_split) THEN
+                              ELSE IF (pbc .AND. .NOT. is_split) THEN
                                  fi = fi + 1
                                  vv0 = fine_values(fi, fj, fk)
                                  vv1 = fine_values(fine_bo(1, 1), fj, fk)
@@ -2158,7 +2158,7 @@ CONTAINS
                                                               + ww1(3)*vv4 + ww0(2)*vv5 + ww1(2)*vv6
                                  coarse_coeffs(i + 2, j, k) = coarse_coeffs(i + 2, j, k) &
                                                               + ww1(4)*vv4 + ww0(3)*vv5 + ww1(3)*vv6
-                              ELSEIF (pbc .AND. .NOT. is_split) THEN
+                              ELSE IF (pbc .AND. .NOT. is_split) THEN
                                  fi = fi + 1
                                  vv6 = fine_values(fi, fj, fk)
                                  vv7 = fine_values(fine_bo(1, 1), fj, fk)
@@ -2202,7 +2202,7 @@ CONTAINS
                                                        + ww1(3)*vv2 + ww0(2)*vv3 + ww1(2)*vv4
                               coarse_coeffs(i + 1, j, k) = coarse_coeffs(i + 1, j, k) &
                                                            + ww1(4)*vv2 + ww0(3)*vv3 + ww1(3)*vv4
-                           ELSEIF (pbc .AND. .NOT. is_split) THEN
+                           ELSE IF (pbc .AND. .NOT. is_split) THEN
                               fi = fi + 1
                               vv4 = fine_values(fi, fj, fk)
                               vv5 = fine_values(fine_bo(1, 1), fj, fk)
@@ -2244,7 +2244,7 @@ CONTAINS
                                                         + ww1(3)*vv0 + ww0(2)*vv1 + ww1(2)*vv2
                            coarse_coeffs(i, j, k) = coarse_coeffs(i, j, k) &
                                                     + ww1(4)*vv0 + ww0(3)*vv1 + ww1(3)*vv2
-                        ELSEIF (pbc .AND. .NOT. is_split) THEN
+                        ELSE IF (pbc .AND. .NOT. is_split) THEN
                            fi = fi + 1
                            vv2 = fine_values(fi, fj, fk)
                            vv3 = fine_values(fine_bo(1, 1), fk, fk)
@@ -2348,8 +2348,9 @@ CONTAINS
             send_offset(ip) = send_tot_size
             send_tot_size = send_tot_size + send_size(ip)
          END DO
-         IF (send_tot_size /= (coarse_bo(2, 1) - coarse_bo(1, 1) + 1)*coarse_slice_size) &
+         IF (send_tot_size /= (coarse_bo(2, 1) - coarse_bo(1, 1) + 1)*coarse_slice_size) THEN
             CPABORT("Error calculating send_tot_size")
+         END IF
          ALLOCATE (send_buf(0:send_tot_size - 1))
 
          rcv_tot_size = 0
@@ -2374,10 +2375,12 @@ CONTAINS
             sent_size(p) = sent_size(p) + coarse_slice_size
          END DO
 
-         IF (ANY(sent_size(0:n_procs - 2) /= send_offset(1:n_procs - 1))) &
+         IF (ANY(sent_size(0:n_procs - 2) /= send_offset(1:n_procs - 1))) THEN
             CPABORT("error 1 filling send buffer")
-         IF (sent_size(n_procs - 1) /= send_tot_size) &
+         END IF
+         IF (sent_size(n_procs - 1) /= send_tot_size) THEN
             CPABORT("error 2 filling send buffer")
+         END IF
 
          IF (local_data) THEN
             DEALLOCATE (coarse_coeffs)
@@ -2441,10 +2444,12 @@ CONTAINS
 
          END DO
 
-         IF (ANY(sent_size(0:n_procs - 2) /= rcv_offset(1:n_procs - 1))) &
+         IF (ANY(sent_size(0:n_procs - 2) /= rcv_offset(1:n_procs - 1))) THEN
             CPABORT("error 1 handling the rcv buffer")
-         IF (sent_size(n_procs - 1) /= rcv_tot_size) &
+         END IF
+         IF (sent_size(n_procs - 1) /= rcv_tot_size) THEN
             CPABORT("error 2 handling the rcv buffer")
+         END IF
 
          ! dealloc
          DEALLOCATE (send_size, send_offset, rcv_size, rcv_offset)

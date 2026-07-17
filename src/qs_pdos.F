@@ -579,8 +579,9 @@ CONTAINS
                eval_ref => mos_ref(ispin_ref)%eigenvalues
                occ_ref => mos_ref(ispin_ref)%occupation_numbers
                DO imo_ref = 1, nmo_ref
-                  IF (occ_ref(imo_ref) > 1.0e-10_dp) &
+                  IF (occ_ref(imo_ref) > 1.0e-10_dp) THEN
                      hoco_ref(ispin_ref) = MAX(hoco_ref(ispin_ref), eval_ref(imo_ref))
+                  END IF
                   IF (ABS(occ_ref(imo_ref) - REAL(NINT(occ_ref(imo_ref)), KIND=dp)) > &
                       1.0e-8_dp) fractional_occupation = .TRUE.
                END DO
@@ -618,10 +619,12 @@ CONTAINS
 
       !Adjust energy range for r_ldos
       DO ildos = 1, n_r_ldos
-         IF (eigenvalues(1) > r_ldos_p(ildos)%ldos%eval_range(1)) &
+         IF (eigenvalues(1) > r_ldos_p(ildos)%ldos%eval_range(1)) THEN
             r_ldos_p(ildos)%ldos%eval_range(1) = eigenvalues(1)
-         IF (eigenvalues(nmo + nvirt) < r_ldos_p(ildos)%ldos%eval_range(2)) &
+         END IF
+         IF (eigenvalues(nmo + nvirt) < r_ldos_p(ildos)%ldos%eval_range(2)) THEN
             r_ldos_p(ildos)%ldos%eval_range(2) = eigenvalues(nmo + nvirt)
+         END IF
       END DO
 
       IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,(T15,A))') &

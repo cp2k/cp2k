@@ -370,10 +370,10 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger, bsse_section, "PRINT%PROGRAM_RUN_INFO", &
                                 extension=".log")
       IF (iw > 0) THEN
-         WRITE (conf_s, fmt="(1000I0)", iostat=istat) conf;
+         WRITE (conf_s, fmt="(1000I0)", iostat=istat) conf
          IF (istat /= 0) conf_s = "exceeded"
          CALL compress(conf_s, full=.TRUE.)
-         WRITE (conf_loc_s, fmt="(1000I0)", iostat=istat) conf_loc;
+         WRITE (conf_loc_s, fmt="(1000I0)", iostat=istat) conf_loc
          IF (istat /= 0) conf_loc_s = "exceeded"
          CALL compress(conf_loc_s, full=.TRUE.)
 
@@ -429,15 +429,17 @@ CONTAINS
       IF (explicit) THEN
          DO i = 1, nconf
             CALL section_vals_val_get(configurations, "GLB_CONF", i_rep_section=i, i_vals=glb_conf)
-            IF (SIZE(glb_conf) /= SIZE(conf)) &
+            IF (SIZE(glb_conf) /= SIZE(conf)) THEN
                CALL cp_abort(__LOCATION__, &
                              "GLB_CONF requires a binary description of the configuration. Number of integer "// &
                              "different from the number of fragments defined!")
+            END IF
             CALL section_vals_val_get(configurations, "SUB_CONF", i_rep_section=i, i_vals=sub_conf)
-            IF (SIZE(sub_conf) /= SIZE(conf)) &
+            IF (SIZE(sub_conf) /= SIZE(conf)) THEN
                CALL cp_abort(__LOCATION__, &
                              "SUB_CONF requires a binary description of the configuration. Number of integer "// &
                              "different from the number of fragments defined!")
+            END IF
             IF (ALL(conf == glb_conf) .AND. ALL(conf_loc == sub_conf)) THEN
                CALL section_vals_val_get(configurations, "CHARGE", i_rep_section=i, &
                                          i_val=present_charge)

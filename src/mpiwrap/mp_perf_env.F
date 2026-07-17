@@ -13,6 +13,8 @@ MODULE mp_perf_env
    USE kinds,                           ONLY: dp
 #include "../base/base_uses.f90"
 
+   IMPLICIT NONE
+
    PRIVATE
 
    PUBLIC :: mp_perf_env_type

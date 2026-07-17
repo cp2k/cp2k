@@ -63,8 +63,9 @@ CONTAINS
       external_comm = comm
       external_master_id = in_external_master_id
 
-      IF (PRESENT(in_scf_energy_message_tag)) &
+      IF (PRESENT(in_scf_energy_message_tag)) THEN
          scf_energy_message_tag = in_scf_energy_message_tag
+      END IF
       IF (PRESENT(in_exit_tag)) THEN
          ! the exit tag should be different from the mpi_probe tag default
          CPASSERT(in_exit_tag /= -1)
@@ -203,7 +204,7 @@ CONTAINS
          IF (PRESENT(target_time)) THEN
             my_target_time = target_time
             my_start_time = start_time
-         ELSEIF (PRESENT(globenv)) THEN
+         ELSE IF (PRESENT(globenv)) THEN
             my_target_time = globenv%cp2k_target_time
             my_start_time = globenv%cp2k_start_time
          ELSE

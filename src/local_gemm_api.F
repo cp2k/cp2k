@@ -8,6 +8,7 @@
 MODULE local_gemm_api
    USE ISO_C_BINDING, ONLY: C_NULL_PTR, &
                             C_PTR
+   USE kinds, ONLY: dp
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
    USE input_constants, ONLY: do_dgemm_spla
    USE ISO_C_BINDING, ONLY: C_ASSOCIATED, &
@@ -83,25 +84,25 @@ CONTAINS
       INTEGER, INTENT(in) :: m
       INTEGER, INTENT(in) :: n
       INTEGER, INTENT(in) :: k
-      REAL(8), INTENT(in) :: alpha
+      REAL(KIND=dp), INTENT(in) :: alpha
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      REAL(8), DIMENSION(*), INTENT(in), TARGET :: A
+      REAL(KIND=dp), DIMENSION(*), INTENT(in), TARGET :: A
 #else
-      REAL(8), DIMENSION(:, :), INTENT(in), TARGET :: A
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(in), TARGET :: A
 #endif
       INTEGER, INTENT(in) :: lda
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      REAL(8), DIMENSION(*), INTENT(in), TARGET :: B
+      REAL(KIND=dp), DIMENSION(*), INTENT(in), TARGET :: B
 #else
-      REAL(8), DIMENSION(:, :), INTENT(in), TARGET :: B
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(in), TARGET :: B
 #endif
 
       INTEGER, INTENT(in) :: ldb
-      REAL(8), INTENT(in) :: beta
+      REAL(KIND=dp), INTENT(in) :: beta
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      REAL(8), DIMENSION(*), INTENT(inout), TARGET ::C
+      REAL(KIND=dp), DIMENSION(*), INTENT(inout), TARGET ::C
 #else
-      REAL(8), DIMENSION(:, :), INTENT(inout), TARGET :: C
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(inout), TARGET :: C
 #endif
       INTEGER, INTENT(in) :: ldc
       CLASS(local_gemm_ctxt_type), INTENT(inout) :: ctx

@@ -516,8 +516,9 @@ CONTAINS
 
       IF (sign_symmetric) THEN
 
-         IF (.NOT. PRESENT(matrix_s_sqrt_inv)) &
+         IF (.NOT. PRESENT(matrix_s_sqrt_inv)) THEN
             CPABORT("Argument matrix_s_sqrt_inv required if sign_symmetric is set")
+         END IF
 
          CALL dbcsr_create(matrix_ssqrtinv_ks_ssqrtinv, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_create(matrix_ssqrtinv_ks_ssqrtinv2, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
@@ -577,8 +578,9 @@ CONTAINS
                           0.0_dp, matrix_tmp, filter_eps=threshold)
       CALL dbcsr_add(matrix_tmp, matrix_p_ud, 1.0_dp, -1.0_dp)
       frob_matrix = dbcsr_frobenius_norm(matrix_tmp)
-      IF (unit_nr > 0 .AND. frob_matrix > 0.001_dp) &
+      IF (unit_nr > 0 .AND. frob_matrix > 0.001_dp) THEN
          WRITE (unit_nr, '(T2,A,F20.12)') "Deviation from idempotency: ", frob_matrix
+      END IF
 
       IF (sign_symmetric) THEN
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p_ud, &
@@ -688,8 +690,9 @@ CONTAINS
                           0.0_dp, matrix_tmp, filter_eps=threshold)
       CALL dbcsr_add(matrix_tmp, matrix_p_ud, 1.0_dp, -1.0_dp)
       frob_matrix = dbcsr_frobenius_norm(matrix_tmp)
-      IF (unit_nr > 0 .AND. frob_matrix > 0.001_dp) &
+      IF (unit_nr > 0 .AND. frob_matrix > 0.001_dp) THEN
          WRITE (unit_nr, '(T2,A,F20.12)') "Deviation from idempotency: ", frob_matrix
+      END IF
 
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p_ud, &
                           0.0_dp, matrix_tmp, filter_eps=threshold)
@@ -942,8 +945,9 @@ CONTAINS
             CALL m_flush(unit_nr)
          END IF
 
-         IF (abnormal_value(trace_gx)) &
+         IF (abnormal_value(trace_gx)) THEN
             CPABORT("trace_gx is an abnormal value (NaN/Inf).")
+         END IF
 
          ! a branch of 1 or 2 appears to lead to a less accurate electron number count and premature exit
          ! if it turns out this does not exit because we get stuck in branch 1/2 for a reason we need to refine further
@@ -969,13 +973,15 @@ CONTAINS
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_x_nosym, &
                           0.0_dp, matrix_p, filter_eps=threshold)
 
-      ! calculate the chemical potential by doing a bisection of fk(x0)-0.5, where fk is evaluated using the stored values for gamma
+      ! calculate the chemical potential by doing a bisection of fk(x0)-0.5,
+      ! where fk is evaluated using the stored values for gamma
       ! E. Rubensson et al., Chem Phys Lett 432, 2006, 591-594
-      mu_a = 0.0_dp; mu_b = 1.0_dp;
+      mu_a = 0.0_dp; mu_b = 1.0_dp
       mu_fa = evaluate_trs4_polynomial(mu_a, gamma_values, i - 1) - 0.5_dp
       DO j = 1, 40
          mu_c = 0.5*(mu_a + mu_b)
-         mu_fc = evaluate_trs4_polynomial(mu_c, gamma_values, i - 1) - 0.5_dp ! i-1 because in the last iteration, only convergence is checked
+         ! i-1 because in the last iteration, only convergence is checked
+         mu_fc = evaluate_trs4_polynomial(mu_c, gamma_values, i - 1) - 0.5_dp
          IF (ABS(mu_fc) < 1.0E-6_dp .OR. (mu_b - mu_a)/2 < 1.0E-6_dp) EXIT !TODO: define threshold values
 
          IF (mu_fc*mu_fa > 0) THEN

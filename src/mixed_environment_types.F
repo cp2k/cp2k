@@ -321,10 +321,12 @@ CONTAINS
       IF (ASSOCIATED(mixed_env%group_distribution)) THEN
          DEALLOCATE (mixed_env%group_distribution)
       END IF
-      IF (ASSOCIATED(mixed_env%cdft_control)) &
+      IF (ASSOCIATED(mixed_env%cdft_control)) THEN
          CALL mixed_cdft_type_release(mixed_env%cdft_control)
-      IF (ASSOCIATED(mixed_env%strength)) &
+      END IF
+      IF (ASSOCIATED(mixed_env%strength)) THEN
          DEALLOCATE (mixed_env%strength)
+      END IF
 
    END SUBROUTINE mixed_env_release
 

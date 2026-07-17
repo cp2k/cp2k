@@ -659,8 +659,9 @@ CONTAINS
       CALL timeset(routineN, handle2)
       CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string(CEILING(pw%pw_grid%cutoff/10)*10))), handle)
 
-      IF (.NOT. ASSOCIATED(rs%desc%pw, pw%pw_grid)) &
+      IF (.NOT. ASSOCIATED(rs%desc%pw, pw%pw_grid)) THEN
          CPABORT("Different rs and pw indentifiers")
+      END IF
 
       IF (rs%desc%distributed) THEN
          CALL transfer_rs2pw_distributed(rs, pw)
@@ -702,8 +703,9 @@ CONTAINS
       CALL timeset(routineN, handle2)
       CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string(CEILING(pw%pw_grid%cutoff/10)*10))), handle)
 
-      IF (.NOT. ASSOCIATED(rs%desc%pw, pw%pw_grid)) &
+      IF (.NOT. ASSOCIATED(rs%desc%pw, pw%pw_grid)) THEN
          CPABORT("Different rs and pw indentifiers")
+      END IF
 
       IF (rs%desc%distributed) THEN
          CALL transfer_pw2rs_distributed(rs, pw)

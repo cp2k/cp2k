@@ -133,12 +133,13 @@ CONTAINS
          my_regularization = regularization
 
          IF (num_integ_points > 20 .AND. e_range < 100.0_dp) THEN
-            IF (unit_nr > 0) &
+            IF (unit_nr > 0) THEN
                CALL cp_warn(__LOCATION__, &
                             "You requested a large minimax grid (> 20 points) for a small minimax range R (R < 100). "// &
                             "That may lead to numerical "// &
                             "instabilities when computing minimax grid weights. You can prevent small ranges by choosing "// &
                             "a larger basis set with higher angular momenta or alternatively using all-electron calculations.")
+            END IF
          END IF
 
          IF (.NOT. do_ri_sos_laplace_mp2) THEN

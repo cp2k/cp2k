@@ -230,10 +230,12 @@ CONTAINS
                      CALL cp_add_default_logger(my_logger)
                   END IF
                   CALL force_env_release(force_env%sub_force_env(i)%force_env)
-                  IF (force_env%in_use == use_mixed_force) &
+                  IF (force_env%in_use == use_mixed_force) THEN
                      CALL cp_rm_default_logger()
-                  IF (force_env%in_use == use_embed) &
+                  END IF
+                  IF (force_env%in_use == use_embed) THEN
                      CALL cp_rm_default_logger()
+                  END IF
                END DO
                DEALLOCATE (force_env%sub_force_env)
             END IF

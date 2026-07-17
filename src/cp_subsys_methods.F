@@ -128,16 +128,19 @@ CONTAINS
       subsys%para_env => para_env
 
       my_use_motion_section = .FALSE.
-      IF (PRESENT(use_motion_section)) &
+      IF (PRESENT(use_motion_section)) THEN
          my_use_motion_section = use_motion_section
+      END IF
 
       my_force_env_section => section_vals_get_subs_vals(root_section, "FORCE_EVAL")
-      IF (PRESENT(force_env_section)) &
+      IF (PRESENT(force_env_section)) THEN
          my_force_env_section => force_env_section
+      END IF
 
       my_subsys_section => section_vals_get_subs_vals(my_force_env_section, "SUBSYS")
-      IF (PRESENT(subsys_section)) &
+      IF (PRESENT(subsys_section)) THEN
          my_subsys_section => subsys_section
+      END IF
 
       CALL section_vals_val_get(my_subsys_section, "SEED", i_vals=seed_vals)
       IF (SIZE(seed_vals) == 1) THEN
@@ -288,8 +291,9 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(small_subsys))
       CPASSERT(ASSOCIATED(big_subsys))
-      IF (big_subsys%para_env /= small_para_env) &
+      IF (big_subsys%para_env /= small_para_env) THEN
          CPABORT("big_subsys%para_env==small_para_env")
+      END IF
 
       !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------

@@ -384,7 +384,8 @@ CONTAINS
                               END IF
                            END DO
                            IF (my_alpha_beta_case .AND. calc_forces) THEN
-                              ! Is just an approximation, but the call does not allow it, it ought to be (virtual_i*B_size_j+virtual_j*B_size_i)*dimen_RI
+                              ! Is just an approximation, but the call does not allow it,
+                              ! it ought to be (virtual_i*B_size_j+virtual_j*B_size_i)*dimen_RI
                               CALL dgemm_counter_stop(dgemm_counter, virtual(ispin), my_B_size(ispin) + my_B_size(jspin), dimen_RI)
                            ELSE
                               CALL dgemm_counter_stop(dgemm_counter, virtual(ispin), my_B_size(jspin), dimen_RI)
@@ -451,11 +452,12 @@ CONTAINS
                                        my_Emp2_Ex = my_Emp2_Ex + sym_fac*local_ab(a_global, b)*external_ab(b, a)/ &
                                               (Eigenval(homo(ispin) + a_global, ispin) + Eigenval(homo(ispin) + b_global, ispin) - &
                                                      Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
-                                       IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) &
+                                       IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) THEN
                                          t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b) - mp2_env%scale_T*external_ab(b, a))/ &
                                                               (Eigenval(homo(ispin) + a_global, ispin) + &
                                                                Eigenval(homo(ispin) + b_global, ispin) - &
                                                                Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
+                                       END IF
                                     END DO
                                  END DO
                               END DO
@@ -673,8 +675,9 @@ CONTAINS
 
       ! We do not need this matrix later, so deallocate it here to safe memory
       IF (calc_forces) DEALLOCATE (mp2_env%ri_grad%PQ_half)
-      IF (calc_forces .AND. .NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) &
+      IF (calc_forces .AND. .NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
          DEALLOCATE (mp2_env%ri_grad%operator_half)
+      END IF
 
       CALL dgemm_counter_write(dgemm_counter, para_env)
 
@@ -1394,7 +1397,8 @@ CONTAINS
          ! 2*(NR/NG)+2*(1-(NR/NG))*(o/NB+NB-2)/NG = (NR/NG)*(1-(o/NB+NB-2)/NG)+(o/NB+NB-2)/NG
          ! We are looking for the minimum of the communication volume,
          ! thus, if the prefactor of (NR/NG) is smaller than zero, use the largest possible replication group size.
-         ! If the factor is larger than zero, set the replication group size to 1. (For small systems and a large number of subgroups)
+         ! If the factor is larger than zero, set the replication group size to 1.
+         ! (For small systems and a large number of subgroups)
          ! Replication group size = 1 implies that the integration group size equals the number of subgroups
 
          integ_group_size = ngroup
@@ -2547,8 +2551,9 @@ CONTAINS
       DO iiB = 1, homo
          ! diagonal elements already updated
          DO jjB = iiB + 1, homo
-            IF (ABS(Eigenval(jjB) - Eigenval(iiB)) < mp2_env%ri_grad%eps_canonical) &
+            IF (ABS(Eigenval(jjB) - Eigenval(iiB)) < mp2_env%ri_grad%eps_canonical) THEN
                num_sing_ij = num_sing_ij + 1
+            END IF
          END DO
       END DO
 

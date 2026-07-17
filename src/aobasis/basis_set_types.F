@@ -1680,8 +1680,9 @@ CONTAINS
                l(nshell(iset) - ishell + i, iset) = lshell
             END DO
          END DO
-         IF (LEN_TRIM(line_att) /= 0) &
+         IF (LEN_TRIM(line_att) /= 0) THEN
             CPABORT("Error reading the Basis from input file!")
+         END IF
          DO ipgf = 1, npgf(iset)
             is_ok = cp_sll_val_next(list, val)
             IF (.NOT. is_ok) CPABORT("Error reading the Basis set from input file!")
@@ -2503,8 +2504,9 @@ CONTAINS
 
       ng = gto_basis_set%npgf(1)
       DO iset = 1, nset
-         IF ((ng /= gto_basis_set%npgf(iset)) .AND. do_ortho) &
+         IF ((ng /= gto_basis_set%npgf(iset)) .AND. do_ortho) THEN
             CPABORT("different number of primitves")
+         END IF
       END DO
 
       IF (do_ortho) THEN
@@ -2682,7 +2684,7 @@ CONTAINS
             s00 = ai*aj*(pi*ab)**1.50_dp
             IF (l == 0) THEN
                sss = s00
-            ELSEIF (l == 1) THEN
+            ELSE IF (l == 1) THEN
                sss = s00*ab*0.5_dp
             ELSE
                CPABORT("aovlp lvalue")

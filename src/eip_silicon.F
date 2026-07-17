@@ -34,6 +34,7 @@ MODULE eip_silicon
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
@@ -926,25 +927,17 @@ CONTAINS
                                  coord_var, count)
 
       INTEGER                                            :: nat
-      REAL(KIND=dp)                                      :: alat, rxyz0, fxyz, ener, coord, &
-                                                            ener_var, coord_var, count
+      REAL(KIND=dp)                                      :: alat(3), rxyz0(3, nat), fxyz(3, nat), &
+                                                            ener, coord, ener_var, coord_var, count
 
-      DIMENSION rxyz0(3, nat), fxyz(3, nat), alat(3)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: rxyz
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)       :: lsta
-      INTEGER, ALLOCATABLE, DIMENSION(:)         :: lstb
-      INTEGER, ALLOCATABLE, DIMENSION(:)         :: lay
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)   :: icell
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: rel
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: txyz
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: s2, s3, sz
-      INTEGER, ALLOCATABLE, DIMENSION(:)         :: num2, num3, numz
-
-      REAL(KIND=dp) :: coord2, cut, cut2, ener2, rlc1i, rlc2i, rlc3i, tcoord, &
-                       tcoord2, tener, tener2
-      INTEGER       :: iam, iat, iat1, iat2, ii, i, il, in, indlst, indlstx, istop, &
-                       istopg, l2, l3, laymx, ll1, ll2, ll3, lot, max_nbrs, myspace, &
-                       l1, myspaceout, ncx, nn, nnbrx, npr
+      INTEGER :: i, iam, iat, iat1, iat2, ii, il, in, indlst, indlstx, istop, istopg, l1, l2, l3, &
+         laymx, ll1, ll2, ll3, lot, max_nbrs, myspace, myspaceout, ncx, nn, nnbrx, npr
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: lay, lstb, num2, num3, numz
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: lsta
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: icell
+      REAL(KIND=dp)                                      :: coord2, cut, cut2, ener2, rlc1i, rlc2i, &
+                                                            rlc3i, tcoord, tcoord2, tener, tener2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rel, rxyz, s2, s3, sz, txyz
 
 !        cut=par_a
       cut = 3.1213820e0_dp + 1.e-14_dp
@@ -1564,8 +1557,6 @@ CONTAINS
       END IF
 !$OMP END PARALLEL
 
-!         write(*,*) 'ener,norm force', &
-!                    ener,DNRM2(3*nat,fxyz,1)
       IF (istopg > 0) CPABORT("DIMENSION ERROR (see WARNING above)")
       ener_var = ener2/nat - (ener/nat)**2
       coord = coord/nat
@@ -2021,16 +2012,13 @@ CONTAINS
 ! the relative position rel of iat with respect to these neighbours
       INTEGER                                            :: iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, &
                                                             myspace
-      REAL(KIND=dp)                                      :: rxyz
-      INTEGER                                            :: icell, lstb, lay
-      REAL(KIND=dp)                                      :: rel, cut2
+      REAL(KIND=dp)                                      :: rxyz(3, nn)
+      INTEGER :: icell(0:ncx, -1:ll1, -1:ll2, -1:ll3), lstb(0:myspace - 1), lay(nn)
+      REAL(KIND=dp)                                      :: rel(5, 0:myspace - 1), cut2
       INTEGER                                            :: indlst
 
-      DIMENSION rxyz(3, nn), lay(nn), icell(0:ncx, -1:ll1, -1:ll2, -1:ll3), &
-         lstb(0:myspace - 1), rel(5, 0:myspace - 1)
-
-      INTEGER       :: jat, k1, k2, k3, jj
-      REAL(KIND=dp) :: rr2, tt, tti, xrel, yrel, zrel
+      INTEGER                                            :: jat, jj, k1, k2, k3
+      REAL(KIND=dp)                                      :: rr2, tt, tti, xrel, yrel, zrel
 
       DO k3 = l3 - 1, l3 + 1
       DO k2 = l2 - 1, l2 + 1
@@ -2091,25 +2079,18 @@ CONTAINS
                                   coord_var, count)
 
       INTEGER                                            :: nat
-      REAL(KIND=dp)                                      :: alat, rxyz0, fxyz, ener, coord, &
-                                                            ener_var, coord_var, count
+      REAL(KIND=dp)                                      :: alat(3), rxyz0(3, nat), fxyz(3, nat), &
+                                                            ener, coord, ener_var, coord_var, count
 
-      DIMENSION rxyz0(3, nat), fxyz(3, nat), alat(3)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: rxyz
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)       :: lsta
-      INTEGER, ALLOCATABLE, DIMENSION(:)         :: lstb
-      INTEGER, ALLOCATABLE, DIMENSION(:)         :: lay
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)   :: icell
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: rel
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: txyz
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: f2ij, f3ij, f3ik
-
-      REAL(KIND=dp) :: coord2, cut, cut2, ener2, tcoord, &
-                       tcoord2, tener, tener2
-      INTEGER       :: i, iam, iat, iat1, iat2, ii, il, in, indlst, indlstx, &
-                       istop, istopg, l1, l2, l3, ll1, ll2, ll3, lot, ncx, nn, &
-                       nnbrx, npjkx, npjx, laymx, npr, rlc1i, rlc2i, rlc3i, &
-                       myspace, myspaceout
+      INTEGER :: i, iam, iat, iat1, iat2, ii, il, in, indlst, indlstx, istop, istopg, l1, l2, l3, &
+         laymx, ll1, ll2, ll3, lot, myspace, myspaceout, ncx, nn, nnbrx, npjkx, npjx, npr, rlc1i, &
+         rlc2i, rlc3i
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: lay, lstb
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: lsta
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: icell
+      REAL(KIND=dp)                                      :: coord2, cut, cut2, ener2, tcoord, &
+                                                            tcoord2, tener, tener2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: f2ij, f3ij, f3ik, rel, rxyz, txyz
 
 !        tmax_phi= 0.4500000e+01_dp
 !        cut=tmax_phi
@@ -2720,8 +2701,6 @@ CONTAINS
       END IF
 !$OMP END PARALLEL
 
-!         write(*,*) 'ener,norm force', &
-!                    ener,DNRM2(3*nat,fxyz,1)
       IF (istopg > 0) CPABORT("DIMENSION ERROR (see WARNING above)")
       ener_var = ener2/nat - (ener/nat)**2
       coord = coord/nat
@@ -2759,115 +2738,78 @@ CONTAINS
 ! with them and their contribution to the energy (tener).
 ! In addition the coordination number tcoord and the second moment of the
 ! local energy tener2 and coordination number tcoord2 are returned
-      INTEGER                                            :: iat1, iat2, nat, lsta, lstb
-      REAL(KIND=dp)                                      :: rel, tener, tener2, tcoord, tcoord2
+      INTEGER                                            :: iat1, iat2, nat, lsta(2, nat)
+      REAL(KIND=dp)                                      :: tener, tener2, tcoord, tcoord2
       INTEGER                                            :: nnbrx
-      REAL(KIND=dp)                                      :: txyz, f2ij
+      REAL(KIND=dp)                                      :: rel(5, nnbrx*nat)
+      INTEGER                                            :: lstb(nnbrx*nat)
+      REAL(KIND=dp)                                      :: txyz(3, nat)
       INTEGER                                            :: npjx
-      REAL(KIND=dp)                                      :: f3ij
+      REAL(KIND=dp)                                      :: f2ij(3, npjx)
       INTEGER                                            :: npjkx
-      REAL(KIND=dp)                                      :: f3ik
+      REAL(KIND=dp)                                      :: f3ij(3, npjkx), f3ik(3, npjkx)
       INTEGER                                            :: istop
 
-      DIMENSION lsta(2, nat), lstb(nnbrx*nat), rel(5, nnbrx*nat), txyz(3, nat)
-      DIMENSION f2ij(3, npjx), f3ij(3, npjkx), f3ik(3, npjkx)
-      REAL(KIND=dp), PARAMETER :: tmin_phi = 0.1500000e+01_dp
-      REAL(KIND=dp), PARAMETER :: tmax_phi = 0.4500000e+01_dp
-      REAL(KIND=dp), PARAMETER :: hi_phi = 3.00000000000e0_dp
-      REAL(KIND=dp), PARAMETER :: hsixth_phi = 5.55555555555556e-002_dp
-      REAL(KIND=dp), PARAMETER :: h2sixth_phi = 1.85185185185185e-002_dp
-      REAL(KIND=dp), PARAMETER, DIMENSION(0:9) :: cof_phi = &
-                                                  [0.69299400000000e+01_dp, -0.43995000000000e+00_dp, &
-                                                   -0.17012300000000e+01_dp, -0.16247300000000e+01_dp, &
-                                                   -0.99696000000000e+00_dp, -0.27391000000000e+00_dp, &
-                                                   -0.24990000000000e-01_dp, -0.17840000000000e-01_dp, &
-                                                   -0.96100000000000e-02_dp, 0.00000000000000e+00_dp]
-      REAL(KIND=dp), PARAMETER, DIMENSION(0:9) :: dof_phi = &
-                                                  [0.16533229480429e+03_dp, 0.39415410391417e+02_dp, &
-                                                   0.68710036300407e+01_dp, 0.53406950884203e+01_dp, &
-                                                   0.15347960162782e+01_dp, -0.63347591535331e+01_dp, &
-                                                   -0.17987794021458e+01_dp, 0.47429676211617e+00_dp, &
-                                                   -0.40087646318907e-01_dp, -0.23942617684055e+00_dp]
-      REAL(KIND=dp), PARAMETER :: tmin_rho = 0.1500000e+01_dp
-      REAL(KIND=dp), PARAMETER :: tmax_rho = 0.3500000e+01_dp
-      REAL(KIND=dp), PARAMETER :: hi_rho = 5.00000000000e0_dp
-      REAL(KIND=dp), PARAMETER :: hsixth_rho = 3.33333333333333e-002_dp
-      REAL(KIND=dp), PARAMETER :: h2sixth_rho = 6.66666666666667e-003_dp
-      REAL(KIND=dp), PARAMETER, DIMENSION(0:10) :: cof_rho = &
-                                                   [0.13747000000000e+00_dp, -0.14831000000000e+00_dp, &
-                                                    -0.55972000000000e+00_dp, -0.73110000000000e+00_dp, &
-                                                    -0.76283000000000e+00_dp, -0.72918000000000e+00_dp, &
-                                                    -0.66620000000000e+00_dp, -0.57328000000000e+00_dp, &
-                                                    -0.40690000000000e+00_dp, -0.16662000000000e+00_dp, &
-                                                    0.00000000000000e+00_dp]
-      REAL(KIND=dp), PARAMETER, DIMENSION(0:10) :: dof_rho = &
-                                                   [-0.32275496741918e+01_dp, -0.64119006516165e+01_dp, &
-                                                    0.10030652280658e+02_dp, 0.22937915289857e+01_dp, &
-                                                    0.17416816033995e+01_dp, 0.54648205741626e+00_dp, &
-                                                    0.47189016693543e+00_dp, 0.20569572748420e+01_dp, &
-                                                    0.23192807336964e+01_dp, -0.24908020962757e+00_dp, &
-                                                    -0.12371959895186e+02_dp]
-      REAL(KIND=dp), PARAMETER :: tmin_fff = 0.1500000e+01_dp
-      REAL(KIND=dp), PARAMETER :: tmax_fff = 0.3500000e+01_dp
-      REAL(KIND=dp), PARAMETER :: hi_fff = 4.50000000000e0_dp
-      REAL(KIND=dp), PARAMETER :: hsixth_fff = 3.70370370370370e-002_dp
-      REAL(KIND=dp), PARAMETER :: h2sixth_fff = 8.23045267489712e-003_dp
-      REAL(KIND=dp), PARAMETER, DIMENSION(0:9) :: cof_fff = &
-                                                  [0.12503100000000e+01_dp, 0.86821000000000e+00_dp, &
-                                                   0.60846000000000e+00_dp, 0.48756000000000e+00_dp, &
-                                                   0.44163000000000e+00_dp, 0.37610000000000e+00_dp, &
-                                                   0.27145000000000e+00_dp, 0.14814000000000e+00_dp, &
-                                                   0.48550000000000e-01_dp, 0.00000000000000e+00_dp]
-      REAL(KIND=dp), PARAMETER, DIMENSION(0:9) :: dof_fff = &
-                                                  [0.27904652711432e+02_dp, -0.45230754228635e+01_dp, &
-                                                   0.50531739800222e+01_dp, 0.11806545027747e+01_dp, &
-                                                   -0.66693699112098e+00_dp, -0.89430653829079e+00_dp, &
-                                                   -0.50891685571587e+00_dp, 0.66278396115427e+00_dp, &
-                                                   0.73976101109878e+00_dp, 0.25795319944506e+01_dp]
-      REAL(KIND=dp), PARAMETER :: tmin_uuu = -0.1770930e+01_dp
-      REAL(KIND=dp), PARAMETER :: tmax_uuu = 0.7908520e+01_dp
-      REAL(KIND=dp), PARAMETER :: hi_uuu = 0.723181585730594e0_dp
-      REAL(KIND=dp), PARAMETER :: hsixth_uuu = 0.230463095238095e0_dp
-      REAL(KIND=dp), PARAMETER :: h2sixth_uuu = 0.318679429600340e0_dp
-      REAL(KIND=dp), PARAMETER, DIMENSION(0:7) :: cof_uuu = &
-                                                  [-0.10749300000000e+01_dp, -0.20045000000000e+00_dp, &
-                                                   0.41422000000000e+00_dp, 0.87939000000000e+00_dp, &
-                                                   0.12668900000000e+01_dp, 0.16299800000000e+01_dp, &
-                                                   0.19773800000000e+01_dp, 0.23961800000000e+01_dp]
-      REAL(KIND=dp), PARAMETER, DIMENSION(0:7) :: dof_uuu = &
-                                                  [-0.14827125747284e+00_dp, -0.14922155328475e+00_dp, &
-                                                   -0.70113224223509e-01_dp, -0.39449020349230e-01_dp, &
-                                                   -0.15815242579643e-01_dp, 0.26112640061855e-01_dp, &
-                                                   -0.13786974745095e+00_dp, 0.74941595372657e+00_dp]
-      REAL(KIND=dp), PARAMETER :: tmin_ggg = -0.1000000e+01_dp
-      REAL(KIND=dp), PARAMETER :: tmax_ggg = 0.8001400e+00_dp
-      REAL(KIND=dp), PARAMETER :: hi_ggg = 3.88858644327663e0_dp
-      REAL(KIND=dp), PARAMETER :: hsixth_ggg = 4.28604761904762e-002_dp
-      REAL(KIND=dp), PARAMETER :: h2sixth_ggg = 1.10221225156463e-002_dp
-      REAL(KIND=dp), PARAMETER, DIMENSION(0:7) :: cof_ggg = &
-                                                  [0.52541600000000e+01_dp, 0.23591500000000e+01_dp, &
-                                                   0.11959500000000e+01_dp, 0.12299500000000e+01_dp, &
-                                                   0.20356500000000e+01_dp, 0.34247400000000e+01_dp, &
-                                                   0.49485900000000e+01_dp, 0.56179900000000e+01_dp]
-      REAL(KIND=dp), PARAMETER, DIMENSION(0:7) :: dof_ggg = &
-                                                  [0.15826876132396e+02_dp, 0.31176239377907e+02_dp, &
-                                                   0.16589446539683e+02_dp, 0.11083892500520e+02_dp, &
-                                                   0.90887216383860e+01_dp, 0.54902279653967e+01_dp, &
-                                                   -0.18823313223755e+02_dp, -0.77183416481005e+01_dp]
+      REAL(KIND=dp), DIMENSION(0:10), PARAMETER :: cof_rho = [0.13747000000000e+00_dp, &
+         -0.14831000000000e+00_dp, -0.55972000000000e+00_dp, -0.73110000000000e+00_dp, &
+         -0.76283000000000e+00_dp, -0.72918000000000e+00_dp, -0.66620000000000e+00_dp, &
+         -0.57328000000000e+00_dp, -0.40690000000000e+00_dp, -0.16662000000000e+00_dp, &
+         0.00000000000000e+00_dp]
+      REAL(KIND=dp), DIMENSION(0:10), PARAMETER :: dof_rho = [-0.32275496741918e+01_dp, &
+         -0.64119006516165e+01_dp, 0.10030652280658e+02_dp, 0.22937915289857e+01_dp, &
+         0.17416816033995e+01_dp, 0.54648205741626e+00_dp, 0.47189016693543e+00_dp, &
+         0.20569572748420e+01_dp, 0.23192807336964e+01_dp, -0.24908020962757e+00_dp, &
+         -0.12371959895186e+02_dp]
+      REAL(KIND=dp), DIMENSION(0:7), PARAMETER :: cof_ggg = [0.52541600000000e+01_dp, &
+         0.23591500000000e+01_dp, 0.11959500000000e+01_dp, 0.12299500000000e+01_dp, &
+         0.20356500000000e+01_dp, 0.34247400000000e+01_dp, 0.49485900000000e+01_dp, &
+         0.56179900000000e+01_dp], cof_uuu = [-0.10749300000000e+01_dp, -0.20045000000000e+00_dp, &
+         0.41422000000000e+00_dp, 0.87939000000000e+00_dp, 0.12668900000000e+01_dp, &
+         0.16299800000000e+01_dp, 0.19773800000000e+01_dp, 0.23961800000000e+01_dp]
+      REAL(KIND=dp), DIMENSION(0:7), PARAMETER :: dof_ggg = [0.15826876132396e+02_dp, &
+         0.31176239377907e+02_dp, 0.16589446539683e+02_dp, 0.11083892500520e+02_dp, &
+         0.90887216383860e+01_dp, 0.54902279653967e+01_dp, -0.18823313223755e+02_dp, &
+         -0.77183416481005e+01_dp], dof_uuu = [-0.14827125747284e+00_dp, -0.14922155328475e+00_dp, &
+         -0.70113224223509e-01_dp, -0.39449020349230e-01_dp, -0.15815242579643e-01_dp, &
+         0.26112640061855e-01_dp, -0.13786974745095e+00_dp, 0.74941595372657e+00_dp]
+      REAL(KIND=dp), DIMENSION(0:9), PARAMETER :: cof_fff = [0.12503100000000e+01_dp, &
+         0.86821000000000e+00_dp, 0.60846000000000e+00_dp, 0.48756000000000e+00_dp, &
+         0.44163000000000e+00_dp, 0.37610000000000e+00_dp, 0.27145000000000e+00_dp, &
+         0.14814000000000e+00_dp, 0.48550000000000e-01_dp, 0.00000000000000e+00_dp], cof_phi = [ &
+         0.69299400000000e+01_dp, -0.43995000000000e+00_dp, -0.17012300000000e+01_dp, &
+         -0.16247300000000e+01_dp, -0.99696000000000e+00_dp, -0.27391000000000e+00_dp, &
+         -0.24990000000000e-01_dp, -0.17840000000000e-01_dp, -0.96100000000000e-02_dp, &
+         0.00000000000000e+00_dp]
+      REAL(KIND=dp), DIMENSION(0:9), PARAMETER :: dof_fff = [0.27904652711432e+02_dp, &
+         -0.45230754228635e+01_dp, 0.50531739800222e+01_dp, 0.11806545027747e+01_dp, &
+         -0.66693699112098e+00_dp, -0.89430653829079e+00_dp, -0.50891685571587e+00_dp, &
+         0.66278396115427e+00_dp, 0.73976101109878e+00_dp, 0.25795319944506e+01_dp], dof_phi = [ &
+         0.16533229480429e+03_dp, 0.39415410391417e+02_dp, 0.68710036300407e+01_dp, &
+         0.53406950884203e+01_dp, 0.15347960162782e+01_dp, -0.63347591535331e+01_dp, &
+         -0.17987794021458e+01_dp, 0.47429676211617e+00_dp, -0.40087646318907e-01_dp, &
+         -0.23942617684055e+00_dp]
+      REAL(KIND=dp), PARAMETER :: h2sixth_fff = 8.23045267489712e-003_dp, &
+         h2sixth_ggg = 1.10221225156463e-002_dp, h2sixth_phi = 1.85185185185185e-002_dp, &
+         h2sixth_rho = 6.66666666666667e-003_dp, h2sixth_uuu = 0.318679429600340e0_dp, &
+         hi_fff = 4.50000000000e0_dp, hi_ggg = 3.88858644327663e0_dp, hi_phi = 3.00000000000e0_dp, &
+         hi_rho = 5.00000000000e0_dp, hi_uuu = 0.723181585730594e0_dp, &
+         hsixth_fff = 3.70370370370370e-002_dp, hsixth_ggg = 4.28604761904762e-002_dp, &
+         hsixth_phi = 5.55555555555556e-002_dp, hsixth_rho = 3.33333333333333e-002_dp, &
+         hsixth_uuu = 0.230463095238095e0_dp
+      REAL(KIND=dp), PARAMETER :: tmax_fff = 0.3500000e+01_dp, tmax_ggg = 0.8001400e+00_dp, &
+         tmax_phi = 0.4500000e+01_dp, tmax_rho = 0.3500000e+01_dp, tmax_uuu = 0.7908520e+01_dp, &
+         tmin_fff = 0.1500000e+01_dp, tmin_ggg = -0.1000000e+01_dp, tmin_phi = 0.1500000e+01_dp, &
+         tmin_rho = 0.1500000e+01_dp, tmin_uuu = -0.1770930e+01_dp
 
-      REAL(KIND=dp) :: a2_fff, a2_ggg, a_fff, a_ggg, b2_fff, b2_ggg, b_fff, &
-                       b_ggg, cof1_fff, cof1_ggg, cof2_fff, cof2_ggg, cof3_fff, &
-                       cof3_ggg, cof4_fff, cof4_ggg, cof_fff_khi, cof_fff_klo, &
-                       cof_ggg_khi, cof_ggg_klo, coord_iat, costheta, dens, &
-                       dens2, dens3, dof_fff_khi, dof_fff_klo, dof_ggg_khi, &
-                       dof_ggg_klo, e_phi, e_uuu, ener_iat, ep_phi, ep_uuu, &
-                       fij, fijp, fik, fikp, fxij, fxik, fyij, fyik, fzij, fzik, &
-                       gjik, gjikp, rho, rhop, rij, rik, sij, sik, t1, t2, t3, t4, &
-                       tt, tt_fff, tt_ggg, xarg, ypt1_fff, ypt1_ggg, ypt2_fff, &
-                       ypt2_ggg, yt1_fff, yt1_ggg, yt2_fff, yt2_ggg
-
-      INTEGER       :: iat, jat, jbr, jcnt, jkcnt, kat, kbr, khi_fff, khi_ggg, &
-                       klo_fff, klo_ggg
+      INTEGER                                            :: iat, jat, jbr, jcnt, jkcnt, kat, kbr, &
+                                                            khi_fff, khi_ggg, klo_fff, klo_ggg
+      REAL(KIND=dp) :: a2_fff, a2_ggg, a_fff, a_ggg, b2_fff, b2_ggg, b_fff, b_ggg, cof1_fff, &
+         cof1_ggg, cof2_fff, cof2_ggg, cof3_fff, cof3_ggg, cof4_fff, cof4_ggg, cof_fff_khi, &
+         cof_fff_klo, cof_ggg_khi, cof_ggg_klo, coord_iat, costheta, dens, dens2, dens3, &
+         dof_fff_khi, dof_fff_klo, dof_ggg_khi, dof_ggg_klo, e_phi, e_uuu, ener_iat, ep_phi, &
+         ep_uuu, fij, fijp, fik, fikp, fxij, fxik, fyij, fyik, fzij, fzik, gjik, gjikp, rho, rhop, &
+         rij, rik, sij, sik, t1, t2, t3, t4, tt, tt_fff, tt_ggg, xarg, ypt1_fff, ypt1_ggg, &
+         ypt2_fff, ypt2_ggg, yt1_fff, yt1_ggg, yt2_fff, yt2_ggg
 
 ! initialize temporary private scalars for reduction sum on energies and
 ! private workarray txyz for forces forces
@@ -3211,16 +3153,13 @@ CONTAINS
 ! the relative position rel of iat with respect to these neighbours
       INTEGER                                            :: iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, &
                                                             myspace
-      REAL(KIND=dp)                                      :: rxyz
-      INTEGER                                            :: icell, lstb, lay
-      REAL(KIND=dp)                                      :: rel, cut2
+      REAL(KIND=dp)                                      :: rxyz(3, nn)
+      INTEGER :: icell(0:ncx, -1:ll1, -1:ll2, -1:ll3), lstb(0:myspace - 1), lay(nn)
+      REAL(KIND=dp)                                      :: rel(5, 0:myspace - 1), cut2
       INTEGER                                            :: indlst
 
-      DIMENSION rxyz(3, nn), lay(nn), icell(0:ncx, -1:ll1, -1:ll2, -1:ll3), &
-         lstb(0:myspace - 1), rel(5, 0:myspace - 1)
-
-      INTEGER       :: jat, jj, k1, k2, k3
-      REAL(KIND=dp) :: rr2, tt, xrel, yrel, zrel, tti
+      INTEGER                                            :: jat, jj, k1, k2, k3
+      REAL(KIND=dp)                                      :: rr2, tt, tti, xrel, yrel, zrel
 
       loop_k3: DO k3 = l3 - 1, l3 + 1
          loop_k2: DO k2 = l2 - 1, l2 + 1
@@ -3268,14 +3207,14 @@ CONTAINS
 !> \param yp ...
 ! **************************************************************************************************
    SUBROUTINE splint(ya, y2a, tmin, tmax, hsixth, h2sixth, hi, n, x, y, yp)
-      REAL(KIND=dp)                                      :: ya, y2a, tmin, tmax, hsixth, h2sixth, hi
+      REAL(KIND=dp)                                      :: tmin, tmax, hsixth, h2sixth, hi
       INTEGER                                            :: n
-      REAL(KIND=dp)                                      :: x, y, yp
+      REAL(KIND=dp)                                      :: y2a(0:n - 1), ya(0:n - 1), x, y, yp
 
-      DIMENSION y2a(0:n - 1), ya(0:n - 1)
-      REAL(KIND=dp) :: a, a2, b, b2, cof1, cof2, cof3, cof4, tt, &
-                       y2a_khi, ya_klo, y2a_klo, ya_khi, ypt1, ypt2, yt1, yt2
-      INTEGER :: klo, khi
+      INTEGER                                            :: khi, klo
+      REAL(KIND=dp)                                      :: a, a2, b, b2, cof1, cof2, cof3, cof4, &
+                                                            tt, y2a_khi, y2a_klo, ya_khi, ya_klo, &
+                                                            ypt1, ypt2, yt1, yt2
 
 ! interpolate if the argument is outside the cubic spline interval [tmin,tmax]
       tt = (x - tmin)*hi
@@ -3356,15 +3295,15 @@ CONTAINS
 !
 ! Input:
 !     nat, integer: the number of atoms
-!     alat,  real(8), dim(3)   : the three edges of the orthoromic simulation cell, periodic boundaries are applied
+!     alat,  REAL(KIND=dp), dim(3)   : the three edges of the orthoromic simulation cell, periodic boundaries are applied
 !                                and atoms outside the cell will be brought back into the box
-!     rxyz, real(8), dim(3,nat) : the xyz cartesian components of the atomic positions in Angstroem
+!     rxyz, REAL(KIND=dp), dim(3,nat) : the xyz cartesian components of the atomic positions in Angstroem
 !
 ! Output:
-!     fxyz,  real(8), dim(3,nat): the xyz cartesian forces in on the corresponding atomic components n eV/A
-!     etot, real(8)            : total potential energy, 2-body and 3-body, in eV
-!     count, real(8)           : increased by 1.d0 at each call of this subroutine,
-!                                needs to be initialized to 0.d0 before calling this routine for the first time
+!     fxyz,  REAL(KIND=dp), dim(3,nat): the xyz cartesian forces in on the corresponding atomic components n eV/A
+!     etot, REAL(KIND=dp)            : total potential energy, 2-body and 3-body, in eV
+!     count, REAL(KIND=dp)           : increased by 1._dp at each call of this subroutine,
+!                                needs to be initialized to 0._dp before calling this routine for the first time
 !
 ! Other variables:
 !     p:  the 2-body potential energy
@@ -3377,8 +3316,11 @@ CONTAINS
 !*****************************************************************************************
 
       INTEGER                                            :: nat
-      REAL(8)                                            :: alat(3), rxyz0(3, nat), fxyz(3, nat), &
+      REAL(dp)                                           :: alat(3), rxyz0(3, nat), fxyz(3, nat), &
                                                             etot, count
+
+      REAL(KIND=dp), PARAMETER                           :: eps = 2.167239428587_dp, ra = 1.8_dp, &
+                                                            sigma = 2.0951_dp
 
       INTEGER                                            :: i, iam, iat, ii, il, in, indlst, &
                                                             indlstx, ipb, l1, l2, l3, laymx, ll1, &
@@ -3387,18 +3329,14 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: lay, lstb
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: lsta
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: icell
-      REAL(8)                                            :: cut, cut2, eps, esigma, fx(nat), &
-                                                            fx3(nat), fy(nat), fy3(nat), fz(nat), &
-                                                            fz3(nat), isigma, p, p3, pv3, ra, &
-                                                            rlc1i, rlc2i, rlc3i, sigma
-      REAL(8), ALLOCATABLE, DIMENSION(:, :)              :: rel, rxyz
+      REAL(dp)                                           :: cut, cut2, esigma, fx(nat), fx3(nat), &
+                                                            fy(nat), fy3(nat), fz(nat), fz3(nat), &
+                                                            isigma, p, p3, pv3, rlc1i, rlc2i, rlc3i
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rel, rxyz
 
-      PARAMETER(ra=1.8d0)
-      PARAMETER(sigma=2.0951d0, eps=2.167239428587d0)
-
-      count = count + 1.d0
-      cut = sigma*ra*2.d0
-      isigma = 1.d0/sigma
+      count = count + 1._dp
+      cut = sigma*ra*2._dp
+      isigma = 1._dp/sigma
       esigma = eps*isigma
 
 ! linear scaling calculation of verlet list, only serial
@@ -3872,15 +3810,15 @@ CONTAINS
 
 !start energy and force calculation-------------------------------------------------------
 !set all variables to zero
-      p = 0.0d0
-      p3 = 0.0d0
-      pv3 = 0.0d0
-      fx(:) = 0.0d0
-      fy(:) = 0.0d0
-      fz(:) = 0.0d0
-      fx3(:) = 0.0d0
-      fy3(:) = 0.0d0
-      fz3(:) = 0.0d0
+      p = 0.0_dp
+      p3 = 0.0_dp
+      pv3 = 0.0_dp
+      fx(:) = 0.0_dp
+      fy(:) = 0.0_dp
+      fz(:) = 0.0_dp
+      fx3(:) = 0.0_dp
+      fy3(:) = 0.0_dp
+      fz3(:) = 0.0_dp
 !-----------------------------------------------------------------------------------------
 !     triple loop for the 2 and 3-body forces
 !     do 20 i
@@ -3916,23 +3854,22 @@ CONTAINS
 !> \param c ...
 !> \return ...
 ! **************************************************************************************************
-   REAL(8) FUNCTION f(c)
-      REAL(8)                                            :: c
+   REAL(KIND=dp) FUNCTION f(c)
+      REAL(KIND=dp)                                      :: c
 
-      REAL(8)                                            :: aa, bb, c4, crainv, ra
+      REAL(KIND=dp), PARAMETER                           :: aa = 7.049556277_dp, &
+                                                            bb = 0.6022245584_dp, ra = 1.8_dp
 
-      PARAMETER(aa=7.049556277d0)
-      PARAMETER(ra=1.8d0, bb=0.6022245584d0)
+      REAL(KIND=dp)                                      :: c4, crainv
 
-      IF ((c - ra) < 0.d0) THEN
-         crainv = 1.0d0/(c - ra)
+      IF ((c - ra) < 0._dp) THEN
+         crainv = 1.0_dp/(c - ra)
          c4 = c*c*c*c
-         f = aa*bb*4.0d0/(c4*c)*dexp(crainv) + aa*(bb/(c4) - 1.0d0)*dexp(crainv)*crainv*crainv
+         f = aa*bb*4.0_dp/(c4*c)*EXP(crainv) + aa*(bb/(c4) - 1.0_dp)*EXP(crainv)*crainv*crainv
       ELSE
-         f = 0.d0
+         f = 0._dp
       END IF
 
-      RETURN
    END FUNCTION f
 
 ! **************************************************************************************************
@@ -3940,18 +3877,17 @@ CONTAINS
 !> \param d ...
 !> \return ...
 ! **************************************************************************************************
-   REAL(8) FUNCTION pe(d)
-      REAL(8)                                            :: d
+   REAL(KIND=dp) FUNCTION pe(d)
+      REAL(KIND=dp)                                      :: d
 
-      REAL(8), PARAMETER                                 :: aa = 7.049556277d0, bb = 0.6022245584d0, &
-                                                            ra = 1.8d0
+      REAL(KIND=dp), PARAMETER                           :: aa = 7.049556277_dp, &
+                                                            bb = 0.6022245584_dp, ra = 1.8_dp
 
-      IF ((d - ra) < 0.d0) THEN
-         pe = aa*(bb/(d*d*d*d) - 1.0d0)*dexp(1.0d0/(d - ra))
+      IF ((d - ra) < 0._dp) THEN
+         pe = aa*(bb/(d*d*d*d) - 1.0_dp)*EXP(1.0_dp/(d - ra))
       ELSE
-         pe = 0.d0
+         pe = 0._dp
       END IF
-      RETURN
    END FUNCTION pe
 
 !------------------------------------------------------------------------------------------
@@ -3981,13 +3917,13 @@ CONTAINS
 ! the relative position rel of iat with respect to these neighbours
       INTEGER                                            :: iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, &
                                                             myspace
-      REAL(8)                                            :: rxyz(3, nn)
+      REAL(KIND=dp)                                      :: rxyz(3, nn)
       INTEGER :: icell(0:ncx, -1:ll1, -1:ll2, -1:ll3), lstb(0:myspace - 1), lay(nn)
-      REAL(8)                                            :: rel(5, 0:myspace - 1), cut2
+      REAL(KIND=dp)                                      :: rel(5, 0:myspace - 1), cut2
       INTEGER                                            :: indlst
 
       INTEGER                                            :: jat, jj, k1, k2, k3
-      REAL(8)                                            :: rr2, tt, tti, xrel, yrel, zrel
+      REAL(KIND=dp)                                      :: rr2, tt, tti, xrel, yrel, zrel
 
       DO k3 = l3 - 1, l3 + 1
       DO k2 = l2 - 1, l2 + 1
@@ -4004,7 +3940,7 @@ CONTAINS
             lstb(indlst) = lay(jat)
 !        write(6,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
             tt = SQRT(rr2)
-            tti = 1.d0/tt
+            tti = 1._dp/tt
             rel(1, indlst) = xrel*tti
             rel(2, indlst) = yrel*tti
             rel(3, indlst) = zrel*tti
@@ -4041,24 +3977,25 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sw_subfeniat_l(i, nat, nnbrx, rel, p, p3, fx, fy, fz, fx3, fy3, fz3, lstb, lsta, isigma, sigma)
       INTEGER, INTENT(IN)                                :: i, nat, nnbrx
-      REAL(8), INTENT(IN)                                :: rel(5, nnbrx*nat)
-      REAL(8), INTENT(INOUT)                             :: p, p3, fx(nat), fy(nat), fz(nat), &
+      REAL(KIND=dp), INTENT(IN)                          :: rel(5, nnbrx*nat)
+      REAL(KIND=dp), INTENT(INOUT)                       :: p, p3, fx(nat), fy(nat), fz(nat), &
                                                             fx3(nat), fy3(nat), fz3(nat)
       INTEGER, INTENT(IN)                                :: lstb(nnbrx*nat), lsta(2, nat)
-      REAL(8), INTENT(IN)                                :: isigma, sigma
+      REAL(KIND=dp), INTENT(IN)                          :: isigma, sigma
+
+      REAL(KIND=dp), PARAMETER                           :: aa = 7.049556277_dp, &
+                                                            bb = 0.6022245584_dp, gam = 1.2_dp, &
+                                                            ra = 1.8_dp, ramda = 21.0_dp
 
       INTEGER                                            :: Ipb, Ipe, j, k, l, m, nij
-      REAL(8) :: aa, bb, c4, cosijk, cosijk3, cosikj, cosikj3, cosjik, cosjik3, crainv, force, &
-         gam, hi, hixij, hixij0, hixij1, hixik, hixik0, hixik1, hiyij, hiyij0, hiyij1, hiyik, &
-         hiyik0, hiyik1, HIZIJ, HIZIJ0, HIZIJ1, HIZIK, HIZIK0, HIZIK1, hj, hjxij, hjxij0, hjxij1, &
-         hjxjk, hjxjk0, hjxjk1, hjyij, hjyij0, hjyij1, hjyjk, hjyjk0, hjyjk1, HJZIJ, HJZIJ0, &
-         HJZIJ1, HJZJK, HJZJK0, HJZJK1, hk, hkxik, hkxik0, HKXIK1, hkxkj, hkxkj0, hkxkj1, hkyik, &
-         hkyik0, hkyik1, hkykj, hkykj0, hkykj1, HKZIK, HKZIK0, HKZIK1, HKZKJ, HKZKJ0, HKZKJ1, &
-         invrij, invrija, invrik, invrika, invrjk, invrjka, ra, ramda, refi, refj
-      REAL(8) :: refk, rij, rija, rik, rika, rjk, rjka, xij, xik, xjk, yij, yik, yjk, zij, zik, zjk
-
-      PARAMETER(gam=1.2d0, ramda=21.0d0, aa=7.049556277d0)
-      PARAMETER(ra=1.8d0, bb=0.6022245584d0)
+      REAL(KIND=dp) :: c4, cosijk, cosijk3, cosikj, cosikj3, cosjik, cosjik3, crainv, force, hi, &
+         hixij, hixij0, hixij1, hixik, hixik0, hixik1, hiyij, hiyij0, hiyij1, hiyik, hiyik0, &
+         hiyik1, HIZIJ, HIZIJ0, HIZIJ1, HIZIK, HIZIK0, HIZIK1, hj, hjxij, hjxij0, hjxij1, hjxjk, &
+         hjxjk0, hjxjk1, hjyij, hjyij0, hjyij1, hjyjk, hjyjk0, hjyjk1, HJZIJ, HJZIJ0, HJZIJ1, &
+         HJZJK, HJZJK0, HJZJK1, hk, hkxik, hkxik0, HKXIK1, hkxkj, hkxkj0, hkxkj1, hkyik, hkyik0, &
+         hkyik1, hkykj, hkykj0, hkykj1, HKZIK, HKZIK0, HKZIK1, HKZKJ, HKZKJ0, HKZKJ1, invrij, &
+         invrija, invrik, invrika, invrjk, invrjka, refi, refj, refk, rij, rija, rik
+      REAL(KIND=dp) :: rika, rjk, rjka, xij, xik, xjk, yij, yik, yjk, zij, zik, zjk
 
       Ipb = lsta(1, i)
       Ipe = lsta(2, i)
@@ -4073,11 +4010,11 @@ CONTAINS
          yij = rel(2, l)*rij
          zij = rel(3, l)*rij
 
-         IF (rij >= 2.d0*ra) CYCLE
+         IF (rij >= 2._dp*ra) CYCLE
          IF (rij < ra) THEN
-            crainv = 1.0d0/(rij - ra)
+            crainv = 1.0_dp/(rij - ra)
             c4 = rij*rij*rij*rij
-            force = aa*bb*4.0d0/(c4*rij)*dexp(crainv) + aa*(bb/(c4) - 1.0d0)*dexp(crainv)*crainv*crainv
+            force = aa*bb*4.0_dp/(c4*rij)*EXP(crainv) + aa*(bb/(c4) - 1.0_dp)*EXP(crainv)*crainv*crainv
 
             fx(i) = force*xij*invrij + fx(i)
             fy(i) = force*yij*invrij + fy(i)
@@ -4087,7 +4024,7 @@ CONTAINS
             fy(j) = -force*yij*invrij + fy(j)
             fz(j) = -force*zij*invrij + fz(j)
 
-            p = p + aa*(bb/(rij*rij*rij*rij) - 1.0d0)*dexp(1.0d0/(rij - ra))
+            p = p + aa*(bb/(rij*rij*rij*rij) - 1.0_dp)*EXP(1.0_dp/(rij - ra))
 
             nij = 1
          END IF
@@ -4108,42 +4045,42 @@ CONTAINS
             zjk = zik - zij
 
             rjk = SQRT(xjk*xjk + yjk*yjk + zjk*zjk)
-            invrjk = 1.d0/rjk
+            invrjk = 1._dp/rjk
 
             IF ((rjk >= ra) .AND. (nij == 0)) CYCLE
             cosjik = (xij*xik + yij*yik + zij*zik)*(invrij*invrik)
             cosijk = (-xij*xjk - yij*yjk - zij*zjk)*(invrij*invrjk)
             cosikj = (xik*xjk + yik*yjk + zik*zjk)*(invrik*invrjk)
-            cosjik3 = cosjik + 1.0d0/3.0d0
-            cosijk3 = cosijk + 1.0d0/3.0d0
-            cosikj3 = cosikj + 1.0d0/3.0d0
+            cosjik3 = cosjik + 1.0_dp/3.0_dp
+            cosijk3 = cosijk + 1.0_dp/3.0_dp
+            cosikj3 = cosikj + 1.0_dp/3.0_dp
 
             rija = rij - ra
             rika = rik - ra
             rjka = rjk - ra
 
-            invrija = 1.d0/rija
-            invrika = 1.d0/rika
-            invrjka = 1.d0/rjka
+            invrija = 1._dp/rija
+            invrika = 1._dp/rika
+            invrjka = 1._dp/rjka
 
-            IF (rija >= 0.0d0) THEN
-               refi = 0.0d0
-               refj = 0.0d0
+            IF (rija >= 0.0_dp) THEN
+               refi = 0.0_dp
+               refj = 0.0_dp
                refk = ramda*EXP(gam*invrika + gam*invrjka)
-            ELSE IF ((rija < 0.0d0) .AND. (rika < 0.0d0)) THEN
-               IF (rjka < 0.0d0) THEN
+            ELSE IF ((rija < 0.0_dp) .AND. (rika < 0.0_dp)) THEN
+               IF (rjka < 0.0_dp) THEN
                   refi = ramda*EXP(gam*invrija + gam*invrika)
                   refj = ramda*EXP(gam*invrija + gam*invrjka)
                   refk = ramda*EXP(gam*invrika + gam*invrjka)
                ELSE
                   refi = ramda*EXP(gam*invrija + gam*invrika)
-                  refj = 0.0d0
-                  refk = 0.0d0
+                  refj = 0.0_dp
+                  refk = 0.0_dp
                END IF
-            ELSE IF ((rija < 0.0d0) .AND. (rjka < 0.0d0)) THEN
-               refi = 0.0d0
+            ELSE IF ((rija < 0.0_dp) .AND. (rjka < 0.0_dp)) THEN
+               refi = 0.0_dp
                refj = ramda*EXP(gam*invrija + gam*invrjka)
-               refk = 0.0d0
+               refk = 0.0_dp
             ELSE
                CYCLE
             END IF
@@ -4153,60 +4090,60 @@ CONTAINS
             hk = refk*cosikj3*cosikj3
             p3 = p3 + hi + hj + hk
 
-            hixij0 = 2.0d0*(xik*invrik - xij*cosjik*invrij)
+            hixij0 = 2.0_dp*(xik*invrik - xij*cosjik*invrij)
             hixij1 = gam*xij*cosjik3*(invrija*invrija)
             hixij = refi*cosjik3*(hixij0 - hixij1)*invrij
-            hixik0 = 2.0d0*(xij*invrij - xik*cosjik*invrik)
+            hixik0 = 2.0_dp*(xij*invrij - xik*cosjik*invrik)
             hixik1 = gam*xik*cosjik3*(invrika*invrika)
             hixik = refi*cosjik3*(hixik0 - hixik1)*invrik
-            hjxij0 = 2.0d0*(-xjk*invrjk - xij*cosijk*invrij)
+            hjxij0 = 2.0_dp*(-xjk*invrjk - xij*cosijk*invrij)
             hjxij1 = gam*xij*cosijk3*(invrija*invrija)
             hjxij = refj*cosijk3*(hjxij0 - hjxij1)*invrij
-            hkxik0 = 2.0d0*(xjk*invrjk - xik*cosikj*invrik)
+            hkxik0 = 2.0_dp*(xjk*invrjk - xik*cosikj*invrik)
             hkxik1 = gam*xik*cosikj3*(invrika*invrika)
             hkxik = refk*cosikj3*(hkxik0 - hkxik1)*invrik
-            hjxjk0 = 2.0d0*(-xij*invrij - xjk*cosijk*invrjk)
+            hjxjk0 = 2.0_dp*(-xij*invrij - xjk*cosijk*invrjk)
             hjxjk1 = gam*xjk*cosijk3*(invrjka*invrjka)
             hjxjk = refj*cosijk3*(hjxjk0 - hjxjk1)*invrjk
-            hkxkj0 = 2.0d0*(-xik*invrik + xjk*cosikj*invrjk)
+            hkxkj0 = 2.0_dp*(-xik*invrik + xjk*cosikj*invrjk)
             hkxkj1 = gam*xjk*cosikj3*(invrjka*invrjka)
             hkxkj = refk*cosikj3*(hkxkj0 + hkxkj1)*invrjk
 
-            hiyij0 = 2.0d0*(yik*invrik - yij*cosjik*invrij)
+            hiyij0 = 2.0_dp*(yik*invrik - yij*cosjik*invrij)
             hiyij1 = gam*yij*cosjik3*(invrija*invrija)
             hiyij = refi*cosjik3*(hiyij0 - hiyij1)*invrij
-            hiyik0 = 2.0d0*(yij*invrij - yik*cosjik*invrik)
+            hiyik0 = 2.0_dp*(yij*invrij - yik*cosjik*invrik)
             hiyik1 = gam*yik*cosjik3*(invrika*invrika)
             hiyik = refi*cosjik3*(hiyik0 - hiyik1)*invrik
-            hjyij0 = 2.0d0*(-yjk*invrjk - yij*cosijk*invrij)
+            hjyij0 = 2.0_dp*(-yjk*invrjk - yij*cosijk*invrij)
             hjyij1 = gam*yij*cosijk3*(invrija*invrija)
             hjyij = refj*cosijk3*(hjyij0 - hjyij1)*invrij
-            hkyik0 = 2.0d0*(yjk*invrjk - yik*cosikj*invrik)
+            hkyik0 = 2.0_dp*(yjk*invrjk - yik*cosikj*invrik)
             hkyik1 = gam*yik*cosikj3*(invrika*invrika)
             hkyik = refk*cosikj3*(hkyik0 - hkyik1)*invrik
-            hjyjk0 = 2.0d0*(-yij*invrij - yjk*cosijk*invrjk)
+            hjyjk0 = 2.0_dp*(-yij*invrij - yjk*cosijk*invrjk)
             hjyjk1 = gam*yjk*cosijk3*(invrjka*invrjka)
             hjyjk = refj*cosijk3*(hjyjk0 - hjyjk1)*invrjk
-            hkykj0 = 2.0d0*(-yik*invrik + yjk*cosikj*invrjk)
+            hkykj0 = 2.0_dp*(-yik*invrik + yjk*cosikj*invrjk)
             hkykj1 = gam*yjk*cosikj3*(invrjka*invrjka)
             hkykj = refk*cosikj3*(hkykj0 + hkykj1)*invrjk
 
-            hizij0 = 2.0d0*(zik*invrik - zij*cosjik*invrij)
+            hizij0 = 2.0_dp*(zik*invrik - zij*cosjik*invrij)
             hizij1 = gam*zij*cosjik3*(invrija*invrija)
             hizij = refi*cosjik3*(hizij0 - hizij1)*invrij
-            hizik0 = 2.0d0*(zij*invrij - zik*cosjik*invrik)
+            hizik0 = 2.0_dp*(zij*invrij - zik*cosjik*invrik)
             hizik1 = gam*zik*cosjik3*(invrika*invrika)
             hizik = refi*cosjik3*(hizik0 - hizik1)*invrik
-            hjzij0 = 2.0d0*(-zjk*invrjk - zij*cosijk*invrij)
+            hjzij0 = 2.0_dp*(-zjk*invrjk - zij*cosijk*invrij)
             hjzij1 = gam*zij*cosijk3*(invrija*invrija)
             hjzij = refj*cosijk3*(hjzij0 - hjzij1)*invrij
-            hkzik0 = 2.0d0*(zjk*invrjk - zik*cosikj*invrik)
+            hkzik0 = 2.0_dp*(zjk*invrjk - zik*cosikj*invrik)
             hkzik1 = gam*zik*cosikj3*(invrika*invrika)
             hkzik = refk*cosikj3*(hkzik0 - hkzik1)*invrik
-            hjzjk0 = 2.0d0*(-zij*invrij - zjk*cosijk*invrjk)
+            hjzjk0 = 2.0_dp*(-zij*invrij - zjk*cosijk*invrjk)
             hjzjk1 = gam*zjk*cosijk3*(invrjka*invrjka)
             hjzjk = refj*cosijk3*(hjzjk0 - hjzjk1)*invrjk
-            hkzkj0 = 2.0d0*(-zik*invrik + zjk*cosikj*invrjk)
+            hkzkj0 = 2.0_dp*(-zik*invrik + zjk*cosikj*invrjk)
             hkzkj1 = gam*zjk*cosikj3*(invrjka*invrjka)
             hkzkj = refk*cosikj3*(hkzkj0 + hkzkj1)*invrjk
 
@@ -4251,32 +4188,32 @@ CONTAINS
 !
 ! Input:
 !     nat, integer: the number of atoms
-!     alat,  real(8), dim(3)   : the three edges of the orthoromic simulation cell, periodic boundaries are applied
+!     alat,  REAL(KIND=dp), dim(3)   : the three edges of the orthoromic simulation cell, periodic boundaries are applied
 !                                and atoms outside the cell will be brought back into the box
-!     rxyz, real(8), dim(3,nat) : the xyz cartesian components of the atomic positions in Angstroem
+!     rxyz, REAL(KIND=dp), dim(3,nat) : the xyz cartesian components of the atomic positions in Angstroem
 !
 ! Output:
-!     fxyz,  real(8), dim(3,nat): the xyz cartesian forces in on the corresponding atomic components n eV/A
-!     etot, real(8)            : total potential energy, 2-body and 3-body, in eV
-!     count, real(8)           : increased by 1.d0 at each call of this subroutine,
-!                                needs to be initialized to 0.d0 before calling this routine for the first time
+!     fxyz,  REAL(KIND=dp), dim(3,nat): the xyz cartesian forces in on the corresponding atomic components n eV/A
+!     etot, REAL(KIND=dp)            : total potential energy, 2-body and 3-body, in eV
+!     count, REAL(KIND=dp)           : increased by 1._dp at each call of this subroutine,
+!                                needs to be initialized to 0._dp before calling this routine for the first time
 !*****************************************************************************************
       INTEGER                                            :: nat
-      REAL(8)                                            :: alat(3), rxyz(3, nat), fxyz(3, nat), &
+      REAL(KIND=dp)                                      :: alat(3), rxyz(3, nat), fxyz(3, nat), &
                                                             etot, count
 
       INTEGER                                            :: iat, NNmax, Npmax
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: Kinds, lstb
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: lsta
-      REAL(8)                                            :: Uatot, Urtot, xbox, ybox, zbox
-      REAL(8), ALLOCATABLE, DIMENSION(:)                 :: dkEij, UadUrdf, XYZRrefdf
-      REAL(8), DIMENSION(1:2)                            :: bcsq, Co_bcd, dsq, h, Pmass, Pn
-      REAL(8), DIMENSION(1:2, 1:2)                       :: ala, alr, Ca, Cr, R1, R2, X
+      REAL(KIND=dp)                                      :: Uatot, Urtot, xbox, ybox, zbox
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dkEij, UadUrdf, XYZRrefdf
+      REAL(KIND=dp), DIMENSION(1:2)                      :: bcsq, Co_bcd, dsq, h, Pmass, Pn
+      REAL(KIND=dp), DIMENSION(1:2, 1:2)                 :: ala, alr, Ca, Cr, R1, R2, X
 
       INTEGER:: nnbrx, nnbrxt
       INTEGER :: i
 
-      count = count + 1.d0
+      count = count + 1._dp
 
       DO iat = 1, nat
          rxyz(1, iat) = MODULO(MODULO(rxyz(1, iat), alat(1)), alat(1))
@@ -4296,7 +4233,7 @@ CONTAINS
       DO i = 1, nat
          kinds(i) = 2                             !Since all atoms are Si, all of kind 2
       END DO
-      fxyz = 0.0d0
+      fxyz = 0.0_dp
       xbox = alat(1); ybox = alat(2); zbox = alat(3)
       CALL tersoff_parameters(R1, R2, Cr, Ca, alr, ala, X, Pn, Co_bcd, bcsq, dsq, h, Pmass)
       CALL tersoff_pairlist_energy_forces(nat, Npmax, NNmax, xbox, ybox, zbox, Kinds, rxyz, R1, R2, Cr, &
@@ -4324,14 +4261,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tersoff_parameters(R1, R2, Cr, Ca, alr, ala, X, Pn, Co_bcd, bcsq, dsq, h, Pmass)
 
-      REAL(8), DIMENSION(1:2, 1:2), INTENT(out)          :: R1, R2, Cr, Ca, alr, ala, X
-      REAL(8), DIMENSION(1:2), INTENT(out)               :: Pn, Co_bcd, bcsq, dsq, h, Pmass
+      REAL(KIND=dp), DIMENSION(1:2, 1:2), INTENT(out)    :: R1, R2, Cr, Ca, alr, ala, X
+      REAL(KIND=dp), DIMENSION(1:2), INTENT(out)         :: Pn, Co_bcd, bcsq, dsq, h, Pmass
 
-      REAL(8), PARAMETER :: C_ala = 2.2119d0, C_alr = 3.4879d0, C_b = 1.5724d-7, C_c = 3.8049d4, &
-         C_Ca = 3.4674d2, C_Cr = 1.3936d3, C_d = 4.3484d0, C_h = -5.7058d-1, C_mass = 12.0d0, &
-         C_n = 7.2751d-1, C_R1 = 1.8d0, C_R2 = 2.1d0, Si_ala = 1.7322d0, Si_alr = 2.4799d0, &
-         Si_b = 1.1000d-6, Si_c = 1.0039d5, Si_Ca = 4.7118d2, Si_Cr = 1.8308d3, Si_d = 1.6217d1, &
-         Si_h = -5.9825d-1, Si_mass = 28.0855d0, Si_n = 7.8734d-1, Si_R1 = 2.7d0, Si_R2 = 3.3d0
+      REAL(KIND=dp), PARAMETER :: C_ala = 2.2119_dp, C_alr = 3.4879_dp, C_b = 1.5724e-7_dp, &
+         C_c = 3.8049e4_dp, C_Ca = 3.4674e2_dp, C_Cr = 1.3936e3_dp, C_d = 4.3484_dp, &
+         C_h = -5.7058e-1_dp, C_mass = 12.0_dp, C_n = 7.2751e-1_dp, C_R1 = 1.8_dp, C_R2 = 2.1_dp, &
+         Si_ala = 1.7322_dp, Si_alr = 2.4799_dp, Si_b = 1.1000e-6_dp, Si_c = 1.0039e5_dp, &
+         Si_Ca = 4.7118e2_dp, Si_Cr = 1.8308e3_dp, Si_d = 1.6217e1_dp, Si_h = -5.9825e-1_dp, &
+         Si_mass = 28.0855_dp, Si_n = 7.8734e-1_dp, Si_R1 = 2.7_dp, Si_R2 = 3.3_dp
 
 !Parameter for carbon, not used in this version
 !Parameter for carbon, not used in this version
@@ -4345,48 +4283,48 @@ CONTAINS
 !Parameter for carbon, not used in this version
 !Parameter for carbon, not used in this version
 !Parameter for carbon, not used in this version
-!Increased Cutoff, originally 3.0d0
+!Increased Cutoff, originally 3.0_dp
 
       Cr(1, 1) = C_Cr
       Cr(2, 2) = Si_Cr
-      Cr(1, 2) = dsqrt(Cr(1, 1)*Cr(2, 2))
+      Cr(1, 2) = SQRT(Cr(1, 1)*Cr(2, 2))
       Cr(2, 1) = Cr(1, 2)
 
       Ca(1, 1) = C_Ca
       Ca(2, 2) = Si_Ca
-      Ca(1, 2) = dsqrt(Ca(1, 1)*Ca(2, 2))
+      Ca(1, 2) = SQRT(Ca(1, 1)*Ca(2, 2))
       Ca(2, 1) = Ca(1, 2)
 
       R1(1, 1) = C_R1
       R1(2, 2) = Si_R1
-      R1(1, 2) = dsqrt(R1(1, 1)*R1(2, 2))
+      R1(1, 2) = SQRT(R1(1, 1)*R1(2, 2))
       R1(2, 1) = R1(1, 2)
 
       R2(1, 1) = C_R2
       R2(2, 2) = Si_R2
-      R2(1, 2) = dsqrt(R2(1, 1)*R2(2, 2))
+      R2(1, 2) = SQRT(R2(1, 1)*R2(2, 2))
       R2(2, 1) = R2(1, 2)
 
-      X(1, 1) = 1.0d0
-      X(2, 2) = 1.0d0
-      X(1, 2) = 0.9776d0
-      X(2, 1) = 0.9776d0
+      X(1, 1) = 1.0_dp
+      X(2, 2) = 1.0_dp
+      X(1, 2) = 0.9776_dp
+      X(2, 1) = 0.9776_dp
 
       alr(1, 1) = C_alr
       alr(2, 2) = Si_alr
-      alr(1, 2) = 0.5d0*(alr(1, 1) + alr(2, 2))
+      alr(1, 2) = 0.5_dp*(alr(1, 1) + alr(2, 2))
       alr(2, 1) = alr(1, 2)
 
       ala(1, 1) = C_ala
       ala(2, 2) = Si_ala
-      ala(1, 2) = 0.5d0*(ala(1, 1) + ala(2, 2))
+      ala(1, 2) = 0.5_dp*(ala(1, 1) + ala(2, 2))
       ala(2, 1) = ala(1, 2)
 
       Pn(1) = C_n
       Pn(2) = Si_n
 
-      Co_bcd(1) = C_b*(1.0d0 + C_c*C_c/(C_d*C_d))
-      Co_bcd(2) = Si_b*(1.0d0 + Si_c*Si_c/(Si_d*Si_d))
+      Co_bcd(1) = C_b*(1.0_dp + C_c*C_c/(C_d*C_d))
+      Co_bcd(2) = Si_b*(1.0_dp + Si_c*Si_c/(Si_d*Si_d))
 
       bcsq(1) = C_b*C_c*C_c
       bcsq(2) = Si_b*Si_c*Si_c
@@ -4439,35 +4377,32 @@ CONTAINS
                                              XYZRrefdf, UadUrdf, Urtot, lsta, lstb, nnbrx, &
                                              Pn, Co_bcd, bcsq, dsq, h, F, Uatot, dkEij)
       INTEGER, INTENT(in)                                :: Nmol, Npmax, NNmax
-      REAL(8), INTENT(in)                                :: xbox, ybox, zbox
+      REAL(KIND=dp), INTENT(in)                          :: xbox, ybox, zbox
       INTEGER, DIMENSION(1:Nmol), INTENT(in)             :: Kinds
-      REAL(8), DIMENSION(1:3*Nmol), INTENT(in)           :: R
-      REAL(8), DIMENSION(1:2, 1:2), INTENT(in)           :: R1, R2, Cr, Ca, alr, ala, X
-      REAL(8), DIMENSION(1:6*Npmax), INTENT(out)         :: XYZRrefdf
-      REAL(8), DIMENSION(1:3*Npmax), INTENT(out)         :: UadUrdf
-      REAL(8), INTENT(out)                               :: Urtot
+      REAL(KIND=dp), DIMENSION(1:3*Nmol), INTENT(in)     :: R
+      REAL(KIND=dp), DIMENSION(1:2, 1:2), INTENT(in)     :: R1, R2, Cr, Ca, alr, ala, X
+      REAL(KIND=dp), DIMENSION(1:6*Npmax), INTENT(out)   :: XYZRrefdf
+      REAL(KIND=dp), DIMENSION(1:3*Npmax), INTENT(out)   :: UadUrdf
+      REAL(KIND=dp), INTENT(out)                         :: Urtot
       INTEGER                                            :: lsta(2, Nmol)
       INTEGER, INTENT(inout)                             :: nnbrx
       INTEGER                                            :: lstb(nnbrx*Nmol)
-      REAL(8), DIMENSION(1:2), INTENT(in)                :: Pn, Co_bcd, bcsq, dsq, h
-      REAL(8), DIMENSION(1:3*Nmol), INTENT(out)          :: F
-      REAL(8), INTENT(out)                               :: Uatot
-      REAL(8), DIMENSION(1:3*NNmax)                      :: dkEij
+      REAL(KIND=dp), DIMENSION(1:2), INTENT(in)          :: Pn, Co_bcd, bcsq, dsq, h
+      REAL(KIND=dp), DIMENSION(1:3*Nmol), INTENT(out)    :: F
+      REAL(KIND=dp), INTENT(out)                         :: Uatot
+      REAL(KIND=dp), DIMENSION(1:3*NNmax)                :: dkEij
 
       INTEGER :: i, iam, iat, ii, il, in, indlst, indlstx, Ipb, istopg, jat, l1, l2, l3, laymx, &
          ll1, ll2, ll3, myspace, myspaceout, nat, ncx, ndat, nn, npjkx, npjx, npr, Nptot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: lay
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: icell
-      REAL(8)                                            :: alat(3), cut, cut2, pi, rlc1i, rlc2i, &
-                                                            rlc3i, rxyz0(3, Nmol), xhalf, yhalf, &
-                                                            zhalf
-      REAL(8), ALLOCATABLE, DIMENSION(:, :)              :: rel, rxyz
+      REAL(KIND=dp)                                      :: alat(3), cut, cut2, rlc1i, rlc2i, rlc3i, &
+                                                            rxyz0(3, Nmol), xhalf, yhalf, zhalf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rel, rxyz
 
-      pi = dacos(-1.0d0)
-
-      xhalf = 0.5d0*xbox
-      yhalf = 0.5d0*ybox
-      zhalf = 0.5d0*zbox
+      xhalf = 0.5_dp*xbox
+      yhalf = 0.5_dp*ybox
+      zhalf = 0.5_dp*zbox
 
       nat = Nmol
 
@@ -4950,29 +4885,28 @@ CONTAINS
       istopg = 0
 !end of creating pairlist part------------------------------------------------------------
 !Energy-----------------------------------------------------------------------------------
-      Urtot = 0.0d0
+      Urtot = 0.0_dp
       Nptot = 0
 
-      F = 0.0d0
-      Uatot = 0.0d0
+      F = 0.0_dp
+      Uatot = 0.0_dp
       DO_I: DO i = 1, Nmol
-  CALL tersoff_subeniat_l(i, Nmol, Npmax, Kinds, X, R1, R2, Cr, Ca, alr, ala, XYZRrefdf, UadUrdf, Urtot, lsta, lstb, nnbrx, rel, pi)
+      CALL tersoff_subeniat_l(i, Nmol, Npmax, Kinds, X, R1, R2, Cr, Ca, alr, ala, XYZRrefdf, UadUrdf, Urtot, lsta, lstb, nnbrx, rel)
       END DO DO_I
 
-      Urtot = 0.5d0*Urtot
+      Urtot = 0.5_dp*Urtot
 !Force------------------------------------------------------------------------------------
-      F = 0.0d0
-      Uatot = 0.0d0
+      F = 0.0_dp
+      Uatot = 0.0_dp
 
       DO_If: DO i = 1, Nmol
          CALL tersoff_subfiat_l(i,Nmol,Npmax,NNmax,Kinds,Pn,Co_bcd,bcsq,dsq,h,XYZRrefdf,UadUrdf,F,Uatot,dkEij,lsta,lstb,nnbrx)
       END DO DO_If
 
-      F = 0.5d0*F
-      Uatot = 0.5d0*Uatot
+      F = 0.5_dp*F
+      Uatot = 0.5_dp*Uatot
 !-----------------------------------------------------------------------------------------
       DEALLOCATE (rxyz, icell, lay, rel)
-      RETURN
    END SUBROUTINE tersoff_pairlist_energy_forces
 
 !-----------------------------------------------------------------------------------------
@@ -5002,13 +4936,13 @@ CONTAINS
 ! the relative position rel of iat with respect to these neighbours
       INTEGER                                            :: iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, &
                                                             myspace
-      REAL(8)                                            :: rxyz(3, nn)
+      REAL(KIND=dp)                                      :: rxyz(3, nn)
       INTEGER :: icell(0:ncx, -1:ll1, -1:ll2, -1:ll3), lstb(0:myspace - 1), lay(nn)
-      REAL(8)                                            :: rel(5, 0:myspace - 1), cut2
+      REAL(KIND=dp)                                      :: rel(5, 0:myspace - 1), cut2
       INTEGER                                            :: indlst
 
       INTEGER                                            :: jat, jj, k1, k2, k3
-      REAL(8)                                            :: rr2, tt, tti, xrel, yrel, zrel
+      REAL(KIND=dp)                                      :: rr2, tt, tti, xrel, yrel, zrel
 
       DO k3 = l3 - 1, l3 + 1
       DO k2 = l2 - 1, l2 + 1
@@ -5025,7 +4959,7 @@ CONTAINS
             lstb(indlst) = lay(jat)
 !        write(6,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
             tt = SQRT(rr2)
-            tti = 1.d0/tt
+            tti = 1._dp/tt
             rel(1, indlst) = xrel*tti
             rel(2, indlst) = yrel*tti
             rel(3, indlst) = zrel*tti
@@ -5061,22 +4995,20 @@ CONTAINS
 !> \param lstb ...
 !> \param nnbrx ...
 !> \param rel ...
-!> \param pi ...
 ! **************************************************************************************************
-   SUBROUTINE tersoff_subeniat_l(i,Nmol,Npmax,Kinds,X,R1,R2,Cr,Ca,alr,ala,XYZRrefdf,UadUrdf,Urtot,lsta,lstb,nnbrx,rel,pi)
+SUBROUTINE tersoff_subeniat_l(i, Nmol, Npmax, Kinds, X, R1, R2, Cr, Ca, alr, ala, XYZRrefdf, UadUrdf, Urtot, lsta, lstb, nnbrx, rel)
       INTEGER                                            :: i
       INTEGER, INTENT(in)                                :: Nmol, Npmax
       INTEGER, DIMENSION(1:Nmol), INTENT(in)             :: Kinds
-      REAL(8), DIMENSION(1:2, 1:2), INTENT(in)           :: X, R1, R2, Cr, Ca, alr, ala
-      REAL(8), DIMENSION(1:6*Npmax), INTENT(inout)       :: XYZRrefdf
-      REAL(8), DIMENSION(1:3*Npmax), INTENT(inout)       :: UadUrdf
-      REAL(8), INTENT(inout)                             :: Urtot
+      REAL(KIND=dp), DIMENSION(1:2, 1:2), INTENT(in)     :: X, R1, R2, Cr, Ca, alr, ala
+      REAL(KIND=dp), DIMENSION(1:6*Npmax), INTENT(inout) :: XYZRrefdf
+      REAL(KIND=dp), DIMENSION(1:3*Npmax), INTENT(inout) :: UadUrdf
+      REAL(KIND=dp), INTENT(inout)                       :: Urtot
       INTEGER, INTENT(in)                                :: lsta(2, Nmol), nnbrx, lstb(nnbrx*Nmol)
-      REAL(8), INTENT(in)                                :: rel(5, nnbrx*Nmol)
-      REAL(8)                                            :: pi
+      REAL(KIND=dp), INTENT(in)                          :: rel(5, nnbrx*Nmol)
 
       INTEGER                                            :: j, Ki, Kj, l, Nppt3, Nppt6, Nptot
-      REAL(8)                                            :: alaij, alrij, dfij, fij, PL1, PL2, R1ij, &
+      REAL(KIND=dp)                                      :: alaij, alrij, dfij, fij, PL1, PL2, R1ij, &
                                                             R2ij, Rij, Rreij, Ua, Ur, Xij, Yij, Zij
 
 !     #######################################
@@ -5107,13 +5039,13 @@ CONTAINS
          alrij = alr(Ki, Kj)
          alaij = ala(Ki, Kj)
 
-         Ur = Cr(Ki, Kj)*dexp(-alrij*Rij)
-         Ua = -Ca(Ki, Kj)*dexp(-alaij*Rij)*X(Ki, Kj)
+         Ur = Cr(Ki, Kj)*EXP(-alrij*Rij)
+         Ua = -Ca(Ki, Kj)*EXP(-alaij*Rij)*X(Ki, Kj)
          R1ij = R1(Ki, Kj)
 
          IF (Rij <= R1ij) THEN
-            XYZRrefdf(Nppt6 + 5) = 1.0d0
-            XYZRrefdf(Nppt6 + 6) = 0.0d0
+            XYZRrefdf(Nppt6 + 5) = 1.0_dp
+            XYZRrefdf(Nppt6 + 6) = 0.0_dp
             Urtot = Urtot + Ur
             UadUrdf(Nppt3 + 1) = Ua
             UadUrdf(Nppt3 + 2) = -alrij*Ur
@@ -5121,8 +5053,8 @@ CONTAINS
          ELSE
             PL1 = pi/(R2ij - R1ij)
             PL2 = PL1*(Rij - R1ij)
-            fij = 0.5d0 + 0.5d0*dcos(PL2)
-            dfij = -0.5d0*PL1*dsin(PL2)
+            fij = 0.5_dp + 0.5_dp*COS(PL2)
+            dfij = -0.5_dp*PL1*SIN(PL2)
             XYZRrefdf(Nppt6 + 5) = fij
             XYZRrefdf(Nppt6 + 6) = dfij
             Urtot = Urtot + fij*Ur
@@ -5158,20 +5090,20 @@ CONTAINS
       INTEGER                                            :: i
       INTEGER, INTENT(in)                                :: Nmol, Npmax, NNmax
       INTEGER, DIMENSION(1:Nmol), INTENT(in)             :: Kinds
-      REAL(8), DIMENSION(1:2), INTENT(in)                :: Pn, Co_bcd, bcsq, dsq, h
-      REAL(8), DIMENSION(1:6*Npmax), INTENT(in)          :: XYZRrefdf
-      REAL(8), DIMENSION(1:3*Npmax), INTENT(in)          :: UadUrdf
-      REAL(8), DIMENSION(1:3*Nmol), INTENT(inout)        :: F
-      REAL(8), INTENT(inout)                             :: Uatot
-      REAL(8), DIMENSION(1:3*NNmax)                      :: dkEij
+      REAL(KIND=dp), DIMENSION(1:2), INTENT(in)          :: Pn, Co_bcd, bcsq, dsq, h
+      REAL(KIND=dp), DIMENSION(1:6*Npmax), INTENT(in)    :: XYZRrefdf
+      REAL(KIND=dp), DIMENSION(1:3*Npmax), INTENT(in)    :: UadUrdf
+      REAL(KIND=dp), DIMENSION(1:3*Nmol), INTENT(inout)  :: F
+      REAL(KIND=dp), INTENT(inout)                       :: Uatot
+      REAL(KIND=dp), DIMENSION(1:3*NNmax)                :: dkEij
       INTEGER, INTENT(in)                                :: lsta(2, Nmol), nnbrx, lstb(nnbrx*Nmol)
 
       INTEGER                                            :: ij, ijpt3, ijpt6, ik, ikpt6, Ipb, Ipe, &
                                                             Ipt3, Jpt3, Ki, Kpt3, Nkpt3
-      REAL(8) :: bcsqi, Bij, Co1_dkEij, Co2_dkEij, Co_cdi, Co_dhcosi, Co_hcosi, Co_mb1, Co_mb2, &
-         Co_pa, COSijk, dfij, dfik, dFxi, dFxj, dFxk, dFyi, dFyj, dFyk, dFzi, dFzj, dFzk, dGi, &
-         djEij, dsqi, dXjEij2, dYjEij2, dZjEij2, Eij, fdG, fdGcos, fij, fik, Gi, hi, Pni, Rreij, &
-         Rreik, Ua, XRreij, XRreik, YRreij, YRreik, ZRreij, ZRreik
+      REAL(KIND=dp) :: bcsqi, Bij, Co1_dkEij, Co2_dkEij, Co_cdi, Co_dhcosi, Co_hcosi, Co_mb1, &
+         Co_mb2, Co_pa, COSijk, dfij, dfik, dFxi, dFxj, dFxk, dFyi, dFyj, dFyk, dFzi, dFzj, dFzk, &
+         dGi, djEij, dsqi, dXjEij2, dYjEij2, dZjEij2, Eij, fdG, fdGcos, fij, fik, Gi, hi, Pni, &
+         Rreij, Rreik, Ua, XRreij, XRreik, YRreij, YRreik, ZRreij, ZRreik
 
       Ipb = lsta(1, i)
       Ipe = lsta(2, i)
@@ -5184,9 +5116,9 @@ CONTAINS
 
       Co_cdi = Co_bcd(Ki)
 
-      dFxi = 0.0d0
-      dFyi = 0.0d0
-      dFzi = 0.0d0
+      dFxi = 0.0_dp
+      dFyi = 0.0_dp
+      dFzi = 0.0_dp
 
       DO_J: DO ij = Ipb, Ipe, +1
 
@@ -5200,11 +5132,11 @@ CONTAINS
          fij = XYZRrefdf(IJpt6 + 5)
          dfij = XYZRrefdf(IJpt6 + 6)
 
-         Eij = 0.0d0
-         djEij = 0.0d0
-         dXjEij2 = 0.0d0
-         dYjEij2 = 0.0d0
-         dZjEij2 = 0.0d0
+         Eij = 0.0_dp
+         djEij = 0.0_dp
+         dXjEij2 = 0.0_dp
+         dYjEij2 = 0.0_dp
+         dZjEij2 = 0.0_dp
 
          Nkpt3 = -3
          DO_K: DO ik = Ipb, Ipe, +1
@@ -5225,9 +5157,9 @@ CONTAINS
                COSijk = XRreij*XRreik + YRreij*YRreik + ZRreij*ZRreik
 
                Co_hcosi = hi - COSijk
-               Co_dhcosi = 1.0d0/(dsqi + Co_hcosi*Co_hcosi)
+               Co_dhcosi = 1.0_dp/(dsqi + Co_hcosi*Co_hcosi)
                Gi = -bcsqi*Co_dhcosi
-               dGi = 2.0d0*Co_hcosi*Co_dhcosi*Gi
+               dGi = 2.0_dp*Co_hcosi*Co_dhcosi*Gi
                Gi = Gi + Co_cdi
 
                Eij = Eij + fik*Gi
@@ -5249,22 +5181,22 @@ CONTAINS
                dkEij(Nkpt3 + 3) = Co1_dkEij*ZRreik + Co2_dkEij*ZRreij
 
             ELSE
-               dkEij(Nkpt3 + 1) = 0.0d0
-               dkEij(Nkpt3 + 2) = 0.0d0
-               dkEij(Nkpt3 + 3) = 0.0d0
+               dkEij(Nkpt3 + 1) = 0.0_dp
+               dkEij(Nkpt3 + 2) = 0.0_dp
+               dkEij(Nkpt3 + 3) = 0.0_dp
             END IF IKIJ
 
          END DO DO_K
 
-         Bij = 1.0d0 + Eij**Pni
-         Ua = UadUrdf(IJpt3 + 1)*Bij**(-0.5d0/Pni)
+         Bij = 1.0_dp + Eij**Pni
+         Ua = UadUrdf(IJpt3 + 1)*Bij**(-0.5_dp/Pni)
          Uatot = Uatot + Ua
 
-         Co_pa = UadUrdf(IJpt3 + 2) + UadUrdf(IJpt3 + 3)*Bij**(-0.5d0/Pni)
+         Co_pa = UadUrdf(IJpt3 + 2) + UadUrdf(IJpt3 + 3)*Bij**(-0.5_dp/Pni)
 
          CEij: IF (Nkpt3 > 0) THEN
 
-            Co_mb1 = Ua*0.5d0*Eij**(Pni - 1.0d0)/Bij
+            Co_mb1 = Ua*0.5_dp*Eij**(Pni - 1.0_dp)/Bij
             Co_mb2 = Co_mb1*Rreij
 
             Nkpt3 = -3

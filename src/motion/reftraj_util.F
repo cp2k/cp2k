@@ -112,20 +112,22 @@ CONTAINS
       END IF
 
       reftraj%isnap = nskip
-      IF (my_end) &
+      IF (my_end) THEN
          CALL cp_abort(__LOCATION__, &
                        "Reached the end of the trajectory file for REFTRAJ. Number of steps skipped "// &
                        "equal to the number of steps present in the file.")
+      END IF
 
       ! Cell File
       IF (reftraj%info%variable_volume) THEN
          IF (nskip > 0) THEN
             CALL parser_get_next_line(reftraj%info%cell_parser, nskip, at_end=my_end)
          END IF
-         IF (my_end) &
+         IF (my_end) THEN
             CALL cp_abort(__LOCATION__, &
                           "Reached the end of the cell file for REFTRAJ. Number of steps skipped "// &
                           "equal to the number of steps present in the file.")
+         END IF
       END IF
 
       reftraj%natom = natom

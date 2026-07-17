@@ -330,18 +330,20 @@ CONTAINS
          input_num_integ_groups = mp2_env%ri_rpa%rpa_num_integ_groups
          IF (my_do_gw .AND. do_minimax_quad) THEN
             IF (num_integ_points > 34) THEN
-               IF (unit_nr > 0) &
+               IF (unit_nr > 0) THEN
                   CALL cp_warn(__LOCATION__, &
                                "The required number of quadrature point exceeds the maximum possible in the "// &
                                "Minimax quadrature scheme. The number of quadrature point has been reset to 30.")
+               END IF
                num_integ_points = 30
             END IF
          ELSE
             IF (do_minimax_quad .AND. num_integ_points > 20) THEN
-               IF (unit_nr > 0) &
+               IF (unit_nr > 0) THEN
                   CALL cp_warn(__LOCATION__, &
                                "The required number of quadrature point exceeds the maximum possible in the "// &
                                "Minimax quadrature scheme. The number of quadrature point has been reset to 20.")
+               END IF
                num_integ_points = 20
             END IF
          END IF
@@ -973,8 +975,9 @@ CONTAINS
 
          CALL cp_fm_struct_release(fm_struct)
 
-         IF (.NOT. (my_blacs_ext .OR. (para_env_RPA%num_pe == para_env%num_pe .AND. PRESENT(qs_env)))) &
+         IF (.NOT. (my_blacs_ext .OR. (para_env_RPA%num_pe == para_env%num_pe .AND. PRESENT(qs_env)))) THEN
             CALL cp_blacs_env_release(blacs_env_Q)
+         END IF
       END IF
 
       ! release blacs_env
@@ -1333,9 +1336,10 @@ CONTAINS
       IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_create(rpa_grad, fm_mat_Q(1), &
                                                                    fm_mat_S, homo, virtual, mp2_env, Eigenval(:, 1, :), &
                                                                    unit_nr, do_ri_sos_laplace_mp2)
-      IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) &
+      IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) THEN
          CALL exchange_work%create(qs_env, para_env_sub, mat_munu, dimen_RI_red, &
                                    fm_mat_S, fm_mat_Q(1), fm_mat_Q_gemm(1), homo, virtual)
+      END IF
       Erpa = 0.0_dp
       IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) e_exchange = 0.0_dp
       first_cycle = .TRUE.

@@ -424,9 +424,9 @@ CONTAINS
             wij = ABS(SUM(qblock*sblock))/REAL(n, KIND=dp)
             IF (wij > 0.1_dp) THEN
                ecount(jatom, 1) = ecount(jatom, 1) + 1
-            ELSEIF (wij > 0.01_dp) THEN
+            ELSE IF (wij > 0.01_dp) THEN
                ecount(jatom, 2) = ecount(jatom, 2) + 1
-            ELSEIF (wij > 0.001_dp) THEN
+            ELSE IF (wij > 0.001_dp) THEN
                ecount(jatom, 3) = ecount(jatom, 3) + 1
             END IF
          END IF

@@ -439,8 +439,9 @@ CONTAINS
          !  * the source matrix is distributed across a number of processes, or
          !  * not all elements of the target matrix will be assigned, e.g.
          !        when the target matrix is larger then the source matrix
-         IF (do_zero) &
+         IF (do_zero) THEN
             CALL zcopy(SIZE(target_m), z_zero, 0, target_m(1, 1), 1)
+         END IF
 
          IF (tr_a) THEN
             DO j = start_col_local, end_col_local
@@ -668,14 +669,17 @@ CONTAINS
           cp_fm_struct_equivalent(source%matrix_struct, &
                                   destination%matrix_struct)) THEN
          IF (SIZE(source%local_data, 1) /= SIZE(destination%local_data, 1) .OR. &
-             SIZE(source%local_data, 2) /= SIZE(destination%local_data, 2)) &
+             SIZE(source%local_data, 2) /= SIZE(destination%local_data, 2)) THEN
             CPABORT("internal local_data has different sizes")
+         END IF
          CALL zcopy(SIZE(source%local_data), source%local_data(1, 1), 1, destination%local_data(1, 1), 1)
       ELSE
-         IF (source%matrix_struct%nrow_global /= destination%matrix_struct%nrow_global) &
+         IF (source%matrix_struct%nrow_global /= destination%matrix_struct%nrow_global) THEN
             CPABORT("cannot copy between full matrixes of differen sizes")
-         IF (source%matrix_struct%ncol_global /= destination%matrix_struct%ncol_global) &
+         END IF
+         IF (source%matrix_struct%ncol_global /= destination%matrix_struct%ncol_global) THEN
             CPABORT("cannot copy between full matrixes of differen sizes")
+         END IF
 #if defined(__parallel)
          CALL pzcopy(source%matrix_struct%nrow_global* &
                      source%matrix_struct%ncol_global, &
@@ -1068,7 +1072,8 @@ CONTAINS
          !      pack send buffers
          !      call isend
          !  DEST_2
-         !      wait for the recvs and unpack buffers (this part eventually will go into another routine to allow comms to run concurrently)
+         !      wait for the recvs and unpack buffers (this part eventually will go into another
+         !         routine to allow comms to run concurrently)
          !  SRC_2
          !      wait for the sends
 

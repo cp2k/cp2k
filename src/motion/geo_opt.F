@@ -103,8 +103,9 @@ CONTAINS
       ! Reset counter for next iteration, unless rm_restart_info==.FALSE.
       my_rm_restart_info = .TRUE.
       IF (PRESENT(rm_restart_info)) my_rm_restart_info = rm_restart_info
-      IF (my_rm_restart_info) &
+      IF (my_rm_restart_info) THEN
          CALL section_vals_val_set(geo_section, "STEP_START_VAL", i_val=0)
+      END IF
 
       DEALLOCATE (x0)
       CALL gopt_f_release(gopt_env)

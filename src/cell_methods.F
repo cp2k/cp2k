@@ -461,11 +461,12 @@ CONTAINS
       CALL section_vals_val_get(cell_section, "CELL_FILE_NAME", explicit=cell_read_file)
       IF (cell_read_file) THEN ! Case 1
          tmp_comb_cell = (cell_read_abc .OR. (cell_read_a .OR. (cell_read_b .OR. cell_read_c)))
-         IF (tmp_comb_cell) &
+         IF (tmp_comb_cell) THEN
             CALL cp_warn(__LOCATION__, &
                          "Cell Information provided through A, B, C, or ABC in conjunction "// &
                          "with CELL_FILE_NAME. The definition in external file will override "// &
                          "other ones.")
+         END IF
          CALL section_vals_val_get(cell_section, "CELL_FILE_NAME", c_val=cell_file_name)
          CALL section_vals_val_get(cell_section, "CELL_FILE_FORMAT", i_val=cell_file_format)
          SELECT CASE (cell_file_format)
@@ -491,10 +492,11 @@ CONTAINS
             read_len = cell_par
             CALL section_vals_val_get(cell_section, "ALPHA_BETA_GAMMA", r_vals=cell_par)
             read_ang = cell_par
-            IF (cell_read_a .OR. cell_read_b .OR. cell_read_c) &
+            IF (cell_read_a .OR. cell_read_b .OR. cell_read_c) THEN
                CALL cp_warn(__LOCATION__, &
                             "Cell information provided through vectors A, B or C in conjunction with ABC. "// &
                             "The definition of the ABC keyword will override the one provided by A, B and C.")
+            END IF
          ELSE ! Case 3
             tmp_comb_abc = ((cell_read_a .EQV. cell_read_b) .AND. (cell_read_b .EQV. cell_read_c))
             IF (tmp_comb_abc) THEN
@@ -504,10 +506,11 @@ CONTAINS
                read_mat(:, 2) = cell_par(:)
                CALL section_vals_val_get(cell_section, "C", r_vals=cell_par)
                read_mat(:, 3) = cell_par(:)
-               IF (cell_read_alpha_beta_gamma) &
+               IF (cell_read_alpha_beta_gamma) THEN
                   CALL cp_warn(__LOCATION__, &
                                "The keyword ALPHA_BETA_GAMMA is ignored because it was used without the "// &
                                "keyword ABC.")
+               END IF
             ELSE
                CALL cp_abort(__LOCATION__, &
                              "Neither of the keywords CELL_FILE_NAME or ABC are specified, "// &
@@ -722,10 +725,11 @@ CONTAINS
       CPASSERT(ASSOCIATED(cell))
 
       ! Abort, if one of the value is set to zero
-      IF (ANY(multiple_unit_cell <= 0)) &
+      IF (ANY(multiple_unit_cell <= 0)) THEN
          CALL cp_abort(__LOCATION__, &
                        "CELL%MULTIPLE_UNIT_CELL accepts only integer values larger than 0! "// &
                        "A value of 0 or negative is meaningless!")
+      END IF
 
       ! Scale abc according to user request
       cell%hmat(:, 1) = cell%hmat(:, 1)*multiple_unit_cell(1)
@@ -778,8 +782,9 @@ CONTAINS
       IF (.NOT. found) THEN
          CALL parser_search_string(parser, "_cell.length_a", ignore_case=.FALSE., found=found, &
                                    begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-         IF (.NOT. found) &
+         IF (.NOT. found) THEN
             CPABORT("The field _cell_length_a or _cell.length_a was not found in CIF file! ")
+         END IF
       END IF
       CALL cif_get_real(parser, cell_lengths(1))
       cell_lengths(1) = cp_unit_to_cp2k(cell_lengths(1), "angstrom")
@@ -790,8 +795,9 @@ CONTAINS
       IF (.NOT. found) THEN
          CALL parser_search_string(parser, "_cell.length_b", ignore_case=.FALSE., found=found, &
                                    begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-         IF (.NOT. found) &
+         IF (.NOT. found) THEN
             CPABORT("The field _cell_length_b or _cell.length_b was not found in CIF file! ")
+         END IF
       END IF
       CALL cif_get_real(parser, cell_lengths(2))
       cell_lengths(2) = cp_unit_to_cp2k(cell_lengths(2), "angstrom")
@@ -802,8 +808,9 @@ CONTAINS
       IF (.NOT. found) THEN
          CALL parser_search_string(parser, "_cell.length_c", ignore_case=.FALSE., found=found, &
                                    begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-         IF (.NOT. found) &
+         IF (.NOT. found) THEN
             CPABORT("The field _cell_length_c or _cell.length_c was not found in CIF file! ")
+         END IF
       END IF
       CALL cif_get_real(parser, cell_lengths(3))
       cell_lengths(3) = cp_unit_to_cp2k(cell_lengths(3), "angstrom")
@@ -814,8 +821,9 @@ CONTAINS
       IF (.NOT. found) THEN
          CALL parser_search_string(parser, "_cell.angle_alpha", ignore_case=.FALSE., found=found, &
                                    begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-         IF (.NOT. found) &
+         IF (.NOT. found) THEN
             CPABORT("The field _cell_angle_alpha or _cell.angle_alpha was not found in CIF file! ")
+         END IF
       END IF
       CALL cif_get_real(parser, cell_angles(1))
       cell_angles(1) = cp_unit_to_cp2k(cell_angles(1), "deg")
@@ -826,8 +834,9 @@ CONTAINS
       IF (.NOT. found) THEN
          CALL parser_search_string(parser, "_cell.angle_beta", ignore_case=.FALSE., found=found, &
                                    begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-         IF (.NOT. found) &
+         IF (.NOT. found) THEN
             CPABORT("The field _cell_angle_beta or _cell.angle_beta was not found in CIF file! ")
+         END IF
       END IF
       CALL cif_get_real(parser, cell_angles(2))
       cell_angles(2) = cp_unit_to_cp2k(cell_angles(2), "deg")
@@ -838,8 +847,9 @@ CONTAINS
       IF (.NOT. found) THEN
          CALL parser_search_string(parser, "_cell.angle_gamma", ignore_case=.FALSE., found=found, &
                                    begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-         IF (.NOT. found) &
+         IF (.NOT. found) THEN
             CPABORT("The field _cell_angle_gamma or _cell.angle_gamma was not found in CIF file! ")
+         END IF
       END IF
       CALL cif_get_real(parser, cell_angles(3))
       cell_angles(3) = cp_unit_to_cp2k(cell_angles(3), "deg")
@@ -1192,8 +1202,9 @@ CONTAINS
 
       CALL parser_search_string(parser, "CRYST1", ignore_case=.FALSE., found=found, &
                                 begin_line=.TRUE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
+      IF (.NOT. found) THEN
          CPABORT("The line <CRYST1> was not found in PDB file! ")
+      END IF
 
       periodic = 1
       READ (parser%input_line, *, IOSTAT=ios) cryst, cell_lengths(:), cell_angles(:)

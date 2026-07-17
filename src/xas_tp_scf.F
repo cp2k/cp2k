@@ -545,8 +545,9 @@ CONTAINS
             END IF
          END DO !  istate
 
-         IF (my_state == 0) &
+         IF (my_state == 0) THEN
             CPABORT("Could not identify the core state to be excited")
+         END IF
          xas_estate = my_state
          CALL get_mo_set(mos(my_spin), mo_coeff=mo_coeff)
          CALL cp_fm_get_submatrix(mo_coeff, vecbuffer, 1, xas_estate, &

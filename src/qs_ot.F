@@ -295,8 +295,9 @@ CONTAINS
       !
       ! compute the P^(-1/2)
       DO i = 1, k
-         IF (eig(i) <= 0.0_dp) &
+         IF (eig(i) <= 0.0_dp) THEN
             CPABORT("P not positive definite")
+         END IF
          IF (eig(i) < 1.0E-8_dp) THEN
             fun(i) = 0.0_dp
          ELSE

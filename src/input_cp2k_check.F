@@ -80,8 +80,9 @@ CONTAINS
       CPASSERT(ASSOCIATED(input_file))
       CPASSERT(input_file%ref_count > 0)
       ! ext_restart
-      IF (PRESENT(output_unit)) &
+      IF (PRESENT(output_unit)) THEN
          CALL handle_ext_restart(input_declaration, input_file, para_env, output_unit)
+      END IF
 
       ! checks on force_eval section
       sections => section_vals_get_subs_vals(input_file, "FORCE_EVAL")
@@ -146,13 +147,15 @@ CONTAINS
          ! do not allow the use of external potential
          section => section_vals_get_subs_vals(sections, "DFT%EXTERNAL_POTENTIAL")
          CALL section_vals_get(section, explicit=apply_ext_potential)
-         IF (apply_ext_potential) &
+         IF (apply_ext_potential) THEN
             CPABORT("The EXTERNAL_POTENTIAL section is not allowed for the MiMiC runtype.")
+         END IF
 
          ! force eval methods supported with MiMiC
          CALL section_vals_val_get(sections, "METHOD", i_val=force_eval_method)
-         IF (force_eval_method /= do_qs) &
+         IF (force_eval_method /= do_qs) THEN
             CPABORT("At the moment, only Quickstep method is supported with MiMiC.")
+         END IF
       END IF
 
       CALL timestop(handle)
@@ -431,29 +434,33 @@ CONTAINS
                      IF (flag) THEN
                         section => section_vals_get_subs_vals(section1, "SHELL_COORD")
                         CALL section_vals_set_subs_vals(section2, "SHELL_COORD", section)
-                        IF (check_restart(section1, section2, "SHELL_COORD")) &
+                        IF (check_restart(section1, section2, "SHELL_COORD")) THEN
                            CALL set_restart_info("SHELL COORDINATES", restarted_infos)
+                        END IF
                      END IF
                      CALL section_vals_val_get(r_section, "RESTART_CORE_POS", l_val=flag)
                      IF (flag) THEN
                         section => section_vals_get_subs_vals(section1, "CORE_COORD")
                         CALL section_vals_set_subs_vals(section2, "CORE_COORD", section)
-                        IF (check_restart(section1, section2, "CORE_COORD")) &
+                        IF (check_restart(section1, section2, "CORE_COORD")) THEN
                            CALL set_restart_info("CORE COORDINATES", restarted_infos)
+                        END IF
                      END IF
                      CALL section_vals_val_get(r_section, "RESTART_SHELL_VELOCITY", l_val=flag)
                      IF (flag) THEN
                         section => section_vals_get_subs_vals(section1, "SHELL_VELOCITY")
                         CALL section_vals_set_subs_vals(section2, "SHELL_VELOCITY", section)
-                        IF (check_restart(section1, section2, "SHELL_VELOCITY")) &
+                        IF (check_restart(section1, section2, "SHELL_VELOCITY")) THEN
                            CALL set_restart_info("SHELL VELOCITIES", restarted_infos)
+                        END IF
                      END IF
                      CALL section_vals_val_get(r_section, "RESTART_CORE_VELOCITY", l_val=flag)
                      IF (flag) THEN
                         section => section_vals_get_subs_vals(section1, "CORE_VELOCITY")
                         CALL section_vals_set_subs_vals(section2, "CORE_VELOCITY", section)
-                        IF (check_restart(section1, section2, "CORE_VELOCITY")) &
+                        IF (check_restart(section1, section2, "CORE_VELOCITY")) THEN
                            CALL set_restart_info("CORE VELOCITIES", restarted_infos)
+                        END IF
                      END IF
                   END IF
                ELSE
@@ -977,18 +984,20 @@ CONTAINS
                CALL section_vals_set_subs_vals(input_file, TRIM(path)//"%AD_LANGEVIN%MASS", section)
             END SELECT
          ELSE
-            IF (input_type /= restart_type) &
+            IF (input_type /= restart_type) THEN
                CALL cp_warn(__LOCATION__, &
                             "Requested to restart thermostat: "//TRIM(path)//". The thermostat "// &
                             "specified in the input file and the information present in the restart "// &
                             "file do not match the same type of thermostat! Restarting is not possible! "// &
                             "Thermostat will not be restarted! ")
-            IF (input_region /= restart_region) &
+            END IF
+            IF (input_region /= restart_region) THEN
                CALL cp_warn(__LOCATION__, &
                             "Requested to restart thermostat: "//TRIM(path)//". The thermostat "// &
                             "specified in the input file and the information present in the restart "// &
                             "file do not match the same type of REGION! Restarting is not possible! "// &
                             "Thermostat will not be restarted! ")
+            END IF
          END IF
       END IF
    END SUBROUTINE restart_thermostat

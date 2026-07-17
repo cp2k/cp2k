@@ -554,8 +554,8 @@ CONTAINS
             v_shake = MATMUL(MATMUL(u, diag), TRANSPOSE(u))
             diag = MATMUL(r_shake, v_shake)
             r_shake = diag
-         ELSEIF (.NOT. PRESENT(u) .AND. PRESENT(vector_v) .AND. &
-                 PRESENT(vector_r)) THEN
+         ELSE IF (.NOT. PRESENT(u) .AND. PRESENT(vector_v) .AND. &
+                  PRESENT(vector_r)) THEN
             DO i = 1, 3
                r_shake(i, i) = vector_r(i)*vector_v(i)
                v_shake(i, i) = vector_v(i)
@@ -569,7 +569,7 @@ CONTAINS
             diag(2, 2) = vector_v(2)
             diag(3, 3) = vector_v(3)
             v_shake = MATMUL(MATMUL(u, diag), TRANSPOSE(u))
-         ELSEIF (.NOT. PRESENT(u) .AND. PRESENT(vector_v)) THEN
+         ELSE IF (.NOT. PRESENT(u) .AND. PRESENT(vector_v)) THEN
             DO i = 1, 3
                v_shake(i, i) = vector_v(i)
             END DO

@@ -213,8 +213,9 @@ CONTAINS
 
       ALLOCATE (history%entries(k)%p)
       history%entries(k)%p = fingerprint
-      IF (PRESENT(id)) &
+      IF (PRESENT(id)) THEN
          history%entries(k)%id = id
+      END IF
       history%length = history%length + 1
 
       IF (debug) THEN
@@ -222,8 +223,9 @@ CONTAINS
          DO k = 1, history%length
             !WRITE(*,*) "history: ", k, "Epot",history%entries(k)%p%Epot
             IF (k > 1) THEN
-               IF (history%entries(k - 1)%p%Epot > history%entries(k)%p%Epot) &
+               IF (history%entries(k - 1)%p%Epot > history%entries(k)%p%Epot) THEN
                   CPABORT("history_add: history in wrong order")
+               END IF
             END IF
          END DO
       END IF
@@ -374,8 +376,9 @@ CONTAINS
       INTEGER                                            :: i
 
       DO i = 1, history%length
-         IF (ASSOCIATED(history%entries(i)%p)) &
+         IF (ASSOCIATED(history%entries(i)%p)) THEN
             DEALLOCATE (history%entries(i)%p)
+         END IF
       END DO
 
       DEALLOCATE (history%entries)

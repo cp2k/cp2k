@@ -163,10 +163,11 @@ CONTAINS
       IF (becke_control%adjust) THEN
          IF (.NOT. ASSOCIATED(becke_control%radii)) THEN
             CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
-            IF (.NOT. SIZE(atomic_kind_set) == SIZE(becke_control%radii_tmp)) &
+            IF (.NOT. SIZE(atomic_kind_set) == SIZE(becke_control%radii_tmp)) THEN
                CALL cp_abort(__LOCATION__, &
                              "Length of keyword BECKE_CONSTRAINT\ATOMIC_RADII does not "// &
                              "match number of atomic kinds in the input coordinate file.")
+            END IF
             ALLOCATE (becke_control%radii(SIZE(atomic_kind_set)))
             becke_control%radii(:) = becke_control%radii_tmp(:)
             DEALLOCATE (becke_control%radii_tmp)
@@ -180,10 +181,11 @@ CONTAINS
          CASE (becke_cutoff_global)
             becke_control%cutoffs(:) = becke_control%rglobal
          CASE (becke_cutoff_element)
-            IF (.NOT. SIZE(atomic_kind_set) == SIZE(becke_control%cutoffs_tmp)) &
+            IF (.NOT. SIZE(atomic_kind_set) == SIZE(becke_control%cutoffs_tmp)) THEN
                CALL cp_abort(__LOCATION__, &
                              "Length of keyword BECKE_CONSTRAINT\ELEMENT_CUTOFFS does not "// &
                              "match number of atomic kinds in the input coordinate file.")
+            END IF
             DO ikind = 1, SIZE(atomic_kind_set)
                CALL get_atomic_kind(atomic_kind_set(ikind), natom=katom, atom_list=atom_list)
                DO iatom = 1, katom
@@ -238,7 +240,7 @@ CONTAINS
                   becke_control%vector_buffer%pair_dist_vecs(:, jatom, iatom) = -dist_vec(:)
                END IF
             END IF
-            becke_control%vector_buffer%R12(iatom, jatom) = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
+            becke_control%vector_buffer%R12(iatom, jatom) = NORM2(dist_vec)
             becke_control%vector_buffer%R12(jatom, iatom) = becke_control%vector_buffer%R12(iatom, jatom)
             ! Set up heteronuclear cell partitioning using user defined radii
             IF (build) THEN
@@ -329,8 +331,9 @@ CONTAINS
             CALL create_shape_function(cavity_env, qs_kind_set, atomic_kind_set, &
                                        radius=becke_control%rcavity, &
                                        radii_list=radii_list)
-            IF (ASSOCIATED(radii_list)) &
+            IF (ASSOCIATED(radii_list)) THEN
                DEALLOCATE (radii_list)
+            END IF
          END IF
          ! Form cavity by summing isolated Gaussian densities over constraint atoms
          NULLIFY (rs_cavity)
@@ -425,9 +428,10 @@ CONTAINS
                                            middle_name="BECKE_CAVITY", &
                                            extension=".cube", file_position="REWIND", &
                                            log_filename=.FALSE., mpi_io=mpi_io)
-            IF (para_env%is_source() .AND. unit_nr < 1) &
+            IF (para_env%is_source() .AND. unit_nr < 1) THEN
                CALL cp_abort(__LOCATION__, &
                              "Please turn on PROGRAM_RUN_INFO to print cavity")
+            END IF
             CALL get_qs_env(qs_env, subsys=subsys)
             CALL qs_subsys_get(subsys, particles=particles)
             CALL cp_pw_to_cube(becke_control%cavity, unit_nr, "CAVITY", particles=particles, stride=stride, mpi_io=mpi_io)
@@ -435,8 +439,9 @@ CONTAINS
             DEALLOCATE (stride)
          END IF
       END IF
-      IF (ALLOCATED(is_constraint)) &
+      IF (ALLOCATED(is_constraint)) THEN
          DEALLOCATE (is_constraint)
+      END IF
       CALL timestop(handle)
 
    END SUBROUTINE becke_constraint_init
@@ -497,9 +502,10 @@ CONTAINS
       CALL section_vals_val_get(becke_section, "IN_MEMORY", l_val=becke_control%in_memory)
       IF (cdft_control%becke_control%cavity_confine) THEN
          CALL section_vals_val_get(becke_section, "CAVITY_SHAPE", i_val=becke_control%cavity_shape)
-         IF (becke_control%cavity_shape == radius_user .AND. .NOT. becke_control%adjust) &
+         IF (becke_control%cavity_shape == radius_user .AND. .NOT. becke_control%adjust) THEN
             CALL cp_abort(__LOCATION__, &
                           "Activate keyword ADJUST_SIZE to use cavity shape USER.")
+         END IF
          CALL section_vals_val_get(becke_section, "CAVITY_RADIUS", r_val=becke_control%rcavity)
          CALL section_vals_val_get(becke_section, "EPS_CAVITY", r_val=becke_control%eps_cavity)
          CALL section_vals_val_get(becke_section, "CAVITY_PRINT", l_val=becke_control%print_cavity)
@@ -550,8 +556,9 @@ CONTAINS
          CALL section_vals_val_get(group_section, "ATOMS", i_rep_section=k, n_rep_val=n_rep)
          DO j = 1, n_rep
             CALL section_vals_val_get(group_section, "ATOMS", i_rep_section=k, i_rep_val=j, i_vals=tmplist)
-            IF (SIZE(tmplist) < 1) &
+            IF (SIZE(tmplist) < 1) THEN
                CPABORT("Each ATOM_GROUP must contain at least 1 atom.")
+            END IF
             natoms = natoms + SIZE(tmplist)
          END DO
          ALLOCATE (cdft_control%group(k)%atoms(natoms))
@@ -618,8 +625,9 @@ CONTAINS
             CALL section_vals_val_get(group_section, "ATOMS", n_rep_val=n_rep)
             DO j = 1, n_rep
                CALL section_vals_val_get(group_section, "ATOMS", i_rep_val=j, i_vals=tmplist)
-               IF (SIZE(tmplist) < 1) &
+               IF (SIZE(tmplist) < 1) THEN
                   CPABORT("DUMMY_ATOMS must contain at least 1 atom.")
+               END IF
                natoms = natoms + SIZE(tmplist)
             END DO
             ALLOCATE (dummylist(natoms))
@@ -635,16 +643,18 @@ CONTAINS
             ! Check for duplicates
             DO j = 1, natoms
                DO i = j + 1, natoms
-                  IF (dummylist(i) == dummylist(j)) &
+                  IF (dummylist(i) == dummylist(j)) THEN
                      CPABORT("Duplicate atoms defined in section DUMMY_ATOMS.")
+                  END IF
                END DO
             END DO
             ! Check that a dummy atom is not included in any ATOM_GROUP
             DO j = 1, SIZE(atomlist)
                DO i = 1, SIZE(dummylist)
-                  IF (dummylist(i) == atomlist(j)) &
+                  IF (dummylist(i) == atomlist(j)) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Duplicate atoms defined in sections ATOM_GROUP and DUMMY_ATOMS.")
+                  END IF
                END DO
             END DO
          END IF
@@ -671,22 +681,24 @@ CONTAINS
       ALLOCATE (cdft_control%value(nvar))
       ALLOCATE (cdft_control%target(nvar))
       CALL section_vals_val_get(cdft_control_section, "STRENGTH", r_vals=rtmplist)
-      IF (SIZE(rtmplist) /= nvar) &
+      IF (SIZE(rtmplist) /= nvar) THEN
          CALL cp_abort(__LOCATION__, &
                        "The length of keyword STRENGTH is incorrect. "// &
                        "Expected "//TRIM(ADJUSTL(cp_to_string(nvar)))// &
                        " value(s), got "// &
                        TRIM(ADJUSTL(cp_to_string(SIZE(rtmplist))))//" value(s).")
+      END IF
       DO j = 1, nvar
          cdft_control%strength(j) = rtmplist(j)
       END DO
       CALL section_vals_val_get(cdft_control_section, "TARGET", r_vals=rtmplist)
-      IF (SIZE(rtmplist) /= nvar) &
+      IF (SIZE(rtmplist) /= nvar) THEN
          CALL cp_abort(__LOCATION__, &
                        "The length of keyword TARGET is incorrect. "// &
                        "Expected "//TRIM(ADJUSTL(cp_to_string(nvar)))// &
                        " value(s), got "// &
                        TRIM(ADJUSTL(cp_to_string(SIZE(rtmplist))))//" value(s).")
+      END IF
       DO j = 1, nvar
          cdft_control%target(j) = rtmplist(j)
       END DO
@@ -756,8 +768,9 @@ CONTAINS
          outer_scf_section => section_vals_get_subs_vals(cdft_control_section, "OUTER_SCF")
          CALL outer_scf_read_parameters(cdft_control%constraint_control, outer_scf_section)
          IF (cdft_control%constraint_control%have_scf) THEN
-            IF (cdft_control%constraint_control%type /= outer_scf_cdft_constraint) &
+            IF (cdft_control%constraint_control%type /= outer_scf_cdft_constraint) THEN
                CPABORT("Unsupported CDFT constraint.")
+            END IF
             ! Constraint definitions
             CALL read_constraint_definitions(cdft_control, cdft_control_section)
             ! Constraint-specific initializations
@@ -1014,10 +1027,11 @@ CONTAINS
          nkind = SIZE(qs_kind_set)
          ! Parse atomic radii for setting up Gaussian shape function
          IF (ASSOCIATED(hirshfeld_control%radii)) THEN
-            IF (.NOT. SIZE(atomic_kind_set) == SIZE(hirshfeld_control%radii)) &
+            IF (.NOT. SIZE(atomic_kind_set) == SIZE(hirshfeld_control%radii)) THEN
                CALL cp_abort(__LOCATION__, &
                              "Length of keyword HIRSHFELD_CONSTRAINT\ATOMIC_RADII does not "// &
                              "match number of atomic kinds in the input coordinate file.")
+            END IF
 
             ALLOCATE (radii_list(SIZE(hirshfeld_control%radii)))
             DO ikind = 1, SIZE(hirshfeld_control%radii)
@@ -1130,8 +1144,9 @@ CONTAINS
       CALL qs_scf_cdft_constraint_info(iw, cdft_control)
 
       ! Print weight function(s) to cube file(s) whenever weight is (re)built
-      IF (cdft_control%print_weight .AND. cdft_control%need_pot) &
+      IF (cdft_control%print_weight .AND. cdft_control%need_pot) THEN
          CALL cdft_print_weight_function(qs_env)
+      END IF
 
       ! Print atomic CDFT charges
       IF (iw > 0 .AND. cdft_control%atomic_charges) THEN
@@ -1290,9 +1305,10 @@ CONTAINS
                                         extension=".cube", file_position="REWIND", &
                                         log_filename=.FALSE., mpi_io=mpi_io)
          ! Note PROGRAM_RUN_INFO section neeeds to be active!
-         IF (para_env%is_source() .AND. unit_nr < 1) &
+         IF (para_env%is_source() .AND. unit_nr < 1) THEN
             CALL cp_abort(__LOCATION__, &
                           "Please turn on PROGRAM_RUN_INFO to print CDFT weight function.")
+         END IF
 
          CALL cp_pw_to_cube(cdft_control%group(igroup)%weight, &
                             unit_nr, &

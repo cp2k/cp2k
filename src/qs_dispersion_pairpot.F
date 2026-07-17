@@ -188,11 +188,12 @@ CONTAINS
                   disp%defined = .FALSE.
                END IF
                ! Check if the parameter is defined
-               IF (.NOT. disp%defined) &
+               IF (.NOT. disp%defined) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "Dispersion parameters for element ("//TRIM(symbol)//") are not defined! "// &
                                 "Please provide a valid set of parameters through the input section or "// &
                                 "through an external file! ")
+               END IF
                CALL set_qs_kind(qs_kind_set(ikind), dispersion=disp)
             END DO
          CASE (vdw_pairpot_dftd3, vdw_pairpot_dftd3bj)
@@ -274,11 +275,12 @@ CONTAINS
                ELSE
                   disp%defined = .FALSE.
                END IF
-               IF (.NOT. disp%defined) &
+               IF (.NOT. disp%defined) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "Dispersion parameters for element ("//TRIM(symbol)//") are not defined! "// &
                                 "Please provide a valid set of parameters through the input section or "// &
                                 "through an external file! ")
+               END IF
                CALL set_qs_kind(qs_kind_set(ikind), dispersion=disp)
             END DO
 
@@ -479,11 +481,11 @@ CONTAINS
 
       IF (dispersion_env%pp_type == vdw_pairpot_dftd2) THEN
          CALL calculate_dispersion_d2_pairpot(qs_env, dispersion_env, evdw, calculate_forces, atevdw)
-      ELSEIF (dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
-              dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
+      ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
+               dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
          CALL calculate_dispersion_d3_pairpot(qs_env, dispersion_env, evdw, calculate_forces, &
                                               unit_nr, atevdw)
-      ELSEIF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
+      ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
          IF (dispersion_env%lrc) THEN
             CPABORT("Long range correction with DFTD4 not implemented")
          END IF

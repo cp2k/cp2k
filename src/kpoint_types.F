@@ -566,8 +566,9 @@ CONTAINS
       IF (PRESENT(full_grid)) full_grid = kpoint%full_grid
       IF (PRESENT(inversion_symmetry_only)) inversion_symmetry_only = kpoint%inversion_symmetry_only
       IF (PRESENT(symmetry_backend)) symmetry_backend = kpoint%symmetry_backend
-      IF (PRESENT(symmetry_reduction_method)) &
+      IF (PRESENT(symmetry_reduction_method)) THEN
          symmetry_reduction_method = kpoint%symmetry_reduction_method
+      END IF
       IF (PRESENT(use_real_wfn)) use_real_wfn = kpoint%use_real_wfn
       IF (PRESENT(eps_geo)) eps_geo = kpoint%eps_geo
       IF (PRESENT(parallel_group_size)) parallel_group_size = kpoint%parallel_group_size
@@ -681,8 +682,9 @@ CONTAINS
       IF (PRESENT(full_grid)) kpoint%full_grid = full_grid
       IF (PRESENT(inversion_symmetry_only)) kpoint%inversion_symmetry_only = inversion_symmetry_only
       IF (PRESENT(symmetry_backend)) kpoint%symmetry_backend = symmetry_backend
-      IF (PRESENT(symmetry_reduction_method)) &
+      IF (PRESENT(symmetry_reduction_method)) THEN
          kpoint%symmetry_reduction_method = symmetry_reduction_method
+      END IF
       IF (PRESENT(use_real_wfn)) kpoint%use_real_wfn = use_real_wfn
       IF (PRESENT(eps_geo)) kpoint%eps_geo = eps_geo
       IF (PRESENT(parallel_group_size)) kpoint%parallel_group_size = parallel_group_size

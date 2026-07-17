@@ -163,7 +163,7 @@ CONTAINS
             IF (qmmm_coupl_type == do_qmmm_gauss) THEN
                CALL set_mm_potential_erf(qmmm_gaussian_fns, &
                                          compatibility, num_geep_gauss)
-            ELSEIF (qmmm_coupl_type == do_qmmm_swave) THEN
+            ELSE IF (qmmm_coupl_type == do_qmmm_swave) THEN
                CALL set_mm_potential_swave(qmmm_gaussian_fns, &
                                            num_geep_gauss)
             END IF

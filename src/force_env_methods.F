@@ -404,8 +404,9 @@ CONTAINS
                                         "PRINT%PROGRAM_RUN_INFO")
 
       ! terminate the run if the value of the potential is abnormal
-      IF (abnormal_value(e_pot)) &
+      IF (abnormal_value(e_pot)) THEN
          CPABORT("Potential energy is an abnormal value (NaN/Inf).")
+      END IF
 
       ! Print forces, if requested
       print_forces = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%FORCES", &
@@ -625,13 +626,15 @@ CONTAINS
                                     (.NOT. use_full_grid)
       ! Preserve restrictions selected during initial setup. The explicit DEBUG expert option
       ! remains available for symmetry diagnostics on otherwise unsupported cell matrices.
-      IF (inversion_symmetry_only .AND. .NOT. force_full_debug_symmetry .AND. .NOT. use_full_grid) &
+      IF (inversion_symmetry_only .AND. .NOT. force_full_debug_symmetry .AND. .NOT. use_full_grid) THEN
          use_inversion_symmetry_only = .TRUE.
+      END IF
       non_lower_triangular_cell = (ABS(cell%hmat(2, 1)) > eps_cell) .OR. &
                                   (ABS(cell%hmat(3, 1)) > eps_cell) .OR. &
                                   (ABS(cell%hmat(3, 2)) > eps_cell)
-      IF (non_lower_triangular_cell .AND. .NOT. force_full_debug_symmetry .AND. .NOT. use_full_grid) &
+      IF (non_lower_triangular_cell .AND. .NOT. force_full_debug_symmetry .AND. .NOT. use_full_grid) THEN
          use_inversion_symmetry_only = .TRUE.
+      END IF
       dynamic_symmetry = kpoint_symmetry .AND. .NOT. use_full_grid .AND. &
                          .NOT. use_inversion_symmetry_only
       IF (run_type_id == debug_run .AND. .NOT. fd_energy .AND. .NOT. dynamic_symmetry .AND. &
@@ -1282,8 +1285,9 @@ CONTAINS
          !Transfer results
          source = 0
          IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
-            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%is_source()) &
+            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%is_source()) THEN
                source = force_env%para_env%mepos
+            END IF
          END IF
          CALL force_env%para_env%sum(source)
          CALL cp_results_mp_bcast(results(iforce_eval)%results, source, force_env%para_env)
@@ -1394,14 +1398,17 @@ CONTAINS
          CALL section_vals_val_get(mixed_section, "MIXED_CDFT%LAMBDA", r_val=lambda)
          ! Get the states which determine the forces
          CALL section_vals_val_get(mixed_section, "MIXED_CDFT%FORCE_STATES", i_vals=itmplist)
-         IF (SIZE(itmplist) /= 2) &
+         IF (SIZE(itmplist) /= 2) THEN
             CALL cp_abort(__LOCATION__, &
                           "Keyword FORCE_STATES takes exactly two input values.")
-         IF (ANY(itmplist < 0)) &
+         END IF
+         IF (ANY(itmplist < 0)) THEN
             CPABORT("Invalid force_eval index.")
+         END IF
          istate = itmplist
-         IF (istate(1) > nforce_eval .OR. istate(2) > nforce_eval) &
+         IF (istate(1) > nforce_eval .OR. istate(2) > nforce_eval) THEN
             CPABORT("Invalid force_eval index.")
+         END IF
          mixed_energy%pot = lambda*energies(istate(1)) + (1.0_dp - lambda)*energies(istate(2))
          ! General Mapping of forces...
          CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results, &
@@ -1515,8 +1522,9 @@ CONTAINS
          ! Get Mapping index array
          natom = SIZE(particles(iforce_eval)%list%els)
          ! Serial mode need to deallocate first
-         IF (ASSOCIATED(map_index)) &
+         IF (ASSOCIATED(map_index)) THEN
             DEALLOCATE (map_index)
+         END IF
          CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, &
                                    map_index)
 
@@ -1526,8 +1534,9 @@ CONTAINS
             particles(iforce_eval)%list%els(iparticle)%r = particles_mix%els(jparticle)%r
          END DO
          ! Mixed CDFT + QMMM: Need to translate now
-         IF (force_env%mixed_env%do_mixed_qmmm_cdft) &
+         IF (force_env%mixed_env%do_mixed_qmmm_cdft) THEN
             CALL apply_qmmm_translate(force_env%sub_force_env(iforce_eval)%force_env%qmmm_env)
+         END IF
       END DO
       ! For mixed CDFT calculations parallelized over CDFT states
       ! build weight and gradient on all processors before splitting into groups and
@@ -1593,8 +1602,9 @@ CONTAINS
          nforce_eval = SIZE(force_env%sub_force_env)
          nvar = force_env%mixed_env%cdft_control%nconstraint
          ! Transfer cdft strengths for writing restart
-         IF (.NOT. ASSOCIATED(force_env%mixed_env%strength)) &
+         IF (.NOT. ASSOCIATED(force_env%mixed_env%strength)) THEN
             ALLOCATE (force_env%mixed_env%strength(nforce_eval, nvar))
+         END IF
          force_env%mixed_env%strength = 0.0_dp
          DO iforce_eval = 1, nforce_eval
             IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
@@ -1604,14 +1614,16 @@ CONTAINS
                CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, qs_env=qs_env)
             END IF
             CALL get_qs_env(qs_env, dft_control=dft_control)
-            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%is_source()) &
+            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%is_source()) THEN
                force_env%mixed_env%strength(iforce_eval, :) = dft_control%qs_control%cdft_control%strength(:)
+            END IF
          END DO
          CALL force_env%para_env%sum(force_env%mixed_env%strength)
          ! Mixed CDFT: calculate ET coupling
          IF (force_env%mixed_env%do_mixed_et) THEN
-            IF (MODULO(force_env%mixed_env%cdft_control%sim_step, force_env%mixed_env%et_freq) == 0) &
+            IF (MODULO(force_env%mixed_env%cdft_control%sim_step, force_env%mixed_env%et_freq) == 0) THEN
                CALL mixed_cdft_calculate_coupling(force_env)
+            END IF
          END IF
       END IF
 
@@ -2133,9 +2145,10 @@ CONTAINS
 
          ! Calculate potential gradient if the step has been accepted. Otherwise, we reuse the previous one
 
-         IF (opt_embed%accept_step .AND. (.NOT. opt_embed%grid_opt)) &
+         IF (opt_embed%accept_step .AND. (.NOT. opt_embed%grid_opt)) THEN
             CALL calculate_embed_pot_grad(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
                                           diff_rho_r, diff_rho_spin, opt_embed)
+         END IF
          ! Take the embedding step
          CALL opt_embed_step(diff_rho_r, diff_rho_spin, opt_embed, embed_pot, spin_embed_pot, rho_r_ref, &
                              force_env%sub_force_env(ref_subsys_number)%force_env%qs_env)

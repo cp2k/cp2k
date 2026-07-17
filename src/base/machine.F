@@ -741,14 +741,17 @@ CONTAINS
       ! on a posix system LOGNAME should be defined
       CALL get_environment_variable("LOGNAME", value=user, status=istat)
       ! nope, check alternative
-      IF (istat /= 0) &
+      IF (istat /= 0) THEN
          CALL get_environment_variable("USER", value=user, status=istat)
+      END IF
       ! nope, check alternative
-      IF (istat /= 0) &
+      IF (istat /= 0) THEN
          CALL get_environment_variable("USERNAME", value=user, status=istat)
+      END IF
       ! fall back
-      IF (istat /= 0) &
+      IF (istat /= 0) THEN
          user = "<unknown>"
+      END IF
 
    END SUBROUTINE m_getlog
 

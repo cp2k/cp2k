@@ -155,8 +155,9 @@ CONTAINS
 
       ! initialize PEXSI
       IF (ls_scf_env%do_pexsi) THEN
-         IF (dft_control%qs_control%eps_filter_matrix /= 0.0_dp) &
+         IF (dft_control%qs_control%eps_filter_matrix /= 0.0_dp) THEN
             CPABORT("EPS_FILTER_MATRIX must be set to 0 for PEXSI.")
+         END IF
          CALL lib_pexsi_init(ls_scf_env%pexsi, ls_scf_env%para_env, ls_scf_env%nspins)
       END IF
 
@@ -263,8 +264,9 @@ CONTAINS
       CALL section_vals_get(mixing_section, explicit=ls_scf_env%do_rho_mixing)
 
       CALL section_vals_val_get(mixing_section, "METHOD", i_val=ls_scf_env%density_mixing_method)
-      IF (ls_scf_env%ls_diis .AND. ls_scf_env%do_rho_mixing) &
+      IF (ls_scf_env%ls_diis .AND. ls_scf_env%do_rho_mixing) THEN
          CPABORT("LS_DIIS and RHO_MIXING are not compatible.")
+      END IF
 
       pexsi_section => section_vals_get_subs_vals(input, "DFT%LS_SCF%PEXSI")
       CALL section_vals_get(pexsi_section)
@@ -313,14 +315,18 @@ CONTAINS
       END SELECT
 
       ! verify some requirements for the curvy steps
-      IF (ls_scf_env%curvy_steps .AND. ls_scf_env%do_pexsi) &
+      IF (ls_scf_env%curvy_steps .AND. ls_scf_env%do_pexsi) THEN
          CPABORT("CURVY_STEPS cannot be used together with PEXSI.")
-      IF (ls_scf_env%curvy_steps .AND. ls_scf_env%do_transport) &
+      END IF
+      IF (ls_scf_env%curvy_steps .AND. ls_scf_env%do_transport) THEN
          CPABORT("CURVY_STEPS cannot be used together with TRANSPORT.")
-      IF (ls_scf_env%curvy_steps .AND. ls_scf_env%has_s_preconditioner) &
+      END IF
+      IF (ls_scf_env%curvy_steps .AND. ls_scf_env%has_s_preconditioner) THEN
          CPABORT("S Preconditioning not implemented in combination with CURVY_STEPS.")
-      IF (ls_scf_env%curvy_steps .AND. .NOT. ls_scf_env%use_s_sqrt) &
+      END IF
+      IF (ls_scf_env%curvy_steps .AND. .NOT. ls_scf_env%use_s_sqrt) THEN
          CPABORT("CURVY_STEPS requires the use of the sqrt inversion.")
+      END IF
 
       ! verify requirements for direct submatrix sign methods
       IF (ls_scf_env%sign_method == ls_scf_sign_submatrix &
@@ -328,8 +334,9 @@ CONTAINS
           ls_scf_env%submatrix_sign_method == ls_scf_submatrix_sign_direct &
           .OR. ls_scf_env%submatrix_sign_method == ls_scf_submatrix_sign_direct_muadj &
           .OR. ls_scf_env%submatrix_sign_method == ls_scf_submatrix_sign_direct_muadj_lowmem &
-          ) .AND. .NOT. ls_scf_env%sign_symmetric) &
+          ) .AND. .NOT. ls_scf_env%sign_symmetric) THEN
          CPABORT("DIRECT submatrix sign methods require SIGN_SYMMETRIC being set.")
+      END IF
       IF (ls_scf_env%fixed_mu .AND. ( &
           ls_scf_env%submatrix_sign_method == ls_scf_submatrix_sign_direct_muadj &
           .OR. ls_scf_env%submatrix_sign_method == ls_scf_submatrix_sign_direct_muadj_lowmem &

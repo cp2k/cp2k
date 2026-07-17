@@ -173,8 +173,9 @@ CONTAINS
          ! rescale all but the end-points, as they are transformed into themselves (-1.0 -> -1.0; 0.0 -> 0.0).
          ! Moreover, by applying this rescaling transformation to the end-points we cannot guarantee the exact
          ! result due to rounding errors in evaluation of COS function.
-         IF (nnodes_half > 2) &
+         IF (nnodes_half > 2) THEN
             CALL rescale_nodes_cos(nnodes_half - 2, cc_env%tnodes(2:))
+         END IF
 
          SELECT CASE (interval_id)
          CASE (cc_interval_full)

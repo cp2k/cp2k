@@ -377,7 +377,8 @@ CONTAINS
                   IF (ma - 1 >= 0) THEN
                      Wamm(0:lamb, 1) = Waux_mat(1:lamb + 1, ipam - 1, ipb)
                      IF (mb > 0) Wamm(0:lamb, 2) = Waux_mat(1:lamb + 1, ipam - 1, imb)
-                     IF (ma - 1 > 0) Wamm(0:lamb, 3) = Waux_mat(1:lamb + 1, imam + 1, ipb) !order: e.g. -1 0 1, if < 0 |m|, -1 means  -m+1
+                     ! order: e.g. -1 0 1, if < 0 |m|, -1 means  -m+1
+                     IF (ma - 1 > 0) Wamm(0:lamb, 3) = Waux_mat(1:lamb + 1, imam + 1, ipb)
                      IF (ma - 1 > 0 .AND. mb > 0) Wamm(0:lamb, 4) = Waux_mat(1:lamb + 1, imam + 1, imb)
                   END IF
                   !*** Wamp: la-1, ma+1

@@ -164,7 +164,8 @@ CONTAINS
 
             ! Broadcast the integrals to all procs (deleted after all donor states for this atoms are treated)
             lb = 1; IF (do_sf .AND. .NOT. do_sc) lb = 4
-            ub = 2; IF (do_sc) ub = 3; IF (do_sf) ub = 4
+            ub = 2; IF (do_sc) ub = 3
+            IF (do_sf) ub = 4
             DO i = lb, ub
                IF (.NOT. ASSOCIATED(xas_tdp_env%ri_fxc(ri_atom, i)%array)) THEN
                   ALLOCATE (xas_tdp_env%ri_fxc(ri_atom, i)%array(nsgfp, nsgfp))
@@ -1368,9 +1369,9 @@ CONTAINS
             ! If on-diagonal quadrants only, can skip jso < iso
             IF (.NOT. quadrants(2) .AND. jso < iso) CYCLE
 
-            i = iso; j = jso;
+            i = iso; j = jso
             IF (my_mt) THEN
-               i = jso; j = iso;
+               i = jso; j = iso
             END IF
 
             ! Take the product lhs*rhs^T

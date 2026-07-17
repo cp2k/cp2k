@@ -193,10 +193,11 @@ CONTAINS
             ELSE IF (orig_type == wfn_mix_orig_external) THEN
                CALL section_vals_val_get(update_section, "ORIG_EXT_FILE_NAME", i_rep_section=i_rep, &
                                          c_val=read_file_name)
-               IF (read_file_name == "EMPTY") &
+               IF (read_file_name == "EMPTY") THEN
                   CALL cp_abort(__LOCATION__, &
                                 "If ORIG_TYPE is set to EXTERNAL, a file name should be set in ORIG_EXT_FILE_NAME "// &
                                 "so that it can be used as the orginal MO.")
+               END IF
 
                ALLOCATE (mos_orig_ext(SIZE(mos)))
                DO ispin = 1, SIZE(mos)
@@ -205,9 +206,10 @@ CONTAINS
 
                IF (para_env%is_source()) THEN
                   INQUIRE (FILE=TRIM(read_file_name), exist=is_file)
-                  IF (.NOT. is_file) &
+                  IF (.NOT. is_file) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Reference file not found! Name of the file CP2K looked for: "//TRIM(read_file_name))
+                  END IF
 
                   CALL open_file(file_name=read_file_name, &
                                  file_action="READ", &
@@ -261,10 +263,12 @@ CONTAINS
          IF (my_for_rtp) THEN
             DO ispin = 1, SIZE(mos_new)
                CALL cp_fm_to_fm(mos_new(ispin)%mo_coeff, mos(ispin)%mo_coeff)
-               IF (mos_new(1)%use_mo_coeff_b) &
+               IF (mos_new(1)%use_mo_coeff_b) THEN
                   CALL copy_fm_to_dbcsr(mos_new(ispin)%mo_coeff, mos_new(ispin)%mo_coeff_b)
-               IF (mos(1)%use_mo_coeff_b) &
+               END IF
+               IF (mos(1)%use_mo_coeff_b) THEN
                   CALL copy_fm_to_dbcsr(mos_new(ispin)%mo_coeff, mos(ispin)%mo_coeff_b)
+               END IF
             END DO
          ELSE
             IF (scf_env%method == special_diag_method_nr) THEN
@@ -283,11 +287,13 @@ CONTAINS
             DO ispin = 1, SIZE(mos_new)
                IF (overwrite_mos) THEN
                   CALL cp_fm_to_fm(mos_new(ispin)%mo_coeff, mos(ispin)%mo_coeff)
-                  IF (mos_new(1)%use_mo_coeff_b) &
+                  IF (mos_new(1)%use_mo_coeff_b) THEN
                      CALL copy_fm_to_dbcsr(mos_new(ispin)%mo_coeff, mos_new(ispin)%mo_coeff_b)
+                  END IF
                END IF
-               IF (mos(1)%use_mo_coeff_b) &
+               IF (mos(1)%use_mo_coeff_b) THEN
                   CALL copy_fm_to_dbcsr(mos_new(ispin)%mo_coeff, mos(ispin)%mo_coeff_b)
+               END IF
             END DO
             CALL write_mo_set_to_restart(mos_new, particle_set, dft_section=dft_section, &
                                          qs_kind_set=qs_kind_set)

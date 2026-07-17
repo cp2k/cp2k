@@ -21,38 +21,38 @@ MODULE hfx_compression_core_methods
 
    ! masks the corresponding number of bits from the right
    INTEGER(kind=int_8), PARAMETER :: mask_right(0:63) = &
-                              (/0_int_8, 1_int_8, 3_int_8, 7_int_8, 15_int_8, 31_int_8, 63_int_8, 127_int_8, 255_int_8, 511_int_8, &
+                               [0_int_8, 1_int_8, 3_int_8, 7_int_8, 15_int_8, 31_int_8, 63_int_8, 127_int_8, 255_int_8, 511_int_8, &
                               1023_int_8, 2047_int_8, 4095_int_8, 8191_int_8, 16383_int_8, 32767_int_8, 65535_int_8, 131071_int_8, &
                            262143_int_8, 524287_int_8, 1048575_int_8, 2097151_int_8, 4194303_int_8, 8388607_int_8, 16777215_int_8, &
                               33554431_int_8, 67108863_int_8, 134217727_int_8, 268435455_int_8, 536870911_int_8, 1073741823_int_8, &
-                                       2147483647_int_8, 4294967295_int_8, 8589934591_int_8, 17179869183_int_8, 34359738367_int_8, &
+                                      2147483647_int_8, 4294967295_int_8, 8589934591_int_8, 17179869183_int_8, 34359738367_int_8, &
                                68719476735_int_8, 137438953471_int_8, 274877906943_int_8, 549755813887_int_8, 1099511627775_int_8, &
-                                       2199023255551_int_8, 4398046511103_int_8, 8796093022207_int_8, 17592186044415_int_8, &
-                                       35184372088831_int_8, 70368744177663_int_8, 140737488355327_int_8, 281474976710655_int_8, &
+                                      2199023255551_int_8, 4398046511103_int_8, 8796093022207_int_8, 17592186044415_int_8, &
+                                      35184372088831_int_8, 70368744177663_int_8, 140737488355327_int_8, 281474976710655_int_8, &
                                     562949953421311_int_8, 1125899906842623_int_8, 2251799813685247_int_8, 4503599627370495_int_8, &
                                 9007199254740991_int_8, 18014398509481983_int_8, 36028797018963967_int_8, 72057594037927935_int_8, &
-                                       144115188075855871_int_8, 288230376151711743_int_8, 576460752303423487_int_8, &
-                                       1152921504606846975_int_8, 2305843009213693951_int_8, 4611686018427387903_int_8, &
-                                       9223372036854775807_int_8/)
+                                      144115188075855871_int_8, 288230376151711743_int_8, 576460752303423487_int_8, &
+                                      1152921504606846975_int_8, 2305843009213693951_int_8, 4611686018427387903_int_8, &
+                                      9223372036854775807_int_8]
 
    ! masks the corresponding number of bits from the left
    ! use ishft to avoid explicitly writing -HUGE-1, and keep it out of the array a work-around for a bug in pgi 6.1-1
    INTEGER(kind=int_8), PARAMETER :: ugly_duck = ISHFT(1_int_8, 63)
    INTEGER(kind=int_8), PARAMETER :: mask_left(0:63) = &
-                                     (/0_int_8, ugly_duck, -4611686018427387904_int_8, -2305843009213693952_int_8, &
-                                       -1152921504606846976_int_8, -576460752303423488_int_8, -288230376151711744_int_8, &
-                                       -144115188075855872_int_8, -72057594037927936_int_8, -36028797018963968_int_8, &
+                                     [0_int_8, ugly_duck, -4611686018427387904_int_8, -2305843009213693952_int_8, &
+                                      -1152921504606846976_int_8, -576460752303423488_int_8, -288230376151711744_int_8, &
+                                      -144115188075855872_int_8, -72057594037927936_int_8, -36028797018963968_int_8, &
                               -18014398509481984_int_8, -9007199254740992_int_8, -4503599627370496_int_8, -2251799813685248_int_8, &
                                   -1125899906842624_int_8, -562949953421312_int_8, -281474976710656_int_8, -140737488355328_int_8, &
-                                       -70368744177664_int_8, -35184372088832_int_8, -17592186044416_int_8, -8796093022208_int_8, &
-                                       -4398046511104_int_8, -2199023255552_int_8, -1099511627776_int_8, -549755813888_int_8, &
+                                      -70368744177664_int_8, -35184372088832_int_8, -17592186044416_int_8, -8796093022208_int_8, &
+                                      -4398046511104_int_8, -2199023255552_int_8, -1099511627776_int_8, -549755813888_int_8, &
                              -274877906944_int_8, -137438953472_int_8, -68719476736_int_8, -34359738368_int_8, -17179869184_int_8, &
                                      -8589934592_int_8, -4294967296_int_8, -2147483648_int_8, -1073741824_int_8, -536870912_int_8, &
-                                       -268435456_int_8, -134217728_int_8, -67108864_int_8, -33554432_int_8, -16777216_int_8, &
+                                      -268435456_int_8, -134217728_int_8, -67108864_int_8, -33554432_int_8, -16777216_int_8, &
                                      -8388608_int_8, -4194304_int_8, -2097152_int_8, -1048576_int_8, -524288_int_8, -262144_int_8, &
                                    -131072_int_8, -65536_int_8, -32768_int_8, -16384_int_8, -8192_int_8, -4096_int_8, -2048_int_8, &
                              -1024_int_8, -512_int_8, -256_int_8, -128_int_8, -64_int_8, -32_int_8, -16_int_8, -8_int_8, -4_int_8, &
-                                       -2_int_8/)
+                                      -2_int_8]
 
    PUBLIC :: bits2ints_specific, ints2bits_specific
 
@@ -70,7 +70,7 @@ CONTAINS
       INTEGER(KIND=int_8), INTENT(OUT)                   :: full_data(*)
 
       full_data(1:Ndata) = packed_data(1:Ndata)
-   END SUBROUTINE
+   END SUBROUTINE ints2ints
 
    ! Nbits         : number of relevant bits per int in the bit stream (this includes all bits)
    ! Ndata         : number of ints that need to be extracted from the bit stream
@@ -160,22 +160,30 @@ CONTAINS
          idata = idata + 1
          IF (ibits_remaining >= Nbits) THEN
             data_tmp = full_data(idata)
-            data_tmp = ISHFT(data_tmp, 64 - Nbits) ! put bits on the left
-            pack_tmp = IOR(pack_tmp, data_tmp) ! add to the packed data
+            ! put bits on the left
+            data_tmp = ISHFT(data_tmp, 64 - Nbits)
+            ! add to the packed data
+            pack_tmp = IOR(pack_tmp, data_tmp)
             ibits_remaining = ibits_remaining - Nbits
-            pack_tmp = ISHFT(pack_tmp, -MIN(Nbits, ibits_remaining)) ! and shift to the right to make place for the next
+            ! and shift to the right to make place for the next
+            pack_tmp = ISHFT(pack_tmp, -MIN(Nbits, ibits_remaining))
          ELSE
             i_odd_bits = ibits_remaining
             data_tmp = full_data(idata)
-            data_tmp = ISHFT(data_tmp, 64 - Nbits) ! put bits on the left
-            data_tmp = IAND(data_tmp, mask_left(i_odd_bits)) ! restrict to those bits for which we still have space
+            ! put bits on the left
+            data_tmp = ISHFT(data_tmp, 64 - Nbits)
+            ! restrict to those bits for which we still have space
+            data_tmp = IAND(data_tmp, mask_left(i_odd_bits))
             pack_tmp = IOR(pack_tmp, data_tmp) ! add them to the packed bits
             ipack = ipack + 1
-            packed_data(ipack) = pack_tmp ! store the full packed data away and start with a new one
+            ! store the full packed data away and start with a new one
+            packed_data(ipack) = pack_tmp
             data_tmp = full_data(idata)
-            pack_tmp = ISHFT(data_tmp, 64 - Nbits + i_odd_bits) ! put the missing bits on the left if pack_tmp
+            ! put the missing bits on the left if pack_tmp
+            pack_tmp = ISHFT(data_tmp, 64 - Nbits + i_odd_bits)
             ibits_remaining = 64 - Nbits + i_odd_bits
-            pack_tmp = ISHFT(pack_tmp, -MIN(Nbits, ibits_remaining)) ! shift to make place, but not more than the number of available bits
+            ! shift to make place, but not more than the number of available bits
+            pack_tmp = ISHFT(pack_tmp, -MIN(Nbits, ibits_remaining))
          END IF
       END DO
 

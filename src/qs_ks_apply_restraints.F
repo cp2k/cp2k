@@ -83,22 +83,25 @@ CONTAINS
                   CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%weight)
                   ! Sanity check
                   IF (cdft_control%group(igroup)%constraint_type /= cdft_charge_constraint &
-                      .AND. dft_control%nspins == 1) &
+                      .AND. dft_control%nspins == 1) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "Spin constraints require a spin polarized calculation.")
+                  END IF
                END DO
                IF (cdft_control%atomic_charges) THEN
-                  IF (.NOT. ASSOCIATED(cdft_control%charge)) &
+                  IF (.NOT. ASSOCIATED(cdft_control%charge)) THEN
                      ALLOCATE (cdft_control%charge(cdft_control%natoms))
+                  END IF
                   DO iatom = 1, cdft_control%natoms
                      CALL auxbas_pw_pool%create_pw(cdft_control%charge(iatom))
                   END DO
                END IF
                ! Another sanity check
                CALL get_qs_env(qs_env, natom=natom)
-               IF (natom < cdft_control%natoms) &
+               IF (natom < cdft_control%natoms) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "The number of constraint atoms exceeds the total number of atoms.")
+               END IF
             ELSE
                DO igroup = 1, SIZE(cdft_control%group)
                   inv_vol = 1.0_dp/cdft_control%group(igroup)%weight%pw_grid%dvol

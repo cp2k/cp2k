@@ -256,8 +256,7 @@ CONTAINS
 
       active_space_env%as_mix_x_buffer(ib, :) = p_old
       active_space_env%as_mix_r_buffer(ib, :) = p_solver - p_old
-      res_norm = SQRT(DOT_PRODUCT(active_space_env%as_mix_r_buffer(ib, :), &
-                                  active_space_env%as_mix_r_buffer(ib, :)))
+      res_norm = NORM2(active_space_env%as_mix_r_buffer(ib, :))
 
       IF (nb == 1 .OR. res_norm < 1.E-14_dp) THEN
          CALL active_space_direct_mix(p_old, p_solver, mixing_store%alpha, p_mixed)
@@ -337,7 +336,7 @@ CONTAINS
 
       ALLOCATE (p_res(ndim))
       p_res(:) = p_solver(:) - p_old(:)
-      res_norm = SQRT(DOT_PRODUCT(p_res, p_res))
+      res_norm = NORM2(p_res)
 
       mixing_store%ncall = mixing_store%ncall + 1
       IF (mixing_store%ncall == 1) THEN
@@ -358,8 +357,7 @@ CONTAINS
 
       active_space_env%as_mix_r_buffer(ib, :) = p_res - active_space_env%as_mix_r_old
       active_space_env%as_mix_x_buffer(ib, :) = p_old - active_space_env%as_mix_x_old
-      delta_norm = SQRT(DOT_PRODUCT(active_space_env%as_mix_r_buffer(ib, :), &
-                                    active_space_env%as_mix_r_buffer(ib, :)))
+      delta_norm = NORM2(active_space_env%as_mix_r_buffer(ib, :))
       can_update = res_norm > 1.E-14_dp .AND. delta_norm > 1.E-14_dp
 
       IF (can_update) THEN

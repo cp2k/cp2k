@@ -147,7 +147,7 @@ CONTAINS
           .OR. op == do_potential_mix_cl_trunc) THEN
          dr_bc = potential_parameter%cutoff_radius*cutoff_screen_factor
          dr_ac = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (op == do_potential_coulomb) THEN
+      ELSE IF (op == do_potential_coulomb) THEN
          dr_bc = 1000000.0_dp
          dr_ac = 1000000.0_dp
       END IF
@@ -515,7 +515,7 @@ CONTAINS
           .OR. op == do_potential_mix_cl_trunc) THEN
          dr_bc = potential_parameter%cutoff_radius*cutoff_screen_factor
          dr_ac = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (op == do_potential_coulomb) THEN
+      ELSE IF (op == do_potential_coulomb) THEN
          dr_bc = 1000000.0_dp
          dr_ac = 1000000.0_dp
       END IF
@@ -885,7 +885,7 @@ CONTAINS
           potential_parameter%potential_type == do_potential_short .OR. &
           potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
          dr_ab = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (potential_parameter%potential_type == do_potential_coulomb) THEN
+      ELSE IF (potential_parameter%potential_type == do_potential_coulomb) THEN
          dr_ab = 1000000.0_dp
       END IF
 
@@ -1135,7 +1135,7 @@ CONTAINS
           potential_parameter%potential_type == do_potential_short .OR. &
           potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
          dr_ab = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (potential_parameter%potential_type == do_potential_coulomb) THEN
+      ELSE IF (potential_parameter%potential_type == do_potential_coulomb) THEN
          dr_ab = 1000000.0_dp
       END IF
 

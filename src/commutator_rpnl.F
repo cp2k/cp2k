@@ -217,7 +217,7 @@ CONTAINS
                nprj_ppnl => gpotential(kkind)%gth_potential%nprj_ppnl
                ppnl_radius = gpotential(kkind)%gth_potential%ppnl_radius
                vprj_ppnl => gpotential(kkind)%gth_potential%vprj_ppnl
-            ELSEIF (spot) THEN
+            ELSE IF (spot) THEN
                CPABORT('SGP not implemented')
             ELSE
                CPABORT('PPNL unknown')
@@ -868,282 +868,304 @@ CONTAINS
 
                         IF (my_rxrv) THEN
                            ! x-component (y [z,Vnl] - z [y, Vnl])
-                           ! with LAPACK
-                           ! CALL dgemm("N", "T", na, nb, np, 1.0_dp, achint(1, 1, 9), na, &
-                           !            bcint(1, 1, 1), nb, 1.0_dp, blocks_rxrv(1)%block, SIZE(blocks_rxrv(1)%block, 1)) ! yzV
-                           ! CALL dgemm("N", "T", na, nb, np, -1.0_dp, achint(1, 1, 3), na, &
-                           !            bcint(1, 1, 4), nb, 1.0_dp, blocks_rxrv(1)%block, SIZE(blocks_rxrv(1)%block, 1)) ! -yVz
-                           ! CALL dgemm("N", "T", na, nb, np, -1.0_dp, achint(1, 1, 9), na, &
-                           !            bcint(1, 1, 1), nb, 1.0_dp, blocks_rxrv(1)%block, SIZE(blocks_rxrv(1)%block, 1)) ! -zyV
-                           ! CALL dgemm("N", "T", na, nb, np, 1.0_dp, achint(1, 1, 4), na, &
-                           !            bcint(1, 1, 3), nb, 1.0_dp, blocks_rxrv(1)%block, SIZE(blocks_rxrv(1)%block, 1)) ! zVy
-                           ! with MATMUL
                            IF (iatom <= jatom) THEN
+                              ! yzV
                               blocks_rxrv(1)%block(1:na, 1:nb) = blocks_rxrv(1)%block(1:na, 1:nb) + &
-                                                                 MATMUL(achint(1:na, 1:np, 9), TRANSPOSE(bcint(1:nb, 1:np, 1)))    ! yzV
+                                                                 MATMUL(achint(1:na, 1:np, 9), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! -yVz
                               blocks_rxrv(1)%block(1:na, 1:nb) = blocks_rxrv(1)%block(1:na, 1:nb) - &
-                                                                 MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 4)))    ! -yVz
+                                                                 MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 4)))
+                              ! -zyV
                               blocks_rxrv(1)%block(1:na, 1:nb) = blocks_rxrv(1)%block(1:na, 1:nb) - &
-                                                                 MATMUL(achint(1:na, 1:np, 9), TRANSPOSE(bcint(1:nb, 1:np, 1)))    ! -zyV
+                                                                 MATMUL(achint(1:na, 1:np, 9), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! zVy
                               blocks_rxrv(1)%block(1:na, 1:nb) = blocks_rxrv(1)%block(1:na, 1:nb) + &
-                                                                 MATMUL(achint(1:na, 1:np, 4), TRANSPOSE(bcint(1:nb, 1:np, 3)))    ! zVy
+                                                                 MATMUL(achint(1:na, 1:np, 4), TRANSPOSE(bcint(1:nb, 1:np, 3)))
                            ELSE
+                              ! yzV
                               blocks_rxrv(1)%block(1:nb, 1:na) = blocks_rxrv(1)%block(1:nb, 1:na) + &
-                                                                 MATMUL(bchint(1:nb, 1:np, 9), TRANSPOSE(acint(1:na, 1:np, 1)))    ! yzV
+                                                                 MATMUL(bchint(1:nb, 1:np, 9), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! -yVz
                               blocks_rxrv(1)%block(1:nb, 1:na) = blocks_rxrv(1)%block(1:nb, 1:na) - &
-                                                                 MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 4)))    ! -yVz
+                                                                 MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 4)))
+                              ! -zyV
                               blocks_rxrv(1)%block(1:nb, 1:na) = blocks_rxrv(1)%block(1:nb, 1:na) - &
-                                                                 MATMUL(bchint(1:nb, 1:np, 9), TRANSPOSE(acint(1:na, 1:np, 1)))    ! -zyV
+                                                                 MATMUL(bchint(1:nb, 1:np, 9), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! zVy
                               blocks_rxrv(1)%block(1:nb, 1:na) = blocks_rxrv(1)%block(1:nb, 1:na) + &
-                                                                 MATMUL(bchint(1:nb, 1:np, 4), TRANSPOSE(acint(1:na, 1:np, 3)))    ! zVy
+                                                                 MATMUL(bchint(1:nb, 1:np, 4), TRANSPOSE(acint(1:na, 1:np, 3)))
                            END IF
 
                            ! y-component (z [x,Vnl] - x [z, Vnl])
-                           ! with LAPACK
-                           ! CALL dgemm("N", "T", na, nb, np, 1.0_dp, achint(1, 1, 7), na, &
-                           !            bcint(1, 1, 1), nb, 1.0_dp, blocks_rxrv(2)%block, SIZE(blocks_rxrv(2)%block, 1)) ! zxV
-                           ! CALL dgemm("N", "T", na, nb, np, -1.0_dp, achint(1, 1, 4), na, &
-                           !            bcint(1, 1, 2), nb, 1.0_dp, blocks_rxrv(2)%block, SIZE(blocks_rxrv(2)%block, 1)) ! -zVx
-                           ! CALL dgemm("N", "T", na, nb, np, -1.0_dp, achint(1, 1, 7), na, &
-                           !            bcint(1, 1, 1), nb, 1.0_dp, blocks_rxrv(2)%block, SIZE(blocks_rxrv(2)%block, 1)) ! -xzV
-                           ! CALL dgemm("N", "T", na, nb, np, 1.0_dp, achint(1, 1, 2), na, &
-                           !            bcint(1, 1, 4), nb, 1.0_dp, blocks_rxrv(2)%block, SIZE(blocks_rxrv(2)%block, 1)) ! xVz
-                           ! with MATMUL
                            IF (iatom <= jatom) THEN
+                              ! zxV
                               blocks_rxrv(2)%block(1:na, 1:nb) = blocks_rxrv(2)%block(1:na, 1:nb) + &
-                                                                 MATMUL(achint(1:na, 1:np, 7), TRANSPOSE(bcint(1:nb, 1:np, 1)))    ! zxV
+                                                                 MATMUL(achint(1:na, 1:np, 7), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! -zVx
                               blocks_rxrv(2)%block(1:na, 1:nb) = blocks_rxrv(2)%block(1:na, 1:nb) - &
-                                                                 MATMUL(achint(1:na, 1:np, 4), TRANSPOSE(bcint(1:nb, 1:np, 2)))    ! -zVx
+                                                                 MATMUL(achint(1:na, 1:np, 4), TRANSPOSE(bcint(1:nb, 1:np, 2)))
+                              ! -xzV
                               blocks_rxrv(2)%block(1:na, 1:nb) = blocks_rxrv(2)%block(1:na, 1:nb) - &
-                                                                 MATMUL(achint(1:na, 1:np, 7), TRANSPOSE(bcint(1:nb, 1:np, 1)))    ! -xzV
+                                                                 MATMUL(achint(1:na, 1:np, 7), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! xVz
                               blocks_rxrv(2)%block(1:na, 1:nb) = blocks_rxrv(2)%block(1:na, 1:nb) + &
-                                                                 MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 4)))    ! xVz
+                                                                 MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 4)))
                            ELSE
+                              ! zxV
                               blocks_rxrv(2)%block(1:nb, 1:na) = blocks_rxrv(2)%block(1:nb, 1:na) + &
-                                                                 MATMUL(bchint(1:nb, 1:np, 7), TRANSPOSE(acint(1:na, 1:np, 1)))    ! zxV
+                                                                 MATMUL(bchint(1:nb, 1:np, 7), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! -zVx
                               blocks_rxrv(2)%block(1:nb, 1:na) = blocks_rxrv(2)%block(1:nb, 1:na) - &
-                                                                 MATMUL(bchint(1:nb, 1:np, 4), TRANSPOSE(acint(1:na, 1:np, 2)))    ! -zVx
+                                                                 MATMUL(bchint(1:nb, 1:np, 4), TRANSPOSE(acint(1:na, 1:np, 2)))
+                              ! -xzV
                               blocks_rxrv(2)%block(1:nb, 1:na) = blocks_rxrv(2)%block(1:nb, 1:na) - &
-                                                                 MATMUL(bchint(1:nb, 1:np, 7), TRANSPOSE(acint(1:na, 1:np, 1)))    ! -xzV
+                                                                 MATMUL(bchint(1:nb, 1:np, 7), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! xVz
                               blocks_rxrv(2)%block(1:nb, 1:na) = blocks_rxrv(2)%block(1:nb, 1:na) + &
-                                                                 MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 4)))    ! xVz
+                                                                 MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 4)))
                            END IF
 
                            ! z-component (x [y,Vnl] - y [x, Vnl])
-                           ! with LAPACK
-                           ! CALL dgemm("N", "T", na, nb, np, 1.0_dp, achint(1, 1, 6), na, &
-                           !            bcint(1, 1, 1), nb, 1.0_dp, blocks_rxrv(3)%block, SIZE(blocks_rxrv(3)%block, 1)) ! xyV
-                           ! CALL dgemm("N", "T", na, nb, np, -1.0_dp, achint(1, 1, 2), na, &
-                           !            bcint(1, 1, 3), nb, 1.0_dp, blocks_rxrv(3)%block, SIZE(blocks_rxrv(3)%block, 1)) ! -xVy
-                           ! CALL dgemm("N", "T", na, nb, np, -1.0_dp, achint(1, 1, 6), na, &
-                           !            bcint(1, 1, 1), nb, 1.0_dp, blocks_rxrv(3)%block, SIZE(blocks_rxrv(3)%block, 1)) ! -yxV
-                           ! CALL dgemm("N", "T", na, nb, np, 1.0_dp, achint(1, 1, 3), na, &
-                           !            bcint(1, 1, 2), nb, 1.0_dp, blocks_rxrv(3)%block, SIZE(blocks_rxrv(3)%block, 1)) ! yVx
-                           ! with MATMUL
                            IF (iatom <= jatom) THEN
+                              ! xyV
                               blocks_rxrv(3)%block(1:na, 1:nb) = blocks_rxrv(3)%block(1:na, 1:nb) + &
-                                                                 MATMUL(achint(1:na, 1:np, 6), TRANSPOSE(bcint(1:nb, 1:np, 1)))    ! xyV
+                                                                 MATMUL(achint(1:na, 1:np, 6), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! -xVy
                               blocks_rxrv(3)%block(1:na, 1:nb) = blocks_rxrv(3)%block(1:na, 1:nb) - &
-                                                                 MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 3)))    ! -xVy
+                                                                 MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 3)))
+                              ! -yxV
                               blocks_rxrv(3)%block(1:na, 1:nb) = blocks_rxrv(3)%block(1:na, 1:nb) - &
-                                                                 MATMUL(achint(1:na, 1:np, 6), TRANSPOSE(bcint(1:nb, 1:np, 1)))    ! -yxV
+                                                                 MATMUL(achint(1:na, 1:np, 6), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! zVx
                               blocks_rxrv(3)%block(1:na, 1:nb) = blocks_rxrv(3)%block(1:na, 1:nb) + &
-                                                                 MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 2)))    ! zVx
+                                                                 MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 2)))
                            ELSE
+                              ! xyV
                               blocks_rxrv(3)%block(1:nb, 1:na) = blocks_rxrv(3)%block(1:nb, 1:na) + &
-                                                                 MATMUL(bchint(1:nb, 1:np, 6), TRANSPOSE(acint(1:na, 1:np, 1)))    ! xyV
+                                                                 MATMUL(bchint(1:nb, 1:np, 6), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! -xVy
                               blocks_rxrv(3)%block(1:nb, 1:na) = blocks_rxrv(3)%block(1:nb, 1:na) - &
-                                                                 MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 3)))    ! -xVy
+                                                                 MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 3)))
+                              ! -yxV
                               blocks_rxrv(3)%block(1:nb, 1:na) = blocks_rxrv(3)%block(1:nb, 1:na) - &
-                                                                 MATMUL(bchint(1:nb, 1:np, 6), TRANSPOSE(acint(1:na, 1:np, 1)))    ! -yxV
+                                                                 MATMUL(bchint(1:nb, 1:np, 6), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! zVx
                               blocks_rxrv(3)%block(1:nb, 1:na) = blocks_rxrv(3)%block(1:nb, 1:na) + &
-                                                                 MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 2)))    ! zVx
+                                                                 MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 2)))
                            END IF
                         END IF
 
                         IF (my_rrv) THEN
                            ! r_alpha * r_beta * Vnl
-                           ! with LAPACK
-                           ! CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 5), na, &
-                           !            bcint(1, 1, 1), nb, 1.0_dp, blocks_rrv(1)%block, SIZE(blocks_rrv(1)%block, 1)) ! xxV
-                           ! CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 6), na, &
-                           !            bcint(1, 1, 1), nb, 1.0_dp, blocks_rrv(2)%block, SIZE(blocks_rrv(2)%block, 1)) ! xyV
-                           ! CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 7), na, &
-                           !            bcint(1, 1, 1), nb, 1.0_dp, blocks_rrv(3)%block, SIZE(blocks_rrv(3)%block, 1)) ! xzV
-                           ! CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 8), na, &
-                           !            bcint(1, 1, 1), nb, 1.0_dp, blocks_rrv(4)%block, SIZE(blocks_rrv(4)%block, 1)) ! yyV
-                           ! CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 9), na, &
-                           !            bcint(1, 1, 1), nb, 1.0_dp, blocks_rrv(5)%block, SIZE(blocks_rrv(5)%block, 1)) ! yzV
-                           ! CALL dgemm("N", "T", na, nb, np, 1._dp, achint(1, 1, 10), na, &
-                           !            bcint(1, 1, 1), nb, 1.0_dp, blocks_rrv(6)%block, SIZE(blocks_rrv(6)%block, 1)) ! zzV
-                           ! with MATMUL
                            IF (iatom <= jatom) THEN
+                              ! xxV
                               blocks_rrv(1)%block(1:na, 1:nb) = blocks_rrv(1)%block(1:na, 1:nb) + &
-                                                                MATMUL(achint(1:na, 1:np, 5), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! xxV
+                                                                MATMUL(achint(1:na, 1:np, 5), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! xyV
                               blocks_rrv(2)%block(1:na, 1:nb) = blocks_rrv(2)%block(1:na, 1:nb) + &
-                                                                MATMUL(achint(1:na, 1:np, 6), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! xyV
+                                                                MATMUL(achint(1:na, 1:np, 6), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! xzV
                               blocks_rrv(3)%block(1:na, 1:nb) = blocks_rrv(3)%block(1:na, 1:nb) + &
-                                                                MATMUL(achint(1:na, 1:np, 7), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! xzV
+                                                                MATMUL(achint(1:na, 1:np, 7), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! yyV
                               blocks_rrv(4)%block(1:na, 1:nb) = blocks_rrv(4)%block(1:na, 1:nb) + &
-                                                                MATMUL(achint(1:na, 1:np, 8), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! yyV
+                                                                MATMUL(achint(1:na, 1:np, 8), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! yzV
                               blocks_rrv(5)%block(1:na, 1:nb) = blocks_rrv(5)%block(1:na, 1:nb) + &
-                                                                MATMUL(achint(1:na, 1:np, 9), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! yzV
+                                                                MATMUL(achint(1:na, 1:np, 9), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! zzV
                               blocks_rrv(6)%block(1:na, 1:nb) = blocks_rrv(6)%block(1:na, 1:nb) + &
-                                                                MATMUL(achint(1:na, 1:np, 10), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! zzV
+                                                                MATMUL(achint(1:na, 1:np, 10), TRANSPOSE(bcint(1:nb, 1:np, 1)))
                            ELSE
+                              ! xxV
                               blocks_rrv(1)%block(1:nb, 1:na) = blocks_rrv(1)%block(1:nb, 1:na) + &
-                                                                MATMUL(bchint(1:nb, 1:np, 5), TRANSPOSE(acint(1:na, 1:np, 1)))   ! xxV
+                                                                MATMUL(bchint(1:nb, 1:np, 5), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! xyV
                               blocks_rrv(2)%block(1:nb, 1:na) = blocks_rrv(2)%block(1:nb, 1:na) + &
-                                                                MATMUL(bchint(1:nb, 1:np, 6), TRANSPOSE(acint(1:na, 1:np, 1)))   ! xyV
+                                                                MATMUL(bchint(1:nb, 1:np, 6), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! xzV
                               blocks_rrv(3)%block(1:nb, 1:na) = blocks_rrv(3)%block(1:nb, 1:na) + &
-                                                                MATMUL(bchint(1:nb, 1:np, 7), TRANSPOSE(acint(1:na, 1:np, 1)))   ! xzV
+                                                                MATMUL(bchint(1:nb, 1:np, 7), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! yyV
                               blocks_rrv(4)%block(1:nb, 1:na) = blocks_rrv(4)%block(1:nb, 1:na) + &
-                                                                MATMUL(bchint(1:nb, 1:np, 8), TRANSPOSE(acint(1:na, 1:np, 1)))   ! yyV
+                                                                MATMUL(bchint(1:nb, 1:np, 8), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! yzV
                               blocks_rrv(5)%block(1:nb, 1:na) = blocks_rrv(5)%block(1:nb, 1:na) + &
-                                                                MATMUL(bchint(1:nb, 1:np, 9), TRANSPOSE(acint(1:na, 1:np, 1)))   ! yzV
+                                                                MATMUL(bchint(1:nb, 1:np, 9), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! zzV
                               blocks_rrv(6)%block(1:nb, 1:na) = blocks_rrv(6)%block(1:nb, 1:na) + &
-                                                                MATMUL(bchint(1:nb, 1:np, 10), TRANSPOSE(acint(1:na, 1:np, 1)))   ! zzV
+                                                                MATMUL(bchint(1:nb, 1:np, 10), TRANSPOSE(acint(1:na, 1:np, 1)))
                            END IF
 
                            ! - Vnl * r_alpha * r_beta
-                           ! with LAPACK
-                           ! CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
-                           !            bcint(1, 1, 5), nb, 1.0_dp, blocks_rrv(1)%block, SIZE(blocks_rrv(1)%block, 1)) ! Vxx
-                           ! CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
-                           !            bcint(1, 1, 6), nb, 1.0_dp, blocks_rrv(2)%block, SIZE(blocks_rrv(2)%block, 1)) ! Vxy
-                           ! CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
-                           !            bcint(1, 1, 7), nb, 1.0_dp, blocks_rrv(3)%block, SIZE(blocks_rrv(3)%block, 1)) ! Vxz
-                           ! CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
-                           !            bcint(1, 1, 8), nb, 1.0_dp, blocks_rrv(4)%block, SIZE(blocks_rrv(4)%block, 1)) ! Vyy
-                           ! CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
-                           !            bcint(1, 1, 9), nb, 1.0_dp, blocks_rrv(5)%block, SIZE(blocks_rrv(5)%block, 1)) ! Vyz
-                           ! CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
-                           !            bcint(1, 1, 10), nb, 1.0_dp, blocks_rrv(6)%block, SIZE(blocks_rrv(6)%block, 1)) ! Vzz
-                           ! with MATMUL
                            IF (iatom <= jatom) THEN
+                              ! -Vxx
                               blocks_rrv(1)%block(1:na, 1:nb) = blocks_rrv(1)%block(1:na, 1:nb) - &
-                                                                MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 5)))   ! -Vxx
+                                                                MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 5)))
+                              ! -Vxy
                               blocks_rrv(2)%block(1:na, 1:nb) = blocks_rrv(2)%block(1:na, 1:nb) - &
-                                                                MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 6)))   ! -Vxy
+                                                                MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 6)))
+                              ! -Vxz
                               blocks_rrv(3)%block(1:na, 1:nb) = blocks_rrv(3)%block(1:na, 1:nb) - &
-                                                                MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 7)))   ! -Vxz
+                                                                MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 7)))
+                              ! -Vyy
                               blocks_rrv(4)%block(1:na, 1:nb) = blocks_rrv(4)%block(1:na, 1:nb) - &
-                                                                MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 8)))   ! -Vyy
+                                                                MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 8)))
+                              ! -Vyz
                               blocks_rrv(5)%block(1:na, 1:nb) = blocks_rrv(5)%block(1:na, 1:nb) - &
-                                                                MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 9)))   ! -Vyz
+                                                                MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 9)))
+                              ! -Vzz
                               blocks_rrv(6)%block(1:na, 1:nb) = blocks_rrv(6)%block(1:na, 1:nb) - &
-                                                                MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 10)))   ! -Vzz
+                                                                MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 10)))
                            ELSE
+                              ! -Vxx
                               blocks_rrv(1)%block(1:nb, 1:na) = blocks_rrv(1)%block(1:nb, 1:na) - &
-                                                                MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 5)))   ! -Vxx
+                                                                MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 5)))
+                              ! -Vxy
                               blocks_rrv(2)%block(1:nb, 1:na) = blocks_rrv(2)%block(1:nb, 1:na) - &
-                                                                MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 6)))   ! -Vxy
+                                                                MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 6)))
+                              ! -Vxz
                               blocks_rrv(3)%block(1:nb, 1:na) = blocks_rrv(3)%block(1:nb, 1:na) - &
-                                                                MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 7)))   ! -Vxz
+                                                                MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 7)))
+                              ! -Vyy
                               blocks_rrv(4)%block(1:nb, 1:na) = blocks_rrv(4)%block(1:nb, 1:na) - &
-                                                                MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 8)))   ! -Vyy
+                                                                MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 8)))
+                              ! -Vyz
                               blocks_rrv(5)%block(1:nb, 1:na) = blocks_rrv(5)%block(1:nb, 1:na) - &
-                                                                MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 9)))   ! -Vyz
+                                                                MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 9)))
+                              ! -Vzz
                               blocks_rrv(6)%block(1:nb, 1:na) = blocks_rrv(6)%block(1:nb, 1:na) - &
-                                                                MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 10)))   ! -Vzz
+                                                                MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 10)))
                            END IF
                         END IF
 
                         IF (my_rvr) THEN
                            ! r_alpha * Vnl * r_beta
                            IF (iatom <= jatom) THEN
+                              ! xVx
                               blocks_rvr(1)%block(1:na, 1:nb) = blocks_rvr(1)%block(1:na, 1:nb) + &
-                                                                MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 2)))   ! xVx
+                                                                MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 2)))
+                              ! xVy
                               blocks_rvr(2)%block(1:na, 1:nb) = blocks_rvr(2)%block(1:na, 1:nb) + &
-                                                                MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 3)))   ! xVy
+                                                                MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 3)))
+                              ! xVz
                               blocks_rvr(3)%block(1:na, 1:nb) = blocks_rvr(3)%block(1:na, 1:nb) + &
-                                                                MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 4)))   ! xVz
+                                                                MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 4)))
+                              ! yVy
                               blocks_rvr(4)%block(1:na, 1:nb) = blocks_rvr(4)%block(1:na, 1:nb) + &
-                                                                MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 3)))   ! yVy
+                                                                MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 3)))
+                              ! yVz
                               blocks_rvr(5)%block(1:na, 1:nb) = blocks_rvr(5)%block(1:na, 1:nb) + &
-                                                                MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 4)))   ! yVz
+                                                                MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 4)))
+                              ! zVz
                               blocks_rvr(6)%block(1:na, 1:nb) = blocks_rvr(6)%block(1:na, 1:nb) + &
-                                                                MATMUL(achint(1:na, 1:np, 4), TRANSPOSE(bcint(1:nb, 1:np, 4)))   ! zVz
+                                                                MATMUL(achint(1:na, 1:np, 4), TRANSPOSE(bcint(1:nb, 1:np, 4)))
                            ELSE
+                              ! xVx
                               blocks_rvr(1)%block(1:nb, 1:na) = blocks_rvr(1)%block(1:nb, 1:na) + &
-                                                                MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 2)))   ! xVx
+                                                                MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 2)))
+                              ! xVy
                               blocks_rvr(2)%block(1:nb, 1:na) = blocks_rvr(2)%block(1:nb, 1:na) + &
-                                                                MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 3)))   ! xVy
+                                                                MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 3)))
+                              ! xVz
                               blocks_rvr(3)%block(1:nb, 1:na) = blocks_rvr(3)%block(1:nb, 1:na) + &
-                                                                MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 4)))   ! xVz
+                                                                MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 4)))
+                              ! yVy
                               blocks_rvr(4)%block(1:nb, 1:na) = blocks_rvr(4)%block(1:nb, 1:na) + &
-                                                                MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 3)))   ! yVy
+                                                                MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 3)))
+                              ! yVz
                               blocks_rvr(5)%block(1:nb, 1:na) = blocks_rvr(5)%block(1:nb, 1:na) + &
-                                                                MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 4)))   ! yVz
+                                                                MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 4)))
+                              ! zVz
                               blocks_rvr(6)%block(1:nb, 1:na) = blocks_rvr(6)%block(1:nb, 1:na) + &
-                                                                MATMUL(bchint(1:nb, 1:np, 4), TRANSPOSE(acint(1:na, 1:np, 4)))   ! zVz
+                                                                MATMUL(bchint(1:nb, 1:np, 4), TRANSPOSE(acint(1:na, 1:np, 4)))
                            END IF
                         END IF
 
                         IF (my_rrv_vrr) THEN
                            ! r_alpha * r_beta * Vnl
                            IF (iatom <= jatom) THEN
+                              ! xxV
                               blocks_rrv_vrr(1)%block(1:na, 1:nb) = blocks_rrv_vrr(1)%block(1:na, 1:nb) + &
-                                                                    MATMUL(achint(1:na, 1:np, 5), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! xxV
+                                                                    MATMUL(achint(1:na, 1:np, 5), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! xyV
                               blocks_rrv_vrr(2)%block(1:na, 1:nb) = blocks_rrv_vrr(2)%block(1:na, 1:nb) + &
-                                                                    MATMUL(achint(1:na, 1:np, 6), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! xyV
+                                                                    MATMUL(achint(1:na, 1:np, 6), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! xzV
                               blocks_rrv_vrr(3)%block(1:na, 1:nb) = blocks_rrv_vrr(3)%block(1:na, 1:nb) + &
-                                                                    MATMUL(achint(1:na, 1:np, 7), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! xzV
+                                                                    MATMUL(achint(1:na, 1:np, 7), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! yyV
                               blocks_rrv_vrr(4)%block(1:na, 1:nb) = blocks_rrv_vrr(4)%block(1:na, 1:nb) + &
-                                                                    MATMUL(achint(1:na, 1:np, 8), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! yyV
+                                                                    MATMUL(achint(1:na, 1:np, 8), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! yzV
                               blocks_rrv_vrr(5)%block(1:na, 1:nb) = blocks_rrv_vrr(5)%block(1:na, 1:nb) + &
-                                                                    MATMUL(achint(1:na, 1:np, 9), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! yzV
+                                                                    MATMUL(achint(1:na, 1:np, 9), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ! zzV
                               blocks_rrv_vrr(6)%block(1:na, 1:nb) = blocks_rrv_vrr(6)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, 10), TRANSPOSE(bcint(1:nb, 1:np, 1)))   ! zzV
+                                                                    MATMUL(achint(1:na, 1:np, 10), TRANSPOSE(bcint(1:nb, 1:np, 1)))
                            ELSE
+                              ! xxV
                               blocks_rrv_vrr(1)%block(1:nb, 1:na) = blocks_rrv_vrr(1)%block(1:nb, 1:na) + &
-                                                                    MATMUL(bchint(1:nb, 1:np, 5), TRANSPOSE(acint(1:na, 1:np, 1)))   ! xxV
+                                                                    MATMUL(bchint(1:nb, 1:np, 5), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! xyV
                               blocks_rrv_vrr(2)%block(1:nb, 1:na) = blocks_rrv_vrr(2)%block(1:nb, 1:na) + &
-                                                                    MATMUL(bchint(1:nb, 1:np, 6), TRANSPOSE(acint(1:na, 1:np, 1)))   ! xyV
+                                                                    MATMUL(bchint(1:nb, 1:np, 6), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! xzV
                               blocks_rrv_vrr(3)%block(1:nb, 1:na) = blocks_rrv_vrr(3)%block(1:nb, 1:na) + &
-                                                                    MATMUL(bchint(1:nb, 1:np, 7), TRANSPOSE(acint(1:na, 1:np, 1)))   ! xzV
+                                                                    MATMUL(bchint(1:nb, 1:np, 7), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! yyV
                               blocks_rrv_vrr(4)%block(1:nb, 1:na) = blocks_rrv_vrr(4)%block(1:nb, 1:na) + &
-                                                                    MATMUL(bchint(1:nb, 1:np, 8), TRANSPOSE(acint(1:na, 1:np, 1)))   ! yyV
+                                                                    MATMUL(bchint(1:nb, 1:np, 8), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! yzV
                               blocks_rrv_vrr(5)%block(1:nb, 1:na) = blocks_rrv_vrr(5)%block(1:nb, 1:na) + &
-                                                                    MATMUL(bchint(1:nb, 1:np, 9), TRANSPOSE(acint(1:na, 1:np, 1)))   ! yzV
+                                                                    MATMUL(bchint(1:nb, 1:np, 9), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              ! zzV
                               blocks_rrv_vrr(6)%block(1:nb, 1:na) = blocks_rrv_vrr(6)%block(1:nb, 1:na) + &
-                                                             MATMUL(bchint(1:nb, 1:np, 10), TRANSPOSE(acint(1:na, 1:np, 1)))   ! zzV
+                                                                    MATMUL(bchint(1:nb, 1:np, 10), TRANSPOSE(acint(1:na, 1:np, 1)))
                            END IF
                            ! + Vnl * r_alpha * r_beta
                            IF (iatom <= jatom) THEN
+                              ! +Vxx
                               blocks_rrv_vrr(1)%block(1:na, 1:nb) = blocks_rrv_vrr(1)%block(1:na, 1:nb) + &
-                                                                    MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 5)))   ! +Vxx
+                                                                    MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 5)))
+                              ! +Vxy
                               blocks_rrv_vrr(2)%block(1:na, 1:nb) = blocks_rrv_vrr(2)%block(1:na, 1:nb) + &
-                                                                    MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 6)))   ! +Vxy
+                                                                    MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 6)))
+                              ! +Vxz
                               blocks_rrv_vrr(3)%block(1:na, 1:nb) = blocks_rrv_vrr(3)%block(1:na, 1:nb) + &
-                                                                    MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 7)))   ! +Vxz
+                                                                    MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 7)))
+                              ! +Vyy
                               blocks_rrv_vrr(4)%block(1:na, 1:nb) = blocks_rrv_vrr(4)%block(1:na, 1:nb) + &
-                                                                    MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 8)))   ! +Vyy
+                                                                    MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 8)))
+                              ! +Vyz
                               blocks_rrv_vrr(5)%block(1:na, 1:nb) = blocks_rrv_vrr(5)%block(1:na, 1:nb) + &
-                                                                    MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 9)))   ! +Vyz
+                                                                    MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 9)))
+                              ! +Vzz
                               blocks_rrv_vrr(6)%block(1:na, 1:nb) = blocks_rrv_vrr(6)%block(1:na, 1:nb) + &
-                                                            MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 10)))   ! +Vzz
+                                                                    MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 10)))
                            ELSE
+                              ! +Vxx
                               blocks_rrv_vrr(1)%block(1:nb, 1:na) = blocks_rrv_vrr(1)%block(1:nb, 1:na) + &
-                                                                    MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 5)))   ! +Vxx
+                                                                    MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 5)))
+                              ! +Vxy
                               blocks_rrv_vrr(2)%block(1:nb, 1:na) = blocks_rrv_vrr(2)%block(1:nb, 1:na) + &
-                                                                    MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 6)))   ! +Vxy
+                                                                    MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 6)))
+                              ! +Vxz
                               blocks_rrv_vrr(3)%block(1:nb, 1:na) = blocks_rrv_vrr(3)%block(1:nb, 1:na) + &
-                                                                    MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 7)))   ! +Vxz
+                                                                    MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 7)))
+                              ! +Vyy
                               blocks_rrv_vrr(4)%block(1:nb, 1:na) = blocks_rrv_vrr(4)%block(1:nb, 1:na) + &
-                                                                    MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 8)))   ! +Vyy
+                                                                    MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 8)))
+                              ! +Vyz
                               blocks_rrv_vrr(5)%block(1:nb, 1:na) = blocks_rrv_vrr(5)%block(1:nb, 1:na) + &
-                                                                    MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 9)))   ! +Vyz
+                                                                    MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 9)))
+                              ! +Vzz
                               blocks_rrv_vrr(6)%block(1:nb, 1:na) = blocks_rrv_vrr(6)%block(1:nb, 1:na) + &
-                                                            MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 10)))   ! +Vzz
+                                                                    MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 10)))
                            END IF
                         END IF
 
                         ! The indices are stored in i_1, i_x, ..., i_zzz
-                        ! matrix_r_rxvr(alpha, beta)
-                        !  = sum_(gamma delta) epsilon_(alpha gamma delta)
-                        !      (r_beta * r_gamma * V_nl * r_delta - r_beta * r_gamma * r_delta * V_nl)
-                        !  = sum_(gamma delta) epsilon_(alpha gamma delta) r_beta * r_gamma * V_nl * r_delta
 
                         ! TODO: is this set to zero before?
                         IF (my_r_rxvr) THEN

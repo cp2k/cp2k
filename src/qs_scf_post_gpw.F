@@ -903,9 +903,9 @@ CONTAINS
       IF (p_loc_homo) THEN
          IF (do_kpoints) THEN
             CPWARN("Localization not implemented for k-point calculations!")
-         ELSEIF (dft_control%restricted &
-                 .AND. (section_get_ival(localize_section, "METHOD") /= do_loc_none) &
-                 .AND. (section_get_ival(localize_section, "METHOD") /= do_loc_jacobi)) THEN
+         ELSE IF (dft_control%restricted &
+                  .AND. (section_get_ival(localize_section, "METHOD") /= do_loc_none) &
+                  .AND. (section_get_ival(localize_section, "METHOD") /= do_loc_jacobi)) THEN
             CPABORT("ROKS works only with LOCALIZE METHOD NONE or JACOBI")
          ELSE
             ALLOCATE (occupied_orbs(dft_control%nspins))
@@ -1053,7 +1053,7 @@ CONTAINS
       IF (p_loc_mixed) THEN
          IF (do_kpoints) THEN
             CPWARN("Localization not implemented for k-point calculations!")
-         ELSEIF (dft_control%restricted) THEN
+         ELSE IF (dft_control%restricted) THEN
             IF (output_unit > 0) WRITE (output_unit, *) &
                " Unclear how we define MOs / localization in the restricted case... skipping"
          ELSE
@@ -2277,7 +2277,7 @@ CONTAINS
                   CALL section_vals_val_get(dft_section, "PRINT%DOS%NLUMO", i_val=nlumo_dos)
                   IF (nlumo_dos == -1) THEN
                      nlumo_required = -1
-                  ELSEIF (nlumo_required /= -1) THEN
+                  ELSE IF (nlumo_required /= -1) THEN
                      nlumo_required = MAX(nlumo_required, nlumo_dos)
                   END IF
                END IF
@@ -2285,7 +2285,7 @@ CONTAINS
                IF (defer_molden) THEN
                   IF (nlumo_molden == -1) THEN
                      nlumo_required = -1
-                  ELSEIF (nlumo_required /= -1) THEN
+                  ELSE IF (nlumo_required /= -1) THEN
                      nlumo_required = MAX(nlumo_required, nlumo_molden)
                   END IF
                END IF
@@ -3539,10 +3539,11 @@ CONTAINS
       IF (do_radius) THEN
          radius_type = radius_user
          CALL section_vals_val_get(input_section, "ATOMIC_RADII", r_vals=radii)
-         IF (.NOT. SIZE(radii) == nkind) &
+         IF (.NOT. SIZE(radii) == nkind) THEN
             CALL cp_abort(__LOCATION__, &
                           "Length of keyword HIRSHFELD\ATOMIC_RADII does not "// &
                           "match number of atomic kinds in the input coordinate file.")
+         END IF
       ELSE
          radius_type = radius_covalent
       END IF

@@ -201,8 +201,8 @@ CONTAINS
                                       para_env_external=sub_env%para_env, &
                                       tddfpt_lri_env=kernel_env%lri_env, &
                                       tddfpt_lri_density=kernel_env%lri_density)
-         ELSEIF (dft_control%qs_control%lrigpw .OR. &
-                 dft_control%qs_control%rigpw) THEN
+         ELSE IF (dft_control%qs_control%lrigpw .OR. &
+                  dft_control%qs_control%rigpw) THEN
             CALL qs_rho_update_tddfpt(work_matrices%rho_orb_struct_sub, qs_env, &
                                       pw_env_external=sub_env%pw_env, &
                                       task_list_external=sub_env%task_list_orb, &
@@ -216,7 +216,7 @@ CONTAINS
                                       para_env_external=sub_env%para_env)
                CALL prepare_gapw_den(qs_env, work_matrices%local_rho_set, &
                                      do_rho0=(.NOT. is_rks_triplets), pw_env_sub=sub_env%pw_env)
-            ELSEIF (gapw_xc) THEN
+            ELSE IF (gapw_xc) THEN
                CALL qs_rho_update_rho(work_matrices%rho_orb_struct_sub, qs_env, &
                                       rho_xc_external=work_matrices%rho_xc_struct_sub, &
                                       local_rho_set=work_matrices%local_rho_set, &
@@ -447,7 +447,7 @@ CONTAINS
                                           qs_env=qs_env, calculate_forces=.FALSE., gapw=gapw, &
                                           pw_env_external=sub_env%pw_env, &
                                           task_list_external=sub_env%task_list_orb_soft)
-               ELSEIF (gapw_xc) THEN
+               ELSE IF (gapw_xc) THEN
                   IF (.NOT. is_rks_triplets) THEN
                      CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
                                              hmat=work_matrices%A_ia_munu_sub(ispin), &

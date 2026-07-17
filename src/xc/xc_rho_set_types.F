@@ -620,8 +620,9 @@ CONTAINS
             do_sf = .FALSE.
             IF (PRESENT(spinflip)) do_sf = spinflip
 
-            IF (ANY(rho_set%local_bounds /= pw_pool%pw_grid%bounds_local)) &
+            IF (ANY(rho_set%local_bounds /= pw_pool%pw_grid%bounds_local)) THEN
                CPABORT("pw_pool cr3d have different size than expected")
+            END IF
             nspins = SIZE(rho_r)
             rho_set%local_bounds = rho_r(1)%pw_grid%bounds_local
             rho_cutoff = 0.5*rho_set%rho_cutoff

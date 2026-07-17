@@ -97,8 +97,9 @@ CONTAINS
       END IF
 
       ! Disk Storage disabled for semi-empirical methods
-      IF (store_int_env%memory_parameter%do_disk_storage) &
+      IF (store_int_env%memory_parameter%do_disk_storage) THEN
          CPABORT("Disk storage for SEMIEMPIRICAL methods disabled! ")
+      END IF
 
       ! Allocate containers/caches for integral storage if requested
       IF (.NOT. store_int_env%memory_parameter%do_all_on_the_fly .AND. store_int_env%compress) THEN

@@ -19,20 +19,24 @@ PROGRAM realspace_grid_cube_unittest
    REAL(KIND=dp), DIMENSION(7)                        :: slice_buffer, slice_reference
 
    WRITE (value, cube_value_format) 0.33004E-101_dp
-   IF (INDEX(value, "E-101") <= 0) &
+   IF (INDEX(value, "E-101") <= 0) THEN
       ERROR STOP "Cube value format must preserve three-digit negative exponents."
+   END IF
 
    reference = [0.0_dp, -0.91458E-35_dp, 0.33004E-101_dp, &
                 -0.32487E-103_dp, 1.0_dp, -1.0_dp]
    WRITE (values(1:78), cube_values_format) reference
    values(79:79) = NEW_LINE("C")
-   IF (INDEX(values, "E-101") <= 0) &
+   IF (INDEX(values, "E-101") <= 0) THEN
       ERROR STOP "Cube line format must preserve E-101."
-   IF (INDEX(values, "E-103") <= 0) &
+   END IF
+   IF (INDEX(values, "E-103") <= 0) THEN
       ERROR STOP "Cube line format must preserve E-103."
+   END IF
    CALL cube_read_values(values, buffer)
-   IF (MAXVAL(ABS(buffer - reference)) > 1.0E-12_dp) &
+   IF (MAXVAL(ABS(buffer - reference)) > 1.0E-12_dp) THEN
       ERROR STOP "Cube reader must parse adjacent explicit-exponent values."
+   END IF
 
    slice_reference(1:6) = reference
    slice_reference(7) = 0.27183E-123_dp
@@ -40,7 +44,8 @@ PROGRAM realspace_grid_cube_unittest
    slice_values(79:79) = NEW_LINE("C")
    WRITE (slice_values(80:92), cube_value_format) slice_reference(7)
    CALL cube_read_values(slice_values, slice_buffer)
-   IF (MAXVAL(ABS(slice_buffer - slice_reference)) > 1.0E-12_dp) &
+   IF (MAXVAL(ABS(slice_buffer - slice_reference)) > 1.0E-12_dp) THEN
       ERROR STOP "Cube reader must parse multi-line z-slices."
+   END IF
 
 END PROGRAM realspace_grid_cube_unittest

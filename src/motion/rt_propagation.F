@@ -294,7 +294,8 @@ CONTAINS
                   CALL rt_initialize_rho_from_mos(rtp, mos)
                END IF
             ELSE
-               !The wavefunction was minimized using a linear scaling method. The density matrix is therefore taken from the ls_scf_env.
+               ! The wavefunction was minimized using a linear scaling method.
+               ! The density matrix is therefore taken from the ls_scf_env.
                CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
                DO ispin = 1, SIZE(rho_old)/2
                   re = 2*ispin - 1
@@ -417,8 +418,9 @@ CONTAINS
          CALL cp_iterate(logger%iter_info, last=(i_step == max_steps), iter_nr=i_step)
          rtp%converged = .FALSE.
          DO i_iter = 1, max_iter
-            IF (i_step == rtp%i_start + 1 .AND. i_iter == 2 .AND. rtp_control%hfx_redistribute) &
+            IF (i_step == rtp%i_start + 1 .AND. i_iter == 2 .AND. rtp_control%hfx_redistribute) THEN
                CALL qs_ks_did_change(qs_env%ks_env, s_mstruct_changed=.TRUE.)
+            END IF
             rtp%iter = i_iter
             CALL propagation_step(qs_env, rtp, rtp_control)
             CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.)
@@ -444,9 +446,10 @@ CONTAINS
       END DO
       CALL cp_rm_iter_level(logger%iter_info, "MD")
 
-      IF (.NOT. rtp%converged) &
+      IF (.NOT. rtp%converged) THEN
          CALL cp_abort(__LOCATION__, "propagation did not converge, "// &
                        "either increase MAX_ITER or use a smaller TIMESTEP")
+      END IF
 
       CALL timestop(handle)
 
@@ -617,8 +620,9 @@ CONTAINS
       CALL set_ks_env(ks_env, complex_ks=imag_ks)
       IF (imag_ks) THEN
          CALL qs_ks_allocate_basics(qs_env, is_complex=imag_ks)
-         IF (.NOT. dft_control%rtp_control%fixed_ions) &
+         IF (.NOT. dft_control%rtp_control%fixed_ions) THEN
             CALL rtp_create_SinvH_imag(rtp, dft_control%nspins)
+         END IF
       END IF
 
       ! h
