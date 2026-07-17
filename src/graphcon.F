@@ -528,6 +528,7 @@ CONTAINS
       LOGICAL                                            :: first
 
       INTEGER                                            :: k, m, t
+      LOGICAL                                            :: q_is_identity
 
       IF (n == 1) RETURN
       IF (first) THEN
@@ -543,23 +544,27 @@ CONTAINS
          x(n - 1) = t
          RETURN
       END IF
+      q_is_identity = .TRUE.
       DO k = n - 1, 1, -1
          IF (q(k) == k) THEN
             q(k) = n
          ELSE
-            GOTO 1
+            q_is_identity = .FALSE.
+            EXIT
          END IF
       END DO
-      first = .TRUE.
-      k = 1
-      GOTO 2
-1     m = q(k)
-      t = x(m)
-      x(m) = x(k)
-      x(k) = t
-      q(k) = m - 1
-      k = k + 1
-2     m = n
+      IF (q_is_identity) THEN
+         first = .TRUE.
+         k = 1
+      ELSE
+         m = q(k)
+         t = x(m)
+         x(m) = x(k)
+         x(k) = t
+         q(k) = m - 1
+         k = k + 1
+      END IF
+      m = n
       t = x(m)
       x(m) = x(k)
       x(k) = t
