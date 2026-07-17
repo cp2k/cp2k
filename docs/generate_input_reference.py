@@ -342,20 +342,28 @@ def render_keyword(
         output += [f":module: {section_xref}"]
     else:
         output += [":noindex:"]
-    output += [f":type: '{data_type}{n_var_brackets}'"]
-    if default_value or default_unit:
-        default_unit_bracketed = f"[{default_unit}]" if default_unit else ""
-        output += [f":value: '{default_value} {default_unit_bracketed}'"]
     output += [""]
+
+    # Render keyword properties as compact, unbulleted lines instead of placing the
+    # type and default value in the object signature.
+    metadata = [f"**Type:** {escape_markdown(data_type + n_var_brackets)}"]
+    if default_value or default_unit:
+        default = default_value
+        if default_unit:
+            default += f" [{default_unit}]"
+        metadata += [f"**Default:** {escape_markdown(default.strip())}"]
     if repeats:
-        output += ["**Keyword can be repeated.**", ""]
+        metadata += ["**Repeatable:** yes"]
     if len(keyword_names) > 1:
-        aliases = " ,".join(keyword_names[1:])
-        output += [f"**Aliases:** {escape_markdown(aliases)}", ""]
+        aliases = ", ".join(keyword_names[1:])
+        metadata += [f"**Aliases:** {escape_markdown(aliases)}"]
     if lone_keyword_value:
-        output += [f"**Lone keyword:** `{escape_markdown(lone_keyword_value)}`", ""]
+        metadata += [f"**Lone keyword:** {escape_markdown(lone_keyword_value)}"]
     if usage:
-        output += [f"**Usage:** _{escape_markdown(usage)}_", ""]
+        metadata += [f"**Usage:** _{escape_markdown(usage)}_"]
+    output += ["  \n".join(metadata), ""]
+    if description:
+        output += [f"**Description:** {escape_markdown(description)}", ""]
     if data_type == "enum":
         output += ["**Valid values:**"]
         for item in keyword.findall("DATA_TYPE/ENUMERATION/ITEM"):
@@ -369,7 +377,6 @@ def render_keyword(
     if mentions:
         mentions_list = ", ".join([f"⭐[](project:{m})" for m in mentions])
         output += [f"**Mentions:** {mentions_list}", ""]
-    output += [escape_markdown(description)]
     if github:
         output += [github_link(location)]
     output += ["", "```", ""]  # Close py:data directive.
