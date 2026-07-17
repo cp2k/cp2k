@@ -50,16 +50,15 @@ MODULE xc_gauxc_cache
    END TYPE cp_gauxc_cache_params
 
    TYPE, extends(cp_gauxc_cache_params)            :: cp_gauxc_cache_type
-      TYPE(cp_gauxc_molecule_type)                 :: molecule
-      TYPE(cp_gauxc_basisset_type)                 :: basisset
-      TYPE(cp_gauxc_grid_type)                     :: grid
-      TYPE(cp_gauxc_grid_type)                     :: gradient_grid
-      TYPE(cp_gauxc_integrator_type)               :: integrator
-      TYPE(cp_gauxc_integrator_type)               :: gradient_integrator
-      INTEGER                                      :: mpi_comm
+      TYPE(cp_gauxc_molecule_type)                 :: molecule = cp_gauxc_molecule_type()
+      TYPE(cp_gauxc_basisset_type)                 :: basisset = cp_gauxc_basisset_type()
+      TYPE(cp_gauxc_grid_type)                     :: grid = cp_gauxc_grid_type()
+      TYPE(cp_gauxc_grid_type)                     :: gradient_grid = cp_gauxc_grid_type()
+      TYPE(cp_gauxc_integrator_type)               :: integrator = cp_gauxc_integrator_type()
+      TYPE(cp_gauxc_integrator_type)               :: gradient_integrator = cp_gauxc_integrator_type()
+      INTEGER                                      :: mpi_comm = -1
       LOGICAL                                      :: is_init = .FALSE.
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: last_positions
-
    CONTAINS
 
       PROCEDURE, PUBLIC                            :: needs_gradient_grid => gauxc_cache_type_needs_gradient_grid
@@ -139,13 +138,19 @@ CONTAINS
       cache%molecule = gauxc_create_molecule( &
                        particle_set, &
                        status)
-      IF (status%status%code /= 0) GOTO 100
+      IF (status%status%code /= 0) THEN
+         CALL cleanup_after_molecule()
+         RETURN
+      END IF
 
       cache%basisset = gauxc_create_basisset( &
                        qs_kind_set, &
                        particle_set, &
                        status)
-      IF (status%status%code /= 0) GOTO 200
+      IF (status%status%code /= 0) THEN
+         CALL cleanup_after_basisset()
+         RETURN
+      END IF
 
       params%use_fd_gradient = &
          params%use_fd_gradient .AND. (cache%max_l() > 3)
@@ -195,7 +200,10 @@ CONTAINS
                       status, &
                       mpi_comm=para_env%get_handle())
       END IF
-      IF (status%status%code /= 0) GOTO 300
+      IF (status%status%code /= 0) THEN
+         CALL cleanup_after_grid()
+         RETURN
+      END IF
 
       cache%integrator = gauxc_create_integrator( &
                          TRIM(params%xc_fun_name), &
@@ -204,7 +212,10 @@ CONTAINS
                          params%lwd_kernel, &
                          params%nspins, &
                          status)
-      IF (status%status%code /= 0) GOTO 400
+      IF (status%status%code /= 0) THEN
+         CALL cleanup_after_integrator()
+         RETURN
+      END IF
 
       IF (params%use_gradient_self_runtime) THEN
          ! Upstream GauXC does not yet support OneDFT/SKALA nuclear gradients
@@ -222,7 +233,10 @@ CONTAINS
                                status, &
                                mpi_comm=mp_comm_self%get_handle(), &
                                force_new_runtime=.TRUE.)
-         IF (status%status%code /= 0) GOTO 500
+         IF (status%status%code /= 0) THEN
+            CALL cleanup_after_gradient_grid()
+            RETURN
+         END IF
          cache%gradient_integrator = gauxc_create_integrator( &
                                      TRIM(params%xc_fun_name), &
                                      cache%gradient_grid, &
@@ -230,7 +244,10 @@ CONTAINS
                                      params%lwd_kernel, &
                                      params%nspins, &
                                      status)
-         IF (status%status%code /= 0) GOTO 600
+         IF (status%status%code /= 0) THEN
+            CALL cleanup_after_gradient_integrator()
+            RETURN
+         END IF
       END IF
 
       cache%natom = params%natom
@@ -265,43 +282,6 @@ CONTAINS
       cache%mpi_comm = para_env%get_handle()
       cache%is_init = .TRUE.
 
-      RETURN
-
-      ! Cleanup section in the error case.
-
-100   CONTINUE
-      CALL gauxc_destroy_molecule(cache%molecule, status)
-      CALL gauxc_check_status(status)
-      GOTO 999
-
-200   CONTINUE
-      CALL gauxc_destroy_basisset(cache%basisset, status)
-      CALL gauxc_check_status(status)
-      GOTO 100
-
-300   CONTINUE
-      CALL gauxc_destroy_grid(cache%grid, status)
-      CALL gauxc_check_status(status)
-      GOTO 200
-
-400   CONTINUE
-      CALL gauxc_destroy_integrator(cache%integrator, status)
-      CALL gauxc_check_status(status)
-      GOTO 300
-
-500   CONTINUE
-      CALL gauxc_destroy_grid(cache%gradient_grid, status)
-      CALL gauxc_check_status(status)
-      GOTO 400
-
-600   CONTINUE
-      CALL gauxc_destroy_integrator(cache%gradient_integrator, status)
-      CALL gauxc_check_status(status)
-      GOTO 500
-
-999   CONTINUE
-      IF (ALLOCATED(cache%last_positions)) DEALLOCATE (cache%last_positions)
-      cache%is_init = .FALSE.
 #else
       MARK_USED(params)
       MARK_USED(para_env)
@@ -310,6 +290,69 @@ CONTAINS
       MARK_USED(status)
       cache%is_init = .FALSE.
 #endif
+
+   CONTAINS
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+      SUBROUTINE cleanup_after_gradient_integrator()
+         CALL gauxc_destroy_integrator(cache%gradient_integrator, status)
+         CALL gauxc_check_status(status)
+         CALL cleanup_after_gradient_grid()
+      END SUBROUTINE cleanup_after_gradient_integrator
+
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+      SUBROUTINE cleanup_after_gradient_grid()
+         CALL gauxc_destroy_grid(cache%gradient_grid, status)
+         CALL gauxc_check_status(status)
+         CALL cleanup_after_integrator()
+      END SUBROUTINE cleanup_after_gradient_grid
+
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+      SUBROUTINE cleanup_after_integrator()
+         CALL gauxc_destroy_integrator(cache%integrator, status)
+         CALL gauxc_check_status(status)
+         CALL cleanup_after_grid()
+      END SUBROUTINE cleanup_after_integrator
+
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+      SUBROUTINE cleanup_after_grid()
+         CALL gauxc_destroy_grid(cache%grid, status)
+         CALL gauxc_check_status(status)
+         CALL cleanup_after_basisset()
+      END SUBROUTINE cleanup_after_grid
+
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+      SUBROUTINE cleanup_after_basisset()
+         CALL gauxc_destroy_basisset(cache%basisset, status)
+         CALL gauxc_check_status(status)
+         CALL cleanup_after_molecule()
+      END SUBROUTINE cleanup_after_basisset
+
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+      SUBROUTINE cleanup_after_molecule()
+         CALL gauxc_destroy_molecule(cache%molecule, status)
+         CALL gauxc_check_status(status)
+         CALL cleanup_final()
+      END SUBROUTINE cleanup_after_molecule
+
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+      SUBROUTINE cleanup_final()
+         IF (ALLOCATED(cache%last_positions)) DEALLOCATE (cache%last_positions)
+         cache%is_init = .FALSE.
+      END SUBROUTINE cleanup_final
 
    END SUBROUTINE gauxc_cache_init
 

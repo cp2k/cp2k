@@ -324,7 +324,7 @@ MODULE qs_environment_types
       TYPE(mo_set_type), DIMENSION(:), POINTER              :: mos_last_converged => NULL()
       ! tblite
       TYPE(tblite_type), POINTER                            :: tb_tblite => Null()
-      TYPE(cp_gauxc_cache_type)                             :: gauxc_cache
+      TYPE(cp_gauxc_cache_type), POINTER                    :: gauxc_cache => NULL()
    END TYPE qs_environment_type
 
 CONTAINS
@@ -1011,6 +1011,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(qs_env%molecular_scf_guess_env)) ALLOCATE (qs_env%molecular_scf_guess_env)
 
       NULLIFY (qs_env%tb_tblite)
+      NULLIFY (qs_env%gauxc_cache)
 
    END SUBROUTINE init_qs_env
 
@@ -1692,7 +1693,10 @@ CONTAINS
          CALL deallocate_tblite_type(qs_env%tb_tblite)
       END IF
 
-      CALL gauxc_cache_release(qs_env%gauxc_cache)
+      IF (ASSOCIATED(qs_env%gauxc_cache)) THEN
+         CALL gauxc_cache_release(qs_env%gauxc_cache)
+         DEALLOCATE (qs_env%gauxc_cache)
+      END IF
 
    END SUBROUTINE qs_env_release
 
@@ -1920,7 +1924,10 @@ CONTAINS
          CALL deallocate_tblite_type(qs_env%tb_tblite)
       END IF
 
-      CALL gauxc_cache_release(qs_env%gauxc_cache)
+      IF (ASSOCIATED(qs_env%gauxc_cache)) THEN
+         CALL gauxc_cache_release(qs_env%gauxc_cache)
+         DEALLOCATE (qs_env%gauxc_cache)
+      END IF
 
    END SUBROUTINE qs_env_part_release
 
