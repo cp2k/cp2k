@@ -53,12 +53,16 @@ add_compile_options(
 # -- Apple Silicon + GCC: -march=native expands internally to -march=apple-m1
 # (invalid). Use -mcpu=native instead.
 set(_CP2K_GNU_NATIVE_TUNE "-march=native;-mtune=native")
+set(_CP2K_GNU_GENERIC_TUNE "-mtune=generic")
 if(APPLE
    AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64"
    AND (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"
         OR CMAKE_C_COMPILER_ID STREQUAL "GNU"
         OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
   set(_CP2K_GNU_NATIVE_TUNE "-mcpu=native")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64|ppc64le")
+  set(_CP2K_GNU_NATIVE_TUNE "-mcpu=native")
+  set(_CP2K_GNU_GENERIC_TUNE "")
 endif()
 if(APPLE)
   add_definitions(-D__MACOSX)
@@ -76,9 +80,9 @@ add_compile_options(
 
 # Generic
 add_compile_options(
-  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O3;-mtune=generic;-funroll-loops>"
-  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-O3;-mtune=generic;-funroll-loops>"
-  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O3;-mtune=generic;-funroll-loops>"
+  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O3;${_CP2K_GNU_GENERIC_TUNE};-funroll-loops>"
+  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-O3;${_CP2K_GNU_GENERIC_TUNE};-funroll-loops>"
+  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O3;${_CP2K_GNU_GENERIC_TUNE};-funroll-loops>"
 )
 
 # Debug
