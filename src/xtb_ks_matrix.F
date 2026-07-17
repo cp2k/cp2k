@@ -445,7 +445,7 @@ CONTAINS
             "London dispersion energy:                      ", energy%dispersion
          IF (dft_control%qs_control%xtb_control%do_spinpol) THEN
             WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
-            "Spin polarisation correction:         ", energy%xtb_spinpol
+               "Spin polarisation correction:         ", energy%xtb_spinpol
          END IF
          IF (dft_control%qs_control%xtb_control%xb_interaction) THEN
             WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
