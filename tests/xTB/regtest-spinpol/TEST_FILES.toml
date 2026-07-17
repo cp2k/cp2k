@@ -12,4 +12,5 @@
 "ch2o_kp_stress.inp"                    = []
 #
 "ch2o_polar.inp"                        = []
+"h2o_sTDA_spin.inp"                     = []
 #EOF
