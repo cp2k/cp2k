@@ -170,7 +170,7 @@ CONTAINS
       INTEGER :: i, ib(48), ib0(48), ihc, ihc0, ihg, ihg0, indpg, indpg0, invadd, istrin, iswght, &
          isy, isy0, itype, j, k, l, li, li0, lmax, n, nc, nc0, ntot, ntvec0
       INTEGER, DIMENSION(49, 1)                          :: f00
-      LOGICAL :: is_located
+      LOGICAL                                            :: is_located
       REAL(KIND=dp) :: a01(3), a02(3), a03(3), b01(3), b02(3), b03(3), b1(3), b2(3), b3(3), &
          dtotstr, origin(3), origin0(3), proj1, proj2, proj3, r(3, 3, 48), r0(3, 3, 48), totstr, &
          tvec0(3, 1), volum, vv0(3)
@@ -2308,6 +2308,7 @@ CONTAINS
       INTEGER                                            :: i, i1, i2, i3, ibsign, igarb0, igarbage, &
                                                             igarbg, ii, imesh, iop, iplace, &
                                                             iremov, iwvk, j, jplace, k, n, nplane
+      LOGICAL                                            :: wva_in_list
       REAL(dp)                                           :: diff, proja(3), projb(3), &
                                                             rsdir(4, nrsdir), ur1, ur2, ur3, &
                                                             wva(3), wvk(3)
@@ -2364,17 +2365,17 @@ CONTAINS
                      END DO
                      ! Check that WVA is inside the 1 Bz.
                      IF (.NOT. inside_bz(wva, rsdir, nplane, delta)) THEN
-      IF (iout > 0) THEN
-         WRITE (iout, '(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
-      END IF
-      IF (iout > 0) THEN
-         WRITE (iout, '(A,3F10.4,/,A,3F10.4,A,/,A,I3,A)') &
-            ' THE VECTOR     ', wva, &
-            ' GENERATED FROM ', wvk, ' IN THE BASIC MESH', &
-            ' BY ROTATION NO. ', ibrav(iop), ' IS OUTSIDE THE 1BZ'
-      END IF
-      CPABORT('SPPT2: VECTOR OUTSIDE THE 1BZ')
-      END IF
+                        IF (iout > 0) THEN
+                           WRITE (iout, '(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
+                        END IF
+                        IF (iout > 0) THEN
+                           WRITE (iout, '(A,3F10.4,/,A,3F10.4,A,/,A,I3,A)') &
+                              ' THE VECTOR     ', wva, &
+                              ' GENERATED FROM ', wvk, ' IN THE BASIC MESH', &
+                              ' BY ROTATION NO. ', ibrav(iop), ' IS OUTSIDE THE 1BZ'
+                        END IF
+                        CPABORT('SPPT2: VECTOR OUTSIDE THE 1BZ')
+                     END IF
                      ! Place WVA in list
                      iplace = 0
                      CALL mesh(iout, wva, iplace, igarb0, igarbg, &
@@ -2383,14 +2384,14 @@ CONTAINS
                      ! IPLACE is the number.
                      IF (iplace > 0) imesh = iplace
                      IF (iplace > nkpoint) THEN
-      IF (iout > 0) THEN
-         WRITE (iout, '(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
-      END IF
-      IF (iout > 0) THEN
-         WRITE (iout, *) 'MESH SIZE EXCEEDS NKPOINT=', nkpoint
-      END IF
-      CPABORT('SPPT2: MESH SIZE EXCEEDED')
-      END IF
+                        IF (iout > 0) THEN
+                           WRITE (iout, '(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
+                        END IF
+                        IF (iout > 0) THEN
+                           WRITE (iout, *) 'MESH SIZE EXCEEDS NKPOINT=', nkpoint
+                        END IF
+                        CPABORT('SPPT2: MESH SIZE EXCEEDED')
+                     END IF
                   END DO
                ELSE
                   ! Place WVK in list
@@ -2399,14 +2400,14 @@ CONTAINS
                             nkpoint, nhash, list, rlist, delta)
                   imesh = iplace
                   IF (iplace > nkpoint) THEN
-      IF (iout > 0) THEN
-         WRITE (iout, '(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
-      END IF
-      IF (iout > 0) THEN
-         WRITE (iout, *) 'MESH SIZE EXCEEDS NKPOINT=', nkpoint
-      END IF
-      CPABORT('SPPT2: MESH SIZE EXCEEDED')
-      END IF
+                     IF (iout > 0) THEN
+                        WRITE (iout, '(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
+                     END IF
+                     IF (iout > 0) THEN
+                        WRITE (iout, *) 'MESH SIZE EXCEEDS NKPOINT=', nkpoint
+                     END IF
+                     CPABORT('SPPT2: MESH SIZE EXCEEDED')
+                  END IF
                END IF
             END DO
          END DO
@@ -2518,60 +2519,62 @@ CONTAINS
                END DO
             END DO
             ibsign = +1
-363         CONTINUE
-            ! Find WVA in the list
-            iplace = -1
-            CALL mesh(iout, wva, iplace, igarb0, igarbg, &
-                      nkpoint, nhash, list, rlist, delta)
-            IF (iplace == 0) THEN
-               IF (istriz == -1) THEN
-                  ! No symmetrisation -> WVA not in the list
-                  GOTO 364
-               ELSE
+            DO
+               ! Find WVA in the list
+               iplace = -1
+               CALL mesh(iout, wva, iplace, igarb0, igarbg, &
+                        nkpoint, nhash, list, rlist, delta)
+               wva_in_list = .TRUE.
+               IF (iplace == 0) THEN
+                  IF (istriz == -1) THEN
+                     ! No symmetrisation -> WVA not in the list
+                     wva_in_list = .FALSE.
+                  ELSE
+                     ! Find out whether WVA is in the garbage list
+                     CALL garbag(wva, igarbage, igarb0, &
+                                 nkpoint, nhash, list, rlist, delta)
+                     IF (igarbage == 0) THEN
+                        ! I think this case is impossible (NC <= NCBRAV)
+                        ! Error message
+                        IF (iout > 0) THEN
+                           WRITE (iout, '(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
+                        END IF
+                        IF (iout > 0) THEN
+                           WRITE (iout, '(A,3F10.4,/,A,3F10.4,A,/,A,I3,A)') &
+                              ' THE VECTOR     ', wva, &
+                              ' GENERATED FROM ', wvk, ' IN THE BASIC MESH', &
+                              ' BY ROTATION NO. ', ib(n), ' IS NOT IN THE LIST'
+                        END IF
+                        CPABORT('SPPT2: VECTOR NOT IN THE LIST')
+                     END IF
+                  END IF
+               END IF
+               IF (wva_in_list) THEN
                   ! Find out whether WVA is in the garbage list
                   CALL garbag(wva, igarbage, igarb0, &
                               nkpoint, nhash, list, rlist, delta)
-                  IF (igarbage == 0) THEN
-                     ! I think this case is impossible (NC <= NCBRAV)
-                     ! Error message
-      IF (iout > 0) THEN
-         WRITE (iout, '(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
-      END IF
-      IF (iout > 0) THEN
-         WRITE (iout, '(A,3F10.4,/,A,3F10.4,A,/,A,I3,A)') &
-            ' THE VECTOR     ', wva, &
-            ' GENERATED FROM ', wvk, ' IN THE BASIC MESH', &
-            ' BY ROTATION NO. ', ib(n), ' IS NOT IN THE LIST'
-      END IF
-      CPABORT('SPPT2: VECTOR NOT IN THE LIST')
+                  IF (igarbage > 0) CYCLE group_element
+                  ! Was WVA encountered before ?
+                  ! IF(INCLUD(IPLACE) == YES) skip
+                  IF (.NOT. BTEST(includ(iplace), 0)) THEN
+                     ! Increment weight.
+                     lwght(ntot) = lwght(ntot) + 1
+                     lrot(lwght(ntot), ntot) = ib(n)*ibsign
+                     ! INCLUD(IPLACE) = YES
+                     includ(iplace) = IBSET(includ(iplace), 0)
+                     ! This k-point is an image of a special k-point.
+                     ! Put the index of the special k-point.
+                     includ(iplace) = includ(iplace) + ntot*2
                   END IF
                END IF
-            END IF
-            ! Find out whether WVA is in the garbage list
-            CALL garbag(wva, igarbage, igarb0, &
-                        nkpoint, nhash, list, rlist, delta)
-            IF (igarbage > 0) CYCLE group_element
-            ! Was WVA encountered before ?
-            ! IF(INCLUD(IPLACE) == YES) skip
-            IF (.NOT. BTEST(includ(iplace), 0)) THEN
-               ! Increment weight.
-               lwght(ntot) = lwght(ntot) + 1
-               lrot(lwght(ntot), ntot) = ib(n)*ibsign
-               ! INCLUD(IPLACE) = YES
-               includ(iplace) = IBSET(includ(iplace), 0)
-               ! This k-point is an image of a special k-point.
-               ! Put the index of the special k-point.
-               includ(iplace) = includ(iplace) + ntot*2
-            END IF
-364         CONTINUE
-            IF (ibsign == -1 .OR. inv == 0) CYCLE group_element
-            ! The case where we also apply the inversion to WVA
-            ! Repeat the search, but for -WVA
-            ibsign = -1
-            DO i = 1, 3
-               wva(i) = -wva(i)
+               IF (ibsign == -1 .OR. inv == 0) CYCLE group_element
+               ! The case where we also apply the inversion to WVA
+               ! Repeat the search, but for -WVA
+               ibsign = -1
+               DO i = 1, 3
+                  wva(i) = -wva(i)
+               END DO
             END DO
-            GOTO 363
          END DO group_element
       END DO mesh_vector
       ! ==--------------------------------------------------------------==
@@ -2654,6 +2657,7 @@ CONTAINS
 
       INTEGER                                            :: i, ihash, ipoint, j
       INTEGER, SAVE                                      :: istore
+      LOGICAL                                            :: found
       REAL(dp)                                           :: delta1, rhash
 
 ! ==--------------------------------------------------------------==
@@ -2680,57 +2684,59 @@ CONTAINS
          ihash = MOD(ihash, nhash) + nmesh + 1
          ! Search for WVK in linked list
          ipoint = list(ihash)
+         found = .FALSE.
          DO i = 1, 100
             ! List exhausted
-            IF (ipoint == nil) GOTO 130
+            IF (ipoint == nil) EXIT
             ! Compare WVK with this element
-            DO j = 1, 3
-               IF (ABS(wvk(j) - rlist(j, ipoint)) > delta1) GOTO 115
-            END DO
-            ! WVK located
-            GOTO 160
+            IF (ALL(ABS(wvk(:) - rlist(:, ipoint)) <= delta1)) THEN
+               ! WVK located
+               found = .TRUE.
+               EXIT
+            END IF
             ! Next element of list
-115         CONTINUE
             ihash = ipoint
             ipoint = list(ihash)
          END DO
-         ! List too long
-         IF (iout > 0) THEN
-            WRITE (iout, '(2A,/,A)') &
-               ' SUBROUTINE MESH *** FATAL ERROR *** LINKED LIST', &
-               ' TOO LONG ***', ' CHOOSE A BETTER HASH-FUNCTION'
-         END IF
-         CPABORT('MESH: WARNING')
-         ! WVK was not found
-130      CONTINUE
-         IF (iplace == -1) THEN
-            ! IPLACE=-1 : search for WVK unsuccessful
-            iplace = 0
-            RETURN
-         ELSE
-            ! IPLACE=0: add WVK to the list
-            list(ihash) = istore
-            IF (istore > nmesh) THEN
+         IF (.NOT. found) THEN
+            ! List too long
+            IF (ipoint /= nil) THEN
                IF (iout > 0) THEN
-                  WRITE (iout, '(A)') 'SUBROUTINE MESH *** FATAL ERROR ***'
-               END IF
-               IF (iout > 0) THEN
-                  WRITE (iout, '(A,I10,A,/,A,3F10.5)') &
-                     ' ISTORE=', istore, ' EXCEEDS DIMENSIONS', &
-                     ' WVK = ', wvk
+                  WRITE (iout, '(2A,/,A)') &
+                     ' SUBROUTINE MESH *** FATAL ERROR *** LINKED LIST', &
+                     ' TOO LONG ***', ' CHOOSE A BETTER HASH-FUNCTION'
                END IF
                CPABORT('MESH: WARNING')
             END IF
-            list(istore) = nil
-            DO i = 1, 3
-               rlist(i, istore) = wvk(i)
-            END DO
-            istore = istore + 1
-            iplace = istore - 1
-            RETURN
+            ! WVK was not found
+            IF (iplace == -1) THEN
+               ! IPLACE=-1 : search for WVK unsuccessful
+               iplace = 0
+               RETURN
+            ELSE
+               ! IPLACE=0: add WVK to the list
+               list(ihash) = istore
+               IF (istore > nmesh) THEN
+                  IF (iout > 0) THEN
+                     WRITE (iout, '(A)') 'SUBROUTINE MESH *** FATAL ERROR ***'
+                  END IF
+                  IF (iout > 0) THEN
+                     WRITE (iout, '(A,I10,A,/,A,3F10.5)') &
+                        ' ISTORE=', istore, ' EXCEEDS DIMENSIONS', &
+                        ' WVK = ', wvk
+                  END IF
+                  CPABORT('MESH: WARNING')
+               END IF
+               list(istore) = nil
+               DO i = 1, 3
+                  rlist(i, istore) = wvk(i)
+               END DO
+               istore = istore + 1
+               iplace = istore - 1
+               RETURN
+            END IF
          END IF
          ! WVK was found
-160      CONTINUE
          IF (iplace == 0) RETURN
          ! IPLACE=-1
          iplace = ipoint
@@ -2816,26 +2822,24 @@ CONTAINS
             RETURN
          END IF
          ! Compare WVK with this element
-         DO j = 1, 3
-            IF (ABS(wvk(j) - rlist(j, ipoint)) > delta1) GOTO 215
-         END DO
-         ! WVK located, now remove it from the list:
-         list(ihash) = list(ipoint)
-         ! LIST(IHASH) now points to the next element in the list,
-         ! and the present WVK has become garbage.
-         ! Add WVK to the list of garbage:
-         IF (igarb0 == 0) THEN
-            ! Start up the garbage list:
-            igarb0 = ipoint
-         ELSE
-            list(igarbg) = ipoint
+         IF (ALL(ABS(wvk(:) - rlist(:, ipoint)) <= delta1)) THEN
+            ! WVK located, now remove it from the list:
+            list(ihash) = list(ipoint)
+            ! LIST(IHASH) now points to the next element in the list,
+            ! and the present WVK has become garbage.
+            ! Add WVK to the list of garbage:
+            IF (igarb0 == 0) THEN
+               ! Start up the garbage list:
+               igarb0 = ipoint
+            ELSE
+               list(igarbg) = ipoint
+            END IF
+            igarbg = ipoint
+            list(igarbg) = nil
+            iplace = 1
+            RETURN
          END IF
-         igarbg = ipoint
-         list(igarbg) = nil
-         iplace = 1
-         RETURN
          ! Next element of list
-215      CONTINUE
          ihash = ipoint
          ipoint = list(ihash)
       END DO
@@ -2892,14 +2896,12 @@ CONTAINS
             RETURN
          END IF
          ! Compare WVK with this element
-         DO j = 1, 3
-            IF (ABS(wvk(j) - rlist(j, ipoint)) > delta1) GOTO 315
-         END DO
-         ! WVK was located in the garbage list
-         iplace = i
-         RETURN
+         IF (ALL(ABS(wvk(:) - rlist(:, ipoint)) <= delta1)) THEN
+            ! WVK was located in the garbage list
+            iplace = i
+            RETURN
+         END IF
          ! Next element of list
-315      CONTINUE
          ihash = ipoint
          ipoint = list(ihash)
       END DO

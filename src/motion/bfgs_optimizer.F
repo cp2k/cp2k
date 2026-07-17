@@ -629,7 +629,7 @@ CONTAINS
                lp = 0.0_dp
                fail = .TRUE.
             END IF
-            EXIT
+            EXIT outer
          END DO outer
 
          IF (fail .AND. .NOT. set) THEN
