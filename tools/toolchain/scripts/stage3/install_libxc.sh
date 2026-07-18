@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxc_ver="7.0.0"
-libxc_sha256="e9ae69f8966d8de6b7585abd9fab588794ada1fab8f689337959a35abbf9527d"
+libxc_ver="7.1.1"
+libxc_sha256="0e913232757338f345830250bf344d8c60feca5b8ff6c0c6b2229c5189eea11f"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -34,34 +34,23 @@ case "$with_libxc" in
       cd libxc-${libxc_ver}
       mkdir build
       cd build
-
-      # Lower the optimization level of KXC functionals for GCC to reduce time cost
-      # LXC functionals are not used so ignore them
-      if [ "${with_gcc}" != "__DONTUSE__" ]; then
-        if [ "${with_intel}" = "__DONTUSE__" ] && [ "${with_amd}" = "__DONTUSE__" ]; then
-          MAPLE2C_DIR="../src/maple2c"
-          for f in "$MAPLE2C_DIR"/gga_exc/*.c "$MAPLE2C_DIR"/mgga_exc/*.c "$MAPLE2C_DIR"/lda_exc/*.c; do
-            [ -f "$f" ] || continue
-            if grep -q "^func_kxc_" "$f" && ! grep -q "__attribute__((optimize" "$f"; then
-              sed -i 's/^func_kxc_/__attribute__((optimize("O1"))) func_kxc_/' "$f"
-            fi
-          done
-          LIBXC_CFLAGS="${CFLAGS} -fno-var-tracking"
-        else
-          LIBXC_CFLAGS="${CFLAGS}"
-        fi
+      if [ "${with_gcc}" != "__DONTUSE__" ] &&
+        [ "${with_intel}" = "__DONTUSE__" ] && [ "${with_amd}" = "__DONTUSE__" ]; then
+        # Turn off variable tracking
+        LIBXC_CFLAGS="${CFLAGS} -fno-var-tracking"
+      else
+        LIBXC_CFLAGS=""
       fi
-
-      # CP2K does not make use of fourth derivatives, so skip their compilation with -DDISABLE_KXC=OFF
-      # Add "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" to keep legacy compatibility for CMake version 4.x
+      # CP2K make use of third derivatives in libxc
       CFLAGS="${LIBXC_CFLAGS}" cmake \
+        -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_INSTALL_LIBDIR="lib" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -DBUILD_SHARED_LIBS=OFF \
         -DBUILD_TESTING=OFF \
         -DENABLE_FORTRAN=ON \
-        -DDISABLE_KXC=OFF \
-        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -DMAXORDER=3 \
         .. > configure.log 2>&1 || tail_excerpt configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       make install > install.log 2>&1 || tail_excerpt install.log
