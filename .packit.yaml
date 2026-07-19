@@ -22,10 +22,8 @@ test_command:
 targets:
   - fedora-development-x86_64
   - fedora-development-aarch64
-  - fedora-development-ppc64le
   - fedora-latest-x86_64
   - fedora-latest-aarch64
-  - fedora-latest-ppc64le
 
 jobs:
   - &copr_build
