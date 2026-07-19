@@ -112,6 +112,14 @@ set(CMAKE_INSTALL_LIBDIR
 
 # =================================================================================================
 # OPTIONS
+
+# Native CPU optimization
+string(TOUPPER "${CMAKE_BUILD_TYPE}" _CP2K_BUILD_TYPE)
+cmake_dependent_option(
+  CP2K_ENABLE_NATIVE_OPTIMIZATION "Optimize for the build host CPU" ON
+  "NOT _CP2K_BUILD_TYPE STREQUAL GENERIC" OFF)
+unset(_CP2K_BUILD_TYPE)
+
 option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
 
 option(CP2K_ENABLE_CONSISTENCY_CHECKS

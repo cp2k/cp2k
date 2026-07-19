@@ -216,7 +216,8 @@ Here are some other important general options you may want to know:
   generator, which is also used by `make_cp2k.sh`; in this case, please ensure that Ninja is
   installed on your host system.
 - `-DCMAKE_BUILD_TYPE` Valid vaules are `Release` (default) and `Debug` (enables debug settings and
-  generates `pdbg` or `sdbg` instead of `psmp` or `ssmp`; recommended for development).
+  generates `pdbg` or `sdbg` instead of `psmp` or `ssmp`; recommended for development). CP2K also
+  supports setting `Generic` and `Coverage`.
 - `-DCMAKE_INSTALL_PREFIX` Specifies the installation path of CP2K. Assuming it is set to
   `/path/to/installation`, there will be several subdirectories: `bin` for binaries like
   `cp2k.psmp`, `include` for module files and headers, `lib` or `lib64` for libraries, and `share`
@@ -227,6 +228,9 @@ Here are some other important general options you may want to know:
 
 Along with some options with CP2K:
 
+- `-DCP2K_ENABLE_NATIVE_OPTIMIZATION` Decide if native flag (`-march=native` or `-mcpu-native`) is
+  used to trigger native optimization for the build host CPU. Only available when `CMAKE_BUILD_TYPE`
+  is not `Generic`.
 - `-DCP2K_USE_EVERYTHING` Enables all dependencies or not.
 - `-DCP2K_DATA_DIR` Specifies the location of the data of basis and potentials. Default is
   `/path/to/installation/share/cp2k/data`.
