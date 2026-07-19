@@ -884,6 +884,7 @@ macro(cp2k_detect_dftd4_api)
 endmacro()
 
 if(CP2K_USE_DFTD4)
+  find_package(mctc-lib REQUIRED) # workaround: find mctc-lib first
   find_package(dftd4 REQUIRED)
   cp2k_detect_dftd4_api()
 endif()
