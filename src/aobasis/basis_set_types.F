@@ -2421,13 +2421,15 @@ CONTAINS
 !> \param gto_basis_set ...
 !> \param ngauss ...
 !> \param ortho ...
+!> \param ngaussflex ...
 ! **************************************************************************************************
-   SUBROUTINE create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss, ortho)
+   SUBROUTINE create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss, ortho, ngaussflex)
 
       TYPE(sto_basis_set_type), INTENT(IN)               :: sto_basis_set
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       INTEGER, INTENT(IN), OPTIONAL                      :: ngauss
       LOGICAL, INTENT(IN), OPTIONAL                      :: ortho
+      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: ngaussflex
 
       INTEGER, PARAMETER                                 :: maxng = 6
 
@@ -2467,10 +2469,19 @@ CONTAINS
       CALL reallocate(gto_basis_set%gcc, 1, ng, 1, 1, 1, nset)
 
       DO iset = 1, nset
-         CALL get_sto_ng(zet(iset), ng, nq(iset), lq(iset), zetg, gcc)
+         IF (PRESENT(ngaussflex)) THEN
+            CALL get_sto_ng(zet(iset), ng, nq(iset), lq(iset), zetg, gcc, ngaussflex(iset))
+         ELSE
+            CALL get_sto_ng(zet(iset), ng, nq(iset), lq(iset), zetg, gcc)
+         END IF
          gto_basis_set%lmax(iset) = lq(iset)
          gto_basis_set%lmin(iset) = lq(iset)
-         gto_basis_set%npgf(iset) = ng
+         IF (PRESENT(ngaussflex)) THEN
+            gto_basis_set%npgf(iset) = ngaussflex(iset)
+            ng = ngaussflex(iset)
+         ELSE
+            gto_basis_set%npgf(iset) = ng
+         END IF
          gto_basis_set%nshell(iset) = 1
          gto_basis_set%n(1, iset) = lq(iset) + 1
          gto_basis_set%l(1, iset) = lq(iset)
@@ -2502,11 +2513,8 @@ CONTAINS
       INTEGER, DIMENSION(0:10)                           :: mxf
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gal, zal, zll
 
-      ng = gto_basis_set%npgf(1)
       DO iset = 1, nset
-         IF ((ng /= gto_basis_set%npgf(iset)) .AND. do_ortho) THEN
-            CPABORT("different number of primitves")
-         END IF
+         ng = gto_basis_set%npgf(iset)
       END DO
 
       IF (do_ortho) THEN

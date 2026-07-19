@@ -20,4 +20,6 @@
 "h2o_dimer.inp"                         = [{matcher="E_total", tol=1.0E-12, ref=-11.54506384435821}]
 "ghost.inp"                             = [{matcher="E_total", tol=1.0E-12, ref=-1.03458221876736}]
 "tcif.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-27.71649842848894}]
+"cds.inp"                               = [{matcher="E_total", tol=1.0E-12, ref=-4.08828114007663}]
+"cds_noflex.inp"                        = [{matcher="E_total", tol=1.0E-12, ref=-4.08828583169864}]
 #EOF

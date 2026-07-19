@@ -49,21 +49,28 @@ CONTAINS
 !> \param lq ...
 !> \param alpha ...
 !> \param coef ...
+!> \param ngaussf ...
 ! **************************************************************************************************
-   SUBROUTINE get_sto_ng(zeta, n, nq, lq, alpha, coef)
+   SUBROUTINE get_sto_ng(zeta, n, nq, lq, alpha, coef, ngaussf)
 
       REAL(KIND=dp), INTENT(IN)                          :: zeta
       INTEGER, INTENT(IN)                                :: n, nq, lq
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: alpha, coef
+      INTEGER, INTENT(IN), OPTIONAL                      :: ngaussf
 
-      INTEGER                                            :: m, na, nc
+      INTEGER                                            :: m, na, nc, nn
 
       na = SIZE(alpha)
       nc = SIZE(coef)
+      IF (PRESENT(ngaussf)) THEN
+         nn = ngaussf
+      ELSE
+         nn = n
+      END IF
 
-      CPASSERT(n >= 1 .AND. n <= 6)
-      CPASSERT(na >= n)
-      CPASSERT(nc >= n)
+      CPASSERT(nn >= 1 .AND. nn <= 6)
+      CPASSERT(na >= nn)
+      CPASSERT(nc >= nn)
       CPASSERT(zeta > 0.0_dp)
       CPASSERT(nq >= 1)
       CPASSERT(lq >= 0)
@@ -71,7 +78,7 @@ CONTAINS
       m = (nq*(nq - 1))/2 + lq + 1
       SELECT CASE (m)
       CASE (1) ! 1s
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 4.3191E-2
             alpha(1) = 2.709496091e-1_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 3.1603E-3
@@ -103,7 +110,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (2) ! 2s
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 6.2923E-3
             alpha(1) = 1.012151084e-1_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 2.6728E-3
@@ -135,7 +142,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (3) ! 2p
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 4.8232E-2
             alpha(1) = 1.759666885e-1_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 3.0947E-3
@@ -167,7 +174,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (4) ! 3s
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 1.6764E-2
             alpha(1) = 5.296881757e-2_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 7.6424E-4
@@ -199,7 +206,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (5) ! 3p
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 1.2745E-2
             alpha(1) = 9.113614253e-2_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 2.3771E-4
@@ -231,7 +238,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (6) ! 3d
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 5.0728E-2
             alpha(1) = 1.302270363e-1_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 2.9834E-3
@@ -263,7 +270,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (7) ! 4s
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 4.1760E-2
             alpha(1) = 3.264600274e-2_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 1.7480E-4
@@ -295,7 +302,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (8) ! 4p
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 3.9516E-3
             alpha(1) = 5.578350235e-2_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 2.1579E-3
@@ -327,7 +334,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (9) ! 4d
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 2.0360E-2
             alpha(1) = 7.941656339e-2_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 3.7488E-4
@@ -359,7 +366,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (10) ! 4f
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 5.2215E-2
             alpha(1) = 1.033434062e-1_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 2.8877E-3
@@ -391,7 +398,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (11) ! 5s
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 7.1317E-2
             alpha(1) = 2.216912938e-2_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 1.4289E-4
@@ -423,7 +430,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (12) ! 5p
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 8.0406E-3
             alpha(1) = 3.769845216e-2_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 6.8912E-4
@@ -455,7 +462,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (13) ! 5d
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 6.7308E-3
             alpha(1) = 5.352200793e-2_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 3.1257E-4
@@ -487,7 +494,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (14) ! 5f
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 2.6196E-2
             alpha(1) = 6.952785407e-2_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 6.5045E-4
@@ -519,7 +526,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (15) ! 5g
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 5.3199E-2
             alpha(1) = 8.565417784e-2_dp; coef(1) = 1.000000000e+0_dp
          CASE (2) ! 2.8109E-3
@@ -551,7 +558,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (16) ! 6s
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 0.10174284692137370
             alpha(1) = 0.016053956888690133_dp; coef(1) = 1.000000000000000_dp
          CASE (2) ! 4.7289518343962555E-004
@@ -583,7 +590,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (17) ! 6p
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 1.8826022835702449E-002
             alpha(1) = 0.02720326117498455_dp; coef(1) = 1.0000000000000000_dp
          CASE (2) ! 2.3458059254877206E-004
@@ -615,7 +622,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (18) ! 6d
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 2.8755369986284141E-003
             alpha(1) = 0.038539962557578994_dp; coef(1) = 1.0000000000000000_dp
          CASE (2) ! 1.7076604937522610E-003
@@ -647,7 +654,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (19) ! 6f
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 1.1589084326864452E-002
             alpha(1) = 0.04999708511585302_dp; coef(1) = 1._dp
          CASE (2) ! 1.0223625463345876E-004
@@ -679,7 +686,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (20) ! 6g
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 3.0585704257612756E-002
             alpha(1) = 0.061536068942275354_dp; coef(1) = 1._dp
          CASE (2) ! 8.8136922735637668E-004
@@ -711,7 +718,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (21) ! 6h
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 5.3899613359310816E-002
             alpha(1) = 0.07313314184000295_dp; coef(1) = 1._dp
          CASE (2) ! 2.7493626733567922E-003
@@ -743,7 +750,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (22) ! 7s
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 0.13154539754786043
             alpha(1) = 0.012170316100569041_dp; coef(1) = 1._dp
          CASE (2) ! 1.2167263197611078E-003
@@ -775,7 +782,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (23) ! 7p
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 3.3186835107151591E-002
             alpha(1) = 0.02056749089204262_dp; coef(1) = 1.0000000000000000_dp
          CASE (2) ! 1.7064265376842691E-004
@@ -807,7 +814,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (24) ! 7d
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 5.0327602037498753E-003
             alpha(1) = 0.02909039015051073_dp; coef(1) = 1.0000000000000002_dp
          CASE (2) ! 6.3288899527891296E-004
@@ -839,7 +846,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (25) ! 7f
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 4.4122414620793027E-003
             alpha(1) = 0.037696619888011394_dp; coef(1) = 1._dp
          CASE (2) ! 3.8052356073725591E-004
@@ -871,7 +878,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (26) ! 7g
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 1.6232140186735133E-002
             alpha(1) = 0.04636088534182354_dp; coef(1) = 1.0000000000000002_dp
          CASE (2) ! 1.8148563973063858E-004
@@ -903,7 +910,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (27) ! 7h
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 3.3956902793941257E-002
             alpha(1) = 0.055067144574685124_dp; coef(1) = 1.0000000000000002_dp
          CASE (2) ! 1.0620083024626137E-003
@@ -935,7 +942,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (28) ! 7i
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! 5.4422862380136161E-002
             alpha(1) = 0.06380473723420682_dp; coef(1) = 0.9999999999999998_dp
          CASE (2) ! 2.6995295321672330E-003
@@ -967,7 +974,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (29) ! 8s
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) !Final Error     0.16012012792726149              Nfun:          26
             alpha(1) = 0.954817062770E-02_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) !Final Error      2.5381935191433058E-003         Nfun:        5000
@@ -999,7 +1006,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (30) ! 8p
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      4.9424644896695069E-002         Nfun:          32
             alpha(1) = 0.161028140061E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      2.8975996622193634E-004         Nfun:          56
@@ -1031,7 +1038,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (31) ! 8d
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      1.1007451787931499E-002         Nfun:          30
             alpha(1) = 0.227452786936E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      2.6261780162051274E-004         Nfun:          59
@@ -1063,7 +1070,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (32) ! 8f
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      2.2576226875590244E-003         Nfun:          34
             alpha(1) = 0.294475259826E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      1.5251988552043017E-003         Nfun:          57
@@ -1095,7 +1102,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (33) ! 8g
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      7.6546829464960719E-003         Nfun:          32
             alpha(1) = 0.361922956953E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      9.1507803362755880E-005         Nfun:          56
@@ -1127,7 +1134,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (34) ! 8h
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      2.0263452932776316E-002         Nfun:          30
             alpha(1) = 0.429683678636E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      3.1675309856771250E-004         Nfun:          55
@@ -1159,7 +1166,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (35) ! 8i
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      3.6610861464450251E-002         Nfun:          28
             alpha(1) = 0.497681342869E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      1.2037998634699676E-003         Nfun:          54
@@ -1191,7 +1198,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (36) ! 8k
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      5.4828647243574391E-002         Nfun:          31
             alpha(1) = 0.565862527158E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      2.6585281818616302E-003         Nfun:          58
@@ -1223,7 +1230,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (37) ! 9s
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error     0.18725174229991048              Nfun:          27
             alpha(1) = 0.769349917851E-02_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      5.4066663410257121E-003         Nfun:        5000
@@ -1255,7 +1262,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (38) ! 9p
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      6.6567424680416876E-002         Nfun:          27
             alpha(1) = 0.129537478531E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      5.7874505043797875E-004         Nfun:          59
@@ -1287,7 +1294,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (39) ! 9d
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      1.9446423107279065E-002         Nfun:          29
             alpha(1) = 0.182773605707E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      1.7827653387159081E-004         Nfun:          60
@@ -1319,7 +1326,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (40) ! 9f
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      3.5866854898298772E-003         Nfun:          30
             alpha(1) = 0.236451214456E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      5.7884916918893303E-004         Nfun:          56
@@ -1351,7 +1358,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (41) ! 9g
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      3.2311360041026305E-003         Nfun:          28
             alpha(1) = 0.290448768988E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      4.0309036684949007E-004         Nfun:          58
@@ -1383,7 +1390,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (42) ! 9h
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      1.1167176664406142E-002         Nfun:          28
             alpha(1) = 0.344685478967E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      6.8510386961317948E-005         Nfun:          58
@@ -1415,7 +1422,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (43) ! 9i
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      2.3689235998586300E-002         Nfun:          31
             alpha(1) = 0.399105521873E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      4.5496038034653630E-004         Nfun:          55
@@ -1447,7 +1454,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (44) ! 9k
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      3.8748038276702701E-002         Nfun:          30
             alpha(1) = 0.453669165294E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      1.3169626327722561E-003         Nfun:          59
@@ -1479,7 +1486,7 @@ CONTAINS
             CPABORT("Illegal expansion")
          END SELECT
       CASE (45) ! 9l
-         SELECT CASE (n)
+         SELECT CASE (nn)
          CASE (1) ! Final Error      5.5152499658008169E-002         Nfun:          28
             alpha(1) = 0.508347257404E-01_dp; coef(1) = 0.100000000000E+01_dp
          CASE (2) ! Final Error      2.6242963416316378E-003         Nfun:          54
@@ -1515,7 +1522,7 @@ CONTAINS
          CPABORT("Illegal STO")
       END SELECT
       ! scaling: a = zeta^2 * a
-      alpha(1:n) = zeta**2*alpha(1:n)
+      alpha(1:nn) = zeta**2*alpha(1:nn)
 
    END SUBROUTINE get_sto_ng
 
