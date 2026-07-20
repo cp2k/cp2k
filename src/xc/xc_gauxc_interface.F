@@ -817,6 +817,10 @@ CONTAINS
       END IF
 
       IF (nspins == 1) THEN
+         ! xmat factor 2 is applied by both CP2K and GauXC
+         ! "unapply" it here to even things back out.
+         ! This is NOT necessary in the Skala branch.
+         density_scalar = 0.5_dp*density_scalar
          CALL gauxc_integrator_eval_exc_vxc_rks( &
             status%status, &
             integrator%integrator, &
