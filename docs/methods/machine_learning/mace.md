@@ -22,7 +22,6 @@ python create_cp2k_model.py my_mace.model --dtype float64
 ```
 
 This conversion only needs to be performed once on a machine with both `torch` and `mace` installed.
-
 The resulting `*.pth` file uses the same tensor and metadata format as the NequIP interface (inputs
 `pos`, `edge_index`, `edge_cell_shift`, `cell`, `atom_types`; outputs `atomic_energy`, `forces`,
 `virial`) and embeds the metadata (`num_types`, `r_max`, `type_names`, `model_dtype`) that CP2K
@@ -40,9 +39,6 @@ section within the `&NONBONDED` forcefield parameters:
     &MACE
       ATOMS Cu
       POT_FILE_NAME MACE/my_mace.model-cp2k.pth
-      UNIT_ENERGY eV
-      UNIT_FORCES eV*angstrom^-1
-      UNIT_LENGTH angstrom
     &END MACE
   &END NONBONDED
 &END FORCEFIELD
@@ -52,8 +48,6 @@ section within the `&NONBONDED` forcefield parameters:
   mapping to the model type list must be consistent with the coordinates in `&COORDS`/`&TOPOLOGY`.
 - [POT_FILE_NAME](#CP2K_INPUT.FORCE_EVAL.MM.FORCEFIELD.NONBONDED.MACE.POT_FILE_NAME): path to the
   exported MACE model.
-- **`UNIT_*`**: define the units of the model's internal lengths, energies, and forces (standard
-  MACE models use eV / Angstrom).
 
 MACE is a message-passing model with a non-local receptive field. As with NequIP, the interface
 evaluates the full system on every MPI rank and divides the energy, forces, and virial by the number

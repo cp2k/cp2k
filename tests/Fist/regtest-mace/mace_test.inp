@@ -13,9 +13,6 @@
         &MACE
           ATOMS Cu
           POT_FILE_NAME MACE/MACE_scratch_run-3.model-cp2k.pth
-          UNIT_ENERGY eV
-          UNIT_FORCES eV*angstrom^-1
-          UNIT_LENGTH angstrom
         &END MACE
       &END NONBONDED
     &END FORCEFIELD
@@ -33,7 +30,8 @@
   &END PRINT
   &SUBSYS
     &CELL
-      ABC 7.230000 7.230000 7.230000
+      CELL_FILE_FORMAT XYZ
+      CELL_FILE_NAME ./mace-test.xyz
     &END CELL
     &TOPOLOGY
       COORD_FILE_FORMAT XYZ

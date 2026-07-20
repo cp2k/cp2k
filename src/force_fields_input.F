@@ -135,9 +135,11 @@ CONTAINS
       SELECT CASE (ff_type%ff_type)
       CASE (do_ff_charmm, do_ff_amber, do_ff_g96, do_ff_g87)
          CALL section_vals_val_get(ff_section, "PARM_FILE_NAME", c_val=ff_type%ff_file_name)
+
          IF (TRIM(ff_type%ff_file_name) == "") THEN
             CPABORT("Force Field Parameter's filename is empty! Please check your input file.")
          END IF
+
       CASE (do_ff_undef)
          ! Do Nothing
       CASE DEFAULT
@@ -554,6 +556,7 @@ CONTAINS
          ipbv%a(15) = 12917180227.21_dp
       ELSE IF (((at1(1:1) == 'O') .AND. (at2(1:1) == 'H')) .OR. &
                ((at1(1:1) == 'H') .AND. (at2(1:1) == 'O'))) THEN
+
          ipbv%rcore = 2.95_dp ! a.u.
 
          ipbv%m = -0.004025691139759147_dp ! Hartree/a.u.
@@ -615,6 +618,7 @@ CONTAINS
          ft%d = cp_unit_to_cp2k(0.499_dp, "eV*angstrom^8")
       ELSE IF (((at1(1:2) == 'NA') .AND. (at2(1:2) == 'CL')) .OR. &
                ((at1(1:2) == 'CL') .AND. (at2(1:2) == 'NA'))) THEN
+
          ft%a = cp_unit_to_cp2k(1256.31_dp, "eV")
          ft%c = cp_unit_to_cp2k(7.00_dp, "eV*angstrom^6")
          ft%d = cp_unit_to_cp2k(8.676_dp, "eV*angstrom^8")
@@ -851,8 +855,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: section
       INTEGER, INTENT(IN)                                :: start
 
-      CHARACTER(LEN=default_string_length)               :: pot_file_name, unit_energy, unit_forces, &
-                                                            unit_length
+      CHARACTER(LEN=default_string_length)               :: pot_file_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names
       INTEGER                                            :: isec, jsec, n_items
@@ -863,14 +866,12 @@ CONTAINS
       n_items = isec*n_items
       CALL section_vals_val_get(section, "ATOMS", c_vals=atm_names)
       CALL section_vals_val_get(section, "POT_FILE_NAME", c_val=pot_file_name)
-      CALL section_vals_val_get(section, "UNIT_LENGTH", c_val=unit_length)
-      CALL section_vals_val_get(section, "UNIT_ENERGY", c_val=unit_energy)
-      CALL section_vals_val_get(section, "UNIT_FORCES", c_val=unit_forces)
 
       mace%pot_file_name = discover_file(pot_file_name)
-      mace%unit_length = unit_length
-      mace%unit_forces = unit_forces
-      mace%unit_energy = unit_energy
+      ! MACE models use standardized units: Angstrom, eV and eV/Angstrom
+      mace%unit_length = "angstrom"
+      mace%unit_energy = "eV"
+      mace%unit_forces = "eV/Angstrom"
       ! MACE models are exported to speak the same metadata/tensor dialect as NequIP
       CALL read_nequip_data(mace)
       CALL check_cp2k_atom_names_in_torch(atm_names, mace%type_names_torch)
@@ -1336,11 +1337,13 @@ CONTAINS
             ! Calculate p_inv the inverse of the matrix p
             p_inv(:, :) = 0.0_dp
             CALL invert_matrix(p, p_inv, eval_error)
+
             IF (eval_error >= 1.0E-8_dp) THEN
                CALL cp_warn(__LOCATION__, &
                             "The polynomial fit for the BUCK4RANGES potential is only accurate to "// &
                             TRIM(cp_to_string(eval_error)))
             END IF
+
             ! Get the 6 coefficients of the 5th-order polynomial -> x(1:6)
             ! and the 4 coefficients of the 3rd-order polynomial -> x(7:10)
             x(:) = MATMUL(p_inv(:, :), v(:))

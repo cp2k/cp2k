@@ -1520,32 +1520,10 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="POT_FILE_NAME", &
                           variants=["MODEL_FILE_NAME"], &
-                          description="Specifies the filename that contains the exported MACE model.", &
+                          description="Specifies the filename that contains the exported MACE model. "// &
+                          "MACE models use standardized units (Angstrom for length, eV for energy, "// &
+                          "eV/Angstrom for forces), so no unit keywords are required.", &
                           usage="POT_FILE_NAME {FILENAME}", default_lc_val=" ")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="UNIT_LENGTH", &
-                          description="Units of length in the MACE model file. "// &
-                          "The units of positions, cell, energies and forces must be self-consistent: "// &
-                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT_LENGTH angstrom", default_c_val="angstrom")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="UNIT_ENERGY", &
-                          description="Units of energy in the MACE model file. "// &
-                          "The units of positions, energies and forces must be self-consistent: "// &
-                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT_ENERGY hartree", default_c_val="eV")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="UNIT_FORCES", &
-                          description="Units of the forces in the MACE model file. "// &
-                          "The units of positions, energies and forces must be self-consistent: "// &
-                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT_FORCES hartree/bohr", default_c_val="eV/Angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
