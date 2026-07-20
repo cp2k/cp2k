@@ -985,10 +985,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_qs_section'
 
+      CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: cval
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: clist
-      CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: handle, itmp, j, jj, k, n_rep, n_var, &
                                                             ngauss, ngp, nrep, znum
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
@@ -1867,7 +1867,6 @@ CONTAINS
             ALLOCATE (qs_control%xtb_control%spinpol_vals(6, n_rep))
             DO j = 1, n_rep
                CALL section_vals_val_get(xtb_parameter, "SPIN_POL_PARAM", i_rep_val=j, c_vals=clist)
-!deb           READ (clist(1), '(I3)') qs_control%xtb_control%spinpol_type(j)
                READ (clist(1), '(A)') cval
                element_symbol = ADJUSTL(TRIM(cval))
                CALL get_ptable_info(element_symbol, znum)

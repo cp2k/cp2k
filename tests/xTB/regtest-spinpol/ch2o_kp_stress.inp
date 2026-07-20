@@ -36,7 +36,7 @@
       MAX_SCF 100
       SCF_GUESS MOPAC
       &MIXING
-        ALPHA 0.15
+        ALPHA 0.40
       &END MIXING
     &END SCF
   &END DFT
