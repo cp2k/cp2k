@@ -30,6 +30,8 @@ MODULE manybody_potential
                                               ace_energy_store_force_virial
    USE manybody_deepmd,                 ONLY: deepmd_add_force_virial,&
                                               deepmd_energy_store_force_virial
+   USE manybody_e3nn,                   ONLY: e3nn_add_force_virial,&
+                                              e3nn_energy_store_force_virial
    USE manybody_eam,                    ONLY: get_force_eam
    USE manybody_gal,                    ONLY: destroy_gal_arrays,&
                                               gal_energy,&
@@ -39,8 +41,6 @@ MODULE manybody_potential
                                               gal21_energy,&
                                               gal21_forces,&
                                               setup_gal21_arrays
-   USE manybody_nequip,                 ONLY: nequip_add_force_virial,&
-                                              nequip_energy_store_force_virial
    USE manybody_siepmann,               ONLY: destroy_siepmann_arrays,&
                                               print_nr_ions_siepmann,&
                                               setup_siepmann_arrays,&
@@ -192,28 +192,28 @@ CONTAINS
       ! NEQUIP
       IF (any_nequip) THEN
          NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a)
-         CALL nequip_energy_store_force_virial(nonbonded, particle_set, local_particles, cell, &
-                                               atomic_kind_set, potparm, r_last_update_pbc, &
-                                               pot_nequip, fist_nonbond_env, &
-                                               para_env, use_virial, nequip_type)
+         CALL e3nn_energy_store_force_virial(nonbonded, particle_set, local_particles, cell, &
+                                             atomic_kind_set, potparm, r_last_update_pbc, &
+                                             pot_nequip, fist_nonbond_env, &
+                                             para_env, use_virial, nequip_type)
          pot_manybody = pot_manybody + pot_nequip
       END IF
       ! ALLEGRO
       IF (any_allegro) THEN
          NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a)
-         CALL nequip_energy_store_force_virial(nonbonded, particle_set, local_particles, cell, &
-                                               atomic_kind_set, potparm, r_last_update_pbc, &
-                                               pot_allegro, fist_nonbond_env, &
-                                               para_env, use_virial, allegro_type)
+         CALL e3nn_energy_store_force_virial(nonbonded, particle_set, local_particles, cell, &
+                                             atomic_kind_set, potparm, r_last_update_pbc, &
+                                             pot_allegro, fist_nonbond_env, &
+                                             para_env, use_virial, allegro_type)
          pot_manybody = pot_manybody + pot_allegro
       END IF
       ! MACE (reuses the NequIP message-passing evaluation path)
       IF (any_mace) THEN
          NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a)
-         CALL nequip_energy_store_force_virial(nonbonded, particle_set, local_particles, cell, &
-                                               atomic_kind_set, potparm, r_last_update_pbc, &
-                                               pot_mace, fist_nonbond_env, &
-                                               para_env, use_virial, mace_type)
+         CALL e3nn_energy_store_force_virial(nonbonded, particle_set, local_particles, cell, &
+                                             atomic_kind_set, potparm, r_last_update_pbc, &
+                                             pot_mace, fist_nonbond_env, &
+                                             para_env, use_virial, mace_type)
          pot_manybody = pot_manybody + pot_mace
       END IF
       ! ACE
@@ -673,7 +673,7 @@ CONTAINS
          END DO
       END DO
       IF (any_nequip) THEN
-         CALL nequip_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
+         CALL e3nn_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
       END IF
 
       ! ALLEGRO
@@ -683,7 +683,7 @@ CONTAINS
          END DO
       END DO
       IF (any_allegro) THEN
-         CALL nequip_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
+         CALL e3nn_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
       END IF
 
       ! MACE (reuses the NequIP force/virial accumulation)
@@ -693,7 +693,7 @@ CONTAINS
          END DO
       END DO
       IF (any_mace) THEN
-         CALL nequip_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
+         CALL e3nn_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
       END IF
 
       ! starting the force loop
