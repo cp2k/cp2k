@@ -5,9 +5,13 @@ Export a trained MACE model to a TorchScript file that can be loaded by CP2K.
 The export script must be executed in an environment where MACE is installed.
 
 Required packages:
-  * torch
-  * e3nn
-  * mace-torch
+  * torch: required for loading and converting the model.
+  * e3nn: required by MACE for JIT compilation.
+  * mace-torch: required because the trained MACE model is loaded using
+    torch and its original model classes must be available.
+
+The MACE version used for export should be compatible with the version
+used for training the model.
 
 After exporting, the CP2K-compatible `.pth` file can be loaded by CP2K
 through the LibTorch interface. No MACE, e3nn, or Python installation is
@@ -42,6 +46,8 @@ chemical_symbols = ["X"] + """
 @compile_mode("script")
 class CP2K_MACE(torch.nn.Module):
     """MACE model wrapped for CP2K's single-dictionary libtorch interface."""
+
+    head: torch.Tensor
 
     def __init__(self, model: Any, head: Optional[str] = None) -> None:
         super().__init__()
