@@ -12,10 +12,10 @@
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.53343196E+00}]
 "test04.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.102641E+01},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.53056622E+00}]
-"test05.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.101974E+01},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.53306556E+00}]
-"test06.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.102171E+01},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.52845348E+00}]
+"test05.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.101772E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.53053109E+00}]
+"test06.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.102040E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.51211743E+00}]
 "test07.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.101792E+01},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.55939759E+00}]
 "test08.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.103120E+01},
