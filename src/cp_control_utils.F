@@ -988,8 +988,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: cval
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: clist
+      CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: handle, itmp, j, jj, k, n_rep, n_var, &
-                                                            ngauss, ngp, nrep
+                                                            ngauss, ngp, nrep, znum
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL :: dftb_scc_mixer_explicit, dftb_tblite_mixer_explicit, explicit, &
          tblite_reference_cli, tblite_reference_cli_section, tblite_section_active, was_present, &
@@ -1866,7 +1867,11 @@ CONTAINS
             ALLOCATE (qs_control%xtb_control%spinpol_vals(6, n_rep))
             DO j = 1, n_rep
                CALL section_vals_val_get(xtb_parameter, "SPIN_POL_PARAM", i_rep_val=j, c_vals=clist)
-               READ (clist(1), '(I3)') qs_control%xtb_control%spinpol_type(j)
+!deb           READ (clist(1), '(I3)') qs_control%xtb_control%spinpol_type(j)
+               READ (clist(1), '(A)') cval
+               element_symbol = ADJUSTL(TRIM(cval))
+               CALL get_ptable_info(element_symbol, znum)
+               qs_control%xtb_control%spinpol_type(j) = znum
                READ (clist(2), '(F20.8)') qs_control%xtb_control%spinpol_vals(1, j)
                READ (clist(3), '(F20.8)') qs_control%xtb_control%spinpol_vals(2, j)
                READ (clist(4), '(F20.8)') qs_control%xtb_control%spinpol_vals(3, j)

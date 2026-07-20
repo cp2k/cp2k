@@ -448,7 +448,7 @@ CONTAINS
                           description="Specify file that contains parameters for "// &
                           "xTB spin polarisation Hamiltonian", &
                           usage="SPINPOL_PARAM_FILE_NAME filename", &
-                          n_var=1, type_of_var=char_t, default_c_val="xTB_spin_pol_params")
+                          n_var=1, type_of_var=char_t, default_c_val="xTB_sp_param_060")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
