@@ -184,7 +184,7 @@ spack:
 
   repos:
     builtin:
-      commit: fc7222b5b8ababa8588be2e23ff39b33ecc9ce12 # 2026-07-09
+      commit: 9314cd0194cb79e73b44927e920130cd4379f012 # 2026-07-20
 
   specs:
     # Build tools
@@ -215,7 +215,7 @@ spack:
     - "libsmeagol@1.2"
     - "libvdwxc@0.5.0"
     - "libvori@220621"
-    - "libxc@7.0.0"
+    - "libxc@7.1.1"
     - "libxs@1.0.0"
     - "libxsmm@2.0.0"
 #   - "libxstream@1.0.0"
