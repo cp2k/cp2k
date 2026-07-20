@@ -287,9 +287,8 @@ GFN2-xTB method. Please note that k-points are fully supported for tblite in CP2
 
 In case of open-shell calculations, a spin-polarization term can be enabled with the
 [LSD](#CP2K_INPUT.FORCE_EVAL.DFT.UKS) keyword in CP2K. In this case, tblite automatically allows the
-usage of spGFN2-xTB for calculations as described in
-[Neugebauer2023](https://onlinelibrary.wiley.com/doi/full/10.1002/jcc.27185). An example for triplet
-oxygen is shown here.
+usage of spGFN2-xTB for calculations as described in [Neugebauer2023](#Neugebauer2023). An example
+for triplet oxygen is shown here.
 
 ```
 &FORCE_EVAL

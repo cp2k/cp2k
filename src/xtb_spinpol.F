@@ -234,14 +234,12 @@ CONTAINS
                   na = SIZE(pamat, 1)
                   nb = SIZE(pamat, 2)
 
-                  fval = 1.0_dp
-
                   DO i = 1, 3
                      CALL dbcsr_get_block_p(matrix=matrix_s(1 + i, 1)%matrix, &
                                             row=irow, col=icol, block=dsblock, found=found)
                      CPASSERT(found)
 
-                     CALL fupdate(fi, pamat, pbmat, dsblock, na, nb, fval, &
+                     CALL fupdate(fi, pamat, pbmat, dsblock, na, nb, &
                                   wabk(1:na, 1:na, ikind), wabk(1:nb, 1:nb, jkind), &
                                   aocg(1:na, irow), aocg(1:nb, icol), bocg(1:na, irow), bocg(1:nb, icol))
 
@@ -279,19 +277,18 @@ CONTAINS
                                     na = SIZE(pamat, 1)
                                     nb = SIZE(pamat, 2)
                                     ALLOCATE (pam(na, nb), pbm(na, nb))
-                                    pam = pamat
-                                    pbm = pbmat
+                                    pam(1:na, 1:nb) = pamat(1:na, 1:nb)
+                                    pbm(1:na, 1:nb) = pbmat(1:na, 1:nb)
                                  ELSE
                                     na = SIZE(pamat, 2)
                                     nb = SIZE(pamat, 1)
                                     ALLOCATE (pam(na, nb), pbm(na, nb))
-                                    pam = TRANSPOSE(pamat)
-                                    pbm = TRANSPOSE(pbmat)
+                                    pam(1:na, 1:nb) = TRANSPOSE(pamat(1:nb, 1:na))
+                                    pbm(1:na, 1:nb) = TRANSPOSE(pbmat(1:nb, 1:na))
                                  END IF
 
-                                 fval = 1.0_dp
                                  DO i = 1, 3
-                                    CALL fupdate(fi, pam, pbm, dsint(:, :, i), na, nb, fval, &
+                                    CALL fupdate(fi, pam, pbm, dsint(:, :, i), na, nb, &
                                                  wabk(1:na, 1:na, ikind), wabk(1:nb, 1:nb, jkind), &
                                                  aocg(1:na, iatom), aocg(1:nb, jatom), &
                                                  bocg(1:na, iatom), bocg(1:nb, jatom))
@@ -349,15 +346,13 @@ CONTAINS
                   na = SIZE(pamat, 1)
                   nb = SIZE(pamat, 2)
 
-                  fval = 1.0_dp
-
                   fij = 0.0_dp
                   DO i = 1, 3
                      CALL dbcsr_get_block_p(matrix=matrix_s(1 + i, ic)%matrix, &
                                             row=irow, col=icol, block=dsblock, found=found)
                      CPASSERT(found)
 
-                     CALL fupdate(fi, pamat, pbmat, dsblock, na, nb, fval, &
+                     CALL fupdate(fi, pamat, pbmat, dsblock, na, nb, &
                                   wabk(1:na, 1:na, iknd), wabk(1:nb, 1:nb, jknd), &
                                   aocg(1:na, irow), aocg(1:nb, icol), bocg(1:na, irow), bocg(1:nb, icol))
 
@@ -480,7 +475,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: s_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
@@ -581,7 +575,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(25)                             :: lao
       LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: fi, fval
+      REAL(KIND=dp)                                      :: fi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, aocg1, bocg, bocg1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: wabk
       REAL(KIND=dp), DIMENSION(3, 3)                     :: wall
@@ -685,15 +679,13 @@ CONTAINS
             na = SIZE(p0amat, 1)
             nb = SIZE(p0amat, 2)
 
-            fval = 1.0_dp
-
             DO i = 1, 3
                CALL dbcsr_get_block_p(matrix=matrix_s(1 + i)%matrix, &
                                       row=irow, col=icol, block=dsblock, found=found)
                CPASSERT(found)
 
                fi = 0.0_dp
-               CALL f2update(fi, p0amat, p0bmat, p1amat, p1bmat, dsblock, na, nb, fval, &
+               CALL f2update(fi, p0amat, p0bmat, p1amat, p1bmat, dsblock, na, nb, &
                              wabk(1:na, 1:na, ikind), wabk(1:nb, 1:nb, jkind), &
                              aocg(1:na, irow), aocg(1:nb, icol), &
                              bocg(1:na, irow), bocg(1:nb, icol), &
@@ -766,7 +758,6 @@ CONTAINS
 !> \param ds ...
 !> \param na ...
 !> \param nb ...
-!> \param fval ...
 !> \param wabi ...
 !> \param wabj ...
 !> \param qai ...
@@ -774,13 +765,12 @@ CONTAINS
 !> \param qbi ...
 !> \param qbj ...
 ! **************************************************************************************************
-   SUBROUTINE fupdate(fij, pa, pb, ds, na, nb, fval, &
+   SUBROUTINE fupdate(fij, pa, pb, ds, na, nb, &
                       wabi, wabj, qai, qaj, qbi, qbj)
 
       REAL(KIND=dp), INTENT(OUT)                         :: fij
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: pa, pb, ds
       INTEGER, INTENT(IN)                                :: na, nb
-      REAL(KIND=dp), INTENT(IN)                          :: fval
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: wabi, wabj
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: qai, qaj, qbi, qbj
 
@@ -817,7 +807,6 @@ CONTAINS
 !> \param ds ...
 !> \param na ...
 !> \param nb ...
-!> \param fval ...
 !> \param wabi ...
 !> \param wabj ...
 !> \param qai ...
@@ -829,13 +818,12 @@ CONTAINS
 !> \param rbi ...
 !> \param rbj ...
 ! **************************************************************************************************
-   SUBROUTINE f2update(fij, p0a, p0b, p1a, p1b, ds, na, nb, fval, wabi, wabj, &
+   SUBROUTINE f2update(fij, p0a, p0b, p1a, p1b, ds, na, nb, wabi, wabj, &
                        qai, qaj, qbi, qbj, rai, raj, rbi, rbj)
 
       REAL(KIND=dp), INTENT(OUT)                         :: fij
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: p0a, p0b, p1a, p1b, ds
       INTEGER, INTENT(IN)                                :: na, nb
-      REAL(KIND=dp), INTENT(IN)                          :: fval
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: wabi, wabj
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: qai, qaj, qbi, qbj, rai, raj, rbi, rbj
 
