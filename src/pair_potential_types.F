@@ -54,9 +54,10 @@ MODULE pair_potential_types
                                  gal21_type = 18, &
                                  tab_type = 19, &
                                  deepmd_type = 20, &
-                                 ace_type = 21
+                                 ace_type = 21, &
+                                 mace_type = 22
 
-   INTEGER, PUBLIC, PARAMETER, DIMENSION(21) :: list_pot = [nn_type, &
+   INTEGER, PUBLIC, PARAMETER, DIMENSION(22) :: list_pot = [nn_type, &
                                                             lj_type, &
                                                             lj_charmm_type, &
                                                             ft_type, &
@@ -76,7 +77,8 @@ MODULE pair_potential_types
                                                             gal21_type, &
                                                             tab_type, &
                                                             deepmd_type, &
-                                                            ace_type]
+                                                            ace_type, &
+                                                            mace_type]
 
    ! Shell model
    INTEGER, PUBLIC, PARAMETER :: nosh_nosh = 0, &
@@ -468,7 +470,7 @@ CONTAINS
          CASE (deepmd_type)
             IF ((pot1%set(i)%deepmd%deepmd_file_name == pot2%set(i)%deepmd%deepmd_file_name) .AND. &
                 (pot1%set(i)%deepmd%atom_deepmd_type == pot2%set(i)%deepmd%atom_deepmd_type)) mycompare = .TRUE.
-         CASE (nequip_type, allegro_type)
+         CASE (nequip_type, allegro_type, mace_type)
             IF ((pot1%set(i)%nequip%pot_file_name == pot2%set(i)%nequip%pot_file_name) .AND. &
                 (pot1%set(i)%nequip%unit_length == pot2%set(i)%nequip%unit_length) .AND. &
                 (pot1%set(i)%nequip%unit_forces == pot2%set(i)%nequip%unit_forces) .AND. &
@@ -1289,7 +1291,7 @@ CONTAINS
             CALL pair_potential_goodwin_create(p%pot(i)%pot%set(std_dim)%goodwin)
          CASE (ea_type)
             CALL pair_potential_eam_create(p%pot(i)%pot%set(std_dim)%eam)
-         CASE (nequip_type, allegro_type)
+         CASE (nequip_type, allegro_type, mace_type)
             CALL pair_potential_nequip_create(p%pot(i)%pot%set(std_dim)%nequip)
          CASE (ace_type)
             CALL pair_potential_ace_create(p%pot(i)%pot%set(std_dim)%ace)

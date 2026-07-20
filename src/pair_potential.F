@@ -31,7 +31,7 @@ MODULE pair_potential
    USE pair_potential_types,            ONLY: &
         ace_type, allegro_type, b4_type, bm_type, compare_pot, deepmd_type, ea_type, ft_type, &
         ftd_type, gal21_type, gal_type, gp_type, gw_type, ip_type, list_pot, lj_charmm_type, &
-        lj_type, multi_type, nequip_type, nn_type, pair_potential_pp_type, &
+        lj_type, mace_type, multi_type, nequip_type, nn_type, pair_potential_pp_type, &
         pair_potential_single_type, potential_single_allocation, siepmann_type, tab_type, &
         tersoff_type, wl_type
    USE pair_potential_util,             ONLY: ener_pot,&
@@ -188,7 +188,8 @@ CONTAINS
             DO k = 1, SIZE(pot%type)
                SELECT CASE (pot%type(k))
                CASE (lj_type, lj_charmm_type, wl_type, gw_type, ft_type, ftd_type, ip_type, &
-                     b4_type, bm_type, gp_type, ea_type, allegro_type, nequip_type, tab_type, deepmd_type, ace_type)
+                     b4_type, bm_type, gp_type, ea_type, allegro_type, nequip_type, mace_type, tab_type, &
+                     deepmd_type, ace_type)
                   pot%no_pp = .FALSE.
                CASE (tersoff_type)
                   pot%no_mb = .FALSE.
@@ -206,7 +207,7 @@ CONTAINS
                END SELECT
                ! Special case for EAM
                SELECT CASE (pot%type(k))
-               CASE (ea_type, nequip_type, allegro_type, deepmd_type, ace_type)
+               CASE (ea_type, nequip_type, allegro_type, mace_type, deepmd_type, ace_type)
                   pot%no_mb = .FALSE.
                END SELECT
             END DO
@@ -605,7 +606,7 @@ CONTAINS
             nvar = 5 + nvar
          CASE (ea_type)
             nvar = 4 + nvar
-         CASE (nequip_type)
+         CASE (nequip_type, mace_type)
             nvar = 1 + nvar
          CASE (allegro_type)
             nvar = 1 + nvar
@@ -688,7 +689,7 @@ CONTAINS
                         pot_par(nk, 2) = potparm%pot(i, j)%pot%set(1)%eam%drhoar
                         pot_par(nk, 3) = potparm%pot(i, j)%pot%set(1)%eam%acutal
                         pot_par(nk, 4) = potparm%pot(i, j)%pot%set(1)%eam%npoints
-                     CASE (nequip_type, allegro_type)
+                     CASE (nequip_type, allegro_type, mace_type)
                         pot_par(nk, 1) = str2id( &
                                          TRIM(potparm%pot(i, j)%pot%set(1)%nequip%pot_file_name))
                      CASE (ace_type)

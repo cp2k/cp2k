@@ -38,9 +38,9 @@ MODULE fist_nonbond_force
    USE message_passing,                 ONLY: mp_comm_type
    USE pair_potential_coulomb,          ONLY: potential_coulomb
    USE pair_potential_types,            ONLY: &
-        ace_type, allegro_type, deepmd_type, gal21_type, gal_type, nequip_type, nosh_nosh, &
-        nosh_sh, pair_potential_pp_type, pair_potential_single_type, sh_sh, siepmann_type, &
-        tersoff_type
+        ace_type, allegro_type, deepmd_type, gal21_type, gal_type, mace_type, nequip_type, &
+        nosh_nosh, nosh_sh, pair_potential_pp_type, pair_potential_single_type, sh_sh, &
+        siepmann_type, tersoff_type
    USE particle_types,                  ONLY: particle_type
    USE shell_potential_types,           ONLY: get_shell,&
                                               shell_kind_type
@@ -231,6 +231,7 @@ CONTAINS
                full_nl = ANY(pot%type == tersoff_type) .OR. ANY(pot%type == siepmann_type) &
                          .OR. ANY(pot%type == gal_type) .OR. ANY(pot%type == gal21_type) &
                          .OR. ANY(pot%type == nequip_type) .OR. ANY(pot%type == allegro_type) &
+                         .OR. ANY(pot%type == mace_type) &
                          .OR. ANY(pot%type == ace_type) .OR. ANY(pot%type == deepmd_type)
                IF ((.NOT. full_nl) .AND. (atom_a == atom_b)) THEN
                   fac_ei = 0.5_dp*fac_ei
@@ -722,6 +723,7 @@ CONTAINS
                full_nl = ANY(pot%type == tersoff_type) .OR. ANY(pot%type == siepmann_type) &
                          .OR. ANY(pot%type == gal_type) .OR. ANY(pot%type == gal21_type) &
                          .OR. ANY(pot%type == nequip_type) .OR. ANY(pot%type == allegro_type) &
+                         .OR. ANY(pot%type == mace_type) &
                          .OR. ANY(pot%type == ace_type) .OR. ANY(pot%type == deepmd_type)
                IF ((.NOT. full_nl) .AND. (atom_a == atom_b)) THEN
                   fac_ei = fac_ei*0.5_dp

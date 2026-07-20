@@ -1,0 +1,41 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT mace_test
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  #STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &MACE
+          ATOMS Cu
+          POT_FILE_NAME MACE/MACE_scratch_run-3.model-cp2k.pth
+        &END MACE
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES ON
+    &END FORCES
+    #&STRESS_TENSOR ON
+    #&END STRESS_TENSOR
+  &END PRINT
+  &SUBSYS
+    &CELL
+      CELL_FILE_FORMAT XYZ
+      CELL_FILE_NAME ./mace-test.xyz
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_FORMAT XYZ
+      COORD_FILE_NAME ./mace-test.xyz
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

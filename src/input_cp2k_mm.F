@@ -15,9 +15,9 @@
 ! **************************************************************************************************
 MODULE input_cp2k_mm
    USE bibliography,                    ONLY: &
-        Batzner2022, Bochkarev2024, Clabaut2020, Clabaut2021, Devynck2012, Dick1958, Drautz2019, &
-        Foiles1986, Lysogorskiy2021, Mitchell1993, Musaelian2023, Siepmann1995, Tan2025, &
-        Tersoff1988, Tosi1964a, Tosi1964b, Wang2018, Yamada2000, Zeng2023
+        Batatia2022, Batzner2022, Bochkarev2024, Clabaut2020, Clabaut2021, Devynck2012, Dick1958, &
+        Drautz2019, Foiles1986, Lysogorskiy2021, Mitchell1993, Musaelian2023, Siepmann1995, &
+        Tan2025, Tersoff1988, Tosi1964a, Tosi1964b, Wang2018, Yamada2000, Zeng2023
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               debug_print_level,&
                                               high_print_level,&
@@ -1185,6 +1185,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_MACE_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_DEEPMD_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -1482,6 +1486,48 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_NEQUIP_section
+
+! **************************************************************************************************
+!> \brief This section specifies the input parameters for MACE potential type
+!> \param section the section to create
+!> \author Xinyue Sun
+! **************************************************************************************************
+   SUBROUTINE create_MACE_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="MACE", &
+                          description="This section specifies the input parameters for MACE potential type, "// &
+                          "a higher-order equivariant message-passing neural network. "// &
+                          "The MACE model must be exported to a TorchScript file that takes a single "// &
+                          "dictionary argument (see the create_cp2k_model.py helper). "// &
+                          "Requires linking with libtorch library from <https://pytorch.org/cppdocs/installing.html>.", &
+                          citations=[Batatia2022], n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
+                          description="Defines the atomic kinds involved in the MACE potential. "// &
+                          "Provide a list of each element, making sure that the mapping from the ATOMS list "// &
+                          "to MACE atom types is correct. This mapping should also be consistent for the "// &
+                          "atomic coordinates as specified in the sections COORDS or TOPOLOGY.", &
+                          usage="ATOMS {KIND 1} {KIND 2} .. {KIND N}", type_of_var=char_t, &
+                          n_var=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="POT_FILE_NAME", &
+                          variants=["MODEL_FILE_NAME"], &
+                          description="Specifies the filename that contains the exported MACE model. "// &
+                          "MACE models use standardized units (Angstrom for length, eV for energy, "// &
+                          "eV/Angstrom for forces), so no unit keywords are required.", &
+                          usage="POT_FILE_NAME {FILENAME}", default_lc_val=" ")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_MACE_section
 
 ! **************************************************************************************************
 !> \brief This section specifies the input parameters for ACE potential type

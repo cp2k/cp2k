@@ -30,6 +30,8 @@ MODULE manybody_potential
                                               ace_energy_store_force_virial
    USE manybody_deepmd,                 ONLY: deepmd_add_force_virial,&
                                               deepmd_energy_store_force_virial
+   USE manybody_e3nn,                   ONLY: e3nn_add_force_virial,&
+                                              e3nn_energy_store_force_virial
    USE manybody_eam,                    ONLY: get_force_eam
    USE manybody_gal,                    ONLY: destroy_gal_arrays,&
                                               gal_energy,&
@@ -39,8 +41,6 @@ MODULE manybody_potential
                                               gal21_energy,&
                                               gal21_forces,&
                                               setup_gal21_arrays
-   USE manybody_nequip,                 ONLY: nequip_add_force_virial,&
-                                              nequip_energy_store_force_virial
    USE manybody_siepmann,               ONLY: destroy_siepmann_arrays,&
                                               print_nr_ions_siepmann,&
                                               setup_siepmann_arrays,&
@@ -54,8 +54,9 @@ MODULE manybody_potential
    USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: &
         ace_type, allegro_type, deepmd_type, ea_type, eam_pot_type, gal21_pot_type, gal21_type, &
-        gal_pot_type, gal_type, nequip_type, pair_potential_pp_type, pair_potential_single_type, &
-        siepmann_pot_type, siepmann_type, tersoff_pot_type, tersoff_type
+        gal_pot_type, gal_type, mace_type, nequip_type, pair_potential_pp_type, &
+        pair_potential_single_type, siepmann_pot_type, siepmann_type, tersoff_pot_type, &
+        tersoff_type
    USE particle_types,                  ONLY: particle_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -105,11 +106,11 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
       LOGICAL                                            :: any_ace, any_allegro, any_deepmd, &
-                                                            any_gal, any_gal21, any_nequip, &
-                                                            any_siepmann, any_tersoff
+                                                            any_gal, any_gal21, any_mace, &
+                                                            any_nequip, any_siepmann, any_tersoff
       REAL(KIND=dp)                                      :: drij, embed, pot_ace, pot_allegro, &
-                                                            pot_deepmd, pot_loc, pot_nequip, qr, &
-                                                            rab2_max, rij(3)
+                                                            pot_deepmd, pot_loc, pot_mace, &
+                                                            pot_nequip, qr, rab2_max, rij(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       REAL(KIND=dp), POINTER                             :: fembed(:)
@@ -132,6 +133,7 @@ CONTAINS
       any_gal21 = .FALSE.
       any_allegro = .FALSE.
       any_nequip = .FALSE.
+      any_mace = .FALSE.
       any_ace = .FALSE.
       any_deepmd = .FALSE.
       CALL timeset(routineN, handle)
@@ -177,6 +179,7 @@ CONTAINS
             pot => potparm%pot(ikind, jkind)%pot
             any_tersoff = any_tersoff .OR. ANY(pot%type == tersoff_type)
             any_nequip = any_nequip .OR. ANY(pot%type == nequip_type)
+            any_mace = any_mace .OR. ANY(pot%type == mace_type)
             any_ace = any_ace .OR. ANY(pot%type == ace_type)
             any_allegro = any_allegro .OR. ANY(pot%type == allegro_type)
             any_deepmd = any_deepmd .OR. ANY(pot%type == deepmd_type)
@@ -189,20 +192,29 @@ CONTAINS
       ! NEQUIP
       IF (any_nequip) THEN
          NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a)
-         CALL nequip_energy_store_force_virial(nonbonded, particle_set, local_particles, cell, &
-                                               atomic_kind_set, potparm, r_last_update_pbc, &
-                                               pot_nequip, fist_nonbond_env, &
-                                               para_env, use_virial, nequip_type)
+         CALL e3nn_energy_store_force_virial(nonbonded, particle_set, local_particles, cell, &
+                                             atomic_kind_set, potparm, r_last_update_pbc, &
+                                             pot_nequip, fist_nonbond_env, &
+                                             para_env, use_virial, nequip_type)
          pot_manybody = pot_manybody + pot_nequip
       END IF
       ! ALLEGRO
       IF (any_allegro) THEN
          NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a)
-         CALL nequip_energy_store_force_virial(nonbonded, particle_set, local_particles, cell, &
-                                               atomic_kind_set, potparm, r_last_update_pbc, &
-                                               pot_allegro, fist_nonbond_env, &
-                                               para_env, use_virial, allegro_type)
+         CALL e3nn_energy_store_force_virial(nonbonded, particle_set, local_particles, cell, &
+                                             atomic_kind_set, potparm, r_last_update_pbc, &
+                                             pot_allegro, fist_nonbond_env, &
+                                             para_env, use_virial, allegro_type)
          pot_manybody = pot_manybody + pot_allegro
+      END IF
+      ! MACE (reuses the NequIP message-passing evaluation path)
+      IF (any_mace) THEN
+         NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a)
+         CALL e3nn_energy_store_force_virial(nonbonded, particle_set, local_particles, cell, &
+                                             atomic_kind_set, potparm, r_last_update_pbc, &
+                                             pot_mace, fist_nonbond_env, &
+                                             para_env, use_virial, mace_type)
+         pot_manybody = pot_manybody + pot_mace
       END IF
       ! ACE
       IF (any_ace) THEN
@@ -578,8 +590,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
       LOGICAL                                            :: any_ace, any_allegro, any_deepmd, &
-                                                            any_gal, any_gal21, any_nequip, &
-                                                            any_siepmann, any_tersoff
+                                                            any_gal, any_gal21, any_mace, &
+                                                            any_nequip, any_siepmann, any_tersoff
       REAL(KIND=dp) :: f_eam, fac, fr(3), ptens11, ptens12, ptens13, ptens21, ptens22, ptens23, &
          ptens31, ptens32, ptens33, rab(3), rab2, rab2_max, rtmp(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
@@ -599,6 +611,7 @@ CONTAINS
       any_tersoff = .FALSE.
       any_allegro = .FALSE.
       any_nequip = .FALSE.
+      any_mace = .FALSE.
       any_siepmann = .FALSE.
       any_ace = .FALSE.
       any_deepmd = .FALSE.
@@ -660,7 +673,7 @@ CONTAINS
          END DO
       END DO
       IF (any_nequip) THEN
-         CALL nequip_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
+         CALL e3nn_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
       END IF
 
       ! ALLEGRO
@@ -670,7 +683,17 @@ CONTAINS
          END DO
       END DO
       IF (any_allegro) THEN
-         CALL nequip_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
+         CALL e3nn_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
+      END IF
+
+      ! MACE (reuses the NequIP force/virial accumulation)
+      DO ikind = 1, nkinds
+         DO jkind = ikind, nkinds
+            any_mace = any_mace .OR. ANY(potparm%pot(ikind, jkind)%pot%type == mace_type)
+         END DO
+      END DO
+      IF (any_mace) THEN
+         CALL e3nn_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
       END IF
 
       ! starting the force loop

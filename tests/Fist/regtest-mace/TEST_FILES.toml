@@ -1,0 +1,3 @@
+# Test of MACE using libtorch https://pytorch.org/cppdocs/installing.html
+"mace_test.inp"                         = [{matcher="M011", tol=1.0E-9, ref=-1532.363300232407482}]
+#EOF

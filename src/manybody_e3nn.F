@@ -6,13 +6,16 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
+!> \brief Shared TorchScript evaluation path for e3nn-based equivariant message-passing
+!>        potentials (NequIP, Allegro and MACE).
 !> \par History
 !>      Implementation of NequIP and Allegro potentials - [gtocci] 2022
 !>      Index mapping of atoms from .xyz to Allegro config.yaml file - [mbilichenko] 2024
 !>      Refactoring and update to NequIP version >= v0.7.0 - [gtocci] 2026
+!>      Renamed manybody_nequip -> manybody_e3nn as it now also serves MACE - [xysun] 2026
 !> \author Gabriele Tocci
 ! **************************************************************************************************
-MODULE manybody_nequip
+MODULE manybody_e3nn
 
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
@@ -28,7 +31,8 @@ MODULE manybody_nequip
                                               dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_para_env_type
-   USE pair_potential_types,            ONLY: nequip_pot_type,&
+   USE pair_potential_types,            ONLY: mace_type,&
+                                              nequip_pot_type,&
                                               nequip_type,&
                                               pair_potential_pp_type,&
                                               pair_potential_single_type
@@ -43,10 +47,10 @@ MODULE manybody_nequip
    IMPLICIT NONE
 
    PRIVATE
-   PUBLIC :: nequip_energy_store_force_virial, &
-             nequip_add_force_virial
+   PUBLIC :: e3nn_energy_store_force_virial, &
+             e3nn_add_force_virial
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_nequip'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_e3nn'
 
    TYPE, PRIVATE :: nequip_work_type
       INTEGER                       :: target_pot_type
@@ -89,10 +93,10 @@ CONTAINS
 !>      Refactoring and unifying NequIP and Allegro - [gtocci] 2026
 !> \author Gabriele Tocci - University of Zurich
 ! **************************************************************************************************
-   SUBROUTINE nequip_energy_store_force_virial(nonbonded, particle_set, local_particles, cell, &
-                                               atomic_kind_set, potparm, r_last_update_pbc, &
-                                               pot_total, fist_nonbond_env, para_env, use_virial, &
-                                               target_pot_type)
+   SUBROUTINE e3nn_energy_store_force_virial(nonbonded, particle_set, local_particles, cell, &
+                                             atomic_kind_set, potparm, r_last_update_pbc, &
+                                             pot_total, fist_nonbond_env, para_env, use_virial, &
+                                             target_pot_type)
 
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
       TYPE(particle_type), POINTER                       :: particle_set(:)
@@ -107,7 +111,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_virial
       INTEGER, INTENT(IN)                                :: target_pot_type
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'nequip_energy_store_force_virial'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'e3nn_energy_store_force_virial'
 
       INTEGER                                            :: handle
       TYPE(nequip_data_type), POINTER                    :: neq_data
@@ -132,7 +136,8 @@ CONTAINS
 
       CALL setup_neq_data(fist_nonbond_env, neq_data, neq_pot, nequip_work)
 
-      IF (nequip_work%target_pot_type == nequip_type) THEN
+      IF (nequip_work%target_pot_type == nequip_type .OR. &
+          nequip_work%target_pot_type == mace_type) THEN
          CALL prepare_edges_shifts_nequip(nequip_work)
       ELSE
          CALL prepare_edges_shifts_allegro(nequip_work)
@@ -146,7 +151,7 @@ CONTAINS
       CALL release_nequip_work(nequip_work)
 
       CALL timestop(handle)
-   END SUBROUTINE nequip_energy_store_force_virial
+   END SUBROUTINE e3nn_energy_store_force_virial
 
 ! **************************************************************************************************
 !> \brief ...
@@ -564,7 +569,8 @@ CONTAINS
       n_atoms = SIZE(nequip_work%particle_set)
 
       ! for allegro ensure ghost atoms are included in the evaluation
-      IF (nequip_work%target_pot_type /= nequip_type) THEN
+      IF (nequip_work%target_pot_type /= nequip_type .AND. &
+          nequip_work%target_pot_type /= mace_type) THEN
          ! label atoms in the local edges
          DO i = 1, SIZE(nequip_work%local_edges, 2)
             atom_a = INT(nequip_work%local_edges(1, i))
@@ -708,7 +714,8 @@ CONTAINS
       DO iat_use = 1, SIZE(neq_data%use_indices)
          iat = neq_data%use_indices(iat_use)
          ! Only apply the local mask for Allegro models
-         IF (nequip_work%target_pot_type /= nequip_type) THEN
+         IF (nequip_work%target_pot_type /= nequip_type .AND. &
+             nequip_work%target_pot_type /= mace_type) THEN
             IF (.NOT. nequip_work%sum_energy(iat)) CYCLE
          END IF
 
@@ -717,7 +724,8 @@ CONTAINS
       CALL torch_tensor_release(t_energy)
       pot_total = pot_total*pot%unit_energy_val
 
-      IF (nequip_work%target_pot_type == nequip_type) THEN
+      IF (nequip_work%target_pot_type == nequip_type .OR. &
+          nequip_work%target_pot_type == mace_type) THEN
          neq_data%force = neq_data%force/REAL(nequip_work%para_env%num_pe, dp)
          pot_total = pot_total/REAL(nequip_work%para_env%num_pe, dp)
       END IF
@@ -728,7 +736,8 @@ CONTAINS
 
          neq_data%virial(:, :) = RESHAPE(v_ptr, [3, 3])*pot%unit_energy_val
          CALL torch_tensor_release(t_virial)
-         IF (nequip_work%target_pot_type == nequip_type) THEN
+         IF (nequip_work%target_pot_type == nequip_type .OR. &
+             nequip_work%target_pot_type == mace_type) THEN
             neq_data%virial = neq_data%virial/REAL(nequip_work%para_env%num_pe, dp)
          END IF
       END IF
@@ -745,7 +754,7 @@ CONTAINS
 !>      Sum forces, virial to nonbond - [gtocci] 2026
 !> \author Gabriele Tocci - University of Zurich
 ! **************************************************************************************************
-   SUBROUTINE nequip_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
+   SUBROUTINE e3nn_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: f_nonbond, pv_nonbond
       LOGICAL, INTENT(IN)                                :: use_virial
@@ -764,6 +773,6 @@ CONTAINS
          f_nonbond(1:3, iat) = f_nonbond(1:3, iat) + neq_data%force(1:3, iat_use)
       END DO
 
-   END SUBROUTINE nequip_add_force_virial
+   END SUBROUTINE e3nn_add_force_virial
 
-END MODULE manybody_nequip
+END MODULE manybody_e3nn

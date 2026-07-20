@@ -44,6 +44,7 @@ run_test ./tools/pao-ml/pao-validate.py --threshold=1e-5 --model="tests/QS/regte
 run_test ./tools/vibronic_spec/main.py ./tools/vibronic_spec/example/example_config.toml
 
 run_test mypy --strict ./tools/pao-ml/
+run_test mypy --strict ./tools/mace/create_cp2k_model.py
 run_test mypy --strict ./tools/minimax_tools/minimax_to_fortran_source.py
 run_test mypy --strict ./tools/dashboard/generate_dashboard.py
 run_test mypy --strict ./tools/regtesting/optimize_test_dirs.py
