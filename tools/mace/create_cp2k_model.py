@@ -5,13 +5,9 @@ Export a trained MACE model to a TorchScript file that can be loaded by CP2K.
 The export script must be executed in an environment where MACE is installed.
 
 Required packages:
-  * torch: required for loading and converting the model.
-  * e3nn: required by MACE for JIT compilation.
-  * mace-torch: required because the trained MACE model is loaded using
-    torch and its original model classes must be available.
-
-The MACE version used for export should be compatible with the version
-used for training the model.
+  * torch
+  * e3nn
+  * mace-torch
 
 After exporting, the CP2K-compatible `.pth` file can be loaded by CP2K
 through the LibTorch interface. No MACE, e3nn, or Python installation is
@@ -24,23 +20,13 @@ Usage:
 
 import argparse
 import os
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
 
 import torch
-from e3nn.util import jit
-from e3nn.util.jit import compile_mode
-
-_orig_jit_load = torch.jit.load
-
-
-def _cpu_jit_load(*args, **kwargs):
-    kwargs.setdefault("map_location", "cpu")
-    return _orig_jit_load(*args, **kwargs)
-
-
-torch.jit.load = _cpu_jit_load
+from e3nn.util import jit  # type: ignore
+from e3nn.util.jit import compile_mode  # type: ignore
 
 # Z -> chemical symbol table (index == atomic number). Covers the dummy X plus
 # all 118 known elements, matching CP2K's src/common/periodic_table.F.
@@ -57,7 +43,7 @@ chemical_symbols = ["X"] + """
 class CP2K_MACE(torch.nn.Module):
     """MACE model wrapped for CP2K's single-dictionary libtorch interface."""
 
-    def __init__(self, model: torch.nn.Module, head: Optional[str] = None):
+    def __init__(self, model: Any, head: Optional[str] = None) -> None:
         super().__init__()
         self.model = model
         self.register_buffer("atomic_numbers", model.atomic_numbers)
@@ -139,7 +125,7 @@ class CP2K_MACE(torch.nn.Module):
         }
 
 
-def build_metadata(model: torch.nn.Module, dtype: str) -> Dict[str, str]:
+def build_metadata(model: Any, dtype: str) -> Dict[str, str]:
     z = model.atomic_numbers.to(torch.long).tolist()
     type_names = " ".join(chemical_symbols[int(zi)] for zi in z)
     return {
@@ -154,7 +140,7 @@ def build_metadata(model: torch.nn.Module, dtype: str) -> Dict[str, str]:
     }
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("model_path", help="Path to the trained MACE .model file")
     p.add_argument(
@@ -167,7 +153,7 @@ def parse_args():
     return p.parse_args()
 
 
-def main():
+def main() -> None:
     args = parse_args()
     model = torch.load(args.model_path, map_location="cpu")
     if args.dtype == "float64":
