@@ -218,7 +218,7 @@ Fist/regtest-1-3
 QS/regtest-md-extrap
 Fist/regtest-15
 xTB/regtest-3
-xTB/regtest-3-spglib                                        spglib
+xTB/regtest-3-spglib                                        spglib tblite
 QS/regtest-debug-3                                          libint libxc !ifx
 QS/regtest-lrigpw-2
 QS/regtest-hybrid-4                                         libint libxc !ifx
