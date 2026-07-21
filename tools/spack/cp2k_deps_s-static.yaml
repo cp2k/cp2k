@@ -96,7 +96,7 @@ spack:
 
   repos:
     builtin:
-      commit: 9314cd0194cb79e73b44927e920130cd4379f012 # 2026-07-20
+      commit: 131214174051056d434e43d34f7c7645a385a835 # 2026-07-21
 
   specs:
     # Build tools
@@ -113,7 +113,7 @@ spack:
     - "libfci@0.1.0"
     - "libint@2.13.1-cp2k-lmax-5"
     - "libvori@220621"
-    - "libxc@7.1.1"
+    - "libxc@7.1.2"
     - "libxs@1.0.0"
     - "libxsmm@2.0.0"
     - "openblas@0.3.33"
