@@ -478,7 +478,7 @@ CONTAINS
 
          ! should use the cp_fm_read_unformatted...
          DO i = 1, ncoord
-            READ (UNIT=hesunit, IOSTAT=stat) ms_vib%hes_bfgs(:, i)
+            READ (UNIT=hesunit) ms_vib%hes_bfgs(:, i)
          END DO
          CALL close_file(hesunit)
          IF (output_unit > 0) THEN
@@ -599,7 +599,7 @@ CONTAINS
       IF (ionode) THEN
          statint = 0
          READ (UNIT=hesunit) ms_vib%b_mat
-         READ (UNIT=hesunit, IOSTAT=stat) ms_vib%s_mat
+         READ (UNIT=hesunit) ms_vib%s_mat
          IF (calc_intens) READ (UNIT=hesunit, IOSTAT=statint) ms_vib%dip_deriv(:, 1:ms_vib%mat_size)
          IF (statint /= 0 .AND. output_unit > 0) WRITE (output_unit, FMT="(/,T2,A)") "**  Error while reading MS_RESTART,", &
             "intensities are requested but not present in restart file **"
