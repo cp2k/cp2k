@@ -1458,9 +1458,9 @@ CONTAINS
                IF (nelectron_spin(ispin) /= 0) THEN
                   rscale = SUM(pdiag)/REAL(nelectron_spin(ispin), dp)
                   matrix_p => pmat(ispin)%matrix
-                  pdiag = rscale*pdiag
-                  CALL dbcsr_set_diag(matrix_p, pdiag)
                   pdiag = pdiag/rscale
+                  CALL dbcsr_set_diag(matrix_p, pdiag)
+                  pdiag = pdiag*rscale
                END IF
             END DO
          ELSE
