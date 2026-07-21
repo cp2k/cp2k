@@ -452,8 +452,8 @@ CONTAINS
       INTEGER                                            :: nrep
 
       CHARACTER(LEN=default_path_length)                 :: hes_filename
-      INTEGER                                            :: hesunit, i, j, jj, k, natoms, ncoord, &
-                                                            output_unit, stat
+      INTEGER                                            :: hesunit, i, istat, j, jj, k, natoms, &
+                                                            ncoord, output_unit, stat
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       REAL(KIND=dp)                                      :: my_val, norm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tmp
@@ -477,12 +477,14 @@ CONTAINS
          ALLOCATE (tmplist(ncoord))
 
          ! should use the cp_fm_read_unformatted...
+         istat = 0
          DO i = 1, ncoord
             READ (UNIT=hesunit, IOSTAT=stat) ms_vib%hes_bfgs(:, i)
+            istat = istat + stat
          END DO
          CALL close_file(hesunit)
          IF (output_unit > 0) THEN
-            IF (stat /= 0) THEN
+            IF (istat /= 0) THEN
                WRITE (output_unit, FMT="(/,T2,A)") "**  Error while reading HESSIAN **"
             ELSE
                WRITE (output_unit, FMT="(/,T2,A)") &
@@ -600,16 +602,17 @@ CONTAINS
          statint = 0
          READ (UNIT=hesunit) ms_vib%b_mat
          READ (UNIT=hesunit, IOSTAT=stat) ms_vib%s_mat
-         IF (calc_intens) READ (UNIT=hesunit, IOSTAT=statint) ms_vib%dip_deriv(:, 1:ms_vib%mat_size)
-         IF (statint /= 0 .AND. output_unit > 0) WRITE (output_unit, FMT="(/,T2,A)") "**  Error while reading MS_RESTART,", &
-            "intensities are requested but not present in restart file **"
+         IF (stat /= 0 .AND. output_unit > 0) THEN
+            WRITE (output_unit, FMT="(/,T2,A)") "**  Error while reading MS_RESTART **"
+         END IF
+         IF (calc_intens) THEN
+            READ (UNIT=hesunit, IOSTAT=statint) ms_vib%dip_deriv(:, 1:ms_vib%mat_size)
+            IF (statint /= 0 .AND. output_unit > 0) WRITE (output_unit, FMT="(/,T2,A)") "**  Error while reading MS_RESTART,", &
+               "intensities are requested but not present in restart file **"
+         END IF
          CALL close_file(hesunit)
-         IF (output_unit > 0) THEN
-            IF (stat /= 0) THEN
-               WRITE (output_unit, FMT="(/,T2,A)") "**  Error while reading MS_RESTART **"
-            ELSE
-               WRITE (output_unit, FMT="(/,T2,A)") "*** RESTART has been read successfully ***"
-            END IF
+         IF (stat == 0 .AND. statint == 0 .AND. output_unit > 0) THEN
+            WRITE (output_unit, FMT="(/,T2,A)") "*** MS_RESTART has been read successfully ***"
          END IF
       END IF
       CALL para_env%bcast(ms_vib%b_mat)

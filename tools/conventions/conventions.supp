@@ -95,7 +95,6 @@ kpsym.F: Found GOTO statement in procedure "primlatt" https://cp2k.org/conv#c201
 kpsym.F: Found GOTO statement in procedure "remove" https://cp2k.org/conv#c201
 kpsym.F: Found GOTO statement in procedure "sppt2" https://cp2k.org/conv#c201
 libcp2k.F: Found type eri2array without initializer https://cp2k.org/conv#c016
-libgrpp_integrals.F: Module "libgrpp" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 libint_wrapper.F: Found type cp_libint_t without initializer https://cp2k.org/conv#c016
 libint_wrapper.F: Module "libint_f" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test" https://cp2k.org/conv#c104
@@ -153,7 +152,6 @@ message_passing.F: Module "pmpi_f08" USEd without ONLY clause or not PRIVATE htt
 message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 message_passing.fypp: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(8)/COMPLEX(4)).
 mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig" https://cp2k.org/conv#c012
-mode_selective.F: Found READ with unchecked STAT in "bfgs_guess" https://cp2k.org/conv#c001
 mp_perf_test.F: Module "mpi_f08" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 negf_methods.F: Found CALL with NULL() as argument in procedure "converge_density" https://cp2k.org/conv#c007
 negf_methods.F: Found CALL with NULL() as argument in procedure "guess_fermi_level" https://cp2k.org/conv#c007
@@ -171,7 +169,6 @@ ps_wavelet_kernel.F: Found WRITE statement with hardcoded unit in "indices" http
 ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "ftest" https://cp2k.org/conv#c012
 pwdft_environment_types.F: Module "sirius" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 pw_grids.F: Found WRITE statement with hardcoded unit in "pw_grid_sort" https://cp2k.org/conv#c012
-qcschema.F: Module "hdf5_wrapper" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_active_space_methods.F: Found type eri_fcidump_checksum without initializer https://cp2k.org/conv#c016
 qs_active_space_methods.F: Found type eri_fcidump_print without initializer https://cp2k.org/conv#c016
 qs_charge_mixing.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
