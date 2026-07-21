@@ -910,7 +910,10 @@ if(CP2K_USE_ACE)
 endif()
 
 if(CP2K_USE_TBLITE)
-  find_package(tblite 0.7.0 REQUIRED)
+  find_package(tblite CONFIG REQUIRED)
+  if(tblite_VERSION VERSION_LESS "0.7.0")
+    message(FATAL_ERROR "tblite >= 0.7.0 is required; found ${tblite_VERSION}")
+  endif()
   add_library(cp2k::tblite INTERFACE IMPORTED)
   target_link_libraries(
     cp2k::tblite INTERFACE tblite::tblite mctc-lib::mctc-lib dftd4::dftd4
