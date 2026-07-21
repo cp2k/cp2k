@@ -55,12 +55,8 @@ MODULE qs_dispersion_d4
                                               rational_damping_param, &
                                               get_coordination_number, &
                                               get_lattice_points
-#if defined(__DFTD4_V3)
-   USE dftd4_charge,                    ONLY: get_charges
-#else
    USE multicharge,                     ONLY: get_charges
    USE mctc_env,                        ONLY: error_type
-#endif
 !&>
 #endif
 #include "./base/base_uses.f90"
@@ -131,14 +127,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_d4_pairpot'
 
-      INTEGER                                            :: atoma, cnfun, enshift, handle, i, iatom
-#if defined(__DFTD4_V3)
-      INTEGER                                            :: ifull, ikind, mref, natom, &
-                                                            natom_full, nghost
-#else
-      INTEGER                                            :: ifull, ikind, mref, natom, ncoup, &
-                                                            natom_full, nghost
-#endif
+      INTEGER                                            :: atoma, cnfun, enshift, handle, i, iatom, &
+                                                            ifull, ikind, mref, natom, natom_full, &
+                                                            ncoup, nghost
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_map, atom_map_back, atom_of_kind, &
                                                             atomtype, kind_of, species, t_atomtype
       INTEGER, DIMENSION(3)                              :: periodic
@@ -148,17 +139,11 @@ CONTAINS
       LOGICAL, DIMENSION(3)                              :: lperiod
       REAL(KIND=dp)                                      :: ed2, ed3, ev1, ev2, ev3, ev4, pd2, pd3, &
                                                             ta, tb, tc, td, te, ts
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cn, cn_red, cnd, dEdcn, dEdq, &
-                                                            edcn, edq, enerd2, &
-                                                            enerd3, energies, energies3, q_red, qd
-#if defined(__DFTD4_V3)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ga, gradient, gwdcn, gwdq, &
-                                                            gwvec, t_xyz, tvec, xyz
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gdeb
-#else
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cn, cn_red, cnd, dEdcn, dEdq, edcn, edq, &
+                                                            enerd2, enerd3, energies, energies3, &
+                                                            q_red, qd
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ga, gradient, t_xyz, tvec, xyz
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gdeb, gwdcn, gwdq, gwvec
-#endif
       REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma, stress
       REAL(KIND=dp), DIMENSION(3, 3, 4)                  :: sdeb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -175,9 +160,7 @@ CONTAINS
       TYPE(structure_type)                               :: mol
       TYPE(realspace_cutoff)                             :: cutoff
 
-#if !defined(__DFTD4_V3)
       TYPE(error_type), ALLOCATABLE                      :: error
-#endif
 
       CALL timeset(routineN, handle)
 
@@ -229,9 +212,6 @@ CONTAINS
 
       !prepare for the call to the dispersion function
       CALL new(mol, atomtype, xyz, lattice=cell%hmat, periodic=lperiod)
-#if defined(__DFTD4_V3)
-      CALL new_d4_model(disp, mol)
-#else
       CALL new_d4_model(error, disp, mol)
       IF (ALLOCATED(error)) THEN
          CPABORT(error%message)
@@ -239,7 +219,6 @@ CONTAINS
 
       ! Number of coupling
       ncoup = disp%ncoup
-#endif
 
       ! Build species mapping: full atom index -> D4 species ID (0 for ghost)
       ALLOCATE (species(natom_full))
@@ -293,7 +272,6 @@ CONTAINS
       IF (cutoff%disp3 > cutoff%disp2) THEN
          CPABORT("D4: Three-body cutoff should be smaller than two-body cutoff")
       END IF
-#if defined(__DFTD4_V4_2)
       ! DFTD4 4.2 introduced explicit smooth-cutoff widths.
       ! Keep the same narrow two-body smoothing used by the toolchain patch.
       cutoff%width2 = 0.05_dp
@@ -302,7 +280,6 @@ CONTAINS
                                     cutoff%disp2, cutoff%width2)
       CALL d4_smooth_width_from_env("DFTD4_DISP3_SMOOTH_WIDTH", "TBLITE_D4_DISP3_SMOOTH_WIDTH", &
                                     cutoff%disp3, cutoff%width3)
-#endif
 
       IF (calculate_forces) THEN
          grad = .TRUE.
@@ -419,13 +396,8 @@ CONTAINS
             WRITE (iw, '(A,T71,F10.6)') " DEBUG D4| Charge differences (ave)", SUM(ABS(q_red - qd))/natom
          END IF
          ! Weights for C6 calculation (reduced space)
-#if defined(__DFTD4_V3)
-         ALLOCATE (gwvec(mref, natom))
-         IF (grad) ALLOCATE (gwdcn(mref, natom), gwdq(mref, natom))
-#else
          ALLOCATE (gwvec(mref, natom, ncoup))
          IF (grad) ALLOCATE (gwdcn(mref, natom, ncoup), gwdq(mref, natom, ncoup))
-#endif
          CALL disp%weight_references(mol, cn_red, q_red, gwvec, gwdcn, gwdq)
 
          ! Energies and derivatives (full-size for CP2K infrastructure compatibility)
@@ -648,32 +620,20 @@ CONTAINS
       TYPE(d4_model)                                     :: disp
       TYPE(structure_type)                               :: mol
       TYPE(realspace_cutoff)                             :: cutoff
-#if !defined(__DFTD4_V3)
       TYPE(error_type), ALLOCATABLE                      :: error
-#endif
       LOGICAL, INTENT(IN)                                :: grad, doabc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: enerd2, enerd3, cnd, qd, dEdcn, dEdq
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gradient
       REAL(KIND=dp), DIMENSION(3, 3, 4)                  :: stress
 
-#if defined(__DFTD4_V3)
-      INTEGER                                            :: mref, natom, i
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: q, qq
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: lattr, gwdcn, gwdq, gwvec, &
-                                                            c6, dc6dcn, dc6dq
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: cndr, cndL, qdr, qdL
-#else
       INTEGER                                            :: mref, natom, i, ncoup
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: q, qq
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: lattr, c6, dc6dcn, dc6dq
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: cndr, cndL, qdr, qdL, gwdcn, gwdq, gwvec
-#endif
 
       mref = MAXVAL(disp%ref)
       natom = mol%nat
-#if !defined(__DFTD4_V3)
       ncoup = disp%ncoup
-#endif
 
       ! Coordination numbers
       ALLOCATE (cnd(natom))
@@ -684,22 +644,13 @@ CONTAINS
       ! EEQ charges
       ALLOCATE (qd(natom))
       IF (grad) ALLOCATE (qdr(3, natom, natom), qdL(3, 3, natom))
-#if defined(__DFTD4_V3)
-      CALL get_charges(mol, qd, qdr, qdL)
-#else
       CALL get_charges(disp%mchrg, mol, error, qd, qdr, qdL)
       IF (ALLOCATED(error)) THEN
          CPABORT(error%message)
       END IF
-#endif
       ! C6 interpolation
-#if defined(__DFTD4_V3)
-      ALLOCATE (gwvec(mref, natom))
-      IF (grad) ALLOCATE (gwdcn(mref, natom), gwdq(mref, natom))
-#else
       ALLOCATE (gwvec(mref, natom, ncoup))
       IF (grad) ALLOCATE (gwdcn(mref, natom, ncoup), gwdq(mref, natom, ncoup))
-#endif
       CALL disp%weight_references(mol, cnd, qd, gwvec, gwdcn, gwdq)
       ALLOCATE (c6(natom, natom))
       IF (grad) ALLOCATE (dc6dcn(natom, natom), dc6dq(natom, natom))
@@ -718,14 +669,9 @@ CONTAINS
          ALLOCATE (dEdcn(natom), dEdq(natom))
          dEdcn(:) = 0.0_dp; dEdq(:) = 0.0_dp
       END IF
-#if defined(__DFTD4_V4_2)
       CALL param%get_dispersion2(mol, lattr, cutoff%disp2, cutoff%width2, disp%r4r2, c6, &
                                  dc6dcn, dc6dq, enerd2, dEdcn, dEdq, gradient(:, :, 1), &
                                  stress(:, :, 1))
-#else
-      CALL param%get_dispersion2(mol, lattr, cutoff%disp2, disp%r4r2, c6, dc6dcn, dc6dq, &
-                                 enerd2, dEdcn, dEdq, gradient(:, :, 1), stress(:, :, 1))
-#endif
       !
       IF (grad) THEN
          DO i = 1, 3
@@ -742,14 +688,9 @@ CONTAINS
          CALL disp%weight_references(mol, cnd, q, gwvec, gwdcn, gwdq)
          CALL disp%get_atomic_c6(mol, gwvec, gwdcn, gwdq, c6, dc6dcn, dc6dq)
          CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, lattr)
-#if defined(__DFTD4_V4_2)
          CALL param%get_dispersion3(mol, lattr, cutoff%disp3, cutoff%width3, disp%r4r2, c6, &
                                     dc6dcn, dc6dq, enerd3, dEdcn, qq, gradient(:, :, 3), &
                                     stress(:, :, 3))
-#else
-         CALL param%get_dispersion3(mol, lattr, cutoff%disp3, disp%r4r2, c6, dc6dcn, dc6dq, &
-                                    enerd3, dEdcn, qq, gradient(:, :, 3), stress(:, :, 3))
-#endif
       END IF
       IF (grad) THEN
          DO i = 1, 3
@@ -820,11 +761,7 @@ CONTAINS
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r4r2
-#if defined(__DFTD4_V3)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gwvec, gwdcn, gwdq
-#else
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: gwvec, gwdcn, gwdq
-#endif
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: c6ref
       INTEGER, DIMENSION(:), INTENT(IN)                  :: mrefs
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: energies, dEdcn, dEdq
@@ -940,11 +877,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: tvec
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r4r2
-#if defined(__DFTD4_V3)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gwvec, gwdcn, gwdq
-#else
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: gwvec, gwdcn, gwdq
-#endif
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: c6ref
       INTEGER, DIMENSION(:), INTENT(IN)                  :: mrefs
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: energies, dEdcn, dEdq
@@ -1223,11 +1156,7 @@ CONTAINS
    SUBROUTINE get_c6value(c6ij, ia, ja, ik, jk, gwvec, c6ref, mrefs)
       REAL(KIND=dp), INTENT(OUT)                         :: c6ij
       INTEGER, INTENT(IN)                                :: ia, ja, ik, jk
-#if defined(__DFTD4_V3)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gwvec
-#else
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: gwvec
-#endif
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: c6ref
       INTEGER, DIMENSION(:), INTENT(IN)                  :: mrefs
 
@@ -1238,11 +1167,7 @@ CONTAINS
       DO jref = 1, mrefs(jk)
          DO iref = 1, mrefs(ik)
             refc6 = c6ref(iref, jref, ik, jk)
-#if defined(__DFTD4_V3)
-            c6ij = c6ij + gwvec(iref, ia)*gwvec(jref, ja)*refc6
-#else
             c6ij = c6ij + gwvec(iref, ia, 1)*gwvec(jref, ja, 1)*refc6
-#endif
          END DO
       END DO
 
@@ -1268,11 +1193,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: c6ij
       REAL(KIND=dp), DIMENSION(2), INTENT(OUT)           :: dc6dcn, dc6dq
       INTEGER, INTENT(IN)                                :: ia, ja, ik, jk
-#if defined(__DFTD4_V3)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gwvec, gwdcn, gwdq
-#else
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: gwvec, gwdcn, gwdq
-#endif
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: c6ref
       INTEGER, DIMENSION(:), INTENT(IN)                  :: mrefs
 
@@ -1285,19 +1206,11 @@ CONTAINS
       DO jref = 1, mrefs(jk)
          DO iref = 1, mrefs(ik)
             refc6 = c6ref(iref, jref, ik, jk)
-#if defined(__DFTD4_V3)
-            c6ij = c6ij + gwvec(iref, ia)*gwvec(jref, ja)*refc6
-            dc6dcn(1) = dc6dcn(1) + gwdcn(iref, ia)*gwvec(jref, ja)*refc6
-            dc6dcn(2) = dc6dcn(2) + gwvec(iref, ia)*gwdcn(jref, ja)*refc6
-            dc6dq(1) = dc6dq(1) + gwdq(iref, ia)*gwvec(jref, ja)*refc6
-            dc6dq(2) = dc6dq(2) + gwvec(iref, ia)*gwdq(jref, ja)*refc6
-#else
             c6ij = c6ij + gwvec(iref, ia, 1)*gwvec(jref, ja, 1)*refc6
             dc6dcn(1) = dc6dcn(1) + gwdcn(iref, ia, 1)*gwvec(jref, ja, 1)*refc6
             dc6dcn(2) = dc6dcn(2) + gwvec(iref, ia, 1)*gwdcn(jref, ja, 1)*refc6
             dc6dq(1) = dc6dq(1) + gwdq(iref, ia, 1)*gwvec(jref, ja, 1)*refc6
             dc6dq(2) = dc6dq(2) + gwvec(iref, ia, 1)*gwdq(jref, ja, 1)*refc6
-#endif
          END DO
       END DO
 
