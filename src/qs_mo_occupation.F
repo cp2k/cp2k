@@ -179,6 +179,11 @@ CONTAINS
       nelec_a = accurate_sum(occ_a(:))
       nelec_b = accurate_sum(occ_b(:))
 
+      lfomo_a = nmo_a + 1
+      lfomo_b = nmo_b + 1
+      homo_a = 0
+      homo_b = 0
+
       DO i = 1, nmo_a
          IF (occ_a(i) < 1.0_dp) THEN
             lfomo_a = i
