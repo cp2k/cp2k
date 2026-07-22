@@ -2650,7 +2650,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_RL_AO", &
                           description="Real-space cutoff radius (in Angstrom) for evaluating "// &
-                          "the AO basis functions on the RI-RS grid. Override the default radius "// & 
+                          "the AO basis functions on the RI-RS grid. Override the default radius "// &
                           "derived automatically from the most diffuse AO Gaussian on each atom. ", &
                           usage="CUTOFF_RADIUS_RL_AO 8.0", &
                           default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="angstrom"), &

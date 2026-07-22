@@ -225,8 +225,8 @@ CONTAINS
       INTEGER :: c_size, chunk_size, dimen_ORB, handle, i, i_blk, iatom, natom, npcol, nprow, &
          num_grid_chunks, r_end, r_start, total_grid_npts
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf
-      INTEGER, DIMENSION(:), POINTER                     :: c_blk_sizes, col_dist, &
-                                                            r_blk_sizes, row_dist
+      INTEGER, DIMENSION(:), POINTER                     :: c_blk_sizes, col_dist, r_blk_sizes, &
+                                                            row_dist
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_col_buffer
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -379,8 +379,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fill_phi_for_atom'
 
       INTEGER :: first_sgf, handle, i_pt, ico, iend_co, ikind, ipgf, iset, isgf, ishell, &
-         istart_co, ix, ix_max, ix_min, iy, iy_max, iy_min, iz, iz_max, iz_min, l, last_sgf, &
-         lx, ly, lz, n_cart_total, row_idx
+         istart_co, ix, ix_max, ix_min, iy, iy_max, iy_min, iz, iz_max, iz_min, l, last_sgf, lx, &
+         ly, lz, n_cart_total, row_idx
       REAL(KIND=dp)                                      :: alpha, cell_vector(3), dist_vec(3), &
                                                             dist_vec_raw(3), exp_val, poly, r2, &
                                                             r_atom(3), weight
@@ -399,27 +399,11 @@ CONTAINS
          RETURN
       END IF
 
-      IF (cell%perd(1) == 1) THEN
-         ix_min = -1
-         ix_max = 1
-      ELSE
-         ix_min = 0
-         ix_max = 0
+      IF (cell%perd(1) == 1) THEN; ix_min = -1; ix_max = 1; ELSE; ix_min = 0; ix_max = 0
       END IF
-      IF (cell%perd(2) == 1) THEN
-         iy_min = -1
-         iy_max = 1
-      ELSE
-         iy_min = 0
-         iy_max = 0
+      IF (cell%perd(2) == 1) THEN; iy_min = -1; iy_max = 1; ELSE; iy_min = 0; iy_max = 0
       END IF
-
-      IF (cell%perd(3) == 1) THEN
-         iz_min = -1
-         iz_max = 1
-      ELSE
-         iz_min = 0
-         iz_max = 0
+      IF (cell%perd(3) == 1) THEN; iz_min = -1; iz_max = 1; ELSE; iz_min = 0; iz_max = 0
       END IF
 
       r_atom = particle_set(iatom)%r
@@ -513,13 +497,13 @@ CONTAINS
 
       INTEGER :: atom_j_mepos, atom_j_stride, atom_P, atom_P_start, atom_P_stride, col_end, &
          col_start, current_chunk_size, g, group_handle, handle, handle_dpotrf, handle_dpotrs, &
-         handle_dsyrk, i, i_blk, ikind, info, j, j_ri, &
-         l, loc_idx, loc_ptr, max_ao_size, max_loc_ri, my_group, n_ao_total, n_grid_total, &
-         n_groups, n_loc_ri, n_local_grid, n_procs_per_atom, natom, nkind, npcol_phi, &
-         num_grid_chunks, P_loop_atom, r_end, r_start, source_atom
+         handle_dsyrk, i, i_blk, ikind, info, j, j_ri, l, loc_idx, loc_ptr, max_ao_size, &
+         max_loc_ri, my_group, n_ao_total, n_grid_total, n_groups, n_loc_ri, n_local_grid, &
+         n_procs_per_atom, natom, nkind, npcol_phi, num_grid_chunks, P_loop_atom, r_end, r_start, &
+         source_atom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_grid_idx, row_offset
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist_ri, r_blk_sizes, &
-                                                            ri_blk_sizes, row_dist_grid
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist_ri, r_blk_sizes, ri_blk_sizes, &
+                                                            row_dist_grid
       REAL(KIND=dp)                                      :: cutoff_ri, cutoff_ri_2, d_sP, dist2_min, &
                                                             r2_threshold, r_c, t1, t2, t3
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_atom, cutoff_ri_per_kind, &
@@ -985,26 +969,11 @@ CONTAINS
 
       natom = SIZE(bs_env%i_ao_start_from_atom)
 
-      IF (cell%perd(1) == 1) THEN
-         ix_min = -1
-         ix_max = 1
-      ELSE
-         ix_min = 0
-         ix_max = 0
+      IF (cell%perd(1) == 1) THEN; ix_min = -1; ix_max = 1; ELSE; ix_min = 0; ix_max = 0
       END IF
-      IF (cell%perd(2) == 1) THEN
-         iy_min = -1
-         iy_max = 1
-      ELSE
-         iy_min = 0
-         iy_max = 0
+      IF (cell%perd(2) == 1) THEN; iy_min = -1; iy_max = 1; ELSE; iy_min = 0; iy_max = 0
       END IF
-      IF (cell%perd(3) == 1) THEN
-         iz_min = -1
-         iz_max = 1
-      ELSE
-         iz_min = 0
-         iz_max = 0
+      IF (cell%perd(3) == 1) THEN; iz_min = -1; iz_max = 1; ELSE; iz_min = 0; iz_max = 0
       END IF
 
       !$OMP PARALLEL DEFAULT(NONE) &
@@ -2013,7 +1982,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type), INTENT(OUT)         :: square_dist
       INTEGER, DIMENSION(:), INTENT(OUT), POINTER        :: blk_sizes, mapped_dist
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'setup_square_topology'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_square_topology'
 
       INTEGER                                            :: handle, i, np, npcols, nprows
       INTEGER, DIMENSION(:), POINTER                     :: col_blk, col_dist, row_blk, row_dist

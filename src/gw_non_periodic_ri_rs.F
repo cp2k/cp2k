@@ -12,16 +12,16 @@
 ! **************************************************************************************************
 
 MODULE gw_non_periodic_ri_rs
-   USE atomic_kind_types,              ONLY : atomic_kind_type, &
-                                              get_atomic_kind_set
-   USE basis_set_types,                ONLY : gto_basis_set_type
-   USE cell_types,                     ONLY : cell_type, &
-                                              pbc
-   USE constants_operator,             ONLY : operator_coulomb
-   USE cp_blacs_env,                   ONLY : cp_blacs_env_create, &
-                                              cp_blacs_env_release, &
-                                              cp_blacs_env_type
-   USE cp_dbcsr_api,                   ONLY : &
+   USE atomic_kind_types, ONLY: atomic_kind_type, &
+                                get_atomic_kind_set
+   USE basis_set_types, ONLY: gto_basis_set_type
+   USE cell_types, ONLY: cell_type, &
+                         pbc
+   USE constants_operator, ONLY: operator_coulomb
+   USE cp_blacs_env, ONLY: cp_blacs_env_create, &
+                           cp_blacs_env_release, &
+                           cp_blacs_env_type
+   USE cp_dbcsr_api, ONLY: &
       dbcsr_add, dbcsr_binary_read, dbcsr_binary_write, dbcsr_copy, dbcsr_create, &
       dbcsr_deallocate_matrix, dbcsr_distribution_get, dbcsr_distribution_new, &
       dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_finalize, &
@@ -30,67 +30,67 @@ MODULE gw_non_periodic_ri_rs
       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
       dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
       dbcsr_type_no_symmetry
-   USE cp_dbcsr_contrib,               ONLY : dbcsr_reserve_all_blocks
-   USE cp_dbcsr_operations,            ONLY : copy_dbcsr_to_fm, &
-                                              copy_fm_to_dbcsr, &
-                                              dbcsr_deallocate_matrix_set, &
-                                              max_elements_per_block
-   USE cp_files,                       ONLY : close_file, &
-                                              open_file
-   USE cp_fm_basic_linalg,             ONLY : cp_fm_scale_and_add, &
-                                              cp_fm_uplo_to_full
-   USE cp_fm_cholesky,                 ONLY : cp_fm_cholesky_decompose, &
-                                              cp_fm_cholesky_invert, &
-                                              cp_fm_cholesky_solve
-   USE cp_fm_diag,                     ONLY : cp_fm_power
-   USE cp_fm_struct,                   ONLY : cp_fm_struct_create, &
-                                              cp_fm_struct_release, &
-                                              cp_fm_struct_type
-   USE cp_fm_types,                    ONLY : cp_fm_create, &
-                                              cp_fm_get_info, &
-                                              cp_fm_get_submatrix, &
-                                              cp_fm_release, &
-                                              cp_fm_set_all, &
-                                              cp_fm_set_submatrix, &
-                                              cp_fm_to_fm, &
-                                              cp_fm_type
-   USE cp_log_handling,                ONLY : cp_get_default_logger, &
-                                              cp_logger_type
-   USE cp_output_handling,             ONLY : cp_p_file, &
-                                              cp_print_key_should_output
-   USE gw_integrals,                   ONLY : build_3c_integral_block_ctx, &
-                                              gw_3c_ctx_create, &
-                                              gw_3c_ctx_release, &
-                                              gw_3c_ctx_type, &
-                                              gw_3c_ws_create, &
-                                              gw_3c_ws_release, &
-                                              gw_3c_ws_type
-   USE gw_large_cell_gamma,            ONLY : &
+   USE cp_dbcsr_contrib, ONLY: dbcsr_reserve_all_blocks
+   USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm, &
+                                  copy_fm_to_dbcsr, &
+                                  dbcsr_deallocate_matrix_set, &
+                                  max_elements_per_block
+   USE cp_files, ONLY: close_file, &
+                       open_file
+   USE cp_fm_basic_linalg, ONLY: cp_fm_scale_and_add, &
+                                 cp_fm_uplo_to_full
+   USE cp_fm_cholesky, ONLY: cp_fm_cholesky_decompose, &
+                             cp_fm_cholesky_invert, &
+                             cp_fm_cholesky_solve
+   USE cp_fm_diag, ONLY: cp_fm_power
+   USE cp_fm_struct, ONLY: cp_fm_struct_create, &
+                           cp_fm_struct_release, &
+                           cp_fm_struct_type
+   USE cp_fm_types, ONLY: cp_fm_create, &
+                          cp_fm_get_info, &
+                          cp_fm_get_submatrix, &
+                          cp_fm_release, &
+                          cp_fm_set_all, &
+                          cp_fm_set_submatrix, &
+                          cp_fm_to_fm, &
+                          cp_fm_type
+   USE cp_log_handling, ONLY: cp_get_default_logger, &
+                              cp_logger_type
+   USE cp_output_handling, ONLY: cp_p_file, &
+                                 cp_print_key_should_output
+   USE gw_integrals, ONLY: build_3c_integral_block_ctx, &
+                           gw_3c_ctx_create, &
+                           gw_3c_ctx_release, &
+                           gw_3c_ctx_type, &
+                           gw_3c_ws_create, &
+                           gw_3c_ws_release, &
+                           gw_3c_ws_type
+   USE gw_large_cell_gamma, ONLY: &
       Fourier_transform_w_to_t, G_occ_vir, compute_QP_energies, compute_fm_chi_Gamma_freq, &
       create_fm_W_MIC_time, delete_unnecessary_files, fill_fm_Sigma_c_Gamma_time, fm_write, &
       multiply_fm_W_MIC_time_with_Minv_Gamma
-   USE gw_utils,                       ONLY : de_init_bs_env
-   USE input_constants,                ONLY : rtp_method_bse
-   USE input_section_types,            ONLY : section_vals_type
-   USE kinds,                          ONLY : default_path_length, &
-                                              default_string_length, &
-                                              dp, int_4, int_8
-   USE kpoint_coulomb_2c,              ONLY : build_2c_coulomb_matrix_kp
-   USE machine,                        ONLY : m_flush, m_hostnm, &
-                                              m_memory_details, m_walltime
-   USE message_passing,                ONLY : mp_para_env_type
-   USE mp2_ri_2c,                      ONLY : RI_2c_integral_mat
-   USE orbital_pointers,               ONLY : indco, &
-                                              ncoset
-   USE parallel_gemm_api,              ONLY : parallel_gemm
-   USE particle_types,                 ONLY : particle_type
-   USE physcon,                        ONLY : angstrom
-   USE post_scf_bandstructure_types,   ONLY : post_scf_bandstructure_type
-   USE qs_environment_types,           ONLY : get_qs_env, &
-                                              qs_environment_type
-   USE qs_kind_types,                  ONLY : get_qs_kind, &
-                                              qs_kind_type
-   USE util,                           ONLY : sort
+   USE gw_utils, ONLY: de_init_bs_env
+   USE input_constants, ONLY: rtp_method_bse
+   USE input_section_types, ONLY: section_vals_type
+   USE kinds, ONLY: default_path_length, &
+                    default_string_length, &
+                    dp, int_4, int_8
+   USE kpoint_coulomb_2c, ONLY: build_2c_coulomb_matrix_kp
+   USE machine, ONLY: m_flush, m_hostnm, &
+                      m_memory_details, m_walltime
+   USE message_passing, ONLY: mp_para_env_type
+   USE mp2_ri_2c, ONLY: RI_2c_integral_mat
+   USE orbital_pointers, ONLY: indco, &
+                               ncoset
+   USE parallel_gemm_api, ONLY: parallel_gemm
+   USE particle_types, ONLY: particle_type
+   USE physcon, ONLY: angstrom
+   USE post_scf_bandstructure_types, ONLY: post_scf_bandstructure_type
+   USE qs_environment_types, ONLY: get_qs_env, &
+                                   qs_environment_type
+   USE qs_kind_types, ONLY: get_qs_kind, &
+                            qs_kind_type
+   USE util, ONLY: sort
 
 #include "./base/base_uses.f90"
 
@@ -164,11 +164,11 @@ CONTAINS
       ! 3. RI-RS fitting coefficients Z_lP (grid x RI matrix)
       !    Per-atom regularized solve, restricted to grid points r_l within a
       !    cutoff distance of atom P:
-      !      a. D_ll' = [ Σ_μ Φ_μ(r_l) Φ_μ(r_l') ]²            
-      !      b. D_lP  = Σ_μν Φ_μ(r_l) Φ_ν(r_l) (μν|P)           
+      !      a. D_ll' = [ Σ_μ Φ_μ(r_l) Φ_μ(r_l') ]²
+      !      b. D_lP  = Σ_μν Φ_μ(r_l) Φ_ν(r_l) (μν|P)
       !      c. Jacobi conditioning with d_l = 1/sqrt(D_ll):
       !         D'_ll' = d_l D_ll' d_l' + λδ_ll' ,  D'_lP = d_l D_lP
-      !      d. Solve Σ_l' D'_ll' Z'_l'P = D'_lP                
+      !      d. Solve Σ_l' D'_ll' Z'_l'P = D'_lP
       !      e. Rescale Z_lP = d_l Z'_lP                        (mat_Z_lP)
       ! ========================================================================
       CALL compute_coeff_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
@@ -268,15 +268,15 @@ CONTAINS
 
          DO i = 1, SIZE(zet_ao, 1)
             DO j = 1, SIZE(zet_ao, 2)
-               IF (zet_ao(i, j) > 1.0E-3_dp) THEN
-                  alpha_min_ao_kind(ikind) = MIN(alpha_min_ao_kind(ikind), zet_ao(i, j))
+               IF (zet_ao(i, j) > 1.0E-3_dp) then
+                 alpha_min_ao_kind(ikind) = MIN(alpha_min_ao_kind(ikind), zet_ao(i, j))
                END IF
             END DO
          END DO
          DO i = 1, SIZE(zet_ri, 1)
             DO j = 1, SIZE(zet_ri, 2)
-               IF (zet_ri(i, j) > 1.0E-3_dp) THEN
-                  alpha_min_ri_kind(ikind) = MIN(alpha_min_ri_kind(ikind), zet_ri(i, j))
+               IF (zet_ri(i, j) > 1.0E-3_dp) then
+                 alpha_min_ri_kind(ikind) = MIN(alpha_min_ri_kind(ikind), zet_ri(i, j))
                END IF
             END DO
          END DO
@@ -652,7 +652,7 @@ CONTAINS
       ! B. Define Row Block Sizes: atom-aligned blocks (a block never spans two atoms' grid
       ! runs), each atom's run subdivided into blocks of at most bs_eff points.
 
-      ! Fetch CP2K's default process grid configuration 
+      ! Fetch CP2K's default process grid configuration
       CALL get_qs_env(qs_env, dbcsr_dist=dbcsr_dist_ks)
       CALL dbcsr_distribution_get(dbcsr_dist_ks, nprows=nprow, npcols=npcol)
 
@@ -1116,7 +1116,7 @@ CONTAINS
          ! 3. TWO-PHASE LOOP OVER ATOMS
          !    Phase A processes the "small" atoms with the single-rank BLAS path
          !    Phase B processes the "big" atoms with the distributed ScaLAPACK path
-         !    over rank subgroups of size G. phi_local for each atom's cutoff sphere 
+         !    over rank subgroups of size G. phi_local for each atom's cutoff sphere
          !    is built on the fly to avoid replicating a global grid x AO matrix.
          ! =========================================================================
          DO iphase = 1, 2
@@ -1372,7 +1372,7 @@ CONTAINS
                                   cutoff_ri_per_atom, ri_blk_sizes, n_ao_total, &
                                   n_local_grid_atom, small_list, n_small, big_list, n_big, G)
 
-      !$ USE OMP_LIB, ONLY: omp_get_max_threads
+!$    USE OMP_LIB, ONLY: omp_get_max_threads
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -1418,14 +1418,15 @@ CONTAINS
          cutoff_ri = cutoff_ri_per_atom(P_loop_atom)
          n_local_grid = 0
          DO l = 1, n_grid_total
-            IF (SUM((ri_rs_grid_points(1:3, l) - pos_P(1:3))**2) <= cutoff_ri**2) &
-               n_local_grid = n_local_grid + 1
+            IF (SUM((ri_rs_grid_points(1:3, l) - pos_P(1:3))**2) <= cutoff_ri**2) then
+              n_local_grid = n_local_grid + 1
+            end if
          END DO
          n_local_grid_atom(P_loop_atom) = n_local_grid
       END DO
 
       nthreads_cls = 1
-      !$ nthreads_cls = omp_get_max_threads()
+!$    nthreads_cls = omp_get_max_threads()
       ! N_PROCS_PER_ATOM_Z_LP: -1 (default) = AUTO (classify by memory, auto-size G);
       ! 1 = force single-rank BLAS for every atom; >1 = classify by memory but use this
       ! fixed subgroup size G for the big atoms.
@@ -1447,8 +1448,9 @@ CONTAINS
       ELSE IF (mem_avail_GB <= 0.0_dp) THEN
          ! No /proc/meminfo => cannot size by memory.
          IF (auto_mode) THEN
-            IF (bs_env%unit_nr > 0) &
-               CPWARN("RI-RS Z_lP: no meminfo; single-rank solve for all atoms")
+            IF (bs_env%unit_nr > 0) then
+              CPWARN("RI-RS Z_lP: no meminfo; single-rank solve for all atoms")
+            end if
             DO P_loop_atom = 1, natom
                n_small = n_small + 1
                small_list(n_small) = P_loop_atom
@@ -1464,8 +1466,9 @@ CONTAINS
             G = MIN(bs_env%ri_rs%n_procs_per_atom_z_lp, para_env%num_pe)
             IF (G < G_int32_max) THEN
                G = MIN(G_int32_max, para_env%num_pe)
-               IF (bs_env%unit_nr > 0) &
-                  CPWARN("RI-RS Z_lP: raised G to avoid ScaLAPACK overflow")
+               IF (bs_env%unit_nr > 0) then
+                 CPWARN("RI-RS Z_lP: raised G to avoid ScaLAPACK overflow")
+               end if
             END IF
          END IF
       ELSE
@@ -1510,8 +1513,9 @@ CONTAINS
                G = MIN(bs_env%ri_rs%n_procs_per_atom_z_lp, para_env%num_pe)
                IF (G < G_int32_max) THEN
                   G = MIN(G_int32_max, para_env%num_pe)
-                  IF (bs_env%unit_nr > 0) &
-                     CPWARN("RI-RS Z_lP: raised G to avoid ScaLAPACK overflow")
+                  IF (bs_env%unit_nr > 0) then
+                    CPWARN("RI-RS Z_lP: raised G to avoid ScaLAPACK overflow")
+                  end if
                ELSE IF (G < G_atom .AND. bs_env%unit_nr > 0) THEN
                   CPWARN("RI-RS Z_lP: N_PROCS_PER_ATOM_Z_LP too small for the largest atom")
                END IF
@@ -1638,7 +1642,7 @@ CONTAINS
                   local_grid_idx(k) = local_grid_idx(l)
                END IF
             END DO
-            CALL MOVE_ALLOC(phi_keep, phi_local) 
+            CALL MOVE_ALLOC(phi_keep, phi_local)
             n_local_grid = n_keep
          END IF
          DEALLOCATE (w_pt)
@@ -2232,7 +2236,7 @@ CONTAINS
       ! The panels are identical for χ, Σ^x and Σ^c, so the count is reported once here for all three stages.
 
       CALL resolve_grid_panels(bs_env, mat_phi_mu_l, pan_first, pan_last)
-      
+
       n_panels = SIZE(pan_first)
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A,I44)') 'Number of batches for χ, Σ matrices', n_panels
@@ -2279,12 +2283,13 @@ CONTAINS
             WRITE (bs_env%unit_nr, '(T2,A,F17.2,A)') &
                'Occupation of non-zero elements of G(l,l''), χ(l,l''), W(l,l'')', &
                grid_occ*100.0_dp, ' %'
-            WRITE (bs_env%unit_nr, '(A)') ' '   
+            WRITE (bs_env%unit_nr, '(A)') ' '
             CALL m_flush(bs_env%unit_nr)
          END IF
-         IF (i_t == 1) &
-            CALL print_matrix_occupation(mat_chi_Gamma_tau(i_t)%matrix, 'χ(P,Q)', &
+         IF (i_t == 1) then
+           CALL print_matrix_occupation(mat_chi_Gamma_tau(i_t)%matrix, 'χ(P,Q)', &
                                          bs_env%para_env, bs_env%unit_nr)
+         end if
 
          IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(T2,A,I13,A,I3,A,F7.1,A)') &
@@ -2330,8 +2335,9 @@ CONTAINS
          WRITE (unit_nr, '(A)') ' '
          WRITE (unit_nr, '(T2,A,F36.2,A)') &
             'Occupation of non-zero elements of '//TRIM(label), occ*100.0_dp, ' %'
-         IF (frac_2p31 > 0.5_dp) &
-            WRITE (unit_nr, '(T4,A)') '*** WARNING: max/rank approaching 2^31 -- DBCSR overflow risk ***'
+         IF (frac_2p31 > 0.5_dp) then
+           WRITE (unit_nr, '(T4,A)') '*** WARNING: max/rank approaching 2^31 -- DBCSR overflow risk ***'
+         end if
          CALL m_flush(unit_nr)
       END IF
 
@@ -2384,7 +2390,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Exact allocated-element count of the geo template of panel [blk0, blk1]: the very same
 !>        per-block-pair centroid test as build_geo_template_panel, so this is the true DBCSR
-!>        data size of A_pan/B_pan/C_pan (DBCSR stores whole blocks). 
+!>        data size of A_pan/B_pan/C_pan (DBCSR stores whole blocks).
 !> \param r_blk_sizes ...
 !> \param centroids ...
 !> \param used ...
@@ -2427,8 +2433,9 @@ CONTAINS
       !$OMP r_blk_sizes) PRIVATE(ib, c) REDUCTION(+:nze_tmpl)
       DO ib = blk0, blk1
          DO c = 1, n_used
-            IF (SUM((centroids(:, ib) - centroids(:, used_idx(c)))**2) <= cutoff2) &
-               nze_tmpl = nze_tmpl + INT(r_blk_sizes(ib), int_8)*INT(r_blk_sizes(used_idx(c)), int_8)
+            IF (SUM((centroids(:, ib) - centroids(:, used_idx(c)))**2) <= cutoff2) then
+              nze_tmpl = nze_tmpl + INT(r_blk_sizes(ib), int_8)*INT(r_blk_sizes(used_idx(c)), int_8)
+            end if
          END DO
       END DO
       !$OMP END PARALLEL DO
@@ -2739,7 +2746,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_ri_rs_memory_estimate(qs_env, bs_env)
 
-      !$ USE OMP_LIB, ONLY: omp_get_max_threads
+!$    USE OMP_LIB, ONLY: omp_get_max_threads
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
@@ -2831,8 +2838,9 @@ CONTAINS
          pos_P(:) = particle_set(iatom)%r(:)
          n_local_grid = 0
          DO l = 1, n_grid_total
-            IF (SUM((bs_env%ri_rs%grid_points(1:3, l) - pos_P(1:3))**2) <= cutoff_ri**2) &
-               n_local_grid = n_local_grid + 1
+            IF (SUM((bs_env%ri_rs%grid_points(1:3, l) - pos_P(1:3))**2) <= cutoff_ri**2) then
+              n_local_grid = n_local_grid + 1
+            end if
          END DO
          max_n_local_grid = MAX(max_n_local_grid, n_local_grid)
          n_loc_ri_max = MAX(n_loc_ri_max, &
@@ -2841,7 +2849,7 @@ CONTAINS
 
       n_procs_per_atom = MIN(MAX(bs_env%ri_rs%n_procs_per_atom_z_lp, 1), n_procs)
       n_threads = 1
-      !$ n_threads = omp_get_max_threads()
+!$    n_threads = omp_get_max_threads()
 
       ! D_local: dense on one rank for the BLAS path; block-cyclic over the subgroup (=> /G) for
       ! the ScaLAPACK path (N_PROCS_PER_ATOM_Z_LP = G > 1). phi_local/d_lp stay per-rank either way.
@@ -3004,7 +3012,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Slices a contiguous range of grid row-blocks [blk0, blk1] out of a (grid x n) DBCSR
 !>        matrix into a new (P x n) panel matrix: iterate the source's local blocks, put the
-!>        in-range ones into the panel with a remapped row-block index, then finalize. Row-block 
+!>        in-range ones into the panel with a remapped row-block index, then finalize. Row-block
 !>        index i of the panel corresponds to source row-block blk0+i-1.
 !> \param mat_full ...
 !> \param blk0 ...
@@ -3123,7 +3131,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: compress_rows
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT), &
          OPTIONAL                                        :: blk_map
-      
+
       CHARACTER(LEN=*), PARAMETER :: routineN = 'extract_masked_blocks'
 
       INTEGER                                            :: ib, jb, n_blk, n_sub, r
@@ -3204,7 +3212,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Pre-seeds a square per-atom-blocked DBCSR matrix (G_munu, D_munu, V_PQ, W_PQ) with zero
 !>        blocks only for atom pairs within radius, for use with copy_fm_to_dbcsr(keep_sparsity=T):
-!>        the CUTOFF_RADIUS_G_W operator truncation. 
+!>        the CUTOFF_RADIUS_G_W operator truncation.
 !> \param matrix ...
 !> \param centers ...
 !> \param radius ...
@@ -3319,7 +3327,7 @@ CONTAINS
    END SUBROUTINE create_product_matrix
 
 ! **************************************************************************************************
-!> \brief Builds the AO-space Green's function operator G^occ/vir_µν (AO x AO DBCSR) 
+!> \brief Builds the AO-space Green's function operator G^occ/vir_µν (AO x AO DBCSR)
 !> \param bs_env ...
 !> \param tau ...
 !> \param ispin ...
@@ -3600,7 +3608,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Σ^c-specific panel loop: computes both the occupied (neg) and virtual (pos) contributions
 !>        in a single pass over grid panels, forming W_pan = Z_panel × W_aux × Z^T only ONCE per
-!>        panel and reusing it for both the G^occ and G^vir Hadamard contractions.  
+!>        panel and reusing it for both the G^occ and G^vir Hadamard contractions.
 !>
 !>        Computes:
 !>          mat_Sigma_neg = φ^T ( (φ G^occ φ^T) ∘ (Z W^MIC Z^T) ) φ
@@ -4338,7 +4346,7 @@ CONTAINS
       END DO
 
       ! =========================================================================
-      ! 2. IMAGINARY TIME LOOP 
+      ! 2. IMAGINARY TIME LOOP
       ! Σ^c_neg_λσ(iτ) = -φ^T ( (φ G^occ φ^T) ∘ (Z W^MIC Z^T) ) φ
       ! Σ^c_pos_λσ(iτ) =  φ^T ( (φ G^vir φ^T) ∘ (Z W^MIC Z^T) ) φ
       ! =========================================================================
