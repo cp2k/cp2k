@@ -179,11 +179,18 @@ source "${TOOLCHAIN_INSTALL_DIR}/toolchain.conf"
 
 # Generate cmake options for compiling cp2k
 CMAKE_OPTIONS="-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}"
+CMAKE_UNSET_OPTIONS=(-U "CP2K_USE_*")
 if [[ ${CMAKE_INSTALL_PREFIX} == ${CP2K_ROOT}/* ]]; then
   CMAKE_OPTIONS+=" -DCP2K_DATA_DIR=${CP2K_ROOT}/data"
 fi
 if [ ${DEBUG_BUILD} == "__TRUE__" ]; then
   CMAKE_OPTIONS+=" -DCMAKE_BUILD_TYPE=Debug"
+fi
+if [ "${math_mode}" = "mkl" ]; then
+  if [ -z "${MKLROOT}" ]; then
+    report_error ${LINENO} "math_mode is mkl, but MKLROOT is not set by ${TOOLCHAIN_INSTALL_DIR}/setup."
+  fi
+  CMAKE_OPTIONS+=" -DCP2K_BLAS_VENDOR=MKL -DCP2K_BLAS_THREADING=sequential"
 fi
 if [ -n "$(grep -- "--install-all" "${TOOLCHAIN_ROOTDIR}/toolchain_settings")" ]; then
   CMAKE_OPTIONS+=" -DCP2K_USE_EVERYTHING=ON -DCP2K_USE_DLAF=OFF -DCP2K_USE_PEXSI=OFF -DCP2K_USE_OPENPMD=OFF"
@@ -273,6 +280,9 @@ if [ "${REBUILD_ONLY}" != "__TRUE__" ]; then
   [ -f "cmake.log" ] && rm -f cmake.log
   # Show CMake options
   log_cmake "Generated CMake flags:"
+  for flag in "${CMAKE_UNSET_OPTIONS[@]}"; do
+    log_cmake "   ${flag}"
+  done
   for flag in ${CMAKE_OPTIONS}; do
     log_cmake "   ${flag}"
   done
@@ -335,7 +345,7 @@ EOF
     log_cmake "Shared libs: ${BUILD_SHARED_LIBS}"
 
     set -o pipefail
-    cmake -S "${CP2K_ROOT}" -B "${BUILD_DIR}" ${CMAKE_OPTIONS} 2>&1 | tee -a cmake.log
+    cmake "${CMAKE_UNSET_OPTIONS[@]}" -S "${CP2K_ROOT}" -B "${BUILD_DIR}" ${CMAKE_OPTIONS} 2>&1 | tee -a cmake.log
   fi
 
   log_build "==================== Building CP2K ======================="
