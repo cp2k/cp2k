@@ -42,14 +42,14 @@
   &PROPERTIES
     &BANDSTRUCTURE
       &GW
+        CUTOFF_RADIUS_RL_AO 1
+        CUTOFF_RADIUS_RL_RI 1
+        CUTOFF_RADIUS_RL_W 1
         GRID_SELECT 1
         NUM_TIME_FREQ_POINTS 10
-        RI_RS
-        CUTOFF_RADIUS_RL_AO   1
-        CUTOFF_RADIUS_RL_RI   1
-        CUTOFF_RADIUS_RL_W    1
-        N_PANELS              2
+        N_PANELS 2
         N_PROCS_PER_ATOM_Z_LP 2
+        RI_RS
       &END GW
     &END BANDSTRUCTURE
   &END PROPERTIES
