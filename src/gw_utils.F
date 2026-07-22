@@ -296,8 +296,13 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT_VERBOSE", l_val=bs_env%print_contract_verbose)
       CALL section_vals_val_get(gw_sec, "TIKHONOV", r_val=bs_env%ri_rs%tikhonov)
       CALL section_vals_val_get(gw_sec, "GRID_SELECT", i_val=bs_env%ri_rs%grid_select)
-      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RI_RS", r_val=bs_env%ri_rs%cutoff_radius_ri_rs)
+      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RL_RI", r_val=bs_env%ri_rs%cutoff_radius_ri_rs)
+      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RL_AO", r_val=bs_env%ri_rs%cutoff_radius_ri_ao)
       CALL section_vals_val_get(gw_sec, "N_PROCS_PER_ATOM_Z_LP", i_val=bs_env%ri_rs%n_procs_per_atom_z_lp)
+      CALL section_vals_val_get(gw_sec, "N_PANELS", i_val=bs_env%ri_rs%n_panels)
+      CALL section_vals_val_get(gw_sec, "KEEP_SPARSITY_RL", l_val=bs_env%ri_rs%keep_sparsity_rirs)
+      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RL_W", r_val=bs_env%ri_rs%cutoff_radius_v_w)
+      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_G_W", r_val=bs_env%ri_rs%cutoff_radius_g_w)
 
       IF (bs_env%print_contract) THEN
          bs_env%unit_nr_contract = bs_env%unit_nr
@@ -1697,15 +1702,30 @@ CONTAINS
          WRITE (u, '(T2,A,F37.1,A)') 'Input: Available memory per MPI process', &
             bs_env%input_memory_per_proc_GB, ' GB'
          IF (bs_env%do_gw_ri_rs) THEN
-            WRITE (u, FMT="(T2,A,ES44.1)") " "
-            WRITE (u, FMT="(T2,A,ES37.1)") "INPUT: Regularization parameter for RI-RS ", bs_env%ri_rs%tikhonov
-            IF (bs_env%ri_rs%cutoff_radius_ri_rs /= -1.0_dp) THEN
-               WRITE (u, FMT="(T2,A,F31.1,A)") "INPUT: Cutoff radius for grid points in RI-RS ", &
-                  bs_env%ri_rs%cutoff_radius_ri_rs*angstrom, " Å"
+            WRITE (u, '(A)') ' '
+            WRITE (u, '(T2,A,ES43.2)') 'Input: RI-RS Tikhonov regularization', &
+               bs_env%ri_rs%tikhonov
+            IF (bs_env%ri_rs%cutoff_radius_ri_rs > 0.0_dp) THEN
+               WRITE (u, '(T2,A,F39.2,A)') 'Input: RI-RS integration sphere cutoff', &
+                  bs_env%ri_rs%cutoff_radius_ri_rs*angstrom, ' Å'
             END IF
-            WRITE (u, FMT="(T2,A,I35)") "INPUT: Number of MPI ranks per atom in Z_lP solve ", &
+            IF (bs_env%ri_rs%cutoff_radius_ri_ao > 0.0_dp) THEN
+               WRITE (u, '(T2,A,F44.2,A)') 'Input: AO grid hard cutoff radius', &
+                  bs_env%ri_rs%cutoff_radius_ri_ao*angstrom, ' Å'
+            END IF
+            WRITE (u, '(T2,A,I40)') 'Input: MPI ranks per atom in Z_lP solve', &
                bs_env%ri_rs%n_procs_per_atom_z_lp
-            WRITE (u, FMT="(T2,A,ES44.1)") " "
+            WRITE (u, '(T2,A,L43)') 'Input: Keep sparsity in χ/G/W panels', &
+               bs_env%ri_rs%keep_sparsity_rirs
+            IF (bs_env%ri_rs%cutoff_radius_v_w > 0.0_dp) THEN
+               WRITE (u, '(T2,A,F43.2,A)') 'Input: G/W panel truncation radius', &
+                  bs_env%ri_rs%cutoff_radius_v_w*angstrom, ' Å'
+            END IF
+            IF (bs_env%ri_rs%cutoff_radius_g_w > 0.0_dp) THEN
+               WRITE (u, '(T2,A,F40.2,A)') 'Input: G/W operator truncation radius', &
+                  bs_env%ri_rs%cutoff_radius_g_w*angstrom, ' Å'
+            END IF
+            WRITE (u, '(A)') ' '
          END IF
       END IF
 
