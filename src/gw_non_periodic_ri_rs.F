@@ -269,14 +269,14 @@ CONTAINS
          DO i = 1, SIZE(zet_ao, 1)
             DO j = 1, SIZE(zet_ao, 2)
                IF (zet_ao(i, j) > 1.0E-3_dp) then
-                 alpha_min_ao_kind(ikind) = MIN(alpha_min_ao_kind(ikind), zet_ao(i, j))
+                  alpha_min_ao_kind(ikind) = MIN(alpha_min_ao_kind(ikind), zet_ao(i, j))
                END IF
             END DO
          END DO
          DO i = 1, SIZE(zet_ri, 1)
             DO j = 1, SIZE(zet_ri, 2)
                IF (zet_ri(i, j) > 1.0E-3_dp) then
-                 alpha_min_ri_kind(ikind) = MIN(alpha_min_ri_kind(ikind), zet_ri(i, j))
+                  alpha_min_ri_kind(ikind) = MIN(alpha_min_ri_kind(ikind), zet_ri(i, j))
                END IF
             END DO
          END DO
@@ -1419,7 +1419,7 @@ CONTAINS
          n_local_grid = 0
          DO l = 1, n_grid_total
             IF (SUM((ri_rs_grid_points(1:3, l) - pos_P(1:3))**2) <= cutoff_ri**2) then
-              n_local_grid = n_local_grid + 1
+               n_local_grid = n_local_grid + 1
             end if
          END DO
          n_local_grid_atom(P_loop_atom) = n_local_grid
@@ -1449,7 +1449,7 @@ CONTAINS
          ! No /proc/meminfo => cannot size by memory.
          IF (auto_mode) THEN
             IF (bs_env%unit_nr > 0) then
-              CPWARN("RI-RS Z_lP: no meminfo; single-rank solve for all atoms")
+               CPWARN("RI-RS Z_lP: no meminfo; single-rank solve for all atoms")
             end if
             DO P_loop_atom = 1, natom
                n_small = n_small + 1
@@ -1467,7 +1467,7 @@ CONTAINS
             IF (G < G_int32_max) THEN
                G = MIN(G_int32_max, para_env%num_pe)
                IF (bs_env%unit_nr > 0) then
-                 CPWARN("RI-RS Z_lP: raised G to avoid ScaLAPACK overflow")
+                  CPWARN("RI-RS Z_lP: raised G to avoid ScaLAPACK overflow")
                end if
             END IF
          END IF
@@ -1514,7 +1514,7 @@ CONTAINS
                IF (G < G_int32_max) THEN
                   G = MIN(G_int32_max, para_env%num_pe)
                   IF (bs_env%unit_nr > 0) then
-                    CPWARN("RI-RS Z_lP: raised G to avoid ScaLAPACK overflow")
+                     CPWARN("RI-RS Z_lP: raised G to avoid ScaLAPACK overflow")
                   end if
                ELSE IF (G < G_atom .AND. bs_env%unit_nr > 0) THEN
                   CPWARN("RI-RS Z_lP: N_PROCS_PER_ATOM_Z_LP too small for the largest atom")
@@ -2287,7 +2287,7 @@ CONTAINS
             CALL m_flush(bs_env%unit_nr)
          END IF
          IF (i_t == 1) then
-           CALL print_matrix_occupation(mat_chi_Gamma_tau(i_t)%matrix, 'χ(P,Q)', &
+            CALL print_matrix_occupation(mat_chi_Gamma_tau(i_t)%matrix, 'χ(P,Q)', &
                                          bs_env%para_env, bs_env%unit_nr)
          end if
 
@@ -2336,7 +2336,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A,F36.2,A)') &
             'Occupation of non-zero elements of '//TRIM(label), occ*100.0_dp, ' %'
          IF (frac_2p31 > 0.5_dp) then
-           WRITE (unit_nr, '(T4,A)') '*** WARNING: max/rank approaching 2^31 -- DBCSR overflow risk ***'
+            WRITE (unit_nr, '(T4,A)') '*** WARNING: max/rank approaching 2^31 -- DBCSR overflow risk ***'
          end if
          CALL m_flush(unit_nr)
       END IF
@@ -2434,7 +2434,7 @@ CONTAINS
       DO ib = blk0, blk1
          DO c = 1, n_used
             IF (SUM((centroids(:, ib) - centroids(:, used_idx(c)))**2) <= cutoff2) then
-              nze_tmpl = nze_tmpl + INT(r_blk_sizes(ib), int_8)*INT(r_blk_sizes(used_idx(c)), int_8)
+               nze_tmpl = nze_tmpl + INT(r_blk_sizes(ib), int_8)*INT(r_blk_sizes(used_idx(c)), int_8)
             end if
          END DO
       END DO
@@ -2839,7 +2839,7 @@ CONTAINS
          n_local_grid = 0
          DO l = 1, n_grid_total
             IF (SUM((bs_env%ri_rs%grid_points(1:3, l) - pos_P(1:3))**2) <= cutoff_ri**2) then
-              n_local_grid = n_local_grid + 1
+               n_local_grid = n_local_grid + 1
             end if
          END DO
          max_n_local_grid = MAX(max_n_local_grid, n_local_grid)
