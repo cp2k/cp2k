@@ -2590,19 +2590,23 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="RI_RS", &
                           description="Real-Space Resolution of Identity (RI-RS) method. This "// &
-                          "approximation replaces the conventional 3-center RI integrals (μν|P) "// &
-                          "by a factorized representation on an atom-centered real-space grid "// &
-                          "{r_ℓ}: (μν|P) ≈ ∑_ℓ φ_μ(r_ℓ) φ_ν(r_ℓ) Z_ℓP. "// &
-                          "The coefficients Z_ℓP combine the numerical integration weights and "// &
-                          "the Coulomb potential of the auxiliary basis function P evaluated "// &
-                          "at grid point r_ℓ. To reduce the computational cost, only grid points "// &
-                          "within the sphere B^P are included, where "// &
-                          "B^P = {r : |r - R_P| < Rc + r_P}. "// &
-                          "Here, r_P is the effective Gaussian basis radius for atom P at which "// &
-                          "the basis function magnitude falls below a threshold δ "// &
+                          "approximation replaces the conventional 3-center RI integrals "// &
+                          "$(\mu\nu|P)$ by a factorized representation on an atom-centered "// &
+                          "real-space grid $\{\mathbf{r}_\ell\}$: "// &
+                          "$(\mu\nu|P) \approx \sum_\ell \varphi_\mu(\mathbf{r}_\ell) "// &
+                          "\varphi_\nu(\mathbf{r}_\ell) Z_{\ell P}$. "// &
+                          "The coefficients $Z_{\ell P}$ combine the numerical integration "// &
+                          "weights and the Coulomb potential of the auxiliary basis function "// &
+                          "$P$ evaluated at grid point $\mathbf{r}_\ell$. To reduce the "// &
+                          "computational cost, only grid points within the sphere $B^P$ are "// &
+                          "included, where "// &
+                          "$B^P = \{\mathbf{r} : |\mathbf{r} - \mathbf{R}_P| < R_c + r_P\}$. "// &
+                          "Here, $r_P$ is the effective radius of the most diffuse RI "// &
+                          "auxiliary Gaussian on atom $P$, at which the basis function "// &
+                          "magnitude falls below a threshold $\delta$ "// &
                           "(currently controlled through EPS_FILTER). "// &
                           "This locality approximation yields a sparse representation of the "// &
-                          "3-center integrals enables reduced computational cost. "// &
+                          "3-center integrals and enables reduced computational cost. "// &
                           "See details in https://doi.org/10.1063/1.5090605.", &
                           usage="RI_RS", &
                           default_l_val=.FALSE., &
@@ -2611,35 +2615,44 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="TIKHONOV", &
-                          description="Regularization parameter (α) used to stabilize "// &
+                          description="Regularization parameter $\alpha$ used to stabilize "// &
                           "the inversion of the grid-overlap matrix "// &
-                          "D in the Real-Space RI (RI-RS) method. See Equation (9) in https://doi.org/10.1063/1.5090605.", &
+                          "$D$ in the RI-RS method. "// &
+                          "See Equation (9) in https://doi.org/10.1063/1.5090605.", &
                           usage="TIKHONOV 1.0E-8", &
                           default_r_val=1.0E-08_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="GRID_SELECT", &
-                          description="Selection of the atom-centeredgrid type used "// &
+                          description="Selection of the atom-centered grid type used "// &
                           "in RI-RS optimized by Duchemin and Blase. "// &
-                          "(1) def2-TZVPP: Grid optimized by Duchemin and Blase, "// &
-                          "available for elements up to the fourth row "// &
+                          "(1) def2-TZVPP: Available for elements up to the fourth row "// &
                           "of the periodic table (see https://doi.org/10.1021/acs.jctc.1c00101). "// &
-                          "(2) cc-pVTZ: Optimized grids available for H, C, N, and O atoms "// &
+                          "(2) cc-pVTZ: Available for H, C, N, and O atoms "// &
                           "(see https://doi.org/10.1063/1.5090605).", &
                           usage="GRID_SELECT 1", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_RI_RS", &
-                          description="Override (in Angstrom) of the truncated-Coulomb cutoff radius Rc used "// &
-                          "to size the per-atom RI-RS integration domain "// &
-                          "B^P = {r : |r - R_P| < Rc + r_AO(P)}, where r_AO(P) is the spatial extent of the "// &
-                          "most diffuse AO Gaussian on atom P. By default (-1.0) Rc falls back to "// &
-                          "CUTOFF_RADIUS_RI from the GW section (the same Rc used to build the RI metric "// &
-                          "integrals). Useful for convergence sweeps.", &
-                          usage="CUTOFF_RADIUS_RI_RS 15.0", &
+      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_RL_RI", &
+                          description="Real-space cutoff radius (in Angstrom) for evaluating "// &
+                          "the RI-RS integration domain $B^P$. Overrides the default "// &
+                          "$R_c + r_P$, where $R_c$ is the truncated-Coulomb cutoff of the "// &
+                          "RI metric and $r_P$ the radius of the most diffuse RI auxiliary "// &
+                          "Gaussian on atom $P$.", &
+                          usage="CUTOFF_RADIUS_RL_RI 15.0", &
+                          default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="angstrom"), &
+                          type_of_var=real_t, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_RL_AO", &
+                          description="Real-space cutoff radius (in Angstrom) for evaluating "// &
+                          "the AO basis functions on the RI-RS grid. Override the default radius "// & 
+                          "derived automatically from the most diffuse AO Gaussian on each atom. ", &
+                          usage="CUTOFF_RADIUS_RL_AO 8.0", &
                           default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="angstrom"), &
                           type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
@@ -2647,18 +2660,60 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="N_PROCS_PER_ATOM_Z_LP", &
                           description="Number of MPI ranks that cooperate on one atom's "// &
-                          "Cholesky factorisation in compute_coeff_Z_lP. Default 1 keeps "// &
-                          "the single-rank LAPACK dpotrf path (BLAS, fastest when "// &
-                          "D_local fits per rank). Setting > 1 enables a ScaLAPACK "// &
-                          "pdpotrf path: ranks are split into atom-groups of this size, "// &
-                          "D_local is block-cyclic distributed across each group (per-rank "// &
-                          "memory ~1/G), the compute_d_lp build is also distributed across "// &
-                          "the subgroup, and multiple groups process different atoms in "// &
-                          "parallel. Use for systems where n_local_grid is large enough "// &
-                          "that the dense (n_local_grid)^2 D_local does not fit in a "// &
-                          "single rank's memory.", &
-                          usage="N_PROCS_PER_ATOM_Z_LP 16", &
+                          "Cholesky factorisation in computation of $Z_{\ell P}$ in RI-RS. "// &
+                          "Default -1 = AUTO: "// &
+                          "each atom is solved single-rank (fast BLAS) unless its dense "// &
+                          "grid-overlap matrix would exceed the available memory per process, "// &
+                          "in which case it is distributed across a rank subgroup sized "// &
+                          "automatically (ScaLAPACK). Set to 1 to force single-rank for all "// &
+                          "atoms, or > 1 to force that fixed subgroup size for all atoms.", &
+                          usage="N_PROCS_PER_ATOM_Z_LP 2", &
+                          default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="N_PANELS", &
+                          description="Number of grid panels (batches) the real-space grid is "// &
+                          "split into for the streaming chi/W/Sigma contractions in RI-RS. More "// &
+                          "panels means lower peak memory per step but more overhead. Default 1 = a "// &
+                          "single whole-grid panel. On large cells the number of panels is "// &
+                          "automatically increased beyond the request to keep per-rank DBCSR "// &
+                          "messages under the 32-bit length limit.", &
+                          usage="N_PANELS 4", &
                           default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="KEEP_SPARSITY_RL", &
+                          description="If `.TRUE.` (default), the W/V matrices in the "// &
+                          "grid-basis contractions of RI-RSwill used the sparsity pattern of the "// &
+                          "corresponding G/D matrices. "// &
+                          "Set `.FALSE.` to build W/V fully dense.", &
+                          usage="KEEP_SPARSITY_RL .FALSE.", &
+                          default_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_RL_W", &
+                          description="Real-space truncation radius (Angstrom) for the grid-basis "// &
+                          "G operators in the RI-RS GW self-energy. "// &
+                          "Default -1.0 disables the truncation (exact grid-basis operators).", &
+                          usage="CUTOFF_RADIUS_RL_W 20.0", &
+                          default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="angstrom"), &
+                          type_of_var=real_t, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_G_W", &
+                          description="Atom-pair distance truncation radius (Angstrom) applied to "// &
+                          "the AO/RI-space operator matrices G, D, V and W themselves in the RI-RS "// &
+                          "GW contractions: matrix blocks between atoms further apart than this "// &
+                          "radius are dropped. Physically consistent with CUTOFF_RADIUS_RL_W, "// &
+                          "which truncates the grid-basis products at the same kind of range. "// &
+                          "Default -1.0 disables the truncation (exact operators).", &
+                          usage="CUTOFF_RADIUS_G_W 20.0", &
+                          default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="angstrom"), &
+                          type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

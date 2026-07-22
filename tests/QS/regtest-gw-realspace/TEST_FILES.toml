@@ -18,4 +18,8 @@
                                           {matcher="E_RIRS_LUMO", tol=1e-03, ref=17.425},
                                           {matcher="E_G0W0_direct_gap", tol=1e-03, ref=23.517}]
 
+"06_RIRS_G0W0_PBE_H2O_CUTOFFS.inp"       = [{matcher="E_RIRS_HOMO", tol=1e-03, ref=150.081},
+                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=23.808},
+                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=-126.273}]
+
 #EOF

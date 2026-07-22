@@ -69,7 +69,19 @@ MODULE post_scf_bandstructure_types
       ! Input parameters for RI-RS
       INTEGER                                          :: grid_select = 1
       REAL(KIND=dp)                                    :: tikhonov = 1.0E-08_dp
-      REAL(KIND=dp)                                    :: cutoff_radius_ri_rs = 30.0_dp
+      REAL(KIND=dp)                                    :: cutoff_radius_ri_rs = -1.0_dp
+      REAL(KIND=dp)                                    :: cutoff_radius_ri_ao = -1.0_dp
+      INTEGER                                          :: n_procs_per_atom_z_lp = -1
+      INTEGER                                          :: n_panels = 1
+      LOGICAL                                          :: keep_sparsity_rirs = .TRUE.
+      REAL(KIND=dp)                                    :: cutoff_radius_v_w = -1.0_dp
+      REAL(KIND=dp)                                    :: cutoff_radius_g_w = -1.0_dp
+
+      ! Data types for cutoffs based DBCSR matrices
+      REAL(KIND=dp), ALLOCATABLE                       :: chunk_centroids(:, :)
+      REAL(KIND=dp), ALLOCATABLE                       :: atom_centers(:, :)
+      INTEGER, ALLOCATABLE                             :: grid_atom_boundaries(:)
+      INTEGER, ALLOCATABLE                             :: pan_first(:), pan_last(:)
 
       ! Number of MPI ranks that cooperate on one atom's Cholesky solve via
       ! distributed pdpotrf. Default 1 = single-rank dpotrf path (BLAS, fastest
@@ -524,6 +536,11 @@ CONTAINS
       IF (ALLOCATED(bs_env%ri_rs%grid_cache)) DEALLOCATE (bs_env%ri_rs%grid_cache)
       IF (ALLOCATED(bs_env%ri_rs%radius_ao_per_atom)) DEALLOCATE (bs_env%ri_rs%radius_ao_per_atom)
       IF (ALLOCATED(bs_env%ri_rs%radius_ri_per_atom)) DEALLOCATE (bs_env%ri_rs%radius_ri_per_atom)
+      IF (ALLOCATED(bs_env%ri_rs%chunk_centroids)) DEALLOCATE (bs_env%ri_rs%chunk_centroids)
+      IF (ALLOCATED(bs_env%ri_rs%atom_centers)) DEALLOCATE (bs_env%ri_rs%atom_centers)
+      IF (ALLOCATED(bs_env%ri_rs%grid_atom_boundaries)) DEALLOCATE (bs_env%ri_rs%grid_atom_boundaries)
+      IF (ALLOCATED(bs_env%ri_rs%pan_first)) DEALLOCATE (bs_env%ri_rs%pan_first)
+      IF (ALLOCATED(bs_env%ri_rs%pan_last)) DEALLOCATE (bs_env%ri_rs%pan_last)
 
       DEALLOCATE (bs_env)
 

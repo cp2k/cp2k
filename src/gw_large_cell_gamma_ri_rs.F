@@ -225,8 +225,8 @@ CONTAINS
       INTEGER :: c_size, chunk_size, dimen_ORB, handle, i, i_blk, iatom, natom, npcol, nprow, &
          num_grid_chunks, r_end, r_start, total_grid_npts
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf
-      INTEGER, DIMENSION(:), POINTER                     :: c_blk_sizes, col_dist, col_dist_ks, &
-                                                            r_blk_sizes, row_dist, row_dist_ks
+      INTEGER, DIMENSION(:), POINTER                     :: c_blk_sizes, col_dist, &
+                                                            r_blk_sizes, row_dist
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_col_buffer
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -273,12 +273,9 @@ CONTAINS
 
       ! C. Fetch CP2K's Default Process Grid Configuration
       CALL get_qs_env(qs_env, dbcsr_dist=dbcsr_dist_ks)
-      CALL dbcsr_distribution_get(dbcsr_dist_ks, row_dist=row_dist_ks, col_dist=col_dist_ks)
+      CALL dbcsr_distribution_get(dbcsr_dist_ks, nprows=nprow, npcols=npcol)
 
       ! D. Build Custom Mappings using Round-Robin across the 2D process grid
-      !    (MAXVAL + 1 accounts for 0-based process indexing in DBCSR)
-      nprow = MAXVAL(row_dist_ks) + 1
-      npcol = MAXVAL(col_dist_ks) + 1
 
       ALLOCATE (row_dist(num_grid_chunks))
       DO i = 1, num_grid_chunks
@@ -379,21 +376,28 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), INTENT(IN)                          :: r2_threshold
 
-      INTEGER :: first_sgf, i_pt, ico, iend_co, ikind, ipgf, iset, isgf, ishell, istart_co, ix, &
-         ix_max, ix_min, iy, iy_max, iy_min, iz, iz_max, iz_min, l, last_sgf, lx, ly, lz, &
-         n_cart_total, row_idx
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fill_phi_for_atom'
+
+      INTEGER :: first_sgf, handle, i_pt, ico, iend_co, ikind, ipgf, iset, isgf, ishell, &
+         istart_co, ix, ix_max, ix_min, iy, iy_max, iy_min, iz, iz_max, iz_min, l, last_sgf, &
+         lx, ly, lz, n_cart_total, row_idx
       REAL(KIND=dp)                                      :: alpha, cell_vector(3), dist_vec(3), &
                                                             dist_vec_raw(3), exp_val, poly, r2, &
                                                             r_atom(3), weight
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
 
+      CALL timeset(routineN, handle)
+
       ! Get Atom Info
       ikind = particle_set(iatom)%atomic_kind%kind_number
       CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type="ORB")
       CALL get_cell(cell=cell, h=hmat)
 
-      IF (.NOT. ASSOCIATED(orb_basis_set)) RETURN
+      IF (.NOT. ASSOCIATED(orb_basis_set)) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
 
       IF (cell%perd(1) == 1) THEN
          ix_min = -1
@@ -482,6 +486,8 @@ CONTAINS
       END DO
       !$OMP END PARALLEL DO
 
+      CALL timestop(handle)
+
    END SUBROUTINE fill_phi_for_atom
 
 ! **************************************************************************************************
@@ -506,12 +512,13 @@ CONTAINS
          routineN = 'compute_coeff_Z_lP'
 
       INTEGER :: atom_j_mepos, atom_j_stride, atom_P, atom_P_start, atom_P_stride, col_end, &
-         col_start, current_chunk_size, g, group_handle, handle, i, i_blk, ikind, info, j, j_ri, &
+         col_start, current_chunk_size, g, group_handle, handle, handle_dpotrf, handle_dpotrs, &
+         handle_dsyrk, i, i_blk, ikind, info, j, j_ri, &
          l, loc_idx, loc_ptr, max_ao_size, max_loc_ri, my_group, n_ao_total, n_grid_total, &
-         n_groups, n_loc_ri, n_local_grid, n_procs_per_atom, natom, nkind, num_grid_chunks, &
-         P_loop_atom, r_end, r_start, source_atom
+         n_groups, n_loc_ri, n_local_grid, n_procs_per_atom, natom, nkind, npcol_phi, &
+         num_grid_chunks, P_loop_atom, r_end, r_start, source_atom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_grid_idx, row_offset
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist_phi, col_dist_ri, r_blk_sizes, &
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist_ri, r_blk_sizes, &
                                                             ri_blk_sizes, row_dist_grid
       REAL(KIND=dp)                                      :: cutoff_ri, cutoff_ri_2, d_sP, dist2_min, &
                                                             r2_threshold, r_c, t1, t2, t3
@@ -577,7 +584,8 @@ CONTAINS
       ! 1. SETUP DBCSR TOPOLOGY & EXACT OFFSETS
       ! =========================================================================
       CALL dbcsr_get_info(mat_phi_mu_l, row_blk_size=r_blk_sizes, distribution=dist_phi)
-      CALL dbcsr_distribution_get(dist_phi, row_dist=row_dist_grid, col_dist=col_dist_phi, group=group_handle)
+      CALL dbcsr_distribution_get(dist_phi, row_dist=row_dist_grid, &
+                                  group=group_handle, npcols=npcol_phi)
 
       num_grid_chunks = SIZE(r_blk_sizes)
 
@@ -590,7 +598,7 @@ CONTAINS
       ALLOCATE (ri_blk_sizes(natom), col_dist_ri(natom))
       DO atom_P = 1, natom
          ri_blk_sizes(atom_P) = bs_env%i_RI_end_from_atom(atom_P) - bs_env%i_RI_start_from_atom(atom_P) + 1
-         col_dist_ri(atom_P) = MOD(atom_P - 1, MAXVAL(col_dist_phi) + 1)
+         col_dist_ri(atom_P) = MOD(atom_P - 1, npcol_phi)
       END DO
 
       CALL dbcsr_distribution_new(dist_Z, template=dist_phi, row_dist=row_dist_grid, col_dist=col_dist_ri)
@@ -759,8 +767,10 @@ CONTAINS
                ALLOCATE (D_local(n_local_grid, n_local_grid))
                D_local = 0.0_dp
 
+               CALL timeset(routineN//"_dsyrk", handle_dsyrk)
                CALL dsyrk("L", "N", n_local_grid, n_ao_total, 1.0_dp, phi_local, &
                           n_local_grid, 0.0_dp, D_local, n_local_grid)
+               CALL timestop(handle_dsyrk)
 
                !$OMP PARALLEL DO DEFAULT(NONE) &
                !$OMP SHARED(n_local_grid, D_local, d_vec_local, bs_env) &
@@ -821,9 +831,13 @@ CONTAINS
             ! F. Solve — BLAS dpotrf/dpotrs or ScaLAPACK pdpotrf/pdpotrs
             ! ---------------------------------------------------------------------
             IF (n_procs_per_atom == 1) THEN
+               CALL timeset(routineN//"_dpotrf", handle_dpotrf)
                CALL dpotrf('L', n_local_grid, D_local, n_local_grid, info)
+               CALL timestop(handle_dpotrf)
+               CALL timeset(routineN//"_dpotrs", handle_dpotrs)
                CALL dpotrs('L', n_local_grid, n_loc_ri, D_local, n_local_grid, &
                            d_lp_local, n_local_grid, info)
+               CALL timestop(handle_dpotrs)
                DEALLOCATE (D_local)
             ELSE
                CALL solve_D_lp_distributed(phi_local, d_vec_local, d_lp_local, &
@@ -958,12 +972,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_d_lp'
       INTEGER, PARAMETER                                 :: grid_chunk = 1024
 
-      INTEGER :: atom_j, atom_k, c, handle, ix_max, ix_min, ix_R, ix_S, iy_max, iy_min, iy_R, &
-         iy_S, iz_max, iz_min, iz_R, iz_S, j, jk_idx, jsize, jstart, k, ksize, kstart, l, l0, &
-         natom, ri
+      INTEGER :: atom_j, atom_k, c, handle, handle_dgemm, ix_max, ix_min, ix_R, ix_S, iy_max, &
+         iy_min, iy_R, iy_S, iz_max, iz_min, iz_R, iz_S, j, jk_idx, jsize, jstart, k, ksize, &
+         kstart, l, l0, natom, ri
       INTEGER, DIMENSION(3)                              :: cell_R_vec, cell_S_vec
       LOGICAL                                            :: any_kept, screened
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: int_2d_prv, rho_chunk
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_prv, int_2d_prv, rho_chunk
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: int_3c_prv, int_3c_sum
       TYPE(gw_3c_ws_type)                                :: ws
 
@@ -997,15 +1011,17 @@ CONTAINS
       !$OMP SHARED(bs_env, ctx, phi_val, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size, &
       !$OMP        natom, ix_min, ix_max, iy_min, iy_max, iz_min, iz_max, &
       !$OMP        atom_j_mepos, atom_j_stride) &
-      !$OMP PRIVATE(any_kept, atom_j, atom_k, c, j, jk_idx, jsize, jstart, k, ksize, kstart, l, &
-      !$OMP         l0, ri, ix_R, iy_R, iz_R, ix_S, iy_S, iz_S, cell_R_vec, cell_S_vec, &
-      !$OMP         screened, int_2d_prv, rho_chunk, int_3c_prv, int_3c_sum, ws)
+      !$OMP PRIVATE(any_kept, atom_j, atom_k, c, handle_dgemm, j, jk_idx, jsize, jstart, k, &
+      !$OMP         ksize, kstart, l, l0, ri, ix_R, iy_R, iz_R, ix_S, iy_S, iz_S, cell_R_vec, &
+      !$OMP         cell_S_vec, screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, int_3c_sum, ws)
 
       CALL gw_3c_ws_create(ws, ctx)
       ALLOCATE (int_3c_prv(max_ao_size, max_ao_size, n_loc_ri))
       ALLOCATE (int_3c_sum(max_ao_size, max_ao_size, n_loc_ri))
       ALLOCATE (int_2d_prv(max_ao_size*max_ao_size, n_loc_ri))
       ALLOCATE (rho_chunk(grid_chunk, max_ao_size*max_ao_size))
+      ALLOCATE (d_lp_prv(n_grid_total, n_loc_ri))
+      d_lp_prv(:, :) = 0.0_dp
 
       ! atom_P pinned at cell (0,0,0); enumerate (atom_j, cell_R) × (atom_k, cell_S). The ctx
       ! integral builder's kind_radius triangle screen sets screened=.TRUE. for the bulk of
@@ -1014,7 +1030,7 @@ CONTAINS
       ! MPI-stride atom_j over the subgroup (atom_j_stride = 1 for the BLAS path, > 1 for the
       ! ScaLAPACK path). COLLAPSE(2) dropped because the outer stride is non-unit under
       ! ScaLAPACK; the inner atom_k loop carries enough work for DYNAMIC.
-      !$OMP DO SCHEDULE(DYNAMIC) REDUCTION(+:d_lp)
+      !$OMP DO SCHEDULE(DYNAMIC)
       DO atom_j = atom_j_mepos + 1, natom, atom_j_stride
          DO atom_k = 1, natom
             jstart = bs_env%i_ao_start_from_atom(atom_j)
@@ -1079,16 +1095,23 @@ CONTAINS
                      END DO
                   END DO
                END DO
+               CALL timeset(routineN//"_dgemm", handle_dgemm)
                CALL dgemm("N", "N", c, n_loc_ri, jsize*ksize, &
                           1.0_dp, rho_chunk, grid_chunk, &
                           int_2d_prv, max_ao_size*max_ao_size, &
-                          1.0_dp, d_lp(l0, 1), n_grid_total)
+                          1.0_dp, d_lp_prv(l0, 1), n_grid_total)
+               CALL timestop(handle_dgemm)
             END DO
          END DO
       END DO
       !$OMP END DO
 
-      DEALLOCATE (int_3c_prv, int_3c_sum, int_2d_prv, rho_chunk)
+      !$OMP CRITICAL (compute_d_lp_reduce)
+      d_lp(1:n_grid_total, 1:n_loc_ri) = d_lp(1:n_grid_total, 1:n_loc_ri) + &
+                                         d_lp_prv(1:n_grid_total, 1:n_loc_ri)
+      !$OMP END CRITICAL (compute_d_lp_reduce)
+
+      DEALLOCATE (int_3c_prv, int_3c_sum, int_2d_prv, rho_chunk, d_lp_prv)
       CALL gw_3c_ws_release(ws)
 
       !$OMP END PARALLEL
@@ -1114,8 +1137,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mat_chi_Gamma_tau'
 
       INTEGER                                            :: handle, i, i_t, ispin, npcol
-      INTEGER, DIMENSION(:), POINTER                     :: blk_ao, blk_grid, dist_col_ao, &
-                                                            dist_col_grid, dist_row_grid
+      INTEGER, DIMENSION(:), POINTER                     :: blk_ao, blk_grid, dist_col_grid, &
+                                                            dist_row_grid
       REAL(KIND=dp)                                      :: t1, tau
       TYPE(dbcsr_distribution_type)                      :: dist_grid_grid, dist_phi
       TYPE(dbcsr_type)                                   :: matrix_chi_grid, matrix_chi_grid_spin, &
@@ -1127,10 +1150,7 @@ CONTAINS
       ! 1. SETUP CORE TOPOLOGIES
       ! =========================================================================
       CALL dbcsr_get_info(mat_phi_mu_l, distribution=dist_phi, row_blk_size=blk_grid, col_blk_size=blk_ao)
-      CALL dbcsr_distribution_get(dist_phi, row_dist=dist_row_grid, col_dist=dist_col_ao)
-
-      ! Determine number of MPI process columns
-      npcol = MAXVAL(dist_col_ao) + 1
+      CALL dbcsr_distribution_get(dist_phi, row_dist=dist_row_grid, npcols=npcol)
 
       ! Build a perfectly safe column distribution for the Grid dimension
       ALLOCATE (dist_col_grid(SIZE(blk_grid)))
@@ -1993,18 +2013,23 @@ CONTAINS
       TYPE(dbcsr_distribution_type), INTENT(OUT)         :: square_dist
       INTEGER, DIMENSION(:), INTENT(OUT), POINTER        :: blk_sizes, mapped_dist
 
-      INTEGER                                            :: i, np
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'setup_square_topology'
+
+      INTEGER                                            :: handle, i, np, npcols, nprows
       INTEGER, DIMENSION(:), POINTER                     :: col_blk, col_dist, row_blk, row_dist
       TYPE(dbcsr_distribution_type)                      :: dist_template
 
+      CALL timeset(routineN, handle)
+
       CALL dbcsr_get_info(matrix_template, distribution=dist_template, &
                           row_blk_size=row_blk, col_blk_size=col_blk)
-      CALL dbcsr_distribution_get(dist_template, row_dist=row_dist, col_dist=col_dist)
+      CALL dbcsr_distribution_get(dist_template, row_dist=row_dist, col_dist=col_dist, &
+                                  nprows=nprows, npcols=npcols)
 
       IF (TRIM(dim_type) == 'ROW') THEN
          ! Creates ROW x ROW (e.g., Grid x Grid from mat_phi_mu_l)
          blk_sizes => row_blk
-         np = MAXVAL(col_dist) + 1  ! npcol
+         np = npcols
          ALLOCATE (mapped_dist(SIZE(blk_sizes)))
          DO i = 1, SIZE(blk_sizes)
             mapped_dist(i) = MOD(i - 1, np)
@@ -2015,7 +2040,7 @@ CONTAINS
       ELSE IF (TRIM(dim_type) == 'COL') THEN
          ! Creates COL x COL (e.g., Aux x Aux from mat_Z_lP)
          blk_sizes => col_blk
-         np = MAXVAL(row_dist) + 1  ! nprow
+         np = nprows
          ALLOCATE (mapped_dist(SIZE(blk_sizes)))
          DO i = 1, SIZE(blk_sizes)
             mapped_dist(i) = MOD(i - 1, np)
@@ -2023,6 +2048,8 @@ CONTAINS
          CALL dbcsr_distribution_new(square_dist, template=dist_template, &
                                      row_dist=mapped_dist, col_dist=col_dist)
       END IF
+
+      CALL timestop(handle)
 
    END SUBROUTINE setup_square_topology
 
@@ -2044,6 +2071,12 @@ CONTAINS
          POINTER                                         :: mapped_dist
       TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: m1, m2, m3, m4
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_dbcsr_topology_and_matrices'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
       IF (PRESENT(dist)) CALL dbcsr_distribution_release(dist)
       IF (PRESENT(mapped_dist)) THEN
          IF (ASSOCIATED(mapped_dist)) THEN
@@ -2055,6 +2088,8 @@ CONTAINS
       IF (PRESENT(m2)) CALL dbcsr_release(m2)
       IF (PRESENT(m3)) CALL dbcsr_release(m3)
       IF (PRESENT(m4)) CALL dbcsr_release(m4)
+
+      CALL timestop(handle)
 
    END SUBROUTINE release_dbcsr_topology_and_matrices
 
