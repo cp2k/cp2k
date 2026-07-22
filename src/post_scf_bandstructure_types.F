@@ -83,14 +83,6 @@ MODULE post_scf_bandstructure_types
       INTEGER, ALLOCATABLE                             :: grid_atom_boundaries(:)
       INTEGER, ALLOCATABLE                             :: pan_first(:), pan_last(:)
 
-      ! Number of MPI ranks that cooperate on one atom's Cholesky solve via
-      ! distributed pdpotrf. Default 1 = single-rank dpotrf path (BLAS, fastest
-      ! when D_local fits per rank). > 1 enables ScaLAPACK: ranks are split into
-      ! atom-groups of this size, D_local is block-cyclic distributed across
-      ! each group (memory ~1/G per rank), and compute_d_lp is also split across
-      ! the subgroup so wall time matches the BLAS path.
-      INTEGER                                          :: n_procs_per_atom_z_lp = 1
-
       ! Data types for building grid points
       TYPE(rirs_grid_type), ALLOCATABLE                :: grid_cache(:)
 
