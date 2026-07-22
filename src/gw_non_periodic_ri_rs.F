@@ -2619,8 +2619,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (ALLOCATED(bs_env%ri_rs%pan_first)) THEN
-         pan_first = bs_env%ri_rs%pan_first
-         pan_last = bs_env%ri_rs%pan_last
+         ALLOCATE (pan_first, SOURCE=bs_env%ri_rs%pan_first)
+         ALLOCATE (pan_last, SOURCE=bs_env%ri_rs%pan_last)
          CALL timestop(handle)
          RETURN
       END IF
@@ -2687,8 +2687,8 @@ CONTAINS
             'abort or swap; increase N_PANELS if it does. ***'
       END IF
 
-      bs_env%ri_rs%pan_first = pan_first
-      bs_env%ri_rs%pan_last = pan_last
+      ALLOCATE (bs_env%ri_rs%pan_first, SOURCE=pan_first)
+      ALLOCATE (bs_env%ri_rs%pan_last, SOURCE=pan_last)
 
       CALL timestop(handle)
 
@@ -3475,7 +3475,8 @@ CONTAINS
          IF (.NOT. lb_eq_la) THEN
             CALL collect_used_col_blocks(LB_pan, para_env, usedB)
          ELSE
-            usedB = usedA
+            IF (ALLOCATED(usedB)) DEALLOCATE (usedB)
+            ALLOCATE (usedB, SOURCE=usedA)
          END IF
          IF (.NOT. (ANY(usedA) .AND. ANY(usedB))) THEN
             ! empty panel slice: its Hadamard contribution is exactly zero on all ranks
