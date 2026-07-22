@@ -1415,6 +1415,7 @@ CONTAINS
          s_matrix => matrix_s(1, 1)%matrix
          CALL ao_charges(p_matrix, s_matrix, aocg, para_env)
          CALL ao_charges(matrix_pe, s_matrix, aocg1, para_env)
+         IF (nspins == 2) aocg1 = 0.5_dp*aocg1
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), natom=na)
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
@@ -1435,13 +1436,13 @@ CONTAINS
             mcharge1(iatom) = SUM(charges1(iatom, :))
          END DO
          ! Coulomb Kernel
-         CALL xtb_coulomb_hessian(qs_env, matrix_hz, charges1, mcharge1, mcharge)
+         CALL xtb_coulomb_hessian(qs_env, matrix_hz, charges1, mcharge1, mcharge, &
+                                  matrix_pe)
          !
          DEALLOCATE (charges, mcharge, charges1, mcharge1)
       END IF
 
       focc = 2.0_dp
-      IF (nspins == 2) focc = 1.0_dp
       DO ispin = 1, nspins
          mos => gs_mos(ispin)%mos_occ
          CALL cp_fm_get_info(mos, ncol_global=norb)

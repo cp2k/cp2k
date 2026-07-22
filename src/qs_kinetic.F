@@ -409,8 +409,6 @@ CONTAINS
                                       row=irow, col=icol, block=p_block, found=found)
                CPASSERT(found)
             ELSE
-!deb           CALL dbcsr_get_block_p(matrix=matrix_p, row=irow, col=icol, &
-!deb                                  block=p_block, found=found)
                CALL dbcsr_get_block_p(matrix=matp, row=irow, col=icol, &
                                       block=p_block, found=found)
                CPASSERT(found)

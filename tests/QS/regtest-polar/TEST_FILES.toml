@@ -9,5 +9,6 @@
 "H2O_md_polar.inp"                      = [{matcher="M060", tol=6e-04, ref=0.619379304308}]
 "xTB_LRraman.inp"                       = [{matcher="M060", tol=2e-05, ref=0.807352993847}]
 "xTB_LRraman_loc.inp"                   = [{matcher="M060", tol=2e-05, ref=0.807352993847}]
+"xTB_LRraman_spin.inp"                  = []
 "h2o_LRraman_LRI.inp"                   = [{matcher="M060", tol=4e-04, ref=0.004283834553}]
 #EOF

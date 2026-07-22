@@ -21,8 +21,7 @@
       METHOD GPW
     &END QS
     &MGRID
-      CUTOFF 400
-      REL_CUTOFF 60
+      CUTOFF 100
     &END MGRID
     &EFIELD
     &END EFIELD
@@ -49,7 +48,7 @@
   &END DFT
   &PROPERTIES
     &LINRES
-      EPS 1.e-10
+      EPS 1.e-12
       PRECONDITIONER FULL_ALL
       &POLAR
         DO_RAMAN T

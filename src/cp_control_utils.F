@@ -985,11 +985,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_qs_section'
 
+      CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: cval
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: clist
       INTEGER                                            :: handle, itmp, j, jj, k, n_rep, n_var, &
-                                                            ngauss, ngp, nrep
+                                                            ngauss, ngp, nrep, znum
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL :: dftb_scc_mixer_explicit, dftb_tblite_mixer_explicit, explicit, &
          tblite_reference_cli, tblite_reference_cli_section, tblite_section_active, was_present, &
@@ -1579,6 +1580,9 @@ CONTAINS
          ELSE
             qs_control%xtb_control%do_ewald = (qs_control%periodicity /= 0)
          END IF
+         ! Spin Polarisation
+         CALL section_vals_val_get(xtb_section, "SPIN_POLARISATION", &
+                                   l_val=qs_control%xtb_control%do_spinpol)
          ! vdW
          CALL section_vals_val_get(xtb_section, "VDW_POTENTIAL", explicit=explicit)
          IF (explicit) THEN
@@ -1630,6 +1634,9 @@ CONTAINS
                CPABORT("GFN type")
             END SELECT
          END IF
+         !
+         CALL section_vals_val_get(xtb_parameter, "SPINPOL_PARAM_FILE_NAME", &
+                                   c_val=qs_control%xtb_control%spinpol_param_file_name)
          ! D3 Dispersion
          CALL section_vals_val_get(xtb_parameter, "DISPERSION_RADIUS", &
                                    r_val=qs_control%xtb_control%rcdisp)
@@ -1850,6 +1857,26 @@ CONTAINS
                                     ielement=qs_control%xtb_control%kab_types(2, j))
                qs_control%xtb_control%kab_param(3, j) = clist(3)
                READ (clist(3), '(F10.0)') qs_control%xtb_control%kab_vals(j)
+            END DO
+         END IF
+
+         ! Spin Polarisation
+         CALL section_vals_val_get(xtb_parameter, "SPIN_POL_PARAM", n_rep_val=n_rep)
+         IF (n_rep > 0) THEN
+            ALLOCATE (qs_control%xtb_control%spinpol_type(n_rep))
+            ALLOCATE (qs_control%xtb_control%spinpol_vals(6, n_rep))
+            DO j = 1, n_rep
+               CALL section_vals_val_get(xtb_parameter, "SPIN_POL_PARAM", i_rep_val=j, c_vals=clist)
+               READ (clist(1), '(A)') cval
+               element_symbol = ADJUSTL(TRIM(cval))
+               CALL get_ptable_info(element_symbol, znum)
+               qs_control%xtb_control%spinpol_type(j) = znum
+               READ (clist(2), '(F20.8)') qs_control%xtb_control%spinpol_vals(1, j)
+               READ (clist(3), '(F20.8)') qs_control%xtb_control%spinpol_vals(2, j)
+               READ (clist(4), '(F20.8)') qs_control%xtb_control%spinpol_vals(3, j)
+               READ (clist(5), '(F20.8)') qs_control%xtb_control%spinpol_vals(4, j)
+               READ (clist(6), '(F20.8)') qs_control%xtb_control%spinpol_vals(5, j)
+               READ (clist(7), '(F20.8)') qs_control%xtb_control%spinpol_vals(6, j)
             END DO
          END IF
 

@@ -26,6 +26,9 @@
     &END AUXILIARY_DENSITY_MATRIX_METHOD
     &EFIELD
     &END EFIELD
+    &MGRID
+      CUTOFF 100
+    &END MGRID
     &PRINT
       &MOMENTS ON
         PERIODIC .FALSE.
@@ -38,9 +41,9 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-6
-      MAX_SCF 100
+      MAX_SCF 10
       SCF_GUESS ATOMIC
-      &OT OFF
+      &OT ON
         MINIMIZER DIIS
         PRECONDITIONER FULL_SINGLE_INVERSE
       &END OT

@@ -1562,7 +1562,7 @@ CONTAINS
                                                             hfx, rbeta, spinfac, xfac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tcharge, tv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gtcharge
-      REAL(KIND=dp), DIMENSION(3)                        :: fij, fodeb, rij
+      REAL(KIND=dp), DIMENSION(3)                        :: fij, focoul, fodeb, foexch, rij
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gab, pblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -1653,6 +1653,9 @@ CONTAINS
       ALLOCATE (tcharge(natom), gtcharge(natom, 4))
 
       cpmos => ex_env%cpmos
+
+      focoul = 0.0_dp
+      foexch = 0.0_dp
 
       DO ispin = 1, nspins
          ct => work%ctransformed(ispin)
@@ -1781,7 +1784,7 @@ CONTAINS
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
                CALL para_env%sum(fodeb)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Coul[X]   ", fodeb
+               focoul(1:3) = focoul(1:3) + fodeb(1:3)
             END IF
             norb = nactive(ispin)
             ! forces from Lowdin charge derivative
@@ -1990,7 +1993,7 @@ CONTAINS
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
                CALL para_env%sum(fodeb)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Exch[X]   ", fodeb
+               foexch(1:3) = foexch(1:3) + fodeb(1:3)
             END IF
          END IF
          !
@@ -1998,6 +2001,11 @@ CONTAINS
          CALL cp_fm_release(xvec)
          DEALLOCATE (tv)
       END DO
+
+      IF (debug_forces) THEN
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Coul[X]   ", focoul
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Exch[X]   ", foexch
+      END IF
 
       CALL cp_fm_release(xtransformed)
       DEALLOCATE (tcharge, gtcharge)

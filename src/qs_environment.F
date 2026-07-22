@@ -218,7 +218,9 @@ MODULE qs_environment
    USE transport,                       ONLY: transport_env_create
    USE xtb_parameters,                  ONLY: init_xtb_basis,&
                                               xtb_parameters_init,&
-                                              xtb_parameters_set
+                                              xtb_parameters_set,&
+                                              xtb_spinpol_ext,&
+                                              xtb_spinpol_init
    USE xtb_potentials,                  ONLY: xtb_pp_radius
    USE xtb_types,                       ONLY: allocate_xtb_atom_param,&
                                               set_xtb_atom_param
@@ -1238,6 +1240,12 @@ CONTAINS
                CALL xtb_parameters_init(qs_kind%xtb_parameter, gfn_type, element_symbol, &
                                         xtb_control%parameter_file_path, xtb_control%parameter_file_name, &
                                         para_env)
+               IF (xtb_control%do_spinpol) THEN
+                  CALL xtb_spinpol_init(qs_kind%xtb_parameter, gfn_type, element_symbol, &
+                                        xtb_control%parameter_file_path, xtb_control%spinpol_param_file_name, &
+                                        para_env)
+                  CALL xtb_spinpol_ext(qs_kind%xtb_parameter, gfn_type, xtb_control)
+               END IF
                ! set dependent parameters
                CALL xtb_parameters_set(qs_kind%xtb_parameter)
                ! Generate basis set

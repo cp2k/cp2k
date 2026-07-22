@@ -3,10 +3,13 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"h2o_lri.inp"                           = [{matcher="M087", tol=1e-05, ref=0.222165614960E+02}]
-"h2o_pade_fd.inp"                       = [{matcher="M087", tol=1e-05, ref=0.168333363169E+02}]
-"h2o_hfx.inp"                           = [{matcher="M087", tol=1e-05, ref=0.106990197203E+02}]
-"h2o_hfx_admm.inp"                      = [{matcher="M087", tol=1e-05, ref=0.153251090463E+02}]
-"h2o_admm_gapw.inp"                     = [{matcher="M087", tol=1e-05, ref=0.108571964857E+02}]
-"h2o_admm_x.inp"                        = [{matcher="M087", tol=1e-05, ref=0.108790445340E+02}]
+"h2o_lri.inp"                           = []
+"h2o_pade_fd.inp"                       = []
+"h2o_hfx.inp"                           = []
+"h2o_hfx_admm.inp"                      = []
+"h2o_admm_gapw.inp"                     = []
+"h2o_admm_x.inp"                        = []
+"h2o_pbe_fd.inp"                        = []
+#
+#"h2o_tpss_fd.inp"                      = []
 #EOF

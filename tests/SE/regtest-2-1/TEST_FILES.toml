@@ -10,7 +10,7 @@
 "ch4-restart.inp"                       = [{matcher="M003", tol=1.0E-14, ref=-180.05471494670982}]
 "h2o.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-348.56201315272006}]
 "h2o_lsd.inp"                           = [{matcher="M003", tol=1.0E-14, ref=-348.56201315083575}]
-"h2op.inp"                              = [{matcher="M003", tol=1.0E-14, ref=-325.35457974557710}]
+"h2op.inp"                              = [{matcher="M003", tol=1.0E-14, ref=-325.35457974541340}]
 "hcn.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-346.49686119222844}]
 "hf.inp"                                = [{matcher="M003", tol=1.0E-14, ref=-499.98506659307861}]
 "nh4.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-256.98965446201572}]

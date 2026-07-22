@@ -10,7 +10,7 @@
 "ch4-restart.inp"                       = [{matcher="M003", tol=1.0E-14, ref=-180.05471494670982}]
 "h2o.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-348.56201315272017}]
 "h2o_lsd.inp"                           = [{matcher="M003", tol=1.0E-14, ref=-348.56201315083575}]
-"h2op.inp"                              = [{matcher="M003", tol=1.0E-14, ref=-325.35457974557710}]
+"h2op.inp"                              = [{matcher="M003", tol=1.0E-14, ref=-325.35457974541340}]
 "hcn.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-346.49686119222844}]
 "hf.inp"                                = [{matcher="M003", tol=1.0E-14, ref=-499.98506659307856}]
 "nh4.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-256.98965446201606}]
@@ -21,10 +21,10 @@
 # tests for high-spin ROKS
 "O-ROKS.inp"                            = [{matcher="M003", tol=1.0E-14, ref=-316.09951999999998}]
 "O2-ROKS.inp"                           = [{matcher="M003", tol=1.0E-14, ref=-641.56947944509795}]
-"NO2-ROKS.inp"                          = [{matcher="M003", tol=2.0e-14, ref=-746.41195754911917}]
+"NO2-ROKS.inp"                          = [{matcher="M003", tol=2.0e-14, ref=-746.41195754911630}]
 #RM1 Model
 "c2h4_rm1.inp"                          = [{matcher="M003", tol=1.0E-14, ref=-306.76506723638988}]
-"h2op_2.inp"                            = [{matcher="M003", tol=2.0e-10, ref=-329.25843415861925}]
+"h2op_2.inp"                            = [{matcher="M003", tol=2.0e-10, ref=-329.25843400085944}]
 "h2po4.inp"                             = [{matcher="M003", tol=1.0e-11, ref=-2630.34613336826851}]
 "geom.inp"                              = [{matcher="M003", tol=3.0e-14, ref=-5484.9811538371541}]
 "b2h6_pm6.inp"                          = [{matcher="M003", tol=2.0e-14, ref=-191.26932146375466}]

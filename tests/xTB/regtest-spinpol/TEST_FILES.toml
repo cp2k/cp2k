@@ -1,0 +1,21 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"ch2o.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-7.70606717289255}]
+"Ferrocene.inp"                         = [{matcher="E_total", tol=1.0E-12, ref=-29.41637966342602}]
+"ch2o_force.inp"                        = []
+"ch2o_stress.inp"                       = []
+#
+"ch2o_kp_force.inp"                     = []
+"ch2o_kp_stress.inp"                    = []
+#
+"ch2o_polar.inp"                        = []
+"h2o_sTDA_spin.inp"                     = []
+#
+"Fecp2_1.inp"                           = [{matcher="E_total", tol=1.0E-12, ref=-29.47908648446399}]
+"Fecp2_5.inp"                           = [{matcher="E_total", tol=1.0E-12, ref=-29.3754324434514}]
+"Fecp2_5_sp.inp"                        = [{matcher="E_total", tol=1.0E-12, ref=-29.45805742032436}]
+"Fecp2_5_spext.inp"                     = [{matcher="E_total", tol=1.0E-12, ref=-29.45805742032436}]
+#EOF

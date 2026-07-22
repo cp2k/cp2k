@@ -278,6 +278,7 @@ MODULE cp_control_types
       INTEGER                              :: vdw_type = -1
       CHARACTER(LEN=default_path_length)   :: parameter_file_path = ""
       CHARACTER(LEN=default_path_length)   :: parameter_file_name = ""
+      CHARACTER(LEN=default_path_length)   :: spinpol_param_file_name = ""
       !
       CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file = ""
       REAL(KIND=dp)                        :: epscn = 0.0_dp
@@ -296,6 +297,7 @@ MODULE cp_control_types
       !
       LOGICAL                              :: xb_interaction = .FALSE.
       LOGICAL                              :: do_nonbonded = .FALSE.
+      LOGICAL                              :: do_spinpol = .FALSE.
       LOGICAL                              :: coulomb_interaction = .FALSE.
       LOGICAL                              :: coulomb_lr = .FALSE.
       LOGICAL                              :: tb3_interaction = .FALSE.
@@ -310,7 +312,11 @@ MODULE cp_control_types
          DIMENSION(:, :), POINTER          :: kab_param => NULL()
       INTEGER, DIMENSION(:, :), POINTER    :: kab_types => NULL()
       INTEGER                              :: kab_nval = 0
-      REAL, DIMENSION(:), POINTER          :: kab_vals => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: kab_vals => NULL()
+      !
+      INTEGER, DIMENSION(:), POINTER       :: spinpol_type => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), &
+         POINTER                           :: spinpol_vals => NULL()
       !
       TYPE(pair_potential_p_type), POINTER :: nonbonded => NULL()
       REAL(KIND=dp)                        :: eps_pair = 0.0_dp
@@ -1303,6 +1309,8 @@ CONTAINS
       NULLIFY (xtb_control%kab_types)
       NULLIFY (xtb_control%nonbonded)
       NULLIFY (xtb_control%rcpair)
+      NULLIFY (xtb_control%spinpol_type)
+      NULLIFY (xtb_control%spinpol_vals)
 
    END SUBROUTINE xtb_control_create
 
@@ -1328,6 +1336,12 @@ CONTAINS
          END IF
          IF (ASSOCIATED(xtb_control%nonbonded)) THEN
             CALL pair_potential_p_release(xtb_control%nonbonded)
+         END IF
+         IF (ASSOCIATED(xtb_control%spinpol_type)) THEN
+            DEALLOCATE (xtb_control%spinpol_type)
+         END IF
+         IF (ASSOCIATED(xtb_control%spinpol_vals)) THEN
+            DEALLOCATE (xtb_control%spinpol_vals)
          END IF
          DEALLOCATE (xtb_control)
       END IF

@@ -19,6 +19,9 @@
     LSD
     &EFIELD
     &END EFIELD
+    &MGRID
+      CUTOFF 100
+    &END MGRID
     &PRINT
       &MOMENTS ON
         PERIODIC .FALSE.
@@ -54,8 +57,9 @@
   &END DFT
   &PROPERTIES
     &LINRES
-      EPS 1.e-09
-      PRECONDITIONER FULL_ALL
+      ENERGY_GAP 0.05
+      EPS 1.e-07
+      PRECONDITIONER FULL_SINGLE_INVERSE
       &POLAR
         DO_RAMAN T
         PERIODIC_DIPOLE_OPERATOR F
@@ -64,7 +68,7 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 4.0 4.0 4.0
       PERIODIC NONE
     &END CELL
     &COORD

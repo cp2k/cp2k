@@ -54,6 +54,7 @@ MODULE xtb_ehess_force
    USE virial_types,                    ONLY: virial_type
    USE xtb_coulomb,                     ONLY: dgamma_rab_sr,&
                                               gamma_rab_sr
+   USE xtb_spinpol,                     ONLY: xtb_spinpol_hforce
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
 #include "./base/base_uses.f90"
@@ -434,6 +435,18 @@ CONTAINS
                         alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
          CALL dbcsr_add(matrix_p1(1)%matrix, matrix_p1(2)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+      END IF
+
+      IF (xtb_control%do_spinpol) THEN
+         IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+         !
+         CALL xtb_spinpol_hforce(qs_env, matrix_p0, matrix_p1)
+         !
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+            CALL para_env%sum(fodeb)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*Hspin[P] ", fodeb
+         END IF
       END IF
 
       ! QMMM

@@ -69,6 +69,7 @@ MODULE xtb_types
       REAL(KIND=dp), DIMENSION(5)            :: kappa = -1.0_dp
       REAL(KIND=dp), DIMENSION(5)            :: hen = -1.0_dp
       REAL(KIND=dp), DIMENSION(5)            :: zeta = -1.0_dp
+      REAL(KIND=dp), DIMENSION(3, 3)         :: wall = -1.0_dp ! spin polarisation
       ! gfn0 params
       REAL(KIND=dp)                          :: en = -1.0_dp
       REAL(KIND=dp)                          :: kqat2 = -1.0_dp
@@ -127,6 +128,7 @@ CONTAINS
       xtb_parameter%occupation = 0
       xtb_parameter%kpoly = 0.0_dp
       xtb_parameter%kappa = 0.0_dp
+      xtb_parameter%wall = 0.0_dp
       xtb_parameter%hen = 0.0_dp
       xtb_parameter%zeta = 0.0_dp
       xtb_parameter%en = 0.0_dp
@@ -180,6 +182,7 @@ CONTAINS
 !> \param lval ...
 !> \param kpoly ...
 !> \param kappa ...
+!> \param wall ...
 !> \param hen ...
 !> \param zeta ...
 !> \param xi ...
@@ -195,7 +198,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_xtb_atom_param(xtb_parameter, symbol, aname, typ, defined, z, zeff, natorb, lmax, nao, lao, &
                                  rcut, rcov, kx, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
-                                 hen, zeta, xi, kappa0, alpg, occupation, electronegativity, chmax, &
+                                 wall, hen, zeta, xi, kappa0, alpg, occupation, electronegativity, chmax, &
                                  en, kqat2, kcn, kq)
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
@@ -210,7 +213,10 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: rcut, rcov, kx, eta, xgamma, alpha, zneff
       INTEGER, INTENT(OUT), OPTIONAL                     :: nshell
       INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: nval, lval
-      REAL(KIND=dp), DIMENSION(5), INTENT(OUT), OPTIONAL :: kpoly, kappa, hen, zeta
+      REAL(KIND=dp), DIMENSION(5), INTENT(OUT), OPTIONAL :: kpoly, kappa
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
+         OPTIONAL                                        :: wall
+      REAL(KIND=dp), DIMENSION(5), INTENT(OUT), OPTIONAL :: hen, zeta
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: xi, kappa0, alpg
       INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: occupation
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: electronegativity, chmax, en, kqat2
@@ -243,6 +249,7 @@ CONTAINS
       IF (PRESENT(occupation)) occupation = xtb_parameter%occupation
       IF (PRESENT(kpoly)) kpoly = xtb_parameter%kpoly
       IF (PRESENT(kappa)) kappa = xtb_parameter%kappa
+      IF (PRESENT(wall)) wall(1:3, 1:3) = xtb_parameter%wall(1:3, 1:3)
       IF (PRESENT(hen)) hen = xtb_parameter%hen
       IF (PRESENT(zeta)) zeta = xtb_parameter%zeta
       IF (PRESENT(chmax)) chmax = xtb_parameter%chmax
@@ -280,6 +287,7 @@ CONTAINS
 !> \param lval ...
 !> \param kpoly ...
 !> \param kappa ...
+!> \param wall ...
 !> \param hen ...
 !> \param zeta ...
 !> \param xi ...
@@ -295,7 +303,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_xtb_atom_param(xtb_parameter, aname, typ, defined, z, zeff, natorb, lmax, nao, lao, &
                                  rcut, rcov, kx, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
-                                 hen, zeta, xi, kappa0, alpg, electronegativity, occupation, chmax, &
+                                 wall, hen, zeta, xi, kappa0, alpg, electronegativity, occupation, chmax, &
                                  en, kqat2, kcn, kq)
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
@@ -309,7 +317,10 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rcut, rcov, kx, eta, xgamma, alpha, zneff
       INTEGER, INTENT(IN), OPTIONAL                      :: nshell
       INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: nval, lval
-      REAL(KIND=dp), DIMENSION(5), INTENT(IN), OPTIONAL  :: kpoly, kappa, hen, zeta
+      REAL(KIND=dp), DIMENSION(5), INTENT(IN), OPTIONAL  :: kpoly, kappa
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN), &
+         OPTIONAL                                        :: wall
+      REAL(KIND=dp), DIMENSION(5), INTENT(IN), OPTIONAL  :: hen, zeta
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: xi, kappa0, alpg, electronegativity
       INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: occupation
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: chmax, en, kqat2
@@ -341,6 +352,7 @@ CONTAINS
       IF (PRESENT(occupation)) xtb_parameter%occupation = occupation
       IF (PRESENT(kpoly)) xtb_parameter%kpoly = kpoly
       IF (PRESENT(kappa)) xtb_parameter%kappa = kappa
+      IF (PRESENT(wall)) xtb_parameter%wall(1:3, 1:3) = wall(1:3, 1:3)
       IF (PRESENT(hen)) xtb_parameter%hen = hen
       IF (PRESENT(zeta)) xtb_parameter%zeta = zeta
       IF (PRESENT(chmax)) xtb_parameter%chmax = chmax
@@ -370,9 +382,10 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: aname, bb
       INTEGER                                            :: i, io_unit, m, natorb, nshell
       INTEGER, DIMENSION(5)                              :: lval, nval, occupation
-      LOGICAL                                            :: defined
+      LOGICAL                                            :: defined, have_sp
       REAL(dp)                                           :: zeff
       REAL(KIND=dp)                                      :: alpha, en, eta, xgamma, zneff
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: wall
       REAL(KIND=dp), DIMENSION(5)                        :: hen, kappa, kpoly, zeta
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -394,6 +407,10 @@ CONTAINS
                CALL get_xtb_atom_param(xtb_parameter, nshell=nshell, lval=lval, nval=nval, occupation=occupation)
                CALL get_xtb_atom_param(xtb_parameter, kpoly=kpoly, kappa=kappa, hen=hen, zeta=zeta)
                CALL get_xtb_atom_param(xtb_parameter, electronegativity=en, xgamma=xgamma, eta=eta, alpha=alpha, zneff=zneff)
+               wall = 0.0_dp
+               CALL get_xtb_atom_param(xtb_parameter, wall=wall)
+               have_sp = .FALSE.
+               IF (SUM(ABS(wall)) /= 0.0_dp) have_sp = .TRUE.
 
                bb = "                                                "
                WRITE (UNIT=io_unit, FMT="(/,A,T67,A14)") " xTB  parameters: ", TRIM(aname)
@@ -413,6 +430,10 @@ CONTAINS
                      (kappa(i), i=1, nshell)
                   WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.3)") "3rd Order constant", xgamma
                   WRITE (UNIT=io_unit, FMT="(T16,A,T61,2F10.3)") "Repulsion potential [Z,alpha]", zneff, alpha
+                  IF (have_sp) THEN
+                    WRITE (UNIT=io_unit, FMT="(T16,A,T51,3F10.4)") "Spin Polarisation Wss sp pp", wall(1, 1), wall(1, 2), wall(2, 2)
+                    WRITE (UNIT=io_unit, FMT="(T16,A,T51,3F10.4)") "                  Wsd pd dd", wall(1, 3), wall(2, 3), wall(3, 3)
+                  END IF
                ELSE
                   WRITE (UNIT=io_unit, FMT="(T55,A)") "Parameters are not defined"
                END IF
