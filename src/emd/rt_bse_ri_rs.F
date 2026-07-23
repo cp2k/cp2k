@@ -39,15 +39,15 @@ MODULE rt_bse_ri_rs
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE gw_large_cell_Gamma_ri_rs,       ONLY: hadamard_product_inplace
+   USE gw_large_cell_Gamma_ri_rs,       ONLY: contract_A_B_A,&
+                                              hadamard_product_inplace,&
+                                              release_dbcsr_topology_and_matrices,&
+                                              setup_square_topology
    USE gw_large_cell_gamma,             ONLY: multiply_fm_W_MIC_time_with_Minv_Gamma
    USE gw_non_periodic_ri_rs,           ONLY: atomic_basis_at_grid_point,&
                                               compute_coeff_Z_lP,&
-                                              contract_A_B_A,&
                                               precompute_ri_rs_radii,&
-                                              release_dbcsr_topology_and_matrices,&
-                                              ri_rs_grid_assembler,&
-                                              setup_square_topology
+                                              ri_rs_grid_assembler
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_type

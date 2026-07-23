@@ -110,8 +110,7 @@ MODULE gw_non_periodic_ri_rs
 
    PUBLIC :: gw_calc_non_periodic_ri_rs, ri_rs_grid_assembler, &
              get_basis_offsets, precompute_ri_rs_radii, solve_D_lp_distributed, &
-             atomic_basis_at_grid_point, compute_coeff_Z_lP, contract_A_B_A, &
-             setup_square_topology, release_dbcsr_topology_and_matrices
+             atomic_basis_at_grid_point, compute_coeff_Z_lP
 
 CONTAINS
 

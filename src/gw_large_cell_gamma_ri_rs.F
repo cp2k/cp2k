@@ -90,14 +90,10 @@ MODULE gw_large_cell_Gamma_ri_rs
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_large_cell_Gamma_ri_rs'
 
    PUBLIC :: gw_calc_large_cell_Gamma_ri_rs, &
-             ri_rs_grid_assembler, &
-             atomic_basis_at_grid_point, &
-             compute_coeff_Z_lP, &
              contract_A_B_A, &
-             hadamard_product, &
              hadamard_product_inplace, &
-             setup_square_topology, &
-             release_dbcsr_topology_and_matrices
+             release_dbcsr_topology_and_matrices, &
+             setup_square_topology
 
 CONTAINS
 
