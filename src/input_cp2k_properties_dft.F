@@ -2484,7 +2484,9 @@ CONTAINS
                           "use slurm, the number behind '--ntasks-per-node' is the number "// &
                           "of MPI processes per node). Then calculate "// &
                           "`MEMORY_PER_PROC` = mem_per_node / n_MPI_proc_per_node "// &
-                          "(typically between 2 GB and 50 GB). Unit of keyword: Gigabyte (GB).", &
+                          "(typically between 2 GB and 50 GB). Unit of keyword: Gigabyte (GB). "// &
+                          "Note: This keyword is not used for GW calculations with RI-RS, "// &
+                          "where the available memory is detected automatically.", &
                           usage="MEMORY_PER_PROC 16", &
                           default_r_val=2.0_dp)
       CALL section_add_keyword(section, keyword)
