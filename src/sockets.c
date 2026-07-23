@@ -61,7 +61,10 @@
  * \param port    The port number for the socket to be created. Low numbers are
  *                often reserved for important channels, so use of numbers of 4
  *                or more digits is recommended.
- * \param host    The name of the host server.
+ * \param host    The name of the host server (inet socket), or the full path
+ *                of the UNIX socket file (unix socket). The caller is
+ *                responsible for building this path, e.g. by prepending a
+ *                prefix such as "/tmp/ipi_".
  * \note  Fortran passes an extra argument for the string length, but this is
  *        ignored here for C compatibility.
  ******************************************************************************/
@@ -105,8 +108,7 @@ void open_connect_socket(int *psockfd, int *inet, int *port, char *host) {
     // fills up details of the socket address
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sun_family = AF_UNIX;
-    strcpy(serv_addr.sun_path, "/tmp/qiskit_");
-    strcpy(serv_addr.sun_path + 12, host);
+    strcpy(serv_addr.sun_path, host);
 
     // creates the socket
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);

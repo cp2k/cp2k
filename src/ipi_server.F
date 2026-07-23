@@ -87,7 +87,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       CPABORT("CP2K was compiled with the __NO_SOCKETS option!")
 #else
-      CHARACTER(len=default_path_length)       :: c_hostname, drv_hostname
+      CHARACTER(len=default_path_length)       :: c_hostname, drv_hostname, drv_prefix
       INTEGER                                  :: drv_port, handle, i_drv_unix, &
                                                   output_unit, socket, comm_socket
       CHARACTER(len=msglength)                 :: msgbuffer
@@ -102,6 +102,7 @@ CONTAINS
       CALL section_vals_val_get(driver_section, "HOST", c_val=drv_hostname)
       CALL section_vals_val_get(driver_section, "PORT", i_val=drv_port)
       CALL section_vals_val_get(driver_section, "UNIX", l_val=drv_unix)
+      CALL section_vals_val_get(driver_section, "PREFIX", c_val=drv_prefix)
       IF (output_unit > 0) THEN
          WRITE (output_unit, *) "@ i-PI SERVER BEING STARTED"
          WRITE (output_unit, *) "@ HOSTNAME: ", TRIM(drv_hostname)
@@ -115,7 +116,14 @@ CONTAINS
       i_drv_unix = 1 ! a bit convoluted. socket.c uses a different convention...
       IF (drv_unix) i_drv_unix = 0
 
-      c_hostname = TRIM(drv_hostname)//C_NULL_CHAR
+      IF (drv_unix) THEN
+         ! for UNIX sockets, HOST names the socket file which lives at
+         ! /tmp/<PREFIX>_<HOST> (PREFIX must match the peer's convention,
+         ! e.g. "ipi" for i-PI)
+         c_hostname = "/tmp/"//TRIM(drv_prefix)//"_"//TRIM(drv_hostname)//C_NULL_CHAR
+      ELSE
+         c_hostname = TRIM(drv_hostname)//C_NULL_CHAR
+      END IF
       IF (ionode) THEN
          CALL open_bind_socket(socket, i_drv_unix, drv_port, c_hostname)
          CALL listen_socket(socket, 1_c_int)

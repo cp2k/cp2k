@@ -6,8 +6,9 @@
 
 &MOTION
   &DRIVER
-    HOST "/tmp/qiskit_myHost"
+    HOST myHost
     PORT 8421
+    PREFIX ipi
     SLEEP_TIME 0.1
     UNIX
   &END DRIVER

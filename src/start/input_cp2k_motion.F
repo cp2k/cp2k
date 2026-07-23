@@ -1692,7 +1692,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="DRIVER", &
                           description="This section defines the parameters needed to run in i-PI driver mode.", &
                           citations=[Ceriotti2014, Kapil2016], &
-                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=4, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="unix", &
@@ -1713,6 +1713,14 @@ CONTAINS
                           description="Host name for the i-PI server.", &
                           usage="host <HOSTNAME>", &
                           default_c_val="localhost")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PREFIX", &
+                          description="Prefix used to build the path of the UNIX socket file, "// &
+                          "as /tmp/<PREFIX>_<HOST>. Only relevant if UNIX is set to true.", &
+                          usage="PREFIX ipi", &
+                          default_c_val="ipi")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -8,6 +8,7 @@
   &DRIVER
     HOST myHost
     PORT 8421
+    PREFIX ipi
     UNIX
   &END DRIVER
 &END MOTION
