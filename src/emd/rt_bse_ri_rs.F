@@ -318,8 +318,13 @@ CONTAINS
       ! ρ^grid_ll' = sum_µν φ_lµ Δρ_µν φ_l'ν   (the SEX-intrinsic grid×grid transient)
       CALL dbcsr_create(matrix_rho_grid, "rho_grid_ri_rs", dist_grid_grid, &
                         dbcsr_type_no_symmetry, blk_grid, blk_grid)
+      ! No eps_filter on the SEX projections: a Δρ-dependent block drop breaks kernel
+      ! self-adjointness (L non-Hermitian). The W0 Hadamard below supplies the symmetric,
+      ! Δρ-independent grid sparsity, so unfiltered projections stay sparse via W0.
+      ! PERF(rirs-selfadjoint): a retain_sparsity-to-W0 build (dbcsr_multiply) gives identical
+      ! numbers with W0-sparse memory; NOT YET APPLIED, needs a perf test.
       CALL contract_A_B_A("N", "T", bs_env%ri_rs%mat_phi_mu_l, matrix_rho_AO, &
-                          matrix_rho_grid, bs_env%eps_filter)
+                          matrix_rho_grid, 0.0_dp)
 
       ! Harvest n_l = diag(ρ^grid) BEFORE the in-place Hadamard destroys it; the Hartree reuses it
       ! (compute_hartree_ri_rs_from_diag) instead of rebuilding φρφ^T. Bare accumulate (caller
@@ -342,8 +347,9 @@ CONTAINS
 
       ! Σ_µν = sum_ll' φ_lµ [ρ^grid ∘ W^0]_ll' φ_l'ν
       CALL dbcsr_create(matrix_Sigma_AO, template=matrix_rho_AO)
+      ! Unfiltered for self-adjointness (see the forward projection above; PERF note there).
       CALL contract_A_B_A("T", "N", bs_env%ri_rs%mat_phi_mu_l, matrix_rho_grid, &
-                          matrix_Sigma_AO, bs_env%eps_filter)
+                          matrix_Sigma_AO, 0.0_dp)
 
       CALL dbcsr_scale(matrix_Sigma_AO, prefactor)
       CALL copy_dbcsr_to_fm(matrix_Sigma_AO, sigma_AO_fm)
@@ -467,8 +473,12 @@ CONTAINS
       ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C27
       CALL dbcsr_create(matrix_rho_grid, "rho_grid_hartree", dist_grid_grid, &
                         dbcsr_type_no_symmetry, blk_grid, blk_grid)
+      ! No eps_filter: a Δρ-dependent diagonal-block drop zeroes n_l inconsistently between OV
+      ! pairs and breaks Hartree self-adjointness (L non-Hermitian).
+      ! PERF(rirs-selfadjoint): this full grid×grid is built only for its diagonal n_l; a
+      ! diagonal-only build would avoid it. NOT YET APPLIED, needs a perf test.
       CALL contract_A_B_A("N", "T", bs_env%ri_rs%mat_phi_mu_l, matrix_rho_AO, &
-                          matrix_rho_grid, bs_env%eps_filter)
+                          matrix_rho_grid, 0.0_dp)
       n_vec = 0.0_dp
       CALL dbcsr_get_diag(matrix_rho_grid, n_vec)
       CALL bs_env%para_env%sum(n_vec)
@@ -536,8 +546,9 @@ CONTAINS
 
       CALL dbcsr_create(matrix_V_H_AO, "V_H_AO_hartree", dist_ao_ao, dbcsr_type_no_symmetry, &
                         blk_ao, blk_ao)
+      ! No eps_filter: a Δρ-dependent block drop breaks Hartree kernel self-adjointness.
       CALL dbcsr_multiply("T", "N", 1.0_dp, bs_env%ri_rs%mat_phi_mu_l, matrix_Phi, &
-                          0.0_dp, matrix_V_H_AO, filter_eps=bs_env%eps_filter)
+                          0.0_dp, matrix_V_H_AO, filter_eps=0.0_dp)
       CALL dbcsr_release(matrix_Phi)
 
       CALL copy_dbcsr_to_fm(matrix_V_H_AO, V_H_AO_fm)
