@@ -41,6 +41,10 @@ case "${with_cusolvermp}" in
 esac
 
 if [ "${with_cusolvermp}" != "__DONTUSE__" ]; then
+  # These values can be inherited from a previous toolchain run. Only export
+  # roots for the communication backend selected by the detected version.
+  unset NCCL_ROOT CAL_ROOT UCC_ROOT UCX_ROOT
+
   if [ "${cusolvermp_header}" = "__FALSE__" ] || ! [ -f "${cusolvermp_header}" ]; then
     report_error ${LINENO} "Could not find cusolverMp.h."
     exit 1
@@ -57,6 +61,7 @@ if [ "${with_cusolvermp}" != "__DONTUSE__" ]; then
   cusolvermp_minor="${cusolvermp_minor:-0}"
 
   if [ "${cusolvermp_major}" -gt 0 ] || [ "${cusolvermp_minor}" -ge 7 ]; then
+    cusolvermp_comm_backend="nccl"
     nccl_lib="$(find_in_paths "libnccl.*" $LIB_PATHS)"
     if [ "${nccl_lib}" = "__FALSE__" ]; then
       report_error ${LINENO} "Could not find NCCL required by cuSOLVERMp ${cusolvermp_major}.${cusolvermp_minor}."
@@ -64,43 +69,42 @@ if [ "${with_cusolvermp}" != "__DONTUSE__" ]; then
     fi
     NCCL_ROOT="$(dirname "$(dirname "${nccl_lib}")")"
   else
+    cusolvermp_comm_backend="cal"
     cal_lib="$(find_in_paths "libcal.*" $LIB_PATHS)"
     if [ "${cal_lib}" = "__FALSE__" ]; then
       report_error ${LINENO} "Could not find CAL required by cuSOLVERMp ${cusolvermp_major}.${cusolvermp_minor}."
       exit 1
     fi
     CAL_ROOT="$(dirname "$(dirname "${cal_lib}")")"
+    ucc_lib="$(find_in_paths "libucc.*" $LIB_PATHS)"
+    ucx_lib="$(find_in_paths "libucs.*" $LIB_PATHS)"
+    if [ "${ucc_lib}" = "__FALSE__" ] || [ "${ucx_lib}" = "__FALSE__" ]; then
+      report_error ${LINENO} "Could not find UCC/UCX required by cuSOLVERMp ${cusolvermp_major}.${cusolvermp_minor}."
+      exit 1
+    fi
+    UCC_ROOT="$(dirname "$(dirname "${ucc_lib}")")"
+    UCX_ROOT="$(dirname "$(dirname "${ucx_lib}")")"
   fi
-
-  ucc_lib="$(find_in_paths "libucc.*" $LIB_PATHS)"
-  ucx_lib="$(find_in_paths "libucs.*" $LIB_PATHS)"
-  if [ "${ucc_lib}" = "__FALSE__" ] || [ "${ucx_lib}" = "__FALSE__" ]; then
-    report_error ${LINENO} "Could not find UCC/UCX required by cuSOLVERMp."
-    exit 1
-  fi
-  UCC_ROOT="$(dirname "$(dirname "${ucc_lib}")")"
-  UCX_ROOT="$(dirname "$(dirname "${ucx_lib}")")"
 
   cat << EOF > "${BUILDDIR}/setup_cusolvermp"
 export CUSOLVERMP_VER="${cusolvermp_major}.${cusolvermp_minor}"
 export CUSOLVERMP_LIBS="${CUSOLVERMP_LIBS}"
 export CUSOLVER_MP_ROOT="${pkg_install_dir}"
-export UCC_ROOT="${UCC_ROOT}"
-export UCX_ROOT="${UCX_ROOT}"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
-prepend_path CMAKE_PREFIX_PATH "${UCC_ROOT}"
-prepend_path CMAKE_PREFIX_PATH "${UCX_ROOT}"
 EOF
-  if [ -n "${NCCL_ROOT}" ]; then
+  if [ "${cusolvermp_comm_backend}" = "nccl" ]; then
     cat << EOF >> "${BUILDDIR}/setup_cusolvermp"
 export NCCL_ROOT="${NCCL_ROOT}"
 prepend_path CMAKE_PREFIX_PATH "${NCCL_ROOT}"
 EOF
-  fi
-  if [ -n "${CAL_ROOT}" ]; then
+  else
     cat << EOF >> "${BUILDDIR}/setup_cusolvermp"
 export CAL_ROOT="${CAL_ROOT}"
 prepend_path CMAKE_PREFIX_PATH "${CAL_ROOT}"
+export UCC_ROOT="${UCC_ROOT}"
+export UCX_ROOT="${UCX_ROOT}"
+prepend_path CMAKE_PREFIX_PATH "${UCC_ROOT}"
+prepend_path CMAKE_PREFIX_PATH "${UCX_ROOT}"
 EOF
   fi
   filter_setup "${BUILDDIR}/setup_cusolvermp" "${SETUPFILE}"

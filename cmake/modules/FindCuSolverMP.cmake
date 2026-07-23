@@ -12,8 +12,6 @@
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
-find_package(ucc REQUIRED)
-
 # First, find CuSolverMP library and headers
 cp2k_set_default_paths(CUSOLVER_MP "CUSOLVER_MP")
 cp2k_find_libraries(CUSOLVER_MP "cusolverMp")
@@ -41,12 +39,13 @@ if(CP2K_CUSOLVER_MP_INCLUDE_DIRS)
     find_package(Nccl REQUIRED)
     set(CP2K_CUSOLVERMP_USE_NCCL
         ON
-        CACHE BOOL "CuSolverMP uses NCCL for communication")
+        CACHE BOOL "CuSolverMP uses NCCL for communication" FORCE)
   else()
     find_package(Cal REQUIRED)
+    find_package(ucc REQUIRED)
     set(CP2K_CUSOLVERMP_USE_NCCL
         OFF
-        CACHE BOOL "CuSolverMP uses Cal for communication")
+        CACHE BOOL "CuSolverMP uses Cal for communication" FORCE)
   endif()
 endif()
 
@@ -64,13 +63,13 @@ if(NOT TARGET cp2k::CUSOLVER_MP::cusolver_mp)
   if(CP2K_CUSOLVERMP_USE_NCCL)
     set(_comm_lib "cp2k::NCCL::nccl")
   else()
-    set(_comm_lib "cp2k::CAL::cal")
+    set(_comm_lib "cp2k::CAL::cal;cp2k::UCC::ucc")
   endif()
 
   set_target_properties(
     cp2k::CUSOLVER_MP::cusolver_mp
     PROPERTIES INTERFACE_LINK_LIBRARIES
-               "${CP2K_CUSOLVER_MP_LINK_LIBRARIES};${_comm_lib};cp2k::UCC::ucc")
+               "${CP2K_CUSOLVER_MP_LINK_LIBRARIES};${_comm_lib}")
   set_target_properties(
     cp2k::CUSOLVER_MP::cusolver_mp
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_CUSOLVER_MP_INCLUDE_DIRS}")

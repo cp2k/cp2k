@@ -13,7 +13,6 @@ tools for the solution of dense linear systems and eigenvalue problems.
 [cuSOLVERmp] >= 0.7
 
 - [NCCL]: requires `libnccl.\*` in the `$PATH`
-- [UCC]: requires `libucc.\*` and `libucs.\*` in the `$PATH`
 
 ## CMake
 

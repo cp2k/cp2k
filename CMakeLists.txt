@@ -1072,11 +1072,10 @@ if(CP2K_USE_CUSOLVER_MP)
   else()
     message("    - CAL Include directories: ${CP2K_CAL_INCLUDE_DIRS}\n"
             "    - CAL Libraries: ${CP2K_CAL_LINK_LIBRARIES}")
+    message("    - UCC Include directories: ${CP2K_UCC_INCLUDE_DIRS}\n"
+            "    - UCC Libraries: ${CP2K_UCC_LINK_LIBRARIES}\n"
+            "    - UCX Libraries: ${CP2K_UCX_LINK_LIBRARIES}\n")
   endif()
-
-  message("    - UCC Include directories: ${CP2K_UCC_INCLUDE_DIRS}\n"
-          "    - UCC Libraries: ${CP2K_UCC_LINK_LIBRARIES}\n"
-          "    - UCX Libraries: ${CP2K_UCX_LINK_LIBRARIES}\n")
 endif()
 
 if(CP2K_USE_LIBXC)
