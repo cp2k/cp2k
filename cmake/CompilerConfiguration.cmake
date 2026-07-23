@@ -9,6 +9,8 @@ set(CP2K_C_COMPILER_LIST
     "GNU;Intel;IntelLLVM;NAG;Cray;PGI;NVHPC;Clang;AppleClang")
 set(CP2K_Fortran_COMPILER_LIST "GNU;Intel;IntelLLVM;NAG;Cray;PGI;NVHPC")
 
+include(CheckCompilerFlag)
+
 if(NOT CMAKE_C_COMPILER_ID IN_LIST CP2K_C_COMPILER_LIST)
   message(
     WARNING
@@ -50,16 +52,24 @@ add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:C,GNU>:-Wno-deprecated-declarations;-Wno-vla-parameter>"
 )
 
-# -- Apple Silicon + GCC: -march=native expands internally to -march=apple-m1
-# (invalid). Use -mcpu=native instead.
-set(_CP2K_GNU_NATIVE_TUNE "-march=native;-mtune=native")
-if(APPLE
-   AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64"
-   AND (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"
-        OR CMAKE_C_COMPILER_ID STREQUAL "GNU"
-        OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
-  set(_CP2K_GNU_NATIVE_TUNE "-mcpu=native")
+# Detect CPU native/generic tunes
+set(_CP2K_GNU_NATIVE_TUNE "")
+set(_CP2K_GNU_GENERIC_TUNE "")
+check_compiler_flag(Fortran "-mtune=generic" CP2K_HAS_MTUNE_GENERIC)
+if(CP2K_HAS_MTUNE_GENERIC)
+  set(_CP2K_GNU_GENERIC_TUNE "-mtune=generic")
 endif()
+if(CP2K_ENABLE_NATIVE_OPTIMIZATION AND NOT CMAKE_CROSSCOMPILING)
+  foreach(_flag IN ITEMS -march=native -mcpu=native)
+    string(MAKE_C_IDENTIFIER "CP2K_HAS_${_flag}" _var)
+    check_compiler_flag(Fortran "${_flag}" ${_var})
+    if(${_var})
+      set(_CP2K_GNU_NATIVE_TUNE "${_flag}")
+      break()
+    endif()
+  endforeach()
+endif()
+
 if(APPLE)
   add_definitions(-D__MACOSX)
 endif()
@@ -76,9 +86,9 @@ add_compile_options(
 
 # Generic
 add_compile_options(
-  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O3;-mtune=generic;-funroll-loops>"
-  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-O3;-mtune=generic;-funroll-loops>"
-  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O3;-mtune=generic;-funroll-loops>"
+  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O3;${_CP2K_GNU_GENERIC_TUNE};-funroll-loops>"
+  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-O3;${_CP2K_GNU_GENERIC_TUNE};-funroll-loops>"
+  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O3;${_CP2K_GNU_GENERIC_TUNE};-funroll-loops>"
 )
 
 # Debug
