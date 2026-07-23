@@ -146,8 +146,8 @@ spack:
     - "pace@2025.12.4.1"
     - "py-torch@2.12.1"
     - "spglib@2.7.0"
-    - "tblite@0.6.0"
-    - "trexio@2.5.0"
+    - "tblite@0.7.0"
+    - "trexio@2.6.1"
 
   view:
     default:

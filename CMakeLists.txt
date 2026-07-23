@@ -880,6 +880,7 @@ macro(cp2k_detect_dftd4_api)
 endmacro()
 
 if(CP2K_USE_DFTD4)
+  find_package(mctc-lib REQUIRED) # workaround: find mctc-lib first
   find_package(dftd4 REQUIRED)
   cp2k_detect_dftd4_api()
 endif()
@@ -905,7 +906,10 @@ if(CP2K_USE_ACE)
 endif()
 
 if(CP2K_USE_TBLITE)
-  find_package(tblite REQUIRED)
+  find_package(tblite CONFIG REQUIRED)
+  if(tblite_VERSION VERSION_LESS "0.7.0")
+    message(FATAL_ERROR "tblite >= 0.7.0 is required; found ${tblite_VERSION}")
+  endif()
   add_library(cp2k::tblite INTERFACE IMPORTED)
   target_link_libraries(
     cp2k::tblite INTERFACE tblite::tblite mctc-lib::mctc-lib dftd4::dftd4

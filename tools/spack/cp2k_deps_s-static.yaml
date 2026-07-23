@@ -119,7 +119,7 @@ spack:
     - "openblas@0.3.33"
     - "pace@2025.12.4.1"
     - "spglib@2.7.0"
-    - "tblite@0.6.0"
+    - "tblite@0.7.0"
 
   view:
     default:
