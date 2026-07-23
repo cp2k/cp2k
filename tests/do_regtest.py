@@ -209,7 +209,7 @@ async def main() -> None:
     print("\n".join(r.error for r in all_results if r.error))
 
     print("\n------------------------------- Timings --------------------------------")
-    timings = sorted(r.duration for r in all_results)
+    timings = sorted(r.duration for r in all_results if r.duration)
     print('Plot: name="timings", title="Timing Distribution", ylabel="time [s]"')
     for p in (100, 99, 98, 95, 90, 80):
         y = percentile(timings, p / 100.0)
@@ -219,7 +219,9 @@ async def main() -> None:
     if cfg.flag_slow:
         print("\n" + "-" * 15 + "--------------- Slow Tests ---------------" + "-" * 15)
         threshold = 2 * percentile(timings, 0.95)
-        outliers = [r for r in all_results if r.duration > 0.95 * threshold]
+        outliers = [
+            r for r in all_results if r.duration and r.duration > 0.95 * threshold
+        ]
         maybe_slow = [r for r in outliers if r.fullname not in cfg.slow_suppressions]
         num_suppressed = len(outliers) - len(maybe_slow)
         rerun_tasks: List[Task[BatchResult]] = []
@@ -228,8 +230,14 @@ async def main() -> None:
             rerun_tasks.append(asyncio.get_event_loop().create_task(run_batch(b, cfg)))
         rerun_times: Dict[str, float] = {}
         for t in await asyncio.gather(*rerun_tasks):
-            rerun_times.update({r.fullname: r.duration for r in t.results})
-        stats = {r.fullname: [r.duration, rerun_times[r.fullname]] for r in maybe_slow}
+            rerun_times.update(
+                {r.fullname: r.duration for r in t.results if r.duration}
+            )
+        stats = {
+            r.fullname: [r.duration, rerun_times[r.fullname]]
+            for r in maybe_slow
+            if r.duration
+        }
         slow_tests = {k: v for k, v in stats.items() if mean(v) - stdev(v) > threshold}
         print(f"Duration threshold (2x 95th %ile): {threshold:.2f} sec")
         print(f"Found {len(slow_tests)} slow tests ({num_suppressed} suppressed):")
@@ -424,7 +432,7 @@ class TestResult:
         batch: Batch,
         test: Union[Regtest, Unittest],
         spec: Optional[Dict[str, Any]],
-        duration: float,
+        duration: Optional[float],
         status: TestStatus,
         error: Optional[str] = None,
         value: Optional[float] = None,
@@ -443,7 +451,8 @@ class TestResult:
         if self.spec and len(self.test.matcher_specs) > 1:
             display_name += f":{self.spec.get('matcher', '???')}"
         value = f"{self.value:.10g}" if self.value else "-"
-        return f"    {display_name :<80s} {value :>17} {self.status :>12s} ( {self.duration:6.2f} sec)"
+        timing = f" ( {self.duration:6.2f} sec)" if self.duration else ""
+        return f"    {display_name :<80s} {value :>17} {self.status :>12s}{timing}"
 
 
 # ======================================================================================
@@ -451,7 +460,7 @@ class BatchResult:
     def __init__(self, batch: Batch, results: List[TestResult]):
         self.batch = batch
         self.results = results
-        self.duration = sum(float(r.duration) for r in results)
+        self.duration = sum(r.duration for r in results if r.duration)
 
 
 # ======================================================================================
@@ -667,9 +676,10 @@ def eval_regtest(
     if not test.matcher_specs:
         return [TestResult(batch, test, None, duration, "OK")]
 
-    # run the matchers
+    # Only the first matcher carries the duration of the single test execution.
     results = []
-    for spec in test.matcher_specs:
+    for i, spec in enumerate(test.matcher_specs):
+        matcher_duration = duration if i == 0 else None
         spec = dict(spec)  # shallow copy so we can pop without mutating the original
         alt_file = spec.pop("file", None)
         if alt_file:
@@ -677,7 +687,7 @@ def eval_regtest(
             if not alt_path.exists():
                 err = f"{error}Spec: {spec}\nExpected output file not found: {alt_path}"
                 results += [
-                    TestResult(batch, test, spec, duration, "WRONG RESULT", err)
+                    TestResult(batch, test, spec, matcher_duration, "WRONG RESULT", err)
                 ]
                 continue
             match_output = alt_path.read_bytes().decode("utf8", errors="replace")
@@ -686,7 +696,9 @@ def eval_regtest(
         m = run_matcher(match_output, **spec)
         if m.error:
             m.error = f"{error}Spec: {spec}\n{m.error}"
-        results += [TestResult(batch, test, spec, duration, m.status, m.error, m.value)]
+        results += [
+            TestResult(batch, test, spec, matcher_duration, m.status, m.error, m.value)
+        ]
 
     return results
 
