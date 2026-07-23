@@ -8,6 +8,7 @@
 ! **************************************************************************************************
 !> \brief  Creates the NNP section of the input
 !> \author Christoph Schran (christoph.schran@rub.de)
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
 !> \date   2020-10-10
 ! **************************************************************************************************
 MODULE input_cp2k_nnp
@@ -28,6 +29,7 @@ MODULE input_cp2k_nnp
                                               section_release,&
                                               section_type
    USE input_val_types,                 ONLY: char_t,&
+                                              integer_t,&
                                               real_t
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
@@ -35,7 +37,7 @@ MODULE input_cp2k_nnp
    IMPLICIT NONE
    PRIVATE
 
-   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
+   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_nnp'
 
    PUBLIC :: create_nnp_section
@@ -58,7 +60,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="NNP", &
                           description="This section contains all information to run a "// &
                           "Neural Network Potential (NNP) calculation.", &
-                          n_keywords=3, n_subsections=3, repeats=.FALSE., &
+                          n_keywords=5, n_subsections=3, repeats=.FALSE., &
                           citations=[Behler2007, Behler2011, Schran2020a, Schran2020b])
 
       NULLIFY (subsection, subsubsection, keyword)
@@ -73,6 +75,49 @@ CONTAINS
                           description="File containing the scaling information for "// &
                           "the symmetry functions of the NNP.", &
                           repeats=.FALSE., default_lc_val="scaling.data")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="RAD_SPLINE_N", &
+                          description="Number of knots per radial group in "// &
+                          "the cubic-Hermite spline tables that tabulate "// &
+                          "the radial symmetry-function product "// &
+                          "y(r) = exp(-eta*(r-rs)^2) * fcut(r). "// &
+                          "The value error scales as O(1/n^4) and the "// &
+                          "force (derivative) error as O(1/n^3); the "// &
+                          "default keeps both inside the NNP regression "// &
+                          "tolerance for a radial cutoff of ~12 bohr "// &
+                          "(value ~1e-14, force ~1e-10). Larger cutoffs or "// &
+                          "stricter tolerances may need a larger n, with "// &
+                          "the force term the binding constraint. Memory "// &
+                          "cost scales linearly in n per group.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=integer_t, &
+                          default_i_val=8192, &
+                          usage="RAD_SPLINE_N 8192")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VERLET_SKIN", &
+                          description="Verlet skin distance for the NNP descriptor "// &
+                          "neighbour cell-list. The neighbour-list cutoff is "// &
+                          "(symmetry-function cutoff + skin); the cell-list "// &
+                          "chain is rebuilt only when an atom drifts more "// &
+                          "than skin/2 from its rebuild-time position, "// &
+                          "analogous to the LAMMPS 'neighbor <skin> bin' "// &
+                          "command. Larger skin reduces the rebuild rate "// &
+                          "but enlarges the per-atom neighbour list. "// &
+                          "A negative value (default) selects the "// &
+                          "automatic heuristic MIN(0.5 bohr, 0.1*cutoff). "// &
+                          "Useful upper bound is half the smallest "// &
+                          "perpendicular cell width.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=-1.0_dp, &
+                          unit_str="bohr", &
+                          usage="VERLET_SKIN [bohr] 0.5")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

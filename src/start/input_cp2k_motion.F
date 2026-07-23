@@ -2334,7 +2334,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="NNP", &
                           description="This section contains all information to run an helium-solute "// &
                           "interaction Neural Network Potential (NNP) calculation.", &
-                          n_keywords=2, n_subsections=3, repeats=.FALSE.)
+                          n_keywords=4, n_subsections=3, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="NNP_INPUT_FILE_NAME", &
                           description="File containing the input information for the setup "// &
@@ -2347,6 +2347,41 @@ CONTAINS
                           description="File containing the scaling information for the symmetry "// &
                           "functions of the NNP. ", &
                           repeats=.FALSE., default_lc_val="scaling.data")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="RAD_SPLINE_N", &
+                          description="Number of knots per radial group in the cubic-Hermite "// &
+                          "spline tables that tabulate the radial symmetry-function product "// &
+                          "y(r) = exp(-eta*(r-rs)^2) * fcut(r). Cubic-Hermite per-evaluation "// &
+                          "error scales as O(1/n^4); the default keeps the spline residual "// &
+                          "inside the NNP regression tolerance for a radial cutoff of "// &
+                          "~12 bohr. Models with larger cutoffs or stricter tolerances may "// &
+                          "need a larger n. Memory cost scales linearly in n per radial group.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=integer_t, &
+                          default_i_val=8192, &
+                          usage="RAD_SPLINE_N 8192")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VERLET_SKIN", &
+                          description="Verlet skin distance for the NNP descriptor neighbour "// &
+                          "cell-list. The neighbour-list cutoff is (symmetry-function cutoff "// &
+                          "+ skin); the cell-list chain is rebuilt only when an atom drifts "// &
+                          "more than skin/2 from its rebuild-time position, analogous to the "// &
+                          "LAMMPS 'neighbor <skin> bin' command. Larger skin reduces the "// &
+                          "rebuild rate but enlarges the per-atom neighbour list. A negative "// &
+                          "value (default) selects the automatic heuristic "// &
+                          "MIN(0.5 bohr, 0.1*cutoff). Useful upper bound is half the smallest "// &
+                          "perpendicular cell width.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=-1.0_dp, &
+                          unit_str="bohr", &
+                          usage="VERLET_SKIN [bohr] 0.5")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 

@@ -431,10 +431,12 @@ list(
   negf_subgroup_types.F
   negf_vectors.F
   nnp_acsf.F
+  nnp_cell_list.F
   nnp_environment.F
   nnp_environment_types.F
   nnp_force.F
   nnp_model.F
+  nnp_neighbor_interface.F
   local_gemm_api.F
   offload/offload_api.F
   optbas_fenv_manipulation.F
