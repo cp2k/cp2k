@@ -175,19 +175,6 @@ MODULE rt_bse_types
       ! Debug-only kernel switches shared by initialization and propagation.
       LOGICAL                                                   :: debug_disable_hartree = .FALSE., &
                                                                    debug_disable_sex = .FALSE.
-      ! Debug-only QP override. When .TRUE., the propagator's H_qp diagonal and the
-      ! Liouvillian diagnostic's H_eps source are replaced by the module-level
-      ! parameter array hacked_GW_H2_eigenvalues in rt_bse_linearized.F. Strictly
-      ! for H2 with def2-SVP-custom basis (12 active MOs). At
-      ! run_propagation_linearized_bse startup the size of the parameter array is
-      ! checked against rtbse_env%mo_active; mismatch aborts.
-      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
-      LOGICAL                                                   :: debug_force_hacked_gw_h2_eigenvalues = .FALSE.
-      ! Open-shell counterpart of the above: replaces the H_qp diagonal / H_eps source with the
-      ! module-level (28,2) parameter array hacked_GW_O2_eigenvalues in rt_bse_linearized.F. Strictly
-      ! for the O2 triplet with def2-SVP (n_spin=2, 28 active MOs/spin; checked at startup).
-      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
-      LOGICAL                                                   :: debug_force_hacked_gw_o2_eigenvalues = .FALSE.
       ! RI framework for the linRTBSE Hartree + screened-exchange kernels, set by the KERNEL_RI
       ! input keyword (DEFAULT inherits bs_env%do_gw_ri_rs; RS/AO force; full RT-BSE forced AO).
       ! .TRUE. = RI-RS grid kernels, .FALSE. = AO-RI. The required grid and V_grid/W0_grid
@@ -474,10 +461,6 @@ CONTAINS
                                 l_val=rtbse_env%diagnose_liouvillian_eig)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PRINT_GRID_OCCUPATION", &
                                 l_val=bs_env%ri_rs%print_grid_occupation)
-      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_FORCE_HACKED_GW_H2_EIGENVALUES", &
-                                l_val=rtbse_env%debug_force_hacked_gw_h2_eigenvalues)
-      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_FORCE_HACKED_GW_O2_EIGENVALUES", &
-                                l_val=rtbse_env%debug_force_hacked_gw_o2_eigenvalues)
 
       IF (.NOT. rtbse_env%dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) THEN
          rtbse_env%rtbse_energy_cutoff_occ = -1.0_dp
@@ -489,8 +472,6 @@ CONTAINS
          ! rirs_kernel is already forced .FALSE. here by rtbse_resolve_rirs_flag.
          rtbse_env%diagnose_liouvillian_eig = .FALSE.
          bs_env%ri_rs%print_grid_occupation = .FALSE.
-         rtbse_env%debug_force_hacked_gw_h2_eigenvalues = .FALSE.
-         rtbse_env%debug_force_hacked_gw_o2_eigenvalues = .FALSE.
       END IF
       ! First-peak shift only makes sense within TDA; force-disable otherwise.
       IF (.NOT. rtbse_env%tda_active) rtbse_env%tda_shift_to_first_peak = .FALSE.

@@ -103,48 +103,6 @@ MODULE rt_bse_linearized
    ! [INTERNAL] dev_notes/rt_bse_rirs_kernel.md (mask_mode case table + Im-iff-non-Hermitian rule)
    INTEGER, PARAMETER, PRIVATE :: kernel_input_ov = 1, kernel_input_ovvo = 2, kernel_input_full = 3
 
-   ! Validation-only fixed QPs for H2 with the def2-SVP-custom basis (12 MOs total),
-   ! taken from a bse_full_diag.F TDA+ABBA reference run (2026-05-26). Enabled via
-   ! the RTBSE/DEBUG_FORCE_HACKED_GW_H2_EIGENVALUES input flag; overrides both the
-   ! propagator's H_qp diagonal (initialize_singleparticle_hamiltonian) and the
-   ! Liouvillian diagnostic's H_eps source (apply_liouvillian_to_drho) so the QP
-   ! input to linRTBSE matches the bse_full reference exactly. Strictly for
-   ! H2/def2-SVP-custom; the size of this array must equal rtbse_env%mo_active
-   ! (checked at startup), and the values are basis-specific.
-   ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C11 (LRBSE cross-check) / P-C15 (this flag)
-   REAL(KIND=dp), DIMENSION(12), PARAMETER, PRIVATE      :: hacked_GW_H2_eigenvalues = [ &
-                                                            -15.7837_dp, 9.0662_dp, 21.4040_dp, 33.0524_dp, &
-                                                            37.7741_dp, 37.7848_dp, 59.7905_dp, 55.5754_dp, &
-                                                            55.5908_dp, 82.1245_dp, 112.9021_dp, 114.1125_dp &
-                                                            ]
-
-   ! Validation-only fixed QPs for the open-shell O2 triplet (def2-SVP / def2-SVP-RIFIT, 28 MOs/spin),
-   ! Turbomole 7.9 G0W0@PBE0 (HANDOFF_cp2k_regtest_Turbomole_BSE.md sec 6b/6c), mapped to CP2K MO-index
-   ! order (KS-energy ascending) via gen_tm_qp_override.py. Enabled via the
-   ! RTBSE/DEBUG_FORCE_HACKED_GW_O2_EIGENVALUES flag; overrides the same two diagonal sites as the H2
-   ! array but spin-resolved (column 1 = alpha, column 2 = beta), feeding TM's QP into linRTBSE so the
-   ! W-kernel is isolated from the QP gap (TM-vs-linRTBSE O2 offset). Strictly O2/def2-SVP triplet;
-   ! n_spin=2 and mo_active=28 checked at startup.
-   ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
-   REAL(KIND=dp), DIMENSION(28, 2), PARAMETER, PRIVATE   :: hacked_GW_O2_eigenvalues = RESHAPE([ &
-                                                                                               ! alpha (spin 1), eV
-                                                                         -536.03700_dp, -536.03700_dp, -45.29702_dp, -32.10505_dp, &
-                                                                           -22.77589_dp, -22.77589_dp, -19.30248_dp, -11.83009_dp, &
-                                                                              -11.83009_dp, 10.89255_dp, 24.29781_dp, 27.84674_dp, &
-                                                                               27.84674_dp, 28.15562_dp, 30.33516_dp, 32.65669_dp, &
-                                                                               32.65669_dp, 39.05265_dp, 63.63180_dp, 63.63180_dp, &
-                                                                               70.10524_dp, 70.10524_dp, 81.09509_dp, 81.09509_dp, &
-                                                                              84.74807_dp, 98.87776_dp, 98.87776_dp, 113.23370_dp, &
-                                                                                               ! beta (spin 2), eV
-                                                                         -562.31510_dp, -562.31510_dp, -42.57521_dp, -27.34888_dp, &
-                                                                             -17.69409_dp, -16.22265_dp, -16.22265_dp, 1.77089_dp, &
-                                                                                1.77089_dp, 12.88028_dp, 25.28956_dp, 30.63130_dp, &
-                                                                               30.49899_dp, 30.49899_dp, 31.92865_dp, 35.00627_dp, &
-                                                                               35.00627_dp, 39.64259_dp, 67.31917_dp, 67.31917_dp, &
-                                                                               75.65959_dp, 75.65959_dp, 84.87497_dp, 84.87497_dp, &
-                                                                             87.42970_dp, 102.05298_dp, 102.05298_dp, 116.09494_dp &
-                                                                                               ], [28, 2])
-
    PUBLIC :: run_propagation_linearized_bse
 
 CONTAINS
@@ -201,39 +159,6 @@ CONTAINS
       ! Build the truncated MO coefficient slabs C_active(:, first_active_mo..last_active_mo)
       ! used by all AO<->MO transforms in the linearized path.
       CALL populate_C_active(rtbse_env)
-
-      ! Dimension check for the H2/def2-SVP-custom hacked-GW debug flag. The hardcoded
-      ! reference array hacked_GW_H2_eigenvalues has SIZE 12; it is indexed by the
-      ! local-to-active-window index 1..mo_active in both override sites, so the array
-      ! must cover the full active window. CPABORT immediately if the basis/window
-      ! doesn't match - the values are H2/def2-SVP-custom-specific and meaningless
-      ! otherwise.
-      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
-      IF (rtbse_env%debug_force_hacked_gw_h2_eigenvalues) THEN
-         IF (rtbse_env%n_spin > 1) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "DEBUG_FORCE_HACKED_GW_H2_EIGENVALUES holds closed-shell H2/def2-SVP "// &
-                          "eigenvalues only; set it .FALSE. for n_spin=2.")
-         END IF
-         IF (rtbse_env%mo_active /= SIZE(hacked_GW_H2_eigenvalues)) THEN
-            CPABORT("hacked GW eigs: mo_active != 12 (H2 only)")
-         END IF
-         CPWARN("hacked GW eigs active: H2/def2-SVP-custom only")
-      END IF
-      ! Same dimension check for the open-shell O2/def2-SVP hacked-GW debug flag: requires
-      ! n_spin=2 and the active window to span all 28 MOs/spin (the array's first extent).
-      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
-      IF (rtbse_env%debug_force_hacked_gw_o2_eigenvalues) THEN
-         IF (rtbse_env%n_spin /= 2) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "DEBUG_FORCE_HACKED_GW_O2_EIGENVALUES holds open-shell O2/def2-SVP "// &
-                          "triplet eigenvalues only; requires n_spin=2.")
-         END IF
-         IF (rtbse_env%mo_active /= SIZE(hacked_GW_O2_eigenvalues, 1)) THEN
-            CPABORT("hacked GW eigs: mo_active != 28 (O2 only)")
-         END IF
-         CPWARN("hacked GW eigs active: O2/def2-SVP triplet only")
-      END IF
 
       ! Initiate iteration level "MD" in order to copy the structure of other RTP codes
       CALL cp_add_iter_level(logger%iter_info, "MD")
@@ -931,18 +856,6 @@ CONTAINS
                         rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = &
                            rtbse_env%real_workspace_mo(1)%local_data(ii, jj) - 0.5_dp*rtbse_env%omega_shift
                      END IF
-                  END IF
-                  ! Debug-only QP override: H2/def2-SVP-custom hardcoded GW eigenvalues
-                  ! (paired with the matching override in apply_liouvillian_to_drho). Both
-                  ! sites gate on rtbse_env%debug_force_hacked_gw_h2_eigenvalues; the size
-                  ! check at run_propagation_linearized_bse startup guarantees the index
-                  ! i_row_global is in range. Validated 2026-05-26: TDA + ABBA both within
-                  ! 55 meV of LRBSE. The O2 branch is spin-resolved (column = spin index i).
-                  ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
-                  IF (rtbse_env%debug_force_hacked_gw_h2_eigenvalues) THEN
-                     rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = hacked_GW_H2_eigenvalues(i_row_global)/evolt
-                  ELSE IF (rtbse_env%debug_force_hacked_gw_o2_eigenvalues) THEN
-                     rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = hacked_GW_O2_eigenvalues(i_row_global, i)/evolt
                   END IF
                   ! Mirror the finalized diagonal into the replicated active-energy array
                   rtbse_env%eps_active(i_row_global, i) = rtbse_env%real_workspace_mo(1)%local_data(ii, jj)
@@ -1642,14 +1555,6 @@ CONTAINS
                abs_mo_idx = i_row_global + rtbse_env%first_active_mo - 1
                rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = &
                   rtbse_env%bs_env%eigenval_G0W0(abs_mo_idx, 1, ispin)
-               ! Debug-only QP override (paired with initialize_singleparticle_hamiltonian).
-               ! Same gate + size-check guarantee as the propagator site; O2 branch spin-resolved (ispin).
-               ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
-               IF (rtbse_env%debug_force_hacked_gw_h2_eigenvalues) THEN
-                  rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = hacked_GW_H2_eigenvalues(i_row_global)/evolt
-               ELSE IF (rtbse_env%debug_force_hacked_gw_o2_eigenvalues) THEN
-                  rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = hacked_GW_O2_eigenvalues(i_row_global, ispin)/evolt
-               END IF
             END IF
          END DO
       END DO
@@ -1748,8 +1653,8 @@ CONTAINS
 !>        and return L * Delta rho on every spin block. A probe on spin sigma feeds the diagonal
 !>        block A^{sigma,sigma} (eps + Coulomb + SX) AND the off-diagonal Coulomb block
 !>        A^{sigma',sigma} for every other output spin sigma' (cross-spin Hartree - the term that
-!>        produces the singlet/triplet split). AO-RI only: the Phase-D guard forbids RIRS /
-!>        hacked-GW for n_spin>1, so there is no RIRS branch here; the n_spin=1 diagnostic routes
+!>        produces the singlet/triplet split). AO-RI only: the Phase-D guard forbids RIRS
+!>        for n_spin>1, so there is no RIRS branch here; the n_spin=1 diagnostic routes
 !>        through apply_liouvillian_to_drho_spin instead (which keeps the RIRS path).
 !> [INTERNAL] dev_notes/rt_bse_equations.md §9.4, §9.5
 !> \param rtbse_env RT-BSE environment (TDA).
@@ -1795,13 +1700,6 @@ CONTAINS
                   abs_mo_idx = i_row_global + rtbse_env%first_active_mo - 1
                   rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = &
                      rtbse_env%bs_env%eigenval_G0W0(abs_mo_idx, 1, isp)
-                  ! Debug-only QP override, n_spin=2 diagnostic path (array apply_liouvillian_to_drho);
-                  ! pairs with the propagator (initialize_singleparticle_hamiltonian) and per-spin sites.
-                  ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
-                  IF (rtbse_env%debug_force_hacked_gw_o2_eigenvalues) THEN
-                     rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = &
-                        hacked_GW_O2_eigenvalues(i_row_global, isp)/evolt
-                  END IF
                END IF
             END DO
          END DO

@@ -2210,37 +2210,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      ! Debug-only QP override: H2 / def2-SVP-custom hardcoded GW eigenvalues
-      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_FORCE_HACKED_GW_H2_EIGENVALUES", &
-                          description="Debug-only: override the GW quasiparticle eigenvalues used by the "// &
-                          "linearized RT-BSE propagator (H_qp diagonal) and the Liouvillian diagnostic "// &
-                          "(H_eps source) with a hardcoded reference array. Strictly for H2 with the "// &
-                          "def2-SVP-custom basis set (12 active MOs); the size of the parameter array "// &
-                          "is checked against rtbse_env%mo_active at startup and the run aborts on "// &
-                          "mismatch. Used to align QP inputs across linRTBSE and the bse_full_diag.F "// &
-                          "LRBSE reference for cross-pipeline validation. Do NOT enable for any other "// &
-                          "system or basis.", &
-                          usage="DEBUG_FORCE_HACKED_GW_H2_EIGENVALUES", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      ! Debug-only QP override: open-shell O2 / def2-SVP hardcoded Turbomole GW eigenvalues
-      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_FORCE_HACKED_GW_O2_EIGENVALUES", &
-                          description="Debug-only open-shell counterpart of "// &
-                          "DEBUG_FORCE_HACKED_GW_H2_EIGENVALUES: overrides the linearized RT-BSE "// &
-                          "H_qp diagonal and Liouvillian diagnostic H_eps source with a hardcoded, "// &
-                          "spin-resolved Turbomole G0W0@PBE0 reference array. Strictly for the O2 "// &
-                          "triplet with def2-SVP (n_spin=2, 28 active MOs/spin; checked at startup, "// &
-                          "abort on mismatch). Used to feed Turbomole's QP into linRTBSE and isolate "// &
-                          "the W-kernel from the QP gap. Do NOT enable for any other system or basis.", &
-                          usage="DEBUG_FORCE_HACKED_GW_O2_EIGENVALUES", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
    END SUBROUTINE create_rtbse_section
 ! **************************************************************************************************
 !> \brief Creates the subsection for Fourier transform options applicable to RTP output
