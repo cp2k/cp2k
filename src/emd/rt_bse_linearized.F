@@ -19,9 +19,8 @@ MODULE rt_bse_linearized
                                               cp_cfm_transpose
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: &
-        cp_cfm_create, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_release, cp_cfm_set_all, &
-        cp_cfm_set_element, cp_cfm_set_submatrix, cp_cfm_to_cfm, cp_cfm_to_fm, cp_cfm_type, &
-        cp_fm_to_cfm
+        cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_set_all, cp_cfm_set_element, &
+        cp_cfm_set_submatrix, cp_cfm_to_cfm, cp_cfm_to_fm, cp_cfm_type, cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_get_info,&
@@ -56,7 +55,6 @@ MODULE rt_bse_linearized
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_para_env_type
    USE moments_utils,                   ONLY: get_reference_point
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt,&
@@ -92,10 +90,6 @@ MODULE rt_bse_linearized
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_bse_linearized'
 
-   ! Set .TRUE. to print the Krylov rho(L) diagnostic next to the analytical
-   ! gap-based omega_max estimate. Diagnostic only
-   LOGICAL, PARAMETER :: debug_krylov_estimate = .FALSE.
-
    ! build_shared_sex_and_hartree input-convention selector. The mask choice also fixes the input
    ! Hermiticity, which gates the Hartree imaginary channel (Im computed iff non-Hermitian = OV only).
    INTEGER, PARAMETER, PRIVATE :: kernel_input_ov = 1, kernel_input_ovvo = 2, kernel_input_full = 3
@@ -113,10 +107,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'run_propagation_linearized_bse'
 
-      INTEGER                                            :: handle, i, j, k
-      LOGICAL                                            :: converged
-      REAL(kind=dp)                                      :: metric, t_phys, t_start, &
-                                                            timestep_walltime, &
+      INTEGER                                            :: handle, i, j
+      REAL(kind=dp)                                      :: t_phys, t_start, timestep_walltime, &
                                                             timestep_walltime_start
       REAL(kind=dp), DIMENSION(2)                        :: enum_im, enum_re
       TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho_lab
@@ -202,23 +194,6 @@ CONTAINS
       !  - calculates the SEX reference self-energy
       CALL initialize_sex_selfenergy(rtbse_env)
 
-      ! Krylov rho(L) diagnostics: print the kernel-inclusive spectral radius
-      ! of the linearized propagator alongside the bare-gap omega_max so the
-      ! analytical bound can be checked. Power-iteration (Krylov) variant is a
-      ! slow lower bound; the Lanczos variant gives the largest-magnitude Ritz
-      ! value of the tridiagonal projection and converges superlinearly under
-      ! TDA (operator is self-adjoint on Hermitian OV+VO drho). Both are
-      ! diagnostic only - they do NOT overwrite omega_max / maximum_timestep.
-      IF (debug_krylov_estimate .AND. rtbse_env%tda_active .AND. &
-          rtbse_env%tda_shift_to_first_peak) THEN
-         CALL estimate_omega_max_krylov(rtbse_env, n_iter=30, rel_tol=1.0e-5_dp)
-         ! Hermitian Lanczos variant: in TDA the kernel response is self-adjoint on
-         ! Hermitian OV+VO drho, so plain Lanczos applies (Arnoldi reduces to Lanczos)
-         ! and Ritz values converge superlinearly toward |lambda_max(L)| - typically
-         ! an order of magnitude faster than power iteration on clustered top spectra.
-         CALL estimate_omega_max_lanczos(rtbse_env, n_iter=30, rel_tol=1.0e-8_dp)
-      END IF
-
       ! Liouvillian eigenvalue diagnostic (one-shot at init, TDA or ABBA via dispatcher).
       ! Detached from the propagator; safe to call after the reference-init routines.
       IF (rtbse_env%diagnose_liouvillian_eig) THEN
@@ -250,7 +225,7 @@ CONTAINS
          rtbse_env%sim_time = REAL(i, dp)*rtbse_env%sim_dt
          rtbse_env%sim_step = i
 
-         CALL solve_rk4_timestep(rtbse_env, rtbse_env%rho, rtbse_env%rho_new, converged, k, metric)
+         CALL solve_rk4_timestep(rtbse_env, rtbse_env%rho, rtbse_env%rho_new)
          CALL get_electron_number_MO(rtbse_env, rtbse_env%rho_new, &
                                      enum_re(1:rtbse_env%n_spin), enum_im(1:rtbse_env%n_spin))
          timestep_walltime = m_walltime() - timestep_walltime_start
@@ -1001,16 +976,10 @@ CONTAINS
 !> \param rtbse_env Entry point - rtbse environment
 !> \param rho_start Initial density matrix
 !> \param rho_end Final density matrix
-!> \param converged Whether the resulting rho_end is self-consistent
-!> \param k How many SC iterations were done
-!> \param metric The difference metric from the last self-consistent iteration (for printing/evaluation)
 ! **************************************************************************************************
-   SUBROUTINE solve_rk4_timestep(rtbse_env, rho_start, rho_end, converged, k, metric)
+   SUBROUTINE solve_rk4_timestep(rtbse_env, rho_start, rho_end)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho_start, rho_end
-      LOGICAL                                            :: converged
-      INTEGER                                            :: k
-      REAL(kind=dp)                                      :: metric
 
       CHARACTER(len=*), PARAMETER :: routineN = 'solve_rk4_timestep'
 
@@ -2822,10 +2791,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'get_electron_number_MO'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: local_data
-      INTEGER                                            :: i_global, i_local, j, j_global, j_local, &
-                                                            ncol_local, nrow_local
+      INTEGER                                            :: handle, i_global, i_local, j, j_global, &
+                                                            j_local, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
 
+      CALL timeset(routineN, handle)
       electron_n_re(:) = 0.0_dp
       electron_n_im(:) = 0.0_dp
       DO j = 1, rtbse_env%n_spin
@@ -2856,409 +2826,8 @@ CONTAINS
          electron_n_re(j) = electron_n_re(j)*rtbse_env%spin_degeneracy
          electron_n_im(j) = electron_n_im(j)*rtbse_env%spin_degeneracy
       END DO
+
+      CALL timestop(handle)
    END SUBROUTINE get_electron_number_MO
-
-! **************************************************************************************************
-!> \brief Fill seed with a deterministic-seeded random complex matrix, Hermitize it,
-!>        and return its Frobenius norm. Used to start Krylov power iterations.
-!> \param seed cfm to fill (must be allocated on the MO-active struct)
-!> \param work_h Hermitization scratch cfm (same struct as seed)
-!> \param rng_seed_val Integer seed for RANDOM_SEED (deterministic across runs)
-!> \param nrow_local Local row count for seed
-!> \param ncol_local Local column count for seed
-!> \param norm_seed Output: Frobenius norm of the Hermitized seed
-! **************************************************************************************************
-   SUBROUTINE init_random_hermitian_seed(seed, work_h, rng_seed_val, &
-                                         nrow_local, ncol_local, norm_seed)
-      TYPE(cp_cfm_type)                                  :: seed, work_h
-      INTEGER, INTENT(IN)                                :: rng_seed_val, nrow_local, ncol_local
-      REAL(kind=dp), INTENT(OUT)                         :: norm_seed
-
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: seed_data
-      INTEGER                                            :: i_local, j_local, seed_size
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rng_seed
-      REAL(kind=dp)                                      :: ri, rr
-
-      CALL RANDOM_SEED(SIZE=seed_size)
-      ALLOCATE (rng_seed(seed_size))
-      rng_seed = rng_seed_val
-      CALL RANDOM_SEED(PUT=rng_seed)
-      DEALLOCATE (rng_seed)
-      seed_data => seed%local_data
-      DO j_local = 1, ncol_local
-         DO i_local = 1, nrow_local
-            CALL RANDOM_NUMBER(rr)
-            CALL RANDOM_NUMBER(ri)
-            seed_data(i_local, j_local) = CMPLX(rr - 0.5_dp, ri - 0.5_dp, kind=dp)
-         END DO
-      END DO
-      CALL cp_cfm_transpose(seed, 'C', work_h)
-      CALL cp_cfm_scale_and_add(CMPLX(0.5_dp, 0.0_dp, kind=dp), seed, &
-                                CMPLX(0.5_dp, 0.0_dp, kind=dp), work_h)
-      norm_seed = cp_cfm_norm(seed, 'F')
-   END SUBROUTINE init_random_hermitian_seed
-
-! **************************************************************************************************
-!> \brief Debug routine: estimate the spectral radius rho(L) of the linearized
-!>        Liouvillian L by power iteration on a random Hermitian seed delta-rho.
-!>        Reuses update_effective_ham_MO as the matvec; subtracts the constant
-!>        offset f(rho=0) to expose the purely linear action L*delta_rho.
-!>        For the BSE Liouvillian the eigenvalues sit on (or near) the imaginary
-!>        axis, so RK4 stability is governed by rho(L) directly: dt < 2*√(2)/rho(L).
-!>        Note: the operator 2-norm sigma_max(L) cannot be obtained from
-!>        L-only matvecs without a true adjoint (which is not available here).
-!>        The empirical safety factor needed in practice (~4) reflects
-!>        non-normal transient amplification, not a missing factor between
-!>        rho(L) and sigma_max(L); see option B (embedded RK45) for a proper
-!>        per-step error driver.
-!>        Restores rho_ao_scratch from rho_orig before returning.
-!> \param rtbse_env Entry point - rtbse environment
-!> \param n_iter Maximum number of power iterations
-!> \param rel_tol Relative tolerance on rho(L) for early break
-!> \author Maximilian Graml (05/26)
-! **************************************************************************************************
-   SUBROUTINE estimate_omega_max_krylov(rtbse_env, n_iter, rel_tol)
-      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      INTEGER, INTENT(IN)                                :: n_iter
-      REAL(kind=dp), INTENT(IN)                          :: rel_tol
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'estimate_omega_max_krylov'
-
-      INTEGER                                            :: handle, ispin, it, ncol_local, nrow_local
-      LOGICAL                                            :: seed_ok
-      REAL(kind=dp)                                      :: dt_max, dt_max_gap, norm_seed, omega, &
-                                                            omega_gap, omega_prev
-      TYPE(cp_cfm_type)                                  :: k0, seed, v, work_h, zero_rho
-
-      CALL timeset(routineN, handle)
-      ! update_effective_ham_MO is now consume-only; caller must call build_shared_sex_and_hartree
-      ! first. This diagnostic predates that contract and needs a wrapper before re-enabling.
-      CALL cp_abort(__LOCATION__, &
-                    "estimate_omega_max_krylov: NYI after consume-only refactor — wrap each "// &
-                    "update_effective_ham_MO call with build_shared_sex_and_hartree(kernel_input_ov) first.")
-
-      ispin = 1
-      omega_gap = rtbse_env%omega_max
-      dt_max_gap = 0.0_dp
-      IF (omega_gap > 0.0_dp) dt_max_gap = 2.0_dp*SQRT(2.0_dp)/omega_gap
-
-      ! Allocate scratch on MO-active struct
-      CALL cp_cfm_create(seed, rtbse_env%fm_struct_mo_active)
-      CALL cp_cfm_create(v, rtbse_env%fm_struct_mo_active)
-      CALL cp_cfm_create(k0, rtbse_env%fm_struct_mo_active)
-      CALL cp_cfm_create(zero_rho, rtbse_env%fm_struct_mo_active)
-      CALL cp_cfm_create(work_h, rtbse_env%fm_struct_mo_active)
-
-      ! 1) Constant offset k0 = update_effective_ham_MO(rho = 0). update_effective_ham_MO
-      !    is affine in rho; subtracting k0 yields the pure linear action L*seed.
-      CALL cp_cfm_set_all(zero_rho, CMPLX(0.0_dp, 0.0_dp, kind=dp))
-      CALL update_effective_ham_MO(rtbse_env, zero_rho, k0, ispin)
-
-      ! 2) Random Hermitian seed projected onto the OV/VO subspace so the iteration
-      !    measures rho(P L P) - the spectral radius of the operator that the
-      !    OV-projected RK4 actually integrates.
-      CALL cp_cfm_get_info(matrix=seed, &
-                           nrow_local=nrow_local, ncol_local=ncol_local)
-      CALL init_random_hermitian_seed(seed, work_h, 20260506, nrow_local, ncol_local, &
-                                      norm_seed)
-      CALL project_drho_to_ov(rtbse_env, seed, ispin)
-      norm_seed = cp_cfm_norm(seed, 'F')
-      seed_ok = (norm_seed > 0.0_dp)
-      IF (.NOT. seed_ok .AND. rtbse_env%unit_nr > 0) THEN
-         WRITE (rtbse_env%unit_nr, '(A)') &
-            ' RTBSE| Krylov rho(L): seed norm is zero on this distribution; skipping.'
-      END IF
-
-      IF (seed_ok) THEN
-         CALL cp_cfm_scale(CMPLX(1.0_dp/norm_seed, 0.0_dp, kind=dp), seed)
-
-         IF (rtbse_env%unit_nr > 0) THEN
-            WRITE (rtbse_env%unit_nr, '(A)') &
-               ' RTBSE| ===== Krylov rho(L) debug estimate ====='
-            WRITE (rtbse_env%unit_nr, '(A,T35,F10.4,T55,F12.4)') &
-               ' RTBSE| Gap omega_max [eV] / dt [as]', &
-               omega_gap*evolt, dt_max_gap*seconds*1e18_dp
-            WRITE (rtbse_env%unit_nr, '(A,T13,A,T28,A,T45,A,T62,A)') &
-               ' RTBSE|', 'iter', 'rho(L) [eV]', 'dt_max [as]', 'rel.change'
-         END IF
-
-         ! 3) Power iteration: rho(L) = lim_k ||L^k seed||^{1/k}.
-         omega = 0.0_dp
-         omega_prev = 0.0_dp
-         dt_max = 0.0_dp
-         DO it = 1, n_iter
-            ! v = L * seed
-            CALL update_effective_ham_MO(rtbse_env, seed, v, ispin)
-            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), v, &
-                                      CMPLX(-1.0_dp, 0.0_dp, kind=dp), k0)
-            IF (rtbse_env%tda_active) THEN
-               CALL project_drho_to_ov(rtbse_env, v, ispin)
-            END IF
-
-            omega = cp_cfm_norm(v, 'F')
-            IF (omega > 0.0_dp) dt_max = 2.0_dp*SQRT(2.0_dp)/omega
-
-            IF (rtbse_env%unit_nr > 0) THEN
-               IF (it == 1) THEN
-                  WRITE (rtbse_env%unit_nr, '(A,T13,I4,T28,F10.4,T45,F12.4,T62,A)') &
-                     ' RTBSE|', it, omega*evolt, dt_max*seconds*1e18_dp, '--'
-               ELSE
-                  WRITE (rtbse_env%unit_nr, &
-                         '(A,T13,I4,T28,F10.4,T45,F12.4,T60,ES12.3)') &
-                     ' RTBSE|', it, omega*evolt, dt_max*seconds*1e18_dp, &
-                     ABS(omega - omega_prev)/MAX(omega, TINY(1.0_dp))
-               END IF
-            END IF
-
-            IF (it > 1 .AND. ABS(omega - omega_prev) <= &
-                rel_tol*MAX(omega, TINY(1.0_dp))) EXIT
-            omega_prev = omega
-
-            ! Next seed: re-Hermitize (round-off cleanup) and renormalize
-            CALL cp_cfm_to_cfm(v, seed)
-            CALL cp_cfm_transpose(seed, 'C', work_h)
-            CALL cp_cfm_scale_and_add(CMPLX(0.5_dp, 0.0_dp, kind=dp), seed, &
-                                      CMPLX(0.5_dp, 0.0_dp, kind=dp), work_h)
-            norm_seed = cp_cfm_norm(seed, 'F')
-            IF (norm_seed <= 0.0_dp) EXIT
-            CALL cp_cfm_scale(CMPLX(1.0_dp/norm_seed, 0.0_dp, kind=dp), seed)
-         END DO
-
-         IF (rtbse_env%unit_nr > 0) THEN
-            WRITE (rtbse_env%unit_nr, '(A,T35,F10.4,T55,F12.4)') &
-               ' RTBSE| Krylov rho(L) [eV] / dt [as]', &
-               omega*evolt, dt_max*seconds*1e18_dp
-            IF (omega_gap > 0.0_dp) THEN
-               WRITE (rtbse_env%unit_nr, '(A,T61,F18.4)') &
-                  ' RTBSE| rho(L) / omega_gap', omega/omega_gap
-            END IF
-         END IF
-      END IF
-
-      ! Restore rho_ao_scratch from rho_orig (update_effective_ham_MO has
-      ! overwritten it with the seed AO image during the iteration)
-      CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_orig(ispin), &
-                                                rtbse_env%rho_ao_scratch(ispin), ispin)
-
-      CALL cp_cfm_release(seed)
-      CALL cp_cfm_release(v)
-      CALL cp_cfm_release(k0)
-      CALL cp_cfm_release(zero_rho)
-      CALL cp_cfm_release(work_h)
-
-      CALL timestop(handle)
-   END SUBROUTINE estimate_omega_max_krylov
-
-! **************************************************************************************************
-!> \brief Real Frobenius inner product <A,B>_R = Re Tr(A^H B), distributed.
-!> \param a left operand
-!> \param b right operand
-!> \param res returned real inner product (summed across para_env)
-! **************************************************************************************************
-   SUBROUTINE cfm_real_inner_product(a, b, res)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: a, b
-      REAL(kind=dp), INTENT(OUT)                         :: res
-
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: ad, bd
-      INTEGER                                            :: i, j, ncol_local, nrow_local
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      CALL cp_cfm_get_info(matrix=a, nrow_local=nrow_local, ncol_local=ncol_local)
-      ad => a%local_data
-      bd => b%local_data
-      res = 0.0_dp
-      DO j = 1, ncol_local
-         DO i = 1, nrow_local
-            res = res + REAL(CONJG(ad(i, j))*bd(i, j), dp)
-         END DO
-      END DO
-      para_env => a%matrix_struct%para_env
-      CALL para_env%sum(res)
-   END SUBROUTINE cfm_real_inner_product
-
-! **************************************************************************************************
-!> \brief Hermitian Lanczos diagnostic for the kernel-inclusive linearized propagator.
-!>        TDA-only: in TDA the kernel response is self-adjoint on the Hermitian OV+VO
-!>        drho subspace, so plain Lanczos applies. Ritz values converge superlinearly
-!>        to lambda_max(L); a faster alternative to the power-iteration variant on
-!>        clustered top spectra. Diagnostic only - does NOT overwrite omega_max.
-!> \param rtbse_env environment
-!> \param n_iter maximum Lanczos iterations
-!> \param rel_tol relative tolerance on the largest Ritz value for early exit
-! **************************************************************************************************
-   SUBROUTINE estimate_omega_max_lanczos(rtbse_env, n_iter, rel_tol)
-      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      INTEGER, INTENT(IN)                                :: n_iter
-      REAL(kind=dp), INTENT(IN)                          :: rel_tol
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'estimate_omega_max_lanczos'
-
-      INTEGER                                            :: handle, info, ispin, it, j, ncol_local, &
-                                                            nrow_local
-      LOGICAL                                            :: seed_ok
-      REAL(kind=dp)                                      :: alpha_k, beta_k, c, dt_max, dt_max_gap, &
-                                                            norm_seed, omega, omega_gap, omega_prev
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: alpha, beta, d_loc, e_loc, work
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: z_dummy
-      TYPE(cp_cfm_type)                                  :: k0, v, work_h, zero_rho
-      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: q
-
-      CALL timeset(routineN, handle)
-      ! update_effective_ham_MO is now consume-only; caller must call build_shared_sex_and_hartree
-      ! first. This diagnostic predates that contract and needs a wrapper before re-enabling.
-      CALL cp_abort(__LOCATION__, &
-                    "estimate_omega_max_lanczos: NYI after consume-only refactor — wrap each "// &
-                    "update_effective_ham_MO call with build_shared_sex_and_hartree(kernel_input_ov) first.")
-
-      ispin = 1
-      omega_gap = rtbse_env%omega_max
-      dt_max_gap = 0.0_dp
-      IF (omega_gap > 0.0_dp) dt_max_gap = 2.0_dp*SQRT(2.0_dp)/omega_gap
-
-      ! Lanczos basis q(1..n_iter+1) + scratch
-      ALLOCATE (q(n_iter + 1))
-      DO it = 1, n_iter + 1
-         CALL cp_cfm_create(q(it), rtbse_env%fm_struct_mo_active)
-      END DO
-      CALL cp_cfm_create(v, rtbse_env%fm_struct_mo_active)
-      CALL cp_cfm_create(k0, rtbse_env%fm_struct_mo_active)
-      CALL cp_cfm_create(zero_rho, rtbse_env%fm_struct_mo_active)
-      CALL cp_cfm_create(work_h, rtbse_env%fm_struct_mo_active)
-
-      ALLOCATE (alpha(n_iter), beta(n_iter))
-      alpha = 0.0_dp
-      beta = 0.0_dp
-
-      ! Constant offset: linearise the affine action of update_effective_ham_MO.
-      CALL cp_cfm_set_all(zero_rho, CMPLX(0.0_dp, 0.0_dp, kind=dp))
-      CALL update_effective_ham_MO(rtbse_env, zero_rho, k0, ispin)
-
-      ! Random Hermitian seed, OV-projected so the iteration probes rho(P L P).
-      CALL cp_cfm_get_info(matrix=q(1), nrow_local=nrow_local, ncol_local=ncol_local)
-      CALL init_random_hermitian_seed(q(1), work_h, 20260512, nrow_local, ncol_local, &
-                                      norm_seed)
-      CALL project_drho_to_ov(rtbse_env, q(1), ispin)
-      norm_seed = cp_cfm_norm(q(1), 'F')
-      seed_ok = (norm_seed > 0.0_dp)
-      IF (.NOT. seed_ok .AND. rtbse_env%unit_nr > 0) THEN
-         WRITE (rtbse_env%unit_nr, '(A)') &
-            ' RTBSE| Lanczos rho(L): seed norm is zero on this distribution; skipping.'
-      END IF
-
-      omega = 0.0_dp
-      omega_prev = 0.0_dp
-      dt_max = 0.0_dp
-
-      IF (seed_ok) THEN
-         CALL cp_cfm_scale(CMPLX(1.0_dp/norm_seed, 0.0_dp, kind=dp), q(1))
-
-         IF (rtbse_env%unit_nr > 0) THEN
-            WRITE (rtbse_env%unit_nr, '(A)') &
-               ' RTBSE| ===== Lanczos rho(L) debug estimate ====='
-            WRITE (rtbse_env%unit_nr, '(A,T35,F10.4,T55,F12.4)') &
-               ' RTBSE| Gap omega_max [eV] / dt [as]', &
-               omega_gap*evolt, dt_max_gap*seconds*1e18_dp
-            WRITE (rtbse_env%unit_nr, '(A,T13,A,T28,A,T45,A,T62,A)') &
-               ' RTBSE|', 'iter', 'rho(L) [eV]', 'dt_max [as]', 'rel.change'
-         END IF
-
-         DO it = 1, n_iter
-            ! v = L * q_it = update_effective_ham_MO(q_it) - k0, OV-projected.
-            CALL update_effective_ham_MO(rtbse_env, q(it), v, ispin)
-            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), v, &
-                                      CMPLX(-1.0_dp, 0.0_dp, kind=dp), k0)
-            CALL project_drho_to_ov(rtbse_env, v, ispin)
-
-            ! alpha_k = Re <q_it, v>
-            CALL cfm_real_inner_product(q(it), v, alpha_k)
-            alpha(it) = alpha_k
-
-            ! v <- v - alpha_k q_it - beta_{k-1} q_{k-1}
-            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), v, &
-                                      CMPLX(-alpha_k, 0.0_dp, kind=dp), q(it))
-            IF (it > 1) THEN
-               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), v, &
-                                         CMPLX(-beta(it - 1), 0.0_dp, kind=dp), q(it - 1))
-            END IF
-
-            ! Full reorthogonalisation against q(1..it) for numerical safety.
-            DO j = 1, it
-               CALL cfm_real_inner_product(q(j), v, c)
-               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), v, &
-                                         CMPLX(-c, 0.0_dp, kind=dp), q(j))
-            END DO
-
-            beta_k = cp_cfm_norm(v, 'F')
-            beta(it) = beta_k
-
-            ! Largest |Ritz| of T_it = tridiag(alpha(1:it), beta(1:it-1)).
-            IF (it == 1) THEN
-               omega = ABS(alpha(1))
-            ELSE
-               ALLOCATE (d_loc(it), e_loc(it - 1), work(MAX(1, 2*it - 2)), z_dummy(1, 1))
-               d_loc(1:it) = alpha(1:it)
-               e_loc(1:it - 1) = beta(1:it - 1)
-               info = 0
-               CALL dstev('N', it, d_loc, e_loc, z_dummy, 1, work, info)
-               IF (info == 0) THEN
-                  omega = MAX(ABS(d_loc(1)), ABS(d_loc(it)))
-               ELSE
-                  omega = 0.0_dp
-               END IF
-               DEALLOCATE (d_loc, e_loc, work, z_dummy)
-            END IF
-
-            IF (omega > 0.0_dp) dt_max = 2.0_dp*SQRT(2.0_dp)/omega
-
-            IF (rtbse_env%unit_nr > 0) THEN
-               IF (it == 1) THEN
-                  WRITE (rtbse_env%unit_nr, '(A,T13,I4,T28,F10.4,T45,F12.4,T62,A)') &
-                     ' RTBSE|', it, omega*evolt, dt_max*seconds*1e18_dp, '--'
-               ELSE
-                  WRITE (rtbse_env%unit_nr, &
-                         '(A,T13,I4,T28,F10.4,T45,F12.4,T60,ES12.3)') &
-                     ' RTBSE|', it, omega*evolt, dt_max*seconds*1e18_dp, &
-                     ABS(omega - omega_prev)/MAX(omega, TINY(1.0_dp))
-               END IF
-            END IF
-
-            IF (it > 1 .AND. ABS(omega - omega_prev) <= &
-                rel_tol*MAX(omega, TINY(1.0_dp))) EXIT
-            omega_prev = omega
-
-            IF (beta_k <= 0.0_dp) EXIT
-            IF (it < n_iter) THEN
-               CALL cp_cfm_to_cfm(v, q(it + 1))
-               CALL cp_cfm_scale(CMPLX(1.0_dp/beta_k, 0.0_dp, kind=dp), q(it + 1))
-            END IF
-         END DO
-
-         IF (rtbse_env%unit_nr > 0) THEN
-            WRITE (rtbse_env%unit_nr, '(A,T35,F10.4,T55,F12.4)') &
-               ' RTBSE| Lanczos rho(L) [eV] / dt [as]', &
-               omega*evolt, dt_max*seconds*1e18_dp
-            IF (omega_gap > 0.0_dp) THEN
-               WRITE (rtbse_env%unit_nr, '(A,T61,F18.4)') &
-                  ' RTBSE| rho(L) / omega_gap', omega/omega_gap
-            END IF
-         END IF
-      END IF
-
-      ! Restore rho_ao_scratch from rho_orig (update_effective_ham_MO overwrites it).
-      CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_orig(ispin), &
-                                                rtbse_env%rho_ao_scratch(ispin), ispin)
-
-      DO it = 1, n_iter + 1
-         CALL cp_cfm_release(q(it))
-      END DO
-      DEALLOCATE (q)
-      CALL cp_cfm_release(v)
-      CALL cp_cfm_release(k0)
-      CALL cp_cfm_release(zero_rho)
-      CALL cp_cfm_release(work_h)
-      DEALLOCATE (alpha, beta)
-
-      CALL timestop(handle)
-   END SUBROUTINE estimate_omega_max_lanczos
 
 END MODULE rt_bse_linearized

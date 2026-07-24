@@ -275,7 +275,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_rtbse_env"
       TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: matrix_s
-      INTEGER                                      :: i, k, handle
+      INTEGER                                      :: handle
 
       CALL timeset(routineN, handle)
 
