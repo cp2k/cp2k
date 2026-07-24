@@ -3464,7 +3464,8 @@ CONTAINS
          dft_control%rtp_control%is_proj_mo = .FALSE.
       END IF
       ! Moment trace
-      local_moment_possible = (dft_control%rtp_control%rtp_method == rtp_method_bse) .OR. &
+      local_moment_possible = (dft_control%rtp_control%rtp_method == rtp_method_bse .OR. &
+                               dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) .OR. &
                               ((.NOT. dft_control%rtp_control%periodic) .AND. dft_control%rtp_control%linear_scaling)
       ! TODO : Implement for other moment operators
       subsection => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS")
