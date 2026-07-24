@@ -185,7 +185,6 @@ MODULE rt_bse_types
       ! apply_liouvillian_to_drho with canonical OV basis vectors and diagonalizes
       ! via cp_cfm_heevd. In TDA this equals the Casida-A eigenvalue problem.
       ! Run once, no propagation impact.
-      ! [INTERNAL] dev_notes/rt_bse_equations.md §8; dev_notes/rt_bse_observables.md O-D10
       LOGICAL                                                   :: diagnose_liouvillian_eig = .FALSE.
       ! Whether to enforce max_dt within stability region of rk4
       LOGICAL                                                   :: enforce_max_dt = .FALSE.
@@ -288,7 +287,6 @@ MODULE rt_bse_types
       ! A, B, (A-B) -> (A-B)^{1/2}, and (A+B) for the Furche reduction; allocated only
       ! when .NOT. tda_active (n_spin=1; TDA path uses L_pairs alone).
       ! eigenvalues_liouvillian holds the N_OV_joint real eigenvalues from cp_cfm_heevd.
-      ! [INTERNAL] dev_notes/rt_bse_equations.md §8.5, §9.6
       TYPE(cp_cfm_type)                                         :: L_pairs = cp_cfm_type(), &
                                                                    eigvecs_pairs = cp_cfm_type(), &
                                                                    A_mat = cp_cfm_type(), &
@@ -455,7 +453,7 @@ CONTAINS
                                 l_val=rtbse_env%debug_disable_sex)
       ! RI-RS kernel switch (KERNEL_RI: DEFAULT=do_gw_ri_rs, RS/AO force, full-RTBSE force-off)
       ! is resolved by the shared helper so de_init_bs_env reaches the same verdict when
-      ! deciding whether to retain nl_3c. [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
+      ! deciding whether to retain nl_3c.
       CALL rtbse_resolve_rirs_flag(force_env%qs_env, bs_env, rirs_kernel=rtbse_env%rirs_kernel)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DIAGNOSE_LIOUVILLIAN_EIG", &
                                 l_val=rtbse_env%diagnose_liouvillian_eig)
@@ -479,7 +477,6 @@ CONTAINS
       END IF
       ! Open shell: omega_shift would be referenced to a non-physical cross-spin
       ! pseudo-gap (global MIN/MAX over both spins); abort until made per-spin.
-      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C24 (latent open-shell shift)
       IF (rtbse_env%tda_shift_to_first_peak .AND. rtbse_env%n_spin > 1) THEN
          CALL cp_abort(__LOCATION__, &
                        "TDA_SHIFT_TO_FIRST_PEAK is not implemented for open-shell (n_spin>1) "// &
@@ -1097,7 +1094,6 @@ CONTAINS
       ! cross-dependency was removed by giving get_sigma_real its own local
       ! dbcsr scratch (see rt_bse.F::get_sigma_real). rho_dbcsr is now AO-RI
       ! Hartree only, as its name suggests.
-      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
       IF (rtbse_env%rirs_kernel) RETURN
 
       CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
@@ -1212,7 +1208,6 @@ CONTAINS
       ! Mirror the gate in create_hartree_ri_workspace and the v_dbcsr gate in
       ! initialize_hartree_potential. With one KERNEL_RI switch the AO-RI Hartree
       ! scratch (3c integrals + dbcsr work + v_dbcsr) is created iff `.NOT. rirs_kernel`.
-      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
       IF (.NOT. rtbse_env%rirs_kernel) THEN
          DEALLOCATE (rtbse_env%int_3c_array)
          CALL dbcsr_release(rtbse_env%rho_dbcsr)
@@ -1233,7 +1228,6 @@ CONTAINS
       ! Skip the AO-RI sigma scratch (W matrix + 3c integrals + work tensors)
       ! when the RT-BSE SEX path is fully RI-RS — these workspaces are read
       ! only by get_sigma in the `.NOT. rirs_kernel` branches.
-      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
       IF (rtbse_env%rirs_kernel) RETURN
 
       CALL create_sigma_workspace_qs_only(rtbse_env%qs_env, rtbse_env%screened_dbt, rtbse_env%w_dbcsr, &
@@ -1287,7 +1281,6 @@ CONTAINS
       TYPE(rtbse_env_type)                               :: rtbse_env
 
       ! Mirror the gate in create_sigma_workspace.
-      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
       IF (rtbse_env%rirs_kernel) RETURN
 
       CALL dbt_destroy(rtbse_env%t_3c_w)

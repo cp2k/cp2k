@@ -252,7 +252,6 @@ CONTAINS
 
       ! nl_3c feeds only the AO-RI SEX self-energy (compute_3c_integrals); the RI-RS SEX
       ! path never reads it, and AO-RI Hartree builds its own blocks. Retain iff AO-RI SEX.
-      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
       retain_nl_3c = .FALSE.
       IF (ASSOCIATED(bs_env%nl_3c%ij_list) .AND. (bs_env%rtp_method == rtp_method_bse)) THEN
          CALL rtbse_resolve_rirs_flag(qs_env, bs_env, rirs_kernel=rirs_kernel)

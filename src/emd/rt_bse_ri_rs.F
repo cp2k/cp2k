@@ -17,7 +17,6 @@
 !>                    v_l = sum_PQl' Z_lP V^aux_PQ Z_l'Q n_l'   (applied factorized, stage 2) ;
 !>                    V^H_µν = sum_l φ_lµ v_l φ_lν      (diagonal-only, no grid×grid)
 !>        Independent of which GW variant produced bs_env%fm_W_MIC_freq_zero.
-!> [INTERNAL] dev_notes/rt_bse_equations.md §6.1; dev_notes/rt_bse_rirs_kernel.md
 !> \author Maximilian Graml
 !> \date 05.2026
 ! **************************************************************************************************
@@ -131,7 +130,6 @@ CONTAINS
 !>        never materialized -- the Hartree stage applies it factorized:
 !>          v_l = sum_PQl' Z_lP V^aux_PQ Z_l'Q n_l'
 !>        Needed by RT-BSE RI-RS Hartree.
-!> [INTERNAL] dev_notes/rt_bse_equations.md §6.1 Eq. V_grid
 !> \param bs_env ...
 !> \param qs_env ...
 ! **************************************************************************************************
@@ -330,7 +328,7 @@ CONTAINS
       ! (compute_hartree_ri_rs_from_diag) instead of rebuilding φρφ^T. Bare accumulate (caller
       ! pre-zeroes): the cross-spin Hartree density is the spin SUM of these, and spin_degeneracy is
       ! applied to the V_H OUTPUT (post-filter, bit-identical) -- never to the diagonal, which would
-      ! shift the stage-3 eps_filter cut (P-C12 coarse-filter sensitivity).
+      ! shift the stage-3 eps_filter cut (coarse-filter sensitivity).
       IF (PRESENT(grid_diag_accum)) THEN
          n_grid = SIZE(grid_diag_accum)
          ALLOCATE (diag_local(n_grid))
@@ -366,7 +364,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Complex-input AO SEX via Re/Im split: the kernel is real, so complex linearity holds as
 !>        Σ[Δρ] = Σ[Re Δρ] + i Σ[Im Δρ].  Required for non-Hermitian Δρ inputs
-!>        (TDA OV-only / ABBA OV+VO; P-C1 pattern, see rt_bse_linearized notes).
+!>        (TDA OV-only / ABBA OV+VO).
 !> \param bs_env ...
 !> \param sigma_AO_cfm result, AO x AO (complex)
 !> \param prefactor scaling applied to the final result
@@ -424,7 +422,6 @@ CONTAINS
 !>          v_l = sum_PQl' Z_lP V^aux_PQ Z_l'Q n_l'   (factorized, stage 2) ;
 !>          V^H_µν = sum_l φ_lµ v_l φ_lν   (diagonal-only row-scale, stage 3)
 !>        Real input, real output; complex inputs go through compute_hartree_ri_rs_complex.
-!> [INTERNAL] dev_notes/rt_bse_equations.md §6.1 Eq. VHt_rirs_fact
 !> \param bs_env ...
 !> \param rho_AO_fm input AO x AO density matrix
 !> \param V_H_AO_fm output AO x AO Hartree potential
@@ -462,7 +459,6 @@ CONTAINS
       ! stage 1: n_l = (φ ρ φ^T)_ll. A grid×AO row-dot (iterate φρ, look up φ) silently drops
       ! off-rank pairs at ≥2 ranks — φ is sparse and the product is not co-located with φ — so
       ! materialize φρφ^T and take its diagonal, co-location-safe like the SEX grid kernel.
-      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C27
       CALL dbcsr_create(matrix_rho_grid, "rho_grid_hartree", dist_grid_grid, &
                         dbcsr_type_no_symmetry, blk_grid, blk_grid)
       ! No eps_filter: a Δρ-dependent diagonal-block drop zeroes n_l inconsistently between OV
@@ -494,7 +490,6 @@ CONTAINS
 !>          V^H_µν = sum_l φ_lµ v_l φ_lν   (Φ_lν = v_l φ_lν rowscale, then V^H = φ^T Φ).
 !>        n_l is harvested as diag(φρφ^T) inside compute_sigma_ri_rs (the SEX grid kernel), so the
 !>        Hartree never rebuilds the grid×grid product. Real in/out.
-!> [INTERNAL] dev_notes/rt_bse_equations.md §6.1 Eq. VHt_rirs_fact
 !> \param bs_env ...
 !> \param n_vec grid density n_l (length n_grid, replicated)
 !> \param V_H_AO_fm output AO x AO Hartree potential
@@ -560,7 +555,6 @@ CONTAINS
 !>        densities harvested in the SEX kernel; this is the cross-spin / TDA complex consumer that
 !>        replaces compute_hartree_ri_rs_complex when SEX already built the grid. n_im optional: when
 !>        absent the result is purely real (matches the Re-only real-input Hartree).
-!> [INTERNAL] dev_notes/rt_bse_equations.md §6.1 Eq. VHt_rirs_fact
 !> \param bs_env ...
 !> \param n_re grid density Re part (length n_grid, replicated)
 !> \param V_H_AO_cfm output AO x AO complex Hartree potential

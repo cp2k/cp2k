@@ -1059,7 +1059,7 @@ CONTAINS
       ! RI-RS screened-exchange backend (linRTBSE only; rirs_kernel is forced .FALSE. for full RTBSE,
       ! so this is inert there). The RI-RS routine does its own Re/Im split, replacing the AO-RI body.
       ! The optional grid_diag_* accumulators harvest diag(φρφ^T) for the Hartree reuse (RI-RS only;
-      ! absent on AO-RI calls, which build no grid). [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C22
+      ! absent on AO-RI calls, which build no grid).
       IF (rtbse_env%rirs_kernel) THEN
          CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, sigma_cfm, prefactor, greens_cfm, &
                                           grid_diag_re_accum=grid_diag_re_accum, &
@@ -1107,7 +1107,6 @@ CONTAINS
       ! to the AO-RI Hartree allocation path - the historical (RIRS-H + AO-RI-SX)
       ! cross-combo (no longer expressible under the single KERNEL_RI switch)
       ! then segfaulted because rho_dbcsr is skipped when rirs_kernel=T.
-      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
       CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
       CALL dbcsr_create(greens_dbcsr_scratch, name="get_sigma greens scratch", &
                         template=bs_env%mat_ao_ao%matrix)
