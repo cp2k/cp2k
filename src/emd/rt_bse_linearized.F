@@ -75,7 +75,7 @@ MODULE rt_bse_linearized
                                               rho_metric
    USE rt_bse_io,                       ONLY: &
         check_restart_eps_consistency, output_field, output_moments, output_mos_contravariant, &
-        output_restart, print_timestep_info, read_restart_C, read_restart_density, &
+        output_restart_linearized, print_timestep_info, read_restart_C, read_restart_density, &
         read_restart_info, read_restart_trace
    USE rt_bse_ri_rs,                    ONLY: compute_hartree_ri_rs,&
                                               compute_hartree_ri_rs_complex,&
@@ -385,7 +385,7 @@ CONTAINS
          ! Also handles outputting to memory
          CALL output_moments(rtbse_env, rho_lab)
          ! Output restart files, so that the restart resumes at the step recorded in .info
-         CALL output_restart(rtbse_env, rho_lab)
+         CALL output_restart_linearized(rtbse_env, rho_lab)
       END DO
       ! ********************** End the time loop **********************
 

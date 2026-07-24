@@ -68,6 +68,8 @@ MODULE rt_bse_io
              output_mos_contravariant, &
              output_mos_covariant, &
              output_restart, &
+             read_restart, &
+             output_restart_linearized, &
              read_restart_info, &
              read_restart_trace, &
              read_restart_density, &
@@ -478,15 +480,116 @@ CONTAINS
                          rtbse_env%sim_time, .TRUE., append_opt=(rtbse_env%sim_step /= rtbse_env%sim_start_orig))
    END SUBROUTINE output_moments
 ! **************************************************************************************************
-!> \brief Writes the restart set: lab-frame density matrices (MO-active for linearized, AO
-!>        otherwise), the .info step index (sim_step = steps completed = the resume step), the
-!>        once-per-run C_active gauge reference (linearized only), and the appended RESTART.trace
-!>        record feeding the FT prefix on continuation. All indices derive from sim_step so the
-!>        .info/.trace bookkeeping cannot drift apart.
+!> \brief Outputs the restart info (last finished iteration step) + restard density matrix
+!> \param restart_section Print key section for the restart files
+!> \param rho Density matrix in AO basis
+!> \param time_index Time index to be written into the info file
+! **************************************************************************************************
+   SUBROUTINE output_restart(rtbse_env, rho, time_index)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho
+      INTEGER                                            :: time_index
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: workspace
+      CHARACTER(len=17), DIMENSION(4)                    :: file_labels
+      TYPE(cp_logger_type), POINTER                      :: logger
+      INTEGER                                            :: rho_unit_nr, i
+
+      ! Default labels distinguishing up to two spin species and real/imaginary parts
+      file_labels(1) = "_SPIN_A_RE.matrix"
+      file_labels(2) = "_SPIN_A_IM.matrix"
+      file_labels(3) = "_SPIN_B_RE.matrix"
+      file_labels(4) = "_SPIN_B_IM.matrix"
+
+      logger => cp_get_default_logger()
+
+      workspace => rtbse_env%real_workspace
+
+      DO i = 1, rtbse_env%n_spin
+         CALL cp_cfm_to_fm(rho(i), workspace(1), workspace(2))
+         ! Real part
+         rho_unit_nr = cp_print_key_unit_nr(logger, rtbse_env%restart_section, extension=file_labels(2*i - 1), &
+                                            file_form="UNFORMATTED", file_position="REWIND")
+         CALL cp_fm_write_unformatted(workspace(1), rho_unit_nr)
+         CALL cp_print_key_finished_output(rho_unit_nr, logger, rtbse_env%restart_section)
+         ! Imag part
+         rho_unit_nr = cp_print_key_unit_nr(logger, rtbse_env%restart_section, extension=file_labels(2*i), &
+                                            file_form="UNFORMATTED", file_position="REWIND")
+         CALL cp_fm_write_unformatted(workspace(2), rho_unit_nr)
+         CALL cp_print_key_finished_output(rho_unit_nr, logger, rtbse_env%restart_section)
+         ! Info
+         rho_unit_nr = cp_print_key_unit_nr(logger, rtbse_env%restart_section, extension=".info", &
+                                            file_form="UNFORMATTED", file_position="REWIND")
+         IF (rho_unit_nr > 0) WRITE (rho_unit_nr) time_index
+         CALL cp_print_key_finished_output(rho_unit_nr, logger, rtbse_env%restart_section)
+      END DO
+   END SUBROUTINE output_restart
+! **************************************************************************************************
+!> \brief Reads the density matrix from restart files and updates the starting time
+!> \param restart_section Print key section for the restart files
+!> \param rho Density matrix in AO basis
+!> \param time_index Time index to be written into the info file
+! **************************************************************************************************
+   SUBROUTINE read_restart(rtbse_env)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(cp_logger_type), POINTER                      :: logger
+      CHARACTER(len=default_path_length)                 :: save_name, save_name_2
+      INTEGER                                            :: rho_unit_nr, j
+      CHARACTER(len=17), DIMENSION(4)                    :: file_labels
+
+      ! This allows the delta kick and output of moment at time 0 in all cases
+      ! except the case when both imaginary and real parts of the density are read
+      rtbse_env%restart_extracted = .FALSE.
+      logger => cp_get_default_logger()
+      ! Start by probing/loading info file
+      save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=".info", my_local=.FALSE.)
+      IF (file_exists(save_name)) THEN
+         CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
+                        unit_number=rho_unit_nr)
+         READ (rho_unit_nr) rtbse_env%sim_start
+         CALL close_file(rho_unit_nr)
+         IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A31,I25,A24)') " RTBSE| Starting from timestep ", &
+            rtbse_env%sim_start, ", delta kick NOT applied"
+      ELSE
+         CPWARN("Restart required but no info file found - starting from sim_step given in input")
+      END IF
+
+      ! Default labels distinguishing up to two spin species and real/imaginary parts
+      file_labels(1) = "_SPIN_A_RE.matrix"
+      file_labels(2) = "_SPIN_A_IM.matrix"
+      file_labels(3) = "_SPIN_B_RE.matrix"
+      file_labels(4) = "_SPIN_B_IM.matrix"
+      DO j = 1, rtbse_env%n_spin
+         save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, &
+                                                    extension=file_labels(2*j - 1), my_local=.FALSE.)
+         save_name_2 = cp_print_key_generate_filename(logger, rtbse_env%restart_section, &
+                                                      extension=file_labels(2*j), my_local=.FALSE.)
+         IF (file_exists(save_name) .AND. file_exists(save_name_2)) THEN
+            CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
+                           unit_number=rho_unit_nr)
+            CALL cp_fm_read_unformatted(rtbse_env%real_workspace(1), rho_unit_nr)
+            CALL close_file(rho_unit_nr)
+            CALL open_file(save_name_2, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
+                           unit_number=rho_unit_nr)
+            CALL cp_fm_read_unformatted(rtbse_env%real_workspace(2), rho_unit_nr)
+            CALL close_file(rho_unit_nr)
+            CALL cp_fm_to_cfm(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), &
+                              rtbse_env%rho(j))
+            rtbse_env%restart_extracted = .TRUE.
+         ELSE
+            CPWARN("Restart without some restart matrices - starting from SCF density.")
+         END IF
+      END DO
+   END SUBROUTINE read_restart
+! **************************************************************************************************
+!> \brief Linearized RT-BSE restart writer. Writes the restart set: lab-frame MO-active density
+!>        matrices, the .info step index (sim_step = steps completed = the resume step), the
+!>        once-per-run C_active gauge reference, and the appended RESTART.trace record feeding the
+!>        FT prefix on continuation. All indices derive from sim_step so the .info/.trace
+!>        bookkeeping cannot drift apart. (Full RTBSE uses the upstream output_restart above.)
 !> \param rtbse_env RT-BSE environment
 !> \param rho Density matrix (lab frame) to store
 ! **************************************************************************************************
-   SUBROUTINE output_restart(rtbse_env, rho)
+   SUBROUTINE output_restart_linearized(rtbse_env, rho)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: workspace
@@ -543,7 +646,7 @@ CONTAINS
       END IF
 
       CALL write_restart_trace(rtbse_env)
-   END SUBROUTINE output_restart
+   END SUBROUTINE output_restart_linearized
 ! **************************************************************************************************
 !> \brief Appends the current observable-trace record to RESTART.trace. Records are keyed by the
 !>        observable slot n_slot = sim_step - sim_start_orig + 1 - the SAME index output_moments/

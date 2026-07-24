@@ -91,9 +91,8 @@ MODULE rt_bse
    USE rt_bse_io, ONLY: output_moments, &
                         output_field, &
                         output_mos_contravariant, &
-                        read_restart_info, &
-                        read_restart_trace, &
-                        read_restart_density, &
+                        read_field, &
+                        read_restart, &
                         output_restart, &
                         print_timestep_info, &
                         print_etrs_info_header, &
@@ -105,6 +104,7 @@ MODULE rt_bse
                                  cp_rm_iter_level, &
                                  cp_iterate
    USE rt_propagation_output, ONLY: print_ft
+   USE rt_propagation_utils, ONLY: read_moments
 
 #include "../base/base_uses.f90"
 
@@ -172,15 +172,6 @@ CONTAINS
       ! Allocate all persistant storage and read input that does not need further processing
       CALL create_rtbse_env(rtbse_env, force_env)
 
-      ! Restart phase 1: starting step + dt metadata, then the trace prefix, before anything
-      ! consumes sim_start (no ENFORCE_MAX_DT on the full path, so the reads are consecutive).
-      IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
-         CALL read_restart_info(rtbse_env)
-         IF (rtbse_env%sim_start >= rtbse_env%sim_nsteps) &
-            CPABORT("RT_RESTART: restart step >= STEPS - increase MOTION%MD%STEPS")
-         CALL read_restart_trace(rtbse_env)
-      END IF
-
       CALL print_rtbse_header_info(rtbse_env)
 
       ! Initiate iteration level "MD" in order to copy the structure of other RTP codes
@@ -194,6 +185,10 @@ CONTAINS
       !  - populates the initial density matrix
       !     - reads the restart density if requested
       CALL initialize_density_matrix(rtbse_env)
+      !  - reads the moment and field traces from previous runs (no-op if the files are absent)
+      CALL read_moments(rtbse_env%moments_section, rtbse_env%sim_start_orig, &
+                        rtbse_env%sim_start, rtbse_env%moments_trace, rtbse_env%time_trace)
+      CALL read_field(rtbse_env)
       !  - calculates/populates the G0W0/KS Hamiltonian, respectively
       CALL initialize_singleparticle_hamiltonian(rtbse_env)
       !  - calculates the Hartree reference potential
@@ -249,8 +244,8 @@ CONTAINS
          CALL output_mos_contravariant(rtbse_env, rtbse_env%rho, rtbse_env%rho_section)
          ! Also handles outputting to memory
          CALL output_moments(rtbse_env, rtbse_env%rho)
-         ! Output restart files, so that the restart resumes at the step recorded in .info
-         CALL output_restart(rtbse_env, rtbse_env%rho)
+         ! Output restart files, so that the restart starts at the following time index
+         CALL output_restart(rtbse_env, rtbse_env%rho, i + 1)
       END DO
       ! ********************** End the time loop **********************
 
@@ -400,7 +395,7 @@ CONTAINS
       DEALLOCATE (occupations)
       ! If the restart field is provided, overwrite rho from restart
       IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
-         CALL read_restart_density(rtbse_env)
+         CALL read_restart(rtbse_env)
       END IF
       ! ****** END INITIAL DENSITY MATRIX CALCULATION
 
