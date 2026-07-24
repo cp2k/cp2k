@@ -1301,7 +1301,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'update_effective_ham_MO'
 
       INTEGER                                            :: handle, i_global, i_loc, j_global, &
-                                                            j_loc, k, ncl, nrl
+                                                            j_loc, ncl, nrl
       INTEGER, DIMENSION(:), POINTER                     :: c_idx, r_idx
       LOGICAL                                            :: use_hartree, use_sex
 
@@ -1327,24 +1327,16 @@ CONTAINS
                                                              0.0_dp, kind=dp)*rho%local_data(i_loc, j_loc)
          END DO
       END DO
-      !END DO
       ! Determine the field at current time
       IF (rtbse_env%dft_control%apply_efield_field) THEN
-         CPABORT("E(t) NYI")
-         ! MG needs trafo to MO
-         !CALL make_field(rtbse_env%dft_control, rtbse_env%field, rtbse_env%sim_step, rtbse_env%sim_time)
+         CALL cp_abort(__LOCATION__, &
+                       "Continuous/pulsed E(t) field coupling is not implemented for linearized "// &
+                       "RT-BSE. Only the delta-kick (impulsive) absorption spectrum is supported; "// &
+                       "use APPLY_DELTA_PULSE.")
       ELSE
          ! No field
          rtbse_env%field(:) = 0.0_dp
       END IF
-      !DO j = 1, nspin
-      DO k = 1, 3
-         ! MG needs trafo to MO
-         ! Minus sign due to charge of electrons
-         ! CALL cp_fm_to_cfm(msourcer=rtbse_env%moments_field(k), mtarget=rtbse_env%ham_workspace(1))
-         ! CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
-         !                           CMPLX(rtbse_env%field(k), 0.0, kind=dp), rtbse_env%ham_workspace(1))
-      END DO
       IF (.NOT. rtbse_env%tda_active) THEN
          ! ===== ABBA: consume the prebuilt per-spin SEX (sigma_SEX_ao(σ)) and shared bare Hartree
          ! (hartree_total_ao). (f_n-f_m) zeros OO/VV and sets OV/VO signs.  Closed shell uses full-ρ
@@ -2040,6 +2032,7 @@ CONTAINS
             ' RTBSE| lambda_min(A - B)                       = ', &
             lambda_min_AmB, '  a.u.  (', lambda_min_AmB*evolt, ' eV)'
       END IF
+      ! Hard abort by design: a non-positive (A-B) breaks the Furche reduction.
       IF (lambda_min_AmB < 0.0_dp) THEN
          CALL cp_abort(__LOCATION__, &
                        "(A - B) not positive definite - this may hint at a triplet or "// &
