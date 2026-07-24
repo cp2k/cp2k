@@ -1314,7 +1314,6 @@ CONTAINS
       use_sex = .NOT. rtbse_env%debug_disable_sex
 
       ! Reset the effective Hamiltonian to KS Hamiltonian + G0W0 - reference SEX - reference Hartree
-      !DO j = 1, nspin
       ! Sets the imaginary part to zero
       CALL cp_cfm_to_cfm(rtbse_env%ham_reference(ispin), ham_effective)
       ! [H^0, ρ]_mn = (ε_m - ε_n) ρ_mn exactly (H^0 diagonal in active-MO basis). Element-wise
@@ -1402,13 +1401,8 @@ CONTAINS
          ! post-routine consumer (output_mos) sees the same invariant.
          CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rho, rtbse_env%rho_ao_scratch(ispin), ispin)
       END IF
-      ! Keep only the anti-Hermitian part so the RHS remains structure-preserving.
-      ! CALL cp_cfm_transpose(ham_effective, 'C', rtbse_env%ham_workspace(1))
-      ! CALL cp_cfm_scale_and_add(CMPLX(0.5_dp, 0.0_dp, kind=dp), ham_effective, &
-      !                           CMPLX(-0.5_dp, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
       ! Return the actual RHS f(t,rho) = -i * A(rho) for RK4
       CALL cp_cfm_scale(CMPLX(0.0_dp, -1.0_dp, kind=dp), ham_effective)
-      !END DO
 
       CALL timestop(handle)
    END SUBROUTINE update_effective_ham_MO

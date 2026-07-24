@@ -543,7 +543,7 @@ CONTAINS
                                "PROJECTION_MO print section not yet implemented for RTBSE.")
       CALL warn_section_unused(rtbse_env%rtp_section, "PRINT%RESTART_HISTORY", &
                                "RESTART_HISTORY print section not yet implemented for RTBSE.")
-      ! DEBUG : References to previous environments
+      ! References to the parent qs_env / bs_env
       rtbse_env%qs_env => force_env%qs_env
       rtbse_env%bs_env => bs_env
       ! Padé refinement
