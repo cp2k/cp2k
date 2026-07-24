@@ -172,6 +172,10 @@ CONTAINS
       ALLOCATE (fm_mat_S_bar_ia_bse_arr(nspins), fm_mat_S_bar_ij_bse_arr(nspins))
 
       IF (nspins > 1) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "Open-shell (UKS/LSD) BSE is a recent addition and has not been "// &
+                      "extensively validated. Verify results carefully before using them "// &
+                      "for production calculations.")
          ! === Open-shell path: combined-window cutoff, per-spin truncation, joint A (+B for ABBA) ===
          ! Determine union of per-spin active MO windows
          CALL determine_bse_combined_window(Eigenval_scf(:, 1, :), homo, virtual, &

@@ -127,6 +127,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      CALL cp_warn(__LOCATION__, &
+                   "Linearized RT-BSE is under active development. Make sure you understand "// &
+                   "the method and validate results before using it for production calculations.")
+
       ! To Do: Bibliography information
 
       logger => cp_get_default_logger()
