@@ -65,9 +65,7 @@ MODULE rt_bse_linearized
    USE qs_environment_types,            ONLY: get_qs_env
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE rpa_gw_kpoints_util,             ONLY: cp_cfm_power
-   USE rt_bse,                          ONLY: antiherm_metric,&
-                                              get_hartree,&
-                                              get_idempotence_deviation,&
+   USE rt_bse,                          ONLY: get_hartree,&
                                               get_sigma,&
                                               init_hartree,&
                                               initialize_rtbse_env,&
@@ -118,9 +116,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, j, k
       LOGICAL                                            :: converged
-      REAL(kind=dp) :: a_metric_1, a_metric_2, full_max, full_max_old, idempotence_dev, metric, &
-         oo_max, oo_max_old, ov_growth, ov_max, ov_max_old, t_phys, t_start, timestep_walltime, &
-         timestep_walltime_start, vo_growth, vo_max, vo_max_old, vv_max, vv_max_old
+      REAL(kind=dp) :: metric, t_phys, t_start, timestep_walltime, timestep_walltime_start
       REAL(kind=dp), DIMENSION(2)                        :: enum_im, enum_re
       TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho_lab
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -250,40 +246,10 @@ CONTAINS
          rtbse_env%sim_step = i
 
          CALL solve_rk4_timestep(rtbse_env, rtbse_env%rho, rtbse_env%rho_new, converged, k, metric)
-         !MG for debugging
-         IF (.FALSE.) THEN
-            DO j = 1, rtbse_env%n_spin
-               CALL get_rho_block_maxnorms(rtbse_env, rtbse_env%rho(j), j, &
-                                           full_max_old, oo_max_old, vv_max_old, ov_max_old, vo_max_old)
-               CALL get_rho_block_maxnorms(rtbse_env, rtbse_env%rho_new(j), j, &
-                                           full_max, oo_max, vv_max, ov_max, vo_max)
-               ov_growth = ov_max/MAX(ov_max_old, TINY(1.0_dp))
-               vo_growth = vo_max/MAX(vo_max_old, TINY(1.0_dp))
-               IF (rtbse_env%unit_nr > 0) THEN
-                  WRITE (rtbse_env%unit_nr, '(A,I3, A, 5ES12.3)') 'MG: Block max norms for spin ', j, ': ', &
-                     full_max, oo_max, vv_max, ov_max, vo_max
-                  WRITE (rtbse_env%unit_nr, '(A,I3,A,2ES12.3,A,2ES12.3)') 'MG: OV/VO growth for spin ', j, &
-                     ' (new/old): ', ov_growth, vo_growth, ' | old OV/VO: ', ov_max_old, vo_max_old
-               END IF
-            END DO
-         END IF
          CALL get_electron_number_MO(rtbse_env, rtbse_env%rho_new, &
                                      enum_re(1:rtbse_env%n_spin), enum_im(1:rtbse_env%n_spin))
-         IF (.FALSE.) THEN
-            ! Not all of these are used, but they are all good metrics to check the convergence in problematic cases
-            ! TODO : Allow for conditional warning
-            CALL get_idempotence_deviation(rtbse_env, rtbse_env%rho_new, idempotence_dev)
-            DO j = 1, rtbse_env%n_spin
-               CALL cp_cfm_to_fm(rtbse_env%sigma_SEX(j), rtbse_env%real_workspace(1), rtbse_env%real_workspace(2))
-               CALL antiherm_metric(real_fm=rtbse_env%real_workspace(1), imag_fm=rtbse_env%real_workspace(2), &
-                                    workspace=rtbse_env%rho_workspace, metric=a_metric_1)
-               CALL antiherm_metric(real_fm=rtbse_env%hartree_curr(j), &
-                                    workspace=rtbse_env%rho_workspace, metric=a_metric_2)
-            END DO
-         END IF
          timestep_walltime = m_walltime() - timestep_walltime_start
          CALL print_timestep_info(rtbse_env, i, enum_re(1:rtbse_env%n_spin), step_walltime=timestep_walltime)
-         !IF (.NOT. converged) CPABORT("ETRS did not converge")
          CALL cp_iterate(logger%iter_info, iter_nr=i, last=(i == rtbse_env%sim_nsteps - 1))
 
          ! Update rho
@@ -2834,76 +2800,6 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE apply_delta_pulse_MO
-
-! **************************************************************************************************
-!> \brief Determines maxnorm of rho and its OO/VV/OV/VO blocks for one spin channel
-!> \param rtbse_env Entry point - rtbse environment
-!> \param rho Density matrix in MO basis for one spin channel
-!> \param i_spin Spin index
-!> \param full_max Maxnorm over all matrix elements
-!> \param oo_max Maxnorm in occupied-occupied block
-!> \param vv_max Maxnorm in virtual-virtual block
-!> \param ov_max Maxnorm in occupied-virtual block
-!> \param vo_max Maxnorm in virtual-occupied block
-! **************************************************************************************************
-   SUBROUTINE get_rho_block_maxnorms(rtbse_env, rho, i_spin, full_max, oo_max, vv_max, ov_max, vo_max)
-      TYPE(rtbse_env_type), INTENT(IN)                   :: rtbse_env
-      TYPE(cp_cfm_type), INTENT(IN)                      :: rho
-      INTEGER, INTENT(IN)                                :: i_spin
-      REAL(kind=dp), INTENT(OUT)                         :: full_max, oo_max, vv_max, ov_max, vo_max
-
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: local_data
-      INTEGER                                            :: i_global, i_global_mo, i_local, &
-                                                            j_global, j_global_mo, j_local, n_occ, &
-                                                            ncol_local, nrow_local, shift
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(kind=dp)                                      :: aij
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      full_max = 0.0_dp
-      oo_max = 0.0_dp
-      vv_max = 0.0_dp
-      ov_max = 0.0_dp
-      vo_max = 0.0_dp
-
-      n_occ = rtbse_env%n_occ(i_spin)
-      shift = rtbse_env%first_active_mo - 1
-
-      CALL cp_cfm_get_info(matrix=rho, &
-                           nrow_local=nrow_local, ncol_local=ncol_local, &
-                           row_indices=row_indices, col_indices=col_indices)
-
-      local_data => rho%local_data
-
-      DO i_local = 1, nrow_local
-         i_global = row_indices(i_local)
-         i_global_mo = i_global + shift
-         DO j_local = 1, ncol_local
-            j_global = col_indices(j_local)
-            j_global_mo = j_global + shift
-
-            aij = ABS(local_data(i_local, j_local))
-            full_max = MAX(full_max, aij)
-
-            IF (i_global_mo <= n_occ .AND. j_global_mo <= n_occ) THEN
-               oo_max = MAX(oo_max, aij)
-            ELSE IF (i_global_mo > n_occ .AND. j_global_mo > n_occ) THEN
-               vv_max = MAX(vv_max, aij)
-            ELSE IF (i_global_mo <= n_occ .AND. j_global_mo > n_occ) THEN
-               ov_max = MAX(ov_max, aij)
-            ELSE
-               vo_max = MAX(vo_max, aij)
-            END IF
-         END DO
-      END DO
-
-      CALL get_qs_env(rtbse_env%qs_env, para_env=para_env)
-      CALL para_env%max(full_max)
-      CALL para_env%max(oo_max)
-      CALL para_env%max(vv_max)
-      CALL para_env%max(ov_max)
-      CALL para_env%max(vo_max)
-   END SUBROUTINE get_rho_block_maxnorms
 
 ! **************************************************************************************************
 !> \brief Zero the OO and VV blocks of an MO-basis derivative cfm in place. Used to enforce
