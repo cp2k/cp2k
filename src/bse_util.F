@@ -1315,8 +1315,9 @@ CONTAINS
                                        homo_red, virt_red, homo_incl, virt_incl, &
                                        cutoff_occ, cutoff_empty)
          IF (isp > 1) THEN
-            IF (homo_incl /= first_occ_prev .OR. homo(isp) + virt_incl /= last_virt_prev) &
+            IF (homo_incl /= first_occ_prev .OR. homo(isp) + virt_incl /= last_virt_prev) THEN
                spins_differ = .TRUE.
+            END IF
          END IF
          first_occ_prev = homo_incl
          last_virt_prev = homo(isp) + virt_incl

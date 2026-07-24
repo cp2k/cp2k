@@ -116,7 +116,9 @@ CONTAINS
 
       INTEGER                                            :: handle, i, j, k
       LOGICAL                                            :: converged
-      REAL(kind=dp) :: metric, t_phys, t_start, timestep_walltime, timestep_walltime_start
+      REAL(kind=dp)                                      :: metric, t_phys, t_start, &
+                                                            timestep_walltime, &
+                                                            timestep_walltime_start
       REAL(kind=dp), DIMENSION(2)                        :: enum_im, enum_re
       TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho_lab
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -138,15 +140,17 @@ CONTAINS
 
       ! Restart phase 1a: read sim_start + the original run's dt (from the trace header) BEFORE
       ! ENFORCE_MAX_DT, so the continuation inherits that dt instead of a window-dependent one.
-      IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) &
+      IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
          CALL read_restart_info(rtbse_env)
+      END IF
 
       CALL initialize_maximum_timestep(rtbse_env)
 
       ! Restart phase 1b: load the trace prefix now that ENFORCE_MAX_DT has sized the trace arrays.
       IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
-         IF (rtbse_env%sim_start >= rtbse_env%sim_nsteps) &
+         IF (rtbse_env%sim_start >= rtbse_env%sim_nsteps) THEN
             CPABORT("RT_RESTART: restart step >= STEPS - increase MOTION%MD%STEPS")
+         END IF
          CALL read_restart_trace(rtbse_env)
       END IF
 
@@ -436,10 +440,11 @@ CONTAINS
             CALL cp_hint(__LOCATION__, TRIM(hint_msg))
             ! The inherited dt was stable in the original run; warn only if this run's stability
             ! window shrank below it (e.g. the recomputed GW eigenvalues shifted the gap).
-            IF (rtbse_env%sim_dt > rtbse_env%maximum_timestep/grace_factor) &
+            IF (rtbse_env%sim_dt > rtbse_env%maximum_timestep/grace_factor) THEN
                CALL cp_warn(__LOCATION__, &
                             "ENFORCE_MAX_DT restart: inherited dt exceeds this run's stability "// &
                             "limit - the recomputed Hamiltonian may make the propagation unstable.")
+            END IF
          ELSE
             n_steps_new = MAX(1, CEILING(total_time/(rtbse_env%maximum_timestep/grace_factor)))
             rtbse_env%sim_dt = total_time/REAL(n_steps_new, dp)
@@ -2623,8 +2628,9 @@ CONTAINS
                   dev_ident = MAX(dev_ident, ABS(u_data(ii, jj)))
                   dev_offdiag = MAX(dev_offdiag, ABS(u_data(ii, jj)))
                END IF
-               IF ((i_mo <= rtbse_env%n_occ(i)) .NEQV. (j_mo <= rtbse_env%n_occ(i))) &
+               IF ((i_mo <= rtbse_env%n_occ(i)) .NEQV. (j_mo <= rtbse_env%n_occ(i))) THEN
                   dev_ov = MAX(dev_ov, ABS(u_data(ii, jj)))
+               END IF
             END DO
          END DO
          ! U^T U − 1 : [U^T U]_mn = sum_p U_pm U_pn   -> real_workspace_mo(2)
@@ -2658,17 +2664,20 @@ CONTAINS
             WRITE (rtbse_env%unit_nr, '(A,ES12.3,A)') " RTBSE|   max |U_OV|         ", dev_ov, &
                "  (occ/virt structure change)"
          END IF
-         IF (dev_unitary >= 1.0e-3_dp) &
+         IF (dev_unitary >= 1.0e-3_dp) THEN
             CALL cp_abort(__LOCATION__, &
                           "Restart basis bridge: active spaces of the two runs differ severely (|U^T U - 1| >= 1e-3)")
-         IF (dev_unitary >= 1.0e-10_dp .AND. dev_unitary < 1.0e-3_dp) &
+         END IF
+         IF (dev_unitary >= 1.0e-10_dp .AND. dev_unitary < 1.0e-3_dp) THEN
             CALL cp_warn(__LOCATION__, &
                          "Restart basis bridge: representability loss above 1e-10 - active windows differ slightly.")
+         END IF
          ! 1e-6 floor: benign SCF reconvergence gives ~1e-9 occ/virt gauge noise (the bridge maps it
          ! correctly either way); only a genuine occupation-structure change reaches this threshold.
-         IF (dev_ov >= 1.0e-6_dp) &
+         IF (dev_ov >= 1.0e-6_dp) THEN
             CALL cp_warn(__LOCATION__, &
                          "Restart basis bridge: occupied/virtual mixing above 1e-6 - occupation structure changed.")
+         END IF
 
          ! ρ ← U ρ U^T : lift U to complex, [Uρ]_mn = sum_p U_mp ρ_pn, then ρ_mn = sum_q [Uρ]_mq U_nq
          CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace_mo(1), mtarget=rtbse_env%rho_workspace(1))
@@ -3033,8 +3042,9 @@ CONTAINS
             CALL update_effective_ham_MO(rtbse_env, seed, v, ispin)
             CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), v, &
                                       CMPLX(-1.0_dp, 0.0_dp, kind=dp), k0)
-            IF (rtbse_env%tda_active) &
+            IF (rtbse_env%tda_active) THEN
                CALL project_drho_to_ov(rtbse_env, v, ispin)
+            END IF
 
             omega = cp_cfm_norm(v, 'F')
             IF (omega > 0.0_dp) dt_max = 2.0_dp*SQRT(2.0_dp)/omega

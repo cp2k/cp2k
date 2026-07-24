@@ -748,8 +748,9 @@ CONTAINS
       ! Hygiene nudge only - correctness is protected by the restart basis bridge (linearized path)
       NULLIFY (scf_control)
       CALL get_qs_env(rtbse_env%qs_env, scf_control=scf_control)
-      IF (scf_control%density_guess /= restart_guess) &
+      IF (scf_control%density_guess /= restart_guess) THEN
          CPWARN("RT_RESTART without SCF_GUESS RESTART - SCF may reconverge to a gauge-rotated MO basis.")
+      END IF
    END SUBROUTINE read_restart_info
 ! **************************************************************************************************
 !> \brief Reads the RESTART.trace prefix (records 1..sim_start) into the in-memory moment/field/
@@ -797,9 +798,10 @@ CONTAINS
       IF (n_spin_file /= rtbse_env%n_spin) CPABORT("RESTART.trace: n_spin mismatch")
       IF (n_ao_file /= rtbse_env%n_ao) CPABORT("RESTART.trace: n_ao mismatch")
       ! v1 is strict same-window: the linearized active-MO count must match (D6)
-      IF (ASSOCIATED(rtbse_env%real_workspace_mo) .AND. n_basis_file /= rtbse_env%mo_active) &
+      IF (ASSOCIATED(rtbse_env%real_workspace_mo) .AND. n_basis_file /= rtbse_env%mo_active) THEN
          CALL cp_abort(__LOCATION__, &
                        "RESTART.trace: active-MO count differs from the original run - same-window continuation only")
+      END IF
       READ (trace_unit) dt_file
       ! ENFORCE_MAX_DT inherits dt_file (read_restart_info -> initialize_maximum_timestep), so this
       ! fires only on the manual path (ENFORCE off + user dt /= original); name the exact fix.
@@ -812,16 +814,18 @@ CONTAINS
       END IF
       READ (trace_unit) kick_dir_file, kick_scale_file
       IF (MAXVAL(ABS(kick_dir_file - REAL(rtbse_env%dft_control%rtp_control%delta_pulse_direction, dp))) > 1.0e-12_dp .OR. &
-          ABS(kick_scale_file - rtbse_env%dft_control%rtp_control%delta_pulse_scale) > 1.0e-12_dp) &
+          ABS(kick_scale_file - rtbse_env%dft_control%rtp_control%delta_pulse_scale) > 1.0e-12_dp) THEN
          CALL cp_warn(__LOCATION__, &
                       "RESTART.trace: delta-kick parameters differ from the original run - FT normalization inconsistent.")
+      END IF
       READ (trace_unit) n_eps
       IF (n_eps > 0) THEN
          ALLOCATE (eps_file(n_eps, rtbse_env%n_spin))
          READ (trace_unit) eps_file
          IF (ASSOCIATED(rtbse_env%real_workspace_mo)) THEN
-            IF (n_eps /= SIZE(rtbse_env%eps_active, 1)) &
+            IF (n_eps /= SIZE(rtbse_env%eps_active, 1)) THEN
                CALL cp_abort(__LOCATION__, "RESTART.trace: active-window size mismatch")
+            END IF
             ! eps_active is not populated yet (built later in the Hamiltonian init); stash for the
             ! post-Hamiltonian consistency check in check_restart_eps_consistency.
             ALLOCATE (rtbse_env%eps_active_restart(n_eps, rtbse_env%n_spin))
@@ -839,8 +843,9 @@ CONTAINS
          ! (etrs_scf_loop / solve_rk4_timestep), so the live loop's first step writes slot
          ! sim_start+2 and slot sim_start+1 must be reloaded here.
          IF (n > rtbse_env%sim_start + 1) EXIT
-         IF (n > SIZE(rtbse_env%time_trace)) &
+         IF (n > SIZE(rtbse_env%time_trace)) THEN
             CPABORT("RESTART.trace: record index exceeds trace size - increase MOTION%MD%STEPS")
+         END IF
          rtbse_env%time_trace(n) = t_rec
          rtbse_env%field_trace(:, n) = field_rec
          rtbse_env%moments_trace(:, :, n) = mom_rec
@@ -848,8 +853,9 @@ CONTAINS
       END DO
       DEALLOCATE (mom_rec)
       CALL close_file(trace_unit)
-      IF (n_read_max < rtbse_env%sim_start) &
+      IF (n_read_max < rtbse_env%sim_start) THEN
          CPWARN("RESTART.trace: fewer records than restart step - trace prefix incomplete.")
+      END IF
    END SUBROUTINE read_restart_trace
 ! **************************************************************************************************
 !> \brief Compares the original run's active eigenvalues (stashed by read_restart_trace) against
@@ -868,10 +874,11 @@ CONTAINS
       IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A,ES12.3,A)') &
          " RTBSE| Restart eps_active max deviation vs original run ", eps_dev, " Ha"
       ! 0.1 meV = 1.0e-4 eV, converted to Ha via evolt (Ha -> eV factor)
-      IF (eps_dev > 1.0e-4_dp/evolt) &
+      IF (eps_dev > 1.0e-4_dp/evolt) THEN
          CALL cp_warn(__LOCATION__, &
                       "RESTART.trace: active eigenvalues deviate beyond 0.1 meV - "// &
                       "Hamiltonian changed; continuation is physically inconsistent.")
+      END IF
 
       DEALLOCATE (rtbse_env%eps_active_restart)
       NULLIFY (rtbse_env%eps_active_restart)

@@ -307,8 +307,9 @@ CONTAINS
 
       ! RI-RS kernels are implemented for linearized RT-BSE only; full RT-BSE always uses AO-RI.
       IF (dft_control%rtp_control%rtp_method /= rtp_method_bse_linearized) THEN
-         IF (kernel_ri == rtp_bse_kernel_ri_rs) &
+         IF (kernel_ri == rtp_bse_kernel_ri_rs) THEN
             CPWARN("RI-RS kernels are implemented for linearized RT-BSE only; forcing AO")
+         END IF
          my_rirs_kernel = .FALSE.
       END IF
 

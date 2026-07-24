@@ -221,8 +221,8 @@ MODULE rt_bse_types
       REAL(kind=dp), DIMENSION(:), POINTER                      :: user_moment_ref_point => NULL()
       REAL(kind=dp)                                             :: sim_time = 0.0_dp, &
                                                                    sim_dt = 0.1_dp, &
-                                                                   ! Original-run dt read from the trace header on restart (< 0 when not a
-                                                                   ! restart); ENFORCE_MAX_DT reuses it instead of recomputing dt
+                                                                   ! Original-run dt from the trace header on restart (< 0 when not
+                                                                   ! a restart); ENFORCE_MAX_DT reuses it instead of recomputing dt
                                                                    sim_dt_restart = -1.0_dp, &
                                                                    maximum_timestep = -1.0_dp, &
                                                                    omega_max = -1.0_dp, &
@@ -384,10 +384,10 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
       INTEGER                                                   :: i, k, n_ov, i_spin
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
-      TYPE(cp_fm_struct_type), POINTER                          :: mo_struct => NULL()
+      TYPE(cp_fm_struct_type), POINTER                          :: mo_struct
 
       ! Allocate the storage for the gwbse environment
-      NULLIFY (rtbse_env)
+      NULLIFY (rtbse_env, mo_struct)
       ALLOCATE (rtbse_env)
       IF (PRESENT(linearized)) rtbse_env%linearized = linearized
       ! Extract the other types first
