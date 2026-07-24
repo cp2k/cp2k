@@ -120,14 +120,6 @@ MODULE post_scf_bandstructure_types
       LOGICAL                                          :: V_grid_built = .FALSE.
       LOGICAL                                          :: W0_grid_built = .FALSE.
 
-      ! Per-timestep grid-occupation diagnostic (RTBSE%PRINT_GRID_OCCUPATION). The RI-RS SEX
-      ! kernel records the sparse fill of its grid transient here; the linearized driver emits
-      ! one GRID_OCC| line per RK4 step. w0_grid_occ is the fixed-operator control.
-      LOGICAL                                          :: print_grid_occupation = .FALSE.
-      REAL(KIND=dp)                                    :: rho_grid_occ = 0.0_dp
-      REAL(KIND=dp)                                    :: sigma_ao_occ = 0.0_dp
-      REAL(KIND=dp)                                    :: w0_grid_occ = 0.0_dp
-
    END TYPE ri_rs_env
 
    TYPE post_scf_bandstructure_type

@@ -242,10 +242,6 @@ CONTAINS
 
       ! ********************** Start the time loop **********************
       ! NOTE : Time-loop starts at index sim_start = 0, unless restarted or configured otherwise
-      IF (rtbse_env%bs_env%ri_rs%print_grid_occupation .AND. rtbse_env%unit_nr > 0) THEN
-         WRITE (rtbse_env%unit_nr, '(A)') &
-            ' GRID_OCC|      Step          rho_grid          Sigma_AO       W0_grid(ref)'
-      END IF
       DO i = rtbse_env%sim_start, rtbse_env%sim_nsteps - 1
          timestep_walltime_start = m_walltime()
 
@@ -287,11 +283,6 @@ CONTAINS
          END IF
          timestep_walltime = m_walltime() - timestep_walltime_start
          CALL print_timestep_info(rtbse_env, i, enum_re(1:rtbse_env%n_spin), step_walltime=timestep_walltime)
-         IF (rtbse_env%bs_env%ri_rs%print_grid_occupation .AND. rtbse_env%unit_nr > 0) THEN
-            WRITE (rtbse_env%unit_nr, '(A10,T13,I8,T30,ES17.6,T47,ES17.6,T64,ES17.6)') &
-               ' GRID_OCC|', i, rtbse_env%bs_env%ri_rs%rho_grid_occ, &
-               rtbse_env%bs_env%ri_rs%sigma_ao_occ, rtbse_env%bs_env%ri_rs%w0_grid_occ
-         END IF
          !IF (.NOT. converged) CPABORT("ETRS did not converge")
          CALL cp_iterate(logger%iter_info, iter_nr=i, last=(i == rtbse_env%sim_nsteps - 1))
 
