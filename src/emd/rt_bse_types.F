@@ -368,7 +368,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Allocates structures and prepares rtbse_env for run
 !> \param rtbse_env rtbse_env_type that is initialised
-!> \param qs_env Entry point of the calculation
+!> \param force_env Force environment - entry point of the calculation
+!> \param linearized Optional; when present and .TRUE., configure the environment for the linearized RT-BSE path
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
@@ -1080,7 +1081,6 @@ CONTAINS
 !> \brief Allocates the workspaces for Hartree RI method
 !> \note RI method calculates the Hartree contraction without the use of DBT, as it cannot emulate vectors
 !> \param rtbse_env
-!> \param qs_env Quickstep environment - entry point of calculation
 !> \author Stepan Marek
 !> \date 05.2024
 ! **************************************************************************************************
@@ -1218,7 +1218,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Allocates the workspaces for self-energy determination routine
 !> \param rtbse_env Structure for holding information and workspace structures
-!> \param qs_env Quickstep environment - entry point of calculation
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************

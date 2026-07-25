@@ -2183,13 +2183,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      ! Liouvillian eigenvalue diagnostic (TDA only; matrix-free probe at init)
+      ! Liouvillian eigenvalue diagnostic (matrix-free probe at init; TDA + ABBA)
       CALL keyword_create(keyword, __LOCATION__, name="DIAGNOSE_LIOUVILLIAN_EIG", &
                           description="Diagnostic for linearized RT-BSE: at job initialization, build the "// &
                           "Liouvillian on the OV subspace by probing the kernel routine with canonical OV basis "// &
                           "vectors, then diagonalize. In TDA this equals the Casida-A eigenvalue problem, giving a "// &
                           "broadening-free, finite-time-free correctness check against bse_full.F. "// &
-                          "Requires TDA=.TRUE.; aborts otherwise. ABBA path not yet implemented. "// &
+                          "In ABBA it builds and diagonalizes the full coupled (A, B) Liouvillian via the "// &
+                          "Furche reduction. "// &
                           "Output is controlled by the LIOUVILLIAN_EIG print key in the parent "// &
                           "&REAL_TIME_PROPAGATION%&PRINT section.", &
                           usage="DIAGNOSE_LIOUVILLIAN_EIG", &

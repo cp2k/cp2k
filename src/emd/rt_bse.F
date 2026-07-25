@@ -14,8 +14,7 @@
 MODULE rt_bse
    USE bibliography, ONLY: Marek2025, &
                            cite_reference
-   USE qs_environment_types, ONLY: get_qs_env, &
-                                   qs_environment_type
+   USE qs_environment_types, ONLY: get_qs_env
    USE force_env_types, ONLY: force_env_type
    USE post_scf_bandstructure_types, ONLY: post_scf_bandstructure_type
    USE cp_fm_types, ONLY: cp_fm_type, &
@@ -146,7 +145,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Runs the electron-only real time BSE propagation
-!> \param qs_env Quickstep environment data, containing the config from input files
 !> \param force_env Force environment data, entry point of the calculation
 ! **************************************************************************************************
    SUBROUTINE run_propagation_bse(force_env)
