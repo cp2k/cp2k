@@ -2044,7 +2044,6 @@ CONTAINS
                           repeats=.FALSE., citations=[Marek2025])
 
       ! Marek : Controlling flow to RTBSE
-      !MG: Linearized rtbse is activated via section keyword
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Which method is used for the time propagation of electronic structure. "// &
                           "By default, use the TDDFT method. Can also choose RT-BSE method, which propagates the lesser "// &

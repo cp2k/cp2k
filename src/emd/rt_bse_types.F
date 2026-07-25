@@ -588,7 +588,7 @@ CONTAINS
          CALL cp_cfm_set_all(rtbse_env%rho_workspace(i), CMPLX(0.0, 0.0, kind=dp))
       END DO
 
-      !MG To Do: Flags to avoid allocating unnecessary workspaces for methods which do not require them
+      ! TODO: gate workspace allocation so methods skip workspaces they don't need
 
       ! Allocate real workspace
       NULLIFY (rtbse_env%real_workspace)

@@ -657,7 +657,7 @@ CONTAINS
             CALL transform_ao_to_mo_covariant_fm(rtbse_env, tmp_ao, rtbse_env%moments(k, i_spin), i_spin)
          END DO
       END DO
-      ! MG to do: remove moments_field; only needed for TDDFT comparison
+      ! TODO: remove moments_field (only needed for the TDDFT comparison)
       ! Now, repeat without reference point to get the moments for field
       CALL get_reference_point(rpoint, qs_env=rtbse_env%qs_env, &
                                reference=use_mom_ref_zero)
@@ -945,8 +945,7 @@ CONTAINS
       END IF
       ! Calculate the SEX starting energies
       DO i = 1, rtbse_env%n_spin
-         ! Calculate exchange part - TODO : should this be applied for different spins? - TEST with O2 HF propagation?
-         ! So far only closed shell tested
+         ! Calculate the exchange (SEX) part for this spin channel
          ! Uses rho_orig - same as rho for initial run but different for continued run
          ! For KS reference this is the time-dependent Fock exchange (w_dbcsr = v only).
          ! In TDA the propagator evaluates separate OV/VO-projected kernel passes.
