@@ -29,13 +29,16 @@ source "${TOOLCHAIN_SCRIPTS_DIR}/tool_kit.sh"
 # ====================== Parameter parsing ======================
 CP2K_ROOT=$(cd "${TOOLCHAIN_ROOTDIR}/../.." && pwd)
 CMAKE_INSTALL_PREFIX=${CP2K_ROOT}/install
-DEBUG_BUILD="__FALSE__"
+CMAKE_BUILD_TYPE="Release"
+CP2K_ENABLE_NATIVE_OPTIMIZATION="OFF"
 BUILD_JOBS="$(get_nprocs)"
 BUILD_SHARED_LIBS="ON"
 DRY_RUN="__FALSE__"
 REBUILD_ONLY="__FALSE__"
 PREFIX_SET="__FALSE__"
-DEBUG_SET="__FALSE__"
+TYPE_SET="__FALSE__"
+TYPE_VALUE=""
+NATIVE_SET="__FALSE__"
 BUILD_STATIC_SET="__FALSE__"
 
 show_help() {
@@ -47,9 +50,14 @@ Generate CMake options from the toolchain configuration and build CP2K.
 Options:
   -h, --help            Show this help message and exit
   -j N, -jN             Number of parallel build jobs
-  --prefix              Set CMAKE_INSTALL_PREFIX (default is ${CP2K_ROOT}/install)
+  --type=<option>       Set CMAKE_BUILD_TYPE
+                        Available options: Release, Generic, Debug
+                        Default: Release
+  --native              Enable native CPU optimization. Cannot be used together
+                        with "--type=generic".
+  --prefix=<path>       Set CMAKE_INSTALL_PREFIX
+                        (default is ${CP2K_ROOT}/install)
   --dry-run             Show generated CMake options only and then exit
-  --debug               Build debug version of CP2K (-DCMAKE_BUILD_TYPE=Debug)
   --build-static        Set -DBUILD_SHARED_LIBS=OFF (default is ON)
   --rebuild-only        Skip CMake configuration and only rebuild/install CP2K
                         from the existing build directory. This requires a
@@ -73,17 +81,37 @@ while [ $# -ge 1 ]; do
     -j[0-9]*)
       BUILD_JOBS="${1#-j}"
       ;;
-    --prefix)
+    --type=*)
+      TYPE_SET="__TRUE__"
+      case "${1#*=}" in
+        Release | release)
+          TYPE_VALUE="Release"
+          ;;
+        Generic | generic)
+          TYPE_VALUE="Generic"
+          ;;
+        Debug | debug)
+          TYPE_VALUE="Debug"
+          ;;
+        *)
+          echo "ERROR: Invalid build type: ${1#*=}"
+          echo "Available options are: Release, Generic, Debug."
+          exit 1
+          ;;
+      esac
+      CMAKE_BUILD_TYPE="${TYPE_VALUE}"
+      ;;
+    --native)
+      NATIVE_SET="__TRUE__"
+      CP2K_ENABLE_NATIVE_OPTIMIZATION="ON"
+      ;;
+    --prefix=*)
       PREFIX_SET="__TRUE__"
-      if [[ "${2}" != /* ]]; then
+      if [[ "${1#*=}" != /* ]]; then
         report_error "The path for --prefix must be an absolute path."
       fi
-      CMAKE_INSTALL_PREFIX="${2}"
+      CMAKE_INSTALL_PREFIX="${1#*=}"
       shift
-      ;;
-    --debug)
-      DEBUG_SET="__TRUE__"
-      DEBUG_BUILD="__TRUE__"
       ;;
     --build-static)
       BUILD_STATIC_SET="__TRUE__"
@@ -102,10 +130,18 @@ while [ $# -ge 1 ]; do
   shift
 done
 
+if [ "${CMAKE_BUILD_TYPE}" = "Generic" ] && [ "${NATIVE_SET}" = "__TRUE__" ]; then
+  cat << EOF
+ERROR: "--native" cannot be used together with "--type=Generic".
+EOF
+  exit 1
+fi
+
 if [ "${REBUILD_ONLY}" = "__TRUE__" ]; then
   if [ "${DRY_RUN}" = "__TRUE__" ] ||
     [ "${PREFIX_SET}" = "__TRUE__" ] ||
-    [ "${DEBUG_SET}" = "__TRUE__" ] ||
+    [ "${TYPE_SET}" = "__TRUE__" ] ||
+    [ "${NATIVE_SET}" = "__TRUE__" ] ||
     [ "${BUILD_STATIC_SET}" = "__TRUE__" ]; then
     cat << EOF
 ERROR: "--rebuild-only" cannot be used together with options that affect CMake configuration.
@@ -177,14 +213,26 @@ fi
 source "${TOOLCHAIN_INSTALL_DIR}/setup"
 source "${TOOLCHAIN_INSTALL_DIR}/toolchain.conf"
 
+if [ "${mpi_mode}" = "no" ]; then
+  if [ "${CMAKE_BUILD_TYPE}" = "Debug" ]; then
+    CP2K_EXECUTABLE_SUFFIX="sdbg"
+  else
+    CP2K_EXECUTABLE_SUFFIX="ssmp"
+  fi
+else
+  if [ "${CMAKE_BUILD_TYPE}" = "Debug" ]; then
+    CP2K_EXECUTABLE_SUFFIX="pdbg"
+  else
+    CP2K_EXECUTABLE_SUFFIX="psmp"
+  fi
+fi
+
 # Generate cmake options for compiling cp2k
 CMAKE_OPTIONS="-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DCMAKE_INSTALL_LIBDIR=lib"
-CMAKE_OPTIONS+=" -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}"
+CMAKE_OPTIONS+=" -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+CMAKE_OPTIONS+=" -DCP2K_ENABLE_NATIVE_OPTIMIZATION=${CP2K_ENABLE_NATIVE_OPTIMIZATION}"
 if [[ ${CMAKE_INSTALL_PREFIX} == ${CP2K_ROOT}/* ]]; then
   CMAKE_OPTIONS+=" -DCP2K_DATA_DIR=${CP2K_ROOT}/data"
-fi
-if [ ${DEBUG_BUILD} == "__TRUE__" ]; then
-  CMAKE_OPTIONS+=" -DCMAKE_BUILD_TYPE=Debug"
 fi
 if [ -n "$(grep -- "--install-all" "${TOOLCHAIN_ROOTDIR}/toolchain_settings")" ]; then
   CMAKE_OPTIONS+=" -DCP2K_USE_EVERYTHING=ON -DCP2K_USE_DLAF=OFF -DCP2K_USE_PEXSI=OFF -DCP2K_USE_OPENPMD=OFF"
@@ -333,6 +381,8 @@ EOF
     log_cmake "Source dir : ${CP2K_ROOT}"
     log_cmake "Build  dir : ${BUILD_DIR}"
     log_cmake "Install dir: ${CMAKE_INSTALL_PREFIX}"
+    log_cmake "Build type : ${CMAKE_BUILD_TYPE}"
+    log_cmake "Native opt.: ${CP2K_ENABLE_NATIVE_OPTIMIZATION}"
     log_cmake "Shared libs: ${BUILD_SHARED_LIBS}"
 
     set -o pipefail
@@ -376,7 +426,7 @@ Please always source this script to load CP2K environment before running CP2K:
   source ${CMAKE_INSTALL_PREFIX}/cp2k_env
 
 It's suggested to run regtests after installation:
-  ${CP2K_ROOT}/tests/do_regtest.py ${CMAKE_INSTALL_PREFIX}/bin psmp
+  ${CP2K_ROOT}/tests/do_regtest.py ${CMAKE_INSTALL_PREFIX}/bin ${CP2K_EXECUTABLE_SUFFIX}
 Run \`${CP2K_ROOT}/tests/do_regtest.py --help\` for help message.
 
 If you want to clean the build cache (except cached CMake files) after
