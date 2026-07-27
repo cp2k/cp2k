@@ -49,10 +49,6 @@ spack:
         - "+fortran"
         - "~shared"
 
-    libxsmm:
-      require:
-        - "+fortran"
-
     openblas:
       require:
         - "+fortran"

@@ -70,10 +70,6 @@ spack:
       require:
         - "+fortran"
 
-    libxsmm:
-      require:
-        - "+fortran"
-
     openblas:
       require:
         - "threads=openmp"

@@ -56,10 +56,6 @@ spack:
       require:
         - "+fortran"
 
-    libxsmm:
-      require:
-        - "+fortran"
-
     openblas:
       require:
         - "+fortran"
