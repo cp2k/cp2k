@@ -1,0 +1,38 @@
+"h2_linrtbse_tda_static_pol_shift_restart.inp"      = [{matcher="LinRTBSE_static_pol_xx", tol=1e-03, ref=2.3524564197E-001}]
+"h2_linrtbse_tda_static_pol_shift_restart_cont.inp" = [{matcher="LinRTBSE_static_pol_xx", tol=1e-03, ref=8.7460060430E-001}]
+"h2_linrtbse_abba_restart.inp"                      = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=17.4346},
+                                                      {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.0489},
+                                                      {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.2290}]
+"h2_linrtbse_abba_restart_cont.inp"                 = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=17.4346},
+                                                      {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.0489},
+                                                      {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.2290},
+                                                      {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=6.5642659377E-001}]
+"h2_linrtbse_tda_rirs_restart.inp"                  = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=18.0141},
+                                                      {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2581},
+                                                      {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5563},
+                                                      {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=0.2352457363}]
+"h2_linrtbse_tda_rirs_restart_cont.inp"             = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=18.0141},
+                                                      {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2581},
+                                                      {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5563},
+                                                      {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=0.8746009001}]
+"h2_linrtbse_tda_restart_chain.inp"                 = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=18.0141},
+                                                      {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2581},
+                                                      {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5562},
+                                                      {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=2.3524563798E-001}]
+"h2_linrtbse_tda_restart_chain_cont1.inp"           = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=18.0141},
+                                                      {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2581},
+                                                      {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5562},
+                                                      {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=8.7460059774E-001}]
+"h2_linrtbse_tda_restart_chain_cont2.inp"           = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=18.0141},
+                                                      {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2581},
+                                                      {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5562},
+                                                      {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=1.8575188132E+000}]
+"h2_linrtbse_tda_enforce_restart.inp"               = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=18.0141},
+                                                      {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2581},
+                                                      {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5562},
+                                                      {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=1.0586517910E+001}]
+"h2_linrtbse_tda_enforce_restart_cont.inp"          = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=18.0141},
+                                                      {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2581},
+                                                      {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5562},
+                                                      {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=8.0235462374E+000}]
+#EOF

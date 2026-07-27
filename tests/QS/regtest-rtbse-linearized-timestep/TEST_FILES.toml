@@ -1,0 +1,3 @@
+"h2_linrtbse_tda_static_pol_shift.inp"            = [{matcher="LinRTBSE_static_pol_xx", tol=1e-03, ref=1.0331788219E+001}]
+"h2_linrtbse_tda_static_pol_enforce_dt.inp"       = [{matcher="LinRTBSE_static_pol_xx", tol=1e-03, ref=1.0586517910E+001}]
+"h2_linrtbse_tda_static_pol_shift_enforce_dt.inp" = [{matcher="LinRTBSE_static_pol_xx", tol=1e-03, ref=1.0606845011E+001}]
