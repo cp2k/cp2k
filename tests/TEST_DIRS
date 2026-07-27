@@ -304,11 +304,7 @@ QS/regtest-rtbse                                            libint !ifx
 QS/regtest-rtbse-linearized                                 libint !ifx
 QS/regtest-rtbse-linearized-rirs                            libint !ifx
 QS/regtest-rtbse-linearized-open-shell                      libint !ifx
-QS/regtest-rtbse-linearized-open-shell-rirs                 libint !ifx
 QS/regtest-rtbse-linearized-restart                         libint !ifx
-QS/regtest-rtbse-linearized-cutoff                          libint !ifx
-QS/regtest-rtbse-linearized-open-shell-full-rirs            libint !ifx
-QS/regtest-rtbse-linearized-timestep                        libint !ifx
 QS/regtest-smeagol-1
 QS/regtest-smeagol-2                                        libsmeagol
 QS/regtest-mp2-admm-stress                                  libint !ifx

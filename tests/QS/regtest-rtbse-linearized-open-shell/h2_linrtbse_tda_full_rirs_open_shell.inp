@@ -1,13 +1,16 @@
 &GLOBAL
-  PROJECT_NAME H2_LINRTBSE_TDA_RIRS
+  PROJECT_NAME H2_LINRTBSE_TDA_FULL_RIRS_OPEN_SHELL
   RUN_TYPE RT_PROPAGATION
 &END GLOBAL
 
-! TDA with RI-RS: Liouvillian-diagnostic peaks + propagated alpha(0) in one job.
+! Open-shell (LSD) TDA, full RI-RS: GW step (RI_RS T) AND Hartree+SEX kernels (KERNEL_RI RS)
+! both in real-space. STATIC_POL| TOT must equal the closed-shell full-RIRS TDA alpha(0) at
+! matched grid (forced-LSD identity), and equals 2 x the per-spin STATIC_POL| xx by spin
+! symmetry. GRID_SELECT 2 per P-C12.
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 100
+    STEPS 20
     TEMPERATURE [K] 0.0
     TIMESTEP [fs] 1e-3
   &END MD
@@ -17,9 +20,11 @@
   METHOD QS
   &DFT
     BASIS_SET_FILE_NAME BASIS_MINIMAL
+    LSD .TRUE.
+    MULTIPLICITY 1
     POTENTIAL_FILE_NAME ALL_POTENTIALS
     &MGRID
-      CUTOFF 300
+      CUTOFF 150
       REL_CUTOFF 40
     &END MGRID
     &POISSON
@@ -50,8 +55,8 @@
       &END RTBSE
     &END REAL_TIME_PROPAGATION
     &SCF
-      ADDED_MOS -1
-      EPS_SCF 1.0E-8
+      ADDED_MOS -1 -1
+      EPS_SCF 1.0E-6
       MAX_SCF 200
       SCF_GUESS ATOMIC
       &DIAGONALIZATION ON
@@ -71,7 +76,9 @@
   &PROPERTIES
     &BANDSTRUCTURE
       &GW
+        GRID_SELECT 2
         NUM_TIME_FREQ_POINTS 20
+        RI_RS T
         &PRINT
           &RESTART OFF
           &END RESTART
