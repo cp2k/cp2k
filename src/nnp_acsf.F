@@ -10,6 +10,7 @@
 !>         for neural network potentials
 !> \author Christoph Schran (christoph.schran@rub.de)
 !> \author Dhruv Sharma (ds2173@cam.ac.uk)
+!> \author Claudio Malvino (claudiormal@gmail.com)
 !> \date   2020-10-10
 ! **************************************************************************************************
 MODULE nnp_acsf
@@ -24,6 +25,7 @@ MODULE nnp_acsf
                                               nnp_prepare_cell_list_cache
    USE nnp_environment_types,           ONLY: nnp_acsf_ang_type,&
                                               nnp_acsf_rad_type,&
+                                              nnp_arc_type,&
                                               nnp_cut_cos,&
                                               nnp_cut_tanh,&
                                               nnp_symfgrp_type,&
@@ -34,7 +36,7 @@ MODULE nnp_acsf
                                               nnp_workspace_grow_caches
    USE periodic_table,                  ONLY: get_ptable_info
 
-!$ USE omp_lib, ONLY: omp_get_max_threads
+!$ USE omp_lib, ONLY: omp_get_thread_num
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -75,23 +77,28 @@ CONTAINS
 !>                     nnp%ele_ind(i) for per-element scratch routing.
 !> \param calc_forces  if .TRUE., populate the per-element dGdr workspaces for caller-side
 !>                     force assembly via nnp_scatter_dgdr_to_forces.
+!> \param arc          caller's copy of the networks; its input layer is filled for atom i
 !> \param stress       optional per-input-node stress accumulator (only valid when calc_forces).
 !> \date   2020-10-10
 !> \author Christoph Schran (christoph.schran@rub.de)
 !> \author Dhruv Sharma (ds2173@cam.ac.uk)
+!> \author Claudio Malvino (claudiormal@gmail.com)
 ! **************************************************************************************************
-   SUBROUTINE nnp_calc_acsf(nnp, i, calc_forces, stress)
+   SUBROUTINE nnp_calc_acsf(nnp, i, calc_forces, arc, stress)
 
       TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp
       INTEGER, INTENT(IN)                                :: i
       LOGICAL, INTENT(IN)                                :: calc_forces
+      TYPE(nnp_arc_type), INTENT(INOUT)                  :: arc
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: stress
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_calc_acsf'
 
-      INTEGER :: handle, handle_nlist, handle_sf, ii, ind, izeta_il, j, k, l, m, n_ang1_s, &
-         n_ang2_s, n_input_nodes, n_symf_s, nthreads_ang, off, peak, s, sf
+      INTEGER                                            :: handle, handle_nlist, handle_sf, ii, &
+                                                            ind, izeta_il, j, k, l, m, n_ang1_s, &
+                                                            n_ang2_s, n_input_nodes, n_symf_s, &
+                                                            off, peak, s, sf, tid
       LOGICAL                                            :: do_forces, homo_grp
       REAL(KIND=dp) :: angular_il, arg_il, costheta_il, cutoff_s, cutoff_sqr, dfcut3_il, &
          dfcutdr1_il, dfcutdr2_il, dfcutdr3_il, dgdx_t1, dgdx_t2, dsymdr1_il, dsymdr2_il, &
@@ -99,6 +106,7 @@ CONTAINS
          pref_lam_il, prefzeta_il, r1, r1_inv, r2, r2_inv, r2sum_il, r3, r3_inv, r3_sqr, rsqr1, &
          rsqr2, rsqr3, sym_il, symtmp_il, tanh_il, tmp1_il, tmp2_il, tmp3_il, tmp_il, tmpzeta_il, &
          zeta_il
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ang_y, rad_y
       REAL(KIND=dp), DIMENSION(3)                        :: dcosbase1_il, dcosbase2_il, &
                                                             dcosbase3_il, dr1dx_il, dr2dx_il, &
                                                             dr3dx_il, f_jj_il, f_kk_il, rvect1, &
@@ -113,6 +121,13 @@ CONTAINS
       ind = nnp%ele_ind(i)
       do_forces = calc_forces
 
+      ! 1-based thread id selecting this thread's workspace column
+      tid = 1
+!$    tid = omp_get_thread_num() + 1
+
+      ALLOCATE (rad_y(nnp%n_rad(ind)))
+      ALLOCATE (ang_y(nnp%n_ang(ind)))
+
       ! Lazy one-shot build of the per-radial-group spline tables. They depend
       ! only on eta/rs/cutoff/cut_type, fixed once nnp_init_acsf_groups and
       ! nnp_sort_acsf have run; %spline_built is per-nnp so re-init is safe.
@@ -125,15 +140,15 @@ CONTAINS
       ! via nnp_grp_grow_dGdr; the fc_cache*/dfc_cache* buffers are bound in an
       ! inner ASSOCIATE after nnp_workspace_grow_caches has sized them, so the
       ! alias stays valid.
-      ASSOCIATE (workspace => nnp%neighbor_interface_state%workspace(ind), &
-                 neighbor => nnp%neighbor_interface_state%workspace(ind)%neighbor, &
-                 radial_symtmp => nnp%neighbor_interface_state%workspace(ind)%radial_sym, &
-                 radial_forcetmp => nnp%neighbor_interface_state%workspace(ind)%radial_force, &
-                 angular_symtmp => nnp%neighbor_interface_state%workspace(ind)%angular_sym, &
-                 angular_force3tmp => nnp%neighbor_interface_state%workspace(ind)%angular_force, &
-                 self_dGdr => nnp%neighbor_interface_state%workspace(ind)%self_dGdr)
+      ASSOCIATE (workspace => nnp%neighbor_interface_state%workspace(ind, tid), &
+                 neighbor => nnp%neighbor_interface_state%workspace(ind, tid)%neighbor, &
+                 radial_symtmp => nnp%neighbor_interface_state%workspace(ind, tid)%radial_sym, &
+                 radial_forcetmp => nnp%neighbor_interface_state%workspace(ind, tid)%radial_force, &
+                 angular_symtmp => nnp%neighbor_interface_state%workspace(ind, tid)%angular_sym, &
+                 angular_force3tmp => nnp%neighbor_interface_state%workspace(ind, tid)%angular_force, &
+                 self_dGdr => nnp%neighbor_interface_state%workspace(ind, tid)%self_dGdr)
 
-         n_input_nodes = nnp%neighbor_interface_state%workspace(ind)%n_input_nodes
+         n_input_nodes = nnp%neighbor_interface_state%workspace(ind, tid)%n_input_nodes
          IF (do_forces) self_dGdr(:, 1:n_input_nodes) = 0.0_dp
 
          ! Walk the linked-cell candidates directly. The cell-list/neighbour cache
@@ -146,8 +161,8 @@ CONTAINS
          CALL timestop(handle_nlist)
 
          ! Reset y:
-         nnp%rad(ind)%y = 0.0_dp
-         nnp%ang(ind)%y = 0.0_dp
+         rad_y = 0.0_dp
+         ang_y = 0.0_dp
 
          ! Grow the per-element 1D angular cutoff caches to this atom's peak
          ! per-group neighbour count, then bind them in an inner ASSOCIATE.
@@ -192,7 +207,7 @@ CONTAINS
                                  stress(:, l, m) = stress(:, l, m) + rvect1(:)*radial_forcetmp(l, sf)
                               END DO
                            END IF
-                           nnp%rad(ind)%y(m) = nnp%rad(ind)%y(m) + radial_symtmp(sf)
+                           rad_y(m) = rad_y(m) + radial_symtmp(sf)
                         END DO
                      END DO
                   END ASSOCIATE
@@ -203,300 +218,289 @@ CONTAINS
                CALL timeset('nnp_acsf_angular', handle_sf)
                off = nnp%n_rad(ind)
 
-               ! OpenMP over the angular group index s, taken only with >1 thread
-               ! and >1 group. Angular groups partition the input-node index m
-               ! disjointly (nnp_sort_acsf), so self_dGdr, stress and y are written
-               ! without races. The serial path below is identical.
-               nthreads_ang = 1
-!$             nthreads_ang = omp_get_max_threads()
-               IF (nthreads_ang > 1 .AND. nnp%ang(ind)%n_symfgrp > 1) THEN
-                  IF (PRESENT(stress)) THEN
-                     CALL nnp_acsf_angular_loop_omp(nnp, ind, self_dGdr, off, stress)
+               ! The angular loop runs serially within each atom: parallelism
+               ! lives in the atom loop of nnp_calc_energy_force, which keeps the
+               ! floating-point order identical at every thread count.
+               DO s = 1, nnp%ang(ind)%n_symfgrp
+                  cutoff_s = nnp%ang(ind)%symfgrp(s)%cutoff
+                  cutoff_sqr = cutoff_s*cutoff_s
+                  n_symf_s = nnp%ang(ind)%symfgrp(s)%n_symf
+                  n_ang1_s = neighbor%n_ang1(s)
+                  homo_grp = (nnp%ang(ind)%symfgrp(s)%ele(1) == nnp%ang(ind)%symfgrp(s)%ele(2))
+
+                  ! Grow per-group dense buffers. jj is always indexed in ang1.
+                  ! kk is indexed in ang1 for homo groups and in ang2 for hetero.
+                  CALL nnp_grp_grow_dGdr(workspace%dGdr_ang_jj(s), n_ang1_s)
+                  IF (homo_grp) THEN
+                     CALL nnp_grp_grow_dGdr(workspace%dGdr_ang_kk(s), n_ang1_s)
+                     n_ang2_s = 0
                   ELSE
-                     CALL nnp_acsf_angular_loop_omp(nnp, ind, self_dGdr, off)
+                     n_ang2_s = neighbor%n_ang2(s)
+                     CALL nnp_grp_grow_dGdr(workspace%dGdr_ang_kk(s), n_ang2_s)
                   END IF
-               ELSE
-                  DO s = 1, nnp%ang(ind)%n_symfgrp
-                     cutoff_s = nnp%ang(ind)%symfgrp(s)%cutoff
-                     cutoff_sqr = cutoff_s*cutoff_s
-                     n_symf_s = nnp%ang(ind)%symfgrp(s)%n_symf
-                     n_ang1_s = neighbor%n_ang1(s)
-                     homo_grp = (nnp%ang(ind)%symfgrp(s)%ele(1) == nnp%ang(ind)%symfgrp(s)%ele(2))
 
-                     ! Grow per-group dense buffers. jj is always indexed in ang1.
-                     ! kk is indexed in ang1 for homo groups and in ang2 for hetero.
-                     CALL nnp_grp_grow_dGdr(workspace%dGdr_ang_jj(s), n_ang1_s)
-                     IF (homo_grp) THEN
-                        CALL nnp_grp_grow_dGdr(workspace%dGdr_ang_kk(s), n_ang1_s)
-                        n_ang2_s = 0
-                     ELSE
-                        n_ang2_s = neighbor%n_ang2(s)
-                        CALL nnp_grp_grow_dGdr(workspace%dGdr_ang_kk(s), n_ang2_s)
-                     END IF
+                  ! Per-group reset. Triplets accumulate into the same (sf, j) slot
+                  ! across multiple k partners, so we MUST zero before the triplet loop.
+                  IF (n_ang1_s > 0) workspace%dGdr_ang_jj(s)%data(:, 1:n_symf_s, 1:n_ang1_s) = 0.0_dp
+                  IF (homo_grp) THEN
+                     IF (n_ang1_s > 0) workspace%dGdr_ang_kk(s)%data(:, 1:n_symf_s, 1:n_ang1_s) = 0.0_dp
+                  ELSE
+                     IF (n_ang2_s > 0) workspace%dGdr_ang_kk(s)%data(:, 1:n_symf_s, 1:n_ang2_s) = 0.0_dp
+                  END IF
 
-                     ! Per-group reset. Triplets accumulate into the same (sf, j) slot
-                     ! across multiple k partners, so we MUST zero before the triplet loop.
-                     IF (n_ang1_s > 0) workspace%dGdr_ang_jj(s)%data(:, 1:n_symf_s, 1:n_ang1_s) = 0.0_dp
-                     IF (homo_grp) THEN
-                        IF (n_ang1_s > 0) workspace%dGdr_ang_kk(s)%data(:, 1:n_symf_s, 1:n_ang1_s) = 0.0_dp
-                     ELSE
-                        IF (n_ang2_s > 0) workspace%dGdr_ang_kk(s)%data(:, 1:n_symf_s, 1:n_ang2_s) = 0.0_dp
-                     END IF
+                  ! Precompute cutoff values and derivatives for ang1 neighbors
+                  CALL nnp_fill_fc_dfc_cache(neighbor%ang1(s)%dist, n_ang1_s, &
+                                             nnp%cut_type, cutoff_s, fc_cache1, dfc_cache1)
 
-                     ! Precompute cutoff values and derivatives for ang1 neighbors
-                     CALL nnp_fill_fc_dfc_cache(neighbor%ang1(s)%dist, n_ang1_s, &
-                                                nnp%cut_type, cutoff_s, fc_cache1, dfc_cache1)
+                  ! Inlined angular kernel: compute + scatter fused. The (j,k)
+                  ! geometry is computed once, then the SF loop scatters sym
+                  ! values and forces directly into self_dGdr / jj_buf / kk_buf,
+                  ! keeping per-triple scalars in registers. Inlined equivalent
+                  ! of nnp_calc_ang; the OMP path calls it directly.
+                  IF (homo_grp) THEN
+                     ASSOCIATE (jj_buf => workspace%dGdr_ang_jj(s)%data, &
+                                kk_buf => workspace%dGdr_ang_kk(s)%data, &
+                                grp_il => nnp%ang(ind)%symfgrp(s))
+                     DO j = 1, n_ang1_s
+                        rvect1 = neighbor%ang1(s)%dist(1:3, j)
+                        r1 = neighbor%ang1(s)%dist(4, j)
+                        DO k = j + 1, n_ang1_s
+                           rvect2 = neighbor%ang1(s)%dist(1:3, k)
+                           r2 = neighbor%ang1(s)%dist(4, k)
+                           rvect3(1) = rvect2(1) - rvect1(1)
+                           rvect3(2) = rvect2(2) - rvect1(2)
+                           rvect3(3) = rvect2(3) - rvect1(3)
+                           r3_sqr = rvect3(1)*rvect3(1) + rvect3(2)*rvect3(2) + rvect3(3)*rvect3(3)
+                           IF (r3_sqr < cutoff_sqr) THEN
+                              r3 = SQRT(r3_sqr)
 
-                     ! Inlined angular kernel: compute + scatter fused. The (j,k)
-                     ! geometry is computed once, then the SF loop scatters sym
-                     ! values and forces directly into self_dGdr / jj_buf / kk_buf,
-                     ! keeping per-triple scalars in registers. Inlined equivalent
-                     ! of nnp_calc_ang; the OMP path calls it directly.
-                     IF (homo_grp) THEN
-                        ASSOCIATE (jj_buf => workspace%dGdr_ang_jj(s)%data, &
-                                   kk_buf => workspace%dGdr_ang_kk(s)%data, &
-                                   grp_il => nnp%ang(ind)%symfgrp(s))
-                        DO j = 1, n_ang1_s
-                           rvect1 = neighbor%ang1(s)%dist(1:3, j)
-                           r1 = neighbor%ang1(s)%dist(4, j)
-                           DO k = j + 1, n_ang1_s
-                              rvect2 = neighbor%ang1(s)%dist(1:3, k)
-                              r2 = neighbor%ang1(s)%dist(4, k)
-                              rvect3(1) = rvect2(1) - rvect1(1)
-                              rvect3(2) = rvect2(2) - rvect1(2)
-                              rvect3(3) = rvect2(3) - rvect1(3)
-                              r3_sqr = rvect3(1)*rvect3(1) + rvect3(2)*rvect3(2) + rvect3(3)*rvect3(3)
-                              IF (r3_sqr < cutoff_sqr) THEN
-                                 r3 = SQRT(r3_sqr)
+                              ! -- per-triple geometry (once) --
+                              rsqr1 = r1*r1; rsqr2 = r2*r2; rsqr3 = r3*r3
+                              r2sum_il = rsqr1 + rsqr2 + rsqr3
+                              f_il = rsqr3 - rsqr1 - rsqr2
+                              g_il = -2.0_dp*r1*r2
+                              costheta_il = f_il/g_il
 
-                                 ! -- per-triple geometry (once) --
-                                 rsqr1 = r1*r1; rsqr2 = r2*r2; rsqr3 = r3*r3
-                                 r2sum_il = rsqr1 + rsqr2 + rsqr3
-                                 f_il = rsqr3 - rsqr1 - rsqr2
-                                 g_il = -2.0_dp*r1*r2
-                                 costheta_il = f_il/g_il
+                              SELECT CASE (nnp%cut_type)
+                              CASE (nnp_cut_cos)
+                                 arg_il = pi*r3/cutoff_s
+                                 fcut3_il = 0.5_dp*(COS(arg_il) + 1.0_dp)
+                                 dfcut3_il = -0.5_dp*SIN(arg_il)*(pi/cutoff_s)
+                              CASE (nnp_cut_tanh)
+                                 tanh_il = TANH(1.0_dp - r3/cutoff_s)
+                                 fcut3_il = tanh_il**3
+                                 dfcut3_il = (-3.0_dp/cutoff_s)*(tanh_il**2 - tanh_il**4)
+                              CASE DEFAULT
+                                 CPABORT("NNP| Cutoff function unknown")
+                              END SELECT
 
-                                 SELECT CASE (nnp%cut_type)
-                                 CASE (nnp_cut_cos)
-                                    arg_il = pi*r3/cutoff_s
-                                    fcut3_il = 0.5_dp*(COS(arg_il) + 1.0_dp)
-                                    dfcut3_il = -0.5_dp*SIN(arg_il)*(pi/cutoff_s)
-                                 CASE (nnp_cut_tanh)
-                                    tanh_il = TANH(1.0_dp - r3/cutoff_s)
-                                    fcut3_il = tanh_il**3
-                                    dfcut3_il = (-3.0_dp/cutoff_s)*(tanh_il**2 - tanh_il**4)
-                                 CASE DEFAULT
-                                    CPABORT("NNP| Cutoff function unknown")
-                                 END SELECT
+                              ftot_il = fc_cache1(j)*fc_cache1(k)*fcut3_il
+                              dfcutdr1_il = dfc_cache1(j)*fc_cache1(k)*fcut3_il
+                              dfcutdr2_il = fc_cache1(j)*dfc_cache1(k)*fcut3_il
+                              dfcutdr3_il = fc_cache1(j)*fc_cache1(k)*dfcut3_il
 
-                                 ftot_il = fc_cache1(j)*fc_cache1(k)*fcut3_il
-                                 dfcutdr1_il = dfc_cache1(j)*fc_cache1(k)*fcut3_il
-                                 dfcutdr2_il = fc_cache1(j)*dfc_cache1(k)*fcut3_il
-                                 dfcutdr3_il = fc_cache1(j)*fc_cache1(k)*dfcut3_il
+                              r1_inv = 1.0_dp/r1; r2_inv = 1.0_dp/r2; r3_inv = 1.0_dp/r3
+                              dr1dx_il(:) = rvect1(:)*r1_inv
+                              dr2dx_il(:) = rvect2(:)*r2_inv
+                              dr3dx_il(:) = rvect3(:)*r3_inv
 
-                                 r1_inv = 1.0_dp/r1; r2_inv = 1.0_dp/r2; r3_inv = 1.0_dp/r3
-                                 dr1dx_il(:) = rvect1(:)*r1_inv
-                                 dr2dx_il(:) = rvect2(:)*r2_inv
-                                 dr3dx_il(:) = rvect3(:)*r3_inv
+                              inv_g2_il = 1.0_dp/(g_il*g_il)
+                              DO ii = 1, 3
+                                 dgdx_t1 = 2.0_dp*r2*dr1dx_il(ii)
+                                 dgdx_t2 = 2.0_dp*r1*dr2dx_il(ii)
+                                 dcosbase1_il(ii) = -2.0_dp*(rvect1(ii) + rvect2(ii))*g_il &
+                                                    - f_il*(-(dgdx_t1 + dgdx_t2))
+                                 dcosbase2_il(ii) = 2.0_dp*(rvect3(ii) + rvect1(ii))*g_il &
+                                                    - f_il*dgdx_t1
+                                 dcosbase3_il(ii) = 2.0_dp*(rvect2(ii) - rvect3(ii))*g_il &
+                                                    - f_il*dgdx_t2
+                              END DO
 
-                                 inv_g2_il = 1.0_dp/(g_il*g_il)
-                                 DO ii = 1, 3
-                                    dgdx_t1 = 2.0_dp*r2*dr1dx_il(ii)
-                                    dgdx_t2 = 2.0_dp*r1*dr2dx_il(ii)
-                                    dcosbase1_il(ii) = -2.0_dp*(rvect1(ii) + rvect2(ii))*g_il &
-                                                       - f_il*(-(dgdx_t1 + dgdx_t2))
-                                    dcosbase2_il(ii) = 2.0_dp*(rvect3(ii) + rvect1(ii))*g_il &
-                                                       - f_il*dgdx_t1
-                                    dcosbase3_il(ii) = 2.0_dp*(rvect2(ii) - rvect3(ii))*g_il &
-                                                       - f_il*dgdx_t2
-                                 END DO
+                              ! -- fused SF loop: compute + direct scatter --
+                              DO sf = 1, n_symf_s
+                                 m = off + grp_il%symf(sf)
+                                 lam_il = grp_il%pack_lam(sf)
+                                 zeta_il = grp_il%pack_zeta(sf)
+                                 eta_il = grp_il%pack_eta(sf)
+                                 prefzeta_il = grp_il%pack_prefzeta(sf)
 
-                                 ! -- fused SF loop: compute + direct scatter --
-                                 DO sf = 1, n_symf_s
-                                    m = off + grp_il%symf(sf)
-                                    lam_il = grp_il%pack_lam(sf)
-                                    zeta_il = grp_il%pack_zeta(sf)
-                                    eta_il = grp_il%pack_eta(sf)
-                                    prefzeta_il = grp_il%pack_prefzeta(sf)
-
-                                    tmp_il = 1.0_dp + lam_il*costheta_il
-                                    IF (tmp_il <= 0.0_dp) THEN
-                                       tmpzeta_il = 0.0_dp
-                                       angular_il = 0.0_dp
+                                 tmp_il = 1.0_dp + lam_il*costheta_il
+                                 IF (tmp_il <= 0.0_dp) THEN
+                                    tmpzeta_il = 0.0_dp
+                                    angular_il = 0.0_dp
+                                 ELSE
+                                    IF (grp_il%pack_use_int_zeta(sf)) THEN
+                                       izeta_il = grp_il%pack_izeta(sf)
+                                       tmpzeta_il = tmp_il**(izeta_il - 1)
                                     ELSE
-                                       IF (grp_il%pack_use_int_zeta(sf)) THEN
-                                          izeta_il = grp_il%pack_izeta(sf)
-                                          tmpzeta_il = tmp_il**(izeta_il - 1)
-                                       ELSE
-                                          tmpzeta_il = tmp_il**(zeta_il - 1.0_dp)
-                                       END IF
-                                       angular_il = tmpzeta_il*tmp_il
+                                       tmpzeta_il = tmp_il**(zeta_il - 1.0_dp)
                                     END IF
+                                    angular_il = tmpzeta_il*tmp_il
+                                 END IF
 
-                                    symtmp_il = EXP(-eta_il*r2sum_il)
-                                    sym_il = prefzeta_il*angular_il*symtmp_il*ftot_il
-                                    nnp%ang(ind)%y(m - off) = nnp%ang(ind)%y(m - off) + sym_il
+                                 symtmp_il = EXP(-eta_il*r2sum_il)
+                                 sym_il = prefzeta_il*angular_il*symtmp_il*ftot_il
+                                 ang_y(m - off) = ang_y(m - off) + sym_il
 
-                                    pref_lam_il = zeta_il*tmpzeta_il*lam_il*inv_g2_il
-                                    tmp_il = -2.0_dp*symtmp_il*eta_il
-                                    dsymdr1_il = tmp_il*r1
-                                    dsymdr2_il = tmp_il*r2
-                                    dsymdr3_il = tmp_il*r3
+                                 pref_lam_il = zeta_il*tmpzeta_il*lam_il*inv_g2_il
+                                 tmp_il = -2.0_dp*symtmp_il*eta_il
+                                 dsymdr1_il = tmp_il*r1
+                                 dsymdr2_il = tmp_il*r2
+                                 dsymdr3_il = tmp_il*r3
 
-                                    pref_il = prefzeta_il*symtmp_il*ftot_il
-                                    tmp1_il = prefzeta_il*angular_il*(ftot_il*dsymdr1_il + dfcutdr1_il*symtmp_il)
-                                    tmp2_il = prefzeta_il*angular_il*(ftot_il*dsymdr2_il + dfcutdr2_il*symtmp_il)
-                                    tmp3_il = prefzeta_il*angular_il*(ftot_il*dsymdr3_il + dfcutdr3_il*symtmp_il)
+                                 pref_il = prefzeta_il*symtmp_il*ftot_il
+                                 tmp1_il = prefzeta_il*angular_il*(ftot_il*dsymdr1_il + dfcutdr1_il*symtmp_il)
+                                 tmp2_il = prefzeta_il*angular_il*(ftot_il*dsymdr2_il + dfcutdr2_il*symtmp_il)
+                                 tmp3_il = prefzeta_il*angular_il*(ftot_il*dsymdr3_il + dfcutdr3_il*symtmp_il)
 
-                                    DO ii = 1, 3
-                                       f_jj_il(ii) = pref_il*pref_lam_il*dcosbase2_il(ii) &
-                                                     - tmp1_il*dr1dx_il(ii) + tmp3_il*dr3dx_il(ii)
-                                       f_kk_il(ii) = pref_il*pref_lam_il*dcosbase3_il(ii) &
-                                                     - tmp2_il*dr2dx_il(ii) - tmp3_il*dr3dx_il(ii)
-                                       self_dGdr(ii, m) = self_dGdr(ii, m) &
-                                                          + pref_il*pref_lam_il*dcosbase1_il(ii) &
-                                                          + tmp1_il*dr1dx_il(ii) + tmp2_il*dr2dx_il(ii)
-                                       jj_buf(ii, sf, j) = jj_buf(ii, sf, j) + f_jj_il(ii)
-                                       kk_buf(ii, sf, k) = kk_buf(ii, sf, k) + f_kk_il(ii)
-                                    END DO
-                                    IF (PRESENT(stress)) THEN
-                                       DO l = 1, 3
-                                          stress(:, l, m) = stress(:, l, m) &
-                                                            - rvect1(:)*f_jj_il(l) - rvect2(:)*f_kk_il(l)
-                                       END DO
-                                    END IF
-                                 END DO
-
-                              END IF
-                           END DO
-                        END DO
-                        END ASSOCIATE
-                     ELSE
-                        ! Precompute cutoff values for ang2 neighbors (different elements)
-                        CALL nnp_fill_fc_dfc_cache(neighbor%ang2(s)%dist, n_ang2_s, &
-                                                   nnp%cut_type, cutoff_s, fc_cache2, dfc_cache2)
-
-                        ASSOCIATE (jj_buf => workspace%dGdr_ang_jj(s)%data, &
-                                   kk_buf => workspace%dGdr_ang_kk(s)%data, &
-                                   grp_il => nnp%ang(ind)%symfgrp(s))
-                        DO j = 1, n_ang1_s
-                           rvect1 = neighbor%ang1(s)%dist(1:3, j)
-                           r1 = neighbor%ang1(s)%dist(4, j)
-                           DO k = 1, n_ang2_s
-                              rvect2 = neighbor%ang2(s)%dist(1:3, k)
-                              r2 = neighbor%ang2(s)%dist(4, k)
-                              rvect3(1) = rvect2(1) - rvect1(1)
-                              rvect3(2) = rvect2(2) - rvect1(2)
-                              rvect3(3) = rvect2(3) - rvect1(3)
-                              r3_sqr = rvect3(1)*rvect3(1) + rvect3(2)*rvect3(2) + rvect3(3)*rvect3(3)
-                              IF (r3_sqr < cutoff_sqr) THEN
-                                 r3 = SQRT(r3_sqr)
-
-                                 ! -- per-triple geometry (once) --
-                                 rsqr1 = r1*r1; rsqr2 = r2*r2; rsqr3 = r3*r3
-                                 r2sum_il = rsqr1 + rsqr2 + rsqr3
-                                 f_il = rsqr3 - rsqr1 - rsqr2
-                                 g_il = -2.0_dp*r1*r2
-                                 costheta_il = f_il/g_il
-
-                                 SELECT CASE (nnp%cut_type)
-                                 CASE (nnp_cut_cos)
-                                    arg_il = pi*r3/cutoff_s
-                                    fcut3_il = 0.5_dp*(COS(arg_il) + 1.0_dp)
-                                    dfcut3_il = -0.5_dp*SIN(arg_il)*(pi/cutoff_s)
-                                 CASE (nnp_cut_tanh)
-                                    tanh_il = TANH(1.0_dp - r3/cutoff_s)
-                                    fcut3_il = tanh_il**3
-                                    dfcut3_il = (-3.0_dp/cutoff_s)*(tanh_il**2 - tanh_il**4)
-                                 CASE DEFAULT
-                                    CPABORT("NNP| Cutoff function unknown")
-                                 END SELECT
-
-                                 ftot_il = fc_cache1(j)*fc_cache2(k)*fcut3_il
-                                 dfcutdr1_il = dfc_cache1(j)*fc_cache2(k)*fcut3_il
-                                 dfcutdr2_il = fc_cache1(j)*dfc_cache2(k)*fcut3_il
-                                 dfcutdr3_il = fc_cache1(j)*fc_cache2(k)*dfcut3_il
-
-                                 r1_inv = 1.0_dp/r1; r2_inv = 1.0_dp/r2; r3_inv = 1.0_dp/r3
-                                 dr1dx_il(:) = rvect1(:)*r1_inv
-                                 dr2dx_il(:) = rvect2(:)*r2_inv
-                                 dr3dx_il(:) = rvect3(:)*r3_inv
-
-                                 inv_g2_il = 1.0_dp/(g_il*g_il)
                                  DO ii = 1, 3
-                                    dgdx_t1 = 2.0_dp*r2*dr1dx_il(ii)
-                                    dgdx_t2 = 2.0_dp*r1*dr2dx_il(ii)
-                                    dcosbase1_il(ii) = -2.0_dp*(rvect1(ii) + rvect2(ii))*g_il &
-                                                       - f_il*(-(dgdx_t1 + dgdx_t2))
-                                    dcosbase2_il(ii) = 2.0_dp*(rvect3(ii) + rvect1(ii))*g_il &
-                                                       - f_il*dgdx_t1
-                                    dcosbase3_il(ii) = 2.0_dp*(rvect2(ii) - rvect3(ii))*g_il &
-                                                       - f_il*dgdx_t2
+                                    f_jj_il(ii) = pref_il*pref_lam_il*dcosbase2_il(ii) &
+                                                  - tmp1_il*dr1dx_il(ii) + tmp3_il*dr3dx_il(ii)
+                                    f_kk_il(ii) = pref_il*pref_lam_il*dcosbase3_il(ii) &
+                                                  - tmp2_il*dr2dx_il(ii) - tmp3_il*dr3dx_il(ii)
+                                    self_dGdr(ii, m) = self_dGdr(ii, m) &
+                                                       + pref_il*pref_lam_il*dcosbase1_il(ii) &
+                                                       + tmp1_il*dr1dx_il(ii) + tmp2_il*dr2dx_il(ii)
+                                    jj_buf(ii, sf, j) = jj_buf(ii, sf, j) + f_jj_il(ii)
+                                    kk_buf(ii, sf, k) = kk_buf(ii, sf, k) + f_kk_il(ii)
                                  END DO
-
-                                 ! -- fused SF loop: compute + direct scatter --
-                                 DO sf = 1, n_symf_s
-                                    m = off + grp_il%symf(sf)
-                                    lam_il = grp_il%pack_lam(sf)
-                                    zeta_il = grp_il%pack_zeta(sf)
-                                    eta_il = grp_il%pack_eta(sf)
-                                    prefzeta_il = grp_il%pack_prefzeta(sf)
-
-                                    tmp_il = 1.0_dp + lam_il*costheta_il
-                                    IF (tmp_il <= 0.0_dp) THEN
-                                       tmpzeta_il = 0.0_dp
-                                       angular_il = 0.0_dp
-                                    ELSE
-                                       IF (grp_il%pack_use_int_zeta(sf)) THEN
-                                          izeta_il = grp_il%pack_izeta(sf)
-                                          tmpzeta_il = tmp_il**(izeta_il - 1)
-                                       ELSE
-                                          tmpzeta_il = tmp_il**(zeta_il - 1.0_dp)
-                                       END IF
-                                       angular_il = tmpzeta_il*tmp_il
-                                    END IF
-
-                                    symtmp_il = EXP(-eta_il*r2sum_il)
-                                    sym_il = prefzeta_il*angular_il*symtmp_il*ftot_il
-                                    nnp%ang(ind)%y(m - off) = nnp%ang(ind)%y(m - off) + sym_il
-
-                                    pref_lam_il = zeta_il*tmpzeta_il*lam_il*inv_g2_il
-                                    tmp_il = -2.0_dp*symtmp_il*eta_il
-                                    dsymdr1_il = tmp_il*r1
-                                    dsymdr2_il = tmp_il*r2
-                                    dsymdr3_il = tmp_il*r3
-
-                                    pref_il = prefzeta_il*symtmp_il*ftot_il
-                                    tmp1_il = prefzeta_il*angular_il*(ftot_il*dsymdr1_il + dfcutdr1_il*symtmp_il)
-                                    tmp2_il = prefzeta_il*angular_il*(ftot_il*dsymdr2_il + dfcutdr2_il*symtmp_il)
-                                    tmp3_il = prefzeta_il*angular_il*(ftot_il*dsymdr3_il + dfcutdr3_il*symtmp_il)
-
-                                    DO ii = 1, 3
-                                       f_jj_il(ii) = pref_il*pref_lam_il*dcosbase2_il(ii) &
-                                                     - tmp1_il*dr1dx_il(ii) + tmp3_il*dr3dx_il(ii)
-                                       f_kk_il(ii) = pref_il*pref_lam_il*dcosbase3_il(ii) &
-                                                     - tmp2_il*dr2dx_il(ii) - tmp3_il*dr3dx_il(ii)
-                                       self_dGdr(ii, m) = self_dGdr(ii, m) &
-                                                          + pref_il*pref_lam_il*dcosbase1_il(ii) &
-                                                          + tmp1_il*dr1dx_il(ii) + tmp2_il*dr2dx_il(ii)
-                                       jj_buf(ii, sf, j) = jj_buf(ii, sf, j) + f_jj_il(ii)
-                                       kk_buf(ii, sf, k) = kk_buf(ii, sf, k) + f_kk_il(ii)
+                                 IF (PRESENT(stress)) THEN
+                                    DO l = 1, 3
+                                       stress(:, l, m) = stress(:, l, m) &
+                                                         - rvect1(:)*f_jj_il(l) - rvect2(:)*f_kk_il(l)
                                     END DO
-                                    IF (PRESENT(stress)) THEN
-                                       DO l = 1, 3
-                                          stress(:, l, m) = stress(:, l, m) &
-                                                            - rvect1(:)*f_jj_il(l) - rvect2(:)*f_kk_il(l)
-                                       END DO
-                                    END IF
-                                 END DO
+                                 END IF
+                              END DO
 
-                              END IF
-                           END DO
+                           END IF
                         END DO
-                        END ASSOCIATE
-                     END IF
-                  END DO
-               END IF
+                     END DO
+                     END ASSOCIATE
+                  ELSE
+                     ! Precompute cutoff values for ang2 neighbors (different elements)
+                     CALL nnp_fill_fc_dfc_cache(neighbor%ang2(s)%dist, n_ang2_s, &
+                                                nnp%cut_type, cutoff_s, fc_cache2, dfc_cache2)
+
+                     ASSOCIATE (jj_buf => workspace%dGdr_ang_jj(s)%data, &
+                                kk_buf => workspace%dGdr_ang_kk(s)%data, &
+                                grp_il => nnp%ang(ind)%symfgrp(s))
+                     DO j = 1, n_ang1_s
+                        rvect1 = neighbor%ang1(s)%dist(1:3, j)
+                        r1 = neighbor%ang1(s)%dist(4, j)
+                        DO k = 1, n_ang2_s
+                           rvect2 = neighbor%ang2(s)%dist(1:3, k)
+                           r2 = neighbor%ang2(s)%dist(4, k)
+                           rvect3(1) = rvect2(1) - rvect1(1)
+                           rvect3(2) = rvect2(2) - rvect1(2)
+                           rvect3(3) = rvect2(3) - rvect1(3)
+                           r3_sqr = rvect3(1)*rvect3(1) + rvect3(2)*rvect3(2) + rvect3(3)*rvect3(3)
+                           IF (r3_sqr < cutoff_sqr) THEN
+                              r3 = SQRT(r3_sqr)
+
+                              ! -- per-triple geometry (once) --
+                              rsqr1 = r1*r1; rsqr2 = r2*r2; rsqr3 = r3*r3
+                              r2sum_il = rsqr1 + rsqr2 + rsqr3
+                              f_il = rsqr3 - rsqr1 - rsqr2
+                              g_il = -2.0_dp*r1*r2
+                              costheta_il = f_il/g_il
+
+                              SELECT CASE (nnp%cut_type)
+                              CASE (nnp_cut_cos)
+                                 arg_il = pi*r3/cutoff_s
+                                 fcut3_il = 0.5_dp*(COS(arg_il) + 1.0_dp)
+                                 dfcut3_il = -0.5_dp*SIN(arg_il)*(pi/cutoff_s)
+                              CASE (nnp_cut_tanh)
+                                 tanh_il = TANH(1.0_dp - r3/cutoff_s)
+                                 fcut3_il = tanh_il**3
+                                 dfcut3_il = (-3.0_dp/cutoff_s)*(tanh_il**2 - tanh_il**4)
+                              CASE DEFAULT
+                                 CPABORT("NNP| Cutoff function unknown")
+                              END SELECT
+
+                              ftot_il = fc_cache1(j)*fc_cache2(k)*fcut3_il
+                              dfcutdr1_il = dfc_cache1(j)*fc_cache2(k)*fcut3_il
+                              dfcutdr2_il = fc_cache1(j)*dfc_cache2(k)*fcut3_il
+                              dfcutdr3_il = fc_cache1(j)*fc_cache2(k)*dfcut3_il
+
+                              r1_inv = 1.0_dp/r1; r2_inv = 1.0_dp/r2; r3_inv = 1.0_dp/r3
+                              dr1dx_il(:) = rvect1(:)*r1_inv
+                              dr2dx_il(:) = rvect2(:)*r2_inv
+                              dr3dx_il(:) = rvect3(:)*r3_inv
+
+                              inv_g2_il = 1.0_dp/(g_il*g_il)
+                              DO ii = 1, 3
+                                 dgdx_t1 = 2.0_dp*r2*dr1dx_il(ii)
+                                 dgdx_t2 = 2.0_dp*r1*dr2dx_il(ii)
+                                 dcosbase1_il(ii) = -2.0_dp*(rvect1(ii) + rvect2(ii))*g_il &
+                                                    - f_il*(-(dgdx_t1 + dgdx_t2))
+                                 dcosbase2_il(ii) = 2.0_dp*(rvect3(ii) + rvect1(ii))*g_il &
+                                                    - f_il*dgdx_t1
+                                 dcosbase3_il(ii) = 2.0_dp*(rvect2(ii) - rvect3(ii))*g_il &
+                                                    - f_il*dgdx_t2
+                              END DO
+
+                              ! -- fused SF loop: compute + direct scatter --
+                              DO sf = 1, n_symf_s
+                                 m = off + grp_il%symf(sf)
+                                 lam_il = grp_il%pack_lam(sf)
+                                 zeta_il = grp_il%pack_zeta(sf)
+                                 eta_il = grp_il%pack_eta(sf)
+                                 prefzeta_il = grp_il%pack_prefzeta(sf)
+
+                                 tmp_il = 1.0_dp + lam_il*costheta_il
+                                 IF (tmp_il <= 0.0_dp) THEN
+                                    tmpzeta_il = 0.0_dp
+                                    angular_il = 0.0_dp
+                                 ELSE
+                                    IF (grp_il%pack_use_int_zeta(sf)) THEN
+                                       izeta_il = grp_il%pack_izeta(sf)
+                                       tmpzeta_il = tmp_il**(izeta_il - 1)
+                                    ELSE
+                                       tmpzeta_il = tmp_il**(zeta_il - 1.0_dp)
+                                    END IF
+                                    angular_il = tmpzeta_il*tmp_il
+                                 END IF
+
+                                 symtmp_il = EXP(-eta_il*r2sum_il)
+                                 sym_il = prefzeta_il*angular_il*symtmp_il*ftot_il
+                                 ang_y(m - off) = ang_y(m - off) + sym_il
+
+                                 pref_lam_il = zeta_il*tmpzeta_il*lam_il*inv_g2_il
+                                 tmp_il = -2.0_dp*symtmp_il*eta_il
+                                 dsymdr1_il = tmp_il*r1
+                                 dsymdr2_il = tmp_il*r2
+                                 dsymdr3_il = tmp_il*r3
+
+                                 pref_il = prefzeta_il*symtmp_il*ftot_il
+                                 tmp1_il = prefzeta_il*angular_il*(ftot_il*dsymdr1_il + dfcutdr1_il*symtmp_il)
+                                 tmp2_il = prefzeta_il*angular_il*(ftot_il*dsymdr2_il + dfcutdr2_il*symtmp_il)
+                                 tmp3_il = prefzeta_il*angular_il*(ftot_il*dsymdr3_il + dfcutdr3_il*symtmp_il)
+
+                                 DO ii = 1, 3
+                                    f_jj_il(ii) = pref_il*pref_lam_il*dcosbase2_il(ii) &
+                                                  - tmp1_il*dr1dx_il(ii) + tmp3_il*dr3dx_il(ii)
+                                    f_kk_il(ii) = pref_il*pref_lam_il*dcosbase3_il(ii) &
+                                                  - tmp2_il*dr2dx_il(ii) - tmp3_il*dr3dx_il(ii)
+                                    self_dGdr(ii, m) = self_dGdr(ii, m) &
+                                                       + pref_il*pref_lam_il*dcosbase1_il(ii) &
+                                                       + tmp1_il*dr1dx_il(ii) + tmp2_il*dr2dx_il(ii)
+                                    jj_buf(ii, sf, j) = jj_buf(ii, sf, j) + f_jj_il(ii)
+                                    kk_buf(ii, sf, k) = kk_buf(ii, sf, k) + f_kk_il(ii)
+                                 END DO
+                                 IF (PRESENT(stress)) THEN
+                                    DO l = 1, 3
+                                       stress(:, l, m) = stress(:, l, m) &
+                                                         - rvect1(:)*f_jj_il(l) - rvect2(:)*f_kk_il(l)
+                                    END DO
+                                 END IF
+                              END DO
+
+                           END IF
+                        END DO
+                     END DO
+                     END ASSOCIATE
+                  END IF
+               END DO
                CALL timestop(handle_sf)
             ELSE
                !loop over radial sym fnct grps
@@ -509,7 +513,7 @@ CONTAINS
                      CALL nnp_calc_rad(nnp, ind, s, rvect1, r1, radial_symtmp(1:nnp%rad(ind)%symfgrp(s)%n_symf))
                      DO sf = 1, nnp%rad(ind)%symfgrp(s)%n_symf
                         m = nnp%rad(ind)%symfgrp(s)%symf(sf)
-                        nnp%rad(ind)%y(m) = nnp%rad(ind)%y(m) + radial_symtmp(sf)
+                        rad_y(m) = rad_y(m) + radial_symtmp(sf)
                      END DO
                   END DO
                END DO
@@ -546,7 +550,7 @@ CONTAINS
                                                 angular_symtmp(1:n_symf_s))
                               DO sf = 1, n_symf_s
                                  m = off + nnp%ang(ind)%symfgrp(s)%symf(sf)
-                                 nnp%ang(ind)%y(m - off) = nnp%ang(ind)%y(m - off) + angular_symtmp(sf)
+                                 ang_y(m - off) = ang_y(m - off) + angular_symtmp(sf)
                               END DO
                            END IF
                         END DO
@@ -574,7 +578,7 @@ CONTAINS
                                                 angular_symtmp(1:n_symf_s))
                               DO sf = 1, n_symf_s
                                  m = off + nnp%ang(ind)%symfgrp(s)%symf(sf)
-                                 nnp%ang(ind)%y(m - off) = nnp%ang(ind)%y(m - off) + angular_symtmp(sf)
+                                 ang_y(m - off) = ang_y(m - off) + angular_symtmp(sf)
                               END DO
                            END IF
                         END DO
@@ -591,13 +595,15 @@ CONTAINS
       END ASSOCIATE
 
       !check extrapolation
-      CALL nnp_check_extrapolation(nnp, ind)
+      CALL nnp_check_extrapolation(nnp, ind, rad_y, ang_y)
 
       IF (PRESENT(stress)) THEN
-         CALL nnp_scale_acsf(nnp, ind, do_forces, stress)
+         CALL nnp_scale_acsf(nnp, ind, do_forces, arc, rad_y, ang_y, stress)
       ELSE
-         CALL nnp_scale_acsf(nnp, ind, do_forces)
+         CALL nnp_scale_acsf(nnp, ind, do_forces, arc, rad_y, ang_y)
       END IF
+
+      DEALLOCATE (rad_y, ang_y)
 
       CALL timestop(handle)
 
@@ -670,202 +676,6 @@ CONTAINS
    END SUBROUTINE nnp_fill_fc_cache
 
 ! **************************************************************************************************
-!> \brief OpenMP parallelization of the angular SF group loop over s. Groups
-!>        partition the angular SF indices disjointly, so per-group writes into
-!>        self_dGdr / stress / nnp%ang%y and the workspace dGdr_ang accumulators
-!>        are race-free. Per-thread scratch is PRIVATE automatic arrays; buffer
-!>        growth and zero-init run in a serial pre-pass so the parallel region
-!>        never touches ALLOCATABLE state.
-!> \param nnp ...
-!> \param ind ...
-!> \param self_dGdr ...
-!> \param off ...
-!> \param stress ...
-! **************************************************************************************************
-   SUBROUTINE nnp_acsf_angular_loop_omp(nnp, ind, self_dGdr, off, stress)
-      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp
-      INTEGER, INTENT(IN)                                :: ind
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: self_dGdr
-      INTEGER, INTENT(IN)                                :: off
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
-         OPTIONAL                                        :: stress
-
-      INTEGER                                            :: cache_cap_loc, j, k, l, m, &
-                                                            max_ang_symf_loc, n_ang1_s, n_ang2_s, &
-                                                            n_symf_s, s, sf
-      LOGICAL                                            :: homo_grp
-      REAL(KIND=dp)                                      :: cutoff_s, cutoff_sqr, r1, r2, r3, r3_sqr
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dfc_c1_loc, dfc_c2_loc, fc_c1_loc, &
-                                                            fc_c2_loc, sym_loc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: force_loc
-      REAL(KIND=dp), DIMENSION(3)                        :: rvect1, rvect2, rvect3
-
-! Per-thread automatic scratch (see PRIVATE clause below). Sizes
-! are pulled from the pre-sized workspace so they match the peak
-! usage that the serial kernel would allocate into the workspace
-! %fc_cache*/angular_* slabs.
-
-      ASSOCIATE (workspace => nnp%neighbor_interface_state%workspace(ind), &
-                 neighbor => nnp%neighbor_interface_state%workspace(ind)%neighbor)
-
-         cache_cap_loc = MAX(1, workspace%cache_cap)
-         max_ang_symf_loc = MAX(1, workspace%max_ang_symf)
-
-         ! Serial pre-pass: grow per-group accumulator slabs and zero them
-         ! out. Doing this outside the parallel region guarantees no thread
-         ! ever touches ALLOCATABLE components of nnp_dGdr_grp_type.
-         DO s = 1, nnp%ang(ind)%n_symfgrp
-            n_symf_s = nnp%ang(ind)%symfgrp(s)%n_symf
-            n_ang1_s = neighbor%n_ang1(s)
-            homo_grp = (nnp%ang(ind)%symfgrp(s)%ele(1) == nnp%ang(ind)%symfgrp(s)%ele(2))
-            CALL nnp_grp_grow_dGdr(workspace%dGdr_ang_jj(s), n_ang1_s)
-            IF (homo_grp) THEN
-               CALL nnp_grp_grow_dGdr(workspace%dGdr_ang_kk(s), n_ang1_s)
-               n_ang2_s = 0
-            ELSE
-               n_ang2_s = neighbor%n_ang2(s)
-               CALL nnp_grp_grow_dGdr(workspace%dGdr_ang_kk(s), n_ang2_s)
-            END IF
-            IF (n_ang1_s > 0) workspace%dGdr_ang_jj(s)%data(:, 1:n_symf_s, 1:n_ang1_s) = 0.0_dp
-            IF (homo_grp) THEN
-               IF (n_ang1_s > 0) workspace%dGdr_ang_kk(s)%data(:, 1:n_symf_s, 1:n_ang1_s) = 0.0_dp
-            ELSE
-               IF (n_ang2_s > 0) workspace%dGdr_ang_kk(s)%data(:, 1:n_symf_s, 1:n_ang2_s) = 0.0_dp
-            END IF
-         END DO
-
-         ! Each thread allocates its own PRIVATE scratch inside the parallel
-         ! region: an ALLOCATABLE listed as PRIVATE enters unallocated per
-         ! thread, so the ALLOCATE below gives each thread an independent slab.
-         ! Angular groups partition the SF index disjointly, so the shared
-         ! accumulators (self_dGdr, stress, nnp%ang%y, workspace dGdr) are written
-         ! race-free. workspace/neighbor are ASSOCIATE names that inherit the
-         ! data-sharing of their nnp selector; the OPTIONAL stress is SHARED and
-         ! gated by PRESENT().
-!$OMP PARALLEL DEFAULT(NONE) &
-!$OMP          SHARED(nnp, ind, self_dGdr, off, stress, &
-!$OMP                 cache_cap_loc, max_ang_symf_loc) &
-!$OMP          PRIVATE(s, j, k, sf, m, l, n_symf_s, n_ang1_s, n_ang2_s, &
-!$OMP                  r1, r2, r3, r3_sqr, cutoff_s, cutoff_sqr, homo_grp, &
-!$OMP                  rvect1, rvect2, rvect3, &
-!$OMP                  fc_c1_loc, dfc_c1_loc, fc_c2_loc, dfc_c2_loc, &
-!$OMP                  sym_loc, force_loc)
-         ALLOCATE (fc_c1_loc(cache_cap_loc))
-         ALLOCATE (dfc_c1_loc(cache_cap_loc))
-         ALLOCATE (fc_c2_loc(cache_cap_loc))
-         ALLOCATE (dfc_c2_loc(cache_cap_loc))
-         ALLOCATE (sym_loc(max_ang_symf_loc))
-         ALLOCATE (force_loc(3, 3, max_ang_symf_loc))
-
-!$OMP DO SCHEDULE(dynamic)
-         DO s = 1, nnp%ang(ind)%n_symfgrp
-            cutoff_s = nnp%ang(ind)%symfgrp(s)%cutoff
-            cutoff_sqr = cutoff_s*cutoff_s
-            n_symf_s = nnp%ang(ind)%symfgrp(s)%n_symf
-            n_ang1_s = neighbor%n_ang1(s)
-            homo_grp = (nnp%ang(ind)%symfgrp(s)%ele(1) == nnp%ang(ind)%symfgrp(s)%ele(2))
-
-            CALL nnp_fill_fc_dfc_cache(neighbor%ang1(s)%dist, n_ang1_s, &
-                                       nnp%cut_type, cutoff_s, fc_c1_loc, dfc_c1_loc)
-
-            IF (homo_grp) THEN
-               DO j = 1, n_ang1_s
-                  rvect1 = neighbor%ang1(s)%dist(1:3, j)
-                  r1 = neighbor%ang1(s)%dist(4, j)
-                  DO k = j + 1, n_ang1_s
-                     rvect2 = neighbor%ang1(s)%dist(1:3, k)
-                     r2 = neighbor%ang1(s)%dist(4, k)
-                     rvect3(1) = rvect2(1) - rvect1(1)
-                     rvect3(2) = rvect2(2) - rvect1(2)
-                     rvect3(3) = rvect2(3) - rvect1(3)
-                     r3_sqr = rvect3(1)*rvect3(1) + rvect3(2)*rvect3(2) + rvect3(3)*rvect3(3)
-                     IF (r3_sqr < cutoff_sqr) THEN
-                        r3 = SQRT(r3_sqr)
-                        CALL nnp_calc_ang(nnp, ind, s, rvect1, rvect2, rvect3, &
-                                          r1, r2, r3, &
-                                          fc_c1_loc(j), dfc_c1_loc(j), &
-                                          fc_c1_loc(k), dfc_c1_loc(k), &
-                                          sym_loc(1:n_symf_s), &
-                                          force_loc(:, :, 1:n_symf_s))
-                        DO sf = 1, n_symf_s
-                           m = off + nnp%ang(ind)%symfgrp(s)%symf(sf)
-                           self_dGdr(1, m) = self_dGdr(1, m) + force_loc(1, 1, sf)
-                           self_dGdr(2, m) = self_dGdr(2, m) + force_loc(2, 1, sf)
-                           self_dGdr(3, m) = self_dGdr(3, m) + force_loc(3, 1, sf)
-                           workspace%dGdr_ang_jj(s)%data(1, sf, j) = workspace%dGdr_ang_jj(s)%data(1, sf, j) + force_loc(1, 2, sf)
-                           workspace%dGdr_ang_jj(s)%data(2, sf, j) = workspace%dGdr_ang_jj(s)%data(2, sf, j) + force_loc(2, 2, sf)
-                           workspace%dGdr_ang_jj(s)%data(3, sf, j) = workspace%dGdr_ang_jj(s)%data(3, sf, j) + force_loc(3, 2, sf)
-                           workspace%dGdr_ang_kk(s)%data(1, sf, k) = workspace%dGdr_ang_kk(s)%data(1, sf, k) + force_loc(1, 3, sf)
-                           workspace%dGdr_ang_kk(s)%data(2, sf, k) = workspace%dGdr_ang_kk(s)%data(2, sf, k) + force_loc(2, 3, sf)
-                           workspace%dGdr_ang_kk(s)%data(3, sf, k) = workspace%dGdr_ang_kk(s)%data(3, sf, k) + force_loc(3, 3, sf)
-                           IF (PRESENT(stress)) THEN
-                              DO l = 1, 3
-                                 stress(:, l, m) = stress(:, l, m) - rvect1(:)*force_loc(l, 2, sf)
-                                 stress(:, l, m) = stress(:, l, m) - rvect2(:)*force_loc(l, 3, sf)
-                              END DO
-                           END IF
-                           nnp%ang(ind)%y(m - off) = nnp%ang(ind)%y(m - off) + sym_loc(sf)
-                        END DO
-                     END IF
-                  END DO
-               END DO
-            ELSE
-               n_ang2_s = neighbor%n_ang2(s)
-               CALL nnp_fill_fc_dfc_cache(neighbor%ang2(s)%dist, n_ang2_s, &
-                                          nnp%cut_type, cutoff_s, fc_c2_loc, dfc_c2_loc)
-
-               DO j = 1, n_ang1_s
-                  rvect1 = neighbor%ang1(s)%dist(1:3, j)
-                  r1 = neighbor%ang1(s)%dist(4, j)
-                  DO k = 1, n_ang2_s
-                     rvect2 = neighbor%ang2(s)%dist(1:3, k)
-                     r2 = neighbor%ang2(s)%dist(4, k)
-                     rvect3(1) = rvect2(1) - rvect1(1)
-                     rvect3(2) = rvect2(2) - rvect1(2)
-                     rvect3(3) = rvect2(3) - rvect1(3)
-                     r3_sqr = rvect3(1)*rvect3(1) + rvect3(2)*rvect3(2) + rvect3(3)*rvect3(3)
-                     IF (r3_sqr < cutoff_sqr) THEN
-                        r3 = SQRT(r3_sqr)
-                        CALL nnp_calc_ang(nnp, ind, s, rvect1, rvect2, rvect3, &
-                                          r1, r2, r3, &
-                                          fc_c1_loc(j), dfc_c1_loc(j), &
-                                          fc_c2_loc(k), dfc_c2_loc(k), &
-                                          sym_loc(1:n_symf_s), &
-                                          force_loc(:, :, 1:n_symf_s))
-                        DO sf = 1, n_symf_s
-                           m = off + nnp%ang(ind)%symfgrp(s)%symf(sf)
-                           self_dGdr(1, m) = self_dGdr(1, m) + force_loc(1, 1, sf)
-                           self_dGdr(2, m) = self_dGdr(2, m) + force_loc(2, 1, sf)
-                           self_dGdr(3, m) = self_dGdr(3, m) + force_loc(3, 1, sf)
-                           workspace%dGdr_ang_jj(s)%data(1, sf, j) = workspace%dGdr_ang_jj(s)%data(1, sf, j) + force_loc(1, 2, sf)
-                           workspace%dGdr_ang_jj(s)%data(2, sf, j) = workspace%dGdr_ang_jj(s)%data(2, sf, j) + force_loc(2, 2, sf)
-                           workspace%dGdr_ang_jj(s)%data(3, sf, j) = workspace%dGdr_ang_jj(s)%data(3, sf, j) + force_loc(3, 2, sf)
-                           workspace%dGdr_ang_kk(s)%data(1, sf, k) = workspace%dGdr_ang_kk(s)%data(1, sf, k) + force_loc(1, 3, sf)
-                           workspace%dGdr_ang_kk(s)%data(2, sf, k) = workspace%dGdr_ang_kk(s)%data(2, sf, k) + force_loc(2, 3, sf)
-                           workspace%dGdr_ang_kk(s)%data(3, sf, k) = workspace%dGdr_ang_kk(s)%data(3, sf, k) + force_loc(3, 3, sf)
-                           IF (PRESENT(stress)) THEN
-                              DO l = 1, 3
-                                 stress(:, l, m) = stress(:, l, m) - rvect1(:)*force_loc(l, 2, sf)
-                                 stress(:, l, m) = stress(:, l, m) - rvect2(:)*force_loc(l, 3, sf)
-                              END DO
-                           END IF
-                           nnp%ang(ind)%y(m - off) = nnp%ang(ind)%y(m - off) + sym_loc(sf)
-                        END DO
-                     END IF
-                  END DO
-               END DO
-            END IF
-         END DO
-!$OMP END DO
-
-         DEALLOCATE (fc_c1_loc, dfc_c1_loc, fc_c2_loc, dfc_c2_loc, sym_loc, force_loc)
-!$OMP END PARALLEL
-
-      END ASSOCIATE
-
-   END SUBROUTINE nnp_acsf_angular_loop_omp
-
-! **************************************************************************************************
 !> \brief Prepare or update the linked-cell / Verlet cache for the current
 !>        geometry. Lazily allocates nnp%cell_list_cache and
 !>        nnp%neighbor_interface_state, then delegates to
@@ -879,10 +689,24 @@ CONTAINS
 
       TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp
 
+      INTEGER                                            :: ind
+
       IF (.NOT. ALLOCATED(nnp%cell_list_cache)) ALLOCATE (nnp%cell_list_cache)
       IF (.NOT. ALLOCATED(nnp%neighbor_interface_state)) ALLOCATE (nnp%neighbor_interface_state)
       CALL nnp_prepare_cell_list_cache(nnp)
       CALL nnp_neighbor_interface_prepare(nnp)
+
+      ! Build the radial spline tables here, serially, before the (possibly
+      ! atom-level-threaded) per-atom loop. The lazy first-touch build inside
+      ! nnp_calc_acsf would otherwise race across threads on the first step.
+      DO ind = 1, nnp%n_ele
+         IF (nnp%rad(ind)%n_symfgrp > 0) THEN
+            IF (.NOT. nnp%rad(ind)%symfgrp(1)%spline_built) THEN
+               CALL nnp_build_radial_splines(nnp)
+               EXIT
+            END IF
+         END IF
+      END DO
 
    END SUBROUTINE nnp_prepare_neighbor_cache
 
@@ -890,37 +714,42 @@ CONTAINS
 !> \brief Check if the nnp is extrapolating
 !> \param nnp ...
 !> \param ind ...
+!> \param rad_y radial SF values of the current atom
+!> \param ang_y angular SF values of the current atom
 !> \date   2020-10-10
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
-   SUBROUTINE nnp_check_extrapolation(nnp, ind)
+   SUBROUTINE nnp_check_extrapolation(nnp, ind, rad_y, ang_y)
 
       TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       INTEGER, INTENT(IN)                                :: ind
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rad_y, ang_y
 
       REAL(KIND=dp), PARAMETER                           :: threshold = 0.0001_dp
 
       INTEGER                                            :: j
       LOGICAL                                            :: extrapolate
 
-      extrapolate = nnp%output_expol
+      extrapolate = .FALSE.
 
       DO j = 1, nnp%n_rad(ind)
-         IF (nnp%rad(ind)%y(j) - nnp%rad(ind)%loc_max(j) > threshold) THEN
+         IF (rad_y(j) - nnp%rad(ind)%loc_max(j) > threshold) THEN
             extrapolate = .TRUE.
-         ELSE IF (-nnp%rad(ind)%y(j) + nnp%rad(ind)%loc_min(j) > threshold) THEN
+         ELSE IF (-rad_y(j) + nnp%rad(ind)%loc_min(j) > threshold) THEN
             extrapolate = .TRUE.
          END IF
       END DO
       DO j = 1, nnp%n_ang(ind)
-         IF (nnp%ang(ind)%y(j) - nnp%ang(ind)%loc_max(j) > threshold) THEN
+         IF (ang_y(j) - nnp%ang(ind)%loc_max(j) > threshold) THEN
             extrapolate = .TRUE.
-         ELSE IF (-nnp%ang(ind)%y(j) + nnp%ang(ind)%loc_min(j) > threshold) THEN
+         ELSE IF (-ang_y(j) + nnp%ang(ind)%loc_min(j) > threshold) THEN
             extrapolate = .TRUE.
          END IF
       END DO
 
-      nnp%output_expol = extrapolate
+      ! Threads only ever set the shared flag to .TRUE. here (it is reset
+      ! serially in nnp_calc_energy_force), so concurrent writes are benign.
+      IF (extrapolate) nnp%output_expol = .TRUE.
 
    END SUBROUTINE nnp_check_extrapolation
 
@@ -929,74 +758,82 @@ CONTAINS
 !> \param nnp ...
 !> \param ind ...
 !> \param do_forces ...
+!> \param arc network whose input layer receives the scaled SF values
+!> \param rad_y radial SF values of the current atom
+!> \param ang_y angular SF values of the current atom
 !> \param stress ...
 !> \date   2020-10-10
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
-   SUBROUTINE nnp_scale_acsf(nnp, ind, do_forces, stress)
+   SUBROUTINE nnp_scale_acsf(nnp, ind, do_forces, arc, rad_y, ang_y, stress)
 
       TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       INTEGER, INTENT(IN)                                :: ind
       LOGICAL, INTENT(IN)                                :: do_forces
+      TYPE(nnp_arc_type), INTENT(INOUT)                  :: arc
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rad_y, ang_y
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: stress
 
       INTEGER                                            :: j, k, m, n_ang1_s, n_ang2_s, n_symf_s, &
-                                                            off, s, sf
+                                                            off, s, sf, tid
       LOGICAL                                            :: homo_grp
       REAL(KIND=dp)                                      :: scale
+
+      tid = 1
+!$    tid = omp_get_thread_num() + 1
 
 ! INOUT (not OUT): stress is per-input-node and accumulates across central atoms.
 
       IF (nnp%center_acsf) THEN
          DO j = 1, nnp%n_rad(ind)
-            nnp%arc(ind)%layer(1)%node(j) = nnp%rad(ind)%y(j) - nnp%rad(ind)%loc_av(j)
+            arc%layer(1)%node(j) = rad_y(j) - nnp%rad(ind)%loc_av(j)
          END DO
          off = nnp%n_rad(ind)
          DO j = 1, nnp%n_ang(ind)
-            nnp%arc(ind)%layer(1)%node(j + off) = nnp%ang(ind)%y(j) - nnp%ang(ind)%loc_av(j)
+            arc%layer(1)%node(j + off) = ang_y(j) - nnp%ang(ind)%loc_av(j)
          END DO
 
          IF (nnp%scale_acsf) THEN
             DO j = 1, nnp%n_rad(ind)
-               nnp%arc(ind)%layer(1)%node(j) = nnp%arc(ind)%layer(1)%node(j)/ &
-                                             (nnp%rad(ind)%loc_max(j) - nnp%rad(ind)%loc_min(j))*(nnp%scmax - nnp%scmin) + nnp%scmin
+               arc%layer(1)%node(j) = arc%layer(1)%node(j)/ &
+                                      (nnp%rad(ind)%loc_max(j) - nnp%rad(ind)%loc_min(j))*(nnp%scmax - nnp%scmin) + nnp%scmin
             END DO
             off = nnp%n_rad(ind)
             DO j = 1, nnp%n_ang(ind)
-               nnp%arc(ind)%layer(1)%node(j + off) = nnp%arc(ind)%layer(1)%node(j + off)/ &
-                                             (nnp%ang(ind)%loc_max(j) - nnp%ang(ind)%loc_min(j))*(nnp%scmax - nnp%scmin) + nnp%scmin
+               arc%layer(1)%node(j + off) = arc%layer(1)%node(j + off)/ &
+                                            (nnp%ang(ind)%loc_max(j) - nnp%ang(ind)%loc_min(j))*(nnp%scmax - nnp%scmin) + nnp%scmin
             END DO
          END IF
       ELSE IF (nnp%scale_acsf) THEN
          DO j = 1, nnp%n_rad(ind)
-            nnp%arc(ind)%layer(1)%node(j) = (nnp%rad(ind)%y(j) - nnp%rad(ind)%loc_min(j))/ &
-                                            (nnp%rad(ind)%loc_max(j) - nnp%rad(ind)%loc_min(j))* &
-                                            (nnp%scmax - nnp%scmin) + nnp%scmin
+            arc%layer(1)%node(j) = (rad_y(j) - nnp%rad(ind)%loc_min(j))/ &
+                                   (nnp%rad(ind)%loc_max(j) - nnp%rad(ind)%loc_min(j))* &
+                                   (nnp%scmax - nnp%scmin) + nnp%scmin
          END DO
          off = nnp%n_rad(ind)
          DO j = 1, nnp%n_ang(ind)
-            nnp%arc(ind)%layer(1)%node(j + off) = (nnp%ang(ind)%y(j) - nnp%ang(ind)%loc_min(j))/ &
-                                                  (nnp%ang(ind)%loc_max(j) - nnp%ang(ind)%loc_min(j))* &
-                                                  (nnp%scmax - nnp%scmin) + nnp%scmin
+            arc%layer(1)%node(j + off) = (ang_y(j) - nnp%ang(ind)%loc_min(j))/ &
+                                         (nnp%ang(ind)%loc_max(j) - nnp%ang(ind)%loc_min(j))* &
+                                         (nnp%scmax - nnp%scmin) + nnp%scmin
          END DO
       ELSE IF (nnp%scale_sigma_acsf) THEN
          DO j = 1, nnp%n_rad(ind)
-            nnp%arc(ind)%layer(1)%node(j) = (nnp%rad(ind)%y(j) - nnp%rad(ind)%loc_av(j))/ &
-                                            nnp%rad(ind)%sigma(j)*(nnp%scmax - nnp%scmin) + nnp%scmin
+            arc%layer(1)%node(j) = (rad_y(j) - nnp%rad(ind)%loc_av(j))/ &
+                                   nnp%rad(ind)%sigma(j)*(nnp%scmax - nnp%scmin) + nnp%scmin
          END DO
          off = nnp%n_rad(ind)
          DO j = 1, nnp%n_ang(ind)
-            nnp%arc(ind)%layer(1)%node(j + off) = (nnp%ang(ind)%y(j) - nnp%ang(ind)%loc_av(j))/ &
-                                                  nnp%ang(ind)%sigma(j)*(nnp%scmax - nnp%scmin) + nnp%scmin
+            arc%layer(1)%node(j + off) = (ang_y(j) - nnp%ang(ind)%loc_av(j))/ &
+                                         nnp%ang(ind)%sigma(j)*(nnp%scmax - nnp%scmin) + nnp%scmin
          END DO
       ELSE
          DO j = 1, nnp%n_rad(ind)
-            nnp%arc(ind)%layer(1)%node(j) = nnp%rad(ind)%y(j)
+            arc%layer(1)%node(j) = rad_y(j)
          END DO
          off = nnp%n_rad(ind)
          DO j = 1, nnp%n_ang(ind)
-            nnp%arc(ind)%layer(1)%node(j + off) = nnp%ang(ind)%y(j)
+            arc%layer(1)%node(j + off) = ang_y(j)
          END DO
       END IF
 
@@ -1006,9 +843,9 @@ CONTAINS
          ! group s the valid ranges are sf=1..n_symf_s and j=1..n_rad(s)
          ! (radial) or j=1..n_ang1_s, k=1..n_ang2_s (angular). The self
          ! contribution lives in self_dGdr(:, m).
-         ASSOCIATE (workspace => nnp%neighbor_interface_state%workspace(ind), &
-                    neighbor => nnp%neighbor_interface_state%workspace(ind)%neighbor, &
-                    self_dGdr => nnp%neighbor_interface_state%workspace(ind)%self_dGdr)
+         ASSOCIATE (workspace => nnp%neighbor_interface_state%workspace(ind, tid), &
+                    neighbor => nnp%neighbor_interface_state%workspace(ind, tid)%neighbor, &
+                    self_dGdr => nnp%neighbor_interface_state%workspace(ind, tid)%self_dGdr)
 
             ! Radial groups
             DO s = 1, nnp%rad(ind)%n_symfgrp
