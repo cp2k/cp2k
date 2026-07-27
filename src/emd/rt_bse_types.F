@@ -903,6 +903,7 @@ CONTAINS
       ! Deallocate the neighbour list that is not deallocated in gw anymore
       IF (ASSOCIATED(rtbse_env%bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(rtbse_env%bs_env%nl_3c)
       ! Release linearized-only AO scratches and MO-side workspaces
+      IF (ASSOCIATED(rtbse_env%rho_ao_scratch)) CALL cp_cfm_release_pa1(rtbse_env%rho_ao_scratch)
       IF (ASSOCIATED(rtbse_env%sigma_SEX_ao)) CALL cp_cfm_release_pa1(rtbse_env%sigma_SEX_ao)
       IF (ASSOCIATED(rtbse_env%hartree_curr_ao)) CALL cp_fm_release(rtbse_env%hartree_curr_ao)
       IF (ASSOCIATED(rtbse_env%real_workspace_mo)) CALL cp_fm_release(rtbse_env%real_workspace_mo)
