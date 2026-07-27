@@ -194,9 +194,11 @@ CONTAINS
                                        homo_incl_in=first_active_mo, &
                                        virt_incl_in=last_active_mo - homo(ispin))
             IF (ispin == 1) THEN
-               Eigenval_reduced_1 = Eigenval_reduced
+               ALLOCATE (Eigenval_reduced_1(SIZE(Eigenval_reduced)))
+               Eigenval_reduced_1(:) = Eigenval_reduced(:)
             ELSE
-               Eigenval_reduced_2 = Eigenval_reduced
+               ALLOCATE (Eigenval_reduced_2(SIZE(Eigenval_reduced)))
+               Eigenval_reduced_2(:) = Eigenval_reduced(:)
             END IF
             DEALLOCATE (Eigenval_reduced)
          END DO
