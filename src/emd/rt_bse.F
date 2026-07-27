@@ -293,7 +293,7 @@ CONTAINS
 !> \brief Calculates the moment operators
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
-!> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
+!> \author Maximilian Graml (03.26) - refactor in prep. of linearized propagation
 ! **************************************************************************************************
    SUBROUTINE initialize_moments(rtbse_env)
       TYPE(rtbse_env_type), POINTER                :: rtbse_env
@@ -358,7 +358,7 @@ CONTAINS
 !> \brief Calculates the initial density matrix, based on the SCF density or restart density if requested
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
-!> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
+!> \author Maximilian Graml (03.26) - refactor in prep. of linearized propagation
 ! **************************************************************************************************
    SUBROUTINE initialize_density_matrix(rtbse_env)
       TYPE(rtbse_env_type), POINTER                :: rtbse_env
@@ -404,7 +404,7 @@ CONTAINS
 !> \brief Calculates the single particle Hamiltonian
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
-!> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
+!> \author Maximilian Graml (03.26) - refactor in prep. of linearized propagation
 ! **************************************************************************************************
    SUBROUTINE initialize_singleparticle_hamiltonian(rtbse_env)
       TYPE(rtbse_env_type), POINTER                :: rtbse_env
@@ -451,7 +451,7 @@ CONTAINS
 !> \brief Calculates the Hartree potential
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
-!> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
+!> \author Maximilian Graml (03.26) - refactor in prep. of linearized propagation
 ! **************************************************************************************************
    SUBROUTINE initialize_hartree_potential(rtbse_env)
       TYPE(rtbse_env_type), POINTER                :: rtbse_env
@@ -483,10 +483,10 @@ CONTAINS
    END SUBROUTINE initialize_hartree_potential
 
 ! **************************************************************************************************
-!> \brief Calculates the single particle Hamiltonian
+!> \brief Calculates the COHSEX reference self-energy
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
-!> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
+!> \author Maximilian Graml (03.26) - refactor in prep. of linearized propagation
 ! **************************************************************************************************
    SUBROUTINE initialize_cohsex_selfenergy(rtbse_env)
       TYPE(rtbse_env_type), POINTER                :: rtbse_env
@@ -1038,7 +1038,10 @@ CONTAINS
 !> \note Can be used for both the Coulomb hole part and screened exchange part
 !> \param rtbse_env Quickstep environment data, entry point of the calculation
 !> \param sigma_cfm Pointer to the self-energy full matrix, which is overwritten by this routine
+!> \param prefactor_opt Optional scaling factor applied to the contraction, defaults to 1.0
 !> \param greens_cfm Pointer to the Green's function matrix, which is used as input data
+!> \param grid_diag_re_accum Optional accumulator for the real part of the RI-RS grid diagonal
+!> \param grid_diag_im_accum Optional accumulator for the imaginary part of the RI-RS grid diagonal
 !> \author Stepan Marek
 !> \date 09.2024
 ! **************************************************************************************************

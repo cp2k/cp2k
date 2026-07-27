@@ -17,8 +17,7 @@
 !>                    v_l = sum_PQl' Z_lP V^aux_PQ Z_l'Q n_l'   (applied factorized, stage 2) ;
 !>                    V^H_µν = sum_l φ_lµ v_l φ_lν      (diagonal-only, no grid×grid)
 !>        Independent of which GW variant produced bs_env%fm_W_MIC_freq_zero.
-!> \author Maximilian Graml
-!> \date 05.2026
+!> \author Maximilian Graml (05.26)
 ! **************************************************************************************************
 MODULE rt_bse_ri_rs
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add

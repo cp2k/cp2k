@@ -856,11 +856,12 @@ CONTAINS
    END SUBROUTINE comp_eigvec_coeff_BSE
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param idx_prim ...
-!> \param idx_sec ...
-!> \param eigvec_entries ...
-!> \param idx_spin ...
+!> \brief Sorts excitation entries by ascending primary index, reordering the secondary index,
+!>        the eigenvector coefficients and - open shell - the spin index alongside
+!> \param idx_prim Primary index of each entry; sorted in place and used as the sort key
+!> \param idx_sec Secondary index of each entry, reordered to follow idx_prim
+!> \param eigvec_entries Eigenvector coefficients of each entry, reordered to follow idx_prim
+!> \param idx_spin Optional spin index of each entry (open shell), reordered to follow idx_prim
 ! **************************************************************************************************
    SUBROUTINE sort_excitations(idx_prim, idx_sec, eigvec_entries, idx_spin)
 

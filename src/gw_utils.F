@@ -231,9 +231,10 @@ CONTAINS
    END SUBROUTINE create_and_init_bs_env_for_gw
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param bs_env ...
+!> \brief Releases the memory-heavy GW intermediates that cannot be freed in bs_env_release,
+!>        retaining the 3c neighbor list only when an AO-RI RT-BSE self-energy still needs it
+!> \param qs_env Quickstep environment - used to resolve the RT-BSE kernel-RI setting
+!> \param bs_env Bandstructure environment whose intermediates are released
 ! **************************************************************************************************
    SUBROUTINE de_init_bs_env(qs_env, bs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env

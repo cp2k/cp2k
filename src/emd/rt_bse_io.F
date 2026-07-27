@@ -164,8 +164,13 @@ CONTAINS
 
    END SUBROUTINE print_etrs_info_header
 ! **************************************************************************************************
-!> \brief Writes the header for the etrs iteration updates - only for log level > low
+!> \brief Writes the summary line of a completed propagation timestep
 !> \param rtbse_env Entry point - rtbse environment
+!> \param step Index of the completed timestep
+!> \param electron_num_re Real part of the electron number, one entry per spin channel
+!> \param convergence Optional convergence metric reached by the ETRS iteration
+!> \param etrs_num Optional number of ETRS iterations used in this timestep
+!> \param step_walltime Optional wall time of this timestep, in seconds
 ! **************************************************************************************************
    SUBROUTINE print_timestep_info(rtbse_env, step, electron_num_re, convergence, etrs_num, &
                                   step_walltime)

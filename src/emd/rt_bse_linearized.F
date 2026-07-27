@@ -6,9 +6,17 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Routines for the propagation via RT-BSE method.
+!> \brief Routines for the propagation of the linearized RT-BSE equations of motion.
+!>        Propagates the first-order density matrix response Δρ within the active MO window,
+!>        in the Tamm-Dancoff approximation or with the full (A, B) coupling, instead of the
+!>        lesser Green's function propagated by rt_bse. Also provides the Liouvillian eigenvalue
+!>        diagnostic, which builds the Liouvillian by probing the kernel with canonical basis
+!>        vectors and diagonalizes it.
 !> \note  The control is handed directly from cp2k_runs
+!>        The initialization and delta-kick routines are adapted from the full RT-BSE
+!>        propagator in rt_bse.F.
 !> \author Maximilian Graml (03.26)
+!> \author Stepan Marek (09.24) - original RT-BSE routines adapted here
 ! **************************************************************************************************
 
 MODULE rt_bse_linearized
@@ -583,7 +591,7 @@ CONTAINS
 !> \brief Populates rtbse_env%C_active(i_spin) (n_ao x mo_active) by extracting columns
 !>        first_active_mo..last_active_mo from bs_env%fm_mo_coeff_Gamma(i_spin).
 !> \param rtbse_env RT-BSE environment
-!> \author Maximilian Graml (05/26)
+!> \author Maximilian Graml (05.26)
 ! **************************************************************************************************
    SUBROUTINE populate_C_active(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -612,7 +620,7 @@ CONTAINS
 !>        the AO moment matrices: moments(k,σ) at the reference point, moments_field(k,σ) at origin.
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
-!> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
+!> \author Maximilian Graml (03.26) - refactor in prep. of linearized propagation
 ! **************************************************************************************************
    SUBROUTINE initialize_moments(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -685,7 +693,8 @@ CONTAINS
 !> \brief Initial MO density ρ^0_mn = f_m δ_mn (f_m = 1 on active occupied, 0 on virtual), copied to
 !>        rho_orig as the reference for the δ-kick. Imaginary part zero.
 !> \param rtbse_env RT-BSE environment
-!> \author Maximilian Graml (03/26)
+!> \author Stepan Marek (09.24)
+!> \author Maximilian Graml (03.26) - adapted to the linearized active-MO path
 ! **************************************************************************************************
    SUBROUTINE initialize_density_matrix(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -735,7 +744,7 @@ CONTAINS
 !>        ε^scf), diagonal. TDA first-peak adds +Ω_0/2 on occupied, -Ω_0/2 on virtual diagonals.
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
-!> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
+!> \author Maximilian Graml (03.26) - refactor in prep. of linearized propagation
 ! **************************************************************************************************
    SUBROUTINE initialize_singleparticle_hamiltonian(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -810,7 +819,7 @@ CONTAINS
 !>        TDA the OV/VO projection of the OO-diagonal ρ^0 vanishes, so the reference is zero).
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
-!> \author Maximilian Graml (03/26) - add transform to MO
+!> \author Maximilian Graml (03.26) - add transform to MO
 ! **************************************************************************************************
    SUBROUTINE initialize_hartree_potential(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -902,7 +911,7 @@ CONTAINS
 !>        W = V + W^c, then Σ^SX = -W ρ^0, (f_n - f_m)-weighted, subtracted.
 !> \param rtbse_env RT-BSE environment
 !> \author Stepan Marek (09.24)
-!> \author Maximilian Graml (03/26) - add transform to MO
+!> \author Maximilian Graml (03.26) - add transform to MO
 ! **************************************************************************************************
    SUBROUTINE initialize_sex_selfenergy(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -1395,7 +1404,7 @@ CONTAINS
 !> \param drho_in Input Delta rho_MO (mo_active x mo_active complex).
 !> \param L_drho_out Output L * Delta rho_MO; OV+VO blocks populated; OO/VV zero.
 !> \param ispin Spin index.
-!> \author Maximilian Graml (05/26)
+!> \author Maximilian Graml (05.26)
 ! **************************************************************************************************
    SUBROUTINE apply_liouvillian_to_drho_spin(rtbse_env, drho_in, L_drho_out, ispin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -1522,7 +1531,7 @@ CONTAINS
 !> \param L_drho_out Accumulator (mo_active x mo_active).
 !> \param scale Complex scale factor (spin_degeneracy for Hartree, 1.0 for SX).
 !> \param ispin Spin index.
-!> \author Maximilian Graml (05/26)
+!> \author Maximilian Graml (05.26)
 ! **************************************************************************************************
    SUBROUTINE add_K_MO_to_L_drho(rtbse_env, K_MO, L_drho_out, scale, ispin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -1655,7 +1664,7 @@ CONTAINS
 !>        Called once at job init from run_propagation_linearized_bse, gated on
 !>        rtbse_env%diagnose_liouvillian_eig (n_spin = 1 enforced at env creation).
 !> \param rtbse_env RT-BSE environment with diagnostic scratch already allocated.
-!> \author Maximilian Graml (05/26)
+!> \author Maximilian Graml (05.26)
 ! **************************************************************************************************
    SUBROUTINE diagnose_liouvillian_eigenvalues(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -1687,7 +1696,7 @@ CONTAINS
 !>        Eigenvalues go to stdout (RTBSE|) and to the LIOUVILLIAN_EIG .dat file. Detached from
 !>        RK4 state. Called from the dispatcher when tda_active=.TRUE.
 !> \param rtbse_env RT-BSE environment with TDA diagnostic scratch already allocated.
-!> \author Maximilian Graml (05/26)
+!> \author Maximilian Graml (05.26)
 ! **************************************************************************************************
    SUBROUTINE diagnose_TDA_liouvillian(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -1846,7 +1855,7 @@ CONTAINS
 !>        Output: a single joint spectrum (stdout RTBSE| + LIOUVILLIAN_EIG .dat). All eigenvalues
 !>        are retained, including optically dark triplet modes (the kernel-correctness gate).
 !> \param rtbse_env RT-BSE environment with ABBA diagnostic scratch allocated.
-!> \author Maximilian Graml (05/26)
+!> \author Maximilian Graml (05.26)
 ! **************************************************************************************************
    SUBROUTINE diagnose_ABBA_liouvillian(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
