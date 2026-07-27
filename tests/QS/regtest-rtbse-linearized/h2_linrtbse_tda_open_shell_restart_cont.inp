@@ -4,7 +4,6 @@
 &END GLOBAL
 
 ! Open-shell (LSD) TDA: Liouvillian peaks + propagated alpha(0) + spin-total identity.
-
 &MOTION
   &MD
     ENSEMBLE NVE

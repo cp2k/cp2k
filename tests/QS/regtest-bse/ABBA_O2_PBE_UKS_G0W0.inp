@@ -43,9 +43,9 @@
       &WF_CORRELATION
         &RI_RPA
           &GW
-            SELF_CONSISTENCY G0W0
             CORR_MOS_OCC -1
             CORR_MOS_VIRT -1
+            SELF_CONSISTENCY G0W0
             &BSE
               NUM_PRINT_EXC 8
               TDA OFF

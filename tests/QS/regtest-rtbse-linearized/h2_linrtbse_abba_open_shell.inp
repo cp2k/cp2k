@@ -5,7 +5,6 @@
 
 ! Open-shell (LSD) ABBA: joint spin-block Liouvillian eigenvalues (diagnostic) AND propagated
 ! alpha(0). STATIC_POL| TOT must equal the closed-shell ABBA value (forced-LSD identity).
-
 &MOTION
   &MD
     ENSEMBLE NVE
