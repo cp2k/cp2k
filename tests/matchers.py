@@ -256,6 +256,27 @@ registry["E_evGW_gap"] = GenericMatcher(
 
 registry["M113"] = GenericMatcher(r"BSE|             1     -TDA-", col=7)
 registry["M114"] = GenericMatcher(r"BSE|             1    -ABBA-", col=7)
+
+# Open-shell (UKS) BSE matchers: joint-spectrum energies and oscillator strength
+registry["BSE_1st_excit_ener_UKS"] = GenericMatcher(
+    r"BSE|                1       UKS              -TDA-", col=5
+)
+registry["BSE_2nd_excit_ener_UKS"] = GenericMatcher(
+    r"BSE|                2       UKS              -TDA-", col=5
+)
+registry["BSE_osc_str_n2_UKS"] = GenericMatcher(r"BSE|             2     -TDA-", col=7)
+registry["BSE_1st_excit_ener_UKS_ABBA"] = GenericMatcher(
+    r"BSE|                1       UKS             -ABBA-", col=5
+)
+registry["BSE_2nd_excit_ener_UKS_ABBA"] = GenericMatcher(
+    r"BSE|                2       UKS             -ABBA-", col=5
+)
+registry["BSE_osc_str_n2_UKS_ABBA"] = GenericMatcher(
+    r"BSE|             2    -ABBA-", col=7
+)
+registry["BSE_ampl_n2_UKS_ABBA"] = GenericMatcher(
+    r"BSE|            2   α      1    =>     2        -ABBA-", col=8
+)
 registry["M115"] = GenericMatcher(r"MOMENTS_TRACE_RE|     0.10000000E+000", col=3)
 registry["M116"] = GenericMatcher(r"MOMENTS_TRACE_IM|     0.10000000E+000", col=3)
 registry["M117"] = GenericMatcher(r"MOMENTS_TRACE_RE|     0.20000000E+000", col=3)
@@ -278,6 +299,31 @@ registry["M125"] = GenericMatcher(
 # Checking maximum polarizability reported by GX-AC@RTBSE
 registry["RTBSE_GXAC_H2_pol"] = GenericMatcher(
     r"POLARIZABILITY_PADE|     0.30450000E+002", col=4
+)
+
+# Lowest excitation energy from the linRTBSE Liouvillian diagnostic.
+# Tied to the F12.4 eV column of the n=1 row.
+registry["LinRTBSE_1st_excit_ener"] = GenericMatcher(
+    r" RTBSE\|\s+1\s+\d+\.\d+\s*$", col=3, regex=True
+)
+
+# 2nd and 3rd excitation energy on the same table; the "\s+N\s+" boundary
+# uniquely selects each row (e.g. "12" / "20" / "22" never matches "\s+2\s+").
+registry["LinRTBSE_2nd_excit_ener"] = GenericMatcher(
+    r" RTBSE\|\s+2\s+\d+\.\d+\s*$", col=3, regex=True
+)
+registry["LinRTBSE_3rd_excit_ener"] = GenericMatcher(
+    r" RTBSE\|\s+3\s+\d+\.\d+\s*$", col=3, regex=True
+)
+
+# Static polarizability alpha(0), Re part, spin=1, xx element.
+registry["LinRTBSE_static_pol_xx"] = GenericMatcher(
+    r" STATIC_POL\|\s+1\s+1,\s*1\s+", col=5, regex=True
+)
+
+# Spin-summed total static polarizability alpha(0), Re part, xx element (open shell).
+registry["LinRTBSE_static_pol_xx_total"] = GenericMatcher(
+    r" STATIC_POL\|\s+TOT\s+1,\s*1\s+", col=5, regex=True
 )
 
 registry["M126"] = GenericMatcher(r" # Total charge ", col=5)

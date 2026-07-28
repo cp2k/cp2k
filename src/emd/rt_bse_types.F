@@ -17,6 +17,9 @@ MODULE rt_bse_types
                           cp_fm_release, &
                           cp_fm_create, &
                           cp_fm_set_all
+   USE cp_fm_struct, ONLY: cp_fm_struct_type, &
+                           cp_fm_struct_create, &
+                           cp_fm_struct_release
    USE cp_cfm_types, ONLY: cp_cfm_type, &
                            cp_cfm_set_all, &
                            cp_cfm_create, &
@@ -38,16 +41,24 @@ MODULE rt_bse_types
    USE qs_environment_types, ONLY: qs_environment_type, &
                                    get_qs_env
    USE force_env_types, ONLY: force_env_type
-   USE post_scf_bandstructure_types, ONLY: post_scf_bandstructure_type
+   USE post_scf_bandstructure_types, ONLY: post_scf_bandstructure_type, &
+                                           eps_qp_gap, &
+                                           max_qp_gap
    USE rt_propagation_types, ONLY: rt_prop_type
    USE rt_propagation_utils, ONLY: warn_section_unused
    USE gw_integrals, ONLY: build_3c_integral_block
    USE gw_large_cell_Gamma, ONLY: compute_3c_integrals
+   USE gw_utils, ONLY: rtbse_resolve_rirs_flag
    USE qs_tensors, ONLY: neighbor_list_3c_destroy
    USE libint_2c_3c, ONLY: libint_potential_type
    USE input_constants, ONLY: use_mom_ref_coac, &
                               do_bch, &
-                              do_exact
+                              do_exact, &
+                              rtp_bse_ham_g0w0, &
+                              rtp_method_bse_linearized
+   USE bse_util, ONLY: determine_cutoff_indices
+   USE cp_log_handling, ONLY: cp_to_string
+   USE physcon, ONLY: evolt
    USE mathconstants, ONLY: z_zero
    USE input_section_types, ONLY: section_vals_type, &
                                   section_vals_val_get, &
@@ -86,14 +97,15 @@ MODULE rt_bse_types
 !> \param n_occ Number of occupied orbitals, spin dependent
 !> \param spin_degeneracy Number of electrons per orbital
 !> \param field Electric field calculated at the given timestep
-!> \param moments Moment operators along cartesian directions - centered at zero charge - used for plotting
-!> \param moments_field Moment operators along cartesian directions - used to coupling to the field -
+!> \param moments Moment operators (2nd index = spin) along cartesian directions - centered at zero charge - used for plotting
+!> \param moments_field Moment operators (2nd index = spin) along cartesian directions - used to coupling to the field -
 !>                origin bound to unit cell
 !> \param sim_step Current step of the simulation
 !> \param sim_start Starting step of the simulation
 !> \param sim_nsteps Number of steps of the simulation
 !> \param sim_time Current time of the simulation
 !> \param sim_dt Timestep of the simulation
+!> \param sim_dt_restart Original-run timestep read from the trace on restart (< 0 when not a restart)
 !> \param etrs_threshold Self-consistency threshold for enforced time reversal symmetry propagation
 !> \param exp_accuracy Threshold for matrix exponential calculation
 !> \param dft_control DFT control parameters
@@ -140,9 +152,58 @@ MODULE rt_bse_types
                                                                    n_ao = -1, &
                                                                    n_RI = -1
       INTEGER, DIMENSION(2)                                     :: n_occ = -1
+      ! Active MO window for linearized RT-BSE truncation. When no truncation is requested,
+      ! first_active_mo=1, last_active_mo=n_ao, and mo_active=n_ao. The window is the
+      ! combined inclusive bound that covers both spin channels.
+      INTEGER                                                   :: first_active_mo = 1, &
+                                                                   last_active_mo = -1, &
+                                                                   mo_active = -1
+      REAL(KIND=dp)                                             :: rtbse_energy_cutoff_occ = -1.0_dp, &
+                                                                   rtbse_energy_cutoff_empty = -1.0_dp
+      LOGICAL                                                   :: active_mo_truncation = .FALSE.
+      LOGICAL                                                   :: linearized = .FALSE.
+      ! Tamm-Dancoff approximation switch (linearized RT-BSE only).
+      LOGICAL                                                   :: tda_active = .FALSE.
+      ! First-peak shift for the TDA path (linearized RT-BSE only).
+      ! Shifts active-MO single-particle diagonals by +Omega_0/2 (occ) / -Omega_0/2 (virt)
+      ! with Omega_0 = eps_min_ai so the lowest active OV mode oscillates at zero in the
+      ! rotating frame (RK4-exact for peak 1). omega_max becomes the full active OV width
+      ! Delta = eps_max_ai - eps_min_ai. The resulting rotating-frame density is undone
+      ! at I/O so observables stay lab-frame.
+      LOGICAL                                                   :: tda_shift_to_first_peak = .FALSE.
+      REAL(kind=dp)                                             :: omega_shift = 0.0_dp
+      ! Debug-only kernel switches shared by initialization and propagation.
+      LOGICAL                                                   :: debug_disable_hartree = .FALSE., &
+                                                                   debug_disable_sex = .FALSE.
+      ! RI framework for the linRTBSE Hartree + screened-exchange kernels, set by the KERNEL_RI
+      ! input keyword (DEFAULT inherits bs_env%do_gw_ri_rs; RS/AO force; full RT-BSE forced AO).
+      ! .TRUE. = RI-RS grid kernels, .FALSE. = AO-RI. The required grid and V_grid/W0_grid
+      ! kernels are built on demand and reused across steps.
+      LOGICAL                                                   :: rirs_kernel = .FALSE.
+      ! Liouvillian eigenvalue diagnostic (TDA + n_spin=1 only). When .TRUE., at job
+      ! init the linearized RT-BSE assembles the OV-subspace Liouvillian by probing
+      ! apply_liouvillian_to_drho with canonical OV basis vectors and diagonalizes
+      ! via cp_cfm_heevd. In TDA this equals the Casida-A eigenvalue problem.
+      ! Run once, no propagation impact.
+      LOGICAL                                                   :: diagnose_liouvillian_eig = .FALSE.
+      ! Whether to enforce max_dt within stability region of rk4
+      LOGICAL                                                   :: enforce_max_dt = .FALSE.
+      ! Owned fm structures sized to the active MO window. Equal to the full n_ao x n_ao
+      ! when no truncation is active.
+      TYPE(cp_fm_struct_type), POINTER                          :: fm_struct_mo_active => NULL()
+      ! n_ao x mo_active fm struct used for C_active and AO<->MO rectangular intermediates.
+      TYPE(cp_fm_struct_type), POINTER                          :: fm_struct_ao_mo_active => NULL()
+      ! Liouvillian-diagnostic struct: (N_OV_joint x N_OV_joint), spin blocks stacked, on the
+      ! same BLACS context as fm_struct_mo_active. Allocated only when diagnose_liouvillian_eig=.TRUE..
+      TYPE(cp_fm_struct_type), POINTER                          :: fm_struct_ov_pairs => NULL()
+      ! Truncated MO coefficient slabs C_active(:,:) of size n_ao x mo_active for each spin
+      ! (only allocated for the linearized path).
+      TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: C_active => NULL()
+      ! Rectangular n_ao x mo_active scratch used by linearized AO<->MO transforms.
+      TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: ao_mo_workspace => NULL()
       REAL(kind=dp)                                             :: spin_degeneracy = 2
       REAL(kind=dp), DIMENSION(3)                               :: field = 0.0_dp
-      TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: moments => NULL(), &
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER                :: moments => NULL(), &
                                                                    moments_field => NULL()
       INTEGER                                                   :: sim_step = 0, &
                                                                    sim_start = 0, &
@@ -152,9 +213,18 @@ MODULE rt_bse_types
                                                                    ! Default reference point type for output moments
                                                                    ! Field moments always use zero reference
                                                                    moment_ref_type = use_mom_ref_coac
+      ! Restart output bookkeeping: RESTART.trace header+prefix and (linearized) C_active are
+      ! (re)written on the first output_restart call of a run, then .trace is appended per step.
+      LOGICAL                                                   :: restart_trace_written = .FALSE., &
+                                                                   restart_C_written = .FALSE.
       REAL(kind=dp), DIMENSION(:), POINTER                      :: user_moment_ref_point => NULL()
       REAL(kind=dp)                                             :: sim_time = 0.0_dp, &
                                                                    sim_dt = 0.1_dp, &
+                                                                   ! Original-run dt from the trace header on restart (< 0 when not
+                                                                   ! a restart); ENFORCE_MAX_DT reuses it instead of recomputing dt
+                                                                   sim_dt_restart = -1.0_dp, &
+                                                                   maximum_timestep = -1.0_dp, &
+                                                                   omega_max = -1.0_dp, &
                                                                    etrs_threshold = 1.0e-7_dp, &
                                                                    exp_accuracy = 1.0e-10_dp, &
                                                                    ft_damping = 0.0_dp, &
@@ -171,6 +241,7 @@ MODULE rt_bse_types
                                                                    rho_section => NULL(), &
                                                                    ft_section => NULL(), &
                                                                    pol_section => NULL(), &
+                                                                   eig_section => NULL(), &
                                                                    moments_section => NULL(), &
                                                                    rtp_section => NULL()
       LOGICAL                                                   :: restart_extracted = .FALSE.
@@ -178,16 +249,64 @@ MODULE rt_bse_types
       ! Different indices signify different spins
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_effective => NULL()
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_reference => NULL()
+      !Only for linearised RTBSE
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_reference_singleparticle => NULL()
+      ! Active single-particle energies = diag(ham_reference_singleparticle), replicated over all
+      ! ranks. Drives the [H^0,rho]_mn = (eps_m - eps_n) rho_mn element-wise commutator (mo_active x n_spin).
+      REAL(kind=dp), DIMENSION(:, :), POINTER                  :: eps_active => NULL()
+      ! Original run's active eigenvalues stashed from RESTART.trace at read time; compared against
+      ! the recomputed eps_active once the Hamiltonian is built (consistency heads-up), then freed.
+      REAL(kind=dp), DIMENSION(:, :), POINTER                  :: eps_active_restart => NULL()
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_workspace => NULL()
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: sigma_SEX => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: sigma_COH => NULL(), &
                                                                    hartree_curr => NULL()
+      ! AO-sized scratch buffers used in the linearized RT-BSE path so that the MO-sized
+      ! sigma_COH/sigma_SEX/hartree_curr matrices above can be allocated on
+      ! fm_struct_mo_active. Only allocated when linearized=.TRUE..
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: sigma_SEX_ao => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: hartree_curr_ao => NULL()
+      ! Open-shell cross-spin Hartree (TDA AO-RI), single shared AO buffers built once per
+      ! RK4 stage: rho_total_ao_scratch (fm_s struct, matches rho_ao_scratch for the spin sum);
+      ! hartree_total_ao = V_H[sum] (fm_ks struct, matches sigma_SEX_ao as the Hartree output).
+      TYPE(cp_cfm_type)                                         :: rho_total_ao_scratch = cp_cfm_type(), &
+                                                                   hartree_total_ao = cp_cfm_type()
+      ! RI-RS Hartree diagonal reuse: spin-summed grid density n_l = diag(phi.rho.phi^T), harvested
+      ! from the SEX rho_grid (before its Hadamard, scaled by spin_degeneracy) and consumed by
+      ! compute_hartree_ri_rs_from_diag so Hartree never rebuilds the grid product. Re/Im; sized
+      ! n_grid; allocated in initialize_hartree_potential when rirs_kernel. rtbse_env-owned (not
+      ! bs_env%ri_rs) to avoid aliasing bs_env when passed through get_sigma_complex.
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)                 :: hartree_diag_re, hartree_diag_im
+      ! mo_active x mo_active real workspace pair used in MO-side transforms (linearized only).
+      TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: real_workspace_mo => NULL()
+      ! Liouvillian-diagnostic scratch (allocated only when diagnose_liouvillian_eig=.TRUE.).
+      ! drho_probe(:) / L_drho(:) are per-spin arrays on fm_struct_mo_active: the joint TDA
+      ! diagnostic probes one spin and reads the Liouvillian response on every spin block.
+      ! L_pairs / eigvecs_pairs live on fm_struct_ov_pairs (N_OV_joint x N_OV_joint, the spin
+      ! blocks stacked). A_mat / B_mat / AmB_scratch / ApB_scratch are ABBA-only blocks holding
+      ! A, B, (A-B) -> (A-B)^{1/2}, and (A+B) for the Furche reduction; allocated only
+      ! when .NOT. tda_active (n_spin=1; TDA path uses L_pairs alone).
+      ! eigenvalues_liouvillian holds the N_OV_joint real eigenvalues from cp_cfm_heevd.
+      TYPE(cp_cfm_type)                                         :: L_pairs = cp_cfm_type(), &
+                                                                   eigvecs_pairs = cp_cfm_type(), &
+                                                                   A_mat = cp_cfm_type(), &
+                                                                   B_mat = cp_cfm_type(), &
+                                                                   AmB_scratch = cp_cfm_type(), &
+                                                                   ApB_scratch = cp_cfm_type()
+      REAL(kind=dp), DIMENSION(:), POINTER                      :: eigenvalues_liouvillian => NULL()
 
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: rho => NULL(), &
                                                                    rho_new => NULL(), &
                                                                    rho_new_last => NULL(), &
                                                                    rho_M => NULL(), &
-                                                                   rho_orig => NULL()
+                                                                   rho_orig => NULL(), &
+                                                                   rho_ao_scratch => NULL(), &
+                                                                   rho_delta_mo => NULL(), &
+                                                                   drho_probe => NULL(), &
+                                                                   L_drho => NULL()
+      ! Workspace for rk4 in linearized RTBSE
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: rk4_coefficients => NULL()
+
       TYPE(cp_fm_type)                                          :: S_inv_fm = cp_fm_type(), &
                                                                    S_fm = cp_fm_type()
       ! Many routines require overlap in the complex format
@@ -198,6 +317,8 @@ MODULE rt_bse_types
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: rho_workspace => NULL()
       ! Many methods use real and imaginary parts separately - prevent unnecessary reallocation
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: real_workspace => NULL()
+      ! AO-sized complex scratch used to stage the real part in get_sigma_complex.
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: sigma_complex_workspace => NULL()
       ! Workspace required for exact matrix exponentiation
       REAL(kind=dp), DIMENSION(:), POINTER                      :: real_eigvals => NULL()
       COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: exp_eigvals => NULL()
@@ -247,26 +368,29 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Allocates structures and prepares rtbse_env for run
 !> \param rtbse_env rtbse_env_type that is initialised
-!> \param qs_env Entry point of the calculation
+!> \param force_env Force environment - entry point of the calculation
+!> \param linearized Optional; when present and .TRUE., configure the environment for the linearized RT-BSE path
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE create_rtbse_env(rtbse_env, qs_env, force_env)
+   SUBROUTINE create_rtbse_env(rtbse_env, force_env, linearized)
       TYPE(rtbse_env_type), POINTER                             :: rtbse_env
-      TYPE(qs_environment_type), POINTER                        :: qs_env
       TYPE(force_env_type), POINTER                             :: force_env
+      LOGICAL, OPTIONAL                                        :: linearized
       TYPE(post_scf_bandstructure_type), POINTER                :: bs_env
       TYPE(rt_prop_type), POINTER                               :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: matrix_s
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
-      INTEGER                                                   :: i, k
+      INTEGER                                                   :: i, k, n_ov, i_spin
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
+      TYPE(cp_fm_struct_type), POINTER                          :: mo_struct
 
       ! Allocate the storage for the gwbse environment
-      NULLIFY (rtbse_env)
+      NULLIFY (rtbse_env, mo_struct)
       ALLOCATE (rtbse_env)
+      IF (PRESENT(linearized)) rtbse_env%linearized = linearized
       ! Extract the other types first
-      CALL get_qs_env(qs_env, &
+      CALL get_qs_env(force_env%qs_env, &
                       bs_env=bs_env, &
                       rtp=rtp, &
                       matrix_s=matrix_s, &
@@ -279,6 +403,14 @@ CONTAINS
       END IF
       ! Number of spins
       rtbse_env%n_spin = bs_env%n_spin
+      ! Open shell (n_spin>1) is only implemented and tested for the linearized
+      ! propagation; the full RT-BSE open-shell path is untested.
+      IF (rtbse_env%n_spin > 1 .AND. .NOT. rtbse_env%linearized) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Open-shell (n_spin>1) RT-BSE is only implemented and tested for the "// &
+                       "linearized propagation. Set DFT%REAL_TIME_PROPAGATION%RTBSE%LRRTBSE "// &
+                       ".TRUE.; the full (non-linearized) open-shell RT-BSE path is untested.")
+      END IF
       ! Number of atomic orbitals
       rtbse_env%n_ao = bs_env%n_ao
       ! Number of auxiliary basis orbitals
@@ -306,6 +438,74 @@ CONTAINS
                                 i_val=rtbse_env%etrs_max_iter)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%MAT_EXP", &
                                 i_val=rtbse_env%mat_exp_method)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%ENERGY_CUTOFF_OCC", &
+                                r_val=rtbse_env%rtbse_energy_cutoff_occ)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%ENERGY_CUTOFF_EMPTY", &
+                                r_val=rtbse_env%rtbse_energy_cutoff_empty)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%TDA", &
+                                l_val=rtbse_env%tda_active)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%TDA_SHIFT_TO_FIRST_PEAK", &
+                                l_val=rtbse_env%tda_shift_to_first_peak)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%ENFORCE_MAX_DT", &
+                                l_val=rtbse_env%enforce_max_dt)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_DISABLE_HARTREE", &
+                                l_val=rtbse_env%debug_disable_hartree)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_DISABLE_SEX", &
+                                l_val=rtbse_env%debug_disable_sex)
+      ! RI-RS kernel switch (KERNEL_RI: DEFAULT=do_gw_ri_rs, RS/AO force, full-RTBSE force-off)
+      ! is resolved by the shared helper so de_init_bs_env reaches the same verdict when
+      ! deciding whether to retain nl_3c.
+      CALL rtbse_resolve_rirs_flag(force_env%qs_env, bs_env, rirs_kernel=rtbse_env%rirs_kernel)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DIAGNOSE_LIOUVILLIAN_EIG", &
+                                l_val=rtbse_env%diagnose_liouvillian_eig)
+
+      IF (.NOT. rtbse_env%dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) THEN
+         rtbse_env%rtbse_energy_cutoff_occ = -1.0_dp
+         rtbse_env%rtbse_energy_cutoff_empty = -1.0_dp
+         rtbse_env%enforce_max_dt = .FALSE.
+         rtbse_env%debug_disable_hartree = .FALSE.
+         rtbse_env%debug_disable_sex = .FALSE.
+         rtbse_env%tda_shift_to_first_peak = .FALSE.
+         ! rirs_kernel is already forced .FALSE. here by rtbse_resolve_rirs_flag.
+         rtbse_env%diagnose_liouvillian_eig = .FALSE.
+      END IF
+      ! First-peak shift only makes sense within TDA; force-disable otherwise.
+      IF (.NOT. rtbse_env%tda_active) rtbse_env%tda_shift_to_first_peak = .FALSE.
+      rtbse_env%omega_shift = 0.0_dp
+
+      IF (rtbse_env%tda_active .AND. .NOT. rtbse_env%linearized) THEN
+         CPABORT("RTBSE TDA keyword requires LINEARIZED_BSE_PROPAGATION=.TRUE.")
+      END IF
+      ! Open shell: omega_shift would be referenced to a non-physical cross-spin
+      ! pseudo-gap (global MIN/MAX over both spins); abort until made per-spin.
+      IF (rtbse_env%tda_shift_to_first_peak .AND. rtbse_env%n_spin > 1) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "TDA_SHIFT_TO_FIRST_PEAK is not implemented for open-shell (n_spin>1) "// &
+                       "systems - the first-peak gap estimate would mix spin channels. "// &
+                       "Set TDA_SHIFT_TO_FIRST_PEAK=.FALSE. for open-shell runs.")
+      END IF
+      CALL check_qp_gap_sanity(rtbse_env, bs_env)
+      CALL determine_active_mo_window(rtbse_env, bs_env)
+      ! Owned active-MO matrix structure (currently identical to the full n_ao x n_ao struct
+      ! when no truncation is active; will be used by the linearized RT-BSE allocation path).
+      NULLIFY (rtbse_env%fm_struct_mo_active)
+      CALL cp_fm_struct_create(rtbse_env%fm_struct_mo_active, &
+                               bs_env%fm_ks_Gamma(1)%matrix_struct%para_env, &
+                               bs_env%fm_ks_Gamma(1)%matrix_struct%context, &
+                               rtbse_env%mo_active, rtbse_env%mo_active)
+      ! Rectangular n_ao x mo_active struct used for C_active and AO<->MO intermediates
+      NULLIFY (rtbse_env%fm_struct_ao_mo_active)
+      CALL cp_fm_struct_create(rtbse_env%fm_struct_ao_mo_active, &
+                               bs_env%fm_ks_Gamma(1)%matrix_struct%para_env, &
+                               bs_env%fm_ks_Gamma(1)%matrix_struct%context, &
+                               rtbse_env%n_ao, rtbse_env%mo_active)
+      ! Choose the matrix struct used for MO-side persistent matrices.
+      ! Linearized RT-BSE: mo_active x mo_active. Full RT-BSE: full AO struct (unchanged).
+      IF (rtbse_env%linearized) THEN
+         mo_struct => rtbse_env%fm_struct_mo_active
+      ELSE
+         mo_struct => bs_env%fm_ks_Gamma(1)%matrix_struct
+      END IF
       ! Output unit number, recovered from the post_scf_bandstructure_type
       rtbse_env%unit_nr = bs_env%unit_nr
       ! Sim start index and total number of steps as well
@@ -332,6 +532,7 @@ CONTAINS
       rtbse_env%rho_section => section_vals_get_subs_vals(rtbse_env%rtp_section, "PRINT%DENSITY_MATRIX")
       rtbse_env%ft_section => section_vals_get_subs_vals(rtbse_env%rtp_section, "PRINT%MOMENTS_FT")
       rtbse_env%pol_section => section_vals_get_subs_vals(rtbse_env%rtp_section, "PRINT%POLARIZABILITY")
+      rtbse_env%eig_section => section_vals_get_subs_vals(rtbse_env%rtp_section, "PRINT%LIOUVILLIAN_EIG")
       ! Warn the user about print sections which are not yet implemented in the RTBSE run
       CALL warn_section_unused(rtbse_env%rtp_section, "PRINT%CURRENT", &
                                "CURRENT print section not yet implemented for RTBSE.")
@@ -343,8 +544,8 @@ CONTAINS
                                "PROJECTION_MO print section not yet implemented for RTBSE.")
       CALL warn_section_unused(rtbse_env%rtp_section, "PRINT%RESTART_HISTORY", &
                                "RESTART_HISTORY print section not yet implemented for RTBSE.")
-      ! DEBUG : References to previous environments
-      rtbse_env%qs_env => qs_env
+      ! References to the parent qs_env / bs_env
+      rtbse_env%qs_env => force_env%qs_env
       rtbse_env%bs_env => bs_env
       ! Padé refinement
       rtbse_env%pade_requested = rtbse_env%dft_control%rtp_control%pade_requested
@@ -363,45 +564,69 @@ CONTAINS
          END DO
       END IF
 
-      ! Allocate moments matrices
+      ! Allocate moments matrices.
+      ! In linearized RT-BSE these store the MO-active transformed dipole moments;
+      ! in full RT-BSE they remain AO-sized (initialized from overlap template).
       NULLIFY (rtbse_env%moments)
-      ALLOCATE (rtbse_env%moments(3))
+      ALLOCATE (rtbse_env%moments(3, rtbse_env%n_spin))
       NULLIFY (rtbse_env%moments_field)
-      ALLOCATE (rtbse_env%moments_field(3))
-      DO k = 1, 3
-         ! Matrices are created from overlap template
-         ! Values are initialized in initialize_rtbse_env
-         CALL cp_fm_create(rtbse_env%moments(k), bs_env%fm_s_Gamma%matrix_struct)
-         CALL cp_fm_create(rtbse_env%moments_field(k), bs_env%fm_s_Gamma%matrix_struct)
+      ALLOCATE (rtbse_env%moments_field(3, rtbse_env%n_spin))
+      DO i_spin = 1, rtbse_env%n_spin
+         DO k = 1, 3
+            CALL cp_fm_create(rtbse_env%moments(k, i_spin), mo_struct)
+            CALL cp_fm_create(rtbse_env%moments_field(k, i_spin), mo_struct)
+         END DO
       END DO
 
-      ! Allocate space for density propagation and other operations
+      ! Allocate space for density propagation and other operations.
+      ! In linearized RT-BSE these workspaces are MO-active sized; in full RT-BSE
+      ! they remain at the full AO size.
       NULLIFY (rtbse_env%rho_workspace)
       ALLOCATE (rtbse_env%rho_workspace(4))
       DO i = 1, SIZE(rtbse_env%rho_workspace)
-         CALL cp_cfm_create(rtbse_env%rho_workspace(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_create(rtbse_env%rho_workspace(i), mo_struct)
          CALL cp_cfm_set_all(rtbse_env%rho_workspace(i), CMPLX(0.0, 0.0, kind=dp))
       END DO
+
+      ! TODO: gate workspace allocation so methods skip workspaces they don't need
+
       ! Allocate real workspace
       NULLIFY (rtbse_env%real_workspace)
-      SELECT CASE (rtbse_env%mat_exp_method)
-      CASE (do_exact)
-         ALLOCATE (rtbse_env%real_workspace(4))
-      CASE (do_bch)
+      IF (rtbse_env%linearized) THEN
          ALLOCATE (rtbse_env%real_workspace(2))
-      CASE DEFAULT
-         CPABORT("Only exact and BCH matrix propagation implemented in RT-BSE")
-      END SELECT
+      ELSE
+         SELECT CASE (rtbse_env%mat_exp_method)
+         CASE (do_exact)
+            ALLOCATE (rtbse_env%real_workspace(4))
+         CASE (do_bch)
+            ALLOCATE (rtbse_env%real_workspace(2))
+         CASE DEFAULT
+            CPABORT("Only exact and BCH matrix propagation implemented in RT-BSE")
+         END SELECT
+      END IF
       DO i = 1, SIZE(rtbse_env%real_workspace)
          CALL cp_fm_create(rtbse_env%real_workspace(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(rtbse_env%real_workspace(i), 0.0_dp)
       END DO
-      ! Allocate density matrix
+      NULLIFY (rtbse_env%sigma_complex_workspace)
+      ALLOCATE (rtbse_env%sigma_complex_workspace(1))
+      CALL cp_cfm_create(rtbse_env%sigma_complex_workspace(1), bs_env%fm_ks_Gamma(1)%matrix_struct)
+      CALL cp_cfm_set_all(rtbse_env%sigma_complex_workspace(1), CMPLX(0.0_dp, 0.0_dp, kind=dp))
+      ! Allocate density matrix (MO-active sized when linearized; AO-sized otherwise)
       NULLIFY (rtbse_env%rho)
       ALLOCATE (rtbse_env%rho(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
-         CALL cp_cfm_create(rtbse_env%rho(i), matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
+         CALL cp_cfm_create(rtbse_env%rho(i), matrix_struct=mo_struct)
       END DO
+      ! Allocate additional space for AO density matrix
+      ! in linearised RTBSE, where default is MO
+      IF (rtbse_env%linearized) THEN
+         NULLIFY (rtbse_env%rho_ao_scratch)
+         ALLOCATE (rtbse_env%rho_ao_scratch(rtbse_env%n_spin))
+         DO i = 1, rtbse_env%n_spin
+            CALL cp_cfm_create(rtbse_env%rho_ao_scratch(i), matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
+         END DO
+      END IF
       ! Create the inverse overlap matrix, for use in density propagation
       ! Start by creating the actual overlap matrix
       CALL cp_fm_create(rtbse_env%S_fm, bs_env%fm_s_Gamma%matrix_struct)
@@ -409,19 +634,32 @@ CONTAINS
       CALL cp_cfm_create(rtbse_env%S_cfm, bs_env%fm_s_Gamma%matrix_struct)
 
       ! Create the single particle hamiltonian
-      ! Allocate workspace
+      ! Allocate workspace (MO-active sized in linearized RT-BSE; AO sized otherwise)
       NULLIFY (rtbse_env%ham_workspace)
       ALLOCATE (rtbse_env%ham_workspace(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
-         CALL cp_cfm_create(rtbse_env%ham_workspace(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_create(rtbse_env%ham_workspace(i), mo_struct)
          CALL cp_cfm_set_all(rtbse_env%ham_workspace(i), CMPLX(0.0, 0.0, kind=dp))
       END DO
       ! Now onto the Hamiltonian itself
+      ! full RTBSE: Contains energy differences and Hartree/COHSEX ρ_0 parts
+      ! linearised RTBSE: Contains only the Hartree/SEX ρ_0 parts as Δε * Δρ(t) need to be updated
       NULLIFY (rtbse_env%ham_reference)
       ALLOCATE (rtbse_env%ham_reference(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
-         CALL cp_cfm_create(rtbse_env%ham_reference(i), bs_env%fm_ks_Gamma(i)%matrix_struct)
+         CALL cp_cfm_create(rtbse_env%ham_reference(i), mo_struct)
       END DO
+      ! Single particle Hamiltonian (Δε * Δρ(t)) for updates during timesteps in LR-RTBSE
+      IF (rtbse_env%linearized) THEN
+         NULLIFY (rtbse_env%ham_reference_singleparticle)
+         ALLOCATE (rtbse_env%ham_reference_singleparticle(rtbse_env%n_spin))
+         DO i = 1, rtbse_env%n_spin
+            CALL cp_cfm_create(rtbse_env%ham_reference_singleparticle(i), mo_struct)
+         END DO
+         NULLIFY (rtbse_env%eps_active)
+         ALLOCATE (rtbse_env%eps_active(rtbse_env%mo_active, rtbse_env%n_spin))
+         rtbse_env%eps_active(:, :) = 0.0_dp
+      END IF
 
       ! Create the matrices and workspaces for ETRS propagation
       NULLIFY (rtbse_env%ham_effective)
@@ -435,16 +673,29 @@ CONTAINS
       ALLOCATE (rtbse_env%rho_M(rtbse_env%n_spin))
       ALLOCATE (rtbse_env%rho_orig(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
-         CALL cp_cfm_create(rtbse_env%ham_effective(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_create(rtbse_env%ham_effective(i), mo_struct)
          CALL cp_cfm_set_all(rtbse_env%ham_effective(i), CMPLX(0.0, 0.0, kind=dp))
-         CALL cp_cfm_create(rtbse_env%rho_new(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_create(rtbse_env%rho_new(i), mo_struct)
          CALL cp_cfm_set_all(rtbse_env%rho_new(i), CMPLX(0.0, 0.0, kind=dp))
-         CALL cp_cfm_create(rtbse_env%rho_new_last(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_create(rtbse_env%rho_new_last(i), mo_struct)
          CALL cp_cfm_set_all(rtbse_env%rho_new_last(i), CMPLX(0.0, 0.0, kind=dp))
-         CALL cp_cfm_create(rtbse_env%rho_M(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_create(rtbse_env%rho_M(i), mo_struct)
          CALL cp_cfm_set_all(rtbse_env%rho_M(i), CMPLX(0.0, 0.0, kind=dp))
-         CALL cp_cfm_create(rtbse_env%rho_orig(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_create(rtbse_env%rho_orig(i), mo_struct)
       END DO
+
+      !For LR-RTBSE we need RK4 coefficients - create new workspace
+      IF (rtbse_env%linearized) THEN
+         ! Indexed by SPIN, not by RK4 stage: the spin loop is inner to each stage (do_rk4_stage), so every
+         ! spin's current-stage k must be live at once, but only one stage's k per spin - each is folded
+         ! into rho_end and the next stage density before the next stage overwrites it. Hence size n_spin.
+         NULLIFY (rtbse_env%rk4_coefficients)
+         ALLOCATE (rtbse_env%rk4_coefficients(rtbse_env%n_spin))
+         DO i = 1, rtbse_env%n_spin
+            CALL cp_cfm_create(rtbse_env%rk4_coefficients(i), mo_struct)
+            CALL cp_cfm_set_all(rtbse_env%rk4_coefficients(i), CMPLX(0.0, 0.0, kind=dp))
+         END DO
+      END IF
 
       ! Fields for exact diagonalisation
       NULLIFY (rtbse_env%real_eigvals)
@@ -463,7 +714,9 @@ CONTAINS
       NULLIFY (rtbse_env%time_trace)
       ALLOCATE (rtbse_env%time_trace(rtbse_env%sim_nsteps + 1), source=0.0_dp)
 
-      ! Allocate self-energy parts and dynamic Hartree potential
+      ! Allocate self-energy parts and dynamic Hartree potential.
+      ! In linearized RT-BSE these matrices hold the MO-active-sized result of the
+      ! AO->MO transform; the AO-sized buffer is allocated as sigma_*_ao below.
       NULLIFY (rtbse_env%hartree_curr)
       NULLIFY (rtbse_env%sigma_SEX)
       NULLIFY (rtbse_env%sigma_COH)
@@ -471,19 +724,111 @@ CONTAINS
       ALLOCATE (rtbse_env%sigma_SEX(rtbse_env%n_spin))
       ALLOCATE (rtbse_env%sigma_COH(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
-         CALL cp_fm_create(rtbse_env%sigma_COH(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_cfm_create(rtbse_env%sigma_SEX(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_create(rtbse_env%hartree_curr(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_create(rtbse_env%sigma_COH(i), mo_struct)
+         CALL cp_cfm_create(rtbse_env%sigma_SEX(i), mo_struct)
+         CALL cp_fm_create(rtbse_env%hartree_curr(i), mo_struct)
          CALL cp_fm_set_all(rtbse_env%sigma_COH(i), 0.0_dp)
          CALL cp_cfm_set_all(rtbse_env%sigma_SEX(i), CMPLX(0.0, 0.0, kind=dp))
          CALL cp_fm_set_all(rtbse_env%hartree_curr(i), 0.0_dp)
       END DO
+      ! AO-sized scratch buffers used by the linearized RT-BSE path
+      IF (rtbse_env%linearized) THEN
+         NULLIFY (rtbse_env%hartree_curr_ao)
+         NULLIFY (rtbse_env%sigma_SEX_ao)
+         ALLOCATE (rtbse_env%hartree_curr_ao(rtbse_env%n_spin))
+         ALLOCATE (rtbse_env%sigma_SEX_ao(rtbse_env%n_spin))
+         DO i = 1, rtbse_env%n_spin
+            CALL cp_cfm_create(rtbse_env%sigma_SEX_ao(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+            CALL cp_fm_create(rtbse_env%hartree_curr_ao(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+            CALL cp_cfm_set_all(rtbse_env%sigma_SEX_ao(i), CMPLX(0.0, 0.0, kind=dp))
+            CALL cp_fm_set_all(rtbse_env%hartree_curr_ao(i), 0.0_dp)
+         END DO
+         ! mo_active x mo_active real workspace pair for MO-side intermediates
+         NULLIFY (rtbse_env%real_workspace_mo)
+         ALLOCATE (rtbse_env%real_workspace_mo(2))
+         DO i = 1, SIZE(rtbse_env%real_workspace_mo)
+            CALL cp_fm_create(rtbse_env%real_workspace_mo(i), rtbse_env%fm_struct_mo_active)
+            CALL cp_fm_set_all(rtbse_env%real_workspace_mo(i), 0.0_dp)
+         END DO
+         NULLIFY (rtbse_env%ao_mo_workspace)
+         ALLOCATE (rtbse_env%ao_mo_workspace(1))
+         CALL cp_fm_create(rtbse_env%ao_mo_workspace(1), rtbse_env%fm_struct_ao_mo_active)
+         CALL cp_fm_set_all(rtbse_env%ao_mo_workspace(1), 0.0_dp)
+         ! Truncated MO coefficient slabs C_active (n_ao x mo_active) for each spin.
+         ! Filled in initialize_rtbse_env from bs_env%fm_mo_coeff_Gamma via submatrix copy.
+         NULLIFY (rtbse_env%C_active)
+         ALLOCATE (rtbse_env%C_active(rtbse_env%n_spin))
+         DO i = 1, rtbse_env%n_spin
+            CALL cp_fm_create(rtbse_env%C_active(i), rtbse_env%fm_struct_ao_mo_active)
+            CALL cp_fm_set_all(rtbse_env%C_active(i), 0.0_dp)
+         END DO
+         ! Masked-copy staging scratch for the builder (all propagation paths including closed-shell ABBA).
+         ! Also used as conjugate-transpose scratch in the TDA consumer.
+         NULLIFY (rtbse_env%rho_delta_mo)
+         ALLOCATE (rtbse_env%rho_delta_mo(rtbse_env%n_spin))
+         DO i = 1, rtbse_env%n_spin
+            CALL cp_cfm_create(rtbse_env%rho_delta_mo(i), rtbse_env%fm_struct_mo_active)
+            CALL cp_cfm_set_all(rtbse_env%rho_delta_mo(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
+         END DO
+         ! Shared AO Hartree buffers: widened from (tda_active .OR. n_spin>1) so n_spin=1 ABBA
+         ! (diagnostic + propagator) gets a dedicated buffer instead of aliasing sigma_SEX_ao.
+         IF (.NOT. rtbse_env%debug_disable_hartree) THEN
+            CALL cp_cfm_create(rtbse_env%rho_total_ao_scratch, bs_env%fm_s_Gamma%matrix_struct)
+            CALL cp_cfm_create(rtbse_env%hartree_total_ao, bs_env%fm_ks_Gamma(1)%matrix_struct)
+            CALL cp_cfm_set_all(rtbse_env%rho_total_ao_scratch, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+            CALL cp_cfm_set_all(rtbse_env%hartree_total_ao, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+         END IF
+         ! Liouvillian-eigenvalue diagnostic state. n_spin=1 enforced upstream.
+         ! Shared scratch (TDA + ABBA) allocated on diagnose_liouvillian_eig=T;
+         ! ABBA-only A/B/A±B blocks added below under .NOT. tda_active. Mirror of the
+         ! existing shared-scratch pattern, with the extra tda_active gate as the deviation.
+         IF (rtbse_env%diagnose_liouvillian_eig) THEN
+            ! Joint OV dimension: the spin blocks are stacked (n_spin=1 -> the old single-spin
+            ! size). drho_probe/L_drho stay mo_active-sized per spin; L_pairs is N_OV_joint.
+            n_ov = 0
+            DO i = 1, rtbse_env%n_spin
+               n_ov = n_ov + (rtbse_env%n_occ(i) - rtbse_env%first_active_mo + 1)* &
+                      (rtbse_env%last_active_mo - rtbse_env%n_occ(i))
+            END DO
+            NULLIFY (rtbse_env%fm_struct_ov_pairs)
+            CALL cp_fm_struct_create(rtbse_env%fm_struct_ov_pairs, &
+                                     bs_env%fm_ks_Gamma(1)%matrix_struct%para_env, &
+                                     bs_env%fm_ks_Gamma(1)%matrix_struct%context, &
+                                     n_ov, n_ov)
+            ALLOCATE (rtbse_env%drho_probe(rtbse_env%n_spin))
+            ALLOCATE (rtbse_env%L_drho(rtbse_env%n_spin))
+            DO i = 1, rtbse_env%n_spin
+               CALL cp_cfm_create(rtbse_env%drho_probe(i), rtbse_env%fm_struct_mo_active)
+               CALL cp_cfm_create(rtbse_env%L_drho(i), rtbse_env%fm_struct_mo_active)
+               CALL cp_cfm_set_all(rtbse_env%drho_probe(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
+               CALL cp_cfm_set_all(rtbse_env%L_drho(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
+            END DO
+            CALL cp_cfm_create(rtbse_env%L_pairs, rtbse_env%fm_struct_ov_pairs)
+            CALL cp_cfm_create(rtbse_env%eigvecs_pairs, rtbse_env%fm_struct_ov_pairs)
+            CALL cp_cfm_set_all(rtbse_env%L_pairs, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+            CALL cp_cfm_set_all(rtbse_env%eigvecs_pairs, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+            NULLIFY (rtbse_env%eigenvalues_liouvillian)
+            ALLOCATE (rtbse_env%eigenvalues_liouvillian(n_ov))
+            rtbse_env%eigenvalues_liouvillian = 0.0_dp
+            ! ABBA-only Furche-reduction scratch (A, B, A-B->sqrt, A+B).
+            IF (.NOT. rtbse_env%tda_active) THEN
+               CALL cp_cfm_create(rtbse_env%A_mat, rtbse_env%fm_struct_ov_pairs)
+               CALL cp_cfm_create(rtbse_env%B_mat, rtbse_env%fm_struct_ov_pairs)
+               CALL cp_cfm_create(rtbse_env%AmB_scratch, rtbse_env%fm_struct_ov_pairs)
+               CALL cp_cfm_create(rtbse_env%ApB_scratch, rtbse_env%fm_struct_ov_pairs)
+               CALL cp_cfm_set_all(rtbse_env%A_mat, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+               CALL cp_cfm_set_all(rtbse_env%B_mat, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+               CALL cp_cfm_set_all(rtbse_env%AmB_scratch, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+               CALL cp_cfm_set_all(rtbse_env%ApB_scratch, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+            END IF
+         END IF
+      END IF
 
       ! Allocate workspaces for get_sigma
-      CALL create_sigma_workspace(rtbse_env, qs_env)
+      CALL create_sigma_workspace(rtbse_env)
 
       ! Depending on the chosen methods, allocate extra workspace
-      CALL create_hartree_ri_workspace(rtbse_env, qs_env)
+      CALL create_hartree_ri_workspace(rtbse_env)
 
    END SUBROUTINE create_rtbse_env
 
@@ -519,13 +864,22 @@ CONTAINS
       CALL cp_cfm_release_pa1(rtbse_env%sigma_SEX)
       CALL cp_fm_release(rtbse_env%hartree_curr)
       CALL cp_cfm_release_pa1(rtbse_env%ham_reference)
+      IF (ASSOCIATED(rtbse_env%ham_reference_singleparticle)) THEN
+         CALL cp_cfm_release_pa1(rtbse_env%ham_reference_singleparticle)
+      END IF
+      IF (ASSOCIATED(rtbse_env%eps_active)) DEALLOCATE (rtbse_env%eps_active)
+      IF (ASSOCIATED(rtbse_env%eps_active_restart)) DEALLOCATE (rtbse_env%eps_active_restart)
       CALL cp_cfm_release_pa1(rtbse_env%rho)
       CALL cp_cfm_release_pa1(rtbse_env%rho_workspace)
       CALL cp_cfm_release_pa1(rtbse_env%rho_new)
       CALL cp_cfm_release_pa1(rtbse_env%rho_new_last)
       CALL cp_cfm_release_pa1(rtbse_env%rho_M)
       CALL cp_cfm_release_pa1(rtbse_env%rho_orig)
+      IF (ASSOCIATED(rtbse_env%rk4_coefficients)) THEN
+         CALL cp_cfm_release_pa1(rtbse_env%rk4_coefficients)
+      END IF
       CALL cp_fm_release(rtbse_env%real_workspace)
+      IF (ASSOCIATED(rtbse_env%sigma_complex_workspace)) CALL cp_cfm_release_pa1(rtbse_env%sigma_complex_workspace)
       CALL cp_fm_release(rtbse_env%S_inv_fm)
       CALL cp_fm_release(rtbse_env%S_fm)
       CALL cp_cfm_release(rtbse_env%S_cfm)
@@ -548,33 +902,209 @@ CONTAINS
 
       ! Deallocate the neighbour list that is not deallocated in gw anymore
       IF (ASSOCIATED(rtbse_env%bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(rtbse_env%bs_env%nl_3c)
+      ! Release linearized-only AO scratches and MO-side workspaces
+      IF (ASSOCIATED(rtbse_env%rho_ao_scratch)) CALL cp_cfm_release_pa1(rtbse_env%rho_ao_scratch)
+      IF (ASSOCIATED(rtbse_env%sigma_SEX_ao)) CALL cp_cfm_release_pa1(rtbse_env%sigma_SEX_ao)
+      IF (ASSOCIATED(rtbse_env%hartree_curr_ao)) CALL cp_fm_release(rtbse_env%hartree_curr_ao)
+      IF (ASSOCIATED(rtbse_env%real_workspace_mo)) CALL cp_fm_release(rtbse_env%real_workspace_mo)
+      IF (ASSOCIATED(rtbse_env%ao_mo_workspace)) CALL cp_fm_release(rtbse_env%ao_mo_workspace)
+      IF (ASSOCIATED(rtbse_env%C_active)) CALL cp_fm_release(rtbse_env%C_active)
+      IF (ASSOCIATED(rtbse_env%rho_delta_mo)) CALL cp_cfm_release_pa1(rtbse_env%rho_delta_mo)
+      ! Release shared bare-Hartree scratch. Mirror the alloc gate exactly (linearized .AND.
+      ! .NOT. debug_disable_hartree, every shell incl closed-shell ABBA) — the old
+      ! (tda_active .OR. n_spin>1) gate leaked both buffers on the closed-shell ABBA path.
+      IF (rtbse_env%linearized .AND. .NOT. rtbse_env%debug_disable_hartree) THEN
+         CALL cp_cfm_release(rtbse_env%rho_total_ao_scratch)
+         CALL cp_cfm_release(rtbse_env%hartree_total_ao)
+      END IF
+      ! Release the RI-RS Hartree diagonal-reuse accumulators (allocated in initialize_hartree_potential).
+      IF (ALLOCATED(rtbse_env%hartree_diag_re)) DEALLOCATE (rtbse_env%hartree_diag_re)
+      IF (ALLOCATED(rtbse_env%hartree_diag_im)) DEALLOCATE (rtbse_env%hartree_diag_im)
+      ! Release Liouvillian-diagnostic scratch (only when the diagnostic was requested).
+      IF (rtbse_env%diagnose_liouvillian_eig) THEN
+         IF (ASSOCIATED(rtbse_env%drho_probe)) CALL cp_cfm_release_pa1(rtbse_env%drho_probe)
+         IF (ASSOCIATED(rtbse_env%L_drho)) CALL cp_cfm_release_pa1(rtbse_env%L_drho)
+         CALL cp_cfm_release(rtbse_env%L_pairs)
+         CALL cp_cfm_release(rtbse_env%eigvecs_pairs)
+         IF (ASSOCIATED(rtbse_env%eigenvalues_liouvillian)) DEALLOCATE (rtbse_env%eigenvalues_liouvillian)
+         IF (.NOT. rtbse_env%tda_active) THEN
+            CALL cp_cfm_release(rtbse_env%A_mat)
+            CALL cp_cfm_release(rtbse_env%B_mat)
+            CALL cp_cfm_release(rtbse_env%AmB_scratch)
+            CALL cp_cfm_release(rtbse_env%ApB_scratch)
+         END IF
+         IF (ASSOCIATED(rtbse_env%fm_struct_ov_pairs)) THEN
+            CALL cp_fm_struct_release(rtbse_env%fm_struct_ov_pairs)
+         END IF
+      END IF
+      ! Release owned active-MO matrix structures
+      IF (ASSOCIATED(rtbse_env%fm_struct_mo_active)) THEN
+         CALL cp_fm_struct_release(rtbse_env%fm_struct_mo_active)
+      END IF
+      IF (ASSOCIATED(rtbse_env%fm_struct_ao_mo_active)) THEN
+         CALL cp_fm_struct_release(rtbse_env%fm_struct_ao_mo_active)
+      END IF
       ! Deallocate the storage for the environment itself
       DEALLOCATE (rtbse_env)
       ! Nullify to make sure it is not used again
       NULLIFY (rtbse_env)
 
    END SUBROUTINE release_rtbse_env
+
+! **************************************************************************************************
+!> \brief Abort if the quasiparticle spectrum handed to the propagator is inverted or has diverged.
+!>
+!> Tests the fundamental gap per spin channel - not E(HOMO+1) - E(HOMO), since G0W0 reorders levels -
+!> on the very array the propagator consumes. Under RTBSE_HAMILTONIAN KS the quasiparticle energies
+!> never enter the propagator, so a broken G0W0 spectrum is irrelevant there and does not abort.
+!> \param rtbse_env RT-BSE environment with n_ao, n_occ, n_spin, ham_reference_type populated.
+!> \param bs_env Bandstructure environment providing the eigenvalues.
+! **************************************************************************************************
+   SUBROUTINE check_qp_gap_sanity(rtbse_env, bs_env)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      INTEGER                                            :: homo, ispin
+      REAL(KIND=dp)                                      :: gap, gap_scf
+
+      IF (rtbse_env%ham_reference_type /= rtp_bse_ham_g0w0) RETURN
+
+      DO ispin = 1, rtbse_env%n_spin
+         homo = rtbse_env%n_occ(ispin)
+         IF (homo < 1 .OR. homo >= rtbse_env%n_ao) CYCLE
+
+         gap = MINVAL(bs_env%eigenval_G0W0(homo + 1:rtbse_env%n_ao, 1, ispin)) - &
+               MAXVAL(bs_env%eigenval_G0W0(1:homo, 1, ispin))
+         gap_scf = MINVAL(bs_env%eigenval_scf_Gamma(homo + 1:rtbse_env%n_ao, ispin)) - &
+                   MAXVAL(bs_env%eigenval_scf_Gamma(1:homo, ispin))
+
+         ! requiring a healthy SCF gap keeps the inversion test from firing on a genuine metal
+         IF (gap < -eps_qp_gap .AND. gap_scf > eps_qp_gap) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "RTBSE: G0W0 gap of spin "//TRIM(ADJUSTL(cp_to_string(ispin)))// &
+                          " is negative ("//TRIM(ADJUSTL(cp_to_string(gap*evolt, '(F12.3)')))// &
+                          " eV): propagating an inverted spectrum is meaningless. Check the GW "// &
+                          "numerical parameters, or use RTBSE_HAMILTONIAN KS.")
+         ELSE IF (ABS(gap) > max_qp_gap) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "RTBSE: G0W0 gap of spin "//TRIM(ADJUSTL(cp_to_string(ispin)))// &
+                          " is implausibly large ("// &
+                          TRIM(ADJUSTL(cp_to_string(gap*evolt, '(F12.3)')))//" eV): the GW step "// &
+                          "has likely diverged. Check the GW numerical parameters, or use "// &
+                          "RTBSE_HAMILTONIAN KS.")
+         END IF
+      END DO
+
+   END SUBROUTINE check_qp_gap_sanity
+
+! **************************************************************************************************
+!> \brief Determine the combined active MO window for linearized RT-BSE truncation.
+!>
+!> Evaluates BSE-like cutoff indices per spin from the requested single-particle spectrum
+!> (G0W0 or KS Gamma-point eigenvalues) and collapses them into a single combined window
+!> covering both spin channels by choosing the most inclusive bounds. Issues a CPWARN if the
+!> spin-resolved cutoff candidates differ. When cutoffs are disabled (or the run is not
+!> linearized RT-BSE), the window is set to the full MO range.
+!> \param rtbse_env RT-BSE environment with cutoff values, n_ao, n_occ, n_spin, ham_reference_type
+!>                  already populated.
+!> \param bs_env Bandstructure environment providing the eigenvalues.
+! **************************************************************************************************
+   SUBROUTINE determine_active_mo_window(rtbse_env, bs_env)
+      TYPE(rtbse_env_type), POINTER                       :: rtbse_env
+      TYPE(post_scf_bandstructure_type), POINTER          :: bs_env
+      CHARACTER(LEN=*), PARAMETER                         :: routineN = "determine_active_mo_window"
+
+      INTEGER                                             :: handle, ispin, n_ao_full, n_virt
+      INTEGER                                             :: homo_red, virt_red, homo_incl, virt_incl
+      INTEGER                                             :: combined_first_occ, combined_last_virt
+      INTEGER                                             :: first_occ_prev, last_virt_prev
+      LOGICAL                                             :: spins_differ, do_truncation
+      REAL(KIND=dp)                                       :: cutoff_occ, cutoff_empty
+
+      CALL timeset(routineN, handle)
+
+      n_ao_full = rtbse_env%n_ao
+      cutoff_occ = rtbse_env%rtbse_energy_cutoff_occ
+      cutoff_empty = rtbse_env%rtbse_energy_cutoff_empty
+      do_truncation = rtbse_env%linearized .AND. (cutoff_occ > 0.0_dp .OR. cutoff_empty > 0.0_dp)
+
+      ! Default: full MO window
+      rtbse_env%first_active_mo = 1
+      rtbse_env%last_active_mo = n_ao_full
+      rtbse_env%mo_active = n_ao_full
+      rtbse_env%active_mo_truncation = .FALSE.
+
+      IF (.NOT. do_truncation) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      combined_first_occ = n_ao_full
+      combined_last_virt = 1
+      first_occ_prev = -1
+      last_virt_prev = -1
+      spins_differ = .FALSE.
+
+      DO ispin = 1, rtbse_env%n_spin
+         n_virt = n_ao_full - rtbse_env%n_occ(ispin)
+         ! Cut on the DFT axis, as LRBSE does: it is ascending by construction, so the window is a
+         ! well-defined contiguous MO range, which is all C_active can extract. The G0W0 axis is
+         ! not ordered.
+         CALL determine_cutoff_indices(bs_env%eigenval_scf_Gamma(:, ispin), &
+                                       rtbse_env%n_occ(ispin), n_virt, &
+                                       homo_red, virt_red, homo_incl, virt_incl, &
+                                       cutoff_occ, cutoff_empty)
+         ! Translate the per-spin candidate to global MO indices [homo_incl, homo + virt_incl]
+         IF (ispin > 1) THEN
+            IF (homo_incl /= first_occ_prev .OR. (rtbse_env%n_occ(ispin) + virt_incl) /= last_virt_prev) THEN
+               spins_differ = .TRUE.
+            END IF
+         END IF
+         first_occ_prev = homo_incl
+         last_virt_prev = rtbse_env%n_occ(ispin) + virt_incl
+         combined_first_occ = MIN(combined_first_occ, homo_incl)
+         combined_last_virt = MAX(combined_last_virt, rtbse_env%n_occ(ispin) + virt_incl)
+      END DO
+
+      IF (spins_differ) THEN
+         CPWARN("RTBSE: spin-resolved active MO cutoff candidates differ; using combined window.")
+      END IF
+
+      rtbse_env%first_active_mo = combined_first_occ
+      rtbse_env%last_active_mo = combined_last_virt
+      rtbse_env%mo_active = combined_last_virt - combined_first_occ + 1
+      rtbse_env%active_mo_truncation = (rtbse_env%mo_active < n_ao_full)
+
+      CALL timestop(handle)
+   END SUBROUTINE determine_active_mo_window
+
 ! **************************************************************************************************
 !> \brief Allocates the workspaces for Hartree RI method
 !> \note RI method calculates the Hartree contraction without the use of DBT, as it cannot emulate vectors
 !> \param rtbse_env
-!> \param qs_env Quickstep environment - entry point of calculation
 !> \author Stepan Marek
 !> \date 05.2024
 ! **************************************************************************************************
-   SUBROUTINE create_hartree_ri_workspace(rtbse_env, qs_env)
+   SUBROUTINE create_hartree_ri_workspace(rtbse_env)
       TYPE(rtbse_env_type)                              :: rtbse_env
-      TYPE(qs_environment_type), POINTER                :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER        :: bs_env
 
-      CALL get_qs_env(qs_env, bs_env=bs_env)
+      ! Skip the AO-RI Hartree scratch when the RT-BSE Hartree path is fully RI-RS.
+      ! In that case rho_dbcsr / v_ao_dbcsr / int_3c_array are never read.
+      ! get_sigma_real (AO-RI SX) used to borrow rho_dbcsr as a workspace; that
+      ! cross-dependency was removed by giving get_sigma_real its own local
+      ! dbcsr scratch (see rt_bse.F::get_sigma_real). rho_dbcsr is now AO-RI
+      ! Hartree only, as its name suggests.
+      IF (rtbse_env%rirs_kernel) RETURN
+
+      CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
 
       CALL dbcsr_create(rtbse_env%rho_dbcsr, name="Sparse density", template=bs_env%mat_ao_ao%matrix)
       CALL dbcsr_create(rtbse_env%v_ao_dbcsr, name="Sparse Hartree", template=bs_env%mat_ao_ao%matrix)
 
       CALL create_hartree_ri_3c(rtbse_env%rho_dbcsr, rtbse_env%int_3c_array, rtbse_env%n_ao, rtbse_env%n_RI, &
                                 bs_env%basis_set_AO, bs_env%basis_set_RI, bs_env%i_RI_start_from_atom, &
-                                bs_env%ri_metric, qs_env, rtbse_env%unit_nr)
+                                bs_env%ri_metric, rtbse_env%qs_env, rtbse_env%unit_nr)
    END SUBROUTINE create_hartree_ri_workspace
 ! **************************************************************************************************
 !> \brief Separated method for allocating the 3c integrals for RI Hartree
@@ -676,27 +1206,31 @@ CONTAINS
    SUBROUTINE release_hartree_ri_workspace(rtbse_env)
       TYPE(rtbse_env_type)                              :: rtbse_env
 
-      DEALLOCATE (rtbse_env%int_3c_array)
-
-      CALL dbcsr_release(rtbse_env%rho_dbcsr)
-
-      CALL dbcsr_release(rtbse_env%v_dbcsr)
-
-      CALL dbcsr_release(rtbse_env%v_ao_dbcsr)
-
+      ! Mirror the gate in create_hartree_ri_workspace and the v_dbcsr gate in
+      ! initialize_hartree_potential. With one KERNEL_RI switch the AO-RI Hartree
+      ! scratch (3c integrals + dbcsr work + v_dbcsr) is created iff `.NOT. rirs_kernel`.
+      IF (.NOT. rtbse_env%rirs_kernel) THEN
+         DEALLOCATE (rtbse_env%int_3c_array)
+         CALL dbcsr_release(rtbse_env%rho_dbcsr)
+         CALL dbcsr_release(rtbse_env%v_ao_dbcsr)
+         CALL dbcsr_release(rtbse_env%v_dbcsr)
+      END IF
    END SUBROUTINE release_hartree_ri_workspace
 ! **************************************************************************************************
 !> \brief Allocates the workspaces for self-energy determination routine
 !> \param rtbse_env Structure for holding information and workspace structures
-!> \param qs_env Quickstep environment - entry point of calculation
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE create_sigma_workspace(rtbse_env, qs_env)
+   SUBROUTINE create_sigma_workspace(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CALL create_sigma_workspace_qs_only(qs_env, rtbse_env%screened_dbt, rtbse_env%w_dbcsr, &
+      ! Skip the AO-RI sigma scratch (W matrix + 3c integrals + work tensors)
+      ! when the RT-BSE SEX path is fully RI-RS — these workspaces are read
+      ! only by get_sigma in the `.NOT. rirs_kernel` branches.
+      IF (rtbse_env%rirs_kernel) RETURN
+
+      CALL create_sigma_workspace_qs_only(rtbse_env%qs_env, rtbse_env%screened_dbt, rtbse_env%w_dbcsr, &
                                           rtbse_env%t_3c_w, rtbse_env%t_3c_work_RI_AO__AO, &
                                           rtbse_env%t_3c_work2_RI_AO__AO, rtbse_env%greens_dbt)
    END SUBROUTINE create_sigma_workspace
@@ -745,6 +1279,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_sigma_workspace(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
+
+      ! Mirror the gate in create_sigma_workspace.
+      IF (rtbse_env%rirs_kernel) RETURN
 
       CALL dbt_destroy(rtbse_env%t_3c_w)
       CALL dbt_destroy(rtbse_env%t_3c_work_RI_AO__AO)

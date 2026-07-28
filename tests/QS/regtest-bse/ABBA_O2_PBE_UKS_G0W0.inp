@@ -1,0 +1,83 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT ABBA_O2_PBE_UKS_G0W0
+  RUN_TYPE ENERGY
+  &TIMINGS
+    THRESHOLD 0.01
+  &END TIMINGS
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_def2_TZVP_orb
+    BASIS_SET_FILE_NAME BASIS_def2_TZVP_rifit
+    ! Asymmetric open-shell BSE regtest candidate: O2 triplet (9a/7b), def2-TZVP all-electron GAPW,
+    ! no cutoff so beta's extra virtuals exercise the per-spin (ab|K) Q9 path (ABBA). Not converged physics
+    ! (def2-TZVP-RIFIT auxiliary) - this is a code-reproducibility regtest, not a benchmark.
+    LSD
+    MULTIPLICITY 3
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 600
+      REL_CUTOFF 50
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MULTIPOLE
+    &END POISSON
+    &PRINT
+      &MO
+        ENERGIES T
+      &END MO
+    &END PRINT
+    &QS
+      METHOD GAPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 200
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &WF_CORRELATION
+        &RI_RPA
+          &GW
+            CORR_MOS_OCC -1
+            CORR_MOS_VIRT -1
+            SELF_CONSISTENCY G0W0
+            &BSE
+              NUM_PRINT_EXC 8
+              TDA OFF
+            &END BSE
+          &END GW
+        &END RI_RPA
+      &END WF_CORRELATION
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8 8 8
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O  0.0 0.0 0.0
+      O  0.0 0.0 1.2075
+    &END COORD
+    &KIND O
+      BASIS_SET def2-TZVP
+      BASIS_SET RI_AUX def2-TZVP-RIFIT
+      POTENTIAL ALL
+    &END KIND
+    &PRINT
+      &ATOMIC_COORDINATES ON
+      &END ATOMIC_COORDINATES
+    &END PRINT
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

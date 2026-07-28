@@ -23,6 +23,7 @@ MODULE post_scf_bandstructure_types
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
    USE input_constants,                 ONLY: rtp_method_bse,&
+                                              rtp_method_bse_linearized,&
                                               small_cell_full_kp
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -43,6 +44,14 @@ MODULE post_scf_bandstructure_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'post_scf_bandstructure_types'
 
    PUBLIC :: post_scf_bandstructure_type, band_edges_type, data_3_type, bs_env_release
+
+   ! Sanity bounds on a fundamental quasiparticle gap, in Hartree: below -eps_qp_gap the spectrum is
+   ! inverted, above max_qp_gap the quasiparticle solve has diverged. eps_qp_gap is a noise tolerance,
+   ! low enough that a metal or a near-degenerate system does not trip the inversion test; max_qp_gap
+   ! sits far above any real valence gap (a few tens of eV) but is not derived from the all-electron
+   ! KS spread (~1000 eV), which would defeat the test.
+   REAL(KIND=dp), PARAMETER, PUBLIC                   :: eps_qp_gap = 0.01_dp/evolt, &
+                                                         max_qp_gap = 200.0_dp/evolt
 
    ! valence band maximum (VBM), conduction band minimum (CBM), direct band gap (DBG),
    ! indirect band gap (IDBG)
@@ -76,6 +85,7 @@ MODULE post_scf_bandstructure_types
       LOGICAL                                          :: keep_sparsity_rirs = .TRUE.
       REAL(KIND=dp)                                    :: cutoff_radius_v_w = -1.0_dp
       REAL(KIND=dp)                                    :: cutoff_radius_g_w = -1.0_dp
+      CHARACTER(LEN=default_string_length)             :: grid_file_suffix = ""
 
       ! Data types for cutoffs based DBCSR matrices
       REAL(KIND=dp), ALLOCATABLE                       :: chunk_centroids(:, :)
@@ -95,6 +105,20 @@ MODULE post_scf_bandstructure_types
       ! Per-atom spatial extent of the most diffuse Gaussian primitive in each basis
       REAL(KIND=dp), ALLOCATABLE                       :: radius_ao_per_atom(:)
       REAL(KIND=dp), ALLOCATABLE                       :: radius_ri_per_atom(:)
+
+      ! Precomputed grid-basis kernels for RT-BSE
+      ! mat_V_aux_rtbse(P, Q) = truncated-Coulomb V_PQ with M^-1 sandwich (RI x RI);
+      ! the Hartree grid kernel Z V Z^T is applied factorized, never materialized
+      ! mat_W0_grid_rtbse(l, l') = sum_PQ  Z_lP W^{w=0}_PQ Z_l'Q
+      TYPE(dbcsr_type)                                 :: mat_V_aux_rtbse
+      TYPE(dbcsr_type)                                 :: mat_W0_grid_rtbse
+      LOGICAL                                          :: rtbse_kernels_ready = .FALSE.
+      ! Set TRUE once mat_phi_mu_l and mat_Z_lP have been populated in memory (by GW RI-RS
+      ! or on-demand by the RT-BSE RI-RS kernel path).
+      LOGICAL                                          :: grid_built = .FALSE.
+      ! Independent toggles for V_grid / W0_grid availability
+      LOGICAL                                          :: V_grid_built = .FALSE.
+      LOGICAL                                          :: W0_grid_built = .FALSE.
 
    END TYPE ri_rs_env
 
@@ -280,7 +304,7 @@ MODULE post_scf_bandstructure_types
                                                       skip_Sigma_vir, &
                                                       skip_chi
       ! Marek : rtbse_method
-      INTEGER                                      :: rtp_method = rtp_method_bse
+      INTEGER                                      :: rtp_method = -1
 
       ! check-arrays and names for restarting
       LOGICAL, DIMENSION(:), ALLOCATABLE           :: read_chi, &
@@ -475,7 +499,9 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_RI_RI)
       CALL cp_fm_release(bs_env%fm_chi_Gamma_freq)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq)
-      IF (bs_env%rtp_method == rtp_method_bse) CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
+      IF (bs_env%rtp_method == rtp_method_bse .OR. bs_env%rtp_method == rtp_method_bse_linearized) THEN
+         CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
+      END IF
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_extra)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_no_extra)
       CALL cp_cfm_release(bs_env%cfm_work_mo)
@@ -522,8 +548,10 @@ CONTAINS
       CALL safe_cfm_destroy_1d(bs_env%cfm_SOC_spinor_ao)
 
       ! Deallocate RI-RS matrices
-      IF (bs_env%do_gw_ri_rs) CALL dbcsr_release(bs_env%ri_rs%mat_phi_mu_l)
-      IF (bs_env%do_gw_ri_rs) CALL dbcsr_release(bs_env%ri_rs%mat_Z_lP)
+      IF (bs_env%ri_rs%grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_phi_mu_l)
+      IF (bs_env%ri_rs%grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_Z_lP)
+      IF (bs_env%ri_rs%V_grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_V_aux_rtbse)
+      IF (bs_env%ri_rs%W0_grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_W0_grid_rtbse)
       IF (ALLOCATED(bs_env%ri_rs%grid_points)) DEALLOCATE (bs_env%ri_rs%grid_points)
       IF (ALLOCATED(bs_env%ri_rs%grid_cache)) DEALLOCATE (bs_env%ri_rs%grid_cache)
       IF (ALLOCATED(bs_env%ri_rs%radius_ao_per_atom)) DEALLOCATE (bs_env%ri_rs%radius_ao_per_atom)

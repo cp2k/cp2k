@@ -44,7 +44,8 @@ MODULE input_cp2k_dft
         numerical, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, real_time_propagation, &
         rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, &
         rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, &
-        rtp_bse_ham_g0w0, rtp_bse_ham_ks, rtp_method_bse, rtp_method_tddft, sccs_andreussi, &
+        rtp_bse_ham_g0w0, rtp_bse_ham_ks, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_default, &
+        rtp_bse_kernel_ri_rs, rtp_method_bse, rtp_method_tddft, sccs_andreussi, &
         sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
         sccs_fattebert_gygi, sccs_saa_andreussi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
         sic_mauri_spz, sic_mauri_us, sic_none, slater, use_mom_ref_coac, use_mom_ref_com, &
@@ -1980,6 +1981,21 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL section_add_subsection(print_section, print_key)
       CALL section_release(print_key)
+      ! Liouvillian eigenvalue diagnostic (linearized RT-BSE, TDA only)
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "LIOUVILLIAN_EIG", &
+                                       description="Prints the eigenvalues of the linearized RT-BSE "// &
+                                       "Liouvillian on the OV subspace, computed once at job init from a "// &
+                                       "matrix-free probe of the kernel (no time propagation). In TDA this "// &
+                                       "equals the Casida-A eigenvalue problem and gives a broadening-free, "// &
+                                       "finite-time-free correctness check against bse_full.F. "// &
+                                       "Activated by RTBSE%DIAGNOSE_LIOUVILLIAN_EIG. Output lists "// &
+                                       "eigenvalues in atomic units and eV.", &
+                                       print_level=medium_print_level, common_iter_levels=0, &
+                                       each_iter_names=s2a("MD"), &
+                                       each_iter_values=[1], &
+                                       filename="LIOUVILLIAN_EIG")
+      CALL section_add_subsection(print_section, print_key)
+      CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "E_CONSTITUENTS", &
                                        description="Print the energy constituents (relevant to RTP) which make up "// &
@@ -2052,6 +2068,133 @@ CONTAINS
                           enum_i_vals=[rtp_bse_ham_ks, rtp_bse_ham_g0w0], &
                           enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's propagation.", &
                                         "Use G0W0 Hamiltonian for Green's function propagation"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Switch for linearized rtbse propagation
+      CALL keyword_create(keyword, __LOCATION__, name="LINEARIZED_BSE_PROPAGATION", &
+                          variants=s2a("LRRTBSE"), &
+                          description="Linearizes the BSE propagation", &
+                          usage="LINEARIZED_BSE_PROPAGATION .T.", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Energy cutoff (occupied) for active MO window in linearized RT-BSE
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_OCC", &
+                          description="Energy cutoff (relative to HOMO) defining the lowest "// &
+                          "occupied molecular orbital included in the active MO window of the "// &
+                          "linearized RT-BSE propagation. Only used when "// &
+                          "LINEARIZED_BSE_PROPAGATION=.TRUE.. A non-positive value disables the "// &
+                          "occupied truncation.", &
+                          usage="ENERGY_CUTOFF_OCC 5.0", &
+                          unit_str="eV", &
+                          default_r_val=-1.0_dp/evolt)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Energy cutoff (empty) for active MO window in linearized RT-BSE
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_EMPTY", &
+                          description="Energy cutoff (relative to LUMO) defining the highest "// &
+                          "virtual molecular orbital included in the active MO window of the "// &
+                          "linearized RT-BSE propagation. Only used when "// &
+                          "LINEARIZED_BSE_PROPAGATION=.TRUE.. A non-positive value disables the "// &
+                          "virtual truncation.", &
+                          usage="ENERGY_CUTOFF_EMPTY 5.0", &
+                          unit_str="eV", &
+                          default_r_val=-1.0_dp/evolt)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ENFORCE_MAX_DT", &
+                          description="For linearized RT-BSE, recompute TIMESTEP and STEPS so the same total "// &
+                          "propagation time is covered with the largest timestep that does not exceed the "// &
+                          "estimated RK4 stability limit.", &
+                          usage="ENFORCE_MAX_DT", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Tamm-Dancoff approximation for the linearized RT-BSE kernel
+      CALL keyword_create(keyword, __LOCATION__, name="TDA", &
+                          description="Apply the Tamm-Dancoff approximation to the linearized RT-BSE kernel: "// &
+                          "the Hartree and screened-exchange contributions are restricted so that the OV and VO "// &
+                          "blocks of the density response remain decoupled (i.e. only A-block coupling is kept, "// &
+                          "B-block coupling is dropped). Only effective when "// &
+                          "LINEARIZED_BSE_PROPAGATION=.TRUE..", &
+                          usage="TDA", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! First-peak shift for the TDA path
+      CALL keyword_create(keyword, __LOCATION__, name="TDA_SHIFT_TO_FIRST_PEAK", &
+                          description="For the linearized RT-BSE TDA path, shift the active-MO single-particle "// &
+                          "diagonals by +Omega_0/2 (occupied) and -Omega_0/2 (virtual) with "// &
+                          "Omega_0 = eps_min_ai, so the lowest active OV mode oscillates at zero frequency "// &
+                          "in the rotating frame (RK4-exact for peak 1). omega_max becomes the full active "// &
+                          "OV width Delta = eps_max_ai - eps_min_ai. The rotation is undone at I/O so "// &
+                          "observables remain in the lab frame. Only effective when TDA=.TRUE.. "// &
+                          "Use with caution, additional convergence checks w.r.t. dt needed.", &
+                          usage="TDA_SHIFT_TO_FIRST_PEAK", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_DISABLE_HARTREE", &
+                          description="Debug option for linearized RT-BSE: disables the Hartree kernel in both "// &
+                          "the static reference initialization and the propagation. The Coulomb RI setup is "// &
+                          "still built so the run stays internally consistent.", &
+                          usage="DEBUG_DISABLE_HARTREE", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="KERNEL_RI", &
+                          description="Select the RI framework used to evaluate the linearized RT-BSE "// &
+                          "Hartree and screened-exchange kernels (propagation and reference). "// &
+                          "DEFAULT infers from the GW flavor: RI-RS if the GW_RI_RS section was active, "// &
+                          "AO-RI otherwise. RS/AO force that framework regardless of how GW was run. The "// &
+                          "RI-RS grid (mat_phi_mu_l, mat_Z_lP) and the V_grid/W0_grid kernels are built on "// &
+                          "demand. RI-RS is implemented for linearized RT-BSE only; for full RT-BSE an "// &
+                          "explicit RS is overridden to AO with a warning.", &
+                          usage="KERNEL_RI RS", &
+                          enum_c_vals=s2a("DEFAULT", "RS", "AO"), &
+                          enum_i_vals=[rtp_bse_kernel_ri_default, rtp_bse_kernel_ri_rs, rtp_bse_kernel_ri_ao], &
+                          enum_desc=s2a("Infer from the GW flavor (GW_RI_RS active -> RS, else AO).", &
+                                        "Real-space RI grid kernels (linearized RT-BSE only).", &
+                                        "AO-RI kernels."), &
+                          default_i_val=rtp_bse_kernel_ri_default, n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_DISABLE_SEX", &
+                          description="Debug option for linearized RT-BSE: disables the screened-exchange kernel "// &
+                          "in both the static reference initialization and the propagation.", &
+                          usage="DEBUG_DISABLE_SEX", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Liouvillian eigenvalue diagnostic (matrix-free probe at init; TDA + ABBA)
+      CALL keyword_create(keyword, __LOCATION__, name="DIAGNOSE_LIOUVILLIAN_EIG", &
+                          description="Diagnostic for linearized RT-BSE: at job initialization, build the "// &
+                          "Liouvillian on the OV subspace by probing the kernel routine with canonical OV basis "// &
+                          "vectors, then diagonalize. In TDA this equals the Casida-A eigenvalue problem, giving a "// &
+                          "broadening-free, finite-time-free correctness check against bse_full.F. "// &
+                          "In ABBA it builds and diagonalizes the full coupled (A, B) Liouvillian via the "// &
+                          "Furche reduction. "// &
+                          "Output is controlled by the LIOUVILLIAN_EIG print key in the parent "// &
+                          "&REAL_TIME_PROPAGATION%&PRINT section.", &
+                          usage="DIAGNOSE_LIOUVILLIAN_EIG", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

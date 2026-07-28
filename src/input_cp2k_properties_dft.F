@@ -2632,9 +2632,21 @@ CONTAINS
                           "(1) def2-TZVPP: Available for elements up to the fourth row "// &
                           "of the periodic table (see https://doi.org/10.1021/acs.jctc.1c00101). "// &
                           "(2) cc-pVTZ: Available for H, C, N, and O atoms "// &
-                          "(see https://doi.org/10.1063/1.5090605).", &
+                          "(see https://doi.org/10.1063/1.5090605). "// &
+                          "(3) User-provided grids: per-element grid files supplied by the "// &
+                          "user, read as ri_rs_grid/<Element><suffix> in the same format as "// &
+                          "the built-in sets; the suffix is _rirs.ion by default and can be "// &
+                          "changed with GRID_FILE_SUFFIX.", &
                           usage="GRID_SELECT 1", &
                           default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="GRID_FILE_SUFFIX", &
+                          description="Overrides the per-element grid file suffix used by "// &
+                          "GRID_SELECT 3; grid files are read as ri_rs_grid/<Element><suffix>.", &
+                          usage="GRID_FILE_SUFFIX _my-grids.ion", &
+                          default_lc_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

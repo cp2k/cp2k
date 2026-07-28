@@ -56,16 +56,16 @@ MODULE cp_control_utils
         do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
         gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, gapw_1c_very_large, &
         gaussian_env, gfn1xtb, gfn_tblite, kg_tnadd_embed, kg_tnadd_embed_ri, no_admm_type, &
-        numerical, ramp_env, real_time_propagation, rtp_method_bse, sccs_andreussi, &
-        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
-        sccs_fattebert_gygi, sccs_saa_andreussi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
-        sic_mauri_spz, sic_mauri_us, sic_none, slater, tblite_cli_born_kernel_auto, &
-        tblite_cli_solution_state_gsolv, tblite_cli_solvation_alpb, tblite_cli_solvation_cpcm, &
-        tblite_cli_solvation_gb, tblite_cli_solvation_gbe, tblite_cli_solvation_gbsa, &
-        tblite_guess_ceh, tblite_mixer_memory_inherit, tblite_scc_mixer_auto, &
-        tblite_scc_mixer_cp2k, tblite_scc_mixer_none, tblite_scc_mixer_tblite, tblite_solver_gvd, &
-        tblite_solver_gvr, tddfpt_dipole_length, tddfpt_kernel_stda, use_mom_ref_user, &
-        xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
+        numerical, ramp_env, real_time_propagation, rtp_method_bse, rtp_method_bse_linearized, &
+        sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
+        sccs_derivative_fft, sccs_fattebert_gygi, sccs_saa_andreussi, sic_ad, sic_eo, &
+        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
+        tblite_cli_born_kernel_auto, tblite_cli_solution_state_gsolv, tblite_cli_solvation_alpb, &
+        tblite_cli_solvation_cpcm, tblite_cli_solvation_gb, tblite_cli_solvation_gbe, &
+        tblite_cli_solvation_gbsa, tblite_guess_ceh, tblite_mixer_memory_inherit, &
+        tblite_scc_mixer_auto, tblite_scc_mixer_cp2k, tblite_scc_mixer_none, &
+        tblite_scc_mixer_tblite, tblite_solver_gvd, tblite_solver_gvr, tddfpt_dipole_length, &
+        tddfpt_kernel_stda, use_mom_ref_user, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_cp2k_dft,                  ONLY: create_dft_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -566,7 +566,8 @@ CONTAINS
       IF (do_rtp) THEN
          ! tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY")
          ! CALL section_vals_get(tmp_section, explicit=is_present)
-         local_moment_possible = (dft_control%rtp_control%rtp_method == rtp_method_bse) .OR. &
+         local_moment_possible = (dft_control%rtp_control%rtp_method == rtp_method_bse .OR. &
+                                  dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) .OR. &
                                  ((.NOT. dft_control%rtp_control%periodic) .AND. dft_control%rtp_control%linear_scaling)
          IF (local_moment_possible .AND. (.NOT. ASSOCIATED(dft_control%rtp_control%print_pol_elements))) THEN
             tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION")
@@ -3382,7 +3383,8 @@ CONTAINS
 
       INTEGER                                            :: i, j, n_elems
       INTEGER, DIMENSION(:), POINTER                     :: tmp
-      LOGICAL                                            :: is_present, local_moment_possible
+      LOGICAL                                            :: is_present, linearize_bse_propagation, &
+                                                            local_moment_possible
       TYPE(section_vals_type), POINTER                   :: proj_mo_section, subsection
 
       ALLOCATE (dft_control%rtp_control)
@@ -3398,6 +3400,20 @@ CONTAINS
                                 i_val=dft_control%rtp_control%rtp_method)
       CALL section_vals_val_get(rtp_section, "RTBSE%RTBSE_HAMILTONIAN", &
                                 i_val=dft_control%rtp_control%rtbse_ham)
+      CALL section_vals_val_get(rtp_section, "RTBSE%LINEARIZED_BSE_PROPAGATION", &
+                                l_val=linearize_bse_propagation)
+      ! Change rtp_method to linearized bse. The section parameter also feeds bs_env%rtp_method,
+      ! which gates the W(w=0) build in the GW step - TDDFT there would dispatch the linearized
+      ! propagator with no screened interaction to propagate with, so reject the combination.
+      IF (linearize_bse_propagation) THEN
+         IF (dft_control%rtp_control%rtp_method /= rtp_method_bse) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "LINEARIZED_BSE_PROPAGATION requires the RTBSE section opened as "// &
+                          "'&RTBSE' or '&RTBSE RTBSE', not '&RTBSE TDDFT'.")
+         END IF
+         dft_control%rtp_control%rtp_method = rtp_method_bse_linearized
+      END IF
+
       CALL section_vals_val_get(rtp_section, "PROPAGATOR", &
                                 i_val=dft_control%rtp_control%propagator)
       CALL section_vals_val_get(rtp_section, "EPS_ITER", &
@@ -3448,7 +3464,8 @@ CONTAINS
          dft_control%rtp_control%is_proj_mo = .FALSE.
       END IF
       ! Moment trace
-      local_moment_possible = (dft_control%rtp_control%rtp_method == rtp_method_bse) .OR. &
+      local_moment_possible = (dft_control%rtp_control%rtp_method == rtp_method_bse .OR. &
+                               dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) .OR. &
                               ((.NOT. dft_control%rtp_control%periodic) .AND. dft_control%rtp_control%linear_scaling)
       ! TODO : Implement for other moment operators
       subsection => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS")

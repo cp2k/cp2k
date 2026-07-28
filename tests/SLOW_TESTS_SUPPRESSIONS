@@ -99,4 +99,11 @@ QS/regtest-gauxc-gpw-mech/H2P_NATIVE_SKALA_GPW_UKS_PBC_FORCE_DEBUG.inp
 QS/regtest-gauxc-gapw-gth/H2_NATIVE_SKALA_GAPW_GTH_STRESS_DEBUG.inp
 QS/regtest-gauxc-gapw-ecp/H2_NATIVE_SKALA_GAPW_ECP_STRESS_DEBUG.inp
 
+# Open-shell BSE on O2: an all-electron G0W0 step followed by the full BSE
+# diagonalisation for both spin channels. O2 is the only open-shell reference
+# system in the suite that is not H2, so the cost cannot be reduced further
+# without losing that coverage.
+QS/regtest-bse/TDA_O2_PBE_UKS_G0W0.inp
+QS/regtest-bse/ABBA_O2_PBE_UKS_G0W0.inp
+
 #EOF

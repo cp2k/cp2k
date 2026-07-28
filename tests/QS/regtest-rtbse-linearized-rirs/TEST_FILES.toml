@@ -1,0 +1,17 @@
+"h2_linrtbse_abba_rirs.inp"              = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=17.4347},
+                                            {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.0489},
+                                            {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.2291},
+                                            {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=6.5643377772E-001}]
+"h2_linrtbse_tda_full_rirs.inp"          = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=18.0144},
+                                            {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2591},
+                                            {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5588},
+                                            {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=8.7462404927E-001}]
+"h2_linrtbse_tda_full_rirs_gridsel3.inp" = [{matcher="RIRS_Grid",               tol=1e-03, ref=272},
+                                            {matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=18.0144},
+                                            {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2591},
+                                            {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5588},
+                                            {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=8.7462404928E-001}]
+"h2_linrtbse_abba_full_rirs.inp"         = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=17.435},
+                                            {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.0499},
+                                            {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.2316},
+                                            {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=6.5646779778E-001}]

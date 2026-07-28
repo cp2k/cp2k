@@ -109,7 +109,8 @@ MODULE gw_non_periodic_ri_rs
    INTEGER(KIND=int_8), PARAMETER, PRIVATE :: dbcsr_msg_elem_limit = INT(HUGE(0_int_4), int_8)
 
    PUBLIC :: gw_calc_non_periodic_ri_rs, ri_rs_grid_assembler, &
-             get_basis_offsets, precompute_ri_rs_radii, solve_D_lp_distributed
+             get_basis_offsets, precompute_ri_rs_radii, solve_D_lp_distributed, &
+             atomic_basis_at_grid_point, compute_coeff_Z_lP
 
 CONTAINS
 
@@ -173,6 +174,8 @@ CONTAINS
       ! ========================================================================
       CALL compute_coeff_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
                               bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
+      ! flag the RI-RS grid as built so a subsequent RT-BSE run reuses Z_lP instead of rebuilding it
+      bs_env%ri_rs%grid_built = .TRUE.
 
       ! ========================================================================
       ! 4. Polarizability matrix χ on the imaginary-time grid
@@ -219,7 +222,7 @@ CONTAINS
       ! ========================================================================
       CALL compute_QP_energies(bs_env, qs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time)
 
-      CALL de_init_bs_env(bs_env)
+      CALL de_init_bs_env(qs_env, bs_env)
 
       CALL timestop(handle)
 
@@ -532,8 +535,14 @@ CONTAINS
          suffix = "_def2-tzvp-rs.ion"
       ELSE IF (bs_env%ri_rs%grid_select == 2) THEN
          suffix = "_cc-pvtz-rs.ion"
+      ELSE IF (bs_env%ri_rs%grid_select == 3) THEN
+         IF (LEN_TRIM(bs_env%ri_rs%grid_file_suffix) > 0) THEN
+            suffix = TRIM(bs_env%ri_rs%grid_file_suffix)
+         ELSE
+            suffix = "_rirs.ion"
+         END IF
       ELSE
-         CPABORT("Unknown grid_select value. Valid options are 1 (def2-TZVPP) or 2 (cc-pVTZ).")
+         CPABORT("Unknown grid_select (1=def2-TZVPP, 2=cc-pVTZ, 3=user-provided).")
       END IF
 
       nkind = SIZE(atomic_kind_set)

@@ -192,15 +192,16 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: Erpa
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(three_dim_real_array), DIMENSION(:), &
-         INTENT(INOUT)                                   :: BIb_C, BIb_C_gw
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: BIb_C_bse_ij, BIb_C_bse_ab
+         INTENT(INOUT)                                   :: BIb_C, BIb_C_gw, BIb_C_bse_ij, &
+                                                            BIb_C_bse_ab
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
       INTEGER, INTENT(INOUT)                             :: color_sub
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_array
       TYPE(group_dist_d1_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: gd_B_virtual
-      TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_all, gd_B_occ_bse, gd_B_virt_bse
+      TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_all
+      TYPE(group_dist_d1_type), DIMENSION(:), &
+         INTENT(INOUT)                                   :: gd_B_occ_bse, gd_B_virt_bse
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints, &
@@ -213,8 +214,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt
-      INTEGER, INTENT(IN)                                :: bse_lev_virt, unit_nr
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt, &
+                                                            bse_lev_virt
+      INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, my_do_gw, &
                                                             do_im_time, do_bse
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -233,29 +235,28 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_ri_compute_en'
 
-      INTEGER :: best_integ_group_size, best_num_integ_point, color_rpa_group, dimen_homo_square, &
-         dimen_nm_gw, dimen_virt_square, handle, handle2, handle3, ierr, iiB, &
-         input_num_integ_groups, integ_group_size, ispin, jjB, min_integ_group_size, &
-         my_ab_comb_bse_end, my_ab_comb_bse_size, my_ab_comb_bse_start, my_group_L_end, &
-         my_group_L_size, my_group_L_start, my_ij_comb_bse_end, my_ij_comb_bse_size, &
-         my_ij_comb_bse_start, my_nm_gw_end, my_nm_gw_size, my_nm_gw_start, ncol_block_mat, &
-         ngroup, nrow_block_mat, nspins, num_integ_group, num_integ_points, pos_integ_group
+      INTEGER :: best_integ_group_size, best_num_integ_point, color_rpa_group, dimen_nm_gw, &
+         dimen_virt_square, handle, handle2, handle3, ierr, iiB, input_num_integ_groups, &
+         integ_group_size, ispin, jjB, min_integ_group_size, my_group_L_end, my_group_L_size, &
+         my_group_L_start, my_nm_gw_end, my_nm_gw_size, my_nm_gw_start, ncol_block_mat, ngroup, &
+         nrow_block_mat, nspins, num_integ_group, num_integ_points, pos_integ_group
       INTEGER(KIND=int_8)                                :: mem
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dimen_ia, my_ia_end, my_ia_size, &
-                                                            my_ia_start, virtual
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: dimen_homo_square, dimen_ia, my_ab_comb_bse_end, &
+         my_ab_comb_bse_size, my_ab_comb_bse_start, my_ia_end, my_ia_size, my_ia_start, &
+         my_ij_comb_bse_end, my_ij_comb_bse_size, my_ij_comb_bse_start, virtual
       LOGICAL                                            :: do_kpoints_from_Gamma, do_minimax_quad, &
                                                             my_open_shell, skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
          mem_min, mem_per_group, mem_per_rank, mem_per_repl, mem_real
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Q, fm_mat_Q_gemm, fm_mat_S, &
-                                                            fm_mat_S_gw
-      TYPE(cp_fm_type), DIMENSION(1)                     :: fm_mat_R_gw, fm_mat_S_ab_bse, &
+                                                            fm_mat_S_ab_bse, fm_mat_S_gw, &
                                                             fm_mat_S_ij_bse
+      TYPE(cp_fm_type), DIMENSION(1)                     :: fm_mat_R_gw
       TYPE(mp_para_env_type), POINTER                    :: para_env_RPA
       TYPE(two_dim_real_array), ALLOCATABLE, &
-         DIMENSION(:)                                    :: BIb_C_2D, BIb_C_2D_gw
-      TYPE(two_dim_real_array), DIMENSION(1)             :: BIb_C_2D_bse_ab, BIb_C_2D_bse_ij
+         DIMENSION(:)                                    :: BIb_C_2D, BIb_C_2D_bse_ab, &
+                                                            BIb_C_2D_bse_ij, BIb_C_2D_gw
 
       CALL timeset(routineN, handle)
 
@@ -525,28 +526,37 @@ CONTAINS
 
          CALL timeset(routineN//"_reorder_bse1", handle3)
 
-         dimen_homo_square = homo(1)**2
+         ALLOCATE (BIb_C_2D_bse_ij(nspins), BIb_C_2D_bse_ab(nspins))
+         ALLOCATE (dimen_homo_square(nspins))
+         ALLOCATE (my_ij_comb_bse_size(nspins), my_ij_comb_bse_start(nspins), my_ij_comb_bse_end(nspins))
+         ALLOCATE (my_ab_comb_bse_size(nspins), my_ab_comb_bse_start(nspins), my_ab_comb_bse_end(nspins))
+
          ! We do not implement an explicit bse_lev_occ different to homo here, because the small number of occupied levels
          ! does not critically influence the memory
-         CALL calculate_BIb_C_2D(BIb_C_2D_bse_ij(1)%array, BIb_C_bse_ij, para_env_sub, dimen_homo_square, &
-                                 homo(1), homo(1), gd_B_occ_bse, &
-                                 my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, my_group_L_size)
-
-         DEALLOCATE (BIb_C_bse_ij)
-         CALL release_group_dist(gd_B_occ_bse)
+         DO ispin = 1, nspins
+            dimen_homo_square(ispin) = homo(ispin)**2
+            CALL calculate_BIb_C_2D(BIb_C_2D_bse_ij(ispin)%array, BIb_C_bse_ij(ispin)%array, para_env_sub, &
+                                    dimen_homo_square(ispin), homo(ispin), homo(ispin), gd_B_occ_bse(ispin), &
+                                    my_ij_comb_bse_size(ispin), my_ij_comb_bse_start(ispin), &
+                                    my_ij_comb_bse_end(ispin), my_group_L_size)
+            DEALLOCATE (BIb_C_bse_ij(ispin)%array)
+            CALL release_group_dist(gd_B_occ_bse(ispin))
+         END DO
 
          CALL timestop(handle3)
 
          CALL timeset(routineN//"_reorder_bse2", handle3)
 
-         dimen_virt_square = bse_lev_virt**2
-
-         CALL calculate_BIb_C_2D(BIb_C_2D_bse_ab(1)%array, BIb_C_bse_ab, para_env_sub, dimen_virt_square, &
-                                 bse_lev_virt, bse_lev_virt, gd_B_virt_bse, &
-                                 my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, my_group_L_size)
-
-         DEALLOCATE (BIb_C_bse_ab)
-         CALL release_group_dist(gd_B_virt_bse)
+         ! bse_lev_virt(ispin) (hence dimen_virt_square) and gd_B_virt_bse(ispin) are per-spin
+         DO ispin = 1, nspins
+            dimen_virt_square = bse_lev_virt(ispin)**2
+            CALL calculate_BIb_C_2D(BIb_C_2D_bse_ab(ispin)%array, BIb_C_bse_ab(ispin)%array, para_env_sub, &
+                                    dimen_virt_square, bse_lev_virt(ispin), bse_lev_virt(ispin), gd_B_virt_bse(ispin), &
+                                    my_ab_comb_bse_size(ispin), my_ab_comb_bse_start(ispin), &
+                                    my_ab_comb_bse_end(ispin), my_group_L_size)
+            DEALLOCATE (BIb_C_bse_ab(ispin)%array)
+            CALL release_group_dist(gd_B_virt_bse(ispin))
+         END DO
 
          CALL timestop(handle3)
 
@@ -597,20 +607,21 @@ CONTAINS
 
       END IF
 
-      ! for Bethe-Salpeter, we need other matrix fm_mat_S
+      ! for Bethe-Salpeter, we need other matrix fm_mat_S (per spin; the ab slab dimension is spin-independent)
       IF (do_bse) THEN
+         ALLOCATE (fm_mat_S_ij_bse(nspins), fm_mat_S_ab_bse(nspins))
          CALL create_integ_mat(BIb_C_2D_bse_ij, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, [dimen_homo_square], color_rpa_group, &
+                               dimen_RI_red, dimen_homo_square, color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                               [my_ij_comb_bse_size], [my_ij_comb_bse_start], [my_ij_comb_bse_end], &
+                               my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S_ij_bse, nrow_block_mat, ncol_block_mat, &
                                fm_mat_Q(1)%matrix_struct%context, fm_mat_Q(1)%matrix_struct%context)
 
          CALL create_integ_mat(BIb_C_2D_bse_ab, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, [dimen_virt_square], color_rpa_group, &
+                               dimen_RI_red, [(bse_lev_virt(ispin)**2, ispin=1, nspins)], color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                               [my_ab_comb_bse_size], [my_ab_comb_bse_start], [my_ab_comb_bse_end], &
+                               my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S_ab_bse, nrow_block_mat, ncol_block_mat, &
                                fm_mat_Q(1)%matrix_struct%context, fm_mat_Q(1)%matrix_struct%context)
@@ -628,7 +639,7 @@ CONTAINS
                        homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
                        Eigenval_kp, num_integ_points, num_integ_group, color_rpa_group, &
                        fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw(1), &
-                       fm_mat_S_ij_bse(1), fm_mat_S_ab_bse(1), &
+                       fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                        my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
                        bse_lev_virt, &
                        do_minimax_quad, &
@@ -657,8 +668,11 @@ CONTAINS
       END IF
 
       IF (do_bse) THEN
-         CALL cp_fm_release(fm_mat_S_ij_bse(1))
-         CALL cp_fm_release(fm_mat_S_ab_bse(1))
+         DO ispin = 1, nspins
+            CALL cp_fm_release(fm_mat_S_ij_bse(ispin))
+            CALL cp_fm_release(fm_mat_S_ab_bse(ispin))
+         END DO
+         DEALLOCATE (fm_mat_S_ij_bse, fm_mat_S_ab_bse)
       END IF
 
       CALL timestop(handle)
@@ -1080,11 +1094,11 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
       TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_S
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_R_gw, fm_mat_S_ij_bse, &
-                                                            fm_mat_S_ab_bse
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_R_gw
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ij_bse, fm_mat_S_ab_bse
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt
-      INTEGER, INTENT(IN)                                :: bse_lev_virt
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt, &
+                                                            bse_lev_virt
       LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_im_time
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints, &
@@ -1139,11 +1153,12 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_last, Eigenval_scf, &
                                                             vec_Sigma_x_gw
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
-      TYPE(cp_fm_type) :: fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, fm_mat_S_ia_bse, &
-         fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
+      TYPE(cp_fm_type) :: fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, fm_mat_work, &
+         fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
          fm_scaled_dm_virt_tau
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
-                                                            fm_mo_coeff_occ, fm_mo_coeff_virt
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_S_ia_bse, &
+                                                            fm_mat_W, fm_mo_coeff_occ, &
+                                                            fm_mo_coeff_virt
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_L_kpoints, fm_mat_Minv_L_kpoints
       TYPE(dbcsr_p_type)                                 :: mat_dm, mat_L, mat_M_P_munu_occ, &
                                                             mat_M_P_munu_virt, mat_MinvVMinv
@@ -1505,6 +1520,17 @@ CONTAINS
                                   fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
                                   num_integ_points, count_ev_sc_GW)
                END DO
+               ! For open-shell BSE: the static screened-Coulomb polarizability is the
+               ! sum over both spin channels. calc_mat_Q overwrites fm_mat_Q_static_bse_gemm
+               ! per spin, so rebuild it here as the explicit spin sum at omega=0.
+               IF (do_bse .AND. nspins > 1 .AND. jquad == num_integ_points .AND. &
+                   count_ev_sc_GW == 1) THEN
+                  CALL cp_fm_set_all(fm_mat_Q_static_bse_gemm, 0.0_dp)
+                  DO ispin = 1, nspins
+                     CALL cp_fm_scale_and_add(1.0_dp, fm_mat_Q_static_bse_gemm, &
+                                              1.0_dp, fm_mat_Q_gemm(ispin))
+                  END DO
+               END IF
 
                ! For SOS-MP2 we need both matrices separately
                IF (.NOT. do_ri_sos_laplace_mp2) THEN
@@ -1755,25 +1781,31 @@ CONTAINS
                             "BSE@evGW applies W0, i.e. screening with DFT energies to the BSE!")
             END IF
          END IF
-         ! Create a copy of fm_mat_S for usage in BSE
-         CALL cp_fm_create(fm_mat_S_ia_bse, fm_mat_S(1)%matrix_struct)
-         CALL cp_fm_to_fm(fm_mat_S(1), fm_mat_S_ia_bse)
-         ! Remove energy/frequency factor from 3c-Integral for BSE
-         IF (iter_sc_gw0 == 1) THEN
-            CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
-                                           Eigenval_last(:, 1, 1), homo(1), omega)
-         ELSE
-            CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
-                                           Eigenval_scf(:, 1, 1), homo(1), omega)
-         END IF
+         ! Create a per-spin copy of fm_mat_S for usage in BSE
+         ALLOCATE (fm_mat_S_ia_bse(nspins))
+         DO ispin = 1, nspins
+            CALL cp_fm_create(fm_mat_S_ia_bse(ispin), fm_mat_S(ispin)%matrix_struct)
+            CALL cp_fm_to_fm(fm_mat_S(ispin), fm_mat_S_ia_bse(ispin))
+            ! Remove energy/frequency factor from 3c-Integral for BSE
+            IF (iter_sc_gw0 == 1) THEN
+               CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse(ispin), virtual(ispin), &
+                                              Eigenval_last(:, 1, ispin), homo(ispin), omega)
+            ELSE
+               CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse(ispin), virtual(ispin), &
+                                              Eigenval_scf(:, 1, ispin), homo(ispin), omega)
+            END IF
+         END DO
          ! Main routine for all BSE postprocessing
          CALL start_bse_calculation(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                     fm_mat_Q_static_bse_gemm, &
                                     Eigenval, Eigenval_scf, &
                                     homo, virtual, dimen_RI, dimen_RI_red, bse_lev_virt, &
                                     gd_array, color_sub, mp2_env, qs_env, mo_coeff, unit_nr)
-         ! Release BSE-copy of fm_mat_S
-         CALL cp_fm_release(fm_mat_S_ia_bse)
+         ! Release per-spin BSE-copy of fm_mat_S
+         DO ispin = 1, nspins
+            CALL cp_fm_release(fm_mat_S_ia_bse(ispin))
+         END DO
+         DEALLOCATE (fm_mat_S_ia_bse)
       END IF
 
       IF (my_do_gw) THEN

@@ -13,7 +13,8 @@
 MODULE greenx_interface
    USE kinds, ONLY: dp
    USE cp_log_handling, ONLY: cp_logger_type, &
-                              cp_get_default_logger
+                              cp_get_default_logger, &
+                              cp_logger_get_default_io_unit
    USE cp_output_handling, ONLY: cp_print_key_unit_nr, &
                                  cp_print_key_finished_output, &
                                  cp_print_key_generate_filename, &
@@ -209,14 +210,21 @@ CONTAINS
                                                             y_eval
       INTEGER, OPTIONAL                                  :: n_pade_opt
 #if defined (__GREENX)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'greenx_refine_ft'
+
       INTEGER                                            :: fit_start, &
                                                             fit_end, &
                                                             max_fit, &
                                                             n_fit, &
                                                             n_pade, &
                                                             n_eval, &
-                                                            i
+                                                            i, &
+                                                            handle, &
+                                                            unit_nr
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(params)                                       :: pade_params
+
+      CALL timeset(routineN, handle)
 
       ! Get the sizes from arrays
       max_fit = SIZE(x_fit)
@@ -241,10 +249,30 @@ CONTAINS
       n_pade = n_fit/2
       IF (PRESENT(n_pade_opt)) n_pade = n_pade_opt
 
+      ! Too few FT points (e.g. very short propagation with &FT on) leave n_pade < 1;
+      ! the Thiele recurrence would then divide by zero. Skip, returning zeros.
+      IF (n_pade < 1) THEN
+         CPWARN("FT deck too short for Padé; raise STEPS or disable &FT.")
+         y_eval(1:n_eval) = CMPLX(0.0, 0.0, kind=dp)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
       ! Warn about a large number of Padé parameters
       IF (n_pade > 1000) THEN
          CPWARN("More then 1000 Padé parameters requested - may reduce with FIT_E_MIN/FIT_E_MAX.")
       END IF
+
+      ! The Padé order is derived from the FT bins inside [FIT_E_MIN, FIT_E_MAX]; report it so a
+      ! spectrum's fit is reconstructable from the log. Distinct from the GW AC Padé (nparam_pade).
+      logger => cp_get_default_logger()
+      unit_nr = cp_logger_get_default_io_unit(logger)
+      IF (unit_nr > 0) THEN
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T45,I6,I8,2F11.4)") &
+            "GREENX FT_PADE| n_pade, n_fit, window [eV]", n_pade, n_fit, &
+            REAL(x_fit(fit_start), kind=dp)*evolt, REAL(x_fit(fit_end), kind=dp)*evolt
+      END IF
+
       ! TODO : Symmetry mode settable?
       ! Here, we assume that ft corresponds to transform of real trace
       pade_params = create_thiele_pade(n_pade, x_fit(fit_start:fit_end), y_fit(fit_start:fit_end), &
@@ -254,6 +282,7 @@ CONTAINS
       y_eval(1:n_eval) = evaluate_thiele_pade_at(pade_params, x_eval)
 
       CALL free_params(pade_params)
+      CALL timestop(handle)
 #else
       ! Mark used
       MARK_USED(fit_e_min)
