@@ -14,7 +14,12 @@
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 MODULE arnoldi_geev
-   USE kinds,                           ONLY: dp
+#if defined (__HAS_IEEE_EXCEPTIONS)
+   USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
+                              ieee_set_halting_mode, &
+                              IEEE_ALL
+#endif
+   USE kinds, ONLY: dp
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -76,7 +81,9 @@ CONTAINS
       INTEGER                                            :: ndim
       COMPLEX(dp), DIMENSION(:)                          :: evals
       COMPLEX(dp), DIMENSION(:, :)                       :: revec, levec
-
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      LOGICAL, DIMENSION(5)                              :: halt
+#endif
       INTEGER                                            :: i, info
       REAL(dp)                                           :: work(20*ndim)
       REAL(dp), DIMENSION(ndim)                          :: diag, offdiag
@@ -93,7 +100,18 @@ CONTAINS
 
       END DO
 
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_get_halting_mode(IEEE_ALL, halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+
       CALL dstev(jobvr, ndim, diag, offdiag, evec_r, ndim, work, info)
+
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
+
+      CPASSERT(info == 0)
 
       DO i = 1, ndim
          revec(:, i) = CMPLX(evec_r(:, i), REAL(0.0, dp), dp)

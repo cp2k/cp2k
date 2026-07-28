@@ -3,12 +3,12 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"COBe_gfn1_fd.inp"                       = [{matcher="E_total", tol=1.0E-8, ref=-7.4283186205}]
-"CH2O_gfn1.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-7.8503584297}]
-"Si_gfn1_fd.inp"                         = [{matcher="E_total", tol=3.0E-8, ref=-14.45211749988608}]
-"Si_gfn1_kp.inp"                         = [{matcher="E_total", tol=3.0E-8, ref=-14.707430385147}]
-"Si_gfn1_kp_kpsym.inp"                   = [{matcher="E_total", tol=1.0E-8, ref=-14.722697896033},
+"COBe_gfn1_fd.inp"                       = [{matcher="E_total", tol=1.0E-8, ref=-7.42848707385935}]
+"CH2O_gfn1.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-7.8504891036979}]
+"Si_gfn1_fd.inp"                         = [{matcher="E_total", tol=3.0E-8, ref=-14.44320245934278}]
+"Si_gfn1_kp.inp"                         = [{matcher="E_total", tol=3.0E-8, ref=-14.70433442694045}]
+"Si_gfn1_kp_kpsym.inp"                   = [{matcher="E_total", tol=1.0E-8, ref=-14.72017602003837},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
-"Si_gfn1_kp_spglib_backend.inp"          = [{matcher="E_total", tol=1.0E-8, ref=-14.722697896033},
+"Si_gfn1_kp_spglib_backend.inp"          = [{matcher="E_total", tol=1.0E-8, ref=-14.72017602003837},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
 #EOF

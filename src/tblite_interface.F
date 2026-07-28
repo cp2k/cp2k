@@ -479,7 +479,7 @@ CONTAINS
       tb%mixer_memory = memory
       tb%mixer_solver = solver
       tb%mixer_damping = damping
-      tb%calc%mixer_damping = damping
+      tb%calc%mixer_input%damping = damping
       tb%mixer_omega0 = omega0
       tb%mixer_min_weight = min_weight
       tb%mixer_max_weight = max_weight
