@@ -279,9 +279,7 @@ while [[ $# -gt 0 ]]; do
           all)
             # Enable or disable all features
             CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=${ON_OFF}"
-            USE_CUSOLVER_MP="${ON_OFF}"
-            CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_USE_CUSOLVER_MP=${ON_OFF}"
-            for package in adios2 cosma cusolvermp deepmdkit dla-future dla-future-fortran elpa \
+            for package in adios2 cosma deepmdkit dla-future dla-future-fortran elpa \
               gauxc greenx hdf5 libfabric libfci libint libvdwxc libsmeagol libvori \
               libxc libxs libxsmm mimic-mcl openpmd-api pace pexsi plumed py-torch sirius \
               spfft spglib spla tblite trexio; do
