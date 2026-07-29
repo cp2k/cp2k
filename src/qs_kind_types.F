@@ -2354,7 +2354,7 @@ CONTAINS
                   DEALLOCATE (qs_kind%dft_plus_u%perturbation_strength)
                END IF
                ALLOCATE (qs_kind%dft_plus_u%perturbation_strength(SIZE(tmp_perturbation_strength)))
-               qs_kind%dft_plus_u%perturbation_strength = tmp_perturbation_strength
+               qs_kind%dft_plus_u%perturbation_strength(:) = tmp_perturbation_strength(:)
                DEALLOCATE (tmp_perturbation_strength)
                NULLIFY (tmp_perturbation_strength)
             END IF
