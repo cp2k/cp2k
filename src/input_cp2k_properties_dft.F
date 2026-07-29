@@ -3137,6 +3137,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="MEM_FILL_FRACTION", &
+                          description="Fraction of the computation memory that may be filled "// &
+                          "by Floquet Hamiltonian matrices. Reduce if process gets OOMP killed.", &
+                          usage="MEM_FILL_FRACTION 0.5", default_r_val=0.8_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_floquet_section
 
 END MODULE input_cp2k_properties_dft

@@ -6,11 +6,9 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Driver for Floquet-Bloch band-structure calculations: builds and diagonalises the
+!> \brief Floquet-Bloch band-structure calculations: builds and diagonalises the
 !>        truncated Floquet-Bloch Hamiltonian H_F(k) for each DOS k-point and writes the m=0
-!>        band structure, the quasi-energies and the Floquet density of states. The heavy
-!>        physics lives in floquet_utils; this module only orchestrates the MPI-subgroup work
-!>        distribution across k-points.
+!>        band structure, the quasi-energies and the Floquet density of states.
 !> \par History
 !> \author Shridhar Shanbhag (27.01.2026)
 ! **************************************************************************************************
@@ -26,7 +24,7 @@ MODULE floquet_main
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE floquet_utils,                   ONLY: build_floquet_matrix_local,&
+   USE floquet_utils,                   ONLY: build_floquet_matrix,&
                                               calculate_floquet_observables,&
                                               check_floquet_convergence,&
                                               floquet_determine_subgroup_size,&
@@ -55,22 +53,14 @@ MODULE floquet_main
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'floquet_main'
 
-   ! Public subroutines
    PUBLIC :: floquet
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Compute the Floquet-Bloch band structure in three phases. (1) Split the global
-!>        communicator into subgroups sized to hold the distributed H_F(k) working set and to
-!>        keep at least one subgroup per DOS k-point. (2) Precompute the band data for all DOS
-!>        k-points once (distributed round-robin across ranks), then loop over k-points: each is
-!>        handled by the subgroup owning its data, which broadcasts the band data internally,
-!>        assembles and diagonalises H_F(k), and derives the sector weights and observables.
-!>        (3) Gather the per-(k-point,spin) results across the global communicator and write the
-!>        three output files on the I/O rank.
-!> \param qs_env the Quickstep environment (SCF results, k-points, parallel environment)
-!> \param bs_env the post-SCF band-structure environment holding all Floquet input parameters
+!> \brief Computes the Floquet-Bloch band structure, density of states and quasi-energies.
+!> \param qs_env ...
+!> \param bs_env ...
 ! **************************************************************************************************
    SUBROUTINE floquet(qs_env, bs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -102,8 +92,6 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
       TYPE(mp_request_type)                              :: recv_request
-
-! MPI tag for the per-k-point completion messages sent to the collector (global rank 0)
 
       CALL timeset(routineN, handle)
 
@@ -189,22 +177,22 @@ CONTAINS
 
       n_kp_dos = nkp - nkp_start
 
-      ! Phase 1 (subgroup sizing + split): choose the number of ranks per subgroup as the
-      ! larger of two floors. The memory floor requires the subgroup to hold the Floquet
-      ! working set (n_fm_work_copies copies of the n_f_size^2 complex Hamiltonian) distributed
-      ! across its ranks; for large systems (e.g. Bi2Te3 / TZVP) the matrix does not fit on one
-      ! rank, forcing a larger subgroup. The k-point floor (floor(num_pe / n_kp_dos)) makes the
-      ! subgroups as large as possible while still keeping at least n_kp_dos of them, so spare
-      ! ranks speed up each diagonalisation rather than sitting idle.
+      ! Compute the dipole and band data for ALL DOS k-points once, distributed across ranks.
+      CALL floquet_precompute_kp_data(qs_env, bs_env, e_k, de_dk, dipole)
+
+      ALLOCATE (eigenvalues(n_f_size), quasi_energies(nao), a_k(n_E), w0(n_f_size), wE(n_f_size))
+      ALLOCATE (m0_energies(nao), m0_weights(nao), e_k_kp_spin(nao), de_dk_kp_spin(3, nao))
+      ALLOCATE (dipole_kp_spin(3, nao, nao))
+
+      ALLOCATE (all_quasi_energies(nao, n_spin, n_kp_dos), source=0.0_dp)
+      ALLOCATE (all_a_k(n_E, n_spin, n_kp_dos), source=0.0_dp)
+      ALLOCATE (all_m0_energies(nao, n_spin, n_kp_dos), source=0.0_dp)
+      ALLOCATE (all_m0_weights(nao, n_spin, n_kp_dos), source=0.0_dp)
+
+      ! We split the global communicator into subgroups with the Floquet Hamiltonian distributed
+      ! across the processes in each subgroup and the k-points distributed across subgroups.
       group_size = floquet_determine_subgroup_size(qs_env, bs_env)
 
-      ! Split the global communicator into subgroups, mirroring qs_tddfpt2_subgroups.
-      ! group_distribution(r) gives the subgroup of global rank r. The band data of k-point ikp
-      ! lives only on global rank MOD(ikp-1,num_pe), i.e. on ranks 0..n_kp_dos-1 when ranks
-      ! outnumber k-points. A contiguous split would pack those owners into the first few
-      ! subgroups (the rest idle), so when num_pe > n_kp_dos we stride-interleave the split
-      ! (stride = number of subgroups) to scatter the owners across all subgroups; otherwise a
-      ! contiguous split (stride 1) keeps better intra-subgroup communication locality.
       IF (n_kp_dos < para_env%num_pe) THEN
          stride_kp = para_env%num_pe/group_size
       ELSE
@@ -227,46 +215,16 @@ CONTAINS
       NULLIFY (blacs_env_sub)
       CALL cp_blacs_env_create(blacs_env_sub, para_env_sub)
 
-      ! The struct (and its BLACS context) is k-point independent and kept for the whole run;
-      ! the heavy distributed cfm matrices are (de)allocated per k-point (see below).
+      ! The struct (and its BLACS context) is k-point independent but the cfm matrices are
+      ! (de)allocated per k-point.
       CALL cp_fm_struct_create(floquet_struct, &
                                nrow_global=n_f_size, &
                                ncol_global=n_f_size, &
                                context=blacs_env_sub, &
                                para_env=para_env_sub)
 
-      ALLOCATE (eigenvalues(n_f_size))
-      ALLOCATE (quasi_energies(nao))
-      ALLOCATE (a_k(n_E))
-
-      ! Central-sector (m=0) and outermost-sector (m=±M) weights of the eigenvectors of H_F(k)
-      ! for one (k-point, spin). Every Floquet observable below is a function of w0 and the
-      ! eigenvalues alone; wE is consumed only by the truncation check.
-      ALLOCATE (w0(n_f_size), wE(n_f_size))
-      ALLOCATE (m0_energies(nao), m0_weights(nao))
-
-      ! Per-single-(k-point,spin) broadcast buffers: the owner rank fills its slice and
-      ! broadcasts them within the owning subgroup so every subgroup rank can build its piece
-      ! of the Floquet matrix. These same buffers are passed to the Floquet matrix builder.
-      ALLOCATE (e_k_kp_spin(nao))
-      ALLOCATE (de_dk_kp_spin(3, nao))
-      ALLOCATE (dipole_kp_spin(3, nao, nao))
-
-      ! Per-(spin,k-point) result slots. Each is filled once by the owning subgroup's source
-      ! rank; the full arrays are gathered across the global communicator once, after the loop.
-      ALLOCATE (all_quasi_energies(nao, n_spin, n_kp_dos), source=0.0_dp)
-      ALLOCATE (all_a_k(n_E, n_spin, n_kp_dos), source=0.0_dp)
-      ALLOCATE (all_m0_energies(nao, n_spin, n_kp_dos), source=0.0_dp)
-      ALLOCATE (all_m0_weights(nao, n_spin, n_kp_dos), source=0.0_dp)
-
       ! Ordered progress printing: the collector (global rank 0) tracks which DOS k-points have
-      ! finished and prints them in ascending order, live from inside the loop. A completion is
-      ! either self-marked (a k-point the collector processes itself) or arrives as a one-int
-      ! message from the owning subgroup's source. Because there is no way to cancel a posted
-      ! irecv, the collector must know up front exactly how many messages it will receive
-      ! (n_remote), so it never leaves an unmatched receive outstanding: n_own is the number of
-      ! k-points the collector self-marks, i.e. those owned by its own subgroup when it is that
-      ! subgroup's source, and n_remote is the rest.
+      ! finished and prints them in ascending order, live from inside the loop.
       IF (para_env%is_source()) THEN
          ALLOCATE (ikp_done(n_kp_dos))
          ikp_done(:) = .FALSE.
@@ -289,21 +247,9 @@ CONTAINS
          END IF
       END IF
 
-      ! Phase 2a (global): compute the band data for ALL DOS k-points once, distributed across
-      ! ranks (k-point ikp owned by global rank MOD(ikp-1,num_pe), stored at CEILING(ikp/num_pe)).
-      ! Called by all ranks; the large real-space arrays are built and freed inside, so they do
-      ! not coexist with the distributed Floquet matrices allocated below.
-      CALL floquet_precompute_kp_data(qs_env, bs_env, e_k, de_dk, dipole)
-
-      ! Phase 2b (subgroup loop): each DOS k-point is processed by the subgroup that contains
-      ! the rank owning its data; that owner broadcasts the k-point's band data within the
-      ! subgroup, then the whole subgroup builds and diagonalises H_F(k). The collector drains
-      ! its mailbox and writes finished k-points at the top of every iteration (local, no barrier).
       DO ikp = 1, n_kp_dos
-         ! Collector: non-blockingly drain whatever completion messages have arrived, then print
-         ! every contiguous finished k-point from the front. This runs at the top of every
-         ! iteration - including those this rank does not own and CYCLEs past - so finished
-         ! k-points print live and in order, without ever blocking on a k-point still in flight.
+         ! Collector: drain whatever completion messages have arrived without blocking,
+         ! then print every contiguous finished k-point from the front.
          IF (para_env%is_source()) THEN
             DO WHILE (n_received < n_remote)
                IF (.NOT. recv_request%test()) EXIT
@@ -317,21 +263,17 @@ CONTAINS
             DO WHILE (next_to_print <= n_kp_dos)
                IF (.NOT. ikp_done(next_to_print)) EXIT
                IF (unit_nr > 0) THEN
-                  DO ispin = 1, n_spin
-                     WRITE (unit_nr, '(T2,I6,I6)') next_to_print, ispin
-                  END DO
+                  WRITE (unit_nr, '(T2,I6,I6)') next_to_print
                END IF
                next_to_print = next_to_print + 1
             END DO
          END IF
 
+         ! Only the subgroup that owns this k-point's data works on it
          owner = MOD(ikp - 1, para_env%num_pe)
-         ! Only the subgroup that owns this k-point's data works on it. The test is identical
-         ! for all ranks of a subgroup, so they enter the subgroup-collective calls together.
          IF (group_distribution(owner) /= my_group) CYCLE
 
-         ! Identify the owner's rank within the subgroup; the per-spin band data is broadcast
-         ! from it to all subgroup ranks inside the spin loop below.
+         ! Identify the owner's rank within the subgroup.
          local_src = -1
          IF (para_env%mepos == owner) local_src = para_env_sub%mepos
          CALL para_env_sub%max(local_src)
@@ -340,49 +282,43 @@ CONTAINS
          CALL cp_cfm_create(cfm_eigenvectors, floquet_struct, set_zero=.TRUE.)
 
          DO ispin = 1, n_spin
-            ! The owner copies its single-spin slice of this k-point's distributed band data
-            ! into the broadcast buffers, then broadcasts them to the whole subgroup.
+            ! The subgroup owner copies this k-point's distributed band data to broadcast
             IF (para_env%mepos == owner) THEN
                loc_idx = CEILING(REAL(ikp)/para_env%num_pe)
                e_k_kp_spin(:) = e_k(ispin, loc_idx, :)
                de_dk_kp_spin(:, :) = de_dk(ispin, loc_idx, :, :)
                dipole_kp_spin(:, :, :) = dipole(ispin, loc_idx, :, :, :)
             END IF
+            ! The data is then broadcast from it to all subgroup ranks
             CALL para_env_sub%bcast(e_k_kp_spin, local_src)
             CALL para_env_sub%bcast(de_dk_kp_spin, local_src)
             CALL para_env_sub%bcast(dipole_kp_spin, local_src)
 
             ! Build the Floquet-Bloch Hamiltonian H_F(k) on this subgroup's matrix from the
             ! broadcast band data of this k-point - no global communication involved.
-            CALL build_floquet_matrix_local(bs_env, e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, &
-                                            floquet_matrix)
+            CALL build_floquet_matrix(bs_env, e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, &
+                                      floquet_matrix)
 
             ! Diagonalize the Floquet-Bloch matrix H_F(k) F_{α,k} = ε_α F_{α,k} to obtain the
-            ! eigenvalues ε_α and the Floquet-Bloch coefficients F^{nu}_{α,k}. cp_cfm_heevd
-            ! overwrites its input, but floquet_matrix is not needed afterwards (both the
-            ! quasi-energies and the DOS are built from the eigenpairs), so diagonalize in place.
+            ! eigenvalues ε_α and the Floquet-Bloch coefficients F^{nu}_{α,k}.
             CALL cp_cfm_set_all(cfm_eigenvectors, z_zero)
             CALL cp_cfm_heevd(floquet_matrix, cfm_eigenvectors, eigenvalues)
 
             ! Project every eigenvector onto the central (m=0) and outermost (m=±M) Floquet
-            ! sectors, w_α^(m) = Σ_n |<n,m|α>|^2. Read straight off the distributed local data,
-            ! touching only the rows of those three blocks; one small real reduction follows.
+            ! sectors, w_α^(m) = Σ_n |<n,m|α>|^2.
             CALL floquet_sector_weights(nao, max_f_index, cfm_eigenvectors, w0, wE)
 
             ! Check that MAX_FLOQUET_INDEX, the size of the truncated matrix H_F(k), is large
             ! enough: the m=0 states must carry no appreciable weight on the outermost rungs.
-            ! Aborts the whole job (mpi_abort) if that weight exceeds EPS_FLOQUET, so no
-            ! reduction of the leakage across ranks is needed.
             CALL check_floquet_convergence(bs_env, w0, wE)
 
-            ! Spectral function A_phys(k,ω) = -(1/π) Im[Tr_KS G^R_{00}(k,ω)], the m=0 bands (the
-            ! nao eigenvectors with the largest central-sector weight, reducing to ε_nk at zero
-            ! field), and the quasi-energies (those bands folded into the first Floquet BZ).
+            ! Compute the DOS A(k,ω) = -(1/π) Im[Tr_KS G^R_{00}(k,ω)], the m=0 bands (the
+            ! eigenvectors with the largest central-sector weight), and the quasi-energies.
             CALL calculate_floquet_observables(bs_env, eigenvalues, w0, &
                                                a_k, m0_energies, m0_weights, quasi_energies)
 
-            ! Store this (k-point, spin) result on the subgroup source only, so the global sum
-            ! below picks up each work item exactly once.
+            ! Store this result on the subgroup source only, so the global sum below picks up
+            ! each work item only once
             IF (para_env_sub%is_source()) THEN
                all_quasi_energies(:, ispin, ikp) = quasi_energies(:)
                all_a_k(:, ispin, ikp) = a_k(:)
@@ -392,9 +328,7 @@ CONTAINS
          END DO
 
          ! Report this k-point (all spins done) to the collector, global rank 0, which prints the
-         ! k-points in ascending order. Exactly one sender per k-point - the owning subgroup's
-         ! source. Rank 0 marks its own directly instead of sending to itself; every other source
-         ! sends one one-int message and moves on, so there is no barrier and no deadlock.
+         ! k-points in ascending order
          IF (para_env_sub%is_source()) THEN
             IF (para_env%is_source()) THEN
                ikp_done(ikp) = .TRUE.
@@ -408,9 +342,7 @@ CONTAINS
       END DO
 
       ! Collector: the loop is over, so any k-point still unfinished is one whose completion
-      ! message has not yet been received. Block-receive the remaining ones (there are exactly
-      ! n_remote - n_received left), then print the final contiguous tail in order. Because
-      ! n_remote is exact, the last receive is not reposted and no irecv is left outstanding.
+      ! message has not yet been received. Block-receive the remaining ones.
       IF (para_env%is_source()) THEN
          DO WHILE (n_received < n_remote)
             CALL recv_request%wait()
@@ -424,8 +356,7 @@ CONTAINS
          DO WHILE (next_to_print <= n_kp_dos)
             IF (.NOT. ikp_done(next_to_print)) EXIT
             IF (unit_nr > 0) THEN
-               WRITE (unit_nr, '(T2,A,I6,A,I6)') &
-                  "FLOQUET PROGRESS | Completed k-point ", next_to_print, " of ", n_kp_dos
+               WRITE (unit_nr, '(T2,I6,I6)') next_to_print
             END IF
             next_to_print = next_to_print + 1
          END DO
@@ -434,9 +365,7 @@ CONTAINS
 
       DEALLOCATE (e_k, de_dk, dipole)
 
-      ! Phase 3 (gather + write): collect all results on the global communicator and write them
-      ! out in k-point/spin order on the global I/O rank. Each work item was stored by exactly
-      ! one subgroup source, so the sum reconstructs the full arrays without double counting.
+      ! Collect all results on the global communicator and write them
       CALL para_env%sum(all_quasi_energies)
       CALL para_env%sum(all_a_k)
       CALL para_env%sum(all_m0_energies)
@@ -445,9 +374,6 @@ CONTAINS
       CALL write_floquet_results(bs_env, all_quasi_energies, all_a_k, &
                                  all_m0_energies, all_m0_weights)
 
-      ! Note: the distributed cfm matrices (floquet_matrix, cfm_eigenvectors) are released inside
-      ! the k-point loop above; the distributed band arrays (e_k, de_dk, dipole) are released
-      ! right after it. Only the persistent objects remain here.
       DEALLOCATE (eigenvalues, quasi_energies, a_k, all_quasi_energies, all_a_k, group_distribution)
       DEALLOCATE (w0, wE, m0_energies, m0_weights, all_m0_energies, all_m0_weights)
       DEALLOCATE (e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin)

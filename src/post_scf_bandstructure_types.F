@@ -363,7 +363,8 @@ MODULE post_scf_bandstructure_types
                                                       eps_floquet = -1.0_dp, &
                                                       broadening_floquet = -1.0_dp, &
                                                       energy_step_floquet = -1.0_dp, &
-                                                      energy_window_floquet = -1.0_dp
+                                                      energy_window_floquet = -1.0_dp, &
+                                                      floquet_mem_fill_fraction = -1.0_dp
       CHARACTER(LEN=default_string_length)         :: floquet_dos_file = "", &
                                                       floquet_qe_file = "", &
                                                       floquet_bs_file = ""
