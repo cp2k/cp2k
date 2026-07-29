@@ -144,6 +144,7 @@ if(NOT TARGET cp2k::cp2k)
 
   set(CP2K_USE_DFTD4 @CP2K_USE_DFTD4@)
   if(CP2K_USE_DFTD4)
+    find_dependency(mctc-lib REQUIRED) # workaround: find mctc-lib first
     find_dependency(dftd4 REQUIRED)
   endif()
 
