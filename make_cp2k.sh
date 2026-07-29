@@ -290,14 +290,10 @@ while [[ $# -gt 0 ]]; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"smm=libxs\"/ s/libxs/blas/'"
             fi
             ;;
-          ace | cosma | cusolver_mp | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | \
-            hdf5 | libfci | libgint | libint2 | libsmeagol | libtorch | libxc | libxs | mimic | \
-            openpmd | pexsi | plumed | spglib | tblite | trexio | vori)
-            if [[ "${2,,}" == "cusolver_mp" ]]; then
-              CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_USE_${2^^}=${ON_OFF}"
-            else
-              CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${2^^}=${ON_OFF}"
-            fi
+          ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | hdf5 | libfci | \
+            libgint | libint2 | libsmeagol | libtorch | libxc | libxs | mimic | openpmd | pexsi | \
+            plumed | spglib | tblite | trexio | vori)
+            CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${2^^}=${ON_OFF}"
             # Translate package selection to sed pattern
             case "${2,,}" in
               ace)
@@ -306,10 +302,6 @@ while [[ $# -gt 0 ]]; do
               cosma | elpa | greenx | hdf5 | libfci | libsmeagol | libxc | pexsi | plumed | \
                 spglib | trexio)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
-                ;;
-              cusolver_mp)
-                USE_CUSOLVER_MP="${ON_OFF}"
-                SED_PATTERN_LIST+=" -e '/\s*-\s+\"cusolvermp@/ ${SUBST}"
                 ;;
               deepmd)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}kit@/ ${SUBST}"
@@ -395,6 +387,11 @@ while [[ $# -gt 0 ]]; do
             SED_PATTERN_LIST+=" -e '/\s*-\s+\"spfft@/ ${SUBST}"
             SED_PATTERN_LIST+=" -e '/\s*-\s+\"spla@/ ${SUBST}"
             SED_PATTERN_LIST+=" -e '/\s*-\s+\"sirius@/ ${SUBST}"
+            ;;
+          cusolver_mp)
+            USE_CUSOLVER_MP="${ON_OFF}"
+            CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_USE_${2^^}=${ON_OFF}"
+            SED_PATTERN_LIST+=" -e '/\s*-\s+\"cusolvermp@/ ${SUBST}"
             ;;
           cray_pm_accel_energy | spla_gemm_offloading | unified_memory)
             CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_USE_${2^^}=${ON_OFF}"
