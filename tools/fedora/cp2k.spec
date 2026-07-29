@@ -134,7 +134,6 @@ rm tools/build_utils/fypp
 %build
 cmake_common_args=(
   "-G Ninja"
-  "-DCMAKE_BUILD_TYPE:STRING=Generic"
   "-DCP2K_BLAS_VENDOR:STRING=FlexiBLAS"
   "-DCP2K_USE_EVERYTHING:BOOL=OFF"
   "-DCP2K_USE_STATIC_BLAS:BOOL=OFF"

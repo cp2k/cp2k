@@ -50,16 +50,6 @@ add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:C,GNU>:-Wno-deprecated-declarations;-Wno-vla-parameter>"
 )
 
-# -- Apple Silicon + GCC: -march=native expands internally to -march=apple-m1
-# (invalid). Use -mcpu=native instead.
-set(_CP2K_GNU_NATIVE_TUNE "-march=native;-mtune=native")
-if(APPLE
-   AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64"
-   AND (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"
-        OR CMAKE_C_COMPILER_ID STREQUAL "GNU"
-        OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
-  set(_CP2K_GNU_NATIVE_TUNE "-mcpu=native")
-endif()
 if(APPLE)
   add_definitions(-D__MACOSX)
 endif()
@@ -69,17 +59,9 @@ endif()
 
 # Release
 add_compile_options(
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O3;${_CP2K_GNU_NATIVE_TUNE};-funroll-loops>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-O3;${_CP2K_GNU_NATIVE_TUNE};-funroll-loops>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O3;${_CP2K_GNU_NATIVE_TUNE};-funroll-loops>"
-)
-
-# Generic
-add_compile_options(
-  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O3;-mtune=generic;-funroll-loops>"
-  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-O3;-mtune=generic;-funroll-loops>"
-  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O3;-mtune=generic;-funroll-loops>"
-)
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O3;-funroll-loops>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-O3;-funroll-loops>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O3;-funroll-loops>")
 
 # Debug
 
@@ -87,9 +69,9 @@ add_compile_options(
 # GCC 12) and remove "-Wno-error=deprecated-openmp" once GCC 11 support is
 # dropped.
 add_compile_options(
-  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O1;${_CP2K_GNU_NATIVE_TUNE}>"
-  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-O1;${_CP2K_GNU_NATIVE_TUNE}>"
-  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O1;${_CP2K_GNU_NATIVE_TUNE};-Wall;-Wextra;-Werror>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O1>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-O1>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O1;-Wall;-Wextra;-Werror>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>,$<VERSION_GREATER_EQUAL:$<C_COMPILER_VERSION>,16>>:-Wno-error=deprecated-openmp>"
 )
 # FIXME: GCC 16 diagnoses legacy character-length mismatches that were not
@@ -115,7 +97,7 @@ add_link_options(
 
 # Conventions
 add_compile_options(
-  "$<$<CONFIG:CONVENTIONS>:-O1;${_CP2K_GNU_NATIVE_TUNE}>"
+  "$<$<CONFIG:CONVENTIONS>:-O1>"
   "$<$<AND:$<CONFIG:CONVENTIONS>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Wno-pedantic;-Wall;-Wextra;-Wsurprising>"
   "$<$<AND:$<CONFIG:CONVENTIONS>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Warray-temporaries;-Wconversion-extra;-Wimplicit-interface>"
   "$<$<AND:$<CONFIG:CONVENTIONS>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Wimplicit-procedure;-Wreal-q-constant;-Walign-commons>"
@@ -127,14 +109,12 @@ add_compile_options(
 
 # Coverage
 add_compile_options(
-  "$<$<CONFIG:COVERAGE>:-coverage;-fkeep-static-functions;-O1;${_CP2K_GNU_NATIVE_TUNE}>"
-)
+  "$<$<CONFIG:COVERAGE>:-coverage;-fkeep-static-functions;-O1>")
 add_compile_definitions("$<$<CONFIG:COVERAGE>:__NO_ABORT>")
 
 # Address Sanitizer
 add_compile_options(
-  "$<$<CONFIG:ASAN>:-fsanitize=address;-no-pie;-O3;${_CP2K_GNU_NATIVE_TUNE};-funroll-loops>"
-)
+  "$<$<CONFIG:ASAN>:-fsanitize=address;-no-pie;-O3;-funroll-loops>")
 add_link_options("$<$<CONFIG:ASAN>:-fsanitize=address>")
 
 # =========================== Intel oneAPI Compilers ===========================
@@ -150,10 +130,10 @@ add_compile_options(
 
 # Release
 add_compile_options(
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>>:-O3;-xHOST;-D__HAS_IEEE_EXCEPTIONS>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-O2;-xHOST;-D__HAS_IEEE_EXCEPTIONS>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:CXX,IntelLLVM>>:-O3;-xHOST>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,IntelLLVM>>:-O3;-xHOST>")
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>>:-O3;-D__HAS_IEEE_EXCEPTIONS>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-O2;-D__HAS_IEEE_EXCEPTIONS>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:CXX,IntelLLVM>>:-O3>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,IntelLLVM>>:-O3>")
 
 # Debug
 add_compile_options(
