@@ -98,8 +98,9 @@ MODULE qs_environment
         hden_atomic, kg_tnadd_embed_ri, linear_response_run, rel_none, rel_trans_atom, &
         smear_fermi_dirac, tblite_scc_mixer_tblite, tddfpt_kernel_none, vdw_pairpot_dftd2, &
         vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, wfi_linear_ps_method_nr, &
-        wfi_linear_wf_method_nr, wfi_use_prev_wf_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, &
-        xc_vdw_fun_pairpot, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
+        wfi_linear_wf_method_nr, wfi_use_guess_method_nr, wfi_use_prev_wf_method_nr, &
+        xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot, xtb_vdw_type_d3, xtb_vdw_type_d4, &
+        xtb_vdw_type_none
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_vals_get,&
@@ -1335,6 +1336,9 @@ CONTAINS
       ! DFT+U
       CALL get_qs_kind_set(qs_kind_set, dft_plus_u_atom_present=dft_control%dft_plus_u)
 
+      ! Minimum tracking linear response U and J
+      CALL get_qs_kind_set(qs_kind_set, do_mtlr_present=dft_control%mtlr_u_j)
+
       IF (dft_control%do_admm) THEN
          ! Check if ADMM basis is available
          CALL get_qs_env(qs_env, nkind=nkind)
@@ -1658,6 +1662,12 @@ CONTAINS
          IF (dft_control%qs_control%dftb_control%orthogonal_basis) has_unit_metric = .TRUE.
       END IF
       CALL set_qs_env(qs_env, has_unit_metric=has_unit_metric)
+
+      ! MTLR mandates the use of use_guess extrapolation
+      IF (dft_control%mtlr_u_j) THEN
+         dft_control%qs_control%wf_interpolation_method_nr = &
+            wfi_use_guess_method_nr
+      END IF
 
       !  Activate the interpolation
       CALL wfi_create(wf_history, &

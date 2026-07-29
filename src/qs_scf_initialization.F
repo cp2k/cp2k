@@ -9,6 +9,7 @@
 !> \brief Utility routines for qs_scf
 ! **************************************************************************************************
 MODULE qs_scf_initialization
+   USE atom_kind_orbitals,              ONLY: calculate_atomic_orbitals
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
@@ -57,8 +58,8 @@ MODULE qs_scf_initialization
         broy_mix, cholesky_dbcsr, cholesky_inverse, cholesky_off, diag_block_davidson, &
         diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, direct_p_mix, kerker_mix, &
         modified_broy_mix, multisec_mix, new_pulay_mix, no_mix, ot2cdft, outer_scf_none, &
-        plus_u_lowdin, pulay_mix, smeagol_runtype_emtransport, wfi_frozen_method_nr, &
-        wfi_ps_method_nr, wfi_use_guess_method_nr
+        plus_u_lowdin, plus_u_tensorial, pulay_mix, smeagol_runtype_emtransport, &
+        wfi_frozen_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -941,6 +942,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: u_ramping
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: evecs, fm_w
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -1153,6 +1155,23 @@ CONTAINS
                END IF
             END IF
          END DO
+      END IF
+
+      IF (dft_control%dft_plus_u) THEN
+         IF (dft_control%plus_u_method_id == plus_u_tensorial) THEN
+            CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
+            DO ikind = 1, SIZE(atomic_kind_set)
+               qs_kind => qs_kind_set(ikind)
+               CALL get_qs_kind(qs_kind=qs_kind, dft_plus_u_atom=dft_plus_u_atom)
+               IF (.NOT. dft_plus_u_atom) CYCLE
+               CALL calculate_atomic_orbitals(atomic_kind=atomic_kind_set(ikind), &
+                                              qs_kind=qs_kind_set(ikind), &
+                                              which_l=qs_kind%dft_plus_u%l, &
+                                              which_n=qs_kind%dft_plus_u%n, &
+                                              proj_shell_charge=qs_kind%dft_plus_u%proj_shell_charge, &
+                                              ao_coef=qs_kind%dft_plus_u%ao_coef)
+            END DO
+         END IF
       END IF
 
       ! extrapolate outer loop variables

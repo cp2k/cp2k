@@ -144,7 +144,8 @@ MODULE input_constants
                                                tree_mc_run = 18, &
                                                driver_run = 19, &
                                                negf_run = 20, &
-                                               mimic_run = 21
+                                               mimic_run = 21, &
+                                               mtlr_run = 22
 
    ! Run Types of Atom Code
    INTEGER, PARAMETER, PUBLIC               :: atom_no_run = 1, &
@@ -922,7 +923,8 @@ MODULE input_constants
    ! Define DFT+U method identifier codes
    INTEGER, PARAMETER, PUBLIC               :: plus_u_lowdin = 1, &
                                                plus_u_mulliken = 2, &
-                                               plus_u_mulliken_charges = 3
+                                               plus_u_mulliken_charges = 3, &
+                                               plus_u_tensorial = 4
 
    ! Define identifier codes for smearing method
    INTEGER, PARAMETER, PUBLIC               :: smear_energy_window = 1, &

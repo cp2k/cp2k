@@ -787,11 +787,17 @@ MODULE cp_control_types
                                               auto_basis_ri_hxc = 1, &
                                               auto_basis_ri_xas = 1, &
                                               auto_basis_ri_hfx = 1, &
-                                              localize_each = 1
-      REAL(KIND=dp)                        :: relax_multiplicity = 0.0_dp, &
+                                              localize_each = 1, &
+                                              mtlr_ikind = 1, &
+                                              max_mtlr_iter = 10
+      REAL(KIND=dp)                        :: eps_u_j_loop = 0.01_dp, &
+                                              relax_multiplicity = 0.0_dp, &
                                               sic_scaling_a = 0.0_dp, &
                                               sic_scaling_b = 0.0_dp, &
-                                              pos_dir_surf_dip = 0.0_dp
+                                              pos_dir_surf_dip = 0.0_dp, &
+                                              perturbation_strength = 0.0_dp, &
+                                              trq(2) = 0.0_dp, &
+                                              vhxc(2) = 0.0_dp
       LOGICAL                              :: do_xas_calculation = .FALSE., &
                                               do_xas_tdp_calculation = .FALSE., &
                                               drho_by_collocation = .FALSE., &
@@ -801,6 +807,7 @@ MODULE cp_control_types
                                               uks = .FALSE., &
                                               lsd = .FALSE., &
                                               dft_plus_u = .FALSE., &
+                                              mtlr_u_j = .FALSE., &
                                               apply_efield = .FALSE., &
                                               apply_efield_field = .FALSE., &
                                               apply_vector_potential = .FALSE., &
@@ -827,7 +834,8 @@ MODULE cp_control_types
                                               do_paep = .FALSE., &
                                               do_pcc = .FALSE., &
                                               ! If true, then no other XC functionals are allowed
-                                              use_gauxc = .FALSE.
+                                              use_gauxc = .FALSE., &
+                                              mtlr_dft_with_perturbation = .FALSE.
    END TYPE dft_control_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'

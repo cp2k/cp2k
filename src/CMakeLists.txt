@@ -415,6 +415,7 @@ list(
   mp2_types.F
   mscfg_methods.F
   mscfg_types.F
+  mtlr_u_j_methods.F
   mulliken.F
   negf_alloc_types.F
   negf_atom_map.F

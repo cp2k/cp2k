@@ -97,7 +97,7 @@ MODULE bibliography
                             FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
-                            Chai2025a, Neugebauer2023
+                            Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005
 
 CONTAINS
 
@@ -2231,6 +2231,27 @@ CONTAINS
                          "on the solvent-aware interface", &
                          source="Comput. Phys. Commun.", volume="311", pages="109563", &
                          year=2025, doi="10.1016/j.cpc.2025.109563")
+
+      CALL add_reference(key=Chai2024b, &
+                         authors=s2a("Z. Chai", "R. Si", "M. Chen", "G. Teobaldi", "D. O'Regan", "L. Liu"), &
+                         title="Minimum Tracking Linear Response Hubbard and Hund Corrected Density Functional Theory in CP2K", &
+                         source="J. Chem. Theory Comput.", volume="20", pages="8984-9002", &
+                         year=2024, doi="10.1021/acs.jctc.4c00964")
+
+      CALL add_reference(key=Moynihan2017, &
+                         authors=s2a("G. Moynihan", "G. Teobaldi", "D. D. O'Regan"), &
+                         title="A self-consistent ground-state formulation of the "// &
+                         "first-principles Hubbard U parameter validated on "// &
+                         "one-electron self-interaction error", &
+                         source="arXiv", pages="1704.08076", &
+                         year=2017, doi="10.48550/arXiv.1704.08076")
+
+      CALL add_reference(key=Cococcioni2005, &
+                         authors=s2a("M. Cococcioni", "S. de Gironcoli"), &
+                         title="Linear response approach to the calculation of the "// &
+                         "effective interaction parameters in the LDA+U method", &
+                         source="Phys. Rev. B", volume="71", pages="035105", &
+                         year=2005, doi="10.1103/PhysRevB.71.035105")
 
    END SUBROUTINE add_all_references
 

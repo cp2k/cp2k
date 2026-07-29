@@ -112,7 +112,8 @@ MODULE qs_ks_methods
    USE qs_harris_utils,                 ONLY: harris_set_potentials
    USE qs_integrate_potential,          ONLY: integrate_ppl_rspace,&
                                               integrate_rho_nlcc,&
-                                              integrate_v_core_rspace
+                                              integrate_v_core_rspace,&
+                                              integrate_v_rspace
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_apply_restraints,          ONLY: qs_ks_cdft_constraint,&
                                               qs_ks_mulliken_restraint,&
@@ -221,7 +222,7 @@ CONTAINS
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_vxc, mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_vhxc, matrix_vxc, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, ks_matrix_im, matrix_h, &
                                                             matrix_h_im, matrix_s, matrix_vxc_kp, &
                                                             my_rho, rho_ao
@@ -234,12 +235,15 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type)                               :: rho_tot_gspace, v_hartree_gspace
       TYPE(pw_c1d_gs_type), POINTER                      :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type), DIMENSION(2)                 :: v_hxc_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace_embed, v_rspace_new, &
                                                             v_rspace_new_aux_fit, v_tau_rspace, &
                                                             v_tau_rspace_aux_fit
@@ -263,9 +267,9 @@ CONTAINS
                adiabatic_rescaling_section, hfx_sections, input, scf_section, &
                xc_section, gauxc_section, matrix_h, matrix_h_im, matrix_s, auxbas_pw_pool, poisson_env, &
                v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, matrix_vxc, &
-               matrix_vxc_kp, &
+               matrix_vxc_kp, matrix_vhxc, &
                vee, rho_nlcc, ks_env, ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, &
-               rho_core, particle_set, qs_kind_set, kpoints)
+               rho_core, sab_orb, particle_set, qs_kind_set, kpoints)
 
       CPASSERT(ASSOCIATED(qs_env))
 
@@ -284,6 +288,7 @@ CONTAINS
                       matrix_ks_kp=ks_matrix, &
                       matrix_ks_im_kp=ks_matrix_im, &
                       matrix_vxc=matrix_vxc, &
+                      matrix_vhxc=matrix_vhxc, &
                       matrix_vxc_kp=matrix_vxc_kp, &
                       pw_env=pw_env, &
                       cell=cell, &
@@ -297,6 +302,7 @@ CONTAINS
                       rho=rho, &
                       rho_core=rho_core, &
                       rho_xc=rho_xc, &
+                      sab_orb=sab_orb, &
                       energy=energy, &
                       force=force, &
                       kpoints=kpoints, &
@@ -470,6 +476,14 @@ CONTAINS
          END IF
       END IF
       CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
+
+      IF (dft_control%mtlr_dft_with_perturbation) THEN
+         DO ispin = 1, nspins
+            CALL auxbas_pw_pool%create_pw(v_hxc_rspace(ispin))
+            CALL pw_zero(v_hxc_rspace(ispin))
+            CALL pw_axpy(v_hartree_rspace, v_hxc_rspace(ispin))
+         END DO
+      END IF
 
       IF (dft_control%correct_surf_dip) THEN
          IF (dft_control%surf_dip_correct_switch) THEN
@@ -763,6 +777,37 @@ CONTAINS
                                        calculate_forces=calculate_forces)
             END IF
          END IF
+      END IF
+
+      IF (dft_control%mtlr_dft_with_perturbation) THEN
+         IF (.NOT. ASSOCIATED(matrix_vhxc)) THEN
+            ALLOCATE (matrix_vhxc(nspins))
+            DO ispin = 1, nspins
+               NULLIFY (matrix_vhxc(ispin)%matrix)
+               ALLOCATE (matrix_vhxc(ispin)%matrix)
+               CALL dbcsr_create(matrix_vhxc(ispin)%matrix, &
+                                 template=ks_matrix(1, 1)%matrix)
+               CALL cp_dbcsr_alloc_block_from_nbl(matrix_vhxc(ispin)%matrix, sab_orb)
+               CALL dbcsr_set(matrix_vhxc(ispin)%matrix, 0.0_dp)
+            END DO
+            CALL set_ks_env(ks_env, matrix_vhxc=matrix_vhxc)
+         ELSE
+            CPASSERT(SIZE(matrix_vhxc) == nspins)
+            DO ispin = 1, nspins
+               CPASSERT(ASSOCIATED(matrix_vhxc(ispin)%matrix))
+            END DO
+         END IF
+         DO ispin = 1, nspins
+            CALL pw_axpy(v_rspace_new(ispin), &
+                         v_hxc_rspace(ispin), &
+                         v_rspace_new(ispin)%pw_grid%dvol)
+            CALL dbcsr_set(matrix_vhxc(ispin)%matrix, 0.0_dp)
+            CALL integrate_v_rspace(v_hxc_rspace(ispin), &
+                                    hmat=matrix_vhxc(ispin), &
+                                    qs_env=qs_env, &
+                                    calculate_forces=.FALSE.)
+            CALL auxbas_pw_pool%give_back_pw(v_hxc_rspace(ispin))
+         END DO
       END IF
 
       ! set hartree and xc potentials for use in Harris method

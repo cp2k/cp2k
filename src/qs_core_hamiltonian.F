@@ -98,7 +98,8 @@ MODULE qs_core_hamiltonian
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE input_constants,                 ONLY: do_admm_purify_none,&
-                                              kg_tnadd_atomic
+                                              kg_tnadd_atomic,&
+                                              plus_u_tensorial
    USE input_section_types,             ONLY: section_vals_val_get
    USE kg_environment_types,            ONLY: kg_environment_type
    USE kg_tnadd_mat,                    ONLY: build_tnadd_mat
@@ -114,7 +115,8 @@ MODULE qs_core_hamiltonian
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type,&
                                               set_ks_env
@@ -155,10 +157,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_hamiltonian_matrix'
 
-      INTEGER                                            :: handle, img, iw, nder, nders, nimages, &
-                                                            nkind
-      LOGICAL                                            :: h_is_complex, norml1, norml2, ofdft, &
-                                                            use_arnoldi, use_virial
+      INTEGER                                            :: handle, ikind, img, iw, nder, nders, &
+                                                            nimages, nkind
+      LOGICAL                                            :: dft_plus_u_atom, h_is_complex, norml1, &
+                                                            norml2, ofdft, &
+                                                            tensorial_plus_u_forces, use_arnoldi, &
+                                                            use_virial
       REAL(KIND=dp)                                      :: eps_filter, eps_fit
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -190,6 +194,9 @@ CONTAINS
 
       NULLIFY (dft_control)
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+
+      NULLIFY (qs_kind_set)
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
 
       ! is this a orbital-free method calculation
       ofdft = dft_control%qs_control%ofgpw
@@ -225,6 +232,23 @@ CONTAINS
              dft_control%rtp_control%periodic) THEN
             nders = 1
          END IF
+      END IF
+
+      tensorial_plus_u_forces = .FALSE.
+      IF (dft_control%plus_u_method_id == plus_u_tensorial) THEN
+         IF (ASSOCIATED(qs_kind_set)) THEN
+            DO ikind = 1, SIZE(qs_kind_set)
+               CALL get_qs_kind(qs_kind_set(ikind), &
+                                dft_plus_u_atom=dft_plus_u_atom)
+               IF (dft_plus_u_atom) THEN
+                  tensorial_plus_u_forces = .TRUE.
+                  EXIT
+               END IF
+            END DO
+         END IF
+      END IF
+      IF (tensorial_plus_u_forces) THEN
+         nders = 1
       END IF
 
       IF (dft_control%tddfpt2_control%enabled) THEN
