@@ -734,7 +734,7 @@ CONTAINS
       energy_step = bs_env%energy_step_floquet
       E_min = mu - bs_env%energy_window_floquet
 
-      ! Spectral function / DOS, A(k,E) = -(1/π) Im Tr_KS G^R_00(k,E),
+      ! (1) Spectral function / DOS, A(k,E) = -(1/π) Im Tr_KS G^R_00(k,E),
       ! where G^R_00(k,E) = (E + iη - H_F)^(-1) is the retarded Green's function
       ! With H_F = Σ_α λ_α |α><α|, we simplify
       ! A(k,E) = -(1/π) Σ_α w0_α Im[1/(E + iη - λ_α)], η = broadening/2.
