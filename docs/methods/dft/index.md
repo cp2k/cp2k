@@ -19,6 +19,7 @@ constrained
 cneo
 linear_scaling
 gauxc
+restarting
 ```
 
 Density functional theory in CP2K is primarily provided by the Quickstep module. Most production

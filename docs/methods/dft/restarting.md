@@ -111,15 +111,15 @@ The most common approach is to write a restart file at the end of a successful S
 
 ### Key Keywords for Restart File Generation
 
-1. **`WFN_RESTART_FILE_NAME`**: Specifies the name of the wavefunction restart file to be written
-2. **`FILENAME`**: Sets the base filename for restart files (wavefunction files will have this prefix)
-3. **`BACKUP_COPIES`**: Controls how many backup copies to keep (0 = no backups)
-4. **`COMMON_ITERATION_LEVELS`**: Determines how frequently to write restart information
-5. **`JUST_ENERGY`**: When set to 1, writes restart file at the end of SCF when energy is computed
+1. **`FILENAME`**: Sets the base filename for restart files (wavefunction files will have this prefix, plus `-RESTART.wfn` or `-{step}_0.wfn` suffix)
+2. **`BACKUP_COPIES`**: Controls how many backup copies to keep (default: 1; 0 = no backups)
+3. **`COMMON_ITERATION_LEVELS`**: Determines how many iteration levels are merged into a common filename (default: 0 = each level gets its own filename)
+4. **`JUST_ENERGY`**: When set to 1, writes restart file at the end of SCF when energy is computed (produces `{FILENAME}-RESTART.wfn`)
+5. **`QS_SCF N`**: Write restart file every N SCF iterations (produces `{FILENAME}-{i}_0.wfn`)
 
 ### Complete Example with File Generation
 
-Here's a complete example that generates a restart file named `previous_calculation-1_0.wfn` (which matches the filename used in the restart examples):
+Here's a complete example that generates a restart file named `previous_calculation-RESTART.wfn` (matching the filename expected by the restart examples above):
 
 ```none
 @SET PROJECT_NAME previous_calculation
@@ -167,7 +167,7 @@ Here's a complete example that generates a restart file named `previous_calculat
 &END FORCE_EVAL
 ```
 
-This configuration will generate a restart file named `previous_calculation-1_0.wfn` that can be used in the restart examples shown earlier in this documentation.
+This configuration will generate a restart file named `previous_calculation-RESTART.wfn` (the `-RESTART.wfn` suffix is produced when `JUST_ENERGY 1` is set). This file can be used in the restart examples shown earlier in this documentation.
 
 ### Controlling Restart File Frequency
 
@@ -337,13 +337,22 @@ The `EXT_RESTART` section allows fine-grained control over what to restart:
 
 #### EXT_RESTART Keywords
 
-- **`EXTERNAL_FILE`**: Specifies the restart file to read from
-- **`RESTART_POS`**: Restart atomic positions (default: FALSE)
-- **`RESTART_VEL`**: Restart atomic velocities (default: FALSE)
-- **`RESTART_CELL`**: Restart cell parameters (default: FALSE)
-- **`RESTART_THERMOSTAT`**: Restart thermostat state (default: FALSE)
-- **`RESTART_BAROSTAT`**: Restart barostat state (default: FALSE)
-- **`RESTART_RANDOMG`**: Restart random number generator state (default: FALSE)
+- **`RESTART_FILE_NAME`** (alias: `EXTERNAL_FILE`): Specifies the restart file to read from
+- **`RESTART_DEFAULT`**: Sets all `RESTART_*` options to the same value at once (default: TRUE)
+- **`RESTART_COUNTERS`**: Restart MD counters (step number, walltime, etc.) (bare keyword = TRUE)
+- **`RESTART_POS`**: Restart atomic positions (bare keyword = TRUE)
+- **`RESTART_VEL`**: Restart atomic velocities (bare keyword = TRUE)
+- **`RESTART_RANDOMG`**: Restart random number generator state (bare keyword = TRUE)
+- **`RESTART_BAROSTAT`**: Restart barostat state (bare keyword = TRUE)
+- **`RESTART_BAROSTAT_THERMOSTAT`**: Restart barostat thermostat state (bare keyword = TRUE)
+- **`RESTART_THERMOSTAT`**: Restart thermostat state (bare keyword = TRUE)
+- **`RESTART_CELL`**: Restart cell parameters (bare keyword = TRUE)
+- **`RESTART_SHELL_POS`**: Restart shell positions (for shell-model) (bare keyword = TRUE)
+- **`RESTART_CORE_POS`**: Restart core positions (for shell-model) (bare keyword = TRUE)
+- **`RESTART_SHELL_VELOCITY`**: Restart shell velocities (bare keyword = TRUE)
+- **`RESTART_CORE_VELOCITY`**: Restart core velocities (bare keyword = TRUE)
+- **`RESTART_SHELL_THERMOSTAT`**: Restart shell thermostat (bare keyword = TRUE)
+- **`RESTART_OPTIMIZE_INPUT_VARIABLES`**: Restart optimize input variables (bare keyword = TRUE)
 
 #### Example: Equilibration to Production Workflow
 
