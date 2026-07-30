@@ -10,7 +10,7 @@
 "H2O-rks-otcg-lowdin.inp"               = [{matcher="M024", tol=1E-12, ref=0.07674870925125}]
 "H2O-uks-diag-lowdin.inp"               = [{matcher="M024", tol=1E-12, ref=0.08364867485442}]
 "H2O-uks-otcg-lowdin.inp"               = [{matcher="M024", tol=1e-08, ref=0.08364906016063}]
-"H2O-uks-otcg-lowdin_j.inp"             = [{matcher="E_total", tol=1e-09, ref=-17.044553522012063}]
+"H2O-uks-otcg-lowdin_j.inp"             = [{matcher="E_total", tol=1e-09, ref=-17.044553516712700}]
 "H2O-uks-otcg-tensorial.inp"            = [{matcher="E_total", tol=1e-09, ref=-17.082190201923773}]
 # U ramping
 "H2O-rks-u_ramping.inp"                 = [{matcher="M024", tol=1e-06, ref=0.04016322995855}]

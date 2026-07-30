@@ -38,7 +38,7 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-5
-      MAX_SCF 30
+      MAX_SCF 50
       SCF_GUESS restart
       &OT ON
         MINIMIZER cg

@@ -2194,9 +2194,10 @@ CONTAINS
                                       keyword_name="PLUS_U_METHOD", &
                                       i_val=plus_u_method_id)
 
-            IF (plus_u_method_id == plus_u_tensorial) THEN
+            IF (plus_u_method_id == plus_u_tensorial .OR. plus_u_method_id == plus_u_lowdin) THEN
                IF (explicit_U) THEN
-                  CPABORT("Tensorial DFT+U+J does not allow U to be specified. Use U_MINUS_J and J.")
+                  CALL cp_abort(__LOCATION__, "Lowdin and tensorial DFT+U+J do not allow U "// &
+                                "to be specified. Use U_MINUS_J and J.")
                END IF
             ELSE
                IF ((explicit_U .OR. explicit_J) .AND. explicit_u_m_j) THEN
