@@ -38,6 +38,14 @@ xTB/regtest-gfn0-m2                                         libdftd4
 QS/regtest-debug-6                                          libint !ifx
 Fist/regtest-7-2
 QS/regtest-nlcc-1                                           libint libxc !ifx
+QS/regtest-skala-ftorch                                      skala_ftorch
+QS/regtest-skala-native-gpw-mol                              skala_ftorch
+QS/regtest-skala-native-gpw-mech                             skala_ftorch
+QS/regtest-skala-native-gpw-coords                           skala_ftorch
+QS/regtest-skala-native-gapw-base                            skala_ftorch
+QS/regtest-skala-native-gapw-gth                             skala_ftorch
+QS/regtest-skala-native-gapw-ecp                             skala_ftorch
+QS/regtest-skala-native-gapw-ae-kp                            skala_ftorch
 QS/regtest-ot-2
 QS/regtest-ot
 QS/regtest-gpw-1                                            libint libvori !ifx

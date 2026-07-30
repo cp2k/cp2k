@@ -186,6 +186,13 @@ integrator.
   interfaces require a consistently built numerical stack.
 - See [](../methods/dft/gauxc) for input, supported calculation types, and current limitations.
 
+## Skala/FTorch (machine learning for quantum chemistry)
+
+Skala/FTorch provides machine learning functionality for quantum chemistry calculations.
+
+- Pass `-DCP2K_USE_SKALA_FTORCH=ON` to CMake to enable Skala/FTorch support.
+- Requires FTorch and Skala libraries to be installed and available.
+
 ## PEXSI (low scaling SCF method)
 
 The Pole EXpansion and Selected Inversion (PEXSI) method requires an MPI build and a compatible

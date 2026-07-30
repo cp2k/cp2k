@@ -422,8 +422,11 @@ while [[ $# -gt 0 ]]; do
           dbm_gpu | elpa_gpu | grid_gpu | pw_gpu)
             CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_ENABLE_${2^^}=${ON_OFF}"
             ;;
-          none)
+           none)
             # do nothing
+            ;;
+          skala_ftorch)
+            CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_SKALA_FTORCH=${ON_OFF}"
             ;;
           *)
             echo "ERROR: Unknown CP2K feature \"${2}\" specified"
