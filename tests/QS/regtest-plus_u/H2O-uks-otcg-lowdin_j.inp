@@ -81,9 +81,9 @@
       BASIS_SET DZVP-GTH
       POTENTIAL GTH-PADE-q6
       &DFT_PLUS_U
+        J 0.008
         L 1
         U_MINUS_J 0.08
-        J 0.008
       &END DFT_PLUS_U
     &END KIND
     &PRINT

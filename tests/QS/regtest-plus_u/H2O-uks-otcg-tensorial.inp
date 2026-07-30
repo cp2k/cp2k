@@ -81,10 +81,10 @@
       BASIS_SET DZVP-GTH
       POTENTIAL GTH-PADE-q6
       &DFT_PLUS_U
+        J [eV] 0.35
         L 1
         N 2
         U_MINUS_J [eV] 3.5
-        J [eV] 0.35
         &ATOMIC_PROJECTOR_TENSORIAL ON
           SHELL_CHARGE 0 0.5 0 0
         &END ATOMIC_PROJECTOR_TENSORIAL
