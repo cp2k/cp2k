@@ -1329,6 +1329,9 @@ CONTAINS
 !> \param force ...
 !> \date   2020-10-10
 !> \author Christoph Schran (christoph.schran@rub.de)
+!> \note   This kernel is also inlined into nnp_calc_acsf on the serial force
+!>         path; any change to the computation or force scatter here must be
+!>         mirrored at that inlining site (see the comment there).
 ! **************************************************************************************************
    SUBROUTINE nnp_calc_ang(nnp, ind, s, rvect1, rvect2, rvect3, r1, r2, r3, &
                            fcut_j, dfcut_j, fcut_k, dfcut_k, sym, force)
