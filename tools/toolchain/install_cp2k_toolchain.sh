@@ -481,7 +481,7 @@ math_list="mkl acml openblas"
 lib_list="fftw eigen libint libxc gauxc libxsmm libxs libxstream cosma scalapack
           elpa dbcsr cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
           libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol fmt trexio
-          libfci greenx gmp mcl libgint"
+          libfci greenx gmp mcl libgint skala_ftorch"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -522,6 +522,7 @@ with_spfft="__DONTUSE__"
 with_spla="__DONTUSE__"
 with_cosma="__INSTALL__"
 with_libvori="__INSTALL__"
+with_skala_ftorch="__DONTUSE__"
 with_libtorch="__DONTUSE__"
 with_ninja="__DONTUSE__"
 with_dftd4="__DONTUSE__"
@@ -840,6 +841,9 @@ Otherwise use option no."
     --with-gauxc*)
       with_gauxc=$(read_with "${1}")
       ;;
+    --with-skala-ftorch*)
+      with_skala_ftorch=$(read_with "${1}")
+      ;;
     --with-fftw*)
       with_fftw=$(read_with "${1}")
       ;;
@@ -1117,6 +1121,10 @@ if [ "${ENABLE_GAUXC_CUTLASS}" = "__TRUE__" ]; then
   fi
 fi
 
+if [ "${with_gauxc}" != "__DONTUSE__" ] && [ "${with_skala_ftorch}" != "__DONTUSE__" ]; then
+  report_error ${LINENO} "--with-gauxc and --with-skala-ftorch are mutually exclusive. Please choose one."
+fi
+
 # If OpenCL is enabled, ensure LIBXS and LIBXSTREAM are available.
 if [ "${ENABLE_OPENCL}" = "__TRUE__" ]; then
   if [ "${with_libxs}" = "__DONTUSE__" ]; then
@@ -1217,6 +1225,10 @@ if [ "${with_deepmd}" = "__INSTALL__" ]; then
 fi
 
 if [ "${with_gauxc}" = "__INSTALL__" ]; then
+  [ "${with_libtorch}" = "__DONTUSE__" ] && with_libtorch="__INSTALL__"
+fi
+
+if [ "${with_skala_ftorch}" = "__INSTALL__" ]; then
   [ "${with_libtorch}" = "__DONTUSE__" ] && with_libtorch="__INSTALL__"
 fi
 
