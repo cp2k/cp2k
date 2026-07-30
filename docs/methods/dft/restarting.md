@@ -279,6 +279,15 @@ For mixed CDFT calculations, each state can have its own restart file:
 &END FORCE_EVAL
 ```
 
+Mixed CDFT calculations require separate wavefunction restart files for each constrained state. The CP2K test suite includes such tests in `tests/QS/regtest-cdft-3/`, where single-state CDFT calculations (e.g., `HeH-cdft-state-1.inp`, `HeH-cdft-state-2.inp`) generate wavefunction files that are then used as restarts for mixed CDFT calculations (e.g., `HeH-mixed-cdft-1.inp`):
+
+```none
+@SET WFN_FILE_1  HeH-cdft-state-1-1_0.wfn  ! Restart file for state 1
+@SET WFN_FILE_2  HeH-cdft-state-2-1_0.wfn  ! Restart file for state 2
+```
+
+Each force eval subblock uses `WFN_RESTART_FILE_NAME ${WFN_FILE_1}` or `${WFN_FILE_2}` accordingly, with `SCF_GUESS RESTART` to restart from the respective state's wavefunction.
+
 ### Restart File Format
 
 CP2K restart files are binary files containing the wavefunction coefficients and other essential information. The exact format may vary between CP2K versions, so it's generally recommended to use restart files with the same version of CP2K that generated them.
@@ -407,116 +416,6 @@ This example shows how to use EXT_RESTART to continue from an equilibration run 
   &END DFT
 &END FORCE_EVAL
 ```
-
-### Real-World Example from CP2K Test Suite
-
-The following example is based on actual CP2K test files (`tests/Fist/regtest-1-1/water_1_res_*.inp`) that demonstrate a typical restart workflow for molecular dynamics simulations:
-
-```none
-&GLOBAL
-  PROJECT water_1
-  RUN_TYPE md
-&END GLOBAL
-
-&EXT_RESTART
-  EXTERNAL_FILE water_1-1.restart
-  RESTART_BAROSTAT .FALSE.
-  RESTART_BAROSTAT_THERMOSTAT .FALSE.
-  RESTART_CELL .FALSE.
-  RESTART_POS
-  RESTART_RANDOMG .FALSE.
-  RESTART_THERMOSTAT .FALSE.
-  RESTART_VEL FALSE
-&END EXT_RESTART
-
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS 10
-    TEMPERATURE 298
-    TIMESTEP 2.5
-  &END MD
-  &PRINT
-    &RESTART
-      &EACH
-        MD 1  ! Write restart file at each MD step
-      &END EACH
-    &END RESTART
-  &END PRINT
-&END MOTION
-
-&FORCE_EVAL
-  METHOD FIST
-  &MM
-    &FORCEFIELD
-      PARMTYPE CHM
-      PARM_FILE_NAME water.pot
-      &CHARGE
-        ATOM OT
-        CHARGE -0.8476
-      &END CHARGE
-      &CHARGE
-        ATOM HT
-        CHARGE 0.4238
-      &END CHARGE
-    &END FORCEFIELD
-    &POISSON
-      &EWALD
-        ALPHA .44
-        EWALD_TYPE spme
-        GMAX 24
-        O_SPLINE 6
-      &END EWALD
-    &END POISSON
-  &END MM
-  &SUBSYS
-    &CELL
-      ABC 24.955 24.955 24.955
-    &END CELL
-    &TOPOLOGY
-      COORDINATE pdb
-      COORD_FILE_NAME water_1.pdb
-    &END TOPOLOGY
-  &END SUBSYS
-&END FORCE_EVAL
-```
-
-This example demonstrates several important aspects:
-
-1. **Selective Restarting**: Only positions are restarted (`RESTART_POS`), while velocities are set to FALSE (`RESTART_VEL FALSE`), which is useful when you want to start with a new velocity distribution.
-
-2. **Explicit Disabling**: All other components (barostat, thermostat, cell, etc.) are explicitly disabled, ensuring a clean restart with only the desired components.
-
-3. **Frequent Restart Writing**: The restart file is written at every MD step (`MD 1`), providing maximum recovery capability.
-
-4. **Force Field Continuation**: The example shows how to continue with the same force field parameters and system setup.
-
-### Variations from the Test Suite
-
-The CP2K test suite provides several variations of this restart pattern:
-
-1. **Full Restart (with velocities)**:
-   ```none
-   &EXT_RESTART
-     EXTERNAL_FILE water_1-1.restart
-     RESTART_POS
-     RESTART_VEL  ! Include velocities for direct continuation
-     ! Other components disabled as needed
-   &END EXT_RESTART
-   ```
-
-2. **Cell Restart for NPT**:
-   ```none
-   &EXT_RESTART
-     EXTERNAL_FILE H2O-NPT-1.restart
-     RESTART_POS
-     RESTART_VEL
-     RESTART_CELL  ! Important for NPT simulations
-     RESTART_BAROSTAT .FALSE.  ! Fresh barostat for new ensemble
-   &END EXT_RESTART
-   ```
-
-These examples from the actual test suite demonstrate best practices for restarting different types of molecular dynamics simulations in CP2K.
 
 ### Architecture-Specific Wavefunction Files
 
