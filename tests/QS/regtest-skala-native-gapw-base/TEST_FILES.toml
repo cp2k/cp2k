@@ -1,0 +1,10 @@
+"AR4_NATIVE_SKALA_GPW_ATOM_CHUNKS.inp" = [{matcher="E_total", tol=1e-8, ref=-84.34352347629738}]
+"H2_NATIVE_SKALA_GAPW_AE_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.99381987939373}]
+"H2_NATIVE_SKALA_GAPW_GPWTYPE_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.96567259309477}]
+"H2_NATIVE_SKALA_GPW_PBC_FORCE_DEBUG.inp" = [{matcher="E_total", tol=1e-8, ref=-1.87355431428257}]
+"H2_NATIVE_SKALA_GPW_SMOOTH.inp" = [{matcher="E_total", tol=1e-8, ref=-0.96567259309477}]
+"H2_NATIVE_SKALA_GPW_STRESS_CHUNK_REQUEST.inp" = [{matcher="E_total", tol=1e-8, ref=-1.04111543962216}]
+"H2O_NATIVE_SKALA_GPW_NLCC_ENERGY.inp" = [{matcher="E_total", tol=5e-4, ref=-18.01870708},
+                                            {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=8.88469292329}]
+"H2O_NATIVE_SKALA_GPW_NLCC_ENERGY.inp" = [{matcher="E_total", tol=1e-8, ref=-18.01870743098253}]
+"H2P_NATIVE_SKALA_GPW_UKS_PBC_FORCE_DEBUG.inp" = [{matcher="E_total", tol=1e-8, ref=-1.56297891766090}]
