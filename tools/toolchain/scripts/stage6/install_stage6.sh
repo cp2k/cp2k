@@ -6,6 +6,7 @@
 ./scripts/stage6/install_gsl.sh
 ./scripts/stage6/install_plumed.sh
 ./scripts/stage6/install_libtorch.sh
+./scripts/stage6/install_skala_ftorch.sh
 ./scripts/stage6/install_gauxc.sh
 ./scripts/stage6/install_deepmd.sh
 ./scripts/stage6/install_ace.sh

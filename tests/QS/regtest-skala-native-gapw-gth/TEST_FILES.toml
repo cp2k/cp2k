@@ -1,0 +1,4 @@
+"H2_NATIVE_SKALA_GAPW_GTH_FORCE_DEBUG.inp" = [{matcher="E_total", tol=1e-8, ref=-1.43867264762577}]
+"H2_NATIVE_SKALA_GAPW_GTH_STRESS_CHUNK_REQUEST.inp" = [{matcher="E_total", tol=1e-8, ref=-0.97019845207271}]
+"H2_NATIVE_SKALA_GAPW_GTH_STRESS_DEBUG.inp" = [{matcher="E_total", tol=1e-8, ref=-1.45365385613573}]
+"H2_NATIVE_SKALA_GAPW_GTH_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.97019845195120}]
