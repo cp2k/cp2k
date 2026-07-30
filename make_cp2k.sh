@@ -160,6 +160,7 @@ RUN_TEST="no"
 SED_PATTERN_LIST=""
 TESTOPTS=""
 USE_CACHE="folder"
+USE_CUSOLVER_MP=""
 USE_EXTERNALS="no"
 USE_OPENCL="no"
 VERBOSE=0
@@ -387,7 +388,12 @@ while [[ $# -gt 0 ]]; do
             SED_PATTERN_LIST+=" -e '/\s*-\s+\"spla@/ ${SUBST}"
             SED_PATTERN_LIST+=" -e '/\s*-\s+\"sirius@/ ${SUBST}"
             ;;
-          cray_pm_accel_energy | cusolver_mp | spla_gemm_offloading | unified_memory)
+          cusolver_mp)
+            USE_CUSOLVER_MP="${ON_OFF}"
+            CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_USE_${2^^}=${ON_OFF}"
+            SED_PATTERN_LIST+=" -e '/\s*-\s+\"cusolvermp@/ ${SUBST}"
+            ;;
+          cray_pm_accel_energy | spla_gemm_offloading | unified_memory)
             CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_USE_${2^^}=${ON_OFF}"
             ;;
           dbm_gpu | elpa_gpu | grid_gpu | pw_gpu)
@@ -817,13 +823,13 @@ esac
 # Check if a valid MPI type is selected
 case "${MPI_MODE}" in
   mpich | openmpi)
-    if [[ "${CP2K_VERSION}" == "ssmp"* ]]; then
+    if [[ "${CP2K_VERSION}" == "sdbg" || "${CP2K_VERSION}" == "ssmp"* ]]; then
       echo "ERROR: MPI type \"${MPI_MODE}\" specified for building a serial CP2K binary"
       ${EXIT_CMD} 1
     fi
     ;;
   no)
-    if [[ "${CP2K_VERSION}" == "psmp" ]]; then
+    if [[ "${CP2K_VERSION}" == "pdbg" || "${CP2K_VERSION}" == "psmp" ]]; then
       echo "ERROR: MPI type \"${MPI_MODE}\" specified for building an MPI-parallel CP2K binary"
       ${EXIT_CMD} 1
     fi
@@ -834,6 +840,18 @@ case "${MPI_MODE}" in
     ${EXIT_CMD} 1
     ;;
 esac
+
+# cuSOLVERMp requires both CUDA and MPI support.
+if [[ "${USE_CUSOLVER_MP}" == "ON" ]]; then
+  if [[ "${MPI_MODE}" == "no" ]]; then
+    echo -e "ERROR: The feature CUSOLVER_MP is not available for building serial CP2K binaries (${CP2K_VERSION})\n"
+    ${EXIT_CMD} 1
+  fi
+  if ((CUDA_SM_CODE == 0)); then
+    echo -e "ERROR: The feature CUSOLVER_MP requires CUDA support (specify --gpu_model)\n"
+    ${EXIT_CMD} 1
+  fi
+fi
 
 # Check if CP2K_VERSION and the selected features are compatible
 case "${CP2K_VERSION}" in
@@ -1114,7 +1132,6 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
       -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_SM_CODE}/" \
       -e 's/"~cuda\s+~gpu_direct"/"\+cuda \+gpu_direct"/' \
       -e '/\s*#\s*-\s+"fabrics=efa,ucx"/ s/#/ /' \
-      -e '/\s*#\s*-\s+"libxstream@/ s/#/ /' \
       -i "${CP2K_CONFIG_FILE}"
     # Building libfabric with CUDA causes problems
     # sed -E -e 's/"~cuda\s+~gdrcopy"/"\+cuda \+gdrcopy"/' -i "${CP2K_CONFIG_FILE}"
