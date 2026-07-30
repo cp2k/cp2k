@@ -2625,14 +2625,14 @@ CONTAINS
 
                   CALL invert_matrix(s_matrix, s_inv_matrix, some_real)
 
-                  q_a_matrix = MATMUL(q_a_matrix, s_inv_matrix)
-                  q_b_matrix = MATMUL(q_b_matrix, s_inv_matrix)
+                  q_a_matrix(:, :) = MATMUL(q_a_matrix, s_inv_matrix)
+                  q_b_matrix(:, :) = MATMUL(q_b_matrix, s_inv_matrix)
 
                   IF (ASSOCIATED(vhxc_block) .AND. &
                       dft_control%mtlr_dft_with_perturbation .AND. &
                       dft_control%mtlr_ikind == ikind .AND. &
                       qs_kind_set(ikind)%dft_plus_u%lr_atom == atom_a) THEN
-                     vhxc_matrix = MATMUL(vhxc_matrix, s_inv_matrix)
+                     vhxc_matrix(:, :) = MATMUL(vhxc_matrix, s_inv_matrix)
                      DO i = 1, n
                         dft_control%vhxc(ispin) = dft_control%vhxc(ispin) + vhxc_matrix(i, i)
                         IF (ispin == 1) dft_control%trq(1) = dft_control%trq(1) + q_a_matrix(i, i)
@@ -2771,7 +2771,7 @@ CONTAINS
                      END DO
                   END IF
 
-                  v_matrix = MATMUL(s_inv_matrix, v_matrix)
+                  v_matrix(:, :) = MATMUL(s_inv_matrix, v_matrix)
 
                   trq = fspin*trq
                   trq2 = fspin*fspin*trq2
@@ -3294,22 +3294,22 @@ CONTAINS
 
                   atom_aa = atom_list(iatom)
 
-                  tmp_matrix1 = MATMUL(d_matrix(ikind, ikind)%matrix(:, :, iatom), &
-                                       a_matrix(ikind, ikind)%matrix(:, :, iatom))
-                  tmp_matrix2 = MATMUL(e_matrix(ikind, ikind)%matrix(:, :, iatom), &
-                                       a_matrix(ikind, ikind)%matrix(:, :, iatom))
+                  tmp_matrix1(:, :) = MATMUL(d_matrix(ikind, ikind)%matrix(:, :, iatom), &
+                                             a_matrix(ikind, ikind)%matrix(:, :, iatom))
+                  tmp_matrix2(:, :) = MATMUL(e_matrix(ikind, ikind)%matrix(:, :, iatom), &
+                                             a_matrix(ikind, ikind)%matrix(:, :, iatom))
 
                   i_matrix(ikind, ikind)%matrix(:, :, iatom) = MATMUL(i_matrix(ikind, ikind)%matrix(:, :, iatom), &
                                                                       a_matrix(ikind, ikind)%matrix(:, :, iatom))
                   j_matrix(ikind, ikind)%matrix(:, :, iatom) = MATMUL(j_matrix(ikind, ikind)%matrix(:, :, iatom), &
                                                                       a_matrix(ikind, ikind)%matrix(:, :, iatom))
 
-                  tmp_matrix3 = 0.5_dp*u_minus_j*tmp_matrix1 - &
-                                u_minus_j*MATMUL(tmp_matrix1, i_matrix(ikind, ikind)%matrix(:, :, iatom)) &
-                                + hund_j*MATMUL(tmp_matrix2, i_matrix(ikind, ikind)%matrix(:, :, iatom))
-                  tmp_matrix3 = tmp_matrix3 + 0.5_dp*u_minus_j*tmp_matrix2 - &
-                                u_minus_j*MATMUL(tmp_matrix2, j_matrix(ikind, ikind)%matrix(:, :, iatom)) &
-                                + hund_j*MATMUL(tmp_matrix1, j_matrix(ikind, ikind)%matrix(:, :, iatom))
+                  tmp_matrix3(:, :) = 0.5_dp*u_minus_j*tmp_matrix1 - &
+                                      u_minus_j*MATMUL(tmp_matrix1, i_matrix(ikind, ikind)%matrix(:, :, iatom)) &
+                                      + hund_j*MATMUL(tmp_matrix2, i_matrix(ikind, ikind)%matrix(:, :, iatom))
+                  tmp_matrix3(:, :) = tmp_matrix3 + 0.5_dp*u_minus_j*tmp_matrix2 - &
+                                      u_minus_j*MATMUL(tmp_matrix2, j_matrix(ikind, ikind)%matrix(:, :, iatom)) &
+                                      + hund_j*MATMUL(tmp_matrix1, j_matrix(ikind, ikind)%matrix(:, :, iatom))
 
                   DO i = 1, n
                      force(ikind)%tensorial_u(jj, iatom) = force(ikind)%tensorial_u(jj, iatom) + tmp_matrix3(i, i)
@@ -3327,20 +3327,20 @@ CONTAINS
 
                         atom_a = atom_list2(jatom)
 
-                        tmp_matrix1 = MATMUL(dd_matrix(ikind, jkind)%matrix(:, :, iatom, jatom), &
-                                             ff_matrix(ikind, jkind)%matrix(:, :, iatom, jatom))
-                        tmp_matrix1 = MATMUL(tmp_matrix1, a_matrix(ikind, ikind)%matrix(:, :, iatom))
+                        tmp_matrix1(:, :) = MATMUL(dd_matrix(ikind, jkind)%matrix(:, :, iatom, jatom), &
+                                                   ff_matrix(ikind, jkind)%matrix(:, :, iatom, jatom))
+                        tmp_matrix1(:, :) = MATMUL(tmp_matrix1, a_matrix(ikind, ikind)%matrix(:, :, iatom))
 
-                        tmp_matrix2 = MATMUL(ee_matrix(ikind, jkind)%matrix(:, :, iatom, jatom), &
-                                             ff_matrix(ikind, jkind)%matrix(:, :, iatom, jatom))
-                        tmp_matrix2 = MATMUL(tmp_matrix2, a_matrix(ikind, ikind)%matrix(:, :, iatom))
+                        tmp_matrix2(:, :) = MATMUL(ee_matrix(ikind, jkind)%matrix(:, :, iatom, jatom), &
+                                                   ff_matrix(ikind, jkind)%matrix(:, :, iatom, jatom))
+                        tmp_matrix2(:, :) = MATMUL(tmp_matrix2, a_matrix(ikind, ikind)%matrix(:, :, iatom))
 
-                        tmp_matrix3 = 0.5_dp*u_minus_j*tmp_matrix1 - &
-                                      u_minus_j*MATMUL(tmp_matrix1, i_matrix(ikind, ikind)%matrix(:, :, iatom)) &
-                                      + hund_j*MATMUL(tmp_matrix2, i_matrix(ikind, ikind)%matrix(:, :, iatom))
-                        tmp_matrix3 = tmp_matrix3 + 0.5_dp*u_minus_j*tmp_matrix2 - &
-                                      u_minus_j*MATMUL(tmp_matrix2, j_matrix(ikind, ikind)%matrix(:, :, iatom)) &
-                                      + hund_j*MATMUL(tmp_matrix1, j_matrix(ikind, ikind)%matrix(:, :, iatom))
+                        tmp_matrix3(:, :) = 0.5_dp*u_minus_j*tmp_matrix1 - &
+                                            u_minus_j*MATMUL(tmp_matrix1, i_matrix(ikind, ikind)%matrix(:, :, iatom)) &
+                                            + hund_j*MATMUL(tmp_matrix2, i_matrix(ikind, ikind)%matrix(:, :, iatom))
+                        tmp_matrix3(:, :) = tmp_matrix3 + 0.5_dp*u_minus_j*tmp_matrix2 - &
+                                            u_minus_j*MATMUL(tmp_matrix2, j_matrix(ikind, ikind)%matrix(:, :, iatom)) &
+                                            + hund_j*MATMUL(tmp_matrix1, j_matrix(ikind, ikind)%matrix(:, :, iatom))
 
                         IF (atom_a /= atom_aa) THEN
                            DO i = 1, n
