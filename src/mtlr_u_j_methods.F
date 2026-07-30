@@ -177,7 +177,7 @@ CONTAINS
       ! Ensure that the DFT+U+J machinery remains active during the
       ! initial MTLR calculation, even when a parameter starts from zero.
       DO ikind = 1, nkind
-         IF (ASSOCIATED(qs_kind_set(ikind)%dft_plus_u) THEN
+         IF (ASSOCIATED(qs_kind_set(ikind)%dft_plus_u)) THEN
             IF (.NOT. qs_kind_set(ikind)%dft_plus_u%do_mtlr) CYCLE
          END IF
          IF (qs_kind_set(ikind)%dft_plus_u%u_minus_j == 0.0_dp) THEN
