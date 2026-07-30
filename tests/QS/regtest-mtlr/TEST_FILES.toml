@@ -1,0 +1,3 @@
+# runs are executed in the same order as in this file
+"H2plus_mtlr-tensorial.inp"                    = [{matcher="MTLR_U_MINUS_J", tol=1e-2, ref=4.7101}]
+"H2plus_mtlr-lowdin.inp"                       = [{matcher="MTLR_U_MINUS_J", tol=1e-2, ref=4.0093}]

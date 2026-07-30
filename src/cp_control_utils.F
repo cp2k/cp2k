@@ -473,6 +473,10 @@ CONTAINS
       CALL section_vals_val_get(dft_section, "PLUS_U_METHOD", i_val=method_id)
       dft_control%plus_u_method_id = method_id
 
+      ! Minimum tracking linear response U and J
+      CALL section_vals_val_get(dft_section, "EPS_U_J_LOOP", r_val=dft_control%eps_u_j_loop)
+      CALL section_vals_val_get(dft_section, "MAX_MTLR_LOOP", i_val=dft_control%max_mtlr_iter)
+
       ! Smearing in use
       dft_control%smear = .FALSE.
 
@@ -2397,7 +2401,8 @@ CONTAINS
       CHARACTER(LEN=20)                                  :: tmpStr
       INTEGER                                            :: handle, i, i_rep, n_rep, output_unit
       REAL(kind=dp)                                      :: density_cut, density_smooth_cut_range, &
-                                                            gradient_cut, tau_cut
+                                                            eps_u_j_loop, gradient_cut, &
+                                                            max_mtlr_iter, tau_cut
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(enumeration_type), POINTER                    :: enum
       TYPE(keyword_type), POINTER                        :: keyword
@@ -2505,6 +2510,14 @@ CONTAINS
                "DFT+U| Method", ADJUSTR(TRIM(enum_i2c(enum, dft_control%plus_u_method_id)))
             WRITE (UNIT=output_unit, FMT="(T2,A)") &
                "DFT+U| Check atomic kind information for details"
+            IF (dft_control%mtlr_u_j) THEN
+               CALL section_vals_val_get(dft_section, "EPS_U_J_LOOP", r_val=eps_u_j_loop)
+               WRITE (UNIT=output_unit, FMT="(T2,A,T67,ES14.7E3)") &
+                  "MTLR U J| EPS_U_J_LOOP", eps_u_j_loop
+               CALL section_vals_val_get(dft_section, "MAX_MTLR_LOOP", r_val=max_mtlr_iter)
+               WRITE (UNIT=output_unit, FMT="(T2,A,T67,I10)") &
+                  "MTLR U J| MAX_MTLR_LOOP", max_mtlr_iter
+            END IF
             CALL section_release(section)
          END IF
 

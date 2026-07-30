@@ -464,3 +464,4 @@ QS/regtest-cneo
 QS/regtest-tddfpt-bse                                       libint libxc !ifx
 QS/regtest-tdwf
 QS/regtest-hybrid-ace-gs                                    libint !ifx
+QS/regtest-mtlr

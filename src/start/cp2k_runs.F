@@ -77,8 +77,8 @@ MODULE cp2k_runs
         do_fist, do_ipi, do_mixed, do_nnp, do_opt_basis, do_optimize_input, do_qmmm, do_qs, &
         do_sirius, do_swarm, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, &
         energy_force_run, energy_run, geo_opt_run, linear_response_run, mimic_run, mol_dyn_run, &
-        mon_car_run, negf_run, none_run, pint_run, real_time_propagation, rtp_method_bse, &
-        rtp_method_bse_linearized, tree_mc_run, vib_anal
+        mon_car_run, mtlr_run, negf_run, none_run, pint_run, real_time_propagation, &
+        rtp_method_bse, rtp_method_bse_linearized, tree_mc_run, vib_anal
    USE input_cp2k,                      ONLY: create_cp2k_root_section
    USE input_cp2k_check,                ONLY: check_cp2k_input
    USE input_cp2k_global,               ONLY: create_global_section
@@ -111,6 +111,7 @@ MODULE cp2k_runs
    USE mimic_loop,                      ONLY: do_mimic_loop
    USE mscfg_methods,                   ONLY: do_mol_loop,&
                                               loop_over_molecules
+   USE mtlr_u_j_methods,                ONLY: do_mtlr_u_j
    USE neb_methods,                     ONLY: neb
    USE negf_methods,                    ONLY: do_negf
    USE offload_api,                     ONLY: offload_get_chosen_device,&
@@ -398,6 +399,11 @@ CONTAINS
          CALL do_negf(force_env)
       CASE (mimic_run)
          CALL do_mimic_loop(force_env)
+      CASE (mtlr_run)
+         IF (method_name_id /= do_qs) THEN
+            CPABORT("RUN_TYPE MTLR is available only for METHOD QS.")
+         END IF
+         CALL do_mtlr_u_j(force_env)
       CASE default
          CPABORT("Unknown run type")
       END SELECT

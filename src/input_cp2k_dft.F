@@ -41,9 +41,9 @@ MODULE input_cp2k_dft
         do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, do_bch, do_cn, do_em, do_etrs, &
         do_exact, do_pade, do_taylor, ehrenfest, gaussian, kg_color_dsatur, kg_color_greedy, &
         kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_embed_ri, kg_tnadd_none, no_admm_type, &
-        numerical, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, real_time_propagation, &
-        rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, &
-        rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, &
+        numerical, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, plus_u_tensorial, &
+        real_time_propagation, rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, &
+        rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, &
         rtp_bse_ham_g0w0, rtp_bse_ham_ks, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_default, &
         rtp_bse_kernel_ri_rs, rtp_method_bse, rtp_method_tddft, sccs_andreussi, &
         sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
@@ -202,17 +202,40 @@ CONTAINS
                           name="PLUS_U_METHOD", &
                           description="Method employed for the calculation of the DFT+U contribution", &
                           repeats=.FALSE., &
-                          enum_c_vals=s2a("LOWDIN", "MULLIKEN", "MULLIKEN_CHARGES"), &
-                          enum_i_vals=[plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges], &
+                          enum_c_vals=s2a("LOWDIN", "MULLIKEN", "MULLIKEN_CHARGES", "TENSORIAL"), &
+                          enum_i_vals=[plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, &
+                                       plus_u_tensorial], &
                           enum_desc=s2a("Method based on Lowdin population analysis "// &
                                         "(computationally expensive, since the diagonalization of the "// &
                                         "overlap matrix is required, but possibly more robust than Mulliken)", &
                                         "Method based on Mulliken population analysis using the net AO and "// &
                                         "overlap populations (computationally cheap method)", &
-                                        "Method based on Mulliken gross orbital populations (GOP)"), &
+                                        "Method based on Mulliken gross orbital populations (GOP)", &
+                                        "Method based on Tensorial population analysis approach"), &
                           n_var=1, &
                           default_i_val=plus_u_mulliken, &
                           usage="PLUS_U_METHOD Lowdin")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="EPS_U_J_LOOP", &
+                          description="Convergence threshold for the self-consistent update of U and J parameters "// &
+                          "in the minimum tracking linear response calculation.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          unit_str="hartree", &
+                          default_r_val=1.0E-2_dp, &
+                          usage="EPS_U_J_LOOP [eV] 0.01")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="MAX_MTLR_LOOP", &
+                          description="Max number of iterations for calculated self-consistent linear response U and J.", &
+                          repeats=.FALSE., &
+                          default_i_val=10, &
+                          usage="MAX_MTLR_LOOP 10")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

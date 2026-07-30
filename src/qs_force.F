@@ -603,6 +603,7 @@ CONTAINS
                   iatom, ikind, "        efield", qs_force(ikind)%efield(1:3, i), &
                   iatom, ikind, "           eev", qs_force(ikind)%eev(1:3, i), &
                   iatom, ikind, "   mp2_non_sep", qs_force(ikind)%mp2_non_sep(1:3, i), &
+                  iatom, ikind, "   tensorial_u", qs_force(ikind)%tensorial_u(1:3, i), &
                   iatom, ikind, "         total", qs_force(ikind)%total(1:3, i)
                grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3, i)
             END DO
@@ -634,6 +635,7 @@ CONTAINS
                   iatom, ikind, "        efield", qs_force(ikind)%efield(1:3, i), &
                   iatom, ikind, "           eev", qs_force(ikind)%eev(1:3, i), &
                   iatom, ikind, "   mp2_non_sep", qs_force(ikind)%mp2_non_sep(1:3, i), &
+                  iatom, ikind, "   tensorial_u", qs_force(ikind)%tensorial_u(1:3, i), &
                   iatom, ikind, "         total", qs_force(ikind)%total(1:3, i)
                grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3, i)
             END DO
@@ -664,6 +666,7 @@ CONTAINS
                   iatom, ikind, "       ch_pulay", qs_force(ikind)%ch_pulay(1:3, i), &
                   iatom, ikind, "        fock_4c", qs_force(ikind)%fock_4c(1:3, i), &
                   iatom, ikind, "   mp2_non_sep", qs_force(ikind)%mp2_non_sep(1:3, i), &
+                  iatom, ikind, "   tensorial_u", qs_force(ikind)%tensorial_u(1:3, i), &
                   iatom, ikind, "          total", qs_force(ikind)%total(1:3, i)
                grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3, i)
             END DO

@@ -2609,6 +2609,110 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      NULLIFY (subsection)
+
+      CALL section_create(subsection, __LOCATION__, &
+                          name="ATOMIC_PROJECTOR_TENSORIAL", &
+                          description="Specifies shell occupations used to generate atomic projector "// &
+                          "functions for tensorial DFT+U.", &
+                          n_keywords=2, &
+                          n_subsections=0, &
+                          repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of the ATOMIC_PROJECTOR_TENSORIAL section", &
+                          usage="&ATOMIC_PROJECTOR_TENSORIAL ON", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="SHELL_CHARGE", &
+                          description="Specifies shell-resolved charge offsets used to "// &
+                          "define the reference atomic state for constructing the "// &
+                          "tensorial DFT+U+J projector. The four values correspond to "// &
+                          "the s, p, d, and f shells, respectively. A value of 0.0 "// &
+                          "means that the corresponding shell retains its neutral-atom "// &
+                          "occupation. Positive values remove electrons from a shell, "// &
+                          "whereas negative values add electrons. Fractional values are "// &
+                          "allowed.", &
+                          repeats=.FALSE., &
+                          n_var=4, &
+                          type_of_var=real_t, &
+                          default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp], &
+                          usage="SHELL_CHARGE 0.0 0.0 1.0 0.0")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      NULLIFY (subsection)
+
+      CALL section_create(subsection, __LOCATION__, &
+                          name="MINIMUM_TRACKING_LINEAR_RESPONSE", &
+                          description="Controls the minimum tracking linear response "// &
+                          "procedure used to compute Hubbard U and Hund's J parameters. "// &
+                          "In this approach, a localized perturbation is applied to a "// &
+                          "selected +U +J subspace located on the specific atom "// &
+                          "and the response of the subspace averaged Hartree+XC interactions "// &
+                          "with respect to the perturbation is calculated as the U and J values.", &
+                          n_keywords=3, &
+                          n_subsections=0, &
+                          repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Enables or disables the MINIMUM_TRACKING_LINEAR_RESPONSE "// &
+                          "section.", &
+                          usage="&MINIMUM_TRACKING_LINEAR_RESPONSE ON", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="INDEX_PERTURBED_ATOM", &
+                          description="Index of the atom to which the perturbing potential "// &
+                          "is applied in the minimum-tracking linear-response "// &
+                          "calculation. The index is the order of atoms in "// &
+                          "the full structure.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=integer_t, &
+                          default_i_val=-1, &
+                          usage="INDEX_PERTURBED_ATOM 5")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="PERTURBATION_STRENGTH", &
+                          description="Specifies the list of perturbation strengths used "// &
+                          "in the minimum tracking linear response calculation of U and J "// &
+                          "parameters. Each value defines the magnitude of an applied "// &
+                          "constraining potential in a separate perturbation calculation. "// &
+                          "If no unit is given, values are interpreted in hartree "// &
+                          "(atomic units). Explicit units such as [eV] may be provided "// &
+                          "in the input. At least 3 and at most 9 values must be given.", &
+                          repeats=.FALSE., &
+                          n_var=-1, &
+                          type_of_var=real_t, &
+                          unit_str="hartree", &
+                          default_r_vals=[ &
+                          cp_unit_to_cp2k(value=-0.2_dp, unit_str="eV"), &
+                          cp_unit_to_cp2k(value=-0.1_dp, unit_str="eV"), &
+                          cp_unit_to_cp2k(value=0.0_dp, unit_str="eV"), &
+                          cp_unit_to_cp2k(value=0.1_dp, unit_str="eV"), &
+                          cp_unit_to_cp2k(value=0.2_dp, unit_str="eV")], &
+                          usage="PERTURBATION_STRENGTH [eV] -0.20 -0.10 0.00 0.10 0.20")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_dft_plus_u_section
 
 END MODULE input_cp2k_subsys

@@ -1,0 +1,96 @@
+#CPQA DEPENDS H2O-uks-diag-tensorial.inp
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2O-uks-otcg
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    LSD
+    MULTIPLICITY 1
+    PLUS_U_METHOD Tensorial
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    RESTART_FILE_NAME RESTART-uks-diag-tensorial
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &PRINT
+      &DFT_CONTROL_PARAMETERS
+      &END DFT_CONTROL_PARAMETERS
+      &PLUS_U
+        &EACH
+          QS_SCF 1
+        &END EACH
+      &END PLUS_U
+    &END PRINT
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-5
+      MAX_SCF 30
+      SCF_GUESS RESTART
+      &OT ON
+        MINIMIZER CG
+      &END OT
+      &OUTER_SCF ON
+        EPS_SCF 1.0E-5
+        MAX_SCF 10
+      &END OUTER_SCF
+      &PRINT
+        &RESTART
+          ADD_LAST NUMERIC
+          BACKUP_COPIES 0
+          FILENAME =RESTART
+          &EACH
+            QS_SCF 30
+          &END EACH
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PRINT
+    &FORCES ON
+      FILENAME __STD_OUT__
+      NDIGITS 12
+    &END FORCES
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC 4.0 4.0 4.0
+    &END CELL
+    &COORD
+      O  0.000   0.000   -0.111
+      H  0.000  -0.744    0.495
+      H  0.000   0.744    0.495
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q6
+      &DFT_PLUS_U
+        J [eV] 0.35
+        L 1
+        N 2
+        U_MINUS_J [eV] 3.5
+        &ATOMIC_PROJECTOR_TENSORIAL ON
+          SHELL_CHARGE 0 0.5 0 0
+        &END ATOMIC_PROJECTOR_TENSORIAL
+      &END DFT_PLUS_U
+    &END KIND
+    &PRINT
+      &KINDS
+      &END KINDS
+    &END PRINT
+  &END SUBSYS
+&END FORCE_EVAL

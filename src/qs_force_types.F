@@ -51,6 +51,7 @@ MODULE qs_force_types
                                                  efield => NULL(), &
                                                  eev => NULL(), &
                                                  mp2_non_sep => NULL(), &
+                                                 tensorial_u => NULL(), &
                                                  total => NULL()
    END TYPE qs_force_type
 
@@ -119,6 +120,7 @@ CONTAINS
          qs_force(ikind)%ch_pulay = 0.0_dp
          ALLOCATE (qs_force(ikind)%fock_4c(3, n))
          ALLOCATE (qs_force(ikind)%mp2_non_sep(3, n))
+         ALLOCATE (qs_force(ikind)%tensorial_u(3, n))
          ALLOCATE (qs_force(ikind)%total(3, n))
       END DO
 
@@ -234,6 +236,10 @@ CONTAINS
             DEALLOCATE (qs_force(ikind)%mp2_non_sep)
          END IF
 
+         IF (ASSOCIATED(qs_force(ikind)%tensorial_u)) THEN
+            DEALLOCATE (qs_force(ikind)%tensorial_u)
+         END IF
+
          IF (ASSOCIATED(qs_force(ikind)%ehrenfest)) THEN
             DEALLOCATE (qs_force(ikind)%ehrenfest)
          END IF
@@ -291,6 +297,7 @@ CONTAINS
          qs_force(ikind)%efield(:, :) = 0.0_dp
          qs_force(ikind)%eev(:, :) = 0.0_dp
          qs_force(ikind)%mp2_non_sep(:, :) = 0.0_dp
+         qs_force(ikind)%tensorial_u(:, :) = 0.0_dp
          qs_force(ikind)%total(:, :) = 0.0_dp
       END DO
 
@@ -360,6 +367,8 @@ CONTAINS
                                          qs_force_in(ikind)%eev(:, :)
          qs_force_out(ikind)%mp2_non_sep(:, :) = qs_force_out(ikind)%mp2_non_sep(:, :) + &
                                                  qs_force_in(ikind)%mp2_non_sep(:, :)
+         qs_force_out(ikind)%tensorial_u(:, :) = qs_force_out(ikind)%tensorial_u(:, :) + &
+                                                 qs_force_in(ikind)%tensorial_u(:, :)
          qs_force_out(ikind)%total(:, :) = qs_force_out(ikind)%total(:, :) + &
                                            qs_force_in(ikind)%total(:, :)
       END DO
@@ -423,6 +432,7 @@ CONTAINS
                                        qs_force(ikind)%g0s_Vh_elec(:, :) + &
                                        qs_force(ikind)%fock_4c(:, :) + &
                                        qs_force(ikind)%mp2_non_sep(:, :) + &
+                                       qs_force(ikind)%tensorial_u(:, :) + &
                                        qs_force(ikind)%repulsive(:, :) + &
                                        qs_force(ikind)%dispersion(:, :) + &
                                        qs_force(ikind)%gcp(:, :) + &
@@ -601,6 +611,7 @@ CONTAINS
                               qs_force(ikind)%g0s_Vh_elec(:, ia) + &
                               qs_force(ikind)%fock_4c(:, ia) + &
                               qs_force(ikind)%mp2_non_sep(:, ia) + &
+                              qs_force(ikind)%tensorial_u(:, ia) + &
                               qs_force(ikind)%repulsive(:, ia) + &
                               qs_force(ikind)%dispersion(:, ia) + &
                               qs_force(ikind)%gcp(:, ia) + &

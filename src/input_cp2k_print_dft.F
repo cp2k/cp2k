@@ -88,9 +88,9 @@ MODULE input_cp2k_print_dft
       outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
       outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
       outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, &
-      qiskit_solver, radius_covalent, radius_default, radius_single, radius_user, radius_vdw, &
-      random_guess, real_time_propagation, ref_charge_atomic, ref_charge_mulliken, rel_dkh, &
-      rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
+      plus_u_tensorial, qiskit_solver, radius_covalent, radius_default, radius_single, radius_user, &
+      radius_vdw, random_guess, real_time_propagation, ref_charge_atomic, ref_charge_mulliken, &
+      rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
       rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, restart_guess, &
       sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
       sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, &

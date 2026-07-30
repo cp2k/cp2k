@@ -61,7 +61,7 @@ MODULE qs_kind_types
         do_method_am1, do_method_dftb, do_method_mndo, do_method_mndod, do_method_pdg, &
         do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_pw, &
         do_method_rm1, do_method_xtb, do_qs, do_sirius, gapw_1c_large, gapw_1c_medium, &
-        gapw_1c_orb, gapw_1c_small, gapw_1c_very_large
+        gapw_1c_orb, gapw_1c_small, gapw_1c_very_large, plus_u_lowdin, plus_u_tensorial
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -132,10 +132,12 @@ MODULE qs_kind_types
       INTEGER                                :: l = -1
       INTEGER                                :: n = -1
       INTEGER                                :: max_scf = -1
+      INTEGER                                :: lr_atom = -1
       REAL(KIND=dp)                          :: eps_u_ramping = 0.0_dp
       REAL(KIND=dp)                          :: eps_scf = HUGE(0.0_dp)
       REAL(KIND=dp)                          :: u_minus_j_target = 0.0_dp
       REAL(KIND=dp)                          :: u_minus_j = 0.0_dp
+      REAL(KIND=dp)                          :: hund_j = 0.0_dp
       REAL(KIND=dp)                          :: u_ramping = 0.0_dp
       REAL(KIND=dp)                          :: U = 0.0_dp
       REAL(KIND=dp)                          :: J = 0.0_dp
@@ -143,9 +145,15 @@ MODULE qs_kind_types
       REAL(KIND=dp)                          :: beta = 0.0_dp
       REAL(KIND=dp)                          :: J0 = 0.0_dp
       REAL(KIND=dp)                          :: occupation = -1.0_dp
+      REAL(KIND=dp)                          :: proj_shell_charge(4) = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:), &
+         ALLOCATABLE                         :: perturbation_strength
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: ao_coef => Null()
       INTEGER, DIMENSION(:), POINTER         :: orbitals => Null()
       LOGICAL                                :: init_u_ramping_each_scf = .FALSE.
       LOGICAL                                :: smear = .FALSE.
+      LOGICAL                                :: do_mtlr = .FALSE.
+      LOGICAL                                :: u_j_loop = .FALSE.
       REAL(KIND=dp), DIMENSION(:), POINTER   :: nelec => Null()
    END TYPE dft_plus_u_type
 
@@ -328,6 +336,9 @@ CONTAINS
                IF (ASSOCIATED(qs_kind_set(ikind)%dft_plus_u%nelec)) THEN
                   DEALLOCATE (qs_kind_set(ikind)%dft_plus_u%nelec)
                END IF
+               IF (ASSOCIATED(qs_kind_set(ikind)%dft_plus_u%ao_coef)) THEN
+                  DEALLOCATE (qs_kind_set(ikind)%dft_plus_u%ao_coef)
+               END IF
                DEALLOCATE (qs_kind_set(ikind)%dft_plus_u)
             END IF
 
@@ -415,6 +426,7 @@ CONTAINS
 !> \param l_of_dft_plus_u ...
 !> \param n_of_dft_plus_u ...
 !> \param u_minus_j ...
+!> \param hund_j ...
 !> \param U_of_dft_plus_u ...
 !> \param J_of_dft_plus_u ...
 !> \param alpha_of_dft_plus_u ...
@@ -435,6 +447,11 @@ CONTAINS
 !> \param u_ramping ...
 !> \param u_minus_j_target ...
 !> \param eps_u_ramping ...
+!> \param proj_shell_charge ...
+!> \param lr_atom ...
+!> \param do_mtlr ...
+!> \param u_j_loop ...
+!> \param ao_coef ...
 !> \param init_u_ramping_each_scf ...
 !> \param reltmat ...
 !> \param ghost ...
@@ -459,10 +476,11 @@ CONTAINS
                           gpw_type_forced, harmonics, max_iso_not0, max_s_harm, grid_atom, &
                           ngrid_ang, ngrid_rad, lmax_rho0, &
                           dft_plus_u_atom, l_of_dft_plus_u, n_of_dft_plus_u, &
-                          u_minus_j, U_of_dft_plus_u, J_of_dft_plus_u, &
+                          u_minus_j, hund_j, U_of_dft_plus_u, J_of_dft_plus_u, &
                           alpha_of_dft_plus_u, beta_of_dft_plus_u, J0_of_dft_plus_u, occupation_of_dft_plus_u, dispersion, &
                           bs_occupation, magnetization, no_optimize, addel, laddel, naddel, orbitals, &
-                          max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping, &
+                          max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping, proj_shell_charge, &
+                          lr_atom, do_mtlr, u_j_loop, ao_coef, &
                           init_u_ramping_each_scf, reltmat, ghost, monovalent, floating, name, element_symbol, &
                           pao_basis_size, pao_model_file, pao_potentials, pao_descriptors, nelec)
 
@@ -498,7 +516,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: ngrid_ang, ngrid_rad, lmax_rho0
       LOGICAL, INTENT(OUT), OPTIONAL                     :: dft_plus_u_atom
       INTEGER, INTENT(OUT), OPTIONAL                     :: l_of_dft_plus_u, n_of_dft_plus_u
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL :: u_minus_j, U_of_dft_plus_u, J_of_dft_plus_u, &
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL :: u_minus_j, hund_j, U_of_dft_plus_u, J_of_dft_plus_u, &
          alpha_of_dft_plus_u, beta_of_dft_plus_u, J0_of_dft_plus_u, occupation_of_dft_plus_u
       TYPE(qs_atom_dispersion_type), OPTIONAL, POINTER   :: dispersion
       LOGICAL, INTENT(OUT), OPTIONAL                     :: bs_occupation
@@ -510,7 +528,10 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: eps_scf
       LOGICAL, OPTIONAL                                  :: smear
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: u_ramping, u_minus_j_target, &
-                                                            eps_u_ramping
+                                                            eps_u_ramping, proj_shell_charge(4)
+      INTEGER, OPTIONAL                                  :: lr_atom
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: do_mtlr, u_j_loop
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: ao_coef
       LOGICAL, OPTIONAL                                  :: init_u_ramping_each_scf
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: reltmat
       LOGICAL, OPTIONAL                                  :: ghost
@@ -709,6 +730,13 @@ CONTAINS
       IF (PRESENT(monovalent)) monovalent = qs_kind%monovalent
       IF (PRESENT(floating)) floating = qs_kind%floating
       IF (PRESENT(dft_plus_u_atom)) dft_plus_u_atom = ASSOCIATED(qs_kind%dft_plus_u)
+      IF (PRESENT(do_mtlr)) THEN
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            do_mtlr = qs_kind%dft_plus_u%do_mtlr
+         ELSE
+            do_mtlr = .FALSE.
+         END IF
+      END IF
       IF (PRESENT(l_of_dft_plus_u)) THEN
          IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
             l_of_dft_plus_u = qs_kind%dft_plus_u%l
@@ -735,6 +763,13 @@ CONTAINS
             u_minus_j_target = qs_kind%dft_plus_u%u_minus_j_target
          ELSE
             u_minus_j_target = 0.0_dp
+         END IF
+      END IF
+      IF (PRESENT(hund_j)) THEN
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            hund_j = qs_kind%dft_plus_u%hund_j
+         ELSE
+            hund_j = 0.0_dp
          END IF
       END IF
       IF (PRESENT(U_of_dft_plus_u)) THEN
@@ -801,6 +836,27 @@ CONTAINS
             eps_u_ramping = 1.0E-5_dp
          END IF
       END IF
+      IF (PRESENT(lr_atom)) THEN
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            lr_atom = qs_kind%dft_plus_u%lr_atom
+         ELSE
+            lr_atom = -1
+         END IF
+      END IF
+      IF (PRESENT(u_j_loop)) THEN
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            u_j_loop = qs_kind%dft_plus_u%u_j_loop
+         ELSE
+            u_j_loop = .FALSE.
+         END IF
+      END IF
+      IF (PRESENT(proj_shell_charge)) THEN
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            proj_shell_charge = qs_kind%dft_plus_u%proj_shell_charge
+         ELSE
+            proj_shell_charge = 0.0_dp
+         END IF
+      END IF
       IF (PRESENT(nelec)) THEN
          NULLIFY (nelec)
          IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
@@ -850,6 +906,15 @@ CONTAINS
 
       IF (PRESENT(reltmat)) reltmat => qs_kind%reltmat
 
+      IF (PRESENT(ao_coef)) THEN
+         NULLIFY (ao_coef)
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            IF (ASSOCIATED(qs_kind%dft_plus_u%ao_coef)) THEN
+               ao_coef => qs_kind%dft_plus_u%ao_coef
+            END IF
+         END IF
+      END IF
+
       IF (PRESENT(mao)) mao = qs_kind%mao
 
       IF (PRESENT(lmax_dftb)) lmax_dftb = qs_kind%lmax_dftb
@@ -894,6 +959,7 @@ CONTAINS
 !> \param maxg_iso_not0 ...
 !> \param lmax_rho0 ...
 !> \param basis_rcut ...
+!> \param do_mtlr_present ...
 !> \param basis_type ...
 !> \param total_zeff_corr ... [SGh]
 !> \param npgf_seg total number of primitive GTOs in "segmented contraction format"
@@ -907,7 +973,7 @@ CONTAINS
                               maxcgf, maxsgf, maxco, maxco_proj, maxgtops, maxlgto, maxlprj, maxnset, maxsgf_set, &
                               ncgf, npgf, nset, nsgf, nshell, maxpol, maxlppl, maxlppnl, maxppnl, &
                               nelectron, maxder, max_ngrid_rad, max_sph_harm, maxg_iso_not0, lmax_rho0, &
-                              basis_rcut, &
+                              basis_rcut, do_mtlr_present, &
                               basis_type, total_zeff_corr, npgf_seg, &
                               cneo_potential_present, nkind_q, natom_q)
 
@@ -921,6 +987,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: max_ngrid_rad, max_sph_harm, &
                                                             maxg_iso_not0, lmax_rho0
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: basis_rcut
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: do_mtlr_present
       CHARACTER(len=*), OPTIONAL                         :: basis_type
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_zeff_corr
       INTEGER, INTENT(OUT), OPTIONAL                     :: npgf_seg
@@ -932,7 +999,8 @@ CONTAINS
                                                             max_iso_not0, max_s_harm, n, &
                                                             ngrid_rad, nkind, nrloc(10), &
                                                             nrpot(1:15, 0:10)
-      LOGICAL                                            :: dft_plus_u_atom, ecp_semi_local, paw_atom
+      LOGICAL                                            :: dft_plus_u_atom, do_mtlr, &
+                                                            ecp_semi_local, paw_atom
       REAL(KIND=dp)                                      :: brcut, zeff, zeff_correction
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(cneo_potential_type), POINTER                 :: cneo_potential
@@ -986,6 +1054,7 @@ CONTAINS
          IF (PRESENT(basis_rcut)) basis_rcut = 0.0_dp
          IF (PRESENT(total_zeff_corr)) total_zeff_corr = 0.0_dp
          IF (PRESENT(npgf_seg)) npgf_seg = 0
+         IF (PRESENT(do_mtlr_present)) do_mtlr_present = .FALSE.
 
          nkind = SIZE(qs_kind_set)
          DO ikind = 1, nkind
@@ -1003,6 +1072,7 @@ CONTAINS
                              max_iso_not0=max_iso_not0, &
                              paw_atom=paw_atom, &
                              dft_plus_u_atom=dft_plus_u_atom, &
+                             do_mtlr=do_mtlr, &
                              lmax_rho0=lmax_rho0_kind)
 
             IF (PRESENT(maxlppl) .AND. ASSOCIATED(gth_potential)) THEN
@@ -1273,6 +1343,12 @@ CONTAINS
             IF (PRESENT(dft_plus_u_atom_present)) THEN
                IF (dft_plus_u_atom) THEN
                   dft_plus_u_atom_present = .TRUE.
+               END IF
+            END IF
+
+            IF (PRESENT(do_mtlr_present)) THEN
+               IF (do_mtlr) THEN
+                  do_mtlr_present = .TRUE.
                END IF
             END IF
 
@@ -1651,15 +1727,18 @@ CONTAINS
          DIMENSION(maxbas)                               :: basis_set_form, basis_set_name, &
                                                             basis_set_type
       INTEGER :: handle, i, i_rep, iounit, ipaodesc, ipaopot, ipos, j, jj, k_rep, l, m, n_rep, &
-         nb_rep, nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, nu, z
+         nb_rep, nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, nu, &
+         plus_u_method_id, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
       LOGICAL :: check, ecp_semi_local, explicit, explicit_basis, explicit_J, explicit_kgpot, &
-         explicit_potential, explicit_U, explicit_u_m_j, nobasis, nobasis_nuc, section_enabled, &
-         subsection_enabled, update_input
+         explicit_potential, explicit_U, explicit_u_m_j, l_explicit, n_explicit, nobasis, &
+         nobasis_nuc, section_enabled, subsection_enabled, update_input
       REAL(KIND=dp)                                      :: alpha, ccore, mass, r, rc, &
                                                             zeff_correction
       REAL(KIND=dp), DIMENSION(6)                        :: error
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, aloc, anlcc, cloc, cnlcc, nelec
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, aloc, anlcc, cloc, cnlcc, nelec, &
+                                                            proj_shell_charge, &
+                                                            tmp_perturbation_strength
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_nl
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: c_nl
       TYPE(atom_ecppot_type)                             :: ecppot
@@ -1669,8 +1748,9 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set, sup_basis_set, &
                                                             tmp_basis_set
       TYPE(section_vals_type), POINTER :: basis_section, bs_section, dft_plus_u_section, &
-         dft_section, enforce_occupation_section, kgpot_section, pao_desc_section, &
-         pao_pot_section, potential_section, spin_section
+         dft_section, enforce_occupation_section, kgpot_section, &
+         minimum_tracking_linear_response_section, pao_desc_section, pao_pot_section, &
+         potential_section, spin_section, tensorial_projector_section
       TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
 
       CALL timeset(routineN, handle)
@@ -2110,8 +2190,52 @@ CONTAINS
                                       r_val=qs_kind%dft_plus_u%u_minus_j_target, &
                                       explicit=explicit_u_m_j)
 
-            IF ((explicit_U .OR. explicit_J) .AND. explicit_u_m_j) THEN
-               CPABORT("DFT+U| specifying U or J and U_MINUS_J parameters are mutually exclusive.")
+            CALL section_vals_val_get(dft_section, &
+                                      keyword_name="PLUS_U_METHOD", &
+                                      i_val=plus_u_method_id)
+
+            IF (plus_u_method_id == plus_u_tensorial .OR. plus_u_method_id == plus_u_lowdin) THEN
+               IF (explicit_U) THEN
+                  CALL cp_abort(__LOCATION__, "Lowdin and tensorial DFT+U+J do not allow U "// &
+                                "to be specified. Use U_MINUS_J and J.")
+               END IF
+            ELSE
+               IF ((explicit_U .OR. explicit_J) .AND. explicit_u_m_j) THEN
+                  CPABORT("DFT+U| specifying U or J and U_MINUS_J parameters are mutually exclusive.")
+               END IF
+            END IF
+
+            ! Tensorial DFT+U+J needs N, L, J, and U_MINUS_J. Here, N, L, and J are read.
+            l_explicit = .FALSE.
+            n_explicit = .FALSE.
+            explicit_J = .FALSE.
+
+            IF (plus_u_method_id == plus_u_tensorial) THEN
+               CALL section_vals_val_get(dft_plus_u_section, &
+                                         keyword_name="L", &
+                                         i_val=qs_kind%dft_plus_u%l, &
+                                         explicit=l_explicit)
+               CALL section_vals_val_get(dft_plus_u_section, &
+                                         keyword_name="N", &
+                                         i_val=qs_kind%dft_plus_u%n, &
+                                         explicit=n_explicit)
+               CALL section_vals_val_get(dft_plus_u_section, &
+                                         keyword_name="J", &
+                                         r_val=qs_kind%dft_plus_u%J, &
+                                         explicit=explicit_J)
+               qs_kind%dft_plus_u%hund_j = qs_kind%dft_plus_u%J
+               IF (.NOT. l_explicit .OR. .NOT. n_explicit) THEN
+                  CALL cp_abort(__LOCATION__, "DFT PLUS_U_METHOD TENSORIAL requires explicit L "// &
+                                "and N keywords in every active DFT_PLUS_U section.")
+               END IF
+            END IF
+
+            IF (plus_u_method_id == plus_u_lowdin) THEN
+               CALL section_vals_val_get(dft_plus_u_section, &
+                                         keyword_name="J", &
+                                         r_val=qs_kind%dft_plus_u%J, &
+                                         explicit=explicit_J)
+               qs_kind%dft_plus_u%hund_j = qs_kind%dft_plus_u%J
             END IF
 
             CALL section_vals_val_get(dft_plus_u_section, &
@@ -2182,6 +2306,59 @@ CONTAINS
                                          keyword_name="SMEAR", &
                                          l_val=qs_kind%dft_plus_u%smear)
             END IF ! subsection enabled
+
+            NULLIFY (tensorial_projector_section)
+            tensorial_projector_section => section_vals_get_subs_vals(dft_plus_u_section, &
+                                                                      subsection_name="ATOMIC_PROJECTOR_TENSORIAL")
+            subsection_enabled = .FALSE.
+            CALL section_vals_val_get(tensorial_projector_section, &
+                                      keyword_name="_SECTION_PARAMETERS_", &
+                                      l_val=subsection_enabled)
+            IF (subsection_enabled) THEN
+               CALL section_vals_val_get(tensorial_projector_section, &
+                                         keyword_name="SHELL_CHARGE", &
+                                         r_vals=proj_shell_charge)
+               qs_kind%dft_plus_u%proj_shell_charge = proj_shell_charge
+            END IF
+
+            NULLIFY (minimum_tracking_linear_response_section)
+            minimum_tracking_linear_response_section => section_vals_get_subs_vals(dft_plus_u_section, &
+                                                                                 subsection_name="MINIMUM_TRACKING_LINEAR_RESPONSE")
+            subsection_enabled = .FALSE.
+            CALL section_vals_val_get(minimum_tracking_linear_response_section, &
+                                      keyword_name="_SECTION_PARAMETERS_", &
+                                      l_val=subsection_enabled)
+            IF (subsection_enabled) THEN
+               qs_kind%dft_plus_u%do_mtlr = .TRUE.
+               CALL section_vals_val_get(minimum_tracking_linear_response_section, &
+                                         keyword_name="INDEX_PERTURBED_ATOM", &
+                                         i_val=qs_kind%dft_plus_u%lr_atom)
+               IF (qs_kind%dft_plus_u%lr_atom < 1) THEN
+                  CPABORT("MTLR requires an explicit positive INDEX_PERTURBED_ATOM.")
+               END IF
+               NULLIFY (tmp_perturbation_strength)
+               CALL section_vals_val_get(minimum_tracking_linear_response_section, &
+                                         keyword_name="PERTURBATION_STRENGTH", &
+                                         r_vals=tmp_perturbation_strength)
+               IF (.NOT. ASSOCIATED(tmp_perturbation_strength)) THEN
+                  CPABORT("MTLR perturbation strengths could not be read.")
+               END IF
+               IF (SIZE(tmp_perturbation_strength) < 3 .OR. SIZE(tmp_perturbation_strength) > 9) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "PERTURBATION_STRENGTH must contain between 3 and 9 values.")
+               END IF
+               IF (MAXVAL(tmp_perturbation_strength) - MINVAL(tmp_perturbation_strength) <= &
+                   100.0_dp*EPSILON(1.0_dp)) THEN
+                  CPABORT("MTLR perturbation strengths must contain distinct values.")
+               END IF
+               IF (ALLOCATED(qs_kind%dft_plus_u%perturbation_strength)) THEN
+                  DEALLOCATE (qs_kind%dft_plus_u%perturbation_strength)
+               END IF
+               ALLOCATE (qs_kind%dft_plus_u%perturbation_strength(SIZE(tmp_perturbation_strength)))
+               qs_kind%dft_plus_u%perturbation_strength(:) = tmp_perturbation_strength(:)
+               DEALLOCATE (tmp_perturbation_strength)
+               NULLIFY (tmp_perturbation_strength)
+            END IF
          END IF ! section enabled
 
       END IF
@@ -3029,6 +3206,7 @@ CONTAINS
 !> \param no_optimize ...
 !> \param dispersion ...
 !> \param u_minus_j ...
+!> \param hund_j ...
 !> \param reltmat ...
 !> \param dftb_parameter ...
 !> \param xtb_parameter ...
@@ -3037,7 +3215,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_qs_kind(qs_kind, paw_atom, ghost, floating, hard_radius, hard0_radius, &
                           covalent_radius, vdw_radius, lmax_rho0, zeff, &
-                          no_optimize, dispersion, u_minus_j, reltmat, &
+                          no_optimize, dispersion, u_minus_j, hund_j, reltmat, &
                           dftb_parameter, xtb_parameter, &
                           elec_conf, pao_basis_size)
 
@@ -3049,7 +3227,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: zeff
       LOGICAL, INTENT(IN), OPTIONAL                      :: no_optimize
       TYPE(qs_atom_dispersion_type), OPTIONAL, POINTER   :: dispersion
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: u_minus_j
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: u_minus_j, hund_j
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: reltmat
       TYPE(qs_dftb_atom_type), OPTIONAL, POINTER         :: dftb_parameter
       TYPE(xtb_atom_type), OPTIONAL, POINTER             :: xtb_parameter
@@ -3093,6 +3271,12 @@ CONTAINS
       IF (PRESENT(u_minus_j)) THEN
          IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
             qs_kind%dft_plus_u%u_minus_j = u_minus_j
+         END IF
+      END IF
+
+      IF (PRESENT(hund_j)) THEN
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            qs_kind%dft_plus_u%hund_j = hund_j
          END IF
       END IF
 
@@ -3213,10 +3397,11 @@ CONTAINS
             IF (ASSOCIATED(qs_kind%sgp_potential)) CALL write_potential(qs_kind%sgp_potential, output_unit)
             IF (ASSOCIATED(qs_kind%tnadd_potential)) CALL write_potential(qs_kind%tnadd_potential, output_unit)
             IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
-               WRITE (UNIT=output_unit, FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3)") &
+               WRITE (UNIT=output_unit, FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3,/,T8,A,T73,F8.3)") &
                   "A DFT+U correction is applied to atoms of this atomic kind:", &
                   "Angular quantum momentum number L:", qs_kind%dft_plus_u%l, &
-                  "U(eff) = (U - J) value in [eV]:", qs_kind%dft_plus_u%u_minus_j_target*evolt
+                  "U(eff) = (U - J) value in [eV]:", qs_kind%dft_plus_u%u_minus_j_target*evolt, &
+                  "Hund J value in [eV]:", qs_kind%dft_plus_u%hund_j*evolt
                IF (qs_kind%dft_plus_u%u_ramping > 0.0_dp) THEN
                   IF (qs_kind%dft_plus_u%init_u_ramping_each_scf) THEN
                      yon = "YES"
@@ -3422,14 +3607,16 @@ CONTAINS
 !> \param ncore ...
 !> \param nelem ...
 !> \param edelta ...
+!> \param rks ...
 ! **************************************************************************************************
-   SUBROUTINE init_atom_electronic_state(atomic_kind, qs_kind, ncalc, ncore, nelem, edelta)
+   SUBROUTINE init_atom_electronic_state(atomic_kind, qs_kind, ncalc, ncore, nelem, edelta, rks)
 
       TYPE(atomic_kind_type), INTENT(IN)                 :: atomic_kind
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
       INTEGER, DIMENSION(0:lmat, 10), INTENT(OUT)        :: ncalc, ncore, nelem
       REAL(KIND=dp), DIMENSION(0:lmat, 10, 2), &
          INTENT(OUT)                                     :: edelta
+      LOGICAL, INTENT(IN), OPTIONAL                      :: rks
 
       INTEGER                                            :: i, ii, is, l, ll, ne, nn, z
       INTEGER, DIMENSION(:), POINTER                     :: econf
@@ -3448,6 +3635,13 @@ CONTAINS
                        bs_occupation=bs_occupation, &
                        monovalent=monovalent, &
                        addel=addel, laddel=laddel, naddel=naddel)
+
+      IF (PRESENT(rks)) THEN
+         IF (rks) THEN
+            magnetization = 0.0_dp
+            bs_occupation = .FALSE.
+         END IF
+      END IF
 
       ! electronic state
       nelem = 0

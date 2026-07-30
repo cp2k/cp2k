@@ -353,4 +353,7 @@ registry["E_RIRS_LUMO"] = GenericMatcher(r"G0W0 conduction band minimum", col=6)
 # Floquet Calculations
 registry["Quasienergy"] = GenericMatcher(r"  4", col=2)
 registry["Floquet_DOS"] = GenericMatcher(r"-1.690", col=2)
+
+# MTLR Calculations
+registry["MTLR_U_MINUS_J"] = GenericMatcher(r"U_MINUS_J [eV]", col=4)
 # EOF

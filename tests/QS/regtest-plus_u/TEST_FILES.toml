@@ -10,12 +10,16 @@
 "H2O-rks-otcg-lowdin.inp"               = [{matcher="M024", tol=1E-12, ref=0.07674870925125}]
 "H2O-uks-diag-lowdin.inp"               = [{matcher="M024", tol=1E-12, ref=0.08364867485442}]
 "H2O-uks-otcg-lowdin.inp"               = [{matcher="M024", tol=1e-08, ref=0.08364906016063}]
+"H2O-uks-otcg-lowdin_j.inp"             = [{matcher="E_total", tol=1e-09, ref=-17.044553516712700}]
+"H2O-uks-otcg-tensorial.inp"            = [{matcher="E_total", tol=1e-09, ref=-17.082190201923773}]
 # U ramping
 "H2O-rks-u_ramping.inp"                 = [{matcher="M024", tol=1e-06, ref=0.04016322995855}]
 "H2O-uks-u_ramping.inp"                 = [{matcher="M024", tol=3e-07, ref=0.04016727343286}]
 # U ramping with reset
 "H2O-rks-u_ramping_reset.inp"           = [{matcher="M024", tol=1e-06, ref=0.04016218151147}]
 "H2O-uks-u_ramping_reset.inp"           = [{matcher="M024", tol=3e-07, ref=0.04016674741074}]
+# Tensorial forces
+"H2O-uks-otcg-tensorial_force.inp"      = [{matcher="M072", tol=1e-06, ref=3.204718764528E-04}]
 # Lowdin forces
 "H2O-rks-diag_kpforce.inp"              = []
 "H2O-rks-diag-lowdin_force.inp"         = []
