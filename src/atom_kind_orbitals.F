@@ -108,7 +108,8 @@ CONTAINS
          OPTIONAL, POINTER                               :: ao_coef
 
       INTEGER                                            :: i, ii, j, k, k1, k2, l, ll, m, mb, mo, &
-                                                            nr, nset, nsgf, valence_n, z
+                                                            nr, nset, nsgf, projector_index, &
+                                                            valence_n, z
       INTEGER, DIMENSION(0:lmat)                         :: nbb
       INTEGER, DIMENSION(0:lmat, 10)                     :: ncalc, ncore, nelem
       INTEGER, DIMENSION(0:lmat, 100)                    :: set_index, shell_index
@@ -523,10 +524,15 @@ CONTAINS
          CPASSERT(PRESENT(which_n))
          CPASSERT(which_l >= 0 .AND. which_l <= lmat)
          valence_n = COUNT(ncore(which_l, :) > 0) + which_l + 1
-         CPASSERT(which_n >= valence_n)
+         projector_index = which_n - valence_n + 1
+         IF (projector_index < 1 .OR. projector_index > SIZE(atom%orbitals%wfn, 2)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "The requested tensorial atomic projector N is outside "// &
+                          "the available orbital range for the selected L.")
+         END IF
          IF (ASSOCIATED(ao_coef)) DEALLOCATE (ao_coef)
          ALLOCATE (ao_coef(SIZE(atom%orbitals%wfn(:, 1, which_l))))
-         ao_coef(:) = atom%orbitals%wfn(:, which_n - valence_n + 1, which_l)
+         ao_coef(:) = atom%orbitals%wfn(:, projector_index, which_l)
          IF (MAXVAL(ABS(ao_coef)) <= 100.0_dp*EPSILON(1.0_dp)) THEN
             CALL cp_abort(__LOCATION__, &
                           "The requested atomic projector is zero. Check the "// &

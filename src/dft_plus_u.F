@@ -292,6 +292,14 @@ CONTAINS
 
       nspin = dft_control%nspins
       nimg = dft_control%nimages
+      IF (dft_control%mtlr_dft_with_perturbation) THEN
+         IF (.NOT. ASSOCIATED(matrix_vhxc)) THEN
+            CPABORT("MTLR requires the projected Hxc matrix for every spin channel.")
+         END IF
+         IF (SIZE(matrix_vhxc) /= nspin) THEN
+            CPABORT("The number of projected Hxc matrices does not match the spin channels.")
+         END IF
+      END IF
 
       IF (nspin == 2) THEN
          fspin = 1.0_dp
@@ -418,7 +426,9 @@ CONTAINS
          IF (dft_control%mtlr_dft_with_perturbation) THEN
             IF (ispin == 1) perturbation_strength = 0.9_dp*dft_control%perturbation_strength
             IF (ispin == 2) perturbation_strength = 1.1_dp*dft_control%perturbation_strength
-            CPASSERT(ASSOCIATED(matrix_vhxc(ispin)%matrix))
+            IF (.NOT. ASSOCIATED(matrix_vhxc(ispin)%matrix)) THEN
+               CPABORT("MTLR projected Hxc matrix is not initialized.")
+            END IF
             sm_vhxc => matrix_vhxc(ispin)%matrix
          END IF
 
@@ -2255,6 +2265,7 @@ CONTAINS
       NULLIFY (first_sgf)
       NULLIFY (matrix_p)
       NULLIFY (matrix_s)
+      NULLIFY (matrix_vhxc)
       NULLIFY (l)
       NULLIFY (last_sgf)
       NULLIFY (nshell)
@@ -2321,6 +2332,14 @@ CONTAINS
       energy%dft_plus_u = 0.0_dp
 
       nspin = dft_control%nspins
+      IF (dft_control%mtlr_dft_with_perturbation) THEN
+         IF (.NOT. ASSOCIATED(matrix_vhxc)) THEN
+            CPABORT("MTLR requires the projected Hxc matrix for every spin channel.")
+         END IF
+         IF (SIZE(matrix_vhxc) /= nspin) THEN
+            CPABORT("The number of projected Hxc matrices does not match the spin channels.")
+         END IF
+      END IF
 
       IF (nspin == 2) THEN
          fspin = 1.0_dp
@@ -2439,7 +2458,9 @@ CONTAINS
          IF (dft_control%mtlr_dft_with_perturbation) THEN
             IF (ispin == 1) perturbation_strength = 0.9_dp*dft_control%perturbation_strength
             IF (ispin == 2) perturbation_strength = 1.1_dp*dft_control%perturbation_strength
-            CPASSERT(ASSOCIATED(matrix_vhxc(ispin)%matrix))
+            IF (.NOT. ASSOCIATED(matrix_vhxc(ispin)%matrix)) THEN
+               CPABORT("MTLR projected Hxc matrix is not initialized.")
+            END IF
             sm_vhxc => matrix_vhxc(ispin)%matrix
          END IF
 

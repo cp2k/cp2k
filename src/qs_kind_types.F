@@ -2356,7 +2356,8 @@ CONTAINS
                END IF
                ALLOCATE (qs_kind%dft_plus_u%perturbation_strength(SIZE(tmp_perturbation_strength)))
                qs_kind%dft_plus_u%perturbation_strength(:) = tmp_perturbation_strength(:)
-               DEALLOCATE (tmp_perturbation_strength)
+               ! section_vals_val_get returns a pointer to storage owned by the
+               ! input tree. Only the copied component above is owned here.
                NULLIFY (tmp_perturbation_strength)
             END IF
          END IF ! section enabled
