@@ -27,6 +27,8 @@ source "${INSTALLDIR}"/toolchain.env
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
+# Skala model is installed by shared script in main toolchain
+
 retrieve_github_archive() {
   local __sha256="$1"
   local __filename="$2"
@@ -325,8 +327,7 @@ case "${with_skala_ftorch}" in
     else
       retrieve_github_archive "${ftorch_sha256}" "v${ftorch_ver}.tar.gz" \
         "${ftorch_urlpath}" "${ftorch_pkg}"
-      retrieve_github_archive "${skala_model_sha256}" "${skala_model_pkg}" \
-        "${skala_model_urlpath}" "${skala_model_pkg}"
+      # Skala model is now installed by shared install_skala.sh script
 
       echo "Installing from scratch into ${pkg_install_dir}"
       rm -rf "FTorch-${ftorch_ver}" "${pkg_install_dir}"
@@ -378,13 +379,16 @@ case "${with_skala_ftorch}" in
        mkdir -p "${pkg_install_dir}/include"
        cp "${BUILDDIR}/skala_ftorch.f90" "${pkg_install_dir}/include/"
 
+      # Copy skala model from shared location (like other dependencies)
       mkdir -p "${pkg_install_dir}/share/skala/onedft_models"
-      cp "${BUILDDIR}/${skala_model_pkg}" \
-        "${pkg_install_dir}/share/skala/onedft_models/${skala_model_pkg}"
+      if [ -f "${INSTALLDIR}/skala-${skala_model_ver}/share/skala/onedft_models/${skala_model_pkg}" ]; then
+        cp "${INSTALLDIR}/skala-${skala_model_ver}/share/skala/onedft_models/${skala_model_pkg}" \
+          "${pkg_install_dir}/share/skala/onedft_models/${skala_model_pkg}"
+      fi
 
       write_checksums "${install_lock_file}" \
         "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})" \
-        "${BUILDDIR}/${ftorch_pkg}" "${BUILDDIR}/${skala_model_pkg}"
+         "${BUILDDIR}/${ftorch_pkg}"
     fi
     ;;
   __SYSTEM__)
@@ -406,7 +410,8 @@ esac
 
 if [ "${with_skala_ftorch}" != "__DONTUSE__" ]; then
   if [ -n "${pkg_install_dir:-}" ]; then
-    skala_model="${pkg_install_dir}/share/skala/onedft_models/${skala_model_pkg}"
+    # Use shared skala model location
+    skala_model="${INSTALLDIR}/skala-${skala_model_ver}/share/skala/onedft_models/${skala_model_pkg}"
   else
     skala_model=""
   fi
