@@ -32,6 +32,8 @@ source "${INSTALLDIR}"/toolchain.env
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
+# Skala model is installed by shared script in main toolchain
+
 retrieve_github_archive() {
   local __sha256="$1"
   local __filename="$2"
@@ -77,14 +79,7 @@ case "${with_gauxc}" in
       retrieve_github_archive "${nlohmann_json_sha256}" "include.zip" \
         "${nlohmann_json_urlpath}" \
         "${nlohmann_json_pkg}"
-      retrieve_github_archive "${skala_model_sha256}" "${skala_model_pkg}" \
-        "${skala_model_urlpath}" \
-        "${skala_model_pkg}"
-      if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
-        retrieve_github_archive "${skala_cuda_model_sha256}" "${skala_cuda_model_pkg}" \
-          "${skala_model_urlpath}" \
-          "${skala_cuda_model_pkg}"
-      fi
+      # Skala model is now installed by shared install_skala.sh script
       echo "Installing from scratch into ${pkg_install_dir}"
       rm -rf "GauXC-${gauxc_rev}" "${pkg_install_dir}"
       tar -xzf "${gauxc_pkg}"
@@ -165,20 +160,17 @@ case "${with_gauxc}" in
         ${gauxc_cuda_architectures_option} \
         .. > configure.log 2>&1 || tail_excerpt configure.log
       make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
-      mkdir -p "${pkg_install_dir}/share/gauxc/onedft_models"
-      install -m 0644 "${BUILDDIR}/${skala_model_pkg}" \
-        "${pkg_install_dir}/share/gauxc/onedft_models/${skala_model_pkg}"
-      skala_model_checksum_files=("${BUILDDIR}/${skala_model_pkg}")
-      if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
-        install -m 0644 "${BUILDDIR}/${skala_cuda_model_pkg}" \
-          "${pkg_install_dir}/share/gauxc/onedft_models/${skala_cuda_model_pkg}"
-        skala_model_checksum_files+=("${BUILDDIR}/${skala_cuda_model_pkg}")
-      fi
+       # Copy skala model from shared location (like other dependencies)
+       mkdir -p "${pkg_install_dir}/share/gauxc/onedft_models"
+       if [ -f "${INSTALLDIR}/skala-${skala_model_ver}/share/skala/onedft_models/${skala_model_pkg}" ]; then
+         cp "${INSTALLDIR}/skala-${skala_model_ver}/share/skala/onedft_models/${skala_model_pkg}" \
+           "${pkg_install_dir}/share/gauxc/onedft_models/${skala_model_pkg}"
+       fi
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})" \
-        "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" \
-        "${SCRIPT_DIR}/stage6/gauxc-libxc-only-exchcxx.patch" \
-        "${SCRIPT_DIR}/stage6/exchcxx-disable-builtin.patch" "${BUILDDIR}/${gauxc_pkg}" \
-        "${BUILDDIR}/${nlohmann_json_pkg}" "${skala_model_checksum_files[@]}"
+         "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" \
+         "${SCRIPT_DIR}/stage6/gauxc-libxc-only-exchcxx.patch" \
+         "${SCRIPT_DIR}/stage6/exchcxx-disable-builtin.patch" "${BUILDDIR}/${gauxc_pkg}" \
+         "${BUILDDIR}/${nlohmann_json_pkg}"
     fi
     ;;
   __SYSTEM__)
@@ -201,13 +193,8 @@ esac
 
 if [ "${with_gauxc}" != "__DONTUSE__" ]; then
   if [ -n "${pkg_install_dir:-}" ]; then
-    gauxc_skala_model="${pkg_install_dir}/share/gauxc/onedft_models/${skala_model_pkg}"
-    if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
-      gauxc_skala_cuda_model="${pkg_install_dir}/share/gauxc/onedft_models/${skala_cuda_model_pkg}"
-      [ -f "${gauxc_skala_cuda_model}" ] || gauxc_skala_cuda_model=""
-    else
-      gauxc_skala_cuda_model=""
-    fi
+    # Use shared skala model location
+    gauxc_skala_model="${INSTALLDIR}/skala-${skala_model_ver}/share/skala/onedft_models/${skala_model_pkg}"
   else
     gauxc_skala_model=""
     gauxc_skala_cuda_model=""
