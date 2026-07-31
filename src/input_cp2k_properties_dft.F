@@ -3115,6 +3115,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
+                          description="Electronic temperature (in K) of the wide-band fermion "// &
+                          "bath used to weight the Floquet DOS by Fermi-Dirac occupations, adding "// &
+                          "an occupied spectral-weight column f(E)*A(E) to the DOS file. If "// &
+                          "negative (default), that column is not written.", &
+                          usage="TEMPERATURE 300.0", default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="FLOQUET_DOS_FILE_NAME", &
                           description="File name used for the Floquet spectral function.", &
                           usage="FLOQUET_DOS_FILE_NAME FLOQUET_DOS", &

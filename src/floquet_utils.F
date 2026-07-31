@@ -44,7 +44,8 @@ MODULE floquet_utils
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_type
    USE physcon,                         ONLY: a_bohr,&
-                                              evolt
+                                              evolt,&
+                                              kelvin
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -989,7 +990,8 @@ CONTAINS
       INTEGER                                            :: bunit, handle, i, i_E, ikp_for_file, &
                                                             ispin, n_E, n_spin, nao, nkp_only_bs, &
                                                             nkp_start, qunit, wunit
-      REAL(KIND=dp)                                      :: E_min, energy, energy_step, mu
+      REAL(KIND=dp)                                      :: E_min, energy, energy_step, f_occ, kT, &
+                                                            mu, x
       REAL(KIND=dp), DIMENSION(3)                        :: xkp
 
       CALL timeset(routineN, handle)
@@ -1012,6 +1014,9 @@ CONTAINS
          mu = floquet_reference_energy(bs_env)
          energy_step = bs_env%energy_step_floquet
          E_min = mu - bs_env%energy_window_floquet
+
+         ! k_B T in Hartree (only used when TEMPERATURE > 0); E[K] = E[Hartree]*kelvin.
+         kT = bs_env%floquet_temperature/kelvin
 
          ! Each file is opened once (REPLACE) and written for every band-structure k-point and spin.
 
@@ -1058,15 +1063,34 @@ CONTAINS
                      floquet_env%all_quasi_energies(i, ispin, ikp_for_file)*evolt
                END DO
 
-               ! <floquet_dos_file>.out the k-resolved DOS A(k,ω)
+               ! <floquet_dos_file>.out the k-resolved DOS A(k,ω), and (if TEMPERATURE > 0) the
+               ! occupied spectral weight f(E)*A(k,ω), f the Fermi-Dirac occupation at the VBM.
                WRITE (wunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
                   "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
-               WRITE (wunit, "(A)") "#Energy-VBM (eV)  A(ω,k) = DOS (1/eV)"
-               DO i_E = 1, n_E
-                  energy = E_min + i_E*energy_step
-                  WRITE (wunit, "(2X,2G13.4)") (energy - mu)*evolt, &
-                     floquet_env%all_a_k(i_E, ispin, ikp_for_file)/evolt
-               END DO
+               IF (bs_env%floquet_temperature > 0.0_dp) THEN
+                  WRITE (wunit, "(A)") "#Energy-VBM (eV)  A(ω,k) = DOS (1/eV)   f*A = occupied DOS (1/eV)"
+                  DO i_E = 1, n_E
+                     energy = E_min + i_E*energy_step
+                     x = (energy - mu)/kT                    ! (E - VBM)/k_B T, dimensionless
+                     IF (x > 40.0_dp) THEN                   ! guard EXP overflow at low T
+                        f_occ = 0.0_dp
+                     ELSE IF (x < -40.0_dp) THEN
+                        f_occ = 1.0_dp
+                     ELSE
+                        f_occ = 1.0_dp/(EXP(x) + 1.0_dp)
+                     END IF
+                     WRITE (wunit, "(2X,3G13.4)") (energy - mu)*evolt, &
+                        floquet_env%all_a_k(i_E, ispin, ikp_for_file)/evolt, &
+                        f_occ*floquet_env%all_a_k(i_E, ispin, ikp_for_file)/evolt
+                  END DO
+               ELSE
+                  WRITE (wunit, "(A)") "#Energy-VBM (eV)  A(ω,k) = DOS (1/eV)"
+                  DO i_E = 1, n_E
+                     energy = E_min + i_E*energy_step
+                     WRITE (wunit, "(2X,2G13.4)") (energy - mu)*evolt, &
+                        floquet_env%all_a_k(i_E, ispin, ikp_for_file)/evolt
+                  END DO
+               END IF
 
             END DO
          END DO
