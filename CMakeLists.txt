@@ -131,7 +131,7 @@ option(CP2K_USE_LIBINT2 "Enable Libint2 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBTORCH "Enable LibTorch support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBXC "Enable LibXC support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GAUXC "Enable GauXC support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_SKALA_FTORCH "Enable Skala/FTorch support" ${CP2K_USE_EVERYTHING})
+cmake_dependent_option(CP2K_USE_SKALA_FTORCH "Enable Skala/FTorch support (auto-enabled with GauXC)" ${CP2K_USE_EVERYTHING} "CP2K_USE_GAUXC" OFF)
 option(CP2K_USE_MPI "Enable MPI support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBXS
        "Enable LIBXS support; required if OpenCL backend enabled"
