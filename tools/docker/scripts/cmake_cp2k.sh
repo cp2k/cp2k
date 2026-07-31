@@ -64,7 +64,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  cmake \
+  cmake --preset "native-gnu-x86_64" \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
@@ -76,7 +76,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
-  cmake \
+  cmake --preset "native-gnu-x86_64" \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
@@ -119,7 +119,7 @@ elif [[ "${PROFILE}" == "toolchain_intel" ]] && [[ "${VERSION}" == "ssmp" ]]; th
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "toolchain_arm64" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  cmake \
+  cmake --preset "native-gnu-arm64" \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
@@ -136,7 +136,7 @@ elif [[ "${PROFILE}" == "toolchain_arm64" ]] && [[ "${VERSION}" == "psmp" ]]; th
 
 elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; then
   # TODO: CP2K_USE_SPLA_GEMM_OFFLOADING should get enabled automatically.
-  cmake \
+  cmake --preset "native-gnu-x86_64" \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DSPLA_ROOT="${SPLA_ROOT}-cuda" \
@@ -164,7 +164,7 @@ elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; t
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "toolchain_hip_"* ]] && [[ "${VERSION}" == "psmp" ]]; then
-  cmake \
+  cmake --preset "native-gnu-x86_64" \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_WITH_GPU="${PROFILE:14}" \
@@ -178,7 +178,6 @@ elif [[ "${PROFILE}" == "toolchain_hip_"* ]] && [[ "${VERSION}" == "psmp" ]]; th
 elif [[ "${PROFILE}" == "toolchain_generic" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
     -GNinja \
-    -DCMAKE_BUILD_TYPE="Generic" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_DLAF=OFF \
@@ -206,7 +205,7 @@ elif [[ "${PROFILE}" == "toolchain_conventions" ]] && [[ "${VERSION}" == "psmp" 
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "toolchain_coverage" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  cmake \
+  cmake --preset "native-gnu-x86_64" \
     -GNinja \
     -DCMAKE_BUILD_TYPE="Coverage" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
@@ -221,7 +220,7 @@ elif [[ "${PROFILE}" == "toolchain_coverage" ]] && [[ "${VERSION}" == "psmp" ]];
 elif [[ "${PROFILE}" == "toolchain_asan" ]] && [[ "${VERSION}" == "psmp" ]]; then
   # TODO Re-enable GREENX. It currently leads to a heap-buffer-overflow
   # in `greenx_refine_pade()` at greenx_interface.F:80.
-  cmake \
+  cmake --preset "native-gnu-x86_64" \
     -GNinja \
     -DCMAKE_BUILD_TYPE="ASAN" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
@@ -235,9 +234,9 @@ elif [[ "${PROFILE}" == "toolchain_asan" ]] && [[ "${VERSION}" == "psmp" ]]; the
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
-  # TODO Enable libxsmm and libspglib once we dropped GCC 8.
-  # TODO fix spglib https://github.com/cp2k/cp2k/issues/3414
-  # NOTE: libxc 5.2.3 is provided, CP2K requires libxc 7
+  # NOTE:
+  #  1. libxc 5.2.3 is provided, CP2K requires libxc 7
+  #  2. Spglib does not provide SpglibConfig.cmake
   cmake \
     -GNinja \
     -DCMAKE_BUILD_TYPE="RelWithDebInfo" \

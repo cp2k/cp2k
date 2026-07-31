@@ -59,8 +59,9 @@ COPY ./data ./data
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
+COPY ./CMakePresets.json .
 
-RUN ./make_cp2k.sh -cv psmp -gv 15 -gpu none -mpi mpich 
+RUN ./make_cp2k.sh -cv psmp -gv 15 -gpu none -mpi mpich --preset native-gnu-x86_64 
 
 ###### Stage 3: Install CP2K ######
 

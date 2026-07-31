@@ -59,8 +59,9 @@ COPY ./data ./data
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
+COPY ./CMakePresets.json .
 
-RUN ./make_cp2k.sh -cv psmp -gv 10 -gpu none -mpi mpich -df libtorch
+RUN ./make_cp2k.sh -cv psmp -gv 10 -gpu none -mpi mpich --preset native-gnu-x86_64 -df libtorch
 
 ###### Stage 3: Install CP2K ######
 

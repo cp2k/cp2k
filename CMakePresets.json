@@ -1,0 +1,25 @@
+{
+  "version": 5,
+  "configurePresets": [
+    {
+      "name": "native-gnu-x86_64",
+      "displayName": "GNU native build for x86_64",
+      "description": "Use -march=native with GNU compilers on x86_64 architecture.",
+      "cacheVariables": {
+        "CMAKE_C_FLAGS": "$penv{CFLAGS} -march=native",
+        "CMAKE_CXX_FLAGS": "$penv{CXXFLAGS} -march=native",
+        "CMAKE_Fortran_FLAGS": "$penv{FFLAGS} -march=native"
+      }
+    },
+    {
+      "name": "native-gnu-arm64",
+      "displayName": "GNU native build for Arm64",
+      "description": "Use -mcpu=native with GNU compilers on Arm64/AArch64, including GNU/Linux and Apple Silicon.",
+      "cacheVariables": {
+        "CMAKE_C_FLAGS": "$penv{CFLAGS} -mcpu=native",
+        "CMAKE_CXX_FLAGS": "$penv{CXXFLAGS} -mcpu=native",
+        "CMAKE_Fortran_FLAGS": "$penv{FFLAGS} -mcpu=native"
+      }
+    }
+  ]
+}
