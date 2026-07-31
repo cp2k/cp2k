@@ -13,12 +13,15 @@
 MODULE floquet_utils
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_type
    USE cp_cfm_types,                    ONLY: cp_cfm_get_submatrix,&
                                               cp_cfm_set_submatrix,&
                                               cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
+   USE floquet_types,                   ONLY: floquet_env_type
    USE input_constants,                 ONLY: small_cell_full_kp
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
@@ -40,7 +43,8 @@ MODULE floquet_utils
                                               gemm_square
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_type
-   USE physcon,                         ONLY: evolt
+   USE physcon,                         ONLY: a_bohr,&
+                                              evolt
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -64,11 +68,13 @@ MODULE floquet_utils
 
    ! Public subroutines
    PUBLIC :: build_floquet_matrix, &
-             floquet_precompute_kp_data, &
-             floquet_determine_subgroup_size, &
+             compute_e_k_de_dk_dipole, &
+             make_floquet_subgroups, &
+             distribute_floquet_kp_data, &
              floquet_sector_weights, &
              check_floquet_convergence, &
              calculate_floquet_observables, &
+             write_floquet_header, &
              write_floquet_results
 
 CONTAINS
@@ -360,18 +366,15 @@ CONTAINS
    END SUBROUTINE build_diagonal_matrix
 
 ! **************************************************************************************************
-!> \brief Builds the Floquet-Bloch Hamiltonian H_F(k) for a single k-point and spin channel.
+!> \brief Builds the Floquet-Bloch Hamiltonian H_F(k) for a single k-point and spin channel from
+!>        the band data currently held in floquet_env.
 !> \param bs_env ...
-!> \param e_k_kp_spin ...
-!> \param de_dk_kp_spin ...
-!> \param dipole_kp_spin ...
+!> \param floquet_env ...
 !> \param floquet_matrix ...
 ! **************************************************************************************************
-   SUBROUTINE build_floquet_matrix(bs_env, e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, floquet_matrix)
+   SUBROUTINE build_floquet_matrix(bs_env, floquet_env, floquet_matrix)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:)                        :: e_k_kp_spin
-      REAL(KIND=dp), DIMENSION(:, :)                     :: de_dk_kp_spin
-      COMPLEX(KIND=dp), DIMENSION(:, :, :)               :: dipole_kp_spin
+      TYPE(floquet_env_type)                             :: floquet_env
       TYPE(cp_cfm_type)                                  :: floquet_matrix
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_floquet_matrix'
@@ -382,8 +385,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nao = SIZE(e_k_kp_spin)
-      max_f_index = bs_env%max_floquet_index
+      nao = floquet_env%nao
+      max_f_index = floquet_env%max_f_index
       n_fbands = 1 + 2*max_f_index
 
       ! Creates the floquet matrix H_F by placing the diagonal and off diagonal blocks
@@ -391,14 +394,15 @@ CONTAINS
       ALLOCATE (off_diag_m(nao, nao), source=z_zero)
       ALLOCATE (conj_off_diag_m(nao, nao), source=z_zero)
 
-      CALL build_off_diagonal_matrix(bs_env, e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, off_diag_m)
+      CALL build_off_diagonal_matrix(bs_env, floquet_env%e_k_kp_spin, floquet_env%de_dk_kp_spin, &
+                                     floquet_env%dipole_kp_spin, off_diag_m)
       conj_off_diag_m(:, :) = CONJG(TRANSPOSE(off_diag_m(:, :)))
 
       floquet_matrix%local_data(:, :) = z_zero
       DO i = 1, n_fbands
          i_f = 1 + (i - 1)*nao
          f_index = i - max_f_index - 1
-         CALL build_diagonal_matrix(bs_env, e_k_kp_spin, f_index, diag_e)
+         CALL build_diagonal_matrix(bs_env, floquet_env%e_k_kp_spin, f_index, diag_e)
          CALL cp_cfm_set_submatrix(floquet_matrix, diag_e, i_f, i_f)
          IF (i > 1) THEN
             CALL cp_cfm_set_submatrix(floquet_matrix, off_diag_m, i_f, i_f - nao)
@@ -411,6 +415,59 @@ CONTAINS
    END SUBROUTINE build_floquet_matrix
 
 ! **************************************************************************************************
+!> \brief Make this k-point/spin's band data available to every rank of the owning subgroup: the
+!>        owner (global rank MOD(ikp-1,num_pe)) copies its slice of the distributed band data into
+!>        the floquet_env broadcast buffers, then those buffers are broadcast within the subgroup.
+!>        The owner's rank within the subgroup is identified here (no need for the caller to track
+!>        it). All subgroup ranks must call this together.
+!> \param para_env the global parallel environment
+!> \param para_env_sub the subgroup parallel environment
+!> \param ispin the spin channel
+!> \param ikp the DOS k-point index
+!> \param e_k band energies for all DOS k-points, distributed (n_spin, num_copy, nao)
+!> \param de_dk band-energy k-derivatives, distributed (n_spin, num_copy, 3, nao)
+!> \param dipole dipole matrix elements, distributed (n_spin, num_copy, 3, nao, nao)
+!> \param floquet_env ...
+! **************************************************************************************************
+   SUBROUTINE distribute_floquet_kp_data(para_env, para_env_sub, ispin, ikp, e_k, de_dk, dipole, &
+                                         floquet_env)
+      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
+      INTEGER                                            :: ispin, ikp
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: e_k
+      REAL(KIND=dp), DIMENSION(:, :, :, :)               :: de_dk
+      COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :)         :: dipole
+      TYPE(floquet_env_type)                             :: floquet_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_floquet_kp_data'
+
+      INTEGER                                            :: handle, loc_idx, local_src, owner
+
+      CALL timeset(routineN, handle)
+
+      ! Identify the owner's rank within the subgroup (all subgroup ranks agree on local_src).
+      owner = MOD(ikp - 1, para_env%num_pe)
+
+      local_src = -1
+      IF (para_env%mepos == owner) local_src = para_env_sub%mepos
+      CALL para_env_sub%max(local_src)
+
+      ! The owner copies its single-spin slice of this k-point's distributed band data into the
+      ! broadcast buffers, then broadcasts them to the whole subgroup.
+      IF (para_env%mepos == owner) THEN
+         loc_idx = CEILING(REAL(ikp)/para_env%num_pe)
+         floquet_env%e_k_kp_spin(:) = e_k(ispin, loc_idx, :)
+         floquet_env%de_dk_kp_spin(:, :) = de_dk(ispin, loc_idx, :, :)
+         floquet_env%dipole_kp_spin(:, :, :) = dipole(ispin, loc_idx, :, :, :)
+      END IF
+      CALL para_env_sub%bcast(floquet_env%e_k_kp_spin, local_src)
+      CALL para_env_sub%bcast(floquet_env%de_dk_kp_spin, local_src)
+      CALL para_env_sub%bcast(floquet_env%dipole_kp_spin, local_src)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE distribute_floquet_kp_data
+
+! **************************************************************************************************
 !> \brief Precompute, on the global communicator, the band quantities needed to assemble the
 !>        Floquet-Bloch Hamiltonian for all DOS k-points (all spins), distributed across ranks.
 !> \param qs_env ...
@@ -419,7 +476,7 @@ CONTAINS
 !> \param de_dk ...
 !> \param dipole ...
 ! **************************************************************************************************
-   SUBROUTINE floquet_precompute_kp_data(qs_env, bs_env, e_k, de_dk, dipole)
+   SUBROUTINE compute_e_k_de_dk_dipole(qs_env, bs_env, e_k, de_dk, dipole)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: e_k
@@ -427,19 +484,21 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: dipole
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'floquet_precompute_kp_data'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_e_k_de_dk_dipole'
 
-      INTEGER                                            :: handle, ikp, n_kp_dos, nkp_start
+      INTEGER                                            :: handle, ikp, nkp_only_bs, nkp_start
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp_all
 
       CALL timeset(routineN, handle)
 
+      ! The band-structure k-points are the last nkp_only_bs entries of kpoints_DOS%xkp, stored
+      ! after the nkp_only_DOS DOS-only k-points.
       nkp_start = bs_env%nkp_only_DOS
-      n_kp_dos = bs_env%nkp_bs_and_DOS - nkp_start
+      nkp_only_bs = bs_env%nkp_only_bs
 
-      ! Collect the coordinates of all DOS k-points (global storage index nkp_start + local).
-      ALLOCATE (xkp_all(3, n_kp_dos))
-      DO ikp = 1, n_kp_dos
+      ! Collect the coordinates of all band-structure k-points (global index nkp_start + local).
+      ALLOCATE (xkp_all(3, nkp_only_bs))
+      DO ikp = 1, nkp_only_bs
          xkp_all(:, ikp) = bs_env%kpoints_DOS%xkp(1:3, nkp_start + ikp)
       END DO
 
@@ -452,7 +511,7 @@ CONTAINS
       DEALLOCATE (xkp_all)
 
       CALL timestop(handle)
-   END SUBROUTINE floquet_precompute_kp_data
+   END SUBROUTINE compute_e_k_de_dk_dipole
 
 ! **************************************************************************************************
 !> \brief Finds the number of MPI ranks that share a physical node, determined by splitting the
@@ -509,8 +568,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'floquet_determine_subgroup_size'
 
-      INTEGER                                            :: g_load, g_mem, handle, n_f_size, &
-                                                            n_kp_dos, nao, ranks_per_node, unit_nr
+      INTEGER                                            :: g_load, g_mem, handle, n_f_size, nao, &
+                                                            nkp_only_bs, ranks_per_node, unit_nr
       INTEGER(KIND=int_8)                                :: Buffers, Cached, MemFree, MemLikelyFree, &
                                                             MemTotal, needed_bytes, Slab, &
                                                             SReclaimable, usable_per_rank
@@ -525,15 +584,15 @@ CONTAINS
 
       unit_nr = bs_env%unit_nr
       n_f_size = nao*(1 + 2*bs_env%max_floquet_index)
-      n_kp_dos = bs_env%nkp_bs_and_DOS - bs_env%nkp_only_DOS
+      nkp_only_bs = bs_env%nkp_only_bs
       mem_fill_fraction = bs_env%floquet_mem_fill_fraction
 
       ! We choose the subgroup size to be the larger of two floors:
       ! 1. Memory floor G_mem: the subgroup must jointly hold the Floquet working set,
       !    G_mem = ceil(needed_bytes/usable per-rank memory), where the usable memory is
       !    the mem_fill_fraction of the per-rank FREE memory.
-      ! 2. K-point floor G_load = floor(num_pe / n_kp_dos): the LARGEST G that still
-      !    yields at least n_kp_dos subgroups (floor(num_pe/G) >= n_kp_dos). When ranks
+      ! 2. K-point floor G_load = floor(num_pe / nkp_only_bs): the LARGEST G that still
+      !    yields at least nkp_only_bs subgroups (floor(num_pe/G) >= nkp_only_bs). When ranks
       !    outnumber k-points this hands every k-point its own (larger, hence faster)
       !    subgroup instead of leaving spare ranks idle.
 
@@ -557,8 +616,8 @@ CONTAINS
 
       IF (g_mem > para_env%num_pe) CPWARN("Total Memory Likely Insufficient, process may be killed")
 
-      ! K-point floor: floor(num_pe / n_kp_dos) = largest G that gives at least n_kp_dos subgroups
-      g_load = para_env%num_pe/MAX(n_kp_dos, 1)
+      ! K-point floor: floor(num_pe / nkp_only_bs) = largest G that gives at least nkp_only_bs subgroups
+      g_load = para_env%num_pe/MAX(nkp_only_bs, 1)
 
       group_size = MAX(g_mem, g_load)
       group_size = MIN(group_size, para_env%num_pe)
@@ -586,47 +645,106 @@ CONTAINS
    END FUNCTION floquet_determine_subgroup_size
 
 ! **************************************************************************************************
-!> \brief Central and boundary-sector weights of every Floquet eigenvector:
-!> \param nao ...
-!> \param max_f_index ...
-!> \param cfm_eigenvectors Floquet eigenvectors
-!> \param w0 central-sector weight of each eigenvector
-!> \param wE combined weight on the two outermost sectors m = ±M
+!> \brief Split the para_env into subgroups so that the Floquet Hamiltonian is distributed across
+!>        the ranks of each subgroup. Also creates the subgroup BLACS context.
+!> \param qs_env ...
+!> \param bs_env ...
+!> \param para_env_sub the created subgroup parallel environment
+!> \param blacs_env_sub the created subgroup BLACS context
+!> \param group_distribution subgroup index of every global rank, 0:num_pe-1
+!> \param ngroups the number of subgroups created
 ! **************************************************************************************************
-   SUBROUTINE floquet_sector_weights(nao, max_f_index, cfm_eigenvectors, w0, wE)
-      INTEGER                                            :: nao, max_f_index
+   SUBROUTINE make_floquet_subgroups(qs_env, bs_env, para_env_sub, blacs_env_sub, &
+                                     group_distribution, ngroups)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: group_distribution
+      INTEGER                                            :: ngroups
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'make_floquet_subgroups'
+
+      INTEGER                                            :: group_size, handle, n_spin, nkp_only_bs, &
+                                                            stride_kp, unit_nr
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, para_env=para_env)
+      unit_nr = bs_env%unit_nr
+      nkp_only_bs = bs_env%nkp_only_bs
+      n_spin = bs_env%n_spin
+
+      ! We split the global communicator into subgroups with the Floquet Hamiltonian distributed
+      ! across the processes in each subgroup and the k-points distributed across subgroups.
+      group_size = floquet_determine_subgroup_size(qs_env, bs_env)
+
+      IF (nkp_only_bs < para_env%num_pe) THEN
+         stride_kp = para_env%num_pe/group_size
+      ELSE
+         stride_kp = 1
+      END IF
+      ALLOCATE (group_distribution(0:para_env%num_pe - 1))
+      ALLOCATE (para_env_sub)
+      CALL para_env_sub%from_split(comm=para_env, ngroups=ngroups, &
+                                   group_distribution=group_distribution, &
+                                   subgroup_min_size=group_size, stride=stride_kp)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Subgroup rank stride:", stride_kp
+         WRITE (unit_nr, '(T2,A,T66,I15)') "FLOQUET MEMORY | Number of subgroups:", ngroups
+         WRITE (unit_nr, '(/,T2,A,I5,A,I1,A)') "FLOQUET CALCULATIONS PROGRESS OUT OF", nkp_only_bs, &
+            " K-POINTS AND ", n_spin, " SPINS"
+      END IF
+
+      NULLIFY (blacs_env_sub)
+      CALL cp_blacs_env_create(blacs_env_sub, para_env_sub)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE make_floquet_subgroups
+
+! **************************************************************************************************
+!> \brief Central and boundary-sector weights of every Floquet eigenvector, stored into
+!>        floquet_env%w0 and floquet_env%wE.
+!> \param floquet_env ...
+!> \param cfm_eigenvectors Floquet eigenvectors
+! **************************************************************************************************
+   SUBROUTINE floquet_sector_weights(floquet_env, cfm_eigenvectors)
+      TYPE(floquet_env_type)                             :: floquet_env
       TYPE(cp_cfm_type)                                  :: cfm_eigenvectors
-      REAL(KIND=dp), DIMENSION(:)                        :: w0, wE
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'floquet_sector_weights'
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: v_block
-      INTEGER                                            :: handle, n_f_size
+      INTEGER                                            :: handle, max_f_index, n_f_size, nao
 
       CALL timeset(routineN, handle)
 
-      n_f_size = SIZE(w0)
+      nao = floquet_env%nao
+      max_f_index = floquet_env%max_f_index
+      n_f_size = floquet_env%n_f_size
 
       ALLOCATE (v_block(nao, n_f_size))
 
       ! Evaluate w0_α = Σ_{n=1..nao} |<n,m=0|α>|^2 (central sector)
       CALL cp_cfm_get_submatrix(cfm_eigenvectors, v_block, 1 + nao*max_f_index, 1)
-      w0(:) = SUM(ABS(v_block)**2, DIM=1)
+      floquet_env%w0(:) = SUM(ABS(v_block)**2, DIM=1)
 
       ! Evaluate wE_α = Σ_{n=1..nao} (|<n,m=-M|α>|^2 + |<n,m=+M|α>|^2) (outermost rungs)
-      wE(:) = 0.0_dp
+      floquet_env%wE(:) = 0.0_dp
       IF (max_f_index >= 1) THEN
          CALL cp_cfm_get_submatrix(cfm_eigenvectors, v_block, 1, 1)
-         wE(:) = SUM(ABS(v_block)**2, DIM=1)
+         floquet_env%wE(:) = SUM(ABS(v_block)**2, DIM=1)
 
          CALL cp_cfm_get_submatrix(cfm_eigenvectors, v_block, 1 + nao*2*max_f_index, 1)
-         wE(:) = wE(:) + SUM(ABS(v_block)**2, DIM=1)
+         floquet_env%wE(:) = floquet_env%wE(:) + SUM(ABS(v_block)**2, DIM=1)
       END IF
 
       DEALLOCATE (v_block)
 
       ! The orthonormal rows of a unitary matrix are such that Σ_α w0_α = nao.
-      CPASSERT(ABS(SUM(w0) - REAL(nao, dp)) < 1.0E-6_dp*REAL(nao, dp))
+      CPASSERT(ABS(SUM(floquet_env%w0) - REAL(nao, dp)) < 1.0E-6_dp*REAL(nao, dp))
 
       CALL timestop(handle)
 
@@ -636,12 +754,11 @@ CONTAINS
 !> \brief Checks that MAX_FLOQUET_INDEX is large enough and the Floquet Hamiltonian was
 !>        truncated far enough away from the central sector to leave it unperturbed.
 !> \param bs_env ...
-!> \param w0 central-sector weight of each eigenvector
-!> \param wE combined weight on the two outermost sectors m = ±M
+!> \param floquet_env holds the central- (w0) and outermost-sector (wE) weights
 ! **************************************************************************************************
-   SUBROUTINE check_floquet_convergence(bs_env, w0, wE)
+   SUBROUTINE check_floquet_convergence(bs_env, floquet_env)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:)                        :: w0, wE
+      TYPE(floquet_env_type)                             :: floquet_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_floquet_convergence'
 
@@ -660,13 +777,13 @@ CONTAINS
 
       ! No cleanly m=0-dominated state exists: the drive has hybridised every band with
       ! its sidebands, strong field but not a truncation failure.
-      IF (.NOT. ANY(w0 > 0.5_dp)) THEN
+      IF (.NOT. ANY(floquet_env%w0 > 0.5_dp)) THEN
          CPWARN("Floquet: no m=0-dominated state; cannot assess MAX_FLOQUET_INDEX convergence.")
          CALL timestop(handle)
          RETURN
       END IF
 
-      leak = MAXVAL(wE, MASK=(w0 > 0.5_dp))
+      leak = MAXVAL(floquet_env%wE, MASK=(floquet_env%w0 > 0.5_dp))
 
       IF (bs_env%eps_floquet > 0.0_dp .AND. leak > bs_env%eps_floquet) THEN
          WRITE (msg, '(A,ES10.2E2,A,ES10.2E2)') &
@@ -679,7 +796,7 @@ CONTAINS
    END SUBROUTINE check_floquet_convergence
 
 ! **************************************************************************************************
-!> \brief Energy origin for the Floquet calculations chosen to be the valence band maximum
+!> \brief Energy origin for the Floquet calculations, chosen to be the valence band maximum
 !> \param bs_env ...
 !> \return the valence band maximum
 ! **************************************************************************************************
@@ -700,20 +817,20 @@ CONTAINS
    END FUNCTION floquet_reference_energy
 
 ! **************************************************************************************************
-!> \brief All Floquet observables for one k-point and spin, from the eigenvalues and the sector
+!> \brief Calculate all Floquet observables for one k-point and spin: the DOS (a_k), the m=0 bands,
+!>        the quasi-energies, and store in floquet_env.
 !> \param bs_env ...
-!> \param eigenvalues Floquet eigenvalues (λ_α)
-!> \param w0 ...
-!> \param a_k the density of states A(k,E)
-!> \param m0_energies the m=0 band energies
-!> \param m0_weights central-sector weight w0 of each m=0 band, in [0,1]
-!> \param quasi_energies quasi energy bands, folded to -ħΩ/2 < ε ≤ ħΩ/2 (nao)
+!> \param para_env_sub ...
+!> \param ispin ...
+!> \param ikp ...
+!> \param floquet_env holds eigenvalues, w0 (input) and a_k, m0_energies, m0_weights,
+!>        quasi_energies (output)
 ! **************************************************************************************************
-   SUBROUTINE calculate_floquet_observables(bs_env, eigenvalues, w0, &
-                                            a_k, m0_energies, m0_weights, quasi_energies)
+   SUBROUTINE calculate_floquet_observables(bs_env, para_env_sub, ispin, ikp, floquet_env)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues, w0, a_k, m0_energies, &
-                                                            m0_weights, quasi_energies
+      TYPE(mp_para_env_type), POINTER                    :: para_env_sub
+      INTEGER                                            :: ispin, ikp
+      TYPE(floquet_env_type)                             :: floquet_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_floquet_observables'
 
@@ -724,9 +841,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      n_f_size = SIZE(eigenvalues)
-      nao = SIZE(m0_energies)
-      n_E = SIZE(a_k)
+      n_f_size = floquet_env%n_f_size
+      nao = floquet_env%nao
+      n_E = floquet_env%n_E
 
       mu = floquet_reference_energy(bs_env)
       omega = bs_env%floquet_omega
@@ -742,7 +859,8 @@ CONTAINS
 
       DO i_E = 1, n_E
          energy = E_min + i_E*energy_step
-         a_k(i_E) = -SUM(w0(:)*AIMAG(z_one/(energy + gaussi*broad/2.0_dp - eigenvalues(:))))/pi
+         floquet_env%a_k(i_E) = -SUM(floquet_env%w0(:)* &
+                                     AIMAG(z_one/(energy + gaussi*broad/2.0_dp - floquet_env%eigenvalues(:))))/pi
       END DO
 
       ! (2) m=0 band structure by weighted count
@@ -752,55 +870,142 @@ CONTAINS
          target_level = REAL(i, dp) - 0.5_dp
          DO WHILE (cum < target_level .AND. j < n_f_size)
             j = j + 1
-            cum = cum + w0(j)
+            cum = cum + floquet_env%w0(j)
          END DO
-         m0_energies(i) = eigenvalues(j) - mu
-         m0_weights(i) = w0(j)
+         floquet_env%m0_energies(i) = floquet_env%eigenvalues(j) - mu
+         floquet_env%m0_weights(i) = floquet_env%w0(j)
       END DO
 
       ! (3) Fold the m=0 bands (already relative to the VBM) into the first Floquet Brillouin zone.
-      quasi_energies(:) = m0_energies - omega*REAL(CEILING(m0_energies/omega - 0.5_dp), dp)
+      floquet_env%quasi_energies(:) = floquet_env%m0_energies &
+                                      - omega*REAL(CEILING(floquet_env%m0_energies/omega - 0.5_dp), dp)
 
       ! Sort the quasi-energies
       ALLOCATE (work(nao))
-      CALL sort(quasi_energies, nao, work)
+      CALL sort(floquet_env%quasi_energies, nao, work)
       DEALLOCATE (work)
+
+      ! Store this result on the subgroup source only, so the global sum below picks up
+      ! each work item only once
+      IF (para_env_sub%is_source()) THEN
+         floquet_env%all_quasi_energies(:, ispin, ikp) = floquet_env%quasi_energies(:)
+         floquet_env%all_a_k(:, ispin, ikp) = floquet_env%a_k(:)
+         floquet_env%all_m0_energies(:, ispin, ikp) = floquet_env%m0_energies(:)
+         floquet_env%all_m0_weights(:, ispin, ikp) = floquet_env%m0_weights(:)
+      END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE calculate_floquet_observables
 
 ! **************************************************************************************************
-!> \brief Write all Floquet results into their respective files
+!> \brief Print the Floquet header with the input parameters and a short description of the output.
 !> \param bs_env ...
-!> \param all_quasi_energies ...
-!> \param all_a_k ...
-!> \param all_m0_energies ...
-!> \param all_m0_weights ...
 ! **************************************************************************************************
-   SUBROUTINE write_floquet_results(bs_env, all_quasi_energies, all_a_k, &
-                                    all_m0_energies, all_m0_weights)
+   SUBROUTINE write_floquet_header(bs_env)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:, :, :)                  :: all_quasi_energies, all_a_k, &
-                                                            all_m0_energies, all_m0_weights
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_floquet_header'
+
+      INTEGER                                            :: handle, n_f_size, unit_nr
+
+      CALL timeset(routineN, handle)
+
+      unit_nr = bs_env%unit_nr
+      n_f_size = bs_env%n_ao*(1 + 2*bs_env%max_floquet_index)
+
+      IF (unit_nr > 0) THEN
+
+         WRITE (unit_nr, '(T2,A)') ' '
+         WRITE (unit_nr, '(T2,A)') REPEAT('-', 79)
+         WRITE (unit_nr, '(T2,A,A78)') '-', '-'
+         WRITE (unit_nr, '(T2,A,A51,A27)') '-', 'FLOQUET BANDSTRUCTURE CALCULATION', '-'
+         WRITE (unit_nr, '(T2,A,A78)') '-', '-'
+         WRITE (unit_nr, '(T2,A)') REPEAT('-', 79)
+         WRITE (unit_nr, '(T2,A)') ' '
+
+         WRITE (unit_nr, '(T2,A,T37,A,T67,ES12.2E2)') "FLOQUET PARAMETERS", "Amplitude [V/m]:", &
+            bs_env%floquet_amplitude*evolt/a_bohr
+         WRITE (unit_nr, '(T37,A,T67,F12.4)') "Frequency [eV]:", bs_env%floquet_omega*evolt
+         WRITE (unit_nr, '(T37,A)') REPEAT("-", 44)
+         WRITE (unit_nr, '(T37,A,T55,3F8.4)') "Polarisation:", bs_env%floquet_polarisation(1:3)
+         WRITE (unit_nr, '(T37,A,T55,3F8.4)') "Phase offsets:", pi*bs_env%floquet_phi(1:3)
+         WRITE (unit_nr, '(T37,A)') REPEAT("-", 44)
+         WRITE (unit_nr, '(T37,A,T67,I12)') "Max Floquet index:", bs_env%max_floquet_index
+         WRITE (unit_nr, '(T37,A,T67,I12)') "Floquet Hamiltonian Size:", n_f_size
+         WRITE (unit_nr, '(T37,A)') REPEAT("-", 44)
+         WRITE (unit_nr, '(T37,A,T67,F12.4)') &
+            "Energy window [eV]:", bs_env%energy_window_floquet*evolt
+         WRITE (unit_nr, '(T37,A,T67,F12.4)') "Energy step [eV]:", bs_env%energy_step_floquet*evolt
+         WRITE (unit_nr, '(T37,A,T67,F12.4)') "Broadening [eV]:", bs_env%broadening_floquet*evolt
+         WRITE (unit_nr, '(T37,A)') REPEAT("-", 44)
+         WRITE (unit_nr, '(A)') ""
+
+         WRITE (unit_nr, '(T2,A)') &
+            "We construct the Floquet-Bloch Hamiltonian and diagonalise it. Projecting the"
+         WRITE (unit_nr, '(T2,A)') &
+            "eigenvectors onto the Floquet sectors gives the weights w = Σ_n |<n,m|α>|²,"
+         WRITE (unit_nr, '(T2,A)') &
+            "from which all of the following are obtained."
+         WRITE (unit_nr, '(A)') ""
+         WRITE (unit_nr, '(T2,A)') &
+            "The m=0 bands are the eigenvectors with the largest central-sector weight; they"
+         WRITE (unit_nr, '(T2,A)') &
+            "reduce to the equilibrium bands at zero field and are stored, with their"
+         WRITE (unit_nr, '(T2,A)') &
+            " weights, in FLOQUET_BANDSTRUCTURE.bs"
+         WRITE (unit_nr, '(A)') ""
+         WRITE (unit_nr, '(T2,A)') &
+            "Folding those bands into the first Floquet Brillouin zone, relative to the VBM,"
+         WRITE (unit_nr, '(T2,A)') &
+            "gives the quasi-energies stored in QUASI_ENERGIES.bs"
+         WRITE (unit_nr, '(A)') ""
+         WRITE (unit_nr, '(T2,A)') &
+            "The k-resolved density of states is obtained by computing the trace of"
+         WRITE (unit_nr, '(T2,A)') &
+            "the retarded Green's function and stored in FLOQUET_DOS.out"
+         WRITE (unit_nr, '(T2,A)') &
+            "DOS(ω,k) = -1/π*Im[Tr_KS(G^R(ω,k))]"
+         WRITE (unit_nr, '(A)') ""
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE write_floquet_header
+
+! **************************************************************************************************
+!> \brief Sum the accumulated results across MPI ranks and write the m=0 band structure,
+!>        the quasi-energies and the Floquet DOS to their files.
+!> \param bs_env ...
+!> \param floquet_env ...
+! **************************************************************************************************
+   SUBROUTINE write_floquet_results(bs_env, floquet_env)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(floquet_env_type)                             :: floquet_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_floquet_results'
 
       CHARACTER(LEN=default_string_length)               :: fname
       INTEGER                                            :: bunit, handle, i, i_E, ikp_for_file, &
-                                                            ispin, n_E, n_kp_dos, n_spin, nao, &
+                                                            ispin, n_E, n_spin, nao, nkp_only_bs, &
                                                             nkp_start, qunit, wunit
       REAL(KIND=dp)                                      :: E_min, energy, energy_step, mu
       REAL(KIND=dp), DIMENSION(3)                        :: xkp
 
       CALL timeset(routineN, handle)
 
+      ! Collect all results on the global communicator and write them
+      CALL bs_env%para_env%sum(floquet_env%all_quasi_energies)
+      CALL bs_env%para_env%sum(floquet_env%all_a_k)
+      CALL bs_env%para_env%sum(floquet_env%all_m0_energies)
+      CALL bs_env%para_env%sum(floquet_env%all_m0_weights)
+
       IF (bs_env%para_env%is_source()) THEN
 
-         nao = SIZE(all_quasi_energies, 1)
-         n_spin = SIZE(all_quasi_energies, 2)
-         n_kp_dos = SIZE(all_quasi_energies, 3)
-         n_E = SIZE(all_a_k, 1)
+         nao = floquet_env%nao
+         n_spin = floquet_env%n_spin
+         nkp_only_bs = floquet_env%nkp_only_bs
+         n_E = floquet_env%n_E
          nkp_start = bs_env%nkp_only_DOS
 
          ! All three share one energy origin, the VBM.
@@ -808,7 +1013,7 @@ CONTAINS
          energy_step = bs_env%energy_step_floquet
          E_min = mu - bs_env%energy_window_floquet
 
-         ! Each file is opened once (REPLACE) and written for every DOS k-point and spin.
+         ! Each file is opened once (REPLACE) and written for every band-structure k-point and spin.
 
          ! The m=0 band structure
          WRITE (fname, "(2A)") TRIM(bs_env%floquet_bs_file), ".bs"
@@ -830,7 +1035,7 @@ CONTAINS
          CALL open_file(TRIM(fname), unit_number=wunit, file_status="REPLACE", file_action="WRITE")
          WRITE (wunit, "(A)") "# Floquet Density of States: D(ω,k) = -1/π*Im[Tr_KS(G^R(ω,k))]"
 
-         DO ikp_for_file = 1, n_kp_dos
+         DO ikp_for_file = 1, nkp_only_bs
             xkp(1:3) = bs_env%kpoints_DOS%xkp(1:3, nkp_start + ikp_for_file)
             DO ispin = 1, n_spin
 
@@ -839,8 +1044,9 @@ CONTAINS
                   "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
                WRITE (bunit, "(A)") "#  Floquet band  Energy [eV]         m=0 weight"
                DO i = 1, nao
-                  WRITE (bunit, "(I8,F21.8,F17.5)") i, all_m0_energies(i, ispin, ikp_for_file)*evolt, &
-                     all_m0_weights(i, ispin, ikp_for_file)
+                  WRITE (bunit, "(I8,F21.8,F17.5)") i, &
+                     floquet_env%all_m0_energies(i, ispin, ikp_for_file)*evolt, &
+                     floquet_env%all_m0_weights(i, ispin, ikp_for_file)
                END DO
 
                ! <floquet_qe_file>.bs Quasi-energies (folded to -ħΩ/2 < ε ≤ ħΩ/2)
@@ -848,7 +1054,8 @@ CONTAINS
                   "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
                WRITE (qunit, "(A)") "#  Floquet band  Quasi-energy [eV]"
                DO i = 1, nao
-                  WRITE (qunit, "(I8,F21.8)") i, all_quasi_energies(i, ispin, ikp_for_file)*evolt
+                  WRITE (qunit, "(I8,F21.8)") i, &
+                     floquet_env%all_quasi_energies(i, ispin, ikp_for_file)*evolt
                END DO
 
                ! <floquet_dos_file>.out the k-resolved DOS A(k,ω)
@@ -858,7 +1065,7 @@ CONTAINS
                DO i_E = 1, n_E
                   energy = E_min + i_E*energy_step
                   WRITE (wunit, "(2X,2G13.4)") (energy - mu)*evolt, &
-                     all_a_k(i_E, ispin, ikp_for_file)/evolt
+                     floquet_env%all_a_k(i_E, ispin, ikp_for_file)/evolt
                END DO
 
             END DO
