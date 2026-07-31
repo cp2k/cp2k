@@ -88,6 +88,7 @@ def main() -> None:
                     mpi_mode="mpich",
                     gcc_version=gcc_version,
                     base_image=base_image,
+                    preset="native-gnu-x86_64",
                     feature_flags=feature_flags,
                     testopts=testopts,
                     image_tag=f.image_tag,
@@ -112,6 +113,7 @@ def main() -> None:
                 version="psmp",
                 mpi_mode="mpich",
                 base_image="fedora:latest",
+                preset="native-gnu-x86_64",
                 feature_flags="",
                 testopts=testopts,
                 image_tag=f.image_tag,
@@ -125,6 +127,7 @@ def main() -> None:
                 mpi_mode="mpich",
                 base_image="opensuse/leap:16.0",
                 gcc_version=13,
+                preset="native-gnu-x86_64",
                 feature_flags="",
                 testopts=testopts,
                 image_tag=f.image_tag,
@@ -138,6 +141,7 @@ def main() -> None:
                 mpi_mode="mpich",
                 base_image="docker.io/rockylinux/rockylinux:10",
                 gcc_version=14,
+                preset="native-gnu-x86_64",
                 feature_flags="",
                 testopts=testopts,
                 image_tag=f.image_tag,
@@ -149,6 +153,7 @@ def main() -> None:
             install_cp2k_spack(
                 version="psmp",
                 mpi_mode="mpich",
+                preset="native-gnu-x86_64",
                 feature_flags="",
                 testopts=f"--keepalive --mpiranks=4 --ompthreads=2",
                 image_tag=f.image_tag,
@@ -171,6 +176,7 @@ def main() -> None:
             install_cp2k_spack(
                 version="psmp",
                 mpi_mode="openmpi",
+                preset="native-gnu-x86_64",
                 feature_flags="",
                 testopts=testopts,
                 image_tag=f.image_tag,
@@ -183,7 +189,11 @@ def main() -> None:
     with OutputFile(f"Dockerfile.test_spack_ssmp", args.check) as f:
         f.write(
             install_cp2k_spack(
-                version="ssmp", mpi_mode="no", testopts=testopts, image_tag=f.image_tag
+                version="ssmp",
+                mpi_mode="no",
+                preset="native-gnu-x86_64",
+                testopts=testopts,
+                image_tag=f.image_tag,
             )
         )
 
@@ -205,6 +215,7 @@ def main() -> None:
                 base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
+                preset="native-gnu-x86_64",
                 testopts=testopts,
                 image_tag=f.image_tag,
             )
@@ -218,6 +229,7 @@ def main() -> None:
                 base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
+                preset="native-gnu-x86_64",
                 feature_flags="",
                 testopts=testopts,
                 image_tag=f.image_tag,
@@ -461,6 +473,7 @@ COPY ./data ./data
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
+COPY ./CMakePresets.json .
 
 # Compile CP2K.
 COPY ./tools/docker/scripts/build_cp2k.sh ./tools/docker/scripts/cmake_cp2k.sh ./
@@ -707,6 +720,7 @@ def install_cp2k_spack(
     base_image: str = "ubuntu:26.04",
     gcc_version: int | None = None,
     gpu_model: str = "none",
+    preset: str = "",
     feature_flags: str = "",
     testopts: str = "",
     image_tag: str = "",
@@ -721,6 +735,8 @@ def install_cp2k_spack(
         gcc_compilers = f"g++ g++-{gcc_version} gcc gcc-{gcc_version} gfortran gfortran-{gcc_version}"
     # Use the system GCC when no version is specified.
     gcc_version_flag = "" if gcc_version is None else f"-gv {gcc_version}"
+    # Select an optional CMake configure preset.
+    preset_flag = "" if not preset else f"--preset {preset}"
     # Use external packages if possible
     use_externals = "-ue"
     # Static CP2K builds use the GCC compiler built with spack
@@ -764,8 +780,9 @@ COPY ./data ./data
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
+COPY ./CMakePresets.json .
 
-RUN ./make_cp2k.sh -cv {version} {gcc_version_flag} -gpu {gpu_model} -mpi {mpi_mode} {feature_flags}
+RUN ./make_cp2k.sh -cv {version} {gcc_version_flag} -gpu {gpu_model} -mpi {mpi_mode} {preset_flag} {feature_flags}
 """
     )
     output += (
