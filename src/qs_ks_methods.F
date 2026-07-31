@@ -477,14 +477,6 @@ CONTAINS
       END IF
       CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
 
-      IF (dft_control%mtlr_dft_with_perturbation) THEN
-         DO ispin = 1, nspins
-            CALL auxbas_pw_pool%create_pw(v_hxc_rspace(ispin))
-            CALL pw_zero(v_hxc_rspace(ispin))
-            CALL pw_axpy(v_hartree_rspace, v_hxc_rspace(ispin))
-         END DO
-      END IF
-
       IF (dft_control%correct_surf_dip) THEN
          IF (dft_control%surf_dip_correct_switch) THEN
             CALL calc_dipsurf_potential(qs_env, energy)
@@ -779,7 +771,10 @@ CONTAINS
          END IF
       END IF
 
-      IF (dft_control%mtlr_dft_with_perturbation) THEN
+      IF (dft_control%mtlr_dft_with_perturbation .AND. .NOT. just_energy) THEN
+         IF (do_adiabatic_rescaling .OR. use_gauxc_matrix) THEN
+            CPABORT("MTLR requires an XC potential on the real-space grid.")
+         END IF
          IF (.NOT. ASSOCIATED(matrix_vhxc)) THEN
             ALLOCATE (matrix_vhxc(nspins))
             DO ispin = 1, nspins
@@ -798,9 +793,14 @@ CONTAINS
             END DO
          END IF
          DO ispin = 1, nspins
-            CALL pw_axpy(v_rspace_new(ispin), &
-                         v_hxc_rspace(ispin), &
-                         v_rspace_new(ispin)%pw_grid%dvol)
+            CALL auxbas_pw_pool%create_pw(v_hxc_rspace(ispin))
+            CALL pw_zero(v_hxc_rspace(ispin))
+            CALL pw_axpy(v_hartree_rspace, v_hxc_rspace(ispin))
+            IF (ASSOCIATED(v_rspace_new)) THEN
+               CALL pw_axpy(v_rspace_new(ispin), &
+                            v_hxc_rspace(ispin), &
+                            v_rspace_new(ispin)%pw_grid%dvol)
+            END IF
             CALL dbcsr_set(matrix_vhxc(ispin)%matrix, 0.0_dp)
             CALL integrate_v_rspace(v_hxc_rspace(ispin), &
                                     hmat=matrix_vhxc(ispin), &

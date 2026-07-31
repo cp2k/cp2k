@@ -2399,10 +2399,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'write_dft_control'
 
       CHARACTER(LEN=20)                                  :: tmpStr
-      INTEGER                                            :: handle, i, i_rep, n_rep, output_unit
+      INTEGER                                            :: handle, i, i_rep, max_mtlr_iter, n_rep, &
+                                                            output_unit
       REAL(kind=dp)                                      :: density_cut, density_smooth_cut_range, &
-                                                            eps_u_j_loop, gradient_cut, &
-                                                            max_mtlr_iter, tau_cut
+                                                            eps_u_j_loop, gradient_cut, tau_cut
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(enumeration_type), POINTER                    :: enum
       TYPE(keyword_type), POINTER                        :: keyword
@@ -2514,7 +2514,7 @@ CONTAINS
                CALL section_vals_val_get(dft_section, "EPS_U_J_LOOP", r_val=eps_u_j_loop)
                WRITE (UNIT=output_unit, FMT="(T2,A,T67,ES14.7E3)") &
                   "MTLR U J| EPS_U_J_LOOP", eps_u_j_loop
-               CALL section_vals_val_get(dft_section, "MAX_MTLR_LOOP", r_val=max_mtlr_iter)
+               CALL section_vals_val_get(dft_section, "MAX_MTLR_LOOP", i_val=max_mtlr_iter)
                WRITE (UNIT=output_unit, FMT="(T2,A,T67,I10)") &
                   "MTLR U J| MAX_MTLR_LOOP", max_mtlr_iter
             END IF

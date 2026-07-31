@@ -67,11 +67,12 @@ CONTAINS
       LOGICAL                                            :: any_dft_plus_u, any_mtlr_kind, &
                                                             converged, do_reference_scf, &
                                                             wfn_restart_file_explicit
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: mtlr_kind
       REAL(KIND=dp) :: delta_j, delta_u, denominator_minus, denominator_plus, eps_u_j_loop, &
-         fhxc_minus, fhxc_plus, intercept_minus, intercept_plus, l, std_j, std_minus, std_plus, &
-         std_u, sum_trq_minus, sum_trq_minus_x_trq_minus, sum_trq_minus_x_vhxc_minus, &
-         sum_trq_plus, sum_trq_plus_x_trq_plus, sum_trq_plus_x_vhxc_plus, sum_vhxc_minus, &
-         sum_vhxc_plus
+         fhxc_minus, fhxc_plus, intercept_minus, intercept_plus, l, max_delta_j, max_delta_u, &
+         std_j, std_minus, std_plus, std_u, sum_trq_minus, sum_trq_minus_x_trq_minus, &
+         sum_trq_minus_x_vhxc_minus, sum_trq_plus, sum_trq_plus_x_trq_plus, &
+         sum_trq_plus_x_vhxc_plus, sum_vhxc_minus, sum_vhxc_plus
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: j_new, j_old, perturbation_strength, &
                                                             trq_minus, trq_plus, u_new, u_old, &
                                                             vhxc_minus, vhxc_plus
@@ -98,13 +99,24 @@ CONTAINS
                       scf_control=scf_control, &
                       atomic_kind_set=atomic_kind_set)
 
+      CPASSERT(ASSOCIATED(atomic_kind_set))
+      CPASSERT(ASSOCIATED(dft_control))
+      CPASSERT(ASSOCIATED(qs_kind_set))
+      CPASSERT(ASSOCIATED(scf_control))
+
       nkind = SIZE(atomic_kind_set)
+      IF (SIZE(qs_kind_set) /= nkind) THEN
+         CPABORT("The atomic-kind and Quickstep-kind arrays have inconsistent sizes.")
+      END IF
+      ALLOCATE (mtlr_kind(nkind))
+      mtlr_kind(:) = .FALSE.
       any_dft_plus_u = .FALSE.
       any_mtlr_kind = .FALSE.
       DO ikind = 1, nkind
          IF (.NOT. ASSOCIATED(qs_kind_set(ikind)%dft_plus_u)) CYCLE
          any_dft_plus_u = .TRUE.
          IF (qs_kind_set(ikind)%dft_plus_u%do_mtlr) THEN
+            mtlr_kind(ikind) = .TRUE.
             any_mtlr_kind = .TRUE.
          END IF
       END DO
@@ -173,13 +185,20 @@ CONTAINS
       converged = .FALSE.
       eps_u_j_loop = dft_control%eps_u_j_loop
       max_mtlr_iter = dft_control%max_mtlr_iter
+      IF (dft_control%nspins /= 2) THEN
+         CPABORT("Unrestricted KS has to be used (the number of spin channels should be 2).")
+      END IF
+      IF (max_mtlr_iter < 1) THEN
+         CPABORT("MAX_MTLR_LOOP must be at least one.")
+      END IF
+      IF (eps_u_j_loop <= 0.0_dp) THEN
+         CPABORT("EPS_U_J_LOOP must be positive.")
+      END IF
 
       ! Ensure that the DFT+U+J machinery remains active during the
       ! initial MTLR calculation, even when a parameter starts from zero.
       DO ikind = 1, nkind
-         IF (ASSOCIATED(qs_kind_set(ikind)%dft_plus_u)) THEN
-            IF (.NOT. qs_kind_set(ikind)%dft_plus_u%do_mtlr) CYCLE
-         END IF
+         IF (.NOT. mtlr_kind(ikind)) CYCLE
          IF (qs_kind_set(ikind)%dft_plus_u%u_minus_j == 0.0_dp) THEN
             qs_kind_set(ikind)%dft_plus_u%u_minus_j = EPSILON(1.0_dp)
          END IF
@@ -192,10 +211,6 @@ CONTAINS
       END DO
 
       DO u_iter = 1, max_mtlr_iter
-
-         IF (dft_control%nspins /= 2) THEN
-            CPABORT("Unrestriced KS has to be used (the number of spin channels should be 2).")
-         END IF
 
          dft_control%mtlr_dft_with_perturbation = .FALSE.
 
@@ -213,8 +228,7 @@ CONTAINS
 
          DO ikind = 1, nkind
 
-            IF (.NOT. ASSOCIATED(qs_kind_set(ikind)%dft_plus_u)) CYCLE
-            IF (.NOT. qs_kind_set(ikind)%dft_plus_u%do_mtlr) CYCLE
+            IF (.NOT. mtlr_kind(ikind)) CYCLE
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list)
             IF (.NOT. ANY(atom_list == qs_kind_set(ikind)%dft_plus_u%lr_atom)) THEN
                CPABORT("INDEX_PERTURBED_ATOM does not belong to the KIND containing the MTLR section.")
@@ -227,6 +241,9 @@ CONTAINS
             dft_control%mtlr_ikind = ikind
 
             n = SIZE(qs_kind_set(ikind)%dft_plus_u%perturbation_strength)
+            IF (n < 3) THEN
+               CPABORT("MTLR linear regression requires at least three perturbation strengths.")
+            END IF
             l = REAL(n, dp)
             ALLOCATE (perturbation_strength(n))
             ALLOCATE (trq_plus(n))
@@ -271,9 +288,7 @@ CONTAINS
                dft_control%perturbation_strength = perturbation_strength(p_iter)
                dft_control%mtlr_dft_with_perturbation = .TRUE.
 
-               IF (do_reference_scf) THEN
-                  CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
-               END IF
+               CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
 
                trq_plus(p_iter) = dft_control%trq(1) + dft_control%trq(2)
                trq_minus(p_iter) = dft_control%trq(1) - dft_control%trq(2)
@@ -423,12 +438,14 @@ CONTAINS
          END DO
 
          DO ikind = 1, nkind
+            IF (.NOT. mtlr_kind(ikind)) CYCLE
             qs_kind_set(ikind)%dft_plus_u%u_minus_j = u_new(ikind) - j_new(ikind)
             qs_kind_set(ikind)%dft_plus_u%hund_j = j_new(ikind)
          END DO
 
-         IF (MAXVAL(ABS(u_new(:) - u_old(:))) < eps_u_j_loop .AND. &
-             MAXVAL(ABS(j_new(:) - j_old(:))) < eps_u_j_loop) THEN
+         max_delta_u = MAXVAL(ABS(PACK(u_new(:) - u_old(:), mtlr_kind)))
+         max_delta_j = MAXVAL(ABS(PACK(j_new(:) - j_old(:), mtlr_kind)))
+         IF (max_delta_u < eps_u_j_loop .AND. max_delta_j < eps_u_j_loop) THEN
             converged = .TRUE.
          END IF
 
@@ -443,11 +460,11 @@ CONTAINS
 
             WRITE (UNIT=output_unit, FMT="(T2,A,ES16.8,A)") &
                "MTLR| Maximum change in U:          ", &
-               MAXVAL(ABS(u_new(:) - u_old(:)))*evolt, " eV"
+               max_delta_u*evolt, " eV"
 
             WRITE (UNIT=output_unit, FMT="(T2,A,ES16.8,A)") &
                "MTLR| Maximum change in J:          ", &
-               MAXVAL(ABS(j_new(:) - j_old(:)))*evolt, " eV"
+               max_delta_j*evolt, " eV"
 
             WRITE (UNIT=output_unit, FMT="(T2,A,ES16.8,A)") &
                "MTLR| Convergence threshold:        ", &
@@ -505,17 +522,16 @@ CONTAINS
                WRITE (UNIT=output_unit, FMT="(/,T2,78('*'))")
                WRITE (UNIT=output_unit, FMT="(T2,A,ES16.8,A)") &
                   "MTLR| Maximum change in U:          ", &
-                  MAXVAL(ABS(u_new(:) - u_old(:)))*evolt, " eV"
+                  max_delta_u*evolt, " eV"
                WRITE (UNIT=output_unit, FMT="(T2,A,ES16.8,A)") &
                   "MTLR| Maximum change in J:          ", &
-                  MAXVAL(ABS(j_new(:) - j_old(:)))*evolt, " eV"
+                  max_delta_j*evolt, " eV"
                WRITE (UNIT=output_unit, FMT="(T2,A,ES16.8,A)") &
                   "MTLR| Maximum change over U and J: ", &
-                  MAX(MAXVAL(ABS(u_new(:) - u_old(:))), &
-                      MAXVAL(ABS(j_new(:) - j_old(:))))*evolt, " eV"
+                  MAX(max_delta_u, max_delta_j)*evolt, " eV"
                WRITE (UNIT=output_unit, FMT="(T2,78('*'))")
                DO ikind = 1, nkind
-                  IF (.NOT. qs_kind_set(ikind)%dft_plus_u%do_mtlr) CYCLE
+                  IF (.NOT. mtlr_kind(ikind)) CYCLE
                   WRITE (UNIT=output_unit, FMT="(/,T2,A,I0,A)") &
                      "MTLR| Final parameters for KIND ", ikind, ":"
                   WRITE (UNIT=output_unit, FMT="(T2,A,F16.8,A)") &
@@ -547,7 +563,7 @@ CONTAINS
       END DO
 
       DO ikind = 1, nkind
-         IF (.NOT. qs_kind_set(ikind)%dft_plus_u%do_mtlr) CYCLE
+         IF (.NOT. mtlr_kind(ikind)) CYCLE
          qs_kind_set(ikind)%dft_plus_u%u_minus_j = u_new(ikind) - j_new(ikind)
          qs_kind_set(ikind)%dft_plus_u%hund_j = j_new(ikind)
       END DO
@@ -560,6 +576,7 @@ CONTAINS
       DEALLOCATE (j_new)
       DEALLOCATE (u_old)
       DEALLOCATE (j_old)
+      DEALLOCATE (mtlr_kind)
 
       CALL timestop(handle)
 
