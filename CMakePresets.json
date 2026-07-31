@@ -20,6 +20,16 @@
         "CMAKE_CXX_FLAGS": "$penv{CXXFLAGS} -mcpu=native",
         "CMAKE_Fortran_FLAGS": "$penv{FFLAGS} -mcpu=native"
       }
+    },
+    {
+      "name": "native-intel",
+      "displayName": "Intel native build",
+      "description": "Use -xHOST with Intel compilers.",
+      "cacheVariables": {
+        "CMAKE_C_FLAGS": "$penv{CFLAGS} -xHOST",
+        "CMAKE_CXX_FLAGS": "$penv{CXXFLAGS} -xHOST",
+        "CMAKE_Fortran_FLAGS": "$penv{FFLAGS} -xHOST"
+      }
     }
   ]
 }

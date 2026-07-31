@@ -68,7 +68,7 @@ COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 COPY ./CMakePresets.json .
 
-RUN ./make_cp2k.sh -cv pdbg -gv 13 -gpu P100 -mpi mpich  
+RUN ./make_cp2k.sh -cv pdbg -gv 13 -gpu P100 -mpi mpich 
 
 ###### Stage 3: Install CP2K ######
 
