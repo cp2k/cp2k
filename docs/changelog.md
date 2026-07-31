@@ -45,10 +45,8 @@
   ([#5467](https://github.com/cp2k/cp2k/pull/5467))
 - Planar counter charge model for grand canonical SCF
   ([#5064](https://github.com/cp2k/cp2k/pull/5064))
-- New Pulay mixing for grand canonical SCF
-  ([#5407](https://github.com/cp2k/cp2k/pull/5407))
-- Solvent aware SCCS method
-  ([#5495](https://github.com/cp2k/cp2k/pull/5495))
+- New Pulay mixing for grand canonical SCF ([#5407](https://github.com/cp2k/cp2k/pull/5407))
+- Solvent aware SCCS method ([#5495](https://github.com/cp2k/cp2k/pull/5495))
 
 ### New Libraries
 
