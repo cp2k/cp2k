@@ -61,7 +61,7 @@ COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 COPY ./CMakePresets.json .
 
-RUN ./make_cp2k.sh -cv psmp -gv 11 -gpu none -mpi mpich --preset native-gnu-x86_64 
+RUN ./make_cp2k.sh -cv psmp -gv 11 -gpu none -mpi mpich 
 
 ###### Stage 3: Install CP2K ######
 
