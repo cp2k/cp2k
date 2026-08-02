@@ -39,8 +39,9 @@ MODULE skala_gpw_features
                                            skala_gpw_atom_partition_smooth = 2
    REAL(KIND=dp), PARAMETER, PRIVATE    :: smooth_partition_eps = 1.0E-12_dp
 
-   PUBLIC :: skala_gpw_atom_subchunk_count, skala_gpw_feature_build, &
-             skala_gpw_feature_build_atom_subchunk, skala_gpw_feature_release, &
+   PUBLIC :: skala_gpw_atom_subchunk_count, skala_gpw_atom_subchunk_layout, &
+             skala_gpw_feature_build, skala_gpw_feature_build_atom_subchunk, &
+             skala_gpw_feature_build_atom_subchunk_bounds, skala_gpw_feature_release, &
              skala_gpw_feature_type, skala_gpw_smooth_partition_derivatives
 
    TYPE skala_gpw_layout_cache_type
@@ -1682,6 +1683,67 @@ CONTAINS
    END FUNCTION skala_gpw_atom_subchunk_count
 
 ! **************************************************************************************************
+!> \brief Build atom and row bounds for all atom-contiguous subchunks in one pass.
+!> \param max_rows ...
+!> \param atom_begin ...
+!> \param atom_count ...
+!> \param row_begin ...
+!> \param row_count ...
+! **************************************************************************************************
+   SUBROUTINE skala_gpw_atom_subchunk_layout(max_rows, atom_begin, atom_count, row_begin, &
+                                             row_count)
+      INTEGER, INTENT(IN)                                :: max_rows
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: atom_begin, atom_count, row_begin, &
+                                                            row_count
+
+      INTEGER                                            :: atom_rows, iatom, nsubchunks, rows, &
+                                                            subchunk
+
+      nsubchunks = skala_gpw_atom_subchunk_count(max_rows)
+      ALLOCATE (atom_begin(nsubchunks), atom_count(nsubchunks), row_begin(nsubchunks), &
+                row_count(nsubchunks))
+      IF (nsubchunks == 0) RETURN
+
+      CPASSERT(cached_layout%active)
+      CPASSERT(cached_layout%chunk_natom > 0)
+
+      atom_begin = 0
+      atom_count = 0
+      row_begin = 0
+      row_count = 0
+
+      IF (max_rows <= 0) THEN
+         atom_begin(1) = 1
+         atom_count(1) = cached_layout%chunk_natom
+         row_begin(1) = 1
+         row_count(1) = cached_layout%chunk_feature_count
+         RETURN
+      END IF
+
+      subchunk = 1
+      atom_begin(subchunk) = 1
+      row_begin(subchunk) = 1
+      rows = 0
+      DO iatom = 1, cached_layout%chunk_natom
+         atom_rows = INT(cached_layout%chunk_atomic_grid_sizes(iatom))
+         IF (rows > 0 .AND. rows + atom_rows > max_rows) THEN
+            atom_count(subchunk) = iatom - atom_begin(subchunk)
+            row_count(subchunk) = rows
+            subchunk = subchunk + 1
+            atom_begin(subchunk) = iatom
+            row_begin(subchunk) = row_begin(subchunk - 1) + row_count(subchunk - 1)
+            rows = 0
+         END IF
+         rows = rows + atom_rows
+      END DO
+      atom_count(subchunk) = cached_layout%chunk_natom - atom_begin(subchunk) + 1
+      row_count(subchunk) = rows
+
+      CPASSERT(subchunk == nsubchunks)
+
+   END SUBROUTINE skala_gpw_atom_subchunk_layout
+
+! **************************************************************************************************
 !> \brief Build an atom-contiguous subchunk feature bundle from a rank-local atom chunk.
 !> \param parent ...
 !> \param features ...
@@ -1696,16 +1758,42 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: subchunk_index, max_rows
       LOGICAL, INTENT(IN)                                :: requires_grad
 
-      INTEGER                                            :: atom_begin, atom_count, atom_end, &
-                                                            max_grid_size, row_begin, row_count, &
-                                                            row_end
+      INTEGER                                            :: atom_begin, atom_end, row_begin, row_end
 
-      CALL skala_gpw_feature_release(features)
       CPASSERT(parent%uses_atom_chunks)
       CALL atom_subchunk_bounds(subchunk_index, max_rows, atom_begin, atom_end, &
                                 row_begin, row_end)
-      atom_count = atom_end - atom_begin + 1
-      row_count = row_end - row_begin + 1
+      CALL skala_gpw_feature_build_atom_subchunk_bounds(parent, features, atom_begin, &
+                                                        atom_end - atom_begin + 1, row_begin, &
+                                                        row_end - row_begin + 1, requires_grad)
+
+   END SUBROUTINE skala_gpw_feature_build_atom_subchunk
+
+! **************************************************************************************************
+!> \brief Build an atom-contiguous subchunk feature bundle from precomputed bounds.
+!> \param parent ...
+!> \param features ...
+!> \param atom_begin ...
+!> \param atom_count ...
+!> \param row_begin ...
+!> \param row_count ...
+!> \param requires_grad ...
+! **************************************************************************************************
+   SUBROUTINE skala_gpw_feature_build_atom_subchunk_bounds(parent, features, atom_begin, &
+                                                           atom_count, row_begin, row_count, &
+                                                           requires_grad)
+      TYPE(skala_gpw_feature_type), INTENT(IN)           :: parent
+      TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
+      INTEGER, INTENT(IN)                                :: atom_begin, atom_count, row_begin, &
+                                                            row_count
+      LOGICAL, INTENT(IN)                                :: requires_grad
+
+      INTEGER                                            :: atom_end, max_grid_size, row_end
+
+      CALL skala_gpw_feature_release(features)
+      CPASSERT(parent%uses_atom_chunks)
+      atom_end = atom_begin + atom_count - 1
+      row_end = row_begin + row_count - 1
       CPASSERT(atom_count > 0)
       CPASSERT(row_count > 0)
       MARK_USED(requires_grad)
@@ -1724,7 +1812,7 @@ CONTAINS
                                         row_count)
       features%active = .TRUE.
 
-   END SUBROUTINE skala_gpw_feature_build_atom_subchunk
+   END SUBROUTINE skala_gpw_feature_build_atom_subchunk_bounds
 
 ! **************************************************************************************************
 !> \brief Return atom and row bounds for an atom-contiguous rank-local subchunk.

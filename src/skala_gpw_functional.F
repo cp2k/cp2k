@@ -31,14 +31,11 @@ MODULE skala_gpw_functional
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
-   USE skala_gpw_features,              ONLY: skala_gpw_atom_partition_hard,&
-                                              skala_gpw_atom_partition_smooth,&
-                                              skala_gpw_atom_subchunk_count,&
-                                              skala_gpw_feature_build,&
-                                              skala_gpw_feature_build_atom_subchunk,&
-                                              skala_gpw_feature_release,&
-                                              skala_gpw_feature_type,&
-                                              skala_gpw_smooth_partition_derivatives
+   USE skala_gpw_features,              ONLY: &
+        skala_gpw_atom_partition_hard, skala_gpw_atom_partition_smooth, &
+        skala_gpw_atom_subchunk_count, skala_gpw_atom_subchunk_layout, skala_gpw_feature_build, &
+        skala_gpw_feature_build_atom_subchunk_bounds, skala_gpw_feature_release, &
+        skala_gpw_feature_type, skala_gpw_smooth_partition_derivatives
    USE skala_torch_api,                 ONLY: skala_torch_model_get_exc,&
                                               skala_torch_model_get_exc_density,&
                                               skala_torch_model_load,&
@@ -1139,7 +1136,11 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: route_grad_return_recv_counts, &
                                                             route_grad_return_recv_displs, &
                                                             route_grad_return_send_counts, &
-                                                            route_grad_return_send_displs
+                                                            route_grad_return_send_displs, &
+                                                            subchunk_atom_begin, &
+                                                            subchunk_atom_count, &
+                                                            subchunk_row_begin, &
+                                                            subchunk_row_count
       REAL(KIND=dp)                                      :: subchunk_exc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_grad_buffer, send_grad_buffer
       TYPE(skala_gpw_feature_type)                       :: subchunk
@@ -1148,7 +1149,9 @@ CONTAINS
       CPASSERT(features%uses_atom_chunks)
       CPASSERT(max_rows > 0)
       nflat_local = features%nflat_local
-      nsubchunks = skala_gpw_atom_subchunk_count(max_rows)
+      CALL skala_gpw_atom_subchunk_layout(max_rows, subchunk_atom_begin, subchunk_atom_count, &
+                                          subchunk_row_begin, subchunk_row_count)
+      nsubchunks = SIZE(subchunk_atom_begin)
 
       exc = 0.0_dp
       IF (compute_grads) THEN
@@ -1177,8 +1180,12 @@ CONTAINS
       CALL timeset("skala_gpw_atom_subchunks", phase_handle)
       DO isubchunk = 1, nsubchunks
          CALL timeset("skala_gpw_atom_subchunk_build", subphase_handle)
-         CALL skala_gpw_feature_build_atom_subchunk(features, subchunk, isubchunk, &
-                                                    max_rows, compute_grads)
+         CALL skala_gpw_feature_build_atom_subchunk_bounds(features, subchunk, &
+                                                           subchunk_atom_begin(isubchunk), &
+                                                           subchunk_atom_count(isubchunk), &
+                                                           subchunk_row_begin(isubchunk), &
+                                                           subchunk_row_count(isubchunk), &
+                                                           compute_grads)
          CALL timestop(subphase_handle)
          CALL timeset("skala_gpw_atom_subchunk_forward", subphase_handle)
          CALL skala_torch_model_get_exc(cached_model, subchunk%inputs, &
@@ -1255,6 +1262,7 @@ CONTAINS
                      route_grad_return_recv_displs, route_grad_return_send_counts, &
                      route_grad_return_send_displs, send_grad_buffer)
       END IF
+      DEALLOCATE (subchunk_atom_begin, subchunk_atom_count, subchunk_row_begin, subchunk_row_count)
 
    END SUBROUTINE evaluate_atom_subchunks
 
