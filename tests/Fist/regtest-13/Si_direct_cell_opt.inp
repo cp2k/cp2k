@@ -78,6 +78,7 @@
       A 2.56 0.00 2.56
       B 0.00 2.55 2.55
       C 2.54 2.54 0.00
+      CANONICALIZE FALSE
       MULTIPLE_UNIT_CELL 4 4 4
       PERIODIC XYZ
       # SYMMETRY rhombohedral
