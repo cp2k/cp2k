@@ -97,8 +97,9 @@ CONTAINS
                          virial=virial)
 
       calc_stress = virial%pv_availability .AND. (.NOT. virial%pv_numer)
-      IF (calc_stress .AND. .NOT. calc_forces) &
+      IF (calc_stress .AND. .NOT. calc_forces) THEN
          CPABORT('Stress cannot be calculated without forces')
+      END IF
 
       nnp%atomic_energy(:, :) = 0.0_dp
       IF (calc_forces) nnp%myforce(:, :, :) = 0.0_dp

@@ -456,14 +456,17 @@ CONTAINS
       IF (ASSOCIATED(nnp_env%rad)) THEN
          DO i = 1, nnp_env%n_ele
             DO j = 1, nnp_env%rad(i)%n_symfgrp
-               IF (ALLOCATED(nnp_env%rad(i)%symfgrp(j)%symf)) &
+               IF (ALLOCATED(nnp_env%rad(i)%symfgrp(j)%symf)) THEN
                   DEALLOCATE (nnp_env%rad(i)%symfgrp(j)%symf, &
                               nnp_env%rad(i)%symfgrp(j)%ele, &
                               nnp_env%rad(i)%symfgrp(j)%ele_ind)
-               IF (ALLOCATED(nnp_env%rad(i)%symfgrp(j)%spline_y)) &
+               END IF
+               IF (ALLOCATED(nnp_env%rad(i)%symfgrp(j)%spline_y)) THEN
                   DEALLOCATE (nnp_env%rad(i)%symfgrp(j)%spline_y)
-               IF (ALLOCATED(nnp_env%rad(i)%symfgrp(j)%spline_dy)) &
+               END IF
+               IF (ALLOCATED(nnp_env%rad(i)%symfgrp(j)%spline_dy)) THEN
                   DEALLOCATE (nnp_env%rad(i)%symfgrp(j)%spline_dy)
+               END IF
                nnp_env%rad(i)%symfgrp(j)%spline_built = .FALSE.
             END DO
             DEALLOCATE (nnp_env%rad(i)%y, &
@@ -484,22 +487,29 @@ CONTAINS
       IF (ASSOCIATED(nnp_env%ang)) THEN
          DO i = 1, nnp_env%n_ele
             DO j = 1, nnp_env%ang(i)%n_symfgrp
-               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%symf)) &
+               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%symf)) THEN
                   DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%symf, &
                               nnp_env%ang(i)%symfgrp(j)%ele, &
                               nnp_env%ang(i)%symfgrp(j)%ele_ind)
-               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_eta)) &
+               END IF
+               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_eta)) THEN
                   DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%pack_eta)
-               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_zeta)) &
+               END IF
+               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_zeta)) THEN
                   DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%pack_zeta)
-               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_lam)) &
+               END IF
+               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_lam)) THEN
                   DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%pack_lam)
-               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_prefzeta)) &
+               END IF
+               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_prefzeta)) THEN
                   DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%pack_prefzeta)
-               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_izeta)) &
+               END IF
+               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_izeta)) THEN
                   DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%pack_izeta)
-               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_use_int_zeta)) &
+               END IF
+               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_use_int_zeta)) THEN
                   DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%pack_use_int_zeta)
+               END IF
             END DO
             DEALLOCATE (nnp_env%ang(i)%y, &
                         nnp_env%ang(i)%funccut, &

@@ -384,8 +384,9 @@ CONTAINS
                            s = state%pair_map(ind, neighbor_ind)%rad_groups(pair_slot)
                            IF (norm < nnp%rad(ind)%symfgrp(s)%cutoff) THEN
                               neighbor%n_rad(s) = neighbor%n_rad(s) + 1
-                              IF (neighbor%n_rad(s) > neighbor%rad(s)%cap) &
+                              IF (neighbor%n_rad(s) > neighbor%rad(s)%cap) THEN
                                  CALL nnp_neigh_grp_grow(neighbor%rad(s), neighbor%n_rad(s))
+                              END IF
                               neighbor%rad(s)%ind(neighbor%n_rad(s)) = j
                               neighbor%rad(s)%dist(1, neighbor%n_rad(s)) = dr(1)
                               neighbor%rad(s)%dist(2, neighbor%n_rad(s)) = dr(2)
@@ -398,8 +399,9 @@ CONTAINS
                            s = state%pair_map(ind, neighbor_ind)%ang1_groups(pair_slot)
                            IF (norm < nnp%ang(ind)%symfgrp(s)%cutoff) THEN
                               neighbor%n_ang1(s) = neighbor%n_ang1(s) + 1
-                              IF (neighbor%n_ang1(s) > neighbor%ang1(s)%cap) &
+                              IF (neighbor%n_ang1(s) > neighbor%ang1(s)%cap) THEN
                                  CALL nnp_neigh_grp_grow(neighbor%ang1(s), neighbor%n_ang1(s))
+                              END IF
                               neighbor%ang1(s)%ind(neighbor%n_ang1(s)) = j
                               neighbor%ang1(s)%dist(1, neighbor%n_ang1(s)) = dr(1)
                               neighbor%ang1(s)%dist(2, neighbor%n_ang1(s)) = dr(2)
@@ -412,8 +414,9 @@ CONTAINS
                            s = state%pair_map(ind, neighbor_ind)%ang2_groups(pair_slot)
                            IF (norm < nnp%ang(ind)%symfgrp(s)%cutoff) THEN
                               neighbor%n_ang2(s) = neighbor%n_ang2(s) + 1
-                              IF (neighbor%n_ang2(s) > neighbor%ang2(s)%cap) &
+                              IF (neighbor%n_ang2(s) > neighbor%ang2(s)%cap) THEN
                                  CALL nnp_neigh_grp_grow(neighbor%ang2(s), neighbor%n_ang2(s))
+                              END IF
                               neighbor%ang2(s)%ind(neighbor%n_ang2(s)) = j
                               neighbor%ang2(s)%dist(1, neighbor%n_ang2(s)) = dr(1)
                               neighbor%ang2(s)%dist(2, neighbor%n_ang2(s)) = dr(2)
