@@ -1586,7 +1586,10 @@ CONTAINS
          CALL get_qs_env(qs_env, energy=energy_qs, dft_control=dft_control)
          IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%is_source()) THEN
             W_diagonal(:, iforce_eval) = dft_control%qs_control%cdft_control%value(:)
-            energy(iforce_eval) = energy_qs%total
+            ! The CDFT-CI Hamiltonian is built from the physical KS energies.
+            ! Remove the finite-residual Lagrange term, which only vanishes when
+            ! every constraint is satisfied exactly.
+            energy(iforce_eval) = energy_qs%total - energy_qs%cdft
          END IF
       END DO
       CALL force_env%para_env%sum(W_diagonal)
