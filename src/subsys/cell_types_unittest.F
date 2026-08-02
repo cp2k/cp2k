@@ -7,7 +7,9 @@
 
 PROGRAM cell_types_TEST
    USE cell_types,                      ONLY: cell_type,&
-                                              pbc
+                                              pbc,&
+                                              real_to_scaled,&
+                                              scaled_to_real
    USE kinds,                           ONLY: dp
 
    IMPLICIT NONE
@@ -29,6 +31,8 @@ PROGRAM cell_types_TEST
    CALL check_half_cell_boundaries(cell)
 
    cell%orthorhombic = .FALSE.
+   cell%hmat(1, 2) = 0.5_dp
+   cell%h_inv(1, 2) = -1.0_dp/12.0_dp
    CALL check_half_cell_boundaries(cell)
 
    DEALLOCATE (cell)
@@ -49,9 +53,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: r, scaled, wrapped, wrapped_scaled
 
       scaled = [0.5_dp - delta, -0.5_dp + delta, 1.5_dp - delta]
-      r = scaled*[cell%hmat(1, 1), cell%hmat(2, 2), cell%hmat(3, 3)]
+      CALL scaled_to_real(r, scaled, cell)
       wrapped = pbc(r, cell)
-      wrapped_scaled = wrapped/[cell%hmat(1, 1), cell%hmat(2, 2), cell%hmat(3, 3)]
+      CALL real_to_scaled(wrapped_scaled, wrapped, cell)
       IF (ANY(wrapped_scaled >= 0.0_dp)) THEN
          ERROR STOP "Roundoff changed the image at a half-cell boundary"
       END IF
@@ -62,17 +66,17 @@ CONTAINS
       scaled = [0.5_dp - 128.0_dp*EPSILON(1.0_dp), &
                 -0.5_dp - 128.0_dp*EPSILON(1.0_dp), &
                 1.5_dp + 128.0_dp*EPSILON(1.0_dp)]
-      r = scaled*[cell%hmat(1, 1), cell%hmat(2, 2), cell%hmat(3, 3)]
+      CALL scaled_to_real(r, scaled, cell)
       wrapped = pbc(r, cell)
-      wrapped_scaled = wrapped/[cell%hmat(1, 1), cell%hmat(2, 2), cell%hmat(3, 3)]
+      CALL real_to_scaled(wrapped_scaled, wrapped, cell)
       IF (ANY(SIGN(1.0_dp, wrapped_scaled) /= [1.0_dp, 1.0_dp, -1.0_dp])) THEN
          ERROR STOP "Coordinate outside the boundary tolerance changed image"
       END IF
 
       scaled = [0.5_dp - delta, -0.5_dp + delta, 1.5_dp - delta]
-      r = scaled*[cell%hmat(1, 1), cell%hmat(2, 2), cell%hmat(3, 3)]
+      CALL scaled_to_real(r, scaled, cell)
       wrapped = pbc(r, cell, image_offset)
-      wrapped_scaled = wrapped/[cell%hmat(1, 1), cell%hmat(2, 2), cell%hmat(3, 3)]
+      CALL real_to_scaled(wrapped_scaled, wrapped, cell)
       IF (ANY(ABS(wrapped_scaled - ([-0.5_dp, -0.5_dp, -0.5_dp] + &
                                     REAL(image_offset, KIND=dp))) > 2.0_dp*delta)) THEN
          ERROR STOP "Periodic image offset is inconsistent at a half-cell boundary"
