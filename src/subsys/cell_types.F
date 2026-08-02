@@ -107,6 +107,28 @@ MODULE cell_types
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Select the periodic image index using a stable half-open cell convention.
+!> \param s Scaled coordinate
+!> \return image_shift ...
+! **************************************************************************************************
+   PURE ELEMENTAL FUNCTION pbc_image_shift(s) RESULT(image_shift)
+
+      REAL(KIND=dp), INTENT(IN)                          :: s
+      REAL(KIND=dp)                                      :: image_shift
+
+      REAL(KIND=dp)                                      :: half_boundary, tolerance
+
+      image_shift = ANINT(s)
+      half_boundary = ANINT(s - 0.5_dp) + 0.5_dp
+      tolerance = MIN(1.0e-8_dp, 64.0_dp*EPSILON(1.0_dp)*MAX(1.0_dp, ABS(s)))
+      IF (ABS(s - half_boundary) <= tolerance) THEN
+         ! Map both sides of a numerically ambiguous boundary to the half-open interval.
+         image_shift = half_boundary + 0.5_dp
+      END IF
+
+   END FUNCTION pbc_image_shift
+
+! **************************************************************************************************
 !> \brief Clone cell variable
 !> \param cell_in Cell variable to be clone
 !> \param cell_out Cloned cell variable
@@ -372,16 +394,19 @@ CONTAINS
       CPASSERT(ASSOCIATED(cell))
 
       IF (cell%orthorhombic) THEN
-         r_pbc(1) = r(1) - cell%hmat(1, 1)*cell%perd(1)*ANINT(cell%h_inv(1, 1)*r(1))
-         r_pbc(2) = r(2) - cell%hmat(2, 2)*cell%perd(2)*ANINT(cell%h_inv(2, 2)*r(2))
-         r_pbc(3) = r(3) - cell%hmat(3, 3)*cell%perd(3)*ANINT(cell%h_inv(3, 3)*r(3))
+         r_pbc(1) = r(1) - cell%hmat(1, 1)*cell%perd(1)* &
+                    pbc_image_shift(cell%h_inv(1, 1)*r(1))
+         r_pbc(2) = r(2) - cell%hmat(2, 2)*cell%perd(2)* &
+                    pbc_image_shift(cell%h_inv(2, 2)*r(2))
+         r_pbc(3) = r(3) - cell%hmat(3, 3)*cell%perd(3)* &
+                    pbc_image_shift(cell%h_inv(3, 3)*r(3))
       ELSE
          s(1) = cell%h_inv(1, 1)*r(1) + cell%h_inv(1, 2)*r(2) + cell%h_inv(1, 3)*r(3)
          s(2) = cell%h_inv(2, 1)*r(1) + cell%h_inv(2, 2)*r(2) + cell%h_inv(2, 3)*r(3)
          s(3) = cell%h_inv(3, 1)*r(1) + cell%h_inv(3, 2)*r(2) + cell%h_inv(3, 3)*r(3)
-         s(1) = s(1) - cell%perd(1)*ANINT(s(1))
-         s(2) = s(2) - cell%perd(2)*ANINT(s(2))
-         s(3) = s(3) - cell%perd(3)*ANINT(s(3))
+         s(1) = s(1) - cell%perd(1)*pbc_image_shift(s(1))
+         s(2) = s(2) - cell%perd(2)*pbc_image_shift(s(2))
+         s(3) = s(3) - cell%perd(3)*pbc_image_shift(s(3))
          r_pbc(1) = cell%hmat(1, 1)*s(1) + cell%hmat(1, 2)*s(2) + cell%hmat(1, 3)*s(3)
          r_pbc(2) = cell%hmat(2, 1)*s(1) + cell%hmat(2, 2)*s(2) + cell%hmat(2, 3)*s(3)
          r_pbc(3) = cell%hmat(3, 1)*s(1) + cell%hmat(3, 2)*s(2) + cell%hmat(3, 3)*s(3)
@@ -413,18 +438,18 @@ CONTAINS
 
       IF (cell%orthorhombic) THEN
          r_pbc(1) = r(1) - cell%hmat(1, 1)*cell%perd(1)* &
-                    REAL(NINT(cell%h_inv(1, 1)*r(1)) - nl(1), dp)
+                    (pbc_image_shift(cell%h_inv(1, 1)*r(1)) - REAL(nl(1), KIND=dp))
          r_pbc(2) = r(2) - cell%hmat(2, 2)*cell%perd(2)* &
-                    REAL(NINT(cell%h_inv(2, 2)*r(2)) - nl(2), dp)
+                    (pbc_image_shift(cell%h_inv(2, 2)*r(2)) - REAL(nl(2), KIND=dp))
          r_pbc(3) = r(3) - cell%hmat(3, 3)*cell%perd(3)* &
-                    REAL(NINT(cell%h_inv(3, 3)*r(3)) - nl(3), dp)
+                    (pbc_image_shift(cell%h_inv(3, 3)*r(3)) - REAL(nl(3), KIND=dp))
       ELSE
          s(1) = cell%h_inv(1, 1)*r(1) + cell%h_inv(1, 2)*r(2) + cell%h_inv(1, 3)*r(3)
          s(2) = cell%h_inv(2, 1)*r(1) + cell%h_inv(2, 2)*r(2) + cell%h_inv(2, 3)*r(3)
          s(3) = cell%h_inv(3, 1)*r(1) + cell%h_inv(3, 2)*r(2) + cell%h_inv(3, 3)*r(3)
-         s(1) = s(1) - cell%perd(1)*REAL(NINT(s(1)) - nl(1), dp)
-         s(2) = s(2) - cell%perd(2)*REAL(NINT(s(2)) - nl(2), dp)
-         s(3) = s(3) - cell%perd(3)*REAL(NINT(s(3)) - nl(3), dp)
+         s(1) = s(1) - cell%perd(1)*(pbc_image_shift(s(1)) - REAL(nl(1), KIND=dp))
+         s(2) = s(2) - cell%perd(2)*(pbc_image_shift(s(2)) - REAL(nl(2), KIND=dp))
+         s(3) = s(3) - cell%perd(3)*(pbc_image_shift(s(3)) - REAL(nl(3), KIND=dp))
          r_pbc(1) = cell%hmat(1, 1)*s(1) + cell%hmat(1, 2)*s(2) + cell%hmat(1, 3)*s(3)
          r_pbc(2) = cell%hmat(2, 1)*s(1) + cell%hmat(2, 2)*s(2) + cell%hmat(2, 3)*s(3)
          r_pbc(3) = cell%hmat(3, 1)*s(1) + cell%hmat(3, 2)*s(2) + cell%hmat(3, 3)*s(3)

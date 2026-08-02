@@ -15,7 +15,9 @@ MODULE casino_utils
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              pbc,&
+                                              real_to_scaled
    USE cp2k_info,                       ONLY: cp2k_version
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -115,7 +117,7 @@ CONTAINS
                                                             valence_charge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coord, kvec, mo_energy, mos_sgf, &
                                                             mos_sgf_im, shell_position
-      REAL(KIND=dp), DIMENSION(3)                        :: scoord
+      REAL(KIND=dp), DIMENSION(3)                        :: r_pbc, scoord, scoord_pbc
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp, zetas
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
       TYPE(cell_type), POINTER                           :: cell
@@ -338,8 +340,10 @@ CONTAINS
       IF (do_kpoints .AND. .NOT. use_real_wfn) THEN
          ALLOCATE (agauge(3*natoms))
          DO iatom = 1, natoms
-            scoord(:) = MATMUL(cell%h_inv, particle_set(iatom)%r(1:3))
-            agauge(3*(iatom - 1) + 1:3*iatom) = -NINT(scoord(:))
+            CALL real_to_scaled(scoord, particle_set(iatom)%r(1:3), cell)
+            r_pbc = pbc(particle_set(iatom)%r(1:3), cell)
+            CALL real_to_scaled(scoord_pbc, r_pbc, cell)
+            agauge(3*(iatom - 1) + 1:3*iatom) = NINT(scoord_pbc - scoord)
          END DO
       END IF
 
