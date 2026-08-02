@@ -73,4 +73,5 @@
 "CeO2.inp"                              = [{matcher="E_total", tol=1e-12, ref=-64.41562845141048}]
 # Spin-channel-specific mixing parameters
 "O2-UKS-mixing.inp"                     = [{matcher="E_total", tol=5.0E-14, ref=-31.86541677222950}]
+"multiple_potential_files.inp"          = [{matcher="E_total", tol=1e-12, ref=-1.149208232056419}]
 #EOF
