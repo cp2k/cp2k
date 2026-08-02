@@ -27,14 +27,11 @@ MODULE cell_opt_types
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
-   USE input_constants,                 ONLY: fix_none,&
-                                              fix_x,&
-                                              fix_xy,&
-                                              fix_xz,&
-                                              fix_y,&
-                                              fix_yz,&
-                                              fix_z
-   USE input_section_types,             ONLY: section_vals_type,&
+   USE input_constants,                 ONLY: &
+        canonicalize_cell_auto, canonicalize_cell_false, fix_none, fix_x, fix_xy, fix_xz, fix_y, &
+        fix_yz, fix_z
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE particle_list_types,             ONLY: particle_list_type
@@ -85,15 +82,18 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: geo_section
 
       CHARACTER(LEN=4)                                   :: label
-      INTEGER                                            :: ip, output_unit, required_constraint_id
-      LOGICAL                                            :: constraint_explicit, valid_constraint
+      INTEGER                                            :: canonicalize_mode, ip, output_unit, &
+                                                            required_constraint_id
+      LOGICAL                                            :: canonical_cell, constraint_explicit, &
+                                                            keep_space_group, valid_constraint
       REAL(KIND=dp), DIMENSION(3)                        :: r
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(section_vals_type), POINTER                   :: cell_section
 
-      NULLIFY (cell_env%ref_cell, cell, subsys, particles)
+      NULLIFY (cell_env%ref_cell, cell, cell_section, subsys, particles)
       CALL force_env_get(force_env, cell=cell, subsys=subsys)
       CALL cell_create(cell_env%ref_cell)
       CALL cell_clone(cell, cell_env%ref_cell, tag="REF_CELL_OPT")
@@ -103,6 +103,7 @@ CONTAINS
       CALL section_vals_val_get(geo_section, "PRESSURE_TOLERANCE", r_val=cell_env%pres_tol)
       CALL section_vals_val_get(geo_section, "CONSTRAINT", &
                                 i_val=cell_env%constraint_id, explicit=constraint_explicit)
+      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_space_group)
 
       IF (COUNT(cell%perd /= 0) == 2) THEN
          required_constraint_id = fix_none
@@ -134,6 +135,38 @@ CONTAINS
          ELSE IF (.NOT. valid_constraint) THEN
             CALL cp_abort(__LOCATION__, &
                           "2D CELL_OPT needs constrained non-periodic cell direction.")
+         END IF
+      END IF
+
+      cell_section => section_vals_get_subs_vals(force_env%force_env_section, "SUBSYS%CELL")
+      CALL section_vals_val_get(cell_section, "CANONICALIZE", i_val=canonicalize_mode)
+      canonical_cell = MAXVAL(ABS([cell%hmat(2, 1), cell%hmat(3, 1), cell%hmat(3, 2)])) <= &
+         1.0E-12_dp*MAX(1.0_dp, MAXVAL(ABS(cell%hmat)))
+
+      IF (.NOT. canonical_cell) THEN
+         IF (canonicalize_mode == canonicalize_cell_auto) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "CELL_OPT requires a canonical cell matrix because it optimizes only "// &
+                          "six independent matrix components. Set "// &
+                          "FORCE_EVAL%SUBSYS%CELL%CANONICALIZE TRUE or specify the cell using "// &
+                          "ABC and ALPHA_BETA_GAMMA. "// &
+                          "To retain the legacy unconstrained behavior, explicitly set "// &
+                          "CANONICALIZE FALSE.")
+         ELSE IF (canonicalize_mode == canonicalize_cell_false) THEN
+            IF (keep_space_group .OR. cell_env%keep_angles .OR. cell_env%keep_symmetry .OR. &
+                cell_env%keep_volume .OR. cell_env%constraint_id /= fix_none) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "A noncanonical cell cannot be combined with CELL_OPT constraints, "// &
+                             "KEEP_ANGLES, KEEP_SPACE_GROUP, KEEP_SYMMETRY, or KEEP_VOLUME. Set "// &
+                             "FORCE_EVAL%SUBSYS%CELL%CANONICALIZE TRUE.")
+            END IF
+            CALL cp_warn(__LOCATION__, &
+                         "CELL_OPT with CANONICALIZE FALSE retains three general-orientation "// &
+                         "cell components while optimizing the other six. This legacy expert "// &
+                         "mode is coordinate-frame dependent.")
+         ELSE
+            CALL cp_abort(__LOCATION__, &
+                          "CELL_OPT received a noncanonical cell despite requested canonicalization.")
          END IF
       END IF
 

@@ -876,7 +876,8 @@ CONTAINS
          description="Detect space group of the system and preserve it during optimization. "// &
          "The space group symmetry is applied to coordinates, forces, and the stress tensor. "// &
          "It works for supercell. It does not affect/reduce computational cost. "// &
-         "Use EPS_SYMMETRY to adjust the detection threshold.", &
+         "Use EPS_SYMMETRY to adjust the detection threshold. For CELL_OPT with general cell "// &
+         "vectors, set FORCE_EVAL%SUBSYS%CELL%CANONICALIZE TRUE.", &
          usage="KEEP_SPACE_GROUP .TRUE.", &
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
