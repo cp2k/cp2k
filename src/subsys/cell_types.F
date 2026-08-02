@@ -107,7 +107,7 @@ MODULE cell_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Select the periodic image index using a stable half-open cell convention.
+!> \brief Select a stable periodic image index close to half-cell boundaries.
 !> \param s Scaled coordinate
 !> \return image_shift ...
 ! **************************************************************************************************
@@ -122,8 +122,8 @@ CONTAINS
       half_boundary = ANINT(s - 0.5_dp) + 0.5_dp
       tolerance = MIN(1.0e-8_dp, 64.0_dp*EPSILON(1.0_dp)*MAX(1.0_dp, ABS(s)))
       IF (ABS(s - half_boundary) <= tolerance) THEN
-         ! Map both sides of a numerically ambiguous boundary to the half-open interval.
-         image_shift = half_boundary + 0.5_dp
+         ! Preserve ANINT's exact-boundary convention on both sides of the cell.
+         image_shift = ANINT(half_boundary)
       END IF
 
    END FUNCTION pbc_image_shift
