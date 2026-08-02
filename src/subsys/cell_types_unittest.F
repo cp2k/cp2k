@@ -47,11 +47,13 @@ CONTAINS
 
       TYPE(cell_type), POINTER                           :: cell
 
-      INTEGER, DIMENSION(3), PARAMETER                   :: image_offset = [1, -1, 2]
+      INTEGER, DIMENSION(3), PARAMETER :: image_offset = [1, -1, 2], &
+         lattice_translation = [1, -2, 3]
       REAL(KIND=dp), PARAMETER                           :: delta = 8.0_dp*EPSILON(1.0_dp)
 
       REAL(KIND=dp), DIMENSION(3)                        :: r, scaled, wrapped, wrapped_opposite, &
-                                                            wrapped_scaled
+                                                            wrapped_scaled, wrapped_translated, &
+                                                            wrapped_translated_scaled
 
       scaled = [0.5_dp - delta, -0.5_dp + delta, 1.5_dp - delta]
       CALL scaled_to_real(r, scaled, cell)
@@ -62,6 +64,13 @@ CONTAINS
       END IF
       IF (ANY(ABS(ABS(wrapped_scaled) - 0.5_dp) > 2.0_dp*delta)) THEN
          ERROR STOP "Unexpected wrapped coordinate at a half-cell boundary"
+      END IF
+
+      CALL scaled_to_real(r, scaled + REAL(lattice_translation, KIND=dp), cell)
+      wrapped_translated = pbc(r, cell)
+      CALL real_to_scaled(wrapped_translated_scaled, wrapped_translated, cell)
+      IF (ANY(ABS(wrapped_translated_scaled - wrapped_scaled) > 4.0_dp*delta)) THEN
+         ERROR STOP "Periodic wrapping changed under a lattice translation"
       END IF
 
       scaled = [0.5_dp - delta, 0.0_dp, 0.0_dp]
