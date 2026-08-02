@@ -58,7 +58,7 @@ CONTAINS
       CALL scaled_to_real(r, scaled, cell)
       wrapped = pbc_stable(r, cell)
       CALL real_to_scaled(wrapped_scaled, wrapped, cell)
-      IF (ANY(SIGN(1.0_dp, wrapped_scaled) /= [1.0_dp, 1.0_dp, 1.0_dp])) THEN
+      IF (ANY(SIGN(1.0_dp, wrapped_scaled) /= [-1.0_dp, -1.0_dp, -1.0_dp])) THEN
          ERROR STOP "Roundoff changed the image at a half-cell boundary"
       END IF
       IF (ANY(ABS(ABS(wrapped_scaled) - 0.5_dp) > 2.0_dp*delta)) THEN

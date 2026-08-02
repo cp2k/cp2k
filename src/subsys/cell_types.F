@@ -123,8 +123,8 @@ CONTAINS
       half_boundary = ANINT(s - 0.5_dp) + 0.5_dp
       tolerance = MIN(1.0e-8_dp, 64.0_dp*EPSILON(1.0_dp)*MAX(1.0_dp, ABS(s)))
       IF (ABS(s - half_boundary) <= tolerance) THEN
-         ! Select the upper side for every lattice-equivalent half-cell boundary.
-         image_shift = half_boundary - 0.5_dp
+         ! Select the lower side for every lattice-equivalent half-cell boundary.
+         image_shift = half_boundary + 0.5_dp
       END IF
 
    END FUNCTION pbc_image_shift
