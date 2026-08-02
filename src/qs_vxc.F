@@ -321,7 +321,7 @@ CONTAINS
             END IF
          END IF
 
-         ! add the nlcc densities
+         ! NLCC augments rho and grad(rho); tau remains valence-only.
          IF (ASSOCIATED(rho_nlcc_use)) THEN
             factor = 1.0_dp
             DO ispin = 1, mspin

@@ -1428,9 +1428,9 @@ CONTAINS
                           "all-electron regular-grid density. The current implementation is limited "// &
                           "to a single GAUXC functional and provides energy, VXC, and experimental "// &
                           "analytical nuclear-gradient/stress evaluations. K-point runs use CP2K's "// &
-                          "standard k-point and symmetry-reduction infrastructure; the CPU "// &
-                          "TorchScript path may require preloading libtorch_cpu.so before OpenBLAS, "// &
-                          "whereas CUDA k-point runs should not preload CPU-only Torch libraries. "// &
+                          "standard k-point and symmetry-reduction infrastructure; CPU k-point "// &
+                          "runs require mutually compatible BLAS, ScaLAPACK, OpenMP, and LibTorch "// &
+                          "runtimes, while CUDA evaluation is selected explicitly. "// &
                           "MPI runs collect a global atom-partitioned feature block by default; "// &
                           "NATIVE_GRID_ATOM_CHUNKS can split the Torch evaluation by atom block. "// &
                           "PAW/one-center GAPW+GTH/ECP and METHOD GAPW_XC use CP2K's GAPW hard/soft "// &
