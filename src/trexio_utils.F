@@ -18,7 +18,7 @@ MODULE trexio_utils
    USE ai_onecenter, ONLY: sg_overlap
    USE atomic_kind_types, ONLY: get_atomic_kind
    USE basis_set_types, ONLY: gto_basis_set_type, get_gto_basis_set
-   USE cell_types, ONLY: cell_type, pbc, real_to_scaled
+   USE cell_types, ONLY: cell_type, pbc, pbc_stable, real_to_scaled
    USE cp2k_info, ONLY: cp2k_version
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_control_types, ONLY: dft_control_type
@@ -188,10 +188,11 @@ CONTAINS
       ! Per-atom Bloch-gauge correction:
       ! CP2K's k-space matrix builder (rskp_transform) Bloch-sums real-space blocks with
       ! lattice vectors R supplied by the neighbour list. The neighbour list, in turn,
-      ! wraps interatomic vectors through subsys/cell_types.F :: pbc1. Hence the effective
+      ! wraps interatomic vectors through subsys/cell_types.F :: pbc or, for symmetry reduction,
+      ! pbc_stable. Hence the effective
       ! per-atom gauge is the image shift between the raw and wrapped coordinates, as used by
-      ! kpoint_methods.F :: kpoint_initialize. Derive it through pbc1 instead of duplicating its
-      ! boundary convention. Since nucleus_coord is written as the raw particle_set(i)%r, we
+      ! kpoint_methods.F :: kpoint_initialize. Derive it through the matching wrapper instead of
+      ! duplicating its boundary convention. Since nucleus_coord is written as the raw particle_set(i)%r, we
       ! rephase each atom's MO block by
       ! exp(-i 2*pi * k * agauge_i) so the (coord, MO) pair is self-consistent in the
       ! standard Bloch convention used by TREXIO consumers.
@@ -912,7 +913,11 @@ CONTAINS
          ALLOCATE (agauge(3, natoms))
          DO iatom = 1, natoms
             CALL real_to_scaled(scoord, particle_set(iatom)%r(1:3), cell)
-            r_pbc = pbc(particle_set(iatom)%r(1:3), cell)
+            IF (kpoints%symmetry) THEN
+               r_pbc = pbc_stable(particle_set(iatom)%r(1:3), cell)
+            ELSE
+               r_pbc = pbc(particle_set(iatom)%r(1:3), cell)
+            END IF
             CALL real_to_scaled(scoord_pbc, r_pbc, cell)
             agauge(:, iatom) = NINT(scoord_pbc - scoord)
          END DO

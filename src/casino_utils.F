@@ -17,6 +17,7 @@ MODULE casino_utils
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc,&
+                                              pbc_stable,&
                                               real_to_scaled
    USE cp2k_info,                       ONLY: cp2k_version
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -341,7 +342,11 @@ CONTAINS
          ALLOCATE (agauge(3*natoms))
          DO iatom = 1, natoms
             CALL real_to_scaled(scoord, particle_set(iatom)%r(1:3), cell)
-            r_pbc = pbc(particle_set(iatom)%r(1:3), cell)
+            IF (kpoints%symmetry) THEN
+               r_pbc = pbc_stable(particle_set(iatom)%r(1:3), cell)
+            ELSE
+               r_pbc = pbc(particle_set(iatom)%r(1:3), cell)
+            END IF
             CALL real_to_scaled(scoord_pbc, r_pbc, cell)
             agauge(3*(iatom - 1) + 1:3*iatom) = NINT(scoord_pbc - scoord)
          END DO

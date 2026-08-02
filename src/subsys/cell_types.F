@@ -97,6 +97,7 @@ MODULE cell_types
    ! Public functions
    PUBLIC :: plane_distance, &
              pbc, &
+             pbc_stable, &
              real_to_scaled, &
              scaled_to_real
 
@@ -122,8 +123,8 @@ CONTAINS
       half_boundary = ANINT(s - 0.5_dp) + 0.5_dp
       tolerance = MIN(1.0e-8_dp, 64.0_dp*EPSILON(1.0_dp)*MAX(1.0_dp, ABS(s)))
       IF (ABS(s - half_boundary) <= tolerance) THEN
-         ! Preserve ANINT's exact-boundary convention on both sides of the cell.
-         image_shift = ANINT(half_boundary)
+         ! Select the upper side for every lattice-equivalent half-cell boundary.
+         image_shift = half_boundary - 0.5_dp
       END IF
 
    END FUNCTION pbc_image_shift
@@ -394,6 +395,40 @@ CONTAINS
       CPASSERT(ASSOCIATED(cell))
 
       IF (cell%orthorhombic) THEN
+         r_pbc(1) = r(1) - cell%hmat(1, 1)*cell%perd(1)*ANINT(cell%h_inv(1, 1)*r(1))
+         r_pbc(2) = r(2) - cell%hmat(2, 2)*cell%perd(2)*ANINT(cell%h_inv(2, 2)*r(2))
+         r_pbc(3) = r(3) - cell%hmat(3, 3)*cell%perd(3)*ANINT(cell%h_inv(3, 3)*r(3))
+      ELSE
+         s(1) = cell%h_inv(1, 1)*r(1) + cell%h_inv(1, 2)*r(2) + cell%h_inv(1, 3)*r(3)
+         s(2) = cell%h_inv(2, 1)*r(1) + cell%h_inv(2, 2)*r(2) + cell%h_inv(2, 3)*r(3)
+         s(3) = cell%h_inv(3, 1)*r(1) + cell%h_inv(3, 2)*r(2) + cell%h_inv(3, 3)*r(3)
+         s(1) = s(1) - cell%perd(1)*ANINT(s(1))
+         s(2) = s(2) - cell%perd(2)*ANINT(s(2))
+         s(3) = s(3) - cell%perd(3)*ANINT(s(3))
+         r_pbc(1) = cell%hmat(1, 1)*s(1) + cell%hmat(1, 2)*s(2) + cell%hmat(1, 3)*s(3)
+         r_pbc(2) = cell%hmat(2, 1)*s(1) + cell%hmat(2, 2)*s(2) + cell%hmat(2, 3)*s(3)
+         r_pbc(3) = cell%hmat(3, 1)*s(1) + cell%hmat(3, 2)*s(2) + cell%hmat(3, 3)*s(3)
+      END IF
+
+   END FUNCTION pbc1
+
+! **************************************************************************************************
+!> \brief Apply a stable periodic-image convention for k-point Bloch gauges.
+!> \param r ...
+!> \param cell ...
+!> \return r_pbc ...
+! **************************************************************************************************
+   FUNCTION pbc_stable(r, cell) RESULT(r_pbc)
+
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(3)                        :: r_pbc
+
+      REAL(KIND=dp), DIMENSION(3)                        :: s
+
+      CPASSERT(ASSOCIATED(cell))
+
+      IF (cell%orthorhombic) THEN
          r_pbc(1) = r(1) - cell%hmat(1, 1)*cell%perd(1)* &
                     pbc_image_shift(cell%h_inv(1, 1)*r(1))
          r_pbc(2) = r(2) - cell%hmat(2, 2)*cell%perd(2)* &
@@ -412,7 +447,7 @@ CONTAINS
          r_pbc(3) = cell%hmat(3, 1)*s(1) + cell%hmat(3, 2)*s(2) + cell%hmat(3, 3)*s(3)
       END IF
 
-   END FUNCTION pbc1
+   END FUNCTION pbc_stable
 
 ! **************************************************************************************************
 !> \brief   Apply the periodic boundary conditions defined by a simulation
@@ -438,18 +473,18 @@ CONTAINS
 
       IF (cell%orthorhombic) THEN
          r_pbc(1) = r(1) - cell%hmat(1, 1)*cell%perd(1)* &
-                    (pbc_image_shift(cell%h_inv(1, 1)*r(1)) - REAL(nl(1), KIND=dp))
+                    REAL(NINT(cell%h_inv(1, 1)*r(1)) - nl(1), dp)
          r_pbc(2) = r(2) - cell%hmat(2, 2)*cell%perd(2)* &
-                    (pbc_image_shift(cell%h_inv(2, 2)*r(2)) - REAL(nl(2), KIND=dp))
+                    REAL(NINT(cell%h_inv(2, 2)*r(2)) - nl(2), dp)
          r_pbc(3) = r(3) - cell%hmat(3, 3)*cell%perd(3)* &
-                    (pbc_image_shift(cell%h_inv(3, 3)*r(3)) - REAL(nl(3), KIND=dp))
+                    REAL(NINT(cell%h_inv(3, 3)*r(3)) - nl(3), dp)
       ELSE
          s(1) = cell%h_inv(1, 1)*r(1) + cell%h_inv(1, 2)*r(2) + cell%h_inv(1, 3)*r(3)
          s(2) = cell%h_inv(2, 1)*r(1) + cell%h_inv(2, 2)*r(2) + cell%h_inv(2, 3)*r(3)
          s(3) = cell%h_inv(3, 1)*r(1) + cell%h_inv(3, 2)*r(2) + cell%h_inv(3, 3)*r(3)
-         s(1) = s(1) - cell%perd(1)*(pbc_image_shift(s(1)) - REAL(nl(1), KIND=dp))
-         s(2) = s(2) - cell%perd(2)*(pbc_image_shift(s(2)) - REAL(nl(2), KIND=dp))
-         s(3) = s(3) - cell%perd(3)*(pbc_image_shift(s(3)) - REAL(nl(3), KIND=dp))
+         s(1) = s(1) - cell%perd(1)*REAL(NINT(s(1)) - nl(1), dp)
+         s(2) = s(2) - cell%perd(2)*REAL(NINT(s(2)) - nl(2), dp)
+         s(3) = s(3) - cell%perd(3)*REAL(NINT(s(3)) - nl(3), dp)
          r_pbc(1) = cell%hmat(1, 1)*s(1) + cell%hmat(1, 2)*s(2) + cell%hmat(1, 3)*s(3)
          r_pbc(2) = cell%hmat(2, 1)*s(1) + cell%hmat(2, 2)*s(2) + cell%hmat(2, 3)*s(3)
          r_pbc(3) = cell%hmat(3, 1)*s(1) + cell%hmat(3, 2)*s(2) + cell%hmat(3, 3)*s(3)

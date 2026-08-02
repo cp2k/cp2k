@@ -704,14 +704,15 @@ CONTAINS
       CALL pair_radius_setup(aux_fit_present, aux_fit_present, aux_fit_radius, aux_fit_radius, pair_radius, pdist)
       pair_radius = pair_radius + cutoff_screen_factor*roperator
       CALL build_neighbor_lists(admm_env%sab_aux_fit, particle_set, atom2d, cell, pair_radius, &
-                                mic=mic, molecular=molecule_only, subcells=subcells, nlname="sab_aux_fit")
+                                mic=mic, molecular=molecule_only, subcells=subcells, nlname="sab_aux_fit", &
+                                stable_images=kpoints%symmetry)
       CALL build_neighbor_lists(admm_env%sab_aux_fit_asymm, particle_set, atom2d, cell, pair_radius, &
                                 mic=mic, symmetric=.FALSE., molecular=molecule_only, subcells=subcells, &
-                                nlname="sab_aux_fit_asymm")
+                                nlname="sab_aux_fit_asymm", stable_images=kpoints%symmetry)
       CALL pair_radius_setup(aux_fit_present, orb_present, aux_fit_radius, orb_radius, pair_radius)
       CALL build_neighbor_lists(admm_env%sab_aux_fit_vs_orb, particle_set, atom2d, cell, pair_radius, &
                                 mic=mic, symmetric=.FALSE., molecular=molecule_only, subcells=subcells, &
-                                nlname="sab_aux_fit_vs_orb")
+                                nlname="sab_aux_fit_vs_orb", stable_images=kpoints%symmetry)
 
       CALL write_neighbor_lists(admm_env%sab_aux_fit, particle_set, cell, para_env, neighbor_list_section, &
                                 "/SAB_AUX_FIT", "sab_aux_fit", "AUX_FIT_ORBITAL AUX_FIT_ORBITAL")

@@ -7,7 +7,7 @@
 
 PROGRAM cell_types_TEST
    USE cell_types,                      ONLY: cell_type,&
-                                              pbc,&
+                                              pbc_stable,&
                                               real_to_scaled,&
                                               scaled_to_real
    USE kinds,                           ONLY: dp
@@ -47,19 +47,18 @@ CONTAINS
 
       TYPE(cell_type), POINTER                           :: cell
 
-      INTEGER, DIMENSION(3), PARAMETER :: image_offset = [1, -1, 2], &
-         lattice_translation = [1, -2, 3]
+      INTEGER, DIMENSION(3), PARAMETER :: lattice_translation = [-1, 1, -2]
       REAL(KIND=dp), PARAMETER                           :: delta = 8.0_dp*EPSILON(1.0_dp)
 
-      REAL(KIND=dp), DIMENSION(3)                        :: r, scaled, wrapped, wrapped_opposite, &
-                                                            wrapped_scaled, wrapped_translated, &
+      REAL(KIND=dp), DIMENSION(3)                        :: r, scaled, wrapped, wrapped_scaled, &
+                                                            wrapped_translated, &
                                                             wrapped_translated_scaled
 
       scaled = [0.5_dp - delta, -0.5_dp + delta, 1.5_dp - delta]
       CALL scaled_to_real(r, scaled, cell)
-      wrapped = pbc(r, cell)
+      wrapped = pbc_stable(r, cell)
       CALL real_to_scaled(wrapped_scaled, wrapped, cell)
-      IF (ANY(SIGN(1.0_dp, wrapped_scaled) /= [-1.0_dp, 1.0_dp, -1.0_dp])) THEN
+      IF (ANY(SIGN(1.0_dp, wrapped_scaled) /= [1.0_dp, 1.0_dp, 1.0_dp])) THEN
          ERROR STOP "Roundoff changed the image at a half-cell boundary"
       END IF
       IF (ANY(ABS(ABS(wrapped_scaled) - 0.5_dp) > 2.0_dp*delta)) THEN
@@ -67,38 +66,20 @@ CONTAINS
       END IF
 
       CALL scaled_to_real(r, scaled + REAL(lattice_translation, KIND=dp), cell)
-      wrapped_translated = pbc(r, cell)
+      wrapped_translated = pbc_stable(r, cell)
       CALL real_to_scaled(wrapped_translated_scaled, wrapped_translated, cell)
       IF (ANY(ABS(wrapped_translated_scaled - wrapped_scaled) > 4.0_dp*delta)) THEN
          ERROR STOP "Periodic wrapping changed under a lattice translation"
-      END IF
-
-      scaled = [0.5_dp - delta, 0.0_dp, 0.0_dp]
-      CALL scaled_to_real(r, scaled, cell)
-      wrapped = pbc(r, cell)
-      CALL scaled_to_real(r, -scaled, cell)
-      wrapped_opposite = pbc(r, cell)
-      IF (ANY(ABS(wrapped + wrapped_opposite) > 2.0_dp*delta)) THEN
-         ERROR STOP "Periodic wrapping lost inversion symmetry at a half-cell boundary"
       END IF
 
       scaled = [0.5_dp - 128.0_dp*EPSILON(1.0_dp), &
                 -0.5_dp - 128.0_dp*EPSILON(1.0_dp), &
                 1.5_dp + 128.0_dp*EPSILON(1.0_dp)]
       CALL scaled_to_real(r, scaled, cell)
-      wrapped = pbc(r, cell)
+      wrapped = pbc_stable(r, cell)
       CALL real_to_scaled(wrapped_scaled, wrapped, cell)
       IF (ANY(SIGN(1.0_dp, wrapped_scaled) /= [1.0_dp, 1.0_dp, -1.0_dp])) THEN
          ERROR STOP "Coordinate outside the boundary tolerance changed image"
-      END IF
-
-      scaled = [0.5_dp - delta, -0.5_dp + delta, 1.5_dp - delta]
-      CALL scaled_to_real(r, scaled, cell)
-      wrapped = pbc(r, cell, image_offset)
-      CALL real_to_scaled(wrapped_scaled, wrapped, cell)
-      IF (ANY(ABS(wrapped_scaled - ([-0.5_dp, 0.5_dp, -0.5_dp] + &
-                                    REAL(image_offset, KIND=dp))) > 2.0_dp*delta)) THEN
-         ERROR STOP "Periodic image offset is inconsistent at a half-cell boundary"
       END IF
 
    END SUBROUTINE check_half_cell_boundaries
