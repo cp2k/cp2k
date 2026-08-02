@@ -99,20 +99,48 @@ replicated rank-local runtime for open-shell calculations. The corresponding
 `MODEL_GRADIENT_RUNTIME` setting defaults to a conservative replicated runtime for nuclear
 gradients. Select `MPI` only with a GauXC installation that supports distributed Skala gradients.
 
-### GAPW and Other Restrictions
+### GAPW Density Representations
 
-- Conventional GauXC with `METHOD GAPW` requires all-electron potentials. With pseudopotentials,
-  `METHOD GAPW` is available only for Skala-style models and evaluates the molecular
-  AO/valence-density XC term directly.
-- Skala with `METHOD GAPW` and GTH/ECP pseudopotentials currently supports energies only; forces and
-  molecular virials are unavailable. CP2K's GAPW one-center XC correction is not used on this path.
-- `METHOD GAPW_XC`, NLCC pseudopotentials with Skala, and non-local `VDW_POTENTIAL` corrections are
-  not supported by the molecular GauXC path.
-- Higher-XC-derivative response and kernel properties are not available through GauXC. Real-time
-  propagation is also unsupported.
+Conventional GauXC with `METHOD GAPW` requires all-electron potentials. Skala models additionally
+support pseudopotential GAPW calculations and distinguish the following density representations:
 
-`MOLECULAR_VIRIAL` is a finite-system diagnostic constructed from GauXC nuclear gradients; it is not
+- All-electron `METHOD GAPW` passes the GAPW AO density matrix to GauXC and retains CP2K's standard
+  GAPW one-center XC contribution.
+- A GTH/ECP kind with `GPW_TYPE` passes the molecular AO valence-density matrix directly to GauXC.
+  This is the regular-grid, GPW-like pseudopotential route; no GAPW one-center XC correction is
+  added.
+- A GTH/ECP kind without `GPW_TYPE` uses a PAW-like GAPW representation. GauXC evaluates the smooth
+  molecular AO term, while CP2K evaluates the Skala model separately for the hard and soft atomic
+  densities and adds the one-center hard-minus-soft correction.
+- `METHOD GAPW_XC` passes `rho_xc` rather than `rho` to GauXC and combines it with the corresponding
+  one-center correction.
+
+The shared one-center implementation reads `NATIVE_GRID_GAPW_DENSITY_PARTITION` even for the
+molecular path. Its default, `HARD_MINUS_SOFT`, follows the CP2K GAPW XC construction; `HARD_ONLY`,
+`SOFT_ONLY`, and `NONE` are diagnostic choices. The similarly named `NATIVE_GRID_ATOM_PARTITION`
+does not affect GauXC molecular quadrature.
+
+For a semilocal functional, the hard-minus-soft term is the usual GAPW one-center construction. A
+Skala model also contains non-local descriptors, so evaluating the smooth, hard, and soft terms in
+separate model calls is not a mathematical identity for a model evaluated on their combined density:
+cross terms can be system dependent. `GPW_TYPE` is therefore the direct pseudopotential route when a
+PAW-like one-center correction is not required; PAW-like results should be validated for the target
+system.
+
+The one-center term inherits the usual GAPW quadrature controls. Its convergence should be checked
+with the kind-dependent `RADIAL_GRID`, `LEBEDEV_GRID`, and `HARD_EXP_RADIUS` settings and with
+`GAPW_ACCURATE_XCINT`; established tighter settings should not be reduced for a Skala calculation.
+
+Molecular Skala forces are available for these GAPW and GAPW_XC cases. CP2K currently evaluates the
+GauXC molecular XC nuclear gradient for every GAPW method with a conservative central
+finite-difference fallback and combines it with the CP2K one-center contribution where applicable.
+`MOLECULAR_VIRIAL` is a finite-system diagnostic constructed from these nuclear gradients; it is not
 a periodic stress tensor.
+
+NLCC pseudopotentials with Skala and non-local `VDW_POTENTIAL` corrections are not supported by the
+molecular GauXC path. Molecular NLCC would require the frozen-core density to enter the Skala
+feature definition and its derivatives consistently. Higher-XC-derivative response and kernel
+properties are not available through GauXC, and real-time propagation is also unsupported.
 
 ## Experimental Native-Grid SKALA Path
 
@@ -138,10 +166,10 @@ A minimal native-grid input is:
 `NATIVE_GRID_DIAGNOSTICS T` prints the electron count, spin moment, and summed grid weights of the
 feature block supplied to Torch. This is useful when validating a model or a periodic setup.
 
-### CUDA and MPI
+### CPU, CUDA, and MPI
 
-The CPU TorchScript path is limited to non-k-point calculations. K-point calculations require a
-CUDA-capable LibTorch installation and:
+The native-grid implementation supports both CPU and CUDA TorchScript evaluation, including k-point
+calculations. CUDA evaluation is selected explicitly with:
 
 ```text
 &GAUXC
@@ -152,19 +180,48 @@ CUDA-capable LibTorch installation and:
 ```
 
 A negative `NATIVE_GRID_CUDA_DEVICE` assigns the MPI-local rank to a visible CUDA device. A
-non-negative value selects that visible device explicitly. CUDA TorchScript exports containing
-hard-coded device constants may still require a rank-local `CUDA_VISIBLE_DEVICES` setting.
+non-negative value selects that visible device explicitly. CPU k-point calculations require a
+compatible LibTorch/BLAS runtime; see Troubleshooting below.
 
 `NATIVE_GRID_ATOM_CHUNKS T` distributes the model evaluation in atom blocks for MPI calculations and
 can reduce peak CUDA memory. `NATIVE_GRID_ATOM_CHUNK_MAX_ROWS` further limits the number of
 atom-grid rows handled by one Torch call when needed.
 
+### Atom and GAPW Density Partitions
+
+`NATIVE_GRID_ATOM_PARTITION` assigns native-grid rows to atomic feature blocks. `SMOOTH`, the
+default, uses a differentiable Becke-like partition. `HARD` assigns each point to its nearest
+periodic atom and is intended for legacy energy/VXC checks. Force and stress calculations use the
+smooth partition internally because derivatives of the partition weights contribute to the Skala
+response.
+
+`NATIVE_GRID_GAPW_DENSITY_PARTITION` is independent of that spatial atom partition. It selects the
+one-center density term for PAW-like `METHOD GAPW` and `METHOD GAPW_XC` calculations:
+`HARD_MINUS_SOFT` is the default, while `HARD_ONLY`, `SOFT_ONLY`, and `NONE` are diagnostic
+variants. Kinds marked with `GPW_TYPE` use only the regular-grid valence-density route and therefore
+do not add this one-center correction.
+
 ### Current Scope
 
-The native-grid path supports regular-grid GPW/GTH calculations and selected GAPW calculations. For
-GAPW with GTH/ECP pseudopotentials, only regular-grid feature kinds are supported; PAW and
-one-center GAPW pseudopotential contributions are not implemented. `METHOD GAPW_XC`, ROKS, ADMM, and
-non-k-point multiple-image calculations are also outside the current scope.
+The native-grid path provides energy, VXC, nuclear forces, and analytical stress for regular-grid
+GPW with GTH/ECP pseudopotentials, all-electron GAPW, pseudopotential GAPW with either `GPW_TYPE` or
+the PAW-like one-center correction, and `METHOD GAPW_XC`. NLCC is supported for the native
+regular-grid GPW representation.
+
+For native-grid NLCC, CP2K adds the frozen-core density to each spin density in both real and
+reciprocal space before constructing the Skala features. The model is evaluated once on the combined
+valence-plus-core density, retaining density/core cross terms. **NLCC augments $\rho$ and
+$\nabla\rho$, while $\tau$ remains valence-only.** This follows CP2K's meta-GGA-like NLCC
+convention, but it is not identical to an all-electron frozen-core representation because no core
+kinetic-energy density is supplied. Consequently, the effect of NLCC on agreement with an
+all-electron reference must be validated for the target chemistry rather than assumed to be
+systematically beneficial.
+
+K-point density matrices use CP2K's standard weights and symmetry reduction. The tested scope
+includes inversion-only reduction, full K290 reduction, and SPGLIB reduction for GPW/GTH,
+all-electron GAPW, and PAW-like GAPW with GTH/ECP pseudopotentials.
+
+ROKS, ADMM, and non-k-point multiple-image calculations remain outside the current scope.
 
 Because this is an experimental interface, validate energies, forces, and stresses for the chosen
 model and system before using it for production calculations.
@@ -174,9 +231,13 @@ model and system before using it for production calculations.
 - `CP2K_GAUXC_STATUS_STDERR=1` mirrors GauXC status messages to standard error. This can be useful
   when a launcher or CI system does not retain the CP2K output file after an external-library
   failure.
-- TorchScript models require a LibTorch installation compatible with CP2K's BLAS and OpenMP runtime.
-  Pre-built LibTorch bundles can conflict with a CP2K build using oneMKL; use a compatible BLAS
-  stack or build LibTorch against the selected dynamic stack when this occurs.
+- TorchScript models require a LibTorch installation compatible with CP2K's BLAS, ScaLAPACK, and
+  OpenMP runtimes. In particular, an OpenBLAS-linked CP2K can fail inside LibTorch's batched matrix
+  multiplication. Changing the load order does not repair an incompatible batched-BLAS interface.
+  Use one consistent stack for CP2K, ScaLAPACK, and LibTorch instead.
+- Do not preload oneMKL into an OpenBLAS-linked CP2K as a workaround: interposed complex BLAS
+  symbols can break the ScaLAPACK k-point path. Rebuild CP2K and its numerical dependencies
+  consistently against oneMKL, or use a mutually compatible OpenBLAS/LibTorch combination.
 - `OUTPUT_PATH` writes GauXC molecule and basis-set diagnostics to an existing directory. It
   requires GauXC to have been built with HDF5 support.
 

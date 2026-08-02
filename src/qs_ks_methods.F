@@ -669,8 +669,8 @@ CONTAINS
                      IF (para_env%mepos == 0 .AND. .NOT. native_grid_cpu_kpoints_warned) THEN
                         CALL cp_warn(__LOCATION__, &
                                      "Native SKALA grid evaluation with k-points is using the CPU TorchScript "// &
-                                     "path. For CPU runs, preload libtorch_cpu.so before OpenBLAS if the "// &
-                                     "runtime library order is unstable; otherwise use NATIVE_GRID_USE_CUDA T.")
+                                     "path. Use a mutually compatible BLAS, ScaLAPACK, OpenMP, and LibTorch "// &
+                                     "runtime stack, or select NATIVE_GRID_USE_CUDA T.")
                         native_grid_cpu_kpoints_warned = .TRUE.
                      END IF
                   END IF
