@@ -2263,7 +2263,6 @@ CONTAINS
 
             CALL dbcsr_get_block_p(matrix=deltap(img)%matrix, &
                                    row=brow, col=bcol, BLOCK=p_block, found=found)
-            CPASSERT(found)
 
             iatom_old = iatom
             jatom_old = jatom
@@ -2277,6 +2276,9 @@ CONTAINS
             atom_pair_changed = .FALSE.
 
          END IF
+
+         ! A missing sparse matrix block represents an all-zero atom pair.
+         IF (.NOT. found) CYCLE loop_tasks
 
          IF (atom_pair_changed .OR. iset_old /= iset .OR. jset_old /= jset) THEN
 

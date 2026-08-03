@@ -153,7 +153,7 @@ CONTAINS
 
       CALL cp_logger_create(logger_apt, para_env=para_env, print_level=0, &
                             default_global_unit_nr=output_fdiff_scf, &
-                            close_global_unit_on_dealloc=.TRUE.)
+                            close_global_unit_on_dealloc=.FALSE.)
 
       CALL cp_logger_set(logger_apt, global_filename="APT_localLog")
 
@@ -214,8 +214,8 @@ CONTAINS
       END IF
 
       CALL cp_print_key_finished_output(output_fdiff_scf, logger_apt, dcdr_section, "PRINT%APT")
-      CALL cp_logger_release(logger_apt)
       CALL cp_rm_default_logger()
+      CALL cp_logger_release(logger_apt)
 
       ALLOCATE (ap_tensor(natoms, 3, 3))
       CALL fdiff_2pnt(apt_fdiff_points, ap_tensor, natoms)
@@ -224,7 +224,7 @@ CONTAINS
       born_sum = 0.0_dp
       IF (apt_log > 0) THEN
          DO n = 1, natoms
-            born_sum = born_sum + (ap_tensor(n, 1, 1) + ap_tensor(n, 1, 1) + ap_tensor(n, 1, 1))/3.0
+            born_sum = born_sum + (ap_tensor(n, 1, 1) + ap_tensor(n, 2, 2) + ap_tensor(n, 3, 3))/3.0
             WRITE (apt_log, "(I6, A6, F20.10)") n, particles%els(n)%atomic_kind%element_symbol, &
                (ap_tensor(n, 1, 1) + ap_tensor(n, 2, 2) + ap_tensor(n, 3, 3))/3.0
             WRITE (apt_log, '(F20.10,F20.10,F20.10)') &

@@ -96,6 +96,9 @@ MODULE qs_dcdr_ao
    PUBLIC :: hr_mult_by_delta_1d
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dcdr_ao'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: dcdr_meta_gga_error = &
+                                "Analytical DCDR is not implemented for functionals that depend on the kinetic energy density. "// &
+                                           "Use PROPERTIES%LINRES%DCDR%APT_FD T to calculate APTs by finite differences."
 
 CONTAINS
 
@@ -514,7 +517,9 @@ CONTAINS
          CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, my_deriv_set, my_rho_set, &
                                 drho_r, drho_g, dtau_r, auxbas_pw_pool, &
                                 weights, xc_section, gapw=.FALSE.)
-         IF (ASSOCIATED(v_xc_tau)) CPABORT("Meta functionals are not supported!")
+         IF (ASSOCIATED(v_xc_tau)) THEN
+            CPABORT(dcdr_meta_gga_error)
+         END IF
 
          CALL xc_dset_release(my_deriv_set)
          CALL xc_rho_set_release(my_rho_set)
