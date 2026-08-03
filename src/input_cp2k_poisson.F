@@ -130,7 +130,8 @@ CONTAINS
                                         "WAVELET allows for 0D, 2D and 3D systems. For 2D systems all PERIODIC XY, XZ "// &
                                         "and YZ combinations are accepted. It does not "// &
                                         "require very large unit cells, only that the density goes to zero on the faces of "// &
-                                        "the cell. The use of PREFERRED_FFT_LIBRARY FFTSG is required.", &
+                                        "the cell. FFTSG-compatible grid dimensions are required. EXTENDED_FFT_LENGTHS "// &
+                                        "FALSE (the default) guarantees this independently of the selected FFT library.", &
                                         "IMPLICIT allows for 0D, 1D, 2D and 3D systems."), &
                           citations=[Blochl1995, Martyna1999, Genovese2006, Genovese2007], &
                           default_i_val=pw_poisson_periodic)
