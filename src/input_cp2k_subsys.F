@@ -204,19 +204,21 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CANONICALIZE", &
                           description="Policy for transforming a general input cell to CP2K's internal "// &
-                          "convention that A lies along the X-axis and B is in the XY plane. AUTO is "// &
-                          "conservative and keeps the input orientation when a silent transformation "// &
-                          "could affect Cartesian or direction-dependent input. TRUE explicitly requests "// &
-                          "canonicalization and transforms supported cell-dependent input. FALSE always "// &
-                          "keeps the input orientation.", &
+                          "convention that A lies along the X-axis and B is in the XY plane. AUTO preserves "// &
+                          "an orientation supplied through explicit cell vectors or a cell file. Cells "// &
+                          "specified only through lengths and angles are canonical by construction because "// &
+                          "they do not define an orientation. TRUE explicitly requests canonicalization and "// &
+                          "transforms supported cell-dependent input. FALSE explicitly preserves a supplied "// &
+                          "orientation. During CELL_OPT, this setting controls the physical cell orientation; "// &
+                          "the six independent cell-deformation variables use a separate canonical frame.", &
                           usage="CANONICALIZE AUTO", &
                           enum_c_vals=s2a("AUTO", "TRUE", "FALSE", "T", "F", ".TRUE.", ".FALSE."), &
                           enum_i_vals=[canonicalize_cell_auto, canonicalize_cell_true, &
                                        canonicalize_cell_false, canonicalize_cell_true, canonicalize_cell_false, &
                                        canonicalize_cell_true, canonicalize_cell_false], &
-                          enum_desc=s2a("Keep the input orientation unless canonicalization is unambiguously safe", &
+                          enum_desc=s2a("Preserve an explicitly supplied cell orientation", &
                                         "Explicitly canonicalize the input cell", &
-                                        "Keep the input cell orientation", &
+                                        "Explicitly preserve a supplied cell orientation", &
                                         "Alias for TRUE", &
                                         "Alias for FALSE", &
                                         "Alias for TRUE", &

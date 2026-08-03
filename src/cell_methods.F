@@ -65,6 +65,7 @@ MODULE cell_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_methods'
 
    PUBLIC :: cell_create, &
+             canonicalize_cell_matrix, &
              cell_finalize_canonical_input, &
              init_cell, &
              read_cell, &

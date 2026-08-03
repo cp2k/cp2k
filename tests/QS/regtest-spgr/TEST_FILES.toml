@@ -5,4 +5,10 @@
 #      for details see cp2k/tools/do_regtest
 "copper.inp"                            = [{matcher="M093", tol=0, ref=225}]
 "quartz.inp"                            = [{matcher="M093", tol=0, ref=154}]
+"silicon-canonical-cell-opt.inp"         = [{matcher="M093", tol=0, ref=227}]
+"silicon-oriented-cell-opt.inp"          = [
+  {matcher="M093", tol=0, ref=227},
+  {matcher="Cell_vector_a_y", tol=1.0E-3, ref=3.868},
+  {matcher="Cell_angle_alpha", tol=1.0E-10, ref=60.0},
+]
 #EOF

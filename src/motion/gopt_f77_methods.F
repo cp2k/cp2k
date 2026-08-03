@@ -87,7 +87,7 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                                                nparticle, nsize, shell_index
    LOGICAL                                  :: my_final_evaluation
    REAL(KIND=dp)                            :: f_ts, potential_energy
-   REAL(KIND=dp), DIMENSION(3, 3)           :: av_ptens
+   REAL(KIND=dp), DIMENSION(3, 3)           :: av_ptens, av_ptens_opt
    REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_gradient, gradient_ts
    TYPE(cell_type), POINTER                 :: cell
    TYPE(cp_subsys_type), POINTER            :: subsys
@@ -219,7 +219,10 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                END IF
                cell_gradient => gradient(nsize + 1:nsize + 6)
                cell_gradient = 0.0_dp
-               CALL get_dg_dh(cell_gradient, av_ptens, gopt_env%cell_env%pres_ext, cell, gopt_env%cell_env%mtrx, &
+               av_ptens_opt = MATMUL(gopt_env%cell_env%input_to_opt, &
+                                     MATMUL(av_ptens, gopt_env%cell_env%opt_to_input))
+               CALL get_dg_dh(cell_gradient, av_ptens_opt, gopt_env%cell_env%pres_ext, &
+                              gopt_env%cell_env%opt_cell, gopt_env%cell_env%mtrx, &
                               keep_angles=gopt_env%cell_env%keep_angles, &
                               keep_symmetry=gopt_env%cell_env%keep_symmetry, &
                               pres_int=gopt_env%cell_env%pres_int, &
