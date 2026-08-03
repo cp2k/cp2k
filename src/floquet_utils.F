@@ -33,15 +33,15 @@ MODULE floquet_utils
                                               kpoint_create,&
                                               kpoint_release,&
                                               kpoint_type
-   USE machine,                         ONLY: m_hostnm,&
-                                              m_memory_details
+   USE machine,                         ONLY: m_memory_details
    USE mathconstants,                   ONLY: gaussi,&
                                               pi,&
                                               z_one,&
                                               z_zero
    USE mathlib,                         ONLY: geeig_right,&
                                               gemm_square
-   USE message_passing,                 ONLY: mp_comm_type,&
+   USE message_passing,                 ONLY: mp_comm_split_type_shared,&
+                                              mp_comm_type,&
                                               mp_para_env_type
    USE physcon,                         ONLY: a_bohr,&
                                               evolt,&
@@ -516,7 +516,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Finds the number of MPI ranks that share a physical node, determined by splitting the
-!>        given communicator into node-local communicators keyed on the hostname.
+!>        given communicator into node-local communicators via MPI's shared-memory split type.
 !> \param para_env ...
 !> \return the number of ranks on the calling rank's node
 ! **************************************************************************************************
@@ -524,35 +524,9 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: ranks_per_node
 
-      CHARACTER(LEN=default_string_length)               :: hostname
-      INTEGER                                            :: color, i, nranks, str_len
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: hostnames_ascii, my_hostname_ascii
       TYPE(mp_comm_type)                                 :: node_comm
 
-      CALL m_hostnm(hostname)
-
-      str_len = default_string_length
-      nranks = para_env%num_pe
-      ALLOCATE (my_hostname_ascii(str_len), hostnames_ascii(nranks*str_len))
-      DO i = 1, str_len
-         my_hostname_ascii(i) = ICHAR(hostname(i:i))
-      END DO
-      hostnames_ascii(:) = 0
-      hostnames_ascii(para_env%mepos*str_len + 1:(para_env%mepos + 1)*str_len) = my_hostname_ascii(:)
-      CALL para_env%sum(hostnames_ascii)
-
-      ! Each rank's color is the global rank index of the first rank with the same hostname,
-      ! so same-node ranks always get the same color with no hash collisions possible.
-      color = para_env%mepos
-      DO i = 0, para_env%mepos - 1
-         IF (ALL(hostnames_ascii(i*str_len + 1:(i + 1)*str_len) == my_hostname_ascii(:))) THEN
-            color = i
-            EXIT
-         END IF
-      END DO
-      DEALLOCATE (my_hostname_ascii, hostnames_ascii)
-
-      CALL node_comm%from_split(comm=para_env, color=color, key=para_env%mepos)
+      CALL node_comm%from_split_type(para_env, mp_comm_split_type_shared, key=para_env%mepos)
       ranks_per_node = MAX(1, node_comm%num_pe)
       CALL node_comm%free()
 

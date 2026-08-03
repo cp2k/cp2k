@@ -88,6 +88,7 @@ MODULE message_passing
    MPI_FILE_TYPE, PARAMETER :: mp_file_null_handle = MPI_FILE_NULL
    MPI_INFO_TYPE, PARAMETER :: mp_info_null_handle = MPI_INFO_NULL
    MPI_DATA_TYPE, PARAMETER :: mp_datatype_null_handle = MPI_DATATYPE_NULL
+   INTEGER, PARAMETER, PUBLIC :: mp_comm_split_type_shared = MPI_COMM_TYPE_SHARED
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = MPI_STATUS_SIZE
    INTEGER, PARAMETER, PUBLIC :: mp_proc_null = MPI_PROC_NULL
    ! Set max allocatable memory by MPI to 2 GiByte
@@ -115,6 +116,7 @@ MODULE message_passing
    MPI_FILE_TYPE, PARAMETER :: mp_file_null_handle = -6
    MPI_INFO_TYPE, PARAMETER :: mp_info_null_handle = -7
    MPI_DATA_TYPE, PARAMETER :: mp_datatype_null_handle = -8
+   INTEGER, PARAMETER, PUBLIC :: mp_comm_split_type_shared = -13
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = -9
    INTEGER, PARAMETER, PUBLIC :: mp_proc_null = -10
    INTEGER, PARAMETER, PUBLIC :: mp_max_library_version_string = 1
@@ -588,6 +590,7 @@ MODULE message_passing
       ! Creation routines
       PROCEDURE, PRIVATE, PASS(sub_comm), NON_OVERRIDABLE :: mp_comm_split, mp_comm_split_direct
       GENERIC, PUBLIC :: from_split => mp_comm_split, mp_comm_split_direct
+      PROCEDURE, PUBLIC, PASS(sub_comm), NON_OVERRIDABLE :: from_split_type => mp_comm_split_type
       PROCEDURE, PUBLIC, PASS(mp_new_comm), NON_OVERRIDABLE :: from_reordering => mp_reordering
       PROCEDURE, PUBLIC, PASS(comm_new), NON_OVERRIDABLE :: mp_comm_assign
       GENERIC, PUBLIC :: ASSIGNMENT(=) => mp_comm_assign
@@ -2367,6 +2370,47 @@ CONTAINS
          CALL mp_timestop(handle)
 
       END SUBROUTINE mp_comm_split_direct
+! **************************************************************************************************
+!> \brief splits a communicator by a predefined MPI split type, e.g. mp_comm_split_type_shared
+!>        to obtain the node-local (shared-memory) sub-communicator each rank belongs to
+!> \param comm ...
+!> \param sub_comm ...
+!> \param split_type the MPI split type (e.g. mp_comm_split_type_shared)
+!> \param key controls the rank ordering within each sub_comm (default 0)
+! **************************************************************************************************
+      SUBROUTINE mp_comm_split_type(comm, sub_comm, split_type, key)
+         CLASS(mp_comm_type), INTENT(in)                    :: comm
+         CLASS(mp_comm_type), INTENT(OUT)                   :: sub_comm
+         INTEGER, INTENT(in)                                :: split_type
+         INTEGER, INTENT(in), OPTIONAL                      :: key
+
+         CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split_type'
+
+         INTEGER                                            :: handle
+#if defined(__parallel)
+         INTEGER :: ierr, my_key
+#endif
+
+         CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+         my_key = 0
+         IF (PRESENT(key)) my_key = key
+         CALL mpi_comm_split_type(comm%handle, split_type, my_key, mp_info_null_handle, &
+                                  sub_comm%handle, ierr)
+         IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
+         CALL add_perf(perf_id=10, count=1)
+#else
+         sub_comm%handle = mp_comm_default_handle
+         MARK_USED(comm)
+         MARK_USED(split_type)
+         MARK_USED(key)
+#endif
+         debug_comm_count = debug_comm_count + 1
+         CALL sub_comm%init()
+         CALL mp_timestop(handle)
+
+      END SUBROUTINE mp_comm_split_type
 ! **************************************************************************************************
 !> \brief splits the given communicator in group in subgroups trying to organize
 !>      them in a way that the communication within each subgroup is
