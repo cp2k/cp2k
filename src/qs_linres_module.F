@@ -110,6 +110,7 @@ MODULE qs_linres_module
    USE qs_vcd_utils,                    ONLY: vcd_env_cleanup,&
                                               vcd_env_init,&
                                               vcd_print
+   USE xc,                              ONLY: xc_uses_kinetic_energy_density
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -368,7 +369,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(qs_p_env_type)                                :: p_env
-      TYPE(section_vals_type), POINTER                   :: lr_section, prop_section
+      TYPE(section_vals_type), POINTER                   :: lr_section, prop_section, xc_fun_section
 
       CALL timeset(routineN, handle)
 
@@ -380,12 +381,12 @@ CONTAINS
       dcdr_present = .FALSE.
       do_apt_fd = .FALSE.
 
-      NULLIFY (dft_control, linres_control, logger, prop_section, lr_section)
+      NULLIFY (dft_control, linres_control, logger, prop_section, lr_section, xc_fun_section)
 
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
       CALL section_vals_get(lr_section, explicit=lr_calculation)
 
-      CALL section_vals_val_get(lr_section, "DCDR%APT_FD", explicit=do_apt_fd)
+      CALL section_vals_val_get(lr_section, "DCDR%APT_FD", l_val=do_apt_fd)
       IF (do_apt_fd) THEN
          CALL timestop(handle)
          RETURN
@@ -399,7 +400,8 @@ CONTAINS
          prop_section => section_vals_get_subs_vals(lr_section, "DCDR")
          CALL section_vals_get(prop_section, explicit=dcdr_present)
          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
-         IF (dcdr_present .AND. dft_control%use_kinetic_energy_density) THEN
+         xc_fun_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%XC_FUNCTIONAL")
+         IF (dcdr_present .AND. xc_uses_kinetic_energy_density(xc_fun_section, dft_control%lsd)) THEN
             CPABORT(dcdr_meta_gga_error)
          END IF
 

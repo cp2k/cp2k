@@ -224,7 +224,7 @@ CONTAINS
       born_sum = 0.0_dp
       IF (apt_log > 0) THEN
          DO n = 1, natoms
-            born_sum = born_sum + (ap_tensor(n, 1, 1) + ap_tensor(n, 1, 1) + ap_tensor(n, 1, 1))/3.0
+            born_sum = born_sum + (ap_tensor(n, 1, 1) + ap_tensor(n, 2, 2) + ap_tensor(n, 3, 3))/3.0
             WRITE (apt_log, "(I6, A6, F20.10)") n, particles%els(n)%atomic_kind%element_symbol, &
                (ap_tensor(n, 1, 1) + ap_tensor(n, 2, 2) + ap_tensor(n, 3, 3))/3.0
             WRITE (apt_log, '(F20.10,F20.10,F20.10)') &
