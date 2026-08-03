@@ -1,0 +1,9 @@
+diff --git a/src/dftd3/api.f90 b/src/dftd3/api.f90
+index 4c69890..f4f0720 100644
+--- a/src/dftd3/api.f90
++++ b/src/dftd3/api.f90
+@@ -53,2 +53,4 @@ module dftd3_api
+    public :: vp_model
+    public :: new_d3_model_api, delete_model_api
++   public :: set_model_realspace_cutoff, set_model_realspace_cutoff_smooth
++   public :: get_dispersion_api, get_pairwise_dispersion_api

@@ -927,7 +927,8 @@ if(CP2K_USE_SIRIUS)
   if(CP2K_SIRIUS_LIBRARY_TYPE STREQUAL "SHARED_LIBRARY")
     # Shared SIRIUS does not export the private C++ library's link interface.
     find_package(sirius_cxx CONFIG REQUIRED)
-    target_link_libraries(cp2k::sirius INTERFACE sirius::sirius_cxx)
+    target_link_libraries(cp2k::sirius
+                          INTERFACE "$<LINK_ONLY:sirius::sirius_cxx>")
   endif()
   unset(CP2K_SIRIUS_LIBRARY_TYPE)
 endif()
