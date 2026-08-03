@@ -974,7 +974,8 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name, output_path
       CHARACTER(len=default_string_length) :: gradient_runtime, gradient_runtime_key, grid_key, &
-         lwd_kernel_key, pruning_key, skala_runtime, skala_runtime_key, xc_fun_key
+         int_exec_space_key, lwd_kernel_key, pruning_key, skala_runtime, skala_runtime_key, &
+         xc_fun_key
       INTEGER                                            :: atom_chunk_size, env_status, img, ispin, &
                                                             nimages
       LOGICAL :: atom_chunk_size_explicit, do_kpoints, gapw_method, gapw_paw_pseudopotentials, &
@@ -1152,6 +1153,8 @@ CONTAINS
       CALL uppercase(skala_runtime_key)
       gradient_runtime_key = ADJUSTL(gradient_runtime)
       CALL uppercase(gradient_runtime_key)
+      int_exec_space_key = ADJUSTL(params%int_exec_space)
+      CALL uppercase(int_exec_space_key)
       params%use_gauxc_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE" .AND. &
                                 TRIM(model_key) /= TRIM(xc_fun_key))
       use_skala_model = (INDEX(TRIM(model_key), "SKALA") > 0)
@@ -1233,9 +1236,23 @@ CONTAINS
                "Use GRID SUPERFINE and PRUNING_SCHEME UNPRUNED for quantitative force checks.")
          END IF
          IF (TRIM(model_key) == "SKALA") THEN
-            CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_MODEL", model_name, STATUS=env_status)
+            model_name = ""
+            env_status = 1
+            IF (TRIM(int_exec_space_key) == "DEVICE") THEN
+               CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_CUDA_MODEL", model_name, STATUS=env_status)
+            END IF
             IF (env_status /= 0 .OR. LEN_TRIM(model_name) == 0) THEN
-               CPABORT("MODEL SKALA requires the GAUXC_SKALA_MODEL environment variable")
+               CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_MODEL", model_name, STATUS=env_status)
+            END IF
+            IF (env_status /= 0 .OR. LEN_TRIM(model_name) == 0) THEN
+               IF (TRIM(int_exec_space_key) == "DEVICE") THEN
+                  CALL cp_abort( &
+                     __LOCATION__, &
+                     "MODEL SKALA with DEVICE execution requires GAUXC_SKALA_CUDA_MODEL or "// &
+                     "GAUXC_SKALA_MODEL")
+               ELSE
+                  CPABORT("MODEL SKALA requires the GAUXC_SKALA_MODEL environment variable")
+               END IF
             END IF
             params%model_eval_name = model_name
          END IF
