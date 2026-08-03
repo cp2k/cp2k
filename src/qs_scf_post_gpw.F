@@ -49,7 +49,8 @@ MODULE qs_scf_post_gpw
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE cp_output_handling,              ONLY: cp_p_file,&
+   USE cp_output_handling,              ONLY: cp_iter_string,&
+                                              cp_p_file,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
@@ -58,6 +59,8 @@ MODULE qs_scf_post_gpw
                                               cp_openpmd_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_realspace_grid_openpmd,       ONLY: cp_pw_to_openpmd
+   USE cp_result_methods,               ONLY: get_results
+   USE cp_result_types,                 ONLY: cp_result_type
    USE dct,                             ONLY: pw_shrink
    USE ed_analysis,                     ONLY: edmf_analysis
    USE eeq_method,                      ONLY: eeq_print
@@ -77,7 +80,8 @@ MODULE qs_scf_post_gpw
                                               iao_read_input
    USE input_constants,                 ONLY: &
         do_loc_both, do_loc_homo, do_loc_jacobi, do_loc_lumo, do_loc_mixed, do_loc_none, &
-        ot_precond_full_all, radius_covalent, radius_user, ref_charge_atomic, ref_charge_mulliken
+        moments_format_trajectory, ot_precond_full_all, radius_covalent, radius_user, &
+        ref_charge_atomic, ref_charge_mulliken
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
@@ -105,6 +109,7 @@ MODULE qs_scf_post_gpw
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: a_bohr,&
                                               angstrom,&
+                                              debye,&
                                               evolt
    USE population_analyses,             ONLY: lowdin_population_analysis,&
                                               mulliken_population_analysis
@@ -1629,10 +1634,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_moments'
 
       CHARACTER(LEN=default_path_length)                 :: filename
-      INTEGER                                            :: handle, max_nmo, maxmom, reference, &
-                                                            unit_nr
+      INTEGER                                            :: handle, max_nmo, maxmom, moments_format, &
+                                                            moments_unit_nr, reference, unit_nr
       LOGICAL                                            :: com_nl, do_kg, do_kpoints, magnetic, &
-                                                            periodic, second_ref_point, vel_reprs
+                                                            new_file, periodic, second_ref_point, &
+                                                            vel_reprs
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -1645,6 +1651,8 @@ CONTAINS
 
          maxmom = section_get_ival(section_vals=input, &
                                    keyword_name="DFT%PRINT%MOMENTS%MAX_MOMENT")
+         moments_format = section_get_ival(section_vals=input, &
+                                           keyword_name="DFT%PRINT%MOMENTS%FORMAT")
          periodic = section_get_lval(section_vals=input, &
                                      keyword_name="DFT%PRINT%MOMENTS%PERIODIC")
          reference = section_get_ival(section_vals=input, &
@@ -1666,7 +1674,8 @@ CONTAINS
          CALL section_vals_val_get(input, "DFT%PRINT%MOMENTS%REF_POINT", r_vals=ref_point)
          unit_nr = cp_print_key_unit_nr(logger=logger, basis_section=input, &
                                         print_key_path="DFT%PRINT%MOMENTS", extension=".dat", &
-                                        middle_name="moments", log_filename=.FALSE.)
+                                        middle_name="moments", log_filename=.FALSE., &
+                                        is_new_file=new_file)
 
          IF (output_unit > 0) THEN
             IF (unit_nr /= output_unit) THEN
@@ -1674,24 +1683,40 @@ CONTAINS
                WRITE (UNIT=output_unit, FMT="(/,T2,A,2(/,T3,A),/)") &
                   "MOMENTS", "The electric/magnetic moments are written to file:", &
                   TRIM(filename)
-            ELSE
+            ELSE IF (moments_format /= moments_format_trajectory) THEN
                WRITE (UNIT=output_unit, FMT="(/,T2,A)") "ELECTRIC/MAGNETIC MOMENTS"
             END IF
          END IF
 
          CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
 
+         IF (moments_format == moments_format_trajectory) THEN
+            IF (do_kpoints) THEN
+               CPABORT("MOMENTS FORMAT TRAJECTORY is not available for k-point calculations.")
+            END IF
+            IF (maxmom /= 1) CPABORT("MOMENTS FORMAT TRAJECTORY requires MAX_MOMENT 1.")
+            IF (magnetic) CPABORT("MOMENTS FORMAT TRAJECTORY does not support MAGNETIC moments.")
+            IF (vel_reprs) CPABORT("MOMENTS FORMAT TRAJECTORY does not support VEL_REPRS.")
+            IF (do_kg) CPABORT("MOMENTS FORMAT TRAJECTORY does not support KG moments.")
+            moments_unit_nr = -1
+         ELSE
+            moments_unit_nr = unit_nr
+         END IF
+
          IF (do_kpoints) THEN
-            CALL qs_moment_kpoints(qs_env, maxmom, reference, ref_point, max_nmo, unit_nr)
+            CALL qs_moment_kpoints(qs_env, maxmom, reference, ref_point, max_nmo, moments_unit_nr)
          ELSE
             IF (periodic) THEN
-               CALL qs_moment_berry_phase(qs_env, magnetic, maxmom, reference, ref_point, unit_nr)
+               CALL qs_moment_berry_phase(qs_env, magnetic, maxmom, reference, ref_point, moments_unit_nr)
             ELSE
-               CALL qs_moment_locop(qs_env, magnetic, maxmom, reference, ref_point, unit_nr, vel_reprs, com_nl)
+               CALL qs_moment_locop(qs_env, magnetic, maxmom, reference, ref_point, moments_unit_nr, vel_reprs, com_nl)
             END IF
             IF (do_kg) THEN
-               CALL calculate_kg_moments(qs_env, unit_nr, maxmom, magnetic, vel_reprs, com_nl)
+               CALL calculate_kg_moments(qs_env, moments_unit_nr, maxmom, magnetic, vel_reprs, com_nl)
             END IF
+         END IF
+         IF (moments_format == moments_format_trajectory) THEN
+            CALL write_moments_trajectory(unit_nr, logger, qs_env, periodic, new_file, "MOMENTS|")
          END IF
 
          CALL cp_print_key_finished_output(unit_nr=unit_nr, logger=logger, &
@@ -1705,7 +1730,8 @@ CONTAINS
             CALL section_vals_val_get(input, "DFT%PRINT%MOMENTS%REF_POINT_2", r_vals=ref_point)
             unit_nr = cp_print_key_unit_nr(logger=logger, basis_section=input, &
                                            print_key_path="DFT%PRINT%MOMENTS", extension=".dat", &
-                                           middle_name="moments_refpoint_2", log_filename=.FALSE.)
+                                           middle_name="moments_refpoint_2", log_filename=.FALSE., &
+                                           is_new_file=new_file)
 
             IF (output_unit > 0) THEN
                IF (unit_nr /= output_unit) THEN
@@ -1713,18 +1739,23 @@ CONTAINS
                   WRITE (UNIT=output_unit, FMT="(/,T2,A,2(/,T3,A),/)") &
                      "MOMENTS", "The electric/magnetic moments for the second reference point are written to file:", &
                      TRIM(filename)
-               ELSE
+               ELSE IF (moments_format /= moments_format_trajectory) THEN
                   WRITE (UNIT=output_unit, FMT="(/,T2,A)") "ELECTRIC/MAGNETIC MOMENTS"
                END IF
             END IF
+            IF (moments_format /= moments_format_trajectory) moments_unit_nr = unit_nr
             IF (do_kpoints) THEN
-               CALL qs_moment_kpoints(qs_env, maxmom, reference, ref_point, max_nmo, unit_nr)
+               CALL qs_moment_kpoints(qs_env, maxmom, reference, ref_point, max_nmo, moments_unit_nr)
             ELSE
                IF (periodic) THEN
-                  CALL qs_moment_berry_phase(qs_env, magnetic, maxmom, reference, ref_point, unit_nr)
+                  CALL qs_moment_berry_phase(qs_env, magnetic, maxmom, reference, ref_point, moments_unit_nr)
                ELSE
-                  CALL qs_moment_locop(qs_env, magnetic, maxmom, reference, ref_point, unit_nr, vel_reprs, com_nl)
+                  CALL qs_moment_locop(qs_env, magnetic, maxmom, reference, ref_point, &
+                                       moments_unit_nr, vel_reprs, com_nl)
                END IF
+            END IF
+            IF (moments_format == moments_format_trajectory) THEN
+               CALL write_moments_trajectory(unit_nr, logger, qs_env, periodic, new_file, "MOMENTS_REF2|")
             END IF
             CALL cp_print_key_finished_output(unit_nr=unit_nr, logger=logger, &
                                               basis_section=input, print_key_path="DFT%PRINT%MOMENTS")
@@ -1735,6 +1766,57 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_scf_post_moments
+
+! **************************************************************************************************
+!> \brief Writes one machine-readable electric-dipole record for the current iteration.
+!> \param unit_nr output unit
+!> \param logger logger carrying the current iteration levels
+!> \param qs_env quantum environment containing the dipole result and cell
+!> \param periodic whether the Berry-phase operator was used
+!> \param new_file whether the output file has just been created
+!> \param label record label
+! **************************************************************************************************
+   SUBROUTINE write_moments_trajectory(unit_nr, logger, qs_env, periodic, new_file, label)
+      INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: periodic, new_file
+      CHARACTER(LEN=*), INTENT(IN)                       :: label
+
+      CHARACTER(LEN=default_string_length)               :: description, iter
+      REAL(KIND=dp), DIMENSION(3)                        :: dipole
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_result_type), POINTER                      :: results
+
+      IF (unit_nr <= 0) RETURN
+
+      NULLIFY (cell, results)
+      CALL get_qs_env(qs_env, cell=cell, results=results)
+      description = "[DIPOLE]"
+      CALL get_results(results=results, description=description, values=dipole)
+
+      IF (new_file) THEN
+         IF (periodic) THEN
+            WRITE (unit_nr, "(A)") "# "//TRIM(label)// &
+               " iter_level dipole_x dipole_y dipole_z dipole_norm cell_xx cell_xy cell_xz"// &
+               " cell_yx cell_yy cell_yz cell_zx cell_zy cell_zz [Debye]"
+         ELSE
+            WRITE (unit_nr, "(A)") "# "//TRIM(label)// &
+               " iter_level dipole_x dipole_y dipole_z dipole_norm [Debye]"
+         END IF
+      END IF
+
+      iter = cp_iter_string(logger%iter_info)
+      IF (periodic) THEN
+         WRITE (unit_nr, "(1X,A,1X,A15,13(1X,ES18.10))") TRIM(label), iter(1:15), &
+            dipole*debye, SQRT(SUM(dipole**2))*debye, &
+            cell%hmat(1, :)*debye, cell%hmat(2, :)*debye, cell%hmat(3, :)*debye
+      ELSE
+         WRITE (unit_nr, "(1X,A,1X,A15,4(1X,ES18.10))") TRIM(label), iter(1:15), &
+            dipole*debye, SQRT(SUM(dipole**2))*debye
+      END IF
+
+   END SUBROUTINE write_moments_trajectory
 
 ! **************************************************************************************************
 !> \brief Computes and prints the X-ray diffraction spectrum.

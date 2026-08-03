@@ -98,6 +98,7 @@ MODULE input_cp2k_print_dft
       slater, smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, tddfpt_davidson, &
       tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, &
       tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero, &
+      moments_format_detailed, moments_format_trajectory, &
       use_restart_wfn, use_rt_restart, use_scf_wfn, wannier_projection, weight_type_mass, &
       weight_type_unit, wfi_aspc_nr, wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, wfi_frozen_method_nr, &
       wfi_linear_p_method_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
@@ -1211,6 +1212,21 @@ CONTAINS
          n_var=1, &
          type_of_var=integer_t, &
          default_i_val=1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="FORMAT", &
+         description="Format of the moments output. DETAILED prints the traditional multi-line report. "// &
+         "TRAJECTORY prints one machine-readable electric-dipole record per iteration. For periodic "// &
+         "calculations each record also contains the cell matrix in Debye, which is required to unwrap "// &
+         "Berry-phase jumps in variable cells.", &
+         usage="FORMAT {DETAILED|TRAJECTORY}", &
+         enum_c_vals=s2a("DETAILED", "TRAJECTORY"), &
+         enum_desc=s2a("Traditional multi-line moments report", &
+                       "One electric-dipole record per iteration"), &
+         enum_i_vals=[moments_format_detailed, moments_format_trajectory], &
+         default_i_val=moments_format_detailed)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, &
