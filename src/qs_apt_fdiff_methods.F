@@ -153,7 +153,7 @@ CONTAINS
 
       CALL cp_logger_create(logger_apt, para_env=para_env, print_level=0, &
                             default_global_unit_nr=output_fdiff_scf, &
-                            close_global_unit_on_dealloc=.TRUE.)
+                            close_global_unit_on_dealloc=.FALSE.)
 
       CALL cp_logger_set(logger_apt, global_filename="APT_localLog")
 
@@ -214,8 +214,8 @@ CONTAINS
       END IF
 
       CALL cp_print_key_finished_output(output_fdiff_scf, logger_apt, dcdr_section, "PRINT%APT")
-      CALL cp_logger_release(logger_apt)
       CALL cp_rm_default_logger()
+      CALL cp_logger_release(logger_apt)
 
       ALLOCATE (ap_tensor(natoms, 3, 3))
       CALL fdiff_2pnt(apt_fdiff_points, ap_tensor, natoms)

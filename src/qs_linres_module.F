@@ -118,6 +118,9 @@ MODULE qs_linres_module
    PUBLIC :: linres_calculation, linres_calculation_low
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_module'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: dcdr_meta_gga_error = &
+                                "Analytical DCDR is not implemented for functionals that depend on the kinetic energy density. "// &
+                                           "Use PROPERTIES%LINRES%DCDR%APT_FD T to calculate APTs by finite differences."
 
 CONTAINS
 ! *****************************************************************************
@@ -393,6 +396,13 @@ CONTAINS
       CALL section_vals_val_get(lr_section, "EVERY_N_STEP", i_val=every_n_step)
 
       IF (lr_calculation .AND. MODULO(qs_env%sim_step, every_n_step) == 0) THEN
+         prop_section => section_vals_get_subs_vals(lr_section, "DCDR")
+         CALL section_vals_get(prop_section, explicit=dcdr_present)
+         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+         IF (dcdr_present .AND. dft_control%use_kinetic_energy_density) THEN
+            CPABORT(dcdr_meta_gga_error)
+         END IF
+
          CALL linres_init(lr_section, p_env, qs_env)
          iounit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
                                        extension=".linresLog")
@@ -429,9 +439,6 @@ CONTAINS
          END IF
 
          ! Nuclear Position Perturbation
-         prop_section => section_vals_get_subs_vals(lr_section, "dcdr")
-         CALL section_vals_get(prop_section, explicit=dcdr_present)
-
          IF (dcdr_present) THEN
             CALL dcdr_linres(qs_env, p_env)
          END IF
