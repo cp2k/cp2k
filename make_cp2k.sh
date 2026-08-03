@@ -1662,7 +1662,7 @@ if ((EXIT_CODE != 0)); then
 fi
 
 # Install Skala resource files if needed
-export GAUXC_SKALA_MODEL="(not available)"
+export SKALA_MODEL="(not available)"
 if spack location -i gauxc &> /dev/null; then
   GAUXC_PATH="share/gauxc/onedft_models"
   GAUXC_PREFIX="$(spack location -i gauxc)"
@@ -1680,14 +1680,14 @@ if spack location -i gauxc &> /dev/null; then
     MATCHES=("${GAUXC_MODEL_TARGET_PATH}"/skala*)
     shopt -u nullglob
     if ((${#MATCHES[@]} > 0)); then
-      export GAUXC_SKALA_MODEL="${MATCHES[${#MATCHES[@]} - 1]}"
+      export SKALA_MODEL="${MATCHES[${#MATCHES[@]} - 1]}"
     else
-      echo -e "\nERROR: Failed to resolve GAUXC_SKALA_MODEL in target path ${GAUXC_MODEL_TARGET_PATH}"
+      echo -e "\nERROR: Failed to resolve SKALA_MODEL in target path ${GAUXC_MODEL_TARGET_PATH}"
       ${EXIT_CMD} 1
     fi
   fi
 fi
-echo -e "\nGAUXC_SKALA_MODEL = ${GAUXC_SKALA_MODEL}"
+echo -e "\nSKALA_MODEL = ${SKALA_MODEL}"
 
 # Collect and compress all log files when building within a container
 if [[ "${IN_CONTAINER}" == "yes" ]]; then
@@ -1803,7 +1803,7 @@ export OMP_STACKSIZE=256M
 [[ -f ${INSTALL_PREFIX}/ase/config.ini ]] && export ASE_CONFIG_PATH="${INSTALL_PREFIX}/ase/config.ini"
 [[ -f ${INSTALL_PREFIX}/bin/GMXRC ]] && source ${INSTALL_PREFIX}/bin/GMXRC
 ${OMPI_VARS}
-export GAUXC_SKALA_MODEL=${GAUXC_SKALA_MODEL}
+export SKALA_MODEL=${SKALA_MODEL}
 exec "\$@"
 ***
 chmod 750 "${LAUNCH_SCRIPT}"
@@ -1816,7 +1816,7 @@ if [[ "${VERSION}" =~ ^(s|p)dbg$ ]]; then
   echo "LSAN_OPTIONS = \${LSAN_OPTIONS}"
 fi
 ldd -- ${INSTALL_PREFIX}/bin/cp2k.${VERSION} 2>&1 | grep -E 'not ' | sort | uniq
-export GAUXC_SKALA_MODEL=${GAUXC_SKALA_MODEL}
+export SKALA_MODEL=${SKALA_MODEL}
 ${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${VERSION}
 ***
 chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
