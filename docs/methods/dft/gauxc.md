@@ -52,9 +52,9 @@ hf download microsoft/skala-1.1 skala-1.1-rev1-cuda.fun --local-dir .
 ```
 
 Select a downloaded checkpoint explicitly with `MODEL ./skala-1.1-rev1.fun`. Alternatively, set
-`GAUXC_SKALA_MODEL` to the CPU checkpoint and use `MODEL SKALA` for host execution. For
-`INT_EXECUTION_SPACE DEVICE`, set `GAUXC_SKALA_CUDA_MODEL` to the CUDA checkpoint. CP2K falls back
-to `GAUXC_SKALA_MODEL` for compatibility with existing configurations where that variable already
+`SKALA_MODEL` to the CPU checkpoint and use `MODEL SKALA` for host execution. For
+`INT_EXECUTION_SPACE DEVICE`, set `SKALA_CUDA_MODEL` to the CUDA checkpoint. CP2K falls back
+to `SKALA_MODEL` for compatibility with existing configurations where that variable already
 points to a device-compatible checkpoint; the CPU checkpoint itself is not device-compatible. For
 the model interface and available checkpoints, consult
 [GauXC/Skala model documentation](https://microsoft.github.io/skala/gauxc/c-library.html#download-checkpoint-from-huggingface)

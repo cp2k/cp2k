@@ -202,8 +202,8 @@ if [ "${with_gauxc}" != "__DONTUSE__" ]; then
   cat << EOF > "${BUILDDIR}/setup_gauxc"
 export GAUXC_VER="${gauxc_ver}"
 export GAUXC_ROOT="${pkg_install_dir}"
-export GAUXC_SKALA_MODEL="${gauxc_skala_model}"
-export GAUXC_SKALA_CUDA_MODEL="${gauxc_skala_cuda_model}"
+export SKALA_MODEL="${gauxc_skala_model}"
+export SKALA_CUDA_MODEL="${gauxc_skala_cuda_model}"
 EOF
   if [ "${with_gauxc}" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_gauxc"
