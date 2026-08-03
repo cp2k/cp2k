@@ -45,8 +45,8 @@ MODULE skala_gpw_functional
    USE torch_api,                       ONLY: &
         torch_cuda_device_count, torch_cuda_is_available, torch_dict_create, torch_dict_insert, &
         torch_dict_release, torch_dict_type, torch_tensor_backward_scalar, torch_tensor_data_ptr, &
-        torch_tensor_from_array, torch_tensor_grad, torch_tensor_release, &
-        torch_tensor_to_device_leaf, torch_tensor_type, torch_use_cuda
+        torch_tensor_from_array, torch_tensor_grad, torch_tensor_grad_batch3, &
+        torch_tensor_release, torch_tensor_to_device_leaf, torch_tensor_type, torch_use_cuda
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                               xc_rho_set_get,&
@@ -826,9 +826,8 @@ CONTAINS
                END DO
             END IF
          END IF
-         CALL torch_tensor_grad(density_t, density_grad_t)
-         CALL torch_tensor_grad(grad_t, grad_grad_t)
-         CALL torch_tensor_grad(kin_t, kin_grad_t)
+         CALL torch_tensor_grad_batch3(density_t, grad_t, kin_t, density_grad_t, &
+                                       grad_grad_t, kin_grad_t)
          CALL torch_tensor_data_ptr(density_grad_t, density_grad)
          CALL torch_tensor_data_ptr(grad_grad_t, grad_grad)
          CALL torch_tensor_data_ptr(kin_grad_t, kin_grad)
@@ -1524,9 +1523,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: kin_grad
 
       NULLIFY (density_grad, grad_grad, kin_grad)
-      CALL torch_tensor_grad(features%density_t, density_grad_t)
-      CALL torch_tensor_grad(features%grad_t, grad_grad_t)
-      CALL torch_tensor_grad(features%kin_t, kin_grad_t)
+      CALL torch_tensor_grad_batch3(features%density_t, features%grad_t, features%kin_t, &
+                                    density_grad_t, grad_grad_t, kin_grad_t)
       CALL torch_tensor_data_ptr(density_grad_t, density_grad)
       CALL torch_tensor_data_ptr(grad_grad_t, grad_grad)
       CALL torch_tensor_data_ptr(kin_grad_t, kin_grad)
