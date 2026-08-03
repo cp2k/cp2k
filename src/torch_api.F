@@ -85,7 +85,8 @@ MODULE torch_api
    PUBLIC :: torch_dict_get, torch_dict_release
    PUBLIC :: torch_model_type, torch_model_load, torch_model_load_with_metadata, &
              torch_model_forward, torch_model_release
-   PUBLIC :: torch_model_forward_mol_tensor, torch_model_remap_device_constants
+   PUBLIC :: torch_model_disable_parameter_gradients, torch_model_forward_mol_tensor, &
+             torch_model_remap_device_constants
    PUBLIC :: torch_model_get_attr, torch_model_read_metadata
    PUBLIC :: torch_cuda_device_count, torch_cuda_is_available
    PUBLIC :: torch_allow_tf32, torch_model_freeze, torch_use_cuda
@@ -789,6 +790,29 @@ CONTAINS
       MARK_USED(model)
 #endif
    END SUBROUTINE torch_model_remap_device_constants
+
+! **************************************************************************************************
+!> \brief Disable gradients for inference-only model parameters.
+! **************************************************************************************************
+   SUBROUTINE torch_model_disable_parameter_gradients(model)
+      TYPE(torch_model_type), INTENT(INOUT)              :: model
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_model_disable_parameter_gradients(model) &
+            BIND(C, name="torch_c_model_disable_parameter_gradients")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE                           :: model
+         END SUBROUTINE torch_c_model_disable_parameter_gradients
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(model%c_ptr))
+      CALL torch_c_model_disable_parameter_gradients(model=model%c_ptr)
+#else
+      CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(model)
+#endif
+   END SUBROUTINE torch_model_disable_parameter_gradients
 
 ! **************************************************************************************************
 !> \brief Evaluates the given Torch model.

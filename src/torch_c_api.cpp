@@ -497,7 +497,7 @@ void torch_c_model_load(torch_c_model_t **model_out, const char *filename) {
   set_jit_fusion_strategy();
   torch::jit::Module *model = new torch::jit::Module();
   *model = load_module_for_device(filename, device);
-  model->eval(); // Set to evaluation mode to disable gradients, drop-out, etc.
+  model->eval(); // Set inference behavior for modules such as dropout.
   *model_out = model;
 }
 
@@ -517,7 +517,7 @@ void torch_c_model_load_with_metadata(torch_c_model_t **model_out,
   set_jit_fusion_strategy();
   torch::jit::Module *model = new torch::jit::Module();
   *model = load_module_for_device(filename, device, &extra_files);
-  model->eval(); // Set to evaluation mode to disable gradients, drop-out, etc.
+  model->eval(); // Set inference behavior for modules such as dropout.
   *model_out = model;
   copy_string_to_c_buffer(extra_files[key1], content1, length1);
   copy_string_to_c_buffer(extra_files[key2], content2, length2);
@@ -531,6 +531,16 @@ void torch_c_model_remap_device_constants(torch_c_model_t *model) {
   const auto device = get_device_with_guard(guard);
   if (device.is_cuda()) {
     remap_model_device_constants(*model, device);
+  }
+}
+
+/*******************************************************************************
+ * \brief Disables gradients for inference-only model parameters.
+ ******************************************************************************/
+void torch_c_model_disable_parameter_gradients(torch_c_model_t *model) {
+  torch::NoGradGuard no_grad;
+  for (auto parameter : model->parameters()) {
+    parameter.set_requires_grad(false);
   }
 }
 
