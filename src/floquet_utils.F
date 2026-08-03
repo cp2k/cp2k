@@ -534,7 +534,9 @@ CONTAINS
       str_len = default_string_length
       nranks = para_env%num_pe
       ALLOCATE (my_hostname_ascii(str_len), hostnames_ascii(nranks*str_len))
-      my_hostname_ascii(1:str_len) = ICHAR([(hostname(i:i), i=1, str_len)])
+      DO i = 1, str_len
+         my_hostname_ascii(i) = ICHAR(hostname(i:i))
+      END DO
       hostnames_ascii(:) = 0
       hostnames_ascii(para_env%mepos*str_len + 1:(para_env%mepos + 1)*str_len) = my_hostname_ascii(:)
       CALL para_env%sum(hostnames_ascii)
