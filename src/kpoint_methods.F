@@ -15,7 +15,7 @@
 MODULE kpoint_methods
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
-                                              pbc,&
+                                              pbc_stable,&
                                               real_to_scaled
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
@@ -191,7 +191,7 @@ CONTAINS
          agauge = 0
          IF (kpoint%symmetry) THEN
             DO i = 1, natom
-               r_pbc(1:3) = pbc(particle_set(i)%r(1:3), cell)
+               r_pbc(1:3) = pbc_stable(particle_set(i)%r(1:3), cell)
                CALL real_to_scaled(scoord_pbc, r_pbc, cell)
                agauge(1:3, i) = NINT(scoord_pbc(1:3) - scoord(1:3, i))
             END DO
@@ -406,7 +406,7 @@ CONTAINS
             kpoint%atype = atype
             ALLOCATE (agauge(3, natom))
             DO i = 1, natom
-               r_pbc(1:3) = pbc(particle_set(i)%r(1:3), cell)
+               r_pbc(1:3) = pbc_stable(particle_set(i)%r(1:3), cell)
                CALL real_to_scaled(scoord_pbc, r_pbc, cell)
                agauge(1:3, i) = NINT(scoord_pbc(1:3) - scoord(1:3, i))
             END DO

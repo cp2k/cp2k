@@ -18,7 +18,7 @@ MODULE trexio_utils
    USE ai_onecenter, ONLY: sg_overlap
    USE atomic_kind_types, ONLY: get_atomic_kind
    USE basis_set_types, ONLY: gto_basis_set_type, get_gto_basis_set
-   USE cell_types, ONLY: cell_type
+   USE cell_types, ONLY: cell_type, pbc, pbc_stable, real_to_scaled
    USE cp2k_info, ONLY: cp2k_version
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_control_types, ONLY: dft_control_type
@@ -188,18 +188,17 @@ CONTAINS
       ! Per-atom Bloch-gauge correction:
       ! CP2K's k-space matrix builder (rskp_transform) Bloch-sums real-space blocks with
       ! lattice vectors R supplied by the neighbour list. The neighbour list, in turn,
-      ! wraps interatomic vectors through subsys/cell_types.F :: pbc1, which uses
-      !     s = s - perd * ANINT(s)
-      ! Hence the effective per-atom gauge is agauge(:,i) = -ANINT(scoord(:,i)), i.e.
-      ! Fortran's round-half-away-from-zero ANINT (so e.g. scoord=+1/2 wraps to -1/2 and
-      ! scoord=-1/2 wraps to +1/2). Note that the agauge in kpoint_methods.F ::
-      ! kpoint_initialize is the SYMMETRY-DETECTION gauge (with a -eps_geo offset) and is
-      ! NOT the one the matrix builder uses; we must mirror pbc1 here. Since nucleus_coord
-      ! is written as the raw particle_set(i)%r, we rephase each atom's MO block by
+      ! wraps interatomic vectors through subsys/cell_types.F :: pbc or, for symmetry reduction,
+      ! pbc_stable. Hence the effective
+      ! per-atom gauge is the image shift between the raw and wrapped coordinates, as used by
+      ! kpoint_methods.F :: kpoint_initialize. Derive it through the matching wrapper instead of
+      ! duplicating its boundary convention. Since nucleus_coord is written as the raw particle_set(i)%r, we
+      ! rephase each atom's MO block by
       ! exp(-i 2*pi * k * agauge_i) so the (coord, MO) pair is self-consistent in the
       ! standard Bloch convention used by TREXIO consumers.
       INTEGER, DIMENSION(:, :), ALLOCATABLE              :: agauge
-      REAL(KIND=dp)                                      :: scoord(3), kdotg, cval, sval, re_old, im_old
+      REAL(KIND=dp)                                      :: scoord(3), scoord_pbc(3), r_pbc(3), &
+                                                            kdotg, cval, sval, re_old, im_old
       INTEGER, DIMENSION(:), POINTER                     :: nshell, npgf
       INTEGER, DIMENSION(:, :), POINTER                  :: l_shell_set
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge, shell_factor, exponents, coefficients, &
@@ -913,8 +912,14 @@ CONTAINS
          CALL get_kpoint_info(trexio_kpoints, xkp=xkp)
          ALLOCATE (agauge(3, natoms))
          DO iatom = 1, natoms
-            scoord(:) = MATMUL(cell%h_inv, particle_set(iatom)%r(1:3))
-            agauge(:, iatom) = -NINT(scoord(:))
+            CALL real_to_scaled(scoord, particle_set(iatom)%r(1:3), cell)
+            IF (kpoints%symmetry) THEN
+               r_pbc = pbc_stable(particle_set(iatom)%r(1:3), cell)
+            ELSE
+               r_pbc = pbc(particle_set(iatom)%r(1:3), cell)
+            END IF
+            CALL real_to_scaled(scoord_pbc, r_pbc, cell)
+            agauge(:, iatom) = NINT(scoord_pbc - scoord)
          END DO
       END IF
 
