@@ -861,28 +861,12 @@ if(CP2K_USE_SPLA)
   endif()
 endif()
 
-# Sets CP2K_USE_DFTD4_V3 / CP2K_USE_DFTD4_V4_2 from dftd4_VERSION, which is
-# populated by dftd4-config-version.cmake either directly via
-# find_package(dftd4) or transitively via find_package(tblite).
-macro(cp2k_detect_dftd4_api)
-  if(dftd4_VERSION VERSION_LESS "4.0.0")
-    message(STATUS "DFTD4: found version ${dftd4_VERSION}, using v3.x API")
-    set(CP2K_USE_DFTD4_V3 ON)
-  else()
-    set(CP2K_USE_DFTD4_V3 OFF)
-  endif()
-  if(dftd4_VERSION VERSION_GREATER_EQUAL "4.2.0")
-    message(STATUS "DFTD4: found version ${dftd4_VERSION}, using v4.2+ API")
-    set(CP2K_USE_DFTD4_V4_2 ON)
-  else()
-    set(CP2K_USE_DFTD4_V4_2 OFF)
-  endif()
-endmacro()
-
 if(CP2K_USE_DFTD4)
   find_package(mctc-lib REQUIRED) # workaround: find mctc-lib first
   find_package(dftd4 REQUIRED)
-  cp2k_detect_dftd4_api()
+  if(dftd4_VERSION VERSION_LESS "4.2.0")
+    message(FATAL_ERROR "dftd4 >= 4.2.0 is required; found ${dftd4_VERSION}")
+  endif()
 endif()
 
 if(CP2K_USE_DEEPMD)
@@ -914,7 +898,6 @@ if(CP2K_USE_TBLITE)
   target_link_libraries(
     cp2k::tblite INTERFACE tblite::tblite mctc-lib::mctc-lib dftd4::dftd4
                            toml-f::toml-f s-dftd3::s-dftd3)
-  cp2k_detect_dftd4_api()
 endif()
 
 # SIRIUS
