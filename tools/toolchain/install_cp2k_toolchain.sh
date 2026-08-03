@@ -1121,23 +1121,22 @@ if [ "${ENABLE_GAUXC_CUTLASS}" = "__TRUE__" ]; then
   fi
 fi
 
-# Allow SKALA_FTORCH to be auto-enabled with GAUXC, but prevent explicit mutual selection
-if [ "${with_gauxc}" != "__DONTUSE__" ] && [ "${with_skala_ftorch}" != "__DONTUSE__" ] && [ "${with_skala_ftorch}" != "__SYSTEM__" ]; then
+# Prevent mutual selection of GAUXC and SKALA_FTORCH
+if [ "${with_gauxc}" != "__DONTUSE__" ] && [ "${with_skala_ftorch}" != "__DONTUSE__" ]; then
   report_error ${LINENO} "--with-gauxc and --with-skala-ftorch are mutually exclusive. Please choose one."
-fi
-
-# Auto-enable SKALA_FTORCH when GAUXC is enabled
-if [ "${with_gauxc}" != "__DONTUSE__" ]; then
-  if [ "${with_skala_ftorch}" = "__DONTUSE__" ]; then
-    echo "Info: Auto-enabling SKALA_FTORCH support with GAUXC"
-    with_skala_ftorch="__INSTALL__"
-  fi
 fi
 
 # Install shared skala model if either GAUXC or skala_ftorch is enabled
 if [ "${with_gauxc}" != "__DONTUSE__" ] || [ "${with_skala_ftorch}" != "__DONTUSE__" ]; then
   echo "Info: Installing shared skala model for GauXC and/or skala_ftorch"
   with_skala="__INSTALL__"
+fi
+
+# Set SKALA flag if either GAUXC or skala_ftorch is enabled
+if [ "${with_gauxc}" != "__DONTUSE__" ] || [ "${with_skala_ftorch}" != "__DONTUSE__" ]; then
+  export SKALA="__TRUE__"
+else
+  export SKALA="__FALSE__"
 fi
 
 # If OpenCL is enabled, ensure LIBXS and LIBXSTREAM are available.

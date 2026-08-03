@@ -1300,16 +1300,16 @@ CONTAINS
             model_name = ""
             env_status = 1
             IF (TRIM(int_exec_space_key) == "DEVICE") THEN
-               CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_CUDA_MODEL", model_name, STATUS=env_status)
+               CALL GET_ENVIRONMENT_VARIABLE("SKALA_CUDA_MODEL", model_name, STATUS=env_status)
             END IF
             IF (env_status /= 0 .OR. LEN_TRIM(model_name) == 0) THEN
-               CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_MODEL", model_name, STATUS=env_status)
+               CALL GET_ENVIRONMENT_VARIABLE("SKALA_MODEL", model_name, STATUS=env_status)
             END IF
             IF (env_status /= 0 .OR. LEN_TRIM(model_name) == 0) THEN
                IF (TRIM(int_exec_space_key) == "DEVICE") THEN
                   CALL cp_abort( &
                      __LOCATION__, &
-                     "MODEL SKALA with DEVICE execution requires GAUXC_SKALA_CUDA_MODEL or "// &
+                     "MODEL SKALA with DEVICE execution requires SKALA_CUDA_MODEL or "// &
                      "GAUXC_SKALA_MODEL")
                ELSE
                   CPABORT("MODEL SKALA requires the GAUXC_SKALA_MODEL environment variable")
