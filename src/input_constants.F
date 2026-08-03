@@ -43,6 +43,9 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: do_full_density = 0, &
                                                do_spin_density = 1
 
+   INTEGER, PARAMETER, PUBLIC               :: moments_format_detailed = 1, &
+                                               moments_format_trajectory = 2
+
    INTEGER, PARAMETER, PUBLIC               :: do_no_et = 0, &
                                                do_et_ddapc = 1
    ! Method Names
