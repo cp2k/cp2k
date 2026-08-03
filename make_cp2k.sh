@@ -725,7 +725,6 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --num_packages        : Maximum number of packages built by spack in parallel (default: 4)"
   echo " -opencl               : Enable the use of the Open Computing Language (OpenCL)"
   echo " -preset               : Use a CMake configure preset, see \"cmake --list-presets\" (default: native-gnu-x86_64)"
-  echo " -opencl               : Perform build with OpenCL support"
   echo " --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)"
   echo " --test                : Perform a regression test run after a successful build"
   echo " --use_cache           : Use a \"folder\", a \"MinIO\" object storage container (requires podman) or \"no\" cache"
