@@ -1687,6 +1687,32 @@ CONTAINS
    END SUBROUTINE init_cneo_basis_set
 
 ! **************************************************************************************************
+!> \brief Select the DFT potential-file list or a per-kind override.
+!> \param potential_file_names ...
+!> \param dft_potential_file_names ...
+!> \param kind_potential_file_name ...
+! **************************************************************************************************
+   SUBROUTINE set_potential_file_names(potential_file_names, dft_potential_file_names, &
+                                       kind_potential_file_name)
+
+      CHARACTER(LEN=default_path_length), DIMENSION(:), &
+         INTENT(INOUT), POINTER                          :: potential_file_names
+      CHARACTER(LEN=default_path_length), DIMENSION(:), &
+         INTENT(IN)                                      :: dft_potential_file_names
+      CHARACTER(LEN=*), INTENT(IN)                       :: kind_potential_file_name
+
+      IF (ASSOCIATED(potential_file_names)) DEALLOCATE (potential_file_names)
+      IF (kind_potential_file_name == "-") THEN
+         ALLOCATE (potential_file_names(SIZE(dft_potential_file_names)))
+         potential_file_names(:) = dft_potential_file_names(:)
+      ELSE
+         ALLOCATE (potential_file_names(1))
+         potential_file_names(1) = kind_potential_file_name
+      END IF
+
+   END SUBROUTINE set_potential_file_names
+
+! **************************************************************************************************
 !> \brief Read an atomic kind data set from the input file.
 !> \param qs_kind ...
 !> \param kind_section ...
@@ -1715,8 +1741,10 @@ CONTAINS
       INTEGER, PARAMETER                                 :: maxbas = 20
 
       CHARACTER(LEN=2)                                   :: element_symbol
-      CHARACTER(len=default_path_length)                 :: kg_potential_fn_kind, &
-                                                            potential_file_name, potential_fn_kind
+      CHARACTER(len=default_path_length)                 :: kg_potential_fn_kind, potential_fn_kind
+      CHARACTER(LEN=default_path_length), DIMENSION(:), &
+         POINTER                                         :: dft_potential_file_names, &
+                                                            potential_file_names
       CHARACTER(LEN=default_string_length)               :: akind_name, basis_type, keyword, &
                                                             kgpot_name, kgpot_type, &
                                                             potential_name, potential_type, tmp
@@ -1726,9 +1754,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(maxbas)                               :: basis_set_form, basis_set_name, &
                                                             basis_set_type
-      INTEGER :: handle, i, i_rep, iounit, ipaodesc, ipaopot, ipos, j, jj, k_rep, l, m, n_rep, &
-         nb_rep, nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, nu, &
-         plus_u_method_id, z
+      INTEGER :: handle, i, i_rep, iounit, ipaodesc, ipaopot, ipos, j, jj, k_rep, l, m, &
+         n_potential_files, n_rep, nb_rep, nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, &
+         npaopot, nppnl, nspin, nu, plus_u_method_id, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
       LOGICAL :: check, ecp_semi_local, explicit, explicit_basis, explicit_J, explicit_kgpot, &
          explicit_potential, explicit_U, explicit_u_m_j, l_explicit, n_explicit, nobasis, &
@@ -1759,7 +1787,7 @@ CONTAINS
       logger => cp_get_default_logger()
       iounit = cp_logger_get_default_io_unit(logger)
 
-      NULLIFY (elec_conf)
+      NULLIFY (dft_potential_file_names, elec_conf, potential_file_names)
 
       update_input = .TRUE.
       basis_set_name(:) = ""
@@ -1769,6 +1797,8 @@ CONTAINS
       potential_type = ""
       kgpot_name = ""
       kgpot_type = ""
+      kg_potential_fn_kind = "-"
+      potential_fn_kind = "-"
       z = -1
       zeff_correction = 0.0_dp
       explicit = .FALSE.
@@ -1780,6 +1810,13 @@ CONTAINS
       explicit_u_m_j = .FALSE.
 
       dft_section => section_vals_get_subs_vals(force_env_section, "DFT")
+      CALL section_vals_val_get(dft_section, "POTENTIAL_FILE_NAME", n_rep_val=n_potential_files)
+      CPASSERT(n_potential_files > 0)
+      ALLOCATE (dft_potential_file_names(n_potential_files))
+      DO i = 1, n_potential_files
+         CALL section_vals_val_get(dft_section, "POTENTIAL_FILE_NAME", i_rep_val=i, &
+                                   c_val=dft_potential_file_names(i))
+      END DO
       CALL section_vals_get(kind_section, n_repetition=n_rep)
       k_rep = -1
       akind_name = qs_kind%name
@@ -2390,6 +2427,8 @@ CONTAINS
          CALL section_vals_get(kgpot_section, explicit=explicit_kgpot)
       END IF
 
+      CALL set_potential_file_names(potential_file_names, dft_potential_file_names, potential_fn_kind)
+
       SELECT CASE (method_id)
       CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, do_method_pm3, do_method_pm6, &
             do_method_pm6fm, do_method_mndod, do_method_pnnl)
@@ -2533,15 +2572,10 @@ CONTAINS
                              " <"//TRIM(potential_type)//"> was specified "// &
                              "for the atomic kind <"//TRIM(qs_kind%name))
             CASE ("GTH")
-               IF (potential_fn_kind == "-") THEN
-                  CALL section_vals_val_get(dft_section, "POTENTIAL_FILE_NAME", c_val=potential_file_name)
-               ELSE
-                  potential_file_name = potential_fn_kind
-               END IF
                CALL allocate_potential(qs_kind%gth_potential)
                CALL read_potential(qs_kind%element_symbol, potential_name, &
                                    qs_kind%gth_potential, zeff_correction, para_env, &
-                                   potential_file_name, potential_section, update_input, &
+                                   potential_file_names, potential_section, update_input, &
                                    monovalent=qs_kind%monovalent)
                CALL set_potential(qs_kind%gth_potential, z=z)
                CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
@@ -2657,19 +2691,12 @@ CONTAINS
          ELSE
             ! Allocate and initialise the potential data set structure
             IF ((potential_name /= '') .OR. explicit_potential) THEN
-               ! determine the pseudopotential file to search
-               IF (potential_fn_kind == "-") THEN
-                  CALL section_vals_val_get(dft_section, "POTENTIAL_FILE_NAME", c_val=potential_file_name)
-               ELSE
-                  potential_file_name = potential_fn_kind
-               END IF
-               !
                SELECT CASE (TRIM(potential_type))
                CASE ("ALL")
                   CALL allocate_potential(qs_kind%all_potential)
                   CALL read_potential(qs_kind%element_symbol, potential_name, &
                                       qs_kind%all_potential, zeff_correction, para_env, &
-                                      potential_file_name, potential_section, update_input)
+                                      potential_file_names, potential_section, update_input)
                   CALL set_potential(qs_kind%all_potential, z=z)
                   CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
                   IF (.NOT. ASSOCIATED(elec_conf)) THEN
@@ -2682,7 +2709,7 @@ CONTAINS
                   CALL allocate_potential(qs_kind%gth_potential)
                   CALL read_potential(qs_kind%element_symbol, potential_name, &
                                       qs_kind%gth_potential, zeff_correction, para_env, &
-                                      potential_file_name, potential_section, update_input, &
+                                      potential_file_names, potential_section, update_input, &
                                       monovalent=qs_kind%monovalent)
                   CALL set_potential(qs_kind%gth_potential, z=z)
                   CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
@@ -2696,7 +2723,7 @@ CONTAINS
                   CALL allocate_potential(qs_kind%sgp_potential)
                   CALL get_potential(qs_kind%sgp_potential, description=description)
                   CALL read_ecp_potential(ptable(z)%symbol, ecppot, &
-                                          potential_name, potential_file_name, potential_section)
+                                          potential_name, potential_file_names, potential_section)
                   IF (ecp_semi_local) THEN
                      description(1) = "Semi-local Gaussian pseudopotential                     "
                      description(2) = "ECP "//TRIM(potential_name)
@@ -2900,16 +2927,12 @@ CONTAINS
 
                SELECT CASE (TRIM(kgpot_type))
                CASE ("TNADD")
-                  ! determine the pseudopotential file to search
-                  IF (kg_potential_fn_kind == "-") THEN
-                     CALL section_vals_val_get(dft_section, "POTENTIAL_FILE_NAME", c_val=potential_file_name)
-                  ELSE
-                     potential_file_name = kg_potential_fn_kind
-                  END IF
+                  CALL set_potential_file_names(potential_file_names, dft_potential_file_names, &
+                                                kg_potential_fn_kind)
                   CALL allocate_potential(qs_kind%tnadd_potential)
                   CALL read_potential(qs_kind%element_symbol, kgpot_name, &
                                       qs_kind%tnadd_potential, para_env, &
-                                      potential_file_name, kgpot_section, update_input)
+                                      potential_file_names, kgpot_section, update_input)
                CASE ("NONE")
                   NULLIFY (qs_kind%tnadd_potential)
                CASE DEFAULT
@@ -2945,6 +2968,7 @@ CONTAINS
          END IF
       END SELECT
 
+      DEALLOCATE (dft_potential_file_names, potential_file_names)
       CALL timestop(handle)
 
    END SUBROUTINE read_qs_kind

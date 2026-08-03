@@ -143,9 +143,12 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="POTENTIAL_FILE_NAME", &
                           description="Name of the pseudopotential library file, optionally including a path. "// &
+                          "This keyword can be repeated to search several pseudopotential files. "// &
+                          "Files are searched in input order and the first matching potential is used. "// &
                           "The potential selected for each kind is set with KIND%POTENTIAL.", &
                           usage="POTENTIAL_FILE_NAME <FILENAME>", &
-                          default_lc_val="POTENTIAL")
+                          type_of_var=lchar_t, repeats=.TRUE., &
+                          default_lc_val="POTENTIAL", n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

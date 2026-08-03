@@ -342,6 +342,11 @@ MODULE atom_types
    PUBLIC :: no_pseudo, gth_pseudo, sgp_pseudo, upf_pseudo, ecp_pseudo
    PUBLIC :: setup_hf_section
 
+   INTERFACE read_ecp_potential
+      MODULE PROCEDURE read_ecp_potential_file, &
+         read_ecp_potential_files
+   END INTERFACE
+
 ! **************************************************************************************************
 
 CONTAINS
@@ -2892,14 +2897,16 @@ CONTAINS
 !> \param pseudo_name ...
 !> \param pseudo_file ...
 !> \param potential_section ...
+!> \param potential_found ...
 ! **************************************************************************************************
-   SUBROUTINE read_ecp_potential(element_symbol, potential, pseudo_name, pseudo_file, &
-                                 potential_section)
+   SUBROUTINE read_ecp_potential_file(element_symbol, potential, pseudo_name, pseudo_file, &
+                                      potential_section, potential_found)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol
       TYPE(atom_ecppot_type), INTENT(INOUT)              :: potential
       CHARACTER(LEN=*), INTENT(IN)                       :: pseudo_name, pseudo_file
       TYPE(section_vals_type), POINTER                   :: potential_section
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: potential_found
 
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(len=5*default_string_length)             :: line_att
@@ -2912,6 +2919,7 @@ CONTAINS
 
       apname = pseudo_name
       symbol = element_symbol
+      IF (PRESENT(potential_found)) potential_found = .FALSE.
       CALL get_ptable_info(symbol, number=ncore)
 
       potential%symbol = symbol
@@ -2981,6 +2989,7 @@ CONTAINS
                   match_loop: DO
                      CALL parser_get_object(parser, line, newline=.TRUE.)
                      IF (TRIM(line) == element_symbol) THEN
+                        IF (PRESENT(potential_found)) potential_found = .TRUE.
                         CALL parser_get_object(parser, line, lower_to_upper=.TRUE.)
                         CPASSERT(TRIM(line) == "NELEC")
                         ! read number of electrons
@@ -3019,10 +3028,18 @@ CONTAINS
                         END DO
                         EXIT search_loop
                      ELSE IF (line == "END") THEN
+                        IF (PRESENT(potential_found)) THEN
+                           CALL parser_release(parser)
+                           RETURN
+                        END IF
                         CPABORT("Element not found in ECP library")
                      END IF
                   END DO match_loop
                ELSE
+                  IF (PRESENT(potential_found)) THEN
+                     CALL parser_release(parser)
+                     RETURN
+                  END IF
                   CPABORT("ECP type not found in library")
                END IF
 
@@ -3031,6 +3048,8 @@ CONTAINS
             CALL parser_release(parser)
          END BLOCK
       END IF
+
+      IF (read_from_input .AND. PRESENT(potential_found)) potential_found = .TRUE.
 
       ! set up econf
       potential%econf(0:3) = ptable(ncore)%e_conv(0:3)
@@ -3069,7 +3088,45 @@ CONTAINS
       !
       CPASSERT(ALL(potential%econf >= 0))
 
-   END SUBROUTINE read_ecp_potential
+   END SUBROUTINE read_ecp_potential_file
+
+! **************************************************************************************************
+!> \brief Read an ECP potential from an ordered list of library files.
+!> \param element_symbol ...
+!> \param potential ...
+!> \param pseudo_name ...
+!> \param pseudo_files ...
+!> \param potential_section ...
+! **************************************************************************************************
+   SUBROUTINE read_ecp_potential_files(element_symbol, potential, pseudo_name, pseudo_files, &
+                                       potential_section)
+
+      CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol
+      TYPE(atom_ecppot_type), INTENT(INOUT)              :: potential
+      CHARACTER(LEN=*), INTENT(IN)                       :: pseudo_name
+      CHARACTER(LEN=*), DIMENSION(:), INTENT(IN)         :: pseudo_files
+      TYPE(section_vals_type), POINTER                   :: potential_section
+
+      CHARACTER(LEN=:), ALLOCATABLE                      :: file_list
+      INTEGER                                            :: i
+      LOGICAL                                            :: potential_found
+
+      DO i = 1, SIZE(pseudo_files)
+         CALL read_ecp_potential_file(element_symbol, potential, pseudo_name, pseudo_files(i), &
+                                      potential_section, potential_found)
+         IF (potential_found) RETURN
+      END DO
+
+      file_list = ""
+      DO i = 1, SIZE(pseudo_files)
+         file_list = TRIM(file_list)//"<"//TRIM(pseudo_files(i))//"> "
+      END DO
+      CALL cp_abort(__LOCATION__, &
+                    "The requested ECP potential <"//TRIM(pseudo_name)// &
+                    "> for element <"//TRIM(element_symbol)// &
+                    "> was not found in the potential files "//TRIM(file_list))
+
+   END SUBROUTINE read_ecp_potential_files
 ! **************************************************************************************************
 !> \brief ...
 !> \param grid1 ...
