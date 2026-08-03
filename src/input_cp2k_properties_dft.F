@@ -519,7 +519,9 @@ CONTAINS
                              n_keywords=50, n_subsections=1, repeats=.FALSE.)
 
          CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                             description="controls the activation of the APT calculation", &
+                             description="Controls the activation of the APT calculation. "// &
+                             "Analytical derivatives are not available for functionals that depend on "// &
+                             "the kinetic energy density; use APT_FD for these functionals.", &
                              usage="&DCDR T", &
                              default_l_val=.FALSE., &
                              lone_keyword_l_val=.TRUE.)
