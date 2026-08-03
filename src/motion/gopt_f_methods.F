@@ -139,7 +139,7 @@ CONTAINS
          DO i = 1, 3
             DO j = 1, i
                idg = idg + 1
-               x0(idg) = cell%hmat(j, i)
+               x0(idg) = gopt_env%cell_env%opt_cell%hmat(j, i)
             END DO
          END DO
       CASE DEFAULT
@@ -1154,13 +1154,19 @@ CONTAINS
 
       ELSE
 
-         ! Update cell
+         ! Update the six independent components in the canonical optimization frame.
+         gopt_env%cell_env%opt_cell%hmat = 0.0_dp
          DO i = 1, 3
             DO j = 1, i
                idg = idg + 1
-               cell%hmat(j, i) = x(idg)
+               gopt_env%cell_env%opt_cell%hmat(j, i) = x(idg)
             END DO
          END DO
+         CALL init_cell(gopt_env%cell_env%opt_cell)
+
+         ! Reconstruct the physical cell in the fixed orientation of the input cell.
+         cell%hmat = MATMUL(gopt_env%cell_env%opt_to_input, &
+                            gopt_env%cell_env%opt_cell%hmat)
          CALL init_cell(cell)
          CALL cp_subsys_set(subsys, cell=cell)
 

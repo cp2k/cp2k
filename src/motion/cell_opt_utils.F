@@ -163,15 +163,15 @@ CONTAINS
 !> \param cell ...
 !> \param pres_ext ...
 !> \param mtrx ...
-!> \param rot ...
+!> \param input_to_opt rotation from the input Cartesian frame to the optimization frame
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! **************************************************************************************************
-   SUBROUTINE read_external_press_tensor(geo_section, cell, pres_ext, mtrx, rot)
+   SUBROUTINE read_external_press_tensor(geo_section, cell, pres_ext, mtrx, input_to_opt)
       TYPE(section_vals_type), POINTER                   :: geo_section
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), INTENT(OUT)                         :: pres_ext
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: mtrx
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: rot
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: input_to_opt
 
       INTEGER                                            :: i, ind, j
       LOGICAL                                            :: check
@@ -196,9 +196,9 @@ CONTAINS
                pres_ext_tens(j, i) = pvals(ind)
             END DO
          END DO
-         ! Also the pressure tensor must be oriented in the same canonical directions
-         ! of the simulation cell
-         pres_ext_tens = MATMUL(TRANSPOSE(rot), pres_ext_tens)
+         ! Express the pressure tensor in the canonical optimization frame.
+         pres_ext_tens = MATMUL(input_to_opt, &
+                                MATMUL(pres_ext_tens, TRANSPOSE(input_to_opt)))
          DO i = 1, 3
             pres_ext = pres_ext + pres_ext_tens(i, i)
          END DO
@@ -210,7 +210,7 @@ CONTAINS
          pres_ext = pvals(1)
       END IF
 
-      IF (ANY(pres_ext_tens > 1.0E-5_dp)) THEN
+      IF (ANY(ABS(pres_ext_tens) > 1.0E-5_dp)) THEN
          mtrx = cell%deth*MATMUL(cell%h_inv, MATMUL(pres_ext_tens, TRANSPOSE(cell%h_inv)))
       END IF
 
