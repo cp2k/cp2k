@@ -8,6 +8,9 @@
 #if defined(__LIBTORCH)
 
 #include <ATen/Parallel.h>
+#if defined(__LIBTORCH_CUDA)
+#include <ATen/cuda/CUDAContextLight.h>
+#endif
 #include <c10/core/DeviceGuard.h>
 #include <torch/csrc/api/include/torch/cuda.h>
 #include <torch/script.h>
@@ -100,6 +103,16 @@ static torch::Device get_device_with_guard(c10::OptionalDeviceGuard &guard) {
     guard.reset_device(device);
   }
   return device;
+}
+
+static bool use_batched_gradient_readback(const torch::Tensor &tensor) {
+#if defined(__LIBTORCH_CUDA)
+  return tensor.is_cuda() &&
+         at::cuda::getDeviceProperties(tensor.device().index())->integrated;
+#else
+  (void)tensor;
+  return false;
+#endif
 }
 
 static void set_jit_fusion_strategy() {
@@ -429,6 +442,49 @@ void torch_c_tensor_grad(const torch_c_tensor_t *tensor,
   const torch::Tensor maybe_grad = tensor->grad();
   assert(maybe_grad.defined());
   *grad = new torch_c_tensor_t(maybe_grad.cpu().contiguous());
+}
+
+/*******************************************************************************
+ * \brief Copies three autograd gradients to CPU memory.
+ ******************************************************************************/
+void torch_c_tensor_grad_batch3(const torch_c_tensor_t *tensor1,
+                                const torch_c_tensor_t *tensor2,
+                                const torch_c_tensor_t *tensor3,
+                                torch_c_tensor_t **grad1,
+                                torch_c_tensor_t **grad2,
+                                torch_c_tensor_t **grad3) {
+  c10::OptionalDeviceGuard guard;
+  const auto device = get_device_with_guard(guard);
+  assert(*grad1 == nullptr && *grad2 == nullptr && *grad3 == nullptr);
+
+  const torch::Tensor source1 = tensor1->grad();
+  const torch::Tensor source2 = tensor2->grad();
+  const torch::Tensor source3 = tensor3->grad();
+  assert(source1.defined() && source2.defined() && source3.defined());
+  assert(source1.device() == source2.device());
+  assert(source1.device() == source3.device());
+  if (use_batched_gradient_readback(source1)) {
+    auto host1 =
+        torch::empty(source1.sizes(),
+                     source1.options().device(torch::kCPU).pinned_memory(true));
+    auto host2 =
+        torch::empty(source2.sizes(),
+                     source2.options().device(torch::kCPU).pinned_memory(true));
+    auto host3 =
+        torch::empty(source3.sizes(),
+                     source3.options().device(torch::kCPU).pinned_memory(true));
+    host1.copy_(source1, true);
+    host2.copy_(source2, true);
+    host3.copy_(source3, true);
+    torch::cuda::synchronize(device.index());
+    *grad1 = new torch_c_tensor_t(std::move(host1));
+    *grad2 = new torch_c_tensor_t(std::move(host2));
+    *grad3 = new torch_c_tensor_t(std::move(host3));
+  } else {
+    *grad1 = new torch_c_tensor_t(source1.cpu().contiguous());
+    *grad2 = new torch_c_tensor_t(source2.cpu().contiguous());
+    *grad3 = new torch_c_tensor_t(source3.cpu().contiguous());
+  }
 }
 
 /*******************************************************************************

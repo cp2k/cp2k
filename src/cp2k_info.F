@@ -264,6 +264,9 @@ CONTAINS
 #if defined(__LIBTORCH)
       flags = TRIM(flags)//" libtorch"
 #endif
+#if defined(__LIBTORCH_CUDA)
+      flags = TRIM(flags)//" libtorch_cuda"
+#endif
 #if defined(__MIMIC)
       flags = TRIM(flags)//" mimic"
 #endif

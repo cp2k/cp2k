@@ -78,7 +78,7 @@ MODULE torch_api
              torch_tensor_narrow, torch_tensor_release
    PUBLIC :: torch_tensor_reset_from_array
    PUBLIC :: torch_tensor_data_ptr, torch_tensor_backward, torch_tensor_backward_scalar
-   PUBLIC :: torch_tensor_grad
+   PUBLIC :: torch_tensor_grad, torch_tensor_grad_batch3
    PUBLIC :: torch_tensor_to_device_leaf
    PUBLIC :: torch_tensor_item_double, torch_tensor_weighted_sum
    PUBLIC :: torch_dict_type, torch_dict_clone, torch_dict_create, torch_dict_insert
@@ -461,6 +461,46 @@ CONTAINS
       MARK_USED(grad)
 #endif
    END SUBROUTINE torch_tensor_grad
+
+! **************************************************************************************************
+!> \brief Copies three autograd gradients to CPU memory.
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_grad_batch3(tensor1, tensor2, tensor3, grad1, grad2, grad3)
+      TYPE(torch_tensor_type), INTENT(IN)                :: tensor1, tensor2, tensor3
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: grad1, grad2, grad3
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_tensor_grad_batch3(tensor1, tensor2, tensor3, grad1, grad2, grad3) &
+            BIND(C, name="torch_c_tensor_grad_batch3")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE                           :: tensor1, tensor2, tensor3
+            TYPE(C_PTR)                                  :: grad1, grad2, grad3
+         END SUBROUTINE torch_c_tensor_grad_batch3
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(tensor1%c_ptr))
+      CPASSERT(C_ASSOCIATED(tensor2%c_ptr))
+      CPASSERT(C_ASSOCIATED(tensor3%c_ptr))
+      CPASSERT(.NOT. C_ASSOCIATED(grad1%c_ptr))
+      CPASSERT(.NOT. C_ASSOCIATED(grad2%c_ptr))
+      CPASSERT(.NOT. C_ASSOCIATED(grad3%c_ptr))
+      CALL torch_c_tensor_grad_batch3(tensor1=tensor1%c_ptr, tensor2=tensor2%c_ptr, &
+                                      tensor3=tensor3%c_ptr, grad1=grad1%c_ptr, &
+                                      grad2=grad2%c_ptr, grad3=grad3%c_ptr)
+      CPASSERT(C_ASSOCIATED(grad1%c_ptr))
+      CPASSERT(C_ASSOCIATED(grad2%c_ptr))
+      CPASSERT(C_ASSOCIATED(grad3%c_ptr))
+#else
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(tensor1)
+      MARK_USED(tensor2)
+      MARK_USED(tensor3)
+      MARK_USED(grad1)
+      MARK_USED(grad2)
+      MARK_USED(grad3)
+#endif
+   END SUBROUTINE torch_tensor_grad_batch3
 
 ! **************************************************************************************************
 !> \brief Returns the weighted sum of two Torch tensors.
