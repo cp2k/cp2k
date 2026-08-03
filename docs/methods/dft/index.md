@@ -7,6 +7,7 @@ maxdepth: 2
 ---
 gpw
 gapw
+electrostatics/index
 hartree-fock/index
 basis_sets
 pseudopotentials

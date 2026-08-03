@@ -1,0 +1,9 @@
+# The neutral 2D system is converged with respect to the nonperiodic cell length.
+"He_2d_neutral_10A.inp"                = [{matcher="E_total", tol=1e-10, ref=-2.889455838533078}]
+"He_2d_neutral_20A.inp"                = [{matcher="E_total", tol=1e-10, ref=-2.889455811476373}]
+
+# A charged 2D system has no vacuum-independent energy without a compensation model.
+# Track both cell lengths independently to detect changes in the ANALYTIC 2D Green's function.
+"He_2d_charged_10A.inp"                = [{matcher="E_total", tol=5e-9, ref=-2.051438341241083}]
+"He_2d_charged_20A.inp"                = [{matcher="E_total", tol=5e-9, ref=-2.009876603273898}]
+#EOF
