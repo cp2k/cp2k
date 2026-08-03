@@ -356,4 +356,13 @@ registry["Floquet_DOS"] = GenericMatcher(r"-1.690", col=2)
 
 # MTLR Calculations
 registry["MTLR_U_MINUS_J"] = GenericMatcher(r"U_MINUS_J [eV]", col=4)
+
+# NNP MD matchers. M_INIT_ENERGY passes first=True because ENERGY|Total
+# FORCE_EVAL is printed once per MD step, and the default (last-line)
+# strategy would return step N rather than the step-0 initial value.
+# M_CONS_QTY reads the final-step MD|Conserved quantity.
+registry["M_INIT_ENERGY"] = GenericMatcher(
+    r"ENERGY| Total FORCE_EVAL", col=9, first=True
+)
+registry["M_CONS_QTY"] = GenericMatcher(r"MD| Conserved quantity", col=5)
 # EOF
