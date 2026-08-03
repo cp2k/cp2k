@@ -34,6 +34,9 @@ registry["M005"] = GenericMatcher(r"BSSE-free interaction energy:", col=5)
 registry["M006"] = GenericMatcher(r"Average Energy", col=4)
 registry["M007"] = GenericMatcher(r"OPT| Total energy [hartree]", col=5)
 registry["Cell_vector_a_y"] = GenericMatcher(r"CELL| Vector a [angstrom]:", col=6)
+registry["Cell_angle_alpha"] = GenericMatcher(
+    r"CELL| Angle (b,c), alpha [degree]:", col=6
+)
 
 registry["Vib_freq"] = GenericMatcher(r"VIB|Frequency", col=3)  # M008
 registry["Vib_frc_const"] = GenericMatcher(r"VIB|Frc consts", col=4)  # M128

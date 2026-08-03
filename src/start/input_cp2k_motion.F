@@ -874,7 +874,8 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="KEEP_SPACE_GROUP", &
          description="Detect space group of the system and preserve it during optimization. "// &
-         "The space group symmetry is applied to coordinates, forces, and the stress tensor. "// &
+         "The space group symmetry is applied to coordinates, forces, the stress tensor, and "// &
+         "the CELL_OPT cell metric. "// &
          "It works for supercell. It does not affect/reduce computational cost. "// &
          "Use EPS_SYMMETRY to adjust the detection threshold.", &
          usage="KEEP_SPACE_GROUP .TRUE.", &

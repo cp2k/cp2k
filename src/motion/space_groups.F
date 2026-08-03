@@ -16,7 +16,8 @@ MODULE space_groups
    USE bibliography,                    ONLY: Togo2018,&
                                               cite_reference
    USE cell_methods,                    ONLY: cell_create,&
-                                              init_cell
+                                              init_cell,&
+                                              set_cell_param
    USE cell_types,                      ONLY: cell_copy,&
                                               cell_type,&
                                               real_to_scaled,&
@@ -53,7 +54,7 @@ MODULE space_groups
 
    PUBLIC :: spgr_create, identify_space_group, spgr_find_equivalent_atoms
    PUBLIC :: spgr_apply_rotations_coord, spgr_apply_rotations_force, print_spgr
-   PUBLIC :: spgr_apply_rotations_stress, spgr_write_stress_tensor
+   PUBLIC :: spgr_apply_rotations_stress, spgr_project_cell_metric, spgr_write_stress_tensor
 
 CONTAINS
 
@@ -809,6 +810,49 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE spgr_apply_rotations_stress
+
+! **************************************************************************************************
+!> \brief Project a cell onto the metric preserved by the selected space-group rotations.
+!> \param spgr ...
+!> \param cell ...
+! **************************************************************************************************
+   SUBROUTINE spgr_project_cell_metric(spgr, cell)
+
+      TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
+      TYPE(cell_type), INTENT(INOUT), POINTER            :: cell
+
+      INTEGER                                            :: i, ir, nop
+      REAL(KIND=dp)                                      :: scale
+      REAL(KIND=dp), DIMENSION(3)                        :: abc, cell_angle
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: metric, metric_sym, rot
+
+      CPASSERT(ALLOCATED(spgr%rotations_subset))
+      nop = spgr%n_operations_subset
+      CPASSERT(nop > 0)
+
+      metric = MATMUL(TRANSPOSE(cell%hmat), cell%hmat)
+      metric_sym = 0.0_dp
+      DO ir = 1, nop
+         rot = REAL(spgr%rotations_subset(:, :, ir), dp)
+         metric_sym = metric_sym + MATMUL(rot, MATMUL(metric, TRANSPOSE(rot)))
+      END DO
+      metric_sym = metric_sym/REAL(nop, dp)
+
+      ! The group average can change the determinant. Retain the volume of the
+      ! optimizer proposal so KEEP_VOLUME and hydrostatic changes remain intact.
+      scale = (cell%deth**2/det_3x3(metric_sym))**(1.0_dp/3.0_dp)
+      metric_sym = scale*metric_sym
+
+      DO i = 1, 3
+         abc(i) = SQRT(metric_sym(i, i))
+      END DO
+      cell_angle(1) = ACOS(MAX(-1.0_dp, MIN(1.0_dp, metric_sym(2, 3)/(abc(2)*abc(3)))))
+      cell_angle(2) = ACOS(MAX(-1.0_dp, MIN(1.0_dp, metric_sym(1, 3)/(abc(1)*abc(3)))))
+      cell_angle(3) = ACOS(MAX(-1.0_dp, MIN(1.0_dp, metric_sym(1, 2)/(abc(1)*abc(2)))))
+      CALL set_cell_param(cell, cell_length=abc, cell_angle=cell_angle, &
+                          periodic=cell%perd, do_init_cell=.TRUE.)
+
+   END SUBROUTINE spgr_project_cell_metric
 
 ! **************************************************************************************************
 !> \brief routine prints Space Group Information.

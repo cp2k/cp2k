@@ -69,6 +69,7 @@ MODULE gopt_f_methods
    USE particle_types, ONLY: particle_type
    USE qmmm_util, ONLY: apply_qmmm_translate
    USE qmmmx_util, ONLY: apply_qmmmx_translate
+   USE space_groups, ONLY: spgr_project_cell_metric
    USE virial_methods, ONLY: virial_evaluate
    USE virial_types, ONLY: virial_type
 #include "../base/base_uses.f90"
@@ -1163,6 +1164,17 @@ CONTAINS
             END DO
          END DO
          CALL init_cell(gopt_env%cell_env%opt_cell)
+         IF (gopt_env%spgr%keep_space_group) THEN
+            CALL spgr_project_cell_metric(gopt_env%spgr, gopt_env%cell_env%opt_cell)
+            ! Keep the optimizer variables synchronized with the projected cell.
+            idg = 3*nparticle
+            DO i = 1, 3
+               DO j = 1, i
+                  idg = idg + 1
+                  x(idg) = gopt_env%cell_env%opt_cell%hmat(j, i)
+               END DO
+            END DO
+         END IF
 
          ! Reconstruct the physical cell in the fixed orientation of the input cell.
          cell%hmat = MATMUL(gopt_env%cell_env%opt_to_input, &
