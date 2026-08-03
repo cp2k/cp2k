@@ -18,8 +18,9 @@ MODULE skala_torch_api
                     dp
    USE string_utilities, ONLY: uppercase
    USE torch_api, ONLY: &
-      torch_dict_type, torch_model_forward_mol_tensor, torch_model_load_with_metadata, &
-      torch_model_release, torch_model_remap_device_constants, torch_model_type, &
+      torch_dict_type, torch_model_disable_parameter_gradients, torch_model_forward_mol_tensor, &
+      torch_model_load_with_metadata, torch_model_release, torch_model_remap_device_constants, &
+      torch_model_type, &
       torch_tensor_item_double, torch_tensor_release, torch_tensor_type, &
       torch_tensor_weighted_sum
 #include "./base/base_uses.f90"
@@ -60,6 +61,7 @@ CONTAINS
                                           "protocol_version", protocol_string, &
                                           "features", features_json)
       CALL torch_model_remap_device_constants(model%torch_model)
+      CALL torch_model_disable_parameter_gradients(model%torch_model)
       READ (protocol_string, *, IOSTAT=ios) model%protocol_version
       IF (ios /= 0) CPABORT("Could not parse SKALA TorchScript protocol_version metadata")
       IF (model%protocol_version /= 2) THEN
