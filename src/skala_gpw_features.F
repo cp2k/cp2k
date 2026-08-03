@@ -562,9 +562,10 @@ CONTAINS
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
       INTEGER, INTENT(IN), OPTIONAL                      :: atom_partition
 
-      INTEGER :: feature_local, i, iatom, ipt, j, k, local_row, max_grid_size, max_local_features, &
-         my_atom_partition, natom, nfeature_local, nflat, nflat_local, npoint, nproc, owner, pe, &
-         pe_index, phase_handle, row, source_global, source_local, static_base
+      INTEGER :: feature_local, feature_slot, i, iatom, ipt, j, k, local_feature, local_row, &
+         max_grid_size, max_local_features, my_atom_partition, natom, nfeature_local, nflat, &
+         nflat_local, npoint, nproc, nx, ny, owner, pe, pe_index, phase_handle, row, &
+         source_global, source_local, static_base
       INTEGER, ALLOCATABLE, DIMENSION(:) :: atom_offset, atom_position, chunk_atom_begin, &
          chunk_atom_end, cursor, feature_counts, feature_displs, global_owner, &
          global_source_points, local_feature_counts_tmp, local_owner, local_source_global, &
@@ -576,8 +577,8 @@ CONTAINS
                                                             weight_sumsq
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distances, global_static, local_static, &
                                                             partition_weights
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc, atom_image_coords
-      REAL(KIND=dp), DIMENSION(3)                        :: grid_point, owner_coord
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc, partition_atom_coords
+      REAL(KIND=dp), DIMENSION(3)                        :: grid_point
 
       CALL release_layout_cache(cached_layout)
 
@@ -605,46 +606,71 @@ CONTAINS
                 local_static(nstatic_per_point*max_local_features), &
                 local_feature_counts_tmp(nflat_local), feature_counts(nproc), &
                 feature_displs(nproc), point_counts(nproc), point_displs(nproc), &
-                static_counts(nproc), static_displs(nproc), atom_coords_pbc(3, natom), &
-                atom_image_coords(3, natom), distances(natom), partition_weights(natom))
+                static_counts(nproc), static_displs(nproc), atom_coords_pbc(3, natom))
       ALLOCATE (cached_layout%feature_index(bo(1, 1):bo(2, 1), &
                                             bo(1, 2):bo(2, 2), &
                                             bo(1, 3):bo(2, 3)))
       cached_layout%feature_index = 0
-      local_static = 0.0_dp
       local_feature_counts_tmp = 0
       DO iatom = 1, natom
          atom_coords_pbc(:, iatom) = pbc(particle_set(iatom)%r, cell, positive_range=.TRUE.)
       END DO
 
       CALL timeset("skala_gpw_layout_local", phase_handle)
-      local_row = 0
-      nfeature_local = 0
-      DO k = bo(1, 3), bo(2, 3)
-         DO j = bo(1, 2), bo(2, 2)
-            DO i = bo(1, 1), bo(2, 1)
-               local_row = local_row + 1
-               grid_point = grid_coordinate(pw_grid, [i, j, k])
-               base_weight = pw_grid%dvol
-               IF (PRESENT(weights)) THEN
-                  IF (ASSOCIATED(weights)) base_weight = base_weight*weights%array(i, j, k)
-               END IF
-               cached_layout%feature_index(i, j, k) = local_row
-
-               IF (my_atom_partition == skala_gpw_atom_partition_hard) THEN
+      nx = bo(2, 1) - bo(1, 1) + 1
+      ny = bo(2, 2) - bo(1, 2) + 1
+      IF (my_atom_partition == skala_gpw_atom_partition_hard) THEN
+         nfeature_local = nflat_local
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(3) &
+!$OMP SHARED(atom_coords_pbc, bo, cached_layout, cell, local_feature_counts_tmp, local_owner, &
+!$OMP        local_source_points, local_static, nx, ny, pw_grid, weights) &
+!$OMP PRIVATE(base_weight, grid_point, i, j, k, local_row, owner, static_base)
+         DO k = bo(1, 3), bo(2, 3)
+            DO j = bo(1, 2), bo(2, 2)
+               DO i = bo(1, 1), bo(2, 1)
+                  local_row = i - bo(1, 1) + 1 + &
+                              nx*(j - bo(1, 2) + ny*(k - bo(1, 3)))
+                  grid_point = grid_coordinate(pw_grid, [i, j, k])
+                  base_weight = pw_grid%dvol
+                  IF (PRESENT(weights)) THEN
+                     IF (ASSOCIATED(weights)) base_weight = base_weight*weights%array(i, j, k)
+                  END IF
+                  cached_layout%feature_index(i, j, k) = local_row
                   owner = nearest_atom(grid_point, atom_coords_pbc, cell)
-                  owner_coord = atom_coords_pbc(:, owner)
-                  nfeature_local = nfeature_local + 1
                   local_feature_counts_tmp(local_row) = 1
-                  local_owner(nfeature_local) = owner
-                  local_source_points(nfeature_local) = local_row
-                  static_base = nstatic_per_point*(nfeature_local - 1)
+                  local_owner(local_row) = owner
+                  local_source_points(local_row) = local_row
+                  static_base = nstatic_per_point*(local_row - 1)
                   local_static(static_base + 1:static_base + 3) = grid_point
                   local_static(static_base + 4) = base_weight
                   local_static(static_base + 5) = base_weight
-               ELSE
+               END DO
+            END DO
+         END DO
+!$OMP END PARALLEL DO
+      ELSE
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(atom_coords_pbc, bo, cached_layout, cell, local_feature_counts_tmp, local_owner, &
+!$OMP        local_source_points, local_static, natom, nx, ny, pw_grid, weights) &
+!$OMP PRIVATE(base_weight, distances, feature_slot, grid_point, i, iatom, &
+!$OMP         included_sum, j, k, local_feature, local_row, owner, partition_weight, &
+!$OMP         partition_atom_coords, partition_weights, static_base)
+         ! Keep point-local scratch outside the hot loop and private to each thread.
+         ALLOCATE (distances(natom), partition_atom_coords(3, natom), partition_weights(natom))
+!$OMP DO COLLAPSE(3)
+         DO k = bo(1, 3), bo(2, 3)
+            DO j = bo(1, 2), bo(2, 2)
+               DO i = bo(1, 1), bo(2, 1)
+                  local_row = i - bo(1, 1) + 1 + &
+                              nx*(j - bo(1, 2) + ny*(k - bo(1, 3)))
+                  grid_point = grid_coordinate(pw_grid, [i, j, k])
+                  base_weight = pw_grid%dvol
+                  IF (PRESENT(weights)) THEN
+                     IF (ASSOCIATED(weights)) base_weight = base_weight*weights%array(i, j, k)
+                  END IF
+                  cached_layout%feature_index(i, j, k) = local_row
                   CALL smooth_atom_partition(grid_point, atom_coords_pbc, cell, &
-                                             partition_weights, atom_image_coords, distances)
+                                             partition_weights, partition_atom_coords, distances)
                   included_sum = SUM(partition_weights, MASK=partition_weights > smooth_partition_eps)
                   IF (included_sum <= 0.0_dp) THEN
                      owner = nearest_atom(grid_point, atom_coords_pbc, cell)
@@ -652,23 +678,44 @@ CONTAINS
                      partition_weights(owner) = 1.0_dp
                      included_sum = 1.0_dp
                   END IF
+                  local_feature = 0
                   DO iatom = 1, natom
                      IF (partition_weights(iatom) <= smooth_partition_eps) CYCLE
                      partition_weight = partition_weights(iatom)/included_sum
-                     nfeature_local = nfeature_local + 1
-                     local_feature_counts_tmp(local_row) = &
-                        local_feature_counts_tmp(local_row) + 1
-                     local_owner(nfeature_local) = iatom
-                     local_source_points(nfeature_local) = local_row
-                     static_base = nstatic_per_point*(nfeature_local - 1)
+                     local_feature = local_feature + 1
+                     feature_slot = natom*(local_row - 1) + local_feature
+                     local_owner(feature_slot) = iatom
+                     local_source_points(feature_slot) = local_row
+                     static_base = nstatic_per_point*(feature_slot - 1)
                      local_static(static_base + 1:static_base + 3) = grid_point
                      local_static(static_base + 4) = base_weight*partition_weight
                      local_static(static_base + 5) = base_weight
                   END DO
-               END IF
+                  local_feature_counts_tmp(local_row) = local_feature
+               END DO
             END DO
          END DO
-      END DO
+!$OMP END DO
+         DEALLOCATE (distances, partition_atom_coords, partition_weights)
+!$OMP END PARALLEL
+
+         ! Compact the conflict-free row slots while preserving the serial row/atom order.
+         nfeature_local = 0
+         DO local_row = 1, nflat_local
+            CPASSERT(local_feature_counts_tmp(local_row) > 0)
+            DO local_feature = 1, local_feature_counts_tmp(local_row)
+               nfeature_local = nfeature_local + 1
+               feature_slot = natom*(local_row - 1) + local_feature
+               IF (feature_slot == nfeature_local) CYCLE
+               local_owner(nfeature_local) = local_owner(feature_slot)
+               local_source_points(nfeature_local) = local_source_points(feature_slot)
+               local_static(nstatic_per_point*(nfeature_local - 1) + 1: &
+                            nstatic_per_point*nfeature_local) = &
+                  local_static(nstatic_per_point*(feature_slot - 1) + 1: &
+                               nstatic_per_point*feature_slot)
+            END DO
+         END DO
+      END IF
       CALL timestop(phase_handle)
 
       ! SKALA groups all grid points by atom. This ordering is static while the
@@ -841,11 +888,11 @@ CONTAINS
       CALL timestop(phase_handle)
       cached_layout%active = .TRUE.
 
-      DEALLOCATE (atom_coords_pbc, atom_image_coords, atom_offset, atom_position, &
+      DEALLOCATE (atom_coords_pbc, atom_offset, atom_position, &
                   chunk_atom_begin, chunk_atom_end, cursor, feature_counts, feature_displs, &
                   global_owner, global_source_points, global_static, local_feature_counts_tmp, &
-                  distances, local_owner, local_source_global, local_source_points, &
-                  local_static, partition_weights, point_counts, point_displs, static_counts, &
+                  local_owner, local_source_global, local_source_points, &
+                  local_static, point_counts, point_displs, static_counts, &
                   static_displs)
 
    END SUBROUTINE rebuild_layout_cache
@@ -2216,32 +2263,29 @@ CONTAINS
 !> \param atom_coords ...
 !> \param cell ...
 !> \param weights ...
-!> \param atom_image_coords ...
+!> \param partition_atom_coords ...
 !> \param distances ...
 ! **************************************************************************************************
-   SUBROUTINE smooth_atom_partition(grid_point, atom_coords, cell, weights, atom_image_coords, &
+   SUBROUTINE smooth_atom_partition(grid_point, atom_coords, cell, weights, partition_atom_coords, &
                                     distances)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: weights
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: atom_image_coords
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: partition_atom_coords
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: distances
 
       INTEGER                                            :: iatom, jatom, natom
       REAL(KIND=dp)                                      :: mu, rab, rsum, switch, total
       REAL(KIND=dp), DIMENSION(3)                        :: rij
-      REAL(KIND=dp), DIMENSION(3, SIZE(atom_coords, 2))  :: partition_atom_coords
 
       natom = SIZE(atom_coords, 2)
       CPASSERT(SIZE(weights) == natom)
-      CPASSERT(SIZE(atom_image_coords, 1) == 3)
-      CPASSERT(SIZE(atom_image_coords, 2) == natom)
+      CPASSERT(SIZE(partition_atom_coords, 1) == 3)
+      CPASSERT(SIZE(partition_atom_coords, 2) == natom)
       CPASSERT(SIZE(distances) == natom)
 
       DO iatom = 1, natom
-         atom_image_coords(:, iatom) = &
-            nearest_image_coordinate(atom_coords(:, iatom), grid_point, cell)
          partition_atom_coords(:, iatom) = &
             nearest_atom_image_coordinate(atom_coords(:, iatom), grid_point, cell)
          rij = grid_point - partition_atom_coords(:, iatom)
@@ -2526,34 +2570,6 @@ CONTAINS
       END IF
 
    END FUNCTION nearest_atom_image_coordinate
-
-! **************************************************************************************************
-!> \brief Return the grid-point image nearest to the owning atom coordinate.
-!> \param owner_coord ...
-!> \param grid_point ...
-!> \param cell ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION nearest_image_coordinate(owner_coord, grid_point, cell) RESULT(coord)
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: owner_coord, grid_point
-      TYPE(cell_type), POINTER                           :: cell
-      REAL(KIND=dp), DIMENSION(3)                        :: coord
-
-      REAL(KIND=dp)                                      :: dx, dy, dz
-
-      IF (cell%orthorhombic) THEN
-         dx = grid_point(1) - owner_coord(1)
-         dy = grid_point(2) - owner_coord(2)
-         dz = grid_point(3) - owner_coord(3)
-         dx = dx - cell%hmat(1, 1)*cell%perd(1)*ANINT(cell%h_inv(1, 1)*dx)
-         dy = dy - cell%hmat(2, 2)*cell%perd(2)*ANINT(cell%h_inv(2, 2)*dy)
-         dz = dz - cell%hmat(3, 3)*cell%perd(3)*ANINT(cell%h_inv(3, 3)*dz)
-         coord = owner_coord + [dx, dy, dz]
-      ELSE
-         coord = owner_coord + pbc(owner_coord, grid_point, cell)
-      END IF
-
-   END FUNCTION nearest_image_coordinate
 
 ! **************************************************************************************************
 !> \brief Assign a grid point to the nearest periodic atom.
