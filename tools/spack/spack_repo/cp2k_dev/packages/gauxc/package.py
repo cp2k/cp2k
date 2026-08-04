@@ -25,7 +25,7 @@ class Gauxc(CMakePackage, CudaPackage, ROCmPackage):
     license("BSD-3-Clause")
 
     version("master", branch="master")
-    version("dev20260608", branch="skala", commit="36aeab80bf7b2245087bdfeffd8e61b11206b3bd")
+    version("dev20260717", branch="skala", commit="ea0f1fc7c02497aa950376eda61686ba30256999")
     version(
         "1.2.dev2",
         sha256="6659d00522b443f2557a960a9ba0217449d2ee25df809634d6becca23eb0f1ff",
@@ -35,8 +35,8 @@ class Gauxc(CMakePackage, CudaPackage, ROCmPackage):
 
     variant("c", default=True, description="Build with C API support", when="@master")
     variant("c", default=True, description="Build with C API support", when="@1.2.dev2")
-    variant("c", default=True, description="Build with C API support", when="@dev20260608")
-    variant("fortran", default=True, description="Build with Fortran support", when="@dev20260608")
+    variant("c", default=True, description="Build with C API support", when="@dev20260717")
+    variant("fortran", default=True, description="Build with Fortran support", when="@dev20260717")
     variant("host", default=True, description="Build with host integrator")
     variant("mpi", default=False, description="Build with MPI support")
     variant("openmp", default=True, description="Build with OpenMP support")

@@ -202,7 +202,7 @@ spack:
     - "dla-future-fortran@0.5.0"
     - "elpa@2026.02.002"
     - "fftw@3.3.11"
-    - "gauxc@dev20260608"
+    - "gauxc@dev20260717"
     - "greenx@2.2"
     - "hdf5@2.1.0"
     - "libfabric@2.6.0"
