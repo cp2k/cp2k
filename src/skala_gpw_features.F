@@ -1827,8 +1827,10 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: atom_begin, atom_count, row_begin, &
                                                             row_count
 
-      INTEGER                                            :: atom_rows, iatom, nsubchunks, rows, &
-                                                            subchunk
+      INTEGER :: atom_begin_tmp, atom_count_tmp, atom_rows, iatom, insert_at, nsubchunks, &
+         row_begin_tmp, row_count_tmp, rows, subchunk
+      INTEGER(KIND=int_8)                                :: padded_rows_tmp
+      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: padded_rows
 
       nsubchunks = skala_gpw_atom_subchunk_count(max_rows)
       ALLOCATE (atom_begin(nsubchunks), atom_count(nsubchunks), row_begin(nsubchunks), &
@@ -1871,6 +1873,38 @@ CONTAINS
       row_count(subchunk) = rows
 
       CPASSERT(subchunk == nsubchunks)
+
+      ALLOCATE (padded_rows(nsubchunks))
+      DO subchunk = 1, nsubchunks
+         iatom = atom_begin(subchunk) + atom_count(subchunk) - 1
+         padded_rows(subchunk) = INT(atom_count(subchunk), KIND=int_8)* &
+                                 MAXVAL(cached_layout%chunk_atomic_grid_sizes( &
+                                        atom_begin(subchunk):iatom))
+      END DO
+
+      ! Evaluate the largest padded block first so Torch can reuse its CUDA allocations.
+      DO subchunk = 2, nsubchunks
+         padded_rows_tmp = padded_rows(subchunk)
+         atom_begin_tmp = atom_begin(subchunk)
+         atom_count_tmp = atom_count(subchunk)
+         row_begin_tmp = row_begin(subchunk)
+         row_count_tmp = row_count(subchunk)
+         insert_at = subchunk
+         DO WHILE (insert_at > 1 .AND. padded_rows(insert_at - 1) < padded_rows_tmp)
+            padded_rows(insert_at) = padded_rows(insert_at - 1)
+            atom_begin(insert_at) = atom_begin(insert_at - 1)
+            atom_count(insert_at) = atom_count(insert_at - 1)
+            row_begin(insert_at) = row_begin(insert_at - 1)
+            row_count(insert_at) = row_count(insert_at - 1)
+            insert_at = insert_at - 1
+         END DO
+         padded_rows(insert_at) = padded_rows_tmp
+         atom_begin(insert_at) = atom_begin_tmp
+         atom_count(insert_at) = atom_count_tmp
+         row_begin(insert_at) = row_begin_tmp
+         row_count(insert_at) = row_count_tmp
+      END DO
+      DEALLOCATE (padded_rows)
 
    END SUBROUTINE skala_gpw_atom_subchunk_layout
 
