@@ -160,17 +160,17 @@ case "${with_gauxc}" in
         ${gauxc_cuda_architectures_option} \
         .. > configure.log 2>&1 || tail_excerpt configure.log
       make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
-       # Copy skala model from shared location (like other dependencies)
-       mkdir -p "${pkg_install_dir}/share/gauxc/onedft_models"
-       if [ -f "${INSTALLDIR}/skala-${skala_model_ver}/share/skala/onedft_models/${skala_model_pkg}" ]; then
-         cp "${INSTALLDIR}/skala-${skala_model_ver}/share/skala/onedft_models/${skala_model_pkg}" \
-           "${pkg_install_dir}/share/gauxc/onedft_models/${skala_model_pkg}"
-       fi
+      # Copy skala model from shared location (like other dependencies)
+      mkdir -p "${pkg_install_dir}/share/gauxc/onedft_models"
+      if [ -f "${INSTALLDIR}/skala-${skala_model_ver}/share/skala/onedft_models/${skala_model_pkg}" ]; then
+        cp "${INSTALLDIR}/skala-${skala_model_ver}/share/skala/onedft_models/${skala_model_pkg}" \
+          "${pkg_install_dir}/share/gauxc/onedft_models/${skala_model_pkg}"
+      fi
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})" \
-         "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" \
-         "${SCRIPT_DIR}/stage6/gauxc-libxc-only-exchcxx.patch" \
-         "${SCRIPT_DIR}/stage6/exchcxx-disable-builtin.patch" "${BUILDDIR}/${gauxc_pkg}" \
-         "${BUILDDIR}/${nlohmann_json_pkg}"
+        "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" \
+        "${SCRIPT_DIR}/stage6/gauxc-libxc-only-exchcxx.patch" \
+        "${SCRIPT_DIR}/stage6/exchcxx-disable-builtin.patch" "${BUILDDIR}/${gauxc_pkg}" \
+        "${BUILDDIR}/${nlohmann_json_pkg}"
     fi
     ;;
   __SYSTEM__)
