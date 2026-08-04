@@ -90,6 +90,10 @@ spack:
       require:
         - "~shared"
 
+    tblite:
+      require:
+        - "~shared"
+
   repos:
     builtin:
       commit: 131214174051056d434e43d34f7c7645a385a835 # 2026-07-21
