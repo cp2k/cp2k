@@ -74,7 +74,7 @@ MODULE qs_wf_history_methods
         wfi_aspc_nr, wfi_frozen_method_nr, wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, &
         wfi_linear_p_method_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
         wfi_ps_method_nr, wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
-        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr
+        wfi_use_prev_wf_method_nr
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
                                               kpoint_density_transform,&
@@ -529,7 +529,7 @@ CONTAINS
          wf_history%memory_depth = 0
       CASE (wfi_use_prev_wf_method_nr)
          wf_history%memory_depth = 0
-      CASE (wfi_use_prev_rho_r_method_nr, wfi_use_prev_p_method_nr)
+      CASE (wfi_use_prev_p_method_nr)
          wf_history%memory_depth = 1
          wf_history%store_rho_ao = .TRUE.
       CASE (wfi_linear_wf_method_nr)
@@ -654,8 +654,6 @@ CONTAINS
          res = "previous_p"
       CASE (wfi_use_prev_wf_method_nr)
          res = "previous_wf"
-      CASE (wfi_use_prev_rho_r_method_nr)
-         res = "previous_rho_r"
       CASE (wfi_use_guess_method_nr)
          res = "initial_guess"
       CASE (wfi_linear_wf_method_nr)
@@ -788,12 +786,7 @@ CONTAINS
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
 
          my_orthogonal_wf = .FALSE.
-      CASE (wfi_use_prev_rho_r_method_nr, wfi_use_prev_p_method_nr)
-         IF (actual_extrapolation_method_nr == wfi_use_prev_rho_r_method_nr) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "USE_PREV_RHO_R is deprecated and will be removed in a future "// &
-                         "release; it is now an alias of USE_PREV_P.")
-         END IF
+      CASE (wfi_use_prev_p_method_nr)
          t0_state => wfi_get_snapshot(wf_history, wf_index=1)
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
          CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
@@ -2299,8 +2292,7 @@ CONTAINS
 
       SELECT CASE (qs_env%wf_history%interpolation_method_nr)
       CASE (wfi_use_guess_method_nr, wfi_use_prev_wf_method_nr, &
-            wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, &
-            wfi_frozen_method_nr)
+            wfi_use_prev_p_method_nr, wfi_frozen_method_nr)
          ! do nothing
       CASE (wfi_linear_wf_method_nr, wfi_linear_p_method_nr, &
             wfi_linear_ps_method_nr, wfi_ps_method_nr, &
