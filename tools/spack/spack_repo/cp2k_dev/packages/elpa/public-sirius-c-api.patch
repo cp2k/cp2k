@@ -1,0 +1,13 @@
+diff --git a/src/elpa_impl.F90 b/src/elpa_impl.F90
+index 5bca8c9a..5a649848 100644
+--- a/src/elpa_impl.F90
++++ b/src/elpa_impl.F90
+@@ -75,2 +75,8 @@ module elpa_impl
+   private
+   public :: elpa_impl_allocate
++  public :: elpa_impl_allocate_c, elpa_impl_deallocate_c
++  public :: elpa_setup_c, elpa_set_integer_c
++  public :: elpa_eigenvectors_a_h_a_d_c
++  public :: elpa_eigenvectors_a_h_a_dc_c
++  public :: elpa_generalized_eigenvectors_a_h_a_d_c
++  public :: elpa_generalized_eigenvectors_a_h_a_dc_c
