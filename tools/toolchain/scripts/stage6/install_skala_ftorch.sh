@@ -350,34 +350,34 @@ case "${with_skala_ftorch}" in
 
       cd "${BUILDDIR}"
 
-       export SKALA_BINDINGS_SRC_DIR="${BUILDDIR}"
+      export SKALA_BINDINGS_SRC_DIR="${BUILDDIR}"
 
-       echo "Building scala C++ bindings..."
-       if ! "${CXX}" -shared -fPIC -std=c++17 \
-         -I"${INSTALLDIR}/libtorch-${libtorch_ver}/include/torch/csrc/api/include" \
-         -I"${INSTALLDIR}/libtorch-${libtorch_ver}/include" \
-         -I"${INSTALLDIR}/libtorch-${libtorch_ver}/include/torch" \
-         -L"${INSTALLDIR}/libtorch-${libtorch_ver}/lib" \
-         -o libskala_ftorch_bindings.so \
-         "${BUILDDIR}/skala_ftorch.cpp" \
-         -ltorch -ltorch_cpu -lc10 \
-         -lpthread -ldl \
-         -Wl,-rpath,"${INSTALLDIR}/libtorch-${libtorch_ver}/lib" \
-         > build_bindings.log 2>&1; then
-         echo "WARNING: Failed to build scala C++ bindings. See build_bindings.log for details."
-         echo "Skala-ftorch functionality will be limited without the C++ bindings."
-         echo "The Fortran interface file has been installed, but runtime will fail without the C++ library."
-       fi
+      echo "Building scala C++ bindings..."
+      if ! "${CXX}" -shared -fPIC -std=c++17 \
+        -I"${INSTALLDIR}/libtorch-${libtorch_ver}/include/torch/csrc/api/include" \
+        -I"${INSTALLDIR}/libtorch-${libtorch_ver}/include" \
+        -I"${INSTALLDIR}/libtorch-${libtorch_ver}/include/torch" \
+        -L"${INSTALLDIR}/libtorch-${libtorch_ver}/lib" \
+        -o libskala_ftorch_bindings.so \
+        "${BUILDDIR}/skala_ftorch.cpp" \
+        -ltorch -ltorch_cpu -lc10 \
+        -lpthread -ldl \
+        -Wl,-rpath,"${INSTALLDIR}/libtorch-${libtorch_ver}/lib" \
+        > build_bindings.log 2>&1; then
+        echo "WARNING: Failed to build scala C++ bindings. See build_bindings.log for details."
+        echo "Skala-ftorch functionality will be limited without the C++ bindings."
+        echo "The Fortran interface file has been installed, but runtime will fail without the C++ library."
+      fi
 
-       mkdir -p "${pkg_install_dir}/lib"
-       if [ -f libskala_ftorch_bindings.so ]; then
-         cp libskala_ftorch_bindings.so "${pkg_install_dir}/lib/"
-       else
-         echo "WARNING: libskala_ftorch_bindings.so not found, skipping copy"
-       fi
+      mkdir -p "${pkg_install_dir}/lib"
+      if [ -f libskala_ftorch_bindings.so ]; then
+        cp libskala_ftorch_bindings.so "${pkg_install_dir}/lib/"
+      else
+        echo "WARNING: libskala_ftorch_bindings.so not found, skipping copy"
+      fi
 
-       mkdir -p "${pkg_install_dir}/include"
-       cp "${BUILDDIR}/skala_ftorch.f90" "${pkg_install_dir}/include/"
+      mkdir -p "${pkg_install_dir}/include"
+      cp "${BUILDDIR}/skala_ftorch.f90" "${pkg_install_dir}/include/"
 
       # Copy skala model from shared location (like other dependencies)
       mkdir -p "${pkg_install_dir}/share/skala/onedft_models"
@@ -388,7 +388,7 @@ case "${with_skala_ftorch}" in
 
       write_checksums "${install_lock_file}" \
         "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})" \
-         "${BUILDDIR}/${ftorch_pkg}"
+        "${BUILDDIR}/${ftorch_pkg}"
     fi
     ;;
   __SYSTEM__)

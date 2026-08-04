@@ -422,12 +422,12 @@ while [[ $# -gt 0 ]]; do
           dbm_gpu | elpa_gpu | grid_gpu | pw_gpu)
             CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_ENABLE_${2^^}=${ON_OFF}"
             ;;
-           none)
+          none)
             # do nothing
             ;;
-           scala)
-	    CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_SCALA=${ON_OFF}"
-	    ;;
+          scala)
+            CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_SCALA=${ON_OFF}"
+            ;;
           skala_ftorch)
             CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_SKALA_FTORCH=${ON_OFF}"
             ;;
