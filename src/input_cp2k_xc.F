@@ -1431,8 +1431,8 @@ CONTAINS
                           "standard k-point and symmetry-reduction infrastructure; CPU k-point "// &
                           "runs require mutually compatible BLAS, ScaLAPACK, OpenMP, and LibTorch "// &
                           "runtimes, while CUDA evaluation is selected explicitly. "// &
-                          "MPI runs collect a global atom-partitioned feature block by default; "// &
-                          "NATIVE_GRID_ATOM_CHUNKS can split the Torch evaluation by atom block. "// &
+                          "Energy/VXC runs split the Torch evaluation into atom blocks by default "// &
+                          "and route dynamic features and gradients between MPI ranks. "// &
                           "PAW/one-center GAPW+GTH/ECP and METHOD GAPW_XC use CP2K's GAPW hard/soft "// &
                           "one-center XC correction with a selectable "// &
                           "NATIVE_GRID_GAPW_DENSITY_PARTITION. ROKS, ADMM, and non-k-point "// &
@@ -1507,10 +1507,12 @@ CONTAINS
                           "evaluation into contiguous atom blocks. MPI runs evaluate one atom block per "// &
                           "rank, while single-rank runs can still use atom subchunks to reduce peak CUDA "// &
                           "memory. Dynamic feature rows and VXC gradients are routed between their "// &
-                          "local grid and atom-block owner ranks. Analytical force and stress runs use "// &
-                          "the full differentiable tensor graph instead of routed atom chunks.", &
+                          "local grid and atom-block owner ranks. This is enabled by default; set it to "// &
+                          "false to retain the replicated global feature block. Analytical force and "// &
+                          "stress runs use the full differentiable tensor graph instead of routed atom "// &
+                          "chunks.", &
                           usage="NATIVE_GRID_ATOM_CHUNKS T", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
