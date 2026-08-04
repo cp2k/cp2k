@@ -323,7 +323,8 @@ CONTAINS
       CALL timestop(phase_handle)
 
       CALL timeset("skala_gpw_copy_layout", phase_handle)
-      CALL copy_cached_layout(features, my_requires_coordinate_grad .OR. my_requires_stress_grad, &
+      CALL copy_cached_layout(features, use_atom_chunk_routing, &
+                              my_requires_coordinate_grad .OR. my_requires_stress_grad, &
                               my_requires_stress_grad .OR. &
                               (my_atom_partition == skala_gpw_atom_partition_smooth .AND. &
                                (my_requires_coordinate_grad .OR. my_requires_stress_grad)))
@@ -391,7 +392,11 @@ CONTAINS
          features%spin_moment = SUM((features%density(:, 1) - features%density(:, 2))* &
                                     features%grid_weights)
       END IF
-      features%grid_weight_sum = SUM(features%grid_weights)
+      IF (use_atom_chunk_routing) THEN
+         features%grid_weight_sum = SUM(cached_layout%grid_weights)
+      ELSE
+         features%grid_weight_sum = SUM(features%grid_weights)
+      END IF
       CALL timestop(phase_handle)
 
       CALL timeset("skala_gpw_tensor_update", phase_handle)
@@ -975,32 +980,37 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Copy static cached layout arrays into a feature bundle.
 !> \param features ...
+!> \param use_atom_chunk_routing ...
 !> \param needs_coordinate_array ...
 !> \param needs_grid_coordinate_array ...
 ! **************************************************************************************************
-   SUBROUTINE copy_cached_layout(features, needs_coordinate_array, needs_grid_coordinate_array)
+   SUBROUTINE copy_cached_layout(features, use_atom_chunk_routing, needs_coordinate_array, &
+                                 needs_grid_coordinate_array)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
-      LOGICAL, INTENT(IN)                                :: needs_coordinate_array, &
+      LOGICAL, INTENT(IN)                                :: use_atom_chunk_routing, &
+                                                            needs_coordinate_array, &
                                                             needs_grid_coordinate_array
 
       CPASSERT(cached_layout%active)
 
-      ALLOCATE (features%feature_index(LBOUND(cached_layout%feature_index, 1): &
-                                       UBOUND(cached_layout%feature_index, 1), &
-                                       LBOUND(cached_layout%feature_index, 2): &
-                                       UBOUND(cached_layout%feature_index, 2), &
-                                       LBOUND(cached_layout%feature_index, 3): &
-                                       UBOUND(cached_layout%feature_index, 3)))
-      ALLOCATE (features%grid_weights(cached_layout%nflat))
-      ALLOCATE (features%local_feature_counts(cached_layout%nflat_local), &
-                features%local_feature_offsets(cached_layout%nflat_local + 1), &
-                features%local_feature_rows(SIZE(cached_layout%local_feature_rows)))
+      IF (.NOT. use_atom_chunk_routing) THEN
+         ALLOCATE (features%feature_index(LBOUND(cached_layout%feature_index, 1): &
+                                          UBOUND(cached_layout%feature_index, 1), &
+                                          LBOUND(cached_layout%feature_index, 2): &
+                                          UBOUND(cached_layout%feature_index, 2), &
+                                          LBOUND(cached_layout%feature_index, 3): &
+                                          UBOUND(cached_layout%feature_index, 3)))
+         ALLOCATE (features%grid_weights(cached_layout%nflat))
+         ALLOCATE (features%local_feature_counts(cached_layout%nflat_local), &
+                   features%local_feature_offsets(cached_layout%nflat_local + 1), &
+                   features%local_feature_rows(SIZE(cached_layout%local_feature_rows)))
 
-      features%feature_index(:, :, :) = cached_layout%feature_index
-      features%grid_weights(:) = cached_layout%grid_weights
-      features%local_feature_counts(:) = cached_layout%local_feature_counts
-      features%local_feature_offsets(:) = cached_layout%local_feature_offsets
-      features%local_feature_rows(:) = cached_layout%local_feature_rows
+         features%feature_index(:, :, :) = cached_layout%feature_index
+         features%grid_weights(:) = cached_layout%grid_weights
+         features%local_feature_counts(:) = cached_layout%local_feature_counts
+         features%local_feature_offsets(:) = cached_layout%local_feature_offsets
+         features%local_feature_rows(:) = cached_layout%local_feature_rows
+      END IF
       features%nflat = cached_layout%nflat
       features%nflat_local = cached_layout%nflat_local
       features%chunk_feature_count = cached_layout%chunk_feature_count
