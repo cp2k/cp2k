@@ -1588,11 +1588,13 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="LWD_KERNEL", &
                           description="Local work driver kernel used by the GauXC integrator. "// &
-                          "DEFAULT uses GauXC's default for the selected execution space. "// &
+                          "AUTO uses SCHEME1-CUTLASS for device SKALA when GauXC provides it "// &
+                          "and otherwise uses GauXC's default for the selected execution space. "// &
+                          "DEFAULT always uses GauXC's default. "// &
                           "Device builds with CUTLASS support can use SCHEME1-CUTLASS to run "// &
                           "the grouped local potential update through CUTLASS.", &
-                          usage="LWD_KERNEL DEFAULT", &
-                          default_c_val="DEFAULT")
+                          usage="LWD_KERNEL AUTO", &
+                          default_c_val="AUTO")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

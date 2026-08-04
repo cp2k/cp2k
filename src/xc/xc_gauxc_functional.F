@@ -5,6 +5,10 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
+#ifdef __GAUXC
+#include "gauxc/gauxc_config.f"
+#endif
+
 MODULE xc_gauxc_functional
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
@@ -969,9 +973,8 @@ CONTAINS
       REAL(KIND=dp), PARAMETER :: gapw_fd_gradient_dx = 1.0E-4_dp
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name, output_path
-      CHARACTER(len=default_string_length)               :: gradient_runtime, gradient_runtime_key, &
-                                                            grid_key, pruning_key, skala_runtime, &
-                                                            skala_runtime_key, xc_fun_key
+      CHARACTER(len=default_string_length) :: gradient_runtime, gradient_runtime_key, grid_key, &
+         lwd_kernel_key, pruning_key, skala_runtime, skala_runtime_key, xc_fun_key
       INTEGER                                            :: atom_chunk_size, env_status, img, ispin, &
                                                             nimages
       LOGICAL :: atom_chunk_size_explicit, do_kpoints, gapw_method, gapw_paw_pseudopotentials, &
@@ -1152,6 +1155,16 @@ CONTAINS
       params%use_gauxc_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE" .AND. &
                                 TRIM(model_key) /= TRIM(xc_fun_key))
       use_skala_model = (INDEX(TRIM(model_key), "SKALA") > 0)
+      lwd_kernel_key = ADJUSTL(params%lwd_kernel)
+      CALL uppercase(lwd_kernel_key)
+      IF (TRIM(lwd_kernel_key) == "AUTO") THEN
+         params%lwd_kernel = "DEFAULT"
+#if defined(GAUXC_HAS_CUTLASS)
+         IF (use_skala_model .AND. TRIM(params%int_exec_space) == "DEVICE") THEN
+            params%lwd_kernel = "SCHEME1-CUTLASS"
+         END IF
+#endif
+      END IF
       params%model_eval_name = model_name
       IF (.NOT. params%use_gauxc_model) THEN
          ! MODEL NONE and MODEL equal to FUNCTIONAL select conventional GauXC.
