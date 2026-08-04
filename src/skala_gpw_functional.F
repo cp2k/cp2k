@@ -1128,9 +1128,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: grad_grad
 
-      INTEGER                                            :: isubchunk, nroute_grad_per_point, nroute_points, &
-                                                            nsubchunks, phase_handle, &
-                                                            subphase_handle
+      INTEGER                                            :: isubchunk, nroute_grad_per_point, &
+                                                            nroute_recv_points, nroute_send_points, &
+                                                            nsubchunks, phase_handle, subphase_handle
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: route_grad_return_recv_counts, &
                                                             route_grad_return_recv_displs, &
                                                             route_grad_return_send_counts, &
@@ -1153,13 +1153,14 @@ CONTAINS
       exc = 0.0_dp
       IF (compute_grads) THEN
          CPASSERT(features%uses_atom_chunk_routing)
-         CPASSERT(SUM(features%route_point_recv_counts) == features%chunk_feature_count)
-         nroute_points = SIZE(features%route_local_positions)
-         CPASSERT(SUM(features%route_point_send_counts) == nroute_points)
+         nroute_recv_points = SUM(features%route_point_recv_counts)
+         nroute_send_points = SIZE(features%route_send_local_rows)
+         CPASSERT(SUM(features%route_point_send_counts) == nroute_send_points)
+         CPASSERT(SIZE(features%route_chunk_offsets) == nroute_recv_points + 1)
          nroute_grad_per_point = ngrad_per_point
          IF (collapse_spin_grads) nroute_grad_per_point = ncollapsed_grad_per_point
-         ALLOCATE (send_grad_buffer(MAX(1, nroute_grad_per_point*features%chunk_feature_count)), &
-                   recv_grad_buffer(MAX(1, nroute_grad_per_point*nroute_points)), &
+         ALLOCATE (send_grad_buffer(MAX(1, nroute_grad_per_point*nroute_recv_points)), &
+                   recv_grad_buffer(MAX(1, nroute_grad_per_point*nroute_send_points)), &
                    route_grad_return_send_counts(SIZE(features%route_point_recv_counts)), &
                    route_grad_return_send_displs(SIZE(features%route_point_recv_displs)), &
                    route_grad_return_recv_counts(SIZE(features%route_point_send_counts)), &
@@ -1341,8 +1342,9 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: route_to_return_positions
       LOGICAL, INTENT(IN), OPTIONAL                      :: collapse_spin_grads
 
-      INTEGER                                            :: base, irow, ngrad_buffer_per_point, &
-                                                            point_pos, target_points
+      INTEGER                                            :: base, feature_pos, irow, &
+                                                            ngrad_buffer_per_point, point_pos, &
+                                                            target_points
       LOGICAL                                            :: my_collapse_spin_grads
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: chunk_density_grad, chunk_kin_grad
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: chunk_grad_grad
@@ -1358,7 +1360,6 @@ CONTAINS
                                   chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
       CPASSERT(MOD(SIZE(TARGET), ngrad_buffer_per_point) == 0)
       target_points = SIZE(TARGET)/ngrad_buffer_per_point
-      CPASSERT(target_points >= features%chunk_feature_count)
       CPASSERT(SIZE(chunk_density_grad, 1) == features%chunk_feature_count)
       CPASSERT(SIZE(chunk_grad_grad, 1) == features%chunk_feature_count)
       CPASSERT(SIZE(chunk_grad_grad, 2) == 3)
@@ -1374,49 +1375,103 @@ CONTAINS
          CPASSERT(SIZE(chunk_kin_grad, 2) == 2)
       END IF
 
+      IF (route_to_return_positions) THEN
+         CPASSERT(target_points == SIZE(features%route_chunk_offsets) - 1)
 !$OMP PARALLEL DO DEFAULT(NONE) &
 !$OMP SHARED(chunk_density_grad, chunk_grad_grad, chunk_kin_grad, features, &
-!$OMP        my_collapse_spin_grads, ngrad_buffer_per_point, route_to_return_positions, &
-!$OMP        TARGET, target_points) &
-!$OMP PRIVATE(base, irow, point_pos)
-      DO irow = 1, features%chunk_feature_count
-         IF (route_to_return_positions) THEN
-            point_pos = features%chunk_return_positions(irow)
-            CPASSERT(point_pos >= 1 .AND. point_pos <= target_points)
-         ELSE
-            point_pos = irow
-         END IF
-         base = ngrad_buffer_per_point*(point_pos - 1)
-         IF (my_collapse_spin_grads) THEN
-            IF (features%uses_collapsed_rks_dynamic) THEN
-               TARGET(base + 1) = 0.5_dp*chunk_density_grad(irow, 1)
-               TARGET(base + 2) = 0.5_dp*chunk_grad_grad(irow, 1, 1)
-               TARGET(base + 3) = 0.5_dp*chunk_grad_grad(irow, 2, 1)
-               TARGET(base + 4) = 0.5_dp*chunk_grad_grad(irow, 3, 1)
-               TARGET(base + 5) = 0.5_dp*chunk_kin_grad(irow, 1)
-            ELSE
-               TARGET(base + 1) = 0.5_dp*(chunk_density_grad(irow, 1) + &
-                                          chunk_density_grad(irow, 2))
-               TARGET(base + 2) = 0.5_dp*(chunk_grad_grad(irow, 1, 1) + &
-                                          chunk_grad_grad(irow, 1, 2))
-               TARGET(base + 3) = 0.5_dp*(chunk_grad_grad(irow, 2, 1) + &
-                                          chunk_grad_grad(irow, 2, 2))
-               TARGET(base + 4) = 0.5_dp*(chunk_grad_grad(irow, 3, 1) + &
-                                          chunk_grad_grad(irow, 3, 2))
-               TARGET(base + 5) = 0.5_dp*(chunk_kin_grad(irow, 1) + chunk_kin_grad(irow, 2))
-            END IF
-         ELSE
-            TARGET(base + 1:base + 2) = chunk_density_grad(irow, :)
-            TARGET(base + 3) = chunk_grad_grad(irow, 1, 1)
-            TARGET(base + 4) = chunk_grad_grad(irow, 2, 1)
-            TARGET(base + 5) = chunk_grad_grad(irow, 3, 1)
-            TARGET(base + 6) = chunk_grad_grad(irow, 1, 2)
-            TARGET(base + 7) = chunk_grad_grad(irow, 2, 2)
-            TARGET(base + 8) = chunk_grad_grad(irow, 3, 2)
-            TARGET(base + 9:base + 10) = chunk_kin_grad(irow, :)
-         END IF
-      END DO
+!$OMP        my_collapse_spin_grads, ngrad_buffer_per_point, TARGET, target_points) &
+!$OMP PRIVATE(base, feature_pos, irow, point_pos)
+         DO point_pos = 1, target_points
+            base = ngrad_buffer_per_point*(point_pos - 1)
+            TARGET(base + 1:base + ngrad_buffer_per_point) = 0.0_dp
+            DO feature_pos = features%route_chunk_offsets(point_pos), &
+               features%route_chunk_offsets(point_pos + 1) - 1
+               irow = features%route_chunk_rows(feature_pos)
+               CPASSERT(irow >= 1 .AND. irow <= features%chunk_feature_count)
+               IF (my_collapse_spin_grads) THEN
+                  IF (features%uses_collapsed_rks_dynamic) THEN
+                     TARGET(base + 1) = TARGET(base + 1) + &
+                                        0.5_dp*chunk_density_grad(irow, 1)
+                     TARGET(base + 2) = TARGET(base + 2) + &
+                                        0.5_dp*chunk_grad_grad(irow, 1, 1)
+                     TARGET(base + 3) = TARGET(base + 3) + &
+                                        0.5_dp*chunk_grad_grad(irow, 2, 1)
+                     TARGET(base + 4) = TARGET(base + 4) + &
+                                        0.5_dp*chunk_grad_grad(irow, 3, 1)
+                     TARGET(base + 5) = TARGET(base + 5) + &
+                                        0.5_dp*chunk_kin_grad(irow, 1)
+                  ELSE
+                     TARGET(base + 1) = TARGET(base + 1) + &
+                                        0.5_dp*(chunk_density_grad(irow, 1) + &
+                                                chunk_density_grad(irow, 2))
+                     TARGET(base + 2) = TARGET(base + 2) + &
+                                        0.5_dp*(chunk_grad_grad(irow, 1, 1) + &
+                                                chunk_grad_grad(irow, 1, 2))
+                     TARGET(base + 3) = TARGET(base + 3) + &
+                                        0.5_dp*(chunk_grad_grad(irow, 2, 1) + &
+                                                chunk_grad_grad(irow, 2, 2))
+                     TARGET(base + 4) = TARGET(base + 4) + &
+                                        0.5_dp*(chunk_grad_grad(irow, 3, 1) + &
+                                                chunk_grad_grad(irow, 3, 2))
+                     TARGET(base + 5) = TARGET(base + 5) + &
+                                        0.5_dp*(chunk_kin_grad(irow, 1) + &
+                                                chunk_kin_grad(irow, 2))
+                  END IF
+               ELSE
+                  TARGET(base + 1:base + 2) = TARGET(base + 1:base + 2) + &
+                                              chunk_density_grad(irow, :)
+                  TARGET(base + 3) = TARGET(base + 3) + chunk_grad_grad(irow, 1, 1)
+                  TARGET(base + 4) = TARGET(base + 4) + chunk_grad_grad(irow, 2, 1)
+                  TARGET(base + 5) = TARGET(base + 5) + chunk_grad_grad(irow, 3, 1)
+                  TARGET(base + 6) = TARGET(base + 6) + chunk_grad_grad(irow, 1, 2)
+                  TARGET(base + 7) = TARGET(base + 7) + chunk_grad_grad(irow, 2, 2)
+                  TARGET(base + 8) = TARGET(base + 8) + chunk_grad_grad(irow, 3, 2)
+                  TARGET(base + 9:base + 10) = TARGET(base + 9:base + 10) + &
+                                               chunk_kin_grad(irow, :)
+               END IF
+            END DO
+         END DO
 !$OMP END PARALLEL DO
+      ELSE
+         CPASSERT(target_points >= features%chunk_feature_count)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP SHARED(chunk_density_grad, chunk_grad_grad, chunk_kin_grad, features, &
+!$OMP        my_collapse_spin_grads, ngrad_buffer_per_point, TARGET) &
+!$OMP PRIVATE(base, irow)
+         DO irow = 1, features%chunk_feature_count
+            base = ngrad_buffer_per_point*(irow - 1)
+            IF (my_collapse_spin_grads) THEN
+               IF (features%uses_collapsed_rks_dynamic) THEN
+                  TARGET(base + 1) = 0.5_dp*chunk_density_grad(irow, 1)
+                  TARGET(base + 2) = 0.5_dp*chunk_grad_grad(irow, 1, 1)
+                  TARGET(base + 3) = 0.5_dp*chunk_grad_grad(irow, 2, 1)
+                  TARGET(base + 4) = 0.5_dp*chunk_grad_grad(irow, 3, 1)
+                  TARGET(base + 5) = 0.5_dp*chunk_kin_grad(irow, 1)
+               ELSE
+                  TARGET(base + 1) = 0.5_dp*(chunk_density_grad(irow, 1) + &
+                                             chunk_density_grad(irow, 2))
+                  TARGET(base + 2) = 0.5_dp*(chunk_grad_grad(irow, 1, 1) + &
+                                             chunk_grad_grad(irow, 1, 2))
+                  TARGET(base + 3) = 0.5_dp*(chunk_grad_grad(irow, 2, 1) + &
+                                             chunk_grad_grad(irow, 2, 2))
+                  TARGET(base + 4) = 0.5_dp*(chunk_grad_grad(irow, 3, 1) + &
+                                             chunk_grad_grad(irow, 3, 2))
+                  TARGET(base + 5) = 0.5_dp*(chunk_kin_grad(irow, 1) + &
+                                             chunk_kin_grad(irow, 2))
+               END IF
+            ELSE
+               TARGET(base + 1:base + 2) = chunk_density_grad(irow, :)
+               TARGET(base + 3) = chunk_grad_grad(irow, 1, 1)
+               TARGET(base + 4) = chunk_grad_grad(irow, 2, 1)
+               TARGET(base + 5) = chunk_grad_grad(irow, 3, 1)
+               TARGET(base + 6) = chunk_grad_grad(irow, 1, 2)
+               TARGET(base + 7) = chunk_grad_grad(irow, 2, 2)
+               TARGET(base + 8) = chunk_grad_grad(irow, 3, 2)
+               TARGET(base + 9:base + 10) = chunk_kin_grad(irow, :)
+            END IF
+         END DO
+!$OMP END PARALLEL DO
+      END IF
 
       CALL torch_tensor_release(density_grad_t)
       CALL torch_tensor_release(grad_grad_t)
@@ -1445,12 +1500,12 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: kin_grad
 
-      INTEGER                                            :: base, local_feature, local_row, &
-                                                            nflat_local, nroute_grad_per_point, &
-                                                            nroute_points, point_pos
+      INTEGER                                            :: base, local_row, nflat_local, &
+                                                            nroute_grad_per_point, nroute_points, &
+                                                            point_pos, row_route_pos
 
       nflat_local = features%nflat_local
-      nroute_points = SIZE(features%route_local_positions)
+      nroute_points = SIZE(features%route_send_local_rows)
       nroute_grad_per_point = ngrad_per_point
       IF (collapse_spin_grads) nroute_grad_per_point = ncollapsed_grad_per_point
       CPASSERT(SIZE(recv_grad_buffer) >= nroute_grad_per_point*nroute_points)
@@ -1460,14 +1515,14 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE) &
 !$OMP SHARED(collapse_spin_grads, density_grad, features, grad_grad, kin_grad, nflat_local, &
 !$OMP        nroute_grad_per_point, nroute_points, recv_grad_buffer) &
-!$OMP PRIVATE(base, local_feature, local_row, point_pos)
+!$OMP PRIVATE(base, local_row, point_pos, row_route_pos)
       DO local_row = 1, nflat_local
          density_grad(local_row, :) = 0.0_dp
          grad_grad(local_row, :, :) = 0.0_dp
          kin_grad(local_row, :) = 0.0_dp
-         DO local_feature = features%local_feature_offsets(local_row), &
-            features%local_feature_offsets(local_row + 1) - 1
-            point_pos = features%route_local_positions(local_feature)
+         DO row_route_pos = features%route_row_offsets(local_row), &
+            features%route_row_offsets(local_row + 1) - 1
+            point_pos = features%route_row_positions(row_route_pos)
             CPASSERT(point_pos >= 1 .AND. point_pos <= nroute_points)
             base = nroute_grad_per_point*(point_pos - 1)
             IF (collapse_spin_grads) THEN
@@ -1551,7 +1606,8 @@ CONTAINS
 
       INTEGER                                            :: base, feature_pos, i, j, k, local_row, &
                                                             nflat_local, nroute_grad_per_point, &
-                                                            nroute_points, phase_handle, row
+                                                            nroute_recv_points, nroute_send_points, &
+                                                            phase_handle, row
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: route_grad_return_recv_counts, &
                                                             route_grad_return_recv_displs, &
                                                             route_grad_return_send_counts, &
@@ -1563,16 +1619,17 @@ CONTAINS
 
       nflat_local = features%nflat_local
       IF (features%uses_atom_chunk_routing) THEN
-         CPASSERT(SUM(features%route_point_recv_counts) == features%chunk_feature_count)
-         nroute_points = SIZE(features%route_local_positions)
-         CPASSERT(SUM(features%route_point_send_counts) == nroute_points)
+         nroute_recv_points = SUM(features%route_point_recv_counts)
+         nroute_send_points = SIZE(features%route_send_local_rows)
+         CPASSERT(SUM(features%route_point_send_counts) == nroute_send_points)
+         CPASSERT(SIZE(features%route_chunk_offsets) == nroute_recv_points + 1)
 
          nroute_grad_per_point = ngrad_per_point
          IF (features%uses_collapsed_rks_dynamic) THEN
             nroute_grad_per_point = ncollapsed_grad_per_point
          END IF
-         ALLOCATE (send_grad_buffer(MAX(1, nroute_grad_per_point*features%chunk_feature_count)), &
-                   recv_grad_buffer(MAX(1, nroute_grad_per_point*nroute_points)), &
+         ALLOCATE (send_grad_buffer(MAX(1, nroute_grad_per_point*nroute_recv_points)), &
+                   recv_grad_buffer(MAX(1, nroute_grad_per_point*nroute_send_points)), &
                    route_grad_return_send_counts(SIZE(features%route_point_recv_counts)), &
                    route_grad_return_send_displs(SIZE(features%route_point_recv_displs)), &
                    route_grad_return_recv_counts(SIZE(features%route_point_send_counts)), &
