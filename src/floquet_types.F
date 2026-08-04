@@ -75,7 +75,7 @@ CONTAINS
 !> \param bs_env ...
 ! **************************************************************************************************
    SUBROUTINE floquet_env_create(floquet_env, bs_env)
-      TYPE(floquet_env_type)                             :: floquet_env
+      TYPE(floquet_env_type), INTENT(OUT)                :: floquet_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'floquet_env_create'
@@ -121,7 +121,7 @@ CONTAINS
 !> \param floquet_env ...
 ! **************************************************************************************************
    SUBROUTINE floquet_env_release(floquet_env)
-      TYPE(floquet_env_type)                             :: floquet_env
+      TYPE(floquet_env_type), INTENT(INOUT)              :: floquet_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'floquet_env_release'
 

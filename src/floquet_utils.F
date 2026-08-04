@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Helper routines for the Floquet-Bloch band-structure calculation (floquet_main)
+!> \brief Helper routines for the Floquet-Bloch band-structure calculation (floquet_main).
 !> \par History
 !> \author Shridhar Shanbhag (27.01.2026)
 ! **************************************************************************************************
@@ -64,7 +64,7 @@ MODULE floquet_utils
 
    ! Number of full Floquet-Hamiltonian copies (each n_f_size^2 complex(dp), 16 bytes per
    ! element) that the subgroup must be able to hold, distributed across its ranks.
-   ! we size for 8 to leave headroom.
+   ! We size for 8 to leave headroom.
    INTEGER, PARAMETER, PRIVATE :: n_fm_work_copies = 8
 
    ! Public subroutines
@@ -92,12 +92,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_epsilon_derivative(qs_env, xkp, e_k, de_dk, do_parallel)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(IN)                                      :: xkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         OPTIONAL                                        :: e_k
+         INTENT(OUT), OPTIONAL                           :: e_k
       REAL(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :), OPTIONAL                 :: de_dk
-      LOGICAL, OPTIONAL                                  :: do_parallel
+         DIMENSION(:, :, :, :), INTENT(OUT), OPTIONAL    :: de_dk
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_parallel
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_epsilon_derivative'
 
@@ -233,9 +234,10 @@ CONTAINS
 !> \param momentum ...
 ! **************************************************************************************************
    SUBROUTINE build_momentum_matrix(e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, momentum)
-      REAL(KIND=dp), DIMENSION(:)                        :: e_k_kp_spin
-      REAL(KIND=dp), DIMENSION(:, :)                     :: de_dk_kp_spin
-      COMPLEX(KIND=dp), DIMENSION(:, :, :)               :: dipole_kp_spin, momentum
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: e_k_kp_spin
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: de_dk_kp_spin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: dipole_kp_spin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: momentum
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_momentum_matrix'
 
@@ -281,10 +283,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_off_diagonal_matrix(bs_env, e_k_kp_spin, de_dk_kp_spin, dipole_kp_spin, off_diag_m)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:)                        :: e_k_kp_spin
-      REAL(KIND=dp), DIMENSION(:, :)                     :: de_dk_kp_spin
-      COMPLEX(KIND=dp), DIMENSION(:, :, :)               :: dipole_kp_spin
-      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: off_diag_m
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: e_k_kp_spin
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: de_dk_kp_spin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: dipole_kp_spin
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: off_diag_m
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_off_diagonal_matrix'
 
@@ -335,7 +337,7 @@ CONTAINS
    END SUBROUTINE build_off_diagonal_matrix
 
 ! **************************************************************************************************
-!> \brief Diagonal block of H_F(k) for Floquet sector f_index
+!> \brief Diagonal block of H_F(k) for Floquet sector f_index.
 !> \param bs_env ...
 !> \param e_k_kp_spin ...
 !> \param f_index Floquet sector index
@@ -343,9 +345,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_diagonal_matrix(bs_env, e_k_kp_spin, f_index, diag_e)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:)                        :: e_k_kp_spin
-      INTEGER                                            :: f_index
-      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: diag_e
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: e_k_kp_spin
+      INTEGER, INTENT(IN)                                :: f_index
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: diag_e
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_diagonal_matrix'
 
@@ -375,8 +377,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_floquet_matrix(bs_env, floquet_env, floquet_matrix)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(floquet_env_type)                             :: floquet_env
-      TYPE(cp_cfm_type)                                  :: floquet_matrix
+      TYPE(floquet_env_type), INTENT(IN)                 :: floquet_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: floquet_matrix
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_floquet_matrix'
 
@@ -416,28 +418,25 @@ CONTAINS
    END SUBROUTINE build_floquet_matrix
 
 ! **************************************************************************************************
-!> \brief Make this k-point/spin's band data available to every rank of the owning subgroup: the
-!>        owner (global rank MOD(ikp-1,num_pe)) copies its slice of the distributed band data into
-!>        the floquet_env broadcast buffers, then those buffers are broadcast within the subgroup.
-!>        The owner's rank within the subgroup is identified here (no need for the caller to track
-!>        it). All subgroup ranks must call this together.
+!> \brief Make this k-point/spin's band data available to every rank of the owning subgroup.
 !> \param para_env the global parallel environment
 !> \param para_env_sub the subgroup parallel environment
 !> \param ispin the spin channel
 !> \param ikp the DOS k-point index
-!> \param e_k band energies for all DOS k-points, distributed (n_spin, num_copy, nao)
-!> \param de_dk band-energy k-derivatives, distributed (n_spin, num_copy, 3, nao)
-!> \param dipole dipole matrix elements, distributed (n_spin, num_copy, 3, nao, nao)
+!> \param e_k band energies for all DOS k-points, distributed
+!> \param de_dk band-energy k-derivatives, distributed
+!> \param dipole dipole matrix elements, distributed
 !> \param floquet_env ...
 ! **************************************************************************************************
    SUBROUTINE distribute_floquet_kp_data(para_env, para_env_sub, ispin, ikp, e_k, de_dk, dipole, &
                                          floquet_env)
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
-      INTEGER                                            :: ispin, ikp
-      REAL(KIND=dp), DIMENSION(:, :, :)                  :: e_k
-      REAL(KIND=dp), DIMENSION(:, :, :, :)               :: de_dk
-      COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :)         :: dipole
-      TYPE(floquet_env_type)                             :: floquet_env
+      INTEGER, INTENT(IN)                                :: ispin, ikp
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: e_k
+      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: de_dk
+      COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
+         INTENT(IN)                                      :: dipole
+      TYPE(floquet_env_type), INTENT(INOUT)              :: floquet_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_floquet_kp_data'
 
@@ -480,10 +479,12 @@ CONTAINS
    SUBROUTINE compute_e_k_de_dk_dipole(qs_env, bs_env, e_k, de_dk, dipole)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: e_k
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: de_dk
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: e_k
+      REAL(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :), INTENT(OUT)              :: de_dk
       COMPLEX(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :, :)                        :: dipole
+         DIMENSION(:, :, :, :, :), INTENT(OUT)           :: dipole
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_e_k_de_dk_dipole'
 
@@ -637,8 +638,8 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(mp_para_env_type), POINTER                    :: para_env_sub
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: group_distribution
-      INTEGER                                            :: ngroups
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: group_distribution
+      INTEGER, INTENT(OUT)                               :: ngroups
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'make_floquet_subgroups'
 
@@ -688,8 +689,8 @@ CONTAINS
 !> \param cfm_eigenvectors Floquet eigenvectors
 ! **************************************************************************************************
    SUBROUTINE floquet_sector_weights(floquet_env, cfm_eigenvectors)
-      TYPE(floquet_env_type)                             :: floquet_env
-      TYPE(cp_cfm_type)                                  :: cfm_eigenvectors
+      TYPE(floquet_env_type), INTENT(INOUT)              :: floquet_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_eigenvectors
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'floquet_sector_weights'
 
@@ -735,7 +736,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_floquet_convergence(bs_env, floquet_env)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(floquet_env_type)                             :: floquet_env
+      TYPE(floquet_env_type), INTENT(IN)                 :: floquet_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_floquet_convergence'
 
@@ -773,7 +774,7 @@ CONTAINS
    END SUBROUTINE check_floquet_convergence
 
 ! **************************************************************************************************
-!> \brief Energy origin for the Floquet calculations, chosen to be the valence band maximum
+!> \brief Energy origin for the Floquet calculations, chosen to be the valence band maximum.
 !> \param bs_env ...
 !> \return the valence band maximum
 ! **************************************************************************************************
@@ -806,8 +807,8 @@ CONTAINS
    SUBROUTINE calculate_floquet_observables(bs_env, para_env_sub, ispin, ikp, floquet_env)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(mp_para_env_type), POINTER                    :: para_env_sub
-      INTEGER                                            :: ispin, ikp
-      TYPE(floquet_env_type)                             :: floquet_env
+      INTEGER, INTENT(IN)                                :: ispin, ikp
+      TYPE(floquet_env_type), INTENT(INOUT)              :: floquet_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_floquet_observables'
 
@@ -837,7 +838,8 @@ CONTAINS
       DO i_E = 1, n_E
          energy = E_min + i_E*energy_step
          floquet_env%a_k(i_E) = -SUM(floquet_env%w0(:)* &
-                                     AIMAG(z_one/(energy + gaussi*broad/2.0_dp - floquet_env%eigenvalues(:))))/pi
+                                     AIMAG(z_one/(energy + gaussi*broad/2.0_dp - &
+                                                  floquet_env%eigenvalues(:))))/pi
       END DO
 
       ! (2) m=0 band structure by weighted count
@@ -958,7 +960,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE write_floquet_results(bs_env, floquet_env)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(floquet_env_type)                             :: floquet_env
+      TYPE(floquet_env_type), INTENT(INOUT)              :: floquet_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_floquet_results'
 
