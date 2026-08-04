@@ -140,7 +140,6 @@ CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_FFTW3=ON"       # FFTW3 is always activated un
 CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=ON"        # MPI is switched on by default
 CMAKE_FEATURE_FLAGS_GPU="-DCP2K_USE_SPLA_GEMM_OFFLOADING=ON"
 CMAKE_PRESET="native-gnu-x86_64"
-CMAKE_PRESET_ARGS=(--preset "${CMAKE_PRESET}")
 CRAY="no"
 CUDA_SM_CODE=0
 GCC_VERSION="auto"
@@ -553,24 +552,26 @@ while [[ $# -gt 0 ]]; do
         shift 1
       fi
       ;;
-    -ps | --preset)
+    -opencl)
+      USE_OPENCL="yes"
+      shift 1
+      ;;
+    -preset)
       if (($# > 1)); then
-        if [[ "${2}" == "none" ]]; then
-          CMAKE_PRESET=""
-          CMAKE_PRESET_ARGS=()
-        else
-          CMAKE_PRESET="${2}"
-          CMAKE_PRESET_ARGS=(--preset "${CMAKE_PRESET}")
-        fi
+        case "${2}" in
+          native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)
+            CMAKE_PRESET="${2}"
+            ;;
+          *)
+            echo "ERROR: Invalid preset \"${2}\" specified"
+            ${EXIT_CMD} 1
+            ;;
+        esac
       else
         echo "ERROR: No CMake preset found for flag \"${1}\""
         ${EXIT_CMD} 1
       fi
       shift 2
-      ;;
-    -opencl)
-      USE_OPENCL="yes"
-      shift 1
       ;;
     -rc | --rebuild_cp2k)
       REBUILD_CP2K="yes"
@@ -697,7 +698,8 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-j #PROCESSES]"
   echo "                    [-mpi | --mpi_mode (mpich | no | openmpi)]"
   echo "                    [-np | --num_packages #PACKAGES]"
-  echo "                    [-ps | --preset (PRESET | none)]"
+  echo "                    [-opencl]"
+  echo "                    [-preset (native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)]"
   echo "                    [-rc | --rebuild_cp2k]"
   echo "                    [-t | --test \"TESTOPTS\"]"
   echo "                    [-uc | --use_cache (folder | minio | no | none)]"
@@ -721,8 +723,8 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " -j                    : Maximum number of processes used in parallel"
   echo " --mpi_mode            : Set preferred MPI mode (default: \"mpich\")"
   echo " --num_packages        : Maximum number of packages built by spack in parallel (default: 4)"
-  echo " --preset              : Use a CMake configure preset (see 'cmake --list-presets'). (default: native-gnu-x86_64)"
-  echo " -opencl               : Perform build with OpenCL support"
+  echo " -opencl               : Enable the use of the Open Computing Language (OpenCL)"
+  echo " -preset               : Use a CMake configure preset, see \"cmake --list-presets\" (default: native-gnu-x86_64)"
   echo " --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)"
   echo " --test                : Perform a regression test run after a successful build"
   echo " --use_cache           : Use a \"folder\", a \"MinIO\" object storage container (requires podman) or \"no\" cache"
@@ -756,7 +758,7 @@ echo "BUILD_DEPS_ONLY     = ${BUILD_DEPS_ONLY}"
 echo "BUILD_PATH          = ${BUILD_PATH}"
 echo "BUILD_SHARED_LIBS   = ${BUILD_SHARED_LIBS}"
 echo "CP2K_BUILD_TYPE     = ${CP2K_BUILD_TYPE}"
-echo "CMAKE_PRESET        = ${CMAKE_PRESET:-none}"
+echo "CMAKE_PRESET        = ${CMAKE_PRESET}"
 echo "CP2K_VERSION        = ${CP2K_VERSION}"
 echo "CRAY                = ${CRAY}"
 echo "DEPS_BUILD_TYPE     = ${DEPS_BUILD_TYPE}"
@@ -1395,8 +1397,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
   case "${CP2K_VERSION}" in
     pdbg | psmp)
       # shellcheck disable=SC2086
-      cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
-        "${CMAKE_PRESET_ARGS[@]}" \
+      cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" --preset "${CMAKE_PRESET}" \
         -GNinja \
         -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} \
         -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
@@ -1414,8 +1415,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
       ;;
     sdbg | ssmp)
       # shellcheck disable=SC2086
-      cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
-        "${CMAKE_PRESET_ARGS[@]}" \
+      cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" --preset "${CMAKE_PRESET}" \
         -GNinja \
         -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} \
         -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
@@ -1435,8 +1435,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
       LIBOPENBLAS=$(find -L "${SPACK_ROOT}"/opt/spack/view -name libopenblas.a)
       LIBM="$(find /usr -name libm.a 2> /dev/null)"
       # shellcheck disable=SC2086
-      cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
-        "${CMAKE_PRESET_ARGS[@]}" \
+      cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" --preset "${CMAKE_PRESET}" \
         -GNinja \
         -DBUILD_SHARED_LIBS="OFF" \
         -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \

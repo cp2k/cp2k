@@ -30,6 +30,16 @@
         "CMAKE_CXX_FLAGS": "$penv{CXXFLAGS} -xHOST",
         "CMAKE_Fortran_FLAGS": "$penv{FFLAGS} -xHOST"
       }
+    },
+    {
+      "name": "none",
+      "displayName": "No preset",
+      "description": "Use parent environment without any preset.",
+      "cacheVariables": {
+        "CMAKE_C_FLAGS": "$penv{CFLAGS}",
+        "CMAKE_CXX_FLAGS": "$penv{CXXFLAGS}",
+        "CMAKE_Fortran_FLAGS": "$penv{FFLAGS}"
+      }
     }
   ]
 }
