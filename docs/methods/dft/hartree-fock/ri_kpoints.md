@@ -108,7 +108,7 @@ initial PBE calculation leads to a lot of images there as well. An example is pr
 example file [bundle](https://github.com/cp2k/cp2k-examples/tree/master/RI_HFX). The example below
 takes about 5 minutes to run on 32 CPUs if restarted from a PBE wavefunction, and 10 minutes
 otherwise. For detailed k-point restart parameters, see the
-[K-Point Wavefunction Restart](../methods/restarting.md#k-points) section.
+[K-Point Wavefunction Restart](../../restarting.md#k-points) section.
 
 ```none
 &GLOBAL

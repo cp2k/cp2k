@@ -15,7 +15,6 @@
       HARRIS_BASIS HARRIS
       &KPOINTS
         FULL_GRID ON
-        PARALLEL_GROUP_SIZE 0
         SCHEME MONKHORST-PACK 2 2 2
         SYMMETRY ON
       &END KPOINTS
@@ -40,8 +39,8 @@
       SCF_GUESS RESTART
       &PRINT
         &RESTART OFF
-      &END RESTART
-    &END PRINT
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE

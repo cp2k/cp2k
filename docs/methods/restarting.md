@@ -205,7 +205,7 @@ The Harris functional converts a k-point wavefunction into a gamma-point wavefun
 k-point-converged densities to seed gamma-point calculations. The three-step chain is: `k-point SCF`
 → `k-point Harris functional` → `gamma-point DFT`.
 
-**Step 1: K-point SCF** — generates `{PROJECT}-RESTART.kp`:
+**Step 1: K-point SCF** — generates `{PROJECT}-1_0.kp`:
 
 ```none
 &GLOBAL
@@ -247,7 +247,7 @@ k-point-converged densities to seed gamma-point calculations. The three-step cha
 &END FORCE_EVAL
 ```
 
-This generates `Carbon-RESTART.kp`.
+This generates `Carbon-1_0.kp`.
 
 **Step 2: Harris functional with k-points** — reads the `.kp` file and writes a gamma-point
 wavefunction to `{PROJECT}-Harris-1_0.kp` via `HARRIS_OUTPUT_WFN`:
@@ -262,7 +262,7 @@ wavefunction to `{PROJECT}-Harris-1_0.kp` via `HARRIS_OUTPUT_WFN`:
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME GTH_POTENTIALS
-    WFN_RESTART_FILE_NAME ./Carbon-RESTART.kp
+    WFN_RESTART_FILE_NAME ./Carbon-1_0.kp
     &ENERGY_CORRECTION
       ENERGY_FUNCTIONAL HARRIS
       HARRIS_BASIS HARRIS
@@ -347,8 +347,9 @@ This generates `Carbon-Harris-1_0.kp`.
 - No `KPOINTS` section — this is a gamma-point calculation
 - `&RESTART ON` writes `Carbon_gamma-RESTART.wfn`
 
-The CP2K test suite includes these tests in `tests/QS/regtest-harris-kp/` (`cc_kp_01.inp`,
-`cc_kp_02.inp`, `cc_kp_03.inp`).
+The CP2K test suite includes these Harris chain tests in `tests/QS/regtest-harris-kp/`
+(`cc_kp_01.inp`, `cc_kp_02.inp`, `cc_kp_03.inp`) which demonstrate the three-step k-point restart
+process.
 
 ## Molecular Dynamics
 
