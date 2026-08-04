@@ -275,6 +275,7 @@ CONTAINS
 #endif
 #if defined(__LIBTORCH_CUDA)
       flags = TRIM(flags)//" libtorch_cuda"
+#endif
 #if defined(__SKALA_FTORCH)
       flags = TRIM(flags)//" skala_ftorch"
 #endif
