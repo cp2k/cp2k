@@ -59,15 +59,14 @@ QS/regtest-gauxc-gpw-coords                                 gauxc
 QS/regtest-gauxc-gapw-base                                  gauxc
 QS/regtest-gauxc-gapw-gth                                   gauxc
 QS/regtest-gauxc-gapw-ecp                                   gauxc
-QS/regtest-gauxc-cuda                                       gauxc_cuda
-QS/regtest-skala-ftorch                                      skala_ftorch
-QS/regtest-skala-native-gpw-mol                              skala
-QS/regtest-skala-native-gpw-mech                             skala
-QS/regtest-skala-native-gpw-coords                           skala
-QS/regtest-skala-native-gapw-base                            skala
-QS/regtest-skala-native-gapw-gth                             skala
-QS/regtest-skala-native-gapw-ecp                             skala
-QS/regtest-skala-native-gapw-ae-kp                            skala
+QS/regtest-skala-ftorch                                     skala
+QS/regtest-skala-native-gpw-mol                             skala
+QS/regtest-skala-native-gpw-mech                            skala
+QS/regtest-skala-native-gpw-coords                          skala
+QS/regtest-skala-native-gapw-base                           skala
+QS/regtest-skala-native-gapw-gth                            skala
+QS/regtest-skala-native-gapw-ecp                            skala
+QS/regtest-skala-native-gapw-ae-kp                          skala
 SE/regtest-3-2
 QS/regtest-almo-2
 QS/regtest-dft-vdw-corr-3                                   libxc
