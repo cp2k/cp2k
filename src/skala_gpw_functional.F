@@ -3003,14 +3003,14 @@ CONTAINS
             CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_CUDA_MODEL", model_path, STATUS=env_status)
             IF (env_status == 0 .AND. LEN_TRIM(model_path) > 0) RETURN
          END IF
-          CALL GET_ENVIRONMENT_VARIABLE("SKALA_MODEL", model_path, STATUS=env_status)
+         CALL GET_ENVIRONMENT_VARIABLE("SKALA_MODEL", model_path, STATUS=env_status)
          IF (env_status /= 0 .OR. LEN_TRIM(model_path) == 0) THEN
             IF (native_grid_use_cuda) THEN
                CALL cp_abort(__LOCATION__, &
-                              "MODEL SKALA CUDA path requires GAUXC_SKALA_CUDA_MODEL or SKALA_MODEL")
+                             "MODEL SKALA CUDA path requires GAUXC_SKALA_CUDA_MODEL or SKALA_MODEL")
             ELSE
                CALL cp_abort(__LOCATION__, &
-                              "MODEL SKALA requires the SKALA_MODEL environment variable")
+                             "MODEL SKALA requires the SKALA_MODEL environment variable")
             END IF
          END IF
       END IF

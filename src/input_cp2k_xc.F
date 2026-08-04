@@ -1493,7 +1493,7 @@ CONTAINS
                           "model on CUDA when libtorch CUDA support is available. This requires a "// &
                           "CUDA-compatible SKALA model export; MODEL SKALA first checks "// &
                           "GAUXC_SKALA_CUDA_MODEL in this mode and otherwise falls back to "// &
-                           "SKALA_MODEL. The portable default uses CPU tensors.", &
+                          "SKALA_MODEL. The portable default uses CPU tensors.", &
                           usage="NATIVE_GRID_USE_CUDA T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
