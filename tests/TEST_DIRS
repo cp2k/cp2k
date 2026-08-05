@@ -548,4 +548,4 @@ QS/regtest-tdwf
 QS/regtest-hybrid-ace-gs                                    libint !ifx
 QS/regtest-mtlr
 QS/regtest-poisson
-QS/regtest-skala-cuda				skala gauxc_cuda
+QS/regtest-gauxc-cuda				skala gauxc_cuda
