@@ -10,6 +10,7 @@
 #include <ATen/Parallel.h>
 #if defined(__LIBTORCH_CUDA)
 #include <ATen/cuda/CUDAContextLight.h>
+#include <c10/cuda/CUDAAllocatorConfig.h>
 #endif
 #include <c10/core/DeviceGuard.h>
 #include <torch/csrc/api/include/torch/cuda.h>
@@ -52,6 +53,22 @@ private:
  ******************************************************************************/
 static bool use_cuda_if_available = true;
 
+static void enable_expandable_cuda_segments_if_unconfigured() {
+#if defined(__LIBTORCH_CUDA)
+  static const bool initialized = []() {
+    const char *legacy_config = std::getenv("PYTORCH_CUDA_ALLOC_CONF");
+    const char *config = std::getenv("PYTORCH_ALLOC_CONF");
+    if ((legacy_config == nullptr || legacy_config[0] == '\0') &&
+        (config == nullptr || config[0] == '\0')) {
+      c10::cuda::CUDACachingAllocator::setAllocatorSettings(
+          "expandable_segments:True");
+    }
+    return true;
+  }();
+  (void)initialized;
+#endif
+}
+
 static bool get_positive_int_env(const char *name, int &value) {
   const char *raw = std::getenv(name);
   if (raw == nullptr || raw[0] == '\0') {
@@ -87,6 +104,7 @@ static torch::Device get_device() {
   if (!use_cuda_if_available || !torch::cuda::is_available()) {
     return torch::kCPU;
   }
+  enable_expandable_cuda_segments_if_unconfigured();
   const auto device_count = torch::cuda::device_count();
   if (device_count <= 0) {
     return torch::kCPU;
