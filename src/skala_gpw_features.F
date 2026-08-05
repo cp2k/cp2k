@@ -581,22 +581,23 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: atom_partition
       LOGICAL, INTENT(IN)                                :: needs_full_static_tensors
 
-      INTEGER :: feature_local, feature_slot, i, iatom, ipt, j, k, local_feature, local_row, &
-         max_grid_size, max_local_features, my_atom_partition, natom, nfeature_local, nflat, &
-         nflat_local, npoint, nproc, nx, ny, owner, pe, pe_index, phase_handle, row, &
+      INTEGER :: feature_local, feature_slot, i, iatom, ipt, j, jatom, k, local_feature, &
+         local_row, max_grid_size, max_local_features, my_atom_partition, natom, nfeature_local, &
+         nflat, nflat_local, npoint, nproc, nx, ny, owner, pe, pe_index, phase_handle, row, &
          source_global, source_local, static_base
       INTEGER, ALLOCATABLE, DIMENSION(:) :: atom_offset, atom_position, chunk_atom_begin, &
          chunk_atom_end, cursor, feature_counts, feature_displs, global_owner, &
          global_source_points, local_feature_counts_tmp, local_owner, local_source_global, &
          local_source_points, point_counts, point_displs, static_counts, static_displs
       INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL                                            :: has_weights
+      LOGICAL                                            :: has_weights, nonperiodic
       REAL(KIND=dp)                                      :: base_weight, included_sum, &
                                                             partition_weight, weight_sum, &
                                                             weight_sumsq
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distances, global_static, local_static, &
                                                             partition_weights
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc, partition_atom_coords
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc, pair_distances, &
+                                                            partition_atom_coords
       REAL(KIND=dp), DIMENSION(3)                        :: grid_point
 
       CALL release_layout_cache(cached_layout)
@@ -634,6 +635,20 @@ CONTAINS
       DO iatom = 1, natom
          atom_coords_pbc(:, iatom) = pbc(particle_set(iatom)%r, cell, positive_range=.TRUE.)
       END DO
+      nonperiodic = ALL(cell%perd == 0)
+      IF (my_atom_partition == skala_gpw_atom_partition_smooth .AND. nonperiodic) THEN
+         ALLOCATE (pair_distances(natom, natom))
+         pair_distances = 0.0_dp
+         DO iatom = 1, natom - 1
+            DO jatom = iatom + 1, natom
+               pair_distances(iatom, jatom) = &
+                  SQRT(SUM((atom_coords_pbc(:, iatom) - atom_coords_pbc(:, jatom))**2))
+               pair_distances(jatom, iatom) = pair_distances(iatom, jatom)
+            END DO
+         END DO
+      ELSE
+         ALLOCATE (pair_distances(0, 0))
+      END IF
 
       CALL timeset("skala_gpw_layout_local", phase_handle)
       nx = bo(2, 1) - bo(1, 1) + 1
@@ -670,7 +685,8 @@ CONTAINS
       ELSE
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED(atom_coords_pbc, bo, cached_layout, cell, local_feature_counts_tmp, local_owner, &
-!$OMP        local_source_points, local_static, natom, nx, ny, pw_grid, weights) &
+!$OMP        local_source_points, local_static, natom, nonperiodic, nx, ny, pair_distances, &
+!$OMP        pw_grid, weights) &
 !$OMP PRIVATE(base_weight, distances, feature_slot, grid_point, i, iatom, &
 !$OMP         included_sum, j, k, local_feature, local_row, owner, partition_weight, &
 !$OMP         partition_atom_coords, partition_weights, static_base)
@@ -688,8 +704,14 @@ CONTAINS
                      IF (ASSOCIATED(weights)) base_weight = base_weight*weights%array(i, j, k)
                   END IF
                   cached_layout%feature_index(i, j, k) = local_row
-                  CALL smooth_atom_partition(grid_point, atom_coords_pbc, cell, &
-                                             partition_weights, partition_atom_coords, distances)
+                  IF (nonperiodic) THEN
+                     CALL smooth_atom_partition(grid_point, atom_coords_pbc, cell, &
+                                                partition_weights, partition_atom_coords, distances, &
+                                                pair_distances)
+                  ELSE
+                     CALL smooth_atom_partition(grid_point, atom_coords_pbc, cell, &
+                                                partition_weights, partition_atom_coords, distances)
+                  END IF
                   included_sum = SUM(partition_weights, MASK=partition_weights > smooth_partition_eps)
                   IF (included_sum <= 0.0_dp) THEN
                      owner = nearest_atom(grid_point, atom_coords_pbc, cell)
@@ -910,7 +932,7 @@ CONTAINS
                   chunk_atom_begin, chunk_atom_end, cursor, feature_counts, feature_displs, &
                   global_owner, global_source_points, global_static, local_feature_counts_tmp, &
                   local_owner, local_source_global, local_source_points, &
-                  local_static, point_counts, point_displs, static_counts, &
+                  local_static, pair_distances, point_counts, point_displs, static_counts, &
                   static_displs)
 
    END SUBROUTINE rebuild_layout_cache
@@ -2383,15 +2405,18 @@ CONTAINS
 !> \param weights ...
 !> \param partition_atom_coords ...
 !> \param distances ...
+!> \param pair_distances ...
 ! **************************************************************************************************
    SUBROUTINE smooth_atom_partition(grid_point, atom_coords, cell, weights, partition_atom_coords, &
-                                    distances)
+                                    distances, pair_distances)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: weights
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: partition_atom_coords
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: distances
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: pair_distances
 
       INTEGER                                            :: iatom, jatom, natom
       REAL(KIND=dp)                                      :: mu, rab, rsum, switch, total
@@ -2403,18 +2428,29 @@ CONTAINS
       CPASSERT(SIZE(partition_atom_coords, 2) == natom)
       CPASSERT(SIZE(distances) == natom)
 
-      DO iatom = 1, natom
-         partition_atom_coords(:, iatom) = &
-            nearest_atom_image_coordinate(atom_coords(:, iatom), grid_point, cell)
-         rij = grid_point - partition_atom_coords(:, iatom)
-         distances(iatom) = SQRT(SUM(rij**2))
-      END DO
+      IF (PRESENT(pair_distances)) THEN
+         DO iatom = 1, natom
+            rij = grid_point - atom_coords(:, iatom)
+            distances(iatom) = SQRT(SUM(rij**2))
+         END DO
+      ELSE
+         DO iatom = 1, natom
+            partition_atom_coords(:, iatom) = &
+               nearest_atom_image_coordinate(atom_coords(:, iatom), grid_point, cell)
+            rij = grid_point - partition_atom_coords(:, iatom)
+            distances(iatom) = SQRT(SUM(rij**2))
+         END DO
+      END IF
 
       weights = 1.0_dp
       DO iatom = 1, natom - 1
          DO jatom = iatom + 1, natom
-            rij = partition_atom_coords(:, iatom) - partition_atom_coords(:, jatom)
-            rab = SQRT(SUM(rij**2))
+            IF (PRESENT(pair_distances)) THEN
+               rab = pair_distances(iatom, jatom)
+            ELSE
+               rij = partition_atom_coords(:, iatom) - partition_atom_coords(:, jatom)
+               rab = SQRT(SUM(rij**2))
+            END IF
             IF (rab <= layout_tol) CYCLE
             mu = (distances(iatom) - distances(jatom))/rab
             mu = MAX(-1.0_dp, MIN(1.0_dp, mu))
