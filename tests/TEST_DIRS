@@ -506,3 +506,16 @@ QMMM/QS/regtest-lrigpw
 QS/regtest-fftw                                             fftw3
 QS/regtest-wfn-restart
 Fist/regtest-plumed2                                        plumed2
+Fist/regtest-quip                                           quip
+QS/regtest-eht-guess                                        libdftd4
+QS/regtest-casino
+QS/regtest-trexio                                           trexio
+QS/regtest-trexio-2                                         trexio
+QS/regtest-rtbse-gxac                                       libint greenx !ifx
+QS/regtest-cneo
+QS/regtest-tddfpt-bse                                       libint libxc !ifx
+QS/regtest-tdwf
+QS/regtest-hybrid-ace-gs                                    libint !ifx
+QS/regtest-mtlr
+QS/regtest-poisson
+QS/regtest-skala-cuda				skala gauxc_cuda
