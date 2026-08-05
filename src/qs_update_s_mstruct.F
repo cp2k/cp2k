@@ -20,6 +20,9 @@ MODULE qs_update_s_mstruct
                                               do_ppl_grid,&
                                               kg_tnadd_embed,&
                                               kg_tnadd_embed_ri
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE pw_methods,                      ONLY: pw_transfer
@@ -37,10 +40,15 @@ MODULE qs_update_s_mstruct
    USE qs_rho_methods,                  ONLY: qs_rho_rebuild
    USE qs_rho_types,                    ONLY: qs_rho_type
    USE qs_scf_types,                    ONLY: scf_env_did_change
+   USE skala_gpw_functional,            ONLY: get_gauxc_section,&
+                                              native_skala_gapw_composite_direct_ao,&
+                                              native_skala_gapw_composite_reference,&
+                                              skala_gapw_representation
    USE task_list_methods,               ONLY: generate_qs_task_list
    USE task_list_types,                 ONLY: allocate_task_list,&
                                               deallocate_task_list,&
                                               task_list_type
+   USE xc_input_constants,              ONLY: skala_gapw_paw_one_center
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -182,22 +190,36 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, isub
-      LOGICAL                                            :: skip_load_balance_distributed, soft_valid
+      LOGICAL :: composite_direct_ao, composite_reference, native_grid_diagnostics, &
+         paw_one_center, skip_load_balance_distributed, soft_valid
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(section_vals_type), POINTER                   :: gauxc_section, input, xc_section
       TYPE(task_list_type), POINTER                      :: task_list
 
       CALL timeset(routineN, handle)
-      NULLIFY (ks_env, dft_control)
-      CALL get_qs_env(qs_env, ks_env=ks_env, dft_control=dft_control)
+      NULLIFY (ks_env, dft_control, gauxc_section, input, xc_section)
+      CALL get_qs_env(qs_env, ks_env=ks_env, dft_control=dft_control, input=input)
 
       soft_valid = (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc)
+      xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+      composite_reference = native_skala_gapw_composite_reference(xc_section)
+      composite_direct_ao = composite_reference .AND. &
+                            native_skala_gapw_composite_direct_ao(xc_section)
+      paw_one_center = skala_gapw_representation(xc_section) == skala_gapw_paw_one_center
+      native_grid_diagnostics = .FALSE.
+      gauxc_section => get_gauxc_section(xc_section)
+      IF (ASSOCIATED(gauxc_section)) THEN
+         CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_DIAGNOSTICS", &
+                                   l_val=native_grid_diagnostics)
+      END IF
       skip_load_balance_distributed = dft_control%qs_control%skip_load_balance_distributed
       IF (.NOT. (dft_control%qs_control%semi_empirical &
                  .OR. dft_control%qs_control%xtb &
                  .OR. dft_control%qs_control%dftb)) THEN
          ! generate task lists (non-soft)
-         IF (.NOT. dft_control%qs_control%gapw) THEN
+         IF (.NOT. dft_control%qs_control%gapw .OR. composite_direct_ao .OR. &
+             ((composite_reference .OR. paw_one_center) .AND. native_grid_diagnostics)) THEN
             CALL get_ks_env(ks_env, task_list=task_list)
             IF (.NOT. ASSOCIATED(task_list)) THEN
                CALL allocate_task_list(task_list)

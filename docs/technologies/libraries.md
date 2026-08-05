@@ -154,9 +154,9 @@ integrator.
 - Pass `-DCP2K_USE_GAUXC=ON` to CMake to enable GauXC. An MPI-enabled CP2K build requires a GauXC
   installation built with MPI support.
 - TorchScript-based GauXC models require a libtorch installation compatible with CP2K's BLAS and
-  OpenMP runtime. Pre-built libtorch bundles can conflict with a CP2K build using oneMKL; use a
-  compatible generic BLAS stack or rebuild libtorch against the selected dynamic stack when this
-  occurs.
+  OpenMP runtime. Pre-built libtorch bundles commonly include oneMKL. CP2K's LP64 OpenBLAS build
+  provides a compatibility path for the conflicting grouped SGEMM/DGEMM symbols; other mixed BLAS
+  interfaces require a consistently built numerical stack.
 - See [](../methods/dft/gauxc) for input, supported calculation types, and current limitations.
 
 ## PEXSI (low scaling SCF method)
