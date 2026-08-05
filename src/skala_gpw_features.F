@@ -189,11 +189,12 @@ CONTAINS
 !> \param use_atom_chunks ...
 !> \param route_atom_chunks ...
 !> \param atom_partition ...
+!> \param use_float32_dynamic Store dynamic CUDA inputs in single precision.
 ! **************************************************************************************************
    SUBROUTINE skala_gpw_feature_build(features, rho_set, rho_r, particle_set, cell, &
                                       requires_grad, weights, requires_coordinate_grad, &
                                       requires_stress_grad, use_atom_chunks, route_atom_chunks, &
-                                      atom_partition)
+                                      atom_partition, use_float32_dynamic)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
       TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)     :: rho_r
@@ -205,13 +206,14 @@ CONTAINS
                                                             requires_stress_grad, use_atom_chunks, &
                                                             route_atom_chunks
       INTEGER, INTENT(IN), OPTIONAL                      :: atom_partition
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_float32_dynamic
 
       INTEGER :: handle, i, ipt, ispin, j, k, local_row, my_atom_partition, &
          ndynamic_local_per_point, nflat, nflat_local, nspins, phase_handle, real_base, row
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL :: collapse_spin_dynamics, my_requires_coordinate_grad, my_requires_grad, &
          my_requires_stress_grad, my_route_atom_chunks, my_use_atom_chunks, &
-         use_atom_chunk_protocol, use_atom_chunk_routing
+         my_use_float32_dynamic, use_atom_chunk_protocol, use_atom_chunk_routing
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: global_dynamic, local_dynamic
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho, rhoa, rhob, tau_a, tau_b, tau_total
       TYPE(cp_3d_r_cp_type), DIMENSION(3)                :: drho, drhoa, drhob
@@ -231,6 +233,8 @@ CONTAINS
       IF (PRESENT(use_atom_chunks)) my_use_atom_chunks = use_atom_chunks
       my_route_atom_chunks = .FALSE.
       IF (PRESENT(route_atom_chunks)) my_route_atom_chunks = route_atom_chunks
+      my_use_float32_dynamic = .FALSE.
+      IF (PRESENT(use_float32_dynamic)) my_use_float32_dynamic = use_float32_dynamic
       my_atom_partition = skala_gpw_atom_partition_hard
       IF (PRESENT(atom_partition)) my_atom_partition = atom_partition
       IF (my_atom_partition /= skala_gpw_atom_partition_hard .AND. &
@@ -403,6 +407,7 @@ CONTAINS
          CALL add_feature_tensors(features, my_requires_grad, my_requires_coordinate_grad, &
                                   my_requires_stress_grad, &
                                   features%uses_atom_chunks, &
+                                  use_float32_dynamic=my_use_float32_dynamic, &
                                   requires_weight_grad= &
                                   (my_atom_partition == skala_gpw_atom_partition_smooth .AND. &
                                    (my_requires_coordinate_grad .OR. my_requires_stress_grad)))
@@ -2198,18 +2203,23 @@ CONTAINS
 !> \param requires_stress_grad ...
 !> \param use_atom_chunks ...
 !> \param requires_weight_grad ...
+!> \param use_float32_dynamic Store dynamic CUDA inputs in single precision.
 ! **************************************************************************************************
    SUBROUTINE add_feature_tensors(features, requires_grad, requires_coordinate_grad, &
-                                  requires_stress_grad, use_atom_chunks, requires_weight_grad)
+                                  requires_stress_grad, use_atom_chunks, requires_weight_grad, &
+                                  use_float32_dynamic)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
       LOGICAL, INTENT(IN)                                :: requires_grad, requires_coordinate_grad, &
                                                             requires_stress_grad, use_atom_chunks
-      LOGICAL, INTENT(IN), OPTIONAL                      :: requires_weight_grad
+      LOGICAL, INTENT(IN), OPTIONAL                      :: requires_weight_grad, use_float32_dynamic
 
-      LOGICAL                                            :: my_requires_weight_grad
+      LOGICAL                                            :: my_requires_weight_grad, &
+                                                            my_use_float32_dynamic
 
       my_requires_weight_grad = .FALSE.
       IF (PRESENT(requires_weight_grad)) my_requires_weight_grad = requires_weight_grad
+      my_use_float32_dynamic = .FALSE.
+      IF (PRESENT(use_float32_dynamic)) my_use_float32_dynamic = use_float32_dynamic
 
       features%owns_static_tensors = .FALSE.
       features%owns_coordinate_tensor = .FALSE.
@@ -2245,13 +2255,16 @@ CONTAINS
          END IF
 
          CALL torch_tensor_reset_from_array(cached_layout%chunk_density_t, &
-                                            features%chunk_density, requires_grad=requires_grad)
+                                            features%chunk_density, requires_grad=requires_grad, &
+                                            use_float32=my_use_float32_dynamic)
          features%density_t = cached_layout%chunk_density_t
          CALL torch_tensor_reset_from_array(cached_layout%chunk_grad_t, features%chunk_grad, &
-                                            requires_grad=requires_grad)
+                                            requires_grad=requires_grad, &
+                                            use_float32=my_use_float32_dynamic)
          features%grad_t = cached_layout%chunk_grad_t
          CALL torch_tensor_reset_from_array(cached_layout%chunk_kin_t, features%chunk_kin, &
-                                            requires_grad=requires_grad)
+                                            requires_grad=requires_grad, &
+                                            use_float32=my_use_float32_dynamic)
          features%kin_t = cached_layout%chunk_kin_t
          cached_layout%chunk_dynamic_tensors_active = .TRUE.
 
@@ -2308,13 +2321,16 @@ CONTAINS
          features%local_feature_indices_t = cached_layout%local_feature_indices_t
 
          CALL torch_tensor_reset_from_array(cached_layout%density_t, features%density, &
-                                            requires_grad=requires_grad)
+                                            requires_grad=requires_grad, &
+                                            use_float32=my_use_float32_dynamic)
          features%density_t = cached_layout%density_t
          CALL torch_tensor_reset_from_array(cached_layout%grad_t, features%grad, &
-                                            requires_grad=requires_grad)
+                                            requires_grad=requires_grad, &
+                                            use_float32=my_use_float32_dynamic)
          features%grad_t = cached_layout%grad_t
          CALL torch_tensor_reset_from_array(cached_layout%kin_t, features%kin, &
-                                            requires_grad=requires_grad)
+                                            requires_grad=requires_grad, &
+                                            use_float32=my_use_float32_dynamic)
          features%kin_t = cached_layout%kin_t
          cached_layout%dynamic_tensors_active = .TRUE.
 

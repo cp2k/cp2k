@@ -229,14 +229,16 @@ static bool tensor_matches(const torch_c_tensor_t *tensor,
 static void reset_tensor_from_array_double(torch_c_tensor_t **tensor,
                                            const bool req_grad, const int ndims,
                                            const int64_t sizes[],
-                                           double source[]) {
+                                           double source[],
+                                           const bool use_float32) {
   c10::OptionalDeviceGuard guard;
   const auto device = get_device_with_guard(guard);
+  const auto dtype =
+      (use_float32 && device.is_cuda()) ? torch::kFloat32 : torch::kFloat64;
   const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
-  if (!tensor_matches(*tensor, torch::kFloat64, device, ndims, sizes)) {
+  if (!tensor_matches(*tensor, dtype, device, ndims, sizes)) {
     delete (*tensor);
-    const auto opts =
-        torch::TensorOptions().dtype(torch::kFloat64).device(device);
+    const auto opts = torch::TensorOptions().dtype(dtype).device(device);
     *tensor = new torch_c_tensor_t(torch::empty(sizes_ref, opts).detach());
   }
   const auto source_tensor = torch::from_blob(
@@ -320,14 +322,14 @@ void torch_c_tensor_from_array_double(torch_c_tensor_t **tensor,
 void torch_c_free_string(char *content) { free(content); }
 
 /*******************************************************************************
- * \brief Reuses or creates a device tensor and copies double data into it.
+ * \brief Reuses or creates a device tensor and copies double data into it,
+ *        optionally converting CUDA destinations to float.
  ******************************************************************************/
-void torch_c_tensor_reset_from_array_double(torch_c_tensor_t **tensor,
-                                            const bool req_grad,
-                                            const int ndims,
-                                            const int64_t sizes[],
-                                            double source[]) {
-  reset_tensor_from_array_double(tensor, req_grad, ndims, sizes, source);
+void torch_c_tensor_reset_from_array_double(
+    torch_c_tensor_t **tensor, const bool req_grad, const int ndims,
+    const int64_t sizes[], double source[], const bool use_float32) {
+  reset_tensor_from_array_double(tensor, req_grad, ndims, sizes, source,
+                                 use_float32);
 }
 
 /*******************************************************************************
@@ -463,7 +465,7 @@ void torch_c_tensor_grad(const torch_c_tensor_t *tensor,
 }
 
 /*******************************************************************************
- * \brief Copies three autograd gradients to CPU memory.
+ * \brief Copies three autograd gradients to double-precision CPU memory.
  ******************************************************************************/
 void torch_c_tensor_grad_batch3(const torch_c_tensor_t *tensor1,
                                 const torch_c_tensor_t *tensor2,
@@ -482,15 +484,13 @@ void torch_c_tensor_grad_batch3(const torch_c_tensor_t *tensor1,
   assert(source1.device() == source2.device());
   assert(source1.device() == source3.device());
   if (use_batched_gradient_readback(source1)) {
-    auto host1 =
-        torch::empty(source1.sizes(),
-                     source1.options().device(torch::kCPU).pinned_memory(true));
-    auto host2 =
-        torch::empty(source2.sizes(),
-                     source2.options().device(torch::kCPU).pinned_memory(true));
-    auto host3 =
-        torch::empty(source3.sizes(),
-                     source3.options().device(torch::kCPU).pinned_memory(true));
+    const auto host_options = torch::TensorOptions()
+                                  .dtype(torch::kFloat64)
+                                  .device(torch::kCPU)
+                                  .pinned_memory(true);
+    auto host1 = torch::empty(source1.sizes(), host_options);
+    auto host2 = torch::empty(source2.sizes(), host_options);
+    auto host3 = torch::empty(source3.sizes(), host_options);
     host1.copy_(source1, true);
     host2.copy_(source2, true);
     host3.copy_(source3, true);
@@ -499,9 +499,11 @@ void torch_c_tensor_grad_batch3(const torch_c_tensor_t *tensor1,
     *grad2 = new torch_c_tensor_t(std::move(host2));
     *grad3 = new torch_c_tensor_t(std::move(host3));
   } else {
-    *grad1 = new torch_c_tensor_t(source1.cpu().contiguous());
-    *grad2 = new torch_c_tensor_t(source2.cpu().contiguous());
-    *grad3 = new torch_c_tensor_t(source3.cpu().contiguous());
+    const auto host_options =
+        torch::TensorOptions().dtype(torch::kFloat64).device(torch::kCPU);
+    *grad1 = new torch_c_tensor_t(source1.to(host_options).contiguous());
+    *grad2 = new torch_c_tensor_t(source2.to(host_options).contiguous());
+    *grad3 = new torch_c_tensor_t(source3.to(host_options).contiguous());
   }
 }
 

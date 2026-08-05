@@ -360,7 +360,8 @@ CONTAINS
                                    requires_stress_grad=compute_virial, &
                                    use_atom_chunks=native_grid_atom_chunks, &
                                    route_atom_chunks=native_grid_atom_chunk_routing, &
-                                   atom_partition=native_grid_atom_partition)
+                                   atom_partition=native_grid_atom_partition, &
+                                   use_float32_dynamic=native_grid_use_cuda)
       CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_DIAGNOSTICS", l_val=native_grid_diagnostics)
       IF (native_grid_diagnostics) THEN
          CALL print_native_grid_diagnostics(features, rho_r(1)%pw_grid%para%group%mepos == 0)

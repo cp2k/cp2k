@@ -206,19 +206,22 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Reuses or creates a device leaf tensor and copies data into it.
 !>        The source must be an ALLOCATABLE to prevent passing a temporary array.
+!>        When requested, CUDA destinations use FP32 while CPU destinations remain FP64.
 ! **************************************************************************************************
-      SUBROUTINE torch_tensor_reset_from_array_double_${ndims}$d(tensor, source, requires_grad)
+      SUBROUTINE torch_tensor_reset_from_array_double_${ndims}$d(tensor, source, requires_grad, use_float32)
          TYPE(torch_tensor_type), INTENT(INOUT)             :: tensor
          #:set arraydims = ", ".join(":" for i in range(ndims))
          REAL(dp), DIMENSION(${arraydims}$), ALLOCATABLE, INTENT(IN)  :: source
          LOGICAL, OPTIONAL, INTENT(IN)                      :: requires_grad
+         LOGICAL, OPTIONAL, INTENT(IN)                      :: use_float32
 
 #if defined(__LIBTORCH)
          INTEGER(kind=int_8), DIMENSION(${ndims}$)          :: sizes_c
-         LOGICAL                                            :: my_req_grad
+         LOGICAL                                            :: my_req_grad, my_use_float32
 
          INTERFACE
-            SUBROUTINE torch_c_tensor_reset_from_array_double(tensor, req_grad, ndims, sizes, source) &
+            SUBROUTINE torch_c_tensor_reset_from_array_double(tensor, req_grad, ndims, sizes, source, &
+                                                              use_float32) &
                BIND(C, name="torch_c_tensor_reset_from_array_double")
                IMPORT :: C_PTR, C_INT, C_INT64_T, C_DOUBLE, C_BOOL
                TYPE(C_PTR)                                  :: tensor
@@ -226,11 +229,14 @@ CONTAINS
                INTEGER(kind=C_INT), VALUE                   :: ndims
                INTEGER(kind=C_INT64_T), DIMENSION(*)        :: sizes
                REAL(kind=C_DOUBLE), DIMENSION(*)            :: source
+               LOGICAL(kind=C_BOOL), VALUE                  :: use_float32
             END SUBROUTINE torch_c_tensor_reset_from_array_double
          END INTERFACE
 
          my_req_grad = .FALSE.
          IF (PRESENT(requires_grad)) my_req_grad = requires_grad
+         my_use_float32 = .FALSE.
+         IF (PRESENT(use_float32)) my_use_float32 = use_float32
 
          #:for axis in range(ndims)
             sizes_c(${axis + 1}$) = SIZE(source, ${ndims - axis}$) ! C arrays are stored row-major.
@@ -240,13 +246,15 @@ CONTAINS
                                                      req_grad=LOGICAL(my_req_grad, C_BOOL), &
                                                      ndims=${ndims}$, &
                                                      sizes=sizes_c, &
-                                                     source=source)
+                                                     source=source, &
+                                                     use_float32=LOGICAL(my_use_float32, C_BOOL))
          CPASSERT(C_ASSOCIATED(tensor%c_ptr))
 #else
          CPABORT("CP2K compiled without the Torch library.")
          MARK_USED(tensor)
          MARK_USED(source)
          MARK_USED(requires_grad)
+         MARK_USED(use_float32)
 #endif
       END SUBROUTINE torch_tensor_reset_from_array_double_${ndims}$d
 
