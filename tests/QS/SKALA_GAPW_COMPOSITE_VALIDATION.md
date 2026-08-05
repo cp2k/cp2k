@@ -447,6 +447,30 @@ corresponding skew-cell stress checks compare direct cell-matrix derivatives. At
 `h11`, `h12`, and `h22` errors are `2.54e-6`, `2.14e-7`, and `5.23e-7 Ha/bohr`, respectively. At 240
 Ry the HCl/ccECP `h11` error is `5.92e-8 Ha/bohr`.
 
+## NLCC evidence
+
+NLCC enters the combined representation before Skala feature construction. CP2K augments the
+primitive density and density gradient, while the kinetic-energy density remains valence-only. In
+the molecular `PAW_ONE_CENTER` path, GTH or SGP core Gaussians and their Cartesian first and second
+derivatives are evaluated directly on the partitioned atom-centered quadrature. The same Skala
+feature adjoints then provide both the moving-grid and pseudopotential-center force terms. This
+avoids interpolating the sharply localized core density from a finite PW grid and does not apply a
+density rescaling.
+
+For molecular HF with GTH-NLCC-PBE potentials, `GAPW_ACCURATE_XCINT T`, a 400-Ry grid, and a
+`1e-3 bohr` displacement of the F atom along the bond, the numerical and analytical forces are
+`-0.02781736` and `-0.02779731 Ha/bohr`, respectively. Their absolute difference is
+`2.01e-5 Ha/bohr`. The residual total translation force decreases from `3.57e-3 Ha/bohr` at 400 Ry
+to `1.88e-3 Ha/bohr` at 800 Ry. A no-NLCC control shows the same transverse finite-grid behavior, so
+it is not evidence of a missing NLCC derivative.
+
+For periodic native-grid HF/GTH-NLCC at 400 Ry, the numerical diagonal virial components are
+`(0.04050825, 0.02148169, 0.04799977) Ha`, compared with analytical values of
+`(0.04054365, 0.02157227, 0.04785084) Ha`. The component errors are
+`(-3.54e-5, -9.06e-5, 1.49e-4) Ha`, or at most `0.42%`. A separate coordinate finite difference
+gives an absolute force difference of `3.65e-4 Ha/bohr` at the same cutoff. These residuals are
+within the finite-grid diagnostic tolerance and converge from the substantially coarser 200-Ry case.
+
 The atom-centered molecular composite cannot be applied unchanged to a periodic cell: its
 radial/Lebedev grids extend over periodic images, and the present nearest-image smooth partition
 would count the periodic density repeatedly. A periodic atom-centered implementation requires an
@@ -625,6 +649,10 @@ that the new references represent the continuous partition rather than a model-c
 - Molecular atom-composite forces pass finite differences for H2, H2O, Ar, and compressed H2, with
   the heavy-atom absolute error decreasing under grid refinement. The H2 molecular virial also
   passes an independent affine coordinate-scaling finite difference.
+- Molecular `PAW_ONE_CENTER` with GTH-NLCC passes a bond-force finite difference, and its residual
+  translation force decreases under grid refinement. Periodic native-grid PAW-like GAPW with NLCC
+  passes targeted force and diagonal-stress finite differences. In both routes NLCC augments density
+  and density gradient before feature construction while tau remains valence-only.
 - The periodic regular-grid analytical virial passes full skew-cell finite-difference checks for
   both GPW and the all-electron GAPW common-grid composite after making sparse smooth-partition rows
   vanish continuously in SKALA's internal atom-grid integral. Periodic pseudopotential GAPW forces

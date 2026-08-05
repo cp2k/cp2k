@@ -1335,8 +1335,9 @@ CONTAINS
                           description="GauXC Skala model name or path. Use NONE for conventional GauXC. "// &
                           "MODEL SKALA selects the installed Skala-1.1 model when available; "// &
                           "other Skala models are supplied as .fun files or model names. "// &
-                          "NLCC pseudopotentials are rejected in the molecular GauXC Skala "// &
-                          "path; use the CP2K-native SKALA grid path for NLCC calculations.", &
+                          "NLCC pseudopotentials are rejected by the direct molecular GauXC "// &
+                          "Skala path. Pseudopotential GAPW PAW_ONE_CENTER and the CP2K-native "// &
+                          "SKALA grid path include NLCC in their reconstructed primitive fields.", &
                           usage="MODEL SKALA", &
                           default_c_val="NONE")
       CALL section_add_keyword(section, keyword)

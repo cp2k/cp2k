@@ -140,16 +140,21 @@ exact numerical integral: a density-dependent rescaling would modify the Skala f
 require additional VXC, force, and virial derivatives. `NATIVE_GRID_DIAGNOSTICS T` prints the
 atom-composite electron integral for convergence checks.
 
-Molecular Skala forces are available for these GAPW and GAPW_XC cases. CP2K currently evaluates the
-GauXC molecular XC nuclear gradient for every GAPW method with a conservative central
-finite-difference fallback and combines it with the CP2K one-center contribution where applicable.
-`MOLECULAR_VIRIAL` is a finite-system diagnostic constructed from these nuclear gradients; it is not
-a periodic stress tensor.
+Molecular Skala forces are available for these GAPW and GAPW_XC cases. The direct molecular GauXC
+route evaluates its XC nuclear gradient through the configured GauXC gradient path. The
+`PAW_ONE_CENTER` representation instead propagates the Skala feature adjoint analytically through
+the CP2K smooth-field interpolation, one-center reconstruction, atom partition, and NLCC center
+coordinates. `MOLECULAR_VIRIAL` is a finite-system diagnostic constructed from the nuclear
+gradients; it is not a periodic stress tensor.
 
-NLCC pseudopotentials with Skala and non-local `VDW_POTENTIAL` corrections are not supported by the
-molecular GauXC path. Molecular NLCC would require the frozen-core density to enter the Skala
-feature definition and its derivatives consistently. Higher-XC-derivative response and kernel
-properties are not available through GauXC, and real-time propagation is also unsupported.
+Direct molecular GauXC evaluation with NLCC pseudopotentials is not supported because GauXC does not
+receive the frozen-core density and its derivatives. Molecular pseudopotential GAPW with
+`PAW_ONE_CENTER` is a separate, supported route: CP2K evaluates the NLCC density and gradient on the
+same atom-centered composite quadrature, adds them to the reconstructed primitive fields before
+Skala constructs its features, and differentiates the core and grid-center coordinates analytically.
+The kinetic-energy density remains valence-only. Non-local `VDW_POTENTIAL` corrections,
+higher-XC-derivative response and kernel properties, and real-time propagation remain unsupported
+through GauXC.
 
 ## Experimental Native-Grid SKALA Path
 
@@ -222,17 +227,18 @@ do not add this one-center correction.
 
 The native-grid path provides energy, VXC, nuclear forces, and analytical stress for regular-grid
 GPW with GTH/ECP pseudopotentials, all-electron GAPW, pseudopotential GAPW with either `GPW_TYPE` or
-the PAW-like one-center correction, and `METHOD GAPW_XC`. NLCC is supported for the native
-regular-grid GPW representation.
+the PAW-like one-center correction, and `METHOD GAPW_XC`. NLCC is supported for both the native
+regular-grid representation and pseudopotential GAPW `PAW_ONE_CENTER`.
 
 For native-grid NLCC, CP2K adds the frozen-core density to each spin density in both real and
-reciprocal space before constructing the Skala features. The model is evaluated once on the combined
-valence-plus-core density, retaining density/core cross terms. **NLCC augments $\rho$ and
-$\nabla\rho$, while $\tau$ remains valence-only.** This follows CP2K's meta-GGA-like NLCC
-convention, but it is not identical to an all-electron frozen-core representation because no core
-kinetic-energy density is supplied. Consequently, the effect of NLCC on agreement with an
-all-electron reference must be validated for the target chemistry rather than assumed to be
-systematically beneficial.
+reciprocal space before constructing the Skala features. In the molecular atom-composite route the
+same core field is evaluated analytically on the partitioned radial/Lebedev rows. The model is
+evaluated once on the combined valence-plus-core primitive fields, retaining density/core and
+gradient cross terms. **NLCC augments $\rho$ and $\nabla\rho$, while $\tau$ remains valence-only.**
+This follows CP2K's meta-GGA-like NLCC convention, but it is not identical to an all-electron
+frozen-core representation because no core kinetic-energy density is supplied. Consequently, the
+effect of NLCC on agreement with an all-electron reference must be validated for the target
+chemistry rather than assumed to be systematically beneficial.
 
 K-point density matrices use CP2K's standard weights and symmetry reduction. The tested scope
 includes inversion-only reduction, full K290 reduction, and SPGLIB reduction for GPW/GTH,
