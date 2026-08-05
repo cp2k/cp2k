@@ -27,7 +27,7 @@ MODULE hdf5_wrapper
 #endif
 #endif
    USE iso_c_binding, ONLY: C_LOC, &
-                            c_ptr
+                            C_PTR
    USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
    USE kinds, ONLY: dp
    USE message_passing, ONLY: mp_comm_world, mp_info_null

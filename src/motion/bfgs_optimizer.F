@@ -500,7 +500,7 @@ CONTAINS
       INTEGER                                            :: handle, i, indf, iref, iter, j, k, l, &
                                                             maxit, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: bisec, fail, set
+      LOGICAL                                            :: bisec, fail, set, conv
       REAL(KIND=dp)                                      :: fun, fun1, fun2, fun3, fung, lam1, lam2, &
                                                             ln, lp, ssize, step, stol
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), POINTER            :: local_data
@@ -538,6 +538,7 @@ CONTAINS
          ln = 0.0_dp
          IF (eigval(iref) < 0.0_dp) ln = eigval(iref) - 0.01_dp
 
+         conv = .FALSE.
          iter = 0
          DO
             iter = iter + 1
@@ -551,78 +552,85 @@ CONTAINS
             fung = fung - one
             step = fun/fung
             ln = ln - step
-            IF (ABS(step) < stol) GOTO 200
+            IF (ABS(step) < stol) THEN
+               conv = .TRUE.
+               EXIT
+            END IF
             IF (iter >= maxit) EXIT
          END DO
-100      CONTINUE
-         bisec = .TRUE.
-         iter = 0
-         maxit = 9999
-         lam1 = 0.0_dp
-         IF (eigval(iref) < 0.0_dp) lam1 = eigval(iref) - 0.01_dp
-         fun1 = 0.0_dp
-         DO indf = 1, ndf
-            fun1 = fun1 + dg(indf)**2/(lam1 - eigval(indf))
-         END DO
-         fun1 = fun1 - lam1
-         step = ABS(lam1)/1000.0_dp
-         IF (step < ssize) step = ssize
-         DO
-            iter = iter + 1
-            IF (iter > maxit) THEN
-               ln = 0.0_dp
-               lp = 0.0_dp
-               fail = .TRUE.
-               GOTO 300
-            END IF
-            fun2 = 0.0_dp
-            lam2 = lam1 - iter*step
-            DO indf = 1, ndf
-               fun2 = fun2 + eigval(indf)**2/(lam2 - eigval(indf))
-            END DO
-            fun2 = fun2 - lam2
-            IF (fun2*fun1 < 0.0_dp) THEN
+         outer: DO
+            IF (.NOT. conv) THEN
+               conv = .FALSE.
+               bisec = .TRUE.
                iter = 0
-               DO
+               maxit = 9999
+               lam1 = 0.0_dp
+               IF (eigval(iref) < 0.0_dp) lam1 = eigval(iref) - 0.01_dp
+               fun1 = 0.0_dp
+               DO indf = 1, ndf
+                  fun1 = fun1 + dg(indf)**2/(lam1 - eigval(indf))
+               END DO
+               fun1 = fun1 - lam1
+               step = ABS(lam1)/1000.0_dp
+               IF (step < ssize) step = ssize
+               inner: DO
                   iter = iter + 1
                   IF (iter > maxit) THEN
                      ln = 0.0_dp
                      lp = 0.0_dp
                      fail = .TRUE.
-                     GOTO 300
+                     EXIT outer
                   END IF
-                  step = (lam1 + lam2)/2
-                  fun3 = 0.0_dp
+                  fun2 = 0.0_dp
+                  lam2 = lam1 - iter*step
                   DO indf = 1, ndf
-                     fun3 = fun3 + dg(indf)**2/(step - eigval(indf))
+                     fun2 = fun2 + eigval(indf)**2/(lam2 - eigval(indf))
                   END DO
-                  fun3 = fun3 - step
+                  fun2 = fun2 - lam2
+                  IF (fun2*fun1 < 0.0_dp) THEN
+                     iter = 0
+                     DO
+                        iter = iter + 1
+                        IF (iter > maxit) THEN
+                           ln = 0.0_dp
+                           lp = 0.0_dp
+                           fail = .TRUE.
+                           EXIT outer
+                        END IF
+                        step = (lam1 + lam2)/2
+                        fun3 = 0.0_dp
+                        DO indf = 1, ndf
+                           fun3 = fun3 + dg(indf)**2/(step - eigval(indf))
+                        END DO
+                        fun3 = fun3 - step
 
-                  IF (ABS(step - lam2) < stol) THEN
-                     ln = step
-                     GOTO 200
-                  END IF
+                        IF (ABS(step - lam2) < stol) THEN
+                           ln = step
+                           EXIT inner
+                        END IF
 
-                  IF (fun3*fun1 < stol) THEN
-                     lam2 = step
-                  ELSE
-                     lam1 = step
+                        IF (fun3*fun1 < stol) THEN
+                           lam2 = step
+                        ELSE
+                           lam1 = step
+                        END IF
+                     END DO
                   END IF
-               END DO
+               END DO inner
             END IF
-         END DO
+            IF ((ln > eigval(iref)) .OR. ((ln > 0.0_dp) .AND. &
+                                          (eigval(iref) > 0.0_dp))) THEN
 
-200      CONTINUE
-         IF ((ln > eigval(iref)) .OR. ((ln > 0.0_dp) .AND. &
-                                       (eigval(iref) > 0.0_dp))) THEN
-
-            IF (.NOT. bisec) GOTO 100
-            ln = 0.0_dp
-            lp = 0.0_dp
-            fail = .TRUE.
-         END IF
-
-300      CONTINUE
+               IF (.NOT. bisec) THEN
+                  conv = .FALSE.
+                  CYCLE outer
+               END IF
+               ln = 0.0_dp
+               lp = 0.0_dp
+               fail = .TRUE.
+            END IF
+            EXIT outer
+         END DO outer
 
          IF (fail .AND. .NOT. set) THEN
             set = .TRUE.
@@ -1156,10 +1164,11 @@ CONTAINS
 !> \param rho ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION dist_second_deriv(r1, i, j, d, rho) RESULT(deriv)
-      REAL(KIND=dp), DIMENSION(3)                        :: r1
-      INTEGER                                            :: i, j
-      REAL(KIND=dp)                                      :: d, rho, deriv
+   PURE FUNCTION dist_second_deriv(r1, i, j, d, rho) RESULT(deriv)
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r1
+      INTEGER, INTENT(IN)                                :: i, j
+      REAL(KIND=dp), INTENT(IN)                          :: d, rho
+      REAL(KIND=dp)                                      :: deriv
 
       deriv = 0.45_dp*rho*(r1(i)*r1(j))/d**2
    END FUNCTION dist_second_deriv
