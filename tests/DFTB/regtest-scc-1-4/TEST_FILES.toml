@@ -1,0 +1,20 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+"ch2o_tblite_mixer.inp"                 = [{matcher="E_total", tol=1.0E-07, ref=-5.75878702947642}]
+"H+.inp"                                = [{matcher="E_total", tol=1.0E-14, ref=0.23499952945092}]
+"co.inp"                                = [{matcher="E_total", tol=1.0E-14, ref=-5.04980895105760}]
+"h2o-3.inp"                             = [{matcher="E_total", tol=1e-08, ref=-130.54245923459086}]
+"h2o-4.inp"                             = [{matcher="E_total", tol=3e-09, ref=-130.55701254220213}]
+"h2o_hb_corr.inp"                       = [{matcher="E_total", tol=1.0E-14, ref=-12.22019537999129}]
+# first check for LSD
+"test-lsd.inp"                          = [{matcher="E_total", tol=4e-14, ref=-5.75878702495205}]
+"test-lsd-ls.inp"                       = [{matcher="M011", tol=5.0E-09, ref=-5.75878701862599}]
+# HB correction parameter
+"h2o_hb_corr_1.inp"                     = [{matcher="E_total", tol=1.0E-14, ref=-12.22019537999129}]
+"h2o_hb_corr_2.inp"                     = [{matcher="E_total", tol=1.0E-14, ref=-12.22963138587384}]
+# Dispersion
+"h2o_disp1.inp"                         = [{matcher="E_total", tol=4e-09, ref=-130.41378146312945}]
+"h2o_disp2.inp"                         = [{matcher="E_total", tol=4e-09, ref=-130.75835628011220}]
+"h2o_disp3.inp"                         = [{matcher="E_total", tol=3e-09, ref=-130.76542890762238}]
+#EOF
