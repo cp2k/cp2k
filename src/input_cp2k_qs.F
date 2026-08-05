@@ -33,7 +33,7 @@ MODULE input_cp2k_qs
         gapw_1c_very_large, gaussian, numerical, slater, wfi_aspc_nr, wfi_frozen_method_nr, &
         wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
         wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
-        wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr
+        wfi_use_prev_p_method_nr, wfi_use_prev_wf_method_nr
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_opt,                  ONLY: create_optimize_dmfet,&
                                               create_optimize_embed,&
@@ -419,13 +419,11 @@ CONTAINS
          "PS and ASPC are recommended, see also EXTRAPOLATION_ORDER.", &
          citations=[Kolafa2004, VandeVondele2005a, Kuhne2007], &
          usage="EXTRAPOLATION PS", &
-         enum_c_vals=s2a("USE_GUESS", "USE_PREV_P", "USE_PREV_RHO_R", "LINEAR_WF", &
-                         "LINEAR_P", "LINEAR_PS", "USE_PREV_WF", "PS", "FROZEN", "ASPC", &
-                         "GEXT_PROJ", "GEXT_PROJ_QTR"), &
+         enum_c_vals=s2a("USE_GUESS", "USE_PREV_P", "LINEAR_WF", "LINEAR_P", "LINEAR_PS", &
+                         "USE_PREV_WF", "PS", "FROZEN", "ASPC", "GEXT_PROJ", "GEXT_PROJ_QTR"), &
          enum_desc=s2a( &
          "Use the method specified with SCF_GUESS, i.e. no extrapolation", &
          "Use the previous density matrix", &
-         "Legacy alias for USE_PREV_P, using the previous density matrix; deprecated", &
          "Linear extrapolation of the wavefunction (not available for k-points)", &
          "Linear extrapolation of the density matrix", &
          "Linear extrapolation of the density matrix times the overlap matrix (not available for k-points)", &
@@ -438,7 +436,6 @@ CONTAINS
          enum_i_vals=[ &
          wfi_use_guess_method_nr, &
          wfi_use_prev_p_method_nr, &
-         wfi_use_prev_rho_r_method_nr, &
          wfi_linear_wf_method_nr, &
          wfi_linear_p_method_nr, &
          wfi_linear_ps_method_nr, &
