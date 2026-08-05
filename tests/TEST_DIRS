@@ -517,4 +517,3 @@ QS/regtest-wfn-restart
 Fist/regtest-plumed2                                        plumed2
 QS/regtest-topology
 QS/regtest-fde
-QS/regtest-skala-cuda                                       skala gauxc_cuda
