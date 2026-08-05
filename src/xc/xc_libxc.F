@@ -11,7 +11,7 @@
 !>      LibXC:
 !>      (Marques, Oliveira, Burnus, CPC 183, 2272 (2012)).
 !>
-!>      WARNING: In the subroutine libxc_lsd_calc, it could be that the
+!>      WARNING: In the subroutine libxc_spin_polarized_calc, it could be that the
 !>      ordering for the 1st index of v2lapltau, v2rholapl, v2rhotau,
 !>      v2sigmalapl and v2sigmatau is not correct. For the moment it does not
 !>      matter since the calculation of the 2nd derivatives for meta-GGA
@@ -119,7 +119,8 @@ MODULE xc_libxc
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_libxc'
 
-   PUBLIC :: libxc_lda_info, libxc_lda_eval, libxc_lsd_info, libxc_lsd_eval, &
+   PUBLIC :: libxc_spin_unpolarized_info, libxc_spin_unpolarized_eval, &
+             libxc_spin_polarized_info, libxc_spin_polarized_eval, &
              libxc_version_info, libxc_get_reference_length, libxc_add_sections, &
              libxc_check_existence_in_libxc
 
@@ -310,8 +311,8 @@ CONTAINS
 !> \param func_name_override optional LibXC functional name overriding the section name
 !> \author F. Tran
 ! **************************************************************************************************
-   SUBROUTINE libxc_lda_info(libxc_params, reference, shortform, needs, max_deriv, print_warn, &
-                             func_name_override)
+   SUBROUTINE libxc_spin_unpolarized_info(libxc_params, reference, shortform, needs, max_deriv, print_warn, &
+                                          func_name_override)
 
       TYPE(section_vals_type), POINTER         :: libxc_params
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
@@ -413,7 +414,7 @@ CONTAINS
                     "you have to download and install the library!")
 #endif
 
-   END SUBROUTINE libxc_lda_info
+   END SUBROUTINE libxc_spin_unpolarized_info
 
 ! **************************************************************************************************
 !> \brief info about the functional from libxc
@@ -427,8 +428,8 @@ CONTAINS
 !> \param func_name_override optional LibXC functional name overriding the section name
 !> \author F. Tran
 ! **************************************************************************************************
-   SUBROUTINE libxc_lsd_info(libxc_params, reference, shortform, needs, max_deriv, print_warn, &
-                             func_name_override)
+   SUBROUTINE libxc_spin_polarized_info(libxc_params, reference, shortform, needs, max_deriv, print_warn, &
+                                        func_name_override)
 
       TYPE(section_vals_type), POINTER         :: libxc_params
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
@@ -532,7 +533,7 @@ CONTAINS
                     "you have to download and install the library!")
 #endif
 
-   END SUBROUTINE libxc_lsd_info
+   END SUBROUTINE libxc_spin_polarized_info
 
 ! **************************************************************************************************
 !> \brief info about the LibXC version
@@ -563,7 +564,7 @@ CONTAINS
 !> \param func_name_override optional LibXC functional name overriding the section name
 !> \author F. Tran
 ! **************************************************************************************************
-   SUBROUTINE libxc_lda_eval(rho_set, deriv_set, grad_deriv, libxc_params, func_name_override)
+   SUBROUTINE libxc_spin_unpolarized_eval(rho_set, deriv_set, grad_deriv, libxc_params, func_name_override)
 
       TYPE(xc_rho_set_type), INTENT(IN)        :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN) :: deriv_set
@@ -572,7 +573,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: func_name_override
 
 #if defined (__LIBXC)
-      CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lda_eval'
+      CHARACTER(len=*), PARAMETER :: routineN = 'libxc_spin_unpolarized_eval'
 
       CHARACTER(LEN=default_string_length)     :: func_name
       INTEGER                                  :: func_id, handle, npoints
@@ -764,19 +765,19 @@ CONTAINS
 !$OMP SHARED(epsilon_rho,epsilon_tau),&
 !$OMP SHARED(func_name,func_scale,xc_func,xc_info,no_exc,has_laplace)
 
-      CALL libxc_lda_calc(rho=rho, norm_drho=norm_drho, &
-                          laplace_rho=laplace_rho, tau=tau, &
-                          e_0=e_0, e_rho=e_rho, e_ndrho=e_ndrho, e_laplace_rho=e_laplace_rho, &
-                          e_tau=e_tau, e_rho_rho=e_rho_rho, e_ndrho_rho=e_ndrho_rho, &
-                          e_ndrho_ndrho=e_ndrho_ndrho, e_rho_laplace_rho=e_rho_laplace_rho, &
-                          e_rho_tau=e_rho_tau, e_ndrho_laplace_rho=e_ndrho_laplace_rho, &
-                          e_ndrho_tau=e_ndrho_tau, e_laplace_rho_laplace_rho=e_laplace_rho_laplace_rho, &
-                          e_laplace_rho_tau=e_laplace_rho_tau, e_tau_tau=e_tau_tau, &
-                          e_rho_rho_rho=e_rho_rho_rho, &
-                          grad_deriv=grad_deriv, npoints=npoints, &
-                          epsilon_rho=epsilon_rho, &
-                          epsilon_tau=epsilon_tau, func_name=func_name, &
-                          sc=func_scale, xc_func=xc_func, xc_info=xc_info, no_exc=no_exc, has_laplace=has_laplace)
+      CALL libxc_spin_unpolarized_calc(rho=rho, norm_drho=norm_drho, &
+                                       laplace_rho=laplace_rho, tau=tau, &
+                                       e_0=e_0, e_rho=e_rho, e_ndrho=e_ndrho, e_laplace_rho=e_laplace_rho, &
+                                       e_tau=e_tau, e_rho_rho=e_rho_rho, e_ndrho_rho=e_ndrho_rho, &
+                                       e_ndrho_ndrho=e_ndrho_ndrho, e_rho_laplace_rho=e_rho_laplace_rho, &
+                                       e_rho_tau=e_rho_tau, e_ndrho_laplace_rho=e_ndrho_laplace_rho, &
+                                       e_ndrho_tau=e_ndrho_tau, e_laplace_rho_laplace_rho=e_laplace_rho_laplace_rho, &
+                                       e_laplace_rho_tau=e_laplace_rho_tau, e_tau_tau=e_tau_tau, &
+                                       e_rho_rho_rho=e_rho_rho_rho, &
+                                       grad_deriv=grad_deriv, npoints=npoints, &
+                                       epsilon_rho=epsilon_rho, &
+                                       epsilon_tau=epsilon_tau, func_name=func_name, &
+                                       sc=func_scale, xc_func=xc_func, xc_info=xc_info, no_exc=no_exc, has_laplace=has_laplace)
 
 !$OMP END PARALLEL
 
@@ -795,7 +796,7 @@ CONTAINS
                     "for a functional of the LibXC library, "// &
                     "you have to download and install the library!")
 #endif
-   END SUBROUTINE libxc_lda_eval
+   END SUBROUTINE libxc_spin_unpolarized_eval
 
 ! **************************************************************************************************
 !> \brief evaluates the functional from libxc
@@ -809,7 +810,7 @@ CONTAINS
 !> \param func_name_override optional LibXC functional name overriding the section name
 !> \author F. Tran
 ! **************************************************************************************************
-   SUBROUTINE libxc_lsd_eval(rho_set, deriv_set, grad_deriv, libxc_params, func_name_override)
+   SUBROUTINE libxc_spin_polarized_eval(rho_set, deriv_set, grad_deriv, libxc_params, func_name_override)
 
       TYPE(xc_rho_set_type), INTENT(IN)        :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN) :: deriv_set
@@ -818,7 +819,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: func_name_override
 
 #if defined (__LIBXC)
-      CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lsd_eval'
+      CHARACTER(len=*), PARAMETER :: routineN = 'libxc_spin_polarized_eval'
 
       CHARACTER(LEN=default_string_length)     :: func_name
       INTEGER                                  :: func_id, handle, npoints
@@ -1270,52 +1271,52 @@ CONTAINS
 !$OMP SHARED(epsilon_rho,epsilon_tau),&
 !$OMP SHARED(func_name,func_scale,xc_func,xc_info, no_exc, has_laplace)
 
-      CALL libxc_lsd_calc(rhoa=rhoa, rhob=rhob, norm_drho=norm_drho, &
-                          norm_drhoa=norm_drhoa, norm_drhob=norm_drhob, laplace_rhoa=laplace_rhoa, &
-                          laplace_rhob=laplace_rhob, tau_a=tau_a, tau_b=tau_b, &
-                          e_0=e_0, e_rhoa=e_rhoa, e_rhob=e_rhob, e_ndrho=e_ndrho, &
-                          e_ndrhoa=e_ndrhoa, e_ndrhob=e_ndrhob, e_laplace_rhoa=e_laplace_rhoa, &
-                          e_laplace_rhob=e_laplace_rhob, e_tau_a=e_tau_a, e_tau_b=e_tau_b, &
-                          e_rhoa_rhoa=e_rhoa_rhoa, e_rhoa_rhob=e_rhoa_rhob, e_rhob_rhob=e_rhob_rhob, &
-                          e_ndrho_rhoa=e_ndrho_rhoa, e_ndrho_rhob=e_ndrho_rhob, &
-                          e_ndrhoa_rhoa=e_ndrhoa_rhoa, e_ndrhoa_rhob=e_ndrhoa_rhob, &
-                          e_ndrhob_rhoa=e_ndrhob_rhoa, e_ndrhob_rhob=e_ndrhob_rhob, &
-                          e_ndrho_ndrho=e_ndrho_ndrho, e_ndrho_ndrhoa=e_ndrho_ndrhoa, &
-                          e_ndrho_ndrhob=e_ndrho_ndrhob, e_ndrhoa_ndrhoa=e_ndrhoa_ndrhoa, &
-                          e_ndrhoa_ndrhob=e_ndrhoa_ndrhob, e_ndrhob_ndrhob=e_ndrhob_ndrhob, &
-                          e_rhoa_laplace_rhoa=e_rhoa_laplace_rhoa, &
-                          e_rhoa_laplace_rhob=e_rhoa_laplace_rhob, &
-                          e_rhob_laplace_rhoa=e_rhob_laplace_rhoa, &
-                          e_rhob_laplace_rhob=e_rhob_laplace_rhob, &
-                          e_rhoa_tau_a=e_rhoa_tau_a, e_rhoa_tau_b=e_rhoa_tau_b, &
-                          e_rhob_tau_a=e_rhob_tau_a, e_rhob_tau_b=e_rhob_tau_b, &
-                          e_ndrho_laplace_rhoa=e_ndrho_laplace_rhoa, &
-                          e_ndrho_laplace_rhob=e_ndrho_laplace_rhob, &
-                          e_ndrhoa_laplace_rhoa=e_ndrhoa_laplace_rhoa, &
-                          e_ndrhoa_laplace_rhob=e_ndrhoa_laplace_rhob, &
-                          e_ndrhob_laplace_rhoa=e_ndrhob_laplace_rhoa, &
-                          e_ndrhob_laplace_rhob=e_ndrhob_laplace_rhob, &
-                          e_ndrho_tau_a=e_ndrho_tau_a, e_ndrho_tau_b=e_ndrho_tau_b, &
-                          e_ndrhoa_tau_a=e_ndrhoa_tau_a, e_ndrhoa_tau_b=e_ndrhoa_tau_b, &
-                          e_ndrhob_tau_a=e_ndrhob_tau_a, e_ndrhob_tau_b=e_ndrhob_tau_b, &
-                          e_laplace_rhoa_laplace_rhoa=e_laplace_rhoa_laplace_rhoa, &
-                          e_laplace_rhoa_laplace_rhob=e_laplace_rhoa_laplace_rhob, &
-                          e_laplace_rhob_laplace_rhob=e_laplace_rhob_laplace_rhob, &
-                          e_laplace_rhoa_tau_a=e_laplace_rhoa_tau_a, &
-                          e_laplace_rhoa_tau_b=e_laplace_rhoa_tau_b, &
-                          e_laplace_rhob_tau_a=e_laplace_rhob_tau_a, &
-                          e_laplace_rhob_tau_b=e_laplace_rhob_tau_b, &
-                          e_tau_a_tau_a=e_tau_a_tau_a, &
-                          e_tau_a_tau_b=e_tau_a_tau_b, &
-                          e_tau_b_tau_b=e_tau_b_tau_b, &
-                          e_rhoa_rhoa_rhoa=e_rhoa_rhoa_rhoa, &
-                          e_rhoa_rhoa_rhob=e_rhoa_rhoa_rhob, &
-                          e_rhoa_rhob_rhob=e_rhoa_rhob_rhob, &
-                          e_rhob_rhob_rhob=e_rhob_rhob_rhob, &
-                          grad_deriv=grad_deriv, npoints=npoints, &
-                          epsilon_rho=epsilon_rho, &
-                          epsilon_tau=epsilon_tau, func_name=func_name, &
-                          sc=func_scale, xc_func=xc_func, xc_info=xc_info, no_exc=no_exc, has_laplace=has_laplace)
+      CALL libxc_spin_polarized_calc(rhoa=rhoa, rhob=rhob, norm_drho=norm_drho, &
+                                     norm_drhoa=norm_drhoa, norm_drhob=norm_drhob, laplace_rhoa=laplace_rhoa, &
+                                     laplace_rhob=laplace_rhob, tau_a=tau_a, tau_b=tau_b, &
+                                     e_0=e_0, e_rhoa=e_rhoa, e_rhob=e_rhob, e_ndrho=e_ndrho, &
+                                     e_ndrhoa=e_ndrhoa, e_ndrhob=e_ndrhob, e_laplace_rhoa=e_laplace_rhoa, &
+                                     e_laplace_rhob=e_laplace_rhob, e_tau_a=e_tau_a, e_tau_b=e_tau_b, &
+                                     e_rhoa_rhoa=e_rhoa_rhoa, e_rhoa_rhob=e_rhoa_rhob, e_rhob_rhob=e_rhob_rhob, &
+                                     e_ndrho_rhoa=e_ndrho_rhoa, e_ndrho_rhob=e_ndrho_rhob, &
+                                     e_ndrhoa_rhoa=e_ndrhoa_rhoa, e_ndrhoa_rhob=e_ndrhoa_rhob, &
+                                     e_ndrhob_rhoa=e_ndrhob_rhoa, e_ndrhob_rhob=e_ndrhob_rhob, &
+                                     e_ndrho_ndrho=e_ndrho_ndrho, e_ndrho_ndrhoa=e_ndrho_ndrhoa, &
+                                     e_ndrho_ndrhob=e_ndrho_ndrhob, e_ndrhoa_ndrhoa=e_ndrhoa_ndrhoa, &
+                                     e_ndrhoa_ndrhob=e_ndrhoa_ndrhob, e_ndrhob_ndrhob=e_ndrhob_ndrhob, &
+                                     e_rhoa_laplace_rhoa=e_rhoa_laplace_rhoa, &
+                                     e_rhoa_laplace_rhob=e_rhoa_laplace_rhob, &
+                                     e_rhob_laplace_rhoa=e_rhob_laplace_rhoa, &
+                                     e_rhob_laplace_rhob=e_rhob_laplace_rhob, &
+                                     e_rhoa_tau_a=e_rhoa_tau_a, e_rhoa_tau_b=e_rhoa_tau_b, &
+                                     e_rhob_tau_a=e_rhob_tau_a, e_rhob_tau_b=e_rhob_tau_b, &
+                                     e_ndrho_laplace_rhoa=e_ndrho_laplace_rhoa, &
+                                     e_ndrho_laplace_rhob=e_ndrho_laplace_rhob, &
+                                     e_ndrhoa_laplace_rhoa=e_ndrhoa_laplace_rhoa, &
+                                     e_ndrhoa_laplace_rhob=e_ndrhoa_laplace_rhob, &
+                                     e_ndrhob_laplace_rhoa=e_ndrhob_laplace_rhoa, &
+                                     e_ndrhob_laplace_rhob=e_ndrhob_laplace_rhob, &
+                                     e_ndrho_tau_a=e_ndrho_tau_a, e_ndrho_tau_b=e_ndrho_tau_b, &
+                                     e_ndrhoa_tau_a=e_ndrhoa_tau_a, e_ndrhoa_tau_b=e_ndrhoa_tau_b, &
+                                     e_ndrhob_tau_a=e_ndrhob_tau_a, e_ndrhob_tau_b=e_ndrhob_tau_b, &
+                                     e_laplace_rhoa_laplace_rhoa=e_laplace_rhoa_laplace_rhoa, &
+                                     e_laplace_rhoa_laplace_rhob=e_laplace_rhoa_laplace_rhob, &
+                                     e_laplace_rhob_laplace_rhob=e_laplace_rhob_laplace_rhob, &
+                                     e_laplace_rhoa_tau_a=e_laplace_rhoa_tau_a, &
+                                     e_laplace_rhoa_tau_b=e_laplace_rhoa_tau_b, &
+                                     e_laplace_rhob_tau_a=e_laplace_rhob_tau_a, &
+                                     e_laplace_rhob_tau_b=e_laplace_rhob_tau_b, &
+                                     e_tau_a_tau_a=e_tau_a_tau_a, &
+                                     e_tau_a_tau_b=e_tau_a_tau_b, &
+                                     e_tau_b_tau_b=e_tau_b_tau_b, &
+                                     e_rhoa_rhoa_rhoa=e_rhoa_rhoa_rhoa, &
+                                     e_rhoa_rhoa_rhob=e_rhoa_rhoa_rhob, &
+                                     e_rhoa_rhob_rhob=e_rhoa_rhob_rhob, &
+                                     e_rhob_rhob_rhob=e_rhob_rhob_rhob, &
+                                     grad_deriv=grad_deriv, npoints=npoints, &
+                                     epsilon_rho=epsilon_rho, &
+                                     epsilon_tau=epsilon_tau, func_name=func_name, &
+                                     sc=func_scale, xc_func=xc_func, xc_info=xc_info, no_exc=no_exc, has_laplace=has_laplace)
 
 !$OMP END PARALLEL
 
@@ -1335,7 +1336,7 @@ CONTAINS
                     "for a functional of the LibXC library, "// &
                     "you have to download and install the library!")
 #endif
-   END SUBROUTINE libxc_lsd_eval
+   END SUBROUTINE libxc_spin_polarized_eval
 
 ! **************************************************************************************************
 !> \brief libxc exchange-correlation functionals
@@ -1374,13 +1375,13 @@ CONTAINS
 !> \author F. Tran
 ! **************************************************************************************************
 #if defined (__LIBXC)
-   SUBROUTINE libxc_lda_calc(rho, norm_drho, laplace_rho, tau, &
-                             e_0, e_rho, e_ndrho, e_laplace_rho, e_tau, e_rho_rho, e_ndrho_rho, &
-                             e_ndrho_ndrho, e_rho_laplace_rho, e_rho_tau, e_ndrho_laplace_rho, &
-                             e_ndrho_tau, e_laplace_rho_laplace_rho, e_laplace_rho_tau, &
-                             e_tau_tau, e_rho_rho_rho, &
-                             grad_deriv, npoints, epsilon_rho, &
-                             epsilon_tau, func_name, sc, xc_func, xc_info, no_exc, has_laplace)
+   SUBROUTINE libxc_spin_unpolarized_calc(rho, norm_drho, laplace_rho, tau, &
+                                          e_0, e_rho, e_ndrho, e_laplace_rho, e_tau, e_rho_rho, e_ndrho_rho, &
+                                          e_ndrho_ndrho, e_rho_laplace_rho, e_rho_tau, e_ndrho_laplace_rho, &
+                                          e_ndrho_tau, e_laplace_rho_laplace_rho, e_laplace_rho_tau, &
+                                          e_tau_tau, e_rho_rho_rho, &
+                                          grad_deriv, npoints, epsilon_rho, &
+                                          epsilon_tau, func_name, sc, xc_func, xc_info, no_exc, has_laplace)
 
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho, norm_drho, laplace_rho, tau
       REAL(KIND=dp), DIMENSION(*), INTENT(INOUT) :: e_0, e_rho, e_ndrho, e_laplace_rho, e_tau, &
@@ -1688,7 +1689,7 @@ CONTAINS
          CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
       END SELECT
 
-   END SUBROUTINE libxc_lda_calc
+   END SUBROUTINE libxc_spin_unpolarized_calc
 #endif
 
 ! **************************************************************************************************
@@ -1776,34 +1777,34 @@ CONTAINS
 !> \author F. Tran
 ! **************************************************************************************************
 #if defined (__LIBXC)
-   SUBROUTINE libxc_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, &
-                             norm_drhob, laplace_rhoa, laplace_rhob, tau_a, tau_b, &
-                             e_0, e_rhoa, e_rhob, e_ndrho, e_ndrhoa, e_ndrhob, &
-                             e_laplace_rhoa, e_laplace_rhob, e_tau_a, e_tau_b, &
-                             e_rhoa_rhoa, e_rhoa_rhob, e_rhob_rhob, &
-                             e_ndrho_rhoa, e_ndrho_rhob, e_ndrhoa_rhoa, &
-                             e_ndrhoa_rhob, e_ndrhob_rhoa, e_ndrhob_rhob, &
-                             e_ndrho_ndrho, e_ndrho_ndrhoa, e_ndrho_ndrhob, &
-                             e_ndrhoa_ndrhoa, e_ndrhoa_ndrhob, e_ndrhob_ndrhob, &
-                             e_rhoa_laplace_rhoa, e_rhoa_laplace_rhob, &
-                             e_rhob_laplace_rhoa, e_rhob_laplace_rhob, &
-                             e_rhoa_tau_a, e_rhoa_tau_b, e_rhob_tau_a, e_rhob_tau_b, &
-                             e_ndrho_laplace_rhoa, e_ndrho_laplace_rhob, &
-                             e_ndrhoa_laplace_rhoa, e_ndrhoa_laplace_rhob, &
-                             e_ndrhob_laplace_rhoa, e_ndrhob_laplace_rhob, &
-                             e_ndrho_tau_a, e_ndrho_tau_b, &
-                             e_ndrhoa_tau_a, e_ndrhoa_tau_b, &
-                             e_ndrhob_tau_a, e_ndrhob_tau_b, &
-                             e_laplace_rhoa_laplace_rhoa, &
-                             e_laplace_rhoa_laplace_rhob, &
-                             e_laplace_rhob_laplace_rhob, &
-                             e_laplace_rhoa_tau_a, e_laplace_rhoa_tau_b, &
-                             e_laplace_rhob_tau_a, e_laplace_rhob_tau_b, &
-                             e_tau_a_tau_a, e_tau_a_tau_b, e_tau_b_tau_b, &
-                             e_rhoa_rhoa_rhoa, e_rhoa_rhoa_rhob, &
-                             e_rhoa_rhob_rhob, e_rhob_rhob_rhob, &
-                             grad_deriv, npoints, epsilon_rho, &
-                             epsilon_tau, func_name, sc, xc_func, xc_info, no_exc, has_laplace)
+   SUBROUTINE libxc_spin_polarized_calc(rhoa, rhob, norm_drho, norm_drhoa, &
+                                        norm_drhob, laplace_rhoa, laplace_rhob, tau_a, tau_b, &
+                                        e_0, e_rhoa, e_rhob, e_ndrho, e_ndrhoa, e_ndrhob, &
+                                        e_laplace_rhoa, e_laplace_rhob, e_tau_a, e_tau_b, &
+                                        e_rhoa_rhoa, e_rhoa_rhob, e_rhob_rhob, &
+                                        e_ndrho_rhoa, e_ndrho_rhob, e_ndrhoa_rhoa, &
+                                        e_ndrhoa_rhob, e_ndrhob_rhoa, e_ndrhob_rhob, &
+                                        e_ndrho_ndrho, e_ndrho_ndrhoa, e_ndrho_ndrhob, &
+                                        e_ndrhoa_ndrhoa, e_ndrhoa_ndrhob, e_ndrhob_ndrhob, &
+                                        e_rhoa_laplace_rhoa, e_rhoa_laplace_rhob, &
+                                        e_rhob_laplace_rhoa, e_rhob_laplace_rhob, &
+                                        e_rhoa_tau_a, e_rhoa_tau_b, e_rhob_tau_a, e_rhob_tau_b, &
+                                        e_ndrho_laplace_rhoa, e_ndrho_laplace_rhob, &
+                                        e_ndrhoa_laplace_rhoa, e_ndrhoa_laplace_rhob, &
+                                        e_ndrhob_laplace_rhoa, e_ndrhob_laplace_rhob, &
+                                        e_ndrho_tau_a, e_ndrho_tau_b, &
+                                        e_ndrhoa_tau_a, e_ndrhoa_tau_b, &
+                                        e_ndrhob_tau_a, e_ndrhob_tau_b, &
+                                        e_laplace_rhoa_laplace_rhoa, &
+                                        e_laplace_rhoa_laplace_rhob, &
+                                        e_laplace_rhob_laplace_rhob, &
+                                        e_laplace_rhoa_tau_a, e_laplace_rhoa_tau_b, &
+                                        e_laplace_rhob_tau_a, e_laplace_rhob_tau_b, &
+                                        e_tau_a_tau_a, e_tau_a_tau_b, e_tau_b_tau_b, &
+                                        e_rhoa_rhoa_rhoa, e_rhoa_rhoa_rhob, &
+                                        e_rhoa_rhob_rhob, e_rhob_rhob_rhob, &
+                                        grad_deriv, npoints, epsilon_rho, &
+                                        epsilon_tau, func_name, sc, xc_func, xc_info, no_exc, has_laplace)
 
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rhoa, rhob, norm_drho, norm_drhoa, &
                                                             norm_drhob, laplace_rhoa, &
@@ -2500,7 +2501,7 @@ CONTAINS
          CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
       END SELECT
 
-   END SUBROUTINE libxc_lsd_calc
+   END SUBROUTINE libxc_spin_polarized_calc
 #endif
 
 END MODULE xc_libxc
