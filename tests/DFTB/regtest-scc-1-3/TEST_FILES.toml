@@ -1,0 +1,22 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+"ch2o-4.inp"                            = [{matcher="E_total", tol=3e-14, ref=-5.75087391612954}]
+"ch2o-ot1.inp"                          = [{matcher="E_total", tol=2e-14, ref=-5.7581776065727297}]
+"ch2o-ot2.inp"                          = [{matcher="E_total", tol=1.0E-14, ref=-5.75313936188209}]
+"ch2o-ot3.inp"                          = [{matcher="E_total", tol=1.0E-14, ref=-5.74238713882779}]
+"ch2o-ot4.inp"                          = [{matcher="E_total", tol=1.0E-14, ref=-5.71482283252281}]
+"ch2o-ot6.inp"                          = [{matcher="E_total", tol=2e-14, ref=-5.7573449633658802}]
+# bug fix for neighborlists
+"h2o-5.inp"                             = [{matcher="E_total", tol=4e-09, ref=-130.55701170331295}]
+# atomic properties
+"fa_atprop.inp"                         = [{matcher="E_total", tol=1.0E-14, ref=-5.7546307318903498}]
+"fa2_atprop.inp"                        = [{matcher="E_total", tol=1.0E-14, ref=-5.75087391754637}]
+"h2o_atprop.inp"                        = [{matcher="E_total", tol=5e-09, ref=-130.55609077057122}]
+# MD properties
+"h2o_md.inp"                            = [{matcher="E_total", tol=5e-09, ref=-130.43512095384048}]
+#
+"c_kp1.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-13.76936385283589}]
+"c_kp2_stress.inp"                      = [{matcher="E_total", tol=1.0E-12, ref=-13.76771748328116},
+                                           {matcher="M042", tol=2.0E-06, ref=0.0000000}]
+#EOF
