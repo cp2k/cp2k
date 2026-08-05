@@ -31,10 +31,10 @@ MODULE xc_derivatives
    USE xc_ke_gga,                       ONLY: ke_gga_info,&
                                               ke_gga_lda_eval,&
                                               ke_gga_lsd_eval
-   USE xc_libxc,                        ONLY: libxc_lda_eval,&
-                                              libxc_lda_info,&
-                                              libxc_lsd_eval,&
-                                              libxc_lsd_info
+   USE xc_libxc,                        ONLY: libxc_spin_polarized_eval,&
+                                              libxc_spin_polarized_info,&
+                                              libxc_spin_unpolarized_eval,&
+                                              libxc_spin_unpolarized_info
    USE xc_lyp,                          ONLY: lyp_lda_eval,&
                                               lyp_lda_info,&
                                               lyp_lsd_eval,&
@@ -324,9 +324,9 @@ CONTAINS
       CASE default
          ! If the functional has not been implemented internally, it's from LibXC
          IF (lsd) THEN
-            CALL libxc_lsd_info(functional, reference, shortform, needs, max_deriv, print_warn)
+            CALL libxc_spin_polarized_info(functional, reference, shortform, needs, max_deriv, print_warn)
          ELSE
-            CALL libxc_lda_info(functional, reference, shortform, needs, max_deriv, print_warn)
+            CALL libxc_spin_unpolarized_info(functional, reference, shortform, needs, max_deriv, print_warn)
          END IF
       END SELECT
    END SUBROUTINE xc_functional_get_info
@@ -554,9 +554,9 @@ CONTAINS
       CASE default
          ! If functional not natively supported, ask LibXC
          IF (lsd) THEN
-            CALL libxc_lsd_eval(rho_set, deriv_set, deriv_order, functional)
+            CALL libxc_spin_polarized_eval(rho_set, deriv_set, deriv_order, functional)
          ELSE
-            CALL libxc_lda_eval(rho_set, deriv_set, deriv_order, functional)
+            CALL libxc_spin_unpolarized_eval(rho_set, deriv_set, deriv_order, functional)
          END IF
       END SELECT
 
@@ -665,13 +665,13 @@ CONTAINS
       max_deriv_min = HUGE(max_deriv_min)
       DO ifunc = 1, nfunc
          IF (lsd) THEN
-            CALL libxc_lsd_info(functional, needs=needs, max_deriv=max_deriv_i, &
-                                print_warn=print_warn, &
-                                func_name_override=TRIM(libxc_names(ifunc)))
+            CALL libxc_spin_polarized_info(functional, needs=needs, max_deriv=max_deriv_i, &
+                                           print_warn=print_warn, &
+                                           func_name_override=TRIM(libxc_names(ifunc)))
          ELSE
-            CALL libxc_lda_info(functional, needs=needs, max_deriv=max_deriv_i, &
-                                print_warn=print_warn, &
-                                func_name_override=TRIM(libxc_names(ifunc)))
+            CALL libxc_spin_unpolarized_info(functional, needs=needs, max_deriv=max_deriv_i, &
+                                             print_warn=print_warn, &
+                                             func_name_override=TRIM(libxc_names(ifunc)))
          END IF
          max_deriv_min = MIN(max_deriv_min, max_deriv_i)
       END DO
@@ -703,11 +703,11 @@ CONTAINS
       CALL gauxc_model_none_libxc_names(functional, xc_fun_name, libxc_names, nfunc)
       DO ifunc = 1, nfunc
          IF (lsd) THEN
-            CALL libxc_lsd_eval(rho_set, deriv_set, deriv_order, functional, &
-                                func_name_override=TRIM(libxc_names(ifunc)))
+            CALL libxc_spin_polarized_eval(rho_set, deriv_set, deriv_order, functional, &
+                                           func_name_override=TRIM(libxc_names(ifunc)))
          ELSE
-            CALL libxc_lda_eval(rho_set, deriv_set, deriv_order, functional, &
-                                func_name_override=TRIM(libxc_names(ifunc)))
+            CALL libxc_spin_unpolarized_eval(rho_set, deriv_set, deriv_order, functional, &
+                                             func_name_override=TRIM(libxc_names(ifunc)))
          END IF
       END DO
    END SUBROUTINE gauxc_model_none_xc_eval
