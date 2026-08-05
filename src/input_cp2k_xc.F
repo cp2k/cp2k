@@ -1528,8 +1528,8 @@ CONTAINS
                           description="Maximum number of atom-grid rows evaluated by one TorchScript "// &
                           "call in the experimental CP2K-native SKALA GPW atom-chunk path. A positive "// &
                           "value splits each rank-local atom chunk into contiguous atom subchunks to "// &
-                          "reduce peak CUDA memory use; zero disables subchunking; -1 selects an "// &
-                          "automatic CUDA-oriented row cap.", &
+                          "reduce peak CPU or CUDA memory use; zero disables subchunking; -1 selects "// &
+                          "an automatic row cap.", &
                           usage="NATIVE_GRID_ATOM_CHUNK_MAX_ROWS 250000", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
