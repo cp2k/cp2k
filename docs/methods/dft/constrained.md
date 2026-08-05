@@ -542,7 +542,8 @@ parallel. Mixed CDFT calculations are useful in a number of applications includi
 
 In this part of the tutorial, the theoretical basis for mixed CDFT will first be established. The
 quantities accessible through such simulations will also be introduced. The structure of a mixed
-CDFT input file will then be discussed. The tutorial is concluded with a walk through of an example
+CDFT input file will then be discussed. For information on restarting mixed CDFT calculations, see
+[CDFT](../restarting.md#cdft). The tutorial is concluded with a walk through of an example
 calculation.
 
 ### Theoretical basis

@@ -346,7 +346,9 @@ md_step, time[fs], e_kin[hartree], temp[K], e_pot[hartree], e_tot[hartree], elap
 
 For thermostatted or barostatted simulations, also inspect the corresponding conserved quantity or
 cell output when available. For production runs, write restart files frequently enough that the
-trajectory can be continued without losing significant sampling time.
+trajectory can be continued without losing significant sampling time. For detailed MD restart
+options, see the [Molecular Dynamics Restarts](../restarting.md#molecular-dynamics) section of the
+restarting guide.
 
 ## Validation checklist
 
