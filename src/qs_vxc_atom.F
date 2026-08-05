@@ -19,7 +19,8 @@ MODULE qs_vxc_atom
    USE cp_array_utils,                  ONLY: cp_3d_r_cp_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE external_potential_types,        ONLY: gth_potential_type,&
+   USE external_potential_types,        ONLY: get_potential,&
+                                              gth_potential_type,&
                                               sgp_potential_type
    USE input_constants,                 ONLY: xc_none
    USE input_section_types,             ONLY: section_get_rval,&
@@ -122,6 +123,93 @@ MODULE qs_vxc_atom
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Evaluate an NLCC density and its first two Cartesian derivatives.
+!> \param point evaluation point
+!> \param center pseudopotential center
+!> \param gth_potential optional GTH potential
+!> \param sgp_potential optional separable Gaussian potential
+!> \param rho core density
+!> \param gradient Cartesian density gradient
+!> \param hessian Cartesian density Hessian
+! **************************************************************************************************
+   SUBROUTINE evaluate_nlcc_primitive_fields(point, center, gth_potential, sgp_potential, &
+                                             rho, gradient, hessian)
+      REAL(dp), DIMENSION(3), INTENT(IN)                 :: point, center
+      TYPE(gth_potential_type), INTENT(IN), POINTER      :: gth_potential
+      TYPE(sgp_potential_type), INTENT(IN), POINTER      :: sgp_potential
+      REAL(dp), INTENT(OUT)                              :: rho
+      REAL(dp), DIMENSION(3), INTENT(OUT)                :: gradient
+      REAL(dp), DIMENSION(3, 3), INTENT(OUT)             :: hessian
+
+      INTEGER                                            :: ic, idir, iexp, jdir, n_nlcc, nexp_nlcc, &
+                                                            power
+      INTEGER, DIMENSION(:), POINTER                     :: nct_nlcc
+      LOGICAL                                            :: has_sgp_nlcc, nlcc_present
+      REAL(dp)                                           :: alpha, beta, d2poly, dpoly, exponential, &
+                                                            poly, r2, rho_x, rho_xx, scaled_r2
+      REAL(dp), DIMENSION(3)                             :: displacement
+      REAL(dp), DIMENSION(:), POINTER                    :: a_nlcc, alpha_nlcc, c_nlcc
+      REAL(dp), DIMENSION(:, :), POINTER                 :: cval_nlcc
+
+      NULLIFY (a_nlcc, alpha_nlcc, c_nlcc, cval_nlcc, nct_nlcc)
+      rho = 0.0_dp
+      rho_x = 0.0_dp
+      rho_xx = 0.0_dp
+      displacement = point - center
+      r2 = DOT_PRODUCT(displacement, displacement)
+
+      IF (ASSOCIATED(gth_potential)) THEN
+         CALL get_potential(gth_potential, nlcc_present=nlcc_present, &
+                            nexp_nlcc=nexp_nlcc, alpha_nlcc=alpha_nlcc, &
+                            nct_nlcc=nct_nlcc, cval_nlcc=cval_nlcc)
+         IF (nlcc_present) THEN
+            DO iexp = 1, nexp_nlcc
+               alpha = alpha_nlcc(iexp)
+               beta = 0.5_dp/(alpha*alpha)
+               scaled_r2 = r2/(alpha*alpha)
+               exponential = EXP(-0.5_dp*scaled_r2)
+               DO ic = 1, nct_nlcc(iexp)
+                  power = ic - 1
+                  poly = cval_nlcc(ic, iexp)*scaled_r2**power
+                  dpoly = 0.0_dp
+                  IF (power > 0) THEN
+                     dpoly = cval_nlcc(ic, iexp)*REAL(power, dp)* &
+                             scaled_r2**(power - 1)/(alpha*alpha)
+                  END IF
+                  d2poly = 0.0_dp
+                  IF (power > 1) THEN
+                     d2poly = cval_nlcc(ic, iexp)*REAL(power*(power - 1), dp)* &
+                              scaled_r2**(power - 2)/(alpha**4)
+                  END IF
+                  rho = rho + exponential*poly
+                  rho_x = rho_x + exponential*(dpoly - beta*poly)
+                  rho_xx = rho_xx + exponential*(d2poly - 2.0_dp*beta*dpoly + beta*beta*poly)
+               END DO
+            END DO
+         END IF
+      ELSE IF (ASSOCIATED(sgp_potential)) THEN
+         CALL get_potential(sgp_potential, has_nlcc=has_sgp_nlcc, n_nlcc=n_nlcc, &
+                            a_nlcc=a_nlcc, c_nlcc=c_nlcc)
+         IF (has_sgp_nlcc) THEN
+            DO iexp = 1, n_nlcc
+               exponential = EXP(-a_nlcc(iexp)*r2)
+               rho = rho + c_nlcc(iexp)*exponential
+               rho_x = rho_x - a_nlcc(iexp)*c_nlcc(iexp)*exponential
+               rho_xx = rho_xx + a_nlcc(iexp)**2*c_nlcc(iexp)*exponential
+            END DO
+         END IF
+      END IF
+
+      gradient = 2.0_dp*rho_x*displacement
+      DO idir = 1, 3
+         DO jdir = 1, 3
+            hessian(idir, jdir) = 4.0_dp*rho_xx*displacement(idir)*displacement(jdir)
+         END DO
+         hessian(idir, idir) = hessian(idir, idir) + 2.0_dp*rho_x
+      END DO
+   END SUBROUTINE evaluate_nlcc_primitive_fields
+
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param energy_only ...
@@ -176,14 +264,15 @@ CONTAINS
          composite_density_min, composite_grad_max, composite_kin_max, composite_kin_min, &
          composite_tau_integral, cross_amplitude, cross_cutoff, density_cut, exc_h, exc_s, &
          feature_vxc_analytic, feature_vxc_fd, feature_vxc_minus, feature_vxc_plus, &
-         feature_vxc_step, gradient_cut, my_adiabatic_rescale_factor, &
-         one_center_density_field_contraction, one_center_density_matrix_contraction, &
-         one_center_field_contraction, one_center_gradient_field_contraction, &
-         one_center_gradient_matrix_contraction
-      REAL(dp) :: one_center_matrix_contraction, one_center_rho_grad_field_contraction, &
-         one_center_rho_grad_matrix_contraction, one_center_tau_field_contraction, &
-         one_center_tau_matrix_contraction, one_center_tensor_contraction, &
-         smooth_grid_contraction, smooth_input_contraction, tau_cut, zeff
+         feature_vxc_step, gradient_cut, my_adiabatic_rescale_factor, nlcc_density, &
+         nlcc_spin_factor, one_center_density_field_contraction, &
+         one_center_density_matrix_contraction, one_center_field_contraction, &
+         one_center_gradient_field_contraction
+      REAL(dp) :: one_center_gradient_matrix_contraction, one_center_matrix_contraction, &
+         one_center_rho_grad_field_contraction, one_center_rho_grad_matrix_contraction, &
+         one_center_tau_field_contraction, one_center_tau_matrix_contraction, &
+         one_center_tensor_contraction, smooth_grid_contraction, smooth_input_contraction, &
+         tau_cut, zeff
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: composite_atomic_grid_weight_grad, &
          composite_atomic_grid_weights, composite_distances, composite_grid_weight_grad, &
          composite_grid_weights, composite_partition_weights
@@ -191,7 +280,7 @@ CONTAINS
          composite_cross_density, composite_cross_kin, composite_density, composite_density_grad, &
          composite_explicit_force, composite_grid_coord_force, composite_grid_coord_grad, &
          composite_grid_coords, composite_kin, composite_kin_grad, composite_local_atom_coords, &
-         composite_model_atom_force, composite_moving_smooth_force, &
+         composite_model_atom_force, composite_moving_smooth_force, composite_nlcc_center_force, &
          composite_partition_atom_coords, composite_partition_force, smooth_density_adjoint, &
          smooth_kin_adjoint
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :) :: composite_cross_grad, composite_grad, &
@@ -201,10 +290,10 @@ CONTAINS
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
       REAL(dp), DIMENSION(2)                             :: cross_density, cross_kin
-      REAL(dp), DIMENSION(3)                             :: composite_point, skala_atom_force_h, &
-                                                            skala_atom_force_s, spatial_derivative
+      REAL(dp), DIMENSION(3) :: composite_point, nlcc_gradient, nlcc_spatial_derivative, &
+         skala_atom_force_h, skala_atom_force_s, spatial_derivative
       REAL(dp), DIMENSION(3, 2)                          :: cross_grad
-      REAL(dp), DIMENSION(3, 3)                          :: composite_explicit_virial, &
+      REAL(dp), DIMENSION(3, 3)                          :: composite_explicit_virial, nlcc_hessian, &
                                                             skala_atom_virial, &
                                                             skala_atom_virial_h, &
                                                             skala_atom_virial_s
@@ -801,6 +890,27 @@ CONTAINS
                                                                         tau_s(ia, ir, 1))
                            END IF
                         END IF
+                        IF (atom_composite_reference .AND. nlcc) THEN
+                           nlcc_spin_factor = MERGE(1.0_dp, 0.5_dp, lsd)
+                           DO source_atom = 1, SIZE(particle_set)
+                              NULLIFY (gth_potential, sgp_potential)
+                              CALL get_qs_kind(my_kind_set(composite_atom_kind(source_atom)), &
+                                               gth_potential=gth_potential, &
+                                               sgp_potential=sgp_potential)
+                              CALL evaluate_nlcc_primitive_fields( &
+                                 composite_point, particle_set(source_atom)%r, &
+                                 gth_potential, sgp_potential, nlcc_density, &
+                                 nlcc_gradient, nlcc_hessian)
+                              composite_density(composite_row, :) = &
+                                 composite_density(composite_row, :) + &
+                                 nlcc_spin_factor*nlcc_density
+                              DO idir = 1, 3
+                                 composite_grad(composite_row, idir, :) = &
+                                    composite_grad(composite_row, idir, :) + &
+                                    nlcc_spin_factor*nlcc_gradient(idir)
+                              END DO
+                           END DO
+                        END IF
                      END DO
                   END DO
                   CPASSERT(composite_row == composite_atom_end(iatom))
@@ -1083,6 +1193,7 @@ CONTAINS
                          composite_grid_coord_force(3, SIZE(particle_set)), &
                          composite_model_atom_force(3, SIZE(particle_set)), &
                          composite_moving_smooth_force(3, SIZE(particle_set)), &
+                         composite_nlcc_center_force(3, SIZE(particle_set)), &
                          composite_partition_force(3, SIZE(particle_set)), &
                          composite_partition_included(SIZE(particle_set)), &
                          composite_partition_datom(3, SIZE(particle_set), SIZE(particle_set)), &
@@ -1090,6 +1201,7 @@ CONTAINS
                composite_model_atom_force = 0.0_dp
                composite_grid_coord_force = 0.0_dp
                composite_moving_smooth_force = 0.0_dp
+               composite_nlcc_center_force = 0.0_dp
                composite_partition_force = 0.0_dp
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
@@ -1149,6 +1261,36 @@ CONTAINS
                                                 cell, composite_grid_coords(:, composite_row))
                         END DO
                      END IF
+                     IF (nlcc) THEN
+                        nlcc_spin_factor = MERGE(1.0_dp, 0.5_dp, lsd)
+                        DO source_atom = 1, SIZE(particle_set)
+                           NULLIFY (gth_potential, sgp_potential)
+                           CALL get_qs_kind(my_kind_set(composite_atom_kind(source_atom)), &
+                                            gth_potential=gth_potential, &
+                                            sgp_potential=sgp_potential)
+                           CALL evaluate_nlcc_primitive_fields( &
+                              composite_grid_coords(:, composite_row), &
+                              particle_set(source_atom)%r, gth_potential, sgp_potential, &
+                              nlcc_density, nlcc_gradient, nlcc_hessian)
+                           nlcc_spatial_derivative = 0.0_dp
+                           DO ispin = 1, 2
+                              nlcc_spatial_derivative = nlcc_spatial_derivative + &
+                                                        nlcc_spin_factor*composite_density_grad(composite_row, ispin)* &
+                                                        nlcc_gradient
+                              DO idir = 1, 3
+                                 DO jdir = 1, 3
+                                    nlcc_spatial_derivative(jdir) = &
+                                       nlcc_spatial_derivative(jdir) + nlcc_spin_factor* &
+                                       composite_grad_grad(composite_row, idir, ispin)* &
+                                       nlcc_hessian(idir, jdir)
+                                 END DO
+                              END DO
+                           END DO
+                           spatial_derivative = spatial_derivative + nlcc_spatial_derivative
+                           composite_nlcc_center_force(:, source_atom) = &
+                              composite_nlcc_center_force(:, source_atom) - nlcc_spatial_derivative
+                        END DO
+                     END IF
                      composite_moving_smooth_force(:, iatom) = &
                         composite_moving_smooth_force(:, iatom) + spatial_derivative
                      CALL skala_gpw_smooth_partition_derivatives( &
@@ -1171,6 +1313,7 @@ CONTAINS
                composite_explicit_force(:, :) = composite_model_atom_force(:, :) + &
                                                 composite_grid_coord_force(:, :) + &
                                                 composite_moving_smooth_force(:, :) + &
+                                                composite_nlcc_center_force(:, :) + &
                                                 composite_partition_force(:, :)
                ! CP2K stores +dE/dR in the electronic force components, but the
                ! virial is -dE/dstrain.  A cell deformation moves the atom-grid
@@ -1205,6 +1348,7 @@ CONTAINS
                   CALL para_env%sum(composite_model_atom_force)
                   CALL para_env%sum(composite_grid_coord_force)
                   CALL para_env%sum(composite_moving_smooth_force)
+                  CALL para_env%sum(composite_nlcc_center_force)
                   CALL para_env%sum(composite_partition_force)
                   CALL para_env%sum(composite_explicit_force)
                   CALL para_env%sum(composite_explicit_virial)
@@ -1220,6 +1364,9 @@ CONTAINS
                         WRITE (UNIT=iw, FMT="(T2,A,1X,I0,3(1X,ES20.12))") &
                            "SKALA_GPW| Atom-composite moving-smooth force", iatom, &
                            composite_moving_smooth_force(:, iatom)
+                        WRITE (UNIT=iw, FMT="(T2,A,1X,I0,3(1X,ES20.12))") &
+                           "SKALA_GPW| Atom-composite NLCC-center force", iatom, &
+                           composite_nlcc_center_force(:, iatom)
                         WRITE (UNIT=iw, FMT="(T2,A,1X,I0,3(1X,ES20.12))") &
                            "SKALA_GPW| Atom-composite partition force", iatom, &
                            composite_partition_force(:, iatom)
@@ -1239,6 +1386,7 @@ CONTAINS
                            composite_explicit_force, composite_grid_coord_force, &
                            composite_grid_coord_grad, composite_grid_weight_grad, &
                            composite_model_atom_force, composite_moving_smooth_force, &
+                           composite_nlcc_center_force, &
                            composite_partition_datom, composite_partition_dstrain, &
                            composite_partition_force, composite_partition_included)
             ELSE
