@@ -12,7 +12,7 @@ variables:
   BUILDER: spack
   VERSION: psmp
   TAG: "${BUILDER}_${VERSION}_h100"
-  UBUNTU_IMAGE_NAME: "docker.io/nvidia/cuda:12.9.2-devel-ubuntu24.04"
+  UBUNTU_IMAGE_NAME: "docker.io/nvidia/cuda:13.1.2-devel-ubuntu24.04"
   CSCS_IMAGE_NAME: "${CSCS_REGISTRY_PATH}/${REPOSITORY}:${TAG}_${CI_COMMIT_SHORT_SHA}"
   DOCKERHUB_IMAGE_NAME: "docker.io/${DOCKERHUB_USERNAME}/${REPOSITORY}:${TAG}"
 
