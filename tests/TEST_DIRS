@@ -57,7 +57,6 @@ QS/regtest-gauxc-skala                                      gauxc
 QS/regtest-gauxc-gpw-mol                                    gauxc
 QS/regtest-gauxc-gpw-coords                                 gauxc
 QS/regtest-gauxc-gapw-base                                  gauxc
-QS/regtest-gauxc-gapw-gth                                   gauxc
 QS/regtest-gauxc-gapw-ecp                                   gauxc
 QS/regtest-skala-native-gpw-mol                             skala
 QS/regtest-skala-native-gpw-mech                            skala
