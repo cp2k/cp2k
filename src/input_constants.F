@@ -250,16 +250,15 @@ MODULE input_constants
 
    INTEGER, PARAMETER, PUBLIC               :: wfi_use_guess_method_nr = 0, &
                                                wfi_use_prev_p_method_nr = 1, &
-                                               wfi_use_prev_rho_r_method_nr = 2, &
-                                               wfi_linear_wf_method_nr = 3, &
-                                               wfi_linear_p_method_nr = 4, &
-                                               wfi_linear_ps_method_nr = 5, &
-                                               wfi_use_prev_wf_method_nr = 6, &
-                                               wfi_ps_method_nr = 7, &
-                                               wfi_frozen_method_nr = 8, &
-                                               wfi_aspc_nr = 9, &
-                                               wfi_gext_proj_nr = 10, &
-                                               wfi_gext_proj_qtr_nr = 11
+                                               wfi_linear_wf_method_nr = 2, &
+                                               wfi_linear_p_method_nr = 3, &
+                                               wfi_linear_ps_method_nr = 4, &
+                                               wfi_use_prev_wf_method_nr = 5, &
+                                               wfi_ps_method_nr = 6, &
+                                               wfi_frozen_method_nr = 7, &
+                                               wfi_aspc_nr = 8, &
+                                               wfi_gext_proj_nr = 9, &
+                                               wfi_gext_proj_qtr_nr = 10
 
    INTEGER, PARAMETER, PUBLIC               :: do_method_undef = 0, &
                                                do_method_gapw = 1, &
