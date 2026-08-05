@@ -1062,9 +1062,9 @@ CONTAINS
                CALL release_tau_basis_cache(tau_basis_cache)
             END DO
 
-            composite_density = composite_density + composite_cross_density
-            composite_grad = composite_grad + composite_cross_grad
-            composite_kin = composite_kin + composite_cross_kin
+            composite_density(:, :) = composite_density(:, :) + composite_cross_density(:, :)
+            composite_grad(:, :, :) = composite_grad(:, :, :) + composite_cross_grad(:, :, :)
+            composite_kin(:, :) = composite_kin(:, :) + composite_cross_kin(:, :)
             DEALLOCATE (composite_cross_density, composite_cross_grad, composite_cross_kin)
 
             CPASSERT(ALL(composite_grid_weights >= 0.0_dp))
@@ -1168,10 +1168,10 @@ CONTAINS
                                                            SUM(composite_partition_datom(:, :, iatom), DIM=2)
                   END DO
                END DO
-               composite_explicit_force = composite_model_atom_force + &
-                                          composite_grid_coord_force + &
-                                          composite_moving_smooth_force + &
-                                          composite_partition_force
+               composite_explicit_force(:, :) = composite_model_atom_force(:, :) + &
+                                                composite_grid_coord_force(:, :) + &
+                                                composite_moving_smooth_force(:, :) + &
+                                                composite_partition_force(:, :)
                ! CP2K stores +dE/dR in the electronic force components, but the
                ! virial is -dE/dstrain.  A cell deformation moves the atom-grid
                ! centers with their atoms while leaving the local radial vectors
