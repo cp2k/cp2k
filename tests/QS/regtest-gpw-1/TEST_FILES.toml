@@ -25,6 +25,7 @@
 # different pseudo style
 "K2.inp"                                = [{matcher="E_total", tol=8e-12, ref=-0.37652979317666}]
 "H2.inp"                                = [{matcher="E_total", tol=2e-14, ref=-1.06345574964568}]
+"H2-occup-stats-lone.inp"               = [{matcher="E_total", tol=2e-14, ref=-1.06345574964568}]
 # printing of structure data
 "H2O-geoopt.inp"                        = [{matcher="E_total", tol=8e-14, ref=-17.15265559026891}]
 "H2O-fixed.inp"                         = [{matcher="E_total", tol=4e-14, ref=-17.15247383327702}]
