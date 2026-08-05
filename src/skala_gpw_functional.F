@@ -1277,9 +1277,9 @@ CONTAINS
             CALL torch_tensor_data_ptr(density_grad_t, density_grad)
             CALL torch_tensor_data_ptr(grad_grad_t, grad_grad)
             CALL torch_tensor_data_ptr(kin_grad_t, kin_grad)
-            density_grad_out = density_grad
-            grad_grad_out = grad_grad
-            kin_grad_out = kin_grad
+            density_grad_out(:, :) = density_grad
+            grad_grad_out(:, :, :) = grad_grad
+            kin_grad_out(:, :) = kin_grad
          END IF
 
          IF (need_coordinate_derivatives) THEN
@@ -1299,10 +1299,10 @@ CONTAINS
                CALL torch_tensor_data_ptr(grid_weight_grad_t, grid_weight_grad)
                CALL torch_tensor_data_ptr(atomic_grid_weight_grad_t, atomic_grid_weight_grad)
                CALL torch_tensor_data_ptr(atom_coord_grad_t, atom_coord_grad)
-               grid_coord_grad_out = grid_coord_grad
-               grid_weight_grad_out = grid_weight_grad
-               atomic_grid_weight_grad_out = atomic_grid_weight_grad
-               atom_coord_grad_out = atom_coord_grad
+               grid_coord_grad_out(:, :) = grid_coord_grad
+               grid_weight_grad_out(:) = grid_weight_grad
+               atomic_grid_weight_grad_out(:) = atomic_grid_weight_grad
+               atom_coord_grad_out(:, :) = atom_coord_grad
                CALL torch_tensor_release(grid_coord_grad_t)
                CALL torch_tensor_release(grid_weight_grad_t)
                CALL torch_tensor_release(atomic_grid_weight_grad_t)
