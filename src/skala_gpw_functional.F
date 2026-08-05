@@ -367,12 +367,8 @@ CONTAINS
       END IF
 
       IF (features%uses_atom_chunks .AND. native_grid_atom_chunk_max_rows == -1) THEN
-         IF (native_grid_use_cuda) THEN
-            native_grid_atom_chunk_max_rows = auto_atom_chunk_max_rows(features, &
-                                                                       rho_r(1)%pw_grid%para%group)
-         ELSE
-            native_grid_atom_chunk_max_rows = 0
-         END IF
+         native_grid_atom_chunk_max_rows = auto_atom_chunk_max_rows(features, &
+                                                                    rho_r(1)%pw_grid%para%group)
       END IF
       IF (native_grid_diagnostics .AND. features%uses_atom_chunks .AND. &
           rho_r(1)%pw_grid%para%group%mepos == 0) THEN
@@ -1229,7 +1225,7 @@ CONTAINS
    END SUBROUTINE evaluate_atom_subchunks
 
 ! **************************************************************************************************
-!> \brief Select an automatic CUDA atom-subchunk row cap.
+!> \brief Select an automatic atom-subchunk row cap.
 !> \param features ...
 !> \param group ...
 !> \return ...
