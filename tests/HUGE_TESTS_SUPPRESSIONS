@@ -171,4 +171,7 @@ QS/regtest-openpmd/H2O-geo-ot-lumo-all-openpmd.inp
 # models x finite-difference stress perturbations).
 NNP/regtest-1/H2O-64_C-NNP_MD-NpT-numeric.inp
 
+# Test produced 14.19 MiB of output. (restart kp and wfn)
+QS/regtest-harris-kp/cc_kp_01.inp
+
 #EOF

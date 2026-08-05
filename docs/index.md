@@ -38,6 +38,7 @@ methods/sampling/index
 methods/optimization/index
 methods/electronic_structure/index
 methods/properties/index
+methods/restarting
 ```
 
 ```{toctree}

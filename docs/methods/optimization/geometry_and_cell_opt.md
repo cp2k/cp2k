@@ -516,8 +516,9 @@ controls. These will be convenient in case an optimization does not converge and
 starting from the latest structure is needed.
 
 For expensive electronic-structure calculations, wavefunction restart files can reduce the cost of
-continuation or follow-up calculations; see
-[FORCE_EVAL/DFT/SCF/PRINT/RESTART](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.PRINT.RESTART). For BFGS
+continuation or follow-up calculations; see the
+[Molecular Dynamics Restarts](../restarting.md#molecular-dynamics) section of the restarting guide
+and [FORCE_EVAL/DFT/SCF/PRINT/RESTART](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.PRINT.RESTART). For BFGS
 optimizations, Hessian-restart options are available in the `BFGS` subsection of the active
 optimization driver.
 
