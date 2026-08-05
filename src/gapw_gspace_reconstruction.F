@@ -17,8 +17,7 @@ MODULE gapw_gspace_reconstruction
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE kinds,                           ONLY: dp,&
-                                              int_8
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
@@ -62,7 +61,6 @@ MODULE gapw_gspace_reconstruction
 
 CONTAINS
 
-
 ! **************************************************************************************************
 !> \brief  The total electronic density in reciprocal space (g-space) is
 !>         calculated.
@@ -91,8 +89,9 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: q_max
       REAL(KIND=dp), INTENT(OUT)                         :: rho_hard, rho_soft
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fsign
-      LOGICAL, INTENT(IN), OPTIONAL                      :: allow_nonorthorhombic, compute_tau
+      LOGICAL, INTENT(IN), OPTIONAL                      :: compute_tau
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_source
+      LOGICAL, INTENT(IN), OPTIONAL                      :: allow_nonorthorhombic
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rhotot_elec_gspace'
 
