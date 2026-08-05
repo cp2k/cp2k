@@ -109,7 +109,9 @@ density representation explicitly:
   GPW-like route for GTH/ECP kinds, irrespective of the kind's `GPW_TYPE` setting.
 - `PAW_ONE_CENTER` reconstructs density, density gradient, and kinetic-energy density as smooth plus
   hard minus soft before Skala evaluation. Forming the nonlinear features after this sum retains all
-  gradient and non-local cross couplings.
+  15 pairwise cross terms among the six smooth, hard, and soft spin-gradient components. Fourteen
+  are additional to the smooth-density baseline. The same construction also retains the non-local
+  couplings.
 - `PAW_ONE_CENTER_SPLIT` keeps the legacy separately evaluated smooth plus hard-minus-soft energy as
   an explicit diagnostic. This expression is exact for semilocal GAPW XC but is not a mathematical
   identity for the non-local Skala model.
@@ -130,6 +132,13 @@ The one-center representation inherits the kind-dependent `RADIAL_GRID`, `LEBEDE
 calculation. `GAPW_ACCURATE_XCINT` keeps its normal role for classical GAPW XC, `CP2K_DEFAULT`, and
 the split diagnostic. The combined `PAW_ONE_CENTER` Skala term instead uses its common reconstructed
 quadrature and is independent of the legacy accurate-XCINT hard/soft weights and their derivatives.
+
+The reconstructed expression conserves the electron number at the density-representation level. Its
+numerical integral on the finite radial/Lebedev quadrature retains the usual molecular-grid error
+and converges with the kind-dependent grid settings. CP2K does not rescale the density to force an
+exact numerical integral: a density-dependent rescaling would modify the Skala functional and would
+require additional VXC, force, and virial derivatives. `NATIVE_GRID_DIAGNOSTICS T` prints the
+atom-composite electron integral for convergence checks.
 
 Molecular Skala forces are available for these GAPW and GAPW_XC cases. CP2K currently evaluates the
 GauXC molecular XC nuclear gradient for every GAPW method with a conservative central

@@ -290,6 +290,16 @@ SCF convergence. The active VXC reaches a stationary SCF solution for all three 
 coordinate derivatives of the hybrid atom-centered quadrature and strain derivatives of the periodic
 regular-grid representation are assessed below.
 
+The hard-minus-soft reconstruction conserves particle number at the density-representation level;
+the finite radial/Lebedev quadrature does not integrate every represented density exactly. The
+coarse H2/GTH regression grid gives `1.99963990` electrons, while 480/60 Ry with 120 radial and 120
+requested Lebedev points gives `1.99969429` electrons. The corresponding all-electron values include
+`9.9998139` electrons for H2O and `18.0000054` for Ar. These residuals are numerical quadrature and
+interpolation errors, not a change in the CP2K density-matrix trace. No density-dependent
+renormalization is applied because it would define a modified functional and introduce additional
+VXC, force, and virial derivatives. The H2/GTH regression checks the composite integral directly
+against two electrons with an explicit `5e-4` quadrature tolerance.
+
 ## Atom-composite force evidence
 
 The atom-composite force combines four explicit coordinate derivatives from the same Torch backward
@@ -536,15 +546,18 @@ atom-composite route, the final production-driver results on Terok are:
 
 | Directory                 | Layout                         | Matcher result | Driver wall time | Slow tests |
 | ------------------------- | ------------------------------ | -------------: | ---------------: | ---------: |
-| `regtest-gauxc-gapw-gth`  | 2 MPI x 2 OpenMP, CPU          |          12/12 |          45.72 s |          0 |
-| `regtest-gauxc-gapw-ecp`  | 2 MPI x 2 OpenMP, CPU          |            8/8 |          48.29 s |          0 |
-| `regtest-gauxc-gapw-base` | 2 MPI x 2 OpenMP, CPU          |            3/3 |          15.09 s |          0 |
-| `regtest-gauxc-cuda`      | 2 MPI x 2 OpenMP, two A40 GPUs |          22/22 |          51.61 s |          0 |
+| `regtest-gauxc-gapw-gth`  | 2 MPI x 2 OpenMP, CPU          |          13/13 |          45.50 s |          0 |
+| `regtest-gauxc-gapw-ecp`  | 2 MPI x 2 OpenMP, CPU          |            8/8 |          47.30 s |          0 |
+| `regtest-gauxc-gapw-base` | 2 MPI x 2 OpenMP, CPU          |            3/3 |          15.36 s |          0 |
+| `regtest-gauxc-cuda`      | 2 MPI x 2 OpenMP, two A40 GPUs |          22/22 |          47.53 s |          0 |
 
 These sets cover direct valence, `PAW_ONE_CENTER`, `CP2K_DEFAULT`, `METHOD GAPW_XC`, MODEL NONE
 isolation, the `PAW_ONE_CENTER_SPLIT` diagnostic, targeted force/stress diagnostics, inversion
 reduction, the full internal k-point symmetry reduction, and the SPGLIB reduction. The three ECP
-inversion, internal-symmetry, and SPGLIB inputs agree at `-13.36515054 Ha` in the final run.
+inversion, internal-symmetry, and SPGLIB inputs agree at `-13.36515054 Ha` in the final run. The
+moved forward reconstruction also preserves the existing all-electron H2O XRD charge reference of
+`-9.9999991403` electrons, and the existing mixed all-electron/GTH GAPW XRD input completes
+successfully.
 
 The original CPU k-point runs exposed a numerical-runtime defect rather than a SKALA or k-point
 error. The packaged LibTorch uses oneMKL's grouped CBLAS ABI, while CP2K and ScaLAPACK use OpenBLAS;
@@ -605,6 +618,8 @@ that the new references represent the continuous partition rather than a model-c
 - H2, H2O, and Ar atom-centered composite energies have been compared with fixed-density molecular
   GauXC all-electron references. H2 and Ar converge with grid refinement; H2O retains a documented
   finite GAPW reconstruction error.
+- The composite representation preserves particle number algebraically. Its finite atom-grid
+  integral is regression-tested explicitly; no density-dependent renormalization is introduced.
 - Primitive-field directional derivatives and the complete PW plus one-center VXC adjoint agree with
   energy finite differences and matrix contractions.
 - Molecular atom-composite forces pass finite differences for H2, H2O, Ar, and compressed H2, with

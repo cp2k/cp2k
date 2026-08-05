@@ -1349,8 +1349,9 @@ CONTAINS
          "DIRECT_VALENCE treats those kinds as GPW_TYPE and evaluates the model on "// &
          "the direct valence density; this is the default for non-local models such "// &
          "as Skala. PAW_ONE_CENTER combines the smooth and all hard-minus-soft "// &
-         "one-center primitive fields before one model evaluation, retaining nonlinear "// &
-         "cross terms. PAW_ONE_CENTER_SPLIT is a diagnostic that evaluates smooth, hard, "// &
+         "one-center primitive fields before one model evaluation, retaining all 15 pairwise "// &
+         "spin-gradient cross terms (14 additional to the smooth-density baseline) and the "// &
+         "non-local couplings. PAW_ONE_CENTER_SPLIT is a diagnostic that evaluates smooth, hard, "// &
          "and soft fields separately. CP2K_DEFAULT retains the representation selected "// &
          "by KIND%GPW_TYPE, basis hardness, and DFT%QS%FORCE_PAW. All-electron kinds "// &
          "and conventional GauXC MODEL NONE calculations are unaffected.", &

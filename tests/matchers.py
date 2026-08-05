@@ -62,6 +62,9 @@ registry["SKALA_GPW_feature_spin_moment"] = GenericMatcher(
 registry["SKALA_GPW_feature_weight_sum"] = GenericMatcher(
     r"SKALA_GPW| Native grid feature weight sum", col=7
 )
+registry["SKALA_GAPW_composite_electrons"] = GenericMatcher(
+    r"SKALA_GPW| Active atom-composite electrons", col=5
+)
 registry["WANNIER90_SCF_MO_REUSE"] = TextPresenceMatcher(
     "WANNIER90| Reused SCF MO coefficients for the Wannier90 full k-point mesh."
 )
