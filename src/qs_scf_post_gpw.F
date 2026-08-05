@@ -65,6 +65,7 @@ MODULE qs_scf_post_gpw
    USE ed_analysis,                     ONLY: edmf_analysis
    USE eeq_method,                      ONLY: eeq_print
    USE et_coupling_types,               ONLY: set_et_coupling_type
+   USE gapw_gspace_reconstruction,      ONLY: calculate_rhotot_elec_gspace
    USE hfx_ri,                          ONLY: print_ri_hfx
    USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
                                               comp_hirshfeld_i_charges,&
@@ -217,8 +218,7 @@ MODULE qs_scf_post_gpw
    USE trexio_utils,                    ONLY: write_trexio
    USE virial_types,                    ONLY: virial_type
    USE voronoi_interface,               ONLY: entry_voronoi_or_bqb
-   USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
-                                              xray_diffraction_spectrum
+   USE xray_diffraction,                ONLY: xray_diffraction_spectrum
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

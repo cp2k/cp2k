@@ -19,6 +19,7 @@ MODULE qs_vxc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE gapw_gspace_reconstruction,      ONLY: calculate_rhotot_elec_gspace
    USE input_constants,                 ONLY: sic_ad,&
                                               sic_eo,&
                                               sic_mauri_spz,&
@@ -63,7 +64,6 @@ MODULE qs_vxc
    USE xc,                              ONLY: calc_xc_density,&
                                               xc_exc_calc,&
                                               xc_vxc_pw_create
-   USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -341,14 +341,14 @@ CONTAINS
                   qs_env=qs_env_external, auxbas_pw_pool=auxbas_pw_pool, &
                   rhotot_elec_gspace=rho_hard_g(1), q_max=q_max, &
                   rho_hard=composite_hard_integral, rho_soft=composite_soft_integral, &
-                  rho_source=rho_struct)
+                  rho_source=rho_struct, allow_nonorthorhombic=.TRUE.)
                rho_composite_hard = composite_hard_integral
                rho_composite_soft = composite_soft_integral
                CALL calculate_rhotot_elec_gspace( &
                   qs_env=qs_env_external, auxbas_pw_pool=auxbas_pw_pool, &
                   rhotot_elec_gspace=tau_hard_g(1), q_max=q_max, &
                   rho_hard=composite_hard_integral, rho_soft=composite_soft_integral, &
-                  compute_tau=.TRUE., rho_source=rho_struct)
+                  compute_tau=.TRUE., rho_source=rho_struct, allow_nonorthorhombic=.TRUE.)
                tau_composite_hard = composite_hard_integral
                tau_composite_soft = composite_soft_integral
                IF (para_env%mepos == 0) THEN
@@ -370,12 +370,13 @@ CONTAINS
                      qs_env=qs_env_external, auxbas_pw_pool=auxbas_pw_pool, &
                      rhotot_elec_gspace=rho_hard_g(2), q_max=q_max, &
                      rho_hard=composite_hard_integral, rho_soft=composite_soft_integral, &
-                     fsign=-1.0_dp, rho_source=rho_struct)
+                     fsign=-1.0_dp, rho_source=rho_struct, allow_nonorthorhombic=.TRUE.)
                   CALL calculate_rhotot_elec_gspace( &
                      qs_env=qs_env_external, auxbas_pw_pool=auxbas_pw_pool, &
                      rhotot_elec_gspace=tau_hard_g(2), q_max=q_max, &
                      rho_hard=composite_hard_integral, rho_soft=composite_soft_integral, &
-                     fsign=-1.0_dp, compute_tau=.TRUE., rho_source=rho_struct)
+                     fsign=-1.0_dp, compute_tau=.TRUE., rho_source=rho_struct, &
+                     allow_nonorthorhombic=.TRUE.)
                   CALL pw_scale(rho_hard_g(1), 0.5_dp/volume)
                   CALL pw_scale(rho_hard_g(2), 0.5_dp/volume)
                   CALL auxbas_pw_pool%create_pw(tmp_g)

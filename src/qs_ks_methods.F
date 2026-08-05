@@ -51,6 +51,7 @@ MODULE qs_ks_methods
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
    USE dft_plus_u,                      ONLY: plus_u
+   USE gapw_gspace_reconstruction,      ONLY: integrate_gapw_composite_vxc_gspace
    USE gce_methods,                     ONLY: planar_averaged_v_hartree_3d,&
                                               planar_counter_charge
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
@@ -155,7 +156,6 @@ MODULE qs_ks_methods
    USE xc_gauxc_functional,             ONLY: apply_gauxc,&
                                               gauxc_gapw_has_paw_pseudopotentials
    USE xc_input_constants,              ONLY: skala_gapw_paw_one_center
-   USE xray_diffraction,                ONLY: integrate_gapw_composite_vxc_gspace
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
