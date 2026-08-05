@@ -3117,6 +3117,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
+                          description="Electronic temperature (in K) of the wide-band fermion "// &
+                          "bath used to weight the Floquet DOS by Fermi-Dirac occupations, adding "// &
+                          "an occupied spectral-weight column f(E)*A(E) to the DOS file. If "// &
+                          "negative (default), that column is not written.", &
+                          usage="TEMPERATURE 300.0", default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="FLOQUET_DOS_FILE_NAME", &
                           description="File name used for the Floquet spectral function.", &
                           usage="FLOQUET_DOS_FILE_NAME FLOQUET_DOS", &
@@ -3128,6 +3137,21 @@ CONTAINS
                           description="File name used for the Floquet quasi-energies.", &
                           usage="QUASI_ENERGIES_FILE_NAME QUASI_ENERGIES", &
                           default_lc_val="QUASI_ENERGIES")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FLOQUET_BS_FILE_NAME", &
+                          description="File name used for the Floquet m=0 (central-sector) "// &
+                          "band structure.", &
+                          usage="FLOQUET_BS_FILE_NAME FLOQUET_BANDSTRUCTURE", &
+                          default_lc_val="FLOQUET_BANDSTRUCTURE")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MEM_FILL_FRACTION", &
+                          description="Fraction of the computation memory that may be filled "// &
+                          "by Floquet Hamiltonian matrices. Reduce if process gets OOMP killed.", &
+                          usage="MEM_FILL_FRACTION 0.5", default_r_val=0.8_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
