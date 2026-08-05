@@ -1,0 +1,28 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"CH2O_gfn2.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-7.1737299848}]
+"H2SO4_gfn2.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-20.535208593}]
+"N2_gfn2.inp"                            = [{matcher="E_total", tol=1.0E-8, ref=-5.7289226128}]
+"N2_gfn2_ot.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-5.7289226128}]
+"N2_gfn2_ls.inp"                         = [{matcher="M011", tol=1.0E-8, ref=-5.72892260298788}]
+"N2_gfn2_uks.inp"                        = [{matcher="E_total", tol=1.0E-8, ref=-5.7289226128}]
+"N2_gfn2_uks_cp2k_mixer.inp"             = [{matcher="E_total", tol=1.0E-8, ref=-5.7289226128}]
+"N2_gfn2_uks_ls_cp2k_mixer.inp"          = [{matcher="M011", tol=1.0E-8, ref=-5.72892260429441}]
+"CH2O_gfn2_force.inp"                    = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"CH2O_gfn2_uks_force.inp"                = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"N2_gfn2_uks_force.inp"                  = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"N2_gfn2_uks_cp2k_mixer_force.inp"       = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"O2_gfn2_uks_force.inp"                  = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"O2_gfn2_uks_ot.inp"                     = [{matcher="E_total", tol=1.0E-8, ref=-7.9319651546}]
+"O2_gfn2_uks_xyz_ls_cp2k_mixer.inp"      = [{matcher="M011", tol=1.0E-8, ref=-7.931965128812277}]
+"O2plus_gfn2_uks_cp2k_mixer.inp"         = [{matcher="E_total", tol=1.0E-8, ref=-7.27211104712107}]
+"O2plus_gfn2_uks_cp2k_mixer_force.inp"   = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"CH2O_gfn2_force_cp2k_mixer.inp"         = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"CH2O_gfn2_stress.inp"                   = [{matcher="M042", tol=1.0E-7, ref=0.0000000}]
+"CH2O_gfn2_reference_cli_lone.inp"       = [{matcher="E_total", tol=1.0E-8, ref=-7.1737299847},
+                                             {matcher="XTB_reference_cli_failed"}]
+"Hg2Cl2_gfn2_force.inp"                  = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
+#EOF

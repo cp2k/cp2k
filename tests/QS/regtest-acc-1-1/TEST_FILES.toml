@@ -1,0 +1,10 @@
+"Ar-1.inp"                              = [{matcher="E_total", tol=1e-12, ref=-21.04944198733016}]
+"Ar-2.inp"                              = [{matcher="E_total", tol=1e-12, ref=-21.04944239056047}]
+"Ar-3.inp"                              = [{matcher="E_total", tol=1e-12, ref=-21.13848179618906}]
+"Ar-4.inp"                              = [{matcher="E_total", tol=1e-12, ref=-21.13848219953337}]
+"Ar-kpoints-gapw-accurate.inp"          = [{matcher="E_total", tol=1e-10, ref=-1055.791694254042341}]
+"C-kpoints-gapw_xc-accurate.inp"        = [{matcher="E_total", tol=1e-10, ref=-45.657154884007589}]
+"h2o-fine-1.inp"                        = [{matcher="E_total", tol=1e-12, ref=-17.26044829804002}]
+"h2o-fine-local-energy-1.inp"           = [{matcher="E_total", tol=1e-12, ref=-17.26044829804002}]
+"h2o-fine-nlcc-1.inp"                   = [{matcher="E_total", tol=1e-12, ref=-18.07338831671584}]
+#EOF

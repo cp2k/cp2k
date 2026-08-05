@@ -1,0 +1,20 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+"ch2o-1.inp"                            = [{matcher="E_total", tol=1.0E-14, ref=-5.7625096274801404}]
+# not yet implemented
+# isolated system..
+"ch2o-2.inp"                            = [{matcher="E_total", tol=1.0E-14, ref=-5.75087368892706}]
+"ch2o-p.inp"                            = [{matcher="E_total", tol=1.0E-14, ref=-5.75087391754637}]
+"h2o-1.inp"                             = [{matcher="E_total", tol=4e-09, ref=-130.55701170331295}]
+"h2o.inp"                               = [{matcher="E_total", tol=4e-09, ref=-130.41378146312945}]
+# Ehrenfest and RTP
+"h2o_emd.inp"                           = [{matcher="E_total", tol=1.0E-11, ref=-4.0652275476139899}]
+"h2o_rtp.inp"                           = [{matcher="E_total", tol=1.0E-14, ref=-4.06552855730937}]
+"c2h2_emd_mix.inp"                      = [{matcher="E_total", tol=5e-11, ref=-3.91584441819893}]
+# Properties stress
+"h2o-atprop1.inp"                       = [{matcher="E_total", tol=4e-09, ref=-130.77766397611819}]
+"h2o-atprop2.inp"                       = [{matcher="E_total", tol=2e-08, ref=-131.68099550861825}]
+"h2o-atprop3.inp"                       = [{matcher="E_total", tol=2e-08, ref=-131.33465894123017}]
+"c_kp2.inp"                             = [{matcher="E_total", tol=7e-14, ref=-13.76786045921772}]
+#EOF
