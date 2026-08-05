@@ -546,10 +546,10 @@ atom-composite route, the final production-driver results on Terok are:
 
 | Directory                 | Layout                         | Matcher result | Driver wall time | Slow tests |
 | ------------------------- | ------------------------------ | -------------: | ---------------: | ---------: |
-| `regtest-gauxc-gapw-gth`  | 2 MPI x 2 OpenMP, CPU          |          13/13 |          45.50 s |          0 |
-| `regtest-gauxc-gapw-ecp`  | 2 MPI x 2 OpenMP, CPU          |            8/8 |          47.30 s |          0 |
-| `regtest-gauxc-gapw-base` | 2 MPI x 2 OpenMP, CPU          |            3/3 |          15.36 s |          0 |
-| `regtest-gauxc-cuda`      | 2 MPI x 2 OpenMP, two A40 GPUs |          22/22 |          47.53 s |          0 |
+| `regtest-gauxc-gapw-gth`  | 2 MPI x 2 OpenMP, CPU          |          13/13 |          51.01 s |          0 |
+| `regtest-gauxc-gapw-ecp`  | 2 MPI x 2 OpenMP, CPU          |            8/8 |          52.75 s |          0 |
+| `regtest-gauxc-gapw-base` | 2 MPI x 2 OpenMP, CPU          |            3/3 |          16.90 s |          0 |
+| `regtest-gauxc-cuda`      | 2 MPI x 2 OpenMP, two A40 GPUs |          22/22 |          50.96 s |          0 |
 
 These sets cover direct valence, `PAW_ONE_CENTER`, `CP2K_DEFAULT`, `METHOD GAPW_XC`, MODEL NONE
 isolation, the `PAW_ONE_CENTER_SPLIT` diagnostic, targeted force/stress diagnostics, inversion
