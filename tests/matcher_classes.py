@@ -1,3 +1,4 @@
+import math
 import re
 import sys
 from dataclasses import dataclass
@@ -68,6 +69,10 @@ class GenericMatcher(Matcher):
         except:
             error = f"Could not parse result as float: '{value_str}'.\n"
             return MatchResult("WRONG RESULT", error, value=None)
+
+        if not math.isfinite(value):
+            error = f"Result is not finite: '{value_str}'.\n"
+            return MatchResult("WRONG RESULT", error, value)
 
         # compare result to reference
         diff = value - ref
