@@ -1171,8 +1171,7 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
 
   # CUDA is required for libgint is requested
   if [[ "${CMAKE_CUDA_FLAGS}" == *"-DCP2K_USE_ACCEL=CUDA"* ]]; then
-    if [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_EVERYTHING=ON"* ]] ||
-      [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_LIBGINT=ON"* ]]; then
+    if [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_LIBGINT=ON"* ]]; then
       sed -E \
         -e '/\s*#\s*-\s+"libgint@/ s/#/ /' \
         -i "${CP2K_CONFIG_FILE}"
