@@ -250,12 +250,7 @@ CONTAINS
 
       print_occup_stats = .FALSE.
       occup_stats_occ_threshold = 1e-6_dp
-      IF (SIZE(tmpstringlist) > 0) THEN  ! the lone_keyword_c_vals doesn't work as advertised, handle it manually
-         print_occup_stats = .TRUE.
-         IF (LEN_TRIM(tmpstringlist(1)) > 0) THEN
-            READ (tmpstringlist(1), *) print_occup_stats
-         END IF
-      END IF
+      IF (SIZE(tmpstringlist) > 0) READ (tmpstringlist(1), *) print_occup_stats
       IF (SIZE(tmpstringlist) > 1) THEN
          READ (tmpstringlist(2), *) occup_stats_occ_threshold
       END IF
