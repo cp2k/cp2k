@@ -82,8 +82,8 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
 
       INTEGER :: akind, first_atom, i, iatom, ikind, imol, imol_now, iounit, iproc, ispin, j, lx, &
-         ly, lz, molkind, n, n1, n2, natom, ncol_global, nm, nmol, nmols, norder, nrow_global, ns, &
-         nspins
+         ly, lz, molkind, n, n1, n2, natom, ncol_global, ncol_local, nm, nmol, nmols, norder, &
+         nrow_global, nrow_local, ns, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: states
       INTEGER, DIMENSION(2)                              :: nstates
       LOGICAL                                            :: floating, ghost
@@ -172,6 +172,7 @@ CONTAINS
                   CALL cp_fm_create(omvector, fm_struct, name="omvector")
                   CALL cp_fm_create(momv, fm_struct, name="omvector")
                   CALL cp_fm_struct_release(fm_struct)
+                  CALL cp_fm_get_info(momv, ncol_local=ncol_local, nrow_local=nrow_local)
                   !
                   DO i = 1, ns
                      CALL cp_fm_to_fm(mo_localized, mvector, 1, states(i), i)
@@ -180,7 +181,8 @@ CONTAINS
                DO i = 1, nm
                   CALL cp_dbcsr_sm_fm_multiply(moments(i)%matrix, mvector, omvector, ns)
                   CALL cp_fm_schur_product(mvector, omvector, momv)
-                  moment_set(i, imol) = moment_set(i, imol) - zwfc*SUM(momv%local_data)
+                  moment_set(i, imol) = moment_set(i, imol) - &
+                                        zwfc*SUM(momv%local_data(1:nrow_local, 1:ncol_local))
                END DO
                !
                CALL cp_fm_release(mvector)
@@ -274,4 +276,3 @@ CONTAINS
    !------------------------------------------------------------------------------
 
 END MODULE molecular_moments
-
