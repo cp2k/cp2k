@@ -58,6 +58,7 @@ QS/regtest-gauxc-gpw-mol                                    gauxc
 QS/regtest-gauxc-gpw-coords                                 gauxc
 QS/regtest-gauxc-gapw-base                                  gauxc
 QS/regtest-gauxc-gapw-ecp                                   gauxc
+QS/regtest-gauxc-cuda                                       skala gauxc_cuda
 QS/regtest-skala-native-gpw-mol                             skala
 QS/regtest-skala-native-gpw-mech                            skala
 QS/regtest-skala-native-gpw-coords                          skala
@@ -548,4 +549,3 @@ QS/regtest-tdwf
 QS/regtest-hybrid-ace-gs                                    libint !ifx
 QS/regtest-mtlr
 QS/regtest-poisson
-QS/regtest-gauxc-cuda				skala gauxc_cuda
