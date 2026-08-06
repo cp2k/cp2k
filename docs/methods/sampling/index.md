@@ -6,6 +6,7 @@ titlesonly:
 maxdepth: 2
 ---
 molecular_dynamics
+constrained_dynamics
 metadynamics
 path_integrals
 newton-x

@@ -147,7 +147,10 @@ CONTAINS
 
       CALL cp_print_key_section_create( &
          print_key, __LOCATION__, "lagrange_multipliers", &
-         description="Prints out the lagrange multipliers of the specified constraints during an MD.", &
+         description="Prints the raw SHAKE position-constraint and RATTLE velocity-constraint"// &
+         " Lagrange multipliers during MD. Values use CP2K internal units and include all active"// &
+         " constraints. The output does not include mass-metric corrections required for a general"// &
+         " blue-moon free-energy estimator.", &
          print_level=high_print_level, filename="")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -295,8 +298,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="TARGET_GROWTH", &
-                          description="Specifies the growth speed of the target value of the constrained collective"// &
-                          " variable.", &
+                          description="Specifies the rate at which the target value of the constrained collective"// &
+                          " variable changes during MD. At every step, TARGET is incremented by"// &
+                          " TARGET_GROWTH times the MD time step, optionally up to TARGET_LIMIT."// &
+                          " This moves the constraint but does not integrate work or compute a free-energy profile.", &
                           usage="TARGET_GROWTH {real}", &
                           default_r_val=0.0_dp, unit_str="internal_cp2k")
       CALL section_add_keyword(section, keyword)
