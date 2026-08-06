@@ -14,8 +14,11 @@ nlohmann_json_pkg="nlohmann-json-3.12.0-include.zip"
 nlohmann_json_sha256="b8cb0ef2dd7f57f18933997c9934bb1fa962594f701cd5a8d3c2c80541559372"
 nlohmann_json_urlpath="https://github.com/nlohmann/json/releases/download/v3.12.0"
 skala_model_ver="1.1"
-skala_model_pkg="skala-${skala_model_ver}.fun"
-skala_model_sha256="0c8432ac3f03c8f1276372df9aca5b7ee7f8939d47a8789eb158976e89aa0606"
+skala_model_rev="rev1"
+skala_model_pkg="skala-${skala_model_ver}-${skala_model_rev}.fun"
+skala_model_sha256="7f3e8622e1eb520ccd88a55464c3e359ac4d7e5ccbd1fb77a26afa1e1c20a5cd"
+skala_cuda_model_pkg="skala-${skala_model_ver}-${skala_model_rev}-cuda.fun"
+skala_cuda_model_sha256="f848eae769dca91741a518ae7275d10caac398ab21db649f91bc1f136872f223"
 skala_model_urlpath="https://huggingface.co/microsoft/skala-${skala_model_ver}/resolve/main"
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -61,8 +64,11 @@ case "${with_gauxc}" in
     echo "==================== Installing GauXC ===================="
     pkg_install_dir="${INSTALLDIR}/gauxc-${gauxc_ver}"
     install_lock_file="${pkg_install_dir}/install_successful"
+    installed_skala_model="${pkg_install_dir}/share/gauxc/onedft_models/${skala_model_pkg}"
+    installed_skala_cuda_model="${pkg_install_dir}/share/gauxc/onedft_models/${skala_cuda_model_pkg}"
 
-    if verify_checksums "${install_lock_file}"; then
+    if verify_checksums "${install_lock_file}" && [ -f "${installed_skala_model}" ] &&
+      { [ "${ENABLE_CUDA}" != "__TRUE__" ] || [ -f "${installed_skala_cuda_model}" ]; }; then
       echo "gauxc-${gauxc_ver} is already installed, skipping it."
     else
       retrieve_github_archive "${gauxc_sha256}" "${gauxc_rev}.tar.gz" \
@@ -74,6 +80,11 @@ case "${with_gauxc}" in
       retrieve_github_archive "${skala_model_sha256}" "${skala_model_pkg}" \
         "${skala_model_urlpath}" \
         "${skala_model_pkg}"
+      if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
+        retrieve_github_archive "${skala_cuda_model_sha256}" "${skala_cuda_model_pkg}" \
+          "${skala_model_urlpath}" \
+          "${skala_cuda_model_pkg}"
+      fi
       echo "Installing from scratch into ${pkg_install_dir}"
       rm -rf "GauXC-${gauxc_rev}" "${pkg_install_dir}"
       tar -xzf "${gauxc_pkg}"
@@ -157,11 +168,17 @@ case "${with_gauxc}" in
       mkdir -p "${pkg_install_dir}/share/gauxc/onedft_models"
       install -m 0644 "${BUILDDIR}/${skala_model_pkg}" \
         "${pkg_install_dir}/share/gauxc/onedft_models/${skala_model_pkg}"
+      skala_model_checksum_files=("${BUILDDIR}/${skala_model_pkg}")
+      if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
+        install -m 0644 "${BUILDDIR}/${skala_cuda_model_pkg}" \
+          "${pkg_install_dir}/share/gauxc/onedft_models/${skala_cuda_model_pkg}"
+        skala_model_checksum_files+=("${BUILDDIR}/${skala_cuda_model_pkg}")
+      fi
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})" \
         "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" \
         "${SCRIPT_DIR}/stage6/gauxc-libxc-only-exchcxx.patch" \
         "${SCRIPT_DIR}/stage6/exchcxx-disable-builtin.patch" "${BUILDDIR}/${gauxc_pkg}" \
-        "${BUILDDIR}/${nlohmann_json_pkg}" "${BUILDDIR}/${skala_model_pkg}"
+        "${BUILDDIR}/${nlohmann_json_pkg}" "${skala_model_checksum_files[@]}"
     fi
     ;;
   __SYSTEM__)
@@ -185,13 +202,21 @@ esac
 if [ "${with_gauxc}" != "__DONTUSE__" ]; then
   if [ -n "${pkg_install_dir:-}" ]; then
     gauxc_skala_model="${pkg_install_dir}/share/gauxc/onedft_models/${skala_model_pkg}"
+    if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
+      gauxc_skala_cuda_model="${pkg_install_dir}/share/gauxc/onedft_models/${skala_cuda_model_pkg}"
+      [ -f "${gauxc_skala_cuda_model}" ] || gauxc_skala_cuda_model=""
+    else
+      gauxc_skala_cuda_model=""
+    fi
   else
     gauxc_skala_model=""
+    gauxc_skala_cuda_model=""
   fi
   cat << EOF > "${BUILDDIR}/setup_gauxc"
 export GAUXC_VER="${gauxc_ver}"
 export GAUXC_ROOT="${pkg_install_dir}"
 export GAUXC_SKALA_MODEL="${gauxc_skala_model}"
+export GAUXC_SKALA_CUDA_MODEL="${gauxc_skala_cuda_model}"
 EOF
   if [ "${with_gauxc}" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_gauxc"

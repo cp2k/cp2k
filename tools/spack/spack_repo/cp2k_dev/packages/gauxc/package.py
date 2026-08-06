@@ -52,16 +52,43 @@ class Gauxc(CMakePackage, CudaPackage, ROCmPackage):
     variant("pic", default=True, description="Build position independent code")
 
     # Skala resource file
-    SKALA_RESOURCES = {"1.1": "0c8432ac3f03c8f1276372df9aca5b7ee7f8939d47a8789eb158976e89aa0606"}
-    variant("skala_version", default="none", values=("none", *SKALA_RESOURCES.keys()), multi=False)
-    for skala_version, sha256 in SKALA_RESOURCES.items():
+    SKALA_RESOURCES = {
+        "1.1": {
+            "cpu": (
+                "skala-1.1-rev1.fun",
+                "7f3e8622e1eb520ccd88a55464c3e359ac4d7e5ccbd1fb77a26afa1e1c20a5cd",
+            ),
+            "cuda": (
+                "skala-1.1-rev1-cuda.fun",
+                "f848eae769dca91741a518ae7275d10caac398ab21db649f91bc1f136872f223",
+            ),
+        }
+    }
+    variant(
+        "skala_version",
+        default="none",
+        values=("none", *SKALA_RESOURCES.keys()),
+        multi=False,
+        description="SKALA model version to install",
+    )
+    for skala_version, artifacts in SKALA_RESOURCES.items():
+        cpu_file, cpu_sha256 = artifacts["cpu"]
         resource(
             name=f"skala_fun_{skala_version}",
-            url=f"https://huggingface.co/microsoft/skala-{skala_version}/resolve/main/skala-{skala_version}.fun",
-            sha256=sha256,
+            url=f"https://huggingface.co/microsoft/skala-{skala_version}/resolve/main/{cpu_file}",
+            sha256=cpu_sha256,
             expand=False,
-            placement="onedft_models",
+            placement={cpu_file: cpu_file},
             when=f"+skala skala_version={skala_version}",
+        )
+        cuda_file, cuda_sha256 = artifacts["cuda"]
+        resource(
+            name=f"skala_cuda_fun_{skala_version}",
+            url=f"https://huggingface.co/microsoft/skala-{skala_version}/resolve/main/{cuda_file}",
+            sha256=cuda_sha256,
+            expand=False,
+            placement={cuda_file: cuda_file},
+            when=f"+skala+cuda skala_version={skala_version}",
         )
 
     conflicts("+magma", when="~cuda ~rocm", msg="MAGMA requires CUDA or HIP")
@@ -75,7 +102,6 @@ class Gauxc(CMakePackage, CudaPackage, ROCmPackage):
     depends_on("cmake@3.20:", type="build")
     depends_on("ninja@1.10:", type="build")
     depends_on("exchcxx~cuda", when="~cuda")
-    depends_on("exchcxx+cuda", when="+cuda")
     depends_on("integratorxx")
     depends_on("blas")
     depends_on("hdf5", when="+hdf5")
@@ -86,10 +112,14 @@ class Gauxc(CMakePackage, CudaPackage, ROCmPackage):
     depends_on("gau2grid")
     depends_on("nlohmann-json", when="+skala")
     depends_on("py-torch@2:~cuda", when="+skala~cuda")
-    depends_on("py-torch@2:+cuda", when="+skala+cuda")
     depends_on("magma", when="+magma")
     depends_on("nccl", when="+nccl")
     depends_on("cutlass", when="+cutlass")
+
+    for arch in CudaPackage.cuda_arch_values:
+        cuda_spec = f"+cuda cuda_arch={arch}"
+        depends_on(f"exchcxx{cuda_spec}", when=cuda_spec)
+        depends_on(f"py-torch@2:{cuda_spec}", when=f"+skala {cuda_spec}")
 
     generator("ninja")
 
@@ -130,7 +160,21 @@ class Gauxc(CMakePackage, CudaPackage, ROCmPackage):
         super().install(spec, prefix)
         if spec.satisfies("+skala"):
             skala_version = spec.variants["skala_version"].value
-            skala_file = f"skala-{skala_version}.fun"
             target_dir = prefix.share.gauxc.join("onedft_models")
             mkdirp(target_dir)
-            install(join_path("onedft_models", skala_file), target_dir)
+            cpu_file = self.SKALA_RESOURCES[skala_version]["cpu"][0]
+            install(cpu_file, target_dir)
+            if spec.satisfies("+cuda"):
+                cuda_file = self.SKALA_RESOURCES[skala_version]["cuda"][0]
+                install(cuda_file, target_dir)
+
+    def setup_run_environment(self, env):
+        spec = self.spec
+        if spec.satisfies("+skala"):
+            skala_version = spec.variants["skala_version"].value
+            model_dir = self.prefix.share.gauxc.join("onedft_models")
+            cpu_file = self.SKALA_RESOURCES[skala_version]["cpu"][0]
+            env.set("GAUXC_SKALA_MODEL", model_dir.join(cpu_file))
+            if spec.satisfies("+cuda"):
+                cuda_file = self.SKALA_RESOURCES[skala_version]["cuda"][0]
+                env.set("GAUXC_SKALA_CUDA_MODEL", model_dir.join(cuda_file))

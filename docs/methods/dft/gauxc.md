@@ -42,18 +42,23 @@ name. The underlying functional is optional in this case and defaults to `PBE`:
 ```
 
 The `.fun` format and available model checkpoints are defined by GauXC rather than CP2K. `.fun`
-files use TorchScript serialization. The official Skala 1.1 checkpoint can be downloaded together
-with GauXC in toolchain, or from Hugging Face with the `hf` command provided by the
+files use TorchScript serialization. The official Skala 1.1 Rev1 checkpoints can be downloaded
+together with GauXC in the toolchain, or from Hugging Face with the `hf` command provided by the
 `huggingface_hub` package:
 
 ```bash
-hf download microsoft/skala-1.1 skala-1.1.fun --local-dir .
+hf download microsoft/skala-1.1 skala-1.1-rev1.fun --local-dir .
+hf download microsoft/skala-1.1 skala-1.1-rev1-cuda.fun --local-dir .
 ```
 
-Select the downloaded checkpoint with `MODEL ./skala-1.1.fun`. Alternatively, set
-`GAUXC_SKALA_MODEL` to its path and use `MODEL SKALA`. See the
+Select a downloaded checkpoint explicitly with `MODEL ./skala-1.1-rev1.fun`. Alternatively, set
+`GAUXC_SKALA_MODEL` to the CPU checkpoint and use `MODEL SKALA` for host execution. For
+`INT_EXECUTION_SPACE DEVICE`, set `GAUXC_SKALA_CUDA_MODEL` to the CUDA checkpoint. CP2K falls back
+to `GAUXC_SKALA_MODEL` for compatibility with existing configurations where that variable already
+points to a device-compatible checkpoint; the CPU checkpoint itself is not device-compatible. For
+the model interface and available checkpoints, consult
 [GauXC/Skala model documentation](https://microsoft.github.io/skala/gauxc/c-library.html#download-checkpoint-from-huggingface)
-for the model interface and available checkpoints. Obtain `.fun` files only from trusted sources.
+and obtain `.fun` files only from trusted sources.
 
 The molecular-quadrature Skala path defaults to `GRID SUPERFINE` and `PRUNING_SCHEME UNPRUNED`
 unless these settings are provided explicitly. These settings are recommended for force checks;
