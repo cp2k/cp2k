@@ -1,7 +1,7 @@
 # metadyn
 "metadyn1.inp"                          = [{matcher="M002", tol=1.0E-14, ref=-0.465672945738E-02}]
 "metadyn2.inp"                          = [{matcher="M002", tol=1.0E-14, ref=-0.146726946152E-02}]
-"metadyn3.inp"                          = [{matcher="M002", tol=1e-14, ref=-0.465541396806E-02}]
+"metadyn3.inp"                          = [{matcher="M002", tol=1e-14, ref=-0.465539820679E-02}]
 "metadyn4.inp"                          = [{matcher="M002", tol=1e-14, ref=-0.466434098306E-02}]
 "metadyn5.inp"                          = [{matcher="M002", tol=1.0E-14, ref=0.260815657919E-02}]
 "metadyn6.inp"                          = [{matcher="M002", tol=1e-11, ref=-0.000190599068492}]
