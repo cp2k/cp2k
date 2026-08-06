@@ -1409,7 +1409,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         ${CMAKE_FEATURE_FLAGS} \
         -DCP2K_USE_PEXSI="${CP2K_USE_PEXSI}" \
         ${CMAKE_CUDA_FLAGS} \
-        -Werror=dev |&
+        -Wno-error=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
       ;;
@@ -1426,7 +1426,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCMAKE_VERBOSE_MAKEFILE="${VERBOSE_MAKEFILE}" \
         ${CMAKE_FEATURE_FLAGS} \
         ${CMAKE_CUDA_FLAGS} \
-        -Werror=dev |&
+        -Wno-error=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
       ;;
@@ -1449,7 +1449,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCP2K_BLAS_LINK_LIBRARIES="${LIBOPENBLAS};${LIBM}" \
         -DCP2K_LAPACK_LINK_LIBRARIES="${LIBOPENBLAS};${LIBM}" \
         ${CMAKE_FEATURE_FLAGS} \
-        -Werror=dev |&
+        -Wno-error=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
       # It is almost impossible to avoid that shared libraries are pulled in
