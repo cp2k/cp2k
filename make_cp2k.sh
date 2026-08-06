@@ -936,6 +936,7 @@ if ((CUDA_SM_CODE > 0)); then
     ${EXIT_CMD} 1
   fi
   CMAKE_CUDA_FLAGS="-DCP2K_USE_ACCEL=CUDA"
+  CMAKE_CUDA_FLAGS+=" -DCMAKE_CUDA_HOST_COMPILER=$(which g++)"
   CMAKE_CUDA_FLAGS+=" -DCP2K_WITH_GPU=${GPU_MODEL}"
   CMAKE_CUDA_FLAGS+=" -DCMAKE_CUDA_ARCHITECTURES=${CUDA_SM_CODE}"
   CMAKE_CUDA_FLAGS+=" ${CMAKE_FEATURE_FLAGS_GPU}"
@@ -1171,8 +1172,7 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
 
   # CUDA is required for libgint is requested
   if [[ "${CMAKE_CUDA_FLAGS}" == *"-DCP2K_USE_ACCEL=CUDA"* ]]; then
-    if [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_EVERYTHING=ON"* ]] ||
-      [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_LIBGINT=ON"* ]]; then
+    if [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_LIBGINT=ON"* ]]; then
       sed -E \
         -e '/\s*#\s*-\s+"libgint@/ s/#/ /' \
         -i "${CP2K_CONFIG_FILE}"
@@ -1409,7 +1409,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         ${CMAKE_FEATURE_FLAGS} \
         -DCP2K_USE_PEXSI="${CP2K_USE_PEXSI}" \
         ${CMAKE_CUDA_FLAGS} \
-        -Werror=dev |&
+        -Wno-error=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
       ;;
@@ -1426,7 +1426,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCMAKE_VERBOSE_MAKEFILE="${VERBOSE_MAKEFILE}" \
         ${CMAKE_FEATURE_FLAGS} \
         ${CMAKE_CUDA_FLAGS} \
-        -Werror=dev |&
+        -Wno-error=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
       ;;
@@ -1449,7 +1449,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCP2K_BLAS_LINK_LIBRARIES="${LIBOPENBLAS};${LIBM}" \
         -DCP2K_LAPACK_LINK_LIBRARIES="${LIBOPENBLAS};${LIBM}" \
         ${CMAKE_FEATURE_FLAGS} \
-        -Werror=dev |&
+        -Wno-error=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
       # It is almost impossible to avoid that shared libraries are pulled in
