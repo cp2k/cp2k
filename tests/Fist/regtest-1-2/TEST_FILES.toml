@@ -1,3 +1,8 @@
+"reftraj-output-index.inp"              = [{matcher="REFTRAJ_first_frame_index", file="reftraj-output.xyz", tol=0.0, ref=101},
+                                           {matcher="REFTRAJ_last_frame_index", file="reftraj-output.xyz", tol=0.0, ref=145},
+                                           {matcher="REFTRAJ_force_file", file="reftraj_output_index-reftraj-force-1_101.xyz"},
+                                           {matcher="REFTRAJ_force_file", file="reftraj_output_index-reftraj-force-1_120.xyz"},
+                                           {matcher="REFTRAJ_force_file", file="reftraj_output_index-reftraj-force-1_145.xyz"}]
 "water_3.inp"                           = [{matcher="M002", tol=1.0E-14, ref=0.247694666375E-02}]
 "water_3_g3x3.inp"                      = [{matcher="M002", tol=1.0E-14, ref=-0.146091283588E-03}]
 "water_3_dist.inp"                      = [{matcher="M002", tol=1.0E-14, ref=-0.146090953012E-03}]
