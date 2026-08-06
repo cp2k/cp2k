@@ -377,4 +377,14 @@ registry["M_INIT_ENERGY"] = GenericMatcher(
     r"ENERGY| Total FORCE_EVAL", col=9, first=True
 )
 registry["M_CONS_QTY"] = GenericMatcher(r"MD| Conserved quantity", col=5)
+
+# REFTRAJ output must retain the frame index read from the trajectory, including
+# in nested print-key filenames.
+registry["REFTRAJ_first_frame_index"] = GenericMatcher(
+    r"i\s*=\s*(\d+)", col=1, regex=True, first=True
+)
+registry["REFTRAJ_last_frame_index"] = GenericMatcher(
+    r"i\s*=\s*(\d+)", col=1, regex=True
+)
+registry["REFTRAJ_force_file"] = TextPresenceMatcher("ATOMIC FORCES")
 # EOF
