@@ -26,6 +26,11 @@ MODULE xc_input_constants
                                                xc_rho_nn10 = 3, &
                                                xc_rho_nn50 = 4
 
+   INTEGER, PARAMETER, PUBLIC               :: skala_gapw_direct_valence = 1, &
+                                               skala_gapw_paw_one_center = 2, &
+                                               skala_gapw_cp2k_default = 3, &
+                                               skala_gapw_paw_one_center_split = 4
+
    !VWN xc functional flavours
    INTEGER, PARAMETER, PUBLIC               :: do_vwn5 = 1, &
                                                do_vwn3 = 2

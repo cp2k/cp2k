@@ -116,6 +116,8 @@ MODULE qs_ks_utils
                                               mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE skala_gpw_functional,            ONLY: native_skala_gapw_composite_direct_ao,&
+                                              native_skala_gapw_composite_reference
    USE task_list_types,                 ONLY: task_list_type
    USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: xc_exc_calc,&
@@ -1204,14 +1206,16 @@ CONTAINS
 !> \param qs_env ...
 !> \param v_rspace ...
 !> \param matrix_vxc ...
+!> \param gapw_full_basis ...
 !> \par History
 !>    created 23.10.2012 [Joost VandeVondele]
 !> \author
 ! **************************************************************************************************
-   SUBROUTINE compute_matrix_vxc(qs_env, v_rspace, matrix_vxc)
+   SUBROUTINE compute_matrix_vxc(qs_env, v_rspace, matrix_vxc, gapw_full_basis)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)     :: v_rspace
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
+      LOGICAL, INTENT(IN), OPTIONAL                      :: gapw_full_basis
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_matrix_vxc'
 
@@ -1239,6 +1243,9 @@ CONTAINS
       ! and integrate
       CALL get_qs_env(qs_env, dft_control=dft_control)
       gapw = dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc
+      IF (PRESENT(gapw_full_basis)) THEN
+         IF (gapw_full_basis) gapw = .FALSE.
+      END IF
       DO ispin = 1, SIZE(matrix_ks)
          CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
                                  hmat=matrix_vxc(ispin), &
@@ -1258,12 +1265,14 @@ CONTAINS
 !> \param qs_env Quickstep environment
 !> \param v_rspace XC potential on the real-space grid
 !> \param matrix_vxc_kp k-point/image-resolved XC potential matrix
+!> \param gapw_full_basis ...
 !> \author
 ! **************************************************************************************************
-   SUBROUTINE compute_matrix_vxc_kp(qs_env, v_rspace, matrix_vxc_kp)
+   SUBROUTINE compute_matrix_vxc_kp(qs_env, v_rspace, matrix_vxc_kp, gapw_full_basis)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)     :: v_rspace
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_vxc_kp
+      LOGICAL, INTENT(IN), OPTIONAL                      :: gapw_full_basis
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_matrix_vxc_kp'
 
@@ -1293,6 +1302,9 @@ CONTAINS
 
       ! and integrate
       gapw = dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc
+      IF (PRESENT(gapw_full_basis)) THEN
+         IF (gapw_full_basis) gapw = .FALSE.
+      END IF
       DO ispin = 1, SIZE(matrix_ks_kp, 1)
          ksmat => matrix_vxc_kp(ispin, :)
          CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
@@ -1360,8 +1372,9 @@ CONTAINS
       INTEGER                                            :: handle, igroup, ikind, img, ispin, &
                                                             nkind, nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_ppl, gapw, gapw_xc, lrigpw, rigpw, &
-                                                            use_work_v_rspace
+      LOGICAL                                            :: do_ppl, gapw, gapw_composite_direct_ao, &
+                                                            gapw_composite_reference, gapw_xc, &
+                                                            lrigpw, rigpw, use_work_v_rspace
       REAL(KIND=dp)                                      :: csign, dvol, fadm
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1382,6 +1395,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), TARGET                       :: v_rspace_work
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux_fit
+      TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(task_list_type), POINTER                      :: task_list
 
       CALL timeset(routineN, handle)
@@ -1389,10 +1403,11 @@ CONTAINS
       NULLIFY (auxbas_pw_pool, dft_control, pw_env, matrix_ks_aux_fit, &
                v_rspace, rho_aux_fit, vee, rho_ao, rho_ao_kp, rho_ao_aux, &
                ksmat, matrix_ks_aux_fit_dft, lri_env, lri_density, atomic_kind_set, &
-               rho_ao_nokp, ks_env, admm_env, task_list, v_rspace_used)
+               rho_ao_nokp, ks_env, admm_env, task_list, v_rspace_used, input, xc_section)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
+                      input=input, &
                       pw_env=pw_env, &
                       v_hartree_rspace=v_rspace, &
                       vee=vee)
@@ -1401,6 +1416,11 @@ CONTAINS
       CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
+      xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+      gapw_composite_reference = native_skala_gapw_composite_reference(xc_section) .AND. &
+                                 (gapw .OR. gapw_xc)
+      gapw_composite_direct_ao = gapw_composite_reference .AND. &
+                                 native_skala_gapw_composite_direct_ao(xc_section)
       do_ppl = dft_control%qs_control%do_ppl_method == do_ppl_grid
 
       rigpw = dft_control%qs_control%rigpw
@@ -1417,7 +1437,19 @@ CONTAINS
       ! sum up potentials and integrate
       IF (ASSOCIATED(v_rspace_new)) THEN
          DO ispin = 1, nspins
-            IF (gapw_xc) THEN
+            IF (gapw_composite_reference) THEN
+               ! The direct AO diagnostic uses the full ORB basis. The reconstructed path uses
+               ! the soft basis here and adds the hard-minus-soft adjoint through update_ks_atom.
+               CALL pw_scale(v_rspace_new(ispin), v_rspace_new(ispin)%pw_grid%dvol)
+               rho_ao => rho_ao_kp(ispin, :)
+               ksmat => ks_matrix(ispin, :)
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+                                       pmat_kp=rho_ao, hmat_kp=ksmat, &
+                                       qs_env=qs_env, &
+                                       calculate_forces=calculate_forces, &
+                                       gapw=gapw .AND. .NOT. gapw_composite_direct_ao)
+               CALL pw_copy(v_rspace, v_rspace_new(ispin))
+            ELSE IF (gapw_xc) THEN
                ! SIC not implemented (or at least not tested)
                CPASSERT(dft_control%sic_method_id == sic_none)
                !Only the xc potential, because it has to be integrated with the soft basis
@@ -1553,7 +1585,7 @@ CONTAINS
                                        pmat_kp=rho_ao, hmat_kp=ksmat, &
                                        qs_env=qs_env, &
                                        calculate_forces=calculate_forces, &
-                                       gapw=gapw)
+                                       gapw=gapw .AND. .NOT. gapw_composite_direct_ao)
             END IF
             CALL auxbas_pw_pool%give_back_pw(v_rspace_new(ispin))
          END DO ! ispin
@@ -1702,7 +1734,7 @@ CONTAINS
                                     pmat_kp=rho_ao, hmat_kp=ksmat, &
                                     qs_env=qs_env, &
                                     calculate_forces=calculate_forces, compute_tau=.TRUE., &
-                                    gapw=gapw)
+                                    gapw=gapw .AND. .NOT. gapw_composite_direct_ao)
             CALL auxbas_pw_pool%give_back_pw(v_tau_rspace(ispin))
          END DO
          DEALLOCATE (v_tau_rspace)

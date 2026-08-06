@@ -18,6 +18,10 @@
 
 #include "offload/offload_library.h"
 
+#if defined(__OPENBLAS)
+#include <cblas.h>
+#endif
+
 #include <cassert>
 
 #include <cfenv>
@@ -27,6 +31,46 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#if defined(__OPENBLAS)
+// PyTorch's oneMKL batch ABI is not compatible with OpenBLAS's same-named
+// entry points. Expand grouped GEMMs into the portable CBLAS interface.
+extern "C" void cblas_sgemm_batch(
+    const enum CBLAS_ORDER order, const enum CBLAS_TRANSPOSE *trans_a,
+    const enum CBLAS_TRANSPOSE *trans_b, const int *m, const int *n,
+    const int *k, const float *alpha, const float **a, const int *lda,
+    const float **b, const int *ldb, const float *beta, float **c,
+    const int *ldc, const int group_count, const int *group_size) {
+  int offset = 0;
+  for (int group = 0; group < group_count; ++group) {
+    for (int operation = 0; operation < group_size[group]; ++operation) {
+      const int index = offset + operation;
+      cblas_sgemm(order, trans_a[group], trans_b[group], m[group], n[group],
+                  k[group], alpha[group], a[index], lda[group], b[index],
+                  ldb[group], beta[group], c[index], ldc[group]);
+    }
+    offset += group_size[group];
+  }
+}
+
+extern "C" void cblas_dgemm_batch(
+    const enum CBLAS_ORDER order, const enum CBLAS_TRANSPOSE *trans_a,
+    const enum CBLAS_TRANSPOSE *trans_b, const int *m, const int *n,
+    const int *k, const double *alpha, const double **a, const int *lda,
+    const double **b, const int *ldb, const double *beta, double **c,
+    const int *ldc, const int group_count, const int *group_size) {
+  int offset = 0;
+  for (int group = 0; group < group_count; ++group) {
+    for (int operation = 0; operation < group_size[group]; ++operation) {
+      const int index = offset + operation;
+      cblas_dgemm(order, trans_a[group], trans_b[group], m[group], n[group],
+                  k[group], alpha[group], a[index], lda[group], b[index],
+                  ldb[group], beta[group], c[index], ldc[group]);
+    }
+    offset += group_size[group];
+  }
+}
+#endif
 
 typedef torch::Tensor torch_c_tensor_t;
 typedef c10::Dict<std::string, torch::Tensor> torch_c_dict_t;

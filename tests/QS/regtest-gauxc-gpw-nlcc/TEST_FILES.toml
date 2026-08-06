@@ -1,5 +1,9 @@
 "H2O_NATIVE_SKALA_GPW_NLCC_ENERGY.inp" = [{matcher="E_total", tol=5e-4, ref=-18.01870708},
                                             {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=8.88469292329}]
-"HF_NATIVE_SKALA_GPW_NLCC_FORCE.inp" = [{matcher="M072", tol=1e-4, ref=2.46228688E-01},
-                                         {matcher="M031", tol=1e-4, ref=-9.37259460002E+06},
+"HF_NATIVE_SKALA_GPW_NLCC_FORCE.inp" = [{matcher="M072", tol=1e-4, ref=2.46189536E-01},
+                                         {matcher="M031", tol=1e-4, ref=-9.71336953996E+06},
                                          {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=9.22564126903}]
+"HF_SKALA_GAPW_PAW_NLCC_FORCE.inp" = [{matcher="E_total", tol=5e-5, ref=-26.904527411398917},
+                                        {matcher="SKALA_GAPW_composite_electrons", tol=1e-8, ref=9.22448748526214}]
+"HF_NATIVE_SKALA_GAPW_PAW_NLCC_STRESS.inp" = [{matcher="E_total", tol=5e-4, ref=-23.869589957681438},
+                                                {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=9.24522133018}]

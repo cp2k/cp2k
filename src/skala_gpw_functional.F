@@ -35,9 +35,9 @@ MODULE skala_gpw_functional
         skala_gpw_atom_partition_hard, skala_gpw_atom_partition_smooth, &
         skala_gpw_atom_subchunk_count, skala_gpw_atom_subchunk_layout, skala_gpw_feature_build, &
         skala_gpw_feature_build_atom_subchunk_bounds, skala_gpw_feature_release, &
-        skala_gpw_feature_type, skala_gpw_smooth_partition_derivatives
+        skala_gpw_feature_type, skala_gpw_smooth_partition_derivatives, &
+        smooth_partition_atomic_weight_scale_derivative
    USE skala_torch_api,                 ONLY: skala_torch_model_get_exc,&
-                                              skala_torch_model_get_exc_density,&
                                               skala_torch_model_load,&
                                               skala_torch_model_release,&
                                               skala_torch_model_type
@@ -46,7 +46,12 @@ MODULE skala_gpw_functional
         torch_cuda_device_count, torch_cuda_is_available, torch_dict_create, torch_dict_insert, &
         torch_dict_release, torch_dict_type, torch_tensor_backward_scalar, torch_tensor_data_ptr, &
         torch_tensor_from_array, torch_tensor_grad, torch_tensor_grad_batch3, &
-        torch_tensor_release, torch_tensor_to_device_leaf, torch_tensor_type, torch_use_cuda
+        torch_tensor_release, torch_tensor_reset_from_array, torch_tensor_to_device_leaf, &
+        torch_tensor_type, torch_use_cuda
+   USE xc_input_constants,              ONLY: skala_gapw_cp2k_default,&
+                                              skala_gapw_direct_valence,&
+                                              skala_gapw_paw_one_center,&
+                                              skala_gapw_paw_one_center_split
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                               xc_rho_set_get,&
@@ -71,11 +76,22 @@ MODULE skala_gpw_functional
                                            skala_gapw_density_partition_soft_only = 3, &
                                            skala_gapw_density_partition_none = 4
 
-   PUBLIC :: ensure_native_skala_grid_scope, get_gauxc_section, skala_gapw_atom_vxc_of_r, &
-             native_skala_gapw_density_partition, skala_gpw_eval, skala_gpw_exc_density, &
+   TYPE skala_gapw_atom_cuda_tensor_cache_type
+      TYPE(torch_tensor_type)                            :: atomic_coords_t, atomic_grid_weights_t, &
+                                                            density_t, grad_t, grid_coords_t, &
+                                                            grid_weights_t, kin_t
+   END TYPE skala_gapw_atom_cuda_tensor_cache_type
+
+   PUBLIC :: build_vxc_from_feature_grads, ensure_native_skala_grid_scope, get_gauxc_section, &
+             skala_gapw_atom_composite_energy, skala_gapw_atom_vxc_of_r, &
+             native_skala_gapw_atom_composite_requested, &
+             native_skala_gapw_composite_direct_ao, native_skala_gapw_composite_reference, &
+             native_skala_gapw_density_partition, skala_gpw_eval, skala_gpw_weight_derivative, &
+             skala_gapw_representation, xc_section_uses_native_skala_evaluator, &
              xc_section_uses_native_skala_grid, xc_section_uses_gauxc_model
 
    TYPE(skala_torch_model_type), SAVE                  :: cached_model
+   TYPE(skala_gapw_atom_cuda_tensor_cache_type), SAVE, TARGET :: cached_atom_cuda_tensors
    CHARACTER(len=default_path_length), SAVE            :: cached_model_path = ""
    LOGICAL, SAVE                                       :: cached_model_loaded = .FALSE.
    INTEGER, SAVE                                       :: cached_model_cuda_device = -3
@@ -104,6 +120,120 @@ CONTAINS
       END IF
 
    END FUNCTION xc_section_uses_native_skala_grid
+
+! **************************************************************************************************
+!> \brief Return the pseudopotential GAPW representation selected for an active model.
+!> \param xc_section ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION skala_gapw_representation(xc_section) RESULT(representation)
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
+      INTEGER                                            :: representation
+
+      TYPE(section_vals_type), POINTER                   :: gauxc_section
+
+      representation = skala_gapw_cp2k_default
+      IF (.NOT. xc_section_uses_gauxc_model(xc_section)) RETURN
+
+      gauxc_section => get_gauxc_section(xc_section)
+      CPASSERT(ASSOCIATED(gauxc_section))
+      CALL section_vals_val_get(gauxc_section, "PSEUDOPOTENTIAL_GAPW_REPRESENTATION", &
+                                i_val=representation)
+
+      SELECT CASE (representation)
+      CASE (skala_gapw_direct_valence, skala_gapw_paw_one_center, &
+            skala_gapw_cp2k_default, skala_gapw_paw_one_center_split)
+         CONTINUE
+      CASE DEFAULT
+         CALL cp_abort(__LOCATION__, "Unknown pseudopotential GAPW representation.")
+      END SELECT
+
+   END FUNCTION skala_gapw_representation
+
+! **************************************************************************************************
+!> \brief Return true when SKALA must be evaluated by the CP2K-native grid machinery.
+!> \param xc_section ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION xc_section_uses_native_skala_evaluator(xc_section) RESULT(uses_native_evaluator)
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
+      LOGICAL                                            :: uses_native_evaluator
+
+      uses_native_evaluator = xc_section_uses_native_skala_grid(xc_section) .OR. &
+                              skala_gapw_representation(xc_section) == &
+                              skala_gapw_paw_one_center
+
+   END FUNCTION xc_section_uses_native_skala_evaluator
+
+! **************************************************************************************************
+!> \brief Return true if native SKALA should use the full GAPW ORB density on one common grid.
+!> \param xc_section ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION native_skala_gapw_composite_reference(xc_section) RESULT(use_composite_reference)
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
+      LOGICAL                                            :: use_composite_reference
+
+      LOGICAL                                            :: native_grid
+      TYPE(section_vals_type), POINTER                   :: gauxc_section
+
+      use_composite_reference = .FALSE.
+      native_grid = .FALSE.
+      gauxc_section => get_gauxc_section(xc_section)
+      IF (ASSOCIATED(gauxc_section)) THEN
+         CALL section_vals_val_get(gauxc_section, "NATIVE_GRID", l_val=native_grid)
+         CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_GAPW_COMPOSITE_REFERENCE", &
+                                   l_val=use_composite_reference)
+      END IF
+      use_composite_reference = native_grid .AND. use_composite_reference
+
+   END FUNCTION native_skala_gapw_composite_reference
+
+! **************************************************************************************************
+!> \brief Return true when the explicit atom-centered composite reference is requested.
+!> \param xc_section ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION native_skala_gapw_atom_composite_requested(xc_section) RESULT(use_atom_composite)
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
+      LOGICAL                                            :: use_atom_composite
+
+      LOGICAL                                            :: native_grid
+      TYPE(section_vals_type), POINTER                   :: gauxc_section
+
+      use_atom_composite = .FALSE.
+      native_grid = .FALSE.
+      gauxc_section => get_gauxc_section(xc_section)
+      IF (ASSOCIATED(gauxc_section)) THEN
+         CALL section_vals_val_get(gauxc_section, "NATIVE_GRID", l_val=native_grid)
+         CALL section_vals_val_get(gauxc_section, &
+                                   "NATIVE_GRID_GAPW_ATOM_COMPOSITE_REFERENCE", &
+                                   l_val=use_atom_composite)
+      END IF
+      use_atom_composite = native_grid .AND. use_atom_composite
+
+   END FUNCTION native_skala_gapw_atom_composite_requested
+
+! **************************************************************************************************
+!> \brief Return true if the GAPW composite reference uses direct full-ORB collocation.
+!> \param xc_section ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION native_skala_gapw_composite_direct_ao(xc_section) RESULT(use_direct_ao)
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
+      LOGICAL                                            :: use_direct_ao
+
+      TYPE(section_vals_type), POINTER                   :: gauxc_section
+
+      use_direct_ao = .FALSE.
+      gauxc_section => get_gauxc_section(xc_section)
+      IF (ASSOCIATED(gauxc_section)) THEN
+         CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_GAPW_COMPOSITE_DIRECT_AO", &
+                                   l_val=use_direct_ao)
+      END IF
+      use_direct_ao = native_skala_gapw_composite_reference(xc_section) .AND. use_direct_ao
+
+   END FUNCTION native_skala_gapw_composite_direct_ao
 
 ! **************************************************************************************************
 !> \brief Return true if the GAUXC subsection requests a model evaluation.
@@ -203,7 +333,8 @@ CONTAINS
       END IF
 
       CALL section_vals_val_get(gauxc_section, "NATIVE_GRID", l_val=native_grid)
-      IF (.NOT. native_grid) RETURN
+      IF (.NOT. native_grid .AND. &
+          .NOT. xc_section_uses_native_skala_evaluator(xc_section)) RETURN
 
       CALL section_vals_val_get(gauxc_section, "MODEL", c_val=model_name)
       model_key = ADJUSTL(model_name)
@@ -252,12 +383,14 @@ CONTAINS
          OPTIONAL                                        :: atom_force
 
       CHARACTER(len=default_path_length)                 :: model_path
-      INTEGER :: iw, native_grid_atom_chunk_max_rows, native_grid_atom_partition, &
-         native_grid_atom_subchunks, native_grid_cuda_device, nspins, phase_handle, &
-         selected_cuda_device, xc_deriv_method_id, xc_rho_smooth_id
+      INTEGER :: i, ipt, ispin, iw, j, k, native_grid_atom_chunk_max_rows, &
+         native_grid_atom_partition, native_grid_atom_subchunks, native_grid_cuda_device, nspins, &
+         phase_handle, selected_cuda_device, xc_deriv_method_id, xc_rho_smooth_id
+      INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL :: has_atom_chunk_work, have_atom_coord_grad, lsd, my_just_energy, &
          native_grid_atom_chunk_routing, native_grid_atom_chunks, native_grid_diagnostics, &
          native_grid_use_cuda, needs_atom_force, use_atom_subchunks
+      REAL(KIND=dp)                                      :: density_contraction, tau_contraction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_grad, kin_grad
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: grad_grad
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_before
@@ -438,6 +571,43 @@ CONTAINS
          END IF
 
          CALL timeset("skala_gpw_vxc_unpack", phase_handle)
+         IF (native_grid_diagnostics) THEN
+            bo = rho_r(1)%pw_grid%bounds_local
+            density_contraction = 0.0_dp
+            tau_contraction = 0.0_dp
+            ipt = 0
+            DO k = bo(1, 3), bo(2, 3)
+               DO j = bo(1, 2), bo(2, 2)
+                  DO i = bo(1, 1), bo(2, 1)
+                     ipt = ipt + 1
+                     IF (nspins == 1) THEN
+                        density_contraction = density_contraction + rho_r(1)%array(i, j, k)* &
+                                              0.5_dp*(density_grad(ipt, 1) + density_grad(ipt, 2))
+                        tau_contraction = tau_contraction + tau(1)%array(i, j, k)* &
+                                          0.5_dp*(kin_grad(ipt, 1) + kin_grad(ipt, 2))
+                     ELSE
+                        DO ispin = 1, nspins
+                           density_contraction = density_contraction + &
+                                                 rho_r(ispin)%array(i, j, k)*density_grad(ipt, ispin)
+                           tau_contraction = tau_contraction + &
+                                             tau(ispin)%array(i, j, k)*kin_grad(ipt, ispin)
+                        END DO
+                     END IF
+                  END DO
+               END DO
+            END DO
+            CALL rho_r(1)%pw_grid%para%group%sum(density_contraction)
+            CALL rho_r(1)%pw_grid%para%group%sum(tau_contraction)
+            IF (rho_r(1)%pw_grid%para%group%mepos == 0) THEN
+               iw = cp_logger_get_default_io_unit()
+               IF (iw > 0) THEN
+                  WRITE (iw, "(T2,A,1X,ES20.10)") &
+                     "SKALA_GPW| XC density-gradient contraction", density_contraction
+                  WRITE (iw, "(T2,A,1X,ES20.10)") &
+                     "SKALA_GPW| XC kinetic-gradient contraction", tau_contraction
+               END IF
+            END IF
+         END IF
          IF (compute_virial) THEN
             IF (native_grid_diagnostics) virial_before = virial_xc
             CALL build_virial_from_feature_grads(virial_xc, rho_set, rho_r, grad_grad)
@@ -490,8 +660,9 @@ CONTAINS
    END SUBROUTINE skala_gpw_eval
 
 ! **************************************************************************************************
-!> \brief Evaluate the native SKALA XC energy density on the CP2K PW grid.
-!> \param exc_r ...
+!> \brief Evaluate the derivative of native SKALA XC energy with respect to CP2K's external
+!>        real-space integration-weight multiplier.
+!> \param weight_deriv_r ...
 !> \param rho_r ...
 !> \param rho_g ...
 !> \param tau ...
@@ -501,9 +672,9 @@ CONTAINS
 !> \param particle_set ...
 !> \param cell ...
 ! **************************************************************************************************
-   SUBROUTINE skala_gpw_exc_density(exc_r, rho_r, rho_g, tau, xc_section, weights, pw_pool, &
-                                    particle_set, cell)
-      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: exc_r
+   SUBROUTINE skala_gpw_weight_derivative(weight_deriv_r, rho_r, rho_g, tau, xc_section, &
+                                          weights, pw_pool, particle_set, cell)
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: weight_deriv_r
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: tau
@@ -514,24 +685,28 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
 
       CHARACTER(len=default_path_length)                 :: model_path
-      INTEGER :: feature_pos, i, j, k, local_row, native_grid_atom_partition, &
-         native_grid_cuda_device, nspins, row, selected_cuda_device, xc_deriv_method_id, &
-         xc_rho_smooth_id
-      LOGICAL                                            :: lsd, native_grid_atom_chunk_routing, &
-                                                            native_grid_atom_chunks, &
-                                                            native_grid_use_cuda
-      REAL(KIND=dp)                                      :: local_exc
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: exc_density
+      INTEGER :: feature_begin, feature_end, feature_pos, i, iatom, j, k, local_row, &
+         native_grid_atom_partition, native_grid_cuda_device, natom, nspins, row, &
+         selected_cuda_device, xc_deriv_method_id, xc_rho_smooth_id
+      INTEGER, DIMENSION(2, 3)                           :: bo
+      LOGICAL                                            :: lsd, native_grid_use_cuda
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: included
+      REAL(KIND=dp)                                      :: exc, local_derivative
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: partition_weights
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dweights_datom, dweights_dstrain
+      REAL(KIND=dp), DIMENSION(3)                        :: grid_point
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: grid_weight_grad
       TYPE(section_vals_type), POINTER                   :: gauxc_section
       TYPE(skala_gpw_feature_type)                       :: features
-      TYPE(torch_tensor_type)                            :: exc_density_t
+      TYPE(torch_tensor_type)                            :: exc_tensor, grid_weight_grad_t
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type)                              :: rho_set
 
       CPASSERT(ASSOCIATED(rho_r))
       CPASSERT(ASSOCIATED(rho_g))
       CPASSERT(ASSOCIATED(tau))
-      CALL pw_zero(exc_r)
+      CALL pw_zero(weight_deriv_r)
 
       nspins = SIZE(rho_r)
       lsd = (nspins /= 1)
@@ -540,12 +715,6 @@ CONTAINS
       CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_USE_CUDA", l_val=native_grid_use_cuda)
       CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_CUDA_DEVICE", &
                                 i_val=native_grid_cuda_device)
-      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_ATOM_CHUNKS", &
-                                l_val=native_grid_atom_chunks)
-      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_ATOM_CHUNK_ROUTING", &
-                                l_val=native_grid_atom_chunk_routing)
-      native_grid_atom_chunks = .FALSE.
-      native_grid_atom_chunk_routing = .FALSE.
       CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_ATOM_PARTITION", &
                                 i_val=native_grid_atom_partition)
       SELECT CASE (native_grid_atom_partition)
@@ -557,6 +726,9 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "Unknown GAUXC%NATIVE_GRID_ATOM_PARTITION value.")
       END SELECT
+      IF (native_grid_atom_partition == skala_gpw_atom_partition_hard) THEN
+         native_grid_atom_partition = skala_gpw_atom_partition_smooth
+      END IF
 
       CALL torch_use_cuda(native_grid_use_cuda)
       selected_cuda_device = configure_native_grid_cuda( &
@@ -587,36 +759,71 @@ CONTAINS
       CALL skala_gpw_feature_build(features, rho_set, rho_r, particle_set, cell, &
                                    requires_grad=.FALSE., weights=weights, &
                                    requires_coordinate_grad=.FALSE., &
-                                   requires_stress_grad=.FALSE., &
+                                   requires_stress_grad=.TRUE., &
                                    use_atom_chunks=.FALSE., route_atom_chunks=.FALSE., &
                                    atom_partition=native_grid_atom_partition)
-      CALL skala_torch_model_get_exc_density(cached_model, features%inputs, exc_density_t)
-      NULLIFY (exc_density)
-      CALL torch_tensor_data_ptr(exc_density_t, exc_density)
+      CALL skala_torch_model_get_exc(cached_model, features%inputs, features%grid_weights_t, &
+                                     exc_tensor, exc)
+      CALL torch_tensor_backward_scalar(exc_tensor)
+      NULLIFY (grid_weight_grad)
+      CALL torch_tensor_grad(features%grid_weights_t, grid_weight_grad_t)
+      CALL torch_tensor_data_ptr(grid_weight_grad_t, grid_weight_grad)
 
+      natom = SIZE(particle_set)
+      IF (native_grid_atom_partition == skala_gpw_atom_partition_smooth) THEN
+         ALLOCATE (atom_coords_pbc(3, natom), included(natom), partition_weights(natom), &
+                   dweights_datom(3, natom, natom), dweights_dstrain(3, 3, natom))
+         DO iatom = 1, natom
+            atom_coords_pbc(:, iatom) = pbc(particle_set(iatom)%r, cell, positive_range=.TRUE.)
+         END DO
+      END IF
+
+      bo = rho_r(1)%pw_grid%bounds_local
       local_row = 0
-      DO k = LBOUND(features%feature_index, 3), UBOUND(features%feature_index, 3)
-         DO j = LBOUND(features%feature_index, 2), UBOUND(features%feature_index, 2)
-            DO i = LBOUND(features%feature_index, 1), UBOUND(features%feature_index, 1)
+      DO k = bo(1, 3), bo(2, 3)
+         DO j = bo(1, 2), bo(2, 2)
+            DO i = bo(1, 1), bo(2, 1)
                local_row = local_row + 1
-               local_exc = 0.0_dp
-               DO feature_pos = features%local_feature_offsets(local_row), &
-                  features%local_feature_offsets(local_row + 1) - 1
-                  row = features%local_feature_rows(feature_pos)
-                  local_exc = local_exc + exc_density(row)*features%grid_weights(row)
-               END DO
-               exc_r%array(i, j, k) = local_exc/rho_r(1)%pw_grid%dvol
+               feature_begin = features%local_feature_offsets(local_row)
+               feature_end = features%local_feature_offsets(local_row + 1) - 1
+               local_derivative = 0.0_dp
+               IF (native_grid_atom_partition == skala_gpw_atom_partition_hard) THEN
+                  CPASSERT(feature_end == feature_begin)
+                  row = features%local_feature_rows(feature_begin)
+                  local_derivative = grid_weight_grad(row)
+               ELSE
+                  grid_point = native_grid_coordinate(rho_r(1)%pw_grid, [i, j, k])
+                  CALL skala_gpw_smooth_partition_derivatives( &
+                     grid_point, atom_coords_pbc, cell, partition_weights, included, &
+                     dweights_datom, dweights_dstrain)
+                  CPASSERT(feature_end - feature_begin + 1 == COUNT(included))
+                  feature_pos = feature_begin
+                  DO iatom = 1, natom
+                     IF (.NOT. included(iatom)) CYCLE
+                     row = features%local_feature_rows(feature_pos)
+                     local_derivative = local_derivative + &
+                                        partition_weights(iatom)*grid_weight_grad(row)
+                     feature_pos = feature_pos + 1
+                  END DO
+                  CPASSERT(feature_pos == feature_end + 1)
+               END IF
+               weight_deriv_r%array(i, j, k) = local_derivative
             END DO
          END DO
       END DO
       CPASSERT(local_row == features%nflat_local)
 
-      CALL torch_tensor_release(exc_density_t)
+      IF (ALLOCATED(atom_coords_pbc)) THEN
+         DEALLOCATE (atom_coords_pbc, dweights_datom, dweights_dstrain, included, &
+                     partition_weights)
+      END IF
+      CALL torch_tensor_release(grid_weight_grad_t)
+      CALL torch_tensor_release(exc_tensor)
       CALL skala_gpw_feature_release(features)
       CALL xc_rho_set_release(rho_set, pw_pool=pw_pool)
       CALL torch_use_cuda(.TRUE.)
 
-   END SUBROUTINE skala_gpw_exc_density
+   END SUBROUTINE skala_gpw_weight_derivative
 
 ! **************************************************************************************************
 !> \brief Evaluate SKALA on a GAPW one-center atomic grid.
@@ -876,6 +1083,256 @@ CONTAINS
    END SUBROUTINE skala_gapw_atom_vxc_of_r
 
 ! **************************************************************************************************
+!> \brief Evaluate a rank-local set of complete atom blocks and sum their SKALA energies.
+!> \param xc_section ...
+!> \param group ...
+!> \param density ...
+!> \param grad ...
+!> \param kin ...
+!> \param grid_coords ...
+!> \param grid_weights ...
+!> \param atomic_grid_weights ...
+!> \param atomic_grid_sizes ...
+!> \param atomic_coords ...
+!> \param exc ...
+!> \param density_grad_out ...
+!> \param grad_grad_out ...
+!> \param kin_grad_out ...
+!> \param grid_coord_grad_out ...
+!> \param grid_weight_grad_out ...
+!> \param atomic_grid_weight_grad_out ...
+!> \param atom_coord_grad_out ...
+! **************************************************************************************************
+   SUBROUTINE skala_gapw_atom_composite_energy(xc_section, group, density, grad, kin, &
+                                               grid_coords, grid_weights, atomic_grid_weights, &
+                                               atomic_grid_sizes, atomic_coords, exc, &
+                                               density_grad_out, grad_grad_out, kin_grad_out, &
+                                               grid_coord_grad_out, grid_weight_grad_out, &
+                                               atomic_grid_weight_grad_out, atom_coord_grad_out)
+      TYPE(section_vals_type), POINTER                   :: xc_section
+
+      CLASS(mp_comm_type), INTENT(IN)                    :: group
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), INTENT(IN) :: density, grid_coords, &
+                                                                 atomic_coords, kin
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), INTENT(IN) :: grad
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(IN) :: grid_weights, atomic_grid_weights
+      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:), INTENT(IN) :: atomic_grid_sizes
+      REAL(KIND=dp), INTENT(OUT)                         :: exc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), INTENT(OUT), OPTIONAL :: density_grad_out, &
+                                                                            kin_grad_out, &
+                                                                            grid_coord_grad_out, &
+                                                                            atom_coord_grad_out
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), INTENT(OUT), OPTIONAL :: grad_grad_out
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT), OPTIONAL :: grid_weight_grad_out, &
+                                                                         atomic_grid_weight_grad_out
+
+      CHARACTER(len=default_path_length)                 :: model_path
+      INTEGER :: local_natom, local_nrow, max_grid_size, &
+                 native_grid_cuda_device, selected_cuda_device
+      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: atomic_grid_size_bound_shape
+      LOGICAL :: active_rank, need_coordinate_derivatives, need_derivatives, native_grid_use_cuda
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: atomic_grid_weight_grad, grid_weight_grad
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: atom_coord_grad, density_grad, &
+                                                            grid_coord_grad, kin_grad
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grad_grad
+      TYPE(section_vals_type), POINTER                   :: gauxc_section
+      TYPE(torch_dict_type)                              :: inputs
+      TYPE(torch_tensor_type)                            :: atomic_grid_size_bound_shape_t, &
+                                                            atomic_grid_sizes_t, &
+                                                            atomic_grid_weight_grad_t, atom_coord_grad_t, &
+                                                            density_grad_t, exc_tensor, grad_grad_t, &
+                                                            grid_coord_grad_t, grid_weight_grad_t, &
+                                                            kin_grad_t
+      TYPE(torch_tensor_type), TARGET                    :: atomic_coords_local_t, &
+                                                            atomic_grid_weights_local_t, &
+                                                            density_local_t, grad_local_t, &
+                                                            grid_coords_local_t, grid_weights_local_t, &
+                                                            kin_local_t
+      TYPE(torch_tensor_type), POINTER                   :: atomic_coords_t, atomic_grid_weights_t, &
+                                                            density_t, grad_t, grid_coords_t, &
+                                                            grid_weights_t, kin_t
+
+      CPASSERT(ASSOCIATED(xc_section))
+      CPASSERT(SIZE(density, 1) == SIZE(grid_weights))
+      CPASSERT(SIZE(density, 1) == SIZE(atomic_grid_weights))
+      CPASSERT(SIZE(density, 1) == SIZE(grid_coords, 2))
+      CPASSERT(SIZE(density, 1) == SIZE(grad, 1))
+      CPASSERT(SIZE(density, 1) == SIZE(kin, 1))
+      CPASSERT(SIZE(density, 2) == 2)
+      CPASSERT(SIZE(grad, 2) == 3)
+      CPASSERT(SIZE(grad, 3) == 2)
+      CPASSERT(SIZE(kin, 2) == 2)
+      CPASSERT(SIZE(atomic_grid_sizes) == SIZE(atomic_coords, 2))
+      CPASSERT(SUM(atomic_grid_sizes) == INT(SIZE(density, 1), KIND=int_8))
+      need_derivatives = PRESENT(density_grad_out)
+      CPASSERT(PRESENT(grad_grad_out) .EQV. need_derivatives)
+      CPASSERT(PRESENT(kin_grad_out) .EQV. need_derivatives)
+      need_coordinate_derivatives = PRESENT(grid_coord_grad_out)
+      CPASSERT(PRESENT(grid_weight_grad_out) .EQV. need_coordinate_derivatives)
+      CPASSERT(PRESENT(atomic_grid_weight_grad_out) .EQV. need_coordinate_derivatives)
+      CPASSERT(PRESENT(atom_coord_grad_out) .EQV. need_coordinate_derivatives)
+      CPASSERT((.NOT. need_coordinate_derivatives) .OR. need_derivatives)
+
+      local_nrow = SIZE(density, 1)
+      local_natom = SIZE(atomic_grid_sizes)
+      active_rank = local_natom > 0
+      CPASSERT(active_rank .EQV. (local_nrow > 0))
+
+      CALL get_skala_model_path(xc_section, model_path)
+      gauxc_section => get_gauxc_section(xc_section)
+      CPASSERT(ASSOCIATED(gauxc_section))
+      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_USE_CUDA", l_val=native_grid_use_cuda)
+      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_CUDA_DEVICE", &
+                                i_val=native_grid_cuda_device)
+      CALL torch_use_cuda(native_grid_use_cuda)
+      selected_cuda_device = configure_native_grid_cuda( &
+                             native_grid_use_cuda, native_grid_cuda_device, group)
+      exc = 0.0_dp
+      IF (active_rank) THEN
+         CALL ensure_model_loaded(model_path, selected_cuda_device)
+
+         max_grid_size = INT(MAXVAL(atomic_grid_sizes))
+         ALLOCATE (atomic_grid_size_bound_shape(0, max_grid_size))
+         atomic_grid_size_bound_shape = 0_int_8
+
+         IF (native_grid_use_cuda) THEN
+            grid_coords_t => cached_atom_cuda_tensors%grid_coords_t
+            grid_weights_t => cached_atom_cuda_tensors%grid_weights_t
+            atomic_grid_weights_t => cached_atom_cuda_tensors%atomic_grid_weights_t
+            atomic_coords_t => cached_atom_cuda_tensors%atomic_coords_t
+            density_t => cached_atom_cuda_tensors%density_t
+            grad_t => cached_atom_cuda_tensors%grad_t
+            kin_t => cached_atom_cuda_tensors%kin_t
+            CALL torch_tensor_reset_from_array( &
+               grid_coords_t, grid_coords, need_coordinate_derivatives)
+            CALL torch_tensor_reset_from_array( &
+               grid_weights_t, grid_weights, need_coordinate_derivatives)
+            CALL torch_tensor_reset_from_array( &
+               atomic_grid_weights_t, atomic_grid_weights, need_coordinate_derivatives)
+            CALL torch_tensor_reset_from_array( &
+               atomic_coords_t, atomic_coords, need_coordinate_derivatives)
+            CALL torch_tensor_reset_from_array(density_t, density, need_derivatives)
+            CALL torch_tensor_reset_from_array(grad_t, grad, need_derivatives)
+            CALL torch_tensor_reset_from_array(kin_t, kin, need_derivatives)
+         ELSE
+            grid_coords_t => grid_coords_local_t
+            grid_weights_t => grid_weights_local_t
+            atomic_grid_weights_t => atomic_grid_weights_local_t
+            atomic_coords_t => atomic_coords_local_t
+            density_t => density_local_t
+            grad_t => grad_local_t
+            kin_t => kin_local_t
+            CALL torch_tensor_from_array(grid_coords_t, grid_coords)
+            CALL torch_tensor_to_device_leaf(grid_coords_t, need_coordinate_derivatives)
+            CALL torch_tensor_from_array(grid_weights_t, grid_weights)
+            CALL torch_tensor_to_device_leaf(grid_weights_t, need_coordinate_derivatives)
+            CALL torch_tensor_from_array(atomic_grid_weights_t, atomic_grid_weights)
+            CALL torch_tensor_to_device_leaf(atomic_grid_weights_t, need_coordinate_derivatives)
+            CALL torch_tensor_from_array(atomic_coords_t, atomic_coords)
+            CALL torch_tensor_to_device_leaf(atomic_coords_t, need_coordinate_derivatives)
+            CALL torch_tensor_from_array(density_t, density)
+            CALL torch_tensor_to_device_leaf(density_t, need_derivatives)
+            CALL torch_tensor_from_array(grad_t, grad)
+            CALL torch_tensor_to_device_leaf(grad_t, need_derivatives)
+            CALL torch_tensor_from_array(kin_t, kin)
+            CALL torch_tensor_to_device_leaf(kin_t, need_derivatives)
+         END IF
+         CALL torch_tensor_from_array(atomic_grid_sizes_t, atomic_grid_sizes)
+         CALL torch_tensor_to_device_leaf(atomic_grid_sizes_t, .FALSE.)
+         CALL torch_tensor_from_array(atomic_grid_size_bound_shape_t, &
+                                      atomic_grid_size_bound_shape)
+         CALL torch_tensor_to_device_leaf(atomic_grid_size_bound_shape_t, .FALSE.)
+
+         CALL torch_dict_create(inputs)
+         CALL torch_dict_insert(inputs, "grid_coords", grid_coords_t)
+         CALL torch_dict_insert(inputs, "grid_weights", grid_weights_t)
+         CALL torch_dict_insert(inputs, "atomic_grid_weights", atomic_grid_weights_t)
+         CALL torch_dict_insert(inputs, "atomic_grid_sizes", atomic_grid_sizes_t)
+         CALL torch_dict_insert(inputs, "atomic_grid_size_bound_shape", &
+                                atomic_grid_size_bound_shape_t)
+         CALL torch_dict_insert(inputs, "density", density_t)
+         CALL torch_dict_insert(inputs, "grad", grad_t)
+         CALL torch_dict_insert(inputs, "kin", kin_t)
+         CALL torch_dict_insert(inputs, "coarse_0_atomic_coords", atomic_coords_t)
+
+         CALL skala_torch_model_get_exc(cached_model, inputs, grid_weights_t, exc_tensor, exc)
+      END IF
+      CALL group%sum(exc)
+
+      IF (need_derivatives) THEN
+         ALLOCATE (density_grad_out(local_nrow, 2), grad_grad_out(local_nrow, 3, 2), &
+                   kin_grad_out(local_nrow, 2))
+         density_grad_out = 0.0_dp
+         grad_grad_out = 0.0_dp
+         kin_grad_out = 0.0_dp
+         IF (active_rank) THEN
+            NULLIFY (density_grad, grad_grad, kin_grad)
+            CALL torch_tensor_backward_scalar(exc_tensor)
+            CALL torch_tensor_grad_batch3(density_t, grad_t, kin_t, density_grad_t, &
+                                          grad_grad_t, kin_grad_t)
+            CALL torch_tensor_data_ptr(density_grad_t, density_grad)
+            CALL torch_tensor_data_ptr(grad_grad_t, grad_grad)
+            CALL torch_tensor_data_ptr(kin_grad_t, kin_grad)
+            density_grad_out(:, :) = density_grad
+            grad_grad_out(:, :, :) = grad_grad
+            kin_grad_out(:, :) = kin_grad
+         END IF
+
+         IF (need_coordinate_derivatives) THEN
+            ALLOCATE (grid_coord_grad_out(3, local_nrow), grid_weight_grad_out(local_nrow), &
+                      atomic_grid_weight_grad_out(local_nrow), atom_coord_grad_out(3, local_natom))
+            grid_coord_grad_out = 0.0_dp
+            grid_weight_grad_out = 0.0_dp
+            atomic_grid_weight_grad_out = 0.0_dp
+            atom_coord_grad_out = 0.0_dp
+            IF (active_rank) THEN
+               NULLIFY (atomic_grid_weight_grad, atom_coord_grad, grid_coord_grad, grid_weight_grad)
+               CALL torch_tensor_grad(grid_coords_t, grid_coord_grad_t)
+               CALL torch_tensor_grad(grid_weights_t, grid_weight_grad_t)
+               CALL torch_tensor_grad(atomic_grid_weights_t, atomic_grid_weight_grad_t)
+               CALL torch_tensor_grad(atomic_coords_t, atom_coord_grad_t)
+               CALL torch_tensor_data_ptr(grid_coord_grad_t, grid_coord_grad)
+               CALL torch_tensor_data_ptr(grid_weight_grad_t, grid_weight_grad)
+               CALL torch_tensor_data_ptr(atomic_grid_weight_grad_t, atomic_grid_weight_grad)
+               CALL torch_tensor_data_ptr(atom_coord_grad_t, atom_coord_grad)
+               grid_coord_grad_out(:, :) = grid_coord_grad
+               grid_weight_grad_out(:) = grid_weight_grad
+               atomic_grid_weight_grad_out(:) = atomic_grid_weight_grad
+               atom_coord_grad_out(:, :) = atom_coord_grad
+               CALL torch_tensor_release(grid_coord_grad_t)
+               CALL torch_tensor_release(grid_weight_grad_t)
+               CALL torch_tensor_release(atomic_grid_weight_grad_t)
+               CALL torch_tensor_release(atom_coord_grad_t)
+            END IF
+         END IF
+         IF (active_rank) THEN
+            CALL torch_tensor_release(density_grad_t)
+            CALL torch_tensor_release(grad_grad_t)
+            CALL torch_tensor_release(kin_grad_t)
+         END IF
+      END IF
+
+      IF (active_rank) THEN
+         CALL torch_tensor_release(exc_tensor)
+         IF (.NOT. native_grid_use_cuda) THEN
+            CALL torch_tensor_release(density_t)
+            CALL torch_tensor_release(grad_t)
+            CALL torch_tensor_release(kin_t)
+            CALL torch_tensor_release(grid_coords_t)
+            CALL torch_tensor_release(grid_weights_t)
+            CALL torch_tensor_release(atomic_grid_weights_t)
+            CALL torch_tensor_release(atomic_coords_t)
+         END IF
+         CALL torch_tensor_release(atomic_grid_sizes_t)
+         CALL torch_tensor_release(atomic_grid_size_bound_shape_t)
+         CALL torch_dict_release(inputs)
+         DEALLOCATE (atomic_grid_size_bound_shape)
+      END IF
+      CALL torch_use_cuda(.TRUE.)
+
+   END SUBROUTINE skala_gapw_atom_composite_energy
+
+! **************************************************************************************************
 !> \brief Add the explicit SKALA derivative with respect to atom-center coordinates.
 !> \param atom_force ...
 !> \param features ...
@@ -926,7 +1383,7 @@ CONTAINS
                                                             natom, row
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: included
-      REAL(KIND=dp)                                      :: base_weight, weight_grad
+      REAL(KIND=dp)                                      :: grid_base_weight, weight_grad
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weights
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dweights_datom, dweights_dstrain
@@ -961,20 +1418,21 @@ CONTAINS
                feature_begin = features%local_feature_offsets(local_row)
                feature_end = features%local_feature_offsets(local_row + 1) - 1
                CPASSERT(feature_end - feature_begin + 1 == COUNT(included))
-               base_weight = 0.0_dp
+               grid_base_weight = 0.0_dp
                DO feature_pos = feature_begin, feature_end
                   row = features%local_feature_rows(feature_pos)
-                  base_weight = base_weight + features%grid_weights(row)
+                  grid_base_weight = grid_base_weight + features%grid_weights(row)
                END DO
                feature_pos = feature_begin
                DO iatom = 1, natom
                   IF (.NOT. included(iatom)) CYCLE
                   row = features%local_feature_rows(feature_pos)
-                  weight_grad = grid_weight_grad(row)
+                  weight_grad = grid_base_weight*grid_weight_grad(row) + &
+                                rho_r(1)%pw_grid%dvol*atomic_grid_weight_grad(row)* &
+                                smooth_partition_atomic_weight_scale_derivative(weights(iatom))
                   DO jatom = 1, natom
                      atom_force(:, jatom) = atom_force(:, jatom) + &
-                                            weight_grad*base_weight* &
-                                            dweights_datom(:, jatom, iatom)
+                                            weight_grad*dweights_datom(:, jatom, iatom)
                   END DO
                   feature_pos = feature_pos + 1
                END DO
@@ -1015,7 +1473,7 @@ CONTAINS
                                                             natom, row
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: included
-      REAL(KIND=dp)                                      :: base_weight, tmp, weight_grad
+      REAL(KIND=dp)                                      :: grid_base_weight, tmp, weight_grad
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weights
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dweights_datom, dweights_dstrain
@@ -1048,19 +1506,21 @@ CONTAINS
                feature_begin = features%local_feature_offsets(local_row)
                feature_end = features%local_feature_offsets(local_row + 1) - 1
                CPASSERT(feature_end - feature_begin + 1 == COUNT(included))
-               base_weight = 0.0_dp
+               grid_base_weight = 0.0_dp
                DO feature_pos = feature_begin, feature_end
                   row = features%local_feature_rows(feature_pos)
-                  base_weight = base_weight + features%grid_weights(row)
+                  grid_base_weight = grid_base_weight + features%grid_weights(row)
                END DO
                feature_pos = feature_begin
                DO iatom = 1, natom
                   IF (.NOT. included(iatom)) CYCLE
                   row = features%local_feature_rows(feature_pos)
-                  weight_grad = grid_weight_grad(row)
+                  weight_grad = grid_base_weight*grid_weight_grad(row) + &
+                                rho_r(1)%pw_grid%dvol*atomic_grid_weight_grad(row)* &
+                                smooth_partition_atomic_weight_scale_derivative(weights(iatom))
                   DO idir = 1, 3
                      DO jdir = 1, idir
-                        tmp = weight_grad*base_weight*dweights_dstrain(idir, jdir, iatom)
+                        tmp = weight_grad*dweights_dstrain(idir, jdir, iatom)
                         virial_xc(jdir, idir) = virial_xc(jdir, idir) + tmp
                         IF (idir /= jdir) virial_xc(idir, jdir) = virial_xc(idir, jdir) + tmp
                      END DO
@@ -1748,10 +2208,9 @@ CONTAINS
                   ipt = ipt + 1
                   DO idir = 1, 3
                      grad_i = 0.5_dp*(grad_grad(ipt, idir, 1) + grad_grad(ipt, idir, 2))
-                     DO jdir = 1, idir
+                     DO jdir = 1, 3
                         tmp = -grad_i*drho(jdir)%array(i, j, k)
                         virial_xc(jdir, idir) = virial_xc(jdir, idir) + tmp
-                        virial_xc(idir, jdir) = virial_xc(jdir, idir)
                      END DO
                   END DO
                END DO
@@ -1764,7 +2223,7 @@ CONTAINS
                DO i = bo(1, 1), bo(2, 1)
                   ipt = ipt + 1
                   DO idir = 1, 3
-                     DO jdir = 1, idir
+                     DO jdir = 1, 3
                         tmp = 0.0_dp
                         DO ispin = 1, 2
                            IF (ispin == 1) THEN
@@ -1774,7 +2233,6 @@ CONTAINS
                            END IF
                         END DO
                         virial_xc(jdir, idir) = virial_xc(jdir, idir) + tmp
-                        virial_xc(idir, jdir) = virial_xc(jdir, idir)
                      END DO
                   END DO
                END DO
@@ -1828,6 +2286,7 @@ CONTAINS
                                                             jdir, k, local_row, row
       LOGICAL                                            :: my_print_components
       REAL(KIND=dp)                                      :: tmp
+      REAL(KIND=dp), DIMENSION(3)                        :: atom_grad_sum, grid_grad_sum
       REAL(KIND=dp), DIMENSION(3, 3)                     :: atom_virial, grid_virial
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: atom_coord_grad, grid_coord_grad
 
@@ -1841,6 +2300,8 @@ CONTAINS
 
       grid_virial = 0.0_dp
       atom_virial = 0.0_dp
+      grid_grad_sum = 0.0_dp
+      atom_grad_sum = 0.0_dp
       local_row = 0
       DO k = LBOUND(features%feature_index, 3), UBOUND(features%feature_index, 3)
          DO j = LBOUND(features%feature_index, 2), UBOUND(features%feature_index, 2)
@@ -1849,6 +2310,7 @@ CONTAINS
                DO feature_pos = features%local_feature_offsets(local_row), &
                   features%local_feature_offsets(local_row + 1) - 1
                   row = features%local_feature_rows(feature_pos)
+                  grid_grad_sum(:) = grid_grad_sum(:) + grid_coord_grad(:, row)
                   DO idir = 1, 3
                      DO jdir = 1, 3
                         tmp = grid_coord_grad(idir, row)*features%grid_coords(jdir, row)
@@ -1864,6 +2326,7 @@ CONTAINS
 
       IF (root_rank) THEN
          DO iatom = 1, SIZE(features%coarse_0_atomic_coords, 2)
+            atom_grad_sum(:) = atom_grad_sum(:) + atom_coord_grad(:, iatom)
             DO idir = 1, 3
                DO jdir = 1, 3
                   tmp = atom_coord_grad(idir, iatom)*features%coarse_0_atomic_coords(jdir, iatom)
@@ -1879,6 +2342,12 @@ CONTAINS
          IF (iw > 0) THEN
             CALL print_virial_delta("static-grid", grid_virial, .TRUE.)
             CALL print_virial_delta("static-atom", atom_virial, .TRUE.)
+            WRITE (iw, "(T2,A,1X,3ES20.10)") "SKALA_GPW| XC coordinate gradient grid sum", &
+               grid_grad_sum
+            WRITE (iw, "(T2,A,1X,3ES20.10)") "SKALA_GPW| XC coordinate gradient atom sum", &
+               atom_grad_sum
+            WRITE (iw, "(T2,A,1X,3ES20.10)") "SKALA_GPW| XC coordinate gradient total sum", &
+               grid_grad_sum + atom_grad_sum
          END IF
       END IF
 
@@ -1972,19 +2441,22 @@ CONTAINS
 !> \param grad_grad ...
 !> \param kin_grad ...
 !> \param xc_deriv_method_id ...
+!> \param global_grid_layout ...
 ! **************************************************************************************************
    SUBROUTINE build_vxc_from_feature_grads(vxc_rho, vxc_tau, rho_r, pw_pool, &
                                            density_grad, grad_grad, kin_grad, &
-                                           xc_deriv_method_id)
+                                           xc_deriv_method_id, global_grid_layout)
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc_rho, vxc_tau, rho_r
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: density_grad
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: grad_grad
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: kin_grad
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id
+      LOGICAL, INTENT(IN), OPTIONAL                      :: global_grid_layout
 
       INTEGER                                            :: i, ipt, ispin, j, k, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
+      LOGICAL                                            :: my_global_grid_layout
       REAL(KIND=dp)                                      :: dvol_inv
       TYPE(pw_c1d_gs_type)                               :: tmp_g, vxc_g
       TYPE(pw_r3d_rs_type), DIMENSION(3)                 :: grad_pw
@@ -1992,6 +2464,11 @@ CONTAINS
       nspins = SIZE(rho_r)
       bo = rho_r(1)%pw_grid%bounds_local
       dvol_inv = 1.0_dp/rho_r(1)%pw_grid%dvol
+      my_global_grid_layout = .FALSE.
+      IF (PRESENT(global_grid_layout)) my_global_grid_layout = global_grid_layout
+      IF (my_global_grid_layout) THEN
+         CPASSERT(SIZE(density_grad, 1) == PRODUCT(rho_r(1)%pw_grid%npts))
+      END IF
 
       ALLOCATE (vxc_rho(nspins), vxc_tau(nspins))
       DO ispin = 1, nspins
@@ -2016,7 +2493,15 @@ CONTAINS
          DO k = bo(1, 3), bo(2, 3)
             DO j = bo(1, 2), bo(2, 2)
                DO i = bo(1, 1), bo(2, 1)
-                  ipt = ipt + 1
+                  IF (my_global_grid_layout) THEN
+                     ipt = 1 + i - rho_r(1)%pw_grid%bounds(1, 1) + &
+                           rho_r(1)%pw_grid%npts(1)*( &
+                           j - rho_r(1)%pw_grid%bounds(1, 2) + &
+                           rho_r(1)%pw_grid%npts(2)*( &
+                           k - rho_r(1)%pw_grid%bounds(1, 3)))
+                  ELSE
+                     ipt = ipt + 1
+                  END IF
                   IF (nspins == 1) THEN
                      vxc_rho(1)%array(i, j, k) = 0.5_dp*dvol_inv* &
                                                  (density_grad(ipt, 1) + density_grad(ipt, 2))
@@ -2075,6 +2560,8 @@ CONTAINS
          "SKALA_GPW| Native grid feature electrons", features%electron_count
       WRITE (UNIT=iw, FMT="(T2,A,1X,ES19.11)") &
          "SKALA_GPW| Native grid feature spin moment", features%spin_moment
+      WRITE (UNIT=iw, FMT="(T2,A,1X,ES19.11)") &
+         "SKALA_GPW| Native grid feature kinetic integral", features%kinetic_integral
       WRITE (UNIT=iw, FMT="(T2,A,1X,ES19.11)") &
          "SKALA_GPW| Native grid feature weight sum", features%grid_weight_sum
       IF (ALLOCATED(features%atomic_grid_sizes)) THEN
@@ -2142,14 +2629,23 @@ CONTAINS
       ALLOCATE (selected_devices(group%num_pe))
       CALL group%allgather(selected_device, selected_devices)
 
-      IF (group%mepos /= 0) RETURN
+      IF (group%mepos /= 0) THEN
+         DEALLOCATE (selected_devices)
+         RETURN
+      END IF
       IF (selected_device == logged_cuda_device .AND. &
           cuda_device_count == logged_cuda_device_count .AND. &
           group%num_pe == logged_cuda_nproc .AND. &
-          requested_device == logged_cuda_request) RETURN
+          requested_device == logged_cuda_request) THEN
+         DEALLOCATE (selected_devices)
+         RETURN
+      END IF
 
       iw = cp_logger_get_default_io_unit()
-      IF (iw <= 0) RETURN
+      IF (iw <= 0) THEN
+         DEALLOCATE (selected_devices)
+         RETURN
+      END IF
       IF (selected_device >= 0) THEN
          WRITE (UNIT=iw, FMT="(/,T2,A,1X,I0,1X,A,1X,I0,1X,A,1X,I0)") &
             "SKALA_GPW| Native grid Torch CUDA device", selected_device, &
@@ -2169,6 +2665,7 @@ CONTAINS
       logged_cuda_device_count = cuda_device_count
       logged_cuda_nproc = group%num_pe
       logged_cuda_request = requested_device
+      DEALLOCATE (selected_devices)
 
    END FUNCTION configure_native_grid_cuda
 

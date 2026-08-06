@@ -38,11 +38,14 @@ MODULE skala_gpw_features
    INTEGER, PARAMETER, PUBLIC           :: skala_gpw_atom_partition_hard = 1, &
                                            skala_gpw_atom_partition_smooth = 2
    REAL(KIND=dp), PARAMETER, PRIVATE    :: smooth_partition_eps = 1.0E-12_dp
+   REAL(KIND=dp), PARAMETER, PRIVATE    :: smooth_partition_taper_end = &
+                                           10.0_dp*smooth_partition_eps
 
    PUBLIC :: skala_gpw_atom_subchunk_count, skala_gpw_atom_subchunk_layout, &
              skala_gpw_feature_build, skala_gpw_feature_build_atom_subchunk, &
              skala_gpw_feature_build_atom_subchunk_bounds, skala_gpw_feature_release, &
-             skala_gpw_feature_type, skala_gpw_smooth_partition_derivatives
+             skala_gpw_feature_type, skala_gpw_smooth_partition_derivatives, &
+             smooth_atom_partition, smooth_partition_atomic_weight_scale_derivative
 
    TYPE skala_gpw_layout_cache_type
       INTEGER                                            :: chunk_atom_begin = 1, chunk_atom_end = 0, &
@@ -159,6 +162,7 @@ MODULE skala_gpw_features
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)    :: chunk_grad, grad
       REAL(KIND=dp)                                      :: electron_count = 0.0_dp, &
                                                             grid_weight_sum = 0.0_dp, &
+                                                            kinetic_integral = 0.0_dp, &
                                                             spin_moment = 0.0_dp
       LOGICAL                                            :: active = .FALSE., owns_coordinate_tensor = .FALSE., &
                                                             owns_grid_coordinate_tensor = .FALSE., &
@@ -365,25 +369,34 @@ CONTAINS
       CALL timeset("skala_gpw_feature_sums", phase_handle)
       IF (features%uses_atom_chunks) THEN
          features%electron_count = 0.0_dp
+         features%kinetic_integral = 0.0_dp
          features%spin_moment = 0.0_dp
          IF (features%chunk_feature_count > 0) THEN
             IF (features%uses_collapsed_rks_dynamic) THEN
                features%electron_count = SUM(2.0_dp*features%chunk_density(:, 1)* &
                                              cached_layout%chunk_grid_weights)
+               features%kinetic_integral = SUM(2.0_dp*features%chunk_kin(:, 1)* &
+                                               cached_layout%chunk_grid_weights)
             ELSE
                features%electron_count = SUM((features%chunk_density(:, 1) + &
                                               features%chunk_density(:, 2))* &
                                              cached_layout%chunk_grid_weights)
+               features%kinetic_integral = SUM((features%chunk_kin(:, 1) + &
+                                                features%chunk_kin(:, 2))* &
+                                               cached_layout%chunk_grid_weights)
                features%spin_moment = SUM((features%chunk_density(:, 1) - &
                                            features%chunk_density(:, 2))* &
                                           cached_layout%chunk_grid_weights)
             END IF
          END IF
          CALL pw_grid%para%group%sum(features%electron_count)
+         CALL pw_grid%para%group%sum(features%kinetic_integral)
          CALL pw_grid%para%group%sum(features%spin_moment)
       ELSE
          features%electron_count = SUM((features%density(:, 1) + features%density(:, 2))* &
                                        features%grid_weights)
+         features%kinetic_integral = SUM((features%kin(:, 1) + features%kin(:, 2))* &
+                                         features%grid_weights)
          features%spin_moment = SUM((features%density(:, 1) - features%density(:, 2))* &
                                     features%grid_weights)
       END IF
@@ -591,9 +604,9 @@ CONTAINS
          local_source_points, point_counts, point_displs, static_counts, static_displs
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: has_weights, nonperiodic
-      REAL(KIND=dp)                                      :: base_weight, included_sum, &
-                                                            partition_weight, weight_sum, &
-                                                            weight_sumsq
+      REAL(KIND=dp)                                      :: atomic_base_weight, base_weight, &
+                                                            included_sum, partition_weight, &
+                                                            weight_sum, weight_sumsq
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distances, global_static, local_static, &
                                                             partition_weights
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc, pair_distances, &
@@ -658,13 +671,14 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(3) &
 !$OMP SHARED(atom_coords_pbc, bo, cached_layout, cell, local_feature_counts_tmp, local_owner, &
 !$OMP        local_source_points, local_static, nx, ny, pw_grid, weights) &
-!$OMP PRIVATE(base_weight, grid_point, i, j, k, local_row, owner, static_base)
+!$OMP PRIVATE(atomic_base_weight, base_weight, grid_point, i, j, k, local_row, owner, static_base)
          DO k = bo(1, 3), bo(2, 3)
             DO j = bo(1, 2), bo(2, 2)
                DO i = bo(1, 1), bo(2, 1)
                   local_row = i - bo(1, 1) + 1 + &
                               nx*(j - bo(1, 2) + ny*(k - bo(1, 3)))
                   grid_point = grid_coordinate(pw_grid, [i, j, k])
+                  atomic_base_weight = pw_grid%dvol
                   base_weight = pw_grid%dvol
                   IF (PRESENT(weights)) THEN
                      IF (ASSOCIATED(weights)) base_weight = base_weight*weights%array(i, j, k)
@@ -677,7 +691,7 @@ CONTAINS
                   static_base = nstatic_per_point*(local_row - 1)
                   local_static(static_base + 1:static_base + 3) = grid_point
                   local_static(static_base + 4) = base_weight
-                  local_static(static_base + 5) = base_weight
+                  local_static(static_base + 5) = atomic_base_weight
                END DO
             END DO
          END DO
@@ -687,7 +701,7 @@ CONTAINS
 !$OMP SHARED(atom_coords_pbc, bo, cached_layout, cell, local_feature_counts_tmp, local_owner, &
 !$OMP        local_source_points, local_static, natom, nonperiodic, nx, ny, pair_distances, &
 !$OMP        pw_grid, weights) &
-!$OMP PRIVATE(base_weight, distances, feature_slot, grid_point, i, iatom, &
+!$OMP PRIVATE(atomic_base_weight, base_weight, distances, feature_slot, grid_point, i, iatom, &
 !$OMP         included_sum, j, k, local_feature, local_row, owner, partition_weight, &
 !$OMP         partition_atom_coords, partition_weights, static_base)
          ! Keep point-local scratch outside the hot loop and private to each thread.
@@ -699,6 +713,7 @@ CONTAINS
                   local_row = i - bo(1, 1) + 1 + &
                               nx*(j - bo(1, 2) + ny*(k - bo(1, 3)))
                   grid_point = grid_coordinate(pw_grid, [i, j, k])
+                  atomic_base_weight = pw_grid%dvol
                   base_weight = pw_grid%dvol
                   IF (PRESENT(weights)) THEN
                      IF (ASSOCIATED(weights)) base_weight = base_weight*weights%array(i, j, k)
@@ -730,7 +745,9 @@ CONTAINS
                      static_base = nstatic_per_point*(feature_slot - 1)
                      local_static(static_base + 1:static_base + 3) = grid_point
                      local_static(static_base + 4) = base_weight*partition_weight
-                     local_static(static_base + 5) = base_weight
+                     local_static(static_base + 5) = atomic_base_weight* &
+                                                     smooth_partition_atomic_weight_scale( &
+                                                     partition_weight)
                   END DO
                   local_feature_counts_tmp(local_row) = local_feature
                END DO
@@ -2657,6 +2674,51 @@ CONTAINS
       END DO
 
    END SUBROUTINE skala_gpw_smooth_partition_derivatives
+
+! **************************************************************************************************
+!> \brief Smoothly suppress a sparse atom row's internal quadrature weight at the layout cutoff.
+!> \param weight normalized smooth-partition weight
+!> \return scale in the interval [0, 1]
+! **************************************************************************************************
+   PURE FUNCTION smooth_partition_atomic_weight_scale(weight) RESULT(scale)
+      REAL(KIND=dp), INTENT(IN)                          :: weight
+      REAL(KIND=dp)                                      :: scale
+
+      REAL(KIND=dp)                                      :: x
+
+      IF (weight <= smooth_partition_eps) THEN
+         scale = 0.0_dp
+      ELSE IF (weight >= smooth_partition_taper_end) THEN
+         scale = 1.0_dp
+      ELSE
+         x = (weight - smooth_partition_eps)/ &
+             (smooth_partition_taper_end - smooth_partition_eps)
+         scale = x**3*(10.0_dp + x*(-15.0_dp + 6.0_dp*x))
+      END IF
+
+   END FUNCTION smooth_partition_atomic_weight_scale
+
+! **************************************************************************************************
+!> \brief Derivative of the sparse atom-row quadrature taper with respect to partition weight.
+!> \param weight normalized smooth-partition weight
+!> \return derivative of the internal quadrature-weight scale
+! **************************************************************************************************
+   PURE FUNCTION smooth_partition_atomic_weight_scale_derivative(weight) RESULT(derivative)
+      REAL(KIND=dp), INTENT(IN)                          :: weight
+      REAL(KIND=dp)                                      :: derivative
+
+      REAL(KIND=dp)                                      :: x
+
+      IF (weight <= smooth_partition_eps .OR. weight >= smooth_partition_taper_end) THEN
+         derivative = 0.0_dp
+      ELSE
+         x = (weight - smooth_partition_eps)/ &
+             (smooth_partition_taper_end - smooth_partition_eps)
+         derivative = 30.0_dp*x**2*(1.0_dp - x)**2/ &
+                      (smooth_partition_taper_end - smooth_partition_eps)
+      END IF
+
+   END FUNCTION smooth_partition_atomic_weight_scale_derivative
 
 ! **************************************************************************************************
 !> \brief Becke fuzzy-cell shape function.
