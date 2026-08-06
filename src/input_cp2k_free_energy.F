@@ -764,7 +764,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="K", &
-                          description="Specify the value of the quartic potential constant: K*(CV-(POS+/-(1/K^(1/4))))^4", &
+                          description="Specify the value of the quartic potential constant: "// &
+                          "K*(CV-(POS+/-(0.05/K^(1/4))))^4", &
                           usage="K <REAL>", unit_str='hartree', &
                           type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)

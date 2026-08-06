@@ -932,7 +932,7 @@ CONTAINS
                      ! The difference of a periodic COLVAR is always within [-pi,pi]
                      diff_ss = SIGN(1.0_dp, ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
                   END IF
-                  efunc = colvars(ih)%walls(iwall)%k_quartic*diff_ss*diff_ss**4
+                  efunc = colvars(ih)%walls(iwall)%k_quartic*diff_ss**4
                   dfunc = 4.0_dp*colvars(ih)%walls(iwall)%k_quartic*diff_ss**3
                   SELECT CASE (colvars(ih)%walls(iwall)%id_direction)
                   CASE (do_wall_p)
