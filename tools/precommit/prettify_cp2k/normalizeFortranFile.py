@@ -420,9 +420,11 @@ def parseRoutine(inFile, logger):
                 routine["parsedDeclarations"].append(decl)
             elif INTERFACE_START_RE.match(jline):
                 istart = lines
+                interface_lines = list(istart)
                 interfaceDeclFile = StringIO()
                 while True:
                     jline, _, lines = stream.nextFortranLine()
+                    interface_lines.extend(lines)
                     if INTERFACE_END_RE.match(jline):
                         iend = lines
                         break
@@ -453,6 +455,7 @@ def parseRoutine(inFile, logger):
                         "iend": iend,
                     }
                     routine["parsedDeclarations"].append(decl)
+                lines = interface_lines
             elif USE_PARSE_RE.match(jline):
                 routine["use"].append("".join(lines))
             else:
