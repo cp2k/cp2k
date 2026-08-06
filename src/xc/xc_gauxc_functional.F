@@ -63,6 +63,7 @@ MODULE xc_gauxc_functional
         gauxc_create_grid, gauxc_create_integrator, gauxc_create_molecule, gauxc_destroy_basisset, &
         gauxc_destroy_grid, gauxc_destroy_integrator, gauxc_destroy_molecule, &
         gauxc_write_basisset_hdf5, gauxc_write_molecule_hdf5
+   USE xc_input_constants,              ONLY: skala_gapw_paw_one_center
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
 #include "../base/base_uses.f90"
 
@@ -393,7 +394,7 @@ CONTAINS
       LOGICAL                                            :: has_paw_pseudopotentials
 
       INTEGER                                            :: ikind
-      LOGICAL                                            :: gpw_type_forced, paw_atom
+      LOGICAL                                            :: paw_atom
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
@@ -404,11 +405,10 @@ CONTAINS
          NULLIFY (gth_potential, sgp_potential)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           gth_potential=gth_potential, &
-                          gpw_type_forced=gpw_type_forced, &
                           paw_atom=paw_atom, &
                           sgp_potential=sgp_potential)
          IF ((ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. &
-             paw_atom .AND. .NOT. gpw_type_forced) THEN
+             paw_atom) THEN
             has_paw_pseudopotentials = .TRUE.
             EXIT
          END IF
@@ -903,11 +903,15 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name
       CHARACTER(len=default_string_length)               :: xc_fun_key, xc_fun_name
+      INTEGER                                            :: gapw_representation
       LOGICAL                                            :: native_grid
 
       CALL section_vals_val_get(functional, "FUNCTIONAL", c_val=xc_fun_name)
       CALL section_vals_val_get(functional, "MODEL", c_val=model_name)
       CALL section_vals_val_get(functional, "NATIVE_GRID", l_val=native_grid)
+      CALL section_vals_val_get(functional, "PSEUDOPOTENTIAL_GAPW_REPRESENTATION", &
+                                i_val=gapw_representation)
+      native_grid = native_grid .OR. gapw_representation == skala_gapw_paw_one_center
       model_key = ADJUSTL(model_name)
       xc_fun_key = ADJUSTL(xc_fun_name)
       CALL uppercase(model_key)

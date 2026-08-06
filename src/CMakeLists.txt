@@ -885,6 +885,7 @@ list(
   xas_tdp_types.F
   xas_tdp_utils.F
   xas_tp_scf.F
+  gapw_gspace_reconstruction.F
   xray_diffraction.F
   xtb_qresp.F
   xtb_coulomb.F
@@ -1896,6 +1897,7 @@ target_compile_definitions(
     $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","Apple">:__ACCELERATE>
     $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:__CUSOLVERMP>
     $<$<BOOL:${CP2K_CUSOLVERMP_USE_NCCL}>:__CUSOLVERMP_NCCL>
+    $<$<AND:$<STREQUAL:"${CP2K_BLAS_VENDOR}","OpenBLAS">,$<STREQUAL:"${CP2K_BLAS_INTERFACE}","32bits">>:__OPENBLAS>
     $<$<BOOL:${CP2K_USE_CRAY_PM_ENERGY}>:__CRAY_PM_ENERGY>
     $<$<BOOL:${CP2K_USE_CRAY_PM_ACCEL_ENERGY}>:__CRAY_PM_ACCEL_ENERGY>
     ${CP2K_GPU_DFLAGS})
