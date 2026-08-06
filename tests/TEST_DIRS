@@ -170,7 +170,7 @@ Fist/regtest-2
 QS/regtest-rixs                                             libint libxc !ifx
 QS/regtest-dm-ls-scf-3
 QS/regtest-ri-rpa                                           libint !ifx
-QS/regtest-acc-5-5                                          libint !ifx
+QS/regtest-acc-5-5                                          libint libxc !ifx
 QS/regtest-kind
 QS/regtest-hfx-periodic                                     libint !ifx
 QS/regtest-lrigpw
