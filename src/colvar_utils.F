@@ -563,7 +563,7 @@ CONTAINS
 !>     10.2014 Moved out of colvar_types.F [Ole Schuett]
 !> \author Teodoro Laino - 07.2007
 ! **************************************************************************************************
-   SUBROUTINE post_process_colvar(colvar, particles)
+   RECURSIVE SUBROUTINE post_process_colvar(colvar, particles)
       TYPE(colvar_type), POINTER                         :: colvar
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
@@ -786,6 +786,11 @@ CONTAINS
                              rotate=.TRUE.)
                END DO
             END IF
+         ELSE
+            DO i = 1, SIZE(colvar%reaction_path_param%colvar_p)
+               CALL post_process_colvar(colvar%reaction_path_param%colvar_p(i)%colvar, particles)
+            END DO
+            CALL colvar_setup(colvar)
          END IF
       END IF
 
