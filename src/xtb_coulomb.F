@@ -192,11 +192,16 @@ CONTAINS
          nmat = 1
       END IF
 
-      CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
+      CALL get_qs_env(qs_env, nkind=nkind, natom=natom, atomic_kind_set=atomic_kind_set)
       ALLOCATE (gchrg(natom, 5, nmat))
       gchrg = 0._dp
       ALLOCATE (gmcharge(natom, nmat))
       gmcharge = 0._dp
+      gchrg = 0.0_dp
+
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                               kind_of=kind_of, &
+                               atom_of_kind=atom_of_kind)
 
       ! short range contribution (gamma)
       ! loop over all atom pairs (sab_xtbe)
@@ -226,9 +231,14 @@ CONTAINS
          rcut = rcuta + rcutb
          dr = SQRT(SUM(rij(:)**2))
          CALL gamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
-         gchrg(iatom, 1:ni, 1) = gchrg(iatom, 1:ni, 1) + MATMUL(gammab, charges(jatom, 1:nj))
+         IF (iatom == jatom) THEN
+            gchrg(iatom, 1:ni, 1) = gchrg(iatom, 1:ni, 1) + MATMUL(gammab, charges(jatom, 1:nj))
+         END IF
          IF (iatom /= jatom) THEN
-            gchrg(jatom, 1:nj, 1) = gchrg(jatom, 1:nj, 1) + MATMUL(charges(iatom, 1:ni), gammab)
+            IF (iatom < jatom) THEN
+               gchrg(iatom, 1:ni, 1) = gchrg(iatom, 1:ni, 1) + MATMUL(gammab, charges(jatom, 1:nj))
+               gchrg(jatom, 1:nj, 1) = gchrg(jatom, 1:nj, 1) + MATMUL(charges(iatom, 1:ni), gammab)
+            END IF
          END IF
          IF (calculate_forces) THEN
             IF (dr > 1.e-6_dp) THEN
@@ -315,7 +325,6 @@ CONTAINS
 
       ! global sum of gamma*p arrays
       CALL get_qs_env(qs_env=qs_env, &
-                      atomic_kind_set=atomic_kind_set, &
                       force=force, para_env=para_env)
       CALL para_env%sum(gmcharge(:, 1))
       CALL para_env%sum(gchrg(:, :, 1))
@@ -331,9 +340,6 @@ CONTAINS
       END IF
 
       ! energy
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                               kind_of=kind_of, &
-                               atom_of_kind=atom_of_kind)
       ecsr = 0.0_dp
       DO iatom = 1, natom
          ikind = kind_of(iatom)

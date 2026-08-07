@@ -2292,6 +2292,11 @@ CONTAINS
             DEALLOCATE (ashift, bshift)
          END DO
          CALL dbcsr_iterator_stop(iter)
+         DO is = 1, SIZE(ks_matrix, 1)
+            DO ic = 1, SIZE(ks_matrix, 2)
+               CALL dbcsr_finalize(ks_matrix(is, ic)%matrix)
+            END DO
+         END DO
 
          IF (ASSOCIATED(tb%dipbra)) THEN
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)

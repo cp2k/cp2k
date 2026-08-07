@@ -224,7 +224,10 @@ MODULE qs_environment
                                               xtb_spinpol_init
    USE xtb_potentials,                  ONLY: xtb_pp_radius
    USE xtb_types,                       ONLY: allocate_xtb_atom_param,&
-                                              set_xtb_atom_param
+                                              get_xtb_atom_param,&
+                                              set_xtb_atom_param,&
+                                              write_xtb_atom_param,&
+                                              xtb_atom_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -998,6 +1001,7 @@ CONTAINS
          nelectron, ngauss, nkind, nlumo_dos, nlumo_molden, nlumo_required, output_unit, &
          sort_basis, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
+      INTEGER, DIMENSION(3)                              :: ngaussflex
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(:), POINTER                     :: mo_index_range
       LOGICAL :: all_potential_present, be_silent, cneo_potential_present, do_kpoints, do_ri_hfx, &
@@ -1050,6 +1054,7 @@ CONTAINS
          xc_section
       TYPE(semi_empirical_control_type), POINTER         :: se_control
       TYPE(semi_empirical_si_type), POINTER              :: se_store_int_env
+      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
       TYPE(xtb_control_type), POINTER                    :: xtb_control
 
       CALL timeset(routineN, handle)
@@ -1258,7 +1263,14 @@ CONTAINS
                   ngauss = xtb_control%sto_ng
                END IF
                IF (qs_kind%xtb_parameter%defined) THEN
-                  CALL init_xtb_basis(qs_kind%xtb_parameter, tmp_basis_set, ngauss)
+                  IF (xtb_control%sto_flex) THEN
+                     NULLIFY (xtb_kind)
+                     CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+                     CALL get_xtb_atom_param(xtb_kind, ngauss=ngaussflex)
+                     CALL init_xtb_basis(qs_kind%xtb_parameter, tmp_basis_set, ngauss, ngaussflex)
+                  ELSE
+                     CALL init_xtb_basis(qs_kind%xtb_parameter, tmp_basis_set, ngauss)
+                  END IF
                   CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
                ELSE
                   CALL set_qs_kind(qs_kind, ghost=.TRUE.)
@@ -1277,6 +1289,7 @@ CONTAINS
                   CALL set_potential(qs_kind%all_potential, ccore_charge=ccore)
                   qs_kind%xtb_parameter%zeff = qs_kind%xtb_parameter%zeff - zeff_correction
                END IF
+               CALL write_xtb_atom_param(qs_kind%xtb_parameter, gfn_type, subsys_section)
             END DO
             !
             ! set repulsive potential range
