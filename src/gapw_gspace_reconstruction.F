@@ -17,6 +17,9 @@ MODULE gapw_gspace_reconstruction
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
+                                              cp_logger_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
@@ -391,7 +394,7 @@ CONTAINS
       INTEGER :: atom, handle, iatom, ico, ico1_pgf, ico1_set, ikind, ipgf, iset, iso, iso1_pgf, &
          iso1_set, ison, ispin, jco, jco1_pgf, jco1_set, jpgf, jset, jso, jso1_pgf, jso1_set, &
          json, la, lb, maxco, maxso, na, natom, nb, ncoa, ncob, ncotot, nkind, nsatbas, nset, &
-         nsoa, nsob, nsotot, nspin
+         nsoa, nsob, nsotot, nspin, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, lmax, lmin, npgf, o2nindex
       LOGICAL                                            :: adjoint_consistent, paw_atom
       REAL(KIND=dp)                                      :: adjoint_cart, adjoint_rho_cart, &
@@ -403,6 +406,7 @@ CONTAINS
                                                             v_spherical, work, zet
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -412,6 +416,10 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: cpc_h, cpc_s, int_h, int_s
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(rho_atom_type), POINTER                       :: rho_atom
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
 
       CALL timeset(routineN, handle)
 
@@ -662,7 +670,7 @@ CONTAINS
                      adjoint_consistent = ABS(adjoint_cart - adjoint_spherical) <= &
                         1.0E-9_dp*MAX(1.0_dp, ABS(adjoint_cart))
                      IF (.NOT. adjoint_consistent) THEN
-                        WRITE (*, '(A,3I6,3ES24.15)') &
+                        WRITE (UNIT=output_unit, FMT="(A,3I6,3ES24.15)") &
                            " SKALA_GPW| Composite adjoint mismatch", ikind, atom, ispin, &
                            adjoint_cart, adjoint_spherical, adjoint_cart - adjoint_spherical
                      END IF
