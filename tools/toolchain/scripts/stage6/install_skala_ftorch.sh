@@ -11,11 +11,6 @@ ftorch_sha256="c4b6741e582623b7ecaecd59d02f779e8a6f6017f8068c85da8a034f468df375"
 ftorch_pkg="FTorch-${ftorch_ver}.tar.gz"
 ftorch_urlpath="https://github.com/Cambridge-ICCS/FTorch/archive/refs/tags"
 
-skala_model_ver="1.1"
-skala_model_pkg="skala-${skala_model_ver}.fun"
-skala_model_sha256="0c8432ac3f03c8f1276372df9aca5b7ee7f8939d47a8789eb158976e89aa0606"
-skala_model_urlpath="https://huggingface.co/microsoft/skala-${skala_model_ver}/resolve/main"
-
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -27,7 +22,7 @@ source "${INSTALLDIR}"/toolchain.env
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-# Skala model is installed by shared script in main toolchain
+source "${BUILDDIR}/setup_skala"
 
 retrieve_github_archive() {
   local __sha256="$1"
@@ -379,13 +374,6 @@ case "${with_skala_ftorch}" in
       mkdir -p "${pkg_install_dir}/include"
       cp "${BUILDDIR}/skala_ftorch.f90" "${pkg_install_dir}/include/"
 
-      # Copy skala model from shared location (like other dependencies)
-      mkdir -p "${pkg_install_dir}/share/skala/onedft_models"
-      if [ -f "${INSTALLDIR}/skala-${skala_model_ver}/share/skala/onedft_models/${skala_model_pkg}" ]; then
-        cp "${INSTALLDIR}/skala-${skala_model_ver}/share/skala/onedft_models/${skala_model_pkg}" \
-          "${pkg_install_dir}/share/skala/onedft_models/${skala_model_pkg}"
-      fi
-
       write_checksums "${install_lock_file}" \
         "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})" \
         "${BUILDDIR}/${ftorch_pkg}"
@@ -410,15 +398,14 @@ esac
 
 if [ "${with_skala_ftorch}" != "__DONTUSE__" ]; then
   if [ -n "${pkg_install_dir:-}" ]; then
-    # Use shared skala model location
-    skala_model="${INSTALLDIR}/skala-${skala_model_ver}/share/skala/onedft_models/${skala_model_pkg}"
+    ftorch_skala_model="${SKALA_MODEL}"
   else
-    skala_model=""
+    ftorch_skala_model=""
   fi
   cat << EOF > "${BUILDDIR}/setup_ftorch"
 export FTORCH_VER="${ftorch_ver}"
 export FTORCH_ROOT="${pkg_install_dir}"
-export SKALA_MODEL="${skala_model}"
+export SKALA_MODEL="${ftorch_skala_model}"
 EOF
   if [ "${with_skala_ftorch}" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_ftorch"
