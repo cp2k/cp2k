@@ -8,8 +8,6 @@
 #if defined(__ACE)
 
 // tested with lammps-user-pace-v.2023.11.25.fix2
-#define COMPUTE_B_GRAD
-#define EXTRA_C_PROJECTIONS
 
 #if 0
 #include <stdio.h>
