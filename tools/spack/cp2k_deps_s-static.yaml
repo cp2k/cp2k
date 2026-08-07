@@ -53,6 +53,7 @@ spack:
       require:
         - "+fortran"
         - "threads=openmp"
+        - "build_system=makefile"
 
     # Libraries needed by CP2K
     dbcsr:
