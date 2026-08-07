@@ -26,11 +26,7 @@ def main() -> None:
         f.write(regtest("toolchain", "psmp", testopts=testopts))
 
     with OutputFile(f"Dockerfile.test_generic_psmp", args.check) as f:
-        f.write(
-            install_deps_toolchain(
-                target_cpu="generic", with_gauxc="no", with_libtorch="no"
-            )
-        )
+        f.write(install_deps_toolchain(target_cpu="generic"))
         f.write(regtest("toolchain_generic", "psmp"))
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
