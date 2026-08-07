@@ -127,13 +127,10 @@ endif()
 # cleanup list (regularly contains empty items)
 list(FILTER CP2K_BLAS_LINK_LIBRARIES EXCLUDE REGEX "^$")
 
-# we exclude the CP2K_BLAS_INCLUDE_DIRS from the list of mandatory variables as
-# having the fortran interface is usually enough. C, C++ and others languages
-# might require this information though
-
 find_package_handle_standard_args(
-  ${CMAKE_FIND_PACKAGE_NAME} REQUIRED_VARS CP2K_BLAS_LINK_LIBRARIES
-                                           CP2K_BLAS_VENDOR CP2K_BLAS_FOUND)
+  ${CMAKE_FIND_PACKAGE_NAME}
+  REQUIRED_VARS CP2K_BLAS_LINK_LIBRARIES CP2K_BLAS_VENDOR
+                CP2K_BLAS_INCLUDE_DIRS CP2K_BLAS_FOUND)
 
 if(NOT TARGET cp2k::BLAS::blas)
   add_library(cp2k::BLAS::blas INTERFACE IMPORTED)
