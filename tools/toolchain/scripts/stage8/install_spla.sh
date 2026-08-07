@@ -65,6 +65,7 @@ case "${with_spla}" in
           .. \
           > cmake.log 2>&1 || tail_excerpt cmake.log
         make -j $(get_nprocs) install > make.log 2>&1 || tail_excerpt make.log
+        spla_gpu_dir="${INSTALLDIR}/SpLA-${spla_ver}-cuda"
       fi
 
       if [ "$ENABLE_HIP" = "__TRUE__" ]; then
@@ -87,6 +88,7 @@ case "${with_spla}" in
               .. \
               > cmake.log 2>&1 || tail_excerpt cmake.log
             make -j $(get_nprocs) install > make.log 2>&1 || tail_excerpt make.log
+            spla_gpu_dir="${INSTALLDIR}/SpLA-${spla_ver}-hip"
             ;;
           Mi50 | Mi100 | Mi200 | Mi250)
             [ -d build-hip ] && rm -rf "build-hip"
@@ -105,6 +107,7 @@ case "${with_spla}" in
               .. \
               > cmake.log 2>&1 || tail_excerpt cmake.log
             make -j $(get_nprocs) install > make.log 2>&1 || tail_excerpt make.log
+            spla_gpu_dir="${INSTALLDIR}/SpLA-${spla_ver}-hip"
             ;;
           *) ;;
         esac
@@ -131,6 +134,9 @@ case "${with_spla}" in
     ;;
 esac
 if [ "$with_spla" != "__DONTUSE__" ]; then
+  if [ -d "${spla_gpu_dir}" ]; then
+    pkg_install_dir="${spla_gpu_dir}"
+  fi
   if [ "$with_spla" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_spla"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
