@@ -1433,6 +1433,9 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
     ssmp-static)
       # Find some static libraries in advance
       LIBOPENBLAS=$(find -L "${SPACK_ROOT}"/opt/spack/view -name libopenblas.a)
+      OPENBLAS_INCLUDE_DIR="$(
+        dirname "$(find -L "${SPACK_ROOT}"/opt/spack/view -name cblas.h -print -quit)"
+      )"
       LIBM="$(find /usr -name libm.a 2> /dev/null)"
       # shellcheck disable=SC2086
       cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" --preset "${CMAKE_PRESET}" \
@@ -1446,6 +1449,8 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCMAKE_INSTALL_MESSAGE="${INSTALL_MESSAGE}" \
         -DCMAKE_SKIP_RPATH="ON" \
         -DCMAKE_VERBOSE_MAKEFILE="${VERBOSE_MAKEFILE}" \
+        -DCP2K_BLAS_VENDOR="OpenBLAS" \
+        -DCP2K_BLAS_INCLUDE_DIRS="${OPENBLAS_INCLUDE_DIR}" \
         -DCP2K_BLAS_LINK_LIBRARIES="${LIBOPENBLAS};${LIBM}" \
         -DCP2K_LAPACK_LINK_LIBRARIES="${LIBOPENBLAS};${LIBM}" \
         ${CMAKE_FEATURE_FLAGS} \
