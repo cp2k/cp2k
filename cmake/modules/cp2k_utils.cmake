@@ -74,12 +74,15 @@ function(cp2k_find_libraries _package_name _library_name)
 endfunction()
 
 function(cp2k_include_dirs _package_name _library_include_file)
+  string(TOLOWER "${_package_name}" _package_name_lower)
   find_path(
     CP2K_${_package_name}_INCLUDE_DIRS_TMP
     NAMES ${_library_include_file}
     PATHS "${CP2K_${_package_name}_ROOT}"
     HINTS "${CP2K_${_package_name}_ROOT}"
-    PATH_SUFFIXES "include" "include/${_package_name}" "${_package_name}")
+    PATH_SUFFIXES
+      "include" "include/${_package_name}" "include/${_package_name_lower}"
+      "${_package_name}" "${_package_name_lower}")
 
   set(CP2K_${_package_name}_INCLUDE_DIRS
       "${CP2K_${_package_name}_INCLUDE_DIRS_TMP}"

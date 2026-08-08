@@ -33,7 +33,7 @@ if(NOT CP2K_OPENBLAS_FOUND)
 endif()
 
 if(NOT CP2K_OPENBLAS_INCLUDE_DIRS)
-  cp2k_include_dirs(openblas "cblas.h")
+  cp2k_include_dirs(OPENBLAS "cblas.h")
 endif()
 
 # check if found
