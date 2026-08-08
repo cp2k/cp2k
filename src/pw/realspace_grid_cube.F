@@ -32,8 +32,8 @@ MODULE realspace_grid_cube
    INTEGER, PARAMETER, PRIVATE          :: cube_entry_len = 13, &
                                            cube_num_entries_line = 6
    INTEGER, PARAMETER, PRIVATE          :: cube_line_len = cube_entry_len*cube_num_entries_line
-   CHARACTER(len=*), PARAMETER          :: cube_value_format = '(E13.5E3)', &
-                                           cube_values_format = '(6E13.5E3)'
+   CHARACTER(len=*), PARAMETER          :: cube_value_format = '(1X,ES12.4E3)', &
+                                           cube_values_format = '(6(1X,ES12.4E3))'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
 
 CONTAINS
@@ -996,7 +996,7 @@ CONTAINS
                       pw%pw_grid%dh(3, 3)*I3
 
                   IF (unit_nr > 0) THEN
-                     WRITE (unit_nr, '(6E13.5E3, 6E13.5E3, 6E13.5E3, 6E13.5E3)') x, y, z, buf(I3)
+                     WRITE (unit_nr, '(6(1X,ES12.4E3), 6(1X,ES12.4E3), 6(1X,ES12.4E3), 6(1X,ES12.4E3))') x, y, z, buf(I3)
                   END IF
                END DO
 
@@ -1016,7 +1016,7 @@ CONTAINS
                       pw%pw_grid%dh(3, 3)*I3
 
                   IF (unit_nr > 0) THEN
-                     WRITE (unit_nr, '(6E13.5E3, 6E13.5E3, 6E13.5E3, 6E13.5E3)') x, y, z, buf(I3), buf2(I3)
+                     WRITE (unit_nr, '(6(1X,ES12.4E3), 6(1X,ES12.4E3), 6(1X,ES12.4E3), 6(1X,ES12.4E3))') x, y, z, buf(I3), buf2(I3)
                   END IF
                END DO
 
