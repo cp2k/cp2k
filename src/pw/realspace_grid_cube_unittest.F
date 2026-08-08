@@ -18,13 +18,13 @@ PROGRAM realspace_grid_cube_unittest
    REAL(KIND=dp), DIMENSION(6)                        :: buffer, reference
    REAL(KIND=dp), DIMENSION(7)                        :: slice_buffer, slice_reference
 
-   WRITE (value, cube_value_format) 0.33004E-101_dp
+   WRITE (value, cube_value_format) 3.33004E-101_dp
    IF (INDEX(value, "E-101") <= 0) THEN
       ERROR STOP "Cube value format must preserve three-digit negative exponents."
    END IF
 
-   reference = [0.0_dp, -0.91458E-35_dp, 0.33004E-101_dp, &
-                -0.32487E-103_dp, 1.0_dp, -1.0_dp]
+   reference = [0.0_dp, -0.91458E-35_dp, 3.33004E-101_dp, &
+                -1.32487E-103_dp, 1.0_dp, -1.0_dp]
    WRITE (values(1:78), cube_values_format) reference
    values(79:79) = NEW_LINE("C")
    IF (INDEX(values, "E-101") <= 0) THEN
