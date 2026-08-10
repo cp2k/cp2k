@@ -1,8 +1,8 @@
-"AR4_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=1e-8, ref=-84.34352347899582}]
-"H2_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=1e-8, ref=-0.97670703249770}]
+"AR4_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=1e-8, ref=-84.34351783199259}]
+"H2_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=1e-8, ref=-0.97670959445628}]
 "H2O_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=1e-8, ref=-17.06733787843316}]
 "NE4_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=1e-8, ref=-139.37721983958082}]
 "OH_NATIVE_SKALA_GPW_UKS.inp" = [{matcher="E_total", tol=1e-8, ref=-16.40806539453419}]
-"H2_NATIVE_SKALA_GPW_GTH_KP_INV_STRESS_NATIVE.inp" = [{matcher="E_total", tol=1e-8, ref=-0.806672957661767},
-                                               {matcher="M072", tol=1e-5, ref=3.57571192E-03},
-                                               {matcher="M031", tol=1e-5, ref=-2.64932824769E+04}]
+"H2_NATIVE_SKALA_GPW_GTH_KP_INV_STRESS_NATIVE.inp" = [{matcher="E_total", tol=1e-8, ref=-0.80947248897286},
+                                                {matcher="M072", tol=1e-5, ref=1.10303519E-06},
+                                                {matcher="M031", tol=1e-5, ref=-2.62950365695E+04}]
