@@ -131,6 +131,7 @@ QS/regtest-acc-1-1
 xTB/regtest-tblite-gfn2-2                                   tblite spglib
 QS/regtest-dcdr                                             libxc
 QS/regtest-gauxc-gapw-ecp                                   gauxc
+QS/regtest-gauxc-gapw-gth                                   gauxc
 QS/regtest-tddfpt                                           libint !ifx
 QS/regtest-admm-1                                           libint !ifx
 QS/regtest-rtbse-linearized-open-shell                      libint !ifx
@@ -228,6 +229,7 @@ QS/regtest-ri-laplace-mp2-cubic-2                           libint libxc !ifx
 QS/regtest-tddfpt-2                                         libint !ifx
 SE/regtest-4
 QS/regtest-gauxc-gpw-mol                                    gauxc
+QS/regtest-gauxc-gpw-nlcc                                   gauxc
 QS/regtest-dft-d3-lib-ref                                   libint s_dftd3 !ifx
 QMMM/xTB/regtest
 QMMM/xTB/regtest-tblite                                     tblite
