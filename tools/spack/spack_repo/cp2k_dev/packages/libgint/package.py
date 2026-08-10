@@ -35,7 +35,8 @@ class Libgint(MakefilePackage, CudaPackage):
         description="CUDA architecture",
     )
 
-    depends_on("cuda")
+    conflicts("~cuda")
+
     depends_on("mpi")
 
     def build(self, spec, prefix):
