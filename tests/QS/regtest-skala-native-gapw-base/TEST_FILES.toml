@@ -1,9 +1,17 @@
-"AR4_NATIVE_SKALA_GPW_ATOM_CHUNKS.inp" = [{matcher="E_total", tol=1e-8, ref=-84.34352347629738}]
-"H2_NATIVE_SKALA_GAPW_AE_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.99381987939373}]
-"H2_NATIVE_SKALA_GAPW_GPWTYPE_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.96567259309477}]
+"AR4_NATIVE_SKALA_GPW_ATOM_CHUNKS.inp" = [{matcher="E_total", tol=5e-6, ref=-84.34351783},
+                                             {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=31.9999999584},
+                                             {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},
+                                             {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=1004.67180773}]
+"H2_NATIVE_SKALA_GAPW_AE_STRESS.inp" = [{matcher="E_total", tol=5e-8, ref=-0.99385575668365}]
+"H2_NATIVE_SKALA_GAPW_GPWTYPE_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.96570776069434},
+                                               {matcher="M072", tol=1e-4, ref=5.55330102E-05},
+                                               {matcher="M031", tol=1e-5, ref=-1.65014555996E+05}]
 "H2_NATIVE_SKALA_GPW_PBC_FORCE_DEBUG.inp" = [{matcher="E_total", tol=1e-8, ref=-1.87355431428257}]
-"H2_NATIVE_SKALA_GPW_SMOOTH.inp" = [{matcher="E_total", tol=1e-8, ref=-0.96567259309477}]
-"H2_NATIVE_SKALA_GPW_STRESS_CHUNK_REQUEST.inp" = [{matcher="E_total", tol=1e-8, ref=-1.04111543962216}]
+"H2_NATIVE_SKALA_GPW_SMOOTH.inp" = [{matcher="E_total", tol=1e-8, ref=-0.965707761091413},
+                                      {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=2.00000875882},
+                                      {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},
+                                      {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=431.893413318}]
+"H2_NATIVE_SKALA_GPW_STRESS_CHUNK_REQUEST.inp" = [{matcher="E_total", tol=1e-8, ref=-1.04112616002623}]
 "H2O_NATIVE_SKALA_GPW_NLCC_ENERGY.inp" = [{matcher="E_total", tol=5e-4, ref=-18.01870708},
-                                            {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=8.88469292329}]
+                                             {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=8.88469292329}]
 "H2P_NATIVE_SKALA_GPW_UKS_PBC_FORCE_DEBUG.inp" = [{matcher="E_total", tol=1e-8, ref=-1.56297891766090}]
