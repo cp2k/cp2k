@@ -11,12 +11,12 @@
 ! **************************************************************************************************
 MODULE cp_fm_elpa
    USE cp_log_handling, ONLY: cp_to_string
-   USE machine, ONLY: m_cpuid, &
-                      MACHINE_X86, &
+   USE machine, ONLY: m_cpuid_static, &
                       MACHINE_CPU_GENERIC, &
                       MACHINE_X86_SSE4, &
                       MACHINE_X86_AVX, &
-                      MACHINE_X86_AVX2
+                      MACHINE_X86_AVX2, &
+                      MACHINE_X86_AVX512
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_fm_basic_linalg, ONLY: cp_fm_uplo_to_full
    USE cp_fm_diag_utils, ONLY: cp_fm_redistribute_start, &
@@ -181,6 +181,28 @@ MODULE cp_fm_elpa
 
 CONTAINS
 
+#if defined(__ELPA)
+! **************************************************************************************************
+!> \brief Return a printable name for an ELPA real kernel.
+!> \param kernel ELPA real kernel id
+!> \return ...
+! **************************************************************************************************
+   FUNCTION get_elpa_kernel_name(kernel) RESULT(kernel_name)
+      INTEGER, INTENT(IN)                                :: kernel
+      CHARACTER(len=default_string_length)               :: kernel_name
+
+      INTEGER                                            :: i
+
+      kernel_name = "id: "//TRIM(ADJUSTL(cp_to_string(kernel)))
+      DO i = 1, SIZE(elpa_kernel_ids)
+         IF (elpa_kernel_ids(i) == kernel) THEN
+            kernel_name = elpa_kernel_names(i)
+            EXIT
+         END IF
+      END DO
+   END FUNCTION get_elpa_kernel_name
+#endif
+
 ! **************************************************************************************************
 !> \brief Initialize the ELPA library
 !> \param one_stage ...
@@ -231,19 +253,19 @@ CONTAINS
 
       ! Resolve AUTO kernel.
       IF (elpa_kernel == ELPA_2STAGE_REAL_INVALID) THEN
-         cpuid = m_cpuid()
-         IF ((MACHINE_CPU_GENERIC < cpuid) .AND. (cpuid <= MACHINE_X86)) THEN
-            SELECT CASE (cpuid)
-            CASE (MACHINE_X86_SSE4)
-               elpa_kernel = ELPA_2STAGE_REAL_SSE_BLOCK4
-            CASE (MACHINE_X86_AVX)
-               elpa_kernel = ELPA_2STAGE_REAL_AVX_BLOCK4
-            CASE (MACHINE_X86_AVX2)
-               elpa_kernel = ELPA_2STAGE_REAL_AVX2_BLOCK4
-            CASE DEFAULT
-               elpa_kernel = ELPA_2STAGE_REAL_AVX512_BLOCK4
-            END SELECT
-         END IF
+         cpuid = m_cpuid_static()
+         SELECT CASE (cpuid)
+         CASE (MACHINE_CPU_GENERIC)
+            elpa_kernel = ELPA_2STAGE_REAL_GENERIC
+         CASE (MACHINE_X86_SSE4)
+            elpa_kernel = ELPA_2STAGE_REAL_SSE_BLOCK4
+         CASE (MACHINE_X86_AVX)
+            elpa_kernel = ELPA_2STAGE_REAL_AVX_BLOCK4
+         CASE (MACHINE_X86_AVX2)
+            elpa_kernel = ELPA_2STAGE_REAL_AVX2_BLOCK4
+         CASE (MACHINE_X86_AVX512)
+            elpa_kernel = ELPA_2STAGE_REAL_AVX512_BLOCK4
+         END SELECT
 
          ! Prefer GPU kernel if available.
 #if !defined(__NO_OFFLOAD_ELPA)
@@ -331,9 +353,9 @@ CONTAINS
       INTEGER                                            :: handle
 
       CLASS(elpa_t), POINTER                   :: elpa_obj
-      CHARACTER(len=default_string_length)     :: kernel_name
+      CHARACTER(len=default_string_length)     :: kernel_name, message
       TYPE(mp_comm_type) :: group
-      INTEGER                                  :: i, &
+      INTEGER                                  :: fallback_kernel, &
                                                   mypcol, myprow, n, &
                                                   n_rows, n_cols, &
                                                   nblk, neig, io_unit, &
@@ -415,14 +437,7 @@ CONTAINS
          WRITE (UNIT=io_unit, FMT="(/,T2,A)") &
             "ELPA| Matrix diagonalization information"
 
-         ! Find name for given kernel id.
-         ! In case of ELPA_2STAGE_REAL_DEFAULT was used it might not be in our elpa_kernel_ids list.
-         kernel_name = "id: "//TRIM(ADJUSTL(cp_to_string(elpa_kernel)))
-         DO i = 1, SIZE(elpa_kernel_ids)
-            IF (elpa_kernel_ids(i) == elpa_kernel) THEN
-               kernel_name = elpa_kernel_names(i)
-            END IF
-         END DO
+         kernel_name = get_elpa_kernel_name(elpa_kernel)
 
          WRITE (UNIT=io_unit, FMT="(T2,A,T71,I10)") &
             "ELPA| Matrix order (NA) ", n, &
@@ -519,8 +534,20 @@ CONTAINS
       END SELECT
 
       IF (.NOT. elpa_one_stage) THEN
+         ! Keep ELPA's configured default in case the requested kernel is unavailable.
+         CALL elpa_obj%get("real_kernel", fallback_kernel, success)
+         CPASSERT(success == ELPA_OK)
+
          CALL elpa_obj%set("real_kernel", elpa_kernel, success)
-         CPWARN_IF(success /= ELPA_OK, "Setting real_kernel for ELPA failed")
+         IF (success /= ELPA_OK) THEN
+            message = "Requested ELPA real kernel "//TRIM(get_elpa_kernel_name(elpa_kernel))// &
+                      " is unavailable; falling back to "//TRIM(get_elpa_kernel_name(fallback_kernel))
+            CPWARN(TRIM(message))
+            CALL elpa_obj%set("real_kernel", fallback_kernel, success)
+            CPASSERT(success == ELPA_OK)
+            ! Avoid retrying the unavailable kernel for every subsequent diagonalization.
+            elpa_kernel = fallback_kernel
+         END IF
 
          IF (use_qr) THEN
             CALL elpa_obj%set("qr", 1, success)
