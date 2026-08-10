@@ -1055,9 +1055,9 @@ if [ "${ENABLE_GAUXC_CUTLASS}" = "__TRUE__" ]; then
   fi
 fi
 
-# Prevent mutual selection of GAUXC and SKALA_FTORCH
 if [ "${with_gauxc}" != "__DONTUSE__" ] && [ "${with_skala_ftorch}" != "__DONTUSE__" ]; then
-  report_error ${LINENO} "--with-gauxc and --with-skala-ftorch are mutually exclusive. Please choose one."
+  report_warning ${LINENO} "Since gauxc is enabled, skala-ftorch will not be installed."
+  with_skala_ftorch="__DONTUSE__"
 fi
 
 # Install shared skala model if either GAUXC or skala_ftorch is enabled
@@ -1202,7 +1202,7 @@ if [ "${MATH_MODE}" = "mkl" ]; then
     with_scalapack="__DONTUSE__"
     export MKL_SCALAPACK="yes"
   fi
-  # Block libtorch installation bacause of compatibility issue
+  # Block libtorch installation because of compatibility issue
   if [ "${with_libtorch}" = "__INSTALL__" ]; then
     report_error ${LINENO} \
       "Installing prebuilt libtorch is disabled for oneMKL builds due to known conflicts between bundled and externally linked oneMKL libraries. Please provide a compatible libtorch installation via --with-libtorch=system or --with-libtorch=<path>."
