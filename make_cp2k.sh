@@ -300,7 +300,7 @@ while [[ $# -gt 0 ]]; do
               ace)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"p${2,,}@/ ${SUBST}"
                 ;;
-              cosma | elpa | greenx | hdf5 | libfci | libsmeagol | libxc | pexsi | plumed | \
+              cosma | elpa | greenx | hdf5 | libfci | libgint | libsmeagol | libxc | pexsi | plumed | \
                 spglib | trexio)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
                 ;;
@@ -1167,16 +1167,14 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
       sed -E -e "s|prefix: /usr/local/cuda|prefix: ${CUDA_HOME}|" -i "${CP2K_CONFIG_FILE}"
     fi
   else
-    sed -E -e 's/"~cuda\s+~gdrcopy"/"\~cuda"/' -i "${CP2K_CONFIG_FILE}"
-  fi
-
-  # CUDA is required for libgint is requested
-  if [[ "${CMAKE_CUDA_FLAGS}" == *"-DCP2K_USE_ACCEL=CUDA"* ]]; then
-    if [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_LIBGINT=ON"* ]]; then
-      sed -E \
-        -e '/\s*#\s*-\s+"libgint@/ s/#/ /' \
-        -i "${CP2K_CONFIG_FILE}"
-    fi
+    sed -E \
+      -e 's/"~cuda\s+~gdrcopy"/"\~cuda"/' \
+      -e '/\s*-\s+"libgint@/ s/^ /#/' \
+      -i "${CP2K_CONFIG_FILE}"
+    # CUDA is required for LibGint
+    export CMAKE_FEATURE_FLAGS="${CMAKE_FEATURE_FLAGS} -DCP2K_USE_LIBGINT=OFF"
+    echo -e "\nLibGint requires CUDA support which is not enabled"
+    echo -e "The CMAKE_FEATURE_FLAGS have been updated to disable LibGint\n"
   fi
 
   # Activate OpenCL support if requested
