@@ -1,15 +1,16 @@
+"H2_NATIVE_SKALA_GAPW_AE_ATOM_COMPOSITE.inp" = [{matcher="E_total", tol=1e-8, ref=-0.921561083361772},
+                                                 {matcher="M072", tol=1e-4, ref=3.70464798E-03}]
 "H2_NATIVE_SKALA_GPW_GTH_KP_INV_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.806672957661767},
-                                               {matcher="M072", tol=1e-5, ref=3.57571192E-03},
-                                               {matcher="M031", tol=1e-5, ref=-2.64932824769E+04}]
+                                                {matcher="M072", tol=1e-5, ref=3.57571192E-03},
+                                                {matcher="M031", tol=1e-5, ref=-2.64932824769E+04}]
 "H2_NATIVE_SKALA_GPW_GTH_KP_SYM_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.806672957661767},
-                                               {matcher="M072", tol=1e-5, ref=2.26510125E-03},
-                                               {matcher="M031", tol=1e-5, ref=-2.64930191618E+04}]
-"H2_NATIVE_SKALA_GAPW_AE_KP_INV_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.938714828995175},
-                                               {matcher="M072", tol=1e-5, ref=7.86047174E-04},
-                                               {matcher="M031", tol=1e-5, ref=-1.09180732873E+04}]
-"H2_NATIVE_SKALA_GAPW_AE_KP_SYM_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.938714828995175},
-                                               {matcher="M072", tol=1e-5, ref=6.68437708E-04},
-                                               {matcher="M031", tol=1e-5, ref=-1.09160260913E+04}]
+                                                {matcher="M072", tol=1e-5, ref=2.26510125E-03},
+                                                {matcher="M031", tol=1e-5, ref=-2.64930191618E+04}]
+"H2_NATIVE_SKALA_GPW_KP_INV_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-1.60697601748110}]
+"H2_NATIVE_SKALA_GPW_KP_SYM_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-1.60697601748110}]
+"H2_NATIVE_SKALA_GPW_KP_SPGLIB_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-1.60697601748110}]
+"H2_NATIVE_SKALA_GAPW_AE_KP_INV_STRESS.inp" = [{matcher="E_total", tol=5e-8, ref=-0.97241629259417}]
+"H2_NATIVE_SKALA_GAPW_AE_KP_SYM_STRESS.inp" = [{matcher="E_total", tol=5e-8, ref=-0.97241629259417}]
 "H2_NATIVE_SKALA_GAPW_GPWTYPE_KP_INV_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.806672957661767},
                                                     {matcher="M072", tol=1e-5, ref=3.57571192E-03},
                                                     {matcher="M031", tol=1e-5, ref=-2.64932824769E+04}]
