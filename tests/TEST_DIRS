@@ -11,6 +11,7 @@ QS/regtest-skala-native-gapw-base                           skala
 QS/regtest-skala-native-gapw-gth                            skala
 QS/regtest-skala-native-gapw-ecp                            skala
 QS/regtest-skala-native-gapw-ae-kp                          skala
+QS/regtest-skala-cuda                                         skala
 QS/regtest-libgint                                          libGint libint offload_cuda !ifx
 MIMIC/regtest-qmmm                                          mimic mpiranks==4
 TMC/regtest_ana_on_the_fly                                  parallel mpiranks>2
