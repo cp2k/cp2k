@@ -36,7 +36,7 @@ non_cuda_ok() {
   [ -f "${skala_install_dir}/share/skala/onedft_models/${skala_model_pkg}" ]
 }
 cuda_ok() {
-  [ "${ENABLE_CUDA}" != "__TRUE__" ] || \
+  [ "${ENABLE_CUDA}" != "__TRUE__" ] ||
     [ -f "${skala_install_dir}/share/skala/onedft_models/${skala_cuda_model_pkg}" ]
 }
 
