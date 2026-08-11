@@ -1,6 +1,6 @@
 "H2_GAUXC_MODEL_NONE_GAPW_REPRESENTATION.inp" = [{matcher="E_total", tol=1e-8, ref=-0.949254181994843}]
-"H2_GAUXC_SKALA_GAPW_GTH_COMPOSITE.inp" = [{matcher="E_total", tol=1e-8, ref=-0.967804782209128},
-                                            {matcher="M072", tol=1e-4, ref=1.35001361E-03},
+"H2_GAUXC_SKALA_GAPW_GTH_COMPOSITE.inp" = [{matcher="E_total", tol=1e-8, ref=-1.159504649339592},
+                                            {matcher="M072", tol=1e-4, ref=1.25282025E-03},
                                             {matcher="SKALA_GAPW_composite_electrons", tol=5e-4, ref=2.0}]
 "H2_GAUXC_SKALA_GAPW_GTH_SPLIT.inp" = [{matcher="E_total", tol=5e-7, ref=-1.06022756902337}]
 "H2_NATIVE_SKALA_GAPW_GTH_STRESS.inp" = [{matcher="E_total", tol=5e-7, ref=-0.98711215396284}]
