@@ -129,6 +129,7 @@ else
 fi
 
 # Default values
+BENCHMARK_PROFILE=""
 BUILD_DEPS="if_needed"
 BUILD_DEPS_ONLY="no"
 BUILD_SHARED_LIBS="${BUILD_SHARED_LIBS:-ON}"
@@ -157,6 +158,7 @@ fi
 NUM_PACKAGES=2
 NVCC_VERSION=0
 REBUILD_CP2K="no"
+RUN_BENCHMARK="no"
 RUN_TEST="no"
 SED_PATTERN_LIST=""
 TESTOPTS=""
@@ -588,6 +590,24 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
+    -tp | --test_performance)
+      RUN_BENCHMARK="yes"
+      if (($# > 1)); then
+        case "${2,,}" in
+          cuda_* | default | openmp)
+            BENCHMARK_PROFILE="${2,,}"
+            ;;
+          *)
+            echo "ERROR: Invalid benchmark profile \"${2}\" specified"
+            ${EXIT_CMD} 1
+            ;;
+        esac
+      else
+        echo "ERROR: No benchmark profile found for flag \"${1}\""
+        ${EXIT_CMD} 1
+      fi
+      shift 2
+      ;;
     -uc | --use_cache)
       if (($# > 1)); then
         case "${2,,}" in
@@ -675,9 +695,10 @@ for name in "${order[@]}"; do
 done
 CMAKE_FEATURE_FLAGS="$(printf '%s\n' "${out[*]}")"
 
-export BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU CP2K_BUILD_TYPE \
-  CRAY CUDA_SM_CODE DEPS_BUILD_TYPE GCC_VERSION GPU_MODEL IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PACKAGES \
-  NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS USE_CACHE USE_OPENCL VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE VERBOSE_SPACK
+export BENCHMARK_PROFILE BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU \
+  CP2K_BUILD_TYPE CRAY CUDA_SM_CODE DEPS_BUILD_TYPE GCC_VERSION GPU_MODEL IN_CONTAINER INSTALL_MESSAGE MPI_MODE \
+  NUM_PACKAGES NUM_PROCS REBUILD_CP2K RUN_BENCHMARK RUN_TEST TESTOPTS USE_CACHE USE_OPENCL VERBOSE VERBOSE_FLAG \
+  VERBOSE_MAKEFILE VERBOSE_SPACK
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -702,6 +723,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-preset (native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)]"
   echo "                    [-rc | --rebuild_cp2k]"
   echo "                    [-t | --test \"TESTOPTS\"]"
+  echo "                    [-tp | --test_performance \"BENCHMARK_PROFILE\"]"
   echo "                    [-uc | --use_cache (folder | minio | no | none)]"
   echo "                    [-ue | --use_externals]"
   echo "                    [-v | --verbose]"
@@ -727,6 +749,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " -preset               : Use a CMake configure preset, see \"cmake --list-presets\" (default: native-gnu-x86_64)"
   echo " --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)"
   echo " --test                : Perform a regression test run after a successful build"
+  echo " --test_performance    : Perform a benchmark run after a successful build"
   echo " --use_cache           : Use a \"folder\", a \"MinIO\" object storage container (requires podman) or \"no\" cache"
   echo "                         Set the environment variable SPACK_CACHE to specify the folder name, e.g."
   echo "                         SPACK_CACHE=\"file://${CP2K_ROOT}/spack_cache\" (default)"
@@ -776,6 +799,10 @@ echo "NUM_PACKAGES        = ${NUM_PACKAGES} (packages are built by spack concurr
 echo "NUM_PROCS           = ${NUM_PROCS} (processes)"
 echo "Physical cores      = $(lscpu -p=Core,Socket | grep -v '#' | sort -u | wc -l) (host view)"
 echo "REBUILD_CP2K        = ${REBUILD_CP2K}"
+echo "RUN_BENCHMARK       = ${RUN_BENCHMARK}"
+if [[ "${RUN_BENCHMARK}" == "yes" ]]; then
+  echo "BENCHMARK_PROFILE   = ${BENCHMARK_PROFILE}"
+fi
 echo "RUN_TEST            = ${RUN_TEST}"
 if [[ "${RUN_TEST}" == "yes" ]]; then
   echo "TESTOPTS            = \"${TESTOPTS}\""
@@ -1636,7 +1663,7 @@ exec "\$@"
 ***
 chmod 750 "${LAUNCH_SCRIPT}"
 
-# Create shortcut for launching the regression tests
+# Create shortcut for launching the CP2K regression tests
 cat << *** > "${INSTALL_PREFIX}"/bin/run_tests
 #!/bin/bash
 if [[ "${VERSION}" =~ ^(s|p)dbg$ ]]; then
@@ -1648,6 +1675,98 @@ export GAUXC_SKALA_MODEL=${GAUXC_SKALA_MODEL}
 ${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${VERSION}
 ***
 chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
+
+# Create script to run the CP2K benchmarks
+if [[ "${IN_CONTAINER}" == "yes" ]]; then
+  BENCHMARK_OUTPUT_DIR="/workspace/artifacts"
+else
+  BENCHMARK_OUTPUT_DIR="${INSTALL_PREFIX}"/performance_tests
+fi
+cat << *** > "${INSTALL_PREFIX}"/bin/run_benchmarks
+#!/bin/bash -e
+
+BENCHMARK_PROFILE=\${1:-openmp}
+
+MAX_PROCS=\$(nproc --all)
+if ((MAX_PROCS < 32)); then
+  echo -e "\nWARNING: 32 CPU cores are needed for a CP2K benchmark run but if seems only \${MAX_PROCS} are available"
+fi
+
+run_benchmark_input() {
+  set +e
+  local omp_threads="\$1"
+  local mpi_ranks="\$2"
+  local input="\$3"
+  local output="\$4"
+  printf "Running %s with %s threads and %s ranks... " \
+    "\${input}" "\${omp_threads}" "\${mpi_ranks}"
+  if OMP_NUM_THREADS="\${omp_threads}" mpiexec -n "\${mpi_ranks}" cp2k.psmp "\${input}" >"\${output}" 2>&1; then
+    echo "done."
+  else
+    echo "failed."
+    echo
+    [[ -f "\${output}" ]] && tail -n 100 "\${output}"
+    echo
+    echo "Summary: Running \${input} failed."
+    echo "Status: FAILED"
+    exit 0
+  fi
+  set -e
+}
+
+echo -e "\n========== Running Performance Test =========="
+OUTPUT_DIR=${BENCHMARK_OUTPUT_DIR}
+mkdir -p \${OUTPUT_DIR}
+TIME_START=\$(date +%s)
+
+BENCHMARKS=(
+  "${CP2K_ROOT}/benchmarks/QS/H2O-64.inp"
+  "${CP2K_ROOT}/benchmarks/QS/H2O-64_nonortho.inp"
+  "${CP2K_ROOT}/benchmarks/QS_reference/w64PBE.inp"
+  "${CP2K_ROOT}/benchmarks/QS_reference/w64SCAN.inp"
+  "${CP2K_ROOT}/benchmarks/QS_single_node/H2O-hyb.inp"
+  "${CP2K_ROOT}/benchmarks/QS_single_node/GW_PBE_4benzene.inp"
+  "${CP2K_ROOT}/benchmarks/QS_single_node/RI-HFX_H2O-32.inp"
+  "${CP2K_ROOT}/benchmarks/QS_single_node/RI-MP2_ammonia.inp"
+  "${CP2K_ROOT}/benchmarks/QS_single_node/diag_cu144_broy.inp"
+  "${CP2K_ROOT}/benchmarks/QS_single_node/bench_dftb.inp"
+  "${CP2K_ROOT}/benchmarks/QS_single_node/dbcsr.inp"
+  "${CP2K_ROOT}/benchmarks/QMMM_MQAE/MQAE_single_node.inp"
+)
+
+if [[ "\${BENCHMARK_PROFILE}" == "openmp" ]]; then
+  echo 'Plot: name="total_timings_32omp", title="Total Timings with 32 OpenMP Threads", ylabel="time [s]"'
+  echo 'Plot: name="total_timings_32mpi", title="Total Timings with 32 MPI Ranks", ylabel="time [s]"'
+  echo ""
+
+  for INPUT in "\${BENCHMARKS[@]}"; do
+    INPUT_BASENAME=\$(basename "\${INPUT}")
+    LABEL=\${INPUT_BASENAME%.*}
+    OUTPUT_MPI="\${OUTPUT_DIR}/\${LABEL}_32mpi.out"
+    OUTPUT_OMP="\${OUTPUT_DIR}/\${LABEL}_32omp.out"
+    cd "\$(dirname "\${INPUT}")"
+    run_benchmark_input 1 32 "\${INPUT_BASENAME}" "\${OUTPUT_MPI}"
+    run_benchmark_input 32 1 "\${INPUT_BASENAME}" "\${OUTPUT_OMP}"
+    cd ..
+    echo ""
+    ${CP2K_ROOT}/tools/docker/scripts/plot_performance.py \
+      "\${LABEL} with 32 OpenMP Threads" "\${LABEL}" "32omp" "\${OUTPUT_OMP}" \
+      "\${LABEL} with 32 MPI Ranks" "\${LABEL}" "32mpi" "\${OUTPUT_MPI}"
+    echo ""
+  done
+
+else
+  echo "ERROR: Unknown benchmark profile \${BENCHMARK_PROFILE} specified"
+  exit 1
+fi
+
+TIME_END=\$(date +%s)
+DURATION=\$(printf "%i" \$(((TIME_END - TIME_START) / 60)))
+
+echo -e "\nSummary: Performance test took \${DURATION} minutes."
+echo -e "Status: OK\n"
+***
+chmod 750 "${INSTALL_PREFIX}"/bin/run_benchmarks
 
 # Set image tag if available
 export IMAGE_TAG=${IMAGE_TAG:-<IMAGE ID>}
@@ -1679,7 +1798,6 @@ else
       echo "*** An MPI-parallel CP2K run using 2 OpenMP threads for each of the 4 MPI ranks can be launched with"
       echo "    podman run -it${DEVICE_FLAG} --rm ${IMAGE_TAG} mpiexec -n 4 ${ENV_VAR_FLAG} OMP_NUM_THREADS=2 cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
     fi
-    echo ""
   else
     echo ""
     echo "*** A regression test run can be launched with"
@@ -1695,6 +1813,21 @@ else
       echo "*** An MPI-parallel CP2K run using 2 OpenMP threads for each of the 4 MPI ranks can be launched with"
       echo "    export OMP_NUM_THREADS=2; ${LAUNCH_SCRIPT} mpiexec -n 4 cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
     fi
-    echo ""
   fi
+fi
+
+# Optionally, run CP2K benchmark
+if [[ "${RUN_BENCHMARK}" == "yes" ]]; then
+  echo -e "\n*** Launching benchmark run using the script ${INSTALL_PREFIX}/bin/run_benchmarks\n"
+  ${LAUNCH_SCRIPT} run_benchmarks
+  EXIT_CODE=$?
+  if ((EXIT_CODE != 0)); then
+    echo "ERROR: The benchmark run failed with the error code ${EXIT_CODE}"
+    ${EXIT_CMD} "${EXIT_CODE}"
+  fi
+else
+  echo ""
+  echo "*** A benchmark run can be launched with"
+  echo "    ${LAUNCH_SCRIPT} run_benchmarks"
+  echo ""
 fi

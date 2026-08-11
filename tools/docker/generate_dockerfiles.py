@@ -236,6 +236,16 @@ def main() -> None:
                 image_tag=f.image_tag,
             )
         )
+    with OutputFile(f"Dockerfile.test_spack_performance-openmp", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                version="psmp",
+                mpi_mode="mpich",
+                feature_flags="",
+                image_tag=f.image_tag,
+                test_type="performance-openmp",
+            )
+        )
 
     # End Spack/CMake based tester
 
@@ -710,6 +720,7 @@ def install_cp2k_spack(
     feature_flags: str = "",
     testopts: str = "",
     image_tag: str = "",
+    test_type: str = "regression",
 ) -> str:
     if gcc_version is None or "fedora" in base_image:
         gcc_compilers = "g++ gcc gfortran"
@@ -789,19 +800,38 @@ COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 # Install CP2K/Quickstep CI benchmarks
 COPY ./benchmarks/CI ./benchmarks/CI
 
+# Install benchmark inputs for performance test
+COPY ./benchmarks/QS ./benchmarks/QS
+COPY ./benchmarks/QS_reference ./benchmarks/QS_reference
+COPY ./benchmarks/QS_single_node ./benchmarks/QS_single_node
+COPY ./benchmarks/QMMM_MQAE ./benchmarks/QMMM_MQAE
+RUN mkdir -p ./tools/docker/scripts
+COPY ./tools/docker/scripts/plot_performance.py ./tools/docker/scripts/
+
 # Do not rely only on LD_LIBRARY_PATH because it is fragile
 COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
 RUN ldconfig
-
+"""
+    )
+    if test_type.startswith("performance-"):
+        benchmark_profile = test_type.removeprefix("performance-")
+        output += rf"""
+# Run CP2K performance test
+RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_benchmarks {benchmark_profile} || echo "ERROR: Performance test run failed"
+"""
+    elif test_type == "regression":
+        output += rf"""
 # Run CP2K regression test
-RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts} || echo "ERROR: Tests failed"
-
+RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts} || echo "ERROR: Regression test run failed"
+"""
+    else:
+        print(f"\nERROR: Unknown test type {test_type} specified\n")
+    output += rf"""
 # Create entrypoint and finalise container build
 WORKDIR /mnt
 ENTRYPOINT ["/opt/cp2k/install/bin/launch"]
 CMD ["cp2k", "--help", "--version"]
 """
-    )
     return output
 
 
