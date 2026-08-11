@@ -91,6 +91,7 @@ CONTAINS
 !> \param v_xc_tau ...
 !> \param spinflip ...
 ! **************************************************************************************************
+
    SUBROUTINE qs_fxc_analytic(rho0, rho1_r, tau1_r, xc_section, weights, auxbas_pw_pool, &
                               is_triplet, v_xc, v_xc_tau, spinflip)
 
