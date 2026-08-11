@@ -619,6 +619,7 @@ list(
   qs_gspace_mixing.F
   qs_harris_types.F
   qs_harris_utils.F
+  qs_harris_methods.F
   qs_harmonics_atom.F
   qs_hash_table_functions.F
   qs_initial_guess.F

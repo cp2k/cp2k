@@ -32,7 +32,7 @@ MODULE qs_energy
    USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_harris_utils,                 ONLY: harris_energy_correction
+   USE qs_harris_methods,               ONLY: harris_energy_correction
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_matrix_w,                     ONLY: compute_matrix_w
    USE qs_nonscf,                       ONLY: nonscf
