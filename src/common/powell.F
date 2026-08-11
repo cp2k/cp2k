@@ -400,7 +400,8 @@ CONTAINS
       DO j = 1, n
          x(j) = xpt(nf, j) + xbase(j)
       END DO
-      GOTO 310
+      CALL check_number_of_steps
+      RETURN
 70    fval(nf) = f
       IF (nf == 1) THEN
          fbeg = f
@@ -637,23 +638,7 @@ CONTAINS
       !
       !     Calculate the next value of the objective function.
       !
-290   DO i = 1, n
-         xnew(i) = xopt(i) + d(i)
-         x(i) = xbase(i) + xnew(i)
-      END DO
-      nf = nf + 1
-310   IF (nf > nftest) THEN
-         !         return to many steps
-         nf = nf - 1
-         opt%state = 3
-         CALL get_state
-         CALL finalize_optimization
-         RETURN
-      END IF
-
-      CALL get_state
-
-      opt%state = 2
+CALL calc_next_value_of_objective_function
 
       RETURN
 
@@ -665,7 +650,7 @@ CONTAINS
       IF (knew == -1) THEN
          opt%state = 6
          CALL get_state
-         CALL finalize_optimization
+         CALL finalize_optimization_after_failure
          RETURN
       END IF
       !
@@ -714,7 +699,7 @@ CONTAINS
          ! Return because a trust region step has failed to reduce Q
          opt%state = 4
          CALL get_state
-         CALL finalize_optimization
+         CALL finalize_optimization_after_failure
          RETURN
       END IF
       ratio = (f - fsave)/vquad
@@ -895,15 +880,42 @@ CONTAINS
       !     Return from the calculation, after another Newton-Raphson step, if
       !     it is too short to have been tried before.
       !
-      IF (knew == -1) GOTO 290
+      IF (knew == -1) THEN
+      CALL calc_next_value_of_objective_function
+      ELSE
       opt%state = 7
       CALL get_state
 
-CALL finalize_optimization
+CALL finalize_optimization_after_failure
+END IF
 
       !******************************************************************************
    CONTAINS
-      SUBROUTINE finalize_optimization()
+   SUBROUTINE calc_next_value_of_objective_function()
+   DO i = 1, n
+         xnew(i) = xopt(i) + d(i)
+         x(i) = xbase(i) + xnew(i)
+      END DO
+      nf = nf + 1
+CALL check_number_of_steps
+END SUBROUTINE calc_next_value_of_objective_function
+
+SUBROUTINE check_number_of_steps()
+      IF (nf > nftest) THEN
+         !         return to many steps
+         nf = nf - 1
+         opt%state = 3
+         CALL get_state
+         CALL finalize_optimization_after_failure
+      ELSE
+
+      CALL get_state
+
+      opt%state = 2
+      END IF
+      END SUBROUTINE check_number_of_steps
+
+      SUBROUTINE finalize_optimization_after_failure()
    IF (fopt <= f) THEN
          DO i = 1, n
             x(i) = xbase(i) + xopt(i)
