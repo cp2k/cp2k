@@ -25,7 +25,6 @@ MODULE input_cp2k_dft
                                               medium_print_level,&
                                               silent_print_level
    USE cp_spline_utils,                 ONLY: pw_interp,&
-                                              spline3_nopbc_interp,&
                                               spline3_pbc_interp
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
@@ -1396,12 +1395,11 @@ CONTAINS
       NULLIFY (keyword, print_key)
 
       CALL keyword_create(keyword, __LOCATION__, name="kind", &
-                          description="the interpolator to use", &
+                          description="The interpolator to use. SPLINE3 automatically enables commensurate grids.", &
                           usage="kind spline3", &
                           default_i_val=pw_interp, &
-                          enum_c_vals=s2a("pw", "spline3_nopbc", "spline3"), &
-                          enum_i_vals=[pw_interp, &
-                                       spline3_nopbc_interp, spline3_pbc_interp])
+                          enum_c_vals=s2a("pw", "spline3"), &
+                          enum_i_vals=[pw_interp, spline3_pbc_interp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
