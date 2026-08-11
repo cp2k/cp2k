@@ -20,3 +20,20 @@ index a567d3b..d5fd909 100644
            {
              void* fn = jgs(jitter);
              if (NULL != fn) LIBXS_FPTR_FROM_VPTR(libxs_gemm_sjit_t, config.sgemm_jit, fn);
+diff --git a/libxs/libxs_gemm.h b/libxs/libxs_gemm.h
+--- a/libxs/libxs_gemm.h
++++ b/libxs/libxs_gemm.h
+@@ -302,11 +302,9 @@ LIBXS_API_INLINE void libxs_gemm_call(
+ {
+   LIBXS_ASSERT(NULL != config);
+-  if (NULL != config->dgemm_jit) {
+-    LIBXS_ASSERT(NULL != config->jitter);
++  if (NULL != config->dgemm_jit && NULL != config->jitter) {
+     config->dgemm_jit(config->jitter, a, b, c);
+   }
+-  else if (NULL != config->sgemm_jit) {
+-    LIBXS_ASSERT(NULL != config->jitter);
++  else if (NULL != config->sgemm_jit && NULL != config->jitter) {
+     config->sgemm_jit(config->jitter, a, b, c);
+   }
+   else if (NULL != config->xgemm) {
