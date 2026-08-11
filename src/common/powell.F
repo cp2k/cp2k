@@ -336,133 +336,40 @@ CONTAINS
       nptm = npt - np
       nftest = MAX(maxfun, 1)
 
-      IF (opt%state == 2) GOTO 1000
-      !
-      !     Set the initial elements of XPT, BMAT, HQ, PQ and ZMAT to zero.
-      !
-      DO j = 1, n
-         xbase(j) = x(j)
+      IF (opt%state /= 2) THEN
+         !
+         !     Set the initial elements of XPT, BMAT, HQ, PQ and ZMAT to zero.
+         !
+         DO j = 1, n
+            xbase(j) = x(j)
+            DO k = 1, npt
+               xpt(k, j) = zero
+            END DO
+            DO i = 1, ndim
+               bmat(i, j) = zero
+            END DO
+         END DO
+         DO ih = 1, nh
+            hq(ih) = zero
+         END DO
          DO k = 1, npt
-            xpt(k, j) = zero
+            pq(k) = zero
+            DO j = 1, nptm
+               zmat(k, j) = zero
+            END DO
          END DO
-         DO i = 1, ndim
-            bmat(i, j) = zero
-         END DO
-      END DO
-      DO ih = 1, nh
-         hq(ih) = zero
-      END DO
-      DO k = 1, npt
-         pq(k) = zero
-         DO j = 1, nptm
-            zmat(k, j) = zero
-         END DO
-      END DO
-      !
-      !     Begin the initialization procedure. NF becomes one more than the n
-      !     of function values so far. The coordinates of the displacement of
-      !     next initial interpolation point from XBASE are set in XPT(NF,.).
-      !
-      rhosq = rhobeg*rhobeg
-      recip = one/rhosq
-      reciq = SQRT(half)/rhosq
-      nf = 0
-      CALL begin_initialization_of_interpolation
-      RETURN
-70    fval(nf) = f
-      IF (nf == 1) THEN
-         fbeg = f
-         fopt = f
-         kopt = 1
-      ELSE IF (f < fopt) THEN
-         fopt = f
-         kopt = nf
-      END IF
-      !
-      !     Set the nonzero initial elements of BMAT and the quadratic model i
-      !     the cases when NF is at most 2*N+1.
-      !
-      IF (NFM <= 2*N) THEN
-         IF (nfm >= 1 .AND. nfm <= n) THEN
-            gq(nfm) = (f - fbeg)/rhobeg
-            IF (npt < nf + n) THEN
-               bmat(1, nfm) = -one/rhobeg
-               bmat(nf, nfm) = one/rhobeg
-               bmat(npt + nfm, nfm) = -half*rhosq
-            END IF
-         ELSE IF (nfm > n) THEN
-            bmat(nf - n, nfmm) = half/rhobeg
-            bmat(nf, nfmm) = -half/rhobeg
-            zmat(1, nfmm) = -reciq - reciq
-            zmat(nf - n, nfmm) = reciq
-            zmat(nf, nfmm) = reciq
-            ih = (nfmm*(nfmm + 1))/2
-            temp = (fbeg - f)/rhobeg
-            hq(ih) = (gq(nfmm) - temp)/rhobeg
-            gq(nfmm) = half*(gq(nfmm) + temp)
-         END IF
          !
-         !     Set the off-diagonal second derivatives of the Lagrange functions
-         !     the initial quadratic model.
+         !     Begin the initialization procedure. NF becomes one more than the n
+         !     of function values so far. The coordinates of the displacement of
+         !     next initial interpolation point from XBASE are set in XPT(NF,.).
          !
-      ELSE
-         ih = (ipt*(ipt - 1))/2 + jpt
-         IF (xipt < zero) ipt = ipt + n
-         IF (xjpt < zero) jpt = jpt + n
-         zmat(1, nfmm) = recip
-         zmat(nf, nfmm) = recip
-         zmat(ipt + 1, nfmm) = -recip
-         zmat(jpt + 1, nfmm) = -recip
-         hq(ih) = (fbeg - fval(ipt + 1) - fval(jpt + 1) + f)/(xipt*xjpt)
-      END IF
-      IF (nf < npt) THEN
+         rhosq = rhobeg*rhobeg
+         recip = one/rhosq
+         reciq = SQRT(half)/rhosq
+         nf = 0
          CALL begin_initialization_of_interpolation
          RETURN
       END IF
-      !
-      !     Begin the iterative procedure, because the initial model is comple
-      !
-      rho = rhobeg
-      delta = rho
-      idz = 1
-      diffa = zero
-      diffb = zero
-      itest = 0
-      xoptsq = zero
-      DO i = 1, n
-         xopt(i) = xpt(kopt, i)
-         xoptsq = xoptsq + xopt(i)**2
-      END DO
-      nfsav = nf
-      !
-      !     Generate the next trust region step and test its length. Set KNEW
-      !     to -1 if the purpose of the next F will be to improve the model.
-      !
-100   knew = 0
-      CALL trsapp(n, npt, xopt, xpt, gq, hq, pq, delta, d, w, w(np), w(np + n), w(np + 2*n), crvmin)
-      dsq = zero
-      DO i = 1, n
-         dsq = dsq + d(i)**2
-      END DO
-      dnorm = MIN(delta, SQRT(dsq))
-      IF (dnorm < half*rho) THEN
-         knew = -1
-         delta = tenth*delta
-         ratio = -1.0_dp
-         IF (delta <= 1.5_dp*rho) delta = rho
-         IF (nf <= nfsav + 2) GOTO 460
-         temp = 0.125_dp*crvmin*rho*rho
-         IF (temp <= MAX(diffa, diffb, diffc)) GOTO 460
-         GOTO 490
-      END IF
-      !
-      !     Shift XBASE if XOPT may be too far from XBASE. First make the chan
-      !     to BMAT that do not depend on ZMAT.
-      CALL generate_next_model_step
-
-      RETURN
-
-1000  CONTINUE
 
       CALL set_state
 
@@ -710,6 +617,99 @@ CONTAINS
 
          CALL finalize_optimization_after_failure
       END IF
+      RETURN
+70    fval(nf) = f
+      IF (nf == 1) THEN
+         fbeg = f
+         fopt = f
+         kopt = 1
+      ELSE IF (f < fopt) THEN
+         fopt = f
+         kopt = nf
+      END IF
+      !
+      !     Set the nonzero initial elements of BMAT and the quadratic model i
+      !     the cases when NF is at most 2*N+1.
+      !
+      IF (NFM <= 2*N) THEN
+         IF (nfm >= 1 .AND. nfm <= n) THEN
+            gq(nfm) = (f - fbeg)/rhobeg
+            IF (npt < nf + n) THEN
+               bmat(1, nfm) = -one/rhobeg
+               bmat(nf, nfm) = one/rhobeg
+               bmat(npt + nfm, nfm) = -half*rhosq
+            END IF
+         ELSE IF (nfm > n) THEN
+            bmat(nf - n, nfmm) = half/rhobeg
+            bmat(nf, nfmm) = -half/rhobeg
+            zmat(1, nfmm) = -reciq - reciq
+            zmat(nf - n, nfmm) = reciq
+            zmat(nf, nfmm) = reciq
+            ih = (nfmm*(nfmm + 1))/2
+            temp = (fbeg - f)/rhobeg
+            hq(ih) = (gq(nfmm) - temp)/rhobeg
+            gq(nfmm) = half*(gq(nfmm) + temp)
+         END IF
+         !
+         !     Set the off-diagonal second derivatives of the Lagrange functions
+         !     the initial quadratic model.
+         !
+      ELSE
+         ih = (ipt*(ipt - 1))/2 + jpt
+         IF (xipt < zero) ipt = ipt + n
+         IF (xjpt < zero) jpt = jpt + n
+         zmat(1, nfmm) = recip
+         zmat(nf, nfmm) = recip
+         zmat(ipt + 1, nfmm) = -recip
+         zmat(jpt + 1, nfmm) = -recip
+         hq(ih) = (fbeg - fval(ipt + 1) - fval(jpt + 1) + f)/(xipt*xjpt)
+      END IF
+      IF (nf < npt) THEN
+         CALL begin_initialization_of_interpolation
+         RETURN
+      END IF
+      !
+      !     Begin the iterative procedure, because the initial model is comple
+      !
+      rho = rhobeg
+      delta = rho
+      idz = 1
+      diffa = zero
+      diffb = zero
+      itest = 0
+      xoptsq = zero
+      DO i = 1, n
+         xopt(i) = xpt(kopt, i)
+         xoptsq = xoptsq + xopt(i)**2
+      END DO
+      nfsav = nf
+      !
+      !     Generate the next trust region step and test its length. Set KNEW
+      !     to -1 if the purpose of the next F will be to improve the model.
+      !
+100   knew = 0
+      CALL trsapp(n, npt, xopt, xpt, gq, hq, pq, delta, d, w, w(np), w(np + n), w(np + 2*n), crvmin)
+      dsq = zero
+      DO i = 1, n
+         dsq = dsq + d(i)**2
+      END DO
+      dnorm = MIN(delta, SQRT(dsq))
+      IF (dnorm < half*rho) THEN
+         knew = -1
+         delta = tenth*delta
+         ratio = -1.0_dp
+         IF (delta <= 1.5_dp*rho) delta = rho
+         IF (nf <= nfsav + 2) GOTO 460
+         temp = 0.125_dp*crvmin*rho*rho
+         IF (temp <= MAX(diffa, diffb, diffc)) GOTO 460
+         GOTO 490
+      END IF
+      !
+      !     Shift XBASE if XOPT may be too far from XBASE. First make the chan
+      !     to BMAT that do not depend on ZMAT.
+      CALL generate_next_model_step
+
+      RETURN
 
       !******************************************************************************
    CONTAINS
@@ -908,6 +908,10 @@ CONTAINS
          CALL calc_next_value_of_objective_function
       END SUBROUTINE generate_next_model_step
 ! **************************************************************************************************
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
 !> \brief ...
 !> \brief ...
 !> \brief ...
