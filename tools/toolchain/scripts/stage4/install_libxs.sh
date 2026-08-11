@@ -33,6 +33,8 @@ case "$with_libxs" in
 
       echo "Installing from scratch into ${pkg_install_dir}"
       cd libxs-${libxs_ver}
+      patch -l -p1 < "${SCRIPT_DIR}/stage4/libxs-${libxs_ver}-jit-handle.patch" \
+        > libxs_jit_handle.patch.log 2>&1 || tail_excerpt libxs_jit_handle.patch.log
       mkdir build && cd build
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
@@ -42,7 +44,8 @@ case "$with_libxs" in
         .. > configure.log 2>&1 || tail_excerpt configure.log
       make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       cd ..
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})" \
+        "${SCRIPT_DIR}/stage4/libxs-${libxs_ver}-jit-handle.patch"
     fi
     ;;
   __SYSTEM__)
