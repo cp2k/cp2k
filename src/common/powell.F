@@ -237,6 +237,7 @@ CONTAINS
                                                   kopt, ksave, ktemp, nf, nfm, &
                                                   nfmm, nfsav, nftest, nh, np, &
                                                   nptm
+      LOGICAL :: do_return
       REAL(dp) :: alpha, beta, bstep, bsum, crvmin, delta, detrat, diff, diffa, &
                   diffb, diffc, distsq, dnorm, dsq, dstep, dx, f, fbeg, fopt, fsave, &
                   gisq, gqsq, half, hdiag, one, ratio, recip, reciq, rho, rhosq, sum, &
@@ -659,34 +660,8 @@ CONTAINS
       !     The calculations with the current value of RHO are complete. Pick
       !     next values of RHO and DELTA.
       !
-490   CONTINUE
-      IF (rho > rhoend) THEN
-         delta = half*rho
-         ratio = rho/rhoend
-         IF (ratio <= 16.0_dp) THEN
-            rho = rhoend
-         ELSE IF (ratio <= 250.0_dp) THEN
-            rho = SQRT(ratio)*rhoend
-         ELSE
-            rho = tenth*rho
-         END IF
-         delta = MAX(delta, rho)
-         nfsav = nf
-      ELSE
-         !
-         !     Return from the calculation, after another Newton-Raphson step, if
-         !     it is too short to have been tried before.
-         !
-         IF (knew == -1) THEN
-            CALL calc_next_value_of_objective_function
-         ELSE
-            opt%state = 7
-            CALL get_state
-
-            CALL finalize_optimization_after_failure
-         END IF
-         RETURN
-      END IF
+      CALL update_rho(do_return)
+      IF (do_return) RETURN
 100   CONTINUE
       knew = 0
       CALL trsapp(n, npt, xopt, xpt, gq, hq, pq, delta, d, w, w(np), w(np + n), w(np + 2*n), crvmin)
@@ -703,7 +678,9 @@ CONTAINS
          IF (nf <= nfsav + 2) GOTO 460
          temp = 0.125_dp*crvmin*rho*rho
          IF (temp <= MAX(diffa, diffb, diffc)) GOTO 460
-         GOTO 490
+         CALL update_rho(do_return)
+         IF (do_return) RETURN
+         GOTO 100
       END IF
       !
       !     Shift XBASE if XOPT may be too far from XBASE. First make the chan
@@ -713,6 +690,42 @@ CONTAINS
       RETURN
 
    CONTAINS
+! **************************************************************************************************
+!> \brief ...
+!> \param do_return ...
+! **************************************************************************************************
+      SUBROUTINE update_rho(do_return)
+      LOGICAL, INTENT(OUT)                               :: do_return
+
+         do_return = .FALSE.
+         IF (rho > rhoend) THEN
+            delta = half*rho
+            ratio = rho/rhoend
+            IF (ratio <= 16.0_dp) THEN
+               rho = rhoend
+            ELSE IF (ratio <= 250.0_dp) THEN
+               rho = SQRT(ratio)*rhoend
+            ELSE
+               rho = tenth*rho
+            END IF
+            delta = MAX(delta, rho)
+            nfsav = nf
+         ELSE
+            !
+            !     Return from the calculation, after another Newton-Raphson step, if
+            !     it is too short to have been tried before.
+            !
+            IF (knew == -1) THEN
+               CALL calc_next_value_of_objective_function
+            ELSE
+               opt%state = 7
+               CALL get_state
+
+               CALL finalize_optimization_after_failure
+            END IF
+            do_return = .TRUE.
+         END IF
+      END SUBROUTINE update_rho
 ! **************************************************************************************************
 !> \brief ...
 ! **************************************************************************************************
@@ -908,6 +921,8 @@ CONTAINS
          CALL calc_next_value_of_objective_function
       END SUBROUTINE generate_next_model_step
 ! **************************************************************************************************
+!> \brief ...
+!> \brief ...
 !> \brief ...
 !> \brief ...
 !> \return ...
