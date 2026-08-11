@@ -387,4 +387,9 @@ registry["REFTRAJ_last_frame_index"] = GenericMatcher(
     r"i\s*=\s*(\d+)", col=1, regex=True
 )
 registry["REFTRAJ_force_file"] = TextPresenceMatcher("ATOMIC FORCES")
+
+# STRUCTURE_DATA uses the same torsion sign convention as the TORSION COLVAR.
+registry["STRUCTURE_DATA_dihedral_angle"] = GenericMatcher(
+    r"d\(1,2,3,4\)\s*=\s*([-+0-9.]+)", col=1, regex=True
+)
 # EOF

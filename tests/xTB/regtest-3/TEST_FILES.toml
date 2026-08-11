@@ -21,4 +21,5 @@
 "graphite-stm.inp"                      = [{matcher="E_total", tol=1.0E-12, ref=-7.91403223193017}]
 "si_dos.inp"                            = [{matcher="E_total", tol=1.0E-12, ref=-14.73033123463482}]
 "h2o_reaction_path_kinds.inp"           = [{matcher="M002", tol=1.0E-12, ref=-5.42961342279}]
+"h4_torsion_structure_data.inp"         = [{matcher="STRUCTURE_DATA_dihedral_angle", tol=1.0E-12, ref=90.0}]
 #EOF

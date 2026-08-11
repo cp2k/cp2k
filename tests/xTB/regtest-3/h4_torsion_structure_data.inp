@@ -1,0 +1,69 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT h4_torsion_structure_data
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS FALSE
+      &METAVAR
+        COLVAR 1
+        SCALE 1.0
+      &END METAVAR
+      &PRINT
+        &COLVAR
+          COMMON_ITERATION_LEVELS 2
+          &EACH
+            MD 1
+          &END EACH
+        &END COLVAR
+      &END PRINT
+    &END METADYN
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NVE
+    STEPS 0
+  &END MD
+  &PRINT
+    &STRUCTURE_DATA LOW
+      DIHEDRAL_ANGLE 1 2 3 4
+      &EACH
+        MD 1
+      &END EACH
+    &END STRUCTURE_DATA
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD QUICKSTEP
+  &DFT
+    &QS
+      METHOD XTB
+    &END QS
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8.0 8.0 8.0
+      PERIODIC NONE
+    &END CELL
+    &COLVAR
+      &TORSION
+        ATOMS 1 2 3 4
+      &END TORSION
+    &END COLVAR
+    &COORD
+      H 0.0 0.0 0.0
+      H 1.0 0.0 0.0
+      H 1.0 1.0 0.0
+      H 1.0 1.0 1.0
+    &END COORD
+    &VELOCITY
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+    &END VELOCITY
+  &END SUBSYS
+&END FORCE_EVAL
