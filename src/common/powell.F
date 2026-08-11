@@ -237,7 +237,7 @@ CONTAINS
                                                   kopt, ksave, ktemp, nf, nfm, &
                                                   nfmm, nfsav, nftest, nh, np, &
                                                   nptm
-      LOGICAL :: do_return
+      LOGICAL :: do_return, skip_check
       REAL(dp) :: alpha, beta, bstep, bsum, crvmin, delta, detrat, diff, diffa, &
                   diffb, diffc, distsq, dnorm, dsq, dstep, dx, f, fbeg, fopt, fsave, &
                   gisq, gqsq, half, hdiag, one, ratio, recip, reciq, rho, rhosq, sum, &
@@ -268,6 +268,8 @@ CONTAINS
 !       They are part of a product that requires VLAG to be of length ND
 !     The array W will be used for working space. Its length must be at
 !       10*NDIM = 10*(NPT+N).
+
+      skip_check = .FALSE.
 
       IF (opt%state == 1) THEN
          ! initialize all variable that will be stored
@@ -439,7 +441,7 @@ CONTAINS
          !     Generate the next trust region step and test its length. Set KNEW
          !     to -1 if the purpose of the next F will be to improve the model.
          !
-         GOTO 100
+         skip_check = .TRUE.
       ELSE
          IF (knew == -1) THEN
             opt%state = 6
@@ -625,44 +627,51 @@ CONTAINS
          !     branch for another trust region calculation. The case KSAVE>0 occu
          !     when the new function value was calculated by a model step.
          !
-         IF (f <= fsave + tenth*vquad) GOTO 100
-         IF (ksave > 0) GOTO 100
-         knew = 0
+         IF (f <= fsave + tenth*vquad .OR. ksave > 0) THEN
+            skip_check = .TRUE.
+         ELSE
+            knew = 0
+         END IF
       END IF
       !
       !     Alternatively, find out if the interpolation points are close enough
       !     to the best point so far.
       !
 460   CONTINUE
-      distsq = 4.0_dp*delta*delta
-      DO k = 1, npt
-         sum = zero
-         DO j = 1, n
-            sum = sum + (xpt(k, j) - xopt(j))**2
+      IF (.NOT. skip_check) THEN
+         skip_check = .FALSE.
+         distsq = 4.0_dp*delta*delta
+         DO k = 1, npt
+            sum = zero
+            DO j = 1, n
+               sum = sum + (xpt(k, j) - xopt(j))**2
+            END DO
+            IF (sum > distsq) THEN
+               knew = k
+               distsq = sum
+            END IF
          END DO
-         IF (sum > distsq) THEN
-            knew = k
-            distsq = sum
+         !
+         !     If KNEW is positive, then set DSTEP, and branch back for the next
+         !     iteration, which will generate a "model step".
+         !
+         IF (knew > 0) THEN
+            dstep = MAX(MIN(tenth*SQRT(distsq), half*delta), rho)
+            dsq = dstep*dstep
+            CALL generate_next_model_step
+            RETURN
          END IF
-      END DO
-      !
-      !     If KNEW is positive, then set DSTEP, and branch back for the next
-      !     iteration, which will generate a "model step".
-      !
-      IF (knew > 0) THEN
-         dstep = MAX(MIN(tenth*SQRT(distsq), half*delta), rho)
-         dsq = dstep*dstep
-         CALL generate_next_model_step
-         RETURN
+         IF (ratio <= zero .AND. MAX(delta, dnorm) <= rho) THEN
+            !
+            !     The calculations with the current value of RHO are complete. Pick
+            !     next values of RHO and DELTA.
+            !
+            CALL update_rho(do_return)
+            IF (do_return) RETURN
+         END IF
       END IF
-      IF (ratio > zero .OR. MAX(delta, dnorm) > rho) GOTO 100
-      !
-      !     The calculations with the current value of RHO are complete. Pick
-      !     next values of RHO and DELTA.
-      !
-      CALL update_rho(do_return)
-      IF (do_return) RETURN
-100   CONTINUE
+
+      skip_check = .FALSE.
       DO
          knew = 0
          CALL trsapp(n, npt, xopt, xpt, gq, hq, pq, delta, d, w, w(np), w(np + n), w(np + 2*n), crvmin)
@@ -924,6 +933,14 @@ CONTAINS
          CALL calc_next_value_of_objective_function
       END SUBROUTINE generate_next_model_step
 ! **************************************************************************************************
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
 !> \brief ...
 !> \brief ...
 !> \brief ...
