@@ -61,9 +61,36 @@ Useful controls include:
 - [CARTESIAN_OVERLAP](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.MO.CARTESIAN_OVERLAP): print the Cartesian
   overlap matrix together with Cartesian MO coefficients.
 
-For diagonalization calculations, unoccupied orbitals must be available through
-[ADDED_MOS](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.ADDED_MOS). For OT calculations, CP2K can generate the
-requested virtual orbitals for printing through the OT eigensolver.
+For diagonalization calculations, an explicit positive `MO_INDEX_RANGE` or `-1` as its last index
+automatically makes the requested orbitals available, up to the AO basis size. Use
+[ADDED_MOS](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.ADDED_MOS) when virtual orbitals are needed independently
+of this print request, for example for smearing or a subsequent method. For OT calculations, CP2K
+can generate the requested virtual orbitals for printing through the OT eigensolver.
+
+### Standard diagonalization and the number of orbitals
+
+With [ALGORITHM STANDARD](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.DIAGONALIZATION.ALGORITHM), CP2K constructs
+the Kohn--Sham matrix $H$ and overlap matrix $S$ in the atomic-orbital (AO) basis and solves
+
+$$
+H C = S C \varepsilon.
+$$
+
+For a k-point calculation, CP2K solves this generalized eigenproblem separately at every k-point and
+spin channel. It is not a projection of $H$ onto the occupied-MO subspace. Depending on the selected
+diagonalization backend, CP2K either computes only the requested lowest eigenpairs or computes the
+complete spectrum and retains the requested part.
+
+The number of stored orbitals is normally the number needed for the occupied states plus
+`ADDED_MOS`, capped by the AO basis size. `ADDED_MOS -1` requests all available orbitals. At zero
+electronic temperature, virtual orbitals do not contribute to the density matrix, but calculating
+and storing more of them increases the cost.
+
+For Gamma-point calculations close to SCF convergence, `STANDARD` may use a block-Jacobi
+pseudo-diagonalization sweep controlled by
+[EPS_JACOBI](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.DIAGONALIZATION.EPS_JACOBI). This is distinct from the
+optional [DIAG_SUB_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.DIAGONALIZATION.DIAG_SUB_SCF) inner loop,
+which keeps the MOs fixed while refining occupations and is not available with k-points.
 
 ### Interpreting MO energies and energy gaps
 

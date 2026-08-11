@@ -541,8 +541,9 @@ CONTAINS
          print_key, __LOCATION__, "MO", &
          description="Controls the printing of the molecular orbital (MO) information. The requested MO information "// &
          "is printed for all occupied MOs by default. Use the MO_INDEX_RANGE keyword to restrict the number "// &
-         "of the MOs or to print the MO information for unoccupied MOs. With diagonalization, additional MOs "// &
-         "have to be made available for printout using the ADDED_MOS keyword in the SCF section. With OT, "// &
+         "of the MOs or to print the MO information for unoccupied MOs. With diagonalization, an explicit "// &
+         "positive range or -1 as its last index makes the requested MOs available automatically, up to the "// &
+         "AO basis size. ADDED_MOS can make extra MOs available independently of this print request. With OT, "// &
          "it is sufficient to specify the desired MO_INDEX_RANGE. The OT eigensolver can be controlled with "// &
          "the EPS_LUMO and MAX_ITER_LUMO keywords in the SCF section.", &
          print_level=high_print_level, filename="__STD_OUT__")
@@ -593,8 +594,9 @@ CONTAINS
                           name="MO_INDEX_RANGE", &
                           variants=s2a("MO_RANGE", "RANGE"), &
                           description="Print only the requested subset of MOs. The indices of the first and "// &
-                          "the last MO have to be specified to define the range. -1 as the last MO index "// &
-                          "prints all available orbitals with diagonalisation (ADDED_MOS) and all orbitals with OT.", &
+                          "the last MO have to be specified to define the range. A positive range makes the "// &
+                          "requested MOs available automatically. -1 as the last MO index makes and prints all "// &
+                          "available orbitals with diagonalization and all orbitals with OT.", &
                           repeats=.FALSE., &
                           n_var=2, &
                           type_of_var=integer_t, &
