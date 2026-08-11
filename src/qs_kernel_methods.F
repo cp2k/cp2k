@@ -28,7 +28,8 @@ MODULE qs_kernel_methods
                                               qs_environment_type
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
+   USE qs_rho_methods,                  ONLY: qs_rho_copy,&
+                                              qs_rho_rebuild
    USE qs_rho_types,                    ONLY: qs_rho_create,&
                                               qs_rho_get,&
                                               qs_rho_set,&
@@ -147,6 +148,12 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
       CALL qs_rho_get(rho_struct_sub, rho_r=rho_ij_r, tau_r=tau_ij_r)
+
+      IF (.NOT. ASSOCIATED(kernel_env%rho0_struct)) THEN
+         ALLOCATE (kernel_env%rho0_struct)
+         CALL qs_rho_create(kernel_env%rho0_struct)
+      END IF
+      CALL qs_rho_copy(rho_struct_sub, kernel_env%rho0_struct, auxbas_pw_pool, nspins)
 
       NULLIFY (kernel_env%xc_rho_set, kernel_env%xc_rho1_set)
 

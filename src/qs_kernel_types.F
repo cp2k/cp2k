@@ -16,6 +16,8 @@ MODULE qs_kernel_types
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_density_type,&
                                               lri_environment_type
+   USE qs_rho_types,                    ONLY: qs_rho_release,&
+                                              qs_rho_type
    USE qs_tddfpt2_stda_types,           ONLY: stda_env_type
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_release
@@ -46,6 +48,7 @@ MODULE qs_kernel_types
    TYPE full_kernel_env_type
       ! ground state electron density
       TYPE(xc_rho_set_type), POINTER                     :: xc_rho_set => Null()
+      TYPE(qs_rho_type), POINTER                         :: rho0_struct => Null()
       ! response density
       TYPE(xc_rho_set_type), POINTER                     :: xc_rho1_set => Null()
       !> first and second derivatives of exchange-correlation functional
@@ -101,6 +104,10 @@ CONTAINS
          IF (ASSOCIATED(kernel_env%xc_rho1_set)) THEN
             CALL xc_rho_set_release(kernel_env%xc_rho1_set)
             DEALLOCATE (kernel_env%xc_rho1_set)
+         END IF
+         IF (ASSOCIATED(kernel_env%rho0_struct)) THEN
+            CALL qs_rho_release(kernel_env%rho0_struct)
+            DEALLOCATE (kernel_env%rho0_struct)
          END IF
          CALL xc_dset_release(kernel_env%xc_deriv_set)
          IF (ASSOCIATED(kernel_env%xc_rho_set)) THEN
