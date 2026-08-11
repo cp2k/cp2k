@@ -371,7 +371,7 @@ CONTAINS
 
       CALL set_state
 
-      IF (nf <= npt) THEN
+      preparation: IF (nf <= npt) THEN
          fval(nf) = f
          IF (nf == 1) THEN
             fbeg = f
@@ -442,7 +442,7 @@ CONTAINS
          !     to -1 if the purpose of the next F will be to improve the model.
          !
          skip_check = .TRUE.
-      ELSE
+         ELSE preparation
          IF (knew == -1) THEN
             opt%state = 6
             CALL get_state
@@ -535,7 +535,7 @@ CONTAINS
                   knew = k
                END IF
             END DO
-            IF (knew == 0) GOTO 460
+            IF (knew == 0) EXIT preparation
             !
             !     Update BMAT, ZMAT and IDZ, so that the KNEW-th interpolation point
             !     can be moved. Begin the updating of the quadratic model, starting
@@ -632,74 +632,74 @@ CONTAINS
          ELSE
             knew = 0
          END IF
-      END IF
+      END IF preparation
       !
       !     Alternatively, find out if the interpolation points are close enough
       !     to the best point so far.
       !
-460   CONTINUE
-      IF (.NOT. skip_check) THEN
-         skip_check = .FALSE.
-         distsq = 4.0_dp*delta*delta
-         DO k = 1, npt
-            sum = zero
-            DO j = 1, n
-               sum = sum + (xpt(k, j) - xopt(j))**2
+      outer: DO
+         IF (.NOT. skip_check) THEN
+            skip_check = .FALSE.
+            distsq = 4.0_dp*delta*delta
+            DO k = 1, npt
+               sum = zero
+               DO j = 1, n
+                  sum = sum + (xpt(k, j) - xopt(j))**2
+               END DO
+               IF (sum > distsq) THEN
+                  knew = k
+                  distsq = sum
+               END IF
             END DO
-            IF (sum > distsq) THEN
-               knew = k
-               distsq = sum
+            !
+            !     If KNEW is positive, then set DSTEP, and branch back for the next
+            !     iteration, which will generate a "model step".
+            !
+            IF (knew > 0) THEN
+               dstep = MAX(MIN(tenth*SQRT(distsq), half*delta), rho)
+               dsq = dstep*dstep
+               CALL generate_next_model_step
+               RETURN
             END IF
-         END DO
-         !
-         !     If KNEW is positive, then set DSTEP, and branch back for the next
-         !     iteration, which will generate a "model step".
-         !
-         IF (knew > 0) THEN
-            dstep = MAX(MIN(tenth*SQRT(distsq), half*delta), rho)
-            dsq = dstep*dstep
-            CALL generate_next_model_step
-            RETURN
+            IF (ratio <= zero .AND. MAX(delta, dnorm) <= rho) THEN
+               !
+               !     The calculations with the current value of RHO are complete. Pick
+               !     next values of RHO and DELTA.
+               !
+               CALL update_rho(do_return)
+               IF (do_return) RETURN
+            END IF
          END IF
-         IF (ratio <= zero .AND. MAX(delta, dnorm) <= rho) THEN
-            !
-            !     The calculations with the current value of RHO are complete. Pick
-            !     next values of RHO and DELTA.
-            !
-            CALL update_rho(do_return)
-            IF (do_return) RETURN
-         END IF
-      END IF
 
-      skip_check = .FALSE.
-      DO
-         knew = 0
-         CALL trsapp(n, npt, xopt, xpt, gq, hq, pq, delta, d, w, w(np), w(np + n), w(np + 2*n), crvmin)
-         dsq = zero
-         DO i = 1, n
-            dsq = dsq + d(i)**2
-         END DO
-         dnorm = MIN(delta, SQRT(dsq))
-         IF (dnorm < half*rho) THEN
-            knew = -1
-            delta = tenth*delta
-            ratio = -1.0_dp
-            IF (delta <= 1.5_dp*rho) delta = rho
-            IF (nf <= nfsav + 2) GOTO 460
-            temp = 0.125_dp*crvmin*rho*rho
-            IF (temp <= MAX(diffa, diffb, diffc)) GOTO 460
-            CALL update_rho(do_return)
-            IF (do_return) RETURN
-            CYCLE
-         END IF
-         EXIT
-      END DO
+         skip_check = .FALSE.
+         inner: DO
+            knew = 0
+            CALL trsapp(n, npt, xopt, xpt, gq, hq, pq, delta, d, w, w(np), w(np + n), w(np + 2*n), crvmin)
+            dsq = zero
+            DO i = 1, n
+               dsq = dsq + d(i)**2
+            END DO
+            dnorm = MIN(delta, SQRT(dsq))
+            IF (dnorm < half*rho) THEN
+               knew = -1
+               delta = tenth*delta
+               ratio = -1.0_dp
+               IF (delta <= 1.5_dp*rho) delta = rho
+               IF (nf <= nfsav + 2) CYCLE outer
+               temp = 0.125_dp*crvmin*rho*rho
+               IF (temp <= MAX(diffa, diffb, diffc)) CYCLE outer
+               CALL update_rho(do_return)
+               IF (do_return) RETURN
+               CYCLE inner
+            END IF
+            EXIT inner
+         END DO inner
+         EXIT outer
+      END DO outer
       !
       !     Shift XBASE if XOPT may be too far from XBASE. First make the chan
       !     to BMAT that do not depend on ZMAT.
       CALL generate_next_model_step
-
-      RETURN
 
    CONTAINS
 ! **************************************************************************************************
@@ -933,6 +933,54 @@ CONTAINS
          CALL calc_next_value_of_objective_function
       END SUBROUTINE generate_next_model_step
 ! **************************************************************************************************
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
 !> \brief ...
 !> \brief ...
 !> \brief ...
