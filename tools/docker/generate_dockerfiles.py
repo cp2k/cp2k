@@ -236,6 +236,16 @@ def main() -> None:
                 image_tag=f.image_tag,
             )
         )
+    with OutputFile(f"Dockerfile.test_spack_performance-openmp", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                version="psmp",
+                mpi_mode="mpich",
+                feature_flags="",
+                image_tag=f.image_tag,
+                test_type="performance-openmp",
+            )
+        )
 
     # End Spack/CMake based tester
 
@@ -710,6 +720,7 @@ def install_cp2k_spack(
     feature_flags: str = "",
     testopts: str = "",
     image_tag: str = "",
+    test_type: str = "regression",
 ) -> str:
     if gcc_version is None or "fedora" in base_image:
         gcc_compilers = "g++ gcc gfortran"
@@ -792,16 +803,47 @@ COPY ./benchmarks/CI ./benchmarks/CI
 # Do not rely only on LD_LIBRARY_PATH because it is fragile
 COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
 RUN ldconfig
+"""
+    )
+    if test_type.startswith("performance-"):
+        benchmark_profile = test_type.removeprefix("performance-")
+        output += rf"""
+# Install benchmark inputs for performance test
+COPY ./benchmarks/QS/H2O-64.inp \
+     ./benchmarks/QS/H2O-64_nonortho.inp \
+     ./benchmarks/QS
+COPY ./benchmarks/QS_reference/w64PBE.inp \
+     ./benchmarks/QS_reference/w64SCAN.inp \
+     ./benchmarks/QS_reference
+COPY ./benchmarks/QS_single_node/H2O-hyb.inp \
+     ./benchmarks/QS_single_node/GW_PBE_4benzene.inp \
+     ./benchmarks/QS_single_node/RI-HFX_H2O-32.inp \
+     ./benchmarks/QS_single_node/RI-MP2_ammonia.inp \
+     ./benchmarks/QS_single_node/diag_cu144_broy.inp \
+     ./benchmarks/QS_single_node/bench_dftb.inp \
+     ./benchmarks/QS_single_node/dbcsr.inp \
+     ./benchmarks/QS_single_node
+COPY ./benchmarks/QMMM_MQAE/MQAE_single_node.inp \
+     ./benchmarks/QMMM_MQAE
 
+COPY ./tools/docker/scripts/plot_performance.py ./tools/docker/scripts
+
+# Run CP2K performance test
+RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_benchmarks {benchmark_profile} || echo "ERROR: Performance test run failed"
+"""
+    elif test_type == "regression":
+        output += rf"""
 # Run CP2K regression test
-RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts} || echo "ERROR: Tests failed"
-
+RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts} || echo "ERROR: Regression test run failed"
+"""
+    else:
+        print(f"\nERROR: Unknown test type {test_type} specified\n")
+    output += rf"""
 # Create entrypoint and finalise container build
 WORKDIR /mnt
 ENTRYPOINT ["/opt/cp2k/install/bin/launch"]
 CMD ["cp2k", "--help", "--version"]
 """
-    )
     return output
 
 

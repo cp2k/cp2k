@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_openmpi-psmp -f ./Dockerfile.test_spack_openmpi-psmp ../../
+# Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_performance-openmp -f ./Dockerfile.test_spack_performance-openmp ../../
 #
 
 ARG BASE_IMAGE="ubuntu:26.04"
@@ -38,7 +38,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 ARG IMAGE_TAG
-ENV IMAGE_TAG=${IMAGE_TAG:-spack_openmpi-psmp}
+ENV IMAGE_TAG=${IMAGE_TAG:-spack_performance-openmp}
 
 ARG SPACK_CACHE
 ENV SPACK_CACHE="${SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://host.containers.internal:9000}"
@@ -48,7 +48,7 @@ WORKDIR /opt/cp2k
 COPY ./tools/spack ./tools/spack
 COPY ./tools/docker ./tools/docker
 COPY ./make_cp2k.sh .
-RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none  -mpi openmpi  
+RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none  -mpi mpich -ue 
 
 ###### Stage 2: Build CP2K ######
 
@@ -61,7 +61,7 @@ COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 COPY ./CMakePresets.json .
 
-RUN ./make_cp2k.sh -cv psmp  -gpu none -mpi openmpi 
+RUN ./make_cp2k.sh -cv psmp  -gpu none -mpi mpich 
 
 ###### Stage 3: Install CP2K ######
 
@@ -91,8 +91,28 @@ COPY ./benchmarks/CI ./benchmarks/CI
 COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
 RUN ldconfig
 
-# Run CP2K regression test
-RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests --keepalive || echo "ERROR: Regression test run failed"
+# Install benchmark inputs for performance test
+COPY ./benchmarks/QS/H2O-64.inp \
+     ./benchmarks/QS/H2O-64_nonortho.inp \
+     ./benchmarks/QS
+COPY ./benchmarks/QS_reference/w64PBE.inp \
+     ./benchmarks/QS_reference/w64SCAN.inp \
+     ./benchmarks/QS_reference
+COPY ./benchmarks/QS_single_node/H2O-hyb.inp \
+     ./benchmarks/QS_single_node/GW_PBE_4benzene.inp \
+     ./benchmarks/QS_single_node/RI-HFX_H2O-32.inp \
+     ./benchmarks/QS_single_node/RI-MP2_ammonia.inp \
+     ./benchmarks/QS_single_node/diag_cu144_broy.inp \
+     ./benchmarks/QS_single_node/bench_dftb.inp \
+     ./benchmarks/QS_single_node/dbcsr.inp \
+     ./benchmarks/QS_single_node
+COPY ./benchmarks/QMMM_MQAE/MQAE_single_node.inp \
+     ./benchmarks/QMMM_MQAE
+
+COPY ./tools/docker/scripts/plot_performance.py ./tools/docker/scripts
+
+# Run CP2K performance test
+RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_benchmarks openmp || echo "ERROR: Performance test run failed"
 
 # Create entrypoint and finalise container build
 WORKDIR /mnt
