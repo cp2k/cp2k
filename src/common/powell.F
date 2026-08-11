@@ -663,25 +663,28 @@ CONTAINS
       CALL update_rho(do_return)
       IF (do_return) RETURN
 100   CONTINUE
-      knew = 0
-      CALL trsapp(n, npt, xopt, xpt, gq, hq, pq, delta, d, w, w(np), w(np + n), w(np + 2*n), crvmin)
-      dsq = zero
-      DO i = 1, n
-         dsq = dsq + d(i)**2
+      DO
+         knew = 0
+         CALL trsapp(n, npt, xopt, xpt, gq, hq, pq, delta, d, w, w(np), w(np + n), w(np + 2*n), crvmin)
+         dsq = zero
+         DO i = 1, n
+            dsq = dsq + d(i)**2
+         END DO
+         dnorm = MIN(delta, SQRT(dsq))
+         IF (dnorm < half*rho) THEN
+            knew = -1
+            delta = tenth*delta
+            ratio = -1.0_dp
+            IF (delta <= 1.5_dp*rho) delta = rho
+            IF (nf <= nfsav + 2) GOTO 460
+            temp = 0.125_dp*crvmin*rho*rho
+            IF (temp <= MAX(diffa, diffb, diffc)) GOTO 460
+            CALL update_rho(do_return)
+            IF (do_return) RETURN
+            CYCLE
+         END IF
+         EXIT
       END DO
-      dnorm = MIN(delta, SQRT(dsq))
-      IF (dnorm < half*rho) THEN
-         knew = -1
-         delta = tenth*delta
-         ratio = -1.0_dp
-         IF (delta <= 1.5_dp*rho) delta = rho
-         IF (nf <= nfsav + 2) GOTO 460
-         temp = 0.125_dp*crvmin*rho*rho
-         IF (temp <= MAX(diffa, diffb, diffc)) GOTO 460
-         CALL update_rho(do_return)
-         IF (do_return) RETURN
-         GOTO 100
-      END IF
       !
       !     Shift XBASE if XOPT may be too far from XBASE. First make the chan
       !     to BMAT that do not depend on ZMAT.
@@ -921,6 +924,10 @@ CONTAINS
          CALL calc_next_value_of_objective_function
       END SUBROUTINE generate_next_model_step
 ! **************************************************************************************************
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
 !> \brief ...
 !> \brief ...
 !> \brief ...
