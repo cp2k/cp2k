@@ -488,157 +488,7 @@ CONTAINS
       !
       !     Shift XBASE if XOPT may be too far from XBASE. First make the chan
       !     to BMAT that do not depend on ZMAT.
-      !
-120   IF (dsq <= 1.0e-3_dp*xoptsq) THEN
-         tempq = 0.25_dp*xoptsq
-         DO k = 1, npt
-            sum = zero
-            DO i = 1, n
-               sum = sum + xpt(k, i)*xopt(i)
-            END DO
-            temp = pq(k)*sum
-            sum = sum - half*xoptsq
-            w(npt + k) = sum
-            DO i = 1, n
-               gq(i) = gq(i) + temp*xpt(k, i)
-               xpt(k, i) = xpt(k, i) - half*xopt(i)
-               vlag(i) = bmat(k, i)
-               w(i) = sum*xpt(k, i) + tempq*xopt(i)
-               ip = npt + i
-               DO j = 1, i
-                  bmat(ip, j) = bmat(ip, j) + vlag(i)*w(j) + w(i)*vlag(j)
-               END DO
-            END DO
-         END DO
-         !
-         !     Then the revisions of BMAT that depend on ZMAT are calculated.
-         !
-         DO k = 1, nptm
-            sumz = zero
-            DO i = 1, npt
-               sumz = sumz + zmat(i, k)
-               w(i) = w(npt + i)*zmat(i, k)
-            END DO
-            DO j = 1, n
-               sum = tempq*sumz*xopt(j)
-               DO i = 1, npt
-                  sum = sum + w(i)*xpt(i, j)
-                  vlag(j) = sum
-                  IF (k < idz) sum = -sum
-               END DO
-               DO i = 1, npt
-                  bmat(i, j) = bmat(i, j) + sum*zmat(i, k)
-               END DO
-            END DO
-            DO i = 1, n
-               ip = i + npt
-               temp = vlag(i)
-               IF (k < idz) temp = -temp
-               DO j = 1, i
-                  bmat(ip, j) = bmat(ip, j) + temp*vlag(j)
-               END DO
-            END DO
-         END DO
-         !
-         !     The following instructions complete the shift of XBASE, including
-         !     the changes to the parameters of the quadratic model.
-         !
-         ih = 0
-         DO j = 1, n
-            w(j) = zero
-            DO k = 1, npt
-               w(j) = w(j) + pq(k)*xpt(k, j)
-               xpt(k, j) = xpt(k, j) - half*xopt(j)
-            END DO
-            DO i = 1, j
-               ih = ih + 1
-               IF (i < j) gq(j) = gq(j) + hq(ih)*xopt(i)
-               gq(i) = gq(i) + hq(ih)*xopt(j)
-               hq(ih) = hq(ih) + w(i)*xopt(j) + xopt(i)*w(j)
-               bmat(npt + i, j) = bmat(npt + j, i)
-            END DO
-         END DO
-         DO j = 1, n
-            xbase(j) = xbase(j) + xopt(j)
-            xopt(j) = zero
-         END DO
-         xoptsq = zero
-      END IF
-      !
-      !     Pick the model step if KNEW is positive. A different choice of D
-      !     may be made later, if the choice of D by BIGLAG causes substantial
-      !     cancellation in DENOM.
-      !
-      IF (knew > 0) THEN
-         CALL biglag(n, npt, xopt, xpt, bmat, zmat, idz, ndim, knew, dstep, &
-                     d, alpha, vlag, vlag(npt + 1), w, w(np), w(np + n))
-      END IF
-      !
-      !     Calculate VLAG and BETA for the current choice of D. The first NPT
-      !     components of W_check will be held in W.
-      !
-      DO k = 1, npt
-         suma = zero
-         sumb = zero
-         sum = zero
-         DO j = 1, n
-            suma = suma + xpt(k, j)*d(j)
-            sumb = sumb + xpt(k, j)*xopt(j)
-            sum = sum + bmat(k, j)*d(j)
-         END DO
-         w(k) = suma*(half*suma + sumb)
-         vlag(k) = sum
-      END DO
-      beta = zero
-      DO k = 1, nptm
-         sum = zero
-         DO i = 1, npt
-            sum = sum + zmat(i, k)*w(i)
-         END DO
-         IF (k < idz) THEN
-            beta = beta + sum*sum
-            sum = -sum
-         ELSE
-            beta = beta - sum*sum
-         END IF
-         DO i = 1, npt
-            vlag(i) = vlag(i) + sum*zmat(i, k)
-         END DO
-      END DO
-      bsum = zero
-      dx = zero
-      DO j = 1, n
-         sum = zero
-         DO i = 1, npt
-            sum = sum + w(i)*bmat(i, j)
-         END DO
-         bsum = bsum + sum*d(j)
-         jp = npt + j
-         DO k = 1, n
-            sum = sum + bmat(jp, k)*d(k)
-         END DO
-         vlag(jp) = sum
-         bsum = bsum + sum*d(j)
-         dx = dx + d(j)*xopt(j)
-      END DO
-      beta = dx*dx + dsq*(xoptsq + dx + dx + half*dsq) + beta - bsum
-      vlag(kopt) = vlag(kopt) + one
-      !
-      !     If KNEW is positive and if the cancellation in DENOM is unacceptab
-      !     then BIGDEN calculates an alternative model step, XNEW being used
-      !     working space.
-      !
-      IF (knew > 0) THEN
-         temp = one + alpha*beta/vlag(knew)**2
-         IF (ABS(temp) <= 0.8_dp) THEN
-            CALL bigden(n, npt, xopt, xpt, bmat, zmat, idz, ndim, kopt, &
-                        knew, d, w, vlag, beta, xnew, w(ndim + 1), w(6*ndim + 1))
-         END IF
-      END IF
-      !
-      !     Calculate the next value of the objective function.
-      !
-CALL calc_next_value_of_objective_function
+      CALL generate_next_model_step
 
       RETURN
 
@@ -855,7 +705,8 @@ CALL calc_next_value_of_objective_function
       IF (knew > 0) THEN
          dstep = MAX(MIN(tenth*SQRT(distsq), half*delta), rho)
          dsq = dstep*dstep
-         GOTO 120
+         CALL generate_next_model_step
+         RETURN
       END IF
       IF (ratio > zero) GOTO 100
       IF (MAX(delta, dnorm) > rho) GOTO 100
@@ -881,50 +732,217 @@ CALL calc_next_value_of_objective_function
       !     it is too short to have been tried before.
       !
       IF (knew == -1) THEN
-      CALL calc_next_value_of_objective_function
+         CALL calc_next_value_of_objective_function
       ELSE
-      opt%state = 7
-      CALL get_state
+         opt%state = 7
+         CALL get_state
 
-CALL finalize_optimization_after_failure
-END IF
+         CALL finalize_optimization_after_failure
+      END IF
 
       !******************************************************************************
    CONTAINS
-   SUBROUTINE calc_next_value_of_objective_function()
-   DO i = 1, n
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+      SUBROUTINE generate_next_model_step()
+         IF (dsq <= 1.0e-3_dp*xoptsq) THEN
+            tempq = 0.25_dp*xoptsq
+            DO k = 1, npt
+               sum = zero
+               DO i = 1, n
+                  sum = sum + xpt(k, i)*xopt(i)
+               END DO
+               temp = pq(k)*sum
+               sum = sum - half*xoptsq
+               w(npt + k) = sum
+               DO i = 1, n
+                  gq(i) = gq(i) + temp*xpt(k, i)
+                  xpt(k, i) = xpt(k, i) - half*xopt(i)
+                  vlag(i) = bmat(k, i)
+                  w(i) = sum*xpt(k, i) + tempq*xopt(i)
+                  ip = npt + i
+                  DO j = 1, i
+                     bmat(ip, j) = bmat(ip, j) + vlag(i)*w(j) + w(i)*vlag(j)
+                  END DO
+               END DO
+            END DO
+            !
+            !     Then the revisions of BMAT that depend on ZMAT are calculated.
+            !
+            DO k = 1, nptm
+               sumz = zero
+               DO i = 1, npt
+                  sumz = sumz + zmat(i, k)
+                  w(i) = w(npt + i)*zmat(i, k)
+               END DO
+               DO j = 1, n
+                  sum = tempq*sumz*xopt(j)
+                  DO i = 1, npt
+                     sum = sum + w(i)*xpt(i, j)
+                     vlag(j) = sum
+                     IF (k < idz) sum = -sum
+                  END DO
+                  DO i = 1, npt
+                     bmat(i, j) = bmat(i, j) + sum*zmat(i, k)
+                  END DO
+               END DO
+               DO i = 1, n
+                  ip = i + npt
+                  temp = vlag(i)
+                  IF (k < idz) temp = -temp
+                  DO j = 1, i
+                     bmat(ip, j) = bmat(ip, j) + temp*vlag(j)
+                  END DO
+               END DO
+            END DO
+            !
+            !     The following instructions complete the shift of XBASE, including
+            !     the changes to the parameters of the quadratic model.
+            !
+            ih = 0
+            DO j = 1, n
+               w(j) = zero
+               DO k = 1, npt
+                  w(j) = w(j) + pq(k)*xpt(k, j)
+                  xpt(k, j) = xpt(k, j) - half*xopt(j)
+               END DO
+               DO i = 1, j
+                  ih = ih + 1
+                  IF (i < j) gq(j) = gq(j) + hq(ih)*xopt(i)
+                  gq(i) = gq(i) + hq(ih)*xopt(j)
+                  hq(ih) = hq(ih) + w(i)*xopt(j) + xopt(i)*w(j)
+                  bmat(npt + i, j) = bmat(npt + j, i)
+               END DO
+            END DO
+            DO j = 1, n
+               xbase(j) = xbase(j) + xopt(j)
+               xopt(j) = zero
+            END DO
+            xoptsq = zero
+         END IF
+         !
+         !     Pick the model step if KNEW is positive. A different choice of D
+         !     may be made later, if the choice of D by BIGLAG causes substantial
+         !     cancellation in DENOM.
+         !
+         IF (knew > 0) THEN
+            CALL biglag(n, npt, xopt, xpt, bmat, zmat, idz, ndim, knew, dstep, &
+                        d, alpha, vlag, vlag(npt + 1), w, w(np), w(np + n))
+         END IF
+         !
+         !     Calculate VLAG and BETA for the current choice of D. The first NPT
+         !     components of W_check will be held in W.
+         !
+         DO k = 1, npt
+            suma = zero
+            sumb = zero
+            sum = zero
+            DO j = 1, n
+               suma = suma + xpt(k, j)*d(j)
+               sumb = sumb + xpt(k, j)*xopt(j)
+               sum = sum + bmat(k, j)*d(j)
+            END DO
+            w(k) = suma*(half*suma + sumb)
+            vlag(k) = sum
+         END DO
+         beta = zero
+         DO k = 1, nptm
+            sum = zero
+            DO i = 1, npt
+               sum = sum + zmat(i, k)*w(i)
+            END DO
+            IF (k < idz) THEN
+               beta = beta + sum*sum
+               sum = -sum
+            ELSE
+               beta = beta - sum*sum
+            END IF
+            DO i = 1, npt
+               vlag(i) = vlag(i) + sum*zmat(i, k)
+            END DO
+         END DO
+         bsum = zero
+         dx = zero
+         DO j = 1, n
+            sum = zero
+            DO i = 1, npt
+               sum = sum + w(i)*bmat(i, j)
+            END DO
+            bsum = bsum + sum*d(j)
+            jp = npt + j
+            DO k = 1, n
+               sum = sum + bmat(jp, k)*d(k)
+            END DO
+            vlag(jp) = sum
+            bsum = bsum + sum*d(j)
+            dx = dx + d(j)*xopt(j)
+         END DO
+         beta = dx*dx + dsq*(xoptsq + dx + dx + half*dsq) + beta - bsum
+         vlag(kopt) = vlag(kopt) + one
+         !
+         !     If KNEW is positive and if the cancellation in DENOM is unacceptab
+         !     then BIGDEN calculates an alternative model step, XNEW being used
+         !     working space.
+         !
+         IF (knew > 0) THEN
+            temp = one + alpha*beta/vlag(knew)**2
+            IF (ABS(temp) <= 0.8_dp) THEN
+               CALL bigden(n, npt, xopt, xpt, bmat, zmat, idz, ndim, kopt, &
+                           knew, d, w, vlag, beta, xnew, w(ndim + 1), w(6*ndim + 1))
+            END IF
+         END IF
+         !
+         !     Calculate the next value of the objective function.
+         !
+         CALL calc_next_value_of_objective_function
+      END SUBROUTINE generate_next_model_step
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+!> \brief ...
+!> \return ...
+! **************************************************************************************************
+      SUBROUTINE calc_next_value_of_objective_function()
+      DO i = 1, n
          xnew(i) = xopt(i) + d(i)
          x(i) = xbase(i) + xnew(i)
       END DO
       nf = nf + 1
-CALL check_number_of_steps
-END SUBROUTINE calc_next_value_of_objective_function
+      CALL check_number_of_steps
+      END SUBROUTINE calc_next_value_of_objective_function
 
-SUBROUTINE check_number_of_steps()
-      IF (nf > nftest) THEN
-         !         return to many steps
-         nf = nf - 1
-         opt%state = 3
-         CALL get_state
-         CALL finalize_optimization_after_failure
-      ELSE
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+      SUBROUTINE check_number_of_steps()
+         IF (nf > nftest) THEN
+            !         return to many steps
+            nf = nf - 1
+            opt%state = 3
+            CALL get_state
+            CALL finalize_optimization_after_failure
+         ELSE
 
-      CALL get_state
+            CALL get_state
 
-      opt%state = 2
-      END IF
+            opt%state = 2
+         END IF
       END SUBROUTINE check_number_of_steps
 
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
       SUBROUTINE finalize_optimization_after_failure()
-   IF (fopt <= f) THEN
-         DO i = 1, n
-            x(i) = xbase(i) + xopt(i)
-         END DO
-         f = fopt
-      END IF
+         IF (fopt <= f) THEN
+            DO i = 1, n
+               x(i) = xbase(i) + xopt(i)
+            END DO
+            f = fopt
+         END IF
 
-      CALL get_state
-      END SUBROUTINE
+         CALL get_state
+      END SUBROUTINE finalize_optimization_after_failure
       !******************************************************************************
 ! **************************************************************************************************
 !> \brief ...
