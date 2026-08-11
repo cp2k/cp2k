@@ -1186,9 +1186,11 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
 
   # Activate CUDA in the spack configuration file if requested
   if ((CUDA_SM_CODE > 0)); then
+    # The generated MPI stack is not CUDA-aware, so COSMA has to stage MPI
+    # transfers through host memory instead of passing device pointers.
     sed -E \
       -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_SM_CODE}/" \
-      -e 's/"~cuda\s+~gpu_direct"/"\+cuda \+gpu_direct"/' \
+      -e 's/"~cuda\s+~gpu_direct"/"\+cuda ~gpu_direct"/' \
       -e '/\s*#\s*-\s+"fabrics=efa,ucx"/ s/#/ /' \
       -i "${CP2K_CONFIG_FILE}"
     # Building libfabric with CUDA causes problems
