@@ -811,10 +811,10 @@ RUN ldconfig
 # Install benchmark inputs for performance test
 COPY ./benchmarks/QS/H2O-64.inp \
      ./benchmarks/QS/H2O-64_nonortho.inp \
-     ./benchmarks/QS
+     ./benchmarks/QS/
 COPY ./benchmarks/QS_reference/w64PBE.inp \
      ./benchmarks/QS_reference/w64SCAN.inp \
-     ./benchmarks/QS_reference
+     ./benchmarks/QS_reference/
 COPY ./benchmarks/QS_single_node/H2O-hyb.inp \
      ./benchmarks/QS_single_node/GW_PBE_4benzene.inp \
      ./benchmarks/QS_single_node/RI-HFX_H2O-32.inp \
@@ -822,9 +822,9 @@ COPY ./benchmarks/QS_single_node/H2O-hyb.inp \
      ./benchmarks/QS_single_node/diag_cu144_broy.inp \
      ./benchmarks/QS_single_node/bench_dftb.inp \
      ./benchmarks/QS_single_node/dbcsr.inp \
-     ./benchmarks/QS_single_node
+     ./benchmarks/QS_single_node/
 COPY ./benchmarks/QMMM_MQAE/MQAE_single_node.inp \
-     ./benchmarks/QMMM_MQAE
+     ./benchmarks/QMMM_MQAE/
 
 COPY ./tools/docker/scripts/plot_performance.py ./tools/docker/scripts
 
