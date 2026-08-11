@@ -367,40 +367,7 @@ CONTAINS
       recip = one/rhosq
       reciq = SQRT(half)/rhosq
       nf = 0
-50    nfm = nf
-      nfmm = nf - n
-      nf = nf + 1
-      IF (nfm <= 2*n) THEN
-         IF (nfm >= 1 .AND. nfm <= N) THEN
-            xpt(nf, nfm) = rhobeg
-         ELSE IF (nfm > n) THEN
-            xpt(nf, nfmm) = -rhobeg
-         END IF
-      ELSE
-         itemp = (nfmm - 1)/n
-         jpt = nfm - itemp*n - n
-         ipt = jpt + itemp
-         IF (ipt > n) THEN
-            itemp = jpt
-            jpt = ipt - n
-            ipt = itemp
-         END IF
-         xipt = rhobeg
-         IF (fval(ipt + np) < fval(ipt + 1)) xipt = -xipt
-         XJPT = RHOBEG
-         IF (fval(jpt + np) < fval(jpt + 1)) xjpt = -xjpt
-         xpt(nf, ipt) = xipt
-         xpt(nf, jpt) = xjpt
-      END IF
-      !
-      !     Calculate the next value of F, label 70 being reached immediately
-      !     after this calculation. The least function value so far and its in
-      !     are required.
-      !
-      DO j = 1, n
-         x(j) = xpt(nf, j) + xbase(j)
-      END DO
-      CALL check_number_of_steps
+      CALL begin_initialization_of_interpolation
       RETURN
 70    fval(nf) = f
       IF (nf == 1) THEN
@@ -448,7 +415,10 @@ CONTAINS
          zmat(jpt + 1, nfmm) = -recip
          hq(ih) = (fbeg - fval(ipt + 1) - fval(jpt + 1) + f)/(xipt*xjpt)
       END IF
-      IF (nf < npt) GOTO 50
+      IF (nf < npt) THEN
+         CALL begin_initialization_of_interpolation
+         RETURN
+      END IF
       !
       !     Begin the iterative procedure, because the initial model is comple
       !
@@ -463,7 +433,7 @@ CONTAINS
          xopt(i) = xpt(kopt, i)
          xoptsq = xoptsq + xopt(i)**2
       END DO
-90    nfsav = nf
+      nfsav = nf
       !
       !     Generate the next trust region step and test its length. Set KNEW
       !     to -1 if the purpose of the next F will be to improve the model.
@@ -725,7 +695,8 @@ CONTAINS
             rho = tenth*rho
          END IF
          delta = MAX(delta, rho)
-         GOTO 90
+         nfsav = nf
+         GOTO 100
       END IF
       !
       !     Return from the calculation, after another Newton-Raphson step, if
@@ -742,6 +713,45 @@ CONTAINS
 
       !******************************************************************************
    CONTAINS
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+      SUBROUTINE begin_initialization_of_interpolation()
+         nfm = nf
+         nfmm = nf - n
+         nf = nf + 1
+         IF (nfm <= 2*n) THEN
+            IF (nfm >= 1 .AND. nfm <= N) THEN
+               xpt(nf, nfm) = rhobeg
+            ELSE IF (nfm > n) THEN
+               xpt(nf, nfmm) = -rhobeg
+            END IF
+         ELSE
+            itemp = (nfmm - 1)/n
+            jpt = nfm - itemp*n - n
+            ipt = jpt + itemp
+            IF (ipt > n) THEN
+               itemp = jpt
+               jpt = ipt - n
+               ipt = itemp
+            END IF
+            xipt = rhobeg
+            IF (fval(ipt + np) < fval(ipt + 1)) xipt = -xipt
+            XJPT = RHOBEG
+            IF (fval(jpt + np) < fval(jpt + 1)) xjpt = -xjpt
+            xpt(nf, ipt) = xipt
+            xpt(nf, jpt) = xjpt
+         END IF
+         !
+         !     Calculate the next value of F, label 70 being reached immediately
+         !     after this calculation. The least function value so far and its in
+         !     are required.
+         !
+         DO j = 1, n
+            x(j) = xpt(nf, j) + xbase(j)
+         END DO
+         CALL check_number_of_steps
+      END SUBROUTINE begin_initialization_of_interpolation
 ! **************************************************************************************************
 !> \brief ...
 ! **************************************************************************************************
@@ -899,7 +909,8 @@ CONTAINS
       END SUBROUTINE generate_next_model_step
 ! **************************************************************************************************
 !> \brief ...
-! **************************************************************************************************
+!> \brief ...
+!> \brief ...
 !> \brief ...
 !> \return ...
 ! **************************************************************************************************
