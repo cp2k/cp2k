@@ -503,7 +503,11 @@ void torch_c_tensor_grad(const torch_c_tensor_t *tensor,
   get_device_with_guard(guard);
   const torch::Tensor maybe_grad = tensor->grad();
   assert(maybe_grad.defined());
-  *grad = new torch_c_tensor_t(maybe_grad.cpu().contiguous());
+  torch::Tensor host_grad = maybe_grad.detach().cpu().contiguous();
+  if (maybe_grad.is_cpu()) {
+    host_grad = host_grad.clone();
+  }
+  *grad = new torch_c_tensor_t(std::move(host_grad));
 }
 
 /*******************************************************************************
@@ -543,9 +547,11 @@ void torch_c_tensor_grad_batch3(const torch_c_tensor_t *tensor1,
     *grad2 = new torch_c_tensor_t(std::move(host2));
     *grad3 = new torch_c_tensor_t(std::move(host3));
   } else {
-    *grad1 = new torch_c_tensor_t(source1.cpu().contiguous());
-    *grad2 = new torch_c_tensor_t(source2.cpu().contiguous());
-    *grad3 = new torch_c_tensor_t(source3.cpu().contiguous());
+    // Materialize independent host buffers instead of aliasing gradients owned
+    // by the autograd graph when they are already contiguous CPU tensors.
+    *grad1 = new torch_c_tensor_t(source1.detach().cpu().contiguous().clone());
+    *grad2 = new torch_c_tensor_t(source2.detach().cpu().contiguous().clone());
+    *grad3 = new torch_c_tensor_t(source3.detach().cpu().contiguous().clone());
   }
 }
 
