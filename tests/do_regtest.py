@@ -470,12 +470,20 @@ class Cp2kShell:
         self.workdir = workdir
         self._child: Optional[Process] = None
 
-    async def stop(self) -> None:
+    async def stop(self, force: bool = False) -> None:
         assert self._child
-        try:
-            self._child.terminate()  # Give mpiexec a chance to shutdown
-        except ProcessLookupError:
-            pass
+        if self._child.returncode is None:
+            if force:
+                try:
+                    self._child.terminate()
+                except ProcessLookupError:
+                    pass
+            else:
+                # Let CP2K finalize MPI and release launcher resources.
+                try:
+                    await self.sendline("EXIT")
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
         await self._child.communicate()  # Read output to prevent a zombie process.
         self._child = None
 
@@ -607,7 +615,7 @@ async def run_regtests_keepalive(batch: Batch, cfg: Config) -> List[TestResult]:
                 returncode = -9
 
         if returncode != 0:
-            await shell.stop()
+            await shell.stop(force=timed_out)
             await shell.start()
         duration = time.perf_counter() - start_time
         output_size = dirsize(batch.workdir) - start_dirsize
