@@ -373,197 +373,270 @@ CONTAINS
 
       CALL set_state
 
-      IF (nf <= npt) GOTO 70
-      IF (knew == -1) THEN
-         opt%state = 6
-         CALL get_state
-         CALL finalize_optimization_after_failure
-         RETURN
-      END IF
-      !
-      !     Use the quadratic model to predict the change in F due to the step
-      !     and set DIFF to the error of this prediction.
-      !
-      vquad = zero
-      ih = 0
-      DO j = 1, n
-         vquad = vquad + d(j)*gq(j)
-         DO i = 1, j
-            ih = ih + 1
-            temp = d(i)*xnew(j) + d(j)*xopt(i)
-            IF (i == j) temp = half*temp
-            vquad = vquad + temp*hq(ih)
-         END DO
-      END DO
-      DO k = 1, npt
-         vquad = vquad + pq(k)*w(k)
-      END DO
-      diff = f - fopt - vquad
-      diffc = diffb
-      diffb = diffa
-      diffa = ABS(diff)
-      IF (dnorm > rho) nfsav = nf
-      !
-      !     Update FOPT and XOPT if the new F is the least value of the object
-      !     function so far. The branch when KNEW is positive occurs if D is n
-      !     a trust region step.
-      !
-      fsave = fopt
-      IF (f < fopt) THEN
-         fopt = f
+      IF (nf <= npt) THEN
+         fval(nf) = f
+         IF (nf == 1) THEN
+            fbeg = f
+            fopt = f
+            kopt = 1
+         ELSE IF (f < fopt) THEN
+            fopt = f
+            kopt = nf
+         END IF
+         !
+         !     Set the nonzero initial elements of BMAT and the quadratic model i
+         !     the cases when NF is at most 2*N+1.
+         !
+         IF (NFM <= 2*N) THEN
+            IF (nfm >= 1 .AND. nfm <= n) THEN
+               gq(nfm) = (f - fbeg)/rhobeg
+               IF (npt < nf + n) THEN
+                  bmat(1, nfm) = -one/rhobeg
+                  bmat(nf, nfm) = one/rhobeg
+                  bmat(npt + nfm, nfm) = -half*rhosq
+               END IF
+            ELSE IF (nfm > n) THEN
+               bmat(nf - n, nfmm) = half/rhobeg
+               bmat(nf, nfmm) = -half/rhobeg
+               zmat(1, nfmm) = -reciq - reciq
+               zmat(nf - n, nfmm) = reciq
+               zmat(nf, nfmm) = reciq
+               ih = (nfmm*(nfmm + 1))/2
+               temp = (fbeg - f)/rhobeg
+               hq(ih) = (gq(nfmm) - temp)/rhobeg
+               gq(nfmm) = half*(gq(nfmm) + temp)
+            END IF
+            !
+            !     Set the off-diagonal second derivatives of the Lagrange functions
+            !     the initial quadratic model.
+            !
+         ELSE
+            ih = (ipt*(ipt - 1))/2 + jpt
+            IF (xipt < zero) ipt = ipt + n
+            IF (xjpt < zero) jpt = jpt + n
+            zmat(1, nfmm) = recip
+            zmat(nf, nfmm) = recip
+            zmat(ipt + 1, nfmm) = -recip
+            zmat(jpt + 1, nfmm) = -recip
+            hq(ih) = (fbeg - fval(ipt + 1) - fval(jpt + 1) + f)/(xipt*xjpt)
+         END IF
+         IF (nf < npt) THEN
+            CALL begin_initialization_of_interpolation
+            RETURN
+         END IF
+         !
+         !     Begin the iterative procedure, because the initial model is comple
+         !
+         rho = rhobeg
+         delta = rho
+         idz = 1
+         diffa = zero
+         diffb = zero
+         itest = 0
          xoptsq = zero
          DO i = 1, n
-            xopt(i) = xnew(i)
+            xopt(i) = xpt(kopt, i)
             xoptsq = xoptsq + xopt(i)**2
          END DO
-      END IF
-      ksave = knew
-      IF (knew > 0) GOTO 410
-      !
-      !     Pick the next value of DELTA after a trust region step.
-      !
-      IF (vquad >= zero) THEN
-         ! Return because a trust region step has failed to reduce Q
-         opt%state = 4
-         CALL get_state
-         CALL finalize_optimization_after_failure
-         RETURN
-      END IF
-      ratio = (f - fsave)/vquad
-      IF (ratio <= tenth) THEN
-         delta = half*dnorm
-      ELSE IF (ratio <= 0.7_dp) THEN
-         delta = MAX(half*delta, dnorm)
+         nfsav = nf
+         !
+         !     Generate the next trust region step and test its length. Set KNEW
+         !     to -1 if the purpose of the next F will be to improve the model.
+         !
+         GOTO 100
       ELSE
-         delta = MAX(half*delta, dnorm + dnorm)
-      END IF
-      IF (delta <= 1.5_dp*rho) delta = rho
-      !
-      !     Set KNEW to the index of the next interpolation point to be delete
-      !
-      rhosq = MAX(tenth*delta, rho)**2
-      ktemp = 0
-      detrat = zero
-      IF (f >= fsave) THEN
-         ktemp = kopt
-         detrat = one
-      END IF
-      DO k = 1, npt
-         hdiag = zero
-         DO j = 1, nptm
-            temp = one
-            IF (j < idz) temp = -one
-            hdiag = hdiag + temp*zmat(k, j)**2
-         END DO
-         temp = ABS(beta*hdiag + vlag(k)**2)
-         distsq = zero
-         DO j = 1, n
-            distsq = distsq + (xpt(k, j) - xopt(j))**2
-         END DO
-         IF (distsq > rhosq) temp = temp*(distsq/rhosq)**3
-         IF (temp > detrat .AND. k /= ktemp) THEN
-            detrat = temp
-            knew = k
+         IF (knew == -1) THEN
+            opt%state = 6
+            CALL get_state
+            CALL finalize_optimization_after_failure
+            RETURN
          END IF
-      END DO
-      IF (knew == 0) GOTO 460
-      !
-      !     Update BMAT, ZMAT and IDZ, so that the KNEW-th interpolation point
-      !     can be moved. Begin the updating of the quadratic model, starting
-      !     with the explicit second derivative term.
-      !
-410   CALL update(n, npt, bmat, zmat, idz, ndim, vlag, beta, knew, w)
-      fval(knew) = f
-      ih = 0
-      DO i = 1, n
-         temp = pq(knew)*xpt(knew, i)
-         DO j = 1, i
-            ih = ih + 1
-            hq(ih) = hq(ih) + temp*xpt(knew, j)
+         !
+         !     Use the quadratic model to predict the change in F due to the step
+         !     and set DIFF to the error of this prediction.
+         !
+         vquad = zero
+         ih = 0
+         DO j = 1, n
+            vquad = vquad + d(j)*gq(j)
+            DO i = 1, j
+               ih = ih + 1
+               temp = d(i)*xnew(j) + d(j)*xopt(i)
+               IF (i == j) temp = half*temp
+               vquad = vquad + temp*hq(ih)
+            END DO
          END DO
-      END DO
-      pq(knew) = zero
-      !
-      !     Update the other second derivative parameters, and then the gradie
-      !     vector of the model. Also include the new interpolation point.
-      !
-      DO j = 1, nptm
-         temp = diff*zmat(knew, j)
-         IF (j < idz) temp = -temp
          DO k = 1, npt
-            pq(k) = pq(k) + temp*zmat(k, j)
+            vquad = vquad + pq(k)*w(k)
          END DO
-      END DO
-      gqsq = zero
-      DO i = 1, n
-         gq(i) = gq(i) + diff*bmat(knew, i)
-         gqsq = gqsq + gq(i)**2
-         xpt(knew, i) = xnew(i)
-      END DO
-      !
-      !     If a trust region step makes a small change to the objective funct
-      !     then calculate the gradient of the least Frobenius norm interpolan
-      !     XBASE, and store it in W, using VLAG for a vector of right hand si
-      !
-      IF (ksave == 0 .AND. delta == rho) THEN
-         IF (ABS(ratio) > 1.0e-2_dp) THEN
-            itest = 0
-         ELSE
-            DO k = 1, npt
-               vlag(k) = fval(k) - fval(kopt)
-            END DO
-            gisq = zero
+         diff = f - fopt - vquad
+         diffc = diffb
+         diffb = diffa
+         diffa = ABS(diff)
+         IF (dnorm > rho) nfsav = nf
+         !
+         !     Update FOPT and XOPT if the new F is the least value of the object
+         !     function so far. The branch when KNEW is positive occurs if D is n
+         !     a trust region step.
+         !
+         fsave = fopt
+         IF (f < fopt) THEN
+            fopt = f
+            xoptsq = zero
             DO i = 1, n
-               sum = zero
-               DO k = 1, npt
-                  sum = sum + bmat(k, i)*vlag(k)
-               END DO
-               gisq = gisq + sum*sum
-               w(i) = sum
+               xopt(i) = xnew(i)
+               xoptsq = xoptsq + xopt(i)**2
             END DO
+         END IF
+         ksave = knew
+         IF (knew <= 0) THEN
             !
-            !     Test whether to replace the new quadratic model by the least Frobe
-            !     norm interpolant, making the replacement if the test is satisfied.
+            !     Pick the next value of DELTA after a trust region step.
             !
-            itest = itest + 1
-            IF (gqsq < 1.0e2_dp*gisq) itest = 0
-            IF (itest >= 3) THEN
-               DO i = 1, n
-                  gq(i) = w(i)
-               END DO
-               DO ih = 1, nh
-                  hq(ih) = zero
-               END DO
+            IF (vquad >= zero) THEN
+               ! Return because a trust region step has failed to reduce Q
+               opt%state = 4
+               CALL get_state
+               CALL finalize_optimization_after_failure
+               RETURN
+            END IF
+            ratio = (f - fsave)/vquad
+            IF (ratio <= tenth) THEN
+               delta = half*dnorm
+            ELSE IF (ratio <= 0.7_dp) THEN
+               delta = MAX(half*delta, dnorm)
+            ELSE
+               delta = MAX(half*delta, dnorm + dnorm)
+            END IF
+            IF (delta <= 1.5_dp*rho) delta = rho
+            !
+            !     Set KNEW to the index of the next interpolation point to be delete
+            !
+            rhosq = MAX(tenth*delta, rho)**2
+            ktemp = 0
+            detrat = zero
+            IF (f >= fsave) THEN
+               ktemp = kopt
+               detrat = one
+            END IF
+            DO k = 1, npt
+               hdiag = zero
                DO j = 1, nptm
-                  w(j) = zero
-                  DO k = 1, npt
-                     w(j) = w(j) + vlag(k)*zmat(k, j)
-                  END DO
-                  IF (j < idz) w(j) = -w(j)
+                  temp = one
+                  IF (j < idz) temp = -one
+                  hdiag = hdiag + temp*zmat(k, j)**2
                END DO
-               DO k = 1, npt
-                  pq(k) = zero
-                  DO j = 1, nptm
-                     pq(k) = pq(k) + zmat(k, j)*w(j)
-                  END DO
+               temp = ABS(beta*hdiag + vlag(k)**2)
+               distsq = zero
+               DO j = 1, n
+                  distsq = distsq + (xpt(k, j) - xopt(j))**2
                END DO
+               IF (distsq > rhosq) temp = temp*(distsq/rhosq)**3
+               IF (temp > detrat .AND. k /= ktemp) THEN
+                  detrat = temp
+                  knew = k
+               END IF
+            END DO
+            IF (knew == 0) GOTO 460
+            !
+            !     Update BMAT, ZMAT and IDZ, so that the KNEW-th interpolation point
+            !     can be moved. Begin the updating of the quadratic model, starting
+            !     with the explicit second derivative term.
+            !
+         END IF
+         CALL update(n, npt, bmat, zmat, idz, ndim, vlag, beta, knew, w)
+         fval(knew) = f
+         ih = 0
+         DO i = 1, n
+            temp = pq(knew)*xpt(knew, i)
+            DO j = 1, i
+               ih = ih + 1
+               hq(ih) = hq(ih) + temp*xpt(knew, j)
+            END DO
+         END DO
+         pq(knew) = zero
+         !
+         !     Update the other second derivative parameters, and then the gradie
+         !     vector of the model. Also include the new interpolation point.
+         !
+         DO j = 1, nptm
+            temp = diff*zmat(knew, j)
+            IF (j < idz) temp = -temp
+            DO k = 1, npt
+               pq(k) = pq(k) + temp*zmat(k, j)
+            END DO
+         END DO
+         gqsq = zero
+         DO i = 1, n
+            gq(i) = gq(i) + diff*bmat(knew, i)
+            gqsq = gqsq + gq(i)**2
+            xpt(knew, i) = xnew(i)
+         END DO
+         !
+         !     If a trust region step makes a small change to the objective funct
+         !     then calculate the gradient of the least Frobenius norm interpolan
+         !     XBASE, and store it in W, using VLAG for a vector of right hand si
+         !
+         IF (ksave == 0 .AND. delta == rho) THEN
+            IF (ABS(ratio) > 1.0e-2_dp) THEN
                itest = 0
+            ELSE
+               DO k = 1, npt
+                  vlag(k) = fval(k) - fval(kopt)
+               END DO
+               gisq = zero
+               DO i = 1, n
+                  sum = zero
+                  DO k = 1, npt
+                     sum = sum + bmat(k, i)*vlag(k)
+                  END DO
+                  gisq = gisq + sum*sum
+                  w(i) = sum
+               END DO
+               !
+               !     Test whether to replace the new quadratic model by the least Frobe
+               !     norm interpolant, making the replacement if the test is satisfied.
+               !
+               itest = itest + 1
+               IF (gqsq < 1.0e2_dp*gisq) itest = 0
+               IF (itest >= 3) THEN
+                  DO i = 1, n
+                     gq(i) = w(i)
+                  END DO
+                  DO ih = 1, nh
+                     hq(ih) = zero
+                  END DO
+                  DO j = 1, nptm
+                     w(j) = zero
+                     DO k = 1, npt
+                        w(j) = w(j) + vlag(k)*zmat(k, j)
+                     END DO
+                     IF (j < idz) w(j) = -w(j)
+                  END DO
+                  DO k = 1, npt
+                     pq(k) = zero
+                     DO j = 1, nptm
+                        pq(k) = pq(k) + zmat(k, j)*w(j)
+                     END DO
+                  END DO
+                  itest = 0
+               END IF
             END IF
          END IF
+         IF (f < fsave) kopt = knew
+         !
+         !     If a trust region step has provided a sufficient decrease in F, th
+         !     branch for another trust region calculation. The case KSAVE>0 occu
+         !     when the new function value was calculated by a model step.
+         !
+         IF (f <= fsave + tenth*vquad) GOTO 100
+         IF (ksave > 0) GOTO 100
+         knew = 0
       END IF
-      IF (f < fsave) kopt = knew
       !
-      !     If a trust region step has provided a sufficient decrease in F, th
-      !     branch for another trust region calculation. The case KSAVE>0 occu
-      !     when the new function value was calculated by a model step.
-      !
-      IF (f <= fsave + tenth*vquad) GOTO 100
-      IF (ksave > 0) GOTO 100
-      !
-      !     Alternatively, find out if the interpolation points are close enou
+      !     Alternatively, find out if the interpolation points are close enough
       !     to the best point so far.
       !
-      knew = 0
 460   distsq = 4.0_dp*delta*delta
       DO k = 1, npt
          sum = zero
@@ -618,75 +691,6 @@ CONTAINS
          CALL finalize_optimization_after_failure
       END IF
       RETURN
-70    fval(nf) = f
-      IF (nf == 1) THEN
-         fbeg = f
-         fopt = f
-         kopt = 1
-      ELSE IF (f < fopt) THEN
-         fopt = f
-         kopt = nf
-      END IF
-      !
-      !     Set the nonzero initial elements of BMAT and the quadratic model i
-      !     the cases when NF is at most 2*N+1.
-      !
-      IF (NFM <= 2*N) THEN
-         IF (nfm >= 1 .AND. nfm <= n) THEN
-            gq(nfm) = (f - fbeg)/rhobeg
-            IF (npt < nf + n) THEN
-               bmat(1, nfm) = -one/rhobeg
-               bmat(nf, nfm) = one/rhobeg
-               bmat(npt + nfm, nfm) = -half*rhosq
-            END IF
-         ELSE IF (nfm > n) THEN
-            bmat(nf - n, nfmm) = half/rhobeg
-            bmat(nf, nfmm) = -half/rhobeg
-            zmat(1, nfmm) = -reciq - reciq
-            zmat(nf - n, nfmm) = reciq
-            zmat(nf, nfmm) = reciq
-            ih = (nfmm*(nfmm + 1))/2
-            temp = (fbeg - f)/rhobeg
-            hq(ih) = (gq(nfmm) - temp)/rhobeg
-            gq(nfmm) = half*(gq(nfmm) + temp)
-         END IF
-         !
-         !     Set the off-diagonal second derivatives of the Lagrange functions
-         !     the initial quadratic model.
-         !
-      ELSE
-         ih = (ipt*(ipt - 1))/2 + jpt
-         IF (xipt < zero) ipt = ipt + n
-         IF (xjpt < zero) jpt = jpt + n
-         zmat(1, nfmm) = recip
-         zmat(nf, nfmm) = recip
-         zmat(ipt + 1, nfmm) = -recip
-         zmat(jpt + 1, nfmm) = -recip
-         hq(ih) = (fbeg - fval(ipt + 1) - fval(jpt + 1) + f)/(xipt*xjpt)
-      END IF
-      IF (nf < npt) THEN
-         CALL begin_initialization_of_interpolation
-         RETURN
-      END IF
-      !
-      !     Begin the iterative procedure, because the initial model is comple
-      !
-      rho = rhobeg
-      delta = rho
-      idz = 1
-      diffa = zero
-      diffb = zero
-      itest = 0
-      xoptsq = zero
-      DO i = 1, n
-         xopt(i) = xpt(kopt, i)
-         xoptsq = xoptsq + xopt(i)**2
-      END DO
-      nfsav = nf
-      !
-      !     Generate the next trust region step and test its length. Set KNEW
-      !     to -1 if the purpose of the next F will be to improve the model.
-      !
 100   knew = 0
       CALL trsapp(n, npt, xopt, xpt, gq, hq, pq, delta, d, w, w(np), w(np + n), w(np + 2*n), crvmin)
       dsq = zero
@@ -908,6 +912,62 @@ CONTAINS
          CALL calc_next_value_of_objective_function
       END SUBROUTINE generate_next_model_step
 ! **************************************************************************************************
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
+!> \brief ...
 !> \brief ...
 !> \brief ...
 !> \brief ...
