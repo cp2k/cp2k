@@ -197,6 +197,9 @@ fi
 if [ ${DEBUG_BUILD} == "__TRUE__" ]; then
   CMAKE_OPTIONS+=" -DCMAKE_BUILD_TYPE=Debug"
 fi
+if [ "${math_mode}" = "mkl" ]; then
+  CMAKE_OPTIONS+=" -DCP2K_BLAS_VENDOR=MKL -DCP2K_BLAS_THREADING=sequential"
+fi
 if [ -n "$(grep -- "--install-all" "${TOOLCHAIN_ROOTDIR}/toolchain_settings")" ]; then
   CMAKE_OPTIONS+=" -DCP2K_USE_EVERYTHING=ON -DCP2K_USE_DLAF=OFF -DCP2K_USE_PEXSI=OFF -DCP2K_USE_OPENPMD=OFF"
   # If MPI is disabled, set "CP2K_USE_MPI" to "OFF"

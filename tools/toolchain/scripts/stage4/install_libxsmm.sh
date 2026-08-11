@@ -47,6 +47,12 @@ EOF
         -DLIBXSMM_FORTRAN=ON \
         .. > configure.log 2>&1 || tail_excerpt configure.log
       make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      sed -i \
+        's/INTERFACE_COMPILE_DEFINITIONS "LIBXSMM_DEFAULT_CONFIG"/INTERFACE_COMPILE_DEFINITIONS "LIBXSMM_CONFIGURED"/' \
+        "${pkg_install_dir}/lib/cmake/libxsmm/libxsmmTargets.cmake"
+      if grep -R -q "LIBXSMM_DEFAULT_CONFIG" "${pkg_install_dir}/lib/cmake/libxsmm"; then
+        report_error ${LINENO} "Installed libxsmm target still exports LIBXSMM_DEFAULT_CONFIG."
+      fi
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"
     fi
