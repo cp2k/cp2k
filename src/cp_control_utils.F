@@ -33,6 +33,7 @@ MODULE cp_control_utils
                                               parser_create,&
                                               parser_release,&
                                               parser_reset
+   USE cp_spline_utils,                 ONLY: pw_interp
    USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                               cp_unit_to_cp2k
    USE eeq_input,                       ONLY: read_eeq_param
@@ -898,22 +899,26 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_mgrid_section'
 
-      INTEGER                                            :: handle, igrid_level, ngrid_level
+      INTEGER                                            :: handle, igrid_level, interp_kind, &
+                                                            ngrid_level
       LOGICAL                                            :: explicit, multigrid_set
       REAL(dp)                                           :: cutoff
       REAL(dp), DIMENSION(:), POINTER                    :: cutofflist
-      TYPE(section_vals_type), POINTER                   :: mgrid_section
+      TYPE(section_vals_type), POINTER                   :: interp_section, mgrid_section
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (mgrid_section, cutofflist)
+      NULLIFY (interp_section, mgrid_section, cutofflist)
       mgrid_section => section_vals_get_subs_vals(dft_section, "MGRID")
+      interp_section => section_vals_get_subs_vals(mgrid_section, "INTERPOLATOR")
 
       CALL section_vals_val_get(mgrid_section, "NGRIDS", i_val=ngrid_level)
       CALL section_vals_val_get(mgrid_section, "MULTIGRID_SET", l_val=multigrid_set)
       CALL section_vals_val_get(mgrid_section, "CUTOFF", r_val=cutoff)
       CALL section_vals_val_get(mgrid_section, "PROGRESSION_FACTOR", r_val=qs_control%progression_factor)
       CALL section_vals_val_get(mgrid_section, "COMMENSURATE", l_val=qs_control%commensurate_mgrids)
+      CALL section_vals_val_get(interp_section, "KIND", i_val=interp_kind)
+      IF (interp_kind /= pw_interp) qs_control%commensurate_mgrids = .TRUE.
       CALL section_vals_val_get(mgrid_section, "REALSPACE", l_val=qs_control%realspace_mgrids)
       CALL section_vals_val_get(mgrid_section, "REL_CUTOFF", r_val=qs_control%relative_cutoff)
       CALL section_vals_val_get(mgrid_section, "SKIP_LOAD_BALANCE_DISTRIBUTED", &
