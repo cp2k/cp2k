@@ -351,6 +351,52 @@ The CP2K test suite includes these Harris chain tests in `tests/QS/regtest-harri
 (`cc_kp_01.inp`, `cc_kp_02.inp`, `cc_kp_03.inp`) which demonstrate the three-step k-point restart
 process.
 
+## Band and NEB Calculations
+
+A band calculation writes a separate wavefunction restart for every replica. CP2K derives the
+replica project names from the project in `GLOBAL`, for example:
+
+```none
+neb-BAND1-RESTART.wfn
+neb-BAND2-RESTART.wfn
+neb-BAND3-RESTART.wfn
+```
+
+With k-point sampling, the corresponding files have the `.kp` extension. To reuse these files, set
+`SCF_GUESS RESTART` but normally omit `WFN_RESTART_FILE_NAME`:
+
+```none
+&GLOBAL
+  PROJECT neb
+  RUN_TYPE BAND
+&END GLOBAL
+
+&EXT_RESTART
+  RESTART_FILE_NAME neb-1.restart
+&END EXT_RESTART
+
+&FORCE_EVAL
+  &DFT
+    # Do not set WFN_RESTART_FILE_NAME here.
+    &SCF
+      SCF_GUESS RESTART
+    &END SCF
+  &END DFT
+  ...
+&END FORCE_EVAL
+```
+
+CP2K then selects `neb-BAND<N>-RESTART.wfn` or `neb-BAND<N>-RESTART.kp` after assigning the current
+replica project name. In contrast, an explicitly specified `WFN_RESTART_FILE_NAME` is interpreted
+literally and is shared by all replicas; CP2K does not insert the `-BAND<N>` part. An explicit name
+is therefore useful when all replicas should deliberately start from the same wavefunction, but a
+name such as `neb-RESTART.kp` will not select the per-replica files shown above.
+
+The `EXT_RESTART` file restores the band coordinates and optimizer state. This is independent of the
+per-replica wavefunction restarts, so use both `EXT_RESTART` and `SCF_GUESS RESTART` when both parts
+of an interrupted band calculation should be continued. Keep the original `PROJECT` name and run
+from the directory containing the restart files, or preserve their relative paths.
+
 ## Molecular Dynamics
 
 For continuing molecular dynamics simulations, CP2K stores positions, velocities, cell parameters,
