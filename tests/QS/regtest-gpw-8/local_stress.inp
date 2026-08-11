@@ -14,10 +14,20 @@
       CUTOFF 200
     &END MGRID
     &PRINT
+      &ELF_CUBE
+        STRIDE 2 2 2
+      &END ELF_CUBE
       &LOCAL_ENERGY_CUBE
+        STRIDE 2 2 2
       &END LOCAL_ENERGY_CUBE
       &LOCAL_STRESS_CUBE
+        STRIDE 2 2 2
       &END LOCAL_STRESS_CUBE
+      &MO_CUBES
+        NHOMO 1
+        NLUMO 1
+        STRIDE 2 2 2
+      &END MO_CUBES
     &END PRINT
     &QS
       METHOD GPW
