@@ -1036,8 +1036,9 @@ CONTAINS
                                particle_set(atomic_indices(3))%r(:), cell)
                   rcd(:) = pbc(particle_set(atomic_indices(3))%r(:), &
                                particle_set(atomic_indices(4))%r(:), cell)
+                  ! Match the sign convention of the TORSION collective variable.
                   WRITE (UNIT=iw, FMT="(T3,A,T26,A,F9.3)") &
-                     "d"//TRIM(string), "=", dihedral_angle(rab, rbc, rcd)*degree
+                     "d"//TRIM(string), "=", -dihedral_angle(rab, rbc, rcd)*degree
                ELSE
                   WRITE (UNIT=iw, FMT="(T3,A)") &
                      "Invalid atomic indices "//TRIM(string)//" specified. Print request is ignored."
