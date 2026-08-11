@@ -29,7 +29,7 @@ It is recommended to select the latest CP2K version and to install it into a new
 environment, e.g. `cp2k_env`, to avoid dependency conflicts.
 
 ```shell
-$ conda create -n cp2k_env conda-forge::cp2k=2026.1
+$ conda create -n cp2k_env conda-forge::cp2k=2026.2
 ```
 
 Activate the new conda environment
@@ -46,11 +46,25 @@ $ export OMP_NUM_THREADS=4
 $ cp2k <cp2k.inp>
 ```
 
-or MPI/OpenMP parallel CP2K jobs
+or MPI/OpenMP parallel CP2K jobs (4 MPI ranks with 2 OpenMP threads per MPI rank)
 
 ```shell
 $ export OMP_NUM_THREADS=2
 $ mpiexec -n 4 cp2k <cp2k.inp>
+```
+
+A test input named `H2O-32_md.inp` with 32 water molecules in the unit cell can be downloaded
+[here](https://raw.githubusercontent.com/cp2k/cp2k/refs/heads/master/benchmarks/CI/H2O-32_md.inp).
+
+```shell
+$ export OMP_NUM_THREADS=2
+$ mpiexec -n 4 cp2k H2O-32_md.inp
+```
+
+The CP2k binary `cp2k.popt` automatically enforces `OMP_NUM_THREADS=1`
+
+```shell
+$ mpiexec -n 8 cp2k.popt H2O-32_md.inp
 ```
 
 See also [conda-forge.org](https://conda-forge.org/packages/) and
