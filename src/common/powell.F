@@ -647,7 +647,8 @@ CONTAINS
          nf = nf - 1
          opt%state = 3
          CALL get_state
-         GOTO 530
+         CALL finalize_optimization
+         RETURN
       END IF
 
       CALL get_state
@@ -664,7 +665,8 @@ CONTAINS
       IF (knew == -1) THEN
          opt%state = 6
          CALL get_state
-         GOTO 530
+         CALL finalize_optimization
+         RETURN
       END IF
       !
       !     Use the quadratic model to predict the change in F due to the step
@@ -712,7 +714,8 @@ CONTAINS
          ! Return because a trust region step has failed to reduce Q
          opt%state = 4
          CALL get_state
-         GOTO 530
+         CALL finalize_optimization
+         RETURN
       END IF
       ratio = (f - fsave)/vquad
       IF (ratio <= tenth) THEN
@@ -895,7 +898,13 @@ CONTAINS
       IF (knew == -1) GOTO 290
       opt%state = 7
       CALL get_state
-530   IF (fopt <= f) THEN
+
+CALL finalize_optimization
+
+      !******************************************************************************
+   CONTAINS
+      SUBROUTINE finalize_optimization()
+   IF (fopt <= f) THEN
          DO i = 1, n
             x(i) = xbase(i) + xopt(i)
          END DO
@@ -903,9 +912,7 @@ CONTAINS
       END IF
 
       CALL get_state
-
-      !******************************************************************************
-   CONTAINS
+      END SUBROUTINE
       !******************************************************************************
 ! **************************************************************************************************
 !> \brief ...
