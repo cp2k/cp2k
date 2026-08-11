@@ -84,12 +84,20 @@ COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 # Install CP2K/Quickstep CI benchmarks
 COPY ./benchmarks/CI ./benchmarks/CI
 
+# Install benchmark inputs for performance test
+COPY ./benchmarks/QS ./benchmarks/QS
+COPY ./benchmarks/QS_reference ./benchmarks/QS_reference
+COPY ./benchmarks/QS_single_node ./benchmarks/QS_single_node
+COPY ./benchmarks/QMMM_MQAE ./benchmarks/QMMM_MQAE
+RUN mkdir -p ./tools/docker/scripts
+COPY ./tools/docker/scripts/plot_performance.py ./tools/docker/scripts/
+
 # Do not rely only on LD_LIBRARY_PATH because it is fragile
 COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
 RUN ldconfig
 
 # Run CP2K regression test
-RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests --keepalive || echo "ERROR: Tests failed"
+RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests --keepalive || echo "ERROR: Regression test run failed"
 
 # Create entrypoint and finalise container build
 WORKDIR /mnt
