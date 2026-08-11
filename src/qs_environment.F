@@ -226,8 +226,7 @@ MODULE qs_environment
    USE xtb_types,                       ONLY: allocate_xtb_atom_param,&
                                               get_xtb_atom_param,&
                                               set_xtb_atom_param,&
-                                              write_xtb_atom_param,&
-                                              xtb_atom_type
+                                              write_xtb_atom_param
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1001,8 +1000,7 @@ CONTAINS
          nelectron, ngauss, nkind, nlumo_dos, nlumo_molden, nlumo_required, output_unit, &
          sort_basis, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
-      INTEGER, DIMENSION(3)                              :: ngaussflex
-      INTEGER, DIMENSION(5)                              :: occ
+      INTEGER, DIMENSION(5)                              :: ngaussflex, occ
       INTEGER, DIMENSION(:), POINTER                     :: mo_index_range
       LOGICAL :: all_potential_present, be_silent, cneo_potential_present, do_kpoints, do_ri_hfx, &
          do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_rpa_ri_exx, do_wfc_im_time, e1terms, &
@@ -1054,7 +1052,6 @@ CONTAINS
          xc_section
       TYPE(semi_empirical_control_type), POINTER         :: se_control
       TYPE(semi_empirical_si_type), POINTER              :: se_store_int_env
-      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
       TYPE(xtb_control_type), POINTER                    :: xtb_control
 
       CALL timeset(routineN, handle)
@@ -1264,9 +1261,7 @@ CONTAINS
                END IF
                IF (qs_kind%xtb_parameter%defined) THEN
                   IF (xtb_control%sto_flex) THEN
-                     NULLIFY (xtb_kind)
-                     CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-                     CALL get_xtb_atom_param(xtb_kind, ngauss=ngaussflex)
+                     CALL get_xtb_atom_param(qs_kind%xtb_parameter, ngauss=ngaussflex)
                      CALL init_xtb_basis(qs_kind%xtb_parameter, tmp_basis_set, ngauss, ngaussflex)
                   ELSE
                      CALL init_xtb_basis(qs_kind%xtb_parameter, tmp_basis_set, ngauss)

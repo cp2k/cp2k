@@ -65,7 +65,7 @@ MODULE xtb_types
       INTEGER, DIMENSION(5)                  :: nval = -1 ! n-quantum number of shell i
       INTEGER, DIMENSION(5)                  :: lval = -1 ! l-quantum number of shell i
       INTEGER, DIMENSION(5)                  :: occupation = -1 ! occupation of shell i
-      INTEGER, DIMENSION(3)                  :: ngauss = -1 ! number of gaussians of shell i
+      INTEGER, DIMENSION(5)                  :: ngauss = -1 ! number of gaussians of shell i
       REAL(KIND=dp), DIMENSION(5)            :: kpoly = -1.0_dp
       REAL(KIND=dp), DIMENSION(5)            :: kappa = -1.0_dp
       REAL(KIND=dp), DIMENSION(5)            :: hen = -1.0_dp
@@ -221,8 +221,7 @@ CONTAINS
          OPTIONAL                                        :: wall
       REAL(KIND=dp), DIMENSION(5), INTENT(OUT), OPTIONAL :: hen, zeta
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: xi, kappa0, alpg
-      INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: occupation
-      INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL       :: ngauss
+      INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: occupation, ngauss
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: electronegativity, chmax, en, kqat2
       REAL(KIND=dp), DIMENSION(5), INTENT(OUT), OPTIONAL :: kcn, kq
 
@@ -328,8 +327,7 @@ CONTAINS
          OPTIONAL                                        :: wall
       REAL(KIND=dp), DIMENSION(5), INTENT(IN), OPTIONAL  :: hen, zeta
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: xi, kappa0, alpg, electronegativity
-      INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: occupation
-      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: ngauss
+      INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: occupation, ngauss
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: chmax, en, kqat2
       REAL(KIND=dp), DIMENSION(5), INTENT(IN), OPTIONAL  :: kcn, kq
 
@@ -389,8 +387,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: aname, bb
       INTEGER                                            :: i, io_unit, m, natorb, nshell
-      INTEGER, DIMENSION(3)                              :: ngauss
-      INTEGER, DIMENSION(5)                              :: lval, nval, occupation
+      INTEGER, DIMENSION(5)                              :: lval, ngauss, nval, occupation
       LOGICAL                                            :: defined, have_sp
       REAL(dp)                                           :: zeff
       REAL(KIND=dp)                                      :: alpha, en, eta, xgamma, zneff
@@ -432,7 +429,7 @@ CONTAINS
                      ("   [", nval(i), lval(i), "]", i=1, nshell)
                   WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Slater Exponent", bb(1:8*m), (zeta(i), i=1, nshell)
                   WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5I8)") "Ref. occupation", bb(1:8*m), (occupation(i), i=1, nshell)
-                  WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,3I8)") "# of gaussians", bb(1:8*m), (ngauss(i), i=1, nshell)
+                  WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5I8)") "# of Gaussians", bb(1:8*m), (ngauss(i), i=1, nshell)
                   WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Energy levels [au]", bb(1:8*m), (hen(i), i=1, nshell)
                   WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Kpoly", bb(1:8*m), (kpoly(i), i=1, nshell)
                   WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.3)") "Electronegativity", en
@@ -458,4 +455,3 @@ CONTAINS
    END SUBROUTINE write_xtb_atom_param
 
 END MODULE xtb_types
-

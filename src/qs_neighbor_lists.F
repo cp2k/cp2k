@@ -846,8 +846,7 @@ CONTAINS
          default_present = .TRUE.
          CALL pair_radius_setup(default_present, default_present, c_radius, c_radius, pair_radius)
          CALL build_neighbor_lists(sab_xtbe, particle_set, atom2d, cell, pair_radius, &
-                                   subcells=subcells, operator_type="PP", &
-                                   symmetric=.FALSE., nlname="sab_xtbe")
+                                   subcells=subcells, nlname="sab_xtbe")
          CALL set_ks_env(ks_env=ks_env, sab_xtbe=sab_xtbe)
          ! XB list
          ALLOCATE (xb1_atom(nkind), xb2_atom(nkind))
@@ -1297,7 +1296,6 @@ CONTAINS
             DO iatom_local = 1, nlista(ikind)
                iatom = lista(ikind)%list(iatom_local)
                atom_a = atom(ikind)%list(iatom)
-
                CALL add_neighbor_list(neighbor_list_set=neighbor_list_set, &
                                       atom=atom_a, &
                                       neighbor_list=kind_a(iatom_local)%neighbor_list)

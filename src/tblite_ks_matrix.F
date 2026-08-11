@@ -18,7 +18,6 @@ MODULE tblite_ks_matrix
                                               dbcsr_copy,&
                                               dbcsr_multiply,&
                                               dbcsr_p_type,&
-                                              dbcsr_scale,&
                                               dbcsr_type
    USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE kinds,                           ONLY: dp
@@ -105,7 +104,6 @@ CONTAINS
       DO ispin = 1, nspins
          DO img = 1, nimg
             ! copy the core matrix into the fock matrix
-            CALL dbcsr_scale(ks_matrix(ispin, img)%matrix, alpha_scalar=0.0_dp)
             CALL dbcsr_copy(ks_matrix(ispin, img)%matrix, matrix_h(1, img)%matrix)
          END DO
       END DO

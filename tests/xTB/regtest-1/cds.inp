@@ -1,7 +1,7 @@
 &GLOBAL
   PREFERRED_DIAG_LIBRARY SL
   PRINT_LEVEL MEDIUM
-  PROJECT_NAME bulk_xtb
+  PROJECT_NAME cds_flexible_sto
   RUN_TYPE ENERGY
 &END GLOBAL
 
@@ -26,18 +26,29 @@
         COULOMB_LR T
         DO_EWALD F
         STO_FLEX T
+        STO_NG 1
         TB3_INTERACTION T
         USE_HALOGEN_CORRECTION F
       &END XTB
     &END QS
     &SCF
-      EPS_SCF 1.0E-6
-      MAX_SCF 1
-      SCF_GUESS RESTART
-      &OUTER_SCF
-        EPS_SCF 1.0E-6
-        MAX_SCF 900
-      &END OUTER_SCF
+      ADDED_MOS 5
+      EPS_SCF 1.0E-8
+      MAX_SCF 300
+      SCF_GUESS MOPAC
+      &MIXING
+        ALPHA 0.2
+        METHOD BROYDEN_MIXING
+        NBUFFER 8
+      &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+      &SMEAR
+        ELECTRONIC_TEMPERATURE 300
+        METHOD FERMI_DIRAC
+      &END SMEAR
     &END SCF
   &END DFT
   &SUBSYS

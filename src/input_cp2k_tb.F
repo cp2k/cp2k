@@ -224,7 +224,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="STO_FLEX", &
-                          description="Enable flexible number of primitive gaussians", &
+                          description="Use element- and shell-specific numbers of Gaussian primitives.", &
                           usage="STO_FLEX T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

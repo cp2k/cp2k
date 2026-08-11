@@ -160,7 +160,7 @@ MODULE xtb_parameters
 
 !&<
    ! number of primitive gaussians per shell
-   INTEGER, PARAMETER :: number_of_primitives(1:3,1:nelem) = RESHAPE([&
+   INTEGER, PARAMETER :: number_of_primitives(1:3, 1:nelem) = RESHAPE([&
       & 4, 3, 0,  4, 0, 0,  6, 6, 0,  6, 6, 0,  6, 6, 0,  6, 6, 0,  6, 6, 0, &
       & 6, 6, 0,  6, 6, 0,  6, 6, 4,  6, 6, 0,  6, 6, 0,  6, 6, 4,  6, 6, 4, &
       & 6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 0,  6, 6, 4,  4, 6, 6, &
@@ -177,7 +177,7 @@ MODULE xtb_parameters
       & 6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6, &
       & 6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6, &
       & 0, 0, 0], &
-       [3,nelem])
+       [3, nelem])
 !&>
 
 ! *** Global parameters ***
@@ -630,7 +630,8 @@ CONTAINS
          ! shell occupances
          param%occupation(:) = occupation(:, i)
          ! number of primitive Gaussians per shell
-         param%ngauss(:) = number_of_primitives(:, i)
+         param%ngauss = 0
+         param%ngauss(1:3) = number_of_primitives(:, i)
          ! check for consistency
          IF (ABS(param%zeff - SUM(param%occupation)) > 1.E-10_dp) THEN
             CALL cp_abort(__LOCATION__, "Element <"//TRIM(param%aname)//"> has inconsistent shell occupations")
@@ -683,7 +684,7 @@ CONTAINS
       TYPE(xtb_atom_type), POINTER                       :: param
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       INTEGER, INTENT(IN)                                :: ngauss
-      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: ngaussflex
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: ngaussflex
 
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: symbol
       INTEGER                                            :: i, nshell
@@ -923,4 +924,3 @@ CONTAINS
    END FUNCTION pp_gfn0
 
 END MODULE xtb_parameters
-
