@@ -50,9 +50,7 @@ MODULE qs_environment
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE cp_output_handling,              ONLY: cp_p_file,&
-                                              cp_print_key_finished_output,&
-                                              cp_print_key_should_output,&
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE cp_symmetry,                     ONLY: write_symmetry
@@ -2277,10 +2275,7 @@ CONTAINS
       END IF
 
       ! Some options require that all MOs are computed ...
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
-                                           "PRINT%MO/CARTESIAN"), &
-                cp_p_file) .OR. &
-          (scf_control%level_shift /= 0.0_dp) .OR. &
+      IF ((scf_control%level_shift /= 0.0_dp) .OR. &
           (scf_control%diagonalization%eps_jacobi /= 0.0_dp) .OR. &
           (dft_control%roks .AND. (.NOT. scf_control%use_ot))) THEN
          n_mo(:) = n_ao

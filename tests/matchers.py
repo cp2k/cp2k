@@ -45,6 +45,10 @@ registry["M009"] = GenericMatcher(r"PINT| Total energy =", col=5)
 registry["M010"] = GenericMatcher(r"BAND TOTAL ENERGY [au]", col=6)
 registry["M011"] = GenericMatcher(r"ENERGY| Total FORCE_EVAL", col=9)
 registry["N_special_kpoints"] = GenericMatcher(r"Number of Special K-points:", col=5)
+registry["QS_number_of_molecular_orbitals"] = GenericMatcher(
+    r"Number of molecular orbitals:", col=5
+)
+registry["QS_cartesian_mo_output"] = TextPresenceMatcher("CARTESIAN EIGENVECTORS")
 registry["Kubo_sigma_iso"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S/cm]", col=3)
 registry["Kubo_sigma_iso_2d"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S]", col=3)
 registry["Kubo_sigma_iso_1d"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S*m]", col=3)
