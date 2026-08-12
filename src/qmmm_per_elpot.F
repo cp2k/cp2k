@@ -370,10 +370,10 @@ CONTAINS
       SELECT CASE (qmmm_coupl_type)
       CASE (do_qmmm_coulomb)
          CPABORT("QM-QM long range correction not possible with COULOMB coupling")
-      CASE (do_qmmm_pcharge)
+      CASE (do_qmmm_pcharge, do_qmmm_gauss)
          ! OK
-      CASE (do_qmmm_gauss, do_qmmm_swave)
-         CPABORT("QM-QM long range correction not possible with GAUSS/SWAVE coupling")
+      CASE (do_qmmm_swave)
+         CPABORT("QM-QM long range correction not possible with SWAVE coupling")
       CASE DEFAULT
          ! We should never get to this point
          CPABORT("Unknown QM/MM coupling type")
