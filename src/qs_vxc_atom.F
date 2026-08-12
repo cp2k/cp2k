@@ -2064,9 +2064,10 @@ CONTAINS
                         values(igroup) = values(igroup) + grid_atom%weight(ia, ir)* &
                                          group_weights(igroup)*delta_density*spin_factor
                         IF (calculate_forces) THEN
-                           explicit_derivative = explicit_derivative + grid_atom%weight(ia, ir)* &
-                                                 cdft_control%strength(igroup)*delta_density* &
-                                                 spin_factor*group_atom_derivative(:, :, igroup)
+                           explicit_derivative(:, :) = &
+                              explicit_derivative + grid_atom%weight(ia, ir)* &
+                              cdft_control%strength(igroup)*delta_density* &
+                              spin_factor*group_atom_derivative(:, :, igroup)
                            explicit_derivative(:, atom) = explicit_derivative(:, atom) + &
                                                           grid_atom%weight(ia, ir)* &
                                                           cdft_control%strength(igroup)*delta_density* &
