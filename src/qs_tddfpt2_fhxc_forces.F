@@ -614,10 +614,10 @@ CONTAINS
             END IF
          ELSE IF (do_numeric) THEN
             IF (do_analytic) THEN
-               CALL qs_fgxc_gdiff(ks_env, rho, rhox, xc_section, order, eps_delta, is_rks_triplets, &
+               CALL qs_fgxc_gdiff(qs_env, rho, rhox, xc_section, order, eps_delta, is_rks_triplets, &
                                   weights, fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip=do_sf)
             ELSE
-               CALL qs_fgxc_create(ks_env, rho, rhox, xc_section, order, is_rks_triplets, &
+               CALL qs_fgxc_create(qs_env, rho, rhox, xc_section, order, is_rks_triplets, &
                                    fxc_rho, fxc_tau, gxc_rho, gxc_tau)
             END IF
          ELSE
@@ -691,7 +691,7 @@ CONTAINS
             CALL para_env%sum(fodeb)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dgxc[Dx]", fodeb
          END IF
-         CALL qs_fgxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+         CALL qs_fgxc_release(qs_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
 
          ! grid weight contribution to forces
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
@@ -822,10 +822,10 @@ CONTAINS
                CPABORT("Analytic 3rd derivatives of EXC not available")
             ELSE IF (do_numeric) THEN
                IF (do_analytic) THEN
-                  CALL qs_fgxc_gdiff(ks_env, rho_aux_fit, rhox_aux, xc_section, order, eps_delta, &
+                  CALL qs_fgxc_gdiff(qs_env, rho_aux_fit, rhox_aux, xc_section, order, eps_delta, &
                                      is_rks_triplets, weights, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
                ELSE
-                  CALL qs_fgxc_create(ks_env, rho_aux_fit, rhox_aux, xc_section, &
+                  CALL qs_fgxc_create(qs_env, rho_aux_fit, rhox_aux, xc_section, &
                                       order, is_rks_triplets, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
                END IF
             ELSE
@@ -899,7 +899,7 @@ CONTAINS
                CALL para_env%sum(fodeb)
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dgxc[Dx]ADMM", fodeb
             END IF
-            CALL qs_fgxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+            CALL qs_fgxc_release(qs_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
             !
             IF (admm_env%do_gapw) THEN
                CALL get_admm_env(admm_env, sab_aux_fit=sab_aux_fit)
