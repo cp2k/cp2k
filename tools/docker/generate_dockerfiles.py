@@ -735,17 +735,6 @@ def install_cp2k_spack(
     gcc_version_flag = "" if gcc_version is None else f"-gv {gcc_version}"
     # Use external packages if possible
     use_externals = "-ue"
-    # Static CP2K builds use the GCC compiler built with spack
-    if version.endswith("-static"):
-        use_externals = ""
-        # A spack build of the same GCC version as the installed one
-        # of the host system and ignoring all externals at the same
-        # time is not supported
-        if gcc_version == 13:
-            print(
-                f"\nERROR: GCC 13 is the default version of Ubuntu 24.04 and a spack build of the same version is not possible"
-            )
-        gcc_compilers = f"g++ gcc gfortran"
     if mpi_mode == "openmpi":
         use_externals = ""
     # Assemble docker file
@@ -807,7 +796,7 @@ RUN ldconfig
 """
     )
     if test_type.startswith("performance-"):
-        if version is "psmp":
+        if version == "psmp":
             benchmark_profile = test_type.removeprefix("performance-")
             output += rf"""
 # Install benchmark inputs for performance test
