@@ -29,6 +29,9 @@ registry["E_total"] = GenericMatcher(r"Total energy:", col=3)
 registry["Cube_Si_effective_charge"] = GenericMatcher(
     r"^\s*14\s+([-+0-9.EeDd]+)\s+", col=1, regex=True, first=True
 )
+registry["Cube_O_effective_charge"] = GenericMatcher(
+    r"^\s*8\s+([-+0-9.EeDd]+)\s+", col=1, regex=True, first=True
+)
 
 registry["M002"] = GenericMatcher(r"MD| Potential energy", col=5)
 registry["M003"] = GenericMatcher(r"Total energy [eV]:", col=4)

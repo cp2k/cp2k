@@ -3979,6 +3979,7 @@ CONTAINS
                                                             n_cstr, n_tiles, unit_nr
       LOGICAL :: append_cube, do_cstr_charge_cube, do_dielectric_cube, do_dirichlet_bc_cube, &
          has_dirichlet_bc, has_implicit_ps, mpi_io, tile_cubes
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -4005,6 +4006,7 @@ CONTAINS
       do_dielectric_cube = BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                                             "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE"), cp_p_file)
       IF (has_implicit_ps .AND. do_dielectric_cube) THEN
+         IF (.NOT. ALLOCATED(zcharge)) CALL get_effective_core_charges(qs_env, zcharge)
          append_cube = section_get_lval(input, "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
@@ -4029,7 +4031,7 @@ CONTAINS
                            poisson_env%implicit_env%dielectric%eps, aux_r)
          END SELECT
 
-         CALL cp_pw_to_cube(aux_r, unit_nr, "DIELECTRIC CONSTANT", particles=particles, &
+         CALL cp_pw_to_cube(aux_r, unit_nr, "DIELECTRIC CONSTANT", particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%STRIDE"), &
                         max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%MAX_FILE_SIZE_MB"), &
                             mpi_io=mpi_io)
@@ -4052,6 +4054,7 @@ CONTAINS
       END IF
 
       IF (has_implicit_ps .AND. do_cstr_charge_cube .AND. has_dirichlet_bc) THEN
+         IF (.NOT. ALLOCATED(zcharge)) CALL get_effective_core_charges(qs_env, zcharge)
          append_cube = section_get_lval(input, &
                                         "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%APPEND")
          my_pos_cube = "REWIND"
@@ -4078,7 +4081,7 @@ CONTAINS
                            poisson_env%implicit_env%cstr_charge, aux_r)
          END SELECT
 
-         CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles, &
+         CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%STRIDE"), &
              max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%MAX_FILE_SIZE_MB"), &
                             mpi_io=mpi_io)
@@ -4100,6 +4103,7 @@ CONTAINS
       END IF
 
       IF (has_implicit_ps .AND. has_dirichlet_bc .AND. do_dirichlet_bc_cube) THEN
+         IF (.NOT. ALLOCATED(zcharge)) CALL get_effective_core_charges(qs_env, zcharge)
          append_cube = section_get_lval(input, "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
@@ -4126,7 +4130,7 @@ CONTAINS
 
                   CALL pw_copy(poisson_env%implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw, aux_r)
 
-                  CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+                  CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, zeff=zcharge, &
                                      stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"), &
                       max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%MAX_FILE_SIZE_MB"), &
                                      mpi_io=mpi_io)
@@ -4154,7 +4158,7 @@ CONTAINS
                END DO
             END DO
 
-            CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+            CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, zeff=zcharge, &
                                stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"), &
                       max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%MAX_FILE_SIZE_MB"), &
                                mpi_io=mpi_io)
