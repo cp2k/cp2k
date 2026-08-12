@@ -12,98 +12,39 @@
 #
 # Author: Teodor Nikolov (teodor.nikolov22@gmail.com)
 #
+
 #[=======================================================================[.rst:
 FindMKL
 -------
 
-The following conventions are used:
+Find the oneMKL configuration requested by CP2K and provide these targets:
 
-intel / INTEL  - Bindings for everything except GNU Fortran
-gf / GF        - GNU Fortran bindings
-seq / SEQ      - sequential MKL
-omp / OMP      - threaded MKL with OpenMP back end
-tbb / TBB      - threaded MKL with TBB back end
-32bit / 32BIT  - MKL 32 bit integer interface (used most often)
-64bit / 64BIT  - MKL 64 bit integer interface
-mpich / MPICH  - MPICH / IntelMPI BLACS back end
-ompi / OMPI    - OpenMPI BLACS back end
-st / ST        - static libraries
-dyn / DYN      - dynamic libraries
+``cp2k::BLAS::MKL::MKL``
+  BLAS/LAPACK/FFT link closure for the selected integer, threading and link mode.
 
-The module attempts to define a target for each MKL configuration. The
-configuration will not be available if there are missing library files or a
-missing dependency.
+``cp2k::BLAS::MKL::blas`` and ``cp2k::BLAS::MKL::lapack``
+  Aliases of ``cp2k::BLAS::MKL::MKL``.
 
-MKL Link line advisor:
-https://software.intel.com/en-us/articles/intel-mkl-link-line-advisor
+``cp2k::BLAS::MKL::scalapack_link``
+  ScaLAPACK/BLACS/MPI link closure, available for MPI builds.
 
-Note: Mixing GCC and Intel OpenMP backends is a bad idea.
+Search hints
+^^^^^^^^^^^^
 
-Search variables
-^^^^^^^^^^^^^^^^
+``MKL_ROOT``, ``MKLROOT`` and the ``MKLROOT`` environment variable are searched.
 
-``MKLROOT``
-Environment variable set to MKL's root directory
+CP2K options
+^^^^^^^^^^^^
 
-``MKL_ROOT``
-CMake variable set to MKL's root directory
+``CP2K_MKL_LINK``
+  ``dynamic`` (default) or ``static``.
 
-Example usage
-^^^^^^^^^^^^^
+``CP2K_MKL_MPI``
+  ``auto`` (default), ``openmpi``, ``intelmpi`` or ``mpich``. Relevant only for
+  MPI builds. Set this explicitly when cross compiling.
 
-To Find MKL:
-
-find_package(MKL REQUIRED)
-
-To check if target is available:
-
-if (TARGET MKL::scalapack_mpich_intel_32bit_omp_dyn)
-  ...
-endif()
-
-To link to an available target (see list below):
-
-target_link_libraries(... MKL::scalapack_mpich_intel_32bit_omp_dyn)
-
-Note: dependencies are handled for you (MPI, OpenMP, ...)
-
-the target MKL::blas, MKL::MKL, MKL::lapack also include all necessary libraries
-for linking.
-MKL::MKL is also used by the cmake module provided by intel.
-
-MKL::scalapack_link gives all libraries needed for scalapack.
-
-Imported targets
-^^^^^^^^^^^^^^^^
-
-MKL (BLAS, LAPACK, FFT) targets:
-
-MKL::[gf|intel]_[32bit|64bit]_[seq|omp|tbb]_[st|dyn] e.g.
-
-MKL::mkl_intel_32bit_omp_dyn
-
-BLACS targets:
-
-MKL::blacs_[mpich|ompi]_[gf|intel]_[32bit|64bit]_[seq|omp|tbb]_[st|dyn] e.g.
-
-MKL::blacs_intel_mpich_32bit_seq_st
-
-
-ScaLAPACK targets:
-
-MKL::scalapack_[mpich|ompi]_[gf|intel]_[32bit|64bit]_[seq|omp|tbb]_[st|dyn] e.g.
-
-MKL::scalapack_mpich_intel_64bit_omp_dyn
-
-Result variables
-^^^^^^^^^^^^^^^^
-
-MKL_FOUND
-
-Not supported
-^^^^^^^^^^^^^
-
-- F95 interfaces
+The selected oneMKL interface and threading layer follow ``CP2K_BLAS_INTERFACE``
+and ``CP2K_BLAS_THREADING``.
 
 #]=======================================================================]
 
@@ -134,322 +75,306 @@ Not supported
 
 include(FindPackageHandleStandardArgs)
 
-if(NOT
-   (CMAKE_C_COMPILER_LOADED
-    OR CMAKE_CXX_COMPILER_LOADED
-    OR CMAKE_Fortran_COMPILER_LOADED))
-  message(FATAL_ERROR "FindMKL requires Fortran, C, or C++ to be enabled.")
+if(NOT CMAKE_Fortran_COMPILER_LOADED)
+  message(FATAL_ERROR "FindMKL requires Fortran to be enabled.")
 endif()
 
-# Dependencies
-#
-find_package(Threads)
-find_package(MPI COMPONENTS CXX C Fortran)
-find_package(OpenMP COMPONENTS CXX C Fortran)
-
-# If MKL_ROOT is not set, set it via the env variable MKLROOT.
-#
-if(NOT DEFINED MKL_ROOT)
-  set(MKL_ROOT
-      $ENV{MKLROOT}
-      CACHE PATH "MKL's root directory.")
+# CP2K configuration
+set(CP2K_MKL_LINK
+    "dynamic"
+    CACHE STRING "oneMKL link mode")
+set_property(CACHE CP2K_MKL_LINK PROPERTY STRINGS dynamic static)
+if(NOT CP2K_MKL_LINK MATCHES "^(dynamic|static)$")
+  message(FATAL_ERROR "CP2K_MKL_LINK must be dynamic or static")
 endif()
 
-# Determine MKL's library folder
-#
-set(_mkl_libpath_suffix "intel64")
-if(CMAKE_SIZEOF_VOID_P EQUAL 4) # 32 bit
-  set(_mkl_libpath_suffix "ia32")
+if(NOT CP2K_BLAS_INTERFACE MATCHES "^(32bits|64bits)$")
+  message(FATAL_ERROR "CP2K_BLAS_INTERFACE must be 32bits or 64bits")
 endif()
+
+if(CP2K_BLAS_INTERFACE STREQUAL "64bits")
+  set(_mkl_int_interface ilp64)
+else()
+  set(_mkl_int_interface lp64)
+endif()
+
+# GNU Fortran needs the GNU Fortran interface. Other compilers use Intel's
+# generic Fortran interface. The GNU interface is not available on macOS.
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU" AND NOT APPLE)
+  set(_mkl_interface_name mkl_gf_${_mkl_int_interface})
+else()
+  set(_mkl_interface_name mkl_intel_${_mkl_int_interface})
+endif()
+
+# Resolve only the requested threading layer. CP2K itself uses OpenMP, so do not
+# mix GNU and Intel OpenMP runtimes in the same process.
+set(_mkl_threading_supported TRUE)
+set(_mkl_thread_dependency_found TRUE)
+set(_mkl_thread_libraries)
+set(_mkl_use_openmp FALSE)
+
+if(CP2K_BLAS_THREADING STREQUAL "sequential")
+  set(_mkl_thread_name mkl_sequential)
+elseif(CP2K_BLAS_THREADING STREQUAL "tbb-thread")
+  set(_mkl_thread_name mkl_tbb_thread)
+  find_package(TBB QUIET CONFIG HINTS "${TBB_ROOT}" "$ENV{TBBROOT}")
+  if(TARGET TBB::tbb)
+    list(APPEND _mkl_thread_libraries TBB::tbb)
+  else()
+    set(_mkl_thread_dependency_found FALSE)
+  endif()
+elseif(CP2K_BLAS_THREADING STREQUAL "gnu-thread")
+  if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    set(_mkl_thread_name mkl_gnu_thread)
+    set(_mkl_use_openmp TRUE)
+  else()
+    set(_mkl_threading_supported FALSE)
+  endif()
+elseif(CP2K_BLAS_THREADING STREQUAL "intel-thread")
+  if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel|IntelLLVM)$")
+    set(_mkl_thread_name mkl_intel_thread)
+    set(_mkl_use_openmp TRUE)
+  else()
+    set(_mkl_threading_supported FALSE)
+  endif()
+elseif(CP2K_BLAS_THREADING MATCHES "^(thread|openmp)$")
+  if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    set(_mkl_thread_name mkl_gnu_thread)
+    set(_mkl_use_openmp TRUE)
+  elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel|IntelLLVM)$")
+    set(_mkl_thread_name mkl_intel_thread)
+    set(_mkl_use_openmp TRUE)
+  else()
+    set(_mkl_threading_supported FALSE)
+  endif()
+else()
+  set(_mkl_threading_supported FALSE)
+endif()
+
+if(_mkl_use_openmp)
+  find_package(OpenMP QUIET COMPONENTS Fortran)
+  if(TARGET OpenMP::OpenMP_Fortran)
+    list(APPEND _mkl_thread_libraries OpenMP::OpenMP_Fortran)
+  else()
+    set(_mkl_thread_dependency_found FALSE)
+  endif()
+endif()
+
+# Search roots. Keep both historical MKL_ROOT and Intel's MKLROOT spelling.
+set(_mkl_root_hints "${MKL_ROOT}" "${MKLROOT}" "$ENV{MKLROOT}")
+list(REMOVE_ITEM _mkl_root_hints "")
+list(REMOVE_DUPLICATES _mkl_root_hints)
+
+# Determine architecture and exact library file names. Exact names let static
+# and dynamic selection remain local to this finder rather than modifying
+# CMAKE_FIND_LIBRARY_SUFFIXES globally.
+set(_mkl_libpath_suffix intel64)
+if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+  set(_mkl_libpath_suffix ia32)
+endif()
+set(_mkl_libpath_suffixes ${_mkl_libpath_suffix})
 
 if(WIN32)
-  list(APPEND _mkl_libpath_suffix_list ${_mkl_libpath_suffix})
-  string(APPEND _mkl_libpath_suffix "_win")
-  list(APPEND _mkl_libpath_suffix_list ${_mkl_libpath_suffix})
+  list(APPEND _mkl_libpath_suffixes ${_mkl_libpath_suffix}_win)
   set(_mkl_libname_prefix "")
-  set(_mkl_shared_lib "_dll.lib")
-  set(_mkl_static_lib ".lib")
+  if(CP2K_MKL_LINK STREQUAL "static")
+    set(_mkl_library_suffix ".lib")
+  else()
+    set(_mkl_library_suffix "_dll.lib")
+  endif()
 elseif(APPLE)
-  list(APPEND _mkl_libpath_suffix_list ${_mkl_libpath_suffix})
-  string(APPEND _mkl_libpath_suffix "_mac")
-  list(APPEND _mkl_libpath_suffix_list ${_mkl_libpath_suffix})
+  list(APPEND _mkl_libpath_suffixes ${_mkl_libpath_suffix}_mac)
   set(_mkl_libname_prefix "lib")
-  set(_mkl_shared_lib ".dylib")
-  set(_mkl_static_lib ".a")
-else() # LINUX
-  list(APPEND _mkl_libpath_suffix_list ${_mkl_libpath_suffix})
-  string(APPEND _mkl_libpath_suffix "_lin")
-  list(APPEND _mkl_libpath_suffix_list ${_mkl_libpath_suffix})
+  if(CP2K_MKL_LINK STREQUAL "static")
+    set(_mkl_library_suffix ".a")
+  else()
+    set(_mkl_library_suffix ".dylib")
+  endif()
+else()
+  list(APPEND _mkl_libpath_suffixes ${_mkl_libpath_suffix}_lin)
   set(_mkl_libname_prefix "lib")
-  set(_mkl_shared_lib ".so")
-  set(_mkl_static_lib ".a")
+  if(CP2K_MKL_LINK STREQUAL "static")
+    set(_mkl_library_suffix ".a")
+  else()
+    set(_mkl_library_suffix ".so")
+  endif()
 endif()
-set(_mkl_search_paths "${MKL_ROOT}" "${MKL_ROOT}/lib" "${MKL_ROOT}/mkl/lib"
-                      "${MKL_ROOT}/compiler/lib")
 
-# Functions: finds both static and shared MKL libraries
-#
-function(__mkl_find_library _varname _libname)
+set(_mkl_search_paths)
+foreach(_mkl_root IN LISTS _mkl_root_hints)
+  list(APPEND _mkl_search_paths "${_mkl_root}" "${_mkl_root}/lib"
+       "${_mkl_root}/mkl/lib" "${_mkl_root}/compiler/lib")
+endforeach()
+list(REMOVE_DUPLICATES _mkl_search_paths)
+
+function(_cp2k_mkl_find_library _var _name)
+  # These are finder results, not user inputs. Re-search when MKL_ROOT or the
+  # requested link mode changes in an existing build directory.
+  unset(${_var} CACHE)
+  unset(${_var})
   find_library(
-    ${_varname}_DYN
-    NAMES ${_mkl_libname_prefix}${_libname}${_mkl_shared_lib}
+    ${_var}
+    NAMES "${_mkl_libname_prefix}${_name}${_mkl_library_suffix}"
     HINTS ${_mkl_search_paths}
-    PATH_SUFFIXES ${_mkl_libpath_suffix_list})
-  mark_as_advanced(${_varname}_DYN)
-  find_library(
-    ${_varname}_ST
-    NAMES ${_mkl_libname_prefix}${_libname}${_mkl_static_lib}
-    HINTS ${_mkl_search_paths}
-    PATH_SUFFIXES ${_mkl_libpath_suffix_list})
-  mark_as_advanced(${_varname}_ST)
+    PATH_SUFFIXES ${_mkl_libpath_suffixes})
+  mark_as_advanced(${_var})
+  set(${_var}
+      "${${_var}}"
+      PARENT_SCOPE)
 endfunction()
 
-# Find MKL headers
-#
-find_path(CP2K_MKL_INCLUDE_DIRS mkl.h HINTS ${MKL_ROOT}/include
-                                            ${MKL_ROOT}/mkl/include)
-mark_as_advanced(CP2K_MKL_INCLUDE_DIRS)
+unset(_mkl_include_dir CACHE)
+find_path(
+  _mkl_include_dir mkl.h
+  HINTS ${_mkl_root_hints}
+  PATH_SUFFIXES include mkl/include)
+mark_as_advanced(_mkl_include_dir)
+set(CP2K_MKL_INCLUDE_DIRS "${_mkl_include_dir}")
 
-# Group flags for static libraries on Linux (GNU, PGI, ICC -> same linker)
-#
-if(UNIX AND NOT APPLE)
-  set(_mkl_linker_pre_flags_ST "-Wl,--start-group")
-  set(_mkl_linker_post_flags_ST "-Wl,--end-group")
+_cp2k_mkl_find_library(_mkl_interface_library ${_mkl_interface_name})
+if(_mkl_threading_supported)
+  _cp2k_mkl_find_library(_mkl_thread_library ${_mkl_thread_name})
+endif()
+_cp2k_mkl_find_library(_mkl_core_library mkl_core)
+
+find_package(Threads QUIET)
+
+# Resolve the BLACS implementation only when CP2K actually needs ScaLAPACK.
+set(_mkl_mpi_interface_found TRUE)
+if(CP2K_USE_MPI)
+  set(CP2K_MKL_MPI
+      "auto"
+      CACHE STRING "oneMKL BLACS MPI interface")
+  set_property(CACHE CP2K_MKL_MPI PROPERTY STRINGS auto openmpi intelmpi mpich)
+  if(NOT CP2K_MKL_MPI MATCHES "^(auto|openmpi|intelmpi|mpich)$")
+    message(
+      FATAL_ERROR "CP2K_MKL_MPI must be auto, openmpi, intelmpi, or mpich")
+  endif()
+
+  set(_mkl_mpi_interface ${CP2K_MKL_MPI})
+  if(_mkl_mpi_interface STREQUAL "auto")
+    if(CMAKE_CROSSCOMPILING)
+      set(_mkl_mpi_interface_found FALSE)
+    elseif(MPI_Fortran_LIBRARY_VERSION_STRING MATCHES "Open MPI")
+      set(_mkl_mpi_interface openmpi)
+    elseif(MPI_Fortran_LIBRARY_VERSION_STRING MATCHES
+           "Intel\\(R\\) MPI|Intel MPI|MPICH|HYDRA")
+      set(_mkl_mpi_interface intelmpi)
+    else()
+      set(_mkl_mpi_interface_found FALSE)
+    endif()
+  elseif(_mkl_mpi_interface STREQUAL "mpich")
+    set(_mkl_mpi_interface intelmpi)
+  endif()
+
+  if(_mkl_mpi_interface_found)
+    if(_mkl_mpi_interface STREQUAL "openmpi")
+      set(_mkl_blacs_name mkl_blacs_openmpi_${_mkl_int_interface})
+    elseif(APPLE)
+      set(_mkl_blacs_name mkl_blacs_mpich_${_mkl_int_interface})
+    else()
+      set(_mkl_blacs_name mkl_blacs_intelmpi_${_mkl_int_interface})
+    endif()
+
+    _cp2k_mkl_find_library(_mkl_scalapack_library
+                           mkl_scalapack_${_mkl_int_interface})
+    _cp2k_mkl_find_library(_mkl_blacs_library ${_mkl_blacs_name})
+  endif()
 endif()
 
-# Core MKL
-#
-__mkl_find_library(MKL_CORE_LIB mkl_core)
-
-# Interface
-#
-__mkl_find_library(MKL_INTERFACE_INTEL_32BIT_LIB mkl_intel_lp64)
-__mkl_find_library(MKL_INTERFACE_INTEL_64BIT_LIB mkl_intel_ilp64)
-if(NOT APPLE
-   AND CMAKE_Fortran_COMPILER_LOADED
-   AND CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
-  __mkl_find_library(MKL_INTERFACE_GF_32BIT_LIB mkl_gf_lp64)
-  __mkl_find_library(MKL_INTERFACE_GF_64BIT_LIB mkl_gf_ilp64)
+set(_mkl_required_vars
+    CP2K_MKL_INCLUDE_DIRS
+    _mkl_interface_library
+    _mkl_thread_library
+    _mkl_core_library
+    Threads_FOUND
+    _mkl_threading_supported
+    _mkl_thread_dependency_found)
+if(CP2K_USE_MPI)
+  list(APPEND _mkl_required_vars _mkl_mpi_interface_found
+       _mkl_scalapack_library _mkl_blacs_library MPI_Fortran_FOUND)
 endif()
 
-# Threading
-#
-__mkl_find_library(MKL_SEQ_LIB mkl_sequential)
-if(NOT APPLE
-   AND (CMAKE_C_COMPILER_ID STREQUAL "GNU"
-        OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
-        OR CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"))
-  __mkl_find_library(MKL_OMP_LIB mkl_gnu_thread)
-else()
-  __mkl_find_library(MKL_OMP_LIB mkl_intel_thread)
-endif()
-__mkl_find_library(MKL_TBB_LIB mkl_tbb_thread)
-
-# BLACS
-#
-if(APPLE)
-  __mkl_find_library(MKL_BLACS_MPICH_32BIT_LIB mkl_blacs_mpich_lp64)
-  __mkl_find_library(MKL_BLACS_MPICH_64BIT_LIB mkl_blacs_mpich_ilp64)
-else()
-  __mkl_find_library(MKL_BLACS_MPICH_32BIT_LIB mkl_blacs_intelmpi_lp64)
-  __mkl_find_library(MKL_BLACS_MPICH_64BIT_LIB mkl_blacs_intelmpi_ilp64)
-endif()
-__mkl_find_library(MKL_BLACS_OMPI_32BIT_LIB mkl_blacs_openmpi_lp64)
-__mkl_find_library(MKL_BLACS_OMPI_64BIT_LIB mkl_blacs_openmpi_ilp64)
-
-# ScaLAPACK
-#
-__mkl_find_library(MKL_SCALAPACK_32BIT_LIB mkl_scalapack_lp64)
-__mkl_find_library(MKL_SCALAPACK_64BIT_LIB mkl_scalapack_ilp64)
-
-# Check if core libs were found
-#
-find_package_handle_standard_args(MKL REQUIRED_VARS CP2K_MKL_INCLUDE_DIRS
-                                                    Threads_FOUND)
-
-# Sequential has no threading dependency. There is currently no TBB module
-# shipped with CMake. The dependency is not accounted for. (FIXME)
-#
-set(_mkl_dep_found_SEQ TRUE)
-set(_mkl_dep_found_TBB TRUE)
-if(TARGET OpenMP::OpenMP_CXX)
-  set(_mkl_dep_OMP ${OpenMP_CXX_LIBRARIES})
-  set(_mkl_dep_found_OMP TRUE)
+set(_mkl_failure_reason)
+if(NOT _mkl_threading_supported)
+  set(_mkl_failure_reason
+      "CP2K_BLAS_THREADING=${CP2K_BLAS_THREADING} is incompatible with ${CMAKE_Fortran_COMPILER_ID} Fortran and oneMKL."
+  )
+elseif(CP2K_USE_MPI AND NOT _mkl_mpi_interface_found)
+  set(_mkl_failure_reason
+      "Cannot determine the oneMKL BLACS MPI interface. Set CP2K_MKL_MPI explicitly, especially when cross compiling."
+  )
+elseif(NOT _mkl_thread_dependency_found)
+  set(_mkl_failure_reason
+      "The runtime dependency for CP2K_BLAS_THREADING=${CP2K_BLAS_THREADING} was not found."
+  )
 endif()
 
-# Define all blas, blacs and scalapack
-#
-foreach(_libtype "ST" "DYN")
-  set(_mkl_core_lib ${MKL_CORE_LIB_${_libtype}})
-  foreach(_bits "32BIT" "64BIT")
-    set(_mkl_scalapack_lib ${MKL_SCALAPACK_${_bits}_LIB_${_libtype}})
-    foreach(_iface "INTEL" "GF")
-      set(_mkl_interface_lib
-          ${MKL_INTERFACE_${_iface}_${_bits}_LIB_${_libtype}})
-      foreach(_threading "SEQ" "OMP" "TBB")
-        set(_mkl_threading_lib ${MKL_${_threading}_LIB_${_libtype}})
+find_package_handle_standard_args(
+  MKL REQUIRED_VARS ${_mkl_required_vars} REASON_FAILURE_MESSAGE
+                    "${_mkl_failure_reason}")
 
-        string(TOLOWER "${_iface}_${_bits}_${_threading}_${_libtype}"
-                       _tgt_config)
-        set(_mkl_tgt cp2k::BLAS::MKL::${_tgt_config})
-
-        if(MKL_FOUND
-           AND _mkl_interface_lib
-           AND _mkl_threading_lib
-           AND _mkl_core_lib
-           AND _mkl_dep_found_${_threading}
-           AND NOT TARGET ${_mkl_tgt})
-          set(_mkl_libs
-              "${_mkl_linker_pre_flags_${_threading}}"
-              "${_mkl_interface_lib}"
-              "${_mkl_threading_lib}"
-              "${_mkl_core_lib}"
-              "${_mkl_linker_post_flags_${_threading}}"
-              "${_mkl_dep_${_threading}}"
-              "Threads::Threads")
-          add_library(${_mkl_tgt} INTERFACE IMPORTED)
-          set_target_properties(
-            ${_mkl_tgt}
-            PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
-                       INTERFACE_LINK_LIBRARIES "${_mkl_libs}")
-        endif()
-
-        foreach(_mpi_impl "MPICH" "OMPI")
-          set(_mkl_blacs_lib ${MKL_BLACS_${_mpi_impl}_${_bits}_LIB_${_libtype}})
-
-          string(
-            TOLOWER "${_mpi_impl}_${_iface}_${_bits}_${_threading}_${_libtype}"
-                    _tgt_config)
-
-          if(_mkl_blacs_lib
-             AND TARGET ${_mkl_tgt}
-             AND TARGET MPI::MPI_CXX
-             AND NOT TARGET cp2k::BLAS::MKL::blacs_${_tgt_config})
-            set(_blacs_libs
-                "${_mkl_linker_pre_flags_${_libtype}}"
-                "${_mkl_interface_lib}"
-                "${_mkl_threading_lib}"
-                "${_mkl_core_lib}"
-                "${_mkl_blacs_lib}"
-                "${_mkl_linker_post_flags_${_libtype}}"
-                "MPI::MPI_CXX"
-                "${_mkl_dep_${_threading}}"
-                "Threads::Threads")
-            add_library(cp2k::BLAS::MKL::blacs_${_tgt_config} INTERFACE
-                        IMPORTED)
-            set_target_properties(
-              cp2k::BLAS::MKL::blacs_${_tgt_config}
-              PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
-                         "${CP2K_MKL_INCLUDE_DIRS}" INTERFACE_LINK_LIBRARIES
-                                                    "${_mkl_blacs_lib}")
-          endif()
-
-          if(_mkl_scalapack_lib AND NOT TARGET
-                                    cp2k::BLAS::MKL::scalapack_${_tgt_config})
-            set(_scalapack_libs "${_mkl_scalapack_lib}")
-            if(TARGET cp2k::BLAS::MKL::blacs_${_tgt_config})
-              list(APPEND _scalapack_libs cp2k::BLAS::MKL::blacs_${_tgt_config})
-            endif()
-            add_library(cp2k::BLAS::MKL::scalapack_${_tgt_config} INTERFACE
-                        IMPORTED)
-            set_target_properties(
-              cp2k::BLAS::MKL::scalapack_${_tgt_config}
-              PROPERTIES INTERFACE_LINK_LIBRARIES "${_scalapack_libs}")
-          endif()
-        endforeach()
-      endforeach()
-    endforeach()
-  endforeach()
-endforeach()
+function(_cp2k_mkl_link_group _output)
+  # oneMKL static archives contain circular references. CP2K already requires
+  # CMake 3.24, which provides LINK_GROUP:RESCAN for this purpose.
+  if(CP2K_MKL_LINK STREQUAL "static"
+     AND (CMAKE_Fortran_LINK_GROUP_USING_RESCAN_SUPPORTED
+          OR CMAKE_LINK_GROUP_USING_RESCAN_SUPPORTED))
+    list(JOIN ARGN "," _mkl_group_items)
+    set(${_output}
+        "$<LINK_GROUP:RESCAN,${_mkl_group_items}>"
+        PARENT_SCOPE)
+  else()
+    set(${_output}
+        "${ARGN}"
+        PARENT_SCOPE)
+  endif()
+endfunction()
 
 if(MKL_FOUND)
-  # BLAS in the Intel MKL 10+ library?
+  set(_mkl_base_libraries ${_mkl_interface_library} ${_mkl_thread_library}
+                          ${_mkl_core_library})
+  _cp2k_mkl_link_group(_mkl_base_link ${_mkl_base_libraries})
 
-  # the findMKL package finds all possible combination and define target for
-  # each of them we just need to find which compiler we use, mpi etc...
-
-  if(CMAKE_Fortran_COMPILER_LOADED
-     AND CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"
-     AND NOT APPLE)
-    set(BLAS_mkl_INTFACE "gf")
-  else()
-    set(BLAS_mkl_INTFACE "intel")
+  set(_mkl_system_libraries Threads::Threads)
+  if(UNIX)
+    list(APPEND _mkl_system_libraries m)
+    if(CP2K_MKL_LINK STREQUAL "static" AND CMAKE_DL_LIBS)
+      list(APPEND _mkl_system_libraries ${CMAKE_DL_LIBS})
+    endif()
   endif()
 
-  if(CP2K_BLAS_THREADING STREQUAL "sequential")
-    set(BLAS_mkl_thread__ "seq")
-  elseif(CP2K_BLAS_THREADING MATCHES
-         "^(thread|gnu-thread|intel-thread|openmp)$")
-    set(BLAS_mkl_thread__ "omp")
-  elseif(CP2K_BLAS_THREADING STREQUAL "tbb-thread")
-    set(BLAS_mkl_thread__ "tbb")
-  endif()
-
-  if(CP2K_BLAS_INTERFACE MATCHES "64bits")
-    set(BLAS_mkl_ILP_MODE "64bit")
-  else()
-    set(BLAS_mkl_ILP_MODE "32bit")
-  endif()
-
-  get_target_property(
-    MKL_BLAS_INCLUDE_DIRS
-    cp2k::BLAS::MKL::${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
-    INTERFACE_INCLUDE_DIRECTORIES)
-  get_target_property(
-    MKL_BLAS_LIBRARIES
-    cp2k::BLAS::MKL::${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
-    INTERFACE_LINK_LIBRARIES)
-  if(NOT TARGET cp2k::BLAS::MKL::blas)
+  if(NOT TARGET cp2k::BLAS::MKL::MKL)
     add_library(cp2k::BLAS::MKL::MKL INTERFACE IMPORTED)
     add_library(cp2k::BLAS::MKL::blas ALIAS cp2k::BLAS::MKL::MKL)
-    # create a empty lapack
-    add_library(cp2k::BLAS::MKL::lapack INTERFACE IMPORTED)
+    add_library(cp2k::BLAS::MKL::lapack ALIAS cp2k::BLAS::MKL::MKL)
   endif()
   set_target_properties(
     cp2k::BLAS::MKL::MKL
-    PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
-               INTERFACE_LINK_LIBRARIES "${MKL_BLAS_LIBRARIES}")
+    PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
+      INTERFACE_LINK_LIBRARIES
+      "${_mkl_base_link};${_mkl_thread_libraries};${_mkl_system_libraries}")
 
-  if("${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI")
-    set(__mkl_mpi_ver_ "ompi")
-  else()
-    set(__mkl_mpi_ver_ "mpich")
-  endif()
+  if(CP2K_USE_MPI)
+    set(_mkl_cluster_libraries
+        ${_mkl_scalapack_library} ${_mkl_interface_library}
+        ${_mkl_thread_library} ${_mkl_core_library} ${_mkl_blacs_library})
+    _cp2k_mkl_link_group(_mkl_cluster_link ${_mkl_cluster_libraries})
 
-  get_target_property(
-    __mkl_scalapack_inc
-    cp2k::BLAS::MKL::scalapack_${__mkl_mpi_ver_}_${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
-    INTERFACE_INCLUDE_DIRECTORIES)
-  get_target_property(
-    __mkl_scalapack_lib
-    cp2k::BLAS::MKL::scalapack_${__mkl_mpi_ver_}_${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
-    INTERFACE_LINK_LIBRARIES)
-  get_target_property(
-    __mkl_blacs_inc
-    cp2k::BLAS::MKL::blacs_${__mkl_mpi_ver_}_${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
-    INTERFACE_INCLUDE_DIRECTORIES)
-  get_target_property(
-    __mkl_blacs_lib
-    cp2k::BLAS::MKL::blacs_${__mkl_mpi_ver_}_${BLAS_mkl_INTFACE}_${BLAS_mkl_ILP_MODE}_${BLAS_mkl_thread__}_dyn
-    INTERFACE_LINK_LIBRARIES)
-  if(NOT TARGET cp2k::BLAS::MKL::scalapack_link)
-    add_library(cp2k::BLAS::MKL::scalapack_link INTERFACE IMPORTED)
+    if(NOT TARGET cp2k::BLAS::MKL::scalapack_link)
+      add_library(cp2k::BLAS::MKL::scalapack_link INTERFACE IMPORTED)
+    endif()
     set_target_properties(
       cp2k::BLAS::MKL::scalapack_link
-      PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${__mkl_scalapack_inc}"
-                 INTERFACE_LINK_LIBRARIES
-                 "${__mkl_scalapack_lib};${__mkl_blacs_lib}")
+      PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
+        INTERFACE_LINK_LIBRARIES
+        "${_mkl_cluster_link};MPI::MPI_Fortran;${_mkl_thread_libraries};${_mkl_system_libraries}"
+    )
   endif()
-  unset(BLAS_mkl_ILP_MODE)
-  unset(BLAS_mkl_INTFACE)
-  unset(BLAS_mkl_thread__)
-  unset(BLAS_mkl_OMP)
-  unset(BLAS_mkl_OS_NAME)
-  unset(__mkl_blacs_lib)
-  unset(__mkl_blacs_inc)
-  unset(__mkl_scalapack_lib)
-  unset(__mkl_scalapack_inc)
+
   set(CP2K_BLAS_VENDOR "MKL")
-  mark_as_advanced(CP2K_BLAS_VENDOR)
-  mark_as_advanced(CP2K_MKL_FOUND)
 endif()
+
+mark_as_advanced(CP2K_BLAS_VENDOR)
