@@ -58,8 +58,6 @@ MODULE qs_kpp1_env_methods
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
-   USE xc_derivative_set_types,         ONLY: xc_dset_release
-   USE xc_rho_set_types,                ONLY: xc_rho_set_release
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -70,7 +68,6 @@ MODULE qs_kpp1_env_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kpp1_env_methods'
 
    PUBLIC :: kpp1_create, &
-             kpp1_did_change, &
              calc_kpp1
 
 CONTAINS
@@ -85,7 +82,7 @@ CONTAINS
    SUBROUTINE kpp1_create(kpp1_env)
       TYPE(qs_kpp1_env_type)                             :: kpp1_env
 
-      NULLIFY (kpp1_env%v_ao, kpp1_env%rho_set, kpp1_env%deriv_set)
+      NULLIFY (kpp1_env%v_ao)
 
    END SUBROUTINE kpp1_create
 
@@ -369,28 +366,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calc_kpp1
-
-! **************************************************************************************************
-!> \brief function to advise of changes either in the grids
-!> \param kpp1_env the kpp1_env
-!> \par History
-!>      11.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE kpp1_did_change(kpp1_env)
-      TYPE(qs_kpp1_env_type)                             :: kpp1_env
-
-      IF (ASSOCIATED(kpp1_env%deriv_set)) THEN
-         CALL xc_dset_release(kpp1_env%deriv_set)
-         DEALLOCATE (kpp1_env%deriv_set)
-         NULLIFY (kpp1_env%deriv_set)
-      END IF
-      IF (ASSOCIATED(kpp1_env%rho_set)) THEN
-         CALL xc_rho_set_release(kpp1_env%rho_set)
-         DEALLOCATE (kpp1_env%rho_set)
-      END IF
-
-   END SUBROUTINE kpp1_did_change
 
 ! **************************************************************************************************
 !> \brief ...
