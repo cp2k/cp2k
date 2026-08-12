@@ -5,7 +5,7 @@
 &END GLOBAL
 
 &DEBUG
-  CHECK_ATOM_FORCE 3 y
+  CHECK_ATOM_FORCE 1 x
   DE 0.001
   DEBUG_DIPOLE .FALSE.
   DEBUG_FORCES .TRUE.
@@ -26,7 +26,7 @@
       STATE 1
     &END EXCITED_STATES
     &MGRID
-      CUTOFF 180
+      CUTOFF 160
       REL_CUTOFF 40
     &END MGRID
     &POISSON
@@ -75,7 +75,7 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [angstrom] 4.5 4.5 4.5
+      ABC [angstrom] 7.0 7.0 7.0
       PERIODIC NONE
     &END CELL
     &COORD
