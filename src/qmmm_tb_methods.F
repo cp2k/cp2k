@@ -343,6 +343,9 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: mm_cell
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
+      IF (qmmm_env%compatibility) THEN
+         CPABORT("Gaussian QM/MM coupling for tight-binding methods requires NOCOMPATIBILITY.")
+      END IF
       CALL build_tb_qmmm_matrix_smeared(qs_env, qmmm_env, particles_mm, mm_cell, para_env, &
                                         gaussian=.TRUE.)
 
