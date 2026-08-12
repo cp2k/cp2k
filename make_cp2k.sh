@@ -598,7 +598,7 @@ while [[ $# -gt 0 ]]; do
             BENCHMARK_PROFILE="${2,,}"
             ;;
           *)
-            echo "ERROR: Invalid benchmark profile \"${2}\" specified"
+            echo "ERROR: Invalid benchmark profile \"${2}\" specified (choose e.g. openmp)"
             ${EXIT_CMD} 1
             ;;
         esac
@@ -801,7 +801,15 @@ echo "Physical cores      = $(lscpu -p=Core,Socket | grep -v '#' | sort -u | wc 
 echo "REBUILD_CP2K        = ${REBUILD_CP2K}"
 echo "RUN_BENCHMARK       = ${RUN_BENCHMARK}"
 if [[ "${RUN_BENCHMARK}" == "yes" ]]; then
-  echo "BENCHMARK_PROFILE   = ${BENCHMARK_PROFILE}"
+  case ${CP2K_VERSION} in
+    psmp)
+      echo "BENCHMARK_PROFILE   = ${BENCHMARK_PROFILE}"
+      ;;
+    *)
+      echo -e "\nERROR: Performance test runs are supported only for CP2K_VERSION \"psmp\", found version \"${CP2K_VERSION}\"\n"
+      ${EXIT_CMD} 1
+      ;;
+  esac
 fi
 echo "RUN_TEST            = ${RUN_TEST}"
 if [[ "${RUN_TEST}" == "yes" ]]; then
@@ -1676,13 +1684,14 @@ ${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${VERSION
 ***
 chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
 
-# Create script to run the CP2K benchmarks
-if [[ "${IN_CONTAINER}" == "yes" ]]; then
-  BENCHMARK_OUTPUT_DIR="/workspace/artifacts"
-else
-  BENCHMARK_OUTPUT_DIR="${INSTALL_PREFIX}"/performance_tests
-fi
-cat << *** > "${INSTALL_PREFIX}"/bin/run_benchmarks
+# Create script to run the CP2K benchmarks for psmp builds
+if [[ "${VERSION}" == "psmp" ]]; then
+  if [[ "${IN_CONTAINER}" == "yes" ]]; then
+    BENCHMARK_OUTPUT_DIR="/workspace/artifacts"
+  else
+    BENCHMARK_OUTPUT_DIR="${INSTALL_PREFIX}"/performance_tests
+  fi
+  cat << *** > "${INSTALL_PREFIX}"/bin/run_benchmarks
 #!/bin/bash -e
 
 BENCHMARK_PROFILE=\${1:-openmp}
@@ -1766,7 +1775,8 @@ DURATION=\$(printf "%i" \$(((TIME_END - TIME_START) / 60)))
 echo -e "\nSummary: Performance test took \${DURATION} minutes."
 echo -e "Status: OK\n"
 ***
-chmod 750 "${INSTALL_PREFIX}"/bin/run_benchmarks
+  chmod 750 "${INSTALL_PREFIX}"/bin/run_benchmarks
+fi
 
 # Set image tag if available
 export IMAGE_TAG=${IMAGE_TAG:-<IMAGE ID>}
@@ -1817,17 +1827,19 @@ else
 fi
 
 # Optionally, run CP2K benchmark
-if [[ "${RUN_BENCHMARK}" == "yes" ]]; then
-  echo -e "\n*** Launching benchmark run using the script ${INSTALL_PREFIX}/bin/run_benchmarks\n"
-  ${LAUNCH_SCRIPT} run_benchmarks
-  EXIT_CODE=$?
-  if ((EXIT_CODE != 0)); then
-    echo "ERROR: The benchmark run failed with the error code ${EXIT_CODE}"
-    ${EXIT_CMD} "${EXIT_CODE}"
+if [[ "${VERSION}" == "psmp" ]]; then
+  if [[ "${RUN_BENCHMARK}" == "yes" ]]; then
+    echo -e "\n*** Launching benchmark run using the script ${INSTALL_PREFIX}/bin/run_benchmarks\n"
+    ${LAUNCH_SCRIPT} run_benchmarks
+    EXIT_CODE=$?
+    if ((EXIT_CODE != 0)); then
+      echo "ERROR: The benchmark run failed with the error code ${EXIT_CODE}"
+      ${EXIT_CMD} "${EXIT_CODE}"
+    fi
+  else
+    echo ""
+    echo "*** A benchmark run can be launched with"
+    echo "    ${LAUNCH_SCRIPT} run_benchmarks"
+    echo ""
   fi
-else
-  echo ""
-  echo "*** A benchmark run can be launched with"
-  echo "    ${LAUNCH_SCRIPT} run_benchmarks"
-  echo ""
 fi

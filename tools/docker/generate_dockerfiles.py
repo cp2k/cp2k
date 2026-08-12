@@ -4,6 +4,7 @@
 
 import argparse
 import io
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -800,6 +801,15 @@ COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 # Install CP2K/Quickstep CI benchmarks
 COPY ./benchmarks/CI ./benchmarks/CI
 
+# Do not rely only on LD_LIBRARY_PATH because it is fragile
+COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
+RUN ldconfig
+"""
+    )
+    if test_type.startswith("performance-"):
+        if version is "psmp":
+            benchmark_profile = test_type.removeprefix("performance-")
+            output += rf"""
 # Install benchmark inputs for performance test
 COPY ./benchmarks/QS ./benchmarks/QS
 COPY ./benchmarks/QS_reference ./benchmarks/QS_reference
@@ -808,24 +818,20 @@ COPY ./benchmarks/QMMM_MQAE ./benchmarks/QMMM_MQAE
 RUN mkdir -p ./tools/docker/scripts
 COPY ./tools/docker/scripts/plot_performance.py ./tools/docker/scripts/
 
-# Do not rely only on LD_LIBRARY_PATH because it is fragile
-COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
-RUN ldconfig
-"""
-    )
-    if test_type.startswith("performance-"):
-        benchmark_profile = test_type.removeprefix("performance-")
-        output += rf"""
 # Run CP2K performance test
 RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_benchmarks {benchmark_profile} || echo "ERROR: Performance test run failed"
 """
+        else:
+            sys.exit(
+                f'\nERROR: Performance test runs are only supported for version "psmp", found version "{version}"\n'
+            )
     elif test_type == "regression":
         output += rf"""
 # Run CP2K regression test
 RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts} || echo "ERROR: Regression test run failed"
 """
     else:
-        print(f"\nERROR: Unknown test type {test_type} specified\n")
+        sys.exit(f"\nERROR: Unknown test type {test_type} specified\n")
     output += rf"""
 # Create entrypoint and finalise container build
 WORKDIR /mnt
@@ -948,7 +954,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 """
         else:
-            print(f"\nERROR: Unknown base image {base_image} specified\n")
+            sys.exit(f"\nERROR: Unknown base image {base_image} specified\n")
         if "nvidia" in base_image:
             output += rf"""
 # Setup CUDA environment
@@ -997,7 +1003,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 """
         else:
-            print(f"\nERROR: Unknown base image {base_image} specified\n")
+            sys.exit(f"\nERROR: Unknown base image {base_image} specified\n")
         if "nvidia" in base_image:
             output += rf"""
 # Setup CUDA environment
@@ -1008,7 +1014,7 @@ ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 ENV CUDA_CACHE_DISABLE 1
 """
     else:
-        print(f"\nERROR: Unknown stage {stage} specified\n")
+        sys.exit(f"\nERROR: Unknown stage {stage} specified\n")
     return output
 
 
