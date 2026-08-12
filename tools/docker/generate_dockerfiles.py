@@ -205,7 +205,8 @@ def main() -> None:
                 base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
-                testopts=testopts,
+                # Run memory-heavy tests alone on the single 8 GiB runner GPU.
+                testopts=f"{testopts} --ompthreads=6 --exclusive-gpu-memory-batches",
                 image_tag=f.image_tag,
             )
         )
@@ -219,7 +220,8 @@ def main() -> None:
                 gcc_version=13,
                 gpu_model="P100",
                 feature_flags="",
-                testopts=testopts,
+                # Run memory-heavy tests alone on the single 8 GiB runner GPU.
+                testopts=f"{testopts} --ompthreads=6 --exclusive-gpu-memory-batches",
                 image_tag=f.image_tag,
             )
         )
