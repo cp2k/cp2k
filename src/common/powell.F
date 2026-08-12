@@ -270,6 +270,7 @@ CONTAINS
 !       10*NDIM = 10*(NPT+N).
 
       skip_check = .FALSE.
+      do_return = .FALSE.
 
       IF (opt%state == 1) THEN
          ! initialize all variable that will be stored
@@ -724,7 +725,7 @@ CONTAINS
             !     it is too short to have been tried before.
             !
             IF (knew == -1) THEN
-               CALL calc_next_value_of_objective_function
+               CALL calc_next_value_of_objective_func
             ELSE
                opt%state = 7
                CALL get_state
@@ -926,21 +927,19 @@ CONTAINS
          !
          !     Calculate the next value of the objective function.
          !
-         CALL calc_next_value_of_objective_function
+         CALL calc_next_value_of_objective_func
       END SUBROUTINE generate_next_model_step
 ! **************************************************************************************************
 !> \brief ...
-!> \brief ...
-!> \return ...
 ! **************************************************************************************************
-      SUBROUTINE calc_next_value_of_objective_function()
+      SUBROUTINE calc_next_value_of_objective_func()
          DO i = 1, n
             xnew(i) = xopt(i) + d(i)
             x(i) = xbase(i) + xnew(i)
          END DO
          nf = nf + 1
          CALL check_number_of_steps
-      END SUBROUTINE calc_next_value_of_objective_function
+      END SUBROUTINE calc_next_value_of_objective_func
 ! **************************************************************************************************
 !> \brief ...
 ! **************************************************************************************************
