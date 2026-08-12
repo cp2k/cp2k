@@ -19,11 +19,9 @@ MODULE qs_kernel_types
    USE qs_rho_types,                    ONLY: qs_rho_release,&
                                               qs_rho_type
    USE qs_tddfpt2_stda_types,           ONLY: stda_env_type
-   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-                                              xc_dset_release
+   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
-   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
-                                              xc_rho_set_type
+   USE xc_rho_set_types,                ONLY: xc_rho_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -47,22 +45,22 @@ MODULE qs_kernel_types
 ! **************************************************************************************************
    TYPE full_kernel_env_type
       ! ground state electron density
-      TYPE(xc_rho_set_type), POINTER                     :: xc_rho_set => Null()
+!deb  TYPE(xc_rho_set_type), POINTER                     :: xc_rho_set => Null()
       TYPE(qs_rho_type), POINTER                         :: rho0_struct => Null()
       ! response density
-      TYPE(xc_rho_set_type), POINTER                     :: xc_rho1_set => Null()
+!deb  TYPE(xc_rho_set_type), POINTER                     :: xc_rho1_set => Null()
       !> first and second derivatives of exchange-correlation functional
-      TYPE(xc_derivative_set_type)                       :: xc_deriv_set = xc_derivative_set_type()
+!deb  TYPE(xc_derivative_set_type)                       :: xc_deriv_set = xc_derivative_set_type()
       !> XC input section
       LOGICAL                                            :: do_exck = .FALSE.
       TYPE(section_vals_type), POINTER                   :: xc_section => Null()
       !> flags which indicate required components of the exchange-correlation functional
       !> (density, gradient, etc)
-      TYPE(xc_rho_cflags_type)                           :: xc_rho1_cflags = xc_rho_cflags_type()
+!deb  TYPE(xc_rho_cflags_type)                           :: xc_rho1_cflags = xc_rho_cflags_type()
       !> the method used to compute position derivatives of densities and potentials
-      INTEGER                                            :: deriv_method_id = -1
+!deb  INTEGER                                            :: deriv_method_id = -1
       !> the density smoothing method
-      INTEGER                                            :: rho_smooth_id = -1
+!deb  INTEGER                                            :: rho_smooth_id = -1
       !> scaling coefficients in the linear combination:
       !> K = alpha * K_{\alpha,\alpha} + beta * K_{\alpha,\beta}
       REAL(kind=dp)                                      :: alpha = -1.0_dp, beta = -1.0_dp
@@ -101,19 +99,19 @@ CONTAINS
       TYPE(full_kernel_env_type), POINTER                :: kernel_env
 
       IF (ASSOCIATED(kernel_env)) THEN
-         IF (ASSOCIATED(kernel_env%xc_rho1_set)) THEN
-            CALL xc_rho_set_release(kernel_env%xc_rho1_set)
-            DEALLOCATE (kernel_env%xc_rho1_set)
-         END IF
+!deb     IF (ASSOCIATED(kernel_env%xc_rho1_set)) THEN
+!deb        CALL xc_rho_set_release(kernel_env%xc_rho1_set)
+!deb        DEALLOCATE (kernel_env%xc_rho1_set)
+!deb     END IF
          IF (ASSOCIATED(kernel_env%rho0_struct)) THEN
             CALL qs_rho_release(kernel_env%rho0_struct)
             DEALLOCATE (kernel_env%rho0_struct)
          END IF
-         CALL xc_dset_release(kernel_env%xc_deriv_set)
-         IF (ASSOCIATED(kernel_env%xc_rho_set)) THEN
-            CALL xc_rho_set_release(kernel_env%xc_rho_set)
-            DEALLOCATE (kernel_env%xc_rho_set)
-         END IF
+!deb     CALL xc_dset_release(kernel_env%xc_deriv_set)
+!deb     IF (ASSOCIATED(kernel_env%xc_rho_set)) THEN
+!deb        CALL xc_rho_set_release(kernel_env%xc_rho_set)
+!deb        DEALLOCATE (kernel_env%xc_rho_set)
+!deb     END IF
          IF (ASSOCIATED(kernel_env%x_data)) THEN
             CALL hfx_release(kernel_env%x_data)
          END IF
