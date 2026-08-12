@@ -178,6 +178,11 @@ spack:
       require:
         - "+hdf5"
 
+    # Libfabric's UCX provider is not compatible with UCX 1.22 yet.
+    ucx:
+      require:
+        - "@1.21.0"
+
   repos:
     builtin:
       commit: 4d092a104627e9871a0d74f853d6df9c8e6105c2 # 2026-08-11
