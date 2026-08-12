@@ -85,8 +85,8 @@ CONTAINS
    SUBROUTINE kpp1_create(kpp1_env)
       TYPE(qs_kpp1_env_type)                             :: kpp1_env
 
-      NULLIFY (kpp1_env%v_ao, kpp1_env%rho_set, kpp1_env%deriv_set, &
-               kpp1_env%rho_set_admm, kpp1_env%deriv_set_admm)
+      NULLIFY (kpp1_env%v_ao, kpp1_env%rho_set, kpp1_env%deriv_set)
+
    END SUBROUTINE kpp1_create
 
 ! **************************************************************************************************

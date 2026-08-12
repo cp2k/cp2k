@@ -88,7 +88,6 @@ MODULE qs_linres_kernel
                                               qs_rho_type
    USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
    USE task_list_types,                 ONLY: task_list_type
-   USE xc,                              ONLY: xc_prep_2nd_deriv
    USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
@@ -185,12 +184,10 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace_new, v_xc, v_xc_tau
-      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho0, rho1, rho1_xc, rho1a, &
-                                                            rho_aux, rho_xc
+      TYPE(qs_rho_type), POINTER                         :: rho, rho0, rho1, rho1_xc, rho1a, rho_xc
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
-      TYPE(section_vals_type), POINTER                   :: input, xc_section, xc_section_aux
+      TYPE(section_vals_type), POINTER                   :: input, xc_section
 
       CALL timeset(routineN, handle)
 
@@ -318,23 +315,6 @@ CONTAINS
          CALL pw_scale(v_rspace_new(ispin), v_rspace_new(ispin)%pw_grid%dvol)
          IF (ASSOCIATED(v_xc_tau)) CALL pw_scale(v_xc_tau(ispin), v_xc_tau(ispin)%pw_grid%dvol)
       END DO
-
-      ! ADMM Correction
-      IF (dft_control%do_admm) THEN
-         IF (admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
-            IF (.NOT. ASSOCIATED(kpp1_env%deriv_set_admm)) THEN
-               CPASSERT(.NOT. lr_triplet)
-               CALL get_qs_env(qs_env, xcint_weights=weights)
-               xc_section_aux => admm_env%xc_section_aux
-               CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
-               CALL qs_rho_get(rho_aux, rho_r=rho_r)
-               ALLOCATE (kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm)
-               CALL xc_prep_2nd_deriv(kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, &
-                                      rho_r, auxbas_pw_pool, weights, &
-                                      xc_section=xc_section_aux)
-            END IF
-         END IF
-      END IF
 
       !-------------------------------!
       ! Add both hartree and xc terms !
