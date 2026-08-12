@@ -64,7 +64,7 @@ async def main() -> None:
     parser.add_argument("--ompthreads", type=int)
     parser.add_argument("--maxtasks", type=int, default=os.cpu_count())
     parser.add_argument("--num_gpus", type=int, default=0)
-    parser.add_argument("--timeout", type=int, default=400)
+    parser.add_argument("--timeout", type=int, default=150)
     parser.add_argument("--maxerrors", type=int, default=50)
     help = "Template for launching MPI jobs, {N} is replaced by number of processors."
     parser.add_argument("--mpiexec", default="mpiexec -n {N} --bind-to none", help=help)
