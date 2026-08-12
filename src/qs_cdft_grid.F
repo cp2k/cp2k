@@ -133,7 +133,7 @@ CONTAINS
                       context%datom_sum(3, natom), context%datom_numerator(3, natom))
          END IF
          IF (ASSOCIATED(becke_control%cutoffs)) THEN
-            context%cutoffs = becke_control%cutoffs
+            context%cutoffs(:) = becke_control%cutoffs
          ELSE
             SELECT CASE (becke_control%cutoff_type)
             CASE (becke_cutoff_global)
@@ -152,7 +152,7 @@ CONTAINS
          context%aij = 0.0_dp
          IF (becke_control%adjust) THEN
             IF (ASSOCIATED(becke_control%aij)) THEN
-               context%aij = becke_control%aij
+               context%aij(:, :) = becke_control%aij
             ELSE
                IF (ASSOCIATED(becke_control%radii)) THEN
                   radii => becke_control%radii
@@ -469,7 +469,7 @@ CONTAINS
       IF (PRESENT(atomic_weights)) atomic_weights = context%cell_functions/sum_cell
       IF (calculate_derivatives) THEN
          dsum_point = SUM(context%dcell_point, DIM=2)
-         context%datom_sum = SUM(context%dcell_atom, DIM=3)
+         context%datom_sum(:, :) = SUM(context%dcell_atom, DIM=3)
       END IF
       DO igroup = 1, context%ngroup
          numerator = DOT_PRODUCT(context%coefficients(igroup, :), context%cell_functions)
@@ -545,8 +545,9 @@ CONTAINS
          numerator = DOT_PRODUCT(context%coefficients(igroup, :), context%cell_functions)
          weights(igroup) = numerator/sum_density
          IF (calculate_derivatives) THEN
-            dpoint_numerator = &
-               -MATMUL(context%density_atom_derivative, context%coefficients(igroup, :))
+            dpoint_numerator(:) = &
+               MATMUL(context%density_atom_derivative, context%coefficients(igroup, :))
+            dpoint_numerator = -dpoint_numerator
             point_derivative(:, igroup) = &
                (dpoint_numerator*sum_density - numerator*dsum_point)/sum_density**2
             DO atom = 1, context%natom
