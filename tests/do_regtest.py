@@ -297,8 +297,8 @@ class Config:
         self.mpiranks = args.mpiranks if self.use_mpi else 1
         self.num_workers = int(args.maxtasks / self.ompthreads / self.mpiranks) or 1
         self.workers = Semaphore(self.num_workers)
+        self.worker_admission = asyncio.Lock()
         self.exclusive_gpu_memory_batches = args.exclusive_gpu_memory_batches
-        self.gpu_memory_worker = Semaphore(1)
         self.cp2k_root = Path(__file__).resolve().parent.parent
         self.mpiexec = args.mpiexec
         if "{N}" not in self.mpiexec:  # backwards compatibility
@@ -560,19 +560,23 @@ async def wait_for_child_process(
 # ======================================================================================
 async def run_batch(batch: Batch, cfg: Config) -> BatchResult:
     if batch.gpu_memory_intensive and cfg.exclusive_gpu_memory_batches:
-        async with cfg.gpu_memory_worker:
-            acquired_workers = 0
-            try:
+        acquired_workers = 0
+        try:
+            async with cfg.worker_admission:
                 for _ in range(cfg.num_workers):
                     await cfg.workers.acquire()
                     acquired_workers += 1
-                return await run_batch_tests(batch, cfg)
-            finally:
-                for _ in range(acquired_workers):
-                    cfg.workers.release()
-    else:
-        async with cfg.workers:
             return await run_batch_tests(batch, cfg)
+        finally:
+            for _ in range(acquired_workers):
+                cfg.workers.release()
+    else:
+        async with cfg.worker_admission:
+            await cfg.workers.acquire()
+        try:
+            return await run_batch_tests(batch, cfg)
+        finally:
+            cfg.workers.release()
 
 
 # ======================================================================================
