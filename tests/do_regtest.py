@@ -64,6 +64,7 @@ async def main() -> None:
     parser.add_argument("--ompthreads", type=int)
     parser.add_argument("--maxtasks", type=int, default=os.cpu_count())
     parser.add_argument("--num_gpus", type=int, default=0)
+    parser.add_argument("--exclusive-gpu-memory-batches", action="store_true")
     parser.add_argument("--timeout", type=int, default=150)
     parser.add_argument("--maxerrors", type=int, default=50)
     help = "Template for launching MPI jobs, {N} is replaced by number of processors."
@@ -105,6 +106,7 @@ async def main() -> None:
     print(f"OpenMP threads: {cfg.ompthreads}")
     print(f"GPU devices:    {cfg.num_gpus}")
     print(f"Workers:        {cfg.num_workers}")
+    print(f"Exclusive GPU:  {cfg.exclusive_gpu_memory_batches}")
     print(f"Timeout [s]:    {cfg.timeout}")
     print(f"Work base dir:  {cfg.work_base_dir}")
     print(f"MPI exec:       {cfg.mpiexec}")
@@ -295,6 +297,8 @@ class Config:
         self.mpiranks = args.mpiranks if self.use_mpi else 1
         self.num_workers = int(args.maxtasks / self.ompthreads / self.mpiranks) or 1
         self.workers = Semaphore(self.num_workers)
+        self.worker_admission = asyncio.Lock()
+        self.exclusive_gpu_memory_batches = args.exclusive_gpu_memory_batches
         self.cp2k_root = Path(__file__).resolve().parent.parent
         self.mpiexec = args.mpiexec
         if "{N}" not in self.mpiexec:  # backwards compatibility
@@ -406,7 +410,8 @@ class Batch:
     def __init__(self, line: str, cfg: Config):
         parts = line.split()
         self.name = parts[0]
-        self.requirements = parts[1:]
+        self.gpu_memory_intensive = "gpu_memory_intensive" in parts[1:]
+        self.requirements = [r for r in parts[1:] if r != "gpu_memory_intensive"]
         self.unittests: List[Unittest] = []
         self.regtests: List[Regtest] = []
         self.src_dir = cfg.cp2k_root / "tests" / self.name
@@ -554,13 +559,34 @@ async def wait_for_child_process(
 
 # ======================================================================================
 async def run_batch(batch: Batch, cfg: Config) -> BatchResult:
-    async with cfg.workers:
-        results = []
-        if not cfg.skip_unittests:
-            results += await run_unittests(batch, cfg)
-        if not cfg.skip_regtests:
-            results += await run_regtests(batch, cfg)
-        return BatchResult(batch, results)
+    if batch.gpu_memory_intensive and cfg.exclusive_gpu_memory_batches:
+        acquired_workers = 0
+        try:
+            async with cfg.worker_admission:
+                for _ in range(cfg.num_workers):
+                    await cfg.workers.acquire()
+                    acquired_workers += 1
+            return await run_batch_tests(batch, cfg)
+        finally:
+            for _ in range(acquired_workers):
+                cfg.workers.release()
+    else:
+        async with cfg.worker_admission:
+            await cfg.workers.acquire()
+        try:
+            return await run_batch_tests(batch, cfg)
+        finally:
+            cfg.workers.release()
+
+
+# ======================================================================================
+async def run_batch_tests(batch: Batch, cfg: Config) -> BatchResult:
+    results = []
+    if not cfg.skip_unittests:
+        results += await run_unittests(batch, cfg)
+    if not cfg.skip_regtests:
+        results += await run_regtests(batch, cfg)
+    return BatchResult(batch, results)
 
 
 # ======================================================================================
