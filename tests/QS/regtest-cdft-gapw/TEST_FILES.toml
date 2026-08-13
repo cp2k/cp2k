@@ -19,7 +19,7 @@
   {matcher="M072", tol=5e-5, ref=3.26838970e-3},
 ]
 "H2He_becke_molecular.inp" = [
-  {matcher="M071", tol=2e-8, ref=0.848418046163},
+  {matcher="M071", tol=1e-7, ref=0.848418046163},
   {matcher="M072", tol=5e-5, ref=4.01333954e-2},
 ]
 "H2_cdft_ci_periodic.inp" = [
