@@ -610,6 +610,7 @@ list(
   qs_force.F
   qs_force_types.F
   qs_fxc.F
+  qs_fgxc.F
   qs_gamma2kp.F
   qs_gapw_densities.F
   qs_gcp_method.F
