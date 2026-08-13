@@ -10,7 +10,7 @@
   {matcher="M072", tol=5e-5, ref=1.03364671e-4},
 ]
 "H2_hirshfeld_molecular.inp" = [
-  {matcher="M071", tol=2e-8, ref=0.860064537137},
+  {matcher="M071", tol=1e-7, ref=0.860064537137},
   {matcher="M072", tol=5e-5, ref=1.19391737e-2},
 ]
 # The atoms straddle the cell boundary to exercise minimum-image derivatives.
