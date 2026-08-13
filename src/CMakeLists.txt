@@ -534,6 +534,7 @@ list(
   qs_basis_gradient.F
   qs_basis_rotation_methods.F
   qs_block_davidson_types.F
+  qs_cdft_grid.F
   qs_cdft_methods.F
   qs_cdft_opt_types.F
   qs_cdft_scf_utils.F

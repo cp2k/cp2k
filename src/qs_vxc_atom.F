@@ -22,7 +22,11 @@ MODULE qs_vxc_atom
    USE external_potential_types,        ONLY: get_potential,&
                                               gth_potential_type,&
                                               sgp_potential_type
-   USE input_constants,                 ONLY: xc_none
+   USE input_constants,                 ONLY: cdft_alpha_constraint,&
+                                              cdft_beta_constraint,&
+                                              cdft_charge_constraint,&
+                                              cdft_magnetization_constraint,&
+                                              xc_none
    USE input_section_types,             ONLY: section_get_rval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -42,6 +46,11 @@ MODULE qs_vxc_atom
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
+   USE qs_cdft_grid,                    ONLY: cdft_point_context_create,&
+                                              cdft_point_context_release,&
+                                              cdft_point_context_type,&
+                                              cdft_point_weights
+   USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
@@ -117,6 +126,7 @@ MODULE qs_vxc_atom
              calculate_xc_2nd_deriv_atom, &
              calc_rho_angular, &
              calculate_gfxc_atom, &
+             gapw_cdft_one_center, &
              gfxc_atom_diff, &
              gaVxcgb_noGC
 
@@ -1897,6 +1907,242 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_vxc_atom
+
+! **************************************************************************************************
+!> \brief Add the GAPW one-center correction to CDFT values and operators.
+!> \param qs_env Quickstep environment
+!> \param energy_only skip construction of the CDFT one-center operator
+!> \param calculate_forces evaluate explicit derivatives of the partition weights
+!> \param values constraint values from the hard-minus-soft one-center densities
+!> \param electronic_charge optional one-center corrections to atomic populations
+!> \param operator_group optional group for which to build the unscaled weight operator
+!> \param rho_atom_operator_set optional destination for the one-center operator integrals
+! **************************************************************************************************
+   SUBROUTINE gapw_cdft_one_center(qs_env, energy_only, calculate_forces, values, &
+                                   electronic_charge, operator_group, rho_atom_operator_set)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: energy_only, calculate_forces
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: values
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
+         OPTIONAL                                        :: electronic_charge
+      INTEGER, INTENT(IN), OPTIONAL                      :: operator_group
+      TYPE(rho_atom_type), DIMENSION(:), POINTER, &
+         OPTIONAL                                        :: rho_atom_operator_set
+
+      INTEGER                                            :: atom, channel, ia, iat, igroup, ikind, &
+                                                            ir, natom, natom_kind, nspins
+      INTEGER, DIMENSION(2)                              :: atom_bounds
+      INTEGER, DIMENSION(:), POINTER                     :: atom_list
+      LOGICAL                                            :: lsd, paw_atom
+      REAL(KIND=dp)                                      :: delta_density, point_factor, spin_factor
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: atomic_weights, group_weights
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: explicit_derivative, &
+                                                            group_point_derivative
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: group_atom_derivative
+      REAL(KIND=dp), DIMENSION(3)                        :: point
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho_h, rho_s
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: drho_h, drho_s
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: vlocal_h, vlocal_s
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cdft_control_type), POINTER                   :: cdft_control
+      TYPE(cdft_point_context_type)                      :: context
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_atom_type), POINTER                      :: grid_atom
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
+      TYPE(harmonics_atom_type), POINTER                 :: harmonics
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: dr_h, dr_s, int_hh, int_ss, r_h, r_s
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: r_h_d, r_s_d
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: operator_atom_set, rho_atom_set
+      TYPE(rho_atom_type), POINTER                       :: operator_atom, rho_atom
+
+      NULLIFY (atom_list, atomic_kind_set, basis_1c, cdft_control, dft_control, force, &
+               grid_atom, harmonics, int_hh, int_ss, para_env, particle_set, r_h, r_s, &
+               dr_h, dr_s, r_h_d, r_s_d, rho_h, rho_s, drho_h, drho_s, &
+               operator_atom, operator_atom_set, rho_atom, rho_atom_set, qs_kind_set, &
+               vlocal_h, vlocal_s)
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, dft_control=dft_control, &
+                      force=force, natom=natom, para_env=para_env, particle_set=particle_set, &
+                      qs_kind_set=qs_kind_set, rho_atom_set=rho_atom_set)
+      CPASSERT(ASSOCIATED(atomic_kind_set))
+      CPASSERT(ASSOCIATED(dft_control))
+      CPASSERT(ASSOCIATED(para_env))
+      CPASSERT(ASSOCIATED(particle_set))
+      CPASSERT(ASSOCIATED(qs_kind_set))
+      CPASSERT(ASSOCIATED(rho_atom_set))
+      operator_atom_set => rho_atom_set
+      IF (PRESENT(rho_atom_operator_set)) operator_atom_set => rho_atom_operator_set
+      CPASSERT(ASSOCIATED(operator_atom_set))
+      cdft_control => dft_control%qs_control%cdft_control
+      CPASSERT(ASSOCIATED(cdft_control))
+      nspins = dft_control%nspins
+      lsd = dft_control%lsd
+      CPASSERT(SIZE(values) == SIZE(cdft_control%group))
+      IF (PRESENT(operator_group)) THEN
+         CPASSERT(operator_group >= 1 .AND. operator_group <= SIZE(cdft_control%group))
+      END IF
+      IF (PRESENT(electronic_charge)) THEN
+         CPASSERT(SIZE(electronic_charge, 1) == natom)
+         CPASSERT(SIZE(electronic_charge, 2) == nspins)
+      END IF
+
+      CALL cdft_point_context_create(qs_env, context, calculate_forces)
+      ALLOCATE (group_weights(context%ngroup), group_point_derivative(3, context%ngroup), &
+                group_atom_derivative(3, natom, context%ngroup), &
+                explicit_derivative(3, natom))
+      IF (PRESENT(electronic_charge)) ALLOCATE (atomic_weights(natom))
+      values = 0.0_dp
+      explicit_derivative = 0.0_dp
+      IF (PRESENT(electronic_charge)) electronic_charge = 0.0_dp
+
+      DO ikind = 1, SIZE(atomic_kind_set)
+         CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom_kind)
+         CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom, grid_atom=grid_atom, &
+                          harmonics=harmonics)
+         IF (.NOT. paw_atom) CYCLE
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_1c, basis_type="GAPW_1C")
+         CPASSERT(ASSOCIATED(grid_atom))
+         CPASSERT(ASSOCIATED(harmonics))
+         CPASSERT(ASSOCIATED(basis_1c))
+         ALLOCATE (vlocal_h(grid_atom%ng_sphere, grid_atom%nr, nspins), &
+                   vlocal_s(grid_atom%ng_sphere, grid_atom%nr, nspins))
+
+         atom_bounds = get_limit(natom_kind, para_env%num_pe, para_env%mepos)
+         DO iat = atom_bounds(1), atom_bounds(2)
+            atom = atom_list(iat)
+            rho_atom => rho_atom_set(atom)
+            NULLIFY (r_h, r_s)
+            CALL get_rho_atom(rho_atom=rho_atom, rho_rad_h=r_h, rho_rad_s=r_s)
+            CALL reallocate(rho_h, 1, grid_atom%ng_sphere, 1, grid_atom%nr, 1, nspins)
+            CALL reallocate(rho_s, 1, grid_atom%ng_sphere, 1, grid_atom%nr, 1, nspins)
+            rho_h = 0.0_dp
+            rho_s = 0.0_dp
+            DO ir = 1, grid_atom%nr
+               CALL calc_rho_angular(grid_atom, harmonics, nspins, .FALSE., ir, r_h, r_s, &
+                                     rho_h, rho_s, dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s)
+            END DO
+            vlocal_h = 0.0_dp
+            vlocal_s = 0.0_dp
+
+            DO ir = 1, grid_atom%nr
+               DO ia = 1, grid_atom%ng_sphere
+                  point(1) = particle_set(atom)%r(1) + grid_atom%rad(ir)* &
+                             grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia)
+                  point(2) = particle_set(atom)%r(2) + grid_atom%rad(ir)* &
+                             grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia)
+                  point(3) = particle_set(atom)%r(3) + grid_atom%rad(ir)*grid_atom%cos_pol(ia)
+                  IF (PRESENT(electronic_charge)) THEN
+                     CALL cdft_point_weights(context, point, group_weights, &
+                                             group_point_derivative, group_atom_derivative, &
+                                             atomic_weights)
+                  ELSE
+                     CALL cdft_point_weights(context, point, group_weights, &
+                                             group_point_derivative, group_atom_derivative)
+                  END IF
+                  DO channel = 1, nspins
+                     delta_density = rho_h(ia, ir, channel) - rho_s(ia, ir, channel)
+                     IF (PRESENT(electronic_charge)) THEN
+                        electronic_charge(:, channel) = electronic_charge(:, channel) + &
+                                                        grid_atom%weight(ia, ir)*atomic_weights* &
+                                                        delta_density
+                     END IF
+                     point_factor = 0.0_dp
+                     DO igroup = 1, context%ngroup
+                        spin_factor = cdft_spin_factor( &
+                                      cdft_control%group(igroup)%constraint_type, channel, lsd)
+                        IF (PRESENT(operator_group)) THEN
+                           IF (igroup == operator_group) THEN
+                              point_factor = point_factor + group_weights(igroup)
+                           END IF
+                        ELSE
+                           point_factor = point_factor + cdft_control%strength(igroup)* &
+                                          group_weights(igroup)*spin_factor
+                        END IF
+                        values(igroup) = values(igroup) + grid_atom%weight(ia, ir)* &
+                                         group_weights(igroup)*delta_density*spin_factor
+                        IF (calculate_forces) THEN
+                           explicit_derivative(:, :) = &
+                              explicit_derivative + grid_atom%weight(ia, ir)* &
+                              cdft_control%strength(igroup)*delta_density* &
+                              spin_factor*group_atom_derivative(:, :, igroup)
+                           explicit_derivative(:, atom) = explicit_derivative(:, atom) + &
+                                                          grid_atom%weight(ia, ir)* &
+                                                          cdft_control%strength(igroup)*delta_density* &
+                                                          spin_factor*group_point_derivative(:, igroup)
+                        END IF
+                     END DO
+                     vlocal_h(ia, ir, channel) = grid_atom%weight(ia, ir)*point_factor
+                     vlocal_s(ia, ir, channel) = vlocal_h(ia, ir, channel)
+                  END DO
+               END DO
+            END DO
+
+            IF (.NOT. energy_only) THEN
+               NULLIFY (int_hh, int_ss)
+               operator_atom => operator_atom_set(atom)
+               CALL get_rho_atom(rho_atom=operator_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
+               CALL gaVxcgb_noGC(vlocal_h, vlocal_s, int_hh, int_ss, grid_atom, &
+                                 basis_1c, harmonics, nspins)
+            END IF
+         END DO
+         DEALLOCATE (vlocal_h, vlocal_s)
+      END DO
+
+      CALL para_env%sum(values)
+      CALL para_env%sum(explicit_derivative)
+      IF (PRESENT(electronic_charge)) CALL para_env%sum(electronic_charge)
+      IF (calculate_forces .AND. ASSOCIATED(force) .AND. para_env%is_source()) THEN
+         DO ikind = 1, SIZE(atomic_kind_set)
+            CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom_kind)
+            DO iat = 1, natom_kind
+               atom = atom_list(iat)
+               force(ikind)%rho_elec(:, iat) = force(ikind)%rho_elec(:, iat) + &
+                                               explicit_derivative(:, atom)
+            END DO
+         END DO
+      END IF
+
+      IF (ASSOCIATED(rho_h)) DEALLOCATE (rho_h)
+      IF (ASSOCIATED(rho_s)) DEALLOCATE (rho_s)
+      IF (ALLOCATED(atomic_weights)) DEALLOCATE (atomic_weights)
+      DEALLOCATE (explicit_derivative, group_atom_derivative, group_point_derivative, group_weights)
+      CALL cdft_point_context_release(context)
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param constraint_type ...
+!> \param channel ...
+!> \param lsd ...
+!> \return ...
+! **************************************************************************************************
+      FUNCTION cdft_spin_factor(constraint_type, channel, lsd) RESULT(factor)
+      INTEGER, INTENT(IN)                                :: constraint_type, channel
+      LOGICAL, INTENT(IN)                                :: lsd
+      REAL(KIND=dp)                                      :: factor
+
+         SELECT CASE (constraint_type)
+         CASE (cdft_charge_constraint)
+            factor = 1.0_dp
+         CASE (cdft_magnetization_constraint)
+            CPASSERT(lsd)
+            factor = MERGE(1.0_dp, -1.0_dp, channel == 1)
+         CASE (cdft_alpha_constraint)
+            CPASSERT(lsd)
+            factor = MERGE(1.0_dp, 0.0_dp, channel == 1)
+         CASE (cdft_beta_constraint)
+            CPASSERT(lsd)
+            factor = MERGE(1.0_dp, 0.0_dp, channel == 2)
+         CASE DEFAULT
+            CPABORT("Unknown CDFT constraint type.")
+         END SELECT
+      END FUNCTION cdft_spin_factor
+
+   END SUBROUTINE gapw_cdft_one_center
 
 ! **************************************************************************************************
 !> \brief Contract a compact one-center density matrix with an integral in the padded old basis.
