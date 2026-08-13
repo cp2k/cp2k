@@ -412,7 +412,10 @@ CONTAINS
       mesh = openpmd_data%iteration%get_mesh(TRIM(openpmd_data%name_prefix))
       CALL mesh%set_axis_labels(["x", "y", "z"])
       CALL mesh%set_position([0.5_dp, 0.5_dp, 0.5_dp])
-      CALL mesh%set_grid_global_offset([0._dp, 0._dp, 0._dp])
+      CALL mesh%set_grid_global_offset([ &
+                                       pw%pw_grid%bounds(1, 1)*grid_spacing(1), &
+                                       pw%pw_grid%bounds(1, 2)*grid_spacing(2), &
+                                       pw%pw_grid%bounds(1, 3)*grid_spacing(3)])
       CALL mesh%set_grid_spacing(grid_spacing)
       CALL mesh%set_grid_unit_SI(a_bohr)
       CALL mesh%set_unit_dimension(openpmd_data%unit_dimension)
