@@ -29,38 +29,33 @@ MODULE qs_fgxc
 
    USE cp_control_types,                ONLY: dft_control_type
    USE input_section_types,             ONLY: section_get_ival,&
-                                              section_get_lval,&
                                               section_get_rval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_grids,                        ONLY: pw_grid_compare
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_scale,&
-                                              pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_fxc,                          ONLY: qs_fxc_calculate,&
+                                              qs_fxc_fdiff
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_rho_methods,                  ONLY: qs_rho_copy,&
                                               qs_rho_scale_and_add,&
-                                              qs_rho_scale_and_add_b,&
-                                              qs_rho_transfer
+                                              qs_rho_scale_and_add_b
    USE qs_rho_types,                    ONLY: qs_rho_create,&
                                               qs_rho_get,&
                                               qs_rho_release,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
-   USE qs_fxc,                          ONLY: qs_fxc_calculate, qs_fxc_fdiff
    USE xc,                              ONLY: xc_calc_2nd_deriv_analytical,&
-                                              xc_calc_2nd_deriv_numerical,&
                                               xc_calc_3rd_deriv_analytical,&
-                                              xc_prep_2nd_deriv,&
                                               xc_prep_3rd_deriv
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_release
