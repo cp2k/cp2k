@@ -11,6 +11,7 @@
 !> \author MI (07.2005)
 ! **************************************************************************************************
 MODULE qs_operators_ao
+   USE ai_angmom,                       ONLY: angmom
    USE ai_moments,                      ONLY: diff_momop,&
                                               diffop,&
                                               moment
@@ -449,14 +450,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_ang_mom_matrix'
 
       INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
-         ldai, maxco, maxlgto, maxsgf, ncoa, ncob, nkind, nseta, nsetb, sgfa, sgfb
+         maxco, maxsgf, ncoa, ncob, nkind, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: found, new_atom_b
       REAL(KIND=dp)                                      :: dab, rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: intab, rr_work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: intab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, rbc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
@@ -486,14 +487,9 @@ CONTAINS
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
                            maxco=maxco, &
-                           maxlgto=maxlgto, &
                            maxsgf=maxsgf)
 
-      ldai = ncoset(maxlgto + 1)
-      CALL init_orbital_pointers(ldai)
-
-      ALLOCATE (rr_work(ldai, ldai, 3), intab(maxco, maxco, 3), work(maxco, maxsgf), integral(3))
-      rr_work(:, :, :) = 0.0_dp
+      ALLOCATE (intab(maxco, maxco, 3), work(maxco, maxsgf), integral(3))
       intab(:, :, :) = 0.0_dp
       work(:, :) = 0.0_dp
 
@@ -592,11 +588,8 @@ CONTAINS
 
                ! *** Calculate the primitive angular momentum integrals ***
 
-               CALL ang_mom(la_max(iset), la_min(iset), npgfa(iset), &
-                            rpgfa(:, iset), zeta(:, iset), &
-                            lb_max(jset), lb_min(jset), npgfb(jset), &
-                            rpgfb(:, jset), zetb(:, jset), &
-                            rab, rac, intab, SIZE(rr_work, 1), rr_work)
+               CALL angmom(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
+                           lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), rac, rbc, intab)
 
                ! *** Contraction step ***
 
@@ -654,141 +647,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_ang_mom_matrix
-
-! **************************************************************************************************
-!> \brief   Calculation of the primitive paramagnetic spin orbit integrals over
-!>          Cartesian Gaussian-type functions.
-!> \param la_max ...
-!> \param la_min ...
-!> \param npgfa ...
-!> \param rpgfa ...
-!> \param zeta ...
-!> \param lb_max ...
-!> \param lb_min ...
-!> \param npgfb ...
-!> \param rpgfb ...
-!> \param zetb ...
-!> \param rab ...
-!> \param rac ...
-!> \param intab ...
-!> \param ldrr ...
-!> \param rr ...
-!> \date    02.03.2009
-!> \author  VW
-!> \version 1.0
-! **************************************************************************************************
-   SUBROUTINE ang_mom(la_max, la_min, npgfa, rpgfa, zeta, lb_max, lb_min, npgfb, rpgfb, zetb, &
-                      rab, rac, intab, ldrr, rr)
-      INTEGER, INTENT(IN)                                :: la_max, la_min, npgfa
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfa, zeta
-      INTEGER, INTENT(IN)                                :: lb_max, lb_min, npgfb
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfb, zetb
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab, rac
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: intab
-      INTEGER, INTENT(IN)                                :: ldrr
-      REAL(dp), DIMENSION(0:ldrr-1, 0:ldrr-1, 3), &
-         INTENT(INOUT)                                   :: rr
-
-      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, i, &
-                                                            ipgf, j, jpgf, la, lb, ma, mb, na, nb
-      REAL(dp)                                           :: dab, dumx, dumy, dumz, f0, rab2, xhi, zet
-      REAL(dp), DIMENSION(3)                             :: rap, rbp
-
-! *** Calculate the distance of the centers a and c ***
-
-      rab2 = rab(1)**2 + rab(2)**2 + rab(3)**2
-      dab = SQRT(rab2)
-
-      ! *** Loop over all pairs of primitive Gaussian-type functions ***
-
-      na = 0
-
-      DO ipgf = 1, npgfa
-
-         nb = 0
-
-         DO jpgf = 1, npgfb
-
-            ! *** Screening ***
-
-            IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
-               DO j = nb + 1, nb + ncoset(lb_max)
-                  DO i = na + 1, na + ncoset(la_max)
-                     intab(i, j, 1) = 0.0_dp
-                     intab(i, j, 2) = 0.0_dp
-                     intab(i, j, 3) = 0.0_dp
-                  END DO
-               END DO
-               nb = nb + ncoset(lb_max)
-               CYCLE
-            END IF
-
-            ! *** Calculate some prefactors ***
-            zet = zeta(ipgf) + zetb(jpgf)
-            xhi = zeta(ipgf)*zetb(jpgf)/zet
-            rap = zetb(jpgf)*rab/zet
-            rbp = -zeta(ipgf)*rab/zet
-
-            f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
-
-            ! *** Calculate the recurrence relation ***
-
-            CALL os_rr_ovlp(rap, la_max + 1, rbp, lb_max, zet, ldrr, rr)
-
-            ! *** Calculate the primitive Fermi contact integrals ***
-
-            DO lb = lb_min, lb_max
-            DO bx = 0, lb
-            DO by = 0, lb - bx
-               bz = lb - bx - by
-               cob = coset(bx, by, bz)
-               mb = nb + cob
-               DO la = la_min, la_max
-               DO ax = 0, la
-               DO ay = 0, la - ax
-                  az = la - ax - ay
-                  coa = coset(ax, ay, az)
-                  ma = na + coa
-                  !
-                  dumx = -2.0_dp*zeta(ipgf)*rr(ax + 1, bx, 1)
-                  dumy = -2.0_dp*zeta(ipgf)*rr(ay + 1, by, 2)
-                  dumz = -2.0_dp*zeta(ipgf)*rr(az + 1, bz, 3)
-                  IF (ax > 0) dumx = dumx + REAL(ax, dp)*rr(ax - 1, bx, 1)
-                  IF (ay > 0) dumy = dumy + REAL(ay, dp)*rr(ay - 1, by, 2)
-                  IF (az > 0) dumz = dumz + REAL(az, dp)*rr(az - 1, bz, 3)
-                  !
-                  ! (a|l_z|b)
-                  intab(ma, mb, 1) = -f0*rr(ax, bx, 1)*( &
-                       &  (rr(ay + 1, by, 2) + rac(2)*rr(ay, by, 2))*dumz &
-                       & - (rr(az + 1, bz, 3) + rac(3)*rr(az, bz, 3))*dumy)
-                  !
-                  ! (a|l_y|b)
-                  intab(ma, mb, 2) = -f0*rr(ay, by, 2)*( &
-                       &  (rr(az + 1, bz, 3) + rac(3)*rr(az, bz, 3))*dumx &
-                       & - (rr(ax + 1, bx, 1) + rac(1)*rr(ax, bx, 1))*dumz)
-                  !
-                  ! (a|l_z|b)
-                  intab(ma, mb, 3) = -f0*rr(az, bz, 3)*( &
-                       &  (rr(ax + 1, bx, 1) + rac(1)*rr(ax, bx, 1))*dumy &
-                       & - (rr(ay + 1, by, 2) + rac(2)*rr(ay, by, 2))*dumx)
-                  !
-               END DO
-               END DO
-               END DO !la
-
-            END DO
-            END DO
-            END DO !lb
-
-            nb = nb + ncoset(lb_max)
-
-         END DO
-
-         na = na + ncoset(la_max)
-
-      END DO
-
-   END SUBROUTINE ang_mom
 
 ! **************************************************************************************************
 !> \brief Calculation of the components of the dipole operator in the velocity form
