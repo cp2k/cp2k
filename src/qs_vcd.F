@@ -12,6 +12,7 @@ MODULE qs_vcd
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_desymmetrize,&
+                                              dbcsr_scale,&
                                               dbcsr_set
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
@@ -45,7 +46,6 @@ MODULE qs_vcd
    USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_vcd_ao,                       ONLY: build_dSdV_matrix,&
                                               build_dcom_rpnl,&
-                                              build_drpnl_matrix,&
                                               build_matrix_hr_rh,&
                                               hr_mult_by_delta_3d
    USE qs_vcd_utils,                    ONLY: vcd_read_restart,&
@@ -871,9 +871,14 @@ CONTAINS
       CALL build_dcom_rpnl(vcd_env%matrix_dcom, qs_kind_set, sab_orb, sap_ppnl, &
                            dft_control%qs_control%eps_ppnl, particle_set, vcd_env%dcdr_env%lambda)
 
-      ! PP derivative
-      CALL build_drpnl_matrix(vcd_env%matrix_drpnl, qs_kind_set, sab_all, sap_ppnl, &
-                              dft_control%qs_control%eps_ppnl, particle_set, pseudoatom=vcd_env%dcdr_env%lambda)
+      ! PP derivative. build_com_mom_nl returns [r, Vnl], while matrix_drpnl
+      ! historically stores [Vnl, r] = -[r, Vnl].
+      CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, dft_control%qs_control%eps_ppnl, &
+                            particle_set, cell=cell, matrix_rv=vcd_env%matrix_drpnl, &
+                            pseudoatom=vcd_env%dcdr_env%lambda)
+      DO j = 1, 3
+         CALL dbcsr_scale(vcd_env%matrix_drpnl(j)%matrix, alpha_scalar=-1._dp)
+      END DO
       ! lin_mom
       DO i = 1, 3
          CALL dbcsr_set(vcd_env%dipvel_ao_delta(i)%matrix, 0._dp)
@@ -996,7 +1001,7 @@ CONTAINS
                                       vcd_env%op_dV(ispin), &
                                       ncol=nmo, alpha=1.0_dp, beta=1.0_dp)
 
-         ! STEP 3: +dV_ppnl/dV, but build_drpnl_matrix gives the negative of dV_ppnl
+         ! STEP 3: +dV_ppnl/dV, but matrix_drpnl stores the negative of dV_ppnl
          ! The arguments (-1, 1) are swapped wrt to the hr-rh term, implying that
          ! direction_Or and direction_hr do what they should.
          CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_drpnl(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &

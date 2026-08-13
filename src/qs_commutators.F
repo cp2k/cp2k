@@ -12,15 +12,20 @@
 !> \author Juerg Hutter
 ! **************************************************************************************************
 MODULE qs_commutators
+   USE cell_types,                      ONLY: cell_type
    USE commutator_rkinetic,             ONLY: build_com_tr_matrix
-   USE commutator_rpnl,                 ONLY: build_com_rpnl
+   USE commutator_rpnl,                 ONLY: build_com_mom_nl
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_create,&
                                               dbcsr_p_type,&
+                                              dbcsr_scale,&
                                               dbcsr_set
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE kinds,                           ONLY: dp
+   USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -62,16 +67,20 @@ CONTAINS
 
       INTEGER                                            :: handle, ir
       REAL(KIND=dp)                                      :: eps_ppnl
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_nl
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sap_ppnl
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (sab_orb, sap_ppnl)
-      CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb, sap_ppnl=sap_ppnl)
+      NULLIFY (cell, matrix_nl, particle_set, sab_orb, sap_ppnl)
+      CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb, sap_ppnl=sap_ppnl, cell=cell, &
+                      particle_set=particle_set)
       !
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, dft_control=dft_control)
       eps_ppnl = dft_control%qs_control%eps_ppnl
@@ -88,11 +97,28 @@ CONTAINS
       END DO
 
       CALL build_com_tr_matrix(matrix_hr, qs_kind_set, "ORB", sab_orb)
-      CALL build_com_rpnl(matrix_hr, qs_kind_set, sab_orb, sap_ppnl, eps_ppnl)
+      IF (ASSOCIATED(sap_ppnl)) THEN
+         CALL dbcsr_allocate_matrix_set(matrix_nl, 3)
+         DO ir = 1, 3
+            ALLOCATE (matrix_nl(ir)%matrix)
+            CALL dbcsr_create(matrix_nl(ir)%matrix, template=matrix_s(1, 1)%matrix, &
+                              name="NONLOCAL COMMUTATOR")
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_nl(ir)%matrix, sab_orb)
+            CALL dbcsr_set(matrix_nl(ir)%matrix, 0.0_dp)
+         END DO
+
+         CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, &
+                               matrix_rv=matrix_nl)
+         ! build_com_mom_nl returns [r,Vnl]; [H,r] requires [Vnl,r].
+         DO ir = 1, 3
+            CALL dbcsr_scale(matrix_nl(ir)%matrix, alpha_scalar=-1.0_dp)
+            CALL dbcsr_add(matrix_hr(ir)%matrix, matrix_nl(ir)%matrix, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+         END DO
+         CALL dbcsr_deallocate_matrix_set(matrix_nl)
+      END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE build_com_hr_matrix
 
 END MODULE qs_commutators
-

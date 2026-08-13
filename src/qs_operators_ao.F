@@ -449,8 +449,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_ang_mom_matrix'
 
       INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
-         ldai, maxco, maxlgto, maxsgf, natom, ncoa, ncob, neighbor_list_id, nkind, nseta, nsetb, &
-         sgfa, sgfb
+         ldai, maxco, maxlgto, maxsgf, ncoa, ncob, nkind, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -463,10 +462,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: integral
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -477,21 +474,13 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cell, sab_all, qs_kind_set, particle_set, para_env)
-      NULLIFY (logger)
-
-      logger => cp_get_default_logger()
-
       CALL get_qs_env(qs_env=qs_env, &
                       qs_kind_set=qs_kind_set, &
                       particle_set=particle_set, &
-                      neighbor_list_id=neighbor_list_id, &
-                      para_env=para_env, &
                       sab_all=sab_all, &
                       cell=cell)
 
       nkind = SIZE(qs_kind_set)
-      natom = SIZE(particle_set)
 
 !   *** Allocate work storage ***
 
@@ -1638,4 +1627,3 @@ CONTAINS
    END SUBROUTINE rRc_xyz_der_ao
 
 END MODULE qs_operators_ao
-
