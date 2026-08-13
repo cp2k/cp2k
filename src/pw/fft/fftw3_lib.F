@@ -1117,7 +1117,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fftw31dm(plan, zin, zout, scale, stat)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN), TARGET :: zin
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zin
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
          TARGET                                          :: zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
@@ -1126,10 +1127,6 @@ CONTAINS
       INTEGER                                            :: in_offset, my_id, num_rows, out_offset, &
                                                             scal_offset
       TYPE(C_PTR)                                        :: fftw_plan
-#if defined(__FFTW3)
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: zin_slice, zout_slice
-#endif
-
 !------------------------------------------------------------------------------
 
       my_id = 0
@@ -1138,9 +1135,7 @@ CONTAINS
 #if defined(__FFTW3)
       IF (plan%m <= 1) THEN
          stat = 1
-         CALL C_F_POINTER(C_LOC(zin(1)), zin_slice, [plan%n*plan%m])
-         CALL C_F_POINTER(C_LOC(zout(1)), zout_slice, [plan%n*plan%m])
-         CALL dfftw_execute_dft(plan%fftw_plan, zin_slice, zout_slice)
+         CALL fftw_execute_dft(plan%fftw_plan, zin(1), zout(1))
          IF (scale /= 1.0_dp) CALL zdscal(plan%n*plan%m, scale, zout, 1)
          RETURN
       END IF
@@ -1179,7 +1174,7 @@ CONTAINS
 !$OMP MASTER
          stat = 1
 !$OMP END MASTER
-         CALL dfftw_execute_dft(fftw_plan, zin(in_offset:in_offset), zout(out_offset:out_offset))
+         CALL fftw_execute_dft(fftw_plan, zin(in_offset), zout(out_offset))
 !$    end if
 ! all threads need to meet at this barrier
 !$OMP BARRIER
