@@ -602,7 +602,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moment_matrix'
 
       INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
-                 maxco, maxsgf, natom, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
+                 maxco, maxsgf, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
@@ -624,8 +624,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (qs_kind_set, cell, particle_set, sab_orb)
-
       nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
       CPASSERT(SIZE(moments) >= nm)
 
@@ -636,8 +634,6 @@ CONTAINS
                       sab_orb=sab_orb)
 
       nkind = SIZE(qs_kind_set)
-      natom = SIZE(particle_set)
-
       ! Allocate work storage
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
                            maxco=maxco, maxsgf=maxsgf, &
@@ -1167,7 +1163,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_magmom_matrix'
 
       INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, maxco, &
-                 maxsgf, natom, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
+                 maxsgf, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
@@ -1175,7 +1171,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, rb, rbc, rc
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: mint
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(neighbor_list_iterator_p_type), &
@@ -1190,11 +1185,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (qs_kind_set, cell, particle_set, sab_orb)
-      NULLIFY (matrix_s)
-
-      CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
-
       ! magnetic dipoles/angular moments only
       nm = 3
 
@@ -1205,7 +1195,6 @@ CONTAINS
                       sab_orb=sab_orb)
 
       nkind = SIZE(qs_kind_set)
-      natom = SIZE(particle_set)
 
       ! Allocate work storage
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
