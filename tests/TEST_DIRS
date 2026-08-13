@@ -223,6 +223,7 @@ SE/regtest-4
 QS/regtest-gauxc-gpw-mol                                    gauxc
 QS/regtest-dft-d3-lib-ref                                   libint s_dftd3 !ifx
 QMMM/xTB/regtest
+QMMM/xTB/regtest-tblite                                     tblite
 QS/regtest-hfx-block                                        libint !ifx
 QS/regtest-mp2-block                                        libint parallel mpiranks%2==0 !ifx
 QS/regtest-tddfpt-force-gapw-2                              libint !ifx
