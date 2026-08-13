@@ -237,6 +237,7 @@ def main() -> None:
                 image_tag=f.image_tag,
             )
         )
+
     with OutputFile(f"Dockerfile.test_spack_performance-openmp", args.check) as f:
         f.write(
             install_cp2k_spack(
@@ -245,6 +246,16 @@ def main() -> None:
                 feature_flags="",
                 image_tag=f.image_tag,
                 test_type="performance-openmp",
+            )
+        )
+
+    with OutputFile(f"Dockerfile.test_spack_gromacs", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                version="psmp",
+                mpi_mode="mpich",
+                feature_flags="--test_gromacs",
+                image_tag=f.image_tag,
             )
         )
 
