@@ -87,7 +87,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: do_symmetric, found, my_minimum_image, &
                                                             new_atom_b
-      REAL(KIND=dp)                                      :: alpha, dab, Lxo2, Lyo2, Lzo2, rab2
+      REAL(KIND=dp)                                      :: alpha, dab, Lxo2, Lyo2, Lzo2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: intab, rr_work
       REAL(KIND=dp), DIMENSION(3)                        :: rab
@@ -127,9 +127,9 @@ CONTAINS
       my_minimum_image = .FALSE.
       IF (PRESENT(minimum_image)) THEN
          my_minimum_image = minimum_image
-         Lxo2 = SQRT(SUM(cell%hmat(:, 1)**2))/2.0_dp
-         Lyo2 = SQRT(SUM(cell%hmat(:, 2)**2))/2.0_dp
-         Lzo2 = SQRT(SUM(cell%hmat(:, 3)**2))/2.0_dp
+         Lxo2 = NORM2(cell%hmat(:, 1))/2.0_dp
+         Lyo2 = NORM2(cell%hmat(:, 2))/2.0_dp
+         Lzo2 = NORM2(cell%hmat(:, 3))/2.0_dp
       END IF
 
       ! Take into account the symmetry of the input matrix
@@ -198,7 +198,7 @@ CONTAINS
          IF (inode == 1) last_jatom = 0
 
          IF (my_minimum_image) THEN
-            IF (ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) CYCLE
+            IF (ANY(ABS(rab(:)) > [Lxo2, Lyo2, Lzo2])) CYCLE
          END IF
 
          IF (jatom /= last_jatom) THEN
@@ -234,8 +234,7 @@ CONTAINS
             END DO
          END IF
 
-         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-         dab = SQRT(rab2)
+         dab = NORM2(rab)
 
          DO iset = 1, nseta
 
@@ -474,7 +473,7 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: found, new_atom_b
-      REAL(KIND=dp)                                      :: dab, rab2
+      REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: intab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, rbc
@@ -580,8 +579,7 @@ CONTAINS
             END DO
          END IF
 
-         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-         dab = SQRT(rab2)
+         dab = NORM2(rab)
 
          DO iset = 1, nseta
 
