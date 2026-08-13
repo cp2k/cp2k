@@ -313,6 +313,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(subsys_section)) THEN
          subsys_section => section_vals_get_subs_vals(force_env_section, "SUBSYS")
       END IF
+      CALL section_vals_val_get(force_env_section, "DFT%QS%METHOD", i_val=method_id)
 
       ! QMMM
       my_qmmm = .FALSE.
@@ -322,14 +323,14 @@ CONTAINS
          IF (qmmm_env_qm%qmmm_coupl_type == do_qmmm_gauss .OR. &
              qmmm_env_qm%qmmm_coupl_type == do_qmmm_swave) THEN
             ! For GAUSS/SWAVE methods there could be a DDAPC decoupling requested
-            qmmm_decoupl = my_qmmm .AND. qmmm_env_qm%periodic .AND. qmmm_env_qm%multipole
+            qmmm_decoupl = my_qmmm .AND. qmmm_env_qm%periodic .AND. qmmm_env_qm%multipole .AND. &
+                           method_id /= do_method_dftb .AND. method_id /= do_method_xtb
          END IF
          qs_env%qmmm_env_qm => qmmm_env_qm
       END IF
       CALL set_qs_env(qs_env=qs_env, qmmm=my_qmmm)
 
       ! Possibly initialize arrays for SE
-      CALL section_vals_val_get(force_env_section, "DFT%QS%METHOD", i_val=method_id)
       SELECT CASE (method_id)
       CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, &
             do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_mndod, do_method_pnnl)
@@ -530,7 +531,9 @@ CONTAINS
       END IF
 
       IF (my_qmmm .AND. PRESENT(qmmm_env_qm) .AND. .NOT. dft_control%qs_control%commensurate_mgrids) THEN
-         IF (qmmm_env_qm%qmmm_coupl_type == do_qmmm_gauss .OR. qmmm_env_qm%qmmm_coupl_type == do_qmmm_swave) THEN
+         IF ((qmmm_env_qm%qmmm_coupl_type == do_qmmm_gauss .OR. &
+              qmmm_env_qm%qmmm_coupl_type == do_qmmm_swave) .AND. &
+             method_id /= do_method_dftb .AND. method_id /= do_method_xtb) THEN
             CALL cp_abort(__LOCATION__, "QM/MM with coupling GAUSS or S-WAVE requires "// &
                           "keyword FORCE_EVAL/DFT/MGRID/COMMENSURATE to be enabled.")
          END IF

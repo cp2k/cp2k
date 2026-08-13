@@ -52,6 +52,7 @@ MODULE qmmm_gpw_energy
                                               qmmm_gaussian_type
    USE qmmm_se_energy,                  ONLY: build_se_qmmm_matrix
    USE qmmm_tb_methods,                 ONLY: build_tb_qmmm_matrix,&
+                                              build_tb_qmmm_matrix_gauss,&
                                               build_tb_qmmm_matrix_pc,&
                                               build_tb_qmmm_matrix_zero
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type,&
@@ -160,8 +161,10 @@ CONTAINS
             CALL build_tb_qmmm_matrix(qs_env, qmmm_env, mm_particles, mm_cell, para_env)
          CASE (do_qmmm_pcharge)
             CALL build_tb_qmmm_matrix_pc(qs_env, qmmm_env, mm_particles, mm_cell, para_env)
-         CASE (do_qmmm_gauss, do_qmmm_swave)
-            CPABORT("GAUSS or SWAVE QM/MM electrostatic coupling not implemented for DFTB.")
+         CASE (do_qmmm_gauss)
+            CALL build_tb_qmmm_matrix_gauss(qs_env, qmmm_env, mm_particles, mm_cell, para_env)
+         CASE (do_qmmm_swave)
+            CPABORT("SWAVE QM/MM electrostatic coupling not implemented for tight-binding methods.")
          CASE DEFAULT
             CPABORT("Unknown QM/MM coupling")
          END SELECT
