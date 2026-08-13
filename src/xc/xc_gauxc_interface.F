@@ -730,8 +730,7 @@ CONTAINS
       model) RESULT(res)
 
       TYPE(cp_gauxc_integrator_type), INTENT(IN)         :: integrator
-      ! Must be inout since we need to modify the matrix for some code paths
-      REAL(c_double), DIMENSION(:, :)                    :: density_scalar
+      REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar
       REAL(c_double), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: density_zeta
       INTEGER, INTENT(IN)                                :: nspins
@@ -742,6 +741,7 @@ CONTAINS
 #ifdef __GAUXC
       CHARACTER(len=default_path_length)                 :: model_key
       LOGICAL                                            :: use_gauxc_model
+      REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_scalar_rks
 #ifdef GAUXC_HAS_ONEDFT
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
 #if defined (__HAS_IEEE_EXCEPTIONS)
@@ -820,13 +820,15 @@ CONTAINS
          ! xmat factor 2 is applied by both CP2K and GauXC
          ! "unapply" it here to even things back out.
          ! This is NOT necessary in the Skala branch.
-         density_scalar = 0.5_dp*density_scalar
+         ALLOCATE (density_scalar_rks, mold=density_scalar)
+         density_scalar_rks(:, :) = 0.5_dp*density_scalar
          CALL gauxc_integrator_eval_exc_vxc_rks( &
             status%status, &
             integrator%integrator, &
-            density_scalar, &
+            density_scalar_rks, &
             res%exc, &
             res%vxc_scalar)
+         DEALLOCATE (density_scalar_rks)
       ELSE
          CPASSERT(PRESENT(density_zeta))
 
@@ -891,6 +893,7 @@ CONTAINS
 #ifdef __GAUXC
       CHARACTER(len=default_path_length)                 :: model_key
       LOGICAL                                            :: use_gauxc_model
+      REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_scalar_rks
 #ifdef GAUXC_HAS_ONEDFT
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
 #if defined (__HAS_IEEE_EXCEPTIONS)
@@ -951,11 +954,14 @@ CONTAINS
       END IF
 
       IF (nspins == 1) THEN
+         ALLOCATE (density_scalar_rks, mold=density_scalar)
+         density_scalar_rks(:, :) = 0.5_dp*density_scalar
          CALL gauxc_integrator_eval_exc_grad_rks( &
             status%status, &
             integrator%integrator, &
-            density_scalar, &
+            density_scalar_rks, &
             res%exc_grad)
+         DEALLOCATE (density_scalar_rks)
       ELSE
          CPASSERT(PRESENT(density_zeta))
          CALL gauxc_integrator_eval_exc_grad_uks( &
