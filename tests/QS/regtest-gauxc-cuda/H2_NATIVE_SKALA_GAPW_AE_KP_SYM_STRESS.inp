@@ -20,7 +20,7 @@
       SYMMETRY ON
     &END KPOINTS
     &MGRID
-      CUTOFF 80
+      CUTOFF 70
       REL_CUTOFF 20
     &END MGRID
     &POISSON
@@ -60,12 +60,12 @@
   &END PRINT
   &SUBSYS
     &CELL
-      ABC 4.0 4.0 4.0
+      ABC 10.0 10.0 10.0
       PERIODIC XYZ
     &END CELL
     &COORD
-      H 2.0 2.0 1.6
-      H 2.0 2.0 2.4
+      H 5.0 5.0 4.6
+      H 5.0 5.0 5.4
     &END COORD
     &KIND H
       BASIS_SET DZV-ALL-PADE
