@@ -47,7 +47,8 @@
 MODULE qs_scf
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_get_info,&
                                               dbcsr_init_p,&
@@ -125,11 +126,15 @@ MODULE qs_scf
                                               set_qs_env
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_methods,                   ONLY: evaluate_core_matrix_traces,&
                                               qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_did_change,&
                                               qs_ks_env_type
+   USE qs_local_rho_types,              ONLY: local_rho_set_create,&
+                                              local_rho_set_release,&
+                                              local_rho_type
    USE qs_mo_io,                        ONLY: write_mo_set_to_restart
    USE qs_mo_methods,                   ONLY: make_basis_simple,&
                                               make_basis_sm
@@ -147,6 +152,8 @@ MODULE qs_scf
                                               outer_loop_purge_history,&
                                               outer_loop_switch,&
                                               outer_loop_update_qs_env
+   USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals
+   USE qs_rho_atom_types,               ONLY: zero_rho_atom_integrals
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
@@ -171,6 +178,7 @@ MODULE qs_scf
         block_davidson_diag_method_nr, block_krylov_diag_method_nr, filter_matrix_diag_method_nr, &
         general_diag_method_nr, ot_diag_method_nr, ot_method_nr, qs_scf_env_type, &
         smeagol_method_nr, special_diag_method_nr
+   USE qs_vxc_atom,                     ONLY: gapw_cdft_one_center
    USE qs_wf_history_methods,           ONLY: wfi_purge_history,&
                                               wfi_update
    USE scf_control_types,               ONLY: scf_control_type
@@ -1151,27 +1159,33 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cdft_scf'
 
-      INTEGER                                            :: handle, iatom, ispin, ivar, nmo, nvar, &
-                                                            output_unit, tsteps
+      INTEGER                                            :: handle, iatom, iimage, ispin, ivar, nmo, &
+                                                            nvar, output_unit, tsteps
       LOGICAL                                            :: cdft_loop_converged, converged, &
                                                             exit_cdft_loop, first_iteration, &
                                                             my_uocc, uniform_occupation
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: gapw_cdft_values
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_occupations
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gapw_wmat, matrix_s, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(local_rho_type), POINTER                      :: gapw_operator_rho
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, input, scf_section
 
-      NULLIFY (scf_env, ks_env, energy, rho, matrix_s, rho_ao, cdft_control, logger, &
+      NULLIFY (atomic_kind_set, gapw_operator_rho, gapw_wmat, para_env, qs_kind_set, &
+               scf_env, ks_env, energy, rho, matrix_s, rho_ao, cdft_control, logger, &
                dft_control, pw_env, auxbas_pw_pool, energy, ks_env, scf_env, dft_section, &
                input, scf_section, scf_control, mos, mo_occupations)
       logger => cp_get_default_logger()
@@ -1266,6 +1280,26 @@ CONTAINS
       IF (cdft_control%do_et) THEN
          CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, mos=mos)
          nvar = SIZE(cdft_control%target)
+         IF (dft_control%qs_control%gapw) THEN
+            IF (dft_control%nimages /= 1) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "GAPW CDFT-CI currently requires a Gamma-point calculation.")
+            END IF
+            CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, para_env=para_env, &
+                            qs_kind_set=qs_kind_set, rho=rho)
+            CALL qs_rho_get(rho, rho_ao=rho_ao)
+            CALL local_rho_set_create(gapw_operator_rho)
+            CALL allocate_rho_atom_internals(gapw_operator_rho%rho_atom_set, atomic_kind_set, &
+                                             qs_kind_set, dft_control, para_env)
+            ALLOCATE (gapw_cdft_values(nvar), gapw_wmat(dft_control%nspins*dft_control%nimages))
+            DO iimage = 1, dft_control%nimages
+               DO ispin = 1, dft_control%nspins
+                  CALL dbcsr_init_p(gapw_wmat(dft_control%nspins*(iimage - 1) + ispin)%matrix)
+                  CALL dbcsr_copy(gapw_wmat(dft_control%nspins*(iimage - 1) + ispin)%matrix, &
+                                  matrix_s(iimage)%matrix, name="GAPW CDFT WEIGHT MATRIX")
+               END DO
+            END DO
+         END IF
          ! Matrix representation of weight function
          ALLOCATE (cdft_control%wmat(nvar))
          DO ivar = 1, nvar
@@ -1277,7 +1311,24 @@ CONTAINS
                                     hmat=cdft_control%wmat(ivar), qs_env=qs_env, &
                                     calculate_forces=.FALSE., &
                                     gapw=dft_control%qs_control%gapw)
+            IF (dft_control%qs_control%gapw) THEN
+               DO ispin = 1, SIZE(gapw_wmat)
+                  CALL dbcsr_set(gapw_wmat(ispin)%matrix, 0.0_dp)
+               END DO
+               CALL zero_rho_atom_integrals(gapw_operator_rho%rho_atom_set)
+               CALL gapw_cdft_one_center(qs_env, energy_only=.FALSE., calculate_forces=.FALSE., &
+                                         values=gapw_cdft_values, operator_group=ivar, &
+                                         rho_atom_operator_set=gapw_operator_rho%rho_atom_set)
+               CALL update_ks_atom(qs_env, gapw_wmat, rho_ao, forces=.FALSE., &
+                                   rho_atom_external=gapw_operator_rho%rho_atom_set)
+               CALL dbcsr_add(cdft_control%wmat(ivar)%matrix, gapw_wmat(1)%matrix, 1.0_dp, 1.0_dp)
+            END IF
          END DO
+         IF (dft_control%qs_control%gapw) THEN
+            CALL dbcsr_deallocate_matrix_set(gapw_wmat)
+            CALL local_rho_set_release(gapw_operator_rho)
+            DEALLOCATE (gapw_cdft_values)
+         END IF
          ! Overlap matrix
          CALL dbcsr_init_p(cdft_control%matrix_s%matrix)
          CALL dbcsr_copy(cdft_control%matrix_s%matrix, matrix_s(1)%matrix, &

@@ -99,6 +99,7 @@ MODULE qs_ks_methods
                                               calculate_image_pot,&
                                               integrate_potential_devga_rspace
    USE qs_cdft_types,                   ONLY: cdft_control_type
+   USE qs_cdft_utils,                   ONLY: cdft_constraint_print
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
@@ -137,7 +138,8 @@ MODULE qs_ks_methods
                                               qs_rho_type
    USE qs_sccs,                         ONLY: sccs
    USE qs_vxc,                          ONLY: qs_vxc_create
-   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
+   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom,&
+                                              gapw_cdft_one_center
    USE rtp_admm_methods,                ONLY: rtp_admm_calc_rho_aux,&
                                               rtp_admm_merge_ks_matrix
    USE se_fock_matrix,                  ONLY: build_se_fock_matrix
@@ -224,7 +226,10 @@ CONTAINS
          native_skala_composite_contraction, native_skala_composite_rho_contraction, &
          native_skala_composite_tau_contraction, native_skala_exc_scf, native_skala_total_scf, &
          vscale
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: native_skala_atom_force
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cdft_gapw_values
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cdft_charge_correction, &
+                                                            cdft_electronic_charge, &
+                                                            native_skala_atom_force
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, native_skala_composite_virial, &
                                                             pv_loc
       TYPE(admm_type), POINTER                           :: admm_env
@@ -923,6 +928,41 @@ CONTAINS
                                        calculate_forces=calculate_forces)
             END IF
          END IF
+      END IF
+
+      IF (gapw .AND. dft_control%qs_control%cdft) THEN
+         ALLOCATE (cdft_gapw_values(SIZE(cdft_control%group)))
+         IF (cdft_control%atomic_charges) THEN
+            ALLOCATE (cdft_charge_correction(natom, nspins), &
+                      cdft_electronic_charge(cdft_control%natoms, nspins))
+            CALL gapw_cdft_one_center(qs_env, just_energy, calculate_forces, &
+                                      cdft_gapw_values, cdft_charge_correction)
+            DO ispin = 1, nspins
+               DO iatom = 1, cdft_control%natoms
+                  cdft_electronic_charge(iatom, ispin) = &
+                     pw_integral_ab(cdft_control%charge(iatom), rho_r(ispin), local_only=.TRUE.)
+               END DO
+            END DO
+            CALL para_env%sum(cdft_electronic_charge)
+            DO ispin = 1, nspins
+               DO iatom = 1, cdft_control%natoms
+                  cdft_electronic_charge(iatom, ispin) = &
+                     cdft_electronic_charge(iatom, ispin) + &
+                     cdft_charge_correction(cdft_control%atoms(iatom), ispin)
+               END DO
+            END DO
+         ELSE
+            CALL gapw_cdft_one_center(qs_env, just_energy, calculate_forces, cdft_gapw_values)
+         END IF
+         cdft_control%value = cdft_control%value + cdft_gapw_values
+         energy%cdft = energy%cdft + DOT_PRODUCT(cdft_control%strength, cdft_gapw_values)
+         IF (cdft_control%atomic_charges) THEN
+            CALL cdft_constraint_print(qs_env, cdft_electronic_charge)
+            DEALLOCATE (cdft_charge_correction, cdft_electronic_charge)
+         ELSE
+            CALL cdft_constraint_print(qs_env, cdft_electronic_charge)
+         END IF
+         DEALLOCATE (cdft_gapw_values)
       END IF
 
       IF (dft_control%mtlr_dft_with_perturbation .AND. .NOT. just_energy) THEN

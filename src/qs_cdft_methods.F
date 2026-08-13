@@ -19,6 +19,8 @@ MODULE qs_cdft_methods
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -62,11 +64,6 @@ MODULE qs_cdft_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              qs_kind_type
-   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
-                                              mpole_rho_atom,&
-                                              rho0_mpole_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
@@ -121,9 +118,9 @@ CONTAINS
             ! Calculate the Becke weight function and possibly the gradients
             CALL becke_constraint_low(qs_env)
          END IF
-         ! Integrate the Becke constraint
+         ! Integrate the smooth density contribution. GAPW one-center terms are added
+         ! while the Kohn-Sham matrix is assembled.
          CALL cdft_constraint_integrate(qs_env)
-         ! Calculate forces
          IF (calculate_forces) CALL cdft_constraint_force(qs_env)
       END IF
       CALL timestop(handle)
@@ -607,9 +604,9 @@ CONTAINS
             ! Calculate the Hirshfeld weight function and possibly the gradients
             CALL hirshfeld_constraint_low(qs_env)
          END IF
-         ! Integrate the Hirshfeld constraint
+         ! Integrate the smooth density contribution. GAPW one-center terms are added
+         ! while the Kohn-Sham matrix is assembled.
          CALL cdft_constraint_integrate(qs_env)
-         ! Calculate forces
          IF (calculate_forces) CALL cdft_constraint_force(qs_env)
       END IF
       CALL timestop(handle)
@@ -631,14 +628,14 @@ CONTAINS
          ithread, j, k, natom, npme, nthread, num_atoms, num_species, numexp, subpatch_pattern
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_species_small
       INTEGER, DIMENSION(2, 3)                           :: bo
-      INTEGER, DIMENSION(3)                              :: lb_pw, lb_rs, npts, ub_pw, ub_rs
+      INTEGER, DIMENSION(3)                              :: lb_pw, lb_rs, ub_pw, ub_rs
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       LOGICAL                                            :: my_just_gradients
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: compute_charge, is_constraint
       REAL(kind=dp)                                      :: alpha, coef, eps_rho_rspace, exp_eval, &
                                                             prefactor, radius
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: coefficients
-      REAL(kind=dp), DIMENSION(3)                        :: dr_pw, dr_rs, origin, r2, r_pbc, ra
+      REAL(kind=dp), DIMENSION(3)                        :: dr_rs, r2, r_pbc, ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cdft_control_type), POINTER                   :: cdft_control
@@ -696,15 +693,8 @@ CONTAINS
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
       radius = 100.0_dp
 
-      dr_pw(1) = rho_r(1)%pw_grid%dr(1)
-      dr_pw(2) = rho_r(1)%pw_grid%dr(2)
-      dr_pw(3) = rho_r(1)%pw_grid%dr(3)
       lb_pw(1:3) = rho_r(1)%pw_grid%bounds_local(1, 1:3)
       ub_pw(1:3) = rho_r(1)%pw_grid%bounds_local(2, 1:3)
-      npts = rho_r(1)%pw_grid%npts
-      origin(1) = (dr_pw(1)*npts(1))*0.5_dp
-      origin(2) = (dr_pw(2)*npts(2))*0.5_dp
-      origin(3) = (dr_pw(3)*npts(3))*0.5_dp
 
       CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                       auxbas_pw_pool=auxbas_pw_pool)
@@ -1103,7 +1093,12 @@ CONTAINS
                                     cdft_control%group(igroup)%weight%array(i, j, k))/ &
                                    cdft_control%hw_rho_total%array(i, j, k)
 
-                        r2 = [i*dr_pw(1), j*dr_pw(2), k*dr_pw(3)] + origin
+                        r2 = REAL(i - rho_r(1)%pw_grid%bounds(1, 1), dp)* &
+                             rho_r(1)%pw_grid%dh(:, 1) + &
+                             REAL(j - rho_r(1)%pw_grid%bounds(1, 2), dp)* &
+                             rho_r(1)%pw_grid%dh(:, 2) + &
+                             REAL(k - rho_r(1)%pw_grid%bounds(1, 3), dp)* &
+                             rho_r(1)%pw_grid%dh(:, 3)
                         r_pbc = pbc(ra, r2, cell)
 
                         ! Store gradient d/dR_x w, including term: (r_x - R_x)
@@ -1149,41 +1144,31 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cdft_constraint_integrate'
 
-      INTEGER                                            :: handle, i, iatom, igroup, ikind, ivar, &
-                                                            iw, jatom, natom, nvar
-      LOGICAL                                            :: is_becke, paw_atom
+      INTEGER                                            :: handle, i, iatom, igroup, ivar, iw, nvar
+      LOGICAL                                            :: is_becke
       REAL(kind=dp)                                      :: dvol, eps_cavity, sign
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: dE, strength, target_val
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: electronic_charge, gapw_offset
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: electronic_charge
       TYPE(becke_constraint_type), POINTER               :: becke_control
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cdft_group_type), DIMENSION(:), POINTER       :: group
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(mpole_rho_atom), DIMENSION(:), POINTER        :: mp_rho
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: charge, rho_r
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       TYPE(section_vals_type), POINTER                   :: cdft_constraint_section
 
-      NULLIFY (para_env, dft_control, particle_set, rho_r, energy, rho, &
-               logger, cdft_constraint_section, qs_kind_set, mp_rho, &
-               rho0_mpole, group, charge)
+      NULLIFY (para_env, dft_control, rho_r, energy, rho, &
+               logger, cdft_constraint_section, group, charge)
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
       CALL get_qs_env(qs_env, &
-                      particle_set=particle_set, &
                       rho=rho, &
-                      natom=natom, &
                       dft_control=dft_control, &
-                      para_env=para_env, &
-                      qs_kind_set=qs_kind_set)
+                      para_env=para_env)
       CALL qs_rho_get(rho, rho_r=rho_r)
-      CPASSERT(ASSOCIATED(qs_kind_set))
       cdft_constraint_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS%CDFT")
       iw = cp_print_key_unit_nr(logger, cdft_constraint_section, "PROGRAM_RUN_INFO", extension=".cdftLog")
       cdft_control => dft_control%qs_control%cdft_control
@@ -1257,65 +1242,6 @@ CONTAINS
       IF (cdft_control%fragment_density .AND. .NOT. cdft_control%fragments_integrated) THEN
          CALL prepare_fragment_constraint(qs_env)
       END IF
-      IF (dft_control%qs_control%gapw) THEN
-         ! GAPW: add core charges (rho_hard - rho_soft)
-         IF (cdft_control%fragment_density) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "Fragment constraints not yet compatible with GAPW.")
-         END IF
-         ALLOCATE (gapw_offset(nvar, dft_control%nspins))
-         gapw_offset = 0.0_dp
-         CALL get_qs_env(qs_env, rho0_mpole=rho0_mpole)
-         CALL get_rho0_mpole(rho0_mpole, mp_rho=mp_rho)
-         DO i = 1, dft_control%nspins
-            DO igroup = 1, SIZE(group)
-               DO iatom = 1, SIZE(group(igroup)%atoms)
-                  SELECT CASE (group(igroup)%constraint_type)
-                  CASE (cdft_charge_constraint)
-                     sign = 1.0_dp
-                  CASE (cdft_magnetization_constraint)
-                     IF (i == 1) THEN
-                        sign = 1.0_dp
-                     ELSE
-                        sign = -1.0_dp
-                     END IF
-                  CASE (cdft_alpha_constraint)
-                     sign = 1.0_dp
-                     IF (i == 2) CYCLE
-                  CASE (cdft_beta_constraint)
-                     sign = 1.0_dp
-                     IF (i == 1) CYCLE
-                  CASE DEFAULT
-                     CPABORT("Unknown constraint type.")
-                  END SELECT
-                  jatom = group(igroup)%atoms(iatom)
-                  CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=ikind)
-                  CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
-                  IF (paw_atom) THEN
-                     gapw_offset(igroup, i) = gapw_offset(igroup, i) + sign*group(igroup)%coeff(iatom)*mp_rho(jatom)%q0(i)
-                  END IF
-               END DO
-            END DO
-         END DO
-         IF (cdft_control%atomic_charges) THEN
-            DO iatom = 1, cdft_control%natoms
-               jatom = cdft_control%atoms(iatom)
-               CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=ikind)
-               CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
-               IF (paw_atom) THEN
-                  DO i = 1, dft_control%nspins
-                     electronic_charge(iatom, i) = electronic_charge(iatom, i) + mp_rho(jatom)%q0(i)
-                  END DO
-               END IF
-            END DO
-         END IF
-         DO i = 1, dft_control%nspins
-            DO ivar = 1, nvar
-               dE(ivar) = dE(ivar) + gapw_offset(ivar, i)
-            END DO
-         END DO
-         DEALLOCATE (gapw_offset)
-      END IF
       ! Update constraint value and energy
       cdft_control%value(:) = dE(:)
       energy%cdft = 0.0_dp
@@ -1323,7 +1249,9 @@ CONTAINS
          energy%cdft = energy%cdft + (dE(ivar) - target_val(ivar))*strength(ivar)
       END DO
       ! Print constraint info and atomic CDFT charges
-      CALL cdft_constraint_print(qs_env, electronic_charge)
+      IF (.NOT. dft_control%qs_control%gapw) THEN
+         CALL cdft_constraint_print(qs_env, electronic_charge)
+      END IF
       ! Deallocate tmp storage
       DEALLOCATE (dE, strength, target_val)
       IF (cdft_control%atomic_charges) DEALLOCATE (electronic_charge)
@@ -1639,10 +1567,6 @@ CONTAINS
                        "CDFT fragment constraints are only compatible with single "// &
                        "point calculations (run_type ENERGY or ENERGY_FORCE).")
       END IF
-      IF (dft_control%qs_control%gapw) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "CDFT fragment constraint not compatible with GAPW.")
-      END IF
       needs_spin_density = .FALSE.
       multiplier = 1.0_dp
       nfrag_spins = 1
@@ -1671,6 +1595,14 @@ CONTAINS
       ALLOCATE (rho_frag(nfrag_spins))
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      IF (dft_control%qs_control%gapw) THEN
+         CALL verify_gapw_fragment_cube(cdft_control%fragment_a_fname, spin_density=.FALSE.)
+         CALL verify_gapw_fragment_cube(cdft_control%fragment_b_fname, spin_density=.FALSE.)
+         IF (needs_spin_density) THEN
+            CALL verify_gapw_fragment_cube(cdft_control%fragment_a_spin_fname, spin_density=.TRUE.)
+            CALL verify_gapw_fragment_cube(cdft_control%fragment_b_spin_fname, spin_density=.TRUE.)
+         END IF
+      END IF
       ! Total density (rho_alpha + rho_beta)
       CALL auxbas_pw_pool%create_pw(cdft_control%fragments(1, 1))
       CALL cp_cube_to_pw(cdft_control%fragments(1, 1), &
@@ -1741,6 +1673,49 @@ CONTAINS
       cdft_control%fragments_integrated = .TRUE.
 
       CALL timestop(handle)
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief Require full-density cubes for GAPW fragment references.
+!> \param filename cube file to inspect
+!> \param spin_density whether a total spin-density title is expected
+! **************************************************************************************************
+      SUBROUTINE verify_gapw_fragment_cube(filename, spin_density)
+      CHARACTER(LEN=*), INTENT(IN)                       :: filename
+      LOGICAL, INTENT(IN)                                :: spin_density
+
+      CHARACTER(LEN=256)                                 :: title
+      INTEGER                                            :: input_unit, io_status
+      LOGICAL                                            :: usable_cube
+
+         usable_cube = .FALSE.
+         IF (para_env%is_source()) THEN
+            CALL open_file(file_name=TRIM(filename), file_status="OLD", &
+                           file_action="READ", unit_number=input_unit)
+            READ (input_unit, '(A)', IOSTAT=io_status) title
+            IF (io_status == 0) READ (input_unit, '(A)', IOSTAT=io_status) title
+            CALL close_file(input_unit)
+            IF (io_status == 0) THEN
+               usable_cube = .TRUE.
+               IF (spin_density) THEN
+                  IF (INDEX(title, "SPIN DENSITY") > 0 .AND. &
+                      INDEX(title, "TOTAL SPIN DENSITY") == 0) usable_cube = .FALSE.
+               ELSE
+                  IF (INDEX(title, "ELECTRON DENSITY") > 0 .AND. &
+                      INDEX(title, "TOTAL ELECTRON DENSITY") == 0) usable_cube = .FALSE.
+               END IF
+            END IF
+         END IF
+         CALL para_env%bcast(usable_cube, 0)
+         IF (.NOT. usable_cube) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "GAPW fragment CDFT cannot use a regular CP2K GAPW density cube. "// &
+                          "Generate the reference with "// &
+                          "E_DENSITY_CUBE% DENSITY_INCLUDE TOTAL_DENSITY. "// &
+                          "Invalid reference: "//TRIM(filename))
+         END IF
+      END SUBROUTINE verify_gapw_fragment_cube
 
    END SUBROUTINE prepare_fragment_constraint
 

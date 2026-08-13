@@ -1,0 +1,6 @@
+@SET PROJECT HeH_fragment_hirshfeld_molecular
+@SET CHARGE 1
+@SET CDFT_ACTIVE TRUE
+@SET WRITE_CUBE FALSE
+@SET COORD_FILE HeH.xyz
+@INCLUDE fragment_common.inc
