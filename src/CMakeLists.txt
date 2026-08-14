@@ -91,6 +91,7 @@ list(
   constraint_fxd.F
   constraint_util.F
   constraint_vsite.F
+  electronic_integral_backend_types.F
   greenx_interface.F
   core_ae.F
   core_ppl.F

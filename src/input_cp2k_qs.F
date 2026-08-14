@@ -34,6 +34,7 @@ MODULE input_cp2k_qs
         wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
         wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
         wfi_use_prev_p_method_nr, wfi_use_prev_wf_method_nr
+   USE electronic_integral_backend_types, ONLY: backend_libint, backend_native
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_opt,                  ONLY: create_optimize_dmfet,&
                                               create_optimize_embed,&
@@ -99,6 +100,46 @@ CONTAINS
                           usage="EPS_CORE_CHARGE real", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+      CALL section_create(subsection, __LOCATION__, name="backend", &
+                          description="Selects the implementation of individual Gaussian integral operations.", &
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="COULOMB2", &
+                          description="Backend for the coulomb2 API.", &
+                          usage="COULOMB2 NATIVE", &
+                          enum_c_vals=s2a("NATIVE", "LIBINT"), &
+                          enum_i_vals=[backend_native, backend_libint], &
+                          enum_desc=s2a("Use CP2K's native implementation.", &
+                                        "Use the Libint implementation."), &
+                          default_i_val=backend_native)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="COULOMB2_NEW", &
+                          description="Backend for the coulomb2_new API.", &
+                          usage="COULOMB2_NEW NATIVE", &
+                          enum_c_vals=s2a("NATIVE", "LIBINT"), &
+                          enum_i_vals=[backend_native, backend_libint], &
+                          enum_desc=s2a("Use CP2K's native implementation.", &
+                                        "Use the Libint implementation."), &
+                          default_i_val=backend_native)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="COULOMB3", &
+                          description="Backend for the coulomb3 API.", &
+                          usage="COULOMB3 NATIVE", &
+                          enum_c_vals=s2a("NATIVE", "LIBINT"), &
+                          enum_i_vals=[backend_native, backend_libint], &
+                          enum_desc=s2a("Use CP2K's native implementation.", &
+                                        "Use the Libint implementation."), &
+                          default_i_val=backend_native)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_GVG_RSPACE", &
