@@ -54,7 +54,7 @@ Conventions which are easily testible by reading the source files, are tested in
       TYPE(C_PTR) :: my_c_ptr = C_NULL_PTR
       ! Call the default initializer of a previously defined tpe
       TYPE(my_previously_defined_type) :: my_type = my_previously_defined_type()
-      ! No default implemented
+      ! Library types if a default initializer is not implemented
       TYPE(library_type) :: lib_type
    END TYPE my_derived_type
 ```
@@ -90,8 +90,9 @@ There are two measures of defense against
     symbols.
   - Every package should hide its content by providing only a small public API through a single
     module.
-- Each external library should be accesses using a wrapper module.
-  - The wrapper module should
+- Each external library should be accessed using a wrapper module.
+  - The wrapper module should take care of the cases of CP2K being compiled with or without support
+    for the library.
 
 ## Use existing infrastructure
 
@@ -128,13 +129,56 @@ central redirections, i.e. avoid to use direct calls to external libraries in CP
   standard output file opened by CP2K.
 - Use [CP2K's error-handling](error-handling), instead of the `STOP` statement.
 
+## C-code and interfacing C-code in Fortran
+
+C-code is relevant for library wrappers to libraries without a suitable Fortran- or C-interface or
+in case of CUDA-code.
+
+- If a Fortran-API is not available, you should implement one using
+  [ISO-C-binding](https://fortranwiki.org/fortran/show/iso_c_binding).
+- Pass the MPI-types as Integers using their Fortran-handles and convert them on the C-side using
+  [the appropriate functions](https://www.mpi-forum.org/docs/mpi-2.2/mpi22-report/node361.htm).
+- Don't use the MPI module directly but rely instead on CP2K's C-wrapper `cp_mpi.h`. If you are
+  missing a function/type-combination, you are free to add it.
+- C-files are added to a separate variable in `CMakefiles.txt` than the Fortran-files.
+- Do not print to the streams `stdout` (including `printf`) or `stderr` directly. These streams do
+  not print by default to the CP2K output file but pass a function to print to the output file
+  instead such as in the following example
+
+```
+   SUBROUTINE print_something_in_c(output_unit)
+      INTEGER, INTENT(IN)                                :: output_unit
+
+      INTERFACE
+         SUBROUTINE function_to_call_in_c(print_func, output_unit) &
+            BIND(C, name="function_to_call_in_c")
+            IMPORT :: C_FUNPTR, C_INT
+            TYPE(C_FUNPTR), VALUE                     :: print_func
+            INTEGER(KIND=C_INT), VALUE                :: output_unit
+         END SUBROUTINE function_to_call_in_c
+      END INTERFACE
+
+      CALL function_to_call_in_c(print_func=C_FUNLOC(print_func), &
+                                 output_unit=output_unit)
+
+   END SUBROUTINE grid_library_print_stats
+
+   SUBROUTINE print_func(msg, msglen, output_unit) BIND(C)
+      CHARACTER(KIND=C_CHAR), INTENT(IN)                 :: msg(*)
+      INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: msglen, output_unit
+
+      IF (output_unit <= 0) RETURN ! Omit to print the message.
+      WRITE (output_unit, FMT="(100A)", ADVANCE="NO") msg(1:msglen)
+   END SUBROUTINE print_func
+```
+
 ## Remove dead code
 
 - Every line of code has to be compiled and maintained. Hence, unused variables and code poses an
   unnecessary burden and should be removed \[-Wunused-variable -Wunused-but-set-variable
   -Wunused-dummy-argument\].
 - Sometimes it is beneficial to keep debugging code around nevertheless. Such code should be put
-  into a `IF(debug_this_module)`-block, with a parameter set to `.FALSE.`. This way the code will
+  into a `IF(debug_this_module)`-block, with a parameter set to `.FALSE.`. This way, the code will
   stay up-to-date and easily callable. Do not hide dead code as a comment; the compiler has no
   chance to check the validity of this code.
 
@@ -156,6 +200,10 @@ central redirections, i.e. avoid to use direct calls to external libraries in CP
 - If combinations of features are relevant, prepare additional tests for them.
 
 ## Doxygen documentation
+
+```{note}
+   Procedure names should not end in `_function` or `_subroutine`. Otherwise, the prettifier will repeatedly add more keywords to the Doxygen block.
+```
 
 - Every `FUNCTION` and `SUBROUTINE` should be preceded by a valid doxygen block.
 - The following keywords are required: `\brief`, `\param` (for each parameter), `\retval` (for
