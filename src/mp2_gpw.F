@@ -46,6 +46,7 @@ MODULE mp2_gpw
                                               distribution_2d_type
    USE distribution_methods,            ONLY: distribute_molecules_1d,&
                                               distribute_molecules_2d
+   USE electronic_integral_backend_types,ONLY: backend_libint
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
@@ -56,7 +57,6 @@ MODULE mp2_gpw
         do_eri_gpw, do_eri_os, do_potential_coulomb, do_potential_id, do_potential_truncated, &
         eri_default, mp2_method_gpw, ri_default, ri_mp2_method_gpw, rpa_exchange_none
    USE input_section_types,             ONLY: section_vals_val_get
-   USE electronic_integral_backend_types, ONLY: backend_libint
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
    USE libint_wrapper,                  ONLY: cp_libint_static_cleanup,&
@@ -146,8 +146,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:) :: bse_lev_virt, ends_array_mc, ends_array_mc_block, &
          gw_corr_lev_occ, gw_corr_lev_virt, homo, starts_array_mc, starts_array_mc_block
       INTEGER, DIMENSION(3)                              :: periodic
-      LOGICAL :: blacs_repeatable, do_bse, do_im_time, do_kpoints_cubic_RPA, libint_initialized, my_do_gw, &
-         my_do_ri_mp2, my_do_ri_rpa, my_do_ri_sos_laplace_mp2
+      LOGICAL :: blacs_repeatable, do_bse, do_im_time, do_kpoints_cubic_RPA, libint_initialized, &
+         my_do_gw, my_do_ri_mp2, my_do_ri_rpa, my_do_ri_sos_laplace_mp2
       REAL(KIND=dp)                                      :: Emp2_AB, Emp2_BB, Emp2_Cou_BB, &
                                                             Emp2_EX_BB, eps_gvg_rspace_old, &
                                                             eps_pgf_orb_old, eps_rho_rspace_old

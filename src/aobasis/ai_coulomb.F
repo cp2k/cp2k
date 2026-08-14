@@ -40,11 +40,15 @@
 ! **************************************************************************************************
 MODULE ai_coulomb
 
+   USE electronic_integral_backend_types,ONLY: backend_libint,&
+                                              backend_native
    USE gamma,                           ONLY: fgamma => fgamma_0
-   USE electronic_integral_backend_types, ONLY: backend_libint, backend_native
    USE kinds,                           ONLY: dp
-   USE libint_2c_3c,                    ONLY: eri_2center, libint_potential_type
-   USE libint_wrapper,                  ONLY: cp_libint_cleanup_2eri, cp_libint_init_2eri, cp_libint_set_contrdepth, &
+   USE libint_2c_3c,                    ONLY: eri_2center,&
+                                              libint_potential_type
+   USE libint_wrapper,                  ONLY: cp_libint_cleanup_2eri,&
+                                              cp_libint_init_2eri,&
+                                              cp_libint_set_contrdepth,&
                                               cp_libint_t
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: coset,&
@@ -104,12 +108,11 @@ CONTAINS
 
       INTEGER                                            :: ax, ay, az, coc, cocx, cocy, cocz, cx, &
                                                             cy, cz, i, ipgf, j, jpgf, la, lc, &
-                                                            maxder_local, n, na, nap, nc, nmax
+                                                            maxder_local, n, na, nap, nc, nmax, &
+                                                            selected_coulomb2_backend
       REAL(KIND=dp)                                      :: dac, f0, f1, f2, f3, f4, f5, f6, fcx, &
                                                             fcy, fcz, rho, t, zetp, zetq, zetw
-      REAL(KIND=dp), DIMENSION(3)                        :: raw, rcw
-      REAL(KIND=dp), DIMENSION(3)                        :: ra_libint, rb_libint
-      INTEGER                                            :: selected_coulomb2_backend
+      REAL(KIND=dp), DIMENSION(3)                        :: ra_libint, raw, rb_libint, rcw
       TYPE(cp_libint_t)                                  :: lib
       TYPE(libint_potential_type)                        :: potential_parameter
 

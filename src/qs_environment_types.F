@@ -34,13 +34,13 @@ MODULE qs_environment_types
                                               cp_fm_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
-   USE electronic_integral_backend_types, ONLY: electronic_integral_backend_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type,&
                                               ls_scf_release
    USE ec_env_types,                    ONLY: ec_env_release,&
                                               energy_correction_type
+   USE electronic_integral_backend_types,ONLY: electronic_integral_backend_type
    USE et_coupling_types,               ONLY: et_coupling_release,&
                                               et_coupling_type
    USE ewald_environment_types,         ONLY: ewald_env_release,&
@@ -306,7 +306,7 @@ MODULE qs_environment_types
       REAL(KIND=dp)                                         :: broyden_adaptive_sigma = -1.0_dp
       TYPE(mp2_type), POINTER                               :: mp2_env => NULL()
       TYPE(electronic_integral_backend_type)                :: electronic_integral_backend = &
-         electronic_integral_backend_type()
+                                                               electronic_integral_backend_type()
       TYPE(post_scf_bandstructure_type), POINTER                                :: bs_env => NULL()
       TYPE(kg_environment_type), POINTER                    :: kg_env => NULL()
       TYPE(wannier_centres_type), POINTER, DIMENSION(:)     :: WannierCentres => NULL()

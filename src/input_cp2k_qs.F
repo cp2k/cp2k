@@ -21,6 +21,8 @@ MODULE input_cp2k_qs
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               low_print_level
+   USE electronic_integral_backend_types,ONLY: backend_libint,&
+                                              backend_native
    USE input_constants,                 ONLY: &
         do_ddapc_constraint, do_ddapc_restraint, do_full_density, do_gapw_gcs, do_gapw_gct, &
         do_gapw_log, do_lri_inv, do_lri_inv_auto, do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, &
@@ -34,7 +36,6 @@ MODULE input_cp2k_qs
         wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
         wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
         wfi_use_prev_p_method_nr, wfi_use_prev_wf_method_nr
-   USE electronic_integral_backend_types, ONLY: backend_libint, backend_native
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_opt,                  ONLY: create_optimize_dmfet,&
                                               create_optimize_embed,&
