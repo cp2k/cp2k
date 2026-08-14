@@ -36,7 +36,7 @@ QS/regtest-debug-7                                          libint !ifx
 xTB/regtest-gfn0-m3                                         libdftd4
 xTB/regtest-gfn0-m4                                         libdftd4
 QS/regtest-rtp-5
-QS/regtest-gpw-1                                            libint libvori !ifx gpu_memory_intensive
+QS/regtest-gpw-1                                            libint libvori !ifx gpu_memory_intensive single_rank_gpu
 QS/regtest-debug-6                                          libint !ifx
 xTB/regtest-gfn0-m2                                         libdftd4
 QS/regtest-ot
