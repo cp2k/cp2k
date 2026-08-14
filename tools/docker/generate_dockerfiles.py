@@ -752,7 +752,10 @@ def install_cp2k_spack(
     # Assemble docker file
     output = (
         install_base_image(
-            base_image=rf"{base_image}", gcc_compilers=gcc_compilers, stage="build"
+            base_image=rf"{base_image}",
+            gcc_compilers=gcc_compilers,
+            stage="build",
+            test_type=rf"{test_type}",
         )
         + rf"""
 ARG IMAGE_TAG
@@ -784,7 +787,10 @@ RUN ./make_cp2k.sh -cv {version} {gcc_version_flag} -gpu {gpu_model} -mpi {mpi_m
     )
     output += (
         install_base_image(
-            base_image=rf"{base_image}", gcc_compilers=gcc_compilers, stage="install"
+            base_image=rf"{base_image}",
+            gcc_compilers=gcc_compilers,
+            stage="install",
+            test_type=rf"{test_type}",
         )
         + rf"""
 WORKDIR /opt/cp2k
@@ -849,6 +855,7 @@ def install_base_image(
     base_image: str,
     gcc_compilers: str,
     stage: str,
+    test_type: str,
 ) -> str:
     if stage == "build":
         output = rf"""
@@ -999,7 +1006,17 @@ RUN dnf -y install dnf-plugins-core && \
     && dnf clean -q all
 """
         elif "ubuntu" in base_image:
-            output += rf"""
+            if test_type == "gromacs":
+                # GROMACS requires the shared C-library version of Python at runtime
+                output += rf"""
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+    {gcc_compilers} \
+    python3 \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+"""
+            else:
+                output += rf"""
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     {gcc_compilers} \
     python3 \
