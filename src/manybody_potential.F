@@ -47,6 +47,8 @@ MODULE manybody_potential
                                               siepmann_energy,&
                                               siepmann_forces_v2,&
                                               siepmann_forces_v3
+   USE manybody_symmetrix,              ONLY: symmetrix_add_force_virial,&
+                                              symmetrix_energy_store_force_virial
    USE manybody_tersoff,                ONLY: destroy_tersoff_arrays,&
                                               setup_tersoff_arrays,&
                                               tersoff_energy,&
@@ -55,8 +57,8 @@ MODULE manybody_potential
    USE pair_potential_types,            ONLY: &
         ace_type, allegro_type, deepmd_type, ea_type, eam_pot_type, gal21_pot_type, gal21_type, &
         gal_pot_type, gal_type, mace_type, nequip_type, pair_potential_pp_type, &
-        pair_potential_single_type, siepmann_pot_type, siepmann_type, tersoff_pot_type, &
-        tersoff_type
+        pair_potential_single_type, siepmann_pot_type, siepmann_type, symmetrix_type, &
+        tersoff_pot_type, tersoff_type
    USE particle_types,                  ONLY: particle_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -105,12 +107,12 @@ CONTAINS
          nloc_size, npairs, nparticle, nparticle_local, nr_h3O, nr_o, nr_oh, nunique
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
-      LOGICAL                                            :: any_ace, any_allegro, any_deepmd, &
-                                                            any_gal, any_gal21, any_mace, &
-                                                            any_nequip, any_siepmann, any_tersoff
+      LOGICAL :: any_ace, any_allegro, any_deepmd, any_gal, any_gal21, any_mace, any_nequip, &
+         any_siepmann, any_symmetrix, any_tersoff
       REAL(KIND=dp)                                      :: drij, embed, pot_ace, pot_allegro, &
                                                             pot_deepmd, pot_loc, pot_mace, &
-                                                            pot_nequip, qr, rab2_max, rij(3)
+                                                            pot_nequip, pot_symmetrix, qr, &
+                                                            rab2_max, rij(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       REAL(KIND=dp), POINTER                             :: fembed(:)
@@ -134,6 +136,7 @@ CONTAINS
       any_allegro = .FALSE.
       any_nequip = .FALSE.
       any_mace = .FALSE.
+      any_symmetrix = .FALSE.
       any_ace = .FALSE.
       any_deepmd = .FALSE.
       CALL timeset(routineN, handle)
@@ -180,6 +183,7 @@ CONTAINS
             any_tersoff = any_tersoff .OR. ANY(pot%type == tersoff_type)
             any_nequip = any_nequip .OR. ANY(pot%type == nequip_type)
             any_mace = any_mace .OR. ANY(pot%type == mace_type)
+            any_symmetrix = any_symmetrix .OR. ANY(pot%type == symmetrix_type)
             any_ace = any_ace .OR. ANY(pot%type == ace_type)
             any_allegro = any_allegro .OR. ANY(pot%type == allegro_type)
             any_deepmd = any_deepmd .OR. ANY(pot%type == deepmd_type)
@@ -197,6 +201,14 @@ CONTAINS
                                              pot_nequip, fist_nonbond_env, &
                                              para_env, use_virial, nequip_type)
          pot_manybody = pot_manybody + pot_nequip
+      END IF
+      ! SYMMETRIX
+      IF (any_symmetrix) THEN
+         CALL symmetrix_energy_store_force_virial(nonbonded, particle_set, local_particles, cell, &
+                                                  atomic_kind_set, potparm, r_last_update_pbc, &
+                                                  pot_symmetrix, fist_nonbond_env, &
+                                                  para_env, use_virial)
+         pot_manybody = pot_manybody + pot_symmetrix
       END IF
       ! ALLEGRO
       IF (any_allegro) THEN
@@ -589,9 +601,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: eam_kinds_index
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
-      LOGICAL                                            :: any_ace, any_allegro, any_deepmd, &
-                                                            any_gal, any_gal21, any_mace, &
-                                                            any_nequip, any_siepmann, any_tersoff
+      LOGICAL :: any_ace, any_allegro, any_deepmd, any_gal, any_gal21, any_mace, any_nequip, &
+         any_siepmann, any_symmetrix, any_tersoff
       REAL(KIND=dp) :: f_eam, fac, fr(3), ptens11, ptens12, ptens13, ptens21, ptens22, ptens23, &
          ptens31, ptens32, ptens33, rab(3), rab2, rab2_max, rtmp(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
@@ -612,6 +623,7 @@ CONTAINS
       any_allegro = .FALSE.
       any_nequip = .FALSE.
       any_mace = .FALSE.
+      any_symmetrix = .FALSE.
       any_siepmann = .FALSE.
       any_ace = .FALSE.
       any_deepmd = .FALSE.
@@ -674,6 +686,16 @@ CONTAINS
       END DO
       IF (any_nequip) THEN
          CALL e3nn_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
+      END IF
+
+      ! SYMMETRIX
+      DO ikind = 1, nkinds
+         DO jkind = ikind, nkinds
+            any_symmetrix = any_symmetrix .OR. ANY(potparm%pot(ikind, jkind)%pot%type == symmetrix_type)
+         END DO
+      END DO
+      IF (any_symmetrix) THEN
+         CALL symmetrix_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
       END IF
 
       ! ALLEGRO

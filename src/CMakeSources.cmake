@@ -384,6 +384,9 @@ list(
   manybody_gal.F
   manybody_e3nn.F
   manybody_potential.F
+  manybody_mlp_neighbor.F
+  manybody_mlp_partition.F
+  manybody_symmetrix.F
   manybody_siepmann.F
   manybody_tersoff.F
   manybody_ace.F
@@ -400,6 +403,7 @@ list(
   metadynamics_utils.F
   metadyn_tools/graph_methods.F
   metadyn_tools/graph_utils.F
+  symmetrix_api.F
   min_basis_set.F
   minbas_methods.F
   minbas_wfn_analysis.F
@@ -1569,7 +1573,12 @@ list(
 
 list(APPEND CP2K_SRCS_F grpp/libgrpp.F)
 
-set(CP2K_SRCS_CPP torch_c_api.cpp ace_c_api.cpp)
+# symmetrix has no torch dependency; its C glue compiles in-tree and links
+# libsymmetrix.a (+ sphericart + BLAS) through cp2k::SYMMETRIX::symmetrix.
+# Listed unconditionally (the file is a no-op without __SYMMETRIX) so that the
+# source consistency check sees every .cpp in src/ regardless of the enabled
+# options.
+set(CP2K_SRCS_CPP torch_c_api.cpp ace_c_api.cpp symmetrix_c_api.cpp)
 
 list(APPEND CP2K_SRCS_F openpmd_api.F input/cp_output_handling_openpmd.F
      cp_realspace_grid_openpmd.F pw/realspace_grid_openpmd.F)
