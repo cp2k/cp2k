@@ -46,9 +46,9 @@ apt-get update -qq
 apt-get install -qq --no-install-recommends git
 rm -rf /var/lib/apt/lists/*
 
-echo -e "\n========== Building Gromacs v2025.2 =========="
+echo -e "\n========== Building Gromacs v2026.3 =========="
 echo -n "Cloning Gromacs repository ... "
-git clone --quiet --depth=1 --single-branch -b v2025.2 https://gitlab.com/gromacs/gromacs.git /opt/gromacs
+git clone --quiet --depth=1 --single-branch -b v2026.3 https://gitlab.com/gromacs/gromacs.git /opt/gromacs
 echo "done"
 cd /opt/gromacs/
 GROMACS_REVISION=$(git rev-parse --short HEAD)
