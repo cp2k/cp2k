@@ -320,7 +320,6 @@ CONTAINS
       END DO
       !
       CALL build_lin_mom_matrix(qs_env, op_ao)
-      !CALL p_xyz_ao(op_ao,qs_env,minimum_image=.FALSE.)
       !
       ! print checksums
       chk(1) = dbcsr_checksum(op_ao(1)%matrix)
@@ -1409,4 +1408,3 @@ CONTAINS
    END SUBROUTINE fm_scale_by_pbc_AC
 
 END MODULE qs_linres_op
-

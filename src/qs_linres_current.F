@@ -2434,7 +2434,6 @@ CONTAINS
       !
       ! recompute the linear momentum matrices
       CALL build_lin_mom_matrix(qs_env, op_p_ao)
-      !CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.)
       !
       !
       ! get iiB and iiiB
@@ -2815,7 +2814,6 @@ CONTAINS
       !
       ! recompute the linear momentum matrices
       CALL build_lin_mom_matrix(qs_env, op_p_ao)
-      !CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.)
       !
       !
       ! get iiB and iiiB
