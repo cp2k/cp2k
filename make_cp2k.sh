@@ -1967,12 +1967,22 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
       ${EXIT_CMD} 0
     fi
   fi
+
+  # Print usage hints
   if [[ ${USE_MPI} == "ON" ]]; then
     echo "*** An MPI/OpenMP parallel GROMACS/CP2K run using 2 OpenMP threads for each of the 4 MPI ranks can be launched with"
-    echo "    export OMP_NUM_THREADS=2; ${LAUNCH_SCRIPT} mpiexec -n 4 ${GROMACS_BINARY}"
+    if [[ "${IN_CONTAINER}" == "yes" ]]; then
+      echo "    podman run -it --rm ${IMAGE_TAG} mpiexec -n 4 ${ENV_VAR_FLAG} OMP_NUM_THREADS=2 ${GROMACS_BINARY}"
+    else
+      echo "    export OMP_NUM_THREADS=2; ${LAUNCH_SCRIPT} mpiexec -n 4 ${GROMACS_BINARY}"
+    fi
   else
     echo "*** An OpenMP parallel GROMACS/CP2K run using 4 OpenMP threads can be launched with"
-    echo "    export OMP_NUM_THREADS=4; ${LAUNCH_SCRIPT} ${GROMACS_BINARY}"
+    if [[ "${IN_CONTAINER}" == "yes" ]]; then
+      echo "    podman run -it --rm ${IMAGE_TAG} bash -c \"OMP_NUM_THREADS=4; ${GROMACS_BINARY}\""
+    else
+      echo "    export OMP_NUM_THREADS=4; ${LAUNCH_SCRIPT} ${GROMACS_BINARY}"
+    fi
   fi
   echo ""
 
