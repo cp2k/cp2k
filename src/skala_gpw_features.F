@@ -40,12 +40,14 @@ MODULE skala_gpw_features
    REAL(KIND=dp), PARAMETER, PRIVATE    :: smooth_partition_eps = 1.0E-12_dp
    REAL(KIND=dp), PARAMETER, PRIVATE    :: smooth_partition_taper_end = &
                                            10.0_dp*smooth_partition_eps
+   INTEGER, PARAMETER, PRIVATE          :: periodic_partition_image_shell = 1
 
    PUBLIC :: skala_gpw_atom_subchunk_count, skala_gpw_atom_subchunk_layout, &
              skala_gpw_feature_build, skala_gpw_feature_build_atom_subchunk, &
              skala_gpw_feature_build_atom_subchunk_bounds, skala_gpw_feature_release, &
              skala_gpw_feature_type, skala_gpw_smooth_partition_derivatives, &
-             smooth_atom_partition, smooth_partition_atomic_weight_scale_derivative
+             periodic_atom_image_partition, smooth_atom_partition, &
+             smooth_partition_atomic_weight_scale, smooth_partition_atomic_weight_scale_derivative
 
    TYPE skala_gpw_layout_cache_type
       INTEGER                                            :: chunk_atom_begin = 1, chunk_atom_end = 0, &
@@ -2494,6 +2496,216 @@ CONTAINS
       END IF
 
    END SUBROUTINE smooth_atom_partition
+
+! **************************************************************************************************
+!> \brief Return the smooth weight of one reference-cell atom in an image-complete periodic
+!>        atom partition. Candidate images are selected covariantly around the grid point. The
+!>        reference image is therefore counted once, while translated atom-grid tails vanish.
+!> \param grid_point ...
+!> \param atom_coords ...
+!> \param cell ...
+!> \param target_atom ...
+!> \param weight ...
+!> \param dweight_datom optional derivative at fixed grid point with respect to base atoms
+!> \param dweight_dstrain optional derivative due to lattice-image translations
+! **************************************************************************************************
+   SUBROUTINE periodic_atom_image_partition(grid_point, atom_coords, cell, target_atom, weight, &
+                                            dweight_datom, dweight_dstrain)
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
+      TYPE(cell_type), POINTER                           :: cell
+      INTEGER, INTENT(IN)                                :: target_atom
+      REAL(KIND=dp), INTENT(OUT)                         :: weight
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
+         OPTIONAL                                        :: dweight_datom, dweight_dstrain
+
+      INTEGER :: base_shift(3), iatom, idir, iimage, image_count, image_index, ix, ix_max, ix_min, &
+         iy, iy_max, iy_min, iz, iz_max, iz_min, jatom, jdir, jimage, kimage, natom, target_image
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: image_atom
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: image_shift
+      LOGICAL                                            :: need_derivatives
+      REAL(KIND=dp)                                      :: dist_diff, ds_dmu, max_log_weight, mu, &
+                                                            mu_raw, normalization, &
+                                                            one_minus_switch, rab, switch
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distances, log_weights, &
+                                                            normalized_weights
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dweight_dimage, image_coords, &
+                                                            mean_image, rvecs, unit_rvecs
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: log_weight_image
+      REAL(KIND=dp), DIMENSION(3)                        :: dmu_image_i, dmu_image_j, ds_image_i, &
+                                                            ds_image_j, fractional, &
+                                                            image_translation, pair, unit_pair
+
+      natom = SIZE(atom_coords, 2)
+      CPASSERT(ASSOCIATED(cell))
+      CPASSERT(target_atom >= 1 .AND. target_atom <= natom)
+      CPASSERT(SIZE(atom_coords, 1) == 3)
+      need_derivatives = PRESENT(dweight_datom)
+      CPASSERT(PRESENT(dweight_dstrain) .EQV. need_derivatives)
+      IF (need_derivatives) THEN
+         CPASSERT(SIZE(dweight_datom, 1) == 3)
+         CPASSERT(SIZE(dweight_datom, 2) == natom)
+         CPASSERT(SIZE(dweight_dstrain, 1) == 3)
+         CPASSERT(SIZE(dweight_dstrain, 2) == 3)
+         dweight_datom = 0.0_dp
+         dweight_dstrain = 0.0_dp
+      END IF
+      weight = 0.0_dp
+
+      image_count = 1
+      DO idir = 1, 3
+         IF (cell%perd(idir) == 1) image_count = image_count*(2*periodic_partition_image_shell + 1)
+      END DO
+      image_count = natom*image_count
+      ALLOCATE (image_atom(image_count), image_shift(3, image_count), &
+                image_coords(3, image_count), distances(image_count), &
+                log_weights(image_count), normalized_weights(image_count), &
+                rvecs(3, image_count), unit_rvecs(3, image_count), &
+                log_weight_image(3, image_count, image_count), &
+                mean_image(3, image_count), dweight_dimage(3, image_count))
+
+      image_index = 0
+      target_image = 0
+      DO iatom = 1, natom
+         fractional = MATMUL(cell%h_inv, grid_point - atom_coords(:, iatom))
+         DO idir = 1, 3
+            base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
+         END DO
+         ix_min = base_shift(1) - periodic_partition_image_shell*cell%perd(1)
+         ix_max = base_shift(1) + periodic_partition_image_shell*cell%perd(1)
+         iy_min = base_shift(2) - periodic_partition_image_shell*cell%perd(2)
+         iy_max = base_shift(2) + periodic_partition_image_shell*cell%perd(2)
+         iz_min = base_shift(3) - periodic_partition_image_shell*cell%perd(3)
+         iz_max = base_shift(3) + periodic_partition_image_shell*cell%perd(3)
+         DO iz = iz_min, iz_max
+            DO iy = iy_min, iy_max
+               DO ix = ix_min, ix_max
+                  image_index = image_index + 1
+                  image_atom(image_index) = iatom
+                  image_shift(:, image_index) = [ix, iy, iz]
+                  image_coords(:, image_index) = atom_coords(:, iatom) + &
+                                                 MATMUL(cell%hmat, REAL([ix, iy, iz], KIND=dp))
+                  IF (iatom == target_atom .AND. ALL(image_shift(:, image_index) == 0)) THEN
+                     target_image = image_index
+                  END IF
+               END DO
+            END DO
+         END DO
+      END DO
+      CPASSERT(image_index == image_count)
+      IF (target_image == 0) THEN
+         DEALLOCATE (image_atom, image_shift, image_coords, distances, log_weights, &
+                     normalized_weights, rvecs, unit_rvecs, log_weight_image, mean_image, &
+                     dweight_dimage)
+         RETURN
+      END IF
+
+      DO iimage = 1, image_count
+         rvecs(:, iimage) = grid_point - image_coords(:, iimage)
+         distances(iimage) = SQRT(SUM(rvecs(:, iimage)**2))
+         IF (distances(iimage) > layout_tol) THEN
+            unit_rvecs(:, iimage) = rvecs(:, iimage)/distances(iimage)
+         ELSE
+            unit_rvecs(:, iimage) = 0.0_dp
+         END IF
+      END DO
+
+      log_weights = 0.0_dp
+      log_weight_image = 0.0_dp
+      DO iimage = 1, image_count - 1
+         DO jimage = iimage + 1, image_count
+            pair = image_coords(:, iimage) - image_coords(:, jimage)
+            rab = SQRT(SUM(pair**2))
+            IF (rab <= layout_tol) CYCLE
+            unit_pair = pair/rab
+            dist_diff = distances(iimage) - distances(jimage)
+            mu_raw = dist_diff/rab
+            mu = MAX(-1.0_dp, MIN(1.0_dp, mu_raw))
+            switch = 0.5_dp*(1.0_dp - becke_shape(mu))
+            one_minus_switch = 1.0_dp - switch
+
+            IF (switch > TINY(1.0_dp)) THEN
+               log_weights(iimage) = log_weights(iimage) + LOG(switch)
+            ELSE
+               log_weights(iimage) = -HUGE(1.0_dp)
+            END IF
+            IF (one_minus_switch > TINY(1.0_dp)) THEN
+               log_weights(jimage) = log_weights(jimage) + LOG(one_minus_switch)
+            ELSE
+               log_weights(jimage) = -HUGE(1.0_dp)
+            END IF
+
+            IF (.NOT. need_derivatives) CYCLE
+            IF (ABS(mu_raw) < 1.0_dp) THEN
+               ds_dmu = -0.5_dp*becke_shape_derivative(mu)
+            ELSE
+               ds_dmu = 0.0_dp
+            END IF
+            IF (ABS(ds_dmu) <= 0.0_dp .OR. switch <= TINY(1.0_dp) .OR. &
+                one_minus_switch <= TINY(1.0_dp)) CYCLE
+            dmu_image_i = (-unit_rvecs(:, iimage)*rab - dist_diff*unit_pair)/rab**2
+            dmu_image_j = (unit_rvecs(:, jimage)*rab + dist_diff*unit_pair)/rab**2
+            ds_image_i = ds_dmu*dmu_image_i
+            ds_image_j = ds_dmu*dmu_image_j
+            log_weight_image(:, iimage, iimage) = &
+               log_weight_image(:, iimage, iimage) + ds_image_i/switch
+            log_weight_image(:, iimage, jimage) = &
+               log_weight_image(:, iimage, jimage) - ds_image_i/one_minus_switch
+            log_weight_image(:, jimage, iimage) = &
+               log_weight_image(:, jimage, iimage) + ds_image_j/switch
+            log_weight_image(:, jimage, jimage) = &
+               log_weight_image(:, jimage, jimage) - ds_image_j/one_minus_switch
+         END DO
+      END DO
+
+      max_log_weight = MAXVAL(log_weights)
+      IF (max_log_weight <= -0.5_dp*HUGE(1.0_dp)) THEN
+         DEALLOCATE (image_atom, image_shift, image_coords, distances, log_weights, &
+                     normalized_weights, rvecs, unit_rvecs, log_weight_image, mean_image, &
+                     dweight_dimage)
+         RETURN
+      END IF
+      normalized_weights = 0.0_dp
+      DO iimage = 1, image_count
+         IF (log_weights(iimage) > -0.5_dp*HUGE(1.0_dp)) THEN
+            normalized_weights(iimage) = EXP(log_weights(iimage) - max_log_weight)
+         END IF
+      END DO
+      normalization = SUM(normalized_weights)
+      CPASSERT(normalization > 0.0_dp)
+      normalized_weights = normalized_weights/normalization
+      weight = normalized_weights(target_image)
+
+      IF (need_derivatives .AND. weight > 0.0_dp) THEN
+         mean_image = 0.0_dp
+         DO jimage = 1, image_count
+            DO kimage = 1, image_count
+               mean_image(:, jimage) = mean_image(:, jimage) + &
+                                       normalized_weights(kimage)* &
+                                       log_weight_image(:, jimage, kimage)
+            END DO
+            dweight_dimage(:, jimage) = weight*( &
+                                        log_weight_image(:, jimage, target_image) - mean_image(:, jimage))
+            jatom = image_atom(jimage)
+            dweight_datom(:, jatom) = dweight_datom(:, jatom) + &
+                                      dweight_dimage(:, jimage)
+            image_translation = MATMUL( &
+                                cell%hmat, REAL(image_shift(:, jimage), KIND=dp))
+            DO idir = 1, 3
+               DO jdir = 1, 3
+                  dweight_dstrain(idir, jdir) = dweight_dstrain(idir, jdir) + &
+                                                dweight_dimage(idir, jimage)* &
+                                                image_translation(jdir)
+               END DO
+            END DO
+         END DO
+      END IF
+
+      DEALLOCATE (image_atom, image_shift, image_coords, distances, log_weights, &
+                  normalized_weights, rvecs, unit_rvecs, log_weight_image, mean_image, &
+                  dweight_dimage)
+
+   END SUBROUTINE periodic_atom_image_partition
 
 ! **************************************************************************************************
 !> \brief Build smooth atom weights and their atom/cell deformation derivatives.

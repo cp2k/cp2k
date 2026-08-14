@@ -67,8 +67,11 @@ MODULE qs_vxc_atom
                                               rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE skala_gpw_features,              ONLY: skala_gpw_smooth_partition_derivatives,&
-                                              smooth_atom_partition
+   USE skala_gpw_features,              ONLY: periodic_atom_image_partition,&
+                                              skala_gpw_smooth_partition_derivatives,&
+                                              smooth_atom_partition,&
+                                              smooth_partition_atomic_weight_scale,&
+                                              smooth_partition_atomic_weight_scale_derivative
    USE skala_gpw_functional,            ONLY: &
         build_vxc_from_feature_grads, get_gauxc_section, native_skala_gapw_density_partition, &
         skala_gapw_atom_composite_energy, skala_gapw_atom_vxc_of_r, &
@@ -268,7 +271,8 @@ CONTAINS
       LOGICAL :: accint, atom_composite_active, atom_composite_diagnostic, &
          atom_composite_reference, donlcc, evaluate_hard, evaluate_soft, force_paw_representation, &
          gradient_f, lsd, my_calculate_forces, native_grid_diagnostics, nlcc, paw_atom, &
-         paw_pseudopotentials, rho_g_valid, skala_atom_grid, tau_f, tau_r_valid, use_virial
+         paw_pseudopotentials, periodic_atom_composite, rho_g_valid, skala_atom_grid, tau_f, &
+         tau_r_valid, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: composite_partition_included
       REAL(dp) :: agr, alpha, atom_composite_exc, atom_composite_nelec, composite_density_max, &
          composite_density_min, composite_grad_max, composite_kin_max, composite_kin_min, &
@@ -281,18 +285,18 @@ CONTAINS
       REAL(dp) :: one_center_gradient_matrix_contraction, one_center_matrix_contraction, &
          one_center_rho_grad_field_contraction, one_center_rho_grad_matrix_contraction, &
          one_center_tau_field_contraction, one_center_tau_matrix_contraction, &
-         one_center_tensor_contraction, smooth_grid_contraction, smooth_input_contraction, &
-         tau_cut, zeff
+         one_center_tensor_contraction, partition_adjoint, partition_scale, &
+         smooth_grid_contraction, smooth_input_contraction, tau_cut, zeff
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: composite_atomic_grid_weight_grad, &
-         composite_atomic_grid_weights, composite_distances, composite_grid_weight_grad, &
-         composite_grid_weights, composite_partition_weights
+         composite_atomic_grid_weights, composite_base_grid_weights, composite_distances, &
+         composite_grid_weight_grad, composite_grid_weights, composite_partition_weights
       REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_atom_coord_grad, composite_atom_coords, &
          composite_cross_density, composite_cross_kin, composite_density, composite_density_grad, &
          composite_explicit_force, composite_grid_coord_force, composite_grid_coord_grad, &
          composite_grid_coords, composite_kin, composite_kin_grad, composite_local_atom_coords, &
          composite_model_atom_force, composite_moving_smooth_force, composite_nlcc_center_force, &
-         composite_partition_atom_coords, composite_partition_force, smooth_density_adjoint, &
-         smooth_kin_adjoint
+         composite_nlcc_target_force, composite_partition_atom_coords, composite_partition_force, &
+         smooth_density_adjoint, smooth_kin_adjoint
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :) :: composite_cross_grad, composite_grad, &
          composite_grad_grad, composite_int_h, composite_int_s, composite_partition_datom, &
          composite_partition_dstrain, cross_tau_coeff, cross_tau_h, cross_tau_s, &
@@ -302,11 +306,10 @@ CONTAINS
       REAL(dp), DIMENSION(2)                             :: cross_density, cross_kin
       REAL(dp), DIMENSION(3) :: composite_point, nlcc_gradient, nlcc_spatial_derivative, &
          skala_atom_force_h, skala_atom_force_s, spatial_derivative
-      REAL(dp), DIMENSION(3, 2)                          :: cross_grad
-      REAL(dp), DIMENSION(3, 3)                          :: composite_explicit_virial, nlcc_hessian, &
-                                                            skala_atom_virial, &
-                                                            skala_atom_virial_h, &
-                                                            skala_atom_virial_s
+      REAL(dp), DIMENSION(3, 2) :: composite_smooth_gradient_value, cross_grad
+      REAL(dp), DIMENSION(3, 3) :: composite_explicit_virial, composite_feature_virial, &
+         composite_interpolation_virial, composite_partition_strain_virial, nlcc_hessian, &
+         skala_atom_virial, skala_atom_virial_h, skala_atom_virial_s
       REAL(dp), DIMENSION(4)                             :: feature_component_analytic, &
                                                             feature_component_fd
       REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight_h, weight_s
@@ -465,6 +468,7 @@ CONTAINS
                                  (gapw_representation == skala_gapw_paw_one_center .AND. &
                                   paw_pseudopotentials)
       atom_composite_active = atom_composite_diagnostic .OR. atom_composite_reference
+      periodic_atom_composite = atom_composite_active .AND. ANY(cell%perd /= 0)
       IF (PRESENT(composite_reference_active)) composite_reference_active = atom_composite_reference
       gapw_density_partition = skala_gapw_density_partition_hard_minus_soft
       IF (skala_atom_grid) THEN
@@ -594,12 +598,14 @@ CONTAINS
                       composite_kin(composite_nflat, 2), &
                       composite_grid_coords(3, composite_nflat), &
                       composite_grid_weights(composite_nflat), &
+                      composite_base_grid_weights(composite_nflat), &
                       composite_atomic_grid_weights(composite_nflat))
             composite_density = 0.0_dp
             composite_grad = 0.0_dp
             composite_kin = 0.0_dp
             composite_grid_coords = 0.0_dp
             composite_grid_weights = 0.0_dp
+            composite_base_grid_weights = 0.0_dp
             composite_atomic_grid_weights = 0.0_dp
 
             CALL qs_rho_get(rho_struct, rho_r=smooth_rho_r, rho_g=smooth_rho_g, &
@@ -810,13 +816,26 @@ CONTAINS
                         composite_point(3) = particle_set(iatom)%r(3) + &
                                              grid_atom%rad(ir)*grid_atom%cos_pol(ia)
                         composite_grid_coords(:, composite_row) = composite_point
-                        CALL smooth_atom_partition( &
-                           composite_point, composite_atom_coords, cell, &
-                           composite_partition_weights, composite_partition_atom_coords, &
-                           composite_distances)
-                        composite_atomic_grid_weights(composite_row) = grid_atom%weight(ia, ir)
-                        composite_grid_weights(composite_row) = grid_atom%weight(ia, ir)* &
-                                                                composite_partition_weights(iatom)
+                        IF (periodic_atom_composite) THEN
+                           composite_partition_weights = 0.0_dp
+                           CALL periodic_atom_image_partition( &
+                              composite_point, composite_atom_coords, cell, iatom, &
+                              composite_partition_weights(iatom))
+                           partition_scale = smooth_partition_atomic_weight_scale( &
+                                             composite_partition_weights(iatom))
+                        ELSE
+                           CALL smooth_atom_partition( &
+                              composite_point, composite_atom_coords, cell, &
+                              composite_partition_weights, composite_partition_atom_coords, &
+                              composite_distances)
+                           partition_scale = 1.0_dp
+                        END IF
+                        composite_base_grid_weights(composite_row) = grid_atom%weight(ia, ir)
+                        composite_atomic_grid_weights(composite_row) = &
+                           composite_base_grid_weights(composite_row)*partition_scale
+                        composite_grid_weights(composite_row) = &
+                           composite_base_grid_weights(composite_row)* &
+                           composite_partition_weights(iatom)
                         IF (lsd) THEN
                            DO ispin = 1, 2
                               IF (ispin == 1) THEN
@@ -1204,6 +1223,7 @@ CONTAINS
                          composite_model_atom_force(3, SIZE(particle_set)), &
                          composite_moving_smooth_force(3, SIZE(particle_set)), &
                          composite_nlcc_center_force(3, SIZE(particle_set)), &
+                         composite_nlcc_target_force(3, SIZE(particle_set)), &
                          composite_partition_force(3, SIZE(particle_set)), &
                          composite_partition_included(SIZE(particle_set)), &
                          composite_partition_datom(3, SIZE(particle_set), SIZE(particle_set)), &
@@ -1212,7 +1232,46 @@ CONTAINS
                composite_grid_coord_force = 0.0_dp
                composite_moving_smooth_force = 0.0_dp
                composite_nlcc_center_force = 0.0_dp
+               composite_nlcc_target_force = 0.0_dp
                composite_partition_force = 0.0_dp
+               composite_explicit_virial = 0.0_dp
+               composite_feature_virial = 0.0_dp
+               composite_interpolation_virial = 0.0_dp
+               composite_partition_strain_virial = 0.0_dp
+               DO composite_local_atom = 1, composite_local_natom
+                  iatom = composite_local_atoms(composite_local_atom)
+                  DO composite_row = composite_atom_start(iatom), composite_atom_end(iatom)
+                     IF (lsd) THEN
+                        DO jdir = 1, 3
+                           composite_smooth_gradient_value(jdir, 1) = &
+                              interpolate_native_grid( &
+                              composite_smooth_drhoa(jdir)%array, smooth_rho_r(1)%pw_grid, &
+                              cell, composite_grid_coords(:, composite_row))
+                           composite_smooth_gradient_value(jdir, 2) = &
+                              interpolate_native_grid( &
+                              composite_smooth_drhob(jdir)%array, smooth_rho_r(1)%pw_grid, &
+                              cell, composite_grid_coords(:, composite_row))
+                        END DO
+                     ELSE
+                        DO jdir = 1, 3
+                           composite_smooth_gradient_value(jdir, :) = 0.5_dp* &
+                                                                      interpolate_native_grid( &
+                                                                      composite_smooth_drho(jdir)%array, smooth_rho_r(1)%pw_grid, &
+                                                                      cell, composite_grid_coords(:, composite_row))
+                        END DO
+                     END IF
+                     DO ispin = 1, 2
+                        DO idir = 1, 3
+                           DO jdir = 1, 3
+                              composite_feature_virial(jdir, idir) = &
+                                 composite_feature_virial(jdir, idir) - &
+                                 composite_grad_grad(composite_row, idir, ispin)* &
+                                 composite_smooth_gradient_value(jdir, ispin)
+                           END DO
+                        END DO
+                     END DO
+                  END DO
+               END DO
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
                   composite_model_atom_force(:, iatom) = &
@@ -1271,6 +1330,17 @@ CONTAINS
                                                 cell, composite_grid_coords(:, composite_row))
                         END DO
                      END IF
+                     DO idir = 1, 3
+                        DO jdir = 1, 3
+                           composite_interpolation_virial(idir, jdir) = &
+                              composite_interpolation_virial(idir, jdir) + &
+                              spatial_derivative(idir)*( &
+                              composite_grid_coords(jdir, composite_row) - &
+                              particle_set(iatom)%r(jdir))
+                        END DO
+                     END DO
+                     composite_moving_smooth_force(:, iatom) = &
+                        composite_moving_smooth_force(:, iatom) + spatial_derivative
                      IF (nlcc) THEN
                         nlcc_spin_factor = MERGE(1.0_dp, 0.5_dp, lsd)
                         DO source_atom = 1, SIZE(particle_set)
@@ -1296,50 +1366,77 @@ CONTAINS
                                  END DO
                               END DO
                            END DO
-                           spatial_derivative = spatial_derivative + nlcc_spatial_derivative
+                           composite_nlcc_target_force(:, iatom) = &
+                              composite_nlcc_target_force(:, iatom) + nlcc_spatial_derivative
                            composite_nlcc_center_force(:, source_atom) = &
                               composite_nlcc_center_force(:, source_atom) - nlcc_spatial_derivative
                         END DO
                      END IF
-                     composite_moving_smooth_force(:, iatom) = &
-                        composite_moving_smooth_force(:, iatom) + spatial_derivative
-                     CALL skala_gpw_smooth_partition_derivatives( &
-                        composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
-                        composite_partition_weights, composite_partition_included, &
-                        composite_partition_datom, composite_partition_dstrain)
+                     IF (periodic_atom_composite) THEN
+                        composite_partition_weights = 0.0_dp
+                        composite_partition_datom = 0.0_dp
+                        composite_partition_dstrain = 0.0_dp
+                        CALL periodic_atom_image_partition( &
+                           composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
+                           iatom, composite_partition_weights(iatom), &
+                           composite_partition_datom(:, :, iatom), &
+                           composite_partition_dstrain(:, :, iatom))
+                        partition_adjoint = composite_base_grid_weights(composite_row)*( &
+                                            composite_grid_weight_grad(composite_row) + &
+                                            composite_atomic_grid_weight_grad(composite_row)* &
+                                            smooth_partition_atomic_weight_scale_derivative( &
+                                            composite_partition_weights(iatom)))
+                     ELSE
+                        CALL skala_gpw_smooth_partition_derivatives( &
+                           composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
+                           composite_partition_weights, composite_partition_included, &
+                           composite_partition_datom, composite_partition_dstrain)
+                        partition_adjoint = composite_grid_weight_grad(composite_row)* &
+                                            composite_atomic_grid_weights(composite_row)
+                     END IF
                      DO target_atom = 1, SIZE(particle_set)
                         composite_partition_force(:, target_atom) = &
                            composite_partition_force(:, target_atom) + &
-                           composite_grid_weight_grad(composite_row)* &
-                           composite_atomic_grid_weights(composite_row)* &
+                           partition_adjoint* &
                            composite_partition_datom(:, target_atom, iatom)
                      END DO
                      composite_partition_force(:, iatom) = composite_partition_force(:, iatom) - &
-                                                           composite_grid_weight_grad(composite_row)* &
-                                                           composite_atomic_grid_weights(composite_row)* &
+                                                           partition_adjoint* &
                                                            SUM(composite_partition_datom(:, :, iatom), DIM=2)
+                     IF (periodic_atom_composite) THEN
+                        composite_partition_strain_virial = &
+                           composite_partition_strain_virial - partition_adjoint* &
+                           composite_partition_dstrain(:, :, iatom)
+                     END IF
                   END DO
                END DO
                composite_explicit_force(:, :) = composite_model_atom_force(:, :) + &
                                                 composite_grid_coord_force(:, :) + &
                                                 composite_moving_smooth_force(:, :) + &
                                                 composite_nlcc_center_force(:, :) + &
+                                                composite_nlcc_target_force(:, :) + &
                                                 composite_partition_force(:, :)
-               ! CP2K stores +dE/dR in the electronic force components, but the
-               ! virial is -dE/dstrain.  A cell deformation moves the atom-grid
-               ! centers with their atoms while leaving the local radial vectors
-               ! unchanged, so the explicit atom-composite contribution is
-               ! -SUM_A dE/dR_A outer R_A.
-               composite_explicit_virial = 0.0_dp
+               ! CP2K stores +dE/dR in the electronic force components, while the
+               ! virial is -dE/dstrain. Model coordinates, atom-grid centers,
+               ! NLCC centers, and partition centers move affinely with their atoms.
+               ! The smooth-field interpolation force is excluded here: its affine
+               ! response is already in the PW stress and its non-affine local-grid
+               ! correction is composite_interpolation_virial.
                DO iatom = 1, SIZE(particle_set)
                   DO idir = 1, 3
                      DO jdir = 1, 3
                         composite_explicit_virial(idir, jdir) = &
-                           composite_explicit_virial(idir, jdir) - &
-                           composite_explicit_force(idir, iatom)*particle_set(iatom)%r(jdir)
+                           composite_explicit_virial(idir, jdir) - ( &
+                           composite_model_atom_force(idir, iatom) + &
+                           composite_grid_coord_force(idir, iatom) + &
+                           composite_nlcc_center_force(idir, iatom) + &
+                           composite_nlcc_target_force(idir, iatom) + &
+                           composite_partition_force(idir, iatom))*particle_set(iatom)%r(jdir)
                      END DO
                   END DO
                END DO
+               composite_explicit_virial = composite_explicit_virial + &
+                                           composite_partition_strain_virial
                IF (ASSOCIATED(force)) THEN
                   DO iatom = 1, SIZE(particle_set)
                      ikind = composite_atom_kind(iatom)
@@ -1350,7 +1447,11 @@ CONTAINS
                   END DO
                END IF
                IF (use_virial) THEN
-                  virial%pv_xc = 0.0_dp
+                  ! The local radial vectors of the atom-centered quadrature do not
+                  ! deform with the periodic cell. Correct the standard PW response,
+                  ! which follows fixed fractional coordinates, by the corresponding
+                  ! non-affine interpolation derivative.
+                  virial%pv_xc = composite_feature_virial - composite_interpolation_virial
                   virial%pv_gapw = virial%pv_gapw + composite_explicit_virial
                   virial%pv_virial = virial%pv_virial + composite_explicit_virial
                END IF
@@ -1359,9 +1460,12 @@ CONTAINS
                   CALL para_env%sum(composite_grid_coord_force)
                   CALL para_env%sum(composite_moving_smooth_force)
                   CALL para_env%sum(composite_nlcc_center_force)
+                  CALL para_env%sum(composite_nlcc_target_force)
                   CALL para_env%sum(composite_partition_force)
                   CALL para_env%sum(composite_explicit_force)
                   CALL para_env%sum(composite_explicit_virial)
+                  CALL para_env%sum(composite_feature_virial)
+                  CALL para_env%sum(composite_interpolation_virial)
                   iw = cp_logger_get_default_io_unit()
                   IF (iw > 0) THEN
                      DO iatom = 1, SIZE(particle_set)
@@ -1378,6 +1482,9 @@ CONTAINS
                            "SKALA_GPW| Atom-composite NLCC-center force", iatom, &
                            composite_nlcc_center_force(:, iatom)
                         WRITE (UNIT=iw, FMT="(T2,A,1X,I0,3(1X,ES20.12))") &
+                           "SKALA_GPW| Atom-composite NLCC-target force", iatom, &
+                           composite_nlcc_target_force(:, iatom)
+                        WRITE (UNIT=iw, FMT="(T2,A,1X,I0,3(1X,ES20.12))") &
                            "SKALA_GPW| Atom-composite partition force", iatom, &
                            composite_partition_force(:, iatom)
                         WRITE (UNIT=iw, FMT="(T2,A,1X,I0,3(1X,ES20.12))") &
@@ -1390,6 +1497,18 @@ CONTAINS
                         WRITE (UNIT=iw, FMT="(T2,A,1X,3ES20.10)") &
                            "SKALA_GPW|", composite_explicit_virial(idir, :)
                      END DO
+                     WRITE (UNIT=iw, FMT="(T2,A)") &
+                        "SKALA_GPW| Atom-composite feature virial"
+                     DO idir = 1, 3
+                        WRITE (UNIT=iw, FMT="(T2,A,1X,3ES20.10)") &
+                           "SKALA_GPW|", composite_feature_virial(idir, :)
+                     END DO
+                     WRITE (UNIT=iw, FMT="(T2,A)") &
+                        "SKALA_GPW| Atom-composite interpolation virial"
+                     DO idir = 1, 3
+                        WRITE (UNIT=iw, FMT="(T2,A,1X,3ES20.10)") &
+                           "SKALA_GPW|", composite_interpolation_virial(idir, :)
+                     END DO
                   END IF
                END IF
                DEALLOCATE (composite_atom_coord_grad, composite_atomic_grid_weight_grad, &
@@ -1397,6 +1516,7 @@ CONTAINS
                            composite_grid_coord_grad, composite_grid_weight_grad, &
                            composite_model_atom_force, composite_moving_smooth_force, &
                            composite_nlcc_center_force, &
+                           composite_nlcc_target_force, &
                            composite_partition_datom, composite_partition_dstrain, &
                            composite_partition_force, composite_partition_included)
             ELSE
@@ -1865,7 +1985,7 @@ CONTAINS
                         composite_density_grad, composite_grad_grad, composite_kin_grad, &
                         smooth_density_adjoint, smooth_grad_adjoint, smooth_kin_adjoint, &
                         composite_grid_coords, composite_grid_weights, &
-                        composite_atomic_grid_weights)
+                        composite_base_grid_weights, composite_atomic_grid_weights)
             IF (lsd) THEN
                DEALLOCATE (composite_smooth_rhoa, composite_smooth_rhob, &
                            composite_smooth_tau_a, composite_smooth_tau_b)

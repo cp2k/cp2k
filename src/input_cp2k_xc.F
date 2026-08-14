@@ -45,14 +45,15 @@ MODULE input_cp2k_xc
    USE string_utilities,                ONLY: s2a
    USE xc_input_constants,              ONLY: &
         c_pw92, c_pw92dmc, c_pw92vmc, c_pz, c_pzdmc, c_pzvmc, do_vwn3, do_vwn5, ke_lc, ke_llp, &
-        ke_ol1, ke_ol2, ke_pbe, ke_pw86, ke_pw91, ke_t92, pz_orig, skala_gapw_cp2k_default, &
-        skala_gapw_direct_valence, skala_gapw_paw_one_center, skala_gapw_paw_one_center_split, &
-        xalpha, xc_b97_3c, xc_b97_grimme, xc_b97_mardirossian, xc_b97_orig, xc_deriv_collocate, &
-        xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
-        xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, xc_pbe_orig, &
-        xc_pbe_rev, xc_pbe_sol, xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
-        xc_rho_spline3_smooth, xgga_b88x, xgga_ev93, xgga_opt, xgga_pbex, xgga_pw86, xgga_pw91, &
-        xgga_revpbe
+        ke_ol1, ke_ol2, ke_pbe, ke_pw86, ke_pw91, ke_t92, pz_orig, &
+        skala_gapw_common_periodic_grid, skala_gapw_cp2k_default, skala_gapw_direct_valence, &
+        skala_gapw_paw_one_center, skala_gapw_paw_one_center_split, &
+        skala_gapw_periodic_atom_composite, xalpha, xc_b97_3c, xc_b97_grimme, xc_b97_mardirossian, &
+        xc_b97_orig, xc_deriv_collocate, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
+        xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
+        xc_pbe_orig, xc_pbe_rev, xc_pbe_sol, xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, &
+        xc_rho_spline2_smooth, xc_rho_spline3_smooth, xgga_b88x, xgga_ev93, xgga_opt, xgga_pbex, &
+        xgga_pw86, xgga_pw91, xgga_revpbe
    USE xc_libxc,                        ONLY: libxc_add_sections
 #include "./base/base_uses.f90"
 
@@ -1313,7 +1314,7 @@ CONTAINS
                           "The current CP2K bridge uses GauXC's molecular quadrature. Periodic inputs "// &
                           "are limited to isolated validation cells and are not compact periodic "// &
                           "material calculations.", &
-                          n_keywords=28, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=29, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1528,6 +1529,23 @@ CONTAINS
                                         "Use only the soft one-center density with the GAPW sign", &
                                         "Disable the GAPW one-center SKALA correction"), &
                           default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="NATIVE_GRID_GAPW_COMPOSITE_GRID", &
+         description="Select the numerical backend for periodic PAW_ONE_CENTER GAPW Skala. "// &
+         "COMMON_PERIODIC_GRID reconstructs the primitive fields on CP2K's regular periodic "// &
+         "grid and remains the production default. PERIODIC_ATOM_COMPOSITE evaluates complete "// &
+         "reference-cell atom blocks on the GAPW radial/Lebedev grids with an explicit smooth "// &
+         "lattice-image partition. The latter is intended for convergence and method validation "// &
+         "of hard localized one-center fields.", &
+         usage="NATIVE_GRID_GAPW_COMPOSITE_GRID COMMON_PERIODIC_GRID", &
+         enum_c_vals=s2a("COMMON_PERIODIC_GRID", "PERIODIC_ATOM_COMPOSITE"), &
+         enum_i_vals=[skala_gapw_common_periodic_grid, skala_gapw_periodic_atom_composite], &
+         enum_desc=s2a("Reconstruct on the common periodic real-space grid", &
+                       "Use image-partitioned atom-centered composite grids"), &
+         default_i_val=skala_gapw_common_periodic_grid)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
