@@ -222,6 +222,7 @@ def main() -> None:
                 feature_flags="",
                 # These SIRIUS inputs use its CPU backend. A CUDA-enabled SIRIUS
                 # 7.11.1 build produces corrupt densities on the Pascal runner.
+                # Keep SpLA on CUDA because CP2K offloads GEMMs through it.
                 sirius_cpu_only=True,
                 # Run memory-heavy tests alone on the single 8 GiB runner GPU.
                 testopts=f"{testopts} --timeout 400 --exclusive-gpu-memory-batches",
@@ -759,7 +760,10 @@ def install_cp2k_spack(
     if sirius_cpu_only:
         sirius_spec_setup = r"""
 # SIRIUS runs on the CPU in CP2K's regtests; avoid its unstable CUDA build here.
-RUN sed -E -i '/^[[:space:]]*-[[:space:]]+"sirius@/ s/"$/ ~cuda"/' ./tools/spack/cp2k_deps_p.yaml
+RUN sed -E -i \
+    -e '/^[[:space:]]*-[[:space:]]+"sirius@/ s/"$/ ~cuda"/' \
+    -e '/^[[:space:]]*-[[:space:]]+"spla@/ s/"$/ +cuda"/' \
+    ./tools/spack/cp2k_deps_p.yaml
 """
     # Assemble docker file
     output = (
