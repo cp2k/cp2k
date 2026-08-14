@@ -1,0 +1,49 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT sym_h2o_debug
+  RUN_TYPE DEBUG
+&END GLOBAL
+
+&DEBUG
+  DEBUG_FORCES T
+  DEBUG_STRESS_TENSOR T
+  DX 0.0001
+  STOP_ON_MISMATCH F
+&END DEBUG
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &MACE
+          ATOMS H O
+          BACKEND SYMMETRIX
+          ! Committed toy MACE model (untrained, deterministic weights); see
+          ! README.md in this directory for the generation recipe.
+          POT_FILE_NAME Symmetrix/toy_mace-1-8.json
+        &END MACE
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 9.0 9.5 10.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      O  0.000  0.000  0.000
+      H  0.757  0.586  0.000
+      H -0.757  0.586  0.000
+      O  0.000  0.000  2.900
+      H  0.757  0.586  2.900
+      H -0.757  0.586  2.900
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

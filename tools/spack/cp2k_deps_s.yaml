@@ -151,6 +151,7 @@ spack:
     - "pace@2025.12.4.1"
     - "py-torch@2.14.1"
     - "spglib@2.8.0"
+    - "symmetrix@2026.01"
     - "tblite@0.7.0"
     - "trexio@2.6.1"
 

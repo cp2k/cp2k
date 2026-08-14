@@ -41,7 +41,7 @@ MODULE fist_neighbor_list_control
    USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: &
         ace_type, allegro_type, gal21_type, gal_type, mace_type, nequip_type, &
-        pair_potential_pp_type, siepmann_type, tersoff_type
+        pair_potential_pp_type, siepmann_type, symmetrix_type, tersoff_type
    USE particle_types,                  ONLY: particle_type
 #include "./base/base_uses.f90"
 
@@ -232,6 +232,9 @@ CONTAINS
                      full_nl(ikind, jkind) = .TRUE.
                   END IF
                   IF (ANY(potparm%pot(ikind, jkind)%pot%type == mace_type)) THEN
+                     full_nl(ikind, jkind) = .TRUE.
+                  END IF
+                  IF (ANY(potparm%pot(ikind, jkind)%pot%type == symmetrix_type)) THEN
                      full_nl(ikind, jkind) = .TRUE.
                   END IF
                   IF (ANY(potparm%pot(ikind, jkind)%pot%type == ace_type)) THEN

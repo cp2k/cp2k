@@ -24,7 +24,10 @@ MODULE fist_nonbond_env_types
                                               dp
    USE pair_potential_types,            ONLY: &
         ace_type, allegro_type, gal21_type, gal_type, mace_type, nequip_type, &
-        pair_potential_pp_release, pair_potential_pp_type, siepmann_type, tersoff_type
+        pair_potential_pp_release, pair_potential_pp_type, siepmann_type, symmetrix_type, &
+        tersoff_type
+   USE symmetrix_api,                   ONLY: symmetrix_model_release,&
+                                              symmetrix_model_type
    USE torch_api,                       ONLY: torch_model_release,&
                                               torch_model_type
 #include "./base/base_uses.f90"
@@ -36,7 +39,7 @@ MODULE fist_nonbond_env_types
    PUBLIC :: fist_nonbond_env_type, fist_nonbond_env_set, &
              fist_nonbond_env_get, fist_nonbond_env_create, &
              fist_nonbond_env_release, pos_type, eam_type, &
-             nequip_data_type, &
+             nequip_data_type, symmetrix_data_type, &
              deepmd_data_type, ace_data_type
 
 ! **************************************************************************************************
@@ -55,6 +58,16 @@ MODULE fist_nonbond_env_types
       REAL(KIND=dp)           :: virial(3, 3) = 0.0_dp
       TYPE(torch_model_type)  :: model
    END TYPE nequip_data_type
+
+   TYPE symmetrix_data_type
+      INTEGER, POINTER           :: use_indices(:) => NULL()
+      REAL(KIND=dp), POINTER     :: force(:, :) => NULL()
+      REAL(KIND=dp)              :: virial(3, 3) = 0.0_dp
+      ! atomic number Z -> 0-based model type index (-1 where unsupported),
+      ! built once at model load
+      INTEGER, ALLOCATABLE       :: idx_of_z(:)
+      TYPE(symmetrix_model_type) :: model
+   END TYPE symmetrix_data_type
 
    TYPE deepmd_data_type
       INTEGER, POINTER        :: use_indices(:) => NULL()
@@ -113,6 +126,7 @@ MODULE fist_nonbond_env_types
       TYPE(deepmd_data_type), POINTER            :: deepmd_data => NULL()
       TYPE(ace_data_type), POINTER               :: ace_data => NULL()
       TYPE(nequip_data_type), POINTER    :: nequip_data => NULL()
+      TYPE(symmetrix_data_type), POINTER :: symmetrix_data => NULL()
    END TYPE fist_nonbond_env_type
 
 CONTAINS
@@ -144,6 +158,7 @@ CONTAINS
 !> \param ij_kind_full_fac ...
 !> \param eam_data ...
 !> \param nequip_data ...
+!> \param symmetrix_data ...
 !> \param deepmd_data ...
 !> \param ace_data ...
 !> \param charges ...
@@ -156,7 +171,7 @@ CONTAINS
                                    shift_cutoff, do_electrostatics, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
                                    rcore_last_update_pbc, cell_last_update, num_update, last_update, &
                                    counter, natom_types, long_range_correction, ij_kind_full_fac, eam_data, &
-                                   nequip_data, deepmd_data, ace_data, charges)
+                                   nequip_data, symmetrix_data, deepmd_data, ace_data, charges)
 
       TYPE(fist_nonbond_env_type), INTENT(IN)            :: fist_nonbond_env
       TYPE(pair_potential_pp_type), OPTIONAL, POINTER    :: potparm14, potparm
@@ -174,6 +189,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: ij_kind_full_fac
       TYPE(eam_type), DIMENSION(:), OPTIONAL, POINTER    :: eam_data
       TYPE(nequip_data_type), OPTIONAL, POINTER          :: nequip_data
+      TYPE(symmetrix_data_type), OPTIONAL, POINTER       :: symmetrix_data
       TYPE(deepmd_data_type), OPTIONAL, POINTER          :: deepmd_data
       TYPE(ace_data_type), OPTIONAL, POINTER             :: ace_data
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
@@ -182,6 +198,7 @@ CONTAINS
       IF (PRESENT(potparm14)) potparm14 => fist_nonbond_env%potparm14
       IF (PRESENT(eam_data)) eam_data => fist_nonbond_env%eam_data
       IF (PRESENT(nequip_data)) nequip_data => fist_nonbond_env%nequip_data
+      IF (PRESENT(symmetrix_data)) symmetrix_data => fist_nonbond_env%symmetrix_data
       IF (PRESENT(deepmd_data)) deepmd_data => fist_nonbond_env%deepmd_data
       IF (PRESENT(ace_data)) ace_data => fist_nonbond_env%ace_data
       IF (PRESENT(potparm)) potparm => fist_nonbond_env%potparm
@@ -247,6 +264,7 @@ CONTAINS
 !> \param long_range_correction ...
 !> \param eam_data ...
 !> \param nequip_data ...
+!> \param symmetrix_data ...
 !> \param deepmd_data ...
 !> \param ace_data ...
 !> \param charges ...
@@ -259,7 +277,7 @@ CONTAINS
                                    shift_cutoff, do_electrostatics, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
                                    rcore_last_update_pbc, cell_last_update, num_update, last_update, &
                                    counter, natom_types, long_range_correction, eam_data, &
-                                   nequip_data, deepmd_data, ace_data, charges)
+                                   nequip_data, symmetrix_data, deepmd_data, ace_data, charges)
 
       TYPE(fist_nonbond_env_type), INTENT(INOUT)         :: fist_nonbond_env
       TYPE(pair_potential_pp_type), OPTIONAL, POINTER    :: potparm14, potparm
@@ -276,6 +294,7 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: long_range_correction
       TYPE(eam_type), DIMENSION(:), OPTIONAL, POINTER    :: eam_data
       TYPE(nequip_data_type), OPTIONAL, POINTER          :: nequip_data
+      TYPE(symmetrix_data_type), OPTIONAL, POINTER       :: symmetrix_data
       TYPE(deepmd_data_type), OPTIONAL, POINTER          :: deepmd_data
       TYPE(ace_data_type), OPTIONAL, POINTER             :: ace_data
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
@@ -283,6 +302,7 @@ CONTAINS
       IF (PRESENT(potparm14)) fist_nonbond_env%potparm14 => potparm14
       IF (PRESENT(eam_data)) fist_nonbond_env%eam_data => eam_data
       IF (PRESENT(nequip_data)) fist_nonbond_env%nequip_data => nequip_data
+      IF (PRESENT(symmetrix_data)) fist_nonbond_env%symmetrix_data => symmetrix_data
       IF (PRESENT(deepmd_data)) fist_nonbond_env%deepmd_data => deepmd_data
       IF (PRESENT(ace_data)) fist_nonbond_env%ace_data => ace_data
       IF (PRESENT(potparm)) fist_nonbond_env%potparm => potparm
@@ -363,6 +383,7 @@ CONTAINS
       NULLIFY (fist_nonbond_env%rcore_last_update_pbc)
       NULLIFY (fist_nonbond_env%eam_data)
       NULLIFY (fist_nonbond_env%nequip_data)
+      NULLIFY (fist_nonbond_env%symmetrix_data)
       NULLIFY (fist_nonbond_env%deepmd_data)
       NULLIFY (fist_nonbond_env%ace_data)
       NULLIFY (fist_nonbond_env%charges)
@@ -505,6 +526,10 @@ CONTAINS
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
                      fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
                   END IF
+                  IF (ANY(potparm%pot(idim, jdim)%pot%type == symmetrix_type)) THEN
+                     fist_nonbond_env%ij_kind_full_fac(idim, jdim) = 0.5_dp
+                     fist_nonbond_env%ij_kind_full_fac(jdim, idim) = 0.5_dp
+                  END IF
                ELSE
                   ! In case we don't use potparm for initialization let's account
                   ! only for the real-space part of the Ewald sum.
@@ -562,6 +587,16 @@ CONTAINS
          END IF
          CALL torch_model_release(fist_nonbond_env%nequip_data%model)
          DEALLOCATE (fist_nonbond_env%nequip_data)
+      END IF
+      IF (ASSOCIATED(fist_nonbond_env%symmetrix_data)) THEN
+         IF (ASSOCIATED(fist_nonbond_env%symmetrix_data%force)) THEN
+            DEALLOCATE (fist_nonbond_env%symmetrix_data%force)
+         END IF
+         IF (ASSOCIATED(fist_nonbond_env%symmetrix_data%use_indices)) THEN
+            DEALLOCATE (fist_nonbond_env%symmetrix_data%use_indices)
+         END IF
+         CALL symmetrix_model_release(fist_nonbond_env%symmetrix_data%model)
+         DEALLOCATE (fist_nonbond_env%symmetrix_data)
       END IF
       IF (ASSOCIATED(fist_nonbond_env%deepmd_data)) THEN
          IF (ASSOCIATED(fist_nonbond_env%deepmd_data%force)) THEN

@@ -287,6 +287,12 @@ CONTAINS
 #if defined(__SKALA_FTORCH)
       flags = TRIM(flags)//" skala_ftorch"
 #endif
+#if defined(__SYMMETRIX)
+      flags = TRIM(flags)//" symmetrix"
+#if defined(__SYMMETRIX_KOKKOS)
+      flags = TRIM(flags)//" symmetrix_kokkos"
+#endif
+#endif
 #if defined(__MIMIC)
       flags = TRIM(flags)//" mimic"
 #endif

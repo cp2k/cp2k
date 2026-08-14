@@ -99,6 +99,7 @@ elif [[ "${PROFILE}" == "toolchain_intel" ]] && [[ "${VERSION}" == "psmp" ]]; th
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_OPENPMD=OFF \
     -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_SYMMETRIX=OFF \
     -DCP2K_USE_GAUXC=OFF \
     -DCP2K_USE_SKALA_FTORCH=OFF \
     -DCP2K_USE_MIMIC=OFF \
@@ -117,6 +118,7 @@ elif [[ "${PROFILE}" == "toolchain_intel" ]] && [[ "${VERSION}" == "ssmp" ]]; th
     -DCP2K_USE_MPI=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_SYMMETRIX=OFF \
     -DCP2K_USE_GAUXC=OFF \
     -DCP2K_USE_SKALA_FTORCH=OFF \
     -DCP2K_USE_MIMIC=OFF \
@@ -136,6 +138,7 @@ elif [[ "${PROFILE}" == "toolchain_arm64" ]] && [[ "${VERSION}" == "psmp" ]]; th
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_ACE=OFF \
     -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_SYMMETRIX=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_GAUXC=OFF \
     -DCP2K_USE_SKALA_FTORCH=OFF \
@@ -159,6 +162,7 @@ elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; t
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_ACE=OFF \
     -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_SYMMETRIX=OFF \
     -DCP2K_USE_PLUMED=OFF \
     -DCP2K_USE_LIBSMEAGOL=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
@@ -199,6 +203,7 @@ elif [[ "${PROFILE}" == "toolchain_generic" ]] && [[ "${VERSION}" == "psmp" ]]; 
     -DCP2K_USE_OPENPMD=OFF \
     -DCP2K_USE_GAUXC=OFF \
     -DCP2K_USE_SKALA_FTORCH=OFF \
+    -DCP2K_USE_SYMMETRIX=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
@@ -258,6 +263,7 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_ACE=OFF \
     -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_SYMMETRIX=OFF \
     -DCP2K_USE_DFTD4=OFF \
     -DCP2K_USE_TBLITE=OFF \
     -DCP2K_USE_GREENX=OFF \
