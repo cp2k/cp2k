@@ -20,7 +20,7 @@
       SYMMETRY ON
     &END KPOINTS
     &MGRID
-      CUTOFF 80
+      CUTOFF 75
       REL_CUTOFF 20
     &END MGRID
     &POISSON
