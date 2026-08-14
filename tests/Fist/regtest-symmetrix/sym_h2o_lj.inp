@@ -1,0 +1,85 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT sym_h2o_lj
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      ! Zero charges: the classical term here is purely Lennard-Jones and
+      ! electrostatics is switched off, but FIST requires every kind to carry a
+      ! charge once a conventional force-field term is present.
+      &CHARGE
+        ATOM O
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        ! Ar is deliberately NOT covered by the model: it exercises the path
+        ! where only a subset of the kinds is handed to the MLP.
+        &LENNARD-JONES
+          ATOMS Ar Ar
+          EPSILON [kcalmol] 0.2381
+          RCUT [angstrom] 4.0
+          SIGMA [angstrom] 3.405
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS Ar O
+          EPSILON [kcalmol] 0.1500
+          RCUT [angstrom] 4.0
+          SIGMA [angstrom] 3.200
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS Ar H
+          EPSILON [kcalmol] 0.0500
+          RCUT [angstrom] 4.0
+          SIGMA [angstrom] 2.800
+        &END LENNARD-JONES
+        &MACE
+          ATOMS H O
+          BACKEND SYMMETRIX
+          ! Committed toy MACE model (untrained, deterministic weights); see
+          ! README.md in this directory for the generation recipe.
+          POT_FILE_NAME Symmetrix/toy_mace-1-8.json
+        &END MACE
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+    &STRESS_TENSOR
+    &END STRESS_TENSOR
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC 9.0 9.5 10.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      O   0.000  0.000  0.000
+      H   0.757  0.586  0.000
+      H  -0.757  0.586  0.000
+      O   0.000  0.000  2.900
+      H   0.757  0.586  2.900
+      H  -0.757  0.586  2.900
+      Ar  3.200  0.000  1.450
+      Ar -3.200  0.000  1.450
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

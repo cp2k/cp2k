@@ -1,0 +1,53 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT sym_h2o_triclinic
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &MACE
+          ATOMS H O
+          BACKEND SYMMETRIX
+          ! Committed toy MACE model (untrained, deterministic weights); see
+          ! README.md in this directory for the generation recipe.
+          POT_FILE_NAME Symmetrix/toy_mace-1-8.json
+        &END MACE
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+    &STRESS_TENSOR
+    &END STRESS_TENSOR
+  &END PRINT
+  &SUBSYS
+    &CELL
+      A [angstrom] 9.0 0.0 0.0
+      B [angstrom] 2.0 9.5 0.0
+      C [angstrom] 1.0 1.0 10.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      O  0.000  0.000  0.000
+      H  0.757  0.586  0.000
+      H -0.757  0.586  0.000
+      O  0.000  0.000  2.900
+      H  0.757  0.586  2.900
+      H -0.757  0.586  2.900
+      O  2.100  1.400  1.450
+      H  2.857  1.986  1.450
+      H  1.343  1.986  1.450
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

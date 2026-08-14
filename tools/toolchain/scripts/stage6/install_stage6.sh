@@ -9,5 +9,6 @@
 ./scripts/stage6/install_gauxc.sh
 ./scripts/stage6/install_deepmd.sh
 ./scripts/stage6/install_ace.sh
+./scripts/stage6/install_symmetrix.sh
 
 #EOF

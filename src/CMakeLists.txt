@@ -358,6 +358,9 @@ list(
   manybody_gal.F
   manybody_e3nn.F
   manybody_potential.F
+  manybody_mlp_neighbor.F
+  manybody_mlp_partition.F
+  manybody_symmetrix.F
   manybody_siepmann.F
   manybody_tersoff.F
   manybody_ace.F
@@ -374,6 +377,7 @@ list(
   metadynamics_utils.F
   metadyn_tools/graph_methods.F
   metadyn_tools/graph_utils.F
+  symmetrix_api.F
   min_basis_set.F
   minbas_methods.F
   minbas_wfn_analysis.F
@@ -1515,7 +1519,36 @@ list(APPEND CP2K_SRCS_F grpp/libgrpp.F)
 
 set(CP2K_FPGA_SRC_C pw/fpga/fft_fpga.c pw/fpga/opencl_utils.c)
 set(CP2K_PW_SRCS_C pw/gpu/pw_gpu_internal.c)
-set(CP2K_SRCS_CPP torch_c_api.cpp ace_c_api.cpp)
+# symmetrix has no torch dependency; its C glue compiles in-tree and links
+# libsymmetrix.a (+ sphericart + BLAS) given via CP2K_SYMMETRIX_LIBRARIES.
+# Listed unconditionally (the file is a no-op without __SYMMETRIX) so that the
+# source consistency check sees every .cpp in src/ regardless of the enabled
+# options.
+set(CP2K_SRCS_CPP torch_c_api.cpp ace_c_api.cpp symmetrix_c_api.cpp)
+if(CP2K_USE_SYMMETRIX)
+  # With CP2K_SYMMETRIX_KOKKOS=ON, symmetrix_c_api.cpp includes mace_kokkos.hpp
+  # -> Kokkos device headers that hard-error unless compiled by nvcc (they
+  # require __CUDACC__). Compile just this TU as CUDA, with the Kokkos nvcc
+  # flags (relaxed constexpr + extended lambda). This is independent of
+  # CP2K_USE_ACCEL: the GPU work lives inside libsymmetrix/Kokkos, so the Kokkos
+  # build works with CP2K's own accelerator layer off (the top-level CMakeLists
+  # enables the CUDA language for this case).
+  if(CP2K_SYMMETRIX_KOKKOS)
+    set_source_files_properties(
+      symmetrix_c_api.cpp
+      PROPERTIES
+        LANGUAGE CUDA
+        COMPILE_OPTIONS
+        "--expt-relaxed-constexpr;--extended-lambda;-Xcompiler=-fopenmp;-Xcompiler=-fvisibility-inlines-hidden"
+    )
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    # Keep this TU's inline C++ template instantiations out of libcp2k.so's
+    # dynamic symbol table; only the extern "C" entry points are needed.
+    set_source_files_properties(
+      symmetrix_c_api.cpp PROPERTIES COMPILE_OPTIONS
+                                     "-fvisibility-inlines-hidden")
+  endif()
+endif()
 
 list(APPEND CP2K_SRCS_C "${CP2K_OFFLOAD_SRCS_C}" "${CP2K_MPIWRAP_SRCS_C}")
 
@@ -1737,6 +1770,39 @@ endif()
 target_compile_features(cp2k PUBLIC cuda_std_11)
 target_include_directories(cp2k PUBLIC $<INSTALL_INTERFACE:include/cp2k>)
 
+# symmetrix_c_api.cpp includes libsymmetrix's mace.hpp
+if(CP2K_USE_SYMMETRIX AND CP2K_SYMMETRIX_INCLUDE_DIR)
+  target_include_directories(cp2k PRIVATE ${CP2K_SYMMETRIX_INCLUDE_DIR})
+endif()
+
+# The static archives behind the symmetrix backend (Kokkos in particular)
+# contribute hundreds of weak C++ template instantiations to libcp2k.so's
+# dynamic symbol table (e.g. std::__cxx11::regex_traits from Kokkos' libstdc++
+# headers). When libtorch is also linked (e.g. the nequip backend via
+# CP2K_USE_LIBTORCH), those exported symbols interpose the copies inside
+# libtorch — which may be built against a different libstdc++ (dual-ABI) — and
+# the mixed std::regex machinery corrupts the heap on the first model load.
+# Nothing outside libcp2k needs these archives' symbols (the backend surface is
+# the extern "C" API in symmetrix_c_api.cpp), so keep them local to the shared
+# library.
+if(CP2K_USE_SYMMETRIX
+   AND BUILD_SHARED_LIBS
+   AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  set(CP2K_SYMMETRIX_EXCLUDE_LIBS "")
+  foreach(_sym_lib IN LISTS CP2K_SYMMETRIX_LIBRARIES)
+    if(_sym_lib MATCHES "\\.a$")
+      get_filename_component(_sym_lib_name "${_sym_lib}" NAME)
+      list(APPEND CP2K_SYMMETRIX_EXCLUDE_LIBS "${_sym_lib_name}")
+    endif()
+  endforeach()
+  if(CP2K_SYMMETRIX_EXCLUDE_LIBS)
+    list(JOIN CP2K_SYMMETRIX_EXCLUDE_LIBS ":" _sym_exclude_arg)
+    target_link_options(cp2k PRIVATE
+                        "LINKER:--exclude-libs=${_sym_exclude_arg}")
+    unset(_sym_exclude_arg)
+  endif()
+endif()
+
 if(TARGET cp2k_dbm_opencl_kernel)
   add_dependencies(cp2k cp2k_dbm_opencl_kernel)
 endif()
@@ -1823,6 +1889,8 @@ target_link_libraries(
     cp2k_linalg_libs
     # Torch includes some LAPACK routines, but with floating-point exceptions.
     $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>
+    # symmetrix: libsymmetrix.a + sphericart + BLAS (no torch).
+    $<$<BOOL:${CP2K_USE_SYMMETRIX}>:${CP2K_SYMMETRIX_LIBRARIES}>
     $<$<BOOL:${CP2K_USE_OPENPMD}>:openPMD::openPMD>
     $<$<AND:$<CONFIG:COVERAGE>,$<Fortran_COMPILER_ID:GNU>>:gcov>)
 
@@ -1893,6 +1961,8 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_LIBFCI}>:__LIBFCI>
     $<$<BOOL:${CP2K_USE_LIBTORCH}>:__LIBTORCH>
     $<$<BOOL:${CP2K_USE_LIBTORCH_CUDA}>:__LIBTORCH_CUDA>
+    $<$<BOOL:${CP2K_USE_SYMMETRIX}>:__SYMMETRIX>
+    $<$<AND:$<BOOL:${CP2K_USE_SYMMETRIX}>,$<BOOL:${CP2K_SYMMETRIX_KOKKOS}>>:__SYMMETRIX_KOKKOS>
     $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>
     $<$<BOOL:${CP2K_USE_LIBXS}>:__LIBXS>
     $<$<BOOL:${CP2K_USE_LIBXS}>:__BLAS>
