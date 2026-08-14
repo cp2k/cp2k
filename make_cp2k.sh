@@ -50,7 +50,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 2.0
+# Version: 2.1
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -119,7 +119,7 @@ else
 fi
 
 # Check if the python3 version is new enough for spack
-if ! python3 -c 'import sys; sys.exit(not(sys.version_info >= (3, 10)))'; then
+if ! python3 -c "import sys; sys.exit(not(sys.version_info >= (3, 10)))"; then
   echo ""
   echo "ERROR: Python version is NOT >= 3.10 (needed for Spack)"
   echo "       Found only $(python3 -V)"
@@ -145,6 +145,7 @@ CRAY="no"
 CUDA_SM_CODE=0
 GCC_VERSION="auto"
 GPU_MODEL="none"
+GROMACS_VERSION=""
 HELP="no"
 INSTALL_MESSAGE="NEVER"
 MPI_MODE="mpich"
@@ -162,6 +163,7 @@ RUN_BENCHMARK="no"
 RUN_TEST="no"
 SED_PATTERN_LIST=""
 TESTOPTS=""
+TEST_GROMACS="no"
 USE_CACHE="folder"
 USE_CUSOLVER_MP=""
 USE_EXTERNALS="no"
@@ -204,15 +206,20 @@ while [[ $# -gt 0 ]]; do
       shift 1
       ;;
     -bt | --build_type)
-      CP2K_BUILD_TYPE="${2}"
-      case "${CP2K_BUILD_TYPE}" in
-        Debug)
-          CP2K_VERSION="${CP2K_VERSION/smp/dbg}"
-          ;;
-        Release | RelWithDebInfo)
-          CP2K_VERSION="${CP2K_VERSION/dbg/smp}"
-          ;;
-      esac
+      if (($# > 1)); then
+        CP2K_BUILD_TYPE="${2}"
+        case "${CP2K_BUILD_TYPE}" in
+          Debug)
+            CP2K_VERSION="${CP2K_VERSION/smp/dbg}"
+            ;;
+          Release | RelWithDebInfo)
+            CP2K_VERSION="${CP2K_VERSION/dbg/smp}"
+            ;;
+        esac
+      else
+        echo "ERROR: No CMake build type argument found for flag \"${1}\" (e.g. Release)"
+        ${EXIT_CMD} 1
+      fi
       shift 2
       ;;
     -cray)
@@ -416,23 +423,6 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
-    -gv | --gcc_version)
-      if (($# > 1)); then
-        case "${2}" in
-          1[0-6])
-            GCC_VERSION="${2}"
-            ;;
-          *)
-            echo "ERROR: Invalid GCC version \"${2}\" specified (choose from 10 to 16)"
-            ${EXIT_CMD} 1
-            ;;
-        esac
-      else
-        echo "ERROR: No argument found for flag \"${1}\" (choose a GCC version)"
-        ${EXIT_CMD} 1
-      fi
-      shift 2
-      ;;
     -gm | -gpu | --gpu_model)
       if (($# > 1)); then
         case "${2^^}" in
@@ -472,6 +462,32 @@ while [[ $# -gt 0 ]]; do
         esac
       else
         echo -e "\nERROR: No argument found for flag \"${1}\" (choose <CUDA SM code>, P100, V100, T400, A100, A40, H100, H200, GH200 or none)\n"
+        ${EXIT_CMD} 1
+      fi
+      shift 2
+      ;;
+    -gromacs)
+      if (($# > 1)); then
+        GROMACS_VERSION="${2}"
+      else
+        echo "ERROR: No GROMACS version (branch or tag name) found for flag \"${1}\" (e.g. v2026.3)"
+        ${EXIT_CMD} 1
+      fi
+      shift 2
+      ;;
+    -gv | --gcc_version)
+      if (($# > 1)); then
+        case "${2}" in
+          1[0-6])
+            GCC_VERSION="${2}"
+            ;;
+          *)
+            echo "ERROR: Invalid GCC version \"${2}\" specified (choose from 10 to 16)"
+            ${EXIT_CMD} 1
+            ;;
+        esac
+      else
+        echo "ERROR: No argument found for flag \"${1}\" (choose a GCC version)"
         ${EXIT_CMD} 1
       fi
       shift 2
@@ -590,6 +606,10 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
+    -tg | --test_gromacs)
+      TEST_GROMACS="yes"
+      shift 1
+      ;;
     -tp | --test_performance)
       RUN_BENCHMARK="yes"
       if (($# > 1)); then
@@ -695,10 +715,15 @@ for name in "${order[@]}"; do
 done
 CMAKE_FEATURE_FLAGS="$(printf '%s\n' "${out[*]}")"
 
+# Set default GROMACS version if GROMACS/CP2K testing is requested
+if [[ ${TEST_GROMACS} == "yes" ]]; then
+  GROMACS_VERSION=${GROMACS_VERSION:-v2026.3}
+fi
+
 export BENCHMARK_PROFILE BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU \
-  CP2K_BUILD_TYPE CRAY CUDA_SM_CODE DEPS_BUILD_TYPE GCC_VERSION GPU_MODEL IN_CONTAINER INSTALL_MESSAGE MPI_MODE \
-  NUM_PACKAGES NUM_PROCS REBUILD_CP2K RUN_BENCHMARK RUN_TEST TESTOPTS USE_CACHE USE_OPENCL VERBOSE VERBOSE_FLAG \
-  VERBOSE_MAKEFILE VERBOSE_SPACK
+  CP2K_BUILD_TYPE CRAY CUDA_SM_CODE DEPS_BUILD_TYPE GCC_VERSION GPU_MODEL GROMACS_VERSION IN_CONTAINER INSTALL_MESSAGE \
+  MPI_MODE NUM_PACKAGES NUM_PROCS REBUILD_CP2K RUN_BENCHMARK RUN_TEST TEST_GROMACS TESTOPTS USE_CACHE USE_OPENCL \
+  VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE VERBOSE_SPACK
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -713,6 +738,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)"
   echo "                    [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)"
   echo "                    [-gm | -gpu  | --gpu_model (<CUDA SM code> | P100 | V100 | T400 | A100 | H100 | H200 | GH200 | none)]"
+  echo "                    [-gromacs GROMACS_VERSION]"
   echo "                    [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]"
   echo "                    [-h | --help]"
   echo "                    [-ip | --install_path PATH]"
@@ -723,6 +749,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-preset (native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)]"
   echo "                    [-rc | --rebuild_cp2k]"
   echo "                    [-t | --test \"TESTOPTS\"]"
+  echo "                    [-tg | --test_gromacs]"
   echo "                    [-tp | --test_performance \"BENCHMARK_PROFILE\"]"
   echo "                    [-uc | --use_cache (folder | minio | no | none)]"
   echo "                    [-ue | --use_externals]"
@@ -738,6 +765,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " -cray                 : Use Cray specific spack configuration"
   echo " --enable_feature      : Enable feature or package (default: all)"
   echo " --disable_feature     : Disable feature or package"
+  echo " -gromacs              : Build GROMACS with CP2K support"
   echo " --help                : Print this help information"
   echo " --gcc_version         : Use the specified GCC version (default: automatically decided by spack)"
   echo " --gpu_model           : Select GPU model (default: none)"
@@ -749,6 +777,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " -preset               : Use a CMake configure preset, see \"cmake --list-presets\" (default: native-gnu-x86_64)"
   echo " --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)"
   echo " --test                : Perform a regression test run after a successful build"
+  echo " --test_gromacs        : Build and test GROMACS with CP2K support"
   echo " --test_performance    : Perform a benchmark run after a successful build"
   echo " --use_cache           : Use a \"folder\", a \"MinIO\" object storage container (requires podman) or \"no\" cache"
   echo "                         Set the environment variable SPACK_CACHE to specify the folder name, e.g."
@@ -786,6 +815,10 @@ echo "CP2K_VERSION        = ${CP2K_VERSION}"
 echo "CRAY                = ${CRAY}"
 echo "DEPS_BUILD_TYPE     = ${DEPS_BUILD_TYPE}"
 echo "GCC_VERSION         = ${GCC_VERSION}"
+if [[ -n ${GROMACS_VERSION} ]]; then
+  echo "GROMACS_VERSION     = ${GROMACS_VERSION}"
+  echo "TEST_GROMACS        = ${TEST_GROMACS}"
+fi
 if ((CUDA_SM_CODE > 0)); then
   echo "GPU                 = ${GPU_MODEL} (CUDA SM code: ${CUDA_SM_CODE})"
 else
@@ -822,7 +855,7 @@ echo "VERBOSE_FLAG        = ${VERBOSE_FLAG}"
 echo "VERBOSE_MAKEFILE    = ${VERBOSE_MAKEFILE}"
 echo "VERBOSE             = ${VERBOSE}"
 if (($# > 0)); then
-  echo "Remaining args   =" "$@" "(not used)"
+  echo -e "\nRemaining args   =" "$@" "(not used)"
 fi
 echo ""
 echo "LD_LIBRARY_PATH     = ${LD_LIBRARY_PATH:-}"
@@ -884,12 +917,14 @@ case "${MPI_MODE}" in
       echo "ERROR: MPI type \"${MPI_MODE}\" specified for building a serial CP2K binary"
       ${EXIT_CMD} 1
     fi
+    USE_MPI="ON"
     ;;
   no)
     if [[ "${CP2K_VERSION}" == "pdbg" || "${CP2K_VERSION}" == "psmp" ]]; then
       echo "ERROR: MPI type \"${MPI_MODE}\" specified for building an MPI-parallel CP2K binary"
       ${EXIT_CMD} 1
     fi
+    USE_MPI="OFF"
     ;;
   *)
     echo "ERROR: Invalid MPI type \"${MPI_MODE}\" selected"
@@ -1381,7 +1416,7 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
   # Make a note of the successful build
   touch "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED"
 
-  echo -e '\n*** Installation of CP2K dependencies completed ***\n'
+  echo -e "\n*** Installation of CP2K dependencies completed ***\n"
 
 else
 
@@ -1511,7 +1546,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
 fi
 
 # CMake build step
-echo -e '\n*** Compiling CP2K ***\n'
+echo -e "\n*** Compiling CP2K ***\n"
 cmake --build "${CMAKE_BUILD_PATH}" --parallel "${NUM_PROCS}" -- "${VERBOSE_FLAG}" |& tee "${CMAKE_BUILD_PATH}"/ninja.log
 EXIT_CODE=${PIPESTATUS[0]}
 if ((EXIT_CODE != 0)); then
@@ -1520,7 +1555,7 @@ if ((EXIT_CODE != 0)); then
 fi
 
 # CMake install step
-echo -e '\n*** Installing CP2K ***\n'
+echo -e "\n*** Installing CP2K ***\n"
 cmake --install "${CMAKE_BUILD_PATH}" |& tee "${CMAKE_BUILD_PATH}"/install.log
 EXIT_CODE=${PIPESTATUS[0]}
 if ((EXIT_CODE != 0)); then
@@ -1844,4 +1879,101 @@ if [[ "${VERSION}" == "psmp" ]]; then
     echo "    ${LAUNCH_SCRIPT} run_benchmarks"
     echo ""
   fi
+fi
+
+# Build CP2K/GROMACS if requested
+if [[ -n "${GROMACS_VERSION}" ]]; then
+
+  # Download GROMACS
+  GROMACS_ROOT="${CMAKE_BUILD_PATH}"/gromacs
+  [[ -d "${GROMACS_ROOT}" ]] && rm -rf "${GROMACS_ROOT}"
+  echo -e "\n*** Downloading GROMACS ${GROMACS_VERSION} ***\n"
+  git clone -c advice.detachedHead=false --depth=1 --quiet --single-branch -b "${GROMACS_VERSION}" \
+    https://gitlab.com/gromacs/gromacs.git "${GROMACS_ROOT}"
+  cd "${GROMACS_ROOT}" || ${EXIT_CMD} 1
+  GROMACS_REVISION="$(git rev-parse --short HEAD)"
+
+  # CMake configuration step for GROMACS
+  GROMACS_BUILD_PATH="${GROMACS_ROOT}"/build
+  mkdir -p "${GROMACS_BUILD_PATH}"
+  echo -e "\n*** Performing CMake configuration for GROMACS ${GROMACS_VERSION} ***\n"
+  cmake -S "${GROMACS_ROOT}" -B "${GROMACS_BUILD_PATH}" \
+    -DBUILD_SHARED_LIBS="OFF" \
+    -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
+    -DCMAKE_INSTALL_LIBDIR="lib" \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_DIR="${INSTALL_PREFIX}"/lib \
+    -DGMX_BUILD_OWN_FFTW="ON" \
+    -DGMX_CP2K="ON" \
+    -DGMX_DOUBLE="OFF" \
+    -DGMX_INSTALL_NBLIB_API="OFF" \
+    -DGMX_MPI="${USE_MPI}" \
+    -DGMXAPI="OFF" \
+    -Werror=dev \
+    &> "${GROMACS_BUILD_PATH}/cmake.log"
+  EXIT_CODE=$?
+  if ((EXIT_CODE != 0)); then
+    echo "ERROR: The CMake configuration step for GROMACS failed with the error code ${EXIT_CODE}"
+    [[ "${IN_CONTAINER}" == "yes" ]] && mkdir -p /workspace/artifacts/ && cp "${GROMACS_BUILD_PATH}"/*.log /workspace/artifacts/
+    tail -n 200 "${GROMACS_BUILD_PATH}"/cmake.log
+    echo -e "\nStatus: FAILED\n"
+    ${EXIT_CMD} "${EXIT_CODE}"
+  fi
+
+  # CMake build step for GROMACS
+  echo -e "\n*** Compiling GROMACS ***\n"
+  cmake --build "${GROMACS_BUILD_PATH}" --parallel "${NUM_PROCS}" --target all qmmm_applied_forces-test &> "${GROMACS_BUILD_PATH}"/make.log
+  EXIT_CODE=${PIPESTATUS[0]}
+  if ((EXIT_CODE != 0)); then
+    echo "ERROR: The CMake build step for GROMACS failed with the error code ${EXIT_CODE}"
+    [[ "${IN_CONTAINER}" == "yes" ]] && mkdir -p /workspace/artifacts/ && cp "${GROMACS_BUILD_PATH}"/*.log /workspace/artifacts/
+    tail -n 200 "${GROMACS_BUILD_PATH}"/make.log
+    ${EXIT_CMD} "${EXIT_CODE}"
+  fi
+
+  # CMake install step for GROMACS
+  echo -e "\n*** Installing GROMACS ***\n"
+  cmake --install "${GROMACS_BUILD_PATH}" &> "${GROMACS_BUILD_PATH}"/install.log &&
+    cp "${GROMACS_BUILD_PATH}"/bin/qmmm_applied_forces-test "${INSTALL_PREFIX}"/bin
+  EXIT_CODE=${PIPESTATUS[0]}
+  if ((EXIT_CODE != 0)); then
+    [[ "${IN_CONTAINER}" == "yes" ]] && mkdir -p /workspace/artifacts/ && cp "${GROMACS_BUILD_PATH}"/*.log /workspace/artifacts/
+    echo -e "\nERROR: The CMake installation step for GROMACS failed with the error code ${EXIT_CODE}"
+    tail -n 100 "${GROMACS_BUILD_PATH}"/install.log
+    ${EXIT_CMD} "${EXIT_CODE}"
+  fi
+
+  # Suppress GROMACS quote and reminder messages
+  export GMX_NO_QUOTES=1
+
+  # Test GROMACS/CP2K installation
+  echo ""
+  GROMACS_BINARY="gmx"
+  [[ ${USE_MPI} == "ON" ]] && GROMACS_BINARY+="_mpi"
+  if [[ "${TEST_GROMACS}" == "yes" ]]; then
+    if ${LAUNCH_SCRIPT} ${GROMACS_BINARY} --version; then
+      echo -e "\n*** Running GROMACS/CP2K QM/MM unit test ***\n"
+      if ${LAUNCH_SCRIPT} qmmm_applied_forces-test; then
+        echo -e "\nSummary: GROMACS commit ${GROMACS_REVISION} works fine"
+        echo -e "Status: OK\n"
+      else
+        echo -e "\nSummary: Something is wrong with GROMACS commit ${GROMACS_REVISION}"
+        echo -e "Status: FAILED\n"
+        ${EXIT_CMD} 0
+      fi
+    else
+      echo -e "\nSummary: Something is wrong with GROMACS commit ${GROMACS_REVISION}"
+      echo -e "Status: FAILED\n"
+      ${EXIT_CMD} 0
+    fi
+  fi
+  if [[ ${USE_MPI} == "ON" ]]; then
+    echo "*** An MPI/OpenMP parallel GROMACS/CP2K run using 2 OpenMP threads for each of the 4 MPI ranks can be launched with"
+    echo "    export OMP_NUM_THREADS=2; ${LAUNCH_SCRIPT} mpiexec -n 4 ${GROMACS_BINARY}"
+  else
+    echo "*** An OpenMP parallel GROMACS/CP2K run using 4 OpenMP threads can be launched with"
+    echo "    export OMP_NUM_THREADS=4; ${LAUNCH_SCRIPT} ${GROMACS_BINARY}"
+  fi
+  echo ""
+
 fi

@@ -217,7 +217,9 @@ CONTAINS
             IF (topology%charge_occup) atom_info%atm_charge(natom) = atom_info%occup(natom)
             IF (topology%charge_beta) atom_info%atm_charge(natom) = atom_info%beta(natom)
             IF (topology%charge_extended) THEN
-               READ (UNIT=line(81:), FMT=*) atom_info%atm_charge(natom)
+               IF (LEN_TRIM(line) > 80) THEN
+                  READ (UNIT=line(81:), FMT=*) atom_info%atm_charge(natom)
+               END IF
             END IF
 
             IF (atom_info%id_element(natom) == id0) THEN
