@@ -4,6 +4,7 @@
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
 QMMM/QS/regtest-mpi                                        parallel mpiranks>2
+Fist/regtest-symmetrix                                      symmetrix
 QS/regtest-libgint                                          libGint libint offload_cuda !ifx
 QS/regtest-libint-backend                                   libint !ifx
 MIMIC/regtest-qmmm                                          mimic mpiranks==4

@@ -290,6 +290,11 @@ Specific options of --with-PKG:
                           Default = install
   --with-ace              Enable interface to ML-pace library.
                           Default = no
+  --with-symmetrix        Enable interface to the symmetrix library, a torch-free
+                          C++ evaluator for MACE potentials. The install option
+                          clones a pinned commit and builds the host (CPU)
+                          libsymmetrix; a checkout path links a prebuilt one.
+                          Default = no
   --with-deepmd           Enable interface to DeePMD-kit library.
                           This does not include other DeepModeling utilities
                           like DP-GEN or dpdata.
@@ -418,7 +423,7 @@ mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw eigen libint libxc gauxc libxsmm libxs libxstream cosma scalapack
           elpa dbcsr cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
-          libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol fmt trexio
+          libvori libtorch deepmd ace symmetrix dftd4 tblite pugixml libsmeagol fmt trexio
           libfci greenx gmp mcl libgint"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
@@ -825,6 +830,9 @@ Otherwise use option no."
       ;;
     --with-ace*)
       with_ace=$(read_with "${1}")
+      ;;
+    --with-symmetrix*)
+      with_symmetrix=$(read_with "${1}")
       ;;
     --with-plumed*)
       with_plumed=$(read_with "${1}")

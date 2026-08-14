@@ -1,0 +1,55 @@
+# Tests of the symmetrix MACE backend, all using the committed toy model
+# data/Symmetrix/toy_mace-1-8.json (untrained, seeded weights; see README.md for
+# the generation recipe, which make_toy_model.py reproduces). The directory is
+# gated on the `symmetrix` cp2kflag, so it is skipped unless CP2K was built with
+# -DCP2K_USE_SYMMETRIX=ON. The references are deterministic: symmetrix is
+# torch-free, so no framework version enters the result. Every case below runs
+# in under 0.2 s on one rank. The backend is selected with &MACE BACKEND
+# SYMMETRIX; the default BACKEND TORCH is covered by Fist/regtest-mace.
+#
+# Two waters, cubic cell, isolated dimer. The baseline case: M011 checks the
+# energy, M031 (stress trace) the virial path.
+"sym_h2o.inp"                           = [{matcher="M011", tol=1.0E-8, ref=-5.585977103627951},
+                                           {matcher="M031", tol=1.0E-7, ref=2.66870676512E+00}]
+# Three waters in a non-cubic cell with the stress tensor on. This is the
+# atom-decomposition guard: under decomposition each rank holds a lopsided edge
+# subset, so its partial virial is not symmetric and only the cross-rank sum is
+# correct. A bug there leaves the energy right and shows up only in the stress.
+# Verified identical at 1, 2, 3 and 4 MPI ranks (2 is the do_regtest default,
+# 3 gives an uneven 9-atom split).
+"sym_h2o_virial.inp"                    = [{matcher="M011", tol=1.0E-8, ref=-8.378973666229854},
+                                           {matcher="M031", tol=1.0E-7, ref=3.606260073E+01}]
+# Analytic-vs-finite-difference check of BOTH the forces and the stress tensor.
+# The driver exists to produce forces, and neither M011 nor M031 can see a force
+# error: M011 is a single scalar and M031 only the isotropic part, so a wrong
+# sign or a mis-scattered atom in the owned-first permutation is invisible to
+# them. The references are exactly zero (the sum of |analytic - numerical|), so
+# this test is self-describing and never needs regenerating when the model or
+# the geometry changes. Tolerances allow for the O(DX^2) finite-difference
+# error at DX = 1e-4.
+"sym_h2o_debug.inp"                     = [{matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0},
+                                           {matcher="DEBUG_stress_sum", tol=1.0E-7, ref=0.0}]
+# Triclinic cell. The edge vectors (MATMUL of the cell matrix with the integer
+# shift) and the widest-axis choice made by the spatial decomposition are both
+# specific to non-orthorhombic cells and are exercised nowhere else here; the
+# skew also makes the axis tie-break non-degenerate for the first time.
+"sym_h2o_triclinic.inp"                 = [{matcher="M011", tol=1.0E-8, ref=-8.378911863646078},
+                                           {matcher="M031", tol=1.0E-6, ref=3.56978650353E+01}]
+# Mixed force field: the model covers H and O, while Ar is handled by plain
+# Lennard-Jones. Exercises the path where only a subset of the kinds is handed
+# to the MLP - uncovered kinds must be dropped from the edge list without
+# disturbing the classical terms, and the two contributions must land in the
+# same force array. The failure mode is a silently wrong energy, so both the
+# energy and the stress are locked.
+"sym_h2o_lj.inp"                        = [{matcher="M011", tol=1.0E-8, ref=-5.554908214400985},
+                                           {matcher="M031", tol=1.0E-5, ref=7.21984452132E+03}]
+# Five steps of NVE. The single-point cases above each load the model and build
+# the neighbour data exactly once; only a real MD re-enters the driver, so this
+# is what covers the cached-model path and the re-allocation guard on a second
+# and later force evaluation. M002 is the final-step potential energy and M011
+# the final force evaluation. A conserved-quantity check would be the natural
+# third matcher, but the matcher for it is introduced by a separate pending PR
+# and is deliberately not duplicated here.
+"sym_h2o_md.inp"                        = [{matcher="M002", tol=1.0E-8, ref=-0.558600334659E+01},
+                                           {matcher="M011", tol=1.0E-8, ref=-5.586003346586374}]
+#EOF

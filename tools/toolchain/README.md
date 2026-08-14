@@ -118,6 +118,7 @@ proprietary software packages, like e.g. MKL, these have to be installed separat
 | sirius    | [BSD 2-Clause](https://github.com/electronic-structure/SIRIUS/blob/master/LICENSE) | Yes                                                                              |
 | spfft     | [BSD 3-Clause](https://github.com/eth-cscs/SpFFT/blob/master/LICENSE)              | Yes                                                                              |
 | spglib    | [BSD 3-Clause](https://github.com/atztogo/spglib/blob/master/COPYING)              | Yes                                                                              |
+| symmetrix | [MIT](https://github.com/wcwitt/symmetrix/blob/main/LICENSE)                       | Yes                                                                              |
 | valgrind  | [GPL](https://sourceware.org/git/?p=valgrind.git;a=blob_plain;f=COPYING;hb=HEAD)   | Yes                                                                              |
 
 ## For Developers

@@ -20,8 +20,7 @@ MODULE manybody_e3nn
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
-                                              neighbor_kind_pairs_type
+   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type
    USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                               fist_nonbond_env_set,&
                                               fist_nonbond_env_type,&
@@ -30,6 +29,8 @@ MODULE manybody_e3nn
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
+   USE manybody_mlp_neighbor,           ONLY: mlp_allgather_edges,&
+                                              mlp_collect_edges
    USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: mace_type,&
                                               nequip_pot_type,&
@@ -64,8 +65,11 @@ MODULE manybody_e3nn
       TYPE(mp_para_env_type), POINTER       :: para_env => NULL()
 
       LOGICAL, ALLOCATABLE                  :: use_atom(:)
-      INTEGER(kind=int_8), ALLOCATABLE      :: local_edges(:, :)
-      REAL(kind=dp), ALLOCATABLE            :: local_shifts(:, :)
+      ! Per-rank edges stay in default INTEGER, the form the shared collector and
+      ! gather in manybody_mlp_neighbor work in; the torch kinds appear on the
+      ! final_* arrays below, which are what the tensors are built from.
+      INTEGER, ALLOCATABLE                  :: local_edges(:, :)
+      INTEGER, ALLOCATABLE                  :: local_shifts(:, :)
       INTEGER(kind=int_8), ALLOCATABLE      :: final_edges(:, :)
       REAL(kind=dp), ALLOCATABLE            :: final_shifts(:, :)
       INTEGER, DIMENSION(:), ALLOCATABLE    :: kind_mapper
@@ -236,90 +240,38 @@ CONTAINS
       TYPE(pair_potential_pp_type), POINTER              :: potparm
       TYPE(nequip_work_type), INTENT(INOUT)              :: nequip_work
 
-      INTEGER                                            :: atom_a, atom_b, i, idx_i, idx_j, iend, &
-                                                            igrp, ikind, ilist, ipair, istart, &
-                                                            jkind, n_max_edges, nedges, npairs
-      INTEGER, DIMENSION(:, :), POINTER                  :: list
-      LOGICAL                                            :: do_nequip_allegro
-      REAL(kind=dp)                                      :: cutsq_ij, drij, rij(3)
-      REAL(kind=dp), DIMENSION(3)                        :: cell_v, cvi
-      TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
+      INTEGER                                            :: i, idx_i, idx_j, ikind, jkind, nedges, &
+                                                            nkinds
+      LOGICAL, ALLOCATABLE                               :: kind_included(:)
+      REAL(kind=dp), ALLOCATABLE                         :: cutsq(:, :)
       TYPE(pair_potential_single_type), POINTER          :: pot
 
-      n_max_edges = 0
-      DO ilist = 1, nonbonded%nlists
-         neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
-         n_max_edges = n_max_edges + neighbor_kind_pair%npairs
-      END DO
-
-      ALLOCATE (nequip_work%local_edges(2, n_max_edges), nequip_work%local_shifts(3, n_max_edges))
-      nedges = 0
-
-      DO ilist = 1, nonbonded%nlists
-         neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
-         npairs = neighbor_kind_pair%npairs
-         IF (npairs == 0) CYCLE
-
-         Kind_Loop: DO igrp = 1, neighbor_kind_pair%ngrp_kind
-            istart = neighbor_kind_pair%grp_kind_start(igrp)
-            iend = neighbor_kind_pair%grp_kind_end(igrp)
-            ikind = neighbor_kind_pair%ij_kind(1, igrp)
-            jkind = neighbor_kind_pair%ij_kind(2, igrp)
-
-            idx_i = nequip_work%kind_mapper(ikind)
+      ! Resolve the per-kind-pair cutoff from this model's cutoff matrix, then let
+      ! the shared collector walk the neighbour list.
+      nkinds = SIZE(nequip_work%kind_mapper)
+      ALLOCATE (kind_included(nkinds), cutsq(nkinds, nkinds))
+      kind_included(:) = nequip_work%kind_mapper(:) >= 1
+      cutsq(:, :) = 0.0_dp
+      DO ikind = 1, nkinds
+         idx_i = nequip_work%kind_mapper(ikind)
+         IF (idx_i < 1) CYCLE
+         DO jkind = 1, nkinds
             idx_j = nequip_work%kind_mapper(jkind)
-
-            IF (idx_i < 1 .OR. idx_j < 1) THEN
-               ! pair involving atom not defined in the NequIP model, skipping..
-               CYCLE Kind_Loop
-            END IF
+            IF (idx_j < 1) CYCLE
             pot => potparm%pot(ikind, jkind)%pot
-            do_nequip_allegro = .FALSE.
+            IF (.NOT. ASSOCIATED(pot)) CYCLE
             DO i = 1, SIZE(pot%type)
                IF (pot%type(i) == nequip_work%target_pot_type) THEN
-                  do_nequip_allegro = .TRUE.
+                  cutsq(ikind, jkind) = pot%set(i)%nequip%cutoff_matrix(idx_i, idx_j)
                   EXIT
                END IF
             END DO
-
-            IF (.NOT. do_nequip_allegro) CYCLE Kind_Loop
-
-            cutsq_ij = pot%set(i)%nequip%cutoff_matrix(idx_i, idx_j)
-            list => neighbor_kind_pair%list
-            cvi = neighbor_kind_pair%cell_vector
-            pot => potparm%pot(ikind, jkind)%pot
-            cell_v = MATMUL(nequip_work%cell%hmat, cvi)
-
-            DO ipair = istart, iend
-               atom_a = neighbor_kind_pair%list(1, ipair)
-               atom_b = neighbor_kind_pair%list(2, ipair)
-
-               rij(:) = nequip_work%r_pbc(atom_b)%r(:) - nequip_work%r_pbc(atom_a)%r(:) + cell_v
-               drij = DOT_PRODUCT(rij, rij)
-
-               IF (drij <= cutsq_ij) THEN
-                  nedges = nedges + 1
-                  nequip_work%local_edges(:, nedges) = [atom_a, atom_b]
-                  nequip_work%local_shifts(:, nedges) = cvi
-               END IF
-            END DO
-         END DO Kind_Loop
+         END DO
       END DO
 
-      IF (nedges < n_max_edges) THEN
-         BLOCK
-            INTEGER(kind=int_8), ALLOCATABLE :: tmp_idx(:, :)
-            REAL(kind=dp), ALLOCATABLE :: tmp_sft(:, :)
-
-            ALLOCATE (tmp_idx(2, nedges), tmp_sft(3, nedges))
-
-            tmp_idx(:, :) = nequip_work%local_edges(:, 1:nedges)
-            tmp_sft(:, :) = nequip_work%local_shifts(:, 1:nedges)
-
-            CALL MOVE_ALLOC(tmp_idx, nequip_work%local_edges)
-            CALL MOVE_ALLOC(tmp_sft, nequip_work%local_shifts)
-         END BLOCK
-      END IF
+      CALL mlp_collect_edges(nonbonded, potparm, nequip_work%cell, nequip_work%r_pbc, &
+                             nequip_work%target_pot_type, kind_included, cutsq, &
+                             nequip_work%local_edges, nequip_work%local_shifts, nedges)
 
    END SUBROUTINE build_local_edges_shifts
 
@@ -503,38 +455,16 @@ CONTAINS
    SUBROUTINE prepare_edges_shifts_nequip(nequip_work)
       TYPE(nequip_work_type), INTENT(INOUT)              :: nequip_work
 
-      INTEGER                                            :: ipair, nedges, nedges_tot
-      INTEGER(kind=int_8), ALLOCATABLE                   :: temp_edge_index(:, :)
-      INTEGER, ALLOCATABLE                               :: displ(:), displ_cell(:), edge_count(:), &
-                                                            edge_count_cell(:)
+      INTEGER, ALLOCATABLE                               :: all_edges(:, :), all_shifts(:, :)
 
-      nedges = SIZE(nequip_work%local_edges, 2)
+      CALL mlp_allgather_edges(nequip_work%para_env, nequip_work%local_edges, &
+                               nequip_work%local_shifts, all_edges, all_shifts)
 
-      ALLOCATE (edge_count(nequip_work%para_env%num_pe), edge_count_cell(nequip_work%para_env%num_pe))
-      ALLOCATE (displ_cell(nequip_work%para_env%num_pe), displ(nequip_work%para_env%num_pe))
-
-      CALL nequip_work%para_env%allgather(nedges, edge_count)
-      nedges_tot = SUM(edge_count)
-
-      ALLOCATE (temp_edge_index(2, nedges_tot))
-      ALLOCATE (nequip_work%final_shifts(3, nedges_tot))
-
-      edge_count_cell(:) = edge_count*3
-      edge_count = edge_count*2
-      displ(1) = 0
-      displ_cell(1) = 0
-      DO ipair = 2, nequip_work%para_env%num_pe
-         displ(ipair) = displ(ipair - 1) + edge_count(ipair - 1)
-         displ_cell(ipair) = displ_cell(ipair - 1) + edge_count_cell(ipair - 1)
-      END DO
-
-      CALL nequip_work%para_env%allgatherv(nequip_work%local_shifts, nequip_work%final_shifts, edge_count_cell, displ_cell)
-      CALL nequip_work%para_env%allgatherv(nequip_work%local_edges, temp_edge_index, edge_count, displ)
-
-      ALLOCATE (nequip_work%final_edges(nedges_tot, 2))
-      nequip_work%final_edges(:, :) = TRANSPOSE(temp_edge_index)
-
-      DEALLOCATE (edge_count, edge_count_cell, displ, displ_cell, temp_edge_index)
+      ! Widen to the kinds the torch tensors are built from.
+      ALLOCATE (nequip_work%final_shifts(3, SIZE(all_shifts, 2)))
+      nequip_work%final_shifts(:, :) = REAL(all_shifts, dp)
+      ALLOCATE (nequip_work%final_edges(SIZE(all_edges, 2), 2))
+      nequip_work%final_edges(:, :) = TRANSPOSE(INT(all_edges, int_8))
 
    END SUBROUTINE prepare_edges_shifts_nequip
 
@@ -548,9 +478,10 @@ CONTAINS
    SUBROUTINE prepare_edges_shifts_allegro(nequip_work)
       TYPE(nequip_work_type), INTENT(INOUT)              :: nequip_work
 
-      ALLOCATE (nequip_work%final_shifts, SOURCE=nequip_work%local_shifts)
+      ALLOCATE (nequip_work%final_shifts(3, SIZE(nequip_work%local_shifts, 2)))
+      nequip_work%final_shifts(:, :) = REAL(nequip_work%local_shifts, dp)
       ALLOCATE (nequip_work%final_edges(SIZE(nequip_work%local_edges, 2), 2))
-      nequip_work%final_edges(:, :) = TRANSPOSE(nequip_work%local_edges)
+      nequip_work%final_edges(:, :) = TRANSPOSE(INT(nequip_work%local_edges, int_8))
    END SUBROUTINE prepare_edges_shifts_allegro
 
 ! **************************************************************************************************
@@ -594,11 +525,11 @@ CONTAINS
 
       ! remap local_edges to use 0-based dense indices for torch
       DO i = 1, SIZE(nequip_work%local_edges, 2)
-         atom_a = INT(nequip_work%local_edges(1, i))
-         atom_b = INT(nequip_work%local_edges(2, i))
+         atom_a = nequip_work%local_edges(1, i)
+         atom_b = nequip_work%local_edges(2, i)
 
-         nequip_work%local_edges(1, i) = INT(global_to_packed(atom_a) - 1, kind=int_8)
-         nequip_work%local_edges(2, i) = INT(global_to_packed(atom_b) - 1, kind=int_8)
+         nequip_work%local_edges(1, i) = global_to_packed(atom_a) - 1
+         nequip_work%local_edges(2, i) = global_to_packed(atom_b) - 1
       END DO
 
       DEALLOCATE (global_to_packed)

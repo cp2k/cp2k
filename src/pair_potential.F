@@ -32,8 +32,8 @@ MODULE pair_potential
         ace_type, allegro_type, b4_type, bm_type, compare_pot, deepmd_type, ea_type, ft_type, &
         ftd_type, gal21_type, gal_type, gp_type, gw_type, ip_type, list_pot, lj_charmm_type, &
         lj_type, mace_type, multi_type, nequip_type, nn_type, pair_potential_pp_type, &
-        pair_potential_single_type, potential_single_allocation, siepmann_type, tab_type, &
-        tersoff_type, wl_type
+        pair_potential_single_type, potential_single_allocation, siepmann_type, symmetrix_type, &
+        tab_type, tersoff_type, wl_type
    USE pair_potential_util,             ONLY: ener_pot,&
                                               ener_zbl,&
                                               zbl_matching_polinomial
@@ -188,8 +188,8 @@ CONTAINS
             DO k = 1, SIZE(pot%type)
                SELECT CASE (pot%type(k))
                CASE (lj_type, lj_charmm_type, wl_type, gw_type, ft_type, ftd_type, ip_type, &
-                     b4_type, bm_type, gp_type, ea_type, allegro_type, nequip_type, mace_type, tab_type, &
-                     deepmd_type, ace_type)
+                     b4_type, bm_type, gp_type, ea_type, allegro_type, nequip_type, mace_type, &
+                     symmetrix_type, tab_type, deepmd_type, ace_type)
                   pot%no_pp = .FALSE.
                CASE (tersoff_type)
                   pot%no_mb = .FALSE.
@@ -207,7 +207,7 @@ CONTAINS
                END SELECT
                ! Special case for EAM
                SELECT CASE (pot%type(k))
-               CASE (ea_type, nequip_type, allegro_type, mace_type, deepmd_type, ace_type)
+               CASE (ea_type, nequip_type, symmetrix_type, allegro_type, mace_type, deepmd_type, ace_type)
                   pot%no_mb = .FALSE.
                END SELECT
             END DO
@@ -608,6 +608,8 @@ CONTAINS
             nvar = 4 + nvar
          CASE (nequip_type, mace_type)
             nvar = 1 + nvar
+         CASE (symmetrix_type)
+            nvar = 1 + nvar
          CASE (allegro_type)
             nvar = 1 + nvar
          CASE (ace_type)
@@ -692,6 +694,9 @@ CONTAINS
                      CASE (nequip_type, allegro_type, mace_type)
                         pot_par(nk, 1) = str2id( &
                                          TRIM(potparm%pot(i, j)%pot%set(1)%nequip%pot_file_name))
+                     CASE (symmetrix_type)
+                        pot_par(nk, 1) = str2id( &
+                                         TRIM(potparm%pot(i, j)%pot%set(1)%symmetrix%pot_file_name))
                      CASE (ace_type)
                         pot_par(nk, 1) = str2id( &
                                          TRIM(potparm%pot(i, j)%pot%set(1)%ace%ace_file_name))
