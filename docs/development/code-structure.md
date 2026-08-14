@@ -24,6 +24,7 @@ Source files should have prefixes corresponding to their main functionalities. F
 - `ai_*` for integrals of the primitive cartesian Gaussians
 - `atomic_*` for datatypes related to information on atoms in a simulation
 - `atom_*` for atomic calculations
+- `cp_fm_*`/`cp_cfm_*` for operations on dense real/complex-valued matrices
 
 These prefixes are not exclusive, nor are they always logical. There are exceptions in code naming
 conventions, for example:
@@ -73,3 +74,22 @@ calculations
   - Module: `qs_rho_types`
   - File: `qs_rho_types.F`
   - Container type: `qs_rho_type`
+- Kohn-Sham-matrices, potentials and work arrays.
+  - Module: `qs_ks_types`
+  - File: qs_ks_types.F\`
+  - Container type: `qs_ks_env_type`
+- All components related to Quickstep-DFT-calculations.
+  - Module: `qs_env_types`
+  - File: `qs_env_type.F`
+  - Container-type: `qs_env_type`
+- CP2K's wrapper around `MPI_Comm`. They are derived from `mp_comm_type`. MPI-routines are bound to
+  this type. MPI-routines requiring a Cartesian topology are bound to `mp_cart_type`.
+  - Module `message_passing`
+  - File: `message_passing.F` (and `message_passing.fypp` for the definition of most communication
+    routines)
+  - Container-types:
+    - `mp_comm_type` (base communicator)
+    - `mp_para_env_type` (communicator with reference counting, derived from `mp_comm_type`)
+    - `mp_cart_type` (communicator with Cartesian topology, derived from `mp_comm_type`)
+    - `mp_para_cart_type` (communicator with Cartesian topology and reference counting, derived from
+      `mp_cart_type`)
