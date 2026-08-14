@@ -98,9 +98,7 @@ MODULE qs_tddfpt2_fhxc_forces
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
-   USE qs_fgxc,                         ONLY: qs_fgxc_analytic,&
-                                              qs_fgxc_create,&
-                                              qs_fgxc_gdiff,&
+   USE qs_fgxc,                         ONLY: qs_fgxc_create,&
                                               qs_fgxc_release
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -592,29 +590,8 @@ CONTAINS
          END IF
          ! Calculate the exchange-correlation kernel derivative contribution, notice that for open-shell
          ! rhox_r contains a factor of 2!
-         IF (analytic_2nd_deriv) THEN
-            IF (analytic_3rd_deriv) THEN
-               IF (.NOT. do_sf) THEN
-                  CPABORT("Analytic 3rd EXC derivatives not available")
-               ELSE !TODO
-                  CALL get_qs_env(qs_env, xcint_weights=weights)
-                  CALL qs_fgxc_analytic(rho, rhox, xc_section, weights, auxbas_pw_pool, &
-                                        fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip=do_sf)
-               END IF
-            ELSE
-               CALL qs_fgxc_gdiff(qs_env, rho, rhox, xc_section, order, eps_delta, is_rks_triplets, &
-                                  weights, fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip=do_sf)
-            END IF
-         ELSE
-            IF (analytic_3rd_deriv) THEN
-               CALL cp_warn(__LOCATION__, "XC Analytic 3rd derivatives cannot be combined with "// &
-                            "numeric 2nd derivatives.")
-               CPABORT("XC derivative options")
-            ELSE
-               CALL qs_fgxc_create(qs_env, rho, rhox, xc_section, order, is_rks_triplets, &
-                                   fxc_rho, fxc_tau, gxc_rho, gxc_tau)
-            END IF
-         END IF
+         CALL qs_fgxc_create(qs_env, rho, rhox, xc_section, is_rks_triplets, do_sf, &
+                             fxc_rho, fxc_tau, gxc_rho, gxc_tau)
 
          IF (nspins == 2) THEN
             DO ispin = 1, nspins
@@ -813,21 +790,8 @@ CONTAINS
                                rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
             END IF
 
-            IF (analytic_2nd_deriv .AND. analytic_3rd_deriv) THEN
-               CPABORT("Analytic 3rd EXC derivatives not available")
-            ELSE IF (analytic_2nd_deriv) THEN
-               CALL qs_fgxc_gdiff(qs_env, rho_aux_fit, rhox_aux, xc_section, order, eps_delta, &
-                                  is_rks_triplets, weights, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
-            ELSE
-               IF (analytic_3rd_deriv) THEN
-                  CALL cp_warn(__LOCATION__, "XC Analytic 3rd derivatives cannot be combined with "// &
-                               "numeric 2nd derivatives.")
-                  CPABORT("XC derivative options")
-               ELSE
-                  CALL qs_fgxc_create(qs_env, rho_aux_fit, rhox_aux, xc_section, &
-                                      order, is_rks_triplets, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
-               END IF
-            END IF
+            CALL qs_fgxc_create(qs_env, rho_aux_fit, rhox_aux, xc_section, is_rks_triplets, do_sf, &
+                                fxc_rho, fxc_tau, gxc_rho, gxc_tau)
 
             ! grid weight contribution to forces ADMM XC correction term
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)

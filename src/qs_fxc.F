@@ -75,7 +75,7 @@ MODULE qs_fxc
 
    ! *** Public subroutines ***
    PUBLIC :: qs_fxc_create
-   PUBLIC :: qs_fxc_calculate, qs_fxc_fdiff
+   PUBLIC :: qs_fxc_fdiff
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fxc'
 

@@ -29,26 +29,30 @@ MODULE qs_fgxc
 
    USE cp_control_types,                ONLY: dft_control_type
    USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_lval,&
                                               section_get_rval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
+   USE pw_grids,                        ONLY: pw_grid_compare
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_scale,&
+                                              pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_fxc,                          ONLY: qs_fxc_calculate,&
+   USE qs_fxc,                          ONLY: qs_fxc_create,&
                                               qs_fxc_fdiff
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_rho_methods,                  ONLY: qs_rho_copy,&
                                               qs_rho_scale_and_add,&
-                                              qs_rho_scale_and_add_b
+                                              qs_rho_scale_and_add_b,&
+                                              qs_rho_transfer
    USE qs_rho_types,                    ONLY: qs_rho_create,&
                                               qs_rho_get,&
                                               qs_rho_release,&
@@ -72,13 +76,234 @@ MODULE qs_fgxc
    PRIVATE
 
    ! *** Public subroutines ***
-   PUBLIC :: qs_fgxc_gdiff, qs_fgxc_analytic, qs_fgxc_create, qs_fgxc_release
+   PUBLIC :: qs_fgxc_create, qs_fgxc_release
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fgxc'
 
 ! **************************************************************************************************
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param rho0_struct ...
+!> \param rho1_struct ...
+!> \param xc_section ...
+!> \param is_triplet ...
+!> \param spinflip ...
+!> \param fxc_rho ...
+!> \param fxc_tau ...
+!> \param gxc_rho ...
+!> \param gxc_tau ...
+! **************************************************************************************************
+   SUBROUTINE qs_fgxc_create(qs_env, rho0_struct, rho1_struct, xc_section, is_triplet, spinflip, &
+                             fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_rho_type), POINTER                         :: rho0_struct, rho1_struct
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      LOGICAL, INTENT(IN)                                :: is_triplet, spinflip
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fgxc_create'
+
+      INTEGER                                            :: handle, ispin, nspins, nsteps, order
+      LOGICAL                                            :: analytic_2nd_deriv, analytic_3rd_deriv, &
+                                                            has_rho, has_tau, uf_grid
+      REAL(KIND=dp)                                      :: eps_delta, factor
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho_nlcc_g
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, uf_pw_pool, xc_pw_pool
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho_uf, fxc_tau_uf, gxc_rho_uf, &
+                                                            gxc_tau_uf, rho_r
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, weights, weights_uf
+      TYPE(qs_rho_type), POINTER                         :: rho0_uf, rho1_uf
+
+      CALL timeset(routineN, handle)
+
+      ! Only rho0 and rho1 should be associated
+      CPASSERT(.NOT. ASSOCIATED(fxc_rho))
+      CPASSERT(.NOT. ASSOCIATED(fxc_tau))
+      CPASSERT(.NOT. ASSOCIATED(gxc_rho))
+      CPASSERT(.NOT. ASSOCIATED(gxc_tau))
+      CPASSERT(ASSOCIATED(rho0_struct))
+      CPASSERT(ASSOCIATED(rho1_struct))
+
+      nsteps = section_get_ival(xc_section, "NSTEPS")
+      order = 2*nsteps
+      eps_delta = section_get_rval(xc_section, "STEP_SIZE")
+      analytic_2nd_deriv = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
+      analytic_3rd_deriv = section_get_lval(xc_section, "3RD_DERIV_ANALYTICAL")
+      IF (analytic_3rd_deriv .AND. .NOT. analytic_2nd_deriv) THEN
+         CALL cp_warn(__LOCATION__, "XC Analytic 3rd derivatives cannot be combined with "// &
+                      "numeric 2nd derivatives.")
+         CPABORT("XC derivative options")
+      END IF
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      nspins = dft_control%nspins
+
+      CALL get_qs_env(qs_env, pw_env=pw_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, xc_pw_pool=xc_pw_pool)
+      uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid, xc_pw_pool%pw_grid)
+
+      NULLIFY (fxc_rho_uf, fxc_tau_uf, gxc_rho_uf, gxc_tau_uf)
+      IF (analytic_2nd_deriv .AND. analytic_3rd_deriv) THEN
+
+         ! NLCC
+         NULLIFY (rho_nlcc, rho_nlcc_g)
+         CALL get_qs_env(qs_env, rho_nlcc=rho_nlcc, rho_nlcc_g=rho_nlcc_g)
+         IF (ASSOCIATED(rho_nlcc)) THEN
+            NULLIFY (rho_r, rho_g)
+            CALL qs_rho_get(rho0_struct, rho_r=rho_r, rho_g=rho_g)
+            factor = 1.0_dp
+            DO ispin = 1, nspins
+               CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
+               CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
+            END DO
+         END IF
+
+         ! Integration weights
+         NULLIFY (weights)
+         CALL get_qs_env(qs_env, xcint_weights=weights)
+
+         NULLIFY (weights_uf)
+         IF (uf_grid) THEN
+            IF (ASSOCIATED(weights)) THEN
+               ALLOCATE (weights_uf)
+               CALL xc_pw_pool%create_pw(weights_uf)
+               BLOCK
+                  TYPE(pw_c1d_gs_type) :: weights_g, weights_g_uf
+                  CALL auxbas_pw_pool%create_pw(weights_g)
+                  CALL xc_pw_pool%create_pw(weights_g_uf)
+                  CALL pw_transfer(weights, weights_g)
+                  CALL pw_transfer(weights_g, weights_g_uf)
+                  CALL pw_transfer(weights_g_uf, weights_uf)
+                  CALL xc_pw_pool%give_back_pw(weights_g_uf)
+                  CALL auxbas_pw_pool%give_back_pw(weights_g)
+               END BLOCK
+            END IF
+            !
+            ALLOCATE (rho0_uf, rho1_uf)
+            CALL qs_rho_create(rho0_uf)
+            CALL qs_rho_create(rho1_uf)
+            CALL qs_rho_transfer(rho0_struct, rho0_uf, auxbas_pw_pool, xc_pw_pool)
+            CALL qs_rho_transfer(rho1_struct, rho1_uf, auxbas_pw_pool, xc_pw_pool)
+            uf_pw_pool => xc_pw_pool
+         ELSE
+            weights_uf => weights
+            rho0_uf => rho0_struct
+            rho1_uf => rho1_struct
+            uf_pw_pool => auxbas_pw_pool
+         END IF
+
+         ! only spinflip is activated !?
+         IF (.NOT. spinflip) THEN
+            CPABORT("Analytic 3rd EXC derivatives not available")
+         END IF
+         CALL qs_fgxc_analytic(rho0_uf, rho1_uf, xc_section, uf_pw_pool, weights_uf, &
+                               is_triplet, spinflip, &
+                               fxc_rho_uf, fxc_tau_uf, gxc_rho_uf, gxc_tau_uf)
+
+         ! check for results
+         has_rho = .FALSE.
+         IF (ASSOCIATED(fxc_rho_uf) .AND. ASSOCIATED(gxc_rho_uf)) has_rho = .TRUE.
+         has_tau = .FALSE.
+         IF (ASSOCIATED(fxc_tau_uf) .AND. ASSOCIATED(gxc_tau_uf)) has_tau = .TRUE.
+         ! transfer to standard grid
+         IF (uf_grid) THEN
+            ! rho
+            IF (has_rho) THEN
+               ALLOCATE (fxc_rho(nspins), gxc_rho(nspins))
+               DO ispin = 1, nspins
+                  CALL auxbas_pw_pool%create_pw(fxc_rho(ispin))
+                  CALL auxbas_pw_pool%create_pw(gxc_rho(ispin))
+                  BLOCK
+                     TYPE(pw_c1d_gs_type) :: xc_g, xc_g_uf
+                     CALL auxbas_pw_pool%create_pw(xc_g)
+                     CALL xc_pw_pool%create_pw(xc_g_uf)
+                     CALL pw_transfer(fxc_rho_uf(ispin), xc_g_uf)
+                     CALL pw_transfer(xc_g_uf, xc_g)
+                     CALL pw_transfer(xc_g, fxc_rho(ispin))
+                     CALL pw_transfer(gxc_rho_uf(ispin), xc_g_uf)
+                     CALL pw_transfer(xc_g_uf, xc_g)
+                     CALL pw_transfer(xc_g, gxc_rho(ispin))
+                     CALL xc_pw_pool%give_back_pw(xc_g_uf)
+                     CALL auxbas_pw_pool%give_back_pw(xc_g)
+                  END BLOCK
+                  CALL xc_pw_pool%give_back_pw(fxc_rho_uf(ispin))
+                  CALL xc_pw_pool%give_back_pw(gxc_rho_uf(ispin))
+               END DO
+               DEALLOCATE (fxc_rho_uf, gxc_rho_uf)
+            ELSE
+               NULLIFY (fxc_rho, gxc_rho)
+            END IF
+            ! tau
+            IF (has_tau) THEN
+               ALLOCATE (fxc_tau(nspins), gxc_tau(nspins))
+               DO ispin = 1, nspins
+                  CALL auxbas_pw_pool%create_pw(fxc_tau(ispin))
+                  CALL auxbas_pw_pool%create_pw(gxc_tau(ispin))
+                  BLOCK
+                     TYPE(pw_c1d_gs_type) :: xc_g, xc_g_uf
+                     CALL auxbas_pw_pool%create_pw(xc_g)
+                     CALL xc_pw_pool%create_pw(xc_g_uf)
+                     CALL pw_transfer(fxc_tau_uf(ispin), xc_g_uf)
+                     CALL pw_transfer(xc_g_uf, xc_g)
+                     CALL pw_transfer(xc_g, fxc_tau(ispin))
+                     CALL pw_transfer(gxc_tau_uf(ispin), xc_g_uf)
+                     CALL pw_transfer(xc_g_uf, xc_g)
+                     CALL pw_transfer(xc_g, gxc_tau(ispin))
+                     CALL xc_pw_pool%give_back_pw(xc_g_uf)
+                     CALL auxbas_pw_pool%give_back_pw(xc_g)
+                  END BLOCK
+                  CALL xc_pw_pool%give_back_pw(fxc_tau_uf(ispin))
+                  CALL xc_pw_pool%give_back_pw(gxc_tau_uf(ispin))
+               END DO
+               DEALLOCATE (fxc_tau_uf, gxc_tau_uf)
+            ELSE
+               NULLIFY (fxc_tau, gxc_tau)
+            END IF
+         ELSE
+            fxc_rho => fxc_rho_uf
+            fxc_tau => fxc_tau_uf
+            gxc_rho => gxc_rho_uf
+            gxc_tau => gxc_tau_uf
+         END IF
+
+         ! de-apply NLCC density
+         IF (ASSOCIATED(rho_nlcc)) THEN
+            factor = -1.0_dp
+            DO ispin = 1, nspins
+               CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
+               CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
+            END DO
+         END IF
+
+      ELSE IF (analytic_2nd_deriv .AND. .NOT. analytic_3rd_deriv) THEN
+
+         NULLIFY (weights)
+         CALL get_qs_env(qs_env, xcint_weights=weights)
+         CALL qs_fgxc_gdiff(qs_env, rho0_struct, rho1_struct, xc_section, &
+                            order, eps_delta, is_triplet, spinflip, &
+                            fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+
+      ELSE IF (.NOT. (analytic_2nd_deriv .OR. analytic_3rd_deriv)) THEN
+
+         CALL qs_fgxc_fgdiff(qs_env, rho0_struct, rho1_struct, xc_section, &
+                             order, is_triplet, spinflip, &
+                             fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+
+      ELSE
+         CPABORT("EXC derivative option not available")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_fgxc_create
 
 ! **************************************************************************************************
 !> \brief Calculates the values at the grid points  in real space (r_i), of the second and third
@@ -88,25 +313,26 @@ CONTAINS
 !> \param rho0_struct Ground state density, n(r).
 !> \param rho1_struct Density used to fold the functional derivatives, n^(1)(r).
 !> \param xc_section ...
-!> \param weights ...
 !> \param pw_pool ...
+!> \param weights ...
+!> \param is_triplet Flag used to activate triplet kernel (not available)
+!> \param spinflip Flag used to activate the spin-flip noncollinear kernel and kernel derivatives.
 !> \param fxc_rho Second functional derivative with respect to the density, n(r).
 !> \param fxc_tau mGGA contribution to the second functional derivative with respect to the density.
 !> \param gxc_rho Third functional derivative with respect to the density, n(r).
 !> \param gxc_tau mGGA contribution to the third functional derivative with respect to the density.
-!> \param spinflip Flag used to activate the spin-flip noncollinear kernel and kernel derivatives.
 !> \par History
 !>    * 07.2024 Created [LHS]
 ! **************************************************************************************************
-   SUBROUTINE qs_fgxc_analytic(rho0_struct, rho1_struct, xc_section, weights, pw_pool, &
-                               fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip)
+   SUBROUTINE qs_fgxc_analytic(rho0_struct, rho1_struct, xc_section, pw_pool, weights, &
+                               is_triplet, spinflip, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
 
       TYPE(qs_rho_type), POINTER                         :: rho0_struct, rho1_struct
       TYPE(section_vals_type), POINTER                   :: xc_section
-      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(pw_pool_type), POINTER                        :: pw_pool
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
+      LOGICAL, INTENT(IN)                                :: is_triplet, spinflip
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
-      LOGICAL, INTENT(IN), OPTIONAL                      :: spinflip
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fgxc_analytic'
 
@@ -131,9 +357,12 @@ CONTAINS
       CPASSERT(ASSOCIATED(rho0_struct))
       CPASSERT(ASSOCIATED(rho1_struct))
 
+      ! only tested for spinflip
+      CPASSERT(.NOT. is_triplet)
+      CPASSERT(spinflip)
+
       ! Initialize parameters
-      do_sf = .FALSE.
-      IF (PRESENT(spinflip)) do_sf = spinflip
+      do_sf = spinflip
       !
       ! Get the values on the gridpoints of the rho0 density
       CALL qs_rho_get(rho0_struct, rho_r=rho0_r, rho_g=rho0_g, tau_r=tau0_r)
@@ -247,25 +476,22 @@ CONTAINS
 !> \param accuracy ...
 !> \param epsrho ...
 !> \param is_triplet ...
-!> \param weights ...
+!> \param spinflip ...
 !> \param fxc_rho ...
 !> \param fxc_tau ...
 !> \param gxc_rho ...
 !> \param gxc_tau ...
-!> \param spinflip ...
 ! **************************************************************************************************
    SUBROUTINE qs_fgxc_gdiff(qs_env, rho0_struct, rho1_struct, xc_section, accuracy, epsrho, &
-                            is_triplet, weights, fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip)
+                            is_triplet, spinflip, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho0_struct, rho1_struct
       TYPE(section_vals_type), POINTER                   :: xc_section
       INTEGER, INTENT(IN)                                :: accuracy
       REAL(KIND=dp), INTENT(IN)                          :: epsrho
-      LOGICAL, INTENT(IN)                                :: is_triplet
-      TYPE(pw_r3d_rs_type), POINTER                      :: weights
+      LOGICAL, INTENT(IN)                                :: is_triplet, spinflip
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
-      LOGICAL, OPTIONAL                                  :: spinflip
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fgxc_gdiff'
 
@@ -288,8 +514,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(rho0_struct))
       CPASSERT(ASSOCIATED(rho1_struct))
 
-      do_sf = .FALSE.
-      IF (PRESENT(spinflip)) do_sf = spinflip
+      do_sf = spinflip
 
       ak = 0.0_dp
       SELECT CASE (accuracy)
@@ -312,12 +537,12 @@ CONTAINS
       exc = 0.0_dp
 
       IF (do_sf) THEN
-         CALL qs_fxc_calculate(rho0_struct, rho1_struct, xc_section, &
-                               weights, auxbas_pw_pool, &
-                               fxc_rho, fxc_tau, is_triplet=is_triplet, spinflip=do_sf)
+         CALL qs_fxc_create(qs_env, rho0_struct, rho1_struct, xc_section, fxc_rho, fxc_tau, &
+                            is_triplet=is_triplet, spinflip=do_sf)
+
       ELSE
-         CALL qs_fxc_fdiff(qs_env, rho0_struct, rho1_struct, xc_section, accuracy, &
-                           fxc_rho, fxc_tau, is_triplet)
+         CALL qs_fxc_fdiff(qs_env, rho0_struct, rho1_struct, xc_section, &
+                           accuracy, fxc_rho, fxc_tau, is_triplet)
       END IF
 
       DO istep = -nstep, nstep
@@ -333,15 +558,13 @@ CONTAINS
             CALL qs_rho_scale_and_add(rhoin, rho1_struct, alpha, beta)
             IF (do_sf) THEN
                ! variation in alpha density
-               CALL qs_fxc_calculate(rhoin, rho1_struct, &
-                                     xc_section, weights, auxbas_pw_pool, &
-                                     vxc00, v_tau_rspace, is_triplet=is_triplet, spinflip=do_sf)
+               CALL qs_fxc_create(qs_env, rhoin, rho1_struct, xc_section, vxc00, v_tau_rspace, &
+                                  is_triplet=is_triplet, spinflip=do_sf)
                ! variation in beta density
                CALL qs_rho_copy(rho0_struct, rhoin, auxbas_pw_pool, nspins)
                CALL qs_rho_scale_and_add_b(rhoin, rho1_struct, alpha, beta)
-               CALL qs_fxc_calculate(rhoin, rho1_struct, &
-                                     xc_section, weights, auxbas_pw_pool, &
-                                     vxc00b, v_tau_rspace, is_triplet=is_triplet, spinflip=do_sf)
+               CALL qs_fxc_create(qs_env, rhoin, rho1_struct, xc_section, vxc00b, v_tau_rspace, &
+                                  is_triplet=is_triplet, spinflip=do_sf)
             ELSE
                CALL qs_fxc_fdiff(qs_env, rhoin, rho1_struct, xc_section, accuracy, &
                                  fxc_rho=vxc00, fxc_tau=v_tau_rspace, is_triplet=is_triplet)
@@ -413,22 +636,24 @@ CONTAINS
 !> \param xc_section ...
 !> \param accuracy ...
 !> \param is_triplet ...
+!> \param spinflip ...
 !> \param fxc_rho ...
 !> \param fxc_tau ...
 !> \param gxc_rho ...
 !> \param gxc_tau ...
 ! **************************************************************************************************
-   SUBROUTINE qs_fgxc_create(qs_env, rho0_struct, rho1_struct, xc_section, accuracy, is_triplet, &
+   SUBROUTINE qs_fgxc_fgdiff(qs_env, rho0_struct, rho1_struct, xc_section, &
+                             accuracy, is_triplet, spinflip, &
                              fxc_rho, fxc_tau, gxc_rho, gxc_tau)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho0_struct, rho1_struct
       TYPE(section_vals_type), POINTER                   :: xc_section
       INTEGER, INTENT(IN)                                :: accuracy
-      LOGICAL, INTENT(IN)                                :: is_triplet
+      LOGICAL, INTENT(IN)                                :: is_triplet, spinflip
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fgxc_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fgxc_fgdiff'
       REAL(KIND=dp), PARAMETER                           :: epsrho = 5.e-4_dp
 
       INTEGER                                            :: handle, ispin, istep, nspins, nstep
@@ -449,6 +674,9 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(gxc_tau))
       CPASSERT(ASSOCIATED(rho0_struct))
       CPASSERT(ASSOCIATED(rho1_struct))
+
+      ! no spinflip tested
+      CPASSERT(.NOT. spinflip)
 
       ak = 0.0_dp
       bl = 0.0_dp
@@ -537,7 +765,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE qs_fgxc_create
+   END SUBROUTINE qs_fgxc_fgdiff
 
 ! **************************************************************************************************
 !> \brief ...
