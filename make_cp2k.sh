@@ -717,7 +717,7 @@ CMAKE_FEATURE_FLAGS="$(printf '%s\n' "${out[*]}")"
 
 # Set default GROMACS version if GROMACS/CP2K testing is requested
 if [[ ${TEST_GROMACS} == "yes" ]]; then
-  GROMACS_VERSION=${GROMACS_VERSION:-v2025.4}
+  GROMACS_VERSION=${GROMACS_VERSION:-v2026.3}
 fi
 
 export BENCHMARK_PROFILE BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU \
@@ -917,12 +917,14 @@ case "${MPI_MODE}" in
       echo "ERROR: MPI type \"${MPI_MODE}\" specified for building a serial CP2K binary"
       ${EXIT_CMD} 1
     fi
+    USE_MPI="ON"
     ;;
   no)
     if [[ "${CP2K_VERSION}" == "pdbg" || "${CP2K_VERSION}" == "psmp" ]]; then
       echo "ERROR: MPI type \"${MPI_MODE}\" specified for building an MPI-parallel CP2K binary"
       ${EXIT_CMD} 1
     fi
+    USE_MPI="OFF"
     ;;
   *)
     echo "ERROR: Invalid MPI type \"${MPI_MODE}\" selected"
@@ -1880,7 +1882,7 @@ if [[ "${VERSION}" == "psmp" ]]; then
 fi
 
 # Build CP2K/GROMACS if requested
-if [[ -n ${GROMACS_VERSION} ]]; then
+if [[ -n "${GROMACS_VERSION}" ]]; then
 
   # Download GROMACS
   GROMACS_ROOT="${CMAKE_BUILD_PATH}"/gromacs
@@ -1889,7 +1891,7 @@ if [[ -n ${GROMACS_VERSION} ]]; then
   git clone -c advice.detachedHead=false --depth=1 --quiet --single-branch -b "${GROMACS_VERSION}" \
     https://gitlab.com/gromacs/gromacs.git "${GROMACS_ROOT}"
   cd "${GROMACS_ROOT}" || ${EXIT_CMD} 1
-  GROMACS_REVISION=$(git rev-parse --short HEAD)
+  GROMACS_REVISION="$(git rev-parse --short HEAD)"
 
   # CMake configuration step for GROMACS
   GROMACS_BUILD_PATH="${GROMACS_ROOT}"/build
@@ -1897,13 +1899,16 @@ if [[ -n ${GROMACS_VERSION} ]]; then
   echo -e "\n*** Performing CMake configuration for GROMACS ${GROMACS_VERSION} ***\n"
   cmake -S "${GROMACS_ROOT}" -B "${GROMACS_BUILD_PATH}" \
     -DBUILD_SHARED_LIBS="OFF" \
+    -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
     -DCMAKE_INSTALL_LIBDIR="lib" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_DIR="${INSTALL_PREFIX}/lib" \
+    -DCP2K_DIR="${INSTALL_PREFIX}"/lib \
     -DGMX_BUILD_OWN_FFTW="ON" \
-    -DGMX_INSTALL_NBLIB_API="OFF" \
-    -DGMXAPI="OFF" \
     -DGMX_CP2K="ON" \
+    -DGMX_DOUBLE="OFF" \
+    -DGMX_INSTALL_NBLIB_API="OFF" \
+    -DGMX_MPI="${USE_MPI}" \
+    -DGMXAPI="OFF" \
     -Werror=dev \
     &> "${GROMACS_BUILD_PATH}/cmake.log"
   EXIT_CODE=$?
@@ -1938,18 +1943,37 @@ if [[ -n ${GROMACS_VERSION} ]]; then
     ${EXIT_CMD} "${EXIT_CODE}"
   fi
 
+  # Suppress GROMACS quote and reminder messages
+  export GMX_NO_QUOTES=1
+
   # Test GROMACS/CP2K installation
-  if "${INSTALL_PREFIX}"/bin/gmx --version; then
-    echo -e "\n*** Running GROMACS/CP2K QM/MM unit test ***"
-    if "${INSTALL_PREFIX}"/bin/qmmm_applied_forces-test; then
-      echo -e "\nSummary: GROMACS commit ${GROMACS_REVISION} works fine"
-      echo -e "Status: OK\n"
+  echo ""
+  GROMACS_BINARY="gmx"
+  [[ ${USE_MPI} == "ON" ]] && GROMACS_BINARY+="_mpi"
+  if [[ "${TEST_GROMACS}" == "yes" ]]; then
+    if ${LAUNCH_SCRIPT} ${GROMACS_BINARY} --version; then
+      echo -e "\n*** Running GROMACS/CP2K QM/MM unit test ***\n"
+      if ${LAUNCH_SCRIPT} qmmm_applied_forces-test; then
+        echo -e "\nSummary: GROMACS commit ${GROMACS_REVISION} works fine"
+        echo -e "Status: OK\n"
+      else
+        echo -e "\nSummary: Something is wrong with GROMACS commit ${GROMACS_REVISION}"
+        echo -e "Status: FAILED\n"
+        ${EXIT_CMD} 0
+      fi
     else
       echo -e "\nSummary: Something is wrong with GROMACS commit ${GROMACS_REVISION}"
       echo -e "Status: FAILED\n"
+      ${EXIT_CMD} 0
     fi
-  else
-    echo -e "\nSummary: Something is wrong with GROMACS commit ${GROMACS_REVISION}"
-    echo -e "Status: FAILED\n"
   fi
+  if [[ ${USE_MPI} == "ON" ]]; then
+    echo "*** An MPI/OpenMP parallel GROMACS/CP2K run using 2 OpenMP threads for each of the 4 MPI ranks can be launched with"
+    echo "    export OMP_NUM_THREADS=2; ${LAUNCH_SCRIPT} mpiexec -n 4 ${GROMACS_BINARY}"
+  else
+    echo "*** An OpenMP parallel GROMACS/CP2K run using 4 OpenMP threads can be launched with"
+    echo "    export OMP_NUM_THREADS=4; ${LAUNCH_SCRIPT} ${GROMACS_BINARY}"
+  fi
+  echo ""
+
 fi
