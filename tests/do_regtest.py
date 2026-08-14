@@ -65,6 +65,7 @@ async def main() -> None:
     parser.add_argument("--maxtasks", type=int, default=os.cpu_count())
     parser.add_argument("--num_gpus", type=int, default=0)
     parser.add_argument("--exclusive-gpu-memory-batches", action="store_true")
+    parser.add_argument("--single-rank-gpu-batches", action="store_true")
     parser.add_argument("--timeout", type=int, default=150)
     parser.add_argument("--maxerrors", type=int, default=50)
     help = "Template for launching MPI jobs, {N} is replaced by number of processors."
@@ -107,6 +108,7 @@ async def main() -> None:
     print(f"GPU devices:    {cfg.num_gpus}")
     print(f"Workers:        {cfg.num_workers}")
     print(f"Exclusive GPU:  {cfg.exclusive_gpu_memory_batches}")
+    print(f"Single-rank GPU:{str(cfg.single_rank_gpu_batches):>6}")
     print(f"Timeout [s]:    {cfg.timeout}")
     print(f"Work base dir:  {cfg.work_base_dir}")
     print(f"MPI exec:       {cfg.mpiexec}")
@@ -169,7 +171,7 @@ async def main() -> None:
     tasks: List[Task[BatchResult]] = []
     num_restrictdirs = num_skipdirs = 0
     for batch in batches:
-        if not batch.requirements_satisfied(flags, cfg.mpiranks):
+        if not batch.requirements_satisfied(flags, batch.mpiranks):
             print(f"Skipping {batch.name} because its requirements are not satisfied.")
         elif not any(re.fullmatch(p, batch.name) for p in cfg.restrictdirs):
             num_restrictdirs += 1
@@ -299,6 +301,7 @@ class Config:
         self.workers = Semaphore(self.num_workers)
         self.worker_admission = asyncio.Lock()
         self.exclusive_gpu_memory_batches = args.exclusive_gpu_memory_batches
+        self.single_rank_gpu_batches = args.single_rank_gpu_batches
         self.cp2k_root = Path(__file__).resolve().parent.parent
         self.mpiexec = args.mpiexec
         if "{N}" not in self.mpiexec:  # backwards compatibility
@@ -348,12 +351,17 @@ class Config:
         self.next_gpu = 0  # Used to assign devices round robin to processes.
 
     def launch_exe(
-        self, exe_stem: str, *args: str, cwd: Optional[Path] = None
+        self,
+        exe_stem: str,
+        *args: str,
+        cwd: Optional[Path] = None,
+        mpi_ranks: Optional[int] = None,
     ) -> Coroutine[Any, Any, Process]:
+        effective_mpi_ranks = self.mpiranks if mpi_ranks is None else mpi_ranks
         env = os.environ.copy()
-        if self.num_gpus > self.mpiranks:
+        if self.num_gpus > effective_mpi_ranks:
             visible_gpu_devices: List[str] = []
-            for _ in range(self.mpiranks):  # Utilize all available GPU devices.
+            for _ in range(effective_mpi_ranks):  # Utilize all available GPU devices.
                 self.next_gpu = (self.next_gpu + 1) % self.num_gpus
                 visible_gpu_devices.append(str(self.next_gpu))
             env["CUDA_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
@@ -374,7 +382,7 @@ class Config:
         if self.valgrind:
             cmd = ["valgrind", "--error-exitcode=42", "--exit-on-first-error=yes"] + cmd
         if self.use_mpi:
-            cmd = self.mpiexec.format(N=self.mpiranks).split() + cmd
+            cmd = self.mpiexec.format(N=effective_mpi_ranks).split() + cmd
         if self.debug:
             print(f"Creating subprocess: {cmd} {args}")
         return asyncio.create_subprocess_exec(
@@ -411,7 +419,12 @@ class Batch:
         parts = line.split()
         self.name = parts[0]
         self.gpu_memory_intensive = "gpu_memory_intensive" in parts[1:]
-        self.requirements = [r for r in parts[1:] if r != "gpu_memory_intensive"]
+        self.single_rank_gpu = "single_rank_gpu" in parts[1:]
+        self.mpiranks = (
+            1 if self.single_rank_gpu and cfg.single_rank_gpu_batches else cfg.mpiranks
+        )
+        scheduling_markers = {"gpu_memory_intensive", "single_rank_gpu"}
+        self.requirements = [r for r in parts[1:] if r not in scheduling_markers]
         self.unittests: List[Unittest] = []
         self.regtests: List[Regtest] = []
         self.src_dir = cfg.cp2k_root / "tests" / self.name
@@ -470,9 +483,10 @@ class BatchResult:
 
 # ======================================================================================
 class Cp2kShell:
-    def __init__(self, cfg: Config, workdir: Path):
+    def __init__(self, cfg: Config, workdir: Path, mpi_ranks: int):
         self.cfg = cfg
         self.workdir = workdir
+        self.mpi_ranks = mpi_ranks
         self._child: Optional[Process] = None
 
     async def stop(self, force: bool = False) -> None:
@@ -494,7 +508,9 @@ class Cp2kShell:
 
     async def start(self) -> None:
         assert self._child is None
-        self._child = await self.cfg.launch_exe("cp2k", "--shell", cwd=self.workdir)
+        self._child = await self.cfg.launch_exe(
+            "cp2k", "--shell", cwd=self.workdir, mpi_ranks=self.mpi_ranks
+        )
         await self.ready()
         await self.sendline("HARSH")  # With harsh mode any error leads to an abort.
         await self.ready()
@@ -594,7 +610,9 @@ async def run_unittests(batch: Batch, cfg: Config) -> List[TestResult]:
     results: List[TestResult] = []
     for test in batch.unittests:
         start_time = time.perf_counter()
-        child = await cfg.launch_exe(test.name, str(cfg.cp2k_root), cwd=batch.workdir)
+        child = await cfg.launch_exe(
+            test.name, str(cfg.cp2k_root), cwd=batch.workdir, mpi_ranks=batch.mpiranks
+        )
         output, returncode, timed_out = await wait_for_child_process(child, cfg.timeout)
         duration = time.perf_counter() - start_time
         test.out_path.write_bytes(output)
@@ -623,7 +641,7 @@ async def run_regtests(batch: Batch, cfg: Config) -> List[TestResult]:
 
 # ======================================================================================
 async def run_regtests_keepalive(batch: Batch, cfg: Config) -> List[TestResult]:
-    shell = Cp2kShell(cfg, batch.workdir)
+    shell = Cp2kShell(cfg, batch.workdir, batch.mpiranks)
     await shell.start()
 
     results: List[TestResult] = []
@@ -659,7 +677,9 @@ async def run_regtests_classic(batch: Batch, cfg: Config) -> List[TestResult]:
     for test in batch.regtests:
         start_time = time.perf_counter()
         start_dirsize = dirsize(batch.workdir)
-        child = await cfg.launch_exe("cp2k", test.inp_fn, cwd=batch.workdir)
+        child = await cfg.launch_exe(
+            "cp2k", test.inp_fn, cwd=batch.workdir, mpi_ranks=batch.mpiranks
+        )
         output, returncode, timed_out = await wait_for_child_process(child, cfg.timeout)
         test.out_path.write_bytes(output)
         duration = time.perf_counter() - start_time

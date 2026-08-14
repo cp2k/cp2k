@@ -1,6 +1,7 @@
 # directories in this file will be scanned for a TEST_FILES entry, and used in regression testing of cp2k
 # additional fields are requirements on the list of cp2kflags provided by cp2k --version, i.e. regtests that will only run if a certain library has been linked in.
 # gpu_memory_intensive is a scheduling marker for runners that limit concurrent GPU-heavy batches.
+# single_rank_gpu lets selected runners avoid replicated GPU allocations in marked batches.
 # Directories have been reordered according the execution time needed for a gfortran pdbg run using 2 MPI tasks
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
@@ -11,7 +12,7 @@ QS/regtest-cusolver                                         cusolvermp
 QS/regtest-dlaf                                             dlaf spglib
 QS/regtest-dlaf-2                                           dlaf libint !ifx
 QS/regtest-openpmd                                          openpmd
-QS/regtest-gauxc-cuda                                       gauxc_cuda gpu_memory_intensive
+QS/regtest-gauxc-cuda                                       gauxc_cuda gpu_memory_intensive single_rank_gpu
 QS/regtest-pexsi                                            pexsi
 Fist/regtest-deepmd                                         deepmd !lsan
 Fist/regtest-quip                                           quip

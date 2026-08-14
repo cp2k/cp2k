@@ -225,7 +225,10 @@ def main() -> None:
                 # Keep SpLA on CUDA because CP2K offloads GEMMs through it.
                 sirius_cpu_only=True,
                 # Run memory-heavy tests alone on the single 8 GiB runner GPU.
-                testopts=f"{testopts} --timeout 400 --exclusive-gpu-memory-batches",
+                testopts=(
+                    f"{testopts} --timeout 400 --exclusive-gpu-memory-batches "
+                    "--single-rank-gpu-batches"
+                ),
                 image_tag=f.image_tag,
             )
         )
