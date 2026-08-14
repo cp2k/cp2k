@@ -103,7 +103,7 @@ MODULE xas_methods
                                               mo_set_type,&
                                               set_mo_set
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
+   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix,&
                                               rRc_xyz_ao
    USE qs_pdos,                         ONLY: calculate_projected_dos
    USE qs_scf,                          ONLY: scf_env_cleanup
@@ -416,7 +416,7 @@ CONTAINS
             op_sm(i)%matrix => ostrength_sm(i)%matrix
          END DO
          IF (xas_control%dipole_form == xas_dip_vel) THEN
-            CALL p_xyz_ao(op_sm, qs_env)
+            CALL build_lin_mom_matrix(qs_env, op_sm)
          END IF
       END IF
 

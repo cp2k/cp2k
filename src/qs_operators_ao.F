@@ -11,8 +11,8 @@
 !> \author MI (07.2005)
 ! **************************************************************************************************
 MODULE qs_operators_ao
+   USE ai_angmom,                       ONLY: angmom
    USE ai_moments,                      ONLY: diff_momop,&
-                                              diffop,&
                                               moment
    USE ai_os_rr,                        ONLY: os_rr_ovlp
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
@@ -56,7 +56,7 @@ MODULE qs_operators_ao
 
 ! *** Public subroutines ***
 
-   PUBLIC :: p_xyz_ao, rRc_xyz_ao, rRc_xyz_der_ao
+   PUBLIC :: rRc_xyz_ao, rRc_xyz_der_ao
    PUBLIC :: build_lin_mom_matrix, build_ang_mom_matrix
 
 CONTAINS
@@ -66,14 +66,16 @@ CONTAINS
 !>          Cartesian Gaussian functions.
 !> \param qs_env ...
 !> \param matrix ...
+!> \param minimum_image take into account only the first neighbors in the lists
 !> \date    27.02.2009
 !> \author  VW
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE build_lin_mom_matrix(qs_env, matrix)
+   SUBROUTINE build_lin_mom_matrix(qs_env, matrix, minimum_image)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix
+      LOGICAL, INTENT(IN), OPTIONAL                      :: minimum_image
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_lin_mom_matrix'
 
@@ -83,8 +85,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: do_symmetric, found, new_atom_b
-      REAL(KIND=dp)                                      :: dab, rab2
+      LOGICAL                                            :: do_symmetric, found, my_minimum_image, &
+                                                            new_atom_b
+      REAL(KIND=dp)                                      :: alpha, dab, Lxo2, Lyo2, Lzo2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: intab, rr_work
       REAL(KIND=dp), DIMENSION(3)                        :: rab
@@ -120,6 +123,14 @@ CONTAINS
 
       nkind = SIZE(qs_kind_set)
       natom = SIZE(particle_set)
+
+      my_minimum_image = .FALSE.
+      IF (PRESENT(minimum_image)) THEN
+         my_minimum_image = minimum_image
+         Lxo2 = NORM2(cell%hmat(:, 1))/2.0_dp
+         Lyo2 = NORM2(cell%hmat(:, 2))/2.0_dp
+         Lzo2 = NORM2(cell%hmat(:, 3))/2.0_dp
+      END IF
 
       ! Take into account the symmetry of the input matrix
       do_symmetric = dbcsr_has_symmetry(matrix(1)%matrix)
@@ -185,6 +196,11 @@ CONTAINS
          zetb => basis_set_b%zet
 
          IF (inode == 1) last_jatom = 0
+
+         IF (my_minimum_image) THEN
+            IF (ANY(ABS(rab(:)) > [Lxo2, Lyo2, Lzo2])) CYCLE
+         END IF
+
          IF (jatom /= last_jatom) THEN
             new_atom_b = .TRUE.
             last_jatom = jatom
@@ -193,6 +209,7 @@ CONTAINS
          END IF
 
          IF (new_atom_b) THEN
+            alpha = 1.0_dp
             IF (do_symmetric) THEN
                IF (iatom <= jatom) THEN
                   irow = iatom
@@ -200,6 +217,9 @@ CONTAINS
                ELSE
                   irow = jatom
                   icol = iatom
+                  IF (dbcsr_get_matrix_type(matrix(1)%matrix) == dbcsr_type_antisymmetric) THEN
+                     alpha = -1.0_dp
+                  END IF
                END IF
             ELSE
                irow = iatom
@@ -214,8 +234,7 @@ CONTAINS
             END DO
          END IF
 
-         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-         dab = SQRT(rab2)
+         dab = NORM2(rab)
 
          DO iset = 1, nseta
 
@@ -258,7 +277,7 @@ CONTAINS
                      ELSE
 
                         CALL dgemm("T", "N", nsgfb(jset), nsgfa(iset), ncoa, &
-                                   -1.0_dp, work(1, 1), SIZE(work, 1), &
+                                   alpha, work(1, 1), SIZE(work, 1), &
                                    sphi_a(1, sgfa), SIZE(sphi_a, 1), &
                                    1.0_dp, integral(i)%block(sgfb, sgfa), &
                                    SIZE(integral(i)%block, 1))
@@ -449,14 +468,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_ang_mom_matrix'
 
       INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
-         ldai, maxco, maxlgto, maxsgf, ncoa, ncob, nkind, nseta, nsetb, sgfa, sgfb
+         maxco, maxsgf, ncoa, ncob, nkind, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: found, new_atom_b
-      REAL(KIND=dp)                                      :: dab, rab2
+      REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: intab, rr_work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: intab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, rbc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
@@ -486,14 +505,9 @@ CONTAINS
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
                            maxco=maxco, &
-                           maxlgto=maxlgto, &
                            maxsgf=maxsgf)
 
-      ldai = ncoset(maxlgto + 1)
-      CALL init_orbital_pointers(ldai)
-
-      ALLOCATE (rr_work(ldai, ldai, 3), intab(maxco, maxco, 3), work(maxco, maxsgf), integral(3))
-      rr_work(:, :, :) = 0.0_dp
+      ALLOCATE (intab(maxco, maxco, 3), work(maxco, maxsgf), integral(3))
       intab(:, :, :) = 0.0_dp
       work(:, :) = 0.0_dp
 
@@ -565,8 +579,7 @@ CONTAINS
             END DO
          END IF
 
-         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-         dab = SQRT(rab2)
+         dab = NORM2(rab)
 
          DO iset = 1, nseta
 
@@ -592,11 +605,8 @@ CONTAINS
 
                ! *** Calculate the primitive angular momentum integrals ***
 
-               CALL ang_mom(la_max(iset), la_min(iset), npgfa(iset), &
-                            rpgfa(:, iset), zeta(:, iset), &
-                            lb_max(jset), lb_min(jset), npgfb(jset), &
-                            rpgfb(:, jset), zetb(:, jset), &
-                            rab, rac, intab, SIZE(rr_work, 1), rr_work)
+               CALL angmom(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
+                           lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), rac, rbc, intab)
 
                ! *** Contraction step ***
 
@@ -654,400 +664,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_ang_mom_matrix
-
-! **************************************************************************************************
-!> \brief   Calculation of the primitive paramagnetic spin orbit integrals over
-!>          Cartesian Gaussian-type functions.
-!> \param la_max ...
-!> \param la_min ...
-!> \param npgfa ...
-!> \param rpgfa ...
-!> \param zeta ...
-!> \param lb_max ...
-!> \param lb_min ...
-!> \param npgfb ...
-!> \param rpgfb ...
-!> \param zetb ...
-!> \param rab ...
-!> \param rac ...
-!> \param intab ...
-!> \param ldrr ...
-!> \param rr ...
-!> \date    02.03.2009
-!> \author  VW
-!> \version 1.0
-! **************************************************************************************************
-   SUBROUTINE ang_mom(la_max, la_min, npgfa, rpgfa, zeta, lb_max, lb_min, npgfb, rpgfb, zetb, &
-                      rab, rac, intab, ldrr, rr)
-      INTEGER, INTENT(IN)                                :: la_max, la_min, npgfa
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfa, zeta
-      INTEGER, INTENT(IN)                                :: lb_max, lb_min, npgfb
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfb, zetb
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab, rac
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: intab
-      INTEGER, INTENT(IN)                                :: ldrr
-      REAL(dp), DIMENSION(0:ldrr-1, 0:ldrr-1, 3), &
-         INTENT(INOUT)                                   :: rr
-
-      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, i, &
-                                                            ipgf, j, jpgf, la, lb, ma, mb, na, nb
-      REAL(dp)                                           :: dab, dumx, dumy, dumz, f0, rab2, xhi, zet
-      REAL(dp), DIMENSION(3)                             :: rap, rbp
-
-! *** Calculate the distance of the centers a and c ***
-
-      rab2 = rab(1)**2 + rab(2)**2 + rab(3)**2
-      dab = SQRT(rab2)
-
-      ! *** Loop over all pairs of primitive Gaussian-type functions ***
-
-      na = 0
-
-      DO ipgf = 1, npgfa
-
-         nb = 0
-
-         DO jpgf = 1, npgfb
-
-            ! *** Screening ***
-
-            IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
-               DO j = nb + 1, nb + ncoset(lb_max)
-                  DO i = na + 1, na + ncoset(la_max)
-                     intab(i, j, 1) = 0.0_dp
-                     intab(i, j, 2) = 0.0_dp
-                     intab(i, j, 3) = 0.0_dp
-                  END DO
-               END DO
-               nb = nb + ncoset(lb_max)
-               CYCLE
-            END IF
-
-            ! *** Calculate some prefactors ***
-            zet = zeta(ipgf) + zetb(jpgf)
-            xhi = zeta(ipgf)*zetb(jpgf)/zet
-            rap = zetb(jpgf)*rab/zet
-            rbp = -zeta(ipgf)*rab/zet
-
-            f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
-
-            ! *** Calculate the recurrence relation ***
-
-            CALL os_rr_ovlp(rap, la_max + 1, rbp, lb_max, zet, ldrr, rr)
-
-            ! *** Calculate the primitive Fermi contact integrals ***
-
-            DO lb = lb_min, lb_max
-            DO bx = 0, lb
-            DO by = 0, lb - bx
-               bz = lb - bx - by
-               cob = coset(bx, by, bz)
-               mb = nb + cob
-               DO la = la_min, la_max
-               DO ax = 0, la
-               DO ay = 0, la - ax
-                  az = la - ax - ay
-                  coa = coset(ax, ay, az)
-                  ma = na + coa
-                  !
-                  dumx = -2.0_dp*zeta(ipgf)*rr(ax + 1, bx, 1)
-                  dumy = -2.0_dp*zeta(ipgf)*rr(ay + 1, by, 2)
-                  dumz = -2.0_dp*zeta(ipgf)*rr(az + 1, bz, 3)
-                  IF (ax > 0) dumx = dumx + REAL(ax, dp)*rr(ax - 1, bx, 1)
-                  IF (ay > 0) dumy = dumy + REAL(ay, dp)*rr(ay - 1, by, 2)
-                  IF (az > 0) dumz = dumz + REAL(az, dp)*rr(az - 1, bz, 3)
-                  !
-                  ! (a|l_z|b)
-                  intab(ma, mb, 1) = -f0*rr(ax, bx, 1)*( &
-                       &  (rr(ay + 1, by, 2) + rac(2)*rr(ay, by, 2))*dumz &
-                       & - (rr(az + 1, bz, 3) + rac(3)*rr(az, bz, 3))*dumy)
-                  !
-                  ! (a|l_y|b)
-                  intab(ma, mb, 2) = -f0*rr(ay, by, 2)*( &
-                       &  (rr(az + 1, bz, 3) + rac(3)*rr(az, bz, 3))*dumx &
-                       & - (rr(ax + 1, bx, 1) + rac(1)*rr(ax, bx, 1))*dumz)
-                  !
-                  ! (a|l_z|b)
-                  intab(ma, mb, 3) = -f0*rr(az, bz, 3)*( &
-                       &  (rr(ax + 1, bx, 1) + rac(1)*rr(ax, bx, 1))*dumy &
-                       & - (rr(ay + 1, by, 2) + rac(2)*rr(ay, by, 2))*dumx)
-                  !
-               END DO
-               END DO
-               END DO !la
-
-            END DO
-            END DO
-            END DO !lb
-
-            nb = nb + ncoset(lb_max)
-
-         END DO
-
-         na = na + ncoset(la_max)
-
-      END DO
-
-   END SUBROUTINE ang_mom
-
-! **************************************************************************************************
-!> \brief Calculation of the components of the dipole operator in the velocity form
-!>      The elements of the  sparse matrices are the integrals in the
-!>      basis functions
-!> \param op matrix representation of the p operator
-!>               calculated in terms of the contracted basis functions
-!> \param qs_env environment for the lists and the basis sets
-!> \param minimum_image take into account only the first neighbors in the lists
-!> \par History
-!>      06.2005 created [MI]
-!> \author MI
-! **************************************************************************************************
-
-   SUBROUTINE p_xyz_ao(op, qs_env, minimum_image)
-
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: minimum_image
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'p_xyz_ao'
-
-      INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
-         ldab, ldsa, ldsb, ldwork, maxl, ncoa, ncob, nkind, nseta, nsetb, sgfa, sgfb
-      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
-                                                            npgfb, nsgfa, nsgfb
-      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: found, my_minimum_image, new_atom_b
-      REAL(KIND=dp)                                      :: alpha, dab, Lxo2, Lyo2, Lzo2, rab2
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, work, &
-                                                            zeta, zetb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: difab
-      TYPE(block_p_type), DIMENSION(:), POINTER          :: op_dip
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_kind_type), POINTER                        :: qs_kind
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (qs_kind, qs_kind_set)
-      NULLIFY (cell, particle_set)
-      NULLIFY (sab_orb)
-      NULLIFY (difab, op_dip, work)
-      NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
-      NULLIFY (set_radius_a, set_radius_b, rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb)
-
-      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
-                      cell=cell, particle_set=particle_set, &
-                      sab_orb=sab_orb)
-
-      nkind = SIZE(qs_kind_set)
-
-      CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
-                           maxco=ldwork, maxlgto=maxl)
-
-      my_minimum_image = .FALSE.
-      IF (PRESENT(minimum_image)) THEN
-         my_minimum_image = minimum_image
-         Lxo2 = SQRT(SUM(cell%hmat(:, 1)**2))/2.0_dp
-         Lyo2 = SQRT(SUM(cell%hmat(:, 2)**2))/2.0_dp
-         Lzo2 = SQRT(SUM(cell%hmat(:, 3)**2))/2.0_dp
-      END IF
-
-      ldab = ldwork
-
-      ALLOCATE (difab(ldab, ldab, 3))
-      difab(1:ldab, 1:ldab, 1:3) = 0.0_dp
-      ALLOCATE (work(ldwork, ldwork))
-      work(1:ldwork, 1:ldwork) = 0.0_dp
-      ALLOCATE (op_dip(3))
-
-      DO i = 1, 3
-         NULLIFY (op_dip(i)%block)
-      END DO
-
-      ALLOCATE (basis_set_list(nkind))
-      DO ikind = 1, nkind
-         qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a)
-         IF (ASSOCIATED(basis_set_a)) THEN
-            basis_set_list(ikind)%gto_basis_set => basis_set_a
-         ELSE
-            NULLIFY (basis_set_list(ikind)%gto_basis_set)
-         END IF
-      END DO
-      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, &
-                                iatom=iatom, jatom=jatom, r=rab)
-         basis_set_a => basis_set_list(ikind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
-         basis_set_b => basis_set_list(jkind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-         ra = pbc(particle_set(iatom)%r, cell)
-         ! basis ikind
-         first_sgfa => basis_set_a%first_sgf
-         la_max => basis_set_a%lmax
-         la_min => basis_set_a%lmin
-         npgfa => basis_set_a%npgf
-         nseta = basis_set_a%nset
-         nsgfa => basis_set_a%nsgf_set
-         rpgfa => basis_set_a%pgf_radius
-         set_radius_a => basis_set_a%set_radius
-         sphi_a => basis_set_a%sphi
-         zeta => basis_set_a%zet
-         ! basis jkind
-         first_sgfb => basis_set_b%first_sgf
-         lb_max => basis_set_b%lmax
-         lb_min => basis_set_b%lmin
-         npgfb => basis_set_b%npgf
-         nsetb = basis_set_b%nset
-         nsgfb => basis_set_b%nsgf_set
-         rpgfb => basis_set_b%pgf_radius
-         set_radius_b => basis_set_b%set_radius
-         sphi_b => basis_set_b%sphi
-         zetb => basis_set_b%zet
-
-         IF (inode == 1) THEN
-            last_jatom = 0
-            alpha = 1.0_dp
-         END IF
-         ldsa = SIZE(sphi_a, 1)
-         ldsb = SIZE(sphi_b, 1)
-
-         IF (my_minimum_image) THEN
-            IF (ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) CYCLE
-         END IF
-
-         IF (jatom /= last_jatom) THEN
-            new_atom_b = .TRUE.
-            last_jatom = jatom
-         ELSE
-            new_atom_b = .FALSE.
-         END IF
-
-         IF (new_atom_b) THEN
-            IF (iatom <= jatom) THEN
-               irow = iatom
-               icol = jatom
-               alpha = 1.0_dp
-            ELSE
-               irow = jatom
-               icol = iatom
-               IF (dbcsr_get_matrix_type(op(1)%matrix) == dbcsr_type_antisymmetric) THEN
-                  !IF(op(1)%matrix%symmetry=="antisymmetric") THEN
-                  alpha = -1.0_dp
-               END IF
-            END IF
-
-            DO i = 1, 3
-               NULLIFY (op_dip(i)%block)
-               CALL dbcsr_get_block_p(matrix=op(i)%matrix, &
-                                      row=irow, col=icol, block=op_dip(i)%block, found=found)
-               CPASSERT(ASSOCIATED(op_dip(i)%block))
-            END DO
-         END IF ! new_atom_b
-         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-         dab = SQRT(rab2)
-
-         DO iset = 1, nseta
-
-            ncoa = npgfa(iset)*ncoset(la_max(iset))
-            sgfa = first_sgfa(1, iset)
-
-            DO jset = 1, nsetb
-
-               ncob = npgfb(jset)*ncoset(lb_max(jset))
-               sgfb = first_sgfb(1, jset)
-
-               IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
-
-!            *** Calculate the primitive overlap integrals ***
-                  CALL diffop(la_max(iset), npgfa(iset), zeta(:, iset), &
-                              rpgfa(:, iset), la_min(iset), lb_max(jset), npgfb(jset), &
-                              zetb(:, jset), rpgfb(:, jset), lb_min(jset), rab, difab)
-
-!            *** Contraction ***
-                  CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
-                             alpha, difab(1, 1, 1), ldab, sphi_b(1, sgfb), ldsb, &
-                             0.0_dp, work(1, 1), ldwork)
-                  IF (iatom <= jatom) THEN
-                     CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
-                                1.0_dp, sphi_a(1, sgfa), ldsa, &
-                                work(1, 1), ldwork, &
-                                1.0_dp, op_dip(1)%block(sgfa, sgfb), &
-                                SIZE(op_dip(1)%block, 1))
-
-                  ELSE
-                     CALL dgemm("T", "N", nsgfb(jset), nsgfa(iset), ncoa, &
-                                1.0_dp, work(1, 1), ldwork, &
-                                sphi_a(1, sgfa), ldsa, &
-                                1.0_dp, op_dip(1)%block(sgfb, sgfa), &
-                                SIZE(op_dip(1)%block, 1))
-
-                  END IF
-
-!             *** Contraction ***
-                  CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
-                             alpha, difab(1, 1, 2), ldab, sphi_b(1, sgfb), ldsb, &
-                             0.0_dp, work(1, 1), ldwork)
-                  IF (iatom <= jatom) THEN
-                     CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
-                                1.0_dp, sphi_a(1, sgfa), ldsa, &
-                                work(1, 1), ldwork, &
-                                1.0_dp, op_dip(2)%block(sgfa, sgfb), &
-                                SIZE(op_dip(2)%block, 1))
-                  ELSE
-                     CALL dgemm("T", "N", nsgfb(jset), nsgfa(iset), ncoa, &
-                                1.0_dp, work(1, 1), ldwork, &
-                                sphi_a(1, sgfa), ldsa, &
-                                1.0_dp, op_dip(2)%block(sgfb, sgfa), &
-                                SIZE(op_dip(2)%block, 1))
-                  END IF
-
-!            *** Contraction ***
-                  CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
-                             alpha, difab(1, 1, 3), ldab, sphi_b(1, sgfb), ldsb, &
-                             0.0_dp, work(1, 1), ldwork)
-                  IF (iatom <= jatom) THEN
-                     CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
-                                1.0_dp, sphi_a(1, sgfa), ldsa, &
-                                work(1, 1), ldwork, &
-                                1.0_dp, op_dip(3)%block(sgfa, sgfb), &
-                                SIZE(op_dip(3)%block, 1))
-                  ELSE
-                     CALL dgemm("T", "N", nsgfb(jset), nsgfa(iset), ncoa, &
-                                1.0_dp, work(1, 1), ldwork, &
-                                sphi_a(1, sgfa), ldsa, &
-                                1.0_dp, op_dip(3)%block(sgfb, sgfa), &
-                                SIZE(op_dip(3)%block, 1))
-                  END IF
-               END IF !  >= dab
-
-            END DO ! jset
-
-         END DO ! iset
-
-      END DO
-      CALL neighbor_list_iterator_release(nl_iterator)
-
-      DO i = 1, 3
-         NULLIFY (op_dip(i)%block)
-      END DO
-      DEALLOCATE (op_dip)
-
-      DEALLOCATE (difab, work, basis_set_list)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE p_xyz_ao
 
 ! **************************************************************************************************
 !> \brief Calculation of the components of the dipole operator in the length form

@@ -117,7 +117,7 @@ MODULE xas_tdp_methods
                                               get_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
-   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
+   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix,&
                                               rRc_xyz_ao
    USE qs_pdos,                         ONLY: calculate_projected_dos
    USE qs_scf_types,                    ONLY: ot_method_nr
@@ -905,7 +905,7 @@ CONTAINS
 !     Precompute it in the velocity representation, if so chosen
       IF (xas_tdp_control%dipole_form == xas_dip_vel) THEN
          !enforce minimum image to avoid any PBCs related issues. Ok because very localized densities
-         CALL p_xyz_ao(xas_tdp_env%dipmat, qs_env, minimum_image=.TRUE.)
+         CALL build_lin_mom_matrix(qs_env, xas_tdp_env%dipmat, minimum_image=.TRUE.)
       END IF
 
 !  Allocate SOC in AO basis matrices

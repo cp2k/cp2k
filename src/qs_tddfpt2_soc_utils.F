@@ -50,7 +50,7 @@ MODULE qs_tddfpt2_soc_utils
                                               qs_environment_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
+   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix,&
                                               rRc_xyz_ao
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_tddfpt2_soc_types,            ONLY: soc_env_type
@@ -139,8 +139,8 @@ CONTAINS
          CALL length_rep(qs_env, gs_mos, soc_env)
       CASE (tddfpt_dipole_velocity)
          !!This Routine calcluates the dipole Operator within the velocity-form within the ao basis
-         !!This Operation is only used in xas_tdp and qs_tddfpt_soc, lines uses rmc_x_p_xyz_ao
-         CALL p_xyz_ao(soc_env%dipmat_ao, qs_env, minimum_image=.FALSE.)
+         !!This operation is only used in xas_tdp and qs_tddfpt_soc.
+         CALL build_lin_mom_matrix(qs_env, soc_env%dipmat_ao, minimum_image=.FALSE.)
          !! This will precomute SC^virt, (omega^a-omega^i)^-1 and C^virt dS/dq
          CALL velocity_rep(qs_env, gs_mos, soc_env)
       CASE DEFAULT

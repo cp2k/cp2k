@@ -259,7 +259,6 @@ CONTAINS
             CALL dbcsr_set(op_p_ao(idir)%matrix, 0.0_dp)
          END DO
          !
-         !CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.)
          CALL build_lin_mom_matrix(qs_env, op_p_ao)
          !
       END IF
