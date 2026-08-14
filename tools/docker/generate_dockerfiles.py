@@ -237,6 +237,7 @@ def main() -> None:
                 image_tag=f.image_tag,
             )
         )
+
     with OutputFile(f"Dockerfile.test_spack_performance-openmp", args.check) as f:
         f.write(
             install_cp2k_spack(
@@ -245,6 +246,17 @@ def main() -> None:
                 feature_flags="",
                 image_tag=f.image_tag,
                 test_type="performance-openmp",
+            )
+        )
+
+    with OutputFile(f"Dockerfile.test_spack_gromacs", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                version="psmp",
+                mpi_mode="mpich",
+                feature_flags="--test_gromacs",
+                image_tag=f.image_tag,
+                test_type="gromacs",
             )
         )
 
@@ -819,6 +831,8 @@ RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_benchmarks {benchmark
 # Run CP2K regression test
 RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts} || echo "ERROR: Regression test run failed"
 """
+    elif test_type == "gromacs":
+        pass
     else:
         sys.exit(f"\nERROR: Unknown test type {test_type} specified\n")
     output += rf"""
