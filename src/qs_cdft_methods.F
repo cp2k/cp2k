@@ -1694,10 +1694,12 @@ CONTAINS
             CALL open_file(file_name=TRIM(filename), file_status="OLD", &
                            file_action="READ", unit_number=input_unit)
             READ (input_unit, '(A)', IOSTAT=io_status) title
-            IF (io_status == 0) READ (input_unit, '(A)', IOSTAT=io_status) title
-            CALL close_file(input_unit)
             IF (io_status == 0) THEN
-               usable_cube = .TRUE.
+               READ (input_unit, '(A)', IOSTAT=io_status) title
+               usable_cube = io_status == 0
+            END IF
+            CALL close_file(input_unit)
+            IF (usable_cube) THEN
                IF (spin_density) THEN
                   IF (INDEX(title, "SPIN DENSITY") > 0 .AND. &
                       INDEX(title, "TOTAL SPIN DENSITY") == 0) usable_cube = .FALSE.
