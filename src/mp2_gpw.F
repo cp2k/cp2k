@@ -295,7 +295,7 @@ CONTAINS
       END IF
       eri_method = mp2_env%eri_method
 
-      IF ((qs_env%electronic_integral_backend%coulomb2_new_backend == backend_libint .OR. &
+      IF ((qs_env%electronic_integral_backend%coulomb2_backend == backend_libint .OR. &
            qs_env%electronic_integral_backend%coulomb3_backend == backend_libint) .AND. &
           mp2_env%eri_method == do_eri_os .AND. &
           .NOT. libint_initialized) THEN

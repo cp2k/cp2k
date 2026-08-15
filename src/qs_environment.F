@@ -1062,8 +1062,6 @@ CONTAINS
       qs_env%electronic_integral_backend = electronic_integral_backend_type()
       CALL section_vals_val_get(qs_env%input, "DFT%QS%BACKEND%COULOMB2", &
                                 i_val=qs_env%electronic_integral_backend%coulomb2_backend)
-      CALL section_vals_val_get(qs_env%input, "DFT%QS%BACKEND%COULOMB2_NEW", &
-                                i_val=qs_env%electronic_integral_backend%coulomb2_new_backend)
       CALL section_vals_val_get(qs_env%input, "DFT%QS%BACKEND%COULOMB3", &
                                 i_val=qs_env%electronic_integral_backend%coulomb3_backend)
       coulomb2_libint_initialized = &

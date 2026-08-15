@@ -104,22 +104,11 @@ CONTAINS
 
       CALL section_create(subsection, __LOCATION__, name="backend", &
                           description="Selects the implementation of individual Gaussian integral operations.", &
-                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="COULOMB2", &
                           description="Backend for the coulomb2 API.", &
                           usage="COULOMB2 NATIVE", &
-                          enum_c_vals=s2a("NATIVE", "LIBINT"), &
-                          enum_i_vals=[backend_native, backend_libint], &
-                          enum_desc=s2a("Use CP2K's native implementation.", &
-                                        "Use the Libint implementation."), &
-                          default_i_val=backend_native)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="COULOMB2_NEW", &
-                          description="Backend for the coulomb2_new API.", &
-                          usage="COULOMB2_NEW NATIVE", &
                           enum_c_vals=s2a("NATIVE", "LIBINT"), &
                           enum_i_vals=[backend_native, backend_libint], &
                           enum_desc=s2a("Use CP2K's native implementation.", &

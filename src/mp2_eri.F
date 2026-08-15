@@ -15,7 +15,7 @@
 MODULE mp2_eri
    USE ai_contraction_sphi, ONLY: ab_contract, &
                                   abc_contract
-   USE ai_coulomb, ONLY: coulomb2_new, &
+   USE ai_coulomb, ONLY: coulomb2, &
                          coulomb3
    USE atomic_kind_types, ONLY: atomic_kind_type, &
                                 get_atomic_kind_set
@@ -146,7 +146,7 @@ CONTAINS
 
       INTEGER :: atom_a, atom_b, atom_end, atom_start, first_set, G_count, handle, iatom, ikind, &
                  iset, jatom, jkind, jset, jset_end, jset_start, last_set, max_am_a, max_am_b, &
-                 coulomb2_new_backend, my_eri_method, my_setpair, n_setpair, natom, nkind, nseta, nseta_total, &
+                 coulomb2_backend, my_eri_method, my_setpair, n_setpair, natom, nkind, nseta, nseta_total, &
                  nsetb, nsetb_total, offset_a_end, &
                  offset_a_start, offset_b_end, offset_b_start, R_count, set_end, set_offset_end, &
                  set_offset_start, set_start, sgfa, sgfb
@@ -156,7 +156,7 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: map_it_here, my_do_reflection_a, &
-                                                            my_do_reflection_b, use_coulomb2_new_libint
+                                                            my_do_reflection_b, use_coulomb2_libint
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
@@ -172,10 +172,10 @@ CONTAINS
       my_eri_method = do_eri_mme
       IF (PRESENT(eri_method)) my_eri_method = eri_method
 
-      coulomb2_new_backend = qs_env%electronic_integral_backend%coulomb2_new_backend
-      use_coulomb2_new_libint = my_eri_method == do_eri_os .AND. coulomb2_new_backend == backend_libint
-      IF (my_eri_method == do_eri_os .AND. coulomb2_new_backend /= backend_native .AND. &
-          .NOT. use_coulomb2_new_libint) THEN
+      coulomb2_backend = qs_env%electronic_integral_backend%coulomb2_backend
+      use_coulomb2_libint = my_eri_method == do_eri_os .AND. coulomb2_backend == backend_libint
+      IF (my_eri_method == do_eri_os .AND. coulomb2_backend /= backend_native .AND. &
+          .NOT. use_coulomb2_libint) THEN
          CPABORT("Requested two-center Coulomb backend is not implemented")
       END IF
 
@@ -201,7 +201,7 @@ CONTAINS
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
                       cell=cell, particle_set=particle_set, natom=natom, nkind=nkind)
 
-      IF (use_coulomb2_new_libint) THEN
+      IF (use_coulomb2_libint) THEN
          CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxlgto=max_am_a, basis_type=basis_type_a)
          CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxlgto=max_am_b, basis_type=basis_type_b)
          CALL cp_libint_init_2eri(lib, MAX(max_am_a, max_am_b))
@@ -325,7 +325,7 @@ CONTAINS
                                  hdab=hdab, hadb=hadb, &
                                  G_count=G_count, R_count=R_count, &
                                  do_reflection_a=do_reflection_a, do_reflection_b=do_reflection_b, &
-                                 coulomb2_new_backend=coulomb2_new_backend, lib=lib, &
+                                 coulomb2_backend=coulomb2_backend, lib=lib, &
                                  rpgfa=rpgfa(:, iset), rpgfb=rpgfb(:, jset))
                            END IF
                         #:endfor
@@ -336,7 +336,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (use_coulomb2_new_libint) CALL cp_libint_cleanup_2eri(lib)
+      IF (use_coulomb2_libint) CALL cp_libint_cleanup_2eri(lib)
 
       IF (my_eri_method == do_eri_mme) THEN
 
@@ -390,14 +390,14 @@ CONTAINS
 !> \param do_reflection_b ...
 !> \param rpgfa primitive Gaussian radii for basis A (required by the Libint backend)
 !> \param rpgfb primitive Gaussian radii for basis B (required by the Libint backend)
-!> \param coulomb2_new_backend ...
+!> \param coulomb2_backend ...
 !> \param lib initialized Libint object (required by the Libint backend)
 ! **************************************************************************************************
    SUBROUTINE integrate_set_2c(param, potential_parameter, la_min, la_max, lb_min, lb_max, npgfa, npgfb, zeta, zetb, &
                                ra, rb, hab, n_hab_a, n_hab_b, offset_hab_a, offset_hab_b, &
                                offset_set_a, offset_set_b, sphi_a, sphi_b, sgfa, sgfb, nsgfa, nsgfb, &
                                eri_method, pab, force_a, force_b, hdab, hadb, G_count, R_count, &
-                               do_reflection_a, do_reflection_b, rpgfa, rpgfb, coulomb2_new_backend, lib)
+                               do_reflection_a, do_reflection_b, rpgfa, rpgfb, coulomb2_backend, lib)
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, npgfa
@@ -423,14 +423,14 @@ CONTAINS
       INTEGER, INTENT(INOUT), OPTIONAL                   :: G_count, R_count
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_reflection_a, do_reflection_b
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: rpgfa, rpgfb
-      INTEGER, INTENT(IN), OPTIONAL                      :: coulomb2_new_backend
+      INTEGER, INTENT(IN), OPTIONAL                      :: coulomb2_backend
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_set_2c'
 
       INTEGER :: ax, ay, az, bx, by, bz, hab_a_end, hab_a_start, hab_b_end, hab_b_start, handle, &
                  i_xyz, ico, icox, icoy, icoz, ipgf, jco, jcox, jcoy, jcoz, jpgf, la, la_max_d, lb, &
                  lb_max_d, na, nb, ncoa, ncob, set_a_end, set_a_start, set_b_end, set_b_start, &
-                 sphi_a_start, sphi_b_start, selected_coulomb2_new_backend
+                 sphi_a_start, sphi_b_start, selected_coulomb2_backend
       INTEGER, DIMENSION(3)                              :: la_xyz, lb_xyz
       LOGICAL                                            :: calculate_forces, my_do_reflection_a, &
                                                             my_do_reflection_b, do_force_a, do_force_b
@@ -451,8 +451,8 @@ CONTAINS
       my_do_reflection_b = .FALSE.
       IF (PRESENT(do_reflection_b)) my_do_reflection_b = do_reflection_b
 
-      selected_coulomb2_new_backend = backend_native
-      IF (PRESENT(coulomb2_new_backend)) selected_coulomb2_new_backend = coulomb2_new_backend
+      selected_coulomb2_backend = backend_native
+      IF (PRESENT(coulomb2_backend)) selected_coulomb2_backend = coulomb2_backend
 
       do_force_a = PRESENT(force_a) .OR. PRESENT(hdab)
       do_force_b = PRESENT(force_b) .OR. PRESENT(hadb)
@@ -576,22 +576,20 @@ CONTAINS
       ELSE IF (eri_method == do_eri_os) THEN
 
          IF (calculate_forces) CPABORT("NYI")
+         IF (.NOT. PRESENT(rpgfa) .OR. .NOT. PRESENT(rpgfb)) THEN
+            CPABORT("Two-center OS backend requires primitive Gaussian radii")
+         END IF
 
-         IF (selected_coulomb2_new_backend == backend_libint) THEN
+         IF (selected_coulomb2_backend == backend_libint) THEN
             IF (.NOT. PRESENT(lib)) CPABORT("LIBINT backend requires a Libint object")
-            IF (.NOT. PRESENT(rpgfa) .OR. .NOT. PRESENT(rpgfb)) THEN
-               CPABORT("LIBINT backend requires primitive Gaussian radii")
-            END IF
             CALL eri_2center(hab_uncontr, la_min, la_max, npgfa, zeta, rpgfa, ra, &
                              lb_min, lb_max, npgfb, zetb, rpgfb, rb, SQRT(rab2), lib, potential_parameter)
          ELSE
             ALLOCATE (f_work(0:la_max + lb_max + 2))
             ALLOCATE (v_work(ncoa, ncob, la_max + lb_max + 1))
-            v_work(:, :, :) = 0.0_dp
-            f_work = 0.0_dp
 
-            CALL coulomb2_new(la_max, npgfa, zeta, la_min, lb_max, npgfb, zetb, lb_min, &
-                              rb - ra, rab2, hab_uncontr, v_work, f_work)
+            CALL coulomb2(la_max, npgfa, zeta, rpgfa, la_min, lb_max, npgfb, zetb, rpgfb, lb_min, &
+                          rb - ra, rab2, hab_uncontr, v_work, f_work, screening=.FALSE.)
 
             DEALLOCATE (v_work, f_work)
          END IF

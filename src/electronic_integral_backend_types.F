@@ -19,7 +19,6 @@ MODULE electronic_integral_backend_types
 
    TYPE, PUBLIC :: electronic_integral_backend_type
       INTEGER :: coulomb2_backend = backend_native
-      INTEGER :: coulomb2_new_backend = backend_native
       INTEGER :: coulomb3_backend = backend_native
    END TYPE electronic_integral_backend_type
 
