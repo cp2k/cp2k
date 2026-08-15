@@ -1535,17 +1535,19 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="NATIVE_GRID_GAPW_COMPOSITE_GRID", &
          description="Select the numerical backend for periodic PAW_ONE_CENTER GAPW Skala. "// &
-         "COMMON_PERIODIC_GRID reconstructs the primitive fields on CP2K's regular periodic "// &
-         "grid and remains the production default. PERIODIC_ATOM_COMPOSITE evaluates complete "// &
-         "reference-cell atom blocks on the GAPW radial/Lebedev grids with an explicit smooth "// &
-         "lattice-image partition. The latter is intended for convergence and method validation "// &
-         "of hard localized one-center fields.", &
-         usage="NATIVE_GRID_GAPW_COMPOSITE_GRID COMMON_PERIODIC_GRID", &
+         "PERIODIC_ATOM_COMPOSITE, the default, evaluates complete reference-cell atom blocks "// &
+         "on the GAPW radial/Lebedev grids. A periodic atom-image partition assigns the outer "// &
+         "energy quadrature, while a self-image partition provides an untruncated atom-centered "// &
+         "descriptor domain. Smooth, hard, and soft primitive fields are combined before nonlinear "// &
+         "feature construction. COMMON_PERIODIC_GRID reconstructs the same "// &
+         "fields on CP2K's regular periodic grid and is retained as a cutoff-sensitive reference "// &
+         "and compatibility backend.", &
+         usage="NATIVE_GRID_GAPW_COMPOSITE_GRID PERIODIC_ATOM_COMPOSITE", &
          enum_c_vals=s2a("COMMON_PERIODIC_GRID", "PERIODIC_ATOM_COMPOSITE"), &
          enum_i_vals=[skala_gapw_common_periodic_grid, skala_gapw_periodic_atom_composite], &
          enum_desc=s2a("Reconstruct on the common periodic real-space grid", &
                        "Use image-partitioned atom-centered composite grids"), &
-         default_i_val=skala_gapw_common_periodic_grid)
+         default_i_val=skala_gapw_periodic_atom_composite)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -2499,8 +2499,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Return the smooth weight of one reference-cell atom in an image-complete periodic
-!>        atom partition. Candidate images are selected covariantly around the grid point. The
-!>        reference image is therefore counted once, while translated atom-grid tails vanish.
+!>        atom partition. Each atom's fixed image shell is centered on the image nearest to the
+!>        target atom. The list is constant over the target atom block and covariant under lattice
+!>        translations of individual atoms.
 !> \param grid_point ...
 !> \param atom_coords ...
 !> \param cell ...
@@ -2566,7 +2567,8 @@ CONTAINS
       image_index = 0
       target_image = 0
       DO iatom = 1, natom
-         fractional = MATMUL(cell%h_inv, grid_point - atom_coords(:, iatom))
+         fractional = MATMUL(cell%h_inv, &
+                             atom_coords(:, target_atom) - atom_coords(:, iatom))
          DO idir = 1, 3
             base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
          END DO
@@ -2592,13 +2594,6 @@ CONTAINS
          END DO
       END DO
       CPASSERT(image_index == image_count)
-      IF (target_image == 0) THEN
-         DEALLOCATE (image_atom, image_shift, image_coords, distances, log_weights, &
-                     normalized_weights, rvecs, unit_rvecs, mean_log_derivative, &
-                     target_log_derivative)
-         RETURN
-      END IF
-
       DO iimage = 1, image_count
          rvecs(:, iimage) = grid_point - image_coords(:, iimage)
          distances(iimage) = SQRT(SUM(rvecs(:, iimage)**2))

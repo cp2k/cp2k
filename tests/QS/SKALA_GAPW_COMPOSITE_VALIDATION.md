@@ -464,18 +464,51 @@ For molecular HF with GTH-NLCC-PBE potentials, `GAPW_ACCURATE_XCINT T`, a 400-Ry
 to `1.88e-3 Ha/bohr` at 800 Ry. A no-NLCC control shows the same transverse finite-grid behavior, so
 it is not evidence of a missing NLCC derivative.
 
-For periodic native-grid HF/GTH-NLCC at 400 Ry, the numerical diagonal virial components are
-`(0.04050825, 0.02148169, 0.04799977) Ha`, compared with analytical values of
-`(0.04054365, 0.02157227, 0.04785084) Ha`. The component errors are
-`(-3.54e-5, -9.06e-5, 1.49e-4) Ha`, or at most `0.42%`. A separate coordinate finite difference
-gives an absolute force difference of `3.65e-4 Ha/bohr` at the same cutoff. These residuals are
-within the finite-grid diagnostic tolerance and converge from the substantially coarser 200-Ry case.
+For periodic atom-centered HF/GTH-NLCC in a 6-Angstrom cell, a `5e-4 bohr` coordinate displacement
+at 200 Ry gives numerical and analytical forces of `0.02361156` and `0.02361050 Ha/bohr`, an
+absolute difference of `1.07e-6 Ha/bohr`. The summed absolute diagonal-virial residual decreases
+from `1.468e-3 Ha` at 200 Ry through `6.576e-4 Ha` at 400 Ry to `4.299e-4 Ha` at 800 Ry. The
+component signs change during refinement, identifying the remaining stress residual as finite-grid
+error rather than a missing NLCC derivative. NLCC augments rho and grad(rho), while tau remains
+valence-only.
 
-The atom-centered molecular composite cannot be applied unchanged to a periodic cell: its
-radial/Lebedev grids extend over periodic images, and the present nearest-image smooth partition
-would count the periodic density repeatedly. A periodic atom-centered implementation requires an
-explicit lattice-image partition. Until that exists, periodic composite evaluation uses the common
-regular grid, while the atom-centered route remains molecular.
+The final periodic atom-centered implementation uses two related but distinct image partitions. The
+outer energy quadrature uses the target atom's normalized Becke-like weight among all relevant atom
+images. The internal Skala quadrature is tapered instead by a partition among only the target atom's
+own periodic images. This self-image window defines one smooth atom-centered periodic domain without
+cutting the non-local descriptor block at boundaries between different atoms. Smooth native-grid
+fields are evaluated at the wrapped target points, and all overlapping hard-minus-soft source images
+are added before feature construction. The exact interpolation and image-assembly transpose returns
+VXC to the regular grid and one-center matrices. Atom-center, image-vector, partition, and strain
+derivatives enter the analytical forces and virial.
+
+Fixed-density molecular-limit checks separate periodic-image errors from the finite GAPW
+reconstruction. For pseudopotential H2/GTH, molecular GauXC and the periodic native atom-composite
+path give XC energies of `-0.68996678176535` and `-0.68996678286981 Ha`, respectively. Their
+difference is `1.10e-9 Ha`. For HCl/ccECP, increasing the cubic cell from 10 through 14 to 18
+Angstrom reduces the periodic-native minus molecular-GauXC XC difference from `1.13e-6` through
+`5.46e-8` to `8.19e-9 Ha`. Translating both atoms, or only H, by one lattice vector changes the
+one-step total energy by at most `2.4e-8 Ha`, the numerical level of the SCF diagnostic. This
+individual-atom test rules out a dependence on the chosen image label.
+
+For all-electron H2 at 480 Ry, the periodic atom-composite XC energy is `-0.67649213631546 Ha`,
+compared with `-0.67651812293529 Ha` from independent molecular GauXC `SUPERFINE/UNPRUNED`
+quadrature, a difference of `0.06823 kJ mol^-1`. Tightening the atom grid to 120 radial and 590
+requested Lebedev points gives `-0.67649221215300 Ha`; the corresponding non-periodic atom-composite
+value is `-0.67649221137357 Ha`. Thus the periodic-image error is below `1e-9 Ha`, while the
+remaining GauXC difference is the finite GAPW reconstruction and atom-grid quadrature floor.
+
+The same three-way control for all-electron H2O gives molecular GauXC, non-periodic atom-composite,
+and periodic atom-composite XC energies of `-9.52064341488346`, `-9.51937374908026`, and
+`-9.51937375464423 Ha`, respectively. Periodic and non-periodic atom grids differ by only
+`5.56e-9 Ha` (`1.46e-5 kJ mol^-1`), whereas the `3.3335 kJ mol^-1` offset from GauXC quantifies the
+finite GAPW reconstruction for this larger density.
+
+Analytical coordinate and cell derivatives were tested independently with converged SCFs. The force
+residuals are `6.36e-6 Ha/bohr` for all-electron H2, `5.65e-5 Ha/bohr` for H2/GTH, and
+`2.34e-5 Ha/bohr` for H2/ccECP. The corresponding summed absolute diagonal-virial residuals are
+`2.76e-5`, `2.08e-5`, and `3.15e-5 Ha`. In a skew H2/GTH cell, all nine cell-matrix derivatives give
+a maximum virial-component error of `7.48e-6 Ha` and a summed absolute error of `1.89e-5 Ha`.
 
 The boundary-condition control is separate from both derivative tests. At fixed AO density matrix,
 GauXC receives no CP2K cell or Poisson-solver information and its XC energy is exactly invariant to
@@ -556,32 +589,48 @@ four-rank energies are `-16.485390778331052`, `-16.485390777122827`, `-16.485390
 largest printed Cartesian-force variation is about `6e-9 Ha/bohr`. Three and four ranks are
 identical because the fourth rank owns no atom block.
 
-The periodic HCl/ccECP stress smoke test covers unequal one-center grids and the ECP adjoint path.
-Its one- and two-rank energies are `-13.373000499411184` and `-13.373000499411177 Ha`; the largest
-printed Cartesian-force component changes by about `1.8e-8 Ha/bohr`. The analytical stress traces
-differ by approximately `5 bar` against an absolute magnitude of `4.57e6 bar` in this deliberately
-coarse diagnostic.
+The final periodic PAW-one-center implementation was tested independently against k-point and MPI
+decompositions. A 2x2x2 mesh has four irreducible points with inversion alone and one point with
+either full K290 or SPGLIB reduction. Relative to the inversion calculation, the largest deviations
+for production-quality all-electron H2 are `1.72e-8 Ha`, `1.29e-6 Ha/bohr`, and `1.87e-2 bar` in
+energy, force, and stress. For H2/GTH they are `2.48e-9 Ha`, `6.78e-9 Ha/bohr`, and `4.21e-3 bar`;
+for H2/ccECP they are `1.54e-9 Ha`, `1.30e-9 Ha/bohr`, and `3.63e-3 bar`. The larger all-electron
+residual decreases strongly from the deliberately coarse 80-Ry smoke input when the cutoff and
+one-center quadrature are tightened.
 
-The final validation is rebased on CP2K master commit `50ddb19844cafd1de3e2dc9d76467b0f900461b2` and
-uses GauXC commit `ea0f1fc7c02497aa950376eda61686ba30256999`. This master revision routes native
-SKALA atom chunks by default for energy and VXC while retaining the full differentiable graph for
-force and stress evaluations. After removing a redundant regular-grid SKALA evaluation from the
-atom-composite route, the final production-driver results on Terok are:
+The same converged H2/GTH K290 input gives total energies of `-1.166200830660482`,
+`-1.166200835047120`, and `-1.166200835342218 Ha` with one, two, and four MPI ranks. The full range
+is `4.68e-9 Ha`; the largest force and stress variations are `2.1e-9 Ha/bohr` and `2.70e-3 bar`,
+respectively. Complete atom blocks therefore remain rank-local without changing the periodic image
+partition or its derivatives.
 
-| Directory                 | Layout                         | Matcher result | Driver wall time | Slow tests |
-| ------------------------- | ------------------------------ | -------------: | ---------------: | ---------: |
-| `regtest-gauxc-gapw-gth`  | 2 MPI x 2 OpenMP, CPU          |          13/13 |          51.01 s |          0 |
-| `regtest-gauxc-gapw-ecp`  | 2 MPI x 2 OpenMP, CPU          |            8/8 |          52.75 s |          0 |
-| `regtest-gauxc-gapw-base` | 2 MPI x 2 OpenMP, CPU          |            3/3 |          16.90 s |          0 |
-| `regtest-gauxc-cuda`      | 2 MPI x 2 OpenMP, two A40 GPUs |          22/22 |          50.96 s |          0 |
+The final validation is rebased on CP2K master commit `5b7fc9f979` and uses GauXC commit
+`ea0f1fc7c02497aa950376eda61686ba30256999`. Native SKALA atom chunks retain the full differentiable
+graph for force and stress evaluations. The targeted final drivers give:
+
+| Directory                   | Layout                         | Method matchers | Driver wall time |
+| --------------------------- | ------------------------------ | --------------: | ---------------: |
+| `regtest-gapw_xc`           | 2 MPI x 2 OpenMP, CPU          |           32/32 |          50.91 s |
+| `regtest-gauxc-gpw-nlcc`    | 2 MPI x 2 OpenMP, CPU          |             9/9 |          14.04 s |
+| `regtest-gauxc-gapw-base`   | 2 MPI x 2 OpenMP, CPU          |             3/3 |          10.02 s |
+| `regtest-gauxc-gapw-ae-kp`  | 2 MPI x 2 OpenMP, CPU          |             3/3 |          14.47 s |
+| `regtest-gauxc-gapw-gth-kp` | 2 MPI x 2 OpenMP, CPU          |             3/3 |          10.53 s |
+| `regtest-gauxc-gapw-gth`    | 2 MPI x 2 OpenMP, CPU          |           16/16 |          30.24 s |
+| `regtest-gauxc-gapw-ecp`    | 2 MPI x 2 OpenMP, CPU          |             8/8 |          19.64 s |
+| `regtest-gauxc-cuda`        | 2 MPI x 2 OpenMP, two A40 GPUs |           22/22 |          49.49 s |
+
+The local CPU driver additionally reports the pre-existing GauXC-library-dependent `MODEL NONE`
+baseline and the molecular GauXC/PBE high-l force diagnostic. An exact master build linked to the
+same local GauXC library reproduces both deviations; their references are therefore deliberately
+unchanged. All native-SKALA matchers in these directories pass.
 
 These sets cover direct valence, `PAW_ONE_CENTER`, `CP2K_DEFAULT`, `METHOD GAPW_XC`, MODEL NONE
 isolation, the `PAW_ONE_CENTER_SPLIT` diagnostic, targeted force/stress diagnostics, inversion
-reduction, the full internal k-point symmetry reduction, and the SPGLIB reduction. The three ECP
-inversion, internal-symmetry, and SPGLIB inputs agree at `-13.36515054 Ha` in the final run. The
-moved forward reconstruction also preserves the existing all-electron H2O XRD charge reference of
-`-9.9999991403` electrons, and the existing mixed all-electron/GTH GAPW XRD input completes
-successfully.
+reduction, the full internal k-point symmetry reduction, and the SPGLIB reduction. Fully converged
+PAW-one-center GTH and ECP calculations agree across these three reductions at the precision quoted
+above. The moved forward reconstruction also preserves the existing all-electron H2O XRD charge
+reference of `-9.9999991403` electrons, and the existing mixed all-electron/GTH GAPW XRD input
+completes successfully.
 
 The original CPU k-point runs exposed a numerical-runtime defect rather than a SKALA or k-point
 error. The packaged LibTorch uses oneMKL's grouped CBLAS ABI, while CP2K and ScaLAPACK use OpenBLAS;
@@ -592,13 +641,11 @@ k-point test and all eight ECP tests then pass without `LD_PRELOAD`. Preloading 
 remains invalid because it can interpose the complex BLAS used by ScaLAPACK.
 
 The atom-composite CUDA path reuses the device storage of its coordinate, weight, density, gradient,
-and kinetic-energy-density tensors when their shapes are unchanged. A paired H2/GTH `ENERGY_FORCE`
-calculation from the same atomic density gives total energies of `-0.967804783962676 Ha` on the
-uncached CPU path and `-0.967804781763126 Ha` on the cached CUDA path. Their difference is
-`2.20e-9 Ha`; the largest difference among all six Cartesian force components is approximately
-`3e-9 Ha/bohr`. Thus resetting the reusable leaves clears stale gradients and copies the new
-primitive fields without changing the forward or backward result at chemically relevant precision.
-The dedicated CUDA regression test exercises this molecular `PAW_ONE_CENTER` energy-and-force path.
+and kinetic-energy-density tensors when their shapes are unchanged. The final two-A40 driver passes
+all 22 energy, force, and stress matchers, including molecular `PAW_ONE_CENTER`, periodic GPW/GTH,
+all-electron GAPW, `GPW_TYPE`, and inversion/full-symmetry k-point pairs. Resetting the reusable
+leaves clears stale gradients and copies the new primitive fields without changing the forward or
+backward result.
 
 The distributed-memory implementation evaluates one or more complete atom blocks on every active
 rank. With `NATIVE_GRID_USE_CUDA T` and automatic device selection, MPI-local ranks select distinct
@@ -655,14 +702,12 @@ that the new references represent the continuous partition rather than a model-c
   and density gradient before feature construction while tau remains valence-only.
 - The periodic regular-grid analytical virial passes full skew-cell finite-difference checks for
   both GPW and the all-electron GAPW common-grid composite after making sparse smooth-partition rows
-  vanish continuously in SKALA's internal atom-grid integral. Periodic pseudopotential GAPW forces
-  and stress also pass targeted GTH and ECP finite differences, with the ECP force residual
-  decreasing by more than one order of magnitude under grid refinement. A periodic lattice-image
-  construction for the separate atom-centered composite remains open.
-- The periodic regular-grid GTH/ECP paths and their k-point symmetry reductions pass the production
-  regression sets with two MPI ranks after removing an implicit `rho`/`rho_xc` mismatch and
-  duplicate force/virial reductions. The molecular atom-centered composite gives rank-invariant
-  energy and forces with one, two, and four MPI ranks. Complete atom blocks are evaluated on their
-  owning CPU rank or GPU and device tensors are reused when their shapes are unchanged. Distributed
-  PW-adjoint storage remains open and must preserve the validated energy, VXC, force, and virial
-  behavior.
+  vanish continuously in SKALA's internal atom-grid integral. The periodic atom-centered composite
+  additionally passes full skew-cell Cauchy-stress finite differences, targeted GTH and ECP force
+  and stress checks, exact lattice-vector translation, and the molecular GauXC large-cell limit.
+- The periodic atom-centered all-electron, GTH, and ccECP calculations agree across inversion-only,
+  K290, and SPGLIB reduction within `1.72e-8 Ha`, `1.29e-6 Ha/bohr`, and `1.87e-2 bar`; the GTH and
+  ECP pseudopotential cases are one to three orders of magnitude tighter. One-, two-, and four-rank
+  GTH calculations agree within `4.68e-9 Ha`, `2.1e-9 Ha/bohr`, and `2.70e-3 bar`. Complete atom
+  blocks are evaluated on their owning CPU rank or GPU and device tensors are reused when their
+  shapes are unchanged.

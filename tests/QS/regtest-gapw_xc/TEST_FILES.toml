@@ -5,8 +5,8 @@
 #      for details see cp2k/tools/do_regtest
 # tests GAPW_XC 
 "CO.inp"                                = [{matcher="E_total", tol=1e-12, ref=-21.82227244820612}]
-"Be_GAPW_XC.inp"                        = [{matcher="E_total", tol=1e-12, ref=-14.04219830494389}]
-"Be_GAPW_XC_stress.inp"                 = [{matcher="E_total", tol=1e-12, ref=-14.04219830494473}]
+"Be_GAPW_XC.inp"                        = [{matcher="E_total", tol=1e-12, ref=-14.04552817586023}]
+"Be_GAPW_XC_stress.inp"                 = [{matcher="E_total", tol=1e-12, ref=-14.04552817586023}]
 "c8_gapw_xc.inp"                        = [{matcher="E_total", tol=1e-12, ref=-44.14872330256960}]
 "c8_pmix_gapw_xc.inp"                   = [{matcher="E_total", tol=1e-12, ref=-44.86126204151856}]
 "H2O_allnopaw.inp"                      = [{matcher="E_total", tol=1e-12, ref=-17.12295202726917}]
@@ -25,7 +25,7 @@
 "He2-all.inp"                           = [{matcher="E_total", tol=1e-12, ref=-5.04734948841606}]
 "He2-all-md.inp"                        = [{matcher="E_total", tol=1e-10, ref=-5.05329395796308}]
 "HF_all_voronoi.inp"                    = [{matcher="E_total", tol=1e-12, ref=-24.54186566500936}]
-"HF_gapw_TPSS.inp"                      = [{matcher="E_total", tol=1e-12, ref=-24.90253989256192}]
+"HF_gapw_TPSS.inp"                      = [{matcher="E_total", tol=1e-12, ref=-24.90257894395540}]
 "HF_voronoi.inp"                        = [{matcher="E_total", tol=1e-12, ref=-24.76676883471983}]
 "H_hf_gapw_forcepaw.inp"                = [{matcher="E_total", tol=1e-12, ref=-0.42450556971821}]
 "H_hf_gapw_nopaw_full.inp"              = [{matcher="E_total", tol=1e-12, ref=-0.42450556971821}]

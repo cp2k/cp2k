@@ -230,7 +230,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: gauxc_section
 
       use_atom_composite = .FALSE.
-      composite_grid = skala_gapw_common_periodic_grid
+      composite_grid = skala_gapw_periodic_atom_composite
       gauxc_section => get_gauxc_section(xc_section)
       IF (ASSOCIATED(gauxc_section)) THEN
          CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_GAPW_COMPOSITE_GRID", &

@@ -283,16 +283,17 @@ CONTAINS
          composite_cross_cutoff_max, composite_cross_density_max, composite_cross_grad_max, &
          composite_cross_kin_max, composite_density_max, composite_density_min, &
          composite_grad_max, composite_kin_max, composite_kin_min, composite_tau_integral, &
-         cross_cutoff, density_cut, exc_h, exc_s, feature_vxc_analytic, feature_vxc_fd, &
-         feature_vxc_minus, feature_vxc_plus, feature_vxc_step, gradient_cut, &
-         my_adiabatic_rescale_factor, nlcc_density, nlcc_spin_factor, &
-         one_center_density_field_contraction, one_center_density_matrix_contraction
-      REAL(dp) :: one_center_field_contraction, one_center_gradient_field_contraction, &
+         cross_cutoff, density_cut, descriptor_window_adjoint, descriptor_window_weight, exc_h, &
+         exc_s, feature_vxc_analytic, feature_vxc_fd, feature_vxc_minus, feature_vxc_plus, &
+         feature_vxc_step, gradient_cut, my_adiabatic_rescale_factor, nlcc_density, &
+         nlcc_spin_factor
+      REAL(dp) :: one_center_density_field_contraction, one_center_density_matrix_contraction, &
+         one_center_field_contraction, one_center_gradient_field_contraction, &
          one_center_gradient_matrix_contraction, one_center_matrix_contraction, &
          one_center_rho_grad_field_contraction, one_center_rho_grad_matrix_contraction, &
          one_center_tau_field_contraction, one_center_tau_matrix_contraction, &
          one_center_tensor_contraction, partition_adjoint, partition_scale, &
-         smooth_grid_contraction, smooth_input_contraction, tau_cut, zeff
+         smooth_grid_contraction, smooth_input_contraction, target_partition_adjoint, tau_cut, zeff
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: composite_atomic_grid_weight_grad, &
          composite_atomic_grid_weights, composite_base_grid_weights, composite_distances, &
          composite_grid_weight_grad, composite_grid_weights, composite_partition_weights
@@ -314,12 +315,13 @@ CONTAINS
       REAL(dp), DIMENSION(3) :: composite_point, cross_displacement, cross_spatial_derivative, &
          fractional, image_translation, nlcc_gradient, nlcc_spatial_derivative, &
          skala_atom_force_h, skala_atom_force_s, spatial_derivative
+      REAL(dp), DIMENSION(3, 1)                          :: descriptor_window_datom
       REAL(dp), DIMENSION(3, 2) :: composite_smooth_gradient_value, cross_density_spatial, &
          cross_grad, cross_grad_adjoint, cross_kin_spatial
       REAL(dp), DIMENSION(3, 3) :: composite_cross_image_virial, composite_explicit_virial, &
          composite_feature_virial, composite_interpolation_virial, &
-         composite_partition_strain_virial, nlcc_hessian, skala_atom_virial, skala_atom_virial_h, &
-         skala_atom_virial_s
+         composite_partition_strain_virial, descriptor_window_dstrain, nlcc_hessian, &
+         skala_atom_virial, skala_atom_virial_h, skala_atom_virial_s
       REAL(dp), DIMENSION(3, 3, 2)                       :: cross_grad_spatial
       REAL(dp), DIMENSION(4)                             :: feature_component_analytic, &
                                                             feature_component_fd
@@ -415,10 +417,15 @@ CONTAINS
                       input=input, &
                       particle_set=particle_set, &
                       pw_env=pw_env, &
-                      rho=rho_struct, &
                       virial=virial, &
                       rho_atom_set=my_rho_atom_set, &
                       force=force)
+
+      IF (dft_control%qs_control%gapw_xc) THEN
+         CALL get_qs_env(qs_env=qs_env, rho_xc=rho_struct)
+      ELSE
+         CALL get_qs_env(qs_env=qs_env, rho=rho_struct)
+      END IF
 
       IF (PRESENT(kind_set_external)) my_kind_set => kind_set_external
       IF (PRESENT(rho_atom_set_external)) my_rho_atom_set => rho_atom_set_external
@@ -836,8 +843,13 @@ CONTAINS
                            CALL periodic_atom_image_partition( &
                               composite_point, composite_atom_coords, cell, iatom, &
                               composite_partition_weights(iatom))
+                           ! The self-image partition defines a smooth atom-centered periodic
+                           ! descriptor domain without truncating it at neighboring atoms.
+                           CALL periodic_atom_image_partition( &
+                              composite_point, composite_atom_coords(:, iatom:iatom), cell, 1, &
+                              descriptor_window_weight)
                            partition_scale = smooth_partition_atomic_weight_scale( &
-                                             composite_partition_weights(iatom))
+                                             descriptor_window_weight)
                         ELSE
                            CALL smooth_atom_partition( &
                               composite_point, composite_atom_coords, cell, &
@@ -1436,11 +1448,19 @@ CONTAINS
                            iatom, composite_partition_weights(iatom), &
                            composite_partition_datom(:, :, iatom), &
                            composite_partition_dstrain(:, :, iatom))
-                        partition_adjoint = composite_base_grid_weights(composite_row)*( &
-                                            composite_grid_weight_grad(composite_row) + &
-                                            composite_atomic_grid_weight_grad(composite_row)* &
-                                            smooth_partition_atomic_weight_scale_derivative( &
-                                            composite_partition_weights(iatom)))
+                        CALL periodic_atom_image_partition( &
+                           composite_grid_coords(:, composite_row), &
+                           composite_atom_coords(:, iatom:iatom), cell, 1, &
+                           descriptor_window_weight, descriptor_window_datom, &
+                           descriptor_window_dstrain)
+                        ! Its atom derivative cancels against the moving target grid; periodic
+                        ! image strain remains an explicit contribution to the virial.
+                        target_partition_adjoint = composite_base_grid_weights(composite_row)* &
+                                                   composite_grid_weight_grad(composite_row)
+                        descriptor_window_adjoint = composite_base_grid_weights(composite_row)* &
+                                                    composite_atomic_grid_weight_grad(composite_row)* &
+                                                    smooth_partition_atomic_weight_scale_derivative( &
+                                                    descriptor_window_weight)
                      ELSE
                         CALL skala_gpw_smooth_partition_derivatives( &
                            composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
@@ -1450,18 +1470,30 @@ CONTAINS
                                             composite_atomic_grid_weights(composite_row)
                      END IF
                      DO target_atom = 1, SIZE(particle_set)
-                        composite_partition_force(:, target_atom) = &
-                           composite_partition_force(:, target_atom) + &
-                           partition_adjoint* &
-                           composite_partition_datom(:, target_atom, iatom)
+                        IF (periodic_atom_composite) THEN
+                           composite_partition_force(:, target_atom) = &
+                              composite_partition_force(:, target_atom) + &
+                              target_partition_adjoint* &
+                              composite_partition_datom(:, target_atom, iatom)
+                        ELSE
+                           composite_partition_force(:, target_atom) = &
+                              composite_partition_force(:, target_atom) + &
+                              partition_adjoint* &
+                              composite_partition_datom(:, target_atom, iatom)
+                        END IF
                      END DO
-                     composite_partition_force(:, iatom) = composite_partition_force(:, iatom) - &
-                                                           partition_adjoint* &
-                                                           SUM(composite_partition_datom(:, :, iatom), DIM=2)
                      IF (periodic_atom_composite) THEN
+                        composite_partition_force(:, iatom) = composite_partition_force(:, iatom) - &
+                                                              target_partition_adjoint* &
+                                                              SUM(composite_partition_datom(:, :, iatom), DIM=2)
                         composite_partition_strain_virial = &
-                           composite_partition_strain_virial - partition_adjoint* &
-                           composite_partition_dstrain(:, :, iatom)
+                           composite_partition_strain_virial - target_partition_adjoint* &
+                           composite_partition_dstrain(:, :, iatom) - &
+                           descriptor_window_adjoint*descriptor_window_dstrain
+                     ELSE
+                        composite_partition_force(:, iatom) = composite_partition_force(:, iatom) - &
+                                                              partition_adjoint* &
+                                                              SUM(composite_partition_datom(:, :, iatom), DIM=2)
                      END IF
                   END DO
                END DO
