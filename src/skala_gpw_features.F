@@ -2498,6 +2498,181 @@ CONTAINS
    END SUBROUTINE smooth_atom_partition
 
 ! **************************************************************************************************
+!> \brief Build screened logarithmic Becke weights for a set of periodic atom images.
+!> \param image_coords ...
+!> \param distances ...
+!> \param log_weights ...
+! **************************************************************************************************
+   SUBROUTINE periodic_image_log_weights(image_coords, distances, log_weights)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: image_coords
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: distances
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: log_weights
+
+      INTEGER                                            :: iimage, image_count, jimage, &
+                                                            nearest_image
+      REAL(KIND=dp)                                      :: factor, mu, rab, reference_log_weight, &
+                                                            screen_log_weight
+      REAL(KIND=dp), DIMENSION(3)                        :: pair
+
+      image_count = SIZE(distances)
+      CPASSERT(SIZE(image_coords, 1) == 3)
+      CPASSERT(SIZE(image_coords, 2) == image_count)
+      CPASSERT(SIZE(log_weights) == image_count)
+
+      nearest_image = MINLOC(distances, DIM=1)
+      log_weights = -HUGE(1.0_dp)
+      reference_log_weight = 0.0_dp
+      DO jimage = 1, image_count
+         IF (jimage == nearest_image) CYCLE
+         pair = image_coords(:, nearest_image) - image_coords(:, jimage)
+         rab = SQRT(SUM(pair**2))
+         IF (rab <= layout_tol) CYCLE
+         mu = MAX(-1.0_dp, MIN(1.0_dp, &
+                               (distances(nearest_image) - distances(jimage))/rab))
+         factor = 0.5_dp*(1.0_dp - becke_shape(mu))
+         CPASSERT(factor > TINY(1.0_dp))
+         reference_log_weight = reference_log_weight + LOG(factor)
+      END DO
+      log_weights(nearest_image) = reference_log_weight
+
+      ! Every omitted factor is at most one. A partial log product is therefore an upper bound
+      ! on the final unnormalized weight. The normalization contains at least the nearest-image
+      ! reference weight, so screening below this limit changes the complete partition by no more
+      ! than one floating-point epsilon in total.
+      screen_log_weight = reference_log_weight + &
+                          LOG(EPSILON(1.0_dp)/REAL(image_count, KIND=dp))
+      DO iimage = 1, image_count
+         IF (iimage == nearest_image) CYCLE
+         pair = image_coords(:, iimage) - image_coords(:, nearest_image)
+         rab = SQRT(SUM(pair**2))
+         IF (rab <= layout_tol) CYCLE
+         mu = MAX(-1.0_dp, MIN(1.0_dp, &
+                               (distances(iimage) - distances(nearest_image))/rab))
+         factor = 0.5_dp*(1.0_dp - becke_shape(mu))
+         IF (factor <= TINY(1.0_dp)) CYCLE
+         log_weights(iimage) = LOG(factor)
+         IF (log_weights(iimage) <= screen_log_weight) THEN
+            log_weights(iimage) = -HUGE(1.0_dp)
+            CYCLE
+         END IF
+
+         DO jimage = 1, image_count
+            IF (jimage == iimage .OR. jimage == nearest_image) CYCLE
+            pair = image_coords(:, iimage) - image_coords(:, jimage)
+            rab = SQRT(SUM(pair**2))
+            IF (rab <= layout_tol) CYCLE
+            mu = MAX(-1.0_dp, MIN(1.0_dp, &
+                                  (distances(iimage) - distances(jimage))/rab))
+            factor = 0.5_dp*(1.0_dp - becke_shape(mu))
+            IF (factor <= TINY(1.0_dp)) THEN
+               log_weights(iimage) = -HUGE(1.0_dp)
+               EXIT
+            END IF
+            log_weights(iimage) = log_weights(iimage) + LOG(factor)
+            IF (log_weights(iimage) <= screen_log_weight) THEN
+               log_weights(iimage) = -HUGE(1.0_dp)
+               EXIT
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE periodic_image_log_weights
+
+! **************************************************************************************************
+!> \brief Return an image-complete periodic atom weight without derivatives.
+!>        Images that acquire an exactly vanishing Becke factor against the nearest image cannot
+!>        contribute to the normalization and are removed before their full products are formed.
+!> \param grid_point ...
+!> \param atom_coords ...
+!> \param cell ...
+!> \param target_atom ...
+!> \param weight ...
+!> \param image_periodicity optional image directions used by the auxiliary-grid partition
+! **************************************************************************************************
+   SUBROUTINE periodic_atom_image_partition_value(grid_point, atom_coords, cell, target_atom, &
+                                                  weight, image_periodicity)
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
+      TYPE(cell_type), POINTER                           :: cell
+      INTEGER, INTENT(IN)                                :: target_atom
+      REAL(KIND=dp), INTENT(OUT)                         :: weight
+      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: image_periodicity
+
+      INTEGER :: base_shift(3), iatom, idir, iimage, image_count, image_index, ix, ix_max, ix_min, &
+         iy, iy_max, iy_min, iz, iz_max, iz_min, natom, target_image
+      INTEGER, DIMENSION(3)                              :: partition_periodicity
+      REAL(KIND=dp)                                      :: max_log_weight, normalization
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distances, log_weights
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: image_coords
+      REAL(KIND=dp), DIMENSION(3)                        :: fractional
+
+      natom = SIZE(atom_coords, 2)
+      CPASSERT(ASSOCIATED(cell))
+      CPASSERT(target_atom >= 1 .AND. target_atom <= natom)
+      CPASSERT(SIZE(atom_coords, 1) == 3)
+      weight = 0.0_dp
+      partition_periodicity = cell%perd
+      IF (PRESENT(image_periodicity)) partition_periodicity = image_periodicity
+      CPASSERT(ALL(partition_periodicity == 0 .OR. partition_periodicity == 1))
+
+      image_count = natom
+      DO idir = 1, 3
+         IF (partition_periodicity(idir) == 1) THEN
+            image_count = image_count*(2*periodic_partition_image_shell + 1)
+         END IF
+      END DO
+      ALLOCATE (image_coords(3, image_count), distances(image_count), log_weights(image_count))
+
+      image_index = 0
+      target_image = 0
+      DO iatom = 1, natom
+         fractional = MATMUL(cell%h_inv, &
+                             atom_coords(:, target_atom) - atom_coords(:, iatom))
+         DO idir = 1, 3
+            base_shift(idir) = partition_periodicity(idir)*NINT(fractional(idir))
+         END DO
+         ix_min = base_shift(1) - periodic_partition_image_shell*partition_periodicity(1)
+         ix_max = base_shift(1) + periodic_partition_image_shell*partition_periodicity(1)
+         iy_min = base_shift(2) - periodic_partition_image_shell*partition_periodicity(2)
+         iy_max = base_shift(2) + periodic_partition_image_shell*partition_periodicity(2)
+         iz_min = base_shift(3) - periodic_partition_image_shell*partition_periodicity(3)
+         iz_max = base_shift(3) + periodic_partition_image_shell*partition_periodicity(3)
+         DO iz = iz_min, iz_max
+            DO iy = iy_min, iy_max
+               DO ix = ix_min, ix_max
+                  image_index = image_index + 1
+                  image_coords(:, image_index) = atom_coords(:, iatom) + &
+                                                 MATMUL(cell%hmat, REAL([ix, iy, iz], KIND=dp))
+                  IF (iatom == target_atom .AND. ALL([ix, iy, iz] == 0)) THEN
+                     target_image = image_index
+                  END IF
+               END DO
+            END DO
+         END DO
+      END DO
+      CPASSERT(image_index == image_count)
+      CPASSERT(target_image > 0)
+
+      DO iimage = 1, image_count
+         distances(iimage) = SQRT(SUM((grid_point - image_coords(:, iimage))**2))
+      END DO
+      CALL periodic_image_log_weights(image_coords, distances, log_weights)
+
+      max_log_weight = MAXVAL(log_weights)
+      IF (max_log_weight > -0.5_dp*HUGE(1.0_dp)) THEN
+         normalization = SUM(EXP(log_weights - max_log_weight), &
+                             MASK=log_weights > -0.5_dp*HUGE(1.0_dp))
+         CPASSERT(normalization > 0.0_dp)
+         IF (log_weights(target_image) > -0.5_dp*HUGE(1.0_dp)) THEN
+            weight = EXP(log_weights(target_image) - max_log_weight)/normalization
+         END IF
+      END IF
+
+      DEALLOCATE (image_coords, distances, log_weights)
+
+   END SUBROUTINE periodic_atom_image_partition_value
+
+! **************************************************************************************************
 !> \brief Return the smooth weight of one reference-cell atom in an image-complete periodic
 !>        atom partition. Each atom's fixed image shell is centered on the image nearest to the
 !>        target atom. The list is constant over the target atom block and covariant under lattice
@@ -2545,6 +2720,11 @@ CONTAINS
       CPASSERT(SIZE(atom_coords, 1) == 3)
       need_derivatives = PRESENT(dweight_datom)
       CPASSERT(PRESENT(dweight_dstrain) .EQV. need_derivatives)
+      IF (.NOT. need_derivatives) THEN
+         CALL periodic_atom_image_partition_value( &
+            grid_point, atom_coords, cell, target_atom, weight, image_periodicity)
+         RETURN
+      END IF
       IF (need_derivatives) THEN
          CPASSERT(SIZE(dweight_datom, 1) == 3)
          CPASSERT(SIZE(dweight_datom, 2) == natom)
@@ -2612,32 +2792,7 @@ CONTAINS
          END IF
       END DO
 
-      log_weights = 0.0_dp
-      DO iimage = 1, image_count - 1
-         DO jimage = iimage + 1, image_count
-            pair = image_coords(:, iimage) - image_coords(:, jimage)
-            rab = SQRT(SUM(pair**2))
-            IF (rab <= layout_tol) CYCLE
-            unit_pair = pair/rab
-            dist_diff = distances(iimage) - distances(jimage)
-            mu_raw = dist_diff/rab
-            mu = MAX(-1.0_dp, MIN(1.0_dp, mu_raw))
-            switch = 0.5_dp*(1.0_dp - becke_shape(mu))
-            one_minus_switch = 1.0_dp - switch
-
-            IF (switch > TINY(1.0_dp)) THEN
-               log_weights(iimage) = log_weights(iimage) + LOG(switch)
-            ELSE
-               log_weights(iimage) = -HUGE(1.0_dp)
-            END IF
-            IF (one_minus_switch > TINY(1.0_dp)) THEN
-               log_weights(jimage) = log_weights(jimage) + LOG(one_minus_switch)
-            ELSE
-               log_weights(jimage) = -HUGE(1.0_dp)
-            END IF
-
-         END DO
-      END DO
+      CALL periodic_image_log_weights(image_coords, distances, log_weights)
 
       max_log_weight = MAXVAL(log_weights)
       IF (max_log_weight <= -0.5_dp*HUGE(1.0_dp)) THEN
@@ -2664,6 +2819,9 @@ CONTAINS
          target_log_derivative = 0.0_dp
          DO iimage = 1, image_count - 1
             DO jimage = iimage + 1, image_count
+               IF (normalized_weights(iimage) == 0.0_dp .AND. &
+                   normalized_weights(jimage) == 0.0_dp .AND. &
+                   target_image /= iimage .AND. target_image /= jimage) CYCLE
                pair = image_coords(:, iimage) - image_coords(:, jimage)
                rab = SQRT(SUM(pair**2))
                IF (rab <= layout_tol) CYCLE

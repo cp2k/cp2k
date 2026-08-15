@@ -372,7 +372,7 @@ CONTAINS
          one_center_gradient_matrix_contraction, one_center_matrix_contraction, &
          one_center_rho_grad_field_contraction, one_center_rho_grad_matrix_contraction, &
          one_center_tau_field_contraction, one_center_tau_matrix_contraction, &
-         one_center_tensor_contraction, partition_adjoint, partition_scale, &
+         one_center_tensor_contraction, partition_adjoint, partition_scale, partition_weight, &
          smooth_grid_contraction, smooth_input_contraction, target_partition_adjoint, tau_cut, zeff
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: composite_atomic_grid_weight_grad, &
          composite_atomic_grid_weights, composite_base_grid_weights, composite_distances, &
@@ -584,10 +584,12 @@ CONTAINS
          use_atom_composite_gradient = .FALSE.
          use_atom_composite_tau = .FALSE.
       END IF
-      ! CP2K's auxiliary PW fields are represented on one index-periodic cell even
-      ! when the physical Poisson problem is isolated or partially periodic.
-      image_partition_atom_composite = atom_composite_active
-      composite_image_periodicity = 1
+      ! Only physically periodic directions require image-complete atom partitions.
+      ! In non-periodic directions the auxiliary PW field is zero outside its cell;
+      ! wrapping it would replicate the molecular density into the radial tails.
+      composite_image_periodicity = cell%perd
+      image_partition_atom_composite = atom_composite_active .AND. &
+                                       ANY(composite_image_periodicity == 1)
       IF (PRESENT(composite_reference_active)) composite_reference_active = atom_composite_reference
       gapw_density_partition = skala_gapw_density_partition_hard_minus_soft
       IF (skala_atom_grid) THEN
@@ -922,10 +924,13 @@ CONTAINS
                END IF
 
                IF (atom_composite_active) THEN
-                  composite_row = composite_atom_start(iatom) - 1
+!$OMP PARALLEL DO COLLAPSE(2) IF (image_partition_atom_composite) SCHEDULE(STATIC) &
+!$OMP PRIVATE(composite_row, composite_point, descriptor_window_weight, idir, ispin, &
+!$OMP         gth_potential, nlcc_density, nlcc_gradient, nlcc_hessian, nlcc_spin_factor, &
+!$OMP         partition_scale, partition_weight, sgp_potential, source_atom)
                   DO ir = 1, nr
                      DO ia = 1, na
-                        composite_row = composite_row + 1
+                        composite_row = composite_atom_start(iatom) + (ir - 1)*na + ia - 1
                         composite_point(1) = particle_set(iatom)%r(1) + grid_atom%rad(ir)* &
                                              grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia)
                         composite_point(2) = particle_set(iatom)%r(2) + grid_atom%rad(ir)* &
@@ -934,10 +939,9 @@ CONTAINS
                                              grid_atom%rad(ir)*grid_atom%cos_pol(ia)
                         composite_grid_coords(:, composite_row) = composite_point
                         IF (image_partition_atom_composite) THEN
-                           composite_partition_weights = 0.0_dp
                            CALL periodic_atom_image_partition( &
                               composite_point, composite_atom_coords, cell, iatom, &
-                              composite_partition_weights(iatom), &
+                              partition_weight, &
                               image_periodicity=composite_image_periodicity)
                            ! The self-image partition defines a smooth atom-centered periodic
                            ! descriptor domain without truncating it at neighboring atoms.
@@ -952,6 +956,7 @@ CONTAINS
                               composite_point, composite_atom_coords, cell, &
                               composite_partition_weights, composite_partition_atom_coords, &
                               composite_distances)
+                           partition_weight = composite_partition_weights(iatom)
                            partition_scale = 1.0_dp
                         END IF
                         composite_base_grid_weights(composite_row) = grid_atom%weight(ia, ir)
@@ -959,7 +964,7 @@ CONTAINS
                            composite_base_grid_weights(composite_row)*partition_scale
                         composite_grid_weights(composite_row) = &
                            composite_base_grid_weights(composite_row)* &
-                           composite_partition_weights(iatom)
+                           partition_weight
                         IF (lsd) THEN
                            DO ispin = 1, 2
                               IF (ispin == 1) THEN
@@ -1077,7 +1082,8 @@ CONTAINS
                         END IF
                      END DO
                   END DO
-                  CPASSERT(composite_row == composite_atom_end(iatom))
+!$OMP END PARALLEL DO
+                  CPASSERT(nr*na == composite_atom_end(iatom) - composite_atom_start(iatom) + 1)
                END IF
 
                IF (.NOT. one_center_kind) CYCLE
