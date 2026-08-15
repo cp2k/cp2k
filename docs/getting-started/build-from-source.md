@@ -110,7 +110,7 @@ Use `./make_cp2k.sh --help` to display the complete list of options:
 
 <details>
 
-<summary>Click to see all options (version 2.0)</summary>
+<summary>Click to see all options (version 2.1)</summary>
 
 ```
 Usage: make_cp2k.sh [-bd | --build_deps]
@@ -123,14 +123,19 @@ Usage: make_cp2k.sh [-bd | --build_deps]
                     [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)
                     [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)
                     [-gm | -gpu  | --gpu_model (<CUDA SM code> | P100 | V100 | T400 | A100 | H100 | H200 | GH200 | none)]
+                    [-gromacs GROMACS_VERSION]
                     [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]
                     [-h | --help]
                     [-ip | --install_path PATH]
                     [-j #PROCESSES]
                     [-mpi | --mpi_mode (mpich | no | openmpi)]
                     [-np | --num_packages #PACKAGES]
+                    [-opencl]
+                    [-preset (native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)]
                     [-rc | --rebuild_cp2k]
                     [-t | --test "TESTOPTS"]
+                    [-tg | --test_gromacs]
+                    [-tp | --test_performance BENCHMARK_PROFILE]
                     [-uc | --use_cache (folder | minio | no | none)]
                     [-ue | --use_externals]
                     [-v | --verbose]
@@ -145,6 +150,7 @@ Flags:
  -cray                 : Use Cray specific spack configuration
  --enable_feature      : Enable feature or package (default: all)
  --disable_feature     : Disable feature or package
+ -gromacs              : Build GROMACS with CP2K support
  --help                : Print this help information
  --gcc_version         : Use the specified GCC version (default: automatically decided by spack)
  --gpu_model           : Select GPU model (default: none)
@@ -153,8 +159,11 @@ Flags:
  --mpi_mode            : Set preferred MPI mode (default: "mpich")
  --num_packages        : Maximum number of packages built by spack in parallel (default: 4)
  -opencl               : Perform build with OpenCL support
+ -preset               : Use a CMake configure preset, see \"cmake --list-presets\" (default: native-gnu-x86_64)"
  --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)
  --test                : Perform a regression test run after a successful build
+ --test_gromacs        : Build and test GROMACS with CP2K support
+ --test_performance    : Perform a benchmark run after a successful build
  --use_cache           : Use a "folder", a "MinIO" object storage container (requires podman) or "no" cache
                          Set the environment variable SPACK_CACHE to specify the folder name, e.g.
                          SPACK_CACHE="file://${CP2K_ROOT}/spack_cache" (default)
@@ -202,6 +211,25 @@ Add `-t` or `--test` followed by `TESTOPTS` to run a regression test after a suc
 
 Alternatively, run `install/bin/run_tests` after a successful build. The script prints usage
 examples at the end of a successful run.
+
+#### GROMACS/CP2K QM//MM
+
+The latest supported GROMACS release (currently v2026.3) for GROMACS/CP2K QM/MM simulations can be
+built and tested with
+
+```console
+./make_cp2k.sh -bd --test_gromacs
+```
+
+for CP2K versions newer than v2026.2. Other (older) GROMACS versions can be built and tested with
+
+```console
+./make_cp2k.sh -bd -gromacs v2025.2 --test_gromacs
+```
+
+A Dockerfile for building GROMACS/CP2K within a container with `podman` is also available. A usage
+example is given in the header of that
+[Dockerfile](https://raw.githubusercontent.com/cp2k/cp2k/refs/heads/master/tools/docker/Dockerfile.test_spack_gromacs).
 
 ## CMake configuration options
 
