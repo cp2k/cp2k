@@ -1569,7 +1569,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: mab_ext
 
-      INTEGER                                            :: imom, lda, lda_min, ldb, ldb_min, lmax
+      INTEGER                                            :: imom, lda, lda_min, ldb, ldb_min
       REAL(KIND=dp)                                      :: dab, rab(3), rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: difmab_tmp
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mab
@@ -1580,7 +1580,6 @@ CONTAINS
 
       lda_min = MAX(0, la_min - 1)
       ldb_min = MAX(0, lb_min - 1)
-      lmax = MAX(la_max + 1, lb_max + 1)
       lda = ncoset(la_max)*npgfa
       ldb = ncoset(lb_max)*npgfb
       ALLOCATE (difmab_tmp(lda, ldb, 3))
@@ -1653,7 +1652,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: forcea, forceb
 
       INTEGER                                            :: i, imom, ipgf, j, jpgf, lda, lda_min, &
-                                                            ldb, ldb_min, lmax, na, nb
+                                                            ldb, ldb_min, na, nb
       REAL(KIND=dp)                                      :: dab, rab(3), rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: difmab, mab
 
@@ -1666,7 +1665,6 @@ CONTAINS
 
       lda_min = MAX(0, la_min - 1)
       ldb_min = MAX(0, lb_min - 1)
-      lmax = MAX(la_max + 1, lb_max + 1)
       lda = ncoset(la_max)*npgfa
       ldb = ncoset(lb_max)*npgfb
       ALLOCATE (difmab(lda, ldb, 3))
