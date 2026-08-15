@@ -858,39 +858,6 @@ CONTAINS
    END FUNCTION wsto
 !------------------------------------------------------------------------------
 !
-!  S(l,pq) = INT(u^2 Ra(u) Rb(u))du
-!
-!------------------------------------------------------------------------------
-! **************************************************************************************************
-!> \brief ...
-!> \param smat ...
-!> \param ra ...
-!> \param rb ...
-!> \param wr ...
-! **************************************************************************************************
-   SUBROUTINE num_overlap(smat, ra, rb, wr)
-
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: smat
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ra, rb
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wr
-
-      INTEGER                                            :: ip, iq, m, n
-
-      n = SIZE(ra, 2)
-      m = SIZE(rb, 2)
-
-      CPASSERT(.NOT. (n > SIZE(smat, 1) .OR. m > SIZE(smat, 2)))
-
-      DO iq = 1, m
-         DO ip = 1, n
-            smat(ip, iq) = SUM(ra(:, ip)*rb(:, iq)*wr(:))
-         END DO
-      END DO
-
-   END SUBROUTINE num_overlap
-
-!------------------------------------------------------------------------------
-!
 !  T(l,pq) = 0.5 INT( u^2 dRa(u) dRb(u) + l(l+1) Ra(u) Rb(u))du
 !
 !------------------------------------------------------------------------------

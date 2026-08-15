@@ -179,6 +179,16 @@ CONTAINS
 
             ! *** Screening ***
             IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
+               sabc(na + 1:na + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
+                    1:npgfc*ncoset(lc_max_set)) = 0.0_dp
+               IF (PRESENT(sdabc)) THEN
+                  sdabc(nda + 1:nda + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
+                        1:npgfc*ncoset(lc_max_set), 1:3) = 0.0_dp
+               END IF
+               IF (PRESENT(sabdc)) THEN
+                  sabdc(na + 1:na + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
+                        1:npgfc*ncoset(lc_max_set), 1:3) = 0.0_dp
+               END IF
                nb = nb + ncoset(lb_max_set)
                CYCLE
             END IF
@@ -190,6 +200,16 @@ CONTAINS
                ! *** Screening ***
                IF ((rpgfb(jpgf) + rpgfc(kpgf) < dbc) .OR. &
                    (rpgfa(ipgf) + rpgfc(kpgf) < dac)) THEN
+                  sabc(na + 1:na + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
+                       nc + 1:nc + ncoset(lc_max_set)) = 0.0_dp
+                  IF (PRESENT(sdabc)) THEN
+                     sdabc(nda + 1:nda + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
+                           nc + 1:nc + ncoset(lc_max_set), 1:3) = 0.0_dp
+                  END IF
+                  IF (PRESENT(sabdc)) THEN
+                     sabdc(na + 1:na + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
+                           ndc + 1:ndc + ncoset(lc_max_set), 1:3) = 0.0_dp
+                  END IF
                   nc = nc + ncoset(lc_max_set)
                   ndc = ndc + ncoset(lc_max_set)
                   CYCLE

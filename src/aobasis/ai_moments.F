@@ -31,7 +31,7 @@ MODULE ai_moments
 
    USE ai_derivatives,                  ONLY: adbdr,&
                                               dabdr
-   USE ai_overlap,                      ONLY: overlap
+   USE ai_overlap,                      ONLY: overlap_ab
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: coset,&
@@ -1524,31 +1524,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: difab
 
-      INTEGER                                            :: lda_min, ldb_min, lds, lmax
-      REAL(KIND=dp)                                      :: dab, rab2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: s
-      REAL(KIND=dp), DIMENSION(npgfa*ncoset(la_max+1), &
-         npgfb*ncoset(lb_max+1))                         :: sab
-
-      rab2 = SUM(rab**2)
-      dab = SQRT(rab2)
-
-      lda_min = MAX(0, la_min - 1)
-      ldb_min = MAX(0, lb_min - 1)
-      lmax = MAX(la_max + 1, lb_max + 1)
-      lds = ncoset(lmax + 1)
-      ALLOCATE (s(lds, lds, ncoset(1)))
-      sab = 0.0_dp
-      s = 0.0_dp
-      CALL overlap(la_max + 1, lda_min, npgfa, rpgfa, zeta, &
-                   lb_max + 1, ldb_min, npgfb, rpgfb, zetb, &
-                   rab, dab, sab, 0, .FALSE., s, lds)
-
-      CALL dabdr(la_max, npgfa, zeta, rpgfa, la_min, &
-                 lb_max, npgfb, rpgfb, lb_min, &
-                 dab, sab, difab(:, :, 1), difab(:, :, 2), difab(:, :, 3))
-
-      DEALLOCATE (s)
+      difab = 0.0_dp
+      CALL overlap_ab(la_max, 0, npgfa, rpgfa, zeta, &
+                      lb_max, 0, npgfb, rpgfb, zetb, rab, dab=difab)
 
    END SUBROUTINE diffop
 
