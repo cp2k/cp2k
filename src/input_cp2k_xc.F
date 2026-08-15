@@ -1541,7 +1541,7 @@ CONTAINS
          "descriptor domain. Smooth, hard, and soft primitive fields are combined before nonlinear "// &
          "feature construction. COMMON_PERIODIC_GRID reconstructs the same "// &
          "fields on CP2K's regular periodic grid and is retained as a cutoff-sensitive reference "// &
-         "and compatibility backend.", &
+         "and diagnostic backend.", &
          usage="NATIVE_GRID_GAPW_COMPOSITE_GRID PERIODIC_ATOM_COMPOSITE", &
          enum_c_vals=s2a("COMMON_PERIODIC_GRID", "PERIODIC_ATOM_COMPOSITE"), &
          enum_i_vals=[skala_gapw_common_periodic_grid, skala_gapw_periodic_atom_composite], &

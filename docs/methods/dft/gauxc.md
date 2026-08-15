@@ -235,9 +235,11 @@ constructing the nonlinear Skala features. A periodic Becke-like partition over 
 assigns the outer energy quadrature. A separate partition over only the target atom's self-images
 defines its complete periodic descriptor domain, avoiding a truncation of non-local descriptors at
 boundaries between different atoms. `COMMON_PERIODIC_GRID` reconstructs the same fields on the
-regular periodic grid and is retained as a cutoff-sensitive reference and compatibility backend.
-This selector does not change `DIRECT_VALENCE`, molecular GauXC quadrature, or the all-electron AO
-density representation.
+regular periodic grid and is retained as a cutoff-sensitive diagnostic reference. At matched cutoff,
+complete atom blocks are both substantially closer to the molecular GauXC limit and much less
+expensive than resolving all hard-minus-soft detail on one global periodic grid. This selector does
+not change `DIRECT_VALENCE`, molecular GauXC quadrature, or the all-electron AO density
+representation.
 
 ### Current Scope
 

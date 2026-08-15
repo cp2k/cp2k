@@ -485,11 +485,25 @@ derivatives enter the analytical forces and virial.
 Fixed-density molecular-limit checks separate periodic-image errors from the finite GAPW
 reconstruction. For pseudopotential H2/GTH, molecular GauXC and the periodic native atom-composite
 path give XC energies of `-0.68996678176535` and `-0.68996678286981 Ha`, respectively. Their
-difference is `1.10e-9 Ha`. For HCl/ccECP, increasing the cubic cell from 10 through 14 to 18
-Angstrom reduces the periodic-native minus molecular-GauXC XC difference from `1.13e-6` through
-`5.46e-8` to `8.19e-9 Ha`. Translating both atoms, or only H, by one lattice vector changes the
-one-step total energy by at most `2.4e-8 Ha`, the numerical level of the SCF diagnostic. This
-individual-atom test rules out a dependence on the chosen image label.
+difference is `1.10e-9 Ha`. For HCl/ccECP at 480 Ry and 60 Ry relative cutoff, 10-, 14-, 18-, and
+22-Angstrom cells differ from molecular GauXC by `1.53e-6`, `-2.97e-5`, `-4.15e-5`, and
+`-2.93e-5 Ha`, respectively. The largest difference is `0.109 kJ mol^-1`. The non-monotone residual
+is the finite PW-grid interpolation and atom-grid quadrature floor rather than a growing periodic
+image error. Translating both atoms, or only H, by one lattice vector changes the one-step total
+energy by at most `2.4e-8 Ha`, the numerical level of the SCF diagnostic. This individual-atom test
+rules out a dependence on the chosen image label.
+
+The backend choice was tested directly at the same fixed H2/GTH density. At 200 Ry with a 200-Ry
+relative cutoff, `PERIODIC_ATOM_COMPOSITE` differs from molecular GauXC by `6.96e-8 Ha`, whereas
+`COMMON_PERIODIC_GRID` differs by `4.71e-5 Ha`. The corresponding CP2K times are `28.19` and
+`888.31 s`. Thus the atom-centered backend is approximately 677 times more accurate in XC energy and
+31.5 times faster for this matched test. With the production-like 480/60-Ry grid, the atom-centered
+result differs from molecular GauXC by only `1.10e-9 Ha`, takes `4.84 s` of CP2K time, and has a
+peak resident set size of `1.77 GB`. The common-grid error is not a particle-number error: both
+backends integrate the fixed two-electron density to within `1.2e-7` electrons. It is a
+spatial-resolution error in the nonlinear descriptor fields, and tightening the full common grid
+rapidly becomes impractical. These results motivate `PERIODIC_ATOM_COMPOSITE` as the default and
+retain `COMMON_PERIODIC_GRID` only as a cutoff-sensitive diagnostic reference.
 
 For all-electron H2 at 480 Ry, the periodic atom-composite XC energy is `-0.67649213631546 Ha`,
 compared with `-0.67651812293529 Ha` from independent molecular GauXC `SUPERFINE/UNPRUNED`
@@ -509,6 +523,12 @@ residuals are `6.36e-6 Ha/bohr` for all-electron H2, `5.65e-5 Ha/bohr` for H2/GT
 `2.34e-5 Ha/bohr` for H2/ccECP. The corresponding summed absolute diagonal-virial residuals are
 `2.76e-5`, `2.08e-5`, and `3.15e-5 Ha`. In a skew H2/GTH cell, all nine cell-matrix derivatives give
 a maximum virial-component error of `7.48e-6 Ha` and a summed absolute error of `1.89e-5 Ha`.
+Independent 200/60-Ry CUDA repeats give targeted bond-force and diagonal-virial residuals of
+`1.42e-5 Ha/bohr` and `5.88e-5 Ha` for GTH, and `1.56e-6 Ha/bohr` and `7.81e-5 Ha` for ccECP. On the
+same 200-Ry skew GTH stress test, the atom-centered and common-grid summed virial residuals are
+`1.89e-5` and `2.21e-5 Ha`, while their CP2K times are `260.98` and `1219.93 s`. The new backend is
+therefore at least as accurate for the complete strain derivative and approximately 4.7 times faster
+in this matched derivative calculation.
 
 The boundary-condition control is separate from both derivative tests. At fixed AO density matrix,
 GauXC receives no CP2K cell or Poisson-solver information and its XC energy is exactly invariant to
@@ -598,11 +618,24 @@ for H2/ccECP they are `1.54e-9 Ha`, `1.30e-9 Ha/bohr`, and `3.63e-3 bar`. The la
 residual decreases strongly from the deliberately coarse 80-Ry smoke input when the cutoff and
 one-center quadrature are tightened.
 
+A matched 80/20-Ry backend comparison further isolates symmetry sensitivity. For the atom-centered
+GTH calculation, K290 and SPGLIB change the largest force component by at most `3.27e-9 Ha/bohr` and
+the largest stress component by `1.91e-3 bar`; for ccECP the corresponding maxima are
+`3.39e-10 Ha/bohr` and `6.60e-4 bar`. All three reductions give identical printed energies. On the
+common grid, the GTH force and stress variations reach `3.71e-4 Ha/bohr` and `3.80 bar`, while the
+ccECP maxima reach `1.68e-4 Ha/bohr` and `0.358 bar`. This comparison is deliberately coarse, but it
+demonstrates that complete atom blocks make the discrete derivatives substantially less sensitive to
+the selected irreducible k-point representation.
+
 The same converged H2/GTH K290 input gives total energies of `-1.166200830660482`,
 `-1.166200835047120`, and `-1.166200835342218 Ha` with one, two, and four MPI ranks. The full range
 is `4.68e-9 Ha`; the largest force and stress variations are `2.1e-9 Ha/bohr` and `2.70e-3 bar`,
 respectively. Complete atom blocks therefore remain rank-local without changing the periodic image
 partition or its derivatives.
+
+An independent two-A40 repeat with the current backend gives an energy range of `6.71e-10 Ha`
+between one, two, and four ranks. The largest force and stress changes are `4.37e-9 Ha/bohr` and
+`4.25e-3 bar`, respectively. The two- and four-rank results are identical at the printed precision.
 
 The final validation is rebased on CP2K master commit `5b7fc9f979` and uses GauXC commit
 `ea0f1fc7c02497aa950376eda61686ba30256999`. Native SKALA atom chunks retain the full differentiable
