@@ -704,12 +704,6 @@ CONTAINS
                   gapw_all_pseudopotentials = gauxc_gapw_all_pseudopotentials(qs_kind_set)
                   gapw_mixed_core_representations = &
                      .NOT. gapw_all_all_electron .AND. .NOT. gapw_all_pseudopotentials
-                  IF (gapw_mixed_core_representations) THEN
-                     CALL cp_abort(__LOCATION__, &
-                                   "Native Skala does not yet support mixed all-electron and "// &
-                                   "pseudopotential GAPW kinds. The input syntax is reserved; "// &
-                                   "no density representation is selected implicitly.")
-                  END IF
                END IF
                native_direct_valence_atom_composite = &
                   xc_section_uses_native_skala_grid(xc_section) .AND. &
@@ -726,6 +720,17 @@ CONTAINS
                   native_gapw_atom_composite_requested .OR. paw_composite_representation
                native_gapw_periodic_atom_composite = &
                   native_skala_uses_atom_composite_grid(xc_section)
+               IF (gapw_mixed_core_representations .AND. &
+                   .NOT. native_gapw_periodic_atom_composite) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "Mixed all-electron and pseudopotential GAPW kinds require "// &
+                                "NATIVE_GRID_LAYOUT ATOM_COMPOSITE so that their primitive "// &
+                                "fields are combined before Skala feature construction.")
+               END IF
+               native_gapw_atom_composite_reference = &
+                  native_gapw_atom_composite_reference .OR. &
+                  (gapw_mixed_core_representations .AND. &
+                   native_gapw_periodic_atom_composite)
                native_gapw_all_electron_atom_composite = &
                   (gapw .OR. gapw_xc) .AND. &
                   gapw_all_all_electron .AND. &

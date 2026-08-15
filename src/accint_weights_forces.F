@@ -59,11 +59,8 @@ MODULE accint_weights_forces
    USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: xc_exc_pw_create,&
                                               xc_vxc_pw_create
-   USE xc_gauxc_functional,             ONLY: gauxc_gapw_all_all_electron,&
-                                              gauxc_gapw_all_pseudopotentials,&
-                                              gauxc_gapw_has_paw_pseudopotentials
-   USE xc_input_constants,              ONLY: skala_gapw_direct_valence,&
-                                              skala_gapw_paw_one_center
+   USE xc_gauxc_functional,             ONLY: gauxc_gapw_has_paw_pseudopotentials
+   USE xc_input_constants,              ONLY: skala_gapw_paw_one_center
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -133,13 +130,7 @@ CONTAINS
             gauxc_gapw_has_paw_pseudopotentials(qs_kind_set)
       END IF
       IF (.NOT. composite_reference .AND. xc_section_uses_native_skala_grid(xc_section)) THEN
-         IF (gauxc_gapw_all_all_electron(qs_kind_set)) THEN
-            composite_reference = native_skala_uses_atom_composite_grid(xc_section)
-         ELSE IF (gauxc_gapw_all_pseudopotentials(qs_kind_set) .AND. &
-                  skala_gapw_representation(xc_section) == skala_gapw_direct_valence) THEN
-            composite_reference = &
-               native_skala_uses_atom_composite_grid(xc_section)
-         END IF
+         composite_reference = native_skala_uses_atom_composite_grid(xc_section)
       END IF
       IF (composite_reference) THEN
          CALL timestop(handle)

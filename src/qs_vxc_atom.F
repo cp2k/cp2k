@@ -101,6 +101,7 @@ MODULE qs_vxc_atom
                                               xc_dset_zero_all
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
    USE xc_input_constants,              ONLY: skala_gapw_cp2k_default,&
+                                              skala_gapw_direct_valence,&
                                               skala_gapw_paw_one_center,&
                                               skala_gapw_paw_one_center_split
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
@@ -232,11 +233,11 @@ CONTAINS
    END SUBROUTINE evaluate_nlcc_primitive_fields
 
 ! **************************************************************************************************
-!> \brief Initialize the atom-centered quadrature needed by native DIRECT_VALENCE.
+!> \brief Initialize atom-centered quadrature for native Skala layouts.
 !> \param kind_set quantum kinds
 !> \param dft_control DFT controls supplying the radial quadrature
 ! **************************************************************************************************
-   SUBROUTINE ensure_direct_valence_atom_grids(kind_set, dft_control)
+   SUBROUTINE ensure_native_skala_atom_grids(kind_set, dft_control)
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
 
@@ -262,7 +263,40 @@ CONTAINS
       END DO
       CALL deallocate_lebedev_grids()
 
-   END SUBROUTINE ensure_direct_valence_atom_grids
+   END SUBROUTINE ensure_native_skala_atom_grids
+
+! **************************************************************************************************
+!> \brief Decide whether a kind contributes hard-minus-soft primitive fields.
+!> \param paw_atom whether CP2K constructed a one-center representation for the kind
+!> \param gapw_representation requested Skala pseudopotential GAPW representation
+!> \param has_pseudopotential whether the kind uses a GTH or semi-global pseudopotential
+!> \param zeff valence charge of the potential
+!> \param zatom atomic number
+!> \return true when hard-minus-soft fields contribute for this kind
+! **************************************************************************************************
+   PURE FUNCTION native_skala_uses_one_center_kind( &
+      paw_atom, gapw_representation, has_pseudopotential, zeff, zatom) RESULT(use_one_center)
+      LOGICAL, INTENT(IN)                                :: paw_atom
+      INTEGER, INTENT(IN)                                :: gapw_representation
+      LOGICAL, INTENT(IN)                                :: has_pseudopotential
+      REAL(dp), INTENT(IN)                               :: zeff
+      INTEGER, INTENT(IN)                                :: zatom
+      LOGICAL                                            :: use_one_center
+
+      use_one_center = paw_atom
+      IF (.NOT. use_one_center) RETURN
+
+      SELECT CASE (gapw_representation)
+      CASE (skala_gapw_direct_valence)
+         use_one_center = .NOT. has_pseudopotential
+      CASE (skala_gapw_paw_one_center, skala_gapw_paw_one_center_split)
+         CONTINUE
+      CASE (skala_gapw_cp2k_default)
+         IF (has_pseudopotential .AND. &
+             ABS(zeff - REAL(zatom, dp)) <= 1.0E-10_dp) use_one_center = .FALSE.
+      END SELECT
+
+   END FUNCTION native_skala_uses_one_center_kind
 
 ! **************************************************************************************************
 !> \brief ...
@@ -318,8 +352,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL :: accint, atom_composite_active, atom_composite_diagnostic, &
          atom_composite_reference, direct_valence_atom_composite, donlcc, evaluate_hard, &
-         evaluate_soft, force_paw_representation, gradient_f, image_partition_atom_composite, lsd, &
-         my_calculate_forces, native_grid_diagnostics, nlcc, paw_atom, paw_pseudopotentials, &
+         evaluate_soft, gradient_f, image_partition_atom_composite, lsd, my_calculate_forces, &
+         native_grid_diagnostics, nlcc, paw_atom, paw_pseudopotentials, &
          requested_atom_composite_grid, rho_g_valid, skala_atom_grid, source_matrix_local, tau_f, &
          tau_r_valid, use_atom_composite_density, use_atom_composite_gradient, &
          use_atom_composite_tau, use_virial
@@ -507,8 +541,6 @@ CONTAINS
          CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_DIAGNOSTICS", &
                                    l_val=native_grid_diagnostics)
       END IF
-      force_paw_representation = gapw_representation == skala_gapw_paw_one_center .OR. &
-                                 gapw_representation == skala_gapw_paw_one_center_split
       IF (skala_atom_grid) THEN
          DO ikind = 1, SIZE(my_kind_set)
             NULLIFY (gth_potential, sgp_potential)
@@ -543,11 +575,13 @@ CONTAINS
       use_atom_composite_gradient = atom_composite_components <= 2
       use_atom_composite_tau = atom_composite_components == 1 .OR. &
                                atom_composite_components == 3
+      IF (atom_composite_active) THEN
+         CALL ensure_native_skala_atom_grids(my_kind_set, dft_control)
+      END IF
       IF (direct_valence_atom_composite) THEN
          use_atom_composite_density = .FALSE.
          use_atom_composite_gradient = .FALSE.
          use_atom_composite_tau = .FALSE.
-         CALL ensure_direct_valence_atom_grids(my_kind_set, dft_control)
       END IF
       ! CP2K's auxiliary PW fields are represented on one index-periodic cell even
       ! when the physical Poisson problem is isolated or partially periodic.
@@ -617,12 +651,6 @@ CONTAINS
                CALL get_qs_kind(my_kind_set(ikind), paw_atom=paw_atom, &
                                 gth_potential=gth_potential, grid_atom=grid_atom, &
                                 sgp_potential=sgp_potential, zatom=zatom, zeff=zeff)
-               IF (.NOT. direct_valence_atom_composite) THEN
-                  IF (.NOT. paw_atom) CYCLE
-                  IF (.NOT. force_paw_representation .AND. &
-                      (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. &
-                      ABS(zeff - REAL(zatom, dp)) <= 1.0E-10_dp) CYCLE
-               END IF
                DO iat = 1, natom
                   iatom = atom_list(iat)
                   composite_atomic_grid_sizes(iatom) = INT(grid_atom%nr*grid_atom%ng_sphere, KIND=int_8)
@@ -642,12 +670,6 @@ CONTAINS
                CALL get_qs_kind(my_kind_set(ikind), paw_atom=paw_atom, &
                                 gth_potential=gth_potential, sgp_potential=sgp_potential, &
                                 zatom=zatom, zeff=zeff)
-               IF (.NOT. direct_valence_atom_composite) THEN
-                  IF (.NOT. paw_atom) CYCLE
-                  IF (.NOT. force_paw_representation .AND. &
-                      (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. &
-                      ABS(zeff - REAL(zatom, dp)) <= 1.0E-10_dp) CYCLE
-               END IF
                bo = get_limit(natom, para_env%num_pe, para_env%mepos)
                composite_local_natom = composite_local_natom + MAX(0, bo(2) - bo(1) + 1)
             END DO
@@ -662,12 +684,6 @@ CONTAINS
                CALL get_qs_kind(my_kind_set(ikind), paw_atom=paw_atom, &
                                 gth_potential=gth_potential, sgp_potential=sgp_potential, &
                                 zatom=zatom, zeff=zeff)
-               IF (.NOT. direct_valence_atom_composite) THEN
-                  IF (.NOT. paw_atom) CYCLE
-                  IF (.NOT. force_paw_representation .AND. &
-                      (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. &
-                      ABS(zeff - REAL(zatom, dp)) <= 1.0E-10_dp) CYCLE
-               END IF
                bo = get_limit(natom, para_env%num_pe, para_env%mepos)
                DO iat = bo(1), bo(2)
                   iatom = atom_list(iat)
@@ -773,9 +789,12 @@ CONTAINS
             IF (.NOT. direct_valence_atom_composite) THEN
                CALL get_qs_kind(my_kind_set(ikind), basis_set=basis_1c, basis_type="GAPW_1C")
                IF (.NOT. paw_atom) CYCLE
-               IF (skala_atom_grid .AND. .NOT. force_paw_representation .AND. &
-                   (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. &
-                   ABS(zeff - REAL(zatom, dp)) <= 1.0E-10_dp) CYCLE
+               IF (skala_atom_grid) THEN
+                  IF (.NOT. native_skala_uses_one_center_kind( &
+                      paw_atom, gapw_representation, &
+                      ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential), &
+                      zeff, zatom)) CYCLE
+               END IF
             END IF
 
             nr = grid_atom%nr
@@ -1215,10 +1234,10 @@ CONTAINS
                                    grid_atom=grid_atom, sgp_potential=sgp_potential, &
                                    zatom=zatom, zeff=zeff)
                   CALL get_qs_kind(my_kind_set(ikind), basis_set=basis_1c, basis_type="GAPW_1C")
-                  IF (.NOT. paw_atom) CYCLE
-                  IF (.NOT. force_paw_representation .AND. &
-                      (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. &
-                      ABS(zeff - REAL(zatom, dp)) <= 1.0E-10_dp) CYCLE
+                  IF (.NOT. native_skala_uses_one_center_kind( &
+                      paw_atom, gapw_representation, &
+                      ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential), &
+                      zeff, zatom)) CYCLE
 
                   CALL replicate_rho_atom_radial( &
                      para_env, my_rho_atom_set, my_kind_set(ikind), atom_list, natom, nspins)
@@ -1611,10 +1630,10 @@ CONTAINS
                                       grid_atom=grid_atom, sgp_potential=sgp_potential, &
                                       zatom=zatom, zeff=zeff)
                      CALL get_qs_kind(my_kind_set(ikind), basis_set=basis_1c, basis_type="GAPW_1C")
-                     IF (.NOT. paw_atom) CYCLE
-                     IF (.NOT. force_paw_representation .AND. &
-                         (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. &
-                         ABS(zeff - REAL(zatom, dp)) <= 1.0E-10_dp) CYCLE
+                     IF (.NOT. native_skala_uses_one_center_kind( &
+                         paw_atom, gapw_representation, &
+                         ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential), &
+                         zeff, zatom)) CYCLE
 
                      nr = grid_atom%nr
                      na = grid_atom%ng_sphere
@@ -2036,10 +2055,10 @@ CONTAINS
                                    grid_atom=grid_atom, sgp_potential=sgp_potential, &
                                    zatom=zatom, zeff=zeff)
                   CALL get_qs_kind(my_kind_set(ikind), basis_set=basis_1c, basis_type="GAPW_1C")
-                  IF (.NOT. paw_atom) CYCLE
-                  IF (.NOT. force_paw_representation .AND. &
-                      (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. &
-                      ABS(zeff - REAL(zatom, dp)) <= 1.0E-10_dp) CYCLE
+                  IF (.NOT. native_skala_uses_one_center_kind( &
+                      paw_atom, gapw_representation, &
+                      ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential), &
+                      zeff, zatom)) CYCLE
 
                   nr = grid_atom%nr
                   na = grid_atom%ng_sphere
