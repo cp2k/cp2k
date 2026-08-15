@@ -395,13 +395,12 @@ CONTAINS
       REAL(dp), DIMENSION(3) :: composite_point, cross_displacement, cross_spatial_derivative, &
          fractional, image_translation, nlcc_gradient, nlcc_spatial_derivative, &
          skala_atom_force_h, skala_atom_force_s, spatial_derivative
-      REAL(dp), DIMENSION(3, 1)                          :: descriptor_window_datom
       REAL(dp), DIMENSION(3, 2) :: composite_smooth_gradient_value, cross_density_spatial, &
          cross_grad, cross_grad_adjoint, cross_kin_spatial
       REAL(dp), DIMENSION(3, 3) :: composite_cross_image_virial, composite_explicit_virial, &
          composite_feature_virial, composite_interpolation_virial, &
-         composite_partition_strain_virial, descriptor_window_dstrain, nlcc_hessian, &
-         skala_atom_virial, skala_atom_virial_h, skala_atom_virial_s
+         composite_partition_strain_virial, nlcc_hessian, skala_atom_virial, skala_atom_virial_h, &
+         skala_atom_virial_s
       REAL(dp), DIMENSION(3, 3, 2)                       :: cross_grad_spatial
       REAL(dp), DIMENSION(4)                             :: feature_component_analytic, &
                                                             feature_component_fd
@@ -1422,6 +1421,9 @@ CONTAINS
                composite_feature_virial = 0.0_dp
                composite_interpolation_virial = 0.0_dp
                composite_partition_strain_virial = 0.0_dp
+!$OMP PARALLEL DO IF (image_partition_atom_composite) SCHEDULE(STATIC) &
+!$OMP PRIVATE(composite_local_atom, composite_row, composite_smooth_gradient_value, &
+!$OMP         iatom, idir, ispin, jdir) REDUCTION(+:composite_feature_virial)
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
                   DO composite_row = composite_atom_start(iatom), composite_atom_end(iatom)
@@ -1459,6 +1461,15 @@ CONTAINS
                      END DO
                   END DO
                END DO
+!$OMP END PARALLEL DO
+!$OMP PARALLEL DO IF (image_partition_atom_composite) SCHEDULE(DYNAMIC) &
+!$OMP PRIVATE(composite_local_atom, composite_row, descriptor_window_adjoint, &
+!$OMP         descriptor_window_weight, gth_potential, iatom, idir, ispin, jdir, &
+!$OMP         nlcc_density, nlcc_gradient, nlcc_hessian, nlcc_spatial_derivative, &
+!$OMP         nlcc_spin_factor, partition_adjoint, sgp_potential, source_atom, &
+!$OMP         spatial_derivative, target_atom, target_partition_adjoint) &
+!$OMP REDUCTION(+:composite_interpolation_virial, composite_nlcc_center_force, &
+!$OMP             composite_partition_force, composite_partition_strain_virial)
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
                   composite_model_atom_force(:, iatom) = &
@@ -1569,28 +1580,41 @@ CONTAINS
                         END DO
                      END IF
                      IF (image_partition_atom_composite) THEN
-                        composite_partition_weights = 0.0_dp
-                        composite_partition_datom = 0.0_dp
-                        composite_partition_dstrain = 0.0_dp
-                        CALL periodic_atom_image_partition( &
-                           composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
-                           iatom, composite_partition_weights(iatom), &
-                           composite_partition_datom(:, :, iatom), &
-                           composite_partition_dstrain(:, :, iatom), &
-                           composite_image_periodicity)
-                        CALL periodic_atom_image_partition( &
-                           composite_grid_coords(:, composite_row), &
-                           composite_atom_coords(:, iatom:iatom), cell, 1, &
-                           descriptor_window_weight, descriptor_window_datom, &
-                           descriptor_window_dstrain, composite_image_periodicity)
-                        ! Its atom derivative cancels against the moving target grid; periodic
-                        ! image strain remains an explicit contribution to the virial.
-                        target_partition_adjoint = composite_base_grid_weights(composite_row)* &
-                                                   composite_grid_weight_grad(composite_row)
-                        descriptor_window_adjoint = composite_base_grid_weights(composite_row)* &
-                                                    composite_atomic_grid_weight_grad(composite_row)* &
-                                                    smooth_partition_atomic_weight_scale_derivative( &
-                                                    descriptor_window_weight)
+                        BLOCK
+                           REAL(dp) :: local_descriptor_datom(3, 1), &
+                                       local_descriptor_dstrain(3, 3), local_partition_datom(3, SIZE(particle_set)), &
+                                       local_partition_dstrain(3, 3), local_partition_weight
+
+                           CALL periodic_atom_image_partition( &
+                              composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
+                              iatom, local_partition_weight, local_partition_datom, &
+                              local_partition_dstrain, composite_image_periodicity)
+                           CALL periodic_atom_image_partition( &
+                              composite_grid_coords(:, composite_row), &
+                              composite_atom_coords(:, iatom:iatom), cell, 1, &
+                              descriptor_window_weight, local_descriptor_datom, &
+                              local_descriptor_dstrain, composite_image_periodicity)
+                           ! Its atom derivative cancels against the moving target grid; periodic
+                           ! image strain remains an explicit contribution to the virial.
+                           target_partition_adjoint = composite_base_grid_weights(composite_row)* &
+                                                      composite_grid_weight_grad(composite_row)
+                           descriptor_window_adjoint = composite_base_grid_weights(composite_row)* &
+                                                       composite_atomic_grid_weight_grad(composite_row)* &
+                                                       smooth_partition_atomic_weight_scale_derivative( &
+                                                       descriptor_window_weight)
+                           DO target_atom = 1, SIZE(particle_set)
+                              composite_partition_force(:, target_atom) = &
+                                 composite_partition_force(:, target_atom) + &
+                                 target_partition_adjoint*local_partition_datom(:, target_atom)
+                           END DO
+                           composite_partition_force(:, iatom) = &
+                              composite_partition_force(:, iatom) - target_partition_adjoint* &
+                              SUM(local_partition_datom, DIM=2)
+                           composite_partition_strain_virial = &
+                              composite_partition_strain_virial - target_partition_adjoint* &
+                              local_partition_dstrain - descriptor_window_adjoint* &
+                              local_descriptor_dstrain
+                        END BLOCK
                      ELSE
                         CALL skala_gpw_smooth_partition_derivatives( &
                            composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
@@ -1598,35 +1622,19 @@ CONTAINS
                            composite_partition_datom, composite_partition_dstrain)
                         partition_adjoint = composite_grid_weight_grad(composite_row)* &
                                             composite_atomic_grid_weights(composite_row)
-                     END IF
-                     DO target_atom = 1, SIZE(particle_set)
-                        IF (image_partition_atom_composite) THEN
-                           composite_partition_force(:, target_atom) = &
-                              composite_partition_force(:, target_atom) + &
-                              target_partition_adjoint* &
-                              composite_partition_datom(:, target_atom, iatom)
-                        ELSE
+                        DO target_atom = 1, SIZE(particle_set)
                            composite_partition_force(:, target_atom) = &
                               composite_partition_force(:, target_atom) + &
                               partition_adjoint* &
                               composite_partition_datom(:, target_atom, iatom)
-                        END IF
-                     END DO
-                     IF (image_partition_atom_composite) THEN
-                        composite_partition_force(:, iatom) = composite_partition_force(:, iatom) - &
-                                                              target_partition_adjoint* &
-                                                              SUM(composite_partition_datom(:, :, iatom), DIM=2)
-                        composite_partition_strain_virial = &
-                           composite_partition_strain_virial - target_partition_adjoint* &
-                           composite_partition_dstrain(:, :, iatom) - &
-                           descriptor_window_adjoint*descriptor_window_dstrain
-                     ELSE
+                        END DO
                         composite_partition_force(:, iatom) = composite_partition_force(:, iatom) - &
                                                               partition_adjoint* &
                                                               SUM(composite_partition_datom(:, :, iatom), DIM=2)
                      END IF
                   END DO
                END DO
+!$OMP END PARALLEL DO
                ! The target atom grids can overlap augmentation regions of other atoms
                ! and periodic images. Differentiate the same discrete interpolation used
                ! in the forward composite fields, including the explicit image strain.

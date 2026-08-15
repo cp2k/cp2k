@@ -2697,9 +2697,10 @@ CONTAINS
          OPTIONAL                                        :: dweight_datom, dweight_dstrain
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: image_periodicity
 
-      INTEGER :: base_shift(3), iatom, idir, iimage, image_count, image_index, ix, ix_max, ix_min, &
-         iy, iy_max, iy_min, iz, iz_max, iz_min, jatom, jdir, jimage, natom, target_image
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: image_atom
+      INTEGER :: active_count, active_image, active_index, base_shift(3), candidate_image, iatom, &
+         idir, iimage, image_count, image_index, ix, ix_max, ix_min, iy, iy_max, iy_min, iz, &
+         iz_max, iz_min, jatom, jdir, jimage, natom, target_image
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: active_images, image_atom
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: image_shift
       INTEGER, DIMENSION(3)                              :: partition_periodicity
       LOGICAL                                            :: need_derivatives
@@ -2745,7 +2746,7 @@ CONTAINS
          END IF
       END DO
       image_count = natom*image_count
-      ALLOCATE (image_atom(image_count), image_shift(3, image_count), &
+      ALLOCATE (active_images(image_count), image_atom(image_count), image_shift(3, image_count), &
                 image_coords(3, image_count), distances(image_count), &
                 log_weights(image_count), normalized_weights(image_count), &
                 rvecs(3, image_count), unit_rvecs(3, image_count), &
@@ -2796,7 +2797,7 @@ CONTAINS
 
       max_log_weight = MAXVAL(log_weights)
       IF (max_log_weight <= -0.5_dp*HUGE(1.0_dp)) THEN
-         DEALLOCATE (image_atom, image_shift, image_coords, distances, log_weights, &
+         DEALLOCATE (active_images, image_atom, image_shift, image_coords, distances, log_weights, &
                      normalized_weights, rvecs, unit_rvecs, mean_log_derivative, &
                      target_log_derivative)
          RETURN
@@ -2813,15 +2814,28 @@ CONTAINS
       weight = normalized_weights(target_image)
 
       IF (need_derivatives .AND. weight > 0.0_dp) THEN
+         active_count = 0
+         DO iimage = 1, image_count
+            IF (normalized_weights(iimage) > 0.0_dp) THEN
+               active_count = active_count + 1
+               active_images(active_count) = iimage
+            END IF
+         END DO
+         CPASSERT(active_count > 0)
          ! Revisit the image pairs after normalization to contract the logarithmic
-         ! weight derivatives directly, avoiding an image_count-squared tensor.
+         ! weight derivatives directly, avoiding both an image_count-squared tensor
+         ! and pairs for which both screened normalized weights vanish.
          mean_log_derivative = 0.0_dp
          target_log_derivative = 0.0_dp
-         DO iimage = 1, image_count - 1
-            DO jimage = iimage + 1, image_count
-               IF (normalized_weights(iimage) == 0.0_dp .AND. &
-                   normalized_weights(jimage) == 0.0_dp .AND. &
-                   target_image /= iimage .AND. target_image /= jimage) CYCLE
+         DO active_index = 1, active_count
+            active_image = active_images(active_index)
+            DO candidate_image = 1, image_count
+               IF (candidate_image == active_image) CYCLE
+               ! A pair of active images is visited by the lower-index image only.
+               IF (normalized_weights(candidate_image) > 0.0_dp .AND. &
+                   candidate_image < active_image) CYCLE
+               iimage = MIN(active_image, candidate_image)
+               jimage = MAX(active_image, candidate_image)
                pair = image_coords(:, iimage) - image_coords(:, jimage)
                rab = SQRT(SUM(pair**2))
                IF (rab <= layout_tol) CYCLE
@@ -2880,7 +2894,7 @@ CONTAINS
          END DO
       END IF
 
-      DEALLOCATE (image_atom, image_shift, image_coords, distances, log_weights, &
+      DEALLOCATE (active_images, image_atom, image_shift, image_coords, distances, log_weights, &
                   normalized_weights, rvecs, unit_rvecs, mean_log_derivative, &
                   target_log_derivative)
 
