@@ -53,12 +53,6 @@ ENV SPACK_CACHE="${SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://host.c
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
 COPY ./tools/spack ./tools/spack
-
-# SIRIUS runs on the CPU in CP2K's regtests; avoid its unstable CUDA build here.
-RUN sed -E -i \
-    -e '/^[[:space:]]*-[[:space:]]+"sirius@/ s/"$/ ~cuda"/' \
-    -e '/^[[:space:]]*-[[:space:]]+"spla@/ s/"$/ +cuda"/' \
-    ./tools/spack/cp2k_deps_p.yaml
 COPY ./tools/docker ./tools/docker
 COPY ./make_cp2k.sh .
 RUN ./make_cp2k.sh -bd_only -cv psmp -gpu P100 -gv 13 -mpi mpich -ue 

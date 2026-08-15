@@ -36,7 +36,7 @@ QS/regtest-debug-7                                          libint !ifx
 xTB/regtest-gfn0-m3                                         libdftd4
 xTB/regtest-gfn0-m4                                         libdftd4
 QS/regtest-rtp-5
-QS/regtest-gpw-1                                            libint libvori !ifx gpu_memory_intensive single_rank_gpu
+QS/regtest-gpw-1                                            libint libvori !ifx gpu_memory_intensive
 QS/regtest-debug-6                                          libint !ifx
 xTB/regtest-gfn0-m2                                         libdftd4
 QS/regtest-ot
@@ -82,7 +82,7 @@ QS/regtest-rtp-3
 SE/regtest-2-1
 SE/regtest-2-2
 xTB/regtest-gfn0                                            libdftd4 spglib
-SIRIUS/regtest-1                                            sirius
+SIRIUS/regtest-1                                            sirius gpu_memory_intensive single_rank_gpu
 Fist/regtest-6
 QS/regtest-gpw-5
 QMMM/QS/regtest-1

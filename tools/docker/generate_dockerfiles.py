@@ -220,10 +220,6 @@ def main() -> None:
                 gcc_version=13,
                 gpu_model="P100",
                 feature_flags="",
-                # These SIRIUS inputs use its CPU backend. A CUDA-enabled SIRIUS
-                # 7.11.1 build produces corrupt densities on the Pascal runner.
-                # Keep SpLA on CUDA because CP2K offloads GEMMs through it.
-                sirius_cpu_only=True,
                 # Run memory-heavy tests alone on the single 8 GiB runner GPU.
                 testopts=(
                     f"{testopts} --timeout 400 --exclusive-gpu-memory-batches "
@@ -740,7 +736,6 @@ def install_cp2k_spack(
     gcc_version: int | None = None,
     gpu_model: str = "none",
     feature_flags: str = "",
-    sirius_cpu_only: bool = False,
     testopts: str = "",
     image_tag: str = "",
     test_type: str = "regression",
@@ -759,15 +754,6 @@ def install_cp2k_spack(
     use_externals = "-ue"
     if mpi_mode == "openmpi":
         use_externals = ""
-    sirius_spec_setup = ""
-    if sirius_cpu_only:
-        sirius_spec_setup = r"""
-# SIRIUS runs on the CPU in CP2K's regtests; avoid its unstable CUDA build here.
-RUN sed -E -i \
-    -e '/^[[:space:]]*-[[:space:]]+"sirius@/ s/"$/ ~cuda"/' \
-    -e '/^[[:space:]]*-[[:space:]]+"spla@/ s/"$/ +cuda"/' \
-    ./tools/spack/cp2k_deps_p.yaml
-"""
     # Assemble docker file
     output = (
         install_base_image(
@@ -786,7 +772,7 @@ ENV SPACK_CACHE="${{SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://host.
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
 COPY ./tools/spack ./tools/spack
-{sirius_spec_setup}COPY ./tools/docker ./tools/docker
+COPY ./tools/docker ./tools/docker
 COPY ./make_cp2k.sh .
 RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} {gcc_version_flag} -mpi {mpi_mode} {use_externals} {feature_flags}
 
