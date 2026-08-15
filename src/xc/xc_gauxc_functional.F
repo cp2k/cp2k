@@ -23,7 +23,8 @@ MODULE xc_gauxc_functional
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE external_potential_types,        ONLY: gth_potential_type,&
+   USE external_potential_types,        ONLY: all_potential_type,&
+                                              gth_potential_type,&
                                               sgp_potential_type
    USE input_constants,                 ONLY: xc_vdw_fun_nonloc
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -74,7 +75,8 @@ MODULE xc_gauxc_functional
    LOGICAL, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_gauxc_functional'
 
-   PUBLIC :: apply_gauxc, gauxc_gapw_has_paw_pseudopotentials, skala_info, &
+   PUBLIC :: apply_gauxc, gauxc_gapw_all_all_electron, gauxc_gapw_all_pseudopotentials, &
+             gauxc_gapw_has_paw_pseudopotentials, gauxc_gapw_has_pseudopotentials, skala_info, &
              xc_section_uses_gauxc
 
    INTERFACE
@@ -91,6 +93,32 @@ MODULE xc_gauxc_functional
    END INTERFACE
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Return whether every GAPW kind uses an all-electron potential.
+!> \param qs_kind_set ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION gauxc_gapw_all_all_electron(qs_kind_set) RESULT(all_all_electron)
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      LOGICAL                                            :: all_all_electron
+
+      INTEGER                                            :: ikind
+      TYPE(all_potential_type), POINTER                  :: all_potential
+
+      CPASSERT(ASSOCIATED(qs_kind_set))
+
+      all_all_electron = .TRUE.
+      DO ikind = 1, SIZE(qs_kind_set)
+         NULLIFY (all_potential)
+         CALL get_qs_kind(qs_kind_set(ikind), all_potential=all_potential)
+         IF (.NOT. ASSOCIATED(all_potential)) THEN
+            all_all_electron = .FALSE.
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION gauxc_gapw_all_all_electron
 
 ! **************************************************************************************************
 !> \brief Set the GauXC Skala atom chunk environment knob when the CP2K keyword is explicit.
@@ -383,6 +411,35 @@ CONTAINS
       END DO
 
    END FUNCTION gauxc_gapw_has_pseudopotentials
+
+! **************************************************************************************************
+!> \brief Return whether every GAPW kind uses a pseudopotential.
+!> \param qs_kind_set ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION gauxc_gapw_all_pseudopotentials(qs_kind_set) RESULT(all_pseudopotentials)
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      LOGICAL                                            :: all_pseudopotentials
+
+      INTEGER                                            :: ikind
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+
+      CPASSERT(ASSOCIATED(qs_kind_set))
+
+      all_pseudopotentials = .TRUE.
+      DO ikind = 1, SIZE(qs_kind_set)
+         NULLIFY (gth_potential, sgp_potential)
+         CALL get_qs_kind(qs_kind_set(ikind), &
+                          gth_potential=gth_potential, &
+                          sgp_potential=sgp_potential)
+         IF (.NOT. (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential))) THEN
+            all_pseudopotentials = .FALSE.
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION gauxc_gapw_all_pseudopotentials
 
 ! **************************************************************************************************
 !> \brief Return whether GauXC GAPW mode sees pseudopotential one-center GAPW kinds.

@@ -2509,9 +2509,10 @@ CONTAINS
 !> \param weight ...
 !> \param dweight_datom optional derivative at fixed grid point with respect to base atoms
 !> \param dweight_dstrain optional derivative due to lattice-image translations
+!> \param image_periodicity optional image directions used by the auxiliary-grid partition
 ! **************************************************************************************************
    SUBROUTINE periodic_atom_image_partition(grid_point, atom_coords, cell, target_atom, weight, &
-                                            dweight_datom, dweight_dstrain)
+                                            dweight_datom, dweight_dstrain, image_periodicity)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
       TYPE(cell_type), POINTER                           :: cell
@@ -2519,11 +2520,13 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: weight
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
          OPTIONAL                                        :: dweight_datom, dweight_dstrain
+      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: image_periodicity
 
       INTEGER :: base_shift(3), iatom, idir, iimage, image_count, image_index, ix, ix_max, ix_min, &
          iy, iy_max, iy_min, iz, iz_max, iz_min, jatom, jdir, jimage, natom, target_image
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: image_atom
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: image_shift
+      INTEGER, DIMENSION(3)                              :: partition_periodicity
       LOGICAL                                            :: need_derivatives
       REAL(KIND=dp)                                      :: dist_diff, ds_dmu, max_log_weight, mu, &
                                                             mu_raw, normalization, &
@@ -2551,10 +2554,15 @@ CONTAINS
          dweight_dstrain = 0.0_dp
       END IF
       weight = 0.0_dp
+      partition_periodicity = cell%perd
+      IF (PRESENT(image_periodicity)) partition_periodicity = image_periodicity
+      CPASSERT(ALL(partition_periodicity == 0 .OR. partition_periodicity == 1))
 
       image_count = 1
       DO idir = 1, 3
-         IF (cell%perd(idir) == 1) image_count = image_count*(2*periodic_partition_image_shell + 1)
+         IF (partition_periodicity(idir) == 1) THEN
+            image_count = image_count*(2*periodic_partition_image_shell + 1)
+         END IF
       END DO
       image_count = natom*image_count
       ALLOCATE (image_atom(image_count), image_shift(3, image_count), &
@@ -2570,14 +2578,14 @@ CONTAINS
          fractional = MATMUL(cell%h_inv, &
                              atom_coords(:, target_atom) - atom_coords(:, iatom))
          DO idir = 1, 3
-            base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
+            base_shift(idir) = partition_periodicity(idir)*NINT(fractional(idir))
          END DO
-         ix_min = base_shift(1) - periodic_partition_image_shell*cell%perd(1)
-         ix_max = base_shift(1) + periodic_partition_image_shell*cell%perd(1)
-         iy_min = base_shift(2) - periodic_partition_image_shell*cell%perd(2)
-         iy_max = base_shift(2) + periodic_partition_image_shell*cell%perd(2)
-         iz_min = base_shift(3) - periodic_partition_image_shell*cell%perd(3)
-         iz_max = base_shift(3) + periodic_partition_image_shell*cell%perd(3)
+         ix_min = base_shift(1) - periodic_partition_image_shell*partition_periodicity(1)
+         ix_max = base_shift(1) + periodic_partition_image_shell*partition_periodicity(1)
+         iy_min = base_shift(2) - periodic_partition_image_shell*partition_periodicity(2)
+         iy_max = base_shift(2) + periodic_partition_image_shell*partition_periodicity(2)
+         iz_min = base_shift(3) - periodic_partition_image_shell*partition_periodicity(3)
+         iz_max = base_shift(3) + periodic_partition_image_shell*partition_periodicity(3)
          DO iz = iz_min, iz_max
             DO iy = iy_min, iy_max
                DO ix = ix_min, ix_max

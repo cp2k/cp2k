@@ -1355,7 +1355,10 @@ CONTAINS
          "non-local couplings. PAW_ONE_CENTER_SPLIT is a diagnostic that evaluates smooth, hard, "// &
          "and soft fields separately. CP2K_DEFAULT retains the representation selected "// &
          "by KIND%GPW_TYPE, basis hardness, and DFT%QS%FORCE_PAW. All-electron kinds "// &
-         "and conventional GauXC MODEL NONE calculations are unaffected.", &
+         "and conventional GauXC MODEL NONE calculations are unaffected. In a mixed "// &
+         "all-electron/pseudopotential calculation, the selector applies per kind: "// &
+         "all-electron kinds retain their one-center reconstruction while pseudopotential "// &
+         "kinds follow the selected representation. No mixed-system-specific input is needed.", &
          usage="PSEUDOPOTENTIAL_GAPW_REPRESENTATION DIRECT_VALENCE", &
          enum_c_vals=s2a("DIRECT_VALENCE", "PAW_ONE_CENTER", "CP2K_DEFAULT", &
                          "PAW_ONE_CENTER_SPLIT"), &
@@ -1448,13 +1451,13 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID", &
-                          description="Experimental CP2K-native GPW real-space-grid path for SKALA "// &
+                          description="Experimental CP2K-native real-space-grid path for SKALA "// &
                           "TorchScript models. This bypasses GauXC molecular quadrature and supports "// &
                           "isolated, partially periodic, and fully periodic METHOD GPW cells with "// &
                           "GTH/ECP pseudopotentials and METHOD GAPW/GAPW_XC cells. GAPW with "// &
-                          "GTH/ECP pseudopotentials can use KIND%GPW_TYPE regular-grid features or "// &
-                          "the GAPW one-center XC correction; GAPW all-electron uses the "// &
-                          "all-electron regular-grid density. The current implementation is limited "// &
+                          "GTH/ECP pseudopotentials supports direct-valence and PAW-like one-center "// &
+                          "density representations; GAPW all-electron reconstructs the all-electron "// &
+                          "primitive fields. The current implementation is limited "// &
                           "to a single GAUXC functional and provides energy, VXC, and experimental "// &
                           "analytical nuclear-gradient/stress evaluations. K-point runs use CP2K's "// &
                           "standard k-point and symmetry-reduction infrastructure; CPU k-point "// &
@@ -1462,10 +1465,9 @@ CONTAINS
                           "runtimes, while CUDA evaluation is selected explicitly. "// &
                           "Energy/VXC runs split the Torch evaluation into atom blocks by default "// &
                           "and route dynamic features and gradients between MPI ranks. "// &
-                          "PAW/one-center GAPW+GTH/ECP and METHOD GAPW_XC use CP2K's GAPW hard/soft "// &
-                          "one-center XC correction with a selectable "// &
-                          "NATIVE_GRID_GAPW_DENSITY_PARTITION. ROKS, ADMM, and non-k-point "// &
-                          "multiple-image calculations are not implemented.", &
+                          "PAW-like GAPW+GTH/ECP and METHOD GAPW_XC combine selectable hard/soft "// &
+                          "primitive fields before constructing the nonlinear SKALA features. ROKS, "// &
+                          "ADMM, and non-k-point multiple-image calculations are not implemented.", &
                           usage="NATIVE_GRID T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1496,7 +1498,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_ATOM_PARTITION", &
                           description="Atom partition used to build the experimental CP2K-native "// &
-                          "SKALA regular-grid feature block. HARD assigns each native grid point to "// &
+                          "SKALA COMMON_GRID feature block. HARD assigns each native grid point to "// &
                           "the nearest periodic atom and is intended for legacy energy/VXC-only runs. "// &
                           "SMOOTH uses a Becke-like fuzzy-cell partition on the native grid and creates "// &
                           "weighted atom rows. Internal atom-grid weights vanish through a smooth taper "// &
@@ -1511,12 +1513,31 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="NATIVE_GRID_LAYOUT", &
+         description="Select the numerical layout for native-grid Skala irrespective of the "// &
+         "electronic core representation. ATOM_COMPOSITE, the default, evaluates complete "// &
+         "atom-centered radial/Lebedev blocks. GPW and pseudopotential direct-valence fields "// &
+         "are interpolated from CP2K's plane-wave grid; GAPW primitive fields are combined "// &
+         "before nonlinear feature construction. The matching interpolation, partition, and "// &
+         "one-center adjoints return VXC, forces, and stress to CP2K. Mixed all-electron and "// &
+         "pseudopotential kinds use the same syntax and are reconstructed per kind. COMMON_GRID retains "// &
+         "evaluation on CP2K's regular real-space grid as a cutoff-sensitive reference and "// &
+         "diagnostic layout; mixed core representations require ATOM_COMPOSITE.", &
+         usage="NATIVE_GRID_LAYOUT ATOM_COMPOSITE", &
+         enum_c_vals=s2a("COMMON_GRID", "ATOM_COMPOSITE"), &
+         enum_i_vals=[skala_gapw_common_grid, skala_gapw_atom_composite_grid], &
+         enum_desc=s2a("Evaluate on the common regular real-space grid", &
+                       "Use image-partitioned atom-centered grids"), &
+         default_i_val=skala_gapw_atom_composite_grid)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_GAPW_DENSITY_PARTITION", &
-                          description="Hard/soft one-center density contribution used by METHOD "// &
-                          "GAPW and METHOD GAPW_XC in Skala atomic-grid corrections. "// &
-                          "HARD_MINUS_SOFT evaluates the SKALA model on hard and soft atomic "// &
-                          "densities separately and adds the GAPW hard-minus-soft correction; this "// &
-                          "is the default because it follows CP2K's GAPW XC expression. For "// &
+                          description="Hard/soft one-center primitive-field contribution used by "// &
+                          "METHOD GAPW and METHOD GAPW_XC. With PAW_ONE_CENTER, HARD_MINUS_SOFT "// &
+                          "combines smooth, hard, and soft density, gradient, and kinetic-energy-density "// &
+                          "fields before a single nonlinear SKALA evaluation. It is the default. For "// &
                           "pseudopotential PAW/one-center GAPW this is distinct from KIND%GPW_TYPE, "// &
                           "which uses the regular-grid valence-density approximation. "// &
                           "HARD_ONLY, SOFT_ONLY, and NONE are diagnostic variants.", &
@@ -1528,24 +1549,6 @@ CONTAINS
                                         "Use only the soft one-center density with the GAPW sign", &
                                         "Disable the GAPW one-center SKALA correction"), &
                           default_i_val=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="NATIVE_GRID_GAPW_COMPOSITE_GRID", &
-         description="Select the numerical backend for PAW_ONE_CENTER GAPW Skala. "// &
-         "ATOM_COMPOSITE, the default, evaluates complete atom blocks on the GAPW radial/Lebedev "// &
-         "grids. For periodic cells, an atom-image partition assigns the outer energy quadrature, "// &
-         "while a self-image partition provides an untruncated atom-centered descriptor domain. "// &
-         "Smooth, hard, and soft primitive fields are combined before nonlinear feature "// &
-         "construction. COMMON_GRID reconstructs the same fields on CP2K's regular grid and is "// &
-         "retained as a cutoff-sensitive reference and diagnostic backend.", &
-         usage="NATIVE_GRID_GAPW_COMPOSITE_GRID ATOM_COMPOSITE", &
-         enum_c_vals=s2a("COMMON_GRID", "ATOM_COMPOSITE"), &
-         enum_i_vals=[skala_gapw_common_grid, skala_gapw_atom_composite_grid], &
-         enum_desc=s2a("Reconstruct on the common periodic real-space grid", &
-                       "Use image-partitioned atom-centered composite grids"), &
-         default_i_val=skala_gapw_atom_composite_grid)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

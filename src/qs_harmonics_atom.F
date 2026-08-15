@@ -164,8 +164,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'create_harmonics_atom'
 
       INTEGER                                            :: handle, i, ia, ic, is, is1, is2, iso, &
-                                                            iso1, iso2, l, l1, l2, lx, ly, lz, m, &
-                                                            m1, m2, n
+                                                            iso1, iso2, l, l1, l2, lmax_grid, lx, &
+                                                            ly, lz, m, m1, m2, max_s_grid, n
       REAL(dp)                                           :: drx, dry, drz, rx, ry, rz
       REAL(dp), DIMENSION(2)                             :: cin, dylm
       REAL(dp), DIMENSION(:), POINTER                    :: slm_int, y
@@ -177,6 +177,9 @@ CONTAINS
       NULLIFY (y, slm, dslm_dxyz, dc)
 
       CPASSERT(ASSOCIATED(harmonics))
+
+      max_s_grid = MAX(maxs, max_s_harm)
+      lmax_grid = indso(1, max_s_grid)
 
       harmonics%max_s_harm = max_s_harm
       harmonics%llmax = llmax
@@ -196,11 +199,11 @@ CONTAINS
       ! allocate and calculate the spherical harmonics LM for this grid
       ! and their derivatives
       NULLIFY (harmonics%slm, harmonics%dslm, harmonics%dslm_dxyz, harmonics%a, harmonics%slm_int)
-      CALL reallocate(harmonics%slm, 1, na, 1, max_s_harm)
+      CALL reallocate(harmonics%slm, 1, na, 1, max_s_grid)
       CALL reallocate(harmonics%dslm, 1, 2, 1, na, 1, maxs)
-      CALL reallocate(harmonics%dslm_dxyz, 1, 3, 1, na, 1, max_s_harm)
+      CALL reallocate(harmonics%dslm_dxyz, 1, 3, 1, na, 1, max_s_grid)
       CALL reallocate(harmonics%a, 1, 3, 1, na)
-      CALL reallocate(harmonics%slm_int, 1, max_s_harm)
+      CALL reallocate(harmonics%slm_int, 1, max_s_grid)
 
       NULLIFY (slm, dslm_dxyz, slm_int)
       slm => harmonics%slm
@@ -210,14 +213,14 @@ CONTAINS
       slm_int = 0.0_dp
 
 !$OMP PARALLEL DEFAULT(NONE), &
-!$OMP SHARED (slm,dslm_dxyz,slm_int,max_s_harm,ll,lebedev_grid,na,harmonics,wa,indco,orbtramat) &
-!$OMP SHARED (nso,nsoset,nco,maxs,indso,ncoset,pol,azi,llmax) &
+!$OMP SHARED (slm,dslm_dxyz,slm_int,max_s_harm,max_s_grid,ll,lebedev_grid,na,harmonics,wa,indco,orbtramat) &
+!$OMP SHARED (nso,nsoset,nco,maxs,indso,ncoset,pol,azi,llmax,lmax_grid) &
 !$OMP PRIVATE(ia,iso,l,m,i,lx,ly,lz,rx,ry,rz,drx,dry,drz,ic,dc,iso1,iso2,cin,dylm) &
 !$OMP PRIVATE(is1,l1,m1,is2,l2,m2,is,n,y)
 
       ALLOCATE (y(na))
 !$OMP DO
-      DO iso = 1, max_s_harm
+      DO iso = 1, max_s_grid
          l = indso(1, iso)
          m = indso(2, iso)
          CALL y_lm(lebedev_grid(ll)%r, y, l, m)
@@ -242,10 +245,10 @@ CONTAINS
       ! terms x^n1 y^n2 z^n3 transformed by spherical harmonics expansion coefficients
       !
 
-      ALLOCATE (dc(nco(llmax), 3))
+      ALLOCATE (dc(nco(lmax_grid), 3))
 !$OMP DO
       DO ia = 1, na
-         DO l = 0, indso(1, max_s_harm)
+         DO l = 0, lmax_grid
             DO ic = 1, nco(l)
                lx = indco(1, ic + ncoset(l - 1))
                ly = indco(2, ic + ncoset(l - 1))

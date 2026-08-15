@@ -1,8 +1,8 @@
-"H2_NATIVE_SKALA_GPW_FORCE.inp" = [{matcher="M072", tol=1e-4, ref=5.55352375E-05}]
+"H2_NATIVE_SKALA_GPW_FORCE.inp" = [{matcher="M072", tol=1e-4, ref=2.44020072E-03}]
 "H2_NATIVE_SKALA_GPW_PBC_FORCE_DEBUG.inp" = [{matcher="DEBUG_force_sum", tol=5e-3, ref=0.0}]
 "H2P_NATIVE_SKALA_GPW_UKS_PBC_FORCE_DEBUG.inp" = [{matcher="DEBUG_force_sum", tol=1e-3, ref=0.0}]
-"H2_NATIVE_SKALA_GPW_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.96570776066437}]
-"H2_NATIVE_SKALA_GPW_STRESS_CHUNK_REQUEST.inp" = [{matcher="E_total", tol=1e-8, ref=-1.04112616002623}]
+"H2_NATIVE_SKALA_GPW_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.96628051182874}]
+"H2_NATIVE_SKALA_GPW_STRESS_CHUNK_REQUEST.inp" = [{matcher="E_total", tol=1e-8, ref=-1.04112696167644}]
 "H2_NATIVE_SKALA_GPW_SMOOTH.inp" = [{matcher="E_total", tol=1e-8, ref=-0.965707761091413},
                                     {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=2.00000875882},
                                     {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},

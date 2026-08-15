@@ -125,7 +125,10 @@ density representation explicitly:
 
 The selector applies only to pseudopotential GAPW kinds. All-electron `METHOD GAPW` retains its
 all-electron AO density representation, and `METHOD GAPW_XC` selects CP2K's `rho_xc` density before
-the corresponding one-center reconstruction.
+the corresponding one-center reconstruction. Mixed all-electron and pseudopotential systems use the
+same selector without additional mixed-system input: all-electron kinds contribute their one-center
+primitive fields, while each pseudopotential kind follows `DIRECT_VALENCE`, `PAW_ONE_CENTER`, or the
+legacy `CP2K_DEFAULT` rule.
 
 `NATIVE_GRID_GAPW_DENSITY_PARTITION` controls the legacy one-center diagnostic; its default,
 `HARD_MINUS_SOFT`, follows the CP2K GAPW XC construction. `HARD_ONLY`, `SOFT_ONLY`, and `NONE` are
@@ -223,35 +226,47 @@ smooth partition internally because derivatives of the partition weights contrib
 response.
 
 `NATIVE_GRID_GAPW_DENSITY_PARTITION` is independent of that spatial atom partition. It selects the
-one-center density term for PAW-like `METHOD GAPW` and `METHOD GAPW_XC` calculations:
-`HARD_MINUS_SOFT` is the default, while `HARD_ONLY`, `SOFT_ONLY`, and `NONE` are diagnostic
-variants. `DIRECT_VALENCE` uses the regular-grid valence-density route irrespective of `GPW_TYPE`;
-the legacy `CP2K_DEFAULT` representation may infer that route from the kind settings.
+one-center primitive-field term for PAW-like `METHOD GAPW` and `METHOD GAPW_XC` calculations.
+`HARD_MINUS_SOFT`, the default, adds the hard-minus-soft density, density gradient, and
+kinetic-energy density to the smooth fields before the single nonlinear Skala evaluation.
+`HARD_ONLY`, `SOFT_ONLY`, and `NONE` are diagnostic variants. `DIRECT_VALENCE` uses the
+valence-density route irrespective of `GPW_TYPE`; the legacy `CP2K_DEFAULT` representation may infer
+that route from the kind settings.
 
-For `PAW_ONE_CENTER`, `NATIVE_GRID_GAPW_COMPOSITE_GRID` selects the grid on which the combined
-primitive fields are formed. `ATOM_COMPOSITE`, the default, interpolates the smooth field to GAPW
-radial/Lebedev grids and adds the hard-minus-soft fields there before constructing the nonlinear
-Skala features. In periodic cells, a Becke-like partition over all atom images assigns the outer
-energy quadrature. A separate partition over only the target atom's self-images defines its complete
-periodic descriptor domain, avoiding a truncation of non-local descriptors at boundaries between
-different atoms. `COMMON_GRID` reconstructs the same fields on the regular grid and is retained as a
-cutoff-sensitive diagnostic reference. At matched cutoff, complete atom blocks are both
-substantially closer to the corresponding non-periodic atom-composite limit and much less expensive
-than resolving all hard-minus-soft detail on one global periodic grid. This selector does not change
-`DIRECT_VALENCE`, molecular GauXC quadrature, or the all-electron AO density representation. For
-pseudopotentials, molecular GauXC `DIRECT_VALENCE` and native `PAW_ONE_CENTER` remain distinct
-density representations; agreement between periodic and non-periodic atom-composite calculations
-does not imply equality with the direct AO-valence result.
+For native Skala, `NATIVE_GRID_LAYOUT` selects the grid on which the combined primitive fields are
+formed. `ATOM_COMPOSITE`, the default, interpolates the smooth field to GAPW radial/Lebedev grids
+and adds the hard-minus-soft fields there before constructing the nonlinear Skala features. In
+periodic cells, a Becke-like partition over all atom images assigns the outer energy quadrature. A
+separate partition over only the target atom's self-images defines its complete periodic descriptor
+domain, avoiding a truncation of non-local descriptors at boundaries between different atoms.
+`COMMON_GRID` reconstructs the same fields on the regular grid and is retained as a cutoff-sensitive
+diagnostic reference. At matched cutoff, complete atom blocks are both substantially closer to the
+corresponding non-periodic atom-composite limit and much less expensive than resolving all
+hard-minus-soft detail on one global periodic grid. This selector does not change the physical
+density representation: all-electron GAPW, pseudopotential `DIRECT_VALENCE`, and pseudopotential
+`PAW_ONE_CENTER` retain their respective semantics on either layout. It also does not affect
+molecular GauXC quadrature. Molecular GauXC `DIRECT_VALENCE` and native `PAW_ONE_CENTER` remain
+distinct pseudopotential density representations; agreement between periodic and non-periodic
+atom-composite calculations does not imply equality with the direct AO-valence result. Mixed
+all-electron and pseudopotential GAPW kinds use the same input syntax. `ATOM_COMPOSITE` constructs
+every target atom block, adds hard-minus-soft primitive fields only for the kinds that require them,
+and applies the matching per-kind adjoints. The `COMMON_GRID` diagnostic does not provide this mixed
+per-kind reconstruction and therefore remains unavailable for mixed core representations. The finite
+all-electron one-center representation error can be converged independently through
+`DFT%QS%GAPW_1C_BASIS` and the radial and Lebedev kind grids. For example, demanding molecular
+cross-checks can use `EXT_VERY_LARGE` together with 200 radial and 590 Lebedev points. These
+settings are not imposed automatically because their cost is substantial and the required quadrature
+depends on the element and target accuracy.
 
 ### Current Scope
 
 The native-grid path provides energy, VXC, nuclear forces, and analytical stress for regular-grid
 GPW with GTH/ECP pseudopotentials, all-electron GAPW, pseudopotential GAPW with either `GPW_TYPE` or
-the PAW-like one-center correction, and `METHOD GAPW_XC`. NLCC is supported for both the native
-regular-grid representation and pseudopotential GAPW `PAW_ONE_CENTER`. Periodic `PAW_ONE_CENTER`
-uses the atom-centered composite backend by default; its smooth lattice-image partitions,
-native-grid interpolation, periodic images, and one-center fields are differentiated consistently
-for nuclear forces and strain.
+the PAW-like one-center correction, mixed all-electron/pseudopotential GAPW on `ATOM_COMPOSITE`, and
+`METHOD GAPW_XC`. NLCC is supported for both the native regular-grid representation and
+pseudopotential GAPW `PAW_ONE_CENTER`. Periodic `PAW_ONE_CENTER` uses the atom-centered composite
+backend by default; its smooth lattice-image partitions, native-grid interpolation, periodic images,
+and one-center fields are differentiated consistently for nuclear forces and strain.
 
 For native-grid NLCC, CP2K adds the frozen-core density to each spin density in both real and
 reciprocal space before constructing the Skala features. In the molecular atom-composite route the
