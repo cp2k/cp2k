@@ -1511,6 +1511,25 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="NATIVE_GRID_LAYOUT", &
+         description="Select the numerical layout for native-grid Skala irrespective of the "// &
+         "electronic core representation. ATOM_COMPOSITE, the default, evaluates complete "// &
+         "atom-centered radial/Lebedev blocks. GPW and pseudopotential direct-valence fields "// &
+         "are interpolated from CP2K's plane-wave grid; GAPW primitive fields are combined "// &
+         "before nonlinear feature construction. The matching interpolation, partition, and "// &
+         "one-center adjoints return VXC, forces, and stress to CP2K. COMMON_GRID retains "// &
+         "evaluation on CP2K's regular real-space grid as a cutoff-sensitive reference and "// &
+         "diagnostic layout.", &
+         usage="NATIVE_GRID_LAYOUT ATOM_COMPOSITE", &
+         enum_c_vals=s2a("COMMON_GRID", "ATOM_COMPOSITE"), &
+         enum_i_vals=[skala_gapw_common_grid, skala_gapw_atom_composite_grid], &
+         enum_desc=s2a("Evaluate on the common regular real-space grid", &
+                       "Use image-partitioned atom-centered grids"), &
+         default_i_val=skala_gapw_atom_composite_grid)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_GAPW_DENSITY_PARTITION", &
                           description="Hard/soft one-center density contribution used by METHOD "// &
                           "GAPW and METHOD GAPW_XC in Skala atomic-grid corrections. "// &
@@ -1528,24 +1547,6 @@ CONTAINS
                                         "Use only the soft one-center density with the GAPW sign", &
                                         "Disable the GAPW one-center SKALA correction"), &
                           default_i_val=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="NATIVE_GRID_GAPW_COMPOSITE_GRID", &
-         description="Select the numerical backend for PAW_ONE_CENTER GAPW Skala. "// &
-         "ATOM_COMPOSITE, the default, evaluates complete atom blocks on the GAPW radial/Lebedev "// &
-         "grids. For periodic cells, an atom-image partition assigns the outer energy quadrature, "// &
-         "while a self-image partition provides an untruncated atom-centered descriptor domain. "// &
-         "Smooth, hard, and soft primitive fields are combined before nonlinear feature "// &
-         "construction. COMMON_GRID reconstructs the same fields on CP2K's regular grid and is "// &
-         "retained as a cutoff-sensitive reference and diagnostic backend.", &
-         usage="NATIVE_GRID_GAPW_COMPOSITE_GRID ATOM_COMPOSITE", &
-         enum_c_vals=s2a("COMMON_GRID", "ATOM_COMPOSITE"), &
-         enum_i_vals=[skala_gapw_common_grid, skala_gapw_atom_composite_grid], &
-         enum_desc=s2a("Reconstruct on the common periodic real-space grid", &
-                       "Use image-partitioned atom-centered composite grids"), &
-         default_i_val=skala_gapw_atom_composite_grid)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

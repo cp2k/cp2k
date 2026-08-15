@@ -228,20 +228,23 @@ one-center density term for PAW-like `METHOD GAPW` and `METHOD GAPW_XC` calculat
 variants. `DIRECT_VALENCE` uses the regular-grid valence-density route irrespective of `GPW_TYPE`;
 the legacy `CP2K_DEFAULT` representation may infer that route from the kind settings.
 
-For `PAW_ONE_CENTER`, `NATIVE_GRID_GAPW_COMPOSITE_GRID` selects the grid on which the combined
-primitive fields are formed. `ATOM_COMPOSITE`, the default, interpolates the smooth field to GAPW
-radial/Lebedev grids and adds the hard-minus-soft fields there before constructing the nonlinear
-Skala features. In periodic cells, a Becke-like partition over all atom images assigns the outer
-energy quadrature. A separate partition over only the target atom's self-images defines its complete
-periodic descriptor domain, avoiding a truncation of non-local descriptors at boundaries between
-different atoms. `COMMON_GRID` reconstructs the same fields on the regular grid and is retained as a
-cutoff-sensitive diagnostic reference. At matched cutoff, complete atom blocks are both
-substantially closer to the corresponding non-periodic atom-composite limit and much less expensive
-than resolving all hard-minus-soft detail on one global periodic grid. This selector does not change
-`DIRECT_VALENCE`, molecular GauXC quadrature, or the all-electron AO density representation. For
-pseudopotentials, molecular GauXC `DIRECT_VALENCE` and native `PAW_ONE_CENTER` remain distinct
-density representations; agreement between periodic and non-periodic atom-composite calculations
-does not imply equality with the direct AO-valence result.
+For native Skala, `NATIVE_GRID_LAYOUT` selects the grid on which the combined primitive fields are
+formed. `ATOM_COMPOSITE`, the default, interpolates the smooth field to GAPW radial/Lebedev grids
+and adds the hard-minus-soft fields there before constructing the nonlinear Skala features. In
+periodic cells, a Becke-like partition over all atom images assigns the outer energy quadrature. A
+separate partition over only the target atom's self-images defines its complete periodic descriptor
+domain, avoiding a truncation of non-local descriptors at boundaries between different atoms.
+`COMMON_GRID` reconstructs the same fields on the regular grid and is retained as a cutoff-sensitive
+diagnostic reference. At matched cutoff, complete atom blocks are both substantially closer to the
+corresponding non-periodic atom-composite limit and much less expensive than resolving all
+hard-minus-soft detail on one global periodic grid. This selector does not change the physical
+density representation: all-electron GAPW, pseudopotential `DIRECT_VALENCE`, and pseudopotential
+`PAW_ONE_CENTER` retain their respective semantics on either layout. It also does not affect
+molecular GauXC quadrature. Molecular GauXC `DIRECT_VALENCE` and native `PAW_ONE_CENTER` remain
+distinct pseudopotential density representations; agreement between periodic and non-periodic
+atom-composite calculations does not imply equality with the direct AO-valence result. Mixed
+all-electron and pseudopotential GAPW kinds use the same input syntax but are rejected until their
+per-kind composite density and adjoint have been validated explicitly.
 
 ### Current Scope
 

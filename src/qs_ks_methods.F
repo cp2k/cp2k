@@ -148,7 +148,7 @@ MODULE qs_ks_methods
                                               native_skala_gapw_atom_composite_requested,&
                                               native_skala_gapw_composite_direct_ao,&
                                               native_skala_gapw_composite_reference,&
-                                              native_skala_gapw_uses_atom_composite_grid,&
+                                              native_skala_uses_atom_composite_grid,&
                                               skala_gapw_representation,&
                                               xc_section_uses_native_skala_grid
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
@@ -157,8 +157,11 @@ MODULE qs_ks_methods
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE virial_types,                    ONLY: virial_type
    USE xc_gauxc_functional,             ONLY: apply_gauxc,&
+                                              gauxc_gapw_all_all_electron,&
+                                              gauxc_gapw_all_pseudopotentials,&
                                               gauxc_gapw_has_paw_pseudopotentials
-   USE xc_input_constants,              ONLY: skala_gapw_paw_one_center
+   USE xc_input_constants,              ONLY: skala_gapw_direct_valence,&
+                                              skala_gapw_paw_one_center
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
@@ -211,17 +214,18 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
 
       CHARACTER(len=default_string_length)               :: gauxc_model_name, name
-      INTEGER                                            :: ace_rebuild_frequency, atom_a, handle, &
-                                                            iatom, ikind, img, ispin, natom, &
-                                                            nimages, nspins, output_unit
+      INTEGER :: ace_rebuild_frequency, atom_a, gapw_representation, handle, iatom, ikind, img, &
+         ispin, natom, nimages, nspins, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL :: ace_active, do_adiabatic_rescaling, do_ddapc, do_hfx, do_kpoints, do_ppl, dokp, &
-         gapw, gapw_xc, gauxc_model_none, just_energy_xc, lrigpw, my_print, &
+         gapw, gapw_all_all_electron, gapw_all_pseudopotentials, gapw_mixed_core_representations, &
+         gapw_xc, gauxc_model_none, just_energy_xc, lrigpw, my_print, &
+         native_direct_valence_atom_composite, native_gapw_all_electron_atom_composite, &
          native_gapw_atom_composite_reference, native_gapw_atom_composite_requested, &
          native_gapw_composite_direct_ao, native_gapw_composite_reference, &
          native_gapw_periodic_atom_composite, native_grid_diagnostics, native_grid_use_cuda, &
-         native_skala_evaluator, native_skala_restore_exc, paw_composite_representation, rigpw, &
-         use_gauxc_matrix, use_virial
+         native_skala_evaluator, native_skala_restore_exc
+      LOGICAL :: paw_composite_representation, rigpw, use_gauxc_matrix, use_virial
       LOGICAL, SAVE :: native_grid_cpu_kpoints_warned = .FALSE.
       REAL(KIND=dp) :: ecore_ppl, edisp, ee_ener, ekin_mol, mulliken_order_p, &
          native_skala_composite_contraction, native_skala_composite_rho_contraction, &
@@ -295,6 +299,11 @@ CONTAINS
       use_gauxc_matrix = .FALSE.
       native_gapw_atom_composite_reference = .FALSE.
       native_gapw_atom_composite_requested = .FALSE.
+      native_gapw_all_electron_atom_composite = .FALSE.
+      native_direct_valence_atom_composite = .FALSE.
+      gapw_all_all_electron = .FALSE.
+      gapw_all_pseudopotentials = .FALSE.
+      gapw_mixed_core_representations = .FALSE.
       native_gapw_composite_direct_ao = .FALSE.
       native_gapw_composite_reference = .FALSE.
       native_gapw_periodic_atom_composite = .FALSE.
@@ -689,6 +698,25 @@ CONTAINS
          IF (dft_control%use_gauxc) THEN
             IF (native_skala_evaluator) THEN
                CALL ensure_native_skala_grid_scope(xc_section)
+               gapw_representation = skala_gapw_representation(xc_section)
+               IF (gapw .OR. gapw_xc) THEN
+                  gapw_all_all_electron = gauxc_gapw_all_all_electron(qs_kind_set)
+                  gapw_all_pseudopotentials = gauxc_gapw_all_pseudopotentials(qs_kind_set)
+                  gapw_mixed_core_representations = &
+                     .NOT. gapw_all_all_electron .AND. .NOT. gapw_all_pseudopotentials
+                  IF (gapw_mixed_core_representations) THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "Native Skala does not yet support mixed all-electron and "// &
+                                   "pseudopotential GAPW kinds. The input syntax is reserved; "// &
+                                   "no density representation is selected implicitly.")
+                  END IF
+               END IF
+               native_direct_valence_atom_composite = &
+                  xc_section_uses_native_skala_grid(xc_section) .AND. &
+                  native_skala_uses_atom_composite_grid(xc_section) .AND. &
+                  ((.NOT. gapw .AND. .NOT. gapw_xc) .OR. &
+                   (gapw_representation == skala_gapw_direct_valence .AND. &
+                    gapw_all_pseudopotentials))
                native_gapw_composite_reference = &
                   native_skala_gapw_composite_reference(xc_section) .AND. (gapw .OR. gapw_xc)
                native_gapw_atom_composite_requested = &
@@ -697,7 +725,15 @@ CONTAINS
                native_gapw_atom_composite_reference = &
                   native_gapw_atom_composite_requested .OR. paw_composite_representation
                native_gapw_periodic_atom_composite = &
-                  native_skala_gapw_uses_atom_composite_grid(xc_section)
+                  native_skala_uses_atom_composite_grid(xc_section)
+               native_gapw_all_electron_atom_composite = &
+                  (gapw .OR. gapw_xc) .AND. &
+                  gapw_all_all_electron .AND. &
+                  (.NOT. native_gapw_composite_reference) .AND. &
+                  native_gapw_periodic_atom_composite
+               native_gapw_atom_composite_reference = &
+                  native_gapw_atom_composite_reference .OR. &
+                  native_gapw_all_electron_atom_composite
                IF (paw_composite_representation) THEN
                   IF (ANY(cell%perd /= 0)) THEN
                      native_gapw_composite_reference = &
@@ -757,7 +793,8 @@ CONTAINS
                IF (calculate_forces) THEN
                   ALLOCATE (native_skala_atom_force(3, natom))
                   native_skala_atom_force = 0.0_dp
-                  IF (native_gapw_atom_composite_reference) THEN
+                  IF (native_gapw_atom_composite_reference .OR. &
+                      native_direct_valence_atom_composite) THEN
                      CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
                                         vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
                                         edisp=edisp, dispersion_env=qs_env%dispersion_env, &
@@ -850,7 +887,8 @@ CONTAINS
                                      just_energy=just_energy_xc, qs_env_external=qs_env, &
                                      native_gapw_composite_override=native_gapw_composite_reference, &
                                      native_skala_defer_to_atom_composite= &
-                                     native_gapw_atom_composite_reference)
+                                     (native_gapw_atom_composite_reference .OR. &
+                                      native_direct_valence_atom_composite))
                   IF (native_gapw_composite_reference .AND. .NOT. native_gapw_composite_direct_ao .AND. &
                       ASSOCIATED(v_rspace_new) .AND. ASSOCIATED(v_tau_rspace)) THEN
                      CALL integrate_gapw_composite_vxc_gspace( &
@@ -875,14 +913,22 @@ CONTAINS
                   END IF
                END IF
                IF (native_skala_restore_exc) energy%exc = native_skala_exc_scf
-               IF ((gapw .OR. gapw_xc) .AND. .NOT. native_gapw_composite_reference) THEN
+               IF (native_direct_valence_atom_composite) THEN
+                  CPASSERT(ASSOCIATED(v_rspace_new))
+                  CPASSERT(ASSOCIATED(v_tau_rspace))
+                  CALL calculate_vxc_atom( &
+                     qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section, &
+                     calculate_forces=calculate_forces, composite_vxc_rho=v_rspace_new, &
+                     composite_vxc_tau=v_tau_rspace, direct_valence_atom_grid=.TRUE.)
+                  energy%exc = 0.0_dp
+               ELSE IF ((gapw .OR. gapw_xc) .AND. .NOT. native_gapw_composite_reference) THEN
                   IF (native_gapw_atom_composite_reference) THEN
                      CPASSERT(ASSOCIATED(v_rspace_new))
                      CPASSERT(ASSOCIATED(v_tau_rspace))
                      CALL calculate_vxc_atom( &
                         qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section, &
                         calculate_forces=calculate_forces, composite_vxc_rho=v_rspace_new, &
-                        composite_vxc_tau=v_tau_rspace)
+                        composite_vxc_tau=v_tau_rspace, atom_composite_grid=.TRUE.)
                      energy%exc = 0.0_dp
                   ELSE
                      CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, &
@@ -1063,7 +1109,8 @@ CONTAINS
 
       ! The atom-composite evaluator differentiates its atom-centered NLCC field directly.
       IF (ASSOCIATED(rho_nlcc) .AND. calculate_forces .AND. &
-          .NOT. native_gapw_atom_composite_reference) THEN
+          .NOT. native_gapw_atom_composite_reference .AND. &
+          .NOT. native_direct_valence_atom_composite) THEN
          DO ispin = 1, nspins
             CALL integrate_rho_nlcc(v_rspace_new(ispin), qs_env)
             IF (dft_control%do_admm) CALL integrate_rho_nlcc(v_rspace_new_aux_fit(ispin), qs_env)
