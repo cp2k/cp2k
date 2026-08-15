@@ -48,7 +48,9 @@ MODULE skala_gpw_functional
         torch_tensor_from_array, torch_tensor_grad, torch_tensor_grad_batch3, &
         torch_tensor_release, torch_tensor_reset_from_array, torch_tensor_to_device_leaf, &
         torch_tensor_type, torch_use_cuda
-   USE xc_input_constants,              ONLY: skala_gapw_cp2k_default,&
+   USE xc_input_constants,              ONLY: skala_gapw_atom_composite_grid,&
+                                              skala_gapw_common_grid,&
+                                              skala_gapw_cp2k_default,&
                                               skala_gapw_direct_valence,&
                                               skala_gapw_paw_one_center,&
                                               skala_gapw_paw_one_center_split
@@ -85,6 +87,7 @@ MODULE skala_gpw_functional
    PUBLIC :: build_vxc_from_feature_grads, ensure_native_skala_grid_scope, get_gauxc_section, &
              skala_gapw_atom_composite_energy, skala_gapw_atom_vxc_of_r, &
              native_skala_gapw_atom_composite_requested, &
+             native_skala_gapw_uses_atom_composite_grid, &
              native_skala_gapw_composite_direct_ao, native_skala_gapw_composite_reference, &
              native_skala_gapw_density_partition, skala_gpw_eval, skala_gpw_weight_derivative, &
              skala_gapw_representation, xc_section_uses_native_skala_evaluator, &
@@ -213,6 +216,36 @@ CONTAINS
       use_atom_composite = native_grid .AND. use_atom_composite
 
    END FUNCTION native_skala_gapw_atom_composite_requested
+
+! **************************************************************************************************
+!> \brief Return true when periodic PAW_ONE_CENTER uses atom-centered composite grids.
+!> \param xc_section ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION native_skala_gapw_uses_atom_composite_grid(xc_section) RESULT(use_atom_composite)
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
+      LOGICAL                                            :: use_atom_composite
+
+      INTEGER                                            :: composite_grid
+      TYPE(section_vals_type), POINTER                   :: gauxc_section
+
+      use_atom_composite = .FALSE.
+      composite_grid = skala_gapw_atom_composite_grid
+      gauxc_section => get_gauxc_section(xc_section)
+      IF (ASSOCIATED(gauxc_section)) THEN
+         CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_GAPW_COMPOSITE_GRID", &
+                                   i_val=composite_grid)
+      END IF
+      SELECT CASE (composite_grid)
+      CASE (skala_gapw_common_grid)
+         CONTINUE
+      CASE (skala_gapw_atom_composite_grid)
+         use_atom_composite = .TRUE.
+      CASE DEFAULT
+         CALL cp_abort(__LOCATION__, "Unknown native-grid periodic GAPW composite backend.")
+      END SELECT
+
+   END FUNCTION native_skala_gapw_uses_atom_composite_grid
 
 ! **************************************************************************************************
 !> \brief Return true if the GAPW composite reference uses direct full-ORB collocation.

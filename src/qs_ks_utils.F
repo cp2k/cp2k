@@ -1734,7 +1734,8 @@ CONTAINS
                                     pmat_kp=rho_ao, hmat_kp=ksmat, &
                                     qs_env=qs_env, &
                                     calculate_forces=calculate_forces, compute_tau=.TRUE., &
-                                    gapw=gapw .AND. .NOT. gapw_composite_direct_ao)
+                                    gapw=(gapw .OR. gapw_xc) .AND. &
+                                    .NOT. gapw_composite_direct_ao)
             CALL auxbas_pw_pool%give_back_pw(v_tau_rspace(ispin))
          END DO
          DEALLOCATE (v_tau_rspace)

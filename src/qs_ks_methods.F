@@ -148,6 +148,7 @@ MODULE qs_ks_methods
                                               native_skala_gapw_atom_composite_requested,&
                                               native_skala_gapw_composite_direct_ao,&
                                               native_skala_gapw_composite_reference,&
+                                              native_skala_gapw_uses_atom_composite_grid,&
                                               skala_gapw_representation,&
                                               xc_section_uses_native_skala_grid
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
@@ -218,9 +219,9 @@ CONTAINS
          gapw, gapw_xc, gauxc_model_none, just_energy_xc, lrigpw, my_print, &
          native_gapw_atom_composite_reference, native_gapw_atom_composite_requested, &
          native_gapw_composite_direct_ao, native_gapw_composite_reference, &
-         native_grid_diagnostics, native_grid_use_cuda, native_skala_evaluator, &
-         native_skala_restore_exc, paw_composite_representation, rigpw, use_gauxc_matrix, &
-         use_virial
+         native_gapw_periodic_atom_composite, native_grid_diagnostics, native_grid_use_cuda, &
+         native_skala_evaluator, native_skala_restore_exc, paw_composite_representation, rigpw, &
+         use_gauxc_matrix, use_virial
       LOGICAL, SAVE :: native_grid_cpu_kpoints_warned = .FALSE.
       REAL(KIND=dp) :: ecore_ppl, edisp, ee_ener, ekin_mol, mulliken_order_p, &
          native_skala_composite_contraction, native_skala_composite_rho_contraction, &
@@ -296,6 +297,7 @@ CONTAINS
       native_gapw_atom_composite_requested = .FALSE.
       native_gapw_composite_direct_ao = .FALSE.
       native_gapw_composite_reference = .FALSE.
+      native_gapw_periodic_atom_composite = .FALSE.
       native_grid_diagnostics = .FALSE.
       native_skala_composite_contraction = 0.0_dp
       native_skala_composite_rho_contraction = 0.0_dp
@@ -694,14 +696,14 @@ CONTAINS
                   (gapw .OR. gapw_xc)
                native_gapw_atom_composite_reference = &
                   native_gapw_atom_composite_requested .OR. paw_composite_representation
-               IF (native_gapw_atom_composite_requested .AND. ANY(cell%perd /= 0)) THEN
-                  CALL cp_abort(__LOCATION__, &
-                                "The atom-centered GAPW composite reference is molecular only.")
-               END IF
+               native_gapw_periodic_atom_composite = &
+                  native_skala_gapw_uses_atom_composite_grid(xc_section)
                IF (paw_composite_representation) THEN
                   IF (ANY(cell%perd /= 0)) THEN
-                     native_gapw_composite_reference = .TRUE.
-                     native_gapw_atom_composite_reference = .FALSE.
+                     native_gapw_composite_reference = &
+                        .NOT. native_gapw_periodic_atom_composite
+                     native_gapw_atom_composite_reference = &
+                        native_gapw_periodic_atom_composite
                   ELSE
                      native_gapw_composite_reference = .FALSE.
                      native_gapw_atom_composite_reference = .TRUE.
