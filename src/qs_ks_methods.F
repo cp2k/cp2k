@@ -143,14 +143,11 @@ MODULE qs_ks_methods
    USE rtp_admm_methods,                ONLY: rtp_admm_calc_rho_aux,&
                                               rtp_admm_merge_ks_matrix
    USE se_fock_matrix,                  ONLY: build_se_fock_matrix
-   USE skala_gpw_functional,            ONLY: ensure_native_skala_grid_scope,&
-                                              get_gauxc_section,&
-                                              native_skala_gapw_atom_composite_requested,&
-                                              native_skala_gapw_composite_direct_ao,&
-                                              native_skala_gapw_composite_reference,&
-                                              native_skala_uses_atom_composite_grid,&
-                                              skala_gapw_representation,&
-                                              xc_section_uses_native_skala_grid
+   USE skala_gpw_functional,            ONLY: &
+        ensure_native_skala_grid_scope, get_gauxc_section, &
+        native_skala_gapw_atom_composite_requested, native_skala_gapw_composite_direct_ao, &
+        native_skala_gapw_composite_reference, native_skala_uses_atom_composite_grid, &
+        skala_gapw_representation, xc_section_uses_gauxc_model, xc_section_uses_native_skala_grid
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
    USE string_utilities,                ONLY: uppercase
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
@@ -689,9 +686,9 @@ CONTAINS
          native_skala_evaluator = xc_section_uses_native_skala_grid(xc_section)
          paw_composite_representation = .FALSE.
          IF (dft_control%use_gauxc .AND. (gapw .OR. gapw_xc)) THEN
-            paw_composite_representation = &
-               skala_gapw_representation(xc_section) == skala_gapw_paw_one_center .AND. &
-               gauxc_gapw_has_paw_pseudopotentials(qs_kind_set)
+            paw_composite_representation = xc_section_uses_gauxc_model(xc_section) .AND. &
+                                           skala_gapw_representation(xc_section) == skala_gapw_paw_one_center .AND. &
+                                           gauxc_gapw_has_paw_pseudopotentials(qs_kind_set)
             native_skala_evaluator = native_skala_evaluator .OR. &
                                      paw_composite_representation
          END IF
