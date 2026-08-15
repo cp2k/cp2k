@@ -121,7 +121,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
-      CHARACTER(len=default_path_length)                 :: basis_set_file_name, &
+      CHARACTER(len=default_path_length)                 :: basis_set_file_name, gauxc_model_name, &
                                                             intensities_file_name, &
                                                             potential_file_name
       CHARACTER(LEN=default_string_length), &
@@ -213,7 +213,13 @@ CONTAINS
       IF (dft_control%use_gauxc) THEN
          native_skala_grid = .FALSE.
          CALL section_vals_val_get(xc_gauxc_subsection, "NATIVE_GRID", l_val=native_skala_grid)
-         IF (native_skala_grid) dft_control%use_kinetic_energy_density = .TRUE.
+         CALL section_vals_val_get(xc_gauxc_subsection, "MODEL", c_val=gauxc_model_name)
+         gauxc_model_name = ADJUSTL(gauxc_model_name)
+         CALL uppercase(gauxc_model_name)
+         IF (native_skala_grid .OR. &
+             (TRIM(gauxc_model_name) /= "" .AND. TRIM(gauxc_model_name) /= "NONE")) THEN
+            dft_control%use_kinetic_energy_density = .TRUE.
+         END IF
       END IF
       tmp_section => section_vals_get_subs_vals(dft_section, "KG_METHOD")
       CALL section_vals_get(tmp_section, explicit=explicit)
