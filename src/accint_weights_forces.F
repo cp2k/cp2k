@@ -52,6 +52,7 @@ MODULE accint_weights_forces
                                               transfer_pw2rs
    USE skala_gpw_functional,            ONLY: native_skala_gapw_atom_composite_requested,&
                                               native_skala_gapw_composite_reference,&
+                                              native_skala_uses_atom_composite_grid,&
                                               skala_gapw_representation,&
                                               skala_gpw_weight_derivative,&
                                               xc_section_uses_native_skala_grid
@@ -127,6 +128,9 @@ CONTAINS
          composite_reference = skala_gapw_representation(xc_section) == &
             skala_gapw_paw_one_center .AND. &
             gauxc_gapw_has_paw_pseudopotentials(qs_kind_set)
+      END IF
+      IF (.NOT. composite_reference .AND. xc_section_uses_native_skala_grid(xc_section)) THEN
+         composite_reference = native_skala_uses_atom_composite_grid(xc_section)
       END IF
       IF (composite_reference) THEN
          CALL timestop(handle)
