@@ -483,27 +483,41 @@ VXC to the regular grid and one-center matrices. Atom-center, image-vector, part
 derivatives enter the analytical forces and virial.
 
 Fixed-density molecular-limit checks separate periodic-image errors from the finite GAPW
-reconstruction. For pseudopotential H2/GTH, molecular GauXC and the periodic native atom-composite
-path give XC energies of `-0.68996678176535` and `-0.68996678286981 Ha`, respectively. Their
-difference is `1.10e-9 Ha`. For HCl/ccECP at 480 Ry and 60 Ry relative cutoff, 10-, 14-, 18-, and
-22-Angstrom cells differ from molecular GauXC by `1.53e-6`, `-2.97e-5`, `-4.15e-5`, and
-`-2.93e-5 Ha`, respectively. The largest difference is `0.109 kJ mol^-1`. The non-monotone residual
-is the finite PW-grid interpolation and atom-grid quadrature floor rather than a growing periodic
-image error. Translating both atoms, or only H, by one lattice vector changes the one-step total
-energy by at most `2.4e-8 Ha`, the numerical level of the SCF diagnostic. This individual-atom test
-rules out a dependence on the chosen image label.
+reconstruction. For pseudopotential H2/GTH, the non-periodic and periodic native atom-composite
+paths give XC energies of `-0.68996678193365` and `-0.68996678316280 Ha`, respectively. Their
+difference is `1.23e-9 Ha`. For HCl/ccECP at 480 Ry and 60 Ry relative cutoff, paired periodic and
+non-periodic atom-composite calculations in 10-, 14-, 18-, and 22-Angstrom cells differ by
+`1.11e-6`, `4.95e-8`, `4.16e-9`, and `4.95e-9 Ha`, respectively. Even the smallest cell therefore
+changes the XC energy by only `0.0029 kJ mol^-1`, and the 18- and 22-Angstrom differences are
+approximately `1e-5 kJ mol^-1`. The non-monotone cell-to-cell XC variation is instead the finite
+PW-grid interpolation and atom-grid quadrature floor. Translating both atoms, or only H, by one
+lattice vector changes the one-step total energy by at most `2.4e-8 Ha`, the numerical level of the
+SCF diagnostic. This individual-atom test rules out a dependence on the chosen image label.
+
+These atom-composite limits must not be identified with molecular GauXC `DIRECT_VALENCE`. A matched
+four-thread CPU check gives molecular GauXC and non-periodic native atom-composite XC energies of
+`-0.69003023153289` and `-0.68996678193365 Ha` for H2/GTH, a representation difference of
+`0.167 kJ mol^-1`. For HCl/ccECP, the corresponding values are `-3.23217216092555` and
+`-3.23045208241558 Ha`, a difference of `4.52 kJ mol^-1`. The latter is much larger than the
+periodic-image residual and therefore reflects the distinct direct-valence and PAW-like
+reconstructed density representations rather than a failure of the periodic image construction.
 
 The backend choice was tested directly at the same fixed H2/GTH density. At 200 Ry with a 200-Ry
-relative cutoff, `PERIODIC_ATOM_COMPOSITE` differs from molecular GauXC by `6.96e-8 Ha`, whereas
-`COMMON_PERIODIC_GRID` differs by `4.71e-5 Ha`. The corresponding CP2K times are `28.19` and
-`888.31 s`. Thus the atom-centered backend is approximately 677 times more accurate in XC energy and
-31.5 times faster for this matched test. With the production-like 480/60-Ry grid, the atom-centered
-result differs from molecular GauXC by only `1.10e-9 Ha`, takes `4.84 s` of CP2K time, and has a
-peak resident set size of `1.77 GB`. The common-grid error is not a particle-number error: both
-backends integrate the fixed two-electron density to within `1.2e-7` electrons. It is a
+relative cutoff, periodic `ATOM_COMPOSITE` differs from the matched non-periodic atom-composite
+result by `1.26e-9 Ha`, whereas `COMMON_GRID` differs from it by `4.71e-5 Ha`. The corresponding
+periodic CP2K times are `28.19` and `888.31 s`, so the atom-centered backend is 31.5 times faster
+for this matched test. With the production-like 480/60-Ry grid, the periodic atom-centered result
+differs from the non-periodic atom-composite limit by only `1.23e-9 Ha`, takes `4.84 s` of CP2K
+time, and has a peak resident set size of `1.77 GB`. The common-grid error is not a particle-number
+error: both backends integrate the fixed two-electron density to within `1.2e-7` electrons. It is a
 spatial-resolution error in the nonlinear descriptor fields, and tightening the full common grid
-rapidly becomes impractical. These results motivate `PERIODIC_ATOM_COMPOSITE` as the default and
-retain `COMMON_PERIODIC_GRID` only as a cutoff-sensitive diagnostic reference.
+rapidly becomes impractical. These results motivate `ATOM_COMPOSITE` as the default and retain
+`COMMON_GRID` only as a cutoff-sensitive diagnostic reference.
+
+On the same four-thread CPU node, a matched non-periodic H2/GTH evaluation takes `15.575 s` with
+molecular GauXC `DIRECT_VALENCE` and `4.062 s` with native `PAW_ONE_CENTER`, a factor of 3.83. For
+HCl/ccECP the corresponding times are `35.791` and `13.941 s`, a factor of 2.57. These small-system
+figures characterize the present CPU implementations and are not a general GPU or scaling benchmark.
 
 For all-electron H2 at 480 Ry, the periodic atom-composite XC energy is `-0.67649213631546 Ha`,
 compared with `-0.67651812293529 Ha` from independent molecular GauXC `SUPERFINE/UNPRUNED`
@@ -737,7 +751,9 @@ that the new references represent the continuous partition rather than a model-c
   both GPW and the all-electron GAPW common-grid composite after making sparse smooth-partition rows
   vanish continuously in SKALA's internal atom-grid integral. The periodic atom-centered composite
   additionally passes full skew-cell Cauchy-stress finite differences, targeted GTH and ECP force
-  and stress checks, exact lattice-vector translation, and the molecular GauXC large-cell limit.
+  and stress checks, exact lattice-vector translation, and the non-periodic atom-composite
+  large-cell limit. Separate GauXC comparisons quantify the representation-dependent direct-valence
+  offset.
 - The periodic atom-centered all-electron, GTH, and ccECP calculations agree across inversion-only,
   K290, and SPGLIB reduction within `1.72e-8 Ha`, `1.29e-6 Ha/bohr`, and `1.87e-2 bar`; the GTH and
   ECP pseudopotential cases are one to three orders of magnitude tighter. One-, two-, and four-rank

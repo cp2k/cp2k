@@ -31,8 +31,8 @@ MODULE xc_input_constants
                                                skala_gapw_cp2k_default = 3, &
                                                skala_gapw_paw_one_center_split = 4
 
-   INTEGER, PARAMETER, PUBLIC               :: skala_gapw_common_periodic_grid = 1, &
-                                               skala_gapw_periodic_atom_composite = 2
+   INTEGER, PARAMETER, PUBLIC               :: skala_gapw_common_grid = 1, &
+                                               skala_gapw_atom_composite_grid = 2
 
    !VWN xc functional flavours
    INTEGER, PARAMETER, PUBLIC               :: do_vwn5 = 1, &

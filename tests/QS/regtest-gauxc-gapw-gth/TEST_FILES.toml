@@ -4,7 +4,7 @@
                                             {matcher="SKALA_GAPW_composite_electrons", tol=5e-4, ref=2.0}]
 "H2_GAUXC_SKALA_GAPW_GTH_SPLIT.inp" = [{matcher="E_total", tol=5e-7, ref=-1.06022756902337}]
 "H2_NATIVE_SKALA_GAPW_GTH_STRESS.inp" = [{matcher="E_total", tol=5e-7, ref=-0.98711215396284}]
-"H2_NATIVE_SKALA_GAPW_GTH_PERIODIC_ATOM.inp" = [
+"H2_NATIVE_SKALA_GAPW_GTH_ATOM_COMPOSITE.inp" = [
   {matcher="E_total", tol=5e-7, ref=-1.17993260997972},
   {matcher="M072", tol=1e-3, ref=1.31281263E-04},
   {matcher="M031", tol=1e-4, ref=-3.13333691021E+04},

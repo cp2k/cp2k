@@ -148,7 +148,7 @@ MODULE qs_ks_methods
                                               native_skala_gapw_atom_composite_requested,&
                                               native_skala_gapw_composite_direct_ao,&
                                               native_skala_gapw_composite_reference,&
-                                              native_skala_gapw_periodic_atom_composite,&
+                                              native_skala_gapw_uses_atom_composite_grid,&
                                               skala_gapw_representation,&
                                               xc_section_uses_native_skala_grid
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
@@ -697,7 +697,7 @@ CONTAINS
                native_gapw_atom_composite_reference = &
                   native_gapw_atom_composite_requested .OR. paw_composite_representation
                native_gapw_periodic_atom_composite = &
-                  native_skala_gapw_periodic_atom_composite(xc_section)
+                  native_skala_gapw_uses_atom_composite_grid(xc_section)
                IF (paw_composite_representation) THEN
                   IF (ANY(cell%perd /= 0)) THEN
                      native_gapw_composite_reference = &
