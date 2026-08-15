@@ -215,13 +215,13 @@ examples at the end of a successful run.
 #### GROMACS/CP2K QM//MM
 
 The latest supported GROMACS release (currently v2026.3) for GROMACS/CP2K QM/MM simulations can be
-built and tested with:
+built and tested with
 
 ```console
 ./make_cp2k.sh -bd --test_gromacs
 ```
 
-for CP2K versions newer than v2026.2. Other (older) GROMACS versions can be built with
+for CP2K versions newer than v2026.2. Other (older) GROMACS versions can be built and tested with
 
 ```console
 ./make_cp2k.sh -bd -gromacs v2025.2 --test_gromacs
@@ -229,7 +229,7 @@ for CP2K versions newer than v2026.2. Other (older) GROMACS versions can be buil
 
 A Dockerfile for building GROMACS/CP2K within a container with `podman` is also available. A usage
 example is given in the header of that
-[Dockerfile](https://raw.githubusercontent.com/cp2k/cp2k/refs/heads/master/tools/docker/Dockerfile.test_spack_gromacs)
+[Dockerfile](https://raw.githubusercontent.com/cp2k/cp2k/refs/heads/master/tools/docker/Dockerfile.test_spack_gromacs).
 
 ## CMake configuration options
 
