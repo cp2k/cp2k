@@ -1451,13 +1451,13 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID", &
-                          description="Experimental CP2K-native GPW real-space-grid path for SKALA "// &
+                          description="Experimental CP2K-native real-space-grid path for SKALA "// &
                           "TorchScript models. This bypasses GauXC molecular quadrature and supports "// &
                           "isolated, partially periodic, and fully periodic METHOD GPW cells with "// &
                           "GTH/ECP pseudopotentials and METHOD GAPW/GAPW_XC cells. GAPW with "// &
-                          "GTH/ECP pseudopotentials can use KIND%GPW_TYPE regular-grid features or "// &
-                          "the GAPW one-center XC correction; GAPW all-electron uses the "// &
-                          "all-electron regular-grid density. The current implementation is limited "// &
+                          "GTH/ECP pseudopotentials supports direct-valence and PAW-like one-center "// &
+                          "density representations; GAPW all-electron reconstructs the all-electron "// &
+                          "primitive fields. The current implementation is limited "// &
                           "to a single GAUXC functional and provides energy, VXC, and experimental "// &
                           "analytical nuclear-gradient/stress evaluations. K-point runs use CP2K's "// &
                           "standard k-point and symmetry-reduction infrastructure; CPU k-point "// &
@@ -1465,10 +1465,9 @@ CONTAINS
                           "runtimes, while CUDA evaluation is selected explicitly. "// &
                           "Energy/VXC runs split the Torch evaluation into atom blocks by default "// &
                           "and route dynamic features and gradients between MPI ranks. "// &
-                          "PAW/one-center GAPW+GTH/ECP and METHOD GAPW_XC use CP2K's GAPW hard/soft "// &
-                          "one-center XC correction with a selectable "// &
-                          "NATIVE_GRID_GAPW_DENSITY_PARTITION. ROKS, ADMM, and non-k-point "// &
-                          "multiple-image calculations are not implemented.", &
+                          "PAW-like GAPW+GTH/ECP and METHOD GAPW_XC combine selectable hard/soft "// &
+                          "primitive fields before constructing the nonlinear SKALA features. ROKS, "// &
+                          "ADMM, and non-k-point multiple-image calculations are not implemented.", &
                           usage="NATIVE_GRID T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1499,7 +1498,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_ATOM_PARTITION", &
                           description="Atom partition used to build the experimental CP2K-native "// &
-                          "SKALA regular-grid feature block. HARD assigns each native grid point to "// &
+                          "SKALA COMMON_GRID feature block. HARD assigns each native grid point to "// &
                           "the nearest periodic atom and is intended for legacy energy/VXC-only runs. "// &
                           "SMOOTH uses a Becke-like fuzzy-cell partition on the native grid and creates "// &
                           "weighted atom rows. Internal atom-grid weights vanish through a smooth taper "// &
@@ -1535,11 +1534,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_GAPW_DENSITY_PARTITION", &
-                          description="Hard/soft one-center density contribution used by METHOD "// &
-                          "GAPW and METHOD GAPW_XC in Skala atomic-grid corrections. "// &
-                          "HARD_MINUS_SOFT evaluates the SKALA model on hard and soft atomic "// &
-                          "densities separately and adds the GAPW hard-minus-soft correction; this "// &
-                          "is the default because it follows CP2K's GAPW XC expression. For "// &
+                          description="Hard/soft one-center primitive-field contribution used by "// &
+                          "METHOD GAPW and METHOD GAPW_XC. With PAW_ONE_CENTER, HARD_MINUS_SOFT "// &
+                          "combines smooth, hard, and soft density, gradient, and kinetic-energy-density "// &
+                          "fields before a single nonlinear SKALA evaluation. It is the default. For "// &
                           "pseudopotential PAW/one-center GAPW this is distinct from KIND%GPW_TYPE, "// &
                           "which uses the regular-grid valence-density approximation. "// &
                           "HARD_ONLY, SOFT_ONLY, and NONE are diagnostic variants.", &

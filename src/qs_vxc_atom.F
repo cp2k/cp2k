@@ -118,8 +118,9 @@ MODULE qs_vxc_atom
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc_atom'
 
-   INTEGER, PARAMETER, PRIVATE :: native_grid_interp_offset_min = -3, &
-                                  native_grid_interp_offset_max = 4, &
+   ! The wider stencil suppresses mixed-kind eggbox forces while preserving an exact transpose.
+   INTEGER, PARAMETER, PRIVATE :: native_grid_interp_offset_min = -5, &
+                                  native_grid_interp_offset_max = 6, &
                                   native_grid_interp_npts = &
                                   native_grid_interp_offset_max - &
                                   native_grid_interp_offset_min + 1

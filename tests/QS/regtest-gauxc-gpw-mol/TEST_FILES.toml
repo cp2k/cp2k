@@ -1,4 +1,4 @@
-"H2_NATIVE_SKALA_GPW.inp"      = [{matcher="E_total", tol=5e-6, ref=-0.9767095946}]
+"H2_NATIVE_SKALA_GPW.inp"      = [{matcher="E_total", tol=5e-6, ref=-0.97943165294477}]
 "H2O_NATIVE_GPW_PBE_REFERENCE.inp" = [{matcher="E_total", tol=1e-8, ref=-17.200873708850686}]
 "H2O_NATIVE_SKALA_GPW.inp"     = [{matcher="E_total", tol=5e-6,  ref=-17.06733788},
                                   {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=8.00008704097},

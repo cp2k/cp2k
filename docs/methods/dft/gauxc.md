@@ -226,10 +226,12 @@ smooth partition internally because derivatives of the partition weights contrib
 response.
 
 `NATIVE_GRID_GAPW_DENSITY_PARTITION` is independent of that spatial atom partition. It selects the
-one-center density term for PAW-like `METHOD GAPW` and `METHOD GAPW_XC` calculations:
-`HARD_MINUS_SOFT` is the default, while `HARD_ONLY`, `SOFT_ONLY`, and `NONE` are diagnostic
-variants. `DIRECT_VALENCE` uses the regular-grid valence-density route irrespective of `GPW_TYPE`;
-the legacy `CP2K_DEFAULT` representation may infer that route from the kind settings.
+one-center primitive-field term for PAW-like `METHOD GAPW` and `METHOD GAPW_XC` calculations.
+`HARD_MINUS_SOFT`, the default, adds the hard-minus-soft density, density gradient, and
+kinetic-energy density to the smooth fields before the single nonlinear Skala evaluation.
+`HARD_ONLY`, `SOFT_ONLY`, and `NONE` are diagnostic variants. `DIRECT_VALENCE` uses the
+valence-density route irrespective of `GPW_TYPE`; the legacy `CP2K_DEFAULT` representation may infer
+that route from the kind settings.
 
 For native Skala, `NATIVE_GRID_LAYOUT` selects the grid on which the combined primitive fields are
 formed. `ATOM_COMPOSITE`, the default, interpolates the smooth field to GAPW radial/Lebedev grids
