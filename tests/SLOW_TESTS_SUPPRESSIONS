@@ -38,6 +38,7 @@ QS/regtest-kp-2/cc2.inp
 QS/regtest-kp-3/cc1.inp
 QS/regtest-loc_powf/run.inp
 QS/regtest-ls-rtp/Ar_mixed_aa_planar-rtp-osc-field.inp
+QS/regtest-ls-rtp/H2O2-emd-overlap-second-deriv.inp
 QS/regtest-pao-2/H2O_pao_rotinv.inp
 QS/regtest-pod/furane-pbe-4A.inp
 QS/regtest-ps-implicit-1-3/Ar_mixed_aa_planar.inp
