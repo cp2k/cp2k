@@ -13,7 +13,7 @@ molecular complexes, and embedded active sites.
 ## Setup Outline
 
 1. Build GROMACS with CP2K QM/MM support (see
-   [here](../../getting-started/build-from-source.md#gromacscp2k-qmmm)) and make sure it can find
+   [here](../../getting-started/build-from-source.md#gromacs-cp2k-qm-mm)) and make sure it can find
    the CP2K executable and data directory.
 1. Prepare and equilibrate the classical system with ordinary GROMACS tools.
 1. Select the QM atoms and provide a CP2K input fragment for the quantum region.
