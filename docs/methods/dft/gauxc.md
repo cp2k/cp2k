@@ -251,7 +251,12 @@ atom-composite calculations does not imply equality with the direct AO-valence r
 all-electron and pseudopotential GAPW kinds use the same input syntax. `ATOM_COMPOSITE` constructs
 every target atom block, adds hard-minus-soft primitive fields only for the kinds that require them,
 and applies the matching per-kind adjoints. The `COMMON_GRID` diagnostic does not provide this mixed
-per-kind reconstruction and therefore remains unavailable for mixed core representations.
+per-kind reconstruction and therefore remains unavailable for mixed core representations. The finite
+all-electron one-center representation error can be converged independently through
+`DFT%QS%GAPW_1C_BASIS` and the radial and Lebedev kind grids. For example, demanding molecular
+cross-checks can use `EXT_VERY_LARGE` together with 200 radial and 590 Lebedev points. These
+settings are not imposed automatically because their cost is substantial and the required quadrature
+depends on the element and target accuracy.
 
 ### Current Scope
 
