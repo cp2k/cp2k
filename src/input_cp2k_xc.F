@@ -1355,7 +1355,10 @@ CONTAINS
          "non-local couplings. PAW_ONE_CENTER_SPLIT is a diagnostic that evaluates smooth, hard, "// &
          "and soft fields separately. CP2K_DEFAULT retains the representation selected "// &
          "by KIND%GPW_TYPE, basis hardness, and DFT%QS%FORCE_PAW. All-electron kinds "// &
-         "and conventional GauXC MODEL NONE calculations are unaffected.", &
+         "and conventional GauXC MODEL NONE calculations are unaffected. In a mixed "// &
+         "all-electron/pseudopotential calculation, the selector applies per kind: "// &
+         "all-electron kinds retain their one-center reconstruction while pseudopotential "// &
+         "kinds follow the selected representation. No mixed-system-specific input is needed.", &
          usage="PSEUDOPOTENTIAL_GAPW_REPRESENTATION DIRECT_VALENCE", &
          enum_c_vals=s2a("DIRECT_VALENCE", "PAW_ONE_CENTER", "CP2K_DEFAULT", &
                          "PAW_ONE_CENTER_SPLIT"), &
@@ -1518,9 +1521,10 @@ CONTAINS
          "atom-centered radial/Lebedev blocks. GPW and pseudopotential direct-valence fields "// &
          "are interpolated from CP2K's plane-wave grid; GAPW primitive fields are combined "// &
          "before nonlinear feature construction. The matching interpolation, partition, and "// &
-         "one-center adjoints return VXC, forces, and stress to CP2K. COMMON_GRID retains "// &
+         "one-center adjoints return VXC, forces, and stress to CP2K. Mixed all-electron and "// &
+         "pseudopotential kinds use the same syntax and are reconstructed per kind. COMMON_GRID retains "// &
          "evaluation on CP2K's regular real-space grid as a cutoff-sensitive reference and "// &
-         "diagnostic layout.", &
+         "diagnostic layout; mixed core representations require ATOM_COMPOSITE.", &
          usage="NATIVE_GRID_LAYOUT ATOM_COMPOSITE", &
          enum_c_vals=s2a("COMMON_GRID", "ATOM_COMPOSITE"), &
          enum_i_vals=[skala_gapw_common_grid, skala_gapw_atom_composite_grid], &

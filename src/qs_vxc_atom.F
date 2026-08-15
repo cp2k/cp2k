@@ -353,7 +353,7 @@ CONTAINS
       LOGICAL :: accint, atom_composite_active, atom_composite_diagnostic, &
          atom_composite_reference, direct_valence_atom_composite, donlcc, evaluate_hard, &
          evaluate_soft, gradient_f, image_partition_atom_composite, lsd, my_calculate_forces, &
-         native_grid_diagnostics, nlcc, paw_atom, paw_pseudopotentials, &
+         native_grid_diagnostics, nlcc, one_center_kind, paw_atom, paw_pseudopotentials, &
          requested_atom_composite_grid, rho_g_valid, skala_atom_grid, source_matrix_local, tau_f, &
          tau_r_valid, use_atom_composite_density, use_atom_composite_gradient, &
          use_atom_composite_tau, use_virial
@@ -786,21 +786,23 @@ CONTAINS
                              gth_potential=gth_potential, harmonics=harmonics, &
                              grid_atom=grid_atom, sgp_potential=sgp_potential, &
                              zatom=zatom, zeff=zeff)
-            IF (.NOT. direct_valence_atom_composite) THEN
+            one_center_kind = .NOT. direct_valence_atom_composite
+            IF (one_center_kind) THEN
                CALL get_qs_kind(my_kind_set(ikind), basis_set=basis_1c, basis_type="GAPW_1C")
-               IF (.NOT. paw_atom) CYCLE
+               one_center_kind = paw_atom
                IF (skala_atom_grid) THEN
-                  IF (.NOT. native_skala_uses_one_center_kind( &
-                      paw_atom, gapw_representation, &
-                      ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential), &
-                      zeff, zatom)) CYCLE
+                  one_center_kind = native_skala_uses_one_center_kind( &
+                                    paw_atom, gapw_representation, &
+                                    ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential), &
+                                    zeff, zatom)
                END IF
             END IF
+            IF (.NOT. one_center_kind .AND. .NOT. atom_composite_active) CYCLE
 
             nr = grid_atom%nr
             na = grid_atom%ng_sphere
 
-            IF (.NOT. direct_valence_atom_composite) THEN
+            IF (one_center_kind) THEN
                ! Prepare the structures needed to calculate and store the one-center XC derivatives.
 
                ! Array dimension: here anly one dimensional arrays are used,
@@ -880,7 +882,7 @@ CONTAINS
             DO iat = bo(1), bo(2)
                iatom = atom_list(iat)
 
-               IF (.NOT. direct_valence_atom_composite) THEN
+               IF (one_center_kind) THEN
                   my_rho_atom_set(iatom)%exc_h = 0.0_dp
                   my_rho_atom_set(iatom)%exc_s = 0.0_dp
 
@@ -996,19 +998,19 @@ CONTAINS
                                                                image_partition_atom_composite)
                                  END DO
                               END IF
-                              IF (use_atom_composite_density) THEN
+                              IF (one_center_kind .AND. use_atom_composite_density) THEN
                                  composite_density(composite_row, ispin) = &
                                     composite_density(composite_row, ispin) + &
                                     rho_h(ia, ir, ispin) - rho_s(ia, ir, ispin)
                               END IF
-                              IF (use_atom_composite_gradient) THEN
+                              IF (one_center_kind .AND. use_atom_composite_gradient) THEN
                                  DO idir = 1, 3
                                     composite_grad(composite_row, idir, ispin) = &
                                        composite_grad(composite_row, idir, ispin) + &
                                        drho_h(idir, ia, ir, ispin) - drho_s(idir, ia, ir, ispin)
                                  END DO
                               END IF
-                              IF (use_atom_composite_tau) THEN
+                              IF (one_center_kind .AND. use_atom_composite_tau) THEN
                                  composite_kin(composite_row, ispin) = &
                                     composite_kin(composite_row, ispin) + &
                                     tau_h(ia, ir, ispin) - tau_s(ia, ir, ispin)
@@ -1032,12 +1034,12 @@ CONTAINS
                                                                                                composite_point, &
                                                                                                image_partition_atom_composite)
                            END DO
-                           IF (use_atom_composite_density) THEN
+                           IF (one_center_kind .AND. use_atom_composite_density) THEN
                               composite_density(composite_row, :) = &
                                  composite_density(composite_row, :) + &
                                  0.5_dp*(rho_h(ia, ir, 1) - rho_s(ia, ir, 1))
                            END IF
-                           IF (use_atom_composite_gradient) THEN
+                           IF (one_center_kind .AND. use_atom_composite_gradient) THEN
                               DO idir = 1, 3
                                  composite_grad(composite_row, idir, :) = &
                                     composite_grad(composite_row, idir, :) + &
@@ -1045,7 +1047,7 @@ CONTAINS
                                             drho_s(idir, ia, ir, 1))
                               END DO
                            END IF
-                           IF (use_atom_composite_tau) THEN
+                           IF (one_center_kind .AND. use_atom_composite_tau) THEN
                               composite_kin(composite_row, :) = composite_kin(composite_row, :) + &
                                                                 0.5_dp*(tau_h(ia, ir, 1) - &
                                                                         tau_s(ia, ir, 1))
@@ -1077,7 +1079,7 @@ CONTAINS
                   CPASSERT(composite_row == composite_atom_end(iatom))
                END IF
 
-               IF (direct_valence_atom_composite) CYCLE
+               IF (.NOT. one_center_kind) CYCLE
 
                DO ir = 1, nr
                   IF (tau_f) THEN
@@ -1208,7 +1210,7 @@ CONTAINS
                NULLIFY (r_h, r_s, dr_h, dr_s)
             END DO ! iat
 
-            IF (.NOT. direct_valence_atom_composite) THEN
+            IF (one_center_kind) THEN
                IF (tau_f) CALL release_tau_basis_cache(tau_basis_cache)
 
                CALL xc_dset_release(deriv_set)
