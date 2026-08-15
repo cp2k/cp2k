@@ -35,6 +35,10 @@ case "${with_openmpi}" in
       [ -d openmpi-${openmpi_ver} ] && rm -rf openmpi-${openmpi_ver}
       tar -xjf ${openmpi_pkg}
       cd openmpi-${openmpi_ver}
+      # Backport module lifetime fixes requested in open-mpi/ompi#13783.
+      patch -l -p1 < "${SCRIPT_DIR}/stage1/openmpi-${openmpi_ver}-op-module-lifetime.patch" \
+        > openmpi_op_module_lifetime.patch.log 2>&1 ||
+        tail_excerpt openmpi_op_module_lifetime.patch.log
       if [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
         # can have issue with older glibc libraries, in which case
         # we need to add the -fgnu89-inline to CFLAGS. We can check
@@ -58,7 +62,9 @@ case "${with_openmpi}" in
       make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
       cd ..
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage1/$(basename ${SCRIPT_NAME})"
+      write_checksums "${install_lock_file}" \
+        "${SCRIPT_DIR}/stage1/$(basename ${SCRIPT_NAME})" \
+        "${SCRIPT_DIR}/stage1/openmpi-${openmpi_ver}-op-module-lifetime.patch"
     fi
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
