@@ -400,8 +400,10 @@ CONTAINS
          composite_grid_coord_force, composite_grid_coord_grad, composite_grid_coords, &
          composite_kin, composite_kin_grad, composite_local_atom_coords, &
          composite_model_atom_force, composite_moving_smooth_force, composite_nlcc_center_force, &
-         composite_nlcc_target_force, composite_partition_atom_coords, composite_partition_force
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_partition_image_coords, &
+         composite_nlcc_center_force_local, composite_nlcc_target_force, &
+         composite_partition_atom_coords
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_partition_force, &
+         composite_partition_force_local, composite_partition_image_coords, &
          composite_smooth_density_cache, composite_smooth_kin_cache
       REAL(dp), ALLOCATABLE, DIMENSION(:, :), TARGET     :: smooth_density_adjoint_storage, &
                                                             smooth_kin_adjoint_storage
@@ -1501,14 +1503,19 @@ CONTAINS
                   END DO
                END DO
 !$OMP END PARALLEL DO
-!$OMP PARALLEL DO IF (image_partition_atom_composite) SCHEDULE(DYNAMIC) &
+!$OMP PARALLEL IF (image_partition_atom_composite) &
 !$OMP PRIVATE(composite_local_atom, composite_row, descriptor_window_adjoint, &
 !$OMP         descriptor_window_weight, gth_potential, iatom, idir, ispin, jdir, &
 !$OMP         nlcc_density, nlcc_gradient, nlcc_hessian, nlcc_spatial_derivative, &
-!$OMP         nlcc_spin_factor, partition_adjoint, sgp_potential, source_atom, &
+!$OMP         nlcc_spin_factor, partition_adjoint, composite_nlcc_center_force_local, &
+!$OMP         composite_partition_force_local, sgp_potential, source_atom, &
 !$OMP         spatial_derivative, target_atom, target_partition_adjoint) &
-!$OMP REDUCTION(+:composite_interpolation_virial, composite_nlcc_center_force, &
-!$OMP             composite_partition_force, composite_partition_strain_virial)
+!$OMP REDUCTION(+:composite_interpolation_virial, composite_partition_strain_virial)
+               ALLOCATE (composite_nlcc_center_force_local(3, SIZE(particle_set)), &
+                         composite_partition_force_local(3, SIZE(particle_set)))
+               composite_nlcc_center_force_local = 0.0_dp
+               composite_partition_force_local = 0.0_dp
+!$OMP DO SCHEDULE(DYNAMIC)
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
                   composite_model_atom_force(:, iatom) = &
@@ -1614,8 +1621,8 @@ CONTAINS
                            END DO
                            composite_nlcc_target_force(:, iatom) = &
                               composite_nlcc_target_force(:, iatom) + nlcc_spatial_derivative
-                           composite_nlcc_center_force(:, source_atom) = &
-                              composite_nlcc_center_force(:, source_atom) - nlcc_spatial_derivative
+                           composite_nlcc_center_force_local(:, source_atom) = &
+                              composite_nlcc_center_force_local(:, source_atom) - nlcc_spatial_derivative
                         END DO
                      END IF
                      IF (image_partition_atom_composite) THEN
@@ -1642,12 +1649,12 @@ CONTAINS
                                                        smooth_partition_atomic_weight_scale_derivative( &
                                                        descriptor_window_weight)
                            DO target_atom = 1, SIZE(particle_set)
-                              composite_partition_force(:, target_atom) = &
-                                 composite_partition_force(:, target_atom) + &
+                              composite_partition_force_local(:, target_atom) = &
+                                 composite_partition_force_local(:, target_atom) + &
                                  target_partition_adjoint*local_partition_datom(:, target_atom)
                            END DO
-                           composite_partition_force(:, iatom) = &
-                              composite_partition_force(:, iatom) - target_partition_adjoint* &
+                           composite_partition_force_local(:, iatom) = &
+                              composite_partition_force_local(:, iatom) - target_partition_adjoint* &
                               SUM(local_partition_datom, DIM=2)
                            composite_partition_strain_virial = &
                               composite_partition_strain_virial - target_partition_adjoint* &
@@ -1662,18 +1669,26 @@ CONTAINS
                         partition_adjoint = composite_grid_weight_grad(composite_row)* &
                                             composite_atomic_grid_weights(composite_row)
                         DO target_atom = 1, SIZE(particle_set)
-                           composite_partition_force(:, target_atom) = &
-                              composite_partition_force(:, target_atom) + &
+                           composite_partition_force_local(:, target_atom) = &
+                              composite_partition_force_local(:, target_atom) + &
                               partition_adjoint* &
                               composite_partition_datom(:, target_atom, iatom)
                         END DO
-                        composite_partition_force(:, iatom) = composite_partition_force(:, iatom) - &
-                                                              partition_adjoint* &
-                                                              SUM(composite_partition_datom(:, :, iatom), DIM=2)
+                        composite_partition_force_local(:, iatom) = &
+                           composite_partition_force_local(:, iatom) - partition_adjoint* &
+                           SUM(composite_partition_datom(:, :, iatom), DIM=2)
                      END IF
                   END DO
                END DO
-!$OMP END PARALLEL DO
+!$OMP END DO
+!$OMP CRITICAL(skala_atom_composite_force_reduction)
+               composite_nlcc_center_force(:, :) = composite_nlcc_center_force(:, :) + &
+                                                   composite_nlcc_center_force_local
+               composite_partition_force(:, :) = composite_partition_force(:, :) + &
+                                                 composite_partition_force_local
+!$OMP END CRITICAL(skala_atom_composite_force_reduction)
+               DEALLOCATE (composite_nlcc_center_force_local, composite_partition_force_local)
+!$OMP END PARALLEL
                ! The target atom grids can overlap augmentation regions of other atoms
                ! and periodic images. Differentiate the same discrete interpolation used
                ! in the forward composite fields, including the explicit image strain.
