@@ -1,5 +1,68 @@
 # Changelog
 
+## 2027.1 (Under Development)
+
+### New Features
+
+- Add a MACE machine-learning potential interface through LibTorch
+  ([#5580](https://github.com/cp2k/cp2k/pull/5580))
+- Add native spin polarization for GFN1/2-xTB ([#5611](https://github.com/cp2k/cp2k/pull/5611))
+- Improve non-periodic RI-RS GW with automatic or distributed factorization, streaming panels,
+  sparsity controls, and independent real-space cutoffs
+  ([#5621](https://github.com/cp2k/cp2k/pull/5621))
+- Add linearized real-time BSE propagation and open-shell support to the BSE module
+  ([#5627](https://github.com/cp2k/cp2k/pull/5627))
+- Add tensorial DFT+U+J and self-consistent minimum-tracking linear-response calculations of U and J
+  ([#5631](https://github.com/cp2k/cp2k/pull/5631), [#5638](https://github.com/cp2k/cp2k/pull/5638))
+- Preserve explicitly supplied cell orientations during CELL_OPT and apply KEEP_SPACE_GROUP to the
+  cell metric ([#5648](https://github.com/cp2k/cp2k/pull/5648))
+- Improve NNP CPU scaling with cached cell lists and OpenMP, with new RAD_SPLINE_N and VERLET_SKIN
+  controls ([#5295](https://github.com/cp2k/cp2k/pull/5295))
+- Cache GauXC objects and improve SKALA with multi-GPU execution, routed atom chunks enabled by
+  default, and composite GAPW densities ([#5340](https://github.com/cp2k/cp2k/pull/5340),
+  [#5644](https://github.com/cp2k/cp2k/pull/5644), [#5670](https://github.com/cp2k/cp2k/pull/5670),
+  [#5675](https://github.com/cp2k/cp2k/pull/5675))
+- Parallelize Floquet-Bloch calculations and add finite-temperature occupied spectral-weight and
+  central-sector band-structure outputs ([#5642](https://github.com/cp2k/cp2k/pull/5642))
+- Allow POTENTIAL_FILE_NAME to be repeated so that several pseudopotential files can be searched
+  ([#5649](https://github.com/cp2k/cp2k/pull/5649))
+- Add compact trajectory output for electric moments
+  ([#5650](https://github.com/cp2k/cp2k/pull/5650))
+- Support meta-GGA functionals in atomic polar tensor calculations with DCDR
+  ([#5658](https://github.com/cp2k/cp2k/pull/5658))
+- Add Gaussian electrostatic QM/MM coupling for DFTB and xTB
+  ([#5731](https://github.com/cp2k/cp2k/pull/5731))
+- Enable constrained DFT with GAPW composite densities
+  ([#5730](https://github.com/cp2k/cp2k/pull/5730))
+- **TODO**
+
+### Breaking Changes
+
+- Drop compatibility of old DFT-D4 API ([#5641](https://github.com/cp2k/cp2k/pull/5641))
+- Rename the RI-RS GW keyword CUTOFF_RADIUS_RI_RS to CUTOFF_RADIUS_RL_RI
+  ([#5621](https://github.com/cp2k/cp2k/pull/5621))
+- Remove the deprecated USE_PREV_RHO_R wavefunction-extrapolation alias
+  ([#5666](https://github.com/cp2k/cp2k/pull/5666))
+- Remove the SPLINE3_NOPBC multigrid interpolator ([#5719](https://github.com/cp2k/cp2k/pull/5719))
+- **TODO**
+
+### Fixes
+
+- Initialize HOMO and lowest-fractionally-occupied-orbital indices for fully occupied MO sets
+  ([#5616](https://github.com/cp2k/cp2k/pull/5616))
+- Correct mislabeled Na and Ca entries in the UZH basis-set files
+  ([#5633](https://github.com/cp2k/cp2k/pull/5633))
+- Stabilize periodic-image selection at half-cell boundaries
+  ([#5646](https://github.com/cp2k/cp2k/pull/5646))
+- Fix molecular-moment sums over distributed matrices
+  ([#5680](https://github.com/cp2k/cp2k/pull/5680))
+- Fix the quartic metadynamics wall energy ([#5687](https://github.com/cp2k/cp2k/pull/5687))
+- Improve ELPA kernel selection and report explicit fallback information when a requested kernel is
+  unavailable ([#5700](https://github.com/cp2k/cp2k/pull/5700))
+- Fix RKS density normalization in GauXC energy and gradient evaluations
+  ([#5740](https://github.com/cp2k/cp2k/pull/5740))
+- **TODO**
+
 ## 2026.2 (July 15, 2026)
 
 ### New Features
