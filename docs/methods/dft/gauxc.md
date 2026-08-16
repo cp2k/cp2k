@@ -206,8 +206,12 @@ non-negative value selects that visible device explicitly. CPU k-point calculati
 compatible LibTorch/BLAS runtime; see Troubleshooting below.
 
 `NATIVE_GRID_ATOM_CHUNKS T` distributes the model evaluation in atom blocks for MPI calculations and
-can reduce peak CUDA memory. `NATIVE_GRID_ATOM_CHUNK_MAX_ROWS` further limits the number of
-atom-grid rows handled by one Torch call when needed.
+can reduce peak CUDA memory. `NATIVE_GRID_ATOM_CHUNK_MAX_ROWS` further limits the number of padded
+atom-grid rows handled by one Torch call when needed. This accounts for the rectangular padding
+required by unequal atomic grid sizes. Atomic blocks are never divided, so a single block can exceed
+this limit. For `ATOM_COMPOSITE`, the split follows the independent atom dimension of Skala and is
+therefore also used for analytical force and stress evaluations; the full input adjoints are
+accumulated before CP2K applies the interpolation, partition, and one-center derivatives.
 
 For the molecular `PAW_ONE_CENTER` representation, each rank assembles only its owned atoms and the
 radial hard/soft fields are replicated once per kind for cross-atom overlap. Every active rank
