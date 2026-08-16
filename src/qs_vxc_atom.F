@@ -76,7 +76,9 @@ MODULE qs_vxc_atom
                                               rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE skala_gpw_features,              ONLY: periodic_atom_image_partition,&
+   USE skala_gpw_features,              ONLY: build_periodic_atom_image_layout,&
+                                              periodic_atom_image_partition,&
+                                              periodic_atom_image_partition_from_layout,&
                                               skala_gpw_smooth_partition_derivatives,&
                                               smooth_atom_partition,&
                                               smooth_partition_atomic_weight_scale,&
@@ -352,13 +354,13 @@ CONTAINS
 
       INTEGER :: adjoint_bin, adjoint_entry, adjoint_nbins, adjoint_nchannels, &
          adjoint_tile_count(3), adjoint_tile_lower(3), adjoint_tile_upper(3), &
-         atom_composite_components, base_shift(3), bo(2), composite_image_periodicity(3), &
-         composite_local_atom, composite_local_natom, composite_nflat, composite_pw_nflat, &
-         composite_row, gapw_density_partition, gapw_representation, handle, ia, iat, iatom, &
-         icomponent, idir, ikind, image_i1, image_i2, image_i3, image_shell(3), image_shift(3), &
-         ir, ispin, iw, jdir, myfun, na, natom, nr, nspins, num_pe, source_atom, target_atom, &
-         xc_deriv_method_id
-      INTEGER :: xc_rho_smooth_id, zatom
+         atom_composite_components, base_shift(3), bo(2), composite_descriptor_target_image, &
+         composite_image_periodicity(3), composite_local_atom, composite_local_natom, &
+         composite_nflat, composite_partition_target_image, composite_pw_nflat, composite_row, &
+         gapw_density_partition, gapw_representation, handle, ia, iat, iatom, icomponent, idir, &
+         ikind, image_i1, image_i2, image_i3, image_shell(3), image_shift(3), ir, ispin, iw, jdir, &
+         myfun, na, natom, nr, nspins
+      INTEGER :: num_pe, source_atom, target_atom, xc_deriv_method_id, xc_rho_smooth_id, zatom
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: composite_atomic_grid_sizes, &
                                                             composite_local_grid_sizes
       INTEGER, ALLOCATABLE, DIMENSION(:) :: adjoint_bin_offsets, adjoint_bin_rows, &
@@ -394,12 +396,13 @@ CONTAINS
          composite_grid_weight_grad, composite_grid_weights, composite_partition_weights
       REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_atom_coord_grad, composite_atom_coords, &
          composite_cross_density, composite_cross_force, composite_cross_kin, composite_density, &
-         composite_density_grad, composite_explicit_force, composite_grid_coord_force, &
-         composite_grid_coord_grad, composite_grid_coords, composite_kin, composite_kin_grad, &
-         composite_local_atom_coords, composite_model_atom_force, composite_moving_smooth_force, &
-         composite_nlcc_center_force, composite_nlcc_target_force, &
-         composite_partition_atom_coords, composite_partition_force, composite_smooth_density_cache
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_smooth_kin_cache
+         composite_density_grad, composite_descriptor_image_coords, composite_explicit_force, &
+         composite_grid_coord_force, composite_grid_coord_grad, composite_grid_coords, &
+         composite_kin, composite_kin_grad, composite_local_atom_coords, &
+         composite_model_atom_force, composite_moving_smooth_force, composite_nlcc_center_force, &
+         composite_nlcc_target_force, composite_partition_atom_coords, composite_partition_force
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_partition_image_coords, &
+         composite_smooth_density_cache, composite_smooth_kin_cache
       REAL(dp), ALLOCATABLE, DIMENSION(:, :), TARGET     :: smooth_density_adjoint_storage, &
                                                             smooth_kin_adjoint_storage
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :) :: composite_cross_grad, composite_grad, &
@@ -951,6 +954,15 @@ CONTAINS
                END IF
 
                IF (atom_composite_active) THEN
+                  IF (image_partition_atom_composite) THEN
+                     CALL build_periodic_atom_image_layout( &
+                        composite_atom_coords, cell, iatom, composite_image_periodicity, &
+                        composite_partition_image_coords, composite_partition_target_image)
+                     CALL build_periodic_atom_image_layout( &
+                        composite_atom_coords(:, iatom:iatom), cell, 1, &
+                        composite_image_periodicity, composite_descriptor_image_coords, &
+                        composite_descriptor_target_image)
+                  END IF
 !$OMP PARALLEL DO COLLAPSE(2) IF (image_partition_atom_composite) SCHEDULE(STATIC) &
 !$OMP PRIVATE(composite_row, composite_point, composite_smooth_density_value, &
 !$OMP         composite_smooth_gradient_value, composite_smooth_kin_value, &
@@ -968,16 +980,14 @@ CONTAINS
                                              grid_atom%rad(ir)*grid_atom%cos_pol(ia)
                         composite_grid_coords(:, composite_row) = composite_point
                         IF (image_partition_atom_composite) THEN
-                           CALL periodic_atom_image_partition( &
-                              composite_point, composite_atom_coords, cell, iatom, &
-                              partition_weight, &
-                              image_periodicity=composite_image_periodicity)
+                           CALL periodic_atom_image_partition_from_layout( &
+                              composite_point, composite_partition_image_coords, &
+                              composite_partition_target_image, partition_weight)
                            ! The self-image partition defines a smooth atom-centered periodic
                            ! descriptor domain without truncating it at neighboring atoms.
-                           CALL periodic_atom_image_partition( &
-                              composite_point, composite_atom_coords(:, iatom:iatom), cell, 1, &
-                              descriptor_window_weight, &
-                              image_periodicity=composite_image_periodicity)
+                           CALL periodic_atom_image_partition_from_layout( &
+                              composite_point, composite_descriptor_image_coords, &
+                              composite_descriptor_target_image, descriptor_window_weight)
                            partition_scale = smooth_partition_atomic_weight_scale( &
                                              descriptor_window_weight)
                         ELSE
@@ -1108,6 +1118,9 @@ CONTAINS
                      END DO
                   END DO
 !$OMP END PARALLEL DO
+                  IF (image_partition_atom_composite) THEN
+                     DEALLOCATE (composite_descriptor_image_coords, composite_partition_image_coords)
+                  END IF
                   CPASSERT(nr*na == composite_atom_end(iatom) - composite_atom_start(iatom) + 1)
                END IF
 

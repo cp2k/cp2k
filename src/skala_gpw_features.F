@@ -46,7 +46,8 @@ MODULE skala_gpw_features
              skala_gpw_feature_build, skala_gpw_feature_build_atom_subchunk, &
              skala_gpw_feature_build_atom_subchunk_bounds, skala_gpw_feature_release, &
              skala_gpw_feature_type, skala_gpw_smooth_partition_derivatives, &
-             periodic_atom_image_partition, smooth_atom_partition, &
+             build_periodic_atom_image_layout, periodic_atom_image_partition, &
+             periodic_atom_image_partition_from_layout, smooth_atom_partition, &
              smooth_partition_atomic_weight_scale, smooth_partition_atomic_weight_scale_derivative
 
    TYPE skala_gpw_layout_cache_type
@@ -2579,38 +2580,35 @@ CONTAINS
    END SUBROUTINE periodic_image_log_weights
 
 ! **************************************************************************************************
-!> \brief Return an image-complete periodic atom weight without derivatives.
-!>        Images that acquire an exactly vanishing Becke factor against the nearest image cannot
-!>        contribute to the normalization and are removed before their full products are formed.
-!> \param grid_point ...
+!> \brief Build the image coordinates shared by all points of one target-atom block.
 !> \param atom_coords ...
 !> \param cell ...
 !> \param target_atom ...
-!> \param weight ...
 !> \param image_periodicity optional image directions used by the auxiliary-grid partition
+!> \param image_coords ...
+!> \param target_image ...
 ! **************************************************************************************************
-   SUBROUTINE periodic_atom_image_partition_value(grid_point, atom_coords, cell, target_atom, &
-                                                  weight, image_periodicity)
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
+   SUBROUTINE build_periodic_atom_image_layout(atom_coords, cell, target_atom, image_periodicity, &
+                                               image_coords, target_image)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
       TYPE(cell_type), POINTER                           :: cell
       INTEGER, INTENT(IN)                                :: target_atom
-      REAL(KIND=dp), INTENT(OUT)                         :: weight
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: image_periodicity
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: image_coords
+      INTEGER, INTENT(OUT)                               :: target_image
 
-      INTEGER :: base_shift(3), iatom, idir, iimage, image_count, image_index, ix, ix_max, ix_min, &
-         iy, iy_max, iy_min, iz, iz_max, iz_min, natom, target_image
+      INTEGER                                            :: base_shift(3), iatom, idir, image_count, &
+                                                            image_index, ix, ix_max, ix_min, iy, &
+                                                            iy_max, iy_min, iz, iz_max, iz_min, &
+                                                            natom
       INTEGER, DIMENSION(3)                              :: partition_periodicity
-      REAL(KIND=dp)                                      :: max_log_weight, normalization
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distances, log_weights
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: image_coords
       REAL(KIND=dp), DIMENSION(3)                        :: fractional
 
       natom = SIZE(atom_coords, 2)
       CPASSERT(ASSOCIATED(cell))
       CPASSERT(target_atom >= 1 .AND. target_atom <= natom)
       CPASSERT(SIZE(atom_coords, 1) == 3)
-      weight = 0.0_dp
       partition_periodicity = cell%perd
       IF (PRESENT(image_periodicity)) partition_periodicity = image_periodicity
       CPASSERT(ALL(partition_periodicity == 0 .OR. partition_periodicity == 1))
@@ -2621,7 +2619,7 @@ CONTAINS
             image_count = image_count*(2*periodic_partition_image_shell + 1)
          END IF
       END DO
-      ALLOCATE (image_coords(3, image_count), distances(image_count), log_weights(image_count))
+      ALLOCATE (image_coords(3, image_count))
 
       image_index = 0
       target_image = 0
@@ -2653,6 +2651,35 @@ CONTAINS
       CPASSERT(image_index == image_count)
       CPASSERT(target_image > 0)
 
+   END SUBROUTINE build_periodic_atom_image_layout
+
+! **************************************************************************************************
+!> \brief Return an image-complete periodic atom weight for a prebuilt image layout.
+!> \param grid_point ...
+!> \param image_coords ...
+!> \param target_image ...
+!> \param weight ...
+! **************************************************************************************************
+   SUBROUTINE periodic_atom_image_partition_from_layout(grid_point, image_coords, target_image, &
+                                                        weight)
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: image_coords
+      INTEGER, INTENT(IN)                                :: target_image
+      REAL(KIND=dp), INTENT(OUT)                         :: weight
+
+      INTEGER                                            :: iimage, image_count
+      REAL(KIND=dp)                                      :: max_log_weight, normalization
+      REAL(KIND=dp), DIMENSION(SIZE(image_coords, 2))    :: distances, log_weights
+
+      image_count = SIZE(image_coords, 2)
+      CPASSERT(SIZE(image_coords, 1) == 3)
+      CPASSERT(target_image >= 1 .AND. target_image <= image_count)
+      IF (image_count == 1) THEN
+         weight = 1.0_dp
+         RETURN
+      END IF
+
+      weight = 0.0_dp
       DO iimage = 1, image_count
          distances(iimage) = SQRT(SUM((grid_point - image_coords(:, iimage))**2))
       END DO
@@ -2668,7 +2695,33 @@ CONTAINS
          END IF
       END IF
 
-      DEALLOCATE (image_coords, distances, log_weights)
+   END SUBROUTINE periodic_atom_image_partition_from_layout
+
+! **************************************************************************************************
+!> \brief Return an image-complete periodic atom weight without derivatives.
+!> \param grid_point ...
+!> \param atom_coords ...
+!> \param cell ...
+!> \param target_atom ...
+!> \param weight ...
+!> \param image_periodicity optional image directions used by the auxiliary-grid partition
+! **************************************************************************************************
+   SUBROUTINE periodic_atom_image_partition_value(grid_point, atom_coords, cell, target_atom, &
+                                                  weight, image_periodicity)
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
+      TYPE(cell_type), POINTER                           :: cell
+      INTEGER, INTENT(IN)                                :: target_atom
+      REAL(KIND=dp), INTENT(OUT)                         :: weight
+      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: image_periodicity
+
+      INTEGER                                            :: target_image
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: image_coords
+
+      CALL build_periodic_atom_image_layout(atom_coords, cell, target_atom, image_periodicity, &
+                                            image_coords, target_image)
+      CALL periodic_atom_image_partition_from_layout(grid_point, image_coords, target_image, weight)
+      DEALLOCATE (image_coords)
 
    END SUBROUTINE periodic_atom_image_partition_value
 
