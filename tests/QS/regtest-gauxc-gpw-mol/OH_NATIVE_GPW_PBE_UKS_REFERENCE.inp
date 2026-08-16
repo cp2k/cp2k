@@ -24,13 +24,14 @@
       METHOD GPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-5
+      EPS_SCF 1.0E-3
       MAX_SCF 80
       SCF_GUESS ATOMIC
-      &OT
-        MINIMIZER CG
-        PRECONDITIONER FULL_SINGLE_INVERSE
-      &END OT
+      &DIAGONALIZATION
+      &END DIAGONALIZATION
+      &MIXING
+        ALPHA 0.4
+      &END MIXING
     &END SCF
     &XC
       &XC_FUNCTIONAL

@@ -41,15 +41,15 @@
       &END CDFT
     &END QS
     &SCF
-      EPS_SCF 1.0E-8
+      EPS_SCF 1.0E-7
       MAX_SCF 80
       &OT
         MINIMIZER CG
         PRECONDITIONER FULL_ALL
       &END OT
       &OUTER_SCF
-        EPS_SCF 1.0E-8
-        MAX_SCF 4
+        EPS_SCF 1.0E-7
+        MAX_SCF 2
       &END OUTER_SCF
     &END SCF
     &XC

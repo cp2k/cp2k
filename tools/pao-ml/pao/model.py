@@ -157,6 +157,8 @@ class PaoModel(SequentialGraphNetwork):  # type: ignore
 
 # ======================================================================================
 class PaoReadout(GraphModuleMixin, torch.nn.Module):  # type: ignore
+    D_yzx_to_xyz: torch.Tensor
+
     def __init__(
         self, irreps_in: Any, irreps_prim_basis: Any, pao_basis_size: int
     ) -> None:
@@ -174,7 +176,9 @@ class PaoReadout(GraphModuleMixin, torch.nn.Module):  # type: ignore
         # CP2K uses the yzx convention, while e3nn uses xyz.
         # https://docs.e3nn.org/en/stable/guide/change_of_basis.html
         yzx_to_xyz = torch.tensor([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
-        self.D_yzx_to_xyz = irreps_prim_basis.D_from_matrix(yzx_to_xyz)
+        self.register_buffer(
+            "D_yzx_to_xyz", irreps_prim_basis.D_from_matrix(yzx_to_xyz)
+        )
 
     def forward(self, data: AtomicDataDict.Type) -> AtomicDataDict.Type:
         # Due to batching there can be multiple central atoms.
@@ -204,6 +208,8 @@ def dim(l: int) -> int:
 
 # ======================================================================================
 class SymmetricMatrix(torch.nn.Module):
+    wigner_blocks: torch.Tensor
+
     def __init__(self, irreps_prim_basis: Any):
         super().__init__()
         self.irreps_prim_basis = irreps_prim_basis
@@ -211,7 +217,7 @@ class SymmetricMatrix(torch.nn.Module):
 
         # Compute irreps required to represent a matrix
         self.irreps_in = o3.Irreps()
-        self.wigner_blocks = []
+        wigner_blocks: List[torch.Tensor] = []
         for i, a in enumerate(flatten_irreps(irreps_prim_basis)):
             for j, b in enumerate(flatten_irreps(irreps_prim_basis)):
                 if j > i:
@@ -220,19 +226,30 @@ class SymmetricMatrix(torch.nn.Module):
 
                 # Pre-compute wigner blocks
                 for lk in range(abs(a.l - b.l), a.l + b.l + 1):
-                    self.wigner_blocks.append(o3.wigner_3j(a.l, b.l, lk))
+                    wigner_blocks.append(o3.wigner_3j(a.l, b.l, lk))
 
         self.irreps_in_ls = self.irreps_in.ls
+        self.register_buffer(
+            "wigner_blocks",
+            torch.cat([block.reshape(-1) for block in wigner_blocks]),
+        )
 
     # ----------------------------------------------------------------------------------
     def forward(self, vector: torch.Tensor) -> torch.Tensor:
         assert vector.shape[-1] == sum(dim(l) for l in self.irreps_in_ls)
         basis_size = sum(dim(l) for l in self.irreps_prim_basis_ls)
-        matrix = torch.zeros(vector.shape[:-1] + (basis_size, basis_size))
+        matrix = torch.zeros(
+            vector.shape[:-1] + (basis_size, basis_size),
+            dtype=vector.dtype,
+            device=vector.device,
+        )
         # Ensure matrix has distinct eigenvalues as needed for grad of torch.linalg.eigh().
-        matrix[..., :, :] = torch.diag(torch.arange(1, basis_size + 1))
+        diagonal = torch.arange(
+            1, basis_size + 1, dtype=vector.dtype, device=vector.device
+        )
+        matrix[..., :, :] = torch.diag(diagonal)
         c = 0  # position in vector
-        z = 0  # position in self.wigner_blocks
+        z = 0  # flat offset in self.wigner_blocks
         for i, li in enumerate(self.irreps_prim_basis_ls):
             a = sum(dim(l) for l in self.irreps_prim_basis_ls[:i])  # first matrix row
             for j, lj in enumerate(self.irreps_prim_basis_ls):
@@ -241,12 +258,15 @@ class SymmetricMatrix(torch.nn.Module):
                 b = sum(dim(l) for l in self.irreps_prim_basis_ls[:j])  # 1st matrix col
                 for lk in range(abs(li - lj), li + lj + 1):
                     # TODO the wigner blocks are mostly zeros - not sure pytorch takes advantage of that.
-                    wigner_block = self.wigner_blocks[z]
+                    block_size = dim(li) * dim(lj) * dim(lk)
+                    wigner_block = self.wigner_blocks[z : z + block_size].reshape(
+                        dim(li), dim(lj), dim(lk)
+                    )
                     coeffs = vector[..., c : c + dim(lk)]
                     block = torch.tensordot(coeffs, wigner_block, dims=[[-1], [-1]])
                     matrix[..., a : a + dim(li), b : b + dim(lj)] += block
                     c += dim(lk)
-                    z += 1
+                    z += block_size
 
         return matrix
 

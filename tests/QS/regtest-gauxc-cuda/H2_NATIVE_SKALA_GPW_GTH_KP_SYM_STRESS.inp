@@ -20,7 +20,7 @@
       SYMMETRY ON
     &END KPOINTS
     &MGRID
-      CUTOFF 75
+      CUTOFF 80
       REL_CUTOFF 20
     &END MGRID
     &POISSON
@@ -35,7 +35,7 @@
       ADDED_MOS 4
       EPS_SCF 1.0E-5
       IGNORE_CONVERGENCE_FAILURE T
-      MAX_SCF 5
+      MAX_SCF 1
       SCF_GUESS ATOMIC
       &DIAGONALIZATION
       &END DIAGONALIZATION
@@ -60,12 +60,12 @@
   &END PRINT
   &SUBSYS
     &CELL
-      ABC 9.0 9.0 9.0
+      ABC 10.0 10.0 10.0
       PERIODIC XYZ
     &END CELL
     &COORD
-      H 4.5 4.5 4.1
-      H 4.5 4.5 4.9
+      H 5.0 5.0 4.6
+      H 5.0 5.0 5.4
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH
