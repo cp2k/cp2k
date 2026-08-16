@@ -9,6 +9,8 @@
 !> \brief Experimental CP2K-native GPW real-space-grid path for SKALA TorchScript models.
 ! **************************************************************************************************
 MODULE skala_gpw_functional
+   USE OMP_LIB,                         ONLY: omp_get_max_threads,&
+                                              omp_set_num_threads
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_array_utils,                  ONLY: cp_3d_r_cp_type
@@ -418,7 +420,8 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: model_path
       INTEGER :: i, ipt, ispin, iw, j, k, native_grid_atom_chunk_max_rows, &
          native_grid_atom_partition, native_grid_atom_subchunks, native_grid_cuda_device, nspins, &
-         phase_handle, selected_cuda_device, xc_deriv_method_id, xc_rho_smooth_id
+         omp_max_threads_restore, phase_handle, selected_cuda_device, xc_deriv_method_id, &
+         xc_rho_smooth_id
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL :: has_atom_chunk_work, have_atom_coord_grad, lsd, my_just_energy, &
          native_grid_atom_chunk_routing, native_grid_atom_chunks, native_grid_diagnostics, &
@@ -442,6 +445,7 @@ CONTAINS
       needs_atom_force = PRESENT(atom_force)
       IF (needs_atom_force) atom_force = 0.0_dp
       have_atom_coord_grad = .FALSE.
+      omp_max_threads_restore = omp_get_max_threads()
 
       IF (compute_virial .AND. my_just_energy) THEN
          CALL cp_abort(__LOCATION__, &
@@ -672,6 +676,7 @@ CONTAINS
                END IF
             END IF
          END IF
+         CALL omp_set_num_threads(omp_max_threads_restore)
          CALL build_vxc_from_feature_grads(vxc_rho, vxc_tau, rho_r, pw_pool, &
                                            density_grad, grad_grad, kin_grad, &
                                            xc_deriv_method_id)
@@ -688,6 +693,7 @@ CONTAINS
       CALL skala_gpw_feature_release(features)
       CALL xc_rho_set_release(rho_set, pw_pool=pw_pool)
       CALL torch_use_cuda(.TRUE.)
+      CALL omp_set_num_threads(omp_max_threads_restore)
       CALL timestop(phase_handle)
 
    END SUBROUTINE skala_gpw_eval
@@ -719,8 +725,8 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_path
       INTEGER :: feature_begin, feature_end, feature_pos, i, iatom, j, k, local_row, &
-         native_grid_atom_partition, native_grid_cuda_device, natom, nspins, row, &
-         selected_cuda_device, xc_deriv_method_id, xc_rho_smooth_id
+         native_grid_atom_partition, native_grid_cuda_device, natom, nspins, &
+         omp_max_threads_restore, row, selected_cuda_device, xc_deriv_method_id, xc_rho_smooth_id
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: lsd, native_grid_use_cuda
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: included
@@ -740,6 +746,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(rho_g))
       CPASSERT(ASSOCIATED(tau))
       CALL pw_zero(weight_deriv_r)
+      omp_max_threads_restore = omp_get_max_threads()
 
       nspins = SIZE(rho_r)
       lsd = (nspins /= 1)
@@ -855,6 +862,7 @@ CONTAINS
       CALL skala_gpw_feature_release(features)
       CALL xc_rho_set_release(rho_set, pw_pool=pw_pool)
       CALL torch_use_cuda(.TRUE.)
+      CALL omp_set_num_threads(omp_max_threads_restore)
 
    END SUBROUTINE skala_gpw_weight_derivative
 
@@ -902,7 +910,8 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_path
       INTEGER                                            :: ia, idir, ir, native_grid_cuda_device, &
-                                                            jdir, nflat, row, selected_cuda_device
+                                                            jdir, nflat, omp_max_threads_restore, row, &
+                                                            selected_cuda_device
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: atomic_grid_sizes
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: atomic_grid_size_bound_shape
       LOGICAL                                            :: need_coord_grad, my_energy_only, native_grid_use_cuda
@@ -931,6 +940,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(rho))
       CPASSERT(ASSOCIATED(drho))
       CPASSERT(ASSOCIATED(tau))
+      omp_max_threads_restore = omp_get_max_threads()
 
       my_energy_only = .FALSE.
       IF (PRESENT(energy_only)) my_energy_only = energy_only
@@ -1112,6 +1122,7 @@ CONTAINS
       DEALLOCATE (atomic_grid_size_bound_shape, atomic_grid_sizes, atomic_grid_weights, &
                   coarse_0_atomic_coords, density, grad, grid_coords, grid_weights, kin)
       CALL torch_use_cuda(.TRUE.)
+      CALL omp_set_num_threads(omp_max_threads_restore)
 
    END SUBROUTINE skala_gapw_atom_vxc_of_r
 
@@ -1161,7 +1172,7 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_path
       INTEGER :: local_natom, local_nrow, max_grid_size, &
-                 native_grid_cuda_device, selected_cuda_device
+                 native_grid_cuda_device, omp_max_threads_restore, selected_cuda_device
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: atomic_grid_size_bound_shape
       LOGICAL :: active_rank, need_coordinate_derivatives, need_derivatives, native_grid_use_cuda
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atomic_grid_weight_grad, grid_weight_grad
@@ -1205,6 +1216,7 @@ CONTAINS
       CPASSERT(PRESENT(atomic_grid_weight_grad_out) .EQV. need_coordinate_derivatives)
       CPASSERT(PRESENT(atom_coord_grad_out) .EQV. need_coordinate_derivatives)
       CPASSERT((.NOT. need_coordinate_derivatives) .OR. need_derivatives)
+      omp_max_threads_restore = omp_get_max_threads()
 
       local_nrow = SIZE(density, 1)
       local_natom = SIZE(atomic_grid_sizes)
@@ -1362,6 +1374,7 @@ CONTAINS
          DEALLOCATE (atomic_grid_size_bound_shape)
       END IF
       CALL torch_use_cuda(.TRUE.)
+      CALL omp_set_num_threads(omp_max_threads_restore)
 
    END SUBROUTINE skala_gapw_atom_composite_energy
 
