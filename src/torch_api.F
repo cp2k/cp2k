@@ -89,7 +89,8 @@ MODULE torch_api
              torch_model_remap_device_constants
    PUBLIC :: torch_model_get_attr, torch_model_read_metadata
    PUBLIC :: torch_cuda_device_count, torch_cuda_is_available
-   PUBLIC :: torch_allow_tf32, torch_model_freeze, torch_use_cuda
+   PUBLIC :: torch_allow_tf32, torch_model_freeze, torch_model_freeze_preserving_method, &
+             torch_use_cuda
 
 CONTAINS
 
@@ -1138,6 +1139,40 @@ CONTAINS
       MARK_USED(model)
 #endif
    END SUBROUTINE torch_model_freeze
+
+! **************************************************************************************************
+!> \brief Freeze a Torch model while preserving one exported method.
+!> \param model ...
+!> \param method_name ...
+! **************************************************************************************************
+   SUBROUTINE torch_model_freeze_preserving_method(model, method_name)
+      TYPE(torch_model_type), INTENT(INOUT)              :: model
+      CHARACTER(len=*), INTENT(IN)                       :: method_name
+
+#if defined(__LIBTORCH)
+      CHARACTER(len=*), PARAMETER                        :: routineN = &
+                                                            'torch_model_freeze_preserving_method'
+      INTEGER                                            :: handle
+
+      INTERFACE
+         SUBROUTINE torch_c_model_freeze_preserving_method(model, method_name) &
+            BIND(C, name="torch_c_model_freeze_preserving_method")
+            IMPORT :: C_CHAR, C_PTR
+            TYPE(C_PTR), VALUE                        :: model
+            CHARACTER(kind=C_CHAR), DIMENSION(*)      :: method_name
+         END SUBROUTINE torch_c_model_freeze_preserving_method
+      END INTERFACE
+
+      CALL timeset(routineN, handle)
+      CPASSERT(C_ASSOCIATED(model%c_ptr))
+      CALL torch_c_model_freeze_preserving_method( &
+         model=model%c_ptr, method_name=TRIM(method_name)//C_NULL_CHAR)
+      CALL timestop(handle)
+#else
+      CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(model, method_name)
+#endif
+   END SUBROUTINE torch_model_freeze_preserving_method
 
    #:set typenames = ['int64', 'double', 'string']
    #:set types_f = ['INTEGER(kind=int_8)', 'REAL(dp)', 'CHARACTER(LEN=default_string_length)']
