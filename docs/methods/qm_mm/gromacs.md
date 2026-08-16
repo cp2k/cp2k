@@ -12,8 +12,8 @@ molecular complexes, and embedded active sites.
 
 ## Setup Outline
 
-1. Build GROMACS with CP2K QM/MM support and make sure it can find the CP2K executable and data
-   directory.
+1. Build GROMACS with CP2K QM/MM support (see [here](#build-gromacs-cp2k)) and make sure it can find
+   the CP2K executable and data directory.
 1. Prepare and equilibrate the classical system with ordinary GROMACS tools.
 1. Select the QM atoms and provide a CP2K input fragment for the quantum region.
 1. Choose the coupling model, charge treatment, and boundary handling consistently with the target
