@@ -100,7 +100,8 @@ regression test cp2k daint:
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 224
+    # Limit concurrent 2x2 regtest workers to avoid device contention.
+    SLURM_NTASKS: 64
     SLURM_TIMELIMIT: 60
     USE_MPI: YES
 
