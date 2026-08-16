@@ -2489,7 +2489,7 @@ CONTAINS
 
       INTEGER                                            :: i, ipt, ispin, j, k, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL                                            :: my_global_grid_layout
+      LOGICAL                                            :: my_global_grid_layout, valid_spin_shape
       REAL(KIND=dp)                                      :: dvol_inv
       TYPE(pw_c1d_gs_type)                               :: tmp_g, vxc_g
       TYPE(pw_r3d_rs_type), DIMENSION(3)                 :: grad_pw
@@ -2502,6 +2502,12 @@ CONTAINS
       IF (my_global_grid_layout) THEN
          CPASSERT(SIZE(density_grad, 1) == PRODUCT(rho_r(1)%pw_grid%npts))
       END IF
+      CPASSERT(SIZE(kin_grad, 2) == SIZE(density_grad, 2))
+      CPASSERT(SIZE(grad_grad, 3) == SIZE(density_grad, 2))
+      CPASSERT(SIZE(grad_grad, 2) == 3)
+      valid_spin_shape = SIZE(density_grad, 2) == nspins .OR. &
+                         (nspins == 1 .AND. SIZE(density_grad, 2) == 2)
+      CPASSERT(valid_spin_shape)
 
       ALLOCATE (vxc_rho(nspins), vxc_tau(nspins))
       DO ispin = 1, nspins
@@ -2536,16 +2542,24 @@ CONTAINS
                      ipt = ipt + 1
                   END IF
                   IF (nspins == 1) THEN
-                     vxc_rho(1)%array(i, j, k) = 0.5_dp*dvol_inv* &
-                                                 (density_grad(ipt, 1) + density_grad(ipt, 2))
-                     vxc_tau(1)%array(i, j, k) = 0.5_dp*dvol_inv* &
-                                                 (kin_grad(ipt, 1) + kin_grad(ipt, 2))
-                     grad_pw(1)%array(i, j, k) = 0.5_dp*dvol_inv* &
-                                                 (grad_grad(ipt, 1, 1) + grad_grad(ipt, 1, 2))
-                     grad_pw(2)%array(i, j, k) = 0.5_dp*dvol_inv* &
-                                                 (grad_grad(ipt, 2, 1) + grad_grad(ipt, 2, 2))
-                     grad_pw(3)%array(i, j, k) = 0.5_dp*dvol_inv* &
-                                                 (grad_grad(ipt, 3, 1) + grad_grad(ipt, 3, 2))
+                     IF (SIZE(density_grad, 2) == 1) THEN
+                        vxc_rho(1)%array(i, j, k) = 0.5_dp*dvol_inv*density_grad(ipt, 1)
+                        vxc_tau(1)%array(i, j, k) = 0.5_dp*dvol_inv*kin_grad(ipt, 1)
+                        grad_pw(1)%array(i, j, k) = 0.5_dp*dvol_inv*grad_grad(ipt, 1, 1)
+                        grad_pw(2)%array(i, j, k) = 0.5_dp*dvol_inv*grad_grad(ipt, 2, 1)
+                        grad_pw(3)%array(i, j, k) = 0.5_dp*dvol_inv*grad_grad(ipt, 3, 1)
+                     ELSE
+                        vxc_rho(1)%array(i, j, k) = 0.5_dp*dvol_inv* &
+                                                    (density_grad(ipt, 1) + density_grad(ipt, 2))
+                        vxc_tau(1)%array(i, j, k) = 0.5_dp*dvol_inv* &
+                                                    (kin_grad(ipt, 1) + kin_grad(ipt, 2))
+                        grad_pw(1)%array(i, j, k) = 0.5_dp*dvol_inv* &
+                                                    (grad_grad(ipt, 1, 1) + grad_grad(ipt, 1, 2))
+                        grad_pw(2)%array(i, j, k) = 0.5_dp*dvol_inv* &
+                                                    (grad_grad(ipt, 2, 1) + grad_grad(ipt, 2, 2))
+                        grad_pw(3)%array(i, j, k) = 0.5_dp*dvol_inv* &
+                                                    (grad_grad(ipt, 3, 1) + grad_grad(ipt, 3, 2))
+                     END IF
                   ELSE
                      vxc_rho(ispin)%array(i, j, k) = dvol_inv*density_grad(ipt, ispin)
                      vxc_tau(ispin)%array(i, j, k) = dvol_inv*kin_grad(ipt, ispin)
