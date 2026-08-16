@@ -29,6 +29,7 @@
 #include <climits>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -224,6 +225,25 @@ static void remap_device_constants(torch::jit::Block *block,
         node->kindOf(torch::jit::attr::value) == torch::jit::AttributeKind::s) {
       node->s_(torch::jit::attr::value, device.str());
     }
+    bool has_tensor_input = false;
+    for (const torch::jit::Value *input : node->inputs()) {
+      has_tensor_input |= input->type()->kind() == c10::TypeKind::TensorType;
+    }
+    const auto *schema = node->maybeSchema();
+    if (!has_tensor_input && schema != nullptr) {
+      const auto &arguments = schema->arguments();
+      for (size_t i = 0; i < arguments.size() && i < node->inputs().size();
+           ++i) {
+        const auto input_value = torch::jit::toIValue(node->input(i));
+        if (arguments[i].name() == "device" && input_value.has_value() &&
+            input_value->isNone()) {
+          torch::jit::WithInsertPoint insertion_guard(node);
+          auto *device_value =
+              node->owningGraph()->insertConstant(torch::jit::IValue(device));
+          node->replaceInput(i, device_value);
+        }
+      }
+    }
     for (torch::jit::Block *nested_block : node->blocks()) {
       remap_device_constants(nested_block, device);
     }
@@ -232,12 +252,33 @@ static void remap_device_constants(torch::jit::Block *block,
 
 static void remap_model_device_constants(torch::jit::Module &model,
                                          const torch::Device &device) {
+  for (const auto &attribute : model.named_attributes(false)) {
+    const auto &value = attribute.value;
+    if (value.isTensor()) {
+      model.setattr(attribute.name, value.toTensor().to(device));
+    } else if (value.isTensorList()) {
+      auto tensors = value.toTensorList();
+      for (size_t i = 0; i < tensors.size(); ++i) {
+        tensors.set(i, tensors.get(i).to(device));
+      }
+      model.setattr(attribute.name, tensors);
+    }
+  }
   for (const auto &method : model.get_methods()) {
     remap_device_constants(method.graph()->block(), device);
   }
   for (auto child : model.children()) {
     remap_model_device_constants(child, device);
   }
+}
+
+static void initialize_cuda_linalg(const torch::Device &device) {
+  static std::once_flag flag;
+  std::call_once(flag, [&]() {
+    const auto options =
+        torch::TensorOptions().dtype(torch::kFloat32).device(device);
+    static_cast<void>(at::linalg_eigh(torch::eye(1, options)));
+  });
 }
 
 /*******************************************************************************
@@ -656,6 +697,7 @@ void torch_c_model_remap_device_constants(torch_c_model_t *model) {
   const auto device = get_device_with_guard(guard);
   if (device.is_cuda()) {
     remap_model_device_constants(*model, device);
+    initialize_cuda_linalg(device);
   }
 }
 
