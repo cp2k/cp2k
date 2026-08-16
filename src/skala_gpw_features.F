@@ -2580,6 +2580,110 @@ CONTAINS
    END SUBROUTINE periodic_image_log_weights
 
 ! **************************************************************************************************
+!> \brief Build screened normalized Becke weights, using direct products whenever they are safe.
+!> \param image_coords ...
+!> \param distances ...
+!> \param normalized_weights ...
+! **************************************************************************************************
+   SUBROUTINE periodic_image_normalized_weights(image_coords, distances, normalized_weights)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: image_coords
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: distances
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: normalized_weights
+
+      INTEGER                                            :: iimage, image_count, jimage, &
+                                                            nearest_image
+      LOGICAL                                            :: use_log_fallback
+      REAL(KIND=dp)                                      :: factor, max_log_weight, mu, &
+                                                            normalization, product, rab, &
+                                                            reference_weight, screen_factor, &
+                                                            screen_weight
+      REAL(KIND=dp), DIMENSION(3)                        :: pair
+      REAL(KIND=dp), DIMENSION(SIZE(distances))          :: log_weights, raw_weights
+
+      image_count = SIZE(distances)
+      CPASSERT(SIZE(image_coords, 1) == 3)
+      CPASSERT(SIZE(image_coords, 2) == image_count)
+      CPASSERT(SIZE(normalized_weights) == image_count)
+      IF (image_count == 1) THEN
+         normalized_weights(1) = 1.0_dp
+         RETURN
+      END IF
+
+      nearest_image = MINLOC(distances, DIM=1)
+      reference_weight = 1.0_dp
+      use_log_fallback = .FALSE.
+      DO jimage = 1, image_count
+         IF (jimage == nearest_image) CYCLE
+         pair = image_coords(:, nearest_image) - image_coords(:, jimage)
+         rab = SQRT(SUM(pair**2))
+         IF (rab <= layout_tol) CYCLE
+         mu = MAX(-1.0_dp, MIN(1.0_dp, &
+                               (distances(nearest_image) - distances(jimage))/rab))
+         factor = 0.5_dp*(1.0_dp - becke_shape(mu))
+         CPASSERT(factor > TINY(1.0_dp))
+         IF (reference_weight <= TINY(1.0_dp)/factor) THEN
+            use_log_fallback = .TRUE.
+            EXIT
+         END IF
+         reference_weight = reference_weight*factor
+      END DO
+
+      screen_factor = EPSILON(1.0_dp)/REAL(image_count, KIND=dp)
+      IF (.NOT. use_log_fallback) THEN
+         use_log_fallback = reference_weight <= TINY(1.0_dp)/screen_factor
+      END IF
+      IF (use_log_fallback) THEN
+         CALL periodic_image_log_weights(image_coords, distances, log_weights)
+         max_log_weight = MAXVAL(log_weights)
+         CPASSERT(max_log_weight > -0.5_dp*HUGE(1.0_dp))
+         normalized_weights = 0.0_dp
+         WHERE (log_weights > -0.5_dp*HUGE(1.0_dp))
+            normalized_weights = EXP(log_weights - max_log_weight)
+         END WHERE
+         normalization = SUM(normalized_weights)
+         CPASSERT(normalization > 0.0_dp)
+         normalized_weights = normalized_weights/normalization
+         RETURN
+      END IF
+
+      screen_weight = reference_weight*screen_factor
+      raw_weights = 0.0_dp
+      raw_weights(nearest_image) = reference_weight
+      DO iimage = 1, image_count
+         IF (iimage == nearest_image) CYCLE
+         pair = image_coords(:, iimage) - image_coords(:, nearest_image)
+         rab = SQRT(SUM(pair**2))
+         IF (rab <= layout_tol) CYCLE
+         mu = MAX(-1.0_dp, MIN(1.0_dp, &
+                               (distances(iimage) - distances(nearest_image))/rab))
+         factor = 0.5_dp*(1.0_dp - becke_shape(mu))
+         IF (factor <= TINY(1.0_dp) .OR. factor <= screen_weight) CYCLE
+         product = factor
+
+         DO jimage = 1, image_count
+            IF (jimage == iimage .OR. jimage == nearest_image) CYCLE
+            pair = image_coords(:, iimage) - image_coords(:, jimage)
+            rab = SQRT(SUM(pair**2))
+            IF (rab <= layout_tol) CYCLE
+            mu = MAX(-1.0_dp, MIN(1.0_dp, &
+                                  (distances(iimage) - distances(jimage))/rab))
+            factor = 0.5_dp*(1.0_dp - becke_shape(mu))
+            IF (factor <= TINY(1.0_dp) .OR. product <= screen_weight/factor) THEN
+               product = 0.0_dp
+               EXIT
+            END IF
+            product = product*factor
+         END DO
+         raw_weights(iimage) = product
+      END DO
+
+      normalization = SUM(raw_weights)
+      CPASSERT(normalization > 0.0_dp)
+      normalized_weights = raw_weights/normalization
+
+   END SUBROUTINE periodic_image_normalized_weights
+
+! **************************************************************************************************
 !> \brief Build the image coordinates shared by all points of one target-atom block.
 !> \param atom_coords ...
 !> \param cell ...
@@ -2668,8 +2772,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: weight
 
       INTEGER                                            :: iimage, image_count
-      REAL(KIND=dp)                                      :: max_log_weight, normalization
-      REAL(KIND=dp), DIMENSION(SIZE(image_coords, 2))    :: distances, log_weights
+      REAL(KIND=dp), DIMENSION(SIZE(image_coords, 2))    :: distances, normalized_weights
 
       image_count = SIZE(image_coords, 2)
       CPASSERT(SIZE(image_coords, 1) == 3)
@@ -2683,17 +2786,8 @@ CONTAINS
       DO iimage = 1, image_count
          distances(iimage) = SQRT(SUM((grid_point - image_coords(:, iimage))**2))
       END DO
-      CALL periodic_image_log_weights(image_coords, distances, log_weights)
-
-      max_log_weight = MAXVAL(log_weights)
-      IF (max_log_weight > -0.5_dp*HUGE(1.0_dp)) THEN
-         normalization = SUM(EXP(log_weights - max_log_weight), &
-                             MASK=log_weights > -0.5_dp*HUGE(1.0_dp))
-         CPASSERT(normalization > 0.0_dp)
-         IF (log_weights(target_image) > -0.5_dp*HUGE(1.0_dp)) THEN
-            weight = EXP(log_weights(target_image) - max_log_weight)/normalization
-         END IF
-      END IF
+      CALL periodic_image_normalized_weights(image_coords, distances, normalized_weights)
+      weight = normalized_weights(target_image)
 
    END SUBROUTINE periodic_atom_image_partition_from_layout
 
@@ -2757,11 +2851,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: image_shift
       INTEGER, DIMENSION(3)                              :: partition_periodicity
       LOGICAL                                            :: need_derivatives
-      REAL(KIND=dp)                                      :: dist_diff, ds_dmu, max_log_weight, mu, &
-                                                            mu_raw, normalization, &
+      REAL(KIND=dp)                                      :: dist_diff, ds_dmu, mu, mu_raw, &
                                                             one_minus_switch, rab, switch
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distances, log_weights, &
-                                                            normalized_weights
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: distances, normalized_weights
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: image_coords, mean_log_derivative, &
                                                             rvecs, target_log_derivative, &
                                                             unit_rvecs
@@ -2801,7 +2893,7 @@ CONTAINS
       image_count = natom*image_count
       ALLOCATE (active_images(image_count), image_atom(image_count), image_shift(3, image_count), &
                 image_coords(3, image_count), distances(image_count), &
-                log_weights(image_count), normalized_weights(image_count), &
+                normalized_weights(image_count), &
                 rvecs(3, image_count), unit_rvecs(3, image_count), &
                 mean_log_derivative(3, image_count), &
                 target_log_derivative(3, image_count))
@@ -2846,24 +2938,7 @@ CONTAINS
          END IF
       END DO
 
-      CALL periodic_image_log_weights(image_coords, distances, log_weights)
-
-      max_log_weight = MAXVAL(log_weights)
-      IF (max_log_weight <= -0.5_dp*HUGE(1.0_dp)) THEN
-         DEALLOCATE (active_images, image_atom, image_shift, image_coords, distances, log_weights, &
-                     normalized_weights, rvecs, unit_rvecs, mean_log_derivative, &
-                     target_log_derivative)
-         RETURN
-      END IF
-      normalized_weights = 0.0_dp
-      DO iimage = 1, image_count
-         IF (log_weights(iimage) > -0.5_dp*HUGE(1.0_dp)) THEN
-            normalized_weights(iimage) = EXP(log_weights(iimage) - max_log_weight)
-         END IF
-      END DO
-      normalization = SUM(normalized_weights)
-      CPASSERT(normalization > 0.0_dp)
-      normalized_weights = normalized_weights/normalization
+      CALL periodic_image_normalized_weights(image_coords, distances, normalized_weights)
       weight = normalized_weights(target_image)
 
       IF (need_derivatives .AND. weight > 0.0_dp) THEN
@@ -2947,7 +3022,7 @@ CONTAINS
          END DO
       END IF
 
-      DEALLOCATE (active_images, image_atom, image_shift, image_coords, distances, log_weights, &
+      DEALLOCATE (active_images, image_atom, image_shift, image_coords, distances, &
                   normalized_weights, rvecs, unit_rvecs, mean_log_derivative, &
                   target_log_derivative)
 
