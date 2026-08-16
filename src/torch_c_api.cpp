@@ -14,6 +14,7 @@
 #endif
 #include <c10/core/DeviceGuard.h>
 #include <torch/csrc/api/include/torch/cuda.h>
+#include <torch/csrc/jit/passes/freeze_module.h>
 #include <torch/script.h>
 
 #include "offload/offload_library.h"
@@ -775,6 +776,16 @@ void torch_c_allow_tf32(const bool allow_tf32) {
 void torch_c_model_freeze(torch_c_model_t *model) {
 
   *model = torch::jit::freeze(*model);
+}
+
+/******************************************************************************
+ * \brief Freeze a Torch model while preserving one exported method.
+ ******************************************************************************/
+void torch_c_model_freeze_preserving_method(torch_c_model_t *model,
+                                            const char *method_name) {
+
+  const std::vector<std::string> preserved_methods = {method_name};
+  torch::jit::freeze_module_inplace(model, preserved_methods);
 }
 
 /*******************************************************************************

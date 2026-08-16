@@ -9,6 +9,8 @@
 !> \brief Experimental CP2K-native GPW real-space-grid path for SKALA TorchScript models.
 ! **************************************************************************************************
 MODULE skala_gpw_functional
+   USE OMP_LIB,                         ONLY: omp_get_max_threads,&
+                                              omp_set_num_threads
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_array_utils,                  ONLY: cp_3d_r_cp_type
@@ -45,7 +47,7 @@ MODULE skala_gpw_functional
    USE torch_api,                       ONLY: &
         torch_cuda_device_count, torch_cuda_is_available, torch_dict_create, torch_dict_insert, &
         torch_dict_release, torch_dict_type, torch_tensor_backward_scalar, torch_tensor_data_ptr, &
-        torch_tensor_from_array, torch_tensor_grad, torch_tensor_grad_batch3, &
+        torch_tensor_from_array, torch_tensor_grad, torch_tensor_grad_batch3, torch_tensor_narrow, &
         torch_tensor_release, torch_tensor_reset_from_array, torch_tensor_to_device_leaf, &
         torch_tensor_type, torch_use_cuda
    USE xc_input_constants,              ONLY: skala_gapw_atom_composite_grid,&
@@ -418,7 +420,8 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: model_path
       INTEGER :: i, ipt, ispin, iw, j, k, native_grid_atom_chunk_max_rows, &
          native_grid_atom_partition, native_grid_atom_subchunks, native_grid_cuda_device, nspins, &
-         phase_handle, selected_cuda_device, xc_deriv_method_id, xc_rho_smooth_id
+         omp_max_threads_restore, phase_handle, selected_cuda_device, xc_deriv_method_id, &
+         xc_rho_smooth_id
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL :: has_atom_chunk_work, have_atom_coord_grad, lsd, my_just_energy, &
          native_grid_atom_chunk_routing, native_grid_atom_chunks, native_grid_diagnostics, &
@@ -442,6 +445,7 @@ CONTAINS
       needs_atom_force = PRESENT(atom_force)
       IF (needs_atom_force) atom_force = 0.0_dp
       have_atom_coord_grad = .FALSE.
+      omp_max_threads_restore = omp_get_max_threads()
 
       IF (compute_virial .AND. my_just_energy) THEN
          CALL cp_abort(__LOCATION__, &
@@ -672,6 +676,7 @@ CONTAINS
                END IF
             END IF
          END IF
+         CALL omp_set_num_threads(omp_max_threads_restore)
          CALL build_vxc_from_feature_grads(vxc_rho, vxc_tau, rho_r, pw_pool, &
                                            density_grad, grad_grad, kin_grad, &
                                            xc_deriv_method_id)
@@ -688,6 +693,7 @@ CONTAINS
       CALL skala_gpw_feature_release(features)
       CALL xc_rho_set_release(rho_set, pw_pool=pw_pool)
       CALL torch_use_cuda(.TRUE.)
+      CALL omp_set_num_threads(omp_max_threads_restore)
       CALL timestop(phase_handle)
 
    END SUBROUTINE skala_gpw_eval
@@ -719,8 +725,8 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_path
       INTEGER :: feature_begin, feature_end, feature_pos, i, iatom, j, k, local_row, &
-         native_grid_atom_partition, native_grid_cuda_device, natom, nspins, row, &
-         selected_cuda_device, xc_deriv_method_id, xc_rho_smooth_id
+         native_grid_atom_partition, native_grid_cuda_device, natom, nspins, &
+         omp_max_threads_restore, row, selected_cuda_device, xc_deriv_method_id, xc_rho_smooth_id
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: lsd, native_grid_use_cuda
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: included
@@ -740,6 +746,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(rho_g))
       CPASSERT(ASSOCIATED(tau))
       CALL pw_zero(weight_deriv_r)
+      omp_max_threads_restore = omp_get_max_threads()
 
       nspins = SIZE(rho_r)
       lsd = (nspins /= 1)
@@ -855,6 +862,7 @@ CONTAINS
       CALL skala_gpw_feature_release(features)
       CALL xc_rho_set_release(rho_set, pw_pool=pw_pool)
       CALL torch_use_cuda(.TRUE.)
+      CALL omp_set_num_threads(omp_max_threads_restore)
 
    END SUBROUTINE skala_gpw_weight_derivative
 
@@ -902,7 +910,8 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_path
       INTEGER                                            :: ia, idir, ir, native_grid_cuda_device, &
-                                                            jdir, nflat, row, selected_cuda_device
+                                                            jdir, nflat, omp_max_threads_restore, row, &
+                                                            selected_cuda_device
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: atomic_grid_sizes
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: atomic_grid_size_bound_shape
       LOGICAL                                            :: need_coord_grad, my_energy_only, native_grid_use_cuda
@@ -931,6 +940,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(rho))
       CPASSERT(ASSOCIATED(drho))
       CPASSERT(ASSOCIATED(tau))
+      omp_max_threads_restore = omp_get_max_threads()
 
       my_energy_only = .FALSE.
       IF (PRESENT(energy_only)) my_energy_only = energy_only
@@ -1112,6 +1122,7 @@ CONTAINS
       DEALLOCATE (atomic_grid_size_bound_shape, atomic_grid_sizes, atomic_grid_weights, &
                   coarse_0_atomic_coords, density, grad, grid_coords, grid_weights, kin)
       CALL torch_use_cuda(.TRUE.)
+      CALL omp_set_num_threads(omp_max_threads_restore)
 
    END SUBROUTINE skala_gapw_atom_vxc_of_r
 
@@ -1160,10 +1171,15 @@ CONTAINS
                                                                          atomic_grid_weight_grad_out
 
       CHARACTER(len=default_path_length)                 :: model_path
-      INTEGER :: local_natom, local_nrow, max_grid_size, &
-                 native_grid_cuda_device, selected_cuda_device
+      INTEGER :: atom_begin, atom_count, chunk_max_rows, chunk_row_count, chunk_row_start, &
+                 ichunk, local_natom, local_nrow, max_grid_size, native_grid_cuda_device, &
+                 nchunks, omp_max_threads_restore, phase_handle, selected_cuda_device
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: chunk_atom_begin, chunk_atom_count, &
+                                                            chunk_row_begin, chunk_row_counts
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: atomic_grid_size_bound_shape
-      LOGICAL :: active_rank, need_coordinate_derivatives, need_derivatives, native_grid_use_cuda
+      LOGICAL :: active_rank, native_grid_atom_chunks, native_grid_use_cuda, &
+                 need_coordinate_derivatives, need_derivatives
+      REAL(KIND=dp)                                      :: chunk_exc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atomic_grid_weight_grad, grid_weight_grad
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: atom_coord_grad, density_grad, &
                                                             grid_coord_grad, kin_grad
@@ -1172,10 +1188,15 @@ CONTAINS
       TYPE(torch_dict_type)                              :: inputs
       TYPE(torch_tensor_type)                            :: atomic_grid_size_bound_shape_t, &
                                                             atomic_grid_sizes_t, &
-                                                            atomic_grid_weight_grad_t, atom_coord_grad_t, &
-                                                            density_grad_t, exc_tensor, grad_grad_t, &
-                                                            grid_coord_grad_t, grid_weight_grad_t, &
-                                                            kin_grad_t
+                                                            atomic_grid_sizes_chunk_t, &
+                                                            atomic_grid_weight_grad_t, &
+                                                            atomic_grid_weights_chunk_t, &
+                                                            atom_coord_grad_t, atomic_coords_chunk_t, &
+                                                            density_chunk_t, density_grad_t, &
+                                                            exc_tensor, grad_chunk_t, grad_grad_t, &
+                                                            grid_coord_grad_t, grid_coords_chunk_t, &
+                                                            grid_weight_grad_t, grid_weights_chunk_t, &
+                                                            kin_chunk_t, kin_grad_t
       TYPE(torch_tensor_type), TARGET                    :: atomic_coords_local_t, &
                                                             atomic_grid_weights_local_t, &
                                                             density_local_t, grad_local_t, &
@@ -1205,6 +1226,7 @@ CONTAINS
       CPASSERT(PRESENT(atomic_grid_weight_grad_out) .EQV. need_coordinate_derivatives)
       CPASSERT(PRESENT(atom_coord_grad_out) .EQV. need_coordinate_derivatives)
       CPASSERT((.NOT. need_coordinate_derivatives) .OR. need_derivatives)
+      omp_max_threads_restore = omp_get_max_threads()
 
       local_nrow = SIZE(density, 1)
       local_natom = SIZE(atomic_grid_sizes)
@@ -1217,16 +1239,30 @@ CONTAINS
       CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_USE_CUDA", l_val=native_grid_use_cuda)
       CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_CUDA_DEVICE", &
                                 i_val=native_grid_cuda_device)
+      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_ATOM_CHUNKS", &
+                                l_val=native_grid_atom_chunks)
+      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_ATOM_CHUNK_MAX_ROWS", &
+                                i_val=chunk_max_rows)
+      IF (chunk_max_rows < -1) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "GAUXC%NATIVE_GRID_ATOM_CHUNK_MAX_ROWS must be -1, zero, or positive.")
+      END IF
+      IF (.NOT. native_grid_atom_chunks) chunk_max_rows = 0
+      IF (chunk_max_rows == -1) THEN
+         chunk_max_rows = auto_atom_composite_chunk_max_rows(atomic_grid_sizes, group)
+      END IF
       CALL torch_use_cuda(native_grid_use_cuda)
       selected_cuda_device = configure_native_grid_cuda( &
                              native_grid_use_cuda, native_grid_cuda_device, group)
       exc = 0.0_dp
       IF (active_rank) THEN
+         CALL timeset("skala_atom_tensor_setup", phase_handle)
          CALL ensure_model_loaded(model_path, selected_cuda_device)
-
-         max_grid_size = INT(MAXVAL(atomic_grid_sizes))
-         ALLOCATE (atomic_grid_size_bound_shape(0, max_grid_size))
-         atomic_grid_size_bound_shape = 0_int_8
+         CALL atom_composite_chunk_layout(atomic_grid_sizes, chunk_max_rows, &
+                                          chunk_atom_begin, chunk_atom_count, &
+                                          chunk_row_begin, chunk_row_counts)
+         nchunks = SIZE(chunk_atom_begin)
+         CPASSERT(nchunks > 0)
 
          IF (native_grid_use_cuda) THEN
             grid_coords_t => cached_atom_cuda_tensors%grid_coords_t
@@ -1272,23 +1308,74 @@ CONTAINS
          END IF
          CALL torch_tensor_from_array(atomic_grid_sizes_t, atomic_grid_sizes)
          CALL torch_tensor_to_device_leaf(atomic_grid_sizes_t, .FALSE.)
-         CALL torch_tensor_from_array(atomic_grid_size_bound_shape_t, &
-                                      atomic_grid_size_bound_shape)
-         CALL torch_tensor_to_device_leaf(atomic_grid_size_bound_shape_t, .FALSE.)
+         CALL timestop(phase_handle)
 
-         CALL torch_dict_create(inputs)
-         CALL torch_dict_insert(inputs, "grid_coords", grid_coords_t)
-         CALL torch_dict_insert(inputs, "grid_weights", grid_weights_t)
-         CALL torch_dict_insert(inputs, "atomic_grid_weights", atomic_grid_weights_t)
-         CALL torch_dict_insert(inputs, "atomic_grid_sizes", atomic_grid_sizes_t)
-         CALL torch_dict_insert(inputs, "atomic_grid_size_bound_shape", &
-                                atomic_grid_size_bound_shape_t)
-         CALL torch_dict_insert(inputs, "density", density_t)
-         CALL torch_dict_insert(inputs, "grad", grad_t)
-         CALL torch_dict_insert(inputs, "kin", kin_t)
-         CALL torch_dict_insert(inputs, "coarse_0_atomic_coords", atomic_coords_t)
+         DO ichunk = 1, nchunks
+            atom_begin = chunk_atom_begin(ichunk)
+            atom_count = chunk_atom_count(ichunk)
+            chunk_row_start = chunk_row_begin(ichunk)
+            chunk_row_count = chunk_row_counts(ichunk)
+            max_grid_size = INT(MAXVAL(atomic_grid_sizes( &
+                                       atom_begin:atom_begin + atom_count - 1)))
+            ALLOCATE (atomic_grid_size_bound_shape(0, max_grid_size))
+            atomic_grid_size_bound_shape = 0_int_8
 
-         CALL skala_torch_model_get_exc(cached_model, inputs, grid_weights_t, exc_tensor, exc)
+            CALL torch_tensor_narrow(grid_coords_t, 0, chunk_row_start - 1, &
+                                     chunk_row_count, grid_coords_chunk_t)
+            CALL torch_tensor_narrow(grid_weights_t, 0, chunk_row_start - 1, &
+                                     chunk_row_count, grid_weights_chunk_t)
+            CALL torch_tensor_narrow(atomic_grid_weights_t, 0, chunk_row_start - 1, &
+                                     chunk_row_count, atomic_grid_weights_chunk_t)
+            CALL torch_tensor_narrow(atomic_grid_sizes_t, 0, atom_begin - 1, &
+                                     atom_count, atomic_grid_sizes_chunk_t)
+            CALL torch_tensor_narrow(atomic_coords_t, 0, atom_begin - 1, &
+                                     atom_count, atomic_coords_chunk_t)
+            CALL torch_tensor_narrow(density_t, 1, chunk_row_start - 1, &
+                                     chunk_row_count, density_chunk_t)
+            CALL torch_tensor_narrow(grad_t, 2, chunk_row_start - 1, &
+                                     chunk_row_count, grad_chunk_t)
+            CALL torch_tensor_narrow(kin_t, 1, chunk_row_start - 1, &
+                                     chunk_row_count, kin_chunk_t)
+            CALL torch_tensor_from_array(atomic_grid_size_bound_shape_t, &
+                                         atomic_grid_size_bound_shape)
+            CALL torch_tensor_to_device_leaf(atomic_grid_size_bound_shape_t, .FALSE.)
+
+            CALL torch_dict_create(inputs)
+            CALL torch_dict_insert(inputs, "grid_coords", grid_coords_chunk_t)
+            CALL torch_dict_insert(inputs, "grid_weights", grid_weights_chunk_t)
+            CALL torch_dict_insert(inputs, "atomic_grid_weights", atomic_grid_weights_chunk_t)
+            CALL torch_dict_insert(inputs, "atomic_grid_sizes", atomic_grid_sizes_chunk_t)
+            CALL torch_dict_insert(inputs, "atomic_grid_size_bound_shape", &
+                                   atomic_grid_size_bound_shape_t)
+            CALL torch_dict_insert(inputs, "density", density_chunk_t)
+            CALL torch_dict_insert(inputs, "grad", grad_chunk_t)
+            CALL torch_dict_insert(inputs, "kin", kin_chunk_t)
+            CALL torch_dict_insert(inputs, "coarse_0_atomic_coords", atomic_coords_chunk_t)
+
+            CALL timeset("skala_atom_torch_forward", phase_handle)
+            CALL skala_torch_model_get_exc(cached_model, inputs, grid_weights_chunk_t, &
+                                           exc_tensor, chunk_exc)
+            CALL timestop(phase_handle)
+            exc = exc + chunk_exc
+            IF (need_derivatives) THEN
+               CALL timeset("skala_atom_torch_backward", phase_handle)
+               CALL torch_tensor_backward_scalar(exc_tensor)
+               CALL timestop(phase_handle)
+            END IF
+
+            CALL torch_tensor_release(exc_tensor)
+            CALL torch_dict_release(inputs)
+            CALL torch_tensor_release(grid_coords_chunk_t)
+            CALL torch_tensor_release(grid_weights_chunk_t)
+            CALL torch_tensor_release(atomic_grid_weights_chunk_t)
+            CALL torch_tensor_release(atomic_grid_sizes_chunk_t)
+            CALL torch_tensor_release(atomic_coords_chunk_t)
+            CALL torch_tensor_release(density_chunk_t)
+            CALL torch_tensor_release(grad_chunk_t)
+            CALL torch_tensor_release(kin_chunk_t)
+            CALL torch_tensor_release(atomic_grid_size_bound_shape_t)
+            DEALLOCATE (atomic_grid_size_bound_shape)
+         END DO
       END IF
       CALL group%sum(exc)
 
@@ -1300,7 +1387,7 @@ CONTAINS
          kin_grad_out = 0.0_dp
          IF (active_rank) THEN
             NULLIFY (density_grad, grad_grad, kin_grad)
-            CALL torch_tensor_backward_scalar(exc_tensor)
+            CALL timeset("skala_atom_grad_fetch", phase_handle)
             CALL torch_tensor_grad_batch3(density_t, grad_t, kin_t, density_grad_t, &
                                           grad_grad_t, kin_grad_t)
             CALL torch_tensor_data_ptr(density_grad_t, density_grad)
@@ -1309,9 +1396,11 @@ CONTAINS
             density_grad_out(:, :) = density_grad
             grad_grad_out(:, :, :) = grad_grad
             kin_grad_out(:, :) = kin_grad
+            CALL timestop(phase_handle)
          END IF
 
          IF (need_coordinate_derivatives) THEN
+            IF (active_rank) CALL timeset("skala_atom_coord_grad_fetch", phase_handle)
             ALLOCATE (grid_coord_grad_out(3, local_nrow), grid_weight_grad_out(local_nrow), &
                       atomic_grid_weight_grad_out(local_nrow), atom_coord_grad_out(3, local_natom))
             grid_coord_grad_out = 0.0_dp
@@ -1336,6 +1425,7 @@ CONTAINS
                CALL torch_tensor_release(grid_weight_grad_t)
                CALL torch_tensor_release(atomic_grid_weight_grad_t)
                CALL torch_tensor_release(atom_coord_grad_t)
+               CALL timestop(phase_handle)
             END IF
          END IF
          IF (active_rank) THEN
@@ -1346,7 +1436,7 @@ CONTAINS
       END IF
 
       IF (active_rank) THEN
-         CALL torch_tensor_release(exc_tensor)
+         CALL timeset("skala_atom_tensor_release", phase_handle)
          IF (.NOT. native_grid_use_cuda) THEN
             CALL torch_tensor_release(density_t)
             CALL torch_tensor_release(grad_t)
@@ -1357,13 +1447,157 @@ CONTAINS
             CALL torch_tensor_release(atomic_coords_t)
          END IF
          CALL torch_tensor_release(atomic_grid_sizes_t)
-         CALL torch_tensor_release(atomic_grid_size_bound_shape_t)
-         CALL torch_dict_release(inputs)
-         DEALLOCATE (atomic_grid_size_bound_shape)
+         DEALLOCATE (chunk_atom_begin, chunk_atom_count, chunk_row_begin, chunk_row_counts)
+         CALL timestop(phase_handle)
       END IF
       CALL torch_use_cuda(.TRUE.)
+      CALL omp_set_num_threads(omp_max_threads_restore)
 
    END SUBROUTINE skala_gapw_atom_composite_energy
+
+! **************************************************************************************************
+!> \brief Select an automatic row cap for atom-composite Torch calls.
+!> \param atomic_grid_sizes ...
+!> \param group ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION auto_atom_composite_chunk_max_rows(atomic_grid_sizes, group) RESULT(max_rows)
+      INTEGER(KIND=int_8), DIMENSION(:), INTENT(IN)      :: atomic_grid_sizes
+
+      CLASS(mp_comm_type), INTENT(IN)                    :: group
+
+      INTEGER                                            :: local_max_atom_rows, local_natom, &
+                                                            local_padded_rows, max_rows
+
+      local_padded_rows = 0
+      local_natom = SIZE(atomic_grid_sizes)
+      IF (local_natom > 0) THEN
+         local_max_atom_rows = INT(MAXVAL(atomic_grid_sizes))
+         IF (local_natom > atom_chunk_auto_max_rows .OR. &
+             local_max_atom_rows > atom_chunk_auto_max_rows/local_natom) THEN
+            local_padded_rows = atom_chunk_auto_max_rows + 1
+         ELSE
+            local_padded_rows = local_natom*local_max_atom_rows
+         END IF
+      END IF
+      CALL group%max(local_padded_rows)
+      IF (local_padded_rows <= atom_chunk_auto_max_rows) THEN
+         max_rows = 0
+         RETURN
+      END IF
+      max_rows = atom_chunk_auto_max_rows
+
+   END FUNCTION auto_atom_composite_chunk_max_rows
+
+! **************************************************************************************************
+!> \brief Split contiguous atom-composite rows without dividing an atomic block.
+!> \param atomic_grid_sizes ...
+!> \param max_rows ...
+!> \param atom_begin ...
+!> \param atom_count ...
+!> \param row_begin ...
+!> \param row_count ...
+! **************************************************************************************************
+   SUBROUTINE atom_composite_chunk_layout(atomic_grid_sizes, max_rows, atom_begin, atom_count, &
+                                          row_begin, row_count)
+      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: atomic_grid_sizes
+      INTEGER, INTENT(IN)                                :: max_rows
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: atom_begin, atom_count, row_begin, &
+                                                            row_count
+
+      INTEGER :: atom_begin_tmp, atom_count_tmp, atom_rows, chunk_atoms, chunk_max_atom_rows, &
+         iatom, insert_at, natom, nchunks, padded_rows_tmp, row_begin_tmp, row_count_tmp, rows, &
+         subchunk
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: padded_rows
+
+      natom = SIZE(atomic_grid_sizes)
+      CPASSERT(natom > 0)
+      CPASSERT(ALL(atomic_grid_sizes > 0_int_8))
+      IF (max_rows <= 0) THEN
+         ALLOCATE (atom_begin(1), atom_count(1), row_begin(1), row_count(1))
+         atom_begin(1) = 1
+         atom_count(1) = natom
+         row_begin(1) = 1
+         row_count(1) = INT(SUM(atomic_grid_sizes))
+         RETURN
+      END IF
+
+      nchunks = 1
+      chunk_atoms = 0
+      chunk_max_atom_rows = 0
+      DO iatom = 1, natom
+         atom_rows = INT(atomic_grid_sizes(iatom))
+         IF (chunk_atoms > 0 .AND. &
+             MAX(chunk_max_atom_rows, atom_rows) > max_rows/(chunk_atoms + 1)) THEN
+            nchunks = nchunks + 1
+            chunk_atoms = 0
+            chunk_max_atom_rows = 0
+         END IF
+         chunk_atoms = chunk_atoms + 1
+         chunk_max_atom_rows = MAX(chunk_max_atom_rows, atom_rows)
+      END DO
+      ALLOCATE (atom_begin(nchunks), atom_count(nchunks), row_begin(nchunks), row_count(nchunks))
+
+      subchunk = 1
+      atom_begin(subchunk) = 1
+      row_begin(subchunk) = 1
+      chunk_atoms = 0
+      chunk_max_atom_rows = 0
+      rows = 0
+      DO iatom = 1, natom
+         atom_rows = INT(atomic_grid_sizes(iatom))
+         IF (chunk_atoms > 0 .AND. &
+             MAX(chunk_max_atom_rows, atom_rows) > max_rows/(chunk_atoms + 1)) THEN
+            atom_count(subchunk) = iatom - atom_begin(subchunk)
+            row_count(subchunk) = rows
+            subchunk = subchunk + 1
+            atom_begin(subchunk) = iatom
+            row_begin(subchunk) = row_begin(subchunk - 1) + row_count(subchunk - 1)
+            chunk_atoms = 0
+            chunk_max_atom_rows = 0
+            rows = 0
+         END IF
+         chunk_atoms = chunk_atoms + 1
+         chunk_max_atom_rows = MAX(chunk_max_atom_rows, atom_rows)
+         rows = rows + atom_rows
+      END DO
+      atom_count(subchunk) = natom - atom_begin(subchunk) + 1
+      row_count(subchunk) = rows
+      CPASSERT(subchunk == nchunks)
+
+      ALLOCATE (padded_rows(nchunks))
+      DO subchunk = 1, nchunks
+         iatom = atom_begin(subchunk) + atom_count(subchunk) - 1
+         padded_rows(subchunk) = atom_count(subchunk)* &
+                                 INT(MAXVAL(atomic_grid_sizes(atom_begin(subchunk):iatom)))
+      END DO
+
+      ! Largest blocks run first so CUDA allocations can be reused by all following calls.
+      DO subchunk = 2, nchunks
+         padded_rows_tmp = padded_rows(subchunk)
+         atom_begin_tmp = atom_begin(subchunk)
+         atom_count_tmp = atom_count(subchunk)
+         row_begin_tmp = row_begin(subchunk)
+         row_count_tmp = row_count(subchunk)
+         insert_at = subchunk
+         DO WHILE (insert_at > 1 .AND. padded_rows(insert_at - 1) < padded_rows_tmp)
+            padded_rows(insert_at) = padded_rows(insert_at - 1)
+            atom_begin(insert_at) = atom_begin(insert_at - 1)
+            atom_count(insert_at) = atom_count(insert_at - 1)
+            row_begin(insert_at) = row_begin(insert_at - 1)
+            row_count(insert_at) = row_count(insert_at - 1)
+            insert_at = insert_at - 1
+         END DO
+         padded_rows(insert_at) = padded_rows_tmp
+         atom_begin(insert_at) = atom_begin_tmp
+         atom_count(insert_at) = atom_count_tmp
+         row_begin(insert_at) = row_begin_tmp
+         row_count(insert_at) = row_count_tmp
+      END DO
+      DEALLOCATE (padded_rows)
+
+   END SUBROUTINE atom_composite_chunk_layout
 
 ! **************************************************************************************************
 !> \brief Add the explicit SKALA derivative with respect to atom-center coordinates.
@@ -2489,7 +2723,7 @@ CONTAINS
 
       INTEGER                                            :: i, ipt, ispin, j, k, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL                                            :: my_global_grid_layout
+      LOGICAL                                            :: my_global_grid_layout, valid_spin_shape
       REAL(KIND=dp)                                      :: dvol_inv
       TYPE(pw_c1d_gs_type)                               :: tmp_g, vxc_g
       TYPE(pw_r3d_rs_type), DIMENSION(3)                 :: grad_pw
@@ -2502,6 +2736,12 @@ CONTAINS
       IF (my_global_grid_layout) THEN
          CPASSERT(SIZE(density_grad, 1) == PRODUCT(rho_r(1)%pw_grid%npts))
       END IF
+      CPASSERT(SIZE(kin_grad, 2) == SIZE(density_grad, 2))
+      CPASSERT(SIZE(grad_grad, 3) == SIZE(density_grad, 2))
+      CPASSERT(SIZE(grad_grad, 2) == 3)
+      valid_spin_shape = SIZE(density_grad, 2) == nspins .OR. &
+                         (nspins == 1 .AND. SIZE(density_grad, 2) == 2)
+      CPASSERT(valid_spin_shape)
 
       ALLOCATE (vxc_rho(nspins), vxc_tau(nspins))
       DO ispin = 1, nspins
@@ -2536,16 +2776,24 @@ CONTAINS
                      ipt = ipt + 1
                   END IF
                   IF (nspins == 1) THEN
-                     vxc_rho(1)%array(i, j, k) = 0.5_dp*dvol_inv* &
-                                                 (density_grad(ipt, 1) + density_grad(ipt, 2))
-                     vxc_tau(1)%array(i, j, k) = 0.5_dp*dvol_inv* &
-                                                 (kin_grad(ipt, 1) + kin_grad(ipt, 2))
-                     grad_pw(1)%array(i, j, k) = 0.5_dp*dvol_inv* &
-                                                 (grad_grad(ipt, 1, 1) + grad_grad(ipt, 1, 2))
-                     grad_pw(2)%array(i, j, k) = 0.5_dp*dvol_inv* &
-                                                 (grad_grad(ipt, 2, 1) + grad_grad(ipt, 2, 2))
-                     grad_pw(3)%array(i, j, k) = 0.5_dp*dvol_inv* &
-                                                 (grad_grad(ipt, 3, 1) + grad_grad(ipt, 3, 2))
+                     IF (SIZE(density_grad, 2) == 1) THEN
+                        vxc_rho(1)%array(i, j, k) = 0.5_dp*dvol_inv*density_grad(ipt, 1)
+                        vxc_tau(1)%array(i, j, k) = 0.5_dp*dvol_inv*kin_grad(ipt, 1)
+                        grad_pw(1)%array(i, j, k) = 0.5_dp*dvol_inv*grad_grad(ipt, 1, 1)
+                        grad_pw(2)%array(i, j, k) = 0.5_dp*dvol_inv*grad_grad(ipt, 2, 1)
+                        grad_pw(3)%array(i, j, k) = 0.5_dp*dvol_inv*grad_grad(ipt, 3, 1)
+                     ELSE
+                        vxc_rho(1)%array(i, j, k) = 0.5_dp*dvol_inv* &
+                                                    (density_grad(ipt, 1) + density_grad(ipt, 2))
+                        vxc_tau(1)%array(i, j, k) = 0.5_dp*dvol_inv* &
+                                                    (kin_grad(ipt, 1) + kin_grad(ipt, 2))
+                        grad_pw(1)%array(i, j, k) = 0.5_dp*dvol_inv* &
+                                                    (grad_grad(ipt, 1, 1) + grad_grad(ipt, 1, 2))
+                        grad_pw(2)%array(i, j, k) = 0.5_dp*dvol_inv* &
+                                                    (grad_grad(ipt, 2, 1) + grad_grad(ipt, 2, 2))
+                        grad_pw(3)%array(i, j, k) = 0.5_dp*dvol_inv* &
+                                                    (grad_grad(ipt, 3, 1) + grad_grad(ipt, 3, 2))
+                     END IF
                   ELSE
                      vxc_rho(ispin)%array(i, j, k) = dvol_inv*density_grad(ipt, ispin)
                      vxc_tau(ispin)%array(i, j, k) = dvol_inv*kin_grad(ipt, ispin)

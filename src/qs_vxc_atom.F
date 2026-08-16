@@ -76,7 +76,9 @@ MODULE qs_vxc_atom
                                               rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE skala_gpw_features,              ONLY: periodic_atom_image_partition,&
+   USE skala_gpw_features,              ONLY: build_periodic_atom_image_layout,&
+                                              periodic_atom_image_partition,&
+                                              periodic_atom_image_partition_from_layout,&
                                               skala_gpw_smooth_partition_derivatives,&
                                               smooth_atom_partition,&
                                               smooth_partition_atomic_weight_scale,&
@@ -124,6 +126,18 @@ MODULE qs_vxc_atom
                                   native_grid_interp_npts = &
                                   native_grid_interp_offset_max - &
                                   native_grid_interp_offset_min + 1
+   ! A stencil shorter than a tile touches at most two tiles per direction, including wraparound.
+   INTEGER, PARAMETER, PRIVATE :: native_grid_adjoint_tile_edge = 64, &
+                                  native_grid_adjoint_max_tiles_per_direction = 2, &
+                                  native_grid_adjoint_max_bins_per_row = &
+                                  native_grid_adjoint_max_tiles_per_direction**3
+
+   TYPE native_grid_interpolation_stencil_type
+      INTEGER, DIMENSION(native_grid_interp_npts, 3)     :: relative_index = 0
+      REAL(KIND=dp), DIMENSION(native_grid_interp_npts, 3) :: weight = 0.0_dp
+      LOGICAL, DIMENSION(native_grid_interp_npts, 3)     :: valid = .FALSE.
+      LOGICAL                                            :: active = .FALSE.
+   END TYPE native_grid_interpolation_stencil_type
 
    TYPE tau_basis_cache_type
       INTEGER                                            :: maxso = 0, na = 0, nr = 0, nsatbas = 0, &
@@ -339,16 +353,20 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom'
 
-      INTEGER :: atom_composite_components, base_shift(3), bo(2), composite_image_periodicity(3), &
-         composite_local_atom, composite_local_natom, composite_nflat, composite_pw_nflat, &
-         composite_row, gapw_density_partition, gapw_representation, handle, ia, iat, iatom, &
-         icomponent, idir, ikind, image_i1, image_i2, image_i3, image_shell(3), image_shift(3), &
-         ir, ispin, iw, jdir, myfun, na, natom, nr, nspins, num_pe, source_atom, target_atom, &
-         xc_deriv_method_id, xc_rho_smooth_id, zatom
+      INTEGER :: adjoint_bin, adjoint_entry, adjoint_nbins, adjoint_nchannels, &
+         adjoint_tile_count(3), adjoint_tile_lower(3), adjoint_tile_upper(3), &
+         atom_composite_components, base_shift(3), bo(2), composite_descriptor_target_image, &
+         composite_image_periodicity(3), composite_local_atom, composite_local_natom, &
+         composite_nflat, composite_partition_target_image, composite_pw_nflat, composite_row, &
+         gapw_density_partition, gapw_representation, handle, ia, iat, iatom, icomponent, idir, &
+         ikind, image_i1, image_i2, image_i3, image_shell(3), image_shift(3), ir, ispin, iw, jdir, &
+         myfun, na, natom, nr, nspins
+      INTEGER :: num_pe, source_atom, target_atom, xc_deriv_method_id, xc_rho_smooth_id, zatom
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: composite_atomic_grid_sizes, &
                                                             composite_local_grid_sizes
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: composite_atom_end, composite_atom_kind, &
-         composite_atom_kind_index, composite_atom_start, composite_local_atoms
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: adjoint_bin_offsets, adjoint_bin_rows, &
+         composite_atom_end, composite_atom_kind, composite_atom_kind_index, composite_atom_start, &
+         composite_local_atoms
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL :: accint, atom_composite_active, atom_composite_diagnostic, &
@@ -372,44 +390,54 @@ CONTAINS
          one_center_gradient_matrix_contraction, one_center_matrix_contraction, &
          one_center_rho_grad_field_contraction, one_center_rho_grad_matrix_contraction, &
          one_center_tau_field_contraction, one_center_tau_matrix_contraction, &
-         one_center_tensor_contraction, partition_adjoint, partition_scale, &
+         one_center_tensor_contraction, partition_adjoint, partition_scale, partition_weight, &
          smooth_grid_contraction, smooth_input_contraction, target_partition_adjoint, tau_cut, zeff
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: composite_atomic_grid_weight_grad, &
          composite_atomic_grid_weights, composite_base_grid_weights, composite_distances, &
          composite_grid_weight_grad, composite_grid_weights, composite_partition_weights
       REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_atom_coord_grad, composite_atom_coords, &
          composite_cross_density, composite_cross_force, composite_cross_kin, composite_density, &
-         composite_density_grad, composite_explicit_force, composite_grid_coord_force, &
-         composite_grid_coord_grad, composite_grid_coords, composite_kin, composite_kin_grad, &
-         composite_local_atom_coords, composite_model_atom_force, composite_moving_smooth_force, &
-         composite_nlcc_center_force, composite_nlcc_target_force, &
-         composite_partition_atom_coords, composite_partition_force, smooth_density_adjoint, &
-         smooth_kin_adjoint
+         composite_density_grad, composite_descriptor_image_coords, composite_explicit_force, &
+         composite_grid_coord_force, composite_grid_coord_grad, composite_grid_coords, &
+         composite_kin, composite_kin_grad, composite_local_atom_coords, &
+         composite_model_atom_force, composite_moving_smooth_force, composite_nlcc_center_force, &
+         composite_nlcc_center_force_local, composite_nlcc_target_force, &
+         composite_partition_atom_coords
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_partition_force, &
+         composite_partition_force_local, composite_partition_image_coords, &
+         composite_smooth_density_cache, composite_smooth_kin_cache
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :), TARGET     :: smooth_density_adjoint_storage, &
+                                                            smooth_kin_adjoint_storage
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :) :: composite_cross_grad, composite_grad, &
          composite_grad_grad, composite_int_h, composite_int_s, composite_partition_datom, &
-         composite_partition_dstrain, smooth_grad_adjoint
+         composite_partition_dstrain, composite_smooth_gradient_cache
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET  :: smooth_grad_adjoint_storage
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
-      REAL(dp), DIMENSION(2)                             :: cross_density, cross_density_adjoint, &
-                                                            cross_kin, cross_kin_adjoint
+      REAL(dp), DIMENSION(2) :: composite_smooth_density_adjoint_value, &
+         composite_smooth_density_value, composite_smooth_kin_adjoint_value, &
+         composite_smooth_kin_value, cross_density, cross_density_adjoint, cross_kin, &
+         cross_kin_adjoint
       REAL(dp), DIMENSION(3) :: composite_point, cross_displacement, cross_spatial_derivative, &
          fractional, image_translation, nlcc_gradient, nlcc_spatial_derivative, &
          skala_atom_force_h, skala_atom_force_s, spatial_derivative
-      REAL(dp), DIMENSION(3, 1)                          :: descriptor_window_datom
-      REAL(dp), DIMENSION(3, 2) :: composite_smooth_gradient_value, cross_density_spatial, &
-         cross_grad, cross_grad_adjoint, cross_kin_spatial
+      REAL(dp), DIMENSION(3, 2) :: composite_smooth_gradient_adjoint_value, &
+         composite_smooth_gradient_value, cross_density_spatial, cross_grad, cross_grad_adjoint, &
+         cross_kin_spatial
       REAL(dp), DIMENSION(3, 3) :: composite_cross_image_virial, composite_explicit_virial, &
          composite_feature_virial, composite_interpolation_virial, &
-         composite_partition_strain_virial, descriptor_window_dstrain, nlcc_hessian, &
-         skala_atom_virial, skala_atom_virial_h, skala_atom_virial_s
+         composite_partition_strain_virial, nlcc_hessian, skala_atom_virial, skala_atom_virial_h, &
+         skala_atom_virial_s
       REAL(dp), DIMENSION(3, 3, 2)                       :: cross_grad_spatial
       REAL(dp), DIMENSION(4)                             :: feature_component_analytic, &
                                                             feature_component_fd
-      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight_h, weight_s
+      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, smooth_density_adjoint, &
+                                                            smooth_kin_adjoint, weight_h, weight_s
       REAL(dp), DIMENSION(:, :, :), POINTER :: composite_smooth_rho, composite_smooth_rhoa, &
          composite_smooth_rhob, composite_smooth_tau, composite_smooth_tau_a, &
-         composite_smooth_tau_b, rho_h, rho_s, smooth_rho, smooth_rhoa, smooth_rhob, smooth_tau, &
-         smooth_tau_a, smooth_tau_b, tau_h, tau_s, vtau_h, vtau_s, vxc_h, vxc_s
+         composite_smooth_tau_b, rho_h, rho_s, smooth_grad_adjoint, smooth_rho, smooth_rhoa, &
+         smooth_rhob, smooth_tau, smooth_tau_a, smooth_tau_b, tau_h, tau_s, vtau_h, vtau_s, vxc_h, &
+         vxc_s
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: drho_h, drho_s, vxg_h, vxg_s
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -421,6 +449,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(native_grid_interpolation_stencil_type)       :: interpolation_stencil
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: smooth_rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -703,6 +732,9 @@ CONTAINS
             ALLOCATE (composite_density(composite_nflat, 2), &
                       composite_grad(composite_nflat, 3, 2), &
                       composite_kin(composite_nflat, 2), &
+                      composite_smooth_density_cache(composite_nflat, 2), &
+                      composite_smooth_gradient_cache(composite_nflat, 3, 2), &
+                      composite_smooth_kin_cache(composite_nflat, 2), &
                       composite_grid_coords(3, composite_nflat), &
                       composite_grid_weights(composite_nflat), &
                       composite_base_grid_weights(composite_nflat), &
@@ -710,6 +742,9 @@ CONTAINS
             composite_density = 0.0_dp
             composite_grad = 0.0_dp
             composite_kin = 0.0_dp
+            composite_smooth_density_cache = 0.0_dp
+            composite_smooth_gradient_cache = 0.0_dp
+            composite_smooth_kin_cache = 0.0_dp
             composite_grid_coords = 0.0_dp
             composite_grid_weights = 0.0_dp
             composite_base_grid_weights = 0.0_dp
@@ -922,10 +957,24 @@ CONTAINS
                END IF
 
                IF (atom_composite_active) THEN
-                  composite_row = composite_atom_start(iatom) - 1
+                  IF (image_partition_atom_composite) THEN
+                     CALL build_periodic_atom_image_layout( &
+                        composite_atom_coords, cell, iatom, composite_image_periodicity, &
+                        composite_partition_image_coords, composite_partition_target_image)
+                     CALL build_periodic_atom_image_layout( &
+                        composite_atom_coords(:, iatom:iatom), cell, 1, &
+                        composite_image_periodicity, composite_descriptor_image_coords, &
+                        composite_descriptor_target_image)
+                  END IF
+!$OMP PARALLEL DO COLLAPSE(2) IF (image_partition_atom_composite) SCHEDULE(STATIC) &
+!$OMP PRIVATE(composite_row, composite_point, composite_smooth_density_value, &
+!$OMP         composite_smooth_gradient_value, composite_smooth_kin_value, &
+!$OMP         descriptor_window_weight, idir, ispin, &
+!$OMP         gth_potential, nlcc_density, nlcc_gradient, nlcc_hessian, nlcc_spin_factor, &
+!$OMP         interpolation_stencil, partition_scale, partition_weight, sgp_potential, source_atom)
                   DO ir = 1, nr
                      DO ia = 1, na
-                        composite_row = composite_row + 1
+                        composite_row = composite_atom_start(iatom) + (ir - 1)*na + ia - 1
                         composite_point(1) = particle_set(iatom)%r(1) + grid_atom%rad(ir)* &
                                              grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia)
                         composite_point(2) = particle_set(iatom)%r(2) + grid_atom%rad(ir)* &
@@ -934,17 +983,14 @@ CONTAINS
                                              grid_atom%rad(ir)*grid_atom%cos_pol(ia)
                         composite_grid_coords(:, composite_row) = composite_point
                         IF (image_partition_atom_composite) THEN
-                           composite_partition_weights = 0.0_dp
-                           CALL periodic_atom_image_partition( &
-                              composite_point, composite_atom_coords, cell, iatom, &
-                              composite_partition_weights(iatom), &
-                              image_periodicity=composite_image_periodicity)
+                           CALL periodic_atom_image_partition_from_layout( &
+                              composite_point, composite_partition_image_coords, &
+                              composite_partition_target_image, partition_weight)
                            ! The self-image partition defines a smooth atom-centered periodic
                            ! descriptor domain without truncating it at neighboring atoms.
-                           CALL periodic_atom_image_partition( &
-                              composite_point, composite_atom_coords(:, iatom:iatom), cell, 1, &
-                              descriptor_window_weight, &
-                              image_periodicity=composite_image_periodicity)
+                           CALL periodic_atom_image_partition_from_layout( &
+                              composite_point, composite_descriptor_image_coords, &
+                              composite_descriptor_target_image, descriptor_window_weight)
                            partition_scale = smooth_partition_atomic_weight_scale( &
                                              descriptor_window_weight)
                         ELSE
@@ -952,6 +998,7 @@ CONTAINS
                               composite_point, composite_atom_coords, cell, &
                               composite_partition_weights, composite_partition_atom_coords, &
                               composite_distances)
+                           partition_weight = composite_partition_weights(iatom)
                            partition_scale = 1.0_dp
                         END IF
                         composite_base_grid_weights(composite_row) = grid_atom%weight(ia, ir)
@@ -959,46 +1006,38 @@ CONTAINS
                            composite_base_grid_weights(composite_row)*partition_scale
                         composite_grid_weights(composite_row) = &
                            composite_base_grid_weights(composite_row)* &
-                           composite_partition_weights(iatom)
+                           partition_weight
+                        CALL create_native_grid_interpolation_stencil( &
+                           interpolation_stencil, smooth_rho_r(1)%pw_grid, cell, composite_point, &
+                           image_partition_atom_composite)
                         IF (lsd) THEN
+                           CALL interpolate_native_grid_fields( &
+                              composite_smooth_rhoa, composite_smooth_drhoa(1)%array, &
+                              composite_smooth_drhoa(2)%array, composite_smooth_drhoa(3)%array, &
+                              composite_smooth_tau_a, interpolation_stencil, &
+                              composite_smooth_density_value(1), &
+                              composite_smooth_gradient_value(:, 1), &
+                              composite_smooth_kin_value(1))
+                           CALL interpolate_native_grid_fields( &
+                              composite_smooth_rhob, composite_smooth_drhob(1)%array, &
+                              composite_smooth_drhob(2)%array, composite_smooth_drhob(3)%array, &
+                              composite_smooth_tau_b, interpolation_stencil, &
+                              composite_smooth_density_value(2), &
+                              composite_smooth_gradient_value(:, 2), &
+                              composite_smooth_kin_value(2))
+                           composite_smooth_density_cache(composite_row, :) = &
+                              composite_smooth_density_value
+                           composite_smooth_gradient_cache(composite_row, :, :) = &
+                              composite_smooth_gradient_value
+                           composite_smooth_kin_cache(composite_row, :) = &
+                              composite_smooth_kin_value
                            DO ispin = 1, 2
-                              IF (ispin == 1) THEN
-                                 composite_density(composite_row, ispin) = &
-                                    interpolate_native_grid(composite_smooth_rhoa, &
-                                                            smooth_rho_r(1)%pw_grid, &
-                                                            cell, composite_point, &
-                                                            image_partition_atom_composite)
-                                 composite_kin(composite_row, ispin) = &
-                                    interpolate_native_grid(composite_smooth_tau_a, &
-                                                            smooth_rho_r(1)%pw_grid, &
-                                                            cell, composite_point, &
-                                                            image_partition_atom_composite)
-                                 DO idir = 1, 3
-                                    composite_grad(composite_row, idir, ispin) = &
-                                       interpolate_native_grid(composite_smooth_drhoa(idir)%array, &
-                                                               smooth_rho_r(1)%pw_grid, cell, &
-                                                               composite_point, &
-                                                               image_partition_atom_composite)
-                                 END DO
-                              ELSE
-                                 composite_density(composite_row, ispin) = &
-                                    interpolate_native_grid(composite_smooth_rhob, &
-                                                            smooth_rho_r(1)%pw_grid, &
-                                                            cell, composite_point, &
-                                                            image_partition_atom_composite)
-                                 composite_kin(composite_row, ispin) = &
-                                    interpolate_native_grid(composite_smooth_tau_b, &
-                                                            smooth_rho_r(1)%pw_grid, &
-                                                            cell, composite_point, &
-                                                            image_partition_atom_composite)
-                                 DO idir = 1, 3
-                                    composite_grad(composite_row, idir, ispin) = &
-                                       interpolate_native_grid(composite_smooth_drhob(idir)%array, &
-                                                               smooth_rho_r(1)%pw_grid, cell, &
-                                                               composite_point, &
-                                                               image_partition_atom_composite)
-                                 END DO
-                              END IF
+                              composite_density(composite_row, ispin) = &
+                                 composite_smooth_density_value(ispin)
+                              composite_grad(composite_row, :, ispin) = &
+                                 composite_smooth_gradient_value(:, ispin)
+                              composite_kin(composite_row, ispin) = &
+                                 composite_smooth_kin_value(ispin)
                               IF (one_center_kind .AND. use_atom_composite_density) THEN
                                  composite_density(composite_row, ispin) = &
                                     composite_density(composite_row, ispin) + &
@@ -1018,23 +1057,27 @@ CONTAINS
                               END IF
                            END DO
                         ELSE
-                           composite_density(composite_row, :) = 0.5_dp* &
-                                                                 interpolate_native_grid(composite_smooth_rho, &
-                                                                                         smooth_rho_r(1)%pw_grid, &
-                                                                                         cell, composite_point, &
-                                                                                         image_partition_atom_composite)
-                           composite_kin(composite_row, :) = 0.5_dp* &
-                                                             interpolate_native_grid(composite_smooth_tau, &
-                                                                                     smooth_rho_r(1)%pw_grid, &
-                                                                                     cell, composite_point, &
-                                                                                     image_partition_atom_composite)
+                           CALL interpolate_native_grid_fields( &
+                              composite_smooth_rho, composite_smooth_drho(1)%array, &
+                              composite_smooth_drho(2)%array, composite_smooth_drho(3)%array, &
+                              composite_smooth_tau, interpolation_stencil, &
+                              composite_smooth_density_value(1), &
+                              composite_smooth_gradient_value(:, 1), &
+                              composite_smooth_kin_value(1))
+                           composite_smooth_density_cache(composite_row, 1) = &
+                              composite_smooth_density_value(1)
+                           composite_smooth_gradient_cache(composite_row, :, 1) = &
+                              composite_smooth_gradient_value(:, 1)
+                           composite_smooth_kin_cache(composite_row, 1) = &
+                              composite_smooth_kin_value(1)
+                           composite_density(composite_row, :) = &
+                              0.5_dp*composite_smooth_density_value(1)
                            DO idir = 1, 3
-                              composite_grad(composite_row, idir, :) = 0.5_dp* &
-                                                                       interpolate_native_grid(composite_smooth_drho(idir)%array, &
-                                                                                               smooth_rho_r(1)%pw_grid, cell, &
-                                                                                               composite_point, &
-                                                                                               image_partition_atom_composite)
+                              composite_grad(composite_row, idir, :) = &
+                                 0.5_dp*composite_smooth_gradient_value(idir, 1)
                            END DO
+                           composite_kin(composite_row, :) = &
+                              0.5_dp*composite_smooth_kin_value(1)
                            IF (one_center_kind .AND. use_atom_composite_density) THEN
                               composite_density(composite_row, :) = &
                                  composite_density(composite_row, :) + &
@@ -1077,7 +1120,11 @@ CONTAINS
                         END IF
                      END DO
                   END DO
-                  CPASSERT(composite_row == composite_atom_end(iatom))
+!$OMP END PARALLEL DO
+                  IF (image_partition_atom_composite) THEN
+                     DEALLOCATE (composite_descriptor_image_coords, composite_partition_image_coords)
+                  END IF
+                  CPASSERT(nr*na == composite_atom_end(iatom) - composite_atom_start(iatom) + 1)
                END IF
 
                IF (.NOT. one_center_kind) CYCLE
@@ -1416,6 +1463,9 @@ CONTAINS
                composite_feature_virial = 0.0_dp
                composite_interpolation_virial = 0.0_dp
                composite_partition_strain_virial = 0.0_dp
+!$OMP PARALLEL DO IF (image_partition_atom_composite) SCHEDULE(STATIC) &
+!$OMP PRIVATE(composite_local_atom, composite_row, composite_smooth_gradient_value, &
+!$OMP         iatom, idir, ispin, jdir) REDUCTION(+:composite_feature_virial)
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
                   DO composite_row = composite_atom_start(iatom), composite_atom_end(iatom)
@@ -1453,6 +1503,20 @@ CONTAINS
                      END DO
                   END DO
                END DO
+!$OMP END PARALLEL DO
+!$OMP PARALLEL IF (image_partition_atom_composite) &
+!$OMP PRIVATE(composite_local_atom, composite_row, descriptor_window_adjoint, &
+!$OMP         descriptor_window_weight, gth_potential, iatom, idir, ispin, jdir, &
+!$OMP         nlcc_density, nlcc_gradient, nlcc_hessian, nlcc_spatial_derivative, &
+!$OMP         nlcc_spin_factor, partition_adjoint, composite_nlcc_center_force_local, &
+!$OMP         composite_partition_force_local, sgp_potential, source_atom, &
+!$OMP         spatial_derivative, target_atom, target_partition_adjoint) &
+!$OMP REDUCTION(+:composite_interpolation_virial, composite_partition_strain_virial)
+               ALLOCATE (composite_nlcc_center_force_local(3, SIZE(particle_set)), &
+                         composite_partition_force_local(3, SIZE(particle_set)))
+               composite_nlcc_center_force_local = 0.0_dp
+               composite_partition_force_local = 0.0_dp
+!$OMP DO SCHEDULE(DYNAMIC)
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
                   composite_model_atom_force(:, iatom) = &
@@ -1558,33 +1622,46 @@ CONTAINS
                            END DO
                            composite_nlcc_target_force(:, iatom) = &
                               composite_nlcc_target_force(:, iatom) + nlcc_spatial_derivative
-                           composite_nlcc_center_force(:, source_atom) = &
-                              composite_nlcc_center_force(:, source_atom) - nlcc_spatial_derivative
+                           composite_nlcc_center_force_local(:, source_atom) = &
+                              composite_nlcc_center_force_local(:, source_atom) - nlcc_spatial_derivative
                         END DO
                      END IF
                      IF (image_partition_atom_composite) THEN
-                        composite_partition_weights = 0.0_dp
-                        composite_partition_datom = 0.0_dp
-                        composite_partition_dstrain = 0.0_dp
-                        CALL periodic_atom_image_partition( &
-                           composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
-                           iatom, composite_partition_weights(iatom), &
-                           composite_partition_datom(:, :, iatom), &
-                           composite_partition_dstrain(:, :, iatom), &
-                           composite_image_periodicity)
-                        CALL periodic_atom_image_partition( &
-                           composite_grid_coords(:, composite_row), &
-                           composite_atom_coords(:, iatom:iatom), cell, 1, &
-                           descriptor_window_weight, descriptor_window_datom, &
-                           descriptor_window_dstrain, composite_image_periodicity)
-                        ! Its atom derivative cancels against the moving target grid; periodic
-                        ! image strain remains an explicit contribution to the virial.
-                        target_partition_adjoint = composite_base_grid_weights(composite_row)* &
-                                                   composite_grid_weight_grad(composite_row)
-                        descriptor_window_adjoint = composite_base_grid_weights(composite_row)* &
-                                                    composite_atomic_grid_weight_grad(composite_row)* &
-                                                    smooth_partition_atomic_weight_scale_derivative( &
-                                                    descriptor_window_weight)
+                        BLOCK
+                           REAL(dp) :: local_descriptor_datom(3, 1), &
+                                       local_descriptor_dstrain(3, 3), local_partition_datom(3, SIZE(particle_set)), &
+                                       local_partition_dstrain(3, 3), local_partition_weight
+
+                           CALL periodic_atom_image_partition( &
+                              composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
+                              iatom, local_partition_weight, local_partition_datom, &
+                              local_partition_dstrain, composite_image_periodicity)
+                           CALL periodic_atom_image_partition( &
+                              composite_grid_coords(:, composite_row), &
+                              composite_atom_coords(:, iatom:iatom), cell, 1, &
+                              descriptor_window_weight, local_descriptor_datom, &
+                              local_descriptor_dstrain, composite_image_periodicity)
+                           ! Its atom derivative cancels against the moving target grid; periodic
+                           ! image strain remains an explicit contribution to the virial.
+                           target_partition_adjoint = composite_base_grid_weights(composite_row)* &
+                                                      composite_grid_weight_grad(composite_row)
+                           descriptor_window_adjoint = composite_base_grid_weights(composite_row)* &
+                                                       composite_atomic_grid_weight_grad(composite_row)* &
+                                                       smooth_partition_atomic_weight_scale_derivative( &
+                                                       descriptor_window_weight)
+                           DO target_atom = 1, SIZE(particle_set)
+                              composite_partition_force_local(:, target_atom) = &
+                                 composite_partition_force_local(:, target_atom) + &
+                                 target_partition_adjoint*local_partition_datom(:, target_atom)
+                           END DO
+                           composite_partition_force_local(:, iatom) = &
+                              composite_partition_force_local(:, iatom) - target_partition_adjoint* &
+                              SUM(local_partition_datom, DIM=2)
+                           composite_partition_strain_virial = &
+                              composite_partition_strain_virial - target_partition_adjoint* &
+                              local_partition_dstrain - descriptor_window_adjoint* &
+                              local_descriptor_dstrain
+                        END BLOCK
                      ELSE
                         CALL skala_gpw_smooth_partition_derivatives( &
                            composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
@@ -1592,35 +1669,27 @@ CONTAINS
                            composite_partition_datom, composite_partition_dstrain)
                         partition_adjoint = composite_grid_weight_grad(composite_row)* &
                                             composite_atomic_grid_weights(composite_row)
-                     END IF
-                     DO target_atom = 1, SIZE(particle_set)
-                        IF (image_partition_atom_composite) THEN
-                           composite_partition_force(:, target_atom) = &
-                              composite_partition_force(:, target_atom) + &
-                              target_partition_adjoint* &
-                              composite_partition_datom(:, target_atom, iatom)
-                        ELSE
-                           composite_partition_force(:, target_atom) = &
-                              composite_partition_force(:, target_atom) + &
+                        DO target_atom = 1, SIZE(particle_set)
+                           composite_partition_force_local(:, target_atom) = &
+                              composite_partition_force_local(:, target_atom) + &
                               partition_adjoint* &
                               composite_partition_datom(:, target_atom, iatom)
-                        END IF
-                     END DO
-                     IF (image_partition_atom_composite) THEN
-                        composite_partition_force(:, iatom) = composite_partition_force(:, iatom) - &
-                                                              target_partition_adjoint* &
-                                                              SUM(composite_partition_datom(:, :, iatom), DIM=2)
-                        composite_partition_strain_virial = &
-                           composite_partition_strain_virial - target_partition_adjoint* &
-                           composite_partition_dstrain(:, :, iatom) - &
-                           descriptor_window_adjoint*descriptor_window_dstrain
-                     ELSE
-                        composite_partition_force(:, iatom) = composite_partition_force(:, iatom) - &
-                                                              partition_adjoint* &
-                                                              SUM(composite_partition_datom(:, :, iatom), DIM=2)
+                        END DO
+                        composite_partition_force_local(:, iatom) = &
+                           composite_partition_force_local(:, iatom) - partition_adjoint* &
+                           SUM(composite_partition_datom(:, :, iatom), DIM=2)
                      END IF
                   END DO
                END DO
+!$OMP END DO
+!$OMP CRITICAL(skala_atom_composite_force_reduction)
+               composite_nlcc_center_force(:, :) = composite_nlcc_center_force(:, :) + &
+                                                   composite_nlcc_center_force_local
+               composite_partition_force(:, :) = composite_partition_force(:, :) + &
+                                                 composite_partition_force_local
+!$OMP END CRITICAL(skala_atom_composite_force_reduction)
+               DEALLOCATE (composite_nlcc_center_force_local, composite_partition_force_local)
+!$OMP END PARALLEL
                ! The target atom grids can overlap augmentation regions of other atoms
                ! and periodic images. Differentiate the same discrete interpolation used
                ! in the forward composite fields, including the explicit image strain.
@@ -1914,98 +1983,99 @@ CONTAINS
                   composite_density_grad, composite_grad_grad, composite_kin_grad)
             END IF
             composite_pw_nflat = PRODUCT(smooth_rho_r(1)%pw_grid%npts)
-            ALLOCATE (smooth_density_adjoint(composite_pw_nflat, 2), &
-                      smooth_grad_adjoint(composite_pw_nflat, 3, 2), &
-                      smooth_kin_adjoint(composite_pw_nflat, 2))
-            smooth_density_adjoint = 0.0_dp
-            smooth_grad_adjoint = 0.0_dp
-            smooth_kin_adjoint = 0.0_dp
-            smooth_input_contraction = 0.0_dp
-            DO composite_row = 1, composite_nflat
-               DO ispin = 1, 2
-                  CALL add_native_grid_interpolation_adjoint( &
-                     smooth_density_adjoint(:, ispin), smooth_rho_r(1)%pw_grid, cell, &
-                     composite_grid_coords(:, composite_row), &
-                     composite_density_grad(composite_row, ispin), &
-                     image_partition_atom_composite)
-                  CALL add_native_grid_interpolation_adjoint( &
-                     smooth_kin_adjoint(:, ispin), smooth_rho_r(1)%pw_grid, cell, &
-                     composite_grid_coords(:, composite_row), &
-                     composite_kin_grad(composite_row, ispin), &
-                     image_partition_atom_composite)
-                  DO idir = 1, 3
-                     CALL add_native_grid_interpolation_adjoint( &
-                        smooth_grad_adjoint(:, idir, ispin), smooth_rho_r(1)%pw_grid, cell, &
-                        composite_grid_coords(:, composite_row), &
-                        composite_grad_grad(composite_row, idir, ispin), &
-                        image_partition_atom_composite)
-                  END DO
+            adjoint_nchannels = MERGE(2, 1, lsd)
+            ALLOCATE (smooth_density_adjoint_storage(composite_pw_nflat, adjoint_nchannels), &
+                      smooth_grad_adjoint_storage(composite_pw_nflat, 3, adjoint_nchannels), &
+                      smooth_kin_adjoint_storage(composite_pw_nflat, adjoint_nchannels))
+            smooth_density_adjoint_storage = 0.0_dp
+            smooth_grad_adjoint_storage = 0.0_dp
+            smooth_kin_adjoint_storage = 0.0_dp
+            CALL build_native_grid_adjoint_bins( &
+               smooth_rho_r(1)%pw_grid, cell, composite_grid_coords, &
+               image_partition_atom_composite, adjoint_tile_count, adjoint_bin_offsets, &
+               adjoint_bin_rows)
+            adjoint_nbins = SIZE(adjoint_bin_offsets) - 1
+!$OMP PARALLEL DO SCHEDULE(DYNAMIC) &
+!$OMP PRIVATE(adjoint_entry, composite_row, composite_smooth_density_adjoint_value, &
+!$OMP         composite_smooth_gradient_adjoint_value, composite_smooth_kin_adjoint_value, &
+!$OMP         adjoint_tile_lower, adjoint_tile_upper, interpolation_stencil)
+            DO adjoint_bin = 1, adjoint_nbins
+               CALL native_grid_adjoint_tile_bounds( &
+                  smooth_rho_r(1)%pw_grid, adjoint_bin, adjoint_tile_count, &
+                  adjoint_tile_lower, adjoint_tile_upper)
+               DO adjoint_entry = adjoint_bin_offsets(adjoint_bin), &
+                  adjoint_bin_offsets(adjoint_bin + 1) - 1
+                  composite_row = adjoint_bin_rows(adjoint_entry)
+                  CALL create_native_grid_interpolation_stencil( &
+                     interpolation_stencil, smooth_rho_r(1)%pw_grid, cell, &
+                     composite_grid_coords(:, composite_row), image_partition_atom_composite)
                   IF (lsd) THEN
-                     IF (ispin == 1) THEN
+                     composite_smooth_density_adjoint_value = &
+                        composite_density_grad(composite_row, :)
+                     composite_smooth_gradient_adjoint_value = &
+                        composite_grad_grad(composite_row, :, :)
+                     composite_smooth_kin_adjoint_value = composite_kin_grad(composite_row, :)
+                  ELSE
+                     composite_smooth_density_adjoint_value = 0.0_dp
+                     composite_smooth_gradient_adjoint_value = 0.0_dp
+                     composite_smooth_kin_adjoint_value = 0.0_dp
+                     composite_smooth_density_adjoint_value(1) = &
+                        SUM(composite_density_grad(composite_row, :))
+                     composite_smooth_gradient_adjoint_value(:, 1) = &
+                        SUM(composite_grad_grad(composite_row, :, :), DIM=2)
+                     composite_smooth_kin_adjoint_value(1) = &
+                        SUM(composite_kin_grad(composite_row, :))
+                  END IF
+                  CALL add_native_grid_fields_adjoint_tile( &
+                     smooth_density_adjoint_storage, smooth_grad_adjoint_storage, &
+                     smooth_kin_adjoint_storage, smooth_rho_r(1)%pw_grid, interpolation_stencil, &
+                     composite_smooth_density_adjoint_value, &
+                     composite_smooth_gradient_adjoint_value, &
+                     composite_smooth_kin_adjoint_value, adjoint_nchannels, &
+                     adjoint_tile_lower, adjoint_tile_upper)
+               END DO
+            END DO
+!$OMP END PARALLEL DO
+            DEALLOCATE (adjoint_bin_offsets, adjoint_bin_rows)
+            smooth_input_contraction = 0.0_dp
+!$OMP PARALLEL DO SCHEDULE(STATIC) REDUCTION(+:smooth_input_contraction) &
+!$OMP PRIVATE(composite_smooth_density_value, composite_smooth_gradient_value, &
+!$OMP         composite_smooth_kin_value, idir, ispin)
+            DO composite_row = 1, composite_nflat
+               composite_smooth_density_value = composite_smooth_density_cache(composite_row, :)
+               composite_smooth_gradient_value = &
+                  composite_smooth_gradient_cache(composite_row, :, :)
+               composite_smooth_kin_value = composite_smooth_kin_cache(composite_row, :)
+               DO ispin = 1, 2
+                  IF (lsd) THEN
+                     smooth_input_contraction = smooth_input_contraction + &
+                                                composite_density_grad(composite_row, ispin)* &
+                                                composite_smooth_density_value(ispin) + &
+                                                composite_kin_grad(composite_row, ispin)* &
+                                                composite_smooth_kin_value(ispin)
+                     DO idir = 1, 3
                         smooth_input_contraction = smooth_input_contraction + &
-                                                   composite_density_grad(composite_row, ispin)* &
-                                                   interpolate_native_grid(composite_smooth_rhoa, &
-                                                                           smooth_rho_r(1)%pw_grid, cell, &
-                                                                           composite_grid_coords(:, composite_row), &
-                                                                           image_partition_atom_composite) + &
-                                                   composite_kin_grad(composite_row, ispin)* &
-                                                   interpolate_native_grid(composite_smooth_tau_a, &
-                                                                           smooth_rho_r(1)%pw_grid, cell, &
-                                                                           composite_grid_coords(:, composite_row), &
-                                                                           image_partition_atom_composite)
-                        DO idir = 1, 3
-                           smooth_input_contraction = smooth_input_contraction + &
-                                                      composite_grad_grad(composite_row, idir, ispin)* &
-                                                      interpolate_native_grid(composite_smooth_drhoa(idir)%array, &
-                                                                              smooth_rho_r(1)%pw_grid, cell, &
-                                                                              composite_grid_coords(:, composite_row), &
-                                                                              image_partition_atom_composite)
-                        END DO
-                     ELSE
-                        smooth_input_contraction = smooth_input_contraction + &
-                                                   composite_density_grad(composite_row, ispin)* &
-                                                   interpolate_native_grid(composite_smooth_rhob, &
-                                                                           smooth_rho_r(1)%pw_grid, cell, &
-                                                                           composite_grid_coords(:, composite_row), &
-                                                                           image_partition_atom_composite) + &
-                                                   composite_kin_grad(composite_row, ispin)* &
-                                                   interpolate_native_grid(composite_smooth_tau_b, &
-                                                                           smooth_rho_r(1)%pw_grid, cell, &
-                                                                           composite_grid_coords(:, composite_row), &
-                                                                           image_partition_atom_composite)
-                        DO idir = 1, 3
-                           smooth_input_contraction = smooth_input_contraction + &
-                                                      composite_grad_grad(composite_row, idir, ispin)* &
-                                                      interpolate_native_grid(composite_smooth_drhob(idir)%array, &
-                                                                              smooth_rho_r(1)%pw_grid, cell, &
-                                                                              composite_grid_coords(:, composite_row), &
-                                                                              image_partition_atom_composite)
-                        END DO
-                     END IF
+                                                   composite_grad_grad(composite_row, idir, ispin)* &
+                                                   composite_smooth_gradient_value(idir, ispin)
+                     END DO
                   ELSE
                      smooth_input_contraction = smooth_input_contraction + 0.5_dp*( &
                                                 composite_density_grad(composite_row, ispin)* &
-                                                interpolate_native_grid( &
-                                                composite_smooth_rho, smooth_rho_r(1)%pw_grid, cell, &
-                                                composite_grid_coords(:, composite_row), &
-                                                image_partition_atom_composite) + &
+                                                composite_smooth_density_value(1) + &
                                                 composite_kin_grad(composite_row, ispin)* &
-                                                interpolate_native_grid( &
-                                                composite_smooth_tau, smooth_rho_r(1)%pw_grid, cell, &
-                                                composite_grid_coords(:, composite_row), &
-                                                image_partition_atom_composite))
+                                                composite_smooth_kin_value(1))
                      DO idir = 1, 3
                         smooth_input_contraction = smooth_input_contraction + 0.5_dp* &
                                                    composite_grad_grad(composite_row, idir, ispin)* &
-                                                   interpolate_native_grid( &
-                                                   composite_smooth_drho(idir)%array, &
-                                                   smooth_rho_r(1)%pw_grid, cell, &
-                                                   composite_grid_coords(:, composite_row), &
-                                                   image_partition_atom_composite)
+                                                   composite_smooth_gradient_value(idir, 1)
                      END DO
                   END IF
                END DO
             END DO
+!$OMP END PARALLEL DO
+            smooth_density_adjoint => smooth_density_adjoint_storage
+            smooth_grad_adjoint => smooth_grad_adjoint_storage
+            smooth_kin_adjoint => smooth_kin_adjoint_storage
             ! The interpolation transpose still uses CP2K's global FFT-grid layout. Reduce only
             ! this PW adjoint; atom-grid feature rows and their model derivatives stay rank-local.
             CALL para_env%sum(smooth_density_adjoint)
@@ -2016,6 +2086,9 @@ CONTAINS
                smooth_vxc_rho, smooth_vxc_tau, smooth_rho_r, auxbas_pw_pool, &
                smooth_density_adjoint, smooth_grad_adjoint, smooth_kin_adjoint, &
                xc_deriv_method_id, global_grid_layout=.TRUE.)
+            NULLIFY (smooth_density_adjoint, smooth_grad_adjoint, smooth_kin_adjoint)
+            DEALLOCATE (smooth_density_adjoint_storage, smooth_grad_adjoint_storage, &
+                        smooth_kin_adjoint_storage)
             smooth_grid_contraction = 0.0_dp
             DO ispin = 1, nspins
                smooth_grid_contraction = smooth_grid_contraction + smooth_rho_r(1)%pw_grid%dvol* &
@@ -2476,8 +2549,9 @@ CONTAINS
                         composite_local_atom_coords, &
                         composite_partition_weights, composite_partition_atom_coords, &
                         composite_distances, composite_density, composite_grad, composite_kin, &
+                        composite_smooth_density_cache, composite_smooth_gradient_cache, &
+                        composite_smooth_kin_cache, &
                         composite_density_grad, composite_grad_grad, composite_kin_grad, &
-                        smooth_density_adjoint, smooth_grad_adjoint, smooth_kin_adjoint, &
                         composite_grid_coords, composite_grid_weights, &
                         composite_base_grid_weights, composite_atomic_grid_weights)
             IF (lsd) THEN
@@ -2821,6 +2895,337 @@ CONTAINS
    END SUBROUTINE gather_native_grid_field
 
 ! **************************************************************************************************
+!> \brief Build the tensor-product interpolation stencil for one Cartesian point.
+!> \param stencil ...
+!> \param pw_grid ...
+!> \param cell ...
+!> \param point ...
+!> \param wrap_auxiliary_cell wrap all auxiliary-grid directions
+!> \param indices_only skip interpolation weights when only grid indices are needed
+! **************************************************************************************************
+   SUBROUTINE create_native_grid_interpolation_stencil(stencil, pw_grid, cell, point, &
+                                                       wrap_auxiliary_cell, indices_only)
+      TYPE(native_grid_interpolation_stencil_type), &
+         INTENT(OUT)                                     :: stencil
+      TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: point
+      LOGICAL, INTENT(IN), OPTIONAL                      :: wrap_auxiliary_cell, indices_only
+
+      INTEGER                                            :: idir, inode, relative_index
+      INTEGER, DIMENSION(3)                              :: base
+      LOGICAL                                            :: build_weights, wrap_grid
+      REAL(KIND=dp), DIMENSION(3)                        :: fraction, relative
+
+      CPASSERT(ASSOCIATED(pw_grid))
+      CPASSERT(ASSOCIATED(cell))
+      stencil%active = .FALSE.
+      stencil%valid = .FALSE.
+      stencil%weight = 0.0_dp
+      build_weights = .TRUE.
+      IF (PRESENT(indices_only)) build_weights = .NOT. indices_only
+      wrap_grid = ANY(cell%perd == 0)
+      IF (PRESENT(wrap_auxiliary_cell)) wrap_grid = wrap_auxiliary_cell
+      relative = MATMUL(pw_grid%dh_inv, point)
+      DO idir = 1, 3
+         IF (cell%perd(idir) == 1 .OR. wrap_grid) THEN
+            relative(idir) = MODULO(relative(idir), REAL(pw_grid%npts(idir), KIND=dp))
+         ELSE IF (relative(idir) <= -REAL(native_grid_interp_offset_max, dp) .OR. &
+                  relative(idir) >= REAL(pw_grid%npts(idir) - &
+                                         native_grid_interp_offset_min, KIND=dp)) THEN
+            RETURN
+         END IF
+         base(idir) = FLOOR(relative(idir))
+         FRACTION(idir) = relative(idir) - REAL(base(idir), KIND=dp)
+         IF (build_weights) THEN
+            CALL native_grid_lagrange_weights(FRACTION(idir), stencil%weight(:, idir))
+         END IF
+         DO inode = 1, native_grid_interp_npts
+            relative_index = base(idir) + native_grid_interp_offset_min + inode - 1
+            IF (cell%perd(idir) == 1 .OR. wrap_grid) THEN
+               relative_index = MODULO(relative_index, pw_grid%npts(idir))
+               stencil%valid(inode, idir) = .TRUE.
+            ELSE IF (relative_index >= 0 .AND. relative_index < pw_grid%npts(idir)) THEN
+               stencil%valid(inode, idir) = .TRUE.
+            END IF
+            stencil%relative_index(inode, idir) = relative_index
+         END DO
+      END DO
+      stencil%active = .TRUE.
+
+   END SUBROUTINE create_native_grid_interpolation_stencil
+
+! **************************************************************************************************
+!> \brief Interpolate density, gradient, and kinetic-density fields in one stencil traversal.
+!> \param density ...
+!> \param grad_x ...
+!> \param grad_y ...
+!> \param grad_z ...
+!> \param kin ...
+!> \param stencil ...
+!> \param density_value ...
+!> \param grad_value ...
+!> \param kin_value ...
+! **************************************************************************************************
+   SUBROUTINE interpolate_native_grid_fields(density, grad_x, grad_y, grad_z, kin, stencil, &
+                                             density_value, grad_value, kin_value)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: density, grad_x, grad_y, grad_z, kin
+      TYPE(native_grid_interpolation_stencil_type), &
+         INTENT(IN)                                      :: stencil
+      REAL(KIND=dp), INTENT(OUT)                         :: density_value
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: grad_value
+      REAL(KIND=dp), INTENT(OUT)                         :: kin_value
+
+      INTEGER                                            :: inode_x, inode_y, inode_z
+      INTEGER, DIMENSION(3)                              :: index, lower_bound
+      REAL(KIND=dp)                                      :: coefficient
+
+      CPASSERT(ALL(SHAPE(grad_x) == SHAPE(density)))
+      CPASSERT(ALL(SHAPE(grad_y) == SHAPE(density)))
+      CPASSERT(ALL(SHAPE(grad_z) == SHAPE(density)))
+      CPASSERT(ALL(SHAPE(kin) == SHAPE(density)))
+      density_value = 0.0_dp
+      grad_value = 0.0_dp
+      kin_value = 0.0_dp
+      IF (.NOT. stencil%active) RETURN
+      lower_bound = LBOUND(density)
+      DO inode_z = 1, native_grid_interp_npts
+         IF (.NOT. stencil%valid(inode_z, 3)) CYCLE
+         INDEX(3) = lower_bound(3) + stencil%relative_index(inode_z, 3)
+         DO inode_y = 1, native_grid_interp_npts
+            IF (.NOT. stencil%valid(inode_y, 2)) CYCLE
+            INDEX(2) = lower_bound(2) + stencil%relative_index(inode_y, 2)
+            DO inode_x = 1, native_grid_interp_npts
+               IF (.NOT. stencil%valid(inode_x, 1)) CYCLE
+               INDEX(1) = lower_bound(1) + stencil%relative_index(inode_x, 1)
+               coefficient = stencil%weight(inode_x, 1)* &
+                             stencil%weight(inode_y, 2)* &
+                             stencil%weight(inode_z, 3)
+               density_value = density_value + coefficient*density(INDEX(1), INDEX(2), INDEX(3))
+               grad_value(1) = grad_value(1) + coefficient*grad_x(INDEX(1), INDEX(2), INDEX(3))
+               grad_value(2) = grad_value(2) + coefficient*grad_y(INDEX(1), INDEX(2), INDEX(3))
+               grad_value(3) = grad_value(3) + coefficient*grad_z(INDEX(1), INDEX(2), INDEX(3))
+               kin_value = kin_value + coefficient*kin(INDEX(1), INDEX(2), INDEX(3))
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE interpolate_native_grid_fields
+
+! **************************************************************************************************
+!> \brief Group atom-grid rows by the disjoint PW tiles touched by their interpolation stencils.
+!> \param pw_grid ...
+!> \param cell ...
+!> \param points atom-grid coordinates
+!> \param wrap_auxiliary_cell wrap all auxiliary-grid directions
+!> \param tile_count number of tiles along each PW-grid direction
+!> \param bin_offsets CSR offsets into bin_rows
+!> \param bin_rows atom-grid rows touching each tile
+! **************************************************************************************************
+   SUBROUTINE build_native_grid_adjoint_bins(pw_grid, cell, points, wrap_auxiliary_cell, &
+                                             tile_count, bin_offsets, bin_rows)
+      TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: points
+      LOGICAL, INTENT(IN)                                :: wrap_auxiliary_cell
+      INTEGER, DIMENSION(3), INTENT(OUT)                 :: tile_count
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: bin_offsets, bin_rows
+
+      INTEGER                                            :: candidate, ibin, idir, inode, irow, ix, &
+                                                            iy, iz, nbin, ntouched, position
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bin_counts, bin_cursor, row_bin_count
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: row_bins
+      INTEGER, DIMENSION(3)                              :: touched_count
+      INTEGER, DIMENSION(&
+         native_grid_adjoint_max_tiles_per_direction, 3) :: touched_tiles
+      TYPE(native_grid_interpolation_stencil_type)       :: stencil
+
+      CPASSERT(ASSOCIATED(pw_grid))
+      CPASSERT(ASSOCIATED(cell))
+      CPASSERT(SIZE(points, 1) == 3)
+      tile_count = (pw_grid%npts + native_grid_adjoint_tile_edge - 1)/ &
+                   native_grid_adjoint_tile_edge
+      nbin = PRODUCT(tile_count)
+      ALLOCATE (row_bin_count(SIZE(points, 2)), &
+                row_bins(native_grid_adjoint_max_bins_per_row, SIZE(points, 2)))
+      row_bin_count = 0
+      row_bins = 0
+!$OMP PARALLEL DO SCHEDULE(STATIC) &
+!$OMP PRIVATE(candidate, idir, inode, ix, iy, iz, ntouched, stencil, &
+!$OMP         touched_count, touched_tiles)
+      DO irow = 1, SIZE(points, 2)
+         CALL create_native_grid_interpolation_stencil( &
+            stencil, pw_grid, cell, points(:, irow), wrap_auxiliary_cell, indices_only=.TRUE.)
+         IF (.NOT. stencil%active) CYCLE
+         touched_count = 0
+         touched_tiles = 0
+         DO idir = 1, 3
+            DO inode = 1, native_grid_interp_npts
+               IF (.NOT. stencil%valid(inode, idir)) CYCLE
+               candidate = stencil%relative_index(inode, idir)/native_grid_adjoint_tile_edge + 1
+               IF (ALL(touched_tiles(1:touched_count(idir), idir) /= candidate)) THEN
+                  touched_count(idir) = touched_count(idir) + 1
+                  CPASSERT(touched_count(idir) <= SIZE(touched_tiles, 1))
+                  touched_tiles(touched_count(idir), idir) = candidate
+               END IF
+            END DO
+         END DO
+         ntouched = 0
+         DO iz = 1, touched_count(3)
+            DO iy = 1, touched_count(2)
+               DO ix = 1, touched_count(1)
+                  ntouched = ntouched + 1
+                  CPASSERT(ntouched <= native_grid_adjoint_max_bins_per_row)
+                  row_bins(ntouched, irow) = 1 + touched_tiles(ix, 1) - 1 + tile_count(1)*( &
+                                             touched_tiles(iy, 2) - 1 + tile_count(2)*( &
+                                             touched_tiles(iz, 3) - 1))
+               END DO
+            END DO
+         END DO
+         row_bin_count(irow) = ntouched
+      END DO
+!$OMP END PARALLEL DO
+
+      ALLOCATE (bin_counts(nbin), bin_cursor(nbin), bin_offsets(nbin + 1))
+      bin_counts = 0
+      DO irow = 1, SIZE(points, 2)
+         DO ibin = 1, row_bin_count(irow)
+            bin_counts(row_bins(ibin, irow)) = bin_counts(row_bins(ibin, irow)) + 1
+         END DO
+      END DO
+      bin_offsets(1) = 1
+      DO ibin = 1, nbin
+         bin_offsets(ibin + 1) = bin_offsets(ibin) + bin_counts(ibin)
+      END DO
+      ALLOCATE (bin_rows(bin_offsets(nbin + 1) - 1))
+      bin_cursor(:) = bin_offsets(1:nbin)
+      DO irow = 1, SIZE(points, 2)
+         DO ibin = 1, row_bin_count(irow)
+            candidate = row_bins(ibin, irow)
+            position = bin_cursor(candidate)
+            bin_rows(position) = irow
+            bin_cursor(candidate) = position + 1
+         END DO
+      END DO
+      DEALLOCATE (bin_counts, bin_cursor, row_bin_count, row_bins)
+
+   END SUBROUTINE build_native_grid_adjoint_bins
+
+! **************************************************************************************************
+!> \brief Return the inclusive PW-grid bounds owned by one linear tile index.
+!> \param pw_grid ...
+!> \param tile_index linear tile index
+!> \param tile_count number of tiles along each PW-grid direction
+!> \param tile_lower zero-based lower grid index
+!> \param tile_upper zero-based upper grid index
+! **************************************************************************************************
+   SUBROUTINE native_grid_adjoint_tile_bounds(pw_grid, tile_index, tile_count, &
+                                              tile_lower, tile_upper)
+      TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
+      INTEGER, INTENT(IN)                                :: tile_index
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: tile_count
+      INTEGER, DIMENSION(3), INTENT(OUT)                 :: tile_lower, tile_upper
+
+      INTEGER                                            :: linear_tile
+      INTEGER, DIMENSION(3)                              :: expected_tile_count, tile_coord
+
+      CPASSERT(ASSOCIATED(pw_grid))
+      expected_tile_count = (pw_grid%npts + native_grid_adjoint_tile_edge - 1)/ &
+                            native_grid_adjoint_tile_edge
+      CPASSERT(ALL(tile_count == expected_tile_count))
+      CPASSERT(tile_index >= 1 .AND. tile_index <= PRODUCT(tile_count))
+      linear_tile = tile_index - 1
+      tile_coord(1) = MOD(linear_tile, tile_count(1))
+      linear_tile = linear_tile/tile_count(1)
+      tile_coord(2) = MOD(linear_tile, tile_count(2))
+      tile_coord(3) = linear_tile/tile_count(2)
+      tile_lower = tile_coord*native_grid_adjoint_tile_edge
+      tile_upper = MIN(tile_lower + native_grid_adjoint_tile_edge - 1, pw_grid%npts - 1)
+
+   END SUBROUTINE native_grid_adjoint_tile_bounds
+
+! **************************************************************************************************
+!> \brief Apply the primitive-field interpolation transpose inside one disjoint PW tile.
+!> \param density ...
+!> \param grad ...
+!> \param kin ...
+!> \param pw_grid ...
+!> \param stencil ...
+!> \param density_value ...
+!> \param grad_value ...
+!> \param kin_value ...
+!> \param nchannels number of spin channels accumulated by the adjoint
+!> \param tile_lower zero-based lower grid index owned by this call
+!> \param tile_upper zero-based upper grid index owned by this call
+! **************************************************************************************************
+   SUBROUTINE add_native_grid_fields_adjoint_tile( &
+      density, grad, kin, pw_grid, stencil, density_value, grad_value, kin_value, nchannels, &
+      tile_lower, tile_upper)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: density
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: grad
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: kin
+      TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
+      TYPE(native_grid_interpolation_stencil_type), &
+         INTENT(IN)                                      :: stencil
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: density_value
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: grad_value
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: kin_value
+      INTEGER, INTENT(IN)                                :: nchannels
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: tile_lower, tile_upper
+
+      INTEGER                                            :: idir, inode_x, inode_y, inode_z, ipt, &
+                                                            ispin
+      INTEGER, DIMENSION(3)                              :: relative_index
+      REAL(KIND=dp)                                      :: coefficient
+
+      CPASSERT(ASSOCIATED(pw_grid))
+      CPASSERT(SIZE(density, 1) == PRODUCT(pw_grid%npts))
+      CPASSERT(SIZE(density, 2) == nchannels)
+      CPASSERT(SIZE(grad, 1) == PRODUCT(pw_grid%npts))
+      CPASSERT(SIZE(grad, 2) == 3)
+      CPASSERT(SIZE(grad, 3) == nchannels)
+      CPASSERT(SIZE(kin, 1) == PRODUCT(pw_grid%npts))
+      CPASSERT(SIZE(kin, 2) == nchannels)
+      CPASSERT(SIZE(density_value) == 2)
+      CPASSERT(ALL(SHAPE(grad_value) == [3, 2]))
+      CPASSERT(SIZE(kin_value) == 2)
+      CPASSERT(nchannels >= 1 .AND. nchannels <= 2)
+      CPASSERT(ALL(tile_lower >= 0))
+      CPASSERT(ALL(tile_upper >= tile_lower))
+      CPASSERT(ALL(tile_upper < pw_grid%npts))
+      IF (.NOT. stencil%active) RETURN
+      DO inode_z = 1, native_grid_interp_npts
+         IF (.NOT. stencil%valid(inode_z, 3)) CYCLE
+         relative_index(3) = stencil%relative_index(inode_z, 3)
+         IF (relative_index(3) < tile_lower(3) .OR. relative_index(3) > tile_upper(3)) CYCLE
+         DO inode_y = 1, native_grid_interp_npts
+            IF (.NOT. stencil%valid(inode_y, 2)) CYCLE
+            relative_index(2) = stencil%relative_index(inode_y, 2)
+            IF (relative_index(2) < tile_lower(2) .OR. relative_index(2) > tile_upper(2)) CYCLE
+            DO inode_x = 1, native_grid_interp_npts
+               IF (.NOT. stencil%valid(inode_x, 1)) CYCLE
+               relative_index(1) = stencil%relative_index(inode_x, 1)
+               IF (relative_index(1) < tile_lower(1) .OR. relative_index(1) > tile_upper(1)) CYCLE
+               ipt = 1 + relative_index(1) + pw_grid%npts(1)*( &
+                     relative_index(2) + pw_grid%npts(2)*relative_index(3))
+               coefficient = stencil%weight(inode_x, 1)* &
+                             stencil%weight(inode_y, 2)* &
+                             stencil%weight(inode_z, 3)
+               DO ispin = 1, nchannels
+                  density(ipt, ispin) = density(ipt, ispin) + coefficient*density_value(ispin)
+                  DO idir = 1, 3
+                     grad(ipt, idir, ispin) = grad(ipt, idir, ispin) + &
+                                              coefficient*grad_value(idir, ispin)
+                  END DO
+                  kin(ipt, ispin) = kin(ipt, ispin) + coefficient*kin_value(ispin)
+               END DO
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE add_native_grid_fields_adjoint_tile
+
+! **************************************************************************************************
 !> \brief Interpolate a replicated native-grid field at a Cartesian point.
 !> \param values ...
 !> \param pw_grid ...
@@ -2982,77 +3387,6 @@ CONTAINS
    END FUNCTION interpolate_native_grid_gradient
 
 ! **************************************************************************************************
-!> \brief Apply the transpose of native-grid interpolation for one point.
-!> \param values ...
-!> \param pw_grid ...
-!> \param cell ...
-!> \param point ...
-!> \param value ...
-!> \param wrap_auxiliary_cell wrap all auxiliary-grid directions
-! **************************************************************************************************
-   SUBROUTINE add_native_grid_interpolation_adjoint(values, pw_grid, cell, point, value, &
-                                                    wrap_auxiliary_cell)
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: values
-      TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
-      TYPE(cell_type), INTENT(IN), POINTER               :: cell
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: point
-      REAL(KIND=dp), INTENT(IN)                          :: value
-      LOGICAL, INTENT(IN), OPTIONAL                      :: wrap_auxiliary_cell
-
-      INTEGER                                            :: corner_x, corner_y, corner_z, idir, ipt
-      INTEGER, DIMENSION(3)                              :: base, relative_index
-      LOGICAL                                            :: wrap_grid
-      REAL(KIND=dp)                                      :: coefficient
-      REAL(KIND=dp), DIMENSION(3)                        :: fraction, relative
-      REAL(KIND=dp), &
-         DIMENSION(native_grid_interp_npts, 3)           :: weights
-
-      CPASSERT(ASSOCIATED(pw_grid))
-      CPASSERT(ASSOCIATED(cell))
-      CPASSERT(SIZE(values) == PRODUCT(pw_grid%npts))
-
-      wrap_grid = ANY(cell%perd == 0)
-      IF (PRESENT(wrap_auxiliary_cell)) wrap_grid = wrap_auxiliary_cell
-      relative = MATMUL(pw_grid%dh_inv, point)
-      DO idir = 1, 3
-         IF (cell%perd(idir) == 1 .OR. wrap_grid) THEN
-            relative(idir) = MODULO(relative(idir), REAL(pw_grid%npts(idir), KIND=dp))
-         ELSE IF (relative(idir) <= -REAL(native_grid_interp_offset_max, dp) .OR. &
-                  relative(idir) >= REAL(pw_grid%npts(idir) - &
-                                         native_grid_interp_offset_min, KIND=dp)) THEN
-            RETURN
-         END IF
-         base(idir) = FLOOR(relative(idir))
-         FRACTION(idir) = relative(idir) - REAL(base(idir), KIND=dp)
-         CALL native_grid_lagrange_weights(FRACTION(idir), weights(:, idir))
-      END DO
-
-      DO corner_z = native_grid_interp_offset_min, native_grid_interp_offset_max
-         DO corner_y = native_grid_interp_offset_min, native_grid_interp_offset_max
-            DO corner_x = native_grid_interp_offset_min, native_grid_interp_offset_max
-               relative_index = base + [corner_x, corner_y, corner_z]
-               coefficient = weights(corner_x - native_grid_interp_offset_min + 1, 1)* &
-                             weights(corner_y - native_grid_interp_offset_min + 1, 2)* &
-                             weights(corner_z - native_grid_interp_offset_min + 1, 3)
-               DO idir = 1, 3
-                  IF (cell%perd(idir) == 1 .OR. wrap_grid) THEN
-                     relative_index(idir) = MODULO(relative_index(idir), pw_grid%npts(idir))
-                  ELSE IF (relative_index(idir) < 0 .OR. &
-                           relative_index(idir) >= pw_grid%npts(idir)) THEN
-                     coefficient = 0.0_dp
-                  END IF
-               END DO
-               IF (coefficient == 0.0_dp) CYCLE
-               ipt = 1 + relative_index(1) + pw_grid%npts(1)*( &
-                     relative_index(2) + pw_grid%npts(2)*relative_index(3))
-               values(ipt) = values(ipt) + coefficient*value
-            END DO
-         END DO
-      END DO
-
-   END SUBROUTINE add_native_grid_interpolation_adjoint
-
-! **************************************************************************************************
 !> \brief Build the value and optional derivative weights for the native-grid interpolation.
 !> \param fraction fractional coordinate between two grid points
 !> \param weights interpolation weights
@@ -3060,23 +3394,24 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE native_grid_lagrange_weights(fraction, weights, derivative_weights)
       REAL(KIND=dp), INTENT(IN)                          :: fraction
-      REAL(KIND=dp), &
-         DIMENSION(native_grid_interp_npts), INTENT(OUT) :: weights
-      REAL(KIND=dp), &
-         DIMENSION(native_grid_interp_npts), &
-         INTENT(OUT), OPTIONAL                           :: derivative_weights
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: weights
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: derivative_weights
 
-      INTEGER                                            :: inode, jnode, knode
+      INTEGER                                            :: inode, jnode, knode, npoints
       REAL(KIND=dp)                                      :: denominator, derivative, numerator
-      REAL(KIND=dp), DIMENSION(native_grid_interp_npts)  :: nodes
+      REAL(KIND=dp), DIMENSION(SIZE(weights))            :: nodes
 
-      DO inode = 1, native_grid_interp_npts
+      npoints = SIZE(weights)
+      IF (PRESENT(derivative_weights)) THEN
+         CPASSERT(SIZE(derivative_weights) == npoints)
+      END IF
+      DO inode = 1, npoints
          nodes(inode) = REAL(native_grid_interp_offset_min + inode - 1, dp)
       END DO
-      DO inode = 1, native_grid_interp_npts
+      DO inode = 1, npoints
          denominator = 1.0_dp
          numerator = 1.0_dp
-         DO jnode = 1, native_grid_interp_npts
+         DO jnode = 1, npoints
             IF (jnode == inode) CYCLE
             denominator = denominator*(nodes(inode) - nodes(jnode))
             numerator = numerator*(fraction - nodes(jnode))
@@ -3084,10 +3419,10 @@ CONTAINS
          weights(inode) = numerator/denominator
          IF (PRESENT(derivative_weights)) THEN
             derivative = 0.0_dp
-            DO knode = 1, native_grid_interp_npts
+            DO knode = 1, npoints
                IF (knode == inode) CYCLE
                numerator = 1.0_dp
-               DO jnode = 1, native_grid_interp_npts
+               DO jnode = 1, npoints
                   IF (jnode == inode .OR. jnode == knode) CYCLE
                   numerator = numerator*(fraction - nodes(jnode))
                END DO

@@ -19,8 +19,8 @@ MODULE skala_torch_api
    USE string_utilities, ONLY: uppercase
    USE torch_api, ONLY: &
       torch_dict_type, torch_model_disable_parameter_gradients, torch_model_forward_mol_tensor, &
-      torch_model_load_with_metadata, torch_model_release, torch_model_remap_device_constants, &
-      torch_model_type, &
+      torch_model_freeze_preserving_method, torch_model_load_with_metadata, torch_model_release, &
+      torch_model_remap_device_constants, torch_model_type, &
       torch_tensor_item_double, torch_tensor_release, torch_tensor_type, &
       torch_tensor_weighted_sum
 #include "./base/base_uses.f90"
@@ -69,6 +69,8 @@ CONTAINS
       END IF
 
       CALL parse_feature_list(features_json, model%features)
+      ! Preserve the exported SKALA entry point while folding constant model state.
+      CALL torch_model_freeze_preserving_method(model%torch_model, "get_exc_density")
 
    END SUBROUTINE skala_torch_model_load
 

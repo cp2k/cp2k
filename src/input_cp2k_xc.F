@@ -1629,9 +1629,10 @@ CONTAINS
                           "rank, while single-rank runs can still use atom subchunks to reduce peak CUDA "// &
                           "memory. Dynamic feature rows and VXC gradients are routed between their "// &
                           "local grid and atom-block owner ranks. This is enabled by default; set it to "// &
-                          "false to retain the replicated global feature block. Analytical force and "// &
-                          "stress runs use the full differentiable tensor graph instead of routed atom "// &
-                          "chunks.", &
+                          "false to retain the replicated global feature block. ATOM_COMPOSITE also "// &
+                          "subchunks energy, VXC, force, and stress evaluations along independent atomic "// &
+                          "blocks; COMMON_GRID analytical force and stress runs retain the full "// &
+                          "differentiable tensor graph.", &
                           usage="NATIVE_GRID_ATOM_CHUNKS T", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1648,9 +1649,10 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_ATOM_CHUNK_MAX_ROWS", &
                           description="Maximum number of atom-grid rows evaluated by one TorchScript "// &
                           "call in the experimental CP2K-native SKALA GPW atom-chunk path. A positive "// &
-                          "value splits each rank-local atom chunk into contiguous atom subchunks to "// &
-                          "reduce peak CPU or CUDA memory use; zero disables subchunking; -1 selects "// &
-                          "an automatic row cap.", &
+                          "value splits each rank-local atom chunk into contiguous atom subchunks "// &
+                          "whose padded Torch row count stays below the limit. Atomic blocks are not "// &
+                          "divided, so one block can exceed the requested limit. Zero disables "// &
+                          "subchunking; -1 selects an automatic padded-row cap.", &
                           usage="NATIVE_GRID_ATOM_CHUNK_MAX_ROWS 250000", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
