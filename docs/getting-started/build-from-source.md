@@ -212,6 +212,8 @@ Add `-t` or `--test` followed by `TESTOPTS` to run a regression test after a suc
 Alternatively, run `install/bin/run_tests` after a successful build. The script prints usage
 examples at the end of a successful run.
 
+(build-gromacs-cp2k)=
+
 #### GROMACS/CP2K QM/MM
 
 The latest supported GROMACS release (currently v2026.3) for GROMACS/CP2K QM/MM simulations can be
