@@ -110,8 +110,6 @@ MODULE qs_vxc_atom
                                               xc_rho_set_release,&
                                               xc_rho_set_type,&
                                               xc_rho_set_update
-
-!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -126,6 +124,10 @@ MODULE qs_vxc_atom
                                   native_grid_interp_npts = &
                                   native_grid_interp_offset_max - &
                                   native_grid_interp_offset_min + 1
+   INTEGER, PARAMETER, PRIVATE :: native_grid_adjoint_tile_edge = 32, &
+                                  native_grid_adjoint_max_tiles_per_direction = 3, &
+                                  native_grid_adjoint_max_bins_per_row = &
+                                  native_grid_adjoint_max_tiles_per_direction**3
 
    TYPE native_grid_interpolation_stencil_type
       INTEGER, DIMENSION(native_grid_interp_npts, 3)     :: relative_index = 0
@@ -348,17 +350,20 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom'
 
-      INTEGER :: adjoint_nchannels, adjoint_nthreads, adjoint_thread, atom_composite_components, &
-         base_shift(3), bo(2), composite_image_periodicity(3), composite_local_atom, &
-         composite_local_natom, composite_nflat, composite_pw_nflat, composite_row, &
-         gapw_density_partition, gapw_representation, handle, ia, iat, iatom, icomponent, idir, &
-         ikind, image_i1, image_i2, image_i3, image_shell(3), image_shift(3), ipt, ir, ispin, iw, &
-         jdir, myfun, na, natom, nr, nspins, num_pe, source_atom, target_atom, xc_deriv_method_id, &
-         xc_rho_smooth_id, zatom
+      INTEGER :: adjoint_bin, adjoint_entry, adjoint_nbins, adjoint_nchannels, &
+         adjoint_tile_count(3), adjoint_tile_lower(3), adjoint_tile_upper(3), &
+         atom_composite_components, base_shift(3), bo(2), composite_image_periodicity(3), &
+         composite_local_atom, composite_local_natom, composite_nflat, composite_pw_nflat, &
+         composite_row, gapw_density_partition, gapw_representation, handle, ia, iat, iatom, &
+         icomponent, idir, ikind, image_i1, image_i2, image_i3, image_shell(3), image_shift(3), &
+         ir, ispin, iw, jdir, myfun, na, natom, nr, nspins, num_pe, source_atom, target_atom, &
+         xc_deriv_method_id
+      INTEGER :: xc_rho_smooth_id, zatom
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: composite_atomic_grid_sizes, &
                                                             composite_local_grid_sizes
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: composite_atom_end, composite_atom_kind, &
-         composite_atom_kind_index, composite_atom_start, composite_local_atoms
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: adjoint_bin_offsets, adjoint_bin_rows, &
+         composite_atom_end, composite_atom_kind, composite_atom_kind_index, composite_atom_start, &
+         composite_local_atoms
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL :: accint, atom_composite_active, atom_composite_diagnostic, &
@@ -386,8 +391,7 @@ CONTAINS
          smooth_grid_contraction, smooth_input_contraction, target_partition_adjoint, tau_cut, zeff
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: composite_atomic_grid_weight_grad, &
          composite_atomic_grid_weights, composite_base_grid_weights, composite_distances, &
-         composite_grid_weight_grad, composite_grid_weights, composite_partition_weights, &
-         smooth_input_contraction_thread
+         composite_grid_weight_grad, composite_grid_weights, composite_partition_weights
       REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_atom_coord_grad, composite_atom_coords, &
          composite_cross_density, composite_cross_force, composite_cross_kin, composite_density, &
          composite_density_grad, composite_explicit_force, composite_grid_coord_force, &
@@ -396,13 +400,12 @@ CONTAINS
          composite_nlcc_center_force, composite_nlcc_target_force, &
          composite_partition_atom_coords, composite_partition_force, composite_smooth_density_cache
       REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_smooth_kin_cache
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :), TARGET     :: smooth_density_adjoint_storage, &
+                                                            smooth_kin_adjoint_storage
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :) :: composite_cross_grad, composite_grad, &
          composite_grad_grad, composite_int_h, composite_int_s, composite_partition_datom, &
          composite_partition_dstrain, composite_smooth_gradient_cache
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET  :: smooth_density_adjoint_thread, &
-                                                            smooth_kin_adjoint_thread
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :, :), &
-         TARGET                                          :: smooth_grad_adjoint_thread
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET  :: smooth_grad_adjoint_storage
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
       REAL(dp), DIMENSION(2) :: composite_smooth_density_adjoint_value, &
@@ -592,8 +595,6 @@ CONTAINS
       atom_composite_reference = atom_composite_reference .OR. requested_atom_composite_grid
       atom_composite_reference = atom_composite_reference .OR. direct_valence_atom_composite
       atom_composite_active = atom_composite_diagnostic .OR. atom_composite_reference
-      adjoint_nthreads = 1
-!$    adjoint_nthreads = MIN(4, omp_get_max_threads())
       use_atom_composite_density = atom_composite_components <= 2
       use_atom_composite_gradient = atom_composite_components <= 2
       use_atom_composite_tau = atom_composite_components == 1 .OR. &
@@ -1953,107 +1954,99 @@ CONTAINS
                   composite_density_grad, composite_grad_grad, composite_kin_grad)
             END IF
             composite_pw_nflat = PRODUCT(smooth_rho_r(1)%pw_grid%npts)
-            ALLOCATE (smooth_density_adjoint_thread(composite_pw_nflat, nspins, adjoint_nthreads), &
-                      smooth_grad_adjoint_thread(composite_pw_nflat, 3, nspins, adjoint_nthreads), &
-                      smooth_kin_adjoint_thread(composite_pw_nflat, nspins, adjoint_nthreads), &
-                      smooth_input_contraction_thread(adjoint_nthreads))
-            smooth_density_adjoint_thread = 0.0_dp
-            smooth_grad_adjoint_thread = 0.0_dp
-            smooth_kin_adjoint_thread = 0.0_dp
-            smooth_input_contraction_thread = 0.0_dp
-!$OMP PARALLEL DO NUM_THREADS(adjoint_nthreads) SCHEDULE(STATIC) &
-!$OMP PRIVATE(adjoint_nchannels, adjoint_thread, composite_smooth_density_adjoint_value, &
-!$OMP         composite_smooth_density_value, composite_smooth_gradient_adjoint_value, &
-!$OMP         composite_smooth_gradient_value, composite_smooth_kin_adjoint_value, &
-!$OMP         composite_smooth_kin_value, idir, interpolation_stencil, ispin)
+            adjoint_nchannels = MERGE(2, 1, lsd)
+            ALLOCATE (smooth_density_adjoint_storage(composite_pw_nflat, adjoint_nchannels), &
+                      smooth_grad_adjoint_storage(composite_pw_nflat, 3, adjoint_nchannels), &
+                      smooth_kin_adjoint_storage(composite_pw_nflat, adjoint_nchannels))
+            smooth_density_adjoint_storage = 0.0_dp
+            smooth_grad_adjoint_storage = 0.0_dp
+            smooth_kin_adjoint_storage = 0.0_dp
+            CALL build_native_grid_adjoint_bins( &
+               smooth_rho_r(1)%pw_grid, cell, composite_grid_coords, &
+               image_partition_atom_composite, adjoint_tile_count, adjoint_bin_offsets, &
+               adjoint_bin_rows)
+            adjoint_nbins = SIZE(adjoint_bin_offsets) - 1
+!$OMP PARALLEL DO SCHEDULE(DYNAMIC) &
+!$OMP PRIVATE(adjoint_entry, composite_row, composite_smooth_density_adjoint_value, &
+!$OMP         composite_smooth_gradient_adjoint_value, composite_smooth_kin_adjoint_value, &
+!$OMP         adjoint_tile_lower, adjoint_tile_upper, interpolation_stencil)
+            DO adjoint_bin = 1, adjoint_nbins
+               CALL native_grid_adjoint_tile_bounds( &
+                  smooth_rho_r(1)%pw_grid, adjoint_bin, adjoint_tile_count, &
+                  adjoint_tile_lower, adjoint_tile_upper)
+               DO adjoint_entry = adjoint_bin_offsets(adjoint_bin), &
+                  adjoint_bin_offsets(adjoint_bin + 1) - 1
+                  composite_row = adjoint_bin_rows(adjoint_entry)
+                  CALL create_native_grid_interpolation_stencil( &
+                     interpolation_stencil, smooth_rho_r(1)%pw_grid, cell, &
+                     composite_grid_coords(:, composite_row), image_partition_atom_composite)
+                  IF (lsd) THEN
+                     composite_smooth_density_adjoint_value = &
+                        composite_density_grad(composite_row, :)
+                     composite_smooth_gradient_adjoint_value = &
+                        composite_grad_grad(composite_row, :, :)
+                     composite_smooth_kin_adjoint_value = composite_kin_grad(composite_row, :)
+                  ELSE
+                     composite_smooth_density_adjoint_value = 0.0_dp
+                     composite_smooth_gradient_adjoint_value = 0.0_dp
+                     composite_smooth_kin_adjoint_value = 0.0_dp
+                     composite_smooth_density_adjoint_value(1) = &
+                        SUM(composite_density_grad(composite_row, :))
+                     composite_smooth_gradient_adjoint_value(:, 1) = &
+                        SUM(composite_grad_grad(composite_row, :, :), DIM=2)
+                     composite_smooth_kin_adjoint_value(1) = &
+                        SUM(composite_kin_grad(composite_row, :))
+                  END IF
+                  CALL add_native_grid_fields_adjoint_tile( &
+                     smooth_density_adjoint_storage, smooth_grad_adjoint_storage, &
+                     smooth_kin_adjoint_storage, smooth_rho_r(1)%pw_grid, interpolation_stencil, &
+                     composite_smooth_density_adjoint_value, &
+                     composite_smooth_gradient_adjoint_value, &
+                     composite_smooth_kin_adjoint_value, adjoint_nchannels, &
+                     adjoint_tile_lower, adjoint_tile_upper)
+               END DO
+            END DO
+!$OMP END PARALLEL DO
+            DEALLOCATE (adjoint_bin_offsets, adjoint_bin_rows)
+            smooth_input_contraction = 0.0_dp
+!$OMP PARALLEL DO SCHEDULE(STATIC) REDUCTION(+:smooth_input_contraction) &
+!$OMP PRIVATE(composite_smooth_density_value, composite_smooth_gradient_value, &
+!$OMP         composite_smooth_kin_value, idir, ispin)
             DO composite_row = 1, composite_nflat
-               adjoint_thread = 1
-!$             adjoint_thread = omp_get_thread_num() + 1
-               CALL create_native_grid_interpolation_stencil( &
-                  interpolation_stencil, smooth_rho_r(1)%pw_grid, cell, &
-                  composite_grid_coords(:, composite_row), image_partition_atom_composite)
                composite_smooth_density_value = composite_smooth_density_cache(composite_row, :)
                composite_smooth_gradient_value = &
                   composite_smooth_gradient_cache(composite_row, :, :)
                composite_smooth_kin_value = composite_smooth_kin_cache(composite_row, :)
-               IF (lsd) THEN
-                  adjoint_nchannels = 2
-                  composite_smooth_density_adjoint_value = &
-                     composite_density_grad(composite_row, :)
-                  composite_smooth_gradient_adjoint_value = &
-                     composite_grad_grad(composite_row, :, :)
-                  composite_smooth_kin_adjoint_value = composite_kin_grad(composite_row, :)
-               ELSE
-                  adjoint_nchannels = 1
-                  composite_smooth_density_adjoint_value = 0.0_dp
-                  composite_smooth_gradient_adjoint_value = 0.0_dp
-                  composite_smooth_kin_adjoint_value = 0.0_dp
-                  composite_smooth_density_adjoint_value(1) = &
-                     SUM(composite_density_grad(composite_row, :))
-                  composite_smooth_gradient_adjoint_value(:, 1) = &
-                     SUM(composite_grad_grad(composite_row, :, :), DIM=2)
-                  composite_smooth_kin_adjoint_value(1) = &
-                     SUM(composite_kin_grad(composite_row, :))
-               END IF
-               CALL add_native_grid_fields_adjoint( &
-                  smooth_density_adjoint_thread(:, :, adjoint_thread), &
-                  smooth_grad_adjoint_thread(:, :, :, adjoint_thread), &
-                  smooth_kin_adjoint_thread(:, :, adjoint_thread), &
-                  smooth_rho_r(1)%pw_grid, interpolation_stencil, &
-                  composite_smooth_density_adjoint_value, &
-                  composite_smooth_gradient_adjoint_value, &
-                  composite_smooth_kin_adjoint_value, adjoint_nchannels)
                DO ispin = 1, 2
                   IF (lsd) THEN
-                     smooth_input_contraction_thread(adjoint_thread) = &
-                        smooth_input_contraction_thread(adjoint_thread) + &
-                        composite_density_grad(composite_row, ispin)* &
-                        composite_smooth_density_value(ispin) + &
-                        composite_kin_grad(composite_row, ispin)* &
-                        composite_smooth_kin_value(ispin)
+                     smooth_input_contraction = smooth_input_contraction + &
+                                                composite_density_grad(composite_row, ispin)* &
+                                                composite_smooth_density_value(ispin) + &
+                                                composite_kin_grad(composite_row, ispin)* &
+                                                composite_smooth_kin_value(ispin)
                      DO idir = 1, 3
-                        smooth_input_contraction_thread(adjoint_thread) = &
-                           smooth_input_contraction_thread(adjoint_thread) + &
-                           composite_grad_grad(composite_row, idir, ispin)* &
-                           composite_smooth_gradient_value(idir, ispin)
+                        smooth_input_contraction = smooth_input_contraction + &
+                                                   composite_grad_grad(composite_row, idir, ispin)* &
+                                                   composite_smooth_gradient_value(idir, ispin)
                      END DO
                   ELSE
-                     smooth_input_contraction_thread(adjoint_thread) = &
-                        smooth_input_contraction_thread(adjoint_thread) + 0.5_dp*( &
-                        composite_density_grad(composite_row, ispin)* &
-                        composite_smooth_density_value(1) + &
-                        composite_kin_grad(composite_row, ispin)* &
-                        composite_smooth_kin_value(1))
+                     smooth_input_contraction = smooth_input_contraction + 0.5_dp*( &
+                                                composite_density_grad(composite_row, ispin)* &
+                                                composite_smooth_density_value(1) + &
+                                                composite_kin_grad(composite_row, ispin)* &
+                                                composite_smooth_kin_value(1))
                      DO idir = 1, 3
-                        smooth_input_contraction_thread(adjoint_thread) = &
-                           smooth_input_contraction_thread(adjoint_thread) + 0.5_dp* &
-                           composite_grad_grad(composite_row, idir, ispin)* &
-                           composite_smooth_gradient_value(idir, 1)
+                        smooth_input_contraction = smooth_input_contraction + 0.5_dp* &
+                                                   composite_grad_grad(composite_row, idir, ispin)* &
+                                                   composite_smooth_gradient_value(idir, 1)
                      END DO
                   END IF
                END DO
             END DO
 !$OMP END PARALLEL DO
-!$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(adjoint_thread)
-            DO ipt = 1, composite_pw_nflat
-               DO adjoint_thread = 2, adjoint_nthreads
-                  smooth_density_adjoint_thread(ipt, :, 1) = &
-                     smooth_density_adjoint_thread(ipt, :, 1) + &
-                     smooth_density_adjoint_thread(ipt, :, adjoint_thread)
-                  smooth_grad_adjoint_thread(ipt, :, :, 1) = &
-                     smooth_grad_adjoint_thread(ipt, :, :, 1) + &
-                     smooth_grad_adjoint_thread(ipt, :, :, adjoint_thread)
-                  smooth_kin_adjoint_thread(ipt, :, 1) = &
-                     smooth_kin_adjoint_thread(ipt, :, 1) + &
-                     smooth_kin_adjoint_thread(ipt, :, adjoint_thread)
-               END DO
-            END DO
-!$OMP END PARALLEL DO
-            smooth_density_adjoint => smooth_density_adjoint_thread(:, :, 1)
-            smooth_grad_adjoint => smooth_grad_adjoint_thread(:, :, :, 1)
-            smooth_kin_adjoint => smooth_kin_adjoint_thread(:, :, 1)
-            smooth_input_contraction = SUM(smooth_input_contraction_thread)
-            DEALLOCATE (smooth_input_contraction_thread)
+            smooth_density_adjoint => smooth_density_adjoint_storage
+            smooth_grad_adjoint => smooth_grad_adjoint_storage
+            smooth_kin_adjoint => smooth_kin_adjoint_storage
             ! The interpolation transpose still uses CP2K's global FFT-grid layout. Reduce only
             ! this PW adjoint; atom-grid feature rows and their model derivatives stay rank-local.
             CALL para_env%sum(smooth_density_adjoint)
@@ -2065,8 +2058,8 @@ CONTAINS
                smooth_density_adjoint, smooth_grad_adjoint, smooth_kin_adjoint, &
                xc_deriv_method_id, global_grid_layout=.TRUE.)
             NULLIFY (smooth_density_adjoint, smooth_grad_adjoint, smooth_kin_adjoint)
-            DEALLOCATE (smooth_density_adjoint_thread, smooth_grad_adjoint_thread, &
-                        smooth_kin_adjoint_thread)
+            DEALLOCATE (smooth_density_adjoint_storage, smooth_grad_adjoint_storage, &
+                        smooth_kin_adjoint_storage)
             smooth_grid_contraction = 0.0_dp
             DO ispin = 1, nspins
                smooth_grid_contraction = smooth_grid_contraction + smooth_rho_r(1)%pw_grid%dvol* &
@@ -2879,19 +2872,20 @@ CONTAINS
 !> \param cell ...
 !> \param point ...
 !> \param wrap_auxiliary_cell wrap all auxiliary-grid directions
+!> \param indices_only skip interpolation weights when only grid indices are needed
 ! **************************************************************************************************
    SUBROUTINE create_native_grid_interpolation_stencil(stencil, pw_grid, cell, point, &
-                                                       wrap_auxiliary_cell)
+                                                       wrap_auxiliary_cell, indices_only)
       TYPE(native_grid_interpolation_stencil_type), &
          INTENT(OUT)                                     :: stencil
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
       TYPE(cell_type), INTENT(IN), POINTER               :: cell
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: point
-      LOGICAL, INTENT(IN), OPTIONAL                      :: wrap_auxiliary_cell
+      LOGICAL, INTENT(IN), OPTIONAL                      :: wrap_auxiliary_cell, indices_only
 
       INTEGER                                            :: idir, inode, relative_index
       INTEGER, DIMENSION(3)                              :: base
-      LOGICAL                                            :: wrap_grid
+      LOGICAL                                            :: build_weights, wrap_grid
       REAL(KIND=dp), DIMENSION(3)                        :: fraction, relative
 
       CPASSERT(ASSOCIATED(pw_grid))
@@ -2899,6 +2893,8 @@ CONTAINS
       stencil%active = .FALSE.
       stencil%valid = .FALSE.
       stencil%weight = 0.0_dp
+      build_weights = .TRUE.
+      IF (PRESENT(indices_only)) build_weights = .NOT. indices_only
       wrap_grid = ANY(cell%perd == 0)
       IF (PRESENT(wrap_auxiliary_cell)) wrap_grid = wrap_auxiliary_cell
       relative = MATMUL(pw_grid%dh_inv, point)
@@ -2912,7 +2908,9 @@ CONTAINS
          END IF
          base(idir) = FLOOR(relative(idir))
          FRACTION(idir) = relative(idir) - REAL(base(idir), KIND=dp)
-         CALL native_grid_lagrange_weights(FRACTION(idir), stencil%weight(:, idir))
+         IF (build_weights) THEN
+            CALL native_grid_lagrange_weights(FRACTION(idir), stencil%weight(:, idir))
+         END IF
          DO inode = 1, native_grid_interp_npts
             relative_index = base(idir) + native_grid_interp_offset_min + inode - 1
             IF (cell%perd(idir) == 1 .OR. wrap_grid) THEN
@@ -2986,7 +2984,139 @@ CONTAINS
    END SUBROUTINE interpolate_native_grid_fields
 
 ! **************************************************************************************************
-!> \brief Apply one interpolation transpose jointly to all primitive-field adjoints.
+!> \brief Group atom-grid rows by the disjoint PW tiles touched by their interpolation stencils.
+!> \param pw_grid ...
+!> \param cell ...
+!> \param points atom-grid coordinates
+!> \param wrap_auxiliary_cell wrap all auxiliary-grid directions
+!> \param tile_count number of tiles along each PW-grid direction
+!> \param bin_offsets CSR offsets into bin_rows
+!> \param bin_rows atom-grid rows touching each tile
+! **************************************************************************************************
+   SUBROUTINE build_native_grid_adjoint_bins(pw_grid, cell, points, wrap_auxiliary_cell, &
+                                             tile_count, bin_offsets, bin_rows)
+      TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: points
+      LOGICAL, INTENT(IN)                                :: wrap_auxiliary_cell
+      INTEGER, DIMENSION(3), INTENT(OUT)                 :: tile_count
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: bin_offsets, bin_rows
+
+      INTEGER                                            :: candidate, ibin, idir, inode, irow, ix, &
+                                                            iy, iz, nbin, ntouched, position
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bin_counts, bin_cursor, row_bin_count
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: row_bins
+      INTEGER, DIMENSION(3)                              :: touched_count
+      INTEGER, DIMENSION(&
+         native_grid_adjoint_max_tiles_per_direction, 3) :: touched_tiles
+      TYPE(native_grid_interpolation_stencil_type)       :: stencil
+
+      CPASSERT(ASSOCIATED(pw_grid))
+      CPASSERT(ASSOCIATED(cell))
+      CPASSERT(SIZE(points, 1) == 3)
+      tile_count = (pw_grid%npts + native_grid_adjoint_tile_edge - 1)/ &
+                   native_grid_adjoint_tile_edge
+      nbin = PRODUCT(tile_count)
+      ALLOCATE (row_bin_count(SIZE(points, 2)), &
+                row_bins(native_grid_adjoint_max_bins_per_row, SIZE(points, 2)))
+      row_bin_count = 0
+      row_bins = 0
+!$OMP PARALLEL DO SCHEDULE(STATIC) &
+!$OMP PRIVATE(candidate, idir, inode, ix, iy, iz, ntouched, stencil, &
+!$OMP         touched_count, touched_tiles)
+      DO irow = 1, SIZE(points, 2)
+         CALL create_native_grid_interpolation_stencil( &
+            stencil, pw_grid, cell, points(:, irow), wrap_auxiliary_cell, indices_only=.TRUE.)
+         IF (.NOT. stencil%active) CYCLE
+         touched_count = 0
+         touched_tiles = 0
+         DO idir = 1, 3
+            DO inode = 1, native_grid_interp_npts
+               IF (.NOT. stencil%valid(inode, idir)) CYCLE
+               candidate = stencil%relative_index(inode, idir)/native_grid_adjoint_tile_edge + 1
+               IF (ALL(touched_tiles(1:touched_count(idir), idir) /= candidate)) THEN
+                  touched_count(idir) = touched_count(idir) + 1
+                  CPASSERT(touched_count(idir) <= SIZE(touched_tiles, 1))
+                  touched_tiles(touched_count(idir), idir) = candidate
+               END IF
+            END DO
+         END DO
+         ntouched = 0
+         DO iz = 1, touched_count(3)
+            DO iy = 1, touched_count(2)
+               DO ix = 1, touched_count(1)
+                  ntouched = ntouched + 1
+                  CPASSERT(ntouched <= native_grid_adjoint_max_bins_per_row)
+                  row_bins(ntouched, irow) = 1 + touched_tiles(ix, 1) - 1 + tile_count(1)*( &
+                                             touched_tiles(iy, 2) - 1 + tile_count(2)*( &
+                                             touched_tiles(iz, 3) - 1))
+               END DO
+            END DO
+         END DO
+         row_bin_count(irow) = ntouched
+      END DO
+!$OMP END PARALLEL DO
+
+      ALLOCATE (bin_counts(nbin), bin_cursor(nbin), bin_offsets(nbin + 1))
+      bin_counts = 0
+      DO irow = 1, SIZE(points, 2)
+         DO ibin = 1, row_bin_count(irow)
+            bin_counts(row_bins(ibin, irow)) = bin_counts(row_bins(ibin, irow)) + 1
+         END DO
+      END DO
+      bin_offsets(1) = 1
+      DO ibin = 1, nbin
+         bin_offsets(ibin + 1) = bin_offsets(ibin) + bin_counts(ibin)
+      END DO
+      ALLOCATE (bin_rows(bin_offsets(nbin + 1) - 1))
+      bin_cursor(:) = bin_offsets(1:nbin)
+      DO irow = 1, SIZE(points, 2)
+         DO ibin = 1, row_bin_count(irow)
+            candidate = row_bins(ibin, irow)
+            position = bin_cursor(candidate)
+            bin_rows(position) = irow
+            bin_cursor(candidate) = position + 1
+         END DO
+      END DO
+      DEALLOCATE (bin_counts, bin_cursor, row_bin_count, row_bins)
+
+   END SUBROUTINE build_native_grid_adjoint_bins
+
+! **************************************************************************************************
+!> \brief Return the inclusive PW-grid bounds owned by one linear tile index.
+!> \param pw_grid ...
+!> \param tile_index linear tile index
+!> \param tile_count number of tiles along each PW-grid direction
+!> \param tile_lower zero-based lower grid index
+!> \param tile_upper zero-based upper grid index
+! **************************************************************************************************
+   SUBROUTINE native_grid_adjoint_tile_bounds(pw_grid, tile_index, tile_count, &
+                                              tile_lower, tile_upper)
+      TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
+      INTEGER, INTENT(IN)                                :: tile_index
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: tile_count
+      INTEGER, DIMENSION(3), INTENT(OUT)                 :: tile_lower, tile_upper
+
+      INTEGER                                            :: linear_tile
+      INTEGER, DIMENSION(3)                              :: expected_tile_count, tile_coord
+
+      CPASSERT(ASSOCIATED(pw_grid))
+      expected_tile_count = (pw_grid%npts + native_grid_adjoint_tile_edge - 1)/ &
+                            native_grid_adjoint_tile_edge
+      CPASSERT(ALL(tile_count == expected_tile_count))
+      CPASSERT(tile_index >= 1 .AND. tile_index <= PRODUCT(tile_count))
+      linear_tile = tile_index - 1
+      tile_coord(1) = MOD(linear_tile, tile_count(1))
+      linear_tile = linear_tile/tile_count(1)
+      tile_coord(2) = MOD(linear_tile, tile_count(2))
+      tile_coord(3) = linear_tile/tile_count(2)
+      tile_lower = tile_coord*native_grid_adjoint_tile_edge
+      tile_upper = MIN(tile_lower + native_grid_adjoint_tile_edge - 1, pw_grid%npts - 1)
+
+   END SUBROUTINE native_grid_adjoint_tile_bounds
+
+! **************************************************************************************************
+!> \brief Apply the primitive-field interpolation transpose inside one disjoint PW tile.
 !> \param density ...
 !> \param grad ...
 !> \param kin ...
@@ -2996,9 +3126,12 @@ CONTAINS
 !> \param grad_value ...
 !> \param kin_value ...
 !> \param nchannels number of spin channels accumulated by the adjoint
+!> \param tile_lower zero-based lower grid index owned by this call
+!> \param tile_upper zero-based upper grid index owned by this call
 ! **************************************************************************************************
-   SUBROUTINE add_native_grid_fields_adjoint(density, grad, kin, pw_grid, stencil, &
-                                             density_value, grad_value, kin_value, nchannels)
+   SUBROUTINE add_native_grid_fields_adjoint_tile( &
+      density, grad, kin, pw_grid, stencil, density_value, grad_value, kin_value, nchannels, &
+      tile_lower, tile_upper)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: density
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: grad
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: kin
@@ -3009,6 +3142,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: grad_value
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: kin_value
       INTEGER, INTENT(IN)                                :: nchannels
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: tile_lower, tile_upper
 
       INTEGER                                            :: idir, inode_x, inode_y, inode_z, ipt, &
                                                             ispin
@@ -3027,16 +3161,22 @@ CONTAINS
       CPASSERT(ALL(SHAPE(grad_value) == [3, 2]))
       CPASSERT(SIZE(kin_value) == 2)
       CPASSERT(nchannels >= 1 .AND. nchannels <= 2)
+      CPASSERT(ALL(tile_lower >= 0))
+      CPASSERT(ALL(tile_upper >= tile_lower))
+      CPASSERT(ALL(tile_upper < pw_grid%npts))
       IF (.NOT. stencil%active) RETURN
       DO inode_z = 1, native_grid_interp_npts
          IF (.NOT. stencil%valid(inode_z, 3)) CYCLE
          relative_index(3) = stencil%relative_index(inode_z, 3)
+         IF (relative_index(3) < tile_lower(3) .OR. relative_index(3) > tile_upper(3)) CYCLE
          DO inode_y = 1, native_grid_interp_npts
             IF (.NOT. stencil%valid(inode_y, 2)) CYCLE
             relative_index(2) = stencil%relative_index(inode_y, 2)
+            IF (relative_index(2) < tile_lower(2) .OR. relative_index(2) > tile_upper(2)) CYCLE
             DO inode_x = 1, native_grid_interp_npts
                IF (.NOT. stencil%valid(inode_x, 1)) CYCLE
                relative_index(1) = stencil%relative_index(inode_x, 1)
+               IF (relative_index(1) < tile_lower(1) .OR. relative_index(1) > tile_upper(1)) CYCLE
                ipt = 1 + relative_index(1) + pw_grid%npts(1)*( &
                      relative_index(2) + pw_grid%npts(2)*relative_index(3))
                coefficient = stencil%weight(inode_x, 1)* &
@@ -3054,7 +3194,7 @@ CONTAINS
          END DO
       END DO
 
-   END SUBROUTINE add_native_grid_fields_adjoint
+   END SUBROUTINE add_native_grid_fields_adjoint_tile
 
 ! **************************************************************************************************
 !> \brief Interpolate a replicated native-grid field at a Cartesian point.
