@@ -966,12 +966,27 @@ CONTAINS
                         composite_image_periodicity, composite_descriptor_image_coords, &
                         composite_descriptor_target_image)
                   END IF
-!$OMP PARALLEL DO COLLAPSE(2) IF (image_partition_atom_composite) SCHEDULE(STATIC) &
+!$OMP PARALLEL DO COLLAPSE(2) IF (image_partition_atom_composite) SCHEDULE(STATIC) DEFAULT(NONE) &
 !$OMP PRIVATE(composite_row, composite_point, composite_smooth_density_value, &
 !$OMP         composite_smooth_gradient_value, composite_smooth_kin_value, &
 !$OMP         descriptor_window_weight, idir, ispin, &
 !$OMP         gth_potential, nlcc_density, nlcc_gradient, nlcc_hessian, nlcc_spin_factor, &
-!$OMP         interpolation_stencil, partition_scale, partition_weight, sgp_potential, source_atom)
+!$OMP         interpolation_stencil, partition_scale, partition_weight, sgp_potential, source_atom) &
+!$OMP SHARED(atom_composite_reference, cell, composite_atom_coords, composite_atom_kind, &
+!$OMP        composite_atom_start, composite_atomic_grid_weights, composite_base_grid_weights, &
+!$OMP        composite_density, composite_descriptor_image_coords, &
+!$OMP        composite_descriptor_target_image, composite_distances, composite_grad, &
+!$OMP        composite_grid_coords, composite_grid_weights, composite_kin, &
+!$OMP        composite_partition_atom_coords, composite_partition_image_coords, &
+!$OMP        composite_partition_target_image, composite_partition_weights, &
+!$OMP        composite_smooth_density_cache, composite_smooth_drho, composite_smooth_drhoa, &
+!$OMP        composite_smooth_drhob, composite_smooth_gradient_cache, &
+!$OMP        composite_smooth_kin_cache, composite_smooth_rho, composite_smooth_rhoa, &
+!$OMP        composite_smooth_rhob, composite_smooth_tau, composite_smooth_tau_a, &
+!$OMP        composite_smooth_tau_b, drho_h, drho_s, grid_atom, iatom, &
+!$OMP        image_partition_atom_composite, lsd, my_kind_set, na, nlcc, nr, one_center_kind, &
+!$OMP        particle_set, rho_h, rho_s, smooth_rho_r, tau_h, tau_s, &
+!$OMP        use_atom_composite_density, use_atom_composite_gradient, use_atom_composite_tau)
                   DO ir = 1, nr
                      DO ia = 1, na
                         composite_row = composite_atom_start(iatom) + (ir - 1)*na + ia - 1
@@ -1463,9 +1478,14 @@ CONTAINS
                composite_feature_virial = 0.0_dp
                composite_interpolation_virial = 0.0_dp
                composite_partition_strain_virial = 0.0_dp
-!$OMP PARALLEL DO IF (image_partition_atom_composite) SCHEDULE(STATIC) &
+!$OMP PARALLEL DO IF (image_partition_atom_composite) SCHEDULE(STATIC) DEFAULT(NONE) &
 !$OMP PRIVATE(composite_local_atom, composite_row, composite_smooth_gradient_value, &
-!$OMP         iatom, idir, ispin, jdir) REDUCTION(+:composite_feature_virial)
+!$OMP         iatom, idir, ispin, jdir) &
+!$OMP SHARED(cell, composite_atom_end, composite_atom_start, composite_grad_grad, &
+!$OMP        composite_grid_coords, composite_local_atoms, composite_local_natom, &
+!$OMP        composite_smooth_drho, composite_smooth_drhoa, composite_smooth_drhob, &
+!$OMP        image_partition_atom_composite, lsd, smooth_rho_r) &
+!$OMP REDUCTION(+:composite_feature_virial)
                DO composite_local_atom = 1, composite_local_natom
                   iatom = composite_local_atoms(composite_local_atom)
                   DO composite_row = composite_atom_start(iatom), composite_atom_end(iatom)
@@ -1504,14 +1524,28 @@ CONTAINS
                   END DO
                END DO
 !$OMP END PARALLEL DO
-!$OMP PARALLEL IF (image_partition_atom_composite) &
+!$OMP PARALLEL IF (image_partition_atom_composite) DEFAULT(NONE) &
 !$OMP PRIVATE(composite_local_atom, composite_row, descriptor_window_adjoint, &
 !$OMP         descriptor_window_weight, gth_potential, iatom, idir, ispin, jdir, &
 !$OMP         nlcc_density, nlcc_gradient, nlcc_hessian, nlcc_spatial_derivative, &
 !$OMP         nlcc_spin_factor, partition_adjoint, composite_nlcc_center_force_local, &
 !$OMP         composite_partition_force_local, sgp_potential, source_atom, &
 !$OMP         spatial_derivative, target_atom, target_partition_adjoint) &
-!$OMP REDUCTION(+:composite_interpolation_virial, composite_partition_strain_virial)
+!$OMP REDUCTION(+:composite_interpolation_virial, composite_partition_strain_virial) &
+!$OMP SHARED(cell, composite_atom_coord_grad, composite_atom_coords, composite_atom_end, &
+!$OMP        composite_atom_kind, composite_atom_start, composite_atomic_grid_weight_grad, &
+!$OMP        composite_atomic_grid_weights, composite_base_grid_weights, composite_density_grad, &
+!$OMP        composite_grad_grad, composite_grid_coord_force, composite_grid_coord_grad, &
+!$OMP        composite_grid_coords, composite_grid_weight_grad, composite_image_periodicity, &
+!$OMP        composite_kin_grad, composite_local_atoms, composite_local_natom, &
+!$OMP        composite_model_atom_force, composite_moving_smooth_force, &
+!$OMP        composite_nlcc_center_force, composite_nlcc_target_force, composite_partition_datom, &
+!$OMP        composite_partition_dstrain, composite_partition_force, composite_partition_included, &
+!$OMP        composite_partition_weights, composite_smooth_drho, composite_smooth_drhoa, &
+!$OMP        composite_smooth_drhob, composite_smooth_rho, composite_smooth_rhoa, &
+!$OMP        composite_smooth_rhob, composite_smooth_tau, composite_smooth_tau_a, &
+!$OMP        composite_smooth_tau_b, image_partition_atom_composite, lsd, my_kind_set, nlcc, &
+!$OMP        particle_set, smooth_rho_r)
                ALLOCATE (composite_nlcc_center_force_local(3, SIZE(particle_set)), &
                          composite_partition_force_local(3, SIZE(particle_set)))
                composite_nlcc_center_force_local = 0.0_dp
@@ -1995,10 +2029,15 @@ CONTAINS
                image_partition_atom_composite, adjoint_tile_count, adjoint_bin_offsets, &
                adjoint_bin_rows)
             adjoint_nbins = SIZE(adjoint_bin_offsets) - 1
-!$OMP PARALLEL DO SCHEDULE(DYNAMIC) &
+!$OMP PARALLEL DO SCHEDULE(DYNAMIC) DEFAULT(NONE) &
 !$OMP PRIVATE(adjoint_entry, composite_row, composite_smooth_density_adjoint_value, &
 !$OMP         composite_smooth_gradient_adjoint_value, composite_smooth_kin_adjoint_value, &
-!$OMP         adjoint_tile_lower, adjoint_tile_upper, interpolation_stencil)
+!$OMP         adjoint_tile_lower, adjoint_tile_upper, interpolation_stencil) &
+!$OMP SHARED(adjoint_bin_offsets, adjoint_bin_rows, adjoint_nbins, adjoint_nchannels, &
+!$OMP        adjoint_tile_count, cell, composite_density_grad, composite_grad_grad, &
+!$OMP        composite_grid_coords, composite_kin_grad, image_partition_atom_composite, lsd, &
+!$OMP        smooth_density_adjoint_storage, smooth_grad_adjoint_storage, &
+!$OMP        smooth_kin_adjoint_storage, smooth_rho_r)
             DO adjoint_bin = 1, adjoint_nbins
                CALL native_grid_adjoint_tile_bounds( &
                   smooth_rho_r(1)%pw_grid, adjoint_bin, adjoint_tile_count, &
@@ -2038,9 +2077,12 @@ CONTAINS
 !$OMP END PARALLEL DO
             DEALLOCATE (adjoint_bin_offsets, adjoint_bin_rows)
             smooth_input_contraction = 0.0_dp
-!$OMP PARALLEL DO SCHEDULE(STATIC) REDUCTION(+:smooth_input_contraction) &
+!$OMP PARALLEL DO SCHEDULE(STATIC) REDUCTION(+:smooth_input_contraction) DEFAULT(NONE) &
 !$OMP PRIVATE(composite_smooth_density_value, composite_smooth_gradient_value, &
-!$OMP         composite_smooth_kin_value, idir, ispin)
+!$OMP         composite_smooth_kin_value, idir, ispin) &
+!$OMP SHARED(composite_density_grad, composite_grad_grad, composite_kin_grad, composite_nflat, &
+!$OMP        composite_smooth_density_cache, composite_smooth_gradient_cache, &
+!$OMP        composite_smooth_kin_cache, lsd)
             DO composite_row = 1, composite_nflat
                composite_smooth_density_value = composite_smooth_density_cache(composite_row, :)
                composite_smooth_gradient_value = &
@@ -3050,9 +3092,10 @@ CONTAINS
                 row_bins(native_grid_adjoint_max_bins_per_row, SIZE(points, 2)))
       row_bin_count = 0
       row_bins = 0
-!$OMP PARALLEL DO SCHEDULE(STATIC) &
+!$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE) &
 !$OMP PRIVATE(candidate, idir, inode, ix, iy, iz, ntouched, stencil, &
-!$OMP         touched_count, touched_tiles)
+!$OMP         touched_count, touched_tiles) &
+!$OMP SHARED(cell, points, pw_grid, row_bin_count, row_bins, tile_count, wrap_auxiliary_cell)
       DO irow = 1, SIZE(points, 2)
          CALL create_native_grid_interpolation_stencil( &
             stencil, pw_grid, cell, points(:, irow), wrap_auxiliary_cell, indices_only=.TRUE.)
