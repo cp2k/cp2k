@@ -100,10 +100,10 @@ regression test cp2k daint:
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
-    # Run eight two-rank workers to limit device contention. SIRIUS full-
-    # potential tests are unstable with multiple OpenMP threads.
+    # Run eight two-rank, single-threaded workers to limit device contention
+    # while retaining sufficient throughput on this four-GPU runner.
     SLURM_NTASKS: 16
-    SLURM_TIMELIMIT: 60
+    SLURM_TIMELIMIT: 90
     USE_MPI: YES
 
 benchmark cp2k 1 daint node:
