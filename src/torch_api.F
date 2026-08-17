@@ -1170,7 +1170,8 @@ CONTAINS
       CALL timestop(handle)
 #else
       CPABORT("CP2K was compiled without Torch library.")
-      MARK_USED(model, method_name)
+      MARK_USED(method_name)
+      MARK_USED(model)
 #endif
    END SUBROUTINE torch_model_freeze_preserving_method
 
