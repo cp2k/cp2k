@@ -40,8 +40,7 @@ MODULE rtp_admm_methods
                                               section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mathconstants,                   ONLY: one,&
-                                              zero
+   USE mathconstants,                   ONLY: zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_types,                        ONLY: pw_c1d_gs_type,&

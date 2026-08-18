@@ -7,7 +7,7 @@
 &MOTION
   &MD
     STEPS 6
-     TIMESTEP [fs] 0.0012
+    TIMESTEP [fs] 0.0012
   &END MD
 &END MOTION
 
@@ -18,35 +18,39 @@
     BASIS_SET_FILE_NAME BASIS_ADMM
     POTENTIAL_FILE_NAME POTENTIAL
     UKS
+    &AUXILIARY_DENSITY_MATRIX_METHOD  ! For hybrid functionals, it is recommended to choose ADMM
+      ##      EXCH_SCALING_MODEL NONE              ! identical
+      ##      EXCH_CORRECTION_FUNC NONE            ! Triple-zeta auxiliary basis sets are recommended (see below)
+      ADMM_PURIFICATION_METHOD NONE  ! For periodic systems (see below), only specific ADMM options
+      ADMM_TYPE ADMM1
+      METHOD BASIS_PROJECTION  ! the ADMM environment for ground and excited state has to be
+    &END AUXILIARY_DENSITY_MATRIX_METHOD
+    &EFIELD
+      ENVELOP GAUSSIAN
+      INTENSITY 1E12
+      POLARISATION 0. 0. 1.
+      WAVELENGTH 517.1696908265759
+      &GAUSSIAN_ENV
+        SIGMA [fs] 2
+        T0 [fs] 7.5
+      &END GAUSSIAN_ENV
+    &END EFIELD
     &MGRID
       CUTOFF 200
     &END MGRID
     &PRINT
       &MOMENTS
-         FILENAME=output
-         PERIODIC F
-         COMMON_ITERATION_LEVELS 100000
-         &EACH
-            MD 1
-         &END EACH
+        COMMON_ITERATION_LEVELS 100000
+        FILENAME=OUTPUT
+        PERIODIC F
+        &EACH
+          MD 1
+        &END EACH
       &END MOMENTS
     &END PRINT
     &QS
-     METHOD GAPW
+      METHOD GAPW
     &END QS
-
-    &EFIELD
-     ENVELOP GAUSSIAN
-     INTENSITY 1E12
-    POLARISATION 0. 0. 1.
-     WAVELENGTH 517.1696908265759
-     &GAUSSIAN_ENV
-      SIGMA [fs]  2
-      T0 [fs] 7.5
-     &END
-    &END EFIELD
-
-
     &REAL_TIME_PROPAGATION
       EPS_ITER 1.0E-12
       EXP_ACCURACY 1.0E-8
@@ -62,28 +66,16 @@
       MAX_SCF 100
       SCF_GUESS ATOMIC
       &DIAGONALIZATION
-      &END
+      &END DIAGONALIZATION
     &END SCF
     &XC
-          
-     # &XC_GRID
-     #   XC_SMOOTH_RHO SPLINE3
-     #   XC_DERIV  SPLINE3_SMOOTH
+      # &XC_GRID
+      #   XC_SMOOTH_RHO SPLINE3
+      #   XC_DERIV  SPLINE3_SMOOTH
       #&END XC_GRID
-               
       &XC_FUNCTIONAL PBE0
       &END XC_FUNCTIONAL
     &END XC
-
-    &AUXILIARY_DENSITY_MATRIX_METHOD       ! For hybrid functionals, it is recommended to choose ADMM
-      METHOD BASIS_PROJECTION              ! the ADMM environment for ground and excited state has to be
-##      EXCH_SCALING_MODEL NONE              ! identical
-##      EXCH_CORRECTION_FUNC NONE            ! Triple-zeta auxiliary basis sets are recommended (see below)
-      ADMM_PURIFICATION_METHOD NONE        ! For periodic systems (see below), only specific ADMM options
-      ADMM_TYPE  ADMM1
-    &END AUXILIARY_DENSITY_MATRIX_METHOD   ! are available
-
- 
   &END DFT
   &SUBSYS
     &CELL
@@ -97,13 +89,13 @@
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-GTH
+      BASIS_SET AUX_FIT FIT3
       POTENTIAL GTH-PADE-q1
-            BASIS_SET AUX_FIT  FIT3
     &END KIND
     &KIND O
       BASIS_SET DZVP-MOLOPT-GTH
+      BASIS_SET AUX_FIT FIT3
       POTENTIAL GTH-PADE-q6
-      BASIS_SET AUX_FIT  FIT3
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
