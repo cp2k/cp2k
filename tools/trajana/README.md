@@ -1,11 +1,12 @@
 # Modular trajectory analysis tools
 
-This directory contains three standalone Fortran programs for post-processing CP2K trajectories:
+This directory contains four standalone Fortran programs for post-processing CP2K trajectories:
 
 - `trajana.x` performs geometry, RDF, VACF, hydrogen-bond, scattering, and collective-current
   analyses.
 - `trajconvert.x` wraps, unwraps, converts, and reduces trajectories to group centers.
 - `twopt.x` evaluates conventional two-phase thermodynamics directly from CP2K trajectories.
+- `fresean.x` extracts frequency-selective anharmonic vibrational modes from molecular dynamics.
 
 The programs share the same XYZ reader, triclinic-cell geometry, frame selection, atom selection,
 and group definitions. They do not use CP2K source modules and can therefore be built independently.
@@ -121,6 +122,71 @@ interpolated FWHM and the corresponding exponential-decay lifetime. Run the mode
 
 `--dt-fs` is the time between input frames. When `--stride` is used, the output time step is
 multiplied by the stride automatically.
+
+## Frequency-selective anharmonic modes
+
+`fresean.x` implements the vibrational-analysis part of FREquency-SElective ANharmonic (FRESEAN)
+mode analysis directly for CP2K trajectories. It forms the mass-weighted velocity cross-correlation
+matrix at every sampled frequency, convolves it with a Gaussian spectral window, and diagonalizes
+the resulting real symmetric matrix. Its eigenvectors identify collective motions contributing at a
+chosen frequency without a harmonic or quasi-harmonic approximation.
+
+```console
+./fresean.x \
+  --velocity PROJECT-vel-1.xyz \
+  --position PROJECT-pos-1.xyz \
+  --reference reference.xyz \
+  --mass-file masses.dat \
+  --dt-fs 0.5 \
+  --correlation-frames 500 \
+  --sigma-cm 10 \
+  --frequency-cm 50 \
+  --mode-count 10 \
+  --output fresean-eigenvalues.dat \
+  --mode-file fresean-modes.xyz \
+  --mode-spectrum fresean-mode-spectra.dat
+```
+
+The position and velocity files must contain synchronized frames with identical atom ordering.
+Supplying `--position` enables the mass-weighted rotational fit used by FRESEAN: each selected
+structure is aligned to `--reference`, and the same rotation is applied to its velocities. The first
+selected position frame is the default reference. Molecules must be whole before fitting; use
+`trajconvert.x unwrap` first when periodic crossings occur. Without positions, velocities are
+analyzed in their input orientation, which is appropriate only when overall rotation has already
+been removed or is intentionally part of the analysis.
+
+The mass file uses the same `LABEL MASS[g/mol]` format as `twopt.x`. CP2K's default `bohr/au_time`
+velocity unit is assumed; `--velocity-unit angstrom/ps` and `angstrom/fs` are also available. The
+reported kinetic temperature is a sampling diagnostic inferred from the selected mass-weighted
+velocities. Use `--constraints N` when constraints reduce the selected degrees of freedom; a
+fractional value is accepted for a subsystem whose center-of-mass constraint is shared with the
+surrounding system. `--remove-mean` is optional because solute translation can be a physically
+meaningful zero-frequency contribution.
+
+The main output contains the total VDoS, the largest eigenvalues, and their retained fraction at
+every frequency. It is normalized so that summing the total positive-frequency VDoS gives the
+effective number of selected degrees of freedom. `--mode-file` writes the leading eigenvectors at
+the closest sampled frequency to `--frequency-cm`; components are divided by the square root of the
+atomic mass so that they are suitable as displacement vectors. `--mode-spectrum` evaluates
+`q^T C(omega) q` for those fixed modes over the full spectrum.
+
+The exact discrete procedure follows the equations and normalization demonstrated in the
+[FRESEAN tutorial](https://github.com/HeydenLabASU-collab/FRESEAN-tutorial), including the symmetric
+correlation interval of length `2*correlation-frames-1` and Gaussian convolution. The arbitrary-size
+FFT and symmetric eigensolver are dependency-free Fortran implementations, so FFTW, GSL, GROMACS,
+and Python are not required. At least twice as many selected trajectory frames as correlation points
+are required. Matrix storage scales as `correlation-frames*(3*N_selected)^2`; use `--select` and
+verify convergence with the trajectory length, correlation time, Gaussian width, and selection.
+
+The method was introduced by Sauer and Heyden,
+[*J. Chem. Theory Comput.* **19**, 5481-5490 (2023)](https://doi.org/10.1021/acs.jctc.2c01309). The
+independent implementation was cross-checked against the vibrational matrix/eigenvector path in the
+[reference repository](https://github.com/HeydenLabASU-collab/FRESEAN-metadynamics). Its
+protein-specific coarse graining, mode-to-COLVAR conversion, PLUMED input, DCCM, resampling,
+reweighting, and metadynamics workflows are intentionally outside this trajectory-analysis tool. The
+optional generalized-normal-mode joint diagonalization is a separate approximation and is not used.
+The tutorial's clustering example is deliberately not automated because its authors describe the
+cutoff-based procedure as an exploratory example rather than a general analysis recipe.
 
 ## Two-phase thermodynamics
 

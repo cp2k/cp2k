@@ -10,6 +10,7 @@ TOOL_DIR = Path(__file__).resolve().parents[1]
 TRAJANA = TOOL_DIR / "trajana.x"
 TRAJCONVERT = TOOL_DIR / "trajconvert.x"
 TWOPT = TOOL_DIR / "twopt.x"
+FRESEAN = TOOL_DIR / "fresean.x"
 CELL = "10 0 0 0 10 0 0 0 10"
 
 
@@ -56,6 +57,156 @@ def named_data_lines(path):
 
 
 class TrajectoryToolTests(unittest.TestCase):
+    def test_fresean_rank_one_mode_and_sum_rule(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            velocities = root / "rank-one-vel.xyz"
+            frames = 40
+            velocities.write_text(
+                "".join(
+                    "2\nframe {frame}\nA {speed:.16f} 0 0\nA {double:.16f} 0 0\n".format(
+                        frame=frame,
+                        speed=math.sin(2.0 * math.pi * 3.0 * frame / frames),
+                        double=2.0 * math.sin(2.0 * math.pi * 3.0 * frame / frames),
+                    )
+                    for frame in range(frames)
+                ),
+                encoding="utf8",
+            )
+            masses = root / "masses.dat"
+            masses.write_text("A 1.0\n", encoding="utf8")
+            eigenvalues = root / "fresean.dat"
+            modes = root / "modes.xyz"
+            mode_spectrum = root / "mode-spectrum.dat"
+            run(
+                str(FRESEAN),
+                "--velocity",
+                str(velocities),
+                "--velocity-unit",
+                "angstrom/ps",
+                "--mass-file",
+                str(masses),
+                "--dt-fs",
+                "1000",
+                "--correlation-frames",
+                "8",
+                "--constraints",
+                "5",
+                "--frequency-cm",
+                "4.4",
+                "--mode-count",
+                "2",
+                "--output",
+                str(eigenvalues),
+                "--mode-file",
+                str(modes),
+                "--mode-spectrum",
+                str(mode_spectrum),
+            )
+
+            values = data_lines(eigenvalues)
+            self.assertEqual(len(values), 8)
+            self.assertAlmostEqual(sum(row[2] for row in values), 1.0, places=11)
+            peak = max(values, key=lambda row: row[2])
+            self.assertAlmostEqual(peak[3], 1.0, places=10)
+            self.assertAlmostEqual(peak[2], peak[4], places=10)
+            self.assertAlmostEqual(peak[5], 0.0, places=10)
+
+            mode_frames = xyz_frames(modes)
+            self.assertEqual(len(mode_frames), 2)
+            first_mode = mode_frames[0]
+            self.assertAlmostEqual(first_mode[0][1][1], 0.0, places=12)
+            self.assertAlmostEqual(first_mode[0][1][2], 0.0, places=12)
+            self.assertAlmostEqual(
+                first_mode[1][1][0], 2.0 * first_mode[0][1][0], places=10
+            )
+
+            projected = data_lines(mode_spectrum)
+            selected_index = min(
+                range(len(values)), key=lambda index: abs(values[index][0] - 4.4)
+            )
+            self.assertAlmostEqual(
+                projected[selected_index][3], values[selected_index][4], places=10
+            )
+
+    def test_fresean_alignment_rotates_velocities(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            velocities = root / "rotating-vel.xyz"
+            positions = root / "rotating-pos.xyz"
+            reference = root / "reference.xyz"
+            frames = 40
+            labels = ("A", "B", "C")
+            reference_coordinates = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+            velocity_text = []
+            position_text = []
+            for frame in range(frames):
+                angle = 2.0 * math.pi * frame / frames
+                cosine = math.cos(angle)
+                sine = math.sin(angle)
+                amplitude = math.sin(2.0 * math.pi * 3.0 * frame / frames)
+                velocity_text.extend(("3", f"frame {frame}"))
+                position_text.extend(("3", f"frame {frame}"))
+                for atom, (label, coordinate) in enumerate(
+                    zip(labels, reference_coordinates)
+                ):
+                    x, y, z = coordinate
+                    position_text.append(
+                        f"{label} {cosine * x - sine * y:.16f} "
+                        f"{sine * x + cosine * y:.16f} {z:.16f}"
+                    )
+                    if atom == 0:
+                        velocity_text.append(
+                            f"{label} {cosine * amplitude:.16f} {sine * amplitude:.16f} 0"
+                        )
+                    else:
+                        velocity_text.append(f"{label} 0 0 0")
+            velocities.write_text("\n".join(velocity_text) + "\n", encoding="utf8")
+            positions.write_text("\n".join(position_text) + "\n", encoding="utf8")
+            reference.write_text(
+                "3\nreference\n"
+                + "\n".join(
+                    f"{label} {x} {y} {z}"
+                    for label, (x, y, z) in zip(labels, reference_coordinates)
+                )
+                + "\n",
+                encoding="utf8",
+            )
+            masses = root / "masses.dat"
+            masses.write_text("A 1\nB 1\nC 1\n", encoding="utf8")
+            modes = root / "aligned-modes.xyz"
+            run(
+                str(FRESEAN),
+                "--velocity",
+                str(velocities),
+                "--position",
+                str(positions),
+                "--reference",
+                str(reference),
+                "--velocity-unit",
+                "angstrom/ps",
+                "--mass-file",
+                str(masses),
+                "--dt-fs",
+                "1000",
+                "--correlation-frames",
+                "8",
+                "--constraints",
+                "8",
+                "--frequency-cm",
+                "2.2",
+                "--mode-count",
+                "1",
+                "--output",
+                str(root / "fresean.dat"),
+                "--mode-file",
+                str(modes),
+            )
+            mode = xyz_frames(modes)[0]
+            components = [value for _, vector in mode for value in vector]
+            self.assertGreater(abs(components[0]), 0.999999)
+            self.assertLess(max(abs(value) for value in components[1:]), 1.0e-8)
+
     def test_twopt_atomic_fluidicity_and_sum_rule(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -4,9 +4,55 @@ MODULE trajana_fft
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: fft_in_place, next_power_of_two
+   PUBLIC :: fft_any_in_place, fft_in_place, next_power_of_two
 
 CONTAINS
+
+   RECURSIVE SUBROUTINE fft_any_in_place(DATA, inverse)
+      COMPLEX(dp), INTENT(INOUT)                         :: data(:)
+      LOGICAL, INTENT(IN)                                :: inverse
+
+      COMPLEX(dp), ALLOCATABLE                           :: first(:), second(:)
+      COMPLEX(dp)                                        :: phase
+      INTEGER                                            :: index, n, nfft
+      REAL(dp)                                           :: angle, pi
+
+      n = SIZE(DATA)
+      IF (n <= 1) RETURN
+      IF (inverse) THEN
+         DATA = CONJG(DATA)
+         CALL fft_any_in_place(DATA, inverse=.FALSE.)
+         DATA = CONJG(DATA)/REAL(n, dp)
+         RETURN
+      END IF
+      IF (IAND(n, n - 1) == 0) THEN
+         CALL fft_in_place(DATA, inverse=.FALSE.)
+         RETURN
+      END IF
+
+      nfft = next_power_of_two(2*n - 1)
+      ALLOCATE (first(nfft), second(nfft))
+      first = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      second = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      pi = ACOS(-1.0_dp)
+      DO index = 0, n - 1
+         angle = pi*REAL(index, dp)*REAL(index, dp)/REAL(n, dp)
+         phase = CMPLX(COS(angle), -SIN(angle), KIND=dp)
+         first(index + 1) = DATA(index + 1)*phase
+         phase = CONJG(phase)
+         second(index + 1) = phase
+         IF (index > 0) second(nfft - index + 1) = phase
+      END DO
+      CALL fft_in_place(first, inverse=.FALSE.)
+      CALL fft_in_place(second, inverse=.FALSE.)
+      first = first*second
+      CALL fft_in_place(first, inverse=.TRUE.)
+      DO index = 0, n - 1
+         angle = pi*REAL(index, dp)*REAL(index, dp)/REAL(n, dp)
+         phase = CMPLX(COS(angle), -SIN(angle), KIND=dp)
+         DATA(index + 1) = first(index + 1)*phase
+      END DO
+   END SUBROUTINE fft_any_in_place
 
    INTEGER FUNCTION next_power_of_two(value)
       INTEGER, INTENT(IN)                                :: value
