@@ -50,7 +50,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 2.1
+# Version: 2.2
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -133,6 +133,7 @@ BENCHMARK_PROFILE=""
 BUILD_DEPS="if_needed"
 BUILD_DEPS_ONLY="no"
 BUILD_SHARED_LIBS="${BUILD_SHARED_LIBS:-ON}"
+CHECK_CONVENTIONS="no"
 CP2K_BUILD_TYPE="${CP2K_BUILD_TYPE:-Release}"
 DEPS_BUILD_TYPE="${DEPS_BUILD_TYPE:-Release}"
 CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=ON" # all features are activated by default
@@ -221,6 +222,10 @@ while [[ $# -gt 0 ]]; do
         ${EXIT_CMD} 1
       fi
       shift 2
+      ;;
+    -cc | --check_conventions)
+      CHECK_CONVENTIONS="yes"
+      shift 1
       ;;
     -cray)
       CRAY="yes"
@@ -720,10 +725,19 @@ if [[ ${TEST_GROMACS} == "yes" ]]; then
   GROMACS_VERSION=${GROMACS_VERSION:-v2026.3}
 fi
 
-export BENCHMARK_PROFILE BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU \
-  CP2K_BUILD_TYPE CRAY CUDA_SM_CODE DEPS_BUILD_TYPE GCC_VERSION GPU_MODEL GROMACS_VERSION IN_CONTAINER INSTALL_MESSAGE \
-  MPI_MODE NUM_PACKAGES NUM_PROCS REBUILD_CP2K RUN_BENCHMARK RUN_TEST TEST_GROMACS TESTOPTS USE_CACHE USE_OPENCL \
-  VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE VERBOSE_SPACK
+# Perform setup for coding conventions check
+if [[ "${CHECK_CONVENTIONS}" == "yes" ]]; then
+  CP2K_BUILD_TYPE="Conventions"
+  Fortran_COMPILER_LAUNCHER="${CP2K_ROOT}/tools/conventions/redirect_gfortran_output.py"
+else
+  Fortran_COMPILER_LAUNCHER=""
+fi
+
+export BENCHMARK_PROFILE BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CHECK_CONVENTIONS CMAKE_FEATURE_FLAGS \
+  CMAKE_FEATURE_FLAGS_GPU CP2K_BUILD_TYPE CRAY CUDA_SM_CODE DEPS_BUILD_TYPE Fortran_COMPILER_LAUNCHER \
+  GCC_VERSION GPU_MODEL GROMACS_VERSION IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PACKAGES NUM_PROCS \
+  REBUILD_CP2K RUN_BENCHMARK RUN_TEST TEST_GROMACS TESTOPTS USE_CACHE USE_OPENCL VERBOSE VERBOSE_FLAG \
+  VERBOSE_MAKEFILE VERBOSE_SPACK
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -733,6 +747,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-bp | --build_path PATH]"
   echo "                    [-bsl | --build_static_libcp2k]"
   echo "                    [-bt | --build_type (Debug | Release | RelWithDebInfo)]"
+  echo "                    [-cc | --check_conventions]"
   echo "                    [-cray]"
   echo "                    [-cv | --cp2k_version (pdbg | psmp | sdbg | ssmp | ssmp-static)]"
   echo "                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)"
@@ -761,6 +776,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --build_path          : Define the CP2K build path (default: ${CP2K_ROOT})"
   echo " --build_static_libcp2k: Build a static CP2K library libcp2k.a instead of the default shared one libcp2k.so"
   echo " --build_type          : Set preferred CMake build type for CP2K (default: \"Release\")"
+  echo " --check_conventions   : Check compliance with CP2K's coding conventions"
   echo " --cp2k_version        : CP2K version to be built (default: \"psmp\")"
   echo " -cray                 : Use Cray specific spack configuration"
   echo " --enable_feature      : Enable feature or package (default: all)"
@@ -809,6 +825,7 @@ echo "BUILD_DEPS          = ${BUILD_DEPS}"
 echo "BUILD_DEPS_ONLY     = ${BUILD_DEPS_ONLY}"
 echo "BUILD_PATH          = ${BUILD_PATH}"
 echo "BUILD_SHARED_LIBS   = ${BUILD_SHARED_LIBS}"
+echo "CHECK_CONVENTIONS   = ${CHECK_CONVENTIONS}"
 echo "CP2K_BUILD_TYPE     = ${CP2K_BUILD_TYPE}"
 echo "CMAKE_PRESET        = ${CMAKE_PRESET}"
 echo "CP2K_VERSION        = ${CP2K_VERSION}"
@@ -901,7 +918,7 @@ esac
 
 # Check if a valid CMake build type is selected for CP2K
 case "${CP2K_BUILD_TYPE^}" in
-  Debug | Release | RelWithDebInfo)
+  Conventions | Debug | Release | RelWithDebInfo)
     true
     ;;
   *)
@@ -1089,11 +1106,11 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
   # also retains a partially downloaded release archive across interruptions.
   if [[ ! -d "${SPACK_ROOT}" ]]; then
     echo "Installing Spack ${SPACK_VERSION}"
-    if ! wget -q -c "https://github.com/spack/spack/archive/v${SPACK_VERSION}.tar.gz"; then
+    if ! wget -q -c "https://github.com/spack/spack/releases/download/v${SPACK_VERSION}/spack-${SPACK_VERSION}.tar.gz"; then
       echo "ERROR: Downloading Spack ${SPACK_VERSION} failed"
       ${EXIT_CMD} 1
     fi
-    if ! tar -xzf "v${SPACK_VERSION}.tar.gz"; then
+    if ! tar -xzf "spack-${SPACK_VERSION}.tar.gz"; then
       echo "ERROR: Extracting Spack ${SPACK_VERSION} failed"
       ${EXIT_CMD} 1
     fi
@@ -1471,6 +1488,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -GNinja \
         -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} \
         -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
+        -DCMAKE_Fortran_COMPILER_LAUNCHER="${Fortran_COMPILER_LAUNCHER}" \
         -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
         -DCMAKE_INSTALL_MESSAGE="${INSTALL_MESSAGE}" \
@@ -1489,6 +1507,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -GNinja \
         -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} \
         -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
+        -DCMAKE_Fortran_COMPILER_LAUNCHER="${Fortran_COMPILER_LAUNCHER}" \
         -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
         -DCMAKE_INSTALL_MESSAGE="${INSTALL_MESSAGE}" \
@@ -1720,6 +1739,15 @@ export GAUXC_SKALA_MODEL=${GAUXC_SKALA_MODEL}
 ${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${VERSION}
 ***
 chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
+
+# Collect information from coding convention checks
+if [[ "${CHECK_CONVENTIONS}" == "yes" ]]; then
+  "${CP2K_ROOT}"/tools/conventions/analyze_gfortran_ast.py "${CMAKE_BUILD_PATH}"/*.ast &> "${CMAKE_BUILD_PATH}"/ast.issues
+  ((VERBOSE > 0)) && cat "${CMAKE_BUILD_PATH}"/ast.issues
+  "${CP2K_ROOT}"/tools/conventions/analyze_gfortran_warnings.py "${CMAKE_BUILD_PATH}"/*.warn &> "${CMAKE_BUILD_PATH}"/warn.issues
+  ((VERBOSE > 0)) && cat "${CMAKE_BUILD_PATH}"/warn.issues
+  "${CP2K_ROOT}"/tools/conventions/summarize_issues.py --suppressions="${CP2K_ROOT}/tools/conventions/conventions.supp" "${CMAKE_BUILD_PATH}"/*.issues
+fi
 
 # Create script to run the CP2K benchmarks for psmp builds
 if [[ "${VERSION}" == "psmp" ]]; then

@@ -54,12 +54,12 @@ RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 14 -mpi mpich -ue
 
 FROM build_deps AS build_cp2k
 
-COPY ./src ./src
-COPY ./data ./data
-COPY ./tools/build_utils ./tools/build_utils
+COPY ./CMakeLists.txt ./CMakePresets.json ./
 COPY ./cmake ./cmake
-COPY ./CMakeLists.txt .
-COPY ./CMakePresets.json .
+COPY ./data ./data
+COPY ./src ./src
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./tools/conventions ./tools/conventions
 
 RUN ./make_cp2k.sh -cv psmp -gv 14 -gpu none -mpi mpich 
 
