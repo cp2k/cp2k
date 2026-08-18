@@ -4,6 +4,7 @@
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
 QS/regtest-libgint                                          libGint libint offload_cuda !ifx
+QS/regtest-libint-backend                                   libint !ifx
 MIMIC/regtest-qmmm                                          mimic mpiranks==4
 TMC/regtest_ana_on_the_fly                                  parallel mpiranks>2
 QS/regtest-cusolver                                         cusolvermp
