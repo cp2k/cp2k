@@ -6,7 +6,7 @@
 
 &MOTION
   &MD
-    STEPS 6
+    STEPS 3
     TIMESTEP [fs] 0.0012
   &END MD
 &END MOTION
@@ -53,7 +53,7 @@
     &END QS
     &REAL_TIME_PROPAGATION
       EPS_ITER 1.0E-12
-      EXP_ACCURACY 1.0E-8
+      EXP_ACCURACY 1.0E-6
       INITIAL_WFN SCF_WFN  ! RT_RESTART
       MAT_EXP TAYLOR
       MAX_ITER 200
@@ -62,7 +62,7 @@
     &END REAL_TIME_PROPAGATION
     &SCF
       ADDED_MOS 4
-      EPS_SCF 1.0e-6
+      EPS_SCF 1.0e-4
       MAX_SCF 100
       SCF_GUESS ATOMIC
       &DIAGONALIZATION
@@ -79,7 +79,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 7 7 7
+      ABC 7 7 7  
       PERIODIC NONE
     &END CELL
     &COORD
