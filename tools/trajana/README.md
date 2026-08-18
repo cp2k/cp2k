@@ -1,11 +1,12 @@
 # Modular trajectory analysis tools
 
-This directory contains four standalone Fortran programs for post-processing CP2K trajectories:
+This directory contains five standalone Fortran programs for post-processing CP2K trajectories:
 
 - `trajana.x` performs geometry, RDF, VACF, hydrogen-bond, scattering, and collective-current
   analyses.
 - `trajconvert.x` wraps, unwraps, converts, and reduces trajectories to group centers.
 - `twopt.x` evaluates conventional two-phase thermodynamics directly from CP2K trajectories.
+- `twopt3d.x` maps local solvent density and intermolecular 2PT entropy in three dimensions.
 - `fresean.x` extracts frequency-selective anharmonic vibrational modes from molecular dynamics.
 
 The programs share the same XYZ reader, triclinic-cell geometry, frame selection, atom selection,
@@ -279,6 +280,76 @@ Lin, Maiti, and Goddard (*J. Phys. Chem. B* **114**, 8191, 2010), and Pascal, Li
 The 3PT memory-cage refinement, finite-size diffusivity corrections, and LAMMPS-specific DMA
 workflow in that repository are intentionally outside the scope of this compact CP2K trajectory
 tool.
+
+## Spatially resolved two-phase thermodynamics
+
+`twopt3d.x` implements the trajectory-based part of the 3D-2PT method for CP2K. It assigns each
+solvent molecule to the voxel containing its center of mass at the correlation time origin,
+accumulates the forward translational and rotational velocity autocorrelation functions there, and
+converts their symmetrized spectra into local 2PT entropies. The resulting Gaussian CUBE maps
+contain the molecular number density, translational entropy, rotational entropy, total
+intermolecular entropy, and translational and rotational fluidicities.
+
+The solvent is defined with the same group and mass files as molecular `twopt.x`. All groups must
+describe the same molecular species in the same atom order, but the species is not restricted to
+water:
+
+```console
+./twopt3d.x \
+  --velocity PROJECT-vel-1.xyz \
+  --position PROJECT-pos-1.xyz \
+  --groups solvent.groups \
+  --mass-file masses.dat \
+  --cell-file PROJECT-1.cell \
+  --dt-fs 0.5 \
+  --temperature 300 \
+  --grid "80 80 80" \
+  --spacing 0.5 \
+  --origin "-20 -20 -20" \
+  --correlation-frames 500 \
+  --minimum-origins 50 \
+  --rotational-symmetry 2 \
+  --output-prefix solvation
+```
+
+For a mobile solute, `--align-select index:1-42` translates and rotates every solvent origin into a
+solute-fixed frame. `--reference reference.xyz` is optional; the first selected position frame is
+otherwise used. Alignment atoms and solvent molecules must be whole. A cell is used to reconstruct
+split solvent molecules and to take the minimum-image displacement from the aligned solute. At least
+three non-collinear alignment atoms are required so that all three rotational axes are defined.
+Without alignment, molecular centers are wrapped into the supplied periodic cell and the grid
+remains in the laboratory frame, which is useful for interfaces and crystals.
+
+The local translational signal is `sqrt(M) V_COM`. The rotational signal follows the current
+[`trvdos`](https://github.com/HeydenLabASU-collab/trvdos) implementation: angular momentum is
+projected onto the instantaneous principal axes and divided by the square root of the corresponding
+principal moment. Axis signs are followed continuously. This generalizes the fixed water axes and
+hard-coded water moments of the original [`3D-2PT`](https://github.com/HeydenLabASU/3D-2PT) program.
+Linear molecules receive two rotational degrees of freedom and use the laboratory-frame
+angular-momentum vector to avoid an arbitrary basis inside their degenerate perpendicular
+eigenspace; nonlinear molecules receive three. The current thermodynamic map is intended for rigid
+solvent models. Internal vibrations and torsions of flexible complex solvents are not included in
+the reported entropy and should be analyzed separately until a topology-aware internal-coordinate
+extension is available.
+
+Each voxel spectrum is normalized to its molecular degrees of freedom before applying the same 2PT
+partition and quantum harmonic weights as `twopt.x`. Finite local sampling can make a symmetrized
+VACF spectrum slightly negative. Such bins are projected to zero before normalization; the removed
+spectral fraction is written to `*-negative-vdos-translation.cube` and
+`*-negative-vdos-rotation.cube`. `*-origins.cube` contains the independent time-origin count used
+for the density and the `--minimum-origins` mask. Optional `--vacf` and `--spectrum` files expose
+the voxel-resolved intermediate data for convergence checks. Production maps require convergence
+with trajectory length, correlation time, voxel size, origin count, and the optional lag `--window`.
+
+The original package also computes solute-solvent and solvent-solvent Lennard-Jones/Coulomb energy
+maps from a classical pairwise force field and combines them with entropy into enthalpy and free
+energy. `twopt3d.x` deliberately does not label such maps as generally available from CP2K: an
+arbitrary DFT or many-body CP2K potential has no unique per-solvent pair-energy decomposition. The
+entropy and density maps are therefore methodologically portable, while enthalpy and solvation free
+energy require a separate, explicitly justified energy decomposition for the chosen Hamiltonian.
+
+The spatial conditioning and thermodynamic definitions follow Persson et al.,
+[*J. Chem. Theory Comput.* **13**, 4467-4481 (2017)](https://doi.org/10.1021/acs.jctc.7b00184).
 
 ## Hydrogen-bond network
 

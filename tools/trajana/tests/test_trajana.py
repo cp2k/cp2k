@@ -10,6 +10,7 @@ TOOL_DIR = Path(__file__).resolve().parents[1]
 TRAJANA = TOOL_DIR / "trajana.x"
 TRAJCONVERT = TOOL_DIR / "trajconvert.x"
 TWOPT = TOOL_DIR / "twopt.x"
+TWOPT3D = TOOL_DIR / "twopt3d.x"
 FRESEAN = TOOL_DIR / "fresean.x"
 CELL = "10 0 0 0 10 0 0 0 10"
 
@@ -56,7 +57,260 @@ def named_data_lines(path):
     }
 
 
+def cube_values(path):
+    lines = Path(path).read_text(encoding="utf8").splitlines()
+    atom_count = abs(int(lines[2].split()[0]))
+    dimensions = tuple(abs(int(lines[index].split()[0])) for index in range(3, 6))
+    values = [
+        float(value) for line in lines[6 + atom_count :] for value in line.split()
+    ]
+    if len(values) != math.prod(dimensions):
+        raise AssertionError("Invalid CUBE data size")
+    return dimensions, values
+
+
 class TrajectoryToolTests(unittest.TestCase):
+    def test_twopt3d_local_density_entropy_and_sum_rules(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            positions = root / "water-pos.xyz"
+            velocities = root / "water-vel.xyz"
+            coordinates = ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))
+            masses_value = (15.9994, 1.0079, 1.0079)
+            center = tuple(
+                sum(
+                    mass * coordinate[axis]
+                    for mass, coordinate in zip(masses_value, coordinates)
+                )
+                / sum(masses_value)
+                for axis in range(3)
+            )
+            position_text = []
+            velocity_text = []
+            rotated_position_text = []
+            rotated_velocity_text = []
+            frame_count = 48
+            for frame in range(frame_count):
+                phase = 2.0 * math.pi * frame / frame_count
+                center_velocity = (
+                    0.8 * math.cos(phase),
+                    0.4 * math.sin(2.0 * phase),
+                    0.2 * math.cos(3.0 * phase),
+                )
+                omega = (
+                    0.2 * math.sin(phase),
+                    0.15 * math.cos(2.0 * phase),
+                    0.1 * math.sin(3.0 * phase),
+                )
+                position_text.append(
+                    '3\nLattice="10 0 0 0 10 0 0 0 10"\n'
+                    + "".join(
+                        f"{label} {coordinate[0]} {coordinate[1]} {coordinate[2]}\n"
+                        for label, coordinate in zip(("O", "H", "H"), coordinates)
+                    )
+                )
+                atom_velocities = []
+                rotated_coordinates = []
+                rotated_atom_velocities = []
+                orientation = 2.0 * math.pi * frame / frame_count
+                cosine = math.cos(orientation)
+                sine = math.sin(orientation)
+                rotated_center_velocity = (
+                    cosine * center_velocity[0] - sine * center_velocity[1],
+                    sine * center_velocity[0] + cosine * center_velocity[1],
+                    center_velocity[2],
+                )
+                for coordinate in coordinates:
+                    relative = tuple(
+                        coordinate[axis] - center[axis] for axis in range(3)
+                    )
+                    rotational = (
+                        omega[1] * relative[2] - omega[2] * relative[1],
+                        omega[2] * relative[0] - omega[0] * relative[2],
+                        omega[0] * relative[1] - omega[1] * relative[0],
+                    )
+                    atom_velocities.append(
+                        tuple(
+                            center_velocity[axis] + rotational[axis]
+                            for axis in range(3)
+                        )
+                    )
+                    rotated_relative = (
+                        cosine * relative[0] - sine * relative[1],
+                        sine * relative[0] + cosine * relative[1],
+                        relative[2],
+                    )
+                    rotated_internal = (
+                        cosine * rotational[0] - sine * rotational[1],
+                        sine * rotational[0] + cosine * rotational[1],
+                        rotational[2],
+                    )
+                    rotated_coordinates.append(
+                        tuple(
+                            center[axis] + rotated_relative[axis] for axis in range(3)
+                        )
+                    )
+                    rotated_atom_velocities.append(
+                        tuple(
+                            rotated_center_velocity[axis] + rotated_internal[axis]
+                            for axis in range(3)
+                        )
+                    )
+                velocity_text.append(
+                    f"3\nframe {frame}\n"
+                    + "".join(
+                        f"{label} {velocity[0]:.16f} {velocity[1]:.16f} {velocity[2]:.16f}\n"
+                        for label, velocity in zip(("O", "H", "H"), atom_velocities)
+                    )
+                )
+                rotated_position_text.append(
+                    '3\nLattice="10 0 0 0 10 0 0 0 10"\n'
+                    + "".join(
+                        f"{label} {coordinate[0]:.16f} {coordinate[1]:.16f} {coordinate[2]:.16f}\n"
+                        for label, coordinate in zip(
+                            ("O", "H", "H"), rotated_coordinates
+                        )
+                    )
+                )
+                rotated_velocity_text.append(
+                    f"3\nframe {frame}\n"
+                    + "".join(
+                        f"{label} {velocity[0]:.16f} {velocity[1]:.16f} {velocity[2]:.16f}\n"
+                        for label, velocity in zip(
+                            ("O", "H", "H"), rotated_atom_velocities
+                        )
+                    )
+                )
+            positions.write_text("".join(position_text), encoding="utf8")
+            velocities.write_text("".join(velocity_text), encoding="utf8")
+            rotated_positions = root / "rotated-water-pos.xyz"
+            rotated_velocities = root / "rotated-water-vel.xyz"
+            rotated_positions.write_text(
+                "".join(rotated_position_text), encoding="utf8"
+            )
+            rotated_velocities.write_text(
+                "".join(rotated_velocity_text), encoding="utf8"
+            )
+            groups = root / "groups.dat"
+            groups.write_text("W 1 2 3\n", encoding="utf8")
+            masses = root / "masses.dat"
+            masses.write_text("O 15.9994\nH 1.0079\n", encoding="utf8")
+            prefix = root / "local"
+            spectrum = root / "local-spectrum.dat"
+            vacf = root / "local-vacf.dat"
+            run(
+                str(TWOPT3D),
+                "--velocity",
+                str(velocities),
+                "--position",
+                str(positions),
+                "--groups",
+                str(groups),
+                "--mass-file",
+                str(masses),
+                "--velocity-unit",
+                "angstrom/ps",
+                "--dt-fs",
+                "2",
+                "--temperature",
+                "300",
+                "--grid",
+                "2 2 2",
+                "--origin",
+                "-2 -2 -2",
+                "--spacing",
+                "2",
+                "--correlation-frames",
+                "12",
+                "--minimum-origins",
+                "1",
+                "--rotational-symmetry",
+                "2",
+                "--align-select",
+                "all",
+                "--keep-system-drift",
+                "--output-prefix",
+                str(prefix),
+                "--spectrum",
+                str(spectrum),
+                "--vacf",
+                str(vacf),
+            )
+
+            dimensions, density = cube_values(root / "local-density.cube")
+            _, origins = cube_values(root / "local-origins.cube")
+            _, translation_entropy = cube_values(
+                root / "local-entropy-translation.cube"
+            )
+            _, rotation_entropy = cube_values(root / "local-entropy-rotation.cube")
+            _, total_entropy = cube_values(root / "local-entropy-total.cube")
+            self.assertEqual(dimensions, (2, 2, 2))
+            occupied = max(range(len(origins)), key=origins.__getitem__)
+            self.assertAlmostEqual(origins[occupied], 37.0)
+            self.assertAlmostEqual(density[occupied], 1.0 / 8.0)
+            self.assertGreater(translation_entropy[occupied], 0.0)
+            self.assertGreater(rotation_entropy[occupied], 0.0)
+            self.assertAlmostEqual(
+                total_entropy[occupied],
+                translation_entropy[occupied] + rotation_entropy[occupied],
+                places=4,
+            )
+            self.assertEqual(sum(value > 0.0 for value in origins), 1)
+
+            spectrum_values = data_lines(spectrum)
+            frequency_step = spectrum_values[1][8] - spectrum_values[0][8]
+            for column, target in ((9, 3.0), (12, 3.0)):
+                integrated = frequency_step * (
+                    0.5 * (spectrum_values[0][column] + spectrum_values[-1][column])
+                    + sum(row[column] for row in spectrum_values[1:-1])
+                )
+                self.assertAlmostEqual(integrated, target, places=9)
+            vacf_values = data_lines(vacf)
+            self.assertAlmostEqual(vacf_values[0][-2], 1.0)
+            self.assertAlmostEqual(vacf_values[0][-1], 1.0)
+
+            rotated_vacf = root / "rotated-local-vacf.dat"
+            run(
+                str(TWOPT3D),
+                "--velocity",
+                str(rotated_velocities),
+                "--position",
+                str(rotated_positions),
+                "--groups",
+                str(groups),
+                "--mass-file",
+                str(masses),
+                "--velocity-unit",
+                "angstrom/ps",
+                "--dt-fs",
+                "2",
+                "--temperature",
+                "300",
+                "--grid",
+                "2 2 2",
+                "--origin",
+                "-2 -2 -2",
+                "--spacing",
+                "2",
+                "--correlation-frames",
+                "12",
+                "--minimum-origins",
+                "1",
+                "--rotational-symmetry",
+                "2",
+                "--align-select",
+                "all",
+                "--keep-system-drift",
+                "--output-prefix",
+                str(root / "rotated-local"),
+                "--vacf",
+                str(rotated_vacf),
+            )
+            rotated_vacf_values = data_lines(rotated_vacf)
+            for reference, rotated in zip(vacf_values, rotated_vacf_values):
+                self.assertAlmostEqual(reference[-2], rotated[-2], places=10)
+                self.assertAlmostEqual(reference[-1], rotated[-1], places=10)
+
     def test_fresean_rank_one_mode_and_sum_rule(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
