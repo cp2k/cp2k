@@ -51,7 +51,7 @@ MODULE qs_tddfpt2_operators
                                               pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_fxc,                          ONLY: qs_fxc_create
+   USE qs_fxc,                          ONLY: qs_fxc_apply
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
    USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
@@ -318,10 +318,9 @@ CONTAINS
          IF (ASSOCIATED(work_v_xc_tau)) CALL pw_zero(work_v_xc_tau(ispin))
       END DO
 
-      CALL qs_fxc_create(qs_env, kernel_env%rho0_struct, rho_ia_struct, &
-                         kernel_env%xc_section, work_v_xc, work_v_xc_tau, &
-                         pw_env_ext=pw_env, &
-                         is_triplet=do_triplet, spinflip=do_sf)
+      CALL qs_fxc_apply(qs_env, kernel_env%xc_deriv_set, kernel_env%xc_rho_set, &
+                        rho_ia_struct, kernel_env%xc_section, work_v_xc, work_v_xc_tau, &
+                        is_triplet=do_triplet, spinflip=do_sf, pw_env_ext=pw_env)
 
       DO ispin = 1, nspins
          CALL pw_axpy(work_v_xc(ispin), A_ia_rspace(ispin), kernel_env%alpha)

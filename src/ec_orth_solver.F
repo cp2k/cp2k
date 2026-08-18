@@ -13,7 +13,8 @@
 !> \author Fabian Belleflamme
 ! **************************************************************************************************
 MODULE ec_orth_solver
-   USE admm_types,                      ONLY: admm_type
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_filter, dbcsr_finalize, &
@@ -26,7 +27,8 @@ MODULE ec_orth_solver
                                               dbcsr_deallocate_matrix_set
    USE cp_external_control,             ONLY: external_control
    USE ec_methods,                      ONLY: create_kernel
-   USE input_constants,                 ONLY: kg_tnadd_embed,&
+   USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
+                                              kg_tnadd_embed,&
                                               kg_tnadd_embed_ri,&
                                               ls_s_sqrt_ns,&
                                               ls_s_sqrt_proot,&
@@ -56,6 +58,7 @@ MODULE ec_orth_solver
                                               pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_fxc,                          ONLY: qs_fxc_prep
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
    USE qs_linres_kernel,                ONLY: apply_hfx,&
@@ -1156,8 +1159,8 @@ CONTAINS
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho_r, tau1_r, v_xc, v_xc_tau
       TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
-      TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: input, xc_section
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux
+      TYPE(section_vals_type), POINTER                   :: input, xc_section, xc_section_aux
 
       CALL timeset(routineN, handle)
 
@@ -1225,6 +1228,19 @@ CONTAINS
             CALL pw_scale(v_xc_tau(ispin), v_xc_tau(ispin)%pw_grid%dvol)
          END IF
       END DO
+
+      ! ADMM Correction
+      IF (dft_control%do_admm) THEN
+         IF (admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+            IF (.NOT. ASSOCIATED(kpp1_env%deriv_set_admm)) THEN
+               xc_section_aux => admm_env%xc_section_aux
+               CALL get_admm_env(admm_env, rho_aux_fit=rho_aux)
+               ALLOCATE (kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm)
+               CALL qs_fxc_prep(qs_env, rho_aux, kpp1_env%rho_set_admm, kpp1_env%deriv_set_admm, &
+                                xc_section_aux, pw_env, is_triplet=.FALSE.)
+            END IF
+         END IF
+      END IF
 
       ! take trial density to build G^{H}[B]
       CALL pw_zero(rho_tot_gspace)

@@ -6,11 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_kernel_methods
-   USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_type,&
-                                              dbcsr_init_p,&
-                                              dbcsr_p_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
+   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_type
    USE input_section_types,             ONLY: section_get_lval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -24,16 +20,14 @@ MODULE qs_kernel_methods
                                               pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_fxc,                          ONLY: qs_fxc_prep
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_rho_methods,                  ONLY: qs_rho_copy,&
-                                              qs_rho_rebuild
+   USE qs_rho_methods,                  ONLY: qs_rho_copy
    USE qs_rho_types,                    ONLY: qs_rho_create,&
                                               qs_rho_get,&
-                                              qs_rho_set,&
                                               qs_rho_type
-   USE qs_tddfpt2_subgroups,            ONLY: tddfpt_dbcsr_create_by_dist,&
-                                              tddfpt_subgroup_env_type
+   USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE xc_fxc_kernel,                   ONLY: calc_fxc_kernel
 #include "./base/base_uses.f90"
 
@@ -68,68 +62,35 @@ CONTAINS
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(qs_rho_type), POINTER                         :: rho_struct_sub
-      TYPE(tddfpt_subgroup_env_type), INTENT(in), &
-         OPTIONAL                                        :: sub_env
-      TYPE(qs_environment_type), INTENT(in), OPTIONAL, &
-         POINTER                                         :: qs_env
+      TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
+      TYPE(qs_environment_type), INTENT(in), POINTER     :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_kernel_env'
 
-      INTEGER                                            :: handle, ispin, nspins
+      INTEGER                                            :: handle, nspins
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ia_ao
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_rs_type), POINTER                      :: weights
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, weights
 
       CALL timeset(routineN, handle)
 
-      IF (PRESENT(sub_env)) THEN
-         pw_env => sub_env%pw_env
-         dbcsr_dist => sub_env%dbcsr_dist
-         sab_orb => sub_env%sab_orb
+      pw_env => sub_env%pw_env
+      dbcsr_dist => sub_env%dbcsr_dist
+      sab_orb => sub_env%sab_orb
 
-         nspins = SIZE(sub_env%mos_occ)
+      nspins = SIZE(sub_env%mos_occ)
 
-         NULLIFY (weights)
-         weights => sub_env%xcint_weights
-         IF (sub_env%is_split .AND. ASSOCIATED(weights)) THEN
-            CPABORT("Split communicators and integration weights")
-         END IF
-
-      ELSE
-         CPASSERT(PRESENT(qs_env))
-
-         CALL get_qs_env(qs_env=qs_env, &
-                         pw_env=pw_env, &
-                         dbcsr_dist=dbcsr_dist, &
-                         sab_orb=sab_orb, &
-                         dft_control=dft_control)
-
-         NULLIFY (weights)
-         CALL get_qs_env(qs_env=qs_env, xcint_weights=weights)
-
-         nspins = dft_control%nspins
-
-         IF (.NOT. ASSOCIATED(rho_struct_sub)) THEN
-            ! Build rho_set
-            NULLIFY (rho_ia_ao)
-            CALL dbcsr_allocate_matrix_set(rho_ia_ao, nspins)
-            DO ispin = 1, nspins
-               CALL dbcsr_init_p(rho_ia_ao(ispin)%matrix)
-               CALL tddfpt_dbcsr_create_by_dist(rho_ia_ao(ispin)%matrix, template=matrix_s(1)%matrix, &
-                                                dbcsr_dist=dbcsr_dist, sab=sab_orb)
-            END DO
-
-            ALLOCATE (rho_struct_sub)
-            CALL qs_rho_create(rho_struct_sub)
-            CALL qs_rho_set(rho_struct_sub, rho_ao=rho_ia_ao)
-            CALL qs_rho_rebuild(rho_struct_sub, qs_env, rebuild_ao=.FALSE., &
-                                rebuild_grids=.TRUE., pw_env_external=pw_env)
-         END IF
+      NULLIFY (weights, rho_nlcc)
+      weights => sub_env%xcint_weights
+      IF (sub_env%is_split .AND. ASSOCIATED(weights)) THEN
+         CPABORT("Split communicators and integration weights")
+      END IF
+      CALL get_qs_env(qs_env, rho_nlcc=rho_nlcc)
+      IF (sub_env%is_split .AND. ASSOCIATED(rho_nlcc)) THEN
+         CPABORT("Split communicators and NLCC not implemented")
       END IF
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
@@ -141,6 +102,10 @@ CONTAINS
 
       ! ++ allocate structure for response density
       kernel_env%xc_section => xc_section
+      ALLOCATE (kernel_env%xc_rho_set)
+      CALL qs_fxc_prep(qs_env, rho_struct_sub, &
+                       kernel_env%xc_rho_set, kernel_env%xc_deriv_set, &
+                       xc_section, pw_env, is_rks_triplets)
 
       kernel_env%alpha = 1.0_dp
       kernel_env%beta = 0.0_dp

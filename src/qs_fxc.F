@@ -74,7 +74,7 @@ MODULE qs_fxc
    PRIVATE
 
    ! *** Public subroutines ***
-   PUBLIC :: qs_fxc_create
+   PUBLIC :: qs_fxc_create, qs_fxc_prep, qs_fxc_apply
    PUBLIC :: qs_fxc_fdiff
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fxc'
@@ -343,7 +343,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho0_r, rho1_r, tau0_r, tau1_r
       TYPE(qs_rho_type), POINTER                         :: rhot0, rhot1
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
-      TYPE(xc_derivative_set_type)                       :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: xc_deriv_set
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type)                              :: rho0_set, rho1_set
 
@@ -409,7 +409,7 @@ CONTAINS
          CALL qs_rho_get(rhot0, rho_r=rho0_r, rho_g=rho0_g, tau_r=tau0_r)
          CALL qs_rho_get(rhot1, rho_r=rho1_r, tau_r=tau1_r)
 
-         CALL xc_prep_2nd_deriv(deriv_set, rho0_set, rho0_r, auxbas_pw_pool, weights, &
+         CALL xc_prep_2nd_deriv(xc_deriv_set, rho0_set, rho0_r, auxbas_pw_pool, weights, &
                                 xc_section=xc_section, tau_r=tau0_r)
          bo = rho1_r(1)%pw_grid%bounds_local
          ! create the place where to store the argument for the functionals
@@ -424,7 +424,7 @@ CONTAINS
                                 section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
                                 auxbas_pw_pool, spinflip=do_sf)
       ELSE
-         CALL xc_prep_2nd_deriv(deriv_set, rho0_set, rho0_r, auxbas_pw_pool, weights, &
+         CALL xc_prep_2nd_deriv(xc_deriv_set, rho0_set, rho0_r, auxbas_pw_pool, weights, &
                                 xc_section=xc_section, tau_r=tau0_r)
          bo = rho1_r(1)%pw_grid%bounds_local
          ! create the place where to store the argument for the functionals
@@ -442,14 +442,14 @@ CONTAINS
 
       IF (mspins == 1 .AND. do_triplet .AND. do_analytic) THEN
 
-         CALL xc_calc_2nd_deriv_analytical(fxc_rho, fxc_tau, deriv_set, rho0_set, &
+         CALL xc_calc_2nd_deriv_analytical(fxc_rho, fxc_tau, xc_deriv_set, rho0_set, &
                                            rho1_set, auxbas_pw_pool, xc_section, &
                                            gapw=.FALSE., vxg=vxg, tddfpt_fac=-1.0_dp, spinflip=do_sf, &
                                            compute_virial=compute_virial, virial_xc=virial_xc)
 
       ELSE IF (do_analytic) THEN
 
-         CALL xc_calc_2nd_deriv_analytical(fxc_rho, fxc_tau, deriv_set, rho0_set, &
+         CALL xc_calc_2nd_deriv_analytical(fxc_rho, fxc_tau, xc_deriv_set, rho0_set, &
                                            rho1_set, auxbas_pw_pool, xc_section, &
                                            gapw=.FALSE., vxg=vxg, spinflip=do_sf, &
                                            compute_virial=compute_virial, virial_xc=virial_xc)
@@ -458,7 +458,7 @@ CONTAINS
 
          CALL xc_calc_2nd_deriv_numerical(fxc_rho, fxc_tau, rho0_set, rho1_r, rho1_g, tau1_r, &
                                           auxbas_pw_pool, weights, xc_section, &
-                                          do_triplet, compute_virial, virial_xc, deriv_set)
+                                          do_triplet, compute_virial, virial_xc, xc_deriv_set)
 
       END IF
 
@@ -469,13 +469,499 @@ CONTAINS
          DEALLOCATE (rhot1)
       END IF
 
-      CALL xc_dset_release(deriv_set)
+      CALL xc_dset_release(xc_deriv_set)
       CALL xc_rho_set_release(rho0_set)
       CALL xc_rho_set_release(rho1_set)
 
       CALL timestop(handle)
 
    END SUBROUTINE qs_fxc_calculate
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param rho0_struct ...
+!> \param xc_rho_set ...
+!> \param xc_deriv_set ...
+!> \param xc_section ...
+!> \param pw_env_ext ...
+!> \param is_triplet ...
+! **************************************************************************************************
+   SUBROUTINE qs_fxc_prep(qs_env, rho0_struct, xc_rho_set, xc_deriv_set, &
+                          xc_section, pw_env_ext, is_triplet)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_rho_type), POINTER                         :: rho0_struct
+      TYPE(xc_rho_set_type)                              :: xc_rho_set
+      TYPE(xc_derivative_set_type)                       :: xc_deriv_set
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_ext
+      LOGICAL, INTENT(IN), OPTIONAL                      :: is_triplet
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fxc_prep'
+
+      INTEGER                                            :: handle, ispin, nspins
+      LOGICAL                                            :: uf_grid
+      REAL(KIND=dp)                                      :: factor
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho_nlcc_g
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, weights, weights_uf
+      TYPE(qs_rho_type), POINTER                         :: rho0_uf
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+
+      IF (PRESENT(pw_env_ext)) THEN
+         pw_env => pw_env_ext
+      ELSE
+         CALL get_qs_env(qs_env, pw_env=pw_env)
+      END IF
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, xc_pw_pool=xc_pw_pool)
+      uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid, xc_pw_pool%pw_grid)
+
+      nspins = dft_control%nspins
+
+      NULLIFY (rho_nlcc, rho_nlcc_g)
+      CALL get_qs_env(qs_env, rho_nlcc=rho_nlcc, rho_nlcc_g=rho_nlcc_g)
+      IF (ASSOCIATED(rho_nlcc)) THEN
+         NULLIFY (rho_r, rho_g)
+         CALL qs_rho_get(rho0_struct, rho_r=rho_r, rho_g=rho_g)
+         factor = 1.0_dp
+         DO ispin = 1, nspins
+            CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
+            CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
+         END DO
+      END IF
+
+      NULLIFY (weights)
+      CALL get_qs_env(qs_env, xcint_weights=weights)
+
+      IF (uf_grid) THEN
+         NULLIFY (weights_uf)
+         IF (ASSOCIATED(weights)) THEN
+            ALLOCATE (weights_uf)
+            CALL xc_pw_pool%create_pw(weights_uf)
+            BLOCK
+               TYPE(pw_c1d_gs_type) :: weights_g, weights_g_uf
+               CALL auxbas_pw_pool%create_pw(weights_g)
+               CALL xc_pw_pool%create_pw(weights_g_uf)
+               CALL pw_transfer(weights, weights_g)
+               CALL pw_transfer(weights_g, weights_g_uf)
+               CALL pw_transfer(weights_g_uf, weights_uf)
+               CALL xc_pw_pool%give_back_pw(weights_g_uf)
+               CALL auxbas_pw_pool%give_back_pw(weights_g)
+            END BLOCK
+         END IF
+         !
+         ALLOCATE (rho0_uf)
+         CALL qs_rho_create(rho0_uf)
+         CALL qs_rho_transfer(rho0_struct, rho0_uf, auxbas_pw_pool, xc_pw_pool)
+         !
+         CALL qs_fxc_deriv(rho0_uf, xc_rho_set, xc_deriv_set, &
+                           xc_section, weights_uf, xc_pw_pool, is_triplet)
+         !
+         CALL qs_rho_release(rho0_uf)
+         DEALLOCATE (rho0_uf)
+         IF (ASSOCIATED(weights_uf)) THEN
+            CALL xc_pw_pool%give_back_pw(weights_uf)
+            DEALLOCATE (weights_uf)
+         END IF
+      ELSE
+         CALL qs_fxc_deriv(rho0_struct, xc_rho_set, xc_deriv_set, &
+                           xc_section, weights, auxbas_pw_pool, is_triplet)
+      END IF
+
+      ! de-apply NLCC density
+      IF (ASSOCIATED(rho_nlcc)) THEN
+         factor = -1.0_dp
+         DO ispin = 1, nspins
+            CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
+            CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
+         END DO
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_fxc_prep
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rho0 ...
+!> \param xc_rho_set ...
+!> \param xc_deriv_set ...
+!> \param xc_section ...
+!> \param weights ...
+!> \param auxbas_pw_pool ...
+!> \param is_triplet ...
+! **************************************************************************************************
+   SUBROUTINE qs_fxc_deriv(rho0, xc_rho_set, xc_deriv_set, xc_section, weights, auxbas_pw_pool, &
+                           is_triplet)
+
+      TYPE(qs_rho_type), POINTER                         :: rho0
+      TYPE(xc_rho_set_type)                              :: xc_rho_set
+      TYPE(xc_derivative_set_type)                       :: xc_deriv_set
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      LOGICAL, INTENT(IN)                                :: is_triplet
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fxc_deriv'
+
+      INTEGER                                            :: handle
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho0_r, tau0_r
+      TYPE(qs_rho_type), POINTER                         :: rhot0
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (rho0_r, tau0_r)
+      IF (is_triplet) THEN
+         ! split the density and response density arrays for triplet calculation
+         ALLOCATE (rhot0)
+         CALL qs_rho_create(rhot0)
+         CALL qs_rho_copy(rho0, rhot0, auxbas_pw_pool, 2, factor=2.0_dp)
+         CALL qs_rho_get(rhot0, rho_r=rho0_r, tau_r=tau0_r)
+         CALL xc_prep_2nd_deriv(xc_deriv_set, xc_rho_set, rho0_r, auxbas_pw_pool, weights, &
+                                xc_section=xc_section, tau_r=tau0_r)
+         CALL qs_rho_release(rhot0)
+         DEALLOCATE (rhot0)
+      ELSE
+         CALL qs_rho_get(rho0, rho_r=rho0_r, tau_r=tau0_r)
+         CALL xc_prep_2nd_deriv(xc_deriv_set, xc_rho_set, rho0_r, auxbas_pw_pool, weights, &
+                                xc_section=xc_section, tau_r=tau0_r)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_fxc_deriv
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param xc_deriv_set ...
+!> \param xc_rho_set ...
+!> \param rho1_struct ...
+!> \param xc_section ...
+!> \param fxc_rho ...
+!> \param fxc_tau ...
+!> \param is_triplet ...
+!> \param spinflip ...
+!> \param pw_env_ext ...
+!> \param compute_virial ...
+!> \param virial_xc ...
+! **************************************************************************************************
+   SUBROUTINE qs_fxc_apply(qs_env, xc_deriv_set, xc_rho_set, rho1_struct, xc_section, fxc_rho, fxc_tau, &
+                           is_triplet, spinflip, pw_env_ext, compute_virial, virial_xc)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(xc_derivative_set_type)                       :: xc_deriv_set
+      TYPE(xc_rho_set_type)                              :: xc_rho_set
+      TYPE(qs_rho_type), POINTER                         :: rho1_struct
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau
+      LOGICAL, INTENT(IN), OPTIONAL                      :: is_triplet, spinflip
+      TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_ext
+      LOGICAL, INTENT(IN), OPTIONAL                      :: compute_virial
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
+         OPTIONAL                                        :: virial_xc
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fxc_apply'
+
+      INTEGER                                            :: handle, ispin, nspins
+      LOGICAL                                            :: do_virial, uf_grid
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho_lo, fxc_rho_uf, fxc_tau_lo, &
+                                                            fxc_tau_uf
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights, weights_uf
+      TYPE(qs_rho_type), POINTER                         :: rho1_uf
+
+      CALL timeset(routineN, handle)
+
+      do_virial = .FALSE.
+      IF (PRESENT(compute_virial)) do_virial = compute_virial
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+
+      IF (PRESENT(pw_env_ext)) THEN
+         pw_env => pw_env_ext
+      ELSE
+         CALL get_qs_env(qs_env, pw_env=pw_env)
+      END IF
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, xc_pw_pool=xc_pw_pool)
+      uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid, xc_pw_pool%pw_grid)
+
+      nspins = dft_control%nspins
+      IF (ASSOCIATED(fxc_rho)) THEN
+         CPASSERT(nspins == SIZE(fxc_rho))
+      END IF
+      IF (ASSOCIATED(fxc_tau)) THEN
+         CPASSERT(nspins == SIZE(fxc_tau))
+      END IF
+
+      CALL get_qs_env(qs_env, xcint_weights=weights)
+
+      NULLIFY (fxc_rho_lo, fxc_tau_lo)
+      IF (uf_grid) THEN
+         NULLIFY (weights_uf)
+         IF (ASSOCIATED(weights)) THEN
+            ALLOCATE (weights_uf)
+            CALL xc_pw_pool%create_pw(weights_uf)
+            BLOCK
+               TYPE(pw_c1d_gs_type) :: weights_g, weights_g_uf
+               CALL auxbas_pw_pool%create_pw(weights_g)
+               CALL xc_pw_pool%create_pw(weights_g_uf)
+               CALL pw_transfer(weights, weights_g)
+               CALL pw_transfer(weights_g, weights_g_uf)
+               CALL pw_transfer(weights_g_uf, weights_uf)
+               CALL xc_pw_pool%give_back_pw(weights_g_uf)
+               CALL auxbas_pw_pool%give_back_pw(weights_g)
+            END BLOCK
+         END IF
+         !
+         ALLOCATE (rho1_uf)
+         CALL qs_rho_create(rho1_uf)
+         CALL qs_rho_transfer(rho1_struct, rho1_uf, auxbas_pw_pool, xc_pw_pool)
+         !
+         NULLIFY (fxc_rho_uf, fxc_tau_uf)
+         CALL qs_fxc_eval(xc_deriv_set, xc_rho_set, rho1_uf, xc_section, &
+                          weights_uf, xc_pw_pool, fxc_rho_uf, fxc_tau_uf, &
+                          is_triplet=is_triplet, spinflip=spinflip, &
+                          compute_virial=do_virial, virial_xc=virial_xc)
+         !
+         CALL qs_rho_release(rho1_uf)
+         DEALLOCATE (rho1_uf)
+         IF (ASSOCIATED(weights_uf)) THEN
+            CALL xc_pw_pool%give_back_pw(weights_uf)
+            DEALLOCATE (weights_uf)
+         END IF
+         IF (ASSOCIATED(fxc_rho_uf)) THEN
+            ALLOCATE (fxc_rho_lo(nspins))
+            DO ispin = 1, nspins
+               CALL auxbas_pw_pool%create_pw(fxc_rho_lo(ispin))
+               BLOCK
+                  TYPE(pw_c1d_gs_type) :: fxc_g, fxc_g_uf
+                  CALL auxbas_pw_pool%create_pw(fxc_g)
+                  CALL xc_pw_pool%create_pw(fxc_g_uf)
+                  CALL pw_transfer(fxc_rho_uf(ispin), fxc_g_uf)
+                  CALL pw_transfer(fxc_g_uf, fxc_g)
+                  CALL pw_transfer(fxc_g, fxc_rho_lo(ispin))
+                  CALL xc_pw_pool%give_back_pw(fxc_g_uf)
+                  CALL auxbas_pw_pool%give_back_pw(fxc_g)
+               END BLOCK
+               CALL xc_pw_pool%give_back_pw(fxc_rho_uf(ispin))
+            END DO
+            DEALLOCATE (fxc_rho_uf)
+         END IF
+         IF (ASSOCIATED(fxc_tau_uf)) THEN
+            ALLOCATE (fxc_tau_lo(nspins))
+            DO ispin = 1, nspins
+               CALL auxbas_pw_pool%create_pw(fxc_tau_lo(ispin))
+               BLOCK
+                  TYPE(pw_c1d_gs_type) :: fxc_g, fxc_g_uf
+                  CALL auxbas_pw_pool%create_pw(fxc_g)
+                  CALL xc_pw_pool%create_pw(fxc_g_uf)
+                  CALL pw_transfer(fxc_tau_uf(ispin), fxc_g_uf)
+                  CALL pw_transfer(fxc_g_uf, fxc_g)
+                  CALL pw_transfer(fxc_g, fxc_tau_lo(ispin))
+                  CALL xc_pw_pool%give_back_pw(fxc_g_uf)
+                  CALL auxbas_pw_pool%give_back_pw(fxc_g)
+               END BLOCK
+               CALL xc_pw_pool%give_back_pw(fxc_tau_uf(ispin))
+            END DO
+         END IF
+
+      ELSE
+         CALL qs_fxc_eval(xc_deriv_set, xc_rho_set, rho1_struct, xc_section, &
+                          weights, auxbas_pw_pool, fxc_rho_lo, fxc_tau_lo, &
+                          is_triplet=is_triplet, spinflip=spinflip, &
+                          compute_virial=do_virial, virial_xc=virial_xc)
+      END IF
+
+      ! return potentials
+      IF (ASSOCIATED(fxc_rho)) THEN
+         DO ispin = 1, MIN(SIZE(fxc_rho_lo), SIZE(fxc_rho))
+            CALL pw_transfer(fxc_rho_lo(ispin), fxc_rho(ispin))
+         END DO
+         DO ispin = 1, SIZE(fxc_rho_lo)
+            CALL auxbas_pw_pool%give_back_pw(fxc_rho_lo(ispin))
+         END DO
+         DEALLOCATE (fxc_rho_lo)
+      ELSE
+         fxc_rho => fxc_rho_lo
+      END IF
+      IF (ASSOCIATED(fxc_tau)) THEN
+         IF (ASSOCIATED(fxc_tau_lo)) THEN
+            DO ispin = 1, MIN(SIZE(fxc_tau_lo), SIZE(fxc_tau))
+               CALL pw_transfer(fxc_tau_lo(ispin), fxc_tau(ispin))
+            END DO
+            DO ispin = 1, SIZE(fxc_tau_lo)
+               CALL auxbas_pw_pool%give_back_pw(fxc_tau_lo(ispin))
+            END DO
+            DEALLOCATE (fxc_tau_lo)
+         ELSE
+            DO ispin = 1, nspins
+               CALL pw_zero(fxc_tau(ispin))
+            END DO
+         END IF
+      ELSE
+         fxc_tau => fxc_tau_lo
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_fxc_apply
+
+! **************************************************************************************************
+!> \brief ...
+!> \param xc_deriv_set ...
+!> \param xc_rho_set ...
+!> \param rho1 ...
+!> \param xc_section ...
+!> \param weights ...
+!> \param auxbas_pw_pool ...
+!> \param fxc_rho ...
+!> \param fxc_tau ...
+!> \param is_triplet ...
+!> \param spinflip ...
+!> \param compute_virial ...
+!> \param virial_xc ...
+! **************************************************************************************************
+   SUBROUTINE qs_fxc_eval(xc_deriv_set, xc_rho_set, rho1, xc_section, weights, auxbas_pw_pool, &
+                          fxc_rho, fxc_tau, is_triplet, spinflip, &
+                          compute_virial, virial_xc)
+
+      TYPE(xc_derivative_set_type)                       :: xc_deriv_set
+      TYPE(xc_rho_set_type)                              :: xc_rho_set
+      TYPE(qs_rho_type), POINTER                         :: rho1
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau
+      LOGICAL, INTENT(IN), OPTIONAL                      :: is_triplet, spinflip, compute_virial
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
+         OPTIONAL                                        :: virial_xc
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fxc_eval'
+
+      INTEGER                                            :: handle, ispin, mspins, nspins
+      INTEGER, DIMENSION(2, 3)                           :: bo
+      LOGICAL                                            :: do_analytic, do_sf, do_triplet, &
+                                                            do_virial, lsd
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: vxg
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, tau1_r
+      TYPE(qs_rho_type), POINTER                         :: rhot1
+      TYPE(section_vals_type), POINTER                   :: xc_fun_section
+      TYPE(xc_rho_cflags_type)                           :: needs
+      TYPE(xc_rho_set_type)                              :: rho1_set
+
+      CALL timeset(routineN, handle)
+
+      do_triplet = .FALSE.
+      IF (PRESENT(is_triplet)) do_triplet = is_triplet
+
+      do_sf = .FALSE.
+      IF (PRESENT(spinflip)) do_sf = spinflip
+
+      do_virial = .FALSE.
+      IF (PRESENT(compute_virial)) do_virial = compute_virial
+
+      do_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
+
+      CALL qs_rho_get(rho1, rho_r=rho1_r, tau_r=tau1_r)
+      NULLIFY (rho1_g)
+
+      mspins = SIZE(rho1_r)
+      nspins = SIZE(rho1_r)
+      lsd = (nspins == 2)
+      IF (nspins == 1 .AND. do_triplet) THEN
+         nspins = 2
+         lsd = .TRUE.
+      ELSE IF (do_sf) THEN
+         nspins = 1
+         mspins = 1
+         lsd = .TRUE.
+      END IF
+
+      CPASSERT(.NOT. ASSOCIATED(fxc_rho))
+      CPASSERT(.NOT. ASSOCIATED(fxc_tau))
+      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
+      ALLOCATE (fxc_rho(mspins))
+      DO ispin = 1, mspins
+         CALL auxbas_pw_pool%create_pw(fxc_rho(ispin))
+         CALL pw_zero(fxc_rho(ispin))
+      END DO
+      IF (needs%tau .OR. needs%tau_spin) THEN
+         IF (.NOT. ASSOCIATED(tau1_r)) THEN
+            CPABORT("Tau-dependent functionals requires allocated kinetic energy density grid")
+         END IF
+         ALLOCATE (fxc_tau(mspins))
+         DO ispin = 1, mspins
+            CALL auxbas_pw_pool%create_pw(fxc_tau(ispin))
+            CALL pw_zero(fxc_tau(ispin))
+         END DO
+      END IF
+
+      IF (mspins == 1 .AND. do_triplet) THEN
+         ! split the density and response density arrays for triplet calculation
+         ALLOCATE (rhot1)
+         CALL qs_rho_create(rhot1)
+         CALL qs_rho_copy(rho1, rhot1, auxbas_pw_pool, 2, factor=2.0_dp)
+         !
+         CALL qs_rho_get(rhot1, rho_r=rho1_r, tau_r=tau1_r)
+      END IF
+
+      bo = rho1_r(1)%pw_grid%bounds_local
+      ! create the place where to store the argument for the functionals
+      CALL xc_rho_set_create(rho1_set, bo, &
+                             rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
+                             drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
+                             tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
+
+      ! calculate the arguments needed by the functionals
+      CALL xc_rho_set_update(rho1_set, rho1_r, rho1_g, tau1_r, needs, &
+                             section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
+                             section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
+                             auxbas_pw_pool, spinflip=do_sf)
+
+      IF (mspins == 1 .AND. do_triplet .AND. do_analytic) THEN
+
+         CALL xc_calc_2nd_deriv_analytical(fxc_rho, fxc_tau, xc_deriv_set, xc_rho_set, &
+                                           rho1_set, auxbas_pw_pool, xc_section, &
+                                           gapw=.FALSE., vxg=vxg, tddfpt_fac=-1.0_dp, spinflip=do_sf, &
+                                           compute_virial=compute_virial, virial_xc=virial_xc)
+
+      ELSE IF (do_analytic) THEN
+
+         CALL xc_calc_2nd_deriv_analytical(fxc_rho, fxc_tau, xc_deriv_set, xc_rho_set, &
+                                           rho1_set, auxbas_pw_pool, xc_section, &
+                                           gapw=.FALSE., vxg=vxg, spinflip=do_sf, &
+                                           compute_virial=compute_virial, virial_xc=virial_xc)
+
+      ELSE
+
+         CALL xc_calc_2nd_deriv_numerical(fxc_rho, fxc_tau, xc_rho_set, rho1_r, rho1_g, tau1_r, &
+                                          auxbas_pw_pool, weights, xc_section, &
+                                          do_triplet, compute_virial, virial_xc, xc_deriv_set)
+
+      END IF
+
+      IF (mspins == 1 .AND. do_triplet) THEN
+         CALL qs_rho_release(rhot1)
+         DEALLOCATE (rhot1)
+      END IF
+      CALL xc_rho_set_release(rho1_set)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_fxc_eval
 
 ! **************************************************************************************************
 !> \brief ...

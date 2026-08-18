@@ -29,8 +29,7 @@ MODULE qs_linres_kernel
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type,&
-                                              cp_to_string
+                                              cp_logger_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_ri,                          ONLY: hfx_ri_update_ks
@@ -68,7 +67,8 @@ MODULE qs_linres_kernel
                                               pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_fxc,                          ONLY: qs_fxc_create
+   USE qs_fxc,                          ONLY: qs_fxc_apply,&
+                                              qs_fxc_prep
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
                                               integrate_v_rspace_diagonal,&
@@ -76,6 +76,7 @@ MODULE qs_linres_kernel
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_kpp1_env_methods,             ONLY: kpp1_check_i_alloc
    USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
    USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_linres_types,                 ONLY: linres_control_type
@@ -168,7 +169,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: k1mat, matrix_s, rho1_ao, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: k1mat, rho1_ao, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ksmat, psmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
@@ -185,9 +186,10 @@ CONTAINS
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace_new, v_xc, v_xc_tau
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho0, rho1, rho1_xc, rho1a, rho_xc
+      TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho1_xc, rho1a, rho_aux, &
+                                                            rho_xc
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
-      TYPE(section_vals_type), POINTER                   :: input, xc_section
+      TYPE(section_vals_type), POINTER                   :: input, xc_section, xc_section_aux
 
       CALL timeset(routineN, handle)
 
@@ -236,21 +238,13 @@ CONTAINS
                          atomic_kind_set=atomic_kind_set)
       END IF
 
-      IF (.NOT. ASSOCIATED(kpp1_env%v_ao)) THEN
-         CALL get_qs_env(qs_env, matrix_s=matrix_s)
-         CALL dbcsr_allocate_matrix_set(kpp1_env%v_ao, nspins)
-         DO ispin = 1, nspins
-            ALLOCATE (kpp1_env%v_ao(ispin)%matrix)
-            CALL dbcsr_copy(kpp1_env%v_ao(ispin)%matrix, matrix_s(1)%matrix, &
-                            name="kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)))
-         END DO
-      END IF
-
       IF (dft_control%do_admm) THEN
          xc_section => admm_env%xc_section_primary
       ELSE
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       END IF
+
+      CALL kpp1_check_i_alloc(kpp1_env, qs_env, xc_section)
 
       ! gets the tmp grids
       CPASSERT(ASSOCIATED(pw_env))
@@ -290,16 +284,15 @@ CONTAINS
       ! *** calculate the xc potential ***
       NULLIFY (rho1a)
       IF (gapw_xc) THEN
-         rho0 => rho_xc
          rho1a => rho1_xc
       ELSE
-         rho0 => rho
          rho1a => rho1
       END IF
 
       NULLIFY (v_xc_tau)
-      CALL qs_fxc_create(qs_env, rho0, rho1a, xc_section, &
-                         v_xc, v_xc_tau, is_triplet=lr_triplet)
+      CALL qs_fxc_apply(qs_env, kpp1_env%deriv_set, kpp1_env%rho_set, rho1a, &
+                        xc_section, v_xc, v_xc_tau, is_triplet=lr_triplet)
+
       IF (gapw .OR. gapw_xc) THEN
          CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
          rho1_atom_set => p_env%local_rho_set%rho_atom_set
@@ -315,6 +308,20 @@ CONTAINS
          CALL pw_scale(v_rspace_new(ispin), v_rspace_new(ispin)%pw_grid%dvol)
          IF (ASSOCIATED(v_xc_tau)) CALL pw_scale(v_xc_tau(ispin), v_xc_tau(ispin)%pw_grid%dvol)
       END DO
+
+      ! ADMM Correction
+      IF (dft_control%do_admm) THEN
+         IF (admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+            IF (.NOT. ASSOCIATED(kpp1_env%deriv_set_admm)) THEN
+               CPASSERT(.NOT. lr_triplet)
+               xc_section_aux => admm_env%xc_section_aux
+               CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
+               ALLOCATE (kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm)
+               CALL qs_fxc_prep(qs_env, rho_aux, kpp1_env%rho_set_admm, kpp1_env%deriv_set_admm, &
+                                xc_section_aux, pw_env, is_triplet=.FALSE.)
+            END IF
+         END IF
+      END IF
 
       !-------------------------------!
       ! Add both hartree and xc terms !
@@ -809,6 +816,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_xc, v_xc_tau
+      TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_section
@@ -841,7 +849,9 @@ CONTAINS
             NULLIFY (v_xc, v_xc_tau)
             CALL get_admm_env(admm_env, rho_aux_fit=rho_aux)
             xc_section => admm_env%xc_section_aux
-            CALL qs_fxc_create(qs_env, rho_aux, p_env%rho1_admm, xc_section, v_xc, v_xc_tau)
+            kpp1_env => p_env%kpp1_env
+            CALL qs_fxc_apply(qs_env, kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, p_env%rho1_admm, &
+                              xc_section, v_xc, v_xc_tau)
 
             IF (ASSOCIATED(v_xc_tau)) THEN
                CPABORT("Meta-GGA ADMM functionals not yet supported!")

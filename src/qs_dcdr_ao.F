@@ -76,10 +76,6 @@ MODULE qs_dcdr_ao
                                               qs_rho_set,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
-   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-                                              xc_dset_release
-   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
-                                              xc_rho_set_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 !$ USE OMP_LIB, ONLY: omp_lock_kind, &
@@ -130,8 +126,6 @@ CONTAINS
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace_new, v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: perturbed_density, rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
-      TYPE(xc_derivative_set_type)                       :: deriv_set
-      TYPE(xc_rho_set_type)                              :: rho_set
 
       ! Build the perturbed density matrix correction depending on the overlap derivative
       !   P1 = C0 C1 + C1 C0
@@ -298,8 +292,6 @@ CONTAINS
 
       CALL qs_rho_release(perturbed_density)
       DEALLOCATE (perturbed_density)
-      CALL xc_rho_set_release(rho_set, auxbas_pw_pool)
-      CALL xc_dset_release(deriv_set)
 
       CALL timestop(handle)
 
