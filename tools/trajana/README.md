@@ -1,10 +1,11 @@
 # Modular trajectory analysis tools
 
-This directory contains two standalone Fortran programs for post-processing CP2K trajectories:
+This directory contains three standalone Fortran programs for post-processing CP2K trajectories:
 
 - `trajana.x` performs geometry, RDF, VACF, hydrogen-bond, scattering, and collective-current
   analyses.
 - `trajconvert.x` wraps, unwraps, converts, and reduces trajectories to group centers.
+- `twopt.x` evaluates conventional two-phase thermodynamics directly from CP2K trajectories.
 
 The programs share the same XYZ reader, triclinic-cell geometry, frame selection, atom selection,
 and group definitions. They do not use CP2K source modules and can therefore be built independently.
@@ -120,6 +121,98 @@ interpolated FWHM and the corresponding exponential-decay lifetime. Run the mode
 
 `--dt-fs` is the time between input frames. When `--stride` is used, the output time step is
 multiplied by the stride automatically.
+
+## Two-phase thermodynamics
+
+`twopt.x` is an independent Fortran implementation of the conventional Lin-Blanco-Goddard 2PT
+method. It reads the XYZ velocity trajectory written by CP2K, constructs the mass-weighted velocity
+density of states (DoS), separates its diffusive hard-sphere and harmonic solid parts, and reports
+entropy, Helmholtz free energy, internal energy, heat capacity, zero-point energy, diffusivity,
+fluidicity, and packing fraction. It does not invoke or copy the legacy C++ program.
+
+For an atomic liquid:
+
+```console
+./twopt.x \
+  --velocity PROJECT-vel-1.xyz \
+  --mass-file masses.dat \
+  --dt-fs 2.0 \
+  --temperature 300 \
+  --cell-file PROJECT-1.cell \
+  --output 2pt-thermo.dat \
+  --spectrum 2pt-spectrum.dat \
+  --vacf 2pt-vacf.dat
+```
+
+The mass file maps trajectory labels to masses in g/mol:
+
+```text
+Ar 39.948
+```
+
+CP2K prints velocities in `bohr/au_time` by default, and this is therefore the default assumed by
+`twopt.x`. If `&MOTION / &PRINT / &VELOCITIES` contains a different `UNIT`, pass
+`--velocity-unit angstrom/ps` or `--velocity-unit angstrom/fs`. `--velocity-scale` is an additional
+multiplier for uncommon input conventions. The tool converts velocities internally to angstrom/ps
+and reports the kinetic temperatures of all resolved channels as a consistency diagnostic.
+
+Molecular 2PT additionally requires synchronized positions and one molecule per line in a group
+file. It is not restricted to water:
+
+```text
+M1 1 2 3
+M2 4 5 6
+```
+
+```console
+./twopt.x \
+  --velocity PROJECT-vel-1.xyz \
+  --position PROJECT-pos-1.xyz \
+  --groups molecules.groups \
+  --mass-file masses.dat \
+  --cell-file PROJECT-1.cell \
+  --dt-fs 2.0 \
+  --temperature 300 \
+  --rotational-symmetry 2 \
+  --constraints 2 \
+  --output 2pt-water.dat \
+  --spectrum 2pt-water-spectrum.dat
+```
+
+For every frame, the molecular velocity is decomposed into center-of-mass translation, rigid-body
+rotation, and internal vibration. Molecules split across periodic boundaries are reconstructed with
+the triclinic minimum image. The inertia tensor is diagonalized without an external linear-algebra
+dependency; linear molecules are detected from its null principal moment. Translation and rotation
+receive independent self-consistent fluidicities, while internal motion is harmonic. Every atom must
+occur in exactly one group. `--rotational-symmetry` currently applies to all molecular groups, so a
+mixed system with different symmetry numbers should be analyzed in separate homogeneous runs or with
+a more specialized mixture implementation.
+
+The DoS output obeys the sum rules for the translational, rotational, and unconstrained internal
+degrees of freedom. The default `--window none` matches the standard 2PT definition and preserves
+the zero-frequency DoS used for diffusion; `--window hann` is available for sensitivity checks but
+changes that quantity. System center-of-mass drift is removed frame by frame unless
+`--keep-system-drift` is specified. The `lin2003` hard-sphere entropy convention is the default for
+compatibility with established 2PT results; `--entropy-convention rigorous` omits the additional
+compressibility term used by that convention.
+
+The reported energy and free energy are spectral contributions unless the mean classical MD energy
+of the simulation box is supplied with `--energy-kj-mol`. This adds the usual reference
+`E_MD-E_classical,DoS`. Likewise, `--classical-cv-j-mol-k` accepts a heat capacity obtained from
+energy fluctuations and applies only the quantum correction from the DoS. Without these optional
+values, the entropy, DoS partition, ZPE, and diffusion remain usable, but the total absolute energy,
+free energy, and liquid heat capacity must not be over-interpreted.
+
+The zero-frequency DoS is particularly sensitive to sampling. Production use should normally start
+from at least several thousand equilibrated frames and demonstrate convergence with trajectory
+length, print interval, window choice, and system size. The implementation follows the method and
+output definitions described by Lin, Blanco, and Goddard (*J. Chem. Phys.* **119**, 11792, 2003),
+Lin, Maiti, and Goddard (*J. Phys. Chem. B* **114**, 8191, 2010), and Pascal, Lin, and Goddard
+(*PCCP* **13**, 169, 2011). The legacy and current `py-xPT` implementations in
+[`atlas-nano/codes`](https://github.com/atlas-nano/codes) were used as cross-checking references.
+The 3PT memory-cage refinement, finite-size diffusivity corrections, and LAMMPS-specific DMA
+workflow in that repository are intentionally outside the scope of this compact CP2K trajectory
+tool.
 
 ## Hydrogen-bond network
 

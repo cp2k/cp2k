@@ -31,7 +31,7 @@ CONTAINS
       found = .FALSE.
       value = ""
       IF (PRESENT(default)) value = TRIM(default)
-      DO index = 2, COMMAND_ARGUMENT_COUNT()
+      DO index = 1, COMMAND_ARGUMENT_COUNT()
          CALL GET_COMMAND_ARGUMENT(index, argument)
          IF (TRIM(argument) /= TRIM(name)) CYCLE
          IF (index == COMMAND_ARGUMENT_COUNT()) CALL fail("Missing value after "//TRIM(name))
@@ -48,7 +48,7 @@ CONTAINS
       INTEGER                                            :: index
 
       has_flag = .FALSE.
-      DO index = 2, COMMAND_ARGUMENT_COUNT()
+      DO index = 1, COMMAND_ARGUMENT_COUNT()
          CALL GET_COMMAND_ARGUMENT(index, argument)
          IF (TRIM(argument) == TRIM(name)) THEN
             has_flag = .TRUE.

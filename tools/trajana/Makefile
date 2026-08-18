@@ -25,12 +25,15 @@ ANALYSIS_OBJECTS = \
 
 .PHONY: all clean test check
 
-all: trajana.x trajconvert.x
+all: trajana.x trajconvert.x twopt.x
 
 trajana.x: $(COMMON_OBJECTS) $(ANALYSIS_OBJECTS) trajana_main.o
 	$(FC) $(FFLAGS) -o $@ $^
 
 trajconvert.x: $(COMMON_OBJECTS) trajconvert.o
+	$(FC) $(FFLAGS) -o $@ $^
+
+twopt.x: $(COMMON_OBJECTS) twopt_thermodynamics.o twopt_analysis.o twopt_main.o
 	$(FC) $(FFLAGS) -o $@ $^
 
 trajectory_types.o: kinds.o
@@ -50,6 +53,9 @@ hbond_analysis.o: kinds.o trajectory_types.o trajectory_io.o cell_source.o comma
 dsf_analysis.o: kinds.o text_utils.o trajectory_types.o trajectory_io.o command_line.o frame_controls.o selections.o time_series.o spectral_tools.o
 trajana_main.o: text_utils.o command_line.o $(ANALYSIS_OBJECTS)
 trajconvert.o: kinds.o text_utils.o trajectory_types.o trajectory_io.o cell_source.o command_line.o frame_controls.o geometry.o groups.o
+twopt_thermodynamics.o: kinds.o
+twopt_analysis.o: kinds.o text_utils.o trajectory_types.o trajectory_io.o cell_source.o command_line.o frame_controls.o geometry.o groups.o time_series.o twopt_thermodynamics.o
+twopt_main.o: command_line.o twopt_analysis.o
 
 %.o: %.f90
 	$(FC) $(FFLAGS) -c $<
@@ -63,4 +69,4 @@ check:
 	python3 tests/test_trajana.py
 
 clean:
-	rm -f *.o *.mod *.MOD trajana.x trajconvert.x
+	rm -f *.o *.mod *.MOD trajana.x trajconvert.x twopt.x
