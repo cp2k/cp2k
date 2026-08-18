@@ -403,7 +403,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: ispin
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rtp_admm_density'
-      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       INTEGER                                            :: handle, im, ncol, re
       REAL(KIND=dp)                                      :: alpha
