@@ -1,0 +1,4 @@
+# Distances, angles, and torsions use one-based XYZ atom indices.
+DISTANCE 1 2
+ANGLE 2 1 3
+TORSION 2 1 4 5

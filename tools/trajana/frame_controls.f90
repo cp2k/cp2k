@@ -1,0 +1,15 @@
+MODULE trajana_frame_controls
+   IMPLICIT NONE
+   PRIVATE
+
+   PUBLIC :: frame_selected
+
+CONTAINS
+
+   PURE LOGICAL FUNCTION frame_selected(frame, first, last, stride)
+      INTEGER, INTENT(IN)                                :: frame, first, last, stride
+
+      frame_selected = frame >= first .AND. frame <= last .AND. MOD(frame - first, stride) == 0
+   END FUNCTION frame_selected
+
+END MODULE trajana_frame_controls
