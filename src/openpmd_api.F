@@ -188,7 +188,7 @@ MODULE openpmd_api
       #:for dim in dimensions
          TYPE openpmd_dynamic_memory_view_type_${dim}$d
             PRIVATE
-            INTEGER, DIMENSION(${dim}$) :: chunk_extent
+            INTEGER, DIMENSION(${dim}$) :: chunk_extent = 0
             TYPE(C_PTR) :: c_ptr = C_NULL_PTR
 
          CONTAINS

@@ -56,16 +56,14 @@ MODULE realspace_grid_openpmd
 
    PRIVATE
 
-   PUBLIC ::pw_to_openpmd
+   PUBLIC :: pw_to_openpmd
 
 #ifdef __OPENPMD
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_openpmd'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
-   LOGICAL, PRIVATE                     :: parses_linebreaks = .FALSE., &
-                                           parse_test = .TRUE.
 
    TYPE cp_openpmd_write_buffer_1d
-      REAL(KIND=dp), POINTER :: buffer(:)
+      REAL(KIND=dp), DIMENSION(:), POINTER :: buffer => NULL()
    END TYPE cp_openpmd_write_buffer_1d
 #endif
 
