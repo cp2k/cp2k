@@ -260,6 +260,17 @@ def main() -> None:
             )
         )
 
+    with OutputFile(f"Dockerfile.test_spack_conventions", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                version="psmp",
+                mpi_mode="mpich",
+                feature_flags="--check_conventions",
+                image_tag=f.image_tag,
+                test_type="conventions",
+            )
+        )
+
     # End Spack/CMake based tester
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
@@ -775,16 +786,18 @@ RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} {gcc_version_flag} -m
 
 FROM build_deps AS build_cp2k
 
-COPY ./src ./src
-COPY ./data ./data
-COPY ./tools/build_utils ./tools/build_utils
+COPY ./CMakeLists.txt ./CMakePresets.json ./
 COPY ./cmake ./cmake
-COPY ./CMakeLists.txt .
-COPY ./CMakePresets.json .
+COPY ./data ./data
+COPY ./src ./src
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./tools/conventions ./tools/conventions
 
 RUN ./make_cp2k.sh -cv {version} {gcc_version_flag} -gpu {gpu_model} -mpi {mpi_mode} {feature_flags}
 """
     )
+    if test_type == "conventions":
+        return output
     output += (
         install_base_image(
             base_image=rf"{base_image}",
