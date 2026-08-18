@@ -786,7 +786,7 @@ RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} {gcc_version_flag} -m
 
 FROM build_deps AS build_cp2k
 
-COPY ./CMakeLists.txt ./CMakePresets.json .
+COPY ./CMakeLists.txt ./CMakePresets.json ./
 COPY ./cmake ./cmake
 COPY ./data ./data
 COPY ./src ./src

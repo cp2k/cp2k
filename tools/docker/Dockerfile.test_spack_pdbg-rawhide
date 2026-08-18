@@ -45,7 +45,7 @@ RUN ./make_cp2k.sh -bd_only -cv pdbg -gpu none  -mpi mpich -ue
 
 FROM build_deps AS build_cp2k
 
-COPY ./CMakeLists.txt ./CMakePresets.json .
+COPY ./CMakeLists.txt ./CMakePresets.json ./
 COPY ./cmake ./cmake
 COPY ./data ./data
 COPY ./src ./src
