@@ -396,4 +396,8 @@ registry["REFTRAJ_force_file"] = TextPresenceMatcher("ATOMIC FORCES")
 registry["STRUCTURE_DATA_dihedral_angle"] = GenericMatcher(
     r"d\(1,2,3,4\)\s*=\s*([-+0-9.]+)", col=1, regex=True
 )
+# Checksum of the integrated RTP current (paramagnetic + nonlocal-PP commutator terms)
+registry["RTP_current_checksum"] = GenericMatcher(
+    r"RTP_CURRENT| CheckSum j_int=", col=4
+)
 # EOF

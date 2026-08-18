@@ -24,10 +24,13 @@ MODULE rtp_admm_methods
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_uplo_to_full
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
-   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE hfx_admm_utils,                  ONLY: create_admm_xc_section
@@ -37,8 +40,7 @@ MODULE rtp_admm_methods
                                               section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mathconstants,                   ONLY: one,&
-                                              zero
+   USE mathconstants,                   ONLY: zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
@@ -86,9 +88,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_admm_calc_rho_aux'
 
       CHARACTER(LEN=default_string_length)               :: basis_type
-      INTEGER                                            :: handle, ispin, nspins
+      INTEGER                                            :: handle, ispin, nmo_aux, nspins
       LOGICAL                                            :: gapw, s_mstruct_changed
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r_aux
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: occ_num_aux, tot_rho_r_aux
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: rtp_coeff_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p_aux, matrix_p_aux_im, &
@@ -139,10 +141,12 @@ CONTAINS
                          rho_g=rho_g_aux, &
                          tot_rho_r=tot_rho_r_aux)
 
+         CALL get_mo_set(mos_aux_fit(ispin), occupation_numbers=occ_num_aux, nmo=nmo_aux)
+
          CALL rtp_admm_calculate_dm(admm_env, rtp_coeff_aux_fit, &
                                     matrix_p_aux(ispin)%matrix, &
                                     matrix_p_aux_im(ispin)%matrix, &
-                                    ispin)
+                                    occ_num_aux, ispin)
 
          !IF GAPW, only do the soft basis with PW
          basis_type = "AUX_FIT"
@@ -184,13 +188,15 @@ CONTAINS
 !> \param rtp_coeff_aux_fit ...
 !> \param density_matrix_aux ...
 !> \param density_matrix_aux_im ...
+!> \param occupation ...
 !> \param ispin ...
 ! **************************************************************************************************
    SUBROUTINE rtp_admm_calculate_dm(admm_env, rtp_coeff_aux_fit, density_matrix_aux, &
-                                    density_matrix_aux_im, ispin)
+                                    density_matrix_aux_im, occupation, ispin)
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: rtp_coeff_aux_fit
       TYPE(dbcsr_type), POINTER                          :: density_matrix_aux, density_matrix_aux_im
+      REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: occupation
       INTEGER, INTENT(in)                                :: ispin
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rtp_admm_calculate_dm'
@@ -202,7 +208,7 @@ CONTAINS
       SELECT CASE (admm_env%purification_method)
       CASE (do_admm_purify_none)
          CALL calculate_rtp_admm_density(density_matrix_aux, density_matrix_aux_im, &
-                                         rtp_coeff_aux_fit, ispin)
+                                         rtp_coeff_aux_fit, occupation, ispin)
       CASE DEFAULT
          CPWARN("only purification NONE possible with RTP/EMD at the moment")
       END SELECT
@@ -384,46 +390,76 @@ CONTAINS
 !> \param density_matrix_aux ...
 !> \param density_matrix_aux_im ...
 !> \param rtp_coeff_aux_fit ...
+!> \param occupation ...
 !> \param ispin ...
 ! **************************************************************************************************
    SUBROUTINE calculate_rtp_admm_density(density_matrix_aux, density_matrix_aux_im, &
-                                         rtp_coeff_aux_fit, ispin)
+                                         rtp_coeff_aux_fit, occupation, ispin)
 
       TYPE(dbcsr_type), POINTER                          :: density_matrix_aux, density_matrix_aux_im
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: rtp_coeff_aux_fit
+      REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: occupation
       INTEGER, INTENT(in)                                :: ispin
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rtp_admm_density'
-      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       INTEGER                                            :: handle, im, ncol, re
       REAL(KIND=dp)                                      :: alpha
+      TYPE(cp_fm_type)                                   :: fm_tmp
 
       CALL timeset(routineN, handle)
 
       re = 2*ispin - 1; im = 2*ispin
-      alpha = 3*one - REAL(SIZE(rtp_coeff_aux_fit)/2, dp)
+
       CALL dbcsr_set(density_matrix_aux, zero)
       CALL cp_fm_get_info(rtp_coeff_aux_fit(re), ncol_global=ncol)
-      CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux, &
-                                 matrix_v=rtp_coeff_aux_fit(re), &
-                                 ncol=ncol, &
-                                 alpha=alpha)
+      alpha = occupation(1)
+      IF (ALL(occupation == alpha)) THEN
+         CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux, &
+                                    matrix_v=rtp_coeff_aux_fit(re), &
+                                    ncol=ncol, &
+                                    alpha=alpha)
 
-      ! It is actually complex conjugate but i*i=-1 therefore it must be added
-      CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux, &
-                                 matrix_v=rtp_coeff_aux_fit(im), &
-                                 ncol=ncol, &
-                                 alpha=alpha)
+         ! It is actually complex conjugate but i*i=-1 therefore it must be added
+         CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux, &
+                                    matrix_v=rtp_coeff_aux_fit(im), &
+                                    ncol=ncol, &
+                                    alpha=alpha)
 
-!   compute the imaginary part of the dm
-      CALL dbcsr_set(density_matrix_aux_im, zero)
-      CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux_im, &
-                                 matrix_v=rtp_coeff_aux_fit(im), &
-                                 matrix_g=rtp_coeff_aux_fit(re), &
-                                 ncol=ncol, &
-                                 alpha=2.0_dp*alpha, &
-                                 symmetry_mode=-1)
+         !   compute the imaginary part of the dm
+         CALL dbcsr_set(density_matrix_aux_im, zero)
+         CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux_im, &
+                                    matrix_v=rtp_coeff_aux_fit(im), &
+                                    matrix_g=rtp_coeff_aux_fit(re), &
+                                    ncol=ncol, &
+                                    alpha=2.0_dp*alpha, &
+                                    symmetry_mode=-1)
+      ELSE
+         CALL cp_fm_create(fm_tmp, rtp_coeff_aux_fit(1)%matrix_struct)
+         CALL cp_fm_to_fm(rtp_coeff_aux_fit(re), fm_tmp)
+         CALL cp_fm_column_scale(fm_tmp, occupation(1:ncol))
+         alpha = 1.0_dp
+         CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux, &
+                                    matrix_v=rtp_coeff_aux_fit(re), &
+                                    matrix_g=fm_tmp, &
+                                    ncol=ncol, alpha=alpha)
+         ! It is actually complex conjugate but i*i=-1 therefore it must be added
+         CALL cp_fm_to_fm(rtp_coeff_aux_fit(im), fm_tmp)
+         CALL cp_fm_column_scale(fm_tmp, occupation(1:ncol))
+         CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux, &
+                                    matrix_v=rtp_coeff_aux_fit(im), &
+                                    matrix_g=fm_tmp, &
+                                    ncol=ncol, alpha=alpha)
+         !   compute the imaginary part of the dm
+         CALL dbcsr_set(density_matrix_aux_im, zero)
+         CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux_im, &
+                                    matrix_v=fm_tmp, &
+                                    matrix_g=rtp_coeff_aux_fit(re), &
+                                    ncol=ncol, alpha=2.0_dp*alpha, &
+                                    symmetry_mode=-1)
+         CALL cp_fm_release(fm_tmp)
+      END IF
 
       CALL timestop(handle)
 
