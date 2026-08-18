@@ -271,8 +271,9 @@ class TrajectoryToolTests(unittest.TestCase):
                 self.assertAlmostEqual(row[1], reference, places=12)
                 self.assertAlmostEqual(row[2], reference / expected[0], places=12)
             spectrum_values = data_lines(spectrum)
-            self.assertGreater(spectrum_values[0][1], 0.0)
-            self.assertGreater(sum(row[1] for row in spectrum_values[1:]), 0.0)
+            self.assertGreater(spectrum_values[0][3], 0.0)
+            self.assertGreater(sum(row[3] for row in spectrum_values[1:]), 0.0)
+            self.assertAlmostEqual(spectrum_values[1][2], 4.135667696 * 500.0)
 
     def test_hbond_and_dynamic_structure_factor(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -342,10 +343,107 @@ class TrajectoryToolTests(unittest.TestCase):
                 self.assertAlmostEqual(row[2], 0.0, places=12)
                 self.assertAlmostEqual(row[3], 1.0, places=12)
             dynamic_values = data_lines(dynamic)
-            self.assertGreater(dynamic_values[0][1], 0.0)
+            self.assertGreater(dynamic_values[0][3], 0.0)
             self.assertAlmostEqual(
-                sum(row[1] for row in dynamic_values[1:]), 0.0, places=12
+                sum(row[3] for row in dynamic_values[1:]), 0.0, places=12
             )
+
+    def test_self_scattering_and_collective_currents(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            positions = root / "positions.xyz"
+            velocities = root / "velocities.xyz"
+            positions.write_text(
+                "".join(f"1\nframe {frame}\nH {frame} 0 0\n" for frame in range(8)),
+                encoding="utf8",
+            )
+            velocities.write_text(
+                "".join(f"1\nframe {frame}\nH 1 2 3\n" for frame in range(8)),
+                encoding="utf8",
+            )
+            q_file = root / "q.dat"
+            q_file.write_text(f"{math.pi / 2.0:.16f} 0 0\n", encoding="utf8")
+            coherent = root / "coherent.dat"
+            incoherent = root / "incoherent.dat"
+            incoherent_spectrum = root / "incoherent-spectrum.dat"
+            currents = root / "currents.dat"
+            current_spectrum = root / "current-spectrum.dat"
+            peaks = root / "peaks.dat"
+            summary = root / "summary.dat"
+            run(
+                str(TRAJANA),
+                "dsf",
+                "--input",
+                str(positions),
+                "--velocity",
+                str(velocities),
+                "--q-file",
+                str(q_file),
+                "--dt-fs",
+                "1",
+                "--output",
+                str(coherent),
+                "--self-output",
+                str(incoherent),
+                "--self-spectrum",
+                str(incoherent_spectrum),
+                "--current",
+                str(currents),
+                "--current-spectrum",
+                str(current_spectrum),
+                "--summary",
+                str(summary),
+                "--mass-density",
+                "1",
+                "--peaks",
+                str(peaks),
+            )
+
+            self_values = data_lines(incoherent)
+            self.assertAlmostEqual(self_values[0][1], 1.0, places=12)
+            self.assertAlmostEqual(self_values[1][1], 0.0, places=12)
+            self.assertAlmostEqual(abs(self_values[1][2]), 1.0, places=12)
+            self.assertAlmostEqual(self_values[2][1], -1.0, places=12)
+            incoherent_spectrum_values = data_lines(incoherent_spectrum)
+            self.assertAlmostEqual(
+                incoherent_spectrum_values[2][3],
+                incoherent_spectrum_values[2][4],
+                places=12,
+            )
+
+            current_values = data_lines(currents)
+            self.assertAlmostEqual(current_values[0][1], 1.0, places=12)
+            self.assertAlmostEqual(current_values[0][4], 6.5, places=12)
+            spectrum_values = data_lines(current_spectrum)
+            peak_bin = spectrum_values[2]
+            self.assertGreater(peak_bin[3], 0.0)
+            self.assertAlmostEqual(peak_bin[3], peak_bin[5], places=12)
+
+            summary_values = data_lines(summary)[0]
+            self.assertAlmostEqual(summary_values[0], math.pi / 2.0, places=12)
+            self.assertAlmostEqual(summary_values[1], 1.0, places=12)
+            self.assertAlmostEqual(summary_values[2], 1.0, places=12)
+            self.assertAlmostEqual(summary_values[3], 6.5, places=12)
+            self.assertAlmostEqual(summary_values[4], (math.pi / 2.0) ** 2, places=12)
+            self.assertAlmostEqual(summary_values[5], (math.pi / 2.0) ** 2, places=12)
+            self.assertAlmostEqual(summary_values[6], (math.pi / 2.0) ** 2, places=12)
+            self.assertAlmostEqual(summary_values[7], 1.0, places=12)
+            self.assertAlmostEqual(summary_values[8], 1.0, places=12)
+            self.assertAlmostEqual(summary_values[9], 10000.0, places=8)
+            self.assertAlmostEqual(summary_values[10], 10000.0, places=8)
+
+            peak_rows = [
+                line.split()
+                for line in peaks.read_text(encoding="utf8").splitlines()
+                if line and not line.startswith("#")
+            ]
+            peak_channels = {row[0] for row in peak_rows}
+            self.assertEqual(
+                peak_channels,
+                {"coherent", "incoherent", "longitudinal", "transverse"},
+            )
+            for row in peak_rows:
+                self.assertAlmostEqual(float(row[5]), 100.0, places=12)
 
 
 if __name__ == "__main__":

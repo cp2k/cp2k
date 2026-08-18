@@ -42,7 +42,7 @@ CONTAINS
       WRITE (*, "(A)") "  rdf       Radial distribution and running coordination number"
       WRITE (*, "(A)") "  vacf      Velocity autocorrelation and optional spectrum"
       WRITE (*, "(A)") "  hbond     Wernet-type hydrogen-bond network statistics"
-      WRITE (*, "(A)") "  dsf       Coherent intermediate and dynamic structure factors"
+      WRITE (*, "(A)") "  dsf       Coherent/self scattering and collective current spectra"
       WRITE (*, "(A)") ""
       WRITE (*, "(A)") "Run the tool from tools/trajana and see README.md for complete examples."
    END SUBROUTINE print_help

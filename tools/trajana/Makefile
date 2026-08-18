@@ -13,7 +13,8 @@ COMMON_OBJECTS = \
         selections.o \
         groups.o \
         fft.o \
-        time_series.o
+        time_series.o \
+        spectral_tools.o
 
 ANALYSIS_OBJECTS = \
         geometry_analysis.o \
@@ -41,11 +42,12 @@ selections.o: text_utils.o
 groups.o: kinds.o text_utils.o
 fft.o: kinds.o
 time_series.o: kinds.o fft.o
+spectral_tools.o: kinds.o
 geometry_analysis.o: kinds.o text_utils.o trajectory_types.o trajectory_io.o cell_source.o command_line.o frame_controls.o geometry.o
 rdf_analysis.o: kinds.o trajectory_types.o trajectory_io.o cell_source.o command_line.o frame_controls.o geometry.o selections.o
-vacf_analysis.o: kinds.o text_utils.o trajectory_types.o trajectory_io.o command_line.o frame_controls.o selections.o time_series.o
+vacf_analysis.o: kinds.o text_utils.o trajectory_types.o trajectory_io.o command_line.o frame_controls.o selections.o time_series.o spectral_tools.o
 hbond_analysis.o: kinds.o trajectory_types.o trajectory_io.o cell_source.o command_line.o frame_controls.o geometry.o groups.o
-dsf_analysis.o: kinds.o text_utils.o trajectory_types.o trajectory_io.o command_line.o frame_controls.o selections.o time_series.o
+dsf_analysis.o: kinds.o text_utils.o trajectory_types.o trajectory_io.o command_line.o frame_controls.o selections.o time_series.o spectral_tools.o
 trajana_main.o: text_utils.o command_line.o $(ANALYSIS_OBJECTS)
 trajconvert.o: kinds.o text_utils.o trajectory_types.o trajectory_io.o cell_source.o command_line.o frame_controls.o geometry.o groups.o
 

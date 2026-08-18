@@ -7,6 +7,9 @@ MODULE trajana_vacf_analysis
    USE trajana_frame_controls,          ONLY: frame_selected
    USE trajana_kinds,                   ONLY: dp
    USE trajana_selections,              ONLY: build_selection
+   USE trajana_spectral_tools,          ONLY: frequency_axes,&
+                                              write_peak_header,&
+                                              write_spectral_peaks
    USE trajana_text_utils,              ONLY: lower_case
    USE trajana_time_series,             ONLY: real_autocorrelation_sum,&
                                               real_power_sum,&
@@ -25,15 +28,16 @@ CONTAINS
 
    SUBROUTINE run_vacf()
       CHARACTER(LEN=512)                                 :: message
-      CHARACTER(LEN=:), ALLOCATABLE                      :: input_path, output_path, selection, &
-                                                            spectrum_path, window
+      CHARACTER(LEN=:), ALLOCATABLE                      :: input_path, output_path, peaks_path, &
+                                                            selection, spectrum_path, window
       INTEGER :: atom, capacity, component, expected_atoms, first, frames, frequency, ierr, item, &
-         lag, last, maximum_lag, nfft, output_unit, selected_atoms, spectrum_unit, stride
-      LOGICAL                                            :: eof, found, remove_mean, &
+         lag, last, maximum_lag, nfft, output_unit, peaks_unit, selected_atoms, spectrum_unit, stride
+      LOGICAL                                            :: eof, found, peaks_requested, remove_mean, &
                                                             spectrum_requested
       LOGICAL, ALLOCATABLE                               :: selected(:)
-      REAL(dp)                                           :: dt_fs, effective_dt, frequency_hz, &
-                                                            spectral_value, wavenumber, window_norm
+      REAL(dp)                                           :: dt_fs, effective_dt, energy_mev, peak_threshold, &
+                                                            spectral_scale, spectral_value, terahertz, &
+                                                            wavenumber, window_norm
       REAL(dp), ALLOCATABLE                              :: correlation(:), grown(:, :), power(:), &
                                                             series(:, :)
       TYPE(frame_type)                                   :: frame
@@ -42,17 +46,22 @@ CONTAINS
       CALL get_option("--input", input_path, found, "-")
       CALL get_option("--output", output_path, found, "-")
       CALL get_option("--spectrum", spectrum_path, spectrum_requested)
+      CALL get_option("--peaks", peaks_path, peaks_requested)
       CALL get_option("--select", selection, found, "all")
       CALL get_option("--window", window, found, "none")
       window = lower_case(window)
       IF (window /= "none" .AND. window /= "hann") CALL fail("--window expects none or hann")
       CALL get_real_option("--dt-fs", dt_fs, -1.0_dp)
+      CALL get_real_option("--peak-threshold", peak_threshold, 0.05_dp)
       CALL get_integer_option("--max-lag", maximum_lag, -1)
       CALL get_integer_option("--first", first, 1)
       CALL get_integer_option("--last", last, HUGE(1))
       CALL get_integer_option("--stride", stride, 1)
       remove_mean = has_flag("--remove-mean")
       IF (dt_fs <= 0.0_dp) CALL fail("vacf requires a positive --dt-fs")
+      IF (peak_threshold <= 0.0_dp .OR. peak_threshold > 1.0_dp) &
+         CALL fail("--peak-threshold must be in the interval (0,1]")
+      IF (peaks_requested .AND. .NOT. spectrum_requested) CALL fail("--peaks requires --spectrum")
       IF (first < 1 .OR. last < first .OR. stride < 1) CALL fail("Invalid frame range")
 
       CALL trajectory%open_file(input_path, ierr, message)
@@ -126,16 +135,25 @@ CONTAINS
          CALL real_power_sum(series, window, power, nfft, window_norm)
          CALL open_output(spectrum_path, spectrum_unit, ierr, message)
          IF (ierr /= 0) CALL fail(message)
-         WRITE (spectrum_unit, "(A)") "# wavenumber [cm^-1]   one-sided velocity power [velocity^2 fs]"
+         WRITE (spectrum_unit, "(A)") &
+            "# wavenumber [cm^-1]   frequency [THz]   energy [meV]   one-sided velocity power [velocity^2 fs]"
          WRITE (spectrum_unit, "(A,A)") "# window: ", TRIM(window)
+         spectral_scale = effective_dt/(REAL(selected_atoms, dp)*window_norm)
          DO frequency = 0, nfft/2
-            frequency_hz = REAL(frequency, dp)/(REAL(nfft, dp)*effective_dt*1.0e-15_dp)
-            wavenumber = frequency_hz/2.99792458e10_dp
-            spectral_value = power(frequency)*effective_dt/(REAL(selected_atoms, dp)*window_norm)
+            CALL frequency_axes(frequency, nfft, effective_dt, wavenumber, terahertz, energy_mev)
+            spectral_value = power(frequency)*spectral_scale
             IF (frequency > 0 .AND. frequency < nfft/2) spectral_value = 2.0_dp*spectral_value
-            WRITE (spectrum_unit, "(2ES24.16)") wavenumber, spectral_value
+            WRITE (spectrum_unit, "(4ES24.16)") wavenumber, terahertz, energy_mev, spectral_value
          END DO
          CALL close_output(spectrum_unit)
+         IF (peaks_requested) THEN
+            CALL open_output(peaks_path, peaks_unit, ierr, message)
+            IF (ierr /= 0) CALL fail(message)
+            CALL write_peak_header(peaks_unit)
+            CALL write_spectral_peaks(peaks_unit, "vacf", 0.0_dp, power, spectral_scale, nfft, &
+                                      effective_dt, peak_threshold)
+            CALL close_output(peaks_unit)
+         END IF
       END IF
    END SUBROUTINE run_vacf
 
