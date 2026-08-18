@@ -317,7 +317,7 @@ CONTAINS
          CALL pw_gpu_init()
          CALL grid_library_init()
          CALL dbm_library_init()
-#if(__LIBINT)
+#if defined(__LIBINT)
          CALL cp_libint_static_init()
 #endif
       ELSE
@@ -355,7 +355,7 @@ CONTAINS
          END DO
          DEALLOCATE (f_envs)
 
-#if(__LIBINT)
+#if defined(__LIBINT)
          CALL cp_libint_static_cleanup()
 #endif
 

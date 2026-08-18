@@ -61,7 +61,7 @@ CONTAINS
             CALL cp_libint_init_2eri(context%lib_2c, max_am_2c)
             CALL cp_libint_set_contrdepth(context%lib_2c, 1)
          CASE (library_native)
-            CONTINUE
+            ! Nothing to do.
          CASE DEFAULT
             CPABORT("Requested two-center Coulomb library is not implemented")
          END SELECT
@@ -74,7 +74,7 @@ CONTAINS
             CALL cp_libint_init_3eri(context%lib_3c, max_am_3c)
             CALL cp_libint_set_contrdepth(context%lib_3c, 1)
          CASE (library_native)
-            CONTINUE
+            ! Nothing to do.
          CASE DEFAULT
             CPABORT("Requested three-center Coulomb library is not implemented")
          END SELECT
@@ -94,7 +94,7 @@ CONTAINS
          CASE (library_libint)
             CALL cp_libint_cleanup_2eri(context%lib_2c)
          CASE (library_native)
-            CONTINUE
+            ! Nothing to do.
          CASE DEFAULT
             CPABORT("Requested two-center Coulomb library is not implemented")
          END SELECT
@@ -106,7 +106,7 @@ CONTAINS
          CASE (library_libint)
             CALL cp_libint_cleanup_3eri(context%lib_3c)
          CASE (library_native)
-            CONTINUE
+            ! Nothing to do.
          CASE DEFAULT
             CPABORT("Requested three-center Coulomb library is not implemented")
          END SELECT
