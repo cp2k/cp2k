@@ -21,6 +21,7 @@
 MODULE global_types
 
    USE cp_blacs_env,                    ONLY: BLACS_GRID_SQUARE
+   USE integral_library_types,          ONLY: integral_library_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -71,6 +72,7 @@ MODULE global_types
       CHARACTER(LEN=default_string_length)    :: default_fft_library = "FFTSG"
       CHARACTER(LEN=default_path_length)      :: fftw_wisdom_file_name = "/etc/fftw/wisdom"
       CHARACTER(LEN=default_string_length)    :: default_dgemm_library = "BLAS"
+      TYPE(integral_library_type)             :: integral_library = integral_library_type()
 
       INTEGER :: fft_pool_scratch_limit = 0 ! limit number of used FFT scratches
       INTEGER :: fftw_plan_type = 0 ! which kind of planning to use with FFTW

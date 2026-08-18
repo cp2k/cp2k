@@ -1390,13 +1390,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Initialise an atomic kind data set.
 !> \param qs_kind ...
-!> \param coulomb2_backend ...
 !> \author Creation (11.01.2002,MK)
 !>                20.09.2002 adapted for pol/kg use, gtb
 ! **************************************************************************************************
-   SUBROUTINE init_qs_kind(qs_kind, coulomb2_backend)
+   SUBROUTINE init_qs_kind(qs_kind)
       TYPE(qs_kind_type), POINTER                        :: qs_kind
-      INTEGER, INTENT(IN), OPTIONAL                      :: coulomb2_backend
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'init_qs_kind'
 
@@ -1421,7 +1419,7 @@ CONTAINS
          IF (basis_type == "") CYCLE
          IF (basis_type == "AUX") THEN
             IF (tmp_basis_set%norm_type < 0) tmp_basis_set%norm_type = 1
-            CALL init_aux_basis_set(tmp_basis_set, coulomb2_backend)
+            CALL init_aux_basis_set(tmp_basis_set)
          ELSE
             IF (tmp_basis_set%norm_type < 0) tmp_basis_set%norm_type = 2
             CALL init_orb_basis_set(tmp_basis_set)
@@ -1435,14 +1433,12 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Initialise an atomic kind set data set.
 !> \param qs_kind_set ...
-!> \param coulomb2_backend ...
 !> \author - Creation (17.01.2002,MK)
 !>      - 20.09.2002 para_env passed (gt)
 ! **************************************************************************************************
-   SUBROUTINE init_qs_kind_set(qs_kind_set, coulomb2_backend)
+   SUBROUTINE init_qs_kind_set(qs_kind_set)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      INTEGER, INTENT(IN), OPTIONAL                      :: coulomb2_backend
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'init_qs_kind_set'
 
@@ -1457,7 +1453,7 @@ CONTAINS
 
       DO ikind = 1, SIZE(qs_kind_set)
          qs_kind => qs_kind_set(ikind)
-         CALL init_qs_kind(qs_kind, coulomb2_backend)
+         CALL init_qs_kind(qs_kind)
       END DO
 
       CALL timestop(handle)

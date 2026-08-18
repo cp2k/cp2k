@@ -41,7 +41,7 @@ MODULE libint_2c_3c
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'libint_2c_3c'
 
-   PUBLIC :: eri_3center, eri_2center, cutoff_screen_factor, libint_potential_type, &
+   PUBLIC :: eri_2center, eri_3center, cutoff_screen_factor, libint_potential_type, &
              eri_3center_derivs, eri_2center_derivs, compare_potential_types
 
    ! For screening of integrals with a truncated potential, it is important to use a slightly larger
@@ -1307,4 +1307,3 @@ CONTAINS
    END SUBROUTINE set_params_2c_deriv
 
 END MODULE libint_2c_3c
-

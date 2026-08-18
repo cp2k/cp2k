@@ -15,8 +15,6 @@
 MODULE mp2_eri
    USE ai_contraction_sphi, ONLY: ab_contract, &
                                   abc_contract
-   USE ai_coulomb, ONLY: coulomb2, &
-                         coulomb3
    USE atomic_kind_types, ONLY: atomic_kind_type, &
                                 get_atomic_kind_set
    USE basis_set_types, ONLY: gto_basis_set_p_type, &
@@ -41,20 +39,16 @@ MODULE mp2_eri
                               do_eri_os, &
                               do_potential_coulomb, &
                               do_potential_long
-   USE electronic_integral_backend_types, ONLY: backend_libint, backend_native
    USE input_section_types, ONLY: section_vals_get_subs_vals, &
                                   section_vals_type, &
                                   section_vals_val_get
    USE kinds, ONLY: dp
-   USE libint_2c_3c, ONLY: eri_2center, &
-                           eri_3center, &
-                           libint_potential_type
-   USE libint_wrapper, ONLY: cp_libint_cleanup_2eri, &
-                             cp_libint_cleanup_3eri, &
-                             cp_libint_init_2eri, &
-                             cp_libint_init_3eri, &
-                             cp_libint_set_contrdepth, &
-                             cp_libint_t
+   USE coulomb_integral_interface, ONLY: compute_coulomb_2c, &
+                                         compute_coulomb_3c, &
+                                         coulomb_integral_cleanup, &
+                                         coulomb_integral_context_type, &
+                                         coulomb_integral_init
+   USE libint_2c_3c, ONLY: libint_potential_type
    USE orbital_pointers, ONLY: coset, &
                                init_orbital_pointers, &
                                ncoset
@@ -146,7 +140,7 @@ CONTAINS
 
       INTEGER :: atom_a, atom_b, atom_end, atom_start, first_set, G_count, handle, iatom, ikind, &
                  iset, jatom, jkind, jset, jset_end, jset_start, last_set, max_am_a, max_am_b, &
-                 coulomb2_backend, my_eri_method, my_setpair, n_setpair, natom, nkind, nseta, nseta_total, &
+                 my_eri_method, my_setpair, n_setpair, natom, nkind, nseta, nseta_total, &
                  nsetb, nsetb_total, offset_a_end, &
                  offset_a_start, offset_b_end, offset_b_start, R_count, set_end, set_offset_end, &
                  set_offset_start, set_start, sgfa, sgfb
@@ -156,13 +150,13 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: map_it_here, my_do_reflection_a, &
-                                                            my_do_reflection_b, use_coulomb2_libint
+                                                            my_do_reflection_b
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_libint_t)                                  :: lib
+      TYPE(coulomb_integral_context_type)                :: integral_context
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -171,13 +165,6 @@ CONTAINS
 
       my_eri_method = do_eri_mme
       IF (PRESENT(eri_method)) my_eri_method = eri_method
-
-      coulomb2_backend = qs_env%electronic_integral_backend%coulomb2_backend
-      use_coulomb2_libint = my_eri_method == do_eri_os .AND. coulomb2_backend == backend_libint
-      IF (my_eri_method == do_eri_os .AND. coulomb2_backend /= backend_native .AND. &
-          .NOT. use_coulomb2_libint) THEN
-         CPABORT("Requested two-center Coulomb backend is not implemented")
-      END IF
 
       my_do_reflection_a = .FALSE.
       IF (PRESENT(do_reflection_a) .AND. PRESENT(reflection_z_a)) my_do_reflection_a = do_reflection_a
@@ -201,11 +188,10 @@ CONTAINS
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
                       cell=cell, particle_set=particle_set, natom=natom, nkind=nkind)
 
-      IF (use_coulomb2_libint) THEN
+      IF (my_eri_method == do_eri_os) THEN
          CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxlgto=max_am_a, basis_type=basis_type_a)
          CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxlgto=max_am_b, basis_type=basis_type_b)
-         CALL cp_libint_init_2eri(lib, MAX(max_am_a, max_am_b))
-         CALL cp_libint_set_contrdepth(lib, 1)
+         CALL coulomb_integral_init(integral_context, max_am_2c=MAX(max_am_a, max_am_b))
       END IF
 
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, natom_of_kind=natom_of_kind, atom_of_kind=atom_of_kind)
@@ -325,7 +311,7 @@ CONTAINS
                                  hdab=hdab, hadb=hadb, &
                                  G_count=G_count, R_count=R_count, &
                                  do_reflection_a=do_reflection_a, do_reflection_b=do_reflection_b, &
-                                 coulomb2_backend=coulomb2_backend, lib=lib, &
+                                 coulomb_context=integral_context, &
                                  rpgfa=rpgfa(:, iset), rpgfb=rpgfb(:, jset))
                            END IF
                         #:endfor
@@ -336,7 +322,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (use_coulomb2_libint) CALL cp_libint_cleanup_2eri(lib)
+      IF (my_eri_method == do_eri_os) CALL coulomb_integral_cleanup(integral_context)
 
       IF (my_eri_method == do_eri_mme) THEN
 
@@ -388,16 +374,15 @@ CONTAINS
 !> \param R_count ...
 !> \param do_reflection_a ...
 !> \param do_reflection_b ...
-!> \param rpgfa primitive Gaussian radii for basis A (required by the Libint backend)
-!> \param rpgfb primitive Gaussian radii for basis B (required by the Libint backend)
-!> \param coulomb2_backend ...
-!> \param lib initialized Libint object (required by the Libint backend)
+!> \param rpgfa primitive Gaussian radii for basis A (required by the Libint library)
+!> \param rpgfb primitive Gaussian radii for basis B (required by the Libint library)
+!> \param coulomb_context context for the selected Coulomb integral library
 ! **************************************************************************************************
    SUBROUTINE integrate_set_2c(param, potential_parameter, la_min, la_max, lb_min, lb_max, npgfa, npgfb, zeta, zetb, &
                                ra, rb, hab, n_hab_a, n_hab_b, offset_hab_a, offset_hab_b, &
                                offset_set_a, offset_set_b, sphi_a, sphi_b, sgfa, sgfb, nsgfa, nsgfb, &
                                eri_method, pab, force_a, force_b, hdab, hadb, G_count, R_count, &
-                               do_reflection_a, do_reflection_b, rpgfa, rpgfb, coulomb2_backend, lib)
+                               do_reflection_a, do_reflection_b, rpgfa, rpgfb, coulomb_context)
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, npgfa
@@ -413,7 +398,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: sgfa, nsgfa
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_b
       INTEGER, INTENT(IN)                                :: sgfb, nsgfb, eri_method
-      TYPE(cp_libint_t), INTENT(INOUT), OPTIONAL         :: lib
+      TYPE(coulomb_integral_context_type), INTENT(INOUT), OPTIONAL :: coulomb_context
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: pab
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT), &
@@ -423,24 +408,21 @@ CONTAINS
       INTEGER, INTENT(INOUT), OPTIONAL                   :: G_count, R_count
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_reflection_a, do_reflection_b
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: rpgfa, rpgfb
-      INTEGER, INTENT(IN), OPTIONAL                      :: coulomb2_backend
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_set_2c'
 
       INTEGER :: ax, ay, az, bx, by, bz, hab_a_end, hab_a_start, hab_b_end, hab_b_start, handle, &
                  i_xyz, ico, icox, icoy, icoz, ipgf, jco, jcox, jcoy, jcoz, jpgf, la, la_max_d, lb, &
                  lb_max_d, na, nb, ncoa, ncob, set_a_end, set_a_start, set_b_end, set_b_start, &
-                 sphi_a_start, sphi_b_start, selected_coulomb2_backend
+                 sphi_a_start, sphi_b_start
       INTEGER, DIMENSION(3)                              :: la_xyz, lb_xyz
       LOGICAL                                            :: calculate_forces, my_do_reflection_a, &
                                                             my_do_reflection_b, do_force_a, do_force_b
-      REAL(KIND=dp)                                      :: rab2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f_work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hab_contr, hab_uncontr, &
                                                             hab_uncontr_d, pab_hh, pab_hs, &
                                                             pab_ss
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: hadb_contr, hadb_uncontr, hdab_contr, &
-                                                            hdab_uncontr, v_work
+                                                            hdab_uncontr
 
       ! note: tested only for one exponent per pair (npgfa = npgfb = 1)
       CALL timeset(routineN, handle)
@@ -450,9 +432,6 @@ CONTAINS
 
       my_do_reflection_b = .FALSE.
       IF (PRESENT(do_reflection_b)) my_do_reflection_b = do_reflection_b
-
-      selected_coulomb2_backend = backend_native
-      IF (PRESENT(coulomb2_backend)) selected_coulomb2_backend = coulomb2_backend
 
       do_force_a = PRESENT(force_a) .OR. PRESENT(hdab)
       do_force_b = PRESENT(force_b) .OR. PRESENT(hadb)
@@ -473,8 +452,6 @@ CONTAINS
 
       ncoa = npgfa*ncoset(la_max)
       ncob = npgfb*ncoset(lb_max)
-
-      rab2 = (ra(1) - rb(1))**2 + (ra(2) - rb(2))**2 + (ra(3) - rb(3))**2
 
       ALLOCATE (hab_uncontr_d(ncoset(la_max_d), ncoset(lb_max_d))); hab_uncontr_d(:, :) = 0.0_dp
       ALLOCATE (hab_uncontr(ncoa, ncob)); hab_uncontr(:, :) = 0.0_dp
@@ -577,22 +554,12 @@ CONTAINS
 
          IF (calculate_forces) CPABORT("NYI")
          IF (.NOT. PRESENT(rpgfa) .OR. .NOT. PRESENT(rpgfb)) THEN
-            CPABORT("Two-center OS backend requires primitive Gaussian radii")
+            CPABORT("Two-center OS library requires primitive Gaussian radii")
          END IF
 
-         IF (selected_coulomb2_backend == backend_libint) THEN
-            IF (.NOT. PRESENT(lib)) CPABORT("LIBINT backend requires a Libint object")
-            CALL eri_2center(hab_uncontr, la_min, la_max, npgfa, zeta, rpgfa, ra, &
-                             lb_min, lb_max, npgfb, zetb, rpgfb, rb, SQRT(rab2), lib, potential_parameter)
-         ELSE
-            ALLOCATE (f_work(0:la_max + lb_max + 2))
-            ALLOCATE (v_work(ncoa, ncob, la_max + lb_max + 1))
-
-            CALL coulomb2(la_max, npgfa, zeta, rpgfa, la_min, lb_max, npgfb, zetb, rpgfb, lb_min, &
-                          rb - ra, rab2, hab_uncontr, v_work, f_work, screening=.FALSE.)
-
-            DEALLOCATE (v_work, f_work)
-         END IF
+         CPASSERT(PRESENT(coulomb_context))
+         CALL compute_coulomb_2c(coulomb_context, la_min, la_max, lb_min, lb_max, npgfa, npgfb, zeta, zetb, &
+                                 rpgfa, rpgfb, ra, rb, hab_uncontr, potential_parameter)
 
       ELSE IF (eri_method == do_eri_gpw) THEN
 
@@ -689,7 +656,7 @@ CONTAINS
       INTEGER :: atom_a, atom_b, atom_c, atom_end, atom_start, first_set, GG_count, GR_count, &
                  handle, i_xyz, iatom, ic, icol, ikind, inode, irow, iset, jatom, jkind, jset, katom, &
                  kkind, kset, kset_end, kset_start, last_jatom, last_set, max_am_a, max_am_b, max_am_c, &
-                 coulomb3_backend, mepos, my_eri_method, na, natom, &
+                 mepos, my_eri_method, na, natom, &
                  nb, nc, nkind, nseta, nsetb, nsetc, nthread, offset_a_end, offset_a_start, offset_b_end, &
                  offset_b_start, offset_c_end, offset_c_start, RR_count, set_end, set_offset_end, &
                  set_offset_start, set_start, sgfa, sgfb, sgfc
@@ -699,8 +666,7 @@ CONTAINS
                                                             lc_min, npgfa, npgfb, npgfc, nsgfa, &
                                                             nsgfb, nsgfc
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb, first_sgfc
-      LOGICAL                                            :: calculate_forces, do_symmetric, found, to_be_asserted, &
-                                                            use_coulomb3_libint
+      LOGICAL                                            :: calculate_forces, do_symmetric, found, to_be_asserted
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: habc, pabc_block
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: habdc, hadbc, hdabc
@@ -712,7 +678,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, basis_set_c
-      TYPE(cp_libint_t)                                  :: lib
+      TYPE(coulomb_integral_context_type)                :: integral_context
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -725,13 +691,6 @@ CONTAINS
 
       my_eri_method = do_eri_mme
       IF (PRESENT(eri_method)) my_eri_method = eri_method
-
-      coulomb3_backend = qs_env%electronic_integral_backend%coulomb3_backend
-      use_coulomb3_libint = my_eri_method == do_eri_os .AND. coulomb3_backend == backend_libint
-      IF (my_eri_method == do_eri_os .AND. coulomb3_backend /= backend_native .AND. &
-          .NOT. use_coulomb3_libint) THEN
-         CPABORT("Requested three-center Coulomb backend is not implemented")
-      END IF
 
       IF (PRESENT(force_a) .OR. PRESENT(force_b) .OR. PRESENT(force_c)) THEN
          CPASSERT(PRESENT(pabc))
@@ -781,12 +740,11 @@ CONTAINS
       CALL basis_set_list_setup(basis_set_list_a, basis_type_a, qs_kind_set)
       CALL basis_set_list_setup(basis_set_list_b, basis_type_b, qs_kind_set)
 
-      IF (use_coulomb3_libint) THEN
+      IF (my_eri_method == do_eri_os) THEN
          CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxlgto=max_am_a, basis_type=basis_type_a)
          CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxlgto=max_am_b, basis_type=basis_type_b)
          CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxlgto=max_am_c, basis_type=basis_type_c)
-         CALL cp_libint_init_3eri(lib, MAX(max_am_a, max_am_b, max_am_c))
-         CALL cp_libint_set_contrdepth(lib, 1)
+         CALL coulomb_integral_init(integral_context, max_am_3c=MAX(max_am_a, max_am_b, max_am_c))
       END IF
 
       CALL neighbor_list_iterator_create(nl_iterator, sab_nl, nthread=nthread)
@@ -976,8 +934,7 @@ CONTAINS
                                                 sgfa, sgfb, sgfc, &
                                                 nsgfa(iset), nsgfb(jset), nsgfc(kset), &
                                                 my_eri_method, &
-                                                coulomb3_backend, &
-                                                lib=lib, &
+                                                coulomb_context=integral_context, &
                            $:                         'pabc=pabc_block, &'*pabc_present
                            $:                         'force_a=force_a(ikind)%forces(:, atom_a), &'*doforce_1
                            $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce_2
@@ -1069,7 +1026,7 @@ CONTAINS
       DEALLOCATE (basis_set_list_a, basis_set_list_b)
       CALL neighbor_list_iterator_release(nl_iterator)
 
-      IF (use_coulomb3_libint) CALL cp_libint_cleanup_3eri(lib)
+      IF (my_eri_method == do_eri_os) CALL coulomb_integral_cleanup(integral_context)
 
       CALL cp_eri_mme_update_local_counts(param, para_env, GG_count_3c=GG_count, GR_count_3c=GR_count, RR_count_3c=RR_count)
 
@@ -1127,6 +1084,7 @@ CONTAINS
 !> \param GG_count ...
 !> \param GR_count ...
 !> \param RR_count ...
+!> \param coulomb_context context for the selected Coulomb integral library
 !> \note
 ! **************************************************************************************************
    SUBROUTINE integrate_set_3c(param, potential_parameter, &
@@ -1142,7 +1100,7 @@ CONTAINS
                                sphi_a, sphi_b, sphi_c, &
                                sgfa, sgfb, sgfc, &
                                nsgfa, nsgfb, nsgfc, &
-                               eri_method, coulomb3_backend, lib, &
+                               eri_method, coulomb_context, &
                                pabc, &
                                force_a, force_b, force_c, &
                                do_symmetric, on_diagonal, &
@@ -1165,8 +1123,8 @@ CONTAINS
                              offset_habc_c, offset_set_a, offset_set_b, offset_set_c
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_a, sphi_b, sphi_c
       INTEGER, INTENT(IN)                                :: sgfa, sgfb, sgfc, nsgfa, nsgfb, nsgfc, &
-                                                            coulomb3_backend, eri_method
-      TYPE(cp_libint_t), INTENT(INOUT), OPTIONAL         :: lib
+                                                            eri_method
+      TYPE(coulomb_integral_context_type), INTENT(INOUT), OPTIONAL :: coulomb_context
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          OPTIONAL                                        :: pabc
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT), &
@@ -1182,21 +1140,19 @@ CONTAINS
       INTEGER :: ax, ay, az, bx, by, bz, cx, cy, cz, habc_a_end, habc_a_start, habc_b_end, &
                  habc_b_start, habc_c_end, habc_c_start, handle, i_xyz, ico, icoc, icox, icoy, icoz, ipgf, &
                  jco, jcox, jcoy, jcoz, jpgf, kco, kcox, kcoy, kcoz, kpgf, la, la_max_d, lb, &
-                 lb_max_d, lc, lc_max_d, na, nb, nc, nc_end, nc_start, ncoa, ncoa_d, ncob, &
-                 ncob_d, ncoc, ncoc_d, set_a_end, set_a_start, set_b_end, set_b_start, &
+                 lb_max_d, lc, lc_max_d, na, nb, nc, ncoa, ncoa_d, ncob, ncob_d, ncoc, ncoc_d, &
+                 set_a_end, set_a_start, set_b_end, set_b_start, &
                  set_c_end, set_c_start, sphi_a_start, sphi_b_start, sphi_c_start
       INTEGER, DIMENSION(3)                              :: la_xyz, lb_xyz
       LOGICAL                                            :: calculate_forces, do_force_a, do_force_b, &
                                                             do_force_c
-      REAL(KIND=dp)                                      :: rab2, rac2, rbc2, w
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f_work, gccc, rpgfa_work, rpgfb_work, rpgfc_work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pab_hh, pab_hs, vabc
+      REAL(KIND=dp)                                      :: w
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pab_hh, pab_hs
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: habc_contr, habc_uncontr, &
                                                             habc_uncontr_d, pabc_hhh, &
                                                             pabc_hsh, pabc_hss, pabc_sss
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: habdc_contr, habdc_uncontr, hadbc_contr, &
-                                                            hadbc_uncontr, hdabc_contr, &
-                                                            hdabc_uncontr, v_work
+                                                            hadbc_uncontr, hdabc_contr, hdabc_uncontr
 
       CALL timeset(routineN, handle)
 
@@ -1380,49 +1336,10 @@ CONTAINS
 
          IF (calculate_forces) CPABORT("NYI")
 
-         rab2 = (rb(1) - ra(1))**2 + (rb(2) - ra(2))**2 + (rb(3) - ra(3))**2
-         rac2 = (rc(1) - ra(1))**2 + (rc(2) - ra(2))**2 + (rc(3) - ra(3))**2
-         rbc2 = (rc(1) - rb(1))**2 + (rc(2) - rb(2))**2 + (rc(3) - rb(3))**2
-
-         IF (coulomb3_backend == backend_libint) THEN
-            IF (.NOT. PRESENT(lib)) CPABORT("LIBINT backend requires a Libint object")
-            CALL eri_3center(habc_uncontr, la_min, la_max, npgfa, zeta, rpgfa, ra, &
-                             lb_min, lb_max, npgfb, zetb, rpgfb, rb, &
-                             lc_min, lc_max, npgfc, zetc, rpgfc, rc, &
-                             SQRT(rab2), SQRT(rac2), SQRT(rbc2), lib, potential_parameter)
-         ELSE
-            ALLOCATE (f_work(0:la_max + lb_max + lc_max + 2))
-            f_work(:) = 0.0_dp
-            ALLOCATE (v_work(ncoa, ncob, ncoc, la_max + lb_max + lc_max + 1))
-            v_work(:, :, :, :) = 0.0_dp
-            ! no screening
-            ALLOCATE (rpgfa_work(npgfa))
-            ALLOCATE (rpgfb_work(npgfb))
-            ALLOCATE (rpgfc_work(npgfc))
-            rpgfa_work(:) = 1.0E10_dp
-            rpgfb_work(:) = 1.0E10_dp
-            rpgfc_work(:) = 1.0E10_dp
-            ALLOCATE (gccc(ncoc))
-            gccc(:) = 0.0_dp
-            ALLOCATE (vabc(ncoa, ncob))
-            vabc(:, :) = 0.0_dp
-
-            ! in the RI basis, there is only a single primitive Gaussian
-            kpgf = 1
-
-            ! ncoset is indexed by -1,..., ,5
-            ! e.g. for pure s: lc_min = lc_max = 0, nc_start = 1
-            nc_start = ncoset(lc_min - 1) + 1
-            nc_end = ncoset(lc_max)
-
-            CALL coulomb3(la_max, npgfa, zeta(:), rpgfa_work(:), la_min, &
-                          lb_max, npgfb, zetb(:), rpgfb_work(:), lb_min, &
-                          lc_max, zetc(kpgf), rpgfc_work(kpgf), lc_min, &
-                          gccc, rb - ra, rab2, rc - ra, rac2, rbc2, &
-                          vabc, habc_uncontr(:, :, nc_start:nc_end), v_work, f_work)
-
-            DEALLOCATE (v_work, f_work, rpgfa_work, rpgfb_work, rpgfc_work, gccc, vabc)
-         END IF
+         CPASSERT(PRESENT(coulomb_context))
+         CALL compute_coulomb_3c(coulomb_context, la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
+                                 npgfa, npgfb, npgfc, zeta, zetb, zetc, rpgfa, rpgfb, rpgfc, &
+                                 ra, rb, rc, habc_uncontr, potential_parameter)
 
       ELSE IF (eri_method == do_eri_gpw) THEN
 

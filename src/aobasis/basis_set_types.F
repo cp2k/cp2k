@@ -771,16 +771,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param gto_basis_set ...
-!> \param coulomb2_backend ...
 ! **************************************************************************************************
-   SUBROUTINE init_aux_basis_set(gto_basis_set, coulomb2_backend)
+   SUBROUTINE init_aux_basis_set(gto_basis_set)
 
       ! Initialise a Gaussian-type orbital (GTO) basis set data set.
 
       ! - Creation (06.12.2000,MK)
 
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
-      INTEGER, INTENT(IN), OPTIONAL                      :: coulomb2_backend
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_aux_basis_set'
 
@@ -799,7 +797,7 @@ CONTAINS
          CALL init_norm_cgf_aux_2(gto_basis_set)
       CASE (2)
          ! WARNING this was never tested
-         CALL init_norm_cgf_aux(gto_basis_set, coulomb2_backend)
+         CALL init_norm_cgf_aux(gto_basis_set)
       CASE DEFAULT
          CPABORT("Normalization method not specified")
       END SELECT
@@ -954,9 +952,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param gto_basis_set ...
-!> \param coulomb2_backend ...
 ! **************************************************************************************************
-   SUBROUTINE init_norm_cgf_aux(gto_basis_set, coulomb2_backend)
+   SUBROUTINE init_norm_cgf_aux(gto_basis_set)
 
       ! Initialise the normalization factors of the contracted Cartesian Gaussian
       ! functions, if the Gaussian functions represent charge distributions.
@@ -964,7 +961,6 @@ CONTAINS
       ! - Creation (07.12.2000,MK)
 
       TYPE(gto_basis_set_type), INTENT(INOUT)            :: gto_basis_set
-      INTEGER, INTENT(IN), OPTIONAL                      :: coulomb2_backend
 
       INTEGER                                            :: icgf, ico, ipgf, iset, ishell, jco, &
                                                             jpgf, ll, lmax, lmin, lx, ly, lz, n, &
@@ -997,8 +993,7 @@ CONTAINS
          zeta => gto_basis_set%zet(1:npgfa, iset)
          CALL coulomb2(lmax, npgfa, zeta, rpgfa, lmin, &
                        lmax, npgfa, zeta, rpgfa, lmin, &
-                       [0.0_dp, 0.0_dp, 0.0_dp], 0.0_dp, gaa, vv, ff(0:), &
-                       coulomb2_backend=coulomb2_backend)
+                       [0.0_dp, 0.0_dp, 0.0_dp], 0.0_dp, gaa, vv, ff(0:))
          DO ishell = 1, gto_basis_set%nshell(iset)
             DO icgf = gto_basis_set%first_cgf(ishell, iset), &
                gto_basis_set%last_cgf(ishell, iset)

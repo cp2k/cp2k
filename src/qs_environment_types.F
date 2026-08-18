@@ -40,7 +40,6 @@ MODULE qs_environment_types
                                               ls_scf_release
    USE ec_env_types,                    ONLY: ec_env_release,&
                                               energy_correction_type
-   USE electronic_integral_backend_types,ONLY: electronic_integral_backend_type
    USE et_coupling_types,               ONLY: et_coupling_release,&
                                               et_coupling_type
    USE ewald_environment_types,         ONLY: ewald_env_release,&
@@ -305,8 +304,6 @@ MODULE qs_environment_types
       ! a history for the broyden ot
       REAL(KIND=dp)                                         :: broyden_adaptive_sigma = -1.0_dp
       TYPE(mp2_type), POINTER                               :: mp2_env => NULL()
-      TYPE(electronic_integral_backend_type)                :: electronic_integral_backend = &
-                                                               electronic_integral_backend_type()
       TYPE(post_scf_bandstructure_type), POINTER                                :: bs_env => NULL()
       TYPE(kg_environment_type), POINTER                    :: kg_env => NULL()
       TYPE(wannier_centres_type), POINTER, DIMENSION(:)     :: WannierCentres => NULL()
@@ -974,7 +971,6 @@ CONTAINS
       NULLIFY (qs_env%bs_env)
       NULLIFY (qs_env%kg_env)
       NULLIFY (qs_env%WannierCentres)
-      qs_env%electronic_integral_backend = electronic_integral_backend_type()
 
       qs_env%outer_scf_ihistory = 0
       qs_env%broyden_adaptive_sigma = -1.0_dp

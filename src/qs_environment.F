@@ -60,8 +60,6 @@ MODULE qs_environment
    USE ec_env_types,                    ONLY: energy_correction_type
    USE ec_environment,                  ONLY: ec_env_create,&
                                               ec_write_input
-   USE electronic_integral_backend_types,ONLY: backend_libint,&
-                                              electronic_integral_backend_type
    USE et_coupling_types,               ONLY: et_coupling_create
    USE ewald_environment_types,         ONLY: ewald_env_create,&
                                               ewald_env_get,&
@@ -120,8 +118,6 @@ MODULE qs_environment
                                               read_kpoint_section,&
                                               set_kpoint_info,&
                                               write_kpoint_info
-   USE libint_wrapper,                  ONLY: cp_libint_static_cleanup,&
-                                              cp_libint_static_init
    USE lri_environment_init,            ONLY: lri_env_basis,&
                                               lri_env_init
    USE lri_environment_types,           ONLY: lri_environment_type
@@ -1005,10 +1001,9 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(:), POINTER                     :: mo_index_range
-      LOGICAL :: all_potential_present, be_silent, cneo_potential_present, &
-         coulomb2_libint_initialized, do_kpoints, do_ri_hfx, do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, &
-         do_rpa_ri_exx, do_wfc_im_time, e1terms, has_unit_metric, lribas, mp2_present, &
-         orb_gradient, paw_atom
+      LOGICAL :: all_potential_present, be_silent, cneo_potential_present, do_kpoints, do_ri_hfx, &
+         do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_rpa_ri_exx, do_wfc_im_time, e1terms, &
+         has_unit_metric, lribas, mp2_present, orb_gradient, paw_atom
       REAL(KIND=dp)                                      :: alpha, ccore, ewald_rcut, fxx, maxocc, &
                                                             rc, rcut, total_zeff_corr, &
                                                             verlet_skin, zeff_correction
@@ -1059,14 +1054,6 @@ CONTAINS
       TYPE(xtb_control_type), POINTER                    :: xtb_control
 
       CALL timeset(routineN, handle)
-      qs_env%electronic_integral_backend = electronic_integral_backend_type()
-      CALL section_vals_val_get(qs_env%input, "DFT%QS%BACKEND%COULOMB2", &
-                                i_val=qs_env%electronic_integral_backend%coulomb2_backend)
-      CALL section_vals_val_get(qs_env%input, "DFT%QS%BACKEND%COULOMB3", &
-                                i_val=qs_env%electronic_integral_backend%coulomb3_backend)
-      coulomb2_libint_initialized = &
-         qs_env%electronic_integral_backend%coulomb2_backend == backend_libint
-      IF (coulomb2_libint_initialized) CALL cp_libint_static_init()
       NULLIFY (logger)
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -1553,8 +1540,7 @@ CONTAINS
       CALL init_spherical_harmonics(maxl, 0)
 
       !  Initialise the qs_kind_set
-      CALL init_qs_kind_set(qs_kind_set, qs_env%electronic_integral_backend%coulomb2_backend)
-      IF (coulomb2_libint_initialized) CALL cp_libint_static_cleanup()
+      CALL init_qs_kind_set(qs_kind_set)
 
       ! Initialise GAPW soft basis and projectors
       IF (dft_control%qs_control%method_id == do_method_gapw .OR. &

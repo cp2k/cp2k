@@ -6,20 +6,22 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Backend choices for electronic integral APIs.
+!> \brief Library choices for electronic integral APIs.
 ! **************************************************************************************************
-MODULE electronic_integral_backend_types
+MODULE integral_library_types
 
    IMPLICIT NONE
 
    PRIVATE
 
-   INTEGER, PARAMETER, PUBLIC :: backend_native = 0, &
-                                 backend_libint = 1
+   INTEGER, PARAMETER, PUBLIC :: library_native = 0, &
+                                 library_libint = 1
 
-   TYPE, PUBLIC :: electronic_integral_backend_type
-      INTEGER :: coulomb2_backend = backend_native
-      INTEGER :: coulomb3_backend = backend_native
-   END TYPE electronic_integral_backend_type
+   TYPE, PUBLIC :: integral_library_type
+      INTEGER :: coulomb2_library = library_native
+      INTEGER :: coulomb3_library = library_native
+   END TYPE integral_library_type
 
-END MODULE electronic_integral_backend_types
+   TYPE(integral_library_type), SAVE, PUBLIC :: active_integral_library = integral_library_type()
+
+END MODULE integral_library_types

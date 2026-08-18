@@ -46,7 +46,6 @@ MODULE mp2_gpw
                                               distribution_2d_type
    USE distribution_methods,            ONLY: distribute_molecules_1d,&
                                               distribute_molecules_2d
-   USE electronic_integral_backend_types,ONLY: backend_libint
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
@@ -59,8 +58,6 @@ MODULE mp2_gpw
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
-   USE libint_wrapper,                  ONLY: cp_libint_static_cleanup,&
-                                              cp_libint_static_init
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush
    USE message_passing,                 ONLY: mp_para_env_release,&
@@ -146,8 +143,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:) :: bse_lev_virt, ends_array_mc, ends_array_mc_block, &
          gw_corr_lev_occ, gw_corr_lev_virt, homo, starts_array_mc, starts_array_mc_block
       INTEGER, DIMENSION(3)                              :: periodic
-      LOGICAL :: blacs_repeatable, do_bse, do_im_time, do_kpoints_cubic_RPA, libint_initialized, &
-         my_do_gw, my_do_ri_mp2, my_do_ri_rpa, my_do_ri_sos_laplace_mp2
+      LOGICAL :: blacs_repeatable, do_bse, do_im_time, do_kpoints_cubic_RPA, my_do_gw, &
+         my_do_ri_mp2, my_do_ri_rpa, my_do_ri_sos_laplace_mp2
       REAL(KIND=dp)                                      :: Emp2_AB, Emp2_BB, Emp2_Cou_BB, &
                                                             Emp2_EX_BB, eps_gvg_rspace_old, &
                                                             eps_pgf_orb_old, eps_rho_rspace_old
@@ -192,7 +189,6 @@ CONTAINS
                                                             BIb_C_gw
 
       CALL timeset(routineN, handle)
-      libint_initialized = .FALSE.
 
       ! check if we want to do ri-mp2
       my_do_ri_mp2 = .FALSE.
@@ -274,10 +270,6 @@ CONTAINS
             END IF
          END IF
 
-         ! statically initialize libint
-         CALL cp_libint_static_init()
-         libint_initialized = .TRUE.
-
       END IF
 
       IF (mp2_env%ri_metric%potential_type == ri_default) THEN
@@ -294,14 +286,6 @@ CONTAINS
          IF (calc_forces .AND. mp2_env%eri_method == do_eri_os) mp2_env%eri_method = do_eri_gpw
       END IF
       eri_method = mp2_env%eri_method
-
-      IF ((qs_env%electronic_integral_backend%coulomb2_backend == backend_libint .OR. &
-           qs_env%electronic_integral_backend%coulomb3_backend == backend_libint) .AND. &
-          mp2_env%eri_method == do_eri_os .AND. &
-          .NOT. libint_initialized) THEN
-         CALL cp_libint_static_init()
-         libint_initialized = .TRUE.
-      END IF
 
       IF (unit_nr > 0 .AND. mp2_env%eri_method == do_eri_gpw) THEN
          WRITE (UNIT=unit_nr, FMT="(T3,A,T71,F10.1)") &
@@ -632,8 +616,6 @@ CONTAINS
          CALL release_neighbor_list_sets(sab_orb_sub)
 
       END IF
-
-      IF (libint_initialized) CALL cp_libint_static_cleanup()
 
       !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
       ! moved from above

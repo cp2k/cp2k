@@ -40,16 +40,8 @@
 ! **************************************************************************************************
 MODULE ai_coulomb
 
-   USE electronic_integral_backend_types,ONLY: backend_libint,&
-                                              backend_native
    USE gamma,                           ONLY: fgamma => fgamma_0
    USE kinds,                           ONLY: dp
-   USE libint_2c_3c,                    ONLY: eri_2center,&
-                                              libint_potential_type
-   USE libint_wrapper,                  ONLY: cp_libint_cleanup_2eri,&
-                                              cp_libint_init_2eri,&
-                                              cp_libint_set_contrdepth,&
-                                              cp_libint_t
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
@@ -83,14 +75,13 @@ CONTAINS
 !> \param vac ...
 !> \param v ...
 !> \param f ...
-!> \param coulomb2_backend optional backend selector for coulomb2
 !> \param screening optional primitive-pair screening switch
 !> \date    05.12.2000
 !> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE coulomb2(la_max, npgfa, zeta, rpgfa, la_min, lc_max, npgfc, zetc, rpgfc, lc_min, &
-                       rac, rac2, vac, v, f, coulomb2_backend, screening)
+                       rac, rac2, vac, v, f, screening)
       INTEGER, INTENT(IN)                                :: la_max, npgfa
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta, rpgfa
       INTEGER, INTENT(IN)                                :: la_min, lc_max, npgfc
@@ -101,40 +92,18 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vac
       REAL(KIND=dp), DIMENSION(:, :, :)                  :: v
       REAL(KIND=dp), DIMENSION(0:)                       :: f
-      INTEGER, INTENT(IN), OPTIONAL                      :: coulomb2_backend
       LOGICAL, INTENT(IN), OPTIONAL                      :: screening
 
       INTEGER                                            :: ax, ay, az, coc, cocx, cocy, cocz, cx, &
                                                             cy, cz, i, ipgf, j, jpgf, la, lc, n, &
-                                                            na, nc, nmax, selected_coulomb2_backend
+                                                            na, nc, nmax
       LOGICAL                                            :: do_screening
       REAL(KIND=dp)                                      :: dac, f0, f1, f2, f3, f4, f5, f6, fcx, &
                                                             fcy, fcz, rho, t, zetp, zetq, zetw
-      REAL(KIND=dp), DIMENSION(3)                        :: ra_libint, raw, rb_libint, rcw
-      TYPE(cp_libint_t)                                  :: lib
-      TYPE(libint_potential_type)                        :: potential_parameter
+      REAL(KIND=dp), DIMENSION(3)                        :: raw, rcw
 
-      selected_coulomb2_backend = backend_native
-      IF (PRESENT(coulomb2_backend)) selected_coulomb2_backend = coulomb2_backend
       do_screening = .TRUE.
       IF (PRESENT(screening)) do_screening = screening
-
-      IF (selected_coulomb2_backend /= backend_native .AND. selected_coulomb2_backend /= backend_libint) THEN
-         CPABORT("Requested two-center Coulomb backend is not implemented")
-      END IF
-
-      IF (selected_coulomb2_backend == backend_libint) THEN
-         ra_libint = 0.0_dp
-         rb_libint = rac
-         potential_parameter = libint_potential_type()
-         CALL cp_libint_init_2eri(lib, MAX(la_max, lc_max))
-         CALL cp_libint_set_contrdepth(lib, 1)
-         CALL eri_2center(vac, la_min, la_max, npgfa, zeta, rpgfa, ra_libint, &
-                          lc_min, lc_max, npgfc, zetc, rpgfc, rb_libint, SQRT(rac2), &
-                          lib, potential_parameter)
-         CALL cp_libint_cleanup_2eri(lib)
-         RETURN
-      END IF
 
       v = 0.0_dp
 

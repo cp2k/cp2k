@@ -93,6 +93,8 @@ MODULE f77_interface
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE libint_wrapper,                  ONLY: cp_libint_static_cleanup,&
+                                              cp_libint_static_init
    USE machine,                         ONLY: default_output_unit,&
                                               m_chdir,&
                                               m_getcwd,&
@@ -315,6 +317,9 @@ CONTAINS
          CALL pw_gpu_init()
          CALL grid_library_init()
          CALL dbm_library_init()
+#if(__LIBINT)
+         CALL cp_libint_static_init()
+#endif
       ELSE
          ierr = cp_failure_level
       END IF
@@ -349,6 +354,10 @@ CONTAINS
             CPASSERT(ierr == 0)
          END DO
          DEALLOCATE (f_envs)
+
+#if(__LIBINT)
+         CALL cp_libint_static_cleanup()
+#endif
 
          ! Finalize libraries (Offload)
          CALL dbm_library_finalize()
