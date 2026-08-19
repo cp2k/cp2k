@@ -34,6 +34,9 @@ MODULE realspace_grid_cube
    INTEGER, PARAMETER, PRIVATE          :: cube_line_len = cube_entry_len*cube_num_entries_line
    CHARACTER(len=*), PARAMETER          :: cube_value_format = '(1X,ES12.4E3)', &
                                            cube_values_format = '(6(1X,ES12.4E3))'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: missing_zeff_warning = &
+                                           "Effective nuclear charges were not supplied; "// &
+                                           "zeros will be written to the Cube atom records."
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
 
 CONTAINS
@@ -118,6 +121,8 @@ CONTAINS
       IF (PRESENT(mpi_io)) parallel_write = mpi_io
       IF (PRESENT(max_file_size_mb)) my_max_file_size_mb = max_file_size_mb
       CPASSERT(my_max_file_size_mb >= 0)
+      CPWARN_IF(.NOT. parallel_write .AND. PRESENT(particles_z) .AND. .NOT. PRESENT(particles_zeff), &
+                missing_zeff_warning)
 
       my_stride = 1
       IF (PRESENT(stride)) THEN
@@ -701,6 +706,7 @@ CONTAINS
       !get rs grids and parallel envnment
       gid = grid%pw_grid%para%group
       my_rank = grid%pw_grid%para%group%mepos
+      CPWARN_IF(PRESENT(particles_z) .AND. .NOT. PRESENT(particles_zeff), missing_zeff_warning)
 
       ! Shortcut
       lbounds = grid%pw_grid%bounds(1, :)
