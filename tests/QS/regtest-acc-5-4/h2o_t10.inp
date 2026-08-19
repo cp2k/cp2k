@@ -30,6 +30,7 @@
     &QS
       EPS_DEFAULT 1.E-10
       GAPW_ACCURATE_XCINT T
+      ALPHA_WEIGHTS 12.
       METHOD GAPW
     &END QS
     &SCF
