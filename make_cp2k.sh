@@ -727,6 +727,13 @@ fi
 
 # Perform setup for coding conventions check
 if [[ "${CHECK_CONVENTIONS}" == "yes" ]]; then
+  if [[ "${CP2K_VERSION}" != "psmp" ]]; then
+    echo ""
+    echo "WARNING: Convention checking implies CP2K_VERSION \"psmp\" but found \"${CP2K_VERSION}\""
+    echo "         CP2K_VERSION is set to \"psmp\""
+    echo ""
+    CP2K_VERSION="psmp"
+  fi
   CP2K_BUILD_TYPE="Conventions"
   Fortran_COMPILER_LAUNCHER="${CP2K_ROOT}/tools/conventions/redirect_gfortran_output.py"
 else
