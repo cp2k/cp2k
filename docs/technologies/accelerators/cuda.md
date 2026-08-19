@@ -1,8 +1,9 @@
 # CUDA
 
 - Use `-DCP2K_USE_ACCEL=CUDA` to generally enable support for NVIDIA GPUs
-- Specify the GPU type (e.g., `-DCP2K_WITH_GPU=P100`), possible values are K20X, K40, K80, P100,
-  V100, A100, H100, A40.
+- Specify the CUDA compute capability with `-DCMAKE_CUDA_ARCHITECTURES`, for example `100` for B200.
+  The deprecated `-DCP2K_WITH_GPU` selector remains available with the values K20X, K40, K80, P100,
+  V100, A100, H100, B200, GB10, and A40.
 - Use `-DCP2K_USE_NVHPC=ON` when building with the NVHPC kit.
 - Use `-DCP2K_WITH_GPU_PROFILING` to turn on NVIDIA Tools Extensions. It requires to link
   `-lnvToolsExt`.
