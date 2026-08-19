@@ -553,3 +553,9 @@ Group centers use the same group format as the hydrogen-bond analysis:
 XYZ label, avoiding guesses for custom CP2K kind names. Groups crossing a periodic boundary are
 reconstructed around their first atom before their center is calculated. For velocity or other
 vector trajectories, use `--vectors` to disable this positional reconstruction.
+
+## License
+
+These sources are part of CP2K and are distributed under the same `GPL-2.0-or-later` license. The
+external programs and publications cited above were used as methodological references and
+cross-checks; no third-party source code is included in this tool.

@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!--------------------------------------------------------------------------------------------------!
+
 MODULE trajana_fft
    USE trajana_kinds,                   ONLY: dp
 
@@ -54,7 +61,7 @@ CONTAINS
       END DO
    END SUBROUTINE fft_any_in_place
 
-   INTEGER FUNCTION next_power_of_two(value)
+   PURE INTEGER FUNCTION next_power_of_two(value)
       INTEGER, INTENT(IN)                                :: value
 
       next_power_of_two = 1

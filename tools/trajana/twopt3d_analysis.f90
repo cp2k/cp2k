@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!--------------------------------------------------------------------------------------------------!
+
 MODULE trajana_twopt3d_analysis
    USE trajana_alignment,              ONLY: center_positions,&
                                               fit_rotation,&
@@ -366,7 +373,7 @@ CONTAINS
                            positions(1, first)*positions(3, second), &
                            positions(1, first)*positions(2, second) - &
                            positions(2, first)*positions(1, second)]
-            IF (SQRT(DOT_PRODUCT(cross_value, cross_value)) > 1.0E-10_dp*scale**2) THEN
+            IF (NORM2(cross_value) > 1.0E-10_dp*scale**2) THEN
                alignment_is_noncollinear = .TRUE.
                RETURN
             END IF
@@ -764,7 +771,7 @@ CONTAINS
       dos = dos*REAL(target_dof, dp)/area
    END SUBROUTINE correlation_to_dos
 
-   SUBROUTINE voxel_coordinates(voxel, dimensions, origin, spacing, center)
+   PURE SUBROUTINE voxel_coordinates(voxel, dimensions, origin, spacing, center)
       INTEGER, INTENT(IN)                                :: voxel, dimensions(3)
       REAL(dp), INTENT(IN)                               :: origin(3), spacing
       REAL(dp), INTENT(OUT)                              :: center(3)

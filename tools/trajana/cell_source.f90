@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!--------------------------------------------------------------------------------------------------!
+
 MODULE trajana_cell_source
    USE trajana_text_utils,              ONLY: parse_logical_axes
    USE trajana_trajectory_io,           ONLY: cell_reader_type,&
@@ -11,8 +18,8 @@ MODULE trajana_cell_source
    TYPE, PUBLIC :: cell_source_type
       LOGICAL :: use_constant = .FALSE.
       LOGICAL :: use_file = .FALSE.
-      TYPE(cell_type) :: constant
-      TYPE(cell_reader_type) :: reader
+      TYPE(cell_type) :: constant_cell = cell_type()
+      TYPE(cell_reader_type) :: reader = cell_reader_type()
       LOGICAL :: periodic(3) = .TRUE.
    CONTAINS
       PROCEDURE :: configure => source_configure
@@ -44,9 +51,9 @@ CONTAINS
       END IF
 
       IF (LEN_TRIM(cell_text) > 0) THEN
-         CALL parse_constant_cell(cell_text, source%constant, ierr, message)
+         CALL parse_constant_cell(cell_text, source%constant_cell, ierr, message)
          IF (ierr /= 0) RETURN
-         source%constant%periodic = source%periodic
+         source%constant_cell%periodic = source%periodic
          source%use_constant = .TRUE.
       ELSE IF (LEN_TRIM(cell_path) > 0) THEN
          CALL source%reader%open_file(cell_path, ierr, message)
@@ -66,7 +73,7 @@ CONTAINS
       ierr = 0
       message = ""
       IF (source%use_constant) THEN
-         frame%cell = source%constant
+         frame%cell = source%constant_cell
       ELSE IF (source%use_file) THEN
          CALL source%reader%read_cell(current, eof, ierr, message)
          IF (ierr /= 0) RETURN

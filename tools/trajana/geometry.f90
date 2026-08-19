@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!--------------------------------------------------------------------------------------------------!
+
 MODULE trajana_geometry
    USE trajana_kinds,                   ONLY: dp
    USE trajana_trajectory_types,        ONLY: cell_type
@@ -155,7 +162,7 @@ CONTAINS
          other1 = MOD(axis, 3) + 1
          other2 = MOD(axis + 1, 3) + 1
          normal = cross_product(cell%h(:, other1), cell%h(:, other2))
-         area = SQRT(DOT_PRODUCT(normal, normal))
+         area = NORM2(normal)
          IF (area > TINY(1.0_dp)) THEN
             shortest_cell_height = MIN(shortest_cell_height, cell_volume(cell)/area)
             found = .TRUE.

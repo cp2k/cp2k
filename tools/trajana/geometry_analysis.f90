@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!--------------------------------------------------------------------------------------------------!
+
 MODULE trajana_geometry_analysis
    USE trajana_cell_source,             ONLY: cell_source_type
    USE trajana_command_line,            ONLY: fail,&
@@ -209,7 +216,7 @@ CONTAINS
             ierr = 1
             RETURN
          END IF
-         RESULT = SQRT(DOT_PRODUCT(a, a))
+         RESULT = NORM2(a)
       CASE (2)
          CALL displacement(frame, action%atom(2), action%atom(1), a, ok)
          IF (.NOT. ok) THEN
@@ -217,8 +224,8 @@ CONTAINS
             RETURN
          END IF
          CALL displacement(frame, action%atom(2), action%atom(3), b, ok)
-         norm_a = SQRT(DOT_PRODUCT(a, a))
-         norm_b = SQRT(DOT_PRODUCT(b, b))
+         norm_a = NORM2(a)
+         norm_b = NORM2(b)
          IF (.NOT. ok .OR. norm_a <= TINY(1.0_dp) .OR. norm_b <= TINY(1.0_dp)) THEN
             ierr = 1
             RETURN
@@ -243,9 +250,9 @@ CONTAINS
          END IF
          n1 = cross_product(a, b)
          n2 = cross_product(b, c)
-         norm_a = SQRT(DOT_PRODUCT(n1, n1))
-         norm_b = SQRT(DOT_PRODUCT(n2, n2))
-         norm_c = SQRT(DOT_PRODUCT(b, b))
+         norm_a = NORM2(n1)
+         norm_b = NORM2(n2)
+         norm_c = NORM2(b)
          IF (MIN(norm_a, norm_b, norm_c) <= TINY(1.0_dp)) THEN
             ierr = 1
             RETURN

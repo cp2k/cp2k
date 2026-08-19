@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!--------------------------------------------------------------------------------------------------!
+
 MODULE trajana_rdf_analysis
    USE trajana_cell_source,             ONLY: cell_source_type
    USE trajana_command_line,            ONLY: fail,&
@@ -108,7 +115,7 @@ CONTAINS
                displacement = frame%value(:, atom_b) - frame%value(:, atom_a)
                CALL minimum_image(frame%cell, displacement, nearest, ok)
                IF (.NOT. ok) CALL fail("Singular cell in trajectory")
-               distance = SQRT(DOT_PRODUCT(nearest, nearest))
+               distance = NORM2(nearest)
                IF (distance >= rmax) CYCLE
                bin = INT(distance/bin_width) + 1
                histogram(bin) = histogram(bin) + 1.0_dp

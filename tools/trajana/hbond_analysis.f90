@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!--------------------------------------------------------------------------------------------------!
+
 MODULE trajana_hbond_analysis
    USE trajana_cell_source,             ONLY: cell_source_type
    USE trajana_command_line,            ONLY: fail,&
@@ -116,7 +123,7 @@ CONTAINS
                CALL minimum_image(frame%cell, &
                                   frame%value(:, groups(donor)%atom(hydrogen)) - frame%value(:, groups(donor)%atom(1)), oh, ok)
                IF (.NOT. ok) CALL fail("Singular cell in trajectory")
-               oh_length = SQRT(DOT_PRODUCT(oh, oh))
+               oh_length = NORM2(oh)
                IF (oh_length <= TINY(1.0_dp) .OR. oh_length > oh_max) CYCLE
                hydrogen_index = offsets(donor) + hydrogen - 1
                DO acceptor = 1, SIZE(groups)
@@ -124,7 +131,7 @@ CONTAINS
                   CALL minimum_image(frame%cell, &
                                      frame%value(:, groups(acceptor)%atom(1)) - frame%value(:, groups(donor)%atom(1)), oo, ok)
                   IF (.NOT. ok) CALL fail("Singular cell in trajectory")
-                  oo_length = SQRT(DOT_PRODUCT(oo, oo))
+                  oo_length = NORM2(oo)
                   IF (oo_length <= TINY(1.0_dp)) CYCLE
                   cosine = MAX(-1.0_dp, MIN(1.0_dp, DOT_PRODUCT(oh, oo)/(oh_length*oo_length)))
                   angle = ACOS(cosine)*180.0_dp/ACOS(-1.0_dp)

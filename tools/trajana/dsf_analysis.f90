@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!--------------------------------------------------------------------------------------------------!
+
 MODULE trajana_dsf_analysis
    USE trajana_command_line,            ONLY: fail,&
                                               get_integer_option,&
@@ -441,11 +448,11 @@ CONTAINS
       message = ""
       mean_q = 0.0_dp
       DO iq = 1, SIZE(q, 2)
-         mean_q = mean_q + SQRT(DOT_PRODUCT(q(:, iq), q(:, iq)))
+         mean_q = mean_q + NORM2(q(:, iq))
       END DO
       mean_q = mean_q/REAL(SIZE(q, 2), dp)
       DO iq = 1, SIZE(q, 2)
-         q_norm = SQRT(DOT_PRODUCT(q(:, iq), q(:, iq)))
+         q_norm = NORM2(q(:, iq))
          IF (ABS(q_norm - mean_q) > 1.0e-6_dp*MAX(1.0_dp, mean_q)) THEN
             ierr = 1
             message = "All q vectors must belong to one magnitude shell; use one run per q shell"
@@ -454,14 +461,14 @@ CONTAINS
       END DO
       ALLOCATE (basis_one(3, SIZE(q, 2)), basis_two(3, SIZE(q, 2)))
       DO iq = 1, SIZE(q, 2)
-         q_hat = q(:, iq)/SQRT(DOT_PRODUCT(q(:, iq), q(:, iq)))
+         q_hat = q(:, iq)/NORM2(q(:, iq))
          IF (ABS(q_hat(1)) < 0.9_dp) THEN
             reference = [1.0_dp, 0.0_dp, 0.0_dp]
          ELSE
             reference = [0.0_dp, 1.0_dp, 0.0_dp]
          END IF
          basis_one(:, iq) = cross_product(q_hat, reference)
-         basis_one(:, iq) = basis_one(:, iq)/SQRT(DOT_PRODUCT(basis_one(:, iq), basis_one(:, iq)))
+         basis_one(:, iq) = basis_one(:, iq)/NORM2(basis_one(:, iq))
          basis_two(:, iq) = cross_product(q_hat, basis_one(:, iq))
       END DO
    END SUBROUTINE prepare_q_shell
@@ -543,7 +550,7 @@ CONTAINS
          line = ADJUSTL(line)
          IF (LEN_TRIM(line) == 0 .OR. line(1:1) == "#") CYCLE
          READ (line, *, IOSTAT=ios) vector
-         IF (ios /= 0 .OR. SQRT(DOT_PRODUCT(vector, vector)) <= TINY(1.0_dp)) THEN
+         IF (ios /= 0 .OR. NORM2(vector) <= TINY(1.0_dp)) THEN
             ierr = 1
             message = "Each q-vector line must contain three nonzero Cartesian components"
             EXIT
