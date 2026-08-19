@@ -18,6 +18,7 @@
 !> \author Florian Schiffmann 08.2006
 ! **************************************************************************************************
 MODULE mode_selective
+   USE cell_types,                      ONLY: cell_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -96,10 +97,11 @@ CONTAINS
 !> \param dx ...
 !> \param output_unit ...
 !> \param logger ...
+!> \param cell simulation cell
 !> \author Teodoro Laino 08.2006
 ! **************************************************************************************************
    SUBROUTINE ms_vb_anal(input, rep_env, para_env, globenv, particles, &
-                         nrep, calc_intens, dx, output_unit, logger)
+                         nrep, calc_intens, dx, output_unit, logger, cell)
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(replica_env_type), POINTER                    :: rep_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -110,6 +112,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: dx
       INTEGER                                            :: output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cell_type), POINTER                           :: cell
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ms_vb_anal'
 
@@ -203,7 +206,7 @@ CONTAINS
                                   mass, &
                                   converged, &
                                   dx, calc_intens, &
-                                  output_unit, logger)
+                                  output_unit, logger, cell)
          IF (converged) EXIT
          IF (calc_intens) THEN
             ALLOCATE (tmp_deriv(3, ms_vib%mat_size))
@@ -822,13 +825,14 @@ CONTAINS
 !> \param calc_intens ...
 !> \param output_unit_ms ...
 !> \param logger ...
+!> \param cell simulation cell
 !> \author Florian Schiffmann 11.2007
 ! **************************************************************************************************
    SUBROUTINE evaluate_H_update_b(rep_env, ms_vib, input, nrep, &
                                   particles, &
                                   mass, &
                                   converged, dx, &
-                                  calc_intens, output_unit_ms, logger)
+                                  calc_intens, output_unit_ms, logger, cell)
       TYPE(replica_env_type), POINTER                    :: rep_env
       TYPE(ms_vib_type)                                  :: ms_vib
       TYPE(section_vals_type), POINTER                   :: input
@@ -840,6 +844,7 @@ CONTAINS
       LOGICAL                                            :: calc_intens
       INTEGER                                            :: output_unit_ms
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cell_type), POINTER                           :: cell
 
       INTEGER                                            :: i, j, jj, k, natoms, ncoord
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ind
@@ -970,7 +975,7 @@ CONTAINS
          END IF
          dump_only_positive = ms_vib%low_freq > 0.0_dp
          CALL write_vibrations_molden(input, particles, eigenval, tmp_b, intensities, calc_intens, &
-                                      dump_only_positive=dump_only_positive, logger=logger)
+                                      dump_only_positive=dump_only_positive, logger=logger, cell=cell)
          IF (calc_intens) THEN
             DEALLOCATE (intensities)
          END IF
