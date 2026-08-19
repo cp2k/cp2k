@@ -383,8 +383,8 @@ CONTAINS
          composite_grad_max, composite_kin_max, composite_kin_min, composite_tau_integral, &
          cross_cutoff, density_cut, descriptor_window_adjoint, descriptor_window_weight, exc_h, &
          exc_s, feature_vxc_analytic, feature_vxc_fd, feature_vxc_minus, feature_vxc_plus, &
-         feature_vxc_step, gradient_cut, my_adiabatic_rescale_factor, nlcc_density, &
-         nlcc_spin_factor
+         feature_vxc_step, gradient_cut, local_partition_weight, my_adiabatic_rescale_factor, &
+         nlcc_density, nlcc_spin_factor
       REAL(dp) :: one_center_density_field_contraction, one_center_density_matrix_contraction, &
          one_center_field_contraction, one_center_gradient_field_contraction, &
          one_center_gradient_matrix_contraction, one_center_matrix_contraction, &
@@ -405,7 +405,7 @@ CONTAINS
          composite_partition_atom_coords
       REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_partition_force, &
          composite_partition_force_local, composite_partition_image_coords, &
-         composite_smooth_density_cache, composite_smooth_kin_cache
+         composite_smooth_density_cache, composite_smooth_kin_cache, local_partition_datom
       REAL(dp), ALLOCATABLE, DIMENSION(:, :), TARGET     :: smooth_density_adjoint_storage, &
                                                             smooth_kin_adjoint_storage
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :) :: composite_cross_grad, composite_grad, &
@@ -421,13 +421,14 @@ CONTAINS
       REAL(dp), DIMENSION(3) :: composite_point, cross_displacement, cross_spatial_derivative, &
          fractional, image_translation, nlcc_gradient, nlcc_spatial_derivative, &
          skala_atom_force_h, skala_atom_force_s, spatial_derivative
+      REAL(dp), DIMENSION(3, 1)                          :: local_descriptor_datom
       REAL(dp), DIMENSION(3, 2) :: composite_smooth_gradient_adjoint_value, &
          composite_smooth_gradient_value, cross_density_spatial, cross_grad, cross_grad_adjoint, &
          cross_kin_spatial
       REAL(dp), DIMENSION(3, 3) :: composite_cross_image_virial, composite_explicit_virial, &
          composite_feature_virial, composite_interpolation_virial, &
-         composite_partition_strain_virial, nlcc_hessian, skala_atom_virial, skala_atom_virial_h, &
-         skala_atom_virial_s
+         composite_partition_strain_virial, local_descriptor_dstrain, local_partition_dstrain, &
+         nlcc_hessian, skala_atom_virial, skala_atom_virial_h, skala_atom_virial_s
       REAL(dp), DIMENSION(3, 3, 2)                       :: cross_grad_spatial
       REAL(dp), DIMENSION(4)                             :: feature_component_analytic, &
                                                             feature_component_fd
@@ -1529,7 +1530,9 @@ CONTAINS
 !$OMP         descriptor_window_weight, gth_potential, iatom, idir, ispin, jdir, &
 !$OMP         nlcc_density, nlcc_gradient, nlcc_hessian, nlcc_spatial_derivative, &
 !$OMP         nlcc_spin_factor, partition_adjoint, composite_nlcc_center_force_local, &
-!$OMP         composite_partition_force_local, sgp_potential, source_atom, &
+!$OMP         composite_partition_force_local, local_descriptor_datom, &
+!$OMP         local_descriptor_dstrain, local_partition_datom, local_partition_dstrain, &
+!$OMP         local_partition_weight, sgp_potential, source_atom, &
 !$OMP         spatial_derivative, target_atom, target_partition_adjoint) &
 !$OMP REDUCTION(+:composite_interpolation_virial, composite_partition_strain_virial) &
 !$OMP SHARED(cell, composite_atom_coord_grad, composite_atom_coords, composite_atom_end, &
@@ -1547,7 +1550,8 @@ CONTAINS
 !$OMP        composite_smooth_tau_b, image_partition_atom_composite, lsd, my_kind_set, nlcc, &
 !$OMP        particle_set, smooth_rho_r)
                ALLOCATE (composite_nlcc_center_force_local(3, SIZE(particle_set)), &
-                         composite_partition_force_local(3, SIZE(particle_set)))
+                         composite_partition_force_local(3, SIZE(particle_set)), &
+                         local_partition_datom(3, SIZE(particle_set)))
                composite_nlcc_center_force_local = 0.0_dp
                composite_partition_force_local = 0.0_dp
 !$OMP DO SCHEDULE(DYNAMIC)
@@ -1661,41 +1665,35 @@ CONTAINS
                         END DO
                      END IF
                      IF (image_partition_atom_composite) THEN
-                        BLOCK
-                           REAL(dp) :: local_descriptor_datom(3, 1), &
-                                       local_descriptor_dstrain(3, 3), local_partition_datom(3, SIZE(particle_set)), &
-                                       local_partition_dstrain(3, 3), local_partition_weight
-
-                           CALL periodic_atom_image_partition( &
-                              composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
-                              iatom, local_partition_weight, local_partition_datom, &
-                              local_partition_dstrain, composite_image_periodicity)
-                           CALL periodic_atom_image_partition( &
-                              composite_grid_coords(:, composite_row), &
-                              composite_atom_coords(:, iatom:iatom), cell, 1, &
-                              descriptor_window_weight, local_descriptor_datom, &
-                              local_descriptor_dstrain, composite_image_periodicity)
-                           ! Its atom derivative cancels against the moving target grid; periodic
-                           ! image strain remains an explicit contribution to the virial.
-                           target_partition_adjoint = composite_base_grid_weights(composite_row)* &
-                                                      composite_grid_weight_grad(composite_row)
-                           descriptor_window_adjoint = composite_base_grid_weights(composite_row)* &
-                                                       composite_atomic_grid_weight_grad(composite_row)* &
-                                                       smooth_partition_atomic_weight_scale_derivative( &
-                                                       descriptor_window_weight)
-                           DO target_atom = 1, SIZE(particle_set)
-                              composite_partition_force_local(:, target_atom) = &
-                                 composite_partition_force_local(:, target_atom) + &
-                                 target_partition_adjoint*local_partition_datom(:, target_atom)
-                           END DO
-                           composite_partition_force_local(:, iatom) = &
-                              composite_partition_force_local(:, iatom) - target_partition_adjoint* &
-                              SUM(local_partition_datom, DIM=2)
-                           composite_partition_strain_virial = &
-                              composite_partition_strain_virial - target_partition_adjoint* &
-                              local_partition_dstrain - descriptor_window_adjoint* &
-                              local_descriptor_dstrain
-                        END BLOCK
+                        CALL periodic_atom_image_partition( &
+                           composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
+                           iatom, local_partition_weight, local_partition_datom, &
+                           local_partition_dstrain, composite_image_periodicity)
+                        CALL periodic_atom_image_partition( &
+                           composite_grid_coords(:, composite_row), &
+                           composite_atom_coords(:, iatom:iatom), cell, 1, &
+                           descriptor_window_weight, local_descriptor_datom, &
+                           local_descriptor_dstrain, composite_image_periodicity)
+                        ! Its atom derivative cancels against the moving target grid; periodic
+                        ! image strain remains an explicit contribution to the virial.
+                        target_partition_adjoint = composite_base_grid_weights(composite_row)* &
+                                                   composite_grid_weight_grad(composite_row)
+                        descriptor_window_adjoint = composite_base_grid_weights(composite_row)* &
+                                                    composite_atomic_grid_weight_grad(composite_row)* &
+                                                    smooth_partition_atomic_weight_scale_derivative( &
+                                                    descriptor_window_weight)
+                        DO target_atom = 1, SIZE(particle_set)
+                           composite_partition_force_local(:, target_atom) = &
+                              composite_partition_force_local(:, target_atom) + &
+                              target_partition_adjoint*local_partition_datom(:, target_atom)
+                        END DO
+                        composite_partition_force_local(:, iatom) = &
+                           composite_partition_force_local(:, iatom) - target_partition_adjoint* &
+                           SUM(local_partition_datom, DIM=2)
+                        composite_partition_strain_virial = &
+                           composite_partition_strain_virial - target_partition_adjoint* &
+                           local_partition_dstrain - descriptor_window_adjoint* &
+                           local_descriptor_dstrain
                      ELSE
                         CALL skala_gpw_smooth_partition_derivatives( &
                            composite_grid_coords(:, composite_row), composite_atom_coords, cell, &
@@ -1722,7 +1720,8 @@ CONTAINS
                composite_partition_force(:, :) = composite_partition_force(:, :) + &
                                                  composite_partition_force_local
 !$OMP END CRITICAL(skala_atom_composite_force_reduction)
-               DEALLOCATE (composite_nlcc_center_force_local, composite_partition_force_local)
+               DEALLOCATE (composite_nlcc_center_force_local, composite_partition_force_local, &
+                           local_partition_datom)
 !$OMP END PARALLEL
                ! The target atom grids can overlap augmentation regions of other atoms
                ! and periodic images. Differentiate the same discrete interpolation used
