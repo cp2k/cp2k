@@ -12,12 +12,12 @@ MODULE coulomb_integral_interface
    USE ai_coulomb,                      ONLY: coulomb2,&
                                               coulomb3
    USE integral_library_types,          ONLY: active_integral_library,&
+                                              coulomb_operator_type,&
                                               library_libint,&
                                               library_native
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: eri_2center,&
-                                              eri_3center,&
-                                              libint_potential_type
+                                              eri_3center
    USE libint_wrapper,                  ONLY: cp_libint_cleanup_2eri,&
                                               cp_libint_cleanup_3eri,&
                                               cp_libint_init_2eri,&
@@ -33,10 +33,12 @@ MODULE coulomb_integral_interface
 
    PUBLIC :: coulomb_integral_cleanup, &
              coulomb_integral_init, &
+             coulomb_operator_type, &
              compute_coulomb_2c, &
              compute_coulomb_3c
 
    TYPE, PUBLIC :: coulomb_integral_context_type
+      PRIVATE
       TYPE(cp_libint_t) :: lib_2c
       TYPE(cp_libint_t) :: lib_3c
       LOGICAL           :: initialized_2c = .FALSE.
@@ -143,7 +145,7 @@ CONTAINS
       REAL(dp), DIMENSION(npgfb), INTENT(IN)             :: rpgfb
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: ra, rb
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: hab
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
 
       INTEGER                                            :: ncoa, ncob
       REAL(dp)                                           :: rab2
@@ -209,7 +211,7 @@ CONTAINS
       REAL(dp), DIMENSION(npgfc), INTENT(IN)             :: rpgfc
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: ra, rb, rc
       REAL(dp), DIMENSION(:, :, :), INTENT(INOUT)        :: habc
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
 
       INTEGER                                            :: kpgf, nc_end, nc_start, ncoa, ncob, ncoc
       REAL(dp)                                           :: rab2, rac2, rbc2
