@@ -19,6 +19,7 @@
 ! **************************************************************************************************
 MODULE vibrational_analysis
    USE atomic_kind_types,               ONLY: get_atomic_kind
+   USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -128,6 +129,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: D, Dfull, dip_deriv, RotTrM
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: polar_deriv, tmp_dip
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: tmp_polar
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(f_env_type), POINTER                          :: f_env
@@ -138,7 +140,7 @@ CONTAINS
                                                             vib_section
 
       CALL timeset(routineN, handle)
-      NULLIFY (D, RotTrM, logger, subsys, f_env, particles, rep_env, intensities_d, intensities_p, &
+      NULLIFY (D, RotTrM, cell, logger, subsys, f_env, particles, rep_env, intensities_d, intensities_p, &
                vib_section, print_section, depol_p, depol_u)
       logger => cp_get_default_logger()
       vib_section => section_vals_get_subs_vals(input, "VIBRATIONAL_ANALYSIS")
@@ -190,11 +192,12 @@ CONTAINS
       IF (ASSOCIATED(rep_env)) THEN
          CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env)
          CALL force_env_get(f_env%force_env, subsys=subsys)
+         CALL cp_subsys_get(subsys, cell=cell)
          particles => subsys%particles%els
          ! Decide which kind of Vibrational Analysis to perform
          IF (do_mode_tracking) THEN
             CALL ms_vb_anal(input, rep_env, para_env, globenv, particles, &
-                            nrep, calc_intens, dx, output_unit, logger)
+                            nrep, calc_intens, dx, output_unit, logger, cell)
             CALL f_env_rm_defaults(f_env, ierr)
          ELSE
             CALL get_moving_atoms(force_env=f_env%force_env, Ilist=Mlist)
@@ -712,7 +715,7 @@ CONTAINS
                   CALL get_thch_values(H_eigval2, iw, mass, nvib, inertia, 1, minimum_energy, tc_temp, tc_press)
                END IF
                CALL write_vibrations_molden(input, particles, H_eigval2, D, intensities_d, calc_intens, &
-                                            dump_only_positive=.FALSE., logger=logger, list=Mlist)
+                                            dump_only_positive=.FALSE., logger=logger, list=Mlist, cell=cell)
             ELSE
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(T2,"VIB| No further vibrational info. Detected a single atom")')
