@@ -109,7 +109,7 @@ regression test cp2k eiger:
 benchmark cp2k 1 eiger node:
   extends: .container-runner-eiger-zen2
   stage: benchmark
-  needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
+  needs: ["regression test cp2k eiger"]
   timeout: 6h
   image: ${CSCS_IMAGE_NAME}
   before_script:
@@ -131,7 +131,7 @@ benchmark cp2k 1 eiger node:
 benchmark cp2k 1 eiger node elpa:
   extends: .container-runner-eiger-zen2
   stage: benchmark
-  needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger","benchmark cp2k 1 eiger node"]
+  needs: ["regression test cp2k eiger"]
   timeout: 6h
   image: ${CSCS_IMAGE_NAME}
   before_script:
@@ -153,7 +153,7 @@ benchmark cp2k 1 eiger node elpa:
 benchmark cp2k 2 eiger nodes:
   extends: .container-runner-eiger-zen2
   stage: benchmark
-  needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
+  needs: ["benchmark cp2k 1 eiger node"]
   timeout: 6h
   image: ${CSCS_IMAGE_NAME}
   before_script:
@@ -176,7 +176,7 @@ benchmark cp2k 2 eiger nodes:
 benchmark cp2k 2 eiger nodes elpa:
   extends: .container-runner-eiger-zen2
   stage: benchmark
-  needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger","benchmark cp2k 2 eiger nodes"]
+  needs: ["benchmark cp2k 1 eiger node elpa"]
   timeout: 6h
   image: ${CSCS_IMAGE_NAME}
   before_script:
