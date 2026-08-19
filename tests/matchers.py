@@ -364,6 +364,12 @@ registry["RIRS_CUTOFF"] = GenericMatcher(
 registry["E_RIRS_HOMO"] = GenericMatcher(r"G0W0 valence band maximum", col=6)
 registry["E_RIRS_LUMO"] = GenericMatcher(r"G0W0 conduction band minimum", col=6)
 
+# RI-RS evGW0 calculation for molecules; the band edges are labelled evGW0 rather than
+# G0W0 once SELF_CONSISTENCY EVGW0 is requested, so these need their own matchers
+registry["E_RIRS_evGW0_HOMO"] = GenericMatcher(r"evGW0 valence band maximum", col=6)
+registry["E_RIRS_evGW0_LUMO"] = GenericMatcher(r"evGW0 conduction band minimum", col=6)
+registry["E_evGW0_direct_gap"] = GenericMatcher(r"evGW0 direct band gap", col=6)
+
 # Floquet Calculations
 registry["Quasienergy"] = GenericMatcher(r"   3", col=2)
 registry["Floquet_BS"] = GenericMatcher(r"   5", col=2)

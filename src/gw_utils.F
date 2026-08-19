@@ -61,9 +61,10 @@ MODULE gw_utils
    USE gw_communication,                ONLY: fm_to_local_array
    USE gw_integrals,                    ONLY: build_3c_integral_block
    USE input_constants,                 ONLY: &
-        do_potential_truncated, large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs, &
-        ri_rpa_g0w0_crossing_newton, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_rs, rtp_method_bse, &
-        rtp_method_bse_linearized, small_cell_full_kp, xc_none
+        do_potential_truncated, evGW0, large_cell_Gamma, large_cell_Gamma_ri_rs, &
+        non_periodic_ri_rs, ri_rpa_g0w0_crossing_newton, rtp_bse_kernel_ri_ao, &
+        rtp_bse_kernel_ri_rs, rtp_method_bse, rtp_method_bse_linearized, small_cell_full_kp, &
+        xc_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -349,16 +350,38 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "FREQ_MAX_FIT", r_val=bs_env%freq_max_fit)
       CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT", l_val=bs_env%print_contract)
       CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT_VERBOSE", l_val=bs_env%print_contract_verbose)
-      CALL section_vals_val_get(gw_sec, "TIKHONOV", r_val=bs_env%ri_rs%tikhonov)
-      CALL section_vals_val_get(gw_sec, "GRID_SELECT", i_val=bs_env%ri_rs%grid_select)
-      CALL section_vals_val_get(gw_sec, "GRID_FILE_SUFFIX", c_val=bs_env%ri_rs%grid_file_suffix)
-      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RL_RI", r_val=bs_env%ri_rs%cutoff_radius_ri_rs)
-      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RL_AO", r_val=bs_env%ri_rs%cutoff_radius_ri_ao)
-      CALL section_vals_val_get(gw_sec, "N_PROCS_PER_ATOM_Z_LP", i_val=bs_env%ri_rs%n_procs_per_atom_z_lp)
-      CALL section_vals_val_get(gw_sec, "N_PANELS", i_val=bs_env%ri_rs%n_panels)
-      CALL section_vals_val_get(gw_sec, "KEEP_SPARSITY_RL", l_val=bs_env%ri_rs%keep_sparsity_rirs)
-      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RL_W", r_val=bs_env%ri_rs%cutoff_radius_v_w)
-      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_G_W", r_val=bs_env%ri_rs%cutoff_radius_g_w)
+      CALL section_vals_val_get(gw_sec, "RI_RS%TIKHONOV", r_val=bs_env%ri_rs%tikhonov)
+      CALL section_vals_val_get(gw_sec, "RI_RS%GRID_SELECT", i_val=bs_env%ri_rs%grid_select)
+      CALL section_vals_val_get(gw_sec, "RI_RS%GRID_FILE_SUFFIX", c_val=bs_env%ri_rs%grid_file_suffix)
+      CALL section_vals_val_get(gw_sec, "RI_RS%CUTOFF_RADIUS_RL_RI", r_val=bs_env%ri_rs%cutoff_radius_ri_rs)
+      CALL section_vals_val_get(gw_sec, "RI_RS%CUTOFF_RADIUS_RL_AO", r_val=bs_env%ri_rs%cutoff_radius_ri_ao)
+      CALL section_vals_val_get(gw_sec, "RI_RS%N_PROCS_PER_ATOM_Z_LP", &
+                                i_val=bs_env%ri_rs%n_procs_per_atom_z_lp)
+      CALL section_vals_val_get(gw_sec, "RI_RS%N_PANELS", i_val=bs_env%ri_rs%n_panels)
+      CALL section_vals_val_get(gw_sec, "RI_RS%KEEP_SPARSITY_RL", l_val=bs_env%ri_rs%keep_sparsity_rirs)
+      CALL section_vals_val_get(gw_sec, "RI_RS%CUTOFF_RADIUS_RL_W", r_val=bs_env%ri_rs%cutoff_radius_v_w)
+      CALL section_vals_val_get(gw_sec, "RI_RS%CUTOFF_RADIUS_G_W", r_val=bs_env%ri_rs%cutoff_radius_g_w)
+      CALL section_vals_val_get(gw_sec, "RI_RS%SELF_CONSISTENCY", i_val=bs_env%ri_rs%self_consistency)
+      CALL section_vals_val_get(gw_sec, "RI_RS%SC_GW0_ITER", i_val=bs_env%ri_rs%sc_gw0_iter)
+      CALL section_vals_val_get(gw_sec, "RI_RS%EPS_ITER", r_val=bs_env%ri_rs%eps_iter)
+      CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0_NSTATE", i_val=bs_env%ri_rs%evgw0_nstate)
+      CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0_UPDATE_FERMI", &
+                                l_val=bs_env%ri_rs%evgw0_update_fermi)
+      CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0_SHIFT_OUTER", &
+                                l_val=bs_env%ri_rs%evgw0_shift_outer)
+
+      bs_env%ri_rs%do_ev_sc = (bs_env%ri_rs%self_consistency == evGW0)
+
+      IF (bs_env%ri_rs%do_ev_sc) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "evGW0 in the RI-RS GW code is experimental. The quasiparticle energies "// &
+                      "of the previous cycle are fed back into the Green's function, so the "// &
+                      "error of the analytic continuation propagates and accumulates over the "// &
+                      "cycles instead of affecting one state only, as it does in G0W0. In "// &
+                      "tests on small molecules the resulting deviation stayed below 100 meV, "// &
+                      "but this has not been established in general. Use at your own risk and "// &
+                      "check the convergence of the reported states.")
+      END IF
 
       IF (bs_env%print_contract) THEN
          bs_env%unit_nr_contract = bs_env%unit_nr
@@ -1784,6 +1807,21 @@ CONTAINS
                WRITE (u, '(T2,A,F40.2,A)') 'Input: G/W operator truncation radius', &
                   bs_env%ri_rs%cutoff_radius_g_w*angstrom, ' Å'
             END IF
+            IF (bs_env%ri_rs%do_ev_sc) THEN
+               WRITE (u, '(T2,A,A45)') 'Input: Eigenvalue self-consistency', 'evGW0'
+               WRITE (u, '(T2,A,I42)') 'Input: Maximum number of evGW0 cycles', &
+                  bs_env%ri_rs%sc_gw0_iter
+               WRITE (u, '(T2,A,F42.5,A)') 'Input: evGW0 convergence threshold', &
+                  bs_env%ri_rs%eps_iter*evolt, ' eV'
+               WRITE (u, '(T2,A,I46)') 'Input: evGW0 states per band edge', &
+                  bs_env%ri_rs%evgw0_nstate
+               WRITE (u, '(T2,A,L36)') 'Input: evGW0 updates the chemical potential', &
+                  bs_env%ri_rs%evgw0_update_fermi
+               WRITE (u, '(T2,A,L34)') 'Input: evGW0 shifts states outside the window', &
+                  bs_env%ri_rs%evgw0_shift_outer
+            ELSE
+               WRITE (u, '(T2,A,A45)') 'Input: Eigenvalue self-consistency', 'G0W0'
+            END IF
             WRITE (u, '(A)') ' '
          END IF
       END IF
@@ -1939,7 +1977,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_time_and_frequency_minimax_grid'
 
       INTEGER                                            :: handle, homo, i_w, ierr, ispin, j_w, &
-                                                            n_mo, num_time_freq_points, u
+                                                            n_mo, n_top, num_time_freq_points, u
       REAL(KIND=dp)                                      :: E_max, E_max_ispin, E_min, E_min_ispin, &
                                                             E_range, max_error_min
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: points_and_weights
@@ -1961,16 +1999,22 @@ CONTAINS
       E_max = -1000.0_dp
       DO ispin = 1, bs_env%n_spin
          homo = bs_env%n_occ(ispin)
+
+         ! Highest index that is a real state. The canonical orthogonalization removes the
+         ! linearly dependent basis modes and parks them at the top of the spectrum with a
+         ! placeholder eigenvalue; n_mo_retained is how many real states it kept.
+         n_top = MAX(MIN(bs_env%n_mo_retained, n_mo), homo + 1)
+
          SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
          CASE (large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs)
             E_min_ispin = bs_env%eigenval_scf_Gamma(homo + 1, ispin) - &
                           bs_env%eigenval_scf_Gamma(homo, ispin)
-            E_max_ispin = bs_env%eigenval_scf_Gamma(n_mo, ispin) - &
+            E_max_ispin = bs_env%eigenval_scf_Gamma(n_top, ispin) - &
                           bs_env%eigenval_scf_Gamma(1, ispin)
          CASE (small_cell_full_kp)
             E_min_ispin = MINVAL(bs_env%eigenval_scf(homo + 1, :, ispin)) - &
                           MAXVAL(bs_env%eigenval_scf(homo, :, ispin))
-            E_max_ispin = MAXVAL(bs_env%eigenval_scf(n_mo, :, ispin)) - &
+            E_max_ispin = MAXVAL(bs_env%eigenval_scf(n_top, :, ispin)) - &
                           MINVAL(bs_env%eigenval_scf(1, :, ispin))
          END SELECT
          E_min = MIN(E_min, E_min_ispin)
@@ -3378,13 +3422,23 @@ CONTAINS
                                                             n_mo, nkp
       LOGICAL                                            :: is_bandstruc_kpoint, print_DOS_kpoints, &
                                                             print_ikp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dummy, Sigma_c_ikp_n_qp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dummy, eigenval_G, Sigma_c_ikp_n_qp
 
       CALL timeset(routineN, handle)
 
       n_mo = bs_env%n_ao
-      ALLOCATE (dummy(n_mo), Sigma_c_ikp_n_qp(n_mo))
+      ALLOCATE (dummy(n_mo), Sigma_c_ikp_n_qp(n_mo), eigenval_G(n_mo))
       Sigma_c_ikp_n_qp(:) = 0.0_dp
+
+      ! Eigenvalues of the Green's function that produced Σ^c: the DFT ones for G0W0, the
+      ! previous cycle's quasiparticle energies for evGW0. They set the Newton start value,
+      ! the Z/m linearization point and the Hedin shift; the QP equation itself stays
+      ! referenced to the DFT eigenvalues through the Eigenval_scf argument below.
+      IF (bs_env%ri_rs%do_ev_sc .AND. ALLOCATED(bs_env%eigenval_scGW0)) THEN
+         eigenval_G(:) = bs_env%eigenval_scGW0(:, ikp, ispin)
+      ELSE
+         eigenval_G(:) = eigenval_scf(:)
+      END IF
 
       DO i_mo = 1, n_mo
 
@@ -3396,7 +3450,7 @@ CONTAINS
                                 Sigma_c_ikp_n_freq(:, 1:bs_env%num_freq_points_fit, 1)*z_one + &
                                 Sigma_c_ikp_n_freq(:, 1:bs_env%num_freq_points_fit, 2)*gaussi, &
                                 Sigma_x_ikp_n(:) - V_xc_ikp_n(:), &
-                                eigenval_scf(:), eigenval_scf(:), &
+                                eigenval_G(:), eigenval_scf(:), &
                                 bs_env%do_hedin_shift, &
                                 i_mo, bs_env%n_occ(ispin), bs_env%n_vir(ispin), &
                                 bs_env%nparam_pade, bs_env%num_freq_points_fit, &

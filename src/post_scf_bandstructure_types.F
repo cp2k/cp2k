@@ -22,7 +22,8 @@ MODULE post_scf_bandstructure_types
                                               cp_fm_type
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
-   USE input_constants,                 ONLY: rtp_method_bse,&
+   USE input_constants,                 ONLY: G0W0,&
+                                              rtp_method_bse,&
                                               rtp_method_bse_linearized,&
                                               small_cell_full_kp
    USE kinds,                           ONLY: default_path_length,&
@@ -86,6 +87,36 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp)                                    :: cutoff_radius_v_w = -1.0_dp
       REAL(KIND=dp)                                    :: cutoff_radius_g_w = -1.0_dp
       CHARACTER(LEN=default_string_length)             :: grid_file_suffix = ""
+
+      ! Eigenvalue self-consistency (evGW0): G is rebuilt from the quasiparticle energies of
+      ! the previous cycle while W stays frozen at the RPA@DFT level.
+      INTEGER                                          :: self_consistency = G0W0
+      INTEGER                                          :: sc_gw0_iter = 20
+      REAL(KIND=dp)                                    :: eps_iter = 5.0E-5_dp
+      LOGICAL                                          :: do_ev_sc = .FALSE.
+      ! Number of occupied and of empty states per spin channel, counted by Kohn-Sham index
+      ! outwards from the gap. These are the states whose quasiparticle energies decide
+      ! convergence and the only ones fed back into the Green's function
+      INTEGER                                          :: evgw0_nstate = 20
+      ! .TRUE.  : recompute the chemical potential from the quasiparticle energies every cycle
+      !           (the convention of CP2K's RI-V evGW0)
+      ! .FALSE. : keep it at the SCF value for the whole cycle (the convention of FHI-AIMS)
+      LOGICAL                                          :: evgw0_update_fermi = .TRUE.
+      ! Outside the EVGW0_NSTATE window: .TRUE. displaces the state by the mean correction of
+      ! the states inside it of the same character, .FALSE. keeps its DFT eigenvalue.
+      LOGICAL                                          :: evgw0_shift_outer = .TRUE.
+
+      ! Caches of the evGW0-invariant quantities. Only filled when do_ev_sc is true; every
+      ! consumer falls back to recomputing them when the corresponding array is unallocated,
+      ! so the G0W0 path is untouched.
+      !   mat_W_aux_tau : W_PQ(iτ) as a filtered DBCSR matrix, one per time point. W is frozen
+      !                   in GW0, so this replaces the per-iteration fm -> DBCSR conversion
+      !                   (and lets fm_W_time be released after the first cycle).
+      !   cfm_mos_ikp   : MO coefficients C(k); the orbitals do not change in evGW0.
+      !   V_xc_ikp_n / Sigma_x_ikp_n : v^xc_nn(k) and Σ^x_nn(k), both frozen.
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: mat_W_aux_tau => NULL()
+      TYPE(cp_cfm_type), DIMENSION(:, :), ALLOCATABLE  :: cfm_mos_ikp
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE   :: V_xc_ikp_n, Sigma_x_ikp_n
 
       ! Data types for cutoffs based DBCSR matrices
       REAL(KIND=dp), ALLOCATABLE                       :: chunk_centroids(:, :)
@@ -153,6 +184,12 @@ MODULE post_scf_bandstructure_types
       TYPE(ri_rs_env)                                 :: ri_rs
 
       ! general parameters on molecular orbitals and basis sets
+      ! Number of basis modes that survived the linear-dependency filter of the canonical
+      ! orthogonalization, i.e. the number of real states in eigenval_scf_Gamma / eigenval_scf.
+      ! Entries above it carry a placeholder eigenvalue, not a state: they must stay out of the
+      ! energy range of the minimax grid and out of the Green's function. For k-points this is
+      ! the minimum over the k-point mesh.
+      INTEGER                                      :: n_mo_retained = -1
       INTEGER                                      :: n_ao = -1, &
                                                       n_RI = -1, &
                                                       n_spin = -1, &
@@ -564,6 +601,12 @@ CONTAINS
       IF (ALLOCATED(bs_env%ri_rs%grid_atom_boundaries)) DEALLOCATE (bs_env%ri_rs%grid_atom_boundaries)
       IF (ALLOCATED(bs_env%ri_rs%pan_first)) DEALLOCATE (bs_env%ri_rs%pan_first)
       IF (ALLOCATED(bs_env%ri_rs%pan_last)) DEALLOCATE (bs_env%ri_rs%pan_last)
+
+      ! evGW0 caches
+      CALL safe_dbcsr_deallocate_matrix_set_1d(bs_env%ri_rs%mat_W_aux_tau)
+      CALL safe_cfm_destroy_2d(bs_env%ri_rs%cfm_mos_ikp)
+      IF (ALLOCATED(bs_env%ri_rs%V_xc_ikp_n)) DEALLOCATE (bs_env%ri_rs%V_xc_ikp_n)
+      IF (ALLOCATED(bs_env%ri_rs%Sigma_x_ikp_n)) DEALLOCATE (bs_env%ri_rs%Sigma_x_ikp_n)
 
       DEALLOCATE (bs_env)
 

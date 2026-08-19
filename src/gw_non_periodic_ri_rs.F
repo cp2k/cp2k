@@ -74,6 +74,7 @@ MODULE gw_non_periodic_ri_rs
    USE input_section_types, ONLY: section_vals_type
    USE kinds, ONLY: default_path_length, &
                     default_string_length, &
+                    max_line_length, &
                     dp, int_4, int_8
    USE kpoint_coulomb_2c, ONLY: build_2c_coulomb_matrix_kp
    USE machine, ONLY: m_flush, m_hostnm, &
@@ -84,7 +85,8 @@ MODULE gw_non_periodic_ri_rs
                                ncoset
    USE parallel_gemm_api, ONLY: parallel_gemm
    USE particle_types, ONLY: particle_type
-   USE physcon, ONLY: angstrom
+   USE physcon, ONLY: angstrom, &
+                      evolt
    USE post_scf_bandstructure_types, ONLY: post_scf_bandstructure_type
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
@@ -128,7 +130,6 @@ CONTAINS
 
       INTEGER                                            :: handle
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_Sigma_x_Gamma, fm_W_time
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: fm_Sigma_c_Gamma_time
 
       CALL timeset(routineN, handle)
 
@@ -206,27 +207,313 @@ CONTAINS
                            bs_env%ri_rs%mat_Z_lP, fm_Sigma_x_Gamma)
 
       ! ========================================================================
-      ! 7. Correlation self-energy Σ^c on the imaginary-time grid
-      !      W_ll'(iτ)     =  Σ_PQ Z_lP W^MIC_PQ(iτ) Z_l'Q
-      !      Σ^c_ll'(iτ)   = -G^occ_ll'(i|τ|) ∘ W_ll'(iτ),  τ < 0
-      !      Σ^c_ll'(iτ)   =  G^vir_ll'(i|τ|) ∘ W_ll'(iτ),  τ > 0
-      !      Σ^c_λσ(iτ)    =  Σ_ll' Φ_λ(r_l) Σ^c_ll'(iτ) Φ_σ(r_l')
+      ! 7./8. Correlation self-energy Σ^c and quasiparticle energies, iterated
+      !       until eigenvalue self-consistency for SELF_CONSISTENCY EVGW0 and
+      !       done in a single pass for G0W0.
       ! ========================================================================
-      CALL compute_Sigma_c(bs_env, fm_W_time, bs_env%ri_rs%mat_phi_mu_l, &
-                           bs_env%ri_rs%mat_Z_lP, fm_Sigma_c_Gamma_time)
-
-      ! ========================================================================
-      ! 8. Quasiparticle energies (analytic continuation iτ -> iω -> real ϵ)
-      !      Σ^c_λσ(iτ) -> Σ^c_nn(ϵ)
-      !      ϵ_n^GW = ϵ_n^DFT + Σ^c_nn(ϵ_n^GW) + Σ^x_nn - v^xc_nn
-      ! ========================================================================
-      CALL compute_QP_energies(bs_env, qs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time)
+      CALL compute_Sigma_c_and_QP_energies(bs_env, qs_env, fm_W_time, fm_Sigma_x_Gamma)
 
       CALL de_init_bs_env(qs_env, bs_env)
 
       CALL timestop(handle)
 
    END SUBROUTINE gw_calc_non_periodic_ri_rs
+
+! **************************************************************************************************
+!> \brief Correlation self-energy and quasiparticle energies, iterated to eigenvalue
+!>        self-consistency in G (evGW0).
+!>
+!>        Per cycle i, the correlation self-energy on the imaginary-time grid
+!>          W_ll'(iτ)   =  Σ_PQ Z_lP W^MIC_PQ(iτ) Z_l'Q
+!>          Σ^c_ll'(iτ) = -G^occ_ll'(i|τ|) ∘ W_ll'(iτ),  τ < 0
+!>          Σ^c_ll'(iτ) =  G^vir_ll'(i|τ|) ∘ W_ll'(iτ),  τ > 0
+!>          Σ^c_λσ(iτ)  =  Σ_ll' Φ_λ(r_l) Σ^c_ll'(iτ) Φ_σ(r_l')
+!>        followed by the analytic continuation iτ -> iω -> real ϵ and the quasiparticle
+!>        equation
+!>          ϵ_n^GW,(i) = ϵ_n^DFT + Σ^c_nn[G^(i-1),W](ϵ_n^GW,(i)) + Σ^x_nn - v^xc_nn .
+!>
+!>        For G0W0 this runs once with G^(0) built from the DFT eigenvalues. For evGW0 the
+!>        Green's function is rebuilt from the previous cycle's quasiparticle energies until
+!>        every tracked state changes by less than EPS_ITER, or SC_GW0_ITER cycles are spent.
+!>        W, Σ^x and everything computed before this routine stay frozen: they either do not
+!>        depend on the eigenvalues at all (Σ^x is G at τ = 0, a pure density matrix) or are
+!>        held fixed by construction in GW0. The imaginary-time grid is fixed as well, since
+!>        W(iτ) lives on it.
+!>
+!>        EVGW0_NSTATE selects the states that take part in the self-consistency: per spin
+!>        channel, the Kohn-Sham indices n ∈ [N-nstate+1, N+nstate] with N = n_occ(ispin).
+!>        They are both the states whose convergence is monitored and the only ones whose
+!>        quasiparticle energies are fed back into G. Further out the analytic continuation
+!>        is evaluated far outside the imaginary-frequency interval it was fitted on, so the
+!>        quasiparticle energy there is not meaningful and would distort G; those states
+!>        instead keep their DFT eigenvalue, displaced by the mean correction of the states
+!>        inside the window if EVGW0_SHIFT_OUTER is set.
+!>
+!>        Fixed indices are used deliberately: the band edges from get_VBM_CBM_bandgaps are
+!>        MAXVAL/MINVAL over the occupied/empty blocks, so whenever the GW correction reorders
+!>        levels they can jump to a different orbital from one cycle to the next and the
+!>        comparison becomes meaningless.
+!> \param bs_env ...
+!> \param qs_env ...
+!> \param fm_W_time ...
+!> \param fm_Sigma_x_Gamma ...
+! **************************************************************************************************
+   SUBROUTINE compute_Sigma_c_and_QP_energies(bs_env, qs_env, fm_W_time, fm_Sigma_x_Gamma)
+
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_W_time, fm_Sigma_x_Gamma
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Sigma_c_and_QP_energies'
+
+      INTEGER                                            :: handle, i_iter, i_mo, i_ov, ispin, &
+                                                            n_iter, nstate, u
+      INTEGER, DIMENSION(2)                              :: i_first, i_last, n_in_window
+      LOGICAL                                            :: converged
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenval_scf_Gamma_dft, qp_prev
+      REAL(KIND=dp), DIMENSION(2)                        :: e_fermi_dft, shift
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: fm_Sigma_c_Gamma_time
+
+      CALL timeset(routineN, handle)
+
+      u = bs_env%unit_nr
+
+      n_iter = 1
+      converged = .FALSE.
+      i_first(:) = 0
+      i_last(:) = -1
+
+      IF (bs_env%ri_rs%do_ev_sc) THEN
+         n_iter = bs_env%ri_rs%sc_gw0_iter
+
+         ! States whose quasiparticle energies decide convergence: EVGW0_NSTATE levels on
+         ! either side of the gap of each spin channel, by Kohn-Sham index, truncated at the
+         ! edges of the spectrum. In the open-shell case n_occ differs between the channels,
+         ! so each gets its own window from the same keyword.
+         nstate = MAX(1, bs_env%ri_rs%evgw0_nstate)
+         DO ispin = 1, bs_env%n_spin
+            i_first(ispin) = MAX(1, bs_env%n_occ(ispin) - nstate + 1)
+            i_last(ispin) = MIN(bs_env%n_ao, bs_env%n_occ(ispin) + nstate)
+         END DO
+
+         ! eigenvalues currently in G; the first cycle starts from the DFT ones
+         IF (.NOT. ALLOCATED(bs_env%eigenval_scGW0)) THEN
+            ALLOCATE (bs_env%eigenval_scGW0(bs_env%n_ao, bs_env%nkp_bs_and_DOS, bs_env%n_spin))
+         END IF
+         bs_env%eigenval_scGW0(:, :, :) = bs_env%eigenval_scf(:, :, :)
+         ! quasiparticle energies of the previous cycle, for the per-state convergence test
+         ALLOCATE (qp_prev(bs_env%n_ao, bs_env%n_spin))
+         qp_prev(:, :) = 0.0_dp
+         ! the loop overwrites these; post-GW printing expects the DFT values back
+         ALLOCATE (eigenval_scf_Gamma_dft, SOURCE=bs_env%eigenval_scf_Gamma)
+         e_fermi_dft(:) = bs_env%e_fermi(:)
+      END IF
+
+      DO i_iter = 1, n_iter
+
+         IF (bs_env%ri_rs%do_ev_sc .AND. u > 0) THEN
+            WRITE (u, '(A)') ' '
+            WRITE (u, '(T2,A)') REPEAT('-', 52)
+            WRITE (u, '(T2,A,I4,A,I4)') &
+               'Eigenvalue self-consistency cycle (evGW0):', i_iter, ' /', n_iter
+            WRITE (u, '(T2,A)') REPEAT('-', 52)
+            WRITE (u, '(A)') ' '
+         END IF
+
+         CALL compute_Sigma_c(bs_env, fm_W_time, bs_env%ri_rs%mat_phi_mu_l, &
+                              bs_env%ri_rs%mat_Z_lP, fm_Sigma_c_Gamma_time)
+
+         ! W has been copied into the DBCSR cache; the dense copy is dead weight now
+         IF (bs_env%ri_rs%do_ev_sc .AND. i_iter == 1) CALL cp_fm_release(fm_W_time)
+
+         CALL compute_QP_energies(bs_env, qs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time)
+
+         IF (.NOT. bs_env%ri_rs%do_ev_sc) EXIT
+
+         CALL print_evGW0_convergence(bs_env, qp_prev, i_first, i_last, i_iter, converged)
+
+         IF (converged) THEN
+            IF (u > 0) THEN
+               WRITE (u, '(A)') ' '
+               WRITE (u, '(T2,A,I4,A)') &
+                  'evGW0 eigenvalue self-consistency reached in', i_iter, ' cycles.'
+               WRITE (u, '(A)') ' '
+            END IF
+            EXIT
+         END IF
+
+         qp_prev(:, :) = bs_env%eigenval_G0W0(:, 1, :)
+
+         IF (i_iter == n_iter) EXIT
+
+         ! ---- update the eigenvalues entering G for the next cycle ----
+         ! ikp = 1 is the Gamma point: this is the non-periodic (molecular) path, so
+         ! eigenval_scf_Gamma and eigenval_G0W0(:, 1, :) describe the same k-point.
+         bs_env%eigenval_scGW0(:, :, :) = bs_env%eigenval_G0W0(:, :, :)
+         DO ispin = 1, bs_env%n_spin
+
+            ! Mean quasiparticle correction inside the EVGW0_NSTATE window, separately for
+            ! the occupied and the empty states, used to displace the states outside it.
+            shift(:) = 0.0_dp
+            n_in_window(:) = 0
+            DO i_mo = 1, bs_env%n_ao
+               IF (i_mo > bs_env%n_mo_retained) CYCLE
+               IF (i_mo < i_first(ispin) .OR. i_mo > i_last(ispin)) CYCLE
+               i_ov = 1
+               IF (i_mo > bs_env%n_occ(ispin)) i_ov = 2
+               shift(i_ov) = shift(i_ov) + bs_env%eigenval_G0W0(i_mo, 1, ispin) - &
+                             eigenval_scf_Gamma_dft(i_mo, ispin)
+               n_in_window(i_ov) = n_in_window(i_ov) + 1
+            END DO
+            DO i_ov = 1, 2
+               IF (n_in_window(i_ov) > 0) shift(i_ov) = shift(i_ov)/REAL(n_in_window(i_ov), dp)
+            END DO
+
+            DO i_mo = 1, bs_env%n_ao
+
+               ! eigenval_scf_Gamma comes from cp_fm_geeig_canon, which parks the modes it
+               ! removed as linearly dependent above n_mo_retained, whereas eigenval_G0W0 is
+               ! built on the plain diagonalization in compute_QP_energies and carries no such
+               ! placeholders. Overwriting them would drop those modes from 10000 Hartree down
+               ! among the real virtual states, so that from the second cycle on they would
+               ! contribute to G as if they were states. Leave them at the placeholder.
+               IF (i_mo > bs_env%n_mo_retained) CYCLE
+
+               IF (i_mo >= i_first(ispin) .AND. i_mo <= i_last(ispin)) THEN
+                  bs_env%eigenval_scf_Gamma(i_mo, ispin) = bs_env%eigenval_G0W0(i_mo, 1, ispin)
+               ELSE
+                  ! Outside the window the analytic continuation is evaluated far beyond the
+                  ! interval it was fitted on, so the quasiparticle energy is not meaningful
+                  ! and must not be fed into G. Either keep the DFT eigenvalue or displace it
+                  ! by the mean correction of the states inside the window of the same
+                  ! character, as the RI-V evGW0 code does in shift_unshifted_levels.
+                  i_ov = 1
+                  IF (i_mo > bs_env%n_occ(ispin)) i_ov = 2
+                  bs_env%eigenval_scf_Gamma(i_mo, ispin) = eigenval_scf_Gamma_dft(i_mo, ispin)
+                  IF (bs_env%ri_rs%evgw0_shift_outer) THEN
+                     bs_env%eigenval_scf_Gamma(i_mo, ispin) = &
+                        bs_env%eigenval_scf_Gamma(i_mo, ispin) + shift(i_ov)
+                  END IF
+               END IF
+
+            END DO
+            ! The chemical potential only shifts the frequency variable: Sigma^c(iτ) is built
+            ! with mu in the exponents and the Pade is evaluated at E - mu, so mu cancels for
+            ! an exact transform. It does not cancel on a fixed minimax grid, because moving mu
+            ! moves Sigma^c's structure relative to the fixed sample points. CP2K's RI-V evGW0
+            ! recomputes it from the quasiparticle energies (rpa_main.F), whereas FHI-AIMS keeps
+            ! the SCF value for the whole cycle; EVGW0_UPDATE_FERMI selects between the two.
+            IF (bs_env%ri_rs%evgw0_update_fermi) THEN
+               bs_env%e_fermi(ispin) = &
+                  0.5_dp*(bs_env%eigenval_G0W0(bs_env%n_occ(ispin), 1, ispin) + &
+                          bs_env%eigenval_G0W0(bs_env%n_occ(ispin) + 1, 1, ispin))
+            END IF
+         END DO
+
+      END DO
+
+      IF (bs_env%ri_rs%do_ev_sc) THEN
+         IF (.NOT. converged) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "The evGW0 eigenvalue self-consistency cycle did not converge "// &
+                         "within SC_GW0_ITER iterations. The reported quasiparticle "// &
+                         "energies are those of the last cycle.")
+         END IF
+         ! put the DFT reference back for the post-GW DOS/band-edge printing
+         bs_env%eigenval_scf_Gamma(:, :) = eigenval_scf_Gamma_dft(:, :)
+         bs_env%e_fermi(:) = e_fermi_dft(:)
+         DEALLOCATE (eigenval_scf_Gamma_dft)
+         DEALLOCATE (qp_prev)
+         CALL cp_fm_release(fm_Sigma_x_Gamma)
+      ELSE
+         CALL cp_fm_release(fm_W_time)
+      END IF
+
+      CALL delete_unnecessary_files(bs_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_Sigma_c_and_QP_energies
+
+! **************************************************************************************************
+!> \brief Print the evGW0 convergence statistics of the current cycle and report whether every
+!>        tracked state is converged.
+!> \param bs_env ...
+!> \param qp_prev ...
+!> \param i_first ...
+!> \param i_last ...
+!> \param i_iter ...
+!> \param converged ...
+! **************************************************************************************************
+   SUBROUTINE print_evGW0_convergence(bs_env, qp_prev, i_first, i_last, i_iter, converged)
+
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: qp_prev
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: i_first, i_last
+      INTEGER, INTENT(IN)                                :: i_iter
+      LOGICAL, INTENT(OUT)                               :: converged
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_evGW0_convergence'
+
+      CHARACTER(LEN=3)                                   :: occ_vir
+      INTEGER                                            :: handle, i_mo, ispin, u
+      LOGICAL                                            :: is_converged
+      REAL(KIND=dp)                                      :: delta, e_gw
+
+      CALL timeset(routineN, handle)
+
+      u = bs_env%unit_nr
+
+      ! nothing to compare against in the first cycle
+      converged = (i_iter > 1)
+
+      IF (u > 0) THEN
+         WRITE (u, '(A)') ' '
+         WRITE (u, '(T2,A)') REPEAT('-', 79)
+         WRITE (u, '(T2,A)') &
+            '   State  Occ/Vir     E^DFT (eV)    E^evGW0 (eV)     Delta (eV)       Converged'
+         WRITE (u, '(T2,A)') REPEAT('-', 79)
+      END IF
+
+      DO ispin = 1, bs_env%n_spin
+
+         IF (u > 0 .AND. bs_env%n_spin == 2) WRITE (u, '(T2,A,I0)') 'Spin ', ispin
+
+         DO i_mo = i_first(ispin), i_last(ispin)
+
+            e_gw = bs_env%eigenval_G0W0(i_mo, 1, ispin)
+            delta = e_gw - qp_prev(i_mo, ispin)
+
+            is_converged = (i_iter > 1) .AND. (ABS(delta) < bs_env%ri_rs%eps_iter)
+            IF (.NOT. is_converged) converged = .FALSE.
+
+            IF (i_mo <= bs_env%n_occ(ispin)) THEN
+               occ_vir = 'occ'
+            ELSE
+               occ_vir = 'vir'
+            END IF
+
+            IF (u > 0) THEN
+               IF (i_iter > 1) THEN
+                  WRITE (u, '(T2,I8,A9,F15.4,F16.4,F15.4,A16)') &
+                     i_mo, occ_vir, bs_env%eigenval_scf(i_mo, 1, ispin)*evolt, &
+                     e_gw*evolt, delta*evolt, TRIM(MERGE('Yes', 'No ', is_converged))
+               ELSE
+                  WRITE (u, '(T2,I8,A9,F15.4,F16.4,A15,A16)') &
+                     i_mo, occ_vir, bs_env%eigenval_scf(i_mo, 1, ispin)*evolt, &
+                     e_gw*evolt, '-', 'No'
+               END IF
+            END IF
+
+         END DO
+
+      END DO
+
+      IF (u > 0) WRITE (u, '(T2,A)') REPEAT('-', 79)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE print_evGW0_convergence
 
 ! **************************************************************************************************
 !> \brief Compute per-atom AO and RI basis radii from the most diffuse Gaussian
@@ -1507,13 +1794,11 @@ CONTAINS
             IF (auto_mode) THEN
                ! Auto-size G from the most demanding big atom.
                IF (G_atom > para_env%num_pe) THEN
-                  IF (bs_env%unit_nr > 0) THEN
-                     WRITE (bs_env%unit_nr, '(T2,A)') &
-                        'RI-RS Z_lP: an atom is too large to fit even distributed over all '// &
-                        'ranks. Add nodes, use fewer MPI ranks/node, lower CUTOFF_RADIUS_RL_RI, '// &
-                        'or raise EPS_FILTER (more grid screening).'
-                  END IF
-                  CPABORT("RI-RS Z_lP: atom too large even fully distributed")
+                  CALL cp_abort(__LOCATION__, &
+                                "RI-RS Z_lP: an atom is too large to fit even when "// &
+                                "distributed over all ranks. Add nodes, use fewer MPI ranks "// &
+                                "per node, lower CUTOFF_RADIUS_RL_RI, or raise EPS_FILTER "// &
+                                "for more grid screening.")
                END IF
                G = MIN(MAX(G_atom, 2), para_env%num_pe)
             ELSE
@@ -2329,6 +2614,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_matrix_occupation'
 
+      CHARACTER(LEN=max_line_length)                     :: msg
+
       INTEGER                                            :: handle
 
       REAL(KIND=dp)                                      :: frac_2p31, max_loc, occ
@@ -2344,9 +2631,14 @@ CONTAINS
          WRITE (unit_nr, '(A)') ' '
          WRITE (unit_nr, '(T2,A,F36.2,A)') &
             'Occupation of non-zero elements of '//TRIM(label), occ*100.0_dp, ' %'
-         IF (frac_2p31 > 0.5_dp) then
-            WRITE (unit_nr, '(T4,A)') '*** WARNING: max/rank approaching 2^31 -- DBCSR overflow risk ***'
-         end if
+         IF (frac_2p31 > 0.5_dp) THEN
+            WRITE (msg, '(3A,F0.2,A)') &
+               "The largest per-rank message of ", TRIM(label), " reaches ", frac_2p31, &
+               " of the 32-bit limit that DBCSR uses for its message length. Beyond it the "// &
+               "length overflows and multiply_cannon fails. Reduce the per-rank block size, "// &
+               "for instance with more MPI ranks or a larger N_PANELS."
+            CPWARN(TRIM(msg))
+         END IF
          CALL m_flush(unit_nr)
       END IF
 
@@ -2617,6 +2909,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: pan_first, pan_last
       CHARACTER(LEN=*), PARAMETER :: routineN = 'resolve_grid_panels'
 
+      CHARACTER(LEN=max_line_length)                     :: msg
+
       INTEGER                                            :: min_dim, n_grid_total, n_panels_req, &
                                                             npcols, nprows, panel_size, safe_max
       INTEGER, DIMENSION(:), POINTER                     :: r_blk_sizes
@@ -2689,11 +2983,12 @@ CONTAINS
          CALL plan_grid_panels(r_blk_sizes, panel_size, min_dim, pan_first, pan_last)
       END IF
 
-      IF (honor_exact .AND. panels_unsafe .AND. bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,I0,A)') &
-            '*** WARNING: N_PANELS = ', n_panels_req, ' used as requested, but one or more '// &
-            'panels exceed the DBCSR 32-bit message / memory-budget safety limit. The run may '// &
-            'abort or swap; increase N_PANELS if it does. ***'
+      IF (honor_exact .AND. panels_unsafe) THEN
+         WRITE (msg, '(A,I0,A)') &
+            "N_PANELS = ", n_panels_req, " is used as requested, but one or more panels "// &
+            "exceed the DBCSR 32-bit message length or the memory budget. The run may abort "// &
+            "or swap; increase N_PANELS if it does."
+         CPWARN(TRIM(msg))
       END IF
 
       ALLOCATE (bs_env%ri_rs%pan_first, SOURCE=pan_first)
@@ -2762,6 +3057,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_ri_rs_memory_estimate'
 
+      CHARACTER(LEN=max_line_length)                     :: msg
       INTEGER                                            :: handle, iatom, ipan, l, &
                                                             max_n_local_grid, &
                                                             n_ao_total, n_grid_total, &
@@ -2891,57 +3187,40 @@ CONTAINS
             'worst-case n_local_grid', max_n_local_grid, ' points  (D_local', mem_D_local_GB, ' GB)'
          WRITE (bs_env%unit_nr, '(A)') ' '
 
-         IF (mem_avail_GB > 0.0_dp .AND. mem_Z_lP_GB > mem_avail_GB) THEN
-            WRITE (bs_env%unit_nr, '(T2,A)') &
-               '*** WARNING: Estimated Z_lP memory exceeds available memory per process ***'
-            WRITE (bs_env%unit_nr, '(T4,A,F6.2,A,F6.2,A)') &
-               'Z_lP upper bound: ', mem_Z_lP_GB, ' GB  >  available: ', mem_avail_GB, ' GB'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               'Z_lP (n_grid × n_RI) is distributed across all MPI ranks. To reduce per-rank'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               'memory: add more nodes, use fewer MPI ranks per node, or increase'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               'N_PROCS_PER_ATOM_Z_LP to distribute each atom block via ScaLAPACK (reduces'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               'per-rank memory by ~1/G where G = N_PROCS_PER_ATOM_Z_LP).'
-            WRITE (bs_env%unit_nr, '(A)') ' '
-         END IF
-         IF (mem_avail_GB > 0.0_dp .AND. mem_panels_GB > mem_avail_GB) THEN
-            WRITE (bs_env%unit_nr, '(T2,A)') &
-               '*** WARNING: Estimated χ/W/Σ panel memory exceeds available memory per process ***'
-            WRITE (bs_env%unit_nr, '(T4,A,F6.2,A,F6.2,A)') &
-               'Panel peak estimate: ', mem_panels_GB, ' GB  >  available: ', mem_avail_GB, ' GB'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               'Panel memory scales as ~3×panel_size×n_grid / n_procs. Options:'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               '  - More nodes or fewer MPI ranks per node (increases n_procs, reduces share)'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               '  - Increase N_PANELS (more, smaller panels → less peak memory per step)'
-            WRITE (bs_env%unit_nr, '(A)') ' '
-         END IF
-         IF (mem_avail_GB > 0.0_dp .AND. mem_Zlp_peak_GB > mem_avail_GB) THEN
-            WRITE (bs_env%unit_nr, '(T2,A)') &
-               '*** WARNING: Estimated Z_lP solve peak exceeds available memory per process ***'
-            WRITE (bs_env%unit_nr, '(T4,A,F8.2,A,F8.2,A)') &
-               'Z_lP solve peak: ', mem_Zlp_peak_GB, ' GB  >  available: ', mem_avail_GB, ' GB'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               'The per-atom Gram matrix D_local(n_local_grid, n_local_grid) dominates and scales'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               'as n_local_grid^2. It is NOT balanced across ranks (the rank owning the atom with'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               'the largest integration sphere peaks well above the average). Options:'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               '  - Increase N_PROCS_PER_ATOM_Z_LP=G to distribute D_local block-cyclic via'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               '    ScaLAPACK (reduces the D_local term by ~1/G; no accuracy loss)'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               '  - Reduce the RI-RS sphere cutoff (CUTOFF_RADIUS_RL_RI): D_local shrinks as'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               '    n_local_grid^2, but this trades accuracy'
-            WRITE (bs_env%unit_nr, '(T4,A)') &
-               '  - Fewer MPI ranks per node (more memory per rank for the peak atom)'
-            WRITE (bs_env%unit_nr, '(A)') ' '
-         END IF
+      END IF
+
+      IF (mem_avail_GB > 0.0_dp .AND. mem_Z_lP_GB > mem_avail_GB) THEN
+         WRITE (msg, '(A,F0.2,A,F0.2,A)') &
+            "The estimated memory for Z_lP, ", mem_Z_lP_GB, " GB per process, exceeds the "// &
+            "available ", mem_avail_GB, " GB. Z_lP (n_grid x n_RI) is distributed across all "// &
+            "MPI ranks, so add nodes, use fewer MPI ranks per node, or raise "// &
+            "N_PROCS_PER_ATOM_Z_LP to distribute each atom block via ScaLAPACK, which reduces "// &
+            "the per-rank memory roughly by the number of ranks per atom."
+         CPWARN(TRIM(msg))
+      END IF
+
+      IF (mem_avail_GB > 0.0_dp .AND. mem_panels_GB > mem_avail_GB) THEN
+         WRITE (msg, '(A,F0.2,A,F0.2,A)') &
+            "The estimated peak memory of the chi/W/Sigma panels, ", mem_panels_GB, &
+            " GB per process, exceeds the available ", mem_avail_GB, " GB. Panel memory "// &
+            "scales roughly as 3*panel_size*n_grid/n_procs, so add nodes, use fewer MPI ranks "// &
+            "per node, or raise N_PANELS for more but smaller panels."
+         CPWARN(TRIM(msg))
+      END IF
+
+      IF (mem_avail_GB > 0.0_dp .AND. mem_Zlp_peak_GB > mem_avail_GB) THEN
+         WRITE (msg, '(A,F0.2,A,F0.2,A)') &
+            "The estimated peak memory of the Z_lP solve, ", mem_Zlp_peak_GB, &
+            " GB per process, exceeds the available ", mem_avail_GB, &
+            " GB. The per-atom Gram matrix D_local(n_local_grid, n_local_grid) dominates and "// &
+            "scales as n_local_grid^2, and it is not balanced across ranks: the rank owning "// &
+            "the atom with the largest integration sphere peaks well above the average. "// &
+            "Either raise N_PROCS_PER_ATOM_Z_LP to distribute D_local block-cyclic via "// &
+            "ScaLAPACK, which reduces that term roughly by the number of ranks per atom at no "// &
+            "loss of accuracy, or lower CUTOFF_RADIUS_RL_RI, which shrinks D_local as "// &
+            "n_local_grid^2 but trades accuracy, or use fewer MPI ranks per node so that each "// &
+            "rank has more memory for the peak atom."
+         CPWARN(TRIM(msg))
       END IF
 
       CALL timestop(handle)
@@ -4326,11 +4605,13 @@ CONTAINS
       INTEGER                                            :: handle, i_t, ispin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pan_first, pan_last
       INTEGER, DIMENSION(:), POINTER                     :: blk_aux, dist_row_aux
+      LOGICAL                                            :: cache_W_is_filled, do_cache_W
       REAL(KIND=dp)                                      :: t1, tau
       TYPE(dbcsr_distribution_type)                      :: dist_aux_aux
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_Sigma_neg_tau, mat_Sigma_pos_tau
-      TYPE(dbcsr_type)                                   :: matrix_G_occ_ao, matrix_G_vir_ao, &
-                                                            matrix_W_aux
+      TYPE(dbcsr_type)                                   :: matrix_G_occ_ao, matrix_G_vir_ao
+      TYPE(dbcsr_type), POINTER                          :: matrix_W_aux
+      TYPE(dbcsr_type), TARGET                           :: matrix_W_aux_local
 
       CALL timeset(routineN, handle)
 
@@ -4340,6 +4621,18 @@ CONTAINS
       CALL setup_square_topology(mat_Z_lP, dist_aux_aux, blk_aux, dist_row_aux)
 
       CALL resolve_grid_panels(bs_env, mat_phi_mu_l, pan_first, pan_last)
+
+      ! W is frozen in an evGW0 cycle, so the fm -> sparse DBCSR conversion below is done once
+      ! and the resulting matrices are kept for all following iterations. This also lets the
+      ! caller drop the dense fm_W_time right after the first cycle.
+      do_cache_W = bs_env%ri_rs%do_ev_sc
+      cache_W_is_filled = ASSOCIATED(bs_env%ri_rs%mat_W_aux_tau)
+      IF (do_cache_W .AND. .NOT. cache_W_is_filled) THEN
+         ALLOCATE (bs_env%ri_rs%mat_W_aux_tau(bs_env%num_time_freq_points))
+         DO i_t = 1, bs_env%num_time_freq_points
+            ALLOCATE (bs_env%ri_rs%mat_W_aux_tau(i_t)%matrix)
+         END DO
+      END IF
 
       ! Pre-allocate local DBCSR matrices to act as targets for final output
       NULLIFY (mat_Sigma_neg_tau, mat_Sigma_pos_tau)
@@ -4363,16 +4656,25 @@ CONTAINS
       DO i_t = 1, bs_env%num_time_freq_points
          tau = bs_env%imag_time_points(i_t)
 
-         CALL dbcsr_create(matrix_W_aux, "W_aux", dist_aux_aux, dbcsr_type_no_symmetry, blk_aux, blk_aux)
-         IF (bs_env%ri_rs%cutoff_radius_g_w > 0.0_dp .AND. &
-             ALLOCATED(bs_env%ri_rs%atom_centers)) THEN
-            CALL reserve_blocks_within_radius(matrix_W_aux, bs_env%ri_rs%atom_centers, &
-                                              bs_env%ri_rs%cutoff_radius_g_w)
-            CALL copy_fm_to_dbcsr(fm_W_time(i_t), matrix_W_aux, keep_sparsity=.TRUE.)
+         IF (do_cache_W) THEN
+            matrix_W_aux => bs_env%ri_rs%mat_W_aux_tau(i_t)%matrix
          ELSE
-            CALL copy_fm_to_dbcsr(fm_W_time(i_t), matrix_W_aux, keep_sparsity=.FALSE.)
+            matrix_W_aux => matrix_W_aux_local
          END IF
-         CALL dbcsr_filter(matrix_W_aux, bs_env%eps_filter)
+
+         IF (.NOT. (do_cache_W .AND. cache_W_is_filled)) THEN
+            CALL dbcsr_create(matrix_W_aux, "W_aux", dist_aux_aux, dbcsr_type_no_symmetry, &
+                              blk_aux, blk_aux)
+            IF (bs_env%ri_rs%cutoff_radius_g_w > 0.0_dp .AND. &
+                ALLOCATED(bs_env%ri_rs%atom_centers)) THEN
+               CALL reserve_blocks_within_radius(matrix_W_aux, bs_env%ri_rs%atom_centers, &
+                                                 bs_env%ri_rs%cutoff_radius_g_w)
+               CALL copy_fm_to_dbcsr(fm_W_time(i_t), matrix_W_aux, keep_sparsity=.TRUE.)
+            ELSE
+               CALL copy_fm_to_dbcsr(fm_W_time(i_t), matrix_W_aux, keep_sparsity=.FALSE.)
+            END IF
+            CALL dbcsr_filter(matrix_W_aux, bs_env%eps_filter)
+         END IF
 
          DO ispin = 1, bs_env%n_spin
             t1 = m_walltime()
@@ -4407,7 +4709,8 @@ CONTAINS
 
          END DO ! ispin
 
-         CALL dbcsr_release(matrix_W_aux)
+         ! kept alive across evGW0 iterations when cached
+         IF (.NOT. do_cache_W) CALL dbcsr_release(matrix_W_aux)
 
       END DO ! i_t
 
@@ -4419,14 +4722,13 @@ CONTAINS
       CALL fill_fm_Sigma_c_Gamma_time(fm_Sigma_c_Gamma_time, bs_env, &
                                       mat_Sigma_pos_tau, mat_Sigma_neg_tau)
 
-      CALL cp_fm_release(fm_W_time)
-
+      ! fm_W_time and the scratch files are released by the caller: in an evGW0 cycle this
+      ! routine is entered once per iteration and both have to survive until it is done.
       CALL dbcsr_deallocate_matrix_set(mat_Sigma_neg_tau)
       CALL dbcsr_deallocate_matrix_set(mat_Sigma_pos_tau)
 
       CALL release_square_topology(dist=dist_aux_aux, mapped_dist=dist_row_aux)
 
-      CALL delete_unnecessary_files(bs_env)
       CALL timestop(handle)
 
    END SUBROUTINE compute_Sigma_c
