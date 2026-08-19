@@ -12,88 +12,90 @@
 ! **************************************************************************************************
 
 MODULE gw_non_periodic_ri_rs
-   USE atomic_kind_types, ONLY: atomic_kind_type, &
-                                get_atomic_kind_set
-   USE basis_set_types, ONLY: gto_basis_set_type
-   USE cell_types, ONLY: cell_type, &
-                         pbc
-   USE constants_operator, ONLY: operator_coulomb
-   USE cp_blacs_env, ONLY: cp_blacs_env_create, &
-                           cp_blacs_env_release, &
-                           cp_blacs_env_type
-   USE cp_dbcsr_api, ONLY: &
-      dbcsr_add, dbcsr_binary_read, dbcsr_binary_write, dbcsr_copy, dbcsr_create, &
-      dbcsr_deallocate_matrix, dbcsr_distribution_get, dbcsr_distribution_new, &
-      dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_finalize, &
-      dbcsr_get_block_p, dbcsr_filter, dbcsr_get_data_size, dbcsr_get_info, &
-      dbcsr_get_occupation, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-      dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-      dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
-      dbcsr_type_no_symmetry
-   USE cp_dbcsr_contrib, ONLY: dbcsr_reserve_all_blocks
-   USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm, &
-                                  copy_fm_to_dbcsr, &
-                                  dbcsr_deallocate_matrix_set, &
-                                  max_elements_per_block
-   USE cp_files, ONLY: close_file, &
-                       open_file
-   USE cp_fm_basic_linalg, ONLY: cp_fm_scale_and_add, &
-                                 cp_fm_uplo_to_full
-   USE cp_fm_cholesky, ONLY: cp_fm_cholesky_decompose, &
-                             cp_fm_cholesky_invert, &
-                             cp_fm_cholesky_solve
-   USE cp_fm_diag, ONLY: cp_fm_power
-   USE cp_fm_struct, ONLY: cp_fm_struct_create, &
-                           cp_fm_struct_release, &
-                           cp_fm_struct_type
-   USE cp_fm_types, ONLY: cp_fm_create, &
-                          cp_fm_get_info, &
-                          cp_fm_get_submatrix, &
-                          cp_fm_release, &
-                          cp_fm_set_all, &
-                          cp_fm_set_submatrix, &
-                          cp_fm_to_fm, &
-                          cp_fm_type
-   USE cp_log_handling, ONLY: cp_get_default_logger, &
-                              cp_logger_type
-   USE cp_output_handling, ONLY: cp_p_file, &
-                                 cp_print_key_should_output
-   USE gw_integrals, ONLY: build_3c_integral_block_ctx, &
-                           gw_3c_ctx_create, &
-                           gw_3c_ctx_release, &
-                           gw_3c_ctx_type, &
-                           gw_3c_ws_create, &
-                           gw_3c_ws_release, &
-                           gw_3c_ws_type
-   USE gw_large_cell_gamma, ONLY: &
-      Fourier_transform_w_to_t, G_occ_vir, compute_QP_energies, compute_fm_chi_Gamma_freq, &
-      create_fm_W_MIC_time, delete_unnecessary_files, fill_fm_Sigma_c_Gamma_time, fm_write, &
-      multiply_fm_W_MIC_time_with_Minv_Gamma
-   USE gw_utils, ONLY: de_init_bs_env
-   USE input_constants, ONLY: rtp_method_bse
-   USE input_section_types, ONLY: section_vals_type
-   USE kinds, ONLY: default_path_length, &
-                    default_string_length, &
-                    max_line_length, &
-                    dp, int_4, int_8
-   USE kpoint_coulomb_2c, ONLY: build_2c_coulomb_matrix_kp
-   USE machine, ONLY: m_flush, m_hostnm, &
-                      m_memory_details, m_walltime
-   USE message_passing, ONLY: mp_para_env_type
-   USE mp2_ri_2c, ONLY: RI_2c_integral_mat
-   USE orbital_pointers, ONLY: indco, &
-                               ncoset
-   USE parallel_gemm_api, ONLY: parallel_gemm
-   USE particle_types, ONLY: particle_type
-   USE physcon, ONLY: angstrom, &
-                      evolt
-   USE post_scf_bandstructure_types, ONLY: post_scf_bandstructure_type
-   USE qs_environment_types, ONLY: get_qs_env, &
-                                   qs_environment_type
-   USE qs_kind_types, ONLY: get_qs_kind, &
-                            qs_kind_type
-   USE util, ONLY: sort
-
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind_set
+   USE basis_set_types,                 ONLY: gto_basis_set_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              pbc
+   USE constants_operator,              ONLY: operator_coulomb
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_release,&
+                                              cp_blacs_env_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_add, dbcsr_binary_read, dbcsr_binary_write, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix, dbcsr_distribution_get, dbcsr_distribution_new, &
+        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_get_block_p, dbcsr_get_data_size, dbcsr_get_info, dbcsr_get_occupation, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, &
+        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr,&
+                                              dbcsr_deallocate_matrix_set,&
+                                              max_elements_per_block
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                              cp_fm_uplo_to_full
+   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                              cp_fm_cholesky_invert,&
+                                              cp_fm_cholesky_solve
+   USE cp_fm_diag,                      ONLY: cp_fm_power
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_set_submatrix,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_should_output
+   USE gw_integrals,                    ONLY: build_3c_integral_block_ctx,&
+                                              gw_3c_ctx_create,&
+                                              gw_3c_ctx_release,&
+                                              gw_3c_ctx_type,&
+                                              gw_3c_ws_create,&
+                                              gw_3c_ws_release,&
+                                              gw_3c_ws_type
+   USE gw_large_cell_gamma,             ONLY: &
+        Fourier_transform_w_to_t, G_occ_vir, compute_QP_energies, compute_fm_chi_Gamma_freq, &
+        create_fm_W_MIC_time, delete_unnecessary_files, fill_fm_Sigma_c_Gamma_time, fm_write, &
+        multiply_fm_W_MIC_time_with_Minv_Gamma
+   USE gw_utils,                        ONLY: de_init_bs_env
+   USE input_constants,                 ONLY: rtp_method_bse
+   USE input_section_types,             ONLY: section_vals_type
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
+                                              dp,&
+                                              int_4,&
+                                              int_8,&
+                                              max_line_length
+   USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
+   USE machine,                         ONLY: m_flush,&
+                                              m_hostnm,&
+                                              m_memory_details,&
+                                              m_walltime
+   USE message_passing,                 ONLY: mp_para_env_type
+   USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
+   USE orbital_pointers,                ONLY: indco,&
+                                              ncoset
+   USE parallel_gemm_api,               ONLY: parallel_gemm
+   USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: angstrom,&
+                                              evolt
+   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
+   USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -208,7 +210,7 @@ CONTAINS
 
       ! ========================================================================
       ! 7./8. Correlation self-energy Σ^c and quasiparticle energies, iterated
-      !       until eigenvalue self-consistency for SELF_CONSISTENCY EVGW0 and
+      !       until eigenvalue self-consistency if the &EVGW0 section is given and
       !       done in a single pass for G0W0.
       ! ========================================================================
       CALL compute_Sigma_c_and_QP_energies(bs_env, qs_env, fm_W_time, fm_Sigma_x_Gamma)
@@ -233,26 +235,13 @@ CONTAINS
 !>          ϵ_n^GW,(i) = ϵ_n^DFT + Σ^c_nn[G^(i-1),W](ϵ_n^GW,(i)) + Σ^x_nn - v^xc_nn .
 !>
 !>        For G0W0 this runs once with G^(0) built from the DFT eigenvalues. For evGW0 the
-!>        Green's function is rebuilt from the previous cycle's quasiparticle energies until
-!>        every tracked state changes by less than EPS_ITER, or SC_GW0_ITER cycles are spent.
-!>        W, Σ^x and everything computed before this routine stay frozen: they either do not
-!>        depend on the eigenvalues at all (Σ^x is G at τ = 0, a pure density matrix) or are
-!>        held fixed by construction in GW0. The imaginary-time grid is fixed as well, since
-!>        W(iτ) lives on it.
+!>        Green's function is rebuilt from the quasiparticle energies of all states until the
+!>        quasiparticle HOMO, LUMO and HOMO-LUMO gap change by less than EPS_ITER between two
+!>        cycles, or MAX_ITER cycles are spent. W, Σ^x and everything computed before this
+!>        routine stay frozen: they either do not depend on the eigenvalues at all (Σ^x is G
+!>        at τ = 0, a pure density matrix) or are held fixed by construction in GW0. The
+!>        imaginary-time grid is fixed as well, since W(iτ) lives on it.
 !>
-!>        EVGW0_NSTATE selects the states that take part in the self-consistency: per spin
-!>        channel, the Kohn-Sham indices n ∈ [N-nstate+1, N+nstate] with N = n_occ(ispin).
-!>        They are both the states whose convergence is monitored and the only ones whose
-!>        quasiparticle energies are fed back into G. Further out the analytic continuation
-!>        is evaluated far outside the imaginary-frequency interval it was fitted on, so the
-!>        quasiparticle energy there is not meaningful and would distort G; those states
-!>        instead keep their DFT eigenvalue, displaced by the mean correction of the states
-!>        inside the window if EVGW0_SHIFT_OUTER is set.
-!>
-!>        Fixed indices are used deliberately: the band edges from get_VBM_CBM_bandgaps are
-!>        MAXVAL/MINVAL over the occupied/empty blocks, so whenever the GW correction reorders
-!>        levels they can jump to a different orbital from one cycle to the next and the
-!>        comparison becomes meaningless.
 !> \param bs_env ...
 !> \param qs_env ...
 !> \param fm_W_time ...
@@ -266,12 +255,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Sigma_c_and_QP_energies'
 
-      INTEGER                                            :: handle, i_iter, i_mo, i_ov, ispin, &
-                                                            n_iter, nstate, u
-      INTEGER, DIMENSION(2)                              :: i_first, i_last, n_in_window
+      INTEGER                                            :: handle, i_iter, i_mo, ispin, n_iter, u
       LOGICAL                                            :: converged
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenval_scf_Gamma_dft, qp_prev
-      REAL(KIND=dp), DIMENSION(2)                        :: e_fermi_dft, shift
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenval_scf_Gamma_dft
+      REAL(KIND=dp), DIMENSION(2)                        :: e_fermi_dft
+      REAL(KIND=dp), DIMENSION(3, 2)                     :: band_prev
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: fm_Sigma_c_Gamma_time
 
       CALL timeset(routineN, handle)
@@ -280,30 +268,16 @@ CONTAINS
 
       n_iter = 1
       converged = .FALSE.
-      i_first(:) = 0
-      i_last(:) = -1
 
-      IF (bs_env%ri_rs%do_ev_sc) THEN
-         n_iter = bs_env%ri_rs%sc_gw0_iter
-
-         ! States whose quasiparticle energies decide convergence: EVGW0_NSTATE levels on
-         ! either side of the gap of each spin channel, by Kohn-Sham index, truncated at the
-         ! edges of the spectrum. In the open-shell case n_occ differs between the channels,
-         ! so each gets its own window from the same keyword.
-         nstate = MAX(1, bs_env%ri_rs%evgw0_nstate)
-         DO ispin = 1, bs_env%n_spin
-            i_first(ispin) = MAX(1, bs_env%n_occ(ispin) - nstate + 1)
-            i_last(ispin) = MIN(bs_env%n_ao, bs_env%n_occ(ispin) + nstate)
-         END DO
+      IF (bs_env%ri_rs%do_evgw0) THEN
+         n_iter = bs_env%ri_rs%evgw0_iter
 
          ! eigenvalues currently in G; the first cycle starts from the DFT ones
-         IF (.NOT. ALLOCATED(bs_env%eigenval_scGW0)) THEN
-            ALLOCATE (bs_env%eigenval_scGW0(bs_env%n_ao, bs_env%nkp_bs_and_DOS, bs_env%n_spin))
+         IF (.NOT. ALLOCATED(bs_env%eigenval_evGW0)) THEN
+            ALLOCATE (bs_env%eigenval_evGW0(bs_env%n_ao, bs_env%nkp_bs_and_DOS, bs_env%n_spin))
          END IF
-         bs_env%eigenval_scGW0(:, :, :) = bs_env%eigenval_scf(:, :, :)
-         ! quasiparticle energies of the previous cycle, for the per-state convergence test
-         ALLOCATE (qp_prev(bs_env%n_ao, bs_env%n_spin))
-         qp_prev(:, :) = 0.0_dp
+         bs_env%eigenval_evGW0(:, :, :) = bs_env%eigenval_scf(:, :, :)
+         band_prev(:, :) = 0.0_dp
          ! the loop overwrites these; post-GW printing expects the DFT values back
          ALLOCATE (eigenval_scf_Gamma_dft, SOURCE=bs_env%eigenval_scf_Gamma)
          e_fermi_dft(:) = bs_env%e_fermi(:)
@@ -311,26 +285,19 @@ CONTAINS
 
       DO i_iter = 1, n_iter
 
-         IF (bs_env%ri_rs%do_ev_sc .AND. u > 0) THEN
-            WRITE (u, '(A)') ' '
-            WRITE (u, '(T2,A)') REPEAT('-', 52)
-            WRITE (u, '(T2,A,I4,A,I4)') &
-               'Eigenvalue self-consistency cycle (evGW0):', i_iter, ' /', n_iter
-            WRITE (u, '(T2,A)') REPEAT('-', 52)
-            WRITE (u, '(A)') ' '
-         END IF
+         bs_env%ri_rs%evgw0_i_iter = i_iter
 
          CALL compute_Sigma_c(bs_env, fm_W_time, bs_env%ri_rs%mat_phi_mu_l, &
                               bs_env%ri_rs%mat_Z_lP, fm_Sigma_c_Gamma_time)
 
-         ! W has been copied into the DBCSR cache; the dense copy is dead weight now
-         IF (bs_env%ri_rs%do_ev_sc .AND. i_iter == 1) CALL cp_fm_release(fm_W_time)
+         ! W has been copied into the DBCSR cache; the dense copy is no longer needed
+         IF (bs_env%ri_rs%do_evgw0 .AND. i_iter == 1) CALL cp_fm_release(fm_W_time)
 
          CALL compute_QP_energies(bs_env, qs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time)
 
-         IF (.NOT. bs_env%ri_rs%do_ev_sc) EXIT
+         IF (.NOT. bs_env%ri_rs%do_evgw0) EXIT
 
-         CALL print_evGW0_convergence(bs_env, qp_prev, i_first, i_last, i_iter, converged)
+         CALL print_evGW0_band_edges(bs_env, band_prev, i_iter, n_iter, converged)
 
          IF (converged) THEN
             IF (u > 0) THEN
@@ -342,88 +309,38 @@ CONTAINS
             EXIT
          END IF
 
-         qp_prev(:, :) = bs_env%eigenval_G0W0(:, 1, :)
-
          IF (i_iter == n_iter) EXIT
 
          ! ---- update the eigenvalues entering G for the next cycle ----
          ! ikp = 1 is the Gamma point: this is the non-periodic (molecular) path, so
          ! eigenval_scf_Gamma and eigenval_G0W0(:, 1, :) describe the same k-point.
-         bs_env%eigenval_scGW0(:, :, :) = bs_env%eigenval_G0W0(:, :, :)
+         bs_env%eigenval_evGW0(:, :, :) = bs_env%eigenval_G0W0(:, :, :)
          DO ispin = 1, bs_env%n_spin
-
-            ! Mean quasiparticle correction inside the EVGW0_NSTATE window, separately for
-            ! the occupied and the empty states, used to displace the states outside it.
-            shift(:) = 0.0_dp
-            n_in_window(:) = 0
-            DO i_mo = 1, bs_env%n_ao
-               IF (i_mo > bs_env%n_mo_retained) CYCLE
-               IF (i_mo < i_first(ispin) .OR. i_mo > i_last(ispin)) CYCLE
-               i_ov = 1
-               IF (i_mo > bs_env%n_occ(ispin)) i_ov = 2
-               shift(i_ov) = shift(i_ov) + bs_env%eigenval_G0W0(i_mo, 1, ispin) - &
-                             eigenval_scf_Gamma_dft(i_mo, ispin)
-               n_in_window(i_ov) = n_in_window(i_ov) + 1
+            ! Every real state is updated. Entries above n_mo_retained are the placeholders of
+            ! the canonical orthogonalization, not states, and stay where they are: eigenval_G0W0
+            ! carries a finite number there, and copying it would drop the linearly dependent
+            ! modes into the physical spectrum and let them contribute to G.
+            DO i_mo = 1, bs_env%n_mo_retained
+               bs_env%eigenval_scf_Gamma(i_mo, ispin) = bs_env%eigenval_G0W0(i_mo, 1, ispin)
             END DO
-            DO i_ov = 1, 2
-               IF (n_in_window(i_ov) > 0) shift(i_ov) = shift(i_ov)/REAL(n_in_window(i_ov), dp)
-            END DO
-
-            DO i_mo = 1, bs_env%n_ao
-
-               ! eigenval_scf_Gamma comes from cp_fm_geeig_canon, which parks the modes it
-               ! removed as linearly dependent above n_mo_retained, whereas eigenval_G0W0 is
-               ! built on the plain diagonalization in compute_QP_energies and carries no such
-               ! placeholders. Overwriting them would drop those modes from 10000 Hartree down
-               ! among the real virtual states, so that from the second cycle on they would
-               ! contribute to G as if they were states. Leave them at the placeholder.
-               IF (i_mo > bs_env%n_mo_retained) CYCLE
-
-               IF (i_mo >= i_first(ispin) .AND. i_mo <= i_last(ispin)) THEN
-                  bs_env%eigenval_scf_Gamma(i_mo, ispin) = bs_env%eigenval_G0W0(i_mo, 1, ispin)
-               ELSE
-                  ! Outside the window the analytic continuation is evaluated far beyond the
-                  ! interval it was fitted on, so the quasiparticle energy is not meaningful
-                  ! and must not be fed into G. Either keep the DFT eigenvalue or displace it
-                  ! by the mean correction of the states inside the window of the same
-                  ! character, as the RI-V evGW0 code does in shift_unshifted_levels.
-                  i_ov = 1
-                  IF (i_mo > bs_env%n_occ(ispin)) i_ov = 2
-                  bs_env%eigenval_scf_Gamma(i_mo, ispin) = eigenval_scf_Gamma_dft(i_mo, ispin)
-                  IF (bs_env%ri_rs%evgw0_shift_outer) THEN
-                     bs_env%eigenval_scf_Gamma(i_mo, ispin) = &
-                        bs_env%eigenval_scf_Gamma(i_mo, ispin) + shift(i_ov)
-                  END IF
-               END IF
-
-            END DO
-            ! The chemical potential only shifts the frequency variable: Sigma^c(iτ) is built
-            ! with mu in the exponents and the Pade is evaluated at E - mu, so mu cancels for
-            ! an exact transform. It does not cancel on a fixed minimax grid, because moving mu
-            ! moves Sigma^c's structure relative to the fixed sample points. CP2K's RI-V evGW0
-            ! recomputes it from the quasiparticle energies (rpa_main.F), whereas FHI-AIMS keeps
-            ! the SCF value for the whole cycle; EVGW0_UPDATE_FERMI selects between the two.
-            IF (bs_env%ri_rs%evgw0_update_fermi) THEN
-               bs_env%e_fermi(ispin) = &
-                  0.5_dp*(bs_env%eigenval_G0W0(bs_env%n_occ(ispin), 1, ispin) + &
-                          bs_env%eigenval_G0W0(bs_env%n_occ(ispin) + 1, 1, ispin))
-            END IF
+            bs_env%e_fermi(ispin) = &
+               0.5_dp*(bs_env%eigenval_G0W0(bs_env%n_occ(ispin), 1, ispin) + &
+                       bs_env%eigenval_G0W0(bs_env%n_occ(ispin) + 1, 1, ispin))
          END DO
 
       END DO
 
-      IF (bs_env%ri_rs%do_ev_sc) THEN
+      IF (bs_env%ri_rs%do_evgw0) THEN
          IF (.NOT. converged) THEN
             CALL cp_warn(__LOCATION__, &
                          "The evGW0 eigenvalue self-consistency cycle did not converge "// &
-                         "within SC_GW0_ITER iterations. The reported quasiparticle "// &
-                         "energies are those of the last cycle.")
+                         "within MAX_ITER cycles. The reported quasiparticle energies are "// &
+                         "those of the last cycle.")
          END IF
          ! put the DFT reference back for the post-GW DOS/band-edge printing
          bs_env%eigenval_scf_Gamma(:, :) = eigenval_scf_Gamma_dft(:, :)
          bs_env%e_fermi(:) = e_fermi_dft(:)
          DEALLOCATE (eigenval_scf_Gamma_dft)
-         DEALLOCATE (qp_prev)
          CALL cp_fm_release(fm_Sigma_x_Gamma)
       ELSE
          CALL cp_fm_release(fm_W_time)
@@ -436,29 +353,27 @@ CONTAINS
    END SUBROUTINE compute_Sigma_c_and_QP_energies
 
 ! **************************************************************************************************
-!> \brief Print the evGW0 convergence statistics of the current cycle and report whether every
-!>        tracked state is converged.
+!> \brief Print the quasiparticle HOMO, LUMO and HOMO-LUMO gap of the current evGW0 cycle and
+!>        report whether all three have stopped changing. The full spectrum of every cycle is
+!>        written to the file bandstructure_SCF_and_G0W0.
 !> \param bs_env ...
-!> \param qp_prev ...
-!> \param i_first ...
-!> \param i_last ...
+!> \param band_prev HOMO, LUMO and gap of the previous cycle, per spin channel
 !> \param i_iter ...
+!> \param n_iter ...
 !> \param converged ...
 ! **************************************************************************************************
-   SUBROUTINE print_evGW0_convergence(bs_env, qp_prev, i_first, i_last, i_iter, converged)
+   SUBROUTINE print_evGW0_band_edges(bs_env, band_prev, i_iter, n_iter, converged)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: qp_prev
-      INTEGER, DIMENSION(2), INTENT(IN)                  :: i_first, i_last
-      INTEGER, INTENT(IN)                                :: i_iter
+      REAL(KIND=dp), DIMENSION(3, 2), INTENT(INOUT)      :: band_prev
+      INTEGER, INTENT(IN)                                :: i_iter, n_iter
       LOGICAL, INTENT(OUT)                               :: converged
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_evGW0_convergence'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_evGW0_band_edges'
 
-      CHARACTER(LEN=3)                                   :: occ_vir
-      INTEGER                                            :: handle, i_mo, ispin, u
-      LOGICAL                                            :: is_converged
-      REAL(KIND=dp)                                      :: delta, e_gw
+      INTEGER                                            :: handle, homo, ispin, u
+      REAL(KIND=dp)                                      :: max_delta
+      REAL(KIND=dp), DIMENSION(3)                        :: band
 
       CALL timeset(routineN, handle)
 
@@ -466,54 +381,48 @@ CONTAINS
 
       ! nothing to compare against in the first cycle
       converged = (i_iter > 1)
+      max_delta = 0.0_dp
 
       IF (u > 0) THEN
          WRITE (u, '(A)') ' '
          WRITE (u, '(T2,A)') REPEAT('-', 79)
-         WRITE (u, '(T2,A)') &
-            '   State  Occ/Vir     E^DFT (eV)    E^evGW0 (eV)     Delta (eV)       Converged'
+         WRITE (u, '(T2,A,I4,A,I4)') 'evGW0 cycle', i_iter, ' /', n_iter
          WRITE (u, '(T2,A)') REPEAT('-', 79)
       END IF
 
       DO ispin = 1, bs_env%n_spin
 
-         IF (u > 0 .AND. bs_env%n_spin == 2) WRITE (u, '(T2,A,I0)') 'Spin ', ispin
+         homo = bs_env%n_occ(ispin)
+         band(1) = bs_env%eigenval_G0W0(homo, 1, ispin)
+         band(2) = bs_env%eigenval_G0W0(homo + 1, 1, ispin)
+         band(3) = band(2) - band(1)
 
-         DO i_mo = i_first(ispin), i_last(ispin)
+         IF (i_iter > 1) THEN
+            max_delta = MAX(max_delta, MAXVAL(ABS(band(:) - band_prev(:, ispin))))
+         END IF
 
-            e_gw = bs_env%eigenval_G0W0(i_mo, 1, ispin)
-            delta = e_gw - qp_prev(i_mo, ispin)
+         IF (u > 0) THEN
+            IF (bs_env%n_spin == 2) WRITE (u, '(T2,A,I0)') 'Spin ', ispin
+            WRITE (u, '(T2,A,T61,F20.3)') 'evGW0 HOMO (eV)', band(1)*evolt
+            WRITE (u, '(T2,A,T61,F20.3)') 'evGW0 LUMO (eV)', band(2)*evolt
+            WRITE (u, '(T2,A,T61,F20.3)') 'evGW0 HOMO-LUMO gap (eV)', band(3)*evolt
+         END IF
 
-            is_converged = (i_iter > 1) .AND. (ABS(delta) < bs_env%ri_rs%eps_iter)
-            IF (.NOT. is_converged) converged = .FALSE.
-
-            IF (i_mo <= bs_env%n_occ(ispin)) THEN
-               occ_vir = 'occ'
-            ELSE
-               occ_vir = 'vir'
-            END IF
-
-            IF (u > 0) THEN
-               IF (i_iter > 1) THEN
-                  WRITE (u, '(T2,I8,A9,F15.4,F16.4,F15.4,A16)') &
-                     i_mo, occ_vir, bs_env%eigenval_scf(i_mo, 1, ispin)*evolt, &
-                     e_gw*evolt, delta*evolt, TRIM(MERGE('Yes', 'No ', is_converged))
-               ELSE
-                  WRITE (u, '(T2,I8,A9,F15.4,F16.4,A15,A16)') &
-                     i_mo, occ_vir, bs_env%eigenval_scf(i_mo, 1, ispin)*evolt, &
-                     e_gw*evolt, '-', 'No'
-               END IF
-            END IF
-
-         END DO
+         band_prev(:, ispin) = band(:)
 
       END DO
+
+      IF (i_iter > 1) THEN
+         converged = (max_delta < bs_env%ri_rs%evgw0_eps_iter)
+         IF (u > 0) WRITE (u, '(T2,A,T61,F20.6)') 'Max. change to previous cycle (eV)', &
+            max_delta*evolt
+      END IF
 
       IF (u > 0) WRITE (u, '(T2,A)') REPEAT('-', 79)
 
       CALL timestop(handle)
 
-   END SUBROUTINE print_evGW0_convergence
+   END SUBROUTINE print_evGW0_band_edges
 
 ! **************************************************************************************************
 !> \brief Compute per-atom AO and RI basis radii from the most diffuse Gaussian
@@ -558,14 +467,14 @@ CONTAINS
 
          DO i = 1, SIZE(zet_ao, 1)
             DO j = 1, SIZE(zet_ao, 2)
-               IF (zet_ao(i, j) > 1.0E-3_dp) then
+               IF (zet_ao(i, j) > 1.0E-3_dp) THEN
                   alpha_min_ao_kind(ikind) = MIN(alpha_min_ao_kind(ikind), zet_ao(i, j))
                END IF
             END DO
          END DO
          DO i = 1, SIZE(zet_ri, 1)
             DO j = 1, SIZE(zet_ri, 2)
-               IF (zet_ri(i, j) > 1.0E-3_dp) then
+               IF (zet_ri(i, j) > 1.0E-3_dp) THEN
                   alpha_min_ri_kind(ikind) = MIN(alpha_min_ri_kind(ikind), zet_ri(i, j))
                END IF
             END DO
@@ -907,10 +816,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'atomic_basis_at_grid_point'
 
       INTEGER :: bs_eff, c_size, dimen_ORB, handle, i, i_blk, ia, iatom, natom, npcol, nprow, &
-                 num_grid_chunks, r_end, r_start, remaining, run, safe_max, total_grid_npts
+         num_grid_chunks, r_end, r_start, remaining, run, safe_max, total_grid_npts
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_row_start, first_sgf
-      INTEGER, DIMENSION(:), POINTER                     :: c_blk_sizes, col_dist, &
-                                                            r_blk_sizes, row_dist
+      INTEGER, DIMENSION(:), POINTER                     :: c_blk_sizes, col_dist, r_blk_sizes, &
+                                                            row_dist
       REAL(KIND=dp)                                      :: r2_threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_col_buffer
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1249,17 +1158,17 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_Z_lP
 
       CHARACTER(LEN=*), PARAMETER :: key = 'PROPERTIES%BANDSTRUCTURE%GW%PRINT%RESTART', &
-                                     routineN = 'compute_coeff_Z_lP'
+         routineN = 'compute_coeff_Z_lP'
 
       INTEGER :: atom_j_mepos, atom_j_stride, atom_P, G, handle, handle_dpotrf, handle_dpotrs, &
-                 i_blk, idx, info, iphase, j, max_ao_size, my_group, n_ao_total, n_big, n_done, &
-                 n_groups, n_loc_ri, n_local_grid, n_my_atoms, n_small, natom, next_pct, &
-                 npcol_phi, num_grid_chunks, P_loop_atom, phase_hi
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: big_list, local_grid_idx, &
-                                                            my_atoms_A, my_atoms_B, &
-                                                            n_local_grid_atom, row_offset, small_list
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist_ri, r_blk_sizes, &
-                                                            ri_blk_sizes, row_dist_grid
+         i_blk, idx, info, iphase, j, max_ao_size, my_group, n_ao_total, n_big, n_done, n_groups, &
+         n_loc_ri, n_local_grid, n_my_atoms, n_small, natom, next_pct, npcol_phi, num_grid_chunks, &
+         P_loop_atom, phase_hi
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: big_list, local_grid_idx, my_atoms_A, &
+                                                            my_atoms_B, n_local_grid_atom, &
+                                                            row_offset, small_list
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist_ri, r_blk_sizes, ri_blk_sizes, &
+                                                            row_dist_grid
       LOGICAL                                            :: do_scatter, use_dist
       REAL(KIND=dp)                                      :: balance_A, balance_B, cutoff_ri, r_c, t1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_atom, d_vec_local
@@ -1596,11 +1505,10 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cutoff_ri_per_atom
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'print_sphere_cutoff_table'
 
-      INTEGER                                            :: handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_sphere_cutoff_table'
 
-      INTEGER                                            :: iatom, ikind, nkind
+      INTEGER                                            :: handle, iatom, ikind, nkind
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_kind
 
       CALL timeset(routineN, handle)
@@ -1705,7 +1613,7 @@ CONTAINS
       natom = SIZE(particle_set)
       n_grid_total = SIZE(ri_rs_grid_points, 2)
 
-      ! Per-atom sphere size: n_local_grid(P) = #{ l : |r_l - R_P| <= cutoff_ri(P) }.
+      ! Per-atom sphere size: n_local_grid(P) = number of l with |r_l - R_P| <= cutoff_ri(P).
       ! It sets both the memory footprint (D_local is n_local_grid^2) and the solve
       ! cost (~n_local_grid^3), so it drives classification and the LPT load balancing.
       ALLOCATE (n_local_grid_atom(natom), small_list(natom), big_list(natom))
@@ -1714,9 +1622,9 @@ CONTAINS
          cutoff_ri = cutoff_ri_per_atom(P_loop_atom)
          n_local_grid = 0
          DO l = 1, n_grid_total
-            IF (SUM((ri_rs_grid_points(1:3, l) - pos_P(1:3))**2) <= cutoff_ri**2) then
+            IF (SUM((ri_rs_grid_points(1:3, l) - pos_P(1:3))**2) <= cutoff_ri**2) THEN
                n_local_grid = n_local_grid + 1
-            end if
+            END IF
          END DO
          n_local_grid_atom(P_loop_atom) = n_local_grid
       END DO
@@ -1744,9 +1652,9 @@ CONTAINS
       ELSE IF (mem_avail_GB <= 0.0_dp) THEN
          ! No /proc/meminfo => cannot size by memory.
          IF (auto_mode) THEN
-            IF (bs_env%unit_nr > 0) then
+            IF (bs_env%unit_nr > 0) THEN
                CPWARN("RI-RS Z_lP: no meminfo; single-rank solve for all atoms")
-            end if
+            END IF
             DO P_loop_atom = 1, natom
                n_small = n_small + 1
                small_list(n_small) = P_loop_atom
@@ -1762,9 +1670,9 @@ CONTAINS
             G = MIN(bs_env%ri_rs%n_procs_per_atom_z_lp, para_env%num_pe)
             IF (G < G_int32_max) THEN
                G = MIN(G_int32_max, para_env%num_pe)
-               IF (bs_env%unit_nr > 0) then
+               IF (bs_env%unit_nr > 0) THEN
                   CPWARN("RI-RS Z_lP: raised G to avoid ScaLAPACK overflow")
-               end if
+               END IF
             END IF
          END IF
       ELSE
@@ -1807,9 +1715,9 @@ CONTAINS
                G = MIN(bs_env%ri_rs%n_procs_per_atom_z_lp, para_env%num_pe)
                IF (G < G_int32_max) THEN
                   G = MIN(G_int32_max, para_env%num_pe)
-                  IF (bs_env%unit_nr > 0) then
+                  IF (bs_env%unit_nr > 0) THEN
                      CPWARN("RI-RS Z_lP: raised G to avoid ScaLAPACK overflow")
-                  end if
+                  END IF
                ELSE IF (G < G_atom .AND. bs_env%unit_nr > 0) THEN
                   CPWARN("RI-RS Z_lP: N_PROCS_PER_ATOM_Z_LP too small for the largest atom")
                END IF
@@ -1852,7 +1760,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: phi_local
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_phi_on_sphere'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_phi_on_sphere'
 
       INTEGER                                            :: col_end, col_start, handle, j, k, l, &
                                                             loc_idx, n_grid_total, n_keep, &
@@ -1970,7 +1878,7 @@ CONTAINS
          INTENT(OUT)                                     :: D_local
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: d_vec_local
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_gram_jacobi_blas'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_gram_jacobi_blas'
 
       INTEGER                                            :: handle, handle_dsyrk, i, j
 
@@ -2029,11 +1937,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_local
       INTEGER, INTENT(IN)                                :: n_local_grid, n_ao_total
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: d_vec_local
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_jacobi_diag_from_phi'
 
-      INTEGER                                            :: handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_jacobi_diag_from_phi'
 
-      INTEGER                                            :: i, j
+      INTEGER                                            :: handle, i, j
 
       CALL timeset(routineN, handle)
 
@@ -2068,11 +1975,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: d_lp_local
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: d_vec_local
       INTEGER, INTENT(IN)                                :: n_local_grid, n_loc_ri
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scale_rows_by_diag'
 
-      INTEGER                                            :: handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_rows_by_diag'
 
-      INTEGER                                            :: i, j_ri
+      INTEGER                                            :: handle, i, j_ri
 
       CALL timeset(routineN, handle)
 
@@ -2113,10 +2019,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_local_grid, n_loc_ri, atom_P
       INTEGER, DIMENSION(:), INTENT(IN)                  :: r_blk_sizes, row_offset
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scatter_z_columns'
-      INTEGER                                            :: handle
 
-      INTEGER                                            :: current_chunk_size, g_pt, i_blk, &
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scatter_z_columns'
+
+      INTEGER                                            :: current_chunk_size, g_pt, handle, i_blk, &
                                                             loc_ptr, r_end, r_start
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Z_blk
 
@@ -2174,10 +2080,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_workers, my_worker
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: my_atoms
       REAL(KIND=dp), INTENT(OUT)                         :: max_over_mean
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lpt_assign_atoms'
-      INTEGER                                            :: handle
 
-      INTEGER                                            :: i, iw, n_mine, w_min
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lpt_assign_atoms'
+
+      INTEGER                                            :: handle, i, iw, n_mine, w_min
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: mine_tmp, perm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cost, load
 
@@ -2249,10 +2155,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_d_lp'
       INTEGER, PARAMETER                                 :: grid_chunk = 1024
 
-      INTEGER                                            :: atom_j, atom_k, c, handle, &
-                                                            handle_dgemm, j, jk_idx, &
-                                                            jsize, jstart, k, ksize, kstart, l, &
-                                                            l0, ri
+      INTEGER                                            :: atom_j, atom_k, c, handle, handle_dgemm, &
+                                                            j, jk_idx, jsize, jstart, k, ksize, &
+                                                            kstart, l, l0, ri
       LOGICAL                                            :: screened
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_prv, int_2d_prv, rho_chunk
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: int_3c_prv
@@ -2580,10 +2485,10 @@ CONTAINS
             WRITE (bs_env%unit_nr, '(A)') ' '
             CALL m_flush(bs_env%unit_nr)
          END IF
-         IF (i_t == 1) then
+         IF (i_t == 1) THEN
             CALL print_matrix_occupation(mat_chi_Gamma_tau(i_t)%matrix, 'χ(P,Q)', &
                                          bs_env%para_env, bs_env%unit_nr)
-         end if
+         END IF
 
          IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(T2,A,I13,A,I3,A,F7.1,A)') &
@@ -2612,12 +2517,11 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: label
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
+
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_matrix_occupation'
 
       CHARACTER(LEN=max_line_length)                     :: msg
-
       INTEGER                                            :: handle
-
       REAL(KIND=dp)                                      :: frac_2p31, max_loc, occ
 
       CALL timeset(routineN, handle)
@@ -2661,10 +2565,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: blk0, blk1
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: used
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mask_grid_blocks_near_panel'
 
-      INTEGER                                            :: handle
-      INTEGER                                            :: c, k
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mask_grid_blocks_near_panel'
+
+      INTEGER                                            :: c, handle, k
       REAL(KIND=dp)                                      :: cutoff2, d2, dx
       REAL(KIND=dp), DIMENSION(3)                        :: hi, lo
 
@@ -2708,10 +2612,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: blk0, blk1
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       INTEGER(KIND=int_8), INTENT(OUT)                   :: nze_tmpl
+
       CHARACTER(LEN=*), PARAMETER :: routineN = 'panel_template_elems'
 
-      INTEGER                                            :: handle
-      INTEGER                                            :: c, ib, n_used
+      INTEGER                                            :: c, handle, ib, n_used
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: used_idx
       REAL(KIND=dp)                                      :: cutoff2
 
@@ -2734,9 +2638,9 @@ CONTAINS
       !$OMP r_blk_sizes) PRIVATE(ib, c) REDUCTION(+:nze_tmpl)
       DO ib = blk0, blk1
          DO c = 1, n_used
-            IF (SUM((centroids(:, ib) - centroids(:, used_idx(c)))**2) <= cutoff2) then
+            IF (SUM((centroids(:, ib) - centroids(:, used_idx(c)))**2) <= cutoff2) THEN
                nze_tmpl = nze_tmpl + INT(r_blk_sizes(ib), int_8)*INT(r_blk_sizes(used_idx(c)), int_8)
-            end if
+            END IF
          END DO
       END DO
       !$OMP END PARALLEL DO
@@ -2794,6 +2698,8 @@ CONTAINS
 !> \param n_ao ...
 !> \param n_procs ...
 !> \param mem_budget_GB ...
+!> \param honor_exact ...
+!> \param unsafe ...
 ! **************************************************************************************************
    SUBROUTINE plan_grid_panels(r_blk_sizes, panel_size, min_dim, pan_first, pan_last, &
                                centroids, cutoff, n_RI, n_ao, n_procs, mem_budget_GB, &
@@ -2802,24 +2708,25 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: r_blk_sizes
       INTEGER, INTENT(IN)                                :: panel_size, min_dim
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: pan_first, pan_last
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), OPTIONAL :: centroids
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: centroids
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: cutoff
       INTEGER, INTENT(IN), OPTIONAL                      :: n_RI, n_ao, n_procs
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: mem_budget_GB
       LOGICAL, INTENT(IN), OPTIONAL                      :: honor_exact
       LOGICAL, INTENT(OUT), OPTIONAL                     :: unsafe
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'plan_grid_panels'
 
-      INTEGER                                            :: blk0, blk1, ib, n_grid_blocks, &
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'plan_grid_panels'
+
+      INTEGER                                            :: blk0, blk1, handle, ib, n_grid_blocks, &
                                                             n_grid_total, n_panels, rows_acc, &
-                                                            target, width
+                                                            TARGET, width
       INTEGER(KIND=int_8)                                :: msg, nze_tmpl, side
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp_first, tmp_last
       LOGICAL                                            :: fits, my_honor_exact, my_unsafe, &
                                                             use_cutoff
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: used
       REAL(KIND=dp)                                      :: f_near, mem_GB
-      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
@@ -2842,14 +2749,14 @@ CONTAINS
       n_panels = 0
       blk0 = 1
       DO WHILE (blk0 <= n_grid_blocks)
-         target = panel_size
+         TARGET = panel_size
          DO
             rows_acc = 0
             blk1 = blk0
             DO ib = blk0, n_grid_blocks
                rows_acc = rows_acc + r_blk_sizes(ib)
                blk1 = ib
-               IF (rows_acc >= target) EXIT
+               IF (rows_acc >= TARGET) EXIT
             END DO
             IF (.NOT. use_cutoff .OR. blk1 == blk0) EXIT
             CALL mask_grid_blocks_near_panel(centroids, blk0, blk1, cutoff, used)
@@ -2876,7 +2783,7 @@ CONTAINS
                EXIT
             END IF
             IF (fits) EXIT
-            target = MAX(1, MIN(target, rows_acc)/2)
+            TARGET = MAX(1, MIN(TARGET, rows_acc)/2)
          END DO
          n_panels = n_panels + 1
          tmp_first(n_panels) = blk0
@@ -2907,17 +2814,17 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_phi_mu_l
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: pan_first, pan_last
+
       CHARACTER(LEN=*), PARAMETER :: routineN = 'resolve_grid_panels'
 
       CHARACTER(LEN=max_line_length)                     :: msg
-
-      INTEGER                                            :: min_dim, n_grid_total, n_panels_req, &
-                                                            npcols, nprows, panel_size, safe_max
+      INTEGER                                            :: handle, min_dim, n_grid_total, &
+                                                            n_panels_req, npcols, nprows, &
+                                                            panel_size, safe_max
       INTEGER, DIMENSION(:), POINTER                     :: r_blk_sizes
       LOGICAL                                            :: honor_exact, panels_unsafe, use_cutoff
       REAL(KIND=dp)                                      :: mem_avail_GB, mem_budget_GB
       TYPE(dbcsr_distribution_type)                      :: dist
-      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
@@ -3009,15 +2916,16 @@ CONTAINS
    SUBROUTINE ri_rs_mem_avail_per_proc_GB(bs_env, mem_avail_GB)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(KIND=dp), INTENT(OUT)                         :: mem_avail_GB
+
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ri_rs_mem_avail_per_proc_GB'
 
       CHARACTER(LEN=default_string_length)               :: hostname
-      INTEGER                                            :: host_hash, ic, n_procs, ranks_per_node
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: all_host_hashes
+      INTEGER                                            :: handle, host_hash, ic, n_procs, &
+                                                            ranks_per_node
       INTEGER(KIND=int_8)                                :: h8, mem_buffers, mem_cached, mem_free, &
-                                                            mem_likely_free, mem_sreclaimable, &
-                                                            mem_slab, mem_total
-      INTEGER                                            :: handle
+                                                            mem_likely_free, mem_slab, &
+                                                            mem_sreclaimable, mem_total
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: all_host_hashes
 
       CALL timeset(routineN, handle)
 
@@ -3143,9 +3051,9 @@ CONTAINS
          pos_P(:) = particle_set(iatom)%r(:)
          n_local_grid = 0
          DO l = 1, n_grid_total
-            IF (SUM((bs_env%ri_rs%grid_points(1:3, l) - pos_P(1:3))**2) <= cutoff_ri**2) then
+            IF (SUM((bs_env%ri_rs%grid_points(1:3, l) - pos_P(1:3))**2) <= cutoff_ri**2) THEN
                n_local_grid = n_local_grid + 1
-            end if
+            END IF
          END DO
          max_n_local_grid = MAX(max_n_local_grid, n_local_grid)
          n_loc_ri_max = MAX(n_loc_ri_max, &
@@ -3241,22 +3149,22 @@ CONTAINS
 !> \param col_map ...
 ! **************************************************************************************************
    SUBROUTINE build_geo_template_panel(L_pan, L_full, centroids, cutoff, blk0, A_template, col_map)
-      TYPE(dbcsr_type), INTENT(IN)                      :: L_pan, L_full
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)        :: centroids
-      REAL(KIND=dp), INTENT(IN)                         :: cutoff
-      INTEGER, INTENT(IN)                               :: blk0
-      TYPE(dbcsr_type), INTENT(OUT)                     :: A_template
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL       :: col_map
+      TYPE(dbcsr_type), INTENT(IN)                       :: L_pan, L_full
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: centroids
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff
+      INTEGER, INTENT(IN)                                :: blk0
+      TYPE(dbcsr_type), INTENT(OUT)                      :: A_template
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: col_map
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_geo_template_panel'
 
-      INTEGER                                           :: c, cg, cs, handle, my_pcol, my_prow, &
-                                                           n_grid_blks, n_pan_blks, npcols, &
-                                                           nprows, r, rs
-      INTEGER, DIMENSION(:), POINTER                    :: grid_blk_sizes, pan_blk_sizes
-      REAL(KIND=dp)                                     :: cutoff2
-      REAL(KIND=dp), ALLOCATABLE                        :: zero_blk(:, :)
-      TYPE(dbcsr_distribution_type)                     :: dist
+      INTEGER                                            :: c, cg, cs, handle, my_pcol, my_prow, &
+                                                            n_grid_blks, n_pan_blks, npcols, &
+                                                            nprows, r, rs
+      INTEGER, DIMENSION(:), POINTER                     :: grid_blk_sizes, pan_blk_sizes
+      REAL(KIND=dp)                                      :: cutoff2
+      REAL(KIND=dp), ALLOCATABLE                         :: zero_blk(:, :)
+      TYPE(dbcsr_distribution_type)                      :: dist
 
       CALL timeset(routineN, handle)
 
@@ -3312,16 +3220,16 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_full
       INTEGER, INTENT(IN)                                :: blk0, blk1
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_panel
+
       CHARACTER(LEN=*), PARAMETER :: routineN = 'extract_grid_panel'
 
-      INTEGER                                            :: ib, jb, npb
+      INTEGER                                            :: handle, ib, jb, npb
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_full, col_dist_full, &
                                                             row_blk_full, row_blk_pan, &
                                                             row_dist_full, row_dist_pan
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: blk
       TYPE(dbcsr_distribution_type)                      :: dist_full, dist_pan
       TYPE(dbcsr_iterator_type)                          :: iter
-      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
@@ -3369,13 +3277,13 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       LOGICAL, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: used
+
       CHARACTER(LEN=*), PARAMETER :: routineN = 'collect_used_col_blocks'
 
-      INTEGER                                            :: ib, jb, nblkcols
+      INTEGER                                            :: handle, ib, jb, nblkcols
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iused
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: blk
       TYPE(dbcsr_iterator_type)                          :: iter
-      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
@@ -3422,7 +3330,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'extract_masked_blocks'
 
-      INTEGER                                            :: ib, jb, n_blk, n_sub, r
+      INTEGER                                            :: handle, ib, jb, n_blk, n_sub, r
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inv_map
       INTEGER, DIMENSION(:), POINTER                     :: blk_full, blk_sub, col_blk_full, &
                                                             col_dist_full, dist_full_1d, &
@@ -3431,7 +3339,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: blk
       TYPE(dbcsr_distribution_type)                      :: dist_full, dist_sub
       TYPE(dbcsr_iterator_type)                          :: iter
-      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
@@ -3565,14 +3472,14 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: mat_left, mat_right
       CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_out
+
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_product_matrix'
 
-      INTEGER                                            :: i, npcols, nprows
+      INTEGER                                            :: handle, i, npcols, nprows
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_l, col_blk_r, out_col_blk, &
-                                                            out_col_dist, out_row_blk, out_row_dist, &
-                                                            row_blk_l, row_blk_r
+                                                            out_col_dist, out_row_blk, &
+                                                            out_row_dist, row_blk_l, row_blk_r
       TYPE(dbcsr_distribution_type)                      :: dist_l, dist_out
-      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
@@ -3632,12 +3539,13 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: occ, vir
       TYPE(dbcsr_type), INTENT(INOUT)                    :: template
       TYPE(dbcsr_type), INTENT(OUT)                      :: matrix_G_ao
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_G_ao'
 
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_G_ao'
+
+      INTEGER                                            :: handle
       INTEGER, DIMENSION(:), POINTER                     :: blk_ao, dist_row_ao
       TYPE(cp_fm_type), POINTER                          :: fm_G
       TYPE(dbcsr_distribution_type)                      :: dist_ao_ao
-      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
@@ -3718,14 +3626,15 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: pan_first, pan_last
       LOGICAL, INTENT(IN)                                :: lb_eq_la, lout_eq_la, zero_out
       LOGICAL, INTENT(IN), OPTIONAL                      :: keep_sparsity
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), OPTIONAL :: centroids
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: centroids
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: cutoff
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: grid_occupation
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_grid_panels'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_grid_panels'
 
-      INTEGER                                            :: blk0, blk1, handle, ipan, &
-                                                            n_grid_total, ncols_pan, nrows_pan
+      INTEGER                                            :: blk0, blk1, handle, ipan, n_grid_total, &
+                                                            ncols_pan, nrows_pan
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: gmap
       LOGICAL                                            :: my_keep_sparsity, use_cutoff
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: grid_used, usedA, usedB
@@ -3923,13 +3832,14 @@ CONTAINS
                                            pan_first, pan_last, keep_sparsity, centroids, cutoff)
 
       TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: mat_phi, mat_Z
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_G_occ_ao, mat_G_vir_ao, mat_W_aux
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_Sigma_neg, mat_Sigma_pos
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_G_occ_ao, mat_G_vir_ao, mat_W_aux, &
+                                                            mat_Sigma_neg, mat_Sigma_pos
       REAL(KIND=dp), INTENT(IN)                          :: eps
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: pan_first, pan_last
       LOGICAL, INTENT(IN), OPTIONAL                      :: keep_sparsity
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), OPTIONAL :: centroids
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: centroids
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: cutoff
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_grid_panels_sigma_c'
@@ -3940,8 +3850,7 @@ CONTAINS
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: grid_used, used_ao, used_ri
       TYPE(dbcsr_type)                                   :: A_occ, A_vir, C_pan, G_occ_sub, &
                                                             G_vir_sub, phi_pan, phi_panC, tmp2, &
-                                                            tmpA, tmpB, W_pan, W_sub, Z_pan, &
-                                                            Z_panC
+                                                            tmpA, tmpB, W_pan, W_sub, Z_pan, Z_panC
       TYPE(dbcsr_type), POINTER                          :: RB_phi, RB_Z
       TYPE(dbcsr_type), TARGET                           :: phi_near, Z_near
 
@@ -4625,7 +4534,7 @@ CONTAINS
       ! W is frozen in an evGW0 cycle, so the fm -> sparse DBCSR conversion below is done once
       ! and the resulting matrices are kept for all following iterations. This also lets the
       ! caller drop the dense fm_W_time right after the first cycle.
-      do_cache_W = bs_env%ri_rs%do_ev_sc
+      do_cache_W = bs_env%ri_rs%do_evgw0
       cache_W_is_filled = ASSOCIATED(bs_env%ri_rs%mat_W_aux_tau)
       IF (do_cache_W .AND. .NOT. cache_W_is_filled) THEN
          ALLOCATE (bs_env%ri_rs%mat_W_aux_tau(bs_env%num_time_freq_points))
@@ -4709,7 +4618,7 @@ CONTAINS
 
          END DO ! ispin
 
-         ! kept alive across evGW0 iterations when cached
+         ! when cached, W is kept alive across the evGW0 cycles
          IF (.NOT. do_cache_W) CALL dbcsr_release(matrix_W_aux)
 
       END DO ! i_t
@@ -4746,7 +4655,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type), INTENT(OUT)         :: square_dist
       INTEGER, DIMENSION(:), INTENT(OUT), POINTER        :: blk_sizes, mapped_dist
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'setup_square_topology'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_square_topology'
 
       INTEGER                                            :: handle, i, nprows
       INTEGER, DIMENSION(:), POINTER                     :: col_blk, col_dist

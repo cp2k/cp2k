@@ -2612,6 +2612,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="RI_RS", &
@@ -2634,7 +2635,7 @@ CONTAINS
                           "This locality approximation yields a sparse representation of the "// &
                           "3-center integrals and enables reduced computational cost. "// &
                           "See details in https://doi.org/10.1063/1.5090605.", &
-                          n_keywords=16, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=11, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, &
@@ -2763,85 +2764,63 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SELF_CONSISTENCY", &
-                          description="Level of eigenvalue self-consistency in the GW "// &
-                          "calculation.", &
-                          usage="SELF_CONSISTENCY EVGW0", &
-                          enum_c_vals=s2a("G0W0", "EVGW0"), &
-                          enum_i_vals=[G0W0, evGW0], &
-                          enum_desc=s2a("Uses the Kohn-Sham eigenvalues in G and in W.", &
-                                        "Uses the quasiparticle energies in G, iterated to "// &
-                                        "self-consistency, and the Kohn-Sham eigenvalues "// &
-                                        "in W."), &
-                          default_i_val=G0W0)
+      NULLIFY (subsection)
+      CALL create_evgw0_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_ri_rs_section
+
+! **************************************************************************************************
+!> \brief creates the input section for eigenvalue self-consistent GW0 (evGW0) in RI-RS
+!> \param section section to create
+! **************************************************************************************************
+   SUBROUTINE create_evgw0_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="EVGW0", &
+                          description="Eigenvalue self-consistent GW0. The quasiparticle "// &
+                          "energies replace the Kohn-Sham eigenvalues in the Green's function "// &
+                          "and the cycle is repeated, while the screened Coulomb interaction "// &
+                          "$W$ stays at its RPA@DFT value. Only the correlation self-energy "// &
+                          "and the quasiparticle equation are recomputed per cycle; $W$, the "// &
+                          "exchange self-energy and the RI-RS grid quantities are computed "// &
+                          "once. Without this section a single-shot G0W0 calculation is "// &
+                          "performed.", &
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of evGW0. An empty section, "// &
+                          "&EVGW0 ... &END EVGW0, switches evGW0 on with default parameters.", &
+                          usage="&EVGW0 .TRUE.", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SC_GW0_ITER", &
-                          description="Maximum number of iterations for the GW0 "// &
-                          "self-consistency cycle. Only the correlation self-energy and the "// &
-                          "quasiparticle solve are repeated; the screened interaction W, the "// &
-                          "exchange self-energy and the RI-RS grid quantities are computed "// &
-                          "once. Only used with SELF_CONSISTENCY EVGW0.", &
-                          usage="SC_GW0_ITER 20", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
+                          description="Maximum number of evGW0 cycles.", &
+                          usage="MAX_ITER 20", &
                           default_i_val=20)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_ITER", &
-                          description="Target accuracy for the eigenvalue self-consistency. "// &
-                          "The cycle stops once every quasiparticle energy tracked by "// &
-                          "EVGW0_NSTATE changes by less than the target accuracy between two "// &
-                          "successive iterations. Unit: Hartree.", &
+                          description="Target accuracy of the eigenvalue self-consistency. "// &
+                          "The cycle stops once the quasiparticle HOMO, the quasiparticle "// &
+                          "LUMO and the HOMO-LUMO gap all change by less than this value "// &
+                          "between two successive cycles. Unit: Hartree.", &
                           usage="EPS_ITER 0.00005", &
                           default_r_val=5.0E-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EVGW0_NSTATE", &
-                          description="Number of occupied and of empty states on either side "// &
-                          "of the gap that take part in the eigenvalue self-consistency. "// &
-                          "These states are the ones whose quasiparticle energies must be "// &
-                          "converged before the cycle stops, and they are also the only ones "// &
-                          "whose quasiparticle energies are fed back into the Green's "// &
-                          "function. For $N$ occupied orbitals, EVGW0_NSTATE 1 selects "// &
-                          "$N, N+1$ (HOMO and LUMO), EVGW0_NSTATE 2 selects "// &
-                          "$N-1, N, N+1, N+2$, and so on. The window is truncated at the "// &
-                          "edges of the spectrum.", &
-                          usage="EVGW0_NSTATE 20", &
-                          default_i_val=20)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="EVGW0_UPDATE_FERMI", &
-                          description="Whether the chemical potential entering the Green's "// &
-                          "function is recomputed from the quasiparticle energies in every "// &
-                          "evGW0 cycle (.TRUE.), or kept at its SCF value for the whole "// &
-                          "cycle (.FALSE.). The chemical potential only shifts the "// &
-                          "frequency variable of the self-energy and therefore cancels for an "// &
-                          "exact Fourier transform, but not on a minimax grid of finite size: "// &
-                          "moving it moves the structure of $\Sigma^c$ relative to the fixed "// &
-                          "grid points. Set .FALSE. to compare against codes that keep the "// &
-                          "SCF chemical potential.", &
-                          usage="EVGW0_UPDATE_FERMI .FALSE.", &
-                          default_l_val=.TRUE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="EVGW0_SHIFT_OUTER", &
-                          description="How the states outside the EVGW0_NSTATE window enter the "// &
-                          "Green's function. If true, each is displaced by the mean "// &
-                          "quasiparticle correction of the trusted states of the same "// &
-                          "character, occupied or empty. If false, each keeps "// &
-                          "its DFT eigenvalue.", &
-                          usage="EVGW0_SHIFT_OUTER .FALSE.", &
-                          default_l_val=.TRUE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_ri_rs_section
+   END SUBROUTINE create_evgw0_section
 
 ! **************************************************************************************************
 !> \brief creates an input section for calculation SOC for the electronic band structure

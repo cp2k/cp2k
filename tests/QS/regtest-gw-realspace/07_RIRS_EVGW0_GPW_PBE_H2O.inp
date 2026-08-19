@@ -44,10 +44,11 @@
       &GW
         NUM_TIME_FREQ_POINTS 10
         &RI_RS
-          EPS_ITER 0.00005
           GRID_SELECT 1
-          SC_GW0_ITER 20
-          SELF_CONSISTENCY EVGW0
+          &EVGW0
+            EPS_ITER 0.00005
+            MAX_ITER 20
+          &END EVGW0
         &END RI_RS
       &END GW
     &END BANDSTRUCTURE

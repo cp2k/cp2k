@@ -61,16 +61,16 @@ MODULE gw_utils
    USE gw_communication,                ONLY: fm_to_local_array
    USE gw_integrals,                    ONLY: build_3c_integral_block
    USE input_constants,                 ONLY: &
-        do_potential_truncated, evGW0, large_cell_Gamma, large_cell_Gamma_ri_rs, &
-        non_periodic_ri_rs, ri_rpa_g0w0_crossing_newton, rtp_bse_kernel_ri_ao, &
-        rtp_bse_kernel_ri_rs, rtp_method_bse, rtp_method_bse_linearized, small_cell_full_kp, &
-        xc_none
+        do_potential_truncated, large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs, &
+        ri_rpa_g0w0_crossing_newton, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_rs, rtp_method_bse, &
+        rtp_method_bse_linearized, small_cell_full_kp, xc_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp,&
                                               int_8
    USE kpoint_k_r_trafo_simple,         ONLY: rs_to_kp
@@ -361,18 +361,12 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "RI_RS%KEEP_SPARSITY_RL", l_val=bs_env%ri_rs%keep_sparsity_rirs)
       CALL section_vals_val_get(gw_sec, "RI_RS%CUTOFF_RADIUS_RL_W", r_val=bs_env%ri_rs%cutoff_radius_v_w)
       CALL section_vals_val_get(gw_sec, "RI_RS%CUTOFF_RADIUS_G_W", r_val=bs_env%ri_rs%cutoff_radius_g_w)
-      CALL section_vals_val_get(gw_sec, "RI_RS%SELF_CONSISTENCY", i_val=bs_env%ri_rs%self_consistency)
-      CALL section_vals_val_get(gw_sec, "RI_RS%SC_GW0_ITER", i_val=bs_env%ri_rs%sc_gw0_iter)
-      CALL section_vals_val_get(gw_sec, "RI_RS%EPS_ITER", r_val=bs_env%ri_rs%eps_iter)
-      CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0_NSTATE", i_val=bs_env%ri_rs%evgw0_nstate)
-      CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0_UPDATE_FERMI", &
-                                l_val=bs_env%ri_rs%evgw0_update_fermi)
-      CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0_SHIFT_OUTER", &
-                                l_val=bs_env%ri_rs%evgw0_shift_outer)
+      CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0%_SECTION_PARAMETERS_", &
+                                l_val=bs_env%ri_rs%do_evgw0)
+      CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0%MAX_ITER", i_val=bs_env%ri_rs%evgw0_iter)
+      CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0%EPS_ITER", r_val=bs_env%ri_rs%evgw0_eps_iter)
 
-      bs_env%ri_rs%do_ev_sc = (bs_env%ri_rs%self_consistency == evGW0)
-
-      IF (bs_env%ri_rs%do_ev_sc) THEN
+      IF (bs_env%ri_rs%do_evgw0) THEN
          CALL cp_warn(__LOCATION__, &
                       "evGW0 in the RI-RS GW code is experimental. The quasiparticle energies "// &
                       "of the previous cycle are fed back into the Green's function, so the "// &
@@ -1807,18 +1801,12 @@ CONTAINS
                WRITE (u, '(T2,A,F40.2,A)') 'Input: G/W operator truncation radius', &
                   bs_env%ri_rs%cutoff_radius_g_w*angstrom, ' Å'
             END IF
-            IF (bs_env%ri_rs%do_ev_sc) THEN
+            IF (bs_env%ri_rs%do_evgw0) THEN
                WRITE (u, '(T2,A,A45)') 'Input: Eigenvalue self-consistency', 'evGW0'
                WRITE (u, '(T2,A,I42)') 'Input: Maximum number of evGW0 cycles', &
-                  bs_env%ri_rs%sc_gw0_iter
+                  bs_env%ri_rs%evgw0_iter
                WRITE (u, '(T2,A,F42.5,A)') 'Input: evGW0 convergence threshold', &
-                  bs_env%ri_rs%eps_iter*evolt, ' eV'
-               WRITE (u, '(T2,A,I46)') 'Input: evGW0 states per band edge', &
-                  bs_env%ri_rs%evgw0_nstate
-               WRITE (u, '(T2,A,L36)') 'Input: evGW0 updates the chemical potential', &
-                  bs_env%ri_rs%evgw0_update_fermi
-               WRITE (u, '(T2,A,L34)') 'Input: evGW0 shifts states outside the window', &
-                  bs_env%ri_rs%evgw0_shift_outer
+                  bs_env%ri_rs%evgw0_eps_iter*evolt, ' eV'
             ELSE
                WRITE (u, '(T2,A,A45)') 'Input: Eigenvalue self-consistency', 'G0W0'
             END IF
@@ -3418,6 +3406,7 @@ CONTAINS
 
       CHARACTER(len=3)                                   :: occ_vir
       CHARACTER(len=default_path_length)                 :: fname
+      CHARACTER(len=default_string_length)               :: gw_label
       INTEGER                                            :: handle, i_mo, ikp_for_print, iunit, &
                                                             n_mo, nkp
       LOGICAL                                            :: is_bandstruc_kpoint, print_DOS_kpoints, &
@@ -3434,8 +3423,8 @@ CONTAINS
       ! previous cycle's quasiparticle energies for evGW0. They set the Newton start value,
       ! the Z/m linearization point and the Hedin shift; the QP equation itself stays
       ! referenced to the DFT eigenvalues through the Eigenval_scf argument below.
-      IF (bs_env%ri_rs%do_ev_sc .AND. ALLOCATED(bs_env%eigenval_scGW0)) THEN
-         eigenval_G(:) = bs_env%eigenval_scGW0(:, ikp, ispin)
+      IF (bs_env%ri_rs%do_evgw0 .AND. ALLOCATED(bs_env%eigenval_evGW0)) THEN
+         eigenval_G(:) = bs_env%eigenval_evGW0(:, ikp, ispin)
       ELSE
          eigenval_G(:) = eigenval_scf(:)
       END IF
@@ -3487,7 +3476,9 @@ CONTAINS
 
          fname = "bandstructure_SCF_and_G0W0"
 
-         IF (ikp_for_print == 1 .AND. ispin == 1) THEN
+         ! in an evGW0 run the spectrum of every cycle is appended, so only the very first
+         ! cycle replaces the file
+         IF (ikp_for_print == 1 .AND. ispin == 1 .AND. bs_env%ri_rs%evgw0_i_iter <= 1) THEN
             CALL open_file(TRIM(fname), unit_number=iunit, file_status="REPLACE", &
                            file_action="WRITE")
          ELSE
@@ -3495,12 +3486,22 @@ CONTAINS
                            file_action="WRITE", file_position="APPEND")
          END IF
 
+         IF (bs_env%ri_rs%do_evgw0 .AND. ikp_for_print == 1 .AND. ispin == 1) THEN
+            WRITE (iunit, "(A)") " "
+            WRITE (iunit, "(A,I0)") "evGW0 cycle: ", bs_env%ri_rs%evgw0_i_iter
+         END IF
+
          WRITE (iunit, "(A)") " "
          WRITE (iunit, "(A10,I7,A25,3F10.4,T90,A7,I2)") "kpoint: ", ikp_for_print, "coordinate: ", &
             bs_env%kpoints_DOS%xkp(:, ikp), "spin: ", ispin
          WRITE (iunit, "(A)") " "
+         IF (bs_env%ri_rs%do_evgw0) THEN
+            gw_label = "ϵ_nk^evGW0 (eV)"
+         ELSE
+            gw_label = "ϵ_nk^G0W0 (eV)"
+         END IF
          WRITE (iunit, "(A5,A12,3A17,A16,A18)") "n", "k", "ϵ_nk^DFT (eV)", "Σ^c_nk (eV)", &
-            "Σ^x_nk (eV)", "v_nk^xc (eV)", "ϵ_nk^G0W0 (eV)"
+            "Σ^x_nk (eV)", "v_nk^xc (eV)", TRIM(gw_label)
          WRITE (iunit, "(A)") " "
 
          DO i_mo = 1, n_mo

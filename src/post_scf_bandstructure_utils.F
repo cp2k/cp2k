@@ -644,7 +644,6 @@ CONTAINS
 
       ! nkp_bs_and_DOS contains desymmetrized k-point mesh from SCF and k-points from GW bandstructure
       nkp_bs_and_DOS = bs_env%nkp_bs_and_DOS
-      bs_env%n_mo_retained = bs_env%n_ao
 
       ALLOCATE (bs_env%eigenval_G0W0(bs_env%n_ao, nkp_bs_and_DOS, bs_env%n_spin))
       ALLOCATE (bs_env%eigenval_HF(bs_env%n_ao, nkp_bs_and_DOS, bs_env%n_spin))
@@ -677,9 +676,6 @@ CONTAINS
 
             ! Diagonalize KS-matrix via Rothaan-Hall equation:
             ! H^KS(k) C(k) = S(k) C(k) ε(k)
-            ! nmo_retained counts the basis modes that survived the linear-dependency
-            ! filter. It can differ between k-points, so keep the smallest: the minimax
-            ! energy range is a single global quantity.
             CALL cp_cfm_geeig_canon(cfm_ks, cfm_s, cfm_mos, &
                                     bs_env%eigenval_scf(:, ikp, ispin), &
                                     bs_env%cfm_work_mo, bs_env%eps_eigval_mat_s, &
@@ -790,8 +786,6 @@ CONTAINS
 
       ALLOCATE (bs_env%eigenval_scf_Gamma(bs_env%n_ao, bs_env%n_spin))
 
-      bs_env%n_mo_retained = bs_env%n_ao
-
       DO ispin = 1, bs_env%n_spin
 
          ! use work matrices because the matrices are overwritten in cp_fm_geeig_canon
@@ -799,8 +793,7 @@ CONTAINS
          CALL cp_fm_to_fm(bs_env%fm_s_Gamma, bs_env%fm_work_mo(2))
 
          ! diagonalize the Kohn-Sham matrix to obtain MO coefficients and SCF eigenvalues
-         ! (at the Gamma-point). nmo_retained counts the basis modes that survived the
-         ! linear-dependency filter; the entries above it are placeholders, not states.
+         ! (at the Gamma-point)
          CALL cp_fm_geeig_canon(bs_env%fm_work_mo(1), &
                                 bs_env%fm_work_mo(2), &
                                 bs_env%fm_mo_coeff_Gamma(ispin), &
@@ -919,6 +912,8 @@ CONTAINS
 
       CALL get_mo_set(mo_set=mos(1), nao=n_ao, homo=homo)
       bs_env%n_ao = n_ao
+      ! lowered by the diagonalization below if the canonical orthogonalization removes modes
+      bs_env%n_mo_retained = n_ao
       bs_env%n_occ(1:2) = homo
       bs_env%n_vir(1:2) = n_ao - homo
 
@@ -1416,7 +1411,7 @@ CONTAINS
       ! write_dos_pdos / print_LDOS_main below become file names and stay as they are
       gw_label = "G0W0"
       gw_soc_label = "G0W0+SOC"
-      IF (bs_env%ri_rs%do_ev_sc) THEN
+      IF (bs_env%ri_rs%do_evgw0) THEN
          gw_label = "evGW0"
          gw_soc_label = "evGW0+SOC"
       END IF

@@ -2454,7 +2454,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_QP_energies'
 
       INTEGER                                            :: handle, ikp, ispin, j_t
-      LOGICAL                                            :: cache_is_filled, do_cache
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Sigma_x_ikp_n, V_xc_ikp_n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_ikp_n_freq, Sigma_c_ikp_n_time
       TYPE(cp_cfm_type)                                  :: cfm_ks_ikp, cfm_mos_ikp, cfm_s_ikp, &
@@ -2469,61 +2468,29 @@ CONTAINS
       ALLOCATE (Sigma_c_ikp_n_time(bs_env%n_ao, bs_env%num_time_freq_points, 2))
       ALLOCATE (Sigma_c_ikp_n_freq(bs_env%n_ao, bs_env%num_time_freq_points, 2))
 
-      ! Steps 1-5 below only depend on the (frozen) Kohn-Sham orbitals, on v^xc and on Σ^x, so
-      ! in an evGW0 cycle they give the same result in every iteration. Cache them on the first
-      ! call and reuse them afterwards. The cache holds one complex n_ao x n_ao matrix per
-      ! k-point and spin, which is why it is only built for the molecular single-k-point case.
-      do_cache = bs_env%ri_rs%do_ev_sc .AND. bs_env%nkp_bs_and_DOS == 1
-      cache_is_filled = ALLOCATED(bs_env%ri_rs%cfm_mos_ikp)
-      IF (do_cache .AND. .NOT. cache_is_filled) THEN
-         ALLOCATE (bs_env%ri_rs%cfm_mos_ikp(bs_env%nkp_bs_and_DOS, bs_env%n_spin))
-         ALLOCATE (bs_env%ri_rs%V_xc_ikp_n(bs_env%n_ao, bs_env%nkp_bs_and_DOS, bs_env%n_spin))
-         ALLOCATE (bs_env%ri_rs%Sigma_x_ikp_n(bs_env%n_ao, bs_env%nkp_bs_and_DOS, bs_env%n_spin))
-      END IF
-
       DO ispin = 1, bs_env%n_spin
 
          DO ikp = 1, bs_env%nkp_bs_and_DOS
 
-            IF (do_cache .AND. cache_is_filled) THEN
+            ! 1. get H^KS_µν(k_i) from H^KS_µν(k=0)
+            CALL cfm_ikp_from_fm_Gamma(cfm_ks_ikp, bs_env%fm_ks_Gamma(ispin), &
+                                       ikp, qs_env, bs_env%kpoints_DOS, "ORB")
 
-               ! 1.-5. all frozen in evGW0; bs_env%eigenval_scf is left untouched and therefore
-               !       keeps holding the DFT reference energies of the QP equation
-               CALL cp_cfm_to_cfm(bs_env%ri_rs%cfm_mos_ikp(ikp, ispin), cfm_mos_ikp)
-               V_xc_ikp_n(:) = bs_env%ri_rs%V_xc_ikp_n(:, ikp, ispin)
-               Sigma_x_ikp_n(:) = bs_env%ri_rs%Sigma_x_ikp_n(:, ikp, ispin)
+            ! 2. get S_µν(k_i) from S_µν(k=0)
+            CALL cfm_ikp_from_fm_Gamma(cfm_s_ikp, bs_env%fm_s_Gamma, &
+                                       ikp, qs_env, bs_env%kpoints_DOS, "ORB")
 
-            ELSE
+            ! 3. Diagonalize (Roothaan-Hall): H_KS(k_i)*C(k_i) = S(k_i)*C(k_i)*ϵ(k_i)
+            CALL cp_cfm_geeig(cfm_ks_ikp, cfm_s_ikp, cfm_mos_ikp, &
+                              bs_env%eigenval_scf(:, ikp, ispin), cfm_work_ikp)
 
-               ! 1. get H^KS_µν(k_i) from H^KS_µν(k=0)
-               CALL cfm_ikp_from_fm_Gamma(cfm_ks_ikp, bs_env%fm_ks_Gamma(ispin), &
-                                          ikp, qs_env, bs_env%kpoints_DOS, "ORB")
+            ! 4. V^xc_µν(k=0) -> V^xc_µν(k_i) -> V^xc_nn(k_i)
+            CALL to_ikp_and_mo(V_xc_ikp_n, bs_env%fm_V_xc_Gamma(ispin), &
+                               ikp, qs_env, bs_env, cfm_mos_ikp)
 
-               ! 2. get S_µν(k_i) from S_µν(k=0)
-               CALL cfm_ikp_from_fm_Gamma(cfm_s_ikp, bs_env%fm_s_Gamma, &
-                                          ikp, qs_env, bs_env%kpoints_DOS, "ORB")
-
-               ! 3. Diagonalize (Roothaan-Hall): H_KS(k_i)*C(k_i) = S(k_i)*C(k_i)*ϵ(k_i)
-               CALL cp_cfm_geeig(cfm_ks_ikp, cfm_s_ikp, cfm_mos_ikp, &
-                                 bs_env%eigenval_scf(:, ikp, ispin), cfm_work_ikp)
-
-               ! 4. V^xc_µν(k=0) -> V^xc_µν(k_i) -> V^xc_nn(k_i)
-               CALL to_ikp_and_mo(V_xc_ikp_n, bs_env%fm_V_xc_Gamma(ispin), &
-                                  ikp, qs_env, bs_env, cfm_mos_ikp)
-
-               ! 5. Σ^x_µν(k=0) -> Σ^x_µν(k_i) -> Σ^x_nn(k_i)
-               CALL to_ikp_and_mo(Sigma_x_ikp_n, fm_Sigma_x_Gamma(ispin), &
-                                  ikp, qs_env, bs_env, cfm_mos_ikp)
-
-               IF (do_cache) THEN
-                  CALL cp_cfm_create(bs_env%ri_rs%cfm_mos_ikp(ikp, ispin), &
-                                     bs_env%fm_s_Gamma%matrix_struct)
-                  CALL cp_cfm_to_cfm(cfm_mos_ikp, bs_env%ri_rs%cfm_mos_ikp(ikp, ispin))
-                  bs_env%ri_rs%V_xc_ikp_n(:, ikp, ispin) = V_xc_ikp_n(:)
-                  bs_env%ri_rs%Sigma_x_ikp_n(:, ikp, ispin) = Sigma_x_ikp_n(:)
-               END IF
-
-            END IF
+            ! 5. Σ^x_µν(k=0) -> Σ^x_µν(k_i) -> Σ^x_nn(k_i)
+            CALL to_ikp_and_mo(Sigma_x_ikp_n, fm_Sigma_x_Gamma(ispin), &
+                               ikp, qs_env, bs_env, cfm_mos_ikp)
 
             ! 6. Σ^c_µν(k=0,+/-i|τ_j|) -> Σ^c_µν(k_i,+/-i|τ_j|) -> Σ^c_nn(k_i,+/-i|τ_j|)
             DO j_t = 1, bs_env%num_time_freq_points
@@ -2549,9 +2516,9 @@ CONTAINS
 
       CALL get_all_VBM_CBM_bandgaps(bs_env)
 
-      ! Σ^x does not change during an evGW0 cycle; there the caller keeps it alive and
-      ! releases it once the eigenvalue self-consistency loop is done.
-      IF (.NOT. bs_env%ri_rs%do_ev_sc) CALL cp_fm_release(fm_Sigma_x_Gamma)
+      ! Σ^x is frozen in an evGW0 cycle, so there the caller keeps it and releases it once the
+      ! self-consistency loop is done
+      IF (.NOT. bs_env%ri_rs%do_evgw0) CALL cp_fm_release(fm_Sigma_x_Gamma)
       CALL cp_fm_release(fm_Sigma_c_Gamma_time)
       CALL cp_cfm_release(cfm_ks_ikp)
       CALL cp_cfm_release(cfm_s_ikp)

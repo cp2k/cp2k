@@ -22,8 +22,7 @@ MODULE post_scf_bandstructure_types
                                               cp_fm_type
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
-   USE input_constants,                 ONLY: G0W0,&
-                                              rtp_method_bse,&
+   USE input_constants,                 ONLY: rtp_method_bse,&
                                               rtp_method_bse_linearized,&
                                               small_cell_full_kp
    USE kinds,                           ONLY: default_path_length,&
@@ -45,14 +44,6 @@ MODULE post_scf_bandstructure_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'post_scf_bandstructure_types'
 
    PUBLIC :: post_scf_bandstructure_type, band_edges_type, data_3_type, bs_env_release
-
-   ! Sanity bounds on a fundamental quasiparticle gap, in Hartree: below -eps_qp_gap the spectrum is
-   ! inverted, above max_qp_gap the quasiparticle solve has diverged. eps_qp_gap is a noise tolerance,
-   ! low enough that a metal or a near-degenerate system does not trip the inversion test; max_qp_gap
-   ! sits far above any real valence gap (a few tens of eV) but is not derived from the all-electron
-   ! KS spread (~1000 eV), which would defeat the test.
-   REAL(KIND=dp), PARAMETER, PUBLIC                   :: eps_qp_gap = 0.01_dp/evolt, &
-                                                         max_qp_gap = 200.0_dp/evolt
 
    ! valence band maximum (VBM), conduction band minimum (CBM), direct band gap (DBG),
    ! indirect band gap (IDBG)
@@ -90,33 +81,16 @@ MODULE post_scf_bandstructure_types
 
       ! Eigenvalue self-consistency (evGW0): G is rebuilt from the quasiparticle energies of
       ! the previous cycle while W stays frozen at the RPA@DFT level.
-      INTEGER                                          :: self_consistency = G0W0
-      INTEGER                                          :: sc_gw0_iter = 20
-      REAL(KIND=dp)                                    :: eps_iter = 5.0E-5_dp
-      LOGICAL                                          :: do_ev_sc = .FALSE.
-      ! Number of occupied and of empty states per spin channel, counted by Kohn-Sham index
-      ! outwards from the gap. These are the states whose quasiparticle energies decide
-      ! convergence and the only ones fed back into the Green's function
-      INTEGER                                          :: evgw0_nstate = 20
-      ! .TRUE.  : recompute the chemical potential from the quasiparticle energies every cycle
-      !           (the convention of CP2K's RI-V evGW0)
-      ! .FALSE. : keep it at the SCF value for the whole cycle (the convention of FHI-AIMS)
-      LOGICAL                                          :: evgw0_update_fermi = .TRUE.
-      ! Outside the EVGW0_NSTATE window: .TRUE. displaces the state by the mean correction of
-      ! the states inside it of the same character, .FALSE. keeps its DFT eigenvalue.
-      LOGICAL                                          :: evgw0_shift_outer = .TRUE.
+      LOGICAL                                          :: do_evgw0 = .FALSE.
+      INTEGER                                          :: evgw0_iter = 20
+      REAL(KIND=dp)                                    :: evgw0_eps_iter = 5.0E-5_dp
+      ! index of the running evGW0 cycle, so that the spectrum of every cycle is appended to
+      ! the bandstructure file instead of overwriting it
+      INTEGER                                          :: evgw0_i_iter = 0
 
-      ! Caches of the evGW0-invariant quantities. Only filled when do_ev_sc is true; every
-      ! consumer falls back to recomputing them when the corresponding array is unallocated,
-      ! so the G0W0 path is untouched.
-      !   mat_W_aux_tau : W_PQ(iτ) as a filtered DBCSR matrix, one per time point. W is frozen
-      !                   in GW0, so this replaces the per-iteration fm -> DBCSR conversion
-      !                   (and lets fm_W_time be released after the first cycle).
-      !   cfm_mos_ikp   : MO coefficients C(k); the orbitals do not change in evGW0.
-      !   V_xc_ikp_n / Sigma_x_ikp_n : v^xc_nn(k) and Σ^x_nn(k), both frozen.
+      ! W_PQ(iτ) as a filtered DBCSR matrix, one per time point; frozen in GW0, so it is built
+      ! in the first evGW0 cycle and reused afterwards.
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: mat_W_aux_tau => NULL()
-      TYPE(cp_cfm_type), DIMENSION(:, :), ALLOCATABLE  :: cfm_mos_ikp
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE   :: V_xc_ikp_n, Sigma_x_ikp_n
 
       ! Data types for cutoffs based DBCSR matrices
       REAL(KIND=dp), ALLOCATABLE                       :: chunk_centroids(:, :)
@@ -169,7 +143,7 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: eigenval_scf, &
                                                          eigenval_G0W0, &
                                                          eigenval_HF, &
-                                                         eigenval_scGW0
+                                                         eigenval_evGW0
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: eigenval_scf_soc, &
                                                          eigenval_G0W0_soc
       TYPE(band_edges_type), DIMENSION(2)             :: band_edges_scf_Gamma = band_edges_type()
@@ -184,11 +158,7 @@ MODULE post_scf_bandstructure_types
       TYPE(ri_rs_env)                                 :: ri_rs
 
       ! general parameters on molecular orbitals and basis sets
-      ! Number of basis modes that survived the linear-dependency filter of the canonical
-      ! orthogonalization, i.e. the number of real states in eigenval_scf_Gamma / eigenval_scf.
-      ! Entries above it carry a placeholder eigenvalue, not a state: they must stay out of the
-      ! energy range of the minimax grid and out of the Green's function. For k-points this is
-      ! the minimum over the k-point mesh.
+      ! Number of real states; entries above it are linear-dependency placeholders, not states.
       INTEGER                                      :: n_mo_retained = -1
       INTEGER                                      :: n_ao = -1, &
                                                       n_RI = -1, &
@@ -453,6 +423,10 @@ MODULE post_scf_bandstructure_types
 
    END TYPE post_scf_bandstructure_type
 
+   ! Sanity bounds on a quasiparticle gap (Hartree): inverted below -eps_qp_gap, diverged above max_qp_gap
+   REAL(KIND=dp), PARAMETER, PUBLIC                   :: eps_qp_gap = 0.01_dp/evolt, &
+                                                         max_qp_gap = 200.0_dp/evolt
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -486,7 +460,7 @@ CONTAINS
       IF (ALLOCATED(bs_env%eigenval_scf)) DEALLOCATE (bs_env%eigenval_scf)
       IF (ALLOCATED(bs_env%eigenval_G0W0)) DEALLOCATE (bs_env%eigenval_G0W0)
       IF (ALLOCATED(bs_env%eigenval_HF)) DEALLOCATE (bs_env%eigenval_HF)
-      IF (ALLOCATED(bs_env%eigenval_scGW0)) DEALLOCATE (bs_env%eigenval_scGW0)
+      IF (ALLOCATED(bs_env%eigenval_evGW0)) DEALLOCATE (bs_env%eigenval_evGW0)
       IF (ALLOCATED(bs_env%eigenval_scf_soc)) DEALLOCATE (bs_env%eigenval_scf_soc)
       IF (ALLOCATED(bs_env%eigenval_G0W0_soc)) DEALLOCATE (bs_env%eigenval_G0W0_soc)
       IF (ALLOCATED(bs_env%i_ao_start_from_atom)) DEALLOCATE (bs_env%i_ao_start_from_atom)
@@ -602,11 +576,7 @@ CONTAINS
       IF (ALLOCATED(bs_env%ri_rs%pan_first)) DEALLOCATE (bs_env%ri_rs%pan_first)
       IF (ALLOCATED(bs_env%ri_rs%pan_last)) DEALLOCATE (bs_env%ri_rs%pan_last)
 
-      ! evGW0 caches
       CALL safe_dbcsr_deallocate_matrix_set_1d(bs_env%ri_rs%mat_W_aux_tau)
-      CALL safe_cfm_destroy_2d(bs_env%ri_rs%cfm_mos_ikp)
-      IF (ALLOCATED(bs_env%ri_rs%V_xc_ikp_n)) DEALLOCATE (bs_env%ri_rs%V_xc_ikp_n)
-      IF (ALLOCATED(bs_env%ri_rs%Sigma_x_ikp_n)) DEALLOCATE (bs_env%ri_rs%Sigma_x_ikp_n)
 
       DEALLOCATE (bs_env)
 
