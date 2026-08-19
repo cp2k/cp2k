@@ -246,3 +246,5 @@ xyz2dcd.F: Found STOP statement in procedure "xyz2dcd" https://cp2k.org/conv#c20
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "abort_program" https://cp2k.org/conv#c012
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "print_help" https://cp2k.org/conv#c012
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "xyz2dcd" https://cp2k.org/conv#c012
+# Suppression kept for toolchain based convention check
+cp_output_handling_openpmd.F: Found type cp_openpmd_per_call_value_type without initializer https://cp2k.org/conv#c016
