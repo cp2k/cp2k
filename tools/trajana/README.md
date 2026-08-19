@@ -341,6 +341,18 @@ for the density and the `--minimum-origins` mask. Optional `--vacf` and `--spect
 the voxel-resolved intermediate data for convergence checks. Production maps require convergence
 with trajectory length, correlation time, voxel size, origin count, and the optional lag `--window`.
 
+With `--bulk-entropy VALUE`, where `VALUE` is the translational plus rotational bulk-solvent entropy
+in J/(mol K), the program additionally writes the local excess entropy, `-T Delta S` per solvent
+molecule, and its number-density-weighted contribution. The summary contains the spatial integrals
+of excess entropy and `-T Delta S`. The reference can be obtained from a separate bulk calculation
+with `twopt.x` (sum of its translation and rotation channels) or from a converged bulk-like region.
+Voxels below `--minimum-origins` are excluded from these integrals.
+
+The maps use the standard Gaussian CUBE format and can be combined with existing tools such as
+CP2K's `tools/cubecruncher` or [`cubeWorks`](https://github.com/HeydenLabASU/cubeWorks). Generic
+CUBE arithmetic, filtering, and peak finding are not duplicated in `twopt3d.x`; thermodynamic
+density weighting is performed directly so that its units and sampling mask remain explicit.
+
 The original package also computes solute-solvent and solvent-solvent Lennard-Jones/Coulomb energy
 maps from a classical pairwise force field and combines them with entropy into enthalpy and free
 energy. `twopt3d.x` deliberately does not label such maps as generally available from CP2K: an

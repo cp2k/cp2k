@@ -226,6 +226,8 @@ class TrajectoryToolTests(unittest.TestCase):
                 "1",
                 "--rotational-symmetry",
                 "2",
+                "--bulk-entropy",
+                "10",
                 "--align-select",
                 "all",
                 "--keep-system-drift",
@@ -244,6 +246,11 @@ class TrajectoryToolTests(unittest.TestCase):
             )
             _, rotation_entropy = cube_values(root / "local-entropy-rotation.cube")
             _, total_entropy = cube_values(root / "local-entropy-total.cube")
+            _, excess_entropy = cube_values(root / "local-entropy-excess.cube")
+            _, minus_t_delta_s = cube_values(root / "local-minus-t-delta-s.cube")
+            _, minus_t_delta_s_density = cube_values(
+                root / "local-minus-t-delta-s-density.cube"
+            )
             self.assertEqual(dimensions, (2, 2, 2))
             occupied = max(range(len(origins)), key=origins.__getitem__)
             self.assertAlmostEqual(origins[occupied], 37.0)
@@ -255,7 +262,39 @@ class TrajectoryToolTests(unittest.TestCase):
                 translation_entropy[occupied] + rotation_entropy[occupied],
                 places=4,
             )
+            self.assertAlmostEqual(
+                excess_entropy[occupied], total_entropy[occupied] - 10.0, places=4
+            )
+            self.assertAlmostEqual(
+                minus_t_delta_s[occupied],
+                -0.3 * excess_entropy[occupied],
+                places=4,
+            )
+            self.assertAlmostEqual(
+                minus_t_delta_s_density[occupied],
+                density[occupied] * minus_t_delta_s[occupied],
+                places=4,
+            )
             self.assertEqual(sum(value > 0.0 for value in origins), 1)
+
+            summary_values = {
+                key: float(value)
+                for line in (root / "local-summary.dat")
+                .read_text(encoding="utf8")
+                .splitlines()
+                if line.startswith("integrated_")
+                for key, value in [line.split(":", 1)]
+            }
+            self.assertAlmostEqual(
+                summary_values["integrated_excess_entropy_J_mol_K"],
+                excess_entropy[occupied],
+                places=4,
+            )
+            self.assertAlmostEqual(
+                summary_values["integrated_minus_T_delta_S_kJ_mol"],
+                minus_t_delta_s[occupied],
+                places=4,
+            )
 
             spectrum_values = data_lines(spectrum)
             frequency_step = spectrum_values[1][8] - spectrum_values[0][8]

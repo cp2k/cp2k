@@ -48,7 +48,7 @@ CONTAINS
    SUBROUTINE run_twopt3d()
       CHARACTER(LEN=512)                                 :: message
       CHARACTER(LEN=:), ALLOCATABLE                      :: align_spec, cell_path, cell_text, entropy_convention, &
-                                                            grid_text, group_path, mass_path, origin_text, &
+                                                            bulk_entropy_text, grid_text, group_path, mass_path, origin_text, &
                                                             output_prefix, periodic_text, position_path, &
                                                             reference_path, spectrum_path, summary_path, &
                                                             vacf_path, velocity_path, velocity_unit, window
@@ -59,13 +59,14 @@ CONTAINS
       INTEGER                                            :: dimensions(3)
       INTEGER, ALLOCATABLE                               :: align_index(:), counts(:), offsets(:), &
                                                             origin_voxel(:), sample_order(:)
-      LOGICAL                                            :: align_found, current_linear, eof, origin_found, &
+      LOGICAL                                            :: align_found, bulk_entropy_found, current_linear, eof, origin_found, &
                                                             position_eof, reference_eof, reference_found, &
                                                             remove_drift, spectrum_requested, vacf_requested
       LOGICAL, ALLOCATABLE                               :: align_mask(:), linear(:)
-      REAL(dp)                                           :: align_center(3), corrected_velocity_scale, dt_fs, &
-                                                            effective_dt, molecular_mass, rotational_symmetry, &
-                                                            spacing, temperature, velocity_scale, velocity_scale_extra
+      REAL(dp)                                           :: align_center(3), bulk_entropy, corrected_velocity_scale, dt_fs, &
+                                                            effective_dt, excess_entropy_integral, molecular_mass, &
+                                                            minus_t_delta_s_integral, rotational_symmetry, spacing, &
+                                                            temperature, velocity_scale, velocity_scale_extra
       REAL(dp)                                           :: grid_origin(3), inertia_average(3), rotation_matrix(3, 3)
       REAL(dp), ALLOCATABLE                              :: align_masses(:), current_alignment(:, :), &
                                                             inertia_sum(:, :), masses(:), reference_alignment(:, :), &
@@ -93,6 +94,7 @@ CONTAINS
       CALL get_option("--velocity-unit", velocity_unit, eof, "cp2k")
       CALL get_option("--window", window, eof, "none")
       CALL get_option("--entropy-convention", entropy_convention, eof, "lin2003")
+      CALL get_option("--bulk-entropy", bulk_entropy_text, bulk_entropy_found)
       CALL get_option("--cell", cell_text, eof, "")
       CALL get_option("--cell-file", cell_path, eof, "")
       CALL get_option("--periodic", periodic_text, eof, "XYZ")
@@ -128,6 +130,11 @@ CONTAINS
       IF (minimum_origins < 1) CALL fail("--minimum-origins must be positive")
       IF (first < 1 .OR. last < first .OR. stride < 1) CALL fail("Invalid frame range")
       IF (reference_found .AND. .NOT. align_found) CALL fail("--reference requires --align-select")
+      bulk_entropy = 0.0_dp
+      IF (bulk_entropy_found) THEN
+         READ (bulk_entropy_text, *, IOSTAT=ierr) bulk_entropy
+         IF (ierr /= 0) CALL fail("--bulk-entropy expects a number in J/(mol K)")
+      END IF
       IF (.NOT. origin_found) grid_origin = -0.5_dp*REAL(dimensions, dp)*spacing
       IF (LEN_TRIM(summary_path) == 0) summary_path = TRIM(output_prefix)//"-summary.dat"
 
@@ -297,7 +304,9 @@ CONTAINS
       CALL analyze_grid(translation, rotation, counts, offsets, sample_order, origins, &
                         correlation_frames, effective_dt, temperature, molecular_mass, rotational_dof, &
                         inertia_average, rotational_symmetry, entropy_convention, window, minimum_origins, &
-                        grid_origin, spacing, dimensions, output_prefix, spectrum_unit, vacf_unit, ierr, message)
+                        grid_origin, spacing, dimensions, output_prefix, spectrum_unit, vacf_unit, &
+                        bulk_entropy_found, bulk_entropy, excess_entropy_integral, minus_t_delta_s_integral, &
+                        ierr, message)
       IF (ierr /= 0) CALL fail(message)
       IF (spectrum_requested) CALL close_output(spectrum_unit)
       IF (vacf_requested) CALL close_output(vacf_unit)
@@ -308,7 +317,8 @@ CONTAINS
       CALL write_summary(output_unit, frames, origins, molecules, correlation_frames, effective_dt, temperature, &
                          dimensions, grid_origin, spacing, minimum_origins, molecular_mass, rotational_dof, &
                          inertia_average, rotational_symmetry, reference_atoms, remove_drift, entropy_convention, &
-                         window, COUNT(origin_voxel == 0), output_prefix)
+                         window, COUNT(origin_voxel == 0), output_prefix, bulk_entropy_found, bulk_entropy, &
+                         excess_entropy_integral, minus_t_delta_s_integral)
       CALL close_output(output_unit)
    END SUBROUTINE run_twopt3d
 
@@ -507,7 +517,9 @@ CONTAINS
    SUBROUTINE analyze_grid(translation, rotation, counts, offsets, sample_order, origins, &
                            correlation_frames, dt_fs, temperature, molecular_mass, rotational_dof, &
                            inertia, rotational_symmetry, entropy_convention, window, minimum_origins, &
-                           origin, spacing, dimensions, prefix, spectrum_unit, vacf_unit, ierr, message)
+                           origin, spacing, dimensions, prefix, spectrum_unit, vacf_unit, &
+                           bulk_entropy_found, bulk_entropy, excess_entropy_integral, &
+                           minus_t_delta_s_integral, ierr, message)
       REAL(dp), INTENT(IN)                               :: translation(:, :, :), rotation(:, :, :), dt_fs, &
                                                             temperature, molecular_mass, inertia(3), &
                                                             rotational_symmetry, origin(3), spacing
@@ -516,6 +528,9 @@ CONTAINS
                                                             rotational_dof, minimum_origins, dimensions(3), &
                                                             spectrum_unit, vacf_unit
       CHARACTER(LEN=*), INTENT(IN)                       :: entropy_convention, window, prefix
+      LOGICAL, INTENT(IN)                                :: bulk_entropy_found
+      REAL(dp), INTENT(IN)                               :: bulk_entropy
+      REAL(dp), INTENT(OUT)                              :: excess_entropy_integral, minus_t_delta_s_integral
       INTEGER, INTENT(OUT)                               :: ierr
       CHARACTER(LEN=*), INTENT(OUT)                      :: message
 
@@ -525,6 +540,8 @@ CONTAINS
                                                             negative_translation, rotational_temperature(3), &
                                                             voxel_center(3), voxel_volume
       REAL(dp), ALLOCATABLE                              :: density(:), frequency_cm(:), origin_count(:), &
+                                                            entropy_excess(:), minus_t_delta_s(:), &
+                                                            minus_t_delta_s_density(:), &
                                                             rotation_corr(:), rotation_dos(:), rotation_gas(:), &
                                                             rotation_solid(:), rotation_fluidicity(:), &
                                                             rotation_entropy(:), rotation_negative(:), total_entropy(:), &
@@ -537,9 +554,13 @@ CONTAINS
 
       ierr = 0
       message = ""
+      excess_entropy_integral = 0.0_dp
+      minus_t_delta_s_integral = 0.0_dp
       voxel_volume = spacing**3
       ALLOCATE (density(SIZE(counts)), origin_count(SIZE(counts)), &
                 translation_entropy(SIZE(counts)), rotation_entropy(SIZE(counts)), total_entropy(SIZE(counts)), &
+                entropy_excess(SIZE(counts)), minus_t_delta_s(SIZE(counts)), &
+                minus_t_delta_s_density(SIZE(counts)), &
                 translation_fluidicity(SIZE(counts)), rotation_fluidicity(SIZE(counts)), &
                 translation_negative(SIZE(counts)), rotation_negative(SIZE(counts)))
       origin_count = REAL(counts, dp)
@@ -547,6 +568,9 @@ CONTAINS
       translation_entropy = 0.0_dp
       rotation_entropy = 0.0_dp
       total_entropy = 0.0_dp
+      entropy_excess = 0.0_dp
+      minus_t_delta_s = 0.0_dp
+      minus_t_delta_s_density = 0.0_dp
       translation_fluidicity = 0.0_dp
       rotation_fluidicity = 0.0_dp
       translation_negative = 0.0_dp
@@ -666,6 +690,29 @@ CONTAINS
       path = TRIM(prefix)//"-negative-vdos-rotation.cube"
       CALL write_cube(path, "Fraction of negative rotational VDoS removed before 2PT", origin, spacing, &
                       dimensions, rotation_negative, ierr, message)
+      IF (ierr /= 0) RETURN
+
+      IF (bulk_entropy_found) THEN
+         WHERE (counts >= minimum_origins)
+            entropy_excess = total_entropy - bulk_entropy
+            minus_t_delta_s = -temperature*entropy_excess/1000.0_dp
+            minus_t_delta_s_density = density*minus_t_delta_s
+         END WHERE
+         excess_entropy_integral = SUM(density*entropy_excess, MASK=counts >= minimum_origins)*voxel_volume
+         minus_t_delta_s_integral = SUM(minus_t_delta_s_density)*voxel_volume
+
+         path = TRIM(prefix)//"-entropy-excess.cube"
+         CALL write_cube(path, "3D-2PT excess intermolecular entropy per solvent [J/(mol K)]", origin, spacing, &
+                         dimensions, entropy_excess, ierr, message)
+         IF (ierr /= 0) RETURN
+         path = TRIM(prefix)//"-minus-t-delta-s.cube"
+         CALL write_cube(path, "3D-2PT -T Delta S per solvent molecule [kJ/mol]", origin, spacing, &
+                         dimensions, minus_t_delta_s, ierr, message)
+         IF (ierr /= 0) RETURN
+         path = TRIM(prefix)//"-minus-t-delta-s-density.cube"
+         CALL write_cube(path, "3D-2PT density-weighted -T Delta S [kJ/(mol angstrom^3)]", origin, spacing, &
+                         dimensions, minus_t_delta_s_density, ierr, message)
+      END IF
    END SUBROUTINE analyze_grid
 
    SUBROUTINE correlation_to_dos(correlation, target_dof, dt_fs, window, dos, frequency_step, &
@@ -741,13 +788,15 @@ CONTAINS
    SUBROUTINE write_summary(unit, frames, origins, molecules, correlation_frames, dt_fs, temperature, &
                             dimensions, origin, spacing, minimum_origins, molecular_mass, rotational_dof, &
                             inertia, rotational_symmetry, alignment_atoms, remove_drift, entropy_convention, &
-                            window, outside, prefix)
+                            window, outside, prefix, bulk_entropy_found, bulk_entropy, &
+                            excess_entropy_integral, minus_t_delta_s_integral)
       INTEGER, INTENT(IN)                                :: unit, frames, origins, molecules, correlation_frames, &
                                                             dimensions(3), minimum_origins, rotational_dof, &
                                                             alignment_atoms, outside
       REAL(dp), INTENT(IN)                               :: dt_fs, temperature, origin(3), spacing, molecular_mass, &
-                                                            inertia(3), rotational_symmetry
-      LOGICAL, INTENT(IN)                                :: remove_drift
+                                                            inertia(3), rotational_symmetry, bulk_entropy, &
+                                                            excess_entropy_integral, minus_t_delta_s_integral
+      LOGICAL, INTENT(IN)                                :: remove_drift, bulk_entropy_found
       CHARACTER(LEN=*), INTENT(IN)                       :: entropy_convention, window, prefix
 
       WRITE (unit, "(A)") "# Spatially resolved two-phase thermodynamics"
@@ -771,6 +820,13 @@ CONTAINS
       WRITE (unit, "(A,A)") "entropy_convention: ", TRIM(entropy_convention)
       WRITE (unit, "(A,A)") "vacf_window: ", TRIM(window)
       WRITE (unit, "(A,A)") "output_prefix: ", TRIM(prefix)
+      IF (bulk_entropy_found) THEN
+         WRITE (unit, "(A,ES24.16)") "bulk_intermolecular_entropy_J_mol_K: ", bulk_entropy
+         WRITE (unit, "(A,ES24.16)") "integrated_excess_entropy_J_mol_K: ", excess_entropy_integral
+         WRITE (unit, "(A,ES24.16)") "integrated_minus_T_delta_S_kJ_mol: ", minus_t_delta_s_integral
+      ELSE
+         WRITE (unit, "(A)") "bulk_intermolecular_entropy: not supplied"
+      END IF
       WRITE (unit, "(A)") "note: entropy maps contain zero where origin_count < minimum_origins"
       WRITE (unit, "(A)") "note: negative finite-sampling VDoS bins are projected to zero before normalization"
       WRITE (unit, "(A)") "note: pair-energy enthalpy/free-energy maps require an external energy decomposition"
@@ -802,6 +858,7 @@ CONTAINS
       WRITE (*, "(A)") "  --rotational-symmetry N  solvent rotational symmetry number (default 1)"
       WRITE (*, "(A)") "  --window none|hann       VACF lag window (default none)"
       WRITE (*, "(A)") "  --entropy-convention C   lin2003 (default) or rigorous"
+      WRITE (*, "(A)") "  --bulk-entropy VALUE     bulk translation+rotation entropy [J/(mol K)]"
       WRITE (*, "(A)") "  --output-prefix PREFIX   CUBE output prefix (default twopt3d)"
       WRITE (*, "(A)") "  --summary FILE           run metadata and limitations"
       WRITE (*, "(A)") "  --spectrum FILE          optional voxel-resolved VDoS diagnostics"
