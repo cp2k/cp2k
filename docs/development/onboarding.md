@@ -7,8 +7,9 @@ contribute so that the community as a whole can benefit.
 CP2K is a large project, there is no way to study the full code, and start when that is done! Start
 working on small patches first, that are easy to code, to test and to integrate. Small patches are
 easier to review and thus will be more quickly merged to the Git master branch. As experience with
-the code grows, tackling larger projects becomes realistic. Developers who contribute regularly can
-join the [developers team](https://github.com/orgs/cp2k/teams/cp2k-developers) on Github.
+the code grows, tackling larger projects becomes realistic.
+
+For visibility, the soft link `./CONTRIBUTING.md` redirects to this page.
 
 ## Prepare the patch
 
@@ -91,3 +92,19 @@ usually takes less than one hour:
 - You will be notified if any of the tests on our [Dashboard](https://dashboard.cp2k.org/index.html)
   breaks. Submit a new PR to fix a bug found revealed by the dashboard caused by your PR. Ask the
   admin team for help if necessary.
+
+## Join our team
+
+There are three levels of developer teams in the CP2K project, with roles and permissions stated at
+[github docs](https://docs.github.com/en/organizations/managing-user-access-to-your-organizations-repositories/managing-repository-roles/repository-roles-for-an-organization).
+
+- The [`cp2k-developers`](https://github.com/orgs/cp2k/teams/cp2k-developers) is the beginner level
+  with *triage* access, which can be joined by accepting an invitation automatically sent out after
+  the very first accepted and merged PR.
+- The [`cp2k-core-developers`](https://github.com/orgs/cp2k/teams/cp2k-core-developers) is the next
+  level for productive contributors, to whom *write* access is granted on a case-by-case basis. And
+  among other powers available, they are eligible for volunteering as a `code owner` of certain code
+  ([see github docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners)),
+  whose review and explicit approval become necessary for any relevant PR from other developers.
+- The [`cp2k-admins`](https://github.com/orgs/cp2k/teams/cp2k-admins) is the ultimate level for
+  administrators in charge of everything.

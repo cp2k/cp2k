@@ -2,7 +2,7 @@
 
 CP2K uses the [CMake](https://cmake.org) build system, which detects dependencies and controls the
 compilation process. This page describes how to obtain a complete CP2K source tree and build it with
-its dependencies.
+its dependencies, which has been outlined under [](./installation.md#instructions).
 
 ## Obtaining source code
 
