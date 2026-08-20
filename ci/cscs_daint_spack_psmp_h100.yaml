@@ -95,12 +95,12 @@ regression test cp2k daint:
   timeout: 6h
   script:
     - git --no-pager log -1 --pretty="%nCommitSHA:%x20%H%nCommitTime:%x20%ci%nCommitAuthor:%x20%an%nCommitSubject:%x20%s%n"
-    - podman run --device nvidia.com/gpu=all --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --cp2kdatadir /opt/cp2k/install/share/cp2k/data --maxtasks ${SLURM_NTASKS} --ompthreads 1 --timeout 400 --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/install/bin ${VERSION} 2>&1 || true
+    - podman run --device nvidia.com/gpu=all --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --cp2kdatadir /opt/cp2k/install/share/cp2k/data --maxtasks 8 --ompthreads 1 --timeout 400 --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/install/bin ${VERSION} 2>&1 || true
   variables:
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
-    # Run eight two-rank, single-threaded workers to limit device contention
+    # Run four two-rank, single-threaded workers to limit resource contention
     # while retaining sufficient throughput on this four-GPU runner.
     SLURM_NTASKS: 16
     SLURM_TIMELIMIT: 90
