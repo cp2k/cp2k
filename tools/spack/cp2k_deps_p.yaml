@@ -166,6 +166,7 @@ spack:
         - "+dlaf"
         - "+elpa"
         - "+fortran"
+        - "~memory_pool"
         - "+pugixml"
         - "+scalapack"
         - "+vdwxc"

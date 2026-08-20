@@ -205,7 +205,7 @@ def main() -> None:
                 base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
-                testopts=testopts,
+                testopts=f"{testopts} --timeout 400",
                 image_tag=f.image_tag,
             )
         )
@@ -219,7 +219,7 @@ def main() -> None:
                 gcc_version=13,
                 gpu_model="P100",
                 feature_flags="",
-                testopts=testopts,
+                testopts=f"{testopts} --timeout 400",
                 image_tag=f.image_tag,
             )
         )
@@ -299,7 +299,8 @@ def main() -> None:
     for gpu_ver in "P100", "V100", "A100":
         with OutputFile(f"Dockerfile.test_cuda_{gpu_ver}", args.check) as f:
             f.write(install_deps_toolchain_cuda(gpu_ver=gpu_ver))
-            f.write(regtest(f"toolchain_cuda_{gpu_ver}", "psmp"))
+            gpu_testopts = "--timeout 400" if gpu_ver == "P100" else ""
+            f.write(regtest(f"toolchain_cuda_{gpu_ver}", "psmp", gpu_testopts))
         with OutputFile(f"Dockerfile.test_performance_cuda_{gpu_ver}", args.check) as f:
             f.write(install_deps_toolchain_cuda(gpu_ver=gpu_ver))
             f.write(performance(f"toolchain_cuda_{gpu_ver}"))
