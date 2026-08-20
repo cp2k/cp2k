@@ -261,7 +261,7 @@ CONTAINS
    END SUBROUTINE eigensolver
 
 ! **************************************************************************************************
-!> \brief Solve the generalized eigenvalue problem using cusolverMpSygvd
+!> \brief Solve the generalized eigenvalue problem
 !> \param matrix_ks_fm Kohn-Sham matrix in FM format
 !> \param matrix_s     Overlap matrix (DBCSR)
 !> \param mo_set       Molecular orbital set
@@ -294,10 +294,7 @@ CONTAINS
       CALL copy_dbcsr_to_fm(matrix_s, s_fm)
 
       ! Solve generalized eigenvalue problem - eigenvectors output to work buffer
-      CALL cp_fm_general_cusolver(matrix_ks_fm, s_fm, work, mo_eigenvalues)
-
-      ! Copy only the occupied MOs to mo_coeff
-      CALL cp_fm_to_fm(work, mo_coeff, nmo)
+      CALL cp_fm_geeig(matrix_ks_fm, s_fm, mo_coeff, mo_eigenvalues, work)
 
       CALL cp_fm_release(s_fm)
 
