@@ -219,7 +219,7 @@ CONTAINS
             IF (ASSOCIATED(mixing_store%pulay_matrix)) DEALLOCATE (mixing_store%pulay_matrix)
             ALLOCATE (mixing_store%pulay_matrix(nbuffer, nbuffer, nspins))
             mixing_store%pulay_matrix = 0.0_dp
-         ELSE IF (mixing_method == broyden_mixing_nr) THEN
+         ELSE IF (mixing_method == broyden_mixing_nr .OR. mixing_method == modified_broyden_mixing_nr) THEN
             IF (ASSOCIATED(mixing_store%abroy)) DEALLOCATE (mixing_store%abroy)
             ALLOCATE (mixing_store%abroy(nbuffer, nbuffer))
             mixing_store%abroy = 0.0_dp

@@ -1,0 +1,62 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ch2o_cp2k_modified_broyden
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+#CPQA INCLUDE DFTB/scc/scc_parameter
+#CPQA INCLUDE DFTB/scc/oo.spl
+#CPQA INCLUDE DFTB/scc/oc.spl
+#CPQA INCLUDE DFTB/scc/oh.spl
+#CPQA INCLUDE DFTB/scc/co.spl
+#CPQA INCLUDE DFTB/scc/cc.spl
+#CPQA INCLUDE DFTB/scc/ch.spl
+#CPQA INCLUDE DFTB/scc/ho.spl
+#CPQA INCLUDE DFTB/scc/hc.spl
+#CPQA INCLUDE DFTB/scc/hh.spl
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD DFTB
+      &DFTB
+        DISPERSION F
+        ORTHOGONAL_BASIS F
+        SCC_MIXER CP2K
+        SELF_CONSISTENT T
+        &PARAMETER
+          PARAM_FILE_NAME scc_parameter
+          PARAM_FILE_PATH DFTB/scc
+        &END PARAMETER
+      &END DFTB
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-9
+      MAX_SCF 300
+      SCF_GUESS CORE
+      &MIXING
+        ALPHA 0.4
+        BROY_W0 0.1
+        BROY_WMAX 100000.0
+        BROY_WREF 0.01
+        METHOD MODIFIED_BROYDEN_MIXING
+        NBUFFER 8
+      &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O     0.051368    0.000000    0.000000
+      C     1.278612    0.000000    0.000000
+      H     1.870460    0.939607    0.000000
+      H     1.870460   -0.939607    0.000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
