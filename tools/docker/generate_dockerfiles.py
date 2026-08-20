@@ -158,7 +158,7 @@ def main() -> None:
                 version="pdbg",
                 mpi_mode="openmpi",
                 feature_flags="",
-                testopts="--timeout 400",
+                testopts="--timeout 400 --maxtasks=16",
                 image_tag=f.image_tag,
             )
         )
