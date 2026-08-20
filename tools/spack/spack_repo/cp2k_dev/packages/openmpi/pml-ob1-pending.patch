@@ -1,0 +1,43 @@
+# Backports the OpenMPI sm-BTL hang fix from open-mpi/ompi#13939.
+# Merged upstream as commit 8849c01 and backported to v5.0.x as 14b5272.
+diff --git a/ompi/mca/pml/ob1/pml_ob1.h b/ompi/mca/pml/ob1/pml_ob1.h
+--- a/ompi/mca/pml/ob1/pml_ob1.h
++++ b/ompi/mca/pml/ob1/pml_ob1.h
+@@ -257,0 +258,6 @@ do {                                                            \
++/**
++ * A thread-safe function that should be called every time we need the OB1
++ * progress to be turned (or kept) on.
++ */
++int mca_pml_ob1_enable_progress(int32_t count);
++
+@@ -272,0 +279,4 @@ static inline void mca_pml_ob1_add_to_pending (ompi_proc_t *proc, mca_bml_base_b
++    /* Drive mca_pml_ob1_progress() so the queue is retried from opal_progress()
++     * even if no further BTL completion fires to call
++     * MCA_PML_OB1_PROGRESS_PENDING. */
++    mca_pml_ob1_enable_progress(1);
+@@ -414,6 +423,0 @@ mca_pml_ob1_calc_weighted_length( mca_pml_ob1_com_btl_t *btls, int num_btls, siz
+-/**
+- * A thread-safe function that should be called every time we need the OB1
+- * progress to be turned (or kept) on.
+- */
+-int mca_pml_ob1_enable_progress(int32_t count);
+-
+diff --git a/ompi/mca/pml/ob1/pml_ob1_progress.c b/ompi/mca/pml/ob1/pml_ob1_progress.c
+--- a/ompi/mca/pml/ob1/pml_ob1_progress.c
++++ b/ompi/mca/pml/ob1/pml_ob1_progress.c
+@@ -73,0 +74,15 @@ int mca_pml_ob1_progress(void)
++    /* Drain the FIN/ACK control-packet retry queue. It is otherwise drained
++     * only as a side effect of BTL completion callbacks (see
++     * MCA_PML_OB1_PROGRESS_PENDING). If the BTL goes idle while packets are
++     * still queued -- e.g. the tail of an incast where btl_sendi() repeatedly
++     * returned OPAL_ERR_OUT_OF_RESOURCE -- no further completion fires, the
++     * queue is never revisited, and every peer waiting on those FINs hangs
++     * forever. Retrying it here, driven by mca_pml_ob1_progress_needed (which
++     * mca_pml_ob1_add_to_pending() bumps via mca_pml_ob1_enable_progress()),
++     * guarantees the queue makes progress even with no BTL traffic in flight. */
++    if( opal_list_get_size(&mca_pml_ob1.pckt_pending) ) {
++        int pckt_before = (int) opal_list_get_size(&mca_pml_ob1.pckt_pending);
++        mca_pml_ob1_process_pending_packets(NULL);
++        completed_requests += pckt_before - (int) opal_list_get_size(&mca_pml_ob1.pckt_pending);
++    }
++
