@@ -1,0 +1,24 @@
+The neural-network potential files in this directory (input.nn, scaling.data and the
+weights.*.data files under train_001/) are not part of CP2K and are not covered by the
+GPL-2.0-or-later license of the CP2K source tree. They are redistributed here under:
+
+    Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+    https://creativecommons.org/licenses/by-sa/4.0/
+    Legal code: https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+Attribution, as required by section 3(a) of that license:
+
+    Copyright (c) the authors of https://github.com/niamhon/nacl-water
+    N. O'Neill, B. X. Shi, K. Fong, A. Michaelides, C. Schran,
+    "To Pair or not to Pair? Machine-Learned Explicitly-Correlated Electronic
+    Structure for NaCl in Water", J. Phys. Chem. Lett. 15, 6081 (2024).
+    DOI: 10.1021/acs.jpclett.4c01030
+
+    Taken from commit 459f90fdce1e68647f1acfa9ef43f4e8b00e69e3, path
+    models/RPA/final_model/train_001/.
+
+Modifications: the file contents are not altered. Of the eight published committee members,
+only train_001 is included here, as PROVENANCE.md explains.
+
+Section 3(a)(1)(C) of the license is satisfied by the URIs above rather than by an inlined
+copy of the legal code.

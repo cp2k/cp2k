@@ -456,6 +456,7 @@ list(
   nnp_environment.F
   nnp_environment_types.F
   nnp_force.F
+  nnp_gpu.F
   nnp_model.F
   nnp_neighbor_interface.F
   local_gemm_api.F
@@ -1612,6 +1613,10 @@ set(CP2K_DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu)
 set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_opencl.c dbm/dbm_multiply_gpu.c)
 
 set(CP2K_PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
+
+set(CP2K_NNP_SRCS_GPU nnp/gpu/nnp_gpu_acsf.cu nnp/gpu/nnp_gpu_scatter.cu
+                      nnp/gpu/nnp_gpu_walk.cu nnp/gpu/nnp_gpu_nn.cu)
+set(CP2K_NNP_SRCS_GPU_C nnp/gpu/nnp_gpu_state.c)
 
 # Standalone programs and unit tests.
 set(CP2K_PROGS_C

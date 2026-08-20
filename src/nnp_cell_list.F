@@ -112,6 +112,13 @@ CONTAINS
 
          IF (rebuild) THEN
             CALL nnp_build_cell_list_cache(cache, cell, exact_cutoff, list_cutoff, skin)
+            ! Count the rebuild so the GPU path can tell whether the image
+            ! translations it last uploaded are still the current ones. A
+            ! counter rather than a per-step flag, because this routine runs on
+            ! every force evaluation while the device is only reached on some of
+            ! them: a flag set on an energy-only step would be cleared before
+            ! the next step that could act on it.
+            cache%rebuild_count = cache%rebuild_count + 1
          ELSE IF (cache%initialized) THEN
             ! On reuse the bin geometry is frozen, but the head/next chain
             ! is rebinned from current positions so the walk still finds every
