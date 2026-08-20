@@ -2222,6 +2222,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER_RHO", &
+                          description="RI-RS linearized RT-BSE: block-filter threshold on the propagated "// &
+                          "response density Delta-rho (AO), applied upstream of the phi.Delta-rho.phi^T "// &
+                          "projection that the Hartree shares, so it cuts the SEX kernel and the Hartree "// &
+                          "response alike. Absolute: its strength is the ratio to the Delta-rho scale "// &
+                          "(DELTA_PULSE_SCALE for a delta kick).", &
+                          usage="EPS_FILTER_RHO 1.0E-6", &
+                          default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_rtbse_section
 ! **************************************************************************************************
 !> \brief Creates the subsection for Fourier transform options applicable to RTP output
