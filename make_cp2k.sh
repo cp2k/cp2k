@@ -431,7 +431,7 @@ while [[ $# -gt 0 ]]; do
     -gm | -gpu | --gpu_model)
       if (($# > 1)); then
         case "${2^^}" in
-          P100 | V100 | T400 | A100 | A40 | H100 | H200 | GH200)
+          P100 | V100 | T400 | A100 | A40 | H100 | H200 | GH200 | B200)
             GPU_MODEL="${2^^}"
             case "${GPU_MODEL}" in
               P100)
@@ -452,21 +452,24 @@ while [[ $# -gt 0 ]]; do
               H100 | H200 | GH200)
                 CUDA_SM_CODE=90
                 ;;
+              B200)
+                CUDA_SM_CODE=100
+                ;;
             esac
             ;;
-          60 | 70 | 75 | 80 | 86 | 87 | 89 | 90 | 120 | 121)
+          60 | 70 | 75 | 80 | 86 | 87 | 89 | 90 | 100 | 120 | 121)
             CUDA_SM_CODE=${2}
             ;;
           NONE)
             GPU_MODEL="${2,,}"
             ;;
           *)
-            echo -e "\nERROR: Unknown GPU model \"${2}\" specified (choose <CUDA SM code>, P100, V100, T400, A100, A40, H100, H200, GH200 or none)\n"
+            echo -e "\nERROR: Unknown GPU model \"${2}\" specified (choose <CUDA SM code>, P100, V100, T400, A100, A40, H100, H200, GH200, B200 or none)\n"
             ${EXIT_CMD} 1
             ;;
         esac
       else
-        echo -e "\nERROR: No argument found for flag \"${1}\" (choose <CUDA SM code>, P100, V100, T400, A100, A40, H100, H200, GH200 or none)\n"
+        echo -e "\nERROR: No argument found for flag \"${1}\" (choose <CUDA SM code>, P100, V100, T400, A100, A40, H100, H200, GH200, B200 or none)\n"
         ${EXIT_CMD} 1
       fi
       shift 2
@@ -759,7 +762,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-cv | --cp2k_version (pdbg | psmp | sdbg | ssmp | ssmp-static)]"
   echo "                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)"
   echo "                    [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)"
-  echo "                    [-gm | -gpu  | --gpu_model (<CUDA SM code> | P100 | V100 | T400 | A100 | H100 | H200 | GH200 | none)]"
+  echo "                    [-gm | -gpu  | --gpu_model (<CUDA SM code> | P100 | V100 | T400 | A100 | H100 | H200 | GH200 | B200 | none)]"
   echo "                    [-gromacs GROMACS_VERSION]"
   echo "                    [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]"
   echo "                    [-h | --help]"
