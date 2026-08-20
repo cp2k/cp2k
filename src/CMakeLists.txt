@@ -568,6 +568,9 @@ list(
   qs_dftb_utils.F
   qs_diis.F
   qs_diis_types.F
+  qs_scf_subspace_types.F
+  qs_scf_subspace_math.F
+  qs_scf_subspace.F
   qs_dispersion_nonloc.F
   qs_dispersion_d2.F
   qs_dispersion_d3.F

@@ -64,7 +64,7 @@ MODULE qs_scf_diagonalization
                                               cp_print_key_unit_nr
    USE input_constants,                 ONLY: &
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
-        core_guess, general_roks, high_spin_roks, restart_guess
+        core_guess, diag_update_method_adiis, general_roks, high_spin_roks, restart_guess
    USE input_cp2k_kpoints,              ONLY: lattice_fft_auto,&
                                               lattice_fft_off,&
                                               lattice_fft_on
@@ -183,43 +183,69 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: diis_step
 
       INTEGER                                            :: ispin, nao, nspin
-      LOGICAL                                            :: do_level_shift, owns_ortho, use_jacobi
+      LOGICAL                                            :: do_level_shift, owns_ortho, use_adiis, &
+                                                            use_jacobi, use_subspace_fock
       REAL(KIND=dp)                                      :: diis_error, eps_diis
       TYPE(cp_fm_type), POINTER                          :: ortho
-      TYPE(dbcsr_type), POINTER                          :: ortho_dbcsr
+      TYPE(dbcsr_type), POINTER                          :: effective_ks_dbcsr, ortho_dbcsr
 
       nspin = SIZE(matrix_ks)
-      NULLIFY (ortho, ortho_dbcsr)
+      NULLIFY (effective_ks_dbcsr, ortho, ortho_dbcsr)
+
+      use_adiis = scf_control%diagonalization%update_method == diag_update_method_adiis
+      use_subspace_fock = .FALSE.
+      IF (use_adiis) THEN
+         IF (.NOT. ASSOCIATED(scf_env%scf_subspace_buffer)) THEN
+            CPABORT("ADIIS is only available in the main Quickstep SCF workflow")
+         END IF
+         use_subspace_fock = scf_env%scf_subspace_buffer%use_combined_fock
+      END IF
 
       DO ispin = 1, nspin
-         CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, &
-                               scf_env%scf_work1(ispin))
+         IF (use_subspace_fock) THEN
+            CALL copy_dbcsr_to_fm(scf_env%scf_subspace_buffer%combined_fock(ispin, 1)%matrix, &
+                                  scf_env%scf_work1(ispin))
+         ELSE
+            CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, scf_env%scf_work1(ispin))
+         END IF
       END DO
 
       eps_diis = scf_control%eps_diis
 
-      IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
-         CALL qs_diis_b_step(scf_env%scf_diis_buffer, mos, scf_env%scf_work1, &
-                             scf_env%scf_work2, scf_env%iter_delta, diis_error, diis_step, &
-                             eps_diis, scf_control%nmixing, &
-                             s_matrix=matrix_s, &
-                             scf_section=scf_section)
-      ELSE
+      IF (use_adiis) THEN
          diis_step = .FALSE.
+         diis_error = scf_env%scf_subspace_buffer%last_old_fock_weight
+      ELSE
+         IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
+            CALL qs_diis_b_step(scf_env%scf_diis_buffer, mos, scf_env%scf_work1, &
+                                scf_env%scf_work2, scf_env%iter_delta, diis_error, diis_step, &
+                                eps_diis, scf_control%nmixing, &
+                                s_matrix=matrix_s, &
+                                scf_section=scf_section)
+         ELSE
+            diis_step = .FALSE.
+         END IF
       END IF
 
       do_level_shift = ((scf_control%level_shift /= 0.0_dp) .AND. &
                         ((scf_control%density_guess == core_guess) .OR. &
                          (scf_env%iter_count > 1)))
 
-      IF ((scf_env%iter_count > 1) .AND. &
+      IF (.NOT. use_adiis .AND. (scf_env%iter_count > 1) .AND. &
           (scf_env%iter_delta < scf_control%diagonalization%eps_jacobi)) THEN
          use_jacobi = .TRUE.
       ELSE
          use_jacobi = .FALSE.
       END IF
 
-      IF (diis_step) THEN
+      IF (use_adiis) THEN
+         scf_env%iter_param = diis_error
+         IF (scf_env%scf_subspace_buffer%last_restart) THEN
+            scf_env%iter_method = "ADIIS/Restart"
+         ELSE
+            scf_env%iter_method = "ADIIS/Diag."
+         END IF
+      ELSE IF (diis_step) THEN
          scf_env%iter_param = diis_error
          IF (use_jacobi) THEN
             scf_env%iter_method = "DIIS/Jacobi"
@@ -249,7 +275,11 @@ CONTAINS
       IF (scf_env%cholesky_method == cholesky_dbcsr) THEN
          ortho_dbcsr => scf_env%ortho_dbcsr
          DO ispin = 1, nspin
-            CALL eigensolver_dbcsr(matrix_ks=matrix_ks(ispin)%matrix, matrix_ks_fm=scf_env%scf_work1(ispin), &
+            effective_ks_dbcsr => matrix_ks(ispin)%matrix
+            IF (use_subspace_fock) THEN
+               effective_ks_dbcsr => scf_env%scf_subspace_buffer%combined_fock(ispin, 1)%matrix
+            END IF
+            CALL eigensolver_dbcsr(matrix_ks=effective_ks_dbcsr, matrix_ks_fm=scf_env%scf_work1(ispin), &
                                    mo_set=mos(ispin), &
                                    ortho_dbcsr=ortho_dbcsr, &
                                    ksbuf1=scf_env%buf1_dbcsr, ksbuf2=scf_env%buf2_dbcsr)
@@ -479,8 +509,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_diis, my_kpgrp, spin_grid_fft, &
-                                                            use_grid_fft, use_omp_kpoints, &
-                                                            use_real_wfn
+                                                            use_adiis, use_grid_fft, &
+                                                            use_omp_kpoints, use_real_wfn
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
@@ -490,6 +520,7 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fmdummy, fmlocal, rksmat, rsmat
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: effective_ks
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_global
@@ -502,7 +533,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (sab_nl)
+      NULLIFY (effective_ks, sab_nl)
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
                            nkp_groups=nkp_groups, kp_dist=kp_dist, sab_nl=sab_nl, &
                            cell_to_index=cell_to_index, nkp_grid=nkp_grid, lattice_fft=lattice_fft)
@@ -511,8 +542,19 @@ CONTAINS
 
       !Whether we use DIIS for k-points
       do_diis = .FALSE.
-      IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis .AND. .NOT. use_real_wfn &
-          .AND. PRESENT(diis_error) .AND. PRESENT(qs_env)) do_diis = .TRUE.
+      use_adiis = update_p .AND. scf_control%diagonalization%update_method == diag_update_method_adiis
+      IF (use_adiis) THEN
+         CPASSERT(ASSOCIATED(scf_env%scf_subspace_buffer))
+      END IF
+      IF (.NOT. use_adiis .AND. scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis .AND. &
+          .NOT. use_real_wfn .AND. PRESENT(diis_error) .AND. PRESENT(qs_env)) do_diis = .TRUE.
+
+      effective_ks => matrix_ks
+      IF (use_adiis) THEN
+         IF (scf_env%scf_subspace_buffer%use_combined_fock) THEN
+            effective_ks => scf_env%scf_subspace_buffer%combined_fock
+         END IF
+      END IF
 
       para_env => kpoints%blacs_env_all%para_env
       nspin = SIZE(matrix_ks, 1)
@@ -528,7 +570,7 @@ CONTAINS
       IF (diag_check_requested()) use_omp_kpoints = .FALSE.
 
       IF (use_omp_kpoints) THEN
-         CALL do_general_diag_kp_omp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, update_p, &
+         CALL do_general_diag_kp_omp(effective_ks, matrix_s, kpoints, scf_env, scf_control, update_p, &
                                      diis_step, do_diis, qs_env, diis_error, probe, sab_nl, &
                                      cell_to_index, xkp)
          CALL timestop(handle)
@@ -592,7 +634,7 @@ CONTAINS
       END IF
       IF (use_grid_fft) THEN
          DO ispin = 1, nspin
-            CALL rskp_transform_grid_prepare(ks_grid(ispin), rmatrix, matrix_ks, ispin, xkp, nkp_grid, &
+            CALL rskp_transform_grid_prepare(ks_grid(ispin), rmatrix, effective_ks, ispin, xkp, nkp_grid, &
                                              cell_to_index, sab_nl, spin_grid_fft, &
                                              max_storage_bytes=512_int_8*1024_int_8**2/INT(nspin + 1, int_8))
             use_grid_fft = use_grid_fft .AND. spin_grid_fft
@@ -622,7 +664,7 @@ CONTAINS
                      CALL rskp_transform_grid_extract(ks_grid(ispin), ik, rmatrix)
                   ELSE
                      CALL dbcsr_set(rmatrix, 0.0_dp)
-                     CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_ks, ispin=ispin, &
+                     CALL rskp_transform(rmatrix=rmatrix, rsmat=effective_ks, ispin=ispin, &
                                          xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                   END IF
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
@@ -644,7 +686,7 @@ CONTAINS
                   ELSE
                      CALL dbcsr_set(rmatrix, 0.0_dp)
                      CALL dbcsr_set(cmatrix, 0.0_dp)
-                     CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_ks, ispin=ispin, &
+                     CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=effective_ks, ispin=ispin, &
                                          xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                   END IF
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
@@ -758,7 +800,7 @@ CONTAINS
          END DO
 
       ELSE !no DIIS
-         diis_step = .FALSE.
+         IF (.NOT. update_p .OR. use_adiis) diis_step = .FALSE.
          indx = 0
          DO ikp = 1, kplocal
             DO ispin = 1, nspin

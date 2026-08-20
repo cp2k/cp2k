@@ -15,6 +15,7 @@ QS/regtest-gauxc-cuda                                       gauxc_cuda
 QS/regtest-pexsi                                            pexsi
 Fist/regtest-deepmd                                         deepmd !lsan
 Fist/regtest-quip                                           quip
+QS/regtest-adiis
 QS/regtest-pao-2
 ATOM/regtest-1
 QS/regtest-gpw-4
