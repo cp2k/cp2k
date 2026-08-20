@@ -6,7 +6,8 @@
 
 &DEBUG
   DEBUG_FORCES T
-  DEBUG_STRESS_TENSOR T
+  # The default-backend companion covers stress finite differences.
+  DEBUG_STRESS_TENSOR F
   DX 0.0001
   MAX_RELATIVE_ERROR 0.5
   STOP_ON_MISMATCH F
