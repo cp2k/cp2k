@@ -135,36 +135,36 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! ========================================================================
+      ! ==============================================================================
       ! 0. Precompute AO and RI radii
       !    Per-atom cutoff radii from the most diffuse Gaussian primitives of
       !    the AO ("ORB") and RI auxiliary ("RI_AUX") basis sets:
       !      α_min,ao = min { ζ_ao | ζ_ao > 10⁻³ },  α_min,ri analogous
       !      r_ao = sqrt( -ln(ε) / α_min,ao )   (radius_ao_per_atom)
       !      r_ri = sqrt( -ln(ε) / α_min,ri )   (radius_ri_per_atom)
-      ! ========================================================================
+      ! ==============================================================================
       CALL precompute_ri_rs_radii(qs_env, bs_env)
 
-      ! ========================================================================
+      ! ==============================================================================
       ! 1. Grid generation for RI-RS
       !    Modified Lebedev atomic grids (Duchemin & Blase), one per atom,
       !    concatenated into a flat global list:  r_l = R_A + r_l^(A)
-      ! ========================================================================
+      ! ==============================================================================
       CALL ri_rs_grid_assembler(qs_env, bs_env, bs_env%ri_rs%grid_points)
 
-      ! ========================================================================
+      ! ==============================================================================
       ! 2a. Atomic basis evaluation on the grid (grid x AO matrix)
       !     Φ_μl = Φ_μ(r_l)   (mat_phi_mu_l)
-      ! ========================================================================
+      ! ==============================================================================
       CALL atomic_basis_at_grid_point(qs_env, bs_env, bs_env%ri_rs%grid_points, &
                                       bs_env%ri_rs%mat_phi_mu_l)
 
-      ! ========================================================================
+      ! ==============================================================================
       ! 2b. Print the memory estimate for the RI-RS calculation
-      ! ========================================================================
+      ! ==============================================================================
       CALL print_ri_rs_memory_estimate(qs_env, bs_env)
 
-      ! ========================================================================
+      ! ==============================================================================
       ! 3. RI-RS fitting coefficients Z_lP (grid x RI matrix)
       !    Per-atom regularized solve, restricted to grid points r_l within a
       !    cutoff distance of atom P:
@@ -174,45 +174,54 @@ CONTAINS
       !         D'_ll' = d_l D_ll' d_l' + λδ_ll' ,  D'_lP = d_l D_lP
       !      d. Solve Σ_l' D'_ll' Z'_l'P = D'_lP
       !      e. Rescale Z_lP = d_l Z'_lP                        (mat_Z_lP)
-      ! ========================================================================
+      ! ==============================================================================
       CALL compute_coeff_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
                               bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
-      ! flag the RI-RS grid as built so a subsequent RT-BSE run reuses Z_lP instead of rebuilding it
+
+      ! flag the RI-RS grid as built so a subsequent RT-BSE run reuses Z_lP
+      ! instead of rebuilding it
       bs_env%ri_rs%grid_built = .TRUE.
 
-      ! ========================================================================
+      ! ==============================================================================
       ! 4. Polarizability matrix χ on the imaginary-time grid
       !      G^occ_µλ(i|τ|)  = Σ_n^occ C_µn e^(-|(ϵ_n-ϵ_F)τ|) C_λn
       !      G^vir_µλ(i|τ|)  = Σ_n^vir C_µn e^(-|(ϵ_n-ϵ_F)τ|) C_λn
       !      G^occ_ll'(i|τ|) = Σ_µν Φ_µ(r_l) G^occ_µν Φ_ν(r_l')  (G^vir analogous)
       !      χ_ll'(iτ)       = G^occ_ll'(i|τ|) ∘ G^vir_ll'(i|τ|) (element-wise)
       !      χ_PQ(iτ)        = Σ_ll' Z_lP χ_ll'(iτ) Z_l'Q
-      ! ========================================================================
+      ! ==============================================================================
       CALL get_mat_chi_Gamma_tau(bs_env, bs_env%mat_chi_Gamma_tau, &
                                  bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
 
-      ! ========================================================================
+      ! ==============================================================================
       ! 5. Screened Coulomb interaction W (RI basis)
       !      χ_PQ(iτ) -> χ_PQ(iω) -> ε_PQ(iω) -> W_PQ(iω) -> W_PQ(iτ)
-      ! ========================================================================
+      ! ==============================================================================
       CALL compute_W(bs_env, qs_env, bs_env%mat_chi_Gamma_tau, fm_W_time)
 
-      ! ========================================================================
+      ! ==============================================================================
       ! 6. Exact-exchange self-energy Σ^x
       !      D_µν          = Σ_n^occ C_µn C_νn                (density matrix)
       !      D_ll'         = Σ_µν Φ_µ(r_l) D_µν Φ_ν(r_l')
       !      V^tr_ll'      = Σ_PQ Z_lP V^tr_PQ Z_l'Q          (truncated Coulomb)
       !      Σ^x_ll'       = D_ll' ∘ V^tr_ll'
       !      Σ^x_λσ(k=0)   = -Σ_ll' Φ_λ(r_l) Σ^x_ll' Φ_σ(r_l')
-      ! ========================================================================
+      ! ==============================================================================
       CALL compute_Sigma_x(bs_env, qs_env, bs_env%ri_rs%mat_phi_mu_l, &
                            bs_env%ri_rs%mat_Z_lP, fm_Sigma_x_Gamma)
 
-      ! ========================================================================
-      ! 7./8. Correlation self-energy Σ^c and quasiparticle energies, iterated
-      !       until eigenvalue self-consistency if the &EVGW0 section is given and
-      !       done in a single pass for G0W0.
-      ! ========================================================================
+      ! ==============================================================================
+      ! 7. Correlation self-energy Σ^c and quasiparticle energies, iterated
+      !    until eigenvalue self-consistency if the &EVGW0 section is given and
+      !    done in a single pass for G0W0.
+      !
+      !    (a) W_ll'(iτ)   =  Σ_PQ Z_lP W^MIC_PQ(iτ) Z_l'Q
+      !        Σ^c_ll'(iτ) = -G^occ_ll'(i|τ|) ∘ W_ll'(iτ),  τ < 0
+      !        Σ^c_ll'(iτ) =  G^vir_ll'(i|τ|) ∘ W_ll'(iτ),  τ > 0
+      !        Σ^c_λσ(iτ)  =  Σ_ll' Φ_λ(r_l) Σ^c_ll'(iτ) Φ_σ(r_l')
+      !    (b) Σ^c_λσ(iτ) -> Σ^c_nn(ϵ)
+      !        ϵ_n^GW,(i) = ϵ_n^DFT + Σ^c_nn[G^(i-1),W](ϵ_n^GW,(i)) + Σ^x_nn - v^xc_nn
+      ! ==============================================================================
       CALL compute_Sigma_c_and_QP_energies(bs_env, qs_env, fm_W_time, fm_Sigma_x_Gamma)
 
       CALL de_init_bs_env(qs_env, bs_env)
@@ -224,15 +233,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Correlation self-energy and quasiparticle energies, iterated to eigenvalue
 !>        self-consistency in G (evGW0).
-!>
-!>        Per cycle i, the correlation self-energy on the imaginary-time grid
-!>          W_ll'(iτ)   =  Σ_PQ Z_lP W^MIC_PQ(iτ) Z_l'Q
-!>          Σ^c_ll'(iτ) = -G^occ_ll'(i|τ|) ∘ W_ll'(iτ),  τ < 0
-!>          Σ^c_ll'(iτ) =  G^vir_ll'(i|τ|) ∘ W_ll'(iτ),  τ > 0
-!>          Σ^c_λσ(iτ)  =  Σ_ll' Φ_λ(r_l) Σ^c_ll'(iτ) Φ_σ(r_l')
-!>        followed by the analytic continuation iτ -> iω -> real ϵ and the quasiparticle
-!>        equation
-!>          ϵ_n^GW,(i) = ϵ_n^DFT + Σ^c_nn[G^(i-1),W](ϵ_n^GW,(i)) + Σ^x_nn - v^xc_nn .
 !>
 !>        For G0W0 this runs once with G^(0) built from the DFT eigenvalues. For evGW0 the
 !>        Green's function is rebuilt from the quasiparticle energies of all states until the
@@ -290,9 +290,6 @@ CONTAINS
          CALL compute_Sigma_c(bs_env, fm_W_time, bs_env%ri_rs%mat_phi_mu_l, &
                               bs_env%ri_rs%mat_Z_lP, fm_Sigma_c_Gamma_time)
 
-         ! W has been copied into the DBCSR cache; the dense copy is no longer needed
-         IF (bs_env%ri_rs%do_evgw0 .AND. i_iter == 1) CALL cp_fm_release(fm_W_time)
-
          CALL compute_QP_energies(bs_env, qs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time)
 
          IF (.NOT. bs_env%ri_rs%do_evgw0) EXIT
@@ -312,14 +309,9 @@ CONTAINS
          IF (i_iter == n_iter) EXIT
 
          ! ---- update the eigenvalues entering G for the next cycle ----
-         ! ikp = 1 is the Gamma point: this is the non-periodic (molecular) path, so
-         ! eigenval_scf_Gamma and eigenval_G0W0(:, 1, :) describe the same k-point.
          bs_env%eigenval_evGW0(:, :, :) = bs_env%eigenval_G0W0(:, :, :)
          DO ispin = 1, bs_env%n_spin
-            ! Every real state is updated. Entries above n_mo_retained are the placeholders of
-            ! the canonical orthogonalization, not states, and stay where they are: eigenval_G0W0
-            ! carries a finite number there, and copying it would drop the linearly dependent
-            ! modes into the physical spectrum and let them contribute to G.
+            ! Update all physical states; exclude linear-dependency placeholders.
             DO i_mo = 1, bs_env%n_mo_retained
                bs_env%eigenval_scf_Gamma(i_mo, ispin) = bs_env%eigenval_G0W0(i_mo, 1, ispin)
             END DO
@@ -329,6 +321,8 @@ CONTAINS
          END DO
 
       END DO
+
+      CALL cp_fm_release(fm_W_time)
 
       IF (bs_env%ri_rs%do_evgw0) THEN
          IF (.NOT. converged) THEN
@@ -341,9 +335,8 @@ CONTAINS
          bs_env%eigenval_scf_Gamma(:, :) = eigenval_scf_Gamma_dft(:, :)
          bs_env%e_fermi(:) = e_fermi_dft(:)
          DEALLOCATE (eigenval_scf_Gamma_dft)
+         ! compute_QP_energies releases Σ^x itself in the G0W0 case
          CALL cp_fm_release(fm_Sigma_x_Gamma)
-      ELSE
-         CALL cp_fm_release(fm_W_time)
       END IF
 
       CALL delete_unnecessary_files(bs_env)
@@ -4514,13 +4507,11 @@ CONTAINS
       INTEGER                                            :: handle, i_t, ispin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pan_first, pan_last
       INTEGER, DIMENSION(:), POINTER                     :: blk_aux, dist_row_aux
-      LOGICAL                                            :: cache_W_is_filled, do_cache_W
       REAL(KIND=dp)                                      :: t1, tau
       TYPE(dbcsr_distribution_type)                      :: dist_aux_aux
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_Sigma_neg_tau, mat_Sigma_pos_tau
-      TYPE(dbcsr_type)                                   :: matrix_G_occ_ao, matrix_G_vir_ao
-      TYPE(dbcsr_type), POINTER                          :: matrix_W_aux
-      TYPE(dbcsr_type), TARGET                           :: matrix_W_aux_local
+      TYPE(dbcsr_type)                                   :: matrix_G_occ_ao, matrix_G_vir_ao, &
+                                                            matrix_W_aux
 
       CALL timeset(routineN, handle)
 
@@ -4530,18 +4521,6 @@ CONTAINS
       CALL setup_square_topology(mat_Z_lP, dist_aux_aux, blk_aux, dist_row_aux)
 
       CALL resolve_grid_panels(bs_env, mat_phi_mu_l, pan_first, pan_last)
-
-      ! W is frozen in an evGW0 cycle, so the fm -> sparse DBCSR conversion below is done once
-      ! and the resulting matrices are kept for all following iterations. This also lets the
-      ! caller drop the dense fm_W_time right after the first cycle.
-      do_cache_W = bs_env%ri_rs%do_evgw0
-      cache_W_is_filled = ASSOCIATED(bs_env%ri_rs%mat_W_aux_tau)
-      IF (do_cache_W .AND. .NOT. cache_W_is_filled) THEN
-         ALLOCATE (bs_env%ri_rs%mat_W_aux_tau(bs_env%num_time_freq_points))
-         DO i_t = 1, bs_env%num_time_freq_points
-            ALLOCATE (bs_env%ri_rs%mat_W_aux_tau(i_t)%matrix)
-         END DO
-      END IF
 
       ! Pre-allocate local DBCSR matrices to act as targets for final output
       NULLIFY (mat_Sigma_neg_tau, mat_Sigma_pos_tau)
@@ -4565,25 +4544,17 @@ CONTAINS
       DO i_t = 1, bs_env%num_time_freq_points
          tau = bs_env%imag_time_points(i_t)
 
-         IF (do_cache_W) THEN
-            matrix_W_aux => bs_env%ri_rs%mat_W_aux_tau(i_t)%matrix
+         CALL dbcsr_create(matrix_W_aux, "W_aux", dist_aux_aux, dbcsr_type_no_symmetry, &
+                           blk_aux, blk_aux)
+         IF (bs_env%ri_rs%cutoff_radius_g_w > 0.0_dp .AND. &
+             ALLOCATED(bs_env%ri_rs%atom_centers)) THEN
+            CALL reserve_blocks_within_radius(matrix_W_aux, bs_env%ri_rs%atom_centers, &
+                                              bs_env%ri_rs%cutoff_radius_g_w)
+            CALL copy_fm_to_dbcsr(fm_W_time(i_t), matrix_W_aux, keep_sparsity=.TRUE.)
          ELSE
-            matrix_W_aux => matrix_W_aux_local
+            CALL copy_fm_to_dbcsr(fm_W_time(i_t), matrix_W_aux, keep_sparsity=.FALSE.)
          END IF
-
-         IF (.NOT. (do_cache_W .AND. cache_W_is_filled)) THEN
-            CALL dbcsr_create(matrix_W_aux, "W_aux", dist_aux_aux, dbcsr_type_no_symmetry, &
-                              blk_aux, blk_aux)
-            IF (bs_env%ri_rs%cutoff_radius_g_w > 0.0_dp .AND. &
-                ALLOCATED(bs_env%ri_rs%atom_centers)) THEN
-               CALL reserve_blocks_within_radius(matrix_W_aux, bs_env%ri_rs%atom_centers, &
-                                                 bs_env%ri_rs%cutoff_radius_g_w)
-               CALL copy_fm_to_dbcsr(fm_W_time(i_t), matrix_W_aux, keep_sparsity=.TRUE.)
-            ELSE
-               CALL copy_fm_to_dbcsr(fm_W_time(i_t), matrix_W_aux, keep_sparsity=.FALSE.)
-            END IF
-            CALL dbcsr_filter(matrix_W_aux, bs_env%eps_filter)
-         END IF
+         CALL dbcsr_filter(matrix_W_aux, bs_env%eps_filter)
 
          DO ispin = 1, bs_env%n_spin
             t1 = m_walltime()
@@ -4618,8 +4589,7 @@ CONTAINS
 
          END DO ! ispin
 
-         ! when cached, W is kept alive across the evGW0 cycles
-         IF (.NOT. do_cache_W) CALL dbcsr_release(matrix_W_aux)
+         CALL dbcsr_release(matrix_W_aux)
 
       END DO ! i_t
 

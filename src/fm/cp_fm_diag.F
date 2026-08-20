@@ -83,12 +83,8 @@ MODULE cp_fm_diag
 
    REAL(KIND=dp), PARAMETER, PUBLIC :: eps_check_diag_default = 5.0E-14_dp
 
-   ! Eigenvalue assigned to the basis modes that the canonical orthogonalization removes
-   ! because they are linearly dependent. These are placeholders: the value only
-   ! has to sit far above every real eigenvalue so that the removed modes sort to the top of
-   ! the spectrum. Code that consumes the eigenvalues afterwards has to recognise them as
-   ! placeholders (GW, for instance, must keep them out of the energy range of its minimax
-   ! grid).
+   ! Placeholder eigenvalue for linearly dependent modes removed by canonical orthogonalization.
+   ! Pushes unphysical states above the real spectrum so downstream routines can ignore them.
    REAL(KIND=dp), PARAMETER, PUBLIC :: set_removed_eigval_to = 10000.0_dp
 
    ! The following saved variables are diagonalization global

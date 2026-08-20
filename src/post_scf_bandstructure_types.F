@@ -88,10 +88,6 @@ MODULE post_scf_bandstructure_types
       ! the bandstructure file instead of overwriting it
       INTEGER                                          :: evgw0_i_iter = 0
 
-      ! W_PQ(iτ) as a filtered DBCSR matrix, one per time point; frozen in GW0, so it is built
-      ! in the first evGW0 cycle and reused afterwards.
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: mat_W_aux_tau => NULL()
-
       ! Data types for cutoffs based DBCSR matrices
       REAL(KIND=dp), ALLOCATABLE                       :: chunk_centroids(:, :)
       REAL(KIND=dp), ALLOCATABLE                       :: atom_centers(:, :)
@@ -575,8 +571,6 @@ CONTAINS
       IF (ALLOCATED(bs_env%ri_rs%grid_atom_boundaries)) DEALLOCATE (bs_env%ri_rs%grid_atom_boundaries)
       IF (ALLOCATED(bs_env%ri_rs%pan_first)) DEALLOCATE (bs_env%ri_rs%pan_first)
       IF (ALLOCATED(bs_env%ri_rs%pan_last)) DEALLOCATE (bs_env%ri_rs%pan_last)
-
-      CALL safe_dbcsr_deallocate_matrix_set_1d(bs_env%ri_rs%mat_W_aux_tau)
 
       DEALLOCATE (bs_env)
 
