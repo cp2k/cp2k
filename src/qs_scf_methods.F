@@ -29,9 +29,9 @@ MODULE qs_scf_methods
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
-   USE cp_fm_cusolver_api,              ONLY: cp_fm_general_cusolver
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
-                                              cp_fm_block_jacobi
+                                              cp_fm_block_jacobi,&
+                                              cp_fm_geeig
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_equivalent,&
                                               cp_fm_struct_release,&
