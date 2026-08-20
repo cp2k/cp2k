@@ -219,7 +219,7 @@ def main() -> None:
                 gcc_version=13,
                 gpu_model="P100",
                 feature_flags="",
-                testopts=f"{testopts} --timeout 400",
+                testopts=f"{testopts} --timeout 400 --maxtasks=16",
                 image_tag=f.image_tag,
             )
         )
