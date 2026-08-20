@@ -140,7 +140,7 @@ OPTIONS:
                           Default = native
   --gpu-ver               Select the target GPU architecture for compiling.
                           Available options are: K20X, K40, K80, P100, V100,
-                          A100, H100, GB10, A40, Mi50, Mi100, Mi250, and no.
+                          A100, H100, B200, GB10, A40, Mi50, Mi100, Mi250, and no.
                           This option determines the value of nvcc -arch flag.
                           Default = no
   --libint-lmax           Maximum supported angular momentum by libint if the
@@ -720,13 +720,13 @@ Otherwise use option no."
     --gpu-ver=*)
       user_input="${1#*=}"
       case "${user_input}" in
-        K20X | K40 | K80 | P100 | V100 | A100 | H100 | GB10 | A40 | Mi50 | Mi100 | Mi250 | no)
+        K20X | K40 | K80 | P100 | V100 | A100 | H100 | B200 | GB10 | A40 | Mi50 | Mi100 | Mi250 | no)
           export GPUVER="${user_input}"
           ;;
         *)
           echo "ERROR: Invalid value for --gpu-ver found."
           echo "Currently only one of the following options is supported:
-            K20X, K40, K80, P100, V100, A100, H100, GB10, A40, Mi50, Mi100, Mi250.
+            K20X, K40, K80, P100, V100, A100, H100, B200, GB10, A40, Mi50, Mi100, Mi250.
 Otherwise use option no."
           exit 1
           ;;
@@ -1104,7 +1104,7 @@ if [ "${ENABLE_GAUXC_CUTLASS}" = "__TRUE__" ]; then
     report_error ${LINENO} "--enable-gauxc-cutlass requires --enable-cuda=yes."
   fi
   case "${GPUVER}" in
-    A100 | A40 | H100 | GB10) ;;
+    A100 | A40 | H100 | B200 | GB10) ;;
     *)
       report_error ${LINENO} "--enable-gauxc-cutlass requires CUDA compute capability >= 8.0."
       ;;
@@ -1287,6 +1287,9 @@ case ${GPUVER} in
   H100)
     export ARCH_NUM="90"
     ;;
+  B200)
+    export ARCH_NUM="100"
+    ;;
   GB10)
     export ARCH_NUM="121"
     ;;
@@ -1305,7 +1308,7 @@ case ${GPUVER} in
   *)
     echo "ERROR: Invalid value for --gpu-ver found."
     echo "Currently only one of the following options is supported:
-      K20X, K40, K80, P100, V100, A100, H100, A40, Mi50, Mi100, Mi250.
+      K20X, K40, K80, P100, V100, A100, H100, B200, GB10, A40, Mi50, Mi100, Mi250.
 Otherwise use option no."
     exit 1
     ;;
