@@ -820,7 +820,7 @@ CONTAINS
                      ELSE
                         ambm = 0.0_dp
                      END IF
-                     ddab(ia, ib, 1) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(bx, dp)*apbm &
+                     ddab(ia, ib, 1) = -4.0_dp*a*b*apbp + 2.0_dp*a*REAL(bx, dp)*apbm &
                                        + 2.0_dp*b*REAL(ax, dp)*ambp - REAL(ax, dp)*REAL(bx, dp)*ambm
                      ! dx dy
                      apbp = f0*rr(ax + 1, bx, 1)*rr(ay, by + 1, 2)*rr(az, bz, 3)
@@ -839,7 +839,7 @@ CONTAINS
                      ELSE
                         ambm = 0.0_dp
                      END IF
-                     ddab(ia, ib, 2) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(by, dp)*apbm &
+                     ddab(ia, ib, 2) = -4.0_dp*a*b*apbp + 2.0_dp*a*REAL(by, dp)*apbm &
                                        + 2.0_dp*b*REAL(ax, dp)*ambp - REAL(ax, dp)*REAL(by, dp)*ambm
                      ! dx dz
                      apbp = f0*rr(ax + 1, bx, 1)*rr(ay, by, 2)*rr(az, bz + 1, 3)
@@ -858,7 +858,7 @@ CONTAINS
                      ELSE
                         ambm = 0.0_dp
                      END IF
-                     ddab(ia, ib, 3) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(bz, dp)*apbm &
+                     ddab(ia, ib, 3) = -4.0_dp*a*b*apbp + 2.0_dp*a*REAL(bz, dp)*apbm &
                                        + 2.0_dp*b*REAL(ax, dp)*ambp - REAL(ax, dp)*REAL(bz, dp)*ambm
                      ! dy dy
                      apbp = f0*rr(ax, bx, 1)*rr(ay + 1, by + 1, 2)*rr(az, bz, 3)
@@ -877,7 +877,7 @@ CONTAINS
                      ELSE
                         ambm = 0.0_dp
                      END IF
-                     ddab(ia, ib, 4) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(by, dp)*apbm &
+                     ddab(ia, ib, 4) = -4.0_dp*a*b*apbp + 2.0_dp*a*REAL(by, dp)*apbm &
                                        + 2.0_dp*b*REAL(ay, dp)*ambp - REAL(ay, dp)*REAL(by, dp)*ambm
                      ! dy dz
                      apbp = f0*rr(ax, bx, 1)*rr(ay + 1, by, 2)*rr(az, bz + 1, 3)
@@ -896,7 +896,7 @@ CONTAINS
                      ELSE
                         ambm = 0.0_dp
                      END IF
-                     ddab(ia, ib, 5) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(bz, dp)*apbm &
+                     ddab(ia, ib, 5) = -4.0_dp*a*b*apbp + 2.0_dp*a*REAL(bz, dp)*apbm &
                                        + 2.0_dp*b*REAL(ay, dp)*ambp - REAL(ay, dp)*REAL(bz, dp)*ambm
                      ! dz dz
                      apbp = f0*rr(ax, bx, 1)*rr(ay, by, 2)*rr(az + 1, bz + 1, 3)
@@ -915,7 +915,7 @@ CONTAINS
                      ELSE
                         ambm = 0.0_dp
                      END IF
-                     ddab(ia, ib, 6) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(bz, dp)*apbm &
+                     ddab(ia, ib, 6) = -4.0_dp*a*b*apbp + 2.0_dp*a*REAL(bz, dp)*apbm &
                                        + 2.0_dp*b*REAL(az, dp)*ambp - REAL(az, dp)*REAL(bz, dp)*ambm
                   END IF
                   !
