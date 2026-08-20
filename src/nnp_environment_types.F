@@ -412,8 +412,9 @@ MODULE nnp_environment_types
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: n_anggrp
       TYPE(nnp_neighbor_pair_map_type), ALLOCATABLE, &
          DIMENSION(:, :)                                  :: pair_map
+      ! (element, thread): one workspace column per OpenMP thread
       TYPE(nnp_neighbor_workspace_type), ALLOCATABLE, &
-         DIMENSION(:)                                     :: workspace
+         DIMENSION(:, :)                                  :: workspace
    END TYPE nnp_neighbor_interface_state_type
 
 ! **************************************************************************************************
@@ -642,8 +643,10 @@ CONTAINS
       END IF
 
       IF (ALLOCATED(state%workspace)) THEN
-         DO i = 1, SIZE(state%workspace)
-            CALL nnp_workspace_release(state%workspace(i))
+         DO j = 1, SIZE(state%workspace, 2)
+            DO i = 1, SIZE(state%workspace, 1)
+               CALL nnp_workspace_release(state%workspace(i, j))
+            END DO
          END DO
          DEALLOCATE (state%workspace)
       END IF
