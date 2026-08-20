@@ -144,6 +144,11 @@ BSD_PATHS = (
 )
 MIT_PATHS = ("src/grpp/",)
 
+# Redistributed data that is not covered by the CP2K source licenses. Every file
+# below these paths (except the LICENSE file itself) must declare its license
+# through an SPDX identifier near the top.
+CC_BY_SA_PATHS = ("data/NNP/NaClaq-cnnp/",)
+
 
 @lru_cache(maxsize=None)
 def get_src_cmakelists_txt() -> str:
@@ -262,6 +267,10 @@ def check_file(path: pathlib.Path) -> List[str]:
         warnings += [f"{path}: Copyright banner malformed"]
     if path.name == "LICENSE" and bsd_licensed and f"2000-{year}" not in content:
         warnings += [f"{path}: Copyright banner malformed"]
+    if any(str(path).startswith(p) for p in CC_BY_SA_PATHS) and path.name != "LICENSE":
+        head = "\n".join(content.split("\n")[:8])
+        if "SPDX-License-Identifier: CC-BY-SA-4.0" not in head:
+            warnings += [f"{path}: Missing SPDX-License-Identifier: CC-BY-SA-4.0"]
     if path.name == "cp2k_info.F" and f'cp2k_year = "{year}"' not in content:
         warnings += [f"{path}: Wrong year."]
 

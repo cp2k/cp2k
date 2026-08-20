@@ -204,6 +204,10 @@ cmake_dependent_option(CP2K_ENABLE_LIBXC_GPU "Enable the GPU backend of libxc."
                        ON "CP2K_USE_ACCEL MATCHES \"CUDA\"" OFF)
 
 cmake_dependent_option(
+  CP2K_ENABLE_NNP_GPU "Enable the GPU backend of the NNP force evaluation." ON
+  "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
+
+cmake_dependent_option(
   CP2K_USE_UNIFIED_MEMORY "Use CPU/GPU unified memory (Mi250x onwards)" OFF
   "CP2K_USE_ACCEL MATCHES \"HIP\"" OFF)
 
@@ -1074,7 +1078,8 @@ if(CP2K_USE_ACCEL MATCHES "CUDA" OR CP2K_USE_ACCEL MATCHES "HIP")
     "      - GRID: ${CP2K_ENABLE_GRID_GPU}\n"
     "      - DBM: ${CP2K_ENABLE_DBM_GPU}\n"
     "      - PW: ${CP2K_ENABLE_PW_GPU}\n"
-    "      - LIBXC: ${CP2K_ENABLE_LIBXC_GPU}\n")
+    "      - LIBXC: ${CP2K_ENABLE_LIBXC_GPU}\n"
+    "      - NNP: ${CP2K_ENABLE_NNP_GPU}\n")
 endif()
 
 if(CP2K_USE_ACCEL MATCHES "OPENCL")
