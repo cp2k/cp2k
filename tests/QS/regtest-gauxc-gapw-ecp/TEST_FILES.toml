@@ -1,1 +1,2 @@
 "HCl_GAPW_SKALA_ECP_ENERGY.inp" = [{matcher="E_total", tol=5e-6, ref=-15.464581508021762}]
+"HCl_GAUXC_PBE_GAPW_ECP_FORCE_DEBUG.inp" = [{matcher="DEBUG_force_sum", tol=2e-5, ref=0.0}]
