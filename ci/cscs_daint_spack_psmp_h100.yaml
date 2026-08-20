@@ -114,6 +114,7 @@ benchmark cp2k 1 daint node:
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
@@ -121,6 +122,7 @@ benchmark cp2k 1 daint node:
     SLURM_CPU_BIND: cores
     SLURM_CPUS_PER_TASK: 3
     SLURM_DEBUG: 1
+    SLURM_GPUS_PER_TASK: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
@@ -137,6 +139,7 @@ benchmark cp2k 1 daint node elpa:
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
@@ -144,6 +147,7 @@ benchmark cp2k 1 daint node elpa:
     SLURM_CPU_BIND: cores
     SLURM_CPUS_PER_TASK: 3
     SLURM_DEBUG: 1
+    SLURM_GPUS_PER_TASK: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
@@ -160,6 +164,7 @@ benchmark cp2k 2 daint nodes:
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
@@ -167,6 +172,7 @@ benchmark cp2k 2 daint nodes:
     SLURM_CPU_BIND: cores
     SLURM_CPUS_PER_TASK: 3
     SLURM_DEBUG: 1
+    SLURM_GPUS_PER_TASK: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 2
     SLURM_MPI_TYPE: pmi2
@@ -183,6 +189,7 @@ benchmark cp2k 2 daint nodes elpa:
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
@@ -190,6 +197,7 @@ benchmark cp2k 2 daint nodes elpa:
     SLURM_CPU_BIND: cores
     SLURM_CPUS_PER_TASK: 3
     SLURM_DEBUG: 1
+    SLURM_GPUS_PER_TASK: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 2
     SLURM_MPI_TYPE: pmi2
