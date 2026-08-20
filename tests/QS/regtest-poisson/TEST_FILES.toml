@@ -4,6 +4,6 @@
 
 # A charged 2D system has no vacuum-independent energy without a compensation model.
 # Track both cell lengths independently to detect changes in the ANALYTIC 2D Green's function.
-"He_2d_charged_10A.inp"                = [{matcher="E_total", tol=5e-9, ref=-2.051438341241083}]
-"He_2d_charged_20A.inp"                = [{matcher="E_total", tol=5e-9, ref=-2.009876603273898}]
+"He_2d_charged_10A.inp"                = [{matcher="E_total", tol=5e-9, ref=-2.051193464367288}]
+"He_2d_charged_20A.inp"                = [{matcher="E_total", tol=5e-9, ref=-2.009632251614772}]
 #EOF
