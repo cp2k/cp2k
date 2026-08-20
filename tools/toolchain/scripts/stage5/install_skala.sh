@@ -20,7 +20,7 @@ source "${SCRIPT_DIR}/.."/signal_trap.sh
 source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
 
-[ -f "${BUILDDIR}/setup_skala" ] && rm "${BUILDDIR}/setup_skala"
+[ -f "${INSTALLDIR}/setup_skala" ] && rm "${INSTALLDIR}/setup_skala"
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
@@ -97,19 +97,19 @@ else
 fi
 
 # Create setup file (whether newly installed or already existing)
-cat > "${BUILDDIR}/setup_skala" << EOF
+cat > "${INSTALLDIR}/setup_skala" << EOF
 SKALA_MODEL_VER="${skala_model_ver}"
 SKALA_MODEL_ROOT="${skala_install_dir}"
 SKALA_MODEL="${skala_install_dir}/share/skala/onedft_models/${skala_model_pkg}"
 EOF
 if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
-  cat >> "${BUILDDIR}/setup_skala" << EOF
+  cat >> "${INSTALLDIR}/setup_skala" << EOF
 SKALA_CUDA_MODEL="${skala_install_dir}/share/skala/onedft_models/${skala_cuda_model_pkg}"
 EOF
 fi
 
-filter_setup "${BUILDDIR}/setup_skala" "${SETUPFILE}"
-load "${BUILDDIR}/setup_skala"
+filter_setup "${INSTALLDIR}/setup_skala" "${SETUPFILE}"
+load "${INSTALLDIR}/setup_skala"
 write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
