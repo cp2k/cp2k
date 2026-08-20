@@ -13,7 +13,7 @@
                                       {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=431.893413318}]
 "H2_NATIVE_SKALA_GPW_STRESS_CHUNK_REQUEST.inp" = [{matcher="E_total", tol=1e-8, ref=-1.04112616002623}]
 "H2O_NATIVE_SKALA_GPW_NLCC_ENERGY.inp" = [{matcher="E_total", tol=5e-4, ref=-18.01870707},
-                                             {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=8.88469292329}]
+                                             {matcher="SKALA_GAPW_composite_electrons", tol=1e-8, ref=8.88469292329}]
 "H2P_NATIVE_SKALA_GPW_UKS_PBC_FORCE_DEBUG.inp" = [{matcher="E_total", tol=1e-8, ref=-1.56297852439351}]
 "HF_NATIVE_SKALA_GAPW_PAW_NLCC_STRESS.inp" = [{matcher="E_total", tol=5e-4, ref=-23.72450827765146},
                                                 {matcher="SKALA_GAPW_composite_electrons", tol=1e-8, ref=9.23040392825558}]
