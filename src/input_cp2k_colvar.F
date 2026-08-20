@@ -11,7 +11,8 @@
 !> \author teo & fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_colvar
-   USE bibliography,                    ONLY: Branduardi2007
+   USE bibliography,                    ONLY: Branduardi2007,&
+                                              Zhang2025
    USE colvar_types,                    ONLY: &
         do_clv_fix_point, do_clv_geo_center, do_clv_x, do_clv_xy, do_clv_xyz, do_clv_xz, do_clv_y, &
         do_clv_yz, do_clv_z, plane_def_atoms, plane_def_vec
@@ -228,6 +229,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_colvar_cond_dist_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_voronoiipz_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -2300,5 +2305,95 @@ CONTAINS
    END SUBROUTINE create_colvar_ring_puckering_section
 
 ! **************************************************************************************************
+!> \brief Creates the VORONOIIPZ collective variable input section
+!> \param section the section to create
+! **************************************************************************************************
+   SUBROUTINE create_voronoiipz_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      NULLIFY (keyword)
+      CALL section_create(section, __LOCATION__, name="VORONOIIPZ", &
+                          description="Absolute location of a hydronium ion along a Cartesian axis, "// &
+                          "based on continuous Voronoi weights.", &
+                          citations=[Zhang2025], n_subsections=0, repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
+                          description="Exponent in the Voronoi weight exp(LAMBDA*r). "// &
+                          "Negative values assign each hydrogen predominantly to nearby oxygen atoms.", &
+                          usage="LAMBDA [angstrom^-1] -8.0", type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=-8.0_dp, unit_str="angstrom^-1"), &
+                          unit_str="angstrom^-1", n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ZMID", &
+                          description="Coordinate of the reference plane along the selected axis.", &
+                          usage="ZMID [angstrom] 0.0", type_of_var=real_t, default_r_val=0.0_dp, &
+                          unit_str="angstrom", n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ZIDX", &
+                          description="Cartesian direction used for the ion location: 1=X, 2=Y, 3=Z.", &
+                          usage="ZIDX 3", type_of_var=integer_t, default_i_val=3, n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="D_0", &
+                          description="Reference coordination of the non-reactive GROUPA atoms.", &
+                          usage="D_0 2.0", type_of_var=real_t, default_r_val=2.0_dp, n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="D_1", &
+                          description="Reference coordination of the first reactive GROUPA atom.", &
+                          usage="D_1 2.0", type_of_var=real_t, default_r_val=2.0_dp, n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="D_2", &
+                          description="Reference coordination of the second reactive GROUPA atom.", &
+                          usage="D_2 2.0", type_of_var=real_t, default_r_val=2.0_dp, n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="D_3", &
+                          description="Reference coordination of the third reactive GROUPA atom.", &
+                          usage="D_3 2.0", type_of_var=real_t, default_r_val=2.0_dp, n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NL_CUTOFF", &
+                          description="Maximum GROUPA-GROUPB distance included in the Voronoi weights.", &
+                          usage="NL_CUTOFF [angstrom] 2.4", &
+                          default_r_val=cp_unit_to_cp2k(value=2.4_dp, unit_str="angstrom"), &
+                          unit_str="angstrom", n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="GROUPA", &
+                          description="Oxygen atoms used as Voronoi sites. Any reactive sites must "// &
+                          "be the final NRX entries.", &
+                          usage="GROUPA 1 4 7", n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="GROUPB", &
+                          description="Hydrogen atoms assigned to the GROUPA sites.", &
+                          usage="GROUPB 2 3 5 6 8 9", n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NRX", &
+                          description="Number of reactive sites at the end of GROUPA (zero to three). "// &
+                          "Their reference coordinations are D_1 through D_3.", &
+                          usage="NRX 0", type_of_var=integer_t, default_i_val=0, n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_voronoiipz_section
 
 END MODULE input_cp2k_colvar
