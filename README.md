@@ -37,14 +37,12 @@ help on git, see [Git Tips & Tricks](https://github.com/cp2k/cp2k/wiki/Git-Tips-
 
 ## Install CP2K
 
-CP2K manual provides installation instructions for below available methods:
+The [installation instructions](https://manual.cp2k.org/trunk/getting-started/installation.md) in
+the CP2K manual provide several methods for installing CP2K with dependencies:
 
 - [Build from Source](https://manual.cp2k.org/trunk/getting-started/build-from-source.html)
 - [Build with Spack](https://manual.cp2k.org/trunk/getting-started/build-with-spack.html)
 - [Install from Distribution](https://manual.cp2k.org/trunk/getting-started/distributions.html)
-
-For building CP2K from scratch, including GPU acceleration for NVIDIA (CUDA), AMD (HIP/ROCm), or
-OpenCL devices, also see the [installation instructions](./INSTALL.md).
 
 ## Links
 
@@ -63,6 +61,7 @@ OpenCL devices, also see the [installation instructions](./INSTALL.md).
 
 - [`src`](./src): The source code
 - [`data`](./data): Simulation parameters e.g. basis sets and pseudopotentials
+- [`docs`](./docs/): The markdown source pages for documentations that is rendered as the manual
 - [`tests`](./tests): Inputs for tests and regression tests
 - [`tools`](./tools): Mixed collection of useful scripts related to cp2k
 - [`benchmarks`](./benchmarks): Inputs for benchmarks

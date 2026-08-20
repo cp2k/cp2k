@@ -95,16 +95,29 @@ usually takes less than one hour:
 
 ## Join our team
 
-There are three levels of developer teams in the CP2K project, with roles and permissions stated at
-[github docs](https://docs.github.com/en/organizations/managing-user-access-to-your-organizations-repositories/managing-repository-roles/repository-roles-for-an-organization).
+After your very first PR gets accepted and merged, you will receive an invitation to join the
+[`cp2k-developers`](https://github.com/orgs/cp2k/teams/cp2k-developers) team and gain the *triage*
+access to the CP2K repository. This enables new actions compared with the default *read* access:
 
-- The [`cp2k-developers`](https://github.com/orgs/cp2k/teams/cp2k-developers) is the beginner level
-  with *triage* access, which can be joined by accepting an invitation automatically sent out after
-  the very first accepted and merged PR.
-- The [`cp2k-core-developers`](https://github.com/orgs/cp2k/teams/cp2k-core-developers) is the next
-  level for productive contributors, to whom *write* access is granted on a case-by-case basis. And
-  among other powers available, they are eligible for volunteering as a `code owner` of certain code
-  ([see github docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners)),
-  whose review and explicit approval become necessary for any relevant PR from other developers.
-- The [`cp2k-admins`](https://github.com/orgs/cp2k/teams/cp2k-admins) is the ultimate level for
-  administrators in charge of everything.
+- Apply or dismiss assignees, labels, type, and milestone for issues and pull requests;
+- Close or reopen issues and pull requests by others, including converting an issue to a discussion
+  that locks the original issue, but not merging pull requests to the master branch;
+- Trigger CP2K-CI tests in a pull request by making a comment with the `/cp2kci {item}` command.
+
+On a case-by-case basis, productive developers willing to take more responsibility can apply for
+admission to the [`cp2k-core-developers`](https://github.com/orgs/cp2k/teams/cp2k-core-developers)
+team and grant for the *write* access, enabling further actions in the repository:
+
+- Merge a pull request to the master branch;
+- Approve a pull request, or request or apply changes to a pull request;
+- Edit, hide, or delete comments on issues and pull requests by others;
+- Rename issues and pin issues to the top of the list;
+- Create, edit, or delete labels and milestones;
+- Define or become a code owner for some part of the code, who will be notified of any relevant PR
+  and requested for review automatically, and should give explicit approval to get the PR merged.
+
+Contact any member of the [`cp2k-admins`](https://github.com/orgs/cp2k/teams/cp2k-admins) team for
+assistance in repository management, team membership, contribution procedure and CP2K-CI workflow.
+
+For details on the distinct roles and permissions in a github repository, refer to the official
+[github docs](https://docs.github.com/en/organizations/managing-user-access-to-your-organizations-repositories/managing-repository-roles/repository-roles-for-an-organization).
