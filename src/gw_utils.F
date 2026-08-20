@@ -186,16 +186,27 @@ CONTAINS
 
       CALL compute_V_xc(qs_env, bs_env)
 
-      CALL create_tensors(qs_env, bs_env)
+      CALL init_interaction_radii(bs_env)
+
+      ! The RI-RS drivers build their (µν|P) blocks on the fly through gw_3c_ctx
+      ! RT-BSE with the AO-RI kernel need nl_3c it after GW, so
+      ! keep everything when an RT-BSE run follows.
+      IF (.NOT. bs_env%do_gw_ri_rs .OR. &
+          bs_env%rtp_method == rtp_method_bse .OR. &
+          bs_env%rtp_method == rtp_method_bse_linearized) THEN
+         CALL create_tensors(qs_env, bs_env)
+      END IF
 
       SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
       CASE (large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs)
 
          CALL allocate_GW_eigenvalues(bs_env)
 
-         CALL check_sparsity_3c(qs_env, bs_env)
+         IF (.NOT. bs_env%do_gw_ri_rs) THEN
+            CALL check_sparsity_3c(qs_env, bs_env)
 
-         CALL set_sparsity_parallelization_parameters(bs_env)
+            CALL set_sparsity_parallelization_parameters(bs_env)
+         END IF
 
          CALL check_for_restart_files(qs_env, bs_env)
 
@@ -217,13 +228,16 @@ CONTAINS
 
       CALL setup_time_and_frequency_minimax_grid(bs_env)
 
-      ! free memory in qs_env; only if one is not calculating the LDOS because
-      ! we need real-space grid operations in pw_env, task_list for the LDOS
+      ! Free memory in qs_env. SCF real-space grids, task  lists, neighbor 
+      ! lists and work arrays on large systems hold GBs per rank for the whole run.
+      ! Not required by GW. LDOS and RT-BSE still needs these information.
+      !
       ! Recommendation in case of memory issues: first perform GW calculation without calculating
-      !                                          LDOS (to safe memor). Then, use GW restart files
+      !                                          LDOS (to save memory). Then, use GW restart files
       !                                          in a subsequent calculation to calculate the LDOS
-      ! Marek : TODO - boolean that does not interfere with RTP init but sets this to correct value
-      IF (.NOT. bs_env%do_ldos .AND. .FALSE.) THEN
+      IF (.NOT. bs_env%do_ldos .AND. &
+          bs_env%rtp_method /= rtp_method_bse .AND. &
+          bs_env%rtp_method /= rtp_method_bse_linearized) THEN
          CALL qs_env_part_release(qs_env)
       END IF
 
@@ -784,24 +798,26 @@ CONTAINS
       END IF
       CALL cp_fm_struct_release(fm_struct_RI_global)
 
-      ! create blacs_env for subgroups of tensor operations
-      NULLIFY (blacs_env_tensor)
-      CALL cp_blacs_env_create(blacs_env=blacs_env_tensor, para_env=bs_env%para_env_tensor)
+      IF (.NOT. bs_env%do_gw_ri_rs) THEN
+         ! create blacs_env for subgroups of tensor operations
+         NULLIFY (blacs_env_tensor)
+         CALL cp_blacs_env_create(blacs_env=blacs_env_tensor, para_env=bs_env%para_env_tensor)
 
-      ! allocate dbcsr matrices in the tensor subgroup; actually, one only needs a small
-      ! subset of blocks in the tensor subgroup, however, all atomic blocks are allocated.
-      ! One might think of creating a dbcsr matrix with only the blocks that are needed
-      ! in the tensor subgroup
-      CALL create_mat_munu(bs_env%mat_ao_ao_tensor, qs_env, bs_env%eps_atom_grid_2d_mat, &
-                           blacs_env_tensor, do_ri_aux_basis=.FALSE.)
+         ! allocate dbcsr matrices in the tensor subgroup; actually, one only needs a small
+         ! subset of blocks in the tensor subgroup, however, all atomic blocks are allocated.
+         ! One might think of creating a dbcsr matrix with only the blocks that are needed
+         ! in the tensor subgroup
+         CALL create_mat_munu(bs_env%mat_ao_ao_tensor, qs_env, bs_env%eps_atom_grid_2d_mat, &
+                              blacs_env_tensor, do_ri_aux_basis=.FALSE.)
 
-      CALL create_mat_munu(bs_env%mat_RI_RI_tensor, qs_env, bs_env%eps_atom_grid_2d_mat, &
-                           blacs_env_tensor, do_ri_aux_basis=.TRUE.)
+         CALL create_mat_munu(bs_env%mat_RI_RI_tensor, qs_env, bs_env%eps_atom_grid_2d_mat, &
+                              blacs_env_tensor, do_ri_aux_basis=.TRUE.)
+
+         CALL cp_blacs_env_release(blacs_env_tensor)
+      END IF
 
       CALL create_mat_munu(bs_env%mat_RI_RI, qs_env, bs_env%eps_atom_grid_2d_mat, &
                            blacs_env, do_ri_aux_basis=.TRUE.)
-
-      CALL cp_blacs_env_release(blacs_env_tensor)
 
       NULLIFY (bs_env%mat_chi_Gamma_tau)
       CALL dbcsr_allocate_matrix_set(bs_env%mat_chi_Gamma_tau, bs_env%num_time_freq_points)
@@ -849,8 +865,6 @@ CONTAINS
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-
-      CALL init_interaction_radii(bs_env)
 
       ! split blocks does not improve load balancing/efficienfy for tensor contraction, so we go
       ! with the standard atomic blocks
