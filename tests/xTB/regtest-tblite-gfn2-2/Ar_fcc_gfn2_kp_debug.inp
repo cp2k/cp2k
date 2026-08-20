@@ -5,7 +5,8 @@
 &END GLOBAL
 
 &DEBUG
-  DEBUG_FORCES T
+  # The SPGLIB companion covers force finite differences.
+  DEBUG_FORCES F
   DEBUG_STRESS_TENSOR T
   DX 0.0001
   MAX_RELATIVE_ERROR 0.5
