@@ -427,8 +427,9 @@ CONTAINS
 
          DO ispin = 1, nspin
             CALL cp_fm_get_info(scf_env%scf_work1(ispin), nrow_global=nao)
-            IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. direct_generalized_diagonalization .AND. &
-                nao >= cusolver_n_min .AND. .NOT. do_level_shift) THEN
+            IF (direct_generalized_diagonalization .AND. .NOT. do_level_shift .AND. &
+                ((diag_type == FM_DIAG_TYPE_CUSOLVER .AND. nao >= cusolver_n_min) .OR. &
+                 (diag_type == FM_DIAG_TYPE_DLAF .AND. nao >= dlaf_neigvec_min))) THEN
                CALL eigensolver_generalized(matrix_ks_fm=scf_env%scf_work1(ispin), &
                                             matrix_s=matrix_s(ispin)%matrix, &
                                             mo_set=mos(ispin), &

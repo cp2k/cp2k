@@ -17,6 +17,8 @@
 # allow folks to create a .clang-format to hide their personal style settings
 .clang-format
 
+.fortls
+
 # Created by https://www.gitignore.io/api/python,fortran,c,c++,cuda,emacs,vim,cmake
 
 ### C ###
