@@ -228,7 +228,7 @@ CONTAINS
 
       CALL setup_time_and_frequency_minimax_grid(bs_env)
 
-      ! Free memory in qs_env. SCF real-space grids, task  lists, neighbor 
+      ! Free memory in qs_env. SCF real-space grids, task  lists, neighbor
       ! lists and work arrays on large systems hold GBs per rank for the whole run.
       ! Not required by GW. LDOS and RT-BSE still needs these information.
       !
