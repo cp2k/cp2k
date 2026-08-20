@@ -32,14 +32,15 @@ case "${with_dbcsr}" in
       [ -d dbcsr-${dbcsr_ver} ] && rm -rf dbcsr-${dbcsr_ver}
       tar -xzf dbcsr-${dbcsr_ver}.tar.gz
       cd dbcsr-${dbcsr_ver}
-      # DBCSR may predate GB10. Build native sm_121 code while
+      # DBCSR 2.10 predates GB10 and B200. Build native device code while
       # reusing the closest available libsmm_acc parameters.
-      if [ "${ENABLE_CUDA}" == "__TRUE__" ] && [ "${GPUVER}" == "GB10" ]; then
-        if ! grep -q "GB10" CMakeLists.txt; then
-          sed -i "s/    H100)/    H100\\n    GB10)/" CMakeLists.txt
-          sed -i "/  set(GPU_ARCH_NUMBER_H100 90)/a\\  set(GPU_ARCH_NUMBER_GB10 121)" CMakeLists.txt
+      if [ "${ENABLE_CUDA}" == "__TRUE__" ] &&
+        { [ "${GPUVER}" == "GB10" ] || [ "${GPUVER}" == "B200" ]; }; then
+        if ! grep -q "${GPUVER}" CMakeLists.txt; then
+          sed -i "s/    H100)/    H100\\n    ${GPUVER})/" CMakeLists.txt
+          sed -i "/  set(GPU_ARCH_NUMBER_H100 90)/a\\  set(GPU_ARCH_NUMBER_${GPUVER} ${ARCH_NUM})" CMakeLists.txt
           cp src/acc/libsmm_acc/parameters/parameters_H100.json \
-            src/acc/libsmm_acc/parameters/parameters_GB10.json
+            "src/acc/libsmm_acc/parameters/parameters_${GPUVER}.json"
         fi
       fi
       mkdir build-cpu
