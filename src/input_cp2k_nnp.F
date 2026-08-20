@@ -20,6 +20,11 @@ MODULE input_cp2k_nnp
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               medium_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
+   USE input_constants,                 ONLY: nnp_gpu_prec_double,&
+                                              nnp_gpu_prec_mixed,&
+                                              nnp_use_gpu_auto,&
+                                              nnp_use_gpu_off,&
+                                              nnp_use_gpu_on
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -32,6 +37,7 @@ MODULE input_cp2k_nnp
                                               integer_t,&
                                               real_t
    USE kinds,                           ONLY: dp
+   USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -118,6 +124,56 @@ CONTAINS
                           default_r_val=-1.0_dp, &
                           unit_str="bohr", &
                           usage="VERLET_SKIN [bohr] 0.5")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="USE_GPU", &
+                          description="Choose between the CPU and GPU code paths for "// &
+                          "the NNP energy and force evaluation. The GPU path "// &
+                          "requires a build with CUDA or HIP support; it "// &
+                          "reproduces the CPU results within the "// &
+                          "regression-test tolerances. Analytic stress (e.g. "// &
+                          "NPT) is accumulated on the device by the "// &
+                          "force-scatter kernels; only energy-only "// &
+                          "evaluations always use the CPU path.", &
+                          usage="USE_GPU AUTO", &
+                          repeats=.FALSE., &
+                          enum_c_vals=s2a("AUTO", "ON", "OFF"), &
+                          enum_i_vals=[nnp_use_gpu_auto, nnp_use_gpu_on, nnp_use_gpu_off], &
+                          enum_desc=s2a("Probe for a GPU at initialization and use it when "// &
+                                        "the build supports one, every rank sees a device, "// &
+                                        "the model fits the compiled-in device-table "// &
+                                        "capacities, and the system is large enough for the "// &
+                                        "transfer and launch overhead to pay off (currently "// &
+                                        "a thousand atoms per rank); otherwise fall back to "// &
+                                        "the CPU.", &
+                                        "Force the GPU code path; abort if the build has "// &
+                                        "no GPU support or no device is available.", &
+                                        "Force the CPU code path."), &
+                          default_i_val=nnp_use_gpu_auto)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="GPU_PRECISION", &
+                          description="Floating-point precision of the GPU code path. "// &
+                          "Only meaningful when the GPU path is active.", &
+                          usage="GPU_PRECISION DOUBLE", &
+                          repeats=.FALSE., &
+                          enum_c_vals=s2a("DOUBLE", "MIXED"), &
+                          enum_i_vals=[nnp_gpu_prec_double, nnp_gpu_prec_mixed], &
+                          enum_desc=s2a("All-FP64 path; reproduces the CPU trajectory "// &
+                                        "within the regression-test tolerances.", &
+                                        "FP32 angular symmetry-function math with FP64 "// &
+                                        "radial functions, network evaluation and every "// &
+                                        "accumulator that sums over neighbours. Faster on "// &
+                                        "GPUs whose single-precision throughput exceeds "// &
+                                        "their double-precision throughput, at the cost of "// &
+                                        "a perturbation of energies and forces that is "// &
+                                        "model dependent (a relative 4.5e-11 on the "// &
+                                        "step-zero energy of the shipped regression-test "// &
+                                        "model, whose tests bound it at 1e-6; measure it "// &
+                                        "for your own)."), &
+                          default_i_val=nnp_gpu_prec_double)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

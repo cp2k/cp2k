@@ -169,7 +169,7 @@ async def main() -> None:
     tasks: List[Task[BatchResult]] = []
     num_restrictdirs = num_skipdirs = 0
     for batch in batches:
-        if not batch.requirements_satisfied(flags, cfg.mpiranks):
+        if not batch.requirements_satisfied(flags, cfg.mpiranks, cfg.num_gpus):
             print(f"Skipping {batch.name} because its requirements are not satisfied.")
         elif not any(re.fullmatch(p, batch.name) for p in cfg.restrictdirs):
             num_restrictdirs += 1
@@ -441,11 +441,18 @@ class Batch:
         self.workdir = cfg.work_base_dir / self.name
         self.huge_suppressions = cfg.huge_suppressions
 
-    def requirements_satisfied(self, flags: List[str], mpiranks: int) -> bool:
+    def requirements_satisfied(
+        self, flags: List[str], mpiranks: int, num_gpus: int
+    ) -> bool:
         result = True
         for r in self.requirements:
             if "mpiranks" in r:
                 result &= eval(r.replace("||", " or "))
+            elif r == "gpu":
+                # Runtime requirement: a GPU-only test directory is skipped on
+                # machines without a device, even when the binary has the
+                # accelerated backend compiled in.
+                result &= num_gpus > 0
             elif r.startswith("!"):
                 result &= r[1:] not in flags
             else:

@@ -34,11 +34,17 @@ MODULE nnp_environment
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                               distribution_1d_type
    USE distribution_methods,            ONLY: distribute_molecules_1d
+   USE input_constants,                 ONLY: nnp_gpu_prec_double,&
+                                              nnp_gpu_prec_mixed,&
+                                              nnp_use_gpu_auto,&
+                                              nnp_use_gpu_off,&
+                                              nnp_use_gpu_on
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type,&
@@ -52,6 +58,11 @@ MODULE nnp_environment
         nnp_actfnct_cos, nnp_actfnct_exp, nnp_actfnct_gaus, nnp_actfnct_invsig, nnp_actfnct_lin, &
         nnp_actfnct_quad, nnp_actfnct_sig, nnp_actfnct_softplus, nnp_actfnct_tanh, nnp_env_set, &
         nnp_type
+   USE nnp_gpu,                         ONLY: nnp_gpu_available,&
+                                              nnp_gpu_init_device,&
+                                              nnp_gpu_model_capacity_ok,&
+                                              nnp_gpu_upload_descriptor_statics,&
+                                              nnp_gpu_upload_network
    USE nnp_model,                       ONLY: nnp_write_arc
    USE particle_methods,                ONLY: write_fist_particle_coordinates,&
                                               write_particle_distances,&
@@ -224,12 +235,19 @@ CONTAINS
 !> \brief Initialize the Neural Network Potential
 !> \param nnp_env ...
 !> \param printtag ...
+!> \param gpu_capable .FALSE. for callers whose force evaluation has no device
+!>                    path, such as the path-integral helium-solute coupling.
+!>                    The GPU keywords are then not consulted at all and the
+!>                    environment stays on the CPU, so it can neither claim the
+!>                    per-process device nor make a &FORCE_EVAL NNP lose it.
+!>                    Defaults to .TRUE.
 !> \date   2020-10-10
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
-   SUBROUTINE nnp_init_model(nnp_env, printtag)
+   SUBROUTINE nnp_init_model(nnp_env, printtag, gpu_capable)
       TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
       CHARACTER(LEN=*), INTENT(IN)                       :: printtag
+      LOGICAL, INTENT(IN), OPTIONAL                      :: gpu_capable
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_init_model'
       INTEGER, PARAMETER                                 :: def_str_len = 256
@@ -240,7 +258,8 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: file_name
       INTEGER                                            :: handle, i, io, j, k, nele, nuc_ele, &
                                                             symfnct_type, unit_nr
-      LOGICAL                                            :: atom_e_found, explicit, first, found
+      LOGICAL                                            :: atom_e_found, explicit, first, found, &
+                                                            my_gpu_capable
       REAL(KIND=dp)                                      :: energy
       REAL(KIND=dp), DIMENSION(7)                        :: test_array
       REAL(KIND=dp), DIMENSION(:), POINTER               :: work
@@ -274,6 +293,10 @@ CONTAINS
          CPABORT("NNP| RAD_SPLINE_N must be >= 2.")
       END IF
       CALL section_vals_val_get(nnp_env%nnp_input, "VERLET_SKIN", r_val=nnp_env%verlet_skin)
+
+      my_gpu_capable = .TRUE.
+      IF (PRESENT(gpu_capable)) my_gpu_capable = gpu_capable
+
       CALL parser_create(parser, file_name, para_env=logger%para_env)
 
       ! read number of elements and cut_type and check for scale and center
@@ -754,6 +777,27 @@ CONTAINS
       END DO
       CALL nnp_read_committee_weights(nnp_env, model_section, printtag)
 
+      ! Resolve USE_GPU only now that the model definition is fully read: the
+      ! resolution sizes the model against the compiled-in device-table
+      ! capacities, which needs the group tables populated above.
+      IF (my_gpu_capable) THEN
+         CALL nnp_resolve_gpu(nnp_env, printtag, unit_nr, logger)
+      ELSE
+         ! This caller has no device force path, and its section carries no GPU
+         ! keywords to read.
+         nnp_env%use_gpu = nnp_use_gpu_off
+         nnp_env%gpu_precision = nnp_gpu_prec_double
+      END IF
+
+      ! Upload the model-static descriptor tables (per-element scaling
+      ! parameters and per-(group, element) symmetry-function maps) to the
+      ! device once the model definition is fully read; the per-step descriptor
+      ! kernels read them from device memory.
+      IF (nnp_env%use_gpu == nnp_use_gpu_on) THEN
+         CALL nnp_gpu_upload_descriptor_statics(nnp_env)
+         CALL nnp_gpu_upload_network(nnp_env)
+      END IF
+
       nnp_env%expol = 0
 
       ! Bias the standard deviation of committee disagreement
@@ -799,6 +843,125 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE nnp_init_model
+
+! **************************************************************************************************
+!> \brief Resolve &NNP / USE_GPU and GPU_PRECISION once, before any force code
+!>        runs, and claim the device when the GPU path is selected.
+!>
+!> AUTO probes for an offload device and otherwise falls back to the CPU path;
+!> builds without NNP GPU support always report no device. The resolved value is
+!> either nnp_use_gpu_on or nnp_use_gpu_off, so the force evaluation never has
+!> to interpret AUTO.
+!>
+!> \param nnp_env  NNP environment; use_gpu and gpu_precision are set here.
+!> \param printtag Log-line prefix.
+!> \param unit_nr  Output unit, or a non-positive value when there is none.
+!> \param logger   Default logger, for its parallel environment.
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
+! **************************************************************************************************
+   SUBROUTINE nnp_resolve_gpu(nnp_env, printtag, unit_nr, logger)
+      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
+      CHARACTER(LEN=*), INTENT(IN)                       :: printtag
+      INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      INTEGER, PARAMETER :: gpu_auto_min_atoms_per_rank = 1000
+
+      CHARACTER(LEN=2*default_string_length)             :: cap_reason
+      INTEGER                                            :: n_gpu_ranks, use_gpu_input
+      LOGICAL                                            :: gpu_accepted, gpu_everywhere
+
+      CALL section_vals_val_get(nnp_env%nnp_input, "USE_GPU", i_val=use_gpu_input)
+
+      ! The outcome has to be the same on every rank. A rank-dependent answer
+      ! would either hang (some ranks abort below while the rest go on into the
+      ! collectives) or run a silent mix of CPU and GPU arithmetic, so count the
+      ! ranks that see a device and decide from the total.
+      n_gpu_ranks = MERGE(1, 0, nnp_gpu_available())
+      CALL logger%para_env%sum(n_gpu_ranks)
+      gpu_everywhere = (n_gpu_ranks == logger%para_env%num_pe)
+
+      SELECT CASE (use_gpu_input)
+      CASE (nnp_use_gpu_off)
+         nnp_env%use_gpu = nnp_use_gpu_off
+      CASE (nnp_use_gpu_on)
+         IF (n_gpu_ranks == 0) THEN
+            CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                          "| USE_GPU ON requested, but this build has no NNP GPU "// &
+                          "support or no device is available on this node.")
+         ELSE IF (.NOT. gpu_everywhere) THEN
+            CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                          "| USE_GPU ON requested, but only some of the MPI ranks see "// &
+                          "a device. Give every rank one, or set USE_GPU OFF.")
+         END IF
+         nnp_env%use_gpu = nnp_use_gpu_on
+      CASE (nnp_use_gpu_auto)
+         ! Below roughly gpu_auto_min_atoms_per_rank rank-local atoms the kernel
+         ! launch and transfer overhead outweighs the device throughput, so AUTO
+         ! keeps such systems on the CPU path rather than making an existing
+         ! input slower, and its trajectory irreproducible, the moment it is run
+         ! on an accelerated build. USE_GPU ON overrides the threshold.
+         IF (gpu_everywhere .AND. &
+             nnp_env%num_atoms >= gpu_auto_min_atoms_per_rank*logger%para_env%num_pe) THEN
+            nnp_env%use_gpu = nnp_use_gpu_on
+         ELSE
+            nnp_env%use_gpu = nnp_use_gpu_off
+         END IF
+      CASE DEFAULT
+         CPABORT("Unknown USE_GPU value.")
+      END SELECT
+
+      CALL section_vals_val_get(nnp_env%nnp_input, "GPU_PRECISION", &
+                                i_val=nnp_env%gpu_precision)
+
+      ! A model larger than the compiled-in device-table capacities cannot take
+      ! the GPU path. Sized here, before the device is claimed and before the
+      ! banner prints, so an oversized model falls back cleanly under AUTO and
+      ! aborts with the limit named under ON.
+      IF (nnp_env%use_gpu == nnp_use_gpu_on) THEN
+         IF (.NOT. nnp_gpu_model_capacity_ok(nnp_env, cap_reason)) THEN
+            nnp_env%use_gpu = nnp_use_gpu_off
+            IF (use_gpu_input == nnp_use_gpu_on) THEN
+               CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                             "| USE_GPU ON requested, but "//TRIM(cap_reason)// &
+                             ". Set USE_GPU OFF, or raise the limit in "// &
+                             "src/nnp/gpu/nnp_gpu_state.h and rebuild.")
+            END IF
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, *) TRIM(printtag)//"| GPU offload: declined, "// &
+                  TRIM(cap_reason)//"; using the CPU path"
+            END IF
+         END IF
+      END IF
+
+      IF (nnp_env%use_gpu /= nnp_use_gpu_on) RETURN
+
+      ! Claim the device and push the precision selector; any failure aborts
+      ! here rather than mid-MD. The claim is declined
+      ! when another NNP environment in this process already holds the device,
+      ! which is a hard error only if the user asked for the GPU explicitly.
+      CALL nnp_gpu_init_device(nnp_env%gpu_precision, gpu_accepted)
+      IF (.NOT. gpu_accepted) THEN
+         nnp_env%use_gpu = nnp_use_gpu_off
+         IF (use_gpu_input == nnp_use_gpu_on) THEN
+            CALL cp_abort(__LOCATION__, TRIM(printtag)// &
+                          "| USE_GPU ON requested, but another NNP environment in this "// &
+                          "process already uses the GPU, and only one may. Set USE_GPU "// &
+                          "OFF on this section.")
+         END IF
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, *) TRIM(printtag)//"| GPU offload: declined, another NNP "// &
+               "environment holds the device; using the CPU path"
+         END IF
+      ELSE IF (unit_nr > 0) THEN
+         IF (nnp_env%gpu_precision == nnp_gpu_prec_mixed) THEN
+            WRITE (unit_nr, *) TRIM(printtag)//"| GPU offload: enabled (MIXED precision)"
+         ELSE
+            WRITE (unit_nr, *) TRIM(printtag)//"| GPU offload: enabled (DOUBLE precision)"
+         END IF
+      END IF
+
+   END SUBROUTINE nnp_resolve_gpu
 
 ! **************************************************************************************************
 !> \brief Read committee weights from disk into pre-allocated arc layer tables.

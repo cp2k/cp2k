@@ -1,0 +1,4 @@
+# GPU twin of ../regtest-1/NaCl-dilute-hetero.inp: the shared body with the device
+# code path selected.
+@SET GPU ON
+@INCLUDE ../regtest-1/NaCl-dilute-hetero.inc

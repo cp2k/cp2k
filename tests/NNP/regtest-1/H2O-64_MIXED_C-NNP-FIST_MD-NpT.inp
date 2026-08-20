@@ -1,0 +1,4 @@
+# The whole input lives in H2O-64_MIXED_C-NNP-FIST_MD-NpT.inc and runs the CPU path here
+# (USE_GPU defaults to OFF). The twin in ../regtest-gpu includes the same
+# body with @SET GPU ON.
+@INCLUDE H2O-64_MIXED_C-NNP-FIST_MD-NpT.inc

@@ -208,6 +208,10 @@ cmake_dependent_option(
   "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
 
 cmake_dependent_option(
+  CP2K_ENABLE_NNP_GPU "Enable the GPU backend of the NNP force evaluation." ON
+  "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
+
+cmake_dependent_option(
   CP2K_USE_UNIFIED_MEMORY "Use CPU/GPU unified memory (Mi250x onwards)" OFF
   "CP2K_USE_ACCEL MATCHES \"HIP\"" OFF)
 
@@ -1073,7 +1077,8 @@ if(CP2K_USE_ACCEL MATCHES "CUDA" OR CP2K_USE_ACCEL MATCHES "HIP")
     "      - ELPA: ${CP2K_ENABLE_ELPA_GPU}\n"
     "      - GRID: ${CP2K_ENABLE_GRID_GPU}\n"
     "      - DBM: ${CP2K_ENABLE_DBM_GPU}\n"
-    "      - PW: ${CP2K_ENABLE_PW_GPU}\n")
+    "      - PW: ${CP2K_ENABLE_PW_GPU}\n"
+    "      - NNP: ${CP2K_ENABLE_NNP_GPU}\n")
 endif()
 
 if(CP2K_USE_CUSOLVER_MP)

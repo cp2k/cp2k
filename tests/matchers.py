@@ -397,6 +397,11 @@ registry["M_INIT_ENERGY"] = GenericMatcher(
     r"ENERGY| Total FORCE_EVAL", col=9, first=True
 )
 registry["M_CONS_QTY"] = GenericMatcher(r"MD| Conserved quantity", col=5)
+# Instantaneous pressure of the final MD step, printed only when the force
+# environment makes a virial available. It is the quantity in an MD output that
+# the virial moves directly, so it is what pins an analytic virial: an energy
+# matcher still passes when the virial is identically zero.
+registry["M_PRESSURE"] = GenericMatcher(r"MD| Pressure [bar]", col=4)
 
 # REFTRAJ output must retain the frame index read from the trajectory, including
 # in nested print-key filenames.

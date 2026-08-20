@@ -1,0 +1,5 @@
+# GPU twin of ../regtest-1/H2O-64_MIXED_C-NNP-FIST_MD-NpT.inp: the shared body with the device
+# code path selected.
+@SET GPU ON
+@SET PROJ H2O-64_MIXED_C-NNP-FIST_MD-NpT
+@INCLUDE ../regtest-1/H2O-64_MIXED_C-NNP-FIST_MD-NpT.inc
