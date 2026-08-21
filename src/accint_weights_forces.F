@@ -24,6 +24,7 @@ MODULE accint_weights_forces
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -92,8 +93,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'accint_weight_force'
 
-      INTEGER                                            :: atom_a, handle, iatom, ikind, natom, &
-                                                            natom_of_kind, nkind, output_unit
+      INTEGER                                            :: atom_a, handle, i, iatom, ikind, natom, &
+                                                            natom_of_kind, nkind, ounit
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: composite_reference, lr_triplet, &
                                                             native_grid_diagnostics, &
@@ -101,9 +102,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: my_force_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: calpha, cvalue
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aforce
+      REAL(KIND=dp), DIMENSION(3)                        :: tforce
       REAL(KIND=dp), DIMENSION(3, 3)                     :: avirial
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
       TYPE(pw_r3d_rs_type)                               :: e_force_rspace, e_rspace
@@ -138,6 +141,8 @@ CONTAINS
 
          CALL get_qs_env(qs_env=qs_env, force=force, virial=virial)
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+
+         ounit = cp_logger_get_default_io_unit()
 
          CALL get_qs_env(qs_env, natom=natom, nkind=nkind)
          ALLOCATE (aforce(3, natom))
@@ -174,7 +179,9 @@ CONTAINS
                CALL xc_pw_pool%give_back_pw(e_g_xc)
             END BLOCK
             CALL pw_scale(e_force_rspace, e_force_rspace%pw_grid%dvol)
+            ! integrate energy field to get force
             CALL gauss_grid_force(e_force_rspace, qs_env, calpha, cvalue, aforce, avirial)
+            !
             CALL auxbas_pw_pool%give_back_pw(e_force_rspace)
          ELSE
             CALL pw_scale(e_rspace, e_rspace%pw_grid%dvol)
@@ -199,9 +206,8 @@ CONTAINS
             DO iatom = 1, natom_of_kind
                atom_a = atom_list(iatom)
                IF (native_grid_diagnostics) THEN
-                  output_unit = cp_logger_get_default_io_unit()
-                  IF (output_unit > 0) THEN
-                     WRITE (UNIT=output_unit, FMT="(T2,A,1X,I0,3(1X,ES20.12))") &
+                  IF (ounit > 0) THEN
+                     WRITE (UNIT=ounit, FMT="(T2,A,1X,I0,3(1X,ES20.12))") &
                         "SKALA_GPW| Accurate-XCINT atom force", atom_a, my_force_scale*aforce(:, atom_a)
                   END IF
                END IF
@@ -212,6 +218,33 @@ CONTAINS
          IF (use_virial) THEN
             virial%pv_exc = virial%pv_exc + my_force_scale*avirial
             virial%pv_virial = virial%pv_virial + my_force_scale*avirial
+         END IF
+
+         IF (debug_this_module) THEN
+            CALL get_qs_env(qs_env, para_env=para_env)
+            CALL para_env%sum(aforce)
+            IF (ounit > 0) THEN
+               WRITE (UNIT=ounit, FMT="(/,T2,A)") "ACCINT| Debug Accurate-XCINT atom force [a.u.]"
+               DO i = 1, 3
+                  tforce(i) = my_force_scale*SUM(aforce(i, :))
+               END DO
+               DO iatom = 1, natom
+                  WRITE (UNIT=ounit, FMT="(T2,A,1X,I0,T24,3(1X,F18.12))") &
+                     "ACCINT| ", iatom, my_force_scale*aforce(1:3, iatom)
+               END DO
+               WRITE (UNIT=ounit, FMT="(T2,A,T24,3(1X,F18.12))") &
+                  "ACCINT| Total force ", tforce(1:3)
+            END IF
+            IF (use_virial) THEN
+               CALL para_env%sum(avirial)
+               IF (ounit > 0) THEN
+                  WRITE (UNIT=ounit, FMT="(/,T2,A)") "ACCINT| Debug Accurate-XCINT virial"
+                  DO i = 1, 3
+                     WRITE (UNIT=ounit, FMT="(T2,A,T24,3(1X,F18.8))") &
+                        "ACCINT| [a.u.] ", my_force_scale*avirial(i, 1:3)
+                  END DO
+               END IF
+            END IF
          END IF
 
          DEALLOCATE (aforce, calpha, cvalue)
