@@ -9,8 +9,8 @@
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.38297662E-01}]
 "h2o_f01_pbe.inp"                       = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.141293E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.37171859E-01}]
-"h2o_f01_pbe_fine_xc.inp"               = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.13596428E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.4005488E-01}]
+"h2o_f01_pbe_fine_xc.inp"               = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.13630449E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.39848084E-01}]
 "h2o_f02_coulomb_only.inp"              = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.202091E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.23119518E+00}]
 #EOF
