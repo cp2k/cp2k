@@ -192,10 +192,11 @@ CONTAINS
          ELSE IF (mixing_method == pulay_mixing_nr) THEN
             CPABORT("Pulay method not available for Charge Mixing")
          ELSE IF (mixing_method == broyden_mixing_nr) THEN
-            CALL broyden_mixing(mixing_store, charges, imin, nvec, ns, para_env)
+            CALL broyden_mixing(mixing_store, charges, imin, nvec, ns, para_env, modified=.FALSE.)
             mixing_store%iter_method = "Broy."
          ELSE IF (mixing_method == modified_broyden_mixing_nr) THEN
-            CPABORT("Modified Broyden mixing is only available for DFT density mixing")
+            CALL broyden_mixing(mixing_store, charges, imin, nvec, ns, para_env, modified=.TRUE.)
+            mixing_store%iter_method = "MBroy"
          ELSE IF (mixing_method == multisecant_mixing_nr) THEN
             CPABORT("Multisecant_mixing method not available for Charge Mixing")
          ELSE IF (mixing_method == new_pulay_mixing_nr) THEN
@@ -363,16 +364,19 @@ CONTAINS
 !> \param nvec ...
 !> \param ns ...
 !> \param para_env ...
+!> \param modified use dynamic residual weights of modified Broyden
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE broyden_mixing(mixing_store, charges, inow, nvec, ns, para_env)
+   SUBROUTINE broyden_mixing(mixing_store, charges, inow, nvec, ns, para_env, modified)
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: charges
       INTEGER, INTENT(IN)                                :: inow, nvec, ns
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: modified
 
       INTEGER                                            :: i, ia, ii, imin, j, nbuffer, nv
-      REAL(KIND=dp)                                      :: alpha, broy_w0, rskip, wdf, wprod
+      REAL(KIND=dp)                                      :: alpha, broy_w0, res_norm, rskip, wdf, &
+                                                            wprod
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cvec, gammab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat, beta
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dq_last, dq_now, q_last, q_now
@@ -406,7 +410,19 @@ CONTAINS
       END IF
 
       broy_w0 = mixing_store%broy_w0
-      mixing_store%wbroy(nv) = 1.0_dp
+      IF (modified) THEN
+         res_norm = SUM(dq_now(:, 1:ns)**2)
+         CALL para_env%sum(res_norm)
+         res_norm = SQRT(res_norm)
+         IF (res_norm > mixing_store%wc/mixing_store%wmax) THEN
+            mixing_store%wbroy(nv) = mixing_store%wc/res_norm
+         ELSE
+            mixing_store%wbroy(nv) = mixing_store%wmax
+         END IF
+         mixing_store%wbroy(nv) = MAX(1.0_dp, mixing_store%wbroy(nv))
+      ELSE
+         mixing_store%wbroy(nv) = 1.0_dp
+      END IF
 
       ! dfbroy
       mixing_store%dfbroy(:, :, nv) = 0.0_dp
@@ -436,7 +452,11 @@ CONTAINS
          DO j = 1, nv
             beta(j, i) = mixing_store%wbroy(j)*mixing_store%wbroy(i)*mixing_store%abroy(j, i)
          END DO
-         beta(i, i) = beta(i, i) + broy_w0
+         IF (modified) THEN
+            beta(i, i) = beta(i, i) + broy_w0*broy_w0
+         ELSE
+            beta(i, i) = beta(i, i) + broy_w0
+         END IF
       END DO
 
       rskip = 1.e-12_dp

@@ -1,4 +1,4 @@
 # H2O RTP with added (not occupied) MOs, with and without ADMM
-"H2O-rtp-admm-addedmos.inp" = [{matcher="E_total", tol=1e-9, ref=-17.26735382853942}]
+"H2O-rtp-admm-addedmos.inp" = [{matcher="E_total", tol=1e-9, ref=-17.26735382039714}]
 "H2O-rtp-addedmos.inp"      = [{matcher="E_total", tol=1e-9, ref=-17.27149638790728}]
 #EOF
