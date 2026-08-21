@@ -35,9 +35,9 @@
     &END QS
     &SCF
       ADDED_MOS -1 -1
-      EPS_SCF 1.0E-9
+      EPS_SCF 1.0E-8
       MAX_SCF 200
-      SCF_GUESS MOPAC
+      SCF_GUESS ATOMIC
       &MIXING
         ALPHA 0.2
         METHOD DIRECT_P_MIXING
