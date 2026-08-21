@@ -4288,15 +4288,16 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: local_loop_limit
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: accint, gradient_functional, lsd, &
-                                                            my_do_sf, paw_atom, scale_rho, tau_f
+      LOGICAL                                            :: accint, donlcc, gradient_functional, &
+                                                            lsd, my_do_sf, nlcc, paw_atom, &
+                                                            scale_rho, tau_f
       REAL(KIND=dp)                                      :: agr, alpha, density_cut, gradient_cut, &
                                                             rtot, tau_cut
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: vtau_h, vtau_s, vxc_h, vxc_s
       REAL(KIND=dp), DIMENSION(1, 1, 1)                  :: rtau
       REAL(KIND=dp), DIMENSION(1, 1, 1, 1)               :: rrho
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: weight_h, weight_s
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rho_nlcc, weight_h, weight_s
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho1_h, rho1_s, rho_h, rho_s, tau1_h, &
                                                             tau1_s, tau_h, tau_s
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: drho1_h, drho1_s, drho_h, drho_s, vxg_h, &
@@ -4327,6 +4328,7 @@ CONTAINS
       NULLIFY (rho1_h, rho1_s, drho1_h, drho1_s)
       NULLIFY (vxc_h, vxc_s, vxg_h, vxg_s)
       NULLIFY (tau_h, tau_s, tau1_h, tau1_s, vtau_h, vtau_s)
+      NULLIFY (rho_nlcc)
 
       CALL get_qs_env(qs_env=qs_env, &
                       input=input, &
@@ -4339,6 +4341,7 @@ CONTAINS
       ELSE
          my_kind_set => qs_kind_set
       END IF
+      nlcc = has_nlcc(my_kind_set)
 
       accint = dft_control%qs_control%gapw_control%accurate_xcint
 
@@ -4468,6 +4471,14 @@ CONTAINS
          vxg_h = 0.0_dp
          vxg_s = 0.0_dp
 
+         ! NLCC: prepare rho and drho of the core charge for this KIND
+         donlcc = .FALSE.
+         IF (nlcc) THEN
+            NULLIFY (rho_nlcc)
+            rho_nlcc => my_kind_set(ikind)%nlcc_pot
+            IF (ASSOCIATED(rho_nlcc)) donlcc = .TRUE.
+         END IF
+
          ! parallelization
          local_loop_limit = get_limit(natom, para_env%num_pe, para_env%mepos)
 
@@ -4511,6 +4522,10 @@ CONTAINS
                CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_functional, &
                                      ir, r_h, r_s, rho_h, rho_s, dr_h, dr_s, r_h_d, r_s_d, &
                                      drho_h, drho_s)
+               IF (donlcc) THEN
+                  CALL calc_rho_nlcc(grid_atom, nspins, gradient_functional, &
+                                     ir, rho_nlcc(:, 1), rho_h, rho_s, rho_nlcc(:, 2), drho_h, drho_s)
+               END IF
                CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_functional, &
                                      ir, r1_h, r1_s, rho1_h, rho1_s, dr1_h, dr1_s, r1_h_d, r1_s_d, &
                                      drho1_h, drho1_s)

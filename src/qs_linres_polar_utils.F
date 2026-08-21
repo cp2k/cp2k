@@ -363,6 +363,9 @@ CONTAINS
             WRITE (iounit, '(T2,A,T24,3(1X,F18.12))') &
                'POLAR| yx,zx,zy', polar(2, 1)*angstrom**3, polar(3, 1)*angstrom**3, polar(3, 2)*angstrom**3
          END IF
+         IF (iounit > 0) THEN
+            WRITE (UNIT=iounit, FMT="(T2,A,T61,E20.12)") ' POLAR : CheckSum  =', SUM(polar)
+         END IF
       END IF
 
    END SUBROUTINE polar_print

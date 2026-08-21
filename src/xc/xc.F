@@ -1115,7 +1115,7 @@ CONTAINS
 
       h = section_get_rval(xc_section, "STEP_SIZE")
       nsteps = section_get_ival(xc_section, "NSTEPS")
-      IF (nsteps < LBOUND(rweights, 2) .OR. nspins > UBOUND(rweights, 2)) THEN
+      IF (nsteps < LBOUND(rweights, 2) .OR. nsteps > UBOUND(rweights, 2)) THEN
          CPABORT("The number of steps must be a value from 1 to 4.")
       END IF
 

@@ -95,6 +95,7 @@ MODULE qs_tddfpt2_methods
    USE qs_moments,                      ONLY: qs_moment_kpoints_scf_mos
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
+   USE qs_rho_types,                    ONLY: qs_rho_type
    USE qs_scf_methods,                  ONLY: eigensolver
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE qs_tddfpt2_assign,               ONLY: assign_state
@@ -1406,10 +1407,14 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_oep
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(qs_rho_type), POINTER                         :: rho0_struct
       TYPE(section_vals_type), POINTER                   :: lri_section, namd_print_section, &
                                                             soc_section
 
       CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
 
       NULLIFY (admm_env, matrix_ks_oep)
       do_admm = tddfpt_control%do_admm
@@ -1424,21 +1429,26 @@ CONTAINS
             is_rks_triplets=tddfpt_control%rks_triplets, &
             qs_env=qs_env, sub_env=sub_env, &
             wfm_rho_orb=work_matrices%rho_ao_orb_fm_sub)
+         IF (dft_control%qs_control%gapw_xc) THEN
+            rho0_struct => work_matrices%rho_xc_struct_sub
+         ELSE
+            rho0_struct => work_matrices%rho_orb_struct_sub
+         END IF
 
          IF (do_admm) THEN
             ! Full kernel with ADMM
             IF (tddfpt_control%admm_xc_correction) THEN
                CALL create_kernel_env(kernel_env=full_kernel_env, &
-                                      rho_struct_sub=work_matrices%rho_orb_struct_sub, &
+                                      rho_struct_sub=rho0_struct, &
                                       xc_section=admm_env%xc_section_primary, &
                                       is_rks_triplets=tddfpt_control%rks_triplets, &
-                                      sub_env=sub_env)
+                                      sub_env=sub_env, qs_env=qs_env)
             ELSE
                CALL create_kernel_env(kernel_env=full_kernel_env, &
-                                      rho_struct_sub=work_matrices%rho_orb_struct_sub, &
+                                      rho_struct_sub=rho0_struct, &
                                       xc_section=xc_section, &
                                       is_rks_triplets=tddfpt_control%rks_triplets, &
-                                      sub_env=sub_env)
+                                      sub_env=sub_env, qs_env=qs_env)
             END IF
 
             CALL tddfpt_construct_aux_fit_density( &
@@ -1454,16 +1464,16 @@ CONTAINS
                                    rho_struct_sub=work_matrices%rho_aux_fit_struct_sub, &
                                    xc_section=admm_env%xc_section_aux, &
                                    is_rks_triplets=tddfpt_control%rks_triplets, &
-                                   sub_env=sub_env)
+                                   sub_env=sub_env, qs_env=qs_env)
             kernel_env%full_kernel => full_kernel_env
             kernel_env%admm_kernel => kernel_env_admm_aux
          ELSE
             ! Full kernel
             CALL create_kernel_env(kernel_env=full_kernel_env, &
-                                   rho_struct_sub=work_matrices%rho_orb_struct_sub, &
+                                   rho_struct_sub=rho0_struct, &
                                    xc_section=xc_section, &
                                    is_rks_triplets=tddfpt_control%rks_triplets, &
-                                   sub_env=sub_env)
+                                   sub_env=sub_env, qs_env=qs_env)
             kernel_env%full_kernel => full_kernel_env
             NULLIFY (kernel_env%admm_kernel)
          END IF

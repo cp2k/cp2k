@@ -52,6 +52,7 @@ MODULE qs_dcdr_ao
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_integral_utils,               ONLY: basis_set_list_setup,&
                                               get_memory_usage
    USE qs_integrate_potential,          ONLY: integrate_v_dbasis,&
@@ -72,14 +73,9 @@ MODULE qs_dcdr_ao
    USE qs_rho_types,                    ONLY: qs_rho_create,&
                                               qs_rho_get,&
                                               qs_rho_release,&
+                                              qs_rho_set,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
-   USE xc,                              ONLY: xc_calc_2nd_deriv,&
-                                              xc_prep_2nd_deriv
-   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-                                              xc_dset_release
-   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
-                                              xc_rho_set_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 !$ USE OMP_LIB, ONLY: omp_lock_kind, &
@@ -122,18 +118,14 @@ CONTAINS
                                                             s1_ao
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao, rho_ao
       TYPE(pw_c1d_gs_type)                               :: rho1_tot_gspace, v_hartree_gspace
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g, rho1_g_pw
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho_r, tau1_r, v_rspace_new, &
-                                                            v_xc, v_xc_tau
-      TYPE(pw_r3d_rs_type), POINTER                      :: weights
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace_new, v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: perturbed_density, rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
-      TYPE(xc_derivative_set_type)                       :: deriv_set
-      TYPE(xc_rho_set_type)                              :: rho_set
 
       ! Build the perturbed density matrix correction depending on the overlap derivative
       !   P1 = C0 C1 + C1 C0
@@ -155,8 +147,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (auxbas_pw_pool, pw_env, rho1_r, rho1_g_pw, &
-               v_xc, poisson_env, input, rho, rho1_g, v_xc_tau)
+      NULLIFY (auxbas_pw_pool, pw_env, v_xc, poisson_env, input, rho, &
+               rho1_g, v_xc_tau)
 
       CALL cp_fm_create(rho_ao_fm, dcdr_env%aoao_fm_struct)
       CALL cp_fm_create(rho_ao_s1, dcdr_env%aoao_fm_struct)
@@ -219,21 +211,13 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, &
                       pw_env=pw_env, &
-                      xcint_weights=weights, &
                       input=input)
 
       ! Create the temporary grids
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
 
-      ! Allocate deriv_set and rho_set
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-
-      CALL xc_prep_2nd_deriv(deriv_set, rho_set, &
-                             rho_r, auxbas_pw_pool, weights, &
-                             xc_section=xc_section)
-
-      ! Done with deriv_set and rho_set
 
       ALLOCATE (v_rspace_new(dcdr_env%nspins))
       CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
@@ -242,7 +226,7 @@ CONTAINS
       ! Calculate the Hartree potential on the total density
       CALL auxbas_pw_pool%create_pw(rho1_tot_gspace)
 
-      CALL qs_rho_get(perturbed_density, rho_g=rho1_g, rho_r=rho1_r, tau_r=tau1_r)
+      CALL qs_rho_get(perturbed_density, rho_g=rho1_g)
       CALL pw_copy(rho1_g(1), rho1_tot_gspace)
       DO ispin = 2, dcdr_env%nspins
          CALL pw_axpy(rho1_g(ispin), rho1_tot_gspace)
@@ -256,9 +240,8 @@ CONTAINS
       CALL auxbas_pw_pool%give_back_pw(rho1_tot_gspace)
 
       ! Calculate the second derivative of the exchange-correlation potential
-      CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, deriv_set, rho_set, &
-                             rho1_r, rho1_g_pw, tau1_r, auxbas_pw_pool, &
-                             weights, xc_section, gapw=.FALSE.)
+      CALL qs_fxc_create(qs_env, rho, perturbed_density, xc_section, v_xc, v_xc_tau)
+      !
 
       DO ispin = 1, dcdr_env%nspins
          v_rspace_new(ispin) = v_xc(ispin)
@@ -309,8 +292,6 @@ CONTAINS
 
       CALL qs_rho_release(perturbed_density)
       DEALLOCATE (perturbed_density)
-      CALL xc_rho_set_release(rho_set, auxbas_pw_pool)
-      CALL xc_dset_release(deriv_set)
 
       CALL timestop(handle)
 
@@ -450,18 +431,14 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: drho_r_total, v_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: drho_r, dtau_r, rho_r, v_xc, v_xc_tau
-      TYPE(pw_r3d_rs_type), POINTER                      :: weights
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_rho_type), POINTER                         :: drho, rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
-      TYPE(xc_derivative_set_type)                       :: my_deriv_set
-      TYPE(xc_rho_set_type)                              :: my_rho_set
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env=qs_env, &
                       pw_env=pw_env, &
                       input=input, &
-                      xcint_weights=weights, &
                       rho=rho)
       CALL qs_rho_get(rho, rho_ao=rho_ao, rho_r=rho_r)
 
@@ -508,21 +485,26 @@ CONTAINS
                                vhartree=v_hartree_gspace)
          CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
 
-         ! Get the XC potential corresponding to the perturbed density
-         CALL xc_prep_2nd_deriv(my_deriv_set, my_rho_set, &
-                                rho_r, auxbas_pw_pool, weights, &
-                                xc_section=xc_section)
+         ALLOCATE (drho)
+         CALL qs_rho_create(drho)
+         IF (ASSOCIATED(drho_r)) THEN
+            CALL qs_rho_set(drho, rho_r=drho_r, rho_r_valid=.TRUE.)
+         END IF
+         IF (ASSOCIATED(drho_g)) THEN
+            CALL qs_rho_set(drho, rho_g=drho_g, rho_g_valid=.TRUE.)
+         END IF
+         IF (ASSOCIATED(dtau_r)) THEN
+            CALL qs_rho_set(drho, tau_r=dtau_r, tau_r_valid=.TRUE.)
+         END IF
+         !
+         NULLIFY (v_xc, v_xc_tau)
+         CALL qs_fxc_create(qs_env, rho, drho, xc_section, v_xc, v_xc_tau)
+         !
+         DEALLOCATE (drho)
 
-         NULLIFY (dtau_r)
-         CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, my_deriv_set, my_rho_set, &
-                                drho_r, drho_g, dtau_r, auxbas_pw_pool, &
-                                weights, xc_section, gapw=.FALSE.)
          IF (ASSOCIATED(v_xc_tau)) THEN
             CPABORT(dcdr_meta_gga_error)
          END IF
-
-         CALL xc_dset_release(my_deriv_set)
-         CALL xc_rho_set_release(my_rho_set)
 
          !-------------------------------!
          ! Add both hartree and xc terms !

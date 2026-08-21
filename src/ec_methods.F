@@ -28,14 +28,12 @@ MODULE ec_methods
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE pw_env_types,                    ONLY: pw_env_get,&
-                                              pw_env_type
-   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
+   USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                               qs_kind_type
    USE qs_matrix_pools,                 ONLY: mpools_release,&
@@ -44,14 +42,9 @@ MODULE ec_methods
                                               get_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
+   USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                              qs_rho_set,&
                                               qs_rho_type
-   USE xc,                              ONLY: xc_calc_2nd_deriv,&
-                                              xc_prep_2nd_deriv
-   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-                                              xc_dset_release
-   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
-                                              xc_rho_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -104,48 +97,29 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_kernel'
 
       INTEGER                                            :: handle
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau_r
-      TYPE(pw_r3d_rs_type), POINTER                      :: weights
-      TYPE(xc_derivative_set_type)                       :: deriv_set
-      TYPE(xc_rho_set_type)                              :: rho_set
+      TYPE(qs_rho_type), POINTER                         :: rho1
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (auxbas_pw_pool, pw_env, rho_r, vxc, vxc_tau)
+      CPASSERT(.NOT. ASSOCIATED(vxc))
+      CPASSERT(.NOT. ASSOCIATED(vxc_tau))
 
-      CALL get_qs_env(qs_env, pw_env=pw_env, xcint_weights=weights)
-      CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      ! Get density
-      CALL qs_rho_get(rho, rho_r=rho_r, tau_r=tau_r)
-
-      CALL xc_prep_2nd_deriv(deriv_set=deriv_set, &    ! containing potentials
-                             rho_set=rho_set, &        ! density at which derivs are calculated
-                             rho_r=rho_r, &            ! place where derivative is evaluated
-                             tau_r=tau_r, &
-                             pw_pool=auxbas_pw_pool, & ! pool for grids
-                             weights=weights, &
-                             xc_section=xc_section)
-
-      ! folding of second deriv with density in rho1_set
-      CALL xc_calc_2nd_deriv(v_xc=vxc, &               ! XC-potential, rho-dependent
-                             v_xc_tau=vxc_tau, &       ! XC-potential, tau-dependent
-                             deriv_set=deriv_set, &    ! deriv of xc-potential
-                             rho_set=rho_set, &        ! density at which deriv are calculated
-                             rho1_r=rho1_r, &          ! density with which to fold
-                             rho1_g=rho1_g, &          ! density with which to fold
-                             tau1_r=tau1_r, &
-                             pw_pool=auxbas_pw_pool, & ! pool for grids
-                             weights=weights, &
-                             xc_section=xc_section, &
-                             gapw=.FALSE., &
-                             compute_virial=compute_virial, &
-                             virial_xc=virial_xc)
-
-      ! Release second deriv stuff
-      CALL xc_dset_release(deriv_set)
-      CALL xc_rho_set_release(rho_set=rho_set, pw_pool=auxbas_pw_pool)
+      ALLOCATE (rho1)
+      CALL qs_rho_create(rho1)
+      IF (ASSOCIATED(rho1_r)) THEN
+         CALL qs_rho_set(rho1, rho_r=rho1_r, rho_r_valid=.TRUE.)
+      END IF
+      IF (ASSOCIATED(rho1_g)) THEN
+         CALL qs_rho_set(rho1, rho_g=rho1_g, rho_g_valid=.TRUE.)
+      END IF
+      IF (ASSOCIATED(tau1_r)) THEN
+         CALL qs_rho_set(rho1, tau_r=tau1_r, tau_r_valid=.TRUE.)
+      END IF
+      !
+      CALL qs_fxc_create(qs_env, rho, rho1, xc_section, vxc, vxc_tau, &
+                         compute_virial=compute_virial, virial_xc=virial_xc)
+      !
+      DEALLOCATE (rho1)
 
       CALL timestop(handle)
 

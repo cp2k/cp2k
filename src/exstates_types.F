@@ -16,7 +16,6 @@ MODULE exstates_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE input_constants,                 ONLY: xc_kernel_method_best
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -54,9 +53,6 @@ MODULE exstates_types
    TYPE excited_energy_type
       INTEGER                                            :: state = -1
       REAL(KIND=dp)                                      :: evalue = 0.0_dp
-      INTEGER                                            :: xc_kernel_method = -1
-      REAL(KIND=dp)                                      :: eps_delta_rho = 1.E-02_dp
-      INTEGER                                            :: diff_order = -1
       LOGICAL                                            :: debug_forces = .FALSE.
       TYPE(cp_fm_type), POINTER, DIMENSION(:)            :: evect => NULL()
       TYPE(cp_fm_type), POINTER, DIMENSION(:)            :: cpmos => NULL()
@@ -222,17 +218,10 @@ CONTAINS
       NULLIFY (ex_env%bse_a_matrix_MO)
       IF (excited_state) THEN
          CALL section_vals_val_get(dft_section, "EXCITED_STATES%STATE", i_val=ex_env%state)
-         CALL section_vals_val_get(dft_section, "EXCITED_STATES%XC_KERNEL_METHOD", &
-                                   i_val=ex_env%xc_kernel_method)
          CALL section_vals_val_get(dft_section, "EXCITED_STATES%DEBUG_FORCES", &
                                    l_val=ex_env%debug_forces)
-         CALL section_vals_val_get(dft_section, "EXCITED_STATES%EPS_DELTA_RHO", &
-                                   r_val=ex_env%eps_delta_rho)
-         CALL section_vals_val_get(dft_section, "EXCITED_STATES%DIFF_ORDER", &
-                                   i_val=ex_env%diff_order)
       ELSE
          ex_env%state = 0
-         ex_env%xc_kernel_method = xc_kernel_method_best
       END IF
       ex_env%wfn_history%evalue = 0.0_dp
       ex_env%wfn_history%state = ex_env%state

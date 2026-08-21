@@ -1,16 +1,16 @@
 # Keep the td_dipole restart tests in this order.
 "h2o_f01.inp"                           = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.138486E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.38340656E-01}]
-"h2o_f01_fine.inp"                      = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.132380E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.5472253E-01}]
+"h2o_f01_fine.inp"                      = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.1323667E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.54739241E-01}]
 "h2o_f01_coulomb_only.inp"              = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=1.012588E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.5043825E+00}]
 "h2o_f01_pbe_gapwxc.inp"                = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.138495E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.38297662E-01}]
 "h2o_f01_pbe.inp"                       = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.141293E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.37171859E-01}]
-"h2o_f01_pbe_fine_xc.inp"               = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.135849E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.40367983E-01}]
+"h2o_f01_pbe_fine_xc.inp"               = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.13630449E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.39848084E-01}]
 "h2o_f02_coulomb_only.inp"              = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.202091E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.23119518E+00}]
 #EOF
