@@ -429,8 +429,15 @@ CONTAINS
       mixing_store%dfbroy(:, 1:ns, nv) = dq_now(:, 1:ns) - dq_last(:, 1:ns)
       wdf = SUM(mixing_store%dfbroy(:, 1:ns, nv)**2)
       CALL para_env%sum(wdf)
-      wdf = 1.0_dp/SQRT(wdf)
-      mixing_store%dfbroy(:, 1:ns, nv) = wdf*mixing_store%dfbroy(:, 1:ns, nv)
+      IF (wdf > TINY(1.0_dp) .AND. wdf < HUGE(1.0_dp)) THEN
+         wdf = 1.0_dp/SQRT(wdf)
+         mixing_store%dfbroy(:, 1:ns, nv) = wdf*mixing_store%dfbroy(:, 1:ns, nv)
+      ELSE
+         ! Identical consecutive residuals do not define a Broyden direction.
+         ! Keep a zero history vector so it does not enter the Broyden update.
+         wdf = 0.0_dp
+         mixing_store%dfbroy(:, 1:ns, nv) = 0.0_dp
+      END IF
 
       ! abroy matrix
       DO i = 1, nv
