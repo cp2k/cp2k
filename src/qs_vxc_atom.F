@@ -1359,7 +1359,7 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
 !$OMP PRIVATE(base_shift, composite_row, cross_density, cross_density_spatial, &
 !$OMP         cross_displacement, cross_grad, cross_grad_spatial, cross_kin, &
-!$OMP         cross_kin_spatial, fractional, idir, image_i1, image_i2, image_i3, &
+!$OMP         cross_kin_spatial, fractional, idir, image_i1, image_i2, image_i3, jdir, &
 !$OMP         image_shift, image_translation, target_atom) &
 !$OMP SHARED(cell, composite_cross_density, composite_cross_grad, composite_cross_kin, &
 !$OMP        composite_grid_atom, composite_grid_coords, composite_nflat, cross_cutoff, &
@@ -1368,9 +1368,14 @@ CONTAINS
 !$OMP        use_atom_composite_density, use_atom_composite_gradient, use_atom_composite_tau)
                      DO composite_row = 1, composite_nflat
                         target_atom = composite_grid_atom(composite_row)
-                        fractional = MATMUL( &
-                                     cell%h_inv, composite_grid_coords(:, composite_row) - &
-                                     particle_set(source_atom)%r)
+                        fractional = 0.0_dp
+                        DO idir = 1, 3
+                           DO jdir = 1, 3
+                              fractional(idir) = fractional(idir) + cell%h_inv(idir, jdir)* &
+                                                 (composite_grid_coords(jdir, composite_row) - &
+                                                  particle_set(source_atom)%r(jdir))
+                           END DO
+                        END DO
                         DO idir = 1, 3
                            base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
                         END DO
@@ -1849,9 +1854,14 @@ CONTAINS
                               END IF
                            END IF
 
-                           fractional = MATMUL( &
-                                        cell%h_inv, composite_grid_coords(:, composite_row) - &
-                                        particle_set(source_atom)%r)
+                           fractional = 0.0_dp
+                           DO idir = 1, 3
+                              DO jdir = 1, 3
+                                 fractional(idir) = fractional(idir) + cell%h_inv(idir, jdir)* &
+                                                    (composite_grid_coords(jdir, composite_row) - &
+                                                     particle_set(source_atom)%r(jdir))
+                              END DO
+                           END DO
                            DO idir = 1, 3
                               base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
                            END DO
@@ -1910,7 +1920,8 @@ CONTAINS
                         END DO
 !$OMP END DO
 !$OMP CRITICAL(skala_atom_composite_cross_reduction)
-                        composite_cross_force = composite_cross_force + composite_cross_force_local
+                        composite_cross_force(:, :) = &
+                           composite_cross_force(:, :) + composite_cross_force_local(:, :)
                         composite_cross_image_virial = composite_cross_image_virial + &
                                                        composite_cross_image_virial_local
 !$OMP END CRITICAL(skala_atom_composite_cross_reduction)
@@ -2350,9 +2361,14 @@ CONTAINS
                                                            SUM(composite_kin_grad(composite_row, :))
                                  END IF
                               END IF
-                              fractional = MATMUL( &
-                                           cell%h_inv, composite_grid_coords(:, composite_row) - &
-                                           particle_set(iatom)%r)
+                              fractional = 0.0_dp
+                              DO idir = 1, 3
+                                 DO jdir = 1, 3
+                                    fractional(idir) = fractional(idir) + cell%h_inv(idir, jdir)* &
+                                                       (composite_grid_coords(jdir, composite_row) - &
+                                                        particle_set(iatom)%r(jdir))
+                                 END DO
+                              END DO
                               DO idir = 1, 3
                                  base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
                               END DO
