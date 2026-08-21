@@ -255,7 +255,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Sigma_c_and_QP_energies'
 
-      INTEGER                                            :: handle, i_iter, i_mo, ispin, n_iter, u
+      INTEGER                                            :: handle, i_iter, n_iter
       LOGICAL                                            :: converged
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenval_scf_Gamma_dft
       REAL(KIND=dp), DIMENSION(2)                        :: e_fermi_dft
@@ -264,24 +264,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      u = bs_env%unit_nr
-
-      n_iter = 1
       converged = .FALSE.
 
-      IF (bs_env%ri_rs%do_evgw0) THEN
-         n_iter = bs_env%ri_rs%evgw0_iter
-
-         ! eigenvalues currently in G; the first cycle starts from the DFT ones
-         IF (.NOT. ALLOCATED(bs_env%eigenval_evGW0)) THEN
-            ALLOCATE (bs_env%eigenval_evGW0(bs_env%n_ao, bs_env%nkp_bs_and_DOS, bs_env%n_spin))
-         END IF
-         bs_env%eigenval_evGW0(:, :, :) = bs_env%eigenval_scf(:, :, :)
-         band_prev(:, :) = 0.0_dp
-         ! the loop overwrites these; post-GW printing expects the DFT values back
-         ALLOCATE (eigenval_scf_Gamma_dft, SOURCE=bs_env%eigenval_scf_Gamma)
-         e_fermi_dft(:) = bs_env%e_fermi(:)
-      END IF
+      CALL init_evGW0(bs_env, n_iter, band_prev, eigenval_scf_Gamma_dft, e_fermi_dft)
 
       DO i_iter = 1, n_iter
 
@@ -296,48 +281,15 @@ CONTAINS
 
          CALL print_evGW0_band_edges(bs_env, band_prev, i_iter, n_iter, converged)
 
-         IF (converged) THEN
-            IF (u > 0) THEN
-               WRITE (u, '(A)') ' '
-               WRITE (u, '(T2,A,I4,A)') &
-                  'evGW0 eigenvalue self-consistency reached in', i_iter, ' cycles.'
-               WRITE (u, '(A)') ' '
-            END IF
-            EXIT
-         END IF
+         IF (i_iter == n_iter .OR. converged) EXIT
 
-         IF (i_iter == n_iter) EXIT
-
-         ! ---- update the eigenvalues entering G for the next cycle ----
-         bs_env%eigenval_evGW0(:, :, :) = bs_env%eigenval_G0W0(:, :, :)
-         DO ispin = 1, bs_env%n_spin
-            ! Update all physical states; exclude linear-dependency placeholders.
-            DO i_mo = 1, bs_env%n_mo_retained
-               bs_env%eigenval_scf_Gamma(i_mo, ispin) = bs_env%eigenval_G0W0(i_mo, 1, ispin)
-            END DO
-            bs_env%e_fermi(ispin) = &
-               0.5_dp*(bs_env%eigenval_G0W0(bs_env%n_occ(ispin), 1, ispin) + &
-                       bs_env%eigenval_G0W0(bs_env%n_occ(ispin) + 1, 1, ispin))
-         END DO
+         CALL update_eigenvalues_G(bs_env)
 
       END DO
 
       CALL cp_fm_release(fm_W_time)
 
-      IF (bs_env%ri_rs%do_evgw0) THEN
-         IF (.NOT. converged) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "The evGW0 eigenvalue self-consistency cycle did not converge "// &
-                         "within MAX_ITER cycles. The reported quasiparticle energies are "// &
-                         "those of the last cycle.")
-         END IF
-         ! put the DFT reference back for the post-GW DOS/band-edge printing
-         bs_env%eigenval_scf_Gamma(:, :) = eigenval_scf_Gamma_dft(:, :)
-         bs_env%e_fermi(:) = e_fermi_dft(:)
-         DEALLOCATE (eigenval_scf_Gamma_dft)
-         ! compute_QP_energies releases Σ^x itself in the G0W0 case
-         CALL cp_fm_release(fm_Sigma_x_Gamma)
-      END IF
+      CALL reset_and_clean_bs_env(bs_env, eigenval_scf_Gamma_dft, e_fermi_dft, fm_Sigma_x_Gamma)
 
       CALL delete_unnecessary_files(bs_env)
 
@@ -346,11 +298,121 @@ CONTAINS
    END SUBROUTINE compute_Sigma_c_and_QP_energies
 
 ! **************************************************************************************************
-!> \brief Print the quasiparticle HOMO, LUMO and HOMO-LUMO gap of the current evGW0 cycle and
-!>        report whether all three have stopped changing. The full spectrum of every cycle is
-!>        written to the file bandstructure_SCF_and_G0W0.
+!> \brief Sets up the evGW0 eigenvalue self-consistency loop: the cycle count, the eigenvalues
+!>        the first Green's function is built from, and the DFT reference that the loop
+!>        overwrites. A G0W0 run reduces to a single cycle and needs none of it.
 !> \param bs_env ...
-!> \param band_prev HOMO, LUMO and gap of the previous cycle, per spin channel
+!> \param n_iter ...
+!> \param band_prev ...
+!> \param eigenval_scf_Gamma_dft ...
+!> \param e_fermi_dft ...
+! **************************************************************************************************
+   SUBROUTINE init_evGW0(bs_env, n_iter, band_prev, eigenval_scf_Gamma_dft, e_fermi_dft)
+
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      INTEGER, INTENT(OUT)                               :: n_iter
+      REAL(KIND=dp), DIMENSION(3, 2), INTENT(OUT)        :: band_prev
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: eigenval_scf_Gamma_dft
+      REAL(KIND=dp), DIMENSION(2), INTENT(OUT)           :: e_fermi_dft
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_evGW0'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      n_iter = 1
+      band_prev(:, :) = 0.0_dp
+      e_fermi_dft(:) = 0.0_dp
+
+      IF (bs_env%ri_rs%do_evgw0) THEN
+         n_iter = bs_env%ri_rs%evgw0_iter
+
+         ! eigenvalues currently in G; the first cycle starts from the DFT ones
+         IF (.NOT. ALLOCATED(bs_env%eigenval_evGW0)) THEN
+            ALLOCATE (bs_env%eigenval_evGW0(bs_env%n_ao, bs_env%nkp_bs_and_DOS, bs_env%n_spin))
+         END IF
+         bs_env%eigenval_evGW0(:, :, :) = bs_env%eigenval_scf(:, :, :)
+         ! the loop overwrites these; post-GW printing expects the DFT values back
+         ALLOCATE (eigenval_scf_Gamma_dft, SOURCE=bs_env%eigenval_scf_Gamma)
+         e_fermi_dft(:) = bs_env%e_fermi(:)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE init_evGW0
+
+! **************************************************************************************************
+!> \brief Feeds the quasiparticle energies of the current evGW0 cycle back into the Green's
+!>        function used by the next one, and re-centres the Fermi level between the new
+!>        quasiparticle HOMO and LUMO.
+!> \param bs_env ...
+! **************************************************************************************************
+   SUBROUTINE update_eigenvalues_G(bs_env)
+
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_eigenvalues_G'
+
+      INTEGER                                            :: handle, i_mo, ispin
+
+      CALL timeset(routineN, handle)
+
+      bs_env%eigenval_evGW0(:, :, :) = bs_env%eigenval_G0W0(:, :, :)
+
+      DO ispin = 1, bs_env%n_spin
+         ! Update all physical states; exclude linear-dependency placeholders.
+         DO i_mo = 1, bs_env%n_mo_retained
+            bs_env%eigenval_scf_Gamma(i_mo, ispin) = bs_env%eigenval_G0W0(i_mo, 1, ispin)
+         END DO
+         bs_env%e_fermi(ispin) = &
+            0.5_dp*(bs_env%eigenval_G0W0(bs_env%n_occ(ispin), 1, ispin) + &
+                    bs_env%eigenval_G0W0(bs_env%n_occ(ispin) + 1, 1, ispin))
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE update_eigenvalues_G
+
+! **************************************************************************************************
+!> \brief Restores the DFT reference that the evGW0 loop overwrote and cleanup
+!> \param bs_env ...
+!> \param eigenval_scf_Gamma_dft ...
+!> \param e_fermi_dft ...
+!> \param fm_Sigma_x_Gamma ..
+! **************************************************************************************************
+   SUBROUTINE reset_and_clean_bs_env(bs_env, eigenval_scf_Gamma_dft, e_fermi_dft, fm_Sigma_x_Gamma)
+
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: eigenval_scf_Gamma_dft
+      REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: e_fermi_dft
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_Sigma_x_Gamma
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_and_clean_bs_env'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (bs_env%ri_rs%do_evgw0) THEN
+         ! put the DFT reference back for the post-GW DOS/band-edge printing
+         bs_env%eigenval_scf_Gamma(:, :) = eigenval_scf_Gamma_dft(:, :)
+         bs_env%e_fermi(:) = e_fermi_dft(:)
+         DEALLOCATE (eigenval_scf_Gamma_dft)
+         ! compute_QP_energies releases Σ^x itself in the G0W0 case
+         CALL cp_fm_release(fm_Sigma_x_Gamma)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE reset_and_clean_bs_env
+
+! **************************************************************************************************
+!> \brief Print the quasiparticle HOMO, LUMO and HOMO-LUMO gap of the current evGW0 cycle
+!> \param bs_env ...
+!> \param band_prev ...
 !> \param i_iter ...
 !> \param n_iter ...
 !> \param converged ...
@@ -372,7 +434,6 @@ CONTAINS
 
       u = bs_env%unit_nr
 
-      ! nothing to compare against in the first cycle
       converged = (i_iter > 1)
       max_delta = 0.0_dp
 
@@ -412,6 +473,20 @@ CONTAINS
       END IF
 
       IF (u > 0) WRITE (u, '(T2,A)') REPEAT('-', 79)
+
+      IF (converged) THEN
+         IF (u > 0) THEN
+            WRITE (u, '(A)') ' '
+            WRITE (u, '(T2,A,I4,A)') &
+               'evGW0 eigenvalue self-consistency reached in', i_iter, ' cycles.'
+            WRITE (u, '(A)') ' '
+         END IF
+      ELSE IF (i_iter == n_iter) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "The evGW0 eigenvalue self-consistency cycle did not converge "// &
+                      "within MAX_ITER cycles. The reported quasiparticle energies are "// &
+                      "those of the last cycle.")
+      END IF
 
       CALL timestop(handle)
 
