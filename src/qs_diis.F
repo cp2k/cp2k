@@ -84,6 +84,7 @@ MODULE qs_diis
              qs_diis_b_create_sparse, &
              qs_diis_b_step_4lscf
    PUBLIC :: qs_diis_b_clear_kp, &
+             qs_diis_b_check_i_alloc_kp, &
              qs_diis_b_create_kp, &
              qs_diis_b_step_kp, &
              qs_diis_b_calc_err_kp, &
