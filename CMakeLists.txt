@@ -131,6 +131,8 @@ option(CP2K_USE_LIBINT2 "Enable Libint2 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBTORCH "Enable LibTorch support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBXC "Enable LibXC support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GAUXC "Enable GauXC support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_SKALA_FTORCH "Enable Skala/FTorch support"
+       ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_MPI "Enable MPI support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBXS
        "Enable LIBXS support; required if OpenCL backend enabled"
@@ -1102,6 +1104,10 @@ if(CP2K_USE_GAUXC)
   message("  - GauXC\n" "    - Package directory: ${gauxc_DIR}\n")
 endif()
 
+if(CP2K_USE_SKALA_FTORCH)
+  message("  - Skala/FTorch (native skala grid support)")
+endif()
+
 if(CP2K_USE_SPGLIB)
   message("  - Spglib\n"
           "    - Include directories: ${CP2K_SPGLIB_INCLUDE_DIRS}\n")
@@ -1349,6 +1355,10 @@ endif()
 
 if(NOT CP2K_USE_GAUXC)
   message("  - GauXC")
+endif()
+
+if(NOT CP2K_USE_SKALA_FTORCH)
+  message("  - Skala/FTorch")
 endif()
 
 if(NOT CP2K_USE_VORI)

@@ -4,6 +4,14 @@
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
 QMMM/QS/regtest-mpi                                        parallel mpiranks>2
+QS/regtest-skala-native-gpw-mol                             skala
+QS/regtest-skala-native-gpw-mech                            skala
+QS/regtest-skala-native-gpw-coords                          skala
+QS/regtest-skala-native-gapw-base                           skala
+QS/regtest-skala-native-gapw-gth                            skala
+QS/regtest-skala-native-gapw-ecp                            skala
+QS/regtest-skala-native-gapw-ae-kp                          skala
+QS/regtest-skala-cuda                                         skala
 QS/regtest-libgint                                          libGint libint offload_cuda !ifx
 MIMIC/regtest-qmmm                                          mimic mpiranks==4
 TMC/regtest_ana_on_the_fly                                  parallel mpiranks>2
@@ -91,7 +99,6 @@ QS/regtest-hfx-wfn-fitting                                  libint libxc !ifx
 QS/regtest-gw-cubic                                         libint !ifx
 QS/regtest-almo-2
 QS/regtest-ls-rtp
-QS/regtest-gauxc-gpw-mech                                   gauxc
 QS/regtest-LnPP2
 QS/regtest-kp-3
 QS/regtest-dcdft-force                                      libint libxc !ifx
@@ -125,6 +132,7 @@ QS/regtest-acc-1-1
 xTB/regtest-tblite-gfn2-2                                   tblite spglib
 QS/regtest-dcdr                                             libxc
 QS/regtest-gauxc-gapw-ecp                                   gauxc
+QS/regtest-gauxc-gapw-gth                                   gauxc
 QS/regtest-tddfpt                                           libint !ifx
 QS/regtest-admm-1                                           libint !ifx
 QS/regtest-rtbse-linearized-open-shell                      libint !ifx
@@ -167,7 +175,6 @@ xTB/regtest-gfn1-d                                          spglib
 Fist/regtest-1-3
 xTB/regtest-tblite-gfn2-5                                   tblite spglib
 QS/regtest-slab
-QS/regtest-gauxc-gapw-gth                                   gauxc
 Fist/regtest-2
 QS/regtest-rixs                                             libint libxc !ifx
 QS/regtest-dm-ls-scf-3
@@ -223,6 +230,7 @@ QS/regtest-ri-laplace-mp2-cubic-2                           libint libxc !ifx
 QS/regtest-tddfpt-2                                         libint !ifx
 SE/regtest-4
 QS/regtest-gauxc-gpw-mol                                    gauxc
+QS/regtest-gauxc-gpw-nlcc                                   gauxc
 QS/regtest-dft-d3-lib-ref                                   libint s_dftd3 !ifx
 QMMM/xTB/regtest
 QMMM/xTB/regtest-tblite                                     tblite
@@ -279,7 +287,6 @@ xTB/regtest-4
 QS/regtest-gpw-6-4
 QMMM/QS/regtest-2-erf
 QMMM/QS/regtest-2-swave
-QS/regtest-gauxc-gapw-ae-kp                                 gauxc
 QS/regtest-nmr-5
 QS/regtest-tddfpt-force-gapw-1                              !ifx
 QS/regtest-tddfpt-sf                                        libint !ifx
@@ -314,7 +321,6 @@ QMMM/QS/regtest-image
 QMMM/SE/regtest_2
 QS/regtest-spgr-id                                          spglib
 QS/regtest-mtlr
-QS/regtest-gauxc-gapw-gth-kp                                gauxc
 QS/regtest-sparsity                                         libint !ifx
 QS/regtest-mp2-admm-grad                                    libint !ifx
 QS/regtest-loc_powf
@@ -373,7 +379,6 @@ QS/regtest-epr-2
 QS/regtest-as-fci                                           libfci libint libxc !ifx
 QS/regtest-nlmo
 QS/regtest-rtp-1
-QS/regtest-gauxc-gpw-nlcc                                   gauxc
 QS/regtest-mp2-lr                                           libint !ifx
 QS/regtest-mp2-admm-stress-numer                            libint !ifx
 QS/regtest-double-hybrid-grad-numer-meta                    libxc !ifx
@@ -396,7 +401,6 @@ QS/regtest-double-hybrid-grad-meta                          libxc
 QS/regtest-spin-spin-1
 QS/regtest-double-hybrid-grad-laplace                       libxc
 QS/regtest-double-hybrid-grad-numer                         !ifx
-QS/regtest-gauxc-gpw-kp                                     gauxc
 QS/regtest-admm-type                                        libint !ifx
 Fist/regtest-water
 QS/regtest-hfx-2                                            libint !ifx
