@@ -1545,6 +1545,7 @@ set(CP2K_PROGS_F
     common/gemm_square_unittest.F
     common/memory_utilities_unittest.F
     common/parallel_rng_types_unittest.F
+    mpiwrap/message_passing_thread_unittest.F
     subsys/cell_types_unittest.F
     pw/realspace_grid_cube_unittest.F
     metadyn_tools/graph.F
@@ -1946,6 +1947,7 @@ list(
   "gemm_square_unittest"
   "memory_utilities_unittest"
   "parallel_rng_types_unittest"
+  "message_passing_thread_unittest"
   "cell_types_unittest"
   "realspace_grid_cube_unittest"
   "graph"
@@ -1965,6 +1967,8 @@ add_executable(orbital_transformation_matrices_unittest
 add_executable(gemm_square_unittest common/gemm_square_unittest.F)
 add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
+add_executable(message_passing_thread_unittest
+               mpiwrap/message_passing_thread_unittest.F)
 add_executable(cell_types_unittest subsys/cell_types_unittest.F)
 add_executable(realspace_grid_cube_unittest pw/realspace_grid_cube_unittest.F)
 add_executable(graph metadyn_tools/graph.F)

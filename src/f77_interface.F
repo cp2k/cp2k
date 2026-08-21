@@ -101,6 +101,7 @@ MODULE f77_interface
                                               mp_comm_world,&
                                               mp_para_env_release,&
                                               mp_para_env_type,&
+                                              mp_query_thread_level,&
                                               mp_world_finalize,&
                                               mp_world_init
    USE metadynamics_types,              ONLY: meta_env_type
@@ -256,6 +257,7 @@ CONTAINS
             ! get the default system wide communicator
             CALL mp_world_init(default_para_env)
          ELSE
+            CALL mp_query_thread_level()
             IF (PRESENT(mpi_comm)) THEN
                default_para_env = mpi_comm
             ELSE
