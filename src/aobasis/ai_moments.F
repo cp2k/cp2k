@@ -31,7 +31,6 @@ MODULE ai_moments
 
    USE ai_derivatives,                  ONLY: adbdr,&
                                               dabdr
-   USE ai_overlap,                      ONLY: overlap
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: coset,&
@@ -45,7 +44,7 @@ MODULE ai_moments
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_moments'
 
-   PUBLIC :: cossin, moment, diffop, diff_momop, contract_cossin, dipole_force
+   PUBLIC :: cossin, moment, diff_momop, contract_cossin, dipole_force
    PUBLIC :: diff_momop2, diff_momop_velocity
 
 CONTAINS
@@ -1494,63 +1493,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE moment
-
-! **************************************************************************************************
-!> \brief This returns the derivative of the overlap integrals [a|b], with respect
-!>       to the position of the primitive on the  left, i.e.
-!>       [da/dR_ai|b] =  2*zeta*[a+1i|b] - Ni(a)[a-1i|b]
-!> \param la_max ...
-!> \param npgfa ...
-!> \param zeta ...
-!> \param rpgfa ...
-!> \param la_min ...
-!> \param lb_max ...
-!> \param npgfb ...
-!> \param zetb ...
-!> \param rpgfb ...
-!> \param lb_min ...
-!> \param rab ...
-!> \param difab ...
-! **************************************************************************************************
-   SUBROUTINE diffop(la_max, npgfa, zeta, rpgfa, la_min, &
-                     lb_max, npgfb, zetb, rpgfb, lb_min, &
-                     rab, difab)
-
-      INTEGER, INTENT(IN)                                :: la_max, npgfa
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta, rpgfa
-      INTEGER, INTENT(IN)                                :: la_min, lb_max, npgfb
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zetb, rpgfb
-      INTEGER, INTENT(IN)                                :: lb_min
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: difab
-
-      INTEGER                                            :: lda_min, ldb_min, lds, lmax
-      REAL(KIND=dp)                                      :: dab, rab2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: s
-      REAL(KIND=dp), DIMENSION(npgfa*ncoset(la_max+1), &
-         npgfb*ncoset(lb_max+1))                         :: sab
-
-      rab2 = SUM(rab**2)
-      dab = SQRT(rab2)
-
-      lda_min = MAX(0, la_min - 1)
-      ldb_min = MAX(0, lb_min - 1)
-      lmax = MAX(la_max + 1, lb_max + 1)
-      lds = ncoset(lmax + 1)
-      ALLOCATE (s(lds, lds, ncoset(1)))
-      sab = 0.0_dp
-      s = 0.0_dp
-      CALL overlap(la_max + 1, lda_min, npgfa, rpgfa, zeta, &
-                   lb_max + 1, ldb_min, npgfb, rpgfb, zetb, &
-                   rab, dab, sab, 0, .FALSE., s, lds)
-
-      CALL dabdr(la_max, npgfa, zeta, rpgfa, la_min, &
-                 lb_max, npgfb, rpgfb, lb_min, &
-                 dab, sab, difab(:, :, 1), difab(:, :, 2), difab(:, :, 3))
-
-      DEALLOCATE (s)
-
-   END SUBROUTINE diffop
 
 ! **************************************************************************************************
 !> \brief This returns the derivative of the moment integrals [a|\mu|b], with respect
