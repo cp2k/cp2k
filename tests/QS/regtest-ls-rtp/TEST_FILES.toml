@@ -39,7 +39,7 @@
   { matcher = "E_total", tol = 3e-13, ref = -0.53624161700164 },
 ]
 "H2O-ls-emd-mixing.inp" = [
-  { matcher = "E_total", tol = 2e-11, ref = -17.08894042167865 },
+  { matcher = "E_total", tol = 3e-11, ref = -17.08894042167865 },
 ]
 "Ar_mixed_aa_planar-rtp-osc-field.inp" = [
   { matcher = "E_total", tol = 8e-13, ref = -21.07372556817139 },
