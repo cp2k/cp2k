@@ -29,8 +29,7 @@ MODULE qs_linres_kernel
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type,&
-                                              cp_to_string
+                                              cp_logger_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_ri,                          ONLY: hfx_ri_update_ks
@@ -40,10 +39,7 @@ MODULE qs_linres_kernel
                                               do_admm_exch_scaling_none,&
                                               do_admm_purify_none,&
                                               kg_tnadd_embed
-   USE input_section_types,             ONLY: section_get_ival,&
-                                              section_get_lval,&
-                                              section_get_rval,&
-                                              section_vals_get,&
+   USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -71,8 +67,8 @@ MODULE qs_linres_kernel
                                               pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_fxc,                          ONLY: qs_fxc_analytic,&
-                                              qs_fxc_fdiff
+   USE qs_fxc,                          ONLY: qs_fxc_apply,&
+                                              qs_fxc_prep
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
                                               integrate_v_rspace_diagonal,&
@@ -80,9 +76,9 @@ MODULE qs_linres_kernel
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_kpp1_env_methods,             ONLY: kpp1_check_i_alloc
    USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
    USE qs_ks_atom,                      ONLY: update_ks_atom
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_p_env_methods,                ONLY: p_env_finish_kpp1
@@ -93,14 +89,6 @@ MODULE qs_linres_kernel
                                               qs_rho_type
    USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
    USE task_list_types,                 ONLY: task_list_type
-   USE xc,                              ONLY: xc_calc_2nd_deriv,&
-                                              xc_prep_2nd_deriv
-   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
-   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
-   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
-                                              xc_rho_set_release,&
-                                              xc_rho_set_type,&
-                                              xc_rho_set_update
    USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
@@ -175,14 +163,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_op_2_dft'
 
       INTEGER                                            :: handle, ikind, ispin, nkind, ns, nspins
-      LOGICAL                                            :: deriv2_analytic, gapw, gapw_xc, &
-                                                            lr_triplet, lrigpw
+      LOGICAL                                            :: gapw, gapw_xc, lr_triplet, lrigpw
       REAL(KIND=dp)                                      :: alpha, ekin_mol, energy_hartree, &
                                                             energy_hartree_1c
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: k1mat, matrix_s, rho1_ao, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: k1mat, rho1_ao, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ksmat, psmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
@@ -197,21 +184,18 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho_r, tau1_r, v_rspace_new, &
-                                                            v_xc, v_xc_tau
-      TYPE(pw_r3d_rs_type), POINTER                      :: weights
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace_new, v_xc, v_xc_tau
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho0, rho1, rho1_xc, rho1a, &
-                                                            rho_aux, rho_xc
+      TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho1_xc, rho1a, rho_aux, &
+                                                            rho_xc
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: input, xc_section, xc_section_aux
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (auxbas_pw_pool, pw_env, v_rspace_new, para_env, rho1_r, &
-               v_xc, rho1_ao, rho_ao, poisson_env, input, rho, dft_control, &
-               logger, rho1_g, v_xc_tau)
+      NULLIFY (auxbas_pw_pool, pw_env, v_rspace_new, para_env, v_xc, &
+               rho1_ao, rho_ao, poisson_env, input, rho, dft_control, logger, &
+               rho1_g, v_xc_tau)
       logger => cp_get_default_logger()
 
       energy_hartree = 0.0_dp
@@ -222,7 +206,6 @@ CONTAINS
       kpp1_env => p_env%kpp1_env
 
       CALL get_qs_env(qs_env=qs_env, &
-                      ks_env=ks_env, &
                       pw_env=pw_env, &
                       input=input, &
                       admm_env=admm_env, &
@@ -255,21 +238,13 @@ CONTAINS
                          atomic_kind_set=atomic_kind_set)
       END IF
 
-      IF (.NOT. ASSOCIATED(kpp1_env%v_ao)) THEN
-         CALL get_qs_env(qs_env, matrix_s=matrix_s)
-         CALL dbcsr_allocate_matrix_set(kpp1_env%v_ao, nspins)
-         DO ispin = 1, nspins
-            ALLOCATE (kpp1_env%v_ao(ispin)%matrix)
-            CALL dbcsr_copy(kpp1_env%v_ao(ispin)%matrix, matrix_s(1)%matrix, &
-                            name="kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)))
-         END DO
-      END IF
-
       IF (dft_control%do_admm) THEN
          xc_section => admm_env%xc_section_primary
       ELSE
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       END IF
+
+      CALL kpp1_check_i_alloc(kpp1_env, qs_env, xc_section)
 
       ! gets the tmp grids
       CPASSERT(ASSOCIATED(pw_env))
@@ -309,29 +284,20 @@ CONTAINS
       ! *** calculate the xc potential ***
       NULLIFY (rho1a)
       IF (gapw_xc) THEN
-         rho0 => rho_xc
          rho1a => rho1_xc
       ELSE
-         rho0 => rho
          rho1a => rho1
       END IF
 
-      deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
       NULLIFY (v_xc_tau)
-      IF (deriv2_analytic) THEN
-         CALL qs_rho_get(rho1a, rho_r=rho1_r, tau_r=tau1_r)
-         CALL get_qs_env(qs_env, xcint_weights=weights)
-         CALL qs_fxc_analytic(rho0, rho1_r, tau1_r, xc_section, weights, auxbas_pw_pool, &
-                              lr_triplet, v_xc, v_xc_tau)
-         IF (gapw .OR. gapw_xc) THEN
-            CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
-            rho1_atom_set => p_env%local_rho_set%rho_atom_set
-            CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
-                                             do_triplet=lr_triplet)
-         END IF
-      ELSE
-         CALL qs_fxc_fdiff(ks_env, rho0, rho1a, xc_section, 6, lr_triplet, v_xc, v_xc_tau)
-         CPASSERT((.NOT. gapw) .AND. (.NOT. gapw_xc))
+      CALL qs_fxc_apply(qs_env, kpp1_env%deriv_set, kpp1_env%rho_set, rho1a, &
+                        xc_section, v_xc, v_xc_tau, is_triplet=lr_triplet)
+
+      IF (gapw .OR. gapw_xc) THEN
+         CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
+         rho1_atom_set => p_env%local_rho_set%rho_atom_set
+         CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, &
+                                          para_env, do_triplet=lr_triplet)
       END IF
 
       v_rspace_new => v_xc
@@ -348,14 +314,11 @@ CONTAINS
          IF (admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
             IF (.NOT. ASSOCIATED(kpp1_env%deriv_set_admm)) THEN
                CPASSERT(.NOT. lr_triplet)
-               CALL get_qs_env(qs_env, xcint_weights=weights)
                xc_section_aux => admm_env%xc_section_aux
                CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
-               CALL qs_rho_get(rho_aux, rho_r=rho_r)
                ALLOCATE (kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm)
-               CALL xc_prep_2nd_deriv(kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, &
-                                      rho_r, auxbas_pw_pool, weights, &
-                                      xc_section=xc_section_aux)
+               CALL qs_fxc_prep(qs_env, rho_aux, kpp1_env%rho_set_admm, kpp1_env%deriv_set_admm, &
+                                xc_section_aux, pw_env, is_triplet=.FALSE.)
             END IF
          END IF
       END IF
@@ -840,8 +803,6 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, ispin, ns, nspins
-      INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL                                            :: gapw, lsd
       REAL(KIND=dp)                                      :: alpha
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type)                                 :: xcmat
@@ -852,23 +813,22 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_aux_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_aux_r, tau_pw, v_xc, v_xc_tau
-      TYPE(pw_r3d_rs_type), POINTER                      :: weights
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_xc, v_xc_tau
+      TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
+      TYPE(qs_rho_type), POINTER                         :: rho_aux
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
-      TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
+      TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(task_list_type), POINTER                      :: task_list
-      TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type)                              :: rho1_set
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
 
       IF (dft_control%do_admm) THEN
-         IF (qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
+         CALL get_qs_env(qs_env, admm_env=admm_env)
+         IF (admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
             ! nothing to do
          ELSE
             CALL get_qs_env(qs_env=qs_env, linres_control=linres_control)
@@ -881,43 +841,21 @@ CONTAINS
             CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
             CPASSERT(ASSOCIATED(pw_env))
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            NULLIFY (tau_pw)
             ! calculate the xc potential
-            lsd = (nspins == 2)
-            CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s)
+            CALL get_admm_env(admm_env, matrix_s_aux_fit=matrix_s)
             ALLOCATE (xcmat%matrix)
             CALL dbcsr_create(xcmat%matrix, template=matrix_s(1)%matrix)
 
-            CALL get_qs_env(qs_env, admm_env=admm_env)
-            gapw = admm_env%do_gapw
-
-            NULLIFY (weights)
-            CALL get_qs_env(qs_env=qs_env, xcint_weights=weights)
-
-            CALL qs_rho_get(p_env%rho1_admm, rho_r=rho1_aux_r, rho_g=rho1_aux_g)
+            NULLIFY (v_xc, v_xc_tau)
+            CALL get_admm_env(admm_env, rho_aux_fit=rho_aux)
             xc_section => admm_env%xc_section_aux
-            bo = rho1_aux_r(1)%pw_grid%bounds_local
-            ! create the place where to store the argument for the functionals
-            CALL xc_rho_set_create(rho1_set, bo, &
-                                   rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
-                                   drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
-                                   tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
+            kpp1_env => p_env%kpp1_env
+            CALL qs_fxc_apply(qs_env, kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, p_env%rho1_admm, &
+                              xc_section, v_xc, v_xc_tau)
 
-            xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-            needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
-
-            ! calculate the arguments needed by the functionals
-            CALL xc_rho_set_update(rho1_set, rho1_aux_r, rho1_aux_g, tau_pw, needs, &
-                                   section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
-                                   section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
-                                   auxbas_pw_pool)
-            CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, p_env%kpp1_env%deriv_set_admm, p_env%kpp1_env%rho_set_admm, &
-                                   rho1_aux_r, rho1_aux_g, tau_pw, auxbas_pw_pool, weights, gapw=.FALSE., &
-                                   xc_section=xc_section)
             IF (ASSOCIATED(v_xc_tau)) THEN
                CPABORT("Meta-GGA ADMM functionals not yet supported!")
             END IF
-            CALL xc_rho_set_release(rho1_set)
 
             basis_type = "AUX_FIT"
             CALL get_qs_env(qs_env, para_env=para_env)

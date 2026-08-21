@@ -75,8 +75,7 @@ MODULE qs_p_env_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_kpp1_env_methods,             ONLY: kpp1_create,&
-                                              kpp1_did_change
+   USE qs_kpp1_env_methods,             ONLY: kpp1_create
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
@@ -656,9 +655,6 @@ CONTAINS
       ELSE
          CALL cp_fm_release(psi0)
       END IF
-
-      ! tells kpp1_env about the change of psi0
-      CALL kpp1_did_change(p_env%kpp1_env)
 
       CALL timestop(handle)
 

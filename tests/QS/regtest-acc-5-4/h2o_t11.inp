@@ -28,7 +28,8 @@
       POISSON_SOLVER MT
     &END POISSON
     &QS
-      EPS_DEFAULT 1.E-10
+      ALPHA_WEIGHTS 15.
+      EPS_DEFAULT 1.E-14
       GAPW_ACCURATE_XCINT T
       METHOD GAPW
     &END QS
@@ -57,7 +58,7 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [angstrom] 5.0 5.0 5.0
+      ABC [angstrom] 6.0 6.0 6.0
       PERIODIC NONE
     &END CELL
     &COORD

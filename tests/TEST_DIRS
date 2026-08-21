@@ -239,6 +239,7 @@ QS/regtest-stress
 QS/regtest-epr-1
 xTB/regtest-3-spglib                                        spglib tblite
 DFTB/regtest-scc-1-3
+QS/regtest-nlcc-1                                           libint libxc !ifx
 QS/regtest-debug-2                                          libint libxc !ifx
 QS/regtest-admm-libxc                                       libint libxc !ifx
 QS/regtest-stda-force-2                                     libint !ifx

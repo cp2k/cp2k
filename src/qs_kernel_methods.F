@@ -6,14 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_kernel_methods
-   USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_type,&
-                                              dbcsr_init_p,&
-                                              dbcsr_p_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
-   USE input_section_types,             ONLY: section_get_ival,&
-                                              section_get_lval,&
-                                              section_get_rval,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_type
+   USE input_section_types,             ONLY: section_get_lval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -26,19 +20,15 @@ MODULE qs_kernel_methods
                                               pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_fxc,                          ONLY: qs_fxc_prep
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
+   USE qs_rho_methods,                  ONLY: qs_rho_copy
    USE qs_rho_types,                    ONLY: qs_rho_create,&
                                               qs_rho_get,&
-                                              qs_rho_set,&
                                               qs_rho_type
-   USE qs_tddfpt2_subgroups,            ONLY: tddfpt_dbcsr_create_by_dist,&
-                                              tddfpt_subgroup_env_type
-   USE xc,                              ONLY: xc_prep_2nd_deriv
-   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+   USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE xc_fxc_kernel,                   ONLY: calc_fxc_kernel
-   USE xc_rho_set_types,                ONLY: xc_rho_set_create
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -60,8 +50,6 @@ CONTAINS
 !> \param is_rks_triplets  indicates that the triplet excited states calculation using
 !>                         spin-unpolarised molecular orbitals has been requested
 !> \param rho_struct_sub   ground state charge density, if not associated on input, it will be associated on output
-!> \param lsd_singlets ...
-!> \param do_excitations ...
 !> \param sub_env          parallel group environment
 !> \param qs_env ...
 !> \par History
@@ -69,141 +57,60 @@ CONTAINS
 !>    * 06.2018 the charge density needs to be provided via a dummy argument [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE create_kernel_env(kernel_env, xc_section, is_rks_triplets, rho_struct_sub, &
-                                lsd_singlets, do_excitations, sub_env, qs_env)
+                                sub_env, qs_env)
       TYPE(full_kernel_env_type), INTENT(inout)          :: kernel_env
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(qs_rho_type), POINTER                         :: rho_struct_sub
-      LOGICAL, INTENT(in), OPTIONAL                      :: lsd_singlets, do_excitations
-      TYPE(tddfpt_subgroup_env_type), INTENT(in), &
-         OPTIONAL                                        :: sub_env
-      TYPE(qs_environment_type), INTENT(in), OPTIONAL, &
-         POINTER                                         :: qs_env
+      TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
+      TYPE(qs_environment_type), INTENT(in), POINTER     :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_kernel_env'
 
-      INTEGER                                            :: handle, ispin, nspins
-      LOGICAL                                            :: lsd, my_excitations, my_singlets
+      INTEGER                                            :: handle, nspins
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ia_ao
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_ij_r, rho_ij_r2, tau_ij_r, tau_ij_r2
-      TYPE(pw_r3d_rs_type), POINTER                      :: weights
-      TYPE(section_vals_type), POINTER                   :: xc_fun_section
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, weights
 
       CALL timeset(routineN, handle)
 
-      IF (PRESENT(sub_env)) THEN
-         pw_env => sub_env%pw_env
-         dbcsr_dist => sub_env%dbcsr_dist
-         sab_orb => sub_env%sab_orb
+      pw_env => sub_env%pw_env
+      dbcsr_dist => sub_env%dbcsr_dist
+      sab_orb => sub_env%sab_orb
 
-         nspins = SIZE(sub_env%mos_occ)
+      nspins = SIZE(sub_env%mos_occ)
 
-         NULLIFY (weights)
-         weights => sub_env%xcint_weights
-         IF (sub_env%is_split .AND. ASSOCIATED(weights)) THEN
-            CPABORT("Split communicators and integration weights")
-         END IF
-
-      ELSE
-         CPASSERT(PRESENT(qs_env))
-
-         CALL get_qs_env(qs_env=qs_env, &
-                         pw_env=pw_env, &
-                         dbcsr_dist=dbcsr_dist, &
-                         sab_orb=sab_orb, &
-                         dft_control=dft_control)
-
-         NULLIFY (weights)
-         CALL get_qs_env(qs_env=qs_env, xcint_weights=weights)
-
-         nspins = dft_control%nspins
-
-         IF (.NOT. ASSOCIATED(rho_struct_sub)) THEN
-            ! Build rho_set
-            NULLIFY (rho_ia_ao)
-            CALL dbcsr_allocate_matrix_set(rho_ia_ao, nspins)
-            DO ispin = 1, nspins
-               CALL dbcsr_init_p(rho_ia_ao(ispin)%matrix)
-               CALL tddfpt_dbcsr_create_by_dist(rho_ia_ao(ispin)%matrix, template=matrix_s(1)%matrix, &
-                                                dbcsr_dist=dbcsr_dist, sab=sab_orb)
-            END DO
-
-            ALLOCATE (rho_struct_sub)
-            CALL qs_rho_create(rho_struct_sub)
-            CALL qs_rho_set(rho_struct_sub, rho_ao=rho_ia_ao)
-            CALL qs_rho_rebuild(rho_struct_sub, qs_env, rebuild_ao=.FALSE., &
-                                rebuild_grids=.TRUE., pw_env_external=pw_env)
-         END IF
+      NULLIFY (weights, rho_nlcc)
+      weights => sub_env%xcint_weights
+      IF (sub_env%is_split .AND. ASSOCIATED(weights)) THEN
+         CPABORT("Split communicators and integration weights")
       END IF
-
-      lsd = (nspins > 1) .OR. is_rks_triplets
+      CALL get_qs_env(qs_env, rho_nlcc=rho_nlcc)
+      IF (sub_env%is_split .AND. ASSOCIATED(rho_nlcc)) THEN
+         CPABORT("Split communicators and NLCC not implemented")
+      END IF
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-
-      CALL qs_rho_get(rho_struct_sub, rho_r=rho_ij_r, tau_r=tau_ij_r)
-
-      NULLIFY (kernel_env%xc_rho_set, kernel_env%xc_rho1_set)
-
-      ALLOCATE (kernel_env%xc_rho_set)
-      IF (is_rks_triplets) THEN
-         ! we are about to compute triplet states using spin-restricted reference MOs;
-         ! we still need the beta-spin density component in order to compute the TDDFT kernel
-         ALLOCATE (rho_ij_r2(2))
-         rho_ij_r2(1) = rho_ij_r(1)
-         rho_ij_r2(2) = rho_ij_r(1)
-
-         IF (ASSOCIATED(tau_ij_r)) THEN
-            ALLOCATE (tau_ij_r2(2))
-            tau_ij_r2(1) = tau_ij_r(1)
-            tau_ij_r2(2) = tau_ij_r(1)
-         END IF
-
-         CALL xc_prep_2nd_deriv(kernel_env%xc_deriv_set, kernel_env%xc_rho_set, rho_ij_r2, &
-                                auxbas_pw_pool, weights, xc_section=xc_section, tau_r=tau_ij_r2)
-
-         IF (ASSOCIATED(tau_ij_r)) DEALLOCATE (tau_ij_r2)
-
-         DEALLOCATE (rho_ij_r2)
-      ELSE
-         CALL xc_prep_2nd_deriv(kernel_env%xc_deriv_set, kernel_env%xc_rho_set, rho_ij_r, &
-                                auxbas_pw_pool, weights, xc_section=xc_section, tau_r=tau_ij_r)
+      IF (.NOT. ASSOCIATED(kernel_env%rho0_struct)) THEN
+         ALLOCATE (kernel_env%rho0_struct)
+         CALL qs_rho_create(kernel_env%rho0_struct)
       END IF
+      CALL qs_rho_copy(rho_struct_sub, kernel_env%rho0_struct, auxbas_pw_pool, nspins)
 
       ! ++ allocate structure for response density
       kernel_env%xc_section => xc_section
-      kernel_env%deriv_method_id = section_get_ival(xc_section, "XC_GRID%XC_DERIV")
-      kernel_env%rho_smooth_id = section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO")
-
-      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-      kernel_env%xc_rho1_cflags = xc_functionals_get_needs(functionals=xc_fun_section, lsd=lsd, &
-                                                           calc_potential=.TRUE.)
-
-      IF (.NOT. ASSOCIATED(kernel_env%xc_rho1_set)) THEN
-         NULLIFY (kernel_env%xc_rho1_set)
-         ALLOCATE (kernel_env%xc_rho1_set)
-      END IF
-      CALL xc_rho_set_create(kernel_env%xc_rho1_set, auxbas_pw_pool%pw_grid%bounds_local, &
-                             rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
-                             drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
-                             tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
-
-      my_excitations = .TRUE.
-      IF (PRESENT(do_excitations)) my_excitations = do_excitations
-
-      my_singlets = .FALSE.
-      IF (PRESENT(lsd_singlets)) my_singlets = lsd_singlets
+      ALLOCATE (kernel_env%xc_rho_set)
+      CALL qs_fxc_prep(qs_env, rho_struct_sub, &
+                       kernel_env%xc_rho_set, kernel_env%xc_deriv_set, &
+                       xc_section, pw_env, is_rks_triplets)
 
       kernel_env%alpha = 1.0_dp
       kernel_env%beta = 0.0_dp
-
       ! kernel_env%beta is taken into account in spin-restricted case only
-      IF (nspins == 1 .AND. my_excitations) THEN
+      IF (nspins == 1) THEN
          IF (is_rks_triplets) THEN
             ! K_{triplets} = K_{alpha,alpha} - K_{alpha,beta}
             kernel_env%beta = -1.0_dp
@@ -212,10 +119,6 @@ CONTAINS
             ! K_{singlets} = K_{alpha,alpha} + K_{alpha,beta} = 2 * K_{alpha,alpha} + 0 * K_{alpha,beta},
             ! due to the following relation : K_{alpha,alpha,singlets} == K_{alpha,beta,singlets}
             kernel_env%alpha = 2.0_dp
-
-            IF (my_singlets) THEN
-               kernel_env%beta = 1.0_dp
-            END IF
          END IF
       END IF
 
