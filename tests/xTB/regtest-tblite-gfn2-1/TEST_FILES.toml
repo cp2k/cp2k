@@ -4,6 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 "CH2O_gfn2.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-7.1737299848}]
+"CH2O_gfn2_cp2k_modified_broyden.inp"    = [{matcher="E_total", tol=1.0E-8, ref=-7.1737299848}]
 "H2SO4_gfn2.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-20.535208593}]
 "N2_gfn2.inp"                            = [{matcher="E_total", tol=1.0E-8, ref=-5.7289226128}]
 "N2_gfn2_ot.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-5.7289226128}]

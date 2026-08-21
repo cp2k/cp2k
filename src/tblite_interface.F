@@ -88,6 +88,7 @@ MODULE tblite_interface
    USE particle_types, ONLY: particle_type
    USE qs_charge_mixing, ONLY: charge_mixing
    USE qs_condnum, ONLY: overlap_condnum
+   USE qs_density_mixing_types, ONLY: modified_broyden_mixing_nr
    USE qs_energy_types, ONLY: qs_energy_type
    USE qs_environment_types, ONLY: get_qs_env, qs_environment_type
    USE qs_force_types, ONLY: qs_force_type, total_qs_force
@@ -1924,6 +1925,10 @@ CONTAINS
       ELSE
          ! charge mixing
          native_sign_mixing = .FALSE.
+         IF (.NOT. (do_dipole .OR. do_quadrupole) .AND. &
+             scf_env%mixing_method == modified_broyden_mixing_nr) THEN
+            CPABORT("MODIFIED_BROYDEN_MIXING with SCC_MIXER CP2K is currently supported only for GFN2")
+         END IF
          IF (dft_control%qs_control%do_ls_scf .OR. scf_control%use_ot) THEN
             ! LS_SCF and OT optimize the electronic variables directly. Use the
             ! current shell/multipole response from that density without an

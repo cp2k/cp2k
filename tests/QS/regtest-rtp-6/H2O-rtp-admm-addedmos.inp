@@ -6,7 +6,7 @@
 
 &MOTION
   &MD
-    STEPS 3
+    STEPS 2
     TIMESTEP [fs] 0.0012
   &END MD
 &END MOTION
