@@ -14,7 +14,7 @@
 /make_cp2k.sh                @mkrack @mtaillefumier @RMeli
 
 # Toolchain
-/tools/toolchain/            @mkrack @oschuett
+/tools/toolchain/            @mkrack @Growl1234
 
 # Testing + Conventions
 /tools/conventions/          @mkrack @oschuett
@@ -70,5 +70,10 @@
 
 # Post SCF
 /src/qs_scf_post_*           @marci73 @juerghutter
+
+# Fedora
+/tools/fedora                @Growl1234
+/.packit.yaml                @Growl1234
+/.fmf/                       @Growl1234
 
 #EOF
