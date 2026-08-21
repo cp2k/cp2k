@@ -126,9 +126,10 @@ MODULE qs_vxc_atom
                                   native_grid_interp_npts = &
                                   native_grid_interp_offset_max - &
                                   native_grid_interp_offset_min + 1
-   ! A stencil shorter than a tile touches at most two tiles per direction, including wraparound.
+   ! A wrapped stencil can touch both end tiles and one adjacent interior tile when the final
+   ! tile is shorter than the stencil. Three tiles per direction are therefore sufficient.
    INTEGER, PARAMETER, PRIVATE :: native_grid_adjoint_tile_edge = 64, &
-                                  native_grid_adjoint_max_tiles_per_direction = 2, &
+                                  native_grid_adjoint_max_tiles_per_direction = 3, &
                                   native_grid_adjoint_max_bins_per_row = &
                                   native_grid_adjoint_max_tiles_per_direction**3
 
