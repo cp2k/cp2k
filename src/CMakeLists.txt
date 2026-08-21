@@ -82,7 +82,6 @@ list(
   cell_methods.F
   colvar_methods.F
   colvar_utils.F
-  commutator_rkinetic.F
   commutator_rpnl.F
   constraint_3x3.F
   constraint_4x6.F
