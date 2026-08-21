@@ -177,7 +177,9 @@ CONTAINS
       ! my_force_t/my_cstress_t. SCHEDULE(STATIC) hands out contiguous atom
       ! blocks in thread order, so the ordered sum over threads after the
       ! region reproduces the serial summation order exactly.
-      !$OMP PARALLEL DEFAULT(SHARED) &
+      !$OMP PARALLEL DEFAULT(NONE) &
+      !$OMP          SHARED(calc_forces, calc_stress, istart, max_input_nodes, mecalc, &
+      !$OMP                 my_cstress_t, my_force_t, nnp) &
       !$OMP          PRIVATE(i, i_com, ind, ie, il, j, n_input_nodes, tid, my_arc, denergydsym, stress)
 
       tid = 1
