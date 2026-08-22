@@ -13,14 +13,14 @@
 ! **************************************************************************************************
 MODULE qs_commutators
    USE cell_types,                      ONLY: cell_type
-   USE commutator_rkinetic,             ONLY: build_com_tr_matrix
    USE commutator_rpnl,                 ONLY: build_com_mom_nl
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_create,&
                                               dbcsr_p_type,&
                                               dbcsr_scale,&
-                                              dbcsr_set
+                                              dbcsr_set,&
+                                              dbcsr_type_antisymmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -30,6 +30,7 @@ MODULE qs_commutators
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -91,18 +92,22 @@ CONTAINS
       DO ir = 1, 3
          ALLOCATE (matrix_hr(ir)%matrix)
          CALL dbcsr_create(matrix_hr(ir)%matrix, template=matrix_s(1, 1)%matrix, &
-                           name="COMMUTATOR")
+                           name="COMMUTATOR", matrix_type=dbcsr_type_antisymmetric)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_hr(ir)%matrix, sab_orb)
          CALL dbcsr_set(matrix_hr(ir)%matrix, 0.0_dp)
       END DO
 
-      CALL build_com_tr_matrix(matrix_hr, qs_kind_set, "ORB", sab_orb)
+      ! The kinetic-position commutator is the negative of the derivative matrix.
+      CALL build_lin_mom_matrix(qs_env, matrix_hr)
+      DO ir = 1, 3
+         CALL dbcsr_scale(matrix_hr(ir)%matrix, alpha_scalar=-1.0_dp)
+      END DO
       IF (ASSOCIATED(sap_ppnl)) THEN
          CALL dbcsr_allocate_matrix_set(matrix_nl, 3)
          DO ir = 1, 3
             ALLOCATE (matrix_nl(ir)%matrix)
             CALL dbcsr_create(matrix_nl(ir)%matrix, template=matrix_s(1, 1)%matrix, &
-                              name="NONLOCAL COMMUTATOR")
+                              name="NONLOCAL COMMUTATOR", matrix_type=dbcsr_type_antisymmetric)
             CALL cp_dbcsr_alloc_block_from_nbl(matrix_nl(ir)%matrix, sab_orb)
             CALL dbcsr_set(matrix_nl(ir)%matrix, 0.0_dp)
          END DO
