@@ -123,7 +123,6 @@ benchmark cp2k 1 eiger node:
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS: 128
     SLURM_NTASKS_PER_NODE: 128
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
@@ -145,7 +144,6 @@ benchmark cp2k 1 eiger node elpa:
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS: 128
     SLURM_NTASKS_PER_NODE: 128
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
@@ -168,7 +166,6 @@ benchmark cp2k 2 eiger nodes:
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 2
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS: 256
     SLURM_NTASKS_PER_NODE: 128
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
@@ -191,7 +188,6 @@ benchmark cp2k 2 eiger nodes elpa:
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 2
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS: 256
     SLURM_NTASKS_PER_NODE: 128
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
