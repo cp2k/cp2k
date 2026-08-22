@@ -759,7 +759,9 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: scf_section
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_scf_loop'
+      CHARACTER(LEN=*), PARAMETER :: rotation_error = &
+         'State-selective OT preconditioners are not compatible with ROTATION. '// &
+         'Use FULL_S_INVERSE or FULL_KINETIC instead.', routineN = 'init_scf_loop'
 
       INTEGER                                            :: handle, ispin, nmo, number_of_OT_envs
       LOGICAL                                            :: do_kpoints, do_rotation, &
@@ -949,12 +951,13 @@ CONTAINS
             ! this will rotate the MOs to be eigen states, which is not compatible with rotation
             ! e.g. mo_derivs here do not yet include potentially different occupations numbers
             do_rotation = scf_env%qs_ot_env(1)%settings%do_rotation
-            ! The state-selective preconditioners assume fixed occupied eigenstates.
+            ! State-selective weights are tied to fixed occupied columns and do not transform
+            ! covariantly under occupied-space rotations C -> C U.
             is_state_selective = &
                scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all .OR. &
                scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_fermi_low_rank
             IF (do_rotation .AND. is_state_selective) THEN
-               CPABORT('State-selective OT preconditioners are not compatible with ROTATION.')
+               CPABORT(rotation_error)
             END IF
 
             ! might need the KS matrix to init properly
