@@ -4,6 +4,7 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
+#include "../mpiwrap/cp_mpi.h"
 #include "../offload/offload_library.h"
 #include "../offload/offload_mempool.h"
 #include "common/grid_library.h"
@@ -12,11 +13,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-// Only used to call MPI_Init and MPI_Finalize to avoid spurious MPI error.
-#if defined(__parallel)
-#include <mpi.h>
-#endif
 
 /*******************************************************************************
  * \brief Wrapper for printf, passed to grid_library_print_stats.
@@ -64,12 +60,11 @@ static int run_test(const char cp2k_root_dir[], const char task_file[]) {
 }
 
 int main(int argc, char *argv[]) {
-#if defined(__parallel)
-  MPI_Init(&argc, &argv);
-#endif
+  cp_mpi_init(&argc, &argv);
 
   if (argc != 2) {
     printf("Usage: grid_unittest.x <cp2k-root-dir>\n");
+    cp_mpi_finalize();
     return 1;
   }
 
@@ -101,9 +96,7 @@ int main(int argc, char *argv[]) {
     printf("\nFound %i errors :-(\n", errors);
   }
 
-#if defined(__parallel)
-  MPI_Finalize();
-#endif
+  cp_mpi_finalize();
 
   return errors;
 }

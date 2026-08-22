@@ -13,6 +13,9 @@
 #include <string.h>
 
 #if defined(__parallel)
+static bool mpi_initialized_by_cp2k = false;
+static bool mpi_attached_by_cp2k = false;
+
 /*******************************************************************************
  * \brief Check given MPI status and upon failure abort with a nice message.
  * \author Ole Schuett
@@ -25,15 +28,77 @@
       MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);                                 \
     }                                                                          \
   } while (0)
+
+/*******************************************************************************
+ * \brief Abort if an MPI lifecycle operation is called from a parallel region.
+ ******************************************************************************/
+static void assert_outside_parallel(const char *routine_name) {
+  if (omp_in_parallel()) {
+    fprintf(stderr, "%s must be called outside an OpenMP parallel region.\n",
+            routine_name);
+    abort();
+  }
+}
+
+/*******************************************************************************
+ * \brief Return a human-readable MPI thread-support level.
+ ******************************************************************************/
+static const char *thread_level_name(const int level) {
+  switch (level) {
+  case MPI_THREAD_SINGLE:
+    return "MPI_THREAD_SINGLE";
+  case MPI_THREAD_FUNNELED:
+    return "MPI_THREAD_FUNNELED";
+  case MPI_THREAD_SERIALIZED:
+    return "MPI_THREAD_SERIALIZED";
+  case MPI_THREAD_MULTIPLE:
+    return "MPI_THREAD_MULTIPLE";
+  default:
+    return "unknown";
+  }
+}
+
+/*******************************************************************************
+ * \brief Abort unless MPI provides MPI_THREAD_MULTIPLE support.
+ ******************************************************************************/
+static void require_thread_multiple(const int provided) {
+  if (provided < MPI_THREAD_MULTIPLE) {
+    fprintf(stderr, "CP2K requires MPI_THREAD_MULTIPLE, but MPI provides %s.\n",
+            thread_level_name(provided));
+    MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+    abort();
+  }
+}
 #endif
 
 /*******************************************************************************
- * \brief Wrapper around MPI_Init.
+ * \brief Initialize MPI with MPI_THREAD_MULTIPLE or attach to an active MPI.
  * \author Ole Schuett
  ******************************************************************************/
 void cp_mpi_init(int *argc, char ***argv) {
 #if defined(__parallel)
-  CHECK(MPI_Init(argc, argv));
+  assert_outside_parallel("cp_mpi_init");
+  if (mpi_attached_by_cp2k) {
+    fprintf(stderr, "cp_mpi_init must only be called once per lifecycle.\n");
+    abort();
+  }
+
+  int finalized, initialized, provided;
+  CHECK(MPI_Finalized(&finalized));
+  if (finalized) {
+    fprintf(stderr, "cp_mpi_init cannot be called after MPI_Finalize.\n");
+    abort();
+  }
+
+  CHECK(MPI_Initialized(&initialized));
+  if (initialized) {
+    CHECK(MPI_Query_thread(&provided));
+  } else {
+    CHECK(MPI_Init_thread(argc, argv, MPI_THREAD_MULTIPLE, &provided));
+    mpi_initialized_by_cp2k = true;
+  }
+  require_thread_multiple(provided);
+  mpi_attached_by_cp2k = true;
 #else
   (void)argc; // mark used
   (void)argv;
@@ -41,12 +106,28 @@ void cp_mpi_init(int *argc, char ***argv) {
 }
 
 /*******************************************************************************
- * \brief Wrapper around MPI_Finalize.
+ * \brief Detach from MPI and finalize it only if cp_mpi_init initialized it.
  * \author Ole Schuett
  ******************************************************************************/
 void cp_mpi_finalize(void) {
 #if defined(__parallel)
-  CHECK(MPI_Finalize());
+  assert_outside_parallel("cp_mpi_finalize");
+  if (!mpi_attached_by_cp2k) {
+    fprintf(stderr, "cp_mpi_finalize called without a matching cp_mpi_init.\n");
+    abort();
+  }
+
+  int finalized;
+  CHECK(MPI_Finalized(&finalized));
+  if (finalized) {
+    fprintf(stderr, "MPI was finalized before cp_mpi_finalize.\n");
+    abort();
+  }
+  if (mpi_initialized_by_cp2k) {
+    CHECK(MPI_Finalize());
+    mpi_initialized_by_cp2k = false;
+  }
+  mpi_attached_by_cp2k = false;
 #endif
 }
 
@@ -146,6 +227,7 @@ cp_mpi_comm_t cp_mpi_cart_create(const cp_mpi_comm_t comm_old, const int ndims,
                                  const int dims[], const int periods[],
                                  const int reorder) {
 #if defined(__parallel)
+  assert_outside_parallel("cp_mpi_cart_create");
   cp_mpi_comm_t comm_cart;
   CHECK(MPI_Cart_create(comm_old, ndims, dims, periods, reorder, &comm_cart));
   return comm_cart;
@@ -200,6 +282,7 @@ int cp_mpi_cart_rank(const cp_mpi_comm_t comm, const int coords[]) {
 cp_mpi_comm_t cp_mpi_cart_sub(const cp_mpi_comm_t comm,
                               const int remain_dims[]) {
 #if defined(__parallel)
+  assert_outside_parallel("cp_mpi_cart_sub");
   cp_mpi_comm_t newcomm;
   CHECK(MPI_Cart_sub(comm, remain_dims, &newcomm));
   return newcomm;
@@ -216,6 +299,7 @@ cp_mpi_comm_t cp_mpi_cart_sub(const cp_mpi_comm_t comm,
  ******************************************************************************/
 void cp_mpi_comm_free(cp_mpi_comm_t *comm) {
 #if defined(__parallel)
+  assert_outside_parallel("cp_mpi_comm_free");
   CHECK(MPI_Comm_free(comm));
 #else
   (void)comm; // mark used
