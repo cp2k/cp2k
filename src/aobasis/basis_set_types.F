@@ -2421,18 +2421,21 @@ CONTAINS
 !> \param gto_basis_set ...
 !> \param ngauss ...
 !> \param ortho ...
+!> \param ngaussflex ...
 ! **************************************************************************************************
-   SUBROUTINE create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss, ortho)
+   SUBROUTINE create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss, ortho, ngaussflex)
 
       TYPE(sto_basis_set_type), INTENT(IN)               :: sto_basis_set
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       INTEGER, INTENT(IN), OPTIONAL                      :: ngauss
       LOGICAL, INTENT(IN), OPTIONAL                      :: ortho
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: ngaussflex
 
       INTEGER, PARAMETER                                 :: maxng = 6
 
       CHARACTER(LEN=default_string_length)               :: name, sng
-      INTEGER                                            :: ipgf, iset, maxl, ng, nset, nshell
+      INTEGER                                            :: ipgf, iset, maxl, ng, ng_max, ng_set, &
+                                                            nset, nshell
       INTEGER, DIMENSION(:), POINTER                     :: lq, nq
       LOGICAL                                            :: do_ortho
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zet
@@ -2440,7 +2443,7 @@ CONTAINS
 
       ng = 6
       IF (PRESENT(ngauss)) ng = ngauss
-      IF (ng > maxng) CPABORT("Too many Gaussian primitives requested")
+      IF (ng < 1 .OR. ng > maxng) CPABORT("Invalid number of Gaussian primitives requested")
       do_ortho = .FALSE.
       IF (PRESENT(ortho)) do_ortho = ortho
 
@@ -2452,10 +2455,20 @@ CONTAINS
       maxl = MAXVAL(lq)
       CALL init_orbital_pointers(maxl)
 
-      CALL integer_to_string(ng, sng)
-      gto_basis_set%name = TRIM(name)//"_STO-"//TRIM(sng)//"G"
-
       nset = nshell
+      ng_max = ng
+      IF (PRESENT(ngaussflex)) THEN
+         IF (SIZE(ngaussflex) < nset) CPABORT("Not enough Gaussian primitive counts provided")
+         IF (ANY(ngaussflex(1:nset) < 1) .OR. ANY(ngaussflex(1:nset) > maxng)) THEN
+            CPABORT("Invalid flexible Gaussian primitive count")
+         END IF
+         ng_max = MAXVAL(ngaussflex(1:nset))
+         gto_basis_set%name = TRIM(name)//"_STO-FLEX"
+      ELSE
+         CALL integer_to_string(ng, sng)
+         gto_basis_set%name = TRIM(name)//"_STO-"//TRIM(sng)//"G"
+      END IF
+
       gto_basis_set%nset = nset
       CALL reallocate(gto_basis_set%lmax, 1, nset)
       CALL reallocate(gto_basis_set%lmin, 1, nset)
@@ -2463,18 +2476,22 @@ CONTAINS
       CALL reallocate(gto_basis_set%nshell, 1, nset)
       CALL reallocate(gto_basis_set%n, 1, 1, 1, nset)
       CALL reallocate(gto_basis_set%l, 1, 1, 1, nset)
-      CALL reallocate(gto_basis_set%zet, 1, ng, 1, nset)
-      CALL reallocate(gto_basis_set%gcc, 1, ng, 1, 1, 1, nset)
+      CALL reallocate(gto_basis_set%zet, 1, ng_max, 1, nset)
+      CALL reallocate(gto_basis_set%gcc, 1, ng_max, 1, 1, 1, nset)
+      gto_basis_set%zet = 0.0_dp
+      gto_basis_set%gcc = 0.0_dp
 
       DO iset = 1, nset
-         CALL get_sto_ng(zet(iset), ng, nq(iset), lq(iset), zetg, gcc)
+         ng_set = ng
+         IF (PRESENT(ngaussflex)) ng_set = ngaussflex(iset)
+         CALL get_sto_ng(zet(iset), ng_set, nq(iset), lq(iset), zetg, gcc)
          gto_basis_set%lmax(iset) = lq(iset)
          gto_basis_set%lmin(iset) = lq(iset)
-         gto_basis_set%npgf(iset) = ng
+         gto_basis_set%npgf(iset) = ng_set
          gto_basis_set%nshell(iset) = 1
          gto_basis_set%n(1, iset) = lq(iset) + 1
          gto_basis_set%l(1, iset) = lq(iset)
-         DO ipgf = 1, ng
+         DO ipgf = 1, ng_set
             gto_basis_set%gcc(ipgf, 1, iset) = gcc(ipgf)
             gto_basis_set%zet(ipgf, iset) = zetg(ipgf)
          END DO
@@ -2498,63 +2515,65 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nset, maxl
 
       INTEGER                                            :: i1, i2, ico, iset, jset, l, lshell, m, &
-                                                            maxco, ncgf, ng, ngs, np, nsgf
-      INTEGER, DIMENSION(0:10)                           :: mxf
+                                                            max_ng, max_ngl, maxco, ncgf, ng, ngs, &
+                                                            np, nsgf
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ng_set
+      INTEGER, DIMENSION(0:10)                           :: mxf, ngl, offset
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gal, zal, zll
-
-      ng = gto_basis_set%npgf(1)
-      DO iset = 1, nset
-         IF ((ng /= gto_basis_set%npgf(iset)) .AND. do_ortho) THEN
-            CPABORT("different number of primitves")
-         END IF
-      END DO
 
       IF (do_ortho) THEN
          mxf = 0
+         ngl = 0
          DO iset = 1, nset
             l = gto_basis_set%l(1, iset)
             mxf(l) = mxf(l) + 1
+            ngl(l) = ngl(l) + gto_basis_set%npgf(iset)
          END DO
          m = MAXVAL(mxf)
          IF (m > 1) THEN
-            ALLOCATE (gal(ng, nset), zal(ng, nset), zll(m*ng, 0:maxl))
+            max_ng = MAXVAL(gto_basis_set%npgf(1:nset))
+            max_ngl = MAXVAL(ngl)
+            ALLOCATE (gal(max_ng, nset), zal(max_ng, nset), zll(max_ngl, 0:maxl), ng_set(nset))
+            gal = 0.0_dp
+            zal = 0.0_dp
             DO iset = 1, nset
+               ng_set(iset) = gto_basis_set%npgf(iset)
+               ng = ng_set(iset)
                zal(1:ng, iset) = gto_basis_set%zet(1:ng, iset)
                gal(1:ng, iset) = gto_basis_set%gcc(1:ng, 1, iset)
             END DO
-            CALL reallocate(gto_basis_set%zet, 1, m*ng, 1, nset)
-            CALL reallocate(gto_basis_set%gcc, 1, m*ng, 1, 1, 1, nset)
-            DO iset = 1, nset
-               l = gto_basis_set%l(1, iset)
-               gto_basis_set%npgf(iset) = ng*mxf(l)
-            END DO
+            CALL reallocate(gto_basis_set%zet, 1, max_ngl, 1, nset)
+            CALL reallocate(gto_basis_set%gcc, 1, max_ngl, 1, 1, 1, nset)
             gto_basis_set%zet = 0.0_dp
             gto_basis_set%gcc = 0.0_dp
             zll = 0.0_dp
-            mxf = 0
+            offset = 0
             DO iset = 1, nset
                l = gto_basis_set%l(1, iset)
-               mxf(l) = mxf(l) + 1
-               i1 = mxf(l)*ng - ng + 1
-               i2 = mxf(l)*ng
+               ng = ng_set(iset)
+               i1 = offset(l) + 1
+               i2 = offset(l) + ng
                zll(i1:i2, l) = zal(1:ng, iset)
                gto_basis_set%gcc(i1:i2, 1, iset) = gal(1:ng, iset)
+               offset(l) = i2
             END DO
             DO iset = 1, nset
                l = gto_basis_set%l(1, iset)
-               gto_basis_set%zet(:, iset) = zll(:, l)
+               ng = ngl(l)
+               gto_basis_set%npgf(iset) = ng
+               gto_basis_set%zet(1:ng, iset) = zll(1:ng, l)
             END DO
             DO iset = 1, nset
                l = gto_basis_set%l(1, iset)
                DO jset = 1, iset - 1
-                  IF (gto_basis_set%l(1, iset) == l) THEN
-                     m = mxf(l)*ng
+                  IF (gto_basis_set%l(1, jset) == l) THEN
+                     m = ngl(l)
                      CALL orthofun(gto_basis_set%zet(1:m, iset), gto_basis_set%gcc(1:m, 1, iset), &
                                    gto_basis_set%gcc(1:m, 1, jset), l)
                   END IF
                END DO
             END DO
-            DEALLOCATE (gal, zal, zll)
+            DEALLOCATE (gal, zal, zll, ng_set)
          END IF
       END IF
 

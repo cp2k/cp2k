@@ -1632,6 +1632,13 @@ CONTAINS
          qs_control%xtb_control%sto_ng = ngauss
          CALL section_vals_val_get(xtb_section, "HYDROGEN_STO_NG", i_val=ngauss)
          qs_control%xtb_control%h_sto_ng = ngauss
+         CALL section_vals_val_get(xtb_section, "STO_FLEX", explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(xtb_section, "STO_FLEX", &
+                                      l_val=qs_control%xtb_control%sto_flex)
+         ELSE
+            qs_control%xtb_control%sto_flex = .FALSE.
+         END IF
          CALL section_vals_val_get(xtb_parameter, "PARAM_FILE_PATH", &
                                    c_val=qs_control%xtb_control%parameter_file_path)
          CALL section_vals_val_get(xtb_parameter, "PARAM_FILE_NAME", explicit=explicit)

@@ -262,6 +262,7 @@ MODULE cp_control_types
       !
       INTEGER                              :: sto_ng = 0
       INTEGER                              :: h_sto_ng = 0
+      LOGICAL                              :: sto_flex = .FALSE.
       INTEGER                              :: tblite_method = 0
       INTEGER                              :: tblite_scc_mixer = tblite_scc_mixer_auto
       INTEGER                              :: tblite_mixer_iterations = tblite_mixer_iterations_default

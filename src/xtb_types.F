@@ -65,6 +65,7 @@ MODULE xtb_types
       INTEGER, DIMENSION(5)                  :: nval = -1 ! n-quantum number of shell i
       INTEGER, DIMENSION(5)                  :: lval = -1 ! l-quantum number of shell i
       INTEGER, DIMENSION(5)                  :: occupation = -1 ! occupation of shell i
+      INTEGER, DIMENSION(5)                  :: ngauss = -1 ! number of gaussians of shell i
       REAL(KIND=dp), DIMENSION(5)            :: kpoly = -1.0_dp
       REAL(KIND=dp), DIMENSION(5)            :: kappa = -1.0_dp
       REAL(KIND=dp), DIMENSION(5)            :: hen = -1.0_dp
@@ -126,6 +127,7 @@ CONTAINS
       xtb_parameter%nval = 0
       xtb_parameter%lval = 0
       xtb_parameter%occupation = 0
+      xtb_parameter%ngauss = 0
       xtb_parameter%kpoly = 0.0_dp
       xtb_parameter%kappa = 0.0_dp
       xtb_parameter%wall = 0.0_dp
@@ -189,6 +191,7 @@ CONTAINS
 !> \param kappa0 ...
 !> \param alpg ...
 !> \param occupation ...
+!> \param ngauss ...
 !> \param electronegativity ...
 !> \param chmax ...
 !> \param en ...
@@ -198,7 +201,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_xtb_atom_param(xtb_parameter, symbol, aname, typ, defined, z, zeff, natorb, lmax, nao, lao, &
                                  rcut, rcov, kx, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
-                                 wall, hen, zeta, xi, kappa0, alpg, occupation, electronegativity, chmax, &
+                                 wall, hen, zeta, xi, kappa0, alpg, occupation, ngauss, electronegativity, chmax, &
                                  en, kqat2, kcn, kq)
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
@@ -218,7 +221,7 @@ CONTAINS
          OPTIONAL                                        :: wall
       REAL(KIND=dp), DIMENSION(5), INTENT(OUT), OPTIONAL :: hen, zeta
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: xi, kappa0, alpg
-      INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: occupation
+      INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: occupation, ngauss
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: electronegativity, chmax, en, kqat2
       REAL(KIND=dp), DIMENSION(5), INTENT(OUT), OPTIONAL :: kcn, kq
 
@@ -247,6 +250,7 @@ CONTAINS
       IF (PRESENT(nval)) nval = xtb_parameter%nval
       IF (PRESENT(lval)) lval = xtb_parameter%lval
       IF (PRESENT(occupation)) occupation = xtb_parameter%occupation
+      IF (PRESENT(ngauss)) ngauss = xtb_parameter%ngauss
       IF (PRESENT(kpoly)) kpoly = xtb_parameter%kpoly
       IF (PRESENT(kappa)) kappa = xtb_parameter%kappa
       IF (PRESENT(wall)) wall(1:3, 1:3) = xtb_parameter%wall(1:3, 1:3)
@@ -295,6 +299,7 @@ CONTAINS
 !> \param alpg ...
 !> \param electronegativity ...
 !> \param occupation ...
+!> \param ngauss ...
 !> \param chmax ...
 !> \param en ...
 !> \param kqat2 ...
@@ -303,7 +308,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_xtb_atom_param(xtb_parameter, aname, typ, defined, z, zeff, natorb, lmax, nao, lao, &
                                  rcut, rcov, kx, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
-                                 wall, hen, zeta, xi, kappa0, alpg, electronegativity, occupation, chmax, &
+                                 wall, hen, zeta, xi, kappa0, alpg, electronegativity, occupation, ngauss, chmax, &
                                  en, kqat2, kcn, kq)
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
@@ -322,7 +327,7 @@ CONTAINS
          OPTIONAL                                        :: wall
       REAL(KIND=dp), DIMENSION(5), INTENT(IN), OPTIONAL  :: hen, zeta
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: xi, kappa0, alpg, electronegativity
-      INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: occupation
+      INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: occupation, ngauss
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: chmax, en, kqat2
       REAL(KIND=dp), DIMENSION(5), INTENT(IN), OPTIONAL  :: kcn, kq
 
@@ -350,6 +355,7 @@ CONTAINS
       IF (PRESENT(nval)) xtb_parameter%nval = nval
       IF (PRESENT(lval)) xtb_parameter%lval = lval
       IF (PRESENT(occupation)) xtb_parameter%occupation = occupation
+      IF (PRESENT(ngauss)) xtb_parameter%ngauss = ngauss
       IF (PRESENT(kpoly)) xtb_parameter%kpoly = kpoly
       IF (PRESENT(kappa)) xtb_parameter%kappa = kappa
       IF (PRESENT(wall)) xtb_parameter%wall(1:3, 1:3) = wall(1:3, 1:3)
@@ -381,7 +387,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: aname, bb
       INTEGER                                            :: i, io_unit, m, natorb, nshell
-      INTEGER, DIMENSION(5)                              :: lval, nval, occupation
+      INTEGER, DIMENSION(5)                              :: lval, ngauss, nval, occupation
       LOGICAL                                            :: defined, have_sp
       REAL(dp)                                           :: zeff
       REAL(KIND=dp)                                      :: alpha, en, eta, xgamma, zneff
@@ -405,6 +411,7 @@ CONTAINS
             CASE (1)
                CALL get_xtb_atom_param(xtb_parameter, aname=aname, defined=defined, zeff=zeff, natorb=natorb)
                CALL get_xtb_atom_param(xtb_parameter, nshell=nshell, lval=lval, nval=nval, occupation=occupation)
+               CALL get_xtb_atom_param(xtb_parameter, ngauss=ngauss)
                CALL get_xtb_atom_param(xtb_parameter, kpoly=kpoly, kappa=kappa, hen=hen, zeta=zeta)
                CALL get_xtb_atom_param(xtb_parameter, electronegativity=en, xgamma=xgamma, eta=eta, alpha=alpha, zneff=zneff)
                wall = 0.0_dp
@@ -422,6 +429,7 @@ CONTAINS
                      ("   [", nval(i), lval(i), "]", i=1, nshell)
                   WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Slater Exponent", bb(1:8*m), (zeta(i), i=1, nshell)
                   WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5I8)") "Ref. occupation", bb(1:8*m), (occupation(i), i=1, nshell)
+                  WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5I8)") "# of Gaussians", bb(1:8*m), (ngauss(i), i=1, nshell)
                   WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Energy levels [au]", bb(1:8*m), (hen(i), i=1, nshell)
                   WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Kpoly", bb(1:8*m), (kpoly(i), i=1, nshell)
                   WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.3)") "Electronegativity", en
@@ -447,4 +455,3 @@ CONTAINS
    END SUBROUTINE write_xtb_atom_param
 
 END MODULE xtb_types
-

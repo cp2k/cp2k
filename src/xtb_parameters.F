@@ -158,6 +158,28 @@ MODULE xtb_parameters
                                      3.00_dp, 3.00_dp, 3.00_dp]
 !&>
 
+!&<
+   ! number of primitive gaussians per shell
+   INTEGER, PARAMETER :: number_of_primitives(1:3, 1:nelem) = RESHAPE([&
+      & 4, 3, 0,  4, 0, 0,  6, 6, 0,  6, 6, 0,  6, 6, 0,  6, 6, 0,  6, 6, 0, &
+      & 6, 6, 0,  6, 6, 0,  6, 6, 4,  6, 6, 0,  6, 6, 0,  6, 6, 4,  6, 6, 4, &
+      & 6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 0,  6, 6, 4,  4, 6, 6, &
+      & 4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6, &
+      & 4, 6, 6,  6, 6, 0,  6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 4, &
+      & 6, 6, 4,  6, 6, 0,  6, 6, 4,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6, &
+      & 4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  6, 6, 0,  6, 6, 4, &
+      & 6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 0,  6, 6, 4, &
+      & 4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6, &
+      & 4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6, &
+      & 4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6, &
+      & 4, 6, 6,  4, 6, 6,  6, 6, 0,  6, 6, 0,  6, 6, 0,  6, 6, 0,  6, 6, 4, &
+      & 6, 6, 4,  6, 6, 4,  6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6, &
+      & 6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6, &
+      & 6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6,  6, 6, 6, &
+      & 0, 0, 0], &
+       [3, nelem])
+!&>
+
 ! *** Global parameters ***
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xtb_parameters'
@@ -607,6 +629,9 @@ CONTAINS
          param%rcov = crad(i)*bohr
          ! shell occupances
          param%occupation(:) = occupation(:, i)
+         ! number of primitive Gaussians per shell
+         param%ngauss = 0
+         param%ngauss(1:3) = number_of_primitives(:, i)
          ! check for consistency
          IF (ABS(param%zeff - SUM(param%occupation)) > 1.E-10_dp) THEN
             CALL cp_abort(__LOCATION__, "Element <"//TRIM(param%aname)//"> has inconsistent shell occupations")
@@ -652,12 +677,14 @@ CONTAINS
 !> \param param ...
 !> \param gto_basis_set ...
 !> \param ngauss ...
+!> \param ngaussflex ...
 ! **************************************************************************************************
-   SUBROUTINE init_xtb_basis(param, gto_basis_set, ngauss)
+   SUBROUTINE init_xtb_basis(param, gto_basis_set, ngauss, ngaussflex)
 
       TYPE(xtb_atom_type), POINTER                       :: param
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       INTEGER, INTENT(IN)                                :: ngauss
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: ngaussflex
 
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: symbol
       INTEGER                                            :: i, nshell
@@ -695,7 +722,12 @@ CONTAINS
                zet(1:nshell) = param%zeta(1:nshell)
                CALL set_sto_basis_set(sto_basis_set, name=param%aname, nshell=nshell, symbol=symbol, &
                                       nq=nq, lq=lq, zet=zet)
-               CALL create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss=ngauss, ortho=.TRUE.)
+               IF (PRESENT(ngaussflex)) THEN
+                  CALL create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss=ngauss, ortho=.TRUE., &
+                                                 ngaussflex=ngaussflex)
+               ELSE
+                  CALL create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss=ngauss, ortho=.TRUE.)
+               END IF
             END IF
 
             ! this will remove the allocated arrays
@@ -892,4 +924,3 @@ CONTAINS
    END FUNCTION pp_gfn0
 
 END MODULE xtb_parameters
-
