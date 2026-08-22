@@ -1545,7 +1545,6 @@ set(CP2K_PROGS_F
     common/gemm_square_unittest.F
     common/memory_utilities_unittest.F
     common/parallel_rng_types_unittest.F
-    mpiwrap/message_passing_thread_unittest.F
     subsys/cell_types_unittest.F
     pw/realspace_grid_cube_unittest.F
     metadyn_tools/graph.F
@@ -1553,6 +1552,12 @@ set(CP2K_PROGS_F
     motion/xyz2dcd.F
     nequip_unittest.F
     gx_ac_unittest.F)
+
+if(CP2K_USE_MPI)
+  list(APPEND CP2K_PROGS_F mpiwrap/message_passing_thread_unittest.F)
+else()
+  list(APPEND CP2K_EXCLUDED_SRCS_F mpiwrap/message_passing_thread_unittest.F)
+endif()
 
 if(CP2K_USE_CUDA
    OR CP2K_USE_HIP
@@ -1947,7 +1952,6 @@ list(
   "gemm_square_unittest"
   "memory_utilities_unittest"
   "parallel_rng_types_unittest"
-  "message_passing_thread_unittest"
   "cell_types_unittest"
   "realspace_grid_cube_unittest"
   "graph"
@@ -1959,6 +1963,10 @@ list(
   "dbt_tas_unittest"
   "gx_ac_unittest")
 
+if(CP2K_USE_MPI)
+  list(APPEND __CP2K_APPS "message_passing_thread_unittest")
+endif()
+
 add_executable(cp2k-bin start/cp2k.F)
 # for linking
 
@@ -1967,8 +1975,6 @@ add_executable(orbital_transformation_matrices_unittest
 add_executable(gemm_square_unittest common/gemm_square_unittest.F)
 add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
-add_executable(message_passing_thread_unittest
-               mpiwrap/message_passing_thread_unittest.F)
 add_executable(cell_types_unittest subsys/cell_types_unittest.F)
 add_executable(realspace_grid_cube_unittest pw/realspace_grid_cube_unittest.F)
 add_executable(graph metadyn_tools/graph.F)
@@ -1979,6 +1985,10 @@ add_executable(nequip_unittest nequip_unittest.F)
 add_executable(dbt_unittest dbt/dbt_unittest.F)
 add_executable(dbt_tas_unittest dbt/tas/dbt_tas_unittest.F)
 add_executable(gx_ac_unittest gx_ac_unittest.F)
+if(CP2K_USE_MPI)
+  add_executable(message_passing_thread_unittest
+                 mpiwrap/message_passing_thread_unittest.F)
+endif()
 
 set_target_properties(
   cp2k-bin
