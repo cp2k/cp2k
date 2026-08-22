@@ -62,6 +62,12 @@ CP2K assumes that the MPI library implements MPI version 3; older versions of MP
 are not supported. CP2K can make use of the `mpi_f08` module; pass `-DCP2K_USE_MPI_F08=ON` to CMake
 to enable it.
 
+From version 2027.1, CP2K also requires the MPI implementation to provide `MPI_THREAD_MULTIPLE`. The
+standalone executables request this level when initializing MPI and stop if it is unavailable. When
+CP2K is used as a library in an application that initializes MPI externally, the application must
+call `MPI_Init_thread` requesting `MPI_THREAD_MULTIPLE`; initialization through `MPI_Init` or with a
+lower thread-support level is insufficient.
+
 For more information of ScaLAPACK, see <http://www.netlib.org/scalapack/>. ScaLAPACK can be part of
 AOCL (AMD) or oneMKL (Intel); these libraries are recommended on the corresponding machines if
 available.
