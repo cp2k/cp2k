@@ -64,7 +64,6 @@ MODULE manybody_symmetrix
    USE physcon,                         ONLY: angstrom,&
                                               evolt
    USE symmetrix_api,                   ONLY: symmetrix_eval,&
-                                              symmetrix_is_kokkos,&
                                               symmetrix_model_atomic_types,&
                                               symmetrix_model_load,&
                                               symmetrix_model_num_types
@@ -207,16 +206,20 @@ CONTAINS
       work%rcutsq = sym_pot%rcutsq
       work%rcut = SQRT(work%rcutsq)
 
-      ! One slab per thread, decomposed exactly as ranks are. The evaluator keeps
+      ! ONE DOMAIN PER RANK. The decomposition below is written to cut a rank's
+      ! region again per thread, and that works, but the evaluator keeps all of
       ! its scratch inside the model object, so a thread needs a model of its
-      ! own; the count is fixed here and the clones are made once at load.
+      ! own and the weights and splines are duplicated with it. Measured on the
+      ! toy model here, which is 0.3 MB on disk, that is about 23 MB of resident
+      ! memory per thread; a production MACE model would cost far more, and at
+      ! a full node's worth of threads it would dwarf everything else the rank
+      ! holds. Threads are therefore left to the MPI decomposition until
+      ! symmetrix can share one set of weights between evaluators.
+      !
+      ! The same reasoning applies with more force on a GPU build, where the
+      ! clones would sit in device memory and every thread would launch into
+      ! one shared execution space.
       work%n_threads = 1
-!$    work%n_threads = omp_get_max_threads()
-      ! On a GPU build the evaluator shares one execution space, so running the
-      ! domains concurrently would have every thread reallocate and launch into
-      ! it at once, and would put a full model clone per thread in device
-      ! memory. One domain per rank there; the GPU is the parallelism.
-      IF (symmetrix_is_kokkos()) work%n_threads = 1
       ! The per-thread state on the environment is sized once and kept, so the
       ! count must not move between evaluations. It cannot within one run, but
       ! indexing past those arrays would be silent, so it is checked.
