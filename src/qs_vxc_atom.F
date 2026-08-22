@@ -126,9 +126,10 @@ MODULE qs_vxc_atom
                                   native_grid_interp_npts = &
                                   native_grid_interp_offset_max - &
                                   native_grid_interp_offset_min + 1
-   ! A stencil shorter than a tile touches at most two tiles per direction, including wraparound.
+   ! A wrapped stencil can touch both end tiles and one adjacent interior tile when the final
+   ! tile is shorter than the stencil. Three tiles per direction are therefore sufficient.
    INTEGER, PARAMETER, PRIVATE :: native_grid_adjoint_tile_edge = 64, &
-                                  native_grid_adjoint_max_tiles_per_direction = 2, &
+                                  native_grid_adjoint_max_tiles_per_direction = 3, &
                                   native_grid_adjoint_max_bins_per_row = &
                                   native_grid_adjoint_max_tiles_per_direction**3
 
@@ -366,7 +367,7 @@ CONTAINS
                                                             composite_local_grid_sizes
       INTEGER, ALLOCATABLE, DIMENSION(:) :: adjoint_bin_offsets, adjoint_bin_rows, &
          composite_atom_end, composite_atom_kind, composite_atom_kind_index, composite_atom_start, &
-         composite_local_atoms
+         composite_grid_atom, composite_local_atoms
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL :: accint, atom_composite_active, atom_composite_diagnostic, &
@@ -396,16 +397,17 @@ CONTAINS
          composite_atomic_grid_weights, composite_base_grid_weights, composite_distances, &
          composite_grid_weight_grad, composite_grid_weights, composite_partition_weights
       REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_atom_coord_grad, composite_atom_coords, &
-         composite_cross_density, composite_cross_force, composite_cross_kin, composite_density, &
-         composite_density_grad, composite_descriptor_image_coords, composite_explicit_force, &
-         composite_grid_coord_force, composite_grid_coord_grad, composite_grid_coords, &
-         composite_kin, composite_kin_grad, composite_local_atom_coords, &
-         composite_model_atom_force, composite_moving_smooth_force, composite_nlcc_center_force, &
-         composite_nlcc_center_force_local, composite_nlcc_target_force, &
-         composite_partition_atom_coords
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_partition_force, &
-         composite_partition_force_local, composite_partition_image_coords, &
-         composite_smooth_density_cache, composite_smooth_kin_cache, local_partition_datom
+         composite_cross_density, composite_cross_force, composite_cross_force_local, &
+         composite_cross_kin, composite_density, composite_density_grad, &
+         composite_descriptor_image_coords, composite_explicit_force, composite_grid_coord_force, &
+         composite_grid_coord_grad, composite_grid_coords, composite_kin, composite_kin_grad, &
+         composite_local_atom_coords, composite_model_atom_force, composite_moving_smooth_force, &
+         composite_nlcc_center_force, composite_nlcc_center_force_local, &
+         composite_nlcc_target_force
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_partition_atom_coords, &
+         composite_partition_force, composite_partition_force_local, &
+         composite_partition_image_coords, composite_smooth_density_cache, &
+         composite_smooth_kin_cache, local_partition_datom
       REAL(dp), ALLOCATABLE, DIMENSION(:, :), TARGET     :: smooth_density_adjoint_storage, &
                                                             smooth_kin_adjoint_storage
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :) :: composite_cross_grad, composite_grad, &
@@ -425,10 +427,11 @@ CONTAINS
       REAL(dp), DIMENSION(3, 2) :: composite_smooth_gradient_adjoint_value, &
          composite_smooth_gradient_value, cross_density_spatial, cross_grad, cross_grad_adjoint, &
          cross_kin_spatial
-      REAL(dp), DIMENSION(3, 3) :: composite_cross_image_virial, composite_explicit_virial, &
-         composite_feature_virial, composite_interpolation_virial, &
-         composite_partition_strain_virial, local_descriptor_dstrain, local_partition_dstrain, &
-         nlcc_hessian, skala_atom_virial, skala_atom_virial_h, skala_atom_virial_s
+      REAL(dp), DIMENSION(3, 3) :: composite_cross_image_virial, &
+         composite_cross_image_virial_local, composite_explicit_virial, composite_feature_virial, &
+         composite_interpolation_virial, composite_partition_strain_virial, &
+         local_descriptor_dstrain, local_partition_dstrain, nlcc_hessian, skala_atom_virial, &
+         skala_atom_virial_h, skala_atom_virial_s
       REAL(dp), DIMENSION(3, 3, 2)                       :: cross_grad_spatial
       REAL(dp), DIMENSION(4)                             :: feature_component_analytic, &
                                                             feature_component_fd
@@ -733,6 +736,7 @@ CONTAINS
             ALLOCATE (composite_density(composite_nflat, 2), &
                       composite_grad(composite_nflat, 3, 2), &
                       composite_kin(composite_nflat, 2), &
+                      composite_grid_atom(composite_nflat), &
                       composite_smooth_density_cache(composite_nflat, 2), &
                       composite_smooth_gradient_cache(composite_nflat, 3, 2), &
                       composite_smooth_kin_cache(composite_nflat, 2), &
@@ -743,6 +747,10 @@ CONTAINS
             composite_density = 0.0_dp
             composite_grad = 0.0_dp
             composite_kin = 0.0_dp
+            DO composite_local_atom = 1, composite_local_natom
+               iatom = composite_local_atoms(composite_local_atom)
+               composite_grid_atom(composite_atom_start(iatom):composite_atom_end(iatom)) = iatom
+            END DO
             composite_smooth_density_cache = 0.0_dp
             composite_smooth_gradient_cache = 0.0_dp
             composite_smooth_kin_cache = 0.0_dp
@@ -1267,8 +1275,7 @@ CONTAINS
                                        grid_atom, basis_1c, harmonics, nspins)
                   END IF
                   IF (tau_f) THEN
-                     CALL dgaVtaudgb(vtau_h, vtau_s, int_hh, int_ss, &
-                                     tau_basis_cache, nspins)
+                     CALL dgaVtaudgb(vtau_h, vtau_s, int_hh, int_ss, tau_basis_cache, nspins)
                   END IF
                END IF ! energy_only
                NULLIFY (r_h, r_s, dr_h, dr_s)
@@ -1349,74 +1356,87 @@ CONTAINS
                         END IF
                      END DO
 
-                     DO composite_local_atom = 1, composite_local_natom
-                        target_atom = composite_local_atoms(composite_local_atom)
-                        DO composite_row = composite_atom_start(target_atom), &
-                           composite_atom_end(target_atom)
-                           fractional = MATMUL( &
-                                        cell%h_inv, composite_grid_coords(:, composite_row) - &
-                                        particle_set(source_atom)%r)
-                           DO idir = 1, 3
-                              base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP PRIVATE(base_shift, composite_row, cross_density, cross_density_spatial, &
+!$OMP         cross_displacement, cross_grad, cross_grad_spatial, cross_kin, &
+!$OMP         cross_kin_spatial, fractional, idir, image_i1, image_i2, image_i3, jdir, &
+!$OMP         image_shift, image_translation, target_atom) &
+!$OMP SHARED(cell, composite_cross_density, composite_cross_grad, composite_cross_kin, &
+!$OMP        composite_grid_atom, composite_grid_coords, composite_nflat, cross_cutoff, &
+!$OMP        drho_h, drho_s, grid_atom, harmonics, image_shell, lsd, nspins, &
+!$OMP        particle_set, rho_h, rho_s, source_atom, tau_h, tau_s, &
+!$OMP        use_atom_composite_density, use_atom_composite_gradient, use_atom_composite_tau)
+                     DO composite_row = 1, composite_nflat
+                        target_atom = composite_grid_atom(composite_row)
+                        fractional = 0.0_dp
+                        DO idir = 1, 3
+                           DO jdir = 1, 3
+                              fractional(idir) = fractional(idir) + cell%h_inv(idir, jdir)* &
+                                                 (composite_grid_coords(jdir, composite_row) - &
+                                                  particle_set(source_atom)%r(jdir))
                            END DO
-                           DO image_i3 = base_shift(3) - image_shell(3), &
-                              base_shift(3) + image_shell(3)
-                              DO image_i2 = base_shift(2) - image_shell(2), &
-                                 base_shift(2) + image_shell(2)
-                                 DO image_i1 = base_shift(1) - image_shell(1), &
-                                    base_shift(1) + image_shell(1)
-                                    image_shift = [image_i1, image_i2, image_i3]
-                                    IF (target_atom == source_atom .AND. &
-                                        ALL(image_shift == 0)) CYCLE
-                                    image_translation = MATMUL( &
-                                                        cell%hmat, REAL(image_shift, dp))
-                                    cross_displacement = composite_grid_coords(:, composite_row) - &
-                                                         particle_set(source_atom)%r - &
-                                                         image_translation
-                                    CALL interpolate_gapw_atom_grid_fields( &
-                                       grid_atom, harmonics, cross_displacement, cross_cutoff, nspins, &
-                                       rho_h, rho_s, drho_h, drho_s, tau_h, tau_s, &
-                                       cross_density, cross_grad, cross_kin, cross_density_spatial, &
-                                       cross_grad_spatial, cross_kin_spatial)
-                                    IF (lsd) THEN
-                                       IF (use_atom_composite_density) THEN
-                                          composite_cross_density(composite_row, 1:2) = &
-                                             composite_cross_density(composite_row, 1:2) + &
-                                             cross_density(1:2)
-                                       END IF
-                                       IF (use_atom_composite_gradient) THEN
-                                          composite_cross_grad(composite_row, :, 1:2) = &
-                                             composite_cross_grad(composite_row, :, 1:2) + &
-                                             cross_grad(:, 1:2)
-                                       END IF
-                                       IF (use_atom_composite_tau) THEN
-                                          composite_cross_kin(composite_row, 1:2) = &
-                                             composite_cross_kin(composite_row, 1:2) + cross_kin(1:2)
-                                       END IF
-                                    ELSE
-                                       IF (use_atom_composite_density) THEN
-                                          composite_cross_density(composite_row, :) = &
-                                             composite_cross_density(composite_row, :) + &
-                                             0.5_dp*cross_density(1)
-                                       END IF
-                                       IF (use_atom_composite_gradient) THEN
-                                          DO idir = 1, 3
-                                             composite_cross_grad(composite_row, idir, :) = &
-                                                composite_cross_grad(composite_row, idir, :) + &
-                                                0.5_dp*cross_grad(idir, 1)
-                                          END DO
-                                       END IF
-                                       IF (use_atom_composite_tau) THEN
-                                          composite_cross_kin(composite_row, :) = &
-                                             composite_cross_kin(composite_row, :) + &
-                                             0.5_dp*cross_kin(1)
-                                       END IF
+                        END DO
+                        DO idir = 1, 3
+                           base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
+                        END DO
+                        DO image_i3 = base_shift(3) - image_shell(3), &
+                           base_shift(3) + image_shell(3)
+                           DO image_i2 = base_shift(2) - image_shell(2), &
+                              base_shift(2) + image_shell(2)
+                              DO image_i1 = base_shift(1) - image_shell(1), &
+                                 base_shift(1) + image_shell(1)
+                                 image_shift = [image_i1, image_i2, image_i3]
+                                 IF (target_atom == source_atom .AND. &
+                                     ALL(image_shift == 0)) CYCLE
+                                 image_translation = MATMUL( &
+                                                     cell%hmat, REAL(image_shift, dp))
+                                 cross_displacement = composite_grid_coords(:, composite_row) - &
+                                                      particle_set(source_atom)%r - &
+                                                      image_translation
+                                 CALL interpolate_gapw_atom_grid_fields( &
+                                    grid_atom, harmonics, cross_displacement, cross_cutoff, nspins, &
+                                    rho_h, rho_s, drho_h, drho_s, tau_h, tau_s, &
+                                    cross_density, cross_grad, cross_kin, cross_density_spatial, &
+                                    cross_grad_spatial, cross_kin_spatial)
+                                 IF (lsd) THEN
+                                    IF (use_atom_composite_density) THEN
+                                       composite_cross_density(composite_row, 1:2) = &
+                                          composite_cross_density(composite_row, 1:2) + &
+                                          cross_density(1:2)
                                     END IF
-                                 END DO
+                                    IF (use_atom_composite_gradient) THEN
+                                       composite_cross_grad(composite_row, :, 1:2) = &
+                                          composite_cross_grad(composite_row, :, 1:2) + &
+                                          cross_grad(:, 1:2)
+                                    END IF
+                                    IF (use_atom_composite_tau) THEN
+                                       composite_cross_kin(composite_row, 1:2) = &
+                                          composite_cross_kin(composite_row, 1:2) + cross_kin(1:2)
+                                    END IF
+                                 ELSE
+                                    IF (use_atom_composite_density) THEN
+                                       composite_cross_density(composite_row, :) = &
+                                          composite_cross_density(composite_row, :) + &
+                                          0.5_dp*cross_density(1)
+                                    END IF
+                                    IF (use_atom_composite_gradient) THEN
+                                       DO idir = 1, 3
+                                          composite_cross_grad(composite_row, idir, :) = &
+                                             composite_cross_grad(composite_row, idir, :) + &
+                                             0.5_dp*cross_grad(idir, 1)
+                                       END DO
+                                    END IF
+                                    IF (use_atom_composite_tau) THEN
+                                       composite_cross_kin(composite_row, :) = &
+                                          composite_cross_kin(composite_row, :) + &
+                                          0.5_dp*cross_kin(1)
+                                    END IF
+                                 END IF
                               END DO
                            END DO
                         END DO
                      END DO
+!$OMP END PARALLEL DO
                   END DO
 
                   CALL release_tau_basis_cache(tau_basis_cache)
@@ -1779,106 +1799,134 @@ CONTAINS
                            END IF
                         END DO
 
-                        DO composite_local_atom = 1, composite_local_natom
-                           target_atom = composite_local_atoms(composite_local_atom)
-                           DO composite_row = composite_atom_start(target_atom), &
-                              composite_atom_end(target_atom)
-                              IF (lsd) THEN
-                                 cross_density_adjoint = 0.0_dp
-                                 cross_grad_adjoint = 0.0_dp
-                                 cross_kin_adjoint = 0.0_dp
-                                 IF (use_atom_composite_density) THEN
-                                    cross_density_adjoint(1:2) = &
-                                       composite_density_grad(composite_row, 1:2)
-                                 END IF
-                                 IF (use_atom_composite_gradient) THEN
-                                    cross_grad_adjoint(:, 1:2) = &
-                                       composite_grad_grad(composite_row, :, 1:2)
-                                 END IF
-                                 IF (use_atom_composite_tau) THEN
-                                    cross_kin_adjoint(1:2) = &
-                                       composite_kin_grad(composite_row, 1:2)
-                                 END IF
-                              ELSE
-                                 cross_density_adjoint = 0.0_dp
-                                 cross_grad_adjoint = 0.0_dp
-                                 cross_kin_adjoint = 0.0_dp
-                                 IF (use_atom_composite_density) THEN
-                                    cross_density_adjoint(1) = 0.5_dp* &
-                                                               SUM(composite_density_grad(composite_row, :))
-                                 END IF
-                                 IF (use_atom_composite_gradient) THEN
-                                    DO idir = 1, 3
-                                       cross_grad_adjoint(idir, 1) = 0.5_dp* &
-                                                                     SUM(composite_grad_grad(composite_row, idir, :))
-                                    END DO
-                                 END IF
-                                 IF (use_atom_composite_tau) THEN
-                                    cross_kin_adjoint(1) = 0.5_dp* &
-                                                           SUM(composite_kin_grad(composite_row, :))
-                                 END IF
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP PRIVATE(base_shift, composite_cross_force_local, composite_cross_image_virial_local, &
+!$OMP         composite_row, cross_density, cross_density_adjoint, cross_density_spatial, &
+!$OMP         cross_displacement, cross_grad, cross_grad_adjoint, cross_grad_spatial, &
+!$OMP         cross_kin, cross_kin_adjoint, cross_kin_spatial, cross_spatial_derivative, &
+!$OMP         fractional, idir, image_i1, image_i2, image_i3, image_shift, image_translation, &
+!$OMP         ispin, jdir, target_atom) &
+!$OMP SHARED(cell, composite_cross_force, composite_cross_image_virial, &
+!$OMP        composite_density_grad, composite_grad_grad, composite_grid_atom, &
+!$OMP        composite_grid_coords, composite_kin_grad, composite_nflat, cross_cutoff, &
+!$OMP        drho_h, drho_s, grid_atom, harmonics, image_shell, lsd, nspins, &
+!$OMP        particle_set, rho_h, rho_s, source_atom, tau_h, tau_s, &
+!$OMP        use_atom_composite_density, use_atom_composite_gradient, use_atom_composite_tau)
+                        ALLOCATE (composite_cross_force_local(3, SIZE(particle_set)))
+                        composite_cross_force_local = 0.0_dp
+                        composite_cross_image_virial_local = 0.0_dp
+!$OMP DO SCHEDULE(STATIC)
+                        DO composite_row = 1, composite_nflat
+                           target_atom = composite_grid_atom(composite_row)
+                           IF (lsd) THEN
+                              cross_density_adjoint = 0.0_dp
+                              cross_grad_adjoint = 0.0_dp
+                              cross_kin_adjoint = 0.0_dp
+                              IF (use_atom_composite_density) THEN
+                                 cross_density_adjoint(1:2) = &
+                                    composite_density_grad(composite_row, 1:2)
                               END IF
+                              IF (use_atom_composite_gradient) THEN
+                                 cross_grad_adjoint(:, 1:2) = &
+                                    composite_grad_grad(composite_row, :, 1:2)
+                              END IF
+                              IF (use_atom_composite_tau) THEN
+                                 cross_kin_adjoint(1:2) = &
+                                    composite_kin_grad(composite_row, 1:2)
+                              END IF
+                           ELSE
+                              cross_density_adjoint = 0.0_dp
+                              cross_grad_adjoint = 0.0_dp
+                              cross_kin_adjoint = 0.0_dp
+                              IF (use_atom_composite_density) THEN
+                                 cross_density_adjoint(1) = 0.5_dp* &
+                                                            SUM(composite_density_grad(composite_row, :))
+                              END IF
+                              IF (use_atom_composite_gradient) THEN
+                                 DO idir = 1, 3
+                                    cross_grad_adjoint(idir, 1) = 0.5_dp* &
+                                                                  SUM(composite_grad_grad(composite_row, idir, :))
+                                 END DO
+                              END IF
+                              IF (use_atom_composite_tau) THEN
+                                 cross_kin_adjoint(1) = 0.5_dp* &
+                                                        SUM(composite_kin_grad(composite_row, :))
+                              END IF
+                           END IF
 
-                              fractional = MATMUL( &
-                                           cell%h_inv, composite_grid_coords(:, composite_row) - &
-                                           particle_set(source_atom)%r)
-                              DO idir = 1, 3
-                                 base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
+                           fractional = 0.0_dp
+                           DO idir = 1, 3
+                              DO jdir = 1, 3
+                                 fractional(idir) = fractional(idir) + cell%h_inv(idir, jdir)* &
+                                                    (composite_grid_coords(jdir, composite_row) - &
+                                                     particle_set(source_atom)%r(jdir))
                               END DO
-                              DO image_i3 = base_shift(3) - image_shell(3), &
-                                 base_shift(3) + image_shell(3)
-                                 DO image_i2 = base_shift(2) - image_shell(2), &
-                                    base_shift(2) + image_shell(2)
-                                    DO image_i1 = base_shift(1) - image_shell(1), &
-                                       base_shift(1) + image_shell(1)
-                                       image_shift = [image_i1, image_i2, image_i3]
-                                       IF (target_atom == source_atom .AND. &
-                                           ALL(image_shift == 0)) CYCLE
-                                       image_translation = MATMUL( &
-                                                           cell%hmat, REAL(image_shift, dp))
-                                       cross_displacement = &
-                                          composite_grid_coords(:, composite_row) - &
-                                          particle_set(source_atom)%r - image_translation
-                                       CALL interpolate_gapw_atom_grid_fields( &
-                                          grid_atom, harmonics, cross_displacement, cross_cutoff, &
-                                          nspins, rho_h, rho_s, drho_h, drho_s, tau_h, tau_s, &
-                                          cross_density, cross_grad, cross_kin, cross_density_spatial, &
-                                          cross_grad_spatial, cross_kin_spatial)
-                                       cross_spatial_derivative = 0.0_dp
-                                       DO ispin = 1, nspins
-                                          DO idir = 1, 3
+                           END DO
+                           DO idir = 1, 3
+                              base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
+                           END DO
+                           DO image_i3 = base_shift(3) - image_shell(3), &
+                              base_shift(3) + image_shell(3)
+                              DO image_i2 = base_shift(2) - image_shell(2), &
+                                 base_shift(2) + image_shell(2)
+                                 DO image_i1 = base_shift(1) - image_shell(1), &
+                                    base_shift(1) + image_shell(1)
+                                    image_shift = [image_i1, image_i2, image_i3]
+                                    IF (target_atom == source_atom .AND. &
+                                        ALL(image_shift == 0)) CYCLE
+                                    image_translation = MATMUL( &
+                                                        cell%hmat, REAL(image_shift, dp))
+                                    cross_displacement = &
+                                       composite_grid_coords(:, composite_row) - &
+                                       particle_set(source_atom)%r - image_translation
+                                    CALL interpolate_gapw_atom_grid_fields( &
+                                       grid_atom, harmonics, cross_displacement, cross_cutoff, &
+                                       nspins, rho_h, rho_s, drho_h, drho_s, tau_h, tau_s, &
+                                       cross_density, cross_grad, cross_kin, cross_density_spatial, &
+                                       cross_grad_spatial, cross_kin_spatial)
+                                    cross_spatial_derivative = 0.0_dp
+                                    DO ispin = 1, nspins
+                                       DO idir = 1, 3
+                                          cross_spatial_derivative(idir) = &
+                                             cross_spatial_derivative(idir) + &
+                                             cross_density_adjoint(ispin)* &
+                                             cross_density_spatial(idir, ispin) + &
+                                             cross_kin_adjoint(ispin)* &
+                                             cross_kin_spatial(idir, ispin)
+                                          DO jdir = 1, 3
                                              cross_spatial_derivative(idir) = &
                                                 cross_spatial_derivative(idir) + &
-                                                cross_density_adjoint(ispin)* &
-                                                cross_density_spatial(idir, ispin) + &
-                                                cross_kin_adjoint(ispin)* &
-                                                cross_kin_spatial(idir, ispin)
-                                             DO jdir = 1, 3
-                                                cross_spatial_derivative(idir) = &
-                                                   cross_spatial_derivative(idir) + &
-                                                   cross_grad_adjoint(jdir, ispin)* &
-                                                   cross_grad_spatial(jdir, idir, ispin)
-                                             END DO
+                                                cross_grad_adjoint(jdir, ispin)* &
+                                                cross_grad_spatial(jdir, idir, ispin)
                                           END DO
                                        END DO
-                                       composite_cross_force(:, target_atom) = &
-                                          composite_cross_force(:, target_atom) + &
-                                          cross_spatial_derivative
-                                       composite_cross_force(:, source_atom) = &
-                                          composite_cross_force(:, source_atom) - &
-                                          cross_spatial_derivative
-                                       DO idir = 1, 3
-                                          DO jdir = 1, 3
-                                             composite_cross_image_virial(idir, jdir) = &
-                                                composite_cross_image_virial(idir, jdir) + &
-                                                cross_spatial_derivative(idir)*image_translation(jdir)
-                                          END DO
+                                    END DO
+                                    composite_cross_force_local(:, target_atom) = &
+                                       composite_cross_force_local(:, target_atom) + &
+                                       cross_spatial_derivative
+                                    composite_cross_force_local(:, source_atom) = &
+                                       composite_cross_force_local(:, source_atom) - &
+                                       cross_spatial_derivative
+                                    DO idir = 1, 3
+                                       DO jdir = 1, 3
+                                          composite_cross_image_virial_local(idir, jdir) = &
+                                             composite_cross_image_virial_local(idir, jdir) + &
+                                             cross_spatial_derivative(idir)*image_translation(jdir)
                                        END DO
                                     END DO
                                  END DO
                               END DO
                            END DO
                         END DO
+!$OMP END DO
+!$OMP CRITICAL(skala_atom_composite_cross_reduction)
+                        composite_cross_force(:, :) = &
+                           composite_cross_force(:, :) + composite_cross_force_local(:, :)
+                        composite_cross_image_virial = composite_cross_image_virial + &
+                                                       composite_cross_image_virial_local
+!$OMP END CRITICAL(skala_atom_composite_cross_reduction)
+                        DEALLOCATE (composite_cross_force_local)
+!$OMP END PARALLEL
                      END DO
                      CALL release_tau_basis_cache(tau_basis_cache)
                   END DO
@@ -2313,9 +2361,14 @@ CONTAINS
                                                            SUM(composite_kin_grad(composite_row, :))
                                  END IF
                               END IF
-                              fractional = MATMUL( &
-                                           cell%h_inv, composite_grid_coords(:, composite_row) - &
-                                           particle_set(iatom)%r)
+                              fractional = 0.0_dp
+                              DO idir = 1, 3
+                                 DO jdir = 1, 3
+                                    fractional(idir) = fractional(idir) + cell%h_inv(idir, jdir)* &
+                                                       (composite_grid_coords(jdir, composite_row) - &
+                                                        particle_set(iatom)%r(jdir))
+                                 END DO
+                              END DO
                               DO idir = 1, 3
                                  base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
                               END DO
@@ -2587,7 +2640,7 @@ CONTAINS
             DEALLOCATE (composite_atomic_grid_sizes, composite_atom_kind, &
                         composite_atom_kind_index, composite_atom_start, composite_atom_end, &
                         composite_atom_coords, composite_local_atoms, composite_local_grid_sizes, &
-                        composite_local_atom_coords, &
+                        composite_local_atom_coords, composite_grid_atom, &
                         composite_partition_weights, composite_partition_atom_coords, &
                         composite_distances, composite_density, composite_grad, composite_kin, &
                         composite_smooth_density_cache, composite_smooth_gradient_cache, &
@@ -5684,6 +5737,7 @@ CONTAINS
 
       INTEGER                                            :: dir, handle, ia, ibas, igrid, ir, ispin, &
                                                             na, nbas, ngrid, nr
+      REAL(dp)                                           :: tau_sum
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: work
 
       CALL timeset(routineN, handle)
@@ -5704,27 +5758,37 @@ CONTAINS
          DO dir = 1, 3
             CALL dgemm('N', 'T', ngrid, nbas, nbas, 0.5_dp, tau_cache%grad(:, :, dir), &
                        ngrid, rho_atom%cpc_h(ispin)%r_coef, nbas, 0.0_dp, work, ngrid)
-            DO ibas = 1, nbas
-               DO ir = 1, nr
-                  DO ia = 1, na
-                     igrid = ia + (ir - 1)*na
-                     tau_h(ia, ir, ispin) = tau_h(ia, ir, ispin) + &
-                                            tau_cache%grad(igrid, ibas, dir)*work(igrid, ibas)
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SCHEDULE(STATIC) &
+!$OMP SHARED(dir, ispin, na, nbas, nr, tau_cache, tau_h, work) &
+!$OMP PRIVATE(ia, ibas, igrid, ir, tau_sum)
+            DO ir = 1, nr
+               DO ia = 1, na
+                  igrid = ia + (ir - 1)*na
+                  tau_sum = 0.0_dp
+                  DO ibas = 1, nbas
+                     tau_sum = tau_sum + tau_cache%grad(igrid, ibas, dir)*work(igrid, ibas)
                   END DO
+                  tau_h(ia, ir, ispin) = tau_h(ia, ir, ispin) + tau_sum
                END DO
             END DO
+!$OMP END PARALLEL DO
 
             CALL dgemm('N', 'T', ngrid, nbas, nbas, 0.5_dp, tau_cache%grad(:, :, dir), &
                        ngrid, rho_atom%cpc_s(ispin)%r_coef, nbas, 0.0_dp, work, ngrid)
-            DO ibas = 1, nbas
-               DO ir = 1, nr
-                  DO ia = 1, na
-                     igrid = ia + (ir - 1)*na
-                     tau_s(ia, ir, ispin) = tau_s(ia, ir, ispin) + &
-                                            tau_cache%grad(igrid, ibas, dir)*work(igrid, ibas)
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SCHEDULE(STATIC) &
+!$OMP SHARED(dir, ispin, na, nbas, nr, tau_cache, tau_s, work) &
+!$OMP PRIVATE(ia, ibas, igrid, ir, tau_sum)
+            DO ir = 1, nr
+               DO ia = 1, na
+                  igrid = ia + (ir - 1)*na
+                  tau_sum = 0.0_dp
+                  DO ibas = 1, nbas
+                     tau_sum = tau_sum + tau_cache%grad(igrid, ibas, dir)*work(igrid, ibas)
                   END DO
+                  tau_s(ia, ir, ispin) = tau_s(ia, ir, ispin) + tau_sum
                END DO
             END DO
+!$OMP END PARALLEL DO
          END DO
       END DO
 
@@ -6244,8 +6308,7 @@ CONTAINS
 !> \note This is a rewrite to correct meta-GGA GAPW bug. This is more brute force than the original
 !>       but makes sure that no corner is cut in terms of accuracy (A. Bussy)
 ! **************************************************************************************************
-   SUBROUTINE dgaVtaudgb(vtau_h, vtau_s, int_hh, int_ss, &
-                         tau_cache, nspins)
+   SUBROUTINE dgaVtaudgb(vtau_h, vtau_s, int_hh, int_ss, tau_cache, nspins)
 
       REAL(dp), DIMENSION(:, :, :), POINTER              :: vtau_h, vtau_s
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_hh, int_ss
@@ -6279,6 +6342,9 @@ CONTAINS
          int_h = 0.0_dp
          int_s = 0.0_dp
          DO dir = 1, 3
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(3) SCHEDULE(STATIC) &
+!$OMP SHARED(dir, ispin, na, nbas, nr, tau_cache, vtau_h, weighted_grad) &
+!$OMP PRIVATE(ia, ibas, igrid, ir)
             DO ibas = 1, nbas
                DO ir = 1, nr
                   DO ia = 1, na
@@ -6288,9 +6354,13 @@ CONTAINS
                   END DO
                END DO
             END DO
+!$OMP END PARALLEL DO
             CALL dgemm('T', 'N', nbas, nbas, ngrid, 0.5_dp, tau_cache%grad(:, :, dir), &
                        ngrid, weighted_grad, ngrid, 1.0_dp, int_h, nbas)
 
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(3) SCHEDULE(STATIC) &
+!$OMP SHARED(dir, ispin, na, nbas, nr, tau_cache, vtau_s, weighted_grad) &
+!$OMP PRIVATE(ia, ibas, igrid, ir)
             DO ibas = 1, nbas
                DO ir = 1, nr
                   DO ia = 1, na
@@ -6300,13 +6370,17 @@ CONTAINS
                   END DO
                END DO
             END DO
+!$OMP END PARALLEL DO
             CALL dgemm('T', 'N', nbas, nbas, ngrid, 0.5_dp, tau_cache%grad(:, :, dir), &
                        ngrid, weighted_grad, ngrid, 1.0_dp, int_s, nbas)
          END DO
 
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SCHEDULE(STATIC) &
+!$OMP SHARED(int_h, int_hh, int_s, int_ss, ispin, nbas, tau_cache) &
+!$OMP PRIVATE(ibas, iold, jbas, jold)
          DO jbas = 1, nbas
-            jold = tau_cache%n2oindex(jbas)
             DO ibas = 1, nbas
+               jold = tau_cache%n2oindex(jbas)
                iold = tau_cache%n2oindex(ibas)
                int_hh(ispin)%r_coef(iold, jold) = int_hh(ispin)%r_coef(iold, jold) + &
                                                   int_h(ibas, jbas)
@@ -6314,6 +6388,7 @@ CONTAINS
                                                   int_s(ibas, jbas)
             END DO
          END DO
+!$OMP END PARALLEL DO
       END DO
 
       DEALLOCATE (int_h, int_s, weighted_grad)
