@@ -57,7 +57,8 @@ MODULE cp_cfm_diag
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_diag'
 
-   PUBLIC :: cp_cfm_heevd, cp_cfm_geeig, cp_cfm_geeig_canon
+   PUBLIC :: cp_cfm_heevd, cp_cfm_geeig, cp_cfm_geeig_canon, &
+             cp_cfm_geeig_local, cp_cfm_geeig_canon_local
 
 CONTAINS
 
@@ -603,5 +604,198 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_cfm_geeig_canon
+
+! **************************************************************************************************
+!> \brief Solve a generalized complex eigenproblem using the local LAPACK backend.
+!>        This routine is restricted to a one-rank BLACS grid.  It deliberately
+!>        avoids ScaLAPACK so independent k-points can be evaluated concurrently
+!>        without making overlapping MPI calls from OpenMP worker threads.
+!> \param amatrix Hamiltonian, overwritten
+!> \param bmatrix overlap matrix, overwritten
+!> \param eigenvectors eigenvectors
+!> \param eigenvalues eigenvalues
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_geeig_local(amatrix, bmatrix, eigenvectors, eigenvalues)
+
+      TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_geeig_local'
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: work
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: a, b, z
+      INTEGER                                            :: handle, info, liwork, lrwork, lwork, &
+                                                            n, nmo
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals, rwork
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      LOGICAL, DIMENSION(5)                              :: halt
+#endif
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(PRODUCT(amatrix%matrix_struct%context%num_pe) == 1)
+      n = amatrix%matrix_struct%nrow_global
+      nmo = MIN(n, SIZE(eigenvalues))
+      a => amatrix%local_data
+      b => bmatrix%local_data
+      z => eigenvectors%local_data
+
+      ALLOCATE (evals(n), iwork(1), rwork(1), work(1))
+      lwork = -1
+      lrwork = -1
+      liwork = -1
+      CALL zhegvd(1, 'V', 'U', n, a(1, 1), SIZE(a, 1), b(1, 1), SIZE(b, 1), evals(1), &
+                  work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
+      IF (info /= 0) CPABORT("Local ZHEGVD workspace query failed, info="//TRIM(cp_to_string(info)))
+      lwork = MAX(1, CEILING(REAL(work(1), KIND=dp)))
+      lrwork = MAX(1, CEILING(rwork(1)))
+      liwork = MAX(1, iwork(1))
+      DEALLOCATE (iwork, rwork, work)
+      ALLOCATE (iwork(liwork), rwork(lrwork), work(lwork))
+
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_get_halting_mode(IEEE_ALL, halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+      CALL zhegvd(1, 'V', 'U', n, a(1, 1), SIZE(a, 1), b(1, 1), SIZE(b, 1), evals(1), &
+                  work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
+      IF (info /= 0) CPABORT("Local ZHEGVD failed, info="//TRIM(cp_to_string(info)))
+
+      eigenvalues(1:nmo) = evals(1:nmo)
+      z(1:n, 1:nmo) = a(1:n, 1:nmo)
+
+      DEALLOCATE (evals, iwork, rwork, work)
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_geeig_local
+
+! **************************************************************************************************
+!> \brief Canonical generalized complex diagonalization on a one-rank BLACS grid.
+!> \param amatrix Hamiltonian, overwritten
+!> \param bmatrix overlap matrix, overwritten and used as work storage
+!> \param eigenvectors eigenvectors
+!> \param eigenvalues eigenvalues
+!> \param work work matrix
+!> \param epseig overlap eigenvalue threshold
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_geeig_canon_local(amatrix, bmatrix, eigenvectors, eigenvalues, work, epseig)
+
+      TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+      TYPE(cp_cfm_type), INTENT(IN)                      :: work
+      REAL(KIND=dp), INTENT(IN)                          :: epseig
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_geeig_canon_local'
+
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: a, b, u, z
+      INTEGER                                            :: handle, i, info, n, nc, nmo, nx
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(PRODUCT(amatrix%matrix_struct%context%num_pe) == 1)
+      n = amatrix%matrix_struct%nrow_global
+      nmo = MIN(n, SIZE(eigenvalues))
+      a => amatrix%local_data
+      b => bmatrix%local_data
+      u => work%local_data
+      z => eigenvectors%local_data
+      ALLOCATE (evals(n))
+
+      b(1:n, 1:n) = -b(1:n, 1:n)
+      CALL cp_cfm_heevd_local(b, u, evals, info)
+      IF (info /= 0) CPABORT("Local overlap ZHEEVD failed, info="//TRIM(cp_to_string(info)))
+      evals(:) = -evals(:)
+      nc = n
+      DO i = 1, n
+         IF (evals(i) < epseig) THEN
+            nc = i - 1
+            EXIT
+         END IF
+      END DO
+      CPASSERT(nc /= 0)
+
+      IF (nc < n) THEN
+         IF (nc < nmo) z(1:n, nc + 1:nmo) = u(1:n, nc + 1:nmo)
+         u(1:n, nc + 1:n) = z_zero
+         evals(nc + 1:n) = 1.0_dp
+      END IF
+      DO i = 1, n
+         u(1:n, i) = u(1:n, i)/SQRT(evals(i))
+      END DO
+
+      CALL zgemm('C', 'N', n, n, n, z_one, u(1, 1), SIZE(u, 1), a(1, 1), SIZE(a, 1), &
+                 z_zero, b(1, 1), SIZE(b, 1))
+      CALL zgemm('N', 'N', n, n, n, z_one, b(1, 1), SIZE(b, 1), u(1, 1), SIZE(u, 1), &
+                 z_zero, a(1, 1), SIZE(a, 1))
+      IF (nc < n) THEN
+         DO i = nc + 1, n
+            a(i, i) = CMPLX(10000.0_dp, 0.0_dp, KIND=dp)
+         END DO
+      END IF
+
+      CALL cp_cfm_heevd_local(a, b, evals, info)
+      IF (info /= 0) CPABORT("Local Hamiltonian ZHEEVD failed, info="//TRIM(cp_to_string(info)))
+      eigenvalues(1:nmo) = evals(1:nmo)
+      nx = MIN(nc, nmo)
+      CALL zgemm('N', 'N', n, nx, nc, z_one, u(1, 1), SIZE(u, 1), b(1, 1), SIZE(b, 1), &
+                 z_zero, z(1, 1), SIZE(z, 1))
+
+      DEALLOCATE (evals)
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_geeig_canon_local
+
+! **************************************************************************************************
+!> \brief Local LAPACK ZHEEVD helper. The eigenvectors are copied to vectors.
+!> \param matrix ...
+!> \param vectors ...
+!> \param eigenvalues ...
+!> \param info ...
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_heevd_local(matrix, vectors, eigenvalues, info)
+
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)  :: matrix, vectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+      INTEGER, INTENT(OUT)                               :: info
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: work
+      INTEGER                                            :: liwork, lrwork, lwork, n
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rwork
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      LOGICAL, DIMENSION(5)                              :: halt
+#endif
+
+      n = SIZE(eigenvalues)
+      ALLOCATE (iwork(1), rwork(1), work(1))
+      lwork = -1
+      lrwork = -1
+      liwork = -1
+      CALL zheevd('V', 'U', n, matrix(1, 1), SIZE(matrix, 1), eigenvalues(1), &
+                  work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
+      IF (info /= 0) CPABORT("Local ZHEEVD workspace query failed, info="//TRIM(cp_to_string(info)))
+      lwork = MAX(1, CEILING(REAL(work(1), KIND=dp)))
+      lrwork = MAX(1, CEILING(rwork(1)))
+      liwork = MAX(1, iwork(1))
+      DEALLOCATE (iwork, rwork, work)
+      ALLOCATE (iwork(liwork), rwork(lrwork), work(lwork))
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_get_halting_mode(IEEE_ALL, halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+      CALL zheevd('V', 'U', n, matrix(1, 1), SIZE(matrix, 1), eigenvalues(1), &
+                  work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
+      vectors(1:n, 1:n) = matrix(1:n, 1:n)
+      DEALLOCATE (iwork, rwork, work)
+
+   END SUBROUTINE cp_cfm_heevd_local
 
 END MODULE cp_cfm_diag
