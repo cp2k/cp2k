@@ -127,7 +127,7 @@ CONTAINS
 
       INTEGER :: ax, ay, az, bx, by, bz, coa, coax, coay, coaz, coc, cocx, cocy, cocz, cx, cy, cz, &
          handle, i, ipgf, j, jpgf, k, kpgf, l, la, la_max, la_min, la_start, lai, lb, lb_max, &
-         lb_min, lbi, lc, lc_max, lc_min, lci, na, nb, nc, nda, ndc
+         lb_min, lc, lc_max, lc_min, lci, na, nb, nc, nda, ndc
       REAL(KIND=dp)                                      :: f0, f1, f2, f3, fcx, fcy, fcz, fx, fy, &
                                                             fz, rcp2, zetg, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: rag, rbg, rcg, rcp
@@ -141,7 +141,6 @@ CONTAINS
       NULLIFY (s, sda, sdc)
 
       lai = 0
-      lbi = 0
       lci = 0
 
       IF (PRESENT(sdabc)) lai = 1
@@ -179,6 +178,16 @@ CONTAINS
 
             ! *** Screening ***
             IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
+               sabc(na + 1:na + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
+                    1:npgfc*ncoset(lc_max_set)) = 0.0_dp
+               IF (PRESENT(sdabc)) THEN
+                  sdabc(nda + 1:nda + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
+                        1:npgfc*ncoset(lc_max_set), 1:3) = 0.0_dp
+               END IF
+               IF (PRESENT(sabdc)) THEN
+                  sabdc(na + 1:na + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
+                        1:npgfc*ncoset(lc_max_set), 1:3) = 0.0_dp
+               END IF
                nb = nb + ncoset(lb_max_set)
                CYCLE
             END IF
@@ -190,6 +199,16 @@ CONTAINS
                ! *** Screening ***
                IF ((rpgfb(jpgf) + rpgfc(kpgf) < dbc) .OR. &
                    (rpgfa(ipgf) + rpgfc(kpgf) < dac)) THEN
+                  sabc(na + 1:na + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
+                       nc + 1:nc + ncoset(lc_max_set)) = 0.0_dp
+                  IF (PRESENT(sdabc)) THEN
+                     sdabc(nda + 1:nda + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
+                           nc + 1:nc + ncoset(lc_max_set), 1:3) = 0.0_dp
+                  END IF
+                  IF (PRESENT(sabdc)) THEN
+                     sabdc(na + 1:na + ncoset(la_max_set), nb + 1:nb + ncoset(lb_max_set), &
+                           ndc + 1:ndc + ncoset(lc_max_set), 1:3) = 0.0_dp
+                  END IF
                   nc = nc + ncoset(lc_max_set)
                   ndc = ndc + ncoset(lc_max_set)
                   CYCLE

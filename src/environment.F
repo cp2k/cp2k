@@ -81,6 +81,7 @@ MODULE environment
         section_get_ival, section_get_keyword, section_get_lval, section_get_rval, &
         section_release, section_type, section_vals_get, section_vals_get_subs_vals, &
         section_vals_get_subs_vals3, section_vals_type, section_vals_val_get, section_vals_val_set
+   USE integral_library_types,          ONLY: active_integral_library
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
@@ -550,6 +551,10 @@ CONTAINS
                                 l_val=globenv%direct_generalized_diagonalization)
       CALL section_vals_val_get(global_section, "PREFERRED_CHOLESKY_LIBRARY", i_val=i_cholesky)
       CALL section_vals_val_get(global_section, "PREFERRED_DGEMM_LIBRARY", i_val=i_dgemm)
+      CALL section_vals_val_get(global_section, "PREFERRED_INTEGRAL_LIBRARY%COULOMB_2C", &
+                                i_val=active_integral_library%coulomb2_library)
+      CALL section_vals_val_get(global_section, "PREFERRED_INTEGRAL_LIBRARY%COULOMB_3C", &
+                                i_val=active_integral_library%coulomb3_library)
       CALL section_vals_val_get(global_section, "EPS_CHECK_DIAG", r_val=globenv%eps_check_diag)
       CALL section_vals_val_get(global_section, "ENABLE_MPI_IO", l_val=flag)
       CALL cp_mpi_io_set(flag)

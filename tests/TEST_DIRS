@@ -5,6 +5,7 @@
 # the order will be regularly checked and modified...
 QMMM/QS/regtest-mpi                                        parallel mpiranks>2
 QS/regtest-libgint                                          libGint libint offload_cuda !ifx
+QS/regtest-libint-backend                                   libint !ifx
 MIMIC/regtest-qmmm                                          mimic mpiranks==4
 TMC/regtest_ana_on_the_fly                                  parallel mpiranks>2
 QS/regtest-cusolver                                         cusolvermp
