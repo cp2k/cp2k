@@ -2,7 +2,7 @@ import math
 import re
 import sys
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 if sys.version_info >= (3, 8):
     from typing import Literal, Protocol
@@ -82,6 +82,83 @@ class GenericMatcher(Matcher):
             return MatchResult("WRONG RESULT", error, value)
 
         return MatchResult("OK", error=None, value=value)  # passed
+
+
+# ======================================================================================
+class CP2KMatrixChecksumMatcher(Matcher):
+    def run(self, output: str, **kwargs: Any) -> MatchResult:
+        tol, ref = kwargs["tol"], kwargs["ref"]
+        title, dimension = kwargs["title"], kwargs.get("dimension", 16)
+        if (
+            not isinstance(tol, (float, int))
+            or not isinstance(ref, list)
+            or not ref
+            or not all(isinstance(value, (float, int)) for value in ref)
+            or not isinstance(title, str)
+            or not isinstance(dimension, int)
+            or dimension < 1
+        ):
+            return MatchResult(
+                "N/A", "Invalid CP2K matrix matcher arguments.\n", value=None
+            )
+
+        sections = re.split(rf"(?m)^\s+{re.escape(title)}\s*$", output)[1:]
+        if len(sections) != len(ref):
+            error = f"Expected {len(ref)} {title} matrices, found {len(sections)}.\n"
+            return MatchResult("WRONG RESULT", error, value=None)
+
+        values = []
+        for section in sections:
+            rows: List[List[float]] = [[] for _ in range(dimension)]
+            for line in section.splitlines():
+                fields = line.split()
+                if (
+                    len(fields) < 5
+                    or not fields[0].isdigit()
+                    or not fields[1].isdigit()
+                ):
+                    continue
+                try:
+                    row = int(fields[0])
+                    row_values = [
+                        float(value.replace("D", "E")) for value in fields[4:]
+                    ]
+                except ValueError:
+                    continue
+                if 1 <= row <= dimension and row_values:
+                    rows[row - 1].extend(row_values)
+                if all(len(row_values) == dimension for row_values in rows):
+                    break
+
+            if not all(len(row_values) == dimension for row_values in rows):
+                error = f"Could not parse a complete {dimension}x{dimension} {title} matrix.\n"
+                return MatchResult("WRONG RESULT", error, value=None)
+            values.append(
+                sum(
+                    (row + 1) * (col + 1) * value
+                    for row, row_values in enumerate(rows)
+                    for col, value in enumerate(row_values)
+                )
+            )
+
+        if not all(math.isfinite(value) for value in values):
+            return MatchResult("WRONG RESULT", "Checksum is not finite.\n", value=None)
+
+        errors = [
+            abs(value - reference) / abs(reference) if reference != 0.0 else abs(value)
+            for value, reference in zip(values, ref)
+        ]
+        if any(error > tol for error in errors):
+            checksums = ", ".join(
+                f"matrix {i + 1}: {value:.14g}" for i, value in enumerate(values)
+            )
+            return MatchResult(
+                "WRONG RESULT",
+                f"{title} checksum mismatch (relative errors: {errors}); values: {checksums}.\n",
+                value=None,
+            )
+
+        return MatchResult("OK", error=None, value=None)
 
 
 # ======================================================================================
