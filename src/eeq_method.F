@@ -1385,7 +1385,11 @@ CONTAINS
       IF (n_pairs_alloc > 0) CALL sort(pair_key, n_pairs_alloc, pair_order)
       n_unique = 0
       DO iatom = 1, n_pairs_alloc
-         IF (iatom == 1 .OR. pair_key(iatom) /= pair_key(iatom - 1)) n_unique = n_unique + 1
+         IF (iatom == 1) THEN
+            n_unique = n_unique + 1
+         ELSE IF (pair_key(iatom) /= pair_key(iatom - 1)) THEN
+            n_unique = n_unique + 1
+         END IF
       END DO
       ALLOCATE (response%row(n_unique), response%col(n_unique), response%value(n_unique))
       n_pairs = 0
