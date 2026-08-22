@@ -81,9 +81,7 @@ test cp2k daint:
   variables:
     SLURM_CPUS_PER_TASK: 4
     SLURM_DEBUG: 1
-    SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 8
     SLURM_NTASKS_PER_NODE: 8
     SLURM_TIMELIMIT: 15
     USE_MPI: YES
@@ -98,7 +96,6 @@ regression test cp2k daint:
     - podman run --shm-size=8g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --cp2kdatadir /opt/cp2k/install/share/cp2k/data --maxtasks ${SLURM_NTASKS} --timeout 400 --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/install/bin ${VERSION} 2>&1 || true
   variables:
     SLURM_DEBUG: 1
-    SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 288
     SLURM_TIMELIMIT: 60
@@ -117,9 +114,8 @@ benchmark cp2k 1 daint node:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 3
+    SLURM_CPUS_PER_TASK: 4
     SLURM_DEBUG: 1
-    SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
     SLURM_NTASKS_PER_NODE: 72
@@ -139,9 +135,8 @@ benchmark cp2k 1 daint node elpa:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 3
+    SLURM_CPUS_PER_TASK: 4
     SLURM_DEBUG: 1
-    SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
     SLURM_NTASKS_PER_NODE: 72
@@ -161,9 +156,8 @@ benchmark cp2k 2 daint nodes:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 3
+    SLURM_CPUS_PER_TASK: 4
     SLURM_DEBUG: 1
-    SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 2
     SLURM_MPI_TYPE: pmi2
     SLURM_NTASKS_PER_NODE: 72
@@ -183,9 +177,8 @@ benchmark cp2k 2 daint nodes elpa:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 3
+    SLURM_CPUS_PER_TASK: 4
     SLURM_DEBUG: 1
-    SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 2
     SLURM_MPI_TYPE: pmi2
     SLURM_NTASKS_PER_NODE: 72
