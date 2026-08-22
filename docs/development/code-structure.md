@@ -6,6 +6,8 @@ works, or even where to start looking! This page is intended for novice develope
 understood the literature and wish to locate the relevant algorithms and data structures in the
 code.
 
+For visibility, the soft link `./src/README.md` redirects to this page.
+
 ## File Names
 
 Source files should have prefixes corresponding to their main functionalities. For example:
