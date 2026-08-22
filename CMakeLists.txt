@@ -129,6 +129,23 @@ option(CP2K_USE_LIBFCI "Enable LibFCI active-space solver support"
        ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBINT2 "Enable Libint2 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBTORCH "Enable LibTorch support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_SYMMETRIX "Enable symmetrix MACE interatomic potentials" OFF)
+option(
+  CP2K_SYMMETRIX_KOKKOS
+  "Link the Kokkos (GPU) libsymmetrix evaluator (MACEKokkos) instead of the host MACE class"
+  OFF)
+set(CP2K_SYMMETRIX_INCLUDE_DIR
+    ""
+    CACHE
+      PATH
+      "Directory/-ies with the libsymmetrix headers (mace.hpp; mace_kokkos.hpp + Kokkos headers when CP2K_SYMMETRIX_KOKKOS=ON)"
+)
+set(CP2K_SYMMETRIX_LIBRARIES
+    ""
+    CACHE
+      STRING
+      "libsymmetrix and its dependencies to link (e.g. libsymmetrix.a libsphericart.a BLAS; add the Kokkos libs for a Kokkos build)"
+)
 option(CP2K_USE_LIBXC "Enable LibXC support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GAUXC "Enable GauXC support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_MPI "Enable MPI support" ${CP2K_USE_EVERYTHING})
@@ -946,6 +963,33 @@ if(CP2K_USE_LIBTORCH)
   endif()
 endif()
 
+if(CP2K_USE_SYMMETRIX)
+  # Explicit CP2K_SYMMETRIX_INCLUDE_DIR + CP2K_SYMMETRIX_LIBRARIES always win
+  # (escape hatch for unusual layouts); otherwise derive both from a symmetrix
+  # checkout + build tree given via CP2K_SYMMETRIX_ROOT (libsymmetrix ships no
+  # install/package-config rules yet, so plain find_package against an install
+  # prefix is not possible).
+  if(NOT (CP2K_SYMMETRIX_INCLUDE_DIR AND CP2K_SYMMETRIX_LIBRARIES))
+    find_package(Symmetrix REQUIRED)
+  endif()
+  # libsymmetrix is a plain C++20 static library (no torch); it is linked
+  # directly and symmetrix_c_api.cpp is compiled in-tree. It needs C++20.
+  if("${CMAKE_CXX_STANDARD}" STREQUAL "" OR CMAKE_CXX_STANDARD LESS 20)
+    set(CMAKE_CXX_STANDARD 20)
+    message("-- symmetrix setting CMAKE_CXX_STANDARD to 20")
+  endif()
+  if(CP2K_SYMMETRIX_KOKKOS)
+    # The Kokkos glue TU includes Kokkos CUDA headers, so it must be compiled by
+    # nvcc even when CP2K's own accelerator layer is off (the GPU work lives
+    # entirely inside libsymmetrix/Kokkos).
+    enable_language(CUDA)
+    if("${CMAKE_CUDA_STANDARD}" STREQUAL "" OR CMAKE_CUDA_STANDARD LESS 20)
+      set(CMAKE_CUDA_STANDARD 20)
+      message("-- symmetrix (Kokkos) setting CMAKE_CUDA_STANDARD to 20")
+    endif()
+  endif()
+endif()
+
 if(CP2K_USE_MIMIC)
   find_package(MiMiC REQUIRED)
 endif()
@@ -1182,6 +1226,14 @@ if(CP2K_USE_ACE)
   )
 endif()
 
+if(CP2K_USE_SYMMETRIX)
+  message(
+    "  - symmetrix\n"
+    "    - Kokkos (GPU) evaluator: ${CP2K_SYMMETRIX_KOKKOS}\n"
+    "    - Include directories: ${CP2K_SYMMETRIX_INCLUDE_DIR}\n"
+    "    - Libraries: ${CP2K_SYMMETRIX_LIBRARIES}\n")
+endif()
+
 if(CP2K_USE_LIBSMEAGOL)
   message("  - LibSMEAGOL\n"
           "    - Include directories: ${CP2K_LIBSMEAGOL_INCLUDE_DIRS}\n"
@@ -1365,6 +1417,10 @@ endif()
 
 if(NOT CP2K_USE_LIBTORCH)
   message("  - LibTorch")
+endif()
+
+if(NOT CP2K_USE_SYMMETRIX)
+  message("  - symmetrix")
 endif()
 
 if(NOT CP2K_USE_TREXIO)

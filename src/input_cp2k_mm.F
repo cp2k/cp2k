@@ -1488,9 +1488,10 @@ CONTAINS
    END SUBROUTINE create_NEQUIP_section
 
 ! **************************************************************************************************
-!> \brief This section specifies the input parameters for MACE potential type
+!> \brief This section specifies the input parameters for a MACE potential,
+!>        evaluated through a selectable inference backend
 !> \param section the section to create
-!> \author Xinyue Sun
+!> \author Xinyue Sun and Dhruv Sharma
 ! **************************************************************************************************
    SUBROUTINE create_MACE_section(section)
       TYPE(section_type), POINTER                        :: section
@@ -1499,14 +1500,28 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="MACE", &
-                          description="This section specifies the input parameters for MACE potential type, "// &
-                          "a higher-order equivariant message-passing neural network. "// &
-                          "The MACE model must be exported to a TorchScript file that takes a single "// &
-                          "dictionary argument (see the create_cp2k_model.py helper). "// &
-                          "Requires linking with libtorch library from <https://pytorch.org/cppdocs/installing.html>.", &
-                          citations=[Batatia2022], n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          description="This section specifies the input parameters for a MACE "// &
+                          "machine-learning interatomic potential, a higher-order equivariant "// &
+                          "message-passing neural network, evaluated through a selectable inference "// &
+                          "BACKEND with otherwise identical input. TORCH (the default) runs a "// &
+                          "TorchScript model exported with the create_cp2k_model.py helper and "// &
+                          "requires linking with libtorch <https://pytorch.org/cppdocs/installing.html>. "// &
+                          "SYMMETRIX runs a symmetrix model (.json) with torch-free C++/Kokkos kernels "// &
+                          "and requires linking with libsymmetrix. MACE models use standardized units "// &
+                          "(Angstrom for length, eV for energy, eV/Angstrom for forces), so no unit "// &
+                          "keywords are required.", &
+                          citations=[Batatia2022], n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BACKEND", &
+                          description="Inference backend evaluating the MACE model: TORCH (default, "// &
+                          "TorchScript via libtorch) or SYMMETRIX (torch-free C++/Kokkos via "// &
+                          "libsymmetrix). The model file must be exported for the chosen backend "// &
+                          "(see POT_FILE_NAME).", &
+                          usage="BACKEND SYMMETRIX", default_lc_val="TORCH")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kinds involved in the MACE potential. "// &
@@ -1520,9 +1535,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="POT_FILE_NAME", &
                           variants=["MODEL_FILE_NAME"], &
-                          description="Specifies the filename that contains the exported MACE model. "// &
-                          "MACE models use standardized units (Angstrom for length, eV for energy, "// &
-                          "eV/Angstrom for forces), so no unit keywords are required.", &
+                          description="Specifies the filename that contains the exported MACE model: "// &
+                          "a TorchScript file for BACKEND TORCH or a symmetrix .json file for "// &
+                          "BACKEND SYMMETRIX.", &
                           usage="POT_FILE_NAME {FILENAME}", default_lc_val=" ")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

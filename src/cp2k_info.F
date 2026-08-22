@@ -273,6 +273,12 @@ CONTAINS
 #if defined(__LIBTORCH_CUDA)
       flags = TRIM(flags)//" libtorch_cuda"
 #endif
+#if defined(__SYMMETRIX)
+      flags = TRIM(flags)//" symmetrix"
+#if defined(__SYMMETRIX_KOKKOS)
+      flags = TRIM(flags)//" symmetrix_kokkos"
+#endif
+#endif
 #if defined(__MIMIC)
       flags = TRIM(flags)//" mimic"
 #endif

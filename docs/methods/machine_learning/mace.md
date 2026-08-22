@@ -49,9 +49,10 @@ section within the `&NONBONDED` forcefield parameters:
 - [POT_FILE_NAME](#CP2K_INPUT.FORCE_EVAL.MM.FORCEFIELD.NONBONDED.MACE.POT_FILE_NAME): path to the
   exported MACE model.
 
-MACE is a message-passing model with a non-local receptive field. As with NequIP, the interface
-evaluates the full system on every MPI rank and divides the energy, forces, and virial by the number
-of ranks.
+MACE is a message-passing model with a non-local receptive field. As with NequIP, the default
+TorchScript backend evaluates the full system on every MPI rank and divides the energy, forces, and
+virial by the number of ranks. The [symmetrix](symmetrix.md) backend instead decomposes the atoms
+across ranks and contributes genuine partial sums.
 
 ## Further Resources
 
