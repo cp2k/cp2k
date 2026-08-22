@@ -194,12 +194,12 @@ CONTAINS
                          particle_set, kind_of, cell, chia, gam, gab, &
                          para_env, blacs_env, dft_control, eeq_sparam, &
                          totalcharge=totalcharge, ewald=do_ewald, &
-                         ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
+                         ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit, qs_env=qs_env)
       ELSE
          CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
                          para_env, blacs_env, dft_control, eeq_sparam, &
-                         totalcharge=totalcharge, iounit=iunit)
+                         totalcharge=totalcharge, iounit=iunit, qs_env=qs_env)
       END IF
 
       IF (dft_control%apply_period_efield .OR. dft_control%apply_efield .OR. &
@@ -325,11 +325,11 @@ CONTAINS
          CALL eeq_solver(qlag, qlam, elag, &
                          particle_set, kind_of, cell, -dcharges, gam, gab, &
                          para_env, blacs_env, dft_control, eeq_sparam, &
-                         ewald=do_ewald, ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
+                         ewald=do_ewald, ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit, qs_env=qs_env)
       ELSE
          CALL eeq_solver(qlag, qlam, elag, &
                          particle_set, kind_of, cell, -dcharges, gam, gab, &
-                         para_env, blacs_env, dft_control, eeq_sparam, iounit=iunit)
+                         para_env, blacs_env, dft_control, eeq_sparam, iounit=iunit, qs_env=qs_env)
       END IF
 
       enshift_type = xtb_control%enshift_type
@@ -584,11 +584,11 @@ CONTAINS
          CALL eeq_solver(qlag, qlam, elag, &
                          particle_set, kind_of, cell, -dcharges, gam, gab, &
                          para_env, blacs_env, dft_control, eeq_sparam, &
-                         ewald=do_ewald, ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
+                         ewald=do_ewald, ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit, qs_env=qs_env)
       ELSE
          CALL eeq_solver(qlag, qlam, elag, &
                          particle_set, kind_of, cell, -dcharges, gam, gab, &
-                         para_env, blacs_env, dft_control, eeq_sparam, iounit=iunit)
+                         para_env, blacs_env, dft_control, eeq_sparam, iounit=iunit, qs_env=qs_env)
       END IF
 
       ! return Lagrange multipliers

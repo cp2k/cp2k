@@ -14,6 +14,10 @@
 "ch2o_t07.inp"                          = []
 "ch2o_t08.inp"                          = []
 "ch2o_cn_stress.inp"                    = []
+"ch2o_d4_sparse.inp"                    = [{matcher="E_total", tol=1.0E-12, ref=-7.84825467661662},
+                                           {matcher="M033", tol=1.0E-12, ref=-0.00152141629968},
+                                           {matcher="M072", tol=1.0E-10, ref=0.0},
+                                           {matcher="M031", tol=1.0E-06, ref=-1.62137050123E+04}]
 "H2O_gfn1_mol_debug.inp"                = [{matcher="DEBUG_stress_sum", tol=1.0E-7, ref=0.0000000},
                                            {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000}]
 "H2O_gfn1_uks_mol_debug.inp"            = [{matcher="DEBUG_stress_sum", tol=1.0E-7, ref=0.0000000},

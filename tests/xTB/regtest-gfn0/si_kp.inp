@@ -12,6 +12,7 @@
         VDW_POTENTIAL DFTD3
         &EEQ
           EPS_DIIS 1.E-12
+          SPARSE
         &END EEQ
       &END XTB
     &END QS
