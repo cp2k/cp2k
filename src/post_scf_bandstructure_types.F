@@ -45,14 +45,6 @@ MODULE post_scf_bandstructure_types
 
    PUBLIC :: post_scf_bandstructure_type, band_edges_type, data_3_type, bs_env_release
 
-   ! Sanity bounds on a fundamental quasiparticle gap, in Hartree: below -eps_qp_gap the spectrum is
-   ! inverted, above max_qp_gap the quasiparticle solve has diverged. eps_qp_gap is a noise tolerance,
-   ! low enough that a metal or a near-degenerate system does not trip the inversion test; max_qp_gap
-   ! sits far above any real valence gap (a few tens of eV) but is not derived from the all-electron
-   ! KS spread (~1000 eV), which would defeat the test.
-   REAL(KIND=dp), PARAMETER, PUBLIC                   :: eps_qp_gap = 0.01_dp/evolt, &
-                                                         max_qp_gap = 200.0_dp/evolt
-
    ! valence band maximum (VBM), conduction band minimum (CBM), direct band gap (DBG),
    ! indirect band gap (IDBG)
    TYPE band_edges_type
@@ -86,6 +78,15 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp)                                    :: cutoff_radius_v_w = -1.0_dp
       REAL(KIND=dp)                                    :: cutoff_radius_g_w = -1.0_dp
       CHARACTER(LEN=default_string_length)             :: grid_file_suffix = ""
+
+      ! Eigenvalue self-consistency (evGW0): G is rebuilt from the quasiparticle energies of
+      ! the previous cycle while W stays frozen at the RPA@DFT level.
+      LOGICAL                                          :: do_evgw0 = .FALSE.
+      INTEGER                                          :: evgw0_iter = 20
+      REAL(KIND=dp)                                    :: evgw0_eps_iter = 5.0E-5_dp
+      ! index of the running evGW0 cycle, so that the spectrum of every cycle is appended to
+      ! the bandstructure file instead of overwriting it
+      INTEGER                                          :: evgw0_i_iter = 0
 
       ! Data types for cutoffs based DBCSR matrices
       REAL(KIND=dp), ALLOCATABLE                       :: chunk_centroids(:, :)
@@ -138,7 +139,7 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: eigenval_scf, &
                                                          eigenval_G0W0, &
                                                          eigenval_HF, &
-                                                         eigenval_scGW0
+                                                         eigenval_evGW0
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: eigenval_scf_soc, &
                                                          eigenval_G0W0_soc
       TYPE(band_edges_type), DIMENSION(2)             :: band_edges_scf_Gamma = band_edges_type()
@@ -153,6 +154,8 @@ MODULE post_scf_bandstructure_types
       TYPE(ri_rs_env)                                 :: ri_rs
 
       ! general parameters on molecular orbitals and basis sets
+      ! Number of real states; entries above it are linear-dependency placeholders, not states.
+      INTEGER                                      :: n_mo_retained = -1
       INTEGER                                      :: n_ao = -1, &
                                                       n_RI = -1, &
                                                       n_spin = -1, &
@@ -416,6 +419,10 @@ MODULE post_scf_bandstructure_types
 
    END TYPE post_scf_bandstructure_type
 
+   ! Sanity bounds on a quasiparticle gap (Hartree): inverted below -eps_qp_gap, diverged above max_qp_gap
+   REAL(KIND=dp), PARAMETER, PUBLIC                   :: eps_qp_gap = 0.01_dp/evolt, &
+                                                         max_qp_gap = 200.0_dp/evolt
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -449,7 +456,7 @@ CONTAINS
       IF (ALLOCATED(bs_env%eigenval_scf)) DEALLOCATE (bs_env%eigenval_scf)
       IF (ALLOCATED(bs_env%eigenval_G0W0)) DEALLOCATE (bs_env%eigenval_G0W0)
       IF (ALLOCATED(bs_env%eigenval_HF)) DEALLOCATE (bs_env%eigenval_HF)
-      IF (ALLOCATED(bs_env%eigenval_scGW0)) DEALLOCATE (bs_env%eigenval_scGW0)
+      IF (ALLOCATED(bs_env%eigenval_evGW0)) DEALLOCATE (bs_env%eigenval_evGW0)
       IF (ALLOCATED(bs_env%eigenval_scf_soc)) DEALLOCATE (bs_env%eigenval_scf_soc)
       IF (ALLOCATED(bs_env%eigenval_G0W0_soc)) DEALLOCATE (bs_env%eigenval_G0W0_soc)
       IF (ALLOCATED(bs_env%i_ao_start_from_atom)) DEALLOCATE (bs_env%i_ao_start_from_atom)

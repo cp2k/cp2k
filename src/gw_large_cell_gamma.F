@@ -2516,7 +2516,9 @@ CONTAINS
 
       CALL get_all_VBM_CBM_bandgaps(bs_env)
 
-      CALL cp_fm_release(fm_Sigma_x_Gamma)
+      ! Σ^x is frozen in an evGW0 cycle, so there the caller keeps it and releases it once the
+      ! self-consistency loop is done
+      IF (.NOT. bs_env%ri_rs%do_evgw0) CALL cp_fm_release(fm_Sigma_x_Gamma)
       CALL cp_fm_release(fm_Sigma_c_Gamma_time)
       CALL cp_cfm_release(cfm_ks_ikp)
       CALL cp_cfm_release(cfm_s_ikp)

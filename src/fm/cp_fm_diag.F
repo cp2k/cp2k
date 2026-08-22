@@ -83,6 +83,10 @@ MODULE cp_fm_diag
 
    REAL(KIND=dp), PARAMETER, PUBLIC :: eps_check_diag_default = 5.0E-14_dp
 
+   ! Placeholder eigenvalue for linearly dependent modes removed by canonical orthogonalization.
+   ! Pushes unphysical states above the real spectrum so downstream routines can ignore them.
+   REAL(KIND=dp), PARAMETER, PUBLIC :: set_removed_eigval_to = 10000.0_dp
+
    ! The following saved variables are diagonalization global
    ! Stores the default library for diagonalization
    INTEGER, SAVE, PUBLIC    :: diag_type = 0
@@ -1694,13 +1698,16 @@ CONTAINS
 !> \param eigenvalues ...
 !> \param work ...
 !> \param epseig ...
+!> \param nmo_retained ...
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_geeig_canon(amatrix, bmatrix, eigenvectors, eigenvalues, work, epseig)
+   SUBROUTINE cp_fm_geeig_canon(amatrix, bmatrix, eigenvectors, eigenvalues, work, epseig, &
+                                nmo_retained)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
       TYPE(cp_fm_type), INTENT(IN)                       :: work
       REAL(KIND=dp), INTENT(IN)                          :: epseig
+      INTEGER, INTENT(OUT), OPTIONAL                     :: nmo_retained
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_geeig_canon'
 
@@ -1752,7 +1759,7 @@ CONTAINS
       IF (nc /= nao) THEN
          ! set diagonal values to save large value
          DO icol = nc + 1, nao
-            CALL cp_fm_set_element(amatrix, icol, icol, 10000.0_dp)
+            CALL cp_fm_set_element(amatrix, icol, icol, set_removed_eigval_to)
          END DO
       END IF
       ! Diagonalize
@@ -1760,6 +1767,10 @@ CONTAINS
       nx = MIN(nc, nmo)
       ! Restore vectors C = U^(-1) * C*
       CALL cp_fm_gemm("N", "N", nao, nx, nc, 1.0_dp, work, bmatrix, 0.0_dp, eigenvectors)
+
+      ! Number of basis modes that survived the linear-dependency filter. The remaining
+      ! nao - nc entries of eigenvalues(:) are the placeholders set above.
+      IF (PRESENT(nmo_retained)) nmo_retained = nc
 
       DEALLOCATE (evals)
 

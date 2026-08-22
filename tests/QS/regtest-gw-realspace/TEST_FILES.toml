@@ -22,4 +22,12 @@
                                           {matcher="E_RIRS_LUMO", tol=1e-03, ref=18.334},
                                           {matcher="E_G0W0_direct_gap", tol=1e-03, ref=24.567}]
 
+"07_RIRS_EVGW0_GPW_PBE_H2O.inp"          = [{matcher="E_RIRS_evGW0_HOMO", tol=1e-03, ref=-6.777},
+                                          {matcher="E_RIRS_evGW0_LUMO", tol=1e-03, ref=16.897},
+                                          {matcher="E_evGW0_direct_gap", tol=1e-03, ref=23.674}]
+
+"08_RIRS_EVGW0_PBE0_O2.inp"              = [{matcher="E_RIRS_evGW0_HOMO", tol=1e-03, ref=-6.741},
+                                          {matcher="E_RIRS_evGW0_LUMO", tol=1e-03, ref=10.718},
+                                          {matcher="E_evGW0_direct_gap", tol=1e-03, ref=21.416}]
+
 #EOF

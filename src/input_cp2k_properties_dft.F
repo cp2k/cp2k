@@ -36,6 +36,7 @@ MODULE input_cp2k_properties_dft
       current_gauge_atom, current_gauge_r, current_gauge_r_and_step_func, &
       current_orb_center_atom, current_orb_center_box, current_orb_center_common, &
       current_orb_center_wannier, do_et_ddapc, do_full_density, do_no_et, do_spin_density, &
+      evGW0, G0W0, &
       gto_cartesian, gto_spherical, int_ldos_none, int_ldos_x, int_ldos_y, int_ldos_z, oe_gllb, &
       oe_lb, oe_none, oe_saop, oe_shift, ot_precond_full_all, ot_precond_full_kinetic, &
       ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
@@ -2406,7 +2407,7 @@ CONTAINS
                           "For the GW algorithm for molecules, see "// &
                           "<https://doi.org/10.1021/acs.jctc.0c01282>. "// &
                           "For 2D materials, see <https://doi.org/10.1021/acs.jctc.3c01230>.", &
-                          n_keywords=1, n_subsections=1, repeats=.FALSE.)
+                          n_keywords=1, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, &
@@ -2592,19 +2593,41 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="RI_RS", &
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      NULLIFY (subsection)
+      CALL create_ri_rs_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_gw_section
+
+! **************************************************************************************************
+!> \brief creates the input section collecting all parameters of the real-space resolution of
+!>        the identity (RI-RS) used in GW
+!> \param section section to create
+! **************************************************************************************************
+   SUBROUTINE create_ri_rs_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="RI_RS", &
                           description="Real-Space Resolution of Identity (RI-RS) method. This "// &
                           "approximation replaces the conventional 3-center RI integrals "// &
                           "$(\mu\nu|P)$ by a factorized representation on an atom-centered "// &
-                          "real-space grid $\{\mathbf{r}_\ell\}$: "// &
+                          "real-space grid with points $\mathbf{r}_\ell$: "// &
                           "$(\mu\nu|P) \approx \sum_\ell \varphi_\mu(\mathbf{r}_\ell) "// &
                           "\varphi_\nu(\mathbf{r}_\ell) Z_{\ell P}$. "// &
                           "The coefficients $Z_{\ell P}$ combine the numerical integration "// &
                           "weights and the Coulomb potential of the auxiliary basis function "// &
                           "$P$ evaluated at grid point $\mathbf{r}_\ell$. To reduce the "// &
-                          "computational cost, only grid points within the sphere $B^P$ are "// &
-                          "included, where "// &
-                          "$B^P = \{\mathbf{r} : |\mathbf{r} - \mathbf{R}_P| < R_c + r_P\}$. "// &
+                          "computational cost, only grid points within the sphere $B^P$ around "// &
+                          "atom $P$ are included, i.e. the points with "// &
+                          "$|\mathbf{r}_\ell - \mathbf{R}_P| < R_c + r_P$. "// &
                           "Here, $r_P$ is the effective radius of the most diffuse RI "// &
                           "auxiliary Gaussian on atom $P$, at which the basis function "// &
                           "magnitude falls below a threshold $\delta$ "// &
@@ -2612,7 +2635,15 @@ CONTAINS
                           "This locality approximation yields a sparse representation of the "// &
                           "3-center integrals and enables reduced computational cost. "// &
                           "See details in https://doi.org/10.1063/1.5090605.", &
-                          usage="RI_RS", &
+                          n_keywords=11, n_subsections=1, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of RI-RS in the GW calculation. "// &
+                          "An empty section, &RI_RS ... &END RI_RS, switches RI-RS on with "// &
+                          "default parameters.", &
+                          usage="&RI_RS .TRUE.", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -2733,10 +2764,63 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      NULLIFY (subsection)
+      CALL create_evgw0_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-   END SUBROUTINE create_gw_section
+   END SUBROUTINE create_ri_rs_section
+
+! **************************************************************************************************
+!> \brief creates the input section for eigenvalue self-consistent GW0 (evGW0) in RI-RS
+!> \param section section to create
+! **************************************************************************************************
+   SUBROUTINE create_evgw0_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="EVGW0", &
+                          description="Eigenvalue self-consistent GW0. The quasiparticle "// &
+                          "energies replace the Kohn-Sham eigenvalues in the Green's function "// &
+                          "and the cycle is repeated, while the screened Coulomb interaction "// &
+                          "$W$ stays at its RPA@DFT value. Only the correlation self-energy "// &
+                          "and the quasiparticle equation are recomputed per cycle; $W$, the "// &
+                          "exchange self-energy and the RI-RS grid quantities are computed "// &
+                          "once. Without this section a single-shot G0W0 calculation is "// &
+                          "performed.", &
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of evGW0. An empty section, "// &
+                          "&EVGW0 ... &END EVGW0, switches evGW0 on with default parameters.", &
+                          usage="&EVGW0 .TRUE.", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
+                          description="Maximum number of evGW0 cycles.", &
+                          usage="MAX_ITER 20", &
+                          default_i_val=20)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_ITER", &
+                          description="Target accuracy of the eigenvalue self-consistency. "// &
+                          "The cycle stops once the quasiparticle HOMO, the quasiparticle "// &
+                          "LUMO and the HOMO-LUMO gap all change by less than this value "// &
+                          "between two successive cycles. Unit: Hartree.", &
+                          usage="EPS_ITER 0.00005", &
+                          default_r_val=5.0E-5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_evgw0_section
 
 ! **************************************************************************************************
 !> \brief creates an input section for calculation SOC for the electronic band structure
