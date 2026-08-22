@@ -271,6 +271,17 @@ def main() -> None:
             )
         )
 
+    with OutputFile(f"Dockerfile.test_spack_coverage", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                version="psmp",
+                mpi_mode="mpich",
+                feature_flags="--test_coverage",
+                image_tag=f.image_tag,
+                test_type="coverage",
+            )
+        )
+
     # End Spack/CMake based tester
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
@@ -791,13 +802,14 @@ COPY ./CMakeLists.txt ./CMakePresets.json ./
 COPY ./cmake ./cmake
 COPY ./data ./data
 COPY ./src ./src
+COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./tools/conventions ./tools/conventions
 
 RUN ./make_cp2k.sh -cv {version} {gcc_version_flag} -gpu {gpu_model} -mpi {mpi_mode} {feature_flags}
 """
     )
-    if test_type == "conventions":
+    if test_type == "conventions" or test_type == "coverage":
         return output
     output += (
         install_base_image(
@@ -816,7 +828,7 @@ COPY --from=build_cp2k /opt/cp2k/spack/spack/opt/spack ./spack/spack/opt/spack
 COPY --from=build_cp2k /opt/cp2k/install ./install
 
 # Install CP2K regression tests
-COPY ./tests ./tests
+COPY --from=build_cp2k /opt/cp2k/tests ./tests
 COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 
 # Install CP2K/Quickstep CI benchmarks
@@ -956,7 +968,10 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     {gcc_compilers} \
     git \
     gnupg \
-    libssh-dev \
+"""
+            if test_type == "coverage":
+                output += f"    lcov \\" + "\n"
+            output += rf"""    libssh-dev \
     libssl-dev \
     libtool \
     libtool-bin \

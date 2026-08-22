@@ -54,6 +54,7 @@ COPY ./CMakeLists.txt ./CMakePresets.json ./
 COPY ./cmake ./cmake
 COPY ./data ./data
 COPY ./src ./src
+COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./tools/conventions ./tools/conventions
 
@@ -78,7 +79,7 @@ COPY --from=build_cp2k /opt/cp2k/spack/spack/opt/spack ./spack/spack/opt/spack
 COPY --from=build_cp2k /opt/cp2k/install ./install
 
 # Install CP2K regression tests
-COPY ./tests ./tests
+COPY --from=build_cp2k /opt/cp2k/tests ./tests
 COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 
 # Install CP2K/Quickstep CI benchmarks

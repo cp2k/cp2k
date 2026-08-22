@@ -50,7 +50,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 2.2
+# Version: 2.3
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -164,6 +164,7 @@ RUN_BENCHMARK="no"
 RUN_TEST="no"
 SED_PATTERN_LIST=""
 TESTOPTS=""
+TEST_COVERAGE="no"
 TEST_GROMACS="no"
 USE_CACHE="folder"
 USE_CUSOLVER_MP=""
@@ -177,6 +178,13 @@ VERBOSE_SPACK=""
 export CP2K_ENV="cp2k_env"
 export CP2K_ROOT=${CP2K_ROOT:-${PWD}}
 export CP2K_VERSION="${CP2K_VERSION:-psmp}"
+
+# Retrieve CP2K revision if folder is a git repository
+if git -C "${CP2K_ROOT}" rev-parse --short HEAD; then
+  CP2K_REVISION="$(git -C "${CP2K_ROOT}" rev-parse --short HEAD)"
+else
+  CP2K_REVISION="unknown"
+fi
 
 export BUILD_PATH="${BUILD_PATH:-${CP2K_ROOT}}"
 export INSTALL_PREFIX="${INSTALL_PREFIX:-${CP2K_ROOT}/install}"
@@ -614,6 +622,10 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
+    -tc | --test_coverage)
+      TEST_COVERAGE="yes"
+      shift 1
+      ;;
     -tg | --test_gromacs)
       TEST_GROMACS="yes"
       shift 1
@@ -743,11 +755,30 @@ else
   Fortran_COMPILER_LAUNCHER=""
 fi
 
+# Test coverage and generate a coverage report
+if [[ "${TEST_COVERAGE}" == "yes" ]]; then
+  if [[ "${CP2K_VERSION}" != "psmp" ]]; then
+    echo ""
+    echo "WARNING: Coverage testing implies CP2K_VERSION \"psmp\" but found \"${CP2K_VERSION}\""
+    echo "         CP2K_VERSION is set to \"psmp\""
+    echo ""
+    CP2K_VERSION="psmp"
+  fi
+  if ! command -v lcov &> /dev/null; then
+    echo -e "\nERROR: The package lcov is mandatory for a coverage test"
+    echo -e "       Install the missing package and re-run the script\n"
+    ${EXIT_CMD} 1
+  fi
+  CP2K_BUILD_TYPE="Coverage"
+  RUN_TEST="yes"
+  TESTOPTS+=" --ompthreads=1 --timeout 400"
+fi
+
 export BENCHMARK_PROFILE BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CHECK_CONVENTIONS CMAKE_FEATURE_FLAGS \
-  CMAKE_FEATURE_FLAGS_GPU CP2K_BUILD_TYPE CRAY CUDA_SM_CODE DEPS_BUILD_TYPE Fortran_COMPILER_LAUNCHER \
+  CMAKE_FEATURE_FLAGS_GPU CP2K_BUILD_TYPE CP2K_REVISION CRAY CUDA_SM_CODE DEPS_BUILD_TYPE Fortran_COMPILER_LAUNCHER \
   GCC_VERSION GPU_MODEL GROMACS_VERSION IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PACKAGES NUM_PROCS \
-  REBUILD_CP2K RUN_BENCHMARK RUN_TEST TEST_GROMACS TESTOPTS USE_CACHE USE_OPENCL VERBOSE VERBOSE_FLAG \
-  VERBOSE_MAKEFILE VERBOSE_SPACK
+  REBUILD_CP2K RUN_BENCHMARK RUN_TEST TEST_COVERAGE TEST_GROMACS TESTOPTS USE_CACHE USE_OPENCL VERBOSE \
+  VERBOSE_FLAG VERBOSE_MAKEFILE VERBOSE_SPACK
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -774,6 +805,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-preset (native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)]"
   echo "                    [-rc | --rebuild_cp2k]"
   echo "                    [-t | --test \"TESTOPTS\"]"
+  echo "                    [-tc | --test_coverage]"
   echo "                    [-tg | --test_gromacs]"
   echo "                    [-tp | --test_performance \"BENCHMARK_PROFILE\"]"
   echo "                    [-uc | --use_cache (folder | minio | no | none)]"
@@ -803,6 +835,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " -preset               : Use a CMake configure preset, see \"cmake --list-presets\" (default: native-gnu-x86_64)"
   echo " --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)"
   echo " --test                : Perform a regression test run after a successful build"
+  echo " --test_coverage       : Analyse the code coverage and generate a coverage report"
   echo " --test_gromacs        : Build and test GROMACS with CP2K support"
   echo " --test_performance    : Perform a benchmark run after a successful build"
   echo " --use_cache           : Use a \"folder\", a \"MinIO\" object storage container (requires podman) or \"no\" cache"
@@ -836,8 +869,9 @@ echo "BUILD_DEPS_ONLY     = ${BUILD_DEPS_ONLY}"
 echo "BUILD_PATH          = ${BUILD_PATH}"
 echo "BUILD_SHARED_LIBS   = ${BUILD_SHARED_LIBS}"
 echo "CHECK_CONVENTIONS   = ${CHECK_CONVENTIONS}"
-echo "CP2K_BUILD_TYPE     = ${CP2K_BUILD_TYPE}"
 echo "CMAKE_PRESET        = ${CMAKE_PRESET}"
+echo "CP2K_BUILD_TYPE     = ${CP2K_BUILD_TYPE}"
+echo "CP2K_REVISION       = ${CP2K_REVISION}"
 echo "CP2K_VERSION        = ${CP2K_VERSION}"
 echo "CRAY                = ${CRAY}"
 echo "DEPS_BUILD_TYPE     = ${DEPS_BUILD_TYPE}"
@@ -875,6 +909,7 @@ echo "RUN_TEST            = ${RUN_TEST}"
 if [[ "${RUN_TEST}" == "yes" ]]; then
   echo "TESTOPTS            = \"${TESTOPTS}\""
 fi
+echo "TEST_COVERAGE       = ${TEST_COVERAGE}"
 echo "USE_CACHE           = ${USE_CACHE}"
 echo "USE_EXTERNALS       = ${USE_EXTERNALS}"
 echo "USE_OPENCL          = ${USE_OPENCL}"
@@ -928,7 +963,7 @@ esac
 
 # Check if a valid CMake build type is selected for CP2K
 case "${CP2K_BUILD_TYPE^}" in
-  Conventions | Debug | Release | RelWithDebInfo)
+  Conventions | Coverage | Debug | Release | RelWithDebInfo)
     true
     ;;
   *)
@@ -1901,7 +1936,34 @@ else
   fi
 fi
 
-# Optionally, run CP2K benchmark
+# Optionally, analyse code coverage and generate a coverage report
+if [[ "${TEST_COVERAGE}" == "yes" ]]; then
+  if [[ "${IN_CONTAINER}" == "yes" ]]; then
+    COVERAGE_OUTPUT_DIR="/workspace/artifacts/coverage"
+  else
+    COVERAGE_OUTPUT_DIR="${INSTALL_PREFIX}"/coverage
+  fi
+  mkdir -p "${COVERAGE_OUTPUT_DIR}"
+  COVERAGE_OUTPUT_FILE="${COVERAGE_OUTPUT_DIR}/coverage.info"
+  lcov --directory "${CMAKE_BUILD_PATH}/src" \
+    --exclude "${SPACK_BUILD_PATH}/*" \
+    --exclude "/usr/*" \
+    --capture \
+    --keep-going \
+    --output-file "${COVERAGE_OUTPUT_FILE}" &> "${COVERAGE_OUTPUT_DIR}"/lcov.log
+  # Print coverage summary
+  lcov --summary "${COVERAGE_OUTPUT_FILE}"
+  genhtml --output-directory "${COVERAGE_OUTPUT_DIR}" --keep-going --title "CP2K Regtests (${CP2K_REVISION})" \
+    "${COVERAGE_OUTPUT_FILE}" &> "${COVERAGE_OUTPUT_DIR}"/genhtml.log
+  # Create plot data
+  LINE_COV=$(lcov --summary "${COVERAGE_OUTPUT_FILE}" | grep lines | awk '{print substr($2, 1, length($2)-1)}')
+  FUNC_COV=$(lcov --summary "${COVERAGE_OUTPUT_FILE}" | grep funct | awk '{print substr($2, 1, length($2)-1)}')
+  echo 'Plot: name="cov", title="Test Coverage", ylabel="Coverage %"'
+  echo "PlotPoint: name='lines', plot='cov', label='Lines', y=${LINE_COV}, yerr=0"
+  echo "PlotPoint: name='funcs', plot='cov', label='Functions', y=${FUNC_COV}, yerr=0"
+fi
+
+# Optionally, run CP2K benchmark as performance check
 if [[ "${VERSION}" == "psmp" ]]; then
   if [[ "${RUN_BENCHMARK}" == "yes" ]]; then
     echo -e "\n*** Launching benchmark run using the script ${INSTALL_PREFIX}/bin/run_benchmarks\n"
