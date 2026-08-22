@@ -22,6 +22,8 @@ MODULE fist_nonbond_env_types
                                               fist_neighbor_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE manybody_mlp_celllist,           ONLY: mlp_edge_buffer_release,&
+                                              mlp_edge_buffer_type
    USE pair_potential_types,            ONLY: &
         ace_type, allegro_type, gal21_type, gal_type, mace_type, nequip_type, &
         pair_potential_pp_release, pair_potential_pp_type, siepmann_type, symmetrix_type, &
@@ -66,7 +68,17 @@ MODULE fist_nonbond_env_types
       ! atomic number Z -> 0-based model type index (-1 where unsupported),
       ! built once at model load
       INTEGER, ALLOCATABLE       :: idx_of_z(:)
-      TYPE(symmetrix_model_type) :: model
+      ! One model per OpenMP thread. The evaluator keeps every intermediate
+      ! (node energies and forces, the layer activations and their adjoints) as
+      ! state inside the model object, so threads cannot share one; each gets a
+      ! clone, built once at load rather than per force evaluation.
+      TYPE(symmetrix_model_type), ALLOCATABLE :: model(:)
+      ! One edge buffer per OpenMP thread, kept across evaluations. Only the
+      ! CAPACITY persists: the edges themselves are rebuilt every step. Holding
+      ! the allocation lets a domain fill its buffer in a single walk of the
+      ! neighbour stencil, since a walk only has to be repeated when the buffer
+      ! turns out too small, which after the first step it no longer is.
+      TYPE(mlp_edge_buffer_type), ALLOCATABLE :: edge_buf(:)
    END TYPE symmetrix_data_type
 
    TYPE deepmd_data_type
@@ -559,6 +571,8 @@ CONTAINS
    SUBROUTINE fist_nonbond_env_release(fist_nonbond_env)
       TYPE(fist_nonbond_env_type), INTENT(INOUT)         :: fist_nonbond_env
 
+      INTEGER                                            :: i
+
       IF (ASSOCIATED(fist_nonbond_env%nonbonded)) THEN
          CALL fist_neighbor_deallocate(fist_nonbond_env%nonbonded)
       END IF
@@ -595,7 +609,18 @@ CONTAINS
          IF (ASSOCIATED(fist_nonbond_env%symmetrix_data%use_indices)) THEN
             DEALLOCATE (fist_nonbond_env%symmetrix_data%use_indices)
          END IF
-         CALL symmetrix_model_release(fist_nonbond_env%symmetrix_data%model)
+         IF (ALLOCATED(fist_nonbond_env%symmetrix_data%edge_buf)) THEN
+            DO i = 1, SIZE(fist_nonbond_env%symmetrix_data%edge_buf)
+               CALL mlp_edge_buffer_release(fist_nonbond_env%symmetrix_data%edge_buf(i))
+            END DO
+            DEALLOCATE (fist_nonbond_env%symmetrix_data%edge_buf)
+         END IF
+         IF (ALLOCATED(fist_nonbond_env%symmetrix_data%model)) THEN
+            DO i = 1, SIZE(fist_nonbond_env%symmetrix_data%model)
+               CALL symmetrix_model_release(fist_nonbond_env%symmetrix_data%model(i))
+            END DO
+            DEALLOCATE (fist_nonbond_env%symmetrix_data%model)
+         END IF
          DEALLOCATE (fist_nonbond_env%symmetrix_data)
       END IF
       IF (ASSOCIATED(fist_nonbond_env%deepmd_data)) THEN

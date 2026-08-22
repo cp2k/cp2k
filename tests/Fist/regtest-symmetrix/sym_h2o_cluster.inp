@@ -1,0 +1,55 @@
+! Isolated two-water cluster, aperiodic on all three axes. The cell and the
+! coordinates are those of sym_h2o_small.inp, which is periodic and whose box is
+! shorter than twice the 4 Angstrom model cutoff; the only difference is
+! PERIODIC NONE. So this pair isolates the periodicity handling on its own: the
+! energy here must be the isolated-cluster value of sym_h2o.inp, where the same
+! two waters sit in a 20 Angstrom box, and must NOT be the sym_h2o_small value.
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT sym_h2o_cluster
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &MACE
+          ATOMS H O
+          BACKEND SYMMETRIX
+          ! Committed toy MACE model (untrained, deterministic weights); see
+          ! README.md in this directory for the generation recipe.
+          POT_FILE_NAME Symmetrix/toy_mace-1-8.json
+        &END MACE
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      PERIODIC NONE
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+    &STRESS_TENSOR
+    &END STRESS_TENSOR
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 6.0 6.0 6.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O  0.000  0.000  0.000
+      H  0.757  0.586  0.000
+      H -0.757  0.586  0.000
+      O  0.000  0.000  2.900
+      H  0.757  0.586  2.900
+      H -0.757  0.586  2.900
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

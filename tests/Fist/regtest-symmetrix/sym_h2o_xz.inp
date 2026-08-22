@@ -1,0 +1,52 @@
+! Periodic in XZ with vacuum along B, the axis pair no other test covers.
+! The per-axis periodicity logic is meant to be general rather than XY-shaped;
+! this is the cheap proof of that.
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT sym_h2o_xz
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &MACE
+          ATOMS H O
+          BACKEND SYMMETRIX
+          ! Committed toy MACE model (untrained, deterministic weights); see
+          ! README.md in this directory for the generation recipe.
+          POT_FILE_NAME Symmetrix/toy_mace-1-8.json
+        &END MACE
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      PERIODIC XZ
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+    &STRESS_TENSOR
+    &END STRESS_TENSOR
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 6.0 20.0 6.5
+      PERIODIC XZ
+    &END CELL
+    &COORD
+      O  0.000  9.500  0.000
+      H  0.757  9.500  0.586
+      H -0.757  9.500  0.586
+      O  3.000 11.100  0.400
+      H  3.757 11.100  0.986
+      H  2.243 11.100  0.986
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

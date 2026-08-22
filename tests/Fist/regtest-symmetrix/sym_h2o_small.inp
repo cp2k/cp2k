@@ -1,0 +1,52 @@
+! Two waters in a cell shorter than twice the model cutoff (6 Angstrom against
+! a 4 Angstrom cutoff). Every other cell in this directory is large enough that
+! each neighbour is reached through exactly one image; here an atom sees several
+! images of the same partner, and sees itself through a nonzero cell shift.
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT sym_h2o_small
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &MACE
+          ATOMS H O
+          BACKEND SYMMETRIX
+          ! Committed toy MACE model (untrained, deterministic weights); see
+          ! README.md in this directory for the generation recipe.
+          POT_FILE_NAME Symmetrix/toy_mace-1-8.json
+        &END MACE
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+    &STRESS_TENSOR
+    &END STRESS_TENSOR
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 6.0 6.0 6.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      O  0.000  0.000  0.000
+      H  0.757  0.586  0.000
+      H -0.757  0.586  0.000
+      O  0.000  0.000  2.900
+      H  0.757  0.586  2.900
+      H -0.757  0.586  2.900
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
