@@ -1,7 +1,13 @@
 import traceback
 from typing import Any, Dict
 
-from matcher_classes import Matcher, MatchResult, GenericMatcher, TextPresenceMatcher
+from matcher_classes import (
+    CP2KMatrixChecksumMatcher,
+    GenericMatcher,
+    MatchResult,
+    Matcher,
+    TextPresenceMatcher,
+)
 
 
 # ======================================================================================
@@ -26,6 +32,7 @@ registry = MatcherRegistry()
 
 # Total energy in Hartree
 registry["E_total"] = GenericMatcher(r"Total energy:", col=3)
+registry["CP2K_MATRIX_CHECKSUM"] = CP2KMatrixChecksumMatcher()
 
 registry["M002"] = GenericMatcher(r"MD| Potential energy", col=5)
 registry["M003"] = GenericMatcher(r"Total energy [eV]:", col=4)
