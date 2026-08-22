@@ -303,11 +303,12 @@ CONTAINS
 !> \param convert_to_dbcsr ...
 !> \param chol_type ...
 !> \param full_mo_set ...
+!> \param chebyshev_degree ...
 ! **************************************************************************************************
    SUBROUTINE prepare_preconditioner(qs_env, mos, matrix_ks, matrix_s, &
                                      ot_preconditioner, prec_type, solver_type, &
                                      energy_gap, nspins, has_unit_metric, &
-                                     convert_to_dbcsr, chol_type, full_mo_set)
+                                     convert_to_dbcsr, chol_type, full_mo_set, chebyshev_degree)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mos
@@ -319,11 +320,13 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: has_unit_metric, convert_to_dbcsr
       INTEGER, INTENT(IN), OPTIONAL                      :: chol_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: full_mo_set
+      INTEGER, INTENT(IN), OPTIONAL                      :: chebyshev_degree
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_preconditioner'
 
       CHARACTER(LEN=default_string_length)               :: msg
-      INTEGER                                            :: handle, icall, ispin, n_loops
+      INTEGER                                            :: handle, icall, ispin, &
+                                                            my_chebyshev_degree, n_loops
       INTEGER, DIMENSION(5)                              :: nocc, norb
       LOGICAL                                            :: do_co_rotate, my_convert_to_dbcsr, &
                                                             my_full_mo_set, my_has_unit_metric, &
@@ -343,6 +346,8 @@ CONTAINS
       IF (PRESENT(convert_to_dbcsr)) my_convert_to_dbcsr = convert_to_dbcsr
       my_full_mo_set = .FALSE.
       IF (PRESENT(full_mo_set)) my_full_mo_set = full_mo_set
+      my_chebyshev_degree = 8
+      IF (PRESENT(chebyshev_degree)) my_chebyshev_degree = chebyshev_degree
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -412,6 +417,7 @@ CONTAINS
          END DO
       CASE DEFAULT
          DO icall = 1, n_loops
+            ot_preconditioner(icall)%preconditioner%polynomial_degree = my_chebyshev_degree
             IF (my_has_unit_metric) THEN
                CALL make_preconditioner(ot_preconditioner(icall)%preconditioner, &
                                         prec_type, &
@@ -446,4 +452,3 @@ CONTAINS
    END SUBROUTINE prepare_preconditioner
 
 END MODULE preconditioner
-

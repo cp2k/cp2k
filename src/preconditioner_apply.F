@@ -14,21 +14,21 @@
 ! **************************************************************************************************
 MODULE preconditioner_apply
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release, dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_release, dbcsr_set, dbcsr_type
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
+                                              cp_fm_scale_and_add
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_restore
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
+                                              cp_fm_to_fm,&
                                               cp_fm_type
-   USE input_constants,                 ONLY: ot_precond_full_all,&
-                                              ot_precond_full_kinetic,&
-                                              ot_precond_full_single,&
-                                              ot_precond_full_single_inverse,&
-                                              ot_precond_s_inverse,&
-                                              ot_precond_solver_direct,&
-                                              ot_precond_solver_inv_chol,&
-                                              ot_precond_solver_update
+   USE input_constants,                 ONLY: &
+        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_s_inverse, ot_precond_solver_chebyshev, &
+        ot_precond_solver_direct, ot_precond_solver_inv_chol, ot_precond_solver_update
    USE kinds,                           ONLY: dp
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner_types,            ONLY: preconditioner_type
@@ -73,6 +73,8 @@ CONTAINS
             CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
          CASE (ot_precond_solver_direct)
             CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out)
+         CASE (ot_precond_solver_chebyshev)
+            CALL apply_chebyshev_fm(preconditioner_env, matrix_in, matrix_out)
          CASE DEFAULT
             CPABORT("Solver not implemented")
          END SELECT
@@ -115,6 +117,8 @@ CONTAINS
          CASE (ot_precond_solver_direct)
             CPABORT("Apply_full_direct not supported with ot")
             !CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out)
+         CASE (ot_precond_solver_chebyshev)
+            CALL apply_chebyshev_dbcsr(preconditioner_env, matrix_in, matrix_out)
          CASE DEFAULT
             CPABORT("Wrong solver")
          END SELECT
@@ -207,6 +211,92 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE apply_full_direct
+
+! **************************************************************************************************
+!> \brief Apply a Chebyshev approximation to the inverse of the stored dense SPD operator.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_chebyshev_fm(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+
+      INTEGER                                            :: degree, iteration, k, n
+      REAL(KIND=dp)                                      :: delta, rho, rho_previous, sigma, theta
+      TYPE(cp_fm_type)                                   :: direction, residual
+
+      CPASSERT(ASSOCIATED(preconditioner_env%fm))
+      degree = preconditioner_env%polynomial_degree
+      CPASSERT(degree >= 1)
+      theta = 0.5_dp*(preconditioner_env%polynomial_max + preconditioner_env%polynomial_min)
+      delta = 0.5_dp*(preconditioner_env%polynomial_max - preconditioner_env%polynomial_min)
+      sigma = theta/delta
+      rho_previous = 1.0_dp/sigma
+      CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
+      CALL cp_fm_create(direction, matrix_in%matrix_struct, name='Chebyshev direction')
+      CALL cp_fm_create(residual, matrix_in%matrix_struct, name='Chebyshev residual')
+      CALL cp_fm_to_fm(matrix_in, direction)
+      CALL cp_fm_scale(1.0_dp/theta, direction)
+      CALL cp_fm_to_fm(direction, matrix_out)
+      DO iteration = 2, degree
+         CALL cp_fm_to_fm(matrix_in, residual)
+         CALL parallel_gemm('N', 'N', n, k, n, -1.0_dp, preconditioner_env%fm, &
+                            matrix_out, 1.0_dp, residual)
+         rho = 1.0_dp/(2.0_dp*sigma - rho_previous)
+         CALL cp_fm_scale(rho*rho_previous, direction)
+         CALL cp_fm_scale_and_add(1.0_dp, direction, 2.0_dp*rho/delta, residual)
+         CALL cp_fm_scale_and_add(1.0_dp, matrix_out, 1.0_dp, direction)
+         rho_previous = rho
+      END DO
+      CALL cp_fm_release(residual)
+      CALL cp_fm_release(direction)
+
+   END SUBROUTINE apply_chebyshev_fm
+
+! **************************************************************************************************
+!> \brief Apply a Chebyshev approximation to the inverse of the stored sparse SPD operator.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_chebyshev_dbcsr(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
+
+      INTEGER                                            :: degree, iteration
+      REAL(KIND=dp)                                      :: delta, rho, rho_previous, sigma, theta
+      TYPE(dbcsr_type)                                   :: direction, residual
+
+      CPASSERT(ASSOCIATED(preconditioner_env%dbcsr_matrix))
+      degree = preconditioner_env%polynomial_degree
+      CPASSERT(degree >= 1)
+      theta = 0.5_dp*(preconditioner_env%polynomial_max + preconditioner_env%polynomial_min)
+      delta = 0.5_dp*(preconditioner_env%polynomial_max - preconditioner_env%polynomial_min)
+      sigma = theta/delta
+      rho_previous = 1.0_dp/sigma
+      CALL dbcsr_copy(direction, matrix_in, name='Chebyshev direction')
+      CALL dbcsr_copy(residual, matrix_in, name='Chebyshev residual')
+      CALL dbcsr_set(matrix_out, 0.0_dp)
+      CALL dbcsr_add(matrix_out, direction, 1.0_dp, 1.0_dp/theta)
+      CALL dbcsr_set(direction, 0.0_dp)
+      CALL dbcsr_add(direction, matrix_in, 1.0_dp, 1.0_dp/theta)
+      DO iteration = 2, degree
+         CALL dbcsr_set(residual, 0.0_dp)
+         CALL dbcsr_add(residual, matrix_in, 1.0_dp, 1.0_dp)
+         CALL dbcsr_multiply('N', 'N', -1.0_dp, preconditioner_env%dbcsr_matrix, &
+                             matrix_out, 1.0_dp, residual)
+         rho = 1.0_dp/(2.0_dp*sigma - rho_previous)
+         CALL dbcsr_add(direction, residual, rho*rho_previous, 2.0_dp*rho/delta)
+         CALL dbcsr_add(matrix_out, direction, 1.0_dp, 1.0_dp)
+         rho_previous = rho
+      END DO
+      CALL dbcsr_release(residual)
+      CALL dbcsr_release(direction)
+
+   END SUBROUTINE apply_chebyshev_dbcsr
 
 ! **************************************************************************************************
 !> \brief full all to a full matrix

@@ -53,6 +53,8 @@ MODULE preconditioner_types
       REAL(KIND=dp), DIMENSION(:), POINTER :: occ_evals => NULL(), full_evals => NULL()
       REAL(KIND=dp) :: energy_gap = -1.0_dp
       REAL(KIND=dp) :: condition_num = -1.0_dp
+      INTEGER :: polynomial_degree = 8
+      REAL(KIND=dp) :: polynomial_min = -1.0_dp, polynomial_max = -1.0_dp
    END TYPE preconditioner_type
 
 ! **************************************************************************************************
@@ -102,6 +104,9 @@ CONTAINS
       !inverse is used for filtering in update set it to something huge to
       ! avoid filtering if the information is not available
       preconditioner_env%condition_num = -1.0_dp
+      preconditioner_env%polynomial_degree = 8
+      preconditioner_env%polynomial_min = -1.0_dp
+      preconditioner_env%polynomial_max = -1.0_dp
       preconditioner_env%ihistory = 0
 
       CALL preconditioner_env%para_env%retain()
@@ -165,4 +170,3 @@ CONTAINS
    END SUBROUTINE destroy_preconditioner
 
 END MODULE preconditioner_types
-
