@@ -117,17 +117,15 @@ benchmark cp2k 1 daint node:
     - export MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
-    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
+    - /opt/cp2k/ci/mps-wrapper.sh cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 3
+    SLURM_CPUS_PER_TASK: 8
     SLURM_DEBUG: 1
-    SLURM_GPUS_PER_TASK: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS: 72
-    SLURM_NTASKS_PER_NODE: 72
+    SLURM_NTASKS_PER_NODE: 32
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
 
@@ -142,17 +140,15 @@ benchmark cp2k 1 daint node elpa:
     - export MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
-    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
+    - /opt/cp2k/ci/mps-wrapper.sh cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 3
+    SLURM_CPUS_PER_TASK: 8
     SLURM_DEBUG: 1
-    SLURM_GPUS_PER_TASK: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS: 72
-    SLURM_NTASKS_PER_NODE: 72
+    SLURM_NTASKS_PER_NODE: 32
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
 
@@ -167,17 +163,15 @@ benchmark cp2k 2 daint nodes:
     - export MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
-    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
+    - /opt/cp2k/ci/mps-wrapper.sh cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 3
+    SLURM_CPUS_PER_TASK: 8
     SLURM_DEBUG: 1
-    SLURM_GPUS_PER_TASK: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 2
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS: 144
-    SLURM_NTASKS_PER_NODE: 72
+    SLURM_NTASKS_PER_NODE: 32
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
 
@@ -192,16 +186,14 @@ benchmark cp2k 2 daint nodes elpa:
     - export MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
-    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
+    - /opt/cp2k/ci/mps-wrapper.sh cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 3
+    SLURM_CPUS_PER_TASK: 8
     SLURM_DEBUG: 1
-    SLURM_GPUS_PER_TASK: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 2
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS: 144
-    SLURM_NTASKS_PER_NODE: 72
+    SLURM_NTASKS_PER_NODE: 32
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
