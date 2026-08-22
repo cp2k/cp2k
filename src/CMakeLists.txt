@@ -361,6 +361,7 @@ list(
   manybody_gal.F
   manybody_e3nn.F
   manybody_potential.F
+  manybody_mlp_celllist.F
   manybody_mlp_neighbor.F
   manybody_mlp_partition.F
   manybody_symmetrix.F
