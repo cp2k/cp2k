@@ -952,6 +952,14 @@ CONTAINS
       CALL symmetrix_model_load(model, symmetrix%pot_file_name)
       length_au_per_angstrom = cp_unit_to_cp2k(1.0_dp, "angstrom")
       cutoff = symmetrix_model_cutoff(model)*length_au_per_angstrom    ! Angstrom -> Bohr
+      ! Everything downstream divides by this to size a neighbour grid, so a
+      ! model that reports no range is caught here, where the file can still be
+      ! named, rather than as a division by zero later.
+      IF (cutoff <= 0.0_dp) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "The symmetrix model '"//TRIM(symmetrix%pot_file_name)//"' reports a "// &
+                       "non-positive interaction cutoff. The file is not a usable model.")
+      END IF
       symmetrix%rcutsq = cutoff*cutoff
       n_types = symmetrix_model_num_types(model)
       ALLOCATE (model_z(n_types))
