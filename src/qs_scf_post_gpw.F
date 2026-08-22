@@ -81,8 +81,8 @@ MODULE qs_scf_post_gpw
                                               iao_read_input
    USE input_constants,                 ONLY: &
         do_loc_both, do_loc_homo, do_loc_jacobi, do_loc_lumo, do_loc_mixed, do_loc_none, &
-        moments_format_trajectory, ot_precond_full_all, radius_covalent, radius_user, &
-        ref_charge_atomic, ref_charge_mulliken
+        moments_format_trajectory, ot_precond_fermi_low_rank, ot_precond_full_all, &
+        radius_covalent, radius_user, ref_charge_atomic, ref_charge_mulliken
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
@@ -1288,13 +1288,14 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_init_random(unoccupied_orbs(ispin), nlumos)
 
-         ! the full_all preconditioner makes not much sense for lumos search
+         ! State-selective preconditioners are tied to the occupied reference orbitals.
          NULLIFY (local_preconditioner)
          IF (ASSOCIATED(scf_env)) THEN
             IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
                local_preconditioner => scf_env%ot_preconditioner(1)%preconditioner
                ! this one can for sure not be right (as it has to match a given C0)
-               IF (local_preconditioner%in_use == ot_precond_full_all) THEN
+               IF (local_preconditioner%in_use == ot_precond_full_all .OR. &
+                   local_preconditioner%in_use == ot_precond_fermi_low_rank) THEN
                   NULLIFY (local_preconditioner)
                END IF
             END IF

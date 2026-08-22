@@ -46,9 +46,9 @@ MODULE preconditioner_makes
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE input_constants,                 ONLY: &
-        cholesky_inverse, cholesky_reduce, ot_precond_full_all, ot_precond_full_kinetic, &
-        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_s_inverse, &
-        ot_precond_solver_default, ot_precond_solver_inv_chol
+        cholesky_inverse, cholesky_reduce, ot_precond_fermi_low_rank, ot_precond_full_all, &
+        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
+        ot_precond_s_inverse, ot_precond_solver_default, ot_precond_solver_inv_chol
    USE kinds,                           ONLY: dp
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner_types,            ONLY: preconditioner_type
@@ -121,7 +121,7 @@ CONTAINS
          IF (my_solver_type == ot_precond_solver_default) my_solver_type = ot_precond_solver_inv_chol
          CALL make_full_single_inverse(preconditioner_env, mo_coeff, matrix_h, energy_gap, &
                                        matrix_s=matrix_s)
-      CASE (ot_precond_full_all)
+      CASE (ot_precond_full_all, ot_precond_fermi_low_rank)
          IF (my_solver_type /= ot_precond_solver_default) THEN
             CPABORT("Only PRECOND_SOLVER DEFAULT for the moment")
          END IF
@@ -819,4 +819,3 @@ CONTAINS
    END SUBROUTINE make_full_single_inverse
 
 END MODULE preconditioner_makes
-

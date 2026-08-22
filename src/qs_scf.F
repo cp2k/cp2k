@@ -81,10 +81,10 @@ MODULE qs_scf
    USE input_constants,                 ONLY: &
         broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, &
         broyden_type_2, broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
-        cdft2ot, history_guess, ot2cdft, ot_precond_full_all, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_newton_ls, tblite_scc_mixer_tblite
+        cdft2ot, history_guess, ot2cdft, ot_precond_fermi_low_rank, ot_precond_full_all, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
+        ot_precond_s_inverse, outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, &
+        outer_scf_optimizer_broyden, outer_scf_optimizer_newton_ls, tblite_scc_mixer_tblite
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -759,11 +759,13 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: scf_section
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_scf_loop'
+      CHARACTER(LEN=*), PARAMETER :: rotation_error = &
+         'State-selective OT preconditioners are not compatible with ROTATION. '// &
+         'Use FULL_S_INVERSE or FULL_KINETIC instead.', routineN = 'init_scf_loop'
 
       INTEGER                                            :: handle, ispin, nmo, number_of_OT_envs
       LOGICAL                                            :: do_kpoints, do_rotation, &
-                                                            has_unit_metric, is_full_all
+                                                            has_unit_metric, is_state_selective
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_type), POINTER                          :: orthogonality_metric
@@ -949,10 +951,13 @@ CONTAINS
             ! this will rotate the MOs to be eigen states, which is not compatible with rotation
             ! e.g. mo_derivs here do not yet include potentially different occupations numbers
             do_rotation = scf_env%qs_ot_env(1)%settings%do_rotation
-            ! only full all needs rotation
-            is_full_all = scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all
-            IF (do_rotation .AND. is_full_all) THEN
-               CPABORT('PRECONDITIONER FULL_ALL is not compatible with ROTATION.')
+            ! State-selective weights are tied to fixed occupied columns and do not transform
+            ! covariantly under occupied-space rotations C -> C U.
+            is_state_selective = &
+               scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all .OR. &
+               scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_fermi_low_rank
+            IF (do_rotation .AND. is_state_selective) THEN
+               CPABORT(rotation_error)
             END IF
 
             ! might need the KS matrix to init properly
@@ -993,7 +998,7 @@ CONTAINS
 
             SELECT CASE (scf_env%qs_ot_env(1)%settings%preconditioner_type)
             CASE (ot_precond_none)
-            CASE (ot_precond_full_all, ot_precond_full_single_inverse)
+            CASE (ot_precond_full_all, ot_precond_fermi_low_rank, ot_precond_full_single_inverse)
                DO ispin = 1, SIZE(scf_env%qs_ot_env)
                   CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin), &
                                                 scf_env%ot_preconditioner(ispin)%preconditioner)

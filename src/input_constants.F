@@ -534,7 +534,8 @@ MODULE input_constants
                                                ot_precond_s_inverse = 3, &
                                                ot_precond_full_all = 5, &
                                                ot_precond_full_single_inverse = 6, &
-                                               precond_mlp = 7
+                                               precond_mlp = 7, &
+                                               ot_precond_fermi_low_rank = 8
    INTEGER, PARAMETER, PUBLIC               :: ot_precond_solver_default = 1, &
                                                ot_precond_solver_inv_chol = 2, &
                                                ot_precond_solver_direct = 3, &
