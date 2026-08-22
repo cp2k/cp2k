@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_conventions -f ./Dockerfile.test_spack_conventions ../../
+# Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_coverage -f ./Dockerfile.test_spack_coverage ../../
 #
 
 ARG BASE_IMAGE="ubuntu:26.04"
@@ -16,6 +16,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     g++ gcc gfortran \
     git \
     gnupg \
+    lcov \
     libssh-dev \
     libssl-dev \
     libtool \
@@ -38,7 +39,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 ARG IMAGE_TAG
-ENV IMAGE_TAG=${IMAGE_TAG:-spack_conventions}
+ENV IMAGE_TAG=${IMAGE_TAG:-spack_coverage}
 
 ARG SPACK_CACHE
 ENV SPACK_CACHE="${SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://host.containers.internal:9000}"
@@ -48,7 +49,7 @@ WORKDIR /opt/cp2k
 COPY ./tools/spack ./tools/spack
 COPY ./tools/docker ./tools/docker
 COPY ./make_cp2k.sh .
-RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none  -mpi mpich -ue --check_conventions
+RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none  -mpi mpich -ue --test_coverage
 
 ###### Stage 2: Build CP2K ######
 
@@ -62,4 +63,4 @@ COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./tools/conventions ./tools/conventions
 
-RUN ./make_cp2k.sh -cv psmp  -gpu none -mpi mpich --check_conventions
+RUN ./make_cp2k.sh -cv psmp  -gpu none -mpi mpich --test_coverage
