@@ -66,13 +66,21 @@ MODULE qs_scf_diagonalization
    USE input_constants,                 ONLY: &
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
         core_guess, general_roks, high_spin_roks, restart_guess
+   USE input_cp2k_kpoints,              ONLY: lattice_fft_auto,&
+                                              lattice_fft_off,&
+                                              lattice_fft_on
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
                                               kpoint_density_transform,&
                                               kpoint_set_mo_occupation,&
-                                              rskp_transform
+                                              rskp_grid_type,&
+                                              rskp_transform,&
+                                              rskp_transform_grid_extract,&
+                                              rskp_transform_grid_prepare,&
+                                              rskp_transform_grid_release
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_type,&
                                               kpoint_type
@@ -459,12 +467,14 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: coeffs
       INTEGER                                            :: handle, ib, igroup, ik, ikp, indx, &
-                                                            ispin, jb, kplocal, nb, nkp, &
-                                                            nkp_groups, nspin
+                                                            ispin, jb, kplocal, lattice_fft, nb, &
+                                                            nkp, nkp_groups, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
+      INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_diis, my_kpgrp, use_real_wfn
+      LOGICAL                                            :: do_diis, my_kpgrp, spin_grid_fft, &
+                                                            use_grid_fft, use_real_wfn
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
@@ -480,6 +490,8 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
+      TYPE(rskp_grid_type)                               :: s_grid
+      TYPE(rskp_grid_type), ALLOCATABLE, DIMENSION(:)    :: ks_grid
       TYPE(section_vals_type), POINTER                   :: scf_section
 
       CALL timeset(routineN, handle)
@@ -487,7 +499,7 @@ CONTAINS
       NULLIFY (sab_nl)
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
                            nkp_groups=nkp_groups, kp_dist=kp_dist, sab_nl=sab_nl, &
-                           cell_to_index=cell_to_index)
+                           cell_to_index=cell_to_index, nkp_grid=nkp_grid, lattice_fft=lattice_fft)
       CPASSERT(ASSOCIATED(sab_nl))
       kplocal = kp_range(2) - kp_range(1) + 1
 
@@ -531,6 +543,41 @@ CONTAINS
 
       para_env => kpoints%blacs_env_all%para_env
       nspin = SIZE(matrix_ks, 1)
+
+      ! For a complete Monkhorst-Pack grid, transform every MPI-local DBCSR block over all k points
+      ! in one lattice FFT. The established per-k phase sum remains the exact memory/irregular-grid
+      ! fallback. Divide the conservative memory budget between H spins and S.
+      ALLOCATE (ks_grid(nspin))
+      SELECT CASE (lattice_fft)
+      CASE (lattice_fft_auto)
+         use_grid_fft = nkp >= 27
+      CASE (lattice_fft_on)
+         use_grid_fft = .TRUE.
+      CASE (lattice_fft_off)
+         use_grid_fft = .FALSE.
+      CASE DEFAULT
+         CPABORT("Unknown lattice FFT selection mode")
+      END SELECT
+      IF (use_grid_fft) THEN
+         CALL rskp_transform_grid_prepare(s_grid, rmatrix, matrix_s, 1, xkp, nkp_grid, &
+                                          cell_to_index, sab_nl, use_grid_fft, &
+                                          max_storage_bytes=512_int_8*1024_int_8**2/INT(nspin + 1, int_8))
+      END IF
+      IF (use_grid_fft) THEN
+         DO ispin = 1, nspin
+            CALL rskp_transform_grid_prepare(ks_grid(ispin), rmatrix, matrix_ks, ispin, xkp, nkp_grid, &
+                                             cell_to_index, sab_nl, spin_grid_fft, &
+                                             max_storage_bytes=512_int_8*1024_int_8**2/INT(nspin + 1, int_8))
+            use_grid_fft = use_grid_fft .AND. spin_grid_fft
+         END DO
+      END IF
+      IF (.NOT. use_grid_fft) THEN
+         CALL rskp_transform_grid_release(s_grid)
+         DO ispin = 1, nspin
+            CALL rskp_transform_grid_release(ks_grid(ispin))
+         END DO
+      END IF
+
       ALLOCATE (info(kplocal*nspin*nkp_groups, 4))
 
       ! Setup and start all the communication
@@ -544,32 +591,48 @@ CONTAINS
                indx = indx + 1
                IF (use_real_wfn) THEN
                   ! FT of matrices KS and S, then transfer to FM type
-                  CALL dbcsr_set(rmatrix, 0.0_dp)
-                  CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_ks, ispin=ispin, &
-                                      xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+                  IF (use_grid_fft) THEN
+                     CALL rskp_transform_grid_extract(ks_grid(ispin), ik, rmatrix)
+                  ELSE
+                     CALL dbcsr_set(rmatrix, 0.0_dp)
+                     CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_ks, ispin=ispin, &
+                                         xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+                  END IF
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
                   ! s matrix is not spin dependent
-                  CALL dbcsr_set(rmatrix, 0.0_dp)
-                  CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_s, ispin=1, &
-                                      xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+                  IF (use_grid_fft) THEN
+                     CALL rskp_transform_grid_extract(s_grid, ik, rmatrix)
+                  ELSE
+                     CALL dbcsr_set(rmatrix, 0.0_dp)
+                     CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_s, ispin=1, &
+                                         xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+                  END IF
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
                ELSE
                   ! FT of matrices KS and S, then transfer to FM type
-                  CALL dbcsr_set(rmatrix, 0.0_dp)
-                  CALL dbcsr_set(cmatrix, 0.0_dp)
-                  CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_ks, ispin=ispin, &
-                                      xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+                  IF (use_grid_fft) THEN
+                     CALL rskp_transform_grid_extract(ks_grid(ispin), ik, rmatrix, cmatrix)
+                  ELSE
+                     CALL dbcsr_set(rmatrix, 0.0_dp)
+                     CALL dbcsr_set(cmatrix, 0.0_dp)
+                     CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_ks, ispin=ispin, &
+                                         xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+                  END IF
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
                   CALL dbcsr_desymmetrize(cmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(2))
                   ! s matrix is not spin dependent, double the work
-                  CALL dbcsr_set(rmatrix, 0.0_dp)
-                  CALL dbcsr_set(cmatrix, 0.0_dp)
-                  CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s, ispin=1, &
-                                      xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+                  IF (use_grid_fft) THEN
+                     CALL rskp_transform_grid_extract(s_grid, ik, rmatrix, cmatrix)
+                  ELSE
+                     CALL dbcsr_set(rmatrix, 0.0_dp)
+                     CALL dbcsr_set(cmatrix, 0.0_dp)
+                     CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s, ispin=1, &
+                                         xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+                  END IF
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
                   CALL dbcsr_desymmetrize(cmatrix, tmpmat)
@@ -767,6 +830,11 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(rmatrix)
       CALL dbcsr_deallocate_matrix(cmatrix)
       CALL dbcsr_deallocate_matrix(tmpmat)
+      CALL rskp_transform_grid_release(s_grid)
+      DO ispin = 1, nspin
+         CALL rskp_transform_grid_release(ks_grid(ispin))
+      END DO
+      DEALLOCATE (ks_grid)
 
       IF (use_real_wfn) THEN
          CALL cp_fm_release(rksmat)
