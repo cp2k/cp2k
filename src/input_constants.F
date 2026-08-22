@@ -538,7 +538,8 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: ot_precond_solver_default = 1, &
                                                ot_precond_solver_inv_chol = 2, &
                                                ot_precond_solver_direct = 3, &
-                                               ot_precond_solver_update = 4
+                                               ot_precond_solver_update = 4, &
+                                               ot_precond_solver_chebyshev = 5
 
    INTEGER, PARAMETER, PUBLIC               :: diag_standard = 1, &
                                                diag_ot = 2, &
