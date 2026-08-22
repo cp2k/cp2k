@@ -38,6 +38,8 @@
 
 ### Breaking Changes
 
+- Require `MPI_THREAD_MULTIPLE` for all MPI builds ([#5811](https://github.com/cp2k/cp2k/pull/5811),
+  [#5817](https://github.com/cp2k/cp2k/pull/5817)).
 - Drop compatibility of old DFT-D4 API ([#5641](https://github.com/cp2k/cp2k/pull/5641))
 - Rename the RI-RS GW keyword CUTOFF_RADIUS_RI_RS to CUTOFF_RADIUS_RL_RI
   ([#5621](https://github.com/cp2k/cp2k/pull/5621))
