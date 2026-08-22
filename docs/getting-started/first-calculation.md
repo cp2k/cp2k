@@ -127,7 +127,7 @@ is spent in grid operations, sparse matrix operations, diagonalization, or commu
 ## Next Steps
 
 - If this example calculation has been executed on the cloud, consider building or installing CP2K
-  on your server: [](build-from-source), [](build-with-spack), [](distributions)
+  on your server: [](installation)
 - Learn the idea behind GPW: [](../methods/dft/gpw)
 - Learn about basis sets and pseudopotentials: [](../methods/dft/basis_sets),
   [](../methods/dft/pseudopotentials)
@@ -136,6 +136,7 @@ is spent in grid operations, sparse matrix operations, diagonalization, or commu
 - Proceed to geometry optimization: [](../methods/optimization/geometry_and_cell_opt)
 - Proceed to molecular dynamics simulation: [](../methods/sampling/molecular_dynamics)
 - Explore more complete examples: <https://github.com/cp2k/cp2k-examples>
+- Use heavier tasks to benchmark performance: see `benchmarks` directory
 
 ```{youtube} qMR-NAaUheg
 ---

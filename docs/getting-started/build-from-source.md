@@ -45,7 +45,7 @@ release artifact and contains any source components bundled for that release.
 A Git checkout is appropriate for development builds or when a particular branch is required:
 
 ```shell
-git clone --recursive https://github.com/cp2k/cp2k.git cp2k
+git clone https://github.com/cp2k/cp2k.git cp2k
 cd cp2k
 ```
 
@@ -97,7 +97,7 @@ environment, use the CMake configuration described below.
 
 The toolchain scripts under the `tools/toolchain` directory build a CP2K-compatible, self-contained
 dependency stack and prepare the environment for a subsequent CP2K build. It is operated from the
-`install_cp2k_toolchain.sh` script and accompanied by `build_cp2k.sh`. Enter the directory, and to
+`install_cp2k_toolchain.sh` script and accompanied by `build_cp2k.sh`. To enter the directory and
 read help messages and the complete list of options, run:
 
 ```shell

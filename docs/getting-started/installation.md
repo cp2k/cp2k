@@ -14,6 +14,8 @@ implied for most of the documentation.
 1. Which flavor of operating system is the target machine?
    - **Linux** (assumed): the workhorse for high-performance computing, a majority of compiling and
      regression tests are hosted in some Linux distribution.
+   - **Darwin**: MacOS on Apple Silicon M1 is also regularly tested, and installation methods based
+     on Spack or Homebrew are recommended.
    - **Windows**: for lightweight beginner experiments, the Windows Subsystem for Linux (WSL) or any
      other virtual machine platforms can provide a Linux environment on Windows.
 1. Does the user have root privilege or sudo power on the machine?

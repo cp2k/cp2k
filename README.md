@@ -27,13 +27,13 @@ For developers, the preferred method is to fork the [`cp2k/cp2k`](https://github
 repository and download via `git clone`. To clone the current master (development version):
 
 ```shell
-git clone --recursive https://github.com/cp2k/cp2k.git cp2k
+git clone https://github.com/cp2k/cp2k.git cp2k
 ```
 
 To clone a release version v*x.y*:
 
 ```shell
-git clone --recursive -b support/vx.y --recursive https://github.com/cp2k/cp2k.git cp2k
+git clone -b support/vx.y --recursive https://github.com/cp2k/cp2k.git cp2k
 ```
 
 ## Install CP2K
