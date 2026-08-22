@@ -20,7 +20,7 @@ MODULE mp_perf_env
    PUBLIC :: mp_perf_env_type
    PUBLIC :: mp_perf_env_retain, mp_perf_env_release
    PUBLIC :: add_mp_perf_env, rm_mp_perf_env, get_mp_perf_env, describe_mp_perf_env
-   PUBLIC :: add_perf
+   PUBLIC :: add_mp_worker_timing, add_perf
 
    TYPE mp_perf_type
       CHARACTER(LEN=20) :: name = ""
@@ -35,6 +35,8 @@ MODULE mp_perf_env
       PRIVATE
       INTEGER :: ref_count = -1
       TYPE(mp_perf_type), DIMENSION(MAX_PERF) :: mp_perfs = mp_perf_type()
+      INTEGER :: worker_thread_calls = 0
+      REAL(KIND=dp) :: worker_thread_time = 0.0_dp
    CONTAINS
       PROCEDURE, PUBLIC, PASS(perf_env), NON_OVERRIDABLE :: retain => mp_perf_env_retain
    END TYPE mp_perf_env_type
@@ -180,6 +182,12 @@ CONTAINS
             END IF
 
          END DO
+         IF (perf_env%worker_thread_calls > 0) THEN
+            WRITE (iw, '(1X,A,T47,I10)') &
+               'ACCUMULATED WORKER-THREAD MPI CALLS', perf_env%worker_thread_calls
+            WRITE (iw, '(1X,A,T47,F10.3)') &
+               'ACCUMULATED WORKER-THREAD MPI TIME [s]', perf_env%worker_thread_time
+         END IF
          WRITE (iw, '( 1X, 79("-"), / )')
       END IF
 #else
@@ -260,5 +268,29 @@ CONTAINS
 #endif
 
    END SUBROUTINE add_perf
+
+! **************************************************************************************************
+!> \brief Add time spent in MPI wrappers by OpenMP worker threads.
+!> \param elapsed elapsed wall time in seconds
+!> \note The reported time is accumulated across worker threads and may therefore exceed wall time.
+! **************************************************************************************************
+   SUBROUTINE add_mp_worker_timing(elapsed)
+      REAL(KIND=dp), INTENT(IN)                :: elapsed
+
+#if defined(__parallel)
+      TYPE(mp_perf_env_type), POINTER          :: perf_env
+
+      IF (stack_pointer < 1) RETURN
+      IF (.NOT. ASSOCIATED(mp_perf_stack(stack_pointer)%mp_perf_env)) RETURN
+
+      perf_env => mp_perf_stack(stack_pointer)%mp_perf_env
+!$OMP ATOMIC UPDATE
+      perf_env%worker_thread_calls = perf_env%worker_thread_calls + 1
+!$OMP ATOMIC UPDATE
+      perf_env%worker_thread_time = perf_env%worker_thread_time + elapsed
+#else
+      MARK_USED(elapsed)
+#endif
+   END SUBROUTINE add_mp_worker_timing
 
 END MODULE mp_perf_env

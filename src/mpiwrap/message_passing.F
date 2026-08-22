@@ -29,8 +29,8 @@ MODULE message_passing
    USE kinds, ONLY: &
       dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &
       real_8_size, default_string_length
-   USE machine, ONLY: m_abort
-   USE mp_perf_env, ONLY: add_perf, add_mp_perf_env, rm_mp_perf_env
+   USE machine, ONLY: m_abort, m_walltime
+   USE mp_perf_env, ONLY: add_mp_perf_env, add_mp_worker_timing, add_perf, rm_mp_perf_env
    USE OMP_LIB, ONLY: omp_get_level, omp_get_max_threads, omp_get_num_threads, &
                       omp_get_thread_num, omp_in_parallel
 #if defined(__MIMIC)
@@ -158,6 +158,17 @@ MODULE message_passing
    LOGICAL, PRIVATE, SAVE :: mp_mpi_initialized_by_cp2k = .FALSE.
 #endif
    LOGICAL, PRIVATE, SAVE :: mp_world_is_initialized = .FALSE.
+
+   INTEGER, PARAMETER, PRIVATE :: mp_no_timer_handle = -1
+   INTEGER, PARAMETER, PRIVATE :: mp_worker_timer_handle = -2
+   INTEGER, PARAMETER, PRIVATE :: mp_worker_timer_max_depth = 16
+
+   TYPE, PRIVATE :: mp_worker_timer_type
+      INTEGER :: depth = 0
+      REAL(KIND=dp), DIMENSION(mp_worker_timer_max_depth) :: start = 0.0_dp
+   END TYPE mp_worker_timer_type
+
+   TYPE(mp_worker_timer_type), ALLOCATABLE, DIMENSION(:), PRIVATE, SAVE :: mp_worker_timers
 
    PUBLIC :: mp_comm_type
    PUBLIC :: mp_thread_comm_pool_type
@@ -1251,6 +1262,8 @@ CONTAINS
 !> \note
 !>      While active, this routine may only be called once. If MPI is already initialized,
 !>      CP2K validates MPI_THREAD_MULTIPLE and attaches without taking ownership.
+!>      When MPI timing is enabled, the OpenMP maximum thread count must not increase before
+!>      mp_world_finalize is called.
 ! **************************************************************************************************
       SUBROUTINE mp_world_init(mp_comm)
          CLASS(mp_comm_type), INTENT(OUT)                     :: mp_comm
@@ -1266,6 +1279,7 @@ CONTAINS
             CALL cp_abort(__LOCATION__, "mp_world_init called while already initialized.")
          END IF
          CALL mp_initialize_thread_support(.TRUE.)
+         ALLOCATE (mp_worker_timers(0:omp_get_max_threads() - 1))
 #if defined(__parallel)
          CALL mpi_comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_set_errhandler @ mp_world_init")
@@ -1363,6 +1377,11 @@ CONTAINS
          CALL mpi_barrier(MPI_COMM_WORLD, ierr) ! call mpi directly to avoid 0 stack pointer
 #endif
 #endif
+         IF (ANY(mp_worker_timers%depth /= 0)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Unmatched MPI wrapper timer on an OpenMP worker thread.")
+         END IF
+         DEALLOCATE (mp_worker_timers)
          CALL rm_mp_perf_env()
 
          debug_comm_count = debug_comm_count - 1
@@ -4980,14 +4999,37 @@ CONTAINS
 !> \brief Starts a timer region
 !> \param routineN ...
 !> \param handle ...
+!> \note Worker-thread timers must be stopped by the same OpenMP thread that started them.
 ! **************************************************************************************************
       SUBROUTINE mp_timeset(routineN, handle)
          CHARACTER(len=*), INTENT(IN)                       :: routineN
          INTEGER, INTENT(OUT)                               :: handle
 
-         handle = -1
+         INTEGER                                            :: thread_num
+
+         handle = mp_no_timer_handle
          IF (.NOT. mp_collect_timings) RETURN
-         IF (omp_get_thread_num() /= 0) RETURN
+         thread_num = omp_get_thread_num()
+         IF (omp_get_level() == 1 .AND. thread_num /= 0) THEN
+            IF (.NOT. ALLOCATED(mp_worker_timers)) THEN
+               CALL cp_abort(__LOCATION__, "MPI worker timers are not initialized.")
+            END IF
+            IF (thread_num > UBOUND(mp_worker_timers, 1)) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "OpenMP team exceeds the size recorded by mp_world_init.")
+            END IF
+            ASSOCIATE (timer => mp_worker_timers(thread_num))
+               IF (timer%depth >= mp_worker_timer_max_depth) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "MPI wrapper timer stack overflow on an OpenMP worker thread.")
+               END IF
+               timer%depth = timer%depth + 1
+               timer%start(timer%depth) = m_walltime()
+            END ASSOCIATE
+            handle = mp_worker_timer_handle
+            RETURN
+         END IF
+         IF (thread_num /= 0) RETURN
          IF (omp_get_level() > 1) RETURN
          CALL timeset(routineN, handle)
       END SUBROUTINE mp_timeset
@@ -4999,8 +5041,22 @@ CONTAINS
       SUBROUTINE mp_timestop(handle)
          INTEGER, INTENT(IN)                                :: handle
 
-         IF (handle >= 0) &
+         INTEGER                                            :: depth, thread_num
+
+         IF (handle == mp_worker_timer_handle) THEN
+            thread_num = omp_get_thread_num()
+            ASSOCIATE (timer => mp_worker_timers(thread_num))
+               depth = timer%depth
+               IF (depth <= 0) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "Unmatched MPI wrapper timer on an OpenMP worker thread.")
+               END IF
+               CALL add_mp_worker_timing(m_walltime() - timer%start(depth))
+               timer%depth = depth - 1
+            END ASSOCIATE
+         ELSE IF (handle >= 0) THEN
             CALL timestop(handle)
+         END IF
       END SUBROUTINE mp_timestop
 
       #:include 'message_passing.fypp'

@@ -30,14 +30,14 @@ PROGRAM message_passing_thread_unittest
    TYPE(mp_thread_comm_pool_type)                      :: thread_comms
    INTEGER                                             :: nthreads
 
+   CALL omp_set_dynamic(.FALSE.)
+   CALL omp_set_num_threads(2)
    CALL mp_world_init(world)
 
    CALL timings_register_hooks()
    CALL add_timer_env()
    mp_collect_timings = .TRUE.
 
-   CALL omp_set_dynamic(.FALSE.)
-   CALL omp_set_num_threads(2)
    nthreads = 0
 !$OMP PARALLEL DEFAULT(NONE) SHARED(nthreads)
 !$OMP SINGLE
