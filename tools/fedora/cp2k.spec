@@ -1,6 +1,3 @@
-# libxsmm is designed for x86_64 architectures only, see project's README
-# %bcond libxs %[ "%{_arch}" == "x86_64" ]
-
 # Disable LTO due to https://bugzilla.redhat.com/show_bug.cgi?id=2243158
 %global _lto_cflags %nil
 
@@ -12,10 +9,7 @@ License:       GPL-2.0-or-later
 URL:           https://www.cp2k.org/
 Source0:       https://github.com/cp2k/cp2k/releases/download/v%{version}/cp2k-%{version}.tar.bz2
 
-# Drop 32bit architectures
-# Flaky MPI issues on s390x, and upstream do not officially support it yet
-# https://github.com/cp2k/cp2k/issues/3362
-ExcludeArch:   %{ix86} s390x
+ExclusiveArch: x86_64 aarch64 riscv64
 
 # Build dependencies
 BuildRequires: cmake
@@ -29,12 +23,10 @@ BuildRequires: flexiblas-devel
 BuildRequires: cmake(DBCSR)
 BuildRequires: cmake(libint2)
 BuildRequires: pkgconfig(fftw3)
-# %if %{with libxs}
-# BuildRequires: pkgconfig(libxsmm)
-# %endif
-# cmake(Libxc) technically fails
-# https://github.com/cp2k/cp2k/issues/3767
-BuildRequires: libxc-devel
+BuildRequires: cmake(libxs)
+# TODO: Enable libxsmm once https://src.fedoraproject.org/rpms/libxsmm/pull-request/3 is merged.
+# BuildRequires: cmake(libxsmm)
+BuildRequires: cmake(libxc)
 BuildRequires: cmake(Spglib)
 # Test dependencies
 BuildRequires: python3
@@ -77,7 +69,6 @@ developing applications that use %{name}.
 %package openmpi
 Summary:        Molecular simulations software - openmpi version
 BuildRequires:  openmpi-devel
-BuildRequires:  blacs-openmpi-devel
 BuildRequires:  dbcsr-openmpi-devel
 BuildRequires:  scalapack-openmpi-devel
 
@@ -101,7 +92,6 @@ developing applications that use %{name}.
 %package mpich
 Summary:        Molecular simulations software - mpich version
 BuildRequires:  mpich-devel
-BuildRequires:  blacs-mpich-devel
 BuildRequires:  dbcsr-mpich-devel
 BuildRequires:  scalapack-mpich-devel
 
@@ -131,22 +121,18 @@ rm tools/build_utils/fypp
 %global _vpath_builddir %{_vendor}-%{_target_os}-build${MPI_SUFFIX:-_serial}
 
 
-%build
+%conf
 cmake_common_args=(
   "-G Ninja"
   "-DCP2K_BLAS_VENDOR:STRING=FlexiBLAS"
   "-DCP2K_USE_EVERYTHING:BOOL=OFF"
   "-DCP2K_USE_STATIC_BLAS:BOOL=OFF"
-  # Dependencies equivalent with Default
   "-DCP2K_USE_FFTW3:BOOL=ON"
   "-DCP2K_USE_LIBINT2:BOOL=ON"
   "-DCP2K_USE_LIBXC:BOOL=ON"
   "-DCP2K_USE_SPGLIB:BOOL=ON"
-  # %if %{with libxs}
-  # "-DCP2K_USE_LIBXS:BOOL=ON"
-  # %else
-  "-DCP2K_USE_LIBXS:BOOL=OFF"
-  # %endif
+  "-DCP2K_USE_LIBXS:BOOL=ON"
+  # "-DCP2K_USE_LIBXSMM:BOOL=ON"
 )
 for mpi in '' mpich openmpi; do
   if [ -n "$mpi" ]; then
@@ -159,6 +145,8 @@ for mpi in '' mpich openmpi; do
       "-DCP2K_DATA_DIR:PATH=%{_datadir}/cp2k/data"
       "-DCP2K_USE_MPI:BOOL=ON"
       "-DCP2K_USE_MPI_F08:BOOL=ON"
+      # TODO: Uncomment when ELPA is un-retired
+      # "-DCP2K_USE_ELPA:BOOL=ON"
     )
   else
     cmake_mpi_args=(
@@ -170,8 +158,14 @@ for mpi in '' mpich openmpi; do
   %cmake \
     ${cmake_common_args[@]} \
     ${cmake_mpi_args[@]}
-  %cmake_build
 
+  [ -n "$mpi" ] && module unload mpi/${mpi}-%{_arch}
+done
+
+%build
+for mpi in '' mpich openmpi; do
+  [ -n "$mpi" ] && module load mpi/${mpi}-%{_arch}
+  %cmake_build
   [ -n "$mpi" ] && module unload mpi/${mpi}-%{_arch}
 done
 
