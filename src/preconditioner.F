@@ -23,18 +23,23 @@ MODULE preconditioner
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_uplo_to_full
+   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                              cp_fm_cholesky_invert
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
+                                              cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE input_constants,                 ONLY: &
-        cholesky_reduce, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        ot_precond_solver_default, ot_precond_solver_inv_chol, ot_precond_solver_update
+        cholesky_reduce, ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_kinetic, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
+        ot_precond_s_inverse, ot_precond_solver_default, ot_precond_solver_inv_chol, &
+        ot_precond_solver_update
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_para_env_type
@@ -68,6 +73,9 @@ MODULE preconditioner
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner'
+   INTEGER, PARAMETER, PRIVATE          :: fermi_low_rank_max_rank = 48
+   REAL(KIND=dp), PARAMETER, PRIVATE    :: fermi_low_rank_gap_factor = 4.0_dp, &
+                                           fermi_low_rank_min_window = 1.0_dp
 
    PUBLIC :: make_preconditioner, make_preconditioner_complex_full_all, &
              make_preconditioner_complex_full_kinetic, &
@@ -88,6 +96,42 @@ MODULE preconditioner
 ! **************************************************************************************************
 
 CONTAINS
+
+! **************************************************************************************************
+
+! **************************************************************************************************
+!> \brief Build the overlap-inverse base of the bounded low-rank spectral preconditioner.
+!> \param preconditioner_env ...
+!> \param matrix_s ...
+! **************************************************************************************************
+   SUBROUTINE prepare_low_rank_base(preconditioner_env, matrix_s)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s
+
+      INTEGER                                            :: info
+      TYPE(cp_fm_type)                                   :: work
+
+      CPASSERT(ASSOCIATED(preconditioner_env%fm))
+      CPASSERT(.NOT. ASSOCIATED(preconditioner_env%base_fm))
+      ALLOCATE (preconditioner_env%base_fm)
+      CALL cp_fm_create(preconditioner_env%base_fm, preconditioner_env%fm%matrix_struct, &
+                        name="FERMI_LOW_RANK overlap inverse")
+
+      IF (PRESENT(matrix_s)) THEN
+         CPASSERT(ASSOCIATED(matrix_s))
+         CALL copy_dbcsr_to_fm(matrix_s, preconditioner_env%base_fm)
+         CALL cp_fm_cholesky_decompose(preconditioner_env%base_fm, info_out=info)
+         IF (info /= 0) CPABORT("FERMI_LOW_RANK requires a positive-definite overlap matrix")
+         CALL cp_fm_cholesky_invert(preconditioner_env%base_fm)
+         CALL cp_fm_create(work, preconditioner_env%base_fm%matrix_struct, name="low-rank base work")
+         CALL cp_fm_uplo_to_full(preconditioner_env%base_fm, work)
+         CALL cp_fm_release(work)
+      ELSE
+         CALL cp_fm_set_all(preconditioner_env%base_fm, alpha=0.0_dp, beta=1.0_dp)
+      END IF
+
+   END SUBROUTINE prepare_low_rank_base
 
 ! **************************************************************************************************
 
@@ -160,7 +204,7 @@ CONTAINS
       needs_homo = .FALSE.
 
       SELECT CASE (precon_type)
-      CASE (ot_precond_full_all)
+      CASE (ot_precond_full_all, ot_precond_fermi_low_rank)
          needs_full_spectrum = .TRUE.
          ! both of them need the coefficients as fm's, more matrix mess
          IF (use_mo_coeff_b) THEN
@@ -210,6 +254,9 @@ CONTAINS
       ! This will give the matrices for later use
       my_solver_type = solver_type
       preconditioner_env%in_use = precon_type
+      IF (precon_type == ot_precond_fermi_low_rank) THEN
+         preconditioner_env%spectral_rank = MIN(fermi_low_rank_max_rank, MAX(0, nao - nhomo))
+      END IF
       preconditioner_env%cholesky_use = cholesky_reduce
       IF (PRESENT(chol_type)) preconditioner_env%cholesky_use = chol_type
       preconditioner_env%in_use = precon_type
@@ -232,11 +279,22 @@ CONTAINS
 
       CALL solve_preconditioner(my_solver_type, preconditioner_env, matrix_s, matrix_h)
 
+      IF (precon_type == ot_precond_fermi_low_rank) THEN
+         preconditioner_env%spectral_window = &
+            MAX(fermi_low_rank_min_window, fermi_low_rank_gap_factor*preconditioner_env%energy_gap)
+         preconditioner_env%spectral_base_scale = 1.0_dp/preconditioner_env%spectral_window
+         CALL prepare_low_rank_base(preconditioner_env, matrix_s)
+      END IF
+
       ! Here comes more matrix mess, make sure to output the correct matrix format,
       ! A bit pointless to convert the cholesky factorized version as it doesn't work in
       ! dbcsr form and will crash later,...
       IF (my_convert_precond_to_dbcsr) THEN
          CALL transfer_fm_to_dbcsr(preconditioner_env%fm, preconditioner_env%dbcsr_matrix, matrix_h)
+         IF (precon_type == ot_precond_fermi_low_rank) THEN
+            CALL transfer_fm_to_dbcsr(preconditioner_env%base_fm, &
+                                      preconditioner_env%base_dbcsr_matrix, matrix_h)
+         END IF
       ELSE
          CALL transfer_dbcsr_to_fm(preconditioner_env%dbcsr_matrix, preconditioner_env%fm, &
                                    preconditioner_env%para_env, preconditioner_env%ctxt)
@@ -580,7 +638,8 @@ CONTAINS
 
       IF (ASSOCIATED(preconditioner)) THEN
          SELECT CASE (prec_type)
-         CASE (ot_precond_full_all, ot_precond_full_single) ! these depend on the ks matrix
+         CASE (ot_precond_full_all, ot_precond_fermi_low_rank, &
+               ot_precond_full_single) ! these depend on the ks matrix
             DO ispin = 1, SIZE(preconditioner)
                CALL destroy_preconditioner(preconditioner(ispin)%preconditioner)
                DEALLOCATE (preconditioner(ispin)%preconditioner)
@@ -597,7 +656,7 @@ CONTAINS
       ! add an OT preconditioner if none is present
       IF (.NOT. ASSOCIATED(preconditioner)) THEN
          SELECT CASE (prec_type)
-         CASE (ot_precond_full_all, ot_precond_full_single_inverse)
+         CASE (ot_precond_full_all, ot_precond_fermi_low_rank, ot_precond_full_single_inverse)
             ALLOCATE (preconditioner(nspins))
          CASE DEFAULT
             ALLOCATE (preconditioner(1))
@@ -705,7 +764,7 @@ CONTAINS
       IF (prec_type == ot_precond_full_single_inverse) n_loops = nspins
       ! check whether we need the ev and rotate the MOs
       SELECT CASE (prec_type)
-      CASE (ot_precond_full_all)
+      CASE (ot_precond_full_all, ot_precond_fermi_low_rank)
          ! if one of these preconditioners is used every spin needs to call make_preconditioner
          n_loops = nspins
 
