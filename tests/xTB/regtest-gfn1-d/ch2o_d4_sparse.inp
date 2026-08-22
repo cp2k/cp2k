@@ -1,0 +1,58 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT CH2O-gfn1-d4-sparse
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  STRESS_TENSOR ANALYTICAL
+  &DFT
+    &POISSON
+      PERIODIC XYZ
+      POISSON_SOLVER PERIODIC
+      &EWALD
+        ALPHA 0.35
+        EWALD_TYPE SPME
+        GMAX 50
+      &END EWALD
+    &END POISSON
+    &QS
+      METHOD xTB
+      &XTB
+        GFN_TYPE 1
+        VDW_POTENTIAL DFTD4
+        &EEQ
+          EPS_DIIS 1.0E-12
+          SPARSE
+        &END EEQ
+      &END XTB
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-10
+      MAX_SCF 300
+      SCF_GUESS MOPAC
+      &MIXING
+        ALPHA 0.2
+        METHOD DIRECT_P_MIXING
+      &END MIXING
+    &END SCF
+  &END DFT
+  &PRINT
+    &FORCES
+    &END FORCES
+    &STRESS_TENSOR
+    &END STRESS_TENSOR
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      O     0.051368    0.000000    0.000000
+      C     1.278612    0.000000    0.000000
+      H     1.870460    0.939607    0.000000
+      H     1.870460   -0.939607    0.000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
