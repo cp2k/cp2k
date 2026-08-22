@@ -20,20 +20,21 @@ OpenCL).
 
 ## Downloading CP2K source code
 
-To clone the current master (development version):
+For end users, the preferred method is to go to [Releases](https://github.com/cp2k/cp2k/releases/)
+and download and extract one of the versioned tarballs `cp2k-X.Y.tar.bz2`.
+
+For developers, the preferred method is to fork the [`cp2k/cp2k`](https://github.com/cp2k/cp2k)
+repository and download via `git clone`. To clone the current master (development version):
 
 ```shell
-git clone https://github.com/cp2k/cp2k.git cp2k
+git clone --recursive https://github.com/cp2k/cp2k.git cp2k
 ```
 
 To clone a release version v*x.y*:
 
 ```shell
-git clone -b support/vx.y --recursive https://github.com/cp2k/cp2k.git cp2k
+git clone --recursive -b support/vx.y --recursive https://github.com/cp2k/cp2k.git cp2k
 ```
-
-For more information on downloading CP2K, see [Downloading CP2K](https://www.cp2k.org/download). For
-help on git, see [Git Tips & Tricks](https://github.com/cp2k/cp2k/wiki/Git-Tips-&-Tricks).
 
 ## Install CP2K
 
