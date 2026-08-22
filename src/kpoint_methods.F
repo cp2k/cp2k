@@ -60,7 +60,10 @@ MODULE kpoint_methods
                                               smear_mv
    USE input_cp2k_kpoints,              ONLY: use_spglib_kpoint_backend,&
                                               use_spglib_kpoint_symmetry
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
+   USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
+                                              regular_kpoint_grid
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kind_rotmat_type,&
                                               kpoint_env_create,&
@@ -108,6 +111,16 @@ MODULE kpoint_methods
    PUBLIC :: kpoint_init_cell_index, kpoint_set_mo_occupation
    PUBLIC :: kpoint_density_matrices, kpoint_density_transform
    PUBLIC :: rskp_transform, lowdin_kp_trans, lowdin_kp_mo_coeff
+   PUBLIC :: rskp_grid_type, rskp_transform_grid_prepare, rskp_transform_grid_extract, &
+             rskp_transform_grid_release
+
+! **************************************************************************************************
+
+   TYPE rskp_grid_type
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: values
+      INTEGER, ALLOCATABLE, DIMENSION(:)                :: block_col, block_nelem, block_offset, block_row
+      LOGICAL                                           :: ready = .FALSE.
+   END TYPE rskp_grid_type
 
 ! **************************************************************************************************
 
@@ -1228,6 +1241,263 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE rskp_transform
+
+! **************************************************************************************************
+!> \brief Prepare a batched real-cell to complete reciprocal-grid transform for local DBCSR blocks.
+!>        The stored blocks remain MPI local.  Irregular or too-large grids return used_fft=.FALSE.
+!> \param grid cached transformed local blocks and their DBCSR coordinates
+!> \param rmatrix allocated output template defining the local block layout
+!> \param rsmat real-space matrix set
+!> \param ispin spin component of rsmat
+!> \param xkp complete reciprocal grid in arbitrary order
+!> \param nkp_grid reciprocal grid dimensions
+!> \param cell_to_index real-cell coordinate mapping
+!> \param sab_nl neighbor list defining the stored block orientation
+!> \param used_fft whether the cache was prepared
+!> \param is_complex whether the real-space operator is imaginary
+!> \param rs_sign optional overall sign
+!> \param max_storage_bytes optional conservative per-rank memory limit
+! **************************************************************************************************
+   SUBROUTINE rskp_transform_grid_prepare(grid, rmatrix, rsmat, ispin, xkp, nkp_grid, &
+                                          cell_to_index, sab_nl, used_fft, is_complex, rs_sign, &
+                                          max_storage_bytes)
+
+      TYPE(rskp_grid_type), INTENT(INOUT)                :: grid
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: rmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat
+      INTEGER, INTENT(IN)                                :: ispin
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: nkp_grid
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      LOGICAL, INTENT(OUT)                               :: used_fft
+      LOGICAL, INTENT(IN), OPTIONAL                      :: is_complex
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rs_sign
+      INTEGER(KIND=int_8), INTENT(IN), OPTIONAL          :: max_storage_bytes
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rskp_transform_grid_prepare'
+
+      INTEGER                                            :: handle, i1, i2, i3, iatom, iblock, ic, &
+                                                            icol, irow, jatom, nblkcols, nblkrows, &
+                                                            nblocks, ncell, nelem, nimg, nkp, &
+                                                            nvalues
+      INTEGER(KIND=int_8)                                :: memory_limit, storage_bytes
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: block_map, index_to_cell
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: fft_cell_to_index
+      INTEGER, DIMENSION(3)                              :: cell, fft_cell
+      LOGICAL                                            :: do_symmetric, found, my_complex
+      REAL(KIND=dp)                                      :: fsign, fsym, value_sign
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: values_rs
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rblock, rsblock
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+
+      CALL timeset(routineN, handle)
+      CALL rskp_transform_grid_release(grid)
+      used_fft = .FALSE.
+
+      nkp = SIZE(xkp, 2)
+      nimg = SIZE(rsmat, 2)
+      IF (nkp < 2 .OR. PRODUCT(nkp_grid) /= nkp) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      IF (.NOT. regular_kpoint_grid(xkp, nkp_grid)) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      nblocks = 0
+      nvalues = 0
+      CALL dbcsr_iterator_start(iter, rmatrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, irow, icol, rblock)
+         nblocks = nblocks + 1
+         nvalues = nvalues + SIZE(rblock)
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+      IF (nblocks == 0 .OR. nvalues == 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      CALL dbcsr_get_info(rmatrix, nblkrows_total=nblkrows, nblkcols_total=nblkcols)
+      ALLOCATE (block_map(nblkrows, nblkcols), source=0)
+      ALLOCATE (grid%block_row(nblocks), grid%block_col(nblocks), &
+                grid%block_offset(nblocks), grid%block_nelem(nblocks))
+      iblock = 0
+      nelem = 0
+      CALL dbcsr_iterator_start(iter, rmatrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, irow, icol, rblock)
+         iblock = iblock + 1
+         grid%block_row(iblock) = irow
+         grid%block_col(iblock) = icol
+         grid%block_offset(iblock) = nelem + 1
+         grid%block_nelem(iblock) = SIZE(rblock)
+         block_map(irow, icol) = iblock
+         nelem = nelem + SIZE(rblock)
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+      ALLOCATE (fft_cell_to_index(LBOUND(cell_to_index, 1):UBOUND(cell_to_index, 1), &
+                                  LBOUND(cell_to_index, 2):UBOUND(cell_to_index, 2), &
+                                  LBOUND(cell_to_index, 3):UBOUND(cell_to_index, 3)), source=0)
+      ncell = 0
+      DO i3 = LBOUND(cell_to_index, 3), UBOUND(cell_to_index, 3)
+         DO i2 = LBOUND(cell_to_index, 2), UBOUND(cell_to_index, 2)
+            DO i1 = LBOUND(cell_to_index, 1), UBOUND(cell_to_index, 1)
+               IF (cell_to_index(i1, i2, i3) < 1 .OR. cell_to_index(i1, i2, i3) > nimg) CYCLE
+               IF (fft_cell_to_index(i1, i2, i3) == 0) THEN
+                  ncell = ncell + 1
+                  fft_cell_to_index(i1, i2, i3) = ncell
+               END IF
+               IF (fft_cell_to_index(-i1, -i2, -i3) == 0) THEN
+                  ncell = ncell + 1
+                  fft_cell_to_index(-i1, -i2, -i3) = ncell
+               END IF
+            END DO
+         END DO
+      END DO
+      IF (ncell == 0) THEN
+         CALL rskp_transform_grid_release(grid)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      memory_limit = 512_int_8*1024_int_8**2
+      IF (PRESENT(max_storage_bytes)) memory_limit = max_storage_bytes
+      ! Include the real-cell input, complex result and conservative FFT work/padding allowance.
+      storage_bytes = INT(nvalues, int_8)*(8_int_8*INT(ncell, int_8) + &
+                                           80_int_8*INT(nkp, int_8))
+      IF (storage_bytes > memory_limit) THEN
+         CALL rskp_transform_grid_release(grid)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      ALLOCATE (index_to_cell(3, ncell), source=0)
+      DO i3 = LBOUND(fft_cell_to_index, 3), UBOUND(fft_cell_to_index, 3)
+         DO i2 = LBOUND(fft_cell_to_index, 2), UBOUND(fft_cell_to_index, 2)
+            DO i1 = LBOUND(fft_cell_to_index, 1), UBOUND(fft_cell_to_index, 1)
+               ic = fft_cell_to_index(i1, i2, i3)
+               IF (ic > 0) index_to_cell(:, ic) = [i1, i2, i3]
+            END DO
+         END DO
+      END DO
+
+      ALLOCATE (values_rs(nvalues, 1, ncell), source=0.0_dp)
+      ALLOCATE (grid%values(nvalues, 1, nkp))
+      my_complex = .FALSE.
+      IF (PRESENT(is_complex)) my_complex = is_complex
+      fsign = 1.0_dp
+      IF (PRESENT(rs_sign)) fsign = rs_sign
+
+      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_nl)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, iatom=iatom, jatom=jatom, cell=cell)
+
+         fsym = 1.0_dp
+         irow = iatom
+         icol = jatom
+         IF (do_symmetric .AND. iatom > jatom) THEN
+            irow = jatom
+            icol = iatom
+            fsym = -1.0_dp
+         END IF
+         IF (irow < 1 .OR. irow > nblkrows .OR. icol < 1 .OR. icol > nblkcols) CYCLE
+         iblock = block_map(irow, icol)
+         IF (iblock == 0) CYCLE
+
+         ic = cell_to_index(cell(1), cell(2), cell(3))
+         IF (ic < 1 .OR. ic > nimg) CYCLE
+         CALL dbcsr_get_block_p(matrix=rsmat(ispin, ic)%matrix, row=irow, col=icol, &
+                                block=rsblock, found=found)
+         IF (.NOT. found) CYCLE
+
+         fft_cell = cell
+         value_sign = fsign
+         IF (fsym < 0.0_dp) fft_cell = -cell
+         IF (my_complex) value_sign = value_sign*fsym
+         ic = fft_cell_to_index(fft_cell(1), fft_cell(2), fft_cell(3))
+         nelem = grid%block_nelem(iblock)
+         i1 = grid%block_offset(iblock)
+         values_rs(i1:i1 + nelem - 1, 1, ic) = values_rs(i1:i1 + nelem - 1, 1, ic) + &
+                                               value_sign*RESHAPE(rsblock, [nelem])
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      CALL cell_to_k_grid_fft(values_rs, index_to_cell, xkp, nkp_grid, grid%values, used_fft)
+      IF (used_fft) THEN
+         grid%ready = .TRUE.
+      ELSE
+         CALL rskp_transform_grid_release(grid)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE rskp_transform_grid_prepare
+
+! **************************************************************************************************
+!> \brief Extract one reciprocal-grid matrix from a prepared local DBCSR block cache.
+!> \param grid ...
+!> \param ikp ...
+!> \param rmatrix ...
+!> \param cmatrix ...
+! **************************************************************************************************
+   SUBROUTINE rskp_transform_grid_extract(grid, ikp, rmatrix, cmatrix)
+
+      TYPE(rskp_grid_type), INTENT(IN)                   :: grid
+      INTEGER, INTENT(IN)                                :: ikp
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: rmatrix
+      TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: cmatrix
+
+      INTEGER                                            :: iblock, ioffset, nelem
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, rblock
+
+      CPASSERT(grid%ready)
+      CPASSERT(ikp >= 1 .AND. ikp <= SIZE(grid%values, 3))
+      CALL dbcsr_set(rmatrix, 0.0_dp)
+      IF (PRESENT(cmatrix)) CALL dbcsr_set(cmatrix, 0.0_dp)
+
+      DO iblock = 1, SIZE(grid%block_row)
+         ioffset = grid%block_offset(iblock)
+         nelem = grid%block_nelem(iblock)
+         CALL dbcsr_get_block_p(rmatrix, grid%block_row(iblock), grid%block_col(iblock), &
+                                rblock, found=found)
+         CPASSERT(found)
+         rblock = RESHAPE(REAL(grid%values(ioffset:ioffset + nelem - 1, 1, ikp), KIND=dp), &
+                          SHAPE(rblock))
+         IF (PRESENT(cmatrix)) THEN
+            CALL dbcsr_get_block_p(cmatrix, grid%block_row(iblock), grid%block_col(iblock), &
+                                   cblock, found=found)
+            CPASSERT(found)
+            cblock = RESHAPE(AIMAG(grid%values(ioffset:ioffset + nelem - 1, 1, ikp)), SHAPE(cblock))
+         END IF
+      END DO
+
+   END SUBROUTINE rskp_transform_grid_extract
+
+! **************************************************************************************************
+!> \brief Release a reciprocal-grid transformation cache.
+!> \param grid ...
+! **************************************************************************************************
+   SUBROUTINE rskp_transform_grid_release(grid)
+
+      TYPE(rskp_grid_type), INTENT(INOUT)                :: grid
+
+      IF (ALLOCATED(grid%values)) DEALLOCATE (grid%values)
+      IF (ALLOCATED(grid%block_row)) DEALLOCATE (grid%block_row)
+      IF (ALLOCATED(grid%block_col)) DEALLOCATE (grid%block_col)
+      IF (ALLOCATED(grid%block_offset)) DEALLOCATE (grid%block_offset)
+      IF (ALLOCATED(grid%block_nelem)) DEALLOCATE (grid%block_nelem)
+      grid%ready = .FALSE.
+
+   END SUBROUTINE rskp_transform_grid_release
 
 ! **************************************************************************************************
 !> \brief Given the eigenvalues of all kpoints, calculates the occupation numbers
