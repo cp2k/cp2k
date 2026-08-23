@@ -69,7 +69,8 @@ MODULE gw_non_periodic_ri_rs
         create_fm_W_MIC_time, delete_unnecessary_files, fill_fm_Sigma_c_Gamma_time, fm_write, &
         multiply_fm_W_MIC_time_with_Minv_Gamma
    USE gw_utils,                        ONLY: de_init_bs_env
-   USE input_constants,                 ONLY: rtp_method_bse
+   USE input_constants,                 ONLY: evGW0,&
+                                              rtp_method_bse
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -277,7 +278,7 @@ CONTAINS
 
          CALL compute_QP_energies(bs_env, qs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time)
 
-         IF (.NOT. bs_env%ri_rs%do_evgw0) EXIT
+         IF (bs_env%gw_flavour /= evGW0) EXIT
 
          CALL print_evGW0_band_edges(bs_env, band_prev, i_iter, n_iter, converged)
 
@@ -326,13 +327,10 @@ CONTAINS
       band_prev(:, :) = 0.0_dp
       e_fermi_dft(:) = 0.0_dp
 
-      IF (bs_env%ri_rs%do_evgw0) THEN
+      IF (bs_env%gw_flavour == evGW0) THEN
          n_iter = bs_env%ri_rs%evgw0_iter
 
-         ! eigenvalues currently in G; the first cycle starts from the DFT ones
-         IF (.NOT. ALLOCATED(bs_env%eigenval_evGW0)) THEN
-            ALLOCATE (bs_env%eigenval_evGW0(bs_env%n_ao, bs_env%nkp_bs_and_DOS, bs_env%n_spin))
-         END IF
+         ! eigenvalues currently in G; the first cycle starts is a plain G0W0 step
          bs_env%eigenval_evGW0(:, :, :) = bs_env%eigenval_scf(:, :, :)
          ! the loop overwrites these; post-GW printing expects the DFT values back
          ALLOCATE (eigenval_scf_Gamma_dft, SOURCE=bs_env%eigenval_scf_Gamma)
@@ -359,16 +357,17 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      bs_env%eigenval_evGW0(:, :, :) = bs_env%eigenval_G0W0(:, :, :)
+      ! record this cycle's evGW0 result; it is also what the next Green's function is built from
+      bs_env%eigenval_evGW0(:, :, :) = bs_env%eigenval_GW(:, :, :)
 
       DO ispin = 1, bs_env%n_spin
          ! Update all physical states; exclude linear-dependency placeholders.
          DO i_mo = 1, bs_env%n_mo_retained
-            bs_env%eigenval_scf_Gamma(i_mo, ispin) = bs_env%eigenval_G0W0(i_mo, 1, ispin)
+            bs_env%eigenval_scf_Gamma(i_mo, ispin) = bs_env%eigenval_GW(i_mo, 1, ispin)
          END DO
          bs_env%e_fermi(ispin) = &
-            0.5_dp*(bs_env%eigenval_G0W0(bs_env%n_occ(ispin), 1, ispin) + &
-                    bs_env%eigenval_G0W0(bs_env%n_occ(ispin) + 1, 1, ispin))
+            0.5_dp*(bs_env%eigenval_GW(bs_env%n_occ(ispin), 1, ispin) + &
+                    bs_env%eigenval_GW(bs_env%n_occ(ispin) + 1, 1, ispin))
       END DO
 
       CALL timestop(handle)
@@ -396,12 +395,14 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (bs_env%ri_rs%do_evgw0) THEN
+      IF (bs_env%gw_flavour == evGW0) THEN
+         ! Update array with final evGW0 result
+         bs_env%eigenval_evGW0(:, :, :) = bs_env%eigenval_GW(:, :, :)
          ! put the DFT reference back for the post-GW DOS/band-edge printing
          bs_env%eigenval_scf_Gamma(:, :) = eigenval_scf_Gamma_dft(:, :)
          bs_env%e_fermi(:) = e_fermi_dft(:)
          DEALLOCATE (eigenval_scf_Gamma_dft)
-         ! compute_QP_energies releases Σ^x itself in the G0W0 case
+         ! Releases Σ^x in the G0W0 case
          CALL cp_fm_release(fm_Sigma_x_Gamma)
       END IF
 
@@ -447,8 +448,8 @@ CONTAINS
       DO ispin = 1, bs_env%n_spin
 
          homo = bs_env%n_occ(ispin)
-         band(1) = bs_env%eigenval_G0W0(homo, 1, ispin)
-         band(2) = bs_env%eigenval_G0W0(homo + 1, 1, ispin)
+         band(1) = bs_env%eigenval_GW(homo, 1, ispin)
+         band(2) = bs_env%eigenval_GW(homo + 1, 1, ispin)
          band(3) = band(2) - band(1)
 
          IF (i_iter > 1) THEN

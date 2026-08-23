@@ -22,7 +22,8 @@ MODULE post_scf_bandstructure_types
                                               cp_fm_type
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
-   USE input_constants,                 ONLY: rtp_method_bse,&
+   USE input_constants,                 ONLY: G0W0,&
+                                              rtp_method_bse,&
                                               rtp_method_bse_linearized,&
                                               small_cell_full_kp
    USE kinds,                           ONLY: default_path_length,&
@@ -81,11 +82,9 @@ MODULE post_scf_bandstructure_types
 
       ! Eigenvalue self-consistency (evGW0): G is rebuilt from the quasiparticle energies of
       ! the previous cycle while W stays frozen at the RPA@DFT level.
-      LOGICAL                                          :: do_evgw0 = .FALSE.
       INTEGER                                          :: evgw0_iter = 20
       REAL(KIND=dp)                                    :: evgw0_eps_iter = 5.0E-5_dp
-      ! index of the running evGW0 cycle, so that the spectrum of every cycle is appended to
-      ! the bandstructure file instead of overwriting it
+      ! index of the running evGW0 cycle
       INTEGER                                          :: evgw0_i_iter = 0
 
       ! Data types for cutoffs based DBCSR matrices
@@ -135,20 +134,25 @@ MODULE post_scf_bandstructure_types
 
       ! various eigenvalues computed in GW code, some depend on k-points
       ! and have therefore three dimensions (band index, k-point, spin)
+      !
+      ! eigenval_GW carries the quasiparticle energies of the highest-level GW flavour requested
+      !   eigenval_G0W0  - the G0W0 result
+      !   eigenval_evGW0 - the evGW0 result
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: eigenval_scf_Gamma
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: eigenval_scf, &
+                                                         eigenval_GW, &
                                                          eigenval_G0W0, &
-                                                         eigenval_HF, &
-                                                         eigenval_evGW0
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: eigenval_scf_soc, &
-                                                         eigenval_G0W0_soc
+                                                         eigenval_evGW0, &
+                                                         eigenval_HF
       TYPE(band_edges_type), DIMENSION(2)             :: band_edges_scf_Gamma = band_edges_type()
       TYPE(band_edges_type)                           :: band_edges_scf = band_edges_type(), &
-                                                         band_edges_G0W0 = band_edges_type(), &
+                                                         band_edges_GW = band_edges_type(), &
                                                          band_edges_HF = band_edges_type()
 
       ! parameters that influence the GW flavor
       LOGICAL                                         :: do_hedin_shift = .FALSE.
+      ! which GW flavour was requested; constants from input_constants (G0W0, evGW0, ...)
+      INTEGER                                         :: gw_flavour = G0W0
 
       ! parameters for RI-RS implementation of GW
       TYPE(ri_rs_env)                                 :: ri_rs
@@ -344,7 +348,7 @@ MODULE post_scf_bandstructure_types
       ! small-cell GW: dimension = number of kpoints; large-cell GW: Gamma-point, dimension = 1
       TYPE(cp_cfm_type), DIMENSION(:), ALLOCATABLE :: cfm_SOC_spinor_ao
       TYPE(band_edges_type)                        :: band_edges_scf_SOC = band_edges_type(), &
-                                                      band_edges_G0W0_SOC = band_edges_type()
+                                                      band_edges_GW_SOC = band_edges_type()
 
       ! parameters for DOS and PDOS calculation
       REAL(KIND=dp)                                :: energy_window_DOS = -1.0_dp, &
@@ -454,11 +458,10 @@ CONTAINS
       IF (ALLOCATED(bs_env%imag_freq_points)) DEALLOCATE (bs_env%imag_freq_points)
       IF (ALLOCATED(bs_env%eigenval_scf_Gamma)) DEALLOCATE (bs_env%eigenval_scf_Gamma)
       IF (ALLOCATED(bs_env%eigenval_scf)) DEALLOCATE (bs_env%eigenval_scf)
+      IF (ALLOCATED(bs_env%eigenval_GW)) DEALLOCATE (bs_env%eigenval_GW)
       IF (ALLOCATED(bs_env%eigenval_G0W0)) DEALLOCATE (bs_env%eigenval_G0W0)
       IF (ALLOCATED(bs_env%eigenval_HF)) DEALLOCATE (bs_env%eigenval_HF)
       IF (ALLOCATED(bs_env%eigenval_evGW0)) DEALLOCATE (bs_env%eigenval_evGW0)
-      IF (ALLOCATED(bs_env%eigenval_scf_soc)) DEALLOCATE (bs_env%eigenval_scf_soc)
-      IF (ALLOCATED(bs_env%eigenval_G0W0_soc)) DEALLOCATE (bs_env%eigenval_G0W0_soc)
       IF (ALLOCATED(bs_env%i_ao_start_from_atom)) DEALLOCATE (bs_env%i_ao_start_from_atom)
       IF (ALLOCATED(bs_env%i_ao_end_from_atom)) DEALLOCATE (bs_env%i_ao_end_from_atom)
       IF (ALLOCATED(bs_env%i_RI_start_from_atom)) DEALLOCATE (bs_env%i_RI_start_from_atom)

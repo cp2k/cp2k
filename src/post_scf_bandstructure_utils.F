@@ -56,7 +56,9 @@ MODULE post_scf_bandstructure_utils
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_to_string
    USE cp_parser_methods,               ONLY: read_float_object
-   USE input_constants,                 ONLY: int_ldos_z,&
+   USE input_constants,                 ONLY: G0W0,&
+                                              evGW0,&
+                                              int_ldos_z,&
                                               large_cell_Gamma,&
                                               large_cell_Gamma_ri_rs,&
                                               non_periodic_ri_rs,&
@@ -119,11 +121,69 @@ MODULE post_scf_bandstructure_utils
    PUBLIC :: create_and_init_bs_env, &
              eval_bandstructure_properties, cfm_ikp_from_fm_Gamma, &
              MIC_contribution_from_ikp, compute_xkp, kpoint_init_cell_index_simple, &
-             rsmat_to_kp, soc, get_VBM_CBM_bandgaps, get_all_VBM_CBM_bandgaps
+             rsmat_to_kp, soc, get_VBM_CBM_bandgaps, get_all_VBM_CBM_bandgaps, &
+             allocate_GW_eigenvalues, gw_flavour_label
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'post_scf_bandstructure_utils'
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Allocate the arrays holding the GW quasiparticle energies
+!> \param bs_env ...
+! **************************************************************************************************
+   SUBROUTINE allocate_GW_eigenvalues(bs_env)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_GW_eigenvalues'
+
+      INTEGER                                            :: handle, n_ao, n_spin, nkp
+
+      CALL timeset(routineN, handle)
+
+      n_ao = bs_env%n_ao
+      nkp = bs_env%nkp_bs_and_DOS
+      n_spin = bs_env%n_spin
+
+      IF (.NOT. ALLOCATED(bs_env%eigenval_GW)) THEN
+         ALLOCATE (bs_env%eigenval_GW(n_ao, nkp, n_spin))
+      END IF
+      IF (.NOT. ALLOCATED(bs_env%eigenval_HF)) THEN
+         ALLOCATE (bs_env%eigenval_HF(n_ao, nkp, n_spin))
+      END IF
+
+      SELECT CASE (bs_env%gw_flavour)
+      CASE (G0W0, evGW0)
+         IF (.NOT. ALLOCATED(bs_env%eigenval_G0W0)) THEN
+            ALLOCATE (bs_env%eigenval_G0W0(n_ao, nkp, n_spin))
+         END IF
+      END SELECT
+
+      IF (bs_env%gw_flavour == evGW0 .AND. .NOT. ALLOCATED(bs_env%eigenval_evGW0)) THEN
+         ALLOCATE (bs_env%eigenval_evGW0(n_ao, nkp, n_spin))
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE allocate_GW_eigenvalues
+
+! **************************************************************************************************
+!> \brief Name of the GW flavour that was requested, for printing
+!> \param bs_env ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION gw_flavour_label(bs_env) RESULT(label)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      CHARACTER(LEN=default_string_length)               :: label
+
+      SELECT CASE (bs_env%gw_flavour)
+      CASE (evGW0)
+         label = "evGW0"
+      CASE DEFAULT
+         label = "G0W0"
+      END SELECT
+
+   END FUNCTION gw_flavour_label
 
 ! **************************************************************************************************
 !> \brief ...
@@ -645,8 +705,8 @@ CONTAINS
       ! nkp_bs_and_DOS contains desymmetrized k-point mesh from SCF and k-points from GW bandstructure
       nkp_bs_and_DOS = bs_env%nkp_bs_and_DOS
 
-      ALLOCATE (bs_env%eigenval_G0W0(bs_env%n_ao, nkp_bs_and_DOS, bs_env%n_spin))
-      ALLOCATE (bs_env%eigenval_HF(bs_env%n_ao, nkp_bs_and_DOS, bs_env%n_spin))
+      CALL allocate_GW_eigenvalues(bs_env)
+
       ALLOCATE (bs_env%cfm_mo_coeff_kp(nkp_bs_and_DOS, bs_env%n_spin))
       ALLOCATE (bs_env%cfm_ks_kp(nkp_bs_and_DOS, bs_env%n_spin))
       ALLOCATE (bs_env%cfm_s_kp(nkp_bs_and_DOS))
@@ -1132,7 +1192,7 @@ CONTAINS
       E_max = band_edges_scf_guess%CBM + 0.5_dp*energy_window_DOS
 
       IF (bs_env%do_gw) THEN
-         band_edges_G0W0 = bs_env%band_edges_G0W0
+         band_edges_G0W0 = bs_env%band_edges_GW
          E_min_G0W0 = band_edges_G0W0%VBM - 0.5_dp*energy_window_DOS
          E_max_G0W0 = band_edges_G0W0%CBM + 0.5_dp*energy_window_DOS
          E_min = MIN(E_min, E_min_G0W0)
@@ -1296,7 +1356,7 @@ CONTAINS
                                     proj_mo_on_kind)
 
                IF (bs_env%do_gw) THEN
-                  CALL add_to_DOS_PDOS(DOS_G0W0, PDOS_G0W0, bs_env%eigenval_G0W0(:, ikp, ispin), &
+                  CALL add_to_DOS_PDOS(DOS_G0W0, PDOS_G0W0, bs_env%eigenval_GW(:, ikp, ispin), &
                                        ikp, bs_env, n_E, E_min, proj_mo_on_kind)
                END IF
             END IF
@@ -1307,7 +1367,7 @@ CONTAINS
 
                IF (bs_env%do_gw) THEN
                   CALL add_to_LDOS_2d(LDOS_G0W0_2d, qs_env, ikp, bs_env, cfm_mos_ikp(ispin), &
-                                      bs_env%eigenval_G0W0(:, ikp, 1), band_edges_G0W0)
+                                      bs_env%eigenval_GW(:, ikp, 1), band_edges_G0W0)
                END IF
 
             END IF
@@ -1354,7 +1414,7 @@ CONTAINS
             IF (bs_env%do_gw) THEN
 
                ! compute G0W0+SOC eigenvalues; based on these, compute band edges, DOS and LDOS
-               CALL SOC_ev(bs_env, qs_env, ikp, bs_env%eigenval_G0W0, &
+               CALL SOC_ev(bs_env, qs_env, ikp, bs_env%eigenval_GW, &
                            E_min, cfm_mos_ikp, DOS_G0W0_SOC, PDOS_G0W0_SOC, &
                            band_edges_G0W0_SOC, eigenval_spinor_G0W0, cfm_spinor_wf_ikp)
 
@@ -1409,12 +1469,8 @@ CONTAINS
 
       ! the printed band edges carry the GW flavour that was actually run; the labels handed to
       ! write_dos_pdos / print_LDOS_main below become file names and stay as they are
-      gw_label = "G0W0"
-      gw_soc_label = "G0W0+SOC"
-      IF (bs_env%ri_rs%do_evgw0) THEN
-         gw_label = "evGW0"
-         gw_soc_label = "evGW0+SOC"
-      END IF
+      gw_label = gw_flavour_label(bs_env)
+      gw_soc_label = TRIM(gw_label)//"+SOC"
 
       IF (bs_env%do_gw) THEN
          CALL write_band_edges(band_edges_G0W0, TRIM(gw_label), bs_env)
@@ -2990,7 +3046,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL get_VBM_CBM_bandgaps(bs_env%band_edges_scf, bs_env%eigenval_scf, bs_env)
-      CALL get_VBM_CBM_bandgaps(bs_env%band_edges_G0W0, bs_env%eigenval_G0W0, bs_env)
+      CALL get_VBM_CBM_bandgaps(bs_env%band_edges_GW, bs_env%eigenval_GW, bs_env)
       CALL get_VBM_CBM_bandgaps(bs_env%band_edges_HF, bs_env%eigenval_HF, bs_env)
 
       CALL check_qp_gap_sanity(bs_env)
@@ -3002,7 +3058,7 @@ CONTAINS
    END SUBROUTINE get_all_VBM_CBM_bandgaps
 
 ! **************************************************************************************************
-!> \brief Warn if the G0W0 fundamental band gap is inverted or implausibly large, i.e. if the
+!> \brief Warn if the GW fundamental band gap is inverted or implausibly large, i.e. if the
 !>        quasiparticle solve has produced a spectrum that cannot be physical.
 !> \param bs_env ...
 ! **************************************************************************************************
@@ -3010,20 +3066,22 @@ CONTAINS
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
+      CHARACTER(LEN=default_string_length)               :: gw_label
       REAL(KIND=dp)                                      :: gap, gap_scf
 
-      gap = bs_env%band_edges_G0W0%IDBG
+      gap = bs_env%band_edges_GW%IDBG
       gap_scf = bs_env%band_edges_scf%IDBG
+      gw_label = gw_flavour_label(bs_env)
 
       ! requiring a healthy SCF gap keeps the inversion test from firing on a genuine metal
       IF (gap < -eps_qp_gap .AND. gap_scf > eps_qp_gap) THEN
          CALL cp_warn(__LOCATION__, &
-                      "G0W0 band gap is negative ("// &
+                      TRIM(gw_label)//" band gap is negative ("// &
                       TRIM(ADJUSTL(cp_to_string(gap*evolt, '(F12.3)')))//" eV): the quasiparticle "// &
                       "spectrum is inverted. Check numerical parameters.")
       ELSE IF (ABS(gap) > max_qp_gap) THEN
          CALL cp_warn(__LOCATION__, &
-                      "G0W0 band gap is implausibly large ("// &
+                      TRIM(gw_label)//" band gap is implausibly large ("// &
                       TRIM(ADJUSTL(cp_to_string(gap*evolt, '(F12.3)')))//" eV): the quasiparticle "// &
                       "solve has likely diverged. Check numerical parameters.")
       END IF
@@ -3031,12 +3089,12 @@ CONTAINS
    END SUBROUTINE check_qp_gap_sanity
 
 ! **************************************************************************************************
-!> \brief Check whether the G0W0 correction reorders the frontier levels with respect to the SCF
-!>        eigenvalues, i.e. whether the SCF HOMO (LUMO) is a different level than the G0W0 HOMO
-!>        (LUMO). If so, the SCF and G0W0 band edges printed afterwards belong to different
+!> \brief Check whether the GW correction reorders the frontier levels with respect to the SCF
+!>        eigenvalues, i.e. whether the SCF HOMO (LUMO) is a different level than the GW HOMO
+!>        (LUMO). If so, the SCF and GW band edges printed afterwards belong to different
 !>        orbitals, which is easily overlooked => warn.
 !>        Levels closer than eps_degeneracy in the SCF spectrum count as degenerate, i.e. their
-!>        reordering by G0W0 is not reported.
+!>        reordering by GW is not reported.
 !> \param bs_env ...
 ! **************************************************************************************************
    SUBROUTINE check_scf_gw_level_ordering(bs_env)
@@ -3046,7 +3104,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_scf_gw_level_ordering'
       REAL(KIND=dp), PARAMETER                           :: eps_degeneracy = 1.0E-05_dp
 
-      CHARACTER(LEN=default_string_length)               :: level_gw, level_scf, spin_string
+      CHARACTER(LEN=default_string_length)               :: gw_label, level_gw, level_scf, &
+                                                            spin_string
       CHARACTER(LEN=max_line_length)                     :: msg
       INTEGER                                            :: handle, homo, ispin, n_mo
       INTEGER, DIMENSION(2)                              :: loc_gw, loc_scf
@@ -3054,6 +3113,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       n_mo = bs_env%n_ao
+      gw_label = gw_flavour_label(bs_env)
 
       DO ispin = 1, bs_env%n_spin
 
@@ -3065,9 +3125,9 @@ CONTAINS
             spin_string = ""
          END IF
 
-         ! occupied levels: level carrying the SCF VBM versus level carrying the G0W0 VBM
+         ! occupied levels: level carrying the SCF VBM versus level carrying the GW VBM
          loc_scf(:) = MAXLOC(bs_env%eigenval_scf(1:homo, :, ispin))
-         loc_gw(:) = MAXLOC(bs_env%eigenval_G0W0(1:homo, :, ispin))
+         loc_gw(:) = MAXLOC(bs_env%eigenval_GW(1:homo, :, ispin))
 
          ! only report a genuine reordering, not a permutation within a degenerate SCF shell
          IF (bs_env%eigenval_scf(loc_scf(1), loc_scf(2), ispin) - &
@@ -3076,18 +3136,19 @@ CONTAINS
             CALL level_string(level_scf, loc_scf, bs_env)
             CALL level_string(level_gw, loc_gw, bs_env)
 
-            msg = "G0W0 reorders the occupied levels"//TRIM(spin_string)//": the SCF valence "// &
-                  "band maximum (SCF HOMO) is "//TRIM(level_scf)//", whereas the G0W0 valence "// &
-                  "band maximum (G0W0 HOMO) is "//TRIM(level_gw)//". The SCF and G0W0 band "// &
-                  "edges printed below therefore belong to different orbitals; see the "// &
-                  "eigenvalues in the file bandstructure_SCF_and_G0W0."
+            msg = TRIM(gw_label)//" reorders the occupied levels"//TRIM(spin_string)// &
+                  ": the SCF valence band maximum (SCF HOMO) is "//TRIM(level_scf)// &
+                  ", whereas the "//TRIM(gw_label)//" valence band maximum ("// &
+                  TRIM(gw_label)//" HOMO) is "//TRIM(level_gw)//". The SCF and "// &
+                  TRIM(gw_label)//" band edges printed below therefore belong to different "// &
+                  "orbitals; see the eigenvalues in the file bandstructure_SCF_and_G0W0."
             CPWARN(TRIM(msg))
 
          END IF
 
-         ! empty levels: level carrying the SCF CBM versus level carrying the G0W0 CBM
+         ! empty levels: level carrying the SCF CBM versus level carrying the GW CBM
          loc_scf(:) = MINLOC(bs_env%eigenval_scf(homo + 1:n_mo, :, ispin))
-         loc_gw(:) = MINLOC(bs_env%eigenval_G0W0(homo + 1:n_mo, :, ispin))
+         loc_gw(:) = MINLOC(bs_env%eigenval_GW(homo + 1:n_mo, :, ispin))
          loc_scf(1) = loc_scf(1) + homo
          loc_gw(1) = loc_gw(1) + homo
 
@@ -3097,11 +3158,12 @@ CONTAINS
             CALL level_string(level_scf, loc_scf, bs_env)
             CALL level_string(level_gw, loc_gw, bs_env)
 
-            msg = "G0W0 reorders the empty levels"//TRIM(spin_string)//": the SCF conduction "// &
-                  "band minimum (SCF LUMO) is "//TRIM(level_scf)//", whereas the G0W0 "// &
-                  "conduction band minimum (G0W0 LUMO) is "//TRIM(level_gw)//". The SCF and "// &
-                  "G0W0 band edges printed below therefore belong to different orbitals; see "// &
-                  "the eigenvalues in the file bandstructure_SCF_and_G0W0."
+            msg = TRIM(gw_label)//" reorders the empty levels"//TRIM(spin_string)// &
+                  ": the SCF conduction band minimum (SCF LUMO) is "//TRIM(level_scf)// &
+                  ", whereas the "//TRIM(gw_label)//" conduction band minimum ("// &
+                  TRIM(gw_label)//" LUMO) is "//TRIM(level_gw)//". The SCF and "// &
+                  TRIM(gw_label)//" band edges printed below therefore belong to different "// &
+                  "orbitals; see the eigenvalues in the file bandstructure_SCF_and_G0W0."
             CPWARN(TRIM(msg))
 
          END IF

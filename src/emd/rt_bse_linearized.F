@@ -299,8 +299,8 @@ CONTAINS
       i_last = rtbse_env%last_active_mo
 
       IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
-         omega_max = MAXVAL(rtbse_env%bs_env%eigenval_G0W0(i_first:i_last, :, :)) - &
-                     MINVAL(rtbse_env%bs_env%eigenval_G0W0(i_first:i_last, :, :))
+         omega_max = MAXVAL(rtbse_env%bs_env%eigenval_GW(i_first:i_last, :, :)) - &
+                     MINVAL(rtbse_env%bs_env%eigenval_GW(i_first:i_last, :, :))
       ELSE
          omega_max = MAXVAL(rtbse_env%bs_env%eigenval_scf_Gamma(i_first:i_last, :)) - &
                      MINVAL(rtbse_env%bs_env%eigenval_scf_Gamma(i_first:i_last, :))
@@ -322,9 +322,9 @@ CONTAINS
             ! Active occupied window: first_active_mo .. n_occ(ispin)
             IF (rtbse_env%n_occ(ispin) >= i_first) THEN
                IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
-                  ev_tmp = MINVAL(rtbse_env%bs_env%eigenval_G0W0(i_first:rtbse_env%n_occ(ispin), :, ispin))
+                  ev_tmp = MINVAL(rtbse_env%bs_env%eigenval_GW(i_first:rtbse_env%n_occ(ispin), :, ispin))
                   eps_occ_min = MIN(eps_occ_min, ev_tmp)
-                  ev_tmp = MAXVAL(rtbse_env%bs_env%eigenval_G0W0(i_first:rtbse_env%n_occ(ispin), :, ispin))
+                  ev_tmp = MAXVAL(rtbse_env%bs_env%eigenval_GW(i_first:rtbse_env%n_occ(ispin), :, ispin))
                   eps_occ_max = MAX(eps_occ_max, ev_tmp)
                ELSE
                   ev_tmp = MINVAL(rtbse_env%bs_env%eigenval_scf_Gamma(i_first:rtbse_env%n_occ(ispin), ispin))
@@ -336,9 +336,9 @@ CONTAINS
             ! Active virtual window: n_occ(ispin)+1 .. last_active_mo
             IF (rtbse_env%n_occ(ispin) < i_last) THEN
                IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
-                  ev_tmp = MINVAL(rtbse_env%bs_env%eigenval_G0W0(rtbse_env%n_occ(ispin) + 1:i_last, :, ispin))
+                  ev_tmp = MINVAL(rtbse_env%bs_env%eigenval_GW(rtbse_env%n_occ(ispin) + 1:i_last, :, ispin))
                   eps_virt_min = MIN(eps_virt_min, ev_tmp)
-                  ev_tmp = MAXVAL(rtbse_env%bs_env%eigenval_G0W0(rtbse_env%n_occ(ispin) + 1:i_last, :, ispin))
+                  ev_tmp = MAXVAL(rtbse_env%bs_env%eigenval_GW(rtbse_env%n_occ(ispin) + 1:i_last, :, ispin))
                   eps_virt_max = MAX(eps_virt_max, ev_tmp)
                ELSE
                   ev_tmp = MINVAL(rtbse_env%bs_env%eigenval_scf_Gamma(rtbse_env%n_occ(ispin) + 1:i_last, ispin))
@@ -572,10 +572,10 @@ CONTAINS
                WRITE (rtbse_env%unit_nr, '(A,I1,A,T71,F10.3)') ' Spin ', ispin, &
                   ' last active MO, E - E_LUMO (KS) [eV]:', e_last
                IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
-                  e_first = (rtbse_env%bs_env%eigenval_G0W0(rtbse_env%first_active_mo, 1, ispin) - &
-                             rtbse_env%bs_env%eigenval_G0W0(rtbse_env%n_occ(ispin), 1, ispin))*evolt
-                  e_last = (rtbse_env%bs_env%eigenval_G0W0(rtbse_env%last_active_mo, 1, ispin) - &
-                            rtbse_env%bs_env%eigenval_G0W0(rtbse_env%n_occ(ispin) + 1, 1, ispin))*evolt
+                  e_first = (rtbse_env%bs_env%eigenval_GW(rtbse_env%first_active_mo, 1, ispin) - &
+                             rtbse_env%bs_env%eigenval_GW(rtbse_env%n_occ(ispin), 1, ispin))*evolt
+                  e_last = (rtbse_env%bs_env%eigenval_GW(rtbse_env%last_active_mo, 1, ispin) - &
+                            rtbse_env%bs_env%eigenval_GW(rtbse_env%n_occ(ispin) + 1, 1, ispin))*evolt
                   WRITE (rtbse_env%unit_nr, '(A,I1,A,T71,F10.3)') ' Spin ', ispin, &
                      ' first active MO, E - E_HOMO (QP) [eV]:', e_first
                   WRITE (rtbse_env%unit_nr, '(A,I1,A,T71,F10.3)') ' Spin ', ispin, &
@@ -780,7 +780,7 @@ CONTAINS
                   abs_mo_idx = i_row_global + rtbse_env%first_active_mo - 1
                   IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
                      ! G0W0 Hamiltonian
-                     rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = bs_env%eigenval_G0W0(abs_mo_idx, 1, i)
+                     rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = bs_env%eigenval_GW(abs_mo_idx, 1, i)
                   ELSE
                      ! KS Hamiltonian
                      rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = bs_env%eigenval_scf_Gamma(abs_mo_idx, i)
@@ -1464,7 +1464,7 @@ CONTAINS
             IF (i_row_global == j_col_global) THEN
                abs_mo_idx = i_row_global + rtbse_env%first_active_mo - 1
                rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = &
-                  rtbse_env%bs_env%eigenval_G0W0(abs_mo_idx, 1, ispin)
+                  rtbse_env%bs_env%eigenval_GW(abs_mo_idx, 1, ispin)
             END IF
          END DO
       END DO
@@ -1607,7 +1607,7 @@ CONTAINS
                IF (i_row_global == j_col_global) THEN
                   abs_mo_idx = i_row_global + rtbse_env%first_active_mo - 1
                   rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = &
-                     rtbse_env%bs_env%eigenval_G0W0(abs_mo_idx, 1, isp)
+                     rtbse_env%bs_env%eigenval_GW(abs_mo_idx, 1, isp)
                END IF
             END DO
          END DO

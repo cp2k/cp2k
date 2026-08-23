@@ -64,7 +64,8 @@ MODULE gw_large_cell_gamma
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
                                               de_init_bs_env,&
                                               time_to_freq
-   USE input_constants,                 ONLY: rtp_method_bse,&
+   USE input_constants,                 ONLY: evGW0,&
+                                              rtp_method_bse,&
                                               rtp_method_bse_linearized
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -2518,7 +2519,7 @@ CONTAINS
 
       ! Σ^x is frozen in an evGW0 cycle, so there the caller keeps it and releases it once the
       ! self-consistency loop is done
-      IF (.NOT. bs_env%ri_rs%do_evgw0) CALL cp_fm_release(fm_Sigma_x_Gamma)
+      IF (bs_env%gw_flavour /= evGW0) CALL cp_fm_release(fm_Sigma_x_Gamma)
       CALL cp_fm_release(fm_Sigma_c_Gamma_time)
       CALL cp_cfm_release(cfm_ks_ikp)
       CALL cp_cfm_release(cfm_s_ikp)

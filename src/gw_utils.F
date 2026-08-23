@@ -61,9 +61,10 @@ MODULE gw_utils
    USE gw_communication,                ONLY: fm_to_local_array
    USE gw_integrals,                    ONLY: build_3c_integral_block
    USE input_constants,                 ONLY: &
-        do_potential_truncated, large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs, &
-        ri_rpa_g0w0_crossing_newton, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_rs, rtp_method_bse, &
-        rtp_method_bse_linearized, small_cell_full_kp, xc_none
+        G0W0, do_potential_truncated, evGW0, large_cell_Gamma, large_cell_Gamma_ri_rs, &
+        non_periodic_ri_rs, ri_rpa_g0w0_crossing_newton, rtp_bse_kernel_ri_ao, &
+        rtp_bse_kernel_ri_rs, rtp_method_bse, rtp_method_bse_linearized, small_cell_full_kp, &
+        xc_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -104,7 +105,9 @@ MODULE gw_utils
    USE physcon,                         ONLY: angstrom,&
                                               evolt
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
-   USE post_scf_bandstructure_utils,    ONLY: rsmat_to_kp
+   USE post_scf_bandstructure_utils,    ONLY: allocate_GW_eigenvalues,&
+                                              gw_flavour_label,&
+                                              rsmat_to_kp
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_env_part_release,&
@@ -197,10 +200,10 @@ CONTAINS
          CALL create_tensors(qs_env, bs_env)
       END IF
 
+      CALL allocate_GW_eigenvalues(bs_env)
+
       SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
       CASE (large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs)
-
-         CALL allocate_GW_eigenvalues(bs_env)
 
          IF (.NOT. bs_env%do_gw_ri_rs) THEN
             CALL check_sparsity_3c(qs_env, bs_env)
@@ -344,6 +347,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_gw_input_parameters'
 
       INTEGER                                            :: handle
+      LOGICAL                                            :: do_evgw0
       TYPE(section_vals_type), POINTER                   :: gw_sec
 
       CALL timeset(routineN, handle)
@@ -375,12 +379,15 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "RI_RS%KEEP_SPARSITY_RL", l_val=bs_env%ri_rs%keep_sparsity_rirs)
       CALL section_vals_val_get(gw_sec, "RI_RS%CUTOFF_RADIUS_RL_W", r_val=bs_env%ri_rs%cutoff_radius_v_w)
       CALL section_vals_val_get(gw_sec, "RI_RS%CUTOFF_RADIUS_G_W", r_val=bs_env%ri_rs%cutoff_radius_g_w)
-      CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0%_SECTION_PARAMETERS_", &
-                                l_val=bs_env%ri_rs%do_evgw0)
+      CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0%_SECTION_PARAMETERS_", l_val=do_evgw0)
       CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0%MAX_ITER", i_val=bs_env%ri_rs%evgw0_iter)
       CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0%EPS_ITER", r_val=bs_env%ri_rs%evgw0_eps_iter)
 
-      IF (bs_env%ri_rs%do_evgw0) THEN
+      ! Assigning GW flavour
+      bs_env%gw_flavour = G0W0
+      IF (do_evgw0) bs_env%gw_flavour = evGW0
+
+      IF (bs_env%gw_flavour == evGW0) THEN
          CALL cp_warn(__LOCATION__, &
                       "evGW0 in the RI-RS GW code is experimental. The quasiparticle energies "// &
                       "of the previous cycle are fed back into the Green's function, so the "// &
@@ -830,26 +837,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE allocate_matrices
-
-! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
-! **************************************************************************************************
-   SUBROUTINE allocate_GW_eigenvalues(bs_env)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_GW_eigenvalues'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      ALLOCATE (bs_env%eigenval_G0W0(bs_env%n_ao, bs_env%nkp_bs_and_DOS, bs_env%n_spin))
-      ALLOCATE (bs_env%eigenval_HF(bs_env%n_ao, bs_env%nkp_bs_and_DOS, bs_env%n_spin))
-
-      CALL timestop(handle)
-
-   END SUBROUTINE allocate_GW_eigenvalues
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1815,14 +1802,12 @@ CONTAINS
                WRITE (u, '(T2,A,F40.2,A)') 'Input: G/W operator truncation radius', &
                   bs_env%ri_rs%cutoff_radius_g_w*angstrom, ' Å'
             END IF
-            IF (bs_env%ri_rs%do_evgw0) THEN
-               WRITE (u, '(T2,A,A45)') 'Input: Eigenvalue self-consistency', 'evGW0'
+            WRITE (u, '(T2,A,A62)') 'Input: GW flavour', TRIM(gw_flavour_label(bs_env))
+            IF (bs_env%gw_flavour == evGW0) THEN
                WRITE (u, '(T2,A,I42)') 'Input: Maximum number of evGW0 cycles', &
                   bs_env%ri_rs%evgw0_iter
                WRITE (u, '(T2,A,F42.5,A)') 'Input: evGW0 convergence threshold', &
                   bs_env%ri_rs%evgw0_eps_iter*evolt, ' eV'
-            ELSE
-               WRITE (u, '(T2,A,A45)') 'Input: Eigenvalue self-consistency', 'G0W0'
             END IF
             WRITE (u, '(A)') ' '
          END IF
@@ -3437,7 +3422,7 @@ CONTAINS
       ! previous cycle's quasiparticle energies for evGW0. They set the Newton start value,
       ! the Z/m linearization point and the Hedin shift; the QP equation itself stays
       ! referenced to the DFT eigenvalues through the Eigenval_scf argument below.
-      IF (bs_env%ri_rs%do_evgw0 .AND. ALLOCATED(bs_env%eigenval_evGW0)) THEN
+      IF (bs_env%gw_flavour == evGW0 .AND. ALLOCATED(bs_env%eigenval_evGW0)) THEN
          eigenval_G(:) = bs_env%eigenval_evGW0(:, ikp, ispin)
       ELSE
          eigenval_G(:) = eigenval_scf(:)
@@ -3465,10 +3450,14 @@ CONTAINS
 
       CALL correct_obvious_fitting_fails(Sigma_c_ikp_n_qp, ispin, bs_env)
 
-      bs_env%eigenval_G0W0(:, ikp, ispin) = eigenval_scf(:) + &
-                                            Sigma_c_ikp_n_qp(:) + &
-                                            Sigma_x_ikp_n(:) - &
-                                            V_xc_ikp_n(:)
+      bs_env%eigenval_GW(:, ikp, ispin) = eigenval_scf(:) + &
+                                          Sigma_c_ikp_n_qp(:) + &
+                                          Sigma_x_ikp_n(:) - &
+                                          V_xc_ikp_n(:)
+
+      IF (ALLOCATED(bs_env%eigenval_G0W0) .AND. bs_env%ri_rs%evgw0_i_iter <= 1) THEN
+         bs_env%eigenval_G0W0(:, ikp, ispin) = bs_env%eigenval_GW(:, ikp, ispin)
+      END IF
 
       bs_env%eigenval_HF(:, ikp, ispin) = eigenval_scf(:) + Sigma_x_ikp_n(:) - V_xc_ikp_n(:)
 
@@ -3500,7 +3489,7 @@ CONTAINS
                            file_action="WRITE", file_position="APPEND")
          END IF
 
-         IF (bs_env%ri_rs%do_evgw0 .AND. ikp_for_print == 1 .AND. ispin == 1) THEN
+         IF (bs_env%gw_flavour == evGW0 .AND. ikp_for_print == 1 .AND. ispin == 1) THEN
             WRITE (iunit, "(A)") " "
             WRITE (iunit, "(A,I0)") "evGW0 cycle: ", bs_env%ri_rs%evgw0_i_iter
          END IF
@@ -3509,11 +3498,7 @@ CONTAINS
          WRITE (iunit, "(A10,I7,A25,3F10.4,T90,A7,I2)") "kpoint: ", ikp_for_print, "coordinate: ", &
             bs_env%kpoints_DOS%xkp(:, ikp), "spin: ", ispin
          WRITE (iunit, "(A)") " "
-         IF (bs_env%ri_rs%do_evgw0) THEN
-            gw_label = "ϵ_nk^evGW0 (eV)"
-         ELSE
-            gw_label = "ϵ_nk^G0W0 (eV)"
-         END IF
+         gw_label = "ϵ_nk^"//TRIM(gw_flavour_label(bs_env))//" (eV)"
          WRITE (iunit, "(A5,A12,3A17,A16,A18)") "n", "k", "ϵ_nk^DFT (eV)", "Σ^c_nk (eV)", &
             "Σ^x_nk (eV)", "v_nk^xc (eV)", TRIM(gw_label)
          WRITE (iunit, "(A)") " "
@@ -3526,7 +3511,7 @@ CONTAINS
                Sigma_c_ikp_n_qp(i_mo)*evolt, &
                Sigma_x_ikp_n(i_mo)*evolt, &
                V_xc_ikp_n(i_mo)*evolt, &
-               bs_env%eigenval_G0W0(i_mo, ikp, ispin)*evolt
+               bs_env%eigenval_GW(i_mo, ikp, ispin)*evolt
          END DO
 
          WRITE (iunit, "(A)") " "
