@@ -76,6 +76,8 @@ MODULE preconditioner_types
       INTEGER :: lattice_block_size = 0
       REAL(KIND=dp) :: lattice_projection_error = 0.0_dp
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: lattice_inverse_k
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: lattice_state_inverse_k
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: lattice_occ_vectors, lattice_occ_dual
    END TYPE preconditioner_type
 
 ! **************************************************************************************************
@@ -217,6 +219,15 @@ CONTAINS
       END IF
       IF (ALLOCATED(preconditioner_env%lattice_inverse_k)) THEN
          DEALLOCATE (preconditioner_env%lattice_inverse_k)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_state_inverse_k)) THEN
+         DEALLOCATE (preconditioner_env%lattice_state_inverse_k)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_occ_vectors)) THEN
+         DEALLOCATE (preconditioner_env%lattice_occ_vectors)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_occ_dual)) THEN
+         DEALLOCATE (preconditioner_env%lattice_occ_dual)
       END IF
       IF (ASSOCIATED(preconditioner_env%inverse_history)) THEN
          DO i = 1, SIZE(preconditioner_env%inverse_history)

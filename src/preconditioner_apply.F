@@ -45,7 +45,8 @@ MODULE preconditioner_apply
         ot_precond_solver_chebyshev, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
         ot_precond_solver_update
    USE kinds,                           ONLY: dp
-   USE lattice_preconditioner_operator, ONLY: apply_lattice_inverse_dense
+   USE lattice_preconditioner_operator, ONLY: apply_lattice_inverse_dense,&
+                                              apply_lattice_state_inverse_dense
    USE low_rank_preconditioner_model,   ONLY: low_rank_inverse_weight
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
@@ -596,6 +597,86 @@ CONTAINS
    END SUBROUTINE apply_lattice_operator_fm
 
 ! **************************************************************************************************
+!> \brief Apply state-dependent replicated-cell inverse operators to a distributed full matrix.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_lattice_state_operator_fm(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_lattice_state_operator_fm'
+
+      INTEGER                                            :: handle, i, j, k, n, ncol_local, &
+                                                            nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: used_fft
+      REAL(KIND=dp)                                      :: imaginary_residual
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: complement_input, global_input, &
+                                                            global_output, occupied_component
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: input_data, output_data
+
+      CALL timeset(routineN, handle)
+      CPASSERT(ALLOCATED(preconditioner_env%lattice_state_inverse_k))
+      CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k, nrow_local=nrow_local, &
+                          ncol_local=ncol_local, row_indices=row_indices, &
+                          col_indices=col_indices, local_data=input_data)
+      CALL cp_fm_get_info(matrix_out, local_data=output_data)
+      CPASSERT(SIZE(preconditioner_env%lattice_state_inverse_k, 4) == k)
+      ALLOCATE (global_input(n, k), source=0.0_dp)
+      ALLOCATE (global_output(n, k))
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+            global_input(row_indices(i), col_indices(j)) = input_data(i, j)
+         END DO
+      END DO
+      CALL preconditioner_env%para_env%sum(global_input)
+      CPASSERT(ALLOCATED(preconditioner_env%lattice_occ_vectors))
+      CPASSERT(ALLOCATED(preconditioner_env%lattice_occ_dual))
+      ALLOCATE (complement_input(n, k), occupied_component(k, k))
+      occupied_component = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_vectors), &
+                                  global_input)
+      complement_input = global_input - &
+                         MATMUL(preconditioner_env%lattice_occ_dual, occupied_component)
+      CALL apply_lattice_state_inverse_dense(preconditioner_env%lattice_state_inverse_k, &
+                                             preconditioner_env%lattice_dims, &
+                                             complement_input, global_output, used_fft, imaginary_residual)
+      IF (.NOT. used_fft) THEN
+         CPABORT("State-dependent lattice preconditioner inverse failed to use FFTs")
+      END IF
+      IF (imaginary_residual > 1.0E-10_dp*MAX(1.0_dp, MAXVAL(ABS(global_output)))) THEN
+         CPABORT("State-dependent lattice preconditioner produced a non-real Gamma-point result")
+      END IF
+      occupied_component = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_dual), &
+                                  global_output)
+      global_output = global_output - &
+                      MATMUL(preconditioner_env%lattice_occ_vectors, occupied_component)
+      occupied_component = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_vectors), &
+                                  global_input)
+      DO j = 1, k
+         DO i = 1, k
+            occupied_component(i, j) = occupied_component(i, j)/MAX( &
+                                       preconditioner_env%energy_gap, &
+                                       preconditioner_env%full_evals(i) - &
+                                       preconditioner_env%occ_evals(j))
+         END DO
+      END DO
+      global_output = global_output + &
+                      MATMUL(preconditioner_env%lattice_occ_vectors, occupied_component)
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+            output_data(i, j) = global_output(row_indices(i), col_indices(j))
+         END DO
+      END DO
+      DEALLOCATE (complement_input, global_input, global_output, occupied_component)
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_lattice_state_operator_fm
+
+! **************************************************************************************************
 !> \brief Bridge a DBCSR OT gradient to the full-matrix lattice-FFT operator.
 !> \param preconditioner_env ...
 !> \param matrix_in ...
@@ -864,7 +945,11 @@ CONTAINS
       CALL cp_fm_create(canonical_out, matrix_out%matrix_struct, name=routineN)
       CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, matrix_in, &
                          preconditioner_env%occ_rotation, 0.0_dp, canonical_in)
-      CALL apply_full_all(preconditioner_env, canonical_in, canonical_out)
+      IF (preconditioner_env%lattice_fft_active) THEN
+         CALL apply_lattice_state_operator_fm(preconditioner_env, canonical_in, canonical_out)
+      ELSE
+         CALL apply_full_all(preconditioner_env, canonical_in, canonical_out)
+      END IF
       CALL parallel_gemm('N', 'T', n, k, k, 1.0_dp, canonical_out, &
                          preconditioner_env%occ_rotation, 0.0_dp, matrix_out)
       CALL cp_fm_release(canonical_in)
@@ -886,12 +971,31 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_all_covariant'
 
-      INTEGER                                            :: handle, k
+      INTEGER                                            :: handle, k, n
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: input_fm, output_fm
       TYPE(dbcsr_type)                                   :: canonical_in, canonical_out
 
       CALL timeset(routineN, handle)
       CPASSERT(ASSOCIATED(preconditioner_env%occ_rotation))
-      CALL dbcsr_get_info(matrix_in, nfullcols_total=k)
+      CALL dbcsr_get_info(matrix_in, nfullrows_total=n, nfullcols_total=k)
+
+      IF (preconditioner_env%lattice_fft_active) THEN
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=n, ncol_global=k, &
+                                  context=preconditioner_env%ctxt, &
+                                  para_env=preconditioner_env%para_env)
+         CALL cp_fm_create(input_fm, fm_struct, name=routineN)
+         CALL cp_fm_create(output_fm, fm_struct, name=routineN)
+         CALL cp_fm_struct_release(fm_struct)
+         CALL copy_dbcsr_to_fm(matrix_in, input_fm)
+         CALL apply_full_all_covariant(preconditioner_env, input_fm, output_fm)
+         CALL copy_fm_to_dbcsr(output_fm, matrix_out)
+         CALL cp_fm_release(input_fm)
+         CALL cp_fm_release(output_fm)
+         CALL timestop(handle)
+         RETURN
+      END IF
 
       IF (.NOT. ASSOCIATED(preconditioner_env%occ_rotation_dbcsr)) THEN
          CALL dbcsr_init_p(preconditioner_env%occ_rotation_dbcsr)
