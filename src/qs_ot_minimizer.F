@@ -1070,14 +1070,17 @@ CONTAINS
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_lbfgs_direction'
-      REAL(KIND=dp), PARAMETER                           :: curvature_tol = 1.0E-10_dp
+      REAL(KIND=dp), PARAMETER                           :: curvature_tol = 1.0E-10_dp, &
+                                                            rotation_scale_max = 1.0E3_dp, &
+                                                            rotation_scale_min = 1.0E-3_dp
 
       INTEGER                                            :: handle, i, ispin, itmp, j, k, m_history, &
                                                             n, newest, nhistory, nspin
       INTEGER(KIND=int_8)                                :: nrotation, nvariables
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: history_index
-      REAL(KIND=dp)                                      :: beta, g_dot_z, gamma, ss, stq, sy, tmp, &
-                                                            yy, yy_newest
+      REAL(KIND=dp)                                      :: beta, g_dot_z, gamma, gamma_rotation, &
+                                                            ss, stq, sy, sy_rotation, tmp, yy, &
+                                                            yy_newest, yy_rotation
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha, rho
 
       CALL timeset(routineN, handle)
@@ -1095,7 +1098,9 @@ CONTAINS
          j = MOD(qs_ot_env(1)%diis_iter - 1, m_history) + 1
          ss = 0.0_dp
          sy = 0.0_dp
+         sy_rotation = 0.0_dp
          yy = 0.0_dp
+         yy_rotation = 0.0_dp
          DO ispin = 1, nspin
             CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(j)%matrix, qs_ot_env(ispin)%matrix_x)
             CALL dbcsr_add(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
@@ -1129,15 +1134,19 @@ CONTAINS
                CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
                               qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, tmp)
                sy = sy + 0.5_dp*tmp
+               sy_rotation = sy_rotation + 0.5_dp*tmp
                CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
                               qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, tmp)
                yy = yy + 0.5_dp*tmp
+               yy_rotation = yy_rotation + 0.5_dp*tmp
             END IF
          END DO
          IF (ieee_is_finite(sy) .AND. ieee_is_finite(ss) .AND. ieee_is_finite(yy) .AND. &
              ss > 0.0_dp .AND. yy > 0.0_dp .AND. sy > curvature_tol*SQRT(ss*yy)) THEN
             qs_ot_env(1)%lbfgs_rho(j) = 1.0_dp/sy
             qs_ot_env(1)%lbfgs_yy(j) = yy
+            qs_ot_env(1)%lbfgs_sy_rotation(j) = sy_rotation
+            qs_ot_env(1)%lbfgs_yy_rotation(j) = yy_rotation
             qs_ot_env(1)%diis_iter = qs_ot_env(1)%diis_iter + 1
          ELSE
             ! The current point remains the reference, but all older pairs are discarded.
@@ -1165,12 +1174,22 @@ CONTAINS
       nhistory = MIN(qs_ot_env(1)%diis_iter - 1, m_history)
       ALLOCATE (alpha(MAX(1, nhistory)), rho(MAX(1, nhistory)), &
                 history_index(MAX(1, nhistory)))
+      gamma_rotation = 1.0_dp
       yy_newest = 0.0_dp
 
       ! First loop, newest to oldest: q <- V^T g.
       IF (nhistory > 0) THEN
          newest = MOD(qs_ot_env(1)%diis_iter - 2, m_history) + 1
          yy_newest = qs_ot_env(1)%lbfgs_yy(newest)
+         IF (qs_ot_env(1)%settings%do_rotation .AND. &
+             ieee_is_finite(qs_ot_env(1)%lbfgs_sy_rotation(newest)) .AND. &
+             ieee_is_finite(qs_ot_env(1)%lbfgs_yy_rotation(newest)) .AND. &
+             qs_ot_env(1)%lbfgs_sy_rotation(newest) > 0.0_dp .AND. &
+             qs_ot_env(1)%lbfgs_yy_rotation(newest) > 0.0_dp) THEN
+            gamma_rotation = MAX(rotation_scale_min, MIN(rotation_scale_max, &
+                                                         qs_ot_env(1)%lbfgs_sy_rotation(newest)/ &
+                                                         qs_ot_env(1)%lbfgs_yy_rotation(newest)))
+         END IF
          DO i = 1, nhistory
             history_index(i) = MODULO(newest - i, m_history) + 1
             stq = 0.0_dp
@@ -1201,13 +1220,14 @@ CONTAINS
 
       ! Apply the initial inverse Hessian. A physical OT preconditioner takes precedence over
       ! scalar secant scaling for the orbital block, because it carries the kinetic/overlap metric
-      ! and energy scale. The rotation block uses the identity, as in the SD and CG minimizers.
+      ! and energy scale. The rotation block uses a separately secant-scaled identity.
       IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
          DO ispin = 1, nspin
             CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
                                       qs_ot_env(ispin)%matrix_gx_old, qs_ot_env(ispin)%matrix_dx)
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx_old)
+               CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, gamma_rotation)
             END IF
          END DO
       ELSE
@@ -1218,7 +1238,7 @@ CONTAINS
             CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx, gamma)
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx_old)
-               CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, gamma)
+               CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, gamma_rotation)
             END IF
          END DO
       END IF

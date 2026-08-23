@@ -175,6 +175,8 @@ MODULE qs_ot_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h_e => NULL(), matrix_h_x => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h_e_im => NULL(), matrix_h_x_im => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER      :: lbfgs_rho => NULL(), lbfgs_yy => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: lbfgs_sy_rotation => NULL(), &
+                                                   lbfgs_yy_rotation => NULL()
 
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ls_diis => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: lss_diis => NULL()
@@ -527,6 +529,8 @@ CONTAINS
       IF (qs_ot_env%settings%ot_method == "LBFG") THEN
          qs_ot_env%lbfgs_rho = 0.0_dp
          qs_ot_env%lbfgs_yy = 0.0_dp
+         qs_ot_env%lbfgs_sy_rotation = 0.0_dp
+         qs_ot_env%lbfgs_yy_rotation = 0.0_dp
       END IF
 
       IF (qs_ot_env%settings%do_rotation) THEN
@@ -621,9 +625,12 @@ CONTAINS
          ALLOCATE (qs_ot_env%ipivot(m_diis + 1))
       END IF
       IF (qs_ot_env%settings%ot_method == "LBFG") THEN
-         ALLOCATE (qs_ot_env%lbfgs_rho(m_diis), qs_ot_env%lbfgs_yy(m_diis))
+         ALLOCATE (qs_ot_env%lbfgs_rho(m_diis), qs_ot_env%lbfgs_yy(m_diis), &
+                   qs_ot_env%lbfgs_sy_rotation(m_diis), qs_ot_env%lbfgs_yy_rotation(m_diis))
          qs_ot_env%lbfgs_rho = 0.0_dp
          qs_ot_env%lbfgs_yy = 0.0_dp
+         qs_ot_env%lbfgs_sy_rotation = 0.0_dp
+         qs_ot_env%lbfgs_yy_rotation = 0.0_dp
       END IF
 
       ALLOCATE (qs_ot_env%evals(k))
@@ -997,7 +1004,8 @@ CONTAINS
          DEALLOCATE (qs_ot_env%ipivot)
       END IF
       IF (qs_ot_env%settings%ot_method == "LBFG") THEN
-         DEALLOCATE (qs_ot_env%lbfgs_rho, qs_ot_env%lbfgs_yy)
+         DEALLOCATE (qs_ot_env%lbfgs_rho, qs_ot_env%lbfgs_yy, &
+                     qs_ot_env%lbfgs_sy_rotation, qs_ot_env%lbfgs_yy_rotation)
       END IF
 
       IF (qs_ot_env%settings%do_rotation) THEN
