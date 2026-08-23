@@ -65,6 +65,7 @@ MODULE preconditioner_types
       INTEGER :: polynomial_degree = 8
       REAL(KIND=dp) :: polynomial_min = -1.0_dp, polynomial_max = -1.0_dp
       INTEGER :: spectral_rank = 0
+      INTEGER :: spectral_max_rank = 48
       REAL(KIND=dp) :: spectral_reference = 0.0_dp, spectral_window = 1.0_dp, &
                        spectral_base_scale = 1.0_dp
       INTEGER :: low_rank_base = ot_low_rank_base_overlap
@@ -131,6 +132,7 @@ CONTAINS
       preconditioner_env%polynomial_min = -1.0_dp
       preconditioner_env%polynomial_max = -1.0_dp
       preconditioner_env%spectral_rank = 0
+      preconditioner_env%spectral_max_rank = 48
       preconditioner_env%spectral_reference = 0.0_dp
       preconditioner_env%spectral_window = 1.0_dp
       preconditioner_env%spectral_base_scale = 1.0_dp

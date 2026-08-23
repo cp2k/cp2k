@@ -63,4 +63,5 @@
                                              {matcher="OT_diis_update"}]
 "CH4-fermi-low-rank.inp"                = [{matcher="E_total", tol=1e-10, ref=-15.93664757384581}]
 "CH4-fermi-low-rank-fft.inp"            = [{matcher="E_total", tol=1e-09, ref=-15.93664757401409}]
+"CH4-fermi-low-rank-full.inp"           = [{matcher="E_total", tol=1e-10, ref=-15.93664757426925}]
 #EOF
