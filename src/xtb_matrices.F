@@ -217,6 +217,7 @@ CONTAINS
 
       nkind = SIZE(atomic_kind_set)
       xtb_control => dft_control%qs_control%xtb_control
+      eeq_sparam = xtb_control%eeq_sparam
       do_nonbonded = xtb_control%do_nonbonded
       nimg = dft_control%nimages
       nderivatives = 0
@@ -1385,4 +1386,3 @@ CONTAINS
    END SUBROUTINE ao_matrix_output
 
 END MODULE xtb_matrices
-
