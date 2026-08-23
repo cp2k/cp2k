@@ -84,6 +84,8 @@ registry["OT_kpoint_ref_refresh"] = TextPresenceMatcher(
 registry["OT_added_mos_auto_grow"] = TextPresenceMatcher(
     "K-point ADDED_MOS AUTO: growing virtual-space buffer"
 )
+registry["OT_lattice_fft_selected"] = TextPresenceMatcher("selected: T")
+registry["OT_lattice_fft_fallback"] = TextPresenceMatcher("selected: F")
 registry["Kubo_sigma_iso"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S/cm]", col=3)
 registry["Kubo_sigma_iso_2d"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S]", col=3)
 registry["Kubo_sigma_iso_1d"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S*m]", col=3)

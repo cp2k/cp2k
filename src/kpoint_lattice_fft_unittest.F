@@ -15,6 +15,8 @@ PROGRAM kpoint_lattice_fft_unittest
                                               apply_lattice_state_inverse_dense,&
                                               build_lattice_inverse,&
                                               lattice_fft_auto_select,&
+                                              lattice_fft_cost_ratio,&
+                                              lattice_fft_storage_ratio,&
                                               lattice_grid
    USE mathconstants,                   ONLY: gaussi,&
                                               twopi,&
@@ -28,13 +30,15 @@ PROGRAM kpoint_lattice_fft_unittest
    INTEGER, PARAMETER                                  :: base_block = 2, base_cell = 8, base_n = 16, &
                                                           base_ncol = 3, ncell = 31, nkp = 64, &
                                                           nround = 16, nselected = 3
+   INTEGER, PARAMETER                                  :: large_block = 1000, large_ncol = 1000, &
+                                                          large_num_pe = 16
    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)   :: inverse_k
    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: state_inverse_k
    COMPLEX(KIND=dp), DIMENSION(2, 3, nkp)              :: direct, transformed
    COMPLEX(KIND=dp), DIMENSION(2, 3, nround)           :: reconstructed, round_k
    COMPLEX(KIND=dp), DIMENSION(2, 3, nselected)         :: selected_transformed
    INTEGER                                             :: d, i, icell, info, j, jcell, ik, ix, iy, iz
-   INTEGER, DIMENSION(3)                               :: base_dims, delta
+   INTEGER, DIMENSION(3)                               :: base_dims, delta, large_dims
    INTEGER, DIMENSION(3, base_cell)                    :: base_index
    INTEGER, DIMENSION(3)                               :: nkp_grid
    INTEGER, DIMENSION(3, ncell)                        :: index_to_cell
@@ -42,7 +46,9 @@ PROGRAM kpoint_lattice_fft_unittest
    INTEGER, DIMENSION(nselected)                       :: selected_kpoints
    LOGICAL                                             :: used_fft
    REAL(KIND=dp), DIMENSION(3, 3)                      :: hmat
-   REAL(KIND=dp)                                       :: imaginary_residual, projection_error
+   REAL(KIND=dp)                                       :: cost_ratio, expected_cost_ratio, imaginary_residual, &
+                                                          large_block_real, large_ncell_real, &
+                                                          large_ncol_real, projection_error
    REAL(KIND=dp), DIMENSION(3, base_cell)              :: base_xkp
    REAL(KIND=dp), DIMENSION(base_n, base_n)            :: base_overlap
    REAL(KIND=dp), DIMENSION(base_n, base_ncol)          :: base_input, base_input_rotated, &
@@ -185,14 +191,46 @@ PROGRAM kpoint_lattice_fft_unittest
    IF (info /= 0) ERROR STOP "Positive lattice overlap failed block Cholesky inversion"
    IF (.NOT. used_fft) ERROR STOP "Block-circulant overlap construction did not use lattice FFT"
    IF (projection_error > 2.0E-15_dp) ERROR STOP "Exact block-circulant overlap was changed by projection"
-   IF (.NOT. lattice_fft_auto_select(base_dims, projection_error, used_fft, info)) THEN
-      ERROR STOP "Conservative lattice-FFT AUTO rejected an exact eight-cell operator"
+   IF (lattice_fft_auto_select(base_dims, base_block, base_ncol, 1, 1, &
+                               projection_error, used_fft, info)) THEN
+      ERROR STOP "Cost-aware lattice-FFT AUTO accepted a tiny eight-cell operator"
    END IF
-   IF (lattice_fft_auto_select([4, 1, 1], projection_error, used_fft, info)) THEN
+   IF (.NOT. lattice_fft_auto_select(base_dims, 6, 8, 1, 2, &
+                                     projection_error, used_fft, info)) THEN
+      ERROR STOP "Cost-aware lattice-FFT AUTO rejected an economical eight-cell operator"
+   END IF
+   IF (lattice_fft_auto_select([4, 1, 1], 6, 8, 1, 2, &
+                               projection_error, used_fft, info)) THEN
       ERROR STOP "Conservative lattice-FFT AUTO accepted fewer than eight cells"
    END IF
-   IF (lattice_fft_auto_select(base_dims, 2.0E-3_dp, used_fft, info)) THEN
+   IF (lattice_fft_auto_select(base_dims, 6, 8, 1, 2, 2.0E-3_dp, used_fft, info)) THEN
       ERROR STOP "Conservative lattice-FFT AUTO accepted a large projection error"
+   END IF
+   IF (lattice_fft_auto_select(base_dims, 6, 8, 17, 2, &
+                               projection_error, used_fft, info)) THEN
+      ERROR STOP "Storage-aware lattice-FFT AUTO accepted too many state operators"
+   END IF
+   IF (lattice_fft_cost_ratio(base_dims, base_block, base_ncol, 1) <= 0.8_dp) THEN
+      ERROR STOP "Lattice-FFT cost estimate missed the tiny-batch overhead"
+   END IF
+   large_dims = [100, 100, 1]
+   large_ncell_real = REAL(PRODUCT(large_dims), KIND=dp)
+   large_block_real = REAL(large_block, KIND=dp)
+   large_ncol_real = REAL(large_ncol, KIND=dp)
+   expected_cost_ratio = ( &
+                         large_ncell_real*large_block_real**2*large_ncol_real + &
+                         4.0_dp*large_ncell_real*large_block_real*large_ncol_real* &
+                         LOG(large_ncell_real)/LOG(2.0_dp) + &
+                         8.0_dp*large_ncell_real*large_block_real + &
+                         2.0_dp*large_ncell_real*large_block_real*large_ncol_real* &
+                         LOG(REAL(large_num_pe + 1, KIND=dp))/LOG(2.0_dp))/ &
+                         ((large_ncell_real*large_block_real)**2*large_ncol_real)
+   cost_ratio = lattice_fft_cost_ratio(large_dims, large_block, large_ncol, large_num_pe)
+   IF (ABS(cost_ratio - expected_cost_ratio) > 1.0E-14_dp*expected_cost_ratio) THEN
+      ERROR STOP "Lattice-FFT cost estimate overflowed for a large problem"
+   END IF
+   IF (ABS(lattice_fft_storage_ratio(base_dims, 1) - 0.25_dp) > 1.0E-14_dp) THEN
+      ERROR STOP "Lattice-FFT storage estimate is inconsistent"
    END IF
    CALL apply_lattice_inverse_dense(inverse_k, base_dims, base_input, base_output, &
                                     used_fft, imaginary_residual)
