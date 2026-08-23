@@ -90,6 +90,7 @@ MODULE qs_ot_types
       CHARACTER(LEN=20) :: precond_solver_name = ""
       INTEGER           :: precond_solver_type = -1
       INTEGER           :: chebyshev_degree = 8
+      INTEGER           :: fermi_low_rank_max_rank = 48
       LOGICAL           :: safer_diis = .FALSE.
       REAL(KIND=dp)     :: ds_min = -1.0_dp
       REAL(KIND=dp)     :: energy_gap = -1.0_dp
@@ -311,6 +312,7 @@ CONTAINS
       settings%precond_solver_name = "CHOLESKY_INVERSE"
       settings%precond_solver_type = ot_precond_solver_inv_chol
       settings%chebyshev_degree = 8
+      settings%fermi_low_rank_max_rank = 48
       settings%line_search_method = "2PNT"
       settings%ds_min = 0.15_dp
       settings%safer_diis = .TRUE.
@@ -1714,6 +1716,12 @@ CONTAINS
       IF (settings%chebyshev_degree < 1 .OR. settings%chebyshev_degree > 100) THEN
          CPABORT("READ OT CHEBYSHEV_DEGREE: Value must be between 1 and 100")
       END IF
+      CALL section_vals_val_get(ot_section, "FERMI_LOW_RANK_MAX_RANK", &
+                                i_val=settings%fermi_low_rank_max_rank)
+      IF (settings%fermi_low_rank_max_rank == 0 .OR. &
+          settings%fermi_low_rank_max_rank < -1) THEN
+         CPABORT("READ OT FERMI_LOW_RANK_MAX_RANK: Value must be -1 or a positive integer")
+      END IF
 
       CALL section_vals_val_get(ot_section, "MAX_SCF_DIIS", i_val=settings%max_scf_diis)
 
@@ -1880,6 +1888,9 @@ CONTAINS
          WRITE (output_unit, '(A)') "  Precond_solver : "//TRIM(settings%precond_solver_name)
          IF (settings%precond_solver_type == ot_precond_solver_chebyshev) THEN
             WRITE (output_unit, '(A,I14)') "  Chebyshev degree:", settings%chebyshev_degree
+         END IF
+         IF (settings%preconditioner_type == ot_precond_fermi_low_rank) THEN
+            WRITE (output_unit, '(A,I14)') "  Low-rank cap    :", settings%fermi_low_rank_max_rank
          END IF
 
          IF (settings%OT_METHOD == "SD" .OR. settings%OT_METHOD == "CG" .OR. &
