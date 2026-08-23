@@ -665,8 +665,8 @@ CONTAINS
                        " The total energy should decrease at every OT CG step if the line search is appropriate.", &
                        "Direct inversion in the iterative subspace: less reliable than CG, but sometimes about 50% faster", &
                        "Broyden mixing approximating the inverse Hessian", &
-                       "Limited-memory BFGS in the fixed OT chart. The selected OT preconditioner is used"// &
-                       " as the initial inverse Hessian. Available with ALGORITHM STRICT and without ROTATION."), &
+                       "Limited-memory BFGS in the fixed OT product chart. The selected OT preconditioner is used"// &
+                       " as the initial inverse Hessian. Available with ALGORITHM STRICT."), &
          enum_i_vals=[ot_mini_sd, ot_mini_cg, ot_mini_diis, ot_mini_broyden, ot_mini_lbfgs])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

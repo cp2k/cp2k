@@ -36,6 +36,7 @@
 "H2_trip.inp"                           = [{matcher="E_total", tol=2e-12, ref=-0.71740623265306}]
 "C-sic-1.inp"                           = [{matcher="E_total", tol=5e-13, ref=-5.30145304131208}]
 "C-sic-2.inp"                           = [{matcher="E_total", tol=1e-13, ref=-5.32760575352303}]
+"C-sic-lbfgs.inp"                       = [{matcher="E_total", tol=1e-12, ref=-5.30617976133315}]
 # ot with fractional occupations
 "C_ot.inp"                              = [{matcher="E_total", tol=1e-13, ref=-5.33746454516253}]
 # use of the fermi distribution
