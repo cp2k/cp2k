@@ -80,9 +80,7 @@ test cp2k eiger:
     SLURM_CONSTRAINT: mc
     SLURM_CPUS_PER_TASK: 8
     SLURM_DEBUG: 1
-    SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 1
     SLURM_NTASKS_PER_NODE: 1
     SLURM_TIMELIMIT: 15
 
@@ -97,7 +95,6 @@ regression test cp2k eiger:
   variables:
     SLURM_CONSTRAINT: mc
     SLURM_DEBUG: 1
-    SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 128
     SLURM_TIMELIMIT: 60
