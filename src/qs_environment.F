@@ -1967,6 +1967,9 @@ CONTAINS
             CASE (xtb_vdw_type_d4)
                dispersion_env%pp_type = vdw_pairpot_dftd4
                dispersion_env%ref_functional = "none"
+               ! GFN0 supplies its EEQ charges directly to D4. GFN1 does not, so propagate the
+               ! common EEQ solver settings for the D4 charge model used in that case.
+               dispersion_env%eeq_sparam = xtb_control%eeq_sparam
                CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, &
                                                dispersion_env, para_env=para_env)
                dispersion_env%cnfun = 2

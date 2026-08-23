@@ -50,7 +50,8 @@ MODULE eeq_method
                                               ewald_pw_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: oorootpi,&
                                               twopi
@@ -85,6 +86,7 @@ MODULE eeq_method
    USE spme,                            ONLY: spme_forces,&
                                               spme_potential,&
                                               spme_virial
+   USE util,                            ONLY: sort
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -96,6 +98,12 @@ MODULE eeq_method
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eeq_method'
 
    INTEGER, PARAMETER                                    :: maxElem = 86
+
+   TYPE eeq_sparse_matrix_type
+      INTEGER, ALLOCATABLE, DIMENSION(:)                :: col, row
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)          :: diag, value
+      INTEGER                                           :: nactive = 0
+   END TYPE eeq_sparse_matrix_type
    ! covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
    ! values for metals decreased by 10 %
    REAL(KIND=dp), PARAMETER :: rcov(1:maxElem) = [&
@@ -343,7 +351,7 @@ CONTAINS
                          particle_set, kind_of, cell, chia, gam, gab, &
                          para_env, blacs_env, dft_control, eeq_sparam, &
                          totalcharge=totalcharge, ewald=do_ewald, &
-                         ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
+                         ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit, qs_env=qs_env)
          !
          CALL ewald_env_release(ewald_env)
          CALL ewald_pw_release(ewald_pw)
@@ -352,7 +360,7 @@ CONTAINS
          CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
                          para_env, blacs_env, dft_control, eeq_sparam, &
-                         totalcharge=totalcharge, iounit=iunit)
+                         totalcharge=totalcharge, iounit=iunit, qs_env=qs_env)
       END IF
 
       DEALLOCATE (gab, gam, chia)
@@ -518,11 +526,11 @@ CONTAINS
          CALL eeq_solver(qlag, qlam, elag, &
                          particle_set, kind_of, cell, -dcharges, gam, gab, &
                          para_env, blacs_env, dft_control, eeq_sparam, &
-                         ewald=do_ewald, ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
+                         ewald=do_ewald, ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit, qs_env=qs_env)
       ELSE
          CALL eeq_solver(qlag, qlam, elag, &
                          particle_set, kind_of, cell, -dcharges, gam, gab, &
-                         para_env, blacs_env, dft_control, eeq_sparam, iounit=iunit)
+                         para_env, blacs_env, dft_control, eeq_sparam, iounit=iunit, qs_env=qs_env)
       END IF
 
       sgamma = 8.0_dp ! see D4 for periodic systems paper
@@ -818,14 +826,16 @@ CONTAINS
 !> \param ewald_env ...
 !> \param ewald_pw ...
 !> \param iounit ...
+!> \param qs_env environment used to build the sparse real-space neighbor list
 ! **************************************************************************************************
    SUBROUTINE eeq_solver(charges, lambda, eeq_energy, particle_set, kind_of, cell, &
                          chia, gam, gab, para_env, blacs_env, dft_control, eeq_sparam, &
-                         totalcharge, ewald, ewald_env, ewald_pw, iounit)
+                         totalcharge, ewald, ewald_env, ewald_pw, iounit, qs_env)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
       REAL(KIND=dp), INTENT(INOUT)                       :: lambda, eeq_energy
-      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: chia, gam
@@ -839,11 +849,13 @@ CONTAINS
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
       TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
       INTEGER, INTENT(IN), OPTIONAL                      :: iounit
+      TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eeq_solver'
 
       INTEGER                                            :: handle, ierror, iunit, natom, nkind, ns
-      LOGICAL                                            :: do_direct, do_displ, do_ewald, do_sparse
+      LOGICAL                                            :: do_direct, do_displ, do_ewald, &
+                                                            do_sparse, do_sparse_auto, fm_created
       REAL(KIND=dp)                                      :: alpha, deth, ftime, qtot
       TYPE(cp_fm_struct_type), POINTER                   :: mat_struct
       TYPE(cp_fm_type)                                   :: eeq_mat
@@ -861,25 +873,27 @@ CONTAINS
 
       ! EEQ solver parameters
       do_direct = eeq_sparam%direct
-      do_sparse = eeq_sparam%sparse
-
+      natom = SIZE(particle_set)
       do_displ = .FALSE.
       IF (dft_control%apply_period_efield .AND. ASSOCIATED(dft_control%period_efield)) THEN
          do_displ = dft_control%period_efield%displacement_field
       END IF
+      do_sparse_auto = eeq_sparam%sparse_threshold > 0 .AND. natom >= eeq_sparam%sparse_threshold
+      ! An explicit request diagnoses unsupported displacement-field use below.
+      ! Automatic selection must retain the historical dense path instead of
+      ! turning a system-size threshold into a new input-dependent abort.
+      do_sparse = eeq_sparam%sparse .OR. (do_sparse_auto .AND. .NOT. do_displ)
+      fm_created = .FALSE.
 
-      ! sparse option NYA
-      IF (do_sparse) THEN
-         CALL cp_abort(__LOCATION__, "EEQ: Sparse option not yet available")
-      END IF
-      !
-      natom = SIZE(particle_set)
       nkind = SIZE(gam)
       ns = natom + 1
-      CALL cp_fm_struct_create(mat_struct, context=blacs_env, para_env=para_env, &
-                               nrow_global=ns, ncol_global=ns)
-      CALL cp_fm_create(eeq_mat, mat_struct)
-      CALL cp_fm_set_all(eeq_mat, 0.0_dp, 0.0_dp)
+      IF (.NOT. (do_ewald .AND. do_sparse .AND. .NOT. do_direct)) THEN
+         CALL cp_fm_struct_create(mat_struct, context=blacs_env, para_env=para_env, &
+                                  nrow_global=ns, ncol_global=ns)
+         CALL cp_fm_create(eeq_mat, mat_struct)
+         CALL cp_fm_set_all(eeq_mat, 0.0_dp, 0.0_dp)
+         fm_created = .TRUE.
+      END IF
       !
       IF (do_ewald) THEN
          CPASSERT(PRESENT(ewald_env))
@@ -891,6 +905,26 @@ CONTAINS
                CALL fpbc_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, &
                                 kind_of, cell, chia, gam, gab, qtot, &
                                 ewald_env, ewald_pw, iounit)
+            END IF
+         ELSE IF (do_sparse) THEN
+            IF (do_displ) THEN
+               CPABORT("Sparse periodic EEQ is not available with a displacement field")
+            ELSE
+               CPASSERT(PRESENT(qs_env))
+               ierror = 0
+               CALL pbc_sparse_solver(charges, lambda, eeq_energy, particle_set, &
+                                      kind_of, cell, chia, gam, gab, qtot, &
+                                      ewald_env, ewald_pw, eeq_sparam, qs_env, ierror, iounit)
+               IF (ierror /= 0) THEN
+                  CALL cp_fm_struct_create(mat_struct, context=blacs_env, para_env=para_env, &
+                                           nrow_global=ns, ncol_global=ns)
+                  CALL cp_fm_create(eeq_mat, mat_struct)
+                  CALL cp_fm_set_all(eeq_mat, 0.0_dp, 0.0_dp)
+                  fm_created = .TRUE.
+                  CALL fpbc_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, &
+                                   kind_of, cell, chia, gam, gab, qtot, &
+                                   ewald_env, ewald_pw, iounit)
+               END IF
             END IF
          ELSE
             IF (do_displ) THEN
@@ -920,8 +954,10 @@ CONTAINS
             WRITE (iunit, '(A,T67,F14.3)') " EEQ| Molecular solver time[s]", ftime
          END IF
       END IF
-      CALL cp_fm_struct_release(mat_struct)
-      CALL cp_fm_release(eeq_mat)
+      IF (fm_created) THEN
+         CALL cp_fm_struct_release(mat_struct)
+         CALL cp_fm_release(eeq_mat)
+      END IF
 
       CALL timestop(handle)
 
@@ -1054,6 +1090,486 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE mi_solver
+
+! **************************************************************************************************
+!> \brief Solve the periodic EEQ equations in the fixed-charge subspace with projected PCG.
+!>
+!>        The short-range Gaussian/Ewald correction is stored as a distributed sparse pair list.
+!>        The long-range Coulomb response is applied matrix-free with SPME.  A constrained diagonal
+!>        hardness preconditioner preserves the total charge exactly.
+!> \param charges converged atomic charges
+!> \param lambda charge-constraint multiplier
+!> \param eeq_energy EEQ energy
+!> \param particle_set particles
+!> \param kind_of atomic kind for every particle
+!> \param cell simulation cell
+!> \param chia electronegativities
+!> \param gam atomic hardness parameters
+!> \param gab pair Gaussian exponents
+!> \param qtot requested total charge
+!> \param ewald_env Ewald environment
+!> \param ewald_pw Ewald plane-wave data
+!> \param eeq_sparam solver settings
+!> \param qs_env environment used for the cutoff neighbor list
+!> \param ierror zero on convergence
+!> \param iounit output unit
+! **************************************************************************************************
+   SUBROUTINE pbc_sparse_solver(charges, lambda, eeq_energy, particle_set, &
+                                kind_of, cell, chia, gam, gab, qtot, &
+                                ewald_env, ewald_pw, eeq_sparam, qs_env, ierror, iounit)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
+      REAL(KIND=dp), INTENT(INOUT)                       :: lambda, eeq_energy
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: chia, gam
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gab
+      REAL(KIND=dp), INTENT(IN)                          :: qtot
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(eeq_solver_type), INTENT(IN)                  :: eeq_sparam
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(OUT)                               :: ierror
+      INTEGER, OPTIONAL                                  :: iounit
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pbc_sparse_solver'
+
+      INTEGER                                            :: handle, i, iter, iunit, max_iter, natom
+      REAL(KIND=dp)                                      :: alpha_cg, beta_cg, denom, eps_solver, &
+                                                            ftime, res, res_initial, rz, rz_new, &
+                                                            te, ti
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ap, aq, gradient, p, precond_diag, &
+                                                            residual, work, z
+      TYPE(eeq_sparse_matrix_type)                       :: response
+
+      CALL timeset(routineN, handle)
+      ti = m_walltime()
+
+      iunit = -1
+      IF (PRESENT(iounit)) iunit = iounit
+      natom = SIZE(charges)
+      max_iter = eeq_sparam%max_diis
+      eps_solver = eeq_sparam%eps_diis
+      ierror = 0
+
+      CALL build_sparse_pbc_response(response, qs_env, particle_set, kind_of, cell, gam, gab, &
+                                     ewald_env, eps_solver, iunit)
+
+      ALLOCATE (ap(natom), aq(natom), gradient(natom), p(natom), precond_diag(natom), &
+                residual(natom), work(natom), z(natom))
+      DO i = 1, natom
+         precond_diag(i) = gam(kind_of(i)) + 2.0_dp*gab(kind_of(i), kind_of(i))*oorootpi
+         precond_diag(i) = MAX(precond_diag(i), SQRT(EPSILON(1.0_dp)))
+      END DO
+
+      ! Diagonal constrained minimizer as a deterministic charge-conserving initial guess.
+      lambda = (-qtot - SUM(chia/precond_diag))/SUM(1.0_dp/precond_diag)
+      charges = -(chia + lambda)/precond_diag
+      charges = charges + (qtot - SUM(charges))/REAL(natom, KIND=dp)
+
+      CALL apply_sparse_pbc_response(response, ewald_env, ewald_pw, cell, particle_set, &
+                                     charges, aq, work)
+      gradient(:) = aq + chia
+      residual(:) = -gradient
+      CALL project_eeq_charge_tangent(residual)
+      res = SQRT(SUM(residual*residual))
+      res_initial = MAX(res, SQRT(EPSILON(1.0_dp)))
+      iter = 0
+
+      IF (res >= eps_solver) THEN
+         CALL apply_eeq_constrained_diagonal_preconditioner(residual, precond_diag, z)
+         p(:) = z
+         rz = SUM(residual*z)
+
+         DO iter = 1, max_iter
+            CALL apply_sparse_pbc_response(response, ewald_env, ewald_pw, cell, particle_set, &
+                                           p, ap, work)
+            CALL project_eeq_charge_tangent(ap)
+            denom = SUM(p*ap)
+            IF (.NOT. (denom > SQRT(TINY(1.0_dp)) .AND. ABS(denom) < HUGE(denom))) THEN
+               ierror = 1
+               EXIT
+            END IF
+
+            alpha_cg = rz/denom
+            IF (.NOT. (ABS(alpha_cg) < HUGE(alpha_cg))) THEN
+               ierror = 1
+               EXIT
+            END IF
+            charges = charges + alpha_cg*p
+            residual(:) = residual - alpha_cg*ap
+            ! Remove accumulated roundoff from both constrained spaces.
+            charges = charges + (qtot - SUM(charges))/REAL(natom, KIND=dp)
+            CALL project_eeq_charge_tangent(residual)
+            res = SQRT(SUM(residual*residual))
+            IF (res < eps_solver) EXIT
+            IF (res > 100.0_dp*res_initial .OR. .NOT. (res < HUGE(res))) THEN
+               ierror = 1
+               EXIT
+            END IF
+
+            CALL apply_eeq_constrained_diagonal_preconditioner(residual, precond_diag, z)
+            rz_new = SUM(residual*z)
+            IF (.NOT. (rz_new > 0.0_dp .AND. ABS(rz_new) < HUGE(rz_new))) THEN
+               ierror = 1
+               EXIT
+            END IF
+            beta_cg = rz_new/rz
+            p(:) = z + beta_cg*p
+            rz = rz_new
+         END DO
+         IF (iter > max_iter) ierror = 1
+      END IF
+
+      IF (ierror == 0) THEN
+         CALL apply_sparse_pbc_response(response, ewald_env, ewald_pw, cell, particle_set, &
+                                        charges, aq, work)
+         gradient(:) = aq + chia
+         lambda = -SUM(gradient)/REAL(natom, KIND=dp)
+         eeq_energy = 0.5_dp*SUM(charges*aq) + SUM(charges*chia)
+      END IF
+
+      te = m_walltime()
+      ftime = te - ti
+      IF (iunit > 0) THEN
+         IF (ierror /= 0) THEN
+            WRITE (iunit, '(A,T50,I6,T61,E20.5)') &
+               " EEQ| Sparse PBC solver failed: iterations/accuracy ", iter, res
+         ELSE
+            WRITE (iunit, '(A,T50,I6,T61,E20.5)') &
+               " EEQ| Sparse PBC solver: iterations/accuracy ", iter, res
+         END IF
+         WRITE (iunit, '(A,T67,F14.3)') " EEQ| Sparse PBC solver: time[s]", ftime
+      END IF
+
+      DEALLOCATE (ap, aq, gradient, p, precond_diag, residual, work, z)
+      CALL release_sparse_pbc_response(response)
+      CALL timestop(handle)
+
+   END SUBROUTINE pbc_sparse_solver
+
+! **************************************************************************************************
+!> \brief Build the distributed short-range part of the periodic EEQ response.
+!> \param response ...
+!> \param qs_env ...
+!> \param particle_set ...
+!> \param kind_of ...
+!> \param cell ...
+!> \param gam ...
+!> \param gab ...
+!> \param ewald_env ...
+!> \param eps_solver ...
+!> \param iunit ...
+! **************************************************************************************************
+   SUBROUTINE build_sparse_pbc_response(response, qs_env, particle_set, kind_of, cell, gam, gab, &
+                                        ewald_env, eps_solver, iunit)
+
+      TYPE(eeq_sparse_matrix_type), INTENT(OUT)          :: response
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: gam
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gab
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      REAL(KIND=dp), INTENT(IN)                          :: eps_solver
+      INTEGER, INTENT(IN)                                :: iunit
+
+      INTEGER                                            :: iatom, ix, iy, iz, jatom, &
+                                                            n_candidates_global, n_pairs, &
+                                                            n_pairs_alloc, n_pairs_global, &
+                                                            n_unique, natom, owner
+      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: pair_key
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pair_order
+      INTEGER, DIMENSION(3)                              :: periodic
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: default_present
+      REAL(KIND=dp)                                      :: drop_tolerance, neighbor_cutoff, rmax, &
+                                                            subcells, value
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: c_radius
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pair_radius
+      REAL(KIND=dp), DIMENSION(3)                        :: cell_extent, vertex
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(distribution_1d_type), POINTER                :: distribution_1d
+      TYPE(distribution_2d_type), POINTER                :: distribution_2d
+      TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_eeq
+
+      NULLIFY (atomic_kind_set, distribution_1d, distribution_2d, molecule_set, nl_iterator, sab_eeq)
+      CALL ewald_env_get(ewald_env, rcut=rmax, para_env=para_env)
+      rmax = 2.0_dp*rmax
+      natom = SIZE(particle_set)
+      drop_tolerance = MAX(100.0_dp*EPSILON(1.0_dp), &
+                           eps_solver/(1000.0_dp*REAL(MAX(1, natom), KIND=dp)))
+
+      ! A minimum-image atom pair can never be farther away than the most distant vertex of the
+      ! centered cell.  Limiting the neighbor-list radius to that bound avoids materializing many
+      ! redundant periodic images when the Ewald real-space cutoff exceeds a small simulation cell.
+      CALL get_cell(cell, h=hmat, periodic=periodic)
+      WHERE (periodic /= 0)
+         cell_extent = 0.5_dp
+      ELSE WHERE
+         cell_extent = 1.0_dp
+      END WHERE
+      neighbor_cutoff = 0.0_dp
+      DO ix = -1, 1, 2
+         DO iy = -1, 1, 2
+            DO iz = -1, 1, 2
+               vertex = MATMUL(hmat, cell_extent*REAL([ix, iy, iz], KIND=dp))
+               neighbor_cutoff = MAX(neighbor_cutoff, SQRT(SUM(vertex**2)))
+            END DO
+         END DO
+      END DO
+      neighbor_cutoff = MIN(rmax, neighbor_cutoff + &
+                            1.0E-10_dp*MAX(1.0_dp, neighbor_cutoff))
+
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
+                      distribution_2d=distribution_2d, local_particles=distribution_1d, &
+                      molecule_set=molecule_set)
+      ALLOCATE (c_radius(SIZE(atomic_kind_set)), default_present(SIZE(atomic_kind_set)), &
+                pair_radius(SIZE(atomic_kind_set), SIZE(atomic_kind_set)), &
+                atom2d(SIZE(atomic_kind_set)))
+      c_radius = 0.5_dp*neighbor_cutoff
+      default_present = .TRUE.
+      subcells = 2.0_dp
+      CALL atom2d_build(atom2d, distribution_1d, distribution_2d, atomic_kind_set, &
+                        molecule_set, .FALSE., particle_set=particle_set)
+      CALL pair_radius_setup(default_present, default_present, c_radius, c_radius, pair_radius)
+      CALL build_neighbor_lists(sab_eeq, particle_set, atom2d, cell, pair_radius, &
+                                subcells=subcells, mic=.FALSE., symmetric=.TRUE., &
+                                operator_type="PP", nlname="sab_eeq_sparse")
+      DEALLOCATE (c_radius, pair_radius, default_present)
+      CALL atom2d_cleanup(atom2d)
+
+      ALLOCATE (response%diag(natom), source=0.0_dp)
+      DO iatom = 1, natom
+         owner = MOD(iatom - 1, para_env%num_pe)
+         IF (owner == para_env%mepos) THEN
+            response%diag(iatom) = eeq_short_range_element(iatom, iatom, particle_set, kind_of, &
+                                                           cell, gam, gab, ewald_env)
+         END IF
+      END DO
+
+      ! Collect the canonical pair keys from the bounded image list.  Sorting removes image-cell
+      ! duplicates without an O(N_atom**2) lookup table.  The symmetric list assigns every pair to
+      ! one MPI owner; the full Ewald-cutoff image sum is evaluated once for each unique key.
+      n_pairs_alloc = 0
+      CALL neighbor_list_iterator_create(nl_iterator, sab_eeq)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, iatom=iatom, jatom=jatom)
+         IF (iatom /= jatom) n_pairs_alloc = n_pairs_alloc + 1
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      ALLOCATE (pair_key(n_pairs_alloc), pair_order(n_pairs_alloc))
+      n_pairs_alloc = 0
+      CALL neighbor_list_iterator_create(nl_iterator, sab_eeq)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, iatom=iatom, jatom=jatom)
+         IF (iatom == jatom) CYCLE
+         n_pairs_alloc = n_pairs_alloc + 1
+         pair_key(n_pairs_alloc) = INT(MIN(iatom, jatom) - 1, int_8)*INT(natom, int_8) + &
+                                   INT(MAX(iatom, jatom), int_8)
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+      CALL release_neighbor_list_sets(sab_eeq)
+
+      IF (n_pairs_alloc > 0) CALL sort(pair_key, n_pairs_alloc, pair_order)
+      n_unique = 0
+      DO iatom = 1, n_pairs_alloc
+         IF (iatom == 1) THEN
+            n_unique = n_unique + 1
+         ELSE IF (pair_key(iatom) /= pair_key(iatom - 1)) THEN
+            n_unique = n_unique + 1
+         END IF
+      END DO
+      ALLOCATE (response%row(n_unique), response%col(n_unique), response%value(n_unique))
+      n_pairs = 0
+      DO iatom = 1, n_pairs_alloc
+         IF (iatom > 1) THEN
+            IF (pair_key(iatom) == pair_key(iatom - 1)) CYCLE
+         END IF
+         jatom = INT(MODULO(pair_key(iatom) - 1_int_8, INT(natom, int_8))) + 1
+         owner = INT((pair_key(iatom) - 1_int_8)/INT(natom, int_8)) + 1
+         value = eeq_short_range_element(owner, jatom, particle_set, kind_of, cell, &
+                                         gam, gab, ewald_env)
+         IF (ABS(value) <= drop_tolerance) CYCLE
+         n_pairs = n_pairs + 1
+         response%row(n_pairs) = owner
+         response%col(n_pairs) = jatom
+         response%value(n_pairs) = value
+      END DO
+      DEALLOCATE (pair_key, pair_order)
+      response%nactive = n_pairs
+
+      n_pairs_global = n_pairs
+      CALL para_env%sum(n_pairs_global)
+      n_candidates_global = n_unique
+      CALL para_env%sum(n_candidates_global)
+      IF (iunit > 0) THEN
+         WRITE (iunit, '(A,T54,I12)') " EEQ| Sparse short-range candidate atom pairs", n_candidates_global
+         WRITE (iunit, '(A,T54,I12)') " EEQ| Sparse short-range retained atom pairs", n_pairs_global
+         WRITE (iunit, '(A,T61,E20.5)') " EEQ| Sparse short-range drop tolerance", drop_tolerance
+         WRITE (iunit, '(A,T61,E20.5)') " EEQ| Sparse short-range MIC cutoff", neighbor_cutoff
+      END IF
+
+   END SUBROUTINE build_sparse_pbc_response
+
+! **************************************************************************************************
+!> \brief Evaluate one aggregated short-range periodic EEQ response element.
+!> \param iatom ...
+!> \param jatom ...
+!> \param particle_set ...
+!> \param kind_of ...
+!> \param cell ...
+!> \param gam ...
+!> \param gab ...
+!> \param ewald_env ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION eeq_short_range_element(iatom, jatom, particle_set, kind_of, cell, gam, gab, &
+                                    ewald_env) RESULT(element)
+
+      INTEGER, INTENT(IN)                                :: iatom, jatom
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: gam
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gab
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      REAL(KIND=dp)                                      :: element
+
+      INTEGER                                            :: ix, iy, iz
+      INTEGER, DIMENSION(3)                              :: cvec, ncell, periodic
+      REAL(KIND=dp)                                      :: alpha, dr, rcut, rmax
+      REAL(KIND=dp), DIMENSION(3)                        :: rij, rijl
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+
+      CALL ewald_env_get(ewald_env, alpha=alpha, rcut=rcut)
+      rmax = 2.0_dp*rcut
+      CALL get_cell(cell, h=hmat, periodic=periodic)
+      ncell(1) = CEILING(rmax/plane_distance(1, 0, 0, cell))
+      ncell(2) = CEILING(rmax/plane_distance(0, 1, 0, cell))
+      ncell(3) = CEILING(rmax/plane_distance(0, 0, 1, cell))
+      WHERE (periodic == 0) ncell = 0
+
+      rij = pbc(particle_set(iatom)%r - particle_set(jatom)%r, cell)
+      element = 0.0_dp
+      DO ix = -ncell(1), ncell(1)
+         DO iy = -ncell(2), ncell(2)
+            DO iz = -ncell(3), ncell(3)
+               cvec = [ix, iy, iz]
+               rijl = rij + MATMUL(hmat, cvec)
+               dr = SQRT(SUM(rijl**2))
+               IF (dr > rmax) CYCLE
+               IF (iatom == jatom .AND. dr < 1.0E-5_dp) THEN
+                  element = element + gam(kind_of(iatom)) + &
+                            2.0_dp*gab(kind_of(iatom), kind_of(iatom))*oorootpi - &
+                            2.0_dp*alpha*oorootpi
+               ELSE IF (dr > 1.0E-12_dp) THEN
+                  element = element + &
+                            (ERF(gab(kind_of(iatom), kind_of(jatom))*dr) - ERF(alpha*dr))/dr
+               END IF
+            END DO
+         END DO
+      END DO
+
+   END FUNCTION eeq_short_range_element
+
+! **************************************************************************************************
+!> \brief Apply sparse short range plus the matrix-free SPME long-range response.
+!> \param response ...
+!> \param ewald_env ...
+!> \param ewald_pw ...
+!> \param cell ...
+!> \param particle_set ...
+!> \param charges ...
+!> \param potential ...
+!> \param work ...
+! **************************************************************************************************
+   SUBROUTINE apply_sparse_pbc_response(response, ewald_env, ewald_pw, cell, particle_set, &
+                                        charges, potential, work)
+
+      TYPE(eeq_sparse_matrix_type), INTENT(IN)           :: response
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), TARGET    :: charges
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: potential, work
+
+      INTEGER                                            :: i, ia, ja
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CALL ewald_env_get(ewald_env, para_env=para_env)
+      potential = response%diag*charges
+      DO i = 1, response%nactive
+         ia = response%row(i)
+         ja = response%col(i)
+         potential(ia) = potential(ia) + response%value(i)*charges(ja)
+         potential(ja) = potential(ja) + response%value(i)*charges(ia)
+      END DO
+      CALL para_env%sum(potential)
+
+      CALL apply_potential(ewald_env, ewald_pw, cell, particle_set, charges, work)
+      potential = potential + work
+
+   END SUBROUTINE apply_sparse_pbc_response
+
+! **************************************************************************************************
+!> \brief Apply a positive diagonal EEQ preconditioner in the zero-total-charge subspace.
+!> \param residual ...
+!> \param diagonal ...
+!> \param RESULT ...
+! **************************************************************************************************
+   SUBROUTINE apply_eeq_constrained_diagonal_preconditioner(residual, diagonal, RESULT)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: residual, diagonal
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: result
+
+      REAL(KIND=dp)                                      :: constraint_shift
+
+      RESULT = residual/diagonal
+      constraint_shift = SUM(RESULT)/SUM(1.0_dp/diagonal)
+      RESULT = RESULT - constraint_shift/diagonal
+
+   END SUBROUTINE apply_eeq_constrained_diagonal_preconditioner
+
+! **************************************************************************************************
+!> \brief Project a vector onto the tangent space of the EEQ total-charge constraint.
+!> \param vector ...
+! **************************************************************************************************
+   SUBROUTINE project_eeq_charge_tangent(vector)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vector
+
+      vector = vector - SUM(vector)/REAL(SIZE(vector), KIND=dp)
+
+   END SUBROUTINE project_eeq_charge_tangent
+
+! **************************************************************************************************
+!> \brief Release a sparse periodic EEQ response.
+!> \param response ...
+! **************************************************************************************************
+   SUBROUTINE release_sparse_pbc_response(response)
+
+      TYPE(eeq_sparse_matrix_type), INTENT(INOUT)        :: response
+
+      IF (ALLOCATED(response%col)) DEALLOCATE (response%col)
+      IF (ALLOCATED(response%row)) DEALLOCATE (response%row)
+      IF (ALLOCATED(response%diag)) DEALLOCATE (response%diag)
+      IF (ALLOCATED(response%value)) DEALLOCATE (response%value)
+      response%nactive = 0
+
+   END SUBROUTINE release_sparse_pbc_response
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1516,7 +2032,7 @@ CONTAINS
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), POINTER   :: charges
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), TARGET    :: charges
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: potential
 
       TYPE(mp_para_env_type), POINTER                    :: para_env
