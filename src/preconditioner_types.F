@@ -23,6 +23,7 @@ MODULE preconditioner_types
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE input_constants,                 ONLY: cholesky_reduce,&
+                                              ot_lattice_fft_off,&
                                               ot_low_rank_base_overlap,&
                                               ot_precond_solver_default
    USE kinds,                           ONLY: dp
@@ -69,6 +70,8 @@ MODULE preconditioner_types
       REAL(KIND=dp) :: spectral_reference = 0.0_dp, spectral_window = 1.0_dp, &
                        spectral_base_scale = 1.0_dp
       INTEGER :: low_rank_base = ot_low_rank_base_overlap
+      INTEGER :: lattice_fft_mode = ot_lattice_fft_off
+      LOGICAL :: lattice_fft_active = .FALSE.
       INTEGER, DIMENSION(3) :: lattice_dims = [1, 1, 1]
       INTEGER :: lattice_block_size = 0
       REAL(KIND=dp) :: lattice_projection_error = 0.0_dp
@@ -137,6 +140,8 @@ CONTAINS
       preconditioner_env%spectral_window = 1.0_dp
       preconditioner_env%spectral_base_scale = 1.0_dp
       preconditioner_env%low_rank_base = ot_low_rank_base_overlap
+      preconditioner_env%lattice_fft_mode = ot_lattice_fft_off
+      preconditioner_env%lattice_fft_active = .FALSE.
       preconditioner_env%lattice_dims = [1, 1, 1]
       preconditioner_env%lattice_block_size = 0
       preconditioner_env%lattice_projection_error = 0.0_dp

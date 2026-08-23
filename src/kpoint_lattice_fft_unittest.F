@@ -11,8 +11,9 @@ PROGRAM kpoint_lattice_fft_unittest
    USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
                                               k_grid_to_cell_fft,&
                                               regular_kpoint_grid
-   USE lattice_low_rank_preconditioner, ONLY: apply_lattice_inverse_dense,&
+   USE lattice_preconditioner_operator, ONLY: apply_lattice_inverse_dense,&
                                               build_lattice_inverse,&
+                                              lattice_fft_auto_select,&
                                               lattice_grid
    USE mathconstants,                   ONLY: gaussi,&
                                               twopi,&
@@ -181,6 +182,15 @@ PROGRAM kpoint_lattice_fft_unittest
    IF (info /= 0) ERROR STOP "Positive lattice overlap failed block Cholesky inversion"
    IF (.NOT. used_fft) ERROR STOP "Block-circulant overlap construction did not use lattice FFT"
    IF (projection_error > 2.0E-15_dp) ERROR STOP "Exact block-circulant overlap was changed by projection"
+   IF (.NOT. lattice_fft_auto_select(base_dims, projection_error, used_fft, info)) THEN
+      ERROR STOP "Conservative lattice-FFT AUTO rejected an exact eight-cell operator"
+   END IF
+   IF (lattice_fft_auto_select([4, 1, 1], projection_error, used_fft, info)) THEN
+      ERROR STOP "Conservative lattice-FFT AUTO accepted fewer than eight cells"
+   END IF
+   IF (lattice_fft_auto_select(base_dims, 2.0E-3_dp, used_fft, info)) THEN
+      ERROR STOP "Conservative lattice-FFT AUTO accepted a large projection error"
+   END IF
    CALL apply_lattice_inverse_dense(inverse_k, base_dims, base_input, base_output, &
                                     used_fft, imaginary_residual)
    IF (.NOT. used_fft) ERROR STOP "Block-circulant inverse application did not use lattice FFT"
