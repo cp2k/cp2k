@@ -35,16 +35,16 @@ MODULE input_cp2k_scf
         ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
         ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
-        ot_precond_solver_update, outer_scf_basis_center_opt, outer_scf_becke_constraint, &
-        outer_scf_cdft_constraint, outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, &
-        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
-        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
-        outer_scf_s2_constraint, radius_covalent, radius_default, radius_single, radius_user, &
-        radius_vdw, random_guess, restart_guess, shape_function_density, shape_function_gaussian, &
-        smear_energy_window, smear_fermi_dirac, smear_gaussian, smear_list, smear_mp, smear_mv, &
-        sparse_guess
+        ot_precond_solver_chebyshev, ot_precond_solver_default, ot_precond_solver_direct, &
+        ot_precond_solver_inv_chol, ot_precond_solver_update, outer_scf_basis_center_opt, &
+        outer_scf_becke_constraint, outer_scf_cdft_constraint, outer_scf_ddapc_constraint, &
+        outer_scf_hirshfeld_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
+        outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
+        outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
+        outer_scf_optimizer_secant, outer_scf_s2_constraint, radius_covalent, radius_default, &
+        radius_single, radius_user, radius_vdw, random_guess, restart_guess, &
+        shape_function_density, shape_function_gaussian, smear_energy_window, smear_fermi_dirac, &
+        smear_gaussian, smear_list, smear_mp, smear_mv, sparse_guess
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -567,7 +567,7 @@ CONTAINS
                           "**Disadvantages:** "// &
                           "Sensitive to preconditioning. A good preconditioner can be expensive. "// &
                           "No smearing, or advanced SCF mixing possible: POOR convergence for metallic systems.", &
-                          n_keywords=27, n_subsections=0, repeats=.FALSE., &
+                          n_keywords=28, n_subsections=0, repeats=.FALSE., &
                           citations=[VandeVondele2003, Weber2008])
 
       NULLIFY (keyword)
@@ -846,17 +846,29 @@ CONTAINS
          description="How the preconditioner is applied to the residual.", &
          usage="PRECOND_SOLVER DIRECT", &
          default_i_val=ot_precond_solver_default, &
-         enum_c_vals=s2a("DEFAULT", "DIRECT", "INVERSE_CHOLESKY", "INVERSE_UPDATE"), &
+         enum_c_vals=s2a("DEFAULT", "DIRECT", "INVERSE_CHOLESKY", "INVERSE_UPDATE", "CHEBYSHEV"), &
          enum_desc=s2a("the default", "Cholesky decomposition followed by triangular solve "// &
                        "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)", &
                        "Cholesky decomposition followed by explicit inversion "// &
                        "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)", &
                        "Performs a Hotelling update of the inverse if a previous preconditioner is present. "// &
-                       "Mainly useful for GPU accelerated systems (works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"), &
+                       "Mainly useful for GPU accelerated systems (works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)", &
+                       "Applies a bounded Chebyshev approximation to the inverse using matrix products only "// &
+                       "(currently requires FULL_KINETIC)."), &
          enum_i_vals=[ot_precond_solver_default, &
                       ot_precond_solver_direct, &
                       ot_precond_solver_inv_chol, &
-                      ot_precond_solver_update])
+                      ot_precond_solver_update, &
+                      ot_precond_solver_chebyshev])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="CHEBYSHEV_DEGREE", &
+         description="Polynomial degree of the positive Chebyshev semi-iterative inverse used by "// &
+         "PRECOND_SOLVER CHEBYSHEV.", &
+         usage="CHEBYSHEV_DEGREE 8", &
+         default_i_val=8)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
