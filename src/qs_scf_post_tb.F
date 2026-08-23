@@ -49,8 +49,7 @@ MODULE qs_scf_post_tb
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
    USE eeq_method,                      ONLY: eeq_print
-   USE input_constants,                 ONLY: ot_precond_fermi_low_rank,&
-                                              ot_precond_full_all
+   USE input_constants,                 ONLY: ot_precond_full_all
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
@@ -1014,13 +1013,11 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_init_random(unoccupied_orbs(ispin), nlumos)
 
-         ! State-selective preconditioners are tied to the occupied reference orbitals.
+         ! FULL_ALL has column-dependent occupied-state weights and cannot be reused here.
          NULLIFY (local_preconditioner)
          IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
             local_preconditioner => scf_env%ot_preconditioner(1)%preconditioner
-            ! this one can for sure not be right (as it has to match a given C0)
-            IF (local_preconditioner%in_use == ot_precond_full_all .OR. &
-                local_preconditioner%in_use == ot_precond_fermi_low_rank) THEN
+            IF (local_preconditioner%in_use == ot_precond_full_all) THEN
                NULLIFY (local_preconditioner)
             END IF
          END IF

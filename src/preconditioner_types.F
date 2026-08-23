@@ -62,7 +62,8 @@ MODULE preconditioner_types
       INTEGER :: polynomial_degree = 8
       REAL(KIND=dp) :: polynomial_min = -1.0_dp, polynomial_max = -1.0_dp
       INTEGER :: spectral_rank = 0
-      REAL(KIND=dp) :: spectral_window = 1.0_dp, spectral_base_scale = 1.0_dp
+      REAL(KIND=dp) :: spectral_reference = 0.0_dp, spectral_window = 1.0_dp, &
+                       spectral_base_scale = 1.0_dp
    END TYPE preconditioner_type
 
 ! **************************************************************************************************
@@ -120,6 +121,7 @@ CONTAINS
       preconditioner_env%polynomial_min = -1.0_dp
       preconditioner_env%polynomial_max = -1.0_dp
       preconditioner_env%spectral_rank = 0
+      preconditioner_env%spectral_reference = 0.0_dp
       preconditioner_env%spectral_window = 1.0_dp
       preconditioner_env%spectral_base_scale = 1.0_dp
       preconditioner_env%ihistory = 0

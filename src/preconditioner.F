@@ -35,6 +35,9 @@ MODULE preconditioner
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
+                                              cp_logger_type
    USE input_constants,                 ONLY: &
         cholesky_reduce, ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_kinetic, &
         ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
@@ -42,6 +45,7 @@ MODULE preconditioner
         ot_precond_solver_update
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE low_rank_preconditioner_model,   ONLY: low_rank_select_rank
    USE message_passing,                 ONLY: mp_para_env_type
    USE preconditioner_apply,            ONLY: apply_preconditioner_cfm_complex,&
                                               apply_preconditioner_dbcsr,&
@@ -75,6 +79,7 @@ MODULE preconditioner
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner'
    INTEGER, PARAMETER, PRIVATE          :: fermi_low_rank_max_rank = 48
    REAL(KIND=dp), PARAMETER, PRIVATE    :: fermi_low_rank_gap_factor = 4.0_dp, &
+                                           fermi_low_rank_degeneracy_tolerance = 1.0E-8_dp, &
                                            fermi_low_rank_min_window = 1.0_dp
 
    PUBLIC :: make_preconditioner, make_preconditioner_complex_full_all, &
@@ -172,7 +177,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner'
 
-      INTEGER                                            :: handle, k, my_solver_type, nao, nhomo
+      INTEGER                                            :: handle, k, my_solver_type, nao, nhomo, &
+                                                            output_unit
       LOGICAL                                            :: my_convert_precond_to_dbcsr, &
                                                             needs_full_spectrum, needs_homo, &
                                                             use_mo_coeff_b
@@ -181,6 +187,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: mo_occ
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
 
       CALL timeset(routineN, handle)
@@ -254,9 +261,6 @@ CONTAINS
       ! This will give the matrices for later use
       my_solver_type = solver_type
       preconditioner_env%in_use = precon_type
-      IF (precon_type == ot_precond_fermi_low_rank) THEN
-         preconditioner_env%spectral_rank = MIN(fermi_low_rank_max_rank, MAX(0, nao - nhomo))
-      END IF
       preconditioner_env%cholesky_use = cholesky_reduce
       IF (PRESENT(chol_type)) preconditioner_env%cholesky_use = chol_type
       preconditioner_env%in_use = precon_type
@@ -280,9 +284,23 @@ CONTAINS
       CALL solve_preconditioner(my_solver_type, preconditioner_env, matrix_s, matrix_h)
 
       IF (precon_type == ot_precond_fermi_low_rank) THEN
+         preconditioner_env%spectral_reference = energy_homo
          preconditioner_env%spectral_window = &
             MAX(fermi_low_rank_min_window, fermi_low_rank_gap_factor*preconditioner_env%energy_gap)
          preconditioner_env%spectral_base_scale = 1.0_dp/preconditioner_env%spectral_window
+         preconditioner_env%spectral_rank = low_rank_select_rank( &
+                                            preconditioner_env%full_evals, nhomo, fermi_low_rank_max_rank, &
+                                            fermi_low_rank_degeneracy_tolerance)
+         IF (preconditioner_env%para_env%is_source()) THEN
+            logger => cp_get_default_logger()
+            output_unit = cp_logger_get_default_io_unit(logger)
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, '(T2,A,F14.8,A,I0)') &
+                  "OT| FERMI_LOW_RANK common reference [hartree]: ", &
+                  preconditioner_env%spectral_reference, " retained rank: ", &
+                  preconditioner_env%spectral_rank
+            END IF
+         END IF
          CALL prepare_low_rank_base(preconditioner_env, matrix_s)
       END IF
 
@@ -764,8 +782,8 @@ CONTAINS
       IF (prec_type == ot_precond_full_single_inverse) n_loops = nspins
       ! check whether we need the ev and rotate the MOs
       SELECT CASE (prec_type)
-      CASE (ot_precond_full_all, ot_precond_fermi_low_rank)
-         ! if one of these preconditioners is used every spin needs to call make_preconditioner
+      CASE (ot_precond_full_all)
+         ! FULL_ALL needs canonical occupied eigenstates and one preconditioner per spin.
          n_loops = nspins
 
          do_co_rotate = ASSOCIATED(qs_env%mo_derivs)
@@ -788,6 +806,10 @@ CONTAINS
                                                    do_rotation=.TRUE.)
             END IF
          END DO
+      CASE (ot_precond_fermi_low_rank)
+         ! The common-reference low-rank operator depends only on the occupied projector.
+         ! Keep the input gauge unchanged so that OT ROTATION remains well defined.
+         n_loops = nspins
       CASE DEFAULT
          ! No need to rotate the MOs
       END SELECT

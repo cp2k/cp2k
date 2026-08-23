@@ -37,9 +37,10 @@ MODULE preconditioner_apply
    USE input_constants,                 ONLY: &
         ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_kinetic, &
         ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_s_inverse, &
-        ot_precond_solver_chebyshev, &
-        ot_precond_solver_direct, ot_precond_solver_inv_chol, ot_precond_solver_update
+        ot_precond_solver_chebyshev, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
+        ot_precond_solver_update
    USE kinds,                           ONLY: dp
+   USE low_rank_preconditioner_model,   ONLY: low_rank_inverse_weight
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -55,28 +56,6 @@ MODULE preconditioner_apply
              apply_preconditioner_fm, apply_preconditioner_dbcsr
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Spectral inverse weight retained by the bounded low-rank correction.
-!> \param preconditioner_env ...
-!> \param row ...
-!> \param col ...
-!> \return ...
-! **************************************************************************************************
-   PURE REAL(KIND=dp) FUNCTION spectral_inverse_weight(preconditioner_env, row, col) RESULT(weight)
-
-      TYPE(preconditioner_type), INTENT(IN)              :: preconditioner_env
-      INTEGER, INTENT(IN)                                :: row, col
-
-      REAL(KIND=dp)                                      :: delta
-
-      delta = preconditioner_env%full_evals(row) - preconditioner_env%occ_evals(col)
-      weight = 1.0_dp/MAX(preconditioner_env%energy_gap, delta)
-      IF (delta > preconditioner_env%spectral_window) THEN
-         weight = preconditioner_env%spectral_base_scale
-      END IF
-
-   END FUNCTION spectral_inverse_weight
 
 ! **************************************************************************************************
 !> \brief applies a previously created preconditioner to a full matrix
@@ -494,13 +473,12 @@ CONTAINS
       CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
       nocc = SIZE(preconditioner_env%occ_evals)
       CPASSERT(n == SIZE(preconditioner_env%full_evals))
-      CPASSERT(k == nocc)
       rank_used = MIN(preconditioner_env%spectral_rank, n - nocc)
 
       ! Since V V^T = S^-1, replace the remote spectral weights by 1/window:
-      ! P_j = S^-1/window + V_r diag(1/max(gap, delta_ij) - 1/window) V_r^T.
-      ! The retained corrections are non-negative, so the overlap-inverse base
-      ! keeps the approximation positive definite.
+      ! P = S^-1/window + V_r diag(1/max(gap, epsilon_a-mu) - 1/window) V_r^T.
+      ! The common reference mu makes the operator right-covariant for any number
+      ! of orbital columns. Retained and base directions all have positive weights.
       CALL parallel_gemm('N', 'N', n, k, n, preconditioner_env%spectral_base_scale, &
                          preconditioner_env%base_fm, matrix_in, 0.0_dp, matrix_out)
 
@@ -515,8 +493,10 @@ CONTAINS
 
          DO j = 1, ncol_local
             DO i = 1, nrow_local
-               correction = spectral_inverse_weight(preconditioner_env, &
-                                                    nocc + row_indices(i), col_indices(j)) &
+               correction = low_rank_inverse_weight( &
+                            preconditioner_env%full_evals(nocc + row_indices(i)), &
+                            preconditioner_env%spectral_reference, &
+                            preconditioner_env%energy_gap) &
                             - preconditioner_env%spectral_base_scale
                local_data(i, j) = local_data(i, j)*correction
             END DO
@@ -562,7 +542,6 @@ CONTAINS
       CALL dbcsr_get_info(matrix_in, nfullrows_total=n, nfullcols_total=k)
       nocc = SIZE(preconditioner_env%occ_evals)
       CPASSERT(n == SIZE(preconditioner_env%full_evals))
-      CPASSERT(k == nocc)
       rank_used = MIN(preconditioner_env%spectral_rank, n - nocc)
 
       ! DBCSR form of the same overlap-inverse base plus positive low-rank update.
@@ -585,8 +564,10 @@ CONTAINS
                DO i = 1, row_size
                   IF (row_offset + i - 1 >= nocc + 1 .AND. &
                       row_offset + i - 1 <= nocc + rank_used) THEN
-                     correction = spectral_inverse_weight(preconditioner_env, &
-                                                          row_offset + i - 1, col_offset + j - 1) &
+                     correction = low_rank_inverse_weight( &
+                                  preconditioner_env%full_evals(row_offset + i - 1), &
+                                  preconditioner_env%spectral_reference, &
+                                  preconditioner_env%energy_gap) &
                                   - preconditioner_env%spectral_base_scale
                      DATA(i, j) = DATA(i, j)*correction
                   END IF

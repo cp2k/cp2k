@@ -23,6 +23,7 @@
         LINESEARCH ADAPT
         MINIMIZER CG
         PRECONDITIONER FERMI_LOW_RANK
+        ROTATION T
       &END OT
       &OUTER_SCF T
         EPS_SCF 1.E-05
