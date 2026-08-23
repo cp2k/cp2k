@@ -91,7 +91,7 @@ test cp2k daint:
 regression test cp2k daint:
   extends: .baremetal-runner-daint-gh200
   stage: test
-  needs: ["build cp2k daint"]
+  needs: ["build cp2k daint","test cp2k daint"]
   timeout: 6h
   script:
     - git --no-pager log -1 --pretty="%nCommitSHA:%x20%H%nCommitTime:%x20%ci%nCommitAuthor:%x20%an%nCommitSubject:%x20%s%n"
@@ -101,7 +101,7 @@ regression test cp2k daint:
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     # Run four two-rank, single-threaded workers to limit resource contention
-    # while retaining sufficient throughput on this four-GPU runner.
+    # while retaining sufficient throughput on this four-GPU runner
     SLURM_NTASKS: 16
     SLURM_TIMELIMIT: 90
     USE_MPI: YES
@@ -109,22 +109,21 @@ regression test cp2k daint:
 benchmark cp2k 1 daint node:
   extends: .container-runner-daint-gh200
   stage: benchmark
-  needs: ["build cp2k daint","test cp2k daint"]
+  needs: ["regression test cp2k daint"]
   timeout: 6h
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export MPICH_MALLOC_FALLBACK=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
-    SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 3
+    SLURM_CPUS_PER_TASK: 4
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
-    SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS: 72
+    SLURM_NTASKS_PER_CORE: 1
     SLURM_NTASKS_PER_NODE: 72
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
@@ -132,22 +131,21 @@ benchmark cp2k 1 daint node:
 benchmark cp2k 1 daint node elpa:
   extends: .container-runner-daint-gh200
   stage: benchmark
-  needs: ["build cp2k daint","test cp2k daint","benchmark cp2k 1 daint node"]
+  needs: ["regression test cp2k daint"]
   timeout: 6h
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export MPICH_MALLOC_FALLBACK=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
   variables:
-    SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 3
+    SLURM_CPUS_PER_TASK: 4
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
-    SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS: 72
+    SLURM_NTASKS_PER_CORE: 1
     SLURM_NTASKS_PER_NODE: 72
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
