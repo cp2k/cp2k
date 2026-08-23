@@ -82,8 +82,8 @@ MODULE qs_scf_post_gpw
                                               iao_read_input
    USE input_constants,                 ONLY: &
         do_loc_both, do_loc_homo, do_loc_jacobi, do_loc_lumo, do_loc_mixed, do_loc_none, &
-        moments_format_trajectory, ot_precond_full_all, radius_covalent, radius_user, &
-        ref_charge_atomic, ref_charge_mulliken
+        moments_format_trajectory, ot_precond_full_all, ot_precond_full_all_covariant, &
+        radius_covalent, radius_user, ref_charge_atomic, ref_charge_mulliken
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
@@ -1322,7 +1322,8 @@ CONTAINS
          IF (ASSOCIATED(scf_env)) THEN
             IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
                local_preconditioner => scf_env%ot_preconditioner(1)%preconditioner
-               IF (local_preconditioner%in_use == ot_precond_full_all) THEN
+               IF (local_preconditioner%in_use == ot_precond_full_all .OR. &
+                   local_preconditioner%in_use == ot_precond_full_all_covariant) THEN
                   NULLIFY (local_preconditioner)
                END IF
             END IF
