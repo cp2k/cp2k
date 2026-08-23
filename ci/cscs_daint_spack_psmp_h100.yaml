@@ -94,10 +94,12 @@ regression test cp2k daint:
   timeout: 6h
   script:
     - git --no-pager log -1 --pretty="%nCommitSHA:%x20%H%nCommitTime:%x20%ci%nCommitAuthor:%x20%an%nCommitSubject:%x20%s%n"
-    - podman run --device nvidia.com/gpu=all --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --cp2kdatadir /opt/cp2k/install/share/cp2k/data --maxtasks 16 --ompthreads 2 --timeout 400 --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/install/bin ${VERSION} 2>&1 || true
+    - podman run --device nvidia.com/gpu=all --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --cp2kdatadir /opt/cp2k/install/share/cp2k/data --maxtasks 8 --ompthreads 1 --timeout 400 --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/install/bin ${VERSION} 2>&1 || true
   variables:
     SLURM_DEBUG: 1
     SLURM_JOB_NUM_NODES: 1
+    # Run four two-rank, single-threaded workers to limit resource contention
+    # while retaining sufficient throughput on this four-GPU runner
     SLURM_NTASKS: 16
     SLURM_TIMELIMIT: 90
     USE_MPI: YES
@@ -110,16 +112,18 @@ benchmark cp2k 1 daint node:
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export MPICH_MALLOC_FALLBACK=1
     - export MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
     - /opt/cp2k/ci/mps-wrapper.sh cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
-    SLURM_CPU_BIND: cores
+    SLURM_CPU_BIND: socket
     SLURM_CPUS_PER_TASK: 8
     SLURM_DEBUG: 1
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
+    SLURM_NTASKS_PER_CORE: 1
     SLURM_NTASKS_PER_NODE: 32
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
@@ -132,16 +136,18 @@ benchmark cp2k 1 daint node elpa:
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export MPICH_MALLOC_FALLBACK=1
     - export MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
     - /opt/cp2k/ci/mps-wrapper.sh cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
   variables:
-    SLURM_CPU_BIND: cores
+    SLURM_CPU_BIND: socket
     SLURM_CPUS_PER_TASK: 8
     SLURM_DEBUG: 1
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
+    SLURM_NTASKS_PER_CORE: 1
     SLURM_NTASKS_PER_NODE: 32
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
@@ -154,16 +160,18 @@ benchmark cp2k 2 daint nodes:
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export MPICH_MALLOC_FALLBACK=1
     - export MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
     - /opt/cp2k/ci/mps-wrapper.sh cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
-    SLURM_CPU_BIND: cores
+    SLURM_CPU_BIND: socket
     SLURM_CPUS_PER_TASK: 8
     SLURM_DEBUG: 1
     SLURM_JOB_NUM_NODES: 2
     SLURM_MPI_TYPE: pmi2
+    SLURM_NTASKS_PER_CORE: 1
     SLURM_NTASKS_PER_NODE: 32
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
@@ -176,16 +184,18 @@ benchmark cp2k 2 daint nodes elpa:
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export MPICH_MALLOC_FALLBACK=1
     - export MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
     - /opt/cp2k/ci/mps-wrapper.sh cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
   variables:
-    SLURM_CPU_BIND: cores
+    SLURM_CPU_BIND: socket
     SLURM_CPUS_PER_TASK: 8
     SLURM_DEBUG: 1
     SLURM_JOB_NUM_NODES: 2
     SLURM_MPI_TYPE: pmi2
+    SLURM_NTASKS_PER_CORE: 1
     SLURM_NTASKS_PER_NODE: 32
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
