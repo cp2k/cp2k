@@ -32,8 +32,8 @@ MODULE input_cp2k_scf
         high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, &
         jacobian_fd2, jacobian_fd2_backward, ls_2pnt, ls_3pnt, ls_adapt, ls_gold, ls_none, &
         mopac_guess, no_guess, numerical, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
-        ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
-        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_lbfgs, ot_mini_sd, &
+        ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
         ot_precond_solver_chebyshev, ot_precond_solver_default, ot_precond_solver_direct, &
         ot_precond_solver_inv_chol, ot_precond_solver_update, outer_scf_basis_center_opt, &
@@ -660,12 +660,14 @@ CONTAINS
          description="Minimizer to be used with the OT method", &
          usage="MINIMIZER DIIS", &
          default_i_val=ot_mini_cg, &
-         enum_c_vals=s2a("SD", "CG", "DIIS", "BROYDEN"), &
+         enum_c_vals=s2a("SD", "CG", "DIIS", "BROYDEN", "LBFGS"), &
          enum_desc=s2a("Steepest descent: not recommended", "Conjugate Gradients: most reliable, use for difficult systems."// &
                        " The total energy should decrease at every OT CG step if the line search is appropriate.", &
                        "Direct inversion in the iterative subspace: less reliable than CG, but sometimes about 50% faster", &
-                       "Broyden mixing approximating the inverse Hessian"), &
-         enum_i_vals=[ot_mini_sd, ot_mini_cg, ot_mini_diis, ot_mini_broyden])
+                       "Broyden mixing approximating the inverse Hessian", &
+                       "Limited-memory BFGS in the fixed OT chart. The selected OT preconditioner is used"// &
+                       " as the initial inverse Hessian. Available with ALGORITHM STRICT and without ROTATION."), &
+         enum_i_vals=[ot_mini_sd, ot_mini_cg, ot_mini_diis, ot_mini_broyden, ot_mini_lbfgs])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -686,9 +688,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="N_HISTORY_VEC", &
-                          variants=s2a("NDIIS", "N_DIIS", "N_BROYDEN"), &
-                          description="Number of history vectors to be used with DIIS or BROYDEN", &
-                          usage="N_DIIS 4", &
+                          variants=s2a("NDIIS", "N_DIIS", "N_BROYDEN", "N_LBFGS"), &
+                          description="Number of history vectors to be used with DIIS, BROYDEN, or LBFGS", &
+                          usage="N_HISTORY_VEC 7", &
                           default_i_val=7)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

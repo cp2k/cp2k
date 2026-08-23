@@ -53,4 +53,5 @@
 "CH4-2.inp"                             = [{matcher="E_total", tol=1e-13, ref=-7.94506870642183}]
 "CH4-3.inp"                             = [{matcher="E_total", tol=1e-13, ref=-7.94506870642185}]
 "CH4-chebyshev.inp"                     = [{matcher="E_total", tol=1e-10, ref=-7.94506870641358}]
+"CH4-lbfgs.inp"                         = [{matcher="E_total", tol=1e-11, ref=-7.94507201394430}]
 #EOF
