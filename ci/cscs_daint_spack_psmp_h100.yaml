@@ -115,13 +115,13 @@ benchmark cp2k 1 daint node:
     - export MPICH_MALLOC_FALLBACK=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
-    - srun --cpu-bind=socket /opt/cp2k/ci/mps-wrapper.sh cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
+    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
-    SLURM_CPUS_PER_TASK: 8
+    SLURM_CPUS_PER_TASK: 2
     SLURM_DEBUG: 1
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS_PER_CORE: 1
-    SLURM_NTASKS_PER_NODE: 32
+    SLURM_NTASKS_PER_NODE: 144
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
 
@@ -136,12 +136,12 @@ benchmark cp2k 1 daint node elpa:
     - export MPICH_MALLOC_FALLBACK=1
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
-    - srun --cpu-bind=socket /opt/cp2k/ci/mps-wrapper.sh cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
+    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
   variables:
-    SLURM_CPUS_PER_TASK: 8
+    SLURM_CPUS_PER_TASK: 2
     SLURM_DEBUG: 1
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS_PER_CORE: 1
-    SLURM_NTASKS_PER_NODE: 32
+    SLURM_NTASKS_PER_NODE: 144
     SLURM_TIMELIMIT: 30
     USE_MPI: YES

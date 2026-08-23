@@ -115,11 +115,11 @@ benchmark cp2k 1 daint node:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 4
+    SLURM_CPUS_PER_TASK: 1
     SLURM_DEBUG: 1
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS_PER_NODE: 72
+    SLURM_NTASKS_PER_NODE: 256
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
 
@@ -136,11 +136,11 @@ benchmark cp2k 1 daint node elpa:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 4
+    SLURM_CPUS_PER_TASK: 1
     SLURM_DEBUG: 1
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS_PER_NODE: 72
+    SLURM_NTASKS_PER_NODE: 256
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
 
@@ -157,11 +157,11 @@ benchmark cp2k 2 daint nodes:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 4
+    SLURM_CPUS_PER_TASK: 1
     SLURM_DEBUG: 1
     SLURM_JOB_NUM_NODES: 2
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS_PER_NODE: 72
+    SLURM_NTASKS_PER_NODE: 288
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
 
@@ -178,10 +178,10 @@ benchmark cp2k 2 daint nodes elpa:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 4
+    SLURM_CPUS_PER_TASK: 1
     SLURM_DEBUG: 1
     SLURM_JOB_NUM_NODES: 2
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS_PER_NODE: 72
+    SLURM_NTASKS_PER_NODE: 288
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
