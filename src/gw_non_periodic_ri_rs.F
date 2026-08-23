@@ -69,7 +69,8 @@ MODULE gw_non_periodic_ri_rs
         create_fm_W_MIC_time, delete_unnecessary_files, fill_fm_Sigma_c_Gamma_time, fm_write, &
         multiply_fm_W_MIC_time_with_Minv_Gamma
    USE gw_utils,                        ONLY: de_init_bs_env
-   USE input_constants,                 ONLY: evGW0,&
+   USE input_constants,                 ONLY: G0W0,&
+                                              evGW0,&
                                               rtp_method_bse
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -269,21 +270,31 @@ CONTAINS
 
       CALL init_evGW0(bs_env, n_iter, band_prev, eigenval_scf_Gamma_dft, e_fermi_dft)
 
+      ! evGW0 self-consistency loop; for G0W0, loop is terminated after one iteration
       DO i_iter = 1, n_iter
 
          bs_env%ri_rs%evgw0_i_iter = i_iter
 
+         ! W_ll'(iτ)   =  Σ_PQ Z_lP W^MIC_PQ(iτ) Z_l'Q
+         ! Σ^c_ll'(iτ) = -G^occ_ll'(i|τ|) ∘ W_ll'(iτ),  τ < 0
+         ! Σ^c_ll'(iτ) =  G^vir_ll'(i|τ|) ∘ W_ll'(iτ),  τ > 0
+         ! Σ^c_λσ(iτ)  =  Σ_ll' Φ_λ(r_l) Σ^c_ll'(iτ) Φ_σ(r_l')
          CALL compute_Sigma_c(bs_env, fm_W_time, bs_env%ri_rs%mat_phi_mu_l, &
                               bs_env%ri_rs%mat_Z_lP, fm_Sigma_c_Gamma_time)
 
+         ! Σ^c_λσ(iτ) -> Σ^c_nn(ϵ)
+         ! ϵ_n^GW,(i) = ϵ_n^DFT + Σ^c_nn[G^(i-1),W](ϵ_n^GW,(i)) + Σ^x_nn - v^xc_nn
          CALL compute_QP_energies(bs_env, qs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time)
 
-         IF (bs_env%gw_flavour /= evGW0) EXIT
+         IF (bs_env%gw_flavour == G0W0) EXIT
 
          CALL print_evGW0_band_edges(bs_env, band_prev, i_iter, n_iter, converged)
 
          IF (i_iter == n_iter .OR. converged) EXIT
 
+         ! eigenvalues ϵ_n to be updated in G:
+         ! G^occ_µλ(i|τ|) = Σ_n^occ C_µn e^(-|(ϵ_n-ϵ_F)τ|) C_λn
+         ! G^vir_µλ(i|τ|) = Σ_n^vir C_µn e^(-|(ϵ_n-ϵ_F)τ|) C_λn
          CALL update_eigenvalues_G(bs_env)
 
       END DO
@@ -402,7 +413,6 @@ CONTAINS
          bs_env%eigenval_scf_Gamma(:, :) = eigenval_scf_Gamma_dft(:, :)
          bs_env%e_fermi(:) = e_fermi_dft(:)
          DEALLOCATE (eigenval_scf_Gamma_dft)
-         ! Releases Σ^x in the G0W0 case
          CALL cp_fm_release(fm_Sigma_x_Gamma)
       END IF
 
