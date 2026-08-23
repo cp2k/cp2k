@@ -74,7 +74,9 @@ MODULE preconditioner_types
       LOGICAL :: lattice_fft_active = .FALSE.
       INTEGER, DIMENSION(3) :: lattice_dims = [1, 1, 1]
       INTEGER :: lattice_block_size = 0
-      REAL(KIND=dp) :: lattice_projection_error = 0.0_dp
+      REAL(KIND=dp) :: lattice_projection_error = 0.0_dp, &
+                       lattice_cost_ratio = 0.0_dp, &
+                       lattice_storage_ratio = 0.0_dp
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: lattice_inverse_k
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: lattice_state_inverse_k
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: lattice_occ_vectors, lattice_occ_dual
@@ -147,6 +149,8 @@ CONTAINS
       preconditioner_env%lattice_dims = [1, 1, 1]
       preconditioner_env%lattice_block_size = 0
       preconditioner_env%lattice_projection_error = 0.0_dp
+      preconditioner_env%lattice_cost_ratio = 0.0_dp
+      preconditioner_env%lattice_storage_ratio = 0.0_dp
       preconditioner_env%ihistory = 0
 
       CALL preconditioner_env%para_env%retain()

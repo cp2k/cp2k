@@ -28,11 +28,15 @@ MODULE lattice_preconditioner_operator
 
    INTEGER, PARAMETER, PUBLIC           :: lattice_fft_auto_min_cells = 8
    REAL(KIND=dp), PARAMETER, PUBLIC     :: lattice_fft_auto_max_error = 1.0E-3_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC     :: lattice_fft_auto_max_cost_ratio = 0.8_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC     :: lattice_fft_auto_max_storage_ratio = 4.0_dp
 
    PUBLIC :: apply_lattice_inverse_dense, &
              apply_lattice_state_inverse_dense, &
              build_lattice_inverse, &
+             lattice_fft_cost_ratio, &
              lattice_fft_auto_select, &
+             lattice_fft_storage_ratio, &
              lattice_grid
 
 CONTAINS
@@ -336,23 +340,99 @@ CONTAINS
    END SUBROUTINE project_lattice_operator
 
 ! **************************************************************************************************
-!> \brief Conservative AUTO selector for the gathered lattice-FFT prototype.
+!> \brief Estimate lattice-FFT application work relative to a dense inverse application.
 !> \param lattice_dims number of explicitly replicated cells
+!> \param block_size number of orbitals in the reference cell
+!> \param rhs_count number of orbital columns transformed together
+!> \param num_pe number of message-passing ranks sharing the gathered operator
+!> \return estimated lattice-to-dense work ratio
+! **************************************************************************************************
+   PURE REAL(KIND=dp) FUNCTION lattice_fft_cost_ratio(lattice_dims, block_size, rhs_count, num_pe) &
+      RESULT(ratio)
+
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: lattice_dims
+      INTEGER, INTENT(IN)                                :: block_size, rhs_count, num_pe
+
+      INTEGER                                            :: ncell, nrhs
+      REAL(KIND=dp)                                      :: block_size_real, communication_work, &
+                                                            dense_work, fft_work, matrix_work, &
+                                                            ncell_real, nrhs_real, setup_work
+
+      ncell = MAX(1, PRODUCT(lattice_dims))
+      nrhs = MAX(1, rhs_count)
+      IF (block_size <= 0) THEN
+         ratio = HUGE(ratio)
+         RETURN
+      END IF
+      ncell_real = REAL(ncell, KIND=dp)
+      nrhs_real = REAL(nrhs, KIND=dp)
+      block_size_real = REAL(block_size, KIND=dp)
+
+      ! This deliberately simple model counts real dense multiply-adds as the reference.
+      ! Four scalar operations per FFT butterfly account for the two complex transforms;
+      ! the fixed packing term prevents AUTO from selecting tiny batches.  The logarithmic
+      ! communication term represents the gathered prototype's input/output collectives.
+      dense_work = (ncell_real*block_size_real)**2*nrhs_real
+      matrix_work = ncell_real*block_size_real**2*nrhs_real
+      fft_work = 4.0_dp*ncell_real*block_size_real*nrhs_real* &
+                 LOG(REAL(MAX(2, ncell), KIND=dp))/LOG(2.0_dp)
+      setup_work = 8.0_dp*ncell_real*block_size_real
+      communication_work = 2.0_dp*ncell_real*block_size_real*nrhs_real* &
+                           LOG(REAL(MAX(2, num_pe + 1), KIND=dp))/LOG(2.0_dp)
+      ratio = (matrix_work + fft_work + setup_work + communication_work)/MAX(dense_work, TINY(dense_work))
+
+   END FUNCTION lattice_fft_cost_ratio
+
+! **************************************************************************************************
+!> \brief Estimate reciprocal-block storage relative to one dense real operator.
+!> \param lattice_dims number of explicitly replicated cells
+!> \param operator_count number of distinct state-dependent reciprocal operators
+!> \return estimated lattice-to-dense storage ratio
+! **************************************************************************************************
+   PURE REAL(KIND=dp) FUNCTION lattice_fft_storage_ratio(lattice_dims, operator_count) RESULT(ratio)
+
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: lattice_dims
+      INTEGER, INTENT(IN)                                :: operator_count
+
+      INTEGER                                            :: ncell
+
+      ncell = MAX(1, PRODUCT(lattice_dims))
+      ! Reciprocal blocks are complex; the block-size dependence cancels against
+      ! the reference dense matrix.  A state-independent operator has count one.
+      ratio = 2.0_dp*REAL(MAX(1, operator_count), KIND=dp)/REAL(ncell, KIND=dp)
+
+   END FUNCTION lattice_fft_storage_ratio
+
+! **************************************************************************************************
+!> \brief Conservative error-, work-, and storage-aware AUTO selector.
+!> \param lattice_dims number of explicitly replicated cells
+!> \param block_size number of orbitals in the reference cell
+!> \param rhs_count number of orbital columns transformed together
+!> \param operator_count number of distinct reciprocal operators stored
+!> \param num_pe number of message-passing ranks sharing the gathered operator
 !> \param projection_error relative Frobenius projection error
 !> \param used_fft whether construction used the FFT path
 !> \param info zero when all projected Fourier blocks were positive definite
 !> \return true when AUTO may use the lattice inverse
 ! **************************************************************************************************
-   PURE LOGICAL FUNCTION lattice_fft_auto_select(lattice_dims, projection_error, used_fft, info) &
+   PURE LOGICAL FUNCTION lattice_fft_auto_select(lattice_dims, block_size, rhs_count, operator_count, &
+                                                 num_pe, projection_error, used_fft, info) &
       RESULT(selected)
 
       INTEGER, DIMENSION(3), INTENT(IN)                  :: lattice_dims
+      INTEGER, INTENT(IN)                                :: block_size, rhs_count, operator_count, &
+                                                            num_pe
       REAL(KIND=dp), INTENT(IN)                          :: projection_error
       LOGICAL, INTENT(IN)                                :: used_fft
       INTEGER, INTENT(IN)                                :: info
 
       selected = PRODUCT(lattice_dims) >= lattice_fft_auto_min_cells .AND. &
                  projection_error <= lattice_fft_auto_max_error .AND. used_fft .AND. info == 0
+      selected = selected .AND. &
+                 lattice_fft_cost_ratio(lattice_dims, block_size, rhs_count, num_pe) <= &
+                 lattice_fft_auto_max_cost_ratio .AND. &
+                 lattice_fft_storage_ratio(lattice_dims, operator_count) <= &
+                 lattice_fft_auto_max_storage_ratio
 
    END FUNCTION lattice_fft_auto_select
 

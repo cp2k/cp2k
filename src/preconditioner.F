@@ -53,9 +53,11 @@ MODULE preconditioner
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE lattice_preconditioner_operator, ONLY: build_lattice_inverse,&
-                                              lattice_fft_auto_min_cells,&
-                                              lattice_fft_auto_select
+   USE lattice_preconditioner_operator, ONLY: &
+        build_lattice_inverse, &
+        lattice_fft_auto_max_cost_ratio, lattice_fft_auto_max_storage_ratio, &
+        lattice_fft_auto_min_cells, lattice_fft_auto_select, lattice_fft_cost_ratio, &
+        lattice_fft_storage_ratio
    USE low_rank_preconditioner_model,   ONLY: low_rank_inverse_weight,&
                                               low_rank_select_rank
    USE message_passing,                 ONLY: mp_para_env_type
@@ -123,15 +125,17 @@ CONTAINS
 !> \param preconditioner_env ...
 !> \param operator_matrix ...
 !> \param operator_name ...
+!> \param rhs_count number of occupied orbital columns to precondition
 ! **************************************************************************************************
-   SUBROUTINE prepare_lattice_operator(preconditioner_env, operator_matrix, operator_name)
+   SUBROUTINE prepare_lattice_operator(preconditioner_env, operator_matrix, operator_name, rhs_count)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(dbcsr_type), POINTER                          :: operator_matrix
       CHARACTER(LEN=*), INTENT(IN)                       :: operator_name
+      INTEGER, INTENT(IN)                                :: rhs_count
 
-      INTEGER                                            :: i, info, j, n, ncol_local, nrow_local, &
-                                                            output_unit
+      INTEGER                                            :: block_size, i, info, j, n, ncell, &
+                                                            ncol_local, nrow_local, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: used_fft
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dense_operator
@@ -145,6 +149,8 @@ CONTAINS
       CPASSERT(preconditioner_env%lattice_fft_mode /= ot_lattice_fft_off)
       preconditioner_env%lattice_fft_active = .FALSE.
       preconditioner_env%lattice_projection_error = 0.0_dp
+      preconditioner_env%lattice_cost_ratio = 0.0_dp
+      preconditioner_env%lattice_storage_ratio = 0.0_dp
 
       IF (ANY(preconditioner_env%lattice_dims <= 0)) CPABORT("Lattice dimensions must be positive")
 
@@ -165,6 +171,30 @@ CONTAINS
 
       NULLIFY (fm_struct)
       CALL dbcsr_get_info(operator_matrix, nfullrows_total=n)
+      ncell = PRODUCT(preconditioner_env%lattice_dims)
+      IF (MODULO(n, ncell) /= 0) CPABORT("AO dimension does not match replicated cells")
+      block_size = n/ncell
+      preconditioner_env%lattice_block_size = block_size
+      preconditioner_env%lattice_cost_ratio = lattice_fft_cost_ratio( &
+                                              preconditioner_env%lattice_dims, block_size, rhs_count, &
+                                              preconditioner_env%para_env%num_pe)
+      preconditioner_env%lattice_storage_ratio = lattice_fft_storage_ratio( &
+                                                 preconditioner_env%lattice_dims, 1)
+      IF (preconditioner_env%lattice_fft_mode == ot_lattice_fft_auto .AND. &
+          (preconditioner_env%lattice_cost_ratio > lattice_fft_auto_max_cost_ratio .OR. &
+           preconditioner_env%lattice_storage_ratio > lattice_fft_auto_max_storage_ratio)) THEN
+         IF (preconditioner_env%para_env%is_source()) THEN
+            logger => cp_get_default_logger()
+            output_unit = cp_logger_get_default_io_unit(logger)
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, '(T2,A,A,A,F8.3,A,F8.3,A)') &
+                  "OT| Lattice FFT AUTO kept the conventional ", TRIM(operator_name), &
+                  " solver: estimated work ratio ", preconditioner_env%lattice_cost_ratio, &
+                  " storage ratio ", preconditioner_env%lattice_storage_ratio, " selected: F"
+            END IF
+         END IF
+         RETURN
+      END IF
       CALL cp_fm_struct_create(fm_struct, nrow_global=n, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
@@ -196,7 +226,6 @@ CONTAINS
                                  preconditioner_env%lattice_projection_error, used_fft, info)
       CALL cp_fm_release(operator_fm)
       DEALLOCATE (dense_operator)
-
       SELECT CASE (preconditioner_env%lattice_fft_mode)
       CASE (ot_lattice_fft_on)
          IF (info /= 0) THEN
@@ -209,12 +238,13 @@ CONTAINS
       CASE (ot_lattice_fft_auto)
          preconditioner_env%lattice_fft_active = lattice_fft_auto_select( &
                                                  preconditioner_env%lattice_dims, &
+                                                 preconditioner_env%lattice_block_size, rhs_count, 1, &
+                                                 preconditioner_env%para_env%num_pe, &
                                                  preconditioner_env%lattice_projection_error, used_fft, info)
       CASE DEFAULT
          CPABORT("Unknown LATTICE_FFT mode")
       END SELECT
 
-      preconditioner_env%lattice_block_size = n/PRODUCT(preconditioner_env%lattice_dims)
       IF (.NOT. preconditioner_env%lattice_fft_active .AND. &
           ALLOCATED(preconditioner_env%lattice_inverse_k)) THEN
          DEALLOCATE (preconditioner_env%lattice_inverse_k)
@@ -230,6 +260,10 @@ CONTAINS
                "OT| Block-circulant projection error: ", &
                preconditioner_env%lattice_projection_error, &
                " selected: ", preconditioner_env%lattice_fft_active
+            WRITE (output_unit, '(T2,A,F8.3,A,F8.3)') &
+               "OT| Estimated lattice/dense work ratio: ", &
+               preconditioner_env%lattice_cost_ratio, " storage ratio: ", &
+               preconditioner_env%lattice_storage_ratio
          END IF
       END IF
 
@@ -248,7 +282,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: operator_name
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: inverse_k
-      INTEGER                                            :: i, info, istate, j, n, ncol_local, &
+      INTEGER                                            :: i, info, istate, j, n, ncell, ncol_local, &
                                                             nrow_local, nstate, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: all_selected, selected, used_fft
@@ -268,6 +302,8 @@ CONTAINS
 
       preconditioner_env%lattice_fft_active = .FALSE.
       preconditioner_env%lattice_projection_error = 0.0_dp
+      preconditioner_env%lattice_cost_ratio = 0.0_dp
+      preconditioner_env%lattice_storage_ratio = 0.0_dp
       IF (ALLOCATED(preconditioner_env%lattice_state_inverse_k)) THEN
          DEALLOCATE (preconditioner_env%lattice_state_inverse_k)
       END IF
@@ -296,6 +332,30 @@ CONTAINS
       CPASSERT(j == n .AND. SIZE(preconditioner_env%full_evals) == n)
       nstate = SIZE(preconditioner_env%occ_evals)
       CPASSERT(nstate > 0)
+      ncell = PRODUCT(preconditioner_env%lattice_dims)
+      IF (MODULO(n, ncell) /= 0) CPABORT("AO dimension does not match replicated cells")
+      preconditioner_env%lattice_block_size = n/ncell
+      preconditioner_env%lattice_cost_ratio = lattice_fft_cost_ratio( &
+                                              preconditioner_env%lattice_dims, &
+                                              preconditioner_env%lattice_block_size, nstate, &
+                                              preconditioner_env%para_env%num_pe)
+      preconditioner_env%lattice_storage_ratio = lattice_fft_storage_ratio( &
+                                                 preconditioner_env%lattice_dims, nstate)
+      IF (preconditioner_env%lattice_fft_mode == ot_lattice_fft_auto .AND. &
+          (preconditioner_env%lattice_cost_ratio > lattice_fft_auto_max_cost_ratio .OR. &
+           preconditioner_env%lattice_storage_ratio > lattice_fft_auto_max_storage_ratio)) THEN
+         IF (preconditioner_env%para_env%is_source()) THEN
+            logger => cp_get_default_logger()
+            output_unit = cp_logger_get_default_io_unit(logger)
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, '(T2,A,A,A,F8.3,A,F8.3,A)') &
+                  "OT| Lattice FFT AUTO kept the conventional ", TRIM(operator_name), &
+                  " solver: estimated work ratio ", preconditioner_env%lattice_cost_ratio, &
+                  " storage ratio ", preconditioner_env%lattice_storage_ratio, " selected: F"
+            END IF
+         END IF
+         RETURN
+      END IF
       CALL cp_fm_create(sv_fm, preconditioner_env%fm%matrix_struct, name="lattice FULL_ALL S V")
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, preconditioner_env%fm, sv_fm, n)
       CALL cp_fm_get_info(sv_fm, nrow_local=nrow_local, ncol_local=ncol_local, &
@@ -337,8 +397,9 @@ CONTAINS
                                     projection_error, used_fft, info)
          preconditioner_env%lattice_projection_error = &
             MAX(preconditioner_env%lattice_projection_error, projection_error)
-         selected = lattice_fft_auto_select(preconditioner_env%lattice_dims, projection_error, &
-                                            used_fft, info)
+         selected = lattice_fft_auto_select(preconditioner_env%lattice_dims, &
+                                            preconditioner_env%lattice_block_size, nstate, nstate, &
+                                            preconditioner_env%para_env%num_pe, projection_error, used_fft, info)
          IF (preconditioner_env%lattice_fft_mode == ot_lattice_fft_on) THEN
             IF (info /= 0) THEN
                CPABORT("LATTICE_FFT found a non-positive Fourier block for "//TRIM(operator_name))
@@ -361,7 +422,6 @@ CONTAINS
 
       preconditioner_env%lattice_fft_active = &
          preconditioner_env%lattice_fft_mode == ot_lattice_fft_on .OR. all_selected
-      preconditioner_env%lattice_block_size = n/PRODUCT(preconditioner_env%lattice_dims)
       IF (.NOT. preconditioner_env%lattice_fft_active .AND. &
           ALLOCATED(preconditioner_env%lattice_state_inverse_k)) THEN
          DEALLOCATE (preconditioner_env%lattice_state_inverse_k)
@@ -382,6 +442,10 @@ CONTAINS
                "OT| Maximum block-circulant projection error: ", &
                preconditioner_env%lattice_projection_error, &
                " selected: ", preconditioner_env%lattice_fft_active
+            WRITE (output_unit, '(T2,A,F8.3,A,F8.3)') &
+               "OT| Estimated lattice/dense work ratio: ", &
+               preconditioner_env%lattice_cost_ratio, " storage ratio: ", &
+               preconditioner_env%lattice_storage_ratio
          END IF
       END IF
 
@@ -410,7 +474,8 @@ CONTAINS
             CPABORT("LATTICE_FFT requires a non-unit overlap metric for FERMI_LOW_RANK")
          END IF
          CPASSERT(ASSOCIATED(matrix_s))
-         CALL prepare_lattice_operator(preconditioner_env, matrix_s, "FERMI_LOW_RANK overlap")
+         CALL prepare_lattice_operator(preconditioner_env, matrix_s, "FERMI_LOW_RANK overlap", &
+                                       SIZE(preconditioner_env%occ_evals))
          IF (preconditioner_env%lattice_fft_active) THEN
             preconditioner_env%low_rank_base = ot_low_rank_base_lattice_fft
             RETURN
@@ -607,15 +672,15 @@ CONTAINS
          CASE (ot_precond_full_kinetic)
             CPASSERT(ASSOCIATED(preconditioner_env%sparse_matrix))
             CALL prepare_lattice_operator(preconditioner_env, preconditioner_env%sparse_matrix, &
-                                          "FULL_KINETIC")
+                                          "FULL_KINETIC", nhomo)
          CASE (ot_precond_full_single_inverse)
             CPASSERT(ASSOCIATED(preconditioner_env%sparse_matrix))
             CALL prepare_lattice_operator(preconditioner_env, preconditioner_env%sparse_matrix, &
-                                          "FULL_SINGLE_INVERSE")
+                                          "FULL_SINGLE_INVERSE", nhomo)
          CASE (ot_precond_s_inverse)
             CPASSERT(ASSOCIATED(preconditioner_env%sparse_matrix))
             CALL prepare_lattice_operator(preconditioner_env, preconditioner_env%sparse_matrix, &
-                                          "FULL_S_INVERSE")
+                                          "FULL_S_INVERSE", nhomo)
          CASE (ot_precond_full_all_covariant)
             CPASSERT(PRESENT(matrix_s))
             CPASSERT(ASSOCIATED(matrix_s))

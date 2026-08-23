@@ -938,7 +938,10 @@ CONTAINS
          "state-dependent Hessian operator per canonical occupied state. "// &
          "ON requires the projected reciprocal-space blocks to be positive definite. AUTO uses the "// &
          "FFT operator only for at least eight replicated cells and a relative projection error no "// &
-         "larger than 1.0E-3; otherwise it retains the conventional solver. This experimental "// &
+         "larger than 1.0E-3. It also requires an estimated application-work ratio no larger than "// &
+         "0.8 and limits reciprocal-block storage to four times one dense real operator; otherwise "// &
+         "it retains the conventional solver. The estimates include reference-cell block size, "// &
+         "occupied-column batch size, state-operator count, and message-passing ranks. This experimental "// &
          "implementation gathers the operator and input vectors on every rank.", &
          usage="LATTICE_FFT AUTO", &
          default_i_val=ot_lattice_fft_off, &
