@@ -29,12 +29,12 @@ MODULE qs_scf_output
    USE input_constants,                 ONLY: &
         becke_cutoff_element, becke_cutoff_global, cdft_alpha_constraint, cdft_beta_constraint, &
         cdft_charge_constraint, cdft_magnetization_constraint, ot_precond_full_all, &
-        outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, outer_scf_optimizer_bisect, &
-        outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
-        outer_scf_optimizer_newton_ls, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
-        radius_covalent, radius_default, radius_single, radius_user, radius_vdw, &
-        shape_function_density, shape_function_gaussian, smear_fermi_dirac, smear_gaussian, &
-        smear_mp, smear_mv
+        ot_precond_full_all_covariant, outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, &
+        outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, outer_scf_optimizer_diis, &
+        outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, outer_scf_optimizer_sd, &
+        outer_scf_optimizer_secant, radius_covalent, radius_default, radius_single, radius_user, &
+        radius_vdw, shape_function_density, shape_function_gaussian, smear_fermi_dirac, &
+        smear_gaussian, smear_mp, smear_mv
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -386,7 +386,8 @@ CONTAINS
                      NULLIFY (local_preconditioner)
                      IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
                         local_preconditioner => scf_env%ot_preconditioner(1)%preconditioner
-                        IF (local_preconditioner%in_use == ot_precond_full_all) THEN
+                        IF (local_preconditioner%in_use == ot_precond_full_all .OR. &
+                            local_preconditioner%in_use == ot_precond_full_all_covariant) THEN
                            NULLIFY (local_preconditioner)
                         END IF
                      END IF

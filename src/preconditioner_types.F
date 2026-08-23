@@ -51,11 +51,13 @@ MODULE preconditioner_types
       TYPE(cp_fm_type), POINTER :: base_fm => NULL()
       TYPE(dbcsr_type), POINTER           :: dbcsr_matrix => NULL()
       TYPE(dbcsr_type), POINTER           :: base_dbcsr_matrix => NULL()
+      TYPE(dbcsr_type), POINTER           :: occ_rotation_dbcsr => NULL()
       TYPE(dbcsr_type), POINTER           :: max_ev_vector => NULL()
       TYPE(dbcsr_type), POINTER           :: min_ev_vector => NULL()
       TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: inverse_history => NULL()
       TYPE(mp_para_env_type), POINTER   :: para_env => NULL()
       TYPE(cp_blacs_env_type), POINTER   :: ctxt => NULL()
+      TYPE(cp_fm_type), POINTER          :: occ_rotation => NULL()
       INTEGER :: in_use = -1, solver = -1, ihistory = -1, cholesky_use = -1
       REAL(KIND=dp), DIMENSION(:), POINTER :: occ_evals => NULL(), full_evals => NULL()
       REAL(KIND=dp) :: energy_gap = -1.0_dp
@@ -112,6 +114,8 @@ CONTAINS
       NULLIFY (preconditioner_env%base_fm)
       NULLIFY (preconditioner_env%dbcsr_matrix)
       NULLIFY (preconditioner_env%base_dbcsr_matrix)
+      NULLIFY (preconditioner_env%occ_rotation_dbcsr)
+      NULLIFY (preconditioner_env%occ_rotation)
       NULLIFY (preconditioner_env%occ_evals)
       NULLIFY (preconditioner_env%full_evals)
       NULLIFY (preconditioner_env%inverse_history)
@@ -183,6 +187,14 @@ CONTAINS
       END IF
       IF (ASSOCIATED(preconditioner_env%base_dbcsr_matrix)) THEN
          CALL dbcsr_release_p(preconditioner_env%base_dbcsr_matrix)
+      END IF
+      IF (ASSOCIATED(preconditioner_env%occ_rotation_dbcsr)) THEN
+         CALL dbcsr_release_p(preconditioner_env%occ_rotation_dbcsr)
+      END IF
+      IF (ASSOCIATED(preconditioner_env%occ_rotation)) THEN
+         CALL cp_fm_release(preconditioner_env%occ_rotation)
+         DEALLOCATE (preconditioner_env%occ_rotation)
+         NULLIFY (preconditioner_env%occ_rotation)
       END IF
       IF (ASSOCIATED(preconditioner_env%max_ev_vector)) THEN
          CALL dbcsr_release_p(preconditioner_env%max_ev_vector)
