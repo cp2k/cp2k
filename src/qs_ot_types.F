@@ -592,10 +592,13 @@ CONTAINS
          CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_chc, template=matrix_s, m=k, n=k, &
                                             sym=dbcsr_type_no_symmetry)
 
-         IF (qs_ot_env%settings%ot_method == "DIIS") THEN
-            CALL dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_e, m_diis)
-            CALL dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_x, m_diis)
-            DO i = 1, m_diis
+         IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+             qs_ot_env%settings%ot_method == "LBFG") THEN
+            ncoef = m_diis
+            IF (qs_ot_env%settings%ot_method == "LBFG") ncoef = m_diis + 1
+            CALL dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_e, ncoef)
+            CALL dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_x, ncoef)
+            DO i = 1, ncoef
                CALL dbcsr_init_p(qs_ot_env%rot_mat_h_e(i)%matrix)
                CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_h_e(i)%matrix, template=matrix_s, m=k, n=k, &
                                                   sym=dbcsr_type_no_symmetry)
@@ -727,7 +730,8 @@ CONTAINS
          IF (ASSOCIATED(qs_ot_env%rot_mat_dedu)) CALL dbcsr_release_p(qs_ot_env%rot_mat_dedu)
          IF (ASSOCIATED(qs_ot_env%rot_mat_chc)) CALL dbcsr_release_p(qs_ot_env%rot_mat_chc)
 
-         IF (qs_ot_env%settings%ot_method == "DIIS") THEN
+         IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+             qs_ot_env%settings%ot_method == "LBFG") THEN
             CALL dbcsr_deallocate_matrix_set(qs_ot_env%rot_mat_h_x)
             CALL dbcsr_deallocate_matrix_set(qs_ot_env%rot_mat_h_e)
          END IF
@@ -944,12 +948,6 @@ CONTAINS
       IF (settings%ot_method == "LBFG") THEN
          IF (settings%ot_algorithm /= "TOD") THEN
             CPABORT("MINIMIZER LBFGS currently requires ALGORITHM STRICT")
-         END IF
-         IF (settings%do_rotation) THEN
-            CPABORT("MINIMIZER LBFGS does not currently support ROTATION")
-         END IF
-         IF (settings%occupation_preconditioner) THEN
-            CPABORT("MINIMIZER LBFGS does not currently support OCCUPATION_PRECONDITIONER")
          END IF
       END IF
       ! not yet fully implemented
