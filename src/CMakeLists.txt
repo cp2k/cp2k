@@ -490,6 +490,7 @@ list(
   pme.F
   pme_tools.F
   population_analyses.F
+  lattice_low_rank_preconditioner.F
   low_rank_preconditioner_model.F
   preconditioner_apply.F
   preconditioner.F

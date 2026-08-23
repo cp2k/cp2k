@@ -29,17 +29,21 @@ MODULE preconditioner_apply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_restore
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE input_constants,                 ONLY: &
-        ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_kinetic, &
-        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_s_inverse, &
-        ot_precond_solver_chebyshev, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
-        ot_precond_solver_update
+        ot_low_rank_base_lattice_fft, ot_low_rank_base_overlap, ot_precond_fermi_low_rank, &
+        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_s_inverse, ot_precond_solver_chebyshev, &
+        ot_precond_solver_direct, ot_precond_solver_inv_chol, ot_precond_solver_update
    USE kinds,                           ONLY: dp
+   USE lattice_low_rank_preconditioner, ONLY: apply_lattice_inverse_dense
    USE low_rank_preconditioner_model,   ONLY: low_rank_inverse_weight
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
@@ -465,7 +469,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(preconditioner_env%base_fm))
       CPASSERT(ASSOCIATED(preconditioner_env%fm))
       CPASSERT(ASSOCIATED(preconditioner_env%full_evals))
       CPASSERT(ASSOCIATED(preconditioner_env%occ_evals))
@@ -475,12 +478,21 @@ CONTAINS
       CPASSERT(n == SIZE(preconditioner_env%full_evals))
       rank_used = MIN(preconditioner_env%spectral_rank, n - nocc)
 
-      ! Since V V^T = S^-1, replace the remote spectral weights by 1/window:
-      ! P = S^-1/window + V_r diag(1/max(gap, epsilon_a-mu) - 1/window) V_r^T.
+      ! With the exact base V V^T = S^-1. The optional lattice base replaces
+      ! S^-1 by the inverse of its block-circulant translational projection:
+      ! P = B^-1/window + V_r diag(1/max(gap, epsilon_a-mu) - 1/window) V_r^T.
       ! The common reference mu makes the operator right-covariant for any number
-      ! of orbital columns. Retained and base directions all have positive weights.
-      CALL parallel_gemm('N', 'N', n, k, n, preconditioner_env%spectral_base_scale, &
-                         preconditioner_env%base_fm, matrix_in, 0.0_dp, matrix_out)
+      ! of orbital columns. The lattice path retains only non-negative corrections.
+      SELECT CASE (preconditioner_env%low_rank_base)
+      CASE (ot_low_rank_base_overlap)
+         CPASSERT(ASSOCIATED(preconditioner_env%base_fm))
+         CALL parallel_gemm('N', 'N', n, k, n, preconditioner_env%spectral_base_scale, &
+                            preconditioner_env%base_fm, matrix_in, 0.0_dp, matrix_out)
+      CASE (ot_low_rank_base_lattice_fft)
+         CALL apply_lattice_base_fm(preconditioner_env, matrix_in, matrix_out)
+      CASE DEFAULT
+         CPABORT("Unknown FERMI_LOW_RANK base operator during application")
+      END SELECT
 
       IF (rank_used > 0) THEN
          CALL cp_fm_create(matrix_tmp, matrix_in%matrix_struct, name=routineN, &
@@ -512,6 +524,61 @@ CONTAINS
    END SUBROUTINE apply_low_rank_fm
 
 ! **************************************************************************************************
+!> \brief Apply the replicated-cell FFT base to a distributed full matrix.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_lattice_base_fm(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_lattice_base_fm'
+
+      INTEGER                                            :: handle, i, j, k, n, ncol_local, &
+                                                            nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: used_fft
+      REAL(KIND=dp)                                      :: imaginary_residual, scale
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: global_input, global_output
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: input_data, output_data
+
+      CALL timeset(routineN, handle)
+      CPASSERT(ALLOCATED(preconditioner_env%lattice_inverse_k))
+      CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k, nrow_local=nrow_local, &
+                          ncol_local=ncol_local, row_indices=row_indices, &
+                          col_indices=col_indices, local_data=input_data)
+      CALL cp_fm_get_info(matrix_out, local_data=output_data)
+      ALLOCATE (global_input(n, k), source=0.0_dp)
+      ALLOCATE (global_output(n, k))
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+            global_input(row_indices(i), col_indices(j)) = input_data(i, j)
+         END DO
+      END DO
+      CALL preconditioner_env%para_env%sum(global_input)
+      CALL apply_lattice_inverse_dense(preconditioner_env%lattice_inverse_k, &
+                                       preconditioner_env%lattice_dims, global_input, global_output, &
+                                       used_fft, imaginary_residual)
+      IF (.NOT. used_fft) CPABORT("FERMI_LOW_RANK lattice inverse failed to use FFTs")
+      scale = MAX(1.0_dp, MAXVAL(ABS(global_output)))
+      IF (imaginary_residual > 1.0E-10_dp*scale) THEN
+         CPABORT("FERMI_LOW_RANK lattice inverse produced a non-real Gamma-point result")
+      END IF
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+            output_data(i, j) = preconditioner_env%spectral_base_scale* &
+                                global_output(row_indices(i), col_indices(j))
+         END DO
+      END DO
+      DEALLOCATE (global_input, global_output)
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_lattice_base_fm
+
+! **************************************************************************************************
 !> \brief DBCSR variant of the bounded low-rank spectral correction.
 !> \param preconditioner_env ...
 !> \param matrix_in ...
@@ -533,6 +600,12 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix_tmp
 
       CALL timeset(routineN, handle)
+
+      IF (preconditioner_env%low_rank_base == ot_low_rank_base_lattice_fft) THEN
+         CALL apply_low_rank_dbcsr_via_fm(preconditioner_env, matrix_in, matrix_out)
+         CALL timestop(handle)
+         RETURN
+      END IF
 
       CPASSERT(ASSOCIATED(preconditioner_env%base_dbcsr_matrix))
       CPASSERT(ASSOCIATED(preconditioner_env%dbcsr_matrix))
@@ -585,6 +658,37 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE apply_low_rank_dbcsr
+
+! **************************************************************************************************
+!> \brief Bridge DBCSR OT gradients to the full-matrix lattice-FFT implementation.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_low_rank_dbcsr_via_fm(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
+
+      INTEGER                                            :: k, n
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: input_fm, output_fm
+
+      NULLIFY (fm_struct)
+      CALL dbcsr_get_info(matrix_in, nfullrows_total=n, nfullcols_total=k)
+      CALL cp_fm_struct_create(fm_struct, nrow_global=n, ncol_global=k, &
+                               context=preconditioner_env%ctxt, &
+                               para_env=preconditioner_env%para_env)
+      CALL cp_fm_create(input_fm, fm_struct, name="lattice low-rank input")
+      CALL cp_fm_create(output_fm, fm_struct, name="lattice low-rank output")
+      CALL cp_fm_struct_release(fm_struct)
+      CALL copy_dbcsr_to_fm(matrix_in, input_fm)
+      CALL apply_low_rank_fm(preconditioner_env, input_fm, output_fm)
+      CALL copy_fm_to_dbcsr(output_fm, matrix_out)
+      CALL cp_fm_release(input_fm)
+      CALL cp_fm_release(output_fm)
+
+   END SUBROUTINE apply_low_rank_dbcsr_via_fm
 
 ! **************************************************************************************************
 !> \brief full all to a full matrix

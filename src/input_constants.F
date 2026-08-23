@@ -537,6 +537,8 @@ MODULE input_constants
                                                ot_precond_full_single_inverse = 6, &
                                                precond_mlp = 7, &
                                                ot_precond_fermi_low_rank = 8
+   INTEGER, PARAMETER, PUBLIC               :: ot_low_rank_base_overlap = 1, &
+                                               ot_low_rank_base_lattice_fft = 2
    INTEGER, PARAMETER, PUBLIC               :: ot_precond_solver_default = 1, &
                                                ot_precond_solver_inv_chol = 2, &
                                                ot_precond_solver_direct = 3, &
