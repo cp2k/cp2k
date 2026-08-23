@@ -12,6 +12,7 @@ PROGRAM kpoint_lattice_fft_unittest
                                               k_grid_to_cell_fft,&
                                               regular_kpoint_grid
    USE lattice_preconditioner_operator, ONLY: apply_lattice_inverse_dense,&
+                                              apply_lattice_state_inverse_dense,&
                                               build_lattice_inverse,&
                                               lattice_fft_auto_select,&
                                               lattice_grid
@@ -28,6 +29,7 @@ PROGRAM kpoint_lattice_fft_unittest
                                                           base_ncol = 3, ncell = 31, nkp = 64, &
                                                           nround = 16, nselected = 3
    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)   :: inverse_k
+   COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: state_inverse_k
    COMPLEX(KIND=dp), DIMENSION(2, 3, nkp)              :: direct, transformed
    COMPLEX(KIND=dp), DIMENSION(2, 3, nround)           :: reconstructed, round_k
    COMPLEX(KIND=dp), DIMENSION(2, 3, nselected)         :: selected_transformed
@@ -44,7 +46,8 @@ PROGRAM kpoint_lattice_fft_unittest
    REAL(KIND=dp), DIMENSION(3, base_cell)              :: base_xkp
    REAL(KIND=dp), DIMENSION(base_n, base_n)            :: base_overlap
    REAL(KIND=dp), DIMENSION(base_n, base_ncol)          :: base_input, base_input_rotated, &
-                                                           base_output, base_output_rotated
+                                                           base_output, base_output_rotated, &
+                                                           base_state_output
    REAL(KIND=dp), DIMENSION(base_ncol, base_ncol)       :: column_rotation
    REAL(KIND=dp), DIMENSION(3, nkp)                    :: xkp, xkp_bad
    REAL(KIND=dp), DIMENSION(2, 3, ncell)               :: values_rs
@@ -198,6 +201,21 @@ PROGRAM kpoint_lattice_fft_unittest
    IF (MAXVAL(ABS(MATMUL(base_overlap, base_output) - base_input)) > 2.0E-11_dp) THEN
       ERROR STOP "FFT block-circulant inverse differs from the dense operator inverse"
    END IF
+
+   ALLOCATE (state_inverse_k(base_block, base_block, base_cell, base_ncol))
+   DO j = 1, base_ncol
+      state_inverse_k(:, :, :, j) = (0.5_dp + 0.25_dp*REAL(j, KIND=dp))*inverse_k
+   END DO
+   CALL apply_lattice_state_inverse_dense(state_inverse_k, base_dims, base_input, &
+                                          base_state_output, used_fft, imaginary_residual)
+   IF (.NOT. used_fft) ERROR STOP "State-dependent inverse application did not use lattice FFT"
+   DO j = 1, base_ncol
+      IF (MAXVAL(ABS(base_state_output(:, j) - &
+                     (0.5_dp + 0.25_dp*REAL(j, KIND=dp))*base_output(:, j))) > 3.0E-12_dp) THEN
+         ERROR STOP "State-dependent lattice inverse used the wrong column operator"
+      END IF
+   END DO
+   DEALLOCATE (state_inverse_k)
 
    column_rotation = 0.0_dp
    column_rotation(1, 1) = COS(0.31_dp)

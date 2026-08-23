@@ -236,6 +236,160 @@ CONTAINS
    END SUBROUTINE prepare_lattice_operator
 
 ! **************************************************************************************************
+!> \brief Build state-dependent block-circulant inverses for rotation-covariant FULL_ALL.
+!> \param preconditioner_env ...
+!> \param matrix_s overlap matrix
+!> \param operator_name ...
+! **************************************************************************************************
+   SUBROUTINE prepare_lattice_state_operator(preconditioner_env, matrix_s, operator_name)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
+      CHARACTER(LEN=*), INTENT(IN)                       :: operator_name
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: inverse_k
+      INTEGER                                            :: i, info, istate, j, n, ncol_local, &
+                                                            nrow_local, nstate, output_unit
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: all_selected, selected, used_fft
+      REAL(KIND=dp)                                      :: projection_error
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dense_operator, dense_sv, dense_vectors, &
+                                                            scaled_sv
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
+      TYPE(cp_fm_type)                                   :: sv_fm
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      CPASSERT(ASSOCIATED(matrix_s))
+      CPASSERT(ASSOCIATED(preconditioner_env%fm))
+      CPASSERT(ASSOCIATED(preconditioner_env%full_evals))
+      CPASSERT(ASSOCIATED(preconditioner_env%occ_evals))
+      CPASSERT(preconditioner_env%lattice_fft_mode /= ot_lattice_fft_off)
+
+      preconditioner_env%lattice_fft_active = .FALSE.
+      preconditioner_env%lattice_projection_error = 0.0_dp
+      IF (ALLOCATED(preconditioner_env%lattice_state_inverse_k)) THEN
+         DEALLOCATE (preconditioner_env%lattice_state_inverse_k)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_occ_vectors)) THEN
+         DEALLOCATE (preconditioner_env%lattice_occ_vectors)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_occ_dual)) THEN
+         DEALLOCATE (preconditioner_env%lattice_occ_dual)
+      END IF
+      IF (preconditioner_env%lattice_fft_mode == ot_lattice_fft_auto .AND. &
+          PRODUCT(preconditioner_env%lattice_dims) < lattice_fft_auto_min_cells) THEN
+         IF (preconditioner_env%para_env%is_source()) THEN
+            logger => cp_get_default_logger()
+            output_unit = cp_logger_get_default_io_unit(logger)
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, '(T2,A,A,A,I0,A,I0)') &
+                  "OT| Lattice FFT AUTO kept the conventional ", TRIM(operator_name), &
+                  " solver: ", PRODUCT(preconditioner_env%lattice_dims), &
+                  " cells are fewer than ", lattice_fft_auto_min_cells
+            END IF
+         END IF
+         RETURN
+      END IF
+
+      CALL cp_fm_get_info(preconditioner_env%fm, nrow_global=n, ncol_global=j)
+      CPASSERT(j == n .AND. SIZE(preconditioner_env%full_evals) == n)
+      nstate = SIZE(preconditioner_env%occ_evals)
+      CPASSERT(nstate > 0)
+      CALL cp_fm_create(sv_fm, preconditioner_env%fm%matrix_struct, name="lattice FULL_ALL S V")
+      CALL cp_dbcsr_sm_fm_multiply(matrix_s, preconditioner_env%fm, sv_fm, n)
+      CALL cp_fm_get_info(sv_fm, nrow_local=nrow_local, ncol_local=ncol_local, &
+                          row_indices=row_indices, col_indices=col_indices, local_data=local_data)
+      ALLOCATE (dense_sv(n, n), dense_vectors(n, nstate), source=0.0_dp)
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+            dense_sv(row_indices(i), col_indices(j)) = local_data(i, j)
+         END DO
+      END DO
+      CALL preconditioner_env%para_env%sum(dense_sv)
+      CALL cp_fm_release(sv_fm)
+
+      CALL cp_fm_get_info(preconditioner_env%fm, nrow_local=nrow_local, ncol_local=ncol_local, &
+                          row_indices=row_indices, col_indices=col_indices, local_data=local_data)
+      DO j = 1, ncol_local
+         IF (col_indices(j) > nstate) CYCLE
+         DO i = 1, nrow_local
+            dense_vectors(row_indices(i), col_indices(j)) = local_data(i, j)
+         END DO
+      END DO
+      CALL preconditioner_env%para_env%sum(dense_vectors)
+      ALLOCATE (preconditioner_env%lattice_occ_vectors(n, nstate), &
+                preconditioner_env%lattice_occ_dual(n, nstate))
+      preconditioner_env%lattice_occ_vectors = dense_vectors
+      preconditioner_env%lattice_occ_dual = dense_sv(:, 1:nstate)
+
+      ALLOCATE (dense_operator(n, n), scaled_sv(n, n))
+      all_selected = .TRUE.
+      DO istate = 1, nstate
+         scaled_sv = dense_sv
+         DO j = 1, n
+            scaled_sv(:, j) = scaled_sv(:, j)*MAX( &
+                              preconditioner_env%energy_gap, &
+                              preconditioner_env%full_evals(j) - preconditioner_env%occ_evals(istate))
+         END DO
+         dense_operator = MATMUL(scaled_sv, TRANSPOSE(dense_sv))
+         CALL build_lattice_inverse(dense_operator, preconditioner_env%lattice_dims, inverse_k, &
+                                    projection_error, used_fft, info)
+         preconditioner_env%lattice_projection_error = &
+            MAX(preconditioner_env%lattice_projection_error, projection_error)
+         selected = lattice_fft_auto_select(preconditioner_env%lattice_dims, projection_error, &
+                                            used_fft, info)
+         IF (preconditioner_env%lattice_fft_mode == ot_lattice_fft_on) THEN
+            IF (info /= 0) THEN
+               CPABORT("LATTICE_FFT found a non-positive Fourier block for "//TRIM(operator_name))
+            END IF
+            IF (.NOT. used_fft) THEN
+               CPABORT("LATTICE_FFT could not initialize its FFT for "//TRIM(operator_name))
+            END IF
+         ELSE
+            all_selected = all_selected .AND. selected
+         END IF
+         IF (.NOT. ALLOCATED(preconditioner_env%lattice_state_inverse_k)) THEN
+            ALLOCATE (preconditioner_env%lattice_state_inverse_k( &
+                      SIZE(inverse_k, 1), SIZE(inverse_k, 2), SIZE(inverse_k, 3), nstate))
+         END IF
+         IF (info == 0 .AND. used_fft) THEN
+            preconditioner_env%lattice_state_inverse_k(:, :, :, istate) = inverse_k
+         END IF
+         DEALLOCATE (inverse_k)
+      END DO
+
+      preconditioner_env%lattice_fft_active = &
+         preconditioner_env%lattice_fft_mode == ot_lattice_fft_on .OR. all_selected
+      preconditioner_env%lattice_block_size = n/PRODUCT(preconditioner_env%lattice_dims)
+      IF (.NOT. preconditioner_env%lattice_fft_active .AND. &
+          ALLOCATED(preconditioner_env%lattice_state_inverse_k)) THEN
+         DEALLOCATE (preconditioner_env%lattice_state_inverse_k)
+      END IF
+      IF (.NOT. preconditioner_env%lattice_fft_active) THEN
+         DEALLOCATE (preconditioner_env%lattice_occ_vectors, &
+                     preconditioner_env%lattice_occ_dual)
+      END IF
+      IF (preconditioner_env%para_env%is_source()) THEN
+         logger => cp_get_default_logger()
+         output_unit = cp_logger_get_default_io_unit(logger)
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, '(T2,A,A,A,3(I0,1X),A,I0,A,I0)') &
+               "OT| Lattice FFT ", TRIM(operator_name), " cells: ", &
+               preconditioner_env%lattice_dims, "AO block: ", &
+               preconditioner_env%lattice_block_size, " states: ", nstate
+            WRITE (output_unit, '(T2,A,ES12.4,A,L1)') &
+               "OT| Maximum block-circulant projection error: ", &
+               preconditioner_env%lattice_projection_error, &
+               " selected: ", preconditioner_env%lattice_fft_active
+         END IF
+      END IF
+
+      DEALLOCATE (dense_operator, dense_sv, dense_vectors, scaled_sv)
+
+   END SUBROUTINE prepare_lattice_state_operator
+
+! **************************************************************************************************
 !> \brief Build the overlap-inverse base of the bounded low-rank spectral preconditioner.
 !> \param preconditioner_env ...
 !> \param matrix_s ...
@@ -422,6 +576,15 @@ CONTAINS
       IF (ALLOCATED(preconditioner_env%lattice_inverse_k)) THEN
          DEALLOCATE (preconditioner_env%lattice_inverse_k)
       END IF
+      IF (ALLOCATED(preconditioner_env%lattice_state_inverse_k)) THEN
+         DEALLOCATE (preconditioner_env%lattice_state_inverse_k)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_occ_vectors)) THEN
+         DEALLOCATE (preconditioner_env%lattice_occ_vectors)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_occ_dual)) THEN
+         DEALLOCATE (preconditioner_env%lattice_occ_dual)
+      END IF
       IF (nhomo == k) THEN
          CALL make_preconditioner_matrix(preconditioner_env, matrix_h, matrix_s, matrix_t, mo_coeff, &
                                          energy_homo, eigenvalues_ot, energy_gap, my_solver_type)
@@ -453,6 +616,11 @@ CONTAINS
             CPASSERT(ASSOCIATED(preconditioner_env%sparse_matrix))
             CALL prepare_lattice_operator(preconditioner_env, preconditioner_env%sparse_matrix, &
                                           "FULL_S_INVERSE")
+         CASE (ot_precond_full_all_covariant)
+            CPASSERT(PRESENT(matrix_s))
+            CPASSERT(ASSOCIATED(matrix_s))
+            CALL prepare_lattice_state_operator(preconditioner_env, matrix_s, &
+                                                "FULL_ALL_COVARIANT")
          END SELECT
       END IF
 
@@ -986,8 +1154,8 @@ CONTAINS
       END IF
       IF (my_lattice_fft /= ot_lattice_fft_off) THEN
          SELECT CASE (prec_type)
-         CASE (ot_precond_fermi_low_rank, ot_precond_full_kinetic, &
-               ot_precond_full_single_inverse, ot_precond_s_inverse)
+         CASE (ot_precond_fermi_low_rank, ot_precond_full_all_covariant, &
+               ot_precond_full_kinetic, ot_precond_full_single_inverse, ot_precond_s_inverse)
          CASE DEFAULT
             CPABORT("LATTICE_FFT does not support the selected OT preconditioner")
          END SELECT

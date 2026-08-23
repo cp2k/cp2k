@@ -933,7 +933,9 @@ CONTAINS
          keyword, __LOCATION__, name="LATTICE_FFT", &
          description="Apply the inverse of a block-circulant projection of the selected OT "// &
          "preconditioner with FFTs over explicitly replicated cells. Supported by FULL_S_INVERSE, "// &
-         "FULL_KINETIC, FULL_SINGLE_INVERSE, and FERMI_LOW_RANK in real Gamma-point calculations. "// &
+         "FULL_KINETIC, FULL_SINGLE_INVERSE, FULL_ALL_COVARIANT, and FERMI_LOW_RANK in real "// &
+         "Gamma-point calculations. FULL_ALL_COVARIANT projects and inverts one gap-floored "// &
+         "state-dependent Hessian operator per canonical occupied state. "// &
          "ON requires the projected reciprocal-space blocks to be positive definite. AUTO uses the "// &
          "FFT operator only for at least eight replicated cells and a relative projection error no "// &
          "larger than 1.0E-3; otherwise it retains the conventional solver. This experimental "// &

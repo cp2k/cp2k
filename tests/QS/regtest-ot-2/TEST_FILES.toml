@@ -67,4 +67,5 @@
 "H2-lattice-s-inverse.inp"               = [{matcher="E_total", tol=1e-09, ref=-2.156632575064015}]
 "H2-lattice-single-inverse.inp"          = [{matcher="E_total", tol=1e-09, ref=-2.156632575065856}]
 "H2-lattice-auto.inp"                    = [{matcher="E_total", tol=1e-09, ref=-8.624611232470830}]
+"H2-lattice-covariant.inp"               = [{matcher="E_total", tol=1e-09, ref=-2.156632575067707}]
 #EOF

@@ -30,6 +30,7 @@ MODULE lattice_preconditioner_operator
    REAL(KIND=dp), PARAMETER, PUBLIC     :: lattice_fft_auto_max_error = 1.0E-3_dp
 
    PUBLIC :: apply_lattice_inverse_dense, &
+             apply_lattice_state_inverse_dense, &
              build_lattice_inverse, &
              lattice_fft_auto_select, &
              lattice_grid
