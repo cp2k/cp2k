@@ -958,11 +958,12 @@ CONTAINS
    END SUBROUTINE ot_new_cg_direction
 
 ! **************************************************************************************************
-!> \brief Builds an L-BFGS direction in the fixed OT chart.
+!> \brief Builds an L-BFGS direction in the fixed OT product chart.
 !>
 !> The selected OT preconditioner is used as the initial inverse Hessian. History slot m+1 stores
 !> the previous accepted point and gradient; slots 1:m store the circular (s,y) secant history.
-!> Curvature-rejected updates and non-descent directions reset the history.
+!> Orbital rotations are included with the antisymmetric-matrix metric used by the other OT
+!> minimizers. Curvature-rejected updates and non-descent directions reset the history.
 !> \param qs_ot_env OT environments for all spin channels
 ! **************************************************************************************************
    SUBROUTINE ot_new_lbfgs_direction(qs_ot_env)
@@ -973,6 +974,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, ispin, itmp, j, k, m_history, &
                                                             n, newest, nhistory, nspin
+      INTEGER(KIND=int_8)                                :: nrotation, nvariables
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: history_index
       REAL(KIND=dp)                                      :: beta, g_dot_z, gamma, ss, stq, sy, tmp, &
                                                             yy, yy_newest
@@ -980,10 +982,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (.NOT. qs_ot_env(1)%settings%ks .OR. qs_ot_env(1)%settings%do_ener .OR. &
-          qs_ot_env(1)%settings%do_rotation) THEN
-         CPABORT("MINIMIZER LBFGS currently supports only fixed-chart OT orbital variables")
+      IF (.NOT. qs_ot_env(1)%settings%ks) THEN
+         CPABORT("MINIMIZER LBFGS currently requires OT orbital variables")
       END IF
+      IF (qs_ot_env(1)%settings%do_ener) CPABORT("MINIMIZER LBFGS does not support ENERGIES")
 
       nspin = SIZE(qs_ot_env)
       m_history = qs_ot_env(1)%settings%diis_m
@@ -1012,6 +1014,25 @@ CONTAINS
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
                            qs_ot_env(ispin)%matrix_h_e(j)%matrix, tmp)
             yy = yy + tmp
+            IF (qs_ot_env(1)%settings%do_rotation) THEN
+               CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, qs_ot_env(ispin)%rot_mat_x)
+               CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
+                              qs_ot_env(ispin)%rot_mat_h_x(m_history + 1)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+               CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, qs_ot_env(ispin)%rot_mat_gx)
+               CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
+                              qs_ot_env(ispin)%rot_mat_h_e(m_history + 1)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
+                              qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, tmp)
+               ss = ss + 0.5_dp*tmp
+               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
+                              qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, tmp)
+               sy = sy + 0.5_dp*tmp
+               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
+                              qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, tmp)
+               yy = yy + 0.5_dp*tmp
+            END IF
          END DO
          IF (ieee_is_finite(sy) .AND. ieee_is_finite(ss) .AND. ieee_is_finite(yy) .AND. &
              ss > 0.0_dp .AND. yy > 0.0_dp .AND. sy > curvature_tol*SQRT(ss*yy)) THEN
@@ -1032,6 +1053,13 @@ CONTAINS
          CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_e(m_history + 1)%matrix, &
                          qs_ot_env(ispin)%matrix_gx)
          CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx_old, qs_ot_env(ispin)%matrix_gx)
+         IF (qs_ot_env(1)%settings%do_rotation) THEN
+            CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_x(m_history + 1)%matrix, &
+                            qs_ot_env(ispin)%rot_mat_x)
+            CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_e(m_history + 1)%matrix, &
+                            qs_ot_env(ispin)%rot_mat_gx)
+            CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx_old, qs_ot_env(ispin)%rot_mat_gx)
+         END IF
       END DO
 
       nhistory = MIN(qs_ot_env(1)%diis_iter - 1, m_history)
@@ -1050,6 +1078,11 @@ CONTAINS
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_x(history_index(i))%matrix, &
                               qs_ot_env(ispin)%matrix_gx_old, tmp)
                stq = stq + tmp
+               IF (qs_ot_env(1)%settings%do_rotation) THEN
+                  CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_x(history_index(i))%matrix, &
+                                 qs_ot_env(ispin)%rot_mat_gx_old, tmp)
+                  stq = stq + 0.5_dp*tmp
+               END IF
             END DO
             rho(i) = qs_ot_env(1)%lbfgs_rho(history_index(i))
             alpha(i) = rho(i)*stq
@@ -1057,16 +1090,25 @@ CONTAINS
                CALL dbcsr_add(qs_ot_env(ispin)%matrix_gx_old, &
                               qs_ot_env(ispin)%matrix_h_e(history_index(i))%matrix, &
                               alpha_scalar=1.0_dp, beta_scalar=-alpha(i))
+               IF (qs_ot_env(1)%settings%do_rotation) THEN
+                  CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_gx_old, &
+                                 qs_ot_env(ispin)%rot_mat_h_e(history_index(i))%matrix, &
+                                 alpha_scalar=1.0_dp, beta_scalar=-alpha(i))
+               END IF
             END DO
          END DO
       END IF
 
       ! Apply the initial inverse Hessian. A physical OT preconditioner takes precedence over
-      ! scalar secant scaling, because it carries the kinetic/overlap metric and energy scale.
+      ! scalar secant scaling for the orbital block, because it carries the kinetic/overlap metric
+      ! and energy scale. The rotation block uses the identity, as in the SD and CG minimizers.
       IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
          DO ispin = 1, nspin
             CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
                                       qs_ot_env(ispin)%matrix_gx_old, qs_ot_env(ispin)%matrix_dx)
+            IF (qs_ot_env(1)%settings%do_rotation) THEN
+               CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx_old)
+            END IF
          END DO
       ELSE
          gamma = 1.0_dp
@@ -1074,6 +1116,10 @@ CONTAINS
          DO ispin = 1, nspin
             CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx_old)
             CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx, gamma)
+            IF (qs_ot_env(1)%settings%do_rotation) THEN
+               CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx_old)
+               CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, gamma)
+            END IF
          END DO
       END IF
 
@@ -1084,12 +1130,22 @@ CONTAINS
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_e(history_index(i))%matrix, &
                            qs_ot_env(ispin)%matrix_dx, tmp)
             beta = beta + tmp
+            IF (qs_ot_env(1)%settings%do_rotation) THEN
+               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_e(history_index(i))%matrix, &
+                              qs_ot_env(ispin)%rot_mat_dx, tmp)
+               beta = beta + 0.5_dp*tmp
+            END IF
          END DO
          beta = rho(i)*beta
          DO ispin = 1, nspin
             CALL dbcsr_add(qs_ot_env(ispin)%matrix_dx, &
                            qs_ot_env(ispin)%matrix_h_x(history_index(i))%matrix, &
                            alpha_scalar=1.0_dp, beta_scalar=alpha(i) - beta)
+            IF (qs_ot_env(1)%settings%do_rotation) THEN
+               CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_dx, &
+                              qs_ot_env(ispin)%rot_mat_h_x(history_index(i))%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=alpha(i) - beta)
+            END IF
          END DO
       END DO
 
@@ -1097,6 +1153,10 @@ CONTAINS
       DO ispin = 1, nspin
          CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
          g_dot_z = g_dot_z + tmp
+         IF (qs_ot_env(1)%settings%do_rotation) THEN
+            CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_dx, tmp)
+            g_dot_z = g_dot_z + 0.5_dp*tmp
+         END IF
       END DO
 
       ! Preserve a guaranteed descent direction even if the supplied initial preconditioner is
@@ -1108,16 +1168,26 @@ CONTAINS
             DO ispin = 1, nspin
                CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
                                          qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx)
+               IF (qs_ot_env(1)%settings%do_rotation) THEN
+                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx)
+               END IF
             END DO
          ELSE
             DO ispin = 1, nspin
                CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx)
+               IF (qs_ot_env(1)%settings%do_rotation) THEN
+                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx)
+               END IF
             END DO
          END IF
          g_dot_z = 0.0_dp
          DO ispin = 1, nspin
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
             g_dot_z = g_dot_z + tmp
+            IF (qs_ot_env(1)%settings%do_rotation) THEN
+               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_dx, tmp)
+               g_dot_z = g_dot_z + 0.5_dp*tmp
+            END IF
          END DO
          IF (.NOT. ieee_is_finite(g_dot_z) .OR. g_dot_z <= 0.0_dp) THEN
             g_dot_z = 0.0_dp
@@ -1125,25 +1195,38 @@ CONTAINS
                CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx)
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
                g_dot_z = g_dot_z + tmp
+               IF (qs_ot_env(1)%settings%do_rotation) THEN
+                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx)
+                  CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_dx, tmp)
+                  g_dot_z = g_dot_z + 0.5_dp*tmp
+               END IF
             END DO
          END IF
       END IF
 
       DO ispin = 1, nspin
          CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx, -1.0_dp)
+         IF (qs_ot_env(1)%settings%do_rotation) THEN
+            CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, -1.0_dp)
+         END IF
       END DO
       qs_ot_env(1)%gnorm = g_dot_z
       qs_ot_env(1)%gradient = -g_dot_z
 
       k = 0
       n = 0
+      nrotation = 0_int_8
       CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
       DO ispin = 1, nspin
          CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
          k = k + itmp
+         IF (qs_ot_env(1)%settings%do_rotation) THEN
+            nrotation = nrotation + INT(itmp, KIND=int_8)*INT(itmp - 1, KIND=int_8)/2_int_8
+         END IF
       END DO
-      IF (INT(n, KIND=int_8)*INT(k, KIND=int_8) /= 0) THEN
-         qs_ot_env(1)%delta = SQRT(ABS(g_dot_z)/(INT(n, KIND=int_8)*INT(k, KIND=int_8)))
+      nvariables = INT(n, KIND=int_8)*INT(k, KIND=int_8) + nrotation
+      IF (nvariables /= 0_int_8) THEN
+         qs_ot_env(1)%delta = SQRT(ABS(g_dot_z)/REAL(nvariables, KIND=dp))
       ELSE
          qs_ot_env(1)%delta = 0.0_dp
          qs_ot_env(1)%gradient = 0.0_dp
