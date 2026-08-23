@@ -371,7 +371,7 @@ CONTAINS
       ! This deliberately simple model counts real dense multiply-adds as the reference.
       ! Four scalar operations per FFT butterfly account for the two complex transforms;
       ! the fixed packing term prevents AUTO from selecting tiny batches.  The logarithmic
-      ! communication term represents the gathered prototype's input/output collectives.
+      ! communication term represents the input/output all-to-all routing.
       dense_work = (ncell_real*block_size_real)**2*nrhs_real
       matrix_work = ncell_real*block_size_real**2*nrhs_real
       fft_work = 4.0_dp*ncell_real*block_size_real*nrhs_real* &

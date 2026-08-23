@@ -942,7 +942,8 @@ CONTAINS
          "0.8 and limits reciprocal-block storage to four times one dense real operator; otherwise "// &
          "it retains the conventional solver. The estimates include reference-cell block size, "// &
          "occupied-column batch size, state-operator count, and message-passing ranks. This experimental "// &
-         "implementation gathers the operator and input vectors on every rank.", &
+         "implementation still gathers the operator during construction, while application routes "// &
+         "complete orbital columns across ranks and distributes the FFT batches over those columns.", &
          usage="LATTICE_FFT AUTO", &
          default_i_val=ot_lattice_fft_off, &
          enum_c_vals=s2a("OFF", "ON", "AUTO"), &

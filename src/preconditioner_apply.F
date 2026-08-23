@@ -51,7 +51,9 @@ MODULE preconditioner_apply
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE preconditioner_types,            ONLY: preconditioner_type
+   USE preconditioner_types,            ONLY: lattice_rhs_distribution_type,&
+                                              preconditioner_type,&
+                                              release_lattice_rhs_distribution
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -554,44 +556,38 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_lattice_operator_fm'
 
-      INTEGER                                            :: handle, i, j, k, n, ncol_local, &
-                                                            nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: fft_ok, handle
       LOGICAL                                            :: used_fft
-      REAL(KIND=dp)                                      :: imaginary_residual, scale
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: global_input, global_output
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: input_data, output_data
+      REAL(KIND=dp)                                      :: imaginary_residual, output_max, scale
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: local_input, local_output
 
       CALL timeset(routineN, handle)
       CPASSERT(ALLOCATED(preconditioner_env%lattice_inverse_k))
       scale = 1.0_dp
       IF (PRESENT(scale_factor)) scale = scale_factor
-      CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k, nrow_local=nrow_local, &
-                          ncol_local=ncol_local, row_indices=row_indices, &
-                          col_indices=col_indices, local_data=input_data)
-      CALL cp_fm_get_info(matrix_out, local_data=output_data)
-      ALLOCATE (global_input(n, k), source=0.0_dp)
-      ALLOCATE (global_output(n, k))
-      DO j = 1, ncol_local
-         DO i = 1, nrow_local
-            global_input(row_indices(i), col_indices(j)) = input_data(i, j)
-         END DO
-      END DO
-      CALL preconditioner_env%para_env%sum(global_input)
-      CALL apply_lattice_inverse_dense(preconditioner_env%lattice_inverse_k, &
-                                       preconditioner_env%lattice_dims, global_input, global_output, &
-                                       used_fft, imaginary_residual)
-      IF (.NOT. used_fft) CPABORT("Lattice preconditioner inverse failed to use FFTs")
-      IF (imaginary_residual > 1.0E-10_dp*MAX(1.0_dp, MAXVAL(ABS(global_output)))) THEN
+      CALL distribute_lattice_rhs(preconditioner_env, matrix_in, &
+                                  preconditioner_env%lattice_rhs_distribution, local_input)
+      ALLOCATE (local_output(SIZE(local_input, 1), SIZE(local_input, 2)))
+      used_fft = .TRUE.
+      imaginary_residual = 0.0_dp
+      IF (SIZE(local_input, 2) > 0) THEN
+         CALL apply_lattice_inverse_dense(preconditioner_env%lattice_inverse_k, &
+                                          preconditioner_env%lattice_dims, local_input, local_output, &
+                                          used_fft, imaginary_residual)
+      END IF
+      fft_ok = MERGE(1, 0, used_fft)
+      output_max = 0.0_dp
+      IF (SIZE(local_output) > 0) output_max = MAXVAL(ABS(local_output))
+      CALL preconditioner_env%para_env%min(fft_ok)
+      CALL preconditioner_env%para_env%max(imaginary_residual)
+      CALL preconditioner_env%para_env%max(output_max)
+      IF (fft_ok == 0) CPABORT("Lattice preconditioner inverse failed to use FFTs")
+      IF (imaginary_residual > 1.0E-10_dp*MAX(1.0_dp, output_max)) THEN
          CPABORT("Lattice preconditioner inverse produced a non-real Gamma-point result")
       END IF
-      DO j = 1, ncol_local
-         DO i = 1, nrow_local
-            output_data(i, j) = scale*global_output(row_indices(i), col_indices(j))
-         END DO
-      END DO
-      DEALLOCATE (global_input, global_output)
+      CALL collect_lattice_rhs(preconditioner_env, preconditioner_env%lattice_rhs_distribution, &
+                               local_output, matrix_out, scale)
+      DEALLOCATE (local_input, local_output)
       CALL timestop(handle)
 
    END SUBROUTINE apply_lattice_operator_fm
@@ -609,72 +605,246 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_lattice_state_operator_fm'
 
-      INTEGER                                            :: handle, i, j, k, n, ncol_local, &
-                                                            nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: fft_ok, global_column, handle, i, j, k, n
       LOGICAL                                            :: used_fft
-      REAL(KIND=dp)                                      :: imaginary_residual
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: complement_input, global_input, &
-                                                            global_output, occupied_component
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: input_data, output_data
+      REAL(KIND=dp)                                      :: imaginary_residual, output_max
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: complement_input, local_input, &
+                                                            local_output, occupied_component
 
       CALL timeset(routineN, handle)
       CPASSERT(ALLOCATED(preconditioner_env%lattice_state_inverse_k))
-      CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k, nrow_local=nrow_local, &
-                          ncol_local=ncol_local, row_indices=row_indices, &
-                          col_indices=col_indices, local_data=input_data)
-      CALL cp_fm_get_info(matrix_out, local_data=output_data)
+      CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
       CPASSERT(SIZE(preconditioner_env%lattice_state_inverse_k, 4) == k)
-      ALLOCATE (global_input(n, k), source=0.0_dp)
-      ALLOCATE (global_output(n, k))
-      DO j = 1, ncol_local
-         DO i = 1, nrow_local
-            global_input(row_indices(i), col_indices(j)) = input_data(i, j)
-         END DO
-      END DO
-      CALL preconditioner_env%para_env%sum(global_input)
+      CALL distribute_lattice_rhs(preconditioner_env, matrix_in, &
+                                  preconditioner_env%lattice_rhs_distribution, local_input)
       CPASSERT(ALLOCATED(preconditioner_env%lattice_occ_vectors))
       CPASSERT(ALLOCATED(preconditioner_env%lattice_occ_dual))
-      ALLOCATE (complement_input(n, k), occupied_component(k, k))
+      ALLOCATE (complement_input(n, SIZE(local_input, 2)), &
+                local_output(n, SIZE(local_input, 2)), &
+                occupied_component(k, SIZE(local_input, 2)))
       occupied_component = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_vectors), &
-                                  global_input)
-      complement_input = global_input - &
+                                  local_input)
+      complement_input = local_input - &
                          MATMUL(preconditioner_env%lattice_occ_dual, occupied_component)
-      CALL apply_lattice_state_inverse_dense(preconditioner_env%lattice_state_inverse_k, &
-                                             preconditioner_env%lattice_dims, &
-                                             complement_input, global_output, used_fft, imaginary_residual)
-      IF (.NOT. used_fft) THEN
+      used_fft = .TRUE.
+      imaginary_residual = 0.0_dp
+      IF (SIZE(local_input, 2) > 0) THEN
+         CALL apply_lattice_state_inverse_dense(preconditioner_env%lattice_state_inverse_k, &
+                                                preconditioner_env%lattice_dims, &
+                                                complement_input, local_output, used_fft, imaginary_residual, &
+                                                preconditioner_env%lattice_rhs_distribution%global_columns)
+      END IF
+      fft_ok = MERGE(1, 0, used_fft)
+      output_max = 0.0_dp
+      IF (SIZE(local_output) > 0) output_max = MAXVAL(ABS(local_output))
+      CALL preconditioner_env%para_env%min(fft_ok)
+      CALL preconditioner_env%para_env%max(imaginary_residual)
+      CALL preconditioner_env%para_env%max(output_max)
+      IF (fft_ok == 0) THEN
          CPABORT("State-dependent lattice preconditioner inverse failed to use FFTs")
       END IF
-      IF (imaginary_residual > 1.0E-10_dp*MAX(1.0_dp, MAXVAL(ABS(global_output)))) THEN
+      IF (imaginary_residual > 1.0E-10_dp*MAX(1.0_dp, output_max)) THEN
          CPABORT("State-dependent lattice preconditioner produced a non-real Gamma-point result")
       END IF
       occupied_component = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_dual), &
-                                  global_output)
-      global_output = global_output - &
-                      MATMUL(preconditioner_env%lattice_occ_vectors, occupied_component)
+                                  local_output)
+      local_output = local_output - &
+                     MATMUL(preconditioner_env%lattice_occ_vectors, occupied_component)
       occupied_component = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_vectors), &
-                                  global_input)
-      DO j = 1, k
+                                  local_input)
+      DO j = 1, SIZE(local_input, 2)
+         global_column = preconditioner_env%lattice_rhs_distribution%global_columns(j)
          DO i = 1, k
             occupied_component(i, j) = occupied_component(i, j)/MAX( &
                                        preconditioner_env%energy_gap, &
                                        preconditioner_env%full_evals(i) - &
-                                       preconditioner_env%occ_evals(j))
+                                       preconditioner_env%occ_evals(global_column))
          END DO
       END DO
-      global_output = global_output + &
-                      MATMUL(preconditioner_env%lattice_occ_vectors, occupied_component)
-      DO j = 1, ncol_local
-         DO i = 1, nrow_local
-            output_data(i, j) = global_output(row_indices(i), col_indices(j))
-         END DO
-      END DO
-      DEALLOCATE (complement_input, global_input, global_output, occupied_component)
+      local_output = local_output + &
+                     MATMUL(preconditioner_env%lattice_occ_vectors, occupied_component)
+      CALL collect_lattice_rhs(preconditioner_env, preconditioner_env%lattice_rhs_distribution, &
+                               local_output, matrix_out)
+      DEALLOCATE (complement_input, local_input, local_output, occupied_component)
       CALL timestop(handle)
 
    END SUBROUTINE apply_lattice_state_operator_fm
+
+! **************************************************************************************************
+!> \brief Route complete orbital columns to distinct ranks for lattice-FFT application.
+!> \param preconditioner_env ...
+!> \param matrix_in distributed input matrix
+!> \param distribution communication map retained for the reverse route
+!> \param local_input complete columns owned by this rank
+! **************************************************************************************************
+   SUBROUTINE distribute_lattice_rhs(preconditioner_env, matrix_in, distribution, local_input)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in
+      TYPE(lattice_rhs_distribution_type), INTENT(INOUT) :: distribution
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: local_input
+
+      INTEGER                                            :: destination, i, ientry, j, k, n, &
+                                                            ncol_local, nowned, nrow_local, &
+                                                            num_pe, slot
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cursor, send_global_columns, &
+                                                            send_global_rows
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: rebuild
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_values, send_values
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: input_data
+
+      num_pe = preconditioner_env%para_env%num_pe
+      CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k, &
+                          nrow_local=nrow_local, ncol_local=ncol_local, &
+                          row_indices=row_indices, col_indices=col_indices, local_data=input_data)
+      rebuild = distribution%nrow_global /= n .OR. distribution%ncol_global /= k .OR. &
+                distribution%nrow_local /= nrow_local .OR. distribution%ncol_local /= ncol_local .OR. &
+                distribution%num_pe /= num_pe
+      IF (.NOT. rebuild) THEN
+         rebuild = .NOT. ALLOCATED(distribution%local_rows) .OR. &
+                   .NOT. ALLOCATED(distribution%local_columns)
+      END IF
+      IF (.NOT. rebuild) THEN
+         rebuild = ANY(distribution%local_rows /= row_indices) .OR. &
+                   ANY(distribution%local_columns /= col_indices)
+      END IF
+      IF (rebuild) THEN
+         CALL release_lattice_rhs_distribution(distribution)
+         distribution%nrow_global = n
+         distribution%ncol_global = k
+         distribution%nrow_local = nrow_local
+         distribution%ncol_local = ncol_local
+         distribution%num_pe = num_pe
+         ALLOCATE (distribution%local_rows(nrow_local), distribution%local_columns(ncol_local))
+         distribution%local_rows = row_indices
+         distribution%local_columns = col_indices
+         ALLOCATE (distribution%send_counts(num_pe), distribution%send_displacements(num_pe), &
+                   distribution%recv_counts(num_pe), distribution%recv_displacements(num_pe), &
+                   cursor(num_pe))
+         distribution%send_counts = 0
+         DO j = 1, ncol_local
+            destination = MODULO(col_indices(j) - 1, num_pe) + 1
+            distribution%send_counts(destination) = &
+               distribution%send_counts(destination) + nrow_local
+         END DO
+         CALL preconditioner_env%para_env%alltoall(distribution%send_counts, &
+                                                   distribution%recv_counts, 1)
+         distribution%send_displacements(1) = 0
+         distribution%recv_displacements(1) = 0
+         DO i = 2, num_pe
+            distribution%send_displacements(i) = distribution%send_displacements(i - 1) + &
+                                                 distribution%send_counts(i - 1)
+            distribution%recv_displacements(i) = distribution%recv_displacements(i - 1) + &
+                                                 distribution%recv_counts(i - 1)
+         END DO
+
+         ALLOCATE (send_global_rows(SUM(distribution%send_counts)), &
+                   send_global_columns(SUM(distribution%send_counts)), &
+                   distribution%send_local_rows(SUM(distribution%send_counts)), &
+                   distribution%send_local_columns(SUM(distribution%send_counts)), &
+                   distribution%recv_global_rows(SUM(distribution%recv_counts)), &
+                   distribution%recv_global_columns(SUM(distribution%recv_counts)))
+         cursor = distribution%send_displacements
+         DO j = 1, ncol_local
+            destination = MODULO(col_indices(j) - 1, num_pe) + 1
+            DO i = 1, nrow_local
+               cursor(destination) = cursor(destination) + 1
+               ientry = cursor(destination)
+               send_global_rows(ientry) = row_indices(i)
+               send_global_columns(ientry) = col_indices(j)
+               distribution%send_local_rows(ientry) = i
+               distribution%send_local_columns(ientry) = j
+            END DO
+         END DO
+         CALL preconditioner_env%para_env%alltoall( &
+            send_global_rows, distribution%send_counts, distribution%send_displacements, &
+            distribution%recv_global_rows, distribution%recv_counts, distribution%recv_displacements)
+         CALL preconditioner_env%para_env%alltoall( &
+            send_global_columns, distribution%send_counts, distribution%send_displacements, &
+            distribution%recv_global_columns, distribution%recv_counts, distribution%recv_displacements)
+
+         nowned = 0
+         DO j = preconditioner_env%para_env%mepos + 1, k, num_pe
+            nowned = nowned + 1
+         END DO
+         ALLOCATE (distribution%global_columns(nowned))
+         nowned = 0
+         DO j = preconditioner_env%para_env%mepos + 1, k, num_pe
+            nowned = nowned + 1
+            distribution%global_columns(nowned) = j
+         END DO
+         DEALLOCATE (cursor, send_global_columns, send_global_rows)
+      END IF
+
+      nowned = SIZE(distribution%global_columns)
+      ALLOCATE (local_input(n, nowned), source=0.0_dp)
+      ALLOCATE (send_values(SUM(distribution%send_counts)), &
+                recv_values(SUM(distribution%recv_counts)))
+      DO ientry = 1, SIZE(send_values)
+         send_values(ientry) = input_data(distribution%send_local_rows(ientry), &
+                                          distribution%send_local_columns(ientry))
+      END DO
+      CALL preconditioner_env%para_env%alltoall( &
+         send_values, distribution%send_counts, distribution%send_displacements, &
+         recv_values, distribution%recv_counts, distribution%recv_displacements)
+      DO ientry = 1, SIZE(recv_values)
+         slot = (distribution%recv_global_columns(ientry) - 1)/num_pe + 1
+         local_input(distribution%recv_global_rows(ientry), slot) = recv_values(ientry)
+      END DO
+
+      DEALLOCATE (recv_values, send_values)
+
+   END SUBROUTINE distribute_lattice_rhs
+
+! **************************************************************************************************
+!> \brief Return rank-owned lattice-FFT columns to their original full-matrix layout.
+!> \param preconditioner_env ...
+!> \param distribution communication map from distribute_lattice_rhs
+!> \param local_output complete preconditioned columns owned by this rank
+!> \param matrix_out distributed output matrix
+!> \param scale_factor optional final scaling
+! **************************************************************************************************
+   SUBROUTINE collect_lattice_rhs(preconditioner_env, distribution, local_output, matrix_out, scale_factor)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(lattice_rhs_distribution_type), INTENT(IN)    :: distribution
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: local_output
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_out
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale_factor
+
+      INTEGER                                            :: ientry, num_pe, slot
+      REAL(KIND=dp)                                      :: scale
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_values, send_values
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: output_data
+
+      num_pe = preconditioner_env%para_env%num_pe
+      CPASSERT(SIZE(local_output, 1) == distribution%nrow_global)
+      CPASSERT(SIZE(local_output, 2) == SIZE(distribution%global_columns))
+      scale = 1.0_dp
+      IF (PRESENT(scale_factor)) scale = scale_factor
+      ALLOCATE (send_values(SUM(distribution%recv_counts)), &
+                recv_values(SUM(distribution%send_counts)))
+      DO ientry = 1, SIZE(send_values)
+         slot = (distribution%recv_global_columns(ientry) - 1)/num_pe + 1
+         send_values(ientry) = local_output(distribution%recv_global_rows(ientry), slot)
+      END DO
+      CALL preconditioner_env%para_env%alltoall( &
+         send_values, distribution%recv_counts, distribution%recv_displacements, &
+         recv_values, distribution%send_counts, distribution%send_displacements)
+
+      CALL cp_fm_get_info(matrix_out, local_data=output_data)
+      output_data = 0.0_dp
+      DO ientry = 1, SIZE(recv_values)
+         output_data(distribution%send_local_rows(ientry), &
+                     distribution%send_local_columns(ientry)) = scale*recv_values(ientry)
+      END DO
+      DEALLOCATE (recv_values, send_values)
+
+   END SUBROUTINE collect_lattice_rhs
 
 ! **************************************************************************************************
 !> \brief Bridge a DBCSR OT gradient to the full-matrix lattice-FFT operator.

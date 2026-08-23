@@ -38,9 +38,23 @@ MODULE preconditioner_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_types'
 
    PUBLIC  :: preconditioner_type, preconditioner_p_type
+   PUBLIC  :: lattice_rhs_distribution_type
    PUBLIC  :: init_preconditioner
    PUBLIC  :: preconditioner_in_use
    PUBLIC  :: destroy_preconditioner
+   PUBLIC  :: release_lattice_rhs_distribution
+
+! **************************************************************************************************
+   TYPE lattice_rhs_distribution_type
+      INTEGER :: nrow_global = 0, ncol_global = 0
+      INTEGER :: nrow_local = 0, ncol_local = 0, num_pe = 0
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: global_columns
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: local_rows, local_columns
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: send_counts, send_displacements
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: recv_counts, recv_displacements
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: send_local_rows, send_local_columns
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: recv_global_rows, recv_global_columns
+   END TYPE lattice_rhs_distribution_type
 
 ! **************************************************************************************************
    TYPE preconditioner_type
@@ -80,6 +94,7 @@ MODULE preconditioner_types
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: lattice_inverse_k
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: lattice_state_inverse_k
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: lattice_occ_vectors, lattice_occ_dual
+      TYPE(lattice_rhs_distribution_type) :: lattice_rhs_distribution
    END TYPE preconditioner_type
 
 ! **************************************************************************************************
@@ -233,6 +248,7 @@ CONTAINS
       IF (ALLOCATED(preconditioner_env%lattice_occ_dual)) THEN
          DEALLOCATE (preconditioner_env%lattice_occ_dual)
       END IF
+      CALL release_lattice_rhs_distribution(preconditioner_env%lattice_rhs_distribution)
       IF (ASSOCIATED(preconditioner_env%inverse_history)) THEN
          DO i = 1, SIZE(preconditioner_env%inverse_history)
             CALL dbcsr_release_p(preconditioner_env%inverse_history(i)%matrix)
@@ -248,5 +264,32 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE destroy_preconditioner
+
+! **************************************************************************************************
+!> \brief Release a cached lattice right-hand-side communication map.
+!> \param distribution ...
+! **************************************************************************************************
+   SUBROUTINE release_lattice_rhs_distribution(distribution)
+
+      TYPE(lattice_rhs_distribution_type), INTENT(INOUT) :: distribution
+
+      IF (ALLOCATED(distribution%global_columns)) DEALLOCATE (distribution%global_columns)
+      IF (ALLOCATED(distribution%local_rows)) DEALLOCATE (distribution%local_rows)
+      IF (ALLOCATED(distribution%local_columns)) DEALLOCATE (distribution%local_columns)
+      IF (ALLOCATED(distribution%send_counts)) DEALLOCATE (distribution%send_counts)
+      IF (ALLOCATED(distribution%send_displacements)) DEALLOCATE (distribution%send_displacements)
+      IF (ALLOCATED(distribution%recv_counts)) DEALLOCATE (distribution%recv_counts)
+      IF (ALLOCATED(distribution%recv_displacements)) DEALLOCATE (distribution%recv_displacements)
+      IF (ALLOCATED(distribution%send_local_rows)) DEALLOCATE (distribution%send_local_rows)
+      IF (ALLOCATED(distribution%send_local_columns)) DEALLOCATE (distribution%send_local_columns)
+      IF (ALLOCATED(distribution%recv_global_rows)) DEALLOCATE (distribution%recv_global_rows)
+      IF (ALLOCATED(distribution%recv_global_columns)) DEALLOCATE (distribution%recv_global_columns)
+      distribution%nrow_global = 0
+      distribution%ncol_global = 0
+      distribution%nrow_local = 0
+      distribution%ncol_local = 0
+      distribution%num_pe = 0
+
+   END SUBROUTINE release_lattice_rhs_distribution
 
 END MODULE preconditioner_types
