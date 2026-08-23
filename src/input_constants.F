@@ -541,6 +541,9 @@ MODULE input_constants
                                                ot_precond_full_all_covariant = 9
    INTEGER, PARAMETER, PUBLIC               :: ot_low_rank_base_overlap = 1, &
                                                ot_low_rank_base_lattice_fft = 2
+   INTEGER, PARAMETER, PUBLIC               :: ot_lattice_fft_off = 0, &
+                                               ot_lattice_fft_on = 1, &
+                                               ot_lattice_fft_auto = 2
    INTEGER, PARAMETER, PUBLIC               :: ot_precond_solver_default = 1, &
                                                ot_precond_solver_inv_chol = 2, &
                                                ot_precond_solver_direct = 3, &

@@ -45,7 +45,7 @@ MODULE preconditioner_apply
         ot_precond_solver_chebyshev, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
         ot_precond_solver_update
    USE kinds,                           ONLY: dp
-   USE lattice_low_rank_preconditioner, ONLY: apply_lattice_inverse_dense
+   USE lattice_preconditioner_operator, ONLY: apply_lattice_inverse_dense
    USE low_rank_preconditioner_model,   ONLY: low_rank_inverse_weight
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
@@ -92,16 +92,20 @@ CONTAINS
       CASE (ot_precond_full_all_covariant)
          CALL apply_full_all_covariant(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_full_kinetic, ot_precond_full_single_inverse, ot_precond_s_inverse)
-         SELECT CASE (preconditioner_env%solver)
-         CASE (ot_precond_solver_inv_chol, ot_precond_solver_update)
-            CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
-         CASE (ot_precond_solver_direct)
-            CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out)
-         CASE (ot_precond_solver_chebyshev)
-            CALL apply_chebyshev_fm(preconditioner_env, matrix_in, matrix_out)
-         CASE DEFAULT
-            CPABORT("Solver not implemented")
-         END SELECT
+         IF (preconditioner_env%lattice_fft_active) THEN
+            CALL apply_lattice_operator_fm(preconditioner_env, matrix_in, matrix_out)
+         ELSE
+            SELECT CASE (preconditioner_env%solver)
+            CASE (ot_precond_solver_inv_chol, ot_precond_solver_update)
+               CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
+            CASE (ot_precond_solver_direct)
+               CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out)
+            CASE (ot_precond_solver_chebyshev)
+               CALL apply_chebyshev_fm(preconditioner_env, matrix_in, matrix_out)
+            CASE DEFAULT
+               CPABORT("Solver not implemented")
+            END SELECT
+         END IF
       CASE DEFAULT
          CPABORT("Unknown preconditioner")
       END SELECT
@@ -139,17 +143,21 @@ CONTAINS
       CASE (ot_precond_full_all_covariant)
          CALL apply_all_covariant(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_full_kinetic, ot_precond_full_single_inverse, ot_precond_s_inverse)
-         SELECT CASE (preconditioner_env%solver)
-         CASE (ot_precond_solver_inv_chol, ot_precond_solver_update)
-            CALL apply_single(preconditioner_env, matrix_in, matrix_out)
-         CASE (ot_precond_solver_direct)
-            CPABORT("Apply_full_direct not supported with ot")
-            !CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out)
-         CASE (ot_precond_solver_chebyshev)
-            CALL apply_chebyshev_dbcsr(preconditioner_env, matrix_in, matrix_out)
-         CASE DEFAULT
-            CPABORT("Wrong solver")
-         END SELECT
+         IF (preconditioner_env%lattice_fft_active) THEN
+            CALL apply_lattice_operator_dbcsr(preconditioner_env, matrix_in, matrix_out)
+         ELSE
+            SELECT CASE (preconditioner_env%solver)
+            CASE (ot_precond_solver_inv_chol, ot_precond_solver_update)
+               CALL apply_single(preconditioner_env, matrix_in, matrix_out)
+            CASE (ot_precond_solver_direct)
+               CPABORT("Apply_full_direct not supported with ot")
+               !CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out)
+            CASE (ot_precond_solver_chebyshev)
+               CALL apply_chebyshev_dbcsr(preconditioner_env, matrix_in, matrix_out)
+            CASE DEFAULT
+               CPABORT("Wrong solver")
+            END SELECT
+         END IF
       CASE DEFAULT
          CPABORT("Wrong preconditioner")
       END SELECT
@@ -495,7 +503,8 @@ CONTAINS
          CALL parallel_gemm('N', 'N', n, k, n, preconditioner_env%spectral_base_scale, &
                             preconditioner_env%base_fm, matrix_in, 0.0_dp, matrix_out)
       CASE (ot_low_rank_base_lattice_fft)
-         CALL apply_lattice_base_fm(preconditioner_env, matrix_in, matrix_out)
+         CALL apply_lattice_operator_fm(preconditioner_env, matrix_in, matrix_out, &
+                                        preconditioner_env%spectral_base_scale)
       CASE DEFAULT
          CPABORT("Unknown FERMI_LOW_RANK base operator during application")
       END SELECT
@@ -530,17 +539,19 @@ CONTAINS
    END SUBROUTINE apply_low_rank_fm
 
 ! **************************************************************************************************
-!> \brief Apply the replicated-cell FFT base to a distributed full matrix.
+!> \brief Apply a replicated-cell inverse operator to a distributed full matrix.
 !> \param preconditioner_env ...
 !> \param matrix_in ...
 !> \param matrix_out ...
+!> \param scale_factor ...
 ! **************************************************************************************************
-   SUBROUTINE apply_lattice_base_fm(preconditioner_env, matrix_in, matrix_out)
+   SUBROUTINE apply_lattice_operator_fm(preconditioner_env, matrix_in, matrix_out, scale_factor)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale_factor
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_lattice_base_fm'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_lattice_operator_fm'
 
       INTEGER                                            :: handle, i, j, k, n, ncol_local, &
                                                             nrow_local
@@ -553,6 +564,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       CPASSERT(ALLOCATED(preconditioner_env%lattice_inverse_k))
+      scale = 1.0_dp
+      IF (PRESENT(scale_factor)) scale = scale_factor
       CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k, nrow_local=nrow_local, &
                           ncol_local=ncol_local, row_indices=row_indices, &
                           col_indices=col_indices, local_data=input_data)
@@ -568,21 +581,50 @@ CONTAINS
       CALL apply_lattice_inverse_dense(preconditioner_env%lattice_inverse_k, &
                                        preconditioner_env%lattice_dims, global_input, global_output, &
                                        used_fft, imaginary_residual)
-      IF (.NOT. used_fft) CPABORT("FERMI_LOW_RANK lattice inverse failed to use FFTs")
-      scale = MAX(1.0_dp, MAXVAL(ABS(global_output)))
-      IF (imaginary_residual > 1.0E-10_dp*scale) THEN
-         CPABORT("FERMI_LOW_RANK lattice inverse produced a non-real Gamma-point result")
+      IF (.NOT. used_fft) CPABORT("Lattice preconditioner inverse failed to use FFTs")
+      IF (imaginary_residual > 1.0E-10_dp*MAX(1.0_dp, MAXVAL(ABS(global_output)))) THEN
+         CPABORT("Lattice preconditioner inverse produced a non-real Gamma-point result")
       END IF
       DO j = 1, ncol_local
          DO i = 1, nrow_local
-            output_data(i, j) = preconditioner_env%spectral_base_scale* &
-                                global_output(row_indices(i), col_indices(j))
+            output_data(i, j) = scale*global_output(row_indices(i), col_indices(j))
          END DO
       END DO
       DEALLOCATE (global_input, global_output)
       CALL timestop(handle)
 
-   END SUBROUTINE apply_lattice_base_fm
+   END SUBROUTINE apply_lattice_operator_fm
+
+! **************************************************************************************************
+!> \brief Bridge a DBCSR OT gradient to the full-matrix lattice-FFT operator.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_lattice_operator_dbcsr(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
+
+      INTEGER                                            :: k, n
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: input_fm, output_fm
+
+      NULLIFY (fm_struct)
+      CALL dbcsr_get_info(matrix_in, nfullrows_total=n, nfullcols_total=k)
+      CALL cp_fm_struct_create(fm_struct, nrow_global=n, ncol_global=k, &
+                               context=preconditioner_env%ctxt, &
+                               para_env=preconditioner_env%para_env)
+      CALL cp_fm_create(input_fm, fm_struct, name="lattice preconditioner input")
+      CALL cp_fm_create(output_fm, fm_struct, name="lattice preconditioner output")
+      CALL cp_fm_struct_release(fm_struct)
+      CALL copy_dbcsr_to_fm(matrix_in, input_fm)
+      CALL apply_lattice_operator_fm(preconditioner_env, input_fm, output_fm)
+      CALL copy_fm_to_dbcsr(output_fm, matrix_out)
+      CALL cp_fm_release(input_fm)
+      CALL cp_fm_release(output_fm)
+
+   END SUBROUTINE apply_lattice_operator_dbcsr
 
 ! **************************************************************************************************
 !> \brief DBCSR variant of the bounded low-rank spectral correction.

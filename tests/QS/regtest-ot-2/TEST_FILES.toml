@@ -64,4 +64,7 @@
 "CH4-fermi-low-rank.inp"                = [{matcher="E_total", tol=1e-10, ref=-15.93664757384581}]
 "CH4-fermi-low-rank-fft.inp"            = [{matcher="E_total", tol=1e-09, ref=-15.93664757401409}]
 "CH4-fermi-low-rank-full.inp"           = [{matcher="E_total", tol=1e-10, ref=-15.93664757426925}]
+"H2-lattice-s-inverse.inp"               = [{matcher="E_total", tol=1e-09, ref=-2.156632575064015}]
+"H2-lattice-single-inverse.inp"          = [{matcher="E_total", tol=1e-09, ref=-2.156632575065856}]
+"H2-lattice-auto.inp"                    = [{matcher="E_total", tol=1e-09, ref=-8.624611232470830}]
 #EOF

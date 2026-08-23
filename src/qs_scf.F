@@ -1589,7 +1589,8 @@ CONTAINS
                                      chebyshev_degree=scf_control%diagonalization%ot_settings%chebyshev_degree, &
                                      low_rank_base=scf_control%diagonalization%ot_settings%low_rank_base, &
                                      fermi_low_rank_max_rank= &
-                                     scf_control%diagonalization%ot_settings%fermi_low_rank_max_rank)
+                                     scf_control%diagonalization%ot_settings%fermi_low_rank_max_rank, &
+                                     lattice_fft=scf_control%diagonalization%ot_settings%lattice_fft)
 
       CASE (block_davidson_diag_method_nr)
          ! Preconditioner initialized within the loop, when required
@@ -1801,7 +1802,8 @@ CONTAINS
                                            chebyshev_degree=scf_env%qs_ot_env(1)%settings%chebyshev_degree, &
                                            low_rank_base=scf_env%qs_ot_env(1)%settings%low_rank_base, &
                                            fermi_low_rank_max_rank= &
-                                           scf_env%qs_ot_env(1)%settings%fermi_low_rank_max_rank)
+                                           scf_env%qs_ot_env(1)%settings%fermi_low_rank_max_rank, &
+                                           lattice_fft=scf_env%qs_ot_env(1)%settings%lattice_fft)
             END IF
             IF (reuse_precond) reuse_precond = .FALSE.
 

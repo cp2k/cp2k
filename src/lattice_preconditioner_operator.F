@@ -6,9 +6,9 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Algebra for the block-circulant overlap base of the low-rank OT preconditioner.
+!> \brief Block-circulant inverse operators for replicated-cell OT preconditioners.
 ! **************************************************************************************************
-MODULE lattice_low_rank_preconditioner
+MODULE lattice_preconditioner_operator
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
@@ -16,6 +16,7 @@ MODULE lattice_low_rank_preconditioner
                                               fft_alloc,&
                                               fft_dealloc,&
                                               fft_radix_operations
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE kinds,                           ONLY: dp
    USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft
 #include "./base/base_uses.f90"
@@ -23,10 +24,14 @@ MODULE lattice_low_rank_preconditioner
    IMPLICIT NONE
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lattice_low_rank_preconditioner'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lattice_preconditioner_operator'
+
+   INTEGER, PARAMETER, PUBLIC           :: lattice_fft_auto_min_cells = 8
+   REAL(KIND=dp), PARAMETER, PUBLIC     :: lattice_fft_auto_max_error = 1.0E-3_dp
 
    PUBLIC :: apply_lattice_inverse_dense, &
              build_lattice_inverse, &
+             lattice_fft_auto_select, &
              lattice_grid
 
 CONTAINS
@@ -68,18 +73,18 @@ CONTAINS
    END SUBROUTINE lattice_grid
 
 ! **************************************************************************************************
-!> \brief Project a cell-major overlap onto lattice translations and invert its Fourier blocks.
-!> \param overlap dense overlap matrix with identical cell blocks stored consecutively
+!> \brief Project a cell-major SPD operator onto lattice translations and invert its Fourier blocks.
+!> \param operator_matrix dense SPD matrix with identical cell blocks stored consecutively
 !> \param lattice_dims number of replicated cells in every lattice direction
-!> \param inverse_k inverse Hermitian overlap block at every reciprocal-grid point
+!> \param inverse_k inverse Hermitian operator block at every reciprocal-grid point
 !> \param projection_error relative Frobenius error of the block-circulant projection
 !> \param used_fft reports whether construction used the FFT path
 !> \param info zero on success; otherwise the failing Cholesky factorization index
 ! **************************************************************************************************
-   SUBROUTINE build_lattice_inverse(overlap, lattice_dims, inverse_k, projection_error, &
+   SUBROUTINE build_lattice_inverse(operator_matrix, lattice_dims, inverse_k, projection_error, &
                                     used_fft, info)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: overlap
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: operator_matrix
       INTEGER, DIMENSION(3), INTENT(IN)                  :: lattice_dims
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :), INTENT(OUT)                 :: inverse_k
@@ -95,13 +100,193 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: blocks
 
-      IF (SIZE(overlap, 1) /= SIZE(overlap, 2)) CPABORT("Lattice overlap must be square")
+      IF (SIZE(operator_matrix, 1) /= SIZE(operator_matrix, 2)) THEN
+         CPABORT("Lattice preconditioner operator must be square")
+      END IF
       IF (ANY(lattice_dims <= 0)) CPABORT("Lattice dimensions must be positive")
-      n = SIZE(overlap, 1)
+      n = SIZE(operator_matrix, 1)
       ncell = PRODUCT(lattice_dims)
       IF (MODULO(n, ncell) /= 0) THEN
          CPABORT("AO dimension does not match replicated cells")
       END IF
+      CALL project_lattice_operator(operator_matrix, lattice_dims, blocks, projection_error)
+      CALL build_lattice_inverse_from_blocks(blocks, lattice_dims, inverse_k, used_fft, info)
+      DEALLOCATE (blocks)
+
+   END SUBROUTINE build_lattice_inverse
+
+! **************************************************************************************************
+!> \brief Transform and invert already projected real-space lattice blocks.
+!> \param blocks translation-averaged real-space blocks
+!> \param lattice_dims number of replicated cells in every lattice direction
+!> \param inverse_k inverse Hermitian operator block at every reciprocal-grid point
+!> \param used_fft reports whether construction used the FFT path
+!> \param info zero on success; otherwise the failing Cholesky factorization index
+! **************************************************************************************************
+   SUBROUTINE build_lattice_inverse_from_blocks(blocks, lattice_dims, inverse_k, used_fft, info)
+
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: blocks
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: lattice_dims
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :), INTENT(OUT)                 :: inverse_k
+      LOGICAL, INTENT(OUT)                               :: used_fft
+      INTEGER, INTENT(OUT)                               :: info
+
+      INTEGER                                            :: block_size, ncell
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp
+
+      IF (ANY(lattice_dims <= 0)) CPABORT("Lattice dimensions must be positive")
+      ncell = PRODUCT(lattice_dims)
+      block_size = SIZE(blocks, 1)
+      IF (block_size <= 0 .OR. SIZE(blocks, 2) /= block_size .OR. SIZE(blocks, 3) /= ncell) THEN
+         CPABORT("Projected lattice blocks have inconsistent dimensions")
+      END IF
+
+      ALLOCATE (index_to_cell(3, ncell), xkp(3, ncell))
+      CALL lattice_grid(lattice_dims, index_to_cell, xkp)
+      ALLOCATE (inverse_k(block_size, block_size, ncell))
+      CALL cell_to_k_grid_fft(blocks, index_to_cell, xkp, lattice_dims, inverse_k, used_fft)
+      CALL invert_hermitian_blocks(inverse_k, info)
+      DEALLOCATE (index_to_cell, xkp)
+
+   END SUBROUTINE build_lattice_inverse_from_blocks
+
+! **************************************************************************************************
+!> \brief Build a balanced local correction for selected non-circulant cell blocks.
+!> \param operator_matrix dense SPD operator
+!> \param lattice_dims number of replicated cells in every lattice direction
+!> \param local_cell_count number of cell blocks retained in the correction
+!> \param correction_indices selected global AO indices
+!> \param operator_columns columns A U for the selected coordinate basis U
+!> \param coarse_inverse inverse of U^T A U
+!> \param corrected_projection_error residual projection error after removing selected rows/columns
+!> \param info zero on success; otherwise the failing Cholesky factorization index
+! **************************************************************************************************
+   SUBROUTINE build_lattice_local_correction(operator_matrix, lattice_dims, local_cell_count, &
+                                             correction_indices, operator_columns, coarse_inverse, &
+                                             corrected_projection_error, info)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: operator_matrix
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: lattice_dims
+      INTEGER, INTENT(IN)                                :: local_cell_count
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: correction_indices
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: operator_columns, coarse_inverse
+      REAL(KIND=dp), INTENT(OUT)                         :: corrected_projection_error
+      INTEGER, INTENT(OUT)                               :: info
+
+      INTEGER                                            :: block_size, cell, chosen, i, index, &
+                                                            local_rank, n, ncell, row_first, &
+                                                            row_last
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected_cells
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: selected
+      REAL(KIND=dp)                                      :: denominator
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: scores
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: projected_operator, residual
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: blocks
+
+      IF (SIZE(operator_matrix, 1) /= SIZE(operator_matrix, 2)) THEN
+         CPABORT("Lattice local-correction operator must be square")
+      END IF
+      IF (ANY(lattice_dims <= 0)) CPABORT("Lattice dimensions must be positive")
+      n = SIZE(operator_matrix, 1)
+      ncell = PRODUCT(lattice_dims)
+      IF (MODULO(n, ncell) /= 0) CPABORT("AO dimension does not match replicated cells")
+      IF (local_cell_count <= 0 .OR. local_cell_count >= ncell) THEN
+         CPABORT("Lattice local correction requires between one and ncell-1 cells")
+      END IF
+      block_size = n/ncell
+      local_rank = local_cell_count*block_size
+
+      CALL project_lattice_operator(operator_matrix, lattice_dims, blocks, &
+                                    corrected_projection_error, projected_operator)
+      DEALLOCATE (blocks)
+      ALLOCATE (residual(n, n))
+      residual = operator_matrix - projected_operator
+      DEALLOCATE (projected_operator)
+      ALLOCATE (scores(ncell), selected(ncell), selected_cells(local_cell_count))
+      selected = .FALSE.
+      DO chosen = 1, local_cell_count
+         scores = -1.0_dp
+         DO cell = 1, ncell
+            IF (selected(cell)) CYCLE
+            row_first = (cell - 1)*block_size + 1
+            row_last = cell*block_size
+            scores(cell) = SUM(residual(row_first:row_last, :)**2) + &
+                           SUM(residual(:, row_first:row_last)**2) - &
+                           SUM(residual(row_first:row_last, row_first:row_last)**2)
+         END DO
+         index = MAXLOC(scores, DIM=1, MASK=.NOT. selected)
+         selected(index) = .TRUE.
+         selected_cells(chosen) = index
+         row_first = (index - 1)*block_size + 1
+         row_last = index*block_size
+         residual(row_first:row_last, :) = 0.0_dp
+         residual(:, row_first:row_last) = 0.0_dp
+      END DO
+
+      ALLOCATE (correction_indices(local_rank))
+      index = 0
+      DO chosen = 1, local_cell_count
+         cell = selected_cells(chosen)
+         DO i = 1, block_size
+            index = index + 1
+            correction_indices(index) = (cell - 1)*block_size + i
+         END DO
+      END DO
+
+      denominator = SUM(operator_matrix**2)
+      corrected_projection_error = SQRT(SUM(residual**2)/MAX(denominator, TINY(denominator)))
+
+      ALLOCATE (operator_columns(n, local_rank), coarse_inverse(local_rank, local_rank))
+      operator_columns = operator_matrix(:, correction_indices)
+      coarse_inverse = operator_matrix(correction_indices, correction_indices)
+      CALL dpotrf('U', local_rank, coarse_inverse, local_rank, info)
+      IF (info == 0) CALL dpotri('U', local_rank, coarse_inverse, local_rank, info)
+      IF (info == 0) THEN
+         DO i = 1, local_rank - 1
+            coarse_inverse(i + 1:local_rank, i) = coarse_inverse(i, i + 1:local_rank)
+         END DO
+      END IF
+
+      DEALLOCATE (residual, scores, selected, selected_cells)
+
+   END SUBROUTINE build_lattice_local_correction
+
+! **************************************************************************************************
+!> \brief Project a dense cell-major operator onto its block-circulant translation average.
+!> \param operator_matrix dense square operator
+!> \param lattice_dims number of replicated cells in every lattice direction
+!> \param blocks translation-averaged real-space blocks
+!> \param projection_error relative Frobenius projection error
+!> \param projected_operator optional dense block-circulant projection
+! **************************************************************************************************
+   SUBROUTINE project_lattice_operator(operator_matrix, lattice_dims, blocks, projection_error, &
+                                       projected_operator)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: operator_matrix
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: lattice_dims
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: blocks
+      REAL(KIND=dp), INTENT(OUT)                         :: projection_error
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT), OPTIONAL                           :: projected_operator
+
+      INTEGER                                            :: alpha, beta, block_size, delta_index, &
+                                                            icell, jcell, n, ncell
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell
+      INTEGER, DIMENSION(3)                              :: delta
+      REAL(KIND=dp)                                      :: denominator, difference, numerator
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp
+
+      IF (SIZE(operator_matrix, 1) /= SIZE(operator_matrix, 2)) THEN
+         CPABORT("Lattice preconditioner operator must be square")
+      END IF
+      IF (ANY(lattice_dims <= 0)) CPABORT("Lattice dimensions must be positive")
+      n = SIZE(operator_matrix, 1)
+      ncell = PRODUCT(lattice_dims)
+      IF (MODULO(n, ncell) /= 0) CPABORT("AO dimension does not match replicated cells")
       block_size = n/ncell
 
       ALLOCATE (index_to_cell(3, ncell), xkp(3, ncell))
@@ -116,7 +301,8 @@ CONTAINS
             DO beta = 1, block_size
                DO alpha = 1, block_size
                   blocks(alpha, beta, delta_index) = blocks(alpha, beta, delta_index) + &
-                                                     overlap((icell - 1)*block_size + alpha, (jcell - 1)*block_size + beta)/ &
+                                                     operator_matrix((icell - 1)*block_size + alpha, &
+                                                                     (jcell - 1)*block_size + beta)/ &
                                                      REAL(ncell, KIND=dp)
                END DO
             END DO
@@ -131,26 +317,43 @@ CONTAINS
             delta_index = cell_linear_index(delta, lattice_dims)
             DO beta = 1, block_size
                DO alpha = 1, block_size
-                  difference = overlap((icell - 1)*block_size + alpha, &
-                                       (jcell - 1)*block_size + beta) - &
+                  difference = operator_matrix((icell - 1)*block_size + alpha, &
+                                               (jcell - 1)*block_size + beta) - &
                                blocks(alpha, beta, delta_index)
                   numerator = numerator + difference*difference
                   denominator = denominator + &
-                                overlap((icell - 1)*block_size + alpha, &
-                                        (jcell - 1)*block_size + beta)**2
+                                operator_matrix((icell - 1)*block_size + alpha, &
+                                                (jcell - 1)*block_size + beta)**2
                END DO
             END DO
          END DO
       END DO
       projection_error = SQRT(numerator/MAX(denominator, TINY(denominator)))
 
-      ALLOCATE (inverse_k(block_size, block_size, ncell))
-      CALL cell_to_k_grid_fft(blocks, index_to_cell, xkp, lattice_dims, inverse_k, used_fft)
-      CALL invert_hermitian_blocks(inverse_k, info)
+      DEALLOCATE (index_to_cell, xkp)
 
-      DEALLOCATE (blocks, index_to_cell, xkp)
+   END SUBROUTINE project_lattice_operator
 
-   END SUBROUTINE build_lattice_inverse
+! **************************************************************************************************
+!> \brief Conservative AUTO selector for the gathered lattice-FFT prototype.
+!> \param lattice_dims number of explicitly replicated cells
+!> \param projection_error relative Frobenius projection error
+!> \param used_fft whether construction used the FFT path
+!> \param info zero when all projected Fourier blocks were positive definite
+!> \return true when AUTO may use the lattice inverse
+! **************************************************************************************************
+   PURE LOGICAL FUNCTION lattice_fft_auto_select(lattice_dims, projection_error, used_fft, info) &
+      RESULT(selected)
+
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: lattice_dims
+      REAL(KIND=dp), INTENT(IN)                          :: projection_error
+      LOGICAL, INTENT(IN)                                :: used_fft
+      INTEGER, INTENT(IN)                                :: info
+
+      selected = PRODUCT(lattice_dims) >= lattice_fft_auto_min_cells .AND. &
+                 projection_error <= lattice_fft_auto_max_error .AND. used_fft .AND. info == 0
+
+   END FUNCTION lattice_fft_auto_select
 
 ! **************************************************************************************************
 !> \brief Apply inverse Fourier blocks to a dense cell-major real matrix.
@@ -175,6 +378,7 @@ CONTAINS
       INTEGER                                            :: block_size, icell, ncell
       LOGICAL                                            :: forward_fft, inverse_fft
 
+      IF (ANY(lattice_dims <= 0)) CPABORT("Lattice dimensions must be positive")
       ncell = PRODUCT(lattice_dims)
       block_size = SIZE(inverse_k, 1)
       IF (SIZE(inverse_k, 2) /= block_size .OR. SIZE(inverse_k, 3) /= ncell) THEN
@@ -211,6 +415,83 @@ CONTAINS
    END SUBROUTINE apply_lattice_inverse_dense
 
 ! **************************************************************************************************
+!> \brief Apply one inverse Fourier operator to every column of a dense real matrix.
+!> \param inverse_k state-dependent inverse blocks on a complete reciprocal grid
+!> \param lattice_dims number of replicated cells in every lattice direction
+!> \param matrix_in matrix to precondition, with one state per column
+!> \param matrix_out preconditioned matrix
+!> \param used_fft reports whether both transforms used the FFT path
+!> \param imaginary_residual largest discarded imaginary component
+!> \param state_indices optional global operator index for every input column
+! **************************************************************************************************
+   SUBROUTINE apply_lattice_state_inverse_dense(inverse_k, lattice_dims, matrix_in, matrix_out, &
+                                                used_fft, imaginary_residual, state_indices)
+
+      COMPLEX(KIND=dp), DIMENSION(:, :, :, :), &
+         INTENT(IN)                                      :: inverse_k
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: lattice_dims
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: matrix_in
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: matrix_out
+      LOGICAL, INTENT(OUT)                               :: used_fft
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: imaginary_residual
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: state_indices
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: input_k, input_rs, output_k, output_rs
+      INTEGER                                            :: block_size, icell, j, ncell
+      LOGICAL                                            :: forward_fft, inverse_fft
+
+      IF (ANY(lattice_dims <= 0)) CPABORT("Lattice dimensions must be positive")
+      ncell = PRODUCT(lattice_dims)
+      block_size = SIZE(inverse_k, 1)
+      IF (SIZE(inverse_k, 2) /= block_size .OR. SIZE(inverse_k, 3) /= ncell) THEN
+         CPABORT("Inconsistent state-dependent inverse blocks in lattice preconditioner")
+      END IF
+      IF (PRESENT(state_indices)) THEN
+         IF (SIZE(state_indices) /= SIZE(matrix_in, 2) .OR. &
+             ANY(state_indices < 1) .OR. ANY(state_indices > SIZE(inverse_k, 4))) THEN
+            CPABORT("Invalid state indices in lattice preconditioner")
+         END IF
+      ELSE IF (SIZE(inverse_k, 4) /= SIZE(matrix_in, 2)) THEN
+         CPABORT("Inconsistent state-dependent inverse blocks in lattice preconditioner")
+      END IF
+      IF (SIZE(matrix_in, 1) /= block_size*ncell .OR. &
+          ANY(SHAPE(matrix_out) /= SHAPE(matrix_in))) THEN
+         CPABORT("Inconsistent dense state matrix shape in lattice preconditioner")
+      END IF
+
+      ALLOCATE (input_rs(block_size, SIZE(matrix_in, 2), ncell))
+      DO icell = 1, ncell
+         input_rs(:, :, icell) = CMPLX( &
+                                 matrix_in((icell - 1)*block_size + 1:icell*block_size, :), 0.0_dp, KIND=dp)
+      END DO
+
+      ALLOCATE (input_k(block_size, SIZE(matrix_in, 2), ncell))
+      ALLOCATE (output_k(block_size, SIZE(matrix_in, 2), ncell))
+      ALLOCATE (output_rs(block_size, SIZE(matrix_in, 2), ncell))
+      CALL batched_lattice_fft(input_rs, lattice_dims, BWFFT, input_k, forward_fft)
+      DO icell = 1, ncell
+         DO j = 1, SIZE(matrix_in, 2)
+            IF (PRESENT(state_indices)) THEN
+               output_k(:, j, icell) = &
+                  MATMUL(inverse_k(:, :, icell, state_indices(j)), input_k(:, j, icell))
+            ELSE
+               output_k(:, j, icell) = MATMUL(inverse_k(:, :, icell, j), input_k(:, j, icell))
+            END IF
+         END DO
+      END DO
+      CALL batched_lattice_fft(output_k, lattice_dims, FWFFT, output_rs, inverse_fft)
+      used_fft = forward_fft .AND. inverse_fft
+      IF (PRESENT(imaginary_residual)) imaginary_residual = MAXVAL(ABS(AIMAG(output_rs)))
+
+      DO icell = 1, ncell
+         matrix_out((icell - 1)*block_size + 1:icell*block_size, :) = REAL(output_rs(:, :, icell), KIND=dp)
+      END DO
+
+      DEALLOCATE (input_k, input_rs, output_k, output_rs)
+
+   END SUBROUTINE apply_lattice_state_inverse_dense
+
+! **************************************************************************************************
 !> \brief Transform a complete replicated-cell batch with three batched one-dimensional FFTs.
 !> \param values_in matrices on the complete direct or reciprocal lattice
 !> \param lattice_dims logical lattice dimensions
@@ -241,7 +522,6 @@ CONTAINS
       IF (fsign /= FWFFT .AND. fsign /= BWFFT) THEN
          CPABORT("Invalid direction in batched lattice FFT")
       END IF
-
       nfft = lattice_dims
       compatible = .TRUE.
       DO d = 1, 3
@@ -259,6 +539,7 @@ CONTAINS
          IF (.NOT. compatible) EXIT
       END DO
       IF (.NOT. compatible) THEN
+         values_out = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
          used_fft = .FALSE.
          RETURN
       END IF
@@ -292,6 +573,7 @@ CONTAINS
          IF (stat /= 0) EXIT
       END DO
       IF (stat /= 0) THEN
+         values_out = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
          used_fft = .FALSE.
          DEALLOCATE (grid)
          RETURN
@@ -465,7 +747,7 @@ CONTAINS
             DO m = 1, j - 1
                diagonal = diagonal - ABS(factor(m, j))**2
             END DO
-            IF (diagonal <= 0.0_dp) THEN
+            IF (.NOT. ieee_is_finite(diagonal) .OR. diagonal <= 0.0_dp) THEN
                info = iblock
                DEALLOCATE (factor, inverse, solution, work)
                RETURN
@@ -508,4 +790,4 @@ CONTAINS
 
    END SUBROUTINE invert_hermitian_blocks
 
-END MODULE lattice_low_rank_preconditioner
+END MODULE lattice_preconditioner_operator

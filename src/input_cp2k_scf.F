@@ -34,8 +34,9 @@ MODULE input_cp2k_scf
         high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, &
         jacobian_fd2, jacobian_fd2_backward, ls_2pnt, ls_3pnt, ls_adapt, ls_gold, ls_none, &
         mopac_guess, no_guess, numerical, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
-        ot_low_rank_base_lattice_fft, ot_low_rank_base_overlap, ot_lwdn_irac, ot_mini_broyden, &
-        ot_mini_cg, ot_mini_diis, ot_mini_lbfgs, ot_mini_sd, ot_poly_irac, &
+        ot_lattice_fft_auto, ot_lattice_fft_off, ot_lattice_fft_on, ot_low_rank_base_lattice_fft, &
+        ot_low_rank_base_overlap, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, &
+        ot_mini_lbfgs, ot_mini_sd, ot_poly_irac, &
         ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_all_covariant, &
         ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
         ot_precond_none, ot_precond_s_inverse, ot_precond_solver_chebyshev, &
@@ -905,8 +906,9 @@ CONTAINS
          description="Base operator used only with PRECONDITIONER FERMI_LOW_RANK. OVERLAP_INVERSE "// &
          "applies the exact dense inverse overlap. LATTICE_FFT projects the overlap onto translations "// &
          "of an explicitly replicated SUBSYS multiple unit cell, inverts its small reciprocal-space "// &
-         "blocks, and applies the approximate inverse with lattice FFTs. The experimental FFT path is "// &
-         "restricted to real Gamma-point OT calculations and is never selected automatically.", &
+         "blocks, and applies the approximate inverse with lattice FFTs. This choice implies "// &
+         "LATTICE_FFT ON; use the general LATTICE_FFT keyword for AUTO selection. The experimental "// &
+         "FFT path is restricted to real Gamma-point OT calculations.", &
          usage="FERMI_LOW_RANK_BASE LATTICE_FFT", &
          default_i_val=ot_low_rank_base_overlap, &
          enum_c_vals=s2a("OVERLAP_INVERSE", "LATTICE_FFT"), &
@@ -924,6 +926,25 @@ CONTAINS
          "degenerate boundary manifold.", &
          usage="FERMI_LOW_RANK_MAX_RANK 64", &
          default_i_val=48)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="LATTICE_FFT", &
+         description="Apply the inverse of a block-circulant projection of the selected OT "// &
+         "preconditioner with FFTs over explicitly replicated cells. Supported by FULL_S_INVERSE, "// &
+         "FULL_KINETIC, FULL_SINGLE_INVERSE, and FERMI_LOW_RANK in real Gamma-point calculations. "// &
+         "ON requires the projected reciprocal-space blocks to be positive definite. AUTO uses the "// &
+         "FFT operator only for at least eight replicated cells and a relative projection error no "// &
+         "larger than 1.0E-3; otherwise it retains the conventional solver. This experimental "// &
+         "implementation gathers the operator and input vectors on every rank.", &
+         usage="LATTICE_FFT AUTO", &
+         default_i_val=ot_lattice_fft_off, &
+         enum_c_vals=s2a("OFF", "ON", "AUTO"), &
+         enum_desc=s2a("Use the conventional OT preconditioner solver", &
+                       "Always use the approximate lattice-FFT inverse", &
+                       "Use the lattice-FFT inverse only when conservative selection criteria pass"), &
+         enum_i_vals=[ot_lattice_fft_off, ot_lattice_fft_on, ot_lattice_fft_auto])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
