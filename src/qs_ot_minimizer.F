@@ -24,6 +24,7 @@ MODULE qs_ot_minimizer
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathlib,                         ONLY: diamat_all
@@ -152,6 +153,15 @@ CONTAINS
       CASE ("BROY")
          qs_ot_env(1)%OT_METHOD_FULL = "OT BROY"
          CALL ot_broyden_step(qs_ot_env)
+      CASE ("LBFG")
+         IF (current_point_is_fine(qs_ot_env)) THEN
+            qs_ot_env(1)%OT_METHOD_FULL = "OT LBFGS"
+            CALL ot_new_lbfgs_direction(qs_ot_env)
+            qs_ot_env(1)%line_search_count = 0
+         ELSE
+            qs_ot_env(1)%OT_METHOD_FULL = "OT LS"
+         END IF
+         CALL do_line_search(qs_ot_env)
       CASE DEFAULT
          CPABORT("OT_METHOD NYI")
       END SELECT
@@ -946,6 +956,203 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ot_new_cg_direction
+
+! **************************************************************************************************
+!> \brief Builds an L-BFGS direction in the fixed OT chart.
+!>
+!> The selected OT preconditioner is used as the initial inverse Hessian. History slot m+1 stores
+!> the previous accepted point and gradient; slots 1:m store the circular (s,y) secant history.
+!> Curvature-rejected updates and non-descent directions reset the history.
+!> \param qs_ot_env OT environments for all spin channels
+! **************************************************************************************************
+   SUBROUTINE ot_new_lbfgs_direction(qs_ot_env)
+      TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_lbfgs_direction'
+      REAL(KIND=dp), PARAMETER                           :: curvature_tol = 1.0E-10_dp
+
+      INTEGER                                            :: handle, i, ispin, itmp, j, k, m_history, &
+                                                            n, newest, nhistory, nspin
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: history_index
+      REAL(KIND=dp)                                      :: beta, g_dot_z, gamma, ss, stq, sy, tmp, &
+                                                            yy, yy_newest
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha, rho
+
+      CALL timeset(routineN, handle)
+
+      IF (.NOT. qs_ot_env(1)%settings%ks .OR. qs_ot_env(1)%settings%do_ener .OR. &
+          qs_ot_env(1)%settings%do_rotation) THEN
+         CPABORT("MINIMIZER LBFGS currently supports only fixed-chart OT orbital variables")
+      END IF
+
+      nspin = SIZE(qs_ot_env)
+      m_history = qs_ot_env(1)%settings%diis_m
+
+      ! Form a new secant pair relative to the preceding accepted line-search point.
+      IF (qs_ot_env(1)%diis_iter > 0) THEN
+         j = MOD(qs_ot_env(1)%diis_iter - 1, m_history) + 1
+         ss = 0.0_dp
+         sy = 0.0_dp
+         yy = 0.0_dp
+         DO ispin = 1, nspin
+            CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(j)%matrix, qs_ot_env(ispin)%matrix_x)
+            CALL dbcsr_add(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
+                           qs_ot_env(ispin)%matrix_h_x(m_history + 1)%matrix, &
+                           alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+            CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_e(j)%matrix, qs_ot_env(ispin)%matrix_gx)
+            CALL dbcsr_add(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
+                           qs_ot_env(ispin)%matrix_h_e(m_history + 1)%matrix, &
+                           alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
+                           qs_ot_env(ispin)%matrix_h_x(j)%matrix, tmp)
+            ss = ss + tmp
+            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
+                           qs_ot_env(ispin)%matrix_h_e(j)%matrix, tmp)
+            sy = sy + tmp
+            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
+                           qs_ot_env(ispin)%matrix_h_e(j)%matrix, tmp)
+            yy = yy + tmp
+         END DO
+         IF (ieee_is_finite(sy) .AND. ieee_is_finite(ss) .AND. ieee_is_finite(yy) .AND. &
+             ss > 0.0_dp .AND. yy > 0.0_dp .AND. sy > curvature_tol*SQRT(ss*yy)) THEN
+            qs_ot_env(1)%lbfgs_rho(j) = 1.0_dp/sy
+            qs_ot_env(1)%lbfgs_yy(j) = yy
+            qs_ot_env(1)%diis_iter = qs_ot_env(1)%diis_iter + 1
+         ELSE
+            ! The current point remains the reference, but all older pairs are discarded.
+            qs_ot_env(1)%diis_iter = 1
+         END IF
+      ELSE
+         qs_ot_env(1)%diis_iter = 1
+      END IF
+
+      DO ispin = 1, nspin
+         CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(m_history + 1)%matrix, &
+                         qs_ot_env(ispin)%matrix_x)
+         CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_e(m_history + 1)%matrix, &
+                         qs_ot_env(ispin)%matrix_gx)
+         CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx_old, qs_ot_env(ispin)%matrix_gx)
+      END DO
+
+      nhistory = MIN(qs_ot_env(1)%diis_iter - 1, m_history)
+      ALLOCATE (alpha(MAX(1, nhistory)), rho(MAX(1, nhistory)), &
+                history_index(MAX(1, nhistory)))
+      yy_newest = 0.0_dp
+
+      ! First loop, newest to oldest: q <- V^T g.
+      IF (nhistory > 0) THEN
+         newest = MOD(qs_ot_env(1)%diis_iter - 2, m_history) + 1
+         yy_newest = qs_ot_env(1)%lbfgs_yy(newest)
+         DO i = 1, nhistory
+            history_index(i) = MODULO(newest - i, m_history) + 1
+            stq = 0.0_dp
+            DO ispin = 1, nspin
+               CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_x(history_index(i))%matrix, &
+                              qs_ot_env(ispin)%matrix_gx_old, tmp)
+               stq = stq + tmp
+            END DO
+            rho(i) = qs_ot_env(1)%lbfgs_rho(history_index(i))
+            alpha(i) = rho(i)*stq
+            DO ispin = 1, nspin
+               CALL dbcsr_add(qs_ot_env(ispin)%matrix_gx_old, &
+                              qs_ot_env(ispin)%matrix_h_e(history_index(i))%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=-alpha(i))
+            END DO
+         END DO
+      END IF
+
+      ! Apply the initial inverse Hessian. A physical OT preconditioner takes precedence over
+      ! scalar secant scaling, because it carries the kinetic/overlap metric and energy scale.
+      IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
+         DO ispin = 1, nspin
+            CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
+                                      qs_ot_env(ispin)%matrix_gx_old, qs_ot_env(ispin)%matrix_dx)
+         END DO
+      ELSE
+         gamma = 1.0_dp
+         IF (nhistory > 0 .AND. yy_newest > 0.0_dp) gamma = 1.0_dp/(rho(1)*yy_newest)
+         DO ispin = 1, nspin
+            CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx_old)
+            CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx, gamma)
+         END DO
+      END IF
+
+      ! Second loop, oldest to newest: z <- V H0 V^T g.
+      DO i = nhistory, 1, -1
+         beta = 0.0_dp
+         DO ispin = 1, nspin
+            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_e(history_index(i))%matrix, &
+                           qs_ot_env(ispin)%matrix_dx, tmp)
+            beta = beta + tmp
+         END DO
+         beta = rho(i)*beta
+         DO ispin = 1, nspin
+            CALL dbcsr_add(qs_ot_env(ispin)%matrix_dx, &
+                           qs_ot_env(ispin)%matrix_h_x(history_index(i))%matrix, &
+                           alpha_scalar=1.0_dp, beta_scalar=alpha(i) - beta)
+         END DO
+      END DO
+
+      g_dot_z = 0.0_dp
+      DO ispin = 1, nspin
+         CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
+         g_dot_z = g_dot_z + tmp
+      END DO
+
+      ! Preserve a guaranteed descent direction even if the supplied initial preconditioner is
+      ! indefinite or numerical noise corrupts the secant recursion.
+      IF (.NOT. ieee_is_finite(g_dot_z) .OR. g_dot_z <= 0.0_dp) THEN
+         qs_ot_env(1)%diis_iter = 1
+         qs_ot_env(1)%OT_METHOD_FULL = "OT L-SD"
+         IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
+            DO ispin = 1, nspin
+               CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
+                                         qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx)
+            END DO
+         ELSE
+            DO ispin = 1, nspin
+               CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx)
+            END DO
+         END IF
+         g_dot_z = 0.0_dp
+         DO ispin = 1, nspin
+            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
+            g_dot_z = g_dot_z + tmp
+         END DO
+         IF (.NOT. ieee_is_finite(g_dot_z) .OR. g_dot_z <= 0.0_dp) THEN
+            g_dot_z = 0.0_dp
+            DO ispin = 1, nspin
+               CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx)
+               CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
+               g_dot_z = g_dot_z + tmp
+            END DO
+         END IF
+      END IF
+
+      DO ispin = 1, nspin
+         CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx, -1.0_dp)
+      END DO
+      qs_ot_env(1)%gnorm = g_dot_z
+      qs_ot_env(1)%gradient = -g_dot_z
+
+      k = 0
+      n = 0
+      CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
+      DO ispin = 1, nspin
+         CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
+         k = k + itmp
+      END DO
+      IF (INT(n, KIND=int_8)*INT(k, KIND=int_8) /= 0) THEN
+         qs_ot_env(1)%delta = SQRT(ABS(g_dot_z)/(INT(n, KIND=int_8)*INT(k, KIND=int_8)))
+      ELSE
+         qs_ot_env(1)%delta = 0.0_dp
+         qs_ot_env(1)%gradient = 0.0_dp
+      END IF
+
+      DEALLOCATE (alpha, rho, history_index)
+      CALL timestop(handle)
+
+   END SUBROUTINE ot_new_lbfgs_direction
 
 ! **************************************************************************************************
 !> \brief ...
