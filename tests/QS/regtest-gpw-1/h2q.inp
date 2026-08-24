@@ -12,6 +12,12 @@
     &MGRID
       CUTOFF 100
     &END MGRID
+    &PRINT
+      &AO_MATRICES
+        COMMUTATOR_HR
+        NDIGITS 12
+      &END AO_MATRICES
+    &END PRINT
     &QS
       METHOD GPW
     &END QS
