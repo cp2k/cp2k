@@ -40,6 +40,8 @@
         &PAIR_POTENTIAL
           REFERENCE_FUNCTIONAL PBE
           TYPE DFTD4
+          D4_CUTOFF_WIDTH [bohr] 0.05
+          D4_3B_CUTOFF_WIDTH [bohr] 0.0
           &EEQ
             EPS_DIIS 1.0E-12
             SPARSE
