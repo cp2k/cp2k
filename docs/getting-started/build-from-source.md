@@ -1,8 +1,23 @@
 # Build from Source
 
 CP2K uses the [CMake](https://cmake.org) build system, which detects dependencies and controls the
-compilation process. This page describes how to obtain a complete CP2K source tree and build it with
-its dependencies.
+compilation process. This page describes how to obtain a complete CP2K source tree, prepare the
+dependencies and build and install CP2K.
+
+```{note}
+Historical releases from 2025 or prior used a custom system based on GNU Make and ARCH files, which
+has been deprecated due to portability and maintenance difficulties. There is no longer interest in
+providing tech support and documentation for it outside of legacy materials.
+
+The 2026.1 release was the first to exclusively rely on the CMake build system, but the appropriate
+[](./build-from-source.md#cmake-configuration-options) had to be assembled manually due to a lack
+of automation. The inconvenience has been addressed since the subsequent 2026.2 release, which
+introduced the scripts `build_cp2k.sh` (for a [](./build-from-source.md#toolchain-based-build)) and
+`make_cp2k.sh` (for a [](./build-from-source.md#spack-based-build-via-make_cp2ksh)).
+
+As such, the following documentation applies to the current CP2K master branch and release versions
+`2026.2` and newer.
+```
 
 ## Obtaining source code
 
@@ -20,7 +35,7 @@ cd cp2k-<version>
 ```
 
 ```{tip}
-It's strongly recommended to use the versioned release tarball rather than GitHub's automatically
+It is strongly recommended to use the versioned release tarball rather than GitHub's automatically
 generated `Source code` archive, especially for version <=2025.2. The versioned tarball is the
 release artifact and contains any source components bundled for that release.
 ```
@@ -30,7 +45,7 @@ release artifact and contains any source components bundled for that release.
 A Git checkout is appropriate for development builds or when a particular branch is required:
 
 ```shell
-git clone --recursive https://github.com/cp2k/cp2k.git cp2k
+git clone https://github.com/cp2k/cp2k.git cp2k
 cd cp2k
 ```
 
@@ -58,10 +73,12 @@ artifact rather than a Git tag for released CP2K versions.
 
 ## Setting up dependencies and building CP2K
 
-At a minimum, CP2K requires a modern C and Fortran compiler,
-[DBCSR](https://github.com/cp2k/dbcsr/), BLAS, and LAPACK. MPI builds additionally require MPI and
-ScaLAPACK. For currently supported compilers, see the
-[GitHub Wiki page](https://github.com/cp2k/cp2k/wiki/Compiler-Support).
+At a minimum, CP2K requires a modern suite of C and Fortran compiler compliant with the C99 and the
+F2008 standard respectively. For currently supported compiler versions, see the GitHub Wiki page on
+[Compiler Support](https://github.com/cp2k/cp2k/wiki/Compiler-Support).
+
+In addition, CP2K requires [DBCSR](https://github.com/cp2k/dbcsr/), BLAS, and LAPACK; on top of
+these, MPI builds require MPI and ScaLAPACK.
 
 Detailed descriptions of available dependencies can be found in the technologies section:
 
@@ -69,41 +86,78 @@ Detailed descriptions of available dependencies can be found in the technologies
 - **[](../technologies/accelerators/index)**
 - **[](../technologies/libraries)**
 
+Utilities available from package managers `apt-get`, `dnf` and the like, such as `python3`, `pip`,
+`git`, `less`, `make`, `sed`, `tar`, `wget`, `zlib`, `unzip`, `bzip2`, and `xz` (this is not an
+exhaustive list) are assumed to be readily available infrastructure.
+
 The following two methods provide a CP2K-managed dependency stack. For a manually managed
 environment, use the CMake configuration described below.
 
 ### Toolchain-based build
 
-The toolchain scripts under `tools/toolchain` build a CP2K-compatible dependency stack and prepare
-the environment for a subsequent CP2K build. Use `./install_cp2k_toolchain.sh --help` to display the
-help message and the complete list of options.
+The toolchain scripts under the `tools/toolchain` directory build a CP2K-compatible, self-contained
+dependency stack and prepare the environment for a subsequent CP2K build. It is operated from the
+`install_cp2k_toolchain.sh` script and accompanied by `build_cp2k.sh`. To enter the directory and
+read help messages and the complete list of options, run:
 
-To build CP2K with the toolchain, run `install_cp2k_toolchain.sh` from `tools/toolchain` with the
-desired toolchain options to configure and install the requested dependencies, then use
-`build_cp2k.sh` to build and install CP2K accordingly.
+```shell
+cd ./tools/toolchain/
+./install_cp2k_toolchain.sh --help
+./build_cp2k.sh --help
+```
+
+To configure and install the dependencies requested by default options, run:
+
+```shell
+./install_cp2k_toolchain.sh
+```
+
+After that, to build and install CP2K linked against them, run:
+
+```shell
+./build_cp2k.sh
+```
+
+Everything is under the `CP2K_ROOT` directory mentioned above by default: the binaries and libraries
+of the dependencies are in `tools/toolchain/install/`, the CP2K build tree in `build/`, and the
+headers, modules, binary executables and a `cp2k_env` file in `install/`. (Before running CP2K, one
+must always source the `cp2k_env` file.) Options are also available to make installed dependencies
+and program outside of the source tree.
+
+```shell
+./install_cp2k_toolchain.sh --install-dir=/opt/cp2k/toolchain
+./build_cp2k.sh --prefix /opt/cp2k
+```
 
 ```{note}
 The toolchain does not cover every optional dependency or feature combination, such as DLA-Future,
-PEXSI, and optional SIRIUS features including NLCG. If these features are needed, it's recommended
-to choose the Spack-based method.
+PEXSI, and optional SIRIUS features including NLCG. If these features are needed, the Spack-based
+build as detailed below is the more recommended method. While the toolchain offers some support for
+GPU builds, it is more limited than the Spack-based method.
 ```
 
 ### Spack-based build via `make_cp2k.sh`
 
 `make_cp2k.sh` installs the selected dependency stack with [Spack](https://spack.readthedocs.io) and
-then configures, builds, and installs CP2K with
-[CMake](https://cmake.org/cmake/help/latest/index.html). It operates in `CP2K_ROOT`, the root of the
+then configures, builds, and installs CP2K with CMake. It operates in `CP2K_ROOT`, the root of the
 CP2K source tree.
 
-```{note}
-This build path is only available on the current CP2K master branch and CP2K release versions
-`2026.2` and newer.
+Run the script with its default options to perform a full build including (almost) all features:
+
+```shell
+./make_cp2k.sh
 ```
 
-Run the script with its default options:
+For a minimal build from scratch, run:
 
-```console
-./make_cp2k.sh
+```shell
+./make_cp2k.sh -bd -df all
+```
+
+Based on which desired features can be added explicitly for building a tailored CP2K binary.
+
+```shell
+./make_cp2k.sh -bd -df all -ef libint -ef libxc -ef spglib -ef tblite
 ```
 
 Use `./make_cp2k.sh --help` to display the complete list of options:
@@ -205,7 +259,7 @@ dependency builds; see `--use_cache` for the available cache backends.
 
 Add `-t` or `--test` followed by `TESTOPTS` to run a regression test after a successful build:
 
-```console
+```shell
 ./make_cp2k.sh --test "--maxtasks 16 --flagslow"
 ```
 
@@ -219,13 +273,13 @@ examples at the end of a successful run.
 The latest supported GROMACS release (currently v2026.3) for GROMACS/CP2K QM/MM simulations can be
 built and tested with
 
-```console
+```shell
 ./make_cp2k.sh -bd --test_gromacs
 ```
 
 for CP2K versions newer than v2026.2. Other (older) GROMACS versions can be built and tested with
 
-```console
+```shell
 ./make_cp2k.sh -bd -gromacs v2025.2 --test_gromacs
 ```
 
