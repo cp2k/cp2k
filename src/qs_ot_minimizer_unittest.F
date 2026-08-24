@@ -11,7 +11,8 @@ PROGRAM qs_ot_minimizer_unittest
                                               ieee_value
    USE kinds,                           ONLY: dp
    USE qs_ot_minimizer,                 ONLY: lbfgs_curvature_damping_shift,&
-                                              lbfgs_history_restart_required
+                                              lbfgs_history_restart_required,&
+                                              lbfgs_step_restart_required
 
    IMPLICIT NONE
 
@@ -49,6 +50,19 @@ PROGRAM qs_ot_minimizer_unittest
       ERROR STOP "L-BFGS history restarted without a valid preceding gradient"
    END IF
 
+   IF (lbfgs_step_restart_required(1.0E-6_dp*0.1_dp, 0.1_dp)) THEN
+      ERROR STOP "L-BFGS step restarted at the exact line-search collapse threshold"
+   END IF
+   IF (.NOT. lbfgs_step_restart_required(0.999E-6_dp*0.1_dp, 0.1_dp)) THEN
+      ERROR STOP "L-BFGS step did not restart below the line-search collapse threshold"
+   END IF
+   IF (.NOT. lbfgs_step_restart_required(-0.999E-6_dp*2.5_dp, 2.5_dp)) THEN
+      ERROR STOP "L-BFGS step restart does not use the accepted-step magnitude"
+   END IF
+   IF (lbfgs_step_restart_required(0.0_dp, 0.0_dp)) THEN
+      ERROR STOP "L-BFGS step restarted without a valid reference step"
+   END IF
+
    infinity = ieee_value(0.0_dp, ieee_positive_inf)
    not_a_number = ieee_value(0.0_dp, ieee_quiet_nan)
    IF (lbfgs_history_restart_required(infinity, 1.0_dp)) THEN
@@ -62,6 +76,15 @@ PROGRAM qs_ot_minimizer_unittest
    END IF
    IF (lbfgs_history_restart_required(1.0_dp, not_a_number)) THEN
       ERROR STOP "L-BFGS history restarted for a NaN preceding gradient"
+   END IF
+   IF (lbfgs_step_restart_required(infinity, 1.0_dp)) THEN
+      ERROR STOP "L-BFGS step restarted for an infinite accepted step"
+   END IF
+   IF (lbfgs_step_restart_required(1.0_dp, infinity)) THEN
+      ERROR STOP "L-BFGS step restarted for an infinite reference step"
+   END IF
+   IF (lbfgs_step_restart_required(not_a_number, 1.0_dp)) THEN
+      ERROR STOP "L-BFGS step restarted for a NaN accepted step"
    END IF
    IF (lbfgs_curvature_damping_shift(not_a_number, 1.0_dp, 1.0_dp, 0.5_dp) /= 0.0_dp) THEN
       ERROR STOP "L-BFGS damping accepted NaN curvature"

@@ -42,6 +42,7 @@ MODULE qs_ot_minimizer
 
    PUBLIC  :: lbfgs_curvature_damping_shift, &
               lbfgs_history_restart_required, &
+              lbfgs_step_restart_required, &
               ot_mini
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_minimizer'
@@ -1110,13 +1111,32 @@ CONTAINS
    END FUNCTION lbfgs_history_restart_required
 
 ! **************************************************************************************************
+!> \brief Decides whether L-BFGS must recover from a collapsed accepted line-search step.
+!> \param accepted_step step selected by the preceding line search
+!> \param reference_step configured initial line-search step
+!> \return true for a finite step smaller than one millionth of a valid reference step
+! **************************************************************************************************
+   PURE FUNCTION lbfgs_step_restart_required(accepted_step, reference_step) RESULT(restart_step)
+      REAL(KIND=dp), INTENT(IN)                          :: accepted_step, reference_step
+      LOGICAL                                            :: restart_step
+
+      REAL(KIND=dp), PARAMETER :: step_restart_factor = 1.0E-6_dp
+
+      restart_step = ieee_is_finite(accepted_step) .AND. &
+                     ieee_is_finite(reference_step) .AND. &
+                     reference_step > 0.0_dp .AND. &
+                     ABS(accepted_step) < step_restart_factor*reference_step
+   END FUNCTION lbfgs_step_restart_required
+
+! **************************************************************************************************
 !> \brief Builds an L-BFGS direction in the fixed OT product chart.
 !>
 !> The selected OT preconditioner is used as the initial inverse Hessian. History slot m+1 stores
 !> the previous accepted point and gradient; slots 1:m store the circular (s,y) secant history.
 !> Orbital rotations are included with the antisymmetric-matrix metric used by the other OT
 !> minimizers. Weak curvature can be regularized along the step, while rejected updates leave
-!> older valid history intact. Non-descent directions reset the history.
+!> older valid history intact. Non-descent directions and collapsed line-search steps reset the
+!> history; the latter also restore the configured initial step.
 !> \param qs_ot_env OT environments for all spin channels
 ! **************************************************************************************************
    SUBROUTINE ot_new_lbfgs_direction(qs_ot_env)
@@ -1130,7 +1150,7 @@ CONTAINS
                                                             n, newest, nhistory, nspin
       INTEGER(KIND=int_8)                                :: nrotation, nvariables
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: history_index
-      LOGICAL                                            :: restart_history
+      LOGICAL                                            :: restart_history, restart_step
       REAL(KIND=dp) :: beta, current_gradient_norm_sq, curvature_tol, damping_shift, g_dot_z, &
          gamma, gamma_rotation, previous_gradient_norm_sq, ss, ss_rotation, stq, sy, sy_rotation, &
          tmp, yy, yy_newest, yy_rotation
@@ -1147,11 +1167,14 @@ CONTAINS
       m_history = qs_ot_env(1)%settings%diis_m
       curvature_tol = qs_ot_env(1)%settings%lbfgs_curvature_tol
       restart_history = .FALSE.
+      restart_step = .FALSE.
 
       ! A local line search can accept a nearly isoenergetic point whose raw gradient is much
       ! larger than at the preceding point. CG naturally resets after such a loss of conjugacy,
       ! whereas retaining an L-BFGS model can amplify it. Discard only the secant model and use
-      ! the physical initial inverse Hessian for the current direction.
+      ! the physical initial inverse Hessian for the current direction. Likewise, restore the
+      ! configured initial step if repeated interpolation has collapsed the accepted step by more
+      ! than six orders of magnitude without satisfying the SCF convergence criterion.
       IF (qs_ot_env(1)%diis_iter > 0) THEN
          current_gradient_norm_sq = 0.0_dp
          previous_gradient_norm_sq = 0.0_dp
@@ -1169,10 +1192,14 @@ CONTAINS
                previous_gradient_norm_sq = previous_gradient_norm_sq + 0.5_dp*tmp
             END IF
          END DO
+         restart_step = lbfgs_step_restart_required(qs_ot_env(1)%ds_min, &
+                                                    qs_ot_env(1)%settings%ds_min)
          restart_history = lbfgs_history_restart_required(current_gradient_norm_sq, &
-                                                          previous_gradient_norm_sq)
+                                                          previous_gradient_norm_sq) .OR. &
+                           restart_step
          IF (restart_history) THEN
             qs_ot_env(1)%diis_iter = 1
+            IF (restart_step) qs_ot_env(1)%ds_min = qs_ot_env(1)%settings%ds_min
             qs_ot_env(1)%OT_METHOD_FULL = "OT L-RST"
          END IF
       END IF
