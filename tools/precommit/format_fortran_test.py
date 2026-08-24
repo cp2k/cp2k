@@ -7,6 +7,7 @@ import shutil
 import sys
 
 from format_fortran import main
+from prettify_cp2k import normalizeFortranFile
 from prettify_cp2k import selftest
 
 interface_cpp_content = """\
@@ -50,6 +51,21 @@ class TestSingleFileFolder(unittest.TestCase):
             result = fhandle.read()
 
         self.assertEqual(result.splitlines(), selftest.content.splitlines())
+
+    def test_large_declaration_dependency_pass(self):
+        declarations = []
+        for idx in range(500):
+            declarations.append(
+                {
+                    "attributes": [],
+                    "parameters": None,
+                    "vars": [f"var_{idx:03d}"],
+                    "normalizedType": f"TYPE_{idx:03d}",
+                }
+            )
+
+        normalizeFortranFile.enforceDeclDependecies(declarations)
+        self.assertEqual(sum(len(d["vars"]) for d in declarations), 500)
 
 
 class TestInterfaceCppDirective(unittest.TestCase):
