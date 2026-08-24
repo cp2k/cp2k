@@ -10,6 +10,7 @@ PROGRAM low_rank_preconditioner_unittest
    USE low_rank_preconditioner_model,   ONLY: apply_low_rank_dense,&
                                               low_rank_inverse_weight,&
                                               low_rank_select_rank
+   USE mathconstants,                   ONLY: sqrthalf
 
    IMPLICIT NONE
 
@@ -71,10 +72,10 @@ PROGRAM low_rank_preconditioner_unittest
 
    ! Verify that the projected complementary operator depends only on the occupied subspace.
    occupied = 0.0_dp
-   occupied(1, 1) = 1.0_dp/SQRT(2.0_dp)
-   occupied(2, 1) = 1.0_dp/SQRT(2.0_dp)
-   occupied(3, 2) = 1.0_dp/SQRT(2.0_dp)
-   occupied(4, 2) = 1.0_dp/SQRT(2.0_dp)
+   occupied(1, 1) = sqrthalf
+   occupied(2, 1) = sqrthalf
+   occupied(3, 2) = sqrthalf
+   occupied(4, 2) = sqrthalf
    occupied_rotation = RESHAPE([COS(angle), SIN(angle), -SIN(angle), COS(angle)], [2, 2])
    occupied_rotated = MATMUL(occupied, occupied_rotation)
 

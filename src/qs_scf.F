@@ -89,8 +89,8 @@ MODULE qs_scf
         ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_kinetic, &
         ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
         ot_precond_s_inverse, outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, &
-        outer_scf_optimizer_broyden, outer_scf_optimizer_newton_ls, sic_eo, &
-        smear_fermi_dirac, smear_gaussian, smear_mp, smear_mv, tblite_scc_mixer_tblite
+        outer_scf_optimizer_broyden, outer_scf_optimizer_newton_ls, sic_eo, smear_fermi_dirac, &
+        smear_gaussian, smear_mp, smear_mv, tblite_scc_mixer_tblite
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
