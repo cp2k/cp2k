@@ -49,6 +49,7 @@ registry["QS_number_of_molecular_orbitals"] = GenericMatcher(
     r"Number of molecular orbitals:", col=5
 )
 registry["QS_cartesian_mo_output"] = TextPresenceMatcher("CARTESIAN EIGENVECTORS")
+registry["QS_MO_OCCUPATION_STATS"] = TextPresenceMatcher("MO| Total occupied (ALPHA):")
 registry["Kubo_sigma_iso"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S/cm]", col=3)
 registry["Kubo_sigma_iso_2d"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S]", col=3)
 registry["Kubo_sigma_iso_1d"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S*m]", col=3)
