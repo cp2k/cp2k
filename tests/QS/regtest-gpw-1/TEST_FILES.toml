@@ -62,9 +62,9 @@
 # EV93 xc functional
 "Li2-0-SCF-PBE.inp"                     = [{matcher="M053", tol=2e-14, ref=-3.49794779473645}]
 "Li2-1-nSCF-EV.inp"                     = [{matcher="M053", tol=4e-14, ref=-3.56444711606754}]
-"Li2-2-nSCF-EV93.inp"                   = [{matcher="M053", tol=1.0E-14, ref=-3.88884912686047}]
-"Li2-3-nSCF-EV93.inp"                   = [{matcher="E_gap_DFT_2", tol=1.0E-14, ref=0.054496680776}]
-"Li2-4-nSCF-EV93.inp"                   = [{matcher="M048", tol=1.0E-14, ref=-0.128993904859}]
+"Li2-2-nSCF-EV93.inp"                   = [{matcher="M053", tol=1.0E-14, ref=-3.88884912686047},
+                                           {matcher="E_gap_DFT_2", tol=1.0E-14, ref=0.054496680776},
+                                           {matcher="M048", tol=1.0E-14, ref=-0.128993904859}]
 # debug
 "Ne_debug.inp"                          = [{matcher="E_total", tol=1e-13, ref=-34.33457110264323}]
 # ghost md
