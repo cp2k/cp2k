@@ -575,7 +575,7 @@ CONTAINS
             DO i = 1, dcnum(iatom)%neighbors
                katom = dcnum(iatom)%nlist(i)
                rik = dcnum(iatom)%rik(:, i)
-               drk = SQRT(SUM(rik(:)**2))
+               drk = NORM2(rik)
                IF (drk > 1.e-3_dp) THEN
                   fdik(:) = dchia(iatom)*dcnum(iatom)%dvals(i)*rik(:)/drk
                   gradient(:, iatom) = gradient(:, iatom) - fdik(:)
@@ -1038,7 +1038,7 @@ CONTAINS
             ELSE
                rij(1:3) = ri(1:3) - rj(1:3)
                rij = pbc(rij, cell)
-               dr = SQRT(SUM(rij**2))
+               dr = NORM2(rij)
                grc = erf(gab(ikind, jkind)*dr)/dr
             END IF
             eeq_mat%local_data(ir, ic) = grc
@@ -1174,7 +1174,7 @@ CONTAINS
       gradient(:) = aq + chia
       residual(:) = -gradient
       CALL project_eeq_charge_tangent(residual)
-      res = SQRT(SUM(residual*residual))
+      res = NORM2(residual)
       res_initial = MAX(res, SQRT(EPSILON(1.0_dp)))
       iter = 0
 
@@ -1203,7 +1203,7 @@ CONTAINS
             ! Remove accumulated roundoff from both constrained spaces.
             charges = charges + (qtot - SUM(charges))/REAL(natom, KIND=dp)
             CALL project_eeq_charge_tangent(residual)
-            res = SQRT(SUM(residual*residual))
+            res = NORM2(residual)
             IF (res < eps_solver) EXIT
             IF (res > 100.0_dp*res_initial .OR. .NOT. (res < HUGE(res))) THEN
                ierror = 1
@@ -1324,7 +1324,7 @@ CONTAINS
          DO iy = -1, 1, 2
             DO iz = -1, 1, 2
                vertex = MATMUL(hmat, cell_extent*REAL([ix, iy, iz], KIND=dp))
-               neighbor_cutoff = MAX(neighbor_cutoff, SQRT(SUM(vertex**2)))
+               neighbor_cutoff = MAX(neighbor_cutoff, NORM2(vertex))
             END DO
          END DO
       END DO
@@ -1468,7 +1468,7 @@ CONTAINS
             DO iz = -ncell(3), ncell(3)
                cvec = [ix, iy, iz]
                rijl = rij + MATMUL(hmat, cvec)
-               dr = SQRT(SUM(rijl**2))
+               dr = NORM2(rijl)
                IF (dr > rmax) CYCLE
                IF (iatom == jatom .AND. dr < 1.0E-5_dp) THEN
                   element = element + gam(kind_of(iatom)) + &
@@ -1693,7 +1693,7 @@ CONTAINS
                   DO iz = -ncell(3), ncell(3)
                      cvec = [ix, iy, iz]
                      rijl = rij + MATMUL(hmat, cvec)
-                     dr = SQRT(SUM(rijl**2))
+                     dr = NORM2(rijl)
                      IF (dr > rmax) CYCLE
                      IF (iar == iac .AND. dr < 0.00001_dp) THEN
                         grc1 = gam(ikind) + 2.0_dp*gab(ikind, ikind)*oorootpi - ad
@@ -1767,10 +1767,10 @@ CONTAINS
       now = 1
       CALL get_energy_gradient(eeqn, eeq_mat, mmat, ewald_env, ewald_pw, &
                                cell, particle_set, xv0, rhs, rv0)
-      resin = SQRT(SUM(rv0*rv0))
+      resin = NORM2(rv0)
       !
       DO iv = 1, max_diis
-         res = SQRT(SUM(rv0*rv0))
+         res = NORM2(rv0)
          IF (res > 10._dp*resin) EXIT
          IF (res < eps_diis) EXIT
          !
@@ -1937,7 +1937,7 @@ CONTAINS
                   DO iz = -ncell(3), ncell(3)
                      cvec = [ix, iy, iz]
                      rijl = rij + MATMUL(hmat, cvec)
-                     dr = SQRT(SUM(rijl**2))
+                     dr = NORM2(rijl)
                      IF (dr > rmax) CYCLE
                      IF (iar == iac .AND. dr < 0.0001_dp) THEN
                         grc1 = gam(ikind) + 2.0_dp*gab(ikind, ikind)*oorootpi - ad
