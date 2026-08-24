@@ -371,14 +371,20 @@ CONTAINS
          best_slot = 0
          DO islot = 1, buffer%nbuffer
             IF (buffer%generation(islot) <= 0) CYCLE
-            IF (best_slot == 0 .OR. buffer%state_energy(islot) < buffer%state_energy(best_slot)) THEN
+            IF (best_slot == 0) THEN
+               best_slot = islot
+            ELSE IF (buffer%state_energy(islot) < buffer%state_energy(best_slot)) THEN
                best_slot = islot
             END IF
          END DO
          TARGET = 0
          DO islot = 1, buffer%nbuffer
             IF (islot == best_slot .OR. buffer%generation(islot) <= 0) CYCLE
-            IF (TARGET == 0 .OR. buffer%generation(islot) < buffer%generation(TARGET)) TARGET = islot
+            IF (TARGET == 0) THEN
+               TARGET = islot
+            ELSE IF (buffer%generation(islot) < buffer%generation(TARGET)) THEN
+               TARGET = islot
+            END IF
          END DO
       END IF
       IF (TARGET <= 0) RETURN
