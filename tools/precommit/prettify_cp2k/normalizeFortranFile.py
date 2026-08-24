@@ -529,7 +529,7 @@ def enforceDeclDependecies(declarations):
     """enforces the dependencies between the vars
     and compacts the declarations, returns the variables needed by other variables"""
     nvars = sum(len(d["vars"]) for d in declarations)
-    max_iterations = max(100000, 10 * nvars * max(1, nvars))
+    max_iterations = max(100000, 10 * nvars**2)
     idecl = 0
     ii = 0
     while idecl < len(declarations):
