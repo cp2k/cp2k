@@ -16,6 +16,8 @@ MODULE kpoint_lattice_fft
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               fft3d,&
+                                              fft_alloc,&
+                                              fft_dealloc,&
                                               fft_radix_operations,&
                                               fft_type
    USE kinds,                           ONLY: dp
@@ -123,7 +125,8 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: selected_kpoints
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cell_factor
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: fft_in, fft_out
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: fft_in, fft_out
       INTEGER                                            :: attempt, d, handle, i, icell, ik, &
                                                             ik_out, j, nout, radix_length, stat
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cell_index, grid_index
@@ -191,7 +194,9 @@ CONTAINS
          RETURN
       END IF
 
-      ALLOCATE (fft_in(nfft(1), nfft(2), nfft(3)), fft_out(nfft(1), nfft(2), nfft(3)))
+      NULLIFY (fft_in, fft_out)
+      CALL fft_alloc(fft_in, nfft)
+      CALL fft_alloc(fft_out, nfft)
       ALLOCATE (cell_index(3, SIZE(values_rs, 3)), cell_factor(SIZE(values_rs, 3)))
       DO icell = 1, SIZE(values_rs, 3)
          DO d = 1, 3
@@ -233,7 +238,9 @@ CONTAINS
       END IF
       IF (PRESENT(used_fft)) used_fft = regular
 
-      DEALLOCATE (cell_factor, cell_index, fft_in, fft_out, grid_index)
+      CALL fft_dealloc(fft_in)
+      CALL fft_dealloc(fft_out)
+      DEALLOCATE (cell_factor, cell_index, grid_index)
       CALL timestop(handle)
 
    END SUBROUTINE cell_to_k_grid_fft
