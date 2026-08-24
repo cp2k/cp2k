@@ -40,9 +40,9 @@ MODULE qs_charge_mixing
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_charge_mixing'
 
-   PUBLIC :: charge_mixing, charge_mixing_scc_error
+   PUBLIC :: charge_mixing, charge_mixing_scc_error, tblite_scc_error_on_cp2k_scale
 
-   REAL(KIND=dp), PARAMETER, PRIVATE :: tblite_scc_pconv = 2.0E-5_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: tblite_scc_pconv = 2.0E-5_dp
 
 CONTAINS
 
@@ -216,6 +216,25 @@ CONTAINS
    END SUBROUTINE charge_mixing
 
 ! **************************************************************************************************
+!> \brief Map a raw tblite SCC residual to CP2K's EPS_SCF reporting scale.
+!> \param raw_error raw tblite SCC residual
+!> \param eps_scf CP2K SCF convergence threshold
+!> \param pconv tblite SCC convergence reference
+!> \return residual on the CP2K convergence scale
+! **************************************************************************************************
+   PURE FUNCTION tblite_scc_error_on_cp2k_scale(raw_error, eps_scf, pconv) RESULT(scaled_error)
+      REAL(KIND=dp), INTENT(IN)                          :: raw_error, eps_scf, pconv
+      REAL(KIND=dp)                                      :: scaled_error
+
+      IF (eps_scf > 0.0_dp .AND. pconv > 0.0_dp) THEN
+         scaled_error = eps_scf*raw_error/pconv
+      ELSE
+         scaled_error = raw_error
+      END IF
+
+   END FUNCTION tblite_scc_error_on_cp2k_scale
+
+! **************************************************************************************************
 !> \brief Return the CP2K-side tblite SCC-mixer residual on the CP2K EPS_SCF scale.
 !> \param mixing_store ...
 !> \param eps_scf ...
@@ -230,11 +249,8 @@ CONTAINS
       IF (.NOT. ASSOCIATED(mixing_store)) RETURN
       IF (mixing_store%tb_scc_mixer_step <= 1) RETURN
 
-      IF (eps_scf > 0.0_dp) THEN
-         mixer_error = eps_scf*mixing_store%tb_scc_mixer_error/tblite_scc_pconv
-      ELSE
-         mixer_error = mixing_store%tb_scc_mixer_error
-      END IF
+      mixer_error = tblite_scc_error_on_cp2k_scale(mixing_store%tb_scc_mixer_error, &
+                                                   eps_scf, tblite_scc_pconv)
 
    END FUNCTION charge_mixing_scc_error
 

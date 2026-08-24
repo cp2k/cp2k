@@ -86,7 +86,7 @@ MODULE tblite_interface
    USE mulliken, ONLY: ao_charges
    USE orbital_pointers, ONLY: ncoset
    USE particle_types, ONLY: particle_type
-   USE qs_charge_mixing, ONLY: charge_mixing
+   USE qs_charge_mixing, ONLY: charge_mixing, tblite_scc_error_on_cp2k_scale, tblite_scc_pconv
    USE qs_condnum, ONLY: overlap_condnum
    USE qs_density_mixing_types, ONLY: modified_broyden_mixing_nr
    USE qs_energy_types, ONLY: qs_energy_type
@@ -126,7 +126,6 @@ MODULE tblite_interface
    INTEGER, PARAMETER                                 :: dip_n = 3
    INTEGER, PARAMETER                                 :: quad_n = 6
    REAL(KIND=dp), PARAMETER                           :: same_atom = 0.00001_dp
-   REAL(KIND=dp), PARAMETER                           :: tblite_scc_pconv = 2.0E-5_dp
 
    PUBLIC :: tb_set_calculator, tb_init_geometry, tb_init_wf
    PUBLIC :: tb_get_basis, build_tblite_matrices
@@ -553,12 +552,9 @@ CONTAINS
       IF (.NOT. tb_native_scc_mixer_active(dft_control)) RETURN
       IF (ALLOCATED(tb%mixer)) THEN
          raw_error = REAL(tb%mixer%get_error(), KIND=dp)
-         IF (eps_scf > 0.0_dp) THEN
-            mixer_error = eps_scf*raw_error/ &
-                          (tblite_scc_pconv*dft_control%qs_control%xtb_control%tblite_accuracy)
-         ELSE
-            mixer_error = raw_error
-         END IF
+         mixer_error = tblite_scc_error_on_cp2k_scale( &
+                       raw_error, eps_scf, &
+                       tblite_scc_pconv*dft_control%qs_control%xtb_control%tblite_accuracy)
       END IF
 #else
       MARK_USED(dft_control)
@@ -1534,9 +1530,7 @@ CONTAINS
       LOGICAL                                            :: advance_native_mixer, discard_mixed_output, do_combined_mixing, &
                                                             do_dipole, do_quadrupole, native_sign_mixing, &
                                                             skip_charge_mixing, reuse_native_input, skip_scf_dispersion, &
-                                                            skip_scf_dispersion_energy, seed_native_from_rho, &
-                                                            skip_scf_dispersion_gradient, skip_scf_dispersion_potential, &
-                                                            use_native_mixer, use_no_mixer
+                                                            seed_native_from_rho, use_native_mixer, use_no_mixer
       REAL(KIND=dp)                                      :: native_seed_charge, norm, new_charge, pao
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       INTEGER                                            :: debug_status
@@ -1576,18 +1570,10 @@ CONTAINS
       skip_scf_dispersion = .FALSE.
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DEBUG_SKIP_SCF_DISPERSION", debug_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) skip_scf_dispersion
-#endif
-      skip_scf_dispersion_energy = skip_scf_dispersion
-      skip_scf_dispersion_gradient = skip_scf_dispersion
-      skip_scf_dispersion_potential = skip_scf_dispersion
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DEBUG_SKIP_SCF_DISPERSION_ENERGY", debug_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) skip_scf_dispersion_energy
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DEBUG_SKIP_SCF_DISPERSION_GRADIENT", debug_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) skip_scf_dispersion_gradient
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DEBUG_SKIP_SCF_DISPERSION_POTENTIAL", debug_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (debug_value, *) skip_scf_dispersion_potential
+      IF (debug_status == 0) THEN
+         READ (debug_value, *, IOSTAT=debug_status) skip_scf_dispersion
+         IF (debug_status /= 0) skip_scf_dispersion = .FALSE.
+      END IF
 #endif
       IF (dft_control%qs_control%do_ls_scf .OR. scf_control%use_ot) THEN
          use_native_mixer = .FALSE.
@@ -2128,10 +2114,8 @@ CONTAINS
          CALL tb%calc%coulomb%get_energy(tb%mol, tb%cache, tb%wfn, tb%e_es)
       END IF
       IF (ALLOCATED(tb%calc%dispersion)) THEN
-         IF (.NOT. skip_scf_dispersion_potential) THEN
+         IF (.NOT. skip_scf_dispersion) THEN
             CALL tb%calc%dispersion%get_potential(tb%mol, tb%dcache, tb%wfn, tb%pot)
-         END IF
-         IF (.NOT. skip_scf_dispersion_energy) THEN
             CALL tb%calc%dispersion%get_energy(tb%mol, tb%dcache, tb%wfn, tb%e_scd)
          END IF
       END IF
@@ -2148,7 +2132,7 @@ CONTAINS
             CALL tb_grad2force(qs_env, tb, para_env, 3)
          END IF
 
-         IF (ALLOCATED(tb%calc%dispersion) .AND. .NOT. skip_scf_dispersion_gradient) THEN
+         IF (ALLOCATED(tb%calc%dispersion) .AND. .NOT. skip_scf_dispersion) THEN
             tb%grad = 0.0_dp
             CALL tb%calc%dispersion%get_gradient(tb%mol, tb%dcache, tb%wfn, tb%grad, tb%sigma)
             CALL tb_dump_sigma_component("after_dispersion_scf", tb%sigma, para_env)
