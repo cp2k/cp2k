@@ -666,7 +666,8 @@ CONTAINS
                        "Direct inversion in the iterative subspace: less reliable than CG, but sometimes about 50% faster", &
                        "Broyden mixing approximating the inverse Hessian", &
                        "Limited-memory BFGS in the fixed OT product chart. The selected OT preconditioner is used"// &
-                       " as the initial inverse Hessian. Available with ALGORITHM STRICT."), &
+                       " as the initial inverse Hessian. Available with ALGORITHM STRICT and without"// &
+                       " OCCUPATION_PRECONDITIONER."), &
          enum_i_vals=[ot_mini_sd, ot_mini_cg, ot_mini_diis, ot_mini_broyden, ot_mini_lbfgs])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
