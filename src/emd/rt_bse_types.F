@@ -973,8 +973,8 @@ CONTAINS
          homo = rtbse_env%n_occ(ispin)
          IF (homo < 1 .OR. homo >= rtbse_env%n_ao) CYCLE
 
-         gap = MINVAL(bs_env%eigenval_G0W0(homo + 1:rtbse_env%n_ao, 1, ispin)) - &
-               MAXVAL(bs_env%eigenval_G0W0(1:homo, 1, ispin))
+         gap = MINVAL(bs_env%eigenval_GW(homo + 1:rtbse_env%n_ao, 1, ispin)) - &
+               MAXVAL(bs_env%eigenval_GW(1:homo, 1, ispin))
          gap_scf = MINVAL(bs_env%eigenval_scf_Gamma(homo + 1:rtbse_env%n_ao, ispin)) - &
                    MAXVAL(bs_env%eigenval_scf_Gamma(1:homo, ispin))
 

@@ -423,7 +423,7 @@ CONTAINS
             CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), rtbse_env%real_workspace(1))
             ! NOTE : Gamma point is not always the zero k-point
             ! C * Lambda
-            CALL cp_fm_column_scale(rtbse_env%real_workspace(1), bs_env%eigenval_G0W0(:, 1, i))
+            CALL cp_fm_column_scale(rtbse_env%real_workspace(1), bs_env%eigenval_GW(:, 1, i))
             ! C * Lambda * C^T
             CALL parallel_gemm("N", "T", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
                                1.0_dp, rtbse_env%real_workspace(1), bs_env%fm_mo_coeff_Gamma(i), &

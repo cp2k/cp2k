@@ -73,11 +73,12 @@
     &BANDSTRUCTURE
       &GW
         NUM_TIME_FREQ_POINTS 20
-        RI_RS T
         &PRINT
           &RESTART OFF
           &END RESTART
         &END PRINT
+        &RI_RS T
+        &END RI_RS
       &END GW
     &END BANDSTRUCTURE
   &END PROPERTIES
