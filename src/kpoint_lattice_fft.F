@@ -265,7 +265,8 @@ CONTAINS
       LOGICAL, INTENT(OUT), OPTIONAL                     :: used_fft
 
       COMPLEX(KIND=dp)                                   :: phase
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: fft_in, fft_out
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: fft_in, fft_out
       INTEGER                                            :: attempt, d, handle, i, icell, ik, j, &
                                                             radix_length, stat
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cell_index, grid_index
@@ -290,7 +291,7 @@ CONTAINS
       regular = regular_kpoint_grid(xkp, nkp_grid, grid_index, k_offset)
       n = nkp_grid
       nfft = n
-      IF (regular .AND. fft_type /= 3) THEN
+      IF (regular) THEN
          DO d = 1, 3
             compatible = .FALSE.
             DO attempt = 0, 15
@@ -314,7 +315,8 @@ CONTAINS
          RETURN
       END IF
 
-      ALLOCATE (fft_in(nfft(1), nfft(2), nfft(3)), fft_out(nfft(1), nfft(2), nfft(3)))
+      CALL fft_alloc(fft_in, nfft)
+      CALL fft_alloc(fft_out, nfft)
       ALLOCATE (cell_index(3, SIZE(index_to_cell, 2)))
       DO icell = 1, SIZE(index_to_cell, 2)
          DO d = 1, 3
@@ -348,7 +350,9 @@ CONTAINS
       END IF
       IF (PRESENT(used_fft)) used_fft = regular
 
-      DEALLOCATE (cell_index, fft_in, fft_out, grid_index)
+      CALL fft_dealloc(fft_in)
+      CALL fft_dealloc(fft_out)
+      DEALLOCATE (cell_index, grid_index)
       CALL timestop(handle)
 
    END SUBROUTINE k_grid_to_cell_fft

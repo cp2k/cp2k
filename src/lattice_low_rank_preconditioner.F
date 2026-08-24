@@ -12,9 +12,10 @@ MODULE lattice_low_rank_preconditioner
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
-                                              fft_many_1d,&
-                                              fft_radix_operations,&
-                                              fft_type
+                                              fft_1d_many,&
+                                              fft_alloc,&
+                                              fft_dealloc,&
+                                              fft_radix_operations
    USE kinds,                           ONLY: dp
    USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft
 #include "./base/base_uses.f90"
@@ -243,22 +244,20 @@ CONTAINS
 
       nfft = lattice_dims
       compatible = .TRUE.
-      IF (fft_type /= 3) THEN
-         DO d = 1, 3
-            compatible = .FALSE.
-            DO attempt = 0, 15
-               IF (nfft(d) >= 3) THEN
-                  CALL fft_radix_operations(nfft(d), radix_length, FFT_RADIX_NEXT)
-                  IF (radix_length == nfft(d)) THEN
-                     compatible = .TRUE.
-                     EXIT
-                  END IF
+      DO d = 1, 3
+         compatible = .FALSE.
+         DO attempt = 0, 15
+            IF (nfft(d) >= 3) THEN
+               CALL fft_radix_operations(nfft(d), radix_length, FFT_RADIX_NEXT)
+               IF (radix_length == nfft(d)) THEN
+                  compatible = .TRUE.
+                  EXIT
                END IF
-               nfft(d) = nfft(d) + lattice_dims(d)
-            END DO
-            IF (.NOT. compatible) EXIT
+            END IF
+            nfft(d) = nfft(d) + lattice_dims(d)
          END DO
-      END IF
+         IF (.NOT. compatible) EXIT
+      END DO
       IF (.NOT. compatible) THEN
          used_fft = .FALSE.
          RETURN
@@ -337,13 +336,15 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: direction, fsign
       INTEGER, INTENT(OUT)                               :: stat
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: line_in, line_out
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: line_in, line_out
       INTEGER                                            :: ibatch, iline, ix, iy, iz, m, n
       REAL(KIND=dp)                                      :: scale
 
       n = SIZE(grid, direction + 1)
       m = SIZE(grid)/n
-      ALLOCATE (line_in(n, m), line_out(n, m))
+      CALL fft_alloc(line_in, [n, m])
+      CALL fft_alloc(line_out, [n, m])
       iline = 0
       SELECT CASE (direction)
       CASE (1)
@@ -379,7 +380,7 @@ CONTAINS
 
       scale = 1.0_dp
       IF (fsign == FWFFT) scale = 1.0_dp/REAL(n, KIND=dp)
-      CALL fft_many_1d(fsign, n, m, .FALSE., line_in, line_out, scale, stat)
+      CALL fft_1d_many(fsign, n, m, .FALSE., .FALSE., n, n, line_in, line_out, scale, stat)
       IF (stat == 0) THEN
          iline = 0
          SELECT CASE (direction)
@@ -412,7 +413,8 @@ CONTAINS
             END DO
          END SELECT
       END IF
-      DEALLOCATE (line_in, line_out)
+      CALL fft_dealloc(line_in)
+      CALL fft_dealloc(line_out)
 
    END SUBROUTINE transform_grid_dimension
 
