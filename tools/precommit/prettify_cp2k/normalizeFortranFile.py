@@ -528,6 +528,8 @@ def findWord(word, text, options=re.IGNORECASE):
 def enforceDeclDependecies(declarations):
     """enforces the dependencies between the vars
     and compacts the declarations, returns the variables needed by other variables"""
+    nvars = sum(len(d["vars"]) for d in declarations)
+    max_iterations = max(100000, 10 * nvars**2)
     idecl = 0
     ii = 0
     while idecl < len(declarations):
@@ -560,8 +562,8 @@ def enforceDeclDependecies(declarations):
                 for idecl2 in range(idecl + 1, len(declarations)):
                     for ivar2 in range(len(declarations[idecl2]["vars"])):
                         ii += 1
-                        if ii > 100000:
-                            raise Error("could not enforce all constraints")
+                        if ii > max_iterations:
+                            raise RuntimeError("could not enforce all constraints")
                         m = VAR_RE.match(declarations[idecl2]["vars"][ivar2])
                         if (
                             ivar == 0
