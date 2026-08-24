@@ -7,8 +7,9 @@ contribute so that the community as a whole can benefit.
 CP2K is a large project, there is no way to study the full code, and start when that is done! Start
 working on small patches first, that are easy to code, to test and to integrate. Small patches are
 easier to review and thus will be more quickly merged to the Git master branch. As experience with
-the code grows, tackling larger projects becomes realistic. Developers who contribute regularly can
-join the [developers team](https://github.com/orgs/cp2k/teams/cp2k-developers) on Github.
+the code grows, tackling larger projects becomes realistic.
+
+For visibility, the soft link `./CONTRIBUTING.md` redirects to this page.
 
 ## Prepare the patch
 
@@ -91,3 +92,32 @@ usually takes less than one hour:
 - You will be notified if any of the tests on our [Dashboard](https://dashboard.cp2k.org/index.html)
   breaks. Submit a new PR to fix a bug found revealed by the dashboard caused by your PR. Ask the
   admin team for help if necessary.
+
+## Join our team
+
+After your very first PR gets accepted and merged, you will receive an invitation to join the
+[`cp2k-developers`](https://github.com/orgs/cp2k/teams/cp2k-developers) team and gain the *triage*
+access to the CP2K repository. This enables new actions compared with the default *read* access:
+
+- Apply or dismiss assignees, labels, type, and milestone for issues and pull requests;
+- Close or reopen issues and pull requests by others, including converting an issue to a discussion
+  that locks the original issue, but not merging pull requests to the master branch;
+- Trigger CP2K-CI tests in a pull request by making a comment with the `/cp2kci {item}` command.
+
+On a case-by-case basis, productive developers willing to take more responsibility can apply for
+admission to the [`cp2k-core-developers`](https://github.com/orgs/cp2k/teams/cp2k-core-developers)
+team and grant for the *write* access, enabling further actions in the repository:
+
+- Merge a pull request to the master branch;
+- Approve a pull request, or request or apply changes to a pull request;
+- Edit, hide, or delete comments on issues and pull requests by others;
+- Rename issues and pin issues to the top of the list;
+- Create, edit, or delete labels and milestones;
+- Define or become a code owner for some part of the code, who will be notified of any relevant PR
+  and requested for review automatically, and should give explicit approval to get the PR merged.
+
+Contact any member of the [`cp2k-admins`](https://github.com/orgs/cp2k/teams/cp2k-admins) team for
+assistance in repository management, team membership, contribution procedure and CP2K-CI workflow.
+
+For details on the distinct roles and permissions in a github repository, refer to the official
+[github docs](https://docs.github.com/en/organizations/managing-user-access-to-your-organizations-repositories/managing-repository-roles/repository-roles-for-an-organization).
