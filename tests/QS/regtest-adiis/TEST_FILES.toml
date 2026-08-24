@@ -1,0 +1,4 @@
+"K2.inp"                                = [{matcher="E_total", tol=1.0E-12, ref=-56.51488945098272}]
+"bn.inp"                                = [{matcher="E_total", tol=1.0E-12, ref=-51.50489275733199}]
+"MnO2.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-135.87012812829764}]
+#EOF
