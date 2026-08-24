@@ -599,11 +599,15 @@ CONTAINS
          print_key => section_vals_get_subs_vals(print_section, "MO_CUBES")
          IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
             IF (do_cube) THEN
-               IF (rebuild) THEN
-                  CALL rebuild_pw_env(qs_env)
-                  rebuild = .FALSE.
+               IF (do_kpoints) THEN
+                  CPWARN("Print MO cubes not implemented for k-point calculations")
+               ELSE
+                  IF (rebuild) THEN
+                     CALL rebuild_pw_env(qs_env)
+                     rebuild = .FALSE.
+                  END IF
+                  CALL print_mo_cubes(qs_env, zcharge, print_key)
                END IF
-               CALL print_mo_cubes(qs_env, zcharge, print_key)
             ELSE
                CPWARN("Printing of MO cube files not implemented for TB methods.")
             END IF
