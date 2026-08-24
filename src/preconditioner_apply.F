@@ -556,10 +556,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_lattice_operator_fm'
 
-      INTEGER                                            :: fft_ok, handle
+      INTEGER                                            :: fft_ok, handle, i
       LOGICAL                                            :: used_fft
       REAL(KIND=dp)                                      :: imaginary_residual, output_max, scale
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: local_input, local_output
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: base_input, coarse_projected, &
+                                                            coarse_residual, coarse_rhs, &
+                                                            local_input, local_output
 
       CALL timeset(routineN, handle)
       CPASSERT(ALLOCATED(preconditioner_env%lattice_inverse_k))
@@ -568,12 +570,38 @@ CONTAINS
       CALL distribute_lattice_rhs(preconditioner_env, matrix_in, &
                                   preconditioner_env%lattice_rhs_distribution, local_input)
       ALLOCATE (local_output(SIZE(local_input, 1), SIZE(local_input, 2)))
+      IF (ALLOCATED(preconditioner_env%lattice_local_indices)) THEN
+         CPASSERT(ALLOCATED(preconditioner_env%lattice_local_operator))
+         CPASSERT(ALLOCATED(preconditioner_env%lattice_local_coarse_inverse))
+         ALLOCATE (base_input(SIZE(local_input, 1), SIZE(local_input, 2)), &
+                   coarse_projected(SIZE(preconditioner_env%lattice_local_indices), SIZE(local_input, 2)), &
+                   coarse_rhs(SIZE(preconditioner_env%lattice_local_indices), SIZE(local_input, 2)))
+         DO i = 1, SIZE(preconditioner_env%lattice_local_indices)
+            coarse_projected(i, :) = local_input(preconditioner_env%lattice_local_indices(i), :)
+         END DO
+         coarse_rhs(:, :) = MATMUL(preconditioner_env%lattice_local_coarse_inverse, &
+                                   coarse_projected)
+         base_input(:, :) = local_input - &
+                            MATMUL(preconditioner_env%lattice_local_operator, coarse_rhs)
+      ELSE
+         ALLOCATE (base_input(SIZE(local_input, 1), SIZE(local_input, 2)), source=local_input)
+      END IF
       used_fft = .TRUE.
       imaginary_residual = 0.0_dp
       IF (SIZE(local_input, 2) > 0) THEN
          CALL apply_lattice_inverse_dense(preconditioner_env%lattice_inverse_k, &
-                                          preconditioner_env%lattice_dims, local_input, local_output, &
+                                          preconditioner_env%lattice_dims, base_input, local_output, &
                                           used_fft, imaginary_residual)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_local_indices)) THEN
+         ALLOCATE (coarse_residual(SIZE(coarse_rhs, 1), SIZE(coarse_rhs, 2)))
+         coarse_projected(:, :) = MATMUL(TRANSPOSE(preconditioner_env%lattice_local_operator), &
+                                         local_output)
+         coarse_residual(:, :) = MATMUL(preconditioner_env%lattice_local_coarse_inverse, &
+                                        coarse_projected)
+         local_output(preconditioner_env%lattice_local_indices, :) = &
+            local_output(preconditioner_env%lattice_local_indices, :) + coarse_rhs - coarse_residual
+         DEALLOCATE (coarse_projected, coarse_residual, coarse_rhs)
       END IF
       fft_ok = MERGE(1, 0, used_fft)
       output_max = 0.0_dp
@@ -587,7 +615,7 @@ CONTAINS
       END IF
       CALL collect_lattice_rhs(preconditioner_env, preconditioner_env%lattice_rhs_distribution, &
                                local_output, matrix_out, scale)
-      DEALLOCATE (local_input, local_output)
+      DEALLOCATE (base_input, local_input, local_output)
       CALL timestop(handle)
 
    END SUBROUTINE apply_lattice_operator_fm
@@ -605,11 +633,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_lattice_state_operator_fm'
 
-      INTEGER                                            :: fft_ok, global_column, handle, i, j, k, n
+      INTEGER                                            :: fft_ok, global_column, handle, i, j, k, &
+                                                            n, state
       LOGICAL                                            :: used_fft
       REAL(KIND=dp)                                      :: imaginary_residual, output_max
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: complement_input, local_input, &
-                                                            local_output, occupied_component
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: base_input, coarse_projected, &
+         coarse_residual, coarse_rhs, complement_input, local_input, local_output, &
+         occupied_component, occupied_update
 
       CALL timeset(routineN, handle)
       CPASSERT(ALLOCATED(preconditioner_env%lattice_state_inverse_k))
@@ -621,18 +651,57 @@ CONTAINS
       CPASSERT(ALLOCATED(preconditioner_env%lattice_occ_dual))
       ALLOCATE (complement_input(n, SIZE(local_input, 2)), &
                 local_output(n, SIZE(local_input, 2)), &
-                occupied_component(k, SIZE(local_input, 2)))
-      occupied_component = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_vectors), &
-                                  local_input)
-      complement_input = local_input - &
-                         MATMUL(preconditioner_env%lattice_occ_dual, occupied_component)
+                occupied_component(k, SIZE(local_input, 2)), &
+                occupied_update(n, SIZE(local_input, 2)))
+      occupied_component(:, :) = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_vectors), &
+                                        local_input)
+      complement_input(:, :) = local_input - &
+                               MATMUL(preconditioner_env%lattice_occ_dual, occupied_component)
+      ALLOCATE (base_input(n, SIZE(local_input, 2)), source=complement_input)
+      IF (ALLOCATED(preconditioner_env%lattice_state_local_indices)) THEN
+         CPASSERT(ALLOCATED(preconditioner_env%lattice_state_local_operator))
+         CPASSERT(ALLOCATED(preconditioner_env%lattice_state_local_coarse_inverse))
+         ALLOCATE (coarse_rhs(SIZE(preconditioner_env%lattice_state_local_indices, 1), &
+                              SIZE(local_input, 2)), &
+                   coarse_projected(SIZE(preconditioner_env%lattice_state_local_indices, 1), &
+                                    SIZE(local_input, 2)))
+         DO j = 1, SIZE(local_input, 2)
+            state = preconditioner_env%lattice_rhs_distribution%global_columns(j)
+            DO i = 1, SIZE(preconditioner_env%lattice_state_local_indices, 1)
+               coarse_projected(i, j) = &
+                  complement_input(preconditioner_env%lattice_state_local_indices(i, state), j)
+            END DO
+            coarse_rhs(:, j) = MATMUL( &
+                               preconditioner_env%lattice_state_local_coarse_inverse(:, :, state), &
+                               coarse_projected(:, j))
+            base_input(:, j) = complement_input(:, j) - &
+                               MATMUL(preconditioner_env%lattice_state_local_operator(:, :, state), &
+                                      coarse_rhs(:, j))
+         END DO
+      END IF
       used_fft = .TRUE.
       imaginary_residual = 0.0_dp
       IF (SIZE(local_input, 2) > 0) THEN
          CALL apply_lattice_state_inverse_dense(preconditioner_env%lattice_state_inverse_k, &
                                                 preconditioner_env%lattice_dims, &
-                                                complement_input, local_output, used_fft, imaginary_residual, &
+                                                base_input, local_output, used_fft, imaginary_residual, &
                                                 preconditioner_env%lattice_rhs_distribution%global_columns)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_state_local_indices)) THEN
+         ALLOCATE (coarse_residual(SIZE(coarse_rhs, 1), SIZE(coarse_rhs, 2)))
+         DO j = 1, SIZE(local_input, 2)
+            state = preconditioner_env%lattice_rhs_distribution%global_columns(j)
+            coarse_projected(:, j) = &
+               MATMUL(TRANSPOSE(preconditioner_env%lattice_state_local_operator(:, :, state)), &
+                      local_output(:, j))
+            coarse_residual(:, j) = MATMUL( &
+                                    preconditioner_env%lattice_state_local_coarse_inverse(:, :, state), &
+                                    coarse_projected(:, j))
+            local_output(preconditioner_env%lattice_state_local_indices(:, state), j) = &
+               local_output(preconditioner_env%lattice_state_local_indices(:, state), j) + &
+               coarse_rhs(:, j) - coarse_residual(:, j)
+         END DO
+         DEALLOCATE (coarse_projected, coarse_residual, coarse_rhs)
       END IF
       fft_ok = MERGE(1, 0, used_fft)
       output_max = 0.0_dp
@@ -646,12 +715,12 @@ CONTAINS
       IF (imaginary_residual > 1.0E-10_dp*MAX(1.0_dp, output_max)) THEN
          CPABORT("State-dependent lattice preconditioner produced a non-real Gamma-point result")
       END IF
-      occupied_component = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_dual), &
-                                  local_output)
-      local_output = local_output - &
-                     MATMUL(preconditioner_env%lattice_occ_vectors, occupied_component)
-      occupied_component = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_vectors), &
-                                  local_input)
+      occupied_component(:, :) = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_dual), &
+                                        local_output)
+      occupied_update(:, :) = MATMUL(preconditioner_env%lattice_occ_vectors, occupied_component)
+      local_output(:, :) = local_output - occupied_update
+      occupied_component(:, :) = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_vectors), &
+                                        local_input)
       DO j = 1, SIZE(local_input, 2)
          global_column = preconditioner_env%lattice_rhs_distribution%global_columns(j)
          DO i = 1, k
@@ -661,11 +730,11 @@ CONTAINS
                                        preconditioner_env%occ_evals(global_column))
          END DO
       END DO
-      local_output = local_output + &
-                     MATMUL(preconditioner_env%lattice_occ_vectors, occupied_component)
+      occupied_update(:, :) = MATMUL(preconditioner_env%lattice_occ_vectors, occupied_component)
+      local_output(:, :) = local_output + occupied_update
       CALL collect_lattice_rhs(preconditioner_env, preconditioner_env%lattice_rhs_distribution, &
                                local_output, matrix_out)
-      DEALLOCATE (complement_input, local_input, local_output, occupied_component)
+      DEALLOCATE (base_input, complement_input, local_input, local_output, occupied_component, occupied_update)
       CALL timestop(handle)
 
    END SUBROUTINE apply_lattice_state_operator_fm
@@ -719,8 +788,8 @@ CONTAINS
          distribution%ncol_local = ncol_local
          distribution%num_pe = num_pe
          ALLOCATE (distribution%local_rows(nrow_local), distribution%local_columns(ncol_local))
-         distribution%local_rows = row_indices
-         distribution%local_columns = col_indices
+         distribution%local_rows(:) = row_indices
+         distribution%local_columns(:) = col_indices
          ALLOCATE (distribution%send_counts(num_pe), distribution%send_displacements(num_pe), &
                    distribution%recv_counts(num_pe), distribution%recv_displacements(num_pe), &
                    cursor(num_pe))
@@ -747,7 +816,7 @@ CONTAINS
                    distribution%send_local_columns(SUM(distribution%send_counts)), &
                    distribution%recv_global_rows(SUM(distribution%recv_counts)), &
                    distribution%recv_global_columns(SUM(distribution%recv_counts)))
-         cursor = distribution%send_displacements
+         cursor(:) = distribution%send_displacements
          DO j = 1, ncol_local
             destination = MODULO(col_indices(j) - 1, num_pe) + 1
             DO i = 1, nrow_local

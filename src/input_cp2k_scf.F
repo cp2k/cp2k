@@ -941,9 +941,11 @@ CONTAINS
          "larger than 1.0E-3. It also requires an estimated application-work ratio no larger than "// &
          "0.8 and limits reciprocal-block storage to four times one dense real operator; otherwise "// &
          "it retains the conventional solver. The estimates include reference-cell block size, "// &
-         "occupied-column batch size, state-operator count, and message-passing ranks. This experimental "// &
-         "implementation still gathers the operator during construction, while application routes "// &
-         "complete orbital columns across ranks and distributes the FFT batches over those columns.", &
+         "occupied-column batch size, state-operator count, and message-passing ranks. Construction "// &
+         "of state-independent operators accumulates only the projected reference-cell blocks across "// &
+         "ranks. FULL_ALL_COVARIANT and explicit local corrections still require dense construction "// &
+         "data. Application routes complete orbital columns across ranks and distributes the FFT "// &
+         "batches over those columns.", &
          usage="LATTICE_FFT AUTO", &
          default_i_val=ot_lattice_fft_off, &
          enum_c_vals=s2a("OFF", "ON", "AUTO"), &
@@ -951,6 +953,19 @@ CONTAINS
                        "Always use the approximate lattice-FFT inverse", &
                        "Use the lattice-FFT inverse only when conservative selection criteria pass"), &
          enum_i_vals=[ot_lattice_fft_off, ot_lattice_fft_on, ot_lattice_fft_auto])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="LATTICE_FFT_LOCAL_CELLS", &
+         description="Number of replicated cell blocks retained in an optional balanced local"// &
+         " correction to LATTICE_FFT ON. Cells are selected from the largest block-row"// &
+         " contributions to the non-circulant residual. The two-level correction is symmetric"// &
+         " positive definite and exactly inverts the selected coordinate subspace. A value of"// &
+         " zero disables the correction. The correction is deliberately unavailable with AUTO,"// &
+         " which continues to reject defective or otherwise non-circulant operators.", &
+         usage="LATTICE_FFT_LOCAL_CELLS 1", &
+         default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

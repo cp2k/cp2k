@@ -88,12 +88,20 @@ MODULE preconditioner_types
       LOGICAL :: lattice_fft_active = .FALSE.
       INTEGER, DIMENSION(3) :: lattice_dims = [1, 1, 1]
       INTEGER :: lattice_block_size = 0
+      INTEGER :: lattice_local_cells = 0
       REAL(KIND=dp) :: lattice_projection_error = 0.0_dp, &
+                       lattice_corrected_projection_error = 0.0_dp, &
                        lattice_cost_ratio = 0.0_dp, &
                        lattice_storage_ratio = 0.0_dp
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: lattice_inverse_k
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: lattice_state_inverse_k
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: lattice_occ_vectors, lattice_occ_dual
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: lattice_local_indices
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: lattice_local_operator, &
+                                                     lattice_local_coarse_inverse
+      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: lattice_state_local_indices
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: lattice_state_local_operator, &
+                                                        lattice_state_local_coarse_inverse
       TYPE(lattice_rhs_distribution_type) :: lattice_rhs_distribution
    END TYPE preconditioner_type
 
@@ -163,7 +171,9 @@ CONTAINS
       preconditioner_env%lattice_fft_active = .FALSE.
       preconditioner_env%lattice_dims = [1, 1, 1]
       preconditioner_env%lattice_block_size = 0
+      preconditioner_env%lattice_local_cells = 0
       preconditioner_env%lattice_projection_error = 0.0_dp
+      preconditioner_env%lattice_corrected_projection_error = 0.0_dp
       preconditioner_env%lattice_cost_ratio = 0.0_dp
       preconditioner_env%lattice_storage_ratio = 0.0_dp
       preconditioner_env%ihistory = 0
@@ -247,6 +257,24 @@ CONTAINS
       END IF
       IF (ALLOCATED(preconditioner_env%lattice_occ_dual)) THEN
          DEALLOCATE (preconditioner_env%lattice_occ_dual)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_local_indices)) THEN
+         DEALLOCATE (preconditioner_env%lattice_local_indices)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_local_operator)) THEN
+         DEALLOCATE (preconditioner_env%lattice_local_operator)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_local_coarse_inverse)) THEN
+         DEALLOCATE (preconditioner_env%lattice_local_coarse_inverse)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_state_local_indices)) THEN
+         DEALLOCATE (preconditioner_env%lattice_state_local_indices)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_state_local_operator)) THEN
+         DEALLOCATE (preconditioner_env%lattice_state_local_operator)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_state_local_coarse_inverse)) THEN
+         DEALLOCATE (preconditioner_env%lattice_state_local_coarse_inverse)
       END IF
       CALL release_lattice_rhs_distribution(preconditioner_env%lattice_rhs_distribution)
       IF (ASSOCIATED(preconditioner_env%inverse_history)) THEN

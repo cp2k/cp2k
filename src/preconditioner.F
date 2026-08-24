@@ -54,10 +54,11 @@ MODULE preconditioner
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE lattice_preconditioner_operator, ONLY: &
-        build_lattice_inverse, &
+        build_lattice_inverse, build_lattice_inverse_from_blocks, build_lattice_local_correction, &
         lattice_fft_auto_max_cost_ratio, lattice_fft_auto_max_storage_ratio, &
         lattice_fft_auto_min_cells, lattice_fft_auto_select, lattice_fft_cost_ratio, &
-        lattice_fft_storage_ratio
+        lattice_fft_storage_ratio, lattice_grid, lattice_local_cost_ratio, &
+        lattice_local_storage_ratio
    USE low_rank_preconditioner_model,   ONLY: low_rank_inverse_weight,&
                                               low_rank_select_rank
    USE message_passing,                 ONLY: mp_para_env_type
@@ -134,11 +135,15 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: operator_name
       INTEGER, INTENT(IN)                                :: rhs_count
 
-      INTEGER                                            :: block_size, i, info, j, n, ncell, &
-                                                            ncol_local, nrow_local, output_unit
+      INTEGER :: alpha, beta, block_size, col_cell, delta_index, i, info, j, local_info, n, ncell, &
+         ncol_local, nrow_local, output_unit, row_cell
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell
+      INTEGER, DIMENSION(3)                              :: delta
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: used_fft
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dense_operator
+      REAL(KIND=dp)                                      :: denominator, difference, numerator, value
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dense_operator, xkp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: blocks
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -149,6 +154,7 @@ CONTAINS
       CPASSERT(preconditioner_env%lattice_fft_mode /= ot_lattice_fft_off)
       preconditioner_env%lattice_fft_active = .FALSE.
       preconditioner_env%lattice_projection_error = 0.0_dp
+      preconditioner_env%lattice_corrected_projection_error = 0.0_dp
       preconditioner_env%lattice_cost_ratio = 0.0_dp
       preconditioner_env%lattice_storage_ratio = 0.0_dp
 
@@ -177,9 +183,15 @@ CONTAINS
       preconditioner_env%lattice_block_size = block_size
       preconditioner_env%lattice_cost_ratio = lattice_fft_cost_ratio( &
                                               preconditioner_env%lattice_dims, block_size, rhs_count, &
-                                              preconditioner_env%para_env%num_pe)
+                                              preconditioner_env%para_env%num_pe) + &
+                                              lattice_local_cost_ratio( &
+                                              preconditioner_env%lattice_dims, rhs_count, &
+                                              preconditioner_env%lattice_local_cells)
       preconditioner_env%lattice_storage_ratio = lattice_fft_storage_ratio( &
-                                                 preconditioner_env%lattice_dims, 1)
+                                                 preconditioner_env%lattice_dims, 1) + &
+                                                 lattice_local_storage_ratio( &
+                                                 preconditioner_env%lattice_dims, 1, &
+                                                 preconditioner_env%lattice_local_cells)
       IF (preconditioner_env%lattice_fft_mode == ot_lattice_fft_auto .AND. &
           (preconditioner_env%lattice_cost_ratio > lattice_fft_auto_max_cost_ratio .OR. &
            preconditioner_env%lattice_storage_ratio > lattice_fft_auto_max_storage_ratio)) THEN
@@ -207,25 +219,99 @@ CONTAINS
       CALL cp_fm_release(work)
       CALL cp_fm_get_info(operator_fm, nrow_local=nrow_local, ncol_local=ncol_local, &
                           row_indices=row_indices, col_indices=col_indices, local_data=local_data)
-      ALLOCATE (dense_operator(n, n), source=0.0_dp)
+      ALLOCATE (blocks(block_size, block_size, ncell), source=0.0_dp)
+      ALLOCATE (index_to_cell(3, ncell), xkp(3, ncell))
+      CALL lattice_grid(preconditioner_env%lattice_dims, index_to_cell, xkp)
+      IF (preconditioner_env%lattice_local_cells > 0) THEN
+         ALLOCATE (dense_operator(n, n), source=0.0_dp)
+      END IF
+      denominator = 0.0_dp
       DO j = 1, ncol_local
          DO i = 1, nrow_local
             IF (row_indices(i) <= col_indices(j)) THEN
-               dense_operator(row_indices(i), col_indices(j)) = local_data(i, j)
+               value = local_data(i, j)
+               row_cell = (row_indices(i) - 1)/block_size + 1
+               col_cell = (col_indices(j) - 1)/block_size + 1
+               alpha = MODULO(row_indices(i) - 1, block_size) + 1
+               beta = MODULO(col_indices(j) - 1, block_size) + 1
+               delta = MODULO(index_to_cell(:, row_cell) - index_to_cell(:, col_cell), &
+                              preconditioner_env%lattice_dims)
+               delta_index = delta(1) + preconditioner_env%lattice_dims(1)*(delta(2) + &
+                                                                            preconditioner_env%lattice_dims(2)*delta(3)) + 1
+               blocks(alpha, beta, delta_index) = blocks(alpha, beta, delta_index) + &
+                                                  value/REAL(ncell, KIND=dp)
+               denominator = denominator + value*value
+               IF (ALLOCATED(dense_operator)) THEN
+                  dense_operator(row_indices(i), col_indices(j)) = value
+               END IF
+               IF (row_indices(i) < col_indices(j)) THEN
+                  delta = MODULO(index_to_cell(:, col_cell) - index_to_cell(:, row_cell), &
+                                 preconditioner_env%lattice_dims)
+                  delta_index = delta(1) + preconditioner_env%lattice_dims(1)*(delta(2) + &
+                                                                               preconditioner_env%lattice_dims(2)*delta(3)) + 1
+                  blocks(beta, alpha, delta_index) = blocks(beta, alpha, delta_index) + &
+                                                     value/REAL(ncell, KIND=dp)
+                  denominator = denominator + value*value
+               END IF
             END IF
          END DO
       END DO
-      CALL preconditioner_env%para_env%sum(dense_operator)
-      DO j = 1, n
-         DO i = j + 1, n
-            dense_operator(i, j) = dense_operator(j, i)
+      CALL preconditioner_env%para_env%sum(blocks)
+      numerator = 0.0_dp
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+            IF (row_indices(i) <= col_indices(j)) THEN
+               value = local_data(i, j)
+               row_cell = (row_indices(i) - 1)/block_size + 1
+               col_cell = (col_indices(j) - 1)/block_size + 1
+               alpha = MODULO(row_indices(i) - 1, block_size) + 1
+               beta = MODULO(col_indices(j) - 1, block_size) + 1
+               delta = MODULO(index_to_cell(:, row_cell) - index_to_cell(:, col_cell), &
+                              preconditioner_env%lattice_dims)
+               delta_index = delta(1) + preconditioner_env%lattice_dims(1)*(delta(2) + &
+                                                                            preconditioner_env%lattice_dims(2)*delta(3)) + 1
+               difference = value - blocks(alpha, beta, delta_index)
+               numerator = numerator + difference*difference
+               IF (row_indices(i) < col_indices(j)) THEN
+                  delta = MODULO(index_to_cell(:, col_cell) - index_to_cell(:, row_cell), &
+                                 preconditioner_env%lattice_dims)
+                  delta_index = delta(1) + preconditioner_env%lattice_dims(1)*(delta(2) + &
+                                                                               preconditioner_env%lattice_dims(2)*delta(3)) + 1
+                  difference = value - blocks(beta, alpha, delta_index)
+                  numerator = numerator + difference*difference
+               END IF
+            END IF
          END DO
       END DO
-      CALL build_lattice_inverse(dense_operator, preconditioner_env%lattice_dims, &
-                                 preconditioner_env%lattice_inverse_k, &
-                                 preconditioner_env%lattice_projection_error, used_fft, info)
+      CALL preconditioner_env%para_env%sum(numerator)
+      CALL preconditioner_env%para_env%sum(denominator)
+      preconditioner_env%lattice_projection_error = &
+         SQRT(numerator/MAX(denominator, TINY(denominator)))
+      CALL build_lattice_inverse_from_blocks( &
+         blocks, preconditioner_env%lattice_dims, preconditioner_env%lattice_inverse_k, used_fft, info)
+      preconditioner_env%lattice_corrected_projection_error = &
+         preconditioner_env%lattice_projection_error
+      IF (ALLOCATED(dense_operator)) THEN
+         CALL preconditioner_env%para_env%sum(dense_operator)
+         DO j = 1, n
+            DO i = j + 1, n
+               dense_operator(i, j) = dense_operator(j, i)
+            END DO
+         END DO
+         CALL build_lattice_local_correction( &
+            dense_operator, preconditioner_env%lattice_dims, &
+            preconditioner_env%lattice_local_cells, &
+            preconditioner_env%lattice_local_indices, &
+            preconditioner_env%lattice_local_operator, &
+            preconditioner_env%lattice_local_coarse_inverse, &
+            preconditioner_env%lattice_corrected_projection_error, local_info)
+         IF (local_info /= 0) THEN
+            CPABORT("LATTICE_FFT local correction found a non-positive coarse operator")
+         END IF
+         DEALLOCATE (dense_operator)
+      END IF
       CALL cp_fm_release(operator_fm)
-      DEALLOCATE (dense_operator)
+      DEALLOCATE (blocks, index_to_cell, xkp)
       SELECT CASE (preconditioner_env%lattice_fft_mode)
       CASE (ot_lattice_fft_on)
          IF (info /= 0) THEN
@@ -260,6 +346,12 @@ CONTAINS
                "OT| Block-circulant projection error: ", &
                preconditioner_env%lattice_projection_error, &
                " selected: ", preconditioner_env%lattice_fft_active
+            IF (preconditioner_env%lattice_local_cells > 0) THEN
+               WRITE (output_unit, '(T2,A,I0,A,ES12.4)') &
+                  "OT| Balanced local correction cells: ", &
+                  preconditioner_env%lattice_local_cells, " residual error: ", &
+                  preconditioner_env%lattice_corrected_projection_error
+            END IF
             WRITE (output_unit, '(T2,A,F8.3,A,F8.3)') &
                "OT| Estimated lattice/dense work ratio: ", &
                preconditioner_env%lattice_cost_ratio, " storage ratio: ", &
@@ -282,12 +374,16 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: operator_name
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: inverse_k
-      INTEGER                                            :: i, info, istate, j, n, ncell, ncol_local, &
+      INTEGER                                            :: i, info, istate, j, local_info, &
+                                                            local_rank, n, ncell, ncol_local, &
                                                             nrow_local, nstate, output_unit
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_indices
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: all_selected, selected, used_fft
-      REAL(KIND=dp)                                      :: projection_error
+      REAL(KIND=dp)                                      :: corrected_projection_error, &
+                                                            projection_error
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dense_operator, dense_sv, dense_vectors, &
+                                                            local_coarse_inverse, local_operator, &
                                                             scaled_sv
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
@@ -302,6 +398,7 @@ CONTAINS
 
       preconditioner_env%lattice_fft_active = .FALSE.
       preconditioner_env%lattice_projection_error = 0.0_dp
+      preconditioner_env%lattice_corrected_projection_error = 0.0_dp
       preconditioner_env%lattice_cost_ratio = 0.0_dp
       preconditioner_env%lattice_storage_ratio = 0.0_dp
       IF (ALLOCATED(preconditioner_env%lattice_state_inverse_k)) THEN
@@ -313,6 +410,25 @@ CONTAINS
       IF (ALLOCATED(preconditioner_env%lattice_occ_dual)) THEN
          DEALLOCATE (preconditioner_env%lattice_occ_dual)
       END IF
+      IF (ALLOCATED(preconditioner_env%lattice_local_indices)) THEN
+         DEALLOCATE (preconditioner_env%lattice_local_indices)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_local_operator)) THEN
+         DEALLOCATE (preconditioner_env%lattice_local_operator)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_local_coarse_inverse)) THEN
+         DEALLOCATE (preconditioner_env%lattice_local_coarse_inverse)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_state_local_indices)) THEN
+         DEALLOCATE (preconditioner_env%lattice_state_local_indices)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_state_local_operator)) THEN
+         DEALLOCATE (preconditioner_env%lattice_state_local_operator)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_state_local_coarse_inverse)) THEN
+         DEALLOCATE (preconditioner_env%lattice_state_local_coarse_inverse)
+      END IF
+      IF (ANY(preconditioner_env%lattice_dims <= 0)) CPABORT("Lattice dimensions must be positive")
       IF (preconditioner_env%lattice_fft_mode == ot_lattice_fft_auto .AND. &
           PRODUCT(preconditioner_env%lattice_dims) < lattice_fft_auto_min_cells) THEN
          IF (preconditioner_env%para_env%is_source()) THEN
@@ -341,6 +457,14 @@ CONTAINS
                                               preconditioner_env%para_env%num_pe)
       preconditioner_env%lattice_storage_ratio = lattice_fft_storage_ratio( &
                                                  preconditioner_env%lattice_dims, nstate)
+      preconditioner_env%lattice_cost_ratio = preconditioner_env%lattice_cost_ratio + &
+                                              lattice_local_cost_ratio( &
+                                              preconditioner_env%lattice_dims, nstate, &
+                                              preconditioner_env%lattice_local_cells)
+      preconditioner_env%lattice_storage_ratio = preconditioner_env%lattice_storage_ratio + &
+                                                 lattice_local_storage_ratio( &
+                                                 preconditioner_env%lattice_dims, nstate, &
+                                                 preconditioner_env%lattice_local_cells)
       IF (preconditioner_env%lattice_fft_mode == ot_lattice_fft_auto .AND. &
           (preconditioner_env%lattice_cost_ratio > lattice_fft_auto_max_cost_ratio .OR. &
            preconditioner_env%lattice_storage_ratio > lattice_fft_auto_max_storage_ratio)) THEN
@@ -355,6 +479,13 @@ CONTAINS
             END IF
          END IF
          RETURN
+      END IF
+      IF (preconditioner_env%lattice_local_cells > 0) THEN
+         local_rank = preconditioner_env%lattice_local_cells* &
+                      preconditioner_env%lattice_block_size
+         ALLOCATE (preconditioner_env%lattice_state_local_indices(local_rank, nstate), &
+                   preconditioner_env%lattice_state_local_operator(n, local_rank, nstate), &
+                   preconditioner_env%lattice_state_local_coarse_inverse(local_rank, local_rank, nstate))
       END IF
       CALL cp_fm_create(sv_fm, preconditioner_env%fm%matrix_struct, name="lattice FULL_ALL S V")
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, preconditioner_env%fm, sv_fm, n)
@@ -380,23 +511,39 @@ CONTAINS
       CALL preconditioner_env%para_env%sum(dense_vectors)
       ALLOCATE (preconditioner_env%lattice_occ_vectors(n, nstate), &
                 preconditioner_env%lattice_occ_dual(n, nstate))
-      preconditioner_env%lattice_occ_vectors = dense_vectors
-      preconditioner_env%lattice_occ_dual = dense_sv(:, 1:nstate)
+      preconditioner_env%lattice_occ_vectors(:, :) = dense_vectors
+      preconditioner_env%lattice_occ_dual(:, :) = dense_sv(:, 1:nstate)
 
       ALLOCATE (dense_operator(n, n), scaled_sv(n, n))
       all_selected = .TRUE.
       DO istate = 1, nstate
-         scaled_sv = dense_sv
+         scaled_sv(:, :) = dense_sv
          DO j = 1, n
             scaled_sv(:, j) = scaled_sv(:, j)*MAX( &
                               preconditioner_env%energy_gap, &
                               preconditioner_env%full_evals(j) - preconditioner_env%occ_evals(istate))
          END DO
-         dense_operator = MATMUL(scaled_sv, TRANSPOSE(dense_sv))
+         dense_operator(:, :) = MATMUL(scaled_sv, TRANSPOSE(dense_sv))
          CALL build_lattice_inverse(dense_operator, preconditioner_env%lattice_dims, inverse_k, &
                                     projection_error, used_fft, info)
          preconditioner_env%lattice_projection_error = &
             MAX(preconditioner_env%lattice_projection_error, projection_error)
+         corrected_projection_error = projection_error
+         IF (preconditioner_env%lattice_local_cells > 0) THEN
+            CALL build_lattice_local_correction( &
+               dense_operator, preconditioner_env%lattice_dims, &
+               preconditioner_env%lattice_local_cells, local_indices, &
+               local_operator, local_coarse_inverse, corrected_projection_error, local_info)
+            IF (local_info /= 0) THEN
+               CPABORT("LATTICE_FFT local correction found a non-positive coarse operator")
+            END IF
+            preconditioner_env%lattice_state_local_indices(:, istate) = local_indices
+            preconditioner_env%lattice_state_local_operator(:, :, istate) = local_operator
+            preconditioner_env%lattice_state_local_coarse_inverse(:, :, istate) = local_coarse_inverse
+            DEALLOCATE (local_coarse_inverse, local_indices, local_operator)
+         END IF
+         preconditioner_env%lattice_corrected_projection_error = &
+            MAX(preconditioner_env%lattice_corrected_projection_error, corrected_projection_error)
          selected = lattice_fft_auto_select(preconditioner_env%lattice_dims, &
                                             preconditioner_env%lattice_block_size, nstate, nstate, &
                                             preconditioner_env%para_env%num_pe, projection_error, used_fft, info)
@@ -429,6 +576,11 @@ CONTAINS
       IF (.NOT. preconditioner_env%lattice_fft_active) THEN
          DEALLOCATE (preconditioner_env%lattice_occ_vectors, &
                      preconditioner_env%lattice_occ_dual)
+         IF (ALLOCATED(preconditioner_env%lattice_state_local_indices)) THEN
+            DEALLOCATE (preconditioner_env%lattice_state_local_indices, &
+                        preconditioner_env%lattice_state_local_operator, &
+                        preconditioner_env%lattice_state_local_coarse_inverse)
+         END IF
       END IF
       IF (preconditioner_env%para_env%is_source()) THEN
          logger => cp_get_default_logger()
@@ -442,6 +594,12 @@ CONTAINS
                "OT| Maximum block-circulant projection error: ", &
                preconditioner_env%lattice_projection_error, &
                " selected: ", preconditioner_env%lattice_fft_active
+            IF (preconditioner_env%lattice_local_cells > 0) THEN
+               WRITE (output_unit, '(T2,A,I0,A,ES12.4)') &
+                  "OT| Balanced local correction cells/state: ", &
+                  preconditioner_env%lattice_local_cells, " maximum residual error: ", &
+                  preconditioner_env%lattice_corrected_projection_error
+            END IF
             WRITE (output_unit, '(T2,A,F8.3,A,F8.3)') &
                "OT| Estimated lattice/dense work ratio: ", &
                preconditioner_env%lattice_cost_ratio, " storage ratio: ", &
@@ -638,6 +796,7 @@ CONTAINS
       IF (PRESENT(chol_type)) preconditioner_env%cholesky_use = chol_type
       preconditioner_env%in_use = precon_type
       preconditioner_env%lattice_fft_active = .FALSE.
+      preconditioner_env%lattice_corrected_projection_error = 0.0_dp
       IF (ALLOCATED(preconditioner_env%lattice_inverse_k)) THEN
          DEALLOCATE (preconditioner_env%lattice_inverse_k)
       END IF
@@ -649,6 +808,24 @@ CONTAINS
       END IF
       IF (ALLOCATED(preconditioner_env%lattice_occ_dual)) THEN
          DEALLOCATE (preconditioner_env%lattice_occ_dual)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_local_indices)) THEN
+         DEALLOCATE (preconditioner_env%lattice_local_indices)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_local_operator)) THEN
+         DEALLOCATE (preconditioner_env%lattice_local_operator)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_local_coarse_inverse)) THEN
+         DEALLOCATE (preconditioner_env%lattice_local_coarse_inverse)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_state_local_indices)) THEN
+         DEALLOCATE (preconditioner_env%lattice_state_local_indices)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_state_local_operator)) THEN
+         DEALLOCATE (preconditioner_env%lattice_state_local_operator)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_state_local_coarse_inverse)) THEN
+         DEALLOCATE (preconditioner_env%lattice_state_local_coarse_inverse)
       END IF
       IF (nhomo == k) THEN
          CALL make_preconditioner_matrix(preconditioner_env, matrix_h, matrix_s, matrix_t, mo_coeff, &
@@ -1138,12 +1315,14 @@ CONTAINS
 !> \param low_rank_base ...
 !> \param fermi_low_rank_max_rank ...
 !> \param lattice_fft ...
+!> \param lattice_fft_local_cells ...
 ! **************************************************************************************************
    SUBROUTINE prepare_preconditioner(qs_env, mos, matrix_ks, matrix_s, &
                                      ot_preconditioner, prec_type, solver_type, &
                                      energy_gap, nspins, has_unit_metric, &
                                      convert_to_dbcsr, chol_type, full_mo_set, chebyshev_degree, &
-                                     low_rank_base, fermi_low_rank_max_rank, lattice_fft)
+                                     low_rank_base, fermi_low_rank_max_rank, lattice_fft, &
+                                     lattice_fft_local_cells)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mos
@@ -1156,13 +1335,14 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: chol_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: full_mo_set
       INTEGER, INTENT(IN), OPTIONAL                      :: chebyshev_degree, low_rank_base, &
-                                                            fermi_low_rank_max_rank, lattice_fft
+                                                            fermi_low_rank_max_rank, lattice_fft, &
+                                                            lattice_fft_local_cells
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_preconditioner'
 
       CHARACTER(LEN=default_string_length)               :: msg
       INTEGER :: handle, icall, ispin, my_chebyshev_degree, my_fermi_low_rank_max_rank, &
-         my_lattice_fft, my_low_rank_base, n_loops
+         my_lattice_fft, my_lattice_fft_local_cells, my_low_rank_base, n_loops
       INTEGER, DIMENSION(5)                              :: nocc, norb
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
       LOGICAL :: do_co_rotate, do_kpoints, my_convert_to_dbcsr, my_full_mo_set, &
@@ -1193,6 +1373,9 @@ CONTAINS
       IF (PRESENT(fermi_low_rank_max_rank)) my_fermi_low_rank_max_rank = fermi_low_rank_max_rank
       my_lattice_fft = ot_lattice_fft_off
       IF (PRESENT(lattice_fft)) my_lattice_fft = lattice_fft
+      my_lattice_fft_local_cells = 0
+      IF (PRESENT(lattice_fft_local_cells)) my_lattice_fft_local_cells = lattice_fft_local_cells
+      IF (my_lattice_fft_local_cells < 0) CPABORT("LATTICE_FFT_LOCAL_CELLS must not be negative")
       do_kpoints = .FALSE.
       use_covariant_full_all = prec_type == ot_precond_full_all_covariant
 
@@ -1216,6 +1399,9 @@ CONTAINS
           my_lattice_fft /= ot_lattice_fft_on .AND. &
           my_lattice_fft /= ot_lattice_fft_auto) THEN
          CPABORT("Unknown LATTICE_FFT setting")
+      END IF
+      IF (my_lattice_fft_local_cells > 0 .AND. my_lattice_fft /= ot_lattice_fft_on) THEN
+         CPABORT("LATTICE_FFT_LOCAL_CELLS requires LATTICE_FFT ON")
       END IF
       IF (my_lattice_fft /= ot_lattice_fft_off) THEN
          SELECT CASE (prec_type)
@@ -1257,6 +1443,9 @@ CONTAINS
                   my_lattice_fft = ot_lattice_fft_off
                ELSE IF (PRODUCT(multiple_unit_cell) <= 1 .AND. my_lattice_fft == ot_lattice_fft_on) THEN
                   CPABORT("LATTICE_FFT ON requires an explicitly replicated multiple unit cell")
+               END IF
+               IF (my_lattice_fft_local_cells >= PRODUCT(multiple_unit_cell)) THEN
+                  CPABORT("LATTICE_FFT_LOCAL_CELLS must be smaller than the replicated cell count")
                END IF
             END IF
          END IF
@@ -1348,6 +1537,7 @@ CONTAINS
             ot_preconditioner(icall)%preconditioner%polynomial_degree = my_chebyshev_degree
             ot_preconditioner(icall)%preconditioner%low_rank_base = my_low_rank_base
             ot_preconditioner(icall)%preconditioner%lattice_fft_mode = my_lattice_fft
+            ot_preconditioner(icall)%preconditioner%lattice_local_cells = my_lattice_fft_local_cells
             ot_preconditioner(icall)%preconditioner%lattice_dims = [1, 1, 1]
             IF (my_lattice_fft /= ot_lattice_fft_off) THEN
                CPASSERT(ASSOCIATED(multiple_unit_cell))
