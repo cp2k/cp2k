@@ -949,6 +949,9 @@ CONTAINS
          IF (settings%ot_algorithm /= "TOD") THEN
             CPABORT("MINIMIZER LBFGS currently requires ALGORITHM STRICT")
          END IF
+         IF (settings%occupation_preconditioner) THEN
+            CPABORT("MINIMIZER LBFGS does not currently support OCCUPATION_PRECONDITIONER")
+         END IF
       END IF
       ! not yet fully implemented
       CPASSERT(.NOT. settings%do_ener)
