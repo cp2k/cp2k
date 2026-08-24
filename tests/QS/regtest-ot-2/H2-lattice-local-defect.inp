@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT_NAME H2-lattice-covariant
+  PROJECT_NAME H2-lattice-local-defect
   RUN_TYPE ENERGY
 &END GLOBAL
 
@@ -17,17 +17,19 @@
     &END QS
     &SCF
       EPS_SCF 1.E-05
-      MAX_SCF 30
+      MAX_SCF 40
       SCF_GUESS ATOMIC
       &OT T
-        ENERGY_GAP 0.05
         LATTICE_FFT ON
         LATTICE_FFT_LOCAL_CELLS 1
         LINESEARCH ADAPT
         MINIMIZER CG
-        PRECONDITIONER FULL_ALL_COVARIANT
-        ROTATION
+        PRECONDITIONER FULL_KINETIC
       &END OT
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
@@ -37,19 +39,24 @@
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
-      MULTIPLE_UNIT_CELL 2 1 1
+      MULTIPLE_UNIT_CELL 4 1 1
     &END CELL
     &COORD
       UNIT bohr
-      H  0.0  0.0  0.0
-      H  1.4  0.0  0.0
+      H   0.0  0.0  0.0
+      H   1.4  0.0  0.0
+      H   6.0  0.0  0.0
+      H   7.4  0.0  0.0
+      H  12.0  0.0  0.0
+      H  13.7  0.0  0.0
+      H  18.0  0.0  0.0
+      H  19.4  0.0  0.0
     &END COORD
     &KIND H
       BASIS_SET ORB SZV-MOLOPT-SR-GTH
       POTENTIAL GTH-PBE-q1
     &END KIND
     &TOPOLOGY
-      MULTIPLE_UNIT_CELL 2 1 1
       &CENTER_COORDINATES
       &END CENTER_COORDINATES
     &END TOPOLOGY

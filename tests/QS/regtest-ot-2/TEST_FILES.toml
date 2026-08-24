@@ -68,7 +68,11 @@
 "H2-lattice-single-inverse.inp"          = [{matcher="E_total", tol=1e-09, ref=-2.156632575065856}]
 "H2-lattice-auto.inp"                    = [{matcher="E_total", tol=1e-09, ref=-8.624611232470830},
                                              {matcher="OT_lattice_fft_fallback"}]
+"H2-lattice-auto-defect.inp"             = [{matcher="E_total", tol=1e-09, ref=-9.409028791711879},
+                                             {matcher="OT_lattice_fft_fallback"}]
 "H2-lattice-auto-selected.inp"           = [{matcher="E_total", tol=1e-09, ref=-17.296498346977504},
                                              {matcher="OT_lattice_fft_selected"}]
 "H2-lattice-covariant.inp"               = [{matcher="E_total", tol=1e-09, ref=-2.156632575067707}]
+"H2-lattice-local-defect.inp"             = [{matcher="E_total", tol=1e-09, ref=-4.385713926705035},
+                                             {matcher="OT_lattice_local_correction"}]
 #EOF

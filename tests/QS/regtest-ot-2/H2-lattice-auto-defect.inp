@@ -1,13 +1,13 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT_NAME H2-lattice-covariant
+  PROJECT_NAME H2-lattice-auto-defect
   RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
   METHOD QS
   &DFT
-    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
       CUTOFF 80
@@ -20,13 +20,10 @@
       MAX_SCF 30
       SCF_GUESS ATOMIC
       &OT T
-        ENERGY_GAP 0.05
-        LATTICE_FFT ON
-        LATTICE_FFT_LOCAL_CELLS 1
+        LATTICE_FFT AUTO
         LINESEARCH ADAPT
         MINIMIZER CG
-        PRECONDITIONER FULL_ALL_COVARIANT
-        ROTATION
+        PRECONDITIONER FULL_KINETIC
       &END OT
     &END SCF
     &XC
@@ -37,19 +34,32 @@
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
-      MULTIPLE_UNIT_CELL 2 1 1
+      MULTIPLE_UNIT_CELL 2 2 2
     &END CELL
     &COORD
       UNIT bohr
-      H  0.0  0.0  0.0
-      H  1.4  0.0  0.0
+      H   0.0   0.0  0.0
+      H   1.7   0.0  0.0
+      H   6.0   0.0  0.0
+      H   7.4   0.0  0.0
+      H   0.0   6.0  0.0
+      H   1.4   6.0  0.0
+      H   6.0   6.0  0.0
+      H   7.4   6.0  0.0
+      H   0.0   0.0  6.0
+      H   1.4   0.0  6.0
+      H   6.0   0.0  6.0
+      H   7.4   0.0  6.0
+      H   0.0   6.0  6.0
+      H   1.4   6.0  6.0
+      H   6.0   6.0  6.0
+      H   7.4   6.0  6.0
     &END COORD
     &KIND H
-      BASIS_SET ORB SZV-MOLOPT-SR-GTH
-      POTENTIAL GTH-PBE-q1
+      BASIS_SET ORB DZV-GTH-PADE
+      POTENTIAL GTH-PADE-q1
     &END KIND
     &TOPOLOGY
-      MULTIPLE_UNIT_CELL 2 1 1
       &CENTER_COORDINATES
       &END CENTER_COORDINATES
     &END TOPOLOGY
