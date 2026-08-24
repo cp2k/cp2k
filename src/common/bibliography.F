@@ -50,7 +50,7 @@ MODULE bibliography
                             Stewart1989, Thiel1992, Repasky2002, Stewart2007, Weber2008, &
                             Hunt2003, Guidon2008, Elber1987, Jonsson1998, Jonsson2000_1, &
                             Jonsson2000_2, Wales2004, Stewart1982, E2002, Laino2008, &
-                            Blochl1995, Tao2003, VandeVondele2006, VanVoorhis2015, Hu2007, Grimme2006, &
+                            Blochl1995, Tao2003, VandeVondele2006, VanVoorhis2015, Hu2007, Hu2010, Grimme2006, &
                             Branduardi2007, Schenter2008, BeckeRoussel1989, Proynov2007, &
                             VandenCic2006, Becke1997, Foiles1986, Ricci2003, Kolafa2004, &
                             Kuhne2007, Kunert2003, Ceriotti2009, ceriotti2009b, Guidon2009, &
@@ -183,6 +183,13 @@ CONTAINS
                          "density functional tight binding method: From molecular clusters to the liquid state", &
                          source="J. Phys. Chem. A", volume="111", pages="5685-5691", &
                          year=2007, doi="10.1021/jp070308d")
+
+      CALL add_reference(key=Hu2010, &
+                         authors=s2a("X. Hu", "W. Yang"), &
+                         title="Accelerating self-consistent field convergence "// &
+                         "with the augmented Roothaan-Hall energy function", &
+                         source="J. Chem. Phys.", volume="132", pages="054109", &
+                         year=2010, doi="10.1063/1.3304922")
 
       CALL add_reference(key=Zhao1994, &
                          authors=s2a("Q. S. Zhao", "R. C. Morrison", "R. G. Parr"), &

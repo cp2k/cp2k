@@ -949,6 +949,10 @@ MODULE input_constants
                                                multisec_mix = 6, &
                                                new_pulay_mix = 7
 
+   ! Define identifier codes for diagonalization-based SCF update methods
+   INTEGER, PARAMETER, PUBLIC               :: diag_update_method_mixing = 1, &
+                                               diag_update_method_adiis = 2
+
    ! FFT library
    ! these might need sync with fft_lib.F
    INTEGER, PARAMETER, PUBLIC               :: do_fft_sg = 1, &

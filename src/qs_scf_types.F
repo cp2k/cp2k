@@ -39,6 +39,8 @@ MODULE qs_scf_types
                                               fb_env_release
    USE qs_ot_types,                     ONLY: qs_ot_destroy,&
                                               qs_ot_type
+   USE qs_scf_subspace_types,           ONLY: qs_scf_subspace_buffer_release,&
+                                              qs_scf_subspace_buffer_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -101,7 +103,8 @@ MODULE qs_scf_types
       REAL(KIND=dp) :: iter_param = -1.0_dp, iter_delta = -1.0_dp, p_mix_alpha = -1.0_dp, sum_zeff_corr = -1.0_dp
       CHARACTER(len=15) :: iter_method = ""
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER :: cc_buffer => NULL()
-      LOGICAL :: print_iter_line = .FALSE., skip_mixing = .FALSE., skip_diis = .FALSE., needs_ortho = .FALSE.
+      LOGICAL :: print_iter_line = .FALSE., skip_mixing = .FALSE., skip_diis = .FALSE., needs_ortho = .FALSE., &
+                 adiis_check_next = .FALSE., adiis_validated = .FALSE.
       TYPE(mixing_storage_type), POINTER :: mixing_store => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER :: scf_work1 => NULL(), scf_work1_red => NULL()
       TYPE(cp_fm_type), POINTER  :: scf_work2 => NULL(), ortho => NULL(), ortho_m1 => NULL(), &
@@ -113,6 +116,7 @@ MODULE qs_scf_types
       TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner => NULL()
       TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env => NULL()
       TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer => NULL()
+      TYPE(qs_scf_subspace_buffer_type), POINTER :: scf_subspace_buffer => NULL()
       TYPE(subspace_env_type), POINTER :: subspace_env => NULL()
       TYPE(davidson_type), POINTER, DIMENSION(:) :: block_davidson_env => NULL()
       TYPE(fb_env_obj) :: filter_matrix_env = fb_env_obj()
@@ -150,6 +154,8 @@ CONTAINS
       scf_env%skip_mixing = .FALSE.
       scf_env%skip_diis = .FALSE.
       scf_env%needs_ortho = .FALSE.
+      scf_env%adiis_check_next = .FALSE.
+      scf_env%adiis_validated = .FALSE.
       scf_env%method = -1
       scf_env%mixing_method = -1
       scf_env%p_mix_alpha = 1.0_dp
@@ -175,6 +181,7 @@ CONTAINS
       NULLIFY (scf_env%ot_preconditioner)
       NULLIFY (scf_env%qs_ot_env)
       NULLIFY (scf_env%scf_diis_buffer)
+      NULLIFY (scf_env%scf_subspace_buffer)
       NULLIFY (scf_env%buf1_dbcsr)
       NULLIFY (scf_env%buf2_dbcsr)
       NULLIFY (scf_env%s_half)
@@ -216,6 +223,10 @@ CONTAINS
       END IF
       IF (ASSOCIATED(scf_env%p_delta)) THEN
          CALL dbcsr_deallocate_matrix_set(scf_env%p_delta)
+      END IF
+      IF (ASSOCIATED(scf_env%scf_subspace_buffer)) THEN
+         CALL qs_scf_subspace_buffer_release(scf_env%scf_subspace_buffer)
+         DEALLOCATE (scf_env%scf_subspace_buffer)
       END IF
       CALL cp_fm_release(scf_env%mom_ref_mo_coeff)
 
@@ -320,6 +331,10 @@ CONTAINS
       IF (ASSOCIATED(scf_env%scf_diis_buffer)) THEN
          CALL qs_diis_b_release(scf_env%scf_diis_buffer)
          DEALLOCATE (scf_env%scf_diis_buffer)
+      END IF
+      IF (ASSOCIATED(scf_env%scf_subspace_buffer)) THEN
+         CALL qs_scf_subspace_buffer_release(scf_env%scf_subspace_buffer)
+         DEALLOCATE (scf_env%scf_subspace_buffer)
       END IF
       IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
          DEALLOCATE (scf_env%outer_scf%variables)

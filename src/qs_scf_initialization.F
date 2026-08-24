@@ -11,16 +11,22 @@
 MODULE qs_scf_initialization
    USE atom_kind_orbitals,              ONLY: calculate_atomic_orbitals
    USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE bibliography,                    ONLY: Hu2010,&
+                                              cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
+                                              dbcsr_set,&
                                               dbcsr_type,&
-                                              dbcsr_type_no_symmetry
+                                              dbcsr_type_no_symmetry,&
+                                              dbcsr_type_symmetric
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: write_fm_with_basis_info
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_row_scale,&
@@ -56,9 +62,9 @@ MODULE qs_scf_initialization
    USE hairy_probes,                    ONLY: AO_boundaries
    USE input_constants,                 ONLY: &
         broy_mix, cholesky_dbcsr, cholesky_inverse, cholesky_off, diag_block_davidson, &
-        diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, direct_p_mix, kerker_mix, &
-        modified_broy_mix, multisec_mix, new_pulay_mix, no_mix, ot2cdft, outer_scf_none, &
-        plus_u_lowdin, plus_u_tensorial, pulay_mix, smeagol_runtype_emtransport, &
+        diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, diag_update_method_adiis, &
+        direct_p_mix, kerker_mix, modified_broy_mix, multisec_mix, new_pulay_mix, no_mix, ot2cdft, &
+        outer_scf_none, plus_u_lowdin, plus_u_tensorial, pulay_mix, smeagol_runtype_emtransport, &
         wfi_frozen_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -103,6 +109,7 @@ MODULE qs_scf_initialization
                                               init_mo_set,&
                                               mo_set_type,&
                                               set_mo_set
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_outer_scf,                    ONLY: outer_loop_extrapolate,&
                                               outer_loop_switch,&
                                               outer_loop_variables_count
@@ -206,7 +213,7 @@ CONTAINS
 
       CALL qs_scf_ensure_work_matrices(qs_env, scf_env)
 
-      CALL qs_scf_ensure_mixing_store(qs_env, scf_env)
+      CALL qs_scf_ensure_mixing_store(qs_env, scf_env, my_scf_control)
 
       ! Initialize outer loop variables: handle CDFT and regular outer loop separately
       IF (dft_control%qs_control%cdft) THEN
@@ -415,20 +422,66 @@ CONTAINS
    END SUBROUTINE qs_scf_ensure_cdft_loop_vars
 
 ! **************************************************************************************************
+!> \brief Allocate the candidate density produced by diagonalization.
+!> \param qs_env ...
+!> \param candidate Candidate density matrix set.
+!> \param nspins Number of spin channels.
+!>
+!>      This workspace belongs to the generic diagonalization SCF driver.  It is
+!>      also used by density-mixing methods, but allocating it does not imply
+!>      that a density mixer is active.
+! **************************************************************************************************
+   SUBROUTINE qs_scf_allocate_candidate_density(qs_env, candidate, nspins)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: candidate
+      INTEGER, INTENT(IN)                                :: nspins
+
+      INTEGER                                            :: ic, ispin, nimg
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: refmatrix
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+
+      NULLIFY (dft_control, matrix_s, refmatrix, sab_orb)
+      CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s, sab_orb=sab_orb, dft_control=dft_control)
+
+      IF (ASSOCIATED(candidate)) RETURN
+
+      refmatrix => matrix_s(1, 1)%matrix
+      nimg = dft_control%nimages
+      CALL dbcsr_allocate_matrix_set(candidate, nspins, nimg)
+      DO ic = 1, nimg
+         DO ispin = 1, nspins
+            ALLOCATE (candidate(ispin, ic)%matrix)
+            CALL dbcsr_create(matrix=candidate(ispin, ic)%matrix, template=refmatrix, &
+                              name="SCF DENSITY", matrix_type=dbcsr_type_symmetric)
+            CALL cp_dbcsr_alloc_block_from_nbl(candidate(ispin, ic)%matrix, sab_orb)
+            CALL dbcsr_set(candidate(ispin, ic)%matrix, 0.0_dp)
+         END DO
+      END DO
+
+   END SUBROUTINE qs_scf_allocate_candidate_density
+
+! **************************************************************************************************
 !> \brief performs allocation of the mixing storage
 !> \param qs_env ...
 !> \param scf_env ...
+!> \param scf_control ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_ensure_mixing_store(qs_env, scf_env)
+   SUBROUTINE qs_scf_ensure_mixing_store(qs_env, scf_env, scf_control)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(scf_control_type), POINTER                    :: scf_control
 
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       NULLIFY (dft_control)
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
 
-      IF (scf_env%mixing_method > 0) THEN
+      IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
+         CALL qs_scf_allocate_candidate_density(qs_env, scf_env%p_mix_new, dft_control%nspins)
+      ELSE IF (scf_env%mixing_method > 0) THEN
          CALL mixing_allocate(qs_env, scf_env%mixing_method, scf_env%p_mix_new, &
                               scf_env%p_delta, dft_control%nspins, &
                               scf_env%mixing_store)
@@ -708,6 +761,16 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       TYPE(section_vals_type), POINTER                   :: mixing_section
+
+      IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
+         CALL cite_reference(Hu2010)
+         ! ADIIS is a Fock-space SCF method.  It does not use density mixing or
+         ! the conventional CDIIS path.
+         scf_env%mixing_method = no_mixing_nr
+         scf_env%p_mix_alpha = 1.0_dp
+         scf_env%skip_diis = .TRUE.
+         RETURN
+      END IF
 
       SELECT CASE (scf_control%mixing_method)
       CASE (no_mix)

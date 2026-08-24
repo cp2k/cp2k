@@ -14,7 +14,7 @@
 ! **************************************************************************************************
 MODULE input_cp2k_scf
    USE bibliography,                    ONLY: &
-        Becke1988b, Chai2024a, Holmberg2017, Holmberg2018, Schiffmann2015, Stewart1982, &
+        Becke1988b, Chai2024a, Holmberg2017, Holmberg2018, Hu2010, Schiffmann2015, Stewart1982, &
         VandeVondele2003, VandeVondele2005a, Weber2008
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
@@ -28,12 +28,13 @@ MODULE input_cp2k_scf
         cdft_alpha_constraint, cdft_beta_constraint, cdft_charge_constraint, &
         cdft_magnetization_constraint, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
         cholesky_reduce, cholesky_restore, core_guess, diag_block_davidson, diag_block_krylov, &
-        diag_filter_matrix, diag_ot, diag_standard, eht_guess, gaussian, general_roks, &
-        high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, &
-        jacobian_fd2, jacobian_fd2_backward, ls_2pnt, ls_3pnt, ls_adapt, ls_gold, ls_none, &
-        mopac_guess, no_guess, numerical, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
-        ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_lbfgs, ot_mini_sd, &
-        ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        diag_filter_matrix, diag_ot, diag_standard, diag_update_method_adiis, &
+        diag_update_method_mixing, eht_guess, gaussian, general_roks, high_spin_roks, &
+        history_guess, jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, jacobian_fd2, &
+        jacobian_fd2_backward, ls_2pnt, ls_3pnt, ls_adapt, ls_gold, ls_none, mopac_guess, &
+        no_guess, numerical, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, &
+        ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_lbfgs, ot_mini_sd, ot_poly_irac, &
+        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
         ot_precond_solver_chebyshev, ot_precond_solver_default, ot_precond_solver_direct, &
         ot_precond_solver_inv_chol, ot_precond_solver_update, outer_scf_basis_center_opt, &
@@ -88,7 +89,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="scf", &
                           description="Parameters needed to perform an SCF run.", &
-                          n_keywords=18, n_subsections=7, repeats=.FALSE.)
+                          n_keywords=20, n_subsections=8, repeats=.FALSE.)
 
       NULLIFY (subsection)
 
@@ -109,6 +110,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_mixing_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_adiis_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -151,7 +156,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_DIIS", &
                           variants=["MAX_DIIS_BUFFER_SIZE"], &
-                          description="Maximum number of DIIS vectors to be used", &
+                          description="Maximum number of DIIS subspace vectors to be used", &
                           usage="MAX_DIIS 3", default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -947,6 +952,29 @@ CONTAINS
    END SUBROUTINE create_ot_section
 
 ! **************************************************************************************************
+!> \brief creates the ADIIS section
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_adiis_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="ADIIS", &
+                          description="Parameters for the ADIIS SCF update method.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_HISTORY", &
+                          description="Maximum number of paired density/Fock states retained by ADIIS.", &
+                          usage="MAX_HISTORY 7", default_i_val=7)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_adiis_section
+
+! **************************************************************************************************
 !> \brief creates the diagonalization section
 !> \param section ...
 !> \par History
@@ -970,6 +998,19 @@ CONTAINS
                           usage="&DIAGONALIZATION T", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="UPDATE_METHOD", &
+                          description="Selects the SCF update method used with diagonalization. MIXING uses "// &
+                          "the existing density-mixing and DIIS workflow; ADIIS uses augmented-DIIS "// &
+                          "Fock-space interpolation and accepts the diagonalized density directly.", &
+                          usage="UPDATE_METHOD ADIIS", default_i_val=diag_update_method_mixing, &
+                          enum_c_vals=s2a("MIXING", "ADIIS"), &
+                          enum_desc=s2a("Use the existing density-mixing SCF workflow", &
+                                        "Use augmented-DIIS Fock-space interpolation"), &
+                          enum_i_vals=[diag_update_method_mixing, diag_update_method_adiis], &
+                          citations=[Hu2010])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

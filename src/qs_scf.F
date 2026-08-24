@@ -81,10 +81,11 @@ MODULE qs_scf
    USE input_constants,                 ONLY: &
         broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, &
         broyden_type_2, broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
-        cdft2ot, history_guess, ot2cdft, ot_precond_full_all, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_newton_ls, tblite_scc_mixer_tblite
+        cdft2ot, cholesky_dbcsr, diag_update_method_adiis, history_guess, ot2cdft, &
+        ot_precond_full_all, ot_precond_full_single, ot_precond_full_single_inverse, &
+        ot_precond_none, ot_precond_s_inverse, outer_scf_becke_constraint, &
+        outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
+        outer_scf_optimizer_newton_ls, sic_eo, tblite_scc_mixer_tblite
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -125,7 +126,8 @@ MODULE qs_scf
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
-   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
    USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_methods,                   ONLY: evaluate_core_matrix_traces,&
                                               qs_ks_update_qs_env
@@ -158,14 +160,10 @@ MODULE qs_scf
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_initialization,           ONLY: qs_scf_env_initialize
-   USE qs_scf_loop_utils,               ONLY: qs_scf_check_inner_exit,&
-                                              qs_scf_check_outer_exit,&
-                                              qs_scf_density_mixing,&
-                                              qs_scf_inner_finalize,&
-                                              qs_scf_new_mos,&
-                                              qs_scf_new_mos_kp,&
-                                              qs_scf_rho_update,&
-                                              qs_scf_set_loop_flags
+   USE qs_scf_loop_utils,               ONLY: &
+        qs_scf_candidate_density_delta, qs_scf_check_inner_exit, qs_scf_check_outer_exit, &
+        qs_scf_commit_density_candidate, qs_scf_density_mixing, qs_scf_inner_finalize, &
+        qs_scf_new_mos, qs_scf_new_mos_kp, qs_scf_rho_update, qs_scf_set_loop_flags
    USE qs_scf_output,                   ONLY: qs_scf_cdft_info,&
                                               qs_scf_cdft_initial_info,&
                                               qs_scf_gce_info,&
@@ -174,6 +172,10 @@ MODULE qs_scf
                                               qs_scf_outer_loop_info,&
                                               qs_scf_write_mos
    USE qs_scf_post_scf,                 ONLY: qs_scf_compute_properties
+   USE qs_scf_subspace,                 ONLY: qs_scf_subspace_restart
+   USE qs_scf_subspace_types,           ONLY: qs_scf_subspace_buffer_clear,&
+                                              qs_scf_subspace_buffer_create,&
+                                              qs_scf_subspace_buffer_release
    USE qs_scf_types,                    ONLY: &
         block_davidson_diag_method_nr, block_krylov_diag_method_nr, filter_matrix_diag_method_nr, &
         general_diag_method_nr, ot_diag_method_nr, ot_method_nr, qs_scf_env_type, &
@@ -367,21 +369,23 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: total_scf_steps
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scf_env_do_scf'
+      REAL(KIND=dp), PARAMETER :: adiis_stagnation_ratio = 1.0E-2_dp
 
       CHARACTER(LEN=default_string_length)               :: description, name
       INTEGER                                            :: ext_master_id, handle, handle2, i_tmp, &
                                                             ic, ispin, iter_count, output_unit, &
                                                             scf_energy_message_tag, total_steps
-      LOGICAL :: density_full_step, diis_step, do_kpoints, energy_only, exit_inner_loop, &
-         exit_outer_loop, inner_loop_converged, internal_tblite_density_full_step, &
-         internal_tblite_mixer, just_energy, outer_loop_converged, tblite_native_mixer
-      REAL(KIND=dp)                                      :: t1, t2
+      LOGICAL :: adiis_restarted, adiis_stagnated, adiis_validation, density_full_step, diis_step, &
+         do_kpoints, energy_only, exit_inner_loop, exit_outer_loop, inner_loop_converged, &
+         internal_tblite_density_full_step, internal_tblite_mixer, just_energy, &
+         outer_loop_converged, tblite_native_mixer
+      REAL(KIND=dp)                                      :: adiis_raw_delta, adiis_step_delta, t1, t2
       REAL(KIND=dp), DIMENSION(3)                        :: res_val_3
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_result_type), POINTER                      :: results
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -402,7 +406,7 @@ CONTAINS
       NULLIFY (dft_control, rho, energy, &
                logger, qs_charges, ks_env, mos, atomic_kind_set, qs_kind_set, &
                particle_set, dft_section, input, &
-               scf_section, para_env, results, kpoints, pw_env, rho_ao_kp, mos_last_converged)
+               scf_section, para_env, results, kpoints, pw_env, matrix_ks_kp, rho_ao_kp, mos_last_converged)
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(ASSOCIATED(qs_env))
@@ -419,6 +423,7 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       rho=rho, &
                       mos=mos, &
+                      matrix_ks_kp=matrix_ks_kp, &
                       input=input, &
                       dft_control=dft_control, &
                       do_kpoints=do_kpoints, &
@@ -539,22 +544,86 @@ CONTAINS
             ! print 'heavy weight' or relatively expensive quantities
             CALL qs_scf_loop_print(qs_env, scf_env, para_env)
 
-            IF (do_kpoints) THEN
-               ! kpoints
-               IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
-                  scf_control%smear%do_smear = .FALSE.
-                  CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, dft_control%probe)
+            adiis_validation = scf_control%diagonalization%update_method == diag_update_method_adiis .AND. &
+                               scf_env%adiis_check_next
+            adiis_step_delta = scf_env%iter_delta
+            scf_env%adiis_validated = .FALSE.
+
+            IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
+               ! ADIIS is a Fock-space SCF method and never uses density mixing.  A small
+               ! accelerated step is validated against the unmodified F[P] map before
+               ! convergence is accepted.  If validation fails, its candidate density is
+               ! discarded and the normal ADIIS step is performed in this same iteration.
+               IF (do_kpoints) THEN
+                  CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, &
+                                         apply_adiis=.NOT. adiis_validation)
                ELSE
-                  CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
+                  CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only, &
+                                      apply_adiis=.NOT. adiis_validation)
+               END IF
+
+               IF (adiis_validation) THEN
+                  CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, adiis_raw_delta)
+                  IF (adiis_raw_delta < scf_control%eps_scf) THEN
+                     scf_env%iter_delta = adiis_raw_delta
+                     scf_env%iter_param = 0.0_dp
+                     scf_env%iter_method = "ADIIS/Chk."
+                     scf_env%adiis_validated = .TRUE.
+                     scf_env%adiis_check_next = .FALSE.
+                  ELSE
+                     adiis_stagnated = adiis_step_delta <= adiis_stagnation_ratio*adiis_raw_delta
+                     IF (adiis_stagnated) THEN
+                        ! A nearly vanishing ADIIS step can be a fixed point of the current
+                        ! subspace without being a fixed point of the raw SCF map.  Discard
+                        ! the stale subspace, retain the current paired P,F[P] state, and
+                        ! accept the already computed raw candidate as the restart step.
+                        ! This avoids duplicate history entries and a second diagonalization.
+                        CALL qs_scf_subspace_restart(scf_env%scf_subspace_buffer, matrix_ks_kp, rho_ao_kp, &
+                                                     energy%total, adiis_restarted)
+                        IF (.NOT. adiis_restarted) THEN
+                           CPABORT("Failed to restart the ADIIS history from the current SCF state")
+                        END IF
+                        scf_env%iter_delta = adiis_raw_delta
+                        scf_env%iter_param = 0.0_dp
+                        scf_env%iter_method = "ADIIS/Rst."
+                        scf_env%adiis_check_next = .FALSE.
+                     ELSE
+                        ! The failed validation does not indicate a subspace fixed point.
+                        ! Preserve the useful ADIIS history and discard the validation
+                        ! candidate by performing the accelerated step in this iteration.
+                        IF (do_kpoints) THEN
+                           CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, apply_adiis=.TRUE.)
+                        ELSE
+                           CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only, &
+                                               apply_adiis=.TRUE.)
+                        END IF
+                        CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, scf_env%iter_delta)
+                        scf_env%adiis_check_next = scf_env%iter_delta < scf_control%eps_scf
+                     END IF
+                  END IF
+               ELSE
+                  CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, scf_env%iter_delta)
+                  scf_env%adiis_check_next = scf_env%iter_delta < scf_control%eps_scf
                END IF
             ELSE
-               ! Gamma points only
-               IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
-                  scf_control%smear%do_smear = .FALSE.
-                  CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only, &
-                                      dft_control%probe)
+               ! Keep the existing density-mixing SCF path unchanged.
+               IF (do_kpoints) THEN
+                  ! kpoints
+                  IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
+                     scf_control%smear%do_smear = .FALSE.
+                     CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, dft_control%probe)
+                  ELSE
+                     CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
+                  END IF
                ELSE
-                  CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only)
+                  ! Gamma points only
+                  IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
+                     scf_control%smear%do_smear = .FALSE.
+                     CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only, &
+                                         dft_control%probe)
+                  ELSE
+                     CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only)
+                  END IF
                END IF
             END IF
 
@@ -573,8 +642,15 @@ CONTAINS
                CALL tb_get_energy(qs_env, qs_env%tb_tblite, energy)
             END IF
 
-            density_full_step = diis_step .OR. tblite_native_mixer .OR. internal_tblite_density_full_step
-            CALL qs_scf_density_mixing(scf_env, rho, para_env, density_full_step)
+            IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
+               ! ADIIS owns the Fock-space update.  Its diagonalized density is the next
+               ! SCF state; no density-mixing algorithm is applied.
+               CALL qs_scf_commit_density_candidate(scf_env, rho)
+               density_full_step = .TRUE.
+            ELSE
+               density_full_step = diis_step .OR. tblite_native_mixer .OR. internal_tblite_density_full_step
+               CALL qs_scf_density_mixing(scf_env, rho, para_env, density_full_step)
+            END IF
             IF (dft_control%qs_control%xtb_control%do_tblite .AND. &
                 .NOT. (dft_control%qs_control%do_ls_scf .OR. scf_control%use_ot)) THEN
                scf_env%iter_delta = MAX(scf_env%iter_delta, &
@@ -761,20 +837,23 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_scf_loop'
 
-      INTEGER                                            :: handle, ispin, nmo, number_of_OT_envs
-      LOGICAL                                            :: do_kpoints, do_rotation, &
+      INTEGER                                            :: handle, ikind, ispin, nmo, &
+                                                            number_of_OT_envs
+      LOGICAL                                            :: do_adiis, do_kpoints, do_rotation, &
                                                             has_unit_metric, is_full_all
+      REAL(KIND=dp)                                      :: u_ramping
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_type), POINTER                          :: orthogonality_metric
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (scf_control, matrix_s, matrix_ks, dft_control, mos, mo_coeff, kpoints)
+      NULLIFY (scf_control, matrix_s, matrix_ks, dft_control, mos, mo_coeff, kpoints, qs_kind_set)
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(ASSOCIATED(qs_env))
@@ -784,7 +863,8 @@ CONTAINS
                       dft_control=dft_control, &
                       do_kpoints=do_kpoints, &
                       kpoints=kpoints, &
-                      mos=mos)
+                      mos=mos, &
+                      qs_kind_set=qs_kind_set)
 
       ! if using mo_coeff_b then copy to fm
       DO ispin = 1, SIZE(mos) !fm->dbcsr
@@ -818,6 +898,61 @@ CONTAINS
             END IF
          END IF
       END DO
+
+      do_adiis = scf_control%diagonalization%update_method == diag_update_method_adiis
+      IF (do_adiis) THEN
+         IF (scf_env%method /= general_diag_method_nr) THEN
+            CPABORT("ADIIS currently requires SCF%DIAGONALIZATION ALGORITHM STANDARD")
+         END IF
+         IF (scf_env%cholesky_method == cholesky_dbcsr) THEN
+            CPABORT("ADIIS is not yet compatible with CHOLESKY INVERSE_DBCSR")
+         END IF
+         IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb .OR. &
+             dft_control%qs_control%semi_empirical) THEN
+            CPABORT("ADIIS currently requires a Quickstep DFT KS matrix")
+         END IF
+         IF (dft_control%do_admm_mo) THEN
+            CPABORT("ADIIS is not yet compatible with ADMM-MO")
+         END IF
+         IF (dft_control%sic_method_id == sic_eo) THEN
+            CPABORT("ADIIS is not yet compatible with explicit-orbital SIC")
+         END IF
+         IF (dft_control%apply_period_efield) THEN
+            CPABORT("ADIIS is not yet compatible with PERIODIC_EFIELD")
+         END IF
+         IF (dft_control%dft_plus_u) THEN
+            CPASSERT(ASSOCIATED(qs_kind_set))
+            DO ikind = 1, SIZE(qs_kind_set)
+               CALL get_qs_kind(qs_kind_set(ikind), u_ramping=u_ramping)
+               IF (u_ramping > 0.0_dp) THEN
+                  CPABORT("ADIIS is not yet compatible with DFT+U U_RAMPING")
+               END IF
+            END DO
+         END IF
+         IF (dft_control%smear .OR. scf_control%smear%do_smear) THEN
+            CPABORT("ADIIS finite-temperature smearing support is not implemented yet")
+         END IF
+         IF (dft_control%roks .OR. scf_control%diagonalization%mom .OR. &
+             dft_control%hairy_probes .OR. scf_control%gce%do_gce) THEN
+            CPABORT("ADIIS currently supports ordinary RKS/UKS occupations only")
+         END IF
+         IF (scf_control%do_diag_sub) THEN
+            CPABORT("ADIIS is not yet compatible with DIAG_SUB_SCF")
+         END IF
+         IF (scf_control%diagonalization%max_history < 1) THEN
+            CPABORT("ADIIS requires SCF%ADIIS%MAX_HISTORY >= 1")
+         END IF
+         IF (.NOT. ASSOCIATED(scf_env%scf_subspace_buffer)) THEN
+            ALLOCATE (scf_env%scf_subspace_buffer)
+            CALL qs_scf_subspace_buffer_create(scf_env%scf_subspace_buffer, &
+                                               scf_control%diagonalization%max_history)
+         ELSE IF (scf_env%scf_subspace_buffer%nbuffer /= scf_control%diagonalization%max_history) THEN
+            CALL qs_scf_subspace_buffer_release(scf_env%scf_subspace_buffer)
+            CALL qs_scf_subspace_buffer_create(scf_env%scf_subspace_buffer, &
+                                               scf_control%diagonalization%max_history)
+         END IF
+         CALL qs_scf_subspace_buffer_clear(scf_env%scf_subspace_buffer)
+      END IF
 
       SELECT CASE (scf_env%method)
       CASE DEFAULT
