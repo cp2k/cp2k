@@ -1174,7 +1174,7 @@ CONTAINS
       gradient(:) = aq + chia
       residual(:) = -gradient
       CALL project_eeq_charge_tangent(residual)
-      res = SQRT(SUM(residual*residual))
+      res = NORM2(residual)
       res_initial = MAX(res, SQRT(EPSILON(1.0_dp)))
       iter = 0
 
@@ -1203,7 +1203,7 @@ CONTAINS
             ! Remove accumulated roundoff from both constrained spaces.
             charges = charges + (qtot - SUM(charges))/REAL(natom, KIND=dp)
             CALL project_eeq_charge_tangent(residual)
-            res = SQRT(SUM(residual*residual))
+            res = NORM2(residual)
             IF (res < eps_solver) EXIT
             IF (res > 100.0_dp*res_initial .OR. .NOT. (res < HUGE(res))) THEN
                ierror = 1
@@ -1324,7 +1324,7 @@ CONTAINS
          DO iy = -1, 1, 2
             DO iz = -1, 1, 2
                vertex = MATMUL(hmat, cell_extent*REAL([ix, iy, iz], KIND=dp))
-               neighbor_cutoff = MAX(neighbor_cutoff, SQRT(SUM(vertex**2)))
+               neighbor_cutoff = MAX(neighbor_cutoff, NORM2(vertex))
             END DO
          END DO
       END DO
