@@ -74,14 +74,15 @@
   &PROPERTIES
     &BANDSTRUCTURE
       &GW
-        GRID_FILE_SUFFIX _rirs.ion
-        GRID_SELECT 3
         NUM_TIME_FREQ_POINTS 20
-        RI_RS T
         &PRINT
           &RESTART OFF
           &END RESTART
         &END PRINT
+        &RI_RS T
+          GRID_FILE_SUFFIX _rirs.ion
+          GRID_SELECT 3
+        &END RI_RS
       &END GW
     &END BANDSTRUCTURE
   &END PROPERTIES

@@ -64,7 +64,8 @@ MODULE gw_large_cell_gamma
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
                                               de_init_bs_env,&
                                               time_to_freq
-   USE input_constants,                 ONLY: rtp_method_bse,&
+   USE input_constants,                 ONLY: G0W0,&
+                                              rtp_method_bse,&
                                               rtp_method_bse_linearized
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -2516,7 +2517,8 @@ CONTAINS
 
       CALL get_all_VBM_CBM_bandgaps(bs_env)
 
-      CALL cp_fm_release(fm_Sigma_x_Gamma)
+      ! Σ^x is releases here in case of G0W0
+      IF (bs_env%gw_flavour == G0W0) CALL cp_fm_release(fm_Sigma_x_Gamma)
       CALL cp_fm_release(fm_Sigma_c_Gamma_time)
       CALL cp_cfm_release(cfm_ks_ikp)
       CALL cp_cfm_release(cfm_s_ikp)
