@@ -86,6 +86,9 @@ registry["OT_added_mos_auto_grow"] = TextPresenceMatcher(
 )
 registry["OT_lattice_fft_selected"] = TextPresenceMatcher("selected: T")
 registry["OT_lattice_fft_fallback"] = TextPresenceMatcher("selected: F")
+registry["OT_lattice_local_correction"] = TextPresenceMatcher(
+    "Balanced local correction cells:"
+)
 registry["Kubo_sigma_iso"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S/cm]", col=3)
 registry["Kubo_sigma_iso_2d"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S]", col=3)
 registry["Kubo_sigma_iso_1d"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S*m]", col=3)

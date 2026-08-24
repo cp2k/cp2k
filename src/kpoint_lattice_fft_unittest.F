@@ -11,13 +11,11 @@ PROGRAM kpoint_lattice_fft_unittest
    USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
                                               k_grid_to_cell_fft,&
                                               regular_kpoint_grid
-   USE lattice_preconditioner_operator, ONLY: apply_lattice_inverse_dense,&
-                                              apply_lattice_state_inverse_dense,&
-                                              build_lattice_inverse,&
-                                              lattice_fft_auto_select,&
-                                              lattice_fft_cost_ratio,&
-                                              lattice_fft_storage_ratio,&
-                                              lattice_grid
+   USE lattice_preconditioner_operator, ONLY: &
+        apply_lattice_inverse_dense, apply_lattice_state_inverse_dense, build_lattice_inverse, &
+        build_lattice_local_correction, lattice_fft_auto_select, lattice_fft_cost_ratio, &
+        lattice_fft_storage_ratio, lattice_grid, lattice_local_cost_ratio, &
+        lattice_local_storage_ratio
    USE mathconstants,                   ONLY: gaussi,&
                                               twopi,&
                                               z_zero
@@ -38,6 +36,7 @@ PROGRAM kpoint_lattice_fft_unittest
    COMPLEX(KIND=dp), DIMENSION(2, 3, nround)           :: reconstructed, round_k
    COMPLEX(KIND=dp), DIMENSION(2, 3, nselected)         :: selected_transformed
    INTEGER                                             :: d, i, icell, info, j, jcell, ik, ix, iy, iz
+   INTEGER, ALLOCATABLE, DIMENSION(:)                  :: correction_indices
    INTEGER, DIMENSION(3)                               :: base_dims, delta, large_dims
    INTEGER, DIMENSION(3, base_cell)                    :: base_index
    INTEGER, DIMENSION(3)                               :: nkp_grid
@@ -46,14 +45,20 @@ PROGRAM kpoint_lattice_fft_unittest
    INTEGER, DIMENSION(nselected)                       :: selected_kpoints
    LOGICAL                                             :: used_fft
    REAL(KIND=dp), DIMENSION(3, 3)                      :: hmat
-   REAL(KIND=dp)                                       :: cost_ratio, expected_cost_ratio, imaginary_residual, &
+   REAL(KIND=dp)                                       :: base_residual_norm, corrected_projection_error, &
+                                                          corrected_residual_norm, cost_ratio, &
+                                                          expected_cost_ratio, imaginary_residual, &
                                                           large_block_real, large_ncell_real, &
                                                           large_ncol_real, projection_error
    REAL(KIND=dp), DIMENSION(3, base_cell)              :: base_xkp
    REAL(KIND=dp), DIMENSION(base_n, base_n)            :: base_overlap
+   REAL(KIND=dp), DIMENSION(base_n, base_n)            :: defect_operator
    REAL(KIND=dp), DIMENSION(base_n, base_ncol)          :: base_input, base_input_rotated, &
                                                            base_output, base_output_rotated, &
-                                                           base_state_output
+                                                           base_state_output, defect_residual
+   REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)         :: coarse_inverse, defect_base_output, &
+                                                          defect_corrected_output, local_operator, &
+                                                          selected_output, selected_rhs
    REAL(KIND=dp), DIMENSION(base_ncol, base_ncol)       :: column_rotation
    REAL(KIND=dp), DIMENSION(3, nkp)                    :: xkp, xkp_bad
    REAL(KIND=dp), DIMENSION(2, 3, ncell)               :: values_rs
@@ -232,6 +237,12 @@ PROGRAM kpoint_lattice_fft_unittest
    IF (ABS(lattice_fft_storage_ratio(base_dims, 1) - 0.25_dp) > 1.0E-14_dp) THEN
       ERROR STOP "Lattice-FFT storage estimate is inconsistent"
    END IF
+   IF (ABS(lattice_local_cost_ratio(base_dims, base_ncol, 1) - 0.28125_dp) > 1.0E-14_dp) THEN
+      ERROR STOP "Lattice local-correction cost estimate is inconsistent"
+   END IF
+   IF (ABS(lattice_local_storage_ratio(base_dims, 3, 1) - 0.421875_dp) > 1.0E-14_dp) THEN
+      ERROR STOP "Lattice local-correction storage estimate is inconsistent"
+   END IF
    CALL apply_lattice_inverse_dense(inverse_k, base_dims, base_input, base_output, &
                                     used_fft, imaginary_residual)
    IF (.NOT. used_fft) ERROR STOP "Block-circulant inverse application did not use lattice FFT"
@@ -267,12 +278,105 @@ PROGRAM kpoint_lattice_fft_unittest
    IF (MAXVAL(ABS(base_output_rotated - MATMUL(base_output, column_rotation))) > 3.0E-12_dp) THEN
       ERROR STOP "FFT lattice base is not right-covariant under orbital rotations"
    END IF
+
+   ! Add one localized positive defect and verify the balanced cell correction.
+   defect_operator = base_overlap
+   defect_operator(5, 5) = defect_operator(5, 5) + 0.90_dp
+   defect_operator(6, 6) = defect_operator(6, 6) + 0.60_dp
+   CALL build_lattice_inverse(defect_operator, base_dims, inverse_k, projection_error, used_fft, info)
+   IF (info /= 0 .OR. .NOT. used_fft) ERROR STOP "Defective lattice operator failed construction"
+   IF (projection_error <= 1.0E-3_dp) ERROR STOP "Localized defect did not break lattice translations"
+   IF (lattice_fft_auto_select(base_dims, 6, 8, 1, 2, projection_error, used_fft, info)) THEN
+      ERROR STOP "Lattice-FFT AUTO accepted a localized defect"
+   END IF
+   CALL build_lattice_local_correction( &
+      defect_operator, base_dims, 1, correction_indices, local_operator, coarse_inverse, &
+      corrected_projection_error, info)
+   IF (info /= 0) ERROR STOP "Local correction coarse inverse failed"
+   IF (ANY(correction_indices /= [5, 6])) ERROR STOP "Local correction selected the wrong defect cell"
+   IF (corrected_projection_error >= projection_error) THEN
+      ERROR STOP "Local correction did not reduce the non-circulant residual"
+   END IF
+
+   ALLOCATE (defect_base_output(base_n, base_ncol), defect_corrected_output(base_n, base_ncol))
+   CALL apply_lattice_inverse_dense(inverse_k, base_dims, base_input, defect_base_output, used_fft)
+   CALL apply_balanced_local_inverse(inverse_k, base_dims, correction_indices, local_operator, &
+                                     coarse_inverse, base_input, defect_corrected_output)
+   defect_residual = MATMUL(defect_operator, defect_base_output) - base_input
+   base_residual_norm = SQRT(SUM(defect_residual**2))
+   defect_residual = MATMUL(defect_operator, defect_corrected_output) - base_input
+   corrected_residual_norm = SQRT(SUM(defect_residual**2))
+   IF (corrected_residual_norm >= base_residual_norm) THEN
+      ERROR STOP "Balanced local correction did not improve inverse application"
+   END IF
+   IF (SUM(base_input*defect_corrected_output) <= 0.0_dp) THEN
+      ERROR STOP "Balanced local correction lost positive definiteness"
+   END IF
+
+   ALLOCATE (selected_rhs(base_n, SIZE(correction_indices)), &
+             selected_output(base_n, SIZE(correction_indices)))
+   selected_rhs(:, :) = local_operator
+   CALL apply_balanced_local_inverse(inverse_k, base_dims, correction_indices, local_operator, &
+                                     coarse_inverse, selected_rhs, selected_output)
+   selected_rhs = 0.0_dp
+   DO i = 1, SIZE(correction_indices)
+      selected_rhs(correction_indices(i), i) = 1.0_dp
+   END DO
+   IF (MAXVAL(ABS(selected_output - selected_rhs)) > 3.0E-11_dp) THEN
+      ERROR STOP "Balanced local correction is not exact in its selected subspace"
+   END IF
+   DEALLOCATE (coarse_inverse, correction_indices, defect_base_output, defect_corrected_output, &
+               local_operator, selected_output, selected_rhs)
    DEALLOCATE (inverse_k)
 
    CALL finalize_fft(mp_comm, "")
    CALL mp_world_finalize()
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Apply the balanced two-level inverse used by the production local correction.
+!> \param inverse_k block-circulant base inverse
+!> \param lattice_dims replicated-cell dimensions
+!> \param correction_indices selected coordinate basis
+!> \param operator_columns columns A U
+!> \param coarse_inverse inverse of U^T A U
+!> \param input right-hand sides
+!> \param output corrected inverse action
+! **************************************************************************************************
+   SUBROUTINE apply_balanced_local_inverse(inverse_k, lattice_dims, correction_indices, &
+                                           operator_columns, coarse_inverse, input, output)
+
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: inverse_k
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: lattice_dims
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: correction_indices
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: operator_columns, coarse_inverse, input
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: output
+
+      INTEGER                                            :: i
+      LOGICAL                                            :: used_fft
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: base_input, coarse_input, &
+                                                            coarse_projected, coarse_residual, &
+                                                            coarse_rhs
+
+      ALLOCATE (base_input(SIZE(input, 1), SIZE(input, 2)), &
+                coarse_input(SIZE(correction_indices), SIZE(input, 2)), &
+                coarse_projected(SIZE(correction_indices), SIZE(input, 2)), &
+                coarse_residual(SIZE(correction_indices), SIZE(input, 2)), &
+                coarse_rhs(SIZE(correction_indices), SIZE(input, 2)))
+      DO i = 1, SIZE(correction_indices)
+         coarse_input(i, :) = input(correction_indices(i), :)
+      END DO
+      coarse_rhs(:, :) = MATMUL(coarse_inverse, coarse_input)
+      base_input(:, :) = input - MATMUL(operator_columns, coarse_rhs)
+      CALL apply_lattice_inverse_dense(inverse_k, lattice_dims, base_input, output, used_fft)
+      IF (.NOT. used_fft) ERROR STOP "Balanced correction base did not use lattice FFT"
+      coarse_projected(:, :) = MATMUL(TRANSPOSE(operator_columns), output)
+      coarse_residual(:, :) = MATMUL(coarse_inverse, coarse_projected)
+      output(correction_indices, :) = output(correction_indices, :) + coarse_rhs - coarse_residual
+      DEALLOCATE (base_input, coarse_input, coarse_projected, coarse_residual, coarse_rhs)
+
+   END SUBROUTINE apply_balanced_local_inverse
 
 ! **************************************************************************************************
 !> \brief ...
@@ -295,14 +399,15 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: factor
       INTEGER                                            :: icell, ik
-      REAL(KIND=dp), DIMENSION(3)                        :: cell_vector
+      REAL(KIND=dp), DIMENSION(3)                        :: cell_index_real, cell_vector
 
       values_k = z_zero
       DO ik = 1, SIZE(xkp, 2)
          DO icell = 1, SIZE(values_rs, 3)
             factor = EXP(gaussi*twopi*SUM(xkp(:, ik)*REAL(index_to_cell(:, icell), KIND=dp)))
             IF (PRESENT(deriv_direction)) THEN
-               cell_vector = MATMUL(hmat, REAL(index_to_cell(:, icell), KIND=dp))
+               cell_index_real = REAL(index_to_cell(:, icell), KIND=dp)
+               cell_vector = MATMUL(hmat, cell_index_real)
                factor = factor*gaussi*cell_vector(deriv_direction)
             END IF
             values_k(:, :, ik) = values_k(:, :, ik) + factor*values_rs(:, :, icell)
