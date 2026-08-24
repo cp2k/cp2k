@@ -34,9 +34,13 @@ MODULE lattice_preconditioner_operator
    PUBLIC :: apply_lattice_inverse_dense, &
              apply_lattice_state_inverse_dense, &
              build_lattice_inverse, &
+             build_lattice_inverse_from_blocks, &
+             build_lattice_local_correction, &
              lattice_fft_cost_ratio, &
              lattice_fft_auto_select, &
              lattice_fft_storage_ratio, &
+             lattice_local_cost_ratio, &
+             lattice_local_storage_ratio, &
              lattice_grid
 
 CONTAINS
@@ -97,12 +101,7 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: used_fft
       INTEGER, INTENT(OUT)                               :: info
 
-      INTEGER                                            :: alpha, beta, block_size, delta_index, &
-                                                            icell, jcell, n, ncell
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell
-      INTEGER, DIMENSION(3)                              :: delta
-      REAL(KIND=dp)                                      :: denominator, difference, numerator
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp
+      INTEGER                                            :: n, ncell
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: blocks
 
       IF (SIZE(operator_matrix, 1) /= SIZE(operator_matrix, 2)) THEN
@@ -208,7 +207,7 @@ CONTAINS
                                     corrected_projection_error, projected_operator)
       DEALLOCATE (blocks)
       ALLOCATE (residual(n, n))
-      residual = operator_matrix - projected_operator
+      residual(:, :) = operator_matrix - projected_operator
       DEALLOCATE (projected_operator)
       ALLOCATE (scores(ncell), selected(ncell), selected_cells(local_cell_count))
       selected = .FALSE.
@@ -245,8 +244,8 @@ CONTAINS
       corrected_projection_error = SQRT(SUM(residual**2)/MAX(denominator, TINY(denominator)))
 
       ALLOCATE (operator_columns(n, local_rank), coarse_inverse(local_rank, local_rank))
-      operator_columns = operator_matrix(:, correction_indices)
-      coarse_inverse = operator_matrix(correction_indices, correction_indices)
+      operator_columns(:, :) = operator_matrix(:, correction_indices)
+      coarse_inverse(:, :) = operator_matrix(correction_indices, correction_indices)
       CALL dpotrf('U', local_rank, coarse_inverse, local_rank, info)
       IF (info == 0) CALL dpotri('U', local_rank, coarse_inverse, local_rank, info)
       IF (info == 0) THEN
@@ -297,7 +296,6 @@ CONTAINS
       ALLOCATE (index_to_cell(3, ncell), xkp(3, ncell))
       CALL lattice_grid(lattice_dims, index_to_cell, xkp)
       ALLOCATE (blocks(block_size, block_size, ncell), source=0.0_dp)
-
       DO jcell = 1, ncell
          DO icell = 1, ncell
             ! With X(k)=sum_R exp(+ikR) X(R), the convolution block is indexed by R-T.
@@ -314,6 +312,7 @@ CONTAINS
          END DO
       END DO
 
+      IF (PRESENT(projected_operator)) ALLOCATE (projected_operator(n, n))
       numerator = 0.0_dp
       denominator = 0.0_dp
       DO jcell = 1, ncell
@@ -322,6 +321,11 @@ CONTAINS
             delta_index = cell_linear_index(delta, lattice_dims)
             DO beta = 1, block_size
                DO alpha = 1, block_size
+                  IF (PRESENT(projected_operator)) THEN
+                     projected_operator((icell - 1)*block_size + alpha, &
+                                        (jcell - 1)*block_size + beta) = &
+                        blocks(alpha, beta, delta_index)
+                  END IF
                   difference = operator_matrix((icell - 1)*block_size + alpha, &
                                                (jcell - 1)*block_size + beta) - &
                                blocks(alpha, beta, delta_index)
@@ -344,7 +348,7 @@ CONTAINS
 !> \param lattice_dims number of explicitly replicated cells
 !> \param block_size number of orbitals in the reference cell
 !> \param rhs_count number of orbital columns transformed together
-!> \param num_pe number of message-passing ranks sharing the gathered operator
+!> \param num_pe number of message-passing ranks sharing the operator
 !> \return estimated lattice-to-dense work ratio
 ! **************************************************************************************************
    PURE REAL(KIND=dp) FUNCTION lattice_fft_cost_ratio(lattice_dims, block_size, rhs_count, num_pe) &
@@ -404,12 +408,67 @@ CONTAINS
    END FUNCTION lattice_fft_storage_ratio
 
 ! **************************************************************************************************
+!> \brief Estimate balanced-local-correction work relative to a dense inverse application.
+!> \param lattice_dims number of replicated cells
+!> \param rhs_count number of orbital columns transformed together
+!> \param local_cell_count number of cell blocks retained in the correction
+!> \return estimated correction-to-dense work ratio
+! **************************************************************************************************
+   PURE REAL(KIND=dp) FUNCTION lattice_local_cost_ratio(lattice_dims, rhs_count, local_cell_count) &
+      RESULT(ratio)
+
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: lattice_dims
+      INTEGER, INTENT(IN)                                :: rhs_count, local_cell_count
+
+      INTEGER                                            :: ncell, nrhs
+      REAL(KIND=dp)                                      :: local_fraction
+
+      ncell = MAX(1, PRODUCT(lattice_dims))
+      nrhs = MAX(1, rhs_count)
+      IF (local_cell_count <= 0) THEN
+         ratio = 0.0_dp
+         RETURN
+      END IF
+      local_fraction = REAL(local_cell_count, KIND=dp)/REAL(ncell, KIND=dp)
+      ! Two A U products and two coarse solves are required for each right-hand side.
+      ratio = REAL(nrhs, KIND=dp)*(2.0_dp*local_fraction + 2.0_dp*local_fraction**2)/ &
+              REAL(nrhs, KIND=dp)
+
+   END FUNCTION lattice_local_cost_ratio
+
+! **************************************************************************************************
+!> \brief Estimate balanced-local-correction storage relative to one dense real operator.
+!> \param lattice_dims number of replicated cells
+!> \param operator_count number of distinct state-dependent local corrections
+!> \param local_cell_count number of cell blocks retained in each correction
+!> \return estimated correction-to-dense storage ratio
+! **************************************************************************************************
+   PURE REAL(KIND=dp) FUNCTION lattice_local_storage_ratio(lattice_dims, operator_count, &
+                                                           local_cell_count) RESULT(ratio)
+
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: lattice_dims
+      INTEGER, INTENT(IN)                                :: operator_count, local_cell_count
+
+      INTEGER                                            :: ncell
+      REAL(KIND=dp)                                      :: local_fraction
+
+      ncell = MAX(1, PRODUCT(lattice_dims))
+      IF (local_cell_count <= 0) THEN
+         ratio = 0.0_dp
+         RETURN
+      END IF
+      local_fraction = REAL(local_cell_count, KIND=dp)/REAL(ncell, KIND=dp)
+      ratio = REAL(MAX(1, operator_count), KIND=dp)*(local_fraction + local_fraction**2)
+
+   END FUNCTION lattice_local_storage_ratio
+
+! **************************************************************************************************
 !> \brief Conservative error-, work-, and storage-aware AUTO selector.
 !> \param lattice_dims number of explicitly replicated cells
 !> \param block_size number of orbitals in the reference cell
 !> \param rhs_count number of orbital columns transformed together
 !> \param operator_count number of distinct reciprocal operators stored
-!> \param num_pe number of message-passing ranks sharing the gathered operator
+!> \param num_pe number of message-passing ranks sharing the operator
 !> \param projection_error relative Frobenius projection error
 !> \param used_fft whether construction used the FFT path
 !> \param info zero when all projected Fourier blocks were positive definite

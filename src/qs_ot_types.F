@@ -88,6 +88,7 @@ MODULE qs_ot_types
       INTEGER           :: low_rank_base = ot_low_rank_base_overlap
       CHARACTER(LEN=20) :: lattice_fft_name = ""
       INTEGER           :: lattice_fft = ot_lattice_fft_off
+      INTEGER           :: lattice_fft_local_cells = 0
       INTEGER           :: cholesky_type = -1
       INTEGER           :: ot_state = 0
       CHARACTER(LEN=20) :: precond_solver_name = ""
@@ -313,6 +314,7 @@ CONTAINS
       settings%low_rank_base = ot_low_rank_base_overlap
       settings%lattice_fft_name = "OFF"
       settings%lattice_fft = ot_lattice_fft_off
+      settings%lattice_fft_local_cells = 0
       settings%cholesky_type = cholesky_reduce
       settings%precond_solver_name = "CHOLESKY_INVERSE"
       settings%precond_solver_type = ot_precond_solver_inv_chol
@@ -1799,6 +1801,11 @@ CONTAINS
       CASE DEFAULT
          CPABORT("READ OT LATTICE_FFT: Value unknown")
       END SELECT
+      CALL section_vals_val_get(ot_section, "LATTICE_FFT_LOCAL_CELLS", &
+                                i_val=settings%lattice_fft_local_cells)
+      IF (settings%lattice_fft_local_cells < 0) THEN
+         CPABORT("READ OT LATTICE_FFT_LOCAL_CELLS: Value must not be negative")
+      END IF
       IF (settings%low_rank_base == ot_low_rank_base_lattice_fft) THEN
          IF (settings%preconditioner_type /= ot_precond_fermi_low_rank) THEN
             CPABORT("FERMI_LOW_RANK_BASE LATTICE_FFT requires PRECONDITIONER FERMI_LOW_RANK")
@@ -1814,6 +1821,10 @@ CONTAINS
          ELSE IF (lattice_fft_explicit .AND. settings%lattice_fft /= ot_lattice_fft_off) THEN
             CPABORT("FERMI_LOW_RANK_BASE OVERLAP_INVERSE conflicts with LATTICE_FFT ON or AUTO")
          END IF
+      END IF
+      IF (settings%lattice_fft_local_cells > 0 .AND. &
+          settings%lattice_fft /= ot_lattice_fft_on) THEN
+         CPABORT("LATTICE_FFT_LOCAL_CELLS requires LATTICE_FFT ON")
       END IF
       CALL section_vals_val_get(ot_section, "CHOLESKY", i_val=settings%cholesky_type)
       CALL section_vals_val_get(ot_section, "EPS_TAYLOR", r_val=settings%eps_taylor)
@@ -1927,6 +1938,9 @@ CONTAINS
             END IF
          END IF
          WRITE (output_unit, '(A,A)') "  Lattice FFT   : ", TRIM(settings%lattice_fft_name)
+         IF (settings%lattice_fft_local_cells > 0) THEN
+            WRITE (output_unit, '(A,I0)') "  Local FFT cells: ", settings%lattice_fft_local_cells
+         END IF
 
          WRITE (output_unit, '(A)') "  Precond_solver : "//TRIM(settings%precond_solver_name)
          IF (settings%precond_solver_type == ot_precond_solver_chebyshev) THEN
