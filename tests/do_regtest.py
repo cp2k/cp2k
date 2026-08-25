@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Coroutine, Dict, List, Optional, TextIO, Tuple, Union
 from statistics import mean, stdev
+import atexit
 import argparse
 import asyncio
 import math
@@ -16,6 +17,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from matchers import run_matcher
 
@@ -271,8 +273,8 @@ async def main() -> None:
 
 
 # ======================================================================================
-def _is_intel_mpi(mpiexec_cmd: str = "mpiexec") -> bool:
-    """Check if the given mpiexec command belongs to Intel MPI."""
+def _mpi_version(mpiexec_cmd: str = "mpiexec") -> str:
+    """Return the version information reported by the MPI launcher."""
     try:
         result = subprocess.run(
             [mpiexec_cmd, "--version"],
@@ -280,9 +282,9 @@ def _is_intel_mpi(mpiexec_cmd: str = "mpiexec") -> bool:
             text=True,
             timeout=10,
         )
-        return "Intel" in result.stdout or "Intel" in result.stderr
+        return result.stdout + result.stderr
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-        return False
+        return ""
 
 
 # ======================================================================================
@@ -299,7 +301,9 @@ class Config:
         self.mpiexec = args.mpiexec
         if "{N}" not in self.mpiexec:  # backwards compatibility
             self.mpiexec = f"{self.mpiexec} ".replace(" ", " -n {N} ", 1).strip()
-        self.intel_mpi = _is_intel_mpi(self.mpiexec.split()[0])
+        mpi_version = _mpi_version(self.mpiexec.split()[0])
+        self.intel_mpi = "Intel" in mpi_version
+        self.openmpi = "Open MPI" in mpi_version
         if self.intel_mpi and "--bind-to" in self.mpiexec:
             self.mpiexec = self.mpiexec.replace(" --bind-to none", "")
         self.smoketest = args.smoketest
@@ -342,6 +346,29 @@ class Config:
             amd_gpus = int(run_with_capture_stdout(amd_cmd))
             self.num_gpus = nv_gpus + amd_gpus
         self.next_gpu = 0  # Used to assign devices round robin to processes.
+        self.openmpi_shm_root: Optional[Path] = None
+        self.next_mpi_launch = 0
+
+    def isolate_openmpi_shm(self, env: Dict[str, str]) -> None:
+        """Give each OpenMPI launch a private shared-memory backing directory."""
+        key = "OMPI_MCA_btl_sm_backing_directory"
+        shm_parent = Path("/dev/shm")
+        if not self.openmpi or key in env or not shm_parent.is_dir():
+            return
+        if self.openmpi_shm_root is None:
+            try:
+                root = tempfile.mkdtemp(prefix="cp2k-regtest-", dir=shm_parent)
+            except OSError:
+                return
+            self.openmpi_shm_root = Path(root)
+            atexit.register(shutil.rmtree, root, ignore_errors=True)
+        launch_dir = self.openmpi_shm_root / str(self.next_mpi_launch)
+        self.next_mpi_launch += 1
+        try:
+            launch_dir.mkdir()
+        except OSError:
+            return
+        env[key] = str(launch_dir)
 
     def launch_exe(
         self, exe_stem: str, *args: str, cwd: Optional[Path] = None
@@ -370,6 +397,7 @@ class Config:
         if self.valgrind:
             cmd = ["valgrind", "--error-exitcode=42", "--exit-on-first-error=yes"] + cmd
         if self.use_mpi:
+            self.isolate_openmpi_shm(env)
             cmd = self.mpiexec.format(N=self.mpiranks).split() + cmd
         if self.debug:
             print(f"Creating subprocess: {cmd} {args}")
