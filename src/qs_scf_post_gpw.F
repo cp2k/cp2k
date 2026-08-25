@@ -31,6 +31,7 @@ MODULE qs_scf_post_gpw
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_p_type,&
                                               dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_deallocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
@@ -2572,7 +2573,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: bfun
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: aedens, ccdens, ppdens
-      REAL(KIND=dp), DIMENSION(3)                        :: dr
+      REAL(KIND=dp), DIMENSION(3)                        :: checksum_hr, dr
       REAL(KIND=dp), DIMENSION(:), POINTER               :: my_Q0
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -3408,6 +3409,14 @@ CONTAINS
          CALL section_vals_val_get(input, "DFT%PRINT%AO_MATRICES%NDIGITS", i_val=after)
          NULLIFY (matrix_hr)
          CALL build_com_hr_matrix(qs_env, matrix_hr)
+         DO img = 1, 3
+            checksum_hr(img) = dbcsr_checksum(matrix_hr(img)%matrix)
+         END DO
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, '(T2,A,E23.16)') 'COMMUTATOR_HR| CheckSum X =', checksum_hr(1)
+            WRITE (output_unit, '(T2,A,E23.16)') 'COMMUTATOR_HR| CheckSum Y =', checksum_hr(2)
+            WRITE (output_unit, '(T2,A,E23.16)') 'COMMUTATOR_HR| CheckSum Z =', checksum_hr(3)
+         END IF
          after = MIN(MAX(after, 1), 16)
          DO img = 1, 3
             CALL cp_dbcsr_write_sparse_matrix(matrix_hr(img)%matrix, 4, after, qs_env, &
