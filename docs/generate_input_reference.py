@@ -263,13 +263,18 @@ def render_section_header(
     section_xref = ".".join(section_path)  # used for cross-referencing
     references = [get_name(ref) for ref in section.findall("REFERENCE")]
 
-    # Render header.
-    output = []
-    output += ["%", "% This file was created by generate_input_reference.py", "%"]
     # There are a few collisions between cross references for sections and keywords,
     # for example CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.POTENTIAL
     collision_resolution_suffix = "_SECTION" if has_name_collision else ""
-    output += [f"({section_xref}{collision_resolution_suffix})="]
+    collision_resolved_section_xref = f"{section_xref}{collision_resolution_suffix}"
+    mentions = lookup_mentions(collision_resolved_section_xref)
+    if mentions:
+        mentions_list = ", ".join([f"⭐[](project:{m})" for m in mentions])
+
+    # Render header.
+    output = []
+    output += ["%", "% This file was created by generate_input_reference.py", "%"]
+    output += [f"({collision_resolved_section_xref})="]
     output += [f"# {section_name}", ""]
     if deprecation_notice:
         output += ["```{warning}"]
@@ -280,7 +285,10 @@ def render_section_header(
     if references:
         citations = ", ".join([f"{{ref}}`{r}`" for r in references])
         output += [f"**References:** {citations}", ""]
-    output += [escape_markdown(description), github_link(location), ""]
+    output += [escape_markdown(description), ""]
+    if mentions:
+        output += [f"**Mentions:** {mentions_list}", ""]
+    output += [github_link(location), ""]
     return output, section_name, section_xref
 
 
