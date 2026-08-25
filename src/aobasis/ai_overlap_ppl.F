@@ -27,15 +27,11 @@
 MODULE ai_overlap_ppl
    USE ai_oneelectron,                  ONLY: os_2center,&
                                               os_3center
-   USE ai_overlap_debug,                ONLY: init_os_overlap2,&
-                                              os_overlap2
    USE gamma,                           ONLY: fgamma => fgamma_0
    USE gfun,                            ONLY: gfun_values
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE mathlib,                         ONLY: binomial
-   USE orbital_pointers,                ONLY: indco,&
-                                              ncoset
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -362,14 +358,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: dva
 
-      INTEGER                                            :: i, iexp, ipgf, iw, mmax, na, nexp
-      INTEGER, DIMENSION(3)                              :: ani, anm, anp
-      LOGICAL                                            :: debug
-      REAL(KIND=dp)                                      :: oint, oref, rho, t, zetc
+      INTEGER                                            :: iexp, ipgf, mmax, nexp
+      REAL(KIND=dp)                                      :: rho, t, zetc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: auxint
-      REAL(KIND=dp), DIMENSION(3)                        :: doint, doref
-
-      debug = .FALSE.
 
       IF (PRESENT(dva)) THEN
          mmax = la_max_set + 1
@@ -404,114 +395,7 @@ CONTAINS
 
       DEALLOCATE (auxint)
 
-      IF (debug) THEN
-         iw = 6
-         na = 0
-         DO ipgf = 1, npgfa
-            IF (rpgfa(ipgf) + rpgfc < dac) THEN
-               na = na + ncoset(la_max_set)
-               CYCLE
-            END IF
-            rho = zeta(ipgf)
-            DO i = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
-               oref = va(na + i)
-               ani(1:3) = indco(1:3, i)
-               oint = ppl_ri_test(rho, ani, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
-               ! test
-               IF (ABS(oint - oref) > 1.0e-12_dp) THEN
-                  WRITE (iw, '(A,3i2,i5,F10.4,2G24.12)') "PPL int error     ", ani, la_max_set, dac, oint, oref
-               END IF
-               IF (PRESENT(dva)) THEN
-                  anp = ani + [1, 0, 0]
-                  anm = ani - [1, 0, 0]
-                  doint(1) = 2._dp*rho*ppl_ri_test(rho, anp, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl) &
-                             - ani(1)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
-                  anp = ani + [0, 1, 0]
-                  anm = ani - [0, 1, 0]
-                  doint(2) = 2._dp*rho*ppl_ri_test(rho, anp, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl) &
-                             - ani(2)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
-                  anp = ani + [0, 0, 1]
-                  anm = ani - [0, 0, 1]
-                  doint(3) = 2._dp*rho*ppl_ri_test(rho, anp, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl) &
-                             - ani(3)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
-                  doref(1:3) = dva(na + i, 1:3)
-                  IF (ANY(ABS(doint - doref) > 1.0e-6_dp)) THEN
-                     WRITE (iw, '(A,3i2,i5,F10.4,2G24.12)') " PPL dint error   ", &
-                        ani, la_max_set, dac, SUM(ABS(doint)), SUM(ABS(doref))
-                  END IF
-               END IF
-            END DO
-            na = na + ncoset(la_max_set)
-         END DO
-      END IF
-
    END SUBROUTINE ppl_integral_ri
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rho ...
-!> \param ani ...
-!> \param rac ...
-!> \param nexp_ppl ...
-!> \param nct_ppl ...
-!> \param alpha_ppl ...
-!> \param cexp_ppl ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION ppl_ri_test(rho, ani, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl) RESULT(oint)
-      REAL(KIND=dp), INTENT(IN)                          :: rho
-      INTEGER, DIMENSION(3), INTENT(IN)                  :: ani
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac
-      INTEGER, INTENT(IN)                                :: nexp_ppl
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: nct_ppl
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: alpha_ppl
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: cexp_ppl
-      REAL(KIND=dp)                                      :: oint
-
-      INTEGER                                            :: iexp, nexp, ni
-      REAL(KIND=dp)                                      :: cn, zetc
-      REAL(KIND=dp), DIMENSION(3)                        :: ra
-
-      oint = 0.0_dp
-      ra = 0.0_dp
-      DO iexp = 1, nexp_ppl
-         nexp = nct_ppl(iexp)
-         zetc = alpha_ppl(iexp)
-         CALL init_os_overlap2(rho, zetc, ra, -rac)
-         DO ni = 1, nexp
-            cn = cexp_ppl(ni, iexp)
-            SELECT CASE (ni)
-            CASE (1)
-               oint = oint + cn*os_overlap2(ani, [0, 0, 0])
-            CASE (2)
-               oint = oint + cn*os_overlap2(ani, [2, 0, 0])
-               oint = oint + cn*os_overlap2(ani, [0, 2, 0])
-               oint = oint + cn*os_overlap2(ani, [0, 0, 2])
-            CASE (3)
-               oint = oint + cn*os_overlap2(ani, [4, 0, 0])
-               oint = oint + cn*os_overlap2(ani, [0, 4, 0])
-               oint = oint + cn*os_overlap2(ani, [0, 0, 4])
-               oint = oint + 2.0_dp*cn*os_overlap2(ani, [2, 2, 0])
-               oint = oint + 2.0_dp*cn*os_overlap2(ani, [0, 2, 2])
-               oint = oint + 2.0_dp*cn*os_overlap2(ani, [2, 0, 2])
-            CASE (4)
-               oint = oint + cn*os_overlap2(ani, [6, 0, 0])
-               oint = oint + cn*os_overlap2(ani, [0, 6, 0])
-               oint = oint + cn*os_overlap2(ani, [0, 0, 6])
-               oint = oint + 3.0_dp*cn*os_overlap2(ani, [4, 2, 0])
-               oint = oint + 3.0_dp*cn*os_overlap2(ani, [4, 0, 2])
-               oint = oint + 3.0_dp*cn*os_overlap2(ani, [2, 4, 0])
-               oint = oint + 3.0_dp*cn*os_overlap2(ani, [0, 4, 2])
-               oint = oint + 3.0_dp*cn*os_overlap2(ani, [2, 0, 4])
-               oint = oint + 3.0_dp*cn*os_overlap2(ani, [0, 2, 4])
-               oint = oint + 6.0_dp*cn*os_overlap2(ani, [2, 2, 2])
-            CASE DEFAULT
-               CPABORT("OVERLAP_PPL")
-            END SELECT
-         END DO
-      END DO
-
-   END FUNCTION ppl_ri_test
 
 ! **************************************************************************************************
 !> \brief ...

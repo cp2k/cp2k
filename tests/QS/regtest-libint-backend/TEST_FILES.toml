@@ -1,0 +1,18 @@
+# Native reference values are taken from the corresponding OS regtests.
+# The tolerance allows for backend-dependent floating-point ordering.
+"H2O_mp2_coulomb2_libint.inp" = [
+  { matcher = "M011", tol = 5e-09, ref = -17.049937448546480 },
+]
+"CH3_mp2_coulomb3_libint.inp" = [
+  { matcher = "M011", tol = 5e-09, ref = -7.292329550653840 },
+]
+"CH3_svd_mp2_coulomb2_libint.inp" = [
+  { matcher = "M011", tol = 5e-09, ref = -7.292329550653842 },
+]
+"H2O_rpa_coulomb2_libint.inp" = [
+  { matcher = "M011", tol = 5e-09, ref = -17.160204463746162 },
+]
+"H2_rpa_rse_coulomb3_libint.inp" = [
+  { matcher = "M011", tol = 5e-09, ref = -1.169521790614493 },
+]
+#EOF
