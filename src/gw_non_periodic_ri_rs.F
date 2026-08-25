@@ -982,8 +982,11 @@ CONTAINS
          bs_env%ri_rs%atom_centers(1:3, iatom) = particle_set(iatom)%r(1:3)
       END DO
 
-      ! Cache per-chunk centroids for the optional CUTOFF_RADIUS_RL_W block truncation.
-      IF (bs_env%ri_rs%cutoff_radius_v_w > 0.0_dp) THEN
+      ! Cache per-chunk centroids for the optional CUTOFF_RADIUS_RL_W / CUTOFF_RADIUS_W0 block
+      ! truncations. Left unallocated otherwise, so PRESENT(centroids) stays .FALSE. at the
+      ! contract_grid_panels* calls.
+      IF (bs_env%ri_rs%cutoff_radius_v_w > 0.0_dp .OR. &
+          bs_env%ri_rs%cutoff_radius_w0 > 0.0_dp) THEN
          IF (ALLOCATED(bs_env%ri_rs%chunk_centroids)) DEALLOCATE (bs_env%ri_rs%chunk_centroids)
          ALLOCATE (bs_env%ri_rs%chunk_centroids(3, num_grid_chunks))
          DO i_blk = 1, num_grid_chunks

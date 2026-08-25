@@ -116,6 +116,9 @@ MODULE post_scf_bandstructure_types
       ! RTBSE%EPS_FILTER_RHO: cuts Delta-rho_AO in compute_sigma_ri_rs, upstream of the projection
       ! the Hartree shares, so it cuts SEX and Hartree alike.
       REAL(KIND=dp)                                    :: eps_filter_rho = -1.0_dp
+      ! RTBSE%CUTOFF_RADIUS_W0 (bohr): drops grid block pairs of W0 beyond this centroid distance.
+      ! BSE-kernel-only -- the GW quasiparticle energies use their own &GW CUTOFF_RADIUS_* family.
+      REAL(KIND=dp)                                    :: cutoff_radius_w0 = -1.0_dp
       ! Set TRUE once mat_phi_mu_l and mat_Z_lP have been populated in memory (by GW RI-RS
       ! or on-demand by the RT-BSE RI-RS kernel path).
       LOGICAL                                          :: grid_built = .FALSE.
