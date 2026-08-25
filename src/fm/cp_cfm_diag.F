@@ -36,7 +36,8 @@ MODULE cp_cfm_diag
                          FM_DIAG_TYPE_ELPA, &
                          FM_DIAG_TYPE_SCALAPACK, &
                          set_removed_eigval_to
-   USE cp_cfm_elpa, ONLY: cp_cfm_diag_elpa
+   USE cp_cfm_elpa, ONLY: cp_cfm_diag_elpa, &
+                          is_elpa_c_broken
    USE cp_fm_cusolver_api, ONLY: cp_cfm_general_cusolver
 #if defined(__DLAF)
    USE cp_cfm_dlaf_api, ONLY: cp_cfm_diag_gen_dlaf, &
@@ -101,7 +102,9 @@ CONTAINS
 #endif
          ! We don't trust ELPA with very small matrices and use it for complex matrices
          ! only when the diagonalization library was requested explicitly.
+         ! A runtime correctness check may have disabled ELPA for mis-compiled BLOCK2 kernels.
          IF (diag_type == FM_DIAG_TYPE_ELPA .AND. diag_lib_explicit .AND. &
+             .NOT. is_elpa_c_broken() .AND. &
              matrix%matrix_struct%nrow_global >= elpa_neigvec_min) THEN
             CALL cp_cfm_diag_elpa(matrix, eigenvectors, eigenvalues)
          ELSE

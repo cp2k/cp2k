@@ -22,6 +22,7 @@ MODULE environment
    USE cp2k_info,                       ONLY: &
         compile_arch, compile_date, compile_host, compile_revision, cp2k_flags, cp2k_home, &
         cp2k_version, cp2k_year, get_runtime_info, r_host_name, r_pid, r_user_name
+   USE cp_cfm_elpa,                     ONLY: check_elpa_c_kernel_correctness
    USE cp_error_handling,               ONLY: warning_counter
    USE cp_files,                        ONLY: close_file,&
                                               get_data_dir,&
@@ -30,14 +31,10 @@ MODULE environment
                                               FM_CHOLESKY_TYPE_SCALAPACK,&
                                               cholesky_type,&
                                               dlaf_cholesky_n_min
-   USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER,&
-                                              FM_DIAG_TYPE_DLAF,&
-                                              FM_DIAG_TYPE_ELPA,&
-                                              FM_DIAG_TYPE_SCALAPACK,&
-                                              cusolver_n_min,&
-                                              diag_finalize,&
-                                              diag_init,&
-                                              eps_check_diag_default
+   USE cp_fm_diag,                      ONLY: &
+        FM_DIAG_TYPE_CUSOLVER, FM_DIAG_TYPE_DLAF, FM_DIAG_TYPE_ELPA, FM_DIAG_TYPE_SCALAPACK, &
+        cusolver_n_min, diag_finalize, diag_init, diag_lib_explicit, diag_type, &
+        eps_check_diag_default
    USE cp_fm_diag_utils,                ONLY: cp_fm_redistribute_init
    USE cp_fm_struct,                    ONLY: cp_fm_struct_config
    USE cp_fm_types,                     ONLY: cp_fm_get_mm_type,&
@@ -1033,6 +1030,11 @@ CONTAINS
 
       CALL fft_setup_library(globenv, global_section)
       CALL diag_setup_library(globenv, global_section)
+
+      ! Run a one-time correctness check of the ELPA complex kernels if they may be used.
+      IF (diag_type == FM_DIAG_TYPE_ELPA .AND. diag_lib_explicit) THEN
+         CALL check_elpa_c_kernel_correctness(para_env)
+      END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, global_section, &
                                         "PROGRAM_RUN_INFO")

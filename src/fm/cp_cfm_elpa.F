@@ -9,19 +9,28 @@
 !> \brief Wrapper for ELPA (complex matrices, i.e. cp_cfm_type)
 ! **************************************************************************************************
 MODULE cp_cfm_elpa
-   USE cp_log_handling, ONLY: cp_to_string
-   USE cp_blacs_env, ONLY: cp_blacs_env_type
-   USE cp_cfm_basic_linalg, ONLY: cp_cfm_uplo_to_full
+   USE cp_blacs_env, ONLY: cp_blacs_env_create, &
+                           cp_blacs_env_release, &
+                           cp_blacs_env_type
+   USE cp_cfm_basic_linalg, ONLY: cp_cfm_gemm, &
+                                  cp_cfm_uplo_to_full
+   USE cp_cfm_types, ONLY: cp_cfm_create, &
+                           cp_cfm_release, &
+                           cp_cfm_to_cfm, &
+                           cp_cfm_type
    USE cp_fm_diag_utils, ONLY: cp_cfm_redistribute_start, &
                                cp_cfm_redistribute_end, &
                                cp_fm_redistribute_info
    USE cp_fm_elpa, ONLY: elpa_one_stage, &
                          elpa_print
-   USE cp_fm_struct, ONLY: cp_fm_struct_get
-   USE cp_cfm_types, ONLY: cp_cfm_type
+   USE cp_fm_struct, ONLY: cp_fm_struct_create, &
+                           cp_fm_struct_get, &
+                           cp_fm_struct_release, &
+                           cp_fm_struct_type
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_get_default_io_unit, &
-                              cp_logger_type
+                              cp_logger_type, &
+                              cp_to_string
    USE kinds, ONLY: default_string_length, dp
    USE machine, ONLY: m_cpuid_static, &
                       MACHINE_CPU_GENERIC, &
@@ -29,8 +38,12 @@ MODULE cp_cfm_elpa
                       MACHINE_X86_AVX, &
                       MACHINE_X86_AVX2, &
                       MACHINE_X86_AVX512
-   USE message_passing, ONLY: mp_comm_type
+   USE message_passing, ONLY: mp_comm_self, &
+                              mp_comm_type, &
+                              mp_para_env_type
    USE OMP_LIB, ONLY: omp_get_max_threads
+   USE parallel_rng_types, ONLY: rng_stream_type, &
+                                 UNIFORM
 #if defined(__HAS_IEEE_EXCEPTIONS)
    USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
                               ieee_set_halting_mode, &
@@ -134,8 +147,14 @@ MODULE cp_cfm_elpa
    INTEGER, SAVE :: elpa_c_kernel = elpa_c_kernel_ids(1) ! auto
 #endif
 
+   ! Runtime correctness check state
+   LOGICAL, SAVE, PRIVATE :: elpa_c_correctness_checked = .FALSE.
+   LOGICAL, SAVE, PRIVATE :: elpa_c_broken = .FALSE.
+
    PUBLIC :: cp_cfm_diag_elpa, &
              set_elpa_c_kernel, &
+             check_elpa_c_kernel_correctness, &
+             is_elpa_c_broken, &
              elpa_c_kernel_ids, &
              elpa_c_kernel_names, &
              elpa_c_kernel_descriptions
@@ -214,6 +233,154 @@ CONTAINS
 #endif
    END SUBROUTINE set_elpa_c_kernel
 
+#if defined(__ELPA)
+! **************************************************************************************************
+!> \brief Returns .TRUE. if the complex kernel is an SSE/AVX/AVX2/AVX512 BLOCK2 variant
+!>        (these may be affected by the GCC 15.2 regression, marekandreas/elpa#77).
+!> \param kernel ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION is_block2_c_kernel(kernel) RESULT(is_block2)
+      INTEGER, INTENT(IN)                                :: kernel
+      LOGICAL                                            :: is_block2
+
+      is_block2 = (kernel == ELPA_2STAGE_COMPLEX_SSE_BLOCK2) .OR. &
+                  (kernel == ELPA_2STAGE_COMPLEX_AVX_BLOCK2) .OR. &
+                  (kernel == ELPA_2STAGE_COMPLEX_AVX2_BLOCK2) .OR. &
+                  (kernel == ELPA_2STAGE_COMPLEX_AVX512_BLOCK2)
+   END FUNCTION is_block2_c_kernel
+#endif
+
+! **************************************************************************************************
+!> \brief One-time runtime correctness check for ELPA complex BLOCK2 kernels.
+!>        A small deterministic eigenproblem is solved on a single process with the
+!>        same production routine used for the actual diagonalizations, and the
+!>        eigenpair residual as well as the eigenvector orthogonality are verified.
+!>        This guards against mis-compiled kernels (GCC 15.2 regression, marekandreas/elpa#77).
+!>        If the check fails, a module flag is set such that cp_cfm_heevd falls back to ScaLAPACK.
+!> \param para_env communicator of the run, used to agree on the check result
+! **************************************************************************************************
+   SUBROUTINE check_elpa_c_kernel_correctness(para_env)
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+
+#if defined(__ELPA)
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_elpa_c_kernel_correctness'
+      CHARACTER(LEN=4*default_string_length)             :: message
+      INTEGER                                            :: handle, i, is_broken, j
+      ! Geometry aligned with the standalone reproducer of marekandreas/elpa#77.
+      INTEGER, PARAMETER                                 :: na_test = 20, nev_test = 18, nblk_test = 8
+      REAL(KIND=dp)                                      :: eps_ortho, eps_residual, rnd_im, rnd_re, test
+      REAL(KIND=dp), PARAMETER                           :: th = 1.0E-8_dp
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: eigenvalues
+      TYPE(cp_blacs_env_type), POINTER                   :: context
+      TYPE(cp_cfm_type)                                  :: eigenvectors, matrix, matrix_ref
+      TYPE(cp_fm_redistribute_info)                      :: rdinfo
+      TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
+      TYPE(mp_para_env_type)                             :: para_env_self
+      TYPE(rng_stream_type)                              :: rng_stream
+
+      IF (elpa_c_correctness_checked) RETURN ! one-shot per process
+
+      IF (.NOT. is_block2_c_kernel(elpa_c_kernel)) RETURN ! only BLOCK2 kernels are affected
+      IF (elpa_one_stage) RETURN ! the 1-stage solver does not use kernels
+      elpa_c_correctness_checked = .TRUE.
+
+      CALL timeset(routineN, handle)
+
+      ! Solve a small deterministic Hermitian eigenproblem redundantly on every process,
+      ! reusing the production ELPA path (kernel setup, fallbacks and solver call).
+      para_env_self = mp_comm_self
+      CALL cp_blacs_env_create(context, para_env_self)
+      CALL cp_fm_struct_create(fmstruct, para_env=para_env_self, context=context, &
+                               nrow_global=na_test, ncol_global=na_test, &
+                               nrow_block=nblk_test, ncol_block=nblk_test)
+      CALL cp_cfm_create(matrix, fmstruct, name="elpa_check_mat")
+      CALL cp_cfm_create(matrix_ref, fmstruct, name="elpa_check_ref")
+      CALL cp_cfm_create(eigenvectors, fmstruct, name="elpa_check_vec")
+
+      ! Fill with a dense random Hermitian matrix; the RNG stream starts from the
+      ! library default seed, hence the matrix is identical on all processes.
+      rng_stream = rng_stream_type(name="elpa_kernel_correctness", distribution_type=UNIFORM)
+      DO j = 1, na_test
+         DO i = 1, j - 1
+            rnd_re = 2.0_dp*rng_stream%next() - 1.0_dp
+            rnd_im = 2.0_dp*rng_stream%next() - 1.0_dp
+            matrix%local_data(i, j) = CMPLX(rnd_re, rnd_im, KIND=dp)
+            matrix%local_data(j, i) = CONJG(matrix%local_data(i, j))
+         END DO
+         rnd_re = 2.0_dp*rng_stream%next() - 1.0_dp
+         matrix%local_data(j, j) = CMPLX(rnd_re, 0.0_dp, KIND=dp)
+      END DO
+      CALL cp_cfm_to_cfm(matrix, matrix_ref) ! the solver destroys its input matrix
+
+      ALLOCATE (eigenvalues(nev_test))
+      CALL cp_cfm_diag_elpa_base(matrix, eigenvectors, eigenvalues, rdinfo)
+
+      ! Check the orthogonality of the eigenvectors, |Z^H*Z - I|
+      CALL cp_cfm_gemm("C", "N", nev_test, nev_test, na_test, (1.0_dp, 0.0_dp), &
+                       eigenvectors, eigenvectors, (0.0_dp, 0.0_dp), matrix)
+      eps_ortho = 0.0_dp
+      outer_ortho: DO i = 1, nev_test
+         DO j = 1, nev_test
+            test = ABS(matrix%local_data(i, j))
+            IF (i == j) test = ABS(matrix%local_data(i, j) - (1.0_dp, 0.0_dp))
+            IF (test > eps_ortho) eps_ortho = test
+            IF (eps_ortho > th) EXIT outer_ortho
+         END DO
+      END DO outer_ortho
+
+      ! Check the eigenpair residuals, |A*Z - Z*diag(eigenvalues)|
+      CALL cp_cfm_gemm("N", "N", na_test, nev_test, na_test, (1.0_dp, 0.0_dp), &
+                       matrix_ref, eigenvectors, (0.0_dp, 0.0_dp), matrix)
+      eps_residual = 0.0_dp
+      outer_res: DO i = 1, na_test
+         DO j = 1, nev_test
+            test = ABS(matrix%local_data(i, j) - eigenvectors%local_data(i, j)*eigenvalues(j))
+            IF (test > eps_residual) eps_residual = test
+            IF (eps_residual > th) EXIT outer_res
+         END DO
+      END DO outer_res
+
+      ! Mis-compiled kernels produce grossly wrong results (deviations ~1e-1), not subtle rounding.
+      elpa_c_broken = (eps_ortho > th) .OR. (eps_residual > th)
+
+      ! Agree on the result to guarantee a consistent fallback on all processes.
+      is_broken = 0
+      IF (elpa_c_broken) is_broken = 1
+      CALL para_env%max(is_broken)
+      elpa_c_broken = is_broken == 1
+      IF (elpa_c_broken) THEN
+         message = "The ELPA complex kernel "//TRIM(get_elpa_c_kernel_name(elpa_c_kernel))// &
+                   " failed a runtime correctness check (orthogonality: "//TRIM(cp_to_string(eps_ortho))// &
+                   ", residual: "//TRIM(cp_to_string(eps_residual))//") and may return incorrect"// &
+                   " eigenvectors. Complex matrices fall back to ScaLAPACK. Consider the GENERIC"// &
+                   " kernel or rebuilding ELPA with -fno-tree-slp-vectorize."
+         CALL cp_warn(__LOCATION__, TRIM(message))
+      END IF
+
+      DEALLOCATE (eigenvalues)
+      CALL cp_cfm_release(eigenvectors)
+      CALL cp_cfm_release(matrix_ref)
+      CALL cp_cfm_release(matrix)
+      CALL cp_fm_struct_release(fmstruct)
+      CALL cp_blacs_env_release(context)
+
+      CALL timestop(handle)
+#else
+      MARK_USED(para_env)
+#endif
+   END SUBROUTINE check_elpa_c_kernel_correctness
+
+! **************************************************************************************************
+!> \brief Returns .TRUE. if the runtime check detected broken BLOCK2 kernels.
+!> \return ...
+! **************************************************************************************************
+   FUNCTION is_elpa_c_broken() RESULT(broken)
+      LOGICAL                                            :: broken
+
+      broken = elpa_c_broken
+   END FUNCTION is_elpa_c_broken
+
 ! **************************************************************************************************
 !> \brief Driver routine to diagonalize a CFM matrix with the ELPA library.
 !> \param matrix the matrix that is diagonalized
@@ -278,7 +445,8 @@ CONTAINS
       INTEGER                                            :: handle
 
       CLASS(elpa_t), POINTER                   :: elpa_obj
-      CHARACTER(len=default_string_length)     :: kernel_name, message
+      CHARACTER(len=default_string_length)     :: kernel_name
+      CHARACTER(len=2*default_string_length)   :: message
       TYPE(mp_comm_type) :: group
       INTEGER                                  :: fallback_kernel, &
                                                   mypcol, myprow, n, &
@@ -402,7 +570,7 @@ CONTAINS
          IF (success /= ELPA_OK) THEN
             message = "Requested ELPA complex kernel "//TRIM(get_elpa_c_kernel_name(elpa_c_kernel))// &
                       " is unavailable; falling back to "//TRIM(get_elpa_c_kernel_name(fallback_kernel))
-            CPWARN(TRIM(message))
+            CALL cp_warn(__LOCATION__, TRIM(message))
             CALL elpa_obj%set("complex_kernel", fallback_kernel, success)
             CPASSERT(success == ELPA_OK)
             ! Avoid retrying the unavailable kernel for every subsequent diagonalization.
