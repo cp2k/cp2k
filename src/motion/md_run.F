@@ -465,14 +465,6 @@ CONTAINS
 
       ! Real MD Loop
       DO istep = 1, simpar%nsteps, md_stride
-         IF (output_unit > 0) THEN
-            WRITE (md_step_line, FMT="(A,I12,A,I0)") "MD STEP: ", istep, " / ", simpar%nsteps
-
-            WRITE (UNIT=output_unit, FMT="(/,T2,A)") REPEAT("-", LEN_TRIM(md_step_line))
-            WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(md_step_line)
-            WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("-", LEN_TRIM(md_step_line))
-            CALL m_flush(output_unit)
-         END IF
          ! Increase counters
          itimes = itimes + 1
          time = time + simpar%dt
@@ -486,6 +478,17 @@ CONTAINS
             CALL cp_iterate(logger%iter_info, last=(istep == simpar%nsteps), iter_nr=itimes)
          ELSE
             CALL cp_iterate(logger%iter_info, last=.TRUE., iter_nr=itimes)
+         END IF
+
+         IF (output_unit > 0 .AND. &
+             BTEST(cp_print_key_should_output(logger%iter_info, md_section, &
+                                              "PRINT%PROGRAM_RUN_INFO"), cp_p_file)) THEN
+            WRITE (md_step_line, FMT="(A,I12,A,I0)") "MD STEP: ", istep, " / ", simpar%nsteps
+
+            WRITE (UNIT=output_unit, FMT="(/,T2,A)") REPEAT("-", LEN_TRIM(md_step_line))
+            WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(md_step_line)
+            WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("-", LEN_TRIM(md_step_line))
+            CALL m_flush(output_unit)
          END IF
 
          ! Open possible Shake output units
