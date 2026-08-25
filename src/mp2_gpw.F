@@ -58,8 +58,6 @@ MODULE mp2_gpw
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
-   USE libint_wrapper,                  ONLY: cp_libint_static_cleanup,&
-                                              cp_libint_static_init
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush
    USE message_passing,                 ONLY: mp_para_env_release,&
@@ -271,9 +269,6 @@ CONTAINS
                mp2_env%ri_metric%potential_type = do_potential_truncated
             END IF
          END IF
-
-         ! statically initialize libint
-         CALL cp_libint_static_init()
 
       END IF
 
@@ -568,7 +563,6 @@ CONTAINS
                DEALLOCATE (mat_P_global%matrix)
             END IF
 
-            CALL cp_libint_static_cleanup()
             IF (calc_forces) CALL cp_fm_release(fm_matrix_PQ)
          END IF
 

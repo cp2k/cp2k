@@ -12,7 +12,6 @@
 !>      12.2022 added periodic GW routines [Jan Wilhelm]
 ! **************************************************************************************************
 MODULE rpa_gw
-   USE ai_overlap,                      ONLY: overlap
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
@@ -6913,4 +6912,3 @@ CONTAINS
    END SUBROUTINE compute_Greens_function_time
 
 END MODULE rpa_gw
-

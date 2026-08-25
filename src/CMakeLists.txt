@@ -91,6 +91,7 @@ list(
   constraint_fxd.F
   constraint_util.F
   constraint_vsite.F
+  integral_library_types.F
   greenx_interface.F
   core_ae.F
   core_ppl.F
@@ -337,6 +338,7 @@ list(
   kpsym.F
   libgrpp_integrals.F
   libint_2c_3c.F
+  coulomb_integral_interface.F
   libint_wrapper.F
   libgint_wrapper.F
   library_tests.F
