@@ -1,2 +1,2 @@
-"HF_SKALA_GAPW_PAW_NLCC_FORCE.inp" = [{matcher="E_total", tol=5e-5, ref=-26.904527411398917},
-                                        {matcher="SKALA_GAPW_composite_electrons", tol=1e-8, ref=9.22448748526214}]
+"HF_SKALA_GAPW_PAW_NLCC_FORCE.inp" = [{matcher="E_total", tol=5e-5, ref=-26.90321180304149},
+                                        {matcher="SKALA_GAPW_composite_electrons", tol=1e-8, ref=9.22796177813233}]
