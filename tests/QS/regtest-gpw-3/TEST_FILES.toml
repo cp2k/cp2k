@@ -18,7 +18,8 @@
 "H2O-bloechl-nonortho.inp"              = []
 "H2O-bloechl-restraint.inp"             = [{matcher="E_total", tol=3e-12, ref=-17.14839328266115}]
 # S**2
-"CN.inp"                                = [{matcher="M004", tol=1.0E-14, ref=0.751382}]
+"CN.inp"                                = [{matcher="M004", tol=1.0E-14, ref=0.751382},
+                                           {matcher="M041", tol=1.0E-14, ref=1.000000}]
 # testing of distributed rs grids
 "rsgrid-dist-1.inp"                     = [{matcher="E_total", tol=3e-11, ref=-1.71460241038275}]
 #BSSE
@@ -38,7 +39,6 @@
 # All-to-all single communication in parallel runs
 "H2O-ata.inp"                           = [{matcher="E_total", tol=2e-08, ref=-17.14619639410385}]
 # Lowdin charges
-"CN-lowdin.inp"                         = [{matcher="M041", tol=1.0E-14, ref=1.000000}]
 # High-spin restricted open Kohn-Sham
 "H-ROKS.inp"                            = [{matcher="E_total", tol=4e-14, ref=-0.47437344093798}]
 "N-ROKS.inp"                            = [{matcher="E_total", tol=2e-13, ref=-9.72861898224368}]
