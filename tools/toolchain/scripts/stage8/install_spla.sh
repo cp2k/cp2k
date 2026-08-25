@@ -32,6 +32,7 @@ case "${with_spla}" in
       [ -d SpLA-${spla_ver} ] && rm -rf SpLA-${spla_ver}
       tar -xzf SpLA-${spla_ver}.tar.gz
       cd spla-${spla_ver}
+
       mkdir -p build-cpu
       cd build-cpu
       cmake \
@@ -66,6 +67,7 @@ case "${with_spla}" in
           > cmake.log 2>&1 || tail_excerpt cmake.log
         make -j $(get_nprocs) install > make.log 2>&1 || tail_excerpt make.log
         spla_gpu_dir="${INSTALLDIR}/SpLA-${spla_ver}-cuda"
+        cd ..
       fi
 
       if [ "$ENABLE_HIP" = "__TRUE__" ]; then
@@ -150,6 +152,7 @@ EOF
 export SPLA_VER="${spla_ver}"
 export SPLA_ROOT="${pkg_install_dir}"
 EOF
+
   filter_setup "${BUILDDIR}/setup_spla" "${SETUPFILE}"
 fi
 
