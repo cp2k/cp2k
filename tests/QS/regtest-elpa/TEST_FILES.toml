@@ -1,3 +1,6 @@
 "H2O-6.inp"                             = [{matcher="E_total", tol=2e-14, ref=-17.14603641519601}]
 "H2O-6-1stage.inp"                      = [{matcher="E_total", tol=2e-14, ref=-17.14603641519601}]
+# Complex-matrix (k-point) counterparts, tests from QS/regtest-scalapack-generalized
+"cplx_kp.inp"                           = [{matcher="E_total", tol=1e-10, ref=-41.897080363583584}]
+"cplx_kp_1stage.inp"                    = [{matcher="E_total", tol=1e-10, ref=-41.897080363583584}]
 #EOF

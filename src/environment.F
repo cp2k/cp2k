@@ -559,6 +559,7 @@ CONTAINS
       CALL section_vals_val_get(global_section, "ENABLE_MPI_IO", l_val=flag)
       CALL cp_mpi_io_set(flag)
       CALL section_vals_val_get(global_section, "ELPA_KERNEL", i_val=globenv%k_elpa)
+      CALL section_vals_val_get(global_section, "ELPA_COMPLEX_KERNEL", i_val=globenv%k_elpa_c)
       CALL section_vals_val_get(global_section, "ELPA_NEIGVEC_MIN", i_val=globenv%elpa_neigvec_min)
       CALL section_vals_val_get(global_section, "ELPA_QR", l_val=globenv%elpa_qr)
       CALL section_vals_val_get(global_section, "ELPA_ONE_STAGE", l_val=globenv%elpa_one_stage)
@@ -1031,7 +1032,7 @@ CONTAINS
                                          extension=".log")
 
       CALL fft_setup_library(globenv, global_section)
-      CALL diag_setup_library(globenv)
+      CALL diag_setup_library(globenv, global_section)
 
       CALL cp_print_key_finished_output(output_unit, logger, global_section, &
                                         "PROGRAM_RUN_INFO")
@@ -1122,17 +1123,23 @@ CONTAINS
 !> \brief availability diagonalizatioon library
 !>
 !> \param globenv ...
+!> \param global_section ...
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE diag_setup_library(globenv)
+   SUBROUTINE diag_setup_library(globenv, global_section)
       TYPE(global_environment_type), POINTER             :: globenv
+      TYPE(section_vals_type), POINTER                   :: global_section
 
       CHARACTER(LEN=3*default_string_length)             :: message
-      LOGICAL                                            :: fallback_applied
+      LOGICAL                                            :: diag_lib_explicit, fallback_applied
+
+      CALL section_vals_val_get(global_section, "PREFERRED_DIAG_LIBRARY", explicit=diag_lib_explicit)
 
       CALL diag_init(diag_lib=TRIM(globenv%diag_library), &
                      fallback_applied=fallback_applied, &
+                     diag_lib_explicit_input=diag_lib_explicit, &
                      elpa_kernel=globenv%k_elpa, &
+                     elpa_c_kernel=globenv%k_elpa_c, &
                      elpa_neigvec_min_input=globenv%elpa_neigvec_min, &
                      elpa_qr=globenv%elpa_qr, &
                      elpa_print=globenv%elpa_print, &

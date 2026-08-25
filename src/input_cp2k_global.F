@@ -20,6 +20,9 @@ MODULE input_cp2k_global
    USE cp_blacs_env,                    ONLY: BLACS_GRID_COL,&
                                               BLACS_GRID_ROW,&
                                               BLACS_GRID_SQUARE
+   USE cp_cfm_elpa,                     ONLY: elpa_c_kernel_descriptions,&
+                                              elpa_c_kernel_ids,&
+                                              elpa_c_kernel_names
    USE cp_dbcsr_cp2k_link,              ONLY: create_dbcsr_section
    USE cp_fm_cholesky,                  ONLY: FM_CHOLESKY_TYPE_DEFAULT,&
                                               FM_CHOLESKY_TYPE_DLAF,&
@@ -125,7 +128,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="PREFERRED_DIAG_LIBRARY", &
                           description="Specifies the diagonalization library to be used. If not available, "// &
-                          "the ScaLAPACK library is used", &
+                          "the ScaLAPACK library is used. Complex (k-point) matrices use ELPA only when it is "// &
+                          "requested explicitly", &
                           usage="PREFERRED_DIAG_LIBRARY ELPA", &
                           enum_i_vals=[FM_DIAG_TYPE_ELPA, &
                                        FM_DIAG_TYPE_SCALAPACK, &
@@ -193,11 +197,22 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ELPA_KERNEL", &
-                          description="Specifies the kernel to be used when ELPA is in use", &
+                          description="Specifies the kernel to be used when ELPA is in use for real "// &
+                          "symmetric matrices", &
                           default_i_val=elpa_kernel_ids(1), &
                           enum_i_vals=elpa_kernel_ids, &
                           enum_c_vals=elpa_kernel_names, &
                           enum_desc=elpa_kernel_descriptions)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ELPA_COMPLEX_KERNEL", &
+                          description="Specifies the kernel to be used when ELPA is in use for complex "// &
+                          "Hermitian matrices (k-points)", &
+                          default_i_val=elpa_c_kernel_ids(1), &
+                          enum_i_vals=elpa_c_kernel_ids, &
+                          enum_c_vals=elpa_c_kernel_names, &
+                          enum_desc=elpa_c_kernel_descriptions)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
