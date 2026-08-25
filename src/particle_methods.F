@@ -32,8 +32,10 @@ MODULE particle_methods
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
                                               cp_print_key_generate_filename,&
+                                              cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE external_potential_types,        ONLY: fist_potential_type,&
@@ -1107,7 +1109,8 @@ CONTAINS
          symmetry_id, w_cif_label, w_cif_type_symbol
       INTEGER, ALLOCATABLE                               :: count_list(:)
       LOGICAL                                            :: dummy, elem_in_list, orthorhombic, &
-                                                            print_kind, write_cif, write_xyz
+                                                            print_final_structure, print_kind, &
+                                                            write_cif, write_xyz
       REAL(KIND=dp)                                      :: angle_alpha, angle_beta, angle_gamma, &
                                                             deth, unit_conv
       REAL(KIND=dp), DIMENSION(3)                        :: abc, r, s
@@ -1124,6 +1127,8 @@ CONTAINS
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
       print_key => section_vals_get_subs_vals(input_section, "PRINT%FINAL_STRUCTURE")
+      print_final_structure = BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
+      file_unit = -1
       conv_str = "F"
       IF (conv) conv_str(1:1) = "T"
 
@@ -1234,6 +1239,7 @@ CONTAINS
 
       ! Write XYZ
       CALL section_vals_val_get(print_key, "PRINT_XYZ", l_val=write_xyz)
+      write_xyz = write_xyz .AND. print_final_structure
       CALL section_vals_val_get(print_key, "PRINT_ATOM_KIND", l_val=print_kind)
       IF (write_xyz) THEN
          ! Print a message to log
@@ -1271,6 +1277,7 @@ CONTAINS
 
       ! Write CIF
       CALL section_vals_val_get(print_key, "PRINT_CIF", l_val=write_cif)
+      write_cif = write_cif .AND. print_final_structure
       IF (write_cif) THEN
          ! Print a message to log
          record = cp_print_key_generate_filename(logger, print_key, &
@@ -1434,7 +1441,7 @@ CONTAINS
       CALL section_release(tmp_cell_section)
       CALL cp_print_key_finished_output(file_unit, logger, input_section, &
                                         "PRINT%FINAL_STRUCTURE")
-      IF (output_unit > 0) THEN
+      IF (output_unit > 0 .AND. (write_xyz .OR. write_cif)) THEN
          WRITE (UNIT=output_unit, FMT='(/,T2,A)') &
             routineN//": Done!"
       END IF
