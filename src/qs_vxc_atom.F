@@ -154,9 +154,9 @@ MODULE qs_vxc_atom
              calculate_vxc_atom_epr, &
              calculate_xc_2nd_deriv_atom, &
              calc_rho_angular, &
-             calculate_gfxc_atom, &
+             fgxc_atom_calc, &
+             fgxc_atom_diff, &
              gapw_cdft_one_center, &
-             gfxc_atom_diff, &
              gaVxcgb_noGC
 
 CONTAINS
@@ -4679,8 +4679,8 @@ CONTAINS
 !> \param is_triplet ...
 !> \param accuracy ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_gfxc_atom(qs_env, rho0_atom_set, rho1_atom_set, rho2_atom_set, &
-                                  kind_set, xc_section, is_triplet, accuracy)
+   SUBROUTINE fgxc_atom_calc(qs_env, rho0_atom_set, rho1_atom_set, rho2_atom_set, &
+                             kind_set, xc_section, is_triplet, accuracy)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set, &
@@ -4690,7 +4690,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: is_triplet
       INTEGER, INTENT(IN)                                :: accuracy
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_gfxc_atom'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fgxc_atom_calc'
       REAL(KIND=dp), PARAMETER                           :: epsrho = 5.e-4_dp
 
       INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ir, &
@@ -5091,7 +5091,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE calculate_gfxc_atom
+   END SUBROUTINE fgxc_atom_calc
 
 ! **************************************************************************************************
 !> \brief ...
@@ -5105,7 +5105,7 @@ CONTAINS
 !> \param accuracy ...
 !> \param epsrho ...
 ! **************************************************************************************************
-   SUBROUTINE gfxc_atom_diff(qs_env, rho0_atom_set, rho1_atom_set, rho2_atom_set, &
+   SUBROUTINE fgxc_atom_diff(qs_env, rho0_atom_set, rho1_atom_set, rho2_atom_set, &
                              kind_set, xc_section, is_triplet, accuracy, epsrho)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -5117,7 +5117,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: accuracy
       REAL(KIND=dp), INTENT(IN)                          :: epsrho
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gfxc_atom_diff'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fgxc_atom_diff'
 
       INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ir, &
                                                             istep, mspins, myfun, na, natom, nf, &
@@ -5493,7 +5493,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE gfxc_atom_diff
+   END SUBROUTINE fgxc_atom_diff
 
 ! **************************************************************************************************
 !> \brief ...
