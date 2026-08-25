@@ -108,8 +108,8 @@ case "$with_sirius" in
         echo "Installing from scratch into ${pkg_install_dir}/cuda"
 
         patch -l -p1 < "${SCRIPT_DIR}/stage8/sirius-cuda.patch" \
-        > sirius-cuda.patch.log 2>&1 || tail_excerpt sirius-cuda.patch.log
-      
+          > sirius-cuda.patch.log 2>&1 || tail_excerpt sirius-cuda.patch.log
+
         mkdir build-cuda
         cd build-cuda
         cmake \
