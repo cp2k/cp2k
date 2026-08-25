@@ -968,7 +968,7 @@ CONTAINS
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="MAX_HISTORY", &
                           description="Maximum number of paired density/Fock states retained by ADIIS.", &
-                          usage="MAX_HISTORY 7", default_i_val=7)
+                          usage="MAX_HISTORY 7", default_i_val=16)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
