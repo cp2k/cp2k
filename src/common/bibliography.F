@@ -97,7 +97,8 @@ MODULE bibliography
                             FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
-                            Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005
+                            Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
+                            Cances2000, Herbst2022
 
 CONTAINS
 
@@ -2140,6 +2141,18 @@ CONTAINS
                          title="A class of methods for solving nonlinear simultaneous equations", &
                          source="Math. Comput.", volume="19", pages="577-593", &
                          year=1965, doi="10.1090/S0025-5718-1965-0198670-6")
+
+      CALL add_reference(key=Cances2000, &
+                         authors=s2a("E. Cancès", "C. Le Bris"), &
+                         title="Can we outperform the DIIS approach for electronic structure calculations?", &
+                         source="Int. J. Quantum Chem.", volume="79", pages="82-90", &
+                         year=2000, doi="10.1002/1097-461X(2000)79:2<82::AID-QUA3>3.0.CO;2-I")
+
+      CALL add_reference(key=Herbst2022, &
+                         authors=s2a("M. F. Herbst", "A. Levitt"), &
+                         title="A robust and efficient line search for self-consistent field iterations", &
+                         source="J. Comput. Phys.", volume="459", pages="111127", &
+                         year=2022, doi="10.1016/j.jcp.2022.111127")
 
       CALL add_reference(key=Kerker1981, &
                          authors=s2a("G. P. Kerker"), &

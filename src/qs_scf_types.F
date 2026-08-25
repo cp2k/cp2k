@@ -101,10 +101,16 @@ MODULE qs_scf_types
       INTEGER :: iter_count = -1
       INTEGER :: cholesky_method = -1, nelectron = -1, method = -1, mixing_method = -1, nskip_mixing = -1
       REAL(KIND=dp) :: iter_param = -1.0_dp, iter_delta = -1.0_dp, p_mix_alpha = -1.0_dp, sum_zeff_corr = -1.0_dp
-      CHARACTER(len=15) :: iter_method = ""
+      ! ADIIS diagnostics: accepted-step norm and raw-map delta.
+      REAL(KIND=dp) :: step_norm = -1.0_dp, raw_map_delta = -1.0_dp
+      ! ODA diagnostics for the most recent raw-step line search.
+      REAL(KIND=dp) :: oda_lambda = 0.0_dp, oda_energy = 0.0_dp, oda_gradient0 = 0.0_dp, oda_gradient1 = 0.0_dp
+      INTEGER :: oda_evaluations = 0
+      CHARACTER(len=15) :: iter_method = "", oda_status = ""
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER :: cc_buffer => NULL()
       LOGICAL :: print_iter_line = .FALSE., skip_mixing = .FALSE., skip_diis = .FALSE., needs_ortho = .FALSE., &
-                 adiis_check_next = .FALSE., adiis_validated = .FALSE.
+                 adiis_check_next = .FALSE., adiis_validated = .FALSE., &
+                 raw_map_delta_valid = .FALSE.
       TYPE(mixing_storage_type), POINTER :: mixing_store => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER :: scf_work1 => NULL(), scf_work1_red => NULL()
       TYPE(cp_fm_type), POINTER  :: scf_work2 => NULL(), ortho => NULL(), ortho_m1 => NULL(), &
@@ -149,6 +155,14 @@ CONTAINS
       scf_env%nelectron = 0
       scf_env%iter_param = 0.0_dp
       scf_env%iter_delta = 0.0_dp
+      scf_env%step_norm = 0.0_dp
+      scf_env%raw_map_delta = 0.0_dp
+      scf_env%oda_lambda = 0.0_dp
+      scf_env%oda_energy = 0.0_dp
+      scf_env%oda_gradient0 = 0.0_dp
+      scf_env%oda_gradient1 = 0.0_dp
+      scf_env%oda_evaluations = 0
+      scf_env%oda_status = ""
       scf_env%iter_method = ""
       scf_env%print_iter_line = .TRUE.
       scf_env%skip_mixing = .FALSE.
@@ -156,6 +170,7 @@ CONTAINS
       scf_env%needs_ortho = .FALSE.
       scf_env%adiis_check_next = .FALSE.
       scf_env%adiis_validated = .FALSE.
+      scf_env%raw_map_delta_valid = .FALSE.
       scf_env%method = -1
       scf_env%mixing_method = -1
       scf_env%p_mix_alpha = 1.0_dp

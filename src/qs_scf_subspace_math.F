@@ -33,6 +33,7 @@ MODULE qs_scf_subspace_math
    INTEGER, PARAMETER :: max_exact_dimension = 12
 
    PUBLIC :: qs_scf_subspace_build_adiis_model, &
+             qs_scf_subspace_fifo_slot, &
              simplex_quadratic_minimize
 
 CONTAINS
@@ -196,6 +197,32 @@ CONTAINS
       IF (PRESENT(valid)) valid = .TRUE.
 
    END SUBROUTINE qs_scf_subspace_build_adiis_model
+
+! **************************************************************************************************
+!> \brief Select the next physical slot for a strict FIFO history.
+!> \param generation Insertion generation for each physical slot; zero denotes an empty slot.
+!> \return First empty slot, otherwise the oldest occupied slot; zero for invalid input.
+! **************************************************************************************************
+   PURE FUNCTION qs_scf_subspace_fifo_slot(generation) RESULT(slot)
+
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: generation
+      INTEGER                                            :: slot
+
+      INTEGER                                            :: i
+
+      slot = 0
+      IF (SIZE(generation) < 1) RETURN
+      IF (ANY(generation < 0)) RETURN
+
+      DO i = 1, SIZE(generation)
+         IF (generation(i) == 0) THEN
+            slot = i
+            RETURN
+         END IF
+      END DO
+      slot = MINLOC(generation, DIM=1)
+
+   END FUNCTION qs_scf_subspace_fifo_slot
 
 ! **************************************************************************************************
 !> \brief Select the best simplex vertex, preferring the newest one on ties.

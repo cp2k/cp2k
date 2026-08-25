@@ -241,7 +241,7 @@ CONTAINS
       IF (use_adiis) THEN
          scf_env%iter_param = diis_error
          IF (scf_env%scf_subspace_buffer%last_restart) THEN
-            scf_env%iter_method = "ADIIS/Restart"
+            scf_env%iter_method = "ADIIS/Rst."
          ELSE
             scf_env%iter_method = "ADIIS/Diag."
          END IF
