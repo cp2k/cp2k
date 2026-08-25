@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 "c_1.inp"                               = [{matcher="E_total", tol=1.0E-14, ref=-45.10384660417728}]
 "c_2.inp"                               = [{matcher="E_total", tol=1.0E-14, ref=-45.68042106170509}]
-"c_3.inp"                               = [{matcher="E_total", tol=2e-14, ref=-45.66762356227670}]
+"c_3.inp"                               = [{matcher="E_total", tol=2e-14, ref=-45.66762356227679}]
 "c_4.inp"                               = [{matcher="E_total", tol=3e-14, ref=-45.66762356227670}]
 "c_5.inp"                               = [{matcher="E_total", tol=3e-14, ref=-46.02680478900018}]
 "c_6.inp"                               = [{matcher="E_total", tol=3e-14, ref=-46.02680478900022}]

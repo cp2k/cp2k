@@ -11,19 +11,16 @@
 "CO_xastpxfh_150Ry.inp"                 = [{matcher="E_total", tol=8e-12, ref=-92.84739365620344}]
 "CO_xastpxfh_pdos.inp"                  = [{matcher="E_total", tol=2e-09, ref=-92.340788080870666}]
 #bug fix gpw_type
-"H2O_gpw.inp"                           = [{matcher="E_total", tol=2e-13, ref=-17.10774257571033}]
+"H2O_O_gpw.inp"                         = [{matcher="E_total", tol=2e-13, ref=-17.10774257571033}]
 #bug fix perdew_zunger
 "Ne-BP.inp"                             = [{matcher="E_total", tol=3.0E-14, ref=-128.04346037104085}]
-# mixed GPW/FULL_GAPW run
-"H2O_gpw_full_gapw.inp"                 = [{matcher="E_total", tol=2e-13, ref=-17.10774257571033}]
-"H2O_Onopaw.inp"                        = [{matcher="E_total", tol=2e-13, ref=-17.10774257571033}]
-"H2O_allnopaw.inp"                      = [{matcher="E_total", tol=2e-11, ref=-16.14000416634191}]
-"H2O_Hnopaw_pp.inp"                     = [{matcher="E_total", tol=3e-12, ref=-14.67461500144429}]
+"H2O_all_gpw.inp"                       = [{matcher="E_total", tol=2e-11, ref=-16.14000416634191}]
+"H2O_H_gpw_O_gapw.inp"                  = [{matcher="E_total", tol=3e-12, ref=-14.67461500144429}]
 "H_hf_gapw_forcepaw.inp"                = [{matcher="E_total", tol=4e-13, ref=-0.42427650604842998}]
 "H_hf_gapw_nopaw.inp"                   = [{matcher="E_total", tol=7e-13, ref=-0.42419312869532999}]
 "H_hf_gapw_nopaw_full.inp"              = [{matcher="E_total", tol=7e-13, ref=-0.42419312869532999}]
-# mixed GPW/GAPW run forces
-"H2O_Onopaw_gop.inp"                    = [{matcher="E_total", tol=1e-13, ref=-17.10699808931047}]
+# mixed GPW/GAPW geometry optimization
+"H2O_O_gpw_geo_opt.inp"                 = [{matcher="E_total", tol=1e-13, ref=-17.10699808931047}]
 # GAPW element with local basis > number of projectors
 "Fe.inp"                                = [{matcher="E_total", tol=6e-14, ref=-1169.32261586004188}]
 # GAPW with an external potential

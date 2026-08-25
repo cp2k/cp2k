@@ -1,15 +1,8 @@
 &GLOBAL
-  PRINT_LEVEL low
-  PROJECT H2O_Onopaw_gop
-  RUN_TYPE GEO_OPT
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O_all_gpw
+  RUN_TYPE ENERGY
 &END GLOBAL
-
-&MOTION
-  &GEO_OPT
-    MAX_ITER 2
-    OPTIMIZER BFGS
-  &END GEO_OPT
-&END MOTION
 
 &FORCE_EVAL
   METHOD Quickstep
@@ -18,7 +11,7 @@
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 280
-      NGRIDS 5
+      NGRIDS 1
     &END MGRID
     &POISSON
       PERIODIC NONE
@@ -30,7 +23,7 @@
     &SCF
       EPS_SCF 1.0E-4
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF 10
+      MAX_SCF 30
       SCF_GUESS atomic
       &OT
         MINIMIZER DIIS
@@ -38,6 +31,11 @@
         PRECONDITIONER FULL_ALL
       &END OT
       &PRINT
+        &DETAILED_ENERGY
+          &EACH
+            QS_SCF 1
+          &END EACH
+        &END DETAILED_ENERGY
         &RESTART
           ADD_LAST NUMERIC
           &EACH
@@ -63,17 +61,9 @@
       H  0.000000   -0.757136   -0.468906
     &END COORD
     &KIND H
-      POTENTIAL ALL
-      &BASIS
-        # 6-31G* Hydrogen
-        2
-        1  0  0  3  1
-        18.7311369600   0.0334946043
-        2.8253943650   0.2347269535
-        0.6401216923   0.8137573262
-        2  0  0  1  1
-        0.1612777588   1.0000000000
-      &END BASIS
+      BASIS_SET DZVP-MOLOPT-GTH
+      GPW_TYPE
+      POTENTIAL GTH-BLYP-q1
     &END KIND
     &KIND O
       BASIS_SET DZVP-MOLOPT-GTH

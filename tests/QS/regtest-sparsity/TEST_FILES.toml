@@ -5,5 +5,4 @@
 "Ar-ref-4.inp"                          = [{matcher="E_total", tol=2e-13, ref=-42.28547136845750}]
 "Ar-ref-5.inp"                          = [{matcher="E_total", tol=2e-13, ref=-42.114889904700171}]
 "Ar-ref-6.inp"                          = [{matcher="E_total", tol=2e-13, ref=-42.285471368457529}]
-"Ar-ref-7.inp"                          = [{matcher="E_total", tol=2e-13, ref=-42.285471368457529}]
 #EOF

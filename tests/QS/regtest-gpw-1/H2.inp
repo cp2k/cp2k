@@ -12,6 +12,11 @@
     &MGRID
       CUTOFF 140
     &END MGRID
+    &PRINT
+      &MO
+        OCCUPATION_NUMBERS_STATS
+      &END MO
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-8
     &END QS
