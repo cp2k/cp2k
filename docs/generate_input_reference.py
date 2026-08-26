@@ -269,8 +269,6 @@ def render_section_header(
     collision_resolution_suffix = "_SECTION" if has_name_collision else ""
     collision_resolved_section_xref = f"{section_xref}{collision_resolution_suffix}"
     mentions = lookup_mentions(collision_resolved_section_xref, is_section=True)
-    if mentions:
-        mentions_list = ", ".join([f"⭐[](project:{m})" for m in mentions])
 
     # Render header.
     output = []
@@ -286,10 +284,10 @@ def render_section_header(
     if references:
         citations = ", ".join([f"{{ref}}`{r}`" for r in references])
         output += [f"**References:** {citations}", ""]
-    output += [escape_markdown(description), ""]
+    output += [escape_markdown(description), github_link(location), ""]
     if mentions:
+        mentions_list = ", ".join([f"⭐[](project:{m})" for m in mentions])
         output += [f"**Mentions:** {mentions_list}", ""]
-    output += [github_link(location), ""]
     return output, section_name, section_xref
 
 
@@ -372,7 +370,10 @@ def render_keyword(
         metadata += [f"**Usage:** _{escape_markdown(usage)}_"]
     output += ["  \n".join(metadata), ""]
     if description:
-        output += [f"**Description:** {escape_markdown(description)}", ""]
+        output += [f"**Description:** {escape_markdown(description)}"]
+        if github:
+            output += [github_link(location)]
+        output += [""]
     if data_type == "enum":
         output += ["**Valid values:**"]
         for item in keyword.findall("DATA_TYPE/ENUMERATION/ITEM"):
@@ -386,8 +387,6 @@ def render_keyword(
     if mentions:
         mentions_list = ", ".join([f"⭐[](project:{m})" for m in mentions])
         output += [f"**Mentions:** {mentions_list}", ""]
-    if github:
-        output += [github_link(location)]
     output += ["", "```", ""]  # Close py:data directive.
 
     if deprecation_notice:
@@ -400,9 +399,8 @@ def render_keyword(
 
 # ======================================================================================
 @cache
-def find_all_mentions(is_section: bool) -> Dict[str, Set[Path]]:
+def find_all_mentions() -> Dict[str, Set[Path]]:
     root_dir = Path(__file__).resolve().parent
-    root_dir = root_dir.parent if is_section else root_dir
     mentions = defaultdict(set)
     for subdir in "getting-started", "methods", "technologies":
         for fn in (root_dir / subdir).glob("**/*.md"):
@@ -415,8 +413,8 @@ def find_all_mentions(is_section: bool) -> Dict[str, Set[Path]]:
 def lookup_mentions(xref: Optional[str], is_section: bool) -> List[str]:
     if not xref:
         return []
-    mentions = find_all_mentions(is_section)
-    n = xref.count(".") - 1
+    mentions = find_all_mentions()
+    n = xref.count(".") - (0 if is_section else 1)
     return [("../" * n) + str(path) for path in sorted(mentions[xref])]
 
 
