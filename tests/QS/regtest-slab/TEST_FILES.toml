@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 "hbn3_1h2o_ff.inp"                      = [{matcher="M017", tol=1e-04, ref=5.2559721}]
 "hbn3_1h2o_ff_pyz.inp"                  = [{matcher="M017", tol=1e-04, ref=5.2623661}]
-"hbn3_1h2o_dipcor_ff.inp"               = [{matcher="M017", tol=1e-04, ref=6.4239006}]
-"hbn3_1h2o_dipcor_ff_pyz.inp"           = [{matcher="M017", tol=1e-04, ref=5.6389958}]
+"hbn3_1h2o_dipcor_ff.inp"               = [{matcher="M017", tol=1e-04, ref=6.4239006}, {matcher="Vacuum_level_below", tol=1e-04, ref=0.02254549}, {matcher="Vacuum_level_above", tol=1e-04, ref=0.0199544993}]
+"hbn3_1h2o_dipcor_ff_pyz.inp"           = [{matcher="M017", tol=1e-04, ref=5.6389958}, {matcher="Vacuum_level_below", tol=1e-04, ref=0.0397084118}, {matcher="Vacuum_level_above", tol=1e-04, ref=0.0221089334}]
 "hbn3_1h2o_ff_pyz_2dps.inp"             = [{matcher="M017", tol=1e-04, ref=5.7047448}]
 #EOF

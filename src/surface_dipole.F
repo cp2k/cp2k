@@ -13,7 +13,8 @@ MODULE surface_dipole
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
-   USE physcon,                         ONLY: bohr
+   USE physcon,                         ONLY: bohr,&
+                                              evolt
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
@@ -61,14 +62,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_dipsurf_potential'
 
-      INTEGER                                            :: handle, i, idir_surfdip, ilayer_min, &
-                                                            ilow, irho, ispin, isurf, iup, jsurf, &
-                                                            width
+      INTEGER                                            :: handle, i, i_above, i_below, &
+                                                            idir_surfdip, ilayer_min, ilow, irho, &
+                                                            ispin, isurf, iup, jsurf, width
       INTEGER, DIMENSION(3)                              :: ngrid
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
-      REAL(dp)                                           :: cutoff, dh(3, 3), dip_fac, dip_hh, &
-                                                            dsurf, height_min, hh, pos_surf_dip, &
-                                                            rhoav_min, surfarea, vdip, vdip_fac
+      REAL(dp) :: cutoff, dh(3, 3), dip_fac, dip_hh, dsurf, height_min, hh, pos_surf_dip, &
+         rhoav_min, surfarea, vac_above, vac_below, vdip, vdip_fac
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: rhoavsurf
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -233,6 +233,7 @@ CONTAINS
       DEALLOCATE (rhoavsurf)
 ! for printing purposes [SGh]
       qs_env%surface_dipole_moment = dip_hh/bohr
+      qs_env%surface_dipole_ref_pos = height_min/bohr
 
 !    Calculation of the dipole potential as a function of the perpendicular coordinate
       CALL pw_zero(vdip_r)
@@ -277,6 +278,48 @@ CONTAINS
 
 !    Add the dipole potential to the hartree potential on the realspace grid
       CALL pw_axpy(vdip_r, v_hartree_rspace)
+
+!    Vacuum level (plane-averaged, corrected Hartree potential) immediately below and above the
+!    dipole correction reference plane. Note: v_hartree_rspace does not carry the GAPW one-center
+!    (hard/soft) corrections, but those are localized on the atoms and vanish at these sampling
+!    points, which by construction lie in the vacuum.
+      i_below = ilayer_min - 1
+      IF (i_below < ilow) i_below = iup
+      i_above = ilayer_min + 1
+      IF (i_above > iup) i_above = ilow
+
+      vac_below = 0.0_dp
+      vac_above = 0.0_dp
+      IF (idir_surfdip == 3) THEN
+         IF (i_below >= bo(1, 3) .AND. i_below <= bo(2, 3)) THEN
+            vac_below = accurate_sum(v_hartree_rspace%array(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), i_below))
+         END IF
+         IF (i_above >= bo(1, 3) .AND. i_above <= bo(2, 3)) THEN
+            vac_above = accurate_sum(v_hartree_rspace%array(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), i_above))
+         END IF
+      ELSE IF (idir_surfdip == 2) THEN
+         IF (i_below >= bo(1, 2) .AND. i_below <= bo(2, 2)) THEN
+            vac_below = accurate_sum(v_hartree_rspace%array(bo(1, 1):bo(2, 1), i_below, bo(1, 3):bo(2, 3)))
+         END IF
+         IF (i_above >= bo(1, 2) .AND. i_above <= bo(2, 2)) THEN
+            vac_above = accurate_sum(v_hartree_rspace%array(bo(1, 1):bo(2, 1), i_above, bo(1, 3):bo(2, 3)))
+         END IF
+      ELSE
+         IF (i_below >= bo(1, 1) .AND. i_below <= bo(2, 1)) THEN
+            vac_below = accurate_sum(v_hartree_rspace%array(i_below, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
+         END IF
+         IF (i_above >= bo(1, 1) .AND. i_above <= bo(2, 1)) THEN
+            vac_above = accurate_sum(v_hartree_rspace%array(i_above, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
+         END IF
+      END IF
+
+      IF (wf_r%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
+         CALL wf_r%pw_grid%para%group%sum(vac_below)
+         CALL wf_r%pw_grid%para%group%sum(vac_above)
+      END IF
+
+      qs_env%vacuum_level_below = vac_below/REAL(ngrid(isurf)*ngrid(jsurf), dp)*evolt
+      qs_env%vacuum_level_above = vac_above/REAL(ngrid(isurf)*ngrid(jsurf), dp)*evolt
 
       CALL auxbas_pw_pool%give_back_pw(wf_r)
       CALL auxbas_pw_pool%give_back_pw(vdip_r)
