@@ -291,26 +291,26 @@ CONTAINS
       vac_below = 0.0_dp
       vac_above = 0.0_dp
       IF (idir_surfdip == 3) THEN
-         IF (i_below >= bo(1, 3) .AND. i_below <= bo(2, 3)) then
-           vac_below = accurate_sum(v_hartree_rspace%array(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), i_below))
-         end if
-         IF (i_above >= bo(1, 3) .AND. i_above <= bo(2, 3)) then
-           vac_above = accurate_sum(v_hartree_rspace%array(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), i_above))
-         end if
+         IF (i_below >= bo(1, 3) .AND. i_below <= bo(2, 3)) THEN
+            vac_below = accurate_sum(v_hartree_rspace%array(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), i_below))
+         END IF
+         IF (i_above >= bo(1, 3) .AND. i_above <= bo(2, 3)) THEN
+            vac_above = accurate_sum(v_hartree_rspace%array(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), i_above))
+         END IF
       ELSE IF (idir_surfdip == 2) THEN
-         IF (i_below >= bo(1, 2) .AND. i_below <= bo(2, 2)) then
-           vac_below = accurate_sum(v_hartree_rspace%array(bo(1, 1):bo(2, 1), i_below, bo(1, 3):bo(2, 3)))
-         end if
-         IF (i_above >= bo(1, 2) .AND. i_above <= bo(2, 2)) then
-           vac_above = accurate_sum(v_hartree_rspace%array(bo(1, 1):bo(2, 1), i_above, bo(1, 3):bo(2, 3)))
-         end if
+         IF (i_below >= bo(1, 2) .AND. i_below <= bo(2, 2)) THEN
+            vac_below = accurate_sum(v_hartree_rspace%array(bo(1, 1):bo(2, 1), i_below, bo(1, 3):bo(2, 3)))
+         END IF
+         IF (i_above >= bo(1, 2) .AND. i_above <= bo(2, 2)) THEN
+            vac_above = accurate_sum(v_hartree_rspace%array(bo(1, 1):bo(2, 1), i_above, bo(1, 3):bo(2, 3)))
+         END IF
       ELSE
-         IF (i_below >= bo(1, 1) .AND. i_below <= bo(2, 1)) then
-           vac_below = accurate_sum(v_hartree_rspace%array(i_below, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
-         end if
-         IF (i_above >= bo(1, 1) .AND. i_above <= bo(2, 1)) then
-           vac_above = accurate_sum(v_hartree_rspace%array(i_above, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
-         end if
+         IF (i_below >= bo(1, 1) .AND. i_below <= bo(2, 1)) THEN
+            vac_below = accurate_sum(v_hartree_rspace%array(i_below, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
+         END IF
+         IF (i_above >= bo(1, 1) .AND. i_above <= bo(2, 1)) THEN
+            vac_above = accurate_sum(v_hartree_rspace%array(i_above, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
+         END IF
       END IF
 
       IF (wf_r%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
