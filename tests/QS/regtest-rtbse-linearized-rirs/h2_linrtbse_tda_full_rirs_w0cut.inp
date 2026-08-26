@@ -44,11 +44,11 @@
         &END RESTART
       &END PRINT
       &RTBSE
+        CUTOFF_RADIUS_W0 0.5
         DIAGNOSE_LIOUVILLIAN_EIG T
         KERNEL_RI RS
         LRRTBSE T
         TDA T
-        CUTOFF_RADIUS_W0 0.5
       &END RTBSE
     &END REAL_TIME_PROPAGATION
     &SCF
