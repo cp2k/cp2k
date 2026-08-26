@@ -647,6 +647,14 @@ CONTAINS
                   "Total dipole moment perpendicular to ", &
                   "the slab [electrons-Angstroem]: ", &
                   qs_env%surface_dipole_moment
+               WRITE (UNIT=output_unit, FMT="((T3,A,/,T3,A,T41,F20.10))") &
+                  "Position of the dipole ", &
+                  "correction plane [Angstroem]: ", &
+                  qs_env%surface_dipole_ref_pos
+               WRITE (UNIT=output_unit, FMT="((T3,A,/,T3,A,T41,2F20.10))") &
+                  "Vacuum level below/above the ", &
+                  "dipole correction plane [eV]: ", &
+                  qs_env%vacuum_level_below, qs_env%vacuum_level_above
             END IF
 
             IF (gapw) THEN

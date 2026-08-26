@@ -410,4 +410,9 @@ registry["STRUCTURE_DATA_dihedral_angle"] = GenericMatcher(
 registry["RTP_current_checksum"] = GenericMatcher(
     r"RTP_CURRENT| CheckSum j_int=", col=4
 )
+
+# Vacuum level (plane-averaged, dipole-corrected Hartree potential) just below/above the
+# surface dipole correction reference plane; both values are printed on the same line.
+registry["Vacuum_level_below"] = GenericMatcher(r"dipole correction plane [eV]:", col=5)
+registry["Vacuum_level_above"] = GenericMatcher(r"dipole correction plane [eV]:", col=6)
 # EOF
