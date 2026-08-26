@@ -263,12 +263,13 @@ CONTAINS
 !> \param sab        Final overlap integrals
 !> \param dab        First derivative overlap integrals
 !> \param ddab       Second derivative overlap integrals
+!> \param rr_work    Optional caller-provided one-dimensional overlap recurrence workspace
 !> \date    01.07.2014
 !> \author  JGH
 ! **************************************************************************************************
    SUBROUTINE overlap_ab(la_max, la_min, npgfa, rpgfa, zeta, &
                          lb_max, lb_min, npgfb, rpgfb, zetb, &
-                         rab, sab, dab, ddab)
+                         rab, sab, dab, ddab, rr_work)
       INTEGER, INTENT(IN)                                :: la_max, la_min, npgfa
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfa, zeta
       INTEGER, INTENT(IN)                                :: lb_max, lb_min, npgfb
@@ -278,14 +279,16 @@ CONTAINS
          OPTIONAL                                        :: sab
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: dab, ddab
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
+         OPTIONAL, TARGET                                :: rr_work
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, ia, &
                                                             ib, ipgf, jpgf, la, lb, ldrr, lma, &
                                                             lmb, ma, mb, na, nb, ofa, ofb
       REAL(KIND=dp)                                      :: a, ambm, ambp, apbm, apbp, b, dumx, &
                                                             dumy, dumz, f0, rab2, tab, xhi, zet
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rr
 
       ! Distance of the centers a and b
 
@@ -308,8 +311,14 @@ CONTAINS
       END IF
       ldrr = MAX(lma, lmb) + 1
 
-      ! Allocate space for auxiliary integrals
-      ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
+      ! Allocate or attach the workspace for auxiliary integrals
+      NULLIFY (rr)
+      IF (PRESENT(rr_work)) THEN
+         CPASSERT(SIZE(rr_work) >= ldrr*ldrr*3)
+         rr(0:ldrr - 1, 0:ldrr - 1, 1:3) => rr_work(1:ldrr*ldrr*3)
+      ELSE
+         ALLOCATE (rr(0:ldrr - 1, 0:ldrr - 1, 3))
+      END IF
 
       ! Number of integrals, check size of arrays
       ofa = ncoset(la_min - 1)
@@ -523,7 +532,8 @@ CONTAINS
          ma = ma + na
       END DO
 
-      DEALLOCATE (rr)
+      IF (.NOT. PRESENT(rr_work)) DEALLOCATE (rr)
+      NULLIFY (rr)
 
    END SUBROUTINE overlap_ab
 
