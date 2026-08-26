@@ -246,5 +246,17 @@ xyz2dcd.F: Found STOP statement in procedure "xyz2dcd" https://cp2k.org/conv#c20
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "abort_program" https://cp2k.org/conv#c012
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "print_help" https://cp2k.org/conv#c012
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "xyz2dcd" https://cp2k.org/conv#c012
+# Current GFortran AST false positives: the ELPA imports have ONLY clauses, and
+# the Libint engines in the Coulomb context are initialized explicitly.
+coulomb_integral_interface.F: Found type coulomb_integral_context_type without initializer https://cp2k.org/conv#c016
+cp_cfm_elpa.F: Module "elpa" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+cp_cfm_elpa.F: Module "elpa_constants" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+# Existing environment queries audited in #5857. These provide runtime metadata,
+# external resource locations, or diagnostics.
+machine.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "m_getlog" https://cp2k.org/conv#c107
+machine.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "m_omp_get_stacksize" https://cp2k.org/conv#c107
+skala_gpw_functional.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "get_skala_model_path" https://cp2k.org/conv#c107
+xc_gauxc_functional.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "apply_gauxc" https://cp2k.org/conv#c107
+xc_gauxc_interface.F: Found CALL GET_ENVIRONMENT_VARIABLE in procedure "print_gauxc_status_message" https://cp2k.org/conv#c107
 # Suppression kept for toolchain based convention check
 cp_output_handling_openpmd.F: Found type cp_openpmd_per_call_value_type without initializer https://cp2k.org/conv#c016
