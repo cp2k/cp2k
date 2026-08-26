@@ -50,6 +50,8 @@ case "${with_spla}" in
       cd ..
 
       if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
+        patch -l -p1 < "${SCRIPT_DIR}/stage8/spla-cuda.patch" \
+          > spla-cuda.patch.log 2>&1 || tail_excerpt spla-cuda.patch.log
         [ -d build-cuda ] && rm -rf "build-cuda"
         mkdir build-cuda
         cd build-cuda
