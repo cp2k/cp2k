@@ -4,7 +4,7 @@
 # shellcheck disable=all
 
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
-SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
+SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_NAME}")/.." && pwd -P)"
 
 spla_ver="1.6.1"
 spla_sha256="62b51e6ce05c41cfc1c6f6600410f9549a209c50f0331e1db41047f94493e02f"
@@ -32,6 +32,7 @@ case "${with_spla}" in
       [ -d SpLA-${spla_ver} ] && rm -rf SpLA-${spla_ver}
       tar -xzf SpLA-${spla_ver}.tar.gz
       cd spla-${spla_ver}
+
       mkdir -p build-cpu
       cd build-cpu
       cmake \
@@ -49,6 +50,8 @@ case "${with_spla}" in
       cd ..
 
       if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
+        patch -l -p1 < "${SCRIPT_DIR}/stage8/spla-cuda.patch" \
+          > spla-cuda.patch.log 2>&1 || tail_excerpt spla-cuda.patch.log
         [ -d build-cuda ] && rm -rf "build-cuda"
         mkdir build-cuda
         cd build-cuda
@@ -65,6 +68,8 @@ case "${with_spla}" in
           .. \
           > cmake.log 2>&1 || tail_excerpt cmake.log
         make -j $(get_nprocs) install > make.log 2>&1 || tail_excerpt make.log
+        spla_gpu_dir="${INSTALLDIR}/SpLA-${spla_ver}-cuda"
+        cd ..
       fi
 
       if [ "$ENABLE_HIP" = "__TRUE__" ]; then
@@ -87,6 +92,7 @@ case "${with_spla}" in
               .. \
               > cmake.log 2>&1 || tail_excerpt cmake.log
             make -j $(get_nprocs) install > make.log 2>&1 || tail_excerpt make.log
+            spla_gpu_dir="${INSTALLDIR}/SpLA-${spla_ver}-hip"
             ;;
           Mi50 | Mi100 | Mi200 | Mi250)
             [ -d build-hip ] && rm -rf "build-hip"
@@ -105,6 +111,7 @@ case "${with_spla}" in
               .. \
               > cmake.log 2>&1 || tail_excerpt cmake.log
             make -j $(get_nprocs) install > make.log 2>&1 || tail_excerpt make.log
+            spla_gpu_dir="${INSTALLDIR}/SpLA-${spla_ver}-hip"
             ;;
           *) ;;
         esac
@@ -131,6 +138,9 @@ case "${with_spla}" in
     ;;
 esac
 if [ "$with_spla" != "__DONTUSE__" ]; then
+  if [ -d "${spla_gpu_dir}" ]; then
+    pkg_install_dir="${spla_gpu_dir}"
+  fi
   if [ "$with_spla" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_spla"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
@@ -144,6 +154,7 @@ EOF
 export SPLA_VER="${spla_ver}"
 export SPLA_ROOT="${pkg_install_dir}"
 EOF
+
   filter_setup "${BUILDDIR}/setup_spla" "${SETUPFILE}"
 fi
 
