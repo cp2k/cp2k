@@ -27,11 +27,12 @@ MODULE rt_bse_ri_rs
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_get_info, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release, dbcsr_scale, &
-        dbcsr_type, dbcsr_type_no_symmetry
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_get_diag
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, &
+        dbcsr_get_info, dbcsr_get_occupation, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm,&
+                                              dbcsr_get_diag
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -45,11 +46,13 @@ MODULE rt_bse_ri_rs
    USE gw_non_periodic_ri_rs,           ONLY: atomic_basis_at_grid_point,&
                                               compute_coeff_Z_lP,&
                                               precompute_ri_rs_radii,&
+                                              reserve_blocks_within_radius,&
                                               ri_rs_grid_assembler
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
+   USE physcon,                         ONLY: angstrom
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: qs_environment_type
 #include "../base/base_uses.f90"
@@ -190,6 +193,8 @@ CONTAINS
 !>        contain M^-1 W^c(ω=0) M^-1 (built by either GW path under the BSE rtp_method gate).
 !>        W^0 enters only through the Hadamard ρ^grid ∘ W^0 -- its elements are needed, so it is
 !>        the one persistent grid×grid object of the kernel layer.
+!>        RTBSE%CUTOFF_RADIUS_W0 > 0 keeps only block pairs whose grid centroids lie within that
+!>        radius; the per-step ρ^grid inherits the pattern, so both grid×grid objects shrink.
 !> \param bs_env ...
 !> \param qs_env ...
 ! **************************************************************************************************
@@ -203,7 +208,8 @@ CONTAINS
       INTEGER                                            :: handle
       INTEGER, DIMENSION(:), POINTER                     :: blk_aux, blk_grid, dist_col_grid, &
                                                             dist_row_aux
-      REAL(KIND=dp)                                      :: t1
+      LOGICAL                                            :: use_cutoff_w0
+      REAL(KIND=dp)                                      :: fnorm_w0, occ_w0, t1
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_Vtr_Gamma
       TYPE(dbcsr_distribution_type)                      :: dist_aux_aux, dist_grid_grid
       TYPE(dbcsr_type)                                   :: matrix_V_aux, matrix_W_aux
@@ -246,13 +252,51 @@ CONTAINS
 
       CALL dbcsr_create(bs_env%ri_rs%mat_W0_grid_rtbse, "W0_grid_rtbse", dist_grid_grid, &
                         dbcsr_type_no_symmetry, blk_grid, blk_grid)
-      CALL contract_A_B_A("N", "T", bs_env%ri_rs%mat_Z_lP, matrix_W_aux, &
-                          bs_env%ri_rs%mat_W0_grid_rtbse, bs_env%eps_filter)
+
+      ! CUTOFF_RADIUS_W0: pre-seed only the in-radius block pairs, then let retain_sparsity confine
+      ! the contraction to them. Gate on the value, never on ALLOCATED alone -- .AND. does not
+      ! short-circuit in Fortran.
+      use_cutoff_w0 = bs_env%ri_rs%cutoff_radius_w0 > 0.0_dp
+
+      ! chunk_centroids is built only by the non-periodic RI-RS GW driver, so on a periodic cell
+      ! the cut would silently fall through to the exact path while the log reports it as active.
+      IF (use_cutoff_w0 .AND. .NOT. ALLOCATED(bs_env%ri_rs%chunk_centroids)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "RTBSE%CUTOFF_RADIUS_W0 needs the per-grid-block centroids, which only the "// &
+                       "non-periodic RI-RS GW driver builds; this cell is periodic. Use '&CELL "// &
+                       "PERIODIC NONE', or drop CUTOFF_RADIUS_W0 to propagate with the exact W0.")
+      END IF
+
+      IF (use_cutoff_w0) THEN
+         CALL reserve_blocks_within_radius(bs_env%ri_rs%mat_W0_grid_rtbse, &
+                                           bs_env%ri_rs%chunk_centroids, &
+                                           bs_env%ri_rs%cutoff_radius_w0)
+         ! TODO: eps_filter is INERT here -- DBCSR skips multrec_filtering whenever
+         ! keep_sparsity is set (dbcsr_mm_multrec.F: "IF (use_eps .AND. .NOT. keep_sparsity)").
+         ! So a radius wider than the cell equals the uncut build only while eps_filter prunes
+         ! nothing on W0, which holds for every system measured so far but is not guaranteed.
+         CALL contract_A_B_A("N", "T", bs_env%ri_rs%mat_Z_lP, matrix_W_aux, &
+                             bs_env%ri_rs%mat_W0_grid_rtbse, bs_env%eps_filter, &
+                             retain_sparsity=.TRUE.)
+      ELSE
+         CALL contract_A_B_A("N", "T", bs_env%ri_rs%mat_Z_lP, matrix_W_aux, &
+                             bs_env%ri_rs%mat_W0_grid_rtbse, bs_env%eps_filter)
+      END IF
 
       bs_env%ri_rs%W0_grid_built = .TRUE.
       bs_env%ri_rs%rtbse_kernels_ready = .TRUE.
 
+      ! Occupancy is a storage statistic with no magnitude, so pair it with the retained Frobenius
+      ! weight -- the two together are the x-axis of a CUTOFF_RADIUS_W0 convergence scan. Both
+      ! reduce over all ranks; occupancy saturates at 1.000 and says nothing about magnitude.
+      occ_w0 = dbcsr_get_occupation(bs_env%ri_rs%mat_W0_grid_rtbse)
+      fnorm_w0 = dbcsr_frobenius_norm(bs_env%ri_rs%mat_W0_grid_rtbse)
+
       IF (bs_env%unit_nr > 0) THEN
+         WRITE (bs_env%unit_nr, '(T2,A,T67,F14.4)') &
+            'W0CUT| Cutoff radius, negative = off [angstrom]', bs_env%ri_rs%cutoff_radius_w0*angstrom
+         WRITE (bs_env%unit_nr, '(T2,A,T67,F14.6)') 'W0CUT| Retained block fraction', occ_w0
+         WRITE (bs_env%unit_nr, '(T2,A,T59,ES22.8)') 'W0CUT| Retained Frobenius norm', fnorm_w0
          WRITE (bs_env%unit_nr, '(T2,A,T57,A,F7.1,A)') &
             'Precomputed RT-BSE RI-RS W0_grid kernel,', ' Execution time', &
             m_walltime() - t1, ' s'
@@ -293,10 +337,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_sigma_ri_rs'
 
       INTEGER                                            :: handle, n_grid
-      INTEGER, DIMENSION(:), POINTER                     :: blk_ao, blk_grid, dist_col_grid, &
-                                                            dist_row_ao
+      INTEGER, DIMENSION(:), POINTER                     :: blk_ao, dist_row_ao
       REAL(KIND=dp), ALLOCATABLE                         :: diag_local(:)
-      TYPE(dbcsr_distribution_type)                      :: dist_ao_ao, dist_grid_grid
+      TYPE(dbcsr_distribution_type)                      :: dist_ao_ao
       TYPE(dbcsr_type)                                   :: matrix_rho_AO, matrix_rho_grid, &
                                                             matrix_Sigma_AO
 
@@ -304,24 +347,30 @@ CONTAINS
 
       CPASSERT(bs_env%ri_rs%W0_grid_built)
 
+      ! Only the AO×AO topology is built here; ρ^grid takes its grid×grid one from W^0's template.
       CALL setup_square_topology(bs_env%ri_rs%mat_phi_mu_l, 'COL', dist_ao_ao, blk_ao, dist_row_ao)
-      CALL setup_square_topology(bs_env%ri_rs%mat_phi_mu_l, 'ROW', dist_grid_grid, blk_grid, &
-                                 dist_col_grid)
 
       CALL dbcsr_create(matrix_rho_AO, "rho_AO_ri_rs", dist_ao_ao, dbcsr_type_no_symmetry, &
                         blk_ao, blk_ao)
       CALL copy_fm_to_dbcsr(rho_AO_fm, matrix_rho_AO, keep_sparsity=.FALSE.)
 
-      ! ρ^grid_ll' = sum_µν φ_lµ Δρ_µν φ_l'ν   (the SEX-intrinsic grid×grid transient)
-      CALL dbcsr_create(matrix_rho_grid, "rho_grid_ri_rs", dist_grid_grid, &
-                        dbcsr_type_no_symmetry, blk_grid, blk_grid)
-      ! No eps_filter on the SEX projections: a Δρ-dependent block drop breaks kernel
-      ! self-adjointness (L non-Hermitian). The W0 Hadamard below supplies the symmetric,
-      ! Δρ-independent grid sparsity, so unfiltered projections stay sparse via W0.
-      ! PERF(rirs-selfadjoint): a retain_sparsity-to-W0 build (dbcsr_multiply) gives identical
-      ! numbers with W0-sparse memory; NOT YET APPLIED, needs a perf test.
+      ! The projection below is shared with the Hartree, so this cuts SEX and Hartree alike.
+      IF (bs_env%ri_rs%eps_filter_rho >= 0.0_dp) THEN
+         CALL dbcsr_filter(matrix_rho_AO, bs_env%ri_rs%eps_filter_rho)
+      END IF
+
+      ! ρ^grid_ll' = sum_µν φ_lµ Δρ_µν φ_l'ν   (the SEX-intrinsic grid×grid transient),
+      ! built directly into W^0's block pattern. Exact: the Hadamard below zeroes every block
+      ! without a W^0 partner anyway, so restricting the multiply drops only computed zeros.
+      ! No eps_filter on the SEX projections either -- a Δρ-dependent block drop breaks kernel
+      ! self-adjointness (L non-Hermitian); W^0's pattern is symmetric and Δρ-independent.
+      ! TODO: seeds the pattern by copying W0's values and discarding them every RK4 substep --
+      ! unquantified overhead, paid even when no cut is set. Cache the zeroed pattern instead.
+      CALL dbcsr_create(matrix_rho_grid, template=bs_env%ri_rs%mat_W0_grid_rtbse)
+      CALL dbcsr_copy(matrix_rho_grid, bs_env%ri_rs%mat_W0_grid_rtbse)
+      CALL dbcsr_set(matrix_rho_grid, 0.0_dp)
       CALL contract_A_B_A("N", "T", bs_env%ri_rs%mat_phi_mu_l, matrix_rho_AO, &
-                          matrix_rho_grid, 0.0_dp)
+                          matrix_rho_grid, 0.0_dp, retain_sparsity=.TRUE.)
 
       ! Harvest n_l = diag(ρ^grid) BEFORE the in-place Hadamard destroys it; the Hartree reuses it
       ! (compute_hartree_ri_rs_from_diag) instead of rebuilding φρφ^T. Bare accumulate (caller
@@ -353,8 +402,7 @@ CONTAINS
 
       CALL release_dbcsr_topology_and_matrices(dist=dist_ao_ao, mapped_dist=dist_row_ao, &
                                                m1=matrix_rho_AO, m2=matrix_Sigma_AO)
-      CALL release_dbcsr_topology_and_matrices(dist=dist_grid_grid, mapped_dist=dist_col_grid, &
-                                               m1=matrix_rho_grid)
+      CALL release_dbcsr_topology_and_matrices(m1=matrix_rho_grid)
 
       CALL timestop(handle)
 

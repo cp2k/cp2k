@@ -2222,6 +2222,29 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER_RHO", &
+                          description="RI-RS linearized RT-BSE: block-filter threshold on the propagated "// &
+                          "response density Delta-rho (AO). Applied upstream of the projection the "// &
+                          "Hartree shares, so it cuts the SEX kernel and the Hartree response alike. "// &
+                          "Absolute, so its strength is the ratio to the Delta-rho scale.", &
+                          usage="EPS_FILTER_RHO 1.0E-6", &
+                          default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_W0", &
+                          description="RI-RS linearized RT-BSE: real-space truncation radius for the "// &
+                          "grid-basis screened interaction W0. Grid block pairs whose centroids lie "// &
+                          "further apart are dropped at build, and the per-step SEX grid transient is "// &
+                          "built into the same pattern. Affects the BSE kernel only, not the GW "// &
+                          "quasiparticle energies and not the Hartree response. Requires a "// &
+                          "non-periodic cell. Zero or negative disables the truncation.", &
+                          usage="CUTOFF_RADIUS_W0 30.0", &
+                          default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="angstrom"), &
+                          type_of_var=real_t, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_rtbse_section
 ! **************************************************************************************************
 !> \brief Creates the subsection for Fourier transform options applicable to RTP output
