@@ -52,7 +52,7 @@ implied for most of the documentation.
    float-point arithmetic and is suitable for professional computing, in contrast to a "gaming GPU"
    with less optimized performance in this regard.)
    - **Yes**: some of the [eigensolvers](../technologies/eigensolvers/index),
-     [accelerators](../technologies/eigensolvers/index) and other
+     [accelerators](../technologies/accelerators/index) and other
      [libraries](../technologies/libraries) have GPU acceleration support ready or under development
      for matrix operations in CP2K's quantum chemical calculations; note that the requirement for
      CP2K is different from that for other molecular dynamics codes based on molecular mechanics.
