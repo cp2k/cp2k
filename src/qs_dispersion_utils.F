@@ -365,6 +365,10 @@ CONTAINS
             CALL section_vals_val_get(pp_section, "D3_REFERENCE_CODE", &
                                       l_val=dispersion_env%d3_reference_code)
             CALL section_vals_val_get(pp_section, "D4_CUTOFF", r_val=dispersion_env%rc_d4)
+            CALL section_vals_val_get(pp_section, "D4_CUTOFF_WIDTH", &
+                                      r_val=dispersion_env%d4_cutoff_width)
+            CALL section_vals_val_get(pp_section, "D4_3B_CUTOFF_WIDTH", &
+                                      r_val=dispersion_env%d4_3b_cutoff_width)
             CALL section_vals_val_get(pp_section, "D4_CN_CUTOFF", r_val=dispersion_env%rc_cn)
             CALL section_vals_val_get(pp_section, "FACTOR_S9_TERM", r_val=dispersion_env%s9)
             !C9 term default=T for D4

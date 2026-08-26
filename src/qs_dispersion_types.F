@@ -40,6 +40,8 @@ MODULE qs_dispersion_types
       REAL(KIND=dp)                          :: rc_disp = -1.0_dp
       REAL(KIND=dp)                          :: rc_d4 = -1.0_dp
       REAL(KIND=dp)                          :: rc_cn = -1.0_dp
+      REAL(KIND=dp)                          :: d4_cutoff_width = 0.05_dp
+      REAL(KIND=dp)                          :: d4_3b_cutoff_width = 0.0_dp
       REAL(KIND=dp)                          :: exp_pre = -1.0_dp
       TYPE(section_vals_type), POINTER       :: dftd_section => NULL()
       LOGICAL                                :: verbose = .FALSE. !extended output
@@ -213,4 +215,3 @@ CONTAINS
    END SUBROUTINE qs_dispersion_release
 
 END MODULE qs_dispersion_types
-

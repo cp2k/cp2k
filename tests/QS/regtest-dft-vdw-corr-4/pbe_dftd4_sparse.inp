@@ -38,6 +38,8 @@
       &VDW_POTENTIAL
         DISPERSION_FUNCTIONAL PAIR_POTENTIAL
         &PAIR_POTENTIAL
+          D4_3B_CUTOFF_WIDTH [bohr] 0.0
+          D4_CUTOFF_WIDTH [bohr] 0.05
           REFERENCE_FUNCTIONAL PBE
           TYPE DFTD4
           &EEQ

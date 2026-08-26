@@ -973,6 +973,21 @@ CONTAINS
                           unit_str="angstrom")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="D4_CUTOFF_WIDTH", &
+                          variants=["D4_2B_CUTOFF_WIDTH"], &
+                          description="Width of the smooth cutoff for the 2-body term of D4. "// &
+                          "A value of zero disables smoothing.", &
+                          usage="D4_CUTOFF_WIDTH 0.05", default_r_val=0.05_dp, &
+                          unit_str="bohr")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="D4_3B_CUTOFF_WIDTH", &
+                          description="Width of the smooth cutoff for the 3-body term of D4. "// &
+                          "A value of zero disables smoothing.", &
+                          usage="D4_3B_CUTOFF_WIDTH 0.0", default_r_val=0.0_dp, &
+                          unit_str="bohr")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="D4_CN_CUTOFF", &
                           description="Coordination number cutoff for D4", &
                           usage="D4_CN_CUTOFF 30.0", default_r_val=-1.0_dp, &
