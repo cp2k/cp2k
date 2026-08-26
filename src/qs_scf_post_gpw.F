@@ -279,6 +279,34 @@ MODULE qs_scf_post_gpw
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Collects the effective core charge for every atom in a QS environment
+!> \param qs_env the QS environment
+!> \param zcharge effective core charges ordered by atom index
+! **************************************************************************************************
+   SUBROUTINE get_effective_core_charges(qs_env, zcharge)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: zcharge
+
+      INTEGER                                            :: iat, iatom, ikind, nat, natom, nkind
+      REAL(KIND=dp)                                      :: zeff
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                      nkind=nkind, natom=natom)
+      ALLOCATE (zcharge(natom))
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+         CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
+         DO iatom = 1, nat
+            iat = atomic_kind_set(ikind)%atom_list(iatom)
+            zcharge(iat) = zeff
+         END DO
+      END DO
+   END SUBROUTINE get_effective_core_charges
+
+! **************************************************************************************************
 !> \brief Append `extend_by` to the absolute path of the base section.
 !> \param self ...
 !> \param extend_by ...
@@ -1418,6 +1446,7 @@ CONTAINS
                                                             nlist, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: list, list_index
       LOGICAL                                            :: append_cube, mpi_io
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1436,6 +1465,7 @@ CONTAINS
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, mo_section%relative_section_key) &
  , cp_p_file) .AND. section_get_lval(dft_section, mo_section%concat_to_relative(section_key_do_write(mo_section%grid_output)))) THEN
+         CALL get_effective_core_charges(qs_env, zcharge)
          nhomo = section_get_ival(dft_section, mo_section%concat_to_relative("%NHOMO"))
          ! For openPMD, refer to access modes instead of APPEND key
          IF (mo_section%grid_output == grid_output_cubes) THEN
@@ -1496,13 +1526,14 @@ CONTAINS
                       openpmd_unit_si=openpmd_unit_si_wavefunction, &
                       sim_time=qs_env%sim_time)
             WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
-            CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, &
+            CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, zeff=zcharge, &
                                      stride=section_get_ivals(dft_section, mo_section%concat_to_relative("%STRIDE")), &
                                      max_file_size_mb=section_get_rval(dft_section, "PRINT%MO_CUBES%MAX_FILE_SIZE_MB"), &
                                      mpi_io=mpi_io)
             CALL mo_section%print_key_finished_output(unit_nr, logger, input, mo_section%absolute_section_key, mpi_io=mpi_io)
          END DO
          IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
+         DEALLOCATE (zcharge)
       END IF
 
       CALL timestop(handle)
@@ -1547,6 +1578,7 @@ CONTAINS
       INTEGER                                            :: handle, ifirst, index_mo, ivector, &
                                                             unit_nr
       LOGICAL                                            :: append_cube, mpi_io
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1563,6 +1595,7 @@ CONTAINS
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, mo_section%relative_section_key), cp_p_file) &
           .AND. section_get_lval(dft_section, mo_section%concat_to_relative(section_key_do_write(mo_section%grid_output)))) THEN
+         CALL get_effective_core_charges(qs_env, zcharge)
          NULLIFY (qs_kind_set, particle_set, pw_env, cell)
          ! For openPMD, refer to access modes instead of APPEND key
          IF (mo_section%grid_output == grid_output_cubes) THEN
@@ -1606,13 +1639,14 @@ CONTAINS
                       openpmd_unit_si=openpmd_unit_si_wavefunction, &
                       sim_time=qs_env%sim_time)
             WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst + ivector - 2
-            CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, &
+            CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, zeff=zcharge, &
                                      stride=section_get_ivals(dft_section, mo_section%concat_to_relative("%STRIDE")), &
                                      max_file_size_mb=section_get_rval(dft_section, "PRINT%MO_CUBES%MAX_FILE_SIZE_MB"), &
                                      mpi_io=mpi_io)
             CALL mo_section%print_key_finished_output(unit_nr, logger, input, mo_section%absolute_section_key, mpi_io=mpi_io)
 
          END DO
+         DEALLOCATE (zcharge)
       END IF
 
       CALL timestop(handle)
@@ -1972,6 +2006,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, output_unit, unit_nr
       LOGICAL                                            :: append_cube, gapw, mpi_io
       REAL(dp)                                           :: rho_cutoff
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       TYPE(cp_section_key)                               :: elf_section_key
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
@@ -2011,6 +2046,7 @@ CONTAINS
             END IF
             rho_cutoff = section_get_rval(elf_section, "density_cutoff")
             CALL qs_elf_calc(qs_env, elf_r, rho_cutoff)
+            CALL get_effective_core_charges(qs_env, zcharge)
 
             ! write ELF into cube file
 
@@ -2052,7 +2088,7 @@ CONTAINS
                      TRIM(filename)
                END IF
 
-               CALL elf_section_key%write_pw(elf_r(ispin), unit_nr, title, particles=particles, &
+               CALL elf_section_key%write_pw(elf_r(ispin), unit_nr, title, particles=particles, zeff=zcharge, &
                                              stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
                CALL elf_section_key%print_key_finished_output( &
                   unit_nr, &
@@ -2065,7 +2101,7 @@ CONTAINS
             END DO
 
             ! deallocate
-            DEALLOCATE (elf_r)
+            DEALLOCATE (elf_r, zcharge)
 
          ELSE
             ! not implemented
@@ -2562,14 +2598,14 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
                                                             my_pos_voro
       CHARACTER(LEN=default_string_length)               :: name, print_density
-      INTEGER :: after, handle, i, iat, iatom, id, ikind, img, iso, ispin, iw, l, n_rep_hf, nat, &
-         natom, nd(3), ngto, niso, nkind, np, nr, output_unit, print_level, should_print_bqb, &
-         should_print_voro, unit_nr, unit_nr_voro
+      INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, n_rep_hf, natom, nd(3), &
+         ngto, niso, nkind, np, nr, output_unit, print_level, should_print_bqb, should_print_voro, &
+         unit_nr, unit_nr_voro
       LOGICAL :: append_cube, append_voro, do_hfx, do_kpoints, mpi_io, omit_headers, print_it, &
          rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
       REAL(KIND=dp)                                      :: norm_factor, q_max, rho_hard, rho_soft, &
                                                             rho_total, rho_total_rspace, udvol, &
-                                                            volume, zeff
+                                                            volume
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: bfun
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: aedens, ccdens, ppdens
@@ -2620,6 +2656,8 @@ CONTAINS
       CALL get_qs_env(qs_env, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
+                      nkind=nkind, &
+                      natom=natom, &
                       particle_set=particle_set, &
                       cell=cell, &
                       para_env=para_env, &
@@ -2633,16 +2671,7 @@ CONTAINS
       CALL get_qs_env(qs_env, rho=rho)
       CALL qs_rho_get(rho, rho_r=rho_r)
 
-      CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
-      ALLOCATE (zcharge(natom))
-      DO ikind = 1, nkind
-         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
-         CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
-         DO iatom = 1, nat
-            iat = atomic_kind_set(ikind)%atom_list(iatom)
-            zcharge(iat) = zeff
-         END DO
-      END DO
+      CALL get_effective_core_charges(qs_env, zcharge)
 
       ! Print the total density (electronic + core charge)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
@@ -3794,6 +3823,7 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube
       INTEGER                                            :: handle, io_unit, natom, unit_nr
       LOGICAL                                            :: append_cube, gapw, gapw_xc, mpi_io
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -3816,6 +3846,7 @@ CONTAINS
          CALL auxbas_pw_pool%create_pw(eden)
          !
          CALL qs_local_energy(qs_env, eden)
+         CALL get_effective_core_charges(qs_env, zcharge)
          !
          append_cube = section_get_lval(input, "DFT%PRINT%LOCAL_ENERGY_CUBE%APPEND")
          IF (append_cube) THEN
@@ -3827,7 +3858,7 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%LOCAL_ENERGY_CUBE", &
                                         extension=".cube", middle_name="local_energy", &
                                         file_position=my_pos_cube, mpi_io=mpi_io)
-         CALL cp_pw_to_cube(eden, unit_nr, "LOCAL ENERGY", particles=particles, &
+         CALL cp_pw_to_cube(eden, unit_nr, "LOCAL ENERGY", particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(dft_section, "PRINT%LOCAL_ENERGY_CUBE%STRIDE"), &
                             max_file_size_mb=section_get_rval(dft_section, "PRINT%LOCAL_ENERGY_CUBE%MAX_FILE_SIZE_MB"), &
                             mpi_io=mpi_io)
@@ -3845,6 +3876,7 @@ CONTAINS
                                            "DFT%PRINT%LOCAL_ENERGY_CUBE", mpi_io=mpi_io)
          !
          CALL auxbas_pw_pool%give_back_pw(eden)
+         DEALLOCATE (zcharge)
       END IF
       CALL timestop(handle)
 
@@ -3870,6 +3902,7 @@ CONTAINS
       INTEGER                                            :: handle, io_unit, natom, unit_nr
       LOGICAL                                            :: append_cube, gapw, gapw_xc, mpi_io
       REAL(KIND=dp)                                      :: beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -3896,6 +3929,7 @@ CONTAINS
          ! use beta=0: kinetic energy density in symmetric form
          beta = 0.0_dp
          CALL qs_local_stress(qs_env, beta=beta)
+         CALL get_effective_core_charges(qs_env, zcharge)
          !
          append_cube = section_get_lval(input, "DFT%PRINT%LOCAL_STRESS_CUBE%APPEND")
          IF (append_cube) THEN
@@ -3907,7 +3941,7 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%LOCAL_STRESS_CUBE", &
                                         extension=".cube", middle_name="local_stress", &
                                         file_position=my_pos_cube, mpi_io=mpi_io)
-         CALL cp_pw_to_cube(stress, unit_nr, "LOCAL STRESS", particles=particles, &
+         CALL cp_pw_to_cube(stress, unit_nr, "LOCAL STRESS", particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(dft_section, "PRINT%LOCAL_STRESS_CUBE%STRIDE"), &
                             max_file_size_mb=section_get_rval(dft_section, "PRINT%LOCAL_STRESS_CUBE%MAX_FILE_SIZE_MB"), &
                             mpi_io=mpi_io)
@@ -3926,6 +3960,7 @@ CONTAINS
                                            "DFT%PRINT%LOCAL_STRESS_CUBE", mpi_io=mpi_io)
          !
          CALL auxbas_pw_pool%give_back_pw(stress)
+         DEALLOCATE (zcharge)
       END IF
 
       CALL timestop(handle)
@@ -3953,6 +3988,7 @@ CONTAINS
                                                             n_cstr, n_tiles, unit_nr
       LOGICAL :: append_cube, do_cstr_charge_cube, do_dielectric_cube, do_dirichlet_bc_cube, &
          has_dirichlet_bc, has_implicit_ps, mpi_io, tile_cubes
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -3979,6 +4015,7 @@ CONTAINS
       do_dielectric_cube = BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                                             "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE"), cp_p_file)
       IF (has_implicit_ps .AND. do_dielectric_cube) THEN
+         IF (.NOT. ALLOCATED(zcharge)) CALL get_effective_core_charges(qs_env, zcharge)
          append_cube = section_get_lval(input, "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
@@ -4003,7 +4040,7 @@ CONTAINS
                            poisson_env%implicit_env%dielectric%eps, aux_r)
          END SELECT
 
-         CALL cp_pw_to_cube(aux_r, unit_nr, "DIELECTRIC CONSTANT", particles=particles, &
+         CALL cp_pw_to_cube(aux_r, unit_nr, "DIELECTRIC CONSTANT", particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%STRIDE"), &
                         max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%MAX_FILE_SIZE_MB"), &
                             mpi_io=mpi_io)
@@ -4026,6 +4063,7 @@ CONTAINS
       END IF
 
       IF (has_implicit_ps .AND. do_cstr_charge_cube .AND. has_dirichlet_bc) THEN
+         IF (.NOT. ALLOCATED(zcharge)) CALL get_effective_core_charges(qs_env, zcharge)
          append_cube = section_get_lval(input, &
                                         "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%APPEND")
          my_pos_cube = "REWIND"
@@ -4052,7 +4090,7 @@ CONTAINS
                            poisson_env%implicit_env%cstr_charge, aux_r)
          END SELECT
 
-         CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles, &
+         CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%STRIDE"), &
              max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%MAX_FILE_SIZE_MB"), &
                             mpi_io=mpi_io)
@@ -4074,6 +4112,7 @@ CONTAINS
       END IF
 
       IF (has_implicit_ps .AND. has_dirichlet_bc .AND. do_dirichlet_bc_cube) THEN
+         IF (.NOT. ALLOCATED(zcharge)) CALL get_effective_core_charges(qs_env, zcharge)
          append_cube = section_get_lval(input, "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
@@ -4100,7 +4139,7 @@ CONTAINS
 
                   CALL pw_copy(poisson_env%implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw, aux_r)
 
-                  CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+                  CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, zeff=zcharge, &
                                      stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"), &
                       max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%MAX_FILE_SIZE_MB"), &
                                      mpi_io=mpi_io)
@@ -4128,7 +4167,7 @@ CONTAINS
                END DO
             END DO
 
-            CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+            CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, zeff=zcharge, &
                                stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"), &
                       max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%MAX_FILE_SIZE_MB"), &
                                mpi_io=mpi_io)

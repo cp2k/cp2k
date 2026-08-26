@@ -24,6 +24,11 @@
 "mao_5.inp"                             = [{matcher="E_total", tol=1e-10, ref=-17.154246373196706}]
 #
 "local_energy.inp"                      = [{matcher="E_total", tol=1e-10, ref=-34.301659959649530}]
-"local_stress.inp"                      = [{matcher="E_total", tol=1e-10, ref=-31.065602427106100}]
+"local_stress.inp"                      = [{matcher="E_total", tol=1e-10, ref=-31.065602427106100},
+                                           {matcher="Cube_Si_effective_charge", file="si8_stress-WFN_00016_1-1_0.cube", tol=0.0, ref=4.0},
+                                           {matcher="Cube_Si_effective_charge", file="si8_stress-WFN_00017_1-1_0.cube", tol=0.0, ref=4.0},
+                                           {matcher="Cube_Si_effective_charge", file="si8_stress-ELF_S1-1_0.cube", tol=0.0, ref=4.0},
+                                           {matcher="Cube_Si_effective_charge", file="si8_stress-local_energy-1_0.cube", tol=0.0, ref=4.0},
+                                           {matcher="Cube_Si_effective_charge", file="si8_stress-local_stress-1_0.cube", tol=0.0, ref=4.0}]
 "H2-spline3.inp"                        = [{matcher="E_total", tol=1e-12, ref=-1.064646119848720}]
 #EOF
