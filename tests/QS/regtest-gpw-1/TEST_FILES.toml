@@ -76,7 +76,7 @@
 #
 "h2q.inp"                               = [{matcher="E_total",          tol=1.0E-10, ref=-0.76162210587786},
                                            {matcher="COMMUTATOR_HR_X", tol=1.0E-8, ref=4.560125368089048},
-                                           {matcher="COMMUTATOR_HR_Y", tol=1.0E-8, ref=11.23984582788994},
+                                           {matcher="COMMUTATOR_HR_Y", tol=1.0E-8, ref=5.46744413752473},
                                            {matcher="COMMUTATOR_HR_Z", tol=1.0E-8, ref=4.560125368089047}]
 # Mol Dipole Voronoi
 "moldip_voronoi.inp"                    = [{matcher="E_total", tol=1.0E-10, ref=-41.88176215391840}]

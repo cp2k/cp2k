@@ -381,7 +381,7 @@ CONTAINS
 !>          Refactoring [07.2014] JGH
 !>          Simplify options and use new kinetic energy integral routine
 !>          Adapted from qs_kinetic [07.2016]
-!>          Adapted from build_com_tr_matrix [2021] by ED
+!>          Adapted from the kinetic position-product recurrence [2021] by ED
 !> \author  JGH
 !> \version 1.0
 ! **************************************************************************************************
@@ -2256,7 +2256,7 @@ CONTAINS
    END SUBROUTINE build_dcom_rpnl
 
 ! **************************************************************************************************
-!> \brief   Adapted from comab_opr. Calculate the product O*r or r*O from the integrals [a|O|b].
+!> \brief   Calculate the product O*r or r*O from the integrals [a|O|b].
 !>          We assume that on input all integrals [a+1|O|b+1] are available.
 !> \param la_max ...
 !> \param npgfa ...

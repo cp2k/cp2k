@@ -31,7 +31,6 @@ MODULE ai_moments
 
    USE ai_derivatives,                  ONLY: adbdr,&
                                               dabdr
-   USE ai_overlap,                      ONLY: overlap_ab
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: coset,&
@@ -45,7 +44,7 @@ MODULE ai_moments
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_moments'
 
-   PUBLIC :: cossin, moment, diffop, diff_momop, contract_cossin, dipole_force
+   PUBLIC :: cossin, moment, diff_momop, contract_cossin, dipole_force
    PUBLIC :: diff_momop2, diff_momop_velocity
 
 CONTAINS
@@ -1494,38 +1493,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE moment
-
-! **************************************************************************************************
-!> \brief This returns the derivative of the overlap integrals [a|b], with respect
-!>       to the position of the primitive on the  left, i.e.
-!>       [da/dR_ai|b] =  2*zeta*[a+1i|b] - Ni(a)[a-1i|b]
-!> \param la_max ...
-!> \param npgfa ...
-!> \param zeta ...
-!> \param rpgfa ...
-!> \param lb_max ...
-!> \param npgfb ...
-!> \param zetb ...
-!> \param rpgfb ...
-!> \param rab ...
-!> \param difab ...
-! **************************************************************************************************
-   SUBROUTINE diffop(la_max, npgfa, zeta, rpgfa, &
-                     lb_max, npgfb, zetb, rpgfb, &
-                     rab, difab)
-
-      INTEGER, INTENT(IN)                                :: la_max, npgfa
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta, rpgfa
-      INTEGER, INTENT(IN)                                :: lb_max, npgfb
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zetb, rpgfb
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: difab
-
-      difab = 0.0_dp
-      CALL overlap_ab(la_max, 0, npgfa, rpgfa, zeta, &
-                      lb_max, 0, npgfb, rpgfb, zetb, rab, dab=difab)
-
-   END SUBROUTINE diffop
 
 ! **************************************************************************************************
 !> \brief This returns the derivative of the moment integrals [a|\mu|b], with respect

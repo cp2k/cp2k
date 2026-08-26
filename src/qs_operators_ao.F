@@ -14,7 +14,7 @@ MODULE qs_operators_ao
    USE ai_angmom,                       ONLY: angmom
    USE ai_moments,                      ONLY: diff_momop,&
                                               moment
-   USE ai_os_rr,                        ONLY: os_rr_ovlp
+   USE ai_overlap,                      ONLY: overlap_ab
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE block_p_types,                   ONLY: block_p_type
@@ -26,14 +26,9 @@ MODULE qs_operators_ao
                                               dbcsr_p_type,&
                                               dbcsr_type_antisymmetric,&
                                               dbcsr_type_no_symmetry
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_para_env_type
-   USE orbital_pointers,                ONLY: coset,&
-                                              init_orbital_pointers,&
+   USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -80,49 +75,40 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_lin_mom_matrix'
 
       INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
-         ldai, maxco, maxlgto, maxsgf, natom, ncoa, ncob, neighbor_list_id, nkind, nseta, nsetb, &
-         sgfa, sgfb
-      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
-                                                            npgfb, nsgfa, nsgfb
+         ldai, maxco, maxlgto, maxsgf, ncoa, ncob, nkind, nseta, nsetb, sgfa, sgfb
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, lb_max, npgfa, npgfb, nsgfa, &
+                                                            nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: do_symmetric, found, my_minimum_image, &
                                                             new_atom_b
       REAL(KIND=dp)                                      :: alpha, dab, Lxo2, Lyo2, Lzo2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: rr_work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: intab, rr_work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         TARGET                                          :: intab
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: integral
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cell, sab_nl, qs_kind_set, particle_set, para_env)
-      NULLIFY (logger)
-
-      logger => cp_get_default_logger()
+      NULLIFY (cell, sab_nl, qs_kind_set)
 
       CALL get_qs_env(qs_env=qs_env, &
                       qs_kind_set=qs_kind_set, &
-                      particle_set=particle_set, &
-                      neighbor_list_id=neighbor_list_id, &
-                      para_env=para_env, &
                       cell=cell)
 
       nkind = SIZE(qs_kind_set)
-      natom = SIZE(particle_set)
 
       my_minimum_image = .FALSE.
       IF (PRESENT(minimum_image)) THEN
@@ -149,8 +135,8 @@ CONTAINS
       ldai = ncoset(maxlgto + 1)
       CALL init_orbital_pointers(ldai)
 
-      ALLOCATE (rr_work(ldai, ldai, 3), intab(maxco, maxco, 3), work(maxco, maxsgf), integral(3))
-      rr_work(:, :, :) = 0.0_dp
+      ALLOCATE (rr_work(ldai*ldai*3), intab(maxco, maxco, 3), work(maxco, maxsgf), integral(3))
+      rr_work(:) = 0.0_dp
       intab(:, :, :) = 0.0_dp
       work(:, :) = 0.0_dp
 
@@ -175,7 +161,6 @@ CONTAINS
          ! basis ikind
          first_sgfa => basis_set_a%first_sgf
          la_max => basis_set_a%lmax
-         la_min => basis_set_a%lmin
          npgfa => basis_set_a%npgf
          nseta = basis_set_a%nset
          nsgfa => basis_set_a%nsgf_set
@@ -186,7 +171,6 @@ CONTAINS
          ! basis jkind
          first_sgfb => basis_set_b%first_sgf
          lb_max => basis_set_b%lmax
-         lb_min => basis_set_b%lmin
          npgfb => basis_set_b%npgf
          nsetb = basis_set_b%nset
          nsgfb => basis_set_b%nsgf_set
@@ -250,11 +234,12 @@ CONTAINS
 
                ! *** Calculate the primitive fermi contact integrals ***
 
-               CALL lin_mom(la_max(iset), la_min(iset), npgfa(iset), &
-                            rpgfa(:, iset), zeta(:, iset), &
-                            lb_max(jset), lb_min(jset), npgfb(jset), &
-                            rpgfb(:, jset), zetb(:, jset), &
-                            rab, intab, SIZE(rr_work, 1), rr_work)
+               ! Keep the full primitive layout used by the contraction below.
+               CALL overlap_ab(la_max(iset), 0, npgfa(iset), &
+                               rpgfa(:, iset), zeta(:, iset), &
+                               lb_max(jset), 0, npgfb(jset), &
+                               rpgfb(:, jset), zetb(:, jset), &
+                               rab, dab=intab, rr_work=rr_work)
 
                ! *** Contraction step ***
 
@@ -302,151 +287,11 @@ CONTAINS
 
       ! *** Release work storage ***
 
-      DEALLOCATE (intab, work, integral, basis_set_list)
-
-!   *** Print the spin orbit matrix, if requested ***
-
-      !IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-      !     qs_env%input,"DFT%PRINT%AO_MATRICES/LINEAR_MOMENTUM"),cp_p_file)) THEN
-      !   iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/LINEA_MOMENTUM",&
-      !        extension=".Log")
-      !   CALL cp_dbcsr_write_sparse_matrix(matrix(1)%matrix,4,6,qs_env,para_env,output_unit=iw)
-      !   CALL cp_dbcsr_write_sparse_matrix(matrix(2)%matrix,4,6,qs_env,para_env,output_unit=iw)
-      !   CALL cp_dbcsr_write_sparse_matrix(matrix(3)%matrix,4,6,qs_env,para_env,output_unit=iw)
-      !   CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-      !        "DFT%PRINT%AO_MATRICES/LINEAR_MOMENTUM")
-      !END IF
+      DEALLOCATE (intab, rr_work, work, integral, basis_set_list)
 
       CALL timestop(handle)
 
    END SUBROUTINE build_lin_mom_matrix
-
-! **************************************************************************************************
-!> \brief   Calculation of the primitive paramagnetic spin orbit integrals over
-!>          Cartesian Gaussian-type functions.
-!> \param la_max ...
-!> \param la_min ...
-!> \param npgfa ...
-!> \param rpgfa ...
-!> \param zeta ...
-!> \param lb_max ...
-!> \param lb_min ...
-!> \param npgfb ...
-!> \param rpgfb ...
-!> \param zetb ...
-!> \param rab ...
-!> \param intab ...
-!> \param ldrr ...
-!> \param rr ...
-!> \date    02.03.2009
-!> \author  VW
-!> \version 1.0
-! **************************************************************************************************
-   SUBROUTINE lin_mom(la_max, la_min, npgfa, rpgfa, zeta, lb_max, lb_min, npgfb, rpgfb, zetb, &
-                      rab, intab, ldrr, rr)
-      INTEGER, INTENT(IN)                                :: la_max, la_min, npgfa
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfa, zeta
-      INTEGER, INTENT(IN)                                :: lb_max, lb_min, npgfb
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfb, zetb
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: intab
-      INTEGER, INTENT(IN)                                :: ldrr
-      REAL(dp), DIMENSION(0:ldrr-1, 0:ldrr-1, 3), &
-         INTENT(INOUT)                                   :: rr
-
-      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, i, &
-                                                            ipgf, j, jpgf, la, lb, ma, mb, na, nb
-      REAL(dp)                                           :: dab, dumx, dumy, dumz, f0, rab2, xhi, zet
-      REAL(dp), DIMENSION(3)                             :: rap, rbp
-
-! *** Calculate the distance of the centers a and c ***
-
-      rab2 = rab(1)**2 + rab(2)**2 + rab(3)**2
-      dab = SQRT(rab2)
-
-      ! *** Loop over all pairs of primitive Gaussian-type functions ***
-
-      na = 0
-
-      DO ipgf = 1, npgfa
-
-         nb = 0
-
-         DO jpgf = 1, npgfb
-
-            ! *** Screening ***
-
-            IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
-               DO j = nb + 1, nb + ncoset(lb_max)
-                  DO i = na + 1, na + ncoset(la_max)
-                     intab(i, j, 1) = 0.0_dp
-                     intab(i, j, 2) = 0.0_dp
-                     intab(i, j, 3) = 0.0_dp
-                  END DO
-               END DO
-               nb = nb + ncoset(lb_max)
-               CYCLE
-            END IF
-
-            ! *** Calculate some prefactors ***
-            zet = zeta(ipgf) + zetb(jpgf)
-            xhi = zeta(ipgf)*zetb(jpgf)/zet
-            rap = zetb(jpgf)*rab/zet
-            rbp = -zeta(ipgf)*rab/zet
-
-            f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
-
-            ! *** Calculate the recurrence relation ***
-
-            CALL os_rr_ovlp(rap, la_max + 1, rbp, lb_max, zet, ldrr, rr)
-
-            ! *** Calculate the primitive linear momentum integrals ***
-            DO lb = lb_min, lb_max
-            DO bx = 0, lb
-            DO by = 0, lb - bx
-               bz = lb - bx - by
-               cob = coset(bx, by, bz)
-               mb = nb + cob
-               DO la = la_min, la_max
-               DO ax = 0, la
-               DO ay = 0, la - ax
-                  az = la - ax - ay
-                  coa = coset(ax, ay, az)
-                  ma = na + coa
-                  !
-                  !
-                  ! (a|p_x|b) = 2*a*(a+1x|b) - N_x(a)*(a-1_x|b)
-                  dumx = 2.0_dp*zeta(ipgf)*rr(ax + 1, bx, 1)
-                  IF (ax > 0) dumx = dumx - REAL(ax, dp)*rr(ax - 1, bx, 1)
-                  intab(ma, mb, 1) = f0*dumx*rr(ay, by, 2)*rr(az, bz, 3)
-                  !
-                  ! (a|p_y|b)
-                  dumy = 2.0_dp*zeta(ipgf)*rr(ay + 1, by, 2)
-                  IF (ay > 0) dumy = dumy - REAL(ay, dp)*rr(ay - 1, by, 2)
-                  intab(ma, mb, 2) = f0*rr(ax, bx, 1)*dumy*rr(az, bz, 3)
-                  !
-                  ! (a|p_z|b)
-                  dumz = 2.0_dp*zeta(ipgf)*rr(az + 1, bz, 3)
-                  IF (az > 0) dumz = dumz - REAL(az, dp)*rr(az - 1, bz, 3)
-                  intab(ma, mb, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
-                  !
-               END DO
-               END DO
-               END DO !la
-
-            END DO
-            END DO
-            END DO !lb
-
-            nb = nb + ncoset(lb_max)
-
-         END DO
-
-         na = na + ncoset(la_max)
-
-      END DO
-
-   END SUBROUTINE lin_mom
 
 ! **************************************************************************************************
 !> \brief   Calculation of the angular momentum matrix over
