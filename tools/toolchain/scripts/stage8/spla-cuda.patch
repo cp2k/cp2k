@@ -1,0 +1,15 @@
+diff --git a/cmake/SPLAStaticConfig.cmake b/cmake/SPLAStaticConfig.cmake
+--- a/cmake/SPLAStaticConfig.cmake
++++ b/cmake/SPLAStaticConfig.cmake
+@@ -48,9 +48,9 @@
+    find_dependency(hip CONFIG)
+    find_dependency(rocblas CONFIG)
+ endif()
+
+
+-if(SPLA_CUDA)
++if(SPLA_GPU_BACKEND STREQUAL "CUDA")
+    if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.17.0") 
+        find_dependency(CUDAToolkit)
+    else()
+        enable_language(CUDA)
