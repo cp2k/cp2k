@@ -27,12 +27,17 @@ MODULE cp_cfm_diag
                            cp_cfm_type
    USE cp_fm_diag, ONLY: diag_check_requested, &
                          diag_check_warning_threshold, &
+                         diag_lib_explicit, &
                          diag_type, &
                          direct_generalized_diagonalization, &
                          cusolver_n_min, &
+                         elpa_neigvec_min, &
                          FM_DIAG_TYPE_CUSOLVER, &
+                         FM_DIAG_TYPE_ELPA, &
                          FM_DIAG_TYPE_SCALAPACK, &
                          set_removed_eigval_to
+   USE cp_cfm_elpa, ONLY: cp_cfm_diag_elpa, &
+                          is_elpa_c_broken
    USE cp_fm_cusolver_api, ONLY: cp_cfm_general_cusolver
 #if defined(__DLAF)
    USE cp_cfm_dlaf_api, ONLY: cp_cfm_diag_gen_dlaf, &
@@ -70,6 +75,7 @@ CONTAINS
 !> \param eigenvalues ...
 !> \par History
 !>      12.2024 Added DLA-Future support [Rocco Meli]
+!>      08.2026 Added ELPA support
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_heevd(matrix, eigenvectors, eigenvalues)
@@ -94,7 +100,16 @@ CONTAINS
          CALL cp_cfm_diag_dlaf(matrix, eigenvectors, eigenvalues)
       ELSE
 #endif
-         CALL cp_cfm_heevd_base(matrix, eigenvectors, eigenvalues)
+         ! We don't trust ELPA with very small matrices and use it for complex matrices
+         ! only when the diagonalization library was requested explicitly.
+         ! A runtime correctness check may have disabled ELPA for mis-compiled BLOCK2 kernels.
+         IF (diag_type == FM_DIAG_TYPE_ELPA .AND. diag_lib_explicit .AND. &
+             .NOT. is_elpa_c_broken() .AND. &
+             matrix%matrix_struct%nrow_global >= elpa_neigvec_min) THEN
+            CALL cp_cfm_diag_elpa(matrix, eigenvectors, eigenvalues)
+         ELSE
+            CALL cp_cfm_heevd_base(matrix, eigenvectors, eigenvalues)
+         END IF
 #if defined(__DLAF)
       END IF
 #endif
@@ -274,6 +289,8 @@ CONTAINS
             diag_type_name = "HEGVX"
          ELSE IF (diag_type == FM_DIAG_TYPE_CUSOLVER) THEN
             diag_type_name = "CUSOLVER"
+         ELSE IF (diag_type == FM_DIAG_TYPE_ELPA .AND. diag_lib_explicit) THEN
+            diag_type_name = "ELPA"
 #if defined(__DLAF)
          ELSE IF (diag_type == FM_DIAG_TYPE_DLAF) THEN
             diag_type_name = "DLAF"

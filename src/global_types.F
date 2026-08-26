@@ -78,6 +78,7 @@ MODULE global_types
       INTEGER :: run_type_id = 0 ! index to define the run_tupe
       INTEGER :: blacs_grid_layout = BLACS_GRID_SQUARE ! will store the user preference for the BLACS grid
       INTEGER :: k_elpa = 1 ! optimized kernel for the ELPA diagonalization library
+      INTEGER :: k_elpa_c = -1 ! optimized kernel for the ELPA diagonalization library (complex matrices)
       INTEGER :: elpa_neigvec_min = 0 ! Minimum number of eigenvectors for ELPA usage
       LOGICAL :: elpa_qr = .TRUE. ! allow ELPA to use QR during diagonalization
       LOGICAL :: elpa_print = .FALSE. ! if additional information about ELPA diagonalization should be printed
