@@ -159,6 +159,11 @@ def process_log_file(fhandle: TextIO) -> None:
                 msg(f'Found CALL RANDOM_SEED in procedure "{cur_proc}"', 105)
             elif tokens[1].lower().startswith("_gfortran_execute_command_line"):
                 msg(f'Found CALL EXECUTE_COMMAND_LINE in procedure "{cur_proc}"', 106)
+            elif tokens[1].lower().startswith("_gfortran_get_environment_variable"):
+                msg(
+                    f'Found CALL GET_ENVIRONMENT_VARIABLE in procedure "{cur_proc}"',
+                    107,
+                )
 
         elif line.startswith("GOTO"):
             msg(f'Found GOTO statement in procedure "{cur_proc}"', 201)
