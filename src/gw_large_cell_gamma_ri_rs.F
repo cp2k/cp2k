@@ -1279,20 +1279,30 @@ CONTAINS
 !> \param matrix_B ...
 !> \param matrix_out ...
 !> \param eps_filter ...
+!> \param retain_sparsity if .TRUE., the outer multiply fills only the blocks matrix_out already
+!>        carries, so the caller pre-seeds it with the pattern to keep. Default .FALSE.
 ! **************************************************************************************************
 
-   SUBROUTINE contract_A_B_A(transA_left, transA_right, matrix_A, matrix_B, matrix_out, eps_filter)
+   SUBROUTINE contract_A_B_A(transA_left, transA_right, matrix_A, matrix_B, matrix_out, eps_filter, &
+                             retain_sparsity)
 
       CHARACTER(LEN=1), INTENT(IN)                       :: transA_left, transA_right
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_A, matrix_B, matrix_out
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
+      LOGICAL, INTENT(IN), OPTIONAL                      :: retain_sparsity
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_A_B_A'
 
       INTEGER                                            :: handle
+      LOGICAL                                            :: my_retain
       TYPE(dbcsr_type)                                   :: matrix_tmp
 
       CALL timeset(routineN, handle)
+
+      ! Only the outer multiply writes matrix_out, so the mask applies there; the inner product
+      ! stays exact, which is what makes a pre-seeded pattern lossless for a subsequent Hadamard.
+      my_retain = .FALSE.
+      IF (PRESENT(retain_sparsity)) my_retain = retain_sparsity
 
       CALL dbcsr_create(matrix_tmp, template=matrix_A)
 
@@ -1301,14 +1311,14 @@ CONTAINS
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_A, matrix_B, &
                              0.0_dp, matrix_tmp, filter_eps=eps_filter)
          CALL dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp, matrix_A, &
-                             0.0_dp, matrix_out, filter_eps=eps_filter)
+                             0.0_dp, matrix_out, filter_eps=eps_filter, retain_sparsity=my_retain)
 
       ELSE IF (transA_left == "T" .AND. transA_right == "N") THEN
          ! Path 2: Out = A^T * B * A
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_B, matrix_A, &
                              0.0_dp, matrix_tmp, filter_eps=eps_filter)
          CALL dbcsr_multiply("T", "N", 1.0_dp, matrix_A, matrix_tmp, &
-                             0.0_dp, matrix_out, filter_eps=eps_filter)
+                             0.0_dp, matrix_out, filter_eps=eps_filter, retain_sparsity=my_retain)
       ELSE
          CPABORT("Unsupported transposition pair in contract_A_B_A")
       END IF

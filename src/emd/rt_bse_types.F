@@ -458,6 +458,10 @@ CONTAINS
       CALL rtbse_resolve_rirs_flag(force_env%qs_env, bs_env, rirs_kernel=rtbse_env%rirs_kernel)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DIAGNOSE_LIOUVILLIAN_EIG", &
                                 l_val=rtbse_env%diagnose_liouvillian_eig)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%EPS_FILTER_RHO", &
+                                r_val=bs_env%ri_rs%eps_filter_rho)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%CUTOFF_RADIUS_W0", &
+                                r_val=bs_env%ri_rs%cutoff_radius_w0)
 
       IF (.NOT. rtbse_env%dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) THEN
          rtbse_env%rtbse_energy_cutoff_occ = -1.0_dp
@@ -468,6 +472,8 @@ CONTAINS
          rtbse_env%tda_shift_to_first_peak = .FALSE.
          ! rirs_kernel is already forced .FALSE. here by rtbse_resolve_rirs_flag.
          rtbse_env%diagnose_liouvillian_eig = .FALSE.
+         bs_env%ri_rs%eps_filter_rho = -1.0_dp
+         bs_env%ri_rs%cutoff_radius_w0 = -1.0_dp
       END IF
       ! First-peak shift only makes sense within TDA; force-disable otherwise.
       IF (.NOT. rtbse_env%tda_active) rtbse_env%tda_shift_to_first_peak = .FALSE.

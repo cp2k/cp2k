@@ -15,3 +15,20 @@
                                             {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.0499},
                                             {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.2316},
                                             {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=6.5646779778E-001}]
+# CUTOFF_RADIUS_W0 50 A is wider than the box, so it must reproduce h2_linrtbse_tda_full_rirs.inp
+# exactly; these refs are that file's, verbatim. A regression makes the two rows disagree.
+"h2_linrtbse_tda_full_rirs_w0cut_wide.inp" = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=18.0144},
+                                            {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2591},
+                                            {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5588},
+                                            {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=8.7462404927E-001}]
+# 0.5 A retains 44% of the W0 grid blocks and moves alpha_xx by 29% -- far above tol, so these
+# rows fail if the cut silently stops firing. Radii 0.2-0.5 A give identical values (the centroid
+# distances are discrete), which is what makes 0.5 a stable reference.
+"h2_linrtbse_tda_full_rirs_w0cut.inp"    = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=23.4512},
+                                            {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=35.8547},
+                                            {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=48.3111},
+                                            {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=1.1293832598E+000}]
+"h2_linrtbse_abba_full_rirs_w0cut.inp"   = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=23.2936},
+                                            {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=35.6284},
+                                            {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=48.1830},
+                                            {matcher="LinRTBSE_static_pol_xx",  tol=1e-03, ref=9.9357628203E-001}]

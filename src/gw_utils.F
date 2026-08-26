@@ -160,12 +160,20 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_and_init_bs_env_for_gw'
 
       INTEGER                                            :: handle
+      TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
 
       CALL cite_reference(Graml2024)
 
       CALL read_gw_input_parameters(bs_env, bs_sec)
+
+      ! RTBSE%CUTOFF_RADIUS_W0 gates the per-grid-block centroid cache, which is built during the
+      ! GW grid setup -- long before the RT-BSE env reads its own section. Pick it up here.
+      NULLIFY (input)
+      CALL get_qs_env(qs_env, input=input)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%CUTOFF_RADIUS_W0", &
+                                r_val=bs_env%ri_rs%cutoff_radius_w0)
 
       CALL print_header_and_input_parameters(bs_env)
 

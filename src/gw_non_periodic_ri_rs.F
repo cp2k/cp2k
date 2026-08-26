@@ -116,7 +116,8 @@ MODULE gw_non_periodic_ri_rs
 
    PUBLIC :: gw_calc_non_periodic_ri_rs, ri_rs_grid_assembler, &
              get_basis_offsets, precompute_ri_rs_radii, solve_D_lp_distributed, &
-             atomic_basis_at_grid_point, compute_coeff_Z_lP
+             atomic_basis_at_grid_point, compute_coeff_Z_lP, &
+             reserve_blocks_within_radius
 
 CONTAINS
 
@@ -981,8 +982,11 @@ CONTAINS
          bs_env%ri_rs%atom_centers(1:3, iatom) = particle_set(iatom)%r(1:3)
       END DO
 
-      ! Cache per-chunk centroids for the optional CUTOFF_RADIUS_RL_W block truncation.
-      IF (bs_env%ri_rs%cutoff_radius_v_w > 0.0_dp) THEN
+      ! Cache per-chunk centroids for the optional CUTOFF_RADIUS_RL_W / CUTOFF_RADIUS_W0 block
+      ! truncations. Left unallocated otherwise, so PRESENT(centroids) stays .FALSE. at the
+      ! contract_grid_panels* calls.
+      IF (bs_env%ri_rs%cutoff_radius_v_w > 0.0_dp .OR. &
+          bs_env%ri_rs%cutoff_radius_w0 > 0.0_dp) THEN
          IF (ALLOCATED(bs_env%ri_rs%chunk_centroids)) DEALLOCATE (bs_env%ri_rs%chunk_centroids)
          ALLOCATE (bs_env%ri_rs%chunk_centroids(3, num_grid_chunks))
          DO i_blk = 1, num_grid_chunks
@@ -3484,12 +3488,14 @@ CONTAINS
    END SUBROUTINE extract_masked_blocks
 
 ! **************************************************************************************************
-!> \brief Pre-seeds a square per-atom-blocked DBCSR matrix (G_munu, D_munu, V_PQ, W_PQ) with zero
-!>        blocks only for atom pairs within radius, for use with copy_fm_to_dbcsr(keep_sparsity=T):
-!>        the CUTOFF_RADIUS_G_W operator truncation.
+!> \brief Pre-seeds a square blocked DBCSR matrix with zero blocks only for block pairs whose
+!>        centers lie within radius, for use with copy_fm_to_dbcsr(keep_sparsity=T) or
+!>        dbcsr_multiply(retain_sparsity=T). Consumers: the CUTOFF_RADIUS_G_W operator truncation
+!>        (atom-blocked, centers = atom_centers) and the RT-BSE CUTOFF_RADIUS_W0 truncation of the
+!>        grid-basis W^0 (grid-blocked, centers = chunk_centroids).
 !> \param matrix ...
-!> \param centers ...
-!> \param radius ...
+!> \param centers block positions, one column per block row/column of matrix
+!> \param radius truncation radius, same units as centers (bohr)
 ! **************************************************************************************************
    SUBROUTINE reserve_blocks_within_radius(matrix, centers, radius)
 
