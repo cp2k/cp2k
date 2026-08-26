@@ -162,7 +162,8 @@ def process_section(
         for keyword in keywords:
             keyword_name = get_name(keyword)
             keyword_xref = f"{section_xref}.{sanitize_name(keyword_name)}"
-            em = "**" if lookup_mentions(keyword_xref) else ""  # emphasize if mentioned
+            # emphasize if mentioned
+            em = "**" if lookup_mentions(keyword_xref, is_section=False) else ""
             output += [f"* {em}[{escape_markdown(keyword_name)}](#{keyword_xref}){em}"]
         output += [""]
         # Render keywords
@@ -267,9 +268,8 @@ def render_section_header(
     # for example CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.POTENTIAL
     collision_resolution_suffix = "_SECTION" if has_name_collision else ""
     collision_resolved_section_xref = f"{section_xref}{collision_resolution_suffix}"
-    mentions = lookup_mentions(collision_resolved_section_xref)
+    mentions = lookup_mentions(collision_resolved_section_xref, is_section=True)
     if mentions:
-        print(mentions)  # Debug
         mentions_list = ", ".join([f"⭐[](project:{m})" for m in mentions])
 
     # Render header.
@@ -310,7 +310,7 @@ def render_keyword(
     assert keyword_names
     canonical_name = sanitize_name(keyword_names[0])
     keyword_xref = f"{section_xref}.{canonical_name}" if section_xref else None
-    mentions = lookup_mentions(keyword_xref)
+    mentions = lookup_mentions(keyword_xref, is_section=False)
 
     # Find more keyword fields.
     default_value = get_text(keyword.find("DEFAULT_VALUE"))
@@ -384,7 +384,6 @@ def render_keyword(
         citations = ", ".join([f"{{ref}}`{r}`" for r in references])
         output += [f"**References:** {citations}", ""]
     if mentions:
-        print(mentions)  # Debug
         mentions_list = ", ".join([f"⭐[](project:{m})" for m in mentions])
         output += [f"**Mentions:** {mentions_list}", ""]
     if github:
@@ -401,8 +400,9 @@ def render_keyword(
 
 # ======================================================================================
 @cache
-def find_all_mentions() -> Dict[str, Set[Path]]:
+def find_all_mentions(is_section: bool) -> Dict[str, Set[Path]]:
     root_dir = Path(__file__).resolve().parent
+    root_dir = root_dir.parent if is_section else root_dir
     mentions = defaultdict(set)
     for subdir in "getting-started", "methods", "technologies":
         for fn in (root_dir / subdir).glob("**/*.md"):
@@ -412,10 +412,10 @@ def find_all_mentions() -> Dict[str, Set[Path]]:
 
 
 # ======================================================================================
-def lookup_mentions(xref: Optional[str]) -> List[str]:
+def lookup_mentions(xref: Optional[str], is_section: bool) -> List[str]:
     if not xref:
         return []
-    mentions = find_all_mentions()
+    mentions = find_all_mentions(is_section)
     n = xref.count(".") - 1
     return [("../" * n) + str(path) for path in sorted(mentions[xref])]
 
