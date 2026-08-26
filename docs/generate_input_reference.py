@@ -269,6 +269,7 @@ def render_section_header(
     collision_resolved_section_xref = f"{section_xref}{collision_resolution_suffix}"
     mentions = lookup_mentions(collision_resolved_section_xref)
     if mentions:
+        print(mentions)  # Debug
         mentions_list = ", ".join([f"⭐[](project:{m})" for m in mentions])
 
     # Render header.
@@ -383,6 +384,7 @@ def render_keyword(
         citations = ", ".join([f"{{ref}}`{r}`" for r in references])
         output += [f"**References:** {citations}", ""]
     if mentions:
+        print(mentions)  # Debug
         mentions_list = ", ".join([f"⭐[](project:{m})" for m in mentions])
         output += [f"**Mentions:** {mentions_list}", ""]
     if github:
