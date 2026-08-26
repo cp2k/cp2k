@@ -1559,7 +1559,7 @@ CONTAINS
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
       ! compute mulliken charges required for charge update
-      NULLIFY (particle_set, qs_kind_set, atomic_kind_set, scf_control)
+      NULLIFY (particle_set, qs_kind_set, atomic_kind_set, scf_control, scf_env)
       CALL get_qs_env(qs_env=qs_env, scf_env=scf_env, particle_set=particle_set, qs_kind_set=qs_kind_set, &
                       atomic_kind_set=atomic_kind_set, matrix_s_kp=matrix_s, rho=rho, para_env=para_env, &
                       scf_control=scf_control)
@@ -1911,9 +1911,12 @@ CONTAINS
       ELSE
          ! charge mixing
          native_sign_mixing = .FALSE.
-         IF (.NOT. (do_dipole .OR. do_quadrupole) .AND. &
-             scf_env%mixing_method == modified_broyden_mixing_nr) THEN
-            CPABORT("MODIFIED_BROYDEN_MIXING with SCC_MIXER CP2K is currently supported only for GFN2")
+         IF (.NOT. (dft_control%qs_control%do_ls_scf .OR. scf_control%use_ot)) THEN
+            IF (.NOT. ASSOCIATED(scf_env)) CPABORT("CP2K SCC mixer requires a QS SCF environment")
+            IF (.NOT. (do_dipole .OR. do_quadrupole) .AND. &
+                scf_env%mixing_method == modified_broyden_mixing_nr) THEN
+               CPABORT("MODIFIED_BROYDEN_MIXING with SCC_MIXER CP2K requires GFN2")
+            END IF
          END IF
          IF (dft_control%qs_control%do_ls_scf .OR. scf_control%use_ot) THEN
             ! LS_SCF and OT optimize the electronic variables directly. Use the
