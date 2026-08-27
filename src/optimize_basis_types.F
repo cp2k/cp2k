@@ -18,7 +18,11 @@ MODULE optimize_basis_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_basis_types'
 
    PUBLIC :: basis_optimization_type, subset_type, flex_basis_type, &
-             derived_basis_info, deallocate_basis_optimization_type
+             derived_basis_info, deallocate_basis_optimization_type, &
+             method_mo_fit_occ, method_mo_fit_occ_virtual
+
+   INTEGER, PARAMETER :: method_mo_fit_occ = 1
+   INTEGER, PARAMETER :: method_mo_fit_occ_virtual = 2
 
    ! constraint information for a single constraing. boundary is translateed into a fermi function
    ! like setting as for variational limited case
@@ -105,6 +109,15 @@ MODULE optimize_basis_types
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: combination
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: fval_weight
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: condition_weight
+      INTEGER :: method = method_mo_fit_occ
+      REAL(KIND=dp) :: occupied_weight = 1.0_dp
+      REAL(KIND=dp) :: virtual_weight = 1.0_dp
+      REAL(KIND=dp) :: gap_weight = 1.0_dp
+      REAL(KIND=dp) :: coefficient_weight = 0.0_dp
+      REAL(KIND=dp) :: gap_energy_scale = 0.0_dp
+      REAL(KIND=dp) :: virtual_energy_cutoff = 0.0_dp
+      REAL(KIND=dp) :: virtual_energy_smoothing = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: x_initial
       INTEGER :: nkind = -1
       INTEGER :: write_frequency = -1
       INTEGER :: nbasis_deriv_types = -1
@@ -138,6 +151,7 @@ CONTAINS
       IF (ALLOCATED(opt_bas%sub_sources)) DEALLOCATE (opt_bas%sub_sources)
       IF (ALLOCATED(opt_bas%combination)) DEALLOCATE (opt_bas%combination)
       IF (ALLOCATED(opt_bas%x_opt)) DEALLOCATE (opt_bas%x_opt)
+      IF (ALLOCATED(opt_bas%x_initial)) DEALLOCATE (opt_bas%x_initial)
       IF (ALLOCATED(opt_bas%training_input)) DEALLOCATE (opt_bas%training_input)
       IF (ALLOCATED(opt_bas%training_dir)) DEALLOCATE (opt_bas%training_dir)
       IF (ALLOCATED(opt_bas%fval_weight)) DEALLOCATE (opt_bas%fval_weight)

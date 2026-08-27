@@ -42,15 +42,23 @@ MODULE optimize_basis
                                               calculate_overlap_inverse,&
                                               modify_input_settings,&
                                               update_basis_set
+   USE optbas_frontier_utils,           ONLY: evaluate_frontier_objective,&
+                                              frontier_reference_init,&
+                                              frontier_reference_release,&
+                                              frontier_reference_type,&
+                                              frontier_result_type
    USE optbas_opt_utils,                ONLY: evaluate_optvals,&
                                               fit_mo_coeffs,&
                                               optbas_build_neighborlist
    USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                               deallocate_basis_optimization_type,&
+                                              method_mo_fit_occ,&
+                                              method_mo_fit_occ_virtual,&
                                               subset_type
    USE optimize_basis_utils,            ONLY: get_set_and_basis_id,&
                                               optimize_basis_init_read_input,&
                                               update_derived_basis_sets
+   USE physcon,                         ONLY: evolt
    USE powell,                          ONLY: powell_optimize
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_env_part_release,&
@@ -167,6 +175,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tot_time
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: matrix_S_inv
       TYPE(f_env_type), POINTER                          :: f_env
+      TYPE(frontier_reference_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: frontier_reference
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (f_env)
@@ -179,6 +189,7 @@ CONTAINS
       ALLOCATE (f_env_id(SIZE(opt_bas%comp_group(mp_id)%member_list)))
       ALLOCATE (tot_time(opt_bas%ncombinations*opt_bas%ntraining_sets))
       ALLOCATE (matrix_s_inv(SIZE(opt_bas%comp_group(mp_id)%member_list)))
+      ALLOCATE (frontier_reference(SIZE(opt_bas%comp_group(mp_id)%member_list)))
 
       ALLOCATE (para_env)
       para_env = mpi_comm_opt
@@ -187,15 +198,30 @@ CONTAINS
       IF (para_env%is_source()) is = para_env_top%mepos
       CALL para_env_top%allgather(is, opt_bas%sub_sources)
 
-      CALL init_training_force_envs(opt_bas, f_env_id, input_declaration, matrix_s_inv, para_env, mpi_comm_opt)
+      CALL init_training_force_envs(opt_bas, f_env_id, input_declaration, matrix_s_inv, &
+                                    frontier_reference, para_env, mpi_comm_opt)
 
       CALL init_free_vars(opt_bas)
+      IF (opt_bas%method == method_mo_fit_occ_virtual) THEN
+         ! Put c and c0 into the same normalized, ordered parameterization before the first evaluation.
+         CALL update_free_vars(opt_bas)
+         CALL init_free_vars(opt_bas)
+         opt_bas%x_initial = opt_bas%x_opt
+      END IF
       tot_time = 0.0_dp
 
       ! ======= The real optimization loop  =======
       DO iopt = 0, opt_bas%powell_param%maxfun
-         CALL compute_residuum_vectors(opt_bas, f_env_id, matrix_S_inv, tot_time, &
-                                       para_env_top, para_env, iopt)
+         SELECT CASE (opt_bas%method)
+         CASE (method_mo_fit_occ)
+            CALL compute_residuum_vectors(opt_bas, f_env_id, matrix_S_inv, tot_time, &
+                                          para_env_top, para_env, iopt)
+         CASE (method_mo_fit_occ_virtual)
+            CALL compute_frontier_objective(opt_bas, f_env_id, frontier_reference, tot_time, &
+                                            para_env_top, para_env, iopt)
+         CASE DEFAULT
+            CPABORT("Unknown basis optimization method")
+         END SELECT
          IF (para_env_top%is_source()) THEN
             CALL powell_optimize(opt_bas%powell_param%nvar, opt_bas%x_opt, opt_bas%powell_param)
          END IF
@@ -222,10 +248,14 @@ CONTAINS
       ! ======  get rid of the f_env again =====
 
       DO icalc = SIZE(opt_bas%comp_group(mp_id)%member_list), 1, -1
+         IF (opt_bas%method == method_mo_fit_occ_virtual) THEN
+            CALL frontier_reference_release(frontier_reference(icalc))
+         END IF
          CALL f_env_get_from_id(f_env_id(icalc), f_env)
          CALL destroy_force_env(f_env_id(icalc), stat)
       END DO
       DEALLOCATE (f_env_id); DEALLOCATE (tot_time)
+      DEALLOCATE (frontier_reference)
       CALL cp_fm_release(matrix_s_inv)
       CALL mp_para_env_release(para_env)
       CALL timestop(handle)
@@ -384,6 +414,154 @@ CONTAINS
    END SUBROUTINE compute_residuum_vectors
 
 ! **************************************************************************************************
+!> \brief Evaluate the frozen-density occupied/virtual frontier-state objective.
+!> \param opt_bas basis optimization settings and current parameters
+!> \param f_env_id force environments for locally assigned calculations
+!> \param reference cached full reference eigensystems
+!> \param tot_time accumulated timings for output
+!> \param para_env_top top-level communicator
+!> \param para_env calculation-group communicator
+!> \param iopt Powell evaluation index
+! **************************************************************************************************
+   SUBROUTINE compute_frontier_objective(opt_bas, f_env_id, reference, tot_time, &
+                                         para_env_top, para_env, iopt)
+      TYPE(basis_optimization_type)                      :: opt_bas
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
+      TYPE(frontier_reference_type), DIMENSION(:), &
+         INTENT(IN)                                      :: reference
+      REAL(KIND=dp), DIMENSION(:)                        :: tot_time
+      TYPE(mp_para_env_type), POINTER                    :: para_env_top, para_env
+      INTEGER                                            :: iopt
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_frontier_objective'
+
+      CHARACTER(len=8)                                   :: basis_type
+      INTEGER                                            :: bas_id, handle, icalc, icomb, icont, &
+                                                            ikind, ipgf, iset, ix, mp_id, my_id, &
+                                                            ncalc, set_id, unit_nr
+      REAL(KIND=dp)                                      :: contribution
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coefficients_current
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gdata
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: start_time
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux, matrix_s_aux_orb
+      TYPE(f_env_type), POINTER                          :: f_env
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(frontier_result_type)                         :: result
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_aux, sab_aux_orb
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+
+      CALL timeset(routineN, handle)
+
+      basis_type = "AUX_OPT"
+      ncalc = opt_bas%ncombinations*opt_bas%ntraining_sets
+      ALLOCATE (gdata(ncalc, 10), source=0.0_dp)
+      ALLOCATE (coefficients_current, source=opt_bas%x_opt)
+      DO ikind = 1, opt_bas%nkind
+         DO iset = 1, opt_bas%kind_basis(ikind)%flex_basis(0)%nsets
+            DO ipgf = 1, opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset)%nexp
+               DO icont = 1, opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset)%ncon_tot
+                  IF (opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset)%opt_coeff(ipgf, icont)) THEN
+                     ix = opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset)%coeff_x_ind(ipgf, icont)
+                     coefficients_current(ix) = &
+                        opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset)%coeff(ipgf, icont)
+                  END IF
+               END DO
+            END DO
+         END DO
+      END DO
+      mp_id = opt_bas%opt_id
+      ALLOCATE (start_time(SIZE(opt_bas%comp_group(mp_id)%member_list)))
+
+      DO icalc = 1, SIZE(opt_bas%comp_group(mp_id)%member_list)
+         my_id = opt_bas%comp_group(mp_id)%member_list(icalc) + 1
+         start_time(icalc) = m_walltime()
+
+         NULLIFY (ks_env, matrix_s_aux, matrix_s_aux_orb, sab_aux, sab_aux_orb)
+         CALL get_set_and_basis_id(opt_bas%comp_group(mp_id)%member_list(icalc), opt_bas, &
+                                   bas_id=bas_id, set_id=set_id)
+         CALL f_env_get_from_id(f_env_id(icalc), f_env)
+         force_env => f_env%force_env
+         CALL force_env_get(force_env, qs_env=qs_env)
+         CALL update_basis_set(opt_bas, bas_id, basis_type, qs_env)
+         CALL optbas_build_neighborlist(qs_env, sab_aux, sab_aux_orb, basis_type)
+         CALL get_qs_env(qs_env, ks_env=ks_env)
+         CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux, &
+                                   basis_type_a=basis_type, basis_type_b=basis_type, sab_nl=sab_aux)
+         CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux_orb, &
+                                   basis_type_a=basis_type, basis_type_b="ORB", sab_nl=sab_aux_orb)
+         CALL release_neighbor_list_sets(sab_aux)
+         CALL release_neighbor_list_sets(sab_aux_orb)
+
+         CALL evaluate_frontier_objective(reference(icalc), matrix_s_aux(1)%matrix, &
+                                          matrix_s_aux_orb(1)%matrix, opt_bas%virtual_energy_cutoff, &
+                                          opt_bas%virtual_energy_smoothing, opt_bas%gap_energy_scale, &
+                                          coefficients_current, opt_bas%x_initial, RESULT)
+         gdata(my_id, 1) = result%loss_occupied
+         gdata(my_id, 2) = result%loss_virtual
+         gdata(my_id, 3) = result%loss_gap
+         gdata(my_id, 4) = result%loss_coefficients
+         gdata(my_id, 5) = result%occupied_overlap_percent
+         gdata(my_id, 6) = result%virtual_overlap_percent
+         gdata(my_id, 7) = result%gap_reference
+         gdata(my_id, 8) = result%gap_candidate
+         gdata(my_id, 9) = result%condition_number
+         gdata(my_id, 10) = m_walltime() - start_time(icalc)
+
+         IF (ASSOCIATED(matrix_s_aux)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux)
+         IF (ASSOCIATED(matrix_s_aux_orb)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux_orb)
+      END DO
+      DEALLOCATE (start_time)
+
+      IF (.NOT. para_env%is_source()) gdata = 0.0_dp
+      CALL para_env_top%sum(gdata)
+
+      opt_bas%powell_param%f = 0.0_dp
+      IF (para_env_top%is_source()) THEN
+         DO icalc = 1, ncalc
+            icomb = MOD(icalc - 1, opt_bas%ncombinations)
+            contribution = opt_bas%occupied_weight*gdata(icalc, 1) + &
+                           opt_bas%virtual_weight*gdata(icalc, 2) + &
+                           opt_bas%gap_weight*gdata(icalc, 3) + &
+                           opt_bas%coefficient_weight*gdata(icalc, 4)
+            IF (opt_bas%use_condition_number) THEN
+               contribution = contribution + opt_bas%condition_weight(icomb)*LOG10(gdata(icalc, 9))
+            END IF
+            opt_bas%powell_param%f = opt_bas%powell_param%f + &
+                                     opt_bas%fval_weight(icomb)*contribution
+            tot_time(icalc) = tot_time(icalc) + gdata(icalc, 10)
+         END DO
+
+         logger => cp_get_default_logger()
+         unit_nr = cp_logger_get_default_unit_nr(logger)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(1X,A,I0,2X,A,ES16.8)') "BASOPT_FRONTIER| Evaluation", iopt, &
+               "objective=", opt_bas%powell_param%f
+            DO icalc = 1, ncalc
+               WRITE (unit_nr, '(1X,A,I0,2X,A,F10.5,2X,A,F10.5)') &
+                  "BASOPT_FRONTIER| Calculation", icalc, "occupied overlap [%]=", gdata(icalc, 5), &
+                  "empty overlap [%]=", gdata(icalc, 6)
+               WRITE (unit_nr, '(1X,A,2X,A,F12.6,2X,A,F12.6,2X,A,F12.6)') &
+                  "BASOPT_FRONTIER|", "reference gap [eV]=", gdata(icalc, 7)*evolt, &
+                  "candidate gap [eV]=", gdata(icalc, 8)*evolt, &
+                  "gap error [eV]=", (gdata(icalc, 8) - gdata(icalc, 7))*evolt
+               WRITE (unit_nr, '(1X,A,2X,A,ES16.8,2X,A,F12.6)') &
+                  "BASOPT_FRONTIER|", "condition number=", gdata(icalc, 9), &
+                  "log10(condition)=", LOG10(gdata(icalc, 9))
+            END DO
+         END IF
+      END IF
+      CALL para_env_top%bcast(opt_bas%powell_param%f)
+      DEALLOCATE (coefficients_current, gdata)
+
+      CALL para_env_top%sync()
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_frontier_objective
+
+! **************************************************************************************************
 !> \brief create the force_envs for every input in the computational group
 !> \param opt_bas ...
 !> \param f_env_id ...
@@ -393,12 +571,15 @@ CONTAINS
 !> \param mpi_comm_opt ...
 ! **************************************************************************************************
 
-   SUBROUTINE init_training_force_envs(opt_bas, f_env_id, input_declaration, matrix_s_inv, para_env, mpi_comm_opt)
+   SUBROUTINE init_training_force_envs(opt_bas, f_env_id, input_declaration, matrix_s_inv, &
+                                       frontier_reference, para_env, mpi_comm_opt)
 
       TYPE(basis_optimization_type)                      :: opt_bas
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(cp_fm_type), DIMENSION(:), INTENT(OUT)        :: matrix_S_inv
+      TYPE(frontier_reference_type), DIMENSION(:), &
+         INTENT(OUT)                                     :: frontier_reference
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mp_comm_type)                                 :: mpi_comm_opt
 
@@ -471,6 +652,9 @@ CONTAINS
          CALL calculate_overlap_inverse(matrix_s(1)%matrix, matrix_s_inv(icalc), &
                                         para_env, blacs_env)
          CALL calculate_ks_matrix(qs_env)
+         IF (opt_bas%method == method_mo_fit_occ_virtual) THEN
+            CALL frontier_reference_init(qs_env, frontier_reference(icalc))
+         END IF
 
          CALL section_vals_release(input_file)
 
@@ -692,4 +876,3 @@ CONTAINS
    END SUBROUTINE output_opt_info
 
 END MODULE optimize_basis
-
