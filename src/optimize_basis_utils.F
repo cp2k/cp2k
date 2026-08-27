@@ -64,8 +64,8 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: main_dir
       INTEGER                                            :: ikind, iset, iweight, nrep
-      LOGICAL                                            :: frontier_explicit
-      TYPE(section_vals_type), POINTER                   :: frontier_section, kind_section, &
+      LOGICAL                                            :: frontier_orbitals_explicit
+      TYPE(section_vals_type), POINTER                   :: frontier_orbitals_section, kind_section, &
                                                             optbas_section, powell_section, &
                                                             train_section
 
@@ -73,7 +73,7 @@ CONTAINS
       powell_section => section_vals_get_subs_vals(optbas_section, "OPTIMIZATION")
       train_section => section_vals_get_subs_vals(optbas_section, "TRAINING_FILES")
       kind_section => section_vals_get_subs_vals(optbas_section, "FIT_KIND")
-      frontier_section => section_vals_get_subs_vals(optbas_section, "FRONTIER_STATES")
+      frontier_orbitals_section => section_vals_get_subs_vals(optbas_section, "FRONTIER_ORBITALS")
 
       CALL section_vals_val_get(optbas_section, "BASIS_TEMPLATE_FILE", c_val=opt_bas%template_basis_file)
       CALL section_vals_val_get(optbas_section, "BASIS_WORK_FILE", c_val=opt_bas%work_basis_file)
@@ -86,36 +86,36 @@ CONTAINS
 
       CALL generate_initial_basis(kind_section, opt_bas, para_env)
 
-      CALL section_vals_get(frontier_section, explicit=frontier_explicit)
-      IF (frontier_explicit) THEN
+      CALL section_vals_get(frontier_orbitals_section, explicit=frontier_orbitals_explicit)
+      IF (frontier_orbitals_explicit) THEN
          opt_bas%method = method_mo_fit_occ_virtual
-         CALL section_vals_val_get(frontier_section, "OCCUPIED_WEIGHT", r_val=opt_bas%occupied_weight)
-         CALL section_vals_val_get(frontier_section, "VIRTUAL_WEIGHT", r_val=opt_bas%virtual_weight)
-         CALL section_vals_val_get(frontier_section, "EMPTY_OVERLAP_WEIGHT", &
-                                   r_val=opt_bas%empty_overlap_weight)
-         CALL section_vals_val_get(frontier_section, "GAP_WEIGHT", r_val=opt_bas%gap_weight)
-         CALL section_vals_val_get(frontier_section, "COEFFICIENT_WEIGHT", r_val=opt_bas%coefficient_weight)
-         CALL section_vals_val_get(frontier_section, "GAP_ENERGY_SCALE", r_val=opt_bas%gap_energy_scale)
-         CALL section_vals_val_get(frontier_section, "VIRTUAL_ENERGY_CUTOFF", &
+         CALL section_vals_val_get(frontier_orbitals_section, "OCCUPIED_WEIGHT", &
+                                   r_val=opt_bas%occupied_weight)
+         CALL section_vals_val_get(frontier_orbitals_section, "VIRTUAL_WEIGHT", &
+                                   r_val=opt_bas%virtual_weight)
+         CALL section_vals_val_get(frontier_orbitals_section, "GAP_WEIGHT", &
+                                   r_val=opt_bas%gap_weight)
+         CALL section_vals_val_get(frontier_orbitals_section, "GAP_ENERGY_SCALE", &
+                                   r_val=opt_bas%gap_energy_scale)
+         CALL section_vals_val_get(frontier_orbitals_section, "VIRTUAL_ENERGY_CUTOFF", &
                                    r_val=opt_bas%virtual_energy_cutoff)
-         CALL section_vals_val_get(frontier_section, "VIRTUAL_ENERGY_SMOOTHING", &
+         CALL section_vals_val_get(frontier_orbitals_section, "VIRTUAL_ENERGY_SMOOTHING", &
                                    r_val=opt_bas%virtual_energy_smoothing)
          IF (opt_bas%gap_energy_scale <= 0.0_dp) CPABORT("GAP_ENERGY_SCALE must be positive")
          IF (opt_bas%virtual_energy_smoothing <= 0.0_dp) THEN
             CPABORT("VIRTUAL_ENERGY_SMOOTHING must be positive")
          END IF
-         IF (MIN(opt_bas%occupied_weight, opt_bas%virtual_weight, opt_bas%empty_overlap_weight, &
-                 opt_bas%gap_weight, opt_bas%coefficient_weight) < 0.0_dp) THEN
-            CPABORT("FRONTIER_STATES component weights must be non-negative")
+         IF (MIN(opt_bas%occupied_weight, opt_bas%virtual_weight, &
+                 opt_bas%gap_weight) < 0.0_dp) THEN
+            CPABORT("FRONTIER_ORBITALS weights must be non-negative")
          END IF
          DO ikind = 1, opt_bas%nkind
             DO iset = 1, opt_bas%kind_basis(ikind)%flex_basis(0)%nsets
                IF (ANY(opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset)%opt_exps)) THEN
-                  CPABORT("FRONTIER_STATES requires fixed Gaussian exponents")
+                  CPABORT("FRONTIER_ORBITALS requires fixed Gaussian exponents")
                END IF
             END DO
          END DO
-         ALLOCATE (opt_bas%x_initial, source=opt_bas%x_opt)
       END IF
 
       CALL section_vals_get(train_section, n_repetition=opt_bas%ntraining_sets)

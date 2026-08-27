@@ -13,24 +13,24 @@
 ! **************************************************************************************************
 MODULE input_optimize_basis
 
-   USE cp_units, ONLY: cp_unit_to_cp2k
-   USE input_constants, ONLY: do_opt_all, &
-                              do_opt_coeff, &
-                              do_opt_exps, &
-                              do_opt_none
-   USE input_keyword_types, ONLY: keyword_create, &
-                                  keyword_release, &
-                                  keyword_type
-   USE input_section_types, ONLY: section_add_keyword, &
-                                  section_add_subsection, &
-                                  section_create, &
-                                  section_release, &
-                                  section_type
-   USE input_val_types, ONLY: char_t, &
-                              integer_t, &
-                              real_t
-   USE kinds, ONLY: dp
-   USE string_utilities, ONLY: s2a
+   USE cp_units,                       ONLY: cp_unit_to_cp2k
+   USE input_constants,                ONLY: do_opt_all,&
+                                              do_opt_coeff,&
+                                              do_opt_exps,&
+                                              do_opt_none
+   USE input_keyword_types,            ONLY: keyword_create,&
+                                              keyword_release,&
+                                              keyword_type
+   USE input_section_types,            ONLY: section_add_keyword,&
+                                              section_add_subsection,&
+                                              section_create,&
+                                              section_release,&
+                                              section_type
+   USE input_val_types,                ONLY: char_t,&
+                                              integer_t,&
+                                              real_t
+   USE kinds,                          ONLY: dp
+   USE string_utilities,               ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -143,7 +143,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_frontier_states_section(subsection)
+      CALL create_frontier_orbitals_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -158,98 +158,82 @@ CONTAINS
    END SUBROUTINE create_optimize_basis_section
 
 ! **************************************************************************************************
-!> \brief Creates the optional frontier-state objective section.
+!> \brief Creates the optional frontier-orbital objective section.
 !> \param section ...
 ! **************************************************************************************************
-   SUBROUTINE create_frontier_states_section(section)
+   SUBROUTINE create_frontier_orbitals_section(section)
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="FRONTIER_STATES", &
-                          description="Activates the frozen-density occupied/virtual frontier-state fit. The objective is"// &
-                          "$$\\mathcal{L}=a_{\\rm occ}\\mathcal{L}_{\\rm occ}+a_{\\rm virt}\\mathcal{L}_{\\rm virt}+"// &
-                          "a_e\\mathcal{L}_{\\rm empty}+a_g\\mathcal{L}_{\\rm gap}+"// &
-                          "a_\\kappa\\log_{10}\\kappa(S)+a_c\\mathcal{L}_c.$$ "// &
-                          "For $N_{\\rm occ}$ occupied states, $M=C_R^\\dagger S_{RC}C_C$ and "// &
-                          "$\\mathcal{L}_{\\rm occ}=1-\\mathrm{Tr}(M_{\\rm occ}M_{\\rm occ}^\\dagger)/N_{\\rm occ}$. "// &
-                          "Virtual weights are $W_X=\\mathrm{diag}\{[1+\\exp((\\epsilon_i^X-\\epsilon_{\\rm LUMO}^X-"// &
-                          "E_{\\rm cut})/\\Delta E)]^{-1}\}$ and $\\mathcal{L}_{\\rm virt}=[\\mathrm{Tr}(W_R^2)+"// &
-                          "\\mathrm{Tr}(W_C^2)-2\\mathrm{Tr}(W_RM_{\\rm virt}W_CM_{\\rm virt}^\\dagger)]/"// &
-                          "[2\\mathrm{Tr}(W_R^2)]$. The bounded completeness loss is "// &
-                          "$\\mathcal{L}_{\\rm empty}=1-\\mathrm{Tr}(W_R^2M_{\\rm virt}"// &
-                          "M_{\\rm virt}^\\dagger)/\\mathrm{Tr}(W_R^2)$; its complement is printed as the empty "// &
-                          "overlap percentage. The remaining terms are $\\mathcal{L}_{\\rm gap}=[(E_g^C-E_g^R)/"// &
-                          "E_{\\rm scale}]^2$, $\\mathcal{L}_c=\\|c-c_0\\|^2/\\|c_0\\|^2$, and "// &
-                          "$\\kappa(S)=\\lambda_{\\max}(S)/\\lambda_{\\min}(S)$. $c_0$ is the initial, ordered "// &
-                          "coefficient vector. The component prefactors are distinct from RESIDUUM_WEIGHT, which is the "// &
-                          "outer weight for a training-system/basis-combination contribution. CONDITION_WEIGHT supplies "// &
-                          "$a_\\kappa$ here and multiplies $\\log_{10}\\kappa(S)$; the legacy occupied-MO fit keeps its "// &
-                          "existing natural-log convention.", repeats=.FALSE.)
+      CALL section_create( &
+         section, __LOCATION__, name="FRONTIER_ORBITALS", &
+         description="Optimizes the occupied and low-energy virtual orbitals of a frozen "// &
+         "reference Hamiltonian. The loss is $$\mathcal{L}="// &
+         "a_{\mathrm{occ}}\mathcal{L}_{\mathrm{occ}}+"// &
+         "a_{\mathrm{vir}}\mathcal{L}_{\mathrm{vir}}+"// &
+         "a_g\mathcal{L}_g+a_\kappa\log_{10}\kappa(S).$$ "// &
+         "For $M_{ij}=\langle\psi_i^R|\psi_j^C\rangle$, the occupied loss is "// &
+         "$\mathcal{L}_{\mathrm{occ}}=1-N_{\mathrm{occ}}^{-1}"// &
+         "\sum_{i,j\in\mathrm{occ}}|M_{ij}|^2$. Virtual orbitals are selected "// &
+         "smoothly according to their energy above the LUMO. "// &
+         "$\mathcal{L}_{\mathrm{vir}}$ compares the selected reference and candidate "// &
+         "virtual subspaces. Finally, $\mathcal{L}_g=[(E_g^C-E_g^R)/"// &
+         "E_{\mathrm{scale}}]^2$ and $\kappa(S)=\lambda_{\max}(S)/"// &
+         "\lambda_{\min}(S)$. CONDITION_WEIGHT supplies $a_\kappa$.", &
+         repeats=.FALSE.)
 
-      CALL keyword_create(keyword, __LOCATION__, name="OCCUPIED_WEIGHT", &
-                          description="Component prefactor a_occ multiplying the normalized occupied-subspace loss. "// &
-                          "This is not a RESIDUUM_WEIGHT.", &
-                          usage="OCCUPIED_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="OCCUPIED_WEIGHT", &
+         description="Prefactor $a_{\mathrm{occ}}$ multiplying the occupied-subspace loss.", &
+         usage="OCCUPIED_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="VIRTUAL_WEIGHT", &
-                          description="Component prefactor a_virt multiplying the smoothly weighted virtual-space loss. "// &
-                          "This is not a RESIDUUM_WEIGHT.", &
-                          usage="VIRTUAL_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="VIRTUAL_WEIGHT", &
+         description="Prefactor $a_{\mathrm{vir}}$ multiplying the virtual-subspace loss.", &
+         usage="VIRTUAL_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EMPTY_OVERLAP_WEIGHT", &
-                          description="Component prefactor multiplying one minus the bounded, reference-weighted "// &
-                          "completeness of the empty candidate subspace. This loss is exactly one minus the printed "// &
-                          "empty overlap fraction. The default zero preserves the original FRONTIER_STATES objective.", &
-                          usage="EMPTY_OVERLAP_WEIGHT 0.0", type_of_var=real_t, default_r_val=0.0_dp)
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="GAP_WEIGHT", &
+         description="Prefactor $a_g$ multiplying the normalized HOMO-LUMO gap loss.", &
+         usage="GAP_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="GAP_WEIGHT", &
-                          description="Component prefactor a_g multiplying the normalized HOMO-LUMO gap loss. "// &
-                          "This is not a RESIDUUM_WEIGHT.", &
-                          usage="GAP_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="GAP_ENERGY_SCALE", &
+         description="$E_{\mathrm{scale}}$ in the gap loss. A gap error of this "// &
+         "magnitude gives $\mathcal{L}_g=1$. The default is 1 eV.", &
+         usage="GAP_ENERGY_SCALE [eV] 1.0", type_of_var=real_t, unit_str="eV", &
+         default_r_val=cp_unit_to_cp2k(value=1.0_dp, unit_str="eV"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="COEFFICIENT_WEIGHT", &
-                          description="Component prefactor a_c multiplying ||c-c_0||^2/||c_0||^2, where c_0 is "// &
-                          "the initial ordered coefficient vector. This is not a RESIDUUM_WEIGHT.", &
-                          usage="COEFFICIENT_WEIGHT 0.0", type_of_var=real_t, default_r_val=0.0_dp)
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="VIRTUAL_ENERGY_CUTOFF", &
+         description="$E_{\mathrm{cut}}$, the virtual-orbital energy window measured "// &
+         "from the corresponding LUMO. The default is 3 eV.", &
+         usage="VIRTUAL_ENERGY_CUTOFF [eV] 3.0", type_of_var=real_t, unit_str="eV", &
+         default_r_val=cp_unit_to_cp2k(value=3.0_dp, unit_str="eV"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="GAP_ENERGY_SCALE", &
-                          description="E_scale in the gap loss. A gap error of this magnitude gives L_gap=1. "// &
-                          "The default is 1 eV.", &
-                          usage="GAP_ENERGY_SCALE [eV] 1.0", type_of_var=real_t, unit_str="eV", &
-                          default_r_val=cp_unit_to_cp2k(value=1.0_dp, unit_str="eV"))
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="VIRTUAL_ENERGY_SMOOTHING", &
+         description="$\Delta E$, the smoothing width at the outer boundary of the "// &
+         "virtual-orbital energy window. It must be positive; the default is 0.2 eV.", &
+         usage="VIRTUAL_ENERGY_SMOOTHING [eV] 0.2", type_of_var=real_t, unit_str="eV", &
+         default_r_val=cp_unit_to_cp2k(value=0.2_dp, unit_str="eV"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="VIRTUAL_ENERGY_CUTOFF", &
-                          description="E_cut, the virtual frontier window measured from the corresponding LUMO. "// &
-                          "The default is 3 eV.", &
-                          usage="VIRTUAL_ENERGY_CUTOFF [eV] 3.0", type_of_var=real_t, unit_str="eV", &
-                          default_r_val=cp_unit_to_cp2k(value=3.0_dp, unit_str="eV"))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VIRTUAL_ENERGY_SMOOTHING", &
-                          description="Delta E, the Fermi-like smoothing width at the outer virtual-window boundary. "// &
-                          "It must be positive; the default is 0.2 eV.", &
-                          usage="VIRTUAL_ENERGY_SMOOTHING [eV] 0.2", type_of_var=real_t, unit_str="eV", &
-                          default_r_val=cp_unit_to_cp2k(value=0.2_dp, unit_str="eV"))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_frontier_states_section
+   END SUBROUTINE create_frontier_orbitals_section
 
 ! **************************************************************************************************
 !> \brief ...
