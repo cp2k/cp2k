@@ -456,7 +456,7 @@ CONTAINS
 
       basis_type = "AUX_OPT"
       ncalc = opt_bas%ncombinations*opt_bas%ntraining_sets
-      ALLOCATE (gdata(ncalc, 8), source=0.0_dp)
+      ALLOCATE (gdata(ncalc, 9), source=0.0_dp)
       mp_id = opt_bas%opt_id
       ALLOCATE (start_time(SIZE(opt_bas%comp_group(mp_id)%member_list)))
 
@@ -491,7 +491,8 @@ CONTAINS
          gdata(my_id, 5) = result%gap_reference
          gdata(my_id, 6) = result%gap_candidate
          gdata(my_id, 7) = result%condition_number
-         gdata(my_id, 8) = m_walltime() - start_time(icalc)
+         gdata(my_id, 8) = result%empty_subspace_overlap
+         gdata(my_id, 9) = m_walltime() - start_time(icalc)
 
          IF (ASSOCIATED(matrix_s_aux)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux)
          IF (ASSOCIATED(matrix_s_aux_orb)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux_orb)
@@ -513,30 +514,23 @@ CONTAINS
             END IF
             opt_bas%powell_param%f = opt_bas%powell_param%f + &
                                      opt_bas%fval_weight(icomb)*contribution
-            tot_time(icalc) = tot_time(icalc) + gdata(icalc, 8)
+            tot_time(icalc) = tot_time(icalc) + gdata(icalc, 9)
          END DO
 
          logger => cp_get_default_logger()
          unit_nr = cp_logger_get_default_unit_nr(logger)
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(1X,A,I0,2X,A,ES16.8)') &
-               "BASOPT_FRONTIER_ORBITALS| Evaluation", iopt, &
-               "objective=", opt_bas%powell_param%f
             DO icalc = 1, ncalc
-               WRITE (unit_nr, '(1X,A,I0,2X,A,F10.5)') &
-                  "BASOPT_FRONTIER_ORBITALS| Calculation", icalc, &
-                  "occupied-subspace overlap [%]=", 100.0_dp*gdata(icalc, 4)
-               WRITE (unit_nr, '(1X,A,3(2X,A,ES12.4))') "BASOPT_FRONTIER_ORBITALS|", &
-                  "occupied-subspace loss=", gdata(icalc, 1), &
-                  "virtual-subspace loss=", gdata(icalc, 2), &
-                  "gap loss=", gdata(icalc, 3)
-               WRITE (unit_nr, '(1X,A,2X,A,F12.6,2X,A,F12.6,2X,A,F12.6)') &
-                  "BASOPT_FRONTIER_ORBITALS|", "reference gap [eV]=", gdata(icalc, 5)*evolt, &
-                  "candidate gap [eV]=", gdata(icalc, 6)*evolt, &
-                  "gap error [eV]=", (gdata(icalc, 6) - gdata(icalc, 5))*evolt
-               WRITE (unit_nr, '(1X,A,2X,A,ES16.8,2X,A,F12.6)') &
-                  "BASOPT_FRONTIER_ORBITALS|", "condition number=", gdata(icalc, 7), &
-                  "log10(condition)=", LOG10(gdata(icalc, 7))
+               WRITE (unit_nr, &
+                      '(/,1X,A,1X,I3,2X,A,1X,F0.3,2X,A,1X,F0.3,2X,A,1X,F0.2,1X,A,'// &
+                      '2X,A,1X,F0.2,1X,A,2X,A,1X,I0,2X,A,1X,I0)') &
+                  "iter:", iopt, &
+                  "gap:", gdata(icalc, 6)*evolt, &
+                  "ref:", gdata(icalc, 5)*evolt, &
+                  "occ:", 100.0_dp*gdata(icalc, 4), "%", &
+                  "vir:", 100.0_dp*gdata(icalc, 8), "%", &
+                  "κ =", NINT(gdata(icalc, 7)), &
+                  "L =", NINT(1.0E4_dp*opt_bas%powell_param%f)
             END DO
          END IF
       END IF

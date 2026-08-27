@@ -40,6 +40,7 @@ MODULE optbas_frontier_orbitals_utils
       REAL(KIND=dp) :: loss_virtual_subspace = 0.0_dp
       REAL(KIND=dp) :: loss_gap = 0.0_dp
       REAL(KIND=dp) :: occupied_subspace_overlap = 0.0_dp
+      REAL(KIND=dp) :: empty_subspace_overlap = 0.0_dp
       REAL(KIND=dp) :: gap_reference = 0.0_dp
       REAL(KIND=dp) :: gap_candidate = 0.0_dp
       REAL(KIND=dp) :: condition_number = 0.0_dp
@@ -346,8 +347,8 @@ CONTAINS
 
       INTEGER                                            :: candidate_orbital, reference_orbital
       REAL(KIND=dp) :: candidate_virtual_weight_norm, occupied_subspace_overlap, &
-         reference_virtual_weight_norm, virtual_subspace_overlap, weight_candidate, &
-         weight_reference
+         reference_virtual_weight_norm, reference_virtual_subspace_overlap, &
+         virtual_subspace_overlap, weight_candidate, weight_reference
 
       ! O_occ = sum_{i,j in occupied} |M_ij|^2 / N_occ.
       occupied_subspace_overlap = &
@@ -379,6 +380,7 @@ CONTAINS
 
       ! O_vir = sum_{i,j in virtual} w_i^R w_j^C |M_ij|^2.
       virtual_subspace_overlap = 0.0_dp
+      reference_virtual_subspace_overlap = 0.0_dp
       DO candidate_orbital = number_occupied_orbitals + 1, SIZE(eigenvalues_candidate)
          weight_candidate = smooth_frontier_orbital_weight( &
                             eigenvalues_candidate(candidate_orbital) - &
@@ -392,6 +394,9 @@ CONTAINS
             virtual_subspace_overlap = virtual_subspace_overlap + &
                                        weight_reference*weight_candidate* &
                                        orbital_overlap(reference_orbital, candidate_orbital)**2
+            reference_virtual_subspace_overlap = reference_virtual_subspace_overlap + &
+                                                 weight_reference**2* &
+                                                 orbital_overlap(reference_orbital, candidate_orbital)**2
          END DO
       END DO
 
@@ -400,7 +405,8 @@ CONTAINS
          result%loss_virtual_subspace = &
             MAX(0.0_dp, (reference_virtual_weight_norm + candidate_virtual_weight_norm - &
                          2.0_dp*virtual_subspace_overlap)/(2.0_dp*reference_virtual_weight_norm))
-
+         result%empty_subspace_overlap = &
+            MIN(1.0_dp, MAX(0.0_dp, reference_virtual_subspace_overlap/reference_virtual_weight_norm))
       END IF
 
       ! E_g^X = epsilon_LUMO^X - epsilon_HOMO^X.
