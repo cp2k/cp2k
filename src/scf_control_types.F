@@ -107,6 +107,7 @@ MODULE scf_control_types
       REAL(KIND=dp)                         :: eps_jacobi = -1.0_dp
       REAL(KIND=dp)                         :: jacobi_threshold = -1.0_dp
       INTEGER                               :: max_iter = -1, nkrylov = -1, nblock_krylov = -1
+      LOGICAL                               :: adiis_verbose = .FALSE., do_oda = .FALSE.
       ! Maximum Overlap Method
       LOGICAL                               :: mom = .FALSE., mom_didguess = .FALSE.
       INTEGER                               :: mom_proj_formula = -1
@@ -216,7 +217,9 @@ CONTAINS
       ! Diagonalization
       scf_control%diagonalization%method = 0
       scf_control%diagonalization%update_method = diag_update_method_mixing
-      scf_control%diagonalization%max_history = 7
+      scf_control%diagonalization%max_history = 16
+      scf_control%diagonalization%do_oda = .FALSE.
+      scf_control%diagonalization%adiis_verbose = .FALSE.
       scf_control%diagonalization%eps_jacobi = 0.0_dp
       scf_control%diagonalization%jacobi_threshold = 1.0E-7_dp
       scf_control%diagonalization%max_iter = 0
@@ -440,6 +443,10 @@ CONTAINS
       adiis_section => section_vals_get_subs_vals(scf_section, "ADIIS")
       CALL section_vals_val_get(adiis_section, "MAX_HISTORY", &
                                 i_val=scf_control%diagonalization%max_history)
+      CALL section_vals_val_get(adiis_section, "ODA", &
+                                l_val=scf_control%diagonalization%do_oda)
+      CALL section_vals_val_get(adiis_section, "VERBOSE", &
+                                l_val=scf_control%diagonalization%adiis_verbose)
       ! Read ROKS parameters
       CALL section_vals_val_get(scf_section, "ROKS_SCHEME", i_val=scf_control%roks_scheme)
 
@@ -674,6 +681,8 @@ CONTAINS
                   IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
                      WRITE (UNIT=output_unit, FMT="(T25,A,T71,I10)") &
                         "ADIIS max history: ", scf_control%diagonalization%max_history
+                     WRITE (UNIT=output_unit, FMT="(T25,A,T71,L10)") &
+                        "ADIIS optimal damping: ", scf_control%diagonalization%do_oda
                   END IF
                END IF
             END IF

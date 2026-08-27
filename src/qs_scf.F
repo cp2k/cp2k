@@ -86,8 +86,10 @@ MODULE qs_scf
         ot_precond_none, ot_precond_s_inverse, outer_scf_becke_constraint, &
         outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
         outer_scf_optimizer_newton_ls, sic_eo, tblite_scc_mixer_tblite
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -164,6 +166,7 @@ MODULE qs_scf
         qs_scf_candidate_density_delta, qs_scf_check_inner_exit, qs_scf_check_outer_exit, &
         qs_scf_commit_density_candidate, qs_scf_density_mixing, qs_scf_inner_finalize, &
         qs_scf_new_mos, qs_scf_new_mos_kp, qs_scf_rho_update, qs_scf_set_loop_flags
+   USE qs_scf_oda,                      ONLY: qs_scf_oda_apply
    USE qs_scf_output,                   ONLY: qs_scf_cdft_info,&
                                               qs_scf_cdft_initial_info,&
                                               qs_scf_gce_info,&
@@ -172,7 +175,9 @@ MODULE qs_scf
                                               qs_scf_outer_loop_info,&
                                               qs_scf_write_mos
    USE qs_scf_post_scf,                 ONLY: qs_scf_compute_properties
-   USE qs_scf_subspace,                 ONLY: qs_scf_subspace_restart
+   USE qs_scf_subspace,                 ONLY: qs_scf_subspace_build,&
+                                              qs_scf_subspace_push,&
+                                              qs_scf_subspace_restart
    USE qs_scf_subspace_types,           ONLY: qs_scf_subspace_buffer_clear,&
                                               qs_scf_subspace_buffer_create,&
                                               qs_scf_subspace_buffer_release
@@ -372,14 +377,16 @@ CONTAINS
       REAL(KIND=dp), PARAMETER :: adiis_stagnation_ratio = 1.0E-2_dp
 
       CHARACTER(LEN=default_string_length)               :: description, name
-      INTEGER                                            :: ext_master_id, handle, handle2, i_tmp, &
-                                                            ic, ispin, iter_count, output_unit, &
-                                                            scf_energy_message_tag, total_steps
-      LOGICAL :: adiis_restarted, adiis_stagnated, adiis_validation, density_full_step, diis_step, &
-         do_kpoints, energy_only, exit_inner_loop, exit_outer_loop, inner_loop_converged, &
-         internal_tblite_density_full_step, internal_tblite_mixer, just_energy, &
+      INTEGER :: ext_master_id, handle, handle2, i_tmp, ic, irep, ispin, iter_count, n_rep_hf, &
+         oda_base_slot, output_unit, scf_energy_message_tag, total_steps
+      LOGICAL :: ace_active, adiis_pushed, adiis_restarted, adiis_stagnated, adiis_validation, &
+         density_full_step, diis_step, do_kpoints, energy_only, exit_inner_loop, exit_outer_loop, &
+         inner_loop_converged, internal_tblite_density_full_step, internal_tblite_mixer, &
+         just_energy, oda_applied, oda_eligible, oda_globalization_active, oda_interior, &
+         oda_predictor_valid, oda_restart_trigger, oda_state_evaluated, oda_trigger, &
          outer_loop_converged, tblite_native_mixer
-      REAL(KIND=dp)                                      :: adiis_raw_delta, adiis_step_delta, t1, t2
+      REAL(KIND=dp)                                      :: adiis_raw_delta, adiis_step_delta, &
+                                                            oda_predictor_lambda, t1, t2
       REAL(KIND=dp), DIMENSION(3)                        :: res_val_3
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -395,18 +402,21 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_charges_type), POINTER                     :: qs_charges
+      TYPE(qs_energy_type)                               :: oda_base_energy, oda_evaluated_energy
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: dft_section, input, scf_section
+      TYPE(section_vals_type), POINTER                   :: ace_section, dft_section, hfx_sections, &
+                                                            input, scf_section
 
       CALL timeset(routineN, handle)
 
       NULLIFY (dft_control, rho, energy, &
                logger, qs_charges, ks_env, mos, atomic_kind_set, qs_kind_set, &
-               particle_set, dft_section, input, &
-               scf_section, para_env, results, kpoints, pw_env, matrix_ks_kp, rho_ao_kp, mos_last_converged)
+               particle_set, ace_section, dft_section, hfx_sections, input, &
+               scf_section, para_env, results, kpoints, pw_env, matrix_ks, &
+               matrix_ks_kp, rho_ao_kp, mos_last_converged)
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(ASSOCIATED(qs_env))
@@ -447,6 +457,32 @@ CONTAINS
 
       dft_section => section_vals_get_subs_vals(input, "DFT")
       scf_section => section_vals_get_subs_vals(dft_section, "SCF")
+
+      ! ODA uses the STANDARD diagonalization endpoint for Gamma-point and k-point runs.
+      ! Smearing remains excluded by ADIIS; other ADIIS-compatible variants are admitted
+      ! only when their raw endpoint is a descent direction and its evaluated trial lowers the energy.
+      oda_eligible = scf_control%diagonalization%update_method == diag_update_method_adiis .AND. &
+                     scf_control%diagonalization%do_oda .AND. &
+                     scf_env%method == general_diag_method_nr .AND. &
+                     .NOT. (dft_control%smear .OR. scf_control%smear%do_smear)
+      IF (oda_eligible) THEN
+         ace_active = .FALSE.
+         hfx_sections => section_vals_get_subs_vals(dft_section, "XC%HF")
+         CALL section_vals_get(hfx_sections, n_repetition=n_rep_hf)
+         DO irep = 1, n_rep_hf
+            ace_section => section_vals_get_subs_vals(hfx_sections, "ACE", i_rep_section=irep)
+            IF (ASSOCIATED(ace_section)) THEN
+               CALL section_vals_val_get(ace_section, "ACTIVE", l_val=ace_active)
+               IF (ace_active) EXIT
+            END IF
+         END DO
+         IF (ace_active) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "ODA is disabled because HF%ACE is active; ODA trial densities have no matching "// &
+                         "MOs for the ACE projector.")
+            oda_eligible = .FALSE.
+         END IF
+      END IF
 
       output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".scfLog")
@@ -511,6 +547,10 @@ CONTAINS
          CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, &
                             scf_section=scf_section)
 
+         oda_globalization_active = oda_eligible
+         oda_predictor_lambda = 1.0_dp
+         oda_predictor_valid = .FALSE.
+
          CALL qs_scf_set_loop_flags(scf_env, diis_step, &
                                     energy_only, just_energy, exit_inner_loop)
 
@@ -541,29 +581,79 @@ CONTAINS
             CALL qs_ks_update_qs_env(qs_env, just_energy=just_energy, &
                                      calculate_forces=.FALSE.)
 
+            scf_env%raw_map_delta = 0.0_dp
+            scf_env%oda_lambda = 0.0_dp
+            scf_env%oda_energy = 0.0_dp
+            scf_env%oda_gradient0 = 0.0_dp
+            scf_env%oda_gradient1 = 0.0_dp
+            scf_env%oda_evaluations = 0
+            scf_env%oda_status = ""
+            scf_env%raw_map_delta_valid = .FALSE.
+            oda_applied = .FALSE.
+            oda_interior = .FALSE.
+            oda_state_evaluated = .FALSE.
             ! print 'heavy weight' or relatively expensive quantities
             CALL qs_scf_loop_print(qs_env, scf_env, para_env)
 
             adiis_validation = scf_control%diagonalization%update_method == diag_update_method_adiis .AND. &
                                scf_env%adiis_check_next
-            adiis_step_delta = scf_env%iter_delta
+            adiis_step_delta = scf_env%step_norm
             scf_env%adiis_validated = .FALSE.
+            oda_base_energy = energy
 
             IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
                ! ADIIS is a Fock-space SCF method and never uses density mixing.  A small
-               ! accelerated step is validated against the unmodified F[P] map before
-               ! convergence is accepted.  If validation fails, its candidate density is
-               ! discarded and the normal ADIIS step is performed in this same iteration.
+               ! accelerated step is checked against the unmodified F[P] map before
+               ! convergence is accepted. The check detects an artificial subspace zero;
+               ! it is not a second, equally strict convergence criterion.
+               CPASSERT(ASSOCIATED(scf_env%scf_subspace_buffer))
+               scf_env%scf_subspace_buffer%last_restart = .FALSE.
+               scf_env%scf_subspace_buffer%use_combined_fock = .FALSE.
+               scf_env%scf_subspace_buffer%last_old_fock_weight = 0.0_dp
+               oda_trigger = .FALSE.
+               oda_restart_trigger = .FALSE.
+               IF (.NOT. adiis_validation .AND. scf_env%iter_count > 1) THEN
+                  ! Only accepted densities whose raw F[P] has just been evaluated enter history.
+                  ! The initial guess and raw-validation trial endpoint are deliberately excluded.
+                  CALL qs_scf_subspace_push(scf_env%scf_subspace_buffer, matrix_ks_kp, rho_ao_kp, &
+                                            energy%total, adiis_pushed)
+                  IF (.NOT. adiis_pushed) CPABORT("Failed to append the accepted ADIIS SCF state")
+                  CALL qs_scf_subspace_build(scf_env%scf_subspace_buffer)
+                  oda_restart_trigger = scf_env%scf_subspace_buffer%last_restart
+                  ! ODA globalizes the initial raw Roothaan phase. Once ADIIS has formed
+                  ! a genuine history combination, remain in ADIIS unless its history is
+                  ! explicitly restarted; a later raw-vertex solution alone is not a new
+                  ! globalization event.
+                  IF (oda_restart_trigger) THEN
+                     oda_globalization_active = .TRUE.
+                  END IF
+                  IF (scf_env%scf_subspace_buffer%use_combined_fock) THEN
+                     oda_globalization_active = .FALSE.
+                  END IF
+                  IF (oda_restart_trigger .OR. scf_env%scf_subspace_buffer%use_combined_fock) THEN
+                     oda_predictor_lambda = 1.0_dp
+                     oda_predictor_valid = .FALSE.
+                  END IF
+                  oda_trigger = oda_eligible .AND. &
+                                scf_env%iter_count < scf_control%max_scf .AND. &
+                                oda_globalization_active .AND. &
+                                .NOT. scf_env%scf_subspace_buffer%use_combined_fock
+               END IF
                IF (do_kpoints) THEN
-                  CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, &
-                                         apply_adiis=.NOT. adiis_validation)
+                  CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
                ELSE
-                  CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only, &
-                                      apply_adiis=.NOT. adiis_validation)
+                  CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only)
+               END IF
+
+               IF (oda_trigger .OR. adiis_validation) THEN
+                  CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, adiis_raw_delta)
+                  scf_env%raw_map_delta = adiis_raw_delta
+                  scf_env%raw_map_delta_valid = .TRUE.
                END IF
 
                IF (adiis_validation) THEN
-                  CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, adiis_raw_delta)
+                  oda_predictor_lambda = 1.0_dp
+                  oda_predictor_valid = .FALSE.
                   IF (adiis_raw_delta < scf_control%eps_scf) THEN
                      scf_env%iter_delta = adiis_raw_delta
                      scf_env%iter_param = 0.0_dp
@@ -583,25 +673,78 @@ CONTAINS
                         IF (.NOT. adiis_restarted) THEN
                            CPABORT("Failed to restart the ADIIS history from the current SCF state")
                         END IF
-                        scf_env%iter_delta = adiis_raw_delta
-                        scf_env%iter_param = 0.0_dp
-                        scf_env%iter_method = "ADIIS/Rst."
-                        scf_env%adiis_check_next = .FALSE.
-                     ELSE
-                        ! The failed validation does not indicate a subspace fixed point.
-                        ! Preserve the useful ADIIS history and discard the validation
-                        ! candidate by performing the accelerated step in this iteration.
-                        IF (do_kpoints) THEN
-                           CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, apply_adiis=.TRUE.)
+                        oda_restart_trigger = .TRUE.
+                        oda_trigger = oda_eligible .AND. scf_env%iter_count < scf_control%max_scf
+                        IF (oda_trigger) THEN
+                           oda_globalization_active = .TRUE.
                         ELSE
-                           CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only, &
-                                               apply_adiis=.TRUE.)
+                           scf_env%iter_delta = adiis_raw_delta
+                           scf_env%iter_param = 0.0_dp
+                           scf_env%iter_method = "ADIIS/Rst."
+                           scf_env%adiis_check_next = .FALSE.
+                        END IF
+                     ELSE
+                        ! The raw map is not converged, but the accelerated step is not an
+                        ! artificial subspace zero. Preserve the useful history, discard the
+                        ! raw trial, and repeat the normal ADIIS step in this iteration.
+                        CALL qs_scf_subspace_push(scf_env%scf_subspace_buffer, matrix_ks_kp, rho_ao_kp, &
+                                                  energy%total, adiis_pushed)
+                        IF (.NOT. adiis_pushed) CPABORT("Failed to append the accepted ADIIS SCF state")
+                        CALL qs_scf_subspace_build(scf_env%scf_subspace_buffer)
+                        IF (scf_env%scf_subspace_buffer%last_restart) THEN
+                           oda_globalization_active = .TRUE.
+                        END IF
+                        IF (scf_env%scf_subspace_buffer%use_combined_fock) THEN
+                           oda_globalization_active = .FALSE.
+                        END IF
+                        IF (scf_env%scf_subspace_buffer%last_restart .OR. &
+                            scf_env%scf_subspace_buffer%use_combined_fock) THEN
+                           oda_predictor_lambda = 1.0_dp
+                           oda_predictor_valid = .FALSE.
+                        END IF
+                        IF (do_kpoints) THEN
+                           CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
+                        ELSE
+                           CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only)
                         END IF
                         CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, scf_env%iter_delta)
-                        scf_env%adiis_check_next = scf_env%iter_delta < scf_control%eps_scf
+                        scf_env%adiis_validated = scf_env%iter_delta < scf_control%eps_scf
+                        IF (scf_env%adiis_validated) THEN
+                           scf_env%iter_param = 0.0_dp
+                           scf_env%iter_method = "ADIIS/Chk."
+                        END IF
+                        ! A successful sanity check must not recursively demand another raw
+                        ! endpoint check. A later, independently small step can trigger one.
+                        scf_env%adiis_check_next = .FALSE.
                      END IF
                   END IF
-               ELSE
+               END IF
+
+               IF (oda_trigger) THEN
+                  CPASSERT(ALLOCATED(scf_env%scf_subspace_buffer%generation))
+                  CPASSERT(SIZE(scf_env%scf_subspace_buffer%generation) > 0)
+                  CPASSERT(ASSOCIATED(scf_env%scf_subspace_buffer%fock))
+                  CPASSERT(scf_env%scf_subspace_buffer%nstored > 0)
+                  oda_base_slot = MAXLOC(scf_env%scf_subspace_buffer%generation, DIM=1)
+                  CALL qs_scf_oda_apply(qs_env, scf_env, rho, ks_env, &
+                                        scf_env%scf_subspace_buffer%fock(oda_base_slot, :, :), &
+                                        matrix_ks_kp, rho_ao_kp, oda_base_energy, &
+                                        oda_predictor_lambda, oda_predictor_valid, oda_applied, &
+                                        oda_state_evaluated, oda_evaluated_energy)
+                  IF (oda_applied) THEN
+                     oda_interior = scf_env%oda_lambda < 1.0_dp - 64.0_dp*EPSILON(1.0_dp)
+                  END IF
+                  scf_env%iter_delta = scf_env%oda_lambda*adiis_raw_delta
+                  scf_env%iter_param = scf_env%oda_lambda
+                  IF (.NOT. oda_applied) THEN
+                     scf_env%iter_method = "ODA/Fallback"
+                  ELSE IF (oda_restart_trigger) THEN
+                     scf_env%iter_method = "ODA/Rst."
+                  ELSE
+                     scf_env%iter_method = "ODA/Diag."
+                  END IF
+                  scf_env%adiis_check_next = scf_env%iter_delta < scf_control%eps_scf
+               ELSE IF (.NOT. adiis_validation) THEN
                   CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, scf_env%iter_delta)
                   scf_env%adiis_check_next = scf_env%iter_delta < scf_control%eps_scf
                END IF
@@ -628,7 +771,11 @@ CONTAINS
             END IF
 
             ! Print requested MO information (can be computationally expensive with OT)
-            CALL qs_scf_write_mos(qs_env, scf_env, final_mos=.FALSE.)
+            ! The accepted interior ODA density is relaxed and has no matching MO set;
+            ! suppress iteration-local MO properties until the next idempotent endpoint.
+            IF (.NOT. oda_interior) THEN
+               CALL qs_scf_write_mos(qs_env, scf_env, final_mos=.FALSE.)
+            END IF
 
             IF (dft_control%qs_control%xtb_control%do_tblite) THEN
                IF (scf_env%method == ot_method_nr) THEN
@@ -643,9 +790,9 @@ CONTAINS
             END IF
 
             IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
-               ! ADIIS owns the Fock-space update.  Its diagonalized density is the next
-               ! SCF state; no density-mixing algorithm is applied.
-               CALL qs_scf_commit_density_candidate(scf_env, rho)
+               ! ADIIS never mixes densities. ODA trials already update rho; only an
+               ! unevaluated raw endpoint still needs to be committed from p_mix_new.
+               IF (.NOT. oda_state_evaluated) CALL qs_scf_commit_density_candidate(scf_env, rho)
                density_full_step = .TRUE.
             ELSE
                density_full_step = diis_step .OR. tblite_native_mixer .OR. internal_tblite_density_full_step
@@ -673,10 +820,12 @@ CONTAINS
                   scf_env%iter_param = dft_control%qs_control%xtb_control%tblite_mixer_damping
                END IF
             END IF
+            scf_env%step_norm = scf_env%iter_delta
 
             t2 = m_walltime()
 
-            CALL qs_scf_loop_info(scf_env, output_unit, just_energy, t1, t2, energy)
+            CALL qs_scf_loop_info(scf_env, output_unit, just_energy, t1, t2, energy, &
+                                  scf_control%diagonalization%adiis_verbose)
 
             IF (scf_control%gce%do_gce) THEN
                CALL qs_scf_gce_info(output_unit, qs_env, just_energy)
@@ -709,7 +858,10 @@ CONTAINS
             IF (do_kpoints) THEN
                CALL write_kpoints_restart(rho_ao_kp, kpoints, scf_env, dft_section, particle_set, qs_kind_set)
             ELSE
-               IF (.NOT. dft_control%mtlr_dft_with_perturbation) THEN
+               ! A damped ODA density is generally non-idempotent and cannot be represented by
+               ! the raw-endpoint MOs. Defer the WFN restart until a later idempotent step.
+               IF (.NOT. dft_control%mtlr_dft_with_perturbation .AND. &
+                   .NOT. oda_interior) THEN
                   ! Write wavefunction restart file
                   IF (scf_env%method == ot_method_nr) THEN
                      ! With OT: provide the Kohn-Sham matrix for the calculation of the MO eigenvalues
@@ -728,6 +880,14 @@ CONTAINS
                EXIT scf_loop
             END IF
 
+            IF (oda_state_evaluated) THEN
+               ! ODA has already updated the accepted AO density, real-space density, Fock
+               ! matrix, and all energy components.  Preserve the ordinary SCF row above,
+               ! then carry that evaluated state directly into the next iteration.
+               oda_evaluated_energy%tot_old = energy%tot_old
+               energy = oda_evaluated_energy
+            END IF
+
             IF (.NOT. BTEST(cp_print_key_should_output(logger%iter_info, &
                                                        scf_section, "PRINT%ITERATION_INFO/TIME_CUMUL"), cp_p_file)) THEN
                t1 = m_walltime()
@@ -743,8 +903,10 @@ CONTAINS
                END DO
             END IF
 
-            CALL qs_scf_rho_update(rho, qs_env, scf_env, ks_env, &
-                                   mix_rho=scf_env%mixing_method >= gspace_mixing_nr)
+            IF (.NOT. oda_state_evaluated) THEN
+               CALL qs_scf_rho_update(rho, qs_env, scf_env, ks_env, &
+                                      mix_rho=scf_env%mixing_method >= gspace_mixing_nr)
+            END IF
 
             CALL timestop(handle2)
 

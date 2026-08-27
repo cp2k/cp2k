@@ -156,7 +156,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_DIIS", &
                           variants=["MAX_DIIS_BUFFER_SIZE"], &
-                          description="Maximum number of DIIS subspace vectors to be used", &
+                          description="Maximum number of conventional DIIS subspace vectors to be used", &
                           usage="MAX_DIIS 3", default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -963,12 +963,30 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="ADIIS", &
                           description="Parameters for the ADIIS SCF update method.", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="MAX_HISTORY", &
-                          description="Maximum number of paired density/Fock states retained by ADIIS.", &
+                          description="Maximum number of paired density/Fock states retained by ADIIS. "// &
+                          "Histories up to 12 use exact active-face enumeration; larger histories use "// &
+                          "deterministic pairwise simplex minimization.", &
                           usage="MAX_HISTORY 7", default_i_val=16)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ODA", &
+                          description="Enable safeguarded optimal damping of raw Roothaan steps used to initialize "// &
+                          "or globalize ADIIS. "// &
+                          "ODA supports STANDARD diagonalization, including k-point calculations. "// &
+                          "It is disabled with a warning when HF%ACE is active. "// &
+                          "Smearing remains unsupported for ADIIS and ODA.", &
+                          usage="ODA T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VERBOSE", &
+                          description="Print per-iteration ADIIS and ODA diagnostic metrics.", &
+                          usage="VERBOSE", lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
