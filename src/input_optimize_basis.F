@@ -13,24 +13,24 @@
 ! **************************************************************************************************
 MODULE input_optimize_basis
 
-   USE cp_units,                        ONLY: cp_unit_to_cp2k
-   USE input_constants,                 ONLY: do_opt_all,&
-                                              do_opt_coeff,&
-                                              do_opt_exps,&
-                                              do_opt_none
-   USE input_keyword_types,             ONLY: keyword_create,&
-                                              keyword_release,&
-                                              keyword_type
-   USE input_section_types,             ONLY: section_add_keyword,&
-                                              section_add_subsection,&
-                                              section_create,&
-                                              section_release,&
-                                              section_type
-   USE input_val_types,                 ONLY: char_t,&
-                                              integer_t,&
-                                              real_t
-   USE kinds,                           ONLY: dp
-   USE string_utilities,                ONLY: s2a
+   USE cp_units, ONLY: cp_unit_to_cp2k
+   USE input_constants, ONLY: do_opt_all, &
+                              do_opt_coeff, &
+                              do_opt_exps, &
+                              do_opt_none
+   USE input_keyword_types, ONLY: keyword_create, &
+                                  keyword_release, &
+                                  keyword_type
+   USE input_section_types, ONLY: section_add_keyword, &
+                                  section_add_subsection, &
+                                  section_create, &
+                                  section_release, &
+                                  section_type
+   USE input_val_types, ONLY: char_t, &
+                              integer_t, &
+                              real_t
+   USE kinds, ONLY: dp
+   USE string_utilities, ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -173,54 +173,80 @@ CONTAINS
          description="Optimizes the basis set to obtain optimal occupied and low-energy virtual orbitals. "// &
          "The reference Kohn-Sham Hamiltonian is frozen while the candidate basis is varied. "// &
          "For every training calculation, the following loss function is minimized: "// &
-         "L = a_occ L_occ + a_vir L_vir + a_empty L_empty + a_gap L_gap + "// &
-         "a_coeff L_coeff + a_κ L_κ. R and C label reference and candidate quantities, "// &
-         "N_occ is the number of occupied spatial orbitals, and "// &
-         "M_ij = <ψ_i^R | ψ_j^C> is an orbital overlap. The occupied loss is "// &
-         "L_occ = 1 - sum_(i,j in occupied) |M_ij|^2 / N_occ. "// &
-         "Low-energy virtual orbitals are selected smoothly with "// &
-         "w_i^X = 1 / {1 + exp[(ε_i^X - ε_LUMO^X - E_cut) / ΔE]}, for X = R or C. "// &
-         "Define N_X = sum_(i in virtual) (w_i^X)^2 and "// &
-         "O_vir = sum_(i,j in virtual) w_i^R w_j^C |M_ij|^2. The virtual loss is "// &
-         "L_vir = (N_R + N_C - 2 O_vir) / (2 N_R). The reference-weighted empty-subspace "// &
-         "overlap is O_empty = clip[sum_(i,j in virtual) (w_i^R)^2 |M_ij|^2 / N_R, 0, 1], "// &
-         "where clip(x, 0, 1) restricts x to the interval from 0 to 1, and "// &
-         "L_empty = 1 - O_empty. With E_gap^X = ε_LUMO^X - ε_HOMO^X, the gap loss is "// &
-         "L_gap = [(E_gap^C - E_gap^R) / E_scale]^2. For the current and initial vectors of "// &
-         "optimized contraction coefficients c and c_0, "// &
-         "L_coeff = sum_i (c_i - c_0,i)^2 / sum_i c_0,i^2. Finally, "// &
-         "the conditioning loss is L_κ = log10(κ(S_C)), where "// &
-         "κ(S_C) = λ_max(S_C) / λ_min(S_C). It penalizes an ill-conditioned candidate overlap matrix. "// &
-         "The weights a_occ, a_vir, a_empty, a_gap, and a_coeff are set below; "// &
-         "CONDITION_WEIGHT supplies a_κ.", &
+         "$$\mathcal{L}=a_{\mathrm{occ}}\mathcal{L}_{\mathrm{occ}}+"// &
+         "a_{\mathrm{vir}}\mathcal{L}_{\mathrm{vir}}+"// &
+         "a_{\mathrm{empty}}\mathcal{L}_{\mathrm{empty}}+"// &
+         "a_{\mathrm{gap}}\mathcal{L}_{\mathrm{gap}}+"// &
+         "a_{\mathrm{coeff}}\mathcal{L}_{\mathrm{coeff}}+"// &
+         "a_\kappa\mathcal{L}_\kappa.$$ "// &
+         "$R$ and $C$ label reference and candidate quantities, $N_{\mathrm{occ}}$ is the number "// &
+         "of occupied spatial orbitals, and "// &
+         "$M_{ij}=\langle\psi_i^R\vert\psi_j^C\rangle$ is an orbital overlap. "// &
+         "The occupied-subspace loss is "// &
+         "$$\mathcal{L}_{\mathrm{occ}}=1-\frac{1}{N_{\mathrm{occ}}}"// &
+         "\sum_{i,j\in\mathrm{occ}}\lvert M_{ij}\rvert^2.$$ "// &
+         "Low-energy virtual orbitals are selected smoothly using "// &
+         "$$w_i^X=\left[1+\exp\left("// &
+         "\frac{\epsilon_i^X-\epsilon_{\mathrm{LUMO}}^X-E_{\mathrm{cut}}}{\Delta E}"// &
+         "\right)\right]^{-1},\qquad X\in\{R,C\}.$$ "// &
+         "Define $N_X=\sum_{i\in\mathrm{vir}}(w_i^X)^2$ and "// &
+         "$O_{\mathrm{vir}}=\sum_{i,j\in\mathrm{vir}}"// &
+         "w_i^R w_j^C\lvert M_{ij}\rvert^2$. The virtual-subspace loss is "// &
+         "$$\mathcal{L}_{\mathrm{vir}}="// &
+         "\frac{N_R+N_C-2O_{\mathrm{vir}}}{2N_R}.$$ "// &
+         "The reference-weighted empty-subspace overlap and its loss are "// &
+         "$$O_{\mathrm{empty}}=\operatorname{clip}\left("// &
+         "\frac{\sum_{i,j\in\mathrm{vir}}(w_i^R)^2\lvert M_{ij}\rvert^2}{N_R},0,1\right),"// &
+         "\qquad \mathcal{L}_{\mathrm{empty}}=1-O_{\mathrm{empty}}.$$ "// &
+         "Here, $\operatorname{clip}(x,0,1)$ restricts $x$ to the interval $[0,1]$. "// &
+         "With $E_{\mathrm{gap}}^X=\epsilon_{\mathrm{LUMO}}^X-\epsilon_{\mathrm{HOMO}}^X$, "// &
+         "the gap loss is "// &
+         "$$\mathcal{L}_{\mathrm{gap}}=\left("// &
+         "\frac{E_{\mathrm{gap}}^C-E_{\mathrm{gap}}^R}{E_{\mathrm{scale}}}"// &
+         "\right)^2.$$ "// &
+         "For the current and initial vectors of optimized contraction coefficients, $c$ and $c_0$, "// &
+         "the coefficient loss is "// &
+         "$$\mathcal{L}_{\mathrm{coeff}}="// &
+         "\frac{\sum_i(c_i-c_{0,i})^2}{\sum_i c_{0,i}^2}.$$ "// &
+         "Finally, the conditioning loss is "// &
+         "$$\mathcal{L}_\kappa=\log_{10}\kappa(S_C),\qquad "// &
+         "\kappa(S_C)=\frac{\lambda_{\max}(S_C)}{\lambda_{\min}(S_C)}.$$ "// &
+         "It penalizes an ill-conditioned candidate overlap matrix. The weights "// &
+         "$a_{\mathrm{occ}}$, $a_{\mathrm{vir}}$, $a_{\mathrm{empty}}$, "// &
+         "$a_{\mathrm{gap}}$, and $a_{\mathrm{coeff}}$ are set below; "// &
+         "CONDITION_WEIGHT supplies $a_\kappa$.", &
          repeats=.FALSE.)
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="OCCUPIED_WEIGHT", &
-         description="Prefactor a_occ multiplying the occupied-subspace loss L_occ.", &
+         description="Prefactor $a_{\mathrm{occ}}$ multiplying the occupied-subspace loss "// &
+         "$\mathcal{L}_{\mathrm{occ}}$.", &
          usage="OCCUPIED_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="VIRTUAL_WEIGHT", &
-         description="Prefactor a_vir multiplying the virtual-subspace loss L_vir.", &
+         description="Prefactor $a_{\mathrm{vir}}$ multiplying the virtual-subspace loss "// &
+         "$\mathcal{L}_{\mathrm{vir}}$.", &
          usage="VIRTUAL_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="EMPTY_OVERLAP_WEIGHT", &
-         description="Prefactor a_empty multiplying L_empty, which is one minus the bounded, "// &
-         "reference-weighted empty-subspace overlap O_empty.", &
+         description="Prefactor $a_{\mathrm{empty}}$ multiplying "// &
+         "$\mathcal{L}_{\mathrm{empty}}=1-O_{\mathrm{empty}}$, where "// &
+         "$O_{\mathrm{empty}}$ is the bounded, reference-weighted empty-subspace overlap.", &
          usage="EMPTY_OVERLAP_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="GAP_WEIGHT", &
-         description="Prefactor a_gap multiplying the normalized HOMO-LUMO gap loss L_gap. "// &
-         "Because L_gap is proportional to 1 / E_scale^2, reducing GAP_ENERGY_SCALE by a factor "// &
+         description="Prefactor $a_{\mathrm{gap}}$ multiplying the normalized HOMO-LUMO gap loss "// &
+         "$\mathcal{L}_{\mathrm{gap}}$. Because $\mathcal{L}_{\mathrm{gap}}$ is proportional to "// &
+         "$1/E_{\mathrm{scale}}^2$, reducing GAP_ENERGY_SCALE by a factor "// &
          "of 100 requires reducing GAP_WEIGHT by a factor of 10000 to retain the same balance.", &
          usage="GAP_WEIGHT 1.0E-3", type_of_var=real_t, default_r_val=1.0E-3_dp)
       CALL section_add_keyword(section, keyword)
@@ -228,16 +254,17 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="COEFFICIENT_WEIGHT", &
-         description="Prefactor a_coeff multiplying the normalized squared change L_coeff of the "// &
-         "optimized contraction coefficients from their initial values.", &
+         description="Prefactor $a_{\mathrm{coeff}}$ multiplying the normalized squared change "// &
+         "$\mathcal{L}_{\mathrm{coeff}}$ of the optimized contraction coefficients from their "// &
+         "initial values.", &
          usage="COEFFICIENT_WEIGHT 1.0E-3", type_of_var=real_t, default_r_val=1.0E-3_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="GAP_ENERGY_SCALE", &
-         description="E_scale in the gap loss. A gap error of this magnitude gives L_gap = 1. "// &
-         "The default is 0.01 eV.", &
+         description="$E_{\mathrm{scale}}$ in the gap loss. A gap error of this magnitude gives "// &
+         "$\mathcal{L}_{\mathrm{gap}}=1$. The default is 0.01 eV.", &
          usage="GAP_ENERGY_SCALE [eV] 0.01", type_of_var=real_t, unit_str="eV", &
          default_r_val=cp_unit_to_cp2k(value=0.01_dp, unit_str="eV"))
       CALL section_add_keyword(section, keyword)
@@ -245,7 +272,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="VIRTUAL_ENERGY_CUTOFF", &
-         description="E_cut, the virtual-orbital energy window measured "// &
+         description="$E_{\mathrm{cut}}$, the virtual-orbital energy window measured "// &
          "from the corresponding LUMO. The default is 3 eV.", &
          usage="VIRTUAL_ENERGY_CUTOFF [eV] 3.0", type_of_var=real_t, unit_str="eV", &
          default_r_val=cp_unit_to_cp2k(value=3.0_dp, unit_str="eV"))
@@ -254,7 +281,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="VIRTUAL_ENERGY_SMOOTHING", &
-         description="ΔE, the smoothing width at the outer boundary of the "// &
+         description="$\Delta E$, the smoothing width at the outer boundary of the "// &
          "virtual-orbital energy window. It must be positive; the default is 0.2 eV.", &
          usage="VIRTUAL_ENERGY_SMOOTHING [eV] 0.2", type_of_var=real_t, unit_str="eV", &
          default_r_val=cp_unit_to_cp2k(value=0.2_dp, unit_str="eV"))
