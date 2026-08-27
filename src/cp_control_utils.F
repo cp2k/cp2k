@@ -1873,10 +1873,10 @@ CONTAINS
             DO j = 1, n_rep
                CALL section_vals_val_get(xtb_parameter, "KAB_PARAM", i_rep_val=j, c_vals=clist)
                qs_control%xtb_control%kab_param(1, j) = clist(1)
-               CALL get_ptable_info(clist(1), &
+               CALL get_ptable_info(clist(1) (1:2), &
                                     ielement=qs_control%xtb_control%kab_types(1, j))
                qs_control%xtb_control%kab_param(2, j) = clist(2)
-               CALL get_ptable_info(clist(2), &
+               CALL get_ptable_info(clist(2) (1:2), &
                                     ielement=qs_control%xtb_control%kab_types(2, j))
                qs_control%xtb_control%kab_param(3, j) = clist(3)
                READ (clist(3), '(F10.0)') qs_control%xtb_control%kab_vals(j)

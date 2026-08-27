@@ -123,7 +123,7 @@ CONTAINS
                   nnp%coord(m, ig) = particle_set(j)%r(m)
                END DO
                nnp%atoms(ig) = nnp%ele(i)
-               CALL get_ptable_info(nnp%atoms(ig), number=nnp%nuc_atoms(ig))
+               CALL get_ptable_info(nnp%atoms(ig) (1:2), number=nnp%nuc_atoms(ig))
                nnp%ele_ind(ig) = i
                nnp%sort(ig) = j
                nnp%sort_inv(j) = ig
@@ -625,7 +625,7 @@ CONTAINS
       com = 0.0_dp
       mass = 0.0_dp
       DO i = 1, nnp%num_atoms
-         CALL get_ptable_info(nnp%atoms(i), amass=unit_conv)
+         CALL get_ptable_info(nnp%atoms(i) (1:2), amass=unit_conv)
          com(:) = com(:) + nnp%coord(:, i)*unit_conv
          mass = mass + unit_conv
       END DO
