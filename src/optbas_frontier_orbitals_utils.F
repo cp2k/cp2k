@@ -294,29 +294,29 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Compute the frontier-orbital loss function.
-!> \param orbital_overlap orbital overlaps M_ij = <ψ_i^R | ψ_j^C>
-!> \param eigenvalues_reference reference eigenvalues ε_i^R
-!> \param eigenvalues_candidate candidate eigenvalues ε_j^C
+!> \param orbital_overlap reference/candidate orbital overlaps
+!> \param eigenvalues_reference reference eigenvalues
+!> \param eigenvalues_candidate candidate eigenvalues
 !> \param number_occupied_orbitals number of occupied spatial orbitals
 !> \param virtual_cutoff virtual-orbital energy cutoff E_cut
 !> \param virtual_smoothing virtual-orbital energy smoothing width ΔE
 !> \param gap_scale normalization energy E_scale for the gap loss
 !> \param result loss-function terms and diagnostic quantities
 !>
-!> Let i denote a reference orbital, j a candidate orbital, and N_occ the number of occupied
-!> orbitals. R and C label reference and candidate quantities. The occupied-subspace loss is
+!> Let i,j denote occupied orbitals, a,b virtual orbitals, and N_occ the number of occupied
+!> orbitals. R and C label reference and candidate quantities, with
+!> M_ij = <ψ_i^R | ψ_j^C> and M_ab = <ψ_a^R | ψ_b^C>. The occupied-subspace loss is
 !> L_occ = 1 - sum_(i,j in occupied) |M_ij|^2 / N_occ.
 !>
-!> For virtual orbitals i,j > N_occ, define the smooth energy-window weights and their norms as
-!> w_i^X = 1 / {1 + exp[(ε_i^X - ε_LUMO^X - E_cut) / ΔE]}, for X = R or C,
-!> N_X = sum_(i in virtual) (w_i^X)^2.
-!> The energy-weighted virtual-subspace overlap and loss are
-!> O_vir = sum_(i,j in virtual) w_i^R w_j^C |M_ij|^2,
-!> L_vir = (N_R + N_C - 2 O_vir) / (2 N_R).
+!> For virtual orbitals, define the smooth energy-window weights and their norms as
+!> w_a^X = 1 / {1 + exp[(ε_a^X - ε_LUMO^X - E_cut) / ΔE]}, for X = R or C,
+!> N_X = sum_(a in virtual) (w_a^X)^2.
+!> The virtual-subspace loss is the normalized squared Frobenius distance between the
+!> energy-weighted virtual-space operators. Its expanded form is
+!> L_vir = [N_R + N_C - 2 sum_(a,b in virtual) w_a^R w_b^C |M_ab|^2] / (2 N_R).
 !>
-!> The reference-weighted empty-subspace overlap is
-!> O_empty = clip[sum_(i,j in virtual) (w_i^R)^2 |M_ij|^2 / N_R, 0, 1],
-!> and its loss is L_empty = 1 - O_empty.
+!> The empty-subspace loss is
+!> L_empty = 1 - sum_(a,b in virtual) (w_a^R)^2 |M_ab|^2 / N_R.
 !>
 !> With E_gap^X = ε_LUMO^X - ε_HOMO^X, the gap loss is
 !> L_gap = [(E_gap^C - E_gap^R) / E_scale]^2.
@@ -345,7 +345,7 @@ CONTAINS
       result%loss_occupied_subspace = MAX(0.0_dp, 1.0_dp - occupied_subspace_overlap)
       result%occupied_subspace_overlap = occupied_subspace_overlap
 
-      ! N_R = sum_{i in virtual} (w_i^R)^2.
+      ! N_R = sum_{a in virtual} (w_a^R)^2.
       reference_virtual_weight_norm = 0.0_dp
       DO reference_orbital = number_occupied_orbitals + 1, SIZE(eigenvalues_reference)
          weight_reference = smooth_frontier_orbital_weight( &
@@ -355,7 +355,7 @@ CONTAINS
          reference_virtual_weight_norm = reference_virtual_weight_norm + weight_reference**2
       END DO
 
-      ! N_C = sum_{j in virtual} (w_j^C)^2.
+      ! N_C = sum_{b in virtual} (w_b^C)^2.
       candidate_virtual_weight_norm = 0.0_dp
       DO candidate_orbital = number_occupied_orbitals + 1, SIZE(eigenvalues_candidate)
          weight_candidate = smooth_frontier_orbital_weight( &
@@ -365,7 +365,7 @@ CONTAINS
          candidate_virtual_weight_norm = candidate_virtual_weight_norm + weight_candidate**2
       END DO
 
-      ! O_vir = sum_{i,j in virtual} w_i^R w_j^C |M_ij|^2.
+      ! O_vir = sum_{a,b in virtual} w_a^R w_b^C |M_ab|^2.
       virtual_subspace_overlap = 0.0_dp
       reference_virtual_subspace_overlap = 0.0_dp
       DO candidate_orbital = number_occupied_orbitals + 1, SIZE(eigenvalues_candidate)
@@ -392,6 +392,7 @@ CONTAINS
          result%loss_virtual_subspace = &
             MAX(0.0_dp, (reference_virtual_weight_norm + candidate_virtual_weight_norm - &
                          2.0_dp*virtual_subspace_overlap)/(2.0_dp*reference_virtual_weight_norm))
+         ! Bound the computed overlap against small roundoff excursions from its exact range [0, 1].
          result%empty_subspace_overlap = &
             MIN(1.0_dp, MAX(0.0_dp, reference_virtual_subspace_overlap/reference_virtual_weight_norm))
          result%loss_empty_subspace = 1.0_dp - result%empty_subspace_overlap

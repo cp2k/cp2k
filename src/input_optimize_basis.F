@@ -177,7 +177,7 @@ CONTAINS
          "TRAINING_FILES, including a converged reference wavefunction. The Kohn-Sham Hamiltonian from "// &
          "the reference calculation is frozen and "// &
          "projected into every trial compact basis. Consequently, all candidate orbital subspaces and "// &
-         "energies, including the HOMO-LUMO gap, are evaluated relative to the same reference Hamiltonian. "// &
+         "energies, including the HOMO-LUMO gap, are evaluated relative to the reference Hamiltonian. "// &
          "When optimizing the compact basis against the large reference basis, the following loss "// &
          "function is minimized:"//paragraph_break// &
          "$$\mathcal{L}=a_{\mathrm{occ}}\mathcal{L}_{\mathrm{occ}}+"// &
@@ -186,42 +186,55 @@ CONTAINS
          "a_{\mathrm{gap}}\mathcal{L}_{\mathrm{gap}}+"// &
          "a_{\mathrm{coeff}}\mathcal{L}_{\mathrm{coeff}}+"// &
          "a_\kappa\mathcal{L}_\kappa.$$"//paragraph_break// &
-         "$R$ and $C$ label reference and candidate quantities, $N_{\mathrm{occ}}$ is the number "// &
-         "of occupied spatial orbitals, and "// &
-         "$M_{ij}=\langle\psi_i^R\vert\psi_j^C\rangle$ is an orbital overlap. "// &
+         "Below, all loss functions $\mathcal{L}$ are defined. $R$ and $C$ label reference and "// &
+         "candidate quantities, $i$ and $j$ label occupied orbitals, and $a$ and $b$ label virtual "// &
+         "orbitals. Their overlaps are $M_{ij}=\langle\psi_i^R\vert\psi_j^C\rangle$ and "// &
+         "$M_{ab}=\langle\psi_a^R\vert\psi_b^C\rangle$, respectively. "// &
+         "$N_{\mathrm{occ}}$ is the number of occupied spatial orbitals. "// &
          "The occupied-subspace loss is"//paragraph_break// &
          "$$\mathcal{L}_{\mathrm{occ}}=1-\frac{1}{N_{\mathrm{occ}}}"// &
          "\sum_{i,j\in\mathrm{occ}}\lvert M_{ij}\rvert^2.$$"//paragraph_break// &
-         "It penalizes reference occupied states that are not recovered in the candidate occupied "// &
-         "subspace and vanishes when the reference and candidate occupied subspaces coincide. "// &
+         "It penalizes a poor representation of the reference occupied orbitals by the occupied "// &
+         "orbitals of the compact candidate basis. "// &
          "Low-energy virtual orbitals are selected smoothly using"//paragraph_break// &
-         "$$w_i^X=\left[1+\exp\left("// &
-         "\frac{\epsilon_i^X-\epsilon_{\mathrm{LUMO}}^X-E_{\mathrm{cut}}}{\Delta E}"// &
+         "$$w_a^X=\left[1+\exp\left("// &
+         "\frac{\epsilon_a^X-\epsilon_{\mathrm{LUMO}}^X-E_{\mathrm{cut}}}{\Delta E}"// &
          "\right)\right]^{-1},\qquad X\in\{R,C\}.$$"//paragraph_break// &
-         "Define $N_X=\sum_{i\in\mathrm{vir}}(w_i^X)^2$ and "// &
-         "$O_{\mathrm{vir}}=\sum_{i,j\in\mathrm{vir}}"// &
-         "w_i^R w_j^C\lvert M_{ij}\rvert^2$. The virtual-subspace loss is"// &
+         "Define $N_X=\sum_{a\in\mathrm{vir}}(w_a^X)^2$. The virtual-subspace loss can be written "// &
+         "directly as the normalized squared distance between the two energy-weighted virtual-space "// &
+         "operators:"// &
          paragraph_break// &
-         "$$\mathcal{L}_{\mathrm{vir}}="// &
-         "\frac{N_R+N_C-2O_{\mathrm{vir}}}{2N_R}.$$"//paragraph_break// &
-         "It penalizes differences between the energy-weighted reference and candidate virtual "// &
-         "subspaces, including low-energy virtual character present in only one of them. The "// &
-         "reference-weighted empty-subspace loss is"//paragraph_break// &
+         "$$\begin{aligned}"// &
+         "\mathcal{L}_{\mathrm{vir}}&=\frac{1}{2N_R}\left\|"// &
+         "\sum_{a\in\mathrm{vir}}w_a^R\lvert\psi_a^R\rangle\langle\psi_a^R\rvert-"// &
+         "\sum_{b\in\mathrm{vir}}w_b^C\lvert\psi_b^C\rangle\langle\psi_b^C\rvert"// &
+         "\right\|_F^2\\"// &
+         "&=\frac{N_R+N_C-2\sum_{a,b\in\mathrm{vir}}"// &
+         "w_a^R w_b^C\lvert M_{ab}\rvert^2}{2N_R}."// &
+         "\end{aligned}$$"//paragraph_break// &
+         "The first operator represents the reference low-energy virtual space and the second represents "// &
+         "the candidate low-energy virtual space. Here, $\lVert\cdot\rVert_F^2$ is the squared Frobenius "// &
+         "norm, which measures their squared matrix distance. Thus, $\mathcal{L}_{\mathrm{vir}}$ penalizes "// &
+         "differences between the low-energy virtual orbitals of the compact candidate basis and the "// &
+         "reference space; it is zero when these spaces coincide. The compact candidate basis can contain "// &
+         "empty orbitals outside the "// &
+         "selected low-energy interval. To test whether the reference low-energy virtual orbitals can be "// &
+         "represented in the entire candidate empty space, the empty-subspace loss is"//paragraph_break// &
          "$$\mathcal{L}_{\mathrm{empty}}=1-"// &
-         "\frac{\sum_{i,j\in\mathrm{vir}}(w_i^R)^2\lvert M_{ij}\rvert^2}{N_R}."// &
+         "\frac{\sum_{a,b\in\mathrm{vir}}(w_a^R)^2\lvert M_{ab}\rvert^2}{N_R}."// &
          "$$"//paragraph_break// &
-         "It penalizes reference low-energy virtual states that cannot be represented in the entire "// &
-         "candidate virtual subspace. "// &
+         "It penalizes reference low-energy virtual orbitals that cannot be represented by any empty "// &
+         "orbital of the compact candidate basis. "// &
          "With $E_{\mathrm{gap}}^X=\epsilon_{\mathrm{LUMO}}^X-\epsilon_{\mathrm{HOMO}}^X$, "// &
          "the gap loss is"//paragraph_break// &
          "$$\mathcal{L}_{\mathrm{gap}}=\left("// &
          "\frac{E_{\mathrm{gap}}^C-E_{\mathrm{gap}}^R}{E_{\mathrm{scale}}}"// &
          "\right)^2.$$"//paragraph_break// &
          "It penalizes deviations of the candidate HOMO-LUMO gap from the reference gap. For the "// &
-         "optimized and initial contraction coefficients, $c$ and $c_0$, "// &
+         "optimized and initial contraction coefficients of the compact basis set, $c$ and $c_0$, "// &
          "the coefficient loss is"//paragraph_break// &
          "$$\mathcal{L}_{\mathrm{coeff}}="// &
-         "\frac{\sum_i(c_i-c_{0,i})^2}{\sum_i c_{0,i}^2}.$$"//paragraph_break// &
+         "\frac{\sum_p(c_p-c_{0,p})^2}{\sum_p c_{0,p}^2}.$$"//paragraph_break// &
          "It penalizes large deviations from the coefficients of the initially supplied compact "// &
          "basis set. Finally, the conditioning loss is"//paragraph_break// &
          "$$\mathcal{L}_\kappa=\log_{10}\kappa(S_C),\qquad "// &
