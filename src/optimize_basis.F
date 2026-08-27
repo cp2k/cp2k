@@ -552,15 +552,14 @@ CONTAINS
          IF (unit_nr > 0) THEN
             DO icalc = 1, ncalc
                WRITE (unit_nr, &
-                      '(/,1X,A,1X,I3,2X,A,1X,F0.3,2X,A,1X,F0.3,2X,A,1X,F0.2,1X,A,'// &
-                      '2X,A,1X,F0.2,1X,A,2X,A,1X,I0,2X,A,1X,I0)') &
-                  "iter:", iopt, &
-                  "gap:", gdata(icalc, 6)*evolt, &
-                  "ref:", gdata(icalc, 5)*evolt, &
-                  "occ:", 100.0_dp*gdata(icalc, 4), "%", &
-                  "vir:", 100.0_dp*gdata(icalc, 8), "%", &
-                  "κ =", NINT(gdata(icalc, 7)), &
-                  "L =", NINT(1.0E4_dp*opt_bas%powell_param%f)
+                      '(1X,A,I0,1X,A,F0.3,1X,A,F0.3,1X,A,F0.2,A,F0.2,A,1X,A,I0,1X,A,I0)') &
+                  "i=", iopt, &
+                  "gap=", gdata(icalc, 6)*evolt, &
+                  "ref=", gdata(icalc, 5)*evolt, &
+                  "occ/empty=", 100.0_dp*gdata(icalc, 4), "/", &
+                  100.0_dp*gdata(icalc, 8), "%", &
+                  "κ=", NINT(gdata(icalc, 7)), &
+                  "L=", NINT(1.0E4_dp*opt_bas%powell_param%f)
             END DO
          END IF
       END IF

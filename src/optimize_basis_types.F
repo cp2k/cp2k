@@ -102,7 +102,7 @@ MODULE optimize_basis_types
       TYPE(comp_group_type), DIMENSION(:), ALLOCATABLE  :: comp_group
       INTEGER :: ntraining_sets = -1
       INTEGER :: ncombinations = -1
-      LOGICAL :: use_condition_number = .FALSE.
+      LOGICAL :: use_condition_number = .TRUE.
       INTEGER, DIMENSION(:), POINTER   :: group_partition => NULL()
       INTEGER :: n_groups_created = -1
       INTEGER, DIMENSION(:), ALLOCATABLE :: sub_sources
@@ -112,9 +112,9 @@ MODULE optimize_basis_types
       INTEGER :: method = method_mo_fit_occ
       REAL(KIND=dp) :: occupied_weight = 1.0_dp
       REAL(KIND=dp) :: virtual_weight = 1.0_dp
-      REAL(KIND=dp) :: empty_overlap_weight = 0.0_dp
-      REAL(KIND=dp) :: gap_weight = 1.0_dp
-      REAL(KIND=dp) :: coefficient_weight = 0.0_dp
+      REAL(KIND=dp) :: empty_overlap_weight = 1.0_dp
+      REAL(KIND=dp) :: gap_weight = 10.0_dp
+      REAL(KIND=dp) :: coefficient_weight = 1.0E-3_dp
       REAL(KIND=dp) :: gap_energy_scale = 0.0_dp
       REAL(KIND=dp) :: virtual_energy_cutoff = 0.0_dp
       REAL(KIND=dp) :: virtual_energy_smoothing = 0.0_dp

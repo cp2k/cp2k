@@ -93,7 +93,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="USE_CONDITION_NUMBER", &
                           description="Determines whether condition number should be part of optimization or not", &
                           usage="USE_CONDITION_NUMBER", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -125,7 +125,7 @@ CONTAINS
          "The first entry corresponds to the original basis sets. Every further value is assigned to the combinations "// &
          "in the order given for BASIS_COMBINATIONS.", &
          repeats=.TRUE., &
-         usage="CONDITION_WEIGHT REAL ", default_r_val=1.0_dp)
+         usage="CONDITION_WEIGHT 0.1", default_r_val=0.1_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -207,14 +207,14 @@ CONTAINS
          keyword, __LOCATION__, name="EMPTY_OVERLAP_WEIGHT", &
          description="Prefactor multiplying one minus the bounded, reference-weighted "// &
          "empty-subspace overlap. This directly optimizes the reported empty overlap.", &
-         usage="EMPTY_OVERLAP_WEIGHT 0.0", type_of_var=real_t, default_r_val=0.0_dp)
+         usage="EMPTY_OVERLAP_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="GAP_WEIGHT", &
          description="Prefactor $a_g$ multiplying the normalized HOMO-LUMO gap loss.", &
-         usage="GAP_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
+         usage="GAP_WEIGHT 10.0", type_of_var=real_t, default_r_val=10.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -222,7 +222,7 @@ CONTAINS
          keyword, __LOCATION__, name="COEFFICIENT_WEIGHT", &
          description="Prefactor multiplying the normalized squared change of the optimized "// &
          "contraction coefficients from their initial values.", &
-         usage="COEFFICIENT_WEIGHT 0.0", type_of_var=real_t, default_r_val=0.0_dp)
+         usage="COEFFICIENT_WEIGHT 1.0E-3", type_of_var=real_t, default_r_val=1.0E-3_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
