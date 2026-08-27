@@ -242,6 +242,11 @@ CONTAINS
 
       CALL para_env_top%bcast(opt_bas%x_opt)
       CALL update_free_vars(opt_bas)
+      IF (opt_bas%method == method_mo_fit_occ_virtual) THEN
+         ! Report the actual best Powell vector, rather than the final trial point.
+         CALL compute_frontier_objective(opt_bas, f_env_id, frontier_reference, tot_time, &
+                                         para_env_top, para_env, opt_bas%powell_param%maxfun + 1)
+      END IF
       CALL update_derived_basis_sets(opt_bas, .TRUE., opt_bas%output_basis_file, &
                                      para_env_top)
 
