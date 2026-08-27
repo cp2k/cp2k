@@ -164,53 +164,68 @@ CONTAINS
    SUBROUTINE create_frontier_orbitals_section(section)
       TYPE(section_type), POINTER                        :: section
 
+      CHARACTER(len=2), PARAMETER                        :: paragraph_break = NEW_LINE("A")//NEW_LINE("A")
       TYPE(keyword_type), POINTER                        :: keyword
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
          section, __LOCATION__, name="FRONTIER_ORBITALS", &
-         description="Optimizes the basis set to obtain optimal occupied and low-energy virtual orbitals. "// &
-         "The reference Kohn-Sham Hamiltonian is frozen while the candidate basis is varied. "// &
-         "For every training calculation, the following loss function is minimized: "// &
+         description="Optimizes a compact basis set to reproduce the occupied and low-energy virtual "// &
+         "Kohn-Sham states obtained from a very large reference basis set. For each training system, "// &
+         "a quantum-mechanical DFT reference calculation using this basis must be provided through "// &
+         "TRAINING_FILES, including a converged reference wavefunction. The Kohn-Sham Hamiltonian from "// &
+         "the reference calculation is frozen and "// &
+         "projected into every trial compact basis. Consequently, all candidate orbital subspaces and "// &
+         "energies, including the HOMO-LUMO gap, are evaluated relative to the same reference Hamiltonian. "// &
+         "When optimizing the compact basis against the large reference basis, the following loss "// &
+         "function is minimized:"//paragraph_break// &
          "$$\mathcal{L}=a_{\mathrm{occ}}\mathcal{L}_{\mathrm{occ}}+"// &
          "a_{\mathrm{vir}}\mathcal{L}_{\mathrm{vir}}+"// &
          "a_{\mathrm{empty}}\mathcal{L}_{\mathrm{empty}}+"// &
          "a_{\mathrm{gap}}\mathcal{L}_{\mathrm{gap}}+"// &
          "a_{\mathrm{coeff}}\mathcal{L}_{\mathrm{coeff}}+"// &
-         "a_\kappa\mathcal{L}_\kappa.$$ "// &
+         "a_\kappa\mathcal{L}_\kappa.$$"//paragraph_break// &
          "$R$ and $C$ label reference and candidate quantities, $N_{\mathrm{occ}}$ is the number "// &
          "of occupied spatial orbitals, and "// &
          "$M_{ij}=\langle\psi_i^R\vert\psi_j^C\rangle$ is an orbital overlap. "// &
-         "The occupied-subspace loss is "// &
+         "The occupied-subspace loss is"//paragraph_break// &
          "$$\mathcal{L}_{\mathrm{occ}}=1-\frac{1}{N_{\mathrm{occ}}}"// &
-         "\sum_{i,j\in\mathrm{occ}}\lvert M_{ij}\rvert^2.$$ "// &
-         "Low-energy virtual orbitals are selected smoothly using "// &
+         "\sum_{i,j\in\mathrm{occ}}\lvert M_{ij}\rvert^2.$$"//paragraph_break// &
+         "It penalizes reference occupied states that are not recovered in the candidate occupied "// &
+         "subspace and vanishes when the reference and candidate occupied subspaces coincide. "// &
+         "Low-energy virtual orbitals are selected smoothly using"//paragraph_break// &
          "$$w_i^X=\left[1+\exp\left("// &
          "\frac{\epsilon_i^X-\epsilon_{\mathrm{LUMO}}^X-E_{\mathrm{cut}}}{\Delta E}"// &
-         "\right)\right]^{-1},\qquad X\in\{R,C\}.$$ "// &
+         "\right)\right]^{-1},\qquad X\in\{R,C\}.$$"//paragraph_break// &
          "Define $N_X=\sum_{i\in\mathrm{vir}}(w_i^X)^2$ and "// &
          "$O_{\mathrm{vir}}=\sum_{i,j\in\mathrm{vir}}"// &
-         "w_i^R w_j^C\lvert M_{ij}\rvert^2$. The virtual-subspace loss is "// &
+         "w_i^R w_j^C\lvert M_{ij}\rvert^2$. The virtual-subspace loss is"// &
+         paragraph_break// &
          "$$\mathcal{L}_{\mathrm{vir}}="// &
-         "\frac{N_R+N_C-2O_{\mathrm{vir}}}{2N_R}.$$ "// &
-         "The reference-weighted empty-subspace overlap and its loss are "// &
-         "$$O_{\mathrm{empty}}=\operatorname{clip}\left("// &
-         "\frac{\sum_{i,j\in\mathrm{vir}}(w_i^R)^2\lvert M_{ij}\rvert^2}{N_R},0,1\right),"// &
-         "\qquad \mathcal{L}_{\mathrm{empty}}=1-O_{\mathrm{empty}}.$$ "// &
-         "Here, $\operatorname{clip}(x,0,1)$ restricts $x$ to the interval $[0,1]$. "// &
+         "\frac{N_R+N_C-2O_{\mathrm{vir}}}{2N_R}.$$"//paragraph_break// &
+         "It penalizes differences between the energy-weighted reference and candidate virtual "// &
+         "subspaces, including low-energy virtual character present in only one of them. The "// &
+         "reference-weighted empty-subspace loss is"//paragraph_break// &
+         "$$\mathcal{L}_{\mathrm{empty}}=1-"// &
+         "\frac{\sum_{i,j\in\mathrm{vir}}(w_i^R)^2\lvert M_{ij}\rvert^2}{N_R}."// &
+         "$$"//paragraph_break// &
+         "It penalizes reference low-energy virtual states that cannot be represented in the entire "// &
+         "candidate virtual subspace. "// &
          "With $E_{\mathrm{gap}}^X=\epsilon_{\mathrm{LUMO}}^X-\epsilon_{\mathrm{HOMO}}^X$, "// &
-         "the gap loss is "// &
+         "the gap loss is"//paragraph_break// &
          "$$\mathcal{L}_{\mathrm{gap}}=\left("// &
          "\frac{E_{\mathrm{gap}}^C-E_{\mathrm{gap}}^R}{E_{\mathrm{scale}}}"// &
-         "\right)^2.$$ "// &
-         "For the current and initial vectors of optimized contraction coefficients, $c$ and $c_0$, "// &
-         "the coefficient loss is "// &
+         "\right)^2.$$"//paragraph_break// &
+         "It penalizes deviations of the candidate HOMO-LUMO gap from the reference gap. For the "// &
+         "optimized and initial contraction coefficients, $c$ and $c_0$, "// &
+         "the coefficient loss is"//paragraph_break// &
          "$$\mathcal{L}_{\mathrm{coeff}}="// &
-         "\frac{\sum_i(c_i-c_{0,i})^2}{\sum_i c_{0,i}^2}.$$ "// &
-         "Finally, the conditioning loss is "// &
+         "\frac{\sum_i(c_i-c_{0,i})^2}{\sum_i c_{0,i}^2}.$$"//paragraph_break// &
+         "It penalizes large deviations from the coefficients of the initially supplied compact "// &
+         "basis set. Finally, the conditioning loss is"//paragraph_break// &
          "$$\mathcal{L}_\kappa=\log_{10}\kappa(S_C),\qquad "// &
-         "\kappa(S_C)=\frac{\lambda_{\max}(S_C)}{\lambda_{\min}(S_C)}.$$ "// &
+         "\kappa(S_C)=\frac{\lambda_{\max}(S_C)}{\lambda_{\min}(S_C)}.$$"//paragraph_break// &
          "It penalizes an ill-conditioned candidate overlap matrix. The weights "// &
          "$a_{\mathrm{occ}}$, $a_{\mathrm{vir}}$, $a_{\mathrm{empty}}$, "// &
          "$a_{\mathrm{gap}}$, and $a_{\mathrm{coeff}}$ are set below; "// &
@@ -236,8 +251,8 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="EMPTY_OVERLAP_WEIGHT", &
          description="Prefactor $a_{\mathrm{empty}}$ multiplying "// &
-         "$\mathcal{L}_{\mathrm{empty}}=1-O_{\mathrm{empty}}$, where "// &
-         "$O_{\mathrm{empty}}$ is the bounded, reference-weighted empty-subspace overlap.", &
+         "$\mathcal{L}_{\mathrm{empty}}$, the loss of reference low-energy virtual-state "// &
+         "completeness in the candidate virtual subspace.", &
          usage="EMPTY_OVERLAP_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
