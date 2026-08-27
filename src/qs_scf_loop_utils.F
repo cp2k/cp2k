@@ -59,7 +59,6 @@ MODULE qs_scf_loop_utils
    USE qs_scf_methods,                  ONLY: cp_sm_mix,&
                                               scf_env_density_mixing
    USE qs_scf_output,                   ONLY: qs_scf_print_summary
-   USE qs_scf_subspace,                 ONLY: qs_scf_subspace_step
    USE qs_scf_types,                    ONLY: &
         block_davidson_diag_method_nr, block_krylov_diag_method_nr, filter_matrix_diag_method_nr, &
         general_diag_method_nr, ot_diag_method_nr, ot_method_nr, qs_scf_env_type, &
@@ -111,6 +110,15 @@ CONTAINS
       scf_env%iter_count = 0
       scf_env%adiis_check_next = .FALSE.
       scf_env%adiis_validated = .FALSE.
+      scf_env%step_norm = 0.0_dp
+      scf_env%raw_map_delta = 0.0_dp
+      scf_env%oda_lambda = 0.0_dp
+      scf_env%oda_energy = 0.0_dp
+      scf_env%oda_gradient0 = 0.0_dp
+      scf_env%oda_gradient1 = 0.0_dp
+      scf_env%oda_evaluations = 0
+      scf_env%oda_status = ""
+      scf_env%raw_map_delta_valid = .FALSE.
       exit_inner_loop = .FALSE.
 
    END SUBROUTINE qs_scf_set_loop_flags
@@ -125,10 +133,9 @@ CONTAINS
 !> \param diis_step ...
 !> \param energy_only ...
 !> \param probe ...
-!> \param apply_adiis ...
 ! **************************************************************************************************
    SUBROUTINE qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, &
-                             energy_only, probe, apply_adiis)
+                             energy_only, probe)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -136,16 +143,14 @@ CONTAINS
       LOGICAL                                            :: diis_step, energy_only
       TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: probe
-      LOGICAL, INTENT(IN), OPTIONAL                      :: apply_adiis
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_new_mos'
 
       INTEGER                                            :: handle, ispin
       LOGICAL                                            :: disable_diis, has_unit_metric, &
-                                                            my_apply_adiis, skip_diag_sub
+                                                            skip_diag_sub
       REAL(KIND=dp)                                      :: saved_eps_diis
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -154,32 +159,16 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (energy, ks_env, matrix_ks, matrix_ks_kp, matrix_s, rho, rho_ao_kp, mos, dft_control)
+      NULLIFY (energy, ks_env, matrix_ks, matrix_s, rho, mos, dft_control)
 
       CALL get_qs_env(qs_env=qs_env, &
                       matrix_s=matrix_s, energy=energy, &
                       ks_env=ks_env, &
-                      matrix_ks=matrix_ks, matrix_ks_kp=matrix_ks_kp, rho=rho, mos=mos, &
+                      matrix_ks=matrix_ks, rho=rho, mos=mos, &
                       dft_control=dft_control, &
                       has_unit_metric=has_unit_metric)
-      CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
       scf_env%iter_param = 0.0_dp
 
-      ! Do not include the arbitrary initial SCF guess in the ADIIS history.
-      ! Start history collection from the first density produced by diagonalization.
-      my_apply_adiis = scf_control%diagonalization%update_method == diag_update_method_adiis .AND. &
-                       scf_env%iter_count > 1
-      IF (PRESENT(apply_adiis)) my_apply_adiis = my_apply_adiis .AND. apply_adiis
-      IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
-         CPASSERT(ASSOCIATED(scf_env%scf_subspace_buffer))
-         IF (my_apply_adiis) THEN
-            CALL qs_scf_subspace_step(scf_env%scf_subspace_buffer, matrix_ks_kp, rho_ao_kp, energy%total)
-         ELSE
-            scf_env%scf_subspace_buffer%last_restart = .FALSE.
-            scf_env%scf_subspace_buffer%use_combined_fock = .FALSE.
-            scf_env%scf_subspace_buffer%last_old_fock_weight = 0.0_dp
-         END IF
-      END IF
       disable_diis = dft_control%qs_control%xtb_control%do_tblite .AND. &
                      tb_native_scc_mixer_active(dft_control)
       IF (disable_diis) THEN
@@ -335,36 +324,31 @@ CONTAINS
 !> \param scf_control ...
 !> \param diis_step ...
 !> \param probe ...
-!> \param apply_adiis ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, probe, apply_adiis)
+   SUBROUTINE qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, probe)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       LOGICAL                                            :: diis_step
       TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: probe
-      LOGICAL, INTENT(IN), OPTIONAL                      :: apply_adiis
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_new_mos_kp'
 
       INTEGER                                            :: handle, ispin
-      LOGICAL                                            :: disable_diis, has_unit_metric, &
-                                                            my_apply_adiis
+      LOGICAL                                            :: disable_diis, has_unit_metric
       REAL(dp)                                           :: diis_error, saved_eps_diis
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, rho_ao_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, energy, kpoints, matrix_ks, matrix_s, rho, rho_ao_kp)
+      NULLIFY (dft_control, energy, kpoints, matrix_ks, matrix_s)
 
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy, kpoints=kpoints, rho=rho)
-      CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy, kpoints=kpoints)
       scf_env%iter_param = 0.0_dp
       disable_diis = dft_control%qs_control%xtb_control%do_tblite .AND. &
                      tb_native_scc_mixer_active(dft_control)
@@ -385,20 +369,8 @@ CONTAINS
       CASE (general_diag_method_nr)
          ! Diagonlization in non orthonormal case
          CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
-         ! Do not include the arbitrary initial SCF guess in the ADIIS history.
-         ! Start history collection from the first density produced by diagonalization.
-         my_apply_adiis = scf_control%diagonalization%update_method == diag_update_method_adiis .AND. &
-                          scf_env%iter_count > 1
-         IF (PRESENT(apply_adiis)) my_apply_adiis = my_apply_adiis .AND. apply_adiis
          IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
             CPASSERT(ASSOCIATED(scf_env%scf_subspace_buffer))
-            IF (my_apply_adiis) THEN
-               CALL qs_scf_subspace_step(scf_env%scf_subspace_buffer, matrix_ks, rho_ao_kp, energy%total)
-            ELSE
-               scf_env%scf_subspace_buffer%last_restart = .FALSE.
-               scf_env%scf_subspace_buffer%use_combined_fock = .FALSE.
-               scf_env%scf_subspace_buffer%last_old_fock_weight = 0.0_dp
-            END IF
             diis_error = scf_env%scf_subspace_buffer%last_old_fock_weight
          END IF
          IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
@@ -412,7 +384,7 @@ CONTAINS
          IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
             scf_env%iter_param = diis_error
             IF (scf_env%scf_subspace_buffer%last_restart) THEN
-               scf_env%iter_method = "ADIIS/Restart"
+               scf_env%iter_method = "ADIIS/Rst."
             ELSE
                scf_env%iter_method = "ADIIS/Diag."
             END IF
