@@ -4317,20 +4317,20 @@ CONTAINS
 !> \param rho1_atom_set ...
 !> \param qs_env ...
 !> \param xc_section ...
-!> \param para_env ...
-!> \param do_tddfpt2 New implementation of TDDFT.
+!> \param para_env_ext ...
+!> \param do_scale ...
 !> \param do_triplet ...
 !> \param do_sf ...
 !> \param kind_set_external ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
-                                          do_tddfpt2, do_triplet, do_sf, kind_set_external)
+   SUBROUTINE calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env_ext, &
+                                          do_scale, do_triplet, do_sf, kind_set_external)
 
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set, rho1_atom_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: xc_section
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: do_tddfpt2, do_triplet, do_sf
+      TYPE(mp_para_env_type), INTENT(IN), OPTIONAL       :: para_env_ext
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_scale, do_triplet, do_sf
       TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kind_set_external
 
@@ -4360,6 +4360,7 @@ CONTAINS
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: my_kind_set, qs_kind_set
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: dr1_h, dr1_s, dr_h, dr_s, int_hh, &
                                                             int_ss, r1_h, r1_s, r_h, r_s
@@ -4386,6 +4387,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, &
                       input=input, &
                       dft_control=dft_control, &
+                      para_env=para_env, &
                       qs_kind_set=qs_kind_set, &
                       atomic_kind_set=atomic_kind_set)
 
@@ -4418,12 +4420,16 @@ CONTAINS
       END IF
 
       scale_rho = .FALSE.
-      IF (PRESENT(do_tddfpt2) .AND. PRESENT(do_triplet)) THEN
-         IF (nspins == 1 .AND. do_triplet) THEN
-            lsd = .TRUE.
+      IF (PRESENT(do_scale)) THEN
+         IF (do_scale) THEN
+            ! obscure scaling needed for (some) triplet densities
             scale_rho = .TRUE.
+            CPASSERT(PRESENT(do_triplet))
+            CPASSERT(do_triplet)
+            CPASSERT(nspins == 1)
          END IF
-      ELSE IF (PRESENT(do_triplet)) THEN
+      END IF
+      IF (PRESENT(do_triplet)) THEN
          IF (nspins == 1 .AND. do_triplet) lsd = .TRUE.
       END IF
 
@@ -4533,7 +4539,11 @@ CONTAINS
          END IF
 
          ! parallelization
-         local_loop_limit = get_limit(natom, para_env%num_pe, para_env%mepos)
+         IF (PRESENT(para_env_ext)) THEN
+            local_loop_limit = get_limit(natom, para_env_ext%num_pe, para_env_ext%mepos)
+         ELSE
+            local_loop_limit = get_limit(natom, para_env%num_pe, para_env%mepos)
+         END IF
 
          DO iatom = local_loop_limit(1), local_loop_limit(2) !1,natom
             atom = atom_list(iatom)

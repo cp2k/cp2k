@@ -49,6 +49,7 @@ MODULE qs_2nd_kernel_ao
    USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_p_env_methods,                ONLY: p_env_finish_kpp1
    USE qs_p_env_types,                  ONLY: qs_p_env_type
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE task_list_types,                 ONLY: task_list_type
@@ -284,6 +285,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: rho_aux
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
 
@@ -312,7 +314,8 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, admm_env=admm_env)
          xc_section => admm_env%xc_section_aux
          CALL get_admm_env(admm_env, rho_aux_fit=rho_aux)
-         CALL qs_fxc_create(qs_env, rho_aux, p_env%rho1_admm, xc_section, v_xc, v_xc_tau, &
+         CALL qs_fxc_create(qs_env, rho_aux, p_env%rho1_admm, rho0_atom_set, xc_section, &
+                            .FALSE., v_xc, v_xc_tau, rho1_atom_set, &
                             compute_virial=calc_virial, virial_xc=virial)
 
          NULLIFY (work_hmat%matrix)

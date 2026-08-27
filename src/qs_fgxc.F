@@ -534,6 +534,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_tau_rspace, vxc00, vxc00b
       TYPE(qs_rho_type), POINTER                         :: rhoin
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
 
       CALL timeset(routineN, handle)
 
@@ -567,9 +568,9 @@ CONTAINS
       exc = 0.0_dp
 
       IF (do_sf) THEN
-         CALL qs_fxc_create(qs_env, rho0_struct, rho1_struct, xc_section, fxc_rho, fxc_tau, &
+         CALL qs_fxc_create(qs_env, rho0_struct, rho1_struct, rho0_atom_set, xc_section, &
+                            .FALSE., fxc_rho, fxc_tau, rho1_atom_set, &
                             is_triplet=is_triplet, spinflip=do_sf)
-
       ELSE
          CALL qs_fxc_fdiff(qs_env, rho0_struct, rho1_struct, xc_section, &
                            accuracy, fxc_rho, fxc_tau, is_triplet)
@@ -588,12 +589,14 @@ CONTAINS
             CALL qs_rho_scale_and_add(rhoin, rho1_struct, alpha, beta)
             IF (do_sf) THEN
                ! variation in alpha density
-               CALL qs_fxc_create(qs_env, rhoin, rho1_struct, xc_section, vxc00, v_tau_rspace, &
+               CALL qs_fxc_create(qs_env, rhoin, rho1_struct, rho0_atom_set, xc_section, &
+                                  .FALSE., vxc00, v_tau_rspace, rho1_atom_set, &
                                   is_triplet=is_triplet, spinflip=do_sf)
                ! variation in beta density
                CALL qs_rho_copy(rho0_struct, rhoin, auxbas_pw_pool, nspins)
                CALL qs_rho_scale_and_add_b(rhoin, rho1_struct, alpha, beta)
-               CALL qs_fxc_create(qs_env, rhoin, rho1_struct, xc_section, vxc00b, v_tau_rspace, &
+               CALL qs_fxc_create(qs_env, rhoin, rho1_struct, rho0_atom_set, xc_section, &
+                                  .FALSE., vxc00b, v_tau_rspace, rho1_atom_set, &
                                   is_triplet=is_triplet, spinflip=do_sf)
             ELSE
                CALL qs_fxc_fdiff(qs_env, rhoin, rho1_struct, xc_section, accuracy, &

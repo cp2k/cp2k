@@ -42,6 +42,7 @@ MODULE ec_methods
                                               get_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_create,&
                                               qs_rho_set,&
                                               qs_rho_type
@@ -98,6 +99,7 @@ CONTAINS
 
       INTEGER                                            :: handle
       TYPE(qs_rho_type), POINTER                         :: rho1
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
 
       CALL timeset(routineN, handle)
 
@@ -116,7 +118,8 @@ CONTAINS
          CALL qs_rho_set(rho1, tau_r=tau1_r, tau_r_valid=.TRUE.)
       END IF
       !
-      CALL qs_fxc_create(qs_env, rho, rho1, xc_section, vxc, vxc_tau, &
+      CALL qs_fxc_create(qs_env, rho, rho1, rho0_atom_set, xc_section, .FALSE., &
+                         vxc, vxc_tau, rho1_atom_set, &
                          compute_virial=compute_virial, virial_xc=virial_xc)
       !
       DEALLOCATE (rho1)
