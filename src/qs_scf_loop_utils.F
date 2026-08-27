@@ -381,7 +381,8 @@ CONTAINS
             CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .TRUE., &
                                     diis_step, diis_error, qs_env)
          END IF
-         IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
+         IF (scf_control%diagonalization%update_method == diag_update_method_adiis .AND. &
+             .NOT. diis_step) THEN
             scf_env%iter_param = diis_error
             IF (scf_env%scf_subspace_buffer%last_restart) THEN
                scf_env%iter_method = "ADIIS/Rst."
@@ -675,13 +676,20 @@ CONTAINS
                                                             exit_inner_loop, inner_loop_converged
       INTEGER                                            :: output_unit
 
+      LOGICAL                                            :: update_validated
+
       inner_loop_converged = .FALSE.
       exit_inner_loop = .FALSE.
+      update_validated = scf_control%diagonalization%update_method /= diag_update_method_adiis
+      IF (.NOT. update_validated) THEN
+         CPASSERT(ASSOCIATED(scf_env%scf_subspace_buffer))
+         update_validated = scf_env%adiis_validated .OR. &
+                            scf_env%scf_subspace_buffer%diis_weight >= 1.0_dp
+      END IF
 
       CALL external_control(should_stop, "SCF", target_time=qs_env%target_time, &
                             start_time=qs_env%start_time)
-      IF (scf_env%iter_delta < scf_control%eps_scf .AND. &
-          (scf_control%diagonalization%update_method /= diag_update_method_adiis .OR. scf_env%adiis_validated)) THEN
+      IF (scf_env%iter_delta < scf_control%eps_scf .AND. update_validated) THEN
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,T3,A,I5,A/)") &
                "*** SCF run converged in ", scf_env%iter_count, " steps ***"

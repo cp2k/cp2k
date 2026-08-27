@@ -19,7 +19,8 @@
 !> \author Matthias Krack (28.06.2000)
 ! **************************************************************************************************
 MODULE qs_diis
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_trace
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm,&
+                                              cp_cfm_trace
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
@@ -1010,20 +1011,24 @@ CONTAINS
 !> \param ikp ...
 !> \param nkp_local ...
 !> \param scf_section ...
-!> \note We assume that we always have an overlap matrix and complex matrices
+!> \param real_wfn ...
+!> \note We assume that we always have an overlap matrix.
 !> TODO: do we need to pass the kp weight for the back Fourier transform?
 ! **************************************************************************************************
-   SUBROUTINE qs_diis_b_calc_err_kp(diis_buffer, ib, mos, kc, sc, ispin, ikp, nkp_local, scf_section)
+   SUBROUTINE qs_diis_b_calc_err_kp(diis_buffer, ib, mos, kc, sc, ispin, ikp, nkp_local, scf_section, &
+                                    real_wfn)
       TYPE(qs_diis_buffer_type_kp), POINTER              :: diis_buffer
       INTEGER, INTENT(IN)                                :: ib
       TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: kc, sc
       INTEGER, INTENT(IN)                                :: ispin, ikp, nkp_local
       TYPE(section_vals_type), POINTER                   :: scf_section
+      LOGICAL, INTENT(IN), OPTIONAL                      :: real_wfn
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_calc_err_kp'
 
       INTEGER                                            :: handle, homo, nao, nmo, nspin
+      LOGICAL                                            :: my_real_wfn
       REAL(dp)                                           :: maxocc
       TYPE(cp_cfm_type)                                  :: cmos
       TYPE(cp_cfm_type), POINTER                         :: new_errors, parameters, smat
@@ -1033,6 +1038,8 @@ CONTAINS
       NULLIFY (matrix_struct, imos, rmos, parameters, new_errors, smat)
 
       CALL timeset(routineN, handle)
+      my_real_wfn = .FALSE.
+      IF (PRESENT(real_wfn)) my_real_wfn = real_wfn
 
       !Calculate the error for this given k-point, store the KS matrix as well as the ovlp matrix
       !All of this happens within the kp subgroups
@@ -1052,11 +1059,16 @@ CONTAINS
 
       !We calculate: e(ikp) = F(ikp)*P(ikp)*S(ikp) - S(ikp)*P(ikp)*F(ikp)
       CALL get_mo_set(mos(1, ispin), nao=nao, nmo=nmo, homo=homo, mo_coeff=rmos, maxocc=maxocc)
-      CALL get_mo_set(mos(2, ispin), mo_coeff=imos)
       NULLIFY (matrix_struct)
       CALL cp_fm_get_info(rmos, matrix_struct=matrix_struct)
       CALL cp_cfm_create(cmos, matrix_struct)
-      CALL cp_fm_to_cfm(rmos, imos, cmos)
+      IF (my_real_wfn) THEN
+         CALL cp_cfm_scale_and_add_fm(CMPLX(0.0_dp, KIND=dp), cmos, &
+                                      CMPLX(1.0_dp, KIND=dp), rmos)
+      ELSE
+         CALL get_mo_set(mos(2, ispin), mo_coeff=imos)
+         CALL cp_fm_to_cfm(rmos, imos, cmos)
+      END IF
 
       new_errors => diis_buffer%error(ib, ispin, ikp)
       parameters => diis_buffer%param(ib, ispin, ikp)

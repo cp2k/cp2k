@@ -40,6 +40,7 @@ MODULE qs_scf_diagonalization
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_scale_and_add,&
                                               cp_fm_symm,&
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
@@ -62,6 +63,7 @@ MODULE qs_scf_diagonalization
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: &
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
         core_guess, diag_update_method_adiis, general_roks, high_spin_roks, restart_guess
@@ -95,6 +97,8 @@ MODULE qs_scf_diagonalization
                                               gspace_mixing_nr
    USE qs_diis,                         ONLY: qs_diis_b_calc_err_kp,&
                                               qs_diis_b_check_i_alloc_kp,&
+                                              qs_diis_b_clear,&
+                                              qs_diis_b_clear_kp,&
                                               qs_diis_b_info_kp,&
                                               qs_diis_b_step,&
                                               qs_diis_b_step_kp
@@ -182,10 +186,13 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
 
-      INTEGER                                            :: ispin, nao, nspin
-      LOGICAL                                            :: do_level_shift, owns_ortho, use_adiis, &
-                                                            use_jacobi, use_subspace_fock
-      REAL(KIND=dp)                                      :: diis_error, eps_diis
+      INTEGER                                            :: cdiis_cholesky_method, cdiis_ncall, &
+                                                            ispin, nao, nspin
+      LOGICAL                                            :: cdiis_step, do_level_shift, owns_ortho, &
+                                                            use_adiis, use_cdiis, use_jacobi, &
+                                                            use_subspace_fock
+      REAL(KIND=dp)                                      :: cdiis_error, diis_error, diis_weight, &
+                                                            eps_diis
       TYPE(cp_fm_type), POINTER                          :: ortho
       TYPE(dbcsr_type), POINTER                          :: effective_ks_dbcsr, ortho_dbcsr
 
@@ -201,8 +208,21 @@ CONTAINS
          use_subspace_fock = scf_env%scf_subspace_buffer%use_combined_fock
       END IF
 
+      eps_diis = scf_control%eps_diis
+      use_cdiis = .FALSE.
+      IF (use_adiis .AND. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+         IF (.NOT. scf_env%skip_diis .AND. scf_env%iter_count > 1 .AND. &
+             .NOT. scf_env%adiis_check_next .AND. &
+             scf_env%scf_subspace_buffer%diis_state_valid .AND. &
+             scf_env%scf_subspace_buffer%nstored > 0) THEN
+            use_cdiis = scf_env%iter_delta < eps_diis .OR. scf_env%scf_diis_buffer%ncall > 0
+         END IF
+      END IF
+
       DO ispin = 1, nspin
-         IF (use_subspace_fock) THEN
+         IF (use_cdiis) THEN
+            CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, scf_env%scf_work1(ispin))
+         ELSE IF (use_subspace_fock) THEN
             CALL copy_dbcsr_to_fm(scf_env%scf_subspace_buffer%combined_fock(ispin, 1)%matrix, &
                                   scf_env%scf_work1(ispin))
          ELSE
@@ -210,11 +230,51 @@ CONTAINS
          END IF
       END DO
 
-      eps_diis = scf_control%eps_diis
-
       IF (use_adiis) THEN
          diis_step = .FALSE.
          diis_error = scf_env%scf_subspace_buffer%last_old_fock_weight
+         diis_weight = scf_env%scf_subspace_buffer%diis_weight
+         IF (use_cdiis) THEN
+            cdiis_ncall = scf_env%scf_diis_buffer%ncall
+            CALL qs_diis_b_step(scf_env%scf_diis_buffer, mos, scf_env%scf_work1, &
+                                scf_env%scf_work2, scf_env%iter_delta, cdiis_error, cdiis_step, &
+                                eps_diis, 2, s_matrix=matrix_s, scf_section=scf_section)
+            IF (.NOT. ieee_is_finite(cdiis_error) .OR. cdiis_error >= eps_diis) THEN
+               cdiis_step = .FALSE.
+               IF (cdiis_ncall < scf_env%scf_diis_buffer%nbuffer) THEN
+                  ! The rejected state has not overwritten a full circular buffer.
+                  scf_env%scf_diis_buffer%ncall = cdiis_ncall
+               ELSE
+                  CALL qs_diis_b_clear(scf_env%scf_diis_buffer)
+                  diis_weight = 0.0_dp
+               END IF
+            END IF
+            IF (cdiis_step) THEN
+               ! Use one half-weight handover step; MAX_DIIS only controls the buffer capacity.
+               diis_weight = MIN(1.0_dp, diis_weight + 0.5_dp)
+            ELSE
+               ! A rejected or deferred CDIIS step must not leave a partial raw-Fock blend active.
+               diis_weight = 0.0_dp
+            END IF
+            IF (diis_weight < 1.0_dp) THEN
+               DO ispin = 1, nspin
+                  IF (use_subspace_fock) THEN
+                     CALL copy_dbcsr_to_fm( &
+                        scf_env%scf_subspace_buffer%combined_fock(ispin, 1)%matrix, scf_env%scf_work2)
+                  ELSE
+                     CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, scf_env%scf_work2)
+                  END IF
+                  CALL cp_fm_scale_and_add(diis_weight, scf_env%scf_work1(ispin), &
+                                           1.0_dp - diis_weight, scf_env%scf_work2)
+               END DO
+            END IF
+            diis_step = cdiis_step .AND. diis_weight >= 1.0_dp
+            IF (diis_step) diis_error = cdiis_error
+         ELSE IF (ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+            IF (scf_env%scf_diis_buffer%ncall > 0) CALL qs_diis_b_clear(scf_env%scf_diis_buffer)
+            diis_weight = 0.0_dp
+         END IF
+         scf_env%scf_subspace_buffer%diis_weight = diis_weight
       ELSE
          IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
             CALL qs_diis_b_step(scf_env%scf_diis_buffer, mos, scf_env%scf_work1, &
@@ -238,7 +298,7 @@ CONTAINS
          use_jacobi = .FALSE.
       END IF
 
-      IF (use_adiis) THEN
+      IF (use_adiis .AND. .NOT. diis_step) THEN
          scf_env%iter_param = diis_error
          IF (scf_env%scf_subspace_buffer%last_restart) THEN
             scf_env%iter_method = "ADIIS/Rst."
@@ -272,7 +332,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (scf_env%cholesky_method == cholesky_dbcsr) THEN
+      IF (scf_env%cholesky_method == cholesky_dbcsr .AND. .NOT. use_cdiis) THEN
          ortho_dbcsr => scf_env%ortho_dbcsr
          DO ispin = 1, nspin
             effective_ks_dbcsr => matrix_ks(ispin)%matrix
@@ -286,6 +346,10 @@ CONTAINS
          END DO
 
       ELSE IF (scf_env%cholesky_method > cholesky_off) THEN
+         cdiis_cholesky_method = scf_env%cholesky_method
+         IF (cdiis_cholesky_method == cholesky_dbcsr) THEN
+            cdiis_cholesky_method = cholesky_inverse
+         END IF
          IF (scf_env%cholesky_method == cholesky_inverse) THEN
             ortho => scf_env%ortho_m1
          ELSE
@@ -312,7 +376,7 @@ CONTAINS
                                    mo_set=mos(ispin), &
                                    ortho=ortho, &
                                    work=scf_env%scf_work2, &
-                                   cholesky_method=scf_env%cholesky_method, &
+                                   cholesky_method=cdiis_cholesky_method, &
                                    do_level_shift=do_level_shift, &
                                    level_shift=scf_control%level_shift, &
                                    matrix_u_fm=scf_env%ortho, &
@@ -322,13 +386,17 @@ CONTAINS
                                    mo_set=mos(ispin), &
                                    ortho=ortho, &
                                    work=scf_env%scf_work2, &
-                                   cholesky_method=scf_env%cholesky_method, &
+                                   cholesky_method=cdiis_cholesky_method, &
                                    do_level_shift=do_level_shift, &
                                    level_shift=scf_control%level_shift, &
                                    use_jacobi=use_jacobi)
                END IF
             END IF
          END DO
+
+         IF (scf_env%cholesky_method /= cholesky_dbcsr) THEN
+            scf_env%cholesky_method = cdiis_cholesky_method
+         END IF
 
          IF (owns_ortho) DEALLOCATE (ortho)
       ELSE
@@ -501,26 +569,28 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag_kp'
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: coeffs
-      INTEGER                                            :: handle, ib, igroup, ik, ikp, indx, &
-                                                            ispin, jb, kplocal, lattice_fft, nb, &
-                                                            nkp, nkp_groups, nspin, omp_threads
+      INTEGER                                            :: cdiis_ncall, handle, ib, igroup, ik, &
+                                                            ikp, indx, ispin, jb, kplocal, &
+                                                            lattice_fft, nb, nkp, nkp_groups, &
+                                                            nspin, omp_threads
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_diis, my_kpgrp, spin_grid_fft, &
-                                                            use_adiis, use_grid_fft, &
-                                                            use_omp_kpoints, use_real_wfn
+      LOGICAL :: adiis_cdiis, cdiis_step, do_diis, my_kpgrp, spin_grid_fft, use_adiis, &
+         use_grid_fft, use_omp_kpoints, use_real_wfn
+      REAL(KIND=dp)                                      :: diis_weight
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
+      TYPE(copy_info_type), DIMENSION(2)                 :: blend_info
       TYPE(cp_cfm_type)                                  :: cksmat, cmos, csmat, cwork
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
       TYPE(cp_fm_type)                                   :: fmdummy, fmlocal, rksmat, rsmat
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: effective_ks
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: adiis_ks, effective_ks
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_global
@@ -533,7 +603,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (effective_ks, sab_nl)
+      NULLIFY (adiis_ks, effective_ks, sab_nl)
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
                            nkp_groups=nkp_groups, kp_dist=kp_dist, sab_nl=sab_nl, &
                            cell_to_index=cell_to_index, nkp_grid=nkp_grid, lattice_fft=lattice_fft)
@@ -546,13 +616,35 @@ CONTAINS
       IF (use_adiis) THEN
          CPASSERT(ASSOCIATED(scf_env%scf_subspace_buffer))
       END IF
-      IF (.NOT. use_adiis .AND. scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis .AND. &
-          .NOT. use_real_wfn .AND. PRESENT(diis_error) .AND. PRESENT(qs_env)) do_diis = .TRUE.
+      adiis_cdiis = .FALSE.
+      IF (use_adiis .AND. ASSOCIATED(kpoints%scf_diis_buffer)) THEN
+         IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis .AND. &
+             .NOT. scf_env%adiis_check_next .AND. &
+             scf_env%scf_subspace_buffer%diis_state_valid .AND. &
+             scf_env%scf_subspace_buffer%nstored > 0 .AND. &
+             PRESENT(diis_error) .AND. PRESENT(qs_env)) THEN
+            adiis_cdiis = scf_env%iter_delta < scf_control%eps_diis .OR. &
+                          kpoints%scf_diis_buffer%ncall > 0
+         END IF
+      END IF
+      IF ((.NOT. use_adiis .AND. scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis .AND. &
+           .NOT. use_real_wfn .AND. PRESENT(diis_error) .AND. PRESENT(qs_env)) .OR. &
+          adiis_cdiis) do_diis = .TRUE.
 
-      effective_ks => matrix_ks
+      adiis_ks => matrix_ks
       IF (use_adiis) THEN
          IF (scf_env%scf_subspace_buffer%use_combined_fock) THEN
-            effective_ks => scf_env%scf_subspace_buffer%combined_fock
+            adiis_ks => scf_env%scf_subspace_buffer%combined_fock
+         END IF
+      END IF
+      effective_ks => matrix_ks
+      IF (use_adiis .AND. .NOT. adiis_cdiis) THEN
+         effective_ks => adiis_ks
+      END IF
+      IF (use_adiis .AND. .NOT. do_diis) THEN
+         scf_env%scf_subspace_buffer%diis_weight = 0.0_dp
+         IF (ASSOCIATED(kpoints%scf_diis_buffer)) THEN
+            IF (kpoints%scf_diis_buffer%ncall > 0) CALL qs_diis_b_clear_kp(kpoints%scf_diis_buffer)
          END IF
       END IF
 
@@ -563,6 +655,11 @@ CONTAINS
       ! The local executor operates on the complex k-point representation.
       use_omp_kpoints = para_env%num_pe == 1 .AND. omp_threads > 1 .AND. kplocal > 1 .AND. &
                         .NOT. use_real_wfn
+      ! Enter the threaded executor when the ADIIS/CDIIS handover starts, before
+      ! its DIIS buffer is allocated with an executor-specific matrix structure.
+      IF (use_adiis) THEN
+         use_omp_kpoints = use_omp_kpoints .AND. adiis_cdiis
+      END IF
       ! Keep accelerator and distributed eigensolver selections on their existing paths.
       IF (diag_type == FM_DIAG_TYPE_CUSOLVER .OR. diag_type == FM_DIAG_TYPE_DLAF) THEN
          use_omp_kpoints = .FALSE.
@@ -570,7 +667,7 @@ CONTAINS
       IF (diag_check_requested()) use_omp_kpoints = .FALSE.
 
       IF (use_omp_kpoints) THEN
-         CALL do_general_diag_kp_omp(effective_ks, matrix_s, kpoints, scf_env, scf_control, update_p, &
+         CALL do_general_diag_kp_omp(effective_ks, matrix_s, adiis_ks, kpoints, scf_env, scf_control, update_p, &
                                      diis_step, do_diis, qs_env, diis_error, probe, sab_nl, &
                                      cell_to_index, xkp)
          CALL timestop(handle)
@@ -600,14 +697,17 @@ CONTAINS
       IF (use_real_wfn) THEN
          CALL cp_fm_create(rksmat, matrix_struct)
          CALL cp_fm_create(rsmat, matrix_struct)
-      ELSE
+      END IF
+      IF (.NOT. use_real_wfn .OR. do_diis) THEN
          CALL cp_cfm_create(cksmat, matrix_struct)
          CALL cp_cfm_create(csmat, matrix_struct)
          CALL cp_cfm_create(cwork, matrix_struct)
-         kp => kpoints%kp_env(1)%kpoint_env
-         CALL get_mo_set(kp%mos(1, 1), mo_coeff=mo_coeff)
-         CALL cp_fm_get_info(mo_coeff, matrix_struct=mo_struct)
-         CALL cp_cfm_create(cmos, mo_struct)
+         IF (.NOT. use_real_wfn) THEN
+            kp => kpoints%kp_env(1)%kpoint_env
+            CALL get_mo_set(kp%mos(1, 1), mo_coeff=mo_coeff)
+            CALL cp_fm_get_info(mo_coeff, matrix_struct=mo_struct)
+            CALL cp_cfm_create(cmos, mo_struct)
+         END IF
       END IF
 
       para_env => kpoints%blacs_env_all%para_env
@@ -740,6 +840,7 @@ CONTAINS
       IF (do_diis) THEN
          CALL get_qs_env(qs_env, para_env=para_env_global)
          scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
+         cdiis_ncall = kpoints%scf_diis_buffer%ncall
          CALL qs_diis_b_info_kp(kpoints%scf_diis_buffer, ib, nb)
          indx = 0
          DO ikp = 1, kplocal
@@ -750,32 +851,96 @@ CONTAINS
                   my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                   indx = indx + 1
                   IF (my_kpgrp) THEN
-                     CALL cp_fm_finish_copy_general(fmlocal, info(indx, 1))
-                     CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, fmlocal)
-                     CALL cp_fm_finish_copy_general(fmlocal, info(indx, 2))
-                     CALL cp_cfm_scale_and_add_fm(z_one, cksmat, gaussi, fmlocal)
-                     CALL cp_fm_finish_copy_general(fmlocal, info(indx, 3))
-                     CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, fmlocal)
-                     CALL cp_fm_finish_copy_general(fmlocal, info(indx, 4))
-                     CALL cp_cfm_scale_and_add_fm(z_one, csmat, gaussi, fmlocal)
+                     IF (use_real_wfn) THEN
+                        CALL cp_fm_finish_copy_general(rksmat, info(indx, 1))
+                        CALL cp_fm_finish_copy_general(rsmat, info(indx, 2))
+                        CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, rksmat)
+                        CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, rsmat)
+                     ELSE
+                        CALL cp_fm_finish_copy_general(fmlocal, info(indx, 1))
+                        CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, fmlocal)
+                        CALL cp_fm_finish_copy_general(fmlocal, info(indx, 2))
+                        CALL cp_cfm_scale_and_add_fm(z_one, cksmat, gaussi, fmlocal)
+                        CALL cp_fm_finish_copy_general(fmlocal, info(indx, 3))
+                        CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, fmlocal)
+                        CALL cp_fm_finish_copy_general(fmlocal, info(indx, 4))
+                        CALL cp_cfm_scale_and_add_fm(z_one, csmat, gaussi, fmlocal)
+                     END IF
                   END IF
                END DO  !igroup
 
                kp => kpoints%kp_env(ikp)%kpoint_env
                CALL qs_diis_b_calc_err_kp(kpoints%scf_diis_buffer, ib, kp%mos, cksmat, csmat, &
-                                          ispin, ikp, kplocal, scf_section)
+                                          ispin, ikp, kplocal, scf_section, real_wfn=use_real_wfn)
 
             END DO !ispin
          END DO !ikp
 
          ALLOCATE (coeffs(nb))
          CALL qs_diis_b_step_kp(kpoints%scf_diis_buffer, coeffs, ib, nb, scf_env%iter_delta, diis_error, &
-                                diis_step, scf_control%eps_diis, nspin, nkp, kplocal, scf_control%nmixing, &
+                                cdiis_step, scf_control%eps_diis, nspin, nkp, kplocal, &
+                                MERGE(2, scf_control%nmixing, use_adiis), &
                                 scf_section, para_env_global)
+         diis_weight = 1.0_dp
+         IF (use_adiis) THEN
+            diis_weight = scf_env%scf_subspace_buffer%diis_weight
+            IF (.NOT. ieee_is_finite(diis_error) .OR. diis_error >= scf_control%eps_diis) THEN
+               cdiis_step = .FALSE.
+               IF (cdiis_ncall < kpoints%scf_diis_buffer%nbuffer) THEN
+                  ! The rejected state has not overwritten a full circular buffer.
+                  kpoints%scf_diis_buffer%ncall = cdiis_ncall
+               ELSE
+                  CALL qs_diis_b_clear_kp(kpoints%scf_diis_buffer)
+                  diis_weight = 0.0_dp
+               END IF
+            END IF
+            IF (cdiis_step) THEN
+               ! Use one half-weight handover step; MAX_DIIS only controls the buffer capacity.
+               diis_weight = MIN(1.0_dp, diis_weight + 0.5_dp)
+            ELSE
+               ! A rejected or deferred CDIIS step must not leave a partial raw-Fock blend active.
+               diis_weight = 0.0_dp
+            END IF
+            scf_env%scf_subspace_buffer%diis_weight = diis_weight
+            diis_step = cdiis_step .AND. diis_weight >= 1.0_dp
+            IF (.NOT. diis_step) diis_error = scf_env%scf_subspace_buffer%last_old_fock_weight
+         ELSE
+            diis_step = cdiis_step
+         END IF
 
          !build the ks matrices and diagonalize
          DO ikp = 1, kplocal
             DO ispin = 1, nspin
+               IF (use_adiis) THEN
+                  IF (diis_weight < 1.0_dp) THEN
+                     DO igroup = 1, nkp_groups
+                        ik = kp_dist(1, igroup) + ikp - 1
+                        my_kpgrp = ik >= kp_range(1) .AND. ik <= kp_range(2)
+                        CALL dbcsr_set(rmatrix, 0.0_dp)
+                        CALL dbcsr_set(cmatrix, 0.0_dp)
+                        CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, &
+                                            rsmat=adiis_ks, ispin=ispin, &
+                                            xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+                        CALL dbcsr_desymmetrize(rmatrix, tmpmat)
+                        CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
+                        CALL dbcsr_desymmetrize(cmatrix, tmpmat)
+                        CALL copy_dbcsr_to_fm(tmpmat, fmwork(2))
+                        IF (my_kpgrp) THEN
+                           CALL cp_fm_start_copy_general(fmwork(1), fmlocal, para_env, blend_info(1))
+                           CALL cp_fm_start_copy_general(fmwork(2), fmlocal, para_env, blend_info(2))
+                           CALL cp_fm_finish_copy_general(fmlocal, blend_info(1))
+                           CALL cp_cfm_scale_and_add_fm(z_zero, cwork, z_one, fmlocal)
+                           CALL cp_fm_finish_copy_general(fmlocal, blend_info(2))
+                           CALL cp_cfm_scale_and_add_fm(z_one, cwork, gaussi, fmlocal)
+                        ELSE
+                           CALL cp_fm_start_copy_general(fmwork(1), fmdummy, para_env, blend_info(1))
+                           CALL cp_fm_start_copy_general(fmwork(2), fmdummy, para_env, blend_info(2))
+                        END IF
+                        CALL cp_fm_cleanup_copy_general(blend_info(1))
+                        CALL cp_fm_cleanup_copy_general(blend_info(2))
+                     END DO
+                  END IF
+               END IF
                kp => kpoints%kp_env(ikp)%kpoint_env
                CALL cp_cfm_to_cfm(kpoints%scf_diis_buffer%smat(ikp), csmat)
 
@@ -783,19 +948,37 @@ CONTAINS
                DO jb = 1, nb
                   CALL cp_cfm_scale_and_add(z_one, cksmat, coeffs(jb), kpoints%scf_diis_buffer%param(jb, ispin, ikp))
                END DO
-
-               CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos, eigenvalues=eigenvalues)
-               CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
-               IF (scf_env%cholesky_method == cholesky_off) THEN
-                  CALL cp_cfm_geeig_canon(cksmat, csmat, cmos, eigenvalues, cwork, &
-                                          scf_control%eps_eigval)
-               ELSE
-                  CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
+               IF (use_adiis) THEN
+                  IF (diis_weight < 1.0_dp) THEN
+                     CALL cp_cfm_scale_and_add(CMPLX(diis_weight, KIND=dp), cksmat, &
+                                               CMPLX(1.0_dp - diis_weight, KIND=dp), cwork)
+                  END IF
                END IF
-               ! copy eigenvalues to imag set (keep them in sync)
-               kp%mos(2, ispin)%eigenvalues = eigenvalues
-               ! split real and imaginary part of mos
-               CALL cp_cfm_to_fm(cmos, rmos, imos)
+
+               IF (use_real_wfn) THEN
+                  CALL cp_cfm_to_fm(cksmat, rksmat, fmlocal)
+                  CALL cp_cfm_to_fm(csmat, rsmat, fmlocal)
+                  CALL get_mo_set(kp%mos(1, ispin), mo_coeff=mo_coeff, eigenvalues=eigenvalues)
+                  IF (scf_env%cholesky_method == cholesky_off) THEN
+                     CALL cp_fm_geeig_canon(rksmat, rsmat, mo_coeff, eigenvalues, fmlocal, &
+                                            scf_control%eps_eigval)
+                  ELSE
+                     CALL cp_fm_geeig(rksmat, rsmat, mo_coeff, eigenvalues, fmlocal)
+                  END IF
+               ELSE
+                  CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos, eigenvalues=eigenvalues)
+                  CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
+                  IF (scf_env%cholesky_method == cholesky_off) THEN
+                     CALL cp_cfm_geeig_canon(cksmat, csmat, cmos, eigenvalues, cwork, &
+                                             scf_control%eps_eigval)
+                  ELSE
+                     CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
+                  END IF
+                  ! copy eigenvalues to imag set (keep them in sync)
+                  kp%mos(2, ispin)%eigenvalues = eigenvalues
+                  ! split real and imaginary part of mos
+                  CALL cp_cfm_to_fm(cmos, rmos, imos)
+               END IF
             END DO
          END DO
 
@@ -908,10 +1091,13 @@ CONTAINS
       IF (use_real_wfn) THEN
          CALL cp_fm_release(rksmat)
          CALL cp_fm_release(rsmat)
-      ELSE
+      END IF
+      IF (.NOT. use_real_wfn .OR. do_diis) THEN
          CALL cp_cfm_release(cksmat)
          CALL cp_cfm_release(csmat)
          CALL cp_cfm_release(cwork)
+      END IF
+      IF (.NOT. use_real_wfn) THEN
          CALL cp_cfm_release(cmos)
       END IF
       CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal)
@@ -927,6 +1113,7 @@ CONTAINS
 !>        replaced by local LAPACK calls.
 !> \param matrix_ks ...
 !> \param matrix_s ...
+!> \param adiis_ks ...
 !> \param kpoints ...
 !> \param scf_env ...
 !> \param scf_control ...
@@ -940,11 +1127,11 @@ CONTAINS
 !> \param cell_to_index ...
 !> \param xkp ...
 ! **************************************************************************************************
-   SUBROUTINE do_general_diag_kp_omp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, update_p, &
+   SUBROUTINE do_general_diag_kp_omp(matrix_ks, matrix_s, adiis_ks, kpoints, scf_env, scf_control, update_p, &
                                      diis_step, do_diis, qs_env, diis_error, probe, sab_nl, &
                                      cell_to_index, xkp)
 
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, adiis_ks
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -963,8 +1150,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag_kp_omp'
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: coeffs
-      INTEGER                                            :: handle, ib, ikp, kplocal, nb, nspin, &
-                                                            nworkers, thread
+      INTEGER                                            :: cdiis_ncall, handle, ib, ikp, kplocal, &
+                                                            nb, nspin, nworkers, thread
+      LOGICAL                                            :: cdiis_step, use_adiis
+      REAL(KIND=dp)                                      :: diis_weight
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(kp_diag_omp_workspace_type), ALLOCATABLE, &
@@ -979,6 +1168,8 @@ CONTAINS
 
       kplocal = SIZE(xkp, 2)
       nspin = SIZE(matrix_ks, 1)
+      use_adiis = update_p .AND. &
+                  scf_control%diagonalization%update_method == diag_update_method_adiis
       nworkers = 1
 !$    nworkers = MIN(omp_get_max_threads(), kplocal)
       CALL cp_fm_get_info(scf_env%scf_work1(1), matrix_struct=matrix_struct)
@@ -992,6 +1183,7 @@ CONTAINS
       IF (do_diis) THEN
          CALL get_qs_env(qs_env, para_env=para_env_global)
          scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
+         cdiis_ncall = kpoints%scf_diis_buffer%ncall
          CALL qs_diis_b_info_kp(kpoints%scf_diis_buffer, ib, nb)
          CALL qs_diis_b_check_i_alloc_kp(kpoints%scf_diis_buffer, matrix_struct, nspin, kplocal, &
                                          scf_section)
@@ -1009,17 +1201,43 @@ CONTAINS
 
          ALLOCATE (coeffs(nb))
          CALL qs_diis_b_step_kp(kpoints%scf_diis_buffer, coeffs, ib, nb, scf_env%iter_delta, diis_error, &
-                                diis_step, scf_control%eps_diis, nspin, kplocal, kplocal, &
-                                scf_control%nmixing, &
+                                cdiis_step, scf_control%eps_diis, nspin, kplocal, kplocal, &
+                                MERGE(2, scf_control%nmixing, use_adiis), &
                                 scf_section, para_env_global)
+         diis_weight = 1.0_dp
+         IF (use_adiis) THEN
+            diis_weight = scf_env%scf_subspace_buffer%diis_weight
+            IF (.NOT. ieee_is_finite(diis_error) .OR. diis_error >= scf_control%eps_diis) THEN
+               cdiis_step = .FALSE.
+               IF (cdiis_ncall < kpoints%scf_diis_buffer%nbuffer) THEN
+                  kpoints%scf_diis_buffer%ncall = cdiis_ncall
+               ELSE
+                  CALL qs_diis_b_clear_kp(kpoints%scf_diis_buffer)
+                  diis_weight = 0.0_dp
+               END IF
+            END IF
+            IF (cdiis_step) THEN
+               diis_weight = MIN(1.0_dp, diis_weight + 0.5_dp)
+            ELSE
+               ! A rejected or deferred CDIIS step must not leave a partial raw-Fock blend active.
+               diis_weight = 0.0_dp
+            END IF
+            scf_env%scf_subspace_buffer%diis_weight = diis_weight
+            diis_step = cdiis_step .AND. diis_weight >= 1.0_dp
+            IF (.NOT. diis_step) diis_error = scf_env%scf_subspace_buffer%last_old_fock_weight
+         ELSE
+            diis_step = cdiis_step
+         END IF
 
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(DYNAMIC, 1) NUM_THREADS(nworkers) &
-!$OMP SHARED(workspace,kpoints,coeffs,nb,scf_env,scf_control,kplocal,nspin,nworkers) PRIVATE(ikp,thread)
+!$OMP SHARED(workspace,kpoints,coeffs,nb,scf_env,scf_control,kplocal,nspin,nworkers, &
+!$OMP        adiis_ks,transform_plan,xkp,use_adiis,diis_weight) PRIVATE(ikp,thread)
          DO ikp = 1, kplocal
             thread = 1
 !$          thread = omp_get_thread_num() + 1
             CALL kp_diis_diag_job(ikp, workspace(thread), kpoints, coeffs, nb, scf_env, &
-                                  scf_control, nspin)
+                                  scf_control, nspin, adiis_ks, transform_plan, xkp, &
+                                  use_adiis, diis_weight)
          END DO
 !$OMP END PARALLEL DO
          DEALLOCATE (coeffs)
@@ -1306,8 +1524,14 @@ CONTAINS
 !> \param scf_env ...
 !> \param scf_control ...
 !> \param nspin ...
+!> \param adiis_ks ...
+!> \param transform_plan ...
+!> \param xkp ...
+!> \param use_adiis ...
+!> \param diis_weight ...
 ! **************************************************************************************************
-   SUBROUTINE kp_diis_diag_job(ikp, workspace, kpoints, coeffs, nb, scf_env, scf_control, nspin)
+   SUBROUTINE kp_diis_diag_job(ikp, workspace, kpoints, coeffs, nb, scf_env, scf_control, nspin, &
+                               adiis_ks, transform_plan, xkp, use_adiis, diis_weight)
 
       INTEGER, INTENT(IN)                                :: ikp
       TYPE(kp_diag_omp_workspace_type), INTENT(INOUT)    :: workspace
@@ -1317,6 +1541,11 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       INTEGER, INTENT(IN)                                :: nspin
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: adiis_ks
+      TYPE(kp_transform_plan_type), INTENT(IN)           :: transform_plan
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      LOGICAL, INTENT(IN)                                :: use_adiis
+      REAL(KIND=dp), INTENT(IN)                          :: diis_weight
 
       INTEGER                                            :: ispin, jb
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
@@ -1331,6 +1560,12 @@ CONTAINS
             CALL cp_cfm_scale_and_add(z_one, workspace%cksmat, coeffs(jb), &
                                       kpoints%scf_diis_buffer%param(jb, ispin, ikp))
          END DO
+         IF (use_adiis .AND. diis_weight < 1.0_dp) THEN
+            CALL kp_build_cfm(adiis_ks, ispin, xkp(1:3, ikp), transform_plan, workspace%csmat_base)
+            workspace%cksmat%local_data(:, :) = &
+               diis_weight*workspace%cksmat%local_data(:, :) + &
+               (1.0_dp - diis_weight)*workspace%csmat_base%local_data(:, :)
+         END IF
          CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos, eigenvalues=eigenvalues)
          CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
          IF (scf_env%cholesky_method == cholesky_off) THEN
