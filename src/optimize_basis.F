@@ -202,6 +202,12 @@ CONTAINS
                                     frontier_orbitals_reference, para_env, mpi_comm_opt)
 
       CALL init_free_vars(opt_bas)
+      IF (opt_bas%method == method_mo_fit_occ_virtual) THEN
+         ! Store the normalized coefficient representation used by the basis code.
+         CALL update_free_vars(opt_bas)
+         CALL init_free_vars(opt_bas)
+         ALLOCATE (opt_bas%x_initial, source=opt_bas%x_opt)
+      END IF
       tot_time = 0.0_dp
 
       ! ======= The real optimization loop  =======
@@ -437,9 +443,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_frontier_orbitals_objective'
 
       CHARACTER(len=8)                                   :: basis_type
-      INTEGER                                            :: bas_id, handle, icalc, icomb, mp_id, &
-                                                            my_id, ncalc, set_id, unit_nr
-      REAL(KIND=dp)                                      :: contribution
+      INTEGER                                            :: bas_id, handle, icalc, icomb, icont, &
+                                                            ikind, ipgf, iset, ix, mp_id, my_id, &
+                                                            ncalc, set_id, unit_nr
+      REAL(KIND=dp)                                      :: coefficient_loss, contribution
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coefficients_current
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gdata
       REAL(KIND=dp), DIMENSION(:), POINTER               :: start_time
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -456,7 +464,26 @@ CONTAINS
 
       basis_type = "AUX_OPT"
       ncalc = opt_bas%ncombinations*opt_bas%ntraining_sets
-      ALLOCATE (gdata(ncalc, 9), source=0.0_dp)
+      ALLOCATE (gdata(ncalc, 10), source=0.0_dp)
+      ALLOCATE (coefficients_current, source=opt_bas%x_opt)
+      DO ikind = 1, opt_bas%nkind
+         DO iset = 1, opt_bas%kind_basis(ikind)%flex_basis(0)%nsets
+            DO ipgf = 1, opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset)%nexp
+               DO icont = 1, opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset)%ncon_tot
+                  IF (opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset)%opt_coeff(ipgf, icont)) THEN
+                     ix = opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset)%coeff_x_ind(ipgf, icont)
+                     coefficients_current(ix) = &
+                        opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset)%coeff(ipgf, icont)
+                  END IF
+               END DO
+            END DO
+         END DO
+      END DO
+      coefficient_loss = 0.0_dp
+      IF (SUM(opt_bas%x_initial**2) > TINY(1.0_dp)) THEN
+         coefficient_loss = SUM((coefficients_current - opt_bas%x_initial)**2)/ &
+                            SUM(opt_bas%x_initial**2)
+      END IF
       mp_id = opt_bas%opt_id
       ALLOCATE (start_time(SIZE(opt_bas%comp_group(mp_id)%member_list)))
 
@@ -493,6 +520,7 @@ CONTAINS
          gdata(my_id, 7) = result%condition_number
          gdata(my_id, 8) = result%empty_subspace_overlap
          gdata(my_id, 9) = m_walltime() - start_time(icalc)
+         gdata(my_id, 10) = result%loss_empty_subspace
 
          IF (ASSOCIATED(matrix_s_aux)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux)
          IF (ASSOCIATED(matrix_s_aux_orb)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux_orb)
@@ -508,7 +536,9 @@ CONTAINS
             icomb = MOD(icalc - 1, opt_bas%ncombinations)
             contribution = opt_bas%occupied_weight*gdata(icalc, 1) + &
                            opt_bas%virtual_weight*gdata(icalc, 2) + &
-                           opt_bas%gap_weight*gdata(icalc, 3)
+                           opt_bas%empty_overlap_weight*gdata(icalc, 10) + &
+                           opt_bas%gap_weight*gdata(icalc, 3) + &
+                           opt_bas%coefficient_weight*coefficient_loss
             IF (opt_bas%use_condition_number) THEN
                contribution = contribution + opt_bas%condition_weight(icomb)*LOG10(gdata(icalc, 7))
             END IF
@@ -535,7 +565,7 @@ CONTAINS
          END IF
       END IF
       CALL para_env_top%bcast(opt_bas%powell_param%f)
-      DEALLOCATE (gdata)
+      DEALLOCATE (coefficients_current, gdata)
 
       CALL para_env_top%sync()
       CALL timestop(handle)

@@ -112,7 +112,9 @@ MODULE optimize_basis_types
       INTEGER :: method = method_mo_fit_occ
       REAL(KIND=dp) :: occupied_weight = 1.0_dp
       REAL(KIND=dp) :: virtual_weight = 1.0_dp
+      REAL(KIND=dp) :: empty_overlap_weight = 0.0_dp
       REAL(KIND=dp) :: gap_weight = 1.0_dp
+      REAL(KIND=dp) :: coefficient_weight = 0.0_dp
       REAL(KIND=dp) :: gap_energy_scale = 0.0_dp
       REAL(KIND=dp) :: virtual_energy_cutoff = 0.0_dp
       REAL(KIND=dp) :: virtual_energy_smoothing = 0.0_dp
@@ -120,6 +122,7 @@ MODULE optimize_basis_types
       INTEGER :: write_frequency = -1
       INTEGER :: nbasis_deriv_types = -1
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: x_opt
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: x_initial
       TYPE(opt_state_type)  :: powell_param = opt_state_type()
       CHARACTER(LEN=default_path_length), DIMENSION(:), ALLOCATABLE :: training_input
       CHARACTER(LEN=default_path_length), DIMENSION(:), ALLOCATABLE :: training_dir
@@ -149,6 +152,7 @@ CONTAINS
       IF (ALLOCATED(opt_bas%sub_sources)) DEALLOCATE (opt_bas%sub_sources)
       IF (ALLOCATED(opt_bas%combination)) DEALLOCATE (opt_bas%combination)
       IF (ALLOCATED(opt_bas%x_opt)) DEALLOCATE (opt_bas%x_opt)
+      IF (ALLOCATED(opt_bas%x_initial)) DEALLOCATE (opt_bas%x_initial)
       IF (ALLOCATED(opt_bas%training_input)) DEALLOCATE (opt_bas%training_input)
       IF (ALLOCATED(opt_bas%training_dir)) DEALLOCATE (opt_bas%training_dir)
       IF (ALLOCATED(opt_bas%fval_weight)) DEALLOCATE (opt_bas%fval_weight)

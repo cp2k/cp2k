@@ -38,6 +38,7 @@ MODULE optbas_frontier_orbitals_utils
    TYPE, PUBLIC :: frontier_orbitals_result_type
       REAL(KIND=dp) :: loss_occupied_subspace = 0.0_dp
       REAL(KIND=dp) :: loss_virtual_subspace = 0.0_dp
+      REAL(KIND=dp) :: loss_empty_subspace = 0.0_dp
       REAL(KIND=dp) :: loss_gap = 0.0_dp
       REAL(KIND=dp) :: occupied_subspace_overlap = 0.0_dp
       REAL(KIND=dp) :: empty_subspace_overlap = 0.0_dp
@@ -216,6 +217,7 @@ CONTAINS
           result%condition_number > 1.0E14_dp .OR. result%condition_number <= 0.0_dp) THEN
          result%loss_occupied_subspace = 1.0E6_dp
          result%loss_virtual_subspace = 1.0E6_dp
+         result%loss_empty_subspace = 1.0E6_dp
          result%loss_gap = 1.0E6_dp
          RETURN
       END IF
@@ -407,6 +409,7 @@ CONTAINS
                          2.0_dp*virtual_subspace_overlap)/(2.0_dp*reference_virtual_weight_norm))
          result%empty_subspace_overlap = &
             MIN(1.0_dp, MAX(0.0_dp, reference_virtual_subspace_overlap/reference_virtual_weight_norm))
+         result%loss_empty_subspace = 1.0_dp - result%empty_subspace_overlap
       END IF
 
       ! E_g^X = epsilon_LUMO^X - epsilon_HOMO^X.

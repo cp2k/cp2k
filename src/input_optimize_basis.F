@@ -174,7 +174,8 @@ CONTAINS
          "reference Hamiltonian. The loss is $$\mathcal{L}="// &
          "a_{\mathrm{occ}}\mathcal{L}_{\mathrm{occ}}+"// &
          "a_{\mathrm{vir}}\mathcal{L}_{\mathrm{vir}}+"// &
-         "a_g\mathcal{L}_g+a_\kappa\log_{10}\kappa(S).$$ "// &
+         "a_e\mathcal{L}_{\mathrm{empty}}+a_g\mathcal{L}_g+"// &
+         "a_c\mathcal{L}_c+a_\kappa\log_{10}\kappa(S).$$ "// &
          "For $M_{ij}=\langle\psi_i^R|\psi_j^C\rangle$, the occupied loss is "// &
          "$\mathcal{L}_{\mathrm{occ}}=1-N_{\mathrm{occ}}^{-1}"// &
          "\sum_{i,j\in\mathrm{occ}}|M_{ij}|^2$. Virtual orbitals are selected "// &
@@ -182,7 +183,10 @@ CONTAINS
          "$\mathcal{L}_{\mathrm{vir}}$ compares the selected reference and candidate "// &
          "virtual subspaces. Finally, $\mathcal{L}_g=[(E_g^C-E_g^R)/"// &
          "E_{\mathrm{scale}}]^2$ and $\kappa(S)=\lambda_{\max}(S)/"// &
-         "\lambda_{\min}(S)$. CONDITION_WEIGHT supplies $a_\kappa$.", &
+         "\lambda_{\min}(S)$. The one-sided empty-space loss is one minus "// &
+         "the reported empty-subspace overlap. The coefficient loss is "// &
+         "$\mathcal{L}_c=\|c-c_0\|^2/\|c_0\|^2$. CONDITION_WEIGHT supplies "// &
+         "$a_\kappa$.", &
          repeats=.FALSE.)
 
       CALL keyword_create( &
@@ -200,9 +204,25 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
+         keyword, __LOCATION__, name="EMPTY_OVERLAP_WEIGHT", &
+         description="Prefactor multiplying one minus the bounded, reference-weighted "// &
+         "empty-subspace overlap. This directly optimizes the reported empty overlap.", &
+         usage="EMPTY_OVERLAP_WEIGHT 0.0", type_of_var=real_t, default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
          keyword, __LOCATION__, name="GAP_WEIGHT", &
          description="Prefactor $a_g$ multiplying the normalized HOMO-LUMO gap loss.", &
          usage="GAP_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="COEFFICIENT_WEIGHT", &
+         description="Prefactor multiplying the normalized squared change of the optimized "// &
+         "contraction coefficients from their initial values.", &
+         usage="COEFFICIENT_WEIGHT 0.0", type_of_var=real_t, default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

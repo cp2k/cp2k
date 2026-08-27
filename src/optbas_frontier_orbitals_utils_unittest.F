@@ -33,6 +33,7 @@ PROGRAM optbas_frontier_orbitals_utils_unittest
    CALL assert_close(result%loss_occupied_subspace, 0.0_dp, "identical occupied subspace")
    CALL assert_close(result%loss_virtual_subspace, 0.0_dp, "identical virtual subspace")
    CALL assert_close(result%empty_subspace_overlap, 1.0_dp, "identical empty subspace")
+   CALL assert_close(result%loss_empty_subspace, 0.0_dp, "identical empty-space loss")
 
    orbital_overlap = 0.0_dp
    orbital_overlap(1, 2) = -1.0_dp
@@ -56,6 +57,7 @@ PROGRAM optbas_frontier_orbitals_utils_unittest
    CALL assert_close(result%loss_occupied_subspace, 1.0_dp, "orthogonal occupied normalization")
    CALL assert_close(result%loss_virtual_subspace, 1.0_dp, "orthogonal virtual normalization")
    CALL assert_close(result%empty_subspace_overlap, 0.0_dp, "orthogonal empty subspace")
+   CALL assert_close(result%loss_empty_subspace, 1.0_dp, "orthogonal empty-space loss")
 
    ! A gap error equal to E_scale gives a unit gap loss.
    candidate_eigenvalues(3:4) = candidate_eigenvalues(3:4) + 0.2_dp

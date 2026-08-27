@@ -93,8 +93,12 @@ CONTAINS
                                    r_val=opt_bas%occupied_weight)
          CALL section_vals_val_get(frontier_orbitals_section, "VIRTUAL_WEIGHT", &
                                    r_val=opt_bas%virtual_weight)
+         CALL section_vals_val_get(frontier_orbitals_section, "EMPTY_OVERLAP_WEIGHT", &
+                                   r_val=opt_bas%empty_overlap_weight)
          CALL section_vals_val_get(frontier_orbitals_section, "GAP_WEIGHT", &
                                    r_val=opt_bas%gap_weight)
+         CALL section_vals_val_get(frontier_orbitals_section, "COEFFICIENT_WEIGHT", &
+                                   r_val=opt_bas%coefficient_weight)
          CALL section_vals_val_get(frontier_orbitals_section, "GAP_ENERGY_SCALE", &
                                    r_val=opt_bas%gap_energy_scale)
          CALL section_vals_val_get(frontier_orbitals_section, "VIRTUAL_ENERGY_CUTOFF", &
@@ -106,7 +110,8 @@ CONTAINS
             CPABORT("VIRTUAL_ENERGY_SMOOTHING must be positive")
          END IF
          IF (MIN(opt_bas%occupied_weight, opt_bas%virtual_weight, &
-                 opt_bas%gap_weight) < 0.0_dp) THEN
+                 opt_bas%empty_overlap_weight, opt_bas%gap_weight, &
+                 opt_bas%coefficient_weight) < 0.0_dp) THEN
             CPABORT("FRONTIER_ORBITALS weights must be non-negative")
          END IF
          DO ikind = 1, opt_bas%nkind
