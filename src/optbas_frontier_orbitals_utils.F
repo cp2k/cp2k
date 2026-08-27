@@ -89,7 +89,7 @@ CONTAINS
          CPABORT("FRONTIER_ORBITALS currently supports only closed-shell calculations")
       END IF
       IF (do_kpoints) THEN
-         CPABORT("FRONTIER_ORBITALS currently supports only Gamma-point calculations")
+         CPABORT("FRONTIER_ORBITALS currently supports only Γ-point calculations")
       END IF
       IF (ASSOCIATED(qs_env%x_data)) THEN
          CPABORT("FRONTIER_ORBITALS does not yet support hybrid functionals")
@@ -126,7 +126,7 @@ CONTAINS
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, reference_overlap)
       CALL cp_fm_uplo_to_full(reference_overlap, work)
 
-      ! H_R C_R = S_R C_R diag(epsilon_R), with C_R^T S_R C_R = I.
+      ! H_R C_R = S_R C_R diag(ε_R), with C_R^T S_R C_R = I.
       CALL cp_fm_geeig(reference_hamiltonian, reference_overlap, reference%eigenvectors, &
                        reference%eigenvalues, work)
 
@@ -155,28 +155,22 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Construct and diagonalize the candidate Hamiltonian and evaluate the loss function.
-!> \param reference reference eigenvalues and eigenvectors \f$C_R\f$
-!> \param matrix_s_candidate candidate AO overlap matrix \f$S_C\f$
-!> \param matrix_s_candidate_reference candidate/reference AO overlap matrix \f$S_{CR}\f$
+!> \param reference reference eigenvalues and eigenvectors C_R
+!> \param matrix_s_candidate candidate AO overlap matrix S_C
+!> \param matrix_s_candidate_reference candidate/reference AO overlap matrix S_CR
 !> \param virtual_cutoff virtual-orbital energy cutoff
 !> \param virtual_smoothing virtual-orbital energy smoothing width
 !> \param gap_scale normalization energy for the HOMO-LUMO gap loss
 !> \param result loss-function terms and diagnostic quantities
 !>
 !> The reference Hamiltonian is transformed to the candidate AO basis using
-!> \f[
-!> B=C_R^\mathrm{T}S_{RC}, \qquad H_C=B^\mathrm{T}
-!>       \operatorname{diag}(\epsilon_R)B .
-!> \f]
+!> B = C_R^T S_RC
+!> H_C = B^T diag(ε_R) B
 !> The candidate orbitals are obtained from
-!> \f[
-!> H_C C_C=S_C C_C\operatorname{diag}(\epsilon_C),
-!> \qquad C_C^\mathrm{T}S_C C_C=I ,
-!> \f]
+!> H_C C_C = S_C C_C diag(ε_C)
+!> C_C^T S_C C_C = I
 !> and the reference/candidate orbital overlap matrix is
-!> \f[
-!> M=C_R^\mathrm{T}S_{RC}C_C=BC_C .
-!> \f]
+!> M = C_R^T S_RC C_C = B C_C
 ! **************************************************************************************************
    SUBROUTINE evaluate_frontier_orbitals_objective(reference, matrix_s_candidate, &
                                                    matrix_s_candidate_reference, virtual_cutoff, &
@@ -254,7 +248,7 @@ CONTAINS
                          reference_candidate_ao_overlap, 0.0_dp, &
                          reference_orbital_candidate_ao_overlap)
 
-      ! H_C = B^T diag(epsilon_R) B.
+      ! H_C = B^T diag(ε_R) B.
       CALL cp_fm_set_all(reference_eigenvalue_matrix, 0.0_dp)
       DO istate = 1, nref
          CALL cp_fm_set_element(reference_eigenvalue_matrix, istate, istate, &
@@ -271,11 +265,11 @@ CONTAINS
       CALL cp_fm_uplo_to_full(candidate_overlap, candidate_work)
       ALLOCATE (eigenvalues_candidate(naux))
 
-      ! H_C C_C = S_C C_C diag(epsilon_C).
+      ! H_C C_C = S_C C_C diag(ε_C).
       CALL cp_fm_geeig(candidate_hamiltonian, candidate_overlap, candidate_eigenvectors, &
                        eigenvalues_candidate, candidate_work)
 
-      ! M = B C_C, where M_ij = <psi_i^R | psi_j^C>.
+      ! M = B C_C, where M_ij = <ψ_i^R | ψ_j^C>.
       CALL parallel_gemm('N', 'N', nref, naux, naux, 1.0_dp, &
                          reference_orbital_candidate_ao_overlap, candidate_eigenvectors, &
                          0.0_dp, reference_candidate_orbital_overlap)
@@ -300,41 +294,32 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Compute the frontier-orbital loss function.
-!> \param orbital_overlap \f$M_{ij}=\langle\psi_i^R|\psi_j^C\rangle\f$
-!> \param eigenvalues_reference reference eigenvalues \f$\epsilon_i^R\f$
-!> \param eigenvalues_candidate candidate eigenvalues \f$\epsilon_j^C\f$
+!> \param orbital_overlap orbital overlaps M_ij = <ψ_i^R | ψ_j^C>
+!> \param eigenvalues_reference reference eigenvalues ε_i^R
+!> \param eigenvalues_candidate candidate eigenvalues ε_j^C
 !> \param number_occupied_orbitals number of occupied spatial orbitals
-!> \param virtual_cutoff virtual-orbital energy cutoff \f$E_\mathrm{cut}\f$
-!> \param virtual_smoothing virtual-orbital energy smoothing width \f$\Delta E\f$
-!> \param gap_scale normalization energy \f$E_\mathrm{scale}\f$ for the gap loss
+!> \param virtual_cutoff virtual-orbital energy cutoff E_cut
+!> \param virtual_smoothing virtual-orbital energy smoothing width ΔE
+!> \param gap_scale normalization energy E_scale for the gap loss
 !> \param result loss-function terms and diagnostic quantities
 !>
-!> Let \f$i\f$ denote a reference orbital, \f$j\f$ a candidate orbital, and
-!> \f$N_\mathrm{occ}\f$ the number of occupied orbitals. The occupied-subspace loss is
-!> \f[
-!> \mathcal{L}_\mathrm{occ}
-!> =1-\frac{1}{N_\mathrm{occ}}
-!>   \sum_{i=1}^{N_\mathrm{occ}}\sum_{j=1}^{N_\mathrm{occ}}|M_{ij}|^2 .
-!> \f]
-!> For virtual orbitals \f$i,j>N_\mathrm{occ}\f$, define
-!> \f[
-!> w_i^X=\left[1+\exp\left(
-!> \frac{\epsilon_i^X-\epsilon_\mathrm{LUMO}^X-E_\mathrm{cut}}{\Delta E}
-!> \right)\right]^{-1},\qquad
-!> N_X=\sum_{i>N_\mathrm{occ}}(w_i^X)^2,\quad X\in\{R,C\}.
-!> \f]
-!> The virtual-subspace loss compares the energy-weighted reference and candidate subspaces:
-!> \f[
-!> \mathcal{L}_\mathrm{vir}
-!> =\frac{N_R+N_C
-!> -2\sum_{i>N_\mathrm{occ}}\sum_{j>N_\mathrm{occ}}
-!> w_i^R w_j^C |M_{ij}|^2}{2N_R}.
-!> \f]
-!> With \f$E_g^X=\epsilon_{N_\mathrm{occ}+1}^X-\epsilon_{N_\mathrm{occ}}^X\f$,
-!> the gap loss is
-!> \f[
-!> \mathcal{L}_g=\left(\frac{E_g^C-E_g^R}{E_\mathrm{scale}}\right)^2 .
-!> \f]
+!> Let i denote a reference orbital, j a candidate orbital, and N_occ the number of occupied
+!> orbitals. R and C label reference and candidate quantities. The occupied-subspace loss is
+!> L_occ = 1 - sum_(i,j in occupied) |M_ij|^2 / N_occ.
+!>
+!> For virtual orbitals i,j > N_occ, define the smooth energy-window weights and their norms as
+!> w_i^X = 1 / {1 + exp[(ε_i^X - ε_LUMO^X - E_cut) / ΔE]}, for X = R or C,
+!> N_X = sum_(i in virtual) (w_i^X)^2.
+!> The energy-weighted virtual-subspace overlap and loss are
+!> O_vir = sum_(i,j in virtual) w_i^R w_j^C |M_ij|^2,
+!> L_vir = (N_R + N_C - 2 O_vir) / (2 N_R).
+!>
+!> The reference-weighted empty-subspace overlap is
+!> O_empty = clip[sum_(i,j in virtual) (w_i^R)^2 |M_ij|^2 / N_R, 0, 1],
+!> and its loss is L_empty = 1 - O_empty.
+!>
+!> With E_gap^X = ε_LUMO^X - ε_HOMO^X, the gap loss is
+!> L_gap = [(E_gap^C - E_gap^R) / E_scale]^2.
 ! **************************************************************************************************
    PURE SUBROUTINE compute_frontier_orbital_loss_function( &
       orbital_overlap, eigenvalues_reference, eigenvalues_candidate, number_occupied_orbitals, &
@@ -349,7 +334,7 @@ CONTAINS
 
       INTEGER                                            :: candidate_orbital, reference_orbital
       REAL(KIND=dp) :: candidate_virtual_weight_norm, occupied_subspace_overlap, &
-         reference_virtual_weight_norm, reference_virtual_subspace_overlap, &
+         reference_virtual_subspace_overlap, reference_virtual_weight_norm, &
          virtual_subspace_overlap, weight_candidate, weight_reference
 
       ! O_occ = sum_{i,j in occupied} |M_ij|^2 / N_occ.
@@ -412,13 +397,13 @@ CONTAINS
          result%loss_empty_subspace = 1.0_dp - result%empty_subspace_overlap
       END IF
 
-      ! E_g^X = epsilon_LUMO^X - epsilon_HOMO^X.
+      ! E_gap^X = ε_LUMO^X - ε_HOMO^X.
       result%gap_reference = eigenvalues_reference(number_occupied_orbitals + 1) - &
                              eigenvalues_reference(number_occupied_orbitals)
       result%gap_candidate = eigenvalues_candidate(number_occupied_orbitals + 1) - &
                              eigenvalues_candidate(number_occupied_orbitals)
 
-      ! L_g = [(E_g^C - E_g^R)/E_scale]^2.
+      ! L_gap = [(E_gap^C - E_gap^R)/E_scale]^2.
       result%loss_gap = ((result%gap_candidate - result%gap_reference)/gap_scale)**2
 
    END SUBROUTINE compute_frontier_orbital_loss_function

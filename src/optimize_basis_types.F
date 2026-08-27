@@ -113,7 +113,7 @@ MODULE optimize_basis_types
       REAL(KIND=dp) :: occupied_weight = 1.0_dp
       REAL(KIND=dp) :: virtual_weight = 1.0_dp
       REAL(KIND=dp) :: empty_overlap_weight = 1.0_dp
-      REAL(KIND=dp) :: gap_weight = 10.0_dp
+      REAL(KIND=dp) :: gap_weight = 1.0E-3_dp
       REAL(KIND=dp) :: coefficient_weight = 1.0E-3_dp
       REAL(KIND=dp) :: gap_energy_scale = 0.0_dp
       REAL(KIND=dp) :: virtual_energy_cutoff = 0.0_dp
