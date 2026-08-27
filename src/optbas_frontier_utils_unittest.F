@@ -37,6 +37,8 @@ PROGRAM optbas_frontier_utils_unittest
                                 10.0_dp, 0.1_dp, 0.2_dp, coefficients, coefficients_initial, RESULT)
    CALL assert_close(result%loss_occupied, 0.0_dp, "identical occupied subspace")
    CALL assert_close(result%loss_virtual, 0.0_dp, "identical virtual subspace")
+   CALL assert_close(result%loss_empty_overlap, 0.0_dp, "identical empty completeness")
+   CALL assert_close(result%virtual_overlap_percent, 100.0_dp, "identical empty percentage")
 
    overlap = 0.0_dp
    overlap(1, 2) = -1.0_dp
@@ -47,6 +49,8 @@ PROGRAM optbas_frontier_utils_unittest
                                 10.0_dp, 0.1_dp, 0.2_dp, coefficients, coefficients_initial, result_rotated)
    CALL assert_close(result_rotated%loss_occupied, result%loss_occupied, "occupied permutation/sign invariance")
    CALL assert_close(result_rotated%loss_virtual, result%loss_virtual, "virtual permutation/sign invariance")
+   CALL assert_close(result_rotated%loss_empty_overlap, result%loss_empty_overlap, &
+                     "empty completeness permutation/sign invariance")
 
    ! Orthogonal equal-rank/equally weighted spaces give unit normalized losses.
    overlap = 0.0_dp
@@ -55,6 +59,7 @@ PROGRAM optbas_frontier_utils_unittest
                                 10.0_dp, 0.1_dp, 0.2_dp, coefficients, coefficients_initial, RESULT)
    CALL assert_close(result%loss_occupied, 1.0_dp, "orthogonal occupied normalization")
    CALL assert_close(result%loss_virtual, 1.0_dp, "orthogonal virtual normalization")
+   CALL assert_close(result%loss_empty_overlap, 1.0_dp, "orthogonal empty completeness")
 
    ! A gap error of E_scale and a coefficient displacement of ||c0|| both give unit loss.
    overlap = 0.0_dp

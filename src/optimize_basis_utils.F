@@ -91,6 +91,8 @@ CONTAINS
          opt_bas%method = method_mo_fit_occ_virtual
          CALL section_vals_val_get(frontier_section, "OCCUPIED_WEIGHT", r_val=opt_bas%occupied_weight)
          CALL section_vals_val_get(frontier_section, "VIRTUAL_WEIGHT", r_val=opt_bas%virtual_weight)
+         CALL section_vals_val_get(frontier_section, "EMPTY_OVERLAP_WEIGHT", &
+                                   r_val=opt_bas%empty_overlap_weight)
          CALL section_vals_val_get(frontier_section, "GAP_WEIGHT", r_val=opt_bas%gap_weight)
          CALL section_vals_val_get(frontier_section, "COEFFICIENT_WEIGHT", r_val=opt_bas%coefficient_weight)
          CALL section_vals_val_get(frontier_section, "GAP_ENERGY_SCALE", r_val=opt_bas%gap_energy_scale)
@@ -102,8 +104,8 @@ CONTAINS
          IF (opt_bas%virtual_energy_smoothing <= 0.0_dp) THEN
             CPABORT("VIRTUAL_ENERGY_SMOOTHING must be positive")
          END IF
-         IF (MIN(opt_bas%occupied_weight, opt_bas%virtual_weight, opt_bas%gap_weight, &
-                 opt_bas%coefficient_weight) < 0.0_dp) THEN
+         IF (MIN(opt_bas%occupied_weight, opt_bas%virtual_weight, opt_bas%empty_overlap_weight, &
+                 opt_bas%gap_weight, opt_bas%coefficient_weight) < 0.0_dp) THEN
             CPABORT("FRONTIER_STATES component weights must be non-negative")
          END IF
          DO ikind = 1, opt_bas%nkind

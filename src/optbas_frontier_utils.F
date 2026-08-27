@@ -38,6 +38,7 @@ MODULE optbas_frontier_utils
    TYPE, PUBLIC :: frontier_result_type
       REAL(KIND=dp) :: loss_occupied = 0.0_dp
       REAL(KIND=dp) :: loss_virtual = 0.0_dp
+      REAL(KIND=dp) :: loss_empty_overlap = 0.0_dp
       REAL(KIND=dp) :: loss_gap = 0.0_dp
       REAL(KIND=dp) :: loss_coefficients = 0.0_dp
       REAL(KIND=dp) :: occupied_overlap_percent = 0.0_dp
@@ -123,8 +124,9 @@ CONTAINS
 
       INTEGER                                            :: icand, iref
       REAL(KIND=dp)                                      :: candidate_norm, common_content, &
-                                                            occupied_content, reference_norm, &
-                                                            w_candidate, w_reference
+                                                            empty_content, occupied_content, &
+                                                            reference_norm, w_candidate, &
+                                                            w_reference
 
       RESULT = frontier_result_type()
 
@@ -149,6 +151,7 @@ CONTAINS
       END DO
 
       common_content = 0.0_dp
+      empty_content = 0.0_dp
       DO icand = nocc + 1, SIZE(eigenvalues_candidate)
          w_candidate = smooth_frontier_weight(eigenvalues_candidate(icand) - &
                                               eigenvalues_candidate(nocc + 1), &
@@ -158,13 +161,15 @@ CONTAINS
                                                  eigenvalues_reference(nocc + 1), &
                                                  virtual_cutoff, virtual_smoothing)
             common_content = common_content + w_reference*w_candidate*overlap(iref, icand)**2
+            empty_content = empty_content + w_reference**2*overlap(iref, icand)**2
          END DO
       END DO
 
       IF (reference_norm > TINY(1.0_dp)) THEN
          result%loss_virtual = MAX(0.0_dp, &
                                    (reference_norm + candidate_norm - 2.0_dp*common_content)/(2.0_dp*reference_norm))
-         result%virtual_overlap_percent = 100.0_dp*common_content/reference_norm
+         result%loss_empty_overlap = MAX(0.0_dp, 1.0_dp - empty_content/reference_norm)
+         result%virtual_overlap_percent = 100.0_dp*(1.0_dp - result%loss_empty_overlap)
       END IF
 
       result%gap_reference = eigenvalues_reference(nocc + 1) - eigenvalues_reference(nocc)
@@ -305,6 +310,7 @@ CONTAINS
           result%condition_number > 1.0E14_dp .OR. result%condition_number <= 0.0_dp) THEN
          result%loss_occupied = 1.0E6_dp
          result%loss_virtual = 1.0E6_dp
+         result%loss_empty_overlap = 1.0E6_dp
          result%loss_gap = 1.0E6_dp
          IF (SIZE(coefficients_initial) > 0 .AND. SUM(coefficients_initial**2) > TINY(1.0_dp)) THEN
             result%loss_coefficients = SUM((coefficients - coefficients_initial)**2)/ &

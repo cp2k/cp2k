@@ -112,6 +112,7 @@ MODULE optimize_basis_types
       INTEGER :: method = method_mo_fit_occ
       REAL(KIND=dp) :: occupied_weight = 1.0_dp
       REAL(KIND=dp) :: virtual_weight = 1.0_dp
+      REAL(KIND=dp) :: empty_overlap_weight = 0.0_dp
       REAL(KIND=dp) :: gap_weight = 1.0_dp
       REAL(KIND=dp) :: coefficient_weight = 0.0_dp
       REAL(KIND=dp) :: gap_energy_scale = 0.0_dp

@@ -171,13 +171,17 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="FRONTIER_STATES", &
                           description="Activates the frozen-density occupied/virtual frontier-state fit. The objective is"// &
                           "$$\\mathcal{L}=a_{\\rm occ}\\mathcal{L}_{\\rm occ}+a_{\\rm virt}\\mathcal{L}_{\\rm virt}+"// &
-                          "a_g\\mathcal{L}_{\\rm gap}+a_\\kappa\\log_{10}\\kappa(S)+a_c\\mathcal{L}_c.$$ "// &
+                          "a_e\\mathcal{L}_{\\rm empty}+a_g\\mathcal{L}_{\\rm gap}+"// &
+                          "a_\\kappa\\log_{10}\\kappa(S)+a_c\\mathcal{L}_c.$$ "// &
                           "For $N_{\\rm occ}$ occupied states, $M=C_R^\\dagger S_{RC}C_C$ and "// &
                           "$\\mathcal{L}_{\\rm occ}=1-\\mathrm{Tr}(M_{\\rm occ}M_{\\rm occ}^\\dagger)/N_{\\rm occ}$. "// &
                           "Virtual weights are $W_X=\\mathrm{diag}\{[1+\\exp((\\epsilon_i^X-\\epsilon_{\\rm LUMO}^X-"// &
                           "E_{\\rm cut})/\\Delta E)]^{-1}\}$ and $\\mathcal{L}_{\\rm virt}=[\\mathrm{Tr}(W_R^2)+"// &
                           "\\mathrm{Tr}(W_C^2)-2\\mathrm{Tr}(W_RM_{\\rm virt}W_CM_{\\rm virt}^\\dagger)]/"// &
-                          "[2\\mathrm{Tr}(W_R^2)]$. The remaining terms are $\\mathcal{L}_{\\rm gap}=[(E_g^C-E_g^R)/"// &
+                          "[2\\mathrm{Tr}(W_R^2)]$. The bounded completeness loss is "// &
+                          "$\\mathcal{L}_{\\rm empty}=1-\\mathrm{Tr}(W_R^2M_{\\rm virt}"// &
+                          "M_{\\rm virt}^\\dagger)/\\mathrm{Tr}(W_R^2)$; its complement is printed as the empty "// &
+                          "overlap percentage. The remaining terms are $\\mathcal{L}_{\\rm gap}=[(E_g^C-E_g^R)/"// &
                           "E_{\\rm scale}]^2$, $\\mathcal{L}_c=\\|c-c_0\\|^2/\\|c_0\\|^2$, and "// &
                           "$\\kappa(S)=\\lambda_{\\max}(S)/\\lambda_{\\min}(S)$. $c_0$ is the initial, ordered "// &
                           "coefficient vector. The component prefactors are distinct from RESIDUUM_WEIGHT, which is the "// &
@@ -196,6 +200,14 @@ CONTAINS
                           description="Component prefactor a_virt multiplying the smoothly weighted virtual-space loss. "// &
                           "This is not a RESIDUUM_WEIGHT.", &
                           usage="VIRTUAL_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EMPTY_OVERLAP_WEIGHT", &
+                          description="Component prefactor multiplying one minus the bounded, reference-weighted "// &
+                          "completeness of the empty candidate subspace. This loss is exactly one minus the printed "// &
+                          "empty overlap fraction. The default zero preserves the original FRONTIER_STATES objective.", &
+                          usage="EMPTY_OVERLAP_WEIGHT 0.0", type_of_var=real_t, default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

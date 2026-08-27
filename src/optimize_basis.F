@@ -462,7 +462,7 @@ CONTAINS
 
       basis_type = "AUX_OPT"
       ncalc = opt_bas%ncombinations*opt_bas%ntraining_sets
-      ALLOCATE (gdata(ncalc, 10), source=0.0_dp)
+      ALLOCATE (gdata(ncalc, 11), source=0.0_dp)
       ALLOCATE (coefficients_current, source=opt_bas%x_opt)
       DO ikind = 1, opt_bas%nkind
          DO iset = 1, opt_bas%kind_basis(ikind)%flex_basis(0)%nsets
@@ -514,6 +514,7 @@ CONTAINS
          gdata(my_id, 8) = result%gap_candidate
          gdata(my_id, 9) = result%condition_number
          gdata(my_id, 10) = m_walltime() - start_time(icalc)
+         gdata(my_id, 11) = result%loss_empty_overlap
 
          IF (ASSOCIATED(matrix_s_aux)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux)
          IF (ASSOCIATED(matrix_s_aux_orb)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux_orb)
@@ -529,6 +530,7 @@ CONTAINS
             icomb = MOD(icalc - 1, opt_bas%ncombinations)
             contribution = opt_bas%occupied_weight*gdata(icalc, 1) + &
                            opt_bas%virtual_weight*gdata(icalc, 2) + &
+                           opt_bas%empty_overlap_weight*gdata(icalc, 11) + &
                            opt_bas%gap_weight*gdata(icalc, 3) + &
                            opt_bas%coefficient_weight*gdata(icalc, 4)
             IF (opt_bas%use_condition_number) THEN
@@ -548,6 +550,9 @@ CONTAINS
                WRITE (unit_nr, '(1X,A,I0,2X,A,F10.5,2X,A,F10.5)') &
                   "BASOPT_FRONTIER| Calculation", icalc, "occupied overlap [%]=", gdata(icalc, 5), &
                   "empty overlap [%]=", gdata(icalc, 6)
+               WRITE (unit_nr, '(1X,A,4(2X,A,ES12.4))') "BASOPT_FRONTIER|", &
+                  "occupied loss=", gdata(icalc, 1), "symmetric virtual loss=", gdata(icalc, 2), &
+                  "empty overlap loss=", gdata(icalc, 11), "gap loss=", gdata(icalc, 3)
                WRITE (unit_nr, '(1X,A,2X,A,F12.6,2X,A,F12.6,2X,A,F12.6)') &
                   "BASOPT_FRONTIER|", "reference gap [eV]=", gdata(icalc, 7)*evolt, &
                   "candidate gap [eV]=", gdata(icalc, 8)*evolt, &
