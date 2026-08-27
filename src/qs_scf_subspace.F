@@ -290,8 +290,10 @@ CONTAINS
       buffer%last_status = failure_status
       buffer%last_restart = .TRUE.
       buffer%use_combined_fock = .FALSE.
+      buffer%diis_state_valid = .FALSE.
       buffer%last_objective = 0.0_dp
       buffer%last_old_fock_weight = 0.0_dp
+      buffer%diis_weight = 0.0_dp
 
    END SUBROUTINE restart_newest_after_failure
 

@@ -765,10 +765,14 @@ CONTAINS
       IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
          CALL cite_reference(Hu2010)
          ! ADIIS is a Fock-space SCF method.  It does not use density mixing or
-         ! the conventional CDIIS path.
+         ! combine CDIIS with a separate density-mixing state.
          scf_env%mixing_method = no_mixing_nr
          scf_env%p_mix_alpha = 1.0_dp
-         scf_env%skip_diis = .TRUE.
+         scf_env%skip_diis = scf_control%max_diis < 2 .OR. &
+                             scf_control%eps_diis < scf_control%eps_scf
+         IF (scf_control%eps_diis < scf_control%eps_scf) THEN
+            CPWARN("the ADIIS to DIIS switch is disabled, since EPS_DIIS < EPS_SCF")
+         END IF
          RETURN
       END IF
 

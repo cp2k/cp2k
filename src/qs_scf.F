@@ -615,10 +615,13 @@ CONTAINS
                IF (.NOT. adiis_validation .AND. scf_env%iter_count > 1) THEN
                   ! Only accepted densities whose raw F[P] has just been evaluated enter history.
                   ! The initial guess and raw-validation trial endpoint are deliberately excluded.
-                  CALL qs_scf_subspace_push(scf_env%scf_subspace_buffer, matrix_ks_kp, rho_ao_kp, &
-                                            energy%total, adiis_pushed)
-                  IF (.NOT. adiis_pushed) CPABORT("Failed to append the accepted ADIIS SCF state")
-                  CALL qs_scf_subspace_build(scf_env%scf_subspace_buffer)
+                  IF (scf_env%scf_subspace_buffer%diis_weight < 1.0_dp .OR. &
+                      scf_env%iter_delta >= scf_control%eps_diis) THEN
+                     CALL qs_scf_subspace_push(scf_env%scf_subspace_buffer, matrix_ks_kp, rho_ao_kp, &
+                                               energy%total, adiis_pushed)
+                     IF (.NOT. adiis_pushed) CPABORT("Failed to append the accepted ADIIS SCF state")
+                     CALL qs_scf_subspace_build(scf_env%scf_subspace_buffer)
+                  END IF
                   oda_restart_trigger = scf_env%scf_subspace_buffer%last_restart
                   ! ODA globalizes the initial raw Roothaan phase. Once ADIIS has formed
                   ! a genuine history combination, remain in ADIIS unless its history is
@@ -709,7 +712,7 @@ CONTAINS
                         END IF
                         CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, scf_env%iter_delta)
                         scf_env%adiis_validated = scf_env%iter_delta < scf_control%eps_scf
-                        IF (scf_env%adiis_validated) THEN
+                        IF (scf_env%adiis_validated .AND. .NOT. diis_step) THEN
                            scf_env%iter_param = 0.0_dp
                            scf_env%iter_method = "ADIIS/Chk."
                         END IF
@@ -746,7 +749,8 @@ CONTAINS
                   scf_env%adiis_check_next = scf_env%iter_delta < scf_control%eps_scf
                ELSE IF (.NOT. adiis_validation) THEN
                   CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, scf_env%iter_delta)
-                  scf_env%adiis_check_next = scf_env%iter_delta < scf_control%eps_scf
+                  scf_env%adiis_check_next = .NOT. diis_step .AND. &
+                                             scf_env%iter_delta < scf_control%eps_scf
                END IF
             ELSE
                ! Keep the existing density-mixing SCF path unchanged.
@@ -793,6 +797,9 @@ CONTAINS
                ! ADIIS never mixes densities. ODA trials already update rho; only an
                ! unevaluated raw endpoint still needs to be committed from p_mix_new.
                IF (.NOT. oda_state_evaluated) CALL qs_scf_commit_density_candidate(scf_env, rho)
+               ! An accepted interior ODA density has no matching MO set.  Admit the
+               ! state to CDIIS only after a subsequent full diagonalization step.
+               scf_env%scf_subspace_buffer%diis_state_valid = .NOT. oda_interior
                density_full_step = .TRUE.
             ELSE
                density_full_step = diis_step .OR. tblite_native_mixer .OR. internal_tblite_density_full_step
