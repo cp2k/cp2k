@@ -87,13 +87,15 @@ For a all typography options see the
   - This requires adding the citation to the [bibliography.F](../src/common/bibliography.F) and is
     rendered as a link to the [bibliography page](https://manual.cp2k.org/trunk/bibliography.html);
     ⚠️ always use the auto-generated key on the bibliography page for documentation, which may or
-    may not match the customizable key in `CALL add_reference(key=...)` invocations for source codes
+    may not match the name of the variable `key` passed to fortran `CALL add_reference(key=...)`
+    invocations for source codes
 - Another page: `[](../optical/tddft)`
   - Use the relative path, where the `.md` suffix for file extension can be specified or omitted
 - Subsection in the current page: `[](#problems-and-solutions)`
 - Subsection in another page: `[](../optical/tddft.md#periodic-systems)`
-  - ⚠️ Also use the relative path, but the `.md` suffix must be present before the `#` sign; see
-    also [](#cross-references) below
+  - ⚠️ Also use the relative path, but the `.md` suffix must be present before the `#` sign, and
+    only the first three levels of headings have these anchors auto-generated on the final page
+    ready for use; see [](#cross-references) below for an alternative
 - Input section: `[FORCE_EVAL](#CP2K_INPUT.FORCE_EVAL)`
   - This will also generate a "mentions" backlink in the input reference for the section
 - Input keyword: `[STRESS_TENSOR](#CP2K_INPUT.FORCE_EVAL.STRESS_TENSOR)`
@@ -220,7 +222,8 @@ plain display. Details can be found at
 ## Cross References
 
 Apart from using the title or header of a section as introduced in [](#links) above, it is also
-possible to define an explicit target for linking purposes. With the following target
+possible to define an explicit target for linking purposes. The identifier enclosed in parentheses
+is globally active and can be linked internally or externally. For instance, defined in one page,
 
 ```
 (build-gromacs-cp2k)=
@@ -230,7 +233,7 @@ possible to define an explicit target for linking purposes. With the following t
 The latest supported GROMACS release...
 ```
 
-the section can be linked like
+the section can be linked in another page without the need for full relative path.
 
 ```
 Build GROMACS with CP2K QM/MM support following instructions from [](#build-gromacs-cp2k) and ...

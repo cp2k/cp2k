@@ -26,14 +26,17 @@ On the Mac, BLAS and LAPACK can be provided by either OpenBLAS or Apple's Accele
 
 ## DBCSR (required, block-sparse matrix operations)
 
-{term}`DBCSR` is a standalone library for block-sparse matrix operations. It is maintained at the
+DBCSR is a standalone library for block-sparse matrix operations. It is maintained at the
 [cp2k/dbcsr](https://github.com/cp2k/dbcsr/) repository, with links to reference materials on
 <https://www.cp2k.org/dbcsr> and documentation on <https://cp2k.github.io/dbcsr/develop/index.html>.
 
 CP2K requires DBCSR as a hard dependency, which can be prepared with the CP2K toolchain or Spack
 build, and will be found automatically by CMake during configuration.
 
-For MPI builds, DBCSR must also have been built with MPI support.
+The MPI configuration should be consistent between CP2K and DBCSR. For a MPI build (`psmp`/`pdbg`)
+of CP2K, DBCSR must also have been built with MPI support using the CMake flag `-DUSE_MPI=ON`, and
+`-DUSE_MPI_F08=ON` if `mpi_f08` is available. Likewise, a serial build (`ssmp`/`sdbg`) of CP2K must
+use a DBCSR configured with `-DUSE_MPI=OFF`.
 
 ## MPI and ScaLAPACK (required for MPI parallel builds)
 
