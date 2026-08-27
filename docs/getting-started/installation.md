@@ -48,9 +48,9 @@ implied for most of the documentation.
      seen in one environment may need to be explicitly activated in another via submission scripts.
    - **No** (assumed): optimization against native (host) CPU is appropriate, and environment setup
      is easier.
-1. Does the machine have some workstation GPU? (A "workstation GPU" focuses on the double-precision
-   float-point arithmetic and is suitable for professional computing, in contrast to a "gaming GPU"
-   with less optimized performance in this regard.)
+1. Does the machine have some workstation GPU? (A "workstation GPU" or "professional GPU" focuses on
+   the double-precision float-point arithmetic and is suitable for scientific computing, in contrast
+   to a "gaming GPU" or "consumer GPU" with less optimized double-precision performance.)
    - **Yes**: some of the [eigensolvers](../technologies/eigensolvers/index),
      [accelerators](../technologies/accelerators/index) and other
      [libraries](../technologies/libraries) have GPU acceleration support ready or under development
