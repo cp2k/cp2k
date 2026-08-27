@@ -6,7 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 PROGRAM optbas_frontier_utils_unittest
    USE kinds,                           ONLY: dp
-   USE optbas_frontier_utils,           ONLY: compute_frontier_losses,&
+   USE optbas_frontier_utils,           ONLY: closed_shell_nocc,&
+                                              compute_frontier_losses,&
                                               frontier_result_type,&
                                               smooth_frontier_weight
 
@@ -22,6 +23,8 @@ PROGRAM optbas_frontier_utils_unittest
    candidate_eigenvalues = reference_eigenvalues
    coefficients_initial = [1.0_dp, 0.0_dp]
    coefficients = coefficients_initial
+
+   IF (closed_shell_nocc(56) /= 28) ERROR STOP "restricted occupied-orbital count is incorrect"
 
    ! Identical spaces have zero loss. A permutation/sign change inside equally weighted subspaces
    ! leaves the trace objectives invariant.

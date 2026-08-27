@@ -54,10 +54,23 @@ MODULE optbas_frontier_utils
       TYPE(cp_fm_type) :: eigenvectors
    END TYPE frontier_reference_type
 
-   PUBLIC :: compute_frontier_losses, evaluate_frontier_objective, &
+   PUBLIC :: closed_shell_nocc, compute_frontier_losses, evaluate_frontier_objective, &
              frontier_reference_init, frontier_reference_release, smooth_frontier_weight
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Convert a restricted-channel electron count to occupied spatial orbitals.
+!> \param nelectron even closed-shell electron count
+!> \return number of doubly occupied spatial orbitals
+! **************************************************************************************************
+   PURE FUNCTION closed_shell_nocc(nelectron) RESULT(nocc)
+      INTEGER, INTENT(IN)                                :: nelectron
+      INTEGER                                            :: nocc
+
+      nocc = nelectron/2
+
+   END FUNCTION closed_shell_nocc
 
 ! **************************************************************************************************
 !> \brief Numerically stable Fermi-like weight for the virtual frontier window.
@@ -197,7 +210,11 @@ CONTAINS
       END IF
 
       CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=reference%nstates)
-      reference%nocc = nelectron_spin(1)
+      ! In the single restricted-spin channel each spatial orbital holds two electrons.
+      reference%nocc = closed_shell_nocc(nelectron_spin(1))
+      IF (2*reference%nocc /= nelectron_spin(1)) THEN
+         CPABORT("FRONTIER_STATES requires an even closed-shell electron count")
+      END IF
       IF (reference%nocc < 1 .OR. reference%nocc >= reference%nstates) THEN
          CPABORT("FRONTIER_STATES requires both occupied and unoccupied reference states")
       END IF
