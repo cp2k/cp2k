@@ -230,7 +230,15 @@ CONTAINS
          "$$\mathcal{L}_{\mathrm{gap}}=\left("// &
          "\frac{E_{\mathrm{gap}}^C-E_{\mathrm{gap}}^R}{E_{\mathrm{scale}}}"// &
          "\right)^2.$$"//paragraph_break// &
-         "It penalizes deviations of the candidate HOMO-LUMO gap from the reference gap. For the "// &
+         "It penalizes deviations of the candidate HOMO-LUMO gap from the reference gap."// &
+         paragraph_break// &
+         "During the optimization, the electron density and the corresponding Kohn-Sham Hamiltonian "// &
+         "are held fixed at the values obtained with the large reference basis set. Therefore, the "// &
+         "candidate gap reported in the optimization output is the fixed-density gap of the reference "// &
+         "Hamiltonian projected into the compact candidate basis. A separate self-consistent Kohn-Sham "// &
+         "DFT calculation with the optimized compact basis can produce a different electron density and, "// &
+         "consequently, a different HOMO-LUMO gap."//paragraph_break// &
+         "For the "// &
          "optimized and initial contraction coefficients of the compact basis set, $c$ and $c_0$, "// &
          "the coefficient loss is"//paragraph_break// &
          "$$\mathcal{L}_{\mathrm{coeff}}="// &
