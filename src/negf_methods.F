@@ -115,6 +115,7 @@ MODULE negf_methods
                                               modified_broyden_mixing_nr,&
                                               multisecant_mixing_nr,&
                                               pulay_mixing_nr
+   USE qs_dos_utils,                    ONLY: dos_density_scale
    USE qs_energy,                       ONLY: qs_energies
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -165,8 +166,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_negf'
 
       CHARACTER(len=default_string_length)               :: contact_id_str, filename
-      INTEGER                                            :: handle, icontact, ispin, log_unit, &
-                                                            ncontacts, npoints, nspins, &
+      INTEGER                                            :: energy_unit, handle, icontact, ispin, &
+                                                            log_unit, ncontacts, npoints, nspins, &
                                                             print_level, print_unit
       LOGICAL                                            :: debug_output, exist, should_output, &
                                                             verbose_output
@@ -279,7 +280,7 @@ CONTAINS
                                               extension=".dos", &
                                               middle_name=TRIM(ADJUSTL(contact_id_str)), &
                                               file_status="REPLACE")
-            CALL negf_print_dos(print_unit, energy_min, energy_max, npoints, &
+            CALL negf_print_dos(print_unit, energy_min, energy_max, npoints, energy_unit, &
                                 v_shift=0.0_dp, negf_env=negf_env, negf_control=negf_control, &
                                 sub_env=sub_env, base_contact=icontact, just_contact=icontact)
             CALL cp_print_key_finished_output(print_unit, logger, print_section, "DOS")
@@ -347,6 +348,7 @@ CONTAINS
             CALL section_vals_val_get(print_section, "DOS%FROM_ENERGY", r_val=energy_min)
             CALL section_vals_val_get(print_section, "DOS%TILL_ENERGY", r_val=energy_max)
             CALL section_vals_val_get(print_section, "DOS%N_GRIDPOINTS", i_val=npoints)
+            CALL section_vals_val_get(print_section, "ENERGY_UNIT", i_val=energy_unit)
 
             CALL integer_to_string(0, contact_id_str)
             print_unit = cp_print_key_unit_nr(logger, print_section, "DOS", &
@@ -354,7 +356,7 @@ CONTAINS
                                               middle_name=TRIM(ADJUSTL(contact_id_str)), &
                                               file_status="REPLACE")
 
-            CALL negf_print_dos(print_unit, energy_min, energy_max, npoints, negf_control%v_shift, &
+            CALL negf_print_dos(print_unit, energy_min, energy_max, npoints, energy_unit, negf_control%v_shift, &
                                 negf_env=negf_env, negf_control=negf_control, &
                                 sub_env=sub_env, base_contact=1)
 
@@ -369,15 +371,16 @@ CONTAINS
             CALL section_vals_val_get(print_section, "TRANSMISSION%FROM_ENERGY", r_val=energy_min)
             CALL section_vals_val_get(print_section, "TRANSMISSION%TILL_ENERGY", r_val=energy_max)
             CALL section_vals_val_get(print_section, "TRANSMISSION%N_GRIDPOINTS", i_val=npoints)
+            CALL section_vals_val_get(print_section, "ENERGY_UNIT", i_val=energy_unit)
 
             CALL integer_to_string(0, contact_id_str)
             print_unit = cp_print_key_unit_nr(logger, print_section, "TRANSMISSION", &
-                                              extension=".transm", &
+                                              extension=".trans", &
                                               middle_name=TRIM(ADJUSTL(contact_id_str)), &
                                               file_status="REPLACE")
 
-            CALL negf_print_transmission(print_unit, energy_min, energy_max, npoints, negf_control%v_shift, &
-                                         negf_env=negf_env, negf_control=negf_control, &
+            CALL negf_print_transmission(print_unit, energy_min, energy_max, npoints, energy_unit, &
+                                         negf_control%v_shift, negf_env=negf_env, negf_control=negf_control, &
                                          sub_env=sub_env, contact_id1=1, contact_id2=2)
 
             CALL cp_print_key_finished_output(print_unit, logger, print_section, "TRANSMISSION")
@@ -3219,6 +3222,7 @@ CONTAINS
 !> \param energy_min   energy point to start with
 !> \param energy_max   energy point to end with
 !> \param npoints      number of points to compute
+!> \param energy_unit ...
 !> \param v_shift      shift in Hartree potential
 !> \param negf_env     NEFG environment
 !> \param negf_control NEGF control
@@ -3226,13 +3230,15 @@ CONTAINS
 !> \param base_contact index of the reference contact
 !> \param just_contact compute DOS for the given contact rather than for a scattering region
 !> \param volume       unit cell volume
+!> \par History
+!>    * 07.2026 modified [Dmitry Ryndyk]
 !> \author Sergey Chulkov
 ! **************************************************************************************************
-   SUBROUTINE negf_print_dos(log_unit, energy_min, energy_max, npoints, v_shift, negf_env, &
-                             negf_control, sub_env, base_contact, just_contact, volume)
+   SUBROUTINE negf_print_dos(log_unit, energy_min, energy_max, npoints, energy_unit, v_shift, &
+                             negf_env, negf_control, sub_env, base_contact, just_contact, volume)
       INTEGER, INTENT(in)                                :: log_unit
       REAL(kind=dp), INTENT(in)                          :: energy_min, energy_max
-      INTEGER, INTENT(in)                                :: npoints
+      INTEGER, INTENT(in)                                :: npoints, energy_unit
       REAL(kind=dp), INTENT(in)                          :: v_shift
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
       TYPE(negf_control_type), POINTER                   :: negf_control
@@ -3243,12 +3249,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'negf_print_dos'
 
-      CHARACTER                                          :: uks_str
       CHARACTER(len=15)                                  :: units_str
+      CHARACTER(LEN=4)                                   :: string
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: xnodes
       INTEGER                                            :: handle, icontact, ipoint, ispin, &
                                                             ncontacts, npoints_bundle, &
                                                             npoints_remain, nspins
+      REAL(kind=dp)                                      :: dos_scale, en_scale
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: dos
       TYPE(green_functions_cache_type)                   :: g_surf_cache
 
@@ -3260,6 +3267,16 @@ CONTAINS
          nspins = SIZE(negf_env%h_s)
       END IF
 
+      IF (energy_unit == 2) THEN
+         string = 'e.V.'
+         en_scale = evolt
+         dos_scale = dos_density_scale(energy_unit)
+      ELSE
+         string = 'a.u.'
+         en_scale = 1
+         dos_scale = 1
+      END IF
+
       IF (log_unit > 0) THEN
          IF (PRESENT(volume)) THEN
             units_str = ' (angstroms^-3)'
@@ -3267,23 +3284,17 @@ CONTAINS
             units_str = ''
          END IF
 
-         IF (nspins > 1) THEN
-            ! [alpha , beta]
-            uks_str = ','
-         ELSE
-            ! [alpha + beta]
-            uks_str = '+'
-         END IF
-
          IF (PRESENT(just_contact)) THEN
             WRITE (log_unit, '(3A,T70,I11)') "# Density of states", TRIM(units_str), " for the contact No. ", just_contact
          ELSE
             WRITE (log_unit, '(3A)') "# Density of states", TRIM(units_str), " for the scattering region"
          END IF
-
-         WRITE (log_unit, '(A,T10,A,T43,3A)') "#", "Energy (a.u.)", "Number of states [alpha ", uks_str, " beta]"
-
-         WRITE (log_unit, '("#", T3,78("-"))')
+         IF (nspins > 1) THEN
+            WRITE (log_unit, '(A,T10,A,T43,3A)') "#", "Energy ("//string//")", "Density of states [total, alpha, beta]"
+         ELSE
+            WRITE (log_unit, '(A,T10,A,T43,3A)') "#", "Energy ("//string//")", "Density of states [total = alpha+beta]"
+         END IF
+         WRITE (log_unit, '("#", T3,98("-"))')
       END IF
 
       ncontacts = SIZE(negf_env%contacts)
@@ -3358,10 +3369,12 @@ CONTAINS
             DO ipoint = 1, npoints_bundle
                IF (nspins > 1) THEN
                   ! spin-polarised calculations: print alpha- and beta-spin components separately
-                  WRITE (log_unit, '(T2,F20.8,T30,2ES25.11E3)') REAL(xnodes(ipoint), kind=dp), dos(ipoint, 1), dos(ipoint, 2)
+                  WRITE (log_unit, '(T2,F17.8,T18,3ES25.11E3)') REAL(xnodes(ipoint), kind=dp)*en_scale, &
+                     (dos(ipoint, 1) + dos(ipoint, 2))*dos_scale, dos(ipoint, 1)*dos_scale, dos(ipoint, 2)*dos_scale
                ELSE
                   ! spin-restricted calculations: print alpha- and beta-spin components together
-                  WRITE (log_unit, '(T2,F20.8,T43,ES25.11E3)') REAL(xnodes(ipoint), kind=dp), 2.0_dp*dos(ipoint, 1)
+                  WRITE (log_unit, '(T2,F20.8,T43,ES25.11E3)') REAL(xnodes(ipoint), kind=dp)*en_scale, &
+                     2.0_dp*dos(ipoint, 1)*dos_scale
                END IF
             END DO
          END IF
@@ -3379,19 +3392,22 @@ CONTAINS
 !> \param energy_min   energy point to start with
 !> \param energy_max   energy point to end with
 !> \param npoints      number of points to compute
+!> \param energy_unit ...
 !> \param v_shift      shift in Hartree potential
 !> \param negf_env     NEFG environment
 !> \param negf_control NEGF control
 !> \param sub_env      NEGF parallel (sub)group environment
 !> \param contact_id1  index of a reference contact
 !> \param contact_id2  index of another contact
+!> \par History
+!>    * 07.2026 modified [Dmitry Ryndyk]
 !> \author Sergey Chulkov
 ! **************************************************************************************************
-   SUBROUTINE negf_print_transmission(log_unit, energy_min, energy_max, npoints, v_shift, negf_env, &
-                                      negf_control, sub_env, contact_id1, contact_id2)
+   SUBROUTINE negf_print_transmission(log_unit, energy_min, energy_max, npoints, energy_unit, v_shift, &
+                                      negf_env, negf_control, sub_env, contact_id1, contact_id2)
       INTEGER, INTENT(in)                                :: log_unit
       REAL(kind=dp), INTENT(in)                          :: energy_min, energy_max
-      INTEGER, INTENT(in)                                :: npoints
+      INTEGER, INTENT(in)                                :: npoints, energy_unit
       REAL(kind=dp), INTENT(in)                          :: v_shift
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
       TYPE(negf_control_type), POINTER                   :: negf_control
@@ -3400,32 +3416,35 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_print_transmission'
 
-      CHARACTER                                          :: uks_str
+      CHARACTER(LEN=4)                                   :: string
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: xnodes
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :)     :: transm_coeff
       INTEGER                                            :: handle, icontact, ipoint, ispin, &
                                                             ncontacts, npoints_bundle, &
                                                             npoints_remain, nspins
-      REAL(kind=dp)                                      :: rscale
+      REAL(kind=dp)                                      :: en_scale, rscale
       TYPE(green_functions_cache_type)                   :: g_surf_cache
 
       CALL timeset(routineN, handle)
 
       nspins = SIZE(negf_env%h_s)
 
-      IF (nspins > 1) THEN
-         ! [alpha , beta]
-         uks_str = ','
+      IF (energy_unit == 2) THEN
+         string = 'e.V.'
+         en_scale = evolt
       ELSE
-         ! [alpha + beta]
-         uks_str = '+'
+         string = 'a.u.'
+         en_scale = 1
       END IF
 
       IF (log_unit > 0) THEN
-         WRITE (log_unit, '(A)') "# Transmission coefficient (G0 = 2 e^2/h) for the scattering region"
-
-         WRITE (log_unit, '(A,T10,A,T39,3A)') "#", "Energy (a.u.)", "Transmission coefficient [alpha ", uks_str, " beta]"
-         WRITE (log_unit, '("#", T3,78("-"))')
+         WRITE (log_unit, '(A)') "# Transmission function (in units of G0 = 2 e^2/h) between left and right electrodes"
+         IF (nspins > 1) THEN
+            WRITE (log_unit, '(A,T10,A,T39,3A)') "#", "Energy ("//string//")", "Transmission function [total, alpha, beta]"
+         ELSE
+            WRITE (log_unit, '(A,T10,A,T39,3A)') "#", "Energy ("//string//")", "Transmission function [total = alpha+beta]"
+         END IF
+         WRITE (log_unit, '("#", T3,98("-"))')
       END IF
 
       ncontacts = SIZE(negf_env%contacts)
@@ -3494,12 +3513,13 @@ CONTAINS
             DO ipoint = 1, npoints_bundle
                IF (nspins > 1) THEN
                   ! spin-polarised calculations: print alpha- and beta-spin components separately
-                  WRITE (log_unit, '(T2,F20.8,T30,2ES25.11E3)') &
-                     REAL(xnodes(ipoint), kind=dp), rscale*REAL(transm_coeff(ipoint, 1:2), kind=dp)
+                  WRITE (log_unit, '(T2,F17.8,T18,3ES25.11E3)') REAL(xnodes(ipoint), kind=dp)*en_scale, &
+                     rscale*REAL(transm_coeff(ipoint, 1), kind=dp) + rscale*REAL(transm_coeff(ipoint, 2), kind=dp), &
+                     rscale*REAL(transm_coeff(ipoint, 1:2), kind=dp)
                ELSE
                   ! spin-restricted calculations: print alpha- and beta-spin components together
                   WRITE (log_unit, '(T2,F20.8,T43,ES25.11E3)') &
-                     REAL(xnodes(ipoint), kind=dp), rscale*REAL(transm_coeff(ipoint, 1), kind=dp)
+                     REAL(xnodes(ipoint), kind=dp)*en_scale, rscale*REAL(transm_coeff(ipoint, 1), kind=dp)
                END IF
             END DO
          END IF
