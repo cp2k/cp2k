@@ -215,6 +215,10 @@ CONTAINS
       END IF
 
       CALL m_getcwd(main_dir)
+      IF (para_env%is_source()) THEN
+         CALL delete_screening_file(screening_path(main_dir, "frontier_orbital_screening_failed_scf.log"))
+      END IF
+      CALL para_env%sync()
 
       ALLOCATE (candidates(n_candidates), candidate_files(n_candidates), rank_order(n_candidates))
       logger => cp_get_default_logger()
@@ -244,17 +248,7 @@ CONTAINS
                   " built-in weight presets serially; validation SCFs use an atomic guess."
                WRITE (unit_nr, '(A)') "Detailed optimizer evaluations and validation SCF output are suppressed."
                WRITE (unit_nr, '(A)') ""
-               WRITE (unit_nr, '(A)') "Computing reference and initial-basis SCF baselines ..."
             END IF
-            CALL run_screening_scf(candidates(i)%opt_bas, input_declaration, para_env, &
-                                   use_reference_basis=.TRUE., basis_file="", &
-                                   converged=reference_converged, gap=reference_gap, energy=reference_energy)
-            CALL run_screening_scf(candidates(i)%opt_bas, input_declaration, para_env, &
-                                   use_reference_basis=.FALSE., &
-                                   basis_file=discover_file(candidates(i)%opt_bas%template_basis_file), &
-                                   converged=initial_converged, gap=initial_gap, energy=initial_energy)
-            IF (.NOT. reference_converged) CPABORT("The reference-basis screening SCF did not converge")
-            IF (.NOT. initial_converged) CPABORT("The initial-basis screening SCF did not converge")
          END IF
 
          candidates(i)%opt_bas%occupied_weight = screening_weights(1, i)
@@ -273,16 +267,37 @@ CONTAINS
                ": optimizing preset '", TRIM(screening_preset_names(i)), "' ..."
          END IF
          CALL driver_para_opt_basis(candidates(i)%opt_bas, input_declaration, para_env)
+      END DO
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(A)') "Computing reference and initial-basis SCF baselines ..."
+      END IF
+      CALL run_screening_scf(candidates(1)%opt_bas, input_declaration, para_env, &
+                             use_reference_basis=.TRUE., basis_file="", &
+                             converged=reference_converged, gap=reference_gap, energy=reference_energy)
+      CALL run_screening_scf(candidates(1)%opt_bas, input_declaration, para_env, &
+                             use_reference_basis=.FALSE., &
+                             basis_file=screening_path( &
+                             main_dir, discover_file(candidates(1)%opt_bas%template_basis_file)), &
+                             converged=initial_converged, gap=initial_gap, energy=initial_energy)
+      IF (.NOT. reference_converged) CPABORT("The reference-basis screening SCF did not converge")
+      IF (.NOT. initial_converged) CPABORT("The initial-basis screening SCF did not converge")
+
+      IF (unit_nr > 0) WRITE (unit_nr, '(A)') "Validating optimized candidates with fresh SCFs ..."
+      DO i = 1, n_candidates
          CALL run_screening_scf(candidates(i)%opt_bas, input_declaration, para_env, &
-                                use_reference_basis=.FALSE., basis_file=candidate_file, &
+                                use_reference_basis=.FALSE., basis_file=candidate_files(i), &
                                 converged=candidates(i)%scf_converged, &
                                 gap=candidates(i)%gap, energy=candidates(i)%energy)
          IF (unit_nr > 0) THEN
             IF (candidates(i)%scf_converged) THEN
-               WRITE (unit_nr, '(A,F10.6,A,F9.3,A)') "  SCF gap ", candidates(i)%gap*evolt, &
+               WRITE (unit_nr, '(A,I0,A,A,A,F10.6,A,F9.3,A)') &
+                  "  Candidate ", i, " ('", TRIM(screening_preset_names(i)), "'): gap ", &
+                  candidates(i)%gap*evolt, &
                   " eV; absolute reference error ", ABS(candidates(i)%gap - reference_gap)*evolt*1000.0_dp, " meV"
             ELSE
-               WRITE (unit_nr, '(A)') "  SCF validation did not converge; candidate will not be ranked."
+               WRITE (unit_nr, '(A,I0,A)') "  Candidate ", i, &
+                  " SCF validation did not converge; candidate will not be ranked."
             END IF
          END IF
       END DO
@@ -374,11 +389,48 @@ CONTAINS
       CALL qs_env_part_release(qs_env)
       CALL destroy_force_env(env_id, stat)
       CALL section_vals_release(input_file)
+      IF (para_env%is_source() .AND. .NOT. converged) THEN
+         CALL save_failed_screening_scf_output( &
+            scf_output_unit, screening_path(main_dir, "frontier_orbital_screening_failed_scf.log"), &
+            use_reference_basis, basis_file)
+      END IF
       IF (para_env%is_source()) CLOSE (scf_output_unit)
       CALL m_chdir(TRIM(main_dir), ierr)
       IF (ierr /= 0) CPABORT("Could not return from the frontier-orbital screening training directory")
 
    END SUBROUTINE run_screening_scf
+
+! **************************************************************************************************
+!> \brief Preserve otherwise disposable SCF output only when screening validation fails.
+! **************************************************************************************************
+   SUBROUTINE save_failed_screening_scf_output(scf_output_unit, filename, use_reference_basis, basis_file)
+      INTEGER, INTENT(IN)                                :: scf_output_unit
+      CHARACTER(LEN=*), INTENT(IN)                       :: filename
+      LOGICAL, INTENT(IN)                                :: use_reference_basis
+      CHARACTER(LEN=*), INTENT(IN)                       :: basis_file
+
+      CHARACTER(LEN=4*default_string_length)             :: line
+      INTEGER                                            :: ios, unit_nr
+
+      CALL open_file(file_name=filename, file_status="UNKNOWN", file_action="WRITE", &
+                     file_position="APPEND", unit_number=unit_nr)
+      WRITE (unit_nr, '(A)') REPEAT("=", 92)
+      IF (use_reference_basis) THEN
+         WRITE (unit_nr, '(A)') "Failed screening SCF: reference basis"
+      ELSE
+         WRITE (unit_nr, '(A,A)') "Failed screening SCF: ", TRIM(basis_file)
+      END IF
+      WRITE (unit_nr, '(A)') REPEAT("=", 92)
+      FLUSH (scf_output_unit)
+      REWIND (scf_output_unit)
+      DO
+         READ (scf_output_unit, '(A)', IOSTAT=ios) line
+         IF (ios /= 0) EXIT
+         WRITE (unit_nr, '(A)') TRIM(line)
+      END DO
+      CALL close_file(unit_number=unit_nr)
+
+   END SUBROUTINE save_failed_screening_scf_output
 
 ! **************************************************************************************************
 !> \brief Make a parsed reference input suitable for a quiet, independent screening SCF.
@@ -759,7 +811,7 @@ CONTAINS
             CALL compute_residuum_vectors(opt_bas, f_env_id, matrix_S_inv, tot_time, &
                                           para_env_top, para_env, iopt)
          CASE (method_mo_fit_occ_virtual)
-            IF (iopt == 0 .AND. .NOT. opt_bas%quiet_output) THEN
+            IF (iopt == 0) THEN
                CALL compute_frontier_orbitals_objective( &
                   opt_bas, f_env_id, frontier_orbitals_reference, tot_time, &
                   para_env_top, para_env, iopt, diagnostics_initial)
@@ -791,14 +843,16 @@ CONTAINS
 
       CALL para_env_top%bcast(opt_bas%x_opt)
       CALL update_free_vars(opt_bas)
-      IF (opt_bas%method == method_mo_fit_occ_virtual .AND. .NOT. opt_bas%quiet_output) THEN
+      IF (opt_bas%method == method_mo_fit_occ_virtual) THEN
          ! Report the actual best Powell vector, rather than the final trial point.
          CALL compute_frontier_orbitals_objective( &
             opt_bas, f_env_id, frontier_orbitals_reference, tot_time, &
             para_env_top, para_env, opt_bas%powell_param%maxfun + 1, diagnostics_optimized)
-         CALL print_frontier_orbitals_diagnostics( &
-            opt_bas, frontier_orbitals_reference, diagnostics_initial, diagnostics_optimized, &
-            para_env_top, para_env)
+         IF (.NOT. opt_bas%quiet_output) THEN
+            CALL print_frontier_orbitals_diagnostics( &
+               opt_bas, frontier_orbitals_reference, diagnostics_initial, diagnostics_optimized, &
+               para_env_top, para_env)
+         END IF
       END IF
       CALL update_derived_basis_sets(opt_bas, .TRUE., opt_bas%output_basis_file, &
                                      para_env_top)
