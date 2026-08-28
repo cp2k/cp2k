@@ -26,4 +26,6 @@
 "CH2O_gfn2_reference_cli_lone.inp"       = [{matcher="E_total", tol=1.0E-8, ref=-7.1737299847},
                                              {matcher="XTB_reference_cli_failed"}]
 "Hg2Cl2_gfn2_force.inp"                  = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
+"Si_gfn2_ot_kp.inp"                      = [{matcher="E_total", tol=1.0E-8, ref=-13.65652359502789},
+                                             {matcher="N_special_kpoints", tol=0.0, ref=4}]
 #EOF

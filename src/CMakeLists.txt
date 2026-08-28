@@ -1554,6 +1554,7 @@ set(CP2K_PROGS_F
     common/parallel_rng_types_unittest.F
     kpoint_lattice_fft_unittest.F
     qs_charge_mixing_unittest.F
+    qs_ot_complex_ref_unittest.F
     subsys/cell_types_unittest.F
     pw/realspace_grid_cube_unittest.F
     metadyn_tools/graph.F
@@ -1963,6 +1964,7 @@ list(
   "parallel_rng_types_unittest"
   "kpoint_lattice_fft_unittest"
   "qs_charge_mixing_unittest"
+  "qs_ot_complex_ref_unittest"
   "cell_types_unittest"
   "realspace_grid_cube_unittest"
   "graph"
@@ -1988,6 +1990,7 @@ add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(qs_charge_mixing_unittest qs_charge_mixing_unittest.F)
+add_executable(qs_ot_complex_ref_unittest qs_ot_complex_ref_unittest.F)
 add_executable(cell_types_unittest subsys/cell_types_unittest.F)
 add_executable(realspace_grid_cube_unittest pw/realspace_grid_cube_unittest.F)
 add_executable(graph metadyn_tools/graph.F)
