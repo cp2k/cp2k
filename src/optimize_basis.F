@@ -111,6 +111,7 @@ CONTAINS
 !> \param para_env ...
 !> \param globenv ...
 !> \author Florian Schiffmann
+!>         Jan Wilhelm, 08/2026: Add run_frontier_orbital_screening
 ! **************************************************************************************************
    SUBROUTINE run_optimize_basis(input_declaration, root_section, para_env, globenv)
       TYPE(section_type), POINTER                        :: input_declaration
@@ -377,10 +378,7 @@ CONTAINS
       IF (ALLOCATED(initial_info)) DEALLOCATE (initial_info)
       IF (ALLOCATED(optimized_info)) DEALLOCATE (optimized_info)
       IF (ALLOCATED(local_reference)) DEALLOCATE (local_reference)
-      IF (ALLOCATED(matrix_s_inv)) THEN
-         CALL cp_fm_release(matrix_s_inv)
-         DEALLOCATE (matrix_s_inv)
-      END IF
+      CALL cp_fm_release(matrix_s_inv)
       CALL mp_para_env_release(para_env)
       CALL timestop(handle)
 
