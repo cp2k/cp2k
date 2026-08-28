@@ -968,9 +968,7 @@ CONTAINS
          IF (dft_control%restricted .AND. dft_control%nspins /= 2) THEN
             CPABORT("nspin must be 2 for restricted (ROKS)")
          END IF
-         IF (do_kpoints) THEN
-            CPABORT("OT not possible with kpoint calculations")
-         END IF
+         ! K-point OT is allowed to reach the spin/k-point channel allocation stub.
       ELSE IF (scf_env%method /= smeagol_method_nr) THEN
          CPABORT("OT or DIAGONALIZATION have to be set")
       END IF
@@ -1050,8 +1048,8 @@ CONTAINS
       IF (dft_control%qs_control%xtb_control%do_tblite) THEN
          IF (scf_env%method == ot_method_nr) THEN
             CALL cp_warn(__LOCATION__, &
-                         "CP2K/tblite with OT is restricted to Gamma-point calculations without smearing. "// &
-                         "The tblite SCC variables are updated directly from the OT density; XTB/SCC_MIXER is ignored.")
+                         "CP2K/tblite with OT updates the tblite SCC variables directly from the OT density; "// &
+                         "XTB/SCC_MIXER is ignored and smearing is not supported.")
          END IF
       END IF
 

@@ -18,4 +18,10 @@
 "cc8.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.389916356641265},
                                            {matcher="gext", tol=5.0E-08, ref=0.7099959941}]
 "cc9.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.270016601865670}]
+"he_ot_fixed.inp"                       = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"li_ot_fixed_uks.inp"                   = [{matcher="E_total", tol=1e-9, ref=-7.304793043105472},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=1}]
+"li_ot_fixed_uks_restart.inp"           = [{matcher="E_total", tol=1e-9, ref=-7.304793043804057},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=1}]
 #EOF

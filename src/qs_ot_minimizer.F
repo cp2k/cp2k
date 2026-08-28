@@ -30,7 +30,8 @@ MODULE qs_ot_minimizer
    USE mathlib,                         ONLY: diamat_all
    USE preconditioner,                  ONLY: apply_preconditioner
    USE qs_ot,                           ONLY: qs_ot_get_derivative,&
-                                              qs_ot_get_derivative_ref
+                                              qs_ot_get_derivative_ref,&
+                                              qs_ot_get_derivative_ref_complex
    USE qs_ot_types,                     ONLY: qs_ot_type
 #include "./base/base_uses.f90"
 
@@ -59,10 +60,13 @@ CONTAINS
 !> \brief ...
 !> \param qs_ot_env ...
 !> \param matrix_hc ...
+!> \param matrix_hc_im ...
 ! **************************************************************************************************
-   SUBROUTINE ot_mini(qs_ot_env, matrix_hc)
+   SUBROUTINE ot_mini(qs_ot_env, matrix_hc, matrix_hc_im)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: matrix_hc_im
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_mini'
 
@@ -84,24 +88,42 @@ CONTAINS
          qs_ot_env(1)%gradient = 0.0_dp
          DO ispin = 1, nspin
             IF (do_ks) THEN
-               SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
-               CASE ("TOD")
-                  CALL qs_ot_get_derivative(matrix_hc(ispin)%matrix, qs_ot_env(ispin)%matrix_x, &
-                                            qs_ot_env(ispin)%matrix_sx, &
-                                            qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin))
-               CASE ("REF")
-                  CALL qs_ot_get_derivative_ref(matrix_hc(ispin)%matrix, &
-                                                qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_sx, &
-                                                qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin))
-               CASE DEFAULT
-                  CPABORT("ALGORITHM NYI")
-               END SELECT
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  IF (.NOT. PRESENT(matrix_hc_im)) THEN
+                     CPABORT("Complex k-point OT derivative requires imaginary H(k)*C(k).")
+                  END IF
+                  SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
+                  CASE ("REF")
+                     CALL qs_ot_get_derivative_ref_complex(matrix_hc(ispin)%matrix, &
+                                                           matrix_hc_im(ispin)%matrix, &
+                                                           qs_ot_env(ispin))
+                  CASE DEFAULT
+                     CPABORT("Complex k-point OT derivative is implemented for REF only")
+                  END SELECT
+               ELSE
+                  SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
+                  CASE ("TOD")
+                     CALL qs_ot_get_derivative(matrix_hc(ispin)%matrix, qs_ot_env(ispin)%matrix_x, &
+                                               qs_ot_env(ispin)%matrix_sx, &
+                                               qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin))
+                  CASE ("REF")
+                     CALL qs_ot_get_derivative_ref(matrix_hc(ispin)%matrix, &
+                                                   qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_sx, &
+                                                   qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin))
+                  CASE DEFAULT
+                     CPABORT("ALGORITHM NYI")
+                  END SELECT
+               END IF
             END IF
             ! and also the gradient along the direction
             IF (qs_ot_env(1)%use_dx) THEN
                IF (do_ks) THEN
                   CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
                   qs_ot_env(1)%gradient = qs_ot_env(1)%gradient + tmp
+                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                     CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, qs_ot_env(ispin)%matrix_dx_im, tmp)
+                     qs_ot_env(1)%gradient = qs_ot_env(1)%gradient + tmp
+                  END IF
                   IF (qs_ot_env(1)%settings%do_rotation) THEN
                      CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_dx, tmp)
                      qs_ot_env(1)%gradient = qs_ot_env(1)%gradient + 0.5_dp*tmp
@@ -115,6 +137,10 @@ CONTAINS
                IF (do_ks) THEN
                   CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
                   qs_ot_env(1)%gradient = qs_ot_env(1)%gradient - tmp
+                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                     CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, qs_ot_env(ispin)%matrix_gx_im, tmp)
+                     qs_ot_env(1)%gradient = qs_ot_env(1)%gradient - tmp
+                  END IF
                   IF (qs_ot_env(1)%settings%do_rotation) THEN
                      CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
                      qs_ot_env(1)%gradient = qs_ot_env(1)%gradient - 0.5_dp*tmp
@@ -260,6 +286,10 @@ CONTAINS
             DO ispin = 1, nspin
                CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_dx, &
                               alpha_scalar=1.0_dp, beta_scalar=ds)
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_add(qs_ot_env(ispin)%matrix_x_im, qs_ot_env(ispin)%matrix_dx_im, &
+                                 alpha_scalar=1.0_dp, beta_scalar=ds)
+               END IF
                IF (qs_ot_env(ispin)%settings%do_rotation) THEN
                   CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x, qs_ot_env(ispin)%rot_mat_dx, &
                                  alpha_scalar=1.0_dp, beta_scalar=ds)
@@ -276,6 +306,10 @@ CONTAINS
             DO ispin = 1, nspin
                CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_gx, &
                               alpha_scalar=1.0_dp, beta_scalar=-ds)
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_add(qs_ot_env(ispin)%matrix_x_im, qs_ot_env(ispin)%matrix_gx_im, &
+                                 alpha_scalar=1.0_dp, beta_scalar=-ds)
+               END IF
                IF (qs_ot_env(ispin)%settings%do_rotation) THEN
                   CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x, qs_ot_env(ispin)%rot_mat_gx, &
                                  alpha_scalar=1.0_dp, beta_scalar=-ds)
@@ -690,6 +724,12 @@ CONTAINS
                                          qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx)
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
                qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
+                                            qs_ot_env(ispin)%matrix_gx_im, qs_ot_env(ispin)%matrix_dx_im)
+                  CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, qs_ot_env(ispin)%matrix_dx_im, tmp)
+                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
+               END IF
             END DO
             IF (qs_ot_env(1)%gnorm < 0.0_dp) THEN
                logger => cp_get_default_logger()
@@ -697,6 +737,9 @@ CONTAINS
             END IF
             DO ispin = 1, nspin
                CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx, -1.0_dp)
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx_im, -1.0_dp)
+               END IF
             END DO
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                DO ispin = 1, nspin
@@ -725,6 +768,10 @@ CONTAINS
             DO ispin = 1, nspin
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
                qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, qs_ot_env(ispin)%matrix_gx_im, tmp)
+                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
+               END IF
             END DO
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                DO ispin = 1, nspin
@@ -750,6 +797,7 @@ CONTAINS
          DO ispin = 1, nspin
             CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
             k = k + itmp
+            IF (qs_ot_env(ispin)%has_complex_kpoint_state) k = k + itmp
          END DO
       END IF
       IF (do_ener) THEN
@@ -802,6 +850,10 @@ CONTAINS
          DO ispin = 1, nspin
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old, tmp)
             gnorm_cross = gnorm_cross + tmp
+            IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+               CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, qs_ot_env(ispin)%matrix_gx_old_im, tmp)
+               gnorm_cross = gnorm_cross + tmp
+            END IF
          END DO
          IF (qs_ot_env(1)%settings%do_rotation) THEN
             DO ispin = 1, nspin
@@ -823,18 +875,29 @@ CONTAINS
          DO ispin = 1, nspin
             CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
                                       qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old)
+            IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+               CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
+                                         qs_ot_env(ispin)%matrix_gx_im, qs_ot_env(ispin)%matrix_gx_old_im)
+            END IF
          END DO
          qs_ot_env(1)%gnorm = 0.0_dp
          IF (do_ks) THEN
             DO ispin = 1, nspin
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old, tmp)
                qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, qs_ot_env(ispin)%matrix_gx_old_im, tmp)
+                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
+               END IF
             END DO
             IF (qs_ot_env(1)%gnorm < 0.0_dp) THEN
                WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
             END IF
             DO ispin = 1, nspin
                CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old)
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx_im, qs_ot_env(ispin)%matrix_gx_old_im)
+               END IF
             END DO
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                DO ispin = 1, nspin
@@ -864,6 +927,11 @@ CONTAINS
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
                qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
                CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx_old, qs_ot_env(ispin)%matrix_gx)
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, qs_ot_env(ispin)%matrix_gx_im, tmp)
+                  qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
+                  CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx_old_im, qs_ot_env(ispin)%matrix_gx_im)
+               END IF
             END DO
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                DO ispin = 1, nspin
@@ -891,6 +959,7 @@ CONTAINS
          DO ispin = 1, nspin
             CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
             k = k + itmp
+            IF (qs_ot_env(ispin)%has_complex_kpoint_state) k = k + itmp
          END DO
       END IF
       IF (do_ener) THEN
@@ -915,6 +984,12 @@ CONTAINS
                            alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
             CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
             test_down = test_down + tmp
+            IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+               CALL dbcsr_add(qs_ot_env(ispin)%matrix_dx_im, qs_ot_env(ispin)%matrix_gx_im, &
+                              alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
+               CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, qs_ot_env(ispin)%matrix_dx_im, tmp)
+               test_down = test_down + tmp
+            END IF
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx, &
                               alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
@@ -937,6 +1012,10 @@ CONTAINS
             DO ispin = 1, nspin
                CALL dbcsr_add(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx, &
                               alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_add(qs_ot_env(ispin)%matrix_dx_im, qs_ot_env(ispin)%matrix_gx_im, &
+                                 alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
+               END IF
                IF (qs_ot_env(1)%settings%do_rotation) THEN
                   CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_dx, &
                                  qs_ot_env(ispin)%rot_mat_gx, alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
@@ -1601,7 +1680,8 @@ CONTAINS
       END IF
 
       ! simplify our life....
-      IF (do_ener .OR. .NOT. do_ks .OR. qs_ot_env(1)%settings%do_rotation) THEN
+      IF (do_ener .OR. .NOT. do_ks .OR. qs_ot_env(1)%settings%do_rotation .OR. &
+          ANY(qs_ot_env(:)%has_complex_kpoint_state)) THEN
          CPABORT("Not yet implemented")
       END IF
       !

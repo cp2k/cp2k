@@ -44,7 +44,9 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_get_orbitals
    PUBLIC  :: qs_ot_get_derivative
    PUBLIC  :: qs_ot_get_orbitals_ref
+   PUBLIC  :: qs_ot_get_orbitals_ref_complex
    PUBLIC  :: qs_ot_get_derivative_ref
+   PUBLIC  :: qs_ot_get_derivative_ref_complex
    PUBLIC  :: qs_ot_new_preconditioner
    PRIVATE :: qs_ot_p2m_diag
    PRIVATE :: qs_ot_sinc
@@ -602,6 +604,139 @@ CONTAINS
    END SUBROUTINE qs_ot_get_orbitals_ref
 
 ! **************************************************************************************************
+!> \brief update complex REF k-point orbitals and their S(k)C(k) images
+!> \param matrix_c ...
+!> \param matrix_c_im ...
+!> \param matrix_s ...
+!> \param matrix_s_im ...
+!> \param qs_ot_env ...
+!> \param qs_ot_env1 environment carrying the shared minimizer state
+! **************************************************************************************************
+   SUBROUTINE qs_ot_get_orbitals_ref_complex(matrix_c, matrix_c_im, matrix_s, matrix_s_im, &
+                                             qs_ot_env, qs_ot_env1)
+
+      TYPE(dbcsr_type), POINTER                          :: matrix_c, matrix_c_im, matrix_s, &
+                                                            matrix_s_im
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+      TYPE(qs_ot_type), OPTIONAL                         :: qs_ot_env1
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_orbitals_ref_complex'
+
+      INTEGER                                            :: handle, i, k, n
+      LOGICAL                                            :: update
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, inverse_sqrt
+      TYPE(dbcsr_type), POINTER                          :: c_im, c_re, f_im, f_re, p_im, p_re, &
+                                                            sc_im, sc_re, tmp_kk, tmp_nk, v_im, &
+                                                            v_re, w_im, w_re
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(qs_ot_env%has_complex_kpoint_state)
+      CPASSERT(ASSOCIATED(matrix_s))
+      CPASSERT(ASSOCIATED(matrix_s_im))
+
+      c_re => qs_ot_env%matrix_x
+      c_im => qs_ot_env%matrix_x_im
+      f_re => qs_ot_env%matrix_ref_inv_sqrt
+      f_im => qs_ot_env%matrix_ref_inv_sqrt_im
+      sc_re => qs_ot_env%matrix_sx
+      sc_im => qs_ot_env%matrix_sx_im
+      p_re => qs_ot_env%buf1_k_k_sym
+      p_im => qs_ot_env%buf2_k_k_sym
+      v_re => qs_ot_env%buf3_k_k_sym
+      v_im => qs_ot_env%buf4_k_k_sym
+      w_re => qs_ot_env%buf1_k_k_nosym
+      w_im => qs_ot_env%buf2_k_k_nosym
+      tmp_kk => qs_ot_env%buf3_k_k_nosym
+      tmp_nk => qs_ot_env%buf1_n_k
+
+      CALL dbcsr_get_info(c_re, nfullrows_total=n, nfullcols_total=k)
+      IF (PRESENT(qs_ot_env1)) THEN
+         update = qs_ot_ref_update(qs_ot_env1)
+      ELSE
+         update = qs_ot_ref_update(qs_ot_env)
+      END IF
+
+      ! SC = (S_re + i*S_im) * (C_re + i*C_im)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, c_re, 0.0_dp, sc_re)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s_im, c_im, 0.0_dp, tmp_nk)
+      CALL dbcsr_add(sc_re, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, c_im, 0.0_dp, sc_im)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s_im, c_re, 0.0_dp, tmp_nk)
+      CALL dbcsr_add(sc_im, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      ! P = C^H*S*C.  Its imaginary component is real antisymmetric.
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, c_re, sc_re, 0.0_dp, p_re)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, c_im, sc_im, 0.0_dp, tmp_kk)
+      CALL dbcsr_add(p_re, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, c_re, sc_im, 0.0_dp, p_im)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, c_im, sc_re, 0.0_dp, tmp_kk)
+      CALL dbcsr_add(p_im, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+      ALLOCATE (eigenvalues(k), inverse_sqrt(k))
+      CALL cp_dbcsr_heevd(matrix_re=p_re, matrix_im=p_im, &
+                          eigenvectors_re=v_re, eigenvectors_im=v_im, &
+                          eigenvalues=eigenvalues, para_env=qs_ot_env%para_env, &
+                          blacs_env=qs_ot_env%blacs_env)
+      DO i = 1, k
+         IF (eigenvalues(i) <= EPSILON(1.0_dp)) THEN
+            CPABORT("Complex REF overlap is not positive definite")
+         END IF
+         inverse_sqrt(i) = 1.0_dp/SQRT(eigenvalues(i))
+      END DO
+
+      ! P^(-1/2) = V*diag(lambda^(-1/2))*V^H.
+      CALL dbcsr_copy(w_re, v_re)
+      CALL dbcsr_copy(w_im, v_im)
+      CALL dbcsr_scale_by_vector(w_re, alpha=inverse_sqrt, side='right')
+      CALL dbcsr_scale_by_vector(w_im, alpha=inverse_sqrt, side='right')
+
+      CALL dbcsr_multiply('N', 'T', 1.0_dp, w_re, v_re, 0.0_dp, p_re)
+      CALL dbcsr_multiply('N', 'T', 1.0_dp, w_im, v_im, 0.0_dp, tmp_kk)
+      CALL dbcsr_add(p_re, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      CALL dbcsr_multiply('N', 'T', 1.0_dp, w_im, v_re, 0.0_dp, p_im)
+      CALL dbcsr_multiply('N', 'T', 1.0_dp, w_re, v_im, 0.0_dp, tmp_kk)
+      CALL dbcsr_add(p_im, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+      CALL dbcsr_copy(f_re, p_re)
+      CALL dbcsr_copy(f_im, p_im)
+
+      ! Return the physical, orthonormal orbitals without changing a rejected
+      ! line-search coordinate.
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, c_re, p_re, 0.0_dp, matrix_c)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, c_im, p_im, 0.0_dp, tmp_nk)
+      CALL dbcsr_add(matrix_c, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, c_re, p_im, 0.0_dp, matrix_c_im)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, c_im, p_re, 0.0_dp, tmp_nk)
+      CALL dbcsr_add(matrix_c_im, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      IF (update) THEN
+         CALL dbcsr_copy(c_re, matrix_c)
+         CALL dbcsr_copy(c_im, matrix_c_im)
+
+         CALL dbcsr_set(f_re, 0.0_dp)
+         CALL dbcsr_add_on_diag(f_re, alpha=1.0_dp)
+         CALL dbcsr_set(f_im, 0.0_dp)
+
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, c_re, 0.0_dp, sc_re)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s_im, c_im, 0.0_dp, tmp_nk)
+         CALL dbcsr_add(sc_re, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, c_im, 0.0_dp, sc_im)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s_im, c_re, 0.0_dp, tmp_nk)
+         CALL dbcsr_add(sc_im, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      END IF
+
+      DEALLOCATE (eigenvalues, inverse_sqrt)
+
+      CALL timestop(handle)
+   END SUBROUTINE qs_ot_get_orbitals_ref_complex
+
+! **************************************************************************************************
 !> \brief  refinement polynomial of degree 2,3 and 4 (PRB 70, 193102 (2004))
 !> \param P ...
 !> \param FY ...
@@ -738,6 +873,116 @@ CONTAINS
       !
       CALL timestop(handle)
    END SUBROUTINE qs_ot_get_derivative_ref
+
+! **************************************************************************************************
+!> \brief complex k-point REF derivative dE/dX from H(k)C(k), S(k)C(k), and C(k)
+!> \param matrix_hc ...
+!> \param matrix_hc_im ...
+!> \param qs_ot_env ...
+! **************************************************************************************************
+   SUBROUTINE qs_ot_get_derivative_ref_complex(matrix_hc, matrix_hc_im, qs_ot_env)
+      TYPE(dbcsr_type), POINTER                          :: matrix_hc, matrix_hc_im
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_ref_complex'
+
+      INTEGER                                            :: handle, k, n
+      REAL(dp)                                           :: occ_in, occ_out
+      TYPE(dbcsr_type), POINTER                          :: b_im, b_re, f_im, f_re, g_im, g_re, &
+                                                            hc_im, hc_re, q_im, q_re, sc_im, &
+                                                            sc_re, tmp_kk
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(qs_ot_env%has_complex_kpoint_state)
+      CPASSERT(ASSOCIATED(matrix_hc))
+      CPASSERT(ASSOCIATED(matrix_hc_im))
+
+      f_re => qs_ot_env%matrix_ref_inv_sqrt
+      f_im => qs_ot_env%matrix_ref_inv_sqrt_im
+      sc_re => qs_ot_env%matrix_sx
+      sc_im => qs_ot_env%matrix_sx_im
+      hc_re => matrix_hc
+      hc_im => matrix_hc_im
+      g_re => qs_ot_env%matrix_gx
+      g_im => qs_ot_env%matrix_gx_im
+      b_re => qs_ot_env%buf1_k_k_sym
+      b_im => qs_ot_env%buf2_k_k_sym
+      tmp_kk => qs_ot_env%buf3_k_k_sym
+      q_re => qs_ot_env%buf1_n_k
+      q_im => qs_ot_env%buf1_n_k_dp
+
+      CALL dbcsr_get_info(sc_re, nfullrows_total=n, nfullcols_total=k)
+
+      ! Q = X*(X^H*S*X)^(-1/2), reconstructed from the current REF coordinate.
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%matrix_x, f_re, 0.0_dp, q_re)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%matrix_x_im, f_im, 0.0_dp, g_re)
+      CALL dbcsr_add(q_re, g_re, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%matrix_x, f_im, 0.0_dp, q_im)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%matrix_x_im, f_re, 0.0_dp, g_re)
+      CALL dbcsr_add(q_im, g_re, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      ! B = Q^H*G_C.  For uniform fixed occupations B is Hermitian.
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_re, 0.0_dp, b_re)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_im, 0.0_dp, tmp_kk)
+      CALL dbcsr_add(b_re, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_im, 0.0_dp, b_im)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_re, 0.0_dp, tmp_kk)
+      CALL dbcsr_add(b_im, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+      IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
+         occ_in = dbcsr_get_occupation(b_re)
+         CALL dbcsr_filter(b_re, qs_ot_env%settings%eps_irac_filter_matrix)
+         occ_out = dbcsr_get_occupation(b_re)
+         occ_in = dbcsr_get_occupation(b_im)
+         CALL dbcsr_filter(b_im, qs_ot_env%settings%eps_irac_filter_matrix)
+         occ_out = dbcsr_get_occupation(b_im)
+      END IF
+
+      ! S*Q = (S*X)*F.  G is temporary storage for this pair.
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, sc_re, f_re, 0.0_dp, g_re)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, sc_im, f_im, 0.0_dp, q_re)
+      CALL dbcsr_add(g_re, q_re, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, sc_re, f_im, 0.0_dp, g_im)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, sc_im, f_re, 0.0_dp, q_re)
+      CALL dbcsr_add(g_im, q_re, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      ! Form (S*Q)*B.  The Q workspaces are free after B has been formed.
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, g_re, b_re, 0.0_dp, q_re)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, g_im, b_im, 0.0_dp, q_im)
+      CALL dbcsr_add(q_re, q_im, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, g_re, b_im, 0.0_dp, q_im)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, g_im, b_re, 0.0_dp, g_re)
+      CALL dbcsr_add(q_im, g_re, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      CALL dbcsr_add(q_re, hc_re, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+      CALL dbcsr_add(q_im, hc_im, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+
+      ! Pull the physical gradient back to the finite REF coordinate: G_X = (G_C-S*Q*B)*F.
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, q_re, f_re, 0.0_dp, g_re)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, q_im, f_im, 0.0_dp, g_im)
+      CALL dbcsr_add(g_re, g_im, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, q_re, f_im, 0.0_dp, g_im)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, q_im, f_re, 0.0_dp, q_re)
+      CALL dbcsr_add(g_im, q_re, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
+         occ_in = dbcsr_get_occupation(g_re)
+         CALL dbcsr_filter(g_re, qs_ot_env%settings%eps_irac_filter_matrix)
+         occ_out = dbcsr_get_occupation(g_re)
+         occ_in = dbcsr_get_occupation(g_im)
+         CALL dbcsr_filter(g_im, qs_ot_env%settings%eps_irac_filter_matrix)
+         occ_out = dbcsr_get_occupation(g_im)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_ot_get_derivative_ref_complex
 
 ! **************************************************************************************************
 !> \brief computes p=x*S*x and the matrix functionals related matrices
