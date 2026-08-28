@@ -276,8 +276,6 @@ CONTAINS
          "Improved performance with FFTW3 can be obtained specifying a proper value for FFTW_PLAN_TYPE. "// &
          "Contrary to earlier CP2K versions, all libraries will result in the same grids, "// &
          "i.e. the subset of grids which all FFT libraries can transform. "// &
-         "See EXTENDED_FFT_LENGTHS if larger FFTs or grids that more precisely match a given cutoff are needed, "// &
-         "or older results need to be reproduced. "// &
          "FFTW3 is often (close to) optimal, and well tested with CP2K.", &
          usage="PREFERRED_FFT_LIBRARY FFTW3", &
          citations=[Frigo2005], &
@@ -352,21 +350,6 @@ CONTAINS
                                         "Quick measurement, somewhat faster FFTs.", &
                                         "Measurements trying a wider range of possibilities.", &
                                         "Measurements trying all possibilities - use with caution."))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="EXTENDED_FFT_LENGTHS", &
-                          description="Use fft library specific values for the allows number of points in FFTs. "// &
-                          "The default is to use the internal FFT lengths. For external fft libraries this may "// &
-                          "create an error at the external library level, because the length provided by cp2k is "// &
-                          "not supported by the external library. In this case switch on this keyword "// &
-                          "to obtain, with certain fft libraries, lengths matching the external fft library lengths, or "// &
-                          "larger allowed grids, or grids that more precisely match a given cutoff. "// &
-                          "IMPORTANT NOTE: in this case, the actual grids used in CP2K depends on the FFT library. "// &
-                          "A change of FFT library must therefore be considered equivalent to a change of basis, "// &
-                          "which implies a change of total energy.", &
-                          usage="EXTENDED_FFT_LENGTHS", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

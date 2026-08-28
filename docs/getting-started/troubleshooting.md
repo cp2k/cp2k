@@ -220,11 +220,3 @@ possibilities of modelling errors, there are three frequently relevant pitfalls:
 [MULTIPLICITY](#CP2K_INPUT.FORCE_EVAL.DFT.MULTIPLICITY) options should be set correctly based on the
 chemistry to be modelled. If the system is intended to be closed-shell, broken geometry like missing
 or duplicated hydrogen atoms may give rise to the errors.
-
-### Index to radix array not found
-
-This error arises from a combination of high [CUTOFF](#CP2K_INPUT.FORCE_EVAL.DFT.MGRID.CUTOFF) for
-the real-space grid and large cell size in some direction, which leads to a high internal plane-wave
-FFT length that the external FFT library may not support. Besides reducing cutoff and/or cell size,
-try enabling [EXTENDED_FFT_LENGTHS](#CP2K_INPUT.GLOBAL.EXTENDED_FFT_LENGTHS) or switching
-[PREFERRED_FFT_LIBRARY](#CP2K_INPUT.GLOBAL.PREFERRED_FFT_LIBRARY).

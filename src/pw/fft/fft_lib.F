@@ -11,11 +11,10 @@ MODULE fft_lib
    USE fftsg_lib,                       ONLY: fftsg1dm,&
                                               fftsg3d,&
                                               fftsg_do_cleanup,&
-                                              fftsg_do_init,&
-                                              fftsg_get_lengths
+                                              fftsg_do_init
    USE fftw3_lib,                       ONLY: &
         fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw31dm, fftw33d, &
-        fftw3_create_plan_1dm, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
+        fftw3_create_plan_1d, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
         fftw3_do_init, fftw3_get_lengths
 #include "../../base/base_uses.f90"
 
@@ -24,8 +23,10 @@ MODULE fft_lib
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fft_lib'
 
+   INTEGER, SAVE :: fft_type = 0
+
    PUBLIC :: fft_do_cleanup, fft_do_init, fft_get_lengths, fft_create_plan_3d
-   PUBLIC :: fft_create_plan_1dm, fft_1dm, fft_library, fft_3d, fft_destroy_plan
+   PUBLIC :: fft_create_plan_1d, fft_1d, fft_library, fft_3d, fft_destroy_plan
    PUBLIC :: fft_alloc, fft_dealloc
 
 CONTAINS
@@ -56,32 +57,33 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param fft_type ...
+!> \param fftlib ...
+!> \param plan_style ...
 !> \param wisdom_file ...
 ! **************************************************************************************************
-   SUBROUTINE fft_do_init(fft_type, wisdom_file)
-      INTEGER, INTENT(IN)                                :: fft_type
+   SUBROUTINE fft_do_init(fftlib, plan_style, wisdom_file)
+      CHARACTER(LEN=*), INTENT(IN)                       :: fftlib
+      INTEGER, INTENT(IN)                                :: plan_style
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
 
+      fft_type = fft_library(fftlib)
       SELECT CASE (fft_type)
       CASE DEFAULT
          CPABORT("fft_do_init")
       CASE (1)
          CALL fftsg_do_init()
       CASE (3)
-         CALL fftw3_do_init(wisdom_file)
+         CALL fftw3_do_init(wisdom_file, plan_style)
       END SELECT
 
    END SUBROUTINE fft_do_init
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param fft_type ...
 !> \param wisdom_file ...
 !> \param ionode ...
 ! **************************************************************************************************
-   SUBROUTINE fft_do_cleanup(fft_type, wisdom_file, ionode)
-      INTEGER, INTENT(IN)                                :: fft_type
+   SUBROUTINE fft_do_cleanup(wisdom_file, ionode)
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
       LOGICAL, INTENT(IN)                                :: ionode
 
@@ -98,24 +100,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param fft_type ...
 !> \param DATA ...
 !> \param max_length ...
 ! **************************************************************************************************
-   SUBROUTINE fft_get_lengths(fft_type, DATA, max_length)
-
-      INTEGER, INTENT(IN)                                :: fft_type
+   SUBROUTINE fft_get_lengths(DATA, max_length)
       INTEGER, DIMENSION(*)                              :: DATA
       INTEGER, INTENT(INOUT)                             :: max_length
 
-      SELECT CASE (fft_type)
-      CASE DEFAULT
-         CPABORT("fft_get_lengths")
-      CASE (1)
-         CALL fftsg_get_lengths(DATA, max_length)
-      CASE (3)
-         CALL fftw3_get_lengths(DATA, max_length)
-      END SELECT
+      CALL fftw3_get_lengths(DATA, max_length)
 
    END SUBROUTINE fft_get_lengths
 
@@ -124,25 +116,20 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
-!> \param fft_type ...
 !> \param fft_in_place ...
 !> \param fsign ...
 !> \param n ...
 !> \param zin ...
 !> \param zout ...
-!> \param plan_style ...
 ! **************************************************************************************************
-   SUBROUTINE fft_create_plan_3d(plan, fft_type, fft_in_place, fsign, n, zin, zout, plan_style)
+   SUBROUTINE fft_create_plan_3d(plan, fft_in_place, fsign, n, zin, zout)
 
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
-      INTEGER, INTENT(IN)                                :: fft_type
       LOGICAL, INTENT(IN)                                :: fft_in_place
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
-      INTEGER, INTENT(IN)                                :: plan_style
 
-      plan%fft_type = fft_type
       plan%fsign = fsign
       plan%fft_in_place = fft_in_place
       plan%n_3d = n
@@ -150,7 +137,7 @@ CONTAINS
 
       ! Planning only needed for FFTW3
       IF (fft_type == 3) THEN
-         CALL fftw3_create_plan_3d(plan, zin, zout, plan_style)
+         CALL fftw3_create_plan_3d(plan, zin, zout)
          plan%valid = .TRUE.
       END IF
 
@@ -176,7 +163,7 @@ CONTAINS
 
       stat = plan%fsign
       IF (plan%n_3d(1)*plan%n_3d(2)*plan%n_3d(3) > 0) THEN
-         SELECT CASE (plan%fft_type)
+         SELECT CASE (fft_type)
          CASE DEFAULT
             CPABORT("fft_3d")
          CASE (1)
@@ -199,39 +186,54 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
-!> \param fft_type ...
 !> \param fsign ...
-!> \param trans ...
+!> \param trans_in ...
+!> \param trans_out ...
+!> \param ldx_in ...
+!> \param ldx_out ...
 !> \param n ...
 !> \param m ...
 !> \param zin ...
 !> \param zout ...
-!> \param plan_style ...
 ! **************************************************************************************************
-   SUBROUTINE fft_create_plan_1dm(plan, fft_type, fsign, trans, n, m, zin, zout, plan_style)
+   SUBROUTINE fft_create_plan_1d(plan, fsign, trans_in, trans_out, ldx_in, ldx_out, n, m, zin, zout)
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
-      INTEGER, INTENT(IN)                                :: fft_type, fsign
-      LOGICAL, INTENT(IN)                                :: trans
-      INTEGER, INTENT(IN)                                :: n, m
+      INTEGER, INTENT(IN)                                :: fsign
+      LOGICAL, INTENT(IN)                                :: trans_in, trans_out
+      INTEGER, INTENT(IN)                                :: ldx_in, ldx_out, n, m
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin, zout
-      INTEGER, INTENT(IN)                                :: plan_style
 
-      plan%fft_type = fft_type
       plan%fsign = fsign
-      plan%trans = trans
+      plan%trans_in = trans_in
+      plan%trans_out = trans_out
+      IF (plan%trans_in) THEN
+         plan%ldx_in = ldx_in
+         plan%ldy_in = n
+      ELSE
+         plan%ldx_in = ldx_in
+         plan%ldy_in = m
+      END IF
+      IF (plan%trans_out) THEN
+         plan%ldx_out = ldx_out
+         plan%ldy_out = n
+      ELSE
+         plan%ldx_out = ldx_out
+         plan%ldy_out = m
+      END IF
+
       plan%n = n
       plan%m = m
 !$    plan%need_alt_plan = .FALSE.
 
       ! Planning only needed for FFTW3
       IF ((fft_type == 3) .AND. (n*m /= 0)) THEN
-         CALL fftw3_create_plan_1dm(plan, zin, zout, plan_style)
+         CALL fftw3_create_plan_1d(plan, zin, zout)
          plan%valid = .TRUE.
       ELSE
          plan%valid = .FALSE.
       END IF
 
-   END SUBROUTINE fft_create_plan_1dm
+   END SUBROUTINE fft_create_plan_1d
 
 ! **************************************************************************************************
 !> \brief ...
@@ -242,7 +244,7 @@ CONTAINS
 
 ! Planning only needed for FFTW3
 
-      IF (plan%valid .AND. plan%fft_type == 3) THEN
+      IF (plan%valid .AND. fft_type == 3) THEN
          CALL fftw3_destroy_plan(plan)
          plan%valid = .FALSE.
       END IF
@@ -257,7 +259,7 @@ CONTAINS
 !> \param scale ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE fft_1dm(plan, zin, zout, scale, stat)
+   SUBROUTINE fft_1d(plan, zin, zout, scale, stat)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
@@ -265,11 +267,12 @@ CONTAINS
 
       stat = plan%fsign
       IF (plan%n*plan%m > 0) THEN
-         SELECT CASE (plan%fft_type)
+         SELECT CASE (fft_type)
          CASE DEFAULT
-            CPABORT("fft_1dm")
+            CPABORT("fft_1d")
          CASE (1)
-            CALL fftsg1dm(stat, plan%trans, plan%n, plan%m, zin, zout, scale)
+            CALL fftsg1dm(stat, plan%trans_in, plan%trans_out, plan%n, plan%m, &
+                          plan%ldx_in, plan%ldy_in, plan%ldx_out, plan%ldy_out, zin, zout, scale)
          CASE (3)
             CALL fftw31dm(plan, zin, zout, scale, stat)
          END SELECT
@@ -281,6 +284,6 @@ CONTAINS
          stat = 0
       END IF
 
-   END SUBROUTINE fft_1dm
+   END SUBROUTINE fft_1d
 
 END MODULE fft_lib

@@ -477,40 +477,40 @@ MODULE message_passing
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_alltoall_i, mp_alltoall_i22, mp_alltoall_i33, &
          mp_alltoall_i44, mp_alltoall_i55, mp_alltoall_i45, mp_alltoall_i34, &
-         mp_alltoall_i11v, mp_alltoall_i22v, mp_alltoall_i54, &
+         mp_alltoall_i11v, mp_alltoall_i22v, mp_alltoall_i54, mp_alltoall_i43, &
          mp_alltoall_l, mp_alltoall_l22, mp_alltoall_l33, &
          mp_alltoall_l44, mp_alltoall_l55, mp_alltoall_l45, mp_alltoall_l34, &
-         mp_alltoall_l11v, mp_alltoall_l22v, mp_alltoall_l54, &
+         mp_alltoall_l11v, mp_alltoall_l22v, mp_alltoall_l54, mp_alltoall_l43, &
          mp_alltoall_r, mp_alltoall_r22, mp_alltoall_r33, &
          mp_alltoall_r44, mp_alltoall_r55, mp_alltoall_r45, mp_alltoall_r34, &
-         mp_alltoall_r11v, mp_alltoall_r22v, mp_alltoall_r54, &
+         mp_alltoall_r11v, mp_alltoall_r22v, mp_alltoall_r54, mp_alltoall_r43, &
          mp_alltoall_d, mp_alltoall_d22, mp_alltoall_d33, &
          mp_alltoall_d44, mp_alltoall_d55, mp_alltoall_d45, mp_alltoall_d34, &
-         mp_alltoall_d11v, mp_alltoall_d22v, mp_alltoall_d54, &
+         mp_alltoall_d11v, mp_alltoall_d22v, mp_alltoall_d54, mp_alltoall_d43, &
          mp_alltoall_c, mp_alltoall_c22, mp_alltoall_c33, &
          mp_alltoall_c44, mp_alltoall_c55, mp_alltoall_c45, mp_alltoall_c34, &
-         mp_alltoall_c11v, mp_alltoall_c22v, mp_alltoall_c54, &
+         mp_alltoall_c11v, mp_alltoall_c22v, mp_alltoall_c54, mp_alltoall_c43, &
          mp_alltoall_z, mp_alltoall_z22, mp_alltoall_z33, &
          mp_alltoall_z44, mp_alltoall_z55, mp_alltoall_z45, mp_alltoall_z34, &
-         mp_alltoall_z11v, mp_alltoall_z22v, mp_alltoall_z54
+         mp_alltoall_z11v, mp_alltoall_z22v, mp_alltoall_z54, mp_alltoall_z43
       GENERIC, PUBLIC :: alltoall => mp_alltoall_i, mp_alltoall_i22, mp_alltoall_i33, &
          mp_alltoall_i44, mp_alltoall_i55, mp_alltoall_i45, mp_alltoall_i34, &
-         mp_alltoall_i11v, mp_alltoall_i22v, mp_alltoall_i54, &
+         mp_alltoall_i11v, mp_alltoall_i22v, mp_alltoall_i54, mp_alltoall_i43, &
          mp_alltoall_l, mp_alltoall_l22, mp_alltoall_l33, &
          mp_alltoall_l44, mp_alltoall_l55, mp_alltoall_l45, mp_alltoall_l34, &
-         mp_alltoall_l11v, mp_alltoall_l22v, mp_alltoall_l54, &
+         mp_alltoall_l11v, mp_alltoall_l22v, mp_alltoall_l54, mp_alltoall_l43, &
          mp_alltoall_r, mp_alltoall_r22, mp_alltoall_r33, &
          mp_alltoall_r44, mp_alltoall_r55, mp_alltoall_r45, mp_alltoall_r34, &
-         mp_alltoall_r11v, mp_alltoall_r22v, mp_alltoall_r54, &
+         mp_alltoall_r11v, mp_alltoall_r22v, mp_alltoall_r54, mp_alltoall_r43, &
          mp_alltoall_d, mp_alltoall_d22, mp_alltoall_d33, &
          mp_alltoall_d44, mp_alltoall_d55, mp_alltoall_d45, mp_alltoall_d34, &
-         mp_alltoall_d11v, mp_alltoall_d22v, mp_alltoall_d54, &
+         mp_alltoall_d11v, mp_alltoall_d22v, mp_alltoall_d54, mp_alltoall_d43, &
          mp_alltoall_c, mp_alltoall_c22, mp_alltoall_c33, &
          mp_alltoall_c44, mp_alltoall_c55, mp_alltoall_c45, mp_alltoall_c34, &
-         mp_alltoall_c11v, mp_alltoall_c22v, mp_alltoall_c54, &
+         mp_alltoall_c11v, mp_alltoall_c22v, mp_alltoall_c54, mp_alltoall_c43, &
          mp_alltoall_z, mp_alltoall_z22, mp_alltoall_z33, &
          mp_alltoall_z44, mp_alltoall_z55, mp_alltoall_z45, mp_alltoall_z34, &
-         mp_alltoall_z11v, mp_alltoall_z22v, mp_alltoall_z54
+         mp_alltoall_z11v, mp_alltoall_z22v, mp_alltoall_z54, mp_alltoall_z43
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_send_i, mp_send_iv, mp_send_im2, mp_send_im3, &
          mp_send_l, mp_send_lv, mp_send_lm2, mp_send_lm3, &

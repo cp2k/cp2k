@@ -18,13 +18,10 @@ MODULE pint_qtb
                                               cp_logger_type
    USE cp_output_handling,              ONLY: debug_print_level,&
                                               silent_print_level
-   USE fft_lib,                         ONLY: fft_1dm,&
-                                              fft_create_plan_1dm,&
-                                              fft_destroy_plan
-   USE fft_plan,                        ONLY: fft_plan_type
    USE fft_tools,                       ONLY: FWFFT,&
-                                              fft_plan_style,&
-                                              fft_type
+                                              fft_1d_many,&
+                                              fft_alloc,&
+                                              fft_dealloc
    USE input_constants,                 ONLY: propagator_rpmd
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -262,7 +259,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_forces_init'
 
       COMPLEX(KIND=dp)                                   :: tmp1
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: filter
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:), &
+         POINTER                                         :: filter_in, filter_out
       INTEGER                                            :: handle, i, ibead, idim, log_unit, ndim, &
                                                             nf, p, print_level, step
       REAL(KIND=dp)                                      :: aa, bb, correct, dt, dw, fcut, h, kT, &
@@ -270,13 +268,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: fp1
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(fft_plan_type)                                :: plan
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
-
-      IF (fft_type /= 3) CALL cp_warn(__LOCATION__, "The FFT library in use cannot"// &
-                                      " handle transformation of an arbitrary length.")
 
       p = pint_env%p
       ndim = pint_env%ndim
@@ -301,7 +295,8 @@ CONTAINS
          kT = pint_env%kT*pint_env%propagator%temp_sim2phys
 
          ALLOCATE (fp(nf/2))
-         ALLOCATE (filter(0:nf - 1))
+         CALL fft_alloc(filter_in, [nf])
+         CALL fft_alloc(filter_out, [nf])
 
          IF (print_level == debug_print_level) THEN
             !create log file if print_level is debug
@@ -349,39 +344,40 @@ CONTAINS
 
             !compute the filter in Fourier space
             IF (p == 1) THEN
-               filter(0) = SQRT(kT)*(1.0_dp, 0.0_dp)
+               filter_in(1) = SQRT(kT)*(1.0_dp, 0.0_dp)
             ELSE IF (qtb_therm%fp == 1 .AND. ibead == 1) THEN
-               filter(0) = SQRT(p*kT)*(1.0_dp, 0.0_dp)
+               filter_in(1) = SQRT(p*kT)*(1.0_dp, 0.0_dp)
             ELSE
-               filter(0) = SQRT(p*kT*fp1(1))*(1.0_dp, 0.0_dp)
+               filter_in(1) = SQRT(p*kT*fp1(1))*(1.0_dp, 0.0_dp)
             END IF
             DO i = 1, nf/2
                w = i*dw
                tmp = 0.5_dp*w*h
                correct = SIN(tmp)/tmp
-               filter(i) = SQRT(fp(i))/correct*(1.0_dp, 0.0_dp)
-               filter(nf - i) = CONJG(filter(i))
+               filter_in(i + 1) = SQRT(fp(i))/correct*(1.0_dp, 0.0_dp)
+               filter_in(nf - i + 1) = CONJG(filter_in(i + 1))
             END DO
 
             !compute the filter in time space - FFT
-            CALL pint_qtb_fft(filter, filter, plan, nf)
+            CALL pint_qtb_fft(filter_in, filter_out, nf)
             !reordering + normalisation
             !normalisation : 1/nf comes from the DFT, 1/sqrt(step) is to
             !take into account the effective timestep h = step*dt and
             !1/sqrt(2.0_dp) is to take into account the fact that the
             !same random force is used for the two thermostat "half-steps"
-            DO i = 0, nf/2 - 1
-               tmp1 = filter(i)/(nf*SQRT(2.0_dp*step))
-               filter(i) = filter(nf/2 + i)/(nf*SQRT(2.0_dp*step))
-               filter(nf/2 + i) = tmp1
+            DO i = 1, nf/2
+               tmp1 = filter_out(i)/(nf*SQRT(2.0_dp*step))
+               filter_out(i) = filter_out(nf/2 + i)/(nf*SQRT(2.0_dp*step))
+               filter_out(nf/2 + i) = tmp1
             END DO
 
-            DO i = 0, nf - 1
-               qtb_therm%h(i + 1, ibead) = REAL(filter(i), dp)
+            DO i = 1, nf
+               qtb_therm%h(i, ibead) = REAL(filter_out(i), dp)
             END DO
          END DO
 
-         DEALLOCATE (filter)
+         CALL fft_dealloc(filter_in)
+         CALL fft_dealloc(filter_out)
          DEALLOCATE (fp)
          IF (p > 1) DEALLOCATE (fp1)
       END IF
@@ -951,20 +947,16 @@ CONTAINS
 !> \brief ...
 !> \param z_in ...
 !> \param z_out ...
-!> \param plan ...
 !> \param n ...
 ! **************************************************************************************************
-   SUBROUTINE pint_qtb_fft(z_in, z_out, plan, n)
+   SUBROUTINE pint_qtb_fft(z_in, z_out, n)
 
       INTEGER                                            :: n
-      TYPE(fft_plan_type)                                :: plan
       COMPLEX(KIND=dp), DIMENSION(n)                     :: z_out, z_in
 
       INTEGER                                            :: stat
 
-      CALL fft_create_plan_1dm(plan, fft_type, FWFFT, .FALSE., n, 1, z_in, z_out, fft_plan_style)
-      CALL fft_1dm(plan, z_in, z_out, 1.d0, stat)
-      CALL fft_destroy_plan(plan)
+      CALL fft_1d_many(FWFFT, n, 1, .FALSE., .FALSE., n, n, z_in, z_out, 1.0_dp, stat)
    END SUBROUTINE pint_qtb_fft
 
 END MODULE pint_qtb

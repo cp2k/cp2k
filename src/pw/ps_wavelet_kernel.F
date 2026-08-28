@@ -10,14 +10,17 @@
 !> \author Florian Schiffmann (09.2007,fschiff)
 ! **************************************************************************************************
 MODULE ps_wavelet_kernel
-
+   USE fft_lib,                         ONLY: fft_1d,&
+                                              fft_create_plan_1d,&
+                                              fft_destroy_plan
+   USE fft_plan,                        ONLY: fft_plan_type
+   USE fft_tools,                       ONLY: BWFFT,&
+                                              fft_alloc,&
+                                              fft_dealloc
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_comm_type
    USE ps_wavelet_base,                 ONLY: scramble_unpack
-   USE ps_wavelet_fft3d,                ONLY: ctrig,&
-                                              ctrig_length,&
-                                              fftstp
    USE ps_wavelet_scaling_function,     ONLY: scaling_function,&
                                               scf_recursion
    USE ps_wavelet_util,                 ONLY: F_FFT_dimensions,&
@@ -138,61 +141,6 @@ CONTAINS
          CPABORT("No wavelet based poisson solver for given geometry")
 
       END IF
-!!!  IF (iproc==0) THEN
-!!!     write(*,*)'done.'
-!!!     write(*,'(1x,a,i0)') 'Allocate words for kernel ',nd1*nd2*nd3/nproc
-!!!     !print the load balancing of the different dimensions on screen
-!!!     write(*,'(1x,a,3(i5))')'Grid Dimensions:',n01,n02,n03
-!!!     if (nproc > 1) then
-!!!        write(*,'(1x,a,3(i5),a,3(i5),a,3(i5))')&
-!!!             'Memory occ. per proc.  Density',md1,md3,md2/nproc,'   Kernel',nd1,nd2,nd3/nproc
-!!!        write(*,'(1x,a)')'Load Balancing--------------------------------------------'
-!!!        jhd=1000
-!!!        jzd=1000
-!!!        npd=0
-!!!        load_balancing: do jproc=0,nproc-1
-!!!           !print *,'jproc,jfull=',jproc,jproc*md2/nproc,(jproc+1)*md2/nproc
-!!!           if ((jproc+1)*md2/nproc <= nlimd) then
-!!!              jfd=jproc
-!!!           else if (jproc*md2/nproc <= nlimd) then
-!!!              jhd=jproc
-!!!              npd=nint(real(nlimd-(jproc)*md2/nproc,KIND=dp)/real(md2/nproc,KIND=dp)*100._dp)
-!!!           else
-!!!              jzd=jproc
-!!!              exit load_balancing
-!!!           end if
-!!!        end do load_balancing
-!!!        write(*,'(1x,a,i3,a)')'LB_den        : processors   0  -',jfd,' work at 100%'
-!!!        if (jfd < nproc-1) write(*,'(1x,a,i3,a,i3,1a)')'                processor     ',jhd,&
-!!!             '    work at ',npd,'%'
-!!!        if (jhd < nproc-1) write(*,'(1x,a,i3,1a,i3,a)')'                processors ',&
-!!!             jzd,'  -',nproc-1,' work at   0%'
-!!!        jhk=1000
-!!!        jzk=1000
-!!!        npk=0
-!!!        if (geocode /= 'P') then
-!!!           load_balancingk: do jproc=0,nproc-1
-!!!              !print *,'jproc,jfull=',jproc,jproc*nd3/nproc,(jproc+1)*nd3/nproc
-!!!              if ((jproc+1)*nd3/nproc <= nlimk) then
-!!!                 jfk=jproc
-!!!              else if (jproc*nd3/nproc <= nlimk) then
-!!!                 jhk=jproc
-!!!                 npk=nint(real(nlimk-(jproc)*nd3/nproc,KIND=dp)/real(nd3/nproc,KIND=dp)*100._dp)
-!!!              else
-!!!                 jzk=jproc
-!!!                 exit load_balancingk
-!!!              end if
-!!!           end do load_balancingk
-!!!           write(*,'(1x,a,i3,a)')'LB_ker        : processors   0  -',jfk,' work at 100%'
-!!!           if (jfk < nproc-1) write(*,'(1x,a,i3,a,i3,1a)')'                processor     ',jhk,&
-!!!                '    work at ',npk,'%'
-!!!           if (jhk < nproc-1) write(*,'(1x,a,i3,1a,i3,a)')'                processors ',jzk,'  -',nproc-1,&
-!!!                ' work at   0%'
-!!!        end if
-!!!        write(*,'(1x,a)')'The LB per processor is 1/3 LB_den + 2/3 LB_ker-----------'
-!!!     end if
-!!!
-!!!  END IF
    END SUBROUTINE createKernel
 
 ! **************************************************************************************************
@@ -231,46 +179,40 @@ CONTAINS
 
       INTEGER, PARAMETER                                 :: n_points = 2**6, ncache_optimal = 8*1024
 
-      INTEGER :: i, i1, i2, i3, ic, iend, imu, ind1, ind2, inzee, ipolyord, ireim, istart, j2, &
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:), &
+         POINTER                                         :: halfft_cache1, halfft_cache2
+      INTEGER :: final_chunk_size, i1, i2, i3, iend, imu, ind1, ind2, ipolyord, ireim, istart, j2, &
          j2nd, j2st, jnd1, jp2, jreim, n_cell, n_range, n_scf, nact2, ncache, nfft, num_of_mus, &
-         shift
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: after, before, now
+         shift, stat
       REAL(kind=dp)                                      :: a, b, c, cp, d, diff, dx, feI, feR, foI, &
                                                             foR, fR, mu1, pion, ponx, pony, sp, &
                                                             value, x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: kernel_scf, x_scf, y_scf
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: btrig, cossinarr
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: halfft_cache, kernel
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cossinarr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: kernel
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: kernel_mpi
       REAL(KIND=dp), DIMENSION(9, 8)                     :: cpol
+      TYPE(fft_plan_type)                                :: fft_plan_bw, fft_plan_bw_last
 
 !Better if higher (1024 points are enough 10^{-14}: 2*itype_scf*n_points)
-!  include "perfdata.inc"
 !FFT arrays
 !coefficients for the polynomial interpolation
 !assign the values of the coefficients
 
       karray = 0.0_dp
       cpol(:, :) = 1._dp
-
       cpol(1, 2) = .25_dp
-
       cpol(1, 3) = 1._dp/3._dp
-
       cpol(1, 4) = 7._dp/12._dp
       cpol(2, 4) = 8._dp/3._dp
-
       cpol(1, 5) = 19._dp/50._dp
       cpol(2, 5) = 3._dp/2._dp
-
       cpol(1, 6) = 41._dp/272._dp
       cpol(2, 6) = 27._dp/34._dp
       cpol(3, 6) = 27._dp/272._dp
-
       cpol(1, 7) = 751._dp/2989._dp
       cpol(2, 7) = 73._dp/61._dp
       cpol(3, 7) = 27._dp/61._dp
-
       cpol(1, 8) = -989._dp/4540._dp
       cpol(2, 8) = -1472._dp/1135._dp
       cpol(3, 8) = 232._dp/1135._dp
@@ -288,28 +230,21 @@ CONTAINS
 
       !assign the complete values
       cpol(2, 1) = cpol(1, 1)
-
       cpol(3, 2) = cpol(1, 2)
-
       cpol(3, 3) = cpol(2, 3)
       cpol(4, 3) = cpol(1, 3)
-
       cpol(4, 4) = cpol(2, 4)
       cpol(5, 4) = cpol(1, 4)
-
       cpol(4, 5) = cpol(3, 5)
       cpol(5, 5) = cpol(2, 5)
       cpol(6, 5) = cpol(1, 5)
-
       cpol(5, 6) = cpol(3, 6)
       cpol(6, 6) = cpol(2, 6)
       cpol(7, 6) = cpol(1, 6)
-
       cpol(5, 7) = cpol(4, 7)
       cpol(6, 7) = cpol(3, 7)
       cpol(7, 7) = cpol(2, 7)
       cpol(8, 7) = cpol(1, 7)
-
       cpol(6, 8) = cpol(4, 8)
       cpol(7, 8) = cpol(3, 8)
       cpol(8, 8) = cpol(2, 8)
@@ -349,15 +284,11 @@ CONTAINS
       ALLOCATE (kernel(nker1, nact2/nproc, nker3))
       ALLOCATE (kernel_mpi(nker1, nact2/nproc, nker3/nproc, nproc))
       ALLOCATE (kernel_scf(n_range))
-      ALLOCATE (halfft_cache(2, ncache/4, 2))
+      CALL fft_alloc(halfft_cache1, [MAX(ncache/4, n3/2)])
+      halfft_cache1 = CMPLX(0.0_dp, 0.0_dp, dp)
+      CALL fft_alloc(halfft_cache2, [MAX(ncache/4, n3/2)])
+      halfft_cache2 = CMPLX(0.0_dp, 0.0_dp, dp)
       ALLOCATE (cossinarr(2, n3/2 - 1))
-      ALLOCATE (btrig(2, ctrig_length))
-      ALLOCATE (after(7))
-      ALLOCATE (now(7))
-      ALLOCATE (before(7))
-
-      !arrays for the halFFT
-      CALL ctrig(n3/2, btrig, after, before, now, 1, ic)
 
       !build the phases for the HalFFT reconstruction
       pion = 2._dp*pi/REAL(n3, KIND=dp)
@@ -373,7 +304,7 @@ CONTAINS
 
       !calculate the limits of the FFT calculations
       !that can be performed in a row remaining inside the cache
-      num_of_mus = ncache/(2*n3)
+      num_of_mus = MAX(1, ncache/(2*n3))
 
       diff = 0._dp
       !order of the polynomial to be used for integration (must be a power of two)
@@ -384,6 +315,19 @@ CONTAINS
       j2st = iproc*(nact2/nproc)
       j2nd = MIN((iproc + 1)*(nact2/nproc), n2/2 + 1)
 
+      ! The size of the last chunk
+      final_chunk_size = MOD((n1/2 + 1)*(j2nd - j2st), num_of_mus)
+
+      ! Prevent OOB-access if n1 < num_of_mus
+      IF ((n1/2 + 1)*(j2nd - j2st) >= num_of_mus) THEN
+         CALL fft_create_plan_1d(fft_plan_bw, BWFFT, .TRUE., .TRUE., num_of_mus, num_of_mus, &
+                                 n3/2, num_of_mus, halfft_cache1, halfft_cache2)
+      END IF
+      IF (final_chunk_size > 0) THEN
+         CALL fft_create_plan_1d(fft_plan_bw_last, BWFFT, .TRUE., .TRUE., num_of_mus, num_of_mus, &
+                                 n3/2, final_chunk_size, halfft_cache1, halfft_cache2)
+      END IF
+
       DO ind2 = (n1/2 + 1)*j2st + 1, (n1/2 + 1)*j2nd, num_of_mus
          istart = ind2
          iend = MIN(ind2 + (num_of_mus - 1), (n1/2 + 1)*j2nd)
@@ -391,7 +335,9 @@ CONTAINS
          shift = 0
 
          !initialization of the interesting part of the cache array
-         halfft_cache(:, :, :) = 0._dp
+         ! THis could be replaced using a R2C-FFT (not yet available in CP2K)
+         halfft_cache1 = CMPLX(0.0_dp, 0.0_dp, dp)
+         halfft_cache1 = CMPLX(0.0_dp, 0.0_dp, dp)
 
          IF (istart == 1) THEN
             !i2=1
@@ -401,7 +347,7 @@ CONTAINS
                                              cpol(1, ipolyord), dx, kernel_scf)
 
             !copy of the first zero value
-            halfft_cache(1, 1, 1) = 0._dp
+            halfft_cache1(1) = CMPLX(0._dp, AIMAG(halfft_cache1(1)), dp)
 
             DO i3 = 1, m3
 
@@ -410,8 +356,16 @@ CONTAINS
                CALL indices(ireim, num_of_mus, n3/2 + i3, 1, ind1)
                !index in where to copy the symmetric value
                CALL indices(jreim, num_of_mus, n3/2 + 2 - i3, 1, jnd1)
-               halfft_cache(ireim, ind1, 1) = value
-               halfft_cache(jreim, jnd1, 1) = value
+               IF (ireim == 1) THEN
+                  halfft_cache1(ind1) = CMPLX(value, AIMAG(halfft_cache1(ind1)), dp)
+               ELSE
+                  halfft_cache1(ind1) = CMPLX(REAL(halfft_cache1(ind1), dp), value, dp)
+               END IF
+               IF (jreim == 1) THEN
+                  halfft_cache1(jnd1) = CMPLX(value, AIMAG(halfft_cache1(jnd1)), dp)
+               ELSE
+                  halfft_cache1(jnd1) = CMPLX(REAL(halfft_cache1(jnd1), dp), value, dp)
+               END IF
 
             END DO
 
@@ -439,28 +393,35 @@ CONTAINS
             !readjust the coefficient and define the final kernel
 
             !copy of the first zero value
-            halfft_cache(1, imu - istart + 1, 1) = 0._dp
+            halfft_cache1(imu - istart + 1) = CMPLX(0._dp, AIMAG(halfft_cache1(imu - istart + 1)), dp)
             DO i3 = 1, m3
                value = -0.5_dp*h3/mu1*kernel_scf(i3)
-               !write(80,*)mu1,i3,kernel_scf(i03)
                !index in where to copy the value of the kernel
                CALL indices(ireim, num_of_mus, n3/2 + i3, imu - istart + 1, ind1)
                !index in where to copy the symmetric value
                CALL indices(jreim, num_of_mus, n3/2 + 2 - i3, imu - istart + 1, jnd1)
-               halfft_cache(ireim, ind1, 1) = value
-               halfft_cache(jreim, jnd1, 1) = value
+               IF (ireim == 1) THEN
+                  halfft_cache1(ind1) = CMPLX(value, AIMAG(halfft_cache1(ind1)), dp)
+               ELSE
+                  halfft_cache1(ind1) = CMPLX(REAL(halfft_cache1(ind1), dp), value, dp)
+               END IF
+               IF (jreim == 1) THEN
+                  halfft_cache1(jnd1) = CMPLX(value, AIMAG(halfft_cache1(jnd1)), dp)
+               ELSE
+                  halfft_cache1(jnd1) = CMPLX(REAL(halfft_cache1(jnd1), dp), value, dp)
+               END IF
             END DO
 
          END DO loopimpulses
 
          !now perform the FFT of the array in cache
-         inzee = 1
-         DO i = 1, ic
-            CALL fftstp(num_of_mus, nfft, n3/2, num_of_mus, n3/2, &
-                        halfft_cache(1, 1, inzee), halfft_cache(1, 1, 3 - inzee), &
-                        btrig, after(i), now(i), before(i), 1)
-            inzee = 3 - inzee
-         END DO
+         ! This is equivalent to
+         IF (nfft == num_of_mus) THEN
+            CALL fft_1d(fft_plan_bw, halfft_cache1, halfft_cache2, 1.0_dp, stat)
+         ELSE
+            CALL fft_1d(fft_plan_bw_last, halfft_cache1, halfft_cache2, 1.0_dp, stat)
+         END IF
+
          !assign the values of the FFT array
          !and compare with the good results
          DO imu = istart, iend
@@ -472,8 +433,8 @@ CONTAINS
 
             j2 = i2 - j2st
 
-            a = halfft_cache(1, imu - istart + 1, inzee)
-            b = halfft_cache(2, imu - istart + 1, inzee)
+            a = REAL(halfft_cache2(imu - istart + 1), dp)
+            b = AIMAG(halfft_cache2(imu - istart + 1))
             kernel(i1, j2, 1) = a + b
             kernel(i1, j2, n3/2 + 1) = a - b
 
@@ -482,10 +443,10 @@ CONTAINS
                jnd1 = imu - istart + 1 + num_of_mus*(n3/2 + 2 - i3 - 1)
                cp = cossinarr(1, i3 - 1)
                sp = cossinarr(2, i3 - 1)
-               a = halfft_cache(1, ind1, inzee)
-               b = halfft_cache(2, ind1, inzee)
-               c = halfft_cache(1, jnd1, inzee)
-               d = halfft_cache(2, jnd1, inzee)
+               a = REAL(halfft_cache2(ind1), dp)
+               b = AIMAG(halfft_cache2(ind1))
+               c = REAL(halfft_cache2(jnd1), dp)
+               d = AIMAG(halfft_cache2(jnd1))
                feR = .5_dp*(a + c)
                feI = .5_dp*(b - d)
                foR = .5_dp*(a - c)
@@ -496,6 +457,9 @@ CONTAINS
          END DO
 
       END DO
+
+      IF ((n1/2 + 1)*(j2nd - j2st) >= num_of_mus) CALL fft_destroy_plan(fft_plan_bw)
+      IF (final_chunk_size > 0) CALL fft_destroy_plan(fft_plan_bw_last)
 
       !give to each processor a slice of the third dimension
       IF (nproc > 1) THEN
@@ -523,11 +487,8 @@ CONTAINS
       !De-allocations
       DEALLOCATE (kernel)
       DEALLOCATE (kernel_mpi)
-      DEALLOCATE (btrig)
-      DEALLOCATE (after)
-      DEALLOCATE (now)
-      DEALLOCATE (before)
-      DEALLOCATE (halfft_cache)
+      CALL fft_dealloc(halfft_cache1)
+      CALL fft_dealloc(halfft_cache2)
       DEALLOCATE (kernel_scf)
       DEALLOCATE (x_scf)
       DEALLOCATE (y_scf)
@@ -658,7 +619,6 @@ CONTAINS
             nrec = ikern
             EXIT
          END IF
-         !print *,ikern,izero,n_scf,gltmp,grtmp,gleft,gright,x0,x1,green(ikern)
       END DO
       !now we must calculate the recursion
       ALLOCATE (green1(-nrec:nrec))
@@ -688,7 +648,7 @@ CONTAINS
 !> \param hres ...
 !> \param green ...
 ! **************************************************************************************************
-   SUBROUTINE calculates_green_opt_muzero(n, n_scf, intorder, xval, yval, c, hres, green)
+   PURE SUBROUTINE calculates_green_opt_muzero(n, n_scf, intorder, xval, yval, c, hres, green)
       INTEGER, INTENT(in)                                :: n, n_scf, intorder
       REAL(KIND=dp), DIMENSION(0:n_scf), INTENT(in)      :: xval, yval
       REAL(KIND=dp), DIMENSION(intorder+1), INTENT(in)   :: c
@@ -769,7 +729,6 @@ CONTAINS
          gr1 = gr1 - c1
          !general case
          green(ikern + 1) = REAL(ikern, KIND=dp)*(gl0 - gr0) + gr1 - gl1
-         !print *,ikern,izero,n_scf,gltmp,grtmp,gleft,gright,x0,x1,green(ikern)
       END DO
 
    END SUBROUTINE calculates_green_opt_muzero
@@ -782,7 +741,7 @@ CONTAINS
 !> \param extrn ...
 !> \param index ...
 ! **************************************************************************************************
-   SUBROUTINE indices(var_realimag, nelem, intrn, extrn, index)
+   PURE ELEMENTAL SUBROUTINE indices(var_realimag, nelem, intrn, extrn, index)
 
       INTEGER, INTENT(out)                               :: var_realimag
       INTEGER, INTENT(in)                                :: nelem, intrn, extrn
@@ -796,10 +755,6 @@ CONTAINS
 !actual index over half the length
 
       i = (intrn + 1)/2
-      !check
-      IF (2*(i - 1) + var_realimag /= intrn) THEN
-         PRINT *, 'error, index=', intrn, 'var_realimag=', var_realimag, 'i=', i
-      END IF
       !complete index to be assigned
       index = extrn + nelem*(i - 1)
 
@@ -988,8 +943,7 @@ CONTAINS
             ! Without compiler bounds checking, the calculation might run successfully but
             ! it is also possible that the Hartree energy will blow up
             ! This seems to happen with large MPI processor counts if the size of the
-            ! RS grid is not directly compatible with the allowed FFT dimensions in
-            ! subroutine fourier_dim (ps_wavelet_fft3d.F)
+            ! RS grid is not directly compatible with the allowed FFT dimensions
             IF (i03 < -n_range .OR. i03 > n_range) THEN
                CALL cp_abort(__LOCATION__, "Index out of range in wavelet solver. "// &
                              "Try decreasing the number of MPI processors, or adjust the PW_CUTOFF or cell size "// &
@@ -1036,11 +990,11 @@ CONTAINS
 !> \param zf ...
 !> \param zw ...
 ! **************************************************************************************************
-   SUBROUTINE inserthalf(n1, n3, lot, nfft, i1, zf, zw)
+   PURE SUBROUTINE inserthalf(n1, n3, lot, nfft, i1, zf, zw)
       INTEGER, INTENT(in)                                :: n1, n3, lot, nfft, i1
       REAL(KIND=dp), DIMENSION(n1/2+1, n3/2+1), &
          INTENT(in)                                      :: zf
-      REAL(KIND=dp), DIMENSION(2, lot, n3/2), &
+      COMPLEX(KIND=dp), DIMENSION(lot, n3/2), &
          INTENT(out)                                     :: zw
 
       INTEGER                                            :: i01, i03i, i03r, i3, l1, l3
@@ -1053,8 +1007,7 @@ CONTAINS
          i03i = ABS(l3 - n3/2) + 1
          DO l1 = 1, nfft
             i01 = ABS(l1 - 1 + i1 - n1/2 - 1) + 1
-            zw(1, l1, i3) = zf(i01, i03r)
-            zw(2, l1, i3) = zf(i01, i03i)
+            zw(l1, i3) = CMPLX(zf(i01, i03r), zf(i01, i03i), dp)
          END DO
       END DO
 
@@ -1087,10 +1040,6 @@ CONTAINS
 !>      This file is distributed under the terms of the
 !>      GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
 !> \author S. Goedecker, L. Genovese
-!> \note As transform lengths
-!>                  most products of the prime factors 2,3,5 are allowed.
-!>                   The detailed table with allowed transform lengths can
-!>                   be found in subroutine CTRIG
 ! **************************************************************************************************
    SUBROUTINE kernelfft(n1, n2, n3, nd1, nd2, nd3, nk1, nk2, nk3, nproc, iproc, zf, zr, mpi_group)
 
@@ -1105,19 +1054,21 @@ CONTAINS
 
       INTEGER, PARAMETER                                 :: ncache_optimal = 8*1024
 
-      INTEGER                                            :: i, i1, i3, ic1, ic2, ic3, inzee, j, j2, &
-                                                            J2st, j3, Jp2st, lot, lzt, ma, mb, &
-                                                            ncache, nfft
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: after1, after2, after3, before1, &
-                                                            before2, before3, now1, now2, now3
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: zmpi2
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :)                           :: zmpi1
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:), &
+         POINTER                                         :: zw1, zw2
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: zt
+      INTEGER :: final_chunk_size1, final_chunk_size2, final_chunk_size3, i1, i3, j, j2, J2st, j3, &
+         Jp2st, lot1, lot2, lot3, lzt, ma, mb, ncache, nfft, stat
       REAL(kind=dp)                                      :: twopion
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cosinarr, trig1, trig2, trig3
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: zt, zw
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: zmpi2
-      REAL(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :, :)                        :: zmpi1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cosinarr
+      TYPE(fft_plan_type)                                :: fft_plan_bw1, fft_plan_bw1_last, &
+                                                            fft_plan_bw2, fft_plan_bw2_last, &
+                                                            fft_plan_bw3, fft_plan_bw3_last
 
-!  include "perfdata.inc"
 !work arrays for transpositions
 !work arrays for MPI
 !cache work array
@@ -1137,35 +1088,17 @@ CONTAINS
       IF (ncache <= MAX(n1, n2, n3/2)*4) ncache = MAX(n1, n2, n3/2)*4
       lzt = n2
       IF (MOD(n2, 2) == 0) lzt = lzt + 1
-      IF (MOD(n2, 4) == 0) lzt = lzt + 1
 
       !Allocations
-      ALLOCATE (trig1(2, ctrig_length))
-      ALLOCATE (after1(7))
-      ALLOCATE (now1(7))
-      ALLOCATE (before1(7))
-      ALLOCATE (trig2(2, ctrig_length))
-      ALLOCATE (after2(7))
-      ALLOCATE (now2(7))
-      ALLOCATE (before2(7))
-      ALLOCATE (trig3(2, ctrig_length))
-      ALLOCATE (after3(7))
-      ALLOCATE (now3(7))
-      ALLOCATE (before3(7))
-      ALLOCATE (zw(2, ncache/4, 2))
-      ALLOCATE (zt(2, lzt, n1))
-      ALLOCATE (zmpi2(2, n1, nd2/nproc, nd3))
+      CALL fft_alloc(zw1, [ncache/4])
+      zw1 = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      CALL fft_alloc(zw2, [ncache/4])
+      zw2 = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      CALL fft_alloc(zt, [lzt, n1])
+      zt = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      ALLOCATE (zmpi2(n1, nd2/nproc, nd3), SOURCE=CMPLX(0.0_dp, 0.0_dp, dp))
       ALLOCATE (cosinarr(2, n3/2))
-      IF (nproc > 1) THEN
-         ALLOCATE (zmpi1(2, n1, nd2/nproc, nd3/nproc, nproc))
-         zmpi1 = 0.0_dp
-      END IF
-
-      zmpi2 = 0.0_dp
-      !calculating the FFT work arrays (beware on the HalFFT in n3 dimension)
-      CALL ctrig(n3/2, trig3, after3, before3, now3, 1, ic3)
-      CALL ctrig(n1, trig1, after1, before1, now1, 1, ic1)
-      CALL ctrig(n2, trig2, after2, before2, now2, 1, ic2)
+      IF (nproc > 1) ALLOCATE (zmpi1(n1, nd2/nproc, nd3/nproc, nproc), SOURCE=CMPLX(0.0_dp, 0.0_dp, dp))
 
       !Calculating array of phases for HalFFT decoding
       twopion = 8._dp*ATAN(1._dp)/REAL(n3, KIND=dp)
@@ -1176,35 +1109,68 @@ CONTAINS
 
       !transform along z axis
 
-      lot = ncache/(2*n3)
-      CPASSERT(lot >= 1)
+      lot1 = ncache/(4*n1)
+      lot2 = ncache/(4*n2)
+      lot3 = ncache/(2*n3)
+
+      ! The size of the last chunk
+      final_chunk_size1 = MOD(n2, lot1)
+      final_chunk_size2 = MOD(nk1, lot2)
+      final_chunk_size3 = MOD(n1, lot3)
+
+      ! Prevent OOB-access if n2 < lot1
+      IF (n2 >= lot1) THEN
+         CALL fft_create_plan_1d(fft_plan_bw1, BWFFT, .TRUE., .TRUE., lot1, lzt, n1, lot1, zw1, zt)
+      END IF
+      IF (final_chunk_size1 > 0) THEN
+         CALL fft_create_plan_1d(fft_plan_bw1_last, BWFFT, .TRUE., .TRUE., lot1, lzt, n1, &
+                                 final_chunk_size1, zw1, zt)
+      END IF
+
+      ! Prevent OOB-access if n2 < lot1
+      IF (nk1 >= lot2) THEN
+         CALL fft_create_plan_1d(fft_plan_bw2, BWFFT, .TRUE., .TRUE., lot2, lot2, n2, lot2, zw1, zw2)
+      END IF
+      IF (final_chunk_size2 > 0) THEN
+         CALL fft_create_plan_1d(fft_plan_bw2_last, BWFFT, .TRUE., .TRUE., lot2, lot2, n2, &
+                                 final_chunk_size2, zw1, zw2)
+      END IF
+
+      ! Prevent OOB-access if n1 < lot3
+      IF (n1 >= lot3) THEN
+         CALL fft_create_plan_1d(fft_plan_bw3, BWFFT, .TRUE., .TRUE., lot3, lot3, n3/2, lot3, zw1, zw2)
+      END IF
+      IF (final_chunk_size3 > 0) THEN
+         CALL fft_create_plan_1d(fft_plan_bw3_last, BWFFT, .TRUE., .TRUE., &
+                                 lot3, lot3, n3/2, final_chunk_size3, zw1, zw2)
+      END IF
 
       DO j2 = 1, nd2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
          IF (iproc*(nd2/nproc) + j2 <= n2) THEN
-            DO i1 = 1, n1, lot
+            DO i1 = 1, n1, lot3
                ma = i1
-               mb = MIN(i1 + (lot - 1), n1)
+               mb = MIN(i1 + (lot3 - 1), n1)
                nfft = mb - ma + 1
 
                !inserting real data into complex array of half length
                !input: I1,I3,J2,(Jp2)
 
-               CALL inserthalf(n1, n3, lot, nfft, i1, zf(1, 1, j2), zw(1, 1, 1))
+               CALL inserthalf(n1, n3, lot3, nfft, i1, zf(1, 1, j2), zw1)
 
                !performing FFT
-               inzee = 1
-               DO i = 1, ic3
-                  CALL fftstp(lot, nfft, n3/2, lot, n3/2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
-                              trig3, after3(i), now3(i), before3(i), 1)
-                  inzee = 3 - inzee
-               END DO
+               ! This is equivalent to
+               IF (nfft == lot3) THEN
+                  CALL fft_1d(fft_plan_bw3, zw1, zw2, 1.0_dp, stat)
+               ELSE
+                  CALL fft_1d(fft_plan_bw3_last, zw1, zw2, 1.0_dp, stat)
+               END IF
                !output: I1,i3,J2,(Jp2)
 
                !unpacking FFT in order to restore correct result,
                !while exchanging components
                !input: I1,i3,J2,(Jp2)
-               CALL scramble_unpack(i1, j2, lot, nfft, n1, n3, nd2, nproc, nd3, zw(1, 1, inzee), zmpi2, cosinarr)
+               CALL scramble_unpack(i1, j2, lot3, nfft, n1, n3, nd2, nproc, nd3, zw2, zmpi2, cosinarr)
                !output: I1,J2,i3,(Jp2)
             END DO
          END IF
@@ -1214,8 +1180,7 @@ CONTAINS
       !input: I1,J2,j3,jp3,(Jp2)
       IF (nproc > 1) THEN
          !communication scheduling
-         CALL mpi_group%alltoall(zmpi2, &!2*n1*(nd2/nproc)*(nd3/nproc), &
-                                 zmpi1, 2*n1*(nd2/nproc)*(nd3/nproc))
+         CALL mpi_group%alltoall(zmpi2, zmpi1, n1*(nd2/nproc)*(nd3/nproc))
          ! output: I1,J2,j3,Jp2,(jp3)
       END IF
 
@@ -1226,84 +1191,74 @@ CONTAINS
             J2st = 1
 
             !transform along x axis
-            lot = ncache/(4*n1)
-            CPASSERT(lot >= 1)
 
-            DO j = 1, n2, lot
+            DO j = 1, n2, lot1
                ma = j
-               mb = MIN(j + (lot - 1), n2)
+               mb = MIN(j + (lot1 - 1), n2)
                nfft = mb - ma + 1
 
                !reverse ordering
                !input: I1,J2,j3,Jp2,(jp3)
                IF (nproc == 1) THEN
-                  CALL mpiswitch(j3, nfft, Jp2st, J2st, lot, n1, nd2, nd3, nproc, zmpi2, zw(1, 1, 1))
+                  CALL mpiswitch(j3, nfft, Jp2st, J2st, lot1, n1, nd2, nd3, nproc, zmpi2, zw1)
                ELSE
-                  CALL mpiswitch(j3, nfft, Jp2st, J2st, lot, n1, nd2, nd3, nproc, zmpi1, zw(1, 1, 1))
+                  CALL mpiswitch(j3, nfft, Jp2st, J2st, lot1, n1, nd2, nd3, nproc, zmpi1, zw1)
                END IF
                !output: J2,Jp2,I1,j3,(jp3)
 
                !performing FFT
                !input: I2,I1,j3,(jp3)
-               inzee = 1
-               DO i = 1, ic1 - 1
-                  CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
-                              trig1, after1(i), now1(i), before1(i), 1)
-                  inzee = 3 - inzee
-               END DO
-               !storing the last step into zt
-               i = ic1
-               CALL fftstp(lot, nfft, n1, lzt, n1, zw(1, 1, inzee), zt(1, j, 1), &
-                           trig1, after1(i), now1(i), before1(i), 1)
+               ! This is equivalent to
+               IF (nfft == lot1) THEN
+                  CALL fft_1d(fft_plan_bw1, zw1, zt(j:, 1), 1.0_dp, stat)
+               ELSE
+                  CALL fft_1d(fft_plan_bw1_last, zw1, zt(j:, 1), 1.0_dp, stat)
+               END IF
                !output: I2,i1,j3,(jp3)
             END DO
 
             !transform along y axis, and taking only the first half
-            lot = ncache/(4*n2)
-            CPASSERT(lot >= 1)
 
-            DO j = 1, nk1, lot
+            DO j = 1, nk1, lot2
                ma = j
-               mb = MIN(j + (lot - 1), nk1)
+               mb = MIN(j + (lot2 - 1), nk1)
                nfft = mb - ma + 1
 
                !reverse ordering
                !input: I2,i1,j3,(jp3)
-               CALL switch(nfft, n2, lot, n1, lzt, zt(1, 1, j), zw(1, 1, 1))
+               CALL switch(nfft, n2, lot2, n1, lzt, zt(:, j), zw1)
                !output: i1,I2,j3,(jp3)
 
                !performing FFT
                !input: i1,I2,j3,(jp3)
-               inzee = 1
-               DO i = 1, ic2
-                  CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
-                              trig2, after2(i), now2(i), before2(i), 1)
-                  inzee = 3 - inzee
-               END DO
+               ! This is equivalent to
+               IF (nfft == lot2) THEN
+                  CALL fft_1d(fft_plan_bw2, zw1, zw2, 1.0_dp, stat)
+               ELSE
+                  CALL fft_1d(fft_plan_bw2_last, zw1, zw2, 1.0_dp, stat)
+               END IF
 
-               CALL realcopy(lot, nfft, n2, nk1, nk2, zw(1, 1, inzee), zr(j, 1, j3))
+               CALL realcopy(lot2, nfft, n2, nk1, nk2, zw2, zr(j, 1, j3))
 
             END DO
             !output: i1,i2,j3,(jp3)
          END IF
       END DO
 
+      IF (n2 >= lot1) CALL fft_destroy_plan(fft_plan_bw1)
+      IF (final_chunk_size1 > 0) CALL fft_destroy_plan(fft_plan_bw1_last)
+
+      IF (nk1 >= lot2) CALL fft_destroy_plan(fft_plan_bw2)
+      IF (final_chunk_size2 > 0) CALL fft_destroy_plan(fft_plan_bw2_last)
+
+      IF (n1 >= lot3) CALL fft_destroy_plan(fft_plan_bw3)
+      IF (final_chunk_size3 > 0) CALL fft_destroy_plan(fft_plan_bw3_last)
+
       !De-allocations
-      DEALLOCATE (trig1)
-      DEALLOCATE (after1)
-      DEALLOCATE (now1)
-      DEALLOCATE (before1)
-      DEALLOCATE (trig2)
-      DEALLOCATE (after2)
-      DEALLOCATE (now2)
-      DEALLOCATE (before2)
-      DEALLOCATE (trig3)
-      DEALLOCATE (after3)
-      DEALLOCATE (now3)
-      DEALLOCATE (before3)
       DEALLOCATE (zmpi2)
-      DEALLOCATE (zw)
-      DEALLOCATE (zt)
+      CALL fft_dealloc(zw1)
+      CALL fft_dealloc(zw2)
+      CALL fft_dealloc(zt)
       DEALLOCATE (cosinarr)
       IF (nproc > 1) DEALLOCATE (zmpi1)
 
@@ -1319,16 +1274,16 @@ CONTAINS
 !> \param zin ...
 !> \param zout ...
 ! **************************************************************************************************
-   SUBROUTINE realcopy(lot, nfft, n2, nk1, nk2, zin, zout)
+   PURE SUBROUTINE realcopy(lot, nfft, n2, nk1, nk2, zin, zout)
       INTEGER, INTENT(in)                                :: lot, nfft, n2, nk1, nk2
-      REAL(KIND=dp), DIMENSION(2, lot, n2), INTENT(in)   :: zin
+      COMPLEX(KIND=dp), DIMENSION(lot, n2), INTENT(in)   :: zin
       REAL(KIND=dp), DIMENSION(nk1, nk2), INTENT(inout)  :: zout
 
       INTEGER                                            :: i, j
 
       DO i = 1, nk2
          DO j = 1, nfft
-            zout(j, i) = zin(1, j, i)
+            zout(j, i) = REAL(zin(j, i), dp)
          END DO
       END DO
 
@@ -1344,20 +1299,19 @@ CONTAINS
 !> \param zt ...
 !> \param zw ...
 ! **************************************************************************************************
-   SUBROUTINE switch(nfft, n2, lot, n1, lzt, zt, zw)
-      INTEGER                                            :: nfft, n2, lot, n1, lzt
-      REAL(KIND=dp)                                      :: zt(2, lzt, n1), zw(2, lot, n2)
+   PURE SUBROUTINE switch(nfft, n2, lot, n1, lzt, zt, zw)
+      INTEGER, INTENT(IN)                                :: nfft, n2, lot, n1, lzt
+      COMPLEX(KIND=dp), INTENT(IN)                       :: zt(lzt, n1)
+      COMPLEX(KIND=dp), INTENT(INOUT)                    :: zw(lot, n2)
 
       INTEGER                                            :: i, j
 
-      DO 200, j = 1, nfft
-         DO 100, i = 1, n2
-            zw(1, j, i) = zt(1, i, j)
-            zw(2, j, i) = zt(2, i, j)
-100         CONTINUE
-200         CONTINUE
-            RETURN
-            END SUBROUTINE switch
+      DO j = 1, nfft
+         DO i = 1, n2
+            zw(j, i) = zt(i, j)
+         END DO
+      END DO
+   END SUBROUTINE switch
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1373,30 +1327,31 @@ CONTAINS
 !> \param zmpi1 ...
 !> \param zw ...
 ! **************************************************************************************************
-            SUBROUTINE mpiswitch(j3, nfft, Jp2st, J2st, lot, n1, nd2, nd3, nproc, zmpi1, zw)
-      INTEGER                                            :: j3, nfft, Jp2st, J2st, lot, n1, nd2, &
-                                                            nd3, nproc
-      REAL(KIND=dp) :: zmpi1(2, n1, nd2/nproc, nd3/nproc, nproc), zw(2, lot, n1)
+   PURE SUBROUTINE mpiswitch(j3, nfft, Jp2st, J2st, lot, n1, nd2, nd3, nproc, zmpi1, zw)
+      INTEGER, INTENT(IN)                                :: j3, nfft
+      INTEGER, INTENT(INOUT)                             :: Jp2st, J2st
+      INTEGER, INTENT(IN)                                :: lot, n1, nd2, nd3, nproc
+      COMPLEX(KIND=dp), INTENT(IN) :: zmpi1(n1, nd2/nproc, nd3/nproc, nproc)
+      COMPLEX(KIND=dp), INTENT(INOUT)                    :: zw(lot, n1)
 
       INTEGER                                            :: I1, J2, JP2, mfft
 
-               mfft = 0
-               DO 300, Jp2 = Jp2st, nproc
-                  DO 200, J2 = J2st, nd2/nproc
-                     mfft = mfft + 1
-                     IF (mfft > nfft) THEN
-                        Jp2st = Jp2
-                        J2st = J2
-                        RETURN
-                     END IF
-                     DO 100, I1 = 1, n1
-                        zw(1, mfft, I1) = zmpi1(1, I1, J2, j3, Jp2)
-                        zw(2, mfft, I1) = zmpi1(2, I1, J2, j3, Jp2)
-100                     CONTINUE
-200                     CONTINUE
-                        J2st = 1
-300                     CONTINUE
-                        END SUBROUTINE mpiswitch
+      mfft = 0
+      DO Jp2 = Jp2st, nproc
+         DO J2 = J2st, nd2/nproc
+            mfft = mfft + 1
+            IF (mfft > nfft) THEN
+               Jp2st = Jp2
+               J2st = J2
+               RETURN
+            END IF
+            DO I1 = 1, n1
+               zw(mfft, I1) = zmpi1(I1, J2, j3, Jp2)
+            END DO
+         END DO
+         J2st = 1
+      END DO
+   END SUBROUTINE mpiswitch
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1406,9 +1361,9 @@ CONTAINS
 !> \param drange ...
 !> \param acc ...
 ! **************************************************************************************************
-                        SUBROUTINE gequad(p, w, urange, drange, acc)
+   PURE SUBROUTINE gequad(p, w, urange, drange, acc)
 !
-      REAL(KIND=dp)                                      :: p(*), w(*), urange, drange, acc
+      REAL(KIND=dp), INTENT(OUT)                         :: p(89), w(89), urange, drange, acc
 
 !
 !
@@ -1416,192 +1371,190 @@ CONTAINS
 !
 !
 
-                           p(1) = 4.96142640560223544e19_dp
-                           p(2) = 1.37454269147978052e19_dp
-                           p(3) = 7.58610013441204679e18_dp
-                           p(4) = 4.42040691347806996e18_dp
-                           p(5) = 2.61986077948367892e18_dp
-                           p(6) = 1.56320138155496681e18_dp
-                           p(7) = 9.35645215863028402e17_dp
-                           p(8) = 5.60962910452691703e17_dp
-                           p(9) = 3.3666225119686761e17_dp
-                           p(10) = 2.0218253197947866e17_dp
-                           p(11) = 1.21477756091902017e17_dp
-                           p(12) = 7.3012982513608503e16_dp
-                           p(13) = 4.38951893556421099e16_dp
-                           p(14) = 2.63949482512262325e16_dp
-                           p(15) = 1.58742054072786174e16_dp
-                           p(16) = 9.54806587737665531e15_dp
-                           p(17) = 5.74353712364571709e15_dp
-                           p(18) = 3.455214877389445e15_dp
-                           p(19) = 2.07871658520326804e15_dp
-                           p(20) = 1.25064667315629928e15_dp
-                           p(21) = 7.52469429541933745e14_dp
-                           p(22) = 4.5274603337253175e14_dp
-                           p(23) = 2.72414006900059548e14_dp
-                           p(24) = 1.63912168349216752e14_dp
-                           p(25) = 9.86275802590865738e13_dp
-                           p(26) = 5.93457701624974985e13_dp
-                           p(27) = 3.5709554322296296e13_dp
-                           p(28) = 2.14872890367310454e13_dp
-                           p(29) = 1.29294719957726902e13_dp
-                           p(30) = 7.78003375426361016e12_dp
-                           p(31) = 4.68148199759876704e12_dp
-                           p(32) = 2.8169955024829868e12_dp
-                           p(33) = 1.69507790481958464e12_dp
-                           p(34) = 1.01998486064607581e12_dp
-                           p(35) = 6.13759486539856459e11_dp
-                           p(36) = 3.69320183828682544e11_dp
-                           p(37) = 2.22232783898905102e11_dp
-                           p(38) = 1.33725247623668682e11_dp
-                           p(39) = 8.0467192739036288e10_dp
-                           p(40) = 4.84199582415144143e10_dp
-                           p(41) = 2.91360091170559564e10_dp
-                           p(42) = 1.75321747475309216e10_dp
-                           p(43) = 1.0549735552210995e10_dp
-                           p(44) = 6.34815321079006586e9_dp
-                           p(45) = 3.81991113733594231e9_dp
-                           p(46) = 2.29857747533101109e9_dp
-                           p(47) = 1.38313653595483694e9_dp
-                           p(48) = 8.32282908580025358e8_dp
-                           p(49) = 5.00814519374587467e8_dp
-                           p(50) = 3.01358090773319025e8_dp
-                           p(51) = 1.81337994217503535e8_dp
-                           p(52) = 1.09117589961086823e8_dp
-                           p(53) = 6.56599771718640323e7_dp
-                           p(54) = 3.95099693638497164e7_dp
-                           p(55) = 2.37745694710665991e7_dp
-                           p(56) = 1.43060135285912813e7_dp
-                           p(57) = 8.60844290313506695e6_dp
-                           p(58) = 5.18000974075383424e6_dp
-                           p(59) = 3.116998193057466e6_dp
-                           p(60) = 1.87560993870024029e6_dp
-                           p(61) = 1.12862197183979562e6_dp
-                           p(62) = 679132.441326077231_dp
-                           p(63) = 408658.421279877969_dp
-                           p(64) = 245904.473450669789_dp
-                           p(65) = 147969.568088321005_dp
-                           p(66) = 89038.612357311147_dp
-                           p(67) = 53577.7362552358895_dp
-                           p(68) = 32239.6513926914668_dp
-                           p(69) = 19399.7580852362791_dp
-                           p(70) = 11673.5323603058634_dp
-                           p(71) = 7024.38438577707758_dp
-                           p(72) = 4226.82479307685999_dp
-                           p(73) = 2543.43254175354295_dp
-                           p(74) = 1530.47486269122675_dp
-                           p(75) = 920.941785160749482_dp
-                           p(76) = 554.163803906291646_dp
-                           p(77) = 333.46029740785694_dp
-                           p(78) = 200.6550575335041_dp
-                           p(79) = 120.741366914147284_dp
-                           p(80) = 72.6544243200329916_dp
-                           p(81) = 43.7187810415471025_dp
-                           p(82) = 26.3071631447061043_dp
-                           p(83) = 15.8299486353816329_dp
-                           p(84) = 9.52493152341244004_dp
-                           p(85) = 5.72200417067776041_dp
-                           p(86) = 3.36242234070940928_dp
-                           p(87) = 1.75371394604499472_dp
-                           p(88) = 0.64705932650658966_dp
-                           p(89) = 0.072765905943708247_dp
-                           !
-                           w(1) = 47.67445484528304247e10_dp
-                           w(2) = 11.37485774750442175e9_dp
-                           w(3) = 78.64340976880190239e8_dp
-                           w(4) = 46.27335788759590498e8_dp
-                           w(5) = 24.7380464827152951e8_dp
-                           w(6) = 13.62904116438987719e8_dp
-                           w(7) = 92.79560029045882433e8_dp
-                           w(8) = 52.15931216254660251e8_dp
-                           w(9) = 31.67018011061666244e8_dp
-                           w(10) = 1.29291036801493046e8_dp
-                           w(11) = 1.00139319988015862e8_dp
-                           w(12) = 7.75892350510188341e7_dp
-                           w(13) = 6.01333567950731271e7_dp
-                           w(14) = 4.66141178654796875e7_dp
-                           w(15) = 3.61398903394911448e7_dp
-                           w(16) = 2.80225846672956389e7_dp
-                           w(17) = 2.1730509180930247e7_dp
-                           w(18) = 1.68524482625876965e7_dp
-                           w(19) = 1.30701489345870338e7_dp
-                           w(20) = 1.01371784832269282e7_dp
-                           w(21) = 7.86264116300379329e6_dp
-                           w(22) = 6.09861667912273717e6_dp
-                           w(23) = 4.73045784039455683e6_dp
-                           w(24) = 3.66928949951594161e6_dp
-                           w(25) = 2.8462050836230259e6_dp
-                           w(26) = 2.20777394798527011e6_dp
-                           w(27) = 1.71256191589205524e6_dp
-                           w(28) = 1.32843556197737076e6_dp
-                           w(29) = 1.0304731275955989e6_dp
-                           w(30) = 799345.206572271448_dp
-                           w(31) = 620059.354143595343_dp
-                           w(32) = 480986.704107449333_dp
-                           w(33) = 373107.167700228515_dp
-                           w(34) = 289424.08337412132_dp
-                           w(35) = 224510.248231581788_dp
-                           w(36) = 174155.825690028966_dp
-                           w(37) = 135095.256919654065_dp
-                           w(38) = 104795.442776800312_dp
-                           w(39) = 81291.4458222430418_dp
-                           w(40) = 63059.0493649328682_dp
-                           w(41) = 48915.9040455329689_dp
-                           w(42) = 37944.8484018048756_dp
-                           w(43) = 29434.4290473253969_dp
-                           w(44) = 22832.7622054490044_dp
-                           w(45) = 17711.743950151233_dp
-                           w(46) = 13739.287867104177_dp
-                           w(47) = 10657.7895710752585_dp
-                           w(48) = 8267.42141053961834_dp
-                           w(49) = 6413.17397520136448_dp
-                           w(50) = 4974.80402838654277_dp
-                           w(51) = 3859.03698188553047_dp
-                           w(52) = 2993.51824493299154_dp
-                           w(53) = 2322.1211966811754_dp
-                           w(54) = 1801.30750964719641_dp
-                           w(55) = 1397.30379659817038_dp
-                           w(56) = 1083.91149143250697_dp
-                           w(57) = 840.807939169209188_dp
-                           w(58) = 652.228524366749422_dp
-                           w(59) = 505.944376983506128_dp
-                           w(60) = 392.469362317941064_dp
-                           w(61) = 304.444930257324312_dp
-                           w(62) = 236.162932842453601_dp
-                           w(63) = 183.195466078603525_dp
-                           w(64) = 142.107732186551471_dp
-                           w(65) = 110.23530215723992_dp
-                           w(66) = 85.5113346705382257_dp
-                           w(67) = 66.3325469806696621_dp
-                           w(68) = 51.4552463353841373_dp
-                           w(69) = 39.9146798429449273_dp
-                           w(70) = 30.9624728409162095_dp
-                           w(71) = 24.018098812215013_dp
-                           w(72) = 18.6312338024296588_dp
-                           w(73) = 14.4525541233150501_dp
-                           w(74) = 11.2110836519105938_dp
-                           w(75) = 8.69662175848497178_dp
-                           w(76) = 6.74611236165731961_dp
-                           w(77) = 5.23307018057529994_dp
-                           w(78) = 4.05937850501539556_dp
-                           w(79) = 3.14892659076635714_dp
-                           w(80) = 2.44267408211071604_dp
-                           w(81) = 1.89482240522855261_dp
-                           w(82) = 1.46984505907050079_dp
-                           w(83) = 1.14019261330527007_dp
-                           w(84) = 0.884791217422925293_dp
-                           w(85) = 0.692686387080616483_dp
-                           w(86) = 0.585244576897023282_dp
-                           w(87) = 0.576182522545327589_dp
-                           w(88) = 0.596688817388997178_dp
-                           w(89) = 0.607879901151108771_dp
-                           !
-                           !
-                           urange = 1._dp
-                           drange = 1e-08_dp
-                           acc = 1e-08_dp
-                           !
-                           RETURN
-                        END SUBROUTINE gequad
+      p(1) = 4.96142640560223544e19_dp
+      p(2) = 1.37454269147978052e19_dp
+      p(3) = 7.58610013441204679e18_dp
+      p(4) = 4.42040691347806996e18_dp
+      p(5) = 2.61986077948367892e18_dp
+      p(6) = 1.56320138155496681e18_dp
+      p(7) = 9.35645215863028402e17_dp
+      p(8) = 5.60962910452691703e17_dp
+      p(9) = 3.3666225119686761e17_dp
+      p(10) = 2.0218253197947866e17_dp
+      p(11) = 1.21477756091902017e17_dp
+      p(12) = 7.3012982513608503e16_dp
+      p(13) = 4.38951893556421099e16_dp
+      p(14) = 2.63949482512262325e16_dp
+      p(15) = 1.58742054072786174e16_dp
+      p(16) = 9.54806587737665531e15_dp
+      p(17) = 5.74353712364571709e15_dp
+      p(18) = 3.455214877389445e15_dp
+      p(19) = 2.07871658520326804e15_dp
+      p(20) = 1.25064667315629928e15_dp
+      p(21) = 7.52469429541933745e14_dp
+      p(22) = 4.5274603337253175e14_dp
+      p(23) = 2.72414006900059548e14_dp
+      p(24) = 1.63912168349216752e14_dp
+      p(25) = 9.86275802590865738e13_dp
+      p(26) = 5.93457701624974985e13_dp
+      p(27) = 3.5709554322296296e13_dp
+      p(28) = 2.14872890367310454e13_dp
+      p(29) = 1.29294719957726902e13_dp
+      p(30) = 7.78003375426361016e12_dp
+      p(31) = 4.68148199759876704e12_dp
+      p(32) = 2.8169955024829868e12_dp
+      p(33) = 1.69507790481958464e12_dp
+      p(34) = 1.01998486064607581e12_dp
+      p(35) = 6.13759486539856459e11_dp
+      p(36) = 3.69320183828682544e11_dp
+      p(37) = 2.22232783898905102e11_dp
+      p(38) = 1.33725247623668682e11_dp
+      p(39) = 8.0467192739036288e10_dp
+      p(40) = 4.84199582415144143e10_dp
+      p(41) = 2.91360091170559564e10_dp
+      p(42) = 1.75321747475309216e10_dp
+      p(43) = 1.0549735552210995e10_dp
+      p(44) = 6.34815321079006586e9_dp
+      p(45) = 3.81991113733594231e9_dp
+      p(46) = 2.29857747533101109e9_dp
+      p(47) = 1.38313653595483694e9_dp
+      p(48) = 8.32282908580025358e8_dp
+      p(49) = 5.00814519374587467e8_dp
+      p(50) = 3.01358090773319025e8_dp
+      p(51) = 1.81337994217503535e8_dp
+      p(52) = 1.09117589961086823e8_dp
+      p(53) = 6.56599771718640323e7_dp
+      p(54) = 3.95099693638497164e7_dp
+      p(55) = 2.37745694710665991e7_dp
+      p(56) = 1.43060135285912813e7_dp
+      p(57) = 8.60844290313506695e6_dp
+      p(58) = 5.18000974075383424e6_dp
+      p(59) = 3.116998193057466e6_dp
+      p(60) = 1.87560993870024029e6_dp
+      p(61) = 1.12862197183979562e6_dp
+      p(62) = 679132.441326077231_dp
+      p(63) = 408658.421279877969_dp
+      p(64) = 245904.473450669789_dp
+      p(65) = 147969.568088321005_dp
+      p(66) = 89038.612357311147_dp
+      p(67) = 53577.7362552358895_dp
+      p(68) = 32239.6513926914668_dp
+      p(69) = 19399.7580852362791_dp
+      p(70) = 11673.5323603058634_dp
+      p(71) = 7024.38438577707758_dp
+      p(72) = 4226.82479307685999_dp
+      p(73) = 2543.43254175354295_dp
+      p(74) = 1530.47486269122675_dp
+      p(75) = 920.941785160749482_dp
+      p(76) = 554.163803906291646_dp
+      p(77) = 333.46029740785694_dp
+      p(78) = 200.6550575335041_dp
+      p(79) = 120.741366914147284_dp
+      p(80) = 72.6544243200329916_dp
+      p(81) = 43.7187810415471025_dp
+      p(82) = 26.3071631447061043_dp
+      p(83) = 15.8299486353816329_dp
+      p(84) = 9.52493152341244004_dp
+      p(85) = 5.72200417067776041_dp
+      p(86) = 3.36242234070940928_dp
+      p(87) = 1.75371394604499472_dp
+      p(88) = 0.64705932650658966_dp
+      p(89) = 0.072765905943708247_dp
+      !
+      w(1) = 47.67445484528304247e10_dp
+      w(2) = 11.37485774750442175e9_dp
+      w(3) = 78.64340976880190239e8_dp
+      w(4) = 46.27335788759590498e8_dp
+      w(5) = 24.7380464827152951e8_dp
+      w(6) = 13.62904116438987719e8_dp
+      w(7) = 92.79560029045882433e8_dp
+      w(8) = 52.15931216254660251e8_dp
+      w(9) = 31.67018011061666244e8_dp
+      w(10) = 1.29291036801493046e8_dp
+      w(11) = 1.00139319988015862e8_dp
+      w(12) = 7.75892350510188341e7_dp
+      w(13) = 6.01333567950731271e7_dp
+      w(14) = 4.66141178654796875e7_dp
+      w(15) = 3.61398903394911448e7_dp
+      w(16) = 2.80225846672956389e7_dp
+      w(17) = 2.1730509180930247e7_dp
+      w(18) = 1.68524482625876965e7_dp
+      w(19) = 1.30701489345870338e7_dp
+      w(20) = 1.01371784832269282e7_dp
+      w(21) = 7.86264116300379329e6_dp
+      w(22) = 6.09861667912273717e6_dp
+      w(23) = 4.73045784039455683e6_dp
+      w(24) = 3.66928949951594161e6_dp
+      w(25) = 2.8462050836230259e6_dp
+      w(26) = 2.20777394798527011e6_dp
+      w(27) = 1.71256191589205524e6_dp
+      w(28) = 1.32843556197737076e6_dp
+      w(29) = 1.0304731275955989e6_dp
+      w(30) = 799345.206572271448_dp
+      w(31) = 620059.354143595343_dp
+      w(32) = 480986.704107449333_dp
+      w(33) = 373107.167700228515_dp
+      w(34) = 289424.08337412132_dp
+      w(35) = 224510.248231581788_dp
+      w(36) = 174155.825690028966_dp
+      w(37) = 135095.256919654065_dp
+      w(38) = 104795.442776800312_dp
+      w(39) = 81291.4458222430418_dp
+      w(40) = 63059.0493649328682_dp
+      w(41) = 48915.9040455329689_dp
+      w(42) = 37944.8484018048756_dp
+      w(43) = 29434.4290473253969_dp
+      w(44) = 22832.7622054490044_dp
+      w(45) = 17711.743950151233_dp
+      w(46) = 13739.287867104177_dp
+      w(47) = 10657.7895710752585_dp
+      w(48) = 8267.42141053961834_dp
+      w(49) = 6413.17397520136448_dp
+      w(50) = 4974.80402838654277_dp
+      w(51) = 3859.03698188553047_dp
+      w(52) = 2993.51824493299154_dp
+      w(53) = 2322.1211966811754_dp
+      w(54) = 1801.30750964719641_dp
+      w(55) = 1397.30379659817038_dp
+      w(56) = 1083.91149143250697_dp
+      w(57) = 840.807939169209188_dp
+      w(58) = 652.228524366749422_dp
+      w(59) = 505.944376983506128_dp
+      w(60) = 392.469362317941064_dp
+      w(61) = 304.444930257324312_dp
+      w(62) = 236.162932842453601_dp
+      w(63) = 183.195466078603525_dp
+      w(64) = 142.107732186551471_dp
+      w(65) = 110.23530215723992_dp
+      w(66) = 85.5113346705382257_dp
+      w(67) = 66.3325469806696621_dp
+      w(68) = 51.4552463353841373_dp
+      w(69) = 39.9146798429449273_dp
+      w(70) = 30.9624728409162095_dp
+      w(71) = 24.018098812215013_dp
+      w(72) = 18.6312338024296588_dp
+      w(73) = 14.4525541233150501_dp
+      w(74) = 11.2110836519105938_dp
+      w(75) = 8.69662175848497178_dp
+      w(76) = 6.74611236165731961_dp
+      w(77) = 5.23307018057529994_dp
+      w(78) = 4.05937850501539556_dp
+      w(79) = 3.14892659076635714_dp
+      w(80) = 2.44267408211071604_dp
+      w(81) = 1.89482240522855261_dp
+      w(82) = 1.46984505907050079_dp
+      w(83) = 1.14019261330527007_dp
+      w(84) = 0.884791217422925293_dp
+      w(85) = 0.692686387080616483_dp
+      w(86) = 0.585244576897023282_dp
+      w(87) = 0.576182522545327589_dp
+      w(88) = 0.596688817388997178_dp
+      w(89) = 0.607879901151108771_dp
+      !
+      !
+      urange = 1._dp
+      drange = 1e-08_dp
+      acc = 1e-08_dp
+   END SUBROUTINE gequad
 
-                        END MODULE ps_wavelet_kernel
+END MODULE ps_wavelet_kernel

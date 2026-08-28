@@ -65,7 +65,6 @@
   PRINT_LEVEL MEDIUM
   PROJECT H2-big-10
   RUN_TYPE MD
-  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
   ! TRACE
   ! TRACE_MASTER
   ! TRACE_MAX 1000
