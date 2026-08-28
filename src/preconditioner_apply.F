@@ -165,27 +165,31 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(preconditioner_env%in_use == ot_precond_full_single_inverse)
+      SELECT CASE (preconditioner_env%in_use)
+      CASE (ot_precond_full_single_inverse, ot_precond_full_kinetic, ot_precond_s_inverse)
+      CASE DEFAULT
+         CPABORT("Unsupported complex K-point OT preconditioner")
+      END SELECT
       CPASSERT(ASSOCIATED(preconditioner_env%complex_fm))
       CALL dbcsr_get_info(matrix_in_re, nfullrows_total=n, nfullcols_total=k)
       CALL cp_cfm_get_info(preconditioner_env%complex_fm, nrow_global=npre)
       CPASSERT(n == npre)
 
       CALL cp_fm_create(matrix_in_re_fm, preconditioner_env%complex_fm%matrix_struct, &
-                        nrow=n, ncol=k, name='complex FULL_SINGLE input real')
+                        nrow=n, ncol=k, name='complex preconditioner input real')
       CALL cp_fm_create(matrix_in_im_fm, preconditioner_env%complex_fm%matrix_struct, &
-                        nrow=n, ncol=k, name='complex FULL_SINGLE input imaginary')
+                        nrow=n, ncol=k, name='complex preconditioner input imaginary')
       CALL cp_fm_create(matrix_out_re_fm, preconditioner_env%complex_fm%matrix_struct, &
-                        nrow=n, ncol=k, name='complex FULL_SINGLE output real')
+                        nrow=n, ncol=k, name='complex preconditioner output real')
       CALL cp_fm_create(matrix_out_im_fm, preconditioner_env%complex_fm%matrix_struct, &
-                        nrow=n, ncol=k, name='complex FULL_SINGLE output imaginary')
+                        nrow=n, ncol=k, name='complex preconditioner output imaginary')
       CALL copy_dbcsr_to_fm(matrix_in_re, matrix_in_re_fm)
       CALL copy_dbcsr_to_fm(matrix_in_im, matrix_in_im_fm)
 
       CALL cp_cfm_create(matrix_in, matrix_in_re_fm%matrix_struct, &
-                         name='complex FULL_SINGLE input')
+                         name='complex preconditioner input')
       CALL cp_cfm_create(matrix_out, matrix_in_re_fm%matrix_struct, &
-                         name='complex FULL_SINGLE output')
+                         name='complex preconditioner output')
       CALL cp_fm_to_cfm(matrix_in_re_fm, matrix_in_im_fm, matrix_in)
       CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
                        matrix_in, z_zero, matrix_out)

@@ -74,7 +74,8 @@ MODULE preconditioner_makes
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_makes'
 
-   PUBLIC :: make_complex_full_single_inverse, make_preconditioner_matrix
+   PUBLIC :: make_complex_full_kinetic, make_complex_full_s_inverse, &
+             make_complex_full_single_inverse, make_preconditioner_matrix
 
 CONTAINS
 
@@ -849,7 +850,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_complex_full_single_inverse'
 
-      INTEGER                                            :: handle, i, info, k, n
+      INTEGER                                            :: handle, i, k, n
       REAL(KIND=dp)                                      :: max_ev, min_ev, pre_shift, target_edge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occupied_evals, operator_evals
       TYPE(cp_cfm_type) :: matrix_chc, matrix_diag_a, matrix_diag_b, matrix_diag_evec, &
@@ -862,11 +863,6 @@ CONTAINS
       CPASSERT(n > 0)
       CPASSERT(k > 0 .AND. k <= n)
       CPASSERT(energy_gap > 0.0_dp)
-
-      IF (ASSOCIATED(preconditioner_env%complex_fm)) THEN
-         CALL cp_cfm_release(preconditioner_env%complex_fm)
-         DEALLOCATE (preconditioner_env%complex_fm)
-      END IF
 
       CALL cp_cfm_create(matrix_hc0, matrix_c0%matrix_struct, name='complex FULL_SINGLE HC')
       CALL cp_cfm_create(matrix_sc0, matrix_c0%matrix_struct, name='complex FULL_SINGLE SC')
@@ -926,19 +922,8 @@ CONTAINS
                                    CMPLX(pre_shift, 0.0_dp, KIND=dp), matrix_s)
       END IF
 
-      ALLOCATE (preconditioner_env%complex_fm)
-      CALL cp_cfm_create(preconditioner_env%complex_fm, matrix_h%matrix_struct, &
-                         name='complex FULL_SINGLE inverse')
-      CALL cp_cfm_to_cfm(matrix_operator, preconditioner_env%complex_fm)
-      CALL cp_cfm_cholesky_decompose(preconditioner_env%complex_fm, info_out=info)
-      CPASSERT(info == 0)
-      CALL cp_cfm_cholesky_invert(preconditioner_env%complex_fm, info_out=info)
-      CPASSERT(info == 0)
-      CALL cp_cfm_uplo_to_full(preconditioner_env%complex_fm)
-
-      preconditioner_env%energy_gap = energy_gap
-      preconditioner_env%in_use = ot_precond_full_single_inverse
-      preconditioner_env%solver = ot_precond_solver_default
+      CALL store_complex_inverse(preconditioner_env, matrix_operator, &
+                                 ot_precond_full_single_inverse, energy_gap)
 
       DEALLOCATE (operator_evals, occupied_evals)
       CALL cp_cfm_release(matrix_occ_diag_work)
@@ -958,5 +943,83 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE make_complex_full_single_inverse
+
+! **************************************************************************************************
+!> \brief Build the inverse complex overlap preconditioner.
+!> \param preconditioner_env preconditioner storage
+!> \param matrix_s complex Hermitian k-point overlap
+! **************************************************************************************************
+   SUBROUTINE make_complex_full_s_inverse(preconditioner_env, matrix_s)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_s
+
+      CALL store_complex_inverse(preconditioner_env, matrix_s, ot_precond_s_inverse, 0.0_dp)
+
+   END SUBROUTINE make_complex_full_s_inverse
+
+! **************************************************************************************************
+!> \brief Build the inverse complex kinetic-plus-overlap preconditioner.
+!> \param preconditioner_env preconditioner storage
+!> \param matrix_t complex Hermitian k-point kinetic operator
+!> \param matrix_s complex Hermitian k-point overlap
+!> \param energy_gap non-negative overlap shift
+! **************************************************************************************************
+   SUBROUTINE make_complex_full_kinetic(preconditioner_env, matrix_t, matrix_s, energy_gap)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_t, matrix_s
+      REAL(KIND=dp), INTENT(IN)                          :: energy_gap
+
+      REAL(KIND=dp)                                      :: shift
+      TYPE(cp_cfm_type)                                  :: matrix_operator
+
+      shift = MAX(0.0_dp, energy_gap)
+      CALL cp_cfm_create(matrix_operator, matrix_t%matrix_struct, &
+                         name='complex FULL_KINETIC operator')
+      CALL cp_cfm_to_cfm(matrix_t, matrix_operator)
+      CALL cp_cfm_scale_and_add(z_one, matrix_operator, CMPLX(shift, 0.0_dp, KIND=dp), matrix_s)
+      CALL store_complex_inverse(preconditioner_env, matrix_operator, &
+                                 ot_precond_full_kinetic, energy_gap)
+      CALL cp_cfm_release(matrix_operator)
+
+   END SUBROUTINE make_complex_full_kinetic
+
+! **************************************************************************************************
+!> \brief Store an explicitly inverted positive complex Hermitian operator.
+!> \param preconditioner_env preconditioner storage
+!> \param matrix_operator positive complex Hermitian operator
+!> \param preconditioner_kind selected OT preconditioner
+!> \param energy_gap configured spectral shift
+! **************************************************************************************************
+   SUBROUTINE store_complex_inverse(preconditioner_env, matrix_operator, &
+                                    preconditioner_kind, energy_gap)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_operator
+      INTEGER, INTENT(IN)                                :: preconditioner_kind
+      REAL(KIND=dp), INTENT(IN)                          :: energy_gap
+
+      INTEGER                                            :: info
+
+      IF (ASSOCIATED(preconditioner_env%complex_fm)) THEN
+         CALL cp_cfm_release(preconditioner_env%complex_fm)
+         DEALLOCATE (preconditioner_env%complex_fm)
+      END IF
+      ALLOCATE (preconditioner_env%complex_fm)
+      CALL cp_cfm_create(preconditioner_env%complex_fm, matrix_operator%matrix_struct, &
+                         name='complex inverse preconditioner')
+      CALL cp_cfm_to_cfm(matrix_operator, preconditioner_env%complex_fm)
+      CALL cp_cfm_cholesky_decompose(preconditioner_env%complex_fm, info_out=info)
+      CPASSERT(info == 0)
+      CALL cp_cfm_cholesky_invert(preconditioner_env%complex_fm, info_out=info)
+      CPASSERT(info == 0)
+      CALL cp_cfm_uplo_to_full(preconditioner_env%complex_fm)
+
+      preconditioner_env%energy_gap = energy_gap
+      preconditioner_env%in_use = preconditioner_kind
+      preconditioner_env%solver = ot_precond_solver_default
+
+   END SUBROUTINE store_complex_inverse
 
 END MODULE preconditioner_makes

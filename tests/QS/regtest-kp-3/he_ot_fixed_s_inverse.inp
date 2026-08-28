@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT he_ot_fixed
+  PROJECT he_ot_fixed_s_inverse
   RUN_TYPE ENERGY
 &END GLOBAL
 
@@ -31,7 +31,7 @@
       &OT
         ALGORITHM IRAC
         MINIMIZER CG
-        PRECONDITIONER FULL_KINETIC
+        PRECONDITIONER FULL_S_INVERSE
       &END OT
       &PRINT
         &RESTART OFF

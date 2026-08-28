@@ -87,9 +87,9 @@ MODULE qs_scf
         broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, &
         broyden_type_2, broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
         cdft2ot, cholesky_dbcsr, diag_update_method_adiis, history_guess, ot2cdft, &
-        ot_precond_full_all, ot_precond_full_single, ot_precond_full_single_inverse, &
-        ot_precond_none, ot_precond_s_inverse, outer_scf_becke_constraint, &
-        outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
+        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+        outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
         outer_scf_optimizer_newton_ls, restart_guess, sic_eo, tblite_scc_mixer_tblite
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -111,7 +111,9 @@ MODULE qs_scf
                                               mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
-   USE preconditioner,                  ONLY: make_preconditioner_complex_full_single_inverse,&
+   USE preconditioner,                  ONLY: make_preconditioner_complex_full_kinetic,&
+                                              make_preconditioner_complex_full_s_inverse,&
+                                              make_preconditioner_complex_full_single_inverse,&
                                               prepare_preconditioner,&
                                               restart_preconditioner
    USE preconditioner_types,            ONLY: destroy_preconditioner,&
@@ -1036,7 +1038,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h_kp, matrix_ks_kp, matrix_s_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h_kp, matrix_ks_kp, matrix_s_kp, &
+                                                            matrix_t_kp
       TYPE(dbcsr_type), POINTER                          :: orthogonality_metric
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -1046,8 +1049,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (scf_control, matrix_h_kp, matrix_ks_kp, matrix_s, matrix_s_kp, matrix_ks, dft_control, mos, &
-               mo_coeff, kpoints, qs_kind_set, wkp)
+      NULLIFY (scf_control, matrix_h_kp, matrix_ks_kp, matrix_s, matrix_s_kp, matrix_t_kp, matrix_ks, &
+               dft_control, mos, mo_coeff, kpoints, qs_kind_set, wkp)
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(ASSOCIATED(qs_env))
@@ -1228,7 +1231,8 @@ CONTAINS
                CPABORT("K-point OT currently requires one K-point group; set PARALLEL_GROUP_SIZE 0.")
             END IF
             IF (.NOT. ASSOCIATED(scf_env%qs_ot_env)) THEN
-               CALL get_qs_env(qs_env, matrix_h_kp=matrix_h_kp, matrix_s_kp=matrix_s_kp)
+               CALL get_qs_env(qs_env, matrix_h_kp=matrix_h_kp, matrix_s_kp=matrix_s_kp, &
+                               kinetic_kp=matrix_t_kp)
                CPASSERT(ASSOCIATED(matrix_h_kp))
                CPASSERT(ASSOCIATED(matrix_s_kp))
                CALL allocate_qs_ot_envs(scf_env=scf_env, &
@@ -1279,6 +1283,7 @@ CONTAINS
                                                 kpoints=kpoints, &
                                                 matrix_ks_kp=matrix_ks_kp, &
                                                 matrix_s_kp=matrix_s_kp, &
+                                                matrix_t_kp=matrix_t_kp, &
                                                 nspin_ot=nspin_ot)
             END IF
 
@@ -1424,6 +1429,12 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(IN)                  :: kp_range
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
 
+      CHARACTER(len=*), PARAMETER :: kpoint_precond_error = &
+         "Complex K-point OT supports PRECONDITIONER NONE, FULL_S_INVERSE, "// &
+         "FULL_KINETIC, or FULL_SINGLE_INVERSE.", kpoint_solver_error = &
+         "Complex K-point inverse preconditioners support PRECOND_SOLVER DEFAULT "// &
+         "or INVERSE_CHOLESKY."
+
       INTEGER                                            :: ikpoint, ispin, local_kpoint, &
                                                             number_of_OT_envs, ot_channel
       LOGICAL                                            :: do_rotation, is_full_all
@@ -1459,12 +1470,17 @@ CONTAINS
          END IF
          IF (.NOT. qs_ot_kpoint_preconditioner_supported( &
              scf_env%qs_ot_env(1)%settings%preconditioner_type, .FALSE.)) THEN
-            CPABORT("Complex K-point OT supports PRECONDITIONER NONE or FULL_SINGLE_INVERSE.")
+            CPABORT(kpoint_precond_error)
+         END IF
+         IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_kinetic .AND. &
+             (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb .OR. &
+              dft_control%qs_control%xtb)) THEN
+            CPABORT("FULL_KINETIC is unavailable for semi-empirical methods")
          END IF
          IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
              scf_env%qs_ot_env(1)%settings%preconditioner_type, &
              scf_env%qs_ot_env(1)%settings%precond_solver_type, .FALSE.)) THEN
-            CPABORT("Complex K-point FULL_SINGLE_INVERSE supports PRECOND_SOLVER DEFAULT or INVERSE_CHOLESKY.")
+            CPABORT(kpoint_solver_error)
          END IF
          IF (scf_env%qs_ot_env(1)%settings%do_rotation) THEN
             CPABORT("K-point OT orbital rotations are not part of the fixed-occupation implementation.")
@@ -1644,15 +1660,16 @@ CONTAINS
 !> \param kpoints ...
 !> \param matrix_ks_kp ...
 !> \param matrix_s_kp ...
+!> \param matrix_t_kp ...
 !> \param nspin_ot ...
 ! **************************************************************************************************
    SUBROUTINE allocate_qs_ot_kpoint_state(qs_env, scf_env, dft_control, &
-                                          kpoints, matrix_ks_kp, matrix_s_kp, nspin_ot)
+                                          kpoints, matrix_ks_kp, matrix_s_kp, matrix_t_kp, nspin_ot)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp, matrix_t_kp
       INTEGER, INTENT(IN)                                :: nspin_ot
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_qs_ot_kpoint_state'
@@ -1832,7 +1849,7 @@ CONTAINS
                                        require_complex_state=.NOT. use_real_wfn)
 
       CALL prepare_qs_ot_kpoint_preconditioners(scf_env, kpoints, &
-                                                matrix_ks_kp, matrix_s_kp, nspin_ot)
+                                                matrix_ks_kp, matrix_s_kp, matrix_t_kp, nspin_ot)
 
       CALL dbcsr_deallocate_matrix(matrix_sk_re)
       IF (ASSOCIATED(matrix_sk_im)) CALL dbcsr_deallocate_matrix(matrix_sk_im)
@@ -1847,13 +1864,14 @@ CONTAINS
 !> \param kpoints ...
 !> \param matrix_ks_kp ...
 !> \param matrix_s_kp ...
+!> \param matrix_t_kp ...
 !> \param nspin_ot ...
 ! **************************************************************************************************
    SUBROUTINE prepare_qs_ot_kpoint_preconditioners(scf_env, kpoints, &
-                                                   matrix_ks_kp, matrix_s_kp, nspin_ot)
+                                                   matrix_ks_kp, matrix_s_kp, matrix_t_kp, nspin_ot)
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp, matrix_t_kp
       INTEGER, INTENT(IN)                                :: nspin_ot
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_qs_ot_kpoint_preconditioners'
@@ -1865,14 +1883,15 @@ CONTAINS
       LOGICAL                                            :: use_real_wfn
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(dbcsr_type), POINTER                          :: matrix_h_im, matrix_h_re, matrix_s_im, &
-                                                            matrix_s_re
+                                                            matrix_s_re, matrix_t_im, matrix_t_re
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cell_to_index, kp, matrix_h_im, matrix_h_re, matrix_s_im, matrix_s_re, sab_nl, xkp)
+      NULLIFY (cell_to_index, kp, matrix_h_im, matrix_h_re, matrix_s_im, matrix_s_re, matrix_t_im, &
+               matrix_t_re, sab_nl, xkp)
       CPASSERT(ASSOCIATED(scf_env%qs_ot_env))
       CPASSERT(ASSOCIATED(kpoints))
       CPASSERT(ASSOCIATED(matrix_ks_kp))
@@ -1883,7 +1902,14 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
-      CPASSERT(prec_type == ot_precond_full_single_inverse)
+      SELECT CASE (prec_type)
+      CASE (ot_precond_full_single_inverse, ot_precond_full_kinetic, ot_precond_s_inverse)
+      CASE DEFAULT
+         CPABORT("Unsupported complex K-point OT preconditioner")
+      END SELECT
+      IF (prec_type == ot_precond_full_kinetic) THEN
+         CPASSERT(ASSOCIATED(matrix_t_kp))
+      END IF
       CALL get_kpoint_info(kpoints, xkp=xkp, use_real_wfn=use_real_wfn, &
                            cell_to_index=cell_to_index, sab_nl=sab_nl)
       CPASSERT(.NOT. use_real_wfn)
@@ -1909,19 +1935,30 @@ CONTAINS
                                   blacs_env=scf_env%qs_ot_env(ot_channel)%blacs_env)
       END DO
 
-      ALLOCATE (matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im)
-      CALL dbcsr_create(matrix_h_re, template=matrix_ks_kp(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_symmetric)
-      CALL dbcsr_create(matrix_h_im, template=matrix_ks_kp(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_antisymmetric)
+      ALLOCATE (matrix_s_re, matrix_s_im)
       CALL dbcsr_create(matrix_s_re, template=matrix_s_kp(1, 1)%matrix, &
                         matrix_type=dbcsr_type_symmetric)
       CALL dbcsr_create(matrix_s_im, template=matrix_s_kp(1, 1)%matrix, &
                         matrix_type=dbcsr_type_antisymmetric)
-      CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_re, sab_nl)
-      CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_im, sab_nl)
       CALL cp_dbcsr_alloc_block_from_nbl(matrix_s_re, sab_nl)
       CALL cp_dbcsr_alloc_block_from_nbl(matrix_s_im, sab_nl)
+      IF (prec_type == ot_precond_full_single_inverse) THEN
+         ALLOCATE (matrix_h_re, matrix_h_im)
+         CALL dbcsr_create(matrix_h_re, template=matrix_ks_kp(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_symmetric)
+         CALL dbcsr_create(matrix_h_im, template=matrix_ks_kp(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_antisymmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_re, sab_nl)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_im, sab_nl)
+      ELSE IF (prec_type == ot_precond_full_kinetic) THEN
+         ALLOCATE (matrix_t_re, matrix_t_im)
+         CALL dbcsr_create(matrix_t_re, template=matrix_t_kp(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_symmetric)
+         CALL dbcsr_create(matrix_t_im, template=matrix_t_kp(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_antisymmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_t_re, sab_nl)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_t_im, sab_nl)
+      END IF
 
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(local_kpoint)%kpoint_env
@@ -1932,21 +1969,42 @@ CONTAINS
          CALL rskp_transform(rmatrix=matrix_s_re, cmatrix=matrix_s_im, rsmat=matrix_s_kp, &
                              ispin=1, xkp=xkp(1:3, ikpoint), cell_to_index=cell_to_index, &
                              sab_nl=sab_nl)
+         IF (prec_type == ot_precond_full_kinetic) THEN
+            CALL dbcsr_set(matrix_t_re, 0.0_dp)
+            CALL dbcsr_set(matrix_t_im, 0.0_dp)
+            CALL rskp_transform(rmatrix=matrix_t_re, cmatrix=matrix_t_im, rsmat=matrix_t_kp, &
+                                ispin=1, xkp=xkp(1:3, ikpoint), cell_to_index=cell_to_index, &
+                                sab_nl=sab_nl)
+         END IF
          DO ispin = 1, nspin_ot
-            ks_spin = MIN(ispin, SIZE(matrix_ks_kp, 1))
-            CALL dbcsr_set(matrix_h_re, 0.0_dp)
-            CALL dbcsr_set(matrix_h_im, 0.0_dp)
-            CALL rskp_transform(rmatrix=matrix_h_re, cmatrix=matrix_h_im, rsmat=matrix_ks_kp, &
-                                ispin=ks_spin, xkp=xkp(1:3, ikpoint), &
-                                cell_to_index=cell_to_index, sab_nl=sab_nl)
             ot_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot)
-            CALL make_preconditioner_complex_full_single_inverse( &
-               scf_env%ot_preconditioner(ot_channel)%preconditioner, &
-               scf_env%qs_ot_env(ot_channel)%matrix_c0, &
-               scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
-               matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
-               scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
-               scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
+            SELECT CASE (prec_type)
+            CASE (ot_precond_full_single_inverse)
+               ks_spin = MIN(ispin, SIZE(matrix_ks_kp, 1))
+               CALL dbcsr_set(matrix_h_re, 0.0_dp)
+               CALL dbcsr_set(matrix_h_im, 0.0_dp)
+               CALL rskp_transform(rmatrix=matrix_h_re, cmatrix=matrix_h_im, rsmat=matrix_ks_kp, &
+                                   ispin=ks_spin, xkp=xkp(1:3, ikpoint), &
+                                   cell_to_index=cell_to_index, sab_nl=sab_nl)
+               CALL make_preconditioner_complex_full_single_inverse( &
+                  scf_env%ot_preconditioner(ot_channel)%preconditioner, &
+                  scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                  scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
+                  matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
+                  scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
+                  scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
+            CASE (ot_precond_full_kinetic)
+               CALL make_preconditioner_complex_full_kinetic( &
+                  scf_env%ot_preconditioner(ot_channel)%preconditioner, &
+                  matrix_t_re, matrix_t_im, matrix_s_re, matrix_s_im, &
+                  scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
+                  scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
+            CASE (ot_precond_s_inverse)
+               CALL make_preconditioner_complex_full_s_inverse( &
+                  scf_env%ot_preconditioner(ot_channel)%preconditioner, &
+                  matrix_s_re, matrix_s_im, &
+                  scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
+            END SELECT
             CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ot_channel), &
                                           scf_env%ot_preconditioner(ot_channel)%preconditioner)
          END DO
@@ -1954,8 +2012,10 @@ CONTAINS
 
       CALL dbcsr_deallocate_matrix(matrix_s_im)
       CALL dbcsr_deallocate_matrix(matrix_s_re)
-      CALL dbcsr_deallocate_matrix(matrix_h_im)
-      CALL dbcsr_deallocate_matrix(matrix_h_re)
+      IF (ASSOCIATED(matrix_h_im)) CALL dbcsr_deallocate_matrix(matrix_h_im)
+      IF (ASSOCIATED(matrix_h_re)) CALL dbcsr_deallocate_matrix(matrix_h_re)
+      IF (ASSOCIATED(matrix_t_im)) CALL dbcsr_deallocate_matrix(matrix_t_im)
+      IF (ASSOCIATED(matrix_t_re)) CALL dbcsr_deallocate_matrix(matrix_t_re)
 
       CALL timestop(handle)
 

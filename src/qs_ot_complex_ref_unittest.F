@@ -44,7 +44,9 @@ PROGRAM qs_ot_complex_ref_unittest
                                               mp_para_env_type,&
                                               mp_world_finalize,&
                                               mp_world_init
-   USE preconditioner_makes,            ONLY: make_complex_full_single_inverse
+   USE preconditioner_makes,            ONLY: make_complex_full_kinetic,&
+                                              make_complex_full_s_inverse,&
+                                              make_complex_full_single_inverse
    USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                               init_preconditioner,&
                                               preconditioner_type
@@ -235,15 +237,19 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: value
       COMPLEX(KIND=dp), DIMENSION(n, k)                  :: c0, c0_rot
-      COMPLEX(KIND=dp), DIMENSION(n, n)                  :: eigenvectors, h, inverse, inverse_rot, s
+      COMPLEX(KIND=dp), DIMENSION(n, n)                  :: eigenvectors, h, inverse, inverse_rot, &
+                                                            inverse_s, inverse_t, reference_s, &
+                                                            reference_t, s, t
       INTEGER                                            :: i, j
-      REAL(KIND=dp)                                      :: gauge_error, hermitian_error
+      REAL(KIND=dp)                                      :: gauge_error, hermitian_error, s_error, &
+                                                            t_error
       REAL(KIND=dp), DIMENSION(n)                        :: eigenvalues
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_cfm_type)                                  :: matrix_c0, matrix_c0_rot, matrix_h, &
-                                                            matrix_s
+                                                            matrix_s, matrix_t
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct_nk, fmstruct_nn
-      TYPE(preconditioner_type)                          :: preconditioner, preconditioner_rot
+      TYPE(preconditioner_type)                          :: preconditioner, preconditioner_rot, &
+                                                            preconditioner_s, preconditioner_t
 
       NULLIFY (blacs_env, fmstruct_nk, fmstruct_nn)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
@@ -253,10 +259,12 @@ CONTAINS
                                nrow_global=n, ncol_global=k)
       CALL cp_cfm_create(matrix_h, fmstruct_nn, name='complex preconditioner H')
       CALL cp_cfm_create(matrix_s, fmstruct_nn, name='complex preconditioner S')
+      CALL cp_cfm_create(matrix_t, fmstruct_nn, name='complex preconditioner T')
       CALL cp_cfm_create(matrix_c0, fmstruct_nk, name='complex preconditioner C')
       CALL cp_cfm_create(matrix_c0_rot, fmstruct_nk, name='complex preconditioner C U')
       CALL cp_cfm_set_all(matrix_h, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
       CALL cp_cfm_set_all(matrix_s, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
+      CALL cp_cfm_set_all(matrix_t, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
       CALL cp_cfm_set_all(matrix_c0, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
       CALL cp_cfm_set_all(matrix_c0_rot, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
 
@@ -278,6 +286,10 @@ CONTAINS
       s(3, 1) = CONJG(s(1, 3))
       s(2, 3) = CMPLX(-0.04_dp, 0.02_dp, KIND=dp)
       s(3, 2) = CONJG(s(2, 3))
+      t = h
+      DO i = 1, n
+         t(i, i) = t(i, i) + CMPLX(1.50_dp, 0.0_dp, KIND=dp)
+      END DO
       c0(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       c0(1, 1) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
       c0(2, 2) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
@@ -291,6 +303,7 @@ CONTAINS
          DO i = 1, n
             CALL cp_cfm_set_element(matrix_h, i, j, h(i, j))
             CALL cp_cfm_set_element(matrix_s, i, j, s(i, j))
+            CALL cp_cfm_set_element(matrix_t, i, j, t(i, j))
          END DO
       END DO
       DO j = 1, k
@@ -302,30 +315,47 @@ CONTAINS
 
       CALL init_preconditioner(preconditioner, para_env, blacs_env)
       CALL init_preconditioner(preconditioner_rot, para_env, blacs_env)
+      CALL init_preconditioner(preconditioner_s, para_env, blacs_env)
+      CALL init_preconditioner(preconditioner_t, para_env, blacs_env)
       CALL make_complex_full_single_inverse(preconditioner, matrix_c0, matrix_h, matrix_s, 0.20_dp)
       CALL make_complex_full_single_inverse(preconditioner_rot, matrix_c0_rot, matrix_h, matrix_s, 0.20_dp)
+      CALL make_complex_full_s_inverse(preconditioner_s, matrix_s)
+      CALL make_complex_full_kinetic(preconditioner_t, matrix_t, matrix_s, 0.20_dp)
       DO j = 1, n
          DO i = 1, n
             CALL cp_cfm_get_element(preconditioner%complex_fm, i, j, value)
             inverse(i, j) = value
             CALL cp_cfm_get_element(preconditioner_rot%complex_fm, i, j, value)
             inverse_rot(i, j) = value
+            CALL cp_cfm_get_element(preconditioner_s%complex_fm, i, j, value)
+            inverse_s(i, j) = value
+            CALL cp_cfm_get_element(preconditioner_t%complex_fm, i, j, value)
+            inverse_t(i, j) = value
          END DO
       END DO
       gauge_error = MAXVAL(ABS(inverse - inverse_rot))
       hermitian_error = MAXVAL(ABS(inverse - CONJG(TRANSPOSE(inverse))))
       CALL diag_complex(inverse, eigenvectors, eigenvalues)
+      CALL dense_hermitian_inverse(s, reference_s)
+      CALL dense_hermitian_inverse(t + 0.20_dp*s, reference_t)
+      s_error = MAXVAL(ABS(inverse_s - reference_s))
+      t_error = MAXVAL(ABS(inverse_t - reference_t))
       IF (gauge_error > 1.0E-11_dp .OR. hermitian_error > 1.0E-12_dp .OR. &
           MINVAL(eigenvalues) <= 0.0_dp) nfail = nfail + 1
+      IF (s_error > 1.0E-11_dp .OR. t_error > 1.0E-11_dp) nfail = nfail + 1
       IF (para_env%is_source()) THEN
          WRITE (*, '(A,3(1X,ES13.6))') 'complex FULL_SINGLE gauge/hermitian/min-eigenvalue', &
             gauge_error, hermitian_error, MINVAL(eigenvalues)
+         WRITE (*, '(A,2(1X,ES13.6))') 'complex S/KINETIC inverse errors', s_error, t_error
       END IF
 
+      CALL destroy_preconditioner(preconditioner_t)
+      CALL destroy_preconditioner(preconditioner_s)
       CALL destroy_preconditioner(preconditioner_rot)
       CALL destroy_preconditioner(preconditioner)
       CALL cp_cfm_release(matrix_c0_rot)
       CALL cp_cfm_release(matrix_c0)
+      CALL cp_cfm_release(matrix_t)
       CALL cp_cfm_release(matrix_s)
       CALL cp_cfm_release(matrix_h)
       CALL cp_fm_struct_release(fmstruct_nk)
@@ -346,8 +376,8 @@ CONTAINS
          nfail = nfail + 1
       END IF
       IF (qs_ot_kpoint_preconditioner_supported(ot_precond_full_all, .FALSE.)) nfail = nfail + 1
-      IF (qs_ot_kpoint_preconditioner_supported(ot_precond_full_kinetic, .FALSE.)) nfail = nfail + 1
-      IF (qs_ot_kpoint_preconditioner_supported(ot_precond_s_inverse, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_full_kinetic, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_s_inverse, .FALSE.)) nfail = nfail + 1
       IF (qs_ot_kpoint_preconditioner_supported(ot_precond_full_single_inverse, .TRUE.)) nfail = nfail + 1
 
       IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
@@ -358,6 +388,18 @@ CONTAINS
           ot_precond_full_single_inverse, ot_precond_solver_direct, .FALSE.)) nfail = nfail + 1
       IF (qs_ot_kpoint_preconditioner_solver_supported( &
           ot_precond_full_single_inverse, ot_precond_solver_chebyshev, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_full_kinetic, ot_precond_solver_default, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_full_kinetic, ot_precond_solver_inv_chol, .FALSE.)) nfail = nfail + 1
+      IF (qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_full_kinetic, ot_precond_solver_direct, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_s_inverse, ot_precond_solver_default, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_s_inverse, ot_precond_solver_inv_chol, .FALSE.)) nfail = nfail + 1
+      IF (qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_s_inverse, ot_precond_solver_chebyshev, .FALSE.)) nfail = nfail + 1
       IF (ABS(qs_ot_kpoint_preconditioner_scale(0.25_dp) - 4.0_dp) > EPSILON(1.0_dp)) THEN
          nfail = nfail + 1
       END IF
@@ -398,6 +440,30 @@ CONTAINS
       CALL dbcsr_put_block(matrix_im, 1, 1, AIMAG(matrix))
 
    END SUBROUTINE put_complex_pair
+
+! **************************************************************************************************
+!> \brief Hermitian inverse for an independent dense reference.
+!> \param matrix ...
+!> \param inverse ...
+! **************************************************************************************************
+   SUBROUTINE dense_hermitian_inverse(matrix, inverse)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: matrix
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: inverse
+
+      COMPLEX(KIND=dp), &
+         DIMENSION(SIZE(matrix, 1), SIZE(matrix, 2))     :: vectors
+      INTEGER                                            :: i
+      REAL(KIND=dp), DIMENSION(SIZE(matrix, 1))          :: eigenvalues
+
+      CALL diag_complex(matrix, vectors, eigenvalues)
+      inverse(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      DO i = 1, SIZE(eigenvalues)
+         inverse = inverse + MATMUL(RESHAPE(vectors(:, i), [SIZE(matrix, 1), 1]), &
+                                    RESHAPE(CONJG(vectors(:, i)), [1, SIZE(matrix, 1)]))/ &
+                   eigenvalues(i)
+      END DO
+
+   END SUBROUTINE dense_hermitian_inverse
 
 ! **************************************************************************************************
 !> \brief Hermitian inverse square root for the independent dense reference.
