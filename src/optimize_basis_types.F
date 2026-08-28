@@ -118,6 +118,7 @@ MODULE optimize_basis_types
       REAL(KIND=dp) :: gap_energy_scale = 0.0_dp
       REAL(KIND=dp) :: virtual_energy_cutoff = 0.0_dp
       REAL(KIND=dp) :: virtual_energy_smoothing = 0.0_dp
+      LOGICAL :: quiet_output = .FALSE.
       INTEGER :: nkind = -1
       INTEGER :: write_frequency = -1
       INTEGER :: nbasis_deriv_types = -1

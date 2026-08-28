@@ -147,6 +147,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_frontier_orbital_screening_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_training_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -344,6 +348,37 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_frontier_orbitals_section
+
+! **************************************************************************************************
+!> \brief Creates the optional serial frontier-orbital screening section.
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_frontier_orbital_screening_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      NULLIFY (keyword)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create( &
+         section, __LOCATION__, name="FRONTIER_ORBITAL_SCREENING", &
+         description="Runs several frontier-orbital basis optimizations serially using built-in, "// &
+         "ordered loss-weight presets. Every optimized basis is validated with a fresh, silent, "// &
+         "atomic-guess SCF calculation. Converged candidates are ranked by the absolute difference "// &
+         "between their self-consistent HOMO-LUMO gap and the reference-basis gap. The total energies "// &
+         "are reported but do not affect the ranking. All ranked basis sets are written to the single "// &
+         "BASIS_OUTPUT_FILE with rank suffixes such as _1 and _2. This section requires "// &
+         "FRONTIER_ORBITALS and currently supports one TRAINING_FILES section and one basis combination.", &
+         repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NUMBER_OF_OPTIMIZATIONS", &
+                          description="Number of ordered built-in loss-weight presets to optimize and validate.", &
+                          usage="NUMBER_OF_OPTIMIZATIONS 5", &
+                          default_i_val=5)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_frontier_orbital_screening_section
 
 ! **************************************************************************************************
 !> \brief ...

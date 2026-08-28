@@ -66,14 +66,16 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE qs_energies(qs_env, consistent_energies, calc_forces)
+   SUBROUTINE qs_energies(qs_env, consistent_energies, calc_forces, scf_converged)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: consistent_energies, calc_forces
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: scf_converged
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_energies'
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: do_consistent_energies, &
+      LOGICAL                                            :: did_scf_converge, &
+                                                            do_consistent_energies, &
                                                             do_excited_state, loverlap_deltat, &
                                                             my_calc_forces, run_rtp
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -85,6 +87,9 @@ CONTAINS
 
       my_calc_forces = .FALSE.
       IF (PRESENT(calc_forces)) my_calc_forces = calc_forces
+
+      did_scf_converge = .FALSE.
+      IF (PRESENT(scf_converged)) scf_converged = .FALSE.
 
       do_consistent_energies = .FALSE.
       IF (PRESENT(consistent_energies)) do_consistent_energies = consistent_energies
@@ -123,7 +128,7 @@ CONTAINS
                   dft_control%smeagol_control%emforces = my_calc_forces
                END IF
 
-               CALL scf(qs_env)
+               CALL scf(qs_env, has_converged=did_scf_converge)
             END IF
          END IF
 
@@ -177,6 +182,8 @@ CONTAINS
          END IF
 
       END IF
+
+      IF (PRESENT(scf_converged)) scf_converged = did_scf_converge
 
       CALL timestop(handle)
 

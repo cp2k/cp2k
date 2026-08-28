@@ -8,6 +8,10 @@ MODULE optimize_basis
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
+   USE cp_files,                        ONLY: close_file,&
+                                              discover_file,&
+                                              get_unit_number,&
+                                              open_file
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -15,7 +19,10 @@ MODULE optimize_basis
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
-                                              cp_logger_type
+                                              cp_logger_type,&
+                                              cp_to_string
+   USE cp_output_handling,              ONLY: debug_print_level,&
+                                              silent_print_level
    USE f77_interface,                   ONLY: create_force_env,&
                                               destroy_force_env,&
                                               f_env_add_defaults,&
@@ -24,11 +31,16 @@ MODULE optimize_basis
                                               f_env_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
+   USE input_constants,                 ONLY: atomic_guess
    USE input_cp2k_read,                 ONLY: empty_initial_variables,&
                                               read_input
    USE input_section_types,             ONLY: section_type,&
+                                              section_vals_get,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_release,&
-                                              section_vals_type
+                                              section_vals_type,&
+                                              section_vals_val_get,&
+                                              section_vals_val_set
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -60,9 +72,12 @@ MODULE optimize_basis
                                               subset_type
    USE optimize_basis_utils,            ONLY: get_set_and_basis_id,&
                                               optimize_basis_init_read_input,&
-                                              update_derived_basis_sets
+                                              update_derived_basis_sets,&
+                                              write_basis
    USE physcon,                         ONLY: evolt
    USE powell,                          ONLY: powell_optimize
+   USE qs_energy,                       ONLY: qs_energies
+   USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_env_part_release,&
                                               qs_environment_type
@@ -80,6 +95,7 @@ MODULE optimize_basis
                                               release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
    USE qs_overlap,                      ONLY: build_overlap_matrix
+   USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -88,6 +104,26 @@ MODULE optimize_basis
    PUBLIC :: run_optimize_basis
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_basis'
+
+   INTEGER, PARAMETER :: number_screening_presets = 5
+   CHARACTER(LEN=16), DIMENSION(number_screening_presets), PARAMETER :: screening_preset_names = &
+                                                   [CHARACTER(LEN=16) :: "requested", "all30", "virtual30", "lowgap", "regularized"]
+   ! Rows are occupied, virtual, empty, gap, condition, and coefficient weights.
+   REAL(KIND=dp), DIMENSION(6, number_screening_presets), PARAMETER :: screening_weights = RESHAPE([ &
+                                                                           10.0_dp, 10.0_dp, 10.0_dp, 10.0_dp, 0.001_dp, 0.001_dp, &
+                                                                           30.0_dp, 30.0_dp, 30.0_dp, 10.0_dp, 0.001_dp, 0.001_dp, &
+                                                                           10.0_dp, 30.0_dp, 30.0_dp, 10.0_dp, 0.001_dp, 0.001_dp, &
+                                                                            10.0_dp, 30.0_dp, 30.0_dp, 3.0_dp, 0.001_dp, 0.001_dp, &
+                                                                           10.0_dp, 30.0_dp, 30.0_dp, 10.0_dp, 0.001_dp, 0.01_dp], &
+                                                                                                   [6, number_screening_presets])
+
+   TYPE screening_candidate_type
+      INTEGER :: preset = 0
+      LOGICAL :: scf_converged = .FALSE.
+      REAL(KIND=dp) :: gap = 0.0_dp
+      REAL(KIND=dp) :: energy = 0.0_dp
+      TYPE(basis_optimization_type) :: opt_bas
+   END TYPE screening_candidate_type
 
    INTEGER, PARAMETER :: frontier_idx_loss_occupied = 1
    INTEGER, PARAMETER :: frontier_idx_loss_virtual = 2
@@ -127,18 +163,493 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'run_optimize_basis'
 
       INTEGER                                            :: handle
+      LOGICAL                                            :: screening_explicit
       TYPE(basis_optimization_type)                      :: opt_bas
+      TYPE(section_vals_type), POINTER                   :: optbas_section, screening_section
 
       CALL timeset(routineN, handle)
 
-      CALL optimize_basis_init_read_input(opt_bas, root_section, para_env)
+      optbas_section => section_vals_get_subs_vals(root_section, "OPTIMIZE_BASIS")
+      screening_section => section_vals_get_subs_vals(optbas_section, "FRONTIER_ORBITAL_SCREENING")
+      CALL section_vals_get(screening_section, explicit=screening_explicit)
 
-      CALL driver_para_opt_basis(opt_bas, input_declaration, para_env)
+      IF (screening_explicit) THEN
+         CALL run_frontier_orbital_screening(input_declaration, root_section, para_env, screening_section)
+      ELSE
+         CALL optimize_basis_init_read_input(opt_bas, root_section, para_env)
+         CALL driver_para_opt_basis(opt_bas, input_declaration, para_env)
+         CALL deallocate_basis_optimization_type(opt_bas)
+      END IF
 
-      CALL deallocate_basis_optimization_type(opt_bas)
       CALL timestop(handle)
 
    END SUBROUTINE run_optimize_basis
+
+! **************************************************************************************************
+!> \brief Run serial frontier-orbital optimizations and rank them using fresh SCF gaps.
+! **************************************************************************************************
+   SUBROUTINE run_frontier_orbital_screening(input_declaration, root_section, para_env, screening_section)
+      TYPE(section_type), POINTER                        :: input_declaration
+      TYPE(section_vals_type), POINTER                   :: root_section
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(section_vals_type), POINTER                   :: screening_section
+
+      CHARACTER(LEN=default_path_length)                 :: candidate_file, final_basis_file, &
+                                                            main_dir
+      CHARACTER(LEN=default_path_length), ALLOCATABLE, &
+         DIMENSION(:)                                    :: candidate_files
+      INTEGER                                            :: i, n_candidates, n_ranked, unit_nr
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rank_order
+      LOGICAL                                            :: initial_converged, reference_converged
+      REAL(KIND=dp)                                      :: initial_energy, initial_gap, &
+                                                            reference_energy, reference_gap
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(screening_candidate_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: candidates
+
+      CALL section_vals_val_get(screening_section, "NUMBER_OF_OPTIMIZATIONS", i_val=n_candidates)
+      IF (n_candidates < 1 .OR. n_candidates > number_screening_presets) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "NUMBER_OF_OPTIMIZATIONS must be between 1 and "// &
+                       TRIM(cp_to_string(number_screening_presets)))
+      END IF
+
+      CALL m_getcwd(main_dir)
+
+      ALLOCATE (candidates(n_candidates), candidate_files(n_candidates), rank_order(n_candidates))
+      logger => cp_get_default_logger()
+      unit_nr = -1
+      IF (para_env%is_source()) unit_nr = cp_logger_get_default_unit_nr(logger)
+
+      DO i = 1, n_candidates
+         candidates(i)%preset = i
+         CALL optimize_basis_init_read_input(candidates(i)%opt_bas, root_section, para_env, quiet_output=.TRUE.)
+         IF (candidates(i)%opt_bas%method /= method_mo_fit_occ_virtual) THEN
+            CPABORT("FRONTIER_ORBITAL_SCREENING requires FRONTIER_ORBITALS")
+         END IF
+         IF (candidates(i)%opt_bas%ntraining_sets /= 1 .OR. candidates(i)%opt_bas%ncombinations /= 1) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "FRONTIER_ORBITAL_SCREENING currently requires one training system "// &
+                          "and one basis combination")
+         END IF
+
+         IF (i == 1) THEN
+            final_basis_file = screening_path(main_dir, candidates(i)%opt_bas%output_basis_file)
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(A)') ""
+               WRITE (unit_nr, '(A)') REPEAT("=", 92)
+               WRITE (unit_nr, '(A)') "FRONTIER-ORBITAL BASIS SCREENING"
+               WRITE (unit_nr, '(A)') REPEAT("=", 92)
+               WRITE (unit_nr, '(A,I0,A)') "Running ", n_candidates, &
+                  " built-in weight presets serially; validation SCFs use an atomic guess."
+               WRITE (unit_nr, '(A)') "Detailed optimizer evaluations and validation SCF output are suppressed."
+               WRITE (unit_nr, '(A)') ""
+               WRITE (unit_nr, '(A)') "Computing reference and initial-basis SCF baselines ..."
+            END IF
+            CALL run_screening_scf(candidates(i)%opt_bas, input_declaration, para_env, &
+                                   use_reference_basis=.TRUE., basis_file="", &
+                                   converged=reference_converged, gap=reference_gap, energy=reference_energy)
+            CALL run_screening_scf(candidates(i)%opt_bas, input_declaration, para_env, &
+                                   use_reference_basis=.FALSE., &
+                                   basis_file=discover_file(candidates(i)%opt_bas%template_basis_file), &
+                                   converged=initial_converged, gap=initial_gap, energy=initial_energy)
+            IF (.NOT. reference_converged) CPABORT("The reference-basis screening SCF did not converge")
+            IF (.NOT. initial_converged) CPABORT("The initial-basis screening SCF did not converge")
+         END IF
+
+         candidates(i)%opt_bas%occupied_weight = screening_weights(1, i)
+         candidates(i)%opt_bas%virtual_weight = screening_weights(2, i)
+         candidates(i)%opt_bas%empty_overlap_weight = screening_weights(3, i)
+         candidates(i)%opt_bas%gap_weight = screening_weights(4, i)
+         candidates(i)%opt_bas%condition_weight = screening_weights(5, i)
+         candidates(i)%opt_bas%coefficient_weight = screening_weights(6, i)
+         candidate_file = screening_path(main_dir, ".frontier_screening_candidate_"// &
+                                         TRIM(ADJUSTL(cp_to_string(i)))//".basis")
+         candidate_files(i) = candidate_file
+         candidates(i)%opt_bas%output_basis_file = candidate_file
+
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(A,I0,A,I0,A,A,A)') "Candidate ", i, " of ", n_candidates, &
+               ": optimizing preset '", TRIM(screening_preset_names(i)), "' ..."
+         END IF
+         CALL driver_para_opt_basis(candidates(i)%opt_bas, input_declaration, para_env)
+         CALL run_screening_scf(candidates(i)%opt_bas, input_declaration, para_env, &
+                                use_reference_basis=.FALSE., basis_file=candidate_file, &
+                                converged=candidates(i)%scf_converged, &
+                                gap=candidates(i)%gap, energy=candidates(i)%energy)
+         IF (unit_nr > 0) THEN
+            IF (candidates(i)%scf_converged) THEN
+               WRITE (unit_nr, '(A,F10.6,A,F9.3,A)') "  SCF gap ", candidates(i)%gap*evolt, &
+                  " eV; absolute reference error ", ABS(candidates(i)%gap - reference_gap)*evolt*1000.0_dp, " meV"
+            ELSE
+               WRITE (unit_nr, '(A)') "  SCF validation did not converge; candidate will not be ranked."
+            END IF
+         END IF
+      END DO
+
+      CALL rank_screening_candidates(candidates, reference_gap, rank_order, n_ranked)
+      IF (n_ranked == 0) CPABORT("No frontier-orbital screening candidate produced a converged SCF")
+      CALL write_screening_basis_file(final_basis_file, candidates, rank_order, n_ranked, &
+                                      reference_gap, reference_energy, para_env)
+      CALL write_screening_csv(TRIM(final_basis_file)//".screening.csv", candidates, rank_order, n_ranked, &
+                               reference_gap, reference_energy, initial_gap, initial_energy, para_env)
+      CALL print_screening_summary(unit_nr, final_basis_file, candidates, rank_order, n_ranked, &
+                                   reference_gap, reference_energy, initial_gap, initial_energy)
+
+      DO i = 1, n_candidates
+         IF (para_env%is_source()) CALL delete_screening_file(candidate_files(i))
+         CALL deallocate_basis_optimization_type(candidates(i)%opt_bas)
+      END DO
+      CALL para_env%sync()
+      DEALLOCATE (candidates, candidate_files, rank_order)
+
+   END SUBROUTINE run_frontier_orbital_screening
+
+! **************************************************************************************************
+!> \brief Run one silent SCF using either the reference or a compact basis file.
+! **************************************************************************************************
+   SUBROUTINE run_screening_scf(opt_bas, input_declaration, para_env, use_reference_basis, &
+                                basis_file, converged, gap, energy)
+      TYPE(basis_optimization_type), INTENT(IN)          :: opt_bas
+      TYPE(section_type), POINTER                        :: input_declaration
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: use_reference_basis
+      CHARACTER(LEN=*), INTENT(IN)                       :: basis_file
+      LOGICAL, INTENT(OUT)                               :: converged
+      REAL(KIND=dp), INTENT(OUT)                         :: gap, energy
+
+      CHARACTER(LEN=default_path_length)                 :: main_dir
+      INTEGER                                            :: env_id, homo, ierr, nmo, &
+                                                            scf_output_unit, stat
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      TYPE(f_env_type), POINTER                          :: f_env
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(qs_energy_type), POINTER                      :: qs_energy
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: input_file
+
+      NULLIFY (eigenvalues, f_env, force_env, input_file, mos, qs_energy, qs_env)
+      converged = .FALSE.
+      gap = 0.0_dp
+      energy = 0.0_dp
+      CALL m_getcwd(main_dir)
+      CALL m_chdir(TRIM(opt_bas%training_dir(1)), ierr)
+      IF (ierr /= 0) CPABORT("Could not enter the frontier-orbital screening training directory")
+
+      input_file => read_input(input_declaration, opt_bas%training_input(1), &
+                               initial_variables=empty_initial_variables, para_env=para_env)
+      CALL prepare_screening_scf_input(input_file, opt_bas, use_reference_basis, basis_file)
+      scf_output_unit = -1
+      IF (para_env%is_source()) THEN
+         scf_output_unit = get_unit_number()
+         IF (scf_output_unit < 1) THEN
+            CPABORT("No logical unit is available for disposable screening SCF output")
+         END IF
+         OPEN (UNIT=scf_output_unit, STATUS="SCRATCH", ACTION="READWRITE", IOSTAT=stat)
+         IF (stat /= 0) CPABORT("Could not open disposable frontier-orbital screening SCF output")
+      END IF
+      CALL create_force_env(env_id, input_declaration=input_declaration, &
+                            input_path=opt_bas%training_input(1), input=input_file, &
+                            output_unit=scf_output_unit, owns_out_unit=.FALSE., &
+                            mpi_comm=para_env, ierr=stat)
+      IF (stat /= 0) CPABORT("Could not create a frontier-orbital screening SCF environment")
+      CALL f_env_add_defaults(env_id, f_env)
+      force_env => f_env%force_env
+      CALL force_env_get(force_env, qs_env=qs_env)
+      CALL qs_energies(qs_env, scf_converged=converged)
+      CALL get_qs_env(qs_env, energy=qs_energy, mos=mos)
+      energy = qs_energy%total
+      IF (converged .AND. SIZE(mos) == 1) THEN
+         CALL get_mo_set(mos(1), homo=homo, nmo=nmo, eigenvalues=eigenvalues)
+         IF (homo >= 1 .AND. homo < nmo) THEN
+            gap = eigenvalues(homo + 1) - eigenvalues(homo)
+         ELSE
+            converged = .FALSE.
+         END IF
+      ELSE
+         converged = .FALSE.
+      END IF
+      CALL f_env_rm_defaults(f_env, stat)
+      CALL qs_env_part_release(qs_env)
+      CALL destroy_force_env(env_id, stat)
+      CALL section_vals_release(input_file)
+      IF (para_env%is_source()) CLOSE (scf_output_unit)
+      CALL m_chdir(TRIM(main_dir), ierr)
+      IF (ierr /= 0) CPABORT("Could not return from the frontier-orbital screening training directory")
+
+   END SUBROUTINE run_screening_scf
+
+! **************************************************************************************************
+!> \brief Make a parsed reference input suitable for a quiet, independent screening SCF.
+! **************************************************************************************************
+   SUBROUTINE prepare_screening_scf_input(input_file, opt_bas, use_reference_basis, basis_file)
+      TYPE(section_vals_type), POINTER                   :: input_file
+      TYPE(basis_optimization_type), INTENT(IN)          :: opt_bas
+      LOGICAL, INTENT(IN)                                :: use_reference_basis
+      CHARACTER(LEN=*), INTENT(IN)                       :: basis_file
+
+      CHARACTER(LEN=default_string_length)               :: element
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: basis_info
+      INTEGER                                            :: ifit, ikind, nbasis_files, nkinds
+      LOGICAL                                            :: element_explicit, found
+      TYPE(section_vals_type), POINTER                   :: dft_section, kind_section, subsys_section
+
+      CALL section_vals_val_set(input_file, "GLOBAL%PRINT_LEVEL", i_val=silent_print_level)
+      CALL section_vals_val_set(input_file, "FORCE_EVAL%DFT%SCF%SCF_GUESS", i_val=atomic_guess)
+      CALL section_vals_val_set(input_file, &
+                                "FORCE_EVAL%DFT%SCF%PRINT%RESTART%_SECTION_PARAMETERS_", &
+                                i_val=debug_print_level + 1)
+      CALL section_vals_val_set(input_file, &
+                                "FORCE_EVAL%DFT%SCF%PRINT%RESTART_HISTORY%_SECTION_PARAMETERS_", &
+                                i_val=debug_print_level + 1)
+      IF (use_reference_basis) RETURN
+
+      dft_section => section_vals_get_subs_vals(input_file, "FORCE_EVAL%DFT")
+      CALL section_vals_val_get(dft_section, "BASIS_SET_FILE_NAME", n_rep_val=nbasis_files)
+      IF (nbasis_files < 1) CPABORT("The screening reference input has no basis-set file")
+      CALL section_vals_val_set(dft_section, "BASIS_SET_FILE_NAME", i_rep_val=1, c_val=basis_file)
+
+      subsys_section => section_vals_get_subs_vals(input_file, "FORCE_EVAL%SUBSYS")
+      kind_section => section_vals_get_subs_vals(subsys_section, "KIND")
+      CALL section_vals_get(kind_section, n_repetition=nkinds)
+      DO ikind = 1, nkinds
+         CALL section_vals_val_get(kind_section, "ELEMENT", explicit=element_explicit, &
+                                   i_rep_section=ikind)
+         IF (element_explicit) THEN
+            CALL section_vals_val_get(kind_section, "ELEMENT", c_val=element, i_rep_section=ikind)
+         ELSE
+            CALL section_vals_val_get(kind_section, "_SECTION_PARAMETERS_", &
+                                      c_val=element, i_rep_section=ikind)
+         END IF
+         CALL uppercase(element)
+         found = .FALSE.
+         DO ifit = 1, opt_bas%nkind
+            IF (TRIM(element) == TRIM(opt_bas%kind_basis(ifit)%element)) THEN
+               NULLIFY (basis_info)
+               CALL section_vals_val_get(kind_section, "BASIS_SET", c_vals=basis_info, &
+                                         i_rep_val=1, i_rep_section=ikind)
+               basis_info(SIZE(basis_info)) = opt_bas%kind_basis(ifit)%flex_basis(0)%basis_name
+               found = .TRUE.
+               EXIT
+            END IF
+         END DO
+         IF (.NOT. found) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Every KIND in the screening reference input must have a corresponding "// &
+                          "FIT_KIND: "//TRIM(element))
+         END IF
+      END DO
+
+   END SUBROUTINE prepare_screening_scf_input
+
+! **************************************************************************************************
+!> \brief Rank converged candidates by absolute self-consistent gap error.
+! **************************************************************************************************
+   SUBROUTINE rank_screening_candidates(candidates, reference_gap, rank_order, n_ranked)
+      TYPE(screening_candidate_type), DIMENSION(:), &
+         INTENT(IN)                                      :: candidates
+      REAL(KIND=dp), INTENT(IN)                          :: reference_gap
+      INTEGER, DIMENSION(:), INTENT(OUT)                 :: rank_order
+      INTEGER, INTENT(OUT)                               :: n_ranked
+
+      INTEGER                                            :: i, j, saved
+
+      rank_order = 0
+      n_ranked = 0
+      DO i = 1, SIZE(candidates)
+         IF (.NOT. candidates(i)%scf_converged) CYCLE
+         n_ranked = n_ranked + 1
+         rank_order(n_ranked) = i
+         j = n_ranked
+         DO WHILE (j > 1)
+            IF (ABS(candidates(rank_order(j))%gap - reference_gap) >= &
+                ABS(candidates(rank_order(j - 1))%gap - reference_gap)) EXIT
+            saved = rank_order(j - 1)
+            rank_order(j - 1) = rank_order(j)
+            rank_order(j) = saved
+            j = j - 1
+         END DO
+      END DO
+
+   END SUBROUTINE rank_screening_candidates
+
+! **************************************************************************************************
+!> \brief Write all ranked candidates to one CP2K basis file.
+! **************************************************************************************************
+   SUBROUTINE write_screening_basis_file(filename, candidates, rank_order, n_ranked, &
+                                         reference_gap, reference_energy, para_env)
+      CHARACTER(LEN=*), INTENT(IN)                       :: filename
+      TYPE(screening_candidate_type), DIMENSION(:)       :: candidates
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: rank_order
+      INTEGER, INTENT(IN)                                :: n_ranked
+      REAL(KIND=dp), INTENT(IN)                          :: reference_gap, reference_energy
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      INTEGER                                            :: candidate, ibasis, ikind, rank, unit_nr
+
+      IF (para_env%is_source()) THEN
+         CALL open_file(file_name=filename, file_status="UNKNOWN", file_action="WRITE", unit_number=unit_nr)
+      ELSE
+         unit_nr = -999
+      END IF
+      DO rank = 1, n_ranked
+         candidate = rank_order(rank)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(A)') "#"
+            WRITE (unit_nr, '(A,I0,A,A)') "# Frontier-orbital screening rank ", rank, &
+               "; preset: ", TRIM(screening_preset_names(candidates(candidate)%preset))
+            WRITE (unit_nr, '(A,F12.6,A)') "# Reference HOMO-LUMO gap: ", reference_gap*evolt, " eV"
+            WRITE (unit_nr, '(A,F12.6,A)') "# Basis HOMO-LUMO gap:     ", candidates(candidate)%gap*evolt, " eV"
+            WRITE (unit_nr, '(A,F12.6,A)') "# Absolute gap error:      ", &
+               ABS(candidates(candidate)%gap - reference_gap)*evolt, " eV"
+            WRITE (unit_nr, '(A,F22.12,A)') "# Reference total energy:  ", reference_energy, " hartree"
+            WRITE (unit_nr, '(A,F22.12,A)') "# Basis total energy:      ", candidates(candidate)%energy, " hartree"
+            WRITE (unit_nr, '(A)') "#"
+         END IF
+         DO ikind = 1, candidates(candidate)%opt_bas%nkind
+            DO ibasis = 0, candidates(candidate)%opt_bas%kind_basis(ikind)%nbasis_deriv
+               candidates(candidate)%opt_bas%kind_basis(ikind)%flex_basis(ibasis)%basis_name = &
+                  TRIM(candidates(candidate)%opt_bas%kind_basis(ikind)%flex_basis(ibasis)%basis_name)// &
+                  "_"//TRIM(ADJUSTL(cp_to_string(rank)))
+               CALL write_basis(candidates(candidate)%opt_bas%kind_basis(ikind)%flex_basis(ibasis), &
+                                candidates(candidate)%opt_bas%kind_basis(ikind)%element, unit_nr)
+            END DO
+         END DO
+      END DO
+      IF (para_env%is_source()) CALL close_file(unit_number=unit_nr)
+
+   END SUBROUTINE write_screening_basis_file
+
+! **************************************************************************************************
+!> \brief Write machine-readable screening results next to the ranked basis file.
+! **************************************************************************************************
+   SUBROUTINE write_screening_csv(filename, candidates, rank_order, n_ranked, reference_gap, &
+                                  reference_energy, initial_gap, initial_energy, para_env)
+      CHARACTER(LEN=*), INTENT(IN)                       :: filename
+      TYPE(screening_candidate_type), DIMENSION(:), &
+         INTENT(IN)                                      :: candidates
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: rank_order
+      INTEGER, INTENT(IN)                                :: n_ranked
+      REAL(KIND=dp), INTENT(IN)                          :: reference_gap, reference_energy, &
+                                                            initial_gap, initial_energy
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      INTEGER                                            :: candidate, rank, unit_nr
+
+      IF (.NOT. para_env%is_source()) RETURN
+      CALL open_file(file_name=filename, file_status="UNKNOWN", file_action="WRITE", unit_number=unit_nr)
+      WRITE (unit_nr, '(A,A)') &
+         "rank,label,preset,gap_ev,absolute_gap_error_ev,total_energy_hartree,reference_gap_ev,", &
+         "reference_total_energy_hartree"
+      WRITE (unit_nr, '(A,F0.10,A,F0.14,A,F0.10,A,F0.14)') &
+         "0,reference,reference,", reference_gap*evolt, ",0.0,", reference_energy, ",", &
+         reference_gap*evolt, ",", reference_energy
+      WRITE (unit_nr, '(A,F0.10,A,F0.10,A,F0.14,A,F0.10,A,F0.14)') &
+         "0,initial,initial,", initial_gap*evolt, ",", ABS(initial_gap - reference_gap)*evolt, ",", &
+         initial_energy, ",", reference_gap*evolt, ",", reference_energy
+      DO rank = 1, n_ranked
+         candidate = rank_order(rank)
+         WRITE (unit_nr, '(I0,A,I0,A,A,A,F0.10,A,F0.10,A,F0.14,A,F0.10,A,F0.14)') &
+            rank, ",basis_", rank, ",", TRIM(screening_preset_names(candidates(candidate)%preset)), ",", &
+            candidates(candidate)%gap*evolt, ",", ABS(candidates(candidate)%gap - reference_gap)*evolt, ",", &
+            candidates(candidate)%energy, ",", reference_gap*evolt, ",", reference_energy
+      END DO
+      CALL close_file(unit_number=unit_nr)
+
+   END SUBROUTINE write_screening_csv
+
+! **************************************************************************************************
+!> \brief Print the compact, aligned human-readable screening summary.
+! **************************************************************************************************
+   SUBROUTINE print_screening_summary(unit_nr, filename, candidates, rank_order, n_ranked, &
+                                      reference_gap, reference_energy, initial_gap, initial_energy)
+      INTEGER, INTENT(IN)                                :: unit_nr
+      CHARACTER(LEN=*), INTENT(IN)                       :: filename
+      TYPE(screening_candidate_type), DIMENSION(:), &
+         INTENT(IN)                                      :: candidates
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: rank_order
+      INTEGER, INTENT(IN)                                :: n_ranked
+      REAL(KIND=dp), INTENT(IN)                          :: reference_gap, reference_energy, &
+                                                            initial_gap, initial_energy
+
+      INTEGER                                            :: candidate, i, rank
+
+      IF (unit_nr <= 0) RETURN
+      WRITE (unit_nr, '(A)') ""
+      WRITE (unit_nr, '(A)') REPEAT("-", 92)
+      WRITE (unit_nr, '(A)') "SELF-CONSISTENT BASELINES"
+      WRITE (unit_nr, '(A)') REPEAT("-", 92)
+      WRITE (unit_nr, '(A24,2X,A14,2X,A22)') "Basis", "Gap / eV", "Total energy / Ha"
+      WRITE (unit_nr, '(A24,2X,F14.6,2X,F22.12)') "Reference", reference_gap*evolt, reference_energy
+      WRITE (unit_nr, '(A24,2X,F14.6,2X,F22.12)') "Initial compact", initial_gap*evolt, initial_energy
+      WRITE (unit_nr, '(A)') ""
+      WRITE (unit_nr, '(A)') "RANKED OPTIMIZED BASES (ranking uses only absolute SCF gap error)"
+      WRITE (unit_nr, '(A)') REPEAT("-", 92)
+      WRITE (unit_nr, '(A4,2X,A16,2X,A10,2X,A14,2X,A22)') &
+         "Rank", "Preset", "Gap / eV", "Error / meV", "Total energy / Ha"
+      DO rank = 1, n_ranked
+         candidate = rank_order(rank)
+         WRITE (unit_nr, '(I4,2X,A16,2X,F10.6,2X,F14.3,2X,F22.12)') &
+            rank, TRIM(screening_preset_names(candidates(candidate)%preset)), &
+            candidates(candidate)%gap*evolt, ABS(candidates(candidate)%gap - reference_gap)*evolt*1000.0_dp, &
+            candidates(candidate)%energy
+      END DO
+      WRITE (unit_nr, '(A)') REPEAT("-", 92)
+      WRITE (unit_nr, '(A)') "Best optimized basis: basis_1 (all definition names end in _1)."
+      IF (ABS(initial_gap - reference_gap) + 1.0E-6_dp/evolt < &
+          ABS(candidates(rank_order(1))%gap - reference_gap)) THEN
+         WRITE (unit_nr, '(A)') "Note: the initial compact basis matches the reference gap more closely than basis_1."
+      END IF
+      WRITE (unit_nr, '(A,A)') "Ranked basis file: ", TRIM(filename)
+      WRITE (unit_nr, '(A,A)') "Machine-readable results: ", TRIM(filename)//".screening.csv"
+      DO i = 1, SIZE(candidates)
+         IF (.NOT. candidates(i)%scf_converged) THEN
+            WRITE (unit_nr, '(A)') "One or more candidate SCFs failed and were excluded from the ranking."
+            EXIT
+         END IF
+      END DO
+      WRITE (unit_nr, '(A)') REPEAT("=", 92)
+      WRITE (unit_nr, '(A)') ""
+
+   END SUBROUTINE print_screening_summary
+
+! **************************************************************************************************
+!> \brief Delete a private screening work file if it exists.
+! **************************************************************************************************
+   SUBROUTINE delete_screening_file(filename)
+      CHARACTER(LEN=*), INTENT(IN)                       :: filename
+
+      INTEGER                                            :: ios, unit_nr
+      LOGICAL                                            :: exists
+
+      INQUIRE (FILE=filename, EXIST=exists)
+      IF (.NOT. exists) RETURN
+      OPEN (NEWUNIT=unit_nr, FILE=filename, STATUS="OLD", ACTION="READWRITE", IOSTAT=ios)
+      IF (ios == 0) CLOSE (unit_nr, STATUS="DELETE")
+
+   END SUBROUTINE delete_screening_file
+
+! **************************************************************************************************
+!> \brief Join a screening working directory and filename.
+! **************************************************************************************************
+   PURE FUNCTION screening_path(directory, filename) RESULT(path)
+      CHARACTER(LEN=*), INTENT(IN)                       :: directory, filename
+      CHARACTER(LEN=default_path_length)                 :: path
+
+      INTEGER                                            :: n
+
+      n = LEN_TRIM(directory)
+      IF (filename(1:1) == "/") THEN
+         path = filename
+      ELSE IF (n == 0 .OR. directory(n:n) == "/") THEN
+         path = TRIM(directory)//filename
+      ELSE
+         path = TRIM(directory)//"/"//filename
+      END IF
+
+   END FUNCTION screening_path
 
 ! **************************************************************************************************
 !> \brief driver routine for the parallel part of the method
@@ -194,7 +705,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'driver_optimization_para_low'
 
       INTEGER                                            :: handle, icalc, iopt, is, mp_id, stat
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id, f_env_output_unit
       LOGICAL                                            :: write_basis
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tot_time
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: diagnostics_initial, &
@@ -213,6 +724,7 @@ CONTAINS
       mp_id = opt_bas%opt_id
       NULLIFY (para_env, f_env)
       ALLOCATE (f_env_id(SIZE(opt_bas%comp_group(mp_id)%member_list)))
+      ALLOCATE (f_env_output_unit(SIZE(opt_bas%comp_group(mp_id)%member_list)), source=-1)
       ALLOCATE (tot_time(opt_bas%ncombinations*opt_bas%ntraining_sets))
       ALLOCATE (diagnostics_initial(opt_bas%ncombinations*opt_bas%ntraining_sets, &
                                     number_frontier_diagnostics), source=0.0_dp)
@@ -228,7 +740,7 @@ CONTAINS
       IF (para_env%is_source()) is = para_env_top%mepos
       CALL para_env_top%allgather(is, opt_bas%sub_sources)
 
-      CALL init_training_force_envs(opt_bas, f_env_id, input_declaration, matrix_s_inv, &
+      CALL init_training_force_envs(opt_bas, f_env_id, f_env_output_unit, input_declaration, matrix_s_inv, &
                                     frontier_orbitals_reference, para_env, mpi_comm_opt)
 
       CALL init_free_vars(opt_bas)
@@ -247,7 +759,7 @@ CONTAINS
             CALL compute_residuum_vectors(opt_bas, f_env_id, matrix_S_inv, tot_time, &
                                           para_env_top, para_env, iopt)
          CASE (method_mo_fit_occ_virtual)
-            IF (iopt == 0) THEN
+            IF (iopt == 0 .AND. .NOT. opt_bas%quiet_output) THEN
                CALL compute_frontier_orbitals_objective( &
                   opt_bas, f_env_id, frontier_orbitals_reference, tot_time, &
                   para_env_top, para_env, iopt, diagnostics_initial)
@@ -279,7 +791,7 @@ CONTAINS
 
       CALL para_env_top%bcast(opt_bas%x_opt)
       CALL update_free_vars(opt_bas)
-      IF (opt_bas%method == method_mo_fit_occ_virtual) THEN
+      IF (opt_bas%method == method_mo_fit_occ_virtual .AND. .NOT. opt_bas%quiet_output) THEN
          ! Report the actual best Powell vector, rather than the final trial point.
          CALL compute_frontier_orbitals_objective( &
             opt_bas, f_env_id, frontier_orbitals_reference, tot_time, &
@@ -299,8 +811,9 @@ CONTAINS
          END IF
          CALL f_env_get_from_id(f_env_id(icalc), f_env)
          CALL destroy_force_env(f_env_id(icalc), stat)
+         IF (opt_bas%quiet_output .AND. para_env%is_source()) CLOSE (f_env_output_unit(icalc))
       END DO
-      DEALLOCATE (f_env_id); DEALLOCATE (tot_time)
+      DEALLOCATE (f_env_id, f_env_output_unit); DEALLOCATE (tot_time)
       DEALLOCATE (diagnostics_initial, diagnostics_optimized)
       DEALLOCATE (frontier_orbitals_reference)
       CALL cp_fm_release(matrix_s_inv)
@@ -487,13 +1000,12 @@ CONTAINS
       CHARACTER(len=8)                                   :: basis_type
       INTEGER                                            :: bas_id, handle, icalc, icomb, icont, &
                                                             ikind, ipgf, iset, ix, l, mp_id, &
-                                                            my_id, ncalc, set_id, unit_nr
+                                                            my_id, ncalc, set_id
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: candidate_angular_momentum
       REAL(KIND=dp)                                      :: coefficient_loss, contribution
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coefficients_current
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gdata
       REAL(KIND=dp), DIMENSION(:), POINTER               :: start_time
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux, matrix_s_aux_orb
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(force_env_type), POINTER                      :: force_env
@@ -617,22 +1129,6 @@ CONTAINS
             tot_time(icalc) = tot_time(icalc) + gdata(icalc, 9)
          END DO
 
-         logger => cp_get_default_logger()
-         unit_nr = cp_logger_get_default_unit_nr(logger)
-         IF (unit_nr > 0) THEN
-            DO icalc = 1, ncalc
-               WRITE (unit_nr, &
-                      '(1X,A,I0,1X,A,F0.3,1X,A,F0.3,1X,A,F0.1,A,F0.1,A,F0.1,A,1X,A,I0,1X,A,I0)') &
-                  "i=", iopt, &
-                  "gap=", gdata(icalc, 6)*evolt, &
-                  "ref=", gdata(icalc, 5)*evolt, &
-                  "occ/vir/emp=", 100.0_dp*gdata(icalc, frontier_idx_overlap_occupied), "/", &
-                  100.0_dp*gdata(icalc, frontier_idx_similarity_virtual), "/", &
-                  100.0_dp*gdata(icalc, frontier_idx_overlap_empty), "%", &
-                  "κ(S)=", NINT(gdata(icalc, frontier_idx_condition_candidate)), &
-                  "L=", NINT(1.0E4_dp*opt_bas%powell_param%f)
-            END DO
-         END IF
       END IF
       CALL para_env_top%bcast(opt_bas%powell_param%f)
       DEALLOCATE (coefficients_current, gdata)
@@ -865,11 +1361,12 @@ CONTAINS
 !> \param mpi_comm_opt ...
 ! **************************************************************************************************
 
-   SUBROUTINE init_training_force_envs(opt_bas, f_env_id, input_declaration, matrix_s_inv, &
+   SUBROUTINE init_training_force_envs(opt_bas, f_env_id, f_env_output_unit, input_declaration, matrix_s_inv, &
                                        frontier_orbitals_reference, para_env, mpi_comm_opt)
 
       TYPE(basis_optimization_type)                      :: opt_bas
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: f_env_output_unit
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(cp_fm_type), DIMENSION(:), INTENT(OUT)        :: matrix_S_inv
       TYPE(frontier_orbitals_reference_type), &
@@ -915,13 +1412,32 @@ CONTAINS
                                   para_env=para_env)
 
          CALL modify_input_settings(opt_bas, bas_id, input_file)
-         CALL create_force_env(f_env_id(icalc), &
-                               input_declaration=input_declaration, &
-                               input_path=opt_bas%training_input(set_id), &
-                               input=input_file, &
-                               output_path="scrap_information", &
-                               mpi_comm=mpi_comm_opt, &
-                               ierr=stat)
+         IF (opt_bas%quiet_output) THEN
+            IF (para_env%is_source()) THEN
+               f_env_output_unit(icalc) = get_unit_number()
+               IF (f_env_output_unit(icalc) < 1) THEN
+                  CPABORT("No logical unit is available for disposable optimizer output")
+               END IF
+               OPEN (UNIT=f_env_output_unit(icalc), STATUS="SCRATCH", ACTION="READWRITE", IOSTAT=stat)
+               IF (stat /= 0) CPABORT("Could not open disposable optimizer output")
+            END IF
+            CALL create_force_env(f_env_id(icalc), &
+                                  input_declaration=input_declaration, &
+                                  input_path=opt_bas%training_input(set_id), &
+                                  input=input_file, &
+                                  output_unit=f_env_output_unit(icalc), &
+                                  owns_out_unit=.FALSE., &
+                                  mpi_comm=mpi_comm_opt, &
+                                  ierr=stat)
+         ELSE
+            CALL create_force_env(f_env_id(icalc), &
+                                  input_declaration=input_declaration, &
+                                  input_path=opt_bas%training_input(set_id), &
+                                  input=input_file, &
+                                  output_path="scrap_information", &
+                                  mpi_comm=mpi_comm_opt, &
+                                  ierr=stat)
+         END IF
 
          ! some weirdness with the default stacks defaults have to be addded to get the
          ! correct default program name this causes trouble with the timer stack if kept

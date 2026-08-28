@@ -45,7 +45,7 @@ MODULE optimize_basis_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_basis_utils'
 
    PUBLIC :: optimize_basis_init_read_input, get_set_and_basis_id, &
-             update_derived_basis_sets
+             update_derived_basis_sets, write_basis
 
 CONTAINS
 
@@ -57,10 +57,11 @@ CONTAINS
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 
-   SUBROUTINE optimize_basis_init_read_input(opt_bas, root_section, para_env)
+   SUBROUTINE optimize_basis_init_read_input(opt_bas, root_section, para_env, quiet_output)
       TYPE(basis_optimization_type)                      :: opt_bas
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: quiet_output
 
       CHARACTER(LEN=default_path_length)                 :: main_dir
       INTEGER                                            :: ikind, iset, iweight, nrep
@@ -74,6 +75,8 @@ CONTAINS
       train_section => section_vals_get_subs_vals(optbas_section, "TRAINING_FILES")
       kind_section => section_vals_get_subs_vals(optbas_section, "FIT_KIND")
       frontier_orbitals_section => section_vals_get_subs_vals(optbas_section, "FRONTIER_ORBITALS")
+
+      IF (PRESENT(quiet_output)) opt_bas%quiet_output = quiet_output
 
       CALL section_vals_val_get(optbas_section, "BASIS_TEMPLATE_FILE", c_val=opt_bas%template_basis_file)
       CALL section_vals_val_get(optbas_section, "BASIS_WORK_FILE", c_val=opt_bas%work_basis_file)
@@ -162,7 +165,7 @@ CONTAINS
 
       CALL generate_computation_groups(opt_bas, optbas_section, para_env)
 
-      CALL print_opt_info(opt_bas)
+      IF (.NOT. opt_bas%quiet_output) CALL print_opt_info(opt_bas)
 
    END SUBROUTINE optimize_basis_init_read_input
 
