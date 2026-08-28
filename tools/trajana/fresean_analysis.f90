@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE trajana_fresean_analysis
-   USE trajana_alignment,              ONLY: center_positions,&
+   USE trajana_alignment,               ONLY: center_positions,&
                                               fit_rotation,&
                                               identity3
    USE trajana_command_line,            ONLY: fail,&
@@ -22,7 +22,8 @@ MODULE trajana_fresean_analysis
    USE trajana_linear_algebra,          ONLY: diagonalize_symmetric
    USE trajana_selections,              ONLY: build_selection
    USE trajana_text_utils,              ONLY: lower_case
-   USE trajana_time_series,             ONLY: remove_real_means
+   USE trajana_time_series,             ONLY: complex_autocorrelation_sum,&
+                                              remove_real_means
    USE trajana_trajectory_io,           ONLY: close_output,&
                                               open_output,&
                                               xyz_reader_type
@@ -32,34 +33,36 @@ MODULE trajana_fresean_analysis
    PRIVATE
 
    REAL(dp), PARAMETER :: bohr_per_atomic_time_to_angstrom_per_ps = 21876.91263641118_dp
+   REAL(dp), PARAMETER :: speed_of_light_cm_per_ps = 0.0299792458_dp
    REAL(dp), PARAMETER :: mass_velocity_to_j_mol = 10.0_dp
    REAL(dp), PARAMETER :: gas_constant_j_mol_k = 8.31446261815324_dp
    REAL(dp), PARAMETER :: thz_to_wavenumber = 33.3564095198152_dp
+   REAL(dp), PARAMETER :: wavenumber_to_kj_mol = 0.0119626565638697_dp
 
    PUBLIC :: print_fresean_help, run_fresean
 
 CONTAINS
 
    SUBROUTINE run_fresean()
-      CHARACTER(LEN=512)                                 :: message
-      CHARACTER(LEN=:), ALLOCATABLE                      :: mass_path, mode_path, mode_spectrum_path, &
-                                                            output_path, position_path, reference_path, &
-                                                            selection, velocity_path, velocity_unit
       CHARACTER(LEN=32), ALLOCATABLE                     :: labels(:)
-      INTEGER                                            :: atom, capacity, component, first, frames, ierr, item, &
-                                                            last, mode_count, &
-                                                            n_correlation, n_dof, n_selected, stride
+      CHARACTER(LEN=512)                                 :: message
+      CHARACTER(LEN=:), ALLOCATABLE :: mass_path, mode_path, mode_spectrum_path, &
+         mode_timeseries_path, output_path, position_path, reference_path, selection, &
+         velocity_path, velocity_unit
+      INTEGER                                            :: atom, capacity, component, first, &
+                                                            frames, ierr, item, last, mode_count, &
+                                                            n_correlation, n_dof, n_selected, &
+                                                            stride
       INTEGER, ALLOCATABLE                               :: selected_index(:)
-      LOGICAL                                            :: eof, found, mode_requested, mode_spectrum_requested, &
-                                                            position_eof, position_found, reference_eof, &
-                                                            reference_found, remove_mean
+      LOGICAL :: eof, found, mode_requested, mode_spectrum_requested, mode_timeseries_requested, &
+         position_eof, position_found, reference_eof, reference_found, remove_mean
       LOGICAL, ALLOCATABLE                               :: selected(:)
-      REAL(dp)                                           :: constraints, dt_fs, effective_dt_ps, frequency_cm, &
-                                                            sigma_cm, velocity_scale, velocity_scale_extra
-      REAL(dp)                                           :: rotation(3, 3), velocity(3)
-      REAL(dp), ALLOCATABLE                              :: current_positions(:, :), grown(:, :), masses(:), &
-                                                            reference_positions(:, :), series(:, :)
-      TYPE(frame_type)                                   :: position_frame, reference_frame, velocity_frame
+      REAL(dp) :: aligned_position(3), constraints, dt_fs, effective_dt_ps, frequency_cm, &
+         rotation(3, 3), sigma_cm, velocity(3), velocity_scale, velocity_scale_extra
+      REAL(dp), ALLOCATABLE :: current_positions(:, :), grown(:, :), grown_positions(:, :), &
+         masses(:), position_series(:, :), reference_positions(:, :), series(:, :)
+      TYPE(frame_type)                                   :: position_frame, reference_frame, &
+                                                            velocity_frame
       TYPE(mass_table_type)                              :: mass_table
       TYPE(xyz_reader_type)                              :: positions, reference, velocities
 
@@ -70,6 +73,7 @@ CONTAINS
       CALL get_option("--output", output_path, found, "-")
       CALL get_option("--mode-file", mode_path, mode_requested)
       CALL get_option("--mode-spectrum", mode_spectrum_path, mode_spectrum_requested)
+      CALL get_option("--mode-timeseries", mode_timeseries_path, mode_timeseries_requested)
       CALL get_option("--select", selection, found, "all")
       CALL get_option("--velocity-unit", velocity_unit, found, "cp2k")
       CALL get_real_option("--dt-fs", dt_fs, -1.0_dp)
@@ -95,6 +99,10 @@ CONTAINS
       IF (constraints < 0.0_dp) CALL fail("--constraints cannot be negative")
       IF (first < 1 .OR. last < first .OR. stride < 1) CALL fail("Invalid frame range")
       IF (reference_found .AND. .NOT. position_found) CALL fail("--reference requires --position")
+      IF (mode_timeseries_requested .AND. .NOT. position_found) &
+         CALL fail("--mode-timeseries requires --position")
+      IF (mode_timeseries_requested .AND. frequency_cm <= 0.0_dp) &
+         CALL fail("--mode-timeseries requires a positive --frequency-cm")
 
       velocity_unit = lower_case(velocity_unit)
       SELECT CASE (velocity_unit)
@@ -157,6 +165,11 @@ CONTAINS
             END DO
             capacity = 128
             ALLOCATE (series(n_dof, capacity))
+            IF (mode_timeseries_requested) THEN
+               ALLOCATE (position_series(n_dof, capacity))
+            ELSE
+               ALLOCATE (position_series(0, 0))
+            END IF
             IF (position_found) THEN
                CALL validate_position_frame(velocity_frame, position_frame)
                ALLOCATE (reference_positions(3, n_selected), current_positions(3, n_selected))
@@ -181,6 +194,11 @@ CONTAINS
             ALLOCATE (grown(n_dof, 2*capacity))
             grown(:, :capacity) = series
             CALL MOVE_ALLOC(grown, series)
+            IF (mode_timeseries_requested) THEN
+               ALLOCATE (grown_positions(n_dof, 2*capacity))
+               grown_positions(:, :capacity) = position_series
+               CALL MOVE_ALLOC(grown_positions, position_series)
+            END IF
             capacity = 2*capacity
          END IF
          frames = frames + 1
@@ -195,9 +213,13 @@ CONTAINS
          item = 0
          DO atom = 1, n_selected
             velocity = MATMUL(rotation, velocity_frame%value(:, selected_index(atom)))*velocity_scale
+            IF (mode_timeseries_requested) &
+               aligned_position = MATMUL(rotation, current_positions(:, atom)) - reference_positions(:, atom)
             DO component = 1, 3
                item = item + 1
                series(item, frames) = SQRT(masses(atom))*velocity(component)
+               IF (mode_timeseries_requested) &
+                  position_series(item, frames) = SQRT(masses(atom))*aligned_position(component)
             END DO
          END DO
       END DO
@@ -209,36 +231,47 @@ CONTAINS
          ALLOCATE (grown(3*n_selected, frames))
          grown = series(:, :frames)
          CALL MOVE_ALLOC(grown, series)
+         IF (mode_timeseries_requested) THEN
+            ALLOCATE (grown_positions(3*n_selected, frames))
+            grown_positions = position_series(:, :frames)
+            CALL MOVE_ALLOC(grown_positions, position_series)
+         END IF
       END IF
       IF (remove_mean) CALL remove_real_means(series)
 
       effective_dt_ps = dt_fs*REAL(stride, dp)/1000.0_dp
-      CALL analyze_series(series, masses, labels, selection, effective_dt_ps, sigma_cm, &
+      CALL analyze_series(series, position_series, masses, labels, selection, effective_dt_ps, sigma_cm, &
                           constraints, frequency_cm, n_correlation, mode_count, position_found, remove_mean, &
                           output_path, mode_path, mode_requested, mode_spectrum_path, &
-                          mode_spectrum_requested)
+                          mode_spectrum_requested, mode_timeseries_path, mode_timeseries_requested)
    END SUBROUTINE run_fresean
 
-   SUBROUTINE analyze_series(series, masses, labels, selection, dt_ps, sigma_cm, constraints, &
+   SUBROUTINE analyze_series(series, position_series, masses, labels, selection, dt_ps, sigma_cm, constraints, &
                              requested_frequency, n_correlation, requested_modes, aligned, mean_removed, output_path, &
-                             mode_path, mode_requested, mode_spectrum_path, mode_spectrum_requested)
-      REAL(dp), INTENT(IN)                               :: series(:, :), masses(:), dt_ps, sigma_cm, &
-                                                            constraints, requested_frequency
-      CHARACTER(LEN=*), INTENT(IN)                       :: labels(:), selection, output_path, mode_path, &
-                                                            mode_spectrum_path
+                             mode_path, mode_requested, mode_spectrum_path, mode_spectrum_requested, &
+                             mode_timeseries_path, mode_timeseries_requested)
+      REAL(dp), INTENT(IN)                               :: series(:, :), position_series(:, :), &
+                                                            masses(:)
+      CHARACTER(LEN=*), INTENT(IN)                       :: labels(:), selection
+      REAL(dp), INTENT(IN)                               :: dt_ps, sigma_cm, constraints, &
+                                                            requested_frequency
       INTEGER, INTENT(IN)                                :: n_correlation, requested_modes
-      LOGICAL, INTENT(IN)                                :: aligned, mean_removed, mode_requested, &
-                                                            mode_spectrum_requested
+      LOGICAL, INTENT(IN)                                :: aligned, mean_removed
+      CHARACTER(LEN=*), INTENT(IN)                       :: output_path, mode_path
+      LOGICAL, INTENT(IN)                                :: mode_requested
+      CHARACTER(LEN=*), INTENT(IN)                       :: mode_spectrum_path
+      LOGICAL, INTENT(IN)                                :: mode_spectrum_requested
+      CHARACTER(LEN=*), INTENT(IN)                       :: mode_timeseries_path
+      LOGICAL, INTENT(IN)                                :: mode_timeseries_requested
 
       CHARACTER(LEN=512)                                 :: message
-      INTEGER                                            :: frequency, ierr, mode, mode_count, mode_unit, &
-                                                            n_dof, output_unit, selected_frequency, &
-                                                            spectrum_unit
-      REAL(dp)                                           :: captured, df_cm, dof, kinetic_temperature, normalization, &
+      INTEGER :: frequency, ierr, mode, mode_count, mode_timeseries_unit, mode_unit, n_dof, &
+         output_unit, selected_frequency, spectrum_unit
+      REAL(dp)                                           :: captured, df_cm, dof, &
+                                                            kinetic_temperature, normalization, &
                                                             selected_wavenumber, total
-      REAL(dp), ALLOCATABLE                              :: eigenvalues(:), eigenvalue_table(:, :), &
-                                                            eigenvectors(:, :), matrices(:, :, :), mode_vectors(:, :), &
-                                                            trace(:)
+      REAL(dp), ALLOCATABLE :: eigenvalue_table(:, :), eigenvalues(:), eigenvectors(:, :), &
+         matrices(:, :, :), mode_vectors(:, :), trace(:)
 
       n_dof = SIZE(series, 1)
       dof = REAL(n_dof, dp) - constraints
@@ -314,16 +347,26 @@ CONTAINS
          CALL write_mode_spectra(spectrum_unit, df_cm, selected_wavenumber, trace, matrices, mode_vectors)
          CALL close_output(spectrum_unit)
       END IF
+      IF (mode_timeseries_requested) THEN
+         CALL open_output(mode_timeseries_path, mode_timeseries_unit, ierr, message)
+         IF (ierr /= 0) CALL fail(message)
+         CALL write_mode_timeseries(mode_timeseries_unit, dt_ps, selected_wavenumber, &
+                                    position_series, series, mode_vectors)
+         CALL close_output(mode_timeseries_unit)
+      END IF
    END SUBROUTINE analyze_series
 
    SUBROUTINE build_frequency_matrices(series, n_correlation, dt_ps, sigma_cm, matrices, df_cm)
-      REAL(dp), INTENT(IN)                               :: series(:, :), dt_ps, sigma_cm
+      REAL(dp), INTENT(IN)                               :: series(:, :)
       INTEGER, INTENT(IN)                                :: n_correlation
+      REAL(dp), INTENT(IN)                               :: dt_ps, sigma_cm
       REAL(dp), ALLOCATABLE, INTENT(OUT)                 :: matrices(:, :, :)
       REAL(dp), INTENT(OUT)                              :: df_cm
 
-      COMPLEX(dp), ALLOCATABLE                           :: transformed(:, :), work_long(:), work_short(:)
-      INTEGER                                            :: first, frames, frequency, lag, length, n_dof, second
+      COMPLEX(dp), ALLOCATABLE                           :: transformed(:, :), work_long(:), &
+                                                            work_short(:)
+      INTEGER                                            :: first, frames, frequency, lag, length, &
+                                                            n_dof, second
       REAL(dp)                                           :: gaussian_norm
       REAL(dp), ALLOCATABLE                              :: window(:)
 
@@ -341,7 +384,7 @@ CONTAINS
       gaussian_norm = 1.0_dp/SQRT(2.0_dp*ACOS(-1.0_dp)*sigma_cm*sigma_cm)
       DO frequency = 0, n_correlation - 1
          window(frequency + 1) = gaussian_norm* &
-            EXP(-0.5_dp*(REAL(frequency, dp)*df_cm/sigma_cm)**2)
+                                 EXP(-0.5_dp*(REAL(frequency, dp)*df_cm/sigma_cm)**2)
       END DO
       window(n_correlation + 1:) = window(n_correlation:2:-1)
       work_short = CMPLX(window, 0.0_dp, KIND=dp)
@@ -358,7 +401,7 @@ CONTAINS
             work_short(1) = CMPLX(window(1)*REAL(work_long(1), dp), 0.0_dp, KIND=dp)
             DO lag = 1, n_correlation - 1
                work_short(lag + 1) = CMPLX(window(lag + 1)*0.5_dp* &
-                  REAL(work_long(lag + 1) + work_long(frames - lag + 1), dp), 0.0_dp, KIND=dp)
+                                           REAL(work_long(lag + 1) + work_long(frames - lag + 1), dp), 0.0_dp, KIND=dp)
             END DO
             work_short(n_correlation + 1:) = work_short(n_correlation:2:-1)
             CALL fft_any_in_place(work_short, inverse=.FALSE.)
@@ -384,7 +427,8 @@ CONTAINS
    SUBROUTINE write_modes(unit, labels, masses, frequency_cm, eigenvalues, vectors)
       INTEGER, INTENT(IN)                                :: unit
       CHARACTER(LEN=*), INTENT(IN)                       :: labels(:)
-      REAL(dp), INTENT(IN)                               :: masses(:), frequency_cm, eigenvalues(:), vectors(:, :)
+      REAL(dp), INTENT(IN)                               :: masses(:), frequency_cm, eigenvalues(:), &
+                                                            vectors(:, :)
 
       INTEGER                                            :: atom, mode
       REAL(dp)                                           :: displacement(3)
@@ -402,8 +446,8 @@ CONTAINS
 
    SUBROUTINE write_mode_spectra(unit, df_cm, selected_frequency, trace, matrices, vectors)
       INTEGER, INTENT(IN)                                :: unit
-      REAL(dp), INTENT(IN)                               :: df_cm, selected_frequency, trace(:), matrices(:, :, :), &
-                                                            vectors(:, :)
+      REAL(dp), INTENT(IN)                               :: df_cm, selected_frequency, trace(:), &
+                                                            matrices(:, :, :), vectors(:, :)
 
       INTEGER                                            :: frequency, mode
       REAL(dp)                                           :: projection
@@ -424,6 +468,105 @@ CONTAINS
          WRITE (unit, "(A)") ""
       END DO
    END SUBROUTINE write_mode_spectra
+
+   SUBROUTINE write_mode_timeseries(unit, dt_ps, frequency_cm, positions, velocities, vectors)
+      INTEGER, INTENT(IN)                                :: unit
+      REAL(dp), INTENT(IN)                               :: dt_ps, frequency_cm, positions(:, :), &
+                                                            velocities(:, :), vectors(:, :)
+
+      INTEGER                                            :: frame, mode, mode_count
+      REAL(dp)                                           :: energy_quantum, omega_ps, total_energy
+      REAL(dp), ALLOCATABLE                              :: coordinate(:, :), energy(:, :), &
+                                                            energy_fraction(:, :), phase_time(:), &
+                                                            projected_velocity(:, :)
+
+      mode_count = SIZE(vectors, 2)
+      ALLOCATE (coordinate(mode_count, SIZE(positions, 2)), &
+                projected_velocity(mode_count, SIZE(velocities, 2)), &
+                energy(mode_count, SIZE(velocities, 2)), energy_fraction(mode_count, SIZE(velocities, 2)), &
+                phase_time(mode_count))
+      coordinate = MATMUL(TRANSPOSE(vectors), positions)
+      projected_velocity = MATMUL(TRANSPOSE(vectors), velocities)
+      DO mode = 1, mode_count
+         coordinate(mode, :) = coordinate(mode, :) - &
+                               SUM(coordinate(mode, :))/REAL(SIZE(coordinate, 2), dp)
+      END DO
+      omega_ps = 2.0_dp*ACOS(-1.0_dp)*speed_of_light_cm_per_ps*frequency_cm
+      energy = 0.5_dp*mass_velocity_to_j_mol* &
+               (projected_velocity**2 + (omega_ps*coordinate)**2)/1000.0_dp
+      energy_quantum = wavenumber_to_kj_mol*frequency_cm
+      energy_fraction = 0.0_dp
+      DO frame = 1, SIZE(energy, 2)
+         total_energy = SUM(energy(:, frame))
+         IF (total_energy > TINY(1.0_dp)) energy_fraction(:, frame) = energy(:, frame)/total_energy
+      END DO
+      DO mode = 1, mode_count
+         phase_time(mode) = phase_correlation_time(coordinate(mode, :), projected_velocity(mode, :), &
+                                                   omega_ps, dt_ps)
+      END DO
+
+      WRITE (unit, "(A)") "# Time-resolved projection onto fixed FRESEAN modes"
+      WRITE (unit, "(A,F16.8)") "# eigenvectors_selected_at_wavenumber_cm^-1: ", frequency_cm
+      WRITE (unit, "(A,F16.8)") "# harmonic_energy_quantum_kJ_mol^-1: ", energy_quantum
+      WRITE (unit, "(A)") "# mass_weighted_coordinate_unit: sqrt(g/mol)*angstrom"
+      WRITE (unit, "(A)") "# mass_weighted_velocity_unit: sqrt(g/mol)*angstrom/ps"
+      WRITE (unit, "(A)") "# projected_coordinate_means_removed: T"
+      WRITE (unit, "(A)") &
+         "# Energies are harmonic proxies; fractions are normalized over the extracted modes only."
+      WRITE (unit, "(A)") &
+         "# Phase-correlation times describe the continuously sampled trajectory, not an intrinsic IVR lifetime."
+      WRITE (unit, "(A)") "# A phase-correlation time of -1 means no 1/e crossing within half the trajectory."
+      DO mode = 1, mode_count
+         WRITE (unit, "(A,I0,A,ES24.16)") "# mode_", mode, "_phase_correlation_1e_ps: ", phase_time(mode)
+      END DO
+      WRITE (unit, "(A)", ADVANCE="no") "# time[ps]"
+      DO mode = 1, mode_count
+         WRITE (unit, "(A,I0,A,I0,A,I0,A,I0,A,I0)", ADVANCE="no") &
+            " q_", mode, " velocity_", mode, " energy_kJ_mol_", mode, " quanta_", mode, " fraction_", mode
+      END DO
+      WRITE (unit, "(A)") ""
+      DO frame = 1, SIZE(energy, 2)
+         WRITE (unit, "(ES24.16)", ADVANCE="no") REAL(frame - 1, dp)*dt_ps
+         DO mode = 1, mode_count
+            WRITE (unit, "(5ES24.16)", ADVANCE="no") coordinate(mode, frame), projected_velocity(mode, frame), &
+               energy(mode, frame), energy(mode, frame)/energy_quantum, energy_fraction(mode, frame)
+         END DO
+         WRITE (unit, "(A)") ""
+      END DO
+   END SUBROUTINE write_mode_timeseries
+
+   REAL(dp) FUNCTION phase_correlation_time(coordinate, velocity, omega_ps, dt_ps)
+      REAL(dp), INTENT(IN)                               :: coordinate(:), velocity(:), omega_ps, &
+                                                            dt_ps
+
+      COMPLEX(dp), ALLOCATABLE                           :: correlation(:), phase(:, :)
+      INTEGER                                            :: frame, lag, maximum_lag
+      REAL(dp)                                           :: amplitude, amplitude_cutoff, &
+                                                            maximum_amplitude
+
+      maximum_lag = SIZE(coordinate)/2
+      ALLOCATE (phase(1, SIZE(coordinate)))
+      maximum_amplitude = MAXVAL(SQRT((omega_ps*coordinate)**2 + velocity**2))
+      amplitude_cutoff = SQRT(EPSILON(1.0_dp))*maximum_amplitude
+      phase = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      DO frame = 1, SIZE(coordinate)
+         amplitude = SQRT((omega_ps*coordinate(frame))**2 + velocity(frame)**2)
+         IF (amplitude > amplitude_cutoff) &
+            phase(1, frame) = CMPLX(omega_ps*coordinate(frame), velocity(frame), KIND=dp)/amplitude
+      END DO
+      CALL complex_autocorrelation_sum(phase, maximum_lag, correlation)
+      DO lag = 0, maximum_lag
+         correlation(lag) = correlation(lag)/REAL(SIZE(coordinate) - lag, dp)
+      END DO
+      phase_correlation_time = -1.0_dp
+      IF (ABS(correlation(0)) <= TINY(1.0_dp)) RETURN
+      DO lag = 1, maximum_lag
+         IF (ABS(correlation(lag)/correlation(0)) <= EXP(-1.0_dp)) THEN
+            phase_correlation_time = REAL(lag, dp)*dt_ps
+            RETURN
+         END IF
+      END DO
+   END FUNCTION phase_correlation_time
 
    SUBROUTINE validate_position_frame(velocity_frame, position_frame)
       TYPE(frame_type), INTENT(IN)                       :: velocity_frame, position_frame
@@ -469,6 +612,7 @@ CONTAINS
       WRITE (*, "(A)") "  --output FILE              VDoS and leading eigenvalues (default stdout)"
       WRITE (*, "(A)") "  --mode-file FILE           mass-unweighted displacement vectors in XYZ format"
       WRITE (*, "(A)") "  --mode-spectrum FILE       projected VDoS of the extracted modes"
+      WRITE (*, "(A)") "  --mode-timeseries FILE     time-resolved fixed-mode coordinates and energy proxies"
       WRITE (*, "(A)") ""
       WRITE (*, "(A)") "Alignment and conventions:"
       WRITE (*, "(A)") "  --position FILE            synchronized positions; enables rotational alignment"

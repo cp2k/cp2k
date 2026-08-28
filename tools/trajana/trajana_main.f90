@@ -10,6 +10,7 @@ PROGRAM trajana
                                               fail,&
                                               has_flag
    USE trajana_dsf_analysis,            ONLY: run_dsf
+   USE trajana_event_analysis,          ONLY: run_events
    USE trajana_geometry_analysis,       ONLY: run_geometry
    USE trajana_hbond_analysis,          ONLY: run_hbond
    USE trajana_rdf_analysis,            ONLY: run_rdf
@@ -27,6 +28,8 @@ PROGRAM trajana
       CALL print_help()
    CASE ("geometry")
       CALL run_geometry()
+   CASE ("events")
+      CALL run_events()
    CASE ("rdf")
       CALL run_rdf()
    CASE ("vacf")
@@ -46,6 +49,7 @@ CONTAINS
       WRITE (*, "(A)") ""
       WRITE (*, "(A)") "Analyses:"
       WRITE (*, "(A)") "  geometry  Distances, angles, and torsions from an action file"
+      WRITE (*, "(A)") "  events    Hysteretic events in geometric trajectory observables"
       WRITE (*, "(A)") "  rdf       Radial distribution and running coordination number"
       WRITE (*, "(A)") "  vacf      Velocity autocorrelation and optional spectrum"
       WRITE (*, "(A)") "  hbond     Wernet-type hydrogen-bond network statistics"
