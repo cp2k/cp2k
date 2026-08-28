@@ -31,18 +31,32 @@ if(NOT CP2K_CONFIG_PACKAGE)
       get_target_property(CP2K_LAPACK_LINK_LIBRARIES cp2k::BLAS::blas
                           INTERFACE_LINK_LIBRARIES)
     else()
-      # we might get lucky to find a pkgconfig package for lapack (fedora
-      # provides one for instance)
-      if(PKG_CONFIG_FOUND)
-        pkg_check_modules(CP2K_LAPACK lapack)
+      if(CP2K_BLAS_VENDOR MATCHES "CUSTOM" AND NOT DEFINED
+                                               CP2K_LAPACK_LINK_LIBRARIES)
+        message(
+          FATAL_ERROR
+            "Setting CP2K_BLAS_VENDOR=CUSTOM imply setting CP2K_LAPACK_LINK_LIBRARIES to the right libraries."
+        )
       endif()
 
-      if(NOT CP2K_LAPACK_FOUND)
-        find_library(
-          CP2K_LAPACK_LINK_LIBRARIES
-          NAMES "lapack" "lapack64"
-          PATH_SUFFIXES "openblas" "openblas64" "openblas-pthread"
-                        "openblas-openmp" "lib" "lib64")
+      if(DEFINED CP2K_LAPACK_LINK_LIBRARIES)
+        # the user provided the libraries (CP2K_BLAS_VENDOR=CUSTOM), do not
+        # search
+        set(CP2K_LAPACK_FOUND TRUE)
+      else()
+        # we might get lucky to find a pkgconfig package for lapack (fedora
+        # provides one for instance)
+        if(PKG_CONFIG_FOUND)
+          pkg_check_modules(CP2K_LAPACK lapack)
+        endif()
+
+        if(NOT CP2K_LAPACK_FOUND)
+          find_library(
+            CP2K_LAPACK_LINK_LIBRARIES
+            NAMES "lapack" "lapack64"
+            PATH_SUFFIXES "openblas" "openblas64" "openblas-pthread"
+                          "openblas-openmp" "lib" "lib64")
+        endif()
       endif()
     endif()
   endif()
