@@ -186,19 +186,18 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: screening_section
 
-      INTEGER, PARAMETER :: number_loss_weight_presets = 5, number_screening_optimizations = 10
-      REAL(KIND=dp), DIMENSION(6, number_loss_weight_presets), PARAMETER :: optimization_weights = &
-         RESHAPE([10.0_dp, 10.0_dp, 10.0_dp, 10.0_dp, 0.001_dp, 0.001_dp, 30.0_dp, 30.0_dp, 30.0_dp&
-         , 10.0_dp, 0.001_dp, 0.001_dp, 10.0_dp, 30.0_dp, 30.0_dp, 10.0_dp, 0.001_dp, 0.001_dp, &
-         10.0_dp, 30.0_dp, 30.0_dp, 3.0_dp, 0.001_dp, 0.001_dp, 10.0_dp, 30.0_dp, 30.0_dp, 10.0_dp &
-         , 0.001_dp, 0.01_dp], [6, number_loss_weight_presets])
+      INTEGER, PARAMETER :: number_screening_optimizations = 5
+      REAL(KIND=dp), DIMENSION(6, number_screening_optimizations), PARAMETER :: &
+         optimization_weights = RESHAPE([10.0_dp, 10.0_dp, 10.0_dp, 10.0_dp, 0.001_dp, 0.001_dp, &
+         30.0_dp, 30.0_dp, 30.0_dp, 10.0_dp, 0.001_dp, 0.001_dp, 10.0_dp, 30.0_dp, 30.0_dp, 10.0_dp&
+         , 0.001_dp, 0.001_dp, 10.0_dp, 30.0_dp, 30.0_dp, 3.0_dp, 0.001_dp, 0.001_dp, 10.0_dp, &
+         30.0_dp, 30.0_dp, 10.0_dp, 0.001_dp, 0.01_dp], [6, number_screening_optimizations])
 
       CHARACTER(LEN=default_path_length)                 :: candidate_file, final_basis_file, &
                                                             main_dir, screening_work_file
       CHARACTER(LEN=default_path_length), ALLOCATABLE, &
          DIMENSION(:)                                    :: candidate_files
-      INTEGER                                            :: i, n_candidates, n_ranked, preset, &
-                                                            unit_nr
+      INTEGER                                            :: i, n_candidates, n_ranked, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rank_order
       LOGICAL                                            :: initial_converged, reference_converged
       REAL(KIND=dp) :: initial_condition_number, initial_energy, initial_gap, &
@@ -262,25 +261,19 @@ CONTAINS
             END IF
          END IF
 
-         preset = MOD(i - 1, number_loss_weight_presets) + 1
          candidates(i)%opt_bas%method = method_mo_fit_occ_virtual
          candidates(i)%opt_bas%use_condition_number = .TRUE.
          candidates(i)%opt_bas%write_frequency = 5000
          candidates(i)%opt_bas%fval_weight = 1.0_dp
-         candidates(i)%opt_bas%occupied_weight = optimization_weights(1, preset)
-         candidates(i)%opt_bas%virtual_weight = optimization_weights(2, preset)
-         candidates(i)%opt_bas%empty_overlap_weight = optimization_weights(3, preset)
-         candidates(i)%opt_bas%gap_weight = optimization_weights(4, preset)
-         candidates(i)%opt_bas%condition_weight = optimization_weights(5, preset)
-         candidates(i)%opt_bas%coefficient_weight = optimization_weights(6, preset)
+         candidates(i)%opt_bas%occupied_weight = optimization_weights(1, i)
+         candidates(i)%opt_bas%virtual_weight = optimization_weights(2, i)
+         candidates(i)%opt_bas%empty_overlap_weight = optimization_weights(3, i)
+         candidates(i)%opt_bas%gap_weight = optimization_weights(4, i)
+         candidates(i)%opt_bas%condition_weight = optimization_weights(5, i)
+         candidates(i)%opt_bas%coefficient_weight = optimization_weights(6, i)
          candidates(i)%opt_bas%gap_energy_scale = 1.0_dp/evolt
-         IF (i <= number_loss_weight_presets) THEN
-            candidates(i)%opt_bas%virtual_energy_cutoff = 3.0_dp/evolt
-            candidates(i)%opt_bas%virtual_energy_smoothing = 0.2_dp/evolt
-         ELSE
-            candidates(i)%opt_bas%virtual_energy_cutoff = 5.0_dp/evolt
-            candidates(i)%opt_bas%virtual_energy_smoothing = 0.5_dp/evolt
-         END IF
+         candidates(i)%opt_bas%virtual_energy_cutoff = 3.0_dp/evolt
+         candidates(i)%opt_bas%virtual_energy_smoothing = 0.2_dp/evolt
          candidate_file = screening_path(main_dir, ".frontier_screening_candidate_"// &
                                          TRIM(ADJUSTL(cp_to_string(i)))//".basis")
          candidate_files(i) = candidate_file

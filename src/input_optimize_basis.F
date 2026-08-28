@@ -373,9 +373,8 @@ CONTAINS
          "are reported but do not affect the ranking. All ranked basis sets are written to the single "// &
          "BASIS_OUTPUT_FILE with rank suffixes such as _1 and _2. This section requires "// &
          "one basis combination. It is independent of FRONTIER_ORBITALS and must not be combined "// &
-         "with that section. The loss weights and condition-number penalty are built in. Presets 1-5 "// &
-         "use a 3 eV virtual-energy cutoff and 0.2 eV smoothing; presets 6-10 repeat the same five "// &
-         "weight combinations with a 5 eV cutoff and 0.5 eV smoothing. TRAINING_FILES, "// &
+         "with that section. The five loss-weight presets and condition-number penalty are built in. "// &
+         "All presets use a 3 eV virtual-energy cutoff and 0.2 eV smoothing. TRAINING_FILES, "// &
          "BASIS_WORK_FILE, WRITE_FREQUENCY, USE_CONDITION_NUMBER, RESIDUUM_WEIGHT, CONDITION_WEIGHT, "// &
          "BASIS_COMBINATIONS, GROUP_PARTITION, and an explicit SCF_GUESS are forbidden because "// &
          "screening controls them automatically. The private work basis is deleted before completion.", &
@@ -383,8 +382,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NUMBER_OF_OPTIMIZATIONS", &
                           description="Number of ordered built-in loss-weight presets to optimize and validate.", &
-                          usage="NUMBER_OF_OPTIMIZATIONS 10", &
-                          default_i_val=10)
+                          usage="NUMBER_OF_OPTIMIZATIONS 5", &
+                          default_i_val=5)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
