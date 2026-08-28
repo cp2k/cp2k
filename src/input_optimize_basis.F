@@ -180,12 +180,12 @@ CONTAINS
          "energies, including the HOMO-LUMO gap, are evaluated relative to the reference Hamiltonian. "// &
          "When optimizing the compact basis against the large reference basis, the following loss "// &
          "function is minimized:"//paragraph_break// &
-         "$$\mathcal{L}=a_{\mathrm{occ}}\mathcal{L}_{\mathrm{occ}}+"// &
-         "a_{\mathrm{vir}}\mathcal{L}_{\mathrm{vir}}+"// &
-         "a_{\mathrm{empty}}\mathcal{L}_{\mathrm{empty}}+"// &
-         "a_{\mathrm{gap}}\mathcal{L}_{\mathrm{gap}}+"// &
-         "a_{\mathrm{coeff}}\mathcal{L}_{\mathrm{coeff}}+"// &
-         "a_\kappa\mathcal{L}_\kappa.$$"//paragraph_break// &
+         "$$\mathcal{L}=\alpha_{\mathrm{occ}}\mathcal{L}_{\mathrm{occ}}+"// &
+         "\alpha_{\mathrm{vir}}\mathcal{L}_{\mathrm{vir}}+"// &
+         "\alpha_{\mathrm{empty}}\mathcal{L}_{\mathrm{empty}}+"// &
+         "\alpha_{\mathrm{gap}}\mathcal{L}_{\mathrm{gap}}+"// &
+         "\alpha_{\mathrm{coeff}}\mathcal{L}_{\mathrm{coeff}}+"// &
+         "\alpha_\kappa\mathcal{L}_\kappa.$$"//paragraph_break// &
          "Below, all loss functions $\mathcal{L}$ are defined. $R$ and $C$ label reference and "// &
          "candidate quantities, $i$ and $j$ label occupied orbitals, and $a$ and $b$ label virtual "// &
          "orbitals. Their overlaps are $M_{ij}=\langle\psi_i^R\vert\psi_j^C\rangle$ and "// &
@@ -248,14 +248,33 @@ CONTAINS
          "$$\mathcal{L}_\kappa=\log_{10}\kappa(S_C),\qquad "// &
          "\kappa(S_C)=\frac{\lambda_{\max}(S_C)}{\lambda_{\min}(S_C)}.$$"//paragraph_break// &
          "It penalizes an ill-conditioned candidate overlap matrix. The weights "// &
-         "$a_{\mathrm{occ}}$, $a_{\mathrm{vir}}$, $a_{\mathrm{empty}}$, "// &
-         "$a_{\mathrm{gap}}$, and $a_{\mathrm{coeff}}$ are set below; "// &
-         "CONDITION_WEIGHT supplies $a_\kappa$.", &
+         "$\alpha_{\mathrm{occ}}$, $\alpha_{\mathrm{vir}}$, $\alpha_{\mathrm{empty}}$, "// &
+         "$\alpha_{\mathrm{gap}}$, and $\alpha_{\mathrm{coeff}}$ are set below; "// &
+         "CONDITION_WEIGHT supplies $\alpha_\kappa$."//paragraph_break// &
+         "The loss weights $\alpha_{\mathrm{occ}}$, $\alpha_{\mathrm{vir}}$, "// &
+         "$\alpha_{\mathrm{empty}}$, $\alpha_{\mathrm{gap}}$, "// &
+         "$\alpha_{\mathrm{coeff}}$, and $\alpha_\kappa$ can have a strong and "// &
+         "system-dependent effect on the accuracy of the optimized basis set. In particular, the user "// &
+         "has to test the new basis set in a self-consistent DFT calculation, which also uses the "// &
+         "self-consistent electron density computed with the optimized basis set (during the "// &
+         "optimization, the electron density is kept fixed at the density obtained with the large "// &
+         "reference basis set). Several combinations of loss weights should be tested, and the optimal "// &
+         "basis should be selected based on validation with a self-consistent DFT calculation using the "// &
+         "new basis set (for example, by focusing on the resulting DFT gap, GW gap, or GW-BSE excitation "// &
+         "energy). Useful candidate parameter combinations include:"//paragraph_break// &
+         "1. OCCUPIED_WEIGHT 1, VIRTUAL_WEIGHT 1, EMPTY_OVERLAP_WEIGHT 1, GAP_WEIGHT 10, "// &
+         "GAP_ENERGY_SCALE [eV] 1, CONDITION_WEIGHT 0.1, COEFFICIENT_WEIGHT 0.001"//NEW_LINE("A")// &
+         "2. OCCUPIED_WEIGHT 10, VIRTUAL_WEIGHT 10, EMPTY_OVERLAP_WEIGHT 10, GAP_WEIGHT 10, "// &
+         "GAP_ENERGY_SCALE [eV] 1, CONDITION_WEIGHT 0.001, COEFFICIENT_WEIGHT 0.001"//NEW_LINE("A")// &
+         "3. OCCUPIED_WEIGHT 30, VIRTUAL_WEIGHT 30, EMPTY_OVERLAP_WEIGHT 30, GAP_WEIGHT 10, "// &
+         "GAP_ENERGY_SCALE [eV] 1, CONDITION_WEIGHT 0.001, COEFFICIENT_WEIGHT 0.001"//NEW_LINE("A")// &
+         "4. OCCUPIED_WEIGHT 10, VIRTUAL_WEIGHT 30, EMPTY_OVERLAP_WEIGHT 30, GAP_WEIGHT 10, "// &
+         "GAP_ENERGY_SCALE [eV] 1, CONDITION_WEIGHT 0.001, COEFFICIENT_WEIGHT 0.01", &
          repeats=.FALSE.)
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="OCCUPIED_WEIGHT", &
-         description="Prefactor $a_{\mathrm{occ}}$ multiplying the occupied-subspace loss "// &
+         description="Prefactor $\alpha_{\mathrm{occ}}$ multiplying the occupied-subspace loss "// &
          "$\mathcal{L}_{\mathrm{occ}}$.", &
          usage="OCCUPIED_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -263,7 +282,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="VIRTUAL_WEIGHT", &
-         description="Prefactor $a_{\mathrm{vir}}$ multiplying the virtual-subspace loss "// &
+         description="Prefactor $\alpha_{\mathrm{vir}}$ multiplying the virtual-subspace loss "// &
          "$\mathcal{L}_{\mathrm{vir}}$.", &
          usage="VIRTUAL_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -271,7 +290,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="EMPTY_OVERLAP_WEIGHT", &
-         description="Prefactor $a_{\mathrm{empty}}$ multiplying "// &
+         description="Prefactor $\alpha_{\mathrm{empty}}$ multiplying "// &
          "$\mathcal{L}_{\mathrm{empty}}$, the loss of reference low-energy virtual-state "// &
          "completeness in the candidate virtual subspace.", &
          usage="EMPTY_OVERLAP_WEIGHT 1.0", type_of_var=real_t, default_r_val=1.0_dp)
@@ -280,7 +299,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="GAP_WEIGHT", &
-         description="Prefactor $a_{\mathrm{gap}}$ multiplying the normalized HOMO-LUMO gap loss "// &
+         description="Prefactor $\alpha_{\mathrm{gap}}$ multiplying the normalized HOMO-LUMO gap loss "// &
          "$\mathcal{L}_{\mathrm{gap}}$. Because $\mathcal{L}_{\mathrm{gap}}$ is proportional to "// &
          "$1/E_{\mathrm{scale}}^2$, reducing GAP_ENERGY_SCALE by a factor "// &
          "of 100 requires reducing GAP_WEIGHT by a factor of 10000 to retain the same balance.", &
@@ -290,7 +309,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="COEFFICIENT_WEIGHT", &
-         description="Prefactor $a_{\mathrm{coeff}}$ multiplying the normalized squared change "// &
+         description="Prefactor $\alpha_{\mathrm{coeff}}$ multiplying the normalized squared change "// &
          "$\mathcal{L}_{\mathrm{coeff}}$ of the optimized contraction coefficients from their "// &
          "initial values.", &
          usage="COEFFICIENT_WEIGHT 1.0E-3", type_of_var=real_t, default_r_val=1.0E-3_dp)
