@@ -362,19 +362,29 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
          section, __LOCATION__, name="FRONTIER_ORBITAL_SCREENING", &
-         description="Runs several frontier-orbital basis optimizations serially using built-in, "// &
-         "ordered loss-weight presets. Every optimized basis is validated with a fresh, silent, "// &
+         description="Runs a complete single-input frontier-orbital basis screening workflow. "// &
+         "Exactly one FORCE_EVAL with an explicit DFT section must be provided in the same CP2K input; "// &
+         "TRAINING_FILES is forbidden. CP2K first converges and prints the large-reference-basis SCF, "// &
+         "aborting before optimization if it does not converge. It then runs several frontier-orbital "// &
+         "basis optimizations serially using built-in, ordered loss-weight presets. Every optimized "// &
+         "basis is validated with a fresh, silent, "// &
          "atomic-guess SCF calculation. Converged candidates are ranked by the absolute difference "// &
          "between their self-consistent HOMO-LUMO gap and the reference-basis gap. The total energies "// &
          "are reported but do not affect the ranking. All ranked basis sets are written to the single "// &
          "BASIS_OUTPUT_FILE with rank suffixes such as _1 and _2. This section requires "// &
-         "FRONTIER_ORBITALS and currently supports one TRAINING_FILES section and one basis combination.", &
+         "one basis combination. It is independent of FRONTIER_ORBITALS and must not be combined "// &
+         "with that section. The loss weights and condition-number penalty are built in. Presets 1-5 "// &
+         "use a 3 eV virtual-energy cutoff and 0.2 eV smoothing; presets 6-10 repeat the same five "// &
+         "weight combinations with a 5 eV cutoff and 0.5 eV smoothing. TRAINING_FILES, "// &
+         "BASIS_WORK_FILE, WRITE_FREQUENCY, USE_CONDITION_NUMBER, RESIDUUM_WEIGHT, CONDITION_WEIGHT, "// &
+         "BASIS_COMBINATIONS, GROUP_PARTITION, and an explicit SCF_GUESS are forbidden because "// &
+         "screening controls them automatically. The private work basis is deleted before completion.", &
          repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="NUMBER_OF_OPTIMIZATIONS", &
                           description="Number of ordered built-in loss-weight presets to optimize and validate.", &
-                          usage="NUMBER_OF_OPTIMIZATIONS 5", &
-                          default_i_val=5)
+                          usage="NUMBER_OF_OPTIMIZATIONS 10", &
+                          default_i_val=10)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

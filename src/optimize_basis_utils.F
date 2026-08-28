@@ -57,15 +57,18 @@ CONTAINS
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 
-   SUBROUTINE optimize_basis_init_read_input(opt_bas, root_section, para_env, quiet_output)
+   SUBROUTINE optimize_basis_init_read_input(opt_bas, root_section, para_env, quiet_output, embedded_training, &
+                                             screening_work_file)
       TYPE(basis_optimization_type)                      :: opt_bas
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: quiet_output
+      LOGICAL, INTENT(IN), OPTIONAL                      :: quiet_output, embedded_training
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: screening_work_file
 
       CHARACTER(LEN=default_path_length)                 :: main_dir
       INTEGER                                            :: ikind, iset, iweight, nrep
-      LOGICAL                                            :: frontier_orbitals_explicit
+      LOGICAL                                            :: frontier_orbitals_explicit, &
+                                                            use_embedded_training
       TYPE(section_vals_type), POINTER                   :: frontier_orbitals_section, kind_section, &
                                                             optbas_section, powell_section, &
                                                             train_section
@@ -77,12 +80,21 @@ CONTAINS
       frontier_orbitals_section => section_vals_get_subs_vals(optbas_section, "FRONTIER_ORBITALS")
 
       IF (PRESENT(quiet_output)) opt_bas%quiet_output = quiet_output
+      use_embedded_training = .FALSE.
+      IF (PRESENT(embedded_training)) use_embedded_training = embedded_training
 
       CALL section_vals_val_get(optbas_section, "BASIS_TEMPLATE_FILE", c_val=opt_bas%template_basis_file)
-      CALL section_vals_val_get(optbas_section, "BASIS_WORK_FILE", c_val=opt_bas%work_basis_file)
       CALL section_vals_val_get(optbas_section, "BASIS_OUTPUT_FILE", c_val=opt_bas%output_basis_file)
       CALL m_getcwd(main_dir)
-      opt_bas%work_basis_file = TRIM(ADJUSTL(main_dir))//"/"//TRIM(ADJUSTL(opt_bas%work_basis_file))
+      IF (use_embedded_training) THEN
+         IF (.NOT. PRESENT(screening_work_file)) THEN
+            CPABORT("Internal screening work basis filename was not provided")
+         END IF
+         opt_bas%work_basis_file = screening_work_file
+      ELSE
+         CALL section_vals_val_get(optbas_section, "BASIS_WORK_FILE", c_val=opt_bas%work_basis_file)
+         opt_bas%work_basis_file = TRIM(ADJUSTL(main_dir))//"/"//TRIM(ADJUSTL(opt_bas%work_basis_file))
+      END IF
 
       CALL section_vals_val_get(optbas_section, "WRITE_FREQUENCY", i_val=opt_bas%write_frequency)
       CALL section_vals_val_get(optbas_section, "USE_CONDITION_NUMBER", l_val=opt_bas%use_condition_number)
@@ -90,7 +102,9 @@ CONTAINS
       CALL generate_initial_basis(kind_section, opt_bas, para_env)
 
       CALL section_vals_get(frontier_orbitals_section, explicit=frontier_orbitals_explicit)
-      IF (frontier_orbitals_explicit) THEN
+      IF (use_embedded_training) THEN
+         opt_bas%method = method_mo_fit_occ_virtual
+      ELSE IF (frontier_orbitals_explicit) THEN
          opt_bas%method = method_mo_fit_occ_virtual
          CALL section_vals_val_get(frontier_orbitals_section, "OCCUPIED_WEIGHT", &
                                    r_val=opt_bas%occupied_weight)
@@ -108,6 +122,8 @@ CONTAINS
                                    r_val=opt_bas%virtual_energy_cutoff)
          CALL section_vals_val_get(frontier_orbitals_section, "VIRTUAL_ENERGY_SMOOTHING", &
                                    r_val=opt_bas%virtual_energy_smoothing)
+      END IF
+      IF (frontier_orbitals_explicit) THEN
          IF (opt_bas%gap_energy_scale <= 0.0_dp) CPABORT("GAP_ENERGY_SCALE must be positive")
          IF (opt_bas%virtual_energy_smoothing <= 0.0_dp) THEN
             CPABORT("VIRTUAL_ENERGY_SMOOTHING must be positive")
@@ -117,6 +133,8 @@ CONTAINS
                  opt_bas%coefficient_weight) < 0.0_dp) THEN
             CPABORT("FRONTIER_ORBITALS weights must be non-negative")
          END IF
+      END IF
+      IF (opt_bas%method == method_mo_fit_occ_virtual) THEN
          DO ikind = 1, opt_bas%nkind
             DO iset = 1, opt_bas%kind_basis(ikind)%flex_basis(0)%nsets
                IF (ANY(opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset)%opt_exps)) THEN
@@ -127,18 +145,30 @@ CONTAINS
       END IF
 
       CALL section_vals_get(train_section, n_repetition=opt_bas%ntraining_sets)
-      IF (opt_bas%ntraining_sets == 0) THEN
+      IF (use_embedded_training) THEN
+         IF (opt_bas%ntraining_sets /= 0) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "TRAINING_FILES is not allowed together with FRONTIER_ORBITAL_SCREENING "// &
+                          "because it is overwritten automatically")
+         END IF
+         opt_bas%ntraining_sets = 1
+      ELSE IF (opt_bas%ntraining_sets == 0) THEN
          CPABORT("No training set was specified in the Input")
       END IF
 
       ALLOCATE (opt_bas%training_input(opt_bas%ntraining_sets))
       ALLOCATE (opt_bas%training_dir(opt_bas%ntraining_sets))
-      DO iset = 1, opt_bas%ntraining_sets
-         CALL section_vals_val_get(train_section, "DIRECTORY", c_val=opt_bas%training_dir(iset), &
-                                   i_rep_section=iset)
-         CALL section_vals_val_get(train_section, "INPUT_FILE_NAME", c_val=opt_bas%training_input(iset), &
-                                   i_rep_section=iset)
-      END DO
+      IF (use_embedded_training) THEN
+         opt_bas%training_input(1) = ""
+         opt_bas%training_dir(1) = "."
+      ELSE
+         DO iset = 1, opt_bas%ntraining_sets
+            CALL section_vals_val_get(train_section, "DIRECTORY", c_val=opt_bas%training_dir(iset), &
+                                      i_rep_section=iset)
+            CALL section_vals_val_get(train_section, "INPUT_FILE_NAME", c_val=opt_bas%training_input(iset), &
+                                      i_rep_section=iset)
+         END DO
+      END IF
 
       CALL init_powell_var(opt_bas%powell_param, powell_section)
       opt_bas%powell_param%nvar = SIZE(opt_bas%x_opt)

@@ -26,6 +26,12 @@ registry = MatcherRegistry()
 
 # Total energy in Hartree
 registry["E_total"] = GenericMatcher(r"Total energy:", col=3)
+registry["OPT_BASIS_H_COEFF"] = GenericMatcher(
+    r"^\s*11\.47800033990800\s+([-+0-9.EeDd]+)", col=1, regex=True, first=True
+)
+registry["OPT_BASIS_O_COEFF"] = GenericMatcher(
+    r"^\s*12\.01595470551200\s+([-+0-9.EeDd]+)", col=1, regex=True, first=True
+)
 registry["COMMUTATOR_HR_X"] = GenericMatcher(r"COMMUTATOR_HR| CheckSum X =", col=5)
 registry["COMMUTATOR_HR_Y"] = GenericMatcher(r"COMMUTATOR_HR| CheckSum Y =", col=5)
 registry["COMMUTATOR_HR_Z"] = GenericMatcher(r"COMMUTATOR_HR| CheckSum Z =", col=5)
