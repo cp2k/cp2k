@@ -31,6 +31,13 @@ def run(*arguments):
         )
 
 
+def run_fails(*arguments):
+    completed = subprocess.run(arguments, cwd=TOOL_DIR, text=True, capture_output=True)
+    if completed.returncode == 0:
+        raise AssertionError(f"Command unexpectedly succeeded: {' '.join(arguments)}")
+    return completed
+
+
 def data_lines(path):
     return [
         [float(field) for field in line.split()]
@@ -507,6 +514,107 @@ class TrajectoryToolTests(unittest.TestCase):
             self.assertGreater(abs(components[0]), 0.999999)
             self.assertLess(max(abs(value) for value in components[1:]), 1.0e-8)
 
+    def test_fresean_writes_time_resolved_fixed_mode_projection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            positions = root / "vibration-pos.xyz"
+            velocities = root / "vibration-vel.xyz"
+            reference = root / "reference.xyz"
+            frames = 64
+            dt_ps = 0.1
+            cycles = 4
+            amplitude = 0.05
+            angular_frequency = 2.0 * math.pi * cycles / (frames * dt_ps)
+            position_text = []
+            velocity_text = []
+            for frame in range(frames):
+                phase = 2.0 * math.pi * cycles * frame / frames
+                displacement = amplitude * math.sin(phase)
+                speed = amplitude * angular_frequency * math.cos(phase)
+                position_text.extend(
+                    (
+                        "3",
+                        f"frame {frame}",
+                        f"A {-1.0 - displacement:.16f} 0 0",
+                        f"B {1.0 + displacement:.16f} 0 0",
+                        "C 0 1 0",
+                    )
+                )
+                velocity_text.extend(
+                    (
+                        "3",
+                        f"frame {frame}",
+                        f"A {-speed:.16f} 0 0",
+                        f"B {speed:.16f} 0 0",
+                        "C 0 0 0",
+                    )
+                )
+            positions.write_text("\n".join(position_text) + "\n", encoding="utf8")
+            velocities.write_text("\n".join(velocity_text) + "\n", encoding="utf8")
+            reference.write_text(
+                "3\nreference\nA -1 0 0\nB 1 0 0\nC 0 1 0\n", encoding="utf8"
+            )
+            masses = root / "masses.dat"
+            masses.write_text("A 1\nB 1\nC 1\n", encoding="utf8")
+            timeseries = root / "mode-timeseries.dat"
+            run(
+                str(FRESEAN),
+                "--velocity",
+                str(velocities),
+                "--position",
+                str(positions),
+                "--reference",
+                str(reference),
+                "--velocity-unit",
+                "angstrom/ps",
+                "--mass-file",
+                str(masses),
+                "--dt-fs",
+                "100",
+                "--correlation-frames",
+                "16",
+                "--constraints",
+                "8",
+                "--frequency-cm",
+                "21.5",
+                "--mode-count",
+                "1",
+                "--output",
+                str(root / "fresean.dat"),
+                "--mode-timeseries",
+                str(timeseries),
+            )
+            values = data_lines(timeseries)
+            self.assertEqual(len(values), frames)
+            self.assertTrue(all(len(row) == 6 for row in values))
+            self.assertAlmostEqual(values[-1][0], (frames - 1) * dt_ps)
+            self.assertGreater(max(abs(row[1]) for row in values), 0.06)
+            self.assertGreater(max(abs(row[2]) for row in values), 0.25)
+            self.assertGreater(min(row[3] for row in values), 0.0)
+            self.assertTrue(all(abs(row[5] - 1.0) < 1.0e-12 for row in values))
+            phase_line = next(
+                line
+                for line in timeseries.read_text(encoding="utf8").splitlines()
+                if line.startswith("# mode_1_phase_correlation_1e_ps:")
+            )
+            self.assertEqual(float(phase_line.split(":", maxsplit=1)[1]), -1.0)
+
+    def test_fresean_mode_timeseries_requires_positions(self):
+        completed = run_fails(
+            str(FRESEAN),
+            "--velocity",
+            "unused.xyz",
+            "--mass-file",
+            "unused-masses.dat",
+            "--dt-fs",
+            "1",
+            "--frequency-cm",
+            "1000",
+            "--mode-timeseries",
+            "unused.dat",
+        )
+        self.assertIn("--mode-timeseries requires --position", completed.stderr)
+
     def test_twopt_atomic_fluidicity_and_sum_rule(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -891,6 +999,103 @@ class TrajectoryToolTests(unittest.TestCase):
             self.assertAlmostEqual(values[1][0], 1.5)
             self.assertAlmostEqual(values[1][1], expected_g, places=12)
             self.assertAlmostEqual(values[1][2], 1.0)
+
+    def test_geometry_events_use_hysteresis_and_report_open_events(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "events.xyz"
+            distances = (1.50, 1.71, 1.69, 1.64, 1.68, 1.72, 1.80)
+            source.write_text(
+                "".join(
+                    f"2\nframe {frame}\nA 0 0 0\nB {distance:.8f} 0 0\n"
+                    for frame, distance in enumerate(distances, start=1)
+                ),
+                encoding="utf8",
+            )
+            actions = root / "events.in"
+            actions.write_text("DISTANCE 1 2\n", encoding="utf8")
+            events = root / "events.dat"
+            summary = root / "summary.dat"
+            run(
+                str(TRAJANA),
+                "events",
+                "--input",
+                str(source),
+                "--actions",
+                str(actions),
+                "--dt-fs",
+                "1.0",
+                "--entry",
+                "1.70",
+                "--exit",
+                "1.65",
+                "--output",
+                str(events),
+                "--summary",
+                str(summary),
+            )
+            values = data_lines(events)
+            self.assertEqual(len(values), 2)
+            self.assertEqual([int(value) for value in values[0][:4]], [1, 1, 2, 3])
+            self.assertAlmostEqual(values[0][4], 0.001)
+            self.assertAlmostEqual(values[0][6], 0.002)
+            self.assertAlmostEqual(values[0][7], 1.71)
+            self.assertEqual(int(values[0][-1]), 1)
+            self.assertEqual([int(value) for value in values[1][:4]], [1, 2, 6, 7])
+            self.assertAlmostEqual(values[1][6], 0.002)
+            self.assertAlmostEqual(values[1][7], 1.80)
+            self.assertEqual(int(values[1][-1]), 0)
+
+            summary_line = next(
+                line
+                for line in summary.read_text(encoding="utf8").splitlines()
+                if line and not line.startswith("#")
+            ).split()
+            self.assertEqual(summary_line[1], "distance")
+            self.assertEqual(summary_line[6], "above")
+            self.assertEqual(int(summary_line[9]), 2)
+            self.assertEqual(int(summary_line[10]), 1)
+            self.assertAlmostEqual(float(summary_line[11]), 0.001)
+            self.assertAlmostEqual(float(summary_line[12]), 0.004)
+            self.assertAlmostEqual(float(summary_line[14]), 1.80)
+
+            below_events = root / "below-events.dat"
+            run(
+                str(TRAJANA),
+                "events",
+                "--input",
+                str(source),
+                "--actions",
+                str(actions),
+                "--dt-fs",
+                "1.0",
+                "--direction",
+                "below",
+                "--entry",
+                "1.66",
+                "--exit",
+                "1.70",
+                "--output",
+                str(below_events),
+            )
+            below_values = data_lines(below_events)
+            self.assertEqual(len(below_values), 2)
+            self.assertEqual([int(value) for value in below_values[0][2:4]], [1, 1])
+            self.assertEqual([int(value) for value in below_values[1][2:4]], [4, 5])
+            self.assertTrue(all(int(value[-1]) == 1 for value in below_values))
+
+    def test_geometry_events_reject_invalid_hysteresis(self):
+        completed = run_fails(
+            str(TRAJANA),
+            "events",
+            "--dt-fs",
+            "1",
+            "--entry",
+            "1.70",
+            "--exit",
+            "1.75",
+        )
+        self.assertIn("--exit must be smaller than --entry", completed.stderr)
 
     def test_vacf_uses_all_time_origins(self):
         with tempfile.TemporaryDirectory() as directory:

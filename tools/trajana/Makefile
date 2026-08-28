@@ -22,6 +22,7 @@ COMMON_OBJECTS = \
 
 ANALYSIS_OBJECTS = \
         geometry_analysis.o \
+        event_analysis.o \
         rdf_analysis.o \
         vacf_analysis.o \
         hbond_analysis.o \
@@ -61,6 +62,7 @@ cube_io.o: kinds.o
 time_series.o: kinds.o fft.o
 spectral_tools.o: kinds.o
 geometry_analysis.o: kinds.o text_utils.o trajectory_types.o trajectory_io.o cell_source.o command_line.o frame_controls.o geometry.o
+event_analysis.o: kinds.o text_utils.o trajectory_types.o trajectory_io.o cell_source.o command_line.o frame_controls.o geometry_analysis.o
 rdf_analysis.o: kinds.o trajectory_types.o trajectory_io.o cell_source.o command_line.o frame_controls.o geometry.o selections.o
 vacf_analysis.o: kinds.o text_utils.o trajectory_types.o trajectory_io.o command_line.o frame_controls.o selections.o time_series.o spectral_tools.o
 hbond_analysis.o: kinds.o trajectory_types.o trajectory_io.o cell_source.o command_line.o frame_controls.o geometry.o groups.o

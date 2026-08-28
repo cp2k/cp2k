@@ -2,8 +2,8 @@
 
 This directory contains five standalone Fortran programs for post-processing CP2K trajectories:
 
-- `trajana.x` performs geometry, RDF, VACF, hydrogen-bond, scattering, and collective-current
-  analyses.
+- `trajana.x` performs geometry, hysteretic-event, RDF, VACF, hydrogen-bond, scattering, and
+  collective-current analyses.
 - `trajconvert.x` wraps, unwraps, converts, and reduces trajectories to group centers.
 - `twopt.x` evaluates conventional two-phase thermodynamics directly from CP2K trajectories.
 - `twopt3d.x` maps local solvent density and intermolecular 2PT entropy in three dimensions.
@@ -69,6 +69,41 @@ calculations:
 The action-file syntax remains `DISTANCE i j`, `ANGLE i j k`, and `TORSION i j k l`; only the first
 letter is significant. Geometry uses the minimum image when a cell is available. Distances are
 written in angstrom and angles in degrees.
+
+## Hysteretic events in geometric observables
+
+The `events` mode detects threshold-crossing episodes in the same distance, angle, or torsion
+actions used by `geometry`. Separate entry and exit values suppress rapid recrossings near a single
+threshold. For example, C--O elongation episodes that start at 1.70 angstrom and end below 1.65
+angstrom are obtained with:
+
+```console
+./trajana.x events \
+  --input PROJECT-pos-1.xyz \
+  --actions co-bonds.in \
+  --cell-file PROJECT-1.cell \
+  --dt-fs 0.5 \
+  --direction above \
+  --entry 1.70 \
+  --exit 1.65 \
+  --output co-events.dat \
+  --summary co-event-summary.dat
+```
+
+For `--direction above`, the exit value must be smaller than the entry value. With
+`--direction below`, the inequalities and required threshold order are reversed. All actions in one
+run use the same direction and thresholds; run observables with different units or definitions
+separately. Distances use angstrom, while angles and torsions use degrees. Periodic distances and
+angles use the same triclinic minimum-image implementation as `geometry`.
+
+The event output reports the first and last active sampled frames, sampled residence time, extremum,
+and whether the observable returned past the exit threshold. An event that remains active at the end
+of the selected trajectory is written with `returned_past_exit=0` and counted as open in the
+summary. Each active sample contributes the selected-frame time step to the residence time,
+including a one-sample event. Times start at zero for the first selected frame, and `--stride`
+multiplies the input `--dt-fs` automatically. The summary reports `first_entry_ps=-1` when no event
+occurred. Event counts and residence times are descriptive trajectory statistics; probabilities and
+rates require an independently sampled trajectory ensemble.
 
 ## Radial distribution function
 
@@ -145,7 +180,8 @@ chosen frequency without a harmonic or quasi-harmonic approximation.
   --mode-count 10 \
   --output fresean-eigenvalues.dat \
   --mode-file fresean-modes.xyz \
-  --mode-spectrum fresean-mode-spectra.dat
+  --mode-spectrum fresean-mode-spectra.dat \
+  --mode-timeseries fresean-mode-timeseries.dat
 ```
 
 The position and velocity files must contain synchronized frames with identical atom ordering.
@@ -170,6 +206,30 @@ effective number of selected degrees of freedom. `--mode-file` writes the leadin
 the closest sampled frequency to `--frequency-cm`; components are divided by the square root of the
 atomic mass so that they are suitable as displacement vectors. `--mode-spectrum` evaluates
 `q^T C(omega) q` for those fixed modes over the full spectrum.
+
+With synchronized positions, `--mode-timeseries` projects every aligned frame onto the fixed
+mass-weighted eigenvectors selected at `--frequency-cm`. For mode vector `e_k`, it writes
+
+```text
+q_k(t)    = e_k^T M^(1/2) [R_aligned(t) - R_reference]
+qdot_k(t) = e_k^T M^(1/2) V_aligned(t)
+E_k(t)    = 1/2 [qdot_k(t)^2 + omega^2 q_k(t)^2].
+```
+
+The time mean of each projected coordinate is removed before evaluating the energy. Coordinates,
+velocities, harmonic energy proxies in kJ/mol, energy-equivalent quanta, and instantaneous fractions
+normalized over the extracted modes are written for every selected frame. This output requires a
+positive `--frequency-cm` and `--position`; the latter ensures that coordinates are projected
+directly instead of being reconstructed by integrating velocities. The energies use the selected
+frequency for every extracted vector and are diagnostics rather than exact quantum populations.
+Individual vectors inside a degenerate subspace are not unique, although sums over a complete
+degenerate subspace are invariant.
+
+The output header also reports the first `1/e` time of the unbiased autocorrelation of the
+normalized complex phase vector `omega*q_k + i*qdot_k`. A value of `-1` means that no crossing
+occurred within half of the selected trajectory. Under continuous external or thermostatted driving
+this is an effective driven phase-correlation time, not a field-free
+intramolecular-vibrational-redistribution lifetime.
 
 The exact discrete procedure follows the equations and normalization demonstrated in the
 [FRESEAN tutorial](https://github.com/HeydenLabASU-collab/FRESEAN-tutorial), including the symmetric
