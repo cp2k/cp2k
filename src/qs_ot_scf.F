@@ -43,6 +43,7 @@ MODULE qs_ot_scf
                                               qs_ot_allocate,&
                                               qs_ot_destroy,&
                                               qs_ot_init,&
+                                              qs_ot_set_context,&
                                               qs_ot_settings_init,&
                                               qs_ot_type
    USE scf_control_types,               ONLY: smear_type
@@ -385,6 +386,8 @@ CONTAINS
       nspin = SIZE(qs_ot_env)
 
       DO ispin = 1, nspin
+
+         CALL qs_ot_set_context(qs_ot_env(ispin), spin_index=ispin)
 
          NULLIFY (mo_coeff)
          CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff_b=mo_coeff, mo_coeff=mo_coeff_fm)

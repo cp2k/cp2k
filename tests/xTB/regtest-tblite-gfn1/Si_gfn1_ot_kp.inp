@@ -1,0 +1,64 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT Si_gfn1_ot_kp
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    &KPOINTS
+      FULL_GRID OFF
+      PARALLEL_GROUP_SIZE 0
+      SCHEME MONKHORST-PACK 3 3 3
+      SYMMETRY ON
+      VERBOSE T
+    &END KPOINTS
+    &POISSON
+      PERIODIC XYZ
+      POISSON_SOLVER PERIODIC
+    &END POISSON
+    &QS
+      EPS_DEFAULT 1.0E-12
+      METHOD xTB
+      &XTB
+        GFN_TYPE TBLITE
+        SCC_MIXER NONE
+        &TBLITE
+          METHOD GFN1
+        &END TBLITE
+      &END XTB
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 250
+      SCF_GUESS MOPAC
+      &OT
+        ALGORITHM IRAC
+        MINIMIZER CG
+        PRECONDITIONER NONE
+      &END OT
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.431 5.431 5.431
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      SCALED
+      Si 0.00 0.00 0.00
+      Si 0.50 0.50 0.00
+      Si 0.50 0.00 0.50
+      Si 0.00 0.50 0.50
+      Si 0.25 0.25 0.25
+      Si 0.25 0.75 0.75
+      Si 0.75 0.25 0.75
+      Si 0.75 0.75 0.25
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
