@@ -58,7 +58,6 @@ MODULE optimize_basis
                                               optbas_build_neighborlist
    USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                               deallocate_basis_optimization_type,&
-                                              method_frontier_orbital_screening,&
                                               method_mo_fit_occ,&
                                               method_mo_fit_occ_virtual,&
                                               subset_type
@@ -110,9 +109,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'run_optimize_basis'
 
-      INTEGER                                            :: handle, optimization_mode
+      INTEGER                                            :: handle
       LOGICAL                                            :: frontier_orbitals_explicit, &
                                                             frontier_screening_explicit
+      TYPE(basis_optimization_type)                      :: opt_bas
       TYPE(section_vals_type), POINTER                   :: frontier_orbitals_section, &
                                                             frontier_screening_section, &
                                                             optbas_section
@@ -126,66 +126,22 @@ CONTAINS
       CALL section_vals_get(frontier_orbitals_section, explicit=frontier_orbitals_explicit)
       CALL section_vals_get(frontier_screening_section, explicit=frontier_screening_explicit)
 
-      SELECT CASE (MERGE(2, 0, frontier_screening_explicit) + MERGE(1, 0, frontier_orbitals_explicit))
-      CASE (0)
-         optimization_mode = method_mo_fit_occ
-      CASE (1)
-         optimization_mode = method_mo_fit_occ_virtual
-      CASE (2)
-         optimization_mode = method_frontier_orbital_screening
-      CASE (3)
+      IF (frontier_orbitals_explicit .AND. frontier_screening_explicit) THEN
          CPABORT("FRONTIER_ORBITALS and FRONTIER_ORBITAL_SCREENING cannot be activated together")
-      END SELECT
+      END IF
 
-      SELECT CASE (optimization_mode)
-      CASE (method_mo_fit_occ)
-         CALL run_ground_state_basis_optimization(input_declaration, root_section, para_env)
-      CASE (method_mo_fit_occ_virtual)
-         CALL run_frontier_orbitals_optimization(input_declaration, root_section, para_env)
-      CASE (method_frontier_orbital_screening)
+      IF (frontier_screening_explicit) THEN
          CALL run_frontier_orbital_screening( &
             input_declaration, root_section, para_env, frontier_screening_section, driver_para_opt_basis)
-      CASE DEFAULT
-         CPABORT("Unknown basis optimization method")
-      END SELECT
+      ELSE
+         CALL optimize_basis_init_read_input(opt_bas, root_section, para_env)
+         CALL driver_para_opt_basis(opt_bas, input_declaration, para_env)
+         CALL deallocate_basis_optimization_type(opt_bas)
+      END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE run_optimize_basis
-
-! **************************************************************************************************
-!> \brief Run the ground-state basis optimization introduced by Florian Schiffmann.
-! **************************************************************************************************
-   SUBROUTINE run_ground_state_basis_optimization(input_declaration, root_section, para_env)
-      TYPE(section_type), POINTER                        :: input_declaration
-      TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      TYPE(basis_optimization_type)                      :: opt_bas
-
-      CALL optimize_basis_init_read_input(opt_bas, root_section, para_env)
-      CPASSERT(opt_bas%method == method_mo_fit_occ)
-      CALL driver_para_opt_basis(opt_bas, input_declaration, para_env)
-      CALL deallocate_basis_optimization_type(opt_bas)
-
-   END SUBROUTINE run_ground_state_basis_optimization
-
-! **************************************************************************************************
-!> \brief Run one explicitly configured frontier-orbital basis optimization.
-! **************************************************************************************************
-   SUBROUTINE run_frontier_orbitals_optimization(input_declaration, root_section, para_env)
-      TYPE(section_type), POINTER                        :: input_declaration
-      TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      TYPE(basis_optimization_type)                      :: opt_bas
-
-      CALL optimize_basis_init_read_input(opt_bas, root_section, para_env)
-      CPASSERT(opt_bas%method == method_mo_fit_occ_virtual)
-      CALL driver_para_opt_basis(opt_bas, input_declaration, para_env)
-      CALL deallocate_basis_optimization_type(opt_bas)
-
-   END SUBROUTINE run_frontier_orbitals_optimization
 
 ! **************************************************************************************************
 !> \brief driver routine for the parallel part of the method

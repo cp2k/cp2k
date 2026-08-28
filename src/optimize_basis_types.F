@@ -19,11 +19,10 @@ MODULE optimize_basis_types
 
    PUBLIC :: basis_optimization_type, subset_type, flex_basis_type, &
              derived_basis_info, deallocate_basis_optimization_type, &
-             method_frontier_orbital_screening, method_mo_fit_occ, method_mo_fit_occ_virtual
+             method_mo_fit_occ, method_mo_fit_occ_virtual
 
    INTEGER, PARAMETER :: method_mo_fit_occ = 1
    INTEGER, PARAMETER :: method_mo_fit_occ_virtual = 2
-   INTEGER, PARAMETER :: method_frontier_orbital_screening = 3
 
    ! constraint information for a single constraing. boundary is translateed into a fermi function
    ! like setting as for variational limited case

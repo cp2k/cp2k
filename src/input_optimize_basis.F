@@ -13,24 +13,24 @@
 ! **************************************************************************************************
 MODULE input_optimize_basis
 
-   USE cp_units, ONLY: cp_unit_to_cp2k
-   USE input_constants, ONLY: do_opt_all, &
-                              do_opt_coeff, &
-                              do_opt_exps, &
-                              do_opt_none
-   USE input_keyword_types, ONLY: keyword_create, &
-                                  keyword_release, &
-                                  keyword_type
-   USE input_section_types, ONLY: section_add_keyword, &
-                                  section_add_subsection, &
-                                  section_create, &
-                                  section_release, &
-                                  section_type
-   USE input_val_types, ONLY: char_t, &
-                              integer_t, &
-                              real_t
-   USE kinds, ONLY: dp
-   USE string_utilities, ONLY: s2a
+   USE cp_units,                        ONLY: cp_unit_to_cp2k
+   USE input_constants,                 ONLY: do_opt_all, &
+                                              do_opt_coeff, &
+                                              do_opt_exps, &
+                                              do_opt_none
+   USE input_keyword_types,             ONLY: keyword_create, &
+                                              keyword_release, &
+                                              keyword_type
+   USE input_section_types,             ONLY: section_add_keyword, &
+                                              section_add_subsection, &
+                                              section_create, &
+                                              section_release, &
+                                              section_type
+   USE input_val_types,                 ONLY: char_t, &
+                                              integer_t, &
+                                              real_t
+   USE kinds,                           ONLY: dp
+   USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -367,15 +367,15 @@ CONTAINS
          "optimization described in OPTIMIZE_BASIS%FRONTIER_ORBITALS, where the complete optimization "// &
          "theory is given. The optimization contains several parameters, in particular the prefactors "// &
          "of its different loss functions, and the resulting optimized basis set can depend strongly "// &
-         "on these prefactors. This section automatically screens several of five pre-tabulated sets of "// &
-         "optimization parameters and selects the best basis set according to the self-consistent "// &
+         "on these prefactors. This section runs up to five pre-tabulated sets of optimization "// &
+         "parameters and selects the best basis set according to the self-consistent "// &
          "HOMO-LUMO gap. All optimized basis sets are reported in a ranking that contains both the "// &
-         "HOMO-LUMO gap and total energy. Although the optimization uses the fixed electron density "// &
-         "obtained with the reference basis, CP2K also converges an SCF calculation with every optimized "// &
+         "HOMO-LUMO gap and total energy. The optimization uses the fixed electron density obtained "// &
+         "with a large reference basis, and CP2K also converges an SCF calculation with every optimized "// &
          "basis set and reports the resulting HOMO-LUMO gap and total energy. No training calculation "// &
          "or previous DFT calculation needs to be read. All DFT calculations are performed automatically "// &
          "inside CP2K when this section is activated, using the DFT input parameters supplied in the "// &
-         "FORCE_EVAL section of the same input file. All ranked basis sets are written to "// &
+         "FORCE_EVAL section of the input file. All ranked basis sets are written to "// &
          "BASIS_OUTPUT_FILE with rank suffixes such as _1 and _2.", &
          repeats=.FALSE.)
 

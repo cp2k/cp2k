@@ -74,7 +74,6 @@ MODULE optbas_frontier_orbital_screening
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optbas_frontier_orbital_screening'
 
    TYPE frontier_orbital_screening_candidate_type
-      LOGICAL :: scf_converged = .FALSE.
       REAL(KIND=dp) :: condition_number = 0.0_dp
       REAL(KIND=dp) :: gap = 0.0_dp
       REAL(KIND=dp) :: energy = 0.0_dp
@@ -97,7 +96,7 @@ MODULE optbas_frontier_orbital_screening
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Run serial frontier-orbital optimizations and rank them by HOMO-LUMO gaps converged with new SCFs.
+!> \brief Run serial frontier-orbital optimizations and rank them by HOMO-LUMO gaps from new SCFs.
 ! **************************************************************************************************
    SUBROUTINE run_frontier_orbital_screening(input_declaration, section, para_env, frontier_screening_section, &
                                              optimize_basis_driver)
@@ -124,7 +123,6 @@ CONTAINS
          DIMENSION(:)                                    :: candidate_files
       INTEGER                                            :: i, n_candidates, n_ranked, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rank_order
-      LOGICAL                                            :: initial_converged, reference_converged
       REAL(KIND=dp) :: initial_condition_number, initial_energy, initial_gap, &
                        reference_condition_number, reference_energy, reference_gap
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -146,7 +144,6 @@ CONTAINS
       CALL m_getcwd(main_dir)
       frontier_screening_work_file = work_path(main_dir, ".frontier_screening_work.basis")
       IF (para_env%is_source()) THEN
-         CALL delete_work_file(work_path(main_dir, "frontier_orbital_screening_failed_scf.log"))
          CALL delete_work_file(frontier_screening_work_file)
       END IF
       CALL para_env%sync()
@@ -157,11 +154,8 @@ CONTAINS
       IF (para_env%is_source()) unit_nr = cp_logger_get_default_unit_nr(logger)
 
       CALL run_frontier_orbital_reference_scf(input_declaration, section, para_env, reference(1), &
-                                              reference_converged, reference_gap, reference_energy, &
+                                              reference_gap, reference_energy, &
                                               reference_condition_number)
-      IF (.NOT. reference_converged) THEN
-         CPABORT("The reference-basis screening SCF did not converge")
-      END IF
 
       DO i = 1, n_candidates
          CALL optimize_basis_init_read_input(candidates(i)%opt_bas, section, para_env, &
@@ -217,15 +211,12 @@ CONTAINS
       CALL run_frontier_orbital_scf(candidates(1)%opt_bas, input_declaration, section, para_env, &
                                     basis_file=work_path( &
                                     main_dir, discover_file(candidates(1)%opt_bas%template_basis_file)), &
-                                    converged=initial_converged, gap=initial_gap, energy=initial_energy, &
+                                    gap=initial_gap, energy=initial_energy, &
                                     condition_number=initial_condition_number)
-      IF (.NOT. initial_converged) THEN
-         CPABORT("The initial-basis screening SCF did not converge")
-      END IF
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(A)') " "
-         WRITE (unit_nr, '(1X,A)') "Converged SCFs for optimized basis sets"
+         WRITE (unit_nr, '(1X,A)') "SCF results for optimized basis sets"
          WRITE (unit_nr, '(A)') " "
          CALL print_frontier_orbital_table_header(unit_nr)
          WRITE (unit_nr, '(A)') " "
@@ -233,27 +224,18 @@ CONTAINS
       DO i = 1, n_candidates
          CALL run_frontier_orbital_scf(candidates(i)%opt_bas, input_declaration, section, para_env, &
                                        basis_file=candidate_files(i), &
-                                       converged=candidates(i)%scf_converged, &
                                        gap=candidates(i)%gap, energy=candidates(i)%energy, &
                                        condition_number=candidates(i)%condition_number)
          IF (unit_nr > 0) THEN
-            IF (candidates(i)%scf_converged) THEN
-               WRITE (unit_nr, '(1X,A,I0,T14,F8.3,T24,F16.1,T46,ES11.3,T59,F17.12)') &
-                  "Candidate ", i, candidates(i)%gap*evolt, &
-                  ABS(candidates(i)%gap - reference_gap)*evolt*1000.0_dp, &
-                  candidates(i)%condition_number, candidates(i)%energy
-            ELSE
-               WRITE (unit_nr, '(1X,A,I0,A)') "Candidate ", i, &
-                  " did not converge and will not be ranked."
-            END IF
+            WRITE (unit_nr, '(1X,A,I0,T14,F8.3,T24,F16.1,T46,ES11.3,T59,F17.12)') &
+               "Candidate ", i, candidates(i)%gap*evolt, &
+               ABS(candidates(i)%gap - reference_gap)*evolt*1000.0_dp, &
+               candidates(i)%condition_number, candidates(i)%energy
          END IF
       END DO
       IF (unit_nr > 0) WRITE (unit_nr, '(A)') " "
 
       CALL rank_frontier_orbital_candidates(candidates, reference_gap, rank_order, n_ranked)
-      IF (n_ranked == 0) THEN
-         CPABORT("No frontier-orbital screening candidate produced a converged SCF")
-      END IF
       CALL write_frontier_orbital_basis_file(final_basis_file, candidates, rank_order, n_ranked, &
                                              reference_gap, reference_energy, reference_condition_number, para_env)
       CALL print_frontier_orbital_summary(unit_nr, final_basis_file, candidates, rank_order, n_ranked, &
@@ -345,16 +327,15 @@ CONTAINS
    END SUBROUTINE controlled_parameter_error
 
 ! **************************************************************************************************
-!> \brief Converge and retain the large-basis reference from the embedded FORCE_EVAL.
+!> \brief Run and retain the large-basis reference from the embedded FORCE_EVAL.
 ! **************************************************************************************************
    SUBROUTINE run_frontier_orbital_reference_scf(input_declaration, section, para_env, reference, &
-                                                 converged, gap, energy, condition_number)
+                                                 gap, energy, condition_number)
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(section_vals_type), POINTER                   :: section
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(frontier_orbitals_reference_type), &
          INTENT(OUT)                                     :: reference
-      LOGICAL, INTENT(OUT)                               :: converged
       REAL(KIND=dp), INTENT(OUT)                         :: gap, energy, condition_number
 
       INTEGER                                            :: env_id, stat
@@ -380,9 +361,9 @@ CONTAINS
       CALL f_env_add_defaults(env_id, f_env)
       force_env => f_env%force_env
       CALL force_env_get(force_env, qs_env=qs_env)
-      CALL qs_energies(qs_env, scf_converged=converged)
-      CALL get_frontier_orbital_scf_result(qs_env, converged, gap, energy, condition_number)
-      IF (converged) CALL frontier_orbitals_reference_init(qs_env, reference)
+      CALL qs_energies(qs_env)
+      CALL get_frontier_orbital_scf_result(qs_env, gap, energy, condition_number)
+      CALL frontier_orbitals_reference_init(qs_env, reference)
       CALL f_env_rm_defaults(f_env, stat)
       CALL qs_env_part_release(qs_env)
       CALL destroy_force_env(env_id, stat)
@@ -394,16 +375,14 @@ CONTAINS
 !> \brief Run one silent SCF using a compact basis file.
 ! **************************************************************************************************
    SUBROUTINE run_frontier_orbital_scf(opt_bas, input_declaration, section, para_env, &
-                                       basis_file, converged, gap, energy, condition_number)
+                                       basis_file, gap, energy, condition_number)
       TYPE(basis_optimization_type), INTENT(IN)          :: opt_bas
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(section_vals_type), POINTER                   :: section
       TYPE(mp_para_env_type), POINTER                    :: para_env
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_file
-      LOGICAL, INTENT(OUT)                               :: converged
       REAL(KIND=dp), INTENT(OUT)                         :: gap, energy, condition_number
 
-      CHARACTER(LEN=default_path_length)                 :: main_dir
       INTEGER                                            :: env_id, scf_output_unit, stat
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(force_env_type), POINTER                      :: force_env
@@ -411,11 +390,9 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input_file
 
       NULLIFY (f_env, force_env, input_file, qs_env)
-      converged = .FALSE.
       gap = 0.0_dp
       energy = 0.0_dp
       condition_number = 0.0_dp
-      CALL m_getcwd(main_dir)
       CALL section_vals_duplicate(section, input_file)
       CALL prepare_frontier_orbital_scf_input(input_file, opt_bas, basis_file)
       scf_output_unit = -1
@@ -439,17 +416,12 @@ CONTAINS
       CALL f_env_add_defaults(env_id, f_env)
       force_env => f_env%force_env
       CALL force_env_get(force_env, qs_env=qs_env)
-      CALL qs_energies(qs_env, scf_converged=converged)
-      CALL get_frontier_orbital_scf_result(qs_env, converged, gap, energy, condition_number)
+      CALL qs_energies(qs_env)
+      CALL get_frontier_orbital_scf_result(qs_env, gap, energy, condition_number)
       CALL f_env_rm_defaults(f_env, stat)
       CALL qs_env_part_release(qs_env)
       CALL destroy_force_env(env_id, stat)
       CALL section_vals_release(input_file)
-      IF (para_env%is_source() .AND. .NOT. converged) THEN
-         CALL save_failed_frontier_orbital_scf_output( &
-            scf_output_unit, work_path(main_dir, "frontier_orbital_screening_failed_scf.log"), &
-            basis_file)
-      END IF
       IF (para_env%is_source()) CLOSE (scf_output_unit)
 
    END SUBROUTINE run_frontier_orbital_scf
@@ -457,9 +429,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Extract the gap, energy, and overlap condition number from a completed SCF.
 ! **************************************************************************************************
-   SUBROUTINE get_frontier_orbital_scf_result(qs_env, converged, gap, energy, condition_number)
+   SUBROUTINE get_frontier_orbital_scf_result(qs_env, gap, energy, condition_number)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(INOUT)                             :: converged
       REAL(KIND=dp), INTENT(OUT)                         :: gap, energy, condition_number
 
       INTEGER                                            :: homo, nmo
@@ -480,44 +451,16 @@ CONTAINS
       CALL overlap_condnum(smat, condnum, -1, .FALSE., .TRUE., .FALSE., blacs_env)
       condition_number = condnum(2)
       DEALLOCATE (smat)
-      IF (converged .AND. SIZE(mos) == 1) THEN
-         CALL get_mo_set(mos(1), homo=homo, nmo=nmo, eigenvalues=eigenvalues)
-         IF (homo >= 1 .AND. homo < nmo) THEN
-            gap = eigenvalues(homo + 1) - eigenvalues(homo)
-         ELSE
-            converged = .FALSE.
-         END IF
-      ELSE
-         converged = .FALSE.
+      IF (SIZE(mos) /= 1) THEN
+         CPABORT("FRONTIER_ORBITAL_SCREENING requires a restricted calculation")
       END IF
+      CALL get_mo_set(mos(1), homo=homo, nmo=nmo, eigenvalues=eigenvalues)
+      IF (homo < 1 .OR. homo >= nmo) THEN
+         CPABORT("FRONTIER_ORBITAL_SCREENING could not determine a HOMO-LUMO gap")
+      END IF
+      gap = eigenvalues(homo + 1) - eigenvalues(homo)
 
    END SUBROUTINE get_frontier_orbital_scf_result
-
-! **************************************************************************************************
-!> \brief Preserve otherwise disposable SCF output only when screening validation fails.
-! **************************************************************************************************
-   SUBROUTINE save_failed_frontier_orbital_scf_output(scf_output_unit, filename, basis_file)
-      INTEGER, INTENT(IN)                                :: scf_output_unit
-      CHARACTER(LEN=*), INTENT(IN)                       :: filename, basis_file
-
-      CHARACTER(LEN=4*default_string_length)             :: line
-      INTEGER                                            :: ios, unit_nr
-
-      CALL open_file(file_name=filename, file_status="UNKNOWN", file_action="WRITE", &
-                     file_position="APPEND", unit_number=unit_nr)
-      WRITE (unit_nr, '(A)') REPEAT("=", 92)
-      WRITE (unit_nr, '(A,A)') "Failed screening SCF: ", TRIM(basis_file)
-      WRITE (unit_nr, '(A)') REPEAT("=", 92)
-      FLUSH (scf_output_unit)
-      REWIND (scf_output_unit)
-      DO
-         READ (scf_output_unit, '(A)', IOSTAT=ios) line
-         IF (ios /= 0) EXIT
-         WRITE (unit_nr, '(A)') TRIM(line)
-      END DO
-      CALL close_file(unit_number=unit_nr)
-
-   END SUBROUTINE save_failed_frontier_orbital_scf_output
 
 ! **************************************************************************************************
 !> \brief Make a parsed reference input suitable for a quiet, independent screening SCF.
@@ -584,7 +527,7 @@ CONTAINS
    END SUBROUTINE prepare_frontier_orbital_scf_input
 
 ! **************************************************************************************************
-!> \brief Rank converged candidates by absolute self-consistent gap error.
+!> \brief Rank candidates by absolute self-consistent gap error.
 ! **************************************************************************************************
    SUBROUTINE rank_frontier_orbital_candidates(candidates, reference_gap, rank_order, n_ranked)
       TYPE(frontier_orbital_screening_candidate_type), &
@@ -598,7 +541,6 @@ CONTAINS
       rank_order = 0
       n_ranked = 0
       DO i = 1, SIZE(candidates)
-         IF (.NOT. candidates(i)%scf_converged) CYCLE
          n_ranked = n_ranked + 1
          rank_order(n_ranked) = i
          j = n_ranked
@@ -692,7 +634,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN) :: reference_gap, reference_energy, reference_condition_number, &
          initial_gap, initial_energy, initial_condition_number
 
-      INTEGER                                            :: candidate, i, rank, separator
+      INTEGER                                            :: candidate, rank, separator
 
       IF (unit_nr <= 0) RETURN
       separator = SCAN(TRIM(filename), "/", BACK=.TRUE.)
@@ -733,13 +675,6 @@ CONTAINS
       WRITE (unit_nr, '(A)') ""
       WRITE (unit_nr, '(1X,A,A)') "Ranked basis set file: ", TRIM(filename(separator + 1:))
       WRITE (unit_nr, '(A)') ""
-      DO i = 1, SIZE(candidates)
-         IF (.NOT. candidates(i)%scf_converged) THEN
-            WRITE (unit_nr, '(1X,A)') &
-               "One or more candidate SCFs failed and were excluded from the ranking."
-            EXIT
-         END IF
-      END DO
       WRITE (unit_nr, '(1X,A)') REPEAT("=", 79)
       WRITE (unit_nr, '(A)') ""
 
