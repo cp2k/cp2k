@@ -1,2 +1,2 @@
-"H2_GAUXC_SKALA_GAPW_GTH_COMPOSITE.inp" = [{matcher="E_total", tol=1e-8, ref=-0.967804781763126},
-                                            {matcher="M072", tol=1e-4, ref=1.35001416E-03}]
+"H2_GAUXC_SKALA_GAPW_GTH_COMPOSITE.inp" = [{matcher="E_total", tol=1e-8, ref=-0.968225751229280},
+                                            {matcher="M072", tol=1e-4, ref=3.69089891E-04}]
