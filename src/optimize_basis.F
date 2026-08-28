@@ -30,6 +30,7 @@ MODULE optimize_basis
                                               section_vals_release,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE machine,                         ONLY: m_chdir,&
                                               m_getcwd,&
@@ -46,7 +47,9 @@ MODULE optimize_basis
                                               frontier_orbitals_reference_init,&
                                               frontier_orbitals_reference_release,&
                                               frontier_orbitals_reference_type,&
-                                              frontier_orbitals_result_type
+                                              frontier_orbitals_result_type,&
+                                              get_ao_angular_momenta,&
+                                              max_diagnostic_angular_momentum
    USE optbas_opt_utils,                ONLY: evaluate_optvals,&
                                               fit_mo_coeffs,&
                                               optbas_build_neighborlist
@@ -85,6 +88,35 @@ MODULE optimize_basis
    PUBLIC :: run_optimize_basis
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_basis'
+
+   INTEGER, PARAMETER :: frontier_idx_loss_occupied = 1
+   INTEGER, PARAMETER :: frontier_idx_loss_virtual = 2
+   INTEGER, PARAMETER :: frontier_idx_loss_gap = 3
+   INTEGER, PARAMETER :: frontier_idx_overlap_occupied = 4
+   INTEGER, PARAMETER :: frontier_idx_gap_reference = 5
+   INTEGER, PARAMETER :: frontier_idx_gap_candidate = 6
+   INTEGER, PARAMETER :: frontier_idx_condition_candidate = 7
+   INTEGER, PARAMETER :: frontier_idx_overlap_empty = 8
+   INTEGER, PARAMETER :: frontier_idx_time = 9
+   INTEGER, PARAMETER :: frontier_idx_loss_empty = 10
+   INTEGER, PARAMETER :: frontier_idx_loss_coefficient = 11
+   INTEGER, PARAMETER :: frontier_idx_similarity_virtual = 12
+   INTEGER, PARAMETER :: frontier_idx_condition_reference = 13
+   INTEGER, PARAMETER :: frontier_idx_nao_reference = 14
+   INTEGER, PARAMETER :: frontier_idx_nao_candidate = 15
+   INTEGER, PARAMETER :: frontier_idx_occ_contribution = 16
+   INTEGER, PARAMETER :: frontier_idx_vir_contribution = &
+                         frontier_idx_occ_contribution + max_diagnostic_angular_momentum + 1
+   INTEGER, PARAMETER :: frontier_idx_occ_coverage = &
+                         frontier_idx_vir_contribution + max_diagnostic_angular_momentum + 1
+   INTEGER, PARAMETER :: frontier_idx_vir_coverage = &
+                         frontier_idx_occ_coverage + max_diagnostic_angular_momentum + 1
+   INTEGER, PARAMETER :: frontier_idx_reference_count = &
+                         frontier_idx_vir_coverage + max_diagnostic_angular_momentum + 1
+   INTEGER, PARAMETER :: frontier_idx_candidate_count = &
+                         frontier_idx_reference_count + max_diagnostic_angular_momentum + 1
+   INTEGER, PARAMETER :: number_frontier_diagnostics = &
+                         frontier_idx_candidate_count + max_diagnostic_angular_momentum
 
 CONTAINS
 
@@ -173,6 +205,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
       LOGICAL                                            :: write_basis
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tot_time
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: diagnostics_initial, &
+                                                            diagnostics_optimized
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: matrix_S_inv
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(frontier_orbitals_reference_type), &
@@ -188,6 +222,10 @@ CONTAINS
       NULLIFY (para_env, f_env)
       ALLOCATE (f_env_id(SIZE(opt_bas%comp_group(mp_id)%member_list)))
       ALLOCATE (tot_time(opt_bas%ncombinations*opt_bas%ntraining_sets))
+      ALLOCATE (diagnostics_initial(opt_bas%ncombinations*opt_bas%ntraining_sets, &
+                                    number_frontier_diagnostics), source=0.0_dp)
+      ALLOCATE (diagnostics_optimized(opt_bas%ncombinations*opt_bas%ntraining_sets, &
+                                      number_frontier_diagnostics), source=0.0_dp)
       ALLOCATE (matrix_s_inv(SIZE(opt_bas%comp_group(mp_id)%member_list)))
       ALLOCATE (frontier_orbitals_reference(SIZE(opt_bas%comp_group(mp_id)%member_list)))
 
@@ -217,9 +255,15 @@ CONTAINS
             CALL compute_residuum_vectors(opt_bas, f_env_id, matrix_S_inv, tot_time, &
                                           para_env_top, para_env, iopt)
          CASE (method_mo_fit_occ_virtual)
-            CALL compute_frontier_orbitals_objective( &
-               opt_bas, f_env_id, frontier_orbitals_reference, tot_time, &
-               para_env_top, para_env, iopt)
+            IF (iopt == 0) THEN
+               CALL compute_frontier_orbitals_objective( &
+                  opt_bas, f_env_id, frontier_orbitals_reference, tot_time, &
+                  para_env_top, para_env, iopt, diagnostics_initial)
+            ELSE
+               CALL compute_frontier_orbitals_objective( &
+                  opt_bas, f_env_id, frontier_orbitals_reference, tot_time, &
+                  para_env_top, para_env, iopt)
+            END IF
          CASE DEFAULT
             CPABORT("Unknown basis optimization method")
          END SELECT
@@ -247,7 +291,10 @@ CONTAINS
          ! Report the actual best Powell vector, rather than the final trial point.
          CALL compute_frontier_orbitals_objective( &
             opt_bas, f_env_id, frontier_orbitals_reference, tot_time, &
-            para_env_top, para_env, opt_bas%powell_param%maxfun + 1)
+            para_env_top, para_env, opt_bas%powell_param%maxfun + 1, diagnostics_optimized)
+         CALL print_frontier_orbitals_diagnostics( &
+            opt_bas, frontier_orbitals_reference, diagnostics_initial, diagnostics_optimized, &
+            para_env_top, para_env)
       END IF
       CALL update_derived_basis_sets(opt_bas, .TRUE., opt_bas%output_basis_file, &
                                      para_env_top)
@@ -262,6 +309,7 @@ CONTAINS
          CALL destroy_force_env(f_env_id(icalc), stat)
       END DO
       DEALLOCATE (f_env_id); DEALLOCATE (tot_time)
+      DEALLOCATE (diagnostics_initial, diagnostics_optimized)
       DEALLOCATE (frontier_orbitals_reference)
       CALL cp_fm_release(matrix_s_inv)
       CALL mp_para_env_release(para_env)
@@ -431,7 +479,7 @@ CONTAINS
 !> \param iopt Powell evaluation index
 ! **************************************************************************************************
    SUBROUTINE compute_frontier_orbitals_objective(opt_bas, f_env_id, reference, tot_time, &
-                                                  para_env_top, para_env, iopt)
+                                                  para_env_top, para_env, iopt, diagnostics)
       TYPE(basis_optimization_type)                      :: opt_bas
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
       TYPE(frontier_orbitals_reference_type), &
@@ -439,19 +487,23 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: tot_time
       TYPE(mp_para_env_type), POINTER                    :: para_env_top, para_env
       INTEGER                                            :: iopt
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
+         OPTIONAL                                        :: diagnostics
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_frontier_orbitals_objective'
 
       CHARACTER(len=8)                                   :: basis_type
       INTEGER                                            :: bas_id, handle, icalc, icomb, icont, &
-                                                            ikind, ipgf, iset, ix, mp_id, my_id, &
-                                                            ncalc, set_id, unit_nr
+                                                            ikind, ipgf, iset, ix, l, mp_id, &
+                                                            my_id, ncalc, set_id, unit_nr
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: candidate_angular_momentum
       REAL(KIND=dp)                                      :: coefficient_loss, contribution
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coefficients_current
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gdata
       REAL(KIND=dp), DIMENSION(:), POINTER               :: start_time
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux, matrix_s_aux_orb
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux, matrix_s_aux_orb, &
+                                                            matrix_s_reference
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(frontier_orbitals_result_type)                :: result
@@ -464,7 +516,7 @@ CONTAINS
 
       basis_type = "AUX_OPT"
       ncalc = opt_bas%ncombinations*opt_bas%ntraining_sets
-      ALLOCATE (gdata(ncalc, 10), source=0.0_dp)
+      ALLOCATE (gdata(ncalc, number_frontier_diagnostics), source=0.0_dp)
       ALLOCATE (coefficients_current, source=opt_bas%x_opt)
       DO ikind = 1, opt_bas%nkind
          DO iset = 1, opt_bas%kind_basis(ikind)%flex_basis(0)%nsets
@@ -491,7 +543,7 @@ CONTAINS
          my_id = opt_bas%comp_group(mp_id)%member_list(icalc) + 1
          start_time(icalc) = m_walltime()
 
-         NULLIFY (ks_env, matrix_s_aux, matrix_s_aux_orb, sab_aux, sab_aux_orb)
+         NULLIFY (ks_env, matrix_s_aux, matrix_s_aux_orb, matrix_s_reference, sab_aux, sab_aux_orb)
          CALL get_set_and_basis_id(opt_bas%comp_group(mp_id)%member_list(icalc), opt_bas, &
                                    bas_id=bas_id, set_id=set_id)
          CALL f_env_get_from_id(f_env_id(icalc), f_env)
@@ -499,7 +551,7 @@ CONTAINS
          CALL force_env_get(force_env, qs_env=qs_env)
          CALL update_basis_set(opt_bas, bas_id, basis_type, qs_env)
          CALL optbas_build_neighborlist(qs_env, sab_aux, sab_aux_orb, basis_type)
-         CALL get_qs_env(qs_env, ks_env=ks_env)
+         CALL get_qs_env(qs_env, ks_env=ks_env, matrix_s=matrix_s_reference)
          CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux, &
                                    basis_type_a=basis_type, basis_type_b=basis_type, sab_nl=sab_aux)
          CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux_orb, &
@@ -507,10 +559,20 @@ CONTAINS
          CALL release_neighbor_list_sets(sab_aux)
          CALL release_neighbor_list_sets(sab_aux_orb)
 
-         CALL evaluate_frontier_orbitals_objective( &
-            reference(icalc), matrix_s_aux(1)%matrix, matrix_s_aux_orb(1)%matrix, &
-            opt_bas%virtual_energy_cutoff, opt_bas%virtual_energy_smoothing, &
-            opt_bas%gap_energy_scale, RESULT)
+         IF (PRESENT(diagnostics)) THEN
+            CALL get_ao_angular_momenta(qs_env, basis_type, candidate_angular_momentum)
+            CALL evaluate_frontier_orbitals_objective( &
+               reference(icalc), matrix_s_aux(1)%matrix, matrix_s_aux_orb(1)%matrix, &
+               opt_bas%virtual_energy_cutoff, opt_bas%virtual_energy_smoothing, &
+               opt_bas%gap_energy_scale, RESULT, matrix_s_reference(1)%matrix, &
+               candidate_angular_momentum)
+            DEALLOCATE (candidate_angular_momentum)
+         ELSE
+            CALL evaluate_frontier_orbitals_objective( &
+               reference(icalc), matrix_s_aux(1)%matrix, matrix_s_aux_orb(1)%matrix, &
+               opt_bas%virtual_energy_cutoff, opt_bas%virtual_energy_smoothing, &
+               opt_bas%gap_energy_scale, RESULT)
+         END IF
          gdata(my_id, 1) = result%loss_occupied_subspace
          gdata(my_id, 2) = result%loss_virtual_subspace
          gdata(my_id, 3) = result%loss_gap
@@ -521,6 +583,27 @@ CONTAINS
          gdata(my_id, 8) = result%empty_subspace_overlap
          gdata(my_id, 9) = m_walltime() - start_time(icalc)
          gdata(my_id, 10) = result%loss_empty_subspace
+         gdata(my_id, frontier_idx_loss_coefficient) = coefficient_loss
+         gdata(my_id, frontier_idx_similarity_virtual) = result%virtual_subspace_similarity
+         gdata(my_id, frontier_idx_condition_reference) = reference(icalc)%condition_number
+         gdata(my_id, frontier_idx_nao_reference) = REAL(reference(icalc)%number_reference_orbitals, dp)
+         gdata(my_id, frontier_idx_nao_candidate) = REAL(result%number_candidate_orbitals, dp)
+         IF (PRESENT(diagnostics)) THEN
+            DO l = 0, max_diagnostic_angular_momentum
+               gdata(my_id, frontier_idx_occ_contribution + l) = &
+                  result%angular_momentum%occupied_contribution(l)
+               gdata(my_id, frontier_idx_vir_contribution + l) = &
+                  result%angular_momentum%virtual_contribution(l)
+               gdata(my_id, frontier_idx_occ_coverage + l) = &
+                  result%angular_momentum%occupied_coverage(l)
+               gdata(my_id, frontier_idx_vir_coverage + l) = &
+                  result%angular_momentum%virtual_coverage(l)
+               gdata(my_id, frontier_idx_reference_count + l) = &
+                  REAL(result%angular_momentum%reference_function_count(l), dp)
+               gdata(my_id, frontier_idx_candidate_count + l) = &
+                  REAL(result%angular_momentum%candidate_function_count(l), dp)
+            END DO
+         END IF
 
          IF (ASSOCIATED(matrix_s_aux)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux)
          IF (ASSOCIATED(matrix_s_aux_orb)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux_orb)
@@ -529,6 +612,11 @@ CONTAINS
 
       IF (.NOT. para_env%is_source()) gdata = 0.0_dp
       CALL para_env_top%sum(gdata)
+      IF (PRESENT(diagnostics)) THEN
+         CPASSERT(SIZE(diagnostics, 1) == ncalc)
+         CPASSERT(SIZE(diagnostics, 2) == number_frontier_diagnostics)
+         diagnostics = gdata
+      END IF
 
       opt_bas%powell_param%f = 0.0_dp
       IF (para_env_top%is_source()) THEN
@@ -570,6 +658,306 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_frontier_orbitals_objective
+
+! **************************************************************************************************
+!> \brief Print initial-to-optimized frontier-orbital diagnostics for every training calculation.
+!> \param opt_bas basis optimization settings
+!> \param reference locally held reference data and basis metadata
+!> \param initial initial-small-basis diagnostics
+!> \param optimized optimized-small-basis diagnostics
+!> \param para_env_top top-level communicator
+!> \param para_env calculation-group communicator
+! **************************************************************************************************
+   SUBROUTINE print_frontier_orbitals_diagnostics(opt_bas, reference, initial, optimized, &
+                                                  para_env_top, para_env)
+      TYPE(basis_optimization_type), INTENT(IN)          :: opt_bas
+      TYPE(frontier_orbitals_reference_type), &
+         DIMENSION(:), INTENT(IN)                        :: reference
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: initial, optimized
+      TYPE(mp_para_env_type), POINTER                    :: para_env_top, para_env
+
+      CHARACTER(LEN=default_string_length)               :: candidate_basis, element, kind_name, &
+                                                            reference_basis
+      INTEGER                                            :: bas_id, icalc, ikind, iset, l, &
+                                                            max_kinds, my_id, ncalc, unit_nr
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_count
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: metadata
+      REAL(KIND=dp)                                      :: condition_ratio, delta
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      ncalc = opt_bas%ncombinations*opt_bas%ntraining_sets
+      CPASSERT(SIZE(initial, 1) == ncalc)
+      CPASSERT(SIZE(optimized, 1) == ncalc)
+
+      max_kinds = 0
+      DO icalc = 1, SIZE(reference)
+         max_kinds = MAX(max_kinds, reference(icalc)%number_kinds)
+      END DO
+      CALL para_env_top%max(max_kinds)
+      ALLOCATE (kind_count(ncalc), source=0)
+      ALLOCATE (metadata(ncalc, max_kinds, 4, default_string_length), source=0)
+
+      IF (para_env%is_source()) THEN
+         DO icalc = 1, SIZE(reference)
+            my_id = opt_bas%comp_group(opt_bas%opt_id)%member_list(icalc) + 1
+            kind_count(my_id) = reference(icalc)%number_kinds
+            DO ikind = 1, reference(icalc)%number_kinds
+               CALL encode_string(reference(icalc)%kind_name(ikind), metadata(my_id, ikind, 1, :))
+               CALL encode_string(reference(icalc)%element_symbol(ikind), metadata(my_id, ikind, 2, :))
+               CALL encode_string(reference(icalc)%reference_basis_name(ikind), metadata(my_id, ikind, 3, :))
+               CALL encode_string(reference(icalc)%candidate_basis_name(ikind), metadata(my_id, ikind, 4, :))
+            END DO
+         END DO
+      END IF
+      CALL para_env_top%sum(kind_count)
+      CALL para_env_top%sum(metadata)
+
+      logger => cp_get_default_logger()
+      unit_nr = -1
+      IF (para_env_top%is_source()) unit_nr = cp_logger_get_default_unit_nr(logger)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(A)') ""
+         WRITE (unit_nr, '(1X,A)') &
+            "BASOPT| =========================================================================================="
+         WRITE (unit_nr, '(1X,A)') "BASOPT| BASIS OPTIMIZATION SUMMARY"
+         WRITE (unit_nr, '(1X,A)') &
+            "BASOPT| =========================================================================================="
+         WRITE (unit_nr, '(1X,A,F10.4,A)') "BASOPT| Virtual-state window:   ", &
+            opt_bas%virtual_energy_cutoff*evolt, " eV above the LUMO"
+         WRITE (unit_nr, '(1X,A,F10.4,A)') "BASOPT| Virtual smoothing:      ", &
+            opt_bas%virtual_energy_smoothing*evolt, " eV"
+
+         DO my_id = 1, ncalc
+            CALL get_set_and_basis_id(my_id - 1, opt_bas, set_id=iset, bas_id=bas_id)
+            WRITE (unit_nr, '(A)') ""
+            WRITE (unit_nr, '(1X,A,A,A,A)') "BASOPT| Reference calculation: ", &
+               TRIM(opt_bas%training_dir(iset)), "/", TRIM(opt_bas%training_input(iset))
+            IF (opt_bas%ncombinations > 1) THEN
+               WRITE (unit_nr, '(1X,A,I0)') "BASOPT| Basis combination: ", bas_id
+            END IF
+            WRITE (unit_nr, '(1X,A)') "BASOPT|"
+            WRITE (unit_nr, '(1X,A)') "BASOPT| Atomic-kind basis assignments"
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| ------------------------------------------------------------------------------------------"
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| Kind          Element  Reference basis            Initial small basis        Optimized small basis"
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| ------------------------------------------------------------------------------------------"
+            DO ikind = 1, kind_count(my_id)
+               CALL decode_string(metadata(my_id, ikind, 1, :), kind_name)
+               CALL decode_string(metadata(my_id, ikind, 2, :), element)
+               CALL decode_string(metadata(my_id, ikind, 3, :), reference_basis)
+               CALL decode_string(metadata(my_id, ikind, 4, :), candidate_basis)
+               WRITE (unit_nr, '(1X,A,1X,A13,2X,A7,2X,A26,2X,A26,2X,A)') "BASOPT|", &
+                  TRIM(kind_name), TRIM(element), TRIM(reference_basis), &
+                  TRIM(candidate_basis), TRIM(candidate_basis)
+            END DO
+            WRITE (unit_nr, '(1X,A,A)') "BASOPT| Optimized basis file: ", TRIM(opt_bas%output_basis_file)
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| ------------------------------------------------------------------------------------------"
+
+            WRITE (unit_nr, '(1X,A)') "BASOPT| Overall subspace quality and conditioning"
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| ------------------------------------------------------------------------------------------"
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| Basis             N_AO  Occ. overlap  Virtual similarity  Empty coverage  "// &
+               "Cond. number of overlap mat. κ(S)"
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| ------------------------------------------------------------------------------------------"
+            WRITE (unit_nr, '(1X,A,1X,A24,1X,I6,3(2X,F12.4,A),2X,ES12.4)') "BASOPT|", "Reference basis set", &
+               NINT(initial(my_id, frontier_idx_nao_reference)), 100.0_dp, "%", 100.0_dp, "%", &
+               100.0_dp, "%", initial(my_id, frontier_idx_condition_reference)
+            WRITE (unit_nr, '(1X,A,1X,A24,1X,I6,3(2X,F12.4,A),2X,ES12.4)') "BASOPT|", "Initial small basis", &
+               NINT(initial(my_id, frontier_idx_nao_candidate)), &
+               100.0_dp*initial(my_id, frontier_idx_overlap_occupied), "%", &
+               100.0_dp*initial(my_id, frontier_idx_similarity_virtual), "%", &
+               100.0_dp*initial(my_id, frontier_idx_overlap_empty), "%", &
+               initial(my_id, frontier_idx_condition_candidate)
+            WRITE (unit_nr, '(1X,A,1X,A24,1X,I6,3(2X,F12.4,A),2X,ES12.4)') "BASOPT|", "Optimized small basis", &
+               NINT(optimized(my_id, frontier_idx_nao_candidate)), &
+               100.0_dp*optimized(my_id, frontier_idx_overlap_occupied), "%", &
+               100.0_dp*optimized(my_id, frontier_idx_similarity_virtual), "%", &
+               100.0_dp*optimized(my_id, frontier_idx_overlap_empty), "%", &
+               optimized(my_id, frontier_idx_condition_candidate)
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| ------------------------------------------------------------------------------------------"
+            condition_ratio = 0.0_dp
+            IF (initial(my_id, frontier_idx_condition_candidate) > TINY(1.0_dp)) THEN
+               condition_ratio = optimized(my_id, frontier_idx_condition_candidate)/ &
+                                 initial(my_id, frontier_idx_condition_candidate)
+            END IF
+            WRITE (unit_nr, '(1X,A,3(F10.4,A),2X,A,ES12.4)') "BASOPT| Optimized - initial: ", &
+               100.0_dp*(optimized(my_id, frontier_idx_overlap_occupied) - &
+                         initial(my_id, frontier_idx_overlap_occupied)), " pp  ", &
+               100.0_dp*(optimized(my_id, frontier_idx_similarity_virtual) - &
+                         initial(my_id, frontier_idx_similarity_virtual)), " pp  ", &
+               100.0_dp*(optimized(my_id, frontier_idx_overlap_empty) - &
+                         initial(my_id, frontier_idx_overlap_empty)), " pp", &
+               "κ(S) ratio =", condition_ratio
+
+            WRITE (unit_nr, '(1X,A)') "BASOPT|"
+            WRITE (unit_nr, '(1X,A)') "BASOPT| Frontier-orbital energies and objective components"
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| ------------------------------------------------------------------------------------------"
+            WRITE (unit_nr, '(1X,A,1X,A31,3(2X,A14))') "BASOPT|", "Quantity", &
+               "Reference", "Initial", "Optimized"
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| ------------------------------------------------------------------------------------------"
+            WRITE (unit_nr, '(1X,A,1X,A31,3(2X,F14.6))') "BASOPT|", "HOMO-LUMO gap [eV]", &
+               initial(my_id, frontier_idx_gap_reference)*evolt, &
+               initial(my_id, frontier_idx_gap_candidate)*evolt, &
+               optimized(my_id, frontier_idx_gap_candidate)*evolt
+            WRITE (unit_nr, '(1X,A,1X,A31,2X,A14,2(2X,ES14.6))') "BASOPT|", &
+               "Occupied-subspace loss", "--", &
+               initial(my_id, frontier_idx_loss_occupied), optimized(my_id, frontier_idx_loss_occupied)
+            WRITE (unit_nr, '(1X,A,1X,A31,2X,A14,2(2X,ES14.6))') "BASOPT|", &
+               "Virtual-subspace loss", "--", &
+               initial(my_id, frontier_idx_loss_virtual), optimized(my_id, frontier_idx_loss_virtual)
+            WRITE (unit_nr, '(1X,A,1X,A31,2X,A14,2(2X,ES14.6))') "BASOPT|", &
+               "Empty-subspace loss", "--", &
+               initial(my_id, frontier_idx_loss_empty), optimized(my_id, frontier_idx_loss_empty)
+            WRITE (unit_nr, '(1X,A,1X,A31,2X,A14,2(2X,ES14.6))') "BASOPT|", "Gap loss", "--", &
+               initial(my_id, frontier_idx_loss_gap), optimized(my_id, frontier_idx_loss_gap)
+            WRITE (unit_nr, '(1X,A,1X,A31,2X,A14,2(2X,ES14.6))') "BASOPT|", &
+               "Coefficient loss", "--", &
+               initial(my_id, frontier_idx_loss_coefficient), optimized(my_id, frontier_idx_loss_coefficient)
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| ------------------------------------------------------------------------------------------"
+
+            WRITE (unit_nr, '(1X,A)') "BASOPT| Angular-momentum composition and corresponding-channel coverage"
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| ------------------------------------------------------------------------------------------"
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| Subspace   Channel   Reference contribution   Initial coverage   Optimized coverage   Change"
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| ------------------------------------------------------------------------------------------"
+            DO l = 0, max_diagnostic_angular_momentum
+               IF (NINT(initial(my_id, frontier_idx_reference_count + l)) == 0 .AND. &
+                   NINT(initial(my_id, frontier_idx_candidate_count + l)) == 0) CYCLE
+               delta = 100.0_dp*(optimized(my_id, frontier_idx_occ_coverage + l) - &
+                                 initial(my_id, frontier_idx_occ_coverage + l))
+               WRITE (unit_nr, '(1X,A,1X,A10,3X,A7,3(5X,F12.4,A),3X,SP,F9.4,SS,A)') "BASOPT|", &
+                  "Occupied", angular_momentum_label(l), &
+                  100.0_dp*initial(my_id, frontier_idx_occ_contribution + l), "%", &
+                  100.0_dp*initial(my_id, frontier_idx_occ_coverage + l), "%", &
+                  100.0_dp*optimized(my_id, frontier_idx_occ_coverage + l), "%", delta, " pp"
+            END DO
+            WRITE (unit_nr, '(1X,A)') "BASOPT|"
+            DO l = 0, max_diagnostic_angular_momentum
+               IF (NINT(initial(my_id, frontier_idx_reference_count + l)) == 0 .AND. &
+                   NINT(initial(my_id, frontier_idx_candidate_count + l)) == 0) CYCLE
+               delta = 100.0_dp*(optimized(my_id, frontier_idx_vir_coverage + l) - &
+                                 initial(my_id, frontier_idx_vir_coverage + l))
+               WRITE (unit_nr, '(1X,A,1X,A10,3X,A7,3(5X,F12.4,A),3X,SP,F9.4,SS,A)') "BASOPT|", &
+                  "Virtual", angular_momentum_label(l), &
+                  100.0_dp*initial(my_id, frontier_idx_vir_contribution + l), "%", &
+                  100.0_dp*initial(my_id, frontier_idx_vir_coverage + l), "%", &
+                  100.0_dp*optimized(my_id, frontier_idx_vir_coverage + l), "%", delta, " pp"
+            END DO
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| ------------------------------------------------------------------------------------------"
+
+            WRITE (unit_nr, '(1X,A)') "BASOPT| Spherical basis-function content"
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| ------------------------------------------------------------------------------------------"
+            WRITE (unit_nr, '(1X,A)', ADVANCE='NO') "BASOPT| Basis                    "
+            DO l = 0, max_diagnostic_angular_momentum
+               IF (NINT(initial(my_id, frontier_idx_reference_count + l)) > 0 .OR. &
+                   NINT(initial(my_id, frontier_idx_candidate_count + l)) > 0) THEN
+                  WRITE (unit_nr, '(2X,A7)', ADVANCE='NO') angular_momentum_label(l)
+               END IF
+            END DO
+            WRITE (unit_nr, '(A)') "   Total"
+            WRITE (unit_nr, '(1X,A,1X,A24)', ADVANCE='NO') "BASOPT|", "Reference basis set"
+            DO l = 0, max_diagnostic_angular_momentum
+               IF (NINT(initial(my_id, frontier_idx_reference_count + l)) > 0 .OR. &
+                   NINT(initial(my_id, frontier_idx_candidate_count + l)) > 0) THEN
+                  WRITE (unit_nr, '(2X,I7)', ADVANCE='NO') NINT(initial(my_id, frontier_idx_reference_count + l))
+               END IF
+            END DO
+            WRITE (unit_nr, '(2X,I7)') NINT(initial(my_id, frontier_idx_nao_reference))
+            WRITE (unit_nr, '(1X,A,1X,A24)', ADVANCE='NO') "BASOPT|", "Initial small basis"
+            DO l = 0, max_diagnostic_angular_momentum
+               IF (NINT(initial(my_id, frontier_idx_reference_count + l)) > 0 .OR. &
+                   NINT(initial(my_id, frontier_idx_candidate_count + l)) > 0) THEN
+                  WRITE (unit_nr, '(2X,I7)', ADVANCE='NO') NINT(initial(my_id, frontier_idx_candidate_count + l))
+               END IF
+            END DO
+            WRITE (unit_nr, '(2X,I7)') NINT(initial(my_id, frontier_idx_nao_candidate))
+            WRITE (unit_nr, '(1X,A,1X,A24)', ADVANCE='NO') "BASOPT|", "Optimized small basis"
+            DO l = 0, max_diagnostic_angular_momentum
+               IF (NINT(initial(my_id, frontier_idx_reference_count + l)) > 0 .OR. &
+                   NINT(initial(my_id, frontier_idx_candidate_count + l)) > 0) THEN
+                  WRITE (unit_nr, '(2X,I7)', ADVANCE='NO') NINT(optimized(my_id, frontier_idx_candidate_count + l))
+               END IF
+            END DO
+            WRITE (unit_nr, '(2X,I7)') NINT(optimized(my_id, frontier_idx_nao_candidate))
+            WRITE (unit_nr, '(1X,A)') &
+               "BASOPT| ------------------------------------------------------------------------------------------"
+         END DO
+
+         WRITE (unit_nr, '(1X,A)') "BASOPT| Notes:"
+         WRITE (unit_nr, '(1X,A)') &
+            "BASOPT|   * Angular contributions use a symmetric Loewdin AO decomposition and sum to 100%."
+         WRITE (unit_nr, '(1X,A)') &
+            "BASOPT|   * Virtual quantities use the configured smooth low-energy virtual-state window."
+         WRITE (unit_nr, '(1X,A)') &
+            "BASOPT|   * Channel coverage is the fraction of the reference l component spanned by candidate l AOs."
+         WRITE (unit_nr, '(1X,A)') &
+            "BASOPT| =========================================================================================="
+         WRITE (unit_nr, '(A)') ""
+      END IF
+
+      DEALLOCATE (kind_count, metadata)
+
+   END SUBROUTINE print_frontier_orbitals_diagnostics
+
+! **************************************************************************************************
+!> \brief Encode a string as integers so basis metadata can be reduced across optimizer groups.
+! **************************************************************************************************
+   PURE SUBROUTINE encode_string(string, encoded)
+      CHARACTER(LEN=*), INTENT(IN)                       :: string
+      INTEGER, DIMENSION(:), INTENT(OUT)                 :: encoded
+
+      INTEGER                                            :: i
+
+      encoded = 0
+      DO i = 1, MIN(LEN_TRIM(string), SIZE(encoded))
+         encoded(i) = IACHAR(string(i:i))
+      END DO
+
+   END SUBROUTINE encode_string
+
+! **************************************************************************************************
+!> \brief Decode integer character codes used to communicate basis metadata.
+! **************************************************************************************************
+   PURE SUBROUTINE decode_string(encoded, string)
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: encoded
+      CHARACTER(LEN=*), INTENT(OUT)                      :: string
+
+      INTEGER                                            :: i
+
+      string = ""
+      DO i = 1, MIN(LEN(string), SIZE(encoded))
+         IF (encoded(i) == 0) EXIT
+         string(i:i) = ACHAR(encoded(i))
+      END DO
+
+   END SUBROUTINE decode_string
+
+! **************************************************************************************************
+!> \brief Return the spectroscopic label of an angular-momentum channel.
+! **************************************************************************************************
+   PURE FUNCTION angular_momentum_label(l) RESULT(label)
+      INTEGER, INTENT(IN)                                :: l
+      CHARACTER(LEN=7)                                   :: label
+
+      CHARACTER(LEN=*), PARAMETER                        :: labels = "spdfghiklmn"
+
+      label = "unknown"
+      IF (l >= 0 .AND. l < LEN(labels)) label = labels(l + 1:l + 1)
+
+   END FUNCTION angular_momentum_label
 
 ! **************************************************************************************************
 !> \brief create the force_envs for every input in the computational group
