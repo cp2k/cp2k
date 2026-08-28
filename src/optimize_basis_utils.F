@@ -187,7 +187,7 @@ CONTAINS
 
       CALL section_vals_val_get(optbas_section, "CONDITION_WEIGHT", n_rep_val=nrep)
       ALLOCATE (opt_bas%condition_weight(0:opt_bas%ncombinations))
-      opt_bas%condition_weight = 0.1_dp
+      opt_bas%condition_weight = 1.0_dp
       DO iweight = 1, nrep
          CALL section_vals_val_get(optbas_section, "CONDITION_WEIGHT", r_val=opt_bas%condition_weight(iweight - 1), &
                                    i_rep_val=iweight)

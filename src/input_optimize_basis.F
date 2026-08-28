@@ -93,7 +93,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="USE_CONDITION_NUMBER", &
                           description="Determines whether condition number should be part of optimization or not", &
                           usage="USE_CONDITION_NUMBER", &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -125,7 +125,7 @@ CONTAINS
          "The first entry corresponds to the original basis sets. Every further value is assigned to the combinations "// &
          "in the order given for BASIS_COMBINATIONS.", &
          repeats=.TRUE., &
-         usage="CONDITION_WEIGHT 0.1", default_r_val=0.1_dp)
+         usage="CONDITION_WEIGHT REAL ", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -362,26 +362,25 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
          section, __LOCATION__, name="FRONTIER_ORBITAL_SCREENING", &
-         description="Runs a complete single-input frontier-orbital basis screening workflow. "// &
-         "Exactly one FORCE_EVAL with an explicit DFT section must be provided in the same CP2K input; "// &
-         "TRAINING_FILES is forbidden. CP2K first converges and prints the large-reference-basis SCF, "// &
-         "aborting before optimization if it does not converge. It then runs several frontier-orbital "// &
-         "basis optimizations serially using built-in, ordered loss-weight presets. Every optimized "// &
-         "basis is validated with a fresh, silent, "// &
-         "atomic-guess SCF calculation. Converged candidates are ranked by the absolute difference "// &
-         "between their self-consistent HOMO-LUMO gap and the reference-basis gap. The total energies "// &
-         "are reported but do not affect the ranking. All ranked basis sets are written to the single "// &
-         "BASIS_OUTPUT_FILE with rank suffixes such as _1 and _2. This section requires "// &
-         "one basis combination. It is independent of FRONTIER_ORBITALS and must not be combined "// &
-         "with that section. The five loss-weight presets and condition-number penalty are built in. "// &
-         "All presets use a 3 eV virtual-energy cutoff and 0.2 eV smoothing. TRAINING_FILES, "// &
-         "BASIS_WORK_FILE, WRITE_FREQUENCY, USE_CONDITION_NUMBER, RESIDUUM_WEIGHT, CONDITION_WEIGHT, "// &
-         "BASIS_COMBINATIONS, GROUP_PARTITION, and an explicit SCF_GUESS are forbidden because "// &
-         "screening controls them automatically. The private work basis is deleted before completion.", &
+         description="Optimize a basis set to match frontier orbitals of a reference basis "// &
+         "(frontier orbitals: orbitals close to the HOMO and close to the LUMO). This section uses the "// &
+         "optimization described in OPTIMIZE_BASIS%FRONTIER_ORBITALS, where the complete optimization "// &
+         "theory is given. The optimization contains several parameters, in particular the prefactors "// &
+         "of its different loss functions, and the resulting optimized basis set can depend strongly "// &
+         "on these prefactors. This section automatically screens several of five pre-tabulated sets of "// &
+         "optimization parameters and selects the best basis set according to the self-consistent "// &
+         "HOMO-LUMO gap. All optimized basis sets are reported in a ranking that contains both the "// &
+         "HOMO-LUMO gap and total energy. Although the optimization uses the fixed electron density "// &
+         "obtained with the reference basis, CP2K also converges an SCF calculation with every optimized "// &
+         "basis set and reports the resulting HOMO-LUMO gap and total energy. No training calculation "// &
+         "or previous DFT calculation needs to be read. All DFT calculations are performed automatically "// &
+         "inside CP2K when this section is activated, using the DFT input parameters supplied in the "// &
+         "FORCE_EVAL section of the same input file. All ranked basis sets are written to "// &
+         "BASIS_OUTPUT_FILE with rank suffixes such as _1 and _2.", &
          repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="NUMBER_OF_OPTIMIZATIONS", &
-                          description="Number of ordered built-in loss-weight presets to optimize and validate.", &
+                          description="Number of pre-tabulated sets of optimization parameters.", &
                           usage="NUMBER_OF_OPTIMIZATIONS 5", &
                           default_i_val=5)
       CALL section_add_keyword(section, keyword)

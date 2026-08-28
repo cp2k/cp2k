@@ -1,6 +1,7 @@
 # test optimize basis
 "H2O-ref.inp"                           = [{matcher="E_total", tol=9e-14, ref=-17.14511746615613}]
 "H2-ref.inp"                            = [{matcher="E_total", tol=9e-14, ref=-1.11836893446203}]
+"frontier-H2O.inp"                      = []
 "opt-1.inp"                             = [{matcher="M055", tol=1e-14, ref=-455.31086}]
 "opt-2.inp"                             = [{matcher="M055", tol=1e-14, ref=-539.04140}]
 "frontier-screening-H2O.inp"            = [{matcher="E_total", tol=9e-14, ref=-17.18048124989139},

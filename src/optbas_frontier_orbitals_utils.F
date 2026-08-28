@@ -4,8 +4,13 @@
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
+! **************************************************************************************************
+!> \brief Utilities for frontier-orbital basis optimization
+!> \par History
+!>      28.08.2026 created [Jan Wilhelm]
+!> \author Jan Wilhelm
+! **************************************************************************************************
 MODULE optbas_frontier_orbitals_utils
-   USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -28,9 +33,7 @@ MODULE optbas_frontier_orbitals_utils
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE orbital_pointers,                ONLY: nso
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE particle_types,                  ONLY: particle_type
    USE qs_condnum,                      ONLY: overlap_condnum
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -43,13 +46,6 @@ MODULE optbas_frontier_orbitals_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optbas_frontier_orbitals_utils'
 
-   INTEGER, PARAMETER, PUBLIC :: max_diagnostic_angular_momentum = 9
-
-   TYPE, PUBLIC :: angular_momentum_diagnostics_type
-      INTEGER, DIMENSION(0:max_diagnostic_angular_momentum) :: reference_function_count = 0
-      INTEGER, DIMENSION(0:max_diagnostic_angular_momentum) :: candidate_function_count = 0
-   END TYPE angular_momentum_diagnostics_type
-
    TYPE, PUBLIC :: frontier_orbitals_result_type
       REAL(KIND=dp) :: loss_occupied_subspace = 0.0_dp
       REAL(KIND=dp) :: loss_virtual_subspace = 0.0_dp
@@ -61,8 +57,10 @@ MODULE optbas_frontier_orbitals_utils
       REAL(KIND=dp) :: gap_reference = 0.0_dp
       REAL(KIND=dp) :: gap_candidate = 0.0_dp
       REAL(KIND=dp) :: condition_number = 0.0_dp
+      REAL(KIND=dp) :: reference_condition_number = 0.0_dp
+      REAL(KIND=dp) :: calculation_time = 0.0_dp
       INTEGER :: number_candidate_orbitals = 0
-      TYPE(angular_momentum_diagnostics_type) :: angular_momentum
+      INTEGER :: number_reference_orbitals = 0
    END TYPE frontier_orbitals_result_type
 
    TYPE, PUBLIC :: frontier_orbitals_reference_type
@@ -72,16 +70,14 @@ MODULE optbas_frontier_orbitals_utils
       TYPE(cp_fm_type) :: eigenvectors
       REAL(KIND=dp) :: condition_number = 0.0_dp
       INTEGER :: number_kinds = 0
-      INTEGER, DIMENSION(:), ALLOCATABLE :: angular_momentum
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE :: element_symbol
       CHARACTER(LEN=default_string_length), DIMENSION(:), ALLOCATABLE :: reference_basis_name
       CHARACTER(LEN=default_string_length), DIMENSION(:), ALLOCATABLE :: candidate_basis_name
    END TYPE frontier_orbitals_reference_type
 
-   PUBLIC :: compute_angular_momentum_function_counts, compute_frontier_orbital_loss_function, &
+   PUBLIC :: compute_frontier_orbital_loss_function, &
              evaluate_frontier_orbitals_objective, &
              frontier_orbitals_reference_init, frontier_orbitals_reference_release, &
-             get_ao_angular_momenta, &
              smooth_frontier_orbital_weight
 
 CONTAINS
@@ -131,7 +127,6 @@ CONTAINS
       reference%condition_number = condnum(2)
       DEALLOCATE (smat)
 
-      CALL get_ao_angular_momenta(qs_env, "ORB", reference%angular_momentum)
       CALL store_basis_metadata(qs_env, reference)
 
       ! A restricted spatial orbital contains two electrons.
@@ -181,7 +176,6 @@ CONTAINS
          INTENT(INOUT)                                   :: reference
 
       IF (ALLOCATED(reference%eigenvalues)) DEALLOCATE (reference%eigenvalues)
-      IF (ALLOCATED(reference%angular_momentum)) DEALLOCATE (reference%angular_momentum)
       IF (ALLOCATED(reference%element_symbol)) DEALLOCATE (reference%element_symbol)
       IF (ALLOCATED(reference%reference_basis_name)) DEALLOCATE (reference%reference_basis_name)
       IF (ALLOCATED(reference%candidate_basis_name)) DEALLOCATE (reference%candidate_basis_name)
@@ -194,64 +188,6 @@ CONTAINS
       reference%condition_number = 0.0_dp
 
    END SUBROUTINE frontier_orbitals_reference_release
-
-! **************************************************************************************************
-!> \brief Return the angular-momentum label of every spherical AO in global AO order.
-!> \param qs_env initialized Quickstep environment
-!> \param basis_type basis container key (for example ORB or AUX_OPT)
-!> \param angular_momentum angular-momentum label for each AO
-! **************************************************************************************************
-   SUBROUTINE get_ao_angular_momenta(qs_env, basis_type, angular_momentum)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: angular_momentum
-
-      INTEGER                                            :: iao, iatom, ikind, iset, ishell, iso, l, &
-                                                            nao, nset, nsgf
-      INTEGER, DIMENSION(:), POINTER                     :: nshell
-      INTEGER, DIMENSION(:, :), POINTER                  :: lshell
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      NULLIFY (basis_set, lshell, nshell, particle_set, qs_kind_set)
-      CALL get_qs_env(qs_env, particle_set=particle_set, qs_kind_set=qs_kind_set)
-
-      nao = 0
-      DO iatom = 1, SIZE(particle_set)
-         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-         NULLIFY (basis_set)
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set, basis_type=basis_type)
-         IF (ASSOCIATED(basis_set)) THEN
-            CALL get_gto_basis_set(basis_set, nsgf=nsgf)
-            nao = nao + nsgf
-         END IF
-      END DO
-      ALLOCATE (angular_momentum(nao))
-
-      iao = 0
-      DO iatom = 1, SIZE(particle_set)
-         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-         NULLIFY (basis_set)
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set, basis_type=basis_type)
-         IF (.NOT. ASSOCIATED(basis_set)) CYCLE
-         CALL get_gto_basis_set(basis_set, nset=nset, nshell=nshell, l=lshell)
-         DO iset = 1, nset
-            DO ishell = 1, nshell(iset)
-               l = lshell(ishell, iset)
-               IF (l > max_diagnostic_angular_momentum) THEN
-                  CPABORT("Angular diagnostics support only l=0,...,9")
-               END IF
-               DO iso = 1, nso(l)
-                  iao = iao + 1
-                  angular_momentum(iao) = l
-               END DO
-            END DO
-         END DO
-      END DO
-      CPASSERT(iao == nao)
-
-   END SUBROUTINE get_ao_angular_momenta
 
 ! **************************************************************************************************
 !> \brief Store the reference and candidate basis assignment for every atomic kind.
@@ -300,7 +236,7 @@ CONTAINS
 !> \param virtual_cutoff virtual-orbital energy cutoff
 !> \param virtual_smoothing virtual-orbital energy smoothing width
 !> \param gap_scale normalization energy for the HOMO-LUMO gap loss
-!> \param result loss-function terms and diagnostic quantities
+!> \param result loss-function terms and result information
 !>
 !> The reference Hamiltonian is transformed to the candidate AO basis using
 !> B = C_R^T S_RC
@@ -313,15 +249,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE evaluate_frontier_orbitals_objective(reference, matrix_s_candidate, &
                                                    matrix_s_candidate_reference, virtual_cutoff, &
-                                                   virtual_smoothing, gap_scale, RESULT, &
-                                                   candidate_angular_momentum)
+                                                   virtual_smoothing, gap_scale, RESULT)
       TYPE(frontier_orbitals_reference_type), INTENT(IN) :: reference
       TYPE(dbcsr_type), POINTER                          :: matrix_s_candidate, &
                                                             matrix_s_candidate_reference
       REAL(KIND=dp), INTENT(IN)                          :: virtual_cutoff, virtual_smoothing, &
                                                             gap_scale
       TYPE(frontier_orbitals_result_type), INTENT(OUT)   :: result
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: candidate_angular_momentum
 
       INTEGER                                            :: istate, naux, nref
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues_candidate
@@ -423,13 +357,6 @@ CONTAINS
       result%condition_number = condnum(2)
       result%number_candidate_orbitals = naux
 
-      IF (PRESENT(candidate_angular_momentum)) THEN
-         CPASSERT(SIZE(reference%angular_momentum) == nref)
-         CPASSERT(SIZE(candidate_angular_momentum) == naux)
-         CALL compute_angular_momentum_function_counts( &
-            reference%angular_momentum, candidate_angular_momentum, result%angular_momentum)
-      END IF
-
       DEALLOCATE (eigenvalues_candidate, orbital_overlap_dense)
       CALL cp_fm_release(candidate_eigenvectors)
       CALL cp_fm_release(candidate_hamiltonian)
@@ -443,37 +370,6 @@ CONTAINS
    END SUBROUTINE evaluate_frontier_orbitals_objective
 
 ! **************************************************************************************************
-!> \brief Count spherical reference and candidate AOs by angular momentum.
-!> \param reference_angular_momentum angular-momentum label for each reference AO
-!> \param candidate_angular_momentum angular-momentum label for each candidate AO
-!> \param diagnostics angular-momentum function counts
-! **************************************************************************************************
-   PURE SUBROUTINE compute_angular_momentum_function_counts( &
-      reference_angular_momentum, candidate_angular_momentum, diagnostics)
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: reference_angular_momentum, &
-                                                            candidate_angular_momentum
-      TYPE(angular_momentum_diagnostics_type), &
-         INTENT(OUT)                                     :: diagnostics
-
-      INTEGER                                            :: candidate_ao, l, reference_ao
-
-      diagnostics = angular_momentum_diagnostics_type()
-      DO reference_ao = 1, SIZE(reference_angular_momentum)
-         l = reference_angular_momentum(reference_ao)
-         IF (l >= 0 .AND. l <= max_diagnostic_angular_momentum) THEN
-            diagnostics%reference_function_count(l) = diagnostics%reference_function_count(l) + 1
-         END IF
-      END DO
-      DO candidate_ao = 1, SIZE(candidate_angular_momentum)
-         l = candidate_angular_momentum(candidate_ao)
-         IF (l >= 0 .AND. l <= max_diagnostic_angular_momentum) THEN
-            diagnostics%candidate_function_count(l) = diagnostics%candidate_function_count(l) + 1
-         END IF
-      END DO
-
-   END SUBROUTINE compute_angular_momentum_function_counts
-
-! **************************************************************************************************
 !> \brief Compute the frontier-orbital loss function.
 !> \param orbital_overlap reference/candidate orbital overlaps
 !> \param eigenvalues_reference reference eigenvalues
@@ -482,7 +378,7 @@ CONTAINS
 !> \param virtual_cutoff virtual-orbital energy cutoff E_cut
 !> \param virtual_smoothing virtual-orbital energy smoothing width ΔE
 !> \param gap_scale normalization energy E_scale for the gap loss
-!> \param result loss-function terms and diagnostic quantities
+!> \param result loss-function terms and result information
 !>
 !> Let i,j denote occupied orbitals, a,b virtual orbitals, and N_occ the number of occupied
 !> orbitals. R and C label reference and candidate quantities, with
@@ -579,7 +475,8 @@ CONTAINS
          result%loss_empty_subspace = 1.0_dp - result%empty_subspace_overlap
          IF (candidate_virtual_weight_norm > TINY(1.0_dp)) THEN
             result%virtual_subspace_similarity = MIN(1.0_dp, MAX(0.0_dp, &
-                                        virtual_subspace_overlap/SQRT(reference_virtual_weight_norm*candidate_virtual_weight_norm)))
+                                                                 virtual_subspace_overlap/ &
+                                                                 SQRT(reference_virtual_weight_norm*candidate_virtual_weight_norm)))
          END IF
       END IF
 

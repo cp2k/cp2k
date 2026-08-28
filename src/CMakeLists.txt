@@ -444,6 +444,7 @@ list(
   local_gemm_api.F
   offload/offload_api.F
   optbas_fenv_manipulation.F
+  optbas_frontier_orbital_screening.F
   optbas_frontier_orbitals_utils.F
   optbas_opt_utils.F
   optimize_basis.F

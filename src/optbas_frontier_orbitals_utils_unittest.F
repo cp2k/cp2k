@@ -4,11 +4,15 @@
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
+! **************************************************************************************************
+!> \brief Unit tests for the frontier-orbital objective
+!> \par History
+!>      28.08.2026 created [Jan Wilhelm]
+!> \author Jan Wilhelm
+! **************************************************************************************************
 PROGRAM optbas_frontier_orbitals_utils_unittest
    USE kinds,                           ONLY: dp
-   USE optbas_frontier_orbitals_utils,  ONLY: angular_momentum_diagnostics_type,&
-                                              compute_angular_momentum_function_counts,&
-                                              compute_frontier_orbital_loss_function,&
+   USE optbas_frontier_orbitals_utils,  ONLY: compute_frontier_orbital_loss_function,&
                                               frontier_orbitals_result_type,&
                                               smooth_frontier_orbital_weight
 
@@ -17,8 +21,6 @@ PROGRAM optbas_frontier_orbitals_utils_unittest
    REAL(KIND=dp), PARAMETER :: tolerance = 1.0E-12_dp
    REAL(KIND=dp), DIMENSION(4) :: candidate_eigenvalues, reference_eigenvalues
    REAL(KIND=dp), DIMENSION(4, 4) :: orbital_overlap
-   INTEGER, DIMENSION(2) :: angular_momentum
-   TYPE(angular_momentum_diagnostics_type) :: angular_diagnostics
    TYPE(frontier_orbitals_result_type) :: result, result_rotated
 
    reference_eigenvalues = [-1.0_dp, -0.5_dp, 0.1_dp, 0.2_dp]
@@ -81,15 +83,6 @@ PROGRAM optbas_frontier_orbitals_utils_unittest
    END IF
    CALL assert_close(smooth_frontier_orbital_weight(1.0_dp, 1.0_dp, 0.1_dp), &
                      0.5_dp, "cutoff midpoint")
-
-   angular_momentum = [0, 1]
-   CALL compute_angular_momentum_function_counts( &
-      angular_momentum, [0, 0], angular_diagnostics)
-   IF (angular_diagnostics%reference_function_count(0) /= 1 .OR. &
-       angular_diagnostics%reference_function_count(1) /= 1 .OR. &
-       angular_diagnostics%candidate_function_count(0) /= 2) THEN
-      ERROR STOP "angular-momentum function counts"
-   END IF
 
 CONTAINS
 
