@@ -67,10 +67,12 @@ CONTAINS
 !> \brief ...
 !> \param qs_ot_env ...
 !> \param scf_section ...
+!> \param do_kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE ot_scf_read_input(qs_ot_env, scf_section)
+   SUBROUTINE ot_scf_read_input(qs_ot_env, scf_section, do_kpoints)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(section_vals_type), POINTER                   :: scf_section
+      LOGICAL, INTENT(IN)                                :: do_kpoints
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_scf_read_input'
 
@@ -92,7 +94,8 @@ CONTAINS
       ot_section => section_vals_get_subs_vals(scf_section, "OT")
       CALL section_vals_get(ot_section, explicit=explicit)
 
-      CALL ot_readwrite_input(qs_ot_env(1)%settings, ot_section, output_unit)
+      CALL ot_readwrite_input(qs_ot_env(1)%settings, ot_section, output_unit, &
+                              complex_kpoints=do_kpoints)
 
       CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
@@ -452,4 +455,3 @@ CONTAINS
    END SUBROUTINE ot_scf_destroy
 
 END MODULE qs_ot_scf
-

@@ -111,8 +111,11 @@ MODULE qs_scf
                                               mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
-   USE preconditioner,                  ONLY: prepare_preconditioner,&
+   USE preconditioner,                  ONLY: make_preconditioner_complex_full_single_inverse,&
+                                              prepare_preconditioner,&
                                               restart_preconditioner
+   USE preconditioner_types,            ONLY: destroy_preconditioner,&
+                                              init_preconditioner
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_type
@@ -163,13 +166,10 @@ MODULE qs_scf
                                               qs_ot_new_preconditioner
    USE qs_ot_scf,                       ONLY: ot_scf_init,&
                                               ot_scf_read_input
-   USE qs_ot_types,                     ONLY: qs_ot_allocate,&
-                                              qs_ot_channel_index,&
-                                              qs_ot_check_channel_context,&
-                                              qs_ot_init,&
-                                              qs_ot_number_of_channels,&
-                                              qs_ot_set_context,&
-                                              qs_ot_type
+   USE qs_ot_types,                     ONLY: &
+        qs_ot_allocate, qs_ot_channel_index, qs_ot_check_channel_context, qs_ot_init, &
+        qs_ot_kpoint_preconditioner_solver_supported, qs_ot_kpoint_preconditioner_supported, &
+        qs_ot_number_of_channels, qs_ot_set_context, qs_ot_type
    USE qs_outer_scf,                    ONLY: outer_loop_gradient,&
                                               outer_loop_optimize,&
                                               outer_loop_purge_history,&
@@ -1256,13 +1256,13 @@ CONTAINS
                ! Build the initial KS matrix from the requested density guess.
                CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., &
                                         calculate_forces=.FALSE.)
+               CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks_kp)
+               CPASSERT(ASSOCIATED(matrix_ks_kp))
 
                ! A K-point restart contains density matrices rather than MO coefficients.
                ! Diagonalize the matching KS operator once so that OT does not combine the
                ! restarted density with unrelated guess orbitals.
                IF (scf_control%density_guess == restart_guess) THEN
-                  CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks_kp)
-                  CPASSERT(ASSOCIATED(matrix_ks_kp))
                   kp_diis_step = .FALSE.
                   CALL do_general_diag_kp(matrix_ks_kp, matrix_s_kp, kpoints, scf_env, &
                                           scf_control, .FALSE., kp_diis_step)
@@ -1277,6 +1277,7 @@ CONTAINS
                                                 scf_env=scf_env, &
                                                 dft_control=dft_control, &
                                                 kpoints=kpoints, &
+                                                matrix_ks_kp=matrix_ks_kp, &
                                                 matrix_s_kp=matrix_s_kp, &
                                                 nspin_ot=nspin_ot)
             END IF
@@ -1444,7 +1445,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL ot_scf_read_input(scf_env%qs_ot_env, scf_section)
+      CALL ot_scf_read_input(scf_env%qs_ot_env, scf_section, do_kpoints)
 
       IF (do_kpoints) THEN
          IF (dft_control%smear .OR. scf_control%smear%do_smear) THEN
@@ -1456,8 +1457,14 @@ CONTAINS
          IF (scf_env%qs_ot_env(1)%settings%OT_METHOD /= "CG") THEN
             CPABORT("K-point OT currently requires OT%MINIMIZER CG.")
          END IF
-         IF (scf_env%qs_ot_env(1)%settings%preconditioner_type /= ot_precond_none) THEN
-            CPABORT("K-point OT currently requires OT%PRECONDITIONER NONE.")
+         IF (.NOT. qs_ot_kpoint_preconditioner_supported( &
+             scf_env%qs_ot_env(1)%settings%preconditioner_type, .FALSE.)) THEN
+            CPABORT("Complex K-point OT supports PRECONDITIONER NONE or FULL_SINGLE_INVERSE.")
+         END IF
+         IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
+             scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+             scf_env%qs_ot_env(1)%settings%precond_solver_type, .FALSE.)) THEN
+            CPABORT("Complex K-point FULL_SINGLE_INVERSE supports PRECOND_SOLVER DEFAULT or INVERSE_CHOLESKY.")
          END IF
          IF (scf_env%qs_ot_env(1)%settings%do_rotation) THEN
             CPABORT("K-point OT orbital rotations are not part of the fixed-occupation implementation.")
@@ -1635,16 +1642,17 @@ CONTAINS
 !> \param scf_env ...
 !> \param dft_control ...
 !> \param kpoints ...
+!> \param matrix_ks_kp ...
 !> \param matrix_s_kp ...
 !> \param nspin_ot ...
 ! **************************************************************************************************
    SUBROUTINE allocate_qs_ot_kpoint_state(qs_env, scf_env, dft_control, &
-                                          kpoints, matrix_s_kp, nspin_ot)
+                                          kpoints, matrix_ks_kp, matrix_s_kp, nspin_ot)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
       INTEGER, INTENT(IN)                                :: nspin_ot
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_qs_ot_kpoint_state'
@@ -1673,6 +1681,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(scf_env%qs_ot_env))
       CPASSERT(ASSOCIATED(kpoints))
       CPASSERT(ASSOCIATED(kpoints%kp_env))
+      CPASSERT(ASSOCIATED(matrix_ks_kp))
       CPASSERT(ASSOCIATED(matrix_s_kp))
       CPASSERT(ASSOCIATED(matrix_s_kp(1, 1)%matrix))
       CPASSERT(.NOT. dft_control%restricted .OR. nspin_ot == 1)
@@ -1822,12 +1831,135 @@ CONTAINS
                                        require_local_state=.TRUE., &
                                        require_complex_state=.NOT. use_real_wfn)
 
+      CALL prepare_qs_ot_kpoint_preconditioners(scf_env, kpoints, &
+                                                matrix_ks_kp, matrix_s_kp, nspin_ot)
+
       CALL dbcsr_deallocate_matrix(matrix_sk_re)
       IF (ASSOCIATED(matrix_sk_im)) CALL dbcsr_deallocate_matrix(matrix_sk_im)
 
       CALL timestop(handle)
 
    END SUBROUTINE allocate_qs_ot_kpoint_state
+
+! **************************************************************************************************
+!> \brief prepare and attach orbital preconditioners for complex k-point OT channels
+!> \param scf_env ...
+!> \param kpoints ...
+!> \param matrix_ks_kp ...
+!> \param matrix_s_kp ...
+!> \param nspin_ot ...
+! **************************************************************************************************
+   SUBROUTINE prepare_qs_ot_kpoint_preconditioners(scf_env, kpoints, &
+                                                   matrix_ks_kp, matrix_s_kp, nspin_ot)
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
+      INTEGER, INTENT(IN)                                :: nspin_ot
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_qs_ot_kpoint_preconditioners'
+
+      INTEGER                                            :: handle, ikpoint, ispin, ks_spin, &
+                                                            local_kpoint, n_ot_channels, &
+                                                            ot_channel, prec_type
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: use_real_wfn
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(dbcsr_type), POINTER                          :: matrix_h_im, matrix_h_re, matrix_s_im, &
+                                                            matrix_s_re
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (cell_to_index, kp, matrix_h_im, matrix_h_re, matrix_s_im, matrix_s_re, sab_nl, xkp)
+      CPASSERT(ASSOCIATED(scf_env%qs_ot_env))
+      CPASSERT(ASSOCIATED(kpoints))
+      CPASSERT(ASSOCIATED(matrix_ks_kp))
+      CPASSERT(ASSOCIATED(matrix_s_kp))
+
+      prec_type = scf_env%qs_ot_env(1)%settings%preconditioner_type
+      IF (prec_type == ot_precond_none) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      CPASSERT(prec_type == ot_precond_full_single_inverse)
+      CALL get_kpoint_info(kpoints, xkp=xkp, use_real_wfn=use_real_wfn, &
+                           cell_to_index=cell_to_index, sab_nl=sab_nl)
+      CPASSERT(.NOT. use_real_wfn)
+      CPASSERT(ASSOCIATED(xkp))
+      CPASSERT(ASSOCIATED(cell_to_index))
+      CPASSERT(ASSOCIATED(sab_nl))
+
+      n_ot_channels = SIZE(scf_env%qs_ot_env)
+      IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
+         DO ot_channel = 1, SIZE(scf_env%ot_preconditioner)
+            CALL destroy_preconditioner(scf_env%ot_preconditioner(ot_channel)%preconditioner)
+            DEALLOCATE (scf_env%ot_preconditioner(ot_channel)%preconditioner)
+         END DO
+         DEALLOCATE (scf_env%ot_preconditioner)
+         NULLIFY (scf_env%ot_preconditioner)
+      END IF
+      ALLOCATE (scf_env%ot_preconditioner(n_ot_channels))
+      DO ot_channel = 1, n_ot_channels
+         CPASSERT(scf_env%qs_ot_env(ot_channel)%state_allocated)
+         ALLOCATE (scf_env%ot_preconditioner(ot_channel)%preconditioner)
+         CALL init_preconditioner(scf_env%ot_preconditioner(ot_channel)%preconditioner, &
+                                  para_env=scf_env%qs_ot_env(ot_channel)%para_env, &
+                                  blacs_env=scf_env%qs_ot_env(ot_channel)%blacs_env)
+      END DO
+
+      ALLOCATE (matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im)
+      CALL dbcsr_create(matrix_h_re, template=matrix_ks_kp(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(matrix_h_im, template=matrix_ks_kp(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_antisymmetric)
+      CALL dbcsr_create(matrix_s_re, template=matrix_s_kp(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(matrix_s_im, template=matrix_s_kp(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_antisymmetric)
+      CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_re, sab_nl)
+      CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_im, sab_nl)
+      CALL cp_dbcsr_alloc_block_from_nbl(matrix_s_re, sab_nl)
+      CALL cp_dbcsr_alloc_block_from_nbl(matrix_s_im, sab_nl)
+
+      DO local_kpoint = 1, SIZE(kpoints%kp_env)
+         kp => kpoints%kp_env(local_kpoint)%kpoint_env
+         CPASSERT(ASSOCIATED(kp))
+         ikpoint = kp%nkpoint
+         CALL dbcsr_set(matrix_s_re, 0.0_dp)
+         CALL dbcsr_set(matrix_s_im, 0.0_dp)
+         CALL rskp_transform(rmatrix=matrix_s_re, cmatrix=matrix_s_im, rsmat=matrix_s_kp, &
+                             ispin=1, xkp=xkp(1:3, ikpoint), cell_to_index=cell_to_index, &
+                             sab_nl=sab_nl)
+         DO ispin = 1, nspin_ot
+            ks_spin = MIN(ispin, SIZE(matrix_ks_kp, 1))
+            CALL dbcsr_set(matrix_h_re, 0.0_dp)
+            CALL dbcsr_set(matrix_h_im, 0.0_dp)
+            CALL rskp_transform(rmatrix=matrix_h_re, cmatrix=matrix_h_im, rsmat=matrix_ks_kp, &
+                                ispin=ks_spin, xkp=xkp(1:3, ikpoint), &
+                                cell_to_index=cell_to_index, sab_nl=sab_nl)
+            ot_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot)
+            CALL make_preconditioner_complex_full_single_inverse( &
+               scf_env%ot_preconditioner(ot_channel)%preconditioner, &
+               scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+               scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
+               matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
+               scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
+               scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
+            CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ot_channel), &
+                                          scf_env%ot_preconditioner(ot_channel)%preconditioner)
+         END DO
+      END DO
+
+      CALL dbcsr_deallocate_matrix(matrix_s_im)
+      CALL dbcsr_deallocate_matrix(matrix_s_re)
+      CALL dbcsr_deallocate_matrix(matrix_h_im)
+      CALL dbcsr_deallocate_matrix(matrix_h_re)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE prepare_qs_ot_kpoint_preconditioners
 
 ! **************************************************************************************************
 !> \brief allocate imaginary orbital images for complex k-point OT channel state

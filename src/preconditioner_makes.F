@@ -20,6 +20,18 @@ MODULE preconditioner_makes
                                               get_selected_ritz_vector,&
                                               set_arnoldi_initial_vector,&
                                               setup_arnoldi_env
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
+                                              cp_cfm_scale_and_add,&
+                                              cp_cfm_uplo_to_full
+   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
+                                              cp_cfm_cholesky_invert
+   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_release,&
+                                              cp_cfm_set_element,&
+                                              cp_cfm_to_cfm,&
+                                              cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, &
         dbcsr_release, dbcsr_type, dbcsr_type_symmetric
@@ -50,6 +62,8 @@ MODULE preconditioner_makes
         ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_s_inverse, &
         ot_precond_solver_default, ot_precond_solver_inv_chol
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: z_one,&
+                                              z_zero
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner_types,            ONLY: preconditioner_type
 #include "./base/base_uses.f90"
@@ -60,7 +74,7 @@ MODULE preconditioner_makes
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_makes'
 
-   PUBLIC :: make_preconditioner_matrix
+   PUBLIC :: make_complex_full_single_inverse, make_preconditioner_matrix
 
 CONTAINS
 
@@ -818,5 +832,131 @@ CONTAINS
 
    END SUBROUTINE make_full_single_inverse
 
-END MODULE preconditioner_makes
+! **************************************************************************************************
+!> \brief Build a gauge-covariant FULL_SINGLE_INVERSE operator for a complex k-point channel.
+!> \param preconditioner_env preconditioner storage
+!> \param matrix_c0 complex reference orbitals, C^H S C = I
+!> \param matrix_h complex Hermitian k-point Hamiltonian
+!> \param matrix_s complex Hermitian k-point overlap
+!> \param energy_gap lower spectral bound of the positive operator
+! **************************************************************************************************
+   SUBROUTINE make_complex_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, matrix_s, &
+                                               energy_gap)
 
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_c0, matrix_h, matrix_s
+      REAL(KIND=dp), INTENT(IN)                          :: energy_gap
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_complex_full_single_inverse'
+
+      INTEGER                                            :: handle, i, info, k, n
+      REAL(KIND=dp)                                      :: max_ev, min_ev, pre_shift, target_edge
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occupied_evals, operator_evals
+      TYPE(cp_cfm_type) :: matrix_chc, matrix_diag_a, matrix_diag_b, matrix_diag_evec, &
+         matrix_diag_work, matrix_hc0, matrix_occ_diag_a, matrix_occ_diag_b, matrix_occ_diag_evec, &
+         matrix_occ_diag_work, matrix_operator, matrix_sc0, matrix_sc_chc
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_cfm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
+      CPASSERT(n > 0)
+      CPASSERT(k > 0 .AND. k <= n)
+      CPASSERT(energy_gap > 0.0_dp)
+
+      IF (ASSOCIATED(preconditioner_env%complex_fm)) THEN
+         CALL cp_cfm_release(preconditioner_env%complex_fm)
+         DEALLOCATE (preconditioner_env%complex_fm)
+      END IF
+
+      CALL cp_cfm_create(matrix_hc0, matrix_c0%matrix_struct, name='complex FULL_SINGLE HC')
+      CALL cp_cfm_create(matrix_sc0, matrix_c0%matrix_struct, name='complex FULL_SINGLE SC')
+      CALL cp_cfm_create(matrix_chc, matrix_c0%matrix_struct, nrow=k, ncol=k, &
+                         name='complex FULL_SINGLE CHC')
+      CALL cp_cfm_create(matrix_sc_chc, matrix_c0%matrix_struct, &
+                         name='complex FULL_SINGLE SC CHC')
+      CALL cp_cfm_create(matrix_operator, matrix_h%matrix_struct, &
+                         name='complex FULL_SINGLE operator')
+      CALL cp_cfm_create(matrix_diag_a, matrix_h%matrix_struct, &
+                         name='complex FULL_SINGLE diagonalization A')
+      CALL cp_cfm_create(matrix_diag_b, matrix_s%matrix_struct, &
+                         name='complex FULL_SINGLE diagonalization B')
+      CALL cp_cfm_create(matrix_diag_evec, matrix_h%matrix_struct, &
+                         name='complex FULL_SINGLE eigenvectors')
+      CALL cp_cfm_create(matrix_diag_work, matrix_h%matrix_struct, &
+                         name='complex FULL_SINGLE diagonalization work')
+      CALL cp_cfm_create(matrix_occ_diag_a, matrix_c0%matrix_struct, nrow=k, ncol=k, &
+                         name='complex FULL_SINGLE occupied diagonalization A')
+      CALL cp_cfm_create(matrix_occ_diag_b, matrix_c0%matrix_struct, nrow=k, ncol=k, &
+                         name='complex FULL_SINGLE occupied diagonalization B', set_zero=.TRUE.)
+      CALL cp_cfm_create(matrix_occ_diag_evec, matrix_c0%matrix_struct, nrow=k, ncol=k, &
+                         name='complex FULL_SINGLE occupied eigenvectors')
+      CALL cp_cfm_create(matrix_occ_diag_work, matrix_c0%matrix_struct, nrow=k, ncol=k, &
+                         name='complex FULL_SINGLE occupied diagonalization work')
+
+      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, matrix_h, matrix_c0, z_zero, matrix_hc0)
+      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, matrix_s, matrix_c0, z_zero, matrix_sc0)
+      CALL cp_cfm_gemm('C', 'N', k, k, n, z_one, matrix_c0, matrix_hc0, z_zero, matrix_chc)
+
+      ! A = H - 2*S*C*(C^H*H*C)*C^H*S + S*C*C^H*S is invariant under C -> C*U.
+      CALL cp_cfm_to_cfm(matrix_h, matrix_operator)
+      CALL cp_cfm_gemm('N', 'N', n, k, k, z_one, matrix_sc0, matrix_chc, &
+                       z_zero, matrix_sc_chc)
+      CALL cp_cfm_gemm('N', 'C', n, n, k, -2.0_dp*z_one, matrix_sc_chc, matrix_sc0, &
+                       z_one, matrix_operator)
+      CALL cp_cfm_gemm('N', 'C', n, n, k, z_one, matrix_sc0, matrix_sc0, &
+                       z_one, matrix_operator)
+
+      ALLOCATE (occupied_evals(k), operator_evals(n))
+      CALL cp_cfm_to_cfm(matrix_chc, matrix_occ_diag_a)
+      DO i = 1, k
+         CALL cp_cfm_set_element(matrix_occ_diag_b, i, i, z_one)
+      END DO
+      CALL cp_cfm_geeig(matrix_occ_diag_a, matrix_occ_diag_b, matrix_occ_diag_evec, &
+                        occupied_evals, matrix_occ_diag_work)
+      max_ev = MAXVAL(occupied_evals)
+      CALL cp_cfm_to_cfm(matrix_operator, matrix_diag_a)
+      CALL cp_cfm_to_cfm(matrix_s, matrix_diag_b)
+      CALL cp_cfm_geeig(matrix_diag_a, matrix_diag_b, matrix_diag_evec, &
+                        operator_evals, matrix_diag_work)
+      min_ev = MINVAL(operator_evals)
+      target_edge = MAX(1.5_dp*(min_ev - max_ev), energy_gap)
+      pre_shift = MAX(0.0_dp, target_edge - min_ev)
+      IF (pre_shift > 0.0_dp) THEN
+         CALL cp_cfm_scale_and_add(z_one, matrix_operator, &
+                                   CMPLX(pre_shift, 0.0_dp, KIND=dp), matrix_s)
+      END IF
+
+      ALLOCATE (preconditioner_env%complex_fm)
+      CALL cp_cfm_create(preconditioner_env%complex_fm, matrix_h%matrix_struct, &
+                         name='complex FULL_SINGLE inverse')
+      CALL cp_cfm_to_cfm(matrix_operator, preconditioner_env%complex_fm)
+      CALL cp_cfm_cholesky_decompose(preconditioner_env%complex_fm, info_out=info)
+      CPASSERT(info == 0)
+      CALL cp_cfm_cholesky_invert(preconditioner_env%complex_fm, info_out=info)
+      CPASSERT(info == 0)
+      CALL cp_cfm_uplo_to_full(preconditioner_env%complex_fm)
+
+      preconditioner_env%energy_gap = energy_gap
+      preconditioner_env%in_use = ot_precond_full_single_inverse
+      preconditioner_env%solver = ot_precond_solver_default
+
+      DEALLOCATE (operator_evals, occupied_evals)
+      CALL cp_cfm_release(matrix_occ_diag_work)
+      CALL cp_cfm_release(matrix_occ_diag_evec)
+      CALL cp_cfm_release(matrix_occ_diag_b)
+      CALL cp_cfm_release(matrix_occ_diag_a)
+      CALL cp_cfm_release(matrix_diag_work)
+      CALL cp_cfm_release(matrix_diag_evec)
+      CALL cp_cfm_release(matrix_diag_b)
+      CALL cp_cfm_release(matrix_diag_a)
+      CALL cp_cfm_release(matrix_operator)
+      CALL cp_cfm_release(matrix_sc_chc)
+      CALL cp_cfm_release(matrix_chc)
+      CALL cp_cfm_release(matrix_sc0)
+      CALL cp_cfm_release(matrix_hc0)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE make_complex_full_single_inverse
+
+END MODULE preconditioner_makes

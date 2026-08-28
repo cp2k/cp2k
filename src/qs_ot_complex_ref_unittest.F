@@ -6,19 +6,35 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Finite-difference regression for the complex finite-REF pullback.
+!> \brief Regressions for complex k-point OT derivatives and preconditioner guards.
 ! **************************************************************************************************
 PROGRAM qs_ot_complex_ref_unittest
    USE bibliography,                    ONLY: add_all_references
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_release,&
+                                              cp_blacs_env_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_element,&
+                                              cp_cfm_release,&
+                                              cp_cfm_set_all,&
+                                              cp_cfm_set_element,&
+                                              cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
         dbcsr_finalize, dbcsr_finalize_lib, dbcsr_get_block_p, dbcsr_init_lib, dbcsr_put_block, &
         dbcsr_release, dbcsr_reserve_blocks, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_log_handling,                 ONLY: cp_add_default_logger,&
                                               cp_logger_create,&
                                               cp_logger_release,&
                                               cp_logger_type,&
                                               cp_rm_default_logger
+   USE input_constants,                 ONLY: &
+        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single_inverse, &
+        ot_precond_none, ot_precond_s_inverse, ot_precond_solver_chebyshev, &
+        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: default_output_unit
    USE mathlib,                         ONLY: diag_complex
@@ -28,8 +44,15 @@ PROGRAM qs_ot_complex_ref_unittest
                                               mp_para_env_type,&
                                               mp_world_finalize,&
                                               mp_world_init
+   USE preconditioner_makes,            ONLY: make_complex_full_single_inverse
+   USE preconditioner_types,            ONLY: destroy_preconditioner,&
+                                              init_preconditioner,&
+                                              preconditioner_type
    USE qs_ot,                           ONLY: qs_ot_get_derivative_ref_complex
-   USE qs_ot_types,                     ONLY: qs_ot_type
+   USE qs_ot_types,                     ONLY: qs_ot_kpoint_preconditioner_scale,&
+                                              qs_ot_kpoint_preconditioner_solver_supported,&
+                                              qs_ot_kpoint_preconditioner_supported,&
+                                              qs_ot_type
    USE reference_manager,               ONLY: remove_all_references
 
    IMPLICIT NONE
@@ -56,6 +79,7 @@ PROGRAM qs_ot_complex_ref_unittest
    TYPE(qs_ot_type)                                   :: ot_env
 
    nfail = 0
+   CALL test_preconditioner_support(nfail)
    NULLIFY (hc_im_p, hc_re_p, logger, para_env)
    CALL mp_world_init(mp_comm)
    mynode = mp_comm%mepos
@@ -68,6 +92,7 @@ PROGRAM qs_ot_complex_ref_unittest
    CALL cp_add_default_logger(logger)
    CALL add_all_references()
    CALL dbcsr_init_lib(mp_comm%get_handle(), io_unit)
+   CALL test_complex_preconditioner_gauge(para_env, nfail)
 
    x(:, 1) = [CMPLX(1.10_dp, 0.10_dp, KIND=dp), CMPLX(0.20_dp, -0.30_dp, KIND=dp), &
               CMPLX(-0.10_dp, 0.20_dp, KIND=dp)]
@@ -198,6 +223,146 @@ PROGRAM qs_ot_complex_ref_unittest
    IF (nfail > 0) ERROR STOP "qs_ot_complex_ref_unittest failed"
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Check gauge invariance, Hermiticity, and positivity of the complex inverse operator.
+!> \param para_env parallel environment
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_complex_preconditioner_gauge(para_env, nfail)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      COMPLEX(KIND=dp)                                   :: value
+      COMPLEX(KIND=dp), DIMENSION(n, k)                  :: c0, c0_rot
+      COMPLEX(KIND=dp), DIMENSION(n, n)                  :: eigenvectors, h, inverse, inverse_rot, s
+      INTEGER                                            :: i, j
+      REAL(KIND=dp)                                      :: gauge_error, hermitian_error
+      REAL(KIND=dp), DIMENSION(n)                        :: eigenvalues
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_cfm_type)                                  :: matrix_c0, matrix_c0_rot, matrix_h, &
+                                                            matrix_s
+      TYPE(cp_fm_struct_type), POINTER                   :: fmstruct_nk, fmstruct_nn
+      TYPE(preconditioner_type)                          :: preconditioner, preconditioner_rot
+
+      NULLIFY (blacs_env, fmstruct_nk, fmstruct_nn)
+      CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
+      CALL cp_fm_struct_create(fmstruct=fmstruct_nn, para_env=para_env, context=blacs_env, &
+                               nrow_global=n, ncol_global=n)
+      CALL cp_fm_struct_create(fmstruct=fmstruct_nk, para_env=para_env, context=blacs_env, &
+                               nrow_global=n, ncol_global=k)
+      CALL cp_cfm_create(matrix_h, fmstruct_nn, name='complex preconditioner H')
+      CALL cp_cfm_create(matrix_s, fmstruct_nn, name='complex preconditioner S')
+      CALL cp_cfm_create(matrix_c0, fmstruct_nk, name='complex preconditioner C')
+      CALL cp_cfm_create(matrix_c0_rot, fmstruct_nk, name='complex preconditioner C U')
+      CALL cp_cfm_set_all(matrix_h, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
+      CALL cp_cfm_set_all(matrix_s, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
+      CALL cp_cfm_set_all(matrix_c0, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
+      CALL cp_cfm_set_all(matrix_c0_rot, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
+
+      h(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      h(1, 1) = CMPLX(-0.35_dp, 0.0_dp, KIND=dp)
+      h(2, 2) = CMPLX(0.15_dp, 0.0_dp, KIND=dp)
+      h(3, 3) = CMPLX(0.90_dp, 0.0_dp, KIND=dp)
+      h(1, 2) = CMPLX(0.08_dp, 0.04_dp, KIND=dp)
+      h(2, 1) = CONJG(h(1, 2))
+      h(1, 3) = CMPLX(-0.06_dp, 0.03_dp, KIND=dp)
+      h(3, 1) = CONJG(h(1, 3))
+      h(2, 3) = CMPLX(0.05_dp, -0.07_dp, KIND=dp)
+      h(3, 2) = CONJG(h(2, 3))
+      s(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      s(1, 1) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+      s(2, 2) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+      s(3, 3) = CMPLX(1.4_dp, 0.0_dp, KIND=dp)
+      s(1, 3) = CMPLX(0.08_dp, 0.03_dp, KIND=dp)
+      s(3, 1) = CONJG(s(1, 3))
+      s(2, 3) = CMPLX(-0.04_dp, 0.02_dp, KIND=dp)
+      s(3, 2) = CONJG(s(2, 3))
+      c0(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      c0(1, 1) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+      c0(2, 2) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+      c0_rot(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      c0_rot(1, 1) = CMPLX(SQRT(0.5_dp), 0.0_dp, KIND=dp)
+      c0_rot(1, 2) = CMPLX(0.0_dp, SQRT(0.5_dp), KIND=dp)
+      c0_rot(2, 1) = CMPLX(0.0_dp, SQRT(0.5_dp), KIND=dp)
+      c0_rot(2, 2) = CMPLX(SQRT(0.5_dp), 0.0_dp, KIND=dp)
+
+      DO j = 1, n
+         DO i = 1, n
+            CALL cp_cfm_set_element(matrix_h, i, j, h(i, j))
+            CALL cp_cfm_set_element(matrix_s, i, j, s(i, j))
+         END DO
+      END DO
+      DO j = 1, k
+         DO i = 1, n
+            CALL cp_cfm_set_element(matrix_c0, i, j, c0(i, j))
+            CALL cp_cfm_set_element(matrix_c0_rot, i, j, c0_rot(i, j))
+         END DO
+      END DO
+
+      CALL init_preconditioner(preconditioner, para_env, blacs_env)
+      CALL init_preconditioner(preconditioner_rot, para_env, blacs_env)
+      CALL make_complex_full_single_inverse(preconditioner, matrix_c0, matrix_h, matrix_s, 0.20_dp)
+      CALL make_complex_full_single_inverse(preconditioner_rot, matrix_c0_rot, matrix_h, matrix_s, 0.20_dp)
+      DO j = 1, n
+         DO i = 1, n
+            CALL cp_cfm_get_element(preconditioner%complex_fm, i, j, value)
+            inverse(i, j) = value
+            CALL cp_cfm_get_element(preconditioner_rot%complex_fm, i, j, value)
+            inverse_rot(i, j) = value
+         END DO
+      END DO
+      gauge_error = MAXVAL(ABS(inverse - inverse_rot))
+      hermitian_error = MAXVAL(ABS(inverse - CONJG(TRANSPOSE(inverse))))
+      CALL diag_complex(inverse, eigenvectors, eigenvalues)
+      IF (gauge_error > 1.0E-11_dp .OR. hermitian_error > 1.0E-12_dp .OR. &
+          MINVAL(eigenvalues) <= 0.0_dp) nfail = nfail + 1
+      IF (para_env%is_source()) THEN
+         WRITE (*, '(A,3(1X,ES13.6))') 'complex FULL_SINGLE gauge/hermitian/min-eigenvalue', &
+            gauge_error, hermitian_error, MINVAL(eigenvalues)
+      END IF
+
+      CALL destroy_preconditioner(preconditioner_rot)
+      CALL destroy_preconditioner(preconditioner)
+      CALL cp_cfm_release(matrix_c0_rot)
+      CALL cp_cfm_release(matrix_c0)
+      CALL cp_cfm_release(matrix_s)
+      CALL cp_cfm_release(matrix_h)
+      CALL cp_fm_struct_release(fmstruct_nk)
+      CALL cp_fm_struct_release(fmstruct_nn)
+      CALL cp_blacs_env_release(blacs_env)
+
+   END SUBROUTINE test_complex_preconditioner_gauge
+
+! **************************************************************************************************
+!> \brief Check the intentionally narrow complex k-point preconditioner support matrix.
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_preconditioner_support(nfail)
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_none, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_full_single_inverse, .FALSE.)) THEN
+         nfail = nfail + 1
+      END IF
+      IF (qs_ot_kpoint_preconditioner_supported(ot_precond_full_all, .FALSE.)) nfail = nfail + 1
+      IF (qs_ot_kpoint_preconditioner_supported(ot_precond_full_kinetic, .FALSE.)) nfail = nfail + 1
+      IF (qs_ot_kpoint_preconditioner_supported(ot_precond_s_inverse, .FALSE.)) nfail = nfail + 1
+      IF (qs_ot_kpoint_preconditioner_supported(ot_precond_full_single_inverse, .TRUE.)) nfail = nfail + 1
+
+      IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_full_single_inverse, ot_precond_solver_default, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_full_single_inverse, ot_precond_solver_inv_chol, .FALSE.)) nfail = nfail + 1
+      IF (qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_full_single_inverse, ot_precond_solver_direct, .FALSE.)) nfail = nfail + 1
+      IF (qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_full_single_inverse, ot_precond_solver_chebyshev, .FALSE.)) nfail = nfail + 1
+      IF (ABS(qs_ot_kpoint_preconditioner_scale(0.25_dp) - 4.0_dp) > EPSILON(1.0_dp)) THEN
+         nfail = nfail + 1
+      END IF
+
+   END SUBROUTINE test_preconditioner_support
 
 ! **************************************************************************************************
 !> \brief Create and reserve a one-block DBCSR matrix.

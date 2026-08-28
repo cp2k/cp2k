@@ -14,8 +14,13 @@
 ! **************************************************************************************************
 MODULE preconditioner
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_release,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
+                                              dbcsr_p_type,&
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -26,20 +31,18 @@ MODULE preconditioner
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE input_constants,                 ONLY: cholesky_reduce,&
-                                              ot_precond_full_all,&
-                                              ot_precond_full_kinetic,&
-                                              ot_precond_full_single,&
-                                              ot_precond_full_single_inverse,&
-                                              ot_precond_none,&
-                                              ot_precond_s_inverse,&
-                                              ot_precond_solver_update
+   USE input_constants,                 ONLY: &
+        cholesky_reduce, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+        ot_precond_solver_default, ot_precond_solver_inv_chol, ot_precond_solver_update
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE preconditioner_apply,            ONLY: apply_preconditioner_dbcsr,&
+                                              apply_preconditioner_dbcsr_complex,&
                                               apply_preconditioner_fm
-   USE preconditioner_makes,            ONLY: make_preconditioner_matrix
+   USE preconditioner_makes,            ONLY: make_complex_full_single_inverse,&
+                                              make_preconditioner_matrix
    USE preconditioner_solvers,          ONLY: solve_preconditioner,&
                                               transfer_dbcsr_to_fm,&
                                               transfer_fm_to_dbcsr
@@ -61,12 +64,14 @@ MODULE preconditioner
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner'
 
-   PUBLIC :: make_preconditioner, restart_preconditioner
+   PUBLIC :: make_preconditioner, make_preconditioner_complex_full_single_inverse, &
+             restart_preconditioner
    PUBLIC :: apply_preconditioner, prepare_preconditioner
 
 ! The public interface for apply preconditioner, the routines can be found in preconditioner_apply.F
    INTERFACE apply_preconditioner
       MODULE PROCEDURE apply_preconditioner_dbcsr
+      MODULE PROCEDURE apply_preconditioner_dbcsr_complex
       MODULE PROCEDURE apply_preconditioner_fm
    END INTERFACE
 
@@ -232,6 +237,94 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE make_preconditioner
+
+! **************************************************************************************************
+!> \brief Construct a complex FULL_SINGLE_INVERSE preconditioner without discarding Im(H,S,C).
+!> \param preconditioner_env preconditioner storage
+!> \param matrix_c_re real part of the occupied reference orbitals
+!> \param matrix_c_im imaginary part of the occupied reference orbitals
+!> \param matrix_h_re real part of H(k)
+!> \param matrix_h_im imaginary part of H(k)
+!> \param matrix_s_re real part of S(k)
+!> \param matrix_s_im imaginary part of S(k)
+!> \param energy_gap lower spectral bound
+!> \param solver_type requested inverse solver
+! **************************************************************************************************
+   SUBROUTINE make_preconditioner_complex_full_single_inverse(preconditioner_env, &
+                                                              matrix_c_re, matrix_c_im, &
+                                                              matrix_h_re, matrix_h_im, &
+                                                              matrix_s_re, matrix_s_im, &
+                                                              energy_gap, solver_type)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type), POINTER                          :: matrix_c_re, matrix_c_im, matrix_h_re, &
+                                                            matrix_h_im, matrix_s_re, matrix_s_im
+      REAL(KIND=dp), INTENT(IN)                          :: energy_gap
+      INTEGER, INTENT(IN)                                :: solver_type
+
+      INTEGER                                            :: k, n
+      TYPE(cp_cfm_type)                                  :: matrix_c, matrix_h, matrix_s
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mo, fm_struct_square
+      TYPE(cp_fm_type)                                   :: matrix_c_im_fm, matrix_c_re_fm, &
+                                                            matrix_h_im_fm, matrix_h_re_fm, &
+                                                            matrix_s_im_fm, matrix_s_re_fm
+
+      NULLIFY (fm_struct_mo, fm_struct_square)
+      CPASSERT(ASSOCIATED(matrix_c_re))
+      CPASSERT(ASSOCIATED(matrix_c_im))
+      CPASSERT(ASSOCIATED(matrix_h_re))
+      CPASSERT(ASSOCIATED(matrix_h_im))
+      CPASSERT(ASSOCIATED(matrix_s_re))
+      CPASSERT(ASSOCIATED(matrix_s_im))
+      IF (solver_type /= ot_precond_solver_default .AND. &
+          solver_type /= ot_precond_solver_inv_chol) THEN
+         CPABORT("Complex FULL_SINGLE_INVERSE supports only PRECOND_SOLVER DEFAULT/INVERSE_CHOLESKY")
+      END IF
+      CALL dbcsr_get_info(matrix_c_re, nfullrows_total=n, nfullcols_total=k)
+      CPASSERT(n > 0 .AND. k > 0 .AND. k <= n)
+
+      CALL cp_fm_struct_create(fm_struct_mo, nrow_global=n, ncol_global=k, &
+                               context=preconditioner_env%ctxt, &
+                               para_env=preconditioner_env%para_env)
+      CALL cp_fm_struct_create(fm_struct_square, nrow_global=n, ncol_global=n, &
+                               context=preconditioner_env%ctxt, &
+                               para_env=preconditioner_env%para_env)
+      CALL cp_fm_create(matrix_c_re_fm, fm_struct_mo, name='complex preconditioner C real')
+      CALL cp_fm_create(matrix_c_im_fm, fm_struct_mo, name='complex preconditioner C imaginary')
+      CALL cp_fm_create(matrix_h_re_fm, fm_struct_square, name='complex preconditioner H real')
+      CALL cp_fm_create(matrix_h_im_fm, fm_struct_square, name='complex preconditioner H imaginary')
+      CALL cp_fm_create(matrix_s_re_fm, fm_struct_square, name='complex preconditioner S real')
+      CALL cp_fm_create(matrix_s_im_fm, fm_struct_square, name='complex preconditioner S imaginary')
+      CALL cp_fm_struct_release(fm_struct_mo)
+      CALL cp_fm_struct_release(fm_struct_square)
+      CALL copy_dbcsr_to_fm(matrix_c_re, matrix_c_re_fm)
+      CALL copy_dbcsr_to_fm(matrix_c_im, matrix_c_im_fm)
+      CALL copy_dbcsr_to_fm(matrix_h_re, matrix_h_re_fm)
+      CALL copy_dbcsr_to_fm(matrix_h_im, matrix_h_im_fm)
+      CALL copy_dbcsr_to_fm(matrix_s_re, matrix_s_re_fm)
+      CALL copy_dbcsr_to_fm(matrix_s_im, matrix_s_im_fm)
+
+      CALL cp_cfm_create(matrix_c, matrix_c_re_fm%matrix_struct, name='complex preconditioner C')
+      CALL cp_cfm_create(matrix_h, matrix_h_re_fm%matrix_struct, name='complex preconditioner H')
+      CALL cp_cfm_create(matrix_s, matrix_s_re_fm%matrix_struct, name='complex preconditioner S')
+      CALL cp_fm_to_cfm(matrix_c_re_fm, matrix_c_im_fm, matrix_c)
+      CALL cp_fm_to_cfm(matrix_h_re_fm, matrix_h_im_fm, matrix_h)
+      CALL cp_fm_to_cfm(matrix_s_re_fm, matrix_s_im_fm, matrix_s)
+      CALL make_complex_full_single_inverse(preconditioner_env, matrix_c, matrix_h, matrix_s, &
+                                            energy_gap)
+      preconditioner_env%solver = solver_type
+
+      CALL cp_cfm_release(matrix_s)
+      CALL cp_cfm_release(matrix_h)
+      CALL cp_cfm_release(matrix_c)
+      CALL cp_fm_release(matrix_s_im_fm)
+      CALL cp_fm_release(matrix_s_re_fm)
+      CALL cp_fm_release(matrix_h_im_fm)
+      CALL cp_fm_release(matrix_h_re_fm)
+      CALL cp_fm_release(matrix_c_im_fm)
+      CALL cp_fm_release(matrix_c_re_fm)
+
+   END SUBROUTINE make_preconditioner_complex_full_single_inverse
 
 ! **************************************************************************************************
 !> \brief Allows for a restart of the preconditioner
