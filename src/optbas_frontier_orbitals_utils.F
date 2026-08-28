@@ -78,9 +78,35 @@ MODULE optbas_frontier_orbitals_utils
    PUBLIC :: compute_frontier_orbital_loss_function, &
              evaluate_frontier_orbitals_objective, &
              frontier_orbitals_reference_init, frontier_orbitals_reference_release, &
+             print_frontier_orbital_basis_sets, &
              smooth_frontier_orbital_weight
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Print reference and initial basis-set names for every fitted atom kind.
+!> \param unit_nr output unit
+!> \param element_symbols fitted atom-kind symbols
+!> \param reference_basis_names reference basis-set names
+!> \param initial_basis_names initial small-basis names
+! **************************************************************************************************
+   SUBROUTINE print_frontier_orbital_basis_sets(unit_nr, element_symbols, reference_basis_names, &
+                                                initial_basis_names)
+      INTEGER, INTENT(IN)                                :: unit_nr
+      CHARACTER(LEN=*), DIMENSION(:), INTENT(IN)         :: element_symbols, reference_basis_names, &
+                                                            initial_basis_names
+
+      INTEGER                                            :: ikind
+
+      CPASSERT(SIZE(element_symbols) == SIZE(reference_basis_names))
+      CPASSERT(SIZE(element_symbols) == SIZE(initial_basis_names))
+      WRITE (unit_nr, '(1X,A,T14,A,T51,A)') "Atom kind", "Ref. basis set", "Initial basis set"
+      DO ikind = 1, SIZE(element_symbols)
+         WRITE (unit_nr, '(1X,A,T14,A,T51,A)') TRIM(element_symbols(ikind)), &
+            TRIM(reference_basis_names(ikind)), TRIM(initial_basis_names(ikind))
+      END DO
+
+   END SUBROUTINE print_frontier_orbital_basis_sets
 
 ! **************************************************************************************************
 !> \brief Diagonalize and store the frozen reference Hamiltonian.
@@ -236,26 +262,24 @@ CONTAINS
 !> \param virtual_cutoff virtual-orbital energy cutoff
 !> \param virtual_smoothing virtual-orbital energy smoothing width
 !> \param gap_scale normalization energy for the HOMO-LUMO gap loss
-!> \param result loss-function terms and result information
-!>
-!> The reference Hamiltonian is transformed to the candidate AO basis using
+!> \param objective_result loss-function terms and result information
+!> \note The reference Hamiltonian is transformed to the candidate AO basis using
 !> B = C_R^T S_RC
 !> H_C = B^T diag(ε_R) B
 !> The candidate orbitals are obtained from
 !> H_C C_C = S_C C_C diag(ε_C)
-!> C_C^T S_C C_C = I
-!> and the reference/candidate orbital overlap matrix is
-!> M = C_R^T S_RC C_C = B C_C
+!> C_C^T S_C C_C = I. The reference/candidate orbital overlap matrix is
+!> M = C_R^T S_RC C_C = B C_C.
 ! **************************************************************************************************
    SUBROUTINE evaluate_frontier_orbitals_objective(reference, matrix_s_candidate, &
                                                    matrix_s_candidate_reference, virtual_cutoff, &
-                                                   virtual_smoothing, gap_scale, RESULT)
+                                                   virtual_smoothing, gap_scale, objective_result)
       TYPE(frontier_orbitals_reference_type), INTENT(IN) :: reference
       TYPE(dbcsr_type), POINTER                          :: matrix_s_candidate, &
                                                             matrix_s_candidate_reference
       REAL(KIND=dp), INTENT(IN)                          :: virtual_cutoff, virtual_smoothing, &
                                                             gap_scale
-      TYPE(frontier_orbitals_result_type), INTENT(OUT)   :: result
+      TYPE(frontier_orbitals_result_type), INTENT(OUT)   :: objective_result
 
       INTEGER                                            :: istate, naux, nref
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues_candidate
@@ -281,14 +305,15 @@ CONTAINS
       smat(1, 1)%matrix => matrix_s_candidate
       CALL overlap_condnum(smat, condnum, -1, .FALSE., .TRUE., .FALSE., blacs_env)
       DEALLOCATE (smat)
-      result%condition_number = condnum(2)
-      result%number_candidate_orbitals = naux
-      IF (.NOT. ieee_is_finite(result%condition_number) .OR. &
-          result%condition_number > 1.0E14_dp .OR. result%condition_number <= 0.0_dp) THEN
-         result%loss_occupied_subspace = 1.0E6_dp
-         result%loss_virtual_subspace = 1.0E6_dp
-         result%loss_empty_subspace = 1.0E6_dp
-         result%loss_gap = 1.0E6_dp
+      objective_result%condition_number = condnum(2)
+      objective_result%number_candidate_orbitals = naux
+      IF (.NOT. ieee_is_finite(objective_result%condition_number) .OR. &
+          objective_result%condition_number > 1.0E14_dp .OR. &
+          objective_result%condition_number <= 0.0_dp) THEN
+         objective_result%loss_occupied_subspace = 1.0E6_dp
+         objective_result%loss_virtual_subspace = 1.0E6_dp
+         objective_result%loss_empty_subspace = 1.0E6_dp
+         objective_result%loss_gap = 1.0E6_dp
          RETURN
       END IF
 
@@ -353,9 +378,9 @@ CONTAINS
       CALL cp_fm_get_submatrix(reference_candidate_orbital_overlap, orbital_overlap_dense)
       CALL compute_frontier_orbital_loss_function( &
          orbital_overlap_dense, reference%eigenvalues, eigenvalues_candidate, &
-         reference%number_occupied_orbitals, virtual_cutoff, virtual_smoothing, gap_scale, RESULT)
-      result%condition_number = condnum(2)
-      result%number_candidate_orbitals = naux
+         reference%number_occupied_orbitals, virtual_cutoff, virtual_smoothing, gap_scale, objective_result)
+      objective_result%condition_number = condnum(2)
+      objective_result%number_candidate_orbitals = naux
 
       DEALLOCATE (eigenvalues_candidate, orbital_overlap_dense)
       CALL cp_fm_release(candidate_eigenvectors)
@@ -378,9 +403,8 @@ CONTAINS
 !> \param virtual_cutoff virtual-orbital energy cutoff E_cut
 !> \param virtual_smoothing virtual-orbital energy smoothing width ΔE
 !> \param gap_scale normalization energy E_scale for the gap loss
-!> \param result loss-function terms and result information
-!>
-!> Let i,j denote occupied orbitals, a,b virtual orbitals, and N_occ the number of occupied
+!> \param objective_result loss-function terms and result information
+!> \note Let i,j denote occupied orbitals, a,b virtual orbitals, and N_occ the number of occupied
 !> orbitals. R and C label reference and candidate quantities, with
 !> M_ij = <ψ_i^R | ψ_j^C> and M_ab = <ψ_a^R | ψ_b^C>. The occupied-subspace loss is
 !> L_occ = 1 - sum_(i,j in occupied) |M_ij|^2 / N_occ.
@@ -400,14 +424,14 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE compute_frontier_orbital_loss_function( &
       orbital_overlap, eigenvalues_reference, eigenvalues_candidate, number_occupied_orbitals, &
-      virtual_cutoff, virtual_smoothing, gap_scale, RESULT)
+      virtual_cutoff, virtual_smoothing, gap_scale, objective_result)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: orbital_overlap
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvalues_reference, &
                                                             eigenvalues_candidate
       INTEGER, INTENT(IN)                                :: number_occupied_orbitals
       REAL(KIND=dp), INTENT(IN)                          :: virtual_cutoff, virtual_smoothing, &
                                                             gap_scale
-      TYPE(frontier_orbitals_result_type), INTENT(OUT)   :: result
+      TYPE(frontier_orbitals_result_type), INTENT(OUT)   :: objective_result
 
       INTEGER                                            :: candidate_orbital, reference_orbital
       REAL(KIND=dp) :: candidate_virtual_weight_norm, occupied_subspace_overlap, &
@@ -419,8 +443,8 @@ CONTAINS
          SUM(orbital_overlap(1:number_occupied_orbitals, &
                              1:number_occupied_orbitals)**2)/ &
          REAL(number_occupied_orbitals, KIND=dp)
-      result%loss_occupied_subspace = MAX(0.0_dp, 1.0_dp - occupied_subspace_overlap)
-      result%occupied_subspace_overlap = occupied_subspace_overlap
+      objective_result%loss_occupied_subspace = MAX(0.0_dp, 1.0_dp - occupied_subspace_overlap)
+      objective_result%occupied_subspace_overlap = occupied_subspace_overlap
 
       ! N_R = sum_{a in virtual} (w_a^R)^2.
       reference_virtual_weight_norm = 0.0_dp
@@ -466,28 +490,30 @@ CONTAINS
 
       IF (reference_virtual_weight_norm > TINY(1.0_dp)) THEN
          ! L_vir = (N_R + N_C - 2 O_vir)/(2 N_R).
-         result%loss_virtual_subspace = &
+         objective_result%loss_virtual_subspace = &
             MAX(0.0_dp, (reference_virtual_weight_norm + candidate_virtual_weight_norm - &
                          2.0_dp*virtual_subspace_overlap)/(2.0_dp*reference_virtual_weight_norm))
          ! Bound the computed overlap against small roundoff excursions from its exact range [0, 1].
-         result%empty_subspace_overlap = &
+         objective_result%empty_subspace_overlap = &
             MIN(1.0_dp, MAX(0.0_dp, reference_virtual_subspace_overlap/reference_virtual_weight_norm))
-         result%loss_empty_subspace = 1.0_dp - result%empty_subspace_overlap
+         objective_result%loss_empty_subspace = 1.0_dp - objective_result%empty_subspace_overlap
          IF (candidate_virtual_weight_norm > TINY(1.0_dp)) THEN
-            result%virtual_subspace_similarity = MIN(1.0_dp, MAX(0.0_dp, &
-                                                                 virtual_subspace_overlap/ &
-                                                                 SQRT(reference_virtual_weight_norm*candidate_virtual_weight_norm)))
+            objective_result%virtual_subspace_similarity = &
+               MIN(1.0_dp, MAX(0.0_dp, &
+                               virtual_subspace_overlap/ &
+                               SQRT(reference_virtual_weight_norm*candidate_virtual_weight_norm)))
          END IF
       END IF
 
       ! E_gap^X = ε_LUMO^X - ε_HOMO^X.
-      result%gap_reference = eigenvalues_reference(number_occupied_orbitals + 1) - &
-                             eigenvalues_reference(number_occupied_orbitals)
-      result%gap_candidate = eigenvalues_candidate(number_occupied_orbitals + 1) - &
-                             eigenvalues_candidate(number_occupied_orbitals)
+      objective_result%gap_reference = eigenvalues_reference(number_occupied_orbitals + 1) - &
+                                       eigenvalues_reference(number_occupied_orbitals)
+      objective_result%gap_candidate = eigenvalues_candidate(number_occupied_orbitals + 1) - &
+                                       eigenvalues_candidate(number_occupied_orbitals)
 
       ! L_gap = [(E_gap^C - E_gap^R)/E_scale]^2.
-      result%loss_gap = ((result%gap_candidate - result%gap_reference)/gap_scale)**2
+      objective_result%loss_gap = &
+         ((objective_result%gap_candidate - objective_result%gap_reference)/gap_scale)**2
 
    END SUBROUTINE compute_frontier_orbital_loss_function
 

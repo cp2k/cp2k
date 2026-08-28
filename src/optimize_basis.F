@@ -8,7 +8,6 @@ MODULE optimize_basis
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_files,                        ONLY: get_unit_number
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -17,6 +16,7 @@ MODULE optimize_basis
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE cp_output_handling,              ONLY: silent_print_level
    USE f77_interface,                   ONLY: create_force_env,&
                                               destroy_force_env,&
                                               f_env_add_defaults,&
@@ -25,6 +25,9 @@ MODULE optimize_basis
                                               f_env_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
+   USE global_types,                    ONLY: global_environment_type
+   USE input_constants,                 ONLY: restart_guess
+   USE input_cp2k_check,                ONLY: check_cp2k_input
    USE input_cp2k_read,                 ONLY: empty_initial_variables,&
                                               read_input
    USE input_section_types,             ONLY: section_type,&
@@ -32,7 +35,9 @@ MODULE optimize_basis
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_release,&
-                                              section_vals_type
+                                              section_vals_type,&
+                                              section_vals_val_get,&
+                                              section_vals_val_set
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -52,7 +57,8 @@ MODULE optimize_basis
                                               frontier_orbitals_reference_init,&
                                               frontier_orbitals_reference_release,&
                                               frontier_orbitals_reference_type,&
-                                              frontier_orbitals_result_type
+                                              frontier_orbitals_result_type,&
+                                              print_frontier_orbital_basis_sets
    USE optbas_opt_utils,                ONLY: evaluate_optvals,&
                                               fit_mo_coeffs,&
                                               optbas_build_neighborlist
@@ -67,8 +73,11 @@ MODULE optimize_basis
                                               write_basis
    USE physcon,                         ONLY: evolt
    USE powell,                          ONLY: powell_optimize
+   USE qs_environment,                  ONLY: qs_init
    USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_env_create,&
                                               qs_env_part_release,&
+                                              qs_env_release,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                               qs_kind_type
@@ -100,12 +109,14 @@ CONTAINS
 !> \param input_declaration ...
 !> \param root_section ...
 !> \param para_env ...
+!> \param globenv ...
 !> \author Florian Schiffmann
 ! **************************************************************************************************
-   SUBROUTINE run_optimize_basis(input_declaration, root_section, para_env)
+   SUBROUTINE run_optimize_basis(input_declaration, root_section, para_env, globenv)
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(global_environment_type), POINTER             :: globenv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'run_optimize_basis'
 
@@ -132,10 +143,10 @@ CONTAINS
 
       IF (frontier_screening_explicit) THEN
          CALL run_frontier_orbital_screening( &
-            input_declaration, root_section, para_env, frontier_screening_section, driver_para_opt_basis)
+            input_declaration, root_section, para_env, globenv, frontier_screening_section, driver_para_opt_basis)
       ELSE
          CALL optimize_basis_init_read_input(opt_bas, root_section, para_env)
-         CALL driver_para_opt_basis(opt_bas, input_declaration, para_env)
+         CALL driver_para_opt_basis(opt_bas, input_declaration, para_env, globenv)
          CALL deallocate_basis_optimization_type(opt_bas)
       END IF
 
@@ -148,13 +159,17 @@ CONTAINS
 !> \param opt_bas ...
 !> \param input_declaration ...
 !> \param para_env ...
+!> \param globenv ...
+!> \param training_input ...
+!> \param reference ...
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 
-   SUBROUTINE driver_para_opt_basis(opt_bas, input_declaration, para_env, training_input, reference)
+   SUBROUTINE driver_para_opt_basis(opt_bas, input_declaration, para_env, globenv, training_input, reference)
       TYPE(basis_optimization_type)                      :: opt_bas
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), OPTIONAL, POINTER         :: training_input
       TYPE(frontier_orbitals_reference_type), &
          DIMENSION(:), INTENT(IN), OPTIONAL, TARGET      :: reference
@@ -177,9 +192,9 @@ CONTAINS
       IF (PRESENT(training_input)) THEN
          CPASSERT(PRESENT(reference))
          CALL driver_optimization_para_low(opt_bas, input_declaration, para_env, opt_group, &
-                                           training_input, reference)
+                                           globenv, training_input, reference)
       ELSE
-         CALL driver_optimization_para_low(opt_bas, input_declaration, para_env, opt_group)
+         CALL driver_optimization_para_low(opt_bas, input_declaration, para_env, opt_group, globenv)
       END IF
 
       CALL opt_group%free()
@@ -194,26 +209,32 @@ CONTAINS
 !> \param input_declaration ...
 !> \param para_env_top ...
 !> \param mpi_comm_opt ...
+!> \param globenv ...
+!> \param training_input ...
+!> \param reference ...
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 
    SUBROUTINE driver_optimization_para_low(opt_bas, input_declaration, para_env_top, mpi_comm_opt, &
-                                           training_input, reference)
+                                           globenv, training_input, reference)
       TYPE(basis_optimization_type)                      :: opt_bas
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(mp_para_env_type), POINTER                    :: para_env_top
       TYPE(mp_comm_type), INTENT(IN)                     :: mpi_comm_opt
+      TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), OPTIONAL, POINTER         :: training_input
       TYPE(frontier_orbitals_reference_type), &
          DIMENSION(:), INTENT(IN), OPTIONAL, TARGET      :: reference
 
       CHARACTER(len=*), PARAMETER :: routineN = 'driver_optimization_para_low'
 
-      INTEGER                                            :: handle, icalc, iopt, is, mp_id, stat
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id, f_env_output_unit
-      LOGICAL                                            :: write_basis
+      INTEGER                                            :: handle, icalc, iopt, is, mp_id, &
+                                                            outer_print_level, stat
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
+      LOGICAL                                            :: use_direct_qs, write_basis
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tot_time
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: matrix_S_inv
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(frontier_orbitals_reference_type), &
          ALLOCATABLE, DIMENSION(:), TARGET               :: local_reference
@@ -222,25 +243,30 @@ CONTAINS
       TYPE(frontier_orbitals_result_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: initial_info, optimized_info
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(qs_environment_type), ALLOCATABLE, &
+         DIMENSION(:), TARGET                            :: training_qs_env
 
-      NULLIFY (active_reference, f_env)
+      NULLIFY (active_reference, f_env, logger)
 
       CALL timeset(routineN, handle)
 
       ! ======  initialize the f_env and precompute some matrices =====
       mp_id = opt_bas%opt_id
+      use_direct_qs = opt_bas%method == method_mo_fit_occ_virtual
       NULLIFY (para_env, f_env)
-      ALLOCATE (f_env_id(SIZE(opt_bas%comp_group(mp_id)%member_list)))
-      ALLOCATE (f_env_output_unit(SIZE(opt_bas%comp_group(mp_id)%member_list)), source=-1)
+      ALLOCATE (f_env_id(SIZE(opt_bas%comp_group(mp_id)%member_list)), source=-1)
       ALLOCATE (tot_time(opt_bas%ncombinations*opt_bas%ntraining_sets))
-      ALLOCATE (initial_info(opt_bas%ncombinations*opt_bas%ntraining_sets))
-      ALLOCATE (optimized_info(opt_bas%ncombinations*opt_bas%ntraining_sets))
-      ALLOCATE (matrix_s_inv(SIZE(opt_bas%comp_group(mp_id)%member_list)))
-      IF (PRESENT(reference)) THEN
-         active_reference => reference
+      IF (opt_bas%method == method_mo_fit_occ) THEN
+         ALLOCATE (matrix_s_inv(SIZE(opt_bas%comp_group(mp_id)%member_list)))
       ELSE
-         ALLOCATE (local_reference(SIZE(opt_bas%comp_group(mp_id)%member_list)))
-         active_reference => local_reference
+         ALLOCATE (initial_info(opt_bas%ncombinations*opt_bas%ntraining_sets))
+         ALLOCATE (optimized_info(opt_bas%ncombinations*opt_bas%ntraining_sets))
+         IF (PRESENT(reference)) THEN
+            active_reference => reference
+         ELSE
+            ALLOCATE (local_reference(SIZE(opt_bas%comp_group(mp_id)%member_list)))
+            active_reference => local_reference
+         END IF
       END IF
 
       ALLOCATE (para_env)
@@ -250,12 +276,21 @@ CONTAINS
       IF (para_env%is_source()) is = para_env_top%mepos
       CALL para_env_top%allgather(is, opt_bas%sub_sources)
 
-      IF (PRESENT(training_input)) THEN
-         CALL init_training_force_envs(opt_bas, f_env_id, f_env_output_unit, input_declaration, matrix_s_inv, &
-                                       para_env, mpi_comm_opt, training_input=training_input)
+      IF (use_direct_qs) THEN
+         ALLOCATE (training_qs_env(SIZE(opt_bas%comp_group(mp_id)%member_list)))
+         logger => cp_get_default_logger()
+         outer_print_level = logger%iter_info%print_level
+         logger%iter_info%print_level = silent_print_level
+         IF (PRESENT(training_input)) THEN
+            CALL init_training_qs_envs(opt_bas, training_qs_env, input_declaration, para_env, globenv, &
+                                       training_input=training_input)
+         ELSE
+            CALL init_training_qs_envs(opt_bas, training_qs_env, input_declaration, para_env, globenv, &
+                                       reference=local_reference)
+         END IF
       ELSE
-         CALL init_training_force_envs(opt_bas, f_env_id, f_env_output_unit, input_declaration, matrix_s_inv, &
-                                       para_env, mpi_comm_opt, reference=local_reference)
+         CALL init_training_force_envs(opt_bas, f_env_id, input_declaration, para_env, mpi_comm_opt, &
+                                       matrix_s_inv=matrix_s_inv)
       END IF
 
       CALL init_free_vars(opt_bas)
@@ -277,11 +312,11 @@ CONTAINS
             IF (iopt == 0) THEN
                CALL compute_frontier_orbitals_objective( &
                   opt_bas, f_env_id, active_reference, tot_time, &
-                  para_env_top, para_env, initial_info)
+                  para_env_top, para_env, initial_info, training_qs_env)
             ELSE
                CALL compute_frontier_orbitals_objective( &
                   opt_bas, f_env_id, active_reference, tot_time, &
-                  para_env_top, para_env)
+                  para_env_top, para_env, qs_envs=training_qs_env)
             END IF
          CASE DEFAULT
             CPABORT("Unknown basis optimization method")
@@ -292,7 +327,8 @@ CONTAINS
          CALL para_env_top%bcast(opt_bas%powell_param%state)
          CALL para_env_top%bcast(opt_bas%x_opt)
          CALL update_free_vars(opt_bas)
-         write_basis = MOD(iopt, opt_bas%write_frequency) == 0
+         write_basis = opt_bas%method == method_mo_fit_occ .AND. &
+                       MOD(iopt, opt_bas%write_frequency) == 0
          CALL update_derived_basis_sets(opt_bas, write_basis, opt_bas%output_basis_file, &
                                         para_env_top)
          IF (opt_bas%powell_param%state == -1) EXIT
@@ -310,14 +346,14 @@ CONTAINS
          ! Report the actual best Powell vector, rather than the final trial point.
          CALL compute_frontier_orbitals_objective( &
             opt_bas, f_env_id, active_reference, tot_time, &
-            para_env_top, para_env, optimized_info)
+            para_env_top, para_env, optimized_info, training_qs_env)
          IF (.NOT. opt_bas%quiet_output) THEN
             CALL print_frontier_orbitals_info( &
                opt_bas, active_reference, initial_info, optimized_info, &
                para_env_top, para_env)
          END IF
       END IF
-      CALL update_derived_basis_sets(opt_bas, .TRUE., opt_bas%output_basis_file, &
+      CALL update_derived_basis_sets(opt_bas,.NOT. opt_bas%quiet_output, opt_bas%output_basis_file, &
                                      para_env_top)
 
       ! ======  get rid of the f_env again =====
@@ -326,14 +362,25 @@ CONTAINS
          IF (opt_bas%method == method_mo_fit_occ_virtual .AND. ALLOCATED(local_reference)) THEN
             CALL frontier_orbitals_reference_release(local_reference(icalc))
          END IF
-         CALL f_env_get_from_id(f_env_id(icalc), f_env)
-         CALL destroy_force_env(f_env_id(icalc), stat)
-         IF (opt_bas%quiet_output .AND. para_env%is_source()) CLOSE (f_env_output_unit(icalc))
+         IF (use_direct_qs) THEN
+            CALL qs_env_release(training_qs_env(icalc))
+         ELSE
+            CALL f_env_get_from_id(f_env_id(icalc), f_env)
+            CALL destroy_force_env(f_env_id(icalc), stat)
+         END IF
       END DO
-      DEALLOCATE (f_env_id, f_env_output_unit); DEALLOCATE (tot_time)
-      DEALLOCATE (initial_info, optimized_info)
+      IF (ALLOCATED(training_qs_env)) THEN
+         DEALLOCATE (training_qs_env)
+         logger%iter_info%print_level = outer_print_level
+      END IF
+      DEALLOCATE (f_env_id); DEALLOCATE (tot_time)
+      IF (ALLOCATED(initial_info)) DEALLOCATE (initial_info)
+      IF (ALLOCATED(optimized_info)) DEALLOCATE (optimized_info)
       IF (ALLOCATED(local_reference)) DEALLOCATE (local_reference)
-      CALL cp_fm_release(matrix_s_inv)
+      IF (ALLOCATED(matrix_s_inv)) THEN
+         CALL cp_fm_release(matrix_s_inv)
+         DEALLOCATE (matrix_s_inv)
+      END IF
       CALL mp_para_env_release(para_env)
       CALL timestop(handle)
 
@@ -498,9 +545,11 @@ CONTAINS
 !> \param tot_time accumulated timings for output
 !> \param para_env_top top-level communicator
 !> \param para_env calculation-group communicator
+!> \param info ...
+!> \param qs_envs ...
 ! **************************************************************************************************
    SUBROUTINE compute_frontier_orbitals_objective(opt_bas, f_env_id, reference, tot_time, &
-                                                  para_env_top, para_env, info)
+                                                  para_env_top, para_env, info, qs_envs)
       TYPE(basis_optimization_type)                      :: opt_bas
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
       TYPE(frontier_orbitals_reference_type), &
@@ -509,6 +558,8 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env_top, para_env
       TYPE(frontier_orbitals_result_type), &
          DIMENSION(:), INTENT(OUT), OPTIONAL             :: info
+      TYPE(qs_environment_type), DIMENSION(:), &
+         OPTIONAL, TARGET                                :: qs_envs
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_frontier_orbitals_objective'
 
@@ -563,9 +614,13 @@ CONTAINS
          NULLIFY (ks_env, matrix_s_aux, matrix_s_aux_orb, sab_aux, sab_aux_orb)
          CALL get_set_and_basis_id(opt_bas%comp_group(mp_id)%member_list(icalc), opt_bas, &
                                    bas_id=bas_id, set_id=set_id)
-         CALL f_env_get_from_id(f_env_id(icalc), f_env)
-         force_env => f_env%force_env
-         CALL force_env_get(force_env, qs_env=qs_env)
+         IF (PRESENT(qs_envs)) THEN
+            qs_env => qs_envs(icalc)
+         ELSE
+            CALL f_env_get_from_id(f_env_id(icalc), f_env)
+            force_env => f_env%force_env
+            CALL force_env_get(force_env, qs_env=qs_env)
+         END IF
          CALL update_basis_set(opt_bas, bas_id, basis_type, qs_env)
          CALL optbas_build_neighborlist(qs_env, sab_aux, sab_aux_orb, basis_type)
          CALL get_qs_env(qs_env, ks_env=ks_env)
@@ -669,7 +724,8 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env_top, para_env
 
       CHARACTER(LEN=17)                                  :: basis_label
-      CHARACTER(LEN=default_string_length)               :: candidate_basis, element, reference_basis
+      CHARACTER(LEN=default_string_length), &
+         ALLOCATABLE, DIMENSION(:)                       :: candidate_basis, element, reference_basis
       INTEGER                                            :: bas_id, icalc, ikind, iset, max_kinds, &
                                                             my_id, ncalc, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_count
@@ -722,17 +778,15 @@ CONTAINS
             WRITE (unit_nr, '(A)') ""
             WRITE (unit_nr, '(A)') "Atomic kind basis sets"
             WRITE (unit_nr, '(A)') REPEAT("-", 78)
+            ALLOCATE (candidate_basis(kind_count(my_id)), element(kind_count(my_id)), &
+                      reference_basis(kind_count(my_id)))
             DO ikind = 1, kind_count(my_id)
-               CALL decode_string(metadata(my_id, ikind, 1, :), element)
-               CALL decode_string(metadata(my_id, ikind, 2, :), reference_basis)
-               CALL decode_string(metadata(my_id, ikind, 3, :), candidate_basis)
-               WRITE (unit_nr, '(A,4X,A,A)') TRIM(element), "Reference basis:       ", &
-                  TRIM(reference_basis)
-               WRITE (unit_nr, '(A,4X,A,A)') REPEAT(" ", LEN_TRIM(element)), &
-                  "Initial small basis:   ", TRIM(candidate_basis)
-               WRITE (unit_nr, '(A,4X,A,A)') REPEAT(" ", LEN_TRIM(element)), &
-                  "Optimized small basis: ", TRIM(candidate_basis)
+               CALL decode_string(metadata(my_id, ikind, 1, :), element(ikind))
+               CALL decode_string(metadata(my_id, ikind, 2, :), reference_basis(ikind))
+               CALL decode_string(metadata(my_id, ikind, 3, :), candidate_basis(ikind))
             END DO
+            CALL print_frontier_orbital_basis_sets(unit_nr, element, reference_basis, candidate_basis)
+            DEALLOCATE (candidate_basis, element, reference_basis)
             WRITE (unit_nr, '(A)') ""
             WRITE (unit_nr, '(A,A)') "Optimized basis file: ", TRIM(opt_bas%output_basis_file)
             WRITE (unit_nr, '(A)') ""
@@ -777,6 +831,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Encode a string as integers so basis metadata can be reduced across optimizer groups.
+!> \param string ...
+!> \param encoded ...
 ! **************************************************************************************************
    PURE SUBROUTINE encode_string(string, encoded)
       CHARACTER(LEN=*), INTENT(IN)                       :: string
@@ -793,6 +849,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Decode integer character codes used to communicate basis metadata.
+!> \param encoded ...
+!> \param string ...
 ! **************************************************************************************************
    PURE SUBROUTINE decode_string(encoded, string)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: encoded
@@ -809,25 +867,140 @@ CONTAINS
    END SUBROUTINE decode_string
 
 ! **************************************************************************************************
+!> \brief Initialize Quickstep environments without starting nested CP2K runs.
+!> \param opt_bas ...
+!> \param qs_envs ...
+!> \param input_declaration ...
+!> \param para_env ...
+!> \param globenv ...
+!> \param training_input ...
+!> \param reference ...
+! **************************************************************************************************
+   SUBROUTINE init_training_qs_envs(opt_bas, qs_envs, input_declaration, para_env, globenv, &
+                                    training_input, reference)
+      TYPE(basis_optimization_type)                      :: opt_bas
+      TYPE(qs_environment_type), DIMENSION(:), &
+         INTENT(OUT), TARGET                             :: qs_envs
+      TYPE(section_type), POINTER                        :: input_declaration
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(global_environment_type), POINTER             :: globenv
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: training_input
+      TYPE(frontier_orbitals_reference_type), &
+         DIMENSION(:), INTENT(OUT), OPTIONAL             :: reference
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_training_qs_envs'
+
+      CHARACTER(len=default_path_length)                 :: main_dir, restart_file
+      CHARACTER(len=default_string_length)               :: project_name
+      INTEGER                                            :: bas_id, handle, icalc, ierr, mp_id, &
+                                                            n_rep_val, set_id
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(qs_environment_type), POINTER                 :: qs_env, reference_qs_env
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(section_vals_type), POINTER                   :: dft_section, force_env_section, &
+                                                            input_file, subsys_section
+
+      CALL timeset(routineN, handle)
+
+      mp_id = opt_bas%opt_id
+      CALL m_getcwd(main_dir)
+      DO icalc = 1, SIZE(opt_bas%comp_group(mp_id)%member_list)
+         NULLIFY (dft_section, force_env_section, input_file, ks_env, matrix_s, qs_env, &
+                  reference_qs_env, sab_orb, subsys_section)
+         CALL get_set_and_basis_id(opt_bas%comp_group(mp_id)%member_list(icalc), opt_bas, &
+                                   set_id=set_id, bas_id=bas_id)
+         IF (PRESENT(training_input)) THEN
+            CALL section_vals_duplicate(training_input, input_file)
+         ELSE
+            CALL m_chdir(TRIM(opt_bas%training_dir(set_id)), ierr)
+            IF (ierr /= 0) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Could not change to directory <"//TRIM(opt_bas%training_dir(set_id))//">")
+            END IF
+            input_file => read_input(input_declaration, &
+                                     opt_bas%training_input(set_id), &
+                                     initial_variables=empty_initial_variables, &
+                                     para_env=para_env)
+            CALL check_cp2k_input(input_declaration, input_file, para_env=para_env, &
+                                  output_unit=-1)
+         END IF
+
+         CALL section_vals_val_set(input_file, "GLOBAL%PRINT_LEVEL", i_val=silent_print_level)
+         IF (PRESENT(reference)) THEN
+            force_env_section => section_vals_get_subs_vals(input_file, "FORCE_EVAL")
+            dft_section => section_vals_get_subs_vals(force_env_section, "DFT")
+            CALL section_vals_val_get(dft_section, "WFN_RESTART_FILE_NAME", n_rep_val=n_rep_val)
+            IF (n_rep_val == 0) THEN
+               CALL section_vals_val_get(input_file, "GLOBAL%PROJECT_NAME", c_val=project_name)
+               restart_file = TRIM(project_name)//"-RESTART.wfn"
+               CALL section_vals_val_set(dft_section, "WFN_RESTART_FILE_NAME", &
+                                         c_val=TRIM(restart_file))
+            END IF
+            CALL section_vals_val_set(dft_section, "SCF%SCF_GUESS", i_val=restart_guess)
+            subsys_section => section_vals_get_subs_vals(force_env_section, "SUBSYS")
+            ALLOCATE (reference_qs_env)
+            CALL qs_env_create(reference_qs_env, globenv)
+            CALL qs_init(reference_qs_env, para_env, input_file, globenv=globenv, &
+                         force_env_section=force_env_section, subsys_section=subsys_section, &
+                         use_motion_section=.TRUE., silent=.TRUE.)
+            CALL allocate_mo_sets(reference_qs_env)
+            CALL get_qs_env(reference_qs_env, ks_env=ks_env)
+            CALL build_qs_neighbor_lists(reference_qs_env, para_env, molecular=.FALSE., &
+                                         force_env_section=reference_qs_env%input)
+            CALL get_ks_env(ks_env, matrix_s=matrix_s, sab_orb=sab_orb)
+            CALL build_overlap_matrix(ks_env, matrix_s=matrix_s, &
+                                      matrix_name="OVERLAP", &
+                                      basis_type_a="ORB", &
+                                      basis_type_b="ORB", &
+                                      sab_nl=sab_orb)
+            CALL set_ks_env(ks_env, matrix_s=matrix_s)
+            CALL calculate_ks_matrix(reference_qs_env)
+            CALL frontier_orbitals_reference_init(reference_qs_env, reference(icalc))
+            CALL qs_env_release(reference_qs_env)
+            DEALLOCATE (reference_qs_env)
+         END IF
+
+         CALL modify_input_settings(opt_bas, bas_id, input_file)
+         force_env_section => section_vals_get_subs_vals(input_file, "FORCE_EVAL")
+         subsys_section => section_vals_get_subs_vals(force_env_section, "SUBSYS")
+         qs_env => qs_envs(icalc)
+         CALL qs_env_create(qs_env, globenv)
+         CALL qs_init(qs_env, para_env, input_file, globenv=globenv, &
+                      force_env_section=force_env_section, subsys_section=subsys_section, &
+                      use_motion_section=.TRUE., silent=.TRUE.)
+
+         CALL section_vals_release(input_file)
+         IF (.NOT. PRESENT(training_input)) CALL m_chdir(TRIM(ADJUSTL(main_dir)), ierr)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE init_training_qs_envs
+
+! **************************************************************************************************
 !> \brief create the force_envs for every input in the computational group
 !> \param opt_bas ...
 !> \param f_env_id ...
 !> \param input_declaration ...
-!> \param matrix_s_inv ...
 !> \param para_env ...
 !> \param mpi_comm_opt ...
+!> \param matrix_s_inv ...
+!> \param training_input ...
+!> \param reference ...
 ! **************************************************************************************************
 
-   SUBROUTINE init_training_force_envs(opt_bas, f_env_id, f_env_output_unit, input_declaration, matrix_s_inv, &
-                                       para_env, mpi_comm_opt, training_input, reference)
+   SUBROUTINE init_training_force_envs(opt_bas, f_env_id, input_declaration, para_env, mpi_comm_opt, &
+                                       matrix_s_inv, training_input, reference)
 
       TYPE(basis_optimization_type)                      :: opt_bas
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
-      INTEGER, DIMENSION(:), INTENT(INOUT)               :: f_env_output_unit
       TYPE(section_type), POINTER                        :: input_declaration
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(OUT)        :: matrix_S_inv
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mp_comm_type)                                 :: mpi_comm_opt
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(OUT), &
+         OPTIONAL                                        :: matrix_S_inv
       TYPE(section_vals_type), OPTIONAL, POINTER         :: training_input
       TYPE(frontier_orbitals_reference_type), &
          DIMENSION(:), INTENT(OUT), OPTIONAL             :: reference
@@ -835,8 +1008,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'init_training_force_envs'
 
       CHARACTER(len=default_path_length)                 :: input_path, main_dir
-      INTEGER                                            :: bas_id, handle, icalc, ierr, mp_id, &
-                                                            set_id, stat
+      INTEGER                                            :: bas_id, f_env_output_unit, handle, &
+                                                            icalc, ierr, mp_id, set_id, stat
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(f_env_type), POINTER                          :: f_env
@@ -876,20 +1049,17 @@ CONTAINS
          END IF
 
          CALL modify_input_settings(opt_bas, bas_id, input_file)
-         IF (opt_bas%quiet_output) THEN
-            IF (para_env%is_source()) THEN
-               f_env_output_unit(icalc) = get_unit_number()
-               IF (f_env_output_unit(icalc) < 1) THEN
-                  CPABORT("No logical unit is available for disposable optimizer output")
-               END IF
-               OPEN (UNIT=f_env_output_unit(icalc), STATUS="SCRATCH", ACTION="READWRITE", IOSTAT=stat)
-               IF (stat /= 0) CPABORT("Could not open disposable optimizer output")
+         IF (opt_bas%quiet_output .OR. opt_bas%method == method_mo_fit_occ_virtual) THEN
+            IF (opt_bas%quiet_output) THEN
+               CALL section_vals_val_set(input_file, "GLOBAL%PRINT_LEVEL", i_val=silent_print_level)
             END IF
+            f_env_output_unit = -1
+            IF (para_env%is_source()) f_env_output_unit = cp_logger_get_default_unit_nr()
             CALL create_force_env(f_env_id(icalc), &
                                   input_declaration=input_declaration, &
                                   input_path=input_path, &
                                   input=input_file, &
-                                  output_unit=f_env_output_unit(icalc), &
+                                  output_unit=f_env_output_unit, &
                                   owns_out_unit=.FALSE., &
                                   mpi_comm=mpi_comm_opt, &
                                   ierr=stat)
@@ -910,22 +1080,24 @@ CONTAINS
          CALL force_env_get(force_env, qs_env=qs_env)
          IF (.NOT. PRESENT(training_input)) CALL allocate_mo_sets(qs_env)
          CALL f_env_rm_defaults(f_env, stat)
-         CALL get_qs_env(qs_env, ks_env=ks_env)
-         CALL build_qs_neighbor_lists(qs_env, para_env, molecular=.FALSE., &
-                                      force_env_section=qs_env%input)
-         CALL get_ks_env(ks_env, &
-                         matrix_s=matrix_s, &
-                         sab_orb=sab_orb)
-         CALL build_overlap_matrix(ks_env, matrix_s=matrix_s, &
-                                   matrix_name="OVERLAP", &
-                                   basis_type_a="ORB", &
-                                   basis_type_b="ORB", &
-                                   sab_nl=sab_orb)
-         CALL set_ks_env(ks_env, matrix_s=matrix_s)
-         CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env)
-         CALL calculate_overlap_inverse(matrix_s(1)%matrix, matrix_s_inv(icalc), &
-                                        para_env, blacs_env)
          IF (.NOT. PRESENT(training_input)) THEN
+            CALL get_qs_env(qs_env, ks_env=ks_env)
+            CALL build_qs_neighbor_lists(qs_env, para_env, molecular=.FALSE., &
+                                         force_env_section=qs_env%input)
+            CALL get_ks_env(ks_env, &
+                            matrix_s=matrix_s, &
+                            sab_orb=sab_orb)
+            CALL build_overlap_matrix(ks_env, matrix_s=matrix_s, &
+                                      matrix_name="OVERLAP", &
+                                      basis_type_a="ORB", &
+                                      basis_type_b="ORB", &
+                                      sab_nl=sab_orb)
+            CALL set_ks_env(ks_env, matrix_s=matrix_s)
+            IF (PRESENT(matrix_s_inv)) THEN
+               CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env)
+               CALL calculate_overlap_inverse(matrix_s(1)%matrix, matrix_s_inv(icalc), &
+                                              para_env, blacs_env)
+            END IF
             CALL calculate_ks_matrix(qs_env)
          END IF
          IF (opt_bas%method == method_mo_fit_occ_virtual .AND. PRESENT(reference)) THEN

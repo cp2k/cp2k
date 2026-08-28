@@ -33,6 +33,7 @@ MODULE optimize_basis_utils
    USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                               derived_basis_info,&
                                               flex_basis_type,&
+                                              method_mo_fit_occ,&
                                               method_mo_fit_occ_virtual,&
                                               subset_type
    USE powell,                          ONLY: opt_state_type
@@ -57,13 +58,11 @@ CONTAINS
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 
-   SUBROUTINE optimize_basis_init_read_input(opt_bas, root_section, para_env, quiet_output, embedded_training, &
-                                             screening_work_file)
+   SUBROUTINE optimize_basis_init_read_input(opt_bas, root_section, para_env, quiet_output, embedded_training)
       TYPE(basis_optimization_type)                      :: opt_bas
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: quiet_output, embedded_training
-      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: screening_work_file
 
       CHARACTER(LEN=default_path_length)                 :: main_dir
       INTEGER                                            :: ikind, iset, iweight, nrep
@@ -86,15 +85,6 @@ CONTAINS
       CALL section_vals_val_get(optbas_section, "BASIS_TEMPLATE_FILE", c_val=opt_bas%template_basis_file)
       CALL section_vals_val_get(optbas_section, "BASIS_OUTPUT_FILE", c_val=opt_bas%output_basis_file)
       CALL m_getcwd(main_dir)
-      IF (use_embedded_training) THEN
-         IF (.NOT. PRESENT(screening_work_file)) THEN
-            CPABORT("Internal screening work basis filename was not provided")
-         END IF
-         opt_bas%work_basis_file = screening_work_file
-      ELSE
-         CALL section_vals_val_get(optbas_section, "BASIS_WORK_FILE", c_val=opt_bas%work_basis_file)
-         opt_bas%work_basis_file = TRIM(ADJUSTL(main_dir))//"/"//TRIM(ADJUSTL(opt_bas%work_basis_file))
-      END IF
 
       CALL section_vals_val_get(optbas_section, "WRITE_FREQUENCY", i_val=opt_bas%write_frequency)
       CALL section_vals_val_get(optbas_section, "USE_CONDITION_NUMBER", l_val=opt_bas%use_condition_number)
@@ -122,6 +112,10 @@ CONTAINS
                                    r_val=opt_bas%virtual_energy_cutoff)
          CALL section_vals_val_get(frontier_orbitals_section, "VIRTUAL_ENERGY_SMOOTHING", &
                                    r_val=opt_bas%virtual_energy_smoothing)
+      END IF
+      IF (opt_bas%method == method_mo_fit_occ) THEN
+         CALL section_vals_val_get(optbas_section, "BASIS_WORK_FILE", c_val=opt_bas%work_basis_file)
+         opt_bas%work_basis_file = TRIM(ADJUSTL(main_dir))//"/"//TRIM(ADJUSTL(opt_bas%work_basis_file))
       END IF
       IF (frontier_orbitals_explicit) THEN
          IF (opt_bas%gap_energy_scale <= 0.0_dp) CPABORT("GAP_ENERGY_SCALE must be positive")
@@ -173,7 +167,8 @@ CONTAINS
       CALL init_powell_var(opt_bas%powell_param, powell_section)
       opt_bas%powell_param%nvar = SIZE(opt_bas%x_opt)
 
-      CALL generate_derived_basis_sets(opt_bas, para_env)
+      CALL generate_derived_basis_sets( &
+         opt_bas, para_env, write_work_file=opt_bas%method == method_mo_fit_occ)
 
       CALL generate_basis_combinations(opt_bas, optbas_section)
 
@@ -489,9 +484,10 @@ CONTAINS
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 
-   SUBROUTINE generate_derived_basis_sets(opt_bas, para_env)
+   SUBROUTINE generate_derived_basis_sets(opt_bas, para_env, write_work_file)
       TYPE(basis_optimization_type)                      :: opt_bas
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: write_work_file
 
       INTEGER                                            :: ibasis, ikind, iref, jbasis, unit_nr
 
@@ -510,7 +506,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (para_env%is_source()) THEN
+      IF (write_work_file .AND. para_env%is_source()) THEN
          CALL open_file(file_name=opt_bas%work_basis_file, file_status="UNKNOWN", &
                         file_action="WRITE", unit_number=unit_nr)
       ELSE
@@ -525,11 +521,13 @@ CONTAINS
                opt_bas%kind_basis(ikind)%flex_basis(ibasis)%basis_name = &
                   TRIM(ADJUSTL(opt_bas%kind_basis(ikind)%basis_name))//"-DERIVED_SET-"//ADJUSTL(cp_to_string(ibasis))
             END IF
-            CALL write_basis(opt_bas%kind_basis(ikind)%flex_basis(ibasis), opt_bas%kind_basis(ikind)%element, &
-                             unit_nr)
+            IF (write_work_file) THEN
+               CALL write_basis(opt_bas%kind_basis(ikind)%flex_basis(ibasis), &
+                                opt_bas%kind_basis(ikind)%element, unit_nr)
+            END IF
          END DO
       END DO
-      IF (para_env%is_source()) CALL close_file(unit_number=unit_nr)
+      IF (write_work_file .AND. para_env%is_source()) CALL close_file(unit_number=unit_nr)
 
    END SUBROUTINE generate_derived_basis_sets
 

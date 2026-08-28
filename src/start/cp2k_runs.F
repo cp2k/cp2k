@@ -276,7 +276,7 @@ CONTAINS
          CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit, &
                              accdrv_active_device_id=active_device_id)
       CASE (do_opt_basis)
-         CALL run_optimize_basis(input_declaration, root_section, para_env)
+         CALL run_optimize_basis(input_declaration, root_section, para_env, globenv)
          globenv%run_type_id = none_run
       CASE (do_cp2k)
          CALL create_force_env(new_env_id, &

@@ -368,15 +368,14 @@ CONTAINS
          "theory is given. The optimization contains several parameters, in particular the prefactors "// &
          "of its different loss functions, and the resulting optimized basis set can depend strongly "// &
          "on these prefactors. This section runs up to five pre-tabulated sets of optimization "// &
-         "parameters and selects the best basis set according to the self-consistent "// &
-         "HOMO-LUMO gap. All optimized basis sets are reported in a ranking that contains both the "// &
-         "HOMO-LUMO gap and total energy. The optimization uses the fixed electron density obtained "// &
+         "parameters. All optimized basis sets are reported together with their self-consistent "// &
+         "HOMO-LUMO gaps and total energies. The optimization uses the fixed electron density obtained "// &
          "with a large reference basis, and CP2K also converges an SCF calculation with every optimized "// &
          "basis set and reports the resulting HOMO-LUMO gap and total energy. No training calculation "// &
          "or previous DFT calculation needs to be read. All DFT calculations are performed automatically "// &
          "inside CP2K when this section is activated, using the DFT input parameters supplied in the "// &
-         "FORCE_EVAL section of the input file. All ranked basis sets are written to "// &
-         "BASIS_OUTPUT_FILE with rank suffixes such as _1 and _2.", &
+         "FORCE_EVAL section of the input file. All optimized basis sets are written to "// &
+         "BASIS_OUTPUT_FILE with suffixes such as _1 and _2.", &
          repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="NUMBER_OF_OPTIMIZATIONS", &
