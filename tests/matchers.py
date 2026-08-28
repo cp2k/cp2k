@@ -26,12 +26,6 @@ registry = MatcherRegistry()
 
 # Total energy in Hartree
 registry["E_total"] = GenericMatcher(r"Total energy:", col=3)
-registry["OPT_BASIS_H_COEFF"] = GenericMatcher(
-    r"^\s*11\.47800033990800\s+([-+0-9.EeDd]+)", col=1, regex=True, first=True
-)
-registry["OPT_BASIS_O_COEFF"] = GenericMatcher(
-    r"^\s*12\.01595470551200\s+([-+0-9.EeDd]+)", col=1, regex=True, first=True
-)
 registry["COMMUTATOR_HR_X"] = GenericMatcher(r"COMMUTATOR_HR| CheckSum X =", col=5)
 registry["COMMUTATOR_HR_Y"] = GenericMatcher(r"COMMUTATOR_HR| CheckSum Y =", col=5)
 registry["COMMUTATOR_HR_Z"] = GenericMatcher(r"COMMUTATOR_HR| CheckSum Z =", col=5)
@@ -134,6 +128,14 @@ registry["M029"] = GenericMatcher(r"Heat of formation [kcal/mol]:", col=5)
 # HOMO-LUMO gap / bandgap at Gamma-point of a DFT calculation
 registry["E_gap_DFT"] = GenericMatcher(r"HOMO - LUMO gap [eV]", col=7)
 registry["E_gap_DFT_2"] = GenericMatcher(r"Band gap:", col=4)  # TODO merge with prev.
+
+# HOMO-LUMO gaps reported by frontier-orbital basis optimization.
+registry["BASOPT_frontier_optimized_gap"] = GenericMatcher(
+    r"^\s*Opt\. small basis.*\s([-+0-9.EeDd]+)\s*$", col=9, regex=True
+)
+registry["BASOPT_frontier_screened_gap"] = GenericMatcher(
+    r"^\s*Basis 1\s+([-+0-9.EeDd]+)\s+", col=3, regex=True
+)
 
 registry["M031"] = GenericMatcher(r"STRESS| 1/3 Trace", col=4)
 registry["M032"] = GenericMatcher(r"MD| Potential energy", col=6)

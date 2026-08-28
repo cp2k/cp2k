@@ -277,11 +277,11 @@ CONTAINS
             IF (iopt == 0) THEN
                CALL compute_frontier_orbitals_objective( &
                   opt_bas, f_env_id, active_reference, tot_time, &
-                  para_env_top, para_env, iopt, initial_info)
+                  para_env_top, para_env, initial_info)
             ELSE
                CALL compute_frontier_orbitals_objective( &
                   opt_bas, f_env_id, active_reference, tot_time, &
-                  para_env_top, para_env, iopt)
+                  para_env_top, para_env)
             END IF
          CASE DEFAULT
             CPABORT("Unknown basis optimization method")
@@ -310,7 +310,7 @@ CONTAINS
          ! Report the actual best Powell vector, rather than the final trial point.
          CALL compute_frontier_orbitals_objective( &
             opt_bas, f_env_id, active_reference, tot_time, &
-            para_env_top, para_env, opt_bas%powell_param%maxfun + 1, optimized_info)
+            para_env_top, para_env, optimized_info)
          IF (.NOT. opt_bas%quiet_output) THEN
             CALL print_frontier_orbitals_info( &
                opt_bas, active_reference, initial_info, optimized_info, &
@@ -498,17 +498,15 @@ CONTAINS
 !> \param tot_time accumulated timings for output
 !> \param para_env_top top-level communicator
 !> \param para_env calculation-group communicator
-!> \param iopt Powell evaluation index
 ! **************************************************************************************************
    SUBROUTINE compute_frontier_orbitals_objective(opt_bas, f_env_id, reference, tot_time, &
-                                                  para_env_top, para_env, iopt, info)
+                                                  para_env_top, para_env, info)
       TYPE(basis_optimization_type)                      :: opt_bas
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
       TYPE(frontier_orbitals_reference_type), &
          DIMENSION(:), INTENT(IN)                        :: reference
       REAL(KIND=dp), DIMENSION(:)                        :: tot_time
       TYPE(mp_para_env_type), POINTER                    :: para_env_top, para_env
-      INTEGER                                            :: iopt
       TYPE(frontier_orbitals_result_type), &
          DIMENSION(:), INTENT(OUT), OPTIONAL             :: info
 
