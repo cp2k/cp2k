@@ -28,7 +28,7 @@ MODULE trajana_geometry_analysis
       INTEGER :: atom(4) = 0
    END TYPE action_type
 
-   PUBLIC :: run_geometry
+   PUBLIC :: action_type, evaluate_action, read_actions, run_geometry, validate_actions
 
 CONTAINS
 
