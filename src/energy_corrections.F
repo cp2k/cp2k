@@ -79,7 +79,6 @@ MODULE energy_corrections
                                               energy_correction_type
    USE ec_external,                     ONLY: ec_ext_energy,&
                                               matrix_r_forces
-   USE ec_methods,                      ONLY: create_kernel
    USE external_potential_types,        ONLY: all_potential_type,&
                                               get_potential,&
                                               gth_potential_type,&
@@ -155,6 +154,7 @@ MODULE energy_corrections
                                               qs_force_type,&
                                               total_qs_force,&
                                               zero_qs_force
+   USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
@@ -187,7 +187,10 @@ MODULE energy_corrections
    USE qs_rho0_methods,                 ONLY: init_rho0
    USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
                                               calculate_rho_atom_coeff
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
+   USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                              qs_rho_get,&
+                                              qs_rho_set,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
@@ -2121,7 +2124,8 @@ CONTAINS
                                                             v_rspace, v_tau_rspace, v_xc, v_xc_tau
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_rho_type), POINTER                         :: rho, rhoout
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
       TYPE(section_vals_type), POINTER                   :: ec_hfx_sections, xc_section
       TYPE(virial_type), POINTER                         :: virial
 
@@ -2374,16 +2378,24 @@ CONTAINS
 
       IF (use_virial) virial%pv_xc = 0.0_dp
       NULLIFY (v_xc, v_xc_tau)
-      CALL create_kernel(qs_env, &
-                         vxc=v_xc, &
-                         vxc_tau=v_xc_tau, &
-                         rho=rho, &
-                         rho1_r=rhoout_r, &
-                         rho1_g=rhoout_g, &
-                         tau1_r=tauout_r, &
-                         xc_section=xc_section, &
-                         compute_virial=use_virial, &
-                         virial_xc=virial%pv_xc)
+      NULLIFY (rho0_atom_set, rho1_atom_set)
+      ALLOCATE (rhoout)
+      CALL qs_rho_create(rhoout)
+      IF (ASSOCIATED(rhoout_r)) THEN
+         CALL qs_rho_set(rhoout, rho_r=rhoout_r, rho_r_valid=.TRUE.)
+      END IF
+      IF (ASSOCIATED(rhoout_g)) THEN
+         CALL qs_rho_set(rhoout, rho_g=rhoout_g, rho_g_valid=.TRUE.)
+      END IF
+      IF (ASSOCIATED(tauout_r)) THEN
+         CALL qs_rho_set(rhoout, tau_r=tauout_r, tau_r_valid=.TRUE.)
+      END IF
+      !
+      CALL qs_fxc_create(qs_env, rho, rhoout, rho0_atom_set, xc_section, .FALSE., &
+                         v_xc, v_xc_tau, rho1_atom_set, &
+                         compute_virial=use_virial, virial_xc=virial%pv_xc)
+      !
+      DEALLOCATE (rhoout)
 
       IF (use_virial) THEN
          ! Stress-tensor XC-functional 2nd GGA terms

@@ -57,7 +57,6 @@ MODULE rpa_im_time_force_methods
         dbt_filter, dbt_get_info, dbt_mp_environ_pgrid, dbt_pgrid_create, dbt_pgrid_destroy, &
         dbt_pgrid_type, dbt_scale, dbt_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
-   USE ec_methods,                      ONLY: create_kernel
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
@@ -122,6 +121,7 @@ MODULE rpa_im_time_force_methods
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_integrate_potential,          ONLY: integrate_pgf_product,&
                                               integrate_v_core_rspace,&
@@ -142,7 +142,10 @@ MODULE rpa_im_time_force_methods
                                               p_env_psi0_changed
    USE qs_p_env_types,                  ONLY: p_env_release,&
                                               qs_p_env_type
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
+   USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                              qs_rho_get,&
+                                              qs_rho_set,&
                                               qs_rho_type
    USE qs_tensors,                      ONLY: &
         build_2c_derivatives, build_2c_integrals, build_2c_neighbor_lists, build_3c_derivatives, &
@@ -2431,13 +2434,15 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: zv_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rhoz_r, tauz_r, v_xc, v_xc_tau
-      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rhoz
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
       TYPE(section_vals_type), POINTER                   :: hfx_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
 
       NULLIFY (pw_env, rhoz_r, rhoz_g, tauz_r, v_xc, v_xc_tau, &
                poisson_env, auxbas_pw_pool, dft_control, admm_env, xc_section, rho, rho_aux_fit, &
                task_list_aux_fit, ker_tau_admm, work_admm, dbcsr_p_work, matrix_s, hfx_section)
+      NULLIFY (rho0_atom_set, rho1_atom_set)
 
       CALL timeset(routineN, handle)
 
@@ -2500,7 +2505,22 @@ CONTAINS
       END IF
 
       !Primary XC kernel
-      CALL create_kernel(qs_env, v_xc, v_xc_tau, rho, rhoz_r, rhoz_g, tauz_r, xc_section)
+      ALLOCATE (rhoz)
+      CALL qs_rho_create(rhoz)
+      IF (ASSOCIATED(rhoz_r)) THEN
+         CALL qs_rho_set(rhoz, rho_r=rhoz_r, rho_r_valid=.TRUE.)
+      END IF
+      IF (ASSOCIATED(rhoz_g)) THEN
+         CALL qs_rho_set(rhoz, rho_g=rhoz_g, rho_g_valid=.TRUE.)
+      END IF
+      IF (ASSOCIATED(tauz_r)) THEN
+         CALL qs_rho_set(rhoz, tau_r=tauz_r, tau_r_valid=.TRUE.)
+      END IF
+      !
+      CALL qs_fxc_create(qs_env, rho, rhoz, rho0_atom_set, xc_section, .FALSE., &
+                         v_xc, v_xc_tau, rho1_atom_set)
+      !
+      DEALLOCATE (rhoz)
 
       DO ispin = 1, nspins
          CALL pw_scale(v_xc(ispin), v_xc(ispin)%pw_grid%dvol)
@@ -2590,7 +2610,22 @@ CONTAINS
             END IF
 
             xc_section => admm_env%xc_section_aux
-            CALL create_kernel(qs_env, v_xc, v_xc_tau, rho_aux_fit, rhoz_r, rhoz_g, tauz_r, xc_section)
+            ALLOCATE (rhoz)
+            CALL qs_rho_create(rhoz)
+            IF (ASSOCIATED(rhoz_r)) THEN
+               CALL qs_rho_set(rhoz, rho_r=rhoz_r, rho_r_valid=.TRUE.)
+            END IF
+            IF (ASSOCIATED(rhoz_g)) THEN
+               CALL qs_rho_set(rhoz, rho_g=rhoz_g, rho_g_valid=.TRUE.)
+            END IF
+            IF (ASSOCIATED(tauz_r)) THEN
+               CALL qs_rho_set(rhoz, tau_r=tauz_r, tau_r_valid=.TRUE.)
+            END IF
+            !
+            CALL qs_fxc_create(qs_env, rho_aux_fit, rhoz, rho0_atom_set, xc_section, .FALSE., &
+                               v_xc, v_xc_tau, rho1_atom_set)
+            !
+            DEALLOCATE (rhoz)
 
             DO ispin = 1, nspins
                CALL pw_scale(v_xc(ispin), v_xc(ispin)%pw_grid%dvol)
@@ -3170,7 +3205,8 @@ CONTAINS
                                                             vadmm_rspace, vtau_rspace, vxc_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rhoz
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
       TYPE(section_vals_type), POINTER                   :: hfx_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
       TYPE(virial_type), POINTER                         :: virial
@@ -3183,6 +3219,7 @@ CONTAINS
                rho_aux_fit, rho_ao_aux, x_data, hfx_section, xc_section, &
                para_env, rhoz_g, rhoz_r, tauz_r, v_xc, v_xc_tau, vxc_rspace, &
                vtau_rspace, vadmm_rspace, rho_ao, matrix_w)
+      NULLIFY (rho0_atom_set, rho1_atom_set)
 
       CALL timeset(routineN, handle)
 
@@ -3554,16 +3591,23 @@ CONTAINS
 
          IF (use_virial) virial%pv_xc = 0.0_dp
 
-         CALL create_kernel(qs_env, &
-                            vxc=v_xc, &
-                            vxc_tau=v_xc_tau, &
-                            rho=rho, &
-                            rho1_r=rhoz_r, &
-                            rho1_g=rhoz_g, &
-                            tau1_r=tauz_r, &
-                            xc_section=xc_section, &
-                            compute_virial=use_virial, &
-                            virial_xc=virial%pv_xc)
+         ALLOCATE (rhoz)
+         CALL qs_rho_create(rhoz)
+         IF (ASSOCIATED(rhoz_r)) THEN
+            CALL qs_rho_set(rhoz, rho_r=rhoz_r, rho_r_valid=.TRUE.)
+         END IF
+         IF (ASSOCIATED(rhoz_g)) THEN
+            CALL qs_rho_set(rhoz, rho_g=rhoz_g, rho_g_valid=.TRUE.)
+         END IF
+         IF (ASSOCIATED(tauz_r)) THEN
+            CALL qs_rho_set(rhoz, tau_r=tauz_r, tau_r_valid=.TRUE.)
+         END IF
+         !
+         CALL qs_fxc_create(qs_env, rho, rhoz, rho0_atom_set, xc_section, .FALSE., &
+                            v_xc, v_xc_tau, rho1_atom_set, &
+                            compute_virial=use_virial, virial_xc=virial%pv_xc)
+         !
+         DEALLOCATE (rhoz)
 
          IF (use_virial) THEN
             virial%pv_exc = virial%pv_exc + virial%pv_xc
@@ -3652,8 +3696,23 @@ CONTAINS
                   END IF
 
                   xc_section => admm_env%xc_section_aux
-                  CALL create_kernel(qs_env, v_xc, v_xc_tau, rho_aux_fit, rhoz_r, rhoz_g, tauz_r, xc_section, &
+                  ALLOCATE (rhoz)
+                  CALL qs_rho_create(rhoz)
+                  IF (ASSOCIATED(rhoz_r)) THEN
+                     CALL qs_rho_set(rhoz, rho_r=rhoz_r, rho_r_valid=.TRUE.)
+                  END IF
+                  IF (ASSOCIATED(rhoz_g)) THEN
+                     CALL qs_rho_set(rhoz, rho_g=rhoz_g, rho_g_valid=.TRUE.)
+                  END IF
+                  IF (ASSOCIATED(tauz_r)) THEN
+                     CALL qs_rho_set(rhoz, tau_r=tauz_r, tau_r_valid=.TRUE.)
+                  END IF
+                  !
+                  CALL qs_fxc_create(qs_env, rho_aux_fit, rhoz, rho0_atom_set, xc_section, .FALSE., &
+                                     v_xc, v_xc_tau, rho1_atom_set, &
                                      compute_virial=use_virial, virial_xc=virial%pv_xc)
+                  !
+                  DEALLOCATE (rhoz)
 
                   IF (use_virial) THEN
                      virial%pv_exc = virial%pv_exc + virial%pv_xc

@@ -46,8 +46,7 @@ MODULE response_solver
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE ec_env_types,                    ONLY: energy_correction_type
-   USE ec_methods,                      ONLY: create_kernel,&
-                                              ec_mos_init
+   USE ec_methods,                      ONLY: ec_mos_init
    USE ec_orth_solver,                  ONLY: ec_response_ao
    USE exstates_types,                  ONLY: excited_energy_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals,&
@@ -106,6 +105,7 @@ MODULE response_solver
                                               set_qs_env
    USE qs_force_types,                  ONLY: qs_force_type,&
                                               total_qs_force
+   USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
@@ -137,6 +137,7 @@ MODULE response_solver
    USE qs_rho0_methods,                 ONLY: init_rho0
    USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
                                               calculate_rho_atom_coeff
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_create,&
                                               qs_rho_get,&
                                               qs_rho_set,&
@@ -919,6 +920,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho0, rho1, rho_aux_fit, rho_xc
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
       TYPE(section_vals_type), POINTER                   :: hfx_section, xc_fun_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list, task_list_aux_fit
       TYPE(virial_type), POINTER                         :: virial
@@ -1468,37 +1470,37 @@ CONTAINS
          END DO
       END IF
 
+      ALLOCATE (rho1)
+      CALL qs_rho_create(rho1)
       IF (gapw_xc) THEN
          CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc)
+         rho0 => rho_xc
+         IF (ASSOCIATED(tauz_r_xc)) THEN
+            CALL qs_rho_set(rho1, rho_r=rhoz_r_xc, rho_g=rhoz_g_xc, tau_r=tauz_r_xc, &
+                            rho_r_valid=.TRUE., rho_g_valid=.TRUE., tau_r_valid=.TRUE.)
+         ELSE
+            CALL qs_rho_set(rho1, rho_r=rhoz_r_xc, rho_g=rhoz_g_xc, &
+                            rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+         END IF
       ELSE
          CALL get_qs_env(qs_env=qs_env, rho=rho)
+         rho0 => rho
+         IF (ASSOCIATED(tauz_r)) THEN
+            CALL qs_rho_set(rho1, rho_r=rhoz_r, rho_g=rhoz_g, tau_r=tauz_r, &
+                            rho_r_valid=.TRUE., rho_g_valid=.TRUE., tau_r_valid=.TRUE.)
+         ELSE
+            CALL qs_rho_set(rho1, rho_r=rhoz_r, rho_g=rhoz_g, &
+                            rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+         END IF
       END IF
 
       IF (dft_control%qs_control%gapw_control%accurate_xcint) THEN
          ! GAPW Accurate integration
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
-         ALLOCATE (rho1)
-         CALL qs_rho_create(rho1)
-         IF (gapw_xc) THEN
-            CALL get_qs_env(qs_env=qs_env, rho_xc=rho0)
-            IF (ASSOCIATED(tauz_r_xc)) THEN
-               CALL qs_rho_set(rho1, rho_r=rhoz_r_xc, rho_g=rhoz_g_xc, tau_r=tauz_r_xc, &
-                               rho_r_valid=.TRUE., rho_g_valid=.TRUE., tau_r_valid=.TRUE.)
-            ELSE
-               CALL qs_rho_set(rho1, rho_r=rhoz_r_xc, rho_g=rhoz_g_xc)
-            END IF
-         ELSE
-            CALL get_qs_env(qs_env=qs_env, rho=rho0)
-            IF (ASSOCIATED(tauz_r)) THEN
-               CALL qs_rho_set(rho1, rho_r=rhoz_r, rho_g=rhoz_g, tau_r=tauz_r, &
-                               rho_r_valid=.TRUE., rho_g_valid=.TRUE., tau_r_valid=.TRUE.)
-            ELSE
-               CALL qs_rho_set(rho1, rho_r=rhoz_r, rho_g=rhoz_g)
-            END IF
-         END IF
+         !
          CALL accint_weight_force(qs_env, rho0, rho1, 1, xc_section)
-         DEALLOCATE (rho1)
+         !
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
             CALL para_env%sum(fodeb)
@@ -1641,15 +1643,11 @@ CONTAINS
       END IF
       !
       NULLIFY (v_xc, v_xc_tau)
-      IF (gapw_xc) THEN
-         CALL create_kernel(qs_env, vxc=v_xc, vxc_tau=v_xc_tau, &
-                            rho=rho_xc, rho1_r=rhoz_r_xc, rho1_g=rhoz_g_xc, tau1_r=tauz_r_xc, &
-                            xc_section=xc_section, compute_virial=use_virial, virial_xc=virial%pv_xc)
-      ELSE
-         CALL create_kernel(qs_env, vxc=v_xc, vxc_tau=v_xc_tau, &
-                            rho=rho, rho1_r=rhoz_r, rho1_g=rhoz_g, tau1_r=tauz_r, &
-                            xc_section=xc_section, compute_virial=use_virial, virial_xc=virial%pv_xc)
-      END IF
+      NULLIFY (rho0_atom_set, rho1_atom_set)
+      CALL qs_fxc_create(qs_env, rho0, rho1, rho0_atom_set, xc_section, .FALSE., &
+                         v_xc, v_xc_tau, rho1_atom_set, &
+                         compute_virial=use_virial, virial_xc=virial%pv_xc)
+      DEALLOCATE (rho1)
 
       IF (gapw .OR. gapw_xc) THEN
          !get local_rho_set for GS density and response potential / density
@@ -2142,16 +2140,20 @@ CONTAINS
 
             IF (use_virial) virial%pv_xc = 0.0_dp
 
-            CALL create_kernel(qs_env=qs_env, &
-                               vxc=v_xc, &
-                               vxc_tau=v_xc_tau, &
-                               rho=rho_aux_fit, &
-                               rho1_r=rhoz_r_aux, &
-                               rho1_g=rhoz_g_aux, &
-                               tau1_r=rhoz_tau_r_aux, &
-                               xc_section=xc_section, &
-                               compute_virial=use_virial, &
-                               virial_xc=virial%pv_xc)
+            NULLIFY (rho0_atom_set, rho1_atom_set)
+            ALLOCATE (rho1)
+            CALL qs_rho_create(rho1)
+            IF (ASSOCIATED(rhoz_tau_r_aux)) THEN
+               CALL qs_rho_set(rho1, rho_r=rhoz_r_aux, rho_g=rhoz_g_aux, tau_r=rhoz_tau_r_aux, &
+                               rho_r_valid=.TRUE., rho_g_valid=.TRUE., tau_r_valid=.TRUE.)
+            ELSE
+               CALL qs_rho_set(rho1, rho_r=rhoz_r_aux, rho_g=rhoz_g_aux, &
+                               rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+            END IF
+            CALL qs_fxc_create(qs_env, rho_aux_fit, rho1, rho0_atom_set, xc_section, .FALSE., &
+                               v_xc, v_xc_tau, rho1_atom_set, &
+                               compute_virial=use_virial, virial_xc=virial%pv_xc)
+            DEALLOCATE (rho1)
 
             ! Stress-tensor ADMM-kernel GGA contribution
             IF (use_virial) THEN
