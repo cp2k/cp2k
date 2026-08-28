@@ -1275,7 +1275,6 @@ CONTAINS
 
                CALL allocate_qs_ot_kpoint_state(qs_env=qs_env, &
                                                 scf_env=scf_env, &
-                                                scf_control=scf_control, &
                                                 dft_control=dft_control, &
                                                 kpoints=kpoints, &
                                                 matrix_s_kp=matrix_s_kp, &
@@ -1634,17 +1633,15 @@ CONTAINS
 !> \brief allocate local k-point OT minimizer state for labelled spin/k-point channels
 !> \param qs_env ...
 !> \param scf_env ...
-!> \param scf_control ...
 !> \param dft_control ...
 !> \param kpoints ...
 !> \param matrix_s_kp ...
 !> \param nspin_ot ...
 ! **************************************************************************************************
-   SUBROUTINE allocate_qs_ot_kpoint_state(qs_env, scf_env, scf_control, dft_control, &
+   SUBROUTINE allocate_qs_ot_kpoint_state(qs_env, scf_env, dft_control, &
                                           kpoints, matrix_s_kp, nspin_ot)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
