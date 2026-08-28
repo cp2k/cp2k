@@ -15,8 +15,7 @@ MODULE optbas_frontier_orbitals_utils
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_uplo_to_full
-   USE cp_fm_diag,                      ONLY: cp_fm_geeig,&
-                                              cp_fm_power
+   USE cp_fm_diag,                      ONLY: cp_fm_geeig
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -49,10 +48,6 @@ MODULE optbas_frontier_orbitals_utils
    TYPE, PUBLIC :: angular_momentum_diagnostics_type
       INTEGER, DIMENSION(0:max_diagnostic_angular_momentum) :: reference_function_count = 0
       INTEGER, DIMENSION(0:max_diagnostic_angular_momentum) :: candidate_function_count = 0
-      REAL(KIND=dp), DIMENSION(0:max_diagnostic_angular_momentum) :: occupied_contribution = 0.0_dp
-      REAL(KIND=dp), DIMENSION(0:max_diagnostic_angular_momentum) :: virtual_contribution = 0.0_dp
-      REAL(KIND=dp), DIMENSION(0:max_diagnostic_angular_momentum) :: occupied_coverage = 0.0_dp
-      REAL(KIND=dp), DIMENSION(0:max_diagnostic_angular_momentum) :: virtual_coverage = 0.0_dp
    END TYPE angular_momentum_diagnostics_type
 
    TYPE, PUBLIC :: frontier_orbitals_result_type
@@ -78,13 +73,12 @@ MODULE optbas_frontier_orbitals_utils
       REAL(KIND=dp) :: condition_number = 0.0_dp
       INTEGER :: number_kinds = 0
       INTEGER, DIMENSION(:), ALLOCATABLE :: angular_momentum
-      CHARACTER(LEN=default_string_length), DIMENSION(:), ALLOCATABLE :: kind_name
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE :: element_symbol
       CHARACTER(LEN=default_string_length), DIMENSION(:), ALLOCATABLE :: reference_basis_name
       CHARACTER(LEN=default_string_length), DIMENSION(:), ALLOCATABLE :: candidate_basis_name
    END TYPE frontier_orbitals_reference_type
 
-   PUBLIC :: compute_angular_momentum_diagnostics, compute_frontier_orbital_loss_function, &
+   PUBLIC :: compute_angular_momentum_function_counts, compute_frontier_orbital_loss_function, &
              evaluate_frontier_orbitals_objective, &
              frontier_orbitals_reference_init, frontier_orbitals_reference_release, &
              get_ao_angular_momenta, &
@@ -188,7 +182,6 @@ CONTAINS
 
       IF (ALLOCATED(reference%eigenvalues)) DEALLOCATE (reference%eigenvalues)
       IF (ALLOCATED(reference%angular_momentum)) DEALLOCATE (reference%angular_momentum)
-      IF (ALLOCATED(reference%kind_name)) DEALLOCATE (reference%kind_name)
       IF (ALLOCATED(reference%element_symbol)) DEALLOCATE (reference%element_symbol)
       IF (ALLOCATED(reference%reference_basis_name)) DEALLOCATE (reference%reference_basis_name)
       IF (ALLOCATED(reference%candidate_basis_name)) DEALLOCATE (reference%candidate_basis_name)
@@ -277,7 +270,6 @@ CONTAINS
       NULLIFY (basis_set, qs_kind_set)
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
       reference%number_kinds = SIZE(qs_kind_set)
-      ALLOCATE (reference%kind_name(reference%number_kinds))
       ALLOCATE (reference%element_symbol(reference%number_kinds))
       ALLOCATE (reference%reference_basis_name(reference%number_kinds))
       ALLOCATE (reference%candidate_basis_name(reference%number_kinds))
@@ -285,8 +277,7 @@ CONTAINS
       reference%candidate_basis_name = ""
 
       DO ikind = 1, reference%number_kinds
-         CALL get_qs_kind(qs_kind_set(ikind), name=reference%kind_name(ikind), &
-                          element_symbol=reference%element_symbol(ikind))
+         CALL get_qs_kind(qs_kind_set(ikind), element_symbol=reference%element_symbol(ikind))
          NULLIFY (basis_set)
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set, basis_type="ORB")
          IF (ASSOCIATED(basis_set)) THEN
@@ -323,30 +314,25 @@ CONTAINS
    SUBROUTINE evaluate_frontier_orbitals_objective(reference, matrix_s_candidate, &
                                                    matrix_s_candidate_reference, virtual_cutoff, &
                                                    virtual_smoothing, gap_scale, RESULT, &
-                                                   matrix_s_reference, candidate_angular_momentum)
+                                                   candidate_angular_momentum)
       TYPE(frontier_orbitals_reference_type), INTENT(IN) :: reference
       TYPE(dbcsr_type), POINTER                          :: matrix_s_candidate, &
                                                             matrix_s_candidate_reference
       REAL(KIND=dp), INTENT(IN)                          :: virtual_cutoff, virtual_smoothing, &
                                                             gap_scale
       TYPE(frontier_orbitals_result_type), INTENT(OUT)   :: result
-      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s_reference
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: candidate_angular_momentum
 
-      INTEGER                                            :: istate, naux, ndep, nref
+      INTEGER                                            :: istate, naux, nref
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues_candidate
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: lowdin_coefficients_dense, &
-                                                            orbital_overlap_dense, &
-                                                            orthogonal_ao_overlap_dense
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: orbital_overlap_dense
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: ao_cross_struct, aux_struct, &
                                                             cross_struct, ref_struct
       TYPE(cp_fm_type) :: candidate_eigenvectors, candidate_hamiltonian, candidate_overlap, &
-         candidate_overlap_power, candidate_power_work, candidate_work, &
-         reference_candidate_ao_overlap, reference_candidate_orbital_overlap, &
-         reference_eigenvalue_matrix, reference_orbital_candidate_ao_overlap, &
-         reference_overlap_power, reference_power_work
+         candidate_work, reference_candidate_ao_overlap, reference_candidate_orbital_overlap, &
+         reference_eigenvalue_matrix, reference_orbital_candidate_ao_overlap
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: smat
 
       NULLIFY (ao_cross_struct, aux_struct, blacs_env, cross_struct, ref_struct, smat)
@@ -393,16 +379,6 @@ CONTAINS
                         name="frontier_orbitals_reference_candidate_orbital_overlap")
       CALL cp_fm_create(reference_eigenvalue_matrix, matrix_struct=ref_struct, &
                         name="frontier_orbitals_reference_eigenvalues")
-      IF (PRESENT(matrix_s_reference) .AND. PRESENT(candidate_angular_momentum)) THEN
-         CALL cp_fm_create(candidate_overlap_power, aux_struct, &
-                           name="frontier_orbitals_candidate_overlap_power")
-         CALL cp_fm_create(candidate_power_work, aux_struct, &
-                           name="frontier_orbitals_candidate_power_work")
-         CALL cp_fm_create(reference_overlap_power, ref_struct, &
-                           name="frontier_orbitals_reference_overlap_power")
-         CALL cp_fm_create(reference_power_work, ref_struct, &
-                           name="frontier_orbitals_reference_power_work")
-      END IF
       CALL cp_fm_struct_release(ao_cross_struct)
       CALL cp_fm_struct_release(aux_struct)
       CALL cp_fm_struct_release(cross_struct)
@@ -447,43 +423,11 @@ CONTAINS
       result%condition_number = condnum(2)
       result%number_candidate_orbitals = naux
 
-      IF (PRESENT(matrix_s_reference) .AND. PRESENT(candidate_angular_momentum)) THEN
+      IF (PRESENT(candidate_angular_momentum)) THEN
          CPASSERT(SIZE(reference%angular_momentum) == nref)
          CPASSERT(SIZE(candidate_angular_momentum) == naux)
-
-         ! D_R = S_R^(1/2) C_R contains the reference MOs in the symmetrically
-         ! orthogonalized reference AO basis.
-         CALL copy_dbcsr_to_fm(matrix_s_reference, reference_overlap_power)
-         CALL cp_fm_uplo_to_full(reference_overlap_power, reference_power_work)
-         CALL cp_fm_power(reference_overlap_power, reference_power_work, 0.5_dp, 1.0E-14_dp, ndep)
-         CALL parallel_gemm('N', 'N', nref, nref, nref, 1.0_dp, reference_overlap_power, &
-                            reference%eigenvectors, 0.0_dp, reference_eigenvalue_matrix)
-
-         ! X = S_R^(-1/2) S_RC S_C^(-1/2) is the overlap between the two
-         ! symmetrically orthogonalized AO bases.
-         CALL copy_dbcsr_to_fm(matrix_s_reference, reference_overlap_power)
-         CALL cp_fm_uplo_to_full(reference_overlap_power, reference_power_work)
-         CALL cp_fm_power(reference_overlap_power, reference_power_work, -0.5_dp, 1.0E-14_dp, ndep)
-         CALL copy_dbcsr_to_fm(matrix_s_candidate, candidate_overlap_power)
-         CALL cp_fm_uplo_to_full(candidate_overlap_power, candidate_power_work)
-         CALL cp_fm_power(candidate_overlap_power, candidate_power_work, -0.5_dp, 1.0E-14_dp, ndep)
-         CALL parallel_gemm('N', 'T', nref, naux, nref, 1.0_dp, reference_overlap_power, &
-                            reference_candidate_ao_overlap, 0.0_dp, &
-                            reference_orbital_candidate_ao_overlap)
-         CALL parallel_gemm('N', 'N', nref, naux, naux, 1.0_dp, &
-                            reference_orbital_candidate_ao_overlap, candidate_overlap_power, &
-                            0.0_dp, reference_candidate_orbital_overlap)
-
-         ALLOCATE (lowdin_coefficients_dense(nref, nref))
-         ALLOCATE (orthogonal_ao_overlap_dense(nref, naux))
-         CALL cp_fm_get_submatrix(reference_eigenvalue_matrix, lowdin_coefficients_dense)
-         CALL cp_fm_get_submatrix(reference_candidate_orbital_overlap, orthogonal_ao_overlap_dense)
-         CALL compute_angular_momentum_diagnostics( &
-            lowdin_coefficients_dense, orthogonal_ao_overlap_dense, &
-            reference%angular_momentum, candidate_angular_momentum, reference%eigenvalues, &
-            reference%number_occupied_orbitals, virtual_cutoff, virtual_smoothing, &
-            result%angular_momentum)
-         DEALLOCATE (lowdin_coefficients_dense, orthogonal_ao_overlap_dense)
+         CALL compute_angular_momentum_function_counts( &
+            reference%angular_momentum, candidate_angular_momentum, result%angular_momentum)
       END IF
 
       DEALLOCATE (eigenvalues_candidate, orbital_overlap_dense)
@@ -491,12 +435,6 @@ CONTAINS
       CALL cp_fm_release(candidate_hamiltonian)
       CALL cp_fm_release(candidate_overlap)
       CALL cp_fm_release(candidate_work)
-      IF (PRESENT(matrix_s_reference) .AND. PRESENT(candidate_angular_momentum)) THEN
-         CALL cp_fm_release(candidate_overlap_power)
-         CALL cp_fm_release(candidate_power_work)
-         CALL cp_fm_release(reference_overlap_power)
-         CALL cp_fm_release(reference_power_work)
-      END IF
       CALL cp_fm_release(reference_candidate_ao_overlap)
       CALL cp_fm_release(reference_candidate_orbital_overlap)
       CALL cp_fm_release(reference_eigenvalue_matrix)
@@ -505,35 +443,19 @@ CONTAINS
    END SUBROUTINE evaluate_frontier_orbitals_objective
 
 ! **************************************************************************************************
-!> \brief Decompose reference occupied and weighted virtual states by angular momentum and measure
-!>        how much of each channel is spanned by the corresponding candidate AO channel.
-!> \param lowdin_coefficients reference MO coefficients S_R^(1/2) C_R
-!> \param orthogonal_ao_overlap S_R^(-1/2) S_RC S_C^(-1/2)
+!> \brief Count spherical reference and candidate AOs by angular momentum.
 !> \param reference_angular_momentum angular-momentum label for each reference AO
 !> \param candidate_angular_momentum angular-momentum label for each candidate AO
-!> \param eigenvalues_reference reference orbital energies
-!> \param number_occupied_orbitals number of occupied spatial orbitals
-!> \param virtual_cutoff virtual-orbital energy cutoff
-!> \param virtual_smoothing virtual-orbital energy smoothing width
-!> \param diagnostics angular contributions and channel-resolved coverages
+!> \param diagnostics angular-momentum function counts
 ! **************************************************************************************************
-   PURE SUBROUTINE compute_angular_momentum_diagnostics( &
-      lowdin_coefficients, orthogonal_ao_overlap, reference_angular_momentum, &
-      candidate_angular_momentum, eigenvalues_reference, number_occupied_orbitals, &
-      virtual_cutoff, virtual_smoothing, diagnostics)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: lowdin_coefficients, &
-                                                            orthogonal_ao_overlap
+   PURE SUBROUTINE compute_angular_momentum_function_counts( &
+      reference_angular_momentum, candidate_angular_momentum, diagnostics)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: reference_angular_momentum, &
                                                             candidate_angular_momentum
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvalues_reference
-      INTEGER, INTENT(IN)                                :: number_occupied_orbitals
-      REAL(KIND=dp), INTENT(IN)                          :: virtual_cutoff, virtual_smoothing
       TYPE(angular_momentum_diagnostics_type), &
          INTENT(OUT)                                     :: diagnostics
 
-      INTEGER                                            :: candidate_ao, l, orbital, reference_ao
-      REAL(KIND=dp) :: amplitude, occupied_norm, occupied_projected_norm, virtual_norm, &
-         virtual_projected_norm, virtual_weight, virtual_weight_norm
+      INTEGER                                            :: candidate_ao, l, reference_ao
 
       diagnostics = angular_momentum_diagnostics_type()
       DO reference_ao = 1, SIZE(reference_angular_momentum)
@@ -549,76 +471,7 @@ CONTAINS
          END IF
       END DO
 
-      virtual_weight_norm = 0.0_dp
-      DO orbital = number_occupied_orbitals + 1, SIZE(eigenvalues_reference)
-         virtual_weight = smooth_frontier_orbital_weight( &
-                          eigenvalues_reference(orbital) - eigenvalues_reference(number_occupied_orbitals + 1), &
-                          virtual_cutoff, virtual_smoothing)
-         virtual_weight_norm = virtual_weight_norm + virtual_weight**2
-      END DO
-
-      DO l = 0, max_diagnostic_angular_momentum
-         occupied_norm = 0.0_dp
-         occupied_projected_norm = 0.0_dp
-         DO orbital = 1, number_occupied_orbitals
-            DO reference_ao = 1, SIZE(reference_angular_momentum)
-               IF (reference_angular_momentum(reference_ao) == l) THEN
-                  occupied_norm = occupied_norm + lowdin_coefficients(reference_ao, orbital)**2
-               END IF
-            END DO
-            DO candidate_ao = 1, SIZE(candidate_angular_momentum)
-               IF (candidate_angular_momentum(candidate_ao) /= l) CYCLE
-               amplitude = 0.0_dp
-               DO reference_ao = 1, SIZE(reference_angular_momentum)
-                  IF (reference_angular_momentum(reference_ao) == l) THEN
-                     amplitude = amplitude + orthogonal_ao_overlap(reference_ao, candidate_ao)* &
-                                 lowdin_coefficients(reference_ao, orbital)
-                  END IF
-               END DO
-               occupied_projected_norm = occupied_projected_norm + amplitude**2
-            END DO
-         END DO
-
-         virtual_norm = 0.0_dp
-         virtual_projected_norm = 0.0_dp
-         DO orbital = number_occupied_orbitals + 1, SIZE(eigenvalues_reference)
-            virtual_weight = smooth_frontier_orbital_weight( &
-                             eigenvalues_reference(orbital) - eigenvalues_reference(number_occupied_orbitals + 1), &
-                             virtual_cutoff, virtual_smoothing)
-            DO reference_ao = 1, SIZE(reference_angular_momentum)
-               IF (reference_angular_momentum(reference_ao) == l) THEN
-                  virtual_norm = virtual_norm + &
-                                 virtual_weight**2*lowdin_coefficients(reference_ao, orbital)**2
-               END IF
-            END DO
-            DO candidate_ao = 1, SIZE(candidate_angular_momentum)
-               IF (candidate_angular_momentum(candidate_ao) /= l) CYCLE
-               amplitude = 0.0_dp
-               DO reference_ao = 1, SIZE(reference_angular_momentum)
-                  IF (reference_angular_momentum(reference_ao) == l) THEN
-                     amplitude = amplitude + orthogonal_ao_overlap(reference_ao, candidate_ao)* &
-                                 lowdin_coefficients(reference_ao, orbital)
-                  END IF
-               END DO
-               virtual_projected_norm = virtual_projected_norm + virtual_weight**2*amplitude**2
-            END DO
-         END DO
-
-         diagnostics%occupied_contribution(l) = occupied_norm/REAL(number_occupied_orbitals, dp)
-         IF (virtual_weight_norm > TINY(1.0_dp)) THEN
-            diagnostics%virtual_contribution(l) = virtual_norm/virtual_weight_norm
-         END IF
-         IF (occupied_norm > TINY(1.0_dp)) THEN
-            diagnostics%occupied_coverage(l) = &
-               MIN(1.0_dp, MAX(0.0_dp, occupied_projected_norm/occupied_norm))
-         END IF
-         IF (virtual_norm > TINY(1.0_dp)) THEN
-            diagnostics%virtual_coverage(l) = &
-               MIN(1.0_dp, MAX(0.0_dp, virtual_projected_norm/virtual_norm))
-         END IF
-      END DO
-
-   END SUBROUTINE compute_angular_momentum_diagnostics
+   END SUBROUTINE compute_angular_momentum_function_counts
 
 ! **************************************************************************************************
 !> \brief Compute the frontier-orbital loss function.

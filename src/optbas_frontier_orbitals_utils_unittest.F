@@ -7,7 +7,7 @@
 PROGRAM optbas_frontier_orbitals_utils_unittest
    USE kinds,                           ONLY: dp
    USE optbas_frontier_orbitals_utils,  ONLY: angular_momentum_diagnostics_type,&
-                                              compute_angular_momentum_diagnostics,&
+                                              compute_angular_momentum_function_counts,&
                                               compute_frontier_orbital_loss_function,&
                                               frontier_orbitals_result_type,&
                                               smooth_frontier_orbital_weight
@@ -17,7 +17,6 @@ PROGRAM optbas_frontier_orbitals_utils_unittest
    REAL(KIND=dp), PARAMETER :: tolerance = 1.0E-12_dp
    REAL(KIND=dp), DIMENSION(4) :: candidate_eigenvalues, reference_eigenvalues
    REAL(KIND=dp), DIMENSION(4, 4) :: orbital_overlap
-   REAL(KIND=dp), DIMENSION(2, 2) :: lowdin_coefficients, orthogonal_ao_overlap
    INTEGER, DIMENSION(2) :: angular_momentum
    TYPE(angular_momentum_diagnostics_type) :: angular_diagnostics
    TYPE(frontier_orbitals_result_type) :: result, result_rotated
@@ -83,24 +82,14 @@ PROGRAM optbas_frontier_orbitals_utils_unittest
    CALL assert_close(smooth_frontier_orbital_weight(1.0_dp, 1.0_dp, 0.1_dp), &
                      0.5_dp, "cutoff midpoint")
 
-   ! With orthonormal and identical AO bases, the occupied s and virtual p components
-   ! both have unit reference contribution and unit corresponding-channel coverage.
-   lowdin_coefficients = 0.0_dp
-   lowdin_coefficients(1, 1) = 1.0_dp
-   lowdin_coefficients(2, 2) = 1.0_dp
-   orthogonal_ao_overlap = lowdin_coefficients
    angular_momentum = [0, 1]
-   CALL compute_angular_momentum_diagnostics( &
-      lowdin_coefficients, orthogonal_ao_overlap, angular_momentum, angular_momentum, &
-      [-1.0_dp, 0.1_dp], 1, 10.0_dp, 0.1_dp, angular_diagnostics)
-   CALL assert_close(angular_diagnostics%occupied_contribution(0), 1.0_dp, &
-                     "occupied s contribution")
-   CALL assert_close(angular_diagnostics%virtual_contribution(1), 1.0_dp, &
-                     "virtual p contribution")
-   CALL assert_close(angular_diagnostics%occupied_coverage(0), 1.0_dp, &
-                     "occupied s coverage")
-   CALL assert_close(angular_diagnostics%virtual_coverage(1), 1.0_dp, &
-                     "virtual p coverage")
+   CALL compute_angular_momentum_function_counts( &
+      angular_momentum, [0, 0], angular_diagnostics)
+   IF (angular_diagnostics%reference_function_count(0) /= 1 .OR. &
+       angular_diagnostics%reference_function_count(1) /= 1 .OR. &
+       angular_diagnostics%candidate_function_count(0) /= 2) THEN
+      ERROR STOP "angular-momentum function counts"
+   END IF
 
 CONTAINS
 
