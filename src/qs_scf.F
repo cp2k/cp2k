@@ -91,7 +91,8 @@ MODULE qs_scf
         ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
         outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_newton_ls, restart_guess, sic_eo, tblite_scc_mixer_tblite
+        outer_scf_optimizer_newton_ls, restart_guess, sic_eo, smear_fermi_dirac, &
+        tblite_scc_mixer_tblite
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -169,7 +170,8 @@ MODULE qs_scf
                                               qs_ot_get_p,&
                                               qs_ot_get_p_complex,&
                                               qs_ot_new_preconditioner
-   USE qs_ot_scf,                       ONLY: ot_scf_init,&
+   USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
+                                              ot_scf_init,&
                                               ot_scf_read_input
    USE qs_ot_types,                     ONLY: &
         qs_ot_allocate, qs_ot_channel_index, qs_ot_check_channel_context, qs_ot_init, &
@@ -399,17 +401,20 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: total_scf_steps
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scf_env_do_scf'
+      INTEGER, PARAMETER :: max_ot_kp_subspace_refreshes = 2
       REAL(KIND=dp), PARAMETER :: adiis_stagnation_ratio = 1.0E-2_dp
 
       CHARACTER(LEN=default_string_length)               :: description, name
-      INTEGER :: ext_master_id, handle, handle2, i_tmp, ic, irep, ispin, iter_count, n_rep_hf, &
-         oda_base_slot, output_unit, scf_energy_message_tag, total_steps
+      INTEGER :: accepted_ot_kp_searches, ext_master_id, handle, handle2, i_tmp, ic, irep, ispin, &
+         iter_count, n_rep_hf, oda_base_slot, ot_kp_subspace_refresh_count, &
+         ot_kp_subspace_refresh_iter_count, output_unit, scf_energy_message_tag, total_steps
       LOGICAL :: ace_active, adiis_pushed, adiis_restarted, adiis_stagnated, adiis_validation, &
          density_full_step, diis_step, do_kpoints, energy_only, exit_inner_loop, exit_outer_loop, &
          inner_loop_converged, internal_tblite_density_full_step, internal_tblite_mixer, &
          just_energy, oda_applied, oda_eligible, oda_globalization_active, oda_interior, &
          oda_predictor_valid, oda_restart_trigger, oda_state_evaluated, oda_trigger, &
-         outer_loop_converged, tblite_native_mixer
+         ot_kp_subspace_refresh, ot_kp_subspace_refresh_pending, outer_loop_converged, &
+         tblite_native_mixer
       REAL(KIND=dp)                                      :: adiis_raw_delta, adiis_step_delta, &
                                                             oda_predictor_lambda, t1, t2
       REAL(KIND=dp), DIMENSION(3)                        :: res_val_3
@@ -563,7 +568,11 @@ CONTAINS
       ! *** outer loop of the scf, can treat other variables,
       ! *** such as lagrangian multipliers
       scf_env%outer_scf%iter_count = 0
+      accepted_ot_kp_searches = 0
       iter_count = 0
+      ot_kp_subspace_refresh_count = 0
+      ot_kp_subspace_refresh_iter_count = 0
+      ot_kp_subspace_refresh_pending = .FALSE.
       total_steps = 0
       energy%tot_old = 0.0_dp
 
@@ -578,6 +587,10 @@ CONTAINS
 
          CALL qs_scf_set_loop_flags(scf_env, diis_step, &
                                     energy_only, just_energy, exit_inner_loop)
+         IF (ot_kp_subspace_refresh_pending) THEN
+            scf_env%iter_count = ot_kp_subspace_refresh_iter_count
+            ot_kp_subspace_refresh_pending = .FALSE.
+         END IF
 
          ! decide whether to switch off dipole correction for convergence purposes
          dft_control%surf_dip_correct_switch = dft_control%correct_surf_dip
@@ -620,6 +633,7 @@ CONTAINS
             ! print 'heavy weight' or relatively expensive quantities
             CALL qs_scf_loop_print(qs_env, scf_env, para_env)
 
+            ot_kp_subspace_refresh = .FALSE.
             adiis_validation = scf_control%diagonalization%update_method == diag_update_method_adiis .AND. &
                                scf_env%adiis_check_next
             adiis_step_delta = scf_env%step_norm
@@ -785,7 +799,13 @@ CONTAINS
                      scf_control%smear%do_smear = .FALSE.
                      CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, dft_control%probe)
                   ELSE
-                     CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
+                     CALL qs_scf_new_mos_kp( &
+                        qs_env, scf_env, scf_control, diis_step, &
+                        ot_kp_subspace_refresh=ot_kp_subspace_refresh, &
+                        allow_ot_kp_subspace_refresh= &
+                        ot_kp_subspace_refresh_count < max_ot_kp_subspace_refreshes, &
+                        allow_ot_kp_exit_refresh=ot_kp_subspace_refresh_count > 0, &
+                        accepted_ot_kp_searches=accepted_ot_kp_searches)
                   END IF
                ELSE
                   ! Gamma points only
@@ -797,6 +817,38 @@ CONTAINS
                      CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only)
                   END IF
                END IF
+            END IF
+
+            IF (ot_kp_subspace_refresh) THEN
+               IF (output_unit > 0) THEN
+                  WRITE (UNIT=output_unit, FMT="(T2,A)") &
+                     "K-point OT: rebuilding physical virtual subspace by full KS diagonalization."
+               END IF
+               IF (ASSOCIATED(scf_env%qs_ot_env)) THEN
+                  DO ispin = 1, SIZE(scf_env%qs_ot_env)
+                     CALL ot_scf_destroy(scf_env%qs_ot_env(ispin))
+                  END DO
+                  DEALLOCATE (scf_env%qs_ot_env)
+                  NULLIFY (scf_env%qs_ot_env)
+               END IF
+               IF (ASSOCIATED(kpoints%scf_diis_buffer)) THEN
+                  CALL qs_diis_b_clear_kp(kpoints%scf_diis_buffer)
+               END IF
+               reuse_precond = .FALSE.
+               accepted_ot_kp_searches = 0
+               ot_kp_subspace_refresh_count = ot_kp_subspace_refresh_count + 1
+               total_steps = MAX(0, total_steps - 1)
+               iter_count = MAX(0, iter_count - 1)
+               IF (.NOT. just_energy) scf_env%iter_count = MAX(0, scf_env%iter_count - 1)
+               ot_kp_subspace_refresh_iter_count = scf_env%iter_count
+               ot_kp_subspace_refresh_pending = .TRUE.
+               CALL timestop(handle2)
+               CYCLE scf_outer_loop
+            END IF
+
+            IF (do_kpoints .AND. scf_env%method == ot_method_nr .AND. &
+                TRIM(scf_env%iter_method) == "OT CG") THEN
+               accepted_ot_kp_searches = accepted_ot_kp_searches + 1
             END IF
 
             ! Print requested MO information (can be computationally expensive with OT)
@@ -1259,7 +1311,9 @@ CONTAINS
                   END IF
                END IF
                CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
-               CALL qs_ot_set_fixed_kpoint_occupations(kpoints, nspin_ot)
+               IF (.NOT. (dft_control%smear .OR. scf_control%smear%do_smear)) THEN
+                  CALL qs_ot_set_fixed_kpoint_occupations(kpoints, nspin_ot)
+               END IF
 
                ! Build the initial KS matrix from the requested density guess.
                CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., &
@@ -1267,10 +1321,11 @@ CONTAINS
                CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks_kp)
                CPASSERT(ASSOCIATED(matrix_ks_kp))
 
-               ! A K-point restart contains density matrices rather than MO coefficients.
-               ! Diagonalize the matching KS operator once so that OT does not combine the
-               ! restarted density with unrelated guess orbitals.
-               IF (scf_control%density_guess == restart_guess) THEN
+               ! Variable-occupation OT needs its fixed REF complement from the
+               ! physical Hamiltonian of the requested density. A restart needs the
+               ! same synchronization for both fixed and variable occupations.
+               IF (scf_env%qs_ot_env(1)%settings%do_ener .OR. &
+                   scf_control%density_guess == restart_guess) THEN
                   kp_diis_step = .FALSE.
                   CALL do_general_diag_kp(matrix_ks_kp, matrix_s_kp, kpoints, scf_env, &
                                           scf_control, .FALSE., kp_diis_step)
@@ -1279,7 +1334,9 @@ CONTAINS
                      CALL qs_ot_copy_kpoint_spin_mos(kpoints, nspin_ot)
                   END IF
                   CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
-                  CALL qs_ot_set_fixed_kpoint_occupations(kpoints, nspin_ot)
+                  IF (.NOT. (dft_control%smear .OR. scf_control%smear%do_smear)) THEN
+                     CALL qs_ot_set_fixed_kpoint_occupations(kpoints, nspin_ot)
+                  END IF
                END IF
 
                CALL allocate_qs_ot_kpoint_state(qs_env=qs_env, &
@@ -1442,7 +1499,7 @@ CONTAINS
 
       INTEGER                                            :: ikpoint, ispin, local_kpoint, &
                                                             number_of_OT_envs, ot_channel
-      LOGICAL                                            :: do_rotation, is_full_all
+      LOGICAL                                            :: do_rotation, do_smear, is_full_all
       REAL(KIND=dp)                                      :: kpoint_weight
 
       CPASSERT(.NOT. ASSOCIATED(scf_env%qs_ot_env))
@@ -1464,8 +1521,25 @@ CONTAINS
       CALL ot_scf_read_input(scf_env%qs_ot_env, scf_section, do_kpoints)
 
       IF (do_kpoints) THEN
-         IF (dft_control%smear .OR. scf_control%smear%do_smear) THEN
-            CPABORT("K-point OT currently requires fixed occupations (SMEAR OFF).")
+         do_smear = dft_control%smear .OR. scf_control%smear%do_smear
+         IF (do_smear) THEN
+            IF (.NOT. scf_env%qs_ot_env(1)%settings%do_ener) THEN
+               CPABORT("K-point OT smearing requires OT%ENERGIES and OT%ROTATION.")
+            END IF
+            IF (.NOT. scf_env%qs_ot_env(1)%settings%do_rotation) THEN
+               CPABORT("K-point OT smearing requires OT%ROTATION.")
+            END IF
+            IF (scf_control%smear%method /= smear_fermi_dirac) THEN
+               CPABORT("K-point Mermin OT currently supports FERMI_DIRAC smearing only.")
+            END IF
+            IF (scf_env%qs_ot_env(1)%settings%ot_algorithm /= "REF") THEN
+               CPABORT("K-point Mermin OT currently requires OT%ALGORITHM IRAC.")
+            END IF
+            IF (scf_env%qs_ot_env(1)%settings%OT_METHOD /= "CG") THEN
+               CPABORT("K-point Mermin OT currently supports OT%MINIMIZER CG only.")
+            END IF
+         ELSE IF (scf_env%qs_ot_env(1)%settings%do_ener) THEN
+            CPABORT("OT%ENERGIES requires FERMI_DIRAC smearing in the complex K-point path.")
          END IF
          IF (scf_env%qs_ot_env(1)%settings%ot_algorithm /= "TOD" .AND. &
              scf_env%qs_ot_env(1)%settings%ot_algorithm /= "REF") THEN
@@ -1494,8 +1568,8 @@ CONTAINS
              scf_env%qs_ot_env(1)%settings%precond_solver_type, .FALSE.)) THEN
             CPABORT(kpoint_solver_error)
          END IF
-         IF (scf_env%qs_ot_env(1)%settings%occupation_preconditioner) THEN
-            CPABORT("K-point OT does not yet support OCCUPATION_PRECONDITIONER.")
+         IF (scf_env%qs_ot_env(1)%settings%occupation_preconditioner .AND. .NOT. do_smear) THEN
+            CPABORT("K-point OCCUPATION_PRECONDITIONER currently requires FERMI_DIRAC smearing.")
          END IF
          IF (dft_control%restricted) THEN
             CPABORT("Restricted open-shell K-point OT is not implemented.")
@@ -1733,6 +1807,7 @@ CONTAINS
                                                             nao, nmo, nocc, ot_channel
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: use_real_wfn
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct
       TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im, &
@@ -1746,7 +1821,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (active_mo_struct, cell_to_index, kp, matrix_sk_im, matrix_sk_re, &
+      NULLIFY (active_mo_struct, cell_to_index, eigenvalues, kp, matrix_sk_im, matrix_sk_re, &
                mo_coeff, mo_coeff_im, mo_set, mo_set_im, sab_nl, xkp)
 
       CPASSERT(ASSOCIATED(qs_env))
@@ -1800,10 +1875,13 @@ CONTAINS
 
             NULLIFY (mo_coeff, mo_coeff_im, mo_set_im)
             mo_set => kp%mos(1, ispin)
-            CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, homo=nocc, nao=nao, nmo=nmo)
+            CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, eigenvalues=eigenvalues, &
+                            homo=nocc, nao=nao, nmo=nmo)
             CPASSERT(ASSOCIATED(mo_coeff))
+            CPASSERT(ASSOCIATED(eigenvalues))
             CPASSERT(nao > 0)
             CPASSERT(nmo > 0)
+            IF (scf_env%qs_ot_env(ot_channel)%settings%do_ener) nocc = nmo
             IF (nocc < 1 .OR. nocc > nmo) THEN
                CALL cp_abort(__LOCATION__, &
                              "K-point OT requires at least one occupied orbital in every spin channel.")
@@ -1848,6 +1926,9 @@ CONTAINS
             END IF
 
             CALL qs_ot_init(scf_env%qs_ot_env(ot_channel))
+            IF (scf_env%qs_ot_env(ot_channel)%settings%do_ener) THEN
+               scf_env%qs_ot_env(ot_channel)%ener_x(:) = eigenvalues(1:nocc)
+            END IF
             scf_env%qs_ot_env(ot_channel)%broyden_adaptive_sigma = qs_env%broyden_adaptive_sigma
 
             CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_x, 0.0_dp)
@@ -2151,6 +2232,12 @@ CONTAINS
       CALL dbcsr_init_p(qs_ot_env%matrix_gx_im)
       CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx_im, template=matrix_s, n=nmo, &
                                              sym=dbcsr_type_no_symmetry)
+      IF (qs_ot_env%settings%occupation_preconditioner) THEN
+         CALL dbcsr_init_p(qs_ot_env%matrix_preconditioned_gx_im)
+         CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_preconditioned_gx_im, &
+                                                template=matrix_s, n=nmo, &
+                                                sym=dbcsr_type_no_symmetry)
+      END IF
       SELECT CASE (qs_ot_env%settings%ot_algorithm)
       CASE ("TOD")
          CPASSERT(nmo_ortho == nmo)
