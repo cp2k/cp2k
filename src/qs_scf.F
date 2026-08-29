@@ -49,8 +49,8 @@ MODULE qs_scf
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
-        dbcsr_init_p, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -1810,8 +1810,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct
-      TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im, &
-                                                            sc_coeff, sc_coeff_im
+      TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_im
       TYPE(dbcsr_type), POINTER                          :: matrix_sk_im, matrix_sk_re
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -1896,13 +1895,8 @@ CONTAINS
                                 matrix_s_kp(1, 1)%matrix, &
                                 active_mo_struct)
 
-            CALL cp_fm_create(sc_coeff, active_mo_struct)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_sk_re, active_mo_coeff, sc_coeff, nocc)
-
             CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp)
-            CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sc0, 0.0_dp)
             CALL copy_fm_to_dbcsr(active_mo_coeff, scf_env%qs_ot_env(ot_channel)%matrix_c0)
-            CALL copy_fm_to_dbcsr(sc_coeff, scf_env%qs_ot_env(ot_channel)%matrix_sc0)
 
             IF (.NOT. use_real_wfn) THEN
                CPASSERT(SIZE(kp%mos, 1) >= 2)
@@ -1913,16 +1907,28 @@ CONTAINS
                CALL cp_fm_to_fm(mo_coeff_im, active_mo_coeff_im, nocc)
                CALL allocate_qs_ot_kpoint_complex_state(scf_env%qs_ot_env(ot_channel), &
                                                         matrix_s_kp(1, 1)%matrix)
-               CALL cp_fm_create(sc_coeff_im, active_mo_struct)
-               CALL cp_dbcsr_sm_fm_multiply(matrix_sk_im, active_mo_coeff_im, sc_coeff, nocc, &
-                                            alpha=-1.0_dp, beta=1.0_dp)
-               CALL cp_dbcsr_sm_fm_multiply(matrix_sk_re, active_mo_coeff_im, sc_coeff_im, nocc)
-               CALL cp_dbcsr_sm_fm_multiply(matrix_sk_im, active_mo_coeff, sc_coeff_im, nocc, &
-                                            alpha=1.0_dp, beta=1.0_dp)
                CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp)
                CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sc0_im, 0.0_dp)
                CALL copy_fm_to_dbcsr(active_mo_coeff_im, scf_env%qs_ot_env(ot_channel)%matrix_c0_im)
-               CALL copy_fm_to_dbcsr(sc_coeff_im, scf_env%qs_ot_env(ot_channel)%matrix_sc0_im)
+               CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_re, &
+                                   scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp, &
+                                   scf_env%qs_ot_env(ot_channel)%matrix_sc0)
+               CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_im, &
+                                   scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp, &
+                                   scf_env%qs_ot_env(ot_channel)%matrix_x)
+               CALL dbcsr_add(scf_env%qs_ot_env(ot_channel)%matrix_sc0, &
+                              scf_env%qs_ot_env(ot_channel)%matrix_x, &
+                              alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+               CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_re, &
+                                   scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp, &
+                                   scf_env%qs_ot_env(ot_channel)%matrix_sc0_im)
+               CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_im, &
+                                   scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp, &
+                                   scf_env%qs_ot_env(ot_channel)%matrix_x)
+               CALL dbcsr_add(scf_env%qs_ot_env(ot_channel)%matrix_sc0_im, &
+                              scf_env%qs_ot_env(ot_channel)%matrix_x, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
             END IF
 
             CALL qs_ot_init(scf_env%qs_ot_env(ot_channel))
@@ -1975,10 +1981,8 @@ CONTAINS
                CPASSERT(scf_env%qs_ot_env(ot_channel)%has_complex_kpoint_state)
             END IF
             CALL cp_fm_release(active_mo_coeff)
-            CALL cp_fm_release(sc_coeff)
             IF (.NOT. use_real_wfn) THEN
                CALL cp_fm_release(active_mo_coeff_im)
-               CALL cp_fm_release(sc_coeff_im)
             END IF
             CALL cp_fm_struct_release(active_mo_struct)
          END DO
