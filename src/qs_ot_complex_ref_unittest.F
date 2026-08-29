@@ -50,7 +50,9 @@ PROGRAM qs_ot_complex_ref_unittest
    USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                               init_preconditioner,&
                                               preconditioner_type
-   USE qs_ot,                           ONLY: qs_ot_get_derivative_ref_complex
+   USE qs_ot,                           ONLY: qs_ot_generate_rotation,&
+                                              qs_ot_get_derivative_ref_complex,&
+                                              qs_ot_rot_mat_derivative
    USE qs_ot_types,                     ONLY: qs_ot_kpoint_preconditioner_scale,&
                                               qs_ot_kpoint_preconditioner_solver_supported,&
                                               qs_ot_kpoint_preconditioner_supported,&
@@ -94,6 +96,7 @@ PROGRAM qs_ot_complex_ref_unittest
    CALL cp_add_default_logger(logger)
    CALL add_all_references()
    CALL dbcsr_init_lib(mp_comm%get_handle(), io_unit)
+   CALL test_real_rotation_frechet(para_env, nfail)
    CALL test_complex_preconditioner_gauge(para_env, nfail)
 
    x(:, 1) = [CMPLX(1.10_dp, 0.10_dp, KIND=dp), CMPLX(0.20_dp, -0.30_dp, KIND=dp), &
@@ -225,6 +228,111 @@ PROGRAM qs_ot_complex_ref_unittest
    IF (nfail > 0) ERROR STOP "qs_ot_complex_ref_unittest failed"
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Check the real finite rotation pullback used by Gamma-point REF OT.
+!> \param para_env parallel environment
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_real_rotation_frechet(para_env, nfail)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: m = 3
+
+      INTEGER                                            :: i
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_size, row_dist, row_size
+      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: error, fd_slope, hstep, predicted
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
+      REAL(KIND=dp), DIMENSION(m), TARGET                :: rotation_evals
+      REAL(KIND=dp), DIMENSION(m, m)                     :: dedu, direction, generator, gradient, &
+                                                            rotation_minus, rotation_plus
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(dbcsr_distribution_type)                      :: dist
+      TYPE(dbcsr_type), DIMENSION(7), TARGET             :: matrices
+      TYPE(mp_para_env_type), POINTER                    :: local_para_env
+      TYPE(qs_ot_type)                                   :: rotation_env
+
+      NULLIFY (blacs_env, local_para_env)
+      generator(:, :) = 0.0_dp
+      generator(1, 2) = 0.23_dp
+      generator(2, 1) = -generator(1, 2)
+      generator(1, 3) = -0.11_dp
+      generator(3, 1) = -generator(1, 3)
+      generator(2, 3) = 0.17_dp
+      generator(3, 2) = -generator(2, 3)
+
+      direction(:, :) = 0.0_dp
+      direction(1, 2) = -0.09_dp
+      direction(2, 1) = -direction(1, 2)
+      direction(1, 3) = 0.14_dp
+      direction(3, 1) = -direction(1, 3)
+      direction(2, 3) = 0.06_dp
+      direction(3, 2) = -direction(2, 3)
+
+      dedu = RESHAPE([0.31_dp, -0.27_dp, 0.08_dp, &
+                      0.19_dp, 0.42_dp, -0.16_dp, &
+                      -0.07_dp, 0.21_dp, 0.35_dp], [m, m])
+
+      ALLOCATE (local_para_env)
+      CALL local_para_env%from_dup(mp_comm_self)
+      CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=local_para_env)
+      ALLOCATE (pgrid(0:0, 0:0), row_dist(1), col_dist(1), row_size(1), col_size(1))
+      pgrid(:, :) = 0
+      row_dist(:) = 0
+      col_dist(:) = 0
+      row_size(:) = m
+      col_size(:) = m
+      CALL dbcsr_distribution_new(dist, group=mp_comm_self%get_handle(), pgrid=pgrid, &
+                                  row_dist=row_dist, col_dist=col_dist)
+      DO i = 1, SIZE(matrices)
+         CALL create_one_block(matrices(i), 'real_rotation', dist, row_size, col_size)
+      END DO
+      CALL dbcsr_put_block(matrices(2), 1, 1, generator)
+      CALL dbcsr_put_block(matrices(3), 1, 1, dedu)
+
+      rotation_env%para_env => local_para_env
+      rotation_env%blacs_env => blacs_env
+      rotation_env%rot_mat_u => matrices(1)
+      rotation_env%rot_mat_x => matrices(2)
+      rotation_env%rot_mat_dedu => matrices(3)
+      rotation_env%rot_mat_gx => matrices(4)
+      rotation_env%rot_mat_evec_re => matrices(5)
+      rotation_env%rot_mat_evec_im => matrices(6)
+      rotation_env%matrix_buf1 => matrices(7)
+      rotation_env%rot_mat_evals => rotation_evals
+
+      CALL qs_ot_generate_rotation(rotation_env)
+      CALL qs_ot_rot_mat_derivative(rotation_env)
+      gradient(:, :) = 0.0_dp
+      CALL dbcsr_get_block_p(matrices(4), 1, 1, block, found)
+      IF (found) gradient = block
+
+      hstep = 1.0E-6_dp
+      rotation_plus = REAL(dense_antihermitian_exp( &
+                           CMPLX(generator + hstep*direction, 0.0_dp, KIND=dp)), KIND=dp)
+      rotation_minus = REAL(dense_antihermitian_exp( &
+                            CMPLX(generator - hstep*direction, 0.0_dp, KIND=dp)), KIND=dp)
+      fd_slope = SUM(dedu*(rotation_plus - rotation_minus))/(2.0_dp*hstep)
+      predicted = 0.5_dp*SUM(gradient*direction)
+      error = ABS(predicted - fd_slope)
+      IF (error > 5.0E-8_dp) nfail = nfail + 1
+      IF (para_env%is_source()) THEN
+         WRITE (*, '(A,3(1X,ES13.6))') 'real finite rotation slope fd/predicted/error', &
+            fd_slope, predicted, error
+      END IF
+
+      DO i = 1, SIZE(matrices)
+         CALL dbcsr_release(matrices(i))
+      END DO
+      CALL dbcsr_distribution_release(dist)
+      DEALLOCATE (pgrid, row_dist, col_dist, row_size, col_size)
+      CALL cp_blacs_env_release(blacs_env)
+      CALL mp_para_env_release(local_para_env)
+
+   END SUBROUTINE test_real_rotation_frechet
 
 ! **************************************************************************************************
 !> \brief Check gauge invariance, Hermiticity, and positivity of the complex inverse operator.
@@ -440,6 +548,32 @@ CONTAINS
       CALL dbcsr_put_block(matrix_im, 1, 1, AIMAG(matrix))
 
    END SUBROUTINE put_complex_pair
+
+! **************************************************************************************************
+!> \brief Dense reference exponential for an anti-Hermitian matrix.
+!> \param generator anti-Hermitian generator
+!> \return its unitary exponential
+! **************************************************************************************************
+   FUNCTION dense_antihermitian_exp(generator) RESULT(rotation)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: generator
+      COMPLEX(KIND=dp), DIMENSION(SIZE(generator, 1), &
+         SIZE(generator, 2))                             :: rotation
+
+      COMPLEX(KIND=dp), DIMENSION(SIZE(generator, 1), &
+         SIZE(generator, 2))                             :: hermitian, vectors
+      INTEGER                                            :: i
+      REAL(KIND=dp), DIMENSION(SIZE(generator, 1))       :: eigenvalues
+
+      hermitian = CMPLX(0.0_dp, 1.0_dp, KIND=dp)*generator
+      CALL diag_complex(hermitian, vectors, eigenvalues)
+      rotation(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      DO i = 1, SIZE(eigenvalues)
+         rotation = rotation + EXP(CMPLX(0.0_dp, -eigenvalues(i), KIND=dp))* &
+                    MATMUL(RESHAPE(vectors(:, i), [SIZE(generator, 1), 1]), &
+                           RESHAPE(CONJG(vectors(:, i)), [1, SIZE(generator, 1)]))
+      END DO
+
+   END FUNCTION dense_antihermitian_exp
 
 ! **************************************************************************************************
 !> \brief Hermitian inverse for an independent dense reference.
