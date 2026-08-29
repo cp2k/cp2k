@@ -57,6 +57,7 @@ MODULE qs_scf
                                               cp_dbcsr_m_by_n_from_row_template,&
                                               cp_dbcsr_m_by_n_from_template,&
                                               cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_norm
@@ -1467,8 +1468,9 @@ CONTAINS
          IF (scf_env%qs_ot_env(1)%settings%ot_algorithm /= "REF") THEN
             CPABORT("K-point OT currently requires OT%ALGORITHM IRAC.")
          END IF
-         IF (scf_env%qs_ot_env(1)%settings%OT_METHOD /= "CG") THEN
-            CPABORT("K-point OT currently requires OT%MINIMIZER CG.")
+         IF (scf_env%qs_ot_env(1)%settings%OT_METHOD /= "CG" .AND. &
+             scf_env%qs_ot_env(1)%settings%OT_METHOD /= "DIIS") THEN
+            CPABORT("K-point OT currently supports OT%MINIMIZER CG or DIIS.")
          END IF
          IF (.NOT. qs_ot_kpoint_preconditioner_supported( &
              scf_env%qs_ot_env(1)%settings%preconditioner_type, .FALSE.)) THEN
@@ -2097,7 +2099,7 @@ CONTAINS
       TYPE(qs_ot_type)                                   :: qs_ot_env
       TYPE(dbcsr_type), POINTER                          :: matrix_s
 
-      INTEGER                                            :: nmo, nmo_ortho
+      INTEGER                                            :: i, ncoef, nmo, nmo_ortho
 
       CPASSERT(qs_ot_env%state_allocated)
       CPASSERT(.NOT. qs_ot_env%has_complex_kpoint_state)
@@ -2139,6 +2141,21 @@ CONTAINS
          CALL dbcsr_init_p(qs_ot_env%matrix_gx_old_im)
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx_old_im, template=matrix_s, n=nmo, &
                                                 sym=dbcsr_type_no_symmetry)
+      END IF
+      IF (qs_ot_env%settings%ot_method == "DIIS") THEN
+         ncoef = qs_ot_env%settings%diis_m
+         CALL dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_e_im, ncoef)
+         CALL dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_x_im, ncoef)
+         DO i = 1, ncoef
+            CALL dbcsr_init_p(qs_ot_env%matrix_h_e_im(i)%matrix)
+            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_h_e_im(i)%matrix, &
+                                                   template=matrix_s, n=nmo, &
+                                                   sym=dbcsr_type_no_symmetry)
+            CALL dbcsr_init_p(qs_ot_env%matrix_h_x_im(i)%matrix)
+            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_h_x_im(i)%matrix, &
+                                                   template=matrix_s, n=nmo, &
+                                                   sym=dbcsr_type_no_symmetry)
+         END DO
       END IF
 
       qs_ot_env%has_complex_kpoint_state = .TRUE.
