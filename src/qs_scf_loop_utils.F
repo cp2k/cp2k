@@ -60,7 +60,8 @@ MODULE qs_scf_loop_utils
                                               mo_set_type
    USE qs_mom_methods,                  ONLY: do_mom_diag
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_ot,                           ONLY: qs_ot_get_orbitals_ref_complex
+   USE qs_ot,                           ONLY: qs_ot_get_orbitals_complex,&
+                                              qs_ot_get_orbitals_ref_complex
    USE qs_ot_minimizer,                 ONLY: ot_mini
    USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                               ot_scf_mini
@@ -535,9 +536,10 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "K-point OT driver currently supports complex k-point wavefunctions only.")
       END IF
-      IF (scf_env%qs_ot_env(1)%settings%ot_algorithm /= "REF") THEN
+      IF (scf_env%qs_ot_env(1)%settings%ot_algorithm /= "TOD" .AND. &
+          scf_env%qs_ot_env(1)%settings%ot_algorithm /= "REF") THEN
          CALL cp_abort(__LOCATION__, &
-                       "K-point OT driver currently supports OT%ALGORITHM REF only.")
+                       "K-point OT driver supports OT%ALGORITHM STRICT or IRAC.")
       END IF
       kp => kpoints%kp_env(1)%kpoint_env
       nspin_ot = SIZE(kp%mos, 2)
@@ -651,10 +653,12 @@ CONTAINS
       IF (local_ot_env(1)%initial_density_sync_pending) THEN
          ! The initial Hamiltonian can come from a density that does not match the
          ! fixed-rank orbital projector. Rebuild that density before starting a line search.
-         DO local_channel = 1, nlocal_channels
-            CALL dbcsr_copy(matrix_hc(local_channel)%matrix, local_ot_env(local_channel)%matrix_x)
-            CALL dbcsr_copy(matrix_hc_im(local_channel)%matrix, local_ot_env(local_channel)%matrix_x_im)
-         END DO
+         IF (local_ot_env(1)%settings%ot_algorithm == "REF") THEN
+            DO local_channel = 1, nlocal_channels
+               CALL dbcsr_copy(matrix_hc(local_channel)%matrix, local_ot_env(local_channel)%matrix_x)
+               CALL dbcsr_copy(matrix_hc_im(local_channel)%matrix, local_ot_env(local_channel)%matrix_x_im)
+            END DO
+         END IF
          scf_env%iter_delta = 2.0_dp*scf_control%eps_scf
          local_ot_env(1)%OT_METHOD_FULL = "OT Sync"
          local_ot_env(:)%initial_density_sync_pending = .FALSE.
@@ -675,10 +679,20 @@ CONTAINS
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
             CALL get_mo_set(kp%mos(1, ispin), homo=homo, mo_coeff=mo_coeff, eigenvalues=eigenvalues)
             CALL get_mo_set(kp%mos(2, ispin), mo_coeff=mo_coeff_im)
-            CALL qs_ot_get_orbitals_ref_complex(matrix_hc(local_channel)%matrix, &
-                                                matrix_hc_im(local_channel)%matrix, &
-                                                matrix_s_re, matrix_s_im, &
-                                                local_ot_env(local_channel), local_ot_env(1))
+            SELECT CASE (local_ot_env(local_channel)%settings%ot_algorithm)
+            CASE ("TOD")
+               CALL qs_ot_get_orbitals_complex(matrix_hc(local_channel)%matrix, &
+                                               matrix_hc_im(local_channel)%matrix, &
+                                               matrix_s_re, matrix_s_im, &
+                                               local_ot_env(local_channel))
+            CASE ("REF")
+               CALL qs_ot_get_orbitals_ref_complex(matrix_hc(local_channel)%matrix, &
+                                                   matrix_hc_im(local_channel)%matrix, &
+                                                   matrix_s_re, matrix_s_im, &
+                                                   local_ot_env(local_channel), local_ot_env(1))
+            CASE DEFAULT
+               CPABORT("K-point OT orbital update requires ALGORITHM STRICT or IRAC")
+            END SELECT
             CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=mo_coeff%matrix_struct, &
                                      ncol_global=homo)
             CALL cp_fm_create(active_mo_coeff, active_mo_struct)
