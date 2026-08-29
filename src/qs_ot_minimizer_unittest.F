@@ -13,6 +13,7 @@ PROGRAM qs_ot_minimizer_unittest
    USE qs_ot_minimizer,                 ONLY: lbfgs_curvature_damping_shift,&
                                               lbfgs_history_restart_required,&
                                               lbfgs_step_restart_required
+   USE qs_scf_loop_utils,               ONLY: qs_scf_kp_ref_refresh_ready
 
    IMPLICIT NONE
 
@@ -61,6 +62,31 @@ PROGRAM qs_ot_minimizer_unittest
    END IF
    IF (lbfgs_step_restart_required(0.0_dp, 0.0_dp)) THEN
       ERROR STOP "L-BFGS step restarted without a valid reference step"
+   END IF
+
+   IF (qs_scf_kp_ref_refresh_ready(11, 1.0E-4_dp, 1.0E-6_dp, .TRUE.)) THEN
+      ERROR STOP "K-point REF refresh accepted insufficient history"
+   END IF
+   IF (qs_scf_kp_ref_refresh_ready(12, 1.0E-4_dp, 1.0E-6_dp, .FALSE.)) THEN
+      ERROR STOP "K-point REF refresh accepted a line-search trial point"
+   END IF
+   IF (qs_scf_kp_ref_refresh_ready(12, 0.999E-5_dp, 1.0E-6_dp, .TRUE.)) THEN
+      ERROR STOP "K-point REF refresh accepted a converged residual"
+   END IF
+   IF (qs_scf_kp_ref_refresh_ready(12, 2.0001E-4_dp, 1.0E-6_dp, .TRUE.)) THEN
+      ERROR STOP "K-point REF refresh accepted a residual outside the asymptotic window"
+   END IF
+   IF (.NOT. qs_scf_kp_ref_refresh_ready(12, 1.0E-4_dp, 1.0E-6_dp, .TRUE.)) THEN
+      ERROR STOP "K-point REF refresh rejected a mature asymptotic state"
+   END IF
+   IF (qs_scf_kp_ref_refresh_ready(12, 0.75E-6_dp, 1.0E-6_dp, .TRUE.)) THEN
+      ERROR STOP "K-point REF refresh entered the exit window before a physical rebuild"
+   END IF
+   IF (.NOT. qs_scf_kp_ref_refresh_ready(12, 0.75E-6_dp, 1.0E-6_dp, .TRUE., .TRUE.)) THEN
+      ERROR STOP "K-point REF refresh rejected a mature exit-only state"
+   END IF
+   IF (qs_scf_kp_ref_refresh_ready(12, 0.2E-6_dp, 1.0E-6_dp, .TRUE., .TRUE.)) THEN
+      ERROR STOP "K-point REF refresh accepted a safely converged exit state"
    END IF
 
    infinity = ieee_value(0.0_dp, ieee_positive_inf)

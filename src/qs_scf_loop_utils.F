@@ -108,11 +108,45 @@ MODULE qs_scf_loop_utils
 
    PUBLIC :: qs_scf_set_loop_flags, &
              qs_scf_new_mos, qs_scf_new_mos_kp, &
+             qs_scf_kp_ref_refresh_ready, &
              qs_scf_candidate_density_delta, qs_scf_commit_density_candidate, &
              qs_scf_density_mixing, qs_scf_check_inner_exit, &
              qs_scf_check_outer_exit, qs_scf_inner_finalize, qs_scf_rho_update
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief decide whether a mature variable-occupation REF chart should be rebuilt
+!> \param accepted_searches accepted search directions in the current REF chart
+!> \param residual current OT residual
+!> \param eps_scf requested SCF threshold
+!> \param base_state whether the current point can start a new search direction
+!> \param allow_exit_window whether a prior physical REF rebuild permits an exit-only rebuild
+!> \return true inside the asymptotic residual window after sufficient accepted history
+! **************************************************************************************************
+   PURE FUNCTION qs_scf_kp_ref_refresh_ready( &
+      accepted_searches, residual, eps_scf, base_state, allow_exit_window) &
+      RESULT(refresh)
+
+      INTEGER, INTENT(IN)                                :: accepted_searches
+      REAL(KIND=dp), INTENT(IN)                          :: residual, eps_scf
+      LOGICAL, INTENT(IN)                                :: base_state
+      LOGICAL, INTENT(IN), OPTIONAL                      :: allow_exit_window
+      LOGICAL                                            :: refresh
+
+      INTEGER, PARAMETER                                 :: min_accepted_searches = 12
+
+      LOGICAL                                            :: exit_window
+      REAL(KIND=dp)                                      :: eps
+
+      eps = MAX(eps_scf, EPSILON(1.0_dp))
+      exit_window = .FALSE.
+      IF (PRESENT(allow_exit_window)) exit_window = allow_exit_window
+      refresh = base_state .AND. accepted_searches >= min_accepted_searches .AND. &
+                ((residual > 10.0_dp*eps .AND. residual <= 0.2_dp*SQRT(eps)) .OR. &
+                 (exit_window .AND. residual > 0.25_dp*eps .AND. residual <= eps))
+
+   END FUNCTION qs_scf_kp_ref_refresh_ready
 
 ! **************************************************************************************************
 !> \brief computes properties for a given hamiltonian using the current wfn
@@ -355,20 +389,32 @@ CONTAINS
 !> \param scf_control ...
 !> \param diis_step ...
 !> \param probe ...
+!> \param ot_kp_subspace_refresh ...
+!> \param allow_ot_kp_subspace_refresh ...
+!> \param allow_ot_kp_exit_refresh ...
+!> \param accepted_ot_kp_searches ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, probe)
+   SUBROUTINE qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, probe, &
+                                ot_kp_subspace_refresh, allow_ot_kp_subspace_refresh, &
+                                allow_ot_kp_exit_refresh, accepted_ot_kp_searches)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       LOGICAL                                            :: diis_step
       TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: probe
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: ot_kp_subspace_refresh
+      LOGICAL, INTENT(IN), OPTIONAL                      :: allow_ot_kp_subspace_refresh, &
+                                                            allow_ot_kp_exit_refresh
+      INTEGER, INTENT(IN), OPTIONAL                      :: accepted_ot_kp_searches
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_new_mos_kp'
 
-      INTEGER                                            :: handle, ispin
-      LOGICAL                                            :: disable_diis, has_unit_metric
-      REAL(dp)                                           :: diis_error, saved_eps_diis
+      INTEGER                                            :: accepted_searches, handle, ispin
+      LOGICAL                                            :: allow_exit_refresh, allow_refresh, &
+                                                            base_state, disable_diis, &
+                                                            has_unit_metric, refresh
+      REAL(dp)                                           :: diis_error, residual, saved_eps_diis
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -376,6 +422,15 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
 
       CALL timeset(routineN, handle)
+
+      allow_refresh = .FALSE.
+      allow_exit_refresh = .FALSE.
+      accepted_searches = 0
+      refresh = .FALSE.
+      IF (PRESENT(allow_ot_kp_subspace_refresh)) allow_refresh = allow_ot_kp_subspace_refresh
+      IF (PRESENT(allow_ot_kp_exit_refresh)) allow_exit_refresh = allow_ot_kp_exit_refresh
+      IF (PRESENT(accepted_ot_kp_searches)) accepted_searches = accepted_ot_kp_searches
+      IF (PRESENT(ot_kp_subspace_refresh)) ot_kp_subspace_refresh = .FALSE.
 
       NULLIFY (dft_control, energy, kpoints, matrix_ks, matrix_s)
 
@@ -449,7 +504,29 @@ CONTAINS
                        cp_to_string(scf_env%method))
       CASE (ot_method_nr)
          CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
-         CALL qs_scf_loop_do_ot_kp(qs_env, scf_env, matrix_ks, matrix_s)
+         base_state = .NOT. scf_env%qs_ot_env(1)%energy_only .AND. &
+                      (scf_env%qs_ot_env(1)%line_search_count == 0 .OR. &
+                       scf_env%qs_ot_env(1)%line_search_might_be_done)
+         residual = MAX(scf_env%iter_delta, scf_env%qs_ot_env(1)%delta)
+         refresh = allow_refresh .AND. scf_env%qs_ot_env(1)%settings%do_ener .AND. &
+                   scf_env%qs_ot_env(1)%settings%occupation_preconditioner .AND. &
+                   (dft_control%smear .OR. scf_control%smear%do_smear) .AND. &
+                   qs_scf_kp_ref_refresh_ready(accepted_searches, residual, &
+                                               scf_control%eps_scf, base_state, allow_exit_refresh)
+         IF (refresh) THEN
+            IF (PRESENT(ot_kp_subspace_refresh)) ot_kp_subspace_refresh = .TRUE.
+         ELSE
+            CALL qs_scf_loop_do_ot_kp(qs_env, scf_env, matrix_ks, matrix_s)
+            IF (allow_exit_refresh .AND. scf_env%iter_delta <= scf_control%eps_scf) THEN
+               base_state = TRIM(scf_env%iter_method) == "OT CG"
+               refresh = qs_scf_kp_ref_refresh_ready( &
+                         accepted_searches, scf_env%iter_delta, scf_control%eps_scf, &
+                         base_state, allow_exit_window=.TRUE.)
+               IF (refresh .AND. PRESENT(ot_kp_subspace_refresh)) THEN
+                  ot_kp_subspace_refresh = .TRUE.
+               END IF
+            END IF
+         END IF
       CASE (smeagol_method_nr)
          ! SMEAGOL interface
          diis_step = .FALSE.
@@ -814,9 +891,9 @@ CONTAINS
          END DO
       END DO
 
-      IF (local_ot_env(1)%settings%do_ener) then
-        CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
-      end if
+      IF (local_ot_env(1)%settings%do_ener) THEN
+         CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+      END IF
 
       IF (ALLOCATED(trial_eigenvalues)) DEALLOCATE (trial_eigenvalues)
       IF (ALLOCATED(trial_occupation)) DEALLOCATE (trial_occupation)
@@ -849,9 +926,9 @@ CONTAINS
          END IF
       END DO
       DEALLOCATE (matrix_hc, matrix_hc_im)
-      IF (local_ot_env(1)%settings%occupation_preconditioner) then
-        DEALLOCATE (matrix_hc_physical, matrix_hc_physical_im)
-      end if
+      IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
+         DEALLOCATE (matrix_hc_physical, matrix_hc_physical_im)
+      END IF
 
       CALL dbcsr_deallocate_matrix(matrix_k_re)
       CALL dbcsr_deallocate_matrix(matrix_k_im)
@@ -1034,9 +1111,9 @@ CONTAINS
                local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
                CALL get_mo_set(kp%mos(1, ispin), nmo=nmo)
                fixed_n_mean = 0.0_dp
-               IF (fixed_n_weight(group) > EPSILON(fixed_n_weight(group))) then
-                 fixed_n_mean = fixed_n_residual(group)/fixed_n_weight(group)
-               end if
+               IF (fixed_n_weight(group) > EPSILON(fixed_n_weight(group))) THEN
+                  fixed_n_mean = fixed_n_residual(group)/fixed_n_weight(group)
+               END IF
                local_ot_env(local_channel)%ener_preconditioned_gx(:) = fixed_n_mean - &
                                                                        (local_ot_env(local_channel)%ener_rayleigh(:) - &
                                                                         trial_eigenvalues(:, ikpoint, ispin))
