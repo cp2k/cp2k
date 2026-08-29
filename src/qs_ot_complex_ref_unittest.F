@@ -50,9 +50,12 @@ PROGRAM qs_ot_complex_ref_unittest
    USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                               init_preconditioner,&
                                               preconditioner_type
-   USE qs_ot,                           ONLY: qs_ot_generate_rotation,&
+   USE qs_ot,                           ONLY: qs_ot_apply_complex_frechet_dbcsr,&
+                                              qs_ot_complex_exp_frechet_kernel,&
+                                              qs_ot_generate_rotation,&
                                               qs_ot_get_derivative_complex,&
                                               qs_ot_get_derivative_ref_complex,&
+                                              qs_ot_get_orbitals_ref_complex,&
                                               qs_ot_get_p_complex,&
                                               qs_ot_rot_mat_derivative
    USE qs_ot_types,                     ONLY: qs_ot_kpoint_preconditioner_scale,&
@@ -99,6 +102,9 @@ PROGRAM qs_ot_complex_ref_unittest
    CALL add_all_references()
    CALL dbcsr_init_lib(mp_comm%get_handle(), io_unit)
    CALL test_real_rotation_frechet(para_env, nfail)
+   CALL test_complex_rotation_frechet(para_env, nfail)
+   CALL test_sparse_frechet_patterns(para_env, nfail)
+   CALL test_complex_ref_rotation(para_env, nfail)
    CALL test_complex_preconditioner_gauge(para_env, nfail)
 
    x(:, 1) = [CMPLX(1.10_dp, 0.10_dp, KIND=dp), CMPLX(0.20_dp, -0.30_dp, KIND=dp), &
@@ -337,6 +343,371 @@ CONTAINS
 
    END SUBROUTINE test_real_rotation_frechet
 
+! **************************************************************************************************
+!> \brief Check the combined finite complex REF and rotation derivatives.
+!> \param para_env parallel environment
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_complex_ref_rotation(para_env, nfail)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      COMPLEX(KIND=dp), DIMENSION(k, k)                  :: direction_a, generator, gradient_a, &
+                                                            inverse_sqrt, rotation
+      COMPLEX(KIND=dp), DIMENSION(n, k)                  :: c_dense, c_reference, direction_x, &
+                                                            gradient_x, hc_dense, q_dense, x_dense
+      COMPLEX(KIND=dp), DIMENSION(n, n)                  :: hamiltonian, overlap
+      INTEGER                                            :: i, j
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_k, col_n, row_dist, row_k, &
+                                                            row_n
+      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
+      REAL(KIND=dp)                                      :: error_c, error_ref, error_rot, fd_ref, &
+                                                            fd_rot, hstep, predicted_ref, &
+                                                            predicted_rot
+      REAL(KIND=dp), DIMENSION(k)                        :: occupation
+      REAL(KIND=dp), DIMENSION(k), TARGET                :: rotation_evals
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(dbcsr_distribution_type)                      :: dist_kk, dist_nk, dist_nn
+      TYPE(dbcsr_type), DIMENSION(10), TARGET            :: rot_matrix
+      TYPE(dbcsr_type), DIMENSION(2), TARGET             :: nk_buffer
+      TYPE(dbcsr_type), DIMENSION(3), TARGET             :: nonsym_buffer
+      TYPE(dbcsr_type), DIMENSION(4), TARGET             :: sym_buffer
+      TYPE(dbcsr_type), POINTER                          :: c_im_p, c_re_p, hc_im_p, hc_re_p, &
+                                                            s_im_p, s_re_p
+      TYPE(dbcsr_type), TARGET                           :: c_im, c_re, f_im, f_re, g_im, g_re, &
+                                                            hc_im, hc_re, s_im, s_re, sx_im, &
+                                                            sx_re, x_im, x_re
+      TYPE(mp_para_env_type), POINTER                    :: local_para_env
+      TYPE(qs_ot_type)                                   :: rotation_env
+
+      NULLIFY (blacs_env, c_im_p, c_re_p, hc_im_p, hc_re_p, local_para_env, &
+               s_im_p, s_re_p)
+
+      x_dense(:, 1) = [CMPLX(1.05_dp, 0.12_dp, KIND=dp), CMPLX(0.18_dp, -0.27_dp, KIND=dp), &
+                       CMPLX(-0.14_dp, 0.16_dp, KIND=dp)]
+      x_dense(:, 2) = [CMPLX(0.26_dp, 0.31_dp, KIND=dp), CMPLX(0.94_dp, -0.17_dp, KIND=dp), &
+                       CMPLX(0.21_dp, 0.13_dp, KIND=dp)]
+      direction_x(:, 1) = [CMPLX(0.11_dp, -0.07_dp, KIND=dp), CMPLX(-0.16_dp, 0.09_dp, KIND=dp), &
+                           CMPLX(0.05_dp, 0.14_dp, KIND=dp)]
+      direction_x(:, 2) = [CMPLX(-0.08_dp, 0.15_dp, KIND=dp), CMPLX(0.13_dp, 0.04_dp, KIND=dp), &
+                           CMPLX(-0.10_dp, -0.06_dp, KIND=dp)]
+
+      generator(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      generator(1, 1) = CMPLX(0.0_dp, 0.19_dp, KIND=dp)
+      generator(2, 2) = CMPLX(0.0_dp, -0.08_dp, KIND=dp)
+      generator(1, 2) = CMPLX(0.23_dp, -0.11_dp, KIND=dp)
+      generator(2, 1) = -CONJG(generator(1, 2))
+      direction_a(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      direction_a(1, 1) = CMPLX(0.0_dp, -0.07_dp, KIND=dp)
+      direction_a(2, 2) = CMPLX(0.0_dp, 0.05_dp, KIND=dp)
+      direction_a(1, 2) = CMPLX(-0.09_dp, 0.06_dp, KIND=dp)
+      direction_a(2, 1) = -CONJG(direction_a(1, 2))
+
+      hamiltonian(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      hamiltonian(1, 1) = CMPLX(0.65_dp, 0.0_dp, KIND=dp)
+      hamiltonian(2, 2) = CMPLX(-0.35_dp, 0.0_dp, KIND=dp)
+      hamiltonian(3, 3) = CMPLX(1.15_dp, 0.0_dp, KIND=dp)
+      hamiltonian(1, 2) = CMPLX(0.18_dp, 0.12_dp, KIND=dp)
+      hamiltonian(1, 3) = CMPLX(-0.09_dp, 0.07_dp, KIND=dp)
+      hamiltonian(2, 3) = CMPLX(0.14_dp, -0.17_dp, KIND=dp)
+      DO i = 1, n
+         DO j = i + 1, n
+            hamiltonian(j, i) = CONJG(hamiltonian(i, j))
+         END DO
+      END DO
+      overlap(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      DO i = 1, n
+         overlap(i, i) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+      END DO
+      occupation = [1.0_dp, 0.37_dp]
+
+      CALL dense_inverse_sqrt(MATMUL(CONJG(TRANSPOSE(x_dense)), x_dense), inverse_sqrt)
+      q_dense = MATMUL(x_dense, inverse_sqrt)
+      rotation = dense_antihermitian_exp(generator)
+      c_reference = MATMUL(q_dense, rotation)
+
+      ALLOCATE (local_para_env)
+      CALL local_para_env%from_dup(mp_comm_self)
+      CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=local_para_env)
+
+      ALLOCATE (pgrid(0:0, 0:0), row_dist(1), col_dist(1), row_n(1), row_k(1), &
+                col_n(1), col_k(1))
+      pgrid(:, :) = 0
+      row_dist(:) = 0
+      col_dist(:) = 0
+      row_n(:) = n
+      col_n(:) = n
+      row_k(:) = k
+      col_k(:) = k
+      CALL dbcsr_distribution_new(dist_nk, group=mp_comm_self%get_handle(), pgrid=pgrid, &
+                                  row_dist=row_dist, col_dist=col_dist)
+      CALL dbcsr_distribution_new(dist_nn, group=mp_comm_self%get_handle(), pgrid=pgrid, &
+                                  row_dist=row_dist, col_dist=col_dist)
+      CALL dbcsr_distribution_new(dist_kk, group=mp_comm_self%get_handle(), pgrid=pgrid, &
+                                  row_dist=row_dist, col_dist=col_dist)
+
+      CALL create_one_block(x_re, 'rotation_ref_x_re', dist_nk, row_n, col_k)
+      CALL create_one_block(x_im, 'rotation_ref_x_im', dist_nk, row_n, col_k)
+      CALL create_one_block(sx_re, 'rotation_ref_sx_re', dist_nk, row_n, col_k)
+      CALL create_one_block(sx_im, 'rotation_ref_sx_im', dist_nk, row_n, col_k)
+      CALL create_one_block(c_re, 'rotation_ref_c_re', dist_nk, row_n, col_k)
+      CALL create_one_block(c_im, 'rotation_ref_c_im', dist_nk, row_n, col_k)
+      CALL create_one_block(hc_re, 'rotation_ref_hc_re', dist_nk, row_n, col_k)
+      CALL create_one_block(hc_im, 'rotation_ref_hc_im', dist_nk, row_n, col_k)
+      CALL create_one_block(g_re, 'rotation_ref_g_re', dist_nk, row_n, col_k)
+      CALL create_one_block(g_im, 'rotation_ref_g_im', dist_nk, row_n, col_k)
+      CALL create_one_block(s_re, 'rotation_ref_s_re', dist_nn, row_n, col_n)
+      CALL create_one_block(s_im, 'rotation_ref_s_im', dist_nn, row_n, col_n)
+      CALL create_one_block(f_re, 'rotation_ref_f_re', dist_kk, row_k, col_k)
+      CALL create_one_block(f_im, 'rotation_ref_f_im', dist_kk, row_k, col_k)
+      DO i = 1, SIZE(sym_buffer)
+         CALL create_one_block(sym_buffer(i), 'rotation_ref_sym', dist_kk, row_k, col_k)
+      END DO
+      DO i = 1, SIZE(nonsym_buffer)
+         CALL create_one_block(nonsym_buffer(i), 'rotation_ref_nonsym', dist_kk, row_k, col_k)
+      END DO
+      DO i = 1, SIZE(nk_buffer)
+         CALL create_one_block(nk_buffer(i), 'rotation_ref_nk', dist_nk, row_n, col_k)
+      END DO
+      DO i = 1, SIZE(rot_matrix)
+         CALL create_one_block(rot_matrix(i), 'rotation_ref_rot', dist_kk, row_k, col_k)
+      END DO
+
+      CALL put_complex_pair(x_re, x_im, x_dense)
+      CALL put_complex_pair(s_re, s_im, overlap)
+      CALL put_complex_pair(rot_matrix(3), rot_matrix(4), generator)
+
+      rotation_env%has_complex_kpoint_state = .TRUE.
+      rotation_env%settings%do_rotation = .TRUE.
+      rotation_env%settings%eps_irac_filter_matrix = 0.0_dp
+      rotation_env%settings%ot_method = 'LBFG'
+      rotation_env%para_env => local_para_env
+      rotation_env%blacs_env => blacs_env
+      rotation_env%matrix_x => x_re
+      rotation_env%matrix_x_im => x_im
+      rotation_env%matrix_sx => sx_re
+      rotation_env%matrix_sx_im => sx_im
+      rotation_env%matrix_gx => g_re
+      rotation_env%matrix_gx_im => g_im
+      rotation_env%matrix_ref_inv_sqrt => f_re
+      rotation_env%matrix_ref_inv_sqrt_im => f_im
+      rotation_env%buf1_k_k_sym => sym_buffer(1)
+      rotation_env%buf2_k_k_sym => sym_buffer(2)
+      rotation_env%buf3_k_k_sym => sym_buffer(3)
+      rotation_env%buf4_k_k_sym => sym_buffer(4)
+      rotation_env%buf1_k_k_nosym => nonsym_buffer(1)
+      rotation_env%buf2_k_k_nosym => nonsym_buffer(2)
+      rotation_env%buf3_k_k_nosym => nonsym_buffer(3)
+      rotation_env%buf1_n_k => nk_buffer(1)
+      rotation_env%buf1_n_k_dp => nk_buffer(2)
+      rotation_env%rot_mat_u => rot_matrix(1)
+      rotation_env%rot_mat_u_im => rot_matrix(2)
+      rotation_env%rot_mat_x => rot_matrix(3)
+      rotation_env%rot_mat_x_im => rot_matrix(4)
+      rotation_env%rot_mat_dedu => rot_matrix(5)
+      rotation_env%rot_mat_dedu_im => rot_matrix(6)
+      rotation_env%rot_mat_gx => rot_matrix(7)
+      rotation_env%rot_mat_gx_im => rot_matrix(8)
+      rotation_env%rot_mat_evec_re => rot_matrix(9)
+      rotation_env%rot_mat_evec_im => rot_matrix(10)
+      rotation_env%rot_mat_evals => rotation_evals
+
+      c_re_p => c_re
+      c_im_p => c_im
+      s_re_p => s_re
+      s_im_p => s_im
+      CALL qs_ot_get_orbitals_ref_complex(c_re_p, c_im_p, s_re_p, s_im_p, rotation_env)
+      CALL get_complex_pair(c_re, c_im, c_dense)
+      error_c = MAXVAL(ABS(c_dense - c_reference))
+
+      hc_dense = 2.0_dp*MATMUL(hamiltonian, c_dense)
+      DO j = 1, k
+         hc_dense(:, j) = occupation(j)*hc_dense(:, j)
+      END DO
+      CALL put_complex_pair(hc_re, hc_im, hc_dense)
+      hc_re_p => hc_re
+      hc_im_p => hc_im
+      CALL qs_ot_get_derivative_ref_complex(hc_re_p, hc_im_p, rotation_env)
+      CALL get_complex_pair(g_re, g_im, gradient_x)
+      CALL get_complex_pair(rot_matrix(7), rot_matrix(8), gradient_a)
+
+      hstep = 1.0E-6_dp
+      fd_ref = (rotated_polar_energy(x_dense + hstep*direction_x, generator, &
+                                     hamiltonian, occupation) - &
+                rotated_polar_energy(x_dense - hstep*direction_x, generator, &
+                                     hamiltonian, occupation))/(2.0_dp*hstep)
+      predicted_ref = REAL(SUM(CONJG(gradient_x)*direction_x), KIND=dp)
+      error_ref = ABS(predicted_ref - fd_ref)
+
+      fd_rot = (rotated_polar_energy(x_dense, generator + hstep*direction_a, &
+                                     hamiltonian, occupation) - &
+                rotated_polar_energy(x_dense, generator - hstep*direction_a, &
+                                     hamiltonian, occupation))/(2.0_dp*hstep)
+      predicted_rot = 0.5_dp*(SUM(REAL(gradient_a, KIND=dp)*REAL(direction_a, KIND=dp)) + &
+                              SUM(AIMAG(gradient_a)*AIMAG(direction_a)))
+      error_rot = ABS(predicted_rot - fd_rot)
+
+      IF (error_c > 5.0E-11_dp .OR. error_ref > 5.0E-8_dp .OR. &
+          error_rot > 5.0E-8_dp) nfail = nfail + 1
+      IF (para_env%is_source()) THEN
+         WRITE (io_unit, '(A,1X,ES13.6)') 'complex finite REF rotation orbital error', error_c
+         WRITE (io_unit, '(A,3(1X,ES13.6))') 'complex finite REF slope fd/predicted/error', &
+            fd_ref, predicted_ref, error_ref
+         WRITE (io_unit, '(A,3(1X,ES13.6))') 'complex finite rotation slope fd/predicted/error', &
+            fd_rot, predicted_rot, error_rot
+      END IF
+
+      DO i = 1, SIZE(rot_matrix)
+         CALL dbcsr_release(rot_matrix(i))
+      END DO
+      DO i = 1, SIZE(nk_buffer)
+         CALL dbcsr_release(nk_buffer(i))
+      END DO
+      DO i = 1, SIZE(nonsym_buffer)
+         CALL dbcsr_release(nonsym_buffer(i))
+      END DO
+      DO i = 1, SIZE(sym_buffer)
+         CALL dbcsr_release(sym_buffer(i))
+      END DO
+      CALL dbcsr_release(f_im)
+      CALL dbcsr_release(f_re)
+      CALL dbcsr_release(s_im)
+      CALL dbcsr_release(s_re)
+      CALL dbcsr_release(g_im)
+      CALL dbcsr_release(g_re)
+      CALL dbcsr_release(hc_im)
+      CALL dbcsr_release(hc_re)
+      CALL dbcsr_release(c_im)
+      CALL dbcsr_release(c_re)
+      CALL dbcsr_release(sx_im)
+      CALL dbcsr_release(sx_re)
+      CALL dbcsr_release(x_im)
+      CALL dbcsr_release(x_re)
+      CALL dbcsr_distribution_release(dist_kk)
+      CALL dbcsr_distribution_release(dist_nn)
+      CALL dbcsr_distribution_release(dist_nk)
+      DEALLOCATE (pgrid, row_dist, col_dist, row_n, row_k, col_n, col_k)
+      CALL cp_blacs_env_release(blacs_env)
+      CALL mp_para_env_release(local_para_env)
+
+   END SUBROUTINE test_complex_ref_rotation
+
+! **************************************************************************************************
+!> \brief Check the finite complex rotation Frechet derivative against central differences.
+!> \param para_env parallel environment
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_complex_rotation_frechet(para_env, nfail)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: m = 3
+
+      COMPLEX(KIND=dp), DIMENSION(m, m)                  :: direction, fd, generator, predicted
+      INTEGER                                            :: i, j
+      REAL(KIND=dp)                                      :: error, hstep
+      REAL(KIND=dp), DIMENSION(m)                        :: evals
+
+      evals = [-0.7_dp, 0.2000003_dp, 1.1_dp]
+      generator(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      DO i = 1, m
+         generator(i, i) = CMPLX(0.0_dp, -evals(i), KIND=dp)
+      END DO
+      direction(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      direction(1, 2) = CMPLX(0.17_dp, -0.09_dp, KIND=dp)
+      direction(2, 1) = -CONJG(direction(1, 2))
+      direction(1, 3) = CMPLX(-0.06_dp, 0.13_dp, KIND=dp)
+      direction(3, 1) = -CONJG(direction(1, 3))
+      direction(2, 3) = CMPLX(0.11_dp, 0.04_dp, KIND=dp)
+      direction(3, 2) = -CONJG(direction(2, 3))
+      direction(1, 1) = CMPLX(0.0_dp, 0.08_dp, KIND=dp)
+      direction(2, 2) = CMPLX(0.0_dp, -0.03_dp, KIND=dp)
+      direction(3, 3) = CMPLX(0.0_dp, 0.05_dp, KIND=dp)
+
+      DO i = 1, m
+         DO j = 1, m
+            predicted(i, j) = qs_ot_complex_exp_frechet_kernel(evals(i), evals(j))* &
+                              direction(i, j)
+         END DO
+      END DO
+      hstep = 1.0E-6_dp
+      fd = (dense_antihermitian_exp(generator + hstep*direction) - &
+            dense_antihermitian_exp(generator - hstep*direction))/(2.0_dp*hstep)
+      error = MAXVAL(ABS(fd - predicted))
+      IF (error > 5.0E-9_dp) nfail = nfail + 1
+      IF (para_env%is_source()) THEN
+         WRITE (io_unit, '(A,1X,ES13.6)') 'complex rotation Frechet finite-difference error', error
+      END IF
+
+   END SUBROUTINE test_complex_rotation_frechet
+
+! **************************************************************************************************
+!> \brief Check union handling for distinct real/imaginary DBCSR block patterns.
+!> \param para_env parallel environment
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_sparse_frechet_patterns(para_env, nfail)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      COMPLEX(KIND=dp)                                   :: expected, value
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_size, row_dist, row_size
+      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: error
+      REAL(KIND=dp), DIMENSION(2)                        :: evals
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
+      TYPE(dbcsr_distribution_type)                      :: dist
+      TYPE(dbcsr_type)                                   :: inner_im, inner_re, outer_im, outer_re
+
+      ALLOCATE (pgrid(0:0, 0:0), row_dist(2), col_dist(2), row_size(2), col_size(2))
+      pgrid(:, :) = 0
+      row_dist(:) = 0
+      col_dist(:) = 0
+      row_size(:) = 1
+      col_size(:) = 1
+      CALL dbcsr_distribution_new(dist, group=mp_comm_self%get_handle(), pgrid=pgrid, &
+                                  row_dist=row_dist, col_dist=col_dist)
+      CALL dbcsr_create(inner_re, 'frechet_sparse_re', dist, dbcsr_type_no_symmetry, row_size, col_size)
+      CALL dbcsr_reserve_blocks(inner_re, rows=[1], cols=[2])
+      CALL dbcsr_finalize(inner_re)
+      CALL dbcsr_create(inner_im, 'frechet_sparse_im', dist, dbcsr_type_no_symmetry, row_size, col_size)
+      CALL dbcsr_reserve_blocks(inner_im, rows=[2], cols=[1])
+      CALL dbcsr_finalize(inner_im)
+      CALL dbcsr_put_block(inner_re, 1, 2, RESHAPE([0.37_dp], [1, 1]))
+      CALL dbcsr_put_block(inner_im, 2, 1, RESHAPE([-0.21_dp], [1, 1]))
+
+      evals = [-0.4_dp, 0.9_dp]
+      CALL qs_ot_apply_complex_frechet_dbcsr(evals, inner_re, inner_im, outer_re, outer_im)
+      error = 0.0_dp
+      expected = qs_ot_complex_exp_frechet_kernel(evals(1), evals(2))*CMPLX(0.37_dp, 0.0_dp, KIND=dp)
+      value = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      CALL dbcsr_get_block_p(outer_re, 1, 2, block, found)
+      IF (found) value = value + CMPLX(block(1, 1), 0.0_dp, KIND=dp)
+      CALL dbcsr_get_block_p(outer_im, 1, 2, block, found)
+      IF (found) value = value + CMPLX(0.0_dp, block(1, 1), KIND=dp)
+      error = MAX(error, ABS(value - expected))
+
+      expected = qs_ot_complex_exp_frechet_kernel(evals(2), evals(1))*CMPLX(0.0_dp, -0.21_dp, KIND=dp)
+      value = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      CALL dbcsr_get_block_p(outer_re, 2, 1, block, found)
+      IF (found) value = value + CMPLX(block(1, 1), 0.0_dp, KIND=dp)
+      CALL dbcsr_get_block_p(outer_im, 2, 1, block, found)
+      IF (found) value = value + CMPLX(0.0_dp, block(1, 1), KIND=dp)
+      error = MAX(error, ABS(value - expected))
+      IF (error > 5.0E-14_dp) nfail = nfail + 1
+      IF (para_env%is_source()) THEN
+         WRITE (io_unit, '(A,1X,ES13.6)') 'sparse complex Frechet block-union error', error
+      END IF
+
+      CALL dbcsr_release(outer_im)
+      CALL dbcsr_release(outer_re)
+      CALL dbcsr_release(inner_im)
+      CALL dbcsr_release(inner_re)
+      CALL dbcsr_distribution_release(dist)
+      DEALLOCATE (pgrid, row_dist, col_dist, row_size, col_size)
+
+   END SUBROUTINE test_sparse_frechet_patterns
 ! **************************************************************************************************
 !> \brief Check the finite complex STRICT chart and its analytic derivative.
 !> \param dist_nk distribution for orbital-shaped matrices
@@ -734,6 +1105,57 @@ CONTAINS
       CALL dbcsr_put_block(matrix_im, 1, 1, AIMAG(matrix))
 
    END SUBROUTINE put_complex_pair
+
+! **************************************************************************************************
+!> \brief Retrieve a dense complex matrix from a one-block DBCSR pair.
+!> \param matrix_re ...
+!> \param matrix_im ...
+!> \param matrix ...
+! **************************************************************************************************
+   SUBROUTINE get_complex_pair(matrix_re, matrix_im, matrix)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_re, matrix_im
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: matrix
+
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
+
+      matrix(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      CALL dbcsr_get_block_p(matrix_re, 1, 1, block, found)
+      IF (found) matrix = matrix + CMPLX(block, 0.0_dp, KIND=dp)
+      CALL dbcsr_get_block_p(matrix_im, 1, 1, block, found)
+      IF (found) matrix = matrix + CMPLX(0.0_dp, block, KIND=dp)
+
+   END SUBROUTINE get_complex_pair
+
+! **************************************************************************************************
+!> \brief Dense fixed-occupation energy after finite REF orthogonalization and rotation.
+!> \param x REF coordinate
+!> \param generator anti-Hermitian rotation generator
+!> \param hamiltonian Hermitian one-particle Hamiltonian
+!> \param occupation orbital occupations
+!> \return energy
+! **************************************************************************************************
+   FUNCTION rotated_polar_energy(x, generator, hamiltonian, occupation) RESULT(energy)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: x, generator, hamiltonian
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation
+      REAL(KIND=dp)                                      :: energy
+
+      COMPLEX(KIND=dp), &
+         DIMENSION(SIZE(x, 1), SIZE(x, 2))               :: orbitals
+      COMPLEX(KIND=dp), &
+         DIMENSION(SIZE(x, 2), SIZE(x, 2))               :: inverse_sqrt, rotation
+      INTEGER                                            :: i
+
+      CALL dense_inverse_sqrt(MATMUL(CONJG(TRANSPOSE(x)), x), inverse_sqrt)
+      rotation = dense_antihermitian_exp(generator)
+      orbitals = MATMUL(MATMUL(x, inverse_sqrt), rotation)
+      energy = 0.0_dp
+      DO i = 1, SIZE(occupation)
+         energy = energy + occupation(i)* &
+                  REAL(DOT_PRODUCT(orbitals(:, i), MATMUL(hamiltonian, orbitals(:, i))), KIND=dp)
+      END DO
+
+   END FUNCTION rotated_polar_energy
 
 ! **************************************************************************************************
 !> \brief Dense reference exponential for an anti-Hermitian matrix.
