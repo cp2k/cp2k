@@ -50,14 +50,12 @@ PROGRAM qs_ot_complex_ref_unittest
    USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                               init_preconditioner,&
                                               preconditioner_type
-   USE qs_ot,                           ONLY: qs_ot_apply_complex_frechet_dbcsr,&
-                                              qs_ot_complex_exp_frechet_kernel,&
-                                              qs_ot_generate_rotation,&
-                                              qs_ot_get_derivative_complex,&
-                                              qs_ot_get_derivative_ref_complex,&
-                                              qs_ot_get_orbitals_ref_complex,&
-                                              qs_ot_get_p_complex,&
-                                              qs_ot_rot_mat_derivative
+   USE qs_ot,                           ONLY: &
+        qs_ot_apply_complex_frechet_dbcsr, qs_ot_complex_exp_frechet_kernel, &
+        qs_ot_fixed_n_energy_gradient, qs_ot_fixed_n_energy_hessian, &
+        qs_ot_fixed_n_projector_frechet, qs_ot_generate_rotation, qs_ot_get_derivative_complex, &
+        qs_ot_get_derivative_ref_complex, qs_ot_get_orbitals_ref_complex, qs_ot_get_p_complex, &
+        qs_ot_rot_mat_derivative
    USE qs_ot_types,                     ONLY: qs_ot_kpoint_preconditioner_scale,&
                                               qs_ot_kpoint_preconditioner_solver_supported,&
                                               qs_ot_kpoint_preconditioner_supported,&
@@ -94,6 +92,8 @@ PROGRAM qs_ot_complex_ref_unittest
    mynode = mp_comm%mepos
    io_unit = -1
    IF (mynode == 0) io_unit = default_output_unit
+   CALL test_fixed_n_mermin_energy(mynode, nfail)
+   CALL test_fixed_n_projector_frechet(mynode, nfail)
    ALLOCATE (para_env)
    CALL para_env%from_dup(mp_comm)
    CALL cp_logger_create(logger, para_env=para_env, default_global_unit_nr=io_unit, &
@@ -237,6 +237,276 @@ PROGRAM qs_ot_complex_ref_unittest
    IF (nfail > 0) ERROR STOP "qs_ot_complex_ref_unittest failed"
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Check the fixed-N Mermin gradient, dense gauge projector, and occupation Hessian.
+!> \param mynode MPI rank
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_fixed_n_mermin_energy(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: nbands = 4
+      REAL(KIND=dp), PARAMETER                           :: fd_step = 1.0E-6_dp, maxocc = 2.0_dp, &
+                                                            target_electrons = 2.25_dp, &
+                                                            temperature = 0.07_dp
+
+      REAL(KIND=dp)                                      :: fd_slope, gradient_error, hessian_error, &
+                                                            mu, predicted_slope, response_sum, &
+                                                            weighted_residual
+      REAL(KIND=dp), DIMENSION(nbands) :: direction, energies, gradient, gradient_minus, &
+         gradient_plus, hessian_action, occupation, rayleigh, response, response_minus, &
+         response_plus, weights
+      REAL(KIND=dp), DIMENSION(nbands, nbands)           :: hessian
+
+      energies(:) = [-0.24_dp, -0.05_dp, 0.08_dp, 0.31_dp]
+      rayleigh(:) = [-0.19_dp, -0.02_dp, 0.04_dp, 0.27_dp]
+      weights(:) = [0.35_dp, 0.35_dp, 0.65_dp, 0.65_dp]
+      direction(:) = [0.17_dp, -0.11_dp, 0.08_dp, -0.05_dp]
+
+      CALL fixed_n_fermi_occupations(energies, weights, target_electrons, temperature, &
+                                     maxocc, occupation, mu)
+      response(:) = weights(:)*occupation(:)*(maxocc - occupation(:))/(maxocc*temperature)
+      response_sum = SUM(response)
+      weighted_residual = DOT_PRODUCT(response, rayleigh - energies)
+      CALL qs_ot_fixed_n_energy_gradient(rayleigh, energies, response, response_sum, &
+                                         weighted_residual, gradient)
+
+      fd_slope = (fixed_n_mermin_value(rayleigh, energies + fd_step*direction, weights, &
+                                       target_electrons, temperature, maxocc) - &
+                  fixed_n_mermin_value(rayleigh, energies - fd_step*direction, weights, &
+                                       target_electrons, temperature, maxocc))/(2.0_dp*fd_step)
+      predicted_slope = DOT_PRODUCT(gradient, direction)
+      gradient_error = MAX(ABS(fd_slope - predicted_slope), ABS(SUM(gradient)))
+
+      ! At the canonical point h_i=e_i, the exact local Hessian is the dense fixed-N projector.
+      rayleigh(:) = energies(:)
+      CALL qs_ot_fixed_n_energy_hessian(response, response_sum, hessian)
+      hessian_action(:) = MATMUL(hessian, direction)
+
+      CALL fixed_n_fermi_occupations(energies + fd_step*direction, weights, target_electrons, &
+                                     temperature, maxocc, occupation, mu)
+      response_plus(:) = weights(:)*occupation(:)*(maxocc - occupation(:))/(maxocc*temperature)
+      weighted_residual = DOT_PRODUCT(response_plus, rayleigh - energies - fd_step*direction)
+      CALL qs_ot_fixed_n_energy_gradient(rayleigh, energies + fd_step*direction, response_plus, &
+                                         SUM(response_plus), weighted_residual, gradient_plus)
+
+      CALL fixed_n_fermi_occupations(energies - fd_step*direction, weights, target_electrons, &
+                                     temperature, maxocc, occupation, mu)
+      response_minus(:) = weights(:)*occupation(:)*(maxocc - occupation(:))/(maxocc*temperature)
+      weighted_residual = DOT_PRODUCT(response_minus, rayleigh - energies + fd_step*direction)
+      CALL qs_ot_fixed_n_energy_gradient(rayleigh, energies - fd_step*direction, response_minus, &
+                                         SUM(response_minus), weighted_residual, gradient_minus)
+
+      hessian_error = MAXVAL(ABS((gradient_plus - gradient_minus)/(2.0_dp*fd_step) - &
+                                 hessian_action))
+      hessian_error = MAX(hessian_error, MAXVAL(ABS(hessian - TRANSPOSE(hessian))))
+      hessian_error = MAX(hessian_error, MAXVAL(ABS(MATMUL(hessian, SPREAD(1.0_dp, 1, nbands)))))
+
+      IF (gradient_error > 2.0E-8_dp .OR. hessian_error > 2.0E-7_dp) nfail = nfail + 1
+      IF (mynode == 0) THEN
+         WRITE (io_unit, '(A,2(1X,ES13.6))') "fixed-N Mermin gradient/Hessian errors:", &
+            gradient_error, hessian_error
+      END IF
+
+   END SUBROUTINE test_fixed_n_mermin_energy
+
+! **************************************************************************************************
+!> \brief Check the complex fixed-N spectral occupation-projector derivative by finite differences.
+!> \param mynode MPI rank
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_fixed_n_projector_frechet(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: nbands = 3
+      REAL(KIND=dp), PARAMETER :: fd_step = 1.0E-6_dp, kpoint_weight = 0.75_dp, maxocc = 2.0_dp, &
+         target_electrons = 2.10_dp, temperature = 0.09_dp
+
+      COMPLEX(KIND=dp), DIMENSION(nbands, nbands)        :: dchc, derivative, derivative_fd, &
+                                                            hamiltonian, projector_minus, &
+                                                            projector_plus, vectors
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: error, mu, trace_error
+      REAL(KIND=dp), DIMENSION(nbands)                   :: eigenvalues, occupation, response, &
+                                                            weights
+
+      hamiltonian(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      hamiltonian(1, 1) = CMPLX(-0.22_dp, 0.0_dp, KIND=dp)
+      hamiltonian(2, 2) = CMPLX(0.03_dp, 0.0_dp, KIND=dp)
+      hamiltonian(3, 3) = CMPLX(0.28_dp, 0.0_dp, KIND=dp)
+      hamiltonian(1, 2) = CMPLX(0.04_dp, -0.03_dp, KIND=dp)
+      hamiltonian(2, 1) = CONJG(hamiltonian(1, 2))
+      hamiltonian(2, 3) = CMPLX(-0.02_dp, 0.05_dp, KIND=dp)
+      hamiltonian(3, 2) = CONJG(hamiltonian(2, 3))
+
+      dchc(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      dchc(1, 1) = CMPLX(0.13_dp, 0.0_dp, KIND=dp)
+      dchc(2, 2) = CMPLX(-0.08_dp, 0.0_dp, KIND=dp)
+      dchc(3, 3) = CMPLX(0.05_dp, 0.0_dp, KIND=dp)
+      dchc(1, 2) = CMPLX(0.17_dp, -0.11_dp, KIND=dp)
+      dchc(2, 1) = CONJG(dchc(1, 2))
+      dchc(2, 3) = CMPLX(0.12_dp, 0.09_dp, KIND=dp)
+      dchc(3, 2) = CONJG(dchc(2, 3))
+
+      CALL diag_complex(hamiltonian, vectors, eigenvalues)
+      weights(:) = kpoint_weight
+      CALL fixed_n_fermi_occupations(eigenvalues, weights, target_electrons, temperature, &
+                                     maxocc, occupation, mu)
+      response(:) = weights(:)*occupation(:)*(maxocc - occupation(:))/(maxocc*temperature)
+      CALL qs_ot_fixed_n_projector_frechet(hamiltonian, dchc, occupation, kpoint_weight, &
+                                           response, SUM(response), derivative)
+
+      CALL fixed_n_spectral_projector(hamiltonian + fd_step*dchc, weights, target_electrons, &
+                                      temperature, maxocc, projector_plus)
+      CALL fixed_n_spectral_projector(hamiltonian - fd_step*dchc, weights, target_electrons, &
+                                      temperature, maxocc, projector_minus)
+      derivative_fd(:, :) = (projector_plus - projector_minus)/(2.0_dp*fd_step)
+      error = MAXVAL(ABS(derivative - derivative_fd))
+      trace_error = 0.0_dp
+      DO i = 1, nbands
+         trace_error = trace_error + REAL(derivative(i, i), KIND=dp)
+      END DO
+      error = MAX(error, ABS(trace_error))
+
+      IF (error > 3.0E-7_dp) nfail = nfail + 1
+      IF (mynode == 0) WRITE (io_unit, '(A,1X,ES13.6)') &
+         "fixed-N complex occupation-projector error:", error
+
+   END SUBROUTINE test_fixed_n_projector_frechet
+
+! **************************************************************************************************
+!> \brief Solve fixed-N Fermi occupations by bisection.
+!> \param energies band energies
+!> \param weights integration weights
+!> \param target_electrons requested electron number
+!> \param temperature electronic temperature in energy units
+!> \param maxocc maximum band occupation
+!> \param occupation resulting occupations
+!> \param mu resulting chemical potential
+! **************************************************************************************************
+   SUBROUTINE fixed_n_fermi_occupations(energies, weights, target_electrons, temperature, &
+                                        maxocc, occupation, mu)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: energies, weights
+      REAL(KIND=dp), INTENT(IN)                          :: target_electrons, temperature, maxocc
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: occupation
+      REAL(KIND=dp), INTENT(OUT)                         :: mu
+
+      INTEGER                                            :: i, iteration
+      REAL(KIND=dp)                                      :: high, low, number
+
+      low = MINVAL(energies) - 80.0_dp*temperature
+      high = MAXVAL(energies) + 80.0_dp*temperature
+      DO iteration = 1, 160
+         mu = 0.5_dp*(low + high)
+         number = 0.0_dp
+         DO i = 1, SIZE(energies)
+            occupation(i) = fermi_occupation(energies(i), mu, temperature, maxocc)
+            number = number + weights(i)*occupation(i)
+         END DO
+         IF (number < target_electrons) THEN
+            low = mu
+         ELSE
+            high = mu
+         END IF
+      END DO
+      mu = 0.5_dp*(low + high)
+      DO i = 1, SIZE(energies)
+         occupation(i) = fermi_occupation(energies(i), mu, temperature, maxocc)
+      END DO
+
+   END SUBROUTINE fixed_n_fermi_occupations
+
+! **************************************************************************************************
+!> \brief Numerically stable Fermi occupation.
+!> \param energy band energy
+!> \param mu chemical potential
+!> \param temperature electronic temperature in energy units
+!> \param maxocc maximum band occupation
+!> \return Fermi occupation
+! **************************************************************************************************
+   PURE FUNCTION fermi_occupation(energy, mu, temperature, maxocc) RESULT(occupation)
+      REAL(KIND=dp), INTENT(IN)                          :: energy, mu, temperature, maxocc
+      REAL(KIND=dp)                                      :: occupation
+
+      REAL(KIND=dp)                                      :: x
+
+      x = (energy - mu)/temperature
+      IF (x > 40.0_dp) THEN
+         occupation = maxocc*EXP(-x)
+      ELSE IF (x < -40.0_dp) THEN
+         occupation = maxocc*(1.0_dp - EXP(x))
+      ELSE
+         occupation = maxocc/(1.0_dp + EXP(x))
+      END IF
+
+   END FUNCTION fermi_occupation
+
+! **************************************************************************************************
+!> \brief Fixed-H fixed-N Mermin free energy used by the finite-difference test.
+!> \param rayleigh Hamiltonian expectation values
+!> \param energies auxiliary band energies
+!> \param weights integration weights
+!> \param target_electrons requested electron number
+!> \param temperature electronic temperature in energy units
+!> \param maxocc maximum band occupation
+!> \return fixed-N Mermin free energy
+! **************************************************************************************************
+   FUNCTION fixed_n_mermin_value(rayleigh, energies, weights, target_electrons, &
+                                 temperature, maxocc) RESULT(value)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rayleigh, energies, weights
+      REAL(KIND=dp), INTENT(IN)                          :: target_electrons, temperature, maxocc
+      REAL(KIND=dp)                                      :: value
+
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: mu, p
+      REAL(KIND=dp), DIMENSION(SIZE(energies))           :: occupation
+
+      CALL fixed_n_fermi_occupations(energies, weights, target_electrons, temperature, &
+                                     maxocc, occupation, mu)
+      value = 0.0_dp
+      DO i = 1, SIZE(energies)
+         p = MAX(EPSILON(1.0_dp), MIN(1.0_dp - EPSILON(1.0_dp), occupation(i)/maxocc))
+         value = value + weights(i)*(occupation(i)*rayleigh(i) + &
+                                     temperature*maxocc*(p*LOG(p) + (1.0_dp - p)*LOG(1.0_dp - p)))
+      END DO
+
+   END FUNCTION fixed_n_mermin_value
+
+! **************************************************************************************************
+!> \brief Canonical weighted occupation projector used by the finite-difference test.
+!> \param hamiltonian Hermitian Hamiltonian
+!> \param weights integration weights
+!> \param target_electrons requested electron number
+!> \param temperature electronic temperature in energy units
+!> \param maxocc maximum band occupation
+!> \param projector weighted spectral occupation projector
+! **************************************************************************************************
+   SUBROUTINE fixed_n_spectral_projector(hamiltonian, weights, target_electrons, temperature, &
+                                         maxocc, projector)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: hamiltonian
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: weights
+      REAL(KIND=dp), INTENT(IN)                          :: target_electrons, temperature, maxocc
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: projector
+
+      COMPLEX(KIND=dp), DIMENSION(SIZE(hamiltonian, 1), &
+         SIZE(hamiltonian, 1))                           :: vectors, weighted_vectors
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: mu
+      REAL(KIND=dp), DIMENSION(SIZE(hamiltonian, 1))     :: eigenvalues, occupation
+
+      CALL diag_complex(hamiltonian, vectors, eigenvalues)
+      CALL fixed_n_fermi_occupations(eigenvalues, weights, target_electrons, temperature, &
+                                     maxocc, occupation, mu)
+      weighted_vectors(:, :) = vectors(:, :)
+      DO i = 1, SIZE(eigenvalues)
+         weighted_vectors(:, i) = weights(i)*occupation(i)*weighted_vectors(:, i)
+      END DO
+      projector(:, :) = MATMUL(weighted_vectors, CONJG(TRANSPOSE(vectors)))
+
+   END SUBROUTINE fixed_n_spectral_projector
 
 ! **************************************************************************************************
 !> \brief Check the real finite rotation pullback used by Gamma-point REF OT.
