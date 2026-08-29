@@ -112,7 +112,8 @@ MODULE qs_scf
                                               mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
-   USE preconditioner,                  ONLY: make_preconditioner_complex_full_kinetic,&
+   USE preconditioner,                  ONLY: make_preconditioner_complex_full_all,&
+                                              make_preconditioner_complex_full_kinetic,&
                                               make_preconditioner_complex_full_s_inverse,&
                                               make_preconditioner_complex_full_single_inverse,&
                                               prepare_preconditioner,&
@@ -1435,9 +1436,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: kpoint_precond_error = &
          "Complex K-point OT supports PRECONDITIONER NONE, FULL_S_INVERSE, "// &
-         "FULL_KINETIC, or FULL_SINGLE_INVERSE.", kpoint_solver_error = &
-         "Complex K-point inverse preconditioners support PRECOND_SOLVER DEFAULT "// &
-         "or INVERSE_CHOLESKY."
+         "FULL_KINETIC, FULL_SINGLE_INVERSE, or FULL_ALL.", kpoint_solver_error = &
+         "Complex K-point FULL_ALL supports PRECOND_SOLVER DEFAULT; inverse "// &
+         "preconditioners support DEFAULT or INVERSE_CHOLESKY."
 
       INTEGER                                            :: ikpoint, ispin, local_kpoint, &
                                                             number_of_OT_envs, ot_channel
@@ -1526,7 +1527,7 @@ CONTAINS
       do_rotation = scf_env%qs_ot_env(1)%settings%do_rotation
       ! Only full all needs rotation.
       is_full_all = scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all
-      IF (do_rotation .AND. is_full_all) THEN
+      IF (do_rotation .AND. is_full_all .AND. .NOT. do_kpoints) THEN
          CPABORT('PRECONDITIONER FULL_ALL is not compatible with ROTATION.')
       END IF
 
@@ -1967,7 +1968,8 @@ CONTAINS
          RETURN
       END IF
       SELECT CASE (prec_type)
-      CASE (ot_precond_full_single_inverse, ot_precond_full_kinetic, ot_precond_s_inverse)
+      CASE (ot_precond_full_all, ot_precond_full_single_inverse, &
+            ot_precond_full_kinetic, ot_precond_s_inverse)
       CASE DEFAULT
          CPABORT("Unsupported complex K-point OT preconditioner")
       END SELECT
@@ -2006,7 +2008,8 @@ CONTAINS
                         matrix_type=dbcsr_type_antisymmetric)
       CALL cp_dbcsr_alloc_block_from_nbl(matrix_s_re, sab_nl)
       CALL cp_dbcsr_alloc_block_from_nbl(matrix_s_im, sab_nl)
-      IF (prec_type == ot_precond_full_single_inverse) THEN
+      IF (prec_type == ot_precond_full_single_inverse .OR. &
+          prec_type == ot_precond_full_all) THEN
          ALLOCATE (matrix_h_re, matrix_h_im)
          CALL dbcsr_create(matrix_h_re, template=matrix_ks_kp(1, 1)%matrix, &
                            matrix_type=dbcsr_type_symmetric)
@@ -2060,6 +2063,19 @@ CONTAINS
                CYCLE
             END IF
             SELECT CASE (prec_type)
+            CASE (ot_precond_full_all)
+               ks_spin = MIN(ispin, SIZE(matrix_ks_kp, 1))
+               CALL dbcsr_set(matrix_h_re, 0.0_dp)
+               CALL dbcsr_set(matrix_h_im, 0.0_dp)
+               CALL rskp_transform(rmatrix=matrix_h_re, cmatrix=matrix_h_im, rsmat=matrix_ks_kp, &
+                                   ispin=ks_spin, xkp=xkp(1:3, ikpoint), &
+                                   cell_to_index=cell_to_index, sab_nl=sab_nl)
+               CALL make_preconditioner_complex_full_all( &
+                  scf_env%ot_preconditioner(ot_channel)%preconditioner, &
+                  matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
+                  kp%mos(1, ispin), kp%mos(2, ispin), &
+                  scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
+                  scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
             CASE (ot_precond_full_single_inverse)
                ks_spin = MIN(ispin, SIZE(matrix_ks_kp, 1))
                CALL dbcsr_set(matrix_h_re, 0.0_dp)
