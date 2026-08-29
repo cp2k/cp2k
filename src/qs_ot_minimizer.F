@@ -30,6 +30,7 @@ MODULE qs_ot_minimizer
    USE mathlib,                         ONLY: diamat_all
    USE preconditioner,                  ONLY: apply_preconditioner
    USE qs_ot,                           ONLY: qs_ot_get_derivative,&
+                                              qs_ot_get_derivative_complex,&
                                               qs_ot_get_derivative_ref,&
                                               qs_ot_get_derivative_ref_complex
    USE qs_ot_types,                     ONLY: qs_ot_kpoint_preconditioner_scale,&
@@ -97,12 +98,16 @@ CONTAINS
                      CPABORT("Complex k-point OT derivative requires imaginary H(k)*C(k).")
                   END IF
                   SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
+                  CASE ("TOD")
+                     CALL qs_ot_get_derivative_complex(matrix_hc(ispin)%matrix, &
+                                                       matrix_hc_im(ispin)%matrix, &
+                                                       qs_ot_env(ispin))
                   CASE ("REF")
                      CALL qs_ot_get_derivative_ref_complex(matrix_hc(ispin)%matrix, &
                                                            matrix_hc_im(ispin)%matrix, &
                                                            qs_ot_env(ispin))
                   CASE DEFAULT
-                     CPABORT("Complex k-point OT derivative is implemented for REF only")
+                     CPABORT("Complex k-point OT derivative requires ALGORITHM STRICT or IRAC")
                   END SELECT
                ELSE
                   SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
