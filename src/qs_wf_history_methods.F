@@ -1137,6 +1137,7 @@ CONTAINS
             nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
             CPASSERT(nvec > 0)
             CALL wfi_extrapolate_gext_proj_kp(wf_history, qs_env, nvec, io_unit, print_level)
+            my_orthogonal_wf = .TRUE.
          ELSE
 
             ! figure out the actual number of vectors to use in the extrapolation:
@@ -1211,6 +1212,7 @@ CONTAINS
             nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
             CPASSERT(nvec > 0)
             CALL wfi_extrapolate_gext_proj_kp(wf_history, qs_env, nvec, io_unit, print_level)
+            my_orthogonal_wf = .TRUE.
          ELSE
 
             ! figure out the actual number of vectors to use in the extrapolation:
