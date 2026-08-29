@@ -3006,7 +3006,8 @@ CONTAINS
 
       nthreads = 1
 !$    nthreads = omp_get_max_threads()
-      byrows = nthreads <= natom
+      ! Atom permutations preserve row ownership, while block scheduling can race on a target row.
+      byrows = .TRUE.
 !$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nthreads) &
 !$OMP SHARED(rpmat,cpmat,srpmat,scpmat,real_only,kmat,rot,f0,fcell,atype,xkp,time_reversal, &
 !$OMP        reverse_phase,natom,perm,dorot,has_phase,mynode,numnodes,nthreads,byrows) &
