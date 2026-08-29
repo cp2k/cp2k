@@ -355,9 +355,9 @@ CONTAINS
                   END IF
                   DO ispin = 1, nspins
                      CALL pw_zero(work_matrices%wpw_rspace_sub(ispin))
-                     IF (ASSOCIATED(work_matrices%wpw_tau_rspace_sub)) then
-                       CALL pw_zero(work_matrices%wpw_tau_rspace_sub(ispin))
-                     end if
+                     IF (ASSOCIATED(work_matrices%wpw_tau_rspace_sub)) THEN
+                        CALL pw_zero(work_matrices%wpw_tau_rspace_sub(ispin))
+                     END IF
                   END DO
 
                   CALL qs_fxc_apply(qs_env, kernel_env_admm_aux%xc_deriv_set, kernel_env_admm_aux%xc_rho_set, &
@@ -424,9 +424,9 @@ CONTAINS
                   END IF
                   DO ispin = 1, nspins
                      CALL pw_zero(work_matrices%wpw_rspace_sub(ispin))
-                     IF (ASSOCIATED(work_matrices%wpw_tau_rspace_sub)) then
-                       CALL pw_zero(work_matrices%wpw_tau_rspace_sub(ispin))
-                     end if
+                     IF (ASSOCIATED(work_matrices%wpw_tau_rspace_sub)) THEN
+                        CALL pw_zero(work_matrices%wpw_tau_rspace_sub(ispin))
+                     END IF
                   END DO
 
                   CALL qs_fxc_apply(qs_env, kernel_env_admm_aux%xc_deriv_set, kernel_env_admm_aux%xc_rho_set, &
