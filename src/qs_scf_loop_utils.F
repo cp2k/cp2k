@@ -95,6 +95,8 @@ MODULE qs_scf_loop_utils
    USE scf_control_types,               ONLY: scf_control_type,&
                                               smear_type
    USE smeagol_interface,               ONLY: run_smeagol_emtrans
+   USE smearing_utils,                  ONLY: Smearkp,&
+                                              Smearkp2
    USE tblite_interface,                ONLY: tb_native_scc_mixer_active
 #include "./base/base_uses.f90"
 
@@ -495,12 +497,14 @@ CONTAINS
 
       INTEGER                                            :: first_channel, handle, homo, ikpoint, &
                                                             ispin, local_channel, local_kpoint, &
-                                                            nao, nkpoint, nlocal_channels, nmo, nspin_ot
+                                                            nao, nkpoint, nlocal_channels, nmo, &
+                                                            nspin_ot
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: use_real_wfn
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: orbital_scaling_factor
       REAL(KIND=dp)                                      :: trial_kTS
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: orbital_scaling_factor
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: trial_eigenvalues, trial_occupation
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers, wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct, chc_struct
@@ -509,8 +513,8 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_im
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc, matrix_hc_im, &
-                                                            matrix_hc_rotation, &
-                                                            matrix_hc_rotation_im
+                                                            matrix_hc_physical, &
+                                                            matrix_hc_physical_im
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_target, rho_ao_kp
       TYPE(dbcsr_type), POINTER                          :: matrix_k_im, matrix_k_re, matrix_s_im, &
                                                             matrix_s_re
@@ -529,7 +533,7 @@ CONTAINS
 
       NULLIFY (active_mo_struct, cell_to_index, chc_struct, density_target, dft_control, energy, fmwork, kpoints, &
                local_ot_env, matrix_hc, matrix_hc_im, matrix_k_im, matrix_k_re, matrix_s_im, &
-               matrix_hc_rotation, matrix_hc_rotation_im, matrix_s_re, mo_coeff, mo_coeff_im, &
+               matrix_hc_physical, matrix_hc_physical_im, matrix_s_re, mo_coeff, mo_coeff_im, &
                occupation_numbers, para_env_inter_kp, rho, &
                rho_ao_kp, sab_nl, scf_control, wkp, xkp)
 
@@ -571,8 +575,8 @@ CONTAINS
       ALLOCATE (matrix_hc(nlocal_channels))
       ALLOCATE (matrix_hc_im(nlocal_channels))
       IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
-         ALLOCATE (matrix_hc_rotation(nlocal_channels))
-         ALLOCATE (matrix_hc_rotation_im(nlocal_channels))
+         ALLOCATE (matrix_hc_physical(nlocal_channels))
+         ALLOCATE (matrix_hc_physical_im(nlocal_channels))
       END IF
       DO local_channel = 1, nlocal_channels
          NULLIFY (matrix_hc(local_channel)%matrix)
@@ -585,16 +589,16 @@ CONTAINS
          CALL dbcsr_set(matrix_hc(local_channel)%matrix, 0.0_dp)
          CALL dbcsr_set(matrix_hc_im(local_channel)%matrix, 0.0_dp)
          IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
-            NULLIFY (matrix_hc_rotation(local_channel)%matrix)
-            NULLIFY (matrix_hc_rotation_im(local_channel)%matrix)
-            ALLOCATE (matrix_hc_rotation(local_channel)%matrix)
-            ALLOCATE (matrix_hc_rotation_im(local_channel)%matrix)
-            CALL dbcsr_copy(matrix_hc_rotation(local_channel)%matrix, &
-                            local_ot_env(local_channel)%matrix_x, name="matrix_hc_rotation")
-            CALL dbcsr_copy(matrix_hc_rotation_im(local_channel)%matrix, &
-                            local_ot_env(local_channel)%matrix_x_im, name="matrix_hc_rotation_im")
-            CALL dbcsr_set(matrix_hc_rotation(local_channel)%matrix, 0.0_dp)
-            CALL dbcsr_set(matrix_hc_rotation_im(local_channel)%matrix, 0.0_dp)
+            NULLIFY (matrix_hc_physical(local_channel)%matrix)
+            NULLIFY (matrix_hc_physical_im(local_channel)%matrix)
+            ALLOCATE (matrix_hc_physical(local_channel)%matrix)
+            ALLOCATE (matrix_hc_physical_im(local_channel)%matrix)
+            CALL dbcsr_copy(matrix_hc_physical(local_channel)%matrix, &
+                            local_ot_env(local_channel)%matrix_x, name="matrix_hc_physical")
+            CALL dbcsr_copy(matrix_hc_physical_im(local_channel)%matrix, &
+                            local_ot_env(local_channel)%matrix_x_im, name="matrix_hc_physical_im")
+            CALL dbcsr_set(matrix_hc_physical(local_channel)%matrix, 0.0_dp)
+            CALL dbcsr_set(matrix_hc_physical_im(local_channel)%matrix, 0.0_dp)
          END IF
       END DO
 
@@ -690,6 +694,12 @@ CONTAINS
          END DO
       END DO
 
+      IF (local_ot_env(1)%settings%do_ener) THEN
+         CALL qs_scf_loop_collect_ot_kp_trial_smearing( &
+            kpoints, local_ot_env, first_channel, nspin_ot, kp_range, wkp, para_env_inter_kp, &
+            scf_control%smear, trial_eigenvalues, trial_occupation, trial_kTS)
+      END IF
+
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(local_kpoint)%kpoint_env
          ikpoint = kp%nkpoint
@@ -699,21 +709,25 @@ CONTAINS
                             occupation_numbers=occupation_numbers)
             IF (local_ot_env(local_channel)%settings%do_ener) homo = nmo
             IF (local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
-               CALL dbcsr_copy(matrix_hc_rotation(local_channel)%matrix, &
+               CALL dbcsr_copy(matrix_hc_physical(local_channel)%matrix, &
                                matrix_hc(local_channel)%matrix)
-               CALL dbcsr_copy(matrix_hc_rotation_im(local_channel)%matrix, &
+               CALL dbcsr_copy(matrix_hc_physical_im(local_channel)%matrix, &
                                matrix_hc_im(local_channel)%matrix)
                ALLOCATE (orbital_scaling_factor(homo))
-               orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)*occupation_numbers(1:homo)
-               CALL dbcsr_scale_by_vector(matrix_hc_rotation(local_channel)%matrix, &
+               orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)* &
+                                           trial_occupation(1:homo, ikpoint, ispin)
+               CALL dbcsr_scale_by_vector(matrix_hc_physical(local_channel)%matrix, &
                                           alpha=orbital_scaling_factor, side='right')
-               CALL dbcsr_scale_by_vector(matrix_hc_rotation_im(local_channel)%matrix, &
+               CALL dbcsr_scale_by_vector(matrix_hc_physical_im(local_channel)%matrix, &
                                           alpha=orbital_scaling_factor, side='right')
                DEALLOCATE (orbital_scaling_factor)
             END IF
             ALLOCATE (orbital_scaling_factor(homo))
             IF (local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
                orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)
+            ELSE IF (local_ot_env(local_channel)%settings%do_ener) THEN
+               orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)* &
+                                           trial_occupation(1:homo, ikpoint, ispin)
             ELSE
                orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)*occupation_numbers(1:homo)
             END IF
@@ -738,20 +752,16 @@ CONTAINS
          local_ot_env(1)%OT_METHOD_FULL = "OT Sync"
          local_ot_env(:)%initial_density_sync_pending = .FALSE.
       ELSE
-         trial_kTS = 0.0_dp
          IF (local_ot_env(1)%settings%do_ener) THEN
-            kp => kpoints%kp_env(1)%kpoint_env
-            DO ispin = 1, nspin_ot
-               trial_kTS = trial_kTS + kp%mos(1, ispin)%kTS
-            END DO
             local_ot_env(1)%etotal = energy%total - energy%kTS + trial_kTS
+            CALL qs_scf_loop_prepare_ot_kp_energy_gradient( &
+               kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, &
+               scf_control%smear, trial_eigenvalues, trial_occupation)
          END IF
-         CALL qs_scf_loop_prepare_ot_kp_energy_gradient( &
-            kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, scf_control%smear)
          IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
             CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
-                         matrix_hc_rotation=matrix_hc_rotation, &
-                         matrix_hc_rotation_im=matrix_hc_rotation_im)
+                         matrix_hc_physical=matrix_hc_physical, &
+                         matrix_hc_physical_im=matrix_hc_physical_im)
          ELSE
             CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im)
          END IF
@@ -804,8 +814,12 @@ CONTAINS
          END DO
       END DO
 
-      IF (local_ot_env(1)%settings%do_ener) &
-         CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+      IF (local_ot_env(1)%settings%do_ener) then
+        CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+      end if
+
+      IF (ALLOCATED(trial_eigenvalues)) DEALLOCATE (trial_eigenvalues)
+      IF (ALLOCATED(trial_occupation)) DEALLOCATE (trial_occupation)
 
       fmwork => scf_env%scf_work1
       IF (ASSOCIATED(scf_env%p_mix_new)) THEN
@@ -828,15 +842,16 @@ CONTAINS
          DEALLOCATE (matrix_hc(local_channel)%matrix)
          DEALLOCATE (matrix_hc_im(local_channel)%matrix)
          IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
-            CALL dbcsr_release(matrix_hc_rotation(local_channel)%matrix)
-            CALL dbcsr_release(matrix_hc_rotation_im(local_channel)%matrix)
-            DEALLOCATE (matrix_hc_rotation(local_channel)%matrix)
-            DEALLOCATE (matrix_hc_rotation_im(local_channel)%matrix)
+            CALL dbcsr_release(matrix_hc_physical(local_channel)%matrix)
+            CALL dbcsr_release(matrix_hc_physical_im(local_channel)%matrix)
+            DEALLOCATE (matrix_hc_physical(local_channel)%matrix)
+            DEALLOCATE (matrix_hc_physical_im(local_channel)%matrix)
          END IF
       END DO
       DEALLOCATE (matrix_hc, matrix_hc_im)
-      IF (local_ot_env(1)%settings%occupation_preconditioner) &
-         DEALLOCATE (matrix_hc_rotation, matrix_hc_rotation_im)
+      IF (local_ot_env(1)%settings%occupation_preconditioner) then
+        DEALLOCATE (matrix_hc_physical, matrix_hc_physical_im)
+      end if
 
       CALL dbcsr_deallocate_matrix(matrix_k_re)
       CALL dbcsr_deallocate_matrix(matrix_k_im)
@@ -848,6 +863,94 @@ CONTAINS
    END SUBROUTINE qs_scf_loop_do_ot_kp
 
 ! **************************************************************************************************
+!> \brief collect the global fixed-N trial smearing state used by k-point OT
+!> \param kpoints ...
+!> \param local_ot_env ...
+!> \param first_channel ...
+!> \param nspin_ot ...
+!> \param kp_range ...
+!> \param wkp ...
+!> \param para_env_inter_kp ...
+!> \param smear ...
+!> \param trial_eigenvalues ...
+!> \param trial_occupation ...
+!> \param trial_kTS ...
+! **************************************************************************************************
+   SUBROUTINE qs_scf_loop_collect_ot_kp_trial_smearing( &
+      kpoints, local_ot_env, first_channel, nspin_ot, kp_range, wkp, para_env_inter_kp, smear, &
+      trial_eigenvalues, trial_occupation, trial_kTS)
+
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(qs_ot_type), DIMENSION(:), POINTER            :: local_ot_env
+      INTEGER, INTENT(IN)                                :: first_channel, nspin_ot
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: kp_range
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
+      TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
+      TYPE(smear_type), INTENT(IN)                       :: smear
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: trial_eigenvalues, trial_occupation
+      REAL(KIND=dp), INTENT(OUT)                         :: trial_kTS
+
+      INTEGER                                            :: ikpoint, ispin, local_channel, &
+                                                            local_kpoint, ne_a, ne_b, nelectron, &
+                                                            nkpoint, nmo
+      REAL(KIND=dp)                                      :: kTS, mu, nel
+      REAL(KIND=dp), DIMENSION(2)                        :: mus
+      TYPE(kpoint_env_type), POINTER                     :: kp
+
+      CPASSERT(smear%do_smear)
+      CPASSERT(smear%method == smear_fermi_dirac)
+      CPASSERT(ASSOCIATED(para_env_inter_kp))
+      CALL get_kpoint_info(kpoints, nkp=nkpoint)
+      kp => kpoints%kp_env(1)%kpoint_env
+      CALL get_mo_set(kp%mos(1, 1), nelectron=nelectron, nmo=nmo)
+      ne_a = nelectron
+      ne_b = 0
+      IF (nspin_ot == 2) CALL get_mo_set(kp%mos(1, 2), nelectron=ne_b)
+
+      ALLOCATE (trial_eigenvalues(nmo, nkpoint, nspin_ot))
+      ALLOCATE (trial_occupation(nmo, nkpoint, nspin_ot))
+      trial_eigenvalues(:, :, :) = 0.0_dp
+      trial_occupation(:, :, :) = 0.0_dp
+      mus(:) = 0.0_dp
+
+      DO local_kpoint = 1, SIZE(kpoints%kp_env)
+         kp => kpoints%kp_env(local_kpoint)%kpoint_env
+         ikpoint = kp%nkpoint
+         CPASSERT(ikpoint >= kp_range(1) .AND. ikpoint <= kp_range(2))
+         DO ispin = 1, nspin_ot
+            local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+            trial_eigenvalues(1:nmo, ikpoint, ispin) = &
+               local_ot_env(local_channel)%ener_x(1:nmo)
+         END DO
+      END DO
+      CALL para_env_inter_kp%sum(trial_eigenvalues)
+
+      IF (nspin_ot == 1) THEN
+         nel = REAL(nelectron, KIND=dp)
+         CALL Smearkp(trial_occupation(:, :, 1), mus(1), trial_kTS, &
+                      trial_eigenvalues(:, :, 1), nel, wkp, smear%electronic_temperature, &
+                      2.0_dp, smear_fermi_dirac)
+      ELSE IF (smear%fixed_mag_mom > 0.0_dp) THEN
+         nel = REAL(ne_a, KIND=dp)
+         CALL Smearkp(trial_occupation(:, :, 1), mus(1), kTS, &
+                      trial_eigenvalues(:, :, 1), nel, wkp, smear%electronic_temperature, &
+                      1.0_dp, smear_fermi_dirac)
+         trial_kTS = kTS
+         nel = REAL(ne_b, KIND=dp)
+         CALL Smearkp(trial_occupation(:, :, 2), mus(2), kTS, &
+                      trial_eigenvalues(:, :, 2), nel, wkp, smear%electronic_temperature, &
+                      1.0_dp, smear_fermi_dirac)
+         trial_kTS = trial_kTS + kTS
+      ELSE
+         nel = REAL(ne_a + ne_b, KIND=dp)
+         CALL Smearkp2(trial_occupation, mu, trial_kTS, trial_eigenvalues, nel, wkp, &
+                       smear%electronic_temperature, smear_fermi_dirac)
+         mus(1:2) = mu
+      END IF
+   END SUBROUTINE qs_scf_loop_collect_ot_kp_trial_smearing
+
+! **************************************************************************************************
 !> \brief construct auxiliary-energy gradients on the global fixed-N Mermin surface
 !> \param kpoints ...
 !> \param local_ot_env ...
@@ -856,9 +959,12 @@ CONTAINS
 !> \param wkp ...
 !> \param para_env_inter_kp ...
 !> \param smear ...
+!> \param trial_eigenvalues ...
+!> \param trial_occupation ...
 ! **************************************************************************************************
    SUBROUTINE qs_scf_loop_prepare_ot_kp_energy_gradient( &
-      kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, smear)
+      kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, smear, &
+      trial_eigenvalues, trial_occupation)
 
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: local_ot_env
@@ -866,14 +972,15 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
       TYPE(smear_type), INTENT(IN)                       :: smear
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: trial_eigenvalues, trial_occupation
 
       INTEGER                                            :: group, ikpoint, imo, ispin, &
-                                                            local_channel, local_kpoint, &
-                                                            ngroups, nmo
-      REAL(KIND=dp)                                      :: maxocc, sigma
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fixed_n_residual, &
-                                                            fixed_n_weight, response_weight
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
+                                                            local_channel, local_kpoint, ngroups, &
+                                                            nmo
+      REAL(KIND=dp)                                      :: fixed_n_mean, maxocc, sigma
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fixed_n_residual, fixed_n_weight, &
+                                                            preconditioner_count, &
+                                                            preconditioner_shift, response_weight
       TYPE(kpoint_env_type), POINTER                     :: kp
 
       IF (.NOT. local_ot_env(1)%settings%do_ener) RETURN
@@ -886,9 +993,12 @@ CONTAINS
 
       ngroups = 1
       IF (nspin_ot == 2 .AND. smear%fixed_mag_mom > 0.0_dp) ngroups = 2
-      ALLOCATE (fixed_n_residual(ngroups), fixed_n_weight(ngroups))
+      ALLOCATE (fixed_n_residual(ngroups), fixed_n_weight(ngroups), &
+                preconditioner_count(ngroups), preconditioner_shift(ngroups))
       fixed_n_residual(:) = 0.0_dp
       fixed_n_weight(:) = 0.0_dp
+      preconditioner_count(:) = 0.0_dp
+      preconditioner_shift(:) = 0.0_dp
 
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(local_kpoint)%kpoint_env
@@ -896,46 +1006,75 @@ CONTAINS
          DO ispin = 1, nspin_ot
             group = MERGE(ispin, 1, ngroups == nspin_ot)
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
-            CALL get_mo_set(kp%mos(1, ispin), maxocc=maxocc, nmo=nmo, &
-                            occupation_numbers=occupation_numbers)
+            CALL get_mo_set(kp%mos(1, ispin), maxocc=maxocc, nmo=nmo)
             CPASSERT(maxocc > EPSILON(maxocc))
             CPASSERT(SIZE(local_ot_env(local_channel)%ener_x) == nmo)
             CPASSERT(SIZE(local_ot_env(local_channel)%ener_rayleigh) == nmo)
             DO imo = 1, nmo
                fixed_n_weight(group) = fixed_n_weight(group) + &
-                  wkp(ikpoint)*MAX(0.0_dp, occupation_numbers(imo)* &
-                                   (maxocc - occupation_numbers(imo))/(maxocc*sigma))
+                                       wkp(ikpoint)*MAX(0.0_dp, trial_occupation(imo, ikpoint, ispin)* &
+                                                        (maxocc - trial_occupation(imo, ikpoint, ispin))/(maxocc*sigma))
                fixed_n_residual(group) = fixed_n_residual(group) + &
-                  wkp(ikpoint)*MAX(0.0_dp, occupation_numbers(imo)* &
-                                   (maxocc - occupation_numbers(imo))/(maxocc*sigma))* &
-                  (local_ot_env(local_channel)%ener_rayleigh(imo) - &
-                   local_ot_env(local_channel)%ener_x(imo))
+                                         wkp(ikpoint)*MAX(0.0_dp, trial_occupation(imo, ikpoint, ispin)* &
+                                                          (maxocc - trial_occupation(imo, ikpoint, ispin))/(maxocc*sigma))* &
+                                         (local_ot_env(local_channel)%ener_rayleigh(imo) - &
+                                          trial_eigenvalues(imo, ikpoint, ispin))
             END DO
          END DO
       END DO
       CALL para_env_inter_kp%sum(fixed_n_weight)
       CALL para_env_inter_kp%sum(fixed_n_residual)
 
+      IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
+         DO local_kpoint = 1, SIZE(kpoints%kp_env)
+            kp => kpoints%kp_env(local_kpoint)%kpoint_env
+            ikpoint = kp%nkpoint
+            DO ispin = 1, nspin_ot
+               group = MERGE(ispin, 1, ngroups == nspin_ot)
+               local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+               CALL get_mo_set(kp%mos(1, ispin), nmo=nmo)
+               fixed_n_mean = 0.0_dp
+               IF (fixed_n_weight(group) > EPSILON(fixed_n_weight(group))) then
+                 fixed_n_mean = fixed_n_residual(group)/fixed_n_weight(group)
+               end if
+               local_ot_env(local_channel)%ener_preconditioned_gx(:) = fixed_n_mean - &
+                                                                       (local_ot_env(local_channel)%ener_rayleigh(:) - &
+                                                                        trial_eigenvalues(:, ikpoint, ispin))
+               preconditioner_shift(group) = preconditioner_shift(group) + &
+                                             SUM(local_ot_env(local_channel)%ener_preconditioned_gx)
+               preconditioner_count(group) = preconditioner_count(group) + REAL(nmo, KIND=dp)
+            END DO
+         END DO
+         CALL para_env_inter_kp%sum(preconditioner_shift)
+         CALL para_env_inter_kp%sum(preconditioner_count)
+      END IF
+
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(local_kpoint)%kpoint_env
          ikpoint = kp%nkpoint
          DO ispin = 1, nspin_ot
             group = MERGE(ispin, 1, ngroups == nspin_ot)
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
-            CALL get_mo_set(kp%mos(1, ispin), maxocc=maxocc, nmo=nmo, &
-                            occupation_numbers=occupation_numbers)
+            CALL get_mo_set(kp%mos(1, ispin), maxocc=maxocc, nmo=nmo)
+            IF (local_ot_env(local_channel)%settings%occupation_preconditioner .AND. &
+                preconditioner_count(group) > 0.0_dp) THEN
+               local_ot_env(local_channel)%ener_preconditioned_gx(:) = &
+                  local_ot_env(local_channel)%ener_preconditioned_gx(:) - &
+                  preconditioner_shift(group)/preconditioner_count(group)
+            END IF
             ALLOCATE (response_weight(nmo))
-            response_weight(:) = wkp(ikpoint)*MAX(0.0_dp, occupation_numbers(1:nmo)* &
-                                                  (maxocc - occupation_numbers(1:nmo))/(maxocc*sigma))
+            response_weight(:) = wkp(ikpoint)*MAX(0.0_dp, trial_occupation(1:nmo, ikpoint, ispin)* &
+                                                  (maxocc - trial_occupation(1:nmo, ikpoint, ispin))/ &
+                                                  (maxocc*sigma))
             CALL qs_ot_fixed_n_energy_gradient( &
-               local_ot_env(local_channel)%ener_rayleigh, local_ot_env(local_channel)%ener_x, &
+               local_ot_env(local_channel)%ener_rayleigh, trial_eigenvalues(:, ikpoint, ispin), &
                response_weight, fixed_n_weight(group), fixed_n_residual(group), &
                local_ot_env(local_channel)%ener_gx)
             DEALLOCATE (response_weight)
          END DO
       END DO
 
-      DEALLOCATE (fixed_n_residual, fixed_n_weight)
+      DEALLOCATE (fixed_n_residual, fixed_n_weight, preconditioner_count, preconditioner_shift)
 
    END SUBROUTINE qs_scf_loop_prepare_ot_kp_energy_gradient
 

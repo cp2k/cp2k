@@ -1260,8 +1260,9 @@ CONTAINS
                   END IF
                END IF
                CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
-               IF (.NOT. (dft_control%smear .OR. scf_control%smear%do_smear)) &
-                  CALL qs_ot_set_fixed_kpoint_occupations(kpoints, nspin_ot)
+               IF (.NOT. (dft_control%smear .OR. scf_control%smear%do_smear)) then
+                 CALL qs_ot_set_fixed_kpoint_occupations(kpoints, nspin_ot)
+               end if
 
                ! Build the initial KS matrix from the requested density guess.
                CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., &
@@ -1281,8 +1282,9 @@ CONTAINS
                      CALL qs_ot_copy_kpoint_spin_mos(kpoints, nspin_ot)
                   END IF
                   CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
-                  IF (.NOT. (dft_control%smear .OR. scf_control%smear%do_smear)) &
-                     CALL qs_ot_set_fixed_kpoint_occupations(kpoints, nspin_ot)
+                  IF (.NOT. (dft_control%smear .OR. scf_control%smear%do_smear)) then
+                    CALL qs_ot_set_fixed_kpoint_occupations(kpoints, nspin_ot)
+                  end if
                END IF
 
                CALL allocate_qs_ot_kpoint_state(qs_env=qs_env, &
@@ -1872,8 +1874,9 @@ CONTAINS
             END IF
 
             CALL qs_ot_init(scf_env%qs_ot_env(ot_channel))
-            IF (scf_env%qs_ot_env(ot_channel)%settings%do_ener) &
-               scf_env%qs_ot_env(ot_channel)%ener_x(:) = eigenvalues(1:nocc)
+            IF (scf_env%qs_ot_env(ot_channel)%settings%do_ener) then
+              scf_env%qs_ot_env(ot_channel)%ener_x(:) = eigenvalues(1:nocc)
+            end if
             scf_env%qs_ot_env(ot_channel)%broyden_adaptive_sigma = qs_env%broyden_adaptive_sigma
 
             CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_x, 0.0_dp)
@@ -2177,6 +2180,12 @@ CONTAINS
       CALL dbcsr_init_p(qs_ot_env%matrix_gx_im)
       CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx_im, template=matrix_s, n=nmo, &
                                              sym=dbcsr_type_no_symmetry)
+      IF (qs_ot_env%settings%occupation_preconditioner) THEN
+         CALL dbcsr_init_p(qs_ot_env%matrix_preconditioned_gx_im)
+         CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_preconditioned_gx_im, &
+                                                template=matrix_s, n=nmo, &
+                                                sym=dbcsr_type_no_symmetry)
+      END IF
       SELECT CASE (qs_ot_env%settings%ot_algorithm)
       CASE ("TOD")
          CPASSERT(nmo_ortho == nmo)
