@@ -354,6 +354,7 @@ CONTAINS
       supported = .FALSE.
       IF (.NOT. use_real_wfn) THEN
          supported = preconditioner_type == ot_precond_none .OR. &
+                     preconditioner_type == ot_precond_full_all .OR. &
                      preconditioner_type == ot_precond_full_single_inverse .OR. &
                      preconditioner_type == ot_precond_full_kinetic .OR. &
                      preconditioner_type == ot_precond_s_inverse
@@ -376,9 +377,11 @@ CONTAINS
 
       supported = qs_ot_kpoint_preconditioner_supported(preconditioner_type, use_real_wfn)
       IF (.NOT. supported) RETURN
-      IF (preconditioner_type == ot_precond_full_single_inverse .OR. &
-          preconditioner_type == ot_precond_full_kinetic .OR. &
-          preconditioner_type == ot_precond_s_inverse) THEN
+      IF (preconditioner_type == ot_precond_full_all) THEN
+         supported = solver_type == ot_precond_solver_default
+      ELSE IF (preconditioner_type == ot_precond_full_single_inverse .OR. &
+               preconditioner_type == ot_precond_full_kinetic .OR. &
+               preconditioner_type == ot_precond_s_inverse) THEN
          supported = solver_type == ot_precond_solver_default .OR. &
                      solver_type == ot_precond_solver_inv_chol
       END IF

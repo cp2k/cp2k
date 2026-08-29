@@ -20,7 +20,8 @@ MODULE preconditioner_makes
                                               get_selected_ritz_vector,&
                                               set_arnoldi_initial_vector,&
                                               setup_arnoldi_env
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
+                                              cp_cfm_gemm,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_uplo_to_full
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
@@ -74,10 +75,115 @@ MODULE preconditioner_makes
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_makes'
 
-   PUBLIC :: make_complex_full_kinetic, make_complex_full_s_inverse, &
+   PUBLIC :: make_complex_full_all, make_complex_full_kinetic, make_complex_full_s_inverse, &
              make_complex_full_single_inverse, make_preconditioner_matrix
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Build the state-selective FULL_ALL operator for a complex k-point channel.
+!>        The occupied/reference subspace is retained in its current gauge, while the
+!>        orthogonal complement carries the spectrum of H(k).
+!> \param preconditioner_env preconditioner storage
+!> \param matrix_c0 complex reference orbitals, C^H S C = I
+!> \param matrix_h complex Hermitian k-point Hamiltonian
+!> \param matrix_s complex Hermitian k-point overlap
+!> \param c0_evals reference-orbital energies in the current OT gauge
+!> \param energy_gap denominator floor
+! **************************************************************************************************
+   SUBROUTINE make_complex_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, &
+                                    c0_evals, energy_gap)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_c0, matrix_h, matrix_s
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: c0_evals
+      REAL(KIND=dp), INTENT(IN)                          :: energy_gap
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_complex_full_all'
+      REAL(KIND=dp), PARAMETER                           :: lambda_base = 10.0_dp
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: shifted_evals
+      INTEGER                                            :: handle, k, n
+      TYPE(cp_cfm_type) :: matrix_chc, matrix_diag_work, matrix_hc0, matrix_s_copy, matrix_sc0, &
+         matrix_sc_chc, matrix_shifted_sc, matrix_tmp
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_cfm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
+      CPASSERT(n > 0)
+      CPASSERT(k > 0 .AND. k <= n)
+      CPASSERT(SIZE(c0_evals) >= k)
+      CPASSERT(energy_gap > 0.0_dp)
+
+      IF (ASSOCIATED(preconditioner_env%complex_fm)) THEN
+         CALL cp_cfm_release(preconditioner_env%complex_fm)
+         DEALLOCATE (preconditioner_env%complex_fm)
+      END IF
+      IF (ASSOCIATED(preconditioner_env%occ_evals)) DEALLOCATE (preconditioner_env%occ_evals)
+      IF (ASSOCIATED(preconditioner_env%full_evals)) DEALLOCATE (preconditioner_env%full_evals)
+
+      ALLOCATE (preconditioner_env%complex_fm)
+      CALL cp_cfm_create(preconditioner_env%complex_fm, matrix_h%matrix_struct, &
+                         name='complex FULL_ALL eigenvectors')
+      ALLOCATE (preconditioner_env%full_evals(n), preconditioner_env%occ_evals(k))
+
+      CALL cp_cfm_create(matrix_hc0, matrix_c0%matrix_struct, name='complex FULL_ALL HC')
+      CALL cp_cfm_create(matrix_sc0, matrix_c0%matrix_struct, name='complex FULL_ALL SC')
+      CALL cp_cfm_create(matrix_chc, matrix_c0%matrix_struct, nrow=k, ncol=k, &
+                         name='complex FULL_ALL CHC')
+      CALL cp_cfm_create(matrix_sc_chc, matrix_c0%matrix_struct, &
+                         name='complex FULL_ALL SC CHC')
+      CALL cp_cfm_create(matrix_shifted_sc, matrix_c0%matrix_struct, &
+                         name='complex FULL_ALL shifted SC')
+      CALL cp_cfm_create(matrix_tmp, matrix_h%matrix_struct, name='complex FULL_ALL projected H')
+      CALL cp_cfm_create(matrix_s_copy, matrix_s%matrix_struct, name='complex FULL_ALL S copy')
+      CALL cp_cfm_create(matrix_diag_work, matrix_h%matrix_struct, &
+                         name='complex FULL_ALL diagonalization work')
+
+      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, matrix_h, matrix_c0, z_zero, matrix_hc0)
+      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, matrix_s, matrix_c0, z_zero, matrix_sc0)
+      CALL cp_cfm_gemm('C', 'N', k, k, n, z_one, matrix_c0, matrix_hc0, z_zero, matrix_chc)
+
+      ! Q^H H Q with Q = I - C C^H S. This removes occupied/complement cross terms
+      ! without rotating the reference columns.
+      CALL cp_cfm_to_cfm(matrix_h, matrix_tmp)
+      CALL cp_cfm_gemm('N', 'C', n, n, k, -z_one, matrix_hc0, matrix_sc0, z_one, matrix_tmp)
+      CALL cp_cfm_gemm('N', 'C', n, n, k, -z_one, matrix_sc0, matrix_hc0, z_one, matrix_tmp)
+      CALL cp_cfm_gemm('N', 'N', n, k, k, z_one, matrix_sc0, matrix_chc, z_zero, matrix_sc_chc)
+      CALL cp_cfm_gemm('N', 'C', n, n, k, z_one, matrix_sc_chc, matrix_sc0, z_one, matrix_tmp)
+
+      ! Shift the retained reference subspace below the complementary spectrum, diagonalize,
+      ! and then restore the original reference columns and their energy labels exactly.
+      ALLOCATE (shifted_evals(k))
+      shifted_evals(:) = CMPLX(c0_evals(1:k) - lambda_base, 0.0_dp, KIND=dp)
+      CALL cp_cfm_to_cfm(matrix_sc0, matrix_shifted_sc)
+      CALL cp_cfm_column_scale(matrix_shifted_sc, shifted_evals)
+      CALL cp_cfm_gemm('N', 'C', n, n, k, z_one, matrix_shifted_sc, matrix_sc0, z_one, matrix_tmp)
+
+      CALL cp_cfm_to_cfm(matrix_s, matrix_s_copy)
+      CALL cp_cfm_geeig(matrix_tmp, matrix_s_copy, preconditioner_env%complex_fm, &
+                        preconditioner_env%full_evals, matrix_diag_work)
+
+      preconditioner_env%occ_evals(:) = c0_evals(1:k)
+      preconditioner_env%full_evals(1:k) = c0_evals(1:k)
+      CALL cp_cfm_to_cfm(matrix_c0, preconditioner_env%complex_fm, k)
+      preconditioner_env%energy_gap = energy_gap
+      preconditioner_env%in_use = ot_precond_full_all
+      preconditioner_env%solver = ot_precond_solver_default
+
+      DEALLOCATE (shifted_evals)
+      CALL cp_cfm_release(matrix_diag_work)
+      CALL cp_cfm_release(matrix_s_copy)
+      CALL cp_cfm_release(matrix_tmp)
+      CALL cp_cfm_release(matrix_shifted_sc)
+      CALL cp_cfm_release(matrix_sc_chc)
+      CALL cp_cfm_release(matrix_chc)
+      CALL cp_cfm_release(matrix_sc0)
+      CALL cp_cfm_release(matrix_hc0)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE make_complex_full_all
 
 ! **************************************************************************************************
 !> \brief ...

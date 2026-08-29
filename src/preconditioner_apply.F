@@ -50,7 +50,8 @@ MODULE preconditioner_apply
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_apply'
 
-   PUBLIC :: apply_preconditioner_dbcsr_complex, apply_preconditioner_fm, apply_preconditioner_dbcsr
+   PUBLIC :: apply_preconditioner_cfm_complex, apply_preconditioner_dbcsr_complex, &
+             apply_preconditioner_fm, apply_preconditioner_dbcsr
 
 CONTAINS
 
@@ -142,6 +143,71 @@ CONTAINS
    END SUBROUTINE apply_preconditioner_dbcsr
 
 ! **************************************************************************************************
+!> \brief Apply a complex k-point orbital preconditioner.
+!> \param preconditioner_env complex preconditioner storage
+!> \param matrix_in complex input channel
+!> \param matrix_out complex output channel
+! **************************************************************************************************
+   SUBROUTINE apply_preconditioner_cfm_complex(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_in, matrix_out
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_cfm_complex'
+
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
+      INTEGER                                            :: handle, i, j, k, n, ncol_local, npre, &
+                                                            nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: scale
+      TYPE(cp_cfm_type)                                  :: matrix_spectral
+
+      CALL timeset(routineN, handle)
+
+      SELECT CASE (preconditioner_env%in_use)
+      CASE (ot_precond_full_all, ot_precond_full_single_inverse, &
+            ot_precond_full_kinetic, ot_precond_s_inverse)
+      CASE DEFAULT
+         CPABORT("Unsupported complex K-point OT preconditioner")
+      END SELECT
+      CPASSERT(ASSOCIATED(preconditioner_env%complex_fm))
+      CALL cp_cfm_get_info(matrix_in, nrow_global=n, ncol_global=k)
+      CALL cp_cfm_get_info(preconditioner_env%complex_fm, nrow_global=npre)
+      CPASSERT(n == npre)
+
+      IF (preconditioner_env%in_use == ot_precond_full_all) THEN
+         CPASSERT(ASSOCIATED(preconditioner_env%full_evals))
+         CPASSERT(ASSOCIATED(preconditioner_env%occ_evals))
+         CPASSERT(n == SIZE(preconditioner_env%full_evals))
+         CPASSERT(k == SIZE(preconditioner_env%occ_evals))
+         CALL cp_cfm_create(matrix_spectral, matrix_in%matrix_struct, &
+                            name='complex FULL_ALL spectral input')
+         CALL cp_cfm_gemm('C', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
+                          matrix_in, z_zero, matrix_spectral)
+         CALL cp_cfm_get_info(matrix_spectral, nrow_local=nrow_local, ncol_local=ncol_local, &
+                              row_indices=row_indices, col_indices=col_indices, local_data=local_data)
+         DO j = 1, ncol_local
+            DO i = 1, nrow_local
+               scale = 1.0_dp/MAX(preconditioner_env%energy_gap, &
+                                  preconditioner_env%full_evals(row_indices(i)) - &
+                                  preconditioner_env%occ_evals(col_indices(j)))
+               local_data(i, j) = scale*local_data(i, j)
+            END DO
+         END DO
+         CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
+                          matrix_spectral, z_zero, matrix_out)
+         CALL cp_cfm_release(matrix_spectral)
+      ELSE
+         CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
+                          matrix_in, z_zero, matrix_out)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_preconditioner_cfm_complex
+
+! **************************************************************************************************
 !> \brief Apply a complex orbital preconditioner to paired real/imaginary DBCSR matrices.
 !> \param preconditioner_env complex k-point preconditioner
 !> \param matrix_in_re real input channel
@@ -158,22 +224,15 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_dbcsr_complex'
 
-      INTEGER                                            :: handle, k, n, npre
+      INTEGER                                            :: handle, k, n
       TYPE(cp_cfm_type)                                  :: matrix_in, matrix_out
       TYPE(cp_fm_type)                                   :: matrix_in_im_fm, matrix_in_re_fm, &
                                                             matrix_out_im_fm, matrix_out_re_fm
 
       CALL timeset(routineN, handle)
 
-      SELECT CASE (preconditioner_env%in_use)
-      CASE (ot_precond_full_single_inverse, ot_precond_full_kinetic, ot_precond_s_inverse)
-      CASE DEFAULT
-         CPABORT("Unsupported complex K-point OT preconditioner")
-      END SELECT
-      CPASSERT(ASSOCIATED(preconditioner_env%complex_fm))
       CALL dbcsr_get_info(matrix_in_re, nfullrows_total=n, nfullcols_total=k)
-      CALL cp_cfm_get_info(preconditioner_env%complex_fm, nrow_global=npre)
-      CPASSERT(n == npre)
+      CPASSERT(ASSOCIATED(preconditioner_env%complex_fm))
 
       CALL cp_fm_create(matrix_in_re_fm, preconditioner_env%complex_fm%matrix_struct, &
                         nrow=n, ncol=k, name='complex preconditioner input real')
@@ -191,8 +250,7 @@ CONTAINS
       CALL cp_cfm_create(matrix_out, matrix_in_re_fm%matrix_struct, &
                          name='complex preconditioner output')
       CALL cp_fm_to_cfm(matrix_in_re_fm, matrix_in_im_fm, matrix_in)
-      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
-                       matrix_in, z_zero, matrix_out)
+      CALL apply_preconditioner_cfm_complex(preconditioner_env, matrix_in, matrix_out)
       CALL cp_cfm_to_fm(matrix_out, matrix_out_re_fm, matrix_out_im_fm)
       CALL dbcsr_set(matrix_out_re, 0.0_dp)
       CALL dbcsr_set(matrix_out_im, 0.0_dp)
