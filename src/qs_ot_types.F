@@ -173,6 +173,7 @@ MODULE qs_ot_types
       LOGICAL :: use_gx_old = .FALSE., use_dx = .FALSE.
 
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h_e => NULL(), matrix_h_x => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h_e_im => NULL(), matrix_h_x_im => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER      :: lbfgs_rho => NULL(), lbfgs_yy => NULL()
 
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ls_diis => NULL()
@@ -809,6 +810,8 @@ CONTAINS
           qs_ot_env%settings%ot_method == "LBFG") THEN
          NULLIFY (qs_ot_env%matrix_h_e)
          NULLIFY (qs_ot_env%matrix_h_x)
+         NULLIFY (qs_ot_env%matrix_h_e_im)
+         NULLIFY (qs_ot_env%matrix_h_x_im)
          ncoef = m_diis
          IF (qs_ot_env%settings%ot_method == "LBFG") ncoef = m_diis + 1
          CALL dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_e, ncoef)
@@ -977,6 +980,12 @@ CONTAINS
           qs_ot_env%settings%ot_method == "LBFG") THEN
          CALL dbcsr_deallocate_matrix_set(qs_ot_env%matrix_h_x)
          CALL dbcsr_deallocate_matrix_set(qs_ot_env%matrix_h_e)
+         IF (ASSOCIATED(qs_ot_env%matrix_h_x_im)) THEN
+            CALL dbcsr_deallocate_matrix_set(qs_ot_env%matrix_h_x_im)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%matrix_h_e_im)) THEN
+            CALL dbcsr_deallocate_matrix_set(qs_ot_env%matrix_h_e_im)
+         END IF
       END IF
       IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
           qs_ot_env%settings%ot_method == "BROY") THEN
