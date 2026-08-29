@@ -14,6 +14,8 @@
 MODULE preconditioner_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_release,&
+                                              cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_release_p,&
@@ -43,6 +45,8 @@ MODULE preconditioner_types
 !    PRIVATE
       TYPE(dbcsr_type), POINTER :: sparse_matrix => NULL()
       TYPE(cp_fm_type), POINTER :: fm => NULL()
+      TYPE(cp_cfm_type), POINTER :: complex_fm => NULL()
+      LOGICAL :: owns_complex_fm = .TRUE.
       TYPE(dbcsr_type), POINTER           :: dbcsr_matrix => NULL()
       TYPE(dbcsr_type), POINTER           :: max_ev_vector => NULL()
       TYPE(dbcsr_type), POINTER           :: min_ev_vector => NULL()
@@ -92,6 +96,8 @@ CONTAINS
 
       NULLIFY (preconditioner_env%sparse_matrix)
       NULLIFY (preconditioner_env%fm)
+      NULLIFY (preconditioner_env%complex_fm)
+      preconditioner_env%owns_complex_fm = .TRUE.
       NULLIFY (preconditioner_env%dbcsr_matrix)
       NULLIFY (preconditioner_env%occ_evals)
       NULLIFY (preconditioner_env%full_evals)
@@ -138,6 +144,14 @@ CONTAINS
          DEALLOCATE (preconditioner_env%fm)
          NULLIFY (preconditioner_env%fm)
       END IF
+      IF (preconditioner_env%owns_complex_fm) THEN
+         IF (ASSOCIATED(preconditioner_env%complex_fm)) THEN
+            CALL cp_cfm_release(preconditioner_env%complex_fm)
+            DEALLOCATE (preconditioner_env%complex_fm)
+         END IF
+      END IF
+      NULLIFY (preconditioner_env%complex_fm)
+      preconditioner_env%owns_complex_fm = .TRUE.
       IF (ASSOCIATED(preconditioner_env%dbcsr_matrix)) THEN
          CALL dbcsr_release_p(preconditioner_env%dbcsr_matrix)
       END IF

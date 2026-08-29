@@ -13,10 +13,19 @@
 !> \author Joost VandeVondele (09.2002)
 ! **************************************************************************************************
 MODULE preconditioner_apply
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_release,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_release, dbcsr_set, dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_get_info, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_release, dbcsr_set, dbcsr_type
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_restore
@@ -30,6 +39,8 @@ MODULE preconditioner_apply
         ot_precond_full_single_inverse, ot_precond_s_inverse, ot_precond_solver_chebyshev, &
         ot_precond_solver_direct, ot_precond_solver_inv_chol, ot_precond_solver_update
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: z_one,&
+                                              z_zero
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner_types,            ONLY: preconditioner_type
 #include "./base/base_uses.f90"
@@ -39,7 +50,7 @@ MODULE preconditioner_apply
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_apply'
 
-   PUBLIC :: apply_preconditioner_fm, apply_preconditioner_dbcsr
+   PUBLIC :: apply_preconditioner_dbcsr_complex, apply_preconditioner_fm, apply_preconditioner_dbcsr
 
 CONTAINS
 
@@ -129,6 +140,75 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE apply_preconditioner_dbcsr
+
+! **************************************************************************************************
+!> \brief Apply a complex orbital preconditioner to paired real/imaginary DBCSR matrices.
+!> \param preconditioner_env complex k-point preconditioner
+!> \param matrix_in_re real input channel
+!> \param matrix_in_im imaginary input channel
+!> \param matrix_out_re real output channel
+!> \param matrix_out_im imaginary output channel
+! **************************************************************************************************
+   SUBROUTINE apply_preconditioner_dbcsr_complex(preconditioner_env, matrix_in_re, matrix_in_im, &
+                                                 matrix_out_re, matrix_out_im)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type)                                   :: matrix_in_re, matrix_in_im, &
+                                                            matrix_out_re, matrix_out_im
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_dbcsr_complex'
+
+      INTEGER                                            :: handle, k, n, npre
+      TYPE(cp_cfm_type)                                  :: matrix_in, matrix_out
+      TYPE(cp_fm_type)                                   :: matrix_in_im_fm, matrix_in_re_fm, &
+                                                            matrix_out_im_fm, matrix_out_re_fm
+
+      CALL timeset(routineN, handle)
+
+      SELECT CASE (preconditioner_env%in_use)
+      CASE (ot_precond_full_single_inverse, ot_precond_full_kinetic, ot_precond_s_inverse)
+      CASE DEFAULT
+         CPABORT("Unsupported complex K-point OT preconditioner")
+      END SELECT
+      CPASSERT(ASSOCIATED(preconditioner_env%complex_fm))
+      CALL dbcsr_get_info(matrix_in_re, nfullrows_total=n, nfullcols_total=k)
+      CALL cp_cfm_get_info(preconditioner_env%complex_fm, nrow_global=npre)
+      CPASSERT(n == npre)
+
+      CALL cp_fm_create(matrix_in_re_fm, preconditioner_env%complex_fm%matrix_struct, &
+                        nrow=n, ncol=k, name='complex preconditioner input real')
+      CALL cp_fm_create(matrix_in_im_fm, preconditioner_env%complex_fm%matrix_struct, &
+                        nrow=n, ncol=k, name='complex preconditioner input imaginary')
+      CALL cp_fm_create(matrix_out_re_fm, preconditioner_env%complex_fm%matrix_struct, &
+                        nrow=n, ncol=k, name='complex preconditioner output real')
+      CALL cp_fm_create(matrix_out_im_fm, preconditioner_env%complex_fm%matrix_struct, &
+                        nrow=n, ncol=k, name='complex preconditioner output imaginary')
+      CALL copy_dbcsr_to_fm(matrix_in_re, matrix_in_re_fm)
+      CALL copy_dbcsr_to_fm(matrix_in_im, matrix_in_im_fm)
+
+      CALL cp_cfm_create(matrix_in, matrix_in_re_fm%matrix_struct, &
+                         name='complex preconditioner input')
+      CALL cp_cfm_create(matrix_out, matrix_in_re_fm%matrix_struct, &
+                         name='complex preconditioner output')
+      CALL cp_fm_to_cfm(matrix_in_re_fm, matrix_in_im_fm, matrix_in)
+      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
+                       matrix_in, z_zero, matrix_out)
+      CALL cp_cfm_to_fm(matrix_out, matrix_out_re_fm, matrix_out_im_fm)
+      CALL dbcsr_set(matrix_out_re, 0.0_dp)
+      CALL dbcsr_set(matrix_out_im, 0.0_dp)
+      CALL copy_fm_to_dbcsr(matrix_out_re_fm, matrix_out_re)
+      CALL copy_fm_to_dbcsr(matrix_out_im_fm, matrix_out_im)
+
+      CALL cp_cfm_release(matrix_out)
+      CALL cp_cfm_release(matrix_in)
+      CALL cp_fm_release(matrix_out_im_fm)
+      CALL cp_fm_release(matrix_out_re_fm)
+      CALL cp_fm_release(matrix_in_im_fm)
+      CALL cp_fm_release(matrix_in_re_fm)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_preconditioner_dbcsr_complex
 
 ! **************************************************************************************************
 !> \brief apply to full matrix, complete inversion has already been done

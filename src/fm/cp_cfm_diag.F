@@ -321,19 +321,21 @@ CONTAINS
 !> \param eigenvectors ...
 !> \param eigenvalues ...
 !> \param work ...
+!> \param lowest_subset compute only the requested lowest eigenpairs with ScaLAPACK when available
 !> \par History
 !>      12.2024 Added DLA-Future support [Rocco Meli]
 ! **************************************************************************************************
-   SUBROUTINE cp_cfm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work)
+   SUBROUTINE cp_cfm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work, lowest_subset)
 
       TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
       TYPE(cp_cfm_type), INTENT(IN)                      :: work
+      LOGICAL, INTENT(IN), OPTIONAL                      :: lowest_subset
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_geeig'
 
       INTEGER                                            :: handle, nao, nmo
-      LOGICAL                                            :: check_eigenvectors
+      LOGICAL                                            :: check_eigenvectors, use_lowest_subset
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       TYPE(cp_cfm_type)                                  :: overlap_check, scratch_check
 
@@ -343,9 +345,28 @@ CONTAINS
       ALLOCATE (evals(nao))
       nmo = SIZE(eigenvalues)
       check_eigenvectors = diag_check_requested()
+      use_lowest_subset = .FALSE.
+      IF (PRESENT(lowest_subset)) use_lowest_subset = lowest_subset .AND. nmo < nao
+#if !defined(__parallel)
+      use_lowest_subset = .FALSE.
+#endif
 
-      IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. direct_generalized_diagonalization .AND. &
-          nao >= cusolver_n_min) THEN
+      IF (use_lowest_subset) THEN
+#if defined(__parallel)
+         IF (check_eigenvectors) THEN
+            CALL cp_cfm_create(overlap_check, bmatrix%matrix_struct)
+            CALL cp_cfm_create(scratch_check, bmatrix%matrix_struct)
+            CALL cp_cfm_to_cfm(bmatrix, overlap_check)
+         END IF
+         CALL cp_cfm_geeig_scalapack(amatrix, bmatrix, work, evals(1:nmo))
+         IF (check_eigenvectors) THEN
+            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
+            CALL cp_cfm_release(scratch_check)
+            CALL cp_cfm_release(overlap_check)
+         END IF
+#endif
+      ELSE IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. direct_generalized_diagonalization .AND. &
+               nao >= cusolver_n_min) THEN
          ! Use cuSolverMP generalized eigenvalue solver without a CP2K-side
          ! Cholesky reduction.
          IF (check_eigenvectors) THEN
