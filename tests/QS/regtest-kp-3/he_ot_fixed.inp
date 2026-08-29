@@ -31,7 +31,7 @@
       &OT
         ALGORITHM IRAC
         MINIMIZER CG
-        PRECONDITIONER NONE
+        PRECONDITIONER FULL_KINETIC
       &END OT
       &PRINT
         &RESTART OFF

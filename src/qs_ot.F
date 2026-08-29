@@ -88,6 +88,10 @@ CONTAINS
          qs_ot_env%use_dx = .TRUE.
          CALL dbcsr_init_p(qs_ot_env%matrix_dx)
          CALL dbcsr_copy(qs_ot_env%matrix_dx, qs_ot_env%matrix_gx, 'matrix_dx')
+         IF (qs_ot_env%has_complex_kpoint_state) THEN
+            CALL dbcsr_init_p(qs_ot_env%matrix_dx_im)
+            CALL dbcsr_copy(qs_ot_env%matrix_dx_im, qs_ot_env%matrix_gx_im, 'matrix_dx_im')
+         END IF
          IF (qs_ot_env%settings%do_rotation) THEN
             CALL dbcsr_init_p(qs_ot_env%rot_mat_dx)
             CALL dbcsr_copy(qs_ot_env%rot_mat_dx, qs_ot_env%rot_mat_gx, 'rot_mat_dx')

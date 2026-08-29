@@ -57,6 +57,9 @@ MODULE qs_ot_types
    PUBLIC  :: qs_ot_channel_index
    PUBLIC  :: qs_ot_check_channel_context
    PUBLIC  :: qs_ot_init
+   PUBLIC  :: qs_ot_kpoint_preconditioner_solver_supported
+   PUBLIC  :: qs_ot_kpoint_preconditioner_scale
+   PUBLIC  :: qs_ot_kpoint_preconditioner_supported
    PUBLIC  :: qs_ot_number_of_channels
    PUBLIC  :: qs_ot_settings_init
    PUBLIC  :: qs_ot_set_context
@@ -113,6 +116,7 @@ MODULE qs_ot_types
       LOGICAL                   :: has_kpoint_context = .FALSE.
       LOGICAL                   :: state_allocated = .FALSE.
       LOGICAL                   :: has_complex_kpoint_state = .FALSE.
+      LOGICAL                   :: initial_density_sync_pending = .FALSE.
 
       ! first part of the variables, for occupied subspace invariant optimisation
 
@@ -314,6 +318,64 @@ CONTAINS
       qs_ot_number_of_channels = nspin_eff*nkpoint_eff
 
    END FUNCTION qs_ot_number_of_channels
+
+! **************************************************************************************************
+!> \brief Return whether a preconditioner is implemented for complex k-point OT.
+!> \param preconditioner_type selected OT preconditioner
+!> \param use_real_wfn whether the k-point channel stores a real wavefunction
+!> \return ...
+! **************************************************************************************************
+   PURE ELEMENTAL FUNCTION qs_ot_kpoint_preconditioner_supported(preconditioner_type, use_real_wfn) &
+      RESULT(supported)
+      INTEGER, INTENT(IN)                                :: preconditioner_type
+      LOGICAL, INTENT(IN)                                :: use_real_wfn
+      LOGICAL                                            :: supported
+
+      supported = .FALSE.
+      IF (.NOT. use_real_wfn) THEN
+         supported = preconditioner_type == ot_precond_none .OR. &
+                     preconditioner_type == ot_precond_full_single_inverse .OR. &
+                     preconditioner_type == ot_precond_full_kinetic .OR. &
+                     preconditioner_type == ot_precond_s_inverse
+      END IF
+
+   END FUNCTION qs_ot_kpoint_preconditioner_supported
+
+! **************************************************************************************************
+!> \brief Return whether a solver is implemented for a complex k-point OT preconditioner.
+!> \param preconditioner_type selected OT preconditioner
+!> \param solver_type selected preconditioner solver
+!> \param use_real_wfn whether the k-point channel stores a real wavefunction
+!> \return ...
+! **************************************************************************************************
+   PURE ELEMENTAL FUNCTION qs_ot_kpoint_preconditioner_solver_supported( &
+      preconditioner_type, solver_type, use_real_wfn) RESULT(supported)
+      INTEGER, INTENT(IN)                                :: preconditioner_type, solver_type
+      LOGICAL, INTENT(IN)                                :: use_real_wfn
+      LOGICAL                                            :: supported
+
+      supported = qs_ot_kpoint_preconditioner_supported(preconditioner_type, use_real_wfn)
+      IF (.NOT. supported) RETURN
+      IF (preconditioner_type == ot_precond_full_single_inverse .OR. &
+          preconditioner_type == ot_precond_full_kinetic .OR. &
+          preconditioner_type == ot_precond_s_inverse) THEN
+         supported = solver_type == ot_precond_solver_default .OR. &
+                     solver_type == ot_precond_solver_inv_chol
+      END IF
+
+   END FUNCTION qs_ot_kpoint_preconditioner_solver_supported
+
+! **************************************************************************************************
+!> \brief Scale an inverse k-point Hessian block consistently with its irreducible weight.
+!> \param kpoint_weight positive irreducible k-point weight
+!> \return ...
+! **************************************************************************************************
+   PURE ELEMENTAL REAL(KIND=dp) FUNCTION qs_ot_kpoint_preconditioner_scale(kpoint_weight)
+      REAL(KIND=dp), INTENT(IN)                          :: kpoint_weight
+
+      qs_ot_kpoint_preconditioner_scale = 1.0_dp/kpoint_weight
+
+   END FUNCTION qs_ot_kpoint_preconditioner_scale
 
 ! **************************************************************************************************
 !> \brief flat OT channel index for a spin/k-point pair
@@ -975,18 +1037,24 @@ CONTAINS
 !> \param settings ...
 !> \param ot_section ...
 !> \param output_unit ...
+!> \param complex_kpoints whether defaults are for complex k-point OT
 ! **************************************************************************************************
-   SUBROUTINE ot_readwrite_input(settings, ot_section, output_unit)
+   SUBROUTINE ot_readwrite_input(settings, ot_section, output_unit, complex_kpoints)
       TYPE(qs_ot_settings_type)                          :: settings
       TYPE(section_vals_type), POINTER                   :: ot_section
       INTEGER, INTENT(IN)                                :: output_unit
+      LOGICAL, INTENT(IN), OPTIONAL                      :: complex_kpoints
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_readwrite_input'
 
       INTEGER                                            :: handle, ls_method, ot_algorithm, &
                                                             ot_method, ot_ortho_irac
+      LOGICAL                                            :: energy_gap_explicit, use_complex_kpoints
 
       CALL timeset(routineN, handle)
+
+      use_complex_kpoints = .FALSE.
+      IF (PRESENT(complex_kpoints)) use_complex_kpoints = complex_kpoints
 
       ! choose algorithm
       CALL section_vals_val_get(ot_section, "ALGORITHM", i_val=ot_algorithm)
@@ -1113,7 +1181,8 @@ CONTAINS
 
       !If these values are negative we will set them "optimal" for a given precondtioner below
       CALL section_vals_val_get(ot_section, "STEPSIZE", r_val=settings%ds_min)
-      CALL section_vals_val_get(ot_section, "ENERGY_GAP", r_val=settings%energy_gap)
+      CALL section_vals_val_get(ot_section, "ENERGY_GAP", r_val=settings%energy_gap, &
+                                explicit=energy_gap_explicit)
 
       CALL section_vals_val_get(ot_section, "PRECONDITIONER", i_val=settings%preconditioner_type)
       SELECT CASE (settings%preconditioner_type)
@@ -1144,6 +1213,9 @@ CONTAINS
       CASE DEFAULT
          CPABORT("READ OTSCF PRECONDITIONER: Value unknown")
       END SELECT
+      IF (use_complex_kpoints .AND. &
+          settings%preconditioner_type == ot_precond_full_single_inverse .AND. &
+          .NOT. energy_gap_explicit) settings%energy_gap = 0.20_dp
       CALL section_vals_val_get(ot_section, "CHOLESKY", i_val=settings%cholesky_type)
       CALL section_vals_val_get(ot_section, "EPS_TAYLOR", r_val=settings%eps_taylor)
       CALL section_vals_val_get(ot_section, "MAX_TAYLOR", i_val=settings%max_taylor)

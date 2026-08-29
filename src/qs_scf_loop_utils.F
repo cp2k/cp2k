@@ -513,16 +513,18 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: local_ot_env
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
 
       NULLIFY (active_mo_struct, cell_to_index, density_target, dft_control, energy, fmwork, kpoints, &
                local_ot_env, matrix_hc, matrix_hc_im, matrix_k_im, matrix_k_re, matrix_s_im, &
                matrix_s_re, mo_coeff, mo_coeff_im, occupation_numbers, rho, rho_ao_kp, sab_nl, &
-               wkp, xkp)
+               scf_control, wkp, xkp)
 
       CPASSERT(ASSOCIATED(scf_env%qs_ot_env))
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy, kpoints=kpoints, rho=rho)
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy, kpoints=kpoints, rho=rho, &
+                      scf_control=scf_control)
       CALL get_kpoint_info(kpoints, nkp=nkpoint, xkp=xkp, wkp=wkp, use_real_wfn=use_real_wfn, &
                            kp_range=kp_range, cell_to_index=cell_to_index, sab_nl=sab_nl)
       CPASSERT(ASSOCIATED(sab_nl))
@@ -646,8 +648,20 @@ CONTAINS
          END DO
       END DO
 
-      CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im)
-      scf_env%iter_delta = local_ot_env(1)%delta
+      IF (local_ot_env(1)%initial_density_sync_pending) THEN
+         ! The initial Hamiltonian can come from a density that does not match the
+         ! fixed-rank orbital projector. Rebuild that density before starting a line search.
+         DO local_channel = 1, nlocal_channels
+            CALL dbcsr_copy(matrix_hc(local_channel)%matrix, local_ot_env(local_channel)%matrix_x)
+            CALL dbcsr_copy(matrix_hc_im(local_channel)%matrix, local_ot_env(local_channel)%matrix_x_im)
+         END DO
+         scf_env%iter_delta = 2.0_dp*scf_control%eps_scf
+         local_ot_env(1)%OT_METHOD_FULL = "OT Sync"
+         local_ot_env(:)%initial_density_sync_pending = .FALSE.
+      ELSE
+         CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im)
+         scf_env%iter_delta = local_ot_env(1)%delta
+      END IF
 
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(local_kpoint)%kpoint_env

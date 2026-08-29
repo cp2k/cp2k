@@ -10,6 +10,6 @@
 "COBe_gfn1_force.inp"                    = [{matcher="M082", tol=1.0E-6, ref=0.0000000}]
 "H2SO4_gfn1_force.inp"                   = [{matcher="M082", tol=1.0E-6, ref=0.0000000}]
 "Hg2Cl2_gfn1_force.inp"                  = [{matcher="M082", tol=1.0E-6, ref=0.0000000}]
-"Si_gfn1_ot_kp.inp"                      = [{matcher="E_total", tol=1.0E-8, ref=-14.71776370226175},
+"Si_gfn1_ot_kp.inp"                      = [{matcher="E_total", tol=1.0E-8, ref=-14.71776371755086},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
 #EOF

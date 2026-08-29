@@ -97,7 +97,15 @@ CONTAINS
                                matrix_s_kp=matrix_s_kp, &
                                sab_orb=sab_nl, &
                                mos=mos, &
-                               kpoints=kpoints)
+                               kpoints=kpoints, &
+                               scf_control=scf_control)
+
+               IF (scf_control%use_ot) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "Analytical forces and stress are not implemented for "// &
+                                "complex K-point OT; an OT-consistent complex "// &
+                                "energy-weighted density matrix is required.")
+               END IF
 
                CALL get_mo_set(mos(1), mo_coeff=mo_coeff, nao=nao)
                CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, nrow_global=nao, ncol_global=nao, &
