@@ -166,6 +166,7 @@ MODULE qs_scf
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_ot,                           ONLY: qs_ot_get_orbitals_ref_complex,&
                                               qs_ot_get_p,&
+                                              qs_ot_get_p_complex,&
                                               qs_ot_new_preconditioner
    USE qs_ot_scf,                       ONLY: ot_scf_init,&
                                               ot_scf_read_input
@@ -1465,8 +1466,9 @@ CONTAINS
          IF (dft_control%smear .OR. scf_control%smear%do_smear) THEN
             CPABORT("K-point OT currently requires fixed occupations (SMEAR OFF).")
          END IF
-         IF (scf_env%qs_ot_env(1)%settings%ot_algorithm /= "REF") THEN
-            CPABORT("K-point OT currently requires OT%ALGORITHM IRAC.")
+         IF (scf_env%qs_ot_env(1)%settings%ot_algorithm /= "TOD" .AND. &
+             scf_env%qs_ot_env(1)%settings%ot_algorithm /= "REF") THEN
+            CPABORT("K-point OT currently supports OT%ALGORITHM STRICT or IRAC.")
          END IF
          IF (scf_env%qs_ot_env(1)%settings%OT_METHOD /= "CG" .AND. &
              scf_env%qs_ot_env(1)%settings%OT_METHOD /= "DIIS") THEN
@@ -1854,9 +1856,17 @@ CONTAINS
 
             SELECT CASE (scf_env%qs_ot_env(ot_channel)%settings%ot_algorithm)
             CASE ("TOD")
-               CALL qs_ot_get_p(scf_env%qs_ot_env(ot_channel)%matrix_x, &
-                                scf_env%qs_ot_env(ot_channel)%matrix_sx, &
-                                scf_env%qs_ot_env(ot_channel))
+               IF (scf_env%qs_ot_env(ot_channel)%has_complex_kpoint_state) THEN
+                  CALL qs_ot_get_p_complex(scf_env%qs_ot_env(ot_channel)%matrix_x, &
+                                           scf_env%qs_ot_env(ot_channel)%matrix_x_im, &
+                                           scf_env%qs_ot_env(ot_channel)%matrix_sx, &
+                                           scf_env%qs_ot_env(ot_channel)%matrix_sx_im, &
+                                           scf_env%qs_ot_env(ot_channel))
+               ELSE
+                  CALL qs_ot_get_p(scf_env%qs_ot_env(ot_channel)%matrix_x, &
+                                   scf_env%qs_ot_env(ot_channel)%matrix_sx, &
+                                   scf_env%qs_ot_env(ot_channel))
+               END IF
             CASE ("REF")
                CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_x, &
                                scf_env%qs_ot_env(ot_channel)%matrix_c0)
@@ -2123,15 +2133,40 @@ CONTAINS
       CALL dbcsr_init_p(qs_ot_env%matrix_gx_im)
       CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx_im, template=matrix_s, n=nmo, &
                                              sym=dbcsr_type_no_symmetry)
-      CALL dbcsr_init_p(qs_ot_env%matrix_ref_inv_sqrt)
-      CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_ref_inv_sqrt, template=matrix_s, m=nmo, n=nmo, &
-                                         sym=dbcsr_type_no_symmetry)
-      CALL dbcsr_init_p(qs_ot_env%matrix_ref_inv_sqrt_im)
-      CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_ref_inv_sqrt_im, template=matrix_s, m=nmo, n=nmo, &
-                                         sym=dbcsr_type_no_symmetry)
-      CALL dbcsr_init_p(qs_ot_env%buf1_n_k_dp)
-      CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%buf1_n_k_dp, template=matrix_s, n=nmo, &
-                                             sym=dbcsr_type_no_symmetry)
+      SELECT CASE (qs_ot_env%settings%ot_algorithm)
+      CASE ("TOD")
+         CPASSERT(nmo_ortho == nmo)
+         CALL allocate_complex_copy(qs_ot_env%matrix_p_im, qs_ot_env%matrix_p, "matrix_p_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_r_im, qs_ot_env%matrix_r, "matrix_r_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_sinp_im, qs_ot_env%matrix_sinp, "matrix_sinp_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_cosp_im, qs_ot_env%matrix_cosp, "matrix_cosp_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf1_im, qs_ot_env%matrix_buf1, "matrix_buf1_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf2_im, qs_ot_env%matrix_buf2, "matrix_buf2_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf3_im, qs_ot_env%matrix_buf3, "matrix_buf3_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf4_im, qs_ot_env%matrix_buf4, "matrix_buf4_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_os_im, qs_ot_env%matrix_os, "matrix_os_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf1_ortho_im, qs_ot_env%matrix_buf1_ortho, &
+                                    "matrix_buf1_ortho_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf2_ortho_im, qs_ot_env%matrix_buf2_ortho, &
+                                    "matrix_buf2_ortho_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_tmp_ortho, qs_ot_env%matrix_buf1_ortho, &
+                                    "matrix_tmp_ortho")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf_nk, qs_ot_env%matrix_x, "matrix_buf_nk")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf_nk_im, qs_ot_env%matrix_x, "matrix_buf_nk_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_tmp_nk, qs_ot_env%matrix_x, "matrix_tmp_nk")
+      CASE ("REF")
+         CALL dbcsr_init_p(qs_ot_env%matrix_ref_inv_sqrt)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_ref_inv_sqrt, template=matrix_s, m=nmo, n=nmo, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL dbcsr_init_p(qs_ot_env%matrix_ref_inv_sqrt_im)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_ref_inv_sqrt_im, template=matrix_s, m=nmo, n=nmo, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL dbcsr_init_p(qs_ot_env%buf1_n_k_dp)
+         CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%buf1_n_k_dp, template=matrix_s, n=nmo, &
+                                                sym=dbcsr_type_no_symmetry)
+      CASE DEFAULT
+         CPABORT("Complex K-point OT state requires ALGORITHM STRICT or IRAC")
+      END SELECT
       IF (qs_ot_env%use_dx) THEN
          CALL dbcsr_init_p(qs_ot_env%matrix_dx_im)
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_dx_im, template=matrix_s, n=nmo, &
@@ -2159,6 +2194,23 @@ CONTAINS
       END IF
 
       qs_ot_env%has_complex_kpoint_state = .TRUE.
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief allocate a zeroed matrix with the distribution and sparsity of a real companion
+!> \param matrix output matrix
+!> \param template real companion matrix
+!> \param name DBCSR matrix name
+! **************************************************************************************************
+      SUBROUTINE allocate_complex_copy(matrix, template, name)
+      TYPE(dbcsr_type), POINTER                          :: matrix, template
+      CHARACTER(LEN=*), INTENT(IN)                       :: name
+
+         CALL dbcsr_init_p(matrix)
+         CALL dbcsr_copy(matrix, template, name=name)
+         CALL dbcsr_set(matrix, 0.0_dp)
+      END SUBROUTINE allocate_complex_copy
 
    END SUBROUTINE allocate_qs_ot_kpoint_complex_state
 

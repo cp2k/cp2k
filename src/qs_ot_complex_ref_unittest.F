@@ -51,7 +51,9 @@ PROGRAM qs_ot_complex_ref_unittest
                                               init_preconditioner,&
                                               preconditioner_type
    USE qs_ot,                           ONLY: qs_ot_generate_rotation,&
+                                              qs_ot_get_derivative_complex,&
                                               qs_ot_get_derivative_ref_complex,&
+                                              qs_ot_get_p_complex,&
                                               qs_ot_rot_mat_derivative
    USE qs_ot_types,                     ONLY: qs_ot_kpoint_preconditioner_scale,&
                                               qs_ot_kpoint_preconditioner_solver_supported,&
@@ -134,6 +136,7 @@ PROGRAM qs_ot_complex_ref_unittest
                                row_dist=row_dist, col_dist=col_dist)
    CALL dbcsr_distribution_new(dist_kk, group=mp_comm_self%get_handle(), pgrid=pgrid, &
                                row_dist=row_dist, col_dist=col_dist)
+   CALL test_complex_strict_derivative(dist_nk, dist_kk, row_n, row_k, col_k, para_env, nfail)
 
    CALL create_one_block(x_re, "complex_ref_x_re", dist_nk, row_n, col_k)
    CALL create_one_block(x_im, "complex_ref_x_im", dist_nk, row_n, col_k)
@@ -194,9 +197,9 @@ PROGRAM qs_ot_complex_ref_unittest
    IF (error > 5.0E-8_dp .OR. old_error < 1.0E-3_dp) nfail = nfail + 1
 
    IF (mynode == 0) THEN
-      WRITE (*, '(A,3(1X,ES13.6))') "complex finite-REF pullback: fd/predicted/error", &
+      WRITE (io_unit, '(A,3(1X,ES13.6))') "complex finite-REF pullback: fd/predicted/error", &
          fd_slope, slope, error
-      WRITE (*, '(A,1X,ES13.6)') "discarded projected-gradient error", old_error
+      WRITE (io_unit, '(A,1X,ES13.6)') "discarded projected-gradient error", old_error
    END IF
 
    CALL dbcsr_release(b_im)
@@ -320,7 +323,7 @@ CONTAINS
       error = ABS(predicted - fd_slope)
       IF (error > 5.0E-8_dp) nfail = nfail + 1
       IF (para_env%is_source()) THEN
-         WRITE (*, '(A,3(1X,ES13.6))') 'real finite rotation slope fd/predicted/error', &
+         WRITE (io_unit, '(A,3(1X,ES13.6))') 'real finite rotation slope fd/predicted/error', &
             fd_slope, predicted, error
       END IF
 
@@ -334,6 +337,189 @@ CONTAINS
 
    END SUBROUTINE test_real_rotation_frechet
 
+! **************************************************************************************************
+!> \brief Check the finite complex STRICT chart and its analytic derivative.
+!> \param dist_nk distribution for orbital-shaped matrices
+!> \param dist_kk distribution for occupied-space matrices
+!> \param row_n AO block sizes
+!> \param row_k occupied-space row block sizes
+!> \param col_k occupied-space column block sizes
+!> \param para_env parallel environment
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_complex_strict_derivative(dist_nk, dist_kk, row_n, row_k, col_k, para_env, nfail)
+      TYPE(dbcsr_distribution_type), INTENT(IN)          :: dist_nk, dist_kk
+      INTEGER, DIMENSION(:), INTENT(INOUT), POINTER      :: row_n, row_k, col_k
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      CHARACTER(LEN=32)                                  :: name
+      COMPLEX(KIND=dp), DIMENSION(k, k)                  :: inverse_sqrt
+      COMPLEX(KIND=dp), DIMENSION(n, k)                  :: c0, direction, gradient, hc, orbitals, &
+                                                            sc0, sx, x
+      COMPLEX(KIND=dp), DIMENSION(n, n)                  :: hamiltonian, overlap
+      INTEGER                                            :: i
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: error, fd_slope, hstep, ortho_error, &
+                                                            slope
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(dbcsr_type), DIMENSION(15), TARGET            :: nk
+      TYPE(dbcsr_type), DIMENSION(25), TARGET            :: kk
+      TYPE(dbcsr_type), POINTER                          :: hc_im_p, hc_re_p, sx_im_p, sx_re_p, &
+                                                            x_im_p, x_re_p
+      TYPE(mp_para_env_type), POINTER                    :: strict_para_env
+      TYPE(qs_ot_type)                                   :: strict_env
+
+      NULLIFY (blacs_env, hc_im_p, hc_re_p, strict_para_env, x_im_p, x_re_p, sx_im_p, sx_re_p)
+      ALLOCATE (strict_para_env)
+      CALL strict_para_env%from_dup(mp_comm_self)
+      CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=strict_para_env)
+      DO i = 1, SIZE(nk)
+         WRITE (name, '(A,I0)') 'complex_strict_nk_', i
+         CALL create_one_block(nk(i), TRIM(name), dist_nk, row_n, col_k)
+      END DO
+      DO i = 1, SIZE(kk)
+         WRITE (name, '(A,I0)') 'complex_strict_kk_', i
+         CALL create_one_block(kk(i), TRIM(name), dist_kk, row_k, col_k)
+      END DO
+
+      overlap(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      overlap(1, 1) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+      overlap(2, 2) = CMPLX(1.2_dp, 0.0_dp, KIND=dp)
+      overlap(3, 3) = CMPLX(1.4_dp, 0.0_dp, KIND=dp)
+      overlap(1, 2) = CMPLX(0.06_dp, 0.03_dp, KIND=dp)
+      overlap(2, 1) = CONJG(overlap(1, 2))
+      overlap(1, 3) = CMPLX(-0.04_dp, 0.02_dp, KIND=dp)
+      overlap(3, 1) = CONJG(overlap(1, 3))
+      overlap(2, 3) = CMPLX(0.05_dp, -0.01_dp, KIND=dp)
+      overlap(3, 2) = CONJG(overlap(2, 3))
+
+      c0(:, 1) = [CMPLX(1.0_dp, 0.10_dp, KIND=dp), CMPLX(0.12_dp, -0.08_dp, KIND=dp), &
+                  CMPLX(-0.07_dp, 0.04_dp, KIND=dp)]
+      c0(:, 2) = [CMPLX(0.09_dp, 0.05_dp, KIND=dp), CMPLX(0.85_dp, -0.12_dp, KIND=dp), &
+                  CMPLX(0.11_dp, 0.06_dp, KIND=dp)]
+      CALL dense_inverse_sqrt(MATMUL(CONJG(TRANSPOSE(c0)), MATMUL(overlap, c0)), inverse_sqrt)
+      c0 = MATMUL(c0, inverse_sqrt)
+
+      x(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      x(3, 1) = CMPLX(0.23_dp, 0.17_dp, KIND=dp)
+      x(3, 2) = CMPLX(-0.14_dp, 0.21_dp, KIND=dp)
+      x = x - MATMUL(c0, MATMUL(CONJG(TRANSPOSE(c0)), MATMUL(overlap, x)))
+      direction(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      direction(3, 1) = CMPLX(0.11_dp, -0.09_dp, KIND=dp)
+      direction(3, 2) = CMPLX(0.07_dp, 0.13_dp, KIND=dp)
+      direction = direction - MATMUL(c0, MATMUL(CONJG(TRANSPOSE(c0)), MATMUL(overlap, direction)))
+
+      hamiltonian(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      hamiltonian(1, 1) = CMPLX(-0.70_dp, 0.0_dp, KIND=dp)
+      hamiltonian(2, 2) = CMPLX(-0.20_dp, 0.0_dp, KIND=dp)
+      hamiltonian(3, 3) = CMPLX(0.90_dp, 0.0_dp, KIND=dp)
+      hamiltonian(1, 2) = CMPLX(0.08_dp, 0.04_dp, KIND=dp)
+      hamiltonian(2, 1) = CONJG(hamiltonian(1, 2))
+      hamiltonian(1, 3) = CMPLX(-0.12_dp, 0.07_dp, KIND=dp)
+      hamiltonian(3, 1) = CONJG(hamiltonian(1, 3))
+      hamiltonian(2, 3) = CMPLX(0.05_dp, -0.09_dp, KIND=dp)
+      hamiltonian(3, 2) = CONJG(hamiltonian(2, 3))
+
+      CALL strict_orbitals(c0, x, overlap, orbitals)
+      hc = 2.0_dp*MATMUL(hamiltonian, orbitals)
+      sx = MATMUL(overlap, x)
+      sc0 = MATMUL(overlap, c0)
+      CALL put_complex_pair(nk(1), nk(2), x)
+      CALL put_complex_pair(nk(3), nk(4), sx)
+      CALL put_complex_pair(nk(5), nk(6), hc)
+      CALL put_complex_pair(nk(9), nk(10), c0)
+      CALL put_complex_pair(nk(11), nk(12), sc0)
+
+      strict_env%has_complex_kpoint_state = .TRUE.
+      strict_env%settings%ot_algorithm = 'TOD'
+      strict_env%settings%do_rotation = .FALSE.
+      strict_env%para_env => strict_para_env
+      strict_env%blacs_env => blacs_env
+      strict_env%matrix_x => nk(1)
+      strict_env%matrix_x_im => nk(2)
+      strict_env%matrix_sx => nk(3)
+      strict_env%matrix_sx_im => nk(4)
+      strict_env%matrix_gx => nk(7)
+      strict_env%matrix_gx_im => nk(8)
+      strict_env%matrix_c0 => nk(9)
+      strict_env%matrix_c0_im => nk(10)
+      strict_env%matrix_sc0 => nk(11)
+      strict_env%matrix_sc0_im => nk(12)
+      strict_env%matrix_buf_nk => nk(13)
+      strict_env%matrix_buf_nk_im => nk(14)
+      strict_env%matrix_tmp_nk => nk(15)
+      strict_env%matrix_p => kk(1)
+      strict_env%matrix_p_im => kk(2)
+      strict_env%matrix_r => kk(3)
+      strict_env%matrix_r_im => kk(4)
+      strict_env%matrix_sinp => kk(5)
+      strict_env%matrix_sinp_im => kk(6)
+      strict_env%matrix_cosp => kk(7)
+      strict_env%matrix_cosp_im => kk(8)
+      strict_env%matrix_sinp_b => kk(9)
+      strict_env%matrix_cosp_b => kk(10)
+      strict_env%matrix_buf1 => kk(11)
+      strict_env%matrix_buf1_im => kk(12)
+      strict_env%matrix_buf2 => kk(13)
+      strict_env%matrix_buf2_im => kk(14)
+      strict_env%matrix_buf3 => kk(15)
+      strict_env%matrix_buf3_im => kk(16)
+      strict_env%matrix_buf4 => kk(17)
+      strict_env%matrix_buf4_im => kk(18)
+      strict_env%matrix_os => kk(19)
+      strict_env%matrix_os_im => kk(20)
+      strict_env%matrix_buf1_ortho => kk(21)
+      strict_env%matrix_buf1_ortho_im => kk(22)
+      strict_env%matrix_buf2_ortho => kk(23)
+      strict_env%matrix_buf2_ortho_im => kk(24)
+      strict_env%matrix_tmp_ortho => kk(25)
+      ALLOCATE (strict_env%evals(k), strict_env%dum(k))
+
+      x_re_p => nk(1)
+      x_im_p => nk(2)
+      sx_re_p => nk(3)
+      sx_im_p => nk(4)
+      hc_re_p => nk(5)
+      hc_im_p => nk(6)
+      CALL qs_ot_get_p_complex(x_re_p, x_im_p, sx_re_p, sx_im_p, strict_env)
+      CALL qs_ot_get_derivative_complex(hc_re_p, hc_im_p, strict_env)
+
+      gradient(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      CALL dbcsr_get_block_p(nk(7), 1, 1, block, found)
+      IF (found) gradient = gradient + CMPLX(block, 0.0_dp, KIND=dp)
+      CALL dbcsr_get_block_p(nk(8), 1, 1, block, found)
+      IF (found) gradient = gradient + CMPLX(0.0_dp, block, KIND=dp)
+
+      hstep = 1.0E-6_dp
+      fd_slope = (strict_energy(c0, x + hstep*direction, overlap, hamiltonian) - &
+                  strict_energy(c0, x - hstep*direction, overlap, hamiltonian))/(2.0_dp*hstep)
+      slope = REAL(SUM(CONJG(gradient)*direction), KIND=dp)
+      error = ABS(slope - fd_slope)
+      ortho_error = MAXVAL(ABS(MATMUL(CONJG(TRANSPOSE(orbitals)), MATMUL(overlap, orbitals)) - &
+                               RESHAPE([CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
+                                        CMPLX(0.0_dp, 0.0_dp, KIND=dp), &
+                                        CMPLX(0.0_dp, 0.0_dp, KIND=dp), &
+                                        CMPLX(1.0_dp, 0.0_dp, KIND=dp)], [k, k])))
+      IF (error > 5.0E-8_dp .OR. ortho_error > 5.0E-13_dp) nfail = nfail + 1
+      IF (para_env%is_source()) THEN
+         WRITE (io_unit, '(A,3(1X,ES13.6))') 'complex finite-STRICT derivative: fd/predicted/error', &
+            fd_slope, slope, error
+         WRITE (io_unit, '(A,1X,ES13.6)') 'complex finite-STRICT orthonormality error', ortho_error
+      END IF
+
+      DEALLOCATE (strict_env%evals, strict_env%dum)
+      DO i = SIZE(kk), 1, -1
+         CALL dbcsr_release(kk(i))
+      END DO
+      DO i = SIZE(nk), 1, -1
+         CALL dbcsr_release(nk(i))
+      END DO
+      CALL cp_blacs_env_release(blacs_env)
+      CALL mp_para_env_release(strict_para_env)
+
+   END SUBROUTINE test_complex_strict_derivative
 ! **************************************************************************************************
 !> \brief Check gauge invariance, Hermiticity, and positivity of the complex inverse operator.
 !> \param para_env parallel environment
@@ -452,9 +638,9 @@ CONTAINS
           MINVAL(eigenvalues) <= 0.0_dp) nfail = nfail + 1
       IF (s_error > 1.0E-11_dp .OR. t_error > 1.0E-11_dp) nfail = nfail + 1
       IF (para_env%is_source()) THEN
-         WRITE (*, '(A,3(1X,ES13.6))') 'complex FULL_SINGLE gauge/hermitian/min-eigenvalue', &
+         WRITE (io_unit, '(A,3(1X,ES13.6))') 'complex FULL_SINGLE gauge/hermitian/min-eigenvalue', &
             gauge_error, hermitian_error, MINVAL(eigenvalues)
-         WRITE (*, '(A,2(1X,ES13.6))') 'complex S/KINETIC inverse errors', s_error, t_error
+         WRITE (io_unit, '(A,2(1X,ES13.6))') 'complex S/KINETIC inverse errors', s_error, t_error
       END IF
 
       CALL destroy_preconditioner(preconditioner_t)
@@ -643,5 +829,63 @@ CONTAINS
       energy = REAL(SUM(CONJG(orbitals)*MATMUL(hamiltonian, orbitals)), KIND=dp)
 
    END FUNCTION polar_energy
+
+! **************************************************************************************************
+!> \brief Independent dense finite STRICT transformation for a Hermitian overlap.
+!> \param c0 reference orbitals
+!> \param coordinate tangent coordinate
+!> \param overlap Hermitian overlap matrix
+!> \param orbitals transformed orbitals
+! **************************************************************************************************
+   SUBROUTINE strict_orbitals(c0, coordinate, overlap, orbitals)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: c0, coordinate, overlap
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: orbitals
+
+      COMPLEX(KIND=dp), DIMENSION(SIZE(coordinate, 2), &
+         SIZE(coordinate, 2))                            :: cosp, sinp, vectors
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: root
+      REAL(KIND=dp), DIMENSION(SIZE(coordinate, 2))      :: eigenvalues
+
+      CALL diag_complex(MATMUL(CONJG(TRANSPOSE(coordinate)), MATMUL(overlap, coordinate)), &
+                        vectors, eigenvalues)
+      cosp(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      sinp(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      DO i = 1, SIZE(eigenvalues)
+         root = SQRT(MAX(0.0_dp, eigenvalues(i)))
+         cosp = cosp + COS(root)*MATMUL(RESHAPE(vectors(:, i), [SIZE(vectors, 1), 1]), &
+                                        RESHAPE(CONJG(vectors(:, i)), [1, SIZE(vectors, 1)]))
+         IF (root < 1.0E-12_dp) THEN
+            sinp = sinp + MATMUL(RESHAPE(vectors(:, i), [SIZE(vectors, 1), 1]), &
+                                 RESHAPE(CONJG(vectors(:, i)), [1, SIZE(vectors, 1)]))
+         ELSE
+            sinp = sinp + SIN(root)/root* &
+                   MATMUL(RESHAPE(vectors(:, i), [SIZE(vectors, 1), 1]), &
+                          RESHAPE(CONJG(vectors(:, i)), [1, SIZE(vectors, 1)]))
+         END IF
+      END DO
+      orbitals = MATMUL(c0, cosp) + MATMUL(coordinate, sinp)
+
+   END SUBROUTINE strict_orbitals
+
+! **************************************************************************************************
+!> \brief Energy of the independently transformed finite STRICT orbitals.
+!> \param c0 reference orbitals
+!> \param coordinate tangent coordinate
+!> \param overlap Hermitian overlap matrix
+!> \param hamiltonian Hermitian Hamiltonian
+!> \return energy
+! **************************************************************************************************
+   FUNCTION strict_energy(c0, coordinate, overlap, hamiltonian) RESULT(energy)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: c0, coordinate, overlap, hamiltonian
+      REAL(KIND=dp)                                      :: energy
+
+      COMPLEX(KIND=dp), DIMENSION(SIZE(coordinate, 1), &
+         SIZE(coordinate, 2))                            :: orbitals
+
+      CALL strict_orbitals(c0, coordinate, overlap, orbitals)
+      energy = REAL(SUM(CONJG(orbitals)*MATMUL(hamiltonian, orbitals)), KIND=dp)
+
+   END FUNCTION strict_energy
 
 END PROGRAM qs_ot_complex_ref_unittest

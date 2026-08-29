@@ -42,8 +42,11 @@ MODULE qs_ot
    PRIVATE
 
    PUBLIC  :: qs_ot_get_p
+   PUBLIC  :: qs_ot_get_p_complex
    PUBLIC  :: qs_ot_get_orbitals
+   PUBLIC  :: qs_ot_get_orbitals_complex
    PUBLIC  :: qs_ot_get_derivative
+   PUBLIC  :: qs_ot_get_derivative_complex
    PUBLIC  :: qs_ot_get_orbitals_ref
    PUBLIC  :: qs_ot_get_orbitals_ref_complex
    PUBLIC  :: qs_ot_get_derivative_ref
@@ -52,6 +55,8 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_rot_mat_derivative
    PUBLIC  :: qs_ot_new_preconditioner
    PRIVATE :: qs_ot_p2m_diag
+   PRIVATE :: qs_ot_p2m_diag_complex
+   PRIVATE :: qs_ot_complex_multiply
    PRIVATE :: qs_ot_sinc
    PRIVATE :: qs_ot_ref_poly
    PRIVATE :: qs_ot_ref_chol
@@ -86,6 +91,11 @@ CONTAINS
          CALL dbcsr_init_p(qs_ot_env%matrix_psc0)
          CALL dbcsr_copy(qs_ot_env%matrix_psc0, qs_ot_env%matrix_sc0, 'matrix_psc0')
       END IF
+      IF (qs_ot_env%has_complex_kpoint_state .AND. &
+          .NOT. ASSOCIATED(qs_ot_env%matrix_psc0_im)) THEN
+         CALL dbcsr_init_p(qs_ot_env%matrix_psc0_im)
+         CALL dbcsr_copy(qs_ot_env%matrix_psc0_im, qs_ot_env%matrix_sc0_im, 'matrix_psc0_im')
+      END IF
 
       IF (.NOT. qs_ot_env%use_dx) THEN
          qs_ot_env%use_dx = .TRUE.
@@ -107,6 +117,56 @@ CONTAINS
       END IF
 
    END SUBROUTINE qs_ot_new_preconditioner
+
+! **************************************************************************************************
+!> \brief multiply paired real/imaginary DBCSR matrices, with optional conjugate transposes
+!> \param op_a N or C
+!> \param op_b N or C
+!> \param a_re real part of A
+!> \param a_im imaginary part of A
+!> \param b_re real part of B
+!> \param b_im imaginary part of B
+!> \param c_re real part of A*B
+!> \param c_im imaginary part of A*B
+!> \param tmp real workspace shaped like C
+! **************************************************************************************************
+   SUBROUTINE qs_ot_complex_multiply(op_a, op_b, a_re, a_im, b_re, b_im, c_re, c_im, tmp)
+      CHARACTER(LEN=1), INTENT(IN)                       :: op_a, op_b
+      TYPE(dbcsr_type)                                   :: a_re, a_im, b_re, b_im, c_re, c_im, tmp
+
+      CHARACTER(LEN=1)                                   :: db_op_a, db_op_b
+      REAL(KIND=dp)                                      :: sign_a, sign_b
+
+      SELECT CASE (op_a)
+      CASE ('N')
+         db_op_a = 'N'
+         sign_a = 1.0_dp
+      CASE ('C')
+         db_op_a = 'T'
+         sign_a = -1.0_dp
+      CASE DEFAULT
+         CPABORT("Complex matrix product expects N or C for op_a")
+      END SELECT
+      SELECT CASE (op_b)
+      CASE ('N')
+         db_op_b = 'N'
+         sign_b = 1.0_dp
+      CASE ('C')
+         db_op_b = 'T'
+         sign_b = -1.0_dp
+      CASE DEFAULT
+         CPABORT("Complex matrix product expects N or C for op_b")
+      END SELECT
+
+      CALL dbcsr_multiply(db_op_a, db_op_b, 1.0_dp, a_re, b_re, 0.0_dp, c_re)
+      CALL dbcsr_multiply(db_op_a, db_op_b, 1.0_dp, a_im, b_im, 0.0_dp, tmp)
+      CALL dbcsr_add(c_re, tmp, alpha_scalar=1.0_dp, beta_scalar=-sign_a*sign_b)
+
+      CALL dbcsr_multiply(db_op_a, db_op_b, sign_b, a_re, b_im, 0.0_dp, c_im)
+      CALL dbcsr_multiply(db_op_a, db_op_b, sign_a, a_im, b_re, 0.0_dp, tmp)
+      CALL dbcsr_add(c_im, tmp, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+   END SUBROUTINE qs_ot_complex_multiply
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1057,6 +1117,37 @@ CONTAINS
    END SUBROUTINE qs_ot_get_p
 
 ! **************************************************************************************************
+!> \brief compute P=X^H*S*X and the STRICT matrix functions for a complex K-point channel
+!> \param matrix_x real part of X
+!> \param matrix_x_im imaginary part of X
+!> \param matrix_sx real part of S*X
+!> \param matrix_sx_im imaginary part of S*X
+!> \param qs_ot_env OT channel state
+! **************************************************************************************************
+   SUBROUTINE qs_ot_get_p_complex(matrix_x, matrix_x_im, matrix_sx, matrix_sx_im, qs_ot_env)
+      TYPE(dbcsr_type), POINTER                          :: matrix_x, matrix_x_im, matrix_sx, &
+                                                            matrix_sx_im
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_p_complex'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(qs_ot_env%has_complex_kpoint_state)
+      CPASSERT(qs_ot_env%settings%ot_algorithm == 'TOD')
+
+      CALL qs_ot_complex_multiply('C', 'N', matrix_x, matrix_x_im, matrix_sx, matrix_sx_im, &
+                                  qs_ot_env%matrix_p, qs_ot_env%matrix_p_im, qs_ot_env%matrix_buf1)
+      qs_ot_env%do_taylor = .FALSE.
+      CALL qs_ot_p2m_diag_complex(qs_ot_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_ot_get_p_complex
+
+! **************************************************************************************************
 !> \brief computes the rotation matrix rot_mat_u that is associated to a given
 !>        rot_mat_x using rot_mat_u=exp(rot_mat_x)
 !> \param qs_ot_env a valid qs_ot_env
@@ -1411,6 +1502,49 @@ CONTAINS
    END SUBROUTINE qs_ot_get_orbitals
 
 ! **************************************************************************************************
+!> \brief update complex K-point orbitals with the finite STRICT transformation
+!> \param matrix_c real output orbitals
+!> \param matrix_c_im imaginary output orbitals
+!> \param matrix_s real overlap matrix
+!> \param matrix_s_im imaginary overlap matrix
+!> \param qs_ot_env OT channel state
+! **************************************************************************************************
+   SUBROUTINE qs_ot_get_orbitals_complex(matrix_c, matrix_c_im, matrix_s, matrix_s_im, qs_ot_env)
+      TYPE(dbcsr_type), POINTER                          :: matrix_c, matrix_c_im, matrix_s, &
+                                                            matrix_s_im
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_orbitals_complex'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(qs_ot_env%has_complex_kpoint_state)
+      CPASSERT(qs_ot_env%settings%ot_algorithm == 'TOD')
+
+      CALL qs_ot_complex_multiply('N', 'N', matrix_s, matrix_s_im, &
+                                  qs_ot_env%matrix_x, qs_ot_env%matrix_x_im, &
+                                  qs_ot_env%matrix_sx, qs_ot_env%matrix_sx_im, &
+                                  qs_ot_env%matrix_tmp_nk)
+      CALL qs_ot_get_p_complex(qs_ot_env%matrix_x, qs_ot_env%matrix_x_im, &
+                               qs_ot_env%matrix_sx, qs_ot_env%matrix_sx_im, qs_ot_env)
+
+      CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_c0, qs_ot_env%matrix_c0_im, &
+                                  qs_ot_env%matrix_cosp, qs_ot_env%matrix_cosp_im, &
+                                  matrix_c, matrix_c_im, qs_ot_env%matrix_tmp_nk)
+      CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_x, qs_ot_env%matrix_x_im, &
+                                  qs_ot_env%matrix_sinp, qs_ot_env%matrix_sinp_im, &
+                                  qs_ot_env%matrix_buf_nk, qs_ot_env%matrix_buf_nk_im, &
+                                  qs_ot_env%matrix_tmp_nk)
+      CALL dbcsr_add(matrix_c, qs_ot_env%matrix_buf_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      CALL dbcsr_add(matrix_c_im, qs_ot_env%matrix_buf_nk_im, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_ot_get_orbitals_complex
+
+! **************************************************************************************************
 !> \brief this routines computes dE/dx=dx, with dx ortho to sc0
 !>        needs dE/dC=hc,C0,X,SX,p
 !>        if preconditioned it will not be the derivative, but the lagrangian multiplier
@@ -1502,6 +1636,167 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_ot_get_derivative
+
+! **************************************************************************************************
+!> \brief finite complex STRICT derivative, projected onto C0^H*S*X=0
+!> \param matrix_hc real part of H(k)*C(k)
+!> \param matrix_hc_im imaginary part of H(k)*C(k)
+!> \param qs_ot_env OT channel state
+! **************************************************************************************************
+   SUBROUTINE qs_ot_get_derivative_complex(matrix_hc, matrix_hc_im, qs_ot_env)
+      TYPE(dbcsr_type), POINTER                          :: matrix_hc, matrix_hc_im
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_complex'
+
+      INTEGER                                            :: handle, i, k
+      REAL(KIND=dp)                                      :: eval_scale, eval_threshold
+      TYPE(dbcsr_distribution_type)                      :: dist
+      TYPE(dbcsr_type), POINTER                          :: target_im, target_re
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(qs_ot_env%has_complex_kpoint_state)
+      CPASSERT(qs_ot_env%settings%ot_algorithm == 'TOD')
+      CPASSERT(.NOT. qs_ot_env%settings%do_rotation)
+
+      ! Direct X contribution, H*C sinc(sqrt(P)).
+      CALL qs_ot_complex_multiply('N', 'N', matrix_hc, matrix_hc_im, &
+                                  qs_ot_env%matrix_sinp, qs_ot_env%matrix_sinp_im, &
+                                  qs_ot_env%matrix_gx, qs_ot_env%matrix_gx_im, &
+                                  qs_ot_env%matrix_tmp_nk)
+
+      ! Frechet contribution from X sinc(sqrt(P)).
+      CALL qs_ot_complex_multiply('C', 'N', matrix_hc, matrix_hc_im, &
+                                  qs_ot_env%matrix_x, qs_ot_env%matrix_x_im, &
+                                  qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
+                                  qs_ot_env%matrix_buf1)
+      CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
+                                  qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
+                                  qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
+                                  qs_ot_env%matrix_buf4)
+      CALL qs_ot_complex_multiply('C', 'N', qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
+                                  qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
+                                  qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
+                                  qs_ot_env%matrix_buf4)
+      CALL dbcsr_hadamard_product(qs_ot_env%matrix_buf2, qs_ot_env%matrix_sinp_b, &
+                                  qs_ot_env%matrix_buf3)
+      CALL dbcsr_hadamard_product(qs_ot_env%matrix_buf2_im, qs_ot_env%matrix_sinp_b, &
+                                  qs_ot_env%matrix_buf3_im)
+
+      ! Frechet contribution from C0 cos(sqrt(P)).
+      CALL qs_ot_complex_multiply('C', 'N', matrix_hc, matrix_hc_im, &
+                                  qs_ot_env%matrix_c0, qs_ot_env%matrix_c0_im, &
+                                  qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
+                                  qs_ot_env%matrix_buf1)
+      CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
+                                  qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
+                                  qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
+                                  qs_ot_env%matrix_buf4)
+      CALL qs_ot_complex_multiply('C', 'N', qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
+                                  qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
+                                  qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
+                                  qs_ot_env%matrix_buf4)
+      CALL dbcsr_hadamard_product(qs_ot_env%matrix_buf2, qs_ot_env%matrix_cosp_b, &
+                                  qs_ot_env%matrix_buf4)
+      CALL dbcsr_hadamard_product(qs_ot_env%matrix_buf2_im, qs_ot_env%matrix_cosp_b, &
+                                  qs_ot_env%matrix_buf4_im)
+      CALL dbcsr_add(qs_ot_env%matrix_buf3, qs_ot_env%matrix_buf4, &
+                     alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      CALL dbcsr_add(qs_ot_env%matrix_buf3_im, qs_ot_env%matrix_buf4_im, &
+                     alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      ! Transform back and add the Hermitian adjoint generated by dP.
+      CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
+                                  qs_ot_env%matrix_buf3, qs_ot_env%matrix_buf3_im, &
+                                  qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
+                                  qs_ot_env%matrix_buf2)
+      CALL qs_ot_complex_multiply('N', 'C', qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
+                                  qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
+                                  qs_ot_env%matrix_buf3, qs_ot_env%matrix_buf3_im, &
+                                  qs_ot_env%matrix_buf2)
+      CALL dbcsr_get_info(qs_ot_env%matrix_buf3, distribution=dist)
+      CALL dbcsr_transposed(qs_ot_env%matrix_buf4, qs_ot_env%matrix_buf3, &
+                            shallow_data_copy=.FALSE., use_distribution=dist, &
+                            transpose_distribution=.FALSE.)
+      CALL dbcsr_transposed(qs_ot_env%matrix_buf4_im, qs_ot_env%matrix_buf3_im, &
+                            shallow_data_copy=.FALSE., use_distribution=dist, &
+                            transpose_distribution=.FALSE.)
+      CALL dbcsr_add(qs_ot_env%matrix_buf3, qs_ot_env%matrix_buf4, &
+                     alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      CALL dbcsr_add(qs_ot_env%matrix_buf3_im, qs_ot_env%matrix_buf4_im, &
+                     alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+      CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_sx, qs_ot_env%matrix_sx_im, &
+                                  qs_ot_env%matrix_buf3, qs_ot_env%matrix_buf3_im, &
+                                  qs_ot_env%matrix_buf_nk, qs_ot_env%matrix_buf_nk_im, &
+                                  qs_ot_env%matrix_tmp_nk)
+      CALL dbcsr_add(qs_ot_env%matrix_gx, qs_ot_env%matrix_buf_nk, &
+                     alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      CALL dbcsr_add(qs_ot_env%matrix_gx_im, qs_ot_env%matrix_buf_nk_im, &
+                     alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      ! Preconditioner-aware projection onto the complex STRICT tangent space.
+      IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
+         target_re => qs_ot_env%matrix_psc0
+         target_im => qs_ot_env%matrix_psc0_im
+      ELSE
+         target_re => qs_ot_env%matrix_sc0
+         target_im => qs_ot_env%matrix_sc0_im
+      END IF
+      IF (.NOT. qs_ot_env%os_valid) THEN
+         IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
+            CALL apply_preconditioner(qs_ot_env%preconditioner, &
+                                      qs_ot_env%matrix_sc0, qs_ot_env%matrix_sc0_im, &
+                                      qs_ot_env%matrix_psc0, qs_ot_env%matrix_psc0_im)
+         END IF
+         CALL qs_ot_complex_multiply('C', 'N', qs_ot_env%matrix_sc0, qs_ot_env%matrix_sc0_im, &
+                                     target_re, target_im, qs_ot_env%matrix_os, qs_ot_env%matrix_os_im, &
+                                     qs_ot_env%matrix_buf1)
+         CALL dbcsr_get_info(qs_ot_env%matrix_os, nfullrows_total=k)
+         CALL cp_dbcsr_heevd(matrix_re=qs_ot_env%matrix_os, matrix_im=qs_ot_env%matrix_os_im, &
+                             eigenvectors_re=qs_ot_env%matrix_r, eigenvectors_im=qs_ot_env%matrix_r_im, &
+                             eigenvalues=qs_ot_env%evals, para_env=qs_ot_env%para_env, &
+                             blacs_env=qs_ot_env%blacs_env)
+         eval_scale = MAX(1.0_dp, MAXVAL(ABS(qs_ot_env%evals(1:k))))
+         eval_threshold = 100.0_dp*EPSILON(1.0_dp)*eval_scale
+         IF (MINVAL(qs_ot_env%evals(1:k)) <= eval_threshold) THEN
+            CPABORT("Complex STRICT tangent metric is not positive definite")
+         END IF
+         DO i = 1, k
+            qs_ot_env%dum(i) = 1.0_dp/qs_ot_env%evals(i)
+         END DO
+         CALL dbcsr_copy(qs_ot_env%matrix_buf1, qs_ot_env%matrix_r)
+         CALL dbcsr_copy(qs_ot_env%matrix_buf1_im, qs_ot_env%matrix_r_im)
+         CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1, alpha=qs_ot_env%dum, side='right')
+         CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1_im, alpha=qs_ot_env%dum, side='right')
+         CALL qs_ot_complex_multiply('N', 'C', qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
+                                     qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
+                                     qs_ot_env%matrix_os, qs_ot_env%matrix_os_im, &
+                                     qs_ot_env%matrix_buf2)
+         qs_ot_env%os_valid = .TRUE.
+      END IF
+
+      CALL qs_ot_complex_multiply('C', 'N', target_re, target_im, &
+                                  qs_ot_env%matrix_gx, qs_ot_env%matrix_gx_im, &
+                                  qs_ot_env%matrix_buf1_ortho, qs_ot_env%matrix_buf1_ortho_im, &
+                                  qs_ot_env%matrix_tmp_ortho)
+      CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_os, qs_ot_env%matrix_os_im, &
+                                  qs_ot_env%matrix_buf1_ortho, qs_ot_env%matrix_buf1_ortho_im, &
+                                  qs_ot_env%matrix_buf2_ortho, qs_ot_env%matrix_buf2_ortho_im, &
+                                  qs_ot_env%matrix_tmp_ortho)
+      CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_sc0, qs_ot_env%matrix_sc0_im, &
+                                  qs_ot_env%matrix_buf2_ortho, qs_ot_env%matrix_buf2_ortho_im, &
+                                  qs_ot_env%matrix_buf_nk, qs_ot_env%matrix_buf_nk_im, &
+                                  qs_ot_env%matrix_tmp_nk)
+      CALL dbcsr_add(qs_ot_env%matrix_gx, qs_ot_env%matrix_buf_nk, &
+                     alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+      CALL dbcsr_add(qs_ot_env%matrix_gx_im, qs_ot_env%matrix_buf_nk_im, &
+                     alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_ot_get_derivative_complex
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1828,6 +2123,94 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_ot_p2m_diag
+
+! **************************************************************************************************
+!> \brief diagonalize Hermitian P and build cos(sqrt(P)), sinc(sqrt(P)), and Frechet kernels
+!> \param qs_ot_env complex STRICT channel state
+! **************************************************************************************************
+   SUBROUTINE qs_ot_p2m_diag_complex(qs_ot_env)
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_p2m_diag_complex'
+
+      INTEGER                                            :: col, col_offset, col_size, handle, i, j, &
+                                                            k, row, row_offset, row_size
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block
+      REAL(KIND=dp)                                      :: a, b
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_get_info(qs_ot_env%matrix_p, nfullrows_total=k)
+      CALL cp_dbcsr_heevd(matrix_re=qs_ot_env%matrix_p, matrix_im=qs_ot_env%matrix_p_im, &
+                          eigenvectors_re=qs_ot_env%matrix_r, eigenvectors_im=qs_ot_env%matrix_r_im, &
+                          eigenvalues=qs_ot_env%evals, para_env=qs_ot_env%para_env, &
+                          blacs_env=qs_ot_env%blacs_env)
+      DO i = 1, k
+         qs_ot_env%evals(i) = MAX(0.0_dp, qs_ot_env%evals(i))
+      END DO
+
+      DO i = 1, k
+         qs_ot_env%dum(i) = COS(SQRT(qs_ot_env%evals(i)))
+      END DO
+      CALL dbcsr_copy(qs_ot_env%matrix_buf1, qs_ot_env%matrix_r)
+      CALL dbcsr_copy(qs_ot_env%matrix_buf1_im, qs_ot_env%matrix_r_im)
+      CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1, alpha=qs_ot_env%dum, side='right')
+      CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1_im, alpha=qs_ot_env%dum, side='right')
+      CALL qs_ot_complex_multiply('N', 'C', qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
+                                  qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
+                                  qs_ot_env%matrix_cosp, qs_ot_env%matrix_cosp_im, &
+                                  qs_ot_env%matrix_buf2)
+
+      DO i = 1, k
+         qs_ot_env%dum(i) = qs_ot_sinc(SQRT(qs_ot_env%evals(i)))
+      END DO
+      CALL dbcsr_copy(qs_ot_env%matrix_buf1, qs_ot_env%matrix_r)
+      CALL dbcsr_copy(qs_ot_env%matrix_buf1_im, qs_ot_env%matrix_r_im)
+      CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1, alpha=qs_ot_env%dum, side='right')
+      CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1_im, alpha=qs_ot_env%dum, side='right')
+      CALL qs_ot_complex_multiply('N', 'C', qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf1_im, &
+                                  qs_ot_env%matrix_r, qs_ot_env%matrix_r_im, &
+                                  qs_ot_env%matrix_sinp, qs_ot_env%matrix_sinp_im, &
+                                  qs_ot_env%matrix_buf2)
+
+      CALL dbcsr_copy(qs_ot_env%matrix_cosp_b, qs_ot_env%matrix_cosp)
+      CALL dbcsr_iterator_start(iter, qs_ot_env%matrix_cosp_b)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, block, &
+                                        row_size=row_size, col_size=col_size, &
+                                        row_offset=row_offset, col_offset=col_offset)
+         DO j = 1, col_size
+         DO i = 1, row_size
+            a = (SQRT(qs_ot_env%evals(row_offset + i - 1)) &
+                 - SQRT(qs_ot_env%evals(col_offset + j - 1)))/2.0_dp
+            b = (SQRT(qs_ot_env%evals(row_offset + i - 1)) &
+                 + SQRT(qs_ot_env%evals(col_offset + j - 1)))/2.0_dp
+            block(i, j) = -0.5_dp*qs_ot_sinc(a)*qs_ot_sinc(b)
+         END DO
+         END DO
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+      CALL dbcsr_copy(qs_ot_env%matrix_sinp_b, qs_ot_env%matrix_sinp)
+      CALL dbcsr_iterator_start(iter, qs_ot_env%matrix_sinp_b)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, block, &
+                                        row_size=row_size, col_size=col_size, &
+                                        row_offset=row_offset, col_offset=col_offset)
+         DO j = 1, col_size
+         DO i = 1, row_size
+            a = SQRT(qs_ot_env%evals(row_offset + i - 1))
+            b = SQRT(qs_ot_env%evals(col_offset + j - 1))
+            block(i, j) = qs_ot_sincf(a, b)
+         END DO
+         END DO
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_ot_p2m_diag_complex
 
 ! **************************************************************************************************
 !> \brief computes sin(x)/x for all values of the argument
