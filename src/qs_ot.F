@@ -15,11 +15,12 @@
 MODULE qs_ot
    USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_distribution_type, dbcsr_filter, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_release, dbcsr_release_p, dbcsr_scale, dbcsr_set, dbcsr_transposed, &
-        dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, &
+        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release, dbcsr_release_p, &
+        dbcsr_reserve_blocks, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert,&
                                               cp_dbcsr_cholesky_restore
@@ -1133,15 +1134,18 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_rot_mat_derivative'
 
-      INTEGER                                  :: handle, i, j, k
+      INTEGER                                  :: col, handle, i, iblock, j, k, max_blocks, nblocks, row
+      INTEGER, ALLOCATABLE, DIMENSION(:)       :: cols, rows
+      INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, col_blk_size, row_blk_offset, row_blk_size
       REAL(KIND=dp)                            :: e1, e2
       TYPE(dbcsr_type)                         :: outer_deriv_re, outer_deriv_im, mat_buf, &
                                                   inner_deriv_re, inner_deriv_im
+      TYPE(dbcsr_distribution_type)            :: dist
       TYPE(dbcsr_iterator_type)                :: iter
-      INTEGER, DIMENSION(:), POINTER           :: row_blk_offset, col_blk_offset
       REAL(dp), DIMENSION(:, :), POINTER       :: block_in_re, block_in_im, block_out_re, block_out_im
-      INTEGER                                  :: row, col
-      LOGICAL                                  :: found
+      LOGICAL                                  :: duplicate, found_in_im, found_in_re, found_out_im, &
+                                                  found_out_re
+      REAL(KIND=dp)                            :: im_part, re_part
       COMPLEX(dp)                              :: cval_in, cval_out
       CALL timeset(routineN, handle)
 
@@ -1163,24 +1167,87 @@ CONTAINS
          CALL dbcsr_multiply('T', 'N', +1.0_dp, qs_ot_env%rot_mat_evec_re, mat_buf, 1.0_dp, inner_deriv_re)
          CALL dbcsr_multiply('T', 'N', -1.0_dp, qs_ot_env%rot_mat_evec_im, mat_buf, 1.0_dp, inner_deriv_im)
 
-         ! outer_deriv_ij = cint(eval_i, eval_j) * inner_deriv_ij
-         CALL dbcsr_copy(outer_deriv_re, qs_ot_env%rot_mat_dedu, "outer_deriv_re") ! TODO just create
-         CALL dbcsr_copy(outer_deriv_im, qs_ot_env%rot_mat_dedu, "outer_deriv_im") ! TODO just create
-
-         CALL dbcsr_get_info(qs_ot_env%rot_mat_dedu, row_blk_offset=row_blk_offset, col_blk_offset=col_blk_offset)
-         CALL dbcsr_iterator_start(iter, qs_ot_env%rot_mat_dedu)
+         ! Real and imaginary products can have different sparse block patterns.
+         ! Form their union explicitly and treat a missing partner block as zero.
+         max_blocks = 0
+         CALL dbcsr_iterator_start(iter, inner_deriv_re)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, row, col)
-            CALL dbcsr_get_block_p(inner_deriv_re, row, col, block_in_re, found)
-            CALL dbcsr_get_block_p(inner_deriv_im, row, col, block_in_im, found)
-            CALL dbcsr_get_block_p(outer_deriv_re, row, col, block_out_re, found)
-            CALL dbcsr_get_block_p(outer_deriv_im, row, col, block_out_im, found)
+            max_blocks = max_blocks + 1
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_start(iter, inner_deriv_im)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row, col)
+            max_blocks = max_blocks + 1
+         END DO
+         CALL dbcsr_iterator_stop(iter)
 
-            DO i = 1, SIZE(block_in_re, 1)
-            DO j = 1, SIZE(block_in_re, 2)
+         ALLOCATE (rows(MAX(max_blocks, 1)), cols(MAX(max_blocks, 1)))
+         nblocks = 0
+         CALL dbcsr_iterator_start(iter, inner_deriv_re)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row, col)
+            duplicate = .FALSE.
+            DO iblock = 1, nblocks
+               duplicate = duplicate .OR. (rows(iblock) == row .AND. cols(iblock) == col)
+            END DO
+            IF (.NOT. duplicate) THEN
+               nblocks = nblocks + 1
+               rows(nblocks) = row
+               cols(nblocks) = col
+            END IF
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_start(iter, inner_deriv_im)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row, col)
+            duplicate = .FALSE.
+            DO iblock = 1, nblocks
+               duplicate = duplicate .OR. (rows(iblock) == row .AND. cols(iblock) == col)
+            END DO
+            IF (.NOT. duplicate) THEN
+               nblocks = nblocks + 1
+               rows(nblocks) = row
+               cols(nblocks) = col
+            END IF
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+
+         CALL dbcsr_get_info(inner_deriv_re, distribution=dist, row_blk_size=row_blk_size, &
+                             col_blk_size=col_blk_size)
+         CALL dbcsr_create(outer_deriv_re, "outer_deriv_re", dist, dbcsr_type_no_symmetry, &
+                           row_blk_size, col_blk_size)
+         CALL dbcsr_create(outer_deriv_im, "outer_deriv_im", dist, dbcsr_type_no_symmetry, &
+                           row_blk_size, col_blk_size)
+         IF (nblocks > 0) THEN
+            CALL dbcsr_reserve_blocks(outer_deriv_re, rows=rows(1:nblocks), cols=cols(1:nblocks))
+            CALL dbcsr_reserve_blocks(outer_deriv_im, rows=rows(1:nblocks), cols=cols(1:nblocks))
+         END IF
+         CALL dbcsr_finalize(outer_deriv_re)
+         CALL dbcsr_finalize(outer_deriv_im)
+         CALL dbcsr_set(outer_deriv_re, 0.0_dp)
+         CALL dbcsr_set(outer_deriv_im, 0.0_dp)
+
+         CALL dbcsr_get_info(outer_deriv_re, row_blk_offset=row_blk_offset, col_blk_offset=col_blk_offset)
+         CALL dbcsr_iterator_start(iter, outer_deriv_re)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row, col)
+            CALL dbcsr_get_block_p(inner_deriv_re, row, col, block_in_re, found_in_re)
+            CALL dbcsr_get_block_p(inner_deriv_im, row, col, block_in_im, found_in_im)
+            CALL dbcsr_get_block_p(outer_deriv_re, row, col, block_out_re, found_out_re)
+            CALL dbcsr_get_block_p(outer_deriv_im, row, col, block_out_im, found_out_im)
+            CPASSERT(found_out_re .AND. found_out_im)
+
+            DO i = 1, SIZE(block_out_re, 1)
+            DO j = 1, SIZE(block_out_re, 2)
                e1 = qs_ot_env%rot_mat_evals(row_blk_offset(row) + i - 1)
                e2 = qs_ot_env%rot_mat_evals(col_blk_offset(col) + j - 1)
-               cval_in = CMPLX(block_in_re(i, j), block_in_im(i, j), dp)
+               re_part = 0.0_dp
+               im_part = 0.0_dp
+               IF (found_in_re) re_part = block_in_re(i, j)
+               IF (found_in_im) im_part = block_in_im(i, j)
+               cval_in = CMPLX(re_part, im_part, dp)
                cval_out = cval_in*cint(e1, e2)
                block_out_re(i, j) = REAL(cval_out)
                block_out_im(i, j) = AIMAG(cval_out)
@@ -1188,6 +1255,7 @@ CONTAINS
             END DO
          END DO
          CALL dbcsr_iterator_stop(iter)
+         DEALLOCATE (rows, cols)
          CALL dbcsr_release(inner_deriv_re)
          CALL dbcsr_release(inner_deriv_im)
 
