@@ -994,7 +994,7 @@ MODULE input_constants
                                                rtp_method_bse_linearized = 3
 
    INTEGER, PARAMETER, PUBLIC               :: rtp_bse_ham_ks = 1, &
-                                               rtp_bse_ham_g0w0 = 2
+                                               rtp_bse_ham_gw = 2
 
    INTEGER, PARAMETER, PUBLIC               :: rtp_bse_kernel_ri_default = 0, &
                                                rtp_bse_kernel_ri_rs = 1, &

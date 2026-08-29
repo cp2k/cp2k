@@ -14,7 +14,7 @@ MODULE cp_control_types
                                               cp_fm_type
    USE eeq_input,                       ONLY: eeq_solver_type
    USE input_constants,                 ONLY: &
-        do_full_density, rtp_bse_ham_G0W0, rtp_method_tddft, tblite_cli_born_kernel_auto, &
+        do_full_density, rtp_bse_ham_gw, rtp_method_tddft, tblite_cli_born_kernel_auto, &
         tblite_cli_solution_state_gsolv, tblite_cli_solvation_none, tblite_guess_ceh, &
         tblite_guess_sad, tblite_mixer_damping_default, tblite_mixer_iterations_default, &
         tblite_mixer_max_weight_default, tblite_mixer_min_weight_default, &
@@ -99,7 +99,7 @@ MODULE cp_control_types
       INTEGER                              :: propagator = 0
       LOGICAL                              :: fixed_ions = .FALSE.
       INTEGER                              :: rtp_method = rtp_method_tddft
-      INTEGER                              :: rtbse_ham = rtp_bse_ham_G0W0
+      INTEGER                              :: rtbse_ham = rtp_bse_ham_gw
       INTEGER                              :: initial_wfn = 0
       REAL(dp)                             :: eps_exp = 0.0_dp
       LOGICAL                              :: initial_step = .FALSE.

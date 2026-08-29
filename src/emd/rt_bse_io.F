@@ -38,7 +38,8 @@ MODULE rt_bse_io
                        close_file
    USE input_constants, ONLY: do_exact, &
                               do_bch, &
-                              rtp_bse_ham_g0w0, &
+                              evGW0, &
+                              rtp_bse_ham_gw, &
                               rtp_bse_ham_ks, &
                               use_rt_restart, &
                               restart_guess
@@ -117,8 +118,12 @@ CONTAINS
 
          WRITE (rtbse_env%unit_nr, '(A22)', advance="no") ' Reference Hamiltonian'
          SELECT CASE (rtbse_env%ham_reference_type)
-         CASE (rtp_bse_ham_g0w0)
-            WRITE (rtbse_env%unit_nr, '(A58)') 'G0W0'
+         CASE (rtp_bse_ham_gw)
+            IF (rtbse_env%bs_env%gw_flavour == evGW0) THEN
+               WRITE (rtbse_env%unit_nr, '(A58)') 'evGW0'
+            ELSE
+               WRITE (rtbse_env%unit_nr, '(A58)') 'G0W0'
+            END IF
          CASE (rtp_bse_ham_ks)
             WRITE (rtbse_env%unit_nr, '(A58)') 'Kohn-Sham'
          END SELECT
