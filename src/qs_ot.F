@@ -15,11 +15,12 @@
 MODULE qs_ot
    USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_distribution_type, dbcsr_filter, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_release, dbcsr_release_p, dbcsr_scale, dbcsr_set, dbcsr_transposed, &
-        dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, &
+        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release, dbcsr_release_p, &
+        dbcsr_reserve_blocks, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert,&
                                               cp_dbcsr_cholesky_restore
@@ -47,6 +48,8 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_get_orbitals_ref_complex
    PUBLIC  :: qs_ot_get_derivative_ref
    PUBLIC  :: qs_ot_get_derivative_ref_complex
+   PUBLIC  :: qs_ot_generate_rotation
+   PUBLIC  :: qs_ot_rot_mat_derivative
    PUBLIC  :: qs_ot_new_preconditioner
    PRIVATE :: qs_ot_p2m_diag
    PRIVATE :: qs_ot_sinc
@@ -603,6 +606,13 @@ CONTAINS
          END IF
          CALL dbcsr_copy(C_OLD, C_NEW)
       END IF
+
+      IF (qs_ot_env%settings%do_rotation) THEN
+         CALL qs_ot_generate_rotation(qs_ot_env)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, C_NEW, qs_ot_env%rot_mat_u, &
+                             0.0_dp, C_TMP)
+         CALL dbcsr_copy(C_NEW, C_TMP)
+      END IF
       !
       CALL timestop(handle)
    END SUBROUTINE qs_ot_get_orbitals_ref
@@ -845,7 +855,7 @@ CONTAINS
 
       INTEGER                                            :: handle, k, n
       REAL(dp)                                           :: occ_in, occ_out
-      TYPE(dbcsr_type), POINTER                          :: C, CHC, G, G_dp, HC, SC
+      TYPE(dbcsr_type), POINTER                          :: C, CHC, G, HC, HC_work, SC
 
       CALL timeset(routineN, handle)
 
@@ -856,10 +866,20 @@ CONTAINS
       HC => matrix_hc ! NBsf*NOcc
       G => matrix_gx ! NBsf*NOcc
       CHC => qs_ot_env%buf1_k_k_sym ! buffer
-      G_dp => qs_ot_env%buf1_n_k_dp ! buffer dp
+
+      IF (qs_ot_env%settings%do_rotation) THEN
+         ! The physical orbitals are C_current=Q*U. Pull dE/dC_current
+         ! back to the unrotated REF basis before projecting it.
+         CALL qs_ot_rot_mat_derivative(qs_ot_env)
+         HC_work => qs_ot_env%buf1_n_k
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, HC, qs_ot_env%rot_mat_u, &
+                             0.0_dp, HC_work)
+      ELSE
+         HC_work => HC
+      END IF
 
       ! C'*(H*C)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, C, HC, 0.0_dp, CHC)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, C, HC_work, 0.0_dp, CHC)
       IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
          occ_in = dbcsr_get_occupation(chc)
          CALL dbcsr_filter(chc, qs_ot_env%settings%eps_irac_filter_matrix)
@@ -873,7 +893,7 @@ CONTAINS
          occ_out = dbcsr_get_occupation(g)
       END IF
       ! G = 2*(1-S*C*C')*H*C
-      CALL dbcsr_add(G, HC, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+      CALL dbcsr_add(G, HC_work, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
       !
       CALL timestop(handle)
    END SUBROUTINE qs_ot_get_derivative_ref
@@ -1114,18 +1134,19 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_rot_mat_derivative'
 
-      INTEGER                                  :: handle, i, j, k
+      INTEGER                                  :: col, handle, i, iblock, j, k, max_blocks, nblocks, row
+      INTEGER, ALLOCATABLE, DIMENSION(:)       :: cols, rows
+      INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, col_blk_size, row_blk_offset, row_blk_size
       REAL(KIND=dp)                            :: e1, e2
       TYPE(dbcsr_type)                         :: outer_deriv_re, outer_deriv_im, mat_buf, &
                                                   inner_deriv_re, inner_deriv_im
-      TYPE(dbcsr_iterator_type)                :: iter
-      INTEGER, DIMENSION(:), POINTER           :: row_blk_offset, col_blk_offset
-      REAL(dp), DIMENSION(:, :), POINTER       :: block_in_re, block_in_im, block_out_re, block_out_im
-      INTEGER                                  :: row, col
-      LOGICAL                                  :: found
-      COMPLEX(dp)                              :: cval_in, cval_out
       TYPE(dbcsr_distribution_type)            :: dist
-
+      TYPE(dbcsr_iterator_type)                :: iter
+      REAL(dp), DIMENSION(:, :), POINTER       :: block_in_re, block_in_im, block_out_re, block_out_im
+      LOGICAL                                  :: duplicate, found_in_im, found_in_re, found_out_im, &
+                                                  found_out_re
+      REAL(KIND=dp)                            :: im_part, re_part
+      COMPLEX(dp)                              :: cval_in, cval_out
       CALL timeset(routineN, handle)
 
       CALL dbcsr_get_info(qs_ot_env%rot_mat_u, nfullrows_total=k)
@@ -1146,24 +1167,87 @@ CONTAINS
          CALL dbcsr_multiply('T', 'N', +1.0_dp, qs_ot_env%rot_mat_evec_re, mat_buf, 1.0_dp, inner_deriv_re)
          CALL dbcsr_multiply('T', 'N', -1.0_dp, qs_ot_env%rot_mat_evec_im, mat_buf, 1.0_dp, inner_deriv_im)
 
-         ! outer_deriv_ij = cint(eval_i, eval_j) * inner_deriv_ij
-         CALL dbcsr_copy(outer_deriv_re, qs_ot_env%rot_mat_dedu, "outer_deriv_re") ! TODO just create
-         CALL dbcsr_copy(outer_deriv_im, qs_ot_env%rot_mat_dedu, "outer_deriv_im") ! TODO just create
-
-         CALL dbcsr_get_info(qs_ot_env%rot_mat_dedu, row_blk_offset=row_blk_offset, col_blk_offset=col_blk_offset)
-         CALL dbcsr_iterator_start(iter, qs_ot_env%rot_mat_dedu)
+         ! Real and imaginary products can have different sparse block patterns.
+         ! Form their union explicitly and treat a missing partner block as zero.
+         max_blocks = 0
+         CALL dbcsr_iterator_start(iter, inner_deriv_re)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, row, col)
-            CALL dbcsr_get_block_p(inner_deriv_re, row, col, block_in_re, found)
-            CALL dbcsr_get_block_p(inner_deriv_im, row, col, block_in_im, found)
-            CALL dbcsr_get_block_p(outer_deriv_re, row, col, block_out_re, found)
-            CALL dbcsr_get_block_p(outer_deriv_im, row, col, block_out_im, found)
+            max_blocks = max_blocks + 1
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_start(iter, inner_deriv_im)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row, col)
+            max_blocks = max_blocks + 1
+         END DO
+         CALL dbcsr_iterator_stop(iter)
 
-            DO i = 1, SIZE(block_in_re, 1)
-            DO j = 1, SIZE(block_in_re, 2)
+         ALLOCATE (rows(MAX(max_blocks, 1)), cols(MAX(max_blocks, 1)))
+         nblocks = 0
+         CALL dbcsr_iterator_start(iter, inner_deriv_re)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row, col)
+            duplicate = .FALSE.
+            DO iblock = 1, nblocks
+               duplicate = duplicate .OR. (rows(iblock) == row .AND. cols(iblock) == col)
+            END DO
+            IF (.NOT. duplicate) THEN
+               nblocks = nblocks + 1
+               rows(nblocks) = row
+               cols(nblocks) = col
+            END IF
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_start(iter, inner_deriv_im)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row, col)
+            duplicate = .FALSE.
+            DO iblock = 1, nblocks
+               duplicate = duplicate .OR. (rows(iblock) == row .AND. cols(iblock) == col)
+            END DO
+            IF (.NOT. duplicate) THEN
+               nblocks = nblocks + 1
+               rows(nblocks) = row
+               cols(nblocks) = col
+            END IF
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+
+         CALL dbcsr_get_info(inner_deriv_re, distribution=dist, row_blk_size=row_blk_size, &
+                             col_blk_size=col_blk_size)
+         CALL dbcsr_create(outer_deriv_re, "outer_deriv_re", dist, dbcsr_type_no_symmetry, &
+                           row_blk_size, col_blk_size)
+         CALL dbcsr_create(outer_deriv_im, "outer_deriv_im", dist, dbcsr_type_no_symmetry, &
+                           row_blk_size, col_blk_size)
+         IF (nblocks > 0) THEN
+            CALL dbcsr_reserve_blocks(outer_deriv_re, rows=rows(1:nblocks), cols=cols(1:nblocks))
+            CALL dbcsr_reserve_blocks(outer_deriv_im, rows=rows(1:nblocks), cols=cols(1:nblocks))
+         END IF
+         CALL dbcsr_finalize(outer_deriv_re)
+         CALL dbcsr_finalize(outer_deriv_im)
+         CALL dbcsr_set(outer_deriv_re, 0.0_dp)
+         CALL dbcsr_set(outer_deriv_im, 0.0_dp)
+
+         CALL dbcsr_get_info(outer_deriv_re, row_blk_offset=row_blk_offset, col_blk_offset=col_blk_offset)
+         CALL dbcsr_iterator_start(iter, outer_deriv_re)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row, col)
+            CALL dbcsr_get_block_p(inner_deriv_re, row, col, block_in_re, found_in_re)
+            CALL dbcsr_get_block_p(inner_deriv_im, row, col, block_in_im, found_in_im)
+            CALL dbcsr_get_block_p(outer_deriv_re, row, col, block_out_re, found_out_re)
+            CALL dbcsr_get_block_p(outer_deriv_im, row, col, block_out_im, found_out_im)
+            CPASSERT(found_out_re .AND. found_out_im)
+
+            DO i = 1, SIZE(block_out_re, 1)
+            DO j = 1, SIZE(block_out_re, 2)
                e1 = qs_ot_env%rot_mat_evals(row_blk_offset(row) + i - 1)
                e2 = qs_ot_env%rot_mat_evals(col_blk_offset(col) + j - 1)
-               cval_in = CMPLX(block_in_re(i, j), block_in_im(i, j), dp)
+               re_part = 0.0_dp
+               im_part = 0.0_dp
+               IF (found_in_re) re_part = block_in_re(i, j)
+               IF (found_in_im) im_part = block_in_im(i, j)
+               cval_in = CMPLX(re_part, im_part, dp)
                cval_out = cval_in*cint(e1, e2)
                block_out_re(i, j) = REAL(cval_out)
                block_out_im(i, j) = AIMAG(cval_out)
@@ -1171,6 +1255,7 @@ CONTAINS
             END DO
          END DO
          CALL dbcsr_iterator_stop(iter)
+         DEALLOCATE (rows, cols)
          CALL dbcsr_release(inner_deriv_re)
          CALL dbcsr_release(inner_deriv_im)
 
@@ -1183,15 +1268,12 @@ CONTAINS
          CALL dbcsr_multiply('N', 'N', +1.0_dp, qs_ot_env%rot_mat_evec_im, outer_deriv_re, 1.0_dp, mat_buf)
          CALL dbcsr_multiply('N', 'T', +1.0_dp, mat_buf, qs_ot_env%rot_mat_evec_im, 1.0_dp, qs_ot_env%matrix_buf1)
 
-         ! Account for anti-symmetry of rot_mat_x.
-         CALL dbcsr_get_info(qs_ot_env%matrix_buf3, distribution=dist)
-         CALL dbcsr_transposed(qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf1, &
-                               shallow_data_copy=.FALSE., use_distribution=dist, &
-                               transpose_distribution=.FALSE.)
-
-         ! rot_mat_gx = matrix_buf1^T - matrix_buf1
-         CALL dbcsr_add(qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf2, alpha_scalar=-1.0_dp, beta_scalar=+1.0_dp)
-         CALL dbcsr_copy(qs_ot_env%rot_mat_gx, qs_ot_env%matrix_buf1)
+         ! Account for anti-symmetry of rot_mat_x without relying on
+         ! STRICT-only matrix buffers. REF uses the same finite chart.
+         CALL qs_ot_square_transpose(qs_ot_env%matrix_buf1, mat_buf, qs_ot_env%rot_mat_u)
+         CALL dbcsr_copy(qs_ot_env%rot_mat_gx, mat_buf)
+         CALL dbcsr_add(qs_ot_env%rot_mat_gx, qs_ot_env%matrix_buf1, &
+                        alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
 
          CALL dbcsr_release(mat_buf)
          CALL dbcsr_release(outer_deriv_re)
@@ -1228,6 +1310,26 @@ CONTAINS
          END IF
       END FUNCTION cint
    END SUBROUTINE qs_ot_rot_mat_derivative
+
+! **************************************************************************************************
+!> \brief Transpose a square DBCSR matrix while retaining its target distribution.
+!> \param matrix source matrix
+!> \param transposed transposed matrix
+!> \param identity_template square matrix template
+! **************************************************************************************************
+   SUBROUTINE qs_ot_square_transpose(matrix, transposed, identity_template)
+      TYPE(dbcsr_type)                                   :: matrix, transposed, identity_template
+
+      TYPE(dbcsr_type)                                   :: identity
+
+      CALL dbcsr_copy(transposed, matrix, name='square_transposed')
+      CALL dbcsr_copy(identity, identity_template, name='transpose_identity')
+      CALL dbcsr_set(identity, 0.0_dp)
+      CALL dbcsr_add_on_diag(identity, 1.0_dp)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, matrix, identity, 0.0_dp, transposed)
+      CALL dbcsr_release(identity)
+
+   END SUBROUTINE qs_ot_square_transpose
 
 ! **************************************************************************************************
 !> \brief decide strategy

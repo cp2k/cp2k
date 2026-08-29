@@ -16,7 +16,8 @@ MODULE qs_ot_scf
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot,&
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
+                                              dbcsr_dot,&
                                               dbcsr_get_diag,&
                                               dbcsr_scale_by_vector,&
                                               dbcsr_set_diag
@@ -419,6 +420,8 @@ CONTAINS
 
          IF (qs_ot_env(ispin)%settings%do_rotation) THEN
             CALL dbcsr_set(qs_ot_env(ispin)%rot_mat_x, 0.0_dp)
+            CALL dbcsr_set(qs_ot_env(ispin)%rot_mat_u, 0.0_dp)
+            CALL dbcsr_add_on_diag(qs_ot_env(ispin)%rot_mat_u, 1.0_dp)
          END IF
 
          IF (qs_ot_env(ispin)%settings%do_ener) THEN
