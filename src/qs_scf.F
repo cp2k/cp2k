@@ -1470,9 +1470,14 @@ CONTAINS
              scf_env%qs_ot_env(1)%settings%ot_algorithm /= "REF") THEN
             CPABORT("K-point OT currently supports OT%ALGORITHM STRICT or IRAC.")
          END IF
+         IF (scf_env%qs_ot_env(1)%settings%ot_algorithm == "TOD" .AND. &
+             scf_env%qs_ot_env(1)%settings%do_rotation) THEN
+            CPABORT("Complex K-point STRICT does not yet support ROTATION; use IRAC or omit ROTATION.")
+         END IF
          IF (scf_env%qs_ot_env(1)%settings%OT_METHOD /= "CG" .AND. &
-             scf_env%qs_ot_env(1)%settings%OT_METHOD /= "DIIS") THEN
-            CPABORT("K-point OT currently supports OT%MINIMIZER CG or DIIS.")
+             scf_env%qs_ot_env(1)%settings%OT_METHOD /= "DIIS" .AND. &
+             scf_env%qs_ot_env(1)%settings%OT_METHOD /= "LBFG") THEN
+            CPABORT("K-point OT currently supports OT%MINIMIZER CG, DIIS, or LBFGS.")
          END IF
          IF (.NOT. qs_ot_kpoint_preconditioner_supported( &
              scf_env%qs_ot_env(1)%settings%preconditioner_type, .FALSE.)) THEN
@@ -1487,9 +1492,6 @@ CONTAINS
              scf_env%qs_ot_env(1)%settings%preconditioner_type, &
              scf_env%qs_ot_env(1)%settings%precond_solver_type, .FALSE.)) THEN
             CPABORT(kpoint_solver_error)
-         END IF
-         IF (scf_env%qs_ot_env(1)%settings%do_rotation) THEN
-            CPABORT("K-point OT orbital rotations are not part of the fixed-occupation implementation.")
          END IF
          IF (scf_env%qs_ot_env(1)%settings%occupation_preconditioner) THEN
             CPABORT("K-point OT does not yet support OCCUPATION_PRECONDITIONER.")
@@ -2177,8 +2179,10 @@ CONTAINS
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx_old_im, template=matrix_s, n=nmo, &
                                                 sym=dbcsr_type_no_symmetry)
       END IF
-      IF (qs_ot_env%settings%ot_method == "DIIS") THEN
+      IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+          qs_ot_env%settings%ot_method == "LBFG") THEN
          ncoef = qs_ot_env%settings%diis_m
+         IF (qs_ot_env%settings%ot_method == "LBFG") ncoef = ncoef + 1
          CALL dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_e_im, ncoef)
          CALL dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_x_im, ncoef)
          DO i = 1, ncoef
@@ -2191,6 +2195,51 @@ CONTAINS
                                                    template=matrix_s, n=nmo, &
                                                    sym=dbcsr_type_no_symmetry)
          END DO
+      END IF
+
+      IF (qs_ot_env%settings%do_rotation) THEN
+         CALL dbcsr_init_p(qs_ot_env%rot_mat_u_im)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_u_im, template=matrix_s, m=nmo, n=nmo, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL dbcsr_init_p(qs_ot_env%rot_mat_x_im)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_x_im, template=matrix_s, m=nmo, n=nmo, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL dbcsr_init_p(qs_ot_env%rot_mat_dedu_im)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_dedu_im, template=matrix_s, m=nmo, n=nmo, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL dbcsr_init_p(qs_ot_env%rot_mat_chc_im)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_chc_im, template=matrix_s, m=nmo, n=nmo, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL dbcsr_init_p(qs_ot_env%rot_mat_gx_im)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx_im, template=matrix_s, m=nmo, n=nmo, &
+                                            sym=dbcsr_type_no_symmetry)
+         IF (qs_ot_env%use_dx) THEN
+            CALL dbcsr_init_p(qs_ot_env%rot_mat_dx_im)
+            CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_dx_im, template=matrix_s, m=nmo, n=nmo, &
+                                               sym=dbcsr_type_no_symmetry)
+         END IF
+         IF (qs_ot_env%use_gx_old) THEN
+            CALL dbcsr_init_p(qs_ot_env%rot_mat_gx_old_im)
+            CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx_old_im, template=matrix_s, m=nmo, n=nmo, &
+                                               sym=dbcsr_type_no_symmetry)
+         END IF
+         IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+             qs_ot_env%settings%ot_method == "LBFG") THEN
+            ncoef = qs_ot_env%settings%diis_m
+            IF (qs_ot_env%settings%ot_method == "LBFG") ncoef = ncoef + 1
+            CALL dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_e_im, ncoef)
+            CALL dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_x_im, ncoef)
+            DO i = 1, ncoef
+               CALL dbcsr_init_p(qs_ot_env%rot_mat_h_e_im(i)%matrix)
+               CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_h_e_im(i)%matrix, &
+                                                  template=matrix_s, m=nmo, n=nmo, &
+                                                  sym=dbcsr_type_no_symmetry)
+               CALL dbcsr_init_p(qs_ot_env%rot_mat_h_x_im(i)%matrix)
+               CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_h_x_im(i)%matrix, &
+                                                  template=matrix_s, m=nmo, n=nmo, &
+                                                  sym=dbcsr_type_no_symmetry)
+            END DO
+         END IF
       END IF
 
       qs_ot_env%has_complex_kpoint_state = .TRUE.

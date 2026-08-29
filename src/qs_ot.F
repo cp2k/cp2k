@@ -51,8 +51,12 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_get_orbitals_ref_complex
    PUBLIC  :: qs_ot_get_derivative_ref
    PUBLIC  :: qs_ot_get_derivative_ref_complex
+   PUBLIC  :: qs_ot_apply_complex_frechet_dbcsr
+   PUBLIC  :: qs_ot_complex_exp_frechet_kernel
    PUBLIC  :: qs_ot_generate_rotation
+   PUBLIC  :: qs_ot_generate_rotation_complex
    PUBLIC  :: qs_ot_rot_mat_derivative
+   PUBLIC  :: qs_ot_rot_mat_derivative_complex
    PUBLIC  :: qs_ot_new_preconditioner
    PRIVATE :: qs_ot_p2m_diag
    PRIVATE :: qs_ot_p2m_diag_complex
@@ -69,6 +73,166 @@ MODULE qs_ot
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot'
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Frechet divided-difference kernel for exp(-i*evals)
+!> \param e1 ...
+!> \param e2 ...
+!> \return ...
+! **************************************************************************************************
+   PURE FUNCTION qs_ot_complex_exp_frechet_kernel(e1, e2) RESULT(kernel)
+      REAL(KIND=dp), INTENT(IN)                          :: e1, e2
+      COMPLEX(KIND=dp)                                   :: kernel
+
+      COMPLEX(KIND=dp)                                   :: l1, l2, x
+      INTEGER                                            :: i
+
+      l1 = (0.0_dp, -1.0_dp)*e1
+      l2 = (0.0_dp, -1.0_dp)*e2
+      IF (ABS(l1 - l2) > 0.5_dp) THEN
+         kernel = (EXP(l1) - EXP(l2))/(l1 - l2)
+      ELSE
+         x = 1.0_dp
+         kernel = 0.0_dp
+         DO i = 1, 16
+            kernel = kernel + x
+            x = x*(l1 - l2)/REAL(i + 1, KIND=dp)
+         END DO
+         kernel = kernel*EXP(l2)
+      END IF
+
+   END FUNCTION qs_ot_complex_exp_frechet_kernel
+
+! **************************************************************************************************
+!> \brief apply the complex exponential Frechet kernel to sparse DBCSR Re/Im matrices
+!> \param evals generator eigenvalues
+!> \param inner_deriv_re real part of the matrix in the generator eigenbasis
+!> \param inner_deriv_im imaginary part of the matrix in the generator eigenbasis
+!> \param outer_deriv_re real part of the mapped matrix
+!> \param outer_deriv_im imaginary part of the mapped matrix
+!> \param adjoint use the adjoint Frechet kernel for gradients
+! **************************************************************************************************
+   SUBROUTINE qs_ot_apply_complex_frechet_dbcsr(evals, inner_deriv_re, inner_deriv_im, &
+                                                outer_deriv_re, outer_deriv_im, adjoint)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: evals
+      TYPE(dbcsr_type)                                   :: inner_deriv_re, inner_deriv_im, &
+                                                            outer_deriv_re, outer_deriv_im
+      LOGICAL, INTENT(IN), OPTIONAL                      :: adjoint
+
+      COMPLEX(KIND=dp)                                   :: cval_in, kernel
+      INTEGER                                            :: col, i, j, max_blocks, nblocks, row
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cols, rows
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_offset, col_blk_size, &
+                                                            row_blk_offset, row_blk_size
+      LOGICAL                                            :: found_im, found_out_im, found_out_re, &
+                                                            found_re, use_adjoint
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_in_im, block_in_re, block_out_im, &
+                                                            block_out_re
+      REAL(KIND=dp)                                      :: e1, e2, im_part, re_part
+      TYPE(dbcsr_distribution_type)                      :: dist
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      use_adjoint = .FALSE.
+      IF (PRESENT(adjoint)) use_adjoint = adjoint
+
+      ! Re/Im parts can have different sparse block patterns. Build their union
+      ! explicitly so a missing partner block is interpreted as zero.
+      max_blocks = 0
+      CALL dbcsr_iterator_start(iter, inner_deriv_re)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col)
+         max_blocks = max_blocks + 1
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_start(iter, inner_deriv_im)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col)
+         max_blocks = max_blocks + 1
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+      ALLOCATE (rows(MAX(max_blocks, 1)), cols(MAX(max_blocks, 1)))
+      nblocks = 0
+
+      CALL dbcsr_iterator_start(iter, inner_deriv_re)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col)
+         CALL append_union_block(row, col)
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_start(iter, inner_deriv_im)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col)
+         CALL append_union_block(row, col)
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+      CALL dbcsr_get_info(inner_deriv_re, distribution=dist, row_blk_size=row_blk_size, &
+                          col_blk_size=col_blk_size)
+      CALL dbcsr_create(outer_deriv_re, "outer_deriv_re", dist, dbcsr_type_no_symmetry, &
+                        row_blk_size, col_blk_size)
+      CALL dbcsr_create(outer_deriv_im, "outer_deriv_im", dist, dbcsr_type_no_symmetry, &
+                        row_blk_size, col_blk_size)
+      IF (nblocks > 0) THEN
+         CALL dbcsr_reserve_blocks(outer_deriv_re, rows=rows(1:nblocks), cols=cols(1:nblocks))
+         CALL dbcsr_reserve_blocks(outer_deriv_im, rows=rows(1:nblocks), cols=cols(1:nblocks))
+      END IF
+      CALL dbcsr_finalize(outer_deriv_re)
+      CALL dbcsr_finalize(outer_deriv_im)
+      CALL dbcsr_set(outer_deriv_re, 0.0_dp)
+      CALL dbcsr_set(outer_deriv_im, 0.0_dp)
+
+      CALL dbcsr_get_info(outer_deriv_re, row_blk_offset=row_blk_offset, &
+                          col_blk_offset=col_blk_offset)
+      CALL dbcsr_iterator_start(iter, outer_deriv_re)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col)
+         CALL dbcsr_get_block_p(inner_deriv_re, row, col, block_in_re, found_re)
+         CALL dbcsr_get_block_p(inner_deriv_im, row, col, block_in_im, found_im)
+         CALL dbcsr_get_block_p(outer_deriv_re, row, col, block_out_re, found_out_re)
+         CALL dbcsr_get_block_p(outer_deriv_im, row, col, block_out_im, found_out_im)
+         CPASSERT(found_out_re .AND. found_out_im)
+
+         DO i = 1, SIZE(block_out_re, 1)
+         DO j = 1, SIZE(block_out_re, 2)
+            e1 = evals(row_blk_offset(row) + i - 1)
+            e2 = evals(col_blk_offset(col) + j - 1)
+            re_part = 0.0_dp
+            im_part = 0.0_dp
+            IF (found_re) re_part = block_in_re(i, j)
+            IF (found_im) im_part = block_in_im(i, j)
+            cval_in = CMPLX(re_part, im_part, dp)
+            kernel = qs_ot_complex_exp_frechet_kernel(e1, e2)
+            IF (use_adjoint) kernel = CONJG(kernel)
+            cval_in = cval_in*kernel
+            block_out_re(i, j) = REAL(cval_in, KIND=dp)
+            block_out_im(i, j) = AIMAG(cval_in)
+         END DO
+         END DO
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+      DEALLOCATE (rows, cols)
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief append a block coordinate unless it is already present
+!> \param row_new block-row index
+!> \param col_new block-column index
+! **************************************************************************************************
+      SUBROUTINE append_union_block(row_new, col_new)
+      INTEGER, INTENT(IN)                                :: row_new, col_new
+
+      INTEGER                                            :: iblock
+
+         DO iblock = 1, nblocks
+            IF (rows(iblock) == row_new .AND. cols(iblock) == col_new) RETURN
+         END DO
+         nblocks = nblocks + 1
+         rows(nblocks) = row_new
+         cols(nblocks) = col_new
+      END SUBROUTINE append_union_block
+
+   END SUBROUTINE qs_ot_apply_complex_frechet_dbcsr
 
 ! **************************************************************************************************
 !> \brief gets ready to use the preconditioner/ or renew the preconditioner
@@ -108,6 +272,10 @@ CONTAINS
          IF (qs_ot_env%settings%do_rotation) THEN
             CALL dbcsr_init_p(qs_ot_env%rot_mat_dx)
             CALL dbcsr_copy(qs_ot_env%rot_mat_dx, qs_ot_env%rot_mat_gx, 'rot_mat_dx')
+            IF (qs_ot_env%has_complex_kpoint_state) THEN
+               CALL dbcsr_init_p(qs_ot_env%rot_mat_dx_im)
+               CALL dbcsr_copy(qs_ot_env%rot_mat_dx_im, qs_ot_env%rot_mat_gx_im, 'rot_mat_dx_im')
+            END IF
          END IF
          IF (qs_ot_env%settings%do_ener) THEN
             ncoef = SIZE(qs_ot_env%ener_gx)
@@ -549,6 +717,9 @@ CONTAINS
          END SELECT
       CASE ("DIIS")
          update = .TRUE.
+      CASE ("BROY", "LBFG")
+         ! These minimizers retain positions or secants in one fixed REF chart.
+         update = .FALSE.
       CASE DEFAULT
          CPABORT("NYI")
       END SELECT
@@ -699,6 +870,7 @@ CONTAINS
       INTEGER                                            :: handle, i, k, n
       LOGICAL                                            :: update
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, inverse_sqrt
+      TYPE(dbcsr_type)                                   :: rotated_im, rotated_re, rotation_tmp
       TYPE(dbcsr_type), POINTER                          :: c_im, c_re, f_im, f_re, p_im, p_re, &
                                                             sc_im, sc_re, tmp_kk, tmp_nk, v_im, &
                                                             v_re, w_im, w_re
@@ -803,6 +975,33 @@ CONTAINS
          CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, c_im, 0.0_dp, sc_im)
          CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s_im, c_re, 0.0_dp, tmp_nk)
          CALL dbcsr_add(sc_im, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      END IF
+
+      IF (qs_ot_env%settings%do_rotation) THEN
+         CALL qs_ot_generate_rotation_complex(qs_ot_env)
+
+         CALL dbcsr_copy(rotated_re, matrix_c, name="rotated_re")
+         CALL dbcsr_copy(rotated_im, matrix_c_im, name="rotated_im")
+         CALL dbcsr_copy(rotation_tmp, matrix_c, name="rotation_tmp")
+
+         ! C_out = Q*U for complex Q and unitary U.
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c, qs_ot_env%rot_mat_u, &
+                             0.0_dp, rotated_re)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c_im, qs_ot_env%rot_mat_u_im, &
+                             0.0_dp, rotation_tmp)
+         CALL dbcsr_add(rotated_re, rotation_tmp, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c, qs_ot_env%rot_mat_u_im, &
+                             0.0_dp, rotated_im)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c_im, qs_ot_env%rot_mat_u, &
+                             0.0_dp, rotation_tmp)
+         CALL dbcsr_add(rotated_im, rotation_tmp, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+         CALL dbcsr_copy(matrix_c, rotated_re)
+         CALL dbcsr_copy(matrix_c_im, rotated_im)
+         CALL dbcsr_release(rotated_re)
+         CALL dbcsr_release(rotated_im)
+         CALL dbcsr_release(rotation_tmp)
       END IF
 
       DEALLOCATE (eigenvalues, inverse_sqrt)
@@ -972,9 +1171,11 @@ CONTAINS
 
       INTEGER                                            :: handle, k, n
       REAL(dp)                                           :: occ_in, occ_out
+      TYPE(dbcsr_type)                                   :: tmp_nk
       TYPE(dbcsr_type), POINTER                          :: b_im, b_re, f_im, f_re, g_im, g_re, &
-                                                            hc_im, hc_re, q_im, q_re, sc_im, &
-                                                            sc_re, tmp_kk
+                                                            hc_im, hc_re, hc_work_im, hc_work_re, &
+                                                            q_im, q_re, sc_im, sc_re, tmp_kk
+      TYPE(dbcsr_type), TARGET                           :: hc_rot_im, hc_rot_re
 
       CALL timeset(routineN, handle)
 
@@ -988,6 +1189,8 @@ CONTAINS
       sc_im => qs_ot_env%matrix_sx_im
       hc_re => matrix_hc
       hc_im => matrix_hc_im
+      hc_work_re => hc_re
+      hc_work_im => hc_im
       g_re => qs_ot_env%matrix_gx
       g_im => qs_ot_env%matrix_gx_im
       b_re => qs_ot_env%buf1_k_k_sym
@@ -1007,13 +1210,49 @@ CONTAINS
       CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%matrix_x_im, f_re, 0.0_dp, g_re)
       CALL dbcsr_add(q_im, g_re, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
 
-      ! B = Q^H*G_C.  For uniform fixed occupations B is Hermitian.
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_re, 0.0_dp, b_re)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_im, 0.0_dp, tmp_kk)
+      IF (qs_ot_env%settings%do_rotation) THEN
+         CALL qs_ot_generate_rotation_complex(qs_ot_env)
+
+         ! dF/dU = Q^H*G_C for C=Q*U.
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_re, &
+                             0.0_dp, qs_ot_env%rot_mat_dedu)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_im, 0.0_dp, tmp_kk)
+         CALL dbcsr_add(qs_ot_env%rot_mat_dedu, tmp_kk, &
+                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_im, &
+                             0.0_dp, qs_ot_env%rot_mat_dedu_im)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_re, 0.0_dp, tmp_kk)
+         CALL dbcsr_add(qs_ot_env%rot_mat_dedu_im, tmp_kk, &
+                        alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+         CALL qs_ot_rot_mat_derivative_complex(qs_ot_env)
+
+         ! The REF coordinate sees G_Q=G_C*U^H.
+         CALL dbcsr_copy(hc_rot_re, hc_re, name="hc_rot_re")
+         CALL dbcsr_copy(hc_rot_im, hc_im, name="hc_rot_im")
+         CALL dbcsr_copy(tmp_nk, hc_re, name="tmp_nk")
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, hc_re, qs_ot_env%rot_mat_u, &
+                             0.0_dp, hc_rot_re)
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, hc_im, qs_ot_env%rot_mat_u_im, &
+                             0.0_dp, tmp_nk)
+         CALL dbcsr_add(hc_rot_re, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, hc_im, qs_ot_env%rot_mat_u, &
+                             0.0_dp, hc_rot_im)
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, hc_re, qs_ot_env%rot_mat_u_im, &
+                             0.0_dp, tmp_nk)
+         CALL dbcsr_add(hc_rot_im, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+         hc_work_re => hc_rot_re
+         hc_work_im => hc_rot_im
+      END IF
+
+      ! B = Q^H*G_Q.  For uniform fixed occupations B is Hermitian.
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_work_re, 0.0_dp, b_re)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_work_im, 0.0_dp, tmp_kk)
       CALL dbcsr_add(b_re, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
 
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_im, 0.0_dp, b_im)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_re, 0.0_dp, tmp_kk)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_work_im, 0.0_dp, b_im)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_work_re, 0.0_dp, tmp_kk)
       CALL dbcsr_add(b_im, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
 
       IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
@@ -1043,8 +1282,8 @@ CONTAINS
       CALL dbcsr_multiply('N', 'N', 1.0_dp, g_im, b_re, 0.0_dp, g_re)
       CALL dbcsr_add(q_im, g_re, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
 
-      CALL dbcsr_add(q_re, hc_re, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
-      CALL dbcsr_add(q_im, hc_im, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+      CALL dbcsr_add(q_re, hc_work_re, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+      CALL dbcsr_add(q_im, hc_work_im, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
 
       ! Pull the physical gradient back to the finite REF coordinate: G_X = (G_C-S*Q*B)*F.
       CALL dbcsr_multiply('N', 'N', 1.0_dp, q_re, f_re, 0.0_dp, g_re)
@@ -1055,6 +1294,11 @@ CONTAINS
       CALL dbcsr_multiply('N', 'N', 1.0_dp, q_im, f_re, 0.0_dp, q_re)
       CALL dbcsr_add(g_im, q_re, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
 
+      IF (qs_ot_env%settings%do_rotation) THEN
+         CALL qs_ot_add_ref_vertical_response_complex(b_re, b_im, f_re, f_im, &
+                                                      sc_re, sc_im, g_re, g_im, qs_ot_env)
+      END IF
+
       IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
          occ_in = dbcsr_get_occupation(g_re)
          CALL dbcsr_filter(g_re, qs_ot_env%settings%eps_irac_filter_matrix)
@@ -1064,9 +1308,194 @@ CONTAINS
          occ_out = dbcsr_get_occupation(g_im)
       END IF
 
+      IF (qs_ot_env%settings%do_rotation) THEN
+         CALL dbcsr_release(hc_rot_re)
+         CALL dbcsr_release(hc_rot_im)
+         CALL dbcsr_release(tmp_nk)
+      END IF
+
       CALL timestop(handle)
 
    END SUBROUTINE qs_ot_get_derivative_ref_complex
+
+! **************************************************************************************************
+!> \brief Transpose a square DBCSR matrix while retaining its target distribution.
+!> \param matrix source matrix
+!> \param transposed transposed matrix
+!> \param identity_template square matrix template
+! **************************************************************************************************
+   SUBROUTINE qs_ot_square_transpose(matrix, transposed, identity_template)
+      TYPE(dbcsr_type)                                   :: matrix, transposed, identity_template
+
+      TYPE(dbcsr_type)                                   :: identity
+
+      CALL dbcsr_copy(transposed, matrix, name='square_transposed')
+      CALL dbcsr_copy(identity, identity_template, name='transpose_identity')
+      CALL dbcsr_set(identity, 0.0_dp)
+      CALL dbcsr_add_on_diag(identity, 1.0_dp)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, matrix, identity, 0.0_dp, transposed)
+      CALL dbcsr_release(identity)
+
+   END SUBROUTINE qs_ot_square_transpose
+
+! **************************************************************************************************
+!> \brief Add the vertical response of the finite complex polar REF map.
+!> \param a_re real part of Q^H G_Q
+!> \param a_im imaginary part of Q^H G_Q
+!> \param f_re real part of (X^H S X)^(-1/2)
+!> \param f_im imaginary part of (X^H S X)^(-1/2)
+!> \param sx_re real part of S X
+!> \param sx_im imaginary part of S X
+!> \param gradient_re real REF gradient, updated in place
+!> \param gradient_im imaginary REF gradient, updated in place
+!> \param qs_ot_env complex OT environment
+! **************************************************************************************************
+   SUBROUTINE qs_ot_add_ref_vertical_response_complex(a_re, a_im, f_re, f_im, &
+                                                      sx_re, sx_im, gradient_re, gradient_im, &
+                                                      qs_ot_env)
+      TYPE(dbcsr_type)                                   :: a_re, a_im, f_re, f_im, sx_re, sx_im, &
+                                                            gradient_re, gradient_im
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_add_ref_vertical_response_complex'
+
+      INTEGER                                            :: col, handle, i, j, k, row
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_offset, row_blk_offset
+      LOGICAL                                            :: found_im, found_re
+      REAL(KIND=dp)                                      :: denominator
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f_evals
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_im, block_re
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_type) :: anti_im, anti_re, f_work_im, f_work_re, inner_im, inner_re, sq_im, &
+         sq_re, tmp_kk, tmp_nk, v_im, v_re, vertical_im, vertical_re, work_im, work_re, z_im, z_re
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_get_info(a_re, nfullrows_total=k)
+      IF (k == 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      ! Only the anti-Hermitian part of A=Q^H G_Q couples to the unitary
+      ! component of the polar differential.
+      CALL qs_ot_square_transpose(a_re, tmp_kk, qs_ot_env%rot_mat_u)
+      CALL dbcsr_copy(anti_re, a_re, name='anti_re')
+      CALL dbcsr_add(anti_re, tmp_kk, alpha_scalar=0.5_dp, beta_scalar=-0.5_dp)
+      CALL qs_ot_square_transpose(a_im, tmp_kk, qs_ot_env%rot_mat_u)
+      CALL dbcsr_copy(anti_im, a_im, name='anti_im')
+      CALL dbcsr_add(anti_im, tmp_kk, alpha_scalar=0.5_dp, beta_scalar=0.5_dp)
+
+      ! P=(X^H S X)^(1/2)=F^(-1).  In the eigenbasis of F, solve
+      ! P Z + Z P = antiherm(A) element by element.
+      CALL dbcsr_copy(f_work_re, f_re, name='f_work_re')
+      CALL dbcsr_copy(f_work_im, f_im, name='f_work_im')
+      CALL dbcsr_copy(v_re, f_re, name='v_re')
+      CALL dbcsr_copy(v_im, f_im, name='v_im')
+      ALLOCATE (f_evals(k))
+      CALL cp_dbcsr_heevd(matrix_re=f_work_re, matrix_im=f_work_im, &
+                          eigenvectors_re=v_re, eigenvectors_im=v_im, eigenvalues=f_evals, &
+                          para_env=qs_ot_env%para_env, blacs_env=qs_ot_env%blacs_env)
+      IF (MINVAL(f_evals) <= EPSILON(1.0_dp)) THEN
+         CPABORT('Complex REF inverse square root is not positive definite')
+      END IF
+
+      ! inner = V^H antiherm(A) V.
+      CALL dbcsr_copy(work_re, anti_re, name='work_re')
+      CALL dbcsr_copy(work_im, anti_im, name='work_im')
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, anti_re, v_re, 0.0_dp, work_re)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, anti_im, v_im, 0.0_dp, tmp_kk)
+      CALL dbcsr_add(work_re, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, anti_re, v_im, 0.0_dp, work_im)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, anti_im, v_re, 0.0_dp, tmp_kk)
+      CALL dbcsr_add(work_im, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      CALL dbcsr_copy(inner_re, anti_re, name='inner_re')
+      CALL dbcsr_copy(inner_im, anti_im, name='inner_im')
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, v_re, work_re, 0.0_dp, inner_re)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, v_im, work_im, 1.0_dp, inner_re)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, v_re, work_im, 0.0_dp, inner_im)
+      CALL dbcsr_multiply('T', 'N', -1.0_dp, v_im, work_re, 1.0_dp, inner_im)
+
+      CALL dbcsr_get_info(inner_re, row_blk_offset=row_blk_offset, &
+                          col_blk_offset=col_blk_offset)
+      CALL dbcsr_iterator_start(iter, inner_re)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col)
+         CALL dbcsr_get_block_p(inner_re, row, col, block_re, found_re)
+         CALL dbcsr_get_block_p(inner_im, row, col, block_im, found_im)
+         CPASSERT(found_re .AND. found_im)
+         DO i = 1, SIZE(block_re, 1)
+         DO j = 1, SIZE(block_re, 2)
+            denominator = 1.0_dp/f_evals(row_blk_offset(row) + i - 1) + &
+                          1.0_dp/f_evals(col_blk_offset(col) + j - 1)
+            block_re(i, j) = block_re(i, j)/denominator
+            block_im(i, j) = block_im(i, j)/denominator
+         END DO
+         END DO
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+      ! Z = V inner V^H.
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, v_re, inner_re, 0.0_dp, work_re)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, v_im, inner_im, 0.0_dp, tmp_kk)
+      CALL dbcsr_add(work_re, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, v_re, inner_im, 0.0_dp, work_im)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, v_im, inner_re, 0.0_dp, tmp_kk)
+      CALL dbcsr_add(work_im, tmp_kk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      CALL dbcsr_copy(z_re, anti_re, name='z_re')
+      CALL dbcsr_copy(z_im, anti_im, name='z_im')
+      CALL dbcsr_multiply('N', 'T', 1.0_dp, work_re, v_re, 0.0_dp, z_re)
+      CALL dbcsr_multiply('N', 'T', 1.0_dp, work_im, v_im, 1.0_dp, z_re)
+      CALL dbcsr_multiply('N', 'T', 1.0_dp, work_im, v_re, 0.0_dp, z_im)
+      CALL dbcsr_multiply('N', 'T', -1.0_dp, work_re, v_im, 1.0_dp, z_im)
+
+      ! The adjoint vertical contribution is 2 S Q Z, with S Q=(S X)F.
+      CALL dbcsr_copy(sq_re, sx_re, name='sq_re')
+      CALL dbcsr_copy(sq_im, sx_im, name='sq_im')
+      CALL dbcsr_copy(tmp_nk, sx_re, name='tmp_nk')
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, sx_re, f_re, 0.0_dp, sq_re)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, sx_im, f_im, 0.0_dp, tmp_nk)
+      CALL dbcsr_add(sq_re, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, sx_re, f_im, 0.0_dp, sq_im)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, sx_im, f_re, 0.0_dp, tmp_nk)
+      CALL dbcsr_add(sq_im, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      CALL dbcsr_copy(vertical_re, sx_re, name='vertical_re')
+      CALL dbcsr_copy(vertical_im, sx_im, name='vertical_im')
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, sq_re, z_re, 0.0_dp, vertical_re)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, sq_im, z_im, 0.0_dp, tmp_nk)
+      CALL dbcsr_add(vertical_re, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, sq_re, z_im, 0.0_dp, vertical_im)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, sq_im, z_re, 0.0_dp, tmp_nk)
+      CALL dbcsr_add(vertical_im, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      CALL dbcsr_add(gradient_re, vertical_re, alpha_scalar=1.0_dp, beta_scalar=2.0_dp)
+      CALL dbcsr_add(gradient_im, vertical_im, alpha_scalar=1.0_dp, beta_scalar=2.0_dp)
+
+      DEALLOCATE (f_evals)
+      CALL dbcsr_release(anti_im)
+      CALL dbcsr_release(anti_re)
+      CALL dbcsr_release(f_work_im)
+      CALL dbcsr_release(f_work_re)
+      CALL dbcsr_release(inner_im)
+      CALL dbcsr_release(inner_re)
+      CALL dbcsr_release(sq_im)
+      CALL dbcsr_release(sq_re)
+      CALL dbcsr_release(tmp_kk)
+      CALL dbcsr_release(tmp_nk)
+      CALL dbcsr_release(v_im)
+      CALL dbcsr_release(v_re)
+      CALL dbcsr_release(vertical_im)
+      CALL dbcsr_release(vertical_re)
+      CALL dbcsr_release(work_im)
+      CALL dbcsr_release(work_re)
+      CALL dbcsr_release(z_im)
+      CALL dbcsr_release(z_re)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_ot_add_ref_vertical_response_complex
 
 ! **************************************************************************************************
 !> \brief computes p=x*S*x and the matrix functionals related matrices
@@ -1115,6 +1544,205 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_ot_get_p
+
+! **************************************************************************************************
+!> \brief computes U=exp(A) for the complex anti-Hermitian generator
+!>        A=rot_mat_x+i*rot_mat_x_im
+!> \param qs_ot_env a complex k-point OT environment
+! **************************************************************************************************
+   SUBROUTINE qs_ot_generate_rotation_complex(qs_ot_env)
+
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_generate_rotation_complex'
+
+      INTEGER                                            :: handle, k
+      REAL(KIND=dp)                                      :: rot_norm
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: exp_evals_im, exp_evals_re
+      TYPE(dbcsr_type)                                   :: h_re, tmp, w_im, w_re
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(qs_ot_env%has_complex_kpoint_state)
+      CPASSERT(ASSOCIATED(qs_ot_env%rot_mat_x_im))
+      CPASSERT(ASSOCIATED(qs_ot_env%rot_mat_u_im))
+
+      CALL dbcsr_get_info(qs_ot_env%rot_mat_x, nfullrows_total=k)
+      IF (k /= 0) THEN
+         rot_norm = dbcsr_frobenius_norm(qs_ot_env%rot_mat_x) + &
+                    dbcsr_frobenius_norm(qs_ot_env%rot_mat_x_im)
+         IF (rot_norm <= EPSILON(1.0_dp)) THEN
+            CALL dbcsr_set(qs_ot_env%rot_mat_u, 0.0_dp)
+            CALL dbcsr_add_on_diag(qs_ot_env%rot_mat_u, 1.0_dp)
+            CALL dbcsr_set(qs_ot_env%rot_mat_u_im, 0.0_dp)
+            CALL timestop(handle)
+            RETURN
+         END IF
+
+         ! i*A = i*X-Y is Hermitian. Its eigenvectors give
+         ! exp(A)=V*diag(exp(-i*lambda))*V^H.
+         CALL dbcsr_copy(h_re, qs_ot_env%rot_mat_x_im, name="h_re")
+         CALL dbcsr_scale(h_re, -1.0_dp)
+         CALL cp_dbcsr_heevd(matrix_re=h_re, matrix_im=qs_ot_env%rot_mat_x, &
+                             eigenvectors_re=qs_ot_env%rot_mat_evec_re, &
+                             eigenvectors_im=qs_ot_env%rot_mat_evec_im, &
+                             eigenvalues=qs_ot_env%rot_mat_evals, &
+                             para_env=qs_ot_env%para_env, blacs_env=qs_ot_env%blacs_env)
+
+         ALLOCATE (exp_evals_re(k), exp_evals_im(k))
+         exp_evals_re(:) = COS(-qs_ot_env%rot_mat_evals(:))
+         exp_evals_im(:) = SIN(-qs_ot_env%rot_mat_evals(:))
+
+         CALL dbcsr_copy(w_re, qs_ot_env%rot_mat_evec_re, name="w_re")
+         CALL dbcsr_scale_by_vector(w_re, alpha=exp_evals_re, side='right')
+         CALL dbcsr_copy(tmp, qs_ot_env%rot_mat_evec_im, name="tmp")
+         CALL dbcsr_scale_by_vector(tmp, alpha=exp_evals_im, side='right')
+         CALL dbcsr_add(w_re, tmp, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+         CALL dbcsr_copy(w_im, qs_ot_env%rot_mat_evec_im, name="w_im")
+         CALL dbcsr_scale_by_vector(w_im, alpha=exp_evals_re, side='right')
+         CALL dbcsr_copy(tmp, qs_ot_env%rot_mat_evec_re)
+         CALL dbcsr_scale_by_vector(tmp, alpha=exp_evals_im, side='right')
+         CALL dbcsr_add(w_im, tmp, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, w_re, qs_ot_env%rot_mat_evec_re, &
+                             0.0_dp, qs_ot_env%rot_mat_u)
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, w_im, qs_ot_env%rot_mat_evec_im, &
+                             1.0_dp, qs_ot_env%rot_mat_u)
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, w_im, qs_ot_env%rot_mat_evec_re, &
+                             0.0_dp, qs_ot_env%rot_mat_u_im)
+         CALL dbcsr_multiply('N', 'T', -1.0_dp, w_re, qs_ot_env%rot_mat_evec_im, &
+                             1.0_dp, qs_ot_env%rot_mat_u_im)
+
+         CALL dbcsr_release(h_re)
+         CALL dbcsr_release(tmp)
+         CALL dbcsr_release(w_re)
+         CALL dbcsr_release(w_im)
+         DEALLOCATE (exp_evals_re, exp_evals_im)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_ot_generate_rotation_complex
+
+! **************************************************************************************************
+!> \brief pull the complex dE/dU covector back to the anti-Hermitian generator
+!>        using the adjoint Frechet derivative of exp
+!> \param qs_ot_env a complex k-point OT environment with an up-to-date U
+! **************************************************************************************************
+   SUBROUTINE qs_ot_rot_mat_derivative_complex(qs_ot_env)
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_rot_mat_derivative_complex'
+
+      INTEGER                                            :: handle, k
+      REAL(KIND=dp)                                      :: rot_norm
+      TYPE(dbcsr_type)                                   :: frechet_im, frechet_re, inner_deriv_im, &
+                                                            inner_deriv_re, outer_deriv_im, &
+                                                            outer_deriv_re, tmp, work_im, work_re
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(qs_ot_env%has_complex_kpoint_state)
+      CPASSERT(ASSOCIATED(qs_ot_env%rot_mat_dedu_im))
+      CPASSERT(ASSOCIATED(qs_ot_env%rot_mat_gx_im))
+
+      CALL dbcsr_get_info(qs_ot_env%rot_mat_u, nfullrows_total=k)
+      IF (k /= 0) THEN
+         rot_norm = dbcsr_frobenius_norm(qs_ot_env%rot_mat_x) + &
+                    dbcsr_frobenius_norm(qs_ot_env%rot_mat_x_im)
+         IF (rot_norm <= EPSILON(1.0_dp)) THEN
+            CALL qs_ot_square_transpose(qs_ot_env%rot_mat_dedu, tmp, qs_ot_env%rot_mat_u)
+            CALL dbcsr_copy(qs_ot_env%rot_mat_gx, qs_ot_env%rot_mat_dedu)
+            CALL dbcsr_add(qs_ot_env%rot_mat_gx, tmp, &
+                           alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+            CALL dbcsr_release(tmp)
+
+            CALL qs_ot_square_transpose(qs_ot_env%rot_mat_dedu_im, tmp, qs_ot_env%rot_mat_u)
+            CALL dbcsr_copy(qs_ot_env%rot_mat_gx_im, qs_ot_env%rot_mat_dedu_im)
+            CALL dbcsr_add(qs_ot_env%rot_mat_gx_im, tmp, &
+                           alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+            CALL dbcsr_release(tmp)
+            CALL timestop(handle)
+            RETURN
+         END IF
+
+         CALL dbcsr_copy(work_re, qs_ot_env%rot_mat_dedu, name="work_re")
+         CALL dbcsr_copy(work_im, qs_ot_env%rot_mat_dedu, name="work_im")
+         CALL dbcsr_copy(tmp, qs_ot_env%rot_mat_dedu, name="tmp")
+         CALL dbcsr_copy(inner_deriv_re, qs_ot_env%rot_mat_dedu, name="inner_deriv_re")
+         CALL dbcsr_copy(inner_deriv_im, qs_ot_env%rot_mat_dedu, name="inner_deriv_im")
+
+         ! V^H*(dE/dU)*V, split into real and imaginary parts.
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_dedu, &
+                             qs_ot_env%rot_mat_evec_re, 0.0_dp, work_re)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_dedu_im, &
+                             qs_ot_env%rot_mat_evec_im, 0.0_dp, tmp)
+         CALL dbcsr_add(work_re, tmp, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_dedu, &
+                             qs_ot_env%rot_mat_evec_im, 0.0_dp, work_im)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_dedu_im, &
+                             qs_ot_env%rot_mat_evec_re, 0.0_dp, tmp)
+         CALL dbcsr_add(work_im, tmp, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, qs_ot_env%rot_mat_evec_re, &
+                             work_re, 0.0_dp, inner_deriv_re)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, qs_ot_env%rot_mat_evec_im, &
+                             work_im, 1.0_dp, inner_deriv_re)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, qs_ot_env%rot_mat_evec_re, &
+                             work_im, 0.0_dp, inner_deriv_im)
+         CALL dbcsr_multiply('T', 'N', -1.0_dp, qs_ot_env%rot_mat_evec_im, &
+                             work_re, 1.0_dp, inner_deriv_im)
+
+         CALL qs_ot_apply_complex_frechet_dbcsr(qs_ot_env%rot_mat_evals, &
+                                                inner_deriv_re, inner_deriv_im, &
+                                                outer_deriv_re, outer_deriv_im, adjoint=.TRUE.)
+
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_evec_re, &
+                             outer_deriv_re, 0.0_dp, work_re)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_evec_im, &
+                             outer_deriv_im, 0.0_dp, tmp)
+         CALL dbcsr_add(work_re, tmp, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_evec_re, &
+                             outer_deriv_im, 0.0_dp, work_im)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env%rot_mat_evec_im, &
+                             outer_deriv_re, 0.0_dp, tmp)
+         CALL dbcsr_add(work_im, tmp, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+         CALL dbcsr_copy(frechet_re, qs_ot_env%rot_mat_dedu, name="frechet_re")
+         CALL dbcsr_copy(frechet_im, qs_ot_env%rot_mat_dedu, name="frechet_im")
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, work_re, qs_ot_env%rot_mat_evec_re, &
+                             0.0_dp, frechet_re)
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, work_im, qs_ot_env%rot_mat_evec_im, &
+                             1.0_dp, frechet_re)
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, work_im, qs_ot_env%rot_mat_evec_re, &
+                             0.0_dp, frechet_im)
+         CALL dbcsr_multiply('N', 'T', -1.0_dp, work_re, qs_ot_env%rot_mat_evec_im, &
+                             1.0_dp, frechet_im)
+
+         ! Tangents satisfy X^T=-X and Y^T=Y for A=X+iY.
+         CALL qs_ot_square_transpose(frechet_re, tmp, qs_ot_env%rot_mat_u)
+         CALL dbcsr_copy(qs_ot_env%rot_mat_gx, frechet_re)
+         CALL dbcsr_add(qs_ot_env%rot_mat_gx, tmp, &
+                        alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+         CALL qs_ot_square_transpose(frechet_im, tmp, qs_ot_env%rot_mat_u)
+         CALL dbcsr_copy(qs_ot_env%rot_mat_gx_im, frechet_im)
+         CALL dbcsr_add(qs_ot_env%rot_mat_gx_im, tmp, &
+                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+         CALL dbcsr_release(frechet_re)
+         CALL dbcsr_release(frechet_im)
+         CALL dbcsr_release(inner_deriv_re)
+         CALL dbcsr_release(inner_deriv_im)
+         CALL dbcsr_release(outer_deriv_re)
+         CALL dbcsr_release(outer_deriv_im)
+         CALL dbcsr_release(tmp)
+         CALL dbcsr_release(work_re)
+         CALL dbcsr_release(work_im)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_ot_rot_mat_derivative_complex
 
 ! **************************************************************************************************
 !> \brief compute P=X^H*S*X and the STRICT matrix functions for a complex K-point channel
@@ -1401,26 +2029,6 @@ CONTAINS
          END IF
       END FUNCTION cint
    END SUBROUTINE qs_ot_rot_mat_derivative
-
-! **************************************************************************************************
-!> \brief Transpose a square DBCSR matrix while retaining its target distribution.
-!> \param matrix source matrix
-!> \param transposed transposed matrix
-!> \param identity_template square matrix template
-! **************************************************************************************************
-   SUBROUTINE qs_ot_square_transpose(matrix, transposed, identity_template)
-      TYPE(dbcsr_type)                                   :: matrix, transposed, identity_template
-
-      TYPE(dbcsr_type)                                   :: identity
-
-      CALL dbcsr_copy(transposed, matrix, name='square_transposed')
-      CALL dbcsr_copy(identity, identity_template, name='transpose_identity')
-      CALL dbcsr_set(identity, 0.0_dp)
-      CALL dbcsr_add_on_diag(identity, 1.0_dp)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, matrix, identity, 0.0_dp, transposed)
-      CALL dbcsr_release(identity)
-
-   END SUBROUTINE qs_ot_square_transpose
 
 ! **************************************************************************************************
 !> \brief decide strategy

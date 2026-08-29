@@ -24,12 +24,20 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "he_ot_fixed_strict.inp"                = [{matcher="E_total", tol=1e-9, ref=-2.894663227824077},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"he_ot_fixed_strict_lbfgs.inp"          = [{matcher="E_total", tol=1e-9, ref=-2.894663227824077},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "he_ot_fixed_diis.inp"                  = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "he_kpoint_symmetry_openmp.inp"         = [{matcher="E_total", tol=1e-10, ref=-11.23084551534152}]
+"he_ot_fixed_diis_rotation.inp"         = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"he_ot_fixed_lbfgs_rotation.inp"        = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "li_ot_fixed_uks.inp"                   = [{matcher="E_total", tol=1e-9, ref=-7.304793045179261},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "li_ot_fixed_uks_diis.inp"              = [{matcher="E_total", tol=1e-9, ref=-7.304793043105472},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=1}]
+"li_ot_fixed_uks_lbfgs_rotation.inp"    = [{matcher="E_total", tol=1e-9, ref=-7.30479343035225},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "li_ot_fixed_uks_strict_diis.inp"       = [{matcher="E_total", tol=1e-9, ref=-7.304793043105472},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
