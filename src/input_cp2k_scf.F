@@ -243,8 +243,9 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ADDED_MOS", &
                           description="Number of additional molecular orbitals added for each spin channel. "// &
                           "This is commonly needed for smearing, excited-state, or post-Hartree-Fock calculations. "// &
-                          "Use -1 to add all available orbitals.", &
-                          usage="ADDED_MOS", default_i_val=0, n_var=-1)
+                          "Use -1 to add all available orbitals. For K-point smearing, use AUTO "// &
+                          "to select and adapt the virtual-space buffer.", &
+                          usage="ADDED_MOS {integer|AUTO}", default_c_val="0", n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
