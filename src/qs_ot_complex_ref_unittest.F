@@ -90,10 +90,10 @@ PROGRAM qs_ot_complex_ref_unittest
    NULLIFY (hc_im_p, hc_re_p, logger, para_env)
    CALL mp_world_init(mp_comm)
    mynode = mp_comm%mepos
-   CALL test_fixed_n_mermin_energy(mynode, nfail)
-   CALL test_fixed_n_projector_frechet(mynode, nfail)
    io_unit = -1
    IF (mynode == 0) io_unit = default_output_unit
+   CALL test_fixed_n_mermin_energy(mynode, nfail)
+   CALL test_fixed_n_projector_frechet(mynode, nfail)
    ALLOCATE (para_env)
    CALL para_env%from_dup(mp_comm)
    CALL cp_logger_create(logger, para_env=para_env, default_global_unit_nr=io_unit, &
