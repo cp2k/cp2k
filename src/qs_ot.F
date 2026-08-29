@@ -1345,19 +1345,22 @@ CONTAINS
 !> \param matrix_hc ...
 !> \param matrix_hc_im ...
 !> \param qs_ot_env ...
+!> \param matrix_hc_rotation occupation-weighted H(k)C(k) for the rotation channel
+!> \param matrix_hc_rotation_im imaginary component of matrix_hc_rotation
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_get_derivative_ref_complex(matrix_hc, matrix_hc_im, qs_ot_env)
+   SUBROUTINE qs_ot_get_derivative_ref_complex(matrix_hc, matrix_hc_im, qs_ot_env, &
+                                               matrix_hc_rotation, matrix_hc_rotation_im)
       TYPE(dbcsr_type), POINTER                          :: matrix_hc, matrix_hc_im
       TYPE(qs_ot_type)                                   :: qs_ot_env
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_hc_rotation, matrix_hc_rotation_im
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_ref_complex'
 
       INTEGER                                            :: handle, k, n
       REAL(dp)                                           :: occ_in, occ_out
       TYPE(dbcsr_type)                                   :: tmp_nk
-      TYPE(dbcsr_type), POINTER                          :: b_im, b_re, f_im, f_re, g_im, g_re, &
-                                                            hc_im, hc_re, hc_work_im, hc_work_re, &
-                                                            q_im, q_re, sc_im, sc_re, tmp_kk
+      TYPE(dbcsr_type), POINTER :: b_im, b_re, f_im, f_re, g_im, g_re, hc_im, hc_re, &
+         hc_rotation_im, hc_rotation_re, hc_work_im, hc_work_re, q_im, q_re, sc_im, sc_re, tmp_kk
       TYPE(dbcsr_type), TARGET                           :: hc_rot_im, hc_rot_re
 
       CALL timeset(routineN, handle)
@@ -1372,6 +1375,15 @@ CONTAINS
       sc_im => qs_ot_env%matrix_sx_im
       hc_re => matrix_hc
       hc_im => matrix_hc_im
+      hc_rotation_re => hc_re
+      hc_rotation_im => hc_im
+      IF (PRESENT(matrix_hc_rotation) .OR. PRESENT(matrix_hc_rotation_im)) THEN
+         CPASSERT(PRESENT(matrix_hc_rotation) .AND. PRESENT(matrix_hc_rotation_im))
+         CPASSERT(ASSOCIATED(matrix_hc_rotation))
+         CPASSERT(ASSOCIATED(matrix_hc_rotation_im))
+         hc_rotation_re => matrix_hc_rotation
+         hc_rotation_im => matrix_hc_rotation_im
+      END IF
       hc_work_re => hc_re
       hc_work_im => hc_im
       g_re => qs_ot_env%matrix_gx
@@ -1397,15 +1409,15 @@ CONTAINS
          CALL qs_ot_generate_rotation_complex(qs_ot_env)
 
          ! dF/dU = Q^H*G_C for C=Q*U.
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_re, &
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_rotation_re, &
                              0.0_dp, qs_ot_env%rot_mat_dedu)
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_im, 0.0_dp, tmp_kk)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_rotation_im, 0.0_dp, tmp_kk)
          CALL dbcsr_add(qs_ot_env%rot_mat_dedu, tmp_kk, &
                         alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
 
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_im, &
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_re, hc_rotation_im, &
                              0.0_dp, qs_ot_env%rot_mat_dedu_im)
-         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_re, 0.0_dp, tmp_kk)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, q_im, hc_rotation_re, 0.0_dp, tmp_kk)
          CALL dbcsr_add(qs_ot_env%rot_mat_dedu_im, tmp_kk, &
                         alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
          CALL qs_ot_rot_mat_derivative_complex(qs_ot_env)

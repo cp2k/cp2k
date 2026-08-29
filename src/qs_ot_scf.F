@@ -144,7 +144,7 @@ CONTAINS
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: expectation_values, occupation_numbers, &
                                                             scaling_factor
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_dedc_scaled
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_dedc_physical, matrix_dedc_scaled
       TYPE(dbcsr_type), POINTER                          :: mo_coeff
 
       CALL timeset(routineN, handle)
@@ -262,13 +262,19 @@ CONTAINS
       ! use it in the following, eventually, as occupations numbers get more integrated, it should become possible
       ! to remove this.
       ALLOCATE (matrix_dedc_scaled(SIZE(matrix_dedc)))
+      NULLIFY (matrix_dedc_physical)
+      IF (qs_ot_env(1)%settings%occupation_preconditioner) THEN
+         ALLOCATE (matrix_dedc_physical(SIZE(matrix_dedc)))
+      END IF
       DO ispin = 1, SIZE(matrix_dedc)
          ALLOCATE (matrix_dedc_scaled(ispin)%matrix)
          CALL dbcsr_copy(matrix_dedc_scaled(ispin)%matrix, matrix_dedc(ispin)%matrix)
 
-         ! as a preconditioner, one might want to scale only with a constant, not with f(i)
-         ! for the convergence criterion, maybe take it back out
          IF (qs_ot_env(1)%settings%occupation_preconditioner) THEN
+            ALLOCATE (matrix_dedc_physical(ispin)%matrix)
+            CALL dbcsr_copy(matrix_dedc_physical(ispin)%matrix, matrix_dedc(ispin)%matrix)
+            CALL dbcsr_scale_by_vector(matrix_dedc_physical(ispin)%matrix, &
+                                       alpha=2.0_dp*occupation_numbers(ispin)%array, side='right')
             scaling_factor(ispin)%array = 2.0_dp
          END IF
          CALL dbcsr_scale_by_vector(matrix_dedc_scaled(ispin)%matrix, alpha=scaling_factor(ispin)%array, side='right')
@@ -277,7 +283,13 @@ CONTAINS
       ! notice we use qs_ot_env(1) for driving all output and the minimization in case of LSD
       qs_ot_env(1)%etotal = energy + ener_nondiag
 
-      CALL ot_mini(qs_ot_env, matrix_dedc_scaled)
+      IF (qs_ot_env(1)%settings%occupation_preconditioner .AND. &
+          (qs_ot_env(1)%settings%ot_method == "CG" .OR. &
+           qs_ot_env(1)%settings%ot_method == "SD")) THEN
+         CALL ot_mini(qs_ot_env, matrix_dedc_scaled, matrix_hc_physical=matrix_dedc_physical)
+      ELSE
+         CALL ot_mini(qs_ot_env, matrix_dedc_scaled)
+      END IF
 
       delta = qs_ot_env(1)%delta
       energy_only = qs_ot_env(1)%energy_only
@@ -336,6 +348,13 @@ CONTAINS
          DEALLOCATE (matrix_dedc_scaled(ispin)%matrix)
       END DO
       DEALLOCATE (matrix_dedc_scaled)
+      IF (ASSOCIATED(matrix_dedc_physical)) THEN
+         DO ispin = 1, SIZE(matrix_dedc_physical)
+            CALL dbcsr_release(matrix_dedc_physical(ispin)%matrix)
+            DEALLOCATE (matrix_dedc_physical(ispin)%matrix)
+         END DO
+         DEALLOCATE (matrix_dedc_physical)
+      END IF
 
       CALL timestop(handle)
 

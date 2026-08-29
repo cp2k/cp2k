@@ -841,7 +841,8 @@ CONTAINS
       LOGICAL                                            :: has_unit_metric
 
       INTEGER                                            :: ispin, nao, nmo
-      LOGICAL                                            :: do_kpoints, need_coeff_b, not_se_or_tb
+      LOGICAL                                            :: do_kpoints, need_coeff_b, not_se_or_tb, &
+                                                            ot_energies
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
@@ -850,6 +851,7 @@ CONTAINS
       not_se_or_tb = .NOT. (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb .OR. &
                             dft_control%qs_control%semi_empirical)
       need_coeff_b = .FALSE.
+      ot_energies = .FALSE.
       scf_env%needs_ortho = .FALSE.
 
       IF (dft_control%smeagol_control%smeagol_enabled .AND. &
@@ -962,8 +964,10 @@ CONTAINS
       ELSE IF (scf_control%use_ot) THEN
          scf_env%method = ot_method_nr
          need_coeff_b = .TRUE.
-         IF (SUM(ABS(scf_control%added_mos)) > 0) THEN
-            CPABORT("OT with ADDED_MOS/=0 not implemented")
+         CALL section_vals_val_get(scf_section, "OT%ENERGIES", l_val=ot_energies)
+         IF (SUM(ABS(scf_control%added_mos)) > 0 .AND. &
+             (.NOT. do_kpoints .OR. .NOT. ot_energies)) THEN
+            CPABORT("OT with ADDED_MOS currently requires complex K points and OT%ENERGIES.")
          END IF
          IF (dft_control%restricted .AND. dft_control%nspins /= 2) THEN
             CPABORT("nspin must be 2 for restricted (ROKS)")

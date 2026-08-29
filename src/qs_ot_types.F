@@ -172,6 +172,8 @@ MODULE qs_ot_types
       ! explicitly at all times
       TYPE(dbcsr_type), POINTER :: matrix_x => NULL(), matrix_sx => NULL(), matrix_gx => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_x_im => NULL(), matrix_sx_im => NULL(), matrix_gx_im => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_preconditioned_gx => NULL(), &
+                                   matrix_preconditioned_gx_im => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_ref_inv_sqrt => NULL(), matrix_ref_inv_sqrt_im => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_dx => NULL(), matrix_gx_old => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_dx_im => NULL(), matrix_gx_old_im => NULL()
@@ -234,8 +236,10 @@ MODULE qs_ot_types
 
       ! third part of the variables, if we need to optimize orbital energies
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_x => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_rayleigh => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_dx => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_gx => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_preconditioned_gx => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_gx_old => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:, :) :: ener_h_e => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:, :) :: ener_h_x => NULL()
@@ -531,6 +535,12 @@ CONTAINS
       IF (ASSOCIATED(qs_ot_env%matrix_gx_im)) THEN
          CALL dbcsr_set(qs_ot_env%matrix_gx_im, 0.0_dp)
       END IF
+      IF (ASSOCIATED(qs_ot_env%matrix_preconditioned_gx)) THEN
+         CALL dbcsr_set(qs_ot_env%matrix_preconditioned_gx, 0.0_dp)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%matrix_preconditioned_gx_im)) THEN
+         CALL dbcsr_set(qs_ot_env%matrix_preconditioned_gx_im, 0.0_dp)
+      END IF
 
       IF (qs_ot_env%use_dx) THEN
          CALL dbcsr_set(qs_ot_env%matrix_dx, 0.0_dp)
@@ -575,7 +585,11 @@ CONTAINS
          END IF
       END IF
       IF (qs_ot_env%settings%do_ener) THEN
+         qs_ot_env%ener_rayleigh(:) = 0.0_dp
          qs_ot_env%ener_gx(:) = 0.0_dp
+         IF (ASSOCIATED(qs_ot_env%ener_preconditioned_gx)) THEN
+            qs_ot_env%ener_preconditioned_gx(:) = 0.0_dp
+         END IF
          IF (qs_ot_env%use_dx) THEN
             qs_ot_env%ener_dx(:) = 0.0_dp
          END IF
@@ -707,6 +721,8 @@ CONTAINS
       NULLIFY (qs_ot_env%matrix_sx_im)
       NULLIFY (qs_ot_env%matrix_gx)
       NULLIFY (qs_ot_env%matrix_gx_im)
+      NULLIFY (qs_ot_env%matrix_preconditioned_gx)
+      NULLIFY (qs_ot_env%matrix_preconditioned_gx_im)
       NULLIFY (qs_ot_env%matrix_ref_inv_sqrt)
       NULLIFY (qs_ot_env%matrix_ref_inv_sqrt_im)
       NULLIFY (qs_ot_env%matrix_gx_old)
@@ -745,6 +761,13 @@ CONTAINS
       CALL dbcsr_init_p(qs_ot_env%matrix_gx)
       CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx, template=matrix_s, n=k, &
                                              sym=dbcsr_type_no_symmetry)
+
+      IF (qs_ot_env%settings%occupation_preconditioner) THEN
+         CALL dbcsr_init_p(qs_ot_env%matrix_preconditioned_gx)
+         CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_preconditioned_gx, &
+                                                template=matrix_s, n=k, &
+                                                sym=dbcsr_type_no_symmetry)
+      END IF
 
       IF (qs_ot_env%use_dx) THEN
          CALL dbcsr_init_p(qs_ot_env%matrix_dx)
@@ -955,6 +978,7 @@ CONTAINS
       IF (qs_ot_env%settings%do_ener) THEN
          ncoef = k
          ALLOCATE (qs_ot_env%ener_x(ncoef))
+         ALLOCATE (qs_ot_env%ener_rayleigh(ncoef))
 
          IF (qs_ot_env%settings%ot_method == "DIIS") THEN
             ALLOCATE (qs_ot_env%ener_h_e(m_diis, ncoef))
@@ -962,6 +986,9 @@ CONTAINS
          END IF
 
          ALLOCATE (qs_ot_env%ener_gx(ncoef))
+         IF (qs_ot_env%settings%occupation_preconditioner) THEN
+            ALLOCATE (qs_ot_env%ener_preconditioned_gx(ncoef))
+         END IF
 
          IF (qs_ot_env%use_gx_old) THEN
             ALLOCATE (qs_ot_env%ener_gx_old(ncoef))
@@ -1032,6 +1059,12 @@ CONTAINS
       IF (ASSOCIATED(qs_ot_env%matrix_sx_im)) CALL dbcsr_release_p(qs_ot_env%matrix_sx_im)
       IF (ASSOCIATED(qs_ot_env%matrix_gx)) CALL dbcsr_release_p(qs_ot_env%matrix_gx)
       IF (ASSOCIATED(qs_ot_env%matrix_gx_im)) CALL dbcsr_release_p(qs_ot_env%matrix_gx_im)
+      IF (ASSOCIATED(qs_ot_env%matrix_preconditioned_gx)) THEN
+         CALL dbcsr_release_p(qs_ot_env%matrix_preconditioned_gx)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%matrix_preconditioned_gx_im)) THEN
+         CALL dbcsr_release_p(qs_ot_env%matrix_preconditioned_gx_im)
+      END IF
       IF (ASSOCIATED(qs_ot_env%matrix_ref_inv_sqrt)) CALL dbcsr_release_p(qs_ot_env%matrix_ref_inv_sqrt)
       IF (ASSOCIATED(qs_ot_env%matrix_ref_inv_sqrt_im)) CALL dbcsr_release_p(qs_ot_env%matrix_ref_inv_sqrt_im)
       IF (ASSOCIATED(qs_ot_env%matrix_dx)) CALL dbcsr_release_p(qs_ot_env%matrix_dx)
@@ -1112,7 +1145,11 @@ CONTAINS
 
       IF (qs_ot_env%settings%do_ener) THEN
          IF (ASSOCIATED(qs_ot_env%ener_x)) DEALLOCATE (qs_ot_env%ener_x)
+         IF (ASSOCIATED(qs_ot_env%ener_rayleigh)) DEALLOCATE (qs_ot_env%ener_rayleigh)
          IF (ASSOCIATED(qs_ot_env%ener_gx)) DEALLOCATE (qs_ot_env%ener_gx)
+         IF (ASSOCIATED(qs_ot_env%ener_preconditioned_gx)) THEN
+            DEALLOCATE (qs_ot_env%ener_preconditioned_gx)
+         END IF
          IF (qs_ot_env%settings%ot_method == "DIIS") THEN
             IF (ASSOCIATED(qs_ot_env%ener_h_x)) DEALLOCATE (qs_ot_env%ener_h_x)
             IF (ASSOCIATED(qs_ot_env%ener_h_e)) DEALLOCATE (qs_ot_env%ener_h_e)
@@ -1340,8 +1377,9 @@ CONTAINS
             CPABORT("MINIMIZER LBFGS does not currently support OCCUPATION_PRECONDITIONER")
          END IF
       END IF
-      ! not yet fully implemented
-      CPASSERT(.NOT. settings%do_ener)
+      IF (settings%do_ener .AND. .NOT. use_complex_kpoints) THEN
+         CPABORT("OT%ENERGIES is currently supported only by the complex K-point Mermin path.")
+      END IF
 
       ! write OT output
 
