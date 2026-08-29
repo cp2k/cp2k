@@ -85,6 +85,8 @@ MODULE qs_ot_types
       REAL(KIND=dp)     :: ds_min = -1.0_dp
       REAL(KIND=dp)     :: energy_gap = -1.0_dp
       INTEGER           :: diis_m = -1
+      REAL(KIND=dp)     :: lbfgs_curvature_tol = 1.0E-4_dp
+      LOGICAL           :: lbfgs_damping = .TRUE.
       INTEGER           :: max_scf_diis = 0
       REAL(KIND=dp)     :: gold_target = -1.0_dp
       REAL(KIND=dp)     :: eps_taylor = -1.0_dp ! minimum accuracy of Taylor expansion
@@ -175,6 +177,8 @@ MODULE qs_ot_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h_e => NULL(), matrix_h_x => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h_e_im => NULL(), matrix_h_x_im => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER      :: lbfgs_rho => NULL(), lbfgs_yy => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: lbfgs_sy_rotation => NULL(), &
+                                                   lbfgs_yy_rotation => NULL()
 
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ls_diis => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: lss_diis => NULL()
@@ -240,6 +244,8 @@ CONTAINS
       settings%ot_method = "CG"
       settings%ot_algorithm = "TOD"
       settings%diis_m = 7
+      settings%lbfgs_curvature_tol = 1.0E-4_dp
+      settings%lbfgs_damping = .TRUE.
       settings%preconditioner_name = "FULL_KINETIC"
       settings%preconditioner_type = ot_precond_full_kinetic
       settings%cholesky_type = cholesky_reduce
@@ -527,6 +533,8 @@ CONTAINS
       IF (qs_ot_env%settings%ot_method == "LBFG") THEN
          qs_ot_env%lbfgs_rho = 0.0_dp
          qs_ot_env%lbfgs_yy = 0.0_dp
+         qs_ot_env%lbfgs_sy_rotation = 0.0_dp
+         qs_ot_env%lbfgs_yy_rotation = 0.0_dp
       END IF
 
       IF (qs_ot_env%settings%do_rotation) THEN
@@ -621,9 +629,12 @@ CONTAINS
          ALLOCATE (qs_ot_env%ipivot(m_diis + 1))
       END IF
       IF (qs_ot_env%settings%ot_method == "LBFG") THEN
-         ALLOCATE (qs_ot_env%lbfgs_rho(m_diis), qs_ot_env%lbfgs_yy(m_diis))
+         ALLOCATE (qs_ot_env%lbfgs_rho(m_diis), qs_ot_env%lbfgs_yy(m_diis), &
+                   qs_ot_env%lbfgs_sy_rotation(m_diis), qs_ot_env%lbfgs_yy_rotation(m_diis))
          qs_ot_env%lbfgs_rho = 0.0_dp
          qs_ot_env%lbfgs_yy = 0.0_dp
+         qs_ot_env%lbfgs_sy_rotation = 0.0_dp
+         qs_ot_env%lbfgs_yy_rotation = 0.0_dp
       END IF
 
       ALLOCATE (qs_ot_env%evals(k))
@@ -997,7 +1008,8 @@ CONTAINS
          DEALLOCATE (qs_ot_env%ipivot)
       END IF
       IF (qs_ot_env%settings%ot_method == "LBFG") THEN
-         DEALLOCATE (qs_ot_env%lbfgs_rho, qs_ot_env%lbfgs_yy)
+         DEALLOCATE (qs_ot_env%lbfgs_rho, qs_ot_env%lbfgs_yy, &
+                     qs_ot_env%lbfgs_sy_rotation, qs_ot_env%lbfgs_yy_rotation)
       END IF
 
       IF (qs_ot_env%settings%do_rotation) THEN
@@ -1144,6 +1156,14 @@ CONTAINS
          settings%ot_method = "BROY"
       CASE (ot_mini_lbfgs)
          CALL section_vals_val_get(ot_section, "N_HISTORY_VEC", i_val=settings%diis_m)
+         CALL section_vals_val_get(ot_section, "LBFGS_CURVATURE_TOL", &
+                                   r_val=settings%lbfgs_curvature_tol)
+         CALL section_vals_val_get(ot_section, "LBFGS_DAMPING", &
+                                   l_val=settings%lbfgs_damping)
+         IF (settings%lbfgs_curvature_tol < 0.0_dp .OR. &
+             settings%lbfgs_curvature_tol >= 1.0_dp) THEN
+            CPABORT("READ OT LBFGS_CURVATURE_TOL: Value must be in [0, 1)")
+         END IF
          settings%ot_method = "LBFG"
       CASE DEFAULT
          CPABORT("READ OTSCF MINIMIZER: Value unknown")
@@ -1281,6 +1301,10 @@ CONTAINS
             WRITE (output_unit, '(A)') "  Minimizer      : LBFGS               : limited-memory BFGS"
             WRITE (output_unit, '(A,I3,A)') "                            using      :   ", &
                settings%diis_m, " secant pairs"
+            WRITE (output_unit, '(A,ES12.4)') "                   curvature tolerance : ", &
+               settings%lbfgs_curvature_tol
+            WRITE (output_unit, '(A,L7)') "                   damp weak curvature : ", &
+               settings%lbfgs_damping
          CASE DEFAULT
             WRITE (output_unit, '(3A)') "  Minimizer      :      ", settings%OT_METHOD, " : UNKNOWN"
          END SELECT
@@ -1312,7 +1336,8 @@ CONTAINS
             WRITE (output_unit, '(A,I14)') "  Chebyshev degree:", settings%chebyshev_degree
          END IF
 
-         IF (settings%OT_METHOD == "SD" .OR. settings%OT_METHOD == "CG") THEN
+         IF (settings%OT_METHOD == "SD" .OR. settings%OT_METHOD == "CG" .OR. &
+             settings%OT_METHOD == "LBFG") THEN
             SELECT CASE (settings%line_search_method)
             CASE ("2PNT")
                WRITE (output_unit, '(A)') "  Line search    : 2PNT                : 2 energies, one gradient"

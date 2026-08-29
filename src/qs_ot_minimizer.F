@@ -40,7 +40,10 @@ MODULE qs_ot_minimizer
 
    PRIVATE
 
-   PUBLIC  :: ot_mini
+   PUBLIC  :: lbfgs_curvature_damping_shift, &
+              lbfgs_history_restart_required, &
+              lbfgs_step_restart_required, &
+              ot_mini
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_minimizer'
 
@@ -1058,26 +1061,99 @@ CONTAINS
    END SUBROUTINE ot_new_cg_direction
 
 ! **************************************************************************************************
+!> \brief Returns the smallest shift y <- y + shift*s that meets relative L-BFGS curvature.
+!> \param sy scalar product s.y
+!> \param ss scalar product s.s
+!> \param yy scalar product y.y
+!> \param curvature_tol requested lower bound for (s.y)/sqrt((s.s)(y.y))
+!> \return non-negative finite damping shift, or zero when no valid shift is needed or available
+! **************************************************************************************************
+   PURE FUNCTION lbfgs_curvature_damping_shift(sy, ss, yy, curvature_tol) RESULT(damping_shift)
+      REAL(KIND=dp), INTENT(IN)                          :: sy, ss, yy, curvature_tol
+      REAL(KIND=dp)                                      :: damping_shift
+
+      REAL(KIND=dp)                                      :: curvature_discriminant, target_sy
+
+      damping_shift = 0.0_dp
+      IF (.NOT. ieee_is_finite(sy) .OR. .NOT. ieee_is_finite(ss) .OR. &
+          .NOT. ieee_is_finite(yy) .OR. ss <= 0.0_dp .OR. yy <= 0.0_dp .OR. &
+          curvature_tol < 0.0_dp .OR. curvature_tol >= 1.0_dp) RETURN
+
+      curvature_discriminant = MAX(0.0_dp, ss*yy - sy*sy)
+      target_sy = curvature_tol/SQRT(MAX(TINY(1.0_dp), 1.0_dp - curvature_tol**2))* &
+                  SQRT(curvature_discriminant)
+      IF (sy <= target_sy) THEN
+         target_sy = target_sy*(1.0_dp + SQRT(EPSILON(1.0_dp)))
+         damping_shift = MAX(0.0_dp, (target_sy - sy)/ss)
+         IF (.NOT. ieee_is_finite(damping_shift)) damping_shift = 0.0_dp
+      END IF
+   END FUNCTION lbfgs_curvature_damping_shift
+
+! **************************************************************************************************
+!> \brief Decides whether an L-BFGS history must be discarded after excessive gradient growth.
+!> \param current_gradient_norm_sq squared norm at the current accepted point
+!> \param previous_gradient_norm_sq squared norm at the preceding accepted point
+!> \return true when both norms are finite and the gradient grew by more than a factor of ten
+! **************************************************************************************************
+   PURE FUNCTION lbfgs_history_restart_required(current_gradient_norm_sq, &
+                                                previous_gradient_norm_sq) RESULT(restart_history)
+      REAL(KIND=dp), INTENT(IN)                          :: current_gradient_norm_sq, &
+                                                            previous_gradient_norm_sq
+      LOGICAL                                            :: restart_history
+
+      REAL(KIND=dp), PARAMETER :: gradient_restart_factor = 10.0_dp
+
+      restart_history = ieee_is_finite(current_gradient_norm_sq) .AND. &
+                        ieee_is_finite(previous_gradient_norm_sq) .AND. &
+                        previous_gradient_norm_sq > TINY(1.0_dp) .AND. &
+                        current_gradient_norm_sq > gradient_restart_factor**2* &
+                        previous_gradient_norm_sq
+   END FUNCTION lbfgs_history_restart_required
+
+! **************************************************************************************************
+!> \brief Decides whether L-BFGS must recover from a collapsed accepted line-search step.
+!> \param accepted_step step selected by the preceding line search
+!> \param reference_step configured initial line-search step
+!> \return true for a finite step smaller than one millionth of a valid reference step
+! **************************************************************************************************
+   PURE FUNCTION lbfgs_step_restart_required(accepted_step, reference_step) RESULT(restart_step)
+      REAL(KIND=dp), INTENT(IN)                          :: accepted_step, reference_step
+      LOGICAL                                            :: restart_step
+
+      REAL(KIND=dp), PARAMETER :: step_restart_factor = 1.0E-6_dp
+
+      restart_step = ieee_is_finite(accepted_step) .AND. &
+                     ieee_is_finite(reference_step) .AND. &
+                     reference_step > 0.0_dp .AND. &
+                     ABS(accepted_step) < step_restart_factor*reference_step
+   END FUNCTION lbfgs_step_restart_required
+
+! **************************************************************************************************
 !> \brief Builds an L-BFGS direction in the fixed OT product chart.
 !>
 !> The selected OT preconditioner is used as the initial inverse Hessian. History slot m+1 stores
 !> the previous accepted point and gradient; slots 1:m store the circular (s,y) secant history.
 !> Orbital rotations are included with the antisymmetric-matrix metric used by the other OT
-!> minimizers. Curvature-rejected updates and non-descent directions reset the history.
+!> minimizers. Weak curvature can be regularized along the step, while rejected updates leave
+!> older valid history intact. Non-descent directions and collapsed line-search steps reset the
+!> history; the latter also restore the configured initial step.
 !> \param qs_ot_env OT environments for all spin channels
 ! **************************************************************************************************
    SUBROUTINE ot_new_lbfgs_direction(qs_ot_env)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_lbfgs_direction'
-      REAL(KIND=dp), PARAMETER                           :: curvature_tol = 1.0E-10_dp
+      REAL(KIND=dp), PARAMETER                           :: rotation_scale_max = 1.0E3_dp, &
+                                                            rotation_scale_min = 1.0E-3_dp
 
       INTEGER                                            :: handle, i, ispin, itmp, j, k, m_history, &
                                                             n, newest, nhistory, nspin
       INTEGER(KIND=int_8)                                :: nrotation, nvariables
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: history_index
-      REAL(KIND=dp)                                      :: beta, g_dot_z, gamma, ss, stq, sy, tmp, &
-                                                            yy, yy_newest
+      LOGICAL                                            :: restart_history, restart_step
+      REAL(KIND=dp) :: beta, current_gradient_norm_sq, curvature_tol, damping_shift, g_dot_z, &
+         gamma, gamma_rotation, previous_gradient_norm_sq, ss, ss_rotation, stq, sy, sy_rotation, &
+         tmp, yy, yy_newest, yy_rotation
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha, rho
 
       CALL timeset(routineN, handle)
@@ -1089,61 +1165,141 @@ CONTAINS
 
       nspin = SIZE(qs_ot_env)
       m_history = qs_ot_env(1)%settings%diis_m
+      curvature_tol = qs_ot_env(1)%settings%lbfgs_curvature_tol
+      restart_history = .FALSE.
+      restart_step = .FALSE.
 
-      ! Form a new secant pair relative to the preceding accepted line-search point.
+      ! A local line search can accept a nearly isoenergetic point whose raw gradient is much
+      ! larger than at the preceding point. CG naturally resets after such a loss of conjugacy,
+      ! whereas retaining an L-BFGS model can amplify it. Discard only the secant model and use
+      ! the physical initial inverse Hessian for the current direction. Likewise, restore the
+      ! configured initial step if repeated interpolation has collapsed the accepted step by more
+      ! than six orders of magnitude without satisfying the SCF convergence criterion.
       IF (qs_ot_env(1)%diis_iter > 0) THEN
+         current_gradient_norm_sq = 0.0_dp
+         previous_gradient_norm_sq = 0.0_dp
+         DO ispin = 1, nspin
+            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
+            current_gradient_norm_sq = current_gradient_norm_sq + tmp
+            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_e(m_history + 1)%matrix, &
+                           qs_ot_env(ispin)%matrix_h_e(m_history + 1)%matrix, tmp)
+            previous_gradient_norm_sq = previous_gradient_norm_sq + tmp
+            IF (qs_ot_env(1)%settings%do_rotation) THEN
+               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
+               current_gradient_norm_sq = current_gradient_norm_sq + 0.5_dp*tmp
+               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_e(m_history + 1)%matrix, &
+                              qs_ot_env(ispin)%rot_mat_h_e(m_history + 1)%matrix, tmp)
+               previous_gradient_norm_sq = previous_gradient_norm_sq + 0.5_dp*tmp
+            END IF
+         END DO
+         restart_step = lbfgs_step_restart_required(qs_ot_env(1)%ds_min, &
+                                                    qs_ot_env(1)%settings%ds_min)
+         restart_history = lbfgs_history_restart_required(current_gradient_norm_sq, &
+                                                          previous_gradient_norm_sq) .OR. &
+                           restart_step
+         IF (restart_history) THEN
+            qs_ot_env(1)%diis_iter = 1
+            IF (restart_step) qs_ot_env(1)%ds_min = qs_ot_env(1)%settings%ds_min
+            qs_ot_env(1)%OT_METHOD_FULL = "OT L-RST"
+         END IF
+      END IF
+
+      ! Form a candidate secant pair in the direction workspaces relative to the preceding
+      ! accepted line-search point. Commit it to the circular history only after the curvature
+      ! test, so a rejected candidate cannot overwrite the oldest valid pair in a full buffer.
+      IF (qs_ot_env(1)%diis_iter > 0 .AND. .NOT. restart_history) THEN
          j = MOD(qs_ot_env(1)%diis_iter - 1, m_history) + 1
          ss = 0.0_dp
          sy = 0.0_dp
+         sy_rotation = 0.0_dp
+         ss_rotation = 0.0_dp
          yy = 0.0_dp
+         yy_rotation = 0.0_dp
          DO ispin = 1, nspin
-            CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(j)%matrix, qs_ot_env(ispin)%matrix_x)
-            CALL dbcsr_add(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
+            CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_x)
+            CALL dbcsr_add(qs_ot_env(ispin)%matrix_dx, &
                            qs_ot_env(ispin)%matrix_h_x(m_history + 1)%matrix, &
                            alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-            CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_e(j)%matrix, qs_ot_env(ispin)%matrix_gx)
-            CALL dbcsr_add(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
+            CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx_old, qs_ot_env(ispin)%matrix_gx)
+            CALL dbcsr_add(qs_ot_env(ispin)%matrix_gx_old, &
                            qs_ot_env(ispin)%matrix_h_e(m_history + 1)%matrix, &
                            alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
-                           qs_ot_env(ispin)%matrix_h_x(j)%matrix, tmp)
+            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_dx, tmp)
             ss = ss + tmp
-            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
-                           qs_ot_env(ispin)%matrix_h_e(j)%matrix, tmp)
+            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx_old, tmp)
             sy = sy + tmp
-            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                           qs_ot_env(ispin)%matrix_h_e(j)%matrix, tmp)
+            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_old, qs_ot_env(ispin)%matrix_gx_old, tmp)
             yy = yy + tmp
             IF (qs_ot_env(1)%settings%do_rotation) THEN
-               CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, qs_ot_env(ispin)%rot_mat_x)
-               CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
+               CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_x)
+               CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_dx, &
                               qs_ot_env(ispin)%rot_mat_h_x(m_history + 1)%matrix, &
                               alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-               CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, qs_ot_env(ispin)%rot_mat_gx)
-               CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
+               CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx_old, qs_ot_env(ispin)%rot_mat_gx)
+               CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_gx_old, &
                               qs_ot_env(ispin)%rot_mat_h_e(m_history + 1)%matrix, &
                               alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
-                              qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, tmp)
+               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_dx, tmp)
                ss = ss + 0.5_dp*tmp
-               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
-                              qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, tmp)
+               ss_rotation = ss_rotation + 0.5_dp*tmp
+               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx_old, tmp)
                sy = sy + 0.5_dp*tmp
-               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
-                              qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, tmp)
+               sy_rotation = sy_rotation + 0.5_dp*tmp
+               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx_old, qs_ot_env(ispin)%rot_mat_gx_old, tmp)
                yy = yy + 0.5_dp*tmp
+               yy_rotation = yy_rotation + 0.5_dp*tmp
             END IF
          END DO
+
+         ! Shift y along s just enough to satisfy the requested relative curvature. With the
+         ! product-chart metric this preserves orbital-rotation covariance. The target below is
+         ! obtained by solving (s.y)^2 >= tol^2 (s.s)(y.y) for y <- y + shift*s.
+         damping_shift = 0.0_dp
+         IF (qs_ot_env(1)%settings%lbfgs_damping) THEN
+            damping_shift = lbfgs_curvature_damping_shift(sy, ss, yy, curvature_tol)
+         END IF
+         IF (damping_shift > 0.0_dp) THEN
+            DO ispin = 1, nspin
+               CALL dbcsr_add(qs_ot_env(ispin)%matrix_gx_old, &
+                              qs_ot_env(ispin)%matrix_dx, &
+                              alpha_scalar=1.0_dp, beta_scalar=damping_shift)
+               IF (qs_ot_env(1)%settings%do_rotation) THEN
+                  CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_gx_old, &
+                                 qs_ot_env(ispin)%rot_mat_dx, &
+                                 alpha_scalar=1.0_dp, beta_scalar=damping_shift)
+               END IF
+            END DO
+            yy = yy + 2.0_dp*damping_shift*sy + damping_shift**2*ss
+            yy_rotation = yy_rotation + 2.0_dp*damping_shift*sy_rotation + &
+                          damping_shift**2*ss_rotation
+            sy = sy + damping_shift*ss
+            sy_rotation = sy_rotation + damping_shift*ss_rotation
+         END IF
          IF (ieee_is_finite(sy) .AND. ieee_is_finite(ss) .AND. ieee_is_finite(yy) .AND. &
              ss > 0.0_dp .AND. yy > 0.0_dp .AND. sy > curvature_tol*SQRT(ss*yy)) THEN
+            DO ispin = 1, nspin
+               CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
+                               qs_ot_env(ispin)%matrix_dx)
+               CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
+                               qs_ot_env(ispin)%matrix_gx_old)
+               IF (qs_ot_env(1)%settings%do_rotation) THEN
+                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
+                                  qs_ot_env(ispin)%rot_mat_dx)
+                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
+                                  qs_ot_env(ispin)%rot_mat_gx_old)
+               END IF
+            END DO
             qs_ot_env(1)%lbfgs_rho(j) = 1.0_dp/sy
             qs_ot_env(1)%lbfgs_yy(j) = yy
+            qs_ot_env(1)%lbfgs_sy_rotation(j) = sy_rotation
+            qs_ot_env(1)%lbfgs_yy_rotation(j) = yy_rotation
             qs_ot_env(1)%diis_iter = qs_ot_env(1)%diis_iter + 1
          ELSE
-            ! The current point remains the reference, but all older pairs are discarded.
-            qs_ot_env(1)%diis_iter = 1
+            ! Skip this pair. Older pairs remain valid in the fixed OT chart and are retained;
+            ! the descent safeguard below still clears all history if their recursion fails.
+            qs_ot_env(1)%OT_METHOD_FULL = "OT LSKIP"
          END IF
-      ELSE
+      ELSE IF (qs_ot_env(1)%diis_iter <= 0) THEN
          qs_ot_env(1)%diis_iter = 1
       END IF
 
@@ -1165,12 +1321,22 @@ CONTAINS
       nhistory = MIN(qs_ot_env(1)%diis_iter - 1, m_history)
       ALLOCATE (alpha(MAX(1, nhistory)), rho(MAX(1, nhistory)), &
                 history_index(MAX(1, nhistory)))
+      gamma_rotation = 1.0_dp
       yy_newest = 0.0_dp
 
       ! First loop, newest to oldest: q <- V^T g.
       IF (nhistory > 0) THEN
          newest = MOD(qs_ot_env(1)%diis_iter - 2, m_history) + 1
          yy_newest = qs_ot_env(1)%lbfgs_yy(newest)
+         IF (qs_ot_env(1)%settings%do_rotation .AND. &
+             ieee_is_finite(qs_ot_env(1)%lbfgs_sy_rotation(newest)) .AND. &
+             ieee_is_finite(qs_ot_env(1)%lbfgs_yy_rotation(newest)) .AND. &
+             qs_ot_env(1)%lbfgs_sy_rotation(newest) > 0.0_dp .AND. &
+             qs_ot_env(1)%lbfgs_yy_rotation(newest) > 0.0_dp) THEN
+            gamma_rotation = MAX(rotation_scale_min, MIN(rotation_scale_max, &
+                                                         qs_ot_env(1)%lbfgs_sy_rotation(newest)/ &
+                                                         qs_ot_env(1)%lbfgs_yy_rotation(newest)))
+         END IF
          DO i = 1, nhistory
             history_index(i) = MODULO(newest - i, m_history) + 1
             stq = 0.0_dp
@@ -1201,13 +1367,14 @@ CONTAINS
 
       ! Apply the initial inverse Hessian. A physical OT preconditioner takes precedence over
       ! scalar secant scaling for the orbital block, because it carries the kinetic/overlap metric
-      ! and energy scale. The rotation block uses the identity, as in the SD and CG minimizers.
+      ! and energy scale. The rotation block uses a separately secant-scaled identity.
       IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
          DO ispin = 1, nspin
             CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
                                       qs_ot_env(ispin)%matrix_gx_old, qs_ot_env(ispin)%matrix_dx)
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx_old)
+               CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, gamma_rotation)
             END IF
          END DO
       ELSE
@@ -1218,7 +1385,7 @@ CONTAINS
             CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx, gamma)
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx_old)
-               CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, gamma)
+               CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, gamma_rotation)
             END IF
          END DO
       END IF

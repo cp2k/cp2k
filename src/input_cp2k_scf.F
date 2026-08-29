@@ -671,7 +671,9 @@ CONTAINS
                        "Direct inversion in the iterative subspace: less reliable than CG, but sometimes about 50% faster", &
                        "Broyden mixing approximating the inverse Hessian", &
                        "Limited-memory BFGS in the fixed OT product chart. The selected OT preconditioner is used"// &
-                       " as the initial inverse Hessian. Available with ALGORITHM STRICT and without"// &
+                       " as the initial inverse Hessian. The secant history is reset after a tenfold increase in"// &
+                       " the raw fixed-chart gradient norm. With OUTER_SCF, an explicit EPS_DIIS can switch later"// &
+                       " outer iterations to OT/DIIS. Available with ALGORITHM STRICT and without"// &
                        " OCCUPATION_PRECONDITIONER."), &
          enum_i_vals=[ot_mini_sd, ot_mini_cg, ot_mini_diis, ot_mini_broyden, ot_mini_lbfgs])
       CALL section_add_keyword(section, keyword)
@@ -698,6 +700,26 @@ CONTAINS
                           description="Number of history vectors to be used with DIIS, BROYDEN, or LBFGS", &
                           usage="N_HISTORY_VEC 7", &
                           default_i_val=7)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="LBFGS_CURVATURE_TOL", &
+         description="Minimum dimensionless relative curvature accepted for an LBFGS secant pair."// &
+         " Values are restricted to the interval [0,1).", &
+         usage="LBFGS_CURVATURE_TOL 1.0E-4", &
+         default_r_val=1.0E-4_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="LBFGS_DAMPING", &
+         description="Regularize weak or negative LBFGS curvature by the smallest shift of the"// &
+         " gradient difference along the step that satisfies LBFGS_CURVATURE_TOL."// &
+         " If disabled, such secant pairs are skipped.", &
+         usage="LBFGS_DAMPING ON", &
+         default_l_val=.TRUE., &
+         lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

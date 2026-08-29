@@ -36,7 +36,7 @@
 "H2_trip.inp"                           = [{matcher="E_total", tol=2e-12, ref=-0.71740623265306}]
 "C-sic-1.inp"                           = [{matcher="E_total", tol=5e-13, ref=-5.30145304131208}]
 "C-sic-2.inp"                           = [{matcher="E_total", tol=1e-13, ref=-5.32760575352303}]
-"C-sic-lbfgs.inp"                       = [{matcher="E_total", tol=1e-12, ref=-5.30617976133315}]
+"C-sic-lbfgs.inp"                       = [{matcher="E_total", tol=1e-12, ref=-5.30618470274937}]
 # ot with fractional occupations
 "C_ot.inp"                              = [{matcher="E_total", tol=1e-13, ref=-5.33746454516253}]
 # use of the fermi distribution
@@ -55,4 +55,9 @@
 "CH4-3.inp"                             = [{matcher="E_total", tol=1e-13, ref=-7.94506870642185}]
 "CH4-chebyshev.inp"                     = [{matcher="E_total", tol=1e-10, ref=-7.94506870641358}]
 "CH4-lbfgs.inp"                         = [{matcher="E_total", tol=1e-11, ref=-7.94507201394430}]
+"CH4-lbfgs-rejected-update.inp"         = [{matcher="E_total", tol=1e-11, ref=-7.94507201394040},
+                                             {matcher="OT_lbfgs_skipped_update"}]
+"CH4-lbfgs-diis.inp"                      = [{matcher="E_total", tol=1e-11, ref=-7.94507201394648},
+                                             {matcher="OT_lbfgs_update"},
+                                             {matcher="OT_diis_update"}]
 #EOF
