@@ -47,6 +47,8 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_get_orbitals_ref_complex
    PUBLIC  :: qs_ot_get_derivative_ref
    PUBLIC  :: qs_ot_get_derivative_ref_complex
+   PUBLIC  :: qs_ot_generate_rotation
+   PUBLIC  :: qs_ot_rot_mat_derivative
    PUBLIC  :: qs_ot_new_preconditioner
    PRIVATE :: qs_ot_p2m_diag
    PRIVATE :: qs_ot_sinc
@@ -603,6 +605,13 @@ CONTAINS
          END IF
          CALL dbcsr_copy(C_OLD, C_NEW)
       END IF
+
+      IF (qs_ot_env%settings%do_rotation) THEN
+         CALL qs_ot_generate_rotation(qs_ot_env)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, C_NEW, qs_ot_env%rot_mat_u, &
+                             0.0_dp, C_TMP)
+         CALL dbcsr_copy(C_NEW, C_TMP)
+      END IF
       !
       CALL timestop(handle)
    END SUBROUTINE qs_ot_get_orbitals_ref
@@ -845,7 +854,7 @@ CONTAINS
 
       INTEGER                                            :: handle, k, n
       REAL(dp)                                           :: occ_in, occ_out
-      TYPE(dbcsr_type), POINTER                          :: C, CHC, G, G_dp, HC, SC
+      TYPE(dbcsr_type), POINTER                          :: C, CHC, G, HC, HC_work, SC
 
       CALL timeset(routineN, handle)
 
@@ -856,10 +865,20 @@ CONTAINS
       HC => matrix_hc ! NBsf*NOcc
       G => matrix_gx ! NBsf*NOcc
       CHC => qs_ot_env%buf1_k_k_sym ! buffer
-      G_dp => qs_ot_env%buf1_n_k_dp ! buffer dp
+
+      IF (qs_ot_env%settings%do_rotation) THEN
+         ! The physical orbitals are C_current=Q*U. Pull dE/dC_current
+         ! back to the unrotated REF basis before projecting it.
+         CALL qs_ot_rot_mat_derivative(qs_ot_env)
+         HC_work => qs_ot_env%buf1_n_k
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, HC, qs_ot_env%rot_mat_u, &
+                             0.0_dp, HC_work)
+      ELSE
+         HC_work => HC
+      END IF
 
       ! C'*(H*C)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, C, HC, 0.0_dp, CHC)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, C, HC_work, 0.0_dp, CHC)
       IF (qs_ot_env%settings%eps_irac_filter_matrix > 0.0_dp) THEN
          occ_in = dbcsr_get_occupation(chc)
          CALL dbcsr_filter(chc, qs_ot_env%settings%eps_irac_filter_matrix)
@@ -873,7 +892,7 @@ CONTAINS
          occ_out = dbcsr_get_occupation(g)
       END IF
       ! G = 2*(1-S*C*C')*H*C
-      CALL dbcsr_add(G, HC, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+      CALL dbcsr_add(G, HC_work, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
       !
       CALL timestop(handle)
    END SUBROUTINE qs_ot_get_derivative_ref
@@ -1124,8 +1143,6 @@ CONTAINS
       INTEGER                                  :: row, col
       LOGICAL                                  :: found
       COMPLEX(dp)                              :: cval_in, cval_out
-      TYPE(dbcsr_distribution_type)            :: dist
-
       CALL timeset(routineN, handle)
 
       CALL dbcsr_get_info(qs_ot_env%rot_mat_u, nfullrows_total=k)
@@ -1183,15 +1200,12 @@ CONTAINS
          CALL dbcsr_multiply('N', 'N', +1.0_dp, qs_ot_env%rot_mat_evec_im, outer_deriv_re, 1.0_dp, mat_buf)
          CALL dbcsr_multiply('N', 'T', +1.0_dp, mat_buf, qs_ot_env%rot_mat_evec_im, 1.0_dp, qs_ot_env%matrix_buf1)
 
-         ! Account for anti-symmetry of rot_mat_x.
-         CALL dbcsr_get_info(qs_ot_env%matrix_buf3, distribution=dist)
-         CALL dbcsr_transposed(qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf1, &
-                               shallow_data_copy=.FALSE., use_distribution=dist, &
-                               transpose_distribution=.FALSE.)
-
-         ! rot_mat_gx = matrix_buf1^T - matrix_buf1
-         CALL dbcsr_add(qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf2, alpha_scalar=-1.0_dp, beta_scalar=+1.0_dp)
-         CALL dbcsr_copy(qs_ot_env%rot_mat_gx, qs_ot_env%matrix_buf1)
+         ! Account for anti-symmetry of rot_mat_x without relying on
+         ! STRICT-only matrix buffers. REF uses the same finite chart.
+         CALL qs_ot_square_transpose(qs_ot_env%matrix_buf1, mat_buf, qs_ot_env%rot_mat_u)
+         CALL dbcsr_copy(qs_ot_env%rot_mat_gx, mat_buf)
+         CALL dbcsr_add(qs_ot_env%rot_mat_gx, qs_ot_env%matrix_buf1, &
+                        alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
 
          CALL dbcsr_release(mat_buf)
          CALL dbcsr_release(outer_deriv_re)
@@ -1228,6 +1242,26 @@ CONTAINS
          END IF
       END FUNCTION cint
    END SUBROUTINE qs_ot_rot_mat_derivative
+
+! **************************************************************************************************
+!> \brief Transpose a square DBCSR matrix while retaining its target distribution.
+!> \param matrix source matrix
+!> \param transposed transposed matrix
+!> \param identity_template square matrix template
+! **************************************************************************************************
+   SUBROUTINE qs_ot_square_transpose(matrix, transposed, identity_template)
+      TYPE(dbcsr_type)                                   :: matrix, transposed, identity_template
+
+      TYPE(dbcsr_type)                                   :: identity
+
+      CALL dbcsr_copy(transposed, matrix, name='square_transposed')
+      CALL dbcsr_copy(identity, identity_template, name='transpose_identity')
+      CALL dbcsr_set(identity, 0.0_dp)
+      CALL dbcsr_add_on_diag(identity, 1.0_dp)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, matrix, identity, 0.0_dp, transposed)
+      CALL dbcsr_release(identity)
+
+   END SUBROUTINE qs_ot_square_transpose
 
 ! **************************************************************************************************
 !> \brief decide strategy
