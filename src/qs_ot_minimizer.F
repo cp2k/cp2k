@@ -67,11 +67,14 @@ CONTAINS
 !> \param matrix_hc ...
 !> \param matrix_hc_im ...
 ! **************************************************************************************************
-   SUBROUTINE ot_mini(qs_ot_env, matrix_hc, matrix_hc_im)
+   SUBROUTINE ot_mini(qs_ot_env, matrix_hc, matrix_hc_im, &
+                      matrix_hc_rotation, matrix_hc_rotation_im)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_hc_im
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: matrix_hc_rotation, matrix_hc_rotation_im
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_mini'
 
@@ -103,9 +106,17 @@ CONTAINS
                                                        matrix_hc_im(ispin)%matrix, &
                                                        qs_ot_env(ispin))
                   CASE ("REF")
-                     CALL qs_ot_get_derivative_ref_complex(matrix_hc(ispin)%matrix, &
-                                                           matrix_hc_im(ispin)%matrix, &
-                                                           qs_ot_env(ispin))
+                     IF (PRESENT(matrix_hc_rotation) .AND. PRESENT(matrix_hc_rotation_im)) THEN
+                        CALL qs_ot_get_derivative_ref_complex(matrix_hc(ispin)%matrix, &
+                                                              matrix_hc_im(ispin)%matrix, &
+                                                              qs_ot_env(ispin), &
+                                                              matrix_hc_rotation(ispin)%matrix, &
+                                                              matrix_hc_rotation_im(ispin)%matrix)
+                     ELSE
+                        CALL qs_ot_get_derivative_ref_complex(matrix_hc(ispin)%matrix, &
+                                                              matrix_hc_im(ispin)%matrix, &
+                                                              qs_ot_env(ispin))
+                     END IF
                   CASE DEFAULT
                      CPABORT("Complex k-point OT derivative requires ALGORITHM STRICT or IRAC")
                   END SELECT

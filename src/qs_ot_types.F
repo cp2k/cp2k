@@ -234,6 +234,7 @@ MODULE qs_ot_types
 
       ! third part of the variables, if we need to optimize orbital energies
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_x => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_rayleigh => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_dx => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_gx => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_gx_old => NULL()
@@ -575,6 +576,7 @@ CONTAINS
          END IF
       END IF
       IF (qs_ot_env%settings%do_ener) THEN
+         qs_ot_env%ener_rayleigh(:) = 0.0_dp
          qs_ot_env%ener_gx(:) = 0.0_dp
          IF (qs_ot_env%use_dx) THEN
             qs_ot_env%ener_dx(:) = 0.0_dp
@@ -955,6 +957,7 @@ CONTAINS
       IF (qs_ot_env%settings%do_ener) THEN
          ncoef = k
          ALLOCATE (qs_ot_env%ener_x(ncoef))
+         ALLOCATE (qs_ot_env%ener_rayleigh(ncoef))
 
          IF (qs_ot_env%settings%ot_method == "DIIS") THEN
             ALLOCATE (qs_ot_env%ener_h_e(m_diis, ncoef))
@@ -1112,6 +1115,7 @@ CONTAINS
 
       IF (qs_ot_env%settings%do_ener) THEN
          IF (ASSOCIATED(qs_ot_env%ener_x)) DEALLOCATE (qs_ot_env%ener_x)
+         IF (ASSOCIATED(qs_ot_env%ener_rayleigh)) DEALLOCATE (qs_ot_env%ener_rayleigh)
          IF (ASSOCIATED(qs_ot_env%ener_gx)) DEALLOCATE (qs_ot_env%ener_gx)
          IF (qs_ot_env%settings%ot_method == "DIIS") THEN
             IF (ASSOCIATED(qs_ot_env%ener_h_x)) DEALLOCATE (qs_ot_env%ener_h_x)
@@ -1340,8 +1344,9 @@ CONTAINS
             CPABORT("MINIMIZER LBFGS does not currently support OCCUPATION_PRECONDITIONER")
          END IF
       END IF
-      ! not yet fully implemented
-      CPASSERT(.NOT. settings%do_ener)
+      IF (settings%do_ener .AND. .NOT. use_complex_kpoints) THEN
+         CPABORT("OT%ENERGIES is currently supported only by the complex K-point Mermin path.")
+      END IF
 
       ! write OT output
 
