@@ -961,10 +961,10 @@ CONTAINS
       ! derivative order in isolation is rejected here rather than further down,
       ! where it would quietly evaluate nothing at all.
       IF (grad_deriv < 0) THEN
-        CPABORT("Evaluating a single derivative order is not supported.")
+         CPABORT("Evaluating a single derivative order is not supported.")
       END IF
       IF (grad_deriv > 3) THEN
-        CPABORT("derivatives larger than 3 not implemented")
+         CPABORT("derivatives larger than 3 not implemented")
       END IF
 
       has_laplace = .FALSE.
@@ -1233,10 +1233,10 @@ CONTAINS
       ! derivative order in isolation is rejected here rather than further down,
       ! where it would quietly evaluate nothing at all.
       IF (grad_deriv < 0) THEN
-        CPABORT("Evaluating a single derivative order is not supported.")
+         CPABORT("Evaluating a single derivative order is not supported.")
       END IF
       IF (grad_deriv > 3) THEN
-        CPABORT("derivatives larger than 3 not implemented")
+         CPABORT("derivatives larger than 3 not implemented")
       END IF
 
       NULLIFY (dummy)
