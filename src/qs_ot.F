@@ -32,6 +32,7 @@ MODULE qs_ot
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_heevd,&
                                               cp_dbcsr_syevd
    USE kinds,                           ONLY: dp
+   USE mathlib,                         ONLY: diag_complex
    USE message_passing,                 ONLY: mp_comm_type
    USE preconditioner,                  ONLY: apply_preconditioner
    USE preconditioner_types,            ONLY: preconditioner_type
@@ -53,6 +54,10 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_get_derivative_ref_complex
    PUBLIC  :: qs_ot_apply_complex_frechet_dbcsr
    PUBLIC  :: qs_ot_complex_exp_frechet_kernel
+   PUBLIC  :: qs_ot_fixed_n_energy_gradient
+   PUBLIC  :: qs_ot_fixed_n_energy_hessian
+   PUBLIC  :: qs_ot_fixed_n_projector_frechet
+   PUBLIC  :: qs_ot_fixed_n_response_mu_shift
    PUBLIC  :: qs_ot_generate_rotation
    PUBLIC  :: qs_ot_generate_rotation_complex
    PUBLIC  :: qs_ot_rot_mat_derivative
@@ -73,6 +78,184 @@ MODULE qs_ot
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot'
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief chemical-potential response for one fixed-electron-number group
+!> \param weighted_energy_response sum_i chi_i de_i over the perturbed local channels
+!> \param local_curvature_sum local sum_i chi_i, used as a serial fallback
+!> \param fixed_n_curvature_sum global sum_i chi_i for the complete fixed-N group
+!> \return first-order chemical-potential shift
+! **************************************************************************************************
+   PURE FUNCTION qs_ot_fixed_n_response_mu_shift( &
+      weighted_energy_response, local_curvature_sum, fixed_n_curvature_sum) RESULT(mu_shift)
+      REAL(KIND=dp), INTENT(IN)                          :: weighted_energy_response, &
+                                                            local_curvature_sum, &
+                                                            fixed_n_curvature_sum
+      REAL(KIND=dp)                                      :: mu_shift
+
+      REAL(KIND=dp)                                      :: denominator
+
+      denominator = MAX(0.0_dp, fixed_n_curvature_sum)
+      IF (denominator <= EPSILON(denominator)) denominator = MAX(0.0_dp, local_curvature_sum)
+      mu_shift = 0.0_dp
+      IF (denominator > EPSILON(denominator)) mu_shift = weighted_energy_response/denominator
+
+   END FUNCTION qs_ot_fixed_n_response_mu_shift
+
+! **************************************************************************************************
+!> \brief fixed-N Mermin gradient in auxiliary-energy coordinates
+!> \param rayleigh_energy diagonal expectation values of the current Hamiltonian
+!> \param energy_coordinate auxiliary band energies controlling the occupations
+!> \param response_weight positive weighted occupation susceptibilities chi_i
+!> \param fixed_n_weight_sum global sum_i chi_i for the fixed-N group
+!> \param fixed_n_weighted_residual global sum_i chi_i (h_i-e_i)
+!> \param gradient projected fixed-N gradient
+! **************************************************************************************************
+   PURE SUBROUTINE qs_ot_fixed_n_energy_gradient( &
+      rayleigh_energy, energy_coordinate, response_weight, fixed_n_weight_sum, &
+      fixed_n_weighted_residual, gradient)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rayleigh_energy, energy_coordinate, &
+                                                            response_weight
+      REAL(KIND=dp), INTENT(IN)                          :: fixed_n_weight_sum, &
+                                                            fixed_n_weighted_residual
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: gradient
+
+      REAL(KIND=dp)                                      :: fixed_n_mean
+
+      fixed_n_mean = 0.0_dp
+      IF (fixed_n_weight_sum > EPSILON(fixed_n_weight_sum)) THEN
+         fixed_n_mean = fixed_n_weighted_residual/fixed_n_weight_sum
+      END IF
+      gradient(:) = response_weight(:)* &
+                    (fixed_n_mean - (rayleigh_energy(:) - energy_coordinate(:)))
+
+   END SUBROUTINE qs_ot_fixed_n_energy_gradient
+
+! **************************************************************************************************
+!> \brief dense fixed-N occupation Hessian in auxiliary-energy coordinates
+!>
+!>        H = diag(chi) - chi chi^T / sum(chi) is symmetric positive semidefinite and has the
+!>        constant-energy gauge as an exact null vector.
+!> \param response_weight positive weighted occupation susceptibilities chi_i
+!> \param fixed_n_weight_sum global sum_i chi_i for the fixed-N group
+!> \param hessian projected fixed-N Hessian
+! **************************************************************************************************
+   PURE SUBROUTINE qs_ot_fixed_n_energy_hessian(response_weight, fixed_n_weight_sum, hessian)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: response_weight
+      REAL(KIND=dp), INTENT(IN)                          :: fixed_n_weight_sum
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: hessian
+
+      INTEGER                                            :: i, j, n
+
+      n = SIZE(response_weight)
+      hessian(:, :) = 0.0_dp
+      DO i = 1, n
+         hessian(i, i) = MAX(0.0_dp, response_weight(i))
+      END DO
+      IF (fixed_n_weight_sum > EPSILON(fixed_n_weight_sum)) THEN
+         DO j = 1, n
+            DO i = 1, n
+               hessian(i, j) = hessian(i, j) - &
+                               MAX(0.0_dp, response_weight(i))* &
+                               MAX(0.0_dp, response_weight(j))/fixed_n_weight_sum
+            END DO
+         END DO
+      END IF
+      hessian(:, :) = 0.5_dp*(hessian + TRANSPOSE(hessian))
+
+   END SUBROUTINE qs_ot_fixed_n_energy_hessian
+
+! **************************************************************************************************
+!> \brief fixed-N Frechet derivative of a smooth occupation projector
+!>
+!>        The spectral divided-difference kernel is invariant under rotations inside a degenerate
+!>        eigenspace. Its diagonal includes the chemical-potential response of the complete fixed-N
+!>        group, while off-diagonal terms describe the physical change of the spectral projector.
+!> \param chc projected Hermitian Hamiltonian
+!> \param dchc Hermitian Hamiltonian perturbation
+!> \param occupation canonical occupations associated with the eigenvalues of chc
+!> \param kpoint_weight irreducible-k-point weight
+!> \param response_weight positive weighted occupation susceptibilities for this channel
+!> \param fixed_n_weight_sum susceptibility summed over the complete fixed-N group
+!> \param projector_derivative derivative of the weighted occupation projector
+!> \param density_factor optional representation-dependent density prefactor
+! **************************************************************************************************
+   SUBROUTINE qs_ot_fixed_n_projector_frechet( &
+      chc, dchc, occupation, kpoint_weight, response_weight, fixed_n_weight_sum, &
+      projector_derivative, density_factor)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: chc, dchc
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation
+      REAL(KIND=dp), INTENT(IN)                          :: kpoint_weight
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: response_weight
+      REAL(KIND=dp), INTENT(IN)                          :: fixed_n_weight_sum
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: projector_derivative
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: density_factor
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: eigenvectors, kernel, work
+      INTEGER                                            :: i, j, n
+      REAL(KIND=dp)                                      :: coefficient, denominator, factor, &
+                                                            gap_tolerance, local_weight_sum, &
+                                                            mu_numerator, mu_shift, scale
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, weighted_occupation
+
+      n = SIZE(chc, 1)
+      CPASSERT(n > 0)
+      CPASSERT(ALL(SHAPE(chc) == [n, n]))
+      CPASSERT(ALL(SHAPE(dchc) == [n, n]))
+      CPASSERT(SIZE(occupation) == n)
+      CPASSERT(SIZE(response_weight) == n)
+      CPASSERT(ALL(SHAPE(projector_derivative) == [n, n]))
+
+      factor = 1.0_dp
+      IF (PRESENT(density_factor)) factor = density_factor
+      projector_derivative(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      IF (factor == 0.0_dp .OR. kpoint_weight <= 0.0_dp) RETURN
+
+      ALLOCATE (eigenvectors(n, n), kernel(n, n), work(n, n), eigenvalues(n), &
+                weighted_occupation(n))
+      CALL diag_complex(chc, eigenvectors, eigenvalues)
+      work(:, :) = MATMUL(CONJG(TRANSPOSE(eigenvectors)), MATMUL(dchc, eigenvectors))
+      weighted_occupation(:) = factor*kpoint_weight*occupation(:)
+
+      local_weight_sum = SUM(MAX(0.0_dp, response_weight(:)))
+      mu_numerator = 0.0_dp
+      DO i = 1, n
+         mu_numerator = mu_numerator + MAX(0.0_dp, response_weight(i))* &
+                        REAL(work(i, i), KIND=dp)
+      END DO
+      mu_shift = qs_ot_fixed_n_response_mu_shift(mu_numerator, local_weight_sum, &
+                                                 fixed_n_weight_sum)
+
+      scale = MAX(1.0_dp, MAXVAL(ABS(eigenvalues(:))))
+      gap_tolerance = SQRT(EPSILON(1.0_dp))*scale
+      kernel(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      DO j = 1, n
+         DO i = 1, n
+            IF (i == j) THEN
+               coefficient = -factor*MAX(0.0_dp, response_weight(i))
+               kernel(i, i) = CMPLX(coefficient*(REAL(work(i, i), KIND=dp) - mu_shift), &
+                                    0.0_dp, KIND=dp)
+            ELSE
+               denominator = eigenvalues(i) - eigenvalues(j)
+               IF (ABS(denominator) > gap_tolerance) THEN
+                  coefficient = (weighted_occupation(i) - weighted_occupation(j))/denominator
+               ELSE
+                  coefficient = -factor*SQRT(MAX(0.0_dp, response_weight(i))* &
+                                             MAX(0.0_dp, response_weight(j)))
+               END IF
+               kernel(i, j) = coefficient*work(i, j)
+            END IF
+         END DO
+      END DO
+
+      projector_derivative(:, :) = MATMUL(eigenvectors, &
+                                          MATMUL(kernel, CONJG(TRANSPOSE(eigenvectors))))
+      projector_derivative(:, :) = 0.5_dp*(projector_derivative + &
+                                           CONJG(TRANSPOSE(projector_derivative)))
+
+      DEALLOCATE (eigenvectors, kernel, work, eigenvalues, weighted_occupation)
+
+   END SUBROUTINE qs_ot_fixed_n_projector_frechet
 
 ! **************************************************************************************************
 !> \brief Frechet divided-difference kernel for exp(-i*evals)
