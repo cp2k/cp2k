@@ -228,7 +228,7 @@ CONTAINS
       !    (b) Σ^c_λσ(iτ) -> Σ^c_nn(ϵ)
       !        ϵ_n^GW,(i) = ϵ_n^DFT + Σ^c_nn[G^(i-1),W](ϵ_n^GW,(i)) + Σ^x_nn - v^xc_nn
       ! ==============================================================================
-      CALL compute_Sigma_c_and_QP_energies(bs_env, qs_env, fm_W_time, fm_Sigma_x_Gamma)
+      CALL compute_Sigma_c_and_QP_energies(bs_env, fm_W_time, fm_Sigma_x_Gamma)
 
       CALL de_init_bs_env(qs_env, bs_env)
 
@@ -253,10 +253,9 @@ CONTAINS
 !> \param fm_W_time ...
 !> \param fm_Sigma_x_Gamma ...
 ! **************************************************************************************************
-   SUBROUTINE compute_Sigma_c_and_QP_energies(bs_env, qs_env, fm_W_time, fm_Sigma_x_Gamma)
+   SUBROUTINE compute_Sigma_c_and_QP_energies(bs_env, fm_W_time, fm_Sigma_x_Gamma)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_W_time, fm_Sigma_x_Gamma
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Sigma_c_and_QP_energies'
