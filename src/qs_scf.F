@@ -56,7 +56,6 @@ MODULE qs_scf
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template,&
                                               cp_dbcsr_m_by_n_from_template,&
-                                              cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file
@@ -1532,8 +1531,9 @@ CONTAINS
             IF (scf_control%smear%method /= smear_fermi_dirac) THEN
                CPABORT("K-point Mermin OT currently supports FERMI_DIRAC smearing only.")
             END IF
-            IF (scf_env%qs_ot_env(1)%settings%ot_algorithm /= "REF") THEN
-               CPABORT("K-point Mermin OT currently requires OT%ALGORITHM IRAC.")
+            IF (scf_env%qs_ot_env(1)%settings%ot_algorithm /= "TOD" .AND. &
+                scf_env%qs_ot_env(1)%settings%ot_algorithm /= "REF") THEN
+               CPABORT("K-point Mermin OT currently supports OT%ALGORITHM STRICT or IRAC.")
             END IF
             IF (scf_env%qs_ot_env(1)%settings%OT_METHOD /= "CG") THEN
                CPABORT("K-point Mermin OT currently supports OT%MINIMIZER CG only.")
@@ -1544,10 +1544,6 @@ CONTAINS
          IF (scf_env%qs_ot_env(1)%settings%ot_algorithm /= "TOD" .AND. &
              scf_env%qs_ot_env(1)%settings%ot_algorithm /= "REF") THEN
             CPABORT("K-point OT currently supports OT%ALGORITHM STRICT or IRAC.")
-         END IF
-         IF (scf_env%qs_ot_env(1)%settings%ot_algorithm == "TOD" .AND. &
-             scf_env%qs_ot_env(1)%settings%do_rotation) THEN
-            CPABORT("Complex K-point STRICT does not yet support ROTATION; use IRAC or omit ROTATION.")
          END IF
          IF (scf_env%qs_ot_env(1)%settings%OT_METHOD /= "CG" .AND. &
              scf_env%qs_ot_env(1)%settings%OT_METHOD /= "DIIS" .AND. &

@@ -109,11 +109,13 @@ CONTAINS
                   END IF
                   SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
                   CASE ("TOD")
-                     CALL qs_ot_get_derivative_complex(matrix_hc(ispin)%matrix, &
-                                                       matrix_hc_im(ispin)%matrix, &
-                                                       qs_ot_env(ispin))
                      IF (separate_occupation_gradient) THEN
                         CPASSERT(PRESENT(matrix_hc_physical_im))
+                        CALL qs_ot_get_derivative_complex(matrix_hc(ispin)%matrix, &
+                                                          matrix_hc_im(ispin)%matrix, &
+                                                          qs_ot_env(ispin), &
+                                                          matrix_hc_physical(ispin)%matrix, &
+                                                          matrix_hc_physical_im(ispin)%matrix)
                         CPASSERT(ASSOCIATED(qs_ot_env(ispin)%matrix_preconditioned_gx))
                         CPASSERT(ASSOCIATED(qs_ot_env(ispin)%matrix_preconditioned_gx_im))
                         CALL dbcsr_copy(qs_ot_env(ispin)%matrix_preconditioned_gx, &
@@ -122,6 +124,10 @@ CONTAINS
                                         qs_ot_env(ispin)%matrix_gx_im)
                         CALL qs_ot_get_derivative_complex(matrix_hc_physical(ispin)%matrix, &
                                                           matrix_hc_physical_im(ispin)%matrix, &
+                                                          qs_ot_env(ispin))
+                     ELSE
+                        CALL qs_ot_get_derivative_complex(matrix_hc(ispin)%matrix, &
+                                                          matrix_hc_im(ispin)%matrix, &
                                                           qs_ot_env(ispin))
                      END IF
                   CASE ("REF")
