@@ -116,6 +116,7 @@ MODULE qs_ot_types
       LOGICAL                   :: has_kpoint_context = .FALSE.
       LOGICAL                   :: state_allocated = .FALSE.
       LOGICAL                   :: has_complex_kpoint_state = .FALSE.
+      LOGICAL                   :: initial_density_sync_pending = .FALSE.
 
       ! first part of the variables, for occupied subspace invariant optimisation
 

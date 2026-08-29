@@ -1256,6 +1256,7 @@ CONTAINS
                   END IF
                END IF
                CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+               CALL qs_ot_set_fixed_kpoint_occupations(kpoints, nspin_ot)
 
                ! Build the initial KS matrix from the requested density guess.
                CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., &
@@ -1275,6 +1276,7 @@ CONTAINS
                      CALL qs_ot_copy_kpoint_spin_mos(kpoints, nspin_ot)
                   END IF
                   CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+                  CALL qs_ot_set_fixed_kpoint_occupations(kpoints, nspin_ot)
                END IF
 
                CALL allocate_qs_ot_kpoint_state(qs_env=qs_env, &
@@ -1653,6 +1655,52 @@ CONTAINS
    END SUBROUTINE qs_ot_copy_kpoint_spin_mos
 
 ! **************************************************************************************************
+!> \brief restore the fixed occupied rank required by K-point OT after global Aufbau filling
+!> \param kpoints K-point environment
+!> \param nspin number of spin channels
+! **************************************************************************************************
+   SUBROUTINE qs_ot_set_fixed_kpoint_occupations(kpoints, nspin)
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      INTEGER, INTENT(IN)                                :: nspin
+
+      INTEGER                                            :: icomponent, ikpoint_local, ispin, &
+                                                            nelectron, nmo, nocc
+      REAL(KIND=dp)                                      :: maxocc
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
+      TYPE(kpoint_env_type), POINTER                     :: kp
+
+      NULLIFY (kp, occupation_numbers)
+      CPASSERT(ASSOCIATED(kpoints))
+      CPASSERT(ASSOCIATED(kpoints%kp_env))
+      CPASSERT(nspin >= 1)
+
+      DO ikpoint_local = 1, SIZE(kpoints%kp_env)
+         kp => kpoints%kp_env(ikpoint_local)%kpoint_env
+         CPASSERT(ASSOCIATED(kp))
+         CPASSERT(ASSOCIATED(kp%mos))
+         CPASSERT(SIZE(kp%mos, 2) >= nspin)
+         DO ispin = 1, nspin
+            DO icomponent = 1, SIZE(kp%mos, 1)
+               CALL get_mo_set(kp%mos(icomponent, ispin), homo=nocc, maxocc=maxocc, &
+                               nelectron=nelectron, nmo=nmo, occupation_numbers=occupation_numbers)
+               CPASSERT(ASSOCIATED(occupation_numbers))
+               IF (nocc < 1 .OR. nocc > nmo) THEN
+                  CPABORT("Fixed-occupation K-point OT requires a nonempty occupied subspace.")
+               END IF
+               IF (ABS(maxocc*REAL(nocc, KIND=dp) - REAL(nelectron, KIND=dp)) > &
+                   100.0_dp*EPSILON(1.0_dp)) THEN
+                  CPABORT("Fixed-occupation K-point OT requires uniform integer occupations.")
+               END IF
+               occupation_numbers(:) = 0.0_dp
+               occupation_numbers(1:nocc) = maxocc
+               kp%mos(icomponent, ispin)%kTS = 0.0_dp
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE qs_ot_set_fixed_kpoint_occupations
+
+! **************************************************************************************************
 !> \brief allocate local k-point OT minimizer state for labelled spin/k-point channels
 !> \param qs_env ...
 !> \param scf_env ...
@@ -1848,6 +1896,8 @@ CONTAINS
                                        require_local_state=.TRUE., &
                                        require_complex_state=.NOT. use_real_wfn)
 
+      scf_env%qs_ot_env(:)%initial_density_sync_pending = .TRUE.
+
       CALL prepare_qs_ot_kpoint_preconditioners(scf_env, kpoints, &
                                                 matrix_ks_kp, matrix_s_kp, matrix_t_kp, nspin_ot)
 
@@ -1878,7 +1928,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ikpoint, ispin, ks_spin, &
                                                             local_kpoint, n_ot_channels, &
-                                                            ot_channel, prec_type
+                                                            ot_channel, prec_type, source_channel
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: use_real_wfn
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
@@ -1978,6 +2028,23 @@ CONTAINS
          END IF
          DO ispin = 1, nspin_ot
             ot_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot)
+            IF (ispin > 1 .AND. &
+                (prec_type == ot_precond_full_kinetic .OR. prec_type == ot_precond_s_inverse)) THEN
+               source_channel = qs_ot_channel_index(1, ikpoint, nspin_ot)
+               CPASSERT(ASSOCIATED(scf_env%ot_preconditioner(source_channel)%preconditioner%complex_fm))
+               scf_env%ot_preconditioner(ot_channel)%preconditioner%complex_fm => &
+                  scf_env%ot_preconditioner(source_channel)%preconditioner%complex_fm
+               scf_env%ot_preconditioner(ot_channel)%preconditioner%owns_complex_fm = .FALSE.
+               scf_env%ot_preconditioner(ot_channel)%preconditioner%energy_gap = &
+                  scf_env%ot_preconditioner(source_channel)%preconditioner%energy_gap
+               scf_env%ot_preconditioner(ot_channel)%preconditioner%in_use = &
+                  scf_env%ot_preconditioner(source_channel)%preconditioner%in_use
+               scf_env%ot_preconditioner(ot_channel)%preconditioner%solver = &
+                  scf_env%ot_preconditioner(source_channel)%preconditioner%solver
+               CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ot_channel), &
+                                             scf_env%ot_preconditioner(ot_channel)%preconditioner)
+               CYCLE
+            END IF
             SELECT CASE (prec_type)
             CASE (ot_precond_full_single_inverse)
                ks_spin = MIN(ispin, SIZE(matrix_ks_kp, 1))

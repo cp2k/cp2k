@@ -876,7 +876,7 @@ CONTAINS
                          name='complex FULL_SINGLE diagonalization A')
       CALL cp_cfm_create(matrix_diag_b, matrix_s%matrix_struct, &
                          name='complex FULL_SINGLE diagonalization B')
-      CALL cp_cfm_create(matrix_diag_evec, matrix_h%matrix_struct, &
+      CALL cp_cfm_create(matrix_diag_evec, matrix_h%matrix_struct, nrow=n, ncol=1, &
                          name='complex FULL_SINGLE eigenvectors')
       CALL cp_cfm_create(matrix_diag_work, matrix_h%matrix_struct, &
                          name='complex FULL_SINGLE diagonalization work')
@@ -902,7 +902,7 @@ CONTAINS
       CALL cp_cfm_gemm('N', 'C', n, n, k, z_one, matrix_sc0, matrix_sc0, &
                        z_one, matrix_operator)
 
-      ALLOCATE (occupied_evals(k), operator_evals(n))
+      ALLOCATE (occupied_evals(k), operator_evals(1))
       CALL cp_cfm_to_cfm(matrix_chc, matrix_occ_diag_a)
       DO i = 1, k
          CALL cp_cfm_set_element(matrix_occ_diag_b, i, i, z_one)
@@ -913,8 +913,8 @@ CONTAINS
       CALL cp_cfm_to_cfm(matrix_operator, matrix_diag_a)
       CALL cp_cfm_to_cfm(matrix_s, matrix_diag_b)
       CALL cp_cfm_geeig(matrix_diag_a, matrix_diag_b, matrix_diag_evec, &
-                        operator_evals, matrix_diag_work)
-      min_ev = MINVAL(operator_evals)
+                        operator_evals, matrix_diag_work, lowest_subset=.TRUE.)
+      min_ev = operator_evals(1)
       target_edge = MAX(1.5_dp*(min_ev - max_ev), energy_gap)
       pre_shift = MAX(0.0_dp, target_edge - min_ev)
       IF (pre_shift > 0.0_dp) THEN
