@@ -152,7 +152,7 @@ MODULE qs_vxc_atom
 
    PUBLIC :: calculate_vxc_atom, &
              calculate_vxc_atom_epr, &
-             calculate_xc_2nd_deriv_atom, &
+             fxc_atom_calc, &
              calc_rho_angular, &
              fgxc_atom_calc, &
              fgxc_atom_diff, &
@@ -4313,9 +4313,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param qs_env ...
 !> \param rho_atom_set ...
 !> \param rho1_atom_set ...
-!> \param qs_env ...
 !> \param xc_section ...
 !> \param para_env_ext ...
 !> \param do_scale ...
@@ -4323,18 +4323,18 @@ CONTAINS
 !> \param do_sf ...
 !> \param kind_set_external ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env_ext, &
-                                          do_scale, do_triplet, do_sf, kind_set_external)
+   SUBROUTINE fxc_atom_calc(qs_env, rho_atom_set, rho1_atom_set, xc_section, para_env_ext, &
+                            do_scale, do_triplet, do_sf, kind_set_external)
 
-      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set, rho1_atom_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set, rho1_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(mp_para_env_type), INTENT(IN), OPTIONAL       :: para_env_ext
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_scale, do_triplet, do_sf
       TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kind_set_external
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_xc_2nd_deriv_atom'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fxc_atom_calc'
 
       INTEGER                                            :: atom, handle, iatom, ikind, ir, na, &
                                                             natom, nr, nspins
@@ -4676,7 +4676,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE calculate_xc_2nd_deriv_atom
+   END SUBROUTINE fxc_atom_calc
 
 ! **************************************************************************************************
 !> \brief ...
@@ -5198,8 +5198,8 @@ CONTAINS
          ! no action needed?
       ELSE
          ! calculate fxc
-         CALL calculate_xc_2nd_deriv_atom(rho0_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
-                                          do_triplet=is_triplet, kind_set_external=kind_set)
+         CALL fxc_atom_calc(qs_env, rho0_atom_set, rho1_atom_set, xc_section, para_env, &
+                            do_triplet=is_triplet, kind_set_external=kind_set)
 
          CALL section_vals_val_get(xc_section, "DENSITY_CUTOFF", r_val=density_cut)
          CALL section_vals_val_get(xc_section, "GRADIENT_CUTOFF", r_val=gradient_cut)

@@ -59,7 +59,7 @@ MODULE qs_fxc
                                               qs_rho_release,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
-   USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
+   USE qs_vxc_atom,                     ONLY: fxc_atom_calc
    USE xc,                              ONLY: xc_calc_2nd_deriv_analytical,&
                                               xc_calc_2nd_deriv_numerical,&
                                               xc_prep_2nd_deriv
@@ -321,10 +321,10 @@ CONTAINS
       END IF
 
       IF (do_onecenter) THEN
-         CALL calculate_xc_2nd_deriv_atom(rho0_atom_set, rho1_atom_set, qs_env, xc_section, &
-                                          do_scale=do_scale, do_triplet=is_triplet, do_sf=spinflip, &
-                                          para_env_ext=para_env_external, &
-                                          kind_set_external=kind_set_external)
+         CALL fxc_atom_calc(qs_env, rho0_atom_set, rho1_atom_set, xc_section, &
+                            do_scale=do_scale, do_triplet=is_triplet, do_sf=spinflip, &
+                            para_env_ext=para_env_external, &
+                            kind_set_external=kind_set_external)
       END IF
 
       CALL timestop(handle)
@@ -854,10 +854,10 @@ CONTAINS
       END IF
 
       IF (do_onecenter) THEN
-         CALL calculate_xc_2nd_deriv_atom(rho0_atom_set, rho1_atom_set, qs_env, xc_section, &
-                                          do_scale=do_scale, do_triplet=is_triplet, do_sf=spinflip, &
-                                          para_env_ext=para_env_external, &
-                                          kind_set_external=kind_set_external)
+         CALL fxc_atom_calc(qs_env, rho0_atom_set, rho1_atom_set, xc_section, &
+                            do_scale=do_scale, do_triplet=is_triplet, do_sf=spinflip, &
+                            para_env_ext=para_env_external, &
+                            kind_set_external=kind_set_external)
       END IF
 
       CALL timestop(handle)
