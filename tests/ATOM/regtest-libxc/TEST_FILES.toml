@@ -4,6 +4,6 @@
 # e.g.  #      46 compares final value of Powell optimization
 #      for details see cp2k/tools/do_regtest
 # tests ATOMIC code LSD version
-"He_4.inp"                              = [{matcher="M035", tol=1e-12, ref=-1.344281337758}]
-"C_tpss_libxc.inp"                      = [{matcher="M035", tol=1e-12, ref=-37.642908568791}]
+"He_4.inp"                              = [{matcher="M035", tol=1e-12, ref=-1.344281337007}]
+"C_tpss_libxc.inp"                      = [{matcher="M035", tol=1e-12, ref=-37.642908568743}]
 #EOF

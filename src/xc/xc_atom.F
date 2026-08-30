@@ -169,6 +169,9 @@ CONTAINS
             deriv_att => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa])
             IF (ASSOCIATED(deriv_att)) THEN
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SCHEDULE(STATIC) &
+!$OMP             PRIVATE(ia, idir, ir) &
+!$OMP             SHARED(deriv_data, drho_cutoff, my_adiabatic_rescale_factor, na, nr, rho_set, vxg, w)
                DO ir = 1, nr
                   DO ia = 1, na
                      DO idir = 1, 3
@@ -182,11 +185,15 @@ CONTAINS
                      END DO
                   END DO
                END DO
+!$OMP END PARALLEL DO
                NULLIFY (deriv_data)
             END IF
             deriv_att => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob])
             IF (ASSOCIATED(deriv_att)) THEN
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SCHEDULE(STATIC) &
+!$OMP             PRIVATE(ia, idir, ir) &
+!$OMP             SHARED(deriv_data, drho_cutoff, my_adiabatic_rescale_factor, na, nr, rho_set, vxg, w)
                DO ir = 1, nr
                   DO ia = 1, na
                      DO idir = 1, 3
@@ -200,12 +207,16 @@ CONTAINS
                      END DO
                   END DO
                END DO
+!$OMP END PARALLEL DO
                NULLIFY (deriv_data)
             END IF
             ! Cross Terms
             deriv_att => xc_dset_get_derivative(deriv_set, [deriv_norm_drho])
             IF (ASSOCIATED(deriv_att)) THEN
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SCHEDULE(STATIC) &
+!$OMP             PRIVATE(ia, idir, ir) &
+!$OMP             SHARED(deriv_data, drho_cutoff, my_adiabatic_rescale_factor, na, nr, rho_set, vxg, w)
                DO ir = 1, nr
                   DO ia = 1, na
                      DO idir = 1, 3
@@ -220,12 +231,16 @@ CONTAINS
                      END DO
                   END DO
                END DO
+!$OMP END PARALLEL DO
                NULLIFY (deriv_data)
             END IF
          ELSE
             deriv_att => xc_dset_get_derivative(deriv_set, [deriv_norm_drho])
             IF (ASSOCIATED(deriv_att)) THEN
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) SCHEDULE(STATIC) &
+!$OMP             PRIVATE(ia, idir, ir) &
+!$OMP             SHARED(deriv_data, drho_cutoff, my_adiabatic_rescale_factor, na, nr, rho_set, vxg, w)
                DO ir = 1, nr
                   DO ia = 1, na
                      IF (rho_set%norm_drho(ia, ir, 1) > drho_cutoff) THEN
@@ -239,6 +254,7 @@ CONTAINS
                      END IF
                   END DO
                END DO
+!$OMP END PARALLEL DO
                NULLIFY (deriv_data)
             END IF
          END IF ! lsd

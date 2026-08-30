@@ -1,6 +1,6 @@
 "H2O-BP-PBEX.inp"                       = [{matcher="M011", tol=1.0E-13, ref=-17.172925552119032}]
 "H2O-BP-OPTX.inp"                       = [{matcher="M011", tol=1.0E-13, ref=-17.173082884557527}]
-"H2O-BP-BECKEX.inp"                     = [{matcher="M011", tol=1.0E-13, ref=-17.172192115148068}]
+"H2O-BP-BECKEX.inp"                     = [{matcher="M011", tol=1.0E-13, ref=-17.172192115150075}]
 "H2O-BP-Coul.inp"                       = [{matcher="M011", tol=1.0E-13, ref=-17.172925552133442}]
 "H2O-BP-sr.inp"                         = [{matcher="M011", tol=1.0E-13, ref=-16.712074689027640}]
 "H2O-BP-lr.inp"                         = [{matcher="M011", tol=1.0E-13, ref=-16.689871565334784}]

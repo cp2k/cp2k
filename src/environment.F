@@ -117,6 +117,7 @@ MODULE environment
                                               timings_report_callgraph,&
                                               timings_report_print
    USE voronoi_interface,               ONLY: finalize_libvori
+   USE xc_libxc,                        ONLY: libxc_release_workers
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 #include "./base/base_uses.f90"
@@ -1301,6 +1302,8 @@ CONTAINS
          CALL deallocate_orbital_pointers()
          CALL deallocate_md_ftable()
          CALL diag_finalize()
+         ! the LibXC functional objects are kept alive across calculations
+         CALL libxc_release_workers()
          ! finalize the fft (i.e. writes the wisdom if FFTW3 )
          CALL finalize_fft(para_env, globenv%fftw_wisdom_file_name)
          CALL finalize_libvori()
