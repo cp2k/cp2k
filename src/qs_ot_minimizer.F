@@ -324,10 +324,8 @@ CONTAINS
       reference_energy, current_energy, reference_residual, current_residual, &
       predicted_slope, predicted_curvature, position, default_step, &
       predicted_drop, measured_drop, quality, residual_ratio, good)
-      REAL(KIND=dp), INTENT(IN)                          :: reference_energy, current_energy, &
-                                                            reference_residual, current_residual, &
-                                                            predicted_slope, predicted_curvature, &
-                                                            position, default_step
+      REAL(KIND=dp), INTENT(IN) :: reference_energy, current_energy, reference_residual, &
+         current_residual, predicted_slope, predicted_curvature, position, default_step
       REAL(KIND=dp), INTENT(OUT)                         :: predicted_drop, measured_drop, quality, &
                                                             residual_ratio
       LOGICAL, INTENT(OUT)                               :: good
@@ -351,8 +349,9 @@ CONTAINS
       scale = MAX(1.0_dp, ABS(reference_energy), ABS(current_energy), &
                   ABS(predicted_drop), ABS(measured_drop))
       resolution = 256.0_dp*EPSILON(1.0_dp)*scale
-      IF (reference_residual > TINY(reference_residual)) &
-         residual_ratio = MAX(0.0_dp, current_residual)/reference_residual
+      IF (reference_residual > TINY(reference_residual)) then
+        residual_ratio = MAX(0.0_dp, current_residual)/reference_residual
+      end if
       IF (predicted_drop > resolution) quality = measured_drop/predicted_drop
 
       good = predicted_drop > resolution .AND. measured_drop > resolution .AND. &
@@ -377,10 +376,8 @@ CONTAINS
    PURE SUBROUTINE ot_mermin_response_compare( &
       reference_energy, current_energy, reference_residual, current_residual, &
       predicted_slope, shadow_curvature, position, advantage, residual_ratio, good)
-      REAL(KIND=dp), INTENT(IN)                          :: reference_energy, current_energy, &
-                                                            reference_residual, current_residual, &
-                                                            predicted_slope, shadow_curvature, &
-                                                            position
+      REAL(KIND=dp), INTENT(IN) :: reference_energy, current_energy, reference_residual, &
+         current_residual, predicted_slope, shadow_curvature, position
       REAL(KIND=dp), INTENT(OUT)                         :: advantage, residual_ratio
       LOGICAL, INTENT(OUT)                               :: good
 
@@ -402,8 +399,9 @@ CONTAINS
       scale = MAX(1.0_dp, ABS(reference_energy), ABS(current_energy), ABS(measured_drop), &
                   ABS(baseline_drop), ABS(candidate_drop))
       resolution = 256.0_dp*EPSILON(1.0_dp)*scale
-      IF (reference_residual > TINY(reference_residual)) &
-         residual_ratio = MAX(0.0_dp, current_residual)/reference_residual
+      IF (reference_residual > TINY(reference_residual)) then
+        residual_ratio = MAX(0.0_dp, current_residual)/reference_residual
+      end if
       IF (measured_drop <= resolution .OR. baseline_drop <= resolution .OR. &
           candidate_drop <= resolution) RETURN
 
@@ -1251,14 +1249,19 @@ CONTAINS
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_cg_direction'
+      LOGICAL, PARAMETER :: apply_finite_response_candidate = .FALSE.
 
       INTEGER                                            :: handle, ispin, itmp, k, n, nener, nspin
-      LOGICAL :: candidate_available, candidate_good, do_ener, do_ks, shadow_good, &
-         use_response_candidate
-      REAL(KIND=dp) :: baseline_delta, baseline_gnorm, beta_pr, measured_drop, nvariables, &
-         predicted_drop, response_advantage, response_quality, response_residual_ratio, test_down, &
-         response_test_down, tmp, gnorm_cross
+      LOGICAL                                            :: candidate_available, candidate_good, &
+                                                            do_ener, do_ks, shadow_good, &
+                                                            use_response_candidate
+      REAL(KIND=dp) :: baseline_delta, baseline_gnorm, beta_pr, gnorm_cross, measured_drop, &
+         nvariables, predicted_drop, response_advantage, response_quality, &
+         response_residual_ratio, response_test_down, test_down, tmp
       TYPE(cp_logger_type), POINTER                      :: logger
+
+! The accepted Hxc secant currently calibrates the finite response but is not yet included
+! in its vector solve. Keep that incomplete direction as a shadow until both use one Hessian.
 
       CALL timeset(routineN, handle)
 
@@ -1559,13 +1562,19 @@ CONTAINS
             qs_ot_env(1)%response_shadow_good_samples = &
                MAX(0, qs_ot_env(1)%response_shadow_good_samples - 1)
          END IF
-         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) &
-            WRITE (cp_logger_get_default_unit_nr(logger), '(A,2(1X,I5),1X,L1,4(1X,ES16.8))') &
-            " OT Mermin response shadow sample good advantage ema residual curvature:", &
+         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) then
+           WRITE (cp_logger_get_default_unit_nr(logger), &
+                   '(A,2(1X,I5),2(1X,L1),7(1X,ES16.8))') &
+            " OT Mermin response shadow sample good hxc advantage ema residual curvature hxc-shadow hxc-model slope:", &
             qs_ot_env(1)%response_shadow_samples, &
-            qs_ot_env(1)%response_shadow_good_samples, shadow_good, response_advantage, &
+            qs_ot_env(1)%response_shadow_good_samples, shadow_good, &
+            qs_ot_env(1)%response_hxc_valid, response_advantage, &
             qs_ot_env(1)%response_shadow_advantage_ema, response_residual_ratio, &
-            qs_ot_env(1)%response_shadow_curvature
+            qs_ot_env(1)%response_shadow_curvature, &
+            qs_ot_env(1)%response_hxc_shadow_curvature, &
+            qs_ot_env(1)%response_hxc_model_curvature, &
+            qs_ot_env(1)%response_hxc_secant_slope
+         end if
          qs_ot_env(1)%response_shadow_pending = .FALSE.
       END IF
 
@@ -1600,20 +1609,22 @@ CONTAINS
                MAX(0, qs_ot_env(1)%response_candidate_good_samples - 2)
             qs_ot_env(1)%response_candidate_cooldown = 6
          END IF
-         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) &
-            WRITE (cp_logger_get_default_unit_nr(logger), '(A,2(1X,I5),1X,L1,5(1X,ES16.8))') &
+         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) then
+           WRITE (cp_logger_get_default_unit_nr(logger), '(A,2(1X,I5),1X,L1,5(1X,ES16.8))') &
             " OT Mermin response candidate sample good quality ema residual predicted measured:", &
             qs_ot_env(1)%response_candidate_samples, &
             qs_ot_env(1)%response_candidate_good_samples, candidate_good, response_quality, &
             qs_ot_env(1)%response_quality_ema, response_residual_ratio, predicted_drop, measured_drop
+         end if
          qs_ot_env(1)%response_candidate_pending = .FALSE.
       END IF
 
       qs_ot_env(1)%response_candidate_directions = &
          MIN(HUGE(qs_ot_env(1)%response_candidate_directions) - 1, &
              qs_ot_env(1)%response_candidate_directions + 1)
-      IF (qs_ot_env(1)%response_candidate_cooldown > 0) &
-         qs_ot_env(1)%response_candidate_cooldown = qs_ot_env(1)%response_candidate_cooldown - 1
+      IF (qs_ot_env(1)%response_candidate_cooldown > 0) then
+        qs_ot_env(1)%response_candidate_cooldown = qs_ot_env(1)%response_candidate_cooldown - 1
+      end if
 
       candidate_available = qs_ot_env(1)%settings%occupation_preconditioner .AND. &
                             qs_ot_env(1)%settings%do_rotation .AND. do_ener
@@ -1625,19 +1636,21 @@ CONTAINS
                                ASSOCIATED(qs_ot_env(ispin)%ener_response_gx)
       END DO
       use_response_candidate = ot_mermin_response_probe( &
-                                   candidate_available, baseline_delta, &
-                                   qs_ot_env(1)%response_candidate_directions, &
-                                   qs_ot_env(1)%response_shadow_good_samples, &
-                                   qs_ot_env(1)%response_candidate_good_samples, &
-                                   qs_ot_env(1)%response_candidate_cooldown)
+                               candidate_available .AND. apply_finite_response_candidate, &
+                               baseline_delta, &
+                               qs_ot_env(1)%response_candidate_directions, &
+                               qs_ot_env(1)%response_shadow_good_samples, &
+                               qs_ot_env(1)%response_candidate_good_samples, &
+                               qs_ot_env(1)%response_candidate_cooldown)
       IF (use_response_candidate .AND. logger%iter_info%print_level >= high_print_level .AND. &
-          logger%para_env%is_source()) &
-         WRITE (cp_logger_get_default_unit_nr(logger), '(A,4(1X,I5),4(1X,ES16.8))') &
+          logger%para_env%is_source()) then
+        WRITE (cp_logger_get_default_unit_nr(logger), '(A,4(1X,I5),4(1X,ES16.8))') &
          " OT Mermin response candidate selected directions shadow active residual curvature advantage ema:", &
          qs_ot_env(1)%response_candidate_directions, qs_ot_env(1)%response_shadow_good_samples, &
          qs_ot_env(1)%response_candidate_good_samples, qs_ot_env(1)%response_candidate_cooldown, &
          baseline_delta, qs_ot_env(1)%response_model_curvature, &
          qs_ot_env(1)%response_shadow_advantage, qs_ot_env(1)%response_shadow_advantage_ema
+      end if
       ! Keep convergence reporting tied to the conventional preconditioned residual. The finite
       ! response is an accepted-step candidate, not a redefinition of the physical stopping test.
       qs_ot_env(1)%delta = baseline_delta
