@@ -63,9 +63,10 @@ MODULE qs_scf_initialization
    USE input_constants,                 ONLY: &
         broy_mix, cholesky_dbcsr, cholesky_inverse, cholesky_off, diag_block_davidson, &
         diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, diag_update_method_adiis, &
-        direct_p_mix, kerker_mix, modified_broy_mix, multisec_mix, new_pulay_mix, no_mix, ot2cdft, &
-        outer_scf_none, plus_u_lowdin, plus_u_tensorial, pulay_mix, smeagol_runtype_emtransport, &
-        wfi_frozen_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr
+        direct_p_mix, gfn2xtb, kerker_mix, modified_broy_mix, multisec_mix, new_pulay_mix, no_mix, &
+        ot2cdft, outer_scf_none, plus_u_lowdin, plus_u_tensorial, pulay_mix, &
+        smeagol_runtype_emtransport, wfi_frozen_method_nr, wfi_ps_method_nr, &
+        wfi_use_guess_method_nr
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -1053,7 +1054,13 @@ CONTAINS
          IF (scf_env%method == ot_method_nr) THEN
             CALL cp_warn(__LOCATION__, &
                          "CP2K/tblite with OT updates the tblite SCC variables directly from the OT density; "// &
-                         "XTB/SCC_MIXER is ignored and smearing is not supported.")
+                         "XTB/SCC_MIXER is ignored.")
+            IF (scf_control%smear%do_smear .AND. &
+                dft_control%qs_control%xtb_control%tblite_method == gfn2xtb) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "Direct GFN2/tblite OT can expose non-convex shell and multipole SCC modes "// &
+                            "with fractional occupations; verify the state against diagonalization.")
+            END IF
          END IF
       END IF
 
