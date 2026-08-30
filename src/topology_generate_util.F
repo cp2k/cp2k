@@ -20,7 +20,8 @@ MODULE topology_generate_util
                                               cp_logger_type,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                              cp_print_key_unit_nr
+                                              cp_print_key_unit_nr,&
+                                              silent_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE fist_neighbor_list_types,        ONLY: fist_neighbor_deallocate,&
                                               fist_neighbor_type
@@ -597,6 +598,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
+      IF (logger%iter_info%print_level == silent_print_level) output_unit = -1
       iw = cp_print_key_unit_nr(logger, subsys_section, "PRINT%TOPOLOGY_INFO/GENERATE_INFO", &
                                 extension=".subsysLog")
       ! Get atoms that one considers isolated (like ions in solution)

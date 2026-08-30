@@ -144,6 +144,14 @@ registry["M029"] = GenericMatcher(r"Heat of formation [kcal/mol]:", col=5)
 registry["E_gap_DFT"] = GenericMatcher(r"HOMO - LUMO gap [eV]", col=7)
 registry["E_gap_DFT_2"] = GenericMatcher(r"Band gap:", col=4)  # TODO merge with prev.
 
+# HOMO-LUMO gaps reported by frontier-orbital basis optimization.
+registry["BASOPT_frontier_optimized_gap"] = GenericMatcher(
+    r"^\s*Opt\. small basis.*\s([-+0-9.EeDd]+)\s*$", col=9, regex=True
+)
+registry["BASOPT_frontier_screened_gap"] = GenericMatcher(
+    r"^\s*Basis 1\s+([-+0-9.EeDd]+)\s+", col=3, regex=True
+)
+
 registry["M031"] = GenericMatcher(r"STRESS| 1/3 Trace", col=4)
 registry["M032"] = GenericMatcher(r"MD| Potential energy", col=6)
 registry["M033"] = GenericMatcher(r"Dispersion energy:", col=3)

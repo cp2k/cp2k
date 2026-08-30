@@ -36,7 +36,8 @@ MODULE optbas_fenv_manipulation
    USE kinds,                           ONLY: default_string_length
    USE message_passing,                 ONLY: mp_para_env_type
    USE optimize_basis_types,            ONLY: basis_optimization_type,&
-                                              flex_basis_type
+                                              flex_basis_type,&
+                                              method_mo_fit_occ_virtual
    USE particle_types,                  ONLY: particle_type
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_energy_init,                  ONLY: qs_energies_init
@@ -101,10 +102,15 @@ CONTAINS
       CALL section_vals_val_set(dft_section, "SCF%PRINT%DETAILED_ENERGY%_SECTION_PARAMETERS_", &
                                 i_val=debug_print_level)
 
-      ! add the new basis file containing the templates to the basis file list
+      ! Add the basis containing the optimization templates to the basis-file list.
       CALL section_vals_val_get(dft_section, "BASIS_SET_FILE_NAME", n_rep_val=nbasis)
-      CALL section_vals_val_set(dft_section, "BASIS_SET_FILE_NAME", i_rep_val=nbasis + 1, &
-                                c_val=basis_optimization%work_basis_file)
+      IF (basis_optimization%method == method_mo_fit_occ_virtual) THEN
+         CALL section_vals_val_set(dft_section, "BASIS_SET_FILE_NAME", i_rep_val=nbasis + 1, &
+                                   c_val=basis_optimization%template_basis_file)
+      ELSE
+         CALL section_vals_val_set(dft_section, "BASIS_SET_FILE_NAME", i_rep_val=nbasis + 1, &
+                                   c_val=basis_optimization%work_basis_file)
+      END IF
 
       ! Set the auxilarry basis in the kind sections
       CALL section_vals_get(kind_section, n_repetition=nkind)
