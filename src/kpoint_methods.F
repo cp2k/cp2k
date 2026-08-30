@@ -19,6 +19,10 @@ MODULE kpoint_methods
                                               real_to_scaled
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
+                                              cp_cfm_gemm,&
+                                              cp_cfm_scale_and_add,&
+                                              cp_cfm_transpose
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
@@ -35,7 +39,8 @@ MODULE kpoint_methods
         dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
+   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+                                              cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm,&
@@ -123,6 +128,7 @@ MODULE kpoint_methods
    PUBLIC :: kpoint_init_cell_index, kpoint_set_mo_occupation
    PUBLIC :: kpoint_smearing_edge_status
    PUBLIC :: kpoint_density_matrices, kpoint_density_transform
+   PUBLIC :: kpoint_ot_energy_weighted_density, kpoint_ot_energy_weighted_matrices
    PUBLIC :: kp_transform_plan_create, kp_transform_plan_release
    PUBLIC :: rskp_transform, lowdin_kp_trans, lowdin_kp_mo_coeff
    PUBLIC :: rskp_grid_type, rskp_transform_grid_prepare, rskp_transform_grid_extract, &
@@ -2023,6 +2029,156 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_density_matrices
+
+! **************************************************************************************************
+!> \brief Build W(k) for noncanonical complex OT orbitals from H(k) C(k).
+!>        The occupied-space Lagrange multiplier is
+!>        Hermitian[(C^H H C) f], which reduces to the usual eigenvalue-weighted
+!>        expression for canonical orbitals.
+!> \param coeff_re real part of C(k)
+!> \param coeff_im imaginary part of C(k)
+!> \param hc_re real part of H(k) C(k)
+!> \param hc_im imaginary part of H(k) C(k)
+!> \param occupation orbital occupations
+!> \param wmat_re real part of W(k)
+!> \param wmat_im imaginary part of W(k)
+! **************************************************************************************************
+   SUBROUTINE kpoint_ot_energy_weighted_density(coeff_re, coeff_im, hc_re, hc_im, occupation, &
+                                                wmat_re, wmat_im)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: coeff_re, coeff_im, hc_re, hc_im
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation
+      TYPE(cp_fm_type), INTENT(IN)                       :: wmat_re, wmat_im
+
+      COMPLEX(KIND=dp), PARAMETER                        :: zhalf = (0.5_dp, 0.0_dp), &
+                                                            zone = (1.0_dp, 0.0_dp), &
+                                                            zzero = (0.0_dp, 0.0_dp)
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: occupation_complex
+      INTEGER                                            :: nao, nmo
+      TYPE(cp_cfm_type)                                  :: coeff, hblock, hblock_h, hc, weighted, &
+                                                            wmat
+
+      CALL cp_fm_get_info(coeff_re, nrow_global=nao, ncol_global=nmo)
+      CPASSERT(nmo >= 1)
+      CPASSERT(SIZE(occupation) >= nmo)
+
+      CALL cp_cfm_create(coeff, coeff_re%matrix_struct)
+      CALL cp_cfm_create(hc, hc_re%matrix_struct)
+      CALL cp_cfm_create(weighted, coeff_re%matrix_struct)
+      CALL cp_cfm_create(hblock, coeff_re%matrix_struct, nrow=nmo, ncol=nmo)
+      CALL cp_cfm_create(hblock_h, coeff_re%matrix_struct, nrow=nmo, ncol=nmo)
+      CALL cp_cfm_create(wmat, wmat_re%matrix_struct)
+
+      CALL cp_fm_to_cfm(coeff_re, coeff_im, coeff)
+      CALL cp_fm_to_cfm(hc_re, hc_im, hc)
+      CALL cp_cfm_gemm("C", "N", nmo, nmo, nao, zone, coeff, hc, zzero, hblock)
+
+      ALLOCATE (occupation_complex(nmo))
+      occupation_complex(:) = CMPLX(occupation(1:nmo), 0.0_dp, KIND=dp)
+      CALL cp_cfm_column_scale(hblock, occupation_complex)
+      DEALLOCATE (occupation_complex)
+      CALL cp_cfm_transpose(hblock, "C", hblock_h)
+      CALL cp_cfm_scale_and_add(zhalf, hblock, zhalf, hblock_h)
+
+      CALL cp_cfm_gemm("N", "N", nao, nmo, nmo, zone, coeff, hblock, zzero, weighted)
+      CALL cp_cfm_gemm("N", "C", nao, nao, nmo, zone, weighted, coeff, zzero, wmat)
+      CALL cp_cfm_to_fm(wmat, wmat_re, wmat_im)
+
+      CALL cp_cfm_release(wmat)
+      CALL cp_cfm_release(hblock_h)
+      CALL cp_cfm_release(hblock)
+      CALL cp_cfm_release(weighted)
+      CALL cp_cfm_release(hc)
+      CALL cp_cfm_release(coeff)
+
+   END SUBROUTINE kpoint_ot_energy_weighted_density
+
+! **************************************************************************************************
+!> \brief Build energy-weighted density matrices for complex K-point OT.
+!>        H(k) is transformed only while W(k) is needed, avoiding a persistent
+!>        dense AO-by-AO Hamiltonian for every spin and K point.
+!> \param kpoint K-point environment
+!> \param matrix_ks real-space Kohn-Sham matrices
+! **************************************************************************************************
+   SUBROUTINE kpoint_ot_energy_weighted_matrices(kpoint, matrix_ks)
+
+      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_ot_energy_weighted_matrices'
+
+      INTEGER                                            :: handle, ikpgr, ikpoint, ispin, nmo, nspin
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: use_real_wfn
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(cp_fm_type)                                   :: hc_im, hc_re
+      TYPE(cp_fm_type), POINTER                          :: coeff_im, coeff_re
+      TYPE(dbcsr_type), POINTER                          :: matrix_k_im, matrix_k_re
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+
+      CALL timeset(routineN, handle)
+      NULLIFY (cell_to_index, coeff_im, coeff_re, matrix_k_im, matrix_k_re, occupation, sab_nl, xkp)
+
+      CALL get_kpoint_info(kpoint, xkp=xkp, use_real_wfn=use_real_wfn, &
+                           cell_to_index=cell_to_index, sab_nl=sab_nl)
+      CPASSERT(.NOT. use_real_wfn)
+      CPASSERT(ASSOCIATED(cell_to_index))
+      CPASSERT(ASSOCIATED(sab_nl))
+      CPASSERT(ASSOCIATED(matrix_ks))
+
+      ALLOCATE (matrix_k_re, matrix_k_im)
+      CALL dbcsr_create(matrix_k_re, template=matrix_ks(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(matrix_k_im, template=matrix_ks(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_antisymmetric)
+      CALL cp_dbcsr_alloc_block_from_nbl(matrix_k_re, sab_nl)
+      CALL cp_dbcsr_alloc_block_from_nbl(matrix_k_im, sab_nl)
+
+      DO ikpgr = 1, SIZE(kpoint%kp_env)
+         kp => kpoint%kp_env(ikpgr)%kpoint_env
+         ikpoint = kp%nkpoint
+         nspin = SIZE(kp%mos, 2)
+         DO ispin = 1, nspin
+            CALL dbcsr_set(matrix_k_re, 0.0_dp)
+            CALL dbcsr_set(matrix_k_im, 0.0_dp)
+            CALL rskp_transform(rmatrix=matrix_k_re, cmatrix=matrix_k_im, rsmat=matrix_ks, &
+                                ispin=ispin, xkp=xkp(1:3, ikpoint), &
+                                cell_to_index=cell_to_index, sab_nl=sab_nl)
+
+            CALL get_mo_set(kp%mos(1, ispin), mo_coeff=coeff_re, nmo=nmo, &
+                            occupation_numbers=occupation)
+            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=coeff_im)
+            CPASSERT(nmo >= 1)
+            CPASSERT(SIZE(occupation) >= nmo)
+
+            ! Smearing occupations are k-point resolved, whereas mo_set%homo is not.
+            CALL cp_fm_create(hc_re, coeff_re%matrix_struct, set_zero=.TRUE.)
+            CALL cp_fm_create(hc_im, coeff_im%matrix_struct, set_zero=.TRUE.)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, coeff_re, hc_re, nmo)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, coeff_im, hc_re, nmo, &
+                                         alpha=-1.0_dp, beta=1.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, coeff_im, hc_im, nmo)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, coeff_re, hc_im, nmo, &
+                                         alpha=1.0_dp, beta=1.0_dp)
+
+            CALL kpoint_ot_energy_weighted_density( &
+               coeff_re, coeff_im, hc_re, hc_im, occupation, &
+               kp%wmat(1, ispin), kp%wmat(2, ispin))
+
+            CALL cp_fm_release(hc_im)
+            CALL cp_fm_release(hc_re)
+         END DO
+      END DO
+
+      CALL dbcsr_deallocate_matrix(matrix_k_im)
+      CALL dbcsr_deallocate_matrix(matrix_k_re)
+      CALL timestop(handle)
+
+   END SUBROUTINE kpoint_ot_energy_weighted_matrices
 
 ! **************************************************************************************************
 !> \brief Thread k-point density-matrix construction on a one-rank BLACS grid.
