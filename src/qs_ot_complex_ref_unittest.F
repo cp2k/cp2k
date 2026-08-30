@@ -54,10 +54,11 @@ PROGRAM qs_ot_complex_ref_unittest
                                               preconditioner_type
    USE qs_ot,                           ONLY: &
         qs_ot_apply_complex_frechet_dbcsr, qs_ot_complex_exp_frechet_kernel, &
-        qs_ot_fixed_n_energy_gradient, qs_ot_fixed_n_energy_hessian, &
-        qs_ot_fixed_n_projector_frechet, qs_ot_generate_rotation, qs_ot_get_derivative_complex, &
-        qs_ot_get_derivative_ref_complex, qs_ot_get_orbitals_ref_complex, qs_ot_get_p_complex, &
-        qs_ot_rot_mat_derivative
+        qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, &
+        qs_ot_fixed_n_energy_hessian, qs_ot_fixed_n_projector_frechet, qs_ot_fixed_n_schur_block, &
+        qs_ot_generate_rotation, qs_ot_get_derivative_complex, qs_ot_get_derivative_ref_complex, &
+        qs_ot_get_orbitals_ref_complex, qs_ot_get_p_complex, qs_ot_rot_mat_derivative, &
+        qs_ot_symmetric_abs_solve
    USE qs_ot_types,                     ONLY: qs_ot_kpoint_preconditioner_scale,&
                                               qs_ot_kpoint_preconditioner_solver_supported,&
                                               qs_ot_kpoint_preconditioner_supported,&
@@ -96,6 +97,9 @@ PROGRAM qs_ot_complex_ref_unittest
    IF (mynode == 0) io_unit = default_output_unit
    CALL test_fixed_n_mermin_energy(mynode, nfail)
    CALL test_fixed_n_projector_frechet(mynode, nfail)
+   CALL test_finite_rotation_response(mynode, nfail)
+   CALL test_fixed_n_rotation_schur(mynode, nfail)
+   CALL test_symmetric_abs_solve(mynode, nfail)
    ALLOCATE (para_env)
    CALL para_env%from_dup(mp_comm)
    CALL cp_logger_create(logger, para_env=para_env, default_global_unit_nr=io_unit, &
@@ -378,6 +382,287 @@ CONTAINS
          "fixed-N complex occupation-projector error:", error
 
    END SUBROUTINE test_fixed_n_projector_frechet
+
+! **************************************************************************************************
+!> \brief Check the finite complex REF rotation Hessian against the scalar band energy.
+!> \param mynode MPI rank
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_finite_rotation_response(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: nbands = 3, nrotation = 6
+      REAL(KIND=dp), PARAMETER                           :: fd_step = 2.0E-4_dp, &
+                                                            kpoint_weight = 0.625_dp
+
+      COMPLEX(KIND=dp), DIMENSION(nbands, nbands)        :: base_hamiltonian, chc, &
+                                                            direction_generator, generator, &
+                                                            rotation, rotation_minus, rotation_plus
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: energy, energy_minus, energy_plus, &
+                                                            gradient_error, hessian_error, &
+                                                            rayleigh_error, symmetry_error
+      REAL(KIND=dp), DIMENSION(nbands)                   :: occupation, rayleigh_minus, rayleigh_plus
+      REAL(KIND=dp), DIMENSION(nbands, nrotation)        :: rayleigh_response
+      REAL(KIND=dp), DIMENSION(nrotation)                :: direction, gradient
+      REAL(KIND=dp), DIMENSION(nrotation, nrotation)     :: hessian
+
+      base_hamiltonian(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      base_hamiltonian(1, 1) = CMPLX(-0.31_dp, 0.0_dp, KIND=dp)
+      base_hamiltonian(2, 2) = CMPLX(0.07_dp, 0.0_dp, KIND=dp)
+      base_hamiltonian(3, 3) = CMPLX(0.42_dp, 0.0_dp, KIND=dp)
+      base_hamiltonian(1, 2) = CMPLX(0.09_dp, -0.06_dp, KIND=dp)
+      base_hamiltonian(1, 3) = CMPLX(-0.04_dp, 0.08_dp, KIND=dp)
+      base_hamiltonian(2, 3) = CMPLX(0.11_dp, 0.05_dp, KIND=dp)
+      DO i = 1, nbands
+         base_hamiltonian(i, 1:i - 1) = CONJG(base_hamiltonian(1:i - 1, i))
+      END DO
+
+      generator(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      generator(1, 2) = CMPLX(0.17_dp, -0.08_dp, KIND=dp)
+      generator(1, 3) = CMPLX(-0.09_dp, 0.04_dp, KIND=dp)
+      generator(2, 3) = CMPLX(0.12_dp, 0.07_dp, KIND=dp)
+      DO i = 1, nbands
+         generator(i, 1:i - 1) = -CONJG(generator(1:i - 1, i))
+      END DO
+
+      direction(:) = [0.14_dp, -0.07_dp, -0.11_dp, 0.09_dp, 0.05_dp, 0.13_dp]
+      direction_generator(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      direction_generator(1, 2) = CMPLX(direction(1), direction(2), KIND=dp)
+      direction_generator(2, 1) = -CONJG(direction_generator(1, 2))
+      direction_generator(1, 3) = CMPLX(direction(3), direction(4), KIND=dp)
+      direction_generator(3, 1) = -CONJG(direction_generator(1, 3))
+      direction_generator(2, 3) = CMPLX(direction(5), direction(6), KIND=dp)
+      direction_generator(3, 2) = -CONJG(direction_generator(2, 3))
+      occupation(:) = [1.73_dp, 0.88_dp, 0.19_dp]
+
+      rotation(:, :) = dense_antihermitian_exp(generator)
+      chc(:, :) = MATMUL(CONJG(TRANSPOSE(rotation)), &
+                         MATMUL(base_hamiltonian, rotation))
+      CALL qs_ot_finite_rotation_response(chc, generator, occupation, kpoint_weight, &
+                                          gradient, hessian, rayleigh_response)
+
+      rotation_plus(:, :) = dense_antihermitian_exp(generator + fd_step*direction_generator)
+      rotation_minus(:, :) = dense_antihermitian_exp(generator - fd_step*direction_generator)
+      energy = finite_rotation_energy(rotation, base_hamiltonian, occupation, kpoint_weight)
+      energy_plus = finite_rotation_energy(rotation_plus, base_hamiltonian, occupation, kpoint_weight)
+      energy_minus = finite_rotation_energy(rotation_minus, base_hamiltonian, occupation, kpoint_weight)
+      gradient_error = ABS((energy_plus - energy_minus)/(2.0_dp*fd_step) - &
+                           DOT_PRODUCT(gradient, direction))
+      hessian_error = ABS((energy_plus - 2.0_dp*energy + energy_minus)/fd_step**2 - &
+                          DOT_PRODUCT(direction, MATMUL(hessian, direction)))
+      symmetry_error = MAXVAL(ABS(hessian - TRANSPOSE(hessian)))
+
+      DO i = 1, nbands
+         rayleigh_plus(i) = REAL(DOT_PRODUCT(rotation_plus(:, i), &
+                                             MATMUL(base_hamiltonian, rotation_plus(:, i))), KIND=dp)
+         rayleigh_minus(i) = REAL(DOT_PRODUCT(rotation_minus(:, i), &
+                                              MATMUL(base_hamiltonian, rotation_minus(:, i))), KIND=dp)
+      END DO
+      rayleigh_error = MAXVAL(ABS((rayleigh_plus - rayleigh_minus)/(2.0_dp*fd_step) - &
+                                  MATMUL(rayleigh_response, direction)))
+
+      IF (gradient_error > 5.0E-8_dp .OR. hessian_error > 2.0E-6_dp .OR. &
+          rayleigh_error > 2.0E-7_dp .OR. symmetry_error > 1.0E-12_dp) nfail = nfail + 1
+      IF (mynode == 0) THEN
+         WRITE (io_unit, '(A,4(1X,ES13.6))') "finite complex rotation response errors:", &
+            gradient_error, hessian_error, rayleigh_error, symmetry_error
+      END IF
+
+   END SUBROUTINE test_finite_rotation_response
+
+! **************************************************************************************************
+!> \brief Check the coupled fixed-N rotation/energy Hessian and its Schur decomposition.
+!> \param mynode MPI rank
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_fixed_n_rotation_schur(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: nbands = 3, nrotation = 6
+      REAL(KIND=dp), PARAMETER                           :: fd_step = 1.0E-4_dp, &
+                                                            kpoint_weight = 0.625_dp, &
+                                                            maxocc = 2.0_dp, temperature = 0.08_dp
+
+      COMPLEX(KIND=dp), DIMENSION(nbands, nbands)        :: base_hamiltonian, chc, &
+                                                            direction_generator, generator, &
+                                                            rotation, rotation_minus, rotation_plus
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: curvature, curvature_error, &
+                                                            energy_minus, energy_plus, &
+                                                            energy_zero, mu, response_sum, &
+                                                            schur_error
+      REAL(KIND=dp), DIMENSION(nbands) :: energy_coordinate, energy_direction, energy_gradient, &
+         energy_minus_coordinate, energy_plus_coordinate, occupation, rayleigh, rayleigh_minus, &
+         rayleigh_plus, response, weights
+      REAL(KIND=dp), DIMENSION(nbands, nbands)           :: energy_hessian
+      REAL(KIND=dp), DIMENSION(nbands, nrotation)        :: rayleigh_response
+      REAL(KIND=dp), DIMENSION(nrotation)                :: coupling, rotation_direction, &
+                                                            rotation_gradient, schur_rhs
+      REAL(KIND=dp), DIMENSION(nrotation, nrotation)     :: rotation_hessian, schur, schur_block
+
+      base_hamiltonian(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      base_hamiltonian(1, 1) = CMPLX(-0.31_dp, 0.0_dp, KIND=dp)
+      base_hamiltonian(2, 2) = CMPLX(0.07_dp, 0.0_dp, KIND=dp)
+      base_hamiltonian(3, 3) = CMPLX(0.42_dp, 0.0_dp, KIND=dp)
+      base_hamiltonian(1, 2) = CMPLX(0.09_dp, -0.06_dp, KIND=dp)
+      base_hamiltonian(1, 3) = CMPLX(-0.04_dp, 0.08_dp, KIND=dp)
+      base_hamiltonian(2, 3) = CMPLX(0.11_dp, 0.05_dp, KIND=dp)
+      DO i = 1, nbands
+         base_hamiltonian(i, 1:i - 1) = CONJG(base_hamiltonian(1:i - 1, i))
+      END DO
+
+      generator(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      generator(1, 2) = CMPLX(0.17_dp, -0.08_dp, KIND=dp)
+      generator(1, 3) = CMPLX(-0.09_dp, 0.04_dp, KIND=dp)
+      generator(2, 3) = CMPLX(0.12_dp, 0.07_dp, KIND=dp)
+      DO i = 1, nbands
+         generator(i, 1:i - 1) = -CONJG(generator(1:i - 1, i))
+      END DO
+      rotation_direction(:) = [0.14_dp, -0.07_dp, -0.11_dp, 0.09_dp, 0.05_dp, 0.13_dp]
+      energy_direction(:) = [0.08_dp, -0.11_dp, 0.03_dp]
+      direction_generator(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      direction_generator(1, 2) = CMPLX(rotation_direction(1), rotation_direction(2), KIND=dp)
+      direction_generator(2, 1) = -CONJG(direction_generator(1, 2))
+      direction_generator(1, 3) = CMPLX(rotation_direction(3), rotation_direction(4), KIND=dp)
+      direction_generator(3, 1) = -CONJG(direction_generator(1, 3))
+      direction_generator(2, 3) = CMPLX(rotation_direction(5), rotation_direction(6), KIND=dp)
+      direction_generator(3, 2) = -CONJG(direction_generator(2, 3))
+
+      rotation(:, :) = dense_antihermitian_exp(generator)
+      chc(:, :) = MATMUL(CONJG(TRANSPOSE(rotation)), MATMUL(base_hamiltonian, rotation))
+      DO i = 1, nbands
+         rayleigh(i) = REAL(chc(i, i), KIND=dp)
+      END DO
+      energy_coordinate(:) = rayleigh(:)
+      weights(:) = kpoint_weight
+      CALL fixed_n_fermi_occupations(energy_coordinate, weights, 1.7_dp, temperature, &
+                                     maxocc, occupation, mu)
+      response(:) = weights*occupation*(maxocc - occupation)/(maxocc*temperature)
+      response_sum = SUM(response)
+      CALL qs_ot_finite_rotation_response(chc, generator, occupation, kpoint_weight, &
+                                          rotation_gradient, rotation_hessian, rayleigh_response)
+      CALL qs_ot_fixed_n_energy_gradient(rayleigh, energy_coordinate, response, response_sum, &
+                                         0.0_dp, energy_gradient)
+      CALL qs_ot_fixed_n_energy_hessian(response, response_sum, energy_hessian)
+      CALL qs_ot_fixed_n_schur_block( &
+         rotation_hessian, rayleigh_response, response, rotation_gradient, energy_gradient, &
+         schur_block, coupling, schur_rhs)
+      schur(:, :) = schur_block + SPREAD(coupling, DIM=2, NCOPIES=nrotation)* &
+                    SPREAD(coupling, DIM=1, NCOPIES=nrotation)/response_sum
+      schur_error = MAXVAL(ABS(schur - rotation_hessian + &
+                               MATMUL(TRANSPOSE(rayleigh_response), &
+                                      MATMUL(energy_hessian, rayleigh_response))))
+
+      rotation_plus(:, :) = dense_antihermitian_exp(generator + fd_step*direction_generator)
+      rotation_minus(:, :) = dense_antihermitian_exp(generator - fd_step*direction_generator)
+      DO i = 1, nbands
+         rayleigh_plus(i) = REAL(DOT_PRODUCT(rotation_plus(:, i), &
+                                             MATMUL(base_hamiltonian, rotation_plus(:, i))), KIND=dp)
+         rayleigh_minus(i) = REAL(DOT_PRODUCT(rotation_minus(:, i), &
+                                              MATMUL(base_hamiltonian, rotation_minus(:, i))), KIND=dp)
+      END DO
+      energy_plus_coordinate(:) = energy_coordinate + fd_step*energy_direction
+      energy_minus_coordinate(:) = energy_coordinate - fd_step*energy_direction
+      energy_zero = fixed_n_mermin_value(rayleigh, energy_coordinate, weights, 1.7_dp, &
+                                         temperature, maxocc)
+      energy_plus = fixed_n_mermin_value(rayleigh_plus, energy_plus_coordinate, weights, 1.7_dp, &
+                                         temperature, maxocc)
+      energy_minus = fixed_n_mermin_value(rayleigh_minus, energy_minus_coordinate, weights, 1.7_dp, &
+                                          temperature, maxocc)
+      curvature = DOT_PRODUCT(rotation_direction, MATMUL(rotation_hessian, rotation_direction)) - &
+                  2.0_dp*DOT_PRODUCT(energy_direction, &
+                                     MATMUL(energy_hessian, &
+                                            MATMUL(rayleigh_response, rotation_direction))) + &
+                  DOT_PRODUCT(energy_direction, MATMUL(energy_hessian, energy_direction))
+      curvature_error = ABS((energy_plus - 2.0_dp*energy_zero + energy_minus)/fd_step**2 - curvature)
+
+      IF (schur_error > 2.0E-11_dp .OR. curvature_error > 3.0E-6_dp) nfail = nfail + 1
+      IF (mynode == 0) THEN
+         WRITE (io_unit, '(A,2(1X,ES13.6))') "fixed-N rotation Schur errors:", &
+            schur_error, curvature_error
+      END IF
+
+   END SUBROUTINE test_fixed_n_rotation_schur
+
+! **************************************************************************************************
+!> \brief Check that positive and negative response modes retain their spectral magnitude.
+!> \param mynode MPI rank
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_symmetric_abs_solve(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      LOGICAL                                            :: valid
+      REAL(KIND=dp)                                      :: error
+      REAL(KIND=dp), DIMENSION(3)                        :: eigenvalues
+      REAL(KIND=dp), DIMENSION(3, 2)                     :: expected, rhs, solution
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: absolute_matrix, matrix, vectors
+
+      vectors(:, 1) = [0.8_dp, 0.6_dp, 0.0_dp]
+      vectors(:, 2) = [-0.6_dp, 0.8_dp, 0.0_dp]
+      vectors(:, 3) = [0.0_dp, 0.0_dp, 1.0_dp]
+      eigenvalues(:) = [-0.4_dp, 1.7_dp, 0.25_dp]
+      matrix(:, :) = MATMUL(vectors, MATMUL( &
+                            RESHAPE([eigenvalues(1), 0.0_dp, 0.0_dp, 0.0_dp, eigenvalues(2), 0.0_dp, &
+                                     0.0_dp, 0.0_dp, eigenvalues(3)], [3, 3]), TRANSPOSE(vectors)))
+      absolute_matrix(:, :) = MATMUL(vectors, MATMUL( &
+                                     RESHAPE([ABS(eigenvalues(1)), 0.0_dp, 0.0_dp, 0.0_dp, ABS(eigenvalues(2)), 0.0_dp, &
+                                              0.0_dp, 0.0_dp, ABS(eigenvalues(3))], [3, 3]), TRANSPOSE(vectors)))
+      rhs(:, 1) = [0.3_dp, -0.5_dp, 0.7_dp]
+      rhs(:, 2) = [-0.2_dp, 0.4_dp, 0.1_dp]
+      CALL qs_ot_symmetric_abs_solve(matrix, rhs, solution, valid)
+      expected(:, :) = MATMUL(absolute_matrix, solution)
+      error = MAXVAL(ABS(expected - rhs))
+      IF (.NOT. valid .OR. error > 2.0E-13_dp) nfail = nfail + 1
+
+      eigenvalues(:) = [-0.4_dp, 1.7_dp, 1.0E-12_dp]
+      matrix(:, :) = MATMUL(vectors, MATMUL( &
+                            RESHAPE([eigenvalues(1), 0.0_dp, 0.0_dp, 0.0_dp, eigenvalues(2), 0.0_dp, &
+                                     0.0_dp, 0.0_dp, eigenvalues(3)], [3, 3]), TRANSPOSE(vectors)))
+      rhs(:, 1) = [0.3_dp, -0.5_dp, 0.7_dp]
+      rhs(:, 2) = [-0.2_dp, 0.4_dp, 0.1_dp]
+      CALL qs_ot_symmetric_abs_solve(matrix, rhs, solution, valid)
+      expected(:, :) = rhs(:, :)
+      expected(3, :) = 0.0_dp
+      absolute_matrix(:, :) = MATMUL(vectors(:, 1:2), MATMUL( &
+                                     RESHAPE([ABS(eigenvalues(1)), 0.0_dp, 0.0_dp, ABS(eigenvalues(2))], [2, 2]), &
+                                     TRANSPOSE(vectors(:, 1:2))))
+      error = MAX(error, MAXVAL(ABS(MATMUL(absolute_matrix, solution) - expected)))
+      IF (.NOT. valid .OR. error > 2.0E-13_dp .OR. MAXVAL(ABS(solution(3, :))) > 2.0E-13_dp) THEN
+         nfail = nfail + 1
+      END IF
+      IF (mynode == 0) WRITE (io_unit, '(A,1X,ES13.6)') "symmetric absolute solve error:", error
+
+   END SUBROUTINE test_symmetric_abs_solve
+
+! **************************************************************************************************
+!> \brief fixed-occupation band energy for a dense finite rotation
+!> \param rotation unitary REF rotation
+!> \param hamiltonian fixed Hermitian Hamiltonian in the REF basis
+!> \param occupation band occupations
+!> \param kpoint_weight irreducible-k-point weight
+!> \return weighted band energy
+! **************************************************************************************************
+   FUNCTION finite_rotation_energy(rotation, hamiltonian, occupation, kpoint_weight) RESULT(energy)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: rotation, hamiltonian
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation
+      REAL(KIND=dp), INTENT(IN)                          :: kpoint_weight
+      REAL(KIND=dp)                                      :: energy
+
+      INTEGER                                            :: i
+
+      energy = 0.0_dp
+      DO i = 1, SIZE(occupation)
+         energy = energy + kpoint_weight*occupation(i)* &
+                  REAL(DOT_PRODUCT(rotation(:, i), &
+                                   MATMUL(hamiltonian, rotation(:, i))), KIND=dp)
+      END DO
+
+   END FUNCTION finite_rotation_energy
 
 ! **************************************************************************************************
 !> \brief Solve fixed-N Fermi occupations by bisection.

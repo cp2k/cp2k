@@ -604,7 +604,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers, wkp
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct, chc_struct
       TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im, &
-                                                            chc_re, hc_im, hc_re
+                                                            chc_im, chc_re, hc_im, hc_re
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_im
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc, matrix_hc_im, &
@@ -758,16 +758,24 @@ CONTAINS
                CALL cp_fm_struct_create(chc_struct, template_fmstruct=active_mo_struct, &
                                         nrow_global=homo, ncol_global=homo)
                CALL cp_fm_create(chc_re, chc_struct)
+               CALL cp_fm_create(chc_im, chc_struct)
                CALL cp_fm_gemm("T", "N", homo, homo, nao, 1.0_dp, &
                                active_mo_coeff, hc_re, 0.0_dp, chc_re)
                CALL cp_fm_gemm("T", "N", homo, homo, nao, 1.0_dp, &
                                active_mo_coeff_im, hc_im, 1.0_dp, chc_re)
+               CALL cp_fm_gemm("T", "N", homo, homo, nao, 1.0_dp, &
+                               active_mo_coeff, hc_im, 0.0_dp, chc_im)
+               CALL cp_fm_gemm("T", "N", homo, homo, nao, -1.0_dp, &
+                               active_mo_coeff_im, hc_re, 1.0_dp, chc_im)
                CALL copy_fm_to_dbcsr(chc_re, local_ot_env(local_channel)%rot_mat_chc)
+               CPASSERT(ASSOCIATED(local_ot_env(local_channel)%rot_mat_chc_im))
+               CALL copy_fm_to_dbcsr(chc_im, local_ot_env(local_channel)%rot_mat_chc_im)
                CALL dbcsr_get_diag(local_ot_env(local_channel)%rot_mat_chc, &
                                    local_ot_env(local_channel)%ener_rayleigh)
                CPASSERT(ASSOCIATED(local_ot_env(local_channel)%para_env))
                CALL local_ot_env(local_channel)%para_env%sum( &
                   local_ot_env(local_channel)%ener_rayleigh)
+               CALL cp_fm_release(chc_im)
                CALL cp_fm_release(chc_re)
                CALL cp_fm_struct_release(chc_struct)
             END IF
