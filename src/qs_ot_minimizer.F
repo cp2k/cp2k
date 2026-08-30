@@ -2060,6 +2060,7 @@ CONTAINS
       END IF
       ! since we change the direction we have to adjust the gradient
       IF (use_response_candidate) THEN
+         qs_ot_env(1)%OT_METHOD_FULL = "OT CG-R"
          qs_ot_env(1)%gradient = test_down
       ELSE
          qs_ot_env(1)%gradient = beta_pr*qs_ot_env(1)%gradient - qs_ot_env(1)%gnorm
