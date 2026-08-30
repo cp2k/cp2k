@@ -11,4 +11,11 @@
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "Si_gfn1_kp_spglib_backend.inp"          = [{matcher="E_total", tol=1.0E-8, ref=-14.72017602003837},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"Al_fcc_gfn1_kp_ot_smear.inp"            = [{matcher="E_total", tol=1.0E-9, ref=-1.146917584283822},
+                                             {matcher="Electronic_entropic_energy", tol=1.0E-9, ref=-7.1232462562E-4},
+                                             {matcher="N_special_kpoints", tol=0.0, ref=2},
+                                             {matcher="OT_SCF_convergence", tol=5.0E-1, ref=5.0E-10},
+                                             {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+                                             {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+                                             {matcher="NO_TEXT", text="MAX ITER EXCEEDED"}]
 #EOF
