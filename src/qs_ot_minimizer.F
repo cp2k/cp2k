@@ -3187,6 +3187,9 @@ CONTAINS
       CALL broyden_copy_current_to_history(j)
       CALL ot_build_history_residual(qs_ot_env, j, -1.0_dp, para_env_inter_kp, &
                                      qs_ot_env(1)%gnorm)
+      IF (qs_ot_env(1)%settings%occupation_preconditioner) THEN
+         CALL broyden_bound_occupation_response(j, qs_ot_env(1)%gnorm)
+      END IF
 
       k = 0
       n = 0
@@ -3370,6 +3373,132 @@ CONTAINS
       qs_ot_env(1)%broyden_adaptive_sigma = MAX(sigma, sigma_min)
 
    CONTAINS
+
+! **************************************************************************************************
+!> \brief Bound the occupation-response direction against the conventional OT H0 direction.
+!> \param history_index response history slot
+!> \param gnorm physical gradient product with the resulting positive direction
+! **************************************************************************************************
+      SUBROUTINE broyden_bound_occupation_response(history_index, gnorm)
+      INTEGER, INTENT(IN)                                :: history_index
+      REAL(KIND=dp), INTENT(INOUT)                       :: gnorm
+
+      INTEGER                                            :: ichannel
+      LOGICAL                                            :: valid_response
+      REAL(KIND=dp) :: g_dot_h0_g, h0_g_norm_sq, p_dot_h0, response_delta_norm_sq, &
+         response_norm_sq, response_scale, response_weight
+
+         CALL broyden_build_h0_current()
+         CALL broyden_product_dot(broyden_gradient, 0, broyden_random, 0, g_dot_h0_g)
+         CALL broyden_product_dot(broyden_random, 0, broyden_random, 0, h0_g_norm_sq)
+         CALL broyden_product_dot(broyden_residual, history_index, &
+                                  broyden_residual, history_index, response_norm_sq)
+         CALL broyden_product_dot(broyden_residual, history_index, &
+                                  broyden_random, 0, p_dot_h0)
+         p_dot_h0 = -p_dot_h0
+         response_delta_norm_sq = response_norm_sq + h0_g_norm_sq - 2.0_dp*p_dot_h0
+         valid_response = ieee_is_finite(gnorm) .AND. ieee_is_finite(response_norm_sq) .AND. &
+                          ieee_is_finite(g_dot_h0_g) .AND. ieee_is_finite(h0_g_norm_sq) .AND. &
+                          ieee_is_finite(response_delta_norm_sq) .AND. gnorm > 0.0_dp .AND. &
+                          g_dot_h0_g > 0.0_dp .AND. h0_g_norm_sq > TINY(1.0_dp) .AND. &
+                          response_delta_norm_sq >= 0.0_dp
+         response_scale = 1.0_dp
+         response_weight = 0.0_dp
+         IF (valid_response) THEN
+            ! Keep the response correction inside a product-norm trust ball around H0*g.
+            response_weight = MIN(1.0_dp, SQRT(h0_g_norm_sq/ &
+                                               MAX(response_delta_norm_sq, TINY(1.0_dp))))
+         END IF
+         ! Broyden secants require a consistent residual map. Use the state-dependent occupation
+         ! response only to seed the first direction, then let the history learn from frozen H0*g.
+         IF (qs_ot_env(1)%diis_iter > 0) response_weight = 0.0_dp
+         IF (.NOT. valid_response) THEN
+            response_scale = 0.0_dp
+            response_weight = 0.0_dp
+         END IF
+
+         DO ichannel = 1, nspin
+            CALL dbcsr_scale(qs_ot_env(ichannel)%matrix_h_e(history_index)%matrix, &
+                             response_weight*response_scale)
+            CALL dbcsr_add(qs_ot_env(ichannel)%matrix_h_e(history_index)%matrix, &
+                           qs_ot_env(ichannel)%matrix_x, 1.0_dp, -(1.0_dp - response_weight))
+            IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+               CALL dbcsr_scale(qs_ot_env(ichannel)%matrix_h_e_im(history_index)%matrix, &
+                                response_weight*response_scale)
+               CALL dbcsr_add(qs_ot_env(ichannel)%matrix_h_e_im(history_index)%matrix, &
+                              qs_ot_env(ichannel)%matrix_x_im, 1.0_dp, &
+                              -(1.0_dp - response_weight))
+            END IF
+            IF (do_rotation) THEN
+               CALL dbcsr_scale(qs_ot_env(ichannel)%rot_mat_h_e(history_index)%matrix, &
+                                response_weight*response_scale)
+               CALL dbcsr_add(qs_ot_env(ichannel)%rot_mat_h_e(history_index)%matrix, &
+                              qs_ot_env(ichannel)%rot_mat_x, 1.0_dp, &
+                              -(1.0_dp - response_weight))
+               IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_scale(qs_ot_env(ichannel)%rot_mat_h_e_im(history_index)%matrix, &
+                                   response_weight*response_scale)
+                  CALL dbcsr_add(qs_ot_env(ichannel)%rot_mat_h_e_im(history_index)%matrix, &
+                                 qs_ot_env(ichannel)%rot_mat_x_im, 1.0_dp, &
+                                 -(1.0_dp - response_weight))
+               END IF
+            END IF
+            IF (do_ener) THEN
+               qs_ot_env(ichannel)%ener_h_e(history_index, :) = &
+                  response_weight*response_scale*qs_ot_env(ichannel)%ener_h_e(history_index, :) - &
+                  (1.0_dp - response_weight)*qs_ot_env(ichannel)%ener_x
+            END IF
+         END DO
+         IF (valid_response) THEN
+            gnorm = response_weight*response_scale*gnorm + &
+                    (1.0_dp - response_weight)*g_dot_h0_g
+         ELSE
+            gnorm = g_dot_h0_g
+         END IF
+      END SUBROUTINE broyden_bound_occupation_response
+
+! **************************************************************************************************
+!> \brief Store the conventional positive OT H0 direction in the current product coordinate.
+! **************************************************************************************************
+      SUBROUTINE broyden_build_h0_current()
+      INTEGER                                            :: ichannel
+      REAL(KIND=dp)                                      :: kpoint_scale
+
+         DO ichannel = 1, nspin
+            IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
+               IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+                  CALL apply_preconditioner(qs_ot_env(ichannel)%preconditioner, &
+                                            qs_ot_env(ichannel)%matrix_gx, &
+                                            qs_ot_env(ichannel)%matrix_gx_im, &
+                                            qs_ot_env(ichannel)%matrix_x, &
+                                            qs_ot_env(ichannel)%matrix_x_im)
+                  CPASSERT(qs_ot_env(ichannel)%kpoint_weight > 0.0_dp)
+                  kpoint_scale = qs_ot_kpoint_preconditioner_scale( &
+                                 qs_ot_env(ichannel)%kpoint_weight)
+                  CALL dbcsr_scale(qs_ot_env(ichannel)%matrix_x, kpoint_scale)
+                  CALL dbcsr_scale(qs_ot_env(ichannel)%matrix_x_im, kpoint_scale)
+               ELSE
+                  CALL apply_preconditioner(qs_ot_env(ichannel)%preconditioner, &
+                                            qs_ot_env(ichannel)%matrix_gx, &
+                                            qs_ot_env(ichannel)%matrix_x)
+               END IF
+            ELSE
+               CALL dbcsr_copy(qs_ot_env(ichannel)%matrix_x, qs_ot_env(ichannel)%matrix_gx)
+               IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_copy(qs_ot_env(ichannel)%matrix_x_im, &
+                                  qs_ot_env(ichannel)%matrix_gx_im)
+               END IF
+            END IF
+            IF (do_rotation) THEN
+               CALL dbcsr_copy(qs_ot_env(ichannel)%rot_mat_x, qs_ot_env(ichannel)%rot_mat_gx)
+               IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_copy(qs_ot_env(ichannel)%rot_mat_x_im, &
+                                  qs_ot_env(ichannel)%rot_mat_gx_im)
+               END IF
+            END IF
+            IF (do_ener) qs_ot_env(ichannel)%ener_x = qs_ot_env(ichannel)%ener_gx
+         END DO
+      END SUBROUTINE broyden_build_h0_current
 
 ! **************************************************************************************************
 !> \brief Copy all current product coordinates into a Broyden history slot.
