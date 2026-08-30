@@ -25,7 +25,8 @@ MODULE qs_scf_loop_utils
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_external_control,             ONLY: external_control
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_gemm,&
                                               cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -487,7 +488,7 @@ CONTAINS
          scf_control%eps_diis = 0.0_dp
       END IF
 
-      IF (dft_control%roks) THEN
+      IF (dft_control%roks .AND. scf_env%method /= ot_method_nr) THEN
          CPABORT("KP code: ROKS method not available: ")
       END IF
 
@@ -653,21 +654,23 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_loop_do_ot_kp'
 
-      INTEGER :: first_channel, handle, homo, ikpoint, ispin, local_channel, local_kpoint, nao, &
-         nkp_groups, nkpoint, nlocal_channels, nmo, nspin_ot
+      INTEGER :: first_channel, handle, homo, icomponent, ikpoint, ispin, local_channel, &
+         local_kpoint, nao, nkp_groups, nkpoint, nlocal_channels, nmo, nspin_ot
       INTEGER, DIMENSION(2)                              :: kp_range
       LOGICAL                                            :: ot_gradient_prepared, &
-                                                            physical_base_state, transfer_step, &
-                                                            use_real_wfn
+                                                            physical_base_state, restricted_roks, &
+                                                            transfer_step, use_real_wfn
       REAL(KIND=dp)                                      :: trial_kTS
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: orbital_scaling_factor, trial_mu
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: orbital_scaling_factor, roks_occupation, &
+                                                            trial_mu
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: trial_eigenvalues, trial_occupation
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers, wkp
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct, chc_struct
       TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im, &
-                                                            chc_im, chc_re, hc_im, hc_re
+                                                            chc_im, chc_re, hc_im, hc_re, &
+                                                            hc_roks_im, hc_roks_re
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_im
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_im, mo_coeff_target
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc, matrix_hc_im, &
                                                             matrix_hc_physical, &
                                                             matrix_hc_physical_im
@@ -715,7 +718,8 @@ CONTAINS
                        "K-point OT driver supports OT%ALGORITHM STRICT or IRAC.")
       END IF
       kp => kpoints%kp_env(1)%kpoint_env
-      nspin_ot = SIZE(kp%mos, 2)
+      restricted_roks = dft_control%restricted
+      nspin_ot = MERGE(1, SIZE(kp%mos, 2), restricted_roks)
       CALL qs_ot_check_channel_context(scf_env%qs_ot_env, nspin_ot, &
                                        nkpoint=nkpoint, &
                                        restricted=ANY(scf_env%qs_ot_env(:)%restricted), &
@@ -829,6 +833,39 @@ CONTAINS
             CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, active_mo_coeff, hc_im, homo, &
                                          alpha=1.0_dp, beta=1.0_dp)
 
+            IF (restricted_roks) THEN
+               ! ROKS has one complex orbital variable but two spin densities. Form the exact
+               ! shared-orbital derivative before handing it to the one-channel OT minimizer.
+               CALL cp_fm_column_scale(hc_re, occupation_numbers(1:homo))
+               CALL cp_fm_column_scale(hc_im, occupation_numbers(1:homo))
+               CALL dbcsr_release_p(matrix_k_re)
+               CALL dbcsr_release_p(matrix_k_im)
+
+               CALL qs_scf_get_ot_kpoint_operator( &
+                  matrix_ks, kpoints, kp, 2, kp%ot_hmat(1, 2), kp%ot_hmat(2, 2), &
+                  matrix_k_re, matrix_k_im)
+               CALL get_mo_set(kp%mos(1, 2), occupation_numbers=occupation_numbers, nmo=nmo)
+               ALLOCATE (roks_occupation(homo))
+               roks_occupation(:) = 0.0_dp
+               roks_occupation(1:MIN(homo, nmo)) = occupation_numbers(1:MIN(homo, nmo))
+
+               CALL cp_fm_create(hc_roks_re, active_mo_struct)
+               CALL cp_fm_create(hc_roks_im, active_mo_struct)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, active_mo_coeff, hc_roks_re, homo)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, active_mo_coeff_im, hc_roks_re, homo, &
+                                            alpha=-1.0_dp, beta=1.0_dp)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, active_mo_coeff_im, hc_roks_im, homo)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, active_mo_coeff, hc_roks_im, homo, &
+                                            alpha=1.0_dp, beta=1.0_dp)
+               CALL cp_fm_column_scale(hc_roks_re, roks_occupation)
+               CALL cp_fm_column_scale(hc_roks_im, roks_occupation)
+               CALL cp_fm_scale_and_add(1.0_dp, hc_re, 1.0_dp, hc_roks_re)
+               CALL cp_fm_scale_and_add(1.0_dp, hc_im, 1.0_dp, hc_roks_im)
+               CALL cp_fm_release(hc_roks_re)
+               CALL cp_fm_release(hc_roks_im)
+               DEALLOCATE (roks_occupation)
+            END IF
+
             IF (local_ot_env(local_channel)%settings%do_ener) THEN
                CALL cp_fm_struct_create(chc_struct, template_fmstruct=active_mo_struct, &
                                         nrow_global=homo, ncol_global=homo)
@@ -906,6 +943,8 @@ CONTAINS
             END IF
             ALLOCATE (orbital_scaling_factor(homo))
             IF (local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
+               orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)
+            ELSE IF (restricted_roks) THEN
                orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)
             ELSE IF (local_ot_env(local_channel)%settings%do_ener) THEN
                orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)* &
@@ -1027,6 +1066,14 @@ CONTAINS
             CALL cp_fm_release(active_mo_coeff_im)
             CALL cp_fm_struct_release(active_mo_struct)
          END DO
+         IF (restricted_roks) THEN
+            CPASSERT(SIZE(kp%mos, 2) == 2)
+            DO icomponent = 1, 2
+               CALL get_mo_set(kp%mos(icomponent, 1), mo_coeff=mo_coeff)
+               CALL get_mo_set(kp%mos(icomponent, 2), mo_coeff=mo_coeff_target)
+               CALL cp_fm_to_fm(mo_coeff, mo_coeff_target)
+            END DO
+         END IF
          CALL dbcsr_release_p(matrix_s_re)
          CALL dbcsr_release_p(matrix_s_im)
       END DO

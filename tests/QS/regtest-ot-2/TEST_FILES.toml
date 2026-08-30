@@ -80,6 +80,7 @@
   {matcher="E_total", tol=1e-9, ref=-3.004207460676986},
   {matcher="OT_added_mos_auto_grow"},
 ]
+"H3-kpoint-roks.inp"                    = [{matcher="E_total", tol=1e-9, ref=-1.48796745286581}]
 # go through planned FFTs, but don't check results, they will depend on the selected plan
 "H2O-plan-2.inp"                        = []
 "H2O-plan-3.inp"                        = []

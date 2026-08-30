@@ -1592,9 +1592,12 @@ CONTAINS
                      CALL qs_ot_copy_kpoint_spin_mos(kpoints, nspin_ot)
                   END IF
                END IF
+               IF (dft_control%restricted) THEN
+                  CALL qs_ot_copy_kpoint_spin_mos(kpoints, dft_control%nspins)
+               END IF
                CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
                IF (.NOT. (dft_control%smear .OR. scf_control%smear%do_smear)) THEN
-                  CALL qs_ot_set_fixed_kpoint_occupations(kpoints, nspin_ot)
+                  CALL qs_ot_set_fixed_kpoint_occupations(kpoints, dft_control%nspins)
                END IF
 
                ! Build the initial KS matrix from the requested density guess.
@@ -1615,9 +1618,12 @@ CONTAINS
                      CPASSERT(SIZE(matrix_ks_kp, 1) == 1)
                      CALL qs_ot_copy_kpoint_spin_mos(kpoints, nspin_ot)
                   END IF
+                  IF (dft_control%restricted) THEN
+                     CALL qs_ot_copy_kpoint_spin_mos(kpoints, dft_control%nspins)
+                  END IF
                   CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
                   IF (.NOT. (dft_control%smear .OR. scf_control%smear%do_smear)) THEN
-                     CALL qs_ot_set_fixed_kpoint_occupations(kpoints, nspin_ot)
+                     CALL qs_ot_set_fixed_kpoint_occupations(kpoints, dft_control%nspins)
                   END IF
                END IF
 
@@ -1812,6 +1818,9 @@ CONTAINS
       IF (do_kpoints) THEN
          do_smear = dft_control%smear .OR. scf_control%smear%do_smear
          IF (do_smear) THEN
+            IF (dft_control%restricted) THEN
+               CPABORT("K-point ROKS smearing requires separate alpha/beta OT energy variables.")
+            END IF
             IF (.NOT. scf_env%qs_ot_env(1)%settings%do_ener) THEN
                CPABORT("K-point OT smearing requires OT%ENERGIES and OT%ROTATION.")
             END IF
@@ -1865,9 +1874,6 @@ CONTAINS
          END IF
          IF (scf_env%qs_ot_env(1)%settings%occupation_preconditioner .AND. .NOT. do_smear) THEN
             CPABORT("K-point OCCUPATION_PRECONDITIONER requires smearing.")
-         END IF
-         IF (dft_control%restricted) THEN
-            CPABORT("Restricted open-shell K-point OT is not implemented.")
          END IF
       END IF
 
