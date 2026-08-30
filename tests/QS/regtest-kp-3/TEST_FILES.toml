@@ -22,11 +22,11 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "he_ot_fixed_s_inverse.inp"             = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
-"he_ot_fixed_strict.inp"                = [{matcher="E_total", tol=1e-9, ref=-2.894663227824077},
+"he_ot_fixed_strict.inp"                = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
-"he_ot_fixed_strict_full_all.inp"       = [{matcher="E_total", tol=1e-9, ref=-2.894663227824077},
+"he_ot_fixed_strict_full_all.inp"       = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
-"he_ot_fixed_strict_lbfgs.inp"          = [{matcher="E_total", tol=1e-9, ref=-2.894663227824077},
+"he_ot_fixed_strict_lbfgs.inp"          = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "he_ot_fixed_diis.inp"                  = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]

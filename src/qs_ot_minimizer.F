@@ -109,11 +109,13 @@ CONTAINS
                   END IF
                   SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
                   CASE ("TOD")
-                     CALL qs_ot_get_derivative_complex(matrix_hc(ispin)%matrix, &
-                                                       matrix_hc_im(ispin)%matrix, &
-                                                       qs_ot_env(ispin))
                      IF (separate_occupation_gradient) THEN
                         CPASSERT(PRESENT(matrix_hc_physical_im))
+                        CALL qs_ot_get_derivative_complex(matrix_hc(ispin)%matrix, &
+                                                          matrix_hc_im(ispin)%matrix, &
+                                                          qs_ot_env(ispin), &
+                                                          matrix_hc_physical(ispin)%matrix, &
+                                                          matrix_hc_physical_im(ispin)%matrix)
                         CPASSERT(ASSOCIATED(qs_ot_env(ispin)%matrix_preconditioned_gx))
                         CPASSERT(ASSOCIATED(qs_ot_env(ispin)%matrix_preconditioned_gx_im))
                         CALL dbcsr_copy(qs_ot_env(ispin)%matrix_preconditioned_gx, &
@@ -122,6 +124,10 @@ CONTAINS
                                         qs_ot_env(ispin)%matrix_gx_im)
                         CALL qs_ot_get_derivative_complex(matrix_hc_physical(ispin)%matrix, &
                                                           matrix_hc_physical_im(ispin)%matrix, &
+                                                          qs_ot_env(ispin))
+                     ELSE
+                        CALL qs_ot_get_derivative_complex(matrix_hc(ispin)%matrix, &
+                                                          matrix_hc_im(ispin)%matrix, &
                                                           qs_ot_env(ispin))
                      END IF
                   CASE ("REF")
@@ -1515,10 +1521,10 @@ CONTAINS
                                                             rotation_scale_min = 1.0E-3_dp
 
       INTEGER                                            :: handle, i, ispin, itmp, j, k, m_history, &
-                                                            n, newest, nhistory, nspin
+                                                            n, nener, newest, nhistory, nspin
       INTEGER(KIND=int_8)                                :: nrotation, nvariables
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: history_index
-      LOGICAL                                            :: restart_history, restart_step
+      LOGICAL                                            :: do_ener, restart_history, restart_step
       REAL(KIND=dp) :: beta, current_gradient_norm_sq, curvature_tol, damping_shift, g_dot_z, &
          gamma, gamma_rotation, previous_gradient_norm_sq, ss, ss_rotation, stq, sy, sy_rotation, &
          tmp, yy, yy_newest, yy_rotation
@@ -1529,9 +1535,8 @@ CONTAINS
       IF (.NOT. qs_ot_env(1)%settings%ks) THEN
          CPABORT("MINIMIZER LBFGS currently requires OT orbital variables")
       END IF
-      IF (qs_ot_env(1)%settings%do_ener) CPABORT("MINIMIZER LBFGS does not support ENERGIES")
-
       nspin = SIZE(qs_ot_env)
+      do_ener = qs_ot_env(1)%settings%do_ener
       m_history = qs_ot_env(1)%settings%diis_m
       curvature_tol = qs_ot_env(1)%settings%lbfgs_curvature_tol
       restart_history = .FALSE.
@@ -1574,6 +1579,13 @@ CONTAINS
                                  qs_ot_env(ispin)%rot_mat_h_e_im(m_history + 1)%matrix, tmp)
                   previous_gradient_norm_sq = previous_gradient_norm_sq + 0.5_dp*tmp
                END IF
+            END IF
+            IF (do_ener) THEN
+               tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, qs_ot_env(ispin)%ener_gx)
+               current_gradient_norm_sq = current_gradient_norm_sq + tmp
+               tmp = DOT_PRODUCT(qs_ot_env(ispin)%ener_h_e(m_history + 1, :), &
+                                 qs_ot_env(ispin)%ener_h_e(m_history + 1, :))
+               previous_gradient_norm_sq = previous_gradient_norm_sq + tmp
             END IF
          END DO
          restart_step = lbfgs_step_restart_required(qs_ot_env(1)%ds_min, &
@@ -1675,6 +1687,15 @@ CONTAINS
                   yy_rotation = yy_rotation + 0.5_dp*tmp
                END IF
             END IF
+            IF (do_ener) THEN
+               qs_ot_env(ispin)%ener_dx = qs_ot_env(ispin)%ener_x - &
+                                          qs_ot_env(ispin)%ener_h_x(m_history + 1, :)
+               qs_ot_env(ispin)%ener_gx_old = qs_ot_env(ispin)%ener_gx - &
+                                              qs_ot_env(ispin)%ener_h_e(m_history + 1, :)
+               ss = ss + DOT_PRODUCT(qs_ot_env(ispin)%ener_dx, qs_ot_env(ispin)%ener_dx)
+               sy = sy + DOT_PRODUCT(qs_ot_env(ispin)%ener_dx, qs_ot_env(ispin)%ener_gx_old)
+               yy = yy + DOT_PRODUCT(qs_ot_env(ispin)%ener_gx_old, qs_ot_env(ispin)%ener_gx_old)
+            END IF
          END DO
 
          ! Shift y along s just enough to satisfy the requested relative curvature. With the
@@ -1703,6 +1724,10 @@ CONTAINS
                                     qs_ot_env(ispin)%rot_mat_dx_im, &
                                     alpha_scalar=1.0_dp, beta_scalar=damping_shift)
                   END IF
+               END IF
+               IF (do_ener) THEN
+                  qs_ot_env(ispin)%ener_gx_old = qs_ot_env(ispin)%ener_gx_old + &
+                                                 damping_shift*qs_ot_env(ispin)%ener_dx
                END IF
             END DO
             yy = yy + 2.0_dp*damping_shift*sy + damping_shift**2*ss
@@ -1735,6 +1760,10 @@ CONTAINS
                      CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_e_im(j)%matrix, &
                                      qs_ot_env(ispin)%rot_mat_gx_old_im)
                   END IF
+               END IF
+               IF (do_ener) THEN
+                  qs_ot_env(ispin)%ener_h_x(j, :) = qs_ot_env(ispin)%ener_dx
+                  qs_ot_env(ispin)%ener_h_e(j, :) = qs_ot_env(ispin)%ener_gx_old
                END IF
             END DO
             qs_ot_env(1)%lbfgs_rho(j) = 1.0_dp/sy
@@ -1779,6 +1808,11 @@ CONTAINS
                                qs_ot_env(ispin)%rot_mat_gx_im)
             END IF
          END IF
+         IF (do_ener) THEN
+            qs_ot_env(ispin)%ener_h_x(m_history + 1, :) = qs_ot_env(ispin)%ener_x
+            qs_ot_env(ispin)%ener_h_e(m_history + 1, :) = qs_ot_env(ispin)%ener_gx
+            qs_ot_env(ispin)%ener_gx_old = qs_ot_env(ispin)%ener_gx
+         END IF
       END DO
 
       nhistory = MIN(qs_ot_env(1)%diis_iter - 1, m_history)
@@ -1822,6 +1856,10 @@ CONTAINS
                      stq = stq + 0.5_dp*tmp
                   END IF
                END IF
+               IF (do_ener) THEN
+                  stq = stq + DOT_PRODUCT(qs_ot_env(ispin)%ener_h_x(history_index(i), :), &
+                                          qs_ot_env(ispin)%ener_gx_old)
+               END IF
             END DO
             rho(i) = qs_ot_env(1)%lbfgs_rho(history_index(i))
             alpha(i) = rho(i)*stq
@@ -1844,6 +1882,10 @@ CONTAINS
                                     alpha_scalar=1.0_dp, beta_scalar=-alpha(i))
                   END IF
                END IF
+               IF (do_ener) THEN
+                  qs_ot_env(ispin)%ener_gx_old = qs_ot_env(ispin)%ener_gx_old - &
+                                                 alpha(i)*qs_ot_env(ispin)%ener_h_e(history_index(i), :)
+               END IF
             END DO
          END DO
       END IF
@@ -1851,6 +1893,8 @@ CONTAINS
       ! Apply the initial inverse Hessian. A physical OT preconditioner takes precedence over
       ! scalar secant scaling for the orbital block, because it carries the kinetic/overlap metric
       ! and energy scale. The rotation block uses a separately secant-scaled identity.
+      gamma = 1.0_dp
+      IF (nhistory > 0 .AND. yy_newest > 0.0_dp) gamma = 1.0_dp/(rho(1)*yy_newest)
       IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
          DO ispin = 1, nspin
             IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
@@ -1876,10 +1920,9 @@ CONTAINS
                   CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx_im, gamma_rotation)
                END IF
             END IF
+            IF (do_ener) qs_ot_env(ispin)%ener_dx = gamma*qs_ot_env(ispin)%ener_gx_old
          END DO
       ELSE
-         gamma = 1.0_dp
-         IF (nhistory > 0 .AND. yy_newest > 0.0_dp) gamma = 1.0_dp/(rho(1)*yy_newest)
          DO ispin = 1, nspin
             CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx_old)
             CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx, gamma)
@@ -1896,6 +1939,7 @@ CONTAINS
                   CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx_im, gamma_rotation)
                END IF
             END IF
+            IF (do_ener) qs_ot_env(ispin)%ener_dx = gamma*qs_ot_env(ispin)%ener_gx_old
          END DO
       END IF
 
@@ -1921,6 +1965,10 @@ CONTAINS
                   beta = beta + 0.5_dp*tmp
                END IF
             END IF
+            IF (do_ener) THEN
+               beta = beta + DOT_PRODUCT(qs_ot_env(ispin)%ener_h_e(history_index(i), :), &
+                                         qs_ot_env(ispin)%ener_dx)
+            END IF
          END DO
          beta = rho(i)*beta
          DO ispin = 1, nspin
@@ -1942,6 +1990,11 @@ CONTAINS
                                  alpha_scalar=1.0_dp, beta_scalar=alpha(i) - beta)
                END IF
             END IF
+            IF (do_ener) THEN
+               qs_ot_env(ispin)%ener_dx = qs_ot_env(ispin)%ener_dx + &
+                                          (alpha(i) - beta)* &
+                                          qs_ot_env(ispin)%ener_h_x(history_index(i), :)
+            END IF
          END DO
       END DO
 
@@ -1961,6 +2014,10 @@ CONTAINS
                               qs_ot_env(ispin)%rot_mat_dx_im, tmp)
                g_dot_z = g_dot_z + 0.5_dp*tmp
             END IF
+         END IF
+         IF (do_ener) THEN
+            g_dot_z = g_dot_z + DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, &
+                                            qs_ot_env(ispin)%ener_dx)
          END IF
       END DO
 
@@ -1992,6 +2049,7 @@ CONTAINS
                                      qs_ot_env(ispin)%rot_mat_gx_im)
                   END IF
                END IF
+               IF (do_ener) qs_ot_env(ispin)%ener_dx = qs_ot_env(ispin)%ener_gx
             END DO
          ELSE
             DO ispin = 1, nspin
@@ -2006,6 +2064,7 @@ CONTAINS
                                      qs_ot_env(ispin)%rot_mat_gx_im)
                   END IF
                END IF
+               IF (do_ener) qs_ot_env(ispin)%ener_dx = qs_ot_env(ispin)%ener_gx
             END DO
          END IF
          g_dot_z = 0.0_dp
@@ -2024,6 +2083,10 @@ CONTAINS
                                  qs_ot_env(ispin)%rot_mat_dx_im, tmp)
                   g_dot_z = g_dot_z + 0.5_dp*tmp
                END IF
+            END IF
+            IF (do_ener) THEN
+               g_dot_z = g_dot_z + DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, &
+                                               qs_ot_env(ispin)%ener_dx)
             END IF
          END DO
          IF (.NOT. ieee_is_finite(g_dot_z) .OR. g_dot_z <= 0.0_dp) THEN
@@ -2050,6 +2113,11 @@ CONTAINS
                      g_dot_z = g_dot_z + 0.5_dp*tmp
                   END IF
                END IF
+               IF (do_ener) THEN
+                  qs_ot_env(ispin)%ener_dx = qs_ot_env(ispin)%ener_gx
+                  g_dot_z = g_dot_z + DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, &
+                                                  qs_ot_env(ispin)%ener_dx)
+               END IF
             END DO
          END IF
       END IF
@@ -2065,12 +2133,14 @@ CONTAINS
                CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx_im, -1.0_dp)
             END IF
          END IF
+         IF (do_ener) qs_ot_env(ispin)%ener_dx = -qs_ot_env(ispin)%ener_dx
       END DO
       qs_ot_env(1)%gnorm = g_dot_z
       qs_ot_env(1)%gradient = -g_dot_z
 
       k = 0
       n = 0
+      nener = 0
       nrotation = 0_int_8
       CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
       DO ispin = 1, nspin
@@ -2083,8 +2153,10 @@ CONTAINS
                nrotation = nrotation + INT(itmp, KIND=int_8)*INT(itmp + 1, KIND=int_8)/2_int_8
             END IF
          END IF
+         IF (do_ener) nener = nener + SIZE(qs_ot_env(ispin)%ener_x)
       END DO
-      nvariables = INT(n, KIND=int_8)*INT(k, KIND=int_8) + nrotation
+      nvariables = INT(n, KIND=int_8)*INT(k, KIND=int_8) + nrotation + &
+                   INT(nener, KIND=int_8)
       IF (nvariables /= 0_int_8) THEN
          qs_ot_env(1)%delta = SQRT(ABS(g_dot_z)/REAL(nvariables, KIND=dp))
       ELSE
